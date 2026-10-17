@@ -35,12 +35,18 @@
 //   * tests/fixtures/coolbtn_group.bas — QCOOLBTN GroupIndex / Down /
 //     AllowAllUp, Down set by the program;
 //   * tests/fixtures/timer_default.bas — a QTIMER ticks without Enabled set;
+//   * tests/fixtures/timer_after_dialog.bas — a QTIMER ticks on after a modal
+//     dialog closes (RC.EXE's way; only the last window's end stops timers);
 //   * tests/fixtures/late_parent.bas — components parented after the form is shown;
 //   * tests/fixtures/mdi_children.bas — QFORMMDI child windows, OnChildClose's ChildResult.
 //   * tests/fixtures/event_answers.bas — event parameters that come back:
 //     OnClose's Action, OnSelectCell's CanSelect (also a TYPE's EVENT),
 //     OnMeasureItem's Height.
 //   * tests/fixtures/input_events.bas — key and mouse events with RapidQ's arguments.
+//   * tests/fixtures/focus_order.bas — RapidR's OnEnter / OnExit by Tab and a click;
+//     handler_error.bas — a run-time error in a handler ends it (and the one
+//     that fired it), the form goes on; set_events.bas — the events a
+//     program's own sets fire (RC.EXE's).
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.

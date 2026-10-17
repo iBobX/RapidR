@@ -233,6 +233,143 @@ fn pump(timeout: Option<Duration>) {
 thread_local! {
     /// The tray's revision the host shows (rapidr_value::tray).
     static TRAY_SHOWN: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    /// The program is stopped for its debugger ([`gui_serve_paused`]): no
+    /// turn of its own, not even inside a held loop of the system's.
+    static PAUSED: Cell<bool> = const { Cell::new(false) };
+}
+
+thread_local! {
+    /// The user closed the stopped program's last window
+    /// ([`gui_closed_while_paused`]).
+    static CLOSED_PAUSED: Cell<bool> = const { Cell::new(false) };
+    /// (DEBUG-2) The IDE the front went back to at the last stop, and until
+    /// when it goes back again should this program become the active app
+    /// ([`gui_debugger_stopped`]).
+    static HAND_BACK: Cell<Option<(u32, std::time::Instant)>> = const { Cell::new(None) };
+}
+
+/// How long after a stop the program's activation is still Continue's, in
+/// flight, rather than the person's (a Cmd-Tab, Show Program Window).
+const HAND_BACK_FOR: Duration = Duration::from_millis(1500);
+
+/// Whether the user closed the stopped program's last window while its
+/// windows were served ([`gui_serve_paused`]): the debugger ends it, as
+/// Stop does (asked once: taken).
+pub fn gui_closed_while_paused() -> bool {
+    CLOSED_PAUSED.with(|c| c.replace(false))
+}
+
+/// The program is stopped for its debugger (a breakpoint, a step, a pause,
+/// a run-time error — RapidR Studio's session, `rapidr_vm::Host::
+/// serve_paused`): its windows' own events are served once, so they stay
+/// on the screen and reachable as a debugged program's do — painted from
+/// what they show (and what the debugger set meanwhile: a property, a
+/// caption), activated and raised (a click, Cmd-Tab / Alt-Tab, Studio's
+/// Show Program Window), moved, resized, minimized and restored. None of
+/// the program's code runs: no handler, no timer, no test step; the user's
+/// clicks, keys, wheel and menu picks to its windows are dropped
+/// (`Desktop::ignore_user`; the native menus' and the tray's too), so
+/// nothing waits to surprise the program when it goes on — but closing its
+/// last window ends it, as Stop does ([`gui_closed_while_paused`]). What the window
+/// system itself changed (a new size, a new place) is queued as usual and
+/// heard once it goes on (OnResize). Returns once something happened or
+/// another thread woke the loop (`rp_wake`: the session's reader, a
+/// request); `false` when there is nothing to serve — no window shown, the
+/// tests' headless host, inside a system loop that holds the pump (a
+/// native menu tracked: the debugger waits for its requests instead).
+pub fn gui_serve_paused() -> bool {
+    if held() || PAUSED.with(Cell::get) {
+        return false;
+    }
+    let Some(k) = kern() else { return false };
+    {
+        let Ok(k) = k.try_borrow() else { return false };
+        if k.host.headless() || !k.desk.forms.values().any(|f| f.shown) {
+            return false;
+        }
+    }
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            PAUSED.with(|p| p.set(false));
+        }
+    }
+    PAUSED.with(|p| p.set(true));
+    let _restore = Restore;
+    crate::object::rp_in_host_callback(|| {
+        let Ok(mut k) = k.try_borrow_mut() else { return };
+        // (what the debugger changed — a property set from the Immediate
+        // pane, Variables — shows now)
+        sync_desk(&mut k.desk);
+        let Kern { host, desk } = &mut *k;
+        let ignored = std::mem::replace(&mut desk.ignore_user, true);
+        let menu_picks = desk.events.len();
+        desk.held_close = None;
+        host.pump(None, desk, &RtStore);
+        // (stopped right after Continue handed it the front — a handler
+        // that stops at once: Tab into an OnExit's breakpoint, then the next
+        // control's OnEnter's —: the system made it active only after it
+        // gave the front back; the IDE's again, the stop shown there)
+        if let Some((ide, until)) = HAND_BACK.with(Cell::get) {
+            if std::time::Instant::now() > until {
+                HAND_BACK.with(|h| h.set(None));
+            } else if host.active() {
+                rapidr_ui_host_winit::platform::activate_process(ide);
+            }
+        }
+        // (its last window closed by the user: the program ends, as Stop
+        // ends it — none of its code runs, not its OnClose)
+        if desk.take_held_last_close().is_some() {
+            CLOSED_PAUSED.with(|c| c.set(true));
+        }
+        // (a native menu's pick: dropped as a click is — the picks queue
+        // straight into the events, without the input's check)
+        let mut kept = Vec::with_capacity(desk.events.len());
+        for (i, e) in std::mem::take(&mut desk.events).into_iter().enumerate() {
+            let pick = i >= menu_picks && matches!(e, HostEvent::Kernel(_, rapidr_ui_kernel::KernelEvent::MenuPick(_) | rapidr_ui_kernel::KernelEvent::Close(_)));
+            if !pick {
+                kept.push(e);
+            }
+        }
+        desk.events = kept;
+        desk.ignore_user = ignored;
+        // (the tray's clicks: dropped too)
+        let _ = host.tray_clicks();
+    });
+    true
+}
+
+/// Whether the program is stopped for its debugger (its windows served by
+/// [`gui_serve_paused`]).
+pub fn paused() -> bool {
+    PAUSED.with(Cell::get)
+}
+
+/// (RapidR Studio's debugger) Process `pid`'s windows to the front, its app
+/// active — handed over by this one, the active app
+/// (`rapidr_ui_host_winit::platform::activate_process`): Studio's Show
+/// Program Window and Continue raise its program. Nothing under a test's
+/// headless host.
+pub fn activate_process(pid: u32) -> bool {
+    ensure_host();
+    !headless() && rapidr_ui_host_winit::platform::activate_process(pid)
+}
+
+/// (RapidR Studio's debugger) The program stopped — a breakpoint, a step's
+/// end, a pause, a run-time error: the front goes back to the IDE that runs
+/// it (`RAPIDR_SESSION_IDE`: its process id), which shows where it stopped,
+/// as a debugger comes forward at a breakpoint. The program hands it over:
+/// it is the active app when the user was using it (a click ran the handler
+/// with the breakpoint) — the system's own idea of that, not the last focus
+/// event seen, which can lag behind a click that activated the app. When
+/// the IDE is in front already (a step from it) nothing moves.
+pub fn gui_debugger_stopped() {
+    let Some(ide) = std::env::var("RAPIDR_SESSION_IDE").ok().and_then(|p| p.trim().parse::<u32>().ok()) else { return };
+    if !started() || headless() {
+        return;
+    }
+    rapidr_ui_host_winit::platform::activate_process(ide);
+    HAND_BACK.with(|h| h.set(Some((ide, std::time::Instant::now() + HAND_BACK_FOR))));
 }
 
 /// One step of the innermost wait (see the module's doc).
@@ -335,10 +472,17 @@ fn dispatch_pending() {
         match e {
             // (a kernel-drawn dialog's: never the program's)
             HostEvent::Kernel(form, ev) if rapidr_ui_kernel::dialogs::is_dialog(&form) => rapidr_ui_app::dialogs::event(Rt, &form, ev),
+            // (in a ShowModal's turn a native handler's run-time error ends
+            // that event, the next ones still come — RapidQ's message loop;
+            // in a DOEVENTS' turn it goes on to its caller: rapidr_value::
+            // catching)
+            HostEvent::Kernel(_, ev) if rapidr_value::catches_here() => rapidr_value::catching(|| rapidr_ui_app::dispatch::dispatch(Rt, ev)),
             HostEvent::Kernel(_, ev) => rapidr_ui_app::dispatch::dispatch(Rt, ev),
             HostEvent::Wake => {}
         }
     }
+    // (RapidR's Application.OnThemeChange: the look changed this turn)
+    rapidr_ui_app::dispatch::look_changed(Rt);
 }
 
 // --------------------------------------------------------------- timers --
@@ -411,10 +555,20 @@ fn tracking_tick(desk: &mut Desktop) -> rapidr_ui_host_winit::tracking::Turn {
         }
     }
     let _held = Held(HELD.with(|h| h.replace(true)));
+    // (stopped for the debugger: Windows' size / move loop held the pump —
+    // the window is drawn, the program gets no turn)
+    if paused() {
+        sync_desk(desk);
+        return rapidr_ui_host_winit::tracking::Turn { next: None, end_loop: false };
+    }
+    // (a native handler's run-time error ends its turn, not the program —
+    // nor may it unwind through the system's loop: rapidr_value::catching)
     crate::object::rp_program_turn(|| {
-        timers::fire_due_then(Rt, crate::object::rp_serve_program);
-        lists::pre_paint(Rt, &forms::shown_forms());
-        crate::object::rp_serve_program();
+        rapidr_value::catching(|| {
+            timers::fire_due_then(Rt, crate::object::rp_serve_program);
+            lists::pre_paint(Rt, &forms::shown_forms());
+            crate::object::rp_serve_program();
+        })
     });
     sync_desk(desk);
     desk.tick(&RtStore, rapidr_ui_kernel::tick::now());
@@ -627,7 +781,7 @@ pub fn gui_start_drag(name: &str) {
     // (a GUI test's script plays the mouse meanwhile)
     script::input_awaited(rapidr_ui_kernel::tick::now());
     while form_dragging(&form) && forms::form_shown(&form) {
-        step(None);
+        wait_turn();
     }
 }
 
@@ -699,11 +853,22 @@ pub fn gui_showmodal(name: &str) -> i64 {
     }
     forms::show_pending(Rt);
     while forms::modal_waits(&name) {
-        step(None);
+        wait_turn();
     }
-    // (the timers stop with the modal form)
-    crate::object::rp_stop_all_timers();
+    stop_timers_if_last(&name);
     forms::modal_ended(Rt, &name)
+}
+
+/// A modal form's ShowModal ends: the program's timers stop with its last
+/// window — the main form's ShowModal ending is the program's end — but a
+/// dialog closed over a window still shown leaves them ticking (RapidQ's
+/// timers don't stop when a dialog closes: a timer that showed a dialog, or
+/// ticks under one, goes on).
+fn stop_timers_if_last(form: &str) {
+    let others = forms::shown_forms().iter().any(|f| !f.eq_ignore_ascii_case(form));
+    if !others {
+        crate::object::rp_stop_all_timers();
+    }
 }
 
 /// Whether `name` is shown modally now (setting its ModalResult closes it).
@@ -731,7 +896,8 @@ pub fn gui_doevents() {
         waits::start(Wait::Once(rapidr_ui_kernel::tick::now()));
         return;
     }
-    step(Some(Duration::ZERO));
+    // (a handler's run-time error in this turn goes on to DOEVENTS' caller)
+    rapidr_value::passing(|| step(Some(Duration::ZERO)));
 }
 
 /// INPUT$'s wait with windows: events are served until a key reaches
@@ -759,9 +925,18 @@ pub fn gui_wait_key() -> Option<bool> {
         if !forms::any_shown() {
             return Some(false);
         }
-        step(None);
+        wait_turn();
     }
     Some(true)
+}
+
+/// A turn of a native build's wait that goes on after a run-time error in
+/// a handler it runs (ShowModal's, a dialog's, INPUT$'s, a drag's, a
+/// kernel-drawn menu's — not DOEVENTS', which passes it on): the handler
+/// stops there, the wait goes on, as RapidQ's (`rapidr_value::catching`;
+/// the interpreter's, `rapidr_vm`'s `after_host`).
+pub(super) fn wait_turn() {
+    rapidr_value::catching(|| step(None));
 }
 
 /// A method that waits for work done in the background (QDOWNLOAD's
@@ -848,7 +1023,7 @@ pub fn gui_pump_wait() -> Option<Value> {
     }
     if waits::over() {
         if let Some(Wait::Form(form)) = waits::pop() {
-            crate::object::rp_stop_all_timers();
+            stop_timers_if_last(&form);
             return Some(v_int(forms::modal_ended(Rt, &form)));
         }
         return Some(v_null());
@@ -998,6 +1173,12 @@ pub fn set_theme(theme: &str) {
     platform::theme(theme);
 }
 
+/// As the program starts: RapidR's look as the system is from the first
+/// thing drawn or read (platform.rs).
+pub fn start_theme() {
+    platform::start();
+}
+
 /// What the kernel host doesn't do yet (said once per feature).
 fn pending(what: &str) {
     thread_local! {
@@ -1032,6 +1213,13 @@ pub fn mouse() -> (i64, i64) {
     with_kern(|k| k.host.mouse())
         .or_else(|| (held() && !headless_known()).then(rapidr_ui_host_winit::platform::global_mouse).flatten().map(|(x, y)| (x.round() as i64, y.round() as i64)))
         .unwrap_or((0, 0))
+}
+
+/// The system's look isn't asked (light: a GUI test's headless host, whose
+/// captures mustn't depend on the machine) — before the host is made too:
+/// a real run asks the system from the program's first line.
+fn headless_look() -> bool {
+    with_kern(|k| k.host.headless()).unwrap_or_else(headless_known)
 }
 
 /// The host is the headless one (whose mouse stays at (0, 0)).

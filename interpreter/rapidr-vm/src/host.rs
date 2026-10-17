@@ -66,6 +66,24 @@ pub trait Host {
     fn wait_started(&mut self) -> bool {
         false
     }
+    /// Asked right after [`Host::wait_started`] said yes: whether the wait
+    /// is an event loop that goes on after a run-time error in a handler it
+    /// ran (RapidQ's ShowModal — RC.EXE, 2026-10-16: the handler, and the
+    /// handlers that fired it, stop at the error; no message; the form keeps
+    /// answering). A DOEVENTS' or a Popup's turn passes the error on to the
+    /// code that called it, as RapidQ's does (a main program's DOEVENTS
+    /// loop ends there).
+    fn wait_catches_errors(&mut self) -> bool {
+        false
+    }
+    /// A handler run by a wait that catches errors failed
+    /// ([`Host::wait_catches_errors`]): the error, worded as the program's
+    /// run-time errors are, for the program's error output (RapidQ shows
+    /// none; RapidR says it where a person running the program looks:
+    /// standard error, the IDE's Output). The program goes on.
+    fn handler_failed(&mut self, error: &str) {
+        eprintln!("{error}");
+    }
     /// Processes pending UI events once for the innermost wait: `None`
     /// while it goes on, `Some(result)` when it's over (the result of the
     /// operation that started it).
@@ -81,6 +99,25 @@ pub trait Host {
     #[allow(clippy::type_complexity)]
     fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
         None
+    }
+    /// The program is stopped for its debugger (a breakpoint, a step, a
+    /// pause, a run-time error): its windows' own events are served once —
+    /// painted from what they show, activated, raised, moved, resized —
+    /// and nothing of the program runs: no handler, no timer; the user's
+    /// clicks and keys to its windows are dropped. Returns once something
+    /// happened, or another thread woke the host (a request for the
+    /// debugger arrived). `false`: nothing to serve (no window shown, a
+    /// test's headless host, a system loop holding the pump), and the
+    /// debugger waits for its requests instead. A paused program's windows
+    /// stay on the screen and reachable, as a debugged program's should.
+    fn serve_paused(&mut self) -> bool {
+        false
+    }
+    /// After [`Host::serve_paused`]: the user closed the stopped program's
+    /// last window meanwhile — the debugger ends it, as its Stop does (none
+    /// of its code runs, not its OnClose).
+    fn closed_while_paused(&mut self) -> bool {
+        false
     }
     /// The type (`RBUTTON` …) of the program's component `id`, for the
     /// debugger (`None`: no such component, or the host has none).

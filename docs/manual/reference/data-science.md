@@ -143,6 +143,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `Width` | ✓ | ✓ | The width, in pixels; on `Screen`, the screen's. |
 | `Ncols` | ✓ | ✓ | The number of columns in the data frame. |
 | `Empty` | ✓ | ✓ | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
+| `Error` | ✓ | ✓ | Why the last LoadFromCSV, SaveToCSV, LoadFromJSON or SaveToJSON couldn't read or write its file, in plain words ("staff_edited.csv: this folder can't be written (it is read-only, or not yours)"); "" when it could. Check it after a save to tell the user. |
 
 ### Methods
 

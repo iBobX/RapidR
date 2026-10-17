@@ -247,6 +247,16 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     crate::links::apply();
 }
 
+/// A property the program sets (an assignment in its code: the VM's, a
+/// native build's): the events RapidQ fires for it fire inside the set — an
+/// edit's OnChange, a check box's OnClick … (`rapidr_value::events::
+/// program_set`, RC.EXE's table in docs/manual/events.md). What the runtime
+/// sets itself (the user's input, a model) goes through [`rp_comp_set`].
+pub fn rp_prop_set(name: &str, prop: &str, val: Value) {
+    let t = rp_comp_type(name);
+    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e));
+}
+
 fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {
@@ -1873,6 +1883,15 @@ pub fn rp_set_cooperative_waits(on: bool) {
 }
 
 /// Whether the last operation started a wait (asked once per operation).
+/// Whether the wait just started goes on after a run-time error in a
+/// handler it runs (a ShowModal: `rapidr_ui_app::waits::innermost_catches`).
+pub fn rp_wait_catches_errors() -> bool {
+    #[cfg(feature = "gui")]
+    return rapidr_ui_app::waits::innermost_catches();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
 pub fn rp_take_wait_started() -> bool {
     #[cfg(feature = "gui")]
     return crate::ui::gui_take_wait_started();
@@ -1904,6 +1923,34 @@ pub fn rp_wake() {
     }
 }
 
+/// The program is stopped for its debugger: its windows' own events served
+/// once — painted, activated, moved — with none of its code run and the
+/// user's input to them dropped (`crate::ui::kernel::gui_serve_paused`);
+/// `false` when there is nothing to serve (no window shown, no window
+/// system): the debugger waits for its requests instead.
+pub fn rp_serve_paused() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::ui::gui_serve_paused();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
+/// The user closed the stopped program's last window while its windows
+/// were served ([`rp_serve_paused`]): the debugger ends it, as Stop does.
+pub fn rp_closed_while_paused() -> bool {
+    #[cfg(feature = "gui")]
+    return crate::ui::gui_closed_while_paused();
+    #[cfg(not(feature = "gui"))]
+    false
+}
+
+/// The program stopped for its debugger: when it was the active app, the
+/// front goes back to RapidR Studio (`crate::ui::kernel::gui_debugger_stopped`).
+pub fn rp_debugger_stopped() {
+    #[cfg(feature = "gui")]
+    crate::ui::gui_debugger_stopped();
+}
+
 /// One step of the innermost wait: `None` while it goes on, `Some` when over.
 pub fn rp_pump_wait() -> Option<Value> {
     #[cfg(feature = "gui")]
@@ -1921,16 +1968,17 @@ thread_local! {
 }
 
 /// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
-/// rows from it: what it parsed or loaded, else its FileName's file.
-pub(crate) fn json_document(name: &str) -> Option<String> {
+/// rows from it: what it parsed or loaded, else its FileName's file (Err:
+/// that file and why it can't be read).
+pub(crate) fn json_document(name: &str) -> Option<Result<String, (String, String)>> {
     if let Some(text) = JSON_STORES.with(|s| s.borrow().get(&name.to_lowercase()).map(|v| v.to_string())) {
-        return Some(text);
+        return Some(Ok(text));
     }
     let file = rp_comp_get(name, "filename").to_string_val();
     if file.trim().is_empty() {
         return None;
     }
-    rapidr_value::datascience::link::read_beside(file.trim()).ok()
+    Some(rapidr_value::datascience::link::read_beside(file.trim()).map_err(|e| (file.trim().to_string(), e)))
 }
 
 fn json_method(name: &str, method: &str, args: &[Value]) -> Value {

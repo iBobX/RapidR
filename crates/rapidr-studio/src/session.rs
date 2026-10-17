@@ -23,6 +23,7 @@
 //! | `LocalsRef`, `GlobalsRef`, `ComponentsRef` | the selected frame's locals', the globals' and the program's components' references, for `Variables` |
 //! | `Watches` | the watch expressions, one a line; evaluated at every stop |
 //! | `Start` → True / False, `Stop`, `Pause`, `Continue`, `StepIn`, `StepOver`, `StepOut` | |
+//! | `ShowProgram` → True / False | the program's windows to the front, its app active (Show Program Window; a paused program's windows show and move but take no input) |
 //! | `SetBreakpoint(File, Line [, Condition [, HitCount [, LogMessage]]])`, `ClearBreakpoint(File, Line)`, `ClearBreakpoints([File])` | lines from 1 |
 //! | `RunToCursor(File, Line)` | on to that line (a stopped program starts) |
 //! | `StackTrace`, `Variables(Ref)`, `WatchValues` → text | what the last stop fetched: one item a line, its fields tab-separated — a variable's name, value, type, children's reference, how many, the expression naming it, 1 when its value changed since the last stop, a table's columns and a table row's cells (CHR$(31) between them); a watch's expression, value, type, reference, changed, how many children |
@@ -347,6 +348,9 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::Null
         }
         "pause" => r(with(name, |m| m.session.pause())),
+        // (the program's windows to the front, its app active: Studio's
+        // Show Program Window, Continue)
+        "showprogram" => flag(with(name, |m| m.session.show_program())),
         "continue" => r(with(name, |m| m.session.continue_())),
         "stepin" | "stepinto" => r(with(name, |m| m.session.step_in())),
         "stepover" => r(with(name, |m| m.session.step_over())),

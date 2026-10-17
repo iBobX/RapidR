@@ -30,8 +30,10 @@ impl Endpoint {
 
     /// The base URL requests go to, without a trailing `/`.
     pub fn base(&self) -> String {
-        let b = self.base_url.trim();
-        let b = if b.is_empty() { self.provider.base_url } else { b };
+        let b = self.base_url.trim().trim_end_matches('/');
+        // (the provider's own address — named or not — is the tests' server
+        // when one is set: crate::provider::test_server)
+        let b = if b.is_empty() || b.eq_ignore_ascii_case(self.provider.base_url) { crate::provider::default_base(self.provider) } else { b.to_string() };
         b.trim_end_matches('/').to_string()
     }
 
@@ -417,20 +419,28 @@ pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<
     let said = provider_message(body);
     let low = format!("{said} {body}").to_ascii_lowercase();
     let name = short_name(p);
-    let quoted = if said.is_empty() { String::new() } else { format!(" ({name} says: \"{}\")", said.trim_end_matches('.')) };
+    // (the provider's words, at most a line or two: the explanation shows
+    // whole in a settings dialog or a program's status line)
+    let short = if said.chars().count() > 160 {
+        let cut: String = said.chars().take(160).collect();
+        format!("{}…", cut.rsplit_once(' ').map_or(cut.as_str(), |(a, _)| a).trim_end_matches([',', ';', ':']))
+    } else {
+        said.trim_end_matches('.').to_string()
+    };
+    let quoted = if said.is_empty() { String::new() } else { format!(" ({name} says: \"{short}\")") };
     let (kind, message) = if low.contains("anthropic-workspace-id") || low.contains("not scoped to a workspace") {
-        (ErrorKind::Workspace, "This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in Workspace ID in Tools > Settings > AI (the Claude Console lists your workspaces), or make a key inside a workspace.".to_string())
+        (ErrorKind::Workspace, "This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in the Workspace ID (the Claude Console lists your workspaces), or make a key inside a workspace.".to_string())
     } else if status == 402 || low.contains("insufficient_quota") || low.contains("insufficient balance") || low.contains("credit balance is too low") || low.contains("exceeded your current quota") {
         (ErrorKind::Credit, format!("Your {name} account has no credit left for this key{quoted}. Add credit on {name}'s website; RapidR can't do it for you."))
     } else if status == 401 || low.contains("invalid_api_key") || low.contains("invalid x-api-key") || low.contains("incorrect api key") {
-        (ErrorKind::Key, format!("{name} refused the API key (401){quoted}. Check it in Tools > Settings > AI: it may be mistyped, revoked, or a key of another provider."))
+        (ErrorKind::Key, format!("{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider."))
     } else if status == 403 {
         (ErrorKind::Permission, format!("{name} doesn't let this key do that (403){quoted}."))
     } else if low.contains("context_length") || low.contains("context length") || low.contains("prompt is too long") || low.contains("too many tokens") || status == 413 {
         (ErrorKind::TooLong, format!("The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more."))
     } else if status == 404 || low.contains("model_not_found") || (low.contains("model") && low.contains("does not exist")) {
         let m = if model.is_empty() { "this model".to_string() } else { format!("The model \"{model}\"") };
-        (ErrorKind::Model, format!("{m} isn't available to your key (404){quoted}. Press Fetch Models in Tools > Settings > AI and pick one from the list."))
+        (ErrorKind::Model, format!("{m} isn't available to your key (404){quoted}. List the provider's models again and pick one of them."))
     } else if status == 429 {
         let wait = retry_after.map_or("a minute".to_string(), |s| format!("{s} seconds"));
         (ErrorKind::RateLimit, format!("{name} is limiting how often this key asks (429): wait {wait} and try again."))
@@ -448,8 +458,8 @@ pub fn explain_connection(ep: &Endpoint, what: &str) -> ApiError {
     let local = host.starts_with("localhost") || host.starts_with("127.0.0.1");
     let hint = if local {
         " Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page.".to_string()
-    } else if what.to_ascii_lowercase().contains("timed out") || what.to_ascii_lowercase().contains("timeout") {
-        String::new()
+    } else if what.to_ascii_lowercase().contains("timed out") || what.to_ascii_lowercase().contains("timeout") || what.contains(" seconds") {
+        " Try again in a moment, and check the internet connection.".to_string()
     } else {
         " Check the internet connection.".to_string()
     };

@@ -7,7 +7,111 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Showcase: eight bigger programs, written from ideas alone** in
+  `examples/showcase/` (the data is made up by the programs; nothing is copied).
+  Fireworks (thousands of sparks, each with its own physics, shapes worked out
+  with `RNum`), a lit 3D planet with a ring and a moon, pi by throwing
+  darts (`RNum` throws and counts up to 300,000 a second), four sets of points
+  with the very same statistics, a Markdown notes app (live preview; files on
+  the desktop, the browser's storage on the web), a snake game for the
+  keyboard alone (the computer can play), a signal generator with an
+  oscilloscope and an FFT written in BASIC, and a MIDI visualizer that reads
+  the `.mid` file itself and makes a 3D scene dance to it (`song.mid` is an
+  original loop made by `make_song.rr`). Each runs as `rapidr run`, interpreted,
+  native and in the browser; Studio lists them under **Open an Example** (the
+  palette; the Welcome page keeps its cards); the manual has a
+  [Showcase page](docs/manual/showcase.md) with a picture and the best lines of
+  each. The examples test can now compare a written file with the shipped one
+  (`sameFile`), copy another example's file beside a program (`extra`) and open
+  the web page again to check what the browser kept (`reload`).
+
 ### Fixed
+- **RapidR Studio's examples work where RapidR is installed.** The examples
+  there can't be changed (the macOS app, `/usr/lib/rapidr`, Program Files), and
+  `million_rows.rr` "wrote" its data and said so while nothing was written. Now
+  opening one — a Welcome card, File > Open Example, the palette, Recent, File >
+  Open, the command line — opens your own copy in
+  `Documents/RapidR/Examples/<name>`, made the first time with its include and
+  data files (the very files `rapidr examples copy` takes: one implementation,
+  `rapidr_project::program_files`) and never overwritten after; the Output says
+  where it is, with **Copy again from the original** (also File > Copy Example
+  Again from the Original…, which asks first). An install's examples are copied
+  even where the user could write them (a macOS app dragged to Applications:
+  nothing is written inside RapidR). A checkout's examples still open where
+  they are. `RAPIDR_DOCUMENTS` names another Documents folder (the tests').
+- **Built apps find their data files.** `rapidr build` (native and interpreted,
+  every system) puts the data files the program names with the app — a macOS
+  app's `Contents/Resources`, beside the `.exe`, an AppDir's `usr/bin` — and says
+  so; an app the desktop starts (Finder and `open` start it in `/`, a Linux
+  launcher in the home folder) works in that folder, as a RapidQ program
+  double-clicked on Windows works in its `.exe`'s. Started from a terminal,
+  programs keep the terminal's folder, and an RCSV or RJson that finds no file
+  there reads the app's own. Console programs never move.
+- **The data examples say when something failed**: `million_rows.rr` run where
+  it can't write says so in its window (with why, the buttons off) instead of
+  an empty grid and a "written" line; `linked_data.rr`'s and `json_source.rr`'s
+  Save say "Couldn't save staff_edited.csv: this folder can't be written…";
+  a missing `staff.csv` or `products.json` is said in the window, not "Row 1 of
+  0"; `basics/files.rr` and `data/json.rr` too.
+- `json_source.rr`: letters typed into the numeric Stock edit are refused (the
+  status says why), the arrow keys in the grid update the status line, and
+  grouped by category the first edit shows the category instead of going blank.
+- `rapidr examples copy rapidq/shapes` (an example by its topic) works as
+  `copy shapes` did; `rapidr examples` names the manual's pages where they are
+  (an install's `share/doc/rapidr/manual`, a checkout's `docs/manual`, else
+  on the web).
+
+### Added
+- `RDataFrame.Error` (why its last LoadFromCSV / SaveToCSV / LoadFromJSON /
+  SaveToJSON failed, in plain words), `RJson.Error` (why its records couldn't be
+  read as a data source), `REdit.DataError` (why what the user typed isn't its
+  number field's value — the field keeps its value): RapidR's, every runtime,
+  in the language registry.
+
+### Changed
+- **Events fire as RapidQ fires them** (checked against RapidQ's own compiler,
+  RC.EXE, in the Windows VM). Setting a property from code now fires the event the
+  user's change fires, inside the assignment: an `REdit`'s Text or SelText that
+  changes, its OnChange; an `RRichEdit`'s Text, OnChange (twice once its form has
+  shown, as RapidQ's); an `RCheckBox`'s Checked, OnClick; an `RRadioButton` turned
+  on, OnClick; an `RScrollBar`'s Position, OnChange. A combo box's or list box's
+  ItemIndex, a track bar's Position and a tab control's TabIndex fire nothing, as in
+  RapidQ. Every runtime (the interpreter, native builds, the web). The table:
+  docs/manual/components.md, "Events your own code fires".
+- **A run-time error in an event handler no longer ends the program**: as in
+  RapidQ, the handler stops at the line — with the handlers that fired it — and the
+  program goes on answering its events, its timers ticking; the error is written to
+  the program's error output (Studio's Output). In an event run by `DOEVENTS` the
+  error also stops the code that called it (a main program's `DOEVENTS` loop ends,
+  as RapidQ's). Under the debugger, Continue at such an error does the same — the
+  next click stops at the error again. Desktop, native builds and the web alike.
+
+### Added
+- **OnEnter and OnExit on every component that takes the focus** (RapidR's, as
+  Delphi's; RapidQ has OnEnter only on its lists, where it never fires, and no
+  OnExit): the component left hears OnExit, then the one reached OnEnter, before a
+  click's own events — by Tab, a click, SetFocus, a mnemonic. In the language
+  registry (27 components) and RapidR Studio's Events tab; a breakpoint in either
+  stops every time. Example: `examples/gui/focus_events.rr`.
+- **The debugger's scenarios as flows on both hosts**: stepping inside a handler
+  (Step Into, Step Out, Run to Cursor, Set Next Statement), a breakpoint on a loop's
+  body (every pass) and on a one-line loop (once), a recursive FUNCTION (every
+  level, the Call Stack listing them all), a breakpoint taken off and put back while
+  the program runs, a breakpoint in an `$INCLUDE`d file (it opens there).
+
+### Fixed
+- **RapidR Studio on the web: a click in Studio while the program runs gives Studio
+  the keyboard back** (the program's frame kept it: F9 or Ctrl+G went to the
+  program).
+- **A stop right after Continue shows in Studio on macOS** (Tab from a field into
+  an OnExit breakpoint, Continue, the next field's OnEnter breakpoint): the system
+  made the program active only after it had given the front back, so the stopped
+  program stayed in front of Studio. A program stopped then hands the front back
+  again for a moment (found walking the debugger on the real screen).
+- **RapidR Studio's status bar shortens a long file name in its middle** (the line
+  number kept: `Breakpoint: a_pro…he_status_bar.rr:6`); resting the mouse on
+  the bar shows the whole. It was cut off at the end, the line lost.
 - **RapidR Studio's dark and high-contrast themes are readable everywhere.** The
   debugger's Variables, Watch, Call Stack and Breakpoints rows and the Breakpoints
   pane's When / Hit / Log / On labels were black or dark grey on the dark ground:
@@ -180,6 +284,140 @@ The sections below say what each piece of work changed.
   inspector's **SetChoices** / **SetNote** (a program's own list and note on a property), and
   secret properties shown masked and never written into code.
 - Manual: [The AI assistant and RAI](docs/manual/ai-assistant.md).
+
+### The AI, used as you use it (AI-REAL, before the release)
+Robert's run of the Preview 2 build found what the tests hadn't: they checked that things
+compiled and returned, not what a person sees. Each of these was walked on the real screen —
+with the three providers' real model lists and answers, and a local stand-in for the errors.
+- **Fetch Models fills the Model list.** It said "Anthropic lists 14 models" over an empty list
+  (the row refresh after it emptied the list again); now the list has them, the fast, low-cost
+  ones first, and the model you pick is the one Settings shows when you open it again.
+- **A refused key no longer locks Fetch Models.** After a 401 the button stayed greyed until
+  Studio was restarted. Now every way a request can end gives it back at once: the list, a
+  refusal, a server that answers with a web page, a provider that doesn't answer (it is given 30
+  seconds; 10 to connect), another provider picked meanwhile, the dialog closed. What happened is
+  said in plain words under the list, all of it — however many lines it takes.
+- **Cancel leaves the assistant as it was.** Settings has its own RAI now: trying other providers,
+  fetching their lists, trying a key you typed change nothing of the assistant until OK (they used
+  to switch it, losing its key and its models). A key typed is only tried until OK or Save Key
+  keeps it; Save Key and Remove act on the keychain at once. After OK the Send button is enabled
+  (it waited for something else to happen first), and the Assistant pane's model list is the one
+  Settings fetched.
+- **Anthropic's workspaces.** When Anthropic wants to know the workspace of an organisation's
+  key, Settings says so and puts the cursor in Workspace ID. The workspace is only sent to
+  Anthropic, and the address typed for an OpenAI-compatible server only to that server (a
+  cloud provider used it too after you'd once set one).
+- **examples/ai/rai_models.rr ("Ask an AI")**: a Workspace ID row for Anthropic, with Studio's
+  wording; its layout fits its window at the default size in every look and on the web (no
+  scroll bar, nothing cut), follows the window when it's made bigger, and says what went wrong in
+  up to four lines; link colours from the theme; List Models comes back after an error;
+  switching provider forgets the model of the other one.
+- **Tidier rows**: Settings > AI's rows close up for each provider (no gap where the Workspace ID
+  or the address is hidden); the Assistant's empty text and the review bar's sentence wrap in a
+  narrow pane; the inspector's lists (an RAI's Model row) are as wide as their longest name and
+  stay inside the window; "Nothing was changed" when a review applies no change.
+- **RAI**: a models list on its way is dropped when Provider, BaseURL, WorkspaceID or the key
+  change, and a newer RefreshModels replaces it (OnDone("cancelled")); errors no longer name
+  Studio's menus (your program's users see them too); a provider's own words in them are cut at
+  160 characters. On the web a request that gets no answer is given up after the same time
+  limits as on the desktop (a browser's `fetch` has none).
+- **Timers keep ticking after a dialog closes.** The end of any ShowModal stopped every timer of
+  the program — Studio's own too, after Settings or any other dialog. Now only the program's last
+  window does, as under RapidQ (RC.EXE: a timer ticks on after a dialog it showed is closed).
+- **`RComboBox.Clear` empties the text too**, chosen or typed, every Style — as RC.EXE does (the
+  "Ask an AI" example's model list kept showing the other provider's model).
+- **Tests that use it as you do**: a local stand-in for Anthropic, OpenAI and DeepSeek
+  (`RAPIDR_AI_TEST_SERVER`, accepted for 127.0.0.1, [::1] or localhost only) with each one's real
+  error shapes, chosen by the made-up key typed: refused, failing, silent, a web page, empty, an
+  organisation's key. Studio flows click and type through the settings dialog on the desktop
+  and the web — the list's items, the button back after a 401 and a retry that works, Cancel, a
+  silent provider, the 30-second limit, the workspace header sent — in light, dark and high
+  contrast with the contrast gate; the example's tests cover the workspace and a refused key.
+
+### Running and debugging, used as you use it (DEBUG-RUN, before the release)
+Robert's run of the Preview 2 build, paused at a breakpoint in examples/gui/themes.rr after a
+click on its Dark button: the ▶ button was greyed, and the program's window vanished once he had
+switched to another app. Both fixed and walked on the real screen, in light, dark and high contrast.
+- **▶ continues a paused program.** Run (F5, the ▶ button, Run ▸ Run) is *Continue* while the
+  program is paused — the menu item says so and the button's tip is "Continue (F5)" — and F5
+  belongs to it alone (Debug ▸ Continue shows the key). Every Run and Debug command is now enabled
+  exactly when it can act: Run, Stop and Restart right after a run that ended with an error (Run
+  was greyed, Stop enabled with nothing to stop); the steps and Run to Cursor off while the program
+  runs. A new state table — not running, running, stepping, paused at a breakpoint or a run-time
+  error, ended, closed by its own close box — is checked on the menus, the tool bar and the command
+  palette, driven by real keys and clicks on the desktop and in the browser
+  (`tests/studio_flows.mjs` debug-commands-*).
+- **A paused program's windows stay on the screen and reachable.** Stopped for the debugger, the
+  program kept its main thread waiting for Studio: no window-system events, so its window couldn't
+  be raised, repainted or brought back (and looked hung). Now it keeps serving the window system
+  while it's paused — painted from what it shows, activated with a click or Cmd-Tab / Alt-Tab,
+  moved, resized, minimized — without running any of its code: no handler, no timer. Clicks and
+  keys to its windows are dropped while it's paused (not queued to surprise it later), on the
+  desktop and in the browser alike; closing its last window ends it, as Stop does (Studio back to
+  Ready, Run enabled); a value set from Variables or the Immediate pane shows in its windows at
+  once.
+- **The right window in front.** The program's first window comes up in front of Studio (it
+  opened behind it); a stop while you were using the program brings Studio to the front;
+  Continue, Run to Cursor and a step that takes longer than half a second bring the program back.
+  **Debug ▸ Show Program Window** brings it forward any time it runs or is paused
+  (`RProgramSession.ShowProgram`). macOS (cooperative activation), Windows and Linux on X11; on
+  Wayland the system lets no program raise another's windows.
+- **Event handlers, debugged as you debug them** (Robert's scenarios 1–6). A breakpoint in a
+  handler stops on every event — each click, each letter typed (hello_form.rr's one-line OnChange
+  stopped once, then never again), each OnTimer, OnResize, OnMouseMove, OnClose, OnKeyPress and
+  focus event — after Continue and after a Step Over out of the handler; a handler that opens a
+  dialog steps over it and stops on the next line; a handler that fires another stops in the inner
+  one with both on the call stack; a run-time error in a handler stops at its line. In the
+  browser: a timer whose OnTimer was stopped ticks again after Continue, and the paused program's
+  window no longer takes the keyboard back from Studio (F5 and F10 reached the stopped program and
+  were dropped — a nested OnResize looked as if it stopped forever). Each case is a flow on the
+  desktop and in the browser (`debug-events-*`), three stops each.
+- **Globals shows your variables first.** The constants an `$INCLUDE` brings (RAPIDQ.INC's 484
+  colours, keys and button codes buried a program's own globals) are now under one closed item per
+  file after them: `$INCLUDE RAPIDQ.INC (484 names)`.
+- Manual: [Debugging](docs/manual/debugging.md) — "Which commands you can use when", "Your
+  program's window and Studio's", "Breakpoints in event handlers" and Variables' Globals.
+
+### Themes that follow the system, used as you use it (THEME-LIVE, before the release)
+Robert's run of the Preview 2 build on a Mac in Dark: "Welcome screen is not responding to theme
+changes, it's always light." Studio set its look before its window existed, when RapidR still
+answered "light" for the system; half a second later it turned dark, but every colour Studio had
+taken from the theme — the Welcome page, its cards, headings and links — stayed light. Fixed, and
+walked on the real screen.
+- **Programs open in the system's look.** A program in RapidR's look (the default, `$THEME
+  rapidr`) reads the system's light, dark or high contrast from its first line — before its first
+  window — on macOS, Windows and Linux; on the web, the page's colour scheme.
+- **`Application.OnThemeChange`** (RapidR's, additive): fires once the look has changed — the
+  program set `Application.Theme` to another look, or the system switched (macOS' Appearance or
+  Increase Contrast, Windows' app mode or High Contrast, the browser's colour scheme or forced
+  colours) while the program follows it. Once per change, after it, from the moment it's bound.
+  Colours read with `Application.ThemeColor` are numbers: take them again there. Desktop, native,
+  interpreter and web; its language-registry entry with its AI facets.
+- **RapidR Studio follows the system, and every View ▸ Theme switch,** everywhere at once: the
+  Welcome page and its cards, the panes, the status bar, the designer, the debugger's panes and
+  changed values, and the dialogs — Settings, New Project, Project Options and the save question
+  — even while they are open. A guard (`tests/studio_theme_follow.mjs`) switches the look while
+  Studio runs and compares it, pixel for pixel, with Studio started in that look: the Welcome page
+  (and scrolled), the designer, those dialogs open, the debugger paused; desktop and web; and the
+  browser's own colour-scheme switch on a live page.
+- **The Welcome page scrolls, and its cards are Tab stops.** At Studio's default size six of its
+  sixteen example cards were cut off or hidden, with no way to reach them. The page now scrolls
+  (the wheel, the bar), Tab and Shift+Tab go from card to card — the page scrolls to the one
+  reached — and Enter or Space opens it; screen readers hear each as a button. Studio still starts
+  with the keyboard in the Project pane.
+- **`TabStop` on an `RPanel`** (RapidR's): the panel takes the focus — Tab, the theme's focus ring,
+  Enter or Space for `OnClick`, a button to screen readers. RapidQ's panels never take the focus,
+  and one without `TabStop` still doesn't.
+- **A scroll box scrolls to the component Tab reaches** (Delphi's AutoScrollInView, so RapidQ's
+  QSCROLLBOX does): `RScrollBox`, and a form's own scroll bars.
+- New Project's and Project Options' fields keep the 28-pixel height their layout gives them
+  (RapidQ's QEDIT AutoSize made them the font's height again when the dialog first showed, so a
+  look's change while one was open made them jump).
+- `examples/gui/themes.rr` follows the system: its card takes the theme's colours again and its
+  last line names the look each time it changes; System, Light, Dark, High contrast and Classic
+  pick one while it runs.
+- Tests: `RAPIDR_TEST_SYSTEM_LOOK` (light, dark, contrast; `system`: the real system's or page's
+  look under a test) and the test step `__look_dark` / `__look_light` / `__look_contrast`.
 
 ### AI-ready by design (AI-ARCH, phase 0)
 - **The design**: [docs/ai-architecture.md](docs/ai-architecture.md) — what every language-registry entry

@@ -30,6 +30,18 @@
 //!   answers it once it has been open `ms` milliseconds and nothing opened
 //!   over it is still open. Without it the hooks answer at once, nothing
 //!   shown.
+//! - `RAPIDR_TEST_SYSTEM_LOOK=dark`: how the system looks to the program
+//!   (RapidR's look follows it): `light`, `dark`, `contrast` (high
+//!   contrast), `dark contrast` — instead of light, what a GUI test's
+//!   headless host and page say so captures don't depend on the machine;
+//!   `system`: the real system's look (on the web, the page's colour scheme
+//!   and forced colours, followed as they change — playwright's
+//!   emulateMedia); `file:PATH`: what that file says, read whenever the
+//!   program asks the system (a real-screen walk switches it by writing
+//!   the file). A step `<any>.__look_dark` (`__look_light`,
+//!   `__look_contrast`, `__look_darkcontrast`) changes it mid-run, as the
+//!   user switching the system to dark would ([`Action::Look`]). Test-only:
+//!   a normal run never reads it.
 
 use std::cell::RefCell;
 
@@ -165,6 +177,11 @@ pub enum Action {
     /// `__tray_N`: mouse message N (513 WM_LBUTTONDOWN …) from the form's
     /// first system tray icon (`crate::tray`).
     Tray(i64),
+    /// (RapidR's OnThemeChange) `__look_dark`, `__look_light`,
+    /// `__look_contrast`, `__look_darkcontrast`: the system's look becomes
+    /// (dark, high contrast), as the user switching it would make it (any
+    /// component names it; [`system_look`]).
+    Look(bool, bool),
     /// A synthetic event malformed (`__key_`, `__mouse…`, `__dblclick…`, `__item_`,
     /// `__node_`, `__toggle_`, `__edit…`, `__enter…`, `__escape…` without
     /// the right numbers): nothing happens.
@@ -212,7 +229,9 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Hold(ms)
     } else if let Some(m) = one("__tray_") {
         Action::Tray(m)
-    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__tray"].iter().any(|p| event.starts_with(p)) {
+    } else if let Some(look) = event.strip_prefix("__look_").and_then(parse_look) {
+        Action::Look(look.0, look.1)
+    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
@@ -356,6 +375,54 @@ pub fn dialog_hold() -> Option<std::time::Duration> {
     var("RAPIDR_TEST_DIALOG_HOLD").and_then(|ms| ms.trim().parse::<u64>().ok()).map(std::time::Duration::from_millis)
 }
 
+// (RapidR's OnThemeChange)
+thread_local! {
+    /// The system's look a test's `__look_` step said, over
+    /// `RAPIDR_TEST_SYSTEM_LOOK`'s.
+    static LOOK: std::cell::Cell<Option<(bool, bool)>> = const { std::cell::Cell::new(None) };
+}
+
+/// A look's name as `RAPIDR_TEST_SYSTEM_LOOK` and `__look_` say it — case,
+/// spaces (a file's line end), `-`, `_` and `+` ignored: `light`, `dark`, `contrast` (`hc`,
+/// `highcontrast`), `darkcontrast` — as (dark, high contrast).
+pub fn parse_look(name: &str) -> Option<(bool, bool)> {
+    let n: String = name.chars().filter(|c| !c.is_whitespace() && !matches!(c, '-' | '_' | '+')).flat_map(char::to_lowercase).collect();
+    Some(match n.as_str() {
+        "light" => (false, false),
+        "dark" => (true, false),
+        "contrast" | "highcontrast" | "hc" => (false, true),
+        "darkcontrast" | "darkhighcontrast" | "darkhc" => (true, true),
+        _ => return None,
+    })
+}
+
+/// How the system looks to a test — (dark, high contrast) — as a `__look_`
+/// step or `RAPIDR_TEST_SYSTEM_LOOK` says (`file:PATH`: what that file
+/// says now, read each time — a walk on the real screen switches a running
+/// program by writing it; light while it can't be read); `None`: as the
+/// host decides (a GUI test's headless host and page: light; `system`, or
+/// no test: the real system's).
+pub fn system_look() -> Option<(bool, bool)> {
+    LOOK.with(std::cell::Cell::get).or_else(|| {
+        let v = var("RAPIDR_TEST_SYSTEM_LOOK")?;
+        match v.strip_prefix("file:") {
+            Some(path) => Some(std::fs::read_to_string(path).ok().as_deref().and_then(parse_look).unwrap_or((false, false))),
+            None => parse_look(&v),
+        }
+    })
+}
+
+/// A test's `__look_` step: the system looks so from now on.
+pub fn set_system_look(dark: bool, contrast: bool) {
+    LOOK.with(|l| l.set(Some((dark, contrast))));
+}
+
+/// `RAPIDR_TEST_SYSTEM_LOOK=system`: a test follows the real system's look
+/// (on the web, the page's colour scheme, as playwright emulates it).
+pub fn real_system_look() -> bool {
+    var("RAPIDR_TEST_SYSTEM_LOOK").is_some_and(|v| v.trim().eq_ignore_ascii_case("system"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,6 +460,41 @@ mod tests {
         assert_eq!(act("t.__escape"), Action::Escape);
         assert_eq!(act("frm.__close"), Action::Close);
         assert_eq!(act("frm.__drop"), Action::Drop);
+        assert_eq!(act("application.__look_dark"), Action::Look(true, false));
+        assert_eq!(act("x.__LOOK_Light"), Action::Look(false, false));
+        assert_eq!(act("x.__look_contrast"), Action::Look(false, true));
+        assert_eq!(act("x.__look_darkcontrast"), Action::Look(true, true));
+        assert_eq!(act("x.__look_sepia"), Action::Ignored);
+    }
+
+    #[test]
+    fn the_systems_look_as_a_test_says_it() {
+        assert_eq!(parse_look("Dark"), Some((true, false)));
+        assert_eq!(parse_look("high contrast"), Some((false, true)));
+        assert_eq!(parse_look("dark+contrast"), Some((true, true)));
+        assert_eq!(parse_look("light"), Some((false, false)));
+        assert_eq!(parse_look("system"), None);
+        // (no hook set under cargo test: the host decides)
+        if var("RAPIDR_TEST_SYSTEM_LOOK").is_none() {
+            assert_eq!(system_look(), None);
+            assert!(!real_system_look());
+        }
+        set_system_look(true, false);
+        assert_eq!(system_look(), Some((true, false)));
+    }
+
+    #[test]
+    fn the_systems_look_from_a_file() {
+        // (a thread of its own: no step's look; the hook's variable the
+        // test's own, as a page sets them)
+        let path = std::env::temp_dir().join(format!("rapidr-look-{}", std::process::id()));
+        set_vars(vec![("RAPIDR_TEST_SYSTEM_LOOK".into(), format!("file:{}", path.display()))]);
+        assert_eq!(system_look(), Some((false, false)), "no file yet: light");
+        std::fs::write(&path, "dark\n").unwrap();
+        assert_eq!(system_look(), Some((true, false)));
+        std::fs::write(&path, "high contrast").unwrap();
+        assert_eq!(system_look(), Some((false, true)));
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

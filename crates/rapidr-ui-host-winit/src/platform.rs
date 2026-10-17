@@ -92,6 +92,21 @@ pub fn system_look() -> (bool, bool) {
     imp::system_look()
 }
 
+/// (RapidR Studio's debugger) Process `pid`'s windows to the front and its
+/// app active, handed over by this one — the active app — as the window
+/// systems allow it: macOS (cooperative activation, macOS 14 and later:
+/// this app yields to it, then activates it, every window of it in front),
+/// Windows (the foreground process lets it take the foreground, then gives
+/// its topmost window the foreground — restored first when minimized), X11
+/// (its topmost window asked for through `_NET_ACTIVE_WINDOW`, as a pager
+/// asks). Studio raises the program on Continue and Show Program Window; a
+/// program stopped at a breakpoint while it was in front hands the front
+/// back to Studio. `false` when it couldn't (no such process, no window of
+/// it, Wayland — which lets no app raise another's windows).
+pub fn activate_process(pid: u32) -> bool {
+    pid != 0 && pid != std::process::id() && imp::activate_process(pid)
+}
+
 // (the dialogs lane's)
 /// A message box's sound, as Windows' MessageBeep plays it for its icon
 /// (`None`: the default beep): Windows' system sounds, macOS' alert sound
@@ -135,6 +150,26 @@ mod imp {
         let mtm = MainThreadMarker::new()?;
         let r = primary(mtm)?.visibleFrame();
         Some((r.size.width.round() as i64, r.size.height.round() as i64))
+    }
+
+    pub fn activate_process(pid: u32) -> bool {
+        use objc2::runtime::NSObjectProtocol;
+        use objc2_app_kit::{NSApplication, NSApplicationActivationOptions, NSRunningApplication};
+        let Ok(pid) = i32::try_from(pid) else { return false };
+        // (none yet: a process that has just started isn't an app until its
+        // window system is up — the caller tries again)
+        let Some(app) = NSRunningApplication::runningApplicationWithProcessIdentifier(pid) else { return false };
+        // (macOS 14's cooperative activation: the active app yields first;
+        // older systems have no such call and need none)
+        if let Some(mtm) = MainThreadMarker::new() {
+            let me = NSApplication::sharedApplication(mtm);
+            if me.respondsToSelector(objc2::sel!(yieldActivationToApplication:)) {
+                me.yieldActivationToApplication(&app);
+            }
+        }
+        #[allow(deprecated)]
+        let all = NSApplicationActivationOptions::ActivateAllWindows | NSApplicationActivationOptions::ActivateIgnoringOtherApps;
+        app.activateWithOptions(all)
     }
 }
 
@@ -192,6 +227,49 @@ mod imp {
         let mut p = POINT { x: 0, y: 0 };
         // SAFETY: `p` is a valid POINT for the call to fill.
         (unsafe { GetCursorPos(&mut p) } != 0).then(|| (f64::from(p.x) / scale(), f64::from(p.y) / scale()))
+    }
+
+    pub fn activate_process(pid: u32) -> bool {
+        use windows_sys::Win32::Foundation::{BOOL, HWND, LPARAM};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            AllowSetForegroundWindow, BringWindowToTop, EnumWindows, GetWindow, GetWindowThreadProcessId, IsIconic, IsWindowVisible, SetForegroundWindow, ShowWindow, GW_OWNER, SW_RESTORE,
+        };
+        // (the first of its windows EnumWindows gives — they come topmost
+        // first —: shown, owned by none, a top-level window of its own)
+        struct Find {
+            pid: u32,
+            found: HWND,
+        }
+        unsafe extern "system" fn each(hwnd: HWND, data: LPARAM) -> BOOL {
+            // SAFETY: `data` is the `Find` passed to EnumWindows below, alive
+            // for the call.
+            let find = unsafe { &mut *(data as *mut Find) };
+            let mut owner = 0u32;
+            // SAFETY: a window EnumWindows gave; `owner` a valid out-param.
+            unsafe { GetWindowThreadProcessId(hwnd, &mut owner) };
+            // SAFETY: plain queries on a window EnumWindows gave.
+            if owner == find.pid && unsafe { IsWindowVisible(hwnd) } != 0 && unsafe { GetWindow(hwnd, GW_OWNER) } == 0 {
+                find.found = hwnd;
+                return 0;
+            }
+            1
+        }
+        let mut find = Find { pid, found: 0 };
+        // SAFETY: `each` reads `find` through the LPARAM only during the call.
+        unsafe { EnumWindows(Some(each), &mut find as *mut Find as LPARAM) };
+        if find.found == 0 {
+            return false;
+        }
+        // SAFETY: plain calls on a window of the process; the foreground
+        // process (this one) may give the foreground away.
+        unsafe {
+            AllowSetForegroundWindow(pid);
+            if IsIconic(find.found) != 0 {
+                ShowWindow(find.found, SW_RESTORE);
+            }
+            BringWindowToTop(find.found);
+            SetForegroundWindow(find.found) != 0
+        }
     }
 
     pub fn work_area() -> Option<(i64, i64)> {
@@ -256,6 +334,59 @@ mod imp {
         None
     }
 
+    /// A window property's 32-bit items (`None`: not there).
+    fn property(x: &X, window: xlib::Window, name: &str, kind: xlib::Atom) -> Option<Vec<u64>> {
+        let cname = std::ffi::CString::new(name).ok()?;
+        // SAFETY: a display opened above; out-parameters are valid locals;
+        // the data XGetWindowProperty returns is copied, then freed.
+        unsafe {
+            let atom = (x.lib.XInternAtom)(x.display, cname.as_ptr(), xlib::True);
+            if atom == 0 {
+                return None;
+            }
+            let (mut actual, mut format, mut count, mut after) = (0, 0, 0, 0);
+            let mut data: *mut u8 = std::ptr::null_mut();
+            let ok = (x.lib.XGetWindowProperty)(x.display, window, atom, 0, 4096, xlib::False, kind, &mut actual, &mut format, &mut count, &mut after, &mut data);
+            if ok != 0 || data.is_null() {
+                return None;
+            }
+            // (32-bit items come as longs)
+            let items = if format == 32 { std::slice::from_raw_parts(data as *const std::os::raw::c_ulong, count as usize).iter().map(|&v| v as u64).collect() } else { Vec::new() };
+            (x.lib.XFree)(data.cast());
+            Some(items)
+        }
+    }
+
+    pub fn activate_process(pid: u32) -> bool {
+        // (Wayland lets no client raise another's windows)
+        if std::env::var_os("WAYLAND_DISPLAY").is_some() {
+            return false;
+        }
+        let Some(x) = x() else { return false };
+        // SAFETY: a display opened above.
+        let root = unsafe { (x.lib.XDefaultRootWindow)(x.display) };
+        // (the clients bottom to top: its topmost one)
+        let Some(clients) = property(x, root, "_NET_CLIENT_LIST_STACKING", xlib::XA_WINDOW) else { return false };
+        let Some(&window) = clients.iter().rev().find(|&&w| property(x, w, "_NET_WM_PID", xlib::XA_CARDINAL).is_some_and(|p| p.first() == Some(&u64::from(pid)))) else { return false };
+        let name = std::ffi::CString::new("_NET_ACTIVE_WINDOW").expect("no NUL");
+        // SAFETY: a display opened above; the client message is a valid
+        // XEvent union member sent to the root, as EWMH says.
+        unsafe {
+            let active = (x.lib.XInternAtom)(x.display, name.as_ptr(), xlib::False);
+            let mut ev: xlib::XEvent = std::mem::zeroed();
+            ev.client_message.type_ = xlib::ClientMessage;
+            ev.client_message.window = window as xlib::Window;
+            ev.client_message.message_type = active;
+            ev.client_message.format = 32;
+            // (source 2: a pager, which window managers obey; no timestamp)
+            ev.client_message.data.set_long(0, 2);
+            ev.client_message.data.set_long(1, 0);
+            (x.lib.XSendEvent)(x.display, root, xlib::False, xlib::SubstructureRedirectMask | xlib::SubstructureNotifyMask, &mut ev);
+            (x.lib.XFlush)(x.display);
+        }
+        true
+    }
+
     pub fn system_look() -> (bool, bool) {
         super::gtk_look(&std::env::var("GTK_THEME").unwrap_or_default())
     }
@@ -281,6 +412,9 @@ mod imp {
     }
     pub fn work_area() -> Option<(i64, i64)> {
         None
+    }
+    pub fn activate_process(_pid: u32) -> bool {
+        false
     }
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {}
     pub fn system_look() -> (bool, bool) {

@@ -82,6 +82,9 @@ impl FormUi {
             None => order[0],
         };
         self.set_focus(Some(next));
+        // (out of view in a scroll box — the form's own bars too —: shown,
+        // as Delphi's AutoScrollInView)
+        crate::components::scrollbox::show_focused(self, store);
         // (the keyboard's focus shows its hint: tooltip.rs)
         self.tip_focus(store);
     }
@@ -112,9 +115,10 @@ impl FormUi {
             self.dirty = true;
             // (the input lane's: an in-place edit ends, kept, when its
             // component loses the focus — components/list.rs)
-            if let Some(old) = self.focus {
+            if let Some(old) = self.focus.filter(|&o| o < self.nodes.len()) {
                 let (id, t) = (self.nodes[old].id.clone(), self.nodes[old].type_name.clone());
                 crate::components::list::focus_left(&id, &t, &mut self.events);
+                self.left(old);
             }
             if let Some(new) = i {
                 self.entered(new);
@@ -124,14 +128,28 @@ impl FormUi {
         self.reset_caret();
     }
 
-    /// Node `i` got the focus: a list's OnEnter (the VCL's CM_ENTER — RC.EXE
-    /// takes `QFILELISTBOX.OnEnter`; its QLISTBOX one stops the program at
-    /// the binding, RapidR fires it as the file list's).
+    /// Node `i` got the focus: its OnEnter — RapidR's on every component
+    /// that takes the focus, as Delphi's (the VCL's CM_ENTER): after the
+    /// OnExit of the one it left, before what a click on it does (its
+    /// OnMouseDown, OnClick). By Tab, a click, SetFocus, a mnemonic, and
+    /// for the first one as its form shows. RapidQ has none but its lists'
+    /// (RC.EXE, 2026-10-16: QFILELISTBOX.OnEnter compiles and never fires —
+    /// not by the focus, not by the Enter key —, QLISTBOX's stops the
+    /// program at the binding; no component has OnExit): a RapidQ program
+    /// can't bind them, so none changes.
     pub(crate) fn entered(&mut self, i: usize) {
-        let n = &self.nodes[i];
-        if matches!(n.type_name.as_str(), "RLISTBOX" | "RFILELISTBOX") {
-            self.events.push(crate::input::KernelEvent::Fire { id: n.id.clone(), event: "onenter".into(), args: Vec::new() });
-        }
+        let id = self.nodes[i].id.clone();
+        self.events.push(crate::input::KernelEvent::Fire { id, event: "onenter".into(), args: Vec::new() });
+    }
+
+    /// Node `i` lost the focus to another of its form's components: its
+    /// OnExit (RapidR's, Delphi's CM_EXIT), before the other's OnEnter.
+    /// Another window or app taking the front isn't leaving (the form keeps
+    /// its focused component, as Delphi's), nor is the component hidden or
+    /// disabled while focused.
+    pub(crate) fn left(&mut self, i: usize) {
+        let id = self.nodes[i].id.clone();
+        self.events.push(crate::input::KernelEvent::Fire { id, event: "onexit".into(), args: Vec::new() });
     }
 
     /// The focused component's id.

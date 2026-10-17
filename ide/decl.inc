@@ -9,8 +9,10 @@
 ' stepping, Ctrl+S, Ctrl+O, Ctrl+N, Ctrl+Shift+P); Shown is a key the
 ' focused control keeps (Ctrl+C in an editor), shown in the menu only.
 ' EnabledWhen names the state the command needs: "" always, "project",
-' "document", "code", "design", "idle" (nothing running), "running",
-' "paused", "session" (running or paused).
+' "document", "code", "design", "idle" (nothing running or paused),
+' "startable" (Run / Continue: idle or paused), "steppable" (F10 / F11:
+' idle or paused), "cursor" (code, not running), "running", "paused",
+' "pausedcode", "session" (running or paused).
 TYPE StudioCommand
   Id AS STRING
   Title AS STRING
@@ -66,6 +68,11 @@ DIM HomeDir AS STRING
 DIM ProjectName AS STRING
 DIM ProjectMain AS STRING
 DIM ProjectFile AS STRING
+' (the open project is the user's copy of this example, installed where it
+' can't be changed: project.inc; "" otherwise)
+DIM ExampleOriginal AS STRING
+DIM ExampleJustCopied AS STRING
+DECLARE FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
 DIM RecentList AS STRING
 DIM SavedLayout AS STRING
 DIM DefaultFolder AS STRING
@@ -79,12 +86,17 @@ DIM ThemeName AS STRING
 ' "rapidr high contrast", "classic"; ThemeName is the theme drawn)
 DIM ThemeChoice AS STRING
 DIM StateText AS STRING
+' (the status bar's text measured: a long file name shortened in its middle)
+DIM StatusMeasure AS RBitmap
+DECLARE FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE SUB ShowStatusHint
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
 DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
+DECLARE SUB StudioShown
 DECLARE SUB StudioClose(Action AS INTEGER)
 DECLARE SUB PaneChanged(Name AS STRING)
 DECLARE SUB DocumentActivated(Name AS STRING)
@@ -141,6 +153,8 @@ DECLARE SUB SetUpDebug
 DECLARE SUB ApplyDebugColors
 DECLARE SUB ApplyDebugFonts(Rows AS INTEGER)
 DECLARE SUB PerfReadyTick
+DECLARE SUB StepRaiseTick
+DECLARE SUB RaiseRetryTick
 DECLARE SUB ProgramFormShown(Id AS STRING)
 DECLARE SUB StopProgram
 DECLARE SUB CodeGutterClick(LineNo AS INTEGER, Area AS STRING, Sender AS RCodeEditor)
@@ -242,6 +256,9 @@ DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 DIM AI AS RAI
 DIM AITools AS RAIProjectTools
 DIM DesignAI AS RAI
+' (Tools > Settings > AI's own: what the tab tries — a provider's list, a
+' key typed — never touches the assistant until OK)
+DIM SetAI AS RAI
 ' Tools > Settings > AI's choices (never a key: the keychain keeps those)
 DIM AIOn AS INTEGER
 DIM AIProvider AS STRING
@@ -269,7 +286,7 @@ DECLARE SUB ShowAIPanel
 DECLARE SUB LoadAISettings
 DECLARE SUB SaveAISettings
 DECLARE SUB ShowSettingsPage(k AS INTEGER)
-DECLARE SUB AISettingsModelsIn
+DECLARE SUB AIEnableSend
 DECLARE FUNCTION AIModelItem(Line AS STRING) AS STRING
 DECLARE FUNCTION AIModelId(Text AS STRING) AS STRING
 DECLARE FUNCTION AICommand(Id AS STRING) AS INTEGER

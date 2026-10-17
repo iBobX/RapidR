@@ -16,7 +16,10 @@
 //                               folder: `{dir}` in `do` is "Projects" there
 //                               (a new project, a short path on screen)
 //     setup(work, root),        (optional) prepares the scene's folder (a
-//                               copy to import …) → { open?, do? }
+//                               copy to import …) → { open?, do?, home?
+//                               (Studio's --home: an install's copy),
+//                               env? (more of the hooks' environment),
+//                               cwd? (where `program` runs instead) }
 //     run: { from, dir, file, events, delay }
 //                               a program an earlier scene made, run in
 //                               <that scene's folder>/<dir>, its windows
@@ -92,30 +95,32 @@ const env = (dir, extra) => ({
 });
 
 // (the capture of Studio's window — or a program's — for a desktop scene)
-function desktop(s, dir, open, steps) {
+function desktop(s, dir, open, steps, extra = {}) {
   const theme = s.theme || "rapidr-light";
   const delay = (s.run && s.run.delay) || (s.studio && s.studio.delay) || s.delay || 6;
-  // (the scene's own test hooks — RAPIDR_TEST_EVENTS, RAPIDR_TEST_DROP …)
-  const capture = { RAPIDR_CAPTURE: join(dir, "window"), RAPIDR_CAPTURE_DELAY: String(delay), ...(s.env || {}) };
+  // (the scene's own test hooks — RAPIDR_TEST_EVENTS, RAPIDR_TEST_DROP …;
+  // and what its setup asks for: RAPIDR_DOCUMENTS …)
+  const capture = { RAPIDR_CAPTURE: join(dir, "window"), RAPIDR_CAPTURE_DELAY: String(delay), ...(s.env || {}), ...(extra.env || {}) };
   let r;
   if (s.run) {
     // (a program an earlier scene made, in its folder)
     const cwd = join(WORK, s.run.from, s.run.dir || "");
     r = spawnSync(RAPIDR, ["run", s.run.file], { cwd, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, RAPIDR_TEST_EVENTS: s.run.events || "" }) });
   } else if (typeof s.program === "string") {
-    // (a program in its own folder — its data files beside it; its look its
-    // own unless the scene names one: `rapidr run`'s arguments after the
-    // file are the program's)
-    const program = join(ROOT, s.program);
+    // (a program in its own folder — its data files beside it; or in the
+    // folder the setup gives, `cwd`; its look its own unless the scene
+    // names one: `rapidr run`'s arguments after the file are the program's)
+    const program = extra.cwd ? join(extra.cwd, s.program.split("/").pop()) : join(ROOT, s.program);
     r = spawnSync(RAPIDR, ["run", program, ...(s.args || [])], { cwd: dirname(program), encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, { ...capture, ...(s.theme ? { RAPIDR_THEME: s.theme } : {}) }) });
   } else if (s.studio) {
     // (Studio in the scene's own folder: a new project goes in "Projects")
-    const args = ["run", join(ROOT, "ide", "studio.rr"), "--home", ROOT, "--fresh", "--theme", theme];
+    const args = ["run", join(ROOT, "ide", "studio.rr"), "--home", extra.home || ROOT, "--fresh", "--theme", theme];
     if (steps) args.push("--do", steps.replaceAll("{dir}", "Projects"));
     if (open) args.push(isAbsolute(open) ? open : join(ROOT, open));
     r = spawnSync(RAPIDR, args, { cwd: dir, encoding: "utf8", timeout: delay * 1000 + 300000, env: env(dir, capture) });
   } else {
-    const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme];
+    // (`home`: RapidR's home as the setup made it — an install's, read-only)
+    const args = ["run", "ide/studio.rr", "--home", extra.home || ".", "--fresh", "--theme", theme];
     if (steps) args.push("--do", steps);
     if (open) args.push(open);
     r = spawnSync(RAPIDR, args, { cwd: ROOT, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, capture) });
@@ -131,7 +136,7 @@ async function web(browser, s, dir, open, steps) {
   try {
     const files = (s.webFiles || (open ? [open] : [])).map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
     await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; }, files);
-    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(s.delay || 6), RAPIDR_TEST_DUMP: "" });
+    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { ...(s.env || {}), RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(s.delay || 6), RAPIDR_TEST_DUMP: "" });
     const q = new URLSearchParams({ theme: s.theme || "rapidr-light", fresh: "" });
     if (!s.maximized) q.set("window", "normal");
     if (steps) q.set("do", steps.replaceAll("{dir}", "/Projects"));
@@ -153,6 +158,9 @@ let made = 0, failed = 0;
 for (const s of scenes.filter((s) => !filters.length || filters.some((f) => `${s.topic}/${s.name}`.includes(f) || s.file.includes(f)))) {
   const id = `${s.topic}/${s.name}`;
   const dir = join(WORK, s.topic, s.name);
+  // (a setup may have made folders read-only — an install's examples: writable
+  // again, to go)
+  if (existsSync(dir)) spawnSync("chmod", ["-R", "u+w", dir]);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
   try {
@@ -165,8 +173,9 @@ for (const s of scenes.filter((s) => !filters.length || filters.some((f) => `${s
       if (!browser) browser = await (await import(pathToFileURL(join(ROOT, "tests", "node_modules", "playwright", "index.mjs")).href)).chromium.launch();
       src = await web(browser, s, dir, open, steps);
     } else {
-      src = desktop(s, dir, open, steps);
+      src = desktop(s, dir, open, steps, extra);
     }
+    if (extra.home || extra.cwd) spawnSync("chmod", ["-R", "u+w", dir]);
     const out = join(IMAGES, s.topic, `${s.name}.png`);
     mkdirSync(dirname(out), { recursive: true });
     const r = spawnSync("python3", [join(HERE, "png.py"), src, out, ...(s.crop || []).map(String)], { encoding: "utf8" });

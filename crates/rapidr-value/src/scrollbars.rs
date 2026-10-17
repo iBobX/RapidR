@@ -325,6 +325,29 @@ impl Scroller {
         if vertical { (0, d) } else { (d, 0) }
     }
 
+    /// (Delphi's ScrollInView: the keyboard's focus moved onto a component
+    /// out of view) `r` — the component's rectangle in the client area as
+    /// it shows now — brought into view by the least scrolling that shows
+    /// all of it (its top or left edge when it's bigger than the view):
+    /// how far the components move.
+    pub fn reveal(&mut self, (x, y, rw, rh): Rect, w: i64, h: i64) -> Shift {
+        let (cw, ch) = self.client(w, h);
+        let mut shift = (0, 0);
+        for vertical in [false, true] {
+            if !self.axis(vertical).shown {
+                continue;
+            }
+            let (at, len, view) = if vertical { (y, rh, ch) } else { (x, rw, cw) };
+            let d = if at < 0 { at } else if at + len > view { (at + len - view).min(at) } else { 0 };
+            if d != 0 {
+                let to = self.axis(vertical).position + d;
+                let s = self.scroll_to(vertical, to, w, h);
+                shift = (shift.0 + s.0, shift.1 + s.1);
+            }
+        }
+        shift
+    }
+
     /// A bar's rectangle, if it shows (a theme drawing its own bars).
     pub fn bar(&self, vertical: bool, w: i64, h: i64) -> Option<Rect> {
         if let Some(a) = self.alone {
@@ -748,6 +771,26 @@ mod tests {
         assert!(s.ops(200, 17).contains(&Op::Fill { rect: (64, 0, 8, 1), color: crate::theme::current().light3d }));
         s.alone = Some(Alone { vertical: false, thumb: None, disabled: true });
         assert_eq!(s.ops(200, 17).iter().filter(|o| matches!(o, Op::Arrow { .. })).count(), 4, "embossed arrows");
+    }
+
+    #[test]
+    fn the_focus_brought_into_view() {
+        let mut s = Scroller::default();
+        // (a page 200 tall, its components down to 1000: a vertical bar)
+        s.update(300, 200, &[child(0, 0, 100, 1000)]);
+        // in view: nothing moves
+        assert_eq!(s.reveal((10, 50, 100, 40), 300, 200), (0, 0));
+        // below: the least that shows all of it (its bottom at the view's)
+        assert_eq!(s.reveal((10, 230, 100, 40), 300, 200), (0, 70));
+        assert_eq!(s.vert.position, 70);
+        // above (the components moved up 70): back to its top
+        assert_eq!(s.reveal((10, -30, 100, 40), 300, 200), (0, -30));
+        // taller than the view: its top
+        assert_eq!(s.reveal((10, 100, 100, 400), 300, 200), (0, 100));
+        // past the end: kept in range (1000 - 200)
+        assert_eq!(s.reveal((10, 2000, 100, 40), 300, 200).1, 800 - 140);
+        // no bar on that axis: nothing
+        assert_eq!(s.reveal((900, 0, 50, 10), 300, 200).0, 0);
     }
 
     #[test]

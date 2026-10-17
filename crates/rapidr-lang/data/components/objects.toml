@@ -225,6 +225,7 @@ properties = [
   { name = "Text", type = "string", default = "" },
   { name = "FileName", type = "string", default = "" },
   { name = "Count", type = "int", default = 0 },
+  { name = "Error", type = "string", default = "", access = "read", design = false, doc = "Why its records couldn't be read as a data source (an RDataFrame's Source, a grid's): no such file, a file that can't be read, or a document that isn't records; \"\" when they could. RapidR's own." },
 ]
 methods = [
   { name = "Parse", params = "jsonString", value = true, doc = "Parses a JSON string into the internal store. Returns 1 on success, 0 on error." },

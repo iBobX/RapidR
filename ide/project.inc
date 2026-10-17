@@ -4,18 +4,37 @@
 ' ---- the project ---------------------------------------------------------------------
 
 ' Opens a project (.rrproj) or a source file (with what it includes) and
-' its main file's documents.
+' its main file's documents. One of RapidR's examples installed where it
+' can't be changed (the macOS app, /usr/lib/rapidr, Program Files) opens as
+' the user's copy in Documents/RapidR/Examples/<name> — made the first time
+' with its include and data files, as `rapidr examples copy` copies them,
+' then opened as the user left it (never copied over): every way in goes
+' through here (the Welcome page's cards, File > Open Example, the
+' palette, Recent, File > Open, the command line). In a checkout the
+' examples open where they are.
 SUB OpenProject(Path AS STRING)
-  DIM i AS INTEGER
+  DIM i AS INTEGER, p AS STRING, copied AS STRING
   IF Path = "" THEN EXIT SUB
+  p = Proj.ExampleToOpen(Path, HomeDir + "examples")
+  IF p = "" THEN
+    OutputLine "Can't open the example " + FileTitle(Path) + ": " + Proj.Error
+    SetState "error", "Can't open " + FileTitle(Path)
+    EXIT SUB
+  END IF
+  copied = Proj.ExampleCopy
+  ' (File > Copy Example Again's copy: said so)
+  IF ExampleJustCopied <> "" THEN
+    copied = ExampleJustCopied
+    ExampleJustCopied = ""
+  END IF
   ' (the project open now keeps its breakpoints and watches: debug.inc)
   IF ProjectOpen THEN SaveSettings
-  IF Proj.Open(Path) = 0 THEN
+  IF Proj.Open(p) = 0 THEN
     ' (a Markdown file — a README, a report — opens on its own, in Preview:
     ' markdown.inc)
-    IF OpenMarkdownFile(Path) THEN EXIT SUB
-    OutputLine "Can't open " + Path + ": " + Proj.Error
-    SetState "error", "Can't open " + FileTitle(Path)
+    IF OpenMarkdownFile(p) THEN EXIT SUB
+    OutputLine "Can't open " + p + ": " + Proj.Error
+    SetState "error", "Can't open " + FileTitle(p)
     EXIT SUB
   END IF
   CloseAllDocuments
@@ -24,25 +43,72 @@ SUB OpenProject(Path AS STRING)
   ProjectMain = Proj.Folder
   IF ProjectMain <> "" THEN ProjectMain = ProjectMain + "/"
   ProjectMain = ProjectMain + Proj.MainFile
-  ProjectFile = Path
+  ProjectFile = p
   Lang.CompatMode = Proj.CompatMode
   ' (the project's include files read for the language service: on the web
   ' they are in the page's store, not on a disk it could read)
   FOR i = 0 TO Proj.FileCount - 1
     IF Proj.FileKind(i) = "include" THEN Lang.Update Proj.FullPath(i), Proj.FileText(Proj.FullPath(i))
   NEXT
-  AddRecent Path
+  AddRecent p
   FillProjectTree
   ' (the start page makes room; the files open when it was last closed
   ' come back as they were: workspace.inc)
   Dock.ClosePane("welcome")
   OpenDocument ProjectMain
-  RestoreSession Path
+  RestoreSession p
   ' (its breakpoints and watches: debug.inc)
   LoadDebugState
   SetState "stopped", "Ready"
+  ' (an example's copy: the Output says where it is, and how to start over)
+  ExampleOriginal = Proj.ExampleOf(p, HomeDir + "examples")
+  IF ExampleOriginal <> "" THEN SayExampleCopy p, copied
   UpdateTitle
   UpdateCommands
+END SUB
+
+' The Output's line for an example's copy (Copied: "made" now, else the
+' copy that was there): where it is, and "Copy again from the original".
+SUB SayExampleCopy(Copy AS STRING, Copied AS STRING)
+  DIM folder AS STRING
+  folder = LEFT$(Copy, RINSTR(Copy, "/") - 1)
+  ' (short lines: the Output pane is narrow; the link on its own)
+  IF Copied = "again" THEN
+    OutputLine "Copied " + FileTitle(Copy) + " again from the original, in:"
+  ELSEIF Copied = "made" THEN
+    OutputLine "Made your copy of the example " + FileTitle(Copy) + " (the installed examples can't be changed), in:"
+  ELSE
+    OutputLine "Your copy of the example " + FileTitle(Copy) + ", as you left it, in:"
+  END IF
+  OutputLine "  " + folder
+  OutputLine "  " + Hyperlink("Copy again from the original", "example-again:")
+END SUB
+
+' File > Copy Example Again from the Original: the example's files (its
+' program, includes, data) as RapidR has them, over the copy's — asked
+' first (the changes made to them go; files added to the copy stay) —
+' then the copy opened again.
+SUB CopyExampleAgain
+  DIM p AS STRING, name AS STRING, d AS INTEGER
+  IF ExampleOriginal = "" OR ProjectOpen = 0 THEN EXIT SUB
+  name = FileTitle(ExampleOriginal)
+  IF AskCopyAgain("Copy " + name + " again from the original?", "Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay.") = 0 THEN EXIT SUB
+  p = Proj.CopyExampleAgain(ProjectFile, HomeDir + "examples")
+  IF p = "" THEN
+    OutputLine "Can't copy " + name + " again: " + Proj.Error
+    SetState "error", "Can't copy " + name + " again"
+    EXIT SUB
+  END IF
+  ' (what was open goes without a question: its changes were asked about)
+  StopProgram
+  FOR d = 0 TO DocCount - 1
+    DocDirty(d) = 0
+  NEXT
+  UpdateModified
+  CloseAllDocuments
+  ProjectOpen = 0
+  ExampleJustCopied = "again"
+  OpenProject p
 END SUB
 
 SUB CloseAllDocuments
@@ -58,6 +124,7 @@ SUB CloseProject
   Proj.Close
   ProjectOpen = 0
   ProjectName = ""
+  ExampleOriginal = ""
   FillProjectTree
   ShowWelcome
   UpdateTitle

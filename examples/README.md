@@ -52,12 +52,13 @@ claims, headless).
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
+| [focus_events.rr](gui/focus_events.rr) | `OnEnter` and `OnExit` (RapidR's, as Delphi's): a box's help when the focus comes to it, its check when the focus leaves it ([the manual](../docs/manual/components.md#the-focus-onenter-and-onexit)) | run · interp · native · web | `rapidr run gui/focus_events.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
 | [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
-| [themes.rr](gui/themes.rr) | RapidR's looks: `$THEME`, and switching with `Application.Theme` (classic, modern, dark, high contrast) | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
@@ -158,6 +159,25 @@ the original alone).
 |---------|---------------|---------|-----|
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
+
+### showcase/ — bigger programs, written from the idea alone
+
+Each is a whole program in one file, built only from what RapidR has today,
+with made-up data (the weather one asks a public server). Listed in
+RapidR Studio under **Open an Example**; [the manual's page](../docs/manual/showcase.md)
+has a picture of each and explains its best lines.
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [fireworks.rr](showcase/fireworks.rr) | Click the sky or press Space: a rocket flies up and bursts into thousands of sparks, each its own element of arrays with its own gravity, drag and fade; RNum works out the shapes (ball, ring, two rings, a heart); the spark count and the frame rate show in the corner | run · interp · native · web | `rapidr run showcase/fireworks.rr` |
+| [notes.rr](showcase/notes.rr) | A Markdown notes app: edit on the left, the formatted note on the right as you type (`RMarkdownView`), clickable links, New / Open / Save with their shortcuts and a Format menu (Ctrl+B, Ctrl+I, Ctrl+E); in a browser the note is also kept in its storage (`RWebStorage`) | run · interp · native · web | `rapidr run showcase/notes.rr` |
+| [snake.rr](showcase/snake.rr) | A snake game for the keyboard alone: arrow keys or W A S D, a growing snake, a score, a speed that rises with it, game over and again; an `RCanvas` drawn in `OnPaint` and an `RTimer` | run · interp · native · web | `rapidr run showcase/snake.rr` |
+| [same_numbers.rr](showcase/same_numbers.rr) | Four sets of points built by the program to have the same mean, spread, correlation and line (the idea of F. J. Anscombe, 1973), drawn as four `RPlot` scatter charts with the numbers, measured from the points by `RNum`, under each; New points makes four others | run · interp · native · web | `rapidr run showcase/same_numbers.rr` |
+| [monte_carlo_pi.rr](showcase/monte_carlo_pi.rr) | Pi by throwing darts: RNum throws and counts a whole batch in a few vector steps (`Uniform`, `Square`, `Sign`, `Sum`), an `RPlot` scatter shows the darts, a second chart the estimate settling; a speed slider from 30 to 300,000 darts a second, Pause, Reset | run · interp · native · web | `rapidr run showcase/monte_carlo_pi.rr` |
+| [spin3d.rr](showcase/spin3d.rr) | A lit, shaded 3D planet with a ring and a moon, built from faces by the program (an `RDXScreen` with `RD3DMeshBuilder` and lights); the arrow keys change the speeds | run · interp · native · web | `rapidr run showcase/spin3d.rr` |
+| [signal_lab.rr](showcase/signal_lab.rr) | A signal generator and a two-screen oscilloscope: four waves, frequency, amplitude, noise and a second tone; the top screen held still by a trigger, the bottom the spectrum from an FFT written in BASIC (radix 2, 1024 points), its peaks marked in hertz | run · interp · native · web | `rapidr run showcase/signal_lab.rr` |
+| [midi_visualizer.rr](showcase/midi_visualizer.rr) | A 3D scene that dances to a song: the program reads the `.mid` file itself (chunks, variable-length times, tempo, Note On), RMIDI plays it, every note moves the scene; Load MIDI…, a Calm switch | run · interp · native · web | `rapidr run showcase/midi_visualizer.rr` |
+| [make_song.rr](showcase/make_song.rr) | Composes [song.mid](showcase/song.mid), the visualizer's own 32-bar loop (kick, bass, arpeggio, pad), and writes it as a MIDI file | run · interp · native · web | `rapidr run showcase/make_song.rr` |
 
 ### studio/ and the IDE — RapidR Studio's parts
 

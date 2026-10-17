@@ -1,0 +1,43 @@
+' steps.rr: stepping in a handler, a recursive FUNCTION, loops (one on a
+' single line) and a breakpoint in an $INCLUDEd file (tests/studio_flows.mjs
+' debug-steps-*: Robert's debugger scenarios 7, 9, 10, 11, 13)
+$THEME rapidr
+DIM total AS INTEGER, i AS INTEGER, x AS INTEGER, last AS INTEGER, clicks AS INTEGER
+$INCLUDE "tally.inc"
+DECLARE SUB Go
+DECLARE SUB Twice(n AS INTEGER)
+
+FUNCTION Fact(n AS INTEGER) AS INTEGER
+    IF n <= 1 THEN
+        Fact = 1
+    ELSE
+        Fact = n * Fact(n - 1)
+    END IF
+END FUNCTION
+
+SUB Twice(n AS INTEGER)
+    last = n * 2
+    AddUp n
+END SUB
+
+CREATE Form AS RForm
+    Caption = "Steps": Width = 300: Height = 160
+    CREATE GoBtn AS RButton
+        Caption = "Go": Left = 16: Top = 16
+        OnClick = Go
+    END CREATE
+END CREATE
+
+SUB Go
+    clicks = clicks + 1
+    Twice clicks
+    x = Fact(3)
+    last = last + x
+END SUB
+
+FOR i = 1 TO 3: x = x + i: NEXT
+FOR i = 1 TO 3
+    total = total + i
+NEXT
+PRINT "x"; x; " total"; total; " fact"; Fact(4)
+Form.ShowModal

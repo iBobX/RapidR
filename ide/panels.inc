@@ -79,6 +79,9 @@ SUB FillPalette
   FOR i = 0 TO ExampleCount - 1
     Palette.AddCommand "example:" + LTRIM$(STR$(i)), FileTitle(ExampleFile(i)) + " - " + ExampleWhat(i), "", "Example", "RFORM"
   NEXT
+  FOR i = 0 TO MoreCount - 1
+    Palette.AddCommand "more:" + LTRIM$(STR$(i)), FileTitle(MoreFile(i)) + " - " + MoreWhat(i), "", "Example", "RFORM"
+  NEXT
   Palette.AddPrefix ":", "Go to line {}"
 END SUB
 
@@ -134,6 +137,8 @@ SUB PaletteCommand(Id AS STRING)
   DIM d AS INTEGER
   IF LEFT$(Id, 8) = "example:" THEN
     OpenProject HomeDir + "examples/" + ExampleFile(VAL(MID$(Id, 9)))
+  ELSEIF LEFT$(Id, 5) = "more:" THEN
+    OpenProject HomeDir + "examples/" + MoreFile(VAL(MID$(Id, 6)))
   ELSEIF LEFT$(Id, 5) = "open:" THEN
     OpenDocument MID$(Id, 6)
   ELSEIF LEFT$(Id, 5) = "line:" THEN
@@ -544,11 +549,17 @@ END SUB
 
 ' A `file:line` place or a problem clicked: that line of that file. (The
 ' build log's links — "Reveal in Finder", the app's path — are reveal:<path>:
-' shown in the file manager.)
+' shown in the file manager; an example's copy's "Copy again from the
+' original" is example-again:.)
 SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
   DIM d AS INTEGER, p AS STRING
   IF LEFT$(InFile, 7) = "reveal:" THEN
     IF Proj.Reveal(MID$(InFile, 8)) = 0 THEN OutputLine "Can't show it: " + Proj.Error
+    EXIT SUB
+  END IF
+  ' (an example's copy: "Copy again from the original" — project.inc)
+  IF InFile = "example-again:" THEN
+    RunCommand "file.exampleAgain"
     EXIT SUB
   END IF
   p = InFile

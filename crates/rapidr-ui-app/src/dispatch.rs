@@ -71,6 +71,17 @@ fn event<R: Program + Windows>(rt: R, ev: KernelEvent) {
     }
 }
 
+/// (RapidR's) Application.OnThemeChange, once the look the program is drawn
+/// in has changed since it was last told (`rapidr_value::theme::
+/// take_change`: the program set Application.Theme to another look, or the
+/// system's look changed while the program follows it). Both hosts ask
+/// after dispatching their events, every turn.
+pub fn look_changed<P: Program>(p: P) {
+    if rapidr_value::theme::take_change() {
+        p.fire("application", "onthemechange");
+    }
+}
+
 /// The application's hint changed to `long` (the mouse moved onto another
 /// component): OnHint of the form it was bound on last, when it changed
 /// (`rapidr_value::hints`: RapidQ's Application.OnHint).

@@ -210,6 +210,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
+| `TabStop` *(RapidR)* | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default, and RapidQ's QPANEL) leaves it out of the keyboard's way. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -232,6 +233,8 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` *(RapidR)* | Fires when the control's size changes, by the user, the program or its alignment. |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
+| `OnExit` *(RapidR)* | Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rtabcontrol"></a>
 ## RTabControl <small>(RapidQ name: QTABCONTROL)</small>
@@ -300,6 +303,8 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rtoolbar"></a>
 ## RToolBar
@@ -769,6 +774,8 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `OnEndDrag` | Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments. |
 | `OnStartDrag` | Binding it makes the button a drag source, as in RapidQ: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="redit"></a>
 ## REdit <small>(RapidQ name: QEDIT)</small>
@@ -813,6 +820,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
 | `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
+| `DataError` *(RapidR)* (read-only) | string | `""` | Why the text the user typed isn't its DataField's value ("stock is a whole number: \"4x\" isn't one"): a number column takes numbers only. The field keeps its value and the edit the user's text until it's fixed or the row changes; "" when the field took it. Read it in OnChange to tell the user. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -842,6 +850,8 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rcheckbox"></a>
 ## RCheckBox <small>(RapidQ name: QCHECKBOX)</small>
@@ -890,6 +900,8 @@ A box with a caption that the user ticks on or off (Checked).
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rradiobutton"></a>
 ## RRadioButton <small>(RapidQ name: QRADIOBUTTON)</small>
@@ -937,6 +949,8 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rcombobox"></a>
 ## RComboBox <small>(RapidQ name: QCOMBOBOX)</small>
@@ -994,7 +1008,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
 | `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
-| `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
+| `Clear` | Removes every item, and the text too — the chosen item's or what was typed (ItemIndex -1, Text ""), as RapidQ does. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
@@ -1028,6 +1042,8 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rrichedit"></a>
 ## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
@@ -1118,6 +1134,8 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rmemo"></a>
 ## RMemo
@@ -1180,6 +1198,8 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rscrollbar"></a>
 ## RScrollBar <small>(RapidQ name: QSCROLLBAR)</small>
@@ -1230,6 +1250,8 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnScroll(ScrollCode AS BYTE, ScrollPos AS LONG)` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rupdown"></a>
 ## RUpDown
@@ -1263,6 +1285,8 @@ Two arrow buttons that step Position up or down between Min and Max, often besid
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rdatetimepicker"></a>
 ## RDateTimePicker
@@ -1352,6 +1376,8 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rcodeeditor"></a>
 ## RCodeEditor
@@ -1524,6 +1550,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `OnNavigate(File AS STRING, Line AS INTEGER, Column AS INTEGER)` | Go to definition found it in another file: open it there. |
 | `OnReferences(Json AS STRING)` | Find references' places: a JSON list of {"file", "line", "column"}. |
 | `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rdiffview"></a>
 ## RDiffView
@@ -1581,6 +1609,8 @@ Two texts compared line by line, the way a code review shows them: side by side 
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rcoolbtn"></a>
 ## RCoolBtn <small>(RapidQ name: QCOOLBTN)</small>
@@ -2336,10 +2366,11 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
-| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. (RapidQ's manual says the Enter key, and its runtime stops the program when an RListBox's OnEnter is bound — RC.EXE; RapidR fires it as its RFileListBox's.) |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.) |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: a form's gets its system tray icon's messages; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rfilelistbox"></a>
 ## RFileListBox <small>(RapidQ name: QFILELISTBOX)</small>
@@ -2408,7 +2439,8 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rdirtree"></a>
 ## RDirTree <small>(RapidQ name: QDIRTREE)</small>
@@ -2463,6 +2495,8 @@ A tree of drives and folders for picking a folder (Directory).
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rstringgrid"></a>
 ## RStringGrid <small>(RapidQ name: QSTRINGGRID)</small>
@@ -2591,6 +2625,8 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rtreeview"></a>
 ## RTreeView <small>(RapidQ name: QTREEVIEW)</small>
@@ -2711,6 +2747,8 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rlistview"></a>
 ## RListView <small>(RapidQ name: QLISTVIEW)</small>
@@ -2796,6 +2834,8 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnColumnClick(Column AS INTEGER)` | Fires when the user clicks a column header of the list view (Column: its index); the usual place to sort by that column. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rmainmenu"></a>
 ## RMainMenu <small>(RapidQ name: QMAINMENU)</small>
@@ -3210,6 +3250,7 @@ Parses and builds JSON: get and set values by dotted path, list keys, pretty-pri
 | `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Count` | int | 0 | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `Error` (read-only) | string | `""` | Why its records couldn't be read as a data source (an RDataFrame's Source, a grid's): no such file, a file that can't be read, or a document that isn't records; "" when they could. RapidR's own. |
 
 | Method | |
 |---|---|
@@ -4364,6 +4405,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `Width` (read-only) | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Ncols` (read-only) | int |  | The number of columns in the data frame. |
 | `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
+| `Error` (read-only) | string | `""` | Why the last LoadFromCSV, SaveToCSV, LoadFromJSON or SaveToJSON couldn't read or write its file, in plain words ("staff_edited.csv: this folder can't be written (it is read-only, or not yours)"); "" when it could. Check it after a save to tell the user. |
 
 | Method | |
 |---|---|
@@ -4550,6 +4592,8 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rplot"></a>
 ## RPlot
@@ -4957,6 +5001,8 @@ An object inspector in the style of Delphi's: the properties of a component (or 
 | `OnEventDblClick(Event AS STRING)` | The user double-clicked an event's row: the program creates (or shows) its handler. |
 | `OnEditorRequest(Prop AS STRING)` | The user asked for a property's own editor (its "…" button) where the inspector has none: the program shows one. |
 | `OnSelect(Prop AS STRING)` | The selected row changed. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rtoolbox"></a>
 ## RToolbox
@@ -5004,6 +5050,8 @@ The palette of components a form designer places, under RapidR's names (RButton;
 | `OnSelect(Type AS STRING)` | The selected component changed. |
 | `OnDragStart(Type AS STRING)` | The user started dragging a component out of the toolbox. |
 | `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rprojecttree"></a>
 ## RProjectTree
@@ -5067,6 +5115,8 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)` | The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to. |
 | `OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)` | The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath). |
 | `OnNewFile(Path AS STRING, Kind AS STRING)` | NewFile added a file and the user named it. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="routputconsole"></a>
 ## ROutputConsole
@@ -5118,6 +5168,8 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 |---|---|
 | `OnLinkClick(File AS STRING, Line AS INTEGER)` | The user clicked a `file:line` place or a problem (or pressed Enter on it). |
 | `OnPageChange(Page AS STRING)` | The user showed another page. |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rcommandpalette"></a>
 ## RCommandPalette
@@ -5159,6 +5211,8 @@ A box of commands found by typing: Show opens it over the form, the user types a
 |---|---|
 | `OnCommand(Id AS STRING)` | The user picked a command (Enter or a click): the palette has closed. |
 | `OnCancel` | The user closed the palette without picking (Escape). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rmarkdownview"></a>
 ## RMarkdownView
@@ -5205,6 +5259,8 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | Event | |
 |---|---|
 | `OnLinkClick(Url AS STRING)` | The user clicked a link: its target as the text writes it ("https://…", "other.md", "#heading"). |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's, as Delphi's; RapidQ has it only on its lists, where it never fires.) |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's, as Delphi's; RapidQ has no OnExit.) |
 
 <a id="rai"></a>
 ## RAI
@@ -5256,7 +5312,7 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Ask(Text AS STRING) AS INTEGER` | Sends Text, with the conversation so far, to Provider's Model and returns at once: the answer streams in (OnToken), then OnMessage with the whole of it and OnDone. False when it can't ask (no provider, key or model: Error says which; no key fires OnKeyNeeded). |
 | `Cancel` | Stops the answer being written (what came so far stays) or the models list being fetched: OnDone("cancelled"). |
 | `NewChat` | Starts a new conversation: the messages and the transcript go (the usage stays). |
-| `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not. A Model the list no longer has is cleared: choose again. True when it started. |
+| `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not — a refused key, no answer within 30 seconds (10 to connect) … in plain words. A Model the list no longer has is cleared: choose again. Asked again, the newer request replaces the one on its way; changing Provider, BaseURL, WorkspaceID, APIKey or APIKeySource drops it too (OnDone("cancelled")). True when it started. |
 | `RememberKey([OnThisDevice AS INTEGER]) AS INTEGER` | Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept. |
 | `ForgetKey` | Removes the key kept under APIKeySource's keychain NAME, and APIKey's. |
 | `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |
@@ -5302,6 +5358,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `ImportSummary` (read-only) | string |  | The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals. |
 | `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, each include file and where it was found, what was left and why, each program's proof. |
 | `ImportMissing` (read-only) | string |  | The include files the last ImportRapidQ found nowhere, a line each: the file and line of the $INCLUDE, the name as written and what to do, separated by tabs ("" when every include was found). |
+| `ExampleCopy` (read-only) | string |  | What the last ExampleToOpen did: "made" (it copied the example now), "kept" (it gave the copy that was there, as the user left it) or "" (the example itself). |
 | `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder (as RapidQ's include folder), for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
 
 | Method | |
@@ -5322,6 +5379,9 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `ExampleToOpen(Path AS STRING, Examples AS STRING) AS STRING` | The file to open for Path: when it is one of RapidR's examples (in folder Examples) where RapidR is installed (the macOS app, /usr/lib/rapidr, Program Files: a home with its release.toml) or where it can't be changed, the user's copy of it in Documents/RapidR/Examples/<its name>/ — made now with its include and data files (the files `rapidr examples copy` takes), or the copy already there, never overwritten (ExampleCopy says which); else Path itself. "" when the copy can't be made (Error says why). On the web, Path itself: the page's store keeps what the user saves. |
+| `ExampleOf(Path AS STRING, Examples AS STRING) AS STRING` | The example (in folder Examples) that Path is the user's copy of (Documents/RapidR/Examples/<name>/<file>); "" for any other file. |
+| `CopyExampleAgain(Path AS STRING, Examples AS STRING) AS STRING` | Copies the example again over the user's copy of it (Path: the copy, or the example): its program, include and data files as they come with RapidR replace the copy's; files the user added stay. The copy's main file; "" when it can't (Error says why). |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
@@ -5387,6 +5447,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Start AS INTEGER` | Runs Program. True when it started; Error says why not. |
 | `Stop` | Ends the program at once. |
 | `Pause AS INTEGER` | Pauses the program at its next statement. |
+| `ShowProgram AS INTEGER` | Brings the running or paused program's windows to the front and makes it the active app (an IDE's Show Program Window; RapidR Studio does it on Continue too): on the desktop the IDE hands its process the front as the system allows it (not on Wayland), on the web its frame gets the keyboard. A paused program's windows show, move and come to the front, but take no clicks or keys until it goes on. False when nothing runs or it couldn't. |
 | `Continue AS INTEGER` | Lets a paused program go on. |
 | `StepIn AS INTEGER` | Runs one statement, into a SUB or FUNCTION it calls. |
 | `StepOver AS INTEGER` | Runs one statement, a call whole. |
@@ -5479,7 +5540,7 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 <a id="application"></a>
 ## Application
 
-The running program: its file and folder, title, icon, hint settings, RapidR's Theme, and Terminate to end it.
+The running program: its file and folder, title, icon, hint settings, RapidR's Theme (and OnThemeChange when the look changes), and Terminate to end it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5505,10 +5566,14 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
-| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. Read it again after setting Theme. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). Visual Basic's notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
+
+| Event | |
+|---|---|
+| `OnThemeChange` *(RapidR)* | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
 
 <a id="clipboard"></a>
 ## Clipboard

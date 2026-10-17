@@ -1,0 +1,7 @@
+' A warning in red: RAPIDQ.INC gives the colours' names
+$INCLUDE "RAPIDQ.INC"
+DIM picked AS INTEGER
+DIM warning AS STRING
+picked = clRed
+warning = "Low on paper"
+PRINT warning; " in colour"; picked

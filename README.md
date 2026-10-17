@@ -218,6 +218,12 @@ From [the roadmap](ROADMAP.md), in no order and with no dates:
 - **More AI**: local AI models in Studio, and a drop-in chat component (RChat).
 - **More data connectors**: Excel, Parquet, PostgreSQL and more, as linked
   components.
+- **Constants with no include**: in `.rr` programs `clRed`, `mbYes` and the
+  rest are simply there (only the ones used are compiled in), and grouped
+  names like `Color.Red` help autocomplete; `.bas` programs keep RapidQ's
+  `$INCLUDE "RAPIDQ.INC"` rule.
+- **A stack panel**: a container that lines its children up and closes the
+  gap when one is hidden, with no layout code.
 - **`$UNSAFEMEM`** (raw memory for old RapidQ memory helpers) and **calls into
   native libraries on macOS and Linux** the way RapidQ calls DLLs.
 

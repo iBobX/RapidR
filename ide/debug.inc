@@ -191,6 +191,45 @@ DIM PerfReady AS RTimer
 PerfReady.Interval = 1
 PerfReady.Enabled = 0
 PerfReady.OnTimer = PerfReadyTick
+' (the program's turn: a step that hasn't stopped within half a second —
+' over a ShowModal, into the next event's handler — brings the program's
+' windows to the front, as Continue does at once)
+DIM StepRaise AS RTimer
+StepRaise.Interval = 500
+StepRaise.Enabled = 0
+StepRaise.OnTimer = StepRaiseTick
+' (this run's first window has been brought to the front)
+DIM RunRaised AS INTEGER
+' (the first window's raise, tried again until the system knows the new
+' process as an app — a moment after its window shows)
+DIM RaiseRetry AS RTimer
+RaiseRetry.Interval = 150
+RaiseRetry.Enabled = 0
+RaiseRetry.OnTimer = RaiseRetryTick
+DIM RaiseTries AS INTEGER
+
+SUB StepRaiseTick
+  StepRaise.Enabled = 0
+  IF RunState = "running" THEN ShowProgram 0
+END SUB
+
+SUB RaiseRetryTick
+  RaiseTries = RaiseTries + 1
+  IF RunState <> "running" OR RaiseTries > 12 THEN
+    RaiseRetry.Enabled = 0
+  ELSEIF Session.ShowProgram THEN
+    RaiseRetry.Enabled = 0
+  END IF
+END SUB
+
+' The program's windows to the front, its app active (Debug > Show Program
+' Window, Continue, its first window, a long step): Studio hands its process
+' the front (RPROGRAMSESSION.ShowProgram). Asked (Asked = 1) and it can't —
+' no window yet, Wayland —: the status bar says so.
+SUB ShowProgram(Asked AS INTEGER)
+  IF ProgramIdle THEN EXIT SUB
+  IF Session.ShowProgram = 0 AND Asked <> 0 THEN SetState RunState, "The program has no window to bring to the front"
+END SUB
 
 SUB PerfReadyTick
   PerfReady.Enabled = 0
@@ -633,6 +672,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
   END IF
   SyncAllBreakpoints
   ResetNeverBreakpoints
+  RunRaised = 0
+  StopLog = ""
   OutputBox.Clear "output"
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
@@ -701,6 +742,7 @@ SUB ResetNeverBreakpoints
 END SUB
 
 SUB StopProgram
+  StepRaise.Enabled = 0
   IF RunState = "running" OR RunState = "paused" THEN Session.Stop
 END SUB
 
@@ -744,7 +786,12 @@ SUB RunToCursor
   IF RunState = "running" THEN EXIT SUB
   SyncBreakpointLines d
   Session.RunToCursor DocFile(d), CodeDoc(d).CaretLine
-  IF RunState = "stopped" OR RunState = "error" THEN StartProgram 1
+  IF ProgramIdle THEN
+    StartProgram 1
+  ELSE
+    ' (the program's turn until it gets there)
+    ShowProgram 0
+  END IF
 END SUB
 
 ' (the program's output as it comes; OutLineOpen: its last line isn't ended)
@@ -764,6 +811,9 @@ END SUB
 
 SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   DIM what AS STRING, kind AS STRING
+  StepRaise.Enabled = 0
+  ' (the run's stops, for the flows' stops:report)
+  StopLog = StopLog + " " + Num(LineNo) + ":" + Reason
   PausedFile = DebugPath(InFile)
   PausedLine = LineNo
   SELECT CASE Reason
@@ -802,6 +852,15 @@ END SUB
 ' (the program's first form of a run: the time since F5, PerfForm)
 SUB ProgramFormShown(Id AS STRING)
   IF PerfForm < 0 AND RunStarted > 0 THEN PerfForm = INT((TIMER - RunStarted) * 1000)
+  ' (its first window comes up in front of Studio: the system leaves a
+  ' window a background process opens behind the active app's)
+  IF RunRaised = 0 AND RunState = "running" THEN
+    RunRaised = 1
+    IF Session.ShowProgram = 0 THEN
+      RaiseTries = 0
+      RaiseRetry.Enabled = 1
+    END IF
+  END IF
 END SUB
 
 SUB ProgramContinued
@@ -810,6 +869,7 @@ SUB ProgramContinued
 END SUB
 
 SUB ProgramExited(Code AS INTEGER)
+  StepRaise.Enabled = 0
   OutputAfterProgram "[" + FileTitle(ProjectMain) + " ended, exit code " + Num(Code) + "]"
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
@@ -906,7 +966,13 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     nm = FIELD$(row, CHR$(9), 1)
     cref = VAL(FIELD$(row, CHR$(9), 4))
     cpath = Path + "/" + nm
-    TreeAddChild w, Parent, ValueText(nm, FIELD$(row, CHR$(9), 2))
+    ' (the globals an $INCLUDEd file made — RAPIDQ.INC's constants —, under
+    ' one closed item after the program's own: "$INCLUDE RAPIDQ.INC (n names)")
+    IF FIELD$(row, CHR$(9), 3) = "Include" THEN
+      TreeAddChild w, Parent, nm + " " + FIELD$(row, CHR$(9), 2)
+    ELSE
+      TreeAddChild w, Parent, ValueText(nm, FIELD$(row, CHR$(9), 2))
+    END IF
     item = TreeCount(w) - 1
     TreeItemData w, item, cref, cpath
     TreeItemValue w, item, FIELD$(row, CHR$(9), 6), FIELD$(row, CHR$(9), 3), VAL(FIELD$(row, CHR$(9), 7))
@@ -1816,18 +1882,25 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
   DIM d AS INTEGER
   d = ActiveCode
   Result = 1
-  IF LEFT$(Id, 10) = "debug.step" AND RunState = "paused" THEN StepStarted = TIMER
+  IF LEFT$(Id, 10) = "debug.step" AND RunState = "paused" THEN
+    StepStarted = TIMER
+    ' (a step that runs on — a ShowModal stepped over — is the program's
+    ' turn: its windows come forward after half a second)
+    StepRaise.Enabled = 0
+    StepRaise.Enabled = 1
+  END IF
   SELECT CASE Id
     CASE "run.start"
-      IF RunState = "paused" THEN Session.Continue ELSE StartProgram 1
+      IF RunState = "paused" THEN ContinueProgram ELSE StartProgram 1
     CASE "run.withoutDebugging": StartProgram 0
     CASE "run.stop": StopProgram
     CASE "run.restart"
       StopProgram
       StartProgram 1
     CASE "run.browser": RunInBrowser
-    CASE "run.continue": IF RunState = "paused" THEN Session.Continue
+    CASE "run.continue": IF RunState = "paused" THEN ContinueProgram
     CASE "run.pause": IF RunState = "running" THEN Session.Pause
+    CASE "debug.showProgram": ShowProgram 1
     CASE "debug.stepInto"
       ' (not running: it starts, stopping at the first line — VB6's F8)
       IF RunState = "paused" THEN
@@ -1861,6 +1934,13 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
+
+' (Continue, F5 while paused: the program goes on, its windows in front —
+' it's the program's turn)
+SUB ContinueProgram
+  Session.Continue
+  ShowProgram 0
+END SUB
 
 ' (F11 / F10 before running: stopped at the program's first statement)
 SUB RunFromEntry
@@ -1966,9 +2046,50 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
     CASE "perf"
       ' (perf:report — the run's and the steps' times, docs/studio-wow.md §3.15)
       OutputLine "[perf] f5-form=" + Num(PerfForm) + " step=" + Num(PerfStep)
+    CASE "cmds"
+      ' (cmds:report — Run's and Debug's commands as the person sees them
+      ' now: the state, then each command's menu item, tool button and
+      ' palette entry, 1 enabled / 0 not / - none; the Run item's caption
+      ' and the ▶ button's hint. cmds:log — every report so far again, a
+      ' run's start having cleared Output)
+      IF arg = "log" THEN OutputLine "[cmds-log]" + CHR$(10) + CmdsLog ELSE CmdsReport
+    CASE "stops"
+      ' (stops:report — every stop of this run: "[stops] 58:breakpoint
+      ' 58:breakpoint 59:step …", line and reason)
+      OutputLine "[stops]" + StopLog
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
+
+' (cmds:report's line: "[cmds] paused@6:breakpoint run.start=111 …"; the
+' lines so far, for cmds:log; this run's stops, for stops:report)
+DIM CmdsLog AS STRING
+DIM StopLog AS STRING
+
+SUB CmdsReport
+  DIM ids AS STRING, n AS INTEGER, k AS INTEGER, id AS STRING, i AS INTEGER, t AS STRING, line AS STRING
+  ids = "run.start,run.withoutDebugging,run.stop,run.restart,run.continue,run.pause,debug.showProgram,debug.stepInto,debug.stepOver,debug.stepOut,debug.runToCursor,debug.setNextStatement,debug.stepIntoSpecific,debug.toggleBreakpoint,run.build"
+  n = TALLY(ids, ",") + 1
+  line = "[cmds] " + RunState
+  IF RunState = "paused" THEN line = line + "@" + Num(PausedLine) + ":" + Session.StopReason
+  FOR k = 1 TO n
+    id = FIELD$(ids, ",", k)
+    i = CmdIndex(id)
+    IF i >= 0 THEN
+      IF Cmd(i).Item >= 0 THEN t = Num(Flag(MI(Cmd(i).Item).Enabled)) ELSE t = "-"
+      IF Cmd(i).Tool >= 0 THEN t = t + Num(Flag(ToolBar.ButtonEnabled(id))) ELSE t = t + "-"
+      t = t + Num(Flag(Palette.CommandEnabled(id)))
+      line = line + " " + id + "=" + t
+    END IF
+  NEXT
+  i = CmdIndex("run.start")
+  IF i >= 0 THEN
+    IF Cmd(i).Item >= 0 THEN line = line + " | " + REPLACESUBSTR$(MI(Cmd(i).Item).Caption, CHR$(9), " ")
+    line = line + " | " + ToolBar.ButtonHint("run.start")
+  END IF
+  OutputLine line
+  CmdsLog = CmdsLog + line + CHR$(10)
+END SUB
 
 ' ---- set-up -------------------------------------------------------------------------------------
 

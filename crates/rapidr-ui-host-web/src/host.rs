@@ -435,7 +435,17 @@ impl WebHost {
         let before = self.top();
         for cmd in std::mem::take(&mut self.desk.cmds) {
             match cmd {
-                HostCmd::Show(f) => self.show(&f),
+                HostCmd::Show(f) => {
+                    self.show(&f);
+                    // (shown maximized — Studio on the page, a program's
+                    // WindowState = 2 set before Show: the page's visible
+                    // part now, its normal bounds kept, so the first click
+                    // on Restore restores; not just the flag and the icon)
+                    let maximized = self.desk.forms.get(&f).is_some_and(|w| w.spec.state == rapidr_value::window_state::WS_MAXIMIZED);
+                    if maximized && self.wins.get(&f).is_some_and(|w| w.normal.is_none()) {
+                        self.set_state(store, &f, rapidr_value::window_state::WS_MAXIMIZED);
+                    }
+                }
                 HostCmd::Hide(f) => {
                     if let Some(w) = self.wins.get(&f) {
                         let _ = w.root.style().set_property("display", "none");
@@ -501,6 +511,8 @@ impl WebHost {
 
     /// Form `id`'s window shown on top (made the first time).
     fn show(&mut self, id: &str) {
+        // (a window shown takes the keyboard, from an embedded frame too)
+        crate::mirror::claim_keyboard();
         if !self.wins.contains_key(id) {
             if let Some(w) = self.make(id) {
                 self.wins.insert(id.to_string(), w);
@@ -998,6 +1010,10 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
                 // (keeps the focus where the kernel puts it, not on the page)
                 e.prevent_default();
+                // (a press in this page's window is the person's: the keyboard
+                // comes with it, from an embedded frame too — RapidR Studio
+                // clicked while its program runs takes its keys back)
+                crate::mirror::claim_keyboard();
                 let _ = el.set_pointer_capture(e.pointer_id());
                 let p = at(&el, &e);
                 let m = mouse_mods(&e, mac);
@@ -1120,6 +1136,8 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
         listen(&fr, "pointerdown", &mut out, move |e| {
             let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
             e.prevent_default();
+            // (the window's title bar pressed: the keyboard with it)
+            crate::mirror::claim_keyboard();
             let p = at(&el, &e);
             let page = (f64::from(e.client_x()), f64::from(e.client_y()));
             let _ = el.set_pointer_capture(e.pointer_id());

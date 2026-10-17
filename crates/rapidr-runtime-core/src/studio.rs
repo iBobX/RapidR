@@ -48,11 +48,23 @@ impl Host for Desktop {
             .collect();
         if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
             env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
+            // (a test that drives the program too — the debugger's event
+            // flows: clicks and keys into it, its handlers' breakpoints, its
+            // dialogs answered —: RAPIDR_TEST_PROGRAM_<X> is the program's
+            // RAPIDR_TEST_<X>, RAPIDR_TEST_PROGRAM_EVENTS its script)
+            for (k, v) in std::env::vars() {
+                if let Some(hook) = k.strip_prefix("RAPIDR_TEST_PROGRAM_").filter(|h| !h.is_empty()) {
+                    env.push((format!("RAPIDR_TEST_{hook}"), Some(v)));
+                }
+            }
         }
         // (Studio's "Preview in classic": the program's default look)
         if !theme.is_empty() {
             env.push(("RAPIDR_THEME".into(), Some(theme.to_string())));
         }
+        // (the front handed back to Studio when the program stops while the
+        // user was using it: Studio's process)
+        env.push(("RAPIDR_SESSION_IDE".into(), Some(std::process::id().to_string())));
         // (Studio's include folders: the program's $INCLUDEs found as in
         // Studio — Settings > Include folders)
         if let Some(path) = rapidr_studio::project::include_path_env() {
@@ -64,6 +76,8 @@ impl Host for Desktop {
         if let Some(w) = crate::ui::kernel::waker() {
             transport.set_waker(w);
         }
+        // (Show Program Window, Continue: Studio hands the program the front)
+        transport.set_activator(Box::new(crate::ui::kernel::activate_process));
         Ok(Box::new(transport))
     }
 

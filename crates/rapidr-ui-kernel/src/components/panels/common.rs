@@ -498,11 +498,9 @@ mod tests {
     }
 }
 
-/// `text` wrapped to `r`'s width, each line centred, from `r`'s top (an
-/// empty panel's "what to do").
-pub fn wrapped_center(p: &mut Painter, r: Rect, text: &str, font: &Font, color: u32) {
-    let (x, y, w, h) = r;
-    let lh = rapidr_value::objects::text::text_size("Ag", font).1.max(1) + 2;
+/// `text`'s lines wrapped at words to `w` pixels (a word longer than `w`
+/// on a line of its own), its own line breaks kept.
+pub fn wrap_words(text: &str, font: &Font, w: i64) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     for para in text.split('\n') {
         let mut cur = String::new();
@@ -516,8 +514,24 @@ pub fn wrapped_center(p: &mut Painter, r: Rect, text: &str, font: &Font, color: 
         }
         lines.push(cur);
     }
+    lines
+}
+
+/// `text` wrapped to `r`'s width, each line centred, from `r`'s top (an
+/// empty panel's "what to do").
+pub fn wrapped_center(p: &mut Painter, r: Rect, text: &str, font: &Font, color: u32) {
+    wrapped_lines(p, r, text, font, color, false);
+}
+
+/// [`wrapped_center`]; `middle`: the lines centred in `r`'s height too.
+pub fn wrapped_lines(p: &mut Painter, r: Rect, text: &str, font: &Font, color: u32, middle: bool) {
+    let (x, y, w, h) = r;
+    let lh = rapidr_value::objects::text::text_size("Ag", font).1.max(1) + 2;
+    let lines = wrap_words(text, font, w);
+    let shown = (lines.len() as i64).min((h / lh).max(1));
+    let top = if middle { y + ((h - shown * lh) / 2).max(0) } else { y };
     for (i, line) in lines.iter().enumerate() {
-        let ly = y + i as i64 * lh;
+        let ly = top + i as i64 * lh;
         if ly + lh > y + h {
             break;
         }

@@ -1,0 +1,293 @@
+' snake.rr: a snake game, played with the keyboard alone. Steer the snake
+' with the arrow keys (or W A S D) to the apples; each one makes it longer and
+' the game faster. It ends if the snake runs into a wall or into itself.
+' Space starts, pauses and starts again after a game; P pauses too. C lets
+' the computer play (any arrow key takes over); a number after the program's
+' name (rapidr run snake.rr 42) makes the same apples every time.
+'
+'   rapidr run snake.rr          (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc snake.rr -o snake.zip      (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. The board is an
+' RCanvas drawn in its OnPaint, a RTimer moves the snake a square at a time.
+' The first apple is always straight ahead; the others are anywhere free.
+$THEME rapidr
+
+CONST COLS = 24                  ' the board, in squares
+CONST ROWS = 18
+CONST CELL = 24                  ' a square's size in pixels
+CONST MAXLEN = COLS * ROWS
+
+DECLARE SUB Tick
+DECLARE SUB Paint
+DECLARE SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+DECLARE SUB BoardClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+
+DIM bx(MAXLEN) AS INTEGER, by(MAXLEN) AS INTEGER       ' the snake: bx(0), by(0) is its head
+DIM length AS INTEGER
+DIM dx AS INTEGER, dy AS INTEGER                       ' the way it goes now
+DIM turnX(1) AS INTEGER, turnY(1) AS INTEGER           ' turns asked for and not yet made (two at most)
+DIM turns AS INTEGER
+DIM appleX AS INTEGER, appleY AS INTEGER
+DIM score AS INTEGER, best AS INTEGER
+DIM state AS INTEGER                                   ' 0 ready, 1 playing, 2 paused, 3 game over
+DIM speed AS INTEGER, firstApple AS INTEGER, demo AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Snake"
+    ClientWidth = COLS * CELL + 24
+    ClientHeight = ROWS * CELL + 80
+    OnKeyDown = FormKey                         ' (no button takes the keys: they come here)
+    Center
+    CREATE Board AS RCanvas
+        Left = 12: Top = 12: Width = COLS * CELL: Height = ROWS * CELL
+        OnPaint = Paint
+        OnMouseDown = BoardClick
+        AccessibleName = "Board"
+        AccessibleDescription = "The snake game's board"
+    END CREATE
+    CREATE ScoreLabel AS RLabel
+        Left = 12: Top = ROWS * CELL + 24: Width = 300
+        Font.Size = 14
+    END CREATE
+    CREATE StateLabel AS RLabel
+        Left = 12: Top = ROWS * CELL + 52: Width = COLS * CELL
+        AutoSize = 0
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 140
+        Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' A new game: a snake of three squares in the middle going right, the
+' first apple straight ahead of it
+SUB NewGame
+    length = 3
+    bx(0) = 8: by(0) = 9
+    bx(1) = 7: by(1) = 9
+    bx(2) = 6: by(2) = 9
+    dx = 1: dy = 0
+    turns = 0
+    score = 0: speed = 1
+    appleX = 15: appleY = 9: firstApple = 1
+    Clock.Interval = 140
+END SUB
+
+SUB ShowState
+    ScoreLabel.Caption = "Score " + STR$(score) + "   Best " + STR$(best) + "   Speed " + STR$(speed)
+    SELECT CASE state
+        CASE 0: StateLabel.Caption = "Press Space to start (or click the board). Arrow keys or W A S D steer; C lets the computer play."
+        CASE 1: StateLabel.Caption = IIF(demo, "The computer is playing. Any arrow key takes over; C stops it.", "Playing. Space or P pauses.")
+        CASE 2: StateLabel.Caption = "Paused. Space or P goes on."
+        CASE ELSE: StateLabel.Caption = "Game over: you scored " + STR$(score) + ". Press Space for another game."
+    END SELECT
+END SUB
+
+' An apple on a free square
+SUB PlaceApple
+    DIM i AS INTEGER, free AS INTEGER
+    DO
+        appleX = INT(RND * COLS): appleY = INT(RND * ROWS)
+        free = 1
+        FOR i = 0 TO length - 1
+            IF bx(i) = appleX AND by(i) = appleY THEN free = 0
+        NEXT
+    LOOP UNTIL free
+END SUB
+
+' The computer's turn: of going straight on, left and right, the ones that
+' don't hit a wall or the snake, the one that ends nearest the apple
+SUB AutoSteer
+    DIM k AS INTEGER, i AS INTEGER, cx AS INTEGER, cy AS INTEGER, nx AS INTEGER, ny AS INTEGER
+    DIM best AS INTEGER, bestD AS INTEGER, d AS INTEGER, free AS INTEGER
+    best = -1: bestD = 100000
+    FOR k = 0 TO 2
+        IF k = 0 THEN
+            cx = dx: cy = dy                    ' straight on
+        ELSEIF k = 1 THEN
+            cx = dy: cy = -dx                   ' left
+        ELSE
+            cx = -dy: cy = dx                   ' right
+        END IF
+        nx = bx(0) + cx: ny = by(0) + cy
+        free = (nx >= 0 AND nx < COLS AND ny >= 0 AND ny < ROWS)
+        IF free THEN
+            FOR i = 0 TO length - 2
+                IF bx(i) = nx AND by(i) = ny THEN free = 0
+            NEXT
+        END IF
+        IF free THEN
+            d = ABS(nx - appleX) + ABS(ny - appleY)
+            IF d < bestD THEN best = k: bestD = d
+        END IF
+    NEXT
+    IF best = 1 THEN
+        turnX(0) = dy: turnY(0) = -dx: turns = 1
+    ELSEIF best = 2 THEN
+        turnX(0) = -dy: turnY(0) = dx: turns = 1
+    END IF
+END SUB
+
+' One step: take the oldest turn asked for, move the head a square, grow if
+' it reached the apple, end if it hit a wall or itself
+SUB Tick
+    DIM i AS INTEGER, nx AS INTEGER, ny AS INTEGER, ate AS INTEGER
+    IF demo THEN
+        turns = 0
+        AutoSteer
+    END IF
+    IF turns > 0 THEN
+        dx = turnX(0): dy = turnY(0)
+        turnX(0) = turnX(1): turnY(0) = turnY(1)
+        turns = turns - 1
+    END IF
+    nx = bx(0) + dx: ny = by(0) + dy
+    IF nx < 0 OR nx >= COLS OR ny < 0 OR ny >= ROWS THEN
+        state = 3
+    ELSE
+        ate = (nx = appleX AND ny = appleY)
+        ' (the tail square is free again unless the snake grows)
+        FOR i = 0 TO length - IIF(ate, 1, 2)
+            IF bx(i) = nx AND by(i) = ny THEN state = 3
+        NEXT
+    END IF
+    IF state = 3 THEN
+        Clock.Enabled = 0
+        IF score > best THEN best = score
+        ShowState
+        Board.Repaint
+        EXIT SUB
+    END IF
+    IF ate THEN length = length + 1
+    FOR i = length - 1 TO 1 STEP -1
+        bx(i) = bx(i - 1): by(i) = by(i - 1)
+    NEXT
+    bx(0) = nx: by(0) = ny
+    IF ate THEN
+        score = score + 1
+        speed = 1 + score \ 3
+        Clock.Interval = 140 - 7 * (speed - 1)
+        IF Clock.Interval < 55 THEN Clock.Interval = 55
+        PlaceApple
+        ShowState
+    END IF
+    Board.Repaint
+END SUB
+
+' The board: a quiet checkerboard, the apple, the snake from its bright head
+' to a dimmer tail, and a veil with words when it is not running
+SUB Paint
+    DIM i AS INTEGER, x AS INTEGER, y AS INTEGER, g AS INTEGER, c AS INTEGER, W AS INTEGER, H AS INTEGER, msg AS STRING
+    W = COLS * CELL: H = ROWS * CELL
+    Board.FillRect 0, 0, W, H, RGB(22, 28, 38)
+    FOR y = 0 TO ROWS - 1
+        FOR x = 0 TO COLS - 1
+            IF (x + y) MOD 2 = 0 THEN Board.FillRect x * CELL, y * CELL, x * CELL + CELL, y * CELL + CELL, RGB(27, 34, 46)
+        NEXT
+    NEXT
+    ' the apple: a red circle with a leaf
+    Board.Circle appleX * CELL + 3, appleY * CELL + 4, appleX * CELL + CELL - 3, appleY * CELL + CELL - 2, RGB(255, 70, 70), RGB(230, 50, 60)
+    Board.FillRect appleX * CELL + 11, appleY * CELL, appleX * CELL + 14, appleY * CELL + 5, RGB(120, 200, 80)
+    ' the snake
+    FOR i = length - 1 TO 0 STEP -1
+        g = 225 - (115 * i) \ (length + 3)              ' bright at the head, dimmer along the tail
+        c = RGB(40, g, 110 + (g - 100) \ 3)
+        Board.RoundRect bx(i) * CELL + 1, by(i) * CELL + 1, bx(i) * CELL + CELL - 1, by(i) * CELL + CELL - 1, 8, 8, c
+        Board.FillRect bx(i) * CELL + 4, by(i) * CELL + 4, bx(i) * CELL + CELL - 4, by(i) * CELL + CELL - 4, c
+    NEXT
+    ' the head's eyes, on the side it is going
+    x = bx(0) * CELL + CELL \ 2 + dx * 5: y = by(0) * CELL + CELL \ 2 + dy * 5
+    Board.FillRect x - 4 + dy * 5, y - 4 + dx * 5, x - 1 + dy * 5, y - 1 + dx * 5, RGB(255, 255, 255)
+    Board.FillRect x - 4 - dy * 5, y - 4 - dx * 5, x - 1 - dy * 5, y - 1 - dx * 5, RGB(255, 255, 255)
+    IF state <> 1 THEN
+        ' a veil over the board, and what to do
+        FOR y = 0 TO H STEP 4
+            Board.Line 0, y, W, y, RGB(10, 14, 22)
+        NEXT
+        SELECT CASE state
+            CASE 0: msg = "Press Space to start"
+            CASE 2: msg = "Paused"
+            CASE ELSE: msg = "Game over: " + STR$(score) + IIF(score = 1, " apple", " apples") + ". Space: again"
+        END SELECT
+        Board.FillRect W \ 2 - 168, H \ 2 - 26, W \ 2 + 168, H \ 2 + 26, RGB(10, 14, 22)
+        Board.Rectangle W \ 2 - 168, H \ 2 - 26, W \ 2 + 168, H \ 2 + 26, RGB(120, 140, 170)
+        Board.FontSize = 14
+        Board.TextOut W \ 2 - Board.TextWidth(msg) \ 2, H \ 2 - 10, msg, RGB(255, 255, 255), -1
+    END IF
+END SUB
+
+' A turn asked for with an arrow key or W A S D: never straight back, never
+' the way it already goes, and at most two waiting
+SUB AskTurn (ax AS INTEGER, ay AS INTEGER)
+    DIM lastX AS INTEGER, lastY AS INTEGER
+    IF state <> 1 THEN EXIT SUB
+    IF demo THEN
+        demo = 0                                ' a key of yours takes over from the computer
+        ShowState
+    END IF
+    IF turns > 0 THEN
+        lastX = turnX(turns - 1): lastY = turnY(turns - 1)
+    ELSE
+        lastX = dx: lastY = dy
+    END IF
+    IF ax = -lastX AND ay = -lastY THEN EXIT SUB          ' straight back
+    IF ax = lastX AND ay = lastY THEN EXIT SUB            ' the same way
+    IF turns < 2 THEN
+        turnX(turns) = ax: turnY(turns) = ay
+        turns = turns + 1
+    END IF
+END SUB
+
+' Space, Enter or P: start, pause, go on, or start again after a game
+SUB Toggle
+    SELECT CASE state
+        CASE 0
+            state = 1: Clock.Enabled = 1
+        CASE 1
+            state = 2: Clock.Enabled = 0
+        CASE 2
+            state = 1: Clock.Enabled = 1
+        CASE ELSE
+            NewGame
+            state = 1: Clock.Enabled = 1
+    END SELECT
+    ShowState
+    Board.Repaint
+END SUB
+
+' A click on the board does what Space does
+SUB BoardClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+    Toggle
+END SUB
+
+SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+    SELECT CASE Key
+        CASE 37, 65: AskTurn -1, 0                   ' Left, A
+        CASE 39, 68: AskTurn 1, 0                    ' Right, D
+        CASE 38, 87: AskTurn 0, -1                   ' Up, W
+        CASE 40, 83: AskTurn 0, 1                    ' Down, S
+        CASE 32, 13, 80: Toggle                      ' Space, Enter, P
+        CASE 67
+            IF state = 1 THEN
+                demo = 1 - demo                      ' C: the computer plays, or stops
+                ShowState
+            ELSE
+                demo = 1
+                IF state = 0 OR state = 3 THEN
+                    IF state = 3 THEN NewGame
+                    state = 1: Clock.Enabled = 1
+                ELSE
+                    state = 1: Clock.Enabled = 1
+                END IF
+                ShowState
+                Board.Repaint
+            END IF
+    END SELECT
+END SUB
+
+IF COMMANDCOUNT >= 1 THEN RANDOMIZE VAL(COMMAND$(1)) ELSE RANDOMIZE TIMER
+NewGame
+ShowState
+Form.ShowModal

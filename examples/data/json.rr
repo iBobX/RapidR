@@ -33,7 +33,10 @@ PRINT "Now paid: " + Order.Get("paid") + ", to " + Order.Get("customer.city") + 
 ' Stringify gives the JSON text (Prettify: indented); SaveFile writes it
 ' indented to a file, LoadFile reads one
 PRINT "As text: " + STR$(LEN(Order.Stringify)) + " characters"
-Order.SaveFile("order.tmp.json")
+IF Order.SaveFile("order.tmp.json") = 0 THEN
+    PRINT "Couldn't write order.tmp.json: this folder (" + CURDIR$ + ") can't be written. Run it from a folder of yours."
+    END
+END IF
 DIM Copy AS RJson
 Copy.LoadFile("order.tmp.json")
 PRINT "Read back: delivery in the " + Copy.Get("delivery.slot") + ", for " + Copy.Get("customer.name")

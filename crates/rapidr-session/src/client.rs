@@ -28,6 +28,14 @@ pub trait Transport {
     /// The program's exit code once it has ended without saying so (a
     /// process that ended; END in a desktop program exits at once).
     fn ended(&mut self) -> Option<i32>;
+    /// The program's windows to the front, its app active (the desktop's
+    /// process, as the window system allows the IDE — the active app — to
+    /// hand it over; the web's frame given the keyboard): the IDE's Show
+    /// Program Window, and Continue. `false` when it couldn't (no window,
+    /// a system that doesn't let it).
+    fn show_program(&mut self) -> bool {
+        false
+    }
 }
 
 /// The program's state, as `State` reads it.
@@ -211,6 +219,12 @@ impl ProgramSession {
         if self.state != State::Stopped {
             self.finish(self.exit_code.unwrap_or(0));
         }
+    }
+
+    /// The program's windows to the front ([`Transport::show_program`]);
+    /// `false` when it isn't running or couldn't.
+    pub fn show_program(&mut self) -> bool {
+        self.state != State::Stopped && self.transport.as_mut().is_some_and(|t| t.show_program())
     }
 
     /// `Pause`: at the next statement the program runs.

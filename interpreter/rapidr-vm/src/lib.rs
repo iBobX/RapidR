@@ -98,6 +98,12 @@ impl std::fmt::Display for VmError {
 
 impl std::error::Error for VmError {}
 
+/// Whether `e` is the program's error (a run-time error, a host's), not
+/// the VM stopping on purpose (paused, suspended, yielded, halted).
+fn is_program_error(e: &VmError) -> bool {
+    !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded | VmError::Halted)
+}
+
 /// A host call's error: a RapidQ exception (`rapidr_value::exception`) is the
 /// program's run-time error, anything else the host's.
 fn host_error(e: String) -> VmError {
@@ -1165,6 +1171,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     #[inline]
     fn after_host(&mut self, module: &Module, ip: usize, has_result: bool) -> Result<bool, VmError> {
         let mut waiting = self.host.wait_started();
+        // (a ShowModal's loop goes on after a handler's run-time error — the
+        // events its turns brought, not those the operation fired before it
+        // waited: Host::wait_catches_errors)
+        let catches = waiting && self.host.wait_catches_errors();
+        let mut pumped = false;
         loop {
             // Until none is left (a continuation queued behind a handler
             // runs once the handler has: rapidr_value::events).
@@ -1173,8 +1184,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 if events.is_empty() {
                     break;
                 }
-                if !self.run_events(module, ip, events)? {
-                    return Ok(false);
+                match self.run_events(module, ip, events) {
+                    Ok(true) => {}
+                    Ok(false) => return Ok(false),
+                    Err(e) if pumped && catches && is_program_error(&e) => self.handler_failed(e),
+                    Err(e) => return Err(e),
                 }
             }
             if !waiting {
@@ -1185,10 +1199,11 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             if self.debug_mode && self.debugger.is_some() && self.interrupt.load(std::sync::atomic::Ordering::Relaxed) && !self.wait_point(module, ip) {
                 return Ok(false);
             }
-            let turn = match self.pump_wait(module, ip)? {
+            let turn = match self.pump_wait(module, ip, catches)? {
                 WaitTurn::Pumped(turn) => turn,
                 WaitTurn::Ended => return Ok(false),
             };
+            pumped = true;
             if let Some(result) = turn {
                 if has_result {
                     self.pop()?;
@@ -1208,7 +1223,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// current frame (`ip` saved, as [`Self::run_events`] does). A handler
     /// that ENDs the program or fails there stops the VM once the turn is
     /// over.
-    fn pump_wait(&mut self, module: &Module, ip: usize) -> Result<WaitTurn, VmError> {
+    fn pump_wait(&mut self, module: &Module, ip: usize, catches: bool) -> Result<WaitTurn, VmError> {
         let Some(pump) = self.host.pump_serving() else { return Ok(WaitTurn::Pumped(self.host.pump())) };
         let mut stop: Option<Result<(), VmError>> = None;
         let result = pump(&mut || {
@@ -1223,6 +1238,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 match self.run_events(module, ip, events) {
                     Ok(true) => {}
                     Ok(false) => return stop = Some(Ok(())),
+                    // (a ShowModal's loop goes on: Self::after_host)
+                    Err(e) if catches && is_program_error(&e) => self.handler_failed(e),
                     Err(e) => return stop = Some(Err(e)),
                 }
             }
@@ -1232,6 +1249,15 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             Some(Err(e)) => Err(e),
             None => Ok(WaitTurn::Pumped(result)),
         }
+    }
+
+    /// A handler a ShowModal's loop ran failed (`Self::after_host`): it and
+    /// the handlers that fired it are gone (`Self::invoke`), the error is
+    /// told (`Host::handler_failed`), the loop goes on — RapidQ's way.
+    fn handler_failed(&mut self, error: VmError) {
+        self.error_line = None;
+        self.stop_error = None;
+        self.host.handler_failed(&error.to_string());
     }
 
     /// Runs `events` one after the other, each to completion, on top of the
@@ -1387,6 +1413,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn invoke(&mut self, module: &Module, event: QueuedEvent, nested: bool) -> Result<Value, VmError> {
         let QueuedEvent { handler: fn_index, args, then } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
+        // (the debugger: an event's handler starts afresh — its first line
+        // is a new line even when it's the one the last event ran, so a
+        // breakpoint in a one-line handler stops on every event; and a step
+        // that began in a handler which has since returned to the event
+        // loop is over: the program runs until a breakpoint, as other
+        // debuggers do)
+        self.last_line = NO_LINE;
+        if let StepMode::Over { target_depth } | StepMode::Out { target_depth } = self.step_mode {
+            if target_depth > base_frames {
+                self.step_mode = StepMode::None;
+            }
+        }
         let argc = u8::try_from(args.len()).map_err(|_| VmError::Runtime("too many event arguments".into()))?;
         self.stack.extend(args);
         if let Err(e) = self.call(module, fn_index, argc, true) {

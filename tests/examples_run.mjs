@@ -36,7 +36,7 @@
 //   node tests/examples_run.mjs [--runtimes run,interp,native,web] [filter …]
 
 import { spawn as spawnAsync, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
@@ -63,9 +63,26 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   includes: the program's $INCLUDEs are in subfolders of its own: the
 //            folder is copied whole, and the web compiles it with every
 //            source file under it (compile_files)
+//   readOnly: the program runs in its folder made read-only (RapidR's
+//            examples where RapidR is installed): what it writes fails, and
+//            it must say so (the built executable is made elsewhere)
+//   without: files of the example's folder left out (its data missing)
+//   reload:  (web) { events, dump }: the page opened again — the browser's
+//            storage kept — and the program run again; `expect` is of that run
+//   extra:   files of other examples' folders (`media/tune.mid`) copied beside it
+//   sameFile: a file the program writes must be byte for byte the one shipped
+//            beside it (make_song.rr's song.mid)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
+// (text typed key by key into `comp`, a US keyboard's keys: a fake API key,
+// a workspace ID — the keyboard's path through the kernel, as a user types)
+const typeKeys = (comp, text) => [...text].map((c) => {
+  if (/[a-z]/.test(c)) return c.toUpperCase().charCodeAt(0);
+  if (/[A-Z]/.test(c)) return `${c.charCodeAt(0)}_256`;
+  if (/[0-9 ]/.test(c)) return c.charCodeAt(0);
+  return { "-": "189", ".": "190", "_": "189_256" }[c];
+}).map((k) => `${comp}.__key_${k}`).join(",");
 export const cases = [
   // basics/
   { file: "basics/hello.rr", runtimes: ["run", "interp", "native", "web"],
@@ -82,6 +99,10 @@ export const cases = [
   // gui/
   { file: "gui/hello_form.rr", runtimes: ["run", "interp", "native", "web"], events: "greetbutton.onclick,greetbutton.onclick", dump: "answer.caption",
     expect: ["answer.caption=Hello, World! (2)"] },
+  // (Tab out of each box: its OnExit checks it, the next one's OnEnter
+  // shows its help)
+  { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
+    expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
   { file: "gui/menus.rr", runtimes: ["run", "interp", "native", "web"], events: "wrapitem.onclick,smallitem.onclick,upperitem.onclick", dump: "status.simpletext,text.text,wrapitem.checked,largeitem.checked",
     expect: ["status.simpletext=Text size 9", "text.text=RIGHT-CLICK ME FOR THE POP-UP MENU.", "wrapitem.checked=0", "largeitem.checked=0"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "colourbtn.onclick,askbtn.onclick", dump: "answer.caption,sample.color",
@@ -99,6 +120,10 @@ export const cases = [
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  // (THEME-LIVE) the system switches to dark while it runs (the test step
+  // __look_dark): its OnThemeChange takes the card's colours again
+  { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__look_dark", dump: "now.caption,card.color",
+    expect: ["now.caption=Theme: rapidr dark", "card.color=3812133"] },
   { file: "gui/sales_dashboard.rr", runtimes: ["run", "interp", "native", "web"], dump: "status.caption,averagevalue.caption",
     expect: ["status.caption=All regions: 1265 thousand in 8890 orders; best month December", "averagevalue.caption=142.29"] },
   { file: "gui/sales_dashboard.rr", runtimes: ["run", "interp", "native", "web"], events: "southbtn.onclick", dump: "status.caption,bestvalue.caption",
@@ -187,6 +212,28 @@ export const cases = [
   { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
     events: "groupbtn.onclick,grid.__cell_0_1", dump: "grid.rowcount,grid.columns,grid.row",
     expect: ["grid.rowcount=5", "grid.columns=dept,salary,years", "grid.row=1"] },
+  // (EXAMPLES-DATA: where the example's folder can't be written — RapidR's
+  // examples where it's installed — the window says why, nothing pretends;
+  // a data file missing, the same; letters typed into a number field are
+  // refused, the arrows move the row the status line shows, grouped by
+  // category the first edit shows the category)
+  { file: "data/million_rows.rr", runtimes: ["run", "interp", "native"], args: ["2000"], readOnly: true,
+    dump: "status.caption,problem.visible,grid.visible,highbtn.enabled,problem.caption",
+    expect: ["status.caption=Couldn't write big_2000.csv", "problem.visible=1", "grid.visible=0", "highbtn.enabled=0", "can't be written: it is read-only, or the disk is full"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native"], readOnly: true, events: "savebtn.onclick", dump: "status.caption",
+    expect: ["status.caption=Couldn't save staff_edited.csv: this folder can't be written (it is read-only, or not yours)"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"], events: "savebtn.onclick", dump: "status.caption",
+    expect: ["status.caption=Saved 8 rows to staff_edited.csv"] },
+  { file: "data/linked_data.rr", runtimes: ["run", "interp", "native", "web"], without: ["staff.csv"], dump: "status.caption,grid.rowcount",
+    expect: ["status.caption=Couldn't read the staff: there is no file \"staff.csv\"", "grid.rowcount=0"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], without: ["products.json"], dump: "status.caption,grid.rowcount",
+    expect: ["status.caption=Couldn't read the products: there is no file \"products.json\"", "grid.rowcount=0"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_0_0,stockedit.__key_65", dump: "stockedit.dataerror,status.caption,stockedit.text",
+    expect: ["stockedit.dataerror=stock is a whole number: \"a\" isn't one", "status.caption=Not changed: stock is a whole number: \"a\" isn't one", "stockedit.text=a"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "grid.__cell_0_0,grid.__key_40,grid.__key_40", dump: "status.caption,grid.row,nameedit.text",
+    expect: ["status.caption=Ruler (School)", "grid.row=2", "nameedit.text=Ruler"] },
+  { file: "data/json_source.rr", runtimes: ["run", "interp", "native", "web"], events: "groupbtn.onclick,allbtn.onclick,groupbtn.onclick", dump: "namelbl.caption,nameedit.text,nameedit.datafield",
+    expect: ["namelbl.caption=Category", "nameedit.text=Art", "nameedit.datafield=category"] },
   // network/ (the tests' own server, local)
   { file: "network/http_json.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"],
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
@@ -197,12 +244,149 @@ export const cases = [
     events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",
     expect: ["modelbox.itemcount=2", "modelbox.text=mock-small  (fast · low cost)", "ai.model=mock-small",
       "answer.text=Hello, friend, nice meeting you.", "info.caption=1,000 tokens sent, 20 received"] },
+  // (AI-REAL: Anthropic played by the mock — RAPIDR_AI_TEST_SERVER — with
+  // an organisation's key: refused without a workspace, the Workspace ID
+  // row filled in, the list and the answer then)
+  { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `providerbox.__item_0,${typeKeys("keyedit", "mock-org-key-1")},listbtn.onclick,${wait("info", 6)},${typeKeys("wsedit", "wrk_ex_01")},listbtn.onclick,${wait("info", 6)},modelbox.__item_0,askbtn.onclick,${wait("info", 8)}`,
+    dump: "wsedit.__shown,wsedit.text,modelbox.itemcount,ai.model,answer.text,listbtn.enabled",
+    expect: ["wsedit.__shown=1", "wsedit.text=wrk_ex_01", "modelbox.itemcount=3", "ai.model=claude-mock-haiku-1", "answer.text=Hello, friend, nice meeting you.", "listbtn.enabled=1"] },
+  // (... a key OpenAI refuses: said, List Models usable again at once ...)
+  { file: "ai/rai_models.rr", runtimes: ["run", "web"],
+    events: `providerbox.__item_1,${typeKeys("keyedit", "mock-bad-key-1")},listbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption,listbtn.enabled",
+    expect: ["info.caption=OpenAI refused the API key (401)", "listbtn.enabled=1"] },
+  // (... and the key typed again: the list comes; no Workspace ID row for OpenAI)
+  { file: "ai/rai_models.rr", runtimes: ["run", "web"],
+    events: `providerbox.__item_1,${typeKeys("keyedit", "mock-bad-key-1")},listbtn.onclick,${wait("info", 6)},keyedit.__key_65_16,${typeKeys("keyedit", "mock-good-key-1")},listbtn.onclick,${wait("info", 6)}`,
+    dump: "modelbox.itemcount,listbtn.enabled,wsedit.__shown",
+    expect: ["modelbox.itemcount=3", "listbtn.enabled=1", "wsedit.__shown=0"] },
   { file: "ai/ask.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
     expect: ["2 models; asking mock-small (fast · low cost):", "Hello, friend, nice meeting you.", "1,000 tokens sent, 20 received"] },
   // iot/: a scripted ESP32 (RAPIDR_TEST_COMPORT's `esp32`: DTR / RTS reset it, it prints a boot log)
   { file: "iot/esp32_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_COMPORT: "COM5:esp32" },
     events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
     expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
+  // showcase/: the release post's programs (docs/manual/showcase.md)
+  // (make_song.rr writes song.mid with a file stream: the same bytes as
+  // the one shipped, which midi_visualizer.rr plays)
+  { file: "showcase/make_song.rr", runtimes: ["run", "interp", "native", "web"], without: ["song.mid"], sameFile: "song.mid",
+    expect: ["Wrote song.mid: 7120 bytes, 32 bars, 5 tracks, 128 beats a minute."] },
+  // (Space launches a rocket; left to burst, the count in the line under the
+  // sky says it went off)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 30)}`,
+    dump: "info.caption", expect: ["info.caption=Bursts: 1   Shape: any   Auto show: off"] },
+  // (the keys: 4 picks the heart; A turns the automatic show on, and it launches)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__key_52", dump: "info.caption",
+    expect: ["info.caption=Bursts: 0   Shape: heart   Auto show: off"] },
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_65,${wait("info", 40)}`, dump: "info.caption",
+    expect: ["Auto show: on"] },
+  // (a click on the sky sends a rocket there)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)}`,
+    dump: "info.caption", expect: ["info.caption=Bursts: 1 "] },
+  // notes.rr: the first note read and shown (96 words, 21 lines, one link); a letter typed (the
+  // preview follows, the note is "changed"); New asks first: No throws the note away, Cancel keeps it;
+  // Save as then New then Open brings the saved note back; Ctrl+B with nothing selected puts the
+  // two marks in and the caret between them
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.linkcount,preview.plaintext",
+    expect: ["status.simpletext=Untitled  (saved)   96 words, 21 lines.", "form.caption=Notes - Untitled", "preview.linkcount=1", "Write Markdown on the left. It shows on the right, as you type."] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `editor.__key_65,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.plaintext", expect: ["status.simpletext=Untitled  (changed, not saved)", "form.caption=Notes - Untitled *", "preview.plaintext=a# Notes"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "No", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,editor.text", expect: ["status.simpletext=Untitled  (saved)   0 words, 0 lines.", "form.caption=Notes - Untitled"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "Cancel", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption", expect: ["status.simpletext=Untitled  (changed, not saved)   96 words, 21 lines.", "form.caption=Notes - Untitled *"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "note.md;note.md", events: `saveasbtn.onclick,newbtn.onclick,${wait("info", 8)},openbtn.onclick,${wait("info", 8)}`,
+    dump: "status.simpletext,form.caption,preview.linkcount", expect: ["status.simpletext=note.md  (saved)   96 words, 21 lines.", "form.caption=Notes - note.md", "preview.linkcount=1"] },
+  { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `bolditem.onclick,${wait("info", 4)}`,
+    dump: "editor.selstart,form.caption", expect: ["editor.selstart=2", "form.caption=Notes - Untitled *"] },
+  // (the web: the note is kept in the browser's storage — the page opened again, the typed letter is
+  // still there, the file name too)
+  { file: "showcase/notes.rr", runtimes: ["web"], events: `editor.__key_65,${wait("info", 16)}`, dump: "status.simpletext",
+    reload: { events: `${wait("info", 8)}`, dump: "status.simpletext,preview.plaintext" },
+    expect: ["Kept in this browser.", "preview.plaintext=a# Notes"] },
+  // snake.rr: Space starts it; the first apple is straight ahead (7 steps of 140 ms, the wall 17), so
+  // between one second and 2.4 seconds on the score is 1 and it is still going (28 events: 1.4 s, with room
+  // for a busy machine); unsteered the snake reaches the wall and the game is over (Best says 1), Space
+  // starts again at 0; P pauses; a turn (Down) avoids the apple and ends at the bottom wall with 0;
+  // a click on the board starts it too
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 28)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 0   Speed 1", "statelabel.caption=Playing. Space or P pauses."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 90)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 1   Speed 1", "statelabel.caption=Game over: you scored 1. Press Space for another game."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 90)},form.__key_32,${wait("info", 4)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 0   Best 1   Speed 1", "statelabel.caption=Playing. Space or P pauses."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 6)},form.__key_80`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Paused. Space or P goes on."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 6)},form.__key_40,${wait("info", 80)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 0   Best 0   Speed 1", "statelabel.caption=Game over: you scored 0."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `board.__mousedown_100_100,board.__mouseup_100_100,${wait("info", 4)}`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Playing. Space or P pauses."] },
+  // (C lets the computer play: it eats the apple straight ahead and goes on; an arrow key takes over)
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], args: ["7"], events: `form.__key_32,form.__key_67,${wait("info", 40)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score ", "statelabel.caption=The computer is playing. Any arrow key takes over; C stops it."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], args: ["7"], events: `form.__key_32,form.__key_67,${wait("info", 10)},form.__key_40`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Playing. Space or P pauses."] },
+  // same_numbers.rr: the four sets have the same numbers, measured by RNum
+  // from the points drawn — as they open, and after New points (other points,
+  // the same numbers) —; the line switched off with the mouse
+  { file: "showcase/same_numbers.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 3)}`,
+    dump: "nums(0).caption,nums(1).caption,nums(2).caption,nums(3).caption,chart(3).title,linebox.checked",
+    expect: [0, 1, 2, 3].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["chart(3).title=D: a column, and one point far off", "linebox.checked=-1"]) },
+  { file: "showcase/same_numbers.rr", runtimes: ["run", "interp", "native", "web"], events: `newbtn.onclick,newbtn.onclick,linebox.__mousedown_8_8,linebox.__mouseup_8_8,${wait("info", 3)}`,
+    dump: "nums(1).caption,nums(2).caption,linebox.checked,chart(0).count",
+    expect: [1, 2].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["linebox.checked=0", "chart(0).count=1"]) },
+  // monte_carlo_pi.rr: the speed slider's End key (300,000 darts a second),
+  // a second of darts: pi is found to its first digit and the numbers say how many;
+  // Pause then Reset: no darts, and the button offers to go on
+  { file: "showcase/monte_carlo_pi.rr", runtimes: ["run", "interp", "native", "web"], events: `speedbar.__key_35,${wait("info", 20)}`,
+    dump: "pilabel.caption,errlabel.caption,countlabel.caption,speedlabel.caption",
+    expect: ["pilabel.caption=pi is about 3.1", "errlabel.caption=Off by 0.0", " darts, ", " inside the circle", "speedlabel.caption=Speed: 300,000 darts a second"] },
+  { file: "showcase/monte_carlo_pi.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 10)},runbtn.onclick,resetbtn.onclick`,
+    dump: "pilabel.caption,errlabel.caption,runbtn.caption", expect: ["pilabel.caption=pi is about ?", "errlabel.caption=No darts yet", "runbtn.caption=&Go on"] },
+  // spin3d.rr: the arrow keys (the form hears them first) and the buttons change the speeds
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_39,form.__key_39,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Planet turning at 2.0x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_40,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Moon going round at 0.5x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `slowerbtn.onclick,slowerbtn.onclick,slowerbtn.onclick,moonfasterbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Moon going round at 1.5x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `slowerbtn.onclick,slowerbtn.onclick,slowerbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Planet turning at 0.0x"] },
+  // signal_lab.rr: with the noise off the analyzer finds the two tones the
+  // sliders say (438 and 683 Hz), a screen reader is told; a square wave with
+  // no second tone shows its odd harmonics, the 11th folded back (aliasing)
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `noisebar.__key_36,${wait("info", 30)}`,
+    dump: "freqlabel.caption,freq2label.caption,amplabel.caption,noiselabel.caption,spec.accessibledescription,scope.accessibledescription",
+    expect: ["freqlabel.caption=Frequency: 438 Hz", "freq2label.caption=Frequency: 683 Hz", "amplabel.caption=Amplitude: 80 %", "noiselabel.caption=Noise: 0 %",
+      "spec.accessibledescription=Peaks at 438 Hz, 683 Hz", "scope.accessibledescription=438 Hz sine wave, about three cycles shown"] },
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"],
+    events: `noisebar.__key_36,wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,tone2on.__mousedown_8_8,tone2on.__mouseup_8_8,${wait("info", 30)}`,
+    dump: "freq2bar.enabled,amp2bar.enabled,spec.accessibledescription,scope.accessibledescription",
+    expect: ["freq2bar.enabled=0", "amp2bar.enabled=0", "spec.accessibledescription=Peaks at 438 Hz, 1314 Hz, 2190 Hz, 3066 Hz, 3942 Hz, 3374 Hz", "scope.accessibledescription=438 Hz square wave"] },
+  // (Hold freezes the screens and says Run; again, and it runs; a frequency
+  // slider moved with the keyboard changes its label; the trigger switched off)
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `holdbtn.onclick,freqbar.__key_39,trigbox.__mousedown_8_8,trigbox.__mouseup_8_8`,
+    dump: "holdbtn.caption,freqlabel.caption,trigbox.checked", expect: ["holdbtn.caption=&Run", "freqlabel.caption=Frequency: 444 Hz", "trigbox.checked=0"] },
+  { file: "showcase/signal_lab.rr", runtimes: ["run", "interp", "native", "web"], events: `holdbtn.onclick,holdbtn.onclick`, dump: "holdbtn.caption", expect: ["holdbtn.caption=&Hold"] },
+  // (the song read by the program itself — 819 notes, 128 beats a minute —,
+  // played a little, paused: the clock and the caption say so)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 24)},pausebtn.onclick`,
+    dump: "info.caption,clock.caption", expect: ["info.caption=Neon Loop - paused", " / 1:00"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 12)},stopbtn.onclick`,
+    dump: "info.caption,clock.caption,bar.position", expect: ["info.caption=Neon Loop - stopped", "clock.caption=0:00 / 1:00", "bar.position=0"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,clock.caption",
+    expect: ["info.caption=Neon Loop - 819 notes, 128 beats a minute. Press Play.", "clock.caption=0:00 / 1:00"] },
+  // (Load MIDI... with a file that isn't one: said in the window; then
+  // another song, a format 0 file with no name)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], extra: ["media/chime.wav"], fileDialog: "chime.wav", events: "loadbtn.onclick", dump: "info.caption,clock.caption",
+    expect: ["info.caption=That isn't a MIDI file (it doesn't start with MThd)"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], extra: ["media/tune.mid"], fileDialog: "tune.mid", events: "loadbtn.onclick", dump: "info.caption,clock.caption",
+    expect: ["info.caption=Untitled song - 54 notes, 120 beats a minute. Press Play.", "clock.caption=0:00 / 0:08"] },
+  // (Calm ticked with the mouse, then play)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `calmbox.__mousedown_8_8,calmbox.__mouseup_8_8,playbtn.onclick,${wait("info", 10)}`,
+    dump: "calmbox.checked,info.caption", expect: ["calmbox.checked=-1", "info.caption=Neon Loop - 819 notes"] },
   // rapidq/: RapidQ's own way, Q names, as RC.EXE compiles it
   { file: "rapidq/notepad.bas", runtimes: ["run", "interp", "native", "web"], events: "saveitem.onclick,newitem.onclick,openitem.onclick", dump: "form.caption,editor.linecount",
     fileDialog: "note.txt;note.txt", expect: ["form.caption=Notepad - note.txt", "editor.linecount=3"] },
@@ -268,6 +452,8 @@ const env = (extra = {}) => ({
   RAPIDR_TEST_WAVE_IN: "tone:440",
   // (no AI provider's key from the machine, none kept in its keychain)
   RAPIDR_AI_KEYSTORE: "memory",
+  // (the cloud providers played by the mock: a loopback address only)
+  RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""),
   OPENAI_API_KEY: "",
   ANTHROPIC_API_KEY: "",
   DEEPSEEK_API_KEY: "",
@@ -290,12 +476,15 @@ function hooks(c, work) {
 /// writes stays there; a native build's outputs too).
 function workCopy(c, runtime) {
   const work = join(WORK, `${c.file.replace(/[/.]/g, "_")}-${runtime}`);
+  if (existsSync(work)) chmodSync(work, 0o755);
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
   const dir = join(EXAMPLES, dirname(c.file));
   for (const f of readdirSync(dir)) {
+    if ((c.without || []).includes(f) || /\.tmp\.|^big(_\d+)?\.csv$/.test(f)) continue;
     if (statSync(join(dir, f)).isFile() || c.includes) cpSync(join(dir, f), join(work, f), { recursive: true });
   }
+  for (const e of c.extra || []) cpSync(join(EXAMPLES, e), join(work, basename(e)));
   return work;
 }
 
@@ -309,24 +498,35 @@ function runDesktop(c, runtime) {
   const work = workCopy(c, runtime);
   const src = join(work, basename(c.file));
   const stem = basename(c.file, extname(c.file));
-  const runEnv = env({ ...hooks(c, work), ...(c.env || {}) });
+  // (readOnly: the captures go elsewhere, the folder can't be written)
+  const shots = c.readOnly ? `${work}-shots` : work;
+  if (c.readOnly) mkdirSync(shots, { recursive: true });
+  const runEnv = env({ ...hooks(c, shots), ...(c.env || {}) });
   const runOpts = { cwd: work, env: runEnv, input: c.input || "", timeout: c.timeout || 60000 };
+  const readOnly = (fn) => {
+    if (c.readOnly) chmodSync(work, 0o555);
+    try {
+      return fn();
+    } finally {
+      if (c.readOnly) chmodSync(work, 0o755);
+    }
+  };
   if (runtime === "run") {
-    const r = spawn(RAPIDR, ["run", src, ...args(c)], runOpts);
+    const r = readOnly(() => spawn(RAPIDR, ["run", src, ...args(c)], runOpts));
     // (RAPIDR_SHOTS=dir: the windows as captured kept, to look at —
     // <example>-<case>-<window>@<scale>x.bmp; RAPIDR_SCALE sets the scale)
     if (process.env.RAPIDR_SHOTS && isGui(c)) {
       mkdirSync(process.env.RAPIDR_SHOTS, { recursive: true });
       const scale = process.env.RAPIDR_SCALE || "1";
-      for (const f of readdirSync(work).filter((f) => /^window-\d+\.bmp$/.test(f))) {
+      for (const f of readdirSync(shots).filter((f) => /^window-\d+\.bmp$/.test(f))) {
         const n = f.match(/\d+/)[0];
-        cpSync(join(work, f), join(process.env.RAPIDR_SHOTS, `${c.file.replace(/[/.]/g, "_")}-${cases.indexOf(c)}-${n}@${scale}x.bmp`));
+        cpSync(join(shots, f), join(process.env.RAPIDR_SHOTS, `${c.file.replace(/[/.]/g, "_")}-${cases.indexOf(c)}-${n}@${scale}x.bmp`));
       }
     }
     return r;
   }
   const native = runtime === "native";
-  const out = join(work, `${stem}-${runtime}`);
+  const out = c.readOnly ? `${work}-${runtime}-out` : join(work, `${stem}-${runtime}`);
   // (a native build: debug, quick to compile; either kind's executable in
   // the output folder)
   const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? ["--debug"] : ["--interp"])], {
@@ -335,7 +535,7 @@ function runDesktop(c, runtime) {
   const exe = join(out, `${stem}${EXE}`);
   let r;
   if (!build.ok || !existsSync(exe)) r = { out: build.out.split("\n").filter((l) => /^error|error:/.test(l)).slice(0, 8).join("\n") || build.out.slice(-800), ok: false, why: ` (build failed${build.why})` };
-  else r = spawn(exe, args(c), runOpts);
+  else r = readOnly(() => spawn(exe, args(c), runOpts));
   // (the native build's ~350 MB in the shared target, gone)
   if (native) dropBuild(CARGO_TARGET, stem);
   rmSync(out, { recursive: true, force: true });
@@ -369,24 +569,37 @@ async function runWeb(c) {
     await page.goto(`${URL_BASE}/tests/web_kernel.html${query}`, { waitUntil: "load" });
     await page.waitForFunction(() => window.rrReady, null, { timeout: 20000 });
     const dir = join(EXAMPLES, dirname(c.file));
-    const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
+    const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && !(c.without || []).includes(f) && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
-    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), ...(c.env || {}) };
-    await page.evaluate(({ source, assets, env, gui, main, files }) => {
-      window.__rapidr_assets = assets;
-      window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
-      if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
-      const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
-      if (gui) window.rr.rapidr_set_test_env(env);
-      window.rr.rapidr_run_bc(bc);
-    }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
-    let dump = [];
-    if (isGui(c)) {
-      await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });
-      dump = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results())).dump;
-    } else {
-      await page.waitForFunction(() => window.rr.rapidr_main_done(), null, { timeout: c.timeout || 60000, polling: 100 });
-      await page.waitForTimeout(200);
+    for (const e of c.extra || []) assets[basename(e)] = "data:application/octet-stream;base64," + readFileSync(join(EXAMPLES, e)).toString("base64");
+    const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
+    // (the program run once; `reload`: the page opened again — the browser's
+    // storage kept — and the program run again with its own events and dump)
+    const go = async (env) => {
+      await page.evaluate(({ source, assets, env, gui, main, files }) => {
+        window.__rapidr_assets = assets;
+        window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
+        if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
+        const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
+        if (gui) window.rr.rapidr_set_test_env(env);
+        window.rr.rapidr_run_bc(bc);
+      }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });
+      let found = [];
+      if (isGui(c)) {
+        await page.waitForFunction(() => window.rr.rapidr_test_results(), null, { timeout: c.timeout || 60000, polling: 100 });
+        found = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results())).dump;
+      } else {
+        await page.waitForFunction(() => window.rr.rapidr_main_done(), null, { timeout: c.timeout || 60000, polling: 100 });
+        await page.waitForTimeout(200);
+      }
+      return found;
+    };
+    let dump = await go(env);
+    if (c.reload) {
+      lines.length = 0;
+      await page.goto(`${URL_BASE}/tests/web_kernel.html${query}`, { waitUntil: "load" });
+      await page.waitForFunction(() => window.rrReady, null, { timeout: 20000 });
+      dump = await go({ ...env, RAPIDR_TEST_EVENTS: c.reload.events || "", RAPIDR_TEST_DUMP: c.reload.dump || c.dump });
     }
     return { out: [...lines, ...dump].join("\n"), ok: errors.length === 0, why: errors.length ? ` (page errors: ${errors.join("; ")})` : "" };
   } catch (e) {
@@ -404,6 +617,11 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.fil
     const missing = c.expect.filter((l) => !r.out.includes(l));
     ok(r.ok && !missing.length, `${c.file} (${runtime})`,
       `${r.why}${missing.length ? ` missing: ${missing.map((m) => JSON.stringify(m)).join(", ")}` : ""}\n    got: ${r.out.trim().split("\n").slice(-12).join("\n         ")}`);
+    if (c.sameFile && runtime === "run") {
+      const made = join(WORK, `${c.file.replace(/[/.]/g, "_")}-${runtime}`, c.sameFile);
+      const shipped = join(EXAMPLES, dirname(c.file), c.sameFile);
+      ok(existsSync(made) && readFileSync(made).equals(readFileSync(shipped)), `${c.file}: ${c.sameFile} is made again byte for byte`);
+    }
   }
 }
 if (browser) await browser.close();

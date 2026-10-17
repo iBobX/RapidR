@@ -39,6 +39,9 @@ pub struct NativeHost {
     pub input_source: Option<Box<dyn FnMut() -> Option<String>>>,
     /// Told when a form is shown (`true`) or closed / hidden (a session).
     pub on_form: Option<Box<dyn FnMut(&str, bool)>>,
+    /// Where a handler's run-time error goes instead of standard error, the
+    /// program going on (a session: the IDE's Output).
+    pub errors: Option<Box<dyn FnMut(&str)>>,
     /// Each builtin name the program called, as the program wrote it, and
     /// its key (`rapidr_bytecode::builtins::builtin_key`; `None`: not a
     /// builtin): worked out once, not at every call.
@@ -102,7 +105,8 @@ impl Host for NativeHost {
     }
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
-        rp_comp_set(id, name, value);
+        // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
+        rp_prop_set(id, name, value);
         Ok(())
     }
 
@@ -157,6 +161,17 @@ impl Host for NativeHost {
         obj::rp_take_wait_started()
     }
 
+    fn wait_catches_errors(&mut self) -> bool {
+        obj::rp_wait_catches_errors()
+    }
+
+    fn handler_failed(&mut self, error: &str) {
+        match self.errors.as_mut() {
+            Some(errors) => errors(&format!("{error}\n")),
+            None => eprintln!("{error}"),
+        }
+    }
+
     fn pump(&mut self) -> Option<Value> {
         obj::rp_pump_wait()
     }
@@ -166,6 +181,14 @@ impl Host for NativeHost {
     // the VM, lent to the wait, runs their handlers)
     fn pump_serving(&self) -> Option<fn(&mut dyn FnMut()) -> Option<Value>> {
         Some(obj::rp_pump_wait_serving)
+    }
+
+    fn serve_paused(&mut self) -> bool {
+        obj::rp_serve_paused()
+    }
+
+    fn closed_while_paused(&mut self) -> bool {
+        obj::rp_closed_while_paused()
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
@@ -383,7 +406,7 @@ fn call_builtin_key(lower: &str, args: &[Value]) -> Value {
         // Components reached through objects (rapidr_ast::objects): by id.
         "__objget" => rp_comp_read(&a0.to_string_val(), &a1.to_string_val()),
         "__objset" => {
-            rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
+            rp_prop_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
             v_null()
         }
         "__objcall" => rp_comp_call(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),

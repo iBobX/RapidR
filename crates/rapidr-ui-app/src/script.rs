@@ -117,6 +117,14 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Hold(ms) => rt.script_input(ScriptInput::Hold(ms)),
         // (the system tray: the form's icon clicked)
         Action::Tray(m) => crate::tray::test_message(rt, &e.comp, m),
+        // (RapidR's OnThemeChange: the user switched the system to dark …
+        // — a theme that follows it changes now, Application.OnThemeChange
+        // fires as the events are dispatched)
+        Action::Look(dark, contrast) => {
+            testhooks::set_system_look(dark, contrast);
+            rapidr_value::theme::system_answer(dark, contrast);
+            crate::windows::invalidate();
+        }
         // (the lists lane's: the component synthesizes the input)
         Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
             let step = match e.action {
@@ -188,14 +196,22 @@ pub fn step<R: Program + Windows>(rt: R) {
     let next = sc(|s| s.as_mut().and_then(|sc| sc.events.pop_front()));
     match next {
         Some(e) => {
+            // (the next step soon after, however this one's handlers end — a
+            // native build's run-time error unwinds them: rapidr_value::catching)
+            struct Next<R: Program>(R);
+            impl<R: Program> Drop for Next<R> {
+                fn drop(&mut self) {
+                    let next = self.0.now() + Duration::from_millis(50);
+                    sc(|s| {
+                        if let Some(sc) = s.as_mut() {
+                            sc.next = next;
+                        }
+                    });
+                }
+            }
+            let _next = Next(rt);
             run_event(rt, e);
             rt.dispatch_pending();
-            let next = rt.now() + Duration::from_millis(50);
-            sc(|s| {
-                if let Some(sc) = s.as_mut() {
-                    sc.next = next;
-                }
-            });
         }
         None => {
             let next = rt.now() + Duration::from_millis(300);

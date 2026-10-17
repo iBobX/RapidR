@@ -603,6 +603,48 @@ thread_local! {
     /// The user's `RAPIDR_THEME` where a process has no environment (a
     /// browser page's, [`set_user_choice`]).
     static USER_CHOICE: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+    /// How the runtime asks the system's look (dark, high contrast) the
+    /// first time a theme that follows it is needed ([`set_system_probe`]).
+    static PROBE: Cell<Option<fn() -> (bool, bool)>> = const { Cell::new(None) };
+    /// The look the program was last told about (Application.OnThemeChange,
+    /// [`take_change`]): `None` until it listens ([`listen`]).
+    static TOLD: Cell<Option<&'static Theme>> = const { Cell::new(None) };
+}
+
+/// How the runtime asks the system's look — (dark, high contrast) — for a
+/// theme that follows it, set as the program starts: RapidR's look is then
+/// the system's from the first thing drawn or read (Application.ThemeColor
+/// in the program's first lines), not light until the system first
+/// answers. A theme that follows the system already: as it says now.
+pub fn set_system_probe(probe: fn() -> (bool, bool)) {
+    PROBE.with(|p| p.set(Some(probe)));
+    if CURRENT.with(|c| c.get().0.is_some()) && WANTS_SYSTEM.with(Cell::get) {
+        let (dark, contrast) = probe();
+        switch(auto(dark, contrast));
+    }
+}
+
+/// The program listens for the look's changes (its
+/// Application.OnThemeChange handler was bound): from the look it has now.
+pub fn listen() {
+    let now = current();
+    TOLD.with(|t| t.set(Some(now)));
+}
+
+/// Whether the look changed since the program was last told — since its
+/// Application.OnThemeChange handler was bound, or since the last time this
+/// said so: the program set Application.Theme to another look, or the
+/// system's look changed while the program follows it. The look is then
+/// the one told. Never before the program listens; a change undone before
+/// it's asked (dark and back to light in one turn) is none.
+pub fn take_change() -> bool {
+    let Some(told) = TOLD.with(Cell::get) else { return false };
+    let now = current();
+    if *told == *now {
+        return false;
+    }
+    TOLD.with(|t| t.set(Some(now)));
+    true
 }
 
 /// The user's `RAPIDR_THEME` for a host without a process environment (a
@@ -620,15 +662,22 @@ pub fn set_user_choice(name: Option<String>) {
 }
 
 /// The theme of a program that names none: the user's `RAPIDR_THEME` (any
-/// name [`choose`] knows), else RapidR's look as the system is — light
-/// until the system answers ([`system_answer`]).
+/// name [`choose`] knows), else RapidR's look as the system is — as the
+/// runtime's probe says ([`set_system_probe`]), light without one until the
+/// system answers ([`system_answer`]).
 fn default_theme() -> &'static Theme {
     let name = USER_CHOICE.with(|u| u.borrow().clone()).or_else(|| std::env::var("RAPIDR_THEME").ok()).unwrap_or_default();
     match choose(&name) {
         Choice::Theme(t) => t,
         Choice::Auto | Choice::Unknown => {
             WANTS_SYSTEM.with(|w| w.set(true));
-            &RAPIDR
+            match PROBE.with(Cell::get) {
+                Some(probe) => {
+                    let (dark, contrast) = probe();
+                    auto(dark, contrast)
+                }
+                None => &RAPIDR,
+            }
         }
     }
 }
@@ -1107,6 +1156,53 @@ mod tests {
         system_answer(true, false);
         assert_eq!(current(), &RAPIDR_DARK);
         set(&CLASSIC);
+    }
+
+    #[test]
+    fn the_system_is_asked_before_the_first_thing_drawn() {
+        if std::env::var_os("RAPIDR_THEME").is_some() {
+            return;
+        }
+        // (each test has a thread of its own: no theme taken yet) The
+        // runtime's probe, set as the program starts, says dark: the first
+        // colour read is dark's, not light's until the first pump.
+        set_system_probe(|| (true, false));
+        assert_eq!((current(), wants_system()), (&RAPIDR_DARK, true));
+        // A theme taken (light) before the probe was set: as it says now.
+        CURRENT.with(|c| c.set((Some(&RAPIDR), 0)));
+        set_system_probe(|| (false, true));
+        assert_eq!(current(), &RAPIDR_HIGH_CONTRAST);
+        // A theme the program named isn't changed by it.
+        set(&CLASSIC);
+        set_system_probe(|| (true, false));
+        assert_eq!(current(), &CLASSIC);
+    }
+
+    #[test]
+    fn a_change_of_look_is_told_once_after_the_program_listens() {
+        follow_system(false, false);
+        // (not listening yet: nothing to tell)
+        system_answer(true, false);
+        assert!(!take_change());
+        // Listening from dark: no change yet.
+        listen();
+        assert!(!take_change());
+        // The system goes light: told once.
+        system_answer(false, false);
+        assert!(take_change());
+        assert!(!take_change());
+        // Application.Theme to another look: told; to the same: not.
+        set(&RAPIDR_HIGH_CONTRAST);
+        assert!(take_change());
+        set(&RAPIDR_HIGH_CONTRAST);
+        assert!(!take_change());
+        // A change undone before it's asked is none.
+        set(&CLASSIC);
+        set(&RAPIDR_HIGH_CONTRAST);
+        assert!(!take_change());
+        // (a designer's preview in another look changes nothing)
+        drawn_in(&RAPIDR_DARK, || assert!(!TOLD.with(Cell::get).is_some_and(|t| *t == RAPIDR_DARK)));
+        assert!(!take_change());
     }
 
     #[test]

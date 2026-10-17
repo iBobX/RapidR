@@ -70,6 +70,7 @@ SUB RunCommand(Id AS STRING)
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.openExample": ShowPalette "Example"
+    CASE "file.exampleAgain": CopyExampleAgain
     CASE "file.importRapidQ": AskImportRapidQ
     CASE "file.importRapidQFolder": AskImportRapidQFolder
     CASE "file.save": SaveDocument d
@@ -159,6 +160,12 @@ END SUB
 SUB StudioResize
   LayOutStatus
   LayOutWelcome
+END SUB
+
+' (the keyboard starts in the Project pane, as it always has: the Welcome
+' page's cards are Tab stops, and come first in the window)
+SUB StudioShown
+  IF ActiveDoc < 0 THEN Dock.FocusPane("projecttree")
 END SUB
 
 SUB StudioClose(Action AS INTEGER)
@@ -296,6 +303,8 @@ SUB StartStudio
   FillPalette
   FillRecent
   ApplyChrome
+  ' (from here on, the look's changes: the system's, View > Theme)
+  Application.OnThemeChange = StudioThemeChanged
   FillProjectTree
   InspectActive
   OutputLine "RapidR Studio is ready."

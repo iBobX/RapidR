@@ -115,6 +115,112 @@ pub fn provider(id: &str) -> Option<&'static Provider> {
     PROVIDERS.iter().find(|p| p.id.eq_ignore_ascii_case(id.trim()))
 }
 
+// ---- the tests' server ---------------------------------------------------------------
+//
+// Tests (Studio's flows, the examples' runs) point the cloud providers at a
+// mock server on this computer (tests/ai_mock_server.mjs) with
+// `RAPIDR_AI_TEST_SERVER=http://127.0.0.1:PORT` — on the web, the page's
+// test environment (rapidr-runtime-web's ai_web.rs passes it on). Each
+// provider's requests then go to `<server>/<id><its path>`
+// (`/anthropic/v1/models`, `/openai/v1/chat/completions`,
+// `/deepseek/models`), so the mock knows who it plays. Only a server on
+// this computer is accepted: 127.0.0.1, [::1] or localhost, nothing else —
+// a key is never sent anywhere else by this switch.
+
+use std::cell::RefCell;
+
+thread_local! {
+    // (None: not looked at yet; Some(None): none; requests are made on the
+    // thread of the program's loop — a test of one thread can't change
+    // another's)
+    static TEST_SERVER: RefCell<Option<Option<String>>> = const { RefCell::new(None) };
+}
+
+/// `url` if it is a server on this computer (`http(s)://127.0.0.1:PORT`,
+/// `[::1]`, `localhost`, an optional port and path), without a trailing `/`;
+/// why not otherwise.
+pub fn loopback_url(url: &str) -> Result<String, String> {
+    let url = url.trim().trim_end_matches('/');
+    let rest = url.strip_prefix("http://").or_else(|| url.strip_prefix("https://")).ok_or("not an http:// or https:// address")?;
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    if authority.contains('@') {
+        return Err("an address with a user name is refused".into());
+    }
+    let (host, port) = if let Some(v6) = authority.strip_prefix('[') {
+        let (h, after) = v6.split_once(']').ok_or("a bad IPv6 address")?;
+        (h, after.strip_prefix(':'))
+    } else {
+        match authority.split_once(':') {
+            Some((h, p)) => (h, Some(p)),
+            None => (authority, None),
+        }
+    };
+    if let Some(p) = port {
+        if p.is_empty() || !p.chars().all(|c| c.is_ascii_digit()) || p.parse::<u16>().is_err() {
+            return Err("a bad port".into());
+        }
+    }
+    let host = host.to_ascii_lowercase();
+    if !matches!(host.as_str(), "127.0.0.1" | "::1" | "localhost") {
+        return Err(format!("{host} isn't this computer (only 127.0.0.1, [::1] or localhost)"));
+    }
+    Ok(url.to_string())
+}
+
+/// Sets the tests' server (`None`: none); a server that isn't on this
+/// computer is refused and none is set.
+pub fn set_test_server(url: Option<&str>) -> Result<(), String> {
+    let checked = match url.map(str::trim).filter(|u| !u.is_empty()) {
+        Some(u) => match loopback_url(u) {
+            Ok(u) => Some(u),
+            Err(e) => {
+                TEST_SERVER.with(|s| *s.borrow_mut() = Some(None));
+                return Err(e);
+            }
+        },
+        None => None,
+    };
+    TEST_SERVER.with(|s| *s.borrow_mut() = Some(checked));
+    Ok(())
+}
+
+/// The tests' server, if one is set (on the desktop, from
+/// `RAPIDR_AI_TEST_SERVER` the first time it's asked).
+pub fn test_server() -> Option<String> {
+    TEST_SERVER.with(|s| {
+    let mut s = s.borrow_mut();
+    if s.is_none() {
+        #[cfg(not(target_arch = "wasm32"))]
+        let from_env = std::env::var("RAPIDR_AI_TEST_SERVER").ok().filter(|v| !v.trim().is_empty());
+        #[cfg(target_arch = "wasm32")]
+        let from_env: Option<String> = None;
+        *s = Some(match from_env {
+            Some(u) => match loopback_url(&u) {
+                Ok(u) => Some(u),
+                Err(e) => {
+                    eprintln!("RAPIDR_AI_TEST_SERVER ignored: {e}");
+                    None
+                }
+            },
+            None => None,
+        });
+    }
+    s.clone().flatten()
+    })
+}
+
+/// Where `p`'s API is: its own address, or — a test server set — that
+/// server's place for it. (`compatible`'s is always the user's.)
+pub fn default_base(p: &Provider) -> String {
+    if p.id != "compatible" {
+        if let Some(server) = test_server() {
+            let path = p.base_url.split_once("://").and_then(|(_, r)| r.find('/').map(|i| &r[i..])).unwrap_or("");
+            return format!("{server}/{}{path}", p.id);
+        }
+    }
+    p.base_url.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,5 +234,25 @@ mod tests {
         }
         assert_eq!(provider(" anthropic ").unwrap().format, Format::Anthropic);
         assert!(provider("gemini").is_none());
+    }
+
+    #[test]
+    fn the_tests_server_is_on_this_computer_only() {
+        for ok in ["http://127.0.0.1:18541", "http://localhost:9/", "https://[::1]:443/x", "http://127.0.0.1"] {
+            assert!(loopback_url(ok).is_ok(), "{ok}");
+        }
+        for bad in ["http://127.0.0.1.evil.example:80", "http://127.0.0.1@evil.example", "http://evil.example/127.0.0.1", "http://localhost.evil.example", "ftp://127.0.0.1", "http://10.0.0.2:80", "http://[::2]:80", "http://127.0.0.1:99999", "http://127.0.0.1:8a", "127.0.0.1:80", "http://0.0.0.0:80"] {
+            assert!(loopback_url(bad).is_err(), "{bad}");
+        }
+        assert!(set_test_server(Some("https://api.openai.com")).is_err());
+        assert_eq!(test_server(), None, "a refused server sets none");
+        assert_eq!(default_base(provider("openai").unwrap()), "https://api.openai.com/v1");
+        set_test_server(Some("http://127.0.0.1:18541/")).unwrap();
+        assert_eq!(default_base(provider("anthropic").unwrap()), "http://127.0.0.1:18541/anthropic/v1");
+        assert_eq!(default_base(provider("openai").unwrap()), "http://127.0.0.1:18541/openai/v1");
+        assert_eq!(default_base(provider("deepseek").unwrap()), "http://127.0.0.1:18541/deepseek");
+        assert_eq!(default_base(provider("compatible").unwrap()), "http://localhost:11434/v1", "the user's server stays the user's");
+        set_test_server(None).unwrap();
+        assert_eq!(default_base(provider("anthropic").unwrap()), "https://api.anthropic.com/v1");
     }
 }

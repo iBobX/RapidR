@@ -233,6 +233,11 @@ SUB SetUpAI
   AI.Audit = 1
   ' (the project as the assistant's tools: on demand, never all at once)
   AI.AttachComponent AITools, "project"
+  ' (Tools > Settings > AI's own: its lists and errors on its tab)
+  SetAI.OnModelsLoaded = AISetModelsIn
+  SetAI.OnError = AISetError
+  SetAI.OnDone = AISetDone
+  SetAI.Audit = 1
   ' (an RAI on a form: its models listed in the designer)
   DesignAI.OnModelsLoaded = DesignAIModelsIn
   DesignAI.OnError = DesignAIError
@@ -314,11 +319,11 @@ SUB SetUpAI
   ' (the proposals' bar: shown when the answer proposes changes)
   AIReviewBar.Parent = AIPanel
   AIReviewBar.Align = 2
-  AIReviewBar.Height = 40
+  AIReviewBar.Height = 46
   AIReviewBar.BevelOuter = 0
   AIReviewBar.Visible = 0
   AIReviewText.Parent = AIReviewBar
-  AIReviewText.Left = 10: AIReviewText.Top = 12
+  AIReviewText.Left = 10: AIReviewText.Top = 4: AIReviewText.WordWrap = 1: AIReviewText.AutoSize = 0: AIReviewText.Height = 38
   AIReviewBtn.Parent = AIReviewBar
   AIReviewBtn.Caption = "Review..."
   AIReviewBtn.AccessibleName = "Review the proposed changes"
@@ -367,8 +372,8 @@ SUB LayOutAIPanel
   END IF
   AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
   IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
-  AIReviewText.Width = w - 120
-  AIReviewBtn.Left = w - 104: AIReviewBtn.Top = 6: AIReviewBtn.Width = 96: AIReviewBtn.Height = bh
+  AIReviewText.Width = w - 124
+  AIReviewBtn.Left = w - 104: AIReviewBtn.Top = 9: AIReviewBtn.Width = 96: AIReviewBtn.Height = bh
   AIChat.EmptyText = AIEmptyText
 END SUB
 
@@ -418,8 +423,10 @@ END FUNCTION
 SUB AIApplySettings
   DIM k AS INTEGER
   AI.Provider = AIProvider
-  AI.BaseURL = AIBase
-  AI.WorkspaceID = AIWorkspace
+  ' (the address is a compatible server's, the workspace Anthropic's: a
+  ' cloud provider's own address is never replaced by one typed for another)
+  IF AIProvider = "compatible" THEN AI.BaseURL = AIBase ELSE AI.BaseURL = ""
+  IF AIProvider = "anthropic" THEN AI.WorkspaceID = AIWorkspace ELSE AI.WorkspaceID = ""
   ' (Studio's assistant writes whole programs: 4096 a reply unless the
   ' user set another limit — RAI's own default is smaller)
   IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 4096
@@ -442,11 +449,13 @@ SUB AIApplySettings
   AIEnableSend
 END SUB
 
-' The model list: the ones fetched, else the one chosen.
+' The model list: the ones fetched (by the assistant, or by Settings for
+' the same provider and address), else the one chosen.
 SUB AIFillModels
   DIM all AS STRING, i AS INTEGER, line AS STRING, k AS INTEGER
   AIModelBox.Clear
   all = AI.Models
+  IF all = "" AND SetAI.Provider = AI.Provider AND SetAI.BaseURL = AI.BaseURL THEN all = SetAI.Models
   k = -1
   IF all <> "" THEN
     FOR i = 1 TO TALLY(all, CHR$(10)) + 1
@@ -630,6 +639,10 @@ SUB AIShowOrHide
     AI.Cancel
     Dock.HidePane("aipanel")
   END IF
+  ' (Send and Stop as the assistant now is: ready or not, a key saved or
+  ' removed in Settings)
+  AIEnableSend
+  AIChat.EmptyText = AIEmptyText
 END SUB
 
 ' View > AI Assistant (Ctrl+I): the panel, the keyboard in its box; off,
@@ -736,10 +749,8 @@ END SUB
 
 SUB AIErrorSaid(Message AS STRING)
   OutputLine "AI: " + Message
-  ' (a refused key or a failed list: Fetch Models can be pressed again, and
-  ' the settings say why)
-  AIFetchBtn.Enabled = 1
-  IF SettingsDialog.Visible THEN AIKeyNote.Caption = Message
+  AIStatus.SimpleText = Message
+  AIEnableSend
 END SUB
 
 SUB AIModelsIn(Count AS INTEGER)
@@ -753,7 +764,6 @@ SUB AIModelsIn(Count AS INTEGER)
   AIFillModels
   AIFilling = 0
   AIStatus.SimpleText = AI.Status
-  AISettingsModelsIn
   AIEnableSend
 END SUB
 
@@ -968,7 +978,9 @@ SUB AIApplyProposals
   NEXT
   AIReviewBar.Visible = 0
   AIChat.Text = AI.Transcript
-  IF done = 1 THEN
+  IF done = 0 THEN
+    AIStatus.SimpleText = "Nothing was changed: no change was accepted."
+  ELSEIF done = 1 THEN
     AIStatus.SimpleText = "1 file changed: Edit > Undo takes it back."
   ELSE
     AIStatus.SimpleText = LTRIM$(STR$(done)) + " files changed: Edit > Undo in each takes it back."
@@ -1128,9 +1140,18 @@ SUB AIStep(Stp AS STRING)
       AIApplySettings
     CASE "key"
       ' (tests and the manual's pictures only: a made-up key, never a real
-      ' one — kept in memory, never in the keychain)
+      ' one — kept in memory, never in the keychain: under the tests' memory
+      ' store or a browser tab's, kept as Save Key keeps it, so Settings
+      ' shows it as a user's; elsewhere only the assistant's for the session)
       AI.Provider = AIProvider
+      AI.APIKeySource = AIKeySourceOf(AIProvider)
+      ' (where a key would be kept, asked before one is set: the store's
+      ' own name, never "the macOS Keychain" for this)
+      k = Flag(INSTR(AI.KeyStore, "memory, for this session") > 0 OR INSTR(AI.KeyStore, "browser tab") > 0)
       AI.APIKey = arg
+      IF k THEN
+        IF AI.RememberKey(0) THEN AI.APIKey = ""
+      END IF
       AIApplySettings
       AIShowOrHide
     CASE "fetch": AI.RefreshModels

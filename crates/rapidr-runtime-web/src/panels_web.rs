@@ -55,7 +55,7 @@ impl Runtime for Web {
         crate::kernel_web::rebuild();
     }
     fn drop_list(self, form: &str, name: &str, items: Vec<String>, anchor: Rect) {
-        rapidr_ui_kernel::components::combo::open_list(form, name, items, anchor);
+        rapidr_ui_kernel::components::combo::open_list_fitted(form, name, items, anchor);
         crate::kernel_web::redraw();
     }
     /// A web link the user clicked (http, https, mailto: the model checked)

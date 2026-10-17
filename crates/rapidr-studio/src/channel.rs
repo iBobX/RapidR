@@ -34,6 +34,7 @@ pub fn ended(code: i32) {
 pub struct ChannelTransport {
     send: Box<dyn Fn(&str) -> Result<(), String>>,
     stop: Box<dyn Fn()>,
+    show: Option<Box<dyn Fn() -> bool>>,
 }
 
 impl ChannelTransport {
@@ -41,7 +42,14 @@ impl ChannelTransport {
     pub fn new(send: impl Fn(&str) -> Result<(), String> + 'static, stop: impl Fn() + 'static) -> Self {
         QUEUE.with(|q| q.borrow_mut().clear());
         ENDED.with(|e| e.set(None));
-        ChannelTransport { send: Box::new(send), stop: Box::new(stop) }
+        ChannelTransport { send: Box::new(send), stop: Box::new(stop), show: None }
+    }
+
+    /// How the page brings the program's windows to the front and gives
+    /// them the keyboard ([`Transport::show_program`]).
+    pub fn with_show(mut self, show: impl Fn() -> bool + 'static) -> Self {
+        self.show = Some(Box::new(show));
+        self
     }
 }
 
@@ -65,6 +73,10 @@ impl Transport for ChannelTransport {
 
     fn ended(&mut self) -> Option<i32> {
         ENDED.with(Cell::get)
+    }
+
+    fn show_program(&mut self) -> bool {
+        self.ended().is_none() && self.show.as_ref().is_some_and(|s| s())
     }
 }
 

@@ -121,6 +121,11 @@ pub struct Plan {
     /// An app (macOS' .app, Linux' AppDir; Windows' resources) rather than a
     /// plain executable.
     pub bundle: bool,
+    /// The data files the program names (`rapidr_project::program_files`:
+    /// "staff.csv" beside it), put with what the build makes so the app
+    /// finds them wherever it's started: in a macOS app's
+    /// Contents/Resources, an AppDir's usr/bin, beside an executable.
+    pub data: Vec<PathBuf>,
 }
 
 /// Decides the app's name, details and icon. `stem` is the executable's
@@ -171,7 +176,7 @@ pub fn plan(stem: &str, system: System, console: bool, opts: &Options, project: 
         System::Windows => true,
         System::MacOs | System::Linux => !console,
     });
-    Ok(Plan { system, info, icon, bundle })
+    Ok(Plan { system, info, icon, bundle, data: Vec::new() })
 }
 
 /// Appends a program's bytecode to a runner: `[rrbc][RRBCEXE1][u32 length]`
@@ -225,6 +230,7 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
             if let Some(code) = rrbc {
                 resources.push((format!("{}.rrbc", plan.info.exe), code.to_vec()));
             }
+            resources.extend(data_files(plan)?);
             let app = rapidr_package::macos::write(
                 dest_dir,
                 &rapidr_package::macos::MacApp { info: &plan.info, icon: &plan.icon, executable: binary, resources, minimum_system: crate::macos::DEPLOYMENT_TARGET },
@@ -241,7 +247,7 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
         (System::Linux, true) => {
             let dir = rapidr_package::linux::write(
                 dest_dir,
-                &rapidr_package::linux::AppDir { info: &plan.info, icon: &plan.icon, executable: &whole(binary)?, files: Vec::new() },
+                &rapidr_package::linux::AppDir { info: &plan.info, icon: &plan.icon, executable: &whole(binary)?, files: data_files(plan)? },
             )?;
             notices::write(&dir, notices).map_err(|e| notices::missing(&e))?;
             let executable = dir.join("usr/bin").join(&plan.info.exe);
@@ -256,6 +262,14 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
             fs::write(&path, whole(&bytes)?).map_err(|e| format!("write {}: {e}", path.display()))?;
             make_executable(&path);
             notices::write(dest_dir, notices).map_err(|e| notices::missing(&e))?;
+            // (beside the executable — not over themselves when it's built
+            // beside its program, RC.EXE's way)
+            for f in &plan.data {
+                let to = dest_dir.join(f.file_name().unwrap_or_default());
+                if !rapidr_project::program_files::same_path(f, &to) {
+                    fs::copy(f, &to).map_err(|e| format!("{} to {}: {e}", f.display(), to.display()))?;
+                }
+            }
             Made { executable: path.clone(), path }
         }
     };
@@ -268,7 +282,25 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
     if plan.bundle {
         println!("  {} {} ({}), icon: {}", plan.info.name, plan.info.version, plan.info.bundle_id, plan.icon.origin);
     }
+    if !plan.data.is_empty() {
+        let names: Vec<String> = plan.data.iter().map(|f| f.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect();
+        let place = match (plan.system, plan.bundle) {
+            (System::MacOs, true) => "in the app's Contents/Resources",
+            (System::Linux, true) => "in the AppDir's usr/bin",
+            (System::Windows, _) => "beside the .exe",
+            _ => "beside the executable",
+        };
+        println!("  data files {place}: {} (started from Finder, a launcher or Explorer, it finds them)", names.join(", "));
+    }
     Ok(made)
+}
+
+/// The plan's data files as (name, contents), for an app's insides.
+fn data_files(plan: &Plan) -> Result<Vec<(String, Vec<u8>)>, String> {
+    plan.data
+        .iter()
+        .map(|f| Ok((f.file_name().unwrap_or_default().to_string_lossy().into_owned(), fs::read(f).map_err(|e| format!("{}: {e}", f.display()))?)))
+        .collect()
 }
 
 /// `rapidr install-app <Name.AppDir>` (Linux): the app in the user's

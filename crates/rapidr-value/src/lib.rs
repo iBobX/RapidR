@@ -402,10 +402,69 @@ pub fn take_raised() -> Option<String> {
 }
 
 /// Run-time error in compiled (codegen) programs: report it BASIC-style and
-/// stop, rather than continuing with a wrong value.
+/// stop, rather than continuing with a wrong value — the program, or, in a
+/// handler a ShowModal's loop runs, that handler and the handlers that fired
+/// it: unwound to the loop, which goes on ([`catching`]), as RapidQ's does.
 pub fn runtime_error(message: &str) -> ! {
     eprintln!("run-time error: {message}");
+    if TURNS.with(|t| t.borrow().contains(&true)) {
+        std::panic::resume_unwind(Box::new(HandlerFailed));
+    }
     std::process::exit(1);
+}
+
+thread_local! {
+    /// A native build's wait turns running now, innermost last: `true` for
+    /// one that goes on after a handler's run-time error ([`catching`]),
+    /// `false` for a DOEVENTS' turn, which passes it on ([`passing`]).
+    static TURNS: std::cell::RefCell<Vec<bool>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// What a handler's run-time error unwinds with, to the wait that runs it.
+pub struct HandlerFailed;
+
+/// Leaves [`TURNS`] as it was, however the turn ends.
+struct TurnOut;
+
+impl Drop for TurnOut {
+    fn drop(&mut self) {
+        TURNS.with(|t| t.borrow_mut().pop());
+    }
+}
+
+/// Runs `f`, a turn of a native build's wait that goes on after a run-time
+/// error in a handler it runs — a ShowModal's loop, a dialog's, INPUT$'s
+/// (RC.EXE, 2026-10-16: the handler, and those that fired it, stop at the
+/// error; no message; the form keeps answering): such an error
+/// ([`runtime_error`]) ends what runs there, said on standard error, and
+/// the wait goes on. The runtime also runs each of the turn's events so
+/// ([`catches_here`]): the next events of the turn still come. The
+/// interpreter's waits do the same (`rapidr_vm`'s `after_host`).
+pub fn catching(f: impl FnOnce()) {
+    TURNS.with(|t| t.borrow_mut().push(true));
+    let out = TurnOut;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    drop(out);
+    if let Err(payload) = result {
+        if !payload.is::<HandlerFailed>() {
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
+/// Runs `f`, a DOEVENTS' turn: a handler's run-time error there goes on to
+/// the code that called DOEVENTS (RapidQ's: a main program's DOEVENTS loop
+/// ends there, a handler that called it stops).
+pub fn passing<R>(f: impl FnOnce() -> R) -> R {
+    TURNS.with(|t| t.borrow_mut().push(false));
+    let _out = TurnOut;
+    f()
+}
+
+/// Whether the innermost turn running now goes on after a handler's
+/// run-time error ([`catching`], not [`passing`]).
+pub fn catches_here() -> bool {
+    TURNS.with(|t| t.borrow().last() == Some(&true))
 }
 
 /// `DIM a(…)` in compiled programs.

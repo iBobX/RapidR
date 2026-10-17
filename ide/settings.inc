@@ -12,7 +12,10 @@
 ' default; its provider, the API key (kept in the OS keychain, a browser
 ' tab's session on the web: never in these settings), the model (listed by
 ' the provider: Fetch Models), the longest reply, what it may do, and the
-' provider's prices.
+' provider's prices. The tab has an RAI of its own (SetAI): browsing the
+' providers, fetching their lists, a key typed and tried change nothing of
+' the assistant's until OK — Cancel leaves it exactly as it was. (Save Key
+' and Remove act on the keychain at once, as their names say.)
 
 DECLARE SUB SettingsAddFolder
 DECLARE SUB SettingsRemoveFolder
@@ -28,14 +31,31 @@ DECLARE SUB AISetKeyRemove
 DECLARE SUB AISetFetch
 DECLARE SUB AISetLink(Url AS STRING, Sender AS RMarkdownView)
 DECLARE SUB AISetPricesClick
+DECLARE SUB AISetModelsIn(Count AS INTEGER)
+DECLARE SUB AISetError(Message AS STRING)
+DECLARE SUB AISetDone(Status AS STRING)
+DECLARE SUB AISetKeyNote
+DECLARE SUB AISetFillModels(Keep AS STRING)
+DECLARE SUB AISetTakeRows
+DECLARE SUB AISetNote(Text AS STRING)
+DECLARE FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
+DECLARE SUB SettingsClosed(Action AS INTEGER)
 
-' (the provider shown on the AI tab, and what was typed for it)
+' (the provider shown on the AI tab; its list being filled: its OnChange
+' isn't the user's)
 DIM AISetProv AS STRING
+DIM AISetFilling AS INTEGER
+' (the two notes' heights, as their text wraps: a note takes the room it
+' needs, an empty one none — LayOutSettingsDialog; measured in the
+' dialog's font)
+DIM AIKeyNoteH AS INTEGER, AIFetchNoteH AS INTEGER
+DIM AISetMeasure AS RBitmap
 
 CREATE SettingsDialog AS RForm
   Caption = "Settings"
   Width = 600: Height = 560
   BorderStyle = 3
+  OnClose = SettingsClosed
   CREATE SettingsTabs AS RTabControl
     AccessibleName = "Settings pages"
     OnChange = SettingsTabChanged
@@ -144,6 +164,11 @@ CREATE SettingsDialog AS RForm
       AccessibleName = "Ask the provider which models your key can use"
       OnClick = AISetFetch
     END CREATE
+    ' (what Fetch Models found, or why it couldn't: under the list it fills)
+    CREATE AIFetchNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+      AccessibleName = "Fetch Models' result"
+    END CREATE
     CREATE AIMaxLabel AS RLabel
       Caption = "Longest &reply:"
     END CREATE
@@ -201,12 +226,11 @@ SUB LayOutSettingsDialog
     pad = 20: w = 540: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
   END IF
   SettingsDialog.Font.Name = UIFont.Name: SettingsDialog.Font.Size = UIFont.Size
-  ph = 548
-  ' (the web: a row more, Remember on this device)
-  IF Proj.FileManager = "" THEN ph = ph + 28
+  AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
+  ' (the pages' height follows the AI tab's rows — a provider's own row,
+  ' the notes as long as their text — with room for the links under them:
+  ' the dialog grows when Fetch Models has more to say, nothing is cut)
   SettingsTabs.Left = pad: SettingsTabs.Top = pad - 8: SettingsTabs.Width = w: SettingsTabs.Height = th
-  GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
-  AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
 
   ' ---- General ----
   y = pad
@@ -241,9 +265,10 @@ SUB LayOutSettingsDialog
   AIKeySaveBtn.Left = fx + fw - 188: AIKeySaveBtn.Top = y - (bh - fh) \ 2: AIKeySaveBtn.Width = 96: AIKeySaveBtn.Height = bh
   AIKeyRemoveBtn.Left = fx + fw - 84: AIKeyRemoveBtn.Top = y - (bh - fh) \ 2: AIKeyRemoveBtn.Width = 84: AIKeyRemoveBtn.Height = bh
   y = y + fh + 4
-  AIKeyNote.Left = fx: AIKeyNote.Top = y: AIKeyNote.Width = fw: AIKeyNote.Height = 34
+  AIKeyNote.Left = fx: AIKeyNote.Top = y: AIKeyNote.Width = fw: AIKeyNote.Height = AIKeyNoteH
   AIKeyNote.Font.Color = TC("page.dim")
-  y = y + 36
+  ' (the next row 6 under the note; with none, a row's step as everywhere)
+  IF AIKeyNoteH > 0 THEN y = y + AIKeyNoteH + 6 ELSE y = y - fh - 4 + row
   ' (the web's Remember on a row of its own; then the rows a provider has:
   ' Anthropic's workspace, a compatible server's URL — in one place, shown
   ' when they apply)
@@ -253,11 +278,19 @@ SUB LayOutSettingsDialog
   AIWsEdit.Left = fx: AIWsEdit.Top = y: AIWsEdit.Width = fw: AIWsEdit.Height = fh
   AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = 108
   AIBaseBox.Left = fx: AIBaseBox.Top = y: AIBaseBox.Width = fw
-  y = y + row
+  ' (a provider with neither has no row there: the rows close up, the
+  ' links at the bottom get the room — AISettingsProvider lays them out
+  ' again for each provider)
+  IF AIWsLabel.Visible OR AIBaseLabel.Visible THEN y = y + row
   AIModelLabel.Left = lx: AIModelLabel.Top = y + 5: AIModelLabel.Width = 108
   AIModelCombo.Left = fx: AIModelCombo.Top = y: AIModelCombo.Width = fw - 140
   AIFetchBtn.Left = fx + fw - 132: AIFetchBtn.Top = y - (bh - fh) \ 2: AIFetchBtn.Width = 132: AIFetchBtn.Height = bh
-  y = y + row
+  y = y + fh + 4
+  ' (what Fetch Models says — a refused key's or a server's explanation
+  ' takes a few lines: all of it shows, wrapped; nothing said, no room)
+  AIFetchNote.Left = fx: AIFetchNote.Top = y: AIFetchNote.Width = fw: AIFetchNote.Height = AIFetchNoteH
+  AIFetchNote.Font.Color = TC("page.dim")
+  IF AIFetchNoteH > 0 THEN y = y + AIFetchNoteH + 6 ELSE y = y - fh - 4 + row
   AIMaxLabel.Left = lx: AIMaxLabel.Top = y + 5: AIMaxLabel.Width = 108
   AIMaxEdit.Left = fx: AIMaxEdit.Top = y: AIMaxEdit.Width = 80: AIMaxEdit.Height = fh
   AIMaxUnit.Left = fx + 90: AIMaxUnit.Top = y + 5: AIMaxUnit.Width = fw - 90
@@ -272,8 +305,13 @@ SUB LayOutSettingsDialog
   AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
   y = y + row + 4
+  ' (the links and what Send shares: up to five lines and their margins (high contrast's face is wider))
+  ph = y + 124
+  IF ph < 420 THEN ph = 420
   AISetLinks.Left = lx - 18: AISetLinks.Top = y - 12: AISetLinks.Width = w + 36: AISetLinks.Height = ph - y + 8
   AISetLinks.Font = DimFont
+  GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
+  AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
 
   y = pad - 8 + th + ph + 8
   SettingsNo.Width = bw: SettingsNo.Height = bh: SettingsNo.Left = pad + w - bw: SettingsNo.Top = y
@@ -353,10 +391,15 @@ SUB SettingsOk
   SaveSettings
 END SUB
 
+' (nothing of the AI tab reaches the assistant: its own RAI is dropped)
 SUB SettingsCancel
-  ' (the AI tab's provider as it was: the panel's)
-  AIApplySettings
   SettingsDialog.Close
+END SUB
+
+' However it closes (OK, Cancel, Escape, its close box, Themes and Views):
+' a models list still on its way is no longer waited for.
+SUB SettingsClosed(Action AS INTEGER)
+  SetAI.Cancel
 END SUB
 
 ' The include folders from now on (a folder a line), said in Output; the
@@ -372,8 +415,41 @@ SUB SetIncludeFolders(Folders AS STRING)
 END SUB
 
 ' ---- the AI tab ------------------------------------------------------------------------
+' Everything here talks to SetAI, the tab's own RAI (decl.inc), never to the
+' assistant: OK hands the choices to it (AISettingsTake → AIApplySettings).
 
-' The AI tab from the settings (and the assistant's state: the key's hint).
+' (how tall Text is, wrapped at spaces to W pixels in the dialog's font as
+' a WordWrap label wraps it; 0 for no text)
+FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
+  DIM lines AS INTEGER, cur AS STRING, wd AS STRING, i AS INTEGER, n AS INTEGER, t AS STRING
+  Result = 0
+  t = LTRIM$(RTRIM$(Text))
+  IF t = "" THEN EXIT FUNCTION
+  lines = 1
+  n = TALLY(t, " ") + 1
+  FOR i = 1 TO n
+    wd = FIELD$(t, " ", i)
+    IF cur = "" THEN
+      cur = wd
+    ELSEIF AISetMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
+      lines = lines + 1
+      cur = wd
+    ELSE
+      cur = cur + " " + wd
+    END IF
+  NEXT
+  Result = lines * AISetMeasure.TextHeight(" ") + 2
+END FUNCTION
+
+' What Fetch Models says, under the Model list: the rows below make room
+' for it, and close up again when there is nothing to say.
+SUB AISetNote(Text AS STRING)
+  AIFetchNote.Caption = Text
+  AIFetchNoteH = AISetLinesHigh(Text, AIFetchNote.Width)
+  LayOutSettingsDialog
+END SUB
+
+' The AI tab from the settings.
 SUB AISettingsFill
   DIM k AS INTEGER, all AS STRING, i AS INTEGER, line AS STRING
   AIOnBox.Checked = AIOn
@@ -382,81 +458,132 @@ SUB AISettingsFill
     FOR k = 0 TO AIProvCount - 1
       AIProvBox.AddItems AIProvNames(k)
     NEXT
-    all = AI.Presets
+    all = SetAI.Presets
     FOR i = 1 TO TALLY(all, CHR$(10)) + 1
       line = FIELD$(all, CHR$(10), i)
       IF line <> "" THEN AIBaseBox.AddItems FIELD$(line, CHR$(9), 2)
     NEXT
     AIPermBox.AddItems "Read the project, propose changes you review", "Only read the project and answer"
   END IF
+  ' (a list still coming from the last time the tab was open: not waited
+  ' for; a key typed then and not kept: forgotten)
+  SetAI.Cancel
+  SetAI.APIKey = ""
+  AIFetchBtn.Enabled = 1
+  AISetNote ""
   AISetProv = AIProvider
-  ' (none chosen yet: a local server first — it keeps the project on this
-  ' computer — but every provider is a pick away)
+  ' (none chosen yet: the first of the list — every provider is a pick away)
   IF AISetProv = "" THEN AISetProv = AIProvIds(0)
+  AISetFilling = 1
   FOR k = 0 TO AIProvCount - 1
     IF AIProvIds(k) = AISetProv THEN AIProvBox.ItemIndex = k
   NEXT
+  AISetFilling = 0
   IF AIMaxTokens > 0 THEN AIMaxEdit.Text = LTRIM$(STR$(AIMaxTokens)) ELSE AIMaxEdit.Text = "4096"
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
   AIWsEdit.Text = AIWorkspace
+  IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = ""
   AISettingsProvider
+END SUB
+
+' (the address and workspace as typed, into the tab's RAI: the provider's
+' list is asked of them)
+SUB AISetTakeRows
+  SetAI.Provider = AISetProv
+  SetAI.APIKeySource = AIKeySourceOf(AISetProv)
+  IF AISetProv = "compatible" THEN SetAI.BaseURL = LTRIM$(RTRIM$(AIBaseBox.Text)) ELSE SetAI.BaseURL = ""
+  IF AISetProv = "anthropic" THEN SetAI.WorkspaceID = LTRIM$(RTRIM$(AIWsEdit.Text)) ELSE SetAI.WorkspaceID = ""
 END SUB
 
 ' The rows for the provider shown: its key, its workspace or URL, its
 ' models, its links.
 SUB AISettingsProvider
-  DIM keyNote AS STRING, links AS STRING, web AS INTEGER, model AS STRING
+  DIM links AS STRING, web AS INTEGER
   web = Flag(Proj.FileManager = "")
-  AI.Provider = AISetProv
-  AI.APIKeySource = AIKeySourceOf(AISetProv)
-  IF AISetProv = "compatible" THEN
-    IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = AI.BaseURL
+  AISetTakeRows
+  ' (a compatible server's address: the one kept, else the provider's own)
+  IF AISetProv = "compatible" AND LTRIM$(AIBaseBox.Text) = "" THEN
+    AIBaseBox.Text = SetAI.BaseURL
+    SetAI.BaseURL = AIBaseBox.Text
   END IF
   AIKeyEdit.Text = ""
-  IF AI.NeedsKey = 0 THEN
-    keyNote = "A local server needs no key (one is kept if you give it: some servers ask for one)."
-  ELSEIF AI.HasKey THEN
-    SELECT CASE AI.KeySource
-      CASE "environment": keyNote = "Using the key in " + AI.KeyEnv + " (" + AI.KeyHint + "). A key saved here goes first."
-      CASE "program": keyNote = "A key " + AI.KeyHint + " is in use until Studio closes: Save Key keeps it."
-      CASE ELSE: keyNote = "Your key " + AI.KeyHint + " is kept in " + AI.KeyStore + ", never in a project."
-    END SELECT
-  ELSEIF web THEN
-    keyNote = "Paste your key and press Save Key: it is kept in " + AI.KeyStore + " (or on this device, if you tick the box), never in a project."
-  ELSE
-    keyNote = "Paste your key and press Save Key: it is kept in " + AI.KeyStore + ", never in a project."
-  END IF
-  AIKeyNote.Caption = keyNote
-  AIKeyRemoveBtn.Enabled = Flag(AI.HasKey AND AI.KeySource <> "environment")
-  ' (the web: kept for the tab unless the user asks for this device)
-  ' (its own row, above the workspace or the address: LayOutSettingsDialog)
+  AISetKeyNote
+  ' (the web: kept for the tab unless the user asks for this device; its
+  ' own row, above the workspace or the address: LayOutSettingsDialog)
   AIRemember.Visible = web
-  AIRemember.Enabled = AI.NeedsKey
+  AIRemember.Enabled = SetAI.NeedsKey
   AIWsLabel.Visible = Flag(AISetProv = "anthropic")
   AIWsEdit.Visible = AIWsLabel.Visible
   AIBaseLabel.Visible = Flag(AISetProv = "compatible")
   AIBaseBox.Visible = AIBaseLabel.Visible
-  ' (the model the user chose for it; none until they do: Fetch Models
-  ' lists the provider's, the fast, low-cost ones first)
-  model = AIModelOf(AISetProv)
-  AIModelCombo.Clear
-  IF model <> "" THEN AIModelCombo.AddItems model
-  AIModelCombo.Text = model
-  AIPricesLink.Visible = Flag(AI.PricingURL <> "")
+  LayOutSettingsDialog
+  AISetFillModels AIModelOf(AISetProv)
+  AIPricesLink.Visible = Flag(SetAI.PricingURL <> "")
   ' (the provider's own pages; what was sent)
-  IF AI.KeysURL <> "" THEN links = "[Get a key](" + AI.KeysURL + ") · "
+  IF SetAI.KeysURL <> "" THEN links = "[Get a key](" + SetAI.KeysURL + ") · "
   links = links + "[What was sent](#sent)" + CHR$(10) + CHR$(10)
   links = links + "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
   AISetLinks.Text = links
 END SUB
 
+' (where the shown provider's key is: never the key, its last four
+' characters at most)
+SUB AISetKeyNote
+  DIM keyNote AS STRING, web AS INTEGER
+  web = Flag(Proj.FileManager = "")
+  IF SetAI.NeedsKey = 0 THEN
+    keyNote = "A local server needs no key (one is kept if you give it: some servers ask for one)."
+  ELSEIF SetAI.HasKey THEN
+    SELECT CASE SetAI.KeySource
+      CASE "environment": keyNote = "Using the key in " + SetAI.KeyEnv + " (" + SetAI.KeyHint + "). A key saved here goes first."
+      CASE "program": keyNote = "Trying the key you typed (" + SetAI.KeyHint + "): OK or Save Key keeps it."
+      CASE ELSE: keyNote = "Your key " + SetAI.KeyHint + " is kept in " + SetAI.KeyStore + ", never in a project."
+    END SELECT
+  ELSEIF web THEN
+    keyNote = "Paste your key and press Save Key: it is kept in " + SetAI.KeyStore + " (or on this device, if you tick the box), never in a project."
+  ELSE
+    keyNote = "Paste your key and press Save Key: it is kept in " + SetAI.KeyStore + ", never in a project."
+  END IF
+  AIKeyNote.Caption = keyNote
+  AIKeyNoteH = AISetLinesHigh(keyNote, AIKeyNote.Width)
+  IF SettingsDialog.Visible THEN LayOutSettingsDialog
+  AIKeyRemoveBtn.Enabled = Flag(SetAI.HasKey AND SetAI.KeySource <> "environment" AND SetAI.KeySource <> "program")
+END SUB
+
+' The Model list: the provider's, once fetched (the fast, low-cost ones
+' first), else the model chosen before; Keep stays chosen if it's there.
+SUB AISetFillModels(Keep AS STRING)
+  DIM all AS STRING, i AS INTEGER, line AS STRING, k AS INTEGER
+  AIModelCombo.Clear
+  all = SetAI.Models
+  k = -1
+  FOR i = 1 TO TALLY(all, CHR$(10)) + 1
+    line = FIELD$(all, CHR$(10), i)
+    IF line <> "" THEN
+      AIModelCombo.AddItems AIModelItem(line)
+      IF FIELD$(line, CHR$(9), 1) = Keep AND Keep <> "" THEN k = AIModelCombo.ItemCount - 1
+    END IF
+  NEXT
+  IF k < 0 AND Keep <> "" AND SetAI.ModelCount = 0 THEN
+    AIModelCombo.AddItems Keep
+    k = AIModelCombo.ItemCount - 1
+  END IF
+  AIModelCombo.ItemIndex = k
+  IF k < 0 THEN AIModelCombo.Text = ""
+END SUB
+
 SUB AISetProviderPicked
   DIM k AS INTEGER
+  IF AISetFilling THEN EXIT SUB
   k = AIProvBox.ItemIndex
   IF k < 0 OR k >= AIProvCount THEN EXIT SUB
   AISetProv = AIProvIds(k)
+  ' (another provider: a list still coming for the last one is dropped —
+  ' SetAI.Provider does it — and Fetch Models can be pressed for this one)
+  AIFetchBtn.Enabled = 1
+  AISetNote ""
   AISettingsProvider
 END SUB
 
@@ -465,80 +592,107 @@ FUNCTION AISetKeyTake AS INTEGER
   DIM key AS STRING
   key = LTRIM$(RTRIM$(AIKeyEdit.Text))
   IF key = "" THEN EXIT FUNCTION
-  AI.Provider = AISetProv
-  AI.APIKeySource = AIKeySourceOf(AISetProv)
-  AI.APIKey = key
+  AISetTakeRows
+  SetAI.APIKey = key
   ' (kept under Studio's name for the provider: the OS keychain; on the
   ' web the tab's session, or this device when asked)
-  IF AI.RememberKey(AIRemember.Checked) THEN
+  IF SetAI.RememberKey(AIRemember.Checked) THEN
     Result = 1
   ELSE
-    SHOWMESSAGE AI.Error
+    SHOWMESSAGE SetAI.Error
   END IF
-  AI.APIKey = ""
+  SetAI.APIKey = ""
   AIKeyEdit.Text = ""
 END FUNCTION
 
 SUB AISetKeySave
-  IF AISetKeyTake THEN AISettingsProvider
+  IF AISetKeyTake THEN
+    AISetKeyNote
+    ' (the assistant's key is the keychain's: it has it at once)
+    AIEnableSend
+    AIShowOrHide
+  END IF
 END SUB
 
 SUB AISetKeyRemove
-  AI.Provider = AISetProv
-  AI.APIKeySource = AIKeySourceOf(AISetProv)
-  AI.ForgetKey
-  AISettingsProvider
+  AISetTakeRows
+  SetAI.ForgetKey
+  AISetKeyNote
+  AIEnableSend
+  AIShowOrHide
 END SUB
 
+' Fetch Models: the provider's list, asked with the key typed (tried, kept
+' only by OK or Save Key) or the one kept, at the address and workspace
+' typed. The button waits greyed; it comes back however the asking ends —
+' the list, a refusal, no answer in time, another provider picked, the
+' dialog closed.
 SUB AISetFetch
-  AISetKeyTake
-  AI.Provider = AISetProv
-  IF AISetProv = "compatible" THEN AI.BaseURL = AIBaseBox.Text
-  IF AISetProv = "anthropic" THEN AI.WorkspaceID = AIWsEdit.Text
-  AI.APIKeySource = AIKeySourceOf(AISetProv)
-  AI.Model = AIModelOf(AISetProv)
-  AIFetchBtn.Enabled = 0
-  AIKeyNote.Caption = "Asking the provider for its models..."
-  IF AI.RefreshModels = 0 THEN
-    AIFetchBtn.Enabled = 1
-    AIKeyNote.Caption = AI.Error
+  DIM key AS STRING
+  AISetTakeRows
+  key = LTRIM$(RTRIM$(AIKeyEdit.Text))
+  SetAI.APIKey = key
+  IF key <> "" THEN AISetKeyNote
+  IF SetAI.NeedsKey AND SetAI.HasKey = 0 THEN
+    AISetNote "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
+    AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
+    AIKeyEdit.SetFocus
+    EXIT SUB
   END IF
+  AIFetchBtn.Enabled = 0
+  AISetNote "Asking " + AIProvNames(AIProvBox.ItemIndex) + " for its models..."
+  AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
+  IF SetAI.RefreshModels = 0 THEN AISetError SetAI.Error
 END SUB
 
-' (AIModelsIn: the list arrived while the settings are open)
-SUB AISettingsModelsIn
-  DIM all AS STRING, i AS INTEGER, line AS STRING, keep AS STRING
-  AIFetchBtn.Enabled = 1
+' (the list came)
+SUB AISetModelsIn(Count AS INTEGER)
+  DIM keep AS STRING
+  IF SetAI.Busy = 0 THEN AIFetchBtn.Enabled = 1
   IF SettingsDialog.Visible = 0 THEN EXIT SUB
-  keep = AIModelCombo.Text
-  ' (the key, links and rows first: it leaves only the chosen model in the
-  ' list, so the provider's list goes in after it)
-  AISettingsProvider
-  AIModelCombo.Clear
-  all = AI.Models
-  FOR i = 1 TO TALLY(all, CHR$(10)) + 1
-    line = FIELD$(all, CHR$(10), i)
-    IF line <> "" THEN AIModelCombo.AddItems AIModelItem(line)
-  NEXT
-  ' (nothing chosen for the user: what they chose, if the list still has it)
-  IF AI.Model = "" THEN keep = ""
-  AIModelCombo.Text = keep
-  IF keep = "" THEN
-    AIKeyNote.Caption = AI.Status + " Choose one (the fast, low-cost ones are first)."
+  ' (the model chosen in the list, or before; nothing chosen for the user)
+  keep = AIModelId(AIModelCombo.Text)
+  IF keep = "" THEN keep = AIModelOf(AISetProv)
+  AISetFillModels keep
+  IF Count = 0 THEN
+    AISetNote SetAI.Status + " None this key can chat with: check the key, or the server's models."
+  ELSEIF AIModelCombo.ItemIndex < 0 THEN
+    AISetNote SetAI.Status + " Choose one in the Model list (the fast, low-cost ones are first)."
   ELSE
-    AIKeyNote.Caption = AI.Status + " " + AIKeyNote.Caption
+    AISetNote SetAI.Status + " " + AIModelId(AIModelCombo.Text) + " is still chosen."
   END IF
+  AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
+  ' (the next thing to do: choose a model — a screen reader reads the list)
+  IF Count > 0 AND AIPage.Visible THEN AIModelCombo.SetFocus
+END SUB
+
+' (no list: a refused key, a wrong address, no answer in time … — said in
+' plain words under the list; Fetch Models can be pressed again at once)
+SUB AISetError(Message AS STRING)
+  IF SetAI.Busy = 0 THEN AIFetchBtn.Enabled = 1
+  IF SettingsDialog.Visible = 0 THEN EXIT SUB
+  AISetNote Message
+  AIFetchBtn.AccessibleDescription = Message
+  AISetKeyNote
+  ' (Anthropic wants a workspace for this key: the box to fill in)
+  IF AIWsEdit.Visible AND INSTR(Message, "Workspace ID") > 0 AND AIPage.Visible THEN AIWsEdit.SetFocus
+END SUB
+
+' (stopped: another provider picked, the dialog closed, a newer request)
+SUB AISetDone(Status AS STRING)
+  IF SetAI.Busy = 0 THEN AIFetchBtn.Enabled = 1
+  IF Status = "cancelled" AND SettingsDialog.Visible AND SetAI.Busy = 0 THEN AISetNote ""
 END SUB
 
 SUB AISetLink(Url AS STRING, Sender AS RMarkdownView)
   IF Url = "#sent" THEN ShowWhatWasSent
 END SUB
 
-' OK: the AI tab's choices kept (a key typed is saved too).
+' OK: the AI tab's choices kept (a key typed is saved too), and given to
+' the assistant.
 SUB AISettingsTake
-  DIM was AS INTEGER, n AS INTEGER
+  DIM n AS INTEGER
   AISetKeyTake
-  was = AIOn
   AIProvider = AISetProv
   IF AISetProv = "compatible" THEN AIBase = LTRIM$(RTRIM$(AIBaseBox.Text))
   IF AISetProv = "anthropic" THEN AIWorkspace = LTRIM$(RTRIM$(AIWsEdit.Text))
@@ -550,12 +704,13 @@ SUB AISettingsTake
   IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
   AIPriceIn = VAL(AIPriceInEdit.Text)
   AIPriceOut = VAL(AIPriceOutEdit.Text)
-  AIApplySettings
+  ' (on first: Send is enabled from the assistant's state as it now is)
   AIOn = Flag(AIOnBox.Checked)
+  AIApplySettings
   AIShowOrHide
 END SUB
 
 ' (See prices: the provider's own page, in the browser)
 SUB AISetPricesClick
-  IF AI.PricingURL <> "" THEN AISetLinks.OpenLink AI.PricingURL
+  IF SetAI.PricingURL <> "" THEN AISetLinks.OpenLink SetAI.PricingURL
 END SUB

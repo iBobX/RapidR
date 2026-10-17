@@ -209,6 +209,7 @@ properties = [
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
+  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default, and RapidQ's QPANEL) leaves it out of the keyboard's way." },
 ]
 methods = [
   { name = "Repaint" },
@@ -222,6 +223,8 @@ events = [
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnResize", origin = "rapidr" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr", doc = "Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.)" },
+  { name = "OnExit", origin = "rapidr", doc = "Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.)" },
 ]
 
 [[component]]
@@ -286,6 +289,8 @@ methods = [
 events = [
   { name = "OnChange" },
   { name = "OnClick", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]

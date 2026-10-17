@@ -1335,6 +1335,20 @@ pub fn rapidq_inc_text() -> String {
     builtin_include("RAPIDQ.INC").unwrap_or_default()
 }
 
+/// A built-in include ([`builtin_includes`]): its file name, its constants
+/// and its other globals.
+pub type BuiltinInclude = (&'static str, &'static [(&'static str, i64)], &'static [&'static str]);
+
+/// The includes RapidR supplies when no file of that name is found, with
+/// the names each gives: its constants and its other globals (RAPIDQ.INC's
+/// QBColor array) — all on the `$INCLUDE`'s one line, which is how a
+/// debugger tells them from the program's own globals and groups them.
+pub fn builtin_includes() -> Vec<BuiltinInclude> {
+    let mut all: Vec<BuiltinInclude> = vec![("RAPIDQ.INC", RAPIDQ_INC_CONSTANTS, &["QBColor"])];
+    all.extend(LIBRARY_INCLUDES.iter().map(|&(file, consts)| (file, consts, &[][..])));
+    all
+}
+
 /// What `$INCLUDE "<name>"` gives when no file of that name is found, for
 /// the includes RapidR supplies as constants (RAPIDQ.INC, `QMidi.inc` …);
 /// `None` for any other name.

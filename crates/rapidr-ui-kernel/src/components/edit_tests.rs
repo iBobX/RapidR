@@ -148,6 +148,8 @@ fn the_context_menu_cuts_copies_pastes_and_undoes() {
     let (s, mut f, mut ts) = edit_form("hello world");
     let mut clip = MemClipboard::default();
     f.focus_id(&s, "te");
+    // (the focus' OnEnter: focus.rs's tests')
+    f.take_events();
     // (select "world", then a right click on the edit: the kernel's menu)
     with_textedit_mut("te", |t| {
         t.set("selstart", &v_int(6));

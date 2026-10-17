@@ -74,12 +74,17 @@ impl Host for Web {
             let _ = js_sys::Reflect::set(&assets, &JsValue::from_str(path), &JsValue::from_str(&url));
         }
         host_call("run", &[js_sys::Uint8Array::from(bytes.as_slice()).into(), JsValue::from_str(program), js_args.into(), JsValue::from_str(theme), assets.into()])?;
-        Ok(Box::new(ChannelTransport::new(
-            |json| host_call("send", &[JsValue::from_str(json)]).map(drop),
-            || {
-                let _ = host_call("stop", &[]);
-            },
-        )))
+        Ok(Box::new(
+            ChannelTransport::new(
+                |json| host_call("send", &[JsValue::from_str(json)]).map(drop),
+                || {
+                    let _ = host_call("stop", &[]);
+                },
+            )
+            // (Show Program Window: its windows over Studio's, the frame
+            // given the keyboard)
+            .with_show(|| host_call("show", &[]).is_ok_and(|v| v.is_truthy())),
+        ))
     }
 
     fn build_web(self, name: &str, program: &str, stem: &str) -> Result<(), String> {

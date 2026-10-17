@@ -90,10 +90,11 @@ events = [
   { name = "OnClick" },
   { name = "OnDblClick" },
   { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS RRect" },
-  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus), before what the click does to it. (RapidQ's manual says the Enter key, and its runtime stops the program when an RListBox's OnEnter is bound — RC.EXE; RapidR fires it as its RFileListBox's.)" },
+  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.)" },
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnChange", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -157,7 +158,8 @@ events = [
   { name = "OnChange" },
   { name = "OnClick" },
   { name = "OnDblClick" },
-  { name = "OnEnter" },
+  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.)" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -207,6 +209,8 @@ methods = [
 ]
 events = [
   { name = "OnChange" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -330,6 +334,8 @@ events = [
   { name = "OnClick", origin = "rapidr" },
   { name = "OnDblClick", origin = "rapidr" },
   { name = "OnChange", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -446,6 +452,8 @@ events = [
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -526,4 +534,6 @@ events = [
   { name = "OnColumnClick", params = "Column AS INTEGER" },
   { name = "OnDblClick" },
   { name = "OnKeyPress", params = "Key AS BYTE" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]

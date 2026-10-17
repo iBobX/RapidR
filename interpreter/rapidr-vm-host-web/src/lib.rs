@@ -117,7 +117,8 @@ impl Host for WebHost {
     }
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
-        rp_comp_set(id, name, value);
+        // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
+        rp_prop_set(id, name, value);
         Ok(())
     }
 
@@ -400,7 +401,7 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         // Components reached through objects (rapidr_ast::objects): by id.
         "__objget" => rp_comp_read(&a0.to_string_val(), &a1.to_string_val()),
         "__objset" => {
-            rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
+            rp_prop_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
             v_null()
         }
         "__objcall" => rp_comp_call(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),
@@ -603,6 +604,11 @@ fn start_session(session: Session) {
         run_idle_events();
     }));
     install_resume_handler();
+    // (its last window closed while the debugger holds it: it ends)
+    rapidr_runtime_web::kernel_web::on_close_while_stopped(std::rc::Rc::new(|| {
+        end_session();
+        flush_events();
+    }));
 }
 
 /// What happened in the VM, reported once the session is released (a
@@ -1323,15 +1329,21 @@ fn serve_request(request: Request) {
             if seq != 0 {
                 emit(Message::reply(seq, EventBody::Ok));
             }
-            rapidr_runtime_web::object_web::end_program();
-            dialog::clear_modals();
-            SESSION.with(|s| {
-                if let Ok(mut slot) = s.try_borrow_mut() {
-                    *slot = None;
-                }
-            });
-            dialog::set_yielded(false);
-            emit(Message::new(EventBody::Exited { code: 0 }));
+            end_session();
         }
     }
+}
+
+/// The program ended by the IDE (Stop), or by the user closing its last
+/// window while it was stopped: its windows go, the IDE hears it ended.
+fn end_session() {
+    rapidr_runtime_web::object_web::end_program();
+    dialog::clear_modals();
+    SESSION.with(|s| {
+        if let Ok(mut slot) = s.try_borrow_mut() {
+            *slot = None;
+        }
+    });
+    dialog::set_yielded(false);
+    emit(Message::new(EventBody::Exited { code: 0 }));
 }

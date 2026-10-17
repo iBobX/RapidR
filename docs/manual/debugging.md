@@ -40,23 +40,73 @@ shows `total = 12`. Now let's watch it work.
 
 | Key | Menu | What it does |
 |---|---|---|
-| F5 | Run ▸ Run | Saves your files and runs the program under the debugger. While the program is paused, F5 goes on (Debug ▸ Continue). |
+| F5 | Run ▸ Run | Saves your files and runs the program under the debugger. While the program is paused, F5 goes on: the menu item says **Continue** and the ▶ button's tip says *Continue (F5)* (Debug ▸ Continue does the same). |
 | Ctrl+F5 | Run ▸ Run Without Debugging | Runs it without stopping at breakpoints. |
-| Shift+F5 | Run ▸ Stop | Ends the program at once. |
+| Shift+F5 | Run ▸ Stop | Ends the program at once, running or paused. |
 | Ctrl+Shift+F5 | Run ▸ Restart | Stops it and runs it again. |
 | — | Run ▸ Run in Browser | (desktop) Builds the web version of the program and opens it in your browser. |
 | — | Debug ▸ Pause | Stops the running program where it is. |
+| — | Debug ▸ Show Program Window | Brings the program's windows to the front, running or paused. |
 
-The tool bar has the same commands: ▶ Run, ▷ Run Without Debugging,
-❙❙ Pause, ■ Stop and Build, then Step Into, Step Over, Step Out and Toggle
-Breakpoint.
+The tool bar has the same commands: ▶ Run (Continue while paused),
+▷ Run Without Debugging, ❙❙ Pause, ■ Stop and Build, then Step Into, Step
+Over, Step Out and Toggle Breakpoint.
+
+### Which commands you can use when
+
+A command is greyed out when it can't do anything; when it isn't, it works
+from its key, its menu item, its tool button and the command palette alike.
+
+| The program is… | ▶ F5 | Ctrl+F5 | ❙❙ Pause | ■ Shift+F5, Restart | F10, F11 | Shift+F11, Set Next Statement | Ctrl+F10 | Show Program Window |
+|---|---|---|---|---|---|---|---|---|
+| not running (never run, ended, closed, or ended with an error) | Run | ✓ | — | — | start at the first line | — | start and stop at the caret | — |
+| running (or a step that takes a while) | — | — | ✓ | ✓ | — | — | — | ✓ |
+| paused (a breakpoint, a step, Pause, a run-time error) | Continue | — | — | ✓ | step | ✓ | go on to the caret | ✓ |
+
+F9 (breakpoints) works at any time.
+
+### Your program's window and Studio's
+
+On the desktop your program has windows of its own, and Studio hands the
+front back and forth so the right one is in front when you need it:
+
+- When you run it, its first window comes up **in front of** Studio.
+- When it stops — at a breakpoint after you clicked something in it, at a
+  run-time error — **Studio comes to the front**, at the line where it
+  stopped.
+- **Continue (F5)** and Run to Cursor bring the program's windows back to
+  the front: it's the program's turn. So does a step that hasn't stopped
+  within half a second (stepping over a `ShowModal` that waits for you).
+  A quick step leaves you in Studio.
+
+While the program is paused, its windows **stay on the screen and
+reachable**: they keep their picture, you can switch to them (a click,
+Cmd-Tab on a Mac, Alt-Tab on Windows and Linux, or Debug ▸ Show Program
+Window), move them, resize them and minimize them. They don't react to you,
+though: none of the program's code runs while it's paused, so a click or a
+key in its windows is ignored — not saved for later, so nothing surprises
+the program when it goes on. Closing its last window (its close box) ends
+the program, as Stop does: its OnClose doesn't run, since none of its code
+can. What you change in Variables, Watch or the Immediate pane (a caption,
+a colour) shows in its windows at once.
+
+Try it with [themes.rr](../../examples/gui/themes.rr): put a breakpoint on
+line 94 (`SELECT CASE Sender.Caption`), press F5, and click *Dark* in its
+window. Studio comes to the front, paused at line 94, with ▶ ready to
+continue. Switch to another program and back: the Themes window is still
+there, and Debug ▸ Show Program Window brings it forward. Press F5: the
+Themes window comes to the front and turns dark.
+
+![Paused at a breakpoint: the Debug menu with Continue (F5) and Show Program Window ready, Pause greyed out (the program isn't running)](images/debugging/paused-debug-menu.png)
 
 If the code has errors, Studio doesn't run it: the Problems list opens and
 the editor goes to the first error.
 
 The status bar shows what the program is doing: green while it runs,
 orange while it's paused (with the file and line), back to normal when it
-ends. Output shows what the program prints, then
+ends. A file name too long for it is shortened in its middle —
+`Breakpoint: a_pro…he_status_bar.rr:6`, the line kept —; rest the
+mouse on the bar for the whole of it. Output shows what the program prints, then
 `[counter.rr ended, exit code 0]`.
 
 ## Breakpoints
@@ -81,8 +131,9 @@ calling `AddUp`:
 
 ![Studio paused at line 11: the arrow on the line, the Call Stack at the bottom left, Variables at the bottom right, the orange status bar](images/debugging/breakpoint-hit.png)
 
-Press **F5** again: it goes on and stops at line 11 again, now with
-`i = 2`. Press F5 twice more and the program ends.
+The ▶ button stays green while it's paused: its tip says *Continue
+(F5)*. Press **F5** (or click ▶) again: it goes on and stops at line 11
+again, now with `i = 2`. Press F5 twice more and the program ends.
 
 Breakpoints work in every file of the project, also in files you
 `$INCLUDE`; the file opens when the program stops in it.
@@ -100,6 +151,46 @@ Breakpoints (Ctrl+Shift+F9) removes them all.
 
 Studio keeps your breakpoints and watches with the project: close Studio,
 open the project again, and they are there.
+
+### Breakpoints in event handlers
+
+A program with a window spends its time waiting for events, and most of
+your code runs in its handlers — OnClick, OnChange, OnKeyPress, OnTimer,
+OnResize, OnMouseMove, OnClose… A breakpoint in a handler stops **every
+time** the event comes: the third click stops as the first did, every
+letter typed into an edit stops in its OnChange, even when the handler is
+a single line.
+
+- **Step Over out of a handler** (F10 on its last line): the handler
+  returns to the program, which waits for its next event — it runs on, and
+  the next event stops at the breakpoint again.
+- **A handler that opens a dialog** (`MESSAGEDLG`, a font or file dialog):
+  Step Over its line and the dialog shows in the program's window; answer
+  it, and the program stops on the next line, with the answer.
+- **A handler that makes another event** — setting `Form.Width` fires the
+  form's OnResize —: a breakpoint in the inner handler stops there, and the
+  Call Stack shows both, the inner one on top.
+- **A run-time error in a handler** stops at its line, as in the main
+  program. Continue (F5) then does what the program does without the
+  debugger, as RapidQ's: that handler ends there (and the handlers that
+  fired it), the program runs on and the next event stops at the error
+  again; the error is in Output. Stop (Shift+F5) ends the program.
+- **The focus** ([OnEnter and OnExit](components.md#the-focus-onenter-and-onexit)):
+  Tab from one control to the next stops in the first one's OnExit, then,
+  F5, in the second one's OnEnter — every time. A click that moves the
+  focus stops there too, before the click's own OnClick; the click is then
+  over (the button was let go while the program was stopped: dropped, as
+  in Delphi), so click again to see its OnClick.
+
+![focus_events.rr stopped in NameExit, the name's OnExit, at line 56 after Tab was pressed in the program; the Call Stack shows NameExit over the program's line](images/debugging/focus-onexit.png)
+- **While the program is stopped**, what you type or click in its windows
+  is dropped (none of its code can run): nothing is kept to run later, and
+  no second stop waits behind it. Continue, and the next key stops as
+  usual.
+
+Try it with [hello_form.rr](../../examples/gui/hello_form.rr): a breakpoint
+on line 49 (`GreetButton.Enabled = …`, the name's OnChange), F5, and type
+your name — it stops at every letter.
 
 ### Conditions, hit counts and log messages
 
@@ -213,8 +304,10 @@ line after `ShowModal` once the form is closed. **F11** (Step Into) stops
 in the next event handler that runs: press Greet in the program's window
 and Studio stops at the first line of `SUB Greet`.
 
-While the program is paused its windows don't react: what you click and
-its timers wait until it goes on.
+While the program is paused its windows stay on the screen — switch to
+them, move them — but don't react: clicks and keys in them are ignored,
+and its timers wait until it goes on (see
+[Your program's window and Studio's](#your-programs-window-and-studios)).
 
 ## Looking at values
 
@@ -268,6 +361,13 @@ the components it holds and its properties. Arrays, TYPEs, components and
 tables open the same way as in a data tip. In an event handler, open
 `Sender` to see the component's properties as they are now. What you open
 stays open from one stop to the next, and changed values are in blue.
+
+**Globals** lists your program's own variables first. The constants an
+`$INCLUDE` brings — RapidQ's `RAPIDQ.INC` has nearly five hundred: colours,
+keys, message box buttons — come after them, each file's under one item
+that stays closed until you open it:
+
+![Variables > Globals: picked = 255 and warning = "Low on paper", then the closed item $INCLUDE RAPIDQ.INC (484 names)](images/debugging/variables-include.png)
 
 ![Variables at the loop's second pass: i = 2 in blue, changed since the first stop (total, further down, too)](images/debugging/variables-changed.png)
 
@@ -339,7 +439,10 @@ letting it end (Debug ▸ Stop at Run-time Errors, checked unless you change
 it). The line turns red with the message at its end, and Variables and the
 Call Stack show the values that led to it. The message is in Output too,
 with the file and line: click it to go there. Press Shift+F5 to end the
-program.
+program, or F5 to let the error do what it does without the debugger: in
+the main program it ends the program; in an event handler it ends that
+handler and the program runs on (RapidQ's way — see
+[A run-time error in a handler](components.md#a-run-time-error-in-a-handler)).
 
 This program (`tools/manual/scenes/debugger/share.rr`) divides by a
 variable that is still 0:
@@ -388,7 +491,10 @@ this (and the VM's speed, start-up and memory) against its budgets.
 ## In every theme
 
 The debugger looks right in each of Studio's themes (View ▸ Theme): RapidR
-Light, RapidR Dark, RapidR High Contrast and Classic. Every row of
+Light, RapidR Dark, RapidR High Contrast and Classic — and when the look
+changes while you debug (View ▸ Theme, or your system switching to dark
+while Studio follows it), every pane takes the new one at once, the
+values marked as changed included. Every row of
 Variables, Watch, the Call Stack and Breakpoints, the labels under the
 breakpoints and the data tips are readable in each; in RapidR's three
 looks every text is at least WCAG AA's 4.5:1 against what it's drawn on,
@@ -417,6 +523,11 @@ Studio in the browser.
 
   ![In the browser: the Greeter window dragged half past Studio's right edge, whole](images/debugging/web-program-window.png)
 
+  Paused, the program's windows stay on the page and can be dragged; a
+  click in them is ignored until it goes on, as on the desktop. When it
+  stops, the keyboard comes back to Studio; Continue (F5) and Show Program
+  Window give it to the program's window.
+
   A window bigger than the page — the 1200 × 800
   [sales_dashboard.rr](../../examples/gui/sales_dashboard.rr) example on a laptop's
   browser — opens with its title bar at the top of the page, and the
@@ -434,5 +545,8 @@ Studio in the browser.
 
 ## Not there yet
 
+- On Linux with Wayland, Studio can't bring your program's window to the
+  front for you (Wayland doesn't let one program raise another's windows):
+  switch to it yourself.
 - Completion while you type in the Immediate pane.
 - Editing a value inside a data tip (F2 in Variables and Watch does it).

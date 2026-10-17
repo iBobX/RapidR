@@ -142,8 +142,19 @@ END SUB
 
 SUB SaveTable
     Team.SaveToCSV "staff_edited.csv"
+    IF Team.Error <> "" THEN
+        Status.Caption = "Couldn't save " + Team.Error
+    ELSE
+        Status.Caption = "Saved " + STR$(Team.RowCount) + " rows to staff_edited.csv"
+    END IF
 END SUB
 ```
+
+A save can fail — the folder may be read-only (an app's own folder, RapidR's
+examples where it's installed) — so check `Error` afterwards and tell the
+user: it says why in plain words (`staff_edited.csv: this folder can't be
+written (it is read-only, or not yours)`), and is `""` when the file was
+written. `LoadFromCSV`, `LoadFromJSON` and `SaveToJSON` set it too.
 
 Everything RDataFrame can do works on a linked frame — `Sort`, `GroupBy`,
 `Select`, `Describe`, `Merge` … ([Data science](data-science.md#rdataframe));
@@ -168,6 +179,14 @@ the file the first time takes longer (about 3 seconds: that is BASIC
 writing a million lines one by one). A browser runs it on one core: in
 Chrome on the same Mac reading takes 0.15 s, the filter 10 ms, the sort
 60 ms and the grouping 33 ms — still a fraction of a second.
+
+Run where its folder can't be written (RapidR's examples where it's
+installed — RapidR Studio opens your copy instead), it can't write
+`big.csv`: the window says so and why, with the buttons off, rather than an
+empty grid. It checks the way any program can: `FILEEXISTS` and `FILELEN`
+after the file is closed.
+
+![million_rows.rr run in a folder it can't write: "Couldn't write big_2000.csv: the folder it runs in can't be written: it is read-only, or the disk is full. Copy the example to a folder of yours and run it there…", the buttons greyed out](images/examples/million-rows-read-only.png)
 
 ## 6. JSON records
 
@@ -203,7 +222,19 @@ the frame takes the records again.
   the page's files (the project's, or one the program saved).
 - **Errors** don't stop the program: an RCSV whose file isn't there has no
   rows, its `Error` says why (`there is no file "people.csv"`) and its
-  `OnError(Message)` fires.
+  `OnError(Message)` fires; an RJson's `Error` says why its records
+  couldn't be read, an RDataFrame's why its last load or save failed. Show
+  them in the window — an empty grid alone says nothing:
+
+  ```basic
+  IF Staff.Error <> "" THEN Status.Caption = "Couldn't read the staff: " + Staff.Error
+  ```
+
+- **What the user types** into an edit bound to a number column must be a
+  number: `"4x"` isn't taken (the table keeps its value, the edit keeps
+  the text until it's fixed or the row changes), and the edit's
+  `DataError` says why — `stock is a whole number: "4x" isn't one` — for
+  its `OnChange` to show.
 - **Delimiters and headers**: `Delimiter = ";"` (or `"tab"`, `"|"` …);
   `HasHeader = False` when the first line is data (the columns are then
   `column_1`, `column_2` …).

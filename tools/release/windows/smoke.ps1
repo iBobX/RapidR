@@ -121,6 +121,18 @@ if ($kind -eq "sdk") {
     Check "the IDE starts (headless)" { (Out-Of $R @("ide")) -match "Studio.caption=RapidR Studio" }
     Check "the IDE opens a file" { (Out-Of $R @("ide", "$T\work\hello.bas")) -match "Studio.caption=hello - RapidR Studio" }
     Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
+    # (EXAMPLES-DATA) a data example built: its staff.csv beside the .exe, and the .exe started
+    # as Explorer starts it — in its own folder — reads it
+    Write-Host "== a data example built, started as Explorer starts it"
+    & $R examples copy linked_data "$T\work\lk" | Out-Null
+    $lkBuild = Out-Of $R @("build", "$T\work\lk\linked_data.rr", "$T\work\lk-app", "--interp")
+    Check "the build puts staff.csv beside the .exe (and says so)" { (Test-Path "$T\work\lk-app\staff.csv") -and ($lkBuild -match "data files beside the .exe: staff.csv") }
+    $env:RAPIDR_CAPTURE = "$T\work\lk-cap"; $env:RAPIDR_CAPTURE_DELAY = "0.5"; $env:RAPIDR_TEST_DUMP = "grid.rowcount,status.caption"
+    Check "started in its folder (Explorer's way), it shows staff.csv's 8 rows" {
+        $p = Start-Process -Wait -PassThru -WorkingDirectory "$T\work\lk-app" -FilePath "$T\work\lk-app\linked_data.exe" -RedirectStandardOutput "$T\work\lk.out" -RedirectStandardError "$T\work\lk.err"
+        (Get-Content -Raw "$T\work\lk.out") -match "grid.rowcount=8"
+    }
+    Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
     if ($Native) {
         Write-Host "== native builds: rapidr setup, then the shipped LLVM-MinGW (a throwaway rustup and cargo home, offline)"
         # The user's own Rust is never touched: its default, read before and after. Setup works in a

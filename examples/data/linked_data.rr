@@ -12,7 +12,8 @@
 ' buttons. Type in an edit and the table changes too. Click a heading to
 ' sort the grid's view (again: the other way round). "Engineering" filters
 ' the frame; "Everyone" reads the file again; "Save" writes the table with
-' your edits to staff_edited.csv. staff.csv is made-up data.
+' your edits to staff_edited.csv (or says why it couldn't: a folder that
+' can't be written). staff.csv is made-up data.
 
 DECLARE SUB GoFirst
 DECLARE SUB GoPrior
@@ -120,9 +121,14 @@ SUB GoLast
     Cursor.Last
 END SUB
 
-' the current row moved, or the data changed
+' the current row moved, or the data changed (or the file couldn't be
+' read: why)
 SUB RowChanged
-    Status.Caption = "Row " + STR$(Cursor.Row + 1) + " of " + STR$(Cursor.RecordCount)
+    IF Staff.Error <> "" THEN
+        Status.Caption = "Couldn't read the staff: " + Staff.Error
+    ELSE
+        Status.Caption = "Row " + STR$(Cursor.Row + 1) + " of " + STR$(Cursor.RecordCount)
+    END IF
 END SUB
 
 SUB ShowEngineering
@@ -133,9 +139,14 @@ SUB ShowEveryone
     Team.Refresh
 END SUB
 
+' (written, or why not: a folder that can't be written)
 SUB SaveTable
     Team.SaveToCSV "staff_edited.csv"
-    Status.Caption = "Saved " + STR$(Team.RowCount) + " rows to staff_edited.csv"
+    IF Team.Error <> "" THEN
+        Status.Caption = "Couldn't save " + Team.Error
+    ELSE
+        Status.Caption = "Saved " + STR$(Team.RowCount) + " rows to staff_edited.csv"
+    END IF
 END SUB
 
 RowChanged

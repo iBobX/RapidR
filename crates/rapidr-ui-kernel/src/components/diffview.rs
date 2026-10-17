@@ -735,6 +735,8 @@ mod tests {
         events
             .into_iter()
             .filter_map(|e| match e {
+                // (the focus' OnEnter / OnExit: focus.rs's tests')
+                KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit" => None,
                 KernelEvent::Fire { id, event, args } if id == "dv" => Some((event, args.iter().map(Value::to_i64).collect())),
                 _ => None,
             })

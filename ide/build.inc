@@ -41,30 +41,35 @@ CREATE AppDialog AS RForm
     Left = 16: Top = 100: Width = 90: Caption = "App &name:"
   END CREATE
   CREATE AppNameEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 96: Width = 320
   END CREATE
   CREATE AppIdLabel AS RLabel
     Left = 16: Top = 130: Width = 90: Caption = "&Bundle ID:"
   END CREATE
   CREATE AppIdEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 126: Width = 320
   END CREATE
   CREATE AppVersionLabel AS RLabel
     Left = 16: Top = 160: Width = 90: Caption = "&Version:"
   END CREATE
   CREATE AppVersionEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 156: Width = 320
   END CREATE
   CREATE AppCompanyLabel AS RLabel
     Left = 16: Top = 190: Width = 90: Caption = "&Company:"
   END CREATE
   CREATE AppCompanyEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 186: Width = 320
   END CREATE
   CREATE AppIconLabel AS RLabel
     Left = 16: Top = 220: Width = 90: Caption = "&Icon:"
   END CREATE
   CREATE AppIconEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 216: Width = 250
   END CREATE
   CREATE AppIconBtn AS RButton
@@ -94,6 +99,7 @@ CREATE AppDialog AS RForm
     Left = 16: Top = 316: Width = 90: Caption = "&Output folder:"
   END CREATE
   CREATE AppOutputEdit AS REdit
+    AutoSize = 0
     Left = 120: Top = 312: Width = 284
     AccessibleName = "Output folder: where Build puts the app"
     OnChange = AppBuildChanged
@@ -126,7 +132,8 @@ CREATE AppDialog AS RForm
 END CREATE
 
 ' (RapidQ's sizes in the classic look, the RAPIDR look's elsewhere — as
-' LayOutDialogs does for Studio's other dialogs)
+' LayOutDialogs does for Studio's other dialogs; the fields AutoSize 0,
+' as tall as this makes them)
 SUB LayOutAppDialog
   DIM row AS INTEGER, fh AS INTEGER, bh AS INTEGER, bw AS INTEGER, x AS INTEGER, w AS INTEGER, y AS INTEGER, pad AS INTEGER, ic AS INTEGER, nh AS INTEGER, ch AS INTEGER
   IF ThemeName = "classic" THEN

@@ -68,6 +68,44 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 - `TRUE` and `FALSE`: a comparison gives -1 or 0 (`PRINT 1 = 1` prints
   -1). With `$INCLUDE "RAPIDQ.INC"`, `True` is 1, as in RapidQ's file.
 
+## Constants: `clRed`, `mbYes`, `VK_ESCAPE`…
+
+Constants are names for fixed numbers, such as colours, message box buttons and
+key codes. The full list is in [the constants reference](reference/constants.md).
+
+**Today (as in RapidQ):** RapidQ's constants come with one line at the top of
+the program:
+
+```basic
+$INCLUDE "RAPIDQ.INC"
+
+Form.Color = clRed
+IF MESSAGEDLG("Save?", mtConfirmation, mbYes OR mbNo, 0) = mrYes THEN SaveIt
+```
+
+RapidR has these constants built in, so the line needs no file: RapidR ships
+no copy of RapidQ's include. Without the line, `clRed` is an undeclared name
+and reads as 0, exactly as in RapidQ. Old programs behave the same.
+
+RapidR's own constants, such as `akLeft` … `akBottom` for anchors, need no
+include. A variable or `CONST` of your own with the same name always wins.
+
+Your own constants:
+
+```basic
+CONST MaxPlayers = 4
+CONST Title = "My Game"
+```
+
+**Coming next (after Preview 2):**
+
+- In RapidR programs (`.rr`), every constant will be there with no
+  `$INCLUDE` line. Only the ones your program uses are compiled in, and your
+  own names still win.
+- RapidQ programs (`.bas`) keep RapidQ's rule.
+- Constants will also be grouped by topic, so typing `Color.` in the editor
+  lists every colour. The old names keep working.
+
 ## Arrays
 
 ```basic

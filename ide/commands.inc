@@ -59,6 +59,7 @@ SUB DefineCommands
   AddCmd "file.open", "&Open Project or File...", "File", "Ctrl+O", "", "", ""
   AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
   AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
+  AddCmd "file.exampleAgain", "Copy Example Again from the Ori&ginal...", "File", "", "", "example", "-"
   AddSep "File"
   AddCmd "file.importRapidQ", "&Import RapidQ Project or File...", "File", "", "", "", "import"
   AddCmd "file.importRapidQFolder", "Import RapidQ Fol&der...", "File", "", "", "", "import"
@@ -160,7 +161,10 @@ SUB DefineCommands
   AddCmd "project.options", "Project &Options...", "Project", "", "", "project", "settings"
 
   ' ---- Run ----
-  AddCmd "run.start", "&Run", "Run", "F5", "", "idle", ""
+  ' (F5 is Run's alone: it runs a program not running and goes on with a
+  ' paused one — "Continue (F5)" then —, so the key and the ▶ button always
+  ' do what they say; Debug > Continue shows the key)
+  AddCmd "run.start", "&Run", "Run", "F5", "", "startable", ""
   AddCmd "run.withoutDebugging", "Run &Without Debugging", "Run", "Ctrl+F5", "", "idle", ""
   AddCmd "run.stop", "&Stop", "Run", "Shift+F5", "", "session", ""
   AddCmd "run.restart", "R&estart", "Run", "Ctrl+Shift+F5", "", "session", ""
@@ -180,14 +184,17 @@ SUB DefineCommands
   END IF
 
   ' ---- Debug ----
-  AddCmd "run.continue", "&Continue", "Debug", "F5", "", "paused", ""
+  AddCmd "run.continue", "&Continue", "Debug", "", "F5", "paused", ""
   AddCmd "run.pause", "&Pause", "Debug", "", "", "running", ""
+  ' (the program's windows to the front: a paused program's show, move
+  ' and come forward — they take no clicks or keys until it goes on)
+  AddCmd "debug.showProgram", "Show Program &Window", "Debug", "", "", "session", "RFORM"
   AddSep "Debug"
-  AddCmd "debug.stepInto", "Step &Into", "Debug", "F11", "", "project", ""
-  AddCmd "debug.stepOver", "Step &Over", "Debug", "F10", "", "project", ""
+  AddCmd "debug.stepInto", "Step &Into", "Debug", "F11", "", "steppable", ""
+  AddCmd "debug.stepOver", "Step &Over", "Debug", "F10", "", "steppable", ""
   AddCmd "debug.stepOut", "Step O&ut", "Debug", "Shift+F11", "", "paused", ""
-  AddCmd "debug.runToCursor", "Run to C&ursor", "Debug", "Ctrl+F10", "", "code", ""
-  AddCmd "debug.setNextStatement", "Set &Next Statement", "Debug", "Ctrl+Shift+F10", "", "paused", "debug.showExecutionPoint"
+  AddCmd "debug.runToCursor", "Run to C&ursor", "Debug", "Ctrl+F10", "", "cursor", ""
+  AddCmd "debug.setNextStatement", "Set &Next Statement", "Debug", "Ctrl+Shift+F10", "", "pausedcode", "debug.showExecutionPoint"
   AddCmd "debug.stepIntoSpecific", "Step Into &Specific...", "Debug", "Ctrl+Alt+F11", "", "paused", "debug.stepInto"
   AddSep "Debug"
   AddCmd "debug.toggleBreakpoint", "Toggle &Breakpoint", "Debug", "F9", "", "code", ""
@@ -323,19 +330,36 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   SELECT CASE w
     CASE "": Result = 1
     CASE "project": Result = ProjectOpen
+    ' (the open project is the user's copy of an installed example)
+    CASE "example": Result = (ProjectOpen <> 0 AND ExampleOriginal <> "")
     ' (Add Form: a new form file in a project, else a form in the file open)
     CASE "addform": Result = (ProjectOpen <> 0 OR k = "code" OR k = "design")
     CASE "document": Result = (k = "code" OR k = "design")
     CASE "code": Result = (k = "code")
     CASE "design": Result = (k = "design")
-    CASE "idle": Result = (RunState = "stopped" AND ProjectOpen <> 0)
+    ' (Run's and Debug's, by what the program is doing: not running —
+    ' "stopped", or "error" after a failed or failing run —, running,
+    ' paused; tests/studio_flows.mjs' debug-commands-* walk them all)
+    CASE "idle": Result = (ProgramIdle <> 0 AND ProjectOpen <> 0)
+    ' (Run / Continue: a program to start, or a paused one to go on)
+    CASE "startable": Result = (ProjectOpen <> 0 AND RunState <> "running")
+    ' (F10 / F11: a step of a paused program, or the start of one at its
+    ' first line — never while it runs)
+    CASE "steppable": Result = (ProjectOpen <> 0 AND RunState <> "running")
+    CASE "cursor": Result = (k = "code" AND RunState <> "running")
     CASE "running": Result = (RunState = "running")
     CASE "paused": Result = (RunState = "paused")
-    CASE "session": Result = (RunState <> "stopped")
+    CASE "pausedcode": Result = (RunState = "paused" AND k = "code")
+    CASE "session": Result = (ProgramIdle = 0)
     ' (the AI's: once it is turned on — Tools > Settings > AI)
     CASE "ai": Result = AIReady
     CASE ELSE: Result = 1
   END SELECT
+END FUNCTION
+
+' (no program running or paused: never run, ended, or failed to run)
+FUNCTION ProgramIdle AS INTEGER
+  Result = Flag(RunState <> "running" AND RunState <> "paused")
 END FUNCTION
 
 ' (1 when x holds, else 0)
@@ -362,6 +386,18 @@ SUB UpdateCommands
       Palette.CommandEnabled Cmd(i).Id, en
     END IF
   NEXT
+  ' (Run is Continue while the program is paused: its menu item, its tool
+  ' button's hint)
+  i = CmdIndex("run.start")
+  IF i >= 0 THEN
+    IF RunState = "paused" THEN
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = "&Continue"
+      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", "Continue (F5)"
+    ELSE
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = Cmd(i).Title
+      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")"
+    END IF
+  END IF
   ' (the radio items say what is chosen)
   CheckCmd "view.theme.rapidr", ThemeChoice = "rapidr"
   CheckCmd "view.theme.light", ThemeChoice = "rapidr light"

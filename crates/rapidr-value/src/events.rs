@@ -61,12 +61,15 @@ pub enum Handler {
 /// What binding a handler changes besides the binding (both runtimes call
 /// it when they bind one): an OnStartDrag handler makes its button a drag
 /// source (`crate::drag`), a form's OnHint handler hears the program's
-/// hints (`crate::hints`).
+/// hints (`crate::hints`), Application.OnThemeChange hears the look's
+/// changes from the look the program has now (`crate::theme::listen`).
 pub fn bound(name: &str, event: &str) {
     if event.eq_ignore_ascii_case("onstartdrag") {
         crate::drag::set_source(name);
     } else if event.eq_ignore_ascii_case("onhint") {
         crate::hints::set_receiver(name);
+    } else if event.eq_ignore_ascii_case("onthemechange") && name.eq_ignore_ascii_case("application") {
+        crate::theme::listen();
     }
 }
 
@@ -86,6 +89,17 @@ pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32,
     if queued {
         ARMED.with(|a| a.set(armed));
     }
+    // (back once a compiled handler has run — or failed: a native build's
+    // run-time error unwinds it, `crate::catching`)
+    struct Back(Option<Option<u32>>);
+    impl Drop for Back {
+        fn drop(&mut self) {
+            if let Some(armed) = self.0 {
+                ARMED.with(|a| a.set(armed));
+            }
+        }
+    }
+    let back = Back((!queued).then_some(armed));
     match handler {
         Handler::Arity0(f) => f(),
         Handler::Arity1(f) => f(a(&all, 0)),
@@ -108,9 +122,7 @@ pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32,
         }
         Handler::Closure(f) => f(&mut all),
     }
-    if !queued {
-        ARMED.with(|a| a.set(armed));
-    }
+    drop(back);
     all
 }
 
@@ -185,7 +197,19 @@ pub fn run_all(then: Vec<u32>, params: &[Value]) {
 /// handler's answers — now if it ran, or when a queued one returns.
 pub fn fire_then(args: &[Value], fire: impl FnOnce() -> Vec<Value>, then: impl FnOnce(&[Value]) + 'static) {
     arm(args, then);
-    let out = fire();
+    // (a native build's handler that failed — a run-time error unwinding it
+    // to the wait that runs it, `crate::catching` —: its continuation runs
+    // with the arguments as they were, as the VM's do for a failed
+    // handler — a timer armed again —, then the error goes on)
+    let out = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(fire)) {
+        Ok(out) => out,
+        Err(payload) => {
+            if let Some(then) = disarm() {
+                then(args);
+            }
+            std::panic::resume_unwind(payload)
+        }
+    };
     if let Some(then) = disarm() {
         then(&out);
     }
@@ -332,4 +356,118 @@ pub fn post_paint(name: &str) {
 /// OnPaint now.
 pub fn take_posted_paints() -> Vec<String> {
     PAINTS.with(|p| std::mem::take(&mut *p.borrow_mut()))
+}
+
+// ---------------------------------------------------------------------------
+// The events a program's own sets fire, as RapidQ's
+// ---------------------------------------------------------------------------
+
+/// The property whose value decides whether a program's set of `prop` on a
+/// `type_name` fires an event (read before and after the set: [`set_fires`]),
+/// `None` when such a set fires nothing.
+///
+/// RC.EXE (2026-10-16, a QFORM's components set from code before and after
+/// it shows, each set logged with the events it fired — DEBUG-2; the table is
+/// in docs/manual/events.md): a QEDIT's Text or SelText that changes the text
+/// fires its OnChange inside the set, before the next statement; a
+/// QRICHEDIT's too (twice for Text once its form has shown: the multi-line
+/// edit's own change and the VCL's text change); a QCHECKBOX's Checked that
+/// changes fires its OnClick; a QRADIOBUTTON's Checked set to True from
+/// False its OnClick (set to False, or the sibling it unchecks: nothing); a
+/// QSCROLLBAR's Position that changes its OnChange (not OnScroll). The same
+/// value again fires nothing. A QCOMBOBOX's ItemIndex or Text, a QLISTBOX's
+/// ItemIndex, a QTRACKBAR's Position and a QTABCONTROL's TabIndex fire
+/// nothing. RapidR's RMemo is an edit: its OnChange as a QEDIT's.
+pub fn set_watch(type_name: &str, prop: &str) -> Option<&'static str> {
+    let t = type_name.to_ascii_uppercase();
+    let t = t.strip_prefix('R').or_else(|| t.strip_prefix('Q')).unwrap_or(&t);
+    let p = prop.to_ascii_lowercase();
+    match (t, p.as_str()) {
+        ("EDIT" | "RICHEDIT" | "MEMO", "text" | "seltext") => Some("text"),
+        ("CHECKBOX" | "RADIOBUTTON", "checked") => Some("checked"),
+        ("SCROLLBAR", "position") => Some("position"),
+        _ => None,
+    }
+}
+
+/// The event a program's set fired (and how many times), from the watched
+/// value before and after it ([`set_watch`]); `shown`: the component's form
+/// has been shown (its window made).
+pub fn set_fires(type_name: &str, prop: &str, before: &Value, after: &Value, shown: bool) -> Option<(&'static str, usize)> {
+    let t = type_name.to_ascii_uppercase();
+    let t = t.strip_prefix('R').or_else(|| t.strip_prefix('Q')).unwrap_or(&t).to_string();
+    match set_watch(type_name, prop)? {
+        "text" => {
+            if before.to_string_val() == after.to_string_val() {
+                return None;
+            }
+            let twice = t == "RICHEDIT" && prop.eq_ignore_ascii_case("text") && shown;
+            Some(("onchange", if twice { 2 } else { 1 }))
+        }
+        "checked" => {
+            let (b, a) = (before.to_bool(), after.to_bool());
+            (b != a && (t == "CHECKBOX" || a)).then_some(("onclick", 1))
+        }
+        _ => (before.to_i64() != after.to_i64()).then_some(("onchange", 1)),
+    }
+}
+
+/// A program's set of `prop` (`set` does it), with the events RapidQ fires
+/// for it ([`set_fires`]): `get` reads a property, `fire` fires an event of
+/// the component, `shown` says whether its form has been shown. Both
+/// runtimes' program sets (the VM hosts', a native build's) come here; the
+/// runtime's own sets (what the user did, a model's) don't.
+pub fn program_set(type_name: &str, prop: &str, get: impl Fn(&str) -> Value, set: impl FnOnce(), shown: impl FnOnce() -> bool, fire: impl Fn(&'static str)) {
+    let Some(watched) = set_watch(type_name, prop) else { return set() };
+    let before = get(watched);
+    set();
+    let after = get(watched);
+    if let Some((event, times)) = set_fires(type_name, prop, &before, &after, shown()) {
+        for _ in 0..times {
+            fire(event);
+        }
+    }
+}
+
+#[cfg(test)]
+mod set_tests {
+    use super::*;
+    use crate::{v_bool, v_int};
+
+    #[test]
+    fn rapidqs_sets_fire_as_rc_exe_s() {
+        let s = |t: &str| v_str(t);
+        // (an edit: a change once, the same text nothing)
+        assert_eq!(set_fires("REDIT", "Text", &s(""), &s("abc"), true), Some(("onchange", 1)));
+        assert_eq!(set_fires("QEDIT", "text", &s("abc"), &s("abc"), true), None);
+        assert_eq!(set_fires("REDIT", "SelText", &s("a"), &s("aw"), true), Some(("onchange", 1)));
+        // (a rich edit: twice once shown)
+        assert_eq!(set_fires("RRICHEDIT", "Text", &s(""), &s("x"), false), Some(("onchange", 1)));
+        assert_eq!(set_fires("QRICHEDIT", "Text", &s(""), &s("x"), true), Some(("onchange", 2)));
+        assert_eq!(set_fires("RRICHEDIT", "SelText", &s(""), &s("x"), true), Some(("onchange", 1)));
+        // (check boxes both ways, radio buttons only on)
+        assert_eq!(set_fires("RCHECKBOX", "Checked", &v_bool(false), &v_int(1), true), Some(("onclick", 1)));
+        assert_eq!(set_fires("RCHECKBOX", "Checked", &v_int(1), &v_int(0), true), Some(("onclick", 1)));
+        assert_eq!(set_fires("RCHECKBOX", "Checked", &v_int(1), &v_bool(true), true), None);
+        assert_eq!(set_fires("RRADIOBUTTON", "Checked", &v_int(0), &v_int(1), true), Some(("onclick", 1)));
+        assert_eq!(set_fires("RRADIOBUTTON", "Checked", &v_int(1), &v_int(0), true), None);
+        // (a scroll bar's position)
+        assert_eq!(set_fires("RSCROLLBAR", "Position", &v_int(0), &v_int(10), true), Some(("onchange", 1)));
+        assert_eq!(set_fires("RSCROLLBAR", "Position", &v_int(10), &v_int(10), true), None);
+        // (nothing for these)
+        for (t, p) in [("RCOMBOBOX", "ItemIndex"), ("RCOMBOBOX", "Text"), ("RLISTBOX", "ItemIndex"), ("RTRACKBAR", "Position"), ("RTABCONTROL", "TabIndex"), ("REDIT", "Caption")] {
+            assert_eq!(set_watch(t, p), None, "{t}.{p}");
+        }
+    }
+
+    #[test]
+    fn a_program_set_reads_before_and_after() {
+        let value = RefCell::new(v_str("old"));
+        let fired = RefCell::new(Vec::new());
+        for _ in 0..2 {
+            program_set("REDIT", "text", |_| value.borrow().clone(), || *value.borrow_mut() = v_str("new"), || true, |e| fired.borrow_mut().push(e));
+        }
+        program_set("REDIT", "left", |_| unreachable!(), || {}, || unreachable!(), |_| unreachable!());
+        assert_eq!(*fired.borrow(), ["onchange"]);
+    }
 }

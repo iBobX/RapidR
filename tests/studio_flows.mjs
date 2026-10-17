@@ -18,7 +18,7 @@
 // (4.5:1, 3:1 for large and disabled text) fails.
 
 import { spawn, spawnSync } from "node:child_process";
-import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +40,10 @@ const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio
 // key, no network, no cost): {mock} in a case's steps is its base URL.
 const mockProc = spawn(process.execPath, [join(HERE, "ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
 const MOCK_URL = await new Promise((resolve) => mockProc.stdout.once("data", (d) => resolve(String(d).trim())));
+// (the cloud providers — Anthropic, OpenAI, DeepSeek — played by the same
+// mock: RAPIDR_AI_TEST_SERVER sends them there, a loopback address only;
+// the fake key typed decides what it answers: tests/ai_mock_server.mjs)
+const MOCK_ROOT = MOCK_URL.replace(/\/v1$/, "");
 
 // (I4) The designer's steps on notepad.bas: the placing tool's click, the
 // form's right edge dragged, Button1 dragged (the form sits 24 px in on the
@@ -233,6 +237,43 @@ async function inspectorAccess(page, scale, record) {
   await cdp.detach();
 }
 
+// (DEBUG-RUN) cmds:report's line for a state: each Run / Debug command's
+// menu item, tool button and palette entry (1 on, 0 off, - none), then the
+// Run item's caption and the ▶ button's hint (the desktop's Build last)
+const CMDS = ["run.start", "run.withoutDebugging", "run.stop", "run.restart", "run.continue", "run.pause", "debug.showProgram", "debug.stepInto", "debug.stepOver", "debug.stepOut", "debug.runToCursor", "debug.setNextStatement", "debug.stepIntoSpecific", "debug.toggleBreakpoint"];
+const CMD_STATES = {
+  idle: "111 111 000 0-0 0-0 000 0-0 111 111 000 1-1 0-0 0-0 111",
+  running: "000 000 111 1-1 0-0 111 1-1 000 000 000 0-0 0-0 0-0 111",
+  paused: "111 000 111 1-1 1-1 000 1-1 111 111 111 1-1 1-1 1-1 111",
+};
+const cmdsLine = (state, kind) => {
+  const f = CMD_STATES[kind].split(" ");
+  const run = kind === "paused" ? "&Continue \\| Continue \\(F5\\)" : "&Run \\| Run \\(F5\\)";
+  return `\\[cmds\\] ${state} ` + CMDS.map((id, i) => `${id.replace(/\./g, "\\.")}=${f[i]}`).join(" ") + `( run\\.build=111)? \\| ${run}`;
+};
+const cmdsSeq = (...lines) => new RegExp(lines.join("[\\s\\S]*"));
+
+// (DEBUG-RUN, the debugger's events) Robert's scenarios 1–6
+// (docs/manual/debugging.md "Debugging events"): a breakpoint in a
+// handler, the event triggered again and again — it stops every time,
+// after Continue (F5) and after a Step Over out of the handler (F10).
+// The program's own input comes from its test script
+// (RAPIDR_TEST_PROGRAM_EVENTS: Studio passes it on as the program's
+// RAPIDR_TEST_EVENTS, as any RAPIDR_TEST_PROGRAM_<X> as its
+// RAPIDR_TEST_<X>), which waits while the program is stopped, so each
+// trigger lands after Studio has gone on. `stops:report` lists the run's
+// stops, line and reason.
+const EVENTS_FILE = "tests/fixtures/studio_debug/events.rr";
+// (the program's script: `n` times `trigger`, a moment of other input
+// between them — moves over the Click button, which handles none)
+const triggers = (trigger, n, gap = 2) => Array.from({ length: n }, () => [trigger, ...Array(gap).fill("btn.__mousemove_5_5")].join(",")).join(",");
+// (Studio's side: the breakpoint on `line`, F5; then each stop answered —
+// F5 twice, F10 twice (out of the handler: the second F10 does nothing
+// once the program runs on), F5 for the rest)
+const eventSteps = (line, after = "") => `line:${line},key:F9,key:F5,${"wait,".repeat(8)}key:F5,${"wait,".repeat(4)}key:F5,${"wait,".repeat(4)}key:F10,wait,wait,key:F10,${"wait,".repeat(4)}key:F5,${"wait,".repeat(4)}${after}stops:report`;
+// ("[stops] L:breakpoint L:breakpoint L:breakpoint (L+1:step)? L:breakpoint L:breakpoint")
+const stopsAt = (line) => new RegExp(`\\[stops\\] ${line}:breakpoint ${line}:breakpoint ${line}:breakpoint( ${line + 1}:step)? ${line}:breakpoint ${line}:breakpoint`);
+
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
 // (DARK-FIX) RapidR's three looks, for the cases that run in each
@@ -282,6 +323,30 @@ async function programModal(page, scale, record) {
   await page.waitForTimeout(600);
   list = await programWindows(page);
   record("", list.length === 1, `Enter closed the message (${list.map((w) => w.form).join(", ")})`);
+}
+
+// (the web) Studio opens maximized on the page: it fills the page (not
+// just the restore icon), one double click on its title bar restores it,
+// another maximizes it again (Robert, 2026-10-16: it took two clicks).
+async function studioStartsMaximized(page, scale, record) {
+  const vp = page.viewportSize();
+  const sel = 'body > .rr-kwin[data-rr-form="studio"]';
+  await page.waitForSelector(sel, { timeout: 30000 });
+  await page.waitForTimeout(800);
+  const rect = () => page.evaluate((s) => {
+    const r = document.querySelector(s).getBoundingClientRect();
+    return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+  }, sel);
+  const start = await rect();
+  record("", start[0] === 0 && start[1] === 0 && start[2] === vp.width && start[3] === vp.height, `Studio fills the page at start (${start})`);
+  await page.mouse.dblclick(300, 12);
+  await page.waitForTimeout(600);
+  const restored = await rect();
+  record("", restored[2] < vp.width || restored[3] < vp.height, `one double click restores it (${restored})`);
+  await page.mouse.dblclick(restored[0] + 200, restored[1] + 12);
+  await page.waitForTimeout(600);
+  const again = await rect();
+  record("", JSON.stringify(again) === JSON.stringify(start), `the next maximizes it again (${again})`);
 }
 
 async function studioModal(page, scale, record) {
@@ -335,6 +400,12 @@ const click = (x, y, menu = 0) => `designdoc(0).__mousedown_${at(x, y, menu)},de
 // RAPIDR_TEST_EVENTS, input through the kernel), how long it waits before
 // the properties are read, and what each must say (a regular expression;
 // `same`: equal to a file's text, line ends as the editor keeps them).
+// (I8 AI-REAL: the settings dialog's clicks — typeInto and idle below)
+const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
+const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
+const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
+
 const CASES = [
   {
     name: "run-console",
@@ -378,6 +449,127 @@ const CASES = [
     do: "view.theme.dark",
     delay: 3,
     dump: { "application.theme": /^rapidr dark$/, "dock.documentmode": /^tabs$/ },
+  },
+  // (THEME-LIVE, Robert: "Welcome screen is not responding to theme
+  // changes, it's always light") Studio following a light system (its
+  // default, View > Theme > RapidR); the system switches to dark while it
+  // runs (`look` and the __look_ step: the test hooks): the Welcome page,
+  // its cards, the look Studio reads — dark, its text AA. Then high
+  // contrast with Settings open; and back to light.
+  {
+    name: "theme-follows-system-dark",
+    theme: "rapidr",
+    look: "light",
+    events: "studio.__look_dark",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr dark$/, "welcome.color": /^2627858$/, "welcomepage.color": /^2627858$/, "excard(0).color": /^3812133$/, "excard(15).color": /^3812133$/ },
+  },
+  {
+    name: "theme-follows-system-contrast-settings",
+    theme: "rapidr",
+    look: "dark",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: "studio.__look_contrast",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr high contrast$/, "settingsdialog.__shown": /^1$/, "welcome.color": /^0$/ },
+  },
+  {
+    name: "theme-follows-system-light",
+    theme: "rapidr",
+    look: "contrast",
+    events: "studio.__look_light",
+    delay: 4,
+    contrast: true,
+    dump: { "application.theme": /^rapidr light$/, "welcome.color": /^16777215$/, "excard(0).color": /^16777215$/ },
+  },
+  // (a look View > Theme named stays when the system switches)
+  {
+    name: "theme-named-stays",
+    theme: "rapidr",
+    look: "dark",
+    do: "view.theme.light",
+    events: "studio.__look_dark",
+    delay: 4,
+    dump: { "application.theme": /^rapidr light$/, "welcome.color": /^16777215$/ },
+  },
+  // (THEME-LIVE) The Welcome page's cards from the keyboard: Shift+Tab from
+  // the Project pane (where the keyboard starts) reaches the last card,
+  // the page scrolled to it; again: the one before; Enter opens it
+  {
+    name: "welcome-cards-keyboard",
+    look: "dark",
+    theme: "rapidr",
+    events: "projecttree.__key_9_256,studio.__key_9_256,studio.__key_13",
+    delay: 4,
+    dump: { "studio.caption": /^notepad - RapidR Studio$/, "welcome.vertposition": /^[1-9]\d*$/, "excard(14).tabstop": /^1$/ },
+  },
+  // (EXAMPLES-DATA) RapidR's examples where RapidR is installed (a
+  // read-only home, as /usr/lib/rapidr or the macOS app): the Welcome
+  // page's card clicked (the mouse, on its title) opens the user's copy in
+  // Documents/RapidR/Examples/<name> — made with its data, said in the
+  // Output with "Copy again from the original"; a copy that's there opens
+  // as the user left it (its missing files copied again); File > Copy
+  // Example Again asks first — Copy Again puts the original back, Cancel
+  // changes nothing; the same from the command line (Recent's way: a path)
+  {
+    name: "example-readonly-home",
+    readOnlyHome: true,
+    desktopOnly: true,
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.folder": /docs\/RapidR\/Examples\/linked_data$/, "proj.examplecopy": /^made$/, "studio.caption": /^linked_data - RapidR Studio$/,
+      "outputbox.text": /Made your copy of the example linked_data\.rr \(the installed examples can't be changed\), in:\n {2}\S*docs\/RapidR\/Examples\/linked_data\n {2}Copy again from the original/ },
+    desktopFiles: ["docs/RapidR/Examples/linked_data/linked_data.rr", "docs/RapidR/Examples/linked_data/staff.csv"],
+  },
+  {
+    // (an install the user could write: copied all the same — nothing is
+    // written inside RapidR, an update would take it away)
+    name: "example-installed-writable-home",
+    readOnlyHome: true,
+    installedWritable: true,
+    desktopOnly: true,
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.folder": /docs\/RapidR\/Examples\/linked_data$/, "proj.examplecopy": /^made$/ },
+  },
+  {
+    name: "example-readonly-home-kept",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.examplecopy": /^kept$/, "outputbox.text": /Your copy of the example linked_data\.rr, as you left it, in:/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' mine\nPRINT "mine"\n$/ },
+    desktopFiles: ["docs/RapidR/Examples/linked_data/staff.csv"],
+  },
+  {
+    name: "example-copy-again",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    open: "examples/data/linked_data.rr",
+    do: "file.exampleAgain",
+    events: "promptsave.__key_13",
+    delay: 6,
+    dump: { "prompttitle.caption": /^Copy linked_data\.rr again from the original\?$/, "promptsave.caption": /^&Copy Again$/, "promptdont.visible": /^0$/, "saveprompt.visible": /^0$/,
+      "outputbox.text": /Copied linked_data\.rr again from the original, in:/, "proj.mainfile": /^linked_data\.rr$/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' linked_data\.rr: linked data components/ },
+  },
+  {
+    name: "example-copy-again-cancel",
+    readOnlyHome: true,
+    desktopOnly: true,
+    seed: { "RapidR/Examples/linked_data/linked_data.rr": "' mine\nPRINT \"mine\"\n" },
+    open: "examples/data/linked_data.rr",
+    do: "file.exampleAgain",
+    events: "promptcancel.__mousedown_12_12,promptcancel.__mouseup_12_12",
+    delay: 6,
+    dump: { "saveprompt.visible": /^0$/, "proj.examplecopy": /^kept$/ },
+    files: { "docs/RapidR/Examples/linked_data/linked_data.rr": /^' mine\nPRINT "mine"\n$/ },
   },
   {
     // (the desktop works on a copy: Save All writes the project file)
@@ -468,6 +660,18 @@ const CASES = [
     scales: [1, 2],
     web: studioModal,
     dump: { "session.error": /^$/ },
+  },
+  {
+    // Studio itself maximized on the page from the start (studioStartsMaximized)
+    name: "studio-starts-maximized",
+    open: "examples/gui/hello_form.rr",
+    webOnly: true,
+    delay: 3,
+    maximized: true,
+    viewport: { width: 1440, height: 900 },
+    scales: [1],
+    web: studioStartsMaximized,
+    dump: {},
   },
   {
     // Run > Build: the app for this system (interpreted: the project says),
@@ -1410,6 +1614,17 @@ const CASES = [
     delay: 4,
     dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
   },
+  // (SHOWCASE) the showcase programs are in Open an Example (the palette),
+  // not cards on the Welcome page: "visualizer" typed finds one, Enter opens
+  // it as the user's own copy, with its song beside it
+  {
+    name: "palette-showcase",
+    open: "",
+    do: "wait,palette:visualizer",
+    events: "palette.__key_13",
+    delay: 6,
+    dump: { "palette.selected": /^more:1$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
+  },
   {
     // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
     // to the parameters
@@ -1817,6 +2032,383 @@ const CASES = [
       "outputbox.text": /before\s*\n\s*each gets\s*\n\s*oops\.rr:4: run-time error: Division by zero/,
     },
   },
+  // ---- DEBUG-RUN: Run's and Debug's commands in every state of the
+  // program (Robert, Preview 2: "debug disables the play icon, if the user
+  // decides to just continue the execution it can't"). Each step is a real
+  // key through Studio's menus (key:F5 …: a disabled item never runs) and
+  // cmds:report writes what the person sees then — each command's menu
+  // item, tool button and palette entry (1 enabled, 0 not, - none), the Run
+  // item's caption and the ▶ button's hint: "Continue (F5)" while paused.
+  {
+    // F9 F5: paused at 6 — Continue enabled, F5 goes on (stops at 6 again,
+    // the next time round), F10 steps (over AddUp: the loop comes back to
+    // the breakpoint), Shift+F5 stops; F11 from idle starts at the first
+    // line; Run again after a Stop
+    name: "debug-commands-keys",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "cmds:report,line:6,key:F9,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,cmds:report,key:F10,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F11,wait,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,key:F5,wait,wait,wait,wait,cmds:report,cmds:log",
+    delay: 30,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("stopped", "idle"), cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@[67]:(step|breakpoint)", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@\\d+:entry", "paused"), cmdsLine("paused@6:breakpoint", "paused")),
+      "varstree.text": /\ti = 1\n/,
+    },
+  },
+  {
+    // paused at 6: a real click on the tool bar's ▶ (enabled, "Continue
+    // (F5)") goes on — the program stops at 6 again, the next time round;
+    // the same click while it waits for its events (running: ▶ disabled)
+    // does nothing
+    name: "debug-commands-toolbar",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    events: "toolbar.__mousemove_357_18,toolbar.__mousedown_357_18,toolbar.__mouseup_357_18,toolbar.__mousemove_400_18,toolbar.__mousemove_401_18,toolbar.__mousemove_402_18",
+    dump: { "session.state": /^paused$/, "session.currentline": /^6$/, "varstree.text": /\ti = 2\n/ },
+  },
+  {
+    // Restart (Ctrl+Shift+F5) while paused: the program ends and runs again
+    // from its start — stopped at 6 the first time round again (i = 1)
+    name: "debug-commands-restart",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait,key:F5,wait,wait,wait,cmds:report,key:Ctrl+Shift+F5,wait,wait,wait,wait,wait,cmds:report,cmds:log",
+    delay: 12,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("paused@6:breakpoint", "paused"), cmdsLine("paused@6:breakpoint", "paused")),
+      "varstree.text": /\ti = 1\n/,
+    },
+  },
+  {
+    // a run-time error: paused at it (Continue enabled), F5 lets the error
+    // end the program (exit code 1: the "error" state) — and F5 runs it
+    // again from there; Shift+F5 stops it
+    name: "debug-commands-error",
+    open: "tests/fixtures/studio_debug/oops.rr",
+    webFiles: ["tests/fixtures/studio_debug/oops.rr"],
+    do: "cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,wait,cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,cmds:log",
+    delay: 16,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("stopped", "idle"), cmdsLine("paused@4:exception", "paused"), cmdsLine("error", "idle"), cmdsLine("paused@4:exception", "paused"), cmdsLine("stopped", "idle")),
+    },
+  },
+  {
+    // a program that waits for its events runs: Pause, Stop and Show
+    // Program Window on, Run and the steps off; paused while it waits, the
+    // whole paused set; Continue lets it wait again (running)
+    name: "debug-commands-running",
+    open: "tests/fixtures/studio_debug/waits.rr",
+    webFiles: ["tests/fixtures/studio_debug/waits.rr"],
+    do: "view.code,key:F5,wait,cmds:report,wait,run.pause,wait,wait,cmds:report,key:F5,wait,cmds:report,cmds:log",
+    delay: 8,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("running", "running"), cmdsLine("paused@17:pause", "paused"), cmdsLine("running", "running")),
+    },
+  },
+  {
+    // stepping over a line that takes seconds: the program runs meanwhile
+    // (F5 and the steps off, Pause on), then it stops on the next line
+    name: "debug-commands-stepping",
+    open: "tests/fixtures/studio_debug/busy.rr",
+    webFiles: ["tests/fixtures/studio_debug/busy.rr"],
+    do: "line:12,key:F9,key:F5,wait,wait,wait,wait,key:F10,wait,cmds:report,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,cmds:report,key:F5,wait,wait,wait,cmds:report,cmds:log",
+    delay: 16,
+    dump: {
+      "outputbox.text": cmdsSeq(cmdsLine("running", "running"), cmdsLine("paused@13:step", "paused"), cmdsLine("stopped", "idle")),
+    },
+  },
+  // ---- DEBUG-RUN, the debugger's events (Robert: "users will debug events
+  // of course"): each handler's breakpoint stops on every event — three
+  // times with Continue between, again after a Step Over out of the
+  // handler (scenarios 1, 2, 5, 6; the program's input from its script)
+  {
+    // 1. hello_form.rr's one-line OnChange: every key typed stops at 49
+    name: "debug-events-onchange",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("nameedit.__key_65", 6) },
+    do: eventSteps(49),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(49) },
+  },
+  {
+    // 2. a click (Click's OnClick)
+    name: "debug-events-click",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("btn.__mousedown_10_10,btn.__mouseup_10_10", 6) },
+    do: eventSteps(58),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(58) },
+  },
+  {
+    // 2. a key (the edit's OnKeyPress)
+    name: "debug-events-keypress",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("box.__key_65", 6) },
+    do: eventSteps(62),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(62) },
+  },
+  {
+    // 2. the focus (the list's OnEnter: clicked, then the edit, again)
+    name: "debug-events-focus",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("list.__mousedown_10_10,list.__mouseup_10_10,box.__mousedown_10_10,box.__mouseup_10_10", 6) },
+    do: eventSteps(66),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(66) },
+  },
+  {
+    // 2. a timer's OnTimer (every second while the program runs)
+    name: "debug-events-timer",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(160).fill("btn.__mousemove_5_5").join(",") },
+    do: eventSteps(79),
+    delay: 20,
+    dump: { "outputbox.text": stopsAt(79) },
+  },
+  {
+    // 2. the mouse moving over the form (OnMouseMove): it stops on every
+    // move, and Continue always gets the program going again
+    name: "debug-events-mousemove",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("form.__mousemove_300_160", 6) },
+    do: eventSteps(83),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(83) },
+  },
+  {
+    // 2. a resize (the form's OnResize): the test's resize stops at 70
+    name: "debug-events-resize",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(20).fill("btn.__mousemove_5_5").join(","), RAPIDR_TEST_RESIZE: "420,260" },
+    do: `line:70,key:F9,key:F5,${"wait,".repeat(8)}stops:report,key:F5,wait,wait`,
+    delay: 9,
+    dump: { "outputbox.text": /\[stops\]( 70:breakpoint)+/ },
+  },
+  {
+    // 5. nested: Grow widens the form, whose OnResize runs inside it — the
+    // breakpoint in Resized (set while the program runs: it takes effect
+    // at the next event) stops, the call stack has both
+    name: "debug-events-nested",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array(40).fill("btn.__mousemove_5_5").join(",") + "," + triggers("growbtn.__mousedown_10_10,growbtn.__mouseup_10_10", 2) },
+    do: `key:F5,wait,wait,line:70,key:F9,${"wait,".repeat(10)}stops:report`,
+    delay: 9,
+    dump: { "outputbox.text": /\[stops\] 70:breakpoint/, "stacktree.text": /^Resized\s+events\.rr:70\nGrow\s+events\.rr:91\n/ },
+  },
+  {
+    // 6. a run-time error in a handler: it stops at the line (Continue
+    // enabled); Shift+F5 ends it; run again, the error again: Continue
+    // (F5) does what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there, the program runs on —, so
+    // the next click stops at the error again, three times; the error in
+    // Output each time; the program still running after the last
+    name: "debug-events-error",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 3, 40) },
+    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,${`key:F5,${"wait,".repeat(8)}cmds:report,`.repeat(2)}key:F5,wait,wait,wait,cmds:report,cmds:log`,
+    delay: 30,
+    // (Output keeps its last lines: the stops and the errors of the second
+    // run, then the whole log of the states)
+    dump: {
+      "outputbox.text": cmdsSeq(
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("running", "running"),
+        "\\[cmds-log\\]",
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("stopped", "idle"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("running", "running"),
+      ),
+    },
+  },
+  {
+    // (DEBUG-2) the focus (RapidR's OnEnter / OnExit, as Delphi's): Tab from
+    // the name to Greet stops in the name's OnExit (41), then, F5, in
+    // Greet's OnEnter (45) — three rounds, Shift+Tab back between them (its
+    // own OnExit / OnEnter have no breakpoint): each stops every time, in
+    // that order
+    name: "debug-events-focus-order",
+    open: "tests/fixtures/studio_debug/focus.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array.from({ length: 3 }, () => ["nameedit.__key_9", ...Array(4).fill("otherbutton.__mousemove_5_5"), "greetbutton.__key_9_256", ...Array(4).fill("otherbutton.__mousemove_5_5")].join(",")).join(",") },
+    do: `line:41,key:F9,line:45,key:F9,key:F5,${"wait,".repeat(8)}${"key:F5,wait,wait,wait,wait,".repeat(6)}stops:report`,
+    delay: 22,
+    dump: { "outputbox.text": /\[stops\] 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint$/m },
+  },
+  {
+    // 2. the close box (the form's OnClose, the close cancelled: Action = 0)
+    name: "debug-events-close",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("form.__close", 6) },
+    do: eventSteps(74),
+    delay: 16,
+    dump: { "outputbox.text": stopsAt(74) },
+  },
+  {
+    // 4. a handler that opens a dialog (dialogs.rr's Ask: MESSAGEDLG): it
+    // stops on the dialog's line, Step Over shows the dialog (held open
+    // a moment, then answered Yes, as the user's click would) and stops on
+    // the line after it — three times, F5 between. (The script's next
+    // click waits out the dialog: a script's events aren't held back by a
+    // modal dialog as the user's are)
+    name: "debug-events-dialog",
+    open: "examples/gui/dialogs.rr",
+    copy: true,
+    desktopOnly: true,
+    env: {
+      RAPIDR_TEST_PROGRAM_EVENTS: Array.from({ length: 3 }, () => ["askbtn.__mousedown_10_10", "askbtn.__mouseup_10_10", ...Array(70).fill("answer.__mousemove_5_5")].join(",")).join(","),
+      RAPIDR_TEST_PROGRAM_MESSAGE_DIALOG: "Yes;Yes;Yes;",
+      RAPIDR_TEST_PROGRAM_DIALOG_HOLD: "800",
+    },
+    do: `line:85,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
+    delay: 34,
+    dump: { "outputbox.text": /\[stops\] 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step/ },
+  },
+  // ---- DEBUG-2: Robert's scenarios 7, 9, 10, 11, 13 (stepping, loops,
+  // recursion, breakpoints while running, a breakpoint in an included file;
+  // 8, 12, 14, 16 and 17 are the flows above: debug-events-* (F10 out of a
+  // handler), debug-condition-continue / -hit-count / -logpoint,
+  // debug-placed, debug-hover-frame / debug-datatip-* / debug-set-value,
+  // debug-step-watch / debug-changed and Immediate)
+  {
+    // 9. loops: a breakpoint on a FOR loop's body stops at every pass (40:
+    // i = 1, 2, 3); one on a loop written on one line (38) stops once, when
+    // the line is reached (the loop then runs round inside it)
+    name: "debug-steps-loop",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    webFiles: ["tests/fixtures/studio_debug/steps.rr", "tests/fixtures/studio_debug/tally.inc"],
+    do: `line:38,key:F9,line:40,key:F9,key:F5,${"wait,".repeat(5)}${"key:F5,wait,wait,wait,".repeat(4)}stops:report`,
+    delay: 12,
+    dump: { "outputbox.text": /\[stops\] 38:breakpoint 40:breakpoint 40:breakpoint 40:breakpoint$/m },
+  },
+  {
+    // 10. recursion: a breakpoint in a recursive FUNCTION stops at every
+    // level (Fact(4) → 4, 3, 2, 1); at the deepest the Call Stack lists
+    // them all, the program's line under them, and Locals is that level's
+    name: "debug-steps-recursion",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    webFiles: ["tests/fixtures/studio_debug/steps.rr", "tests/fixtures/studio_debug/tally.inc"],
+    do: `line:11,key:F9,key:F5,${"wait,".repeat(5)}${"key:F5,wait,wait,wait,".repeat(3)}stops:report`,
+    delay: 10,
+    dump: {
+      "outputbox.text": /\[stops\] 11:breakpoint 11:breakpoint 11:breakpoint 11:breakpoint$/m,
+      "stacktree.text": /^Fact\s+steps\.rr:11\nFact\s+steps\.rr:14\nFact\s+steps\.rr:14\nFact\s+steps\.rr:14\n\(the program\)\s+steps\.rr:42$/,
+      "varstree.text": /^Locals\n\tn = 1\n/,
+    },
+  },
+  {
+    // 13. a breakpoint in an $INCLUDEd file (tally.inc, opened from the
+    // project, the breakpoint set there, the file closed again): it stops
+    // there, and the editor opens the file at the line
+    name: "debug-steps-include",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: `open:tally.inc,wait,line:5,key:F9,wait,file.close,wait,key:F5,${"wait,".repeat(6)}`,
+    delay: 9,
+    dump: {
+      "session.state": /^paused$/,
+      "session.stopreason": /^breakpoint$/,
+      "session.currentfile": /tally\.inc$/,
+      "session.currentline": /^5$/,
+      "codedoc(1).caretline": /^5$/,
+      "stacktree.text": /^AddUp\s+tally\.inc:5\n\(the program\)\s+counter\.rr:6$/,
+    },
+  },
+  {
+    // 7. stepping inside a handler (Go, the button's OnClick): its
+    // breakpoint (33), Step Into Twice (its SUB line, 18, as VB's), Step
+    // Out back in Go (the next line, 34), Run to Cursor (35), Set Next
+    // Statement back to 34, Step Over (35); Continue — the next click stops
+    // at 33 again
+    name: "debug-steps-handler",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("gobtn.__mousedown_10_10,gobtn.__mouseup_10_10", 2, 20) },
+    do: `line:33,key:F9,key:F5,${"wait,".repeat(8)}key:F11,wait,wait,wait,key:Shift+F11,wait,wait,wait,line:35,debug.runToCursor,wait,wait,wait,goto:34,wait,wait,wait,key:F10,wait,wait,wait,key:F5,${"wait,".repeat(8)}stops:report`,
+    delay: 22,
+    dump: { "outputbox.text": /\[stops\] 33:breakpoint 18:step 34:step 35:breakpoint 34:goto 35:step 33:breakpoint$/m },
+  },
+  {
+    // 11. a breakpoint taken off while the program runs: the click after it
+    // doesn't stop (the first did); one put back stops the next click
+    name: "debug-steps-remove-running",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("btn.__mousedown_10_10,btn.__mouseup_10_10", 8, 30) },
+    do: `line:58,key:F9,key:F5,${"wait,".repeat(8)}key:F5,wait,line:58,key:F9,${"wait,".repeat(8)}line:58,key:F9,${"wait,".repeat(8)}stops:report,cmds:report`,
+    delay: 16,
+    dump: { "outputbox.text": /\[stops\] 58:breakpoint 58:breakpoint\n[\s\S]*\[cmds\] paused@58/ },
+  },
+  {
+    // (DEBUG-2) a file name too long for the status bar: stopped, the bar
+    // says where with the name shortened in its middle — "Breakpoint:",
+    // its start, "…", its end and the line kept —, the whole in the bar's
+    // tooltip
+    name: "debug-status-long-name",
+    open: "tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr",
+    webFiles: ["tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr"],
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "session.currentline": /^6$/,
+      // (the hint is set only when a panel is shortened; the bar itself in
+      // the capture)
+      "status.hint": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
+    },
+  },
+  // ---- DEBUG-RUN, scenario 15: Variables > Globals — the program's own
+  // variables first, RAPIDQ.INC's hundreds of constants after them under
+  // one item, closed; opened, its names
+  {
+    name: "debug-globals-include",
+    open: "tests/fixtures/studio_debug/include.rr",
+    webFiles: ["tests/fixtures/studio_debug/include.rr"],
+    do: "line:9,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: { "varstree.text": /^Locals\n\t\(none\)\nGlobals\n\ttotal = 3\n\twho = "Ann"\n\t\$INCLUDE RAPIDQ\.INC \(\d{3} names\)\nComponents$/ },
+  },
+  {
+    name: "debug-globals-include-open",
+    open: "tests/fixtures/studio_debug/include.rr",
+    webFiles: ["tests/fixtures/studio_debug/include.rr"],
+    do: "line:9,key:F9,key:F5,wait,wait,wait,wait,expand:G/$INCLUDE RAPIDQ.INC,wait,wait,wait",
+    delay: 6,
+    dump: { "varstree.text": /\n\twho = "Ann"\n\t\$INCLUDE RAPIDQ\.INC \(\d{3} names\)\n(\t\t\w+ = -?\d+\n){20}/ },
+  },
   // ---- DEBUG-VM: the values inspector, Set Next Statement, Step Into
   // Specific (examples/debugging/shop.rr: nested TYPEs, an array of them, an
   // RDataFrame, an RNum, a form). Line 76 adds a LineTotal in AddUp's loop.
@@ -2158,11 +2750,11 @@ const CASES = [
     // listed through the introspection interface
     name: "ai-anthropic-format",
     open: "examples/gui/hello_form.rr",
-    do: "ai:on,ai:provider=anthropic,ai:base={mock},ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-haiku-5-5,ai:ask=describe the form,wait,wait,wait,wait",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:ask=describe the form,wait,wait,wait,wait",
     delay: 6,
     dump: {
       "ai.transcript": /\*Looked up RButton in RapidR's registry\*[\s\S]*\*Listed the forms' components \(5\)\*[\s\S]*RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
-      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
+      "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/anthropic\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
       "ai.keyhint": /^…wxyz$/,
       "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received$/,
     },
@@ -2216,13 +2808,360 @@ const CASES = [
       "codedoc(0).text": /^(?![\s\S]*APIKey)/,
     },
   },
+  // ---- AI-REAL: Tools > Settings > AI used as a person uses it (Robert's
+  // Preview 2 findings, 2026-10-16) — the dialog opened from its menu
+  // command, then clicks and keys through the kernel's input (the mouse on
+  // the tab, the Fetch button, OK, Cancel; a fake key typed key by key), the
+  // cloud providers played by the mock (RAPIDR_AI_TEST_SERVER): what the
+  // user sees — the list's items, the button enabled again, the note —
+  // read back. A real walk of the same paths on the screen is in the
+  // lane's report; these keep them from coming back.
+  {
+    // A refused key (401): said in plain words under the list, all of it;
+    // Fetch Models can be pressed again at once (it stayed greyed until
+    // Studio was restarted)
+    name: "ai-settings-401",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", typeInto("aikeyedit", "mock-bad-key-1"), FETCH, idle(40)].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aiprovbox.text": /^OpenAI$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^OpenAI refused the API key \(401\) \(OpenAI says: "Incorrect API key provided[\s\S]*Check the key: it may be mistyped, revoked, or a key of another provider\.$/,
+      // (the note as tall as its four lines: nothing cut)
+      "aifetchnote.height": /^(6\d|7\d|8\d)$/,
+      "aimodelcombo.itemcount": /^0$/,
+    },
+  },
+  {
+    // ... then another key typed over it and Fetch Models again: the list
+    // comes, the fast, low-cost ones first — the dropdown has the items
+    name: "ai-settings-retry",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", typeInto("aikeyedit", "mock-bad-key-1"), FETCH, idle(40), "aikeyedit.__key_65_16", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_0"].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aimodelcombo.itemcount": /^3$/,
+      "aimodelcombo.text": /^gpt-mock-mini {3}fast · low cost$/,
+      "aifetchnote.caption": /^OpenAI lists 3 models\./,
+      // (the assistant itself untouched until OK)
+      "ai.provider": /^$/,
+      "ai.model": /^$/,
+    },
+  },
+  {
+    // A model picked, OK: the assistant has it (its pane shows, Send
+    // enabled), and the dialog opened again shows it chosen, the list kept
+    name: "ai-settings-ok-reopen",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,view.settings",
+    events: [AI_TAB, "aionbox.__mousedown_8_10,aionbox.__mouseup_8_10", "aiprovbox.__item_1", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_0", OK, idle(160), AI_TAB, idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aiprovbox.text": /^OpenAI$/,
+      "aimodelcombo.text": /^gpt-mock-mini {3}fast · low cost$/,
+      "aimodelcombo.itemcount": /^3$/,
+      "ai.provider": /^openai$/,
+      "ai.model": /^gpt-mock-mini$/,
+      "aisendbtn.enabled": /^(-1|1|True)$/i,
+      "aimodelbox.itemcount": /^3$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+    },
+  },
+  {
+    // ... and kept: Studio started again, Settings shows the provider and
+    // the model chosen (the key was a test's, in memory: gone with it)
+    name: "ai-settings-saved",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aionbox.__mousedown_8_10,aionbox.__mouseup_8_10", "aiprovbox.__item_1", typeInto("aikeyedit", "mock-good-key-1"), FETCH, idle(40), "aimodelcombo.__item_1", OK, idle(20)].join(","),
+    delay: 4,
+    // (the second run: only the dialog opened, nothing typed or clicked)
+    restart: { do: "view.settings", delay: 4, events: "" },
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aiprovbox.text": /^OpenAI$/,
+      "aimodelcombo.text": /^gpt-mock-nano$/,
+      "aionbox.checked": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // Cancel leaves the assistant exactly as it was: another provider
+    // browsed, a key typed and tried, a list fetched — none of it reaches
+    // the assistant (it used to switch it, clearing its key and models)
+    name: "ai-settings-cancel",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=openai,ai:key=mock-good-key-1,ai:fetch,wait,wait,ai:model=gpt-mock-mini,wait,view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-good-key-2"), FETCH, idle(40), "aimodelcombo.__item_0", CANCEL, idle(8)].join(","),
+    delay: 5,
+    dump: {
+      "settingsdialog.visible": /^(0|False)$/i,
+      "ai.provider": /^openai$/,
+      "ai.model": /^gpt-mock-mini$/,
+      "ai.modelcount": /^3$/,
+      "ai.haskey": /^(-1|1|True)$/i,
+      "aiproviderbox.text": /^OpenAI$/,
+      "aimodelbox.text": /^gpt-mock-mini$/,
+      "aisendbtn.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // A provider that doesn't answer: Fetch Models waits greyed; another
+    // provider picked meanwhile gives it back at once (the old request is
+    // dropped), as closing the dialog does
+    name: "ai-settings-slow-switch",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(20), "aiprovbox.__item_1", idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "aiprovbox.text": /^OpenAI$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "setai.busy": /^(0|False)$/i,
+      "aifetchnote.caption": /^$/,
+    },
+  },
+  {
+    // ... or the dialog closed while it waits (Cancel): opened again,
+    // Fetch Models is ready, nothing of the silent provider kept
+    name: "ai-settings-slow-close",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(20), CANCEL, idle(160), AI_TAB, idle(8)].join(","),
+    delay: 4,
+    dump: {
+      "settingsdialog.visible": /^(-1|1|True)$/i,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "setai.busy": /^(0|False)$/i,
+      "aifetchnote.caption": /^$/,
+      "ai.provider": /^$/,
+    },
+  },
+  {
+    // A server that isn't there (nothing listens at the address typed): said
+    // in words, Fetch Models back at once
+    name: "ai-settings-unreachable",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_3", "aibasebox.__mousedown_60_12,aibasebox.__mouseup_60_12,aibasebox.__key_65_16", typeInto("aibasebox", "http://127.0.0.1:9/v1"), FETCH, idle(60)].join(","),
+    delay: 4,
+    dump: {
+      "aibasebox.text": /^http:\/\/127\.0\.0\.1:9\/v1$/,
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^Couldn't reach 127\.0\.0\.1:9: [\s\S]*Is the local server running/,
+    },
+  },
+  {
+    // ... and left waiting: after 30 seconds RapidR gives up and says so;
+    // the button is back
+    name: "ai-settings-timeout",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, "aionnote.__hold_36000", idle(8)].join(","),
+    delay: 4,
+    desktopOnly: true,
+    dump: {
+      "aifetchbtn.enabled": /^(-1|1|True)$/i,
+      "aifetchnote.caption": /^Couldn't reach 127\.0\.0\.1:\d+: no answer came in 30 seconds\./,
+    },
+  },
+  {
+    // (the web: a browser's fetch has no time limit of its own — RapidR's:
+    // the page is watched until the button comes back)
+    name: "ai-settings-timeout-web",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_2", typeInto("aikeyedit", "mock-slow-key-1"), FETCH, idle(8)].join(","),
+    delay: 4,
+    webOnly: true,
+    dump: { "aifetchbtn.enabled": /^(0|False)$/i, "setai.busy": /^(-1|1|True)$/i },
+    web: async (page, scale, record) => {
+      const prop = (c, p) => page.evaluate(([c, p]) => window.rr.rapidr_get_prop(c, p), [c, p]);
+      const t0 = Date.now();
+      let enabled = "";
+      while (Date.now() - t0 < 60000) {
+        enabled = String(await prop("aifetchbtn", "enabled"));
+        if (/^(-1|1|true)$/i.test(enabled)) break;
+        await page.waitForTimeout(1000);
+      }
+      const note = String(await prop("aifetchnote", "caption"));
+      record("", /^(-1|1|true)$/i.test(enabled) && /no answer came in \d+ seconds/.test(note), `after ${Math.round((Date.now() - t0) / 1000)} s Fetch Models is back and says why ("${note}")`);
+    },
+  },
+  {
+    // An Anthropic key of an organisation, not of a workspace: Anthropic
+    // wants to know which workspace — said, the Workspace ID box ready;
+    // typed, the list comes, the header sent
+    name: "ai-settings-workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_0", typeInto("aikeyedit", "mock-org-key-1"), FETCH, idle(40), typeInto("aiwsedit", "wrk_flow_01"), FETCH, idle(40)].join(","),
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aiprovbox.text": /^Anthropic \(Claude\)$/,
+      "aiwsedit.text": /^wrk_flow_01$/,
+      "aimodelcombo.itemcount": /^3$/,
+      "aifetchnote.caption": /^Anthropic lists 3 models\./,
+    },
+    mockLog: /"path":"\/anthropic\/v1\/models","key":"…ey-1","workspace":"","[\s\S]*"path":"\/anthropic\/v1\/models","key":"…ey-1","workspace":"wrk_flow_01"/,
+  },
+  {
+    // Each provider's rows, and only those: Anthropic's workspace,
+    // OpenAI's and DeepSeek's none (no empty gap where a row is hidden),
+    // a compatible server's address
+    name: "ai-settings-rows",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    events: [AI_TAB, "aiprovbox.__item_1", idle(4)].join(","),
+    delay: 4,
+    dump: {
+      "aiwsedit.__shown": /^0$/,
+      "aibasebox.__shown": /^0$/,
+      // (the Model row a row's step under the key's note)
+      "aimodelcombo.top": /^22\d$/,
+    },
+    // (the web: the key's note a line longer, and Remember on this device)
+    webDump: {
+      "aiwsedit.__shown": /^0$/,
+      "aibasebox.__shown": /^0$/,
+      "aimodelcombo.top": /^2[5-7]\d$/,
+      "airemember.__shown": /^1$/,
+    },
+  },
 ];
+
+// (I8 AI-REAL) The settings dialog's input: the AI tab clicked, Fetch
+// Models, OK and Cancel pressed with the mouse; text typed key by key into
+// a component (a US keyboard's keys); `idle(n)`: n turns of the loop with
+// nothing done (a label's click it doesn't handle), for an answer to come.
+function typeInto(comp, text) {
+  const out = [];
+  for (const c of text) {
+    if (/[a-z]/.test(c)) out.push(String(c.toUpperCase().charCodeAt(0)));
+    else if (/[A-Z]/.test(c)) out.push(`${c.charCodeAt(0)}_256`);
+    else if (/[0-9 ]/.test(c)) out.push(String(c.charCodeAt(0)));
+    else out.push({ "-": "189", ".": "190", "_": "189_256", "/": "191", ":": "186_256" }[c]);
+  }
+  return out.map((k) => `${comp}.__key_${k}`).join(",");
+}
+function idle(n) {
+  return Array(n).fill("aionnote.onclick").join(",");
+}
+
+// (the web) Settings > AI with the browser's mouse and keyboard, where the
+// controls are on the page (their accessibility elements' boxes): the AI
+// tab, OpenAI picked in the provider list (Down, Enter), a refused key
+// typed, Fetch Models — back, enabled, the refusal said; the key typed
+// again over it, Fetch Models — the list has the models; dropped, captured.
+async function settingsByMouse(page, scale, record) {
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const center = async (sel) => {
+    const b = await page.locator(sel).first().boundingBox();
+    return b && { x: b.x + b.width / 2, y: b.y + b.height / 2, b };
+  };
+  const click = async (sel, dx = 0) => {
+    const c = await center(sel);
+    if (!c) throw new Error(`nothing at ${sel}`);
+    await page.mouse.click(c.x + dx, c.y);
+    await page.waitForTimeout(250);
+  };
+  const until = async (what, test, ms = 15000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(200);
+    }
+    return v;
+  };
+  try {
+    const tab = page.getByRole("tab", { name: "AI", exact: true });
+    if (await tab.count()) {
+      const b = await tab.first().boundingBox();
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+    } else {
+      const s = await center("#rr-settingstabs");
+      await page.mouse.click(s.b.x + 75, s.b.y + 12);
+    }
+    await page.waitForTimeout(300);
+    record("", (await prop("settingstabs", "tabindex")) === "1", "the AI tab, clicked");
+    await click("#rr-aiprovbox");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(300);
+    record("", (await prop("aiprovbox", "text")) === "OpenAI", `OpenAI picked from the list with the keyboard (${await prop("aiprovbox", "text")})`);
+    await click("#rr-aikeyedit");
+    await page.keyboard.type("mock-bad-key-1");
+    await click("#rr-aifetchbtn");
+    const note = await until(() => prop("aifetchnote", "caption"), (v) => /401/.test(v));
+    const disabled = await page.locator("#rr-aifetchbtn").getAttribute("aria-disabled");
+    record("", /refused the API key \(401\)/.test(note) && disabled !== "true", `a refused key: said ("${note.slice(0, 60)}…"), Fetch Models enabled for a screen reader too (aria-disabled ${disabled})`);
+    await click("#rr-aikeyedit");
+    await page.keyboard.press("ControlOrMeta+A");
+    await page.keyboard.type("mock-good-key-1");
+    await click("#rr-aifetchbtn");
+    const n = await until(() => prop("aimodelcombo", "itemcount"), (v) => v === "3");
+    record("", n === "3", `the key typed again, Fetch Models again: the Model list has the provider's ${n} models`);
+    const combo = await center("#rr-aimodelcombo");
+    await page.mouse.click(combo.b.x + combo.b.width - 10, combo.y);
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: join(WORK, `ai-settings-web-mouse-list@${scale}x.png`) });
+    await page.keyboard.press("Escape");
+  } catch (e) {
+    record("", false, `the dialog used with the mouse: ${e.message.split("\n")[0]}`);
+  }
+}
+
+// (EXAMPLES-DATA) A folder and everything in it writable again (true) or
+// read-only (false): an install's examples, as /usr/lib/rapidr or the macOS
+// app has them.
+function writableTree(path, writable) {
+  if (!existsSync(path)) return;
+  const st = statSync(path);
+  if (st.isDirectory()) {
+    if (writable) chmodSync(path, 0o755);
+    for (const f of readdirSync(path)) writableTree(join(path, f), writable);
+    if (!writable) chmodSync(path, 0o555);
+  } else chmodSync(path, writable ? 0o644 : 0o444);
+}
 
 function runDesktop(c, scale = 1) {
   const dir = join(WORK, `${c.name}-desktop${scale > 1 ? `@${scale}x` : ""}`);
+  writableTree(join(dir, "install"), true);
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", c.theme || "rapidr-light"];
+  // (EXAMPLES-DATA: `readOnlyHome` — RapidR's home as an install has it, its
+  // examples where they can't be changed; the Documents folder the case's
+  // own, with `seed`'s files in it first)
+  let home = ".";
+  if (c.readOnlyHome) {
+    home = join(dir, "install");
+    cpSync(join(ROOT, "examples"), join(home, "examples"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$|big(_\d+)?\.csv$/.test(src) });
+    cpSync(join(ROOT, "ide", "assets"), join(home, "ide", "assets"), { recursive: true });
+    for (const [rel, text] of Object.entries(c.seed || {})) {
+      mkdirSync(dirname(join(dir, "docs", rel)), { recursive: true });
+      writeFileSync(join(dir, "docs", rel), text);
+    }
+    // (`installedWritable`: an install the user can write — a macOS app
+    // dragged to Applications —, known by its release.toml)
+    if (c.installedWritable) writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
+    else writableTree(home, false);
+  }
+  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light"];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
@@ -2243,13 +3182,16 @@ function runDesktop(c, scale = 1) {
     const to = join(dir, c.open.split("/").pop());
     copyFileSync(join(ROOT, c.open), to);
     args.push(to);
+  } else if (c.open && c.readOnlyHome) {
+    // (an example as the install has it: its path there)
+    args.push(join(home, c.open));
   } else if (c.open) {
     args.push(c.open);
   }
   // (studio.caption: always asked for — no line of the dump at all means
   // Studio had quit before it)
   const keys = [...Object.keys(c.dump), "studio.caption"];
-  const run = (args, delay) => spawnSync(RAPIDR, args, {
+  const run = (args, delay, events = c.events) => spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: Math.max(90000, delay * 1000 + 60000),
     encoding: "utf8",
@@ -2261,13 +3203,19 @@ function runDesktop(c, scale = 1) {
       ...(scale > 1 ? { RAPIDR_SCALE: String(scale) } : {}),
       ...(c.env || {}),
       RAPIDR_TEST_DUMP: keys.join(","),
-      ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
+      ...(events ? { RAPIDR_TEST_EVENTS: events } : {}),
+      // (THEME-LIVE: how the system looks to the test)
+      ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
+      // (an example's copy, a build that can't go beside its program: the
+      // case's own Documents folder — never the user's)
+      RAPIDR_DOCUMENTS: join(dir, "docs"),
       // (the AI assistant: keys in memory only — never the user's keychain —,
       // no provider's key from this shell, its audit log the case's)
       RAPIDR_AI_KEYSTORE: "memory",
+      RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       RAPIDR_AI_AUDIT: join(dir, "ai-audit.jsonl"),
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
@@ -2282,8 +3230,10 @@ function runDesktop(c, scale = 1) {
     const k = again.indexOf("--do");
     if (k >= 0) again.splice(k, 2);
     if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
-    r = run(again, c.restart.delay || c.delay);
+    r = run(again, c.restart.delay || c.delay, "events" in c.restart ? c.restart.events : c.events);
   }
+  // (the install's copy writable again: the results folder can be cleared)
+  if (c.readOnlyHome) writableTree(home, true);
   const dump = parseDump(r.stdout || "", keys);
   const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
   // (files the run must leave: the program's own window captured)
@@ -2373,7 +3323,7 @@ async function runWeb(browser, c, scale = 1, record = () => {}) {
   // (started again in the same browser profile: the page's settings kept)
   const ctx = await browser.newContext(opts);
   await runWebPage(ctx, c, false, scale, record);
-  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false }, true, scale, record);
+  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false, ...("events" in c.restart ? { events: c.restart.events } : {}) }, true, scale, record);
 }
 
 async function runWebPage(ctx, c, last, scale, record) {
@@ -2397,8 +3347,10 @@ async function runWebPage(ctx, c, last, scale, record) {
       RAPIDR_CAPTURE: "web",
       RAPIDR_CAPTURE_DELAY: String(c.delay),
       RAPIDR_TEST_DUMP: [...Object.keys(c.webDump || c.dump), "studio.caption"].join(","),
+      RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
+      ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
@@ -2482,6 +3434,23 @@ const check = (label, run, c) => {
     console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${k} ${ok ? `equals ${file}` : `differs from ${file}`}`);
   }
 };
+// (AI-REAL) What the mock provider was asked during a case (its own log:
+// the keys' last four characters only), as one JSON text to match
+const mockLog = async () => {
+  // (a fresh connection each time: a kept-alive one the mock closed meanwhile is reset)
+  for (let i = 0; ; i++) {
+    try {
+      return await (await fetch(`${MOCK_ROOT}/__log`, { headers: { connection: "close" } })).json();
+    } catch (e) {
+      if (i >= 3) throw e;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+};
+function checkMockLog(name, entries, re) {
+  const text = JSON.stringify(entries);
+  record(name, re.test(text), `the provider was asked as it should be (${re})${re.test(text) ? "" : `: ${text.slice(0, 600)}`}`);
+}
 const record = (name, ok, what) => {
   ok ? passed++ : failed++;
   console.log(`${ok ? "✓" : "✗"} ${name}: ${what}`);
@@ -2503,14 +3472,20 @@ const SHORT = { "rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-con
 const RUNS = CASES.flatMap((c) => (c.themes ? c.themes.map((theme) => ({ ...c, theme, name: `${c.name}-${SHORT[theme] || theme}` })) : [c]));
 for (const c of RUNS.filter((c) => !filters.length || filters.some((f) => c.name.includes(f)))) {
   if (HOSTS.includes("desktop") && !c.webOnly) {
-    for (const scale of c.capture ? c.scales || [1] : [1]) check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
+    for (const scale of c.capture ? c.scales || [1] : [1]) {
+      const seen = c.mockLog ? (await mockLog()).length : 0;
+      check(c.capture && scale > 1 ? `desktop @${scale}x` : "desktop", runDesktop(c, scale), c);
+      if (c.mockLog) checkMockLog(`${c.name} (desktop)`, (await mockLog()).slice(seen), c.mockLog);
+    }
   }
   if (!HOSTS.includes("web") || c.desktopOnly) continue;
   for (const scale of c.scales || [1]) {
     const label = c.scales ? `web @${scale}x` : "web";
     try {
+      const seen = c.mockLog ? (await mockLog()).length : 0;
       const web = await runWeb(browser, c, scale, (name, ok, what) => record(`${c.name} (${label})`, ok, what));
       check(label, web, c.webDump ? { ...c, dump: c.webDump } : c);
+      if (c.mockLog) checkMockLog(`${c.name} (${label})`, (await mockLog()).slice(seen), c.mockLog);
       if (web.errors.length) console.log(`  (page errors: ${web.errors.join("; ")})`);
     } catch (e) {
       failed++;
@@ -2557,11 +3532,912 @@ async function beforeUnload(label, steps, want) {
     await ctx.close();
   }
 }
+// (AI-REAL, the web) Settings > AI used with the browser's own mouse and
+// keyboard: Studio runs as the user's (no test script — under one, the
+// kernel leaves user input alone), the mock provider standing in.
+// (DEBUG-RUN) Studio in the browser, driven by the browser's own keys and
+// mouse (no test script: nothing drops them), as the person uses it: F9 F5
+// paused at 6 — the ▶ button, as a screen reader reads it, "Continue (F5)"
+// and enabled; F5 goes on (the page isn't reloaded: Studio keeps the key),
+// a click on ▶ goes on too, F10 steps, Shift+F5 stops, F5 runs again, F11
+// steps into tally.inc.
+async function debugByRealKeys() {
+  const name = "debug-commands-web-keys (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  const where = async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`;
+  const runButton = async () => {
+    for (const label of ["Continue (F5)", "Run (F5)"]) {
+      const b = page.getByRole("button", { name: label, exact: true });
+      if (await b.count()) return { label, enabled: (await b.first().getAttribute("aria-disabled")) !== "true", box: await b.first().boundingBox() };
+    }
+    return { label: null };
+  };
+  try {
+    const files = DEBUG_FILES.map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") }));
+    await page.addInitScript((files) => {
+      // (no test script: the files only — the person's keys and mouse do the rest)
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, files);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,line:6", open: DEBUG_FILES[0] });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "6", null, { timeout: 60000, polling: 200 });
+    await page.evaluate(() => { window.__notReloaded = true; });
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    let w = await until(where, (v) => v === "paused@6");
+    record(name, w === "paused@6", `F9, F5: paused at line 6 (${w})`);
+    let b = await until(runButton, (v) => v.label === "Continue (F5)");
+    record(name, b.label === "Continue (F5)" && b.enabled, `paused: the ▶ button reads "Continue (F5)" and is enabled (${b.label}, ${b.enabled})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-paused.png") });
+    await page.keyboard.press("F5");
+    const vars = await until(() => prop("varstree", "text"), (v) => /i = 2/.test(v));
+    w = await where();
+    record(name, w === "paused@6" && /i = 2/.test(vars) && (await page.evaluate(() => window.__notReloaded === true)), `F5 while paused goes on — stopped at 6 the next time round, i = 2, the page not reloaded (${w})`);
+    b = await runButton();
+    await page.mouse.click(b.box.x + b.box.width / 2, b.box.y + b.box.height / 2);
+    const vars3 = await until(() => prop("varstree", "text"), (v) => /i = 3/.test(v));
+    record(name, /i = 3/.test(vars3), "a click on ▶ (Continue) goes on: i = 3");
+    // (i = 3, the last time round: over AddUp, out of the loop, to the PRINT)
+    await page.keyboard.press("F10");
+    w = await until(where, (v) => v === "paused@8");
+    record(name, w === "paused@8", `F10 steps over AddUp, out of the loop: paused at 8 (${w})`);
+    await page.keyboard.press("Shift+F5");
+    w = await until(() => prop("session", "state"), (v) => v === "stopped");
+    b = await until(runButton, (v) => v.label === "Run (F5)");
+    record(name, w === "stopped" && b.label === "Run (F5)" && b.enabled, `Shift+F5 stops it: ▶ "Run (F5)" enabled (${w}, ${b.label}, ${b.enabled})`);
+    await page.keyboard.press("F5");
+    w = await until(where, (v) => v === "paused@6");
+    const vars1 = await prop("varstree", "text");
+    record(name, w === "paused@6" && /i = 1/.test(vars1), `F5 runs it again after the Stop: paused at 6, i = 1 (${w})`);
+    await page.keyboard.press("F11");
+    const file = await until(() => prop("session", "currentfile"), (v) => /tally\.inc$/i.test(v));
+    record(name, /tally\.inc$/i.test(file), `F11 steps into AddUp, in tally.inc (${file})`);
+    await page.keyboard.press("Shift+F5");
+    w = await until(() => prop("session", "state"), (v) => v === "stopped");
+    record(name, w === "stopped", `Shift+F5 ends it (${w})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN) The program's window while it's paused, in the browser: it
+// stays on the page, its clicks are dropped (not run later), Show Program
+// Window gives it the keyboard; going on, its clicks work again.
+async function pausedProgramByMouse() {
+  const name = "debug-commands-web-paused-window (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  const press = async (label, role = "button") => {
+    const b = page.getByRole(role, { name: label, exact: true }).first();
+    const box = await b.boundingBox();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  };
+  // (the program's "Again" button, clicked by the mouse where it shows)
+  const again = async () => {
+    const r = await runFrame(page).evaluate(() => {
+      const el = [...document.querySelectorAll("[role=button]")].find((e) => /Again/.test(e.getAttribute("aria-label") || e.textContent || ""));
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    });
+    if (!r) throw new Error("no Again button in the program's window");
+    await page.mouse.click(r.x, r.y);
+    await page.waitForTimeout(400);
+  };
+  const clicks = async () => (/clicks = (\d+)/.exec(await prop("varstree", "text")) || [])[1];
+  try {
+    const src = "tests/fixtures/studio_debug/waits.rr";
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code", open: src });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("session", "state")) === "stopped", null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(600);
+    await press("Pause");
+    let st = await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, st === "paused" && (await clicks()) === "0", `Pause (the tool button, clicked): paused while it waits, clicks = ${await clicks()}`);
+    const rects = await page.evaluate(() => window.RAPIDR_STUDIO_RUN_RECTS.length);
+    record(name, rects > 0, `paused: the program's window is still on the page (${rects})`);
+    await again();
+    await again();
+    await page.screenshot({ path: join(WORK, "debug-commands-web-paused-window.png") });
+    st = await prop("session", "state");
+    record(name, st === "paused" && (await clicks()) === "0", `paused: two clicks on its Again button run nothing (${st}, clicks = ${await clicks()})`);
+    // (Show Program Window, from the command palette: Ctrl+Shift+P, typed, Enter)
+    await page.keyboard.press("Control+Shift+P");
+    await page.waitForTimeout(300);
+    await page.keyboard.type("Show Program Window");
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+    const focused = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, focused === "IFRAME", `Show Program Window gives the program's frame the keyboard (${focused})`);
+    // (on, then paused again: the clicks made while paused were dropped, not kept for later)
+    await press("Continue (F5)");
+    await until(() => prop("session", "state"), (v) => v === "running");
+    await page.waitForTimeout(500);
+    await press("Pause");
+    await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, (await clicks()) === "0", `going on runs none of the clicks made while paused (clicks = ${await clicks()})`);
+    await press("Continue (F5)");
+    await until(() => prop("session", "state"), (v) => v === "running");
+    await page.waitForTimeout(400);
+    await again();
+    await press("Pause");
+    await until(() => prop("session", "state"), (v) => v === "paused");
+    record(name, (await clicks()) === "1", `running again, its click works (clicks = ${await clicks()})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN) Robert's walk, in the browser: examples/gui/themes.rr with a
+// breakpoint in SUB Switch (line 94); a click on the program's Dark stops
+// there — Studio has the keyboard back, the ▶ button "Continue (F5)" and
+// enabled, the program's window still on the page; F5 goes on: the
+// program's window gets the keyboard and the theme turns dark.
+async function themesPausedWeb() {
+  const name = "debug-commands-web-themes (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  // (the program's controls, by what a screen reader reads, in its frame)
+  const programLabel = (re) => runFrame(page).evaluate((src) => {
+    const re = new RegExp(src);
+    for (const e of document.querySelectorAll("[aria-label],[role]")) {
+      const t = e.getAttribute("aria-label") || e.textContent || "";
+      if (re.test(t)) {
+        const b = e.getBoundingClientRect();
+        return { text: t, x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }
+    }
+    return null;
+  }, re.source);
+  try {
+    const src = "examples/gui/themes.rr";
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.code,line:94", open: src });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === "94", null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(500);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(800);
+    const dark = await programLabel(/^Dark$/);
+    if (!dark) throw new Error("no Dark radio button in the program's window");
+    await page.mouse.click(dark.x, dark.y);
+    const w = await until(async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`, (v) => v === "paused@94");
+    record(name, w === "paused@94", `a click on the program's Dark stops at line 94 (${w})`);
+    const active = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, active !== "IFRAME", `paused: Studio has the keyboard back (${active})`);
+    const run = page.getByRole("button", { name: "Continue (F5)", exact: true });
+    const enabled = (await run.count()) > 0 && (await run.first().getAttribute("aria-disabled")) !== "true";
+    record(name, enabled, "paused: the ▶ button reads \"Continue (F5)\" and is enabled");
+    const rects = await page.evaluate(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length);
+    record(name, rects > 0, `paused: the program's window is still on the page (${rects})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-themes-paused.png") });
+    await page.keyboard.press("F5");
+    const st = await until(() => prop("session", "state"), (v) => v === "running");
+    // (what the program's label says, read in its own frame)
+    const programProp = (c, p) => runFrame(page).evaluate(([c, p]) => String(window.__rapidr_rt.rapidr_get_prop(c, p)), [c, p]);
+    const now = await until(() => programProp("now", "caption"), (v) => /dark/i.test(v));
+    record(name, st === "running" && /dark/i.test(now), `F5 goes on: the theme turns dark (${st}, ${now})`);
+    await page.waitForTimeout(700);
+    const focused = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+    record(name, focused === "IFRAME", `going on, the program's window has the keyboard — and keeps it (${focused})`);
+    await page.screenshot({ path: join(WORK, "debug-commands-web-themes-continued.png") });
+    // (typed into its edit, slowly — Studio's frames meanwhile, a caret's
+    // blink: the keys are the program's, Studio's code untouched)
+    const edit = await runFrame(page).evaluate(() => {
+      const e = document.querySelector("input");
+      const r = e.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+    await page.mouse.click(edit.x, edit.y);
+    await page.keyboard.press("End");
+    for (const ch of " typed") {
+      await page.keyboard.type(ch);
+      await page.waitForTimeout(250);
+    }
+    const typed = await until(() => programProp("edit", "text"), (v) => /typed$/.test(v), 3000);
+    const code = await prop("codedoc(0)", "text");
+    record(name, /Text to edit typed$/.test(typed) && !code.includes("typed"), `typing in the running program's edit goes to it, not to Studio's code (${JSON.stringify(typed)})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, the debugger's events in the browser) Studio and its program's
+// frame driven by the browser's own mouse and keys: a breakpoint in a
+// handler, the event triggered — it stops (Studio has the keyboard back),
+// F5, again, three times; F10 out of the handler, again: it stops again.
+// `trigger(page, frame)` makes the event happen as a person would.
+function webDebug(page) {
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(120);
+    }
+    return v;
+  };
+  const where = async () => `${await prop("session", "state")}@${await prop("session", "currentline")}`;
+  // (going on is the program's word: Studio's status says Running once the
+  // program has heard it — the session's own state says so as soon as it's
+  // asked; a click before that reaches a stopped program, and is dropped,
+  // as it should be)
+  const status = async () => (await prop("status", "panel(0).caption")).trim();
+  // (the stop shown — its line, its values; Studio's status no longer
+  // Running: a key pressed the moment the session has the stop, before
+  // Studio has shown it, finds ▶ still off —: the keyboard is Studio's)
+  const keysBack = async () => {
+    await until(status, (v) => !v.startsWith("Running"), 3000);
+    return until(() => page.evaluate(() => document.activeElement && document.activeElement.tagName), (v) => v !== "IFRAME", 3000);
+  };
+  const button = async (label) => {
+    const b = page.getByRole("button", { name: label, exact: true });
+    return (await b.count()) > 0 && (await b.first().getAttribute("aria-disabled")) !== "true";
+  };
+  return { prop, until, where, status, keysBack, button };
+}
+
+async function openStudioOn(page, src, files, line) {
+  await page.addInitScript((files) => {
+    window.RAPIDR_STUDIO_TEST = {};
+    window.RAPIDR_STUDIO_TEST_FILES = files;
+    window.RAPIDR_FILE_SINK = () => {};
+  }, files.map((f) => ({ path: f, text: readFileSync(join(ROOT, f), "utf8") })));
+  const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: `wait,view.code,line:${line}`, open: src });
+  await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+  await page.waitForFunction((l) => window.rr && String(window.rr.rapidr_get_prop("codedoc(0)", "caretline")) === String(l), line, { timeout: 60000, polling: 200 });
+  await page.waitForTimeout(400);
+}
+
+async function webEventRepeats(name, src, line, trigger, { afterStep = 1, files = [src] } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack } = webDebug(page);
+  const label = `${name} (web)`;
+  try {
+    await openStudioOn(page, src, files, line);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    for (let k = 1; k <= 3; k++) {
+      await trigger(page, frame, k);
+      const w = await until(where, (v) => v === `paused@${line}`);
+      const keys = await keysBack();
+      record(label, w === `paused@${line}` && keys !== "IFRAME", `trigger ${k}: stops at ${line}, Studio has the keyboard (${w}, ${keys})`);
+      if (k === 1) await page.screenshot({ path: join(WORK, `${name}-web-paused.png`) });
+      await page.keyboard.press(k < 3 ? "F5" : "F10");
+      await until(async () => `${await status()}|${await where()}`, (v) => v.startsWith("Running") || (v.split("|")[1].startsWith("paused") && v.split("|")[1] !== `paused@${line}`), 3000);
+    }
+    // (out of the handler: F10 once more if the step stopped at its END SUB)
+    for (let i = 0; i < afterStep && (await prop("session", "state")) === "paused"; i++) {
+      await page.keyboard.press("F10");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    }
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    const st = await prop("session", "state");
+    record(label, st === "running", `Step Over out of the handler: the program runs on (${st})`);
+    await trigger(page, frame, 4);
+    const w = await until(where, (v) => v === `paused@${line}`);
+    record(label, w === `paused@${line}`, `after the Step Over, the next event stops at ${line} again (${w})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(label, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (a control of the program's frame, by its role and name: its centre on the page)
+async function frameBox(frame, role, name) {
+  const loc = name === undefined ? frame.locator(role).first() : frame.getByRole(role, { name, exact: true }).first();
+  const b = await loc.boundingBox();
+  if (!b) throw new Error(`no ${role} ${name ?? ""} in the program's window`);
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+}
+
+async function webEventFlows() {
+  const EV = "tests/fixtures/studio_debug/events.rr";
+  // 1. hello_form.rr's one-line OnChange: a letter typed into the name (End
+  // first: the edit, given the keyboard again, has its text selected — a
+  // letter typed over a selected "a" would change nothing)
+  await webEventRepeats("debug-events-web-onchange", "examples/gui/hello_form.rr", 49, async (page, frame) => {
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+  });
+  // 2. a click
+  await webEventRepeats("debug-events-web-click", EV, 58, async (page, frame) => {
+    const at = await frameBox(frame, "button", "Click");
+    await page.mouse.click(at.x, at.y);
+  });
+  // 2. a key (OnKeyPress)
+  await webEventRepeats("debug-events-web-keypress", EV, 62, async (page, frame) => {
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("k");
+  });
+  // 2. the focus (the list's OnEnter): the edit, then the list
+  await webEventRepeats("debug-events-web-focus", EV, 66, async (page, frame) => {
+    const box = await frameBox(frame, "input");
+    await page.mouse.click(box.x, box.y);
+    await page.waitForTimeout(150);
+    const list = await frameBox(frame, "listbox", "");
+    await page.mouse.click(list.x, list.y + 20);
+  });
+  // 2. the mouse moving over the form
+  await webEventRepeats("debug-events-web-mousemove", EV, 83, async (page, frame, k) => {
+    const form = await frameBox(frame, "dialog", "Events");
+    await page.mouse.move(form.x + 120 + k * 3, form.y + 60);
+    await page.mouse.move(form.x + 124 + k * 3, form.y + 64);
+  });
+  // 2. the close box (OnClose, the close cancelled: the window stays)
+  await webEventRepeats("debug-events-web-close", EV, 74, async (page, frame) => {
+    const r = await frame.evaluate(() => {
+      const b = document.querySelector(".rr-kwin").getBoundingClientRect();
+      return { x: b.right - 16, y: b.top + 15 };
+    });
+    await page.mouse.click(r.x, r.y);
+  }, { afterStep: 2 });
+  // 2. a timer (OnTimer, every second)
+  await webEventRepeats("debug-events-web-timer", EV, 79, async (page) => {
+    await page.waitForTimeout(200);
+  });
+}
+
+// (DEBUG-RUN, scenario 3) Typed into the program's window while it's
+// stopped (hello_form.rr, at the OnChange line 49): the keys are dropped —
+// the name stays as it was, nothing crashes, no stop waits behind them —;
+// ▶ Continue clicked: it runs on, no second stop; the next key typed stops
+// again.
+async function webTypingWhilePaused() {
+  const name = "debug-events-web-dropped (web)";
+  const src = "examples/gui/hello_form.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 49);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const edit = frame.locator("input").first();
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+    let w = await until(where, (v) => v === "paused@49");
+    await keysBack();
+    const before = await edit.inputValue();
+    // (typed into the stopped program: the click gives its frame the keys)
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.type("xyz");
+    await page.waitForTimeout(600);
+    const during = await edit.inputValue();
+    const still = await where();
+    record(name, w === "paused@49" && still === "paused@49" && during === before, `keys typed into the stopped program are dropped (${w}, then ${still}; ${JSON.stringify(before)} → ${JSON.stringify(during)})`);
+    // (▶ on Studio's tool bar, clicked: the keys are the program's frame's)
+    const go = await page.getByRole("button", { name: "Continue (F5)", exact: true }).first().boundingBox();
+    await page.mouse.click(go.x + go.width / 2, go.y + go.height / 2);
+    const running = await until(status, (v) => v.startsWith("Running"), 3000);
+    const again = await until(where, (v) => v.startsWith("paused"), 1500);
+    const after = await edit.inputValue();
+    record(name, running.startsWith("Running") && again === "running@0" && after === before, `▶ Continue: it runs on, no stop queued behind the dropped keys (${running}, ${again}, ${JSON.stringify(after)})`);
+    const at2 = await frameBox(frame, "input");
+    await page.mouse.click(at2.x, at2.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("b");
+    w = await until(where, (v) => v === "paused@49");
+    record(name, w === "paused@49", `the next key typed stops at 49 again (${w})`);
+    await keysBack();
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenario 20) The stopped program's window closed by its close
+// box: the program ends, as Stop ends it — Studio Ready, ▶ Run (F5)
+// enabled —, and F5 runs it again.
+async function webCloseWhilePaused() {
+  const name = "debug-commands-web-close-paused (web)";
+  const src = "examples/gui/hello_form.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack, button } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 49);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const at = await frameBox(frame, "input");
+    await page.mouse.click(at.x, at.y);
+    await page.keyboard.press("End");
+    await page.keyboard.type("a");
+    const w = await until(where, (v) => v === "paused@49");
+    await keysBack();
+    const r = await frame.evaluate(() => {
+      const b = document.querySelector(".rr-kwin").getBoundingClientRect();
+      return { x: b.right - 16, y: b.top + 15 };
+    });
+    await page.mouse.click(r.x, r.y);
+    const st = await until(status, (v) => v === "Ready", 5000);
+    const run = await button("Run (F5)");
+    record(name, w === "paused@49" && st === "Ready" && run, `its window closed while stopped at 49: it ends — ${st}, ▶ Run (F5) ${run ? "enabled" : "off"} (${w})`);
+    await page.keyboard.press("F5");
+    const again = await until(status, (v) => v.startsWith("Running"), 8000);
+    record(name, again.startsWith("Running"), `F5 runs it again (${again})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenario 4) A handler that opens a dialog (dialogs.rr's Ask:
+// MESSAGEDLG): paused on that line, Step Over (F10) — the dialog shows,
+// answered with the mouse, the program stops on the line after it — three
+// times.
+async function webDialogStep() {
+  const name = "debug-events-web-dialog (web)";
+  const src = "examples/gui/dialogs.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 85);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    for (let k = 1; k <= 3; k++) {
+      const ask = await frameBox(frame, "button", "Ask...");
+      await page.mouse.click(ask.x, ask.y);
+      let w = await until(where, (v) => v === "paused@85");
+      await keysBack();
+      record(name, w === "paused@85", `Ask ${k}: stops on the dialog's line, 85 (${w})`);
+      await page.keyboard.press("F10");
+      // (the step runs the dialog: it shows in the program's window)
+      const yes = await until(async () => (await frame.getByRole("button", { name: "Yes", exact: true }).count()) > 0, (v) => v, 6000);
+      if (k === 1) await page.screenshot({ path: join(WORK, "debug-events-web-dialog.png") });
+      record(name, yes === true, `Ask ${k}: Step Over shows the dialog (${yes})`);
+      if (!yes) break;
+      const at = await frameBox(frame, "button", "Yes");
+      await page.mouse.click(at.x, at.y);
+      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@85");
+      record(name, /^paused@8[67]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
+      await keysBack();
+      await page.keyboard.press("F5");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    }
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-RUN, scenarios 5 and 6 in the browser) A handler that fires
+// another (Grow widens the form: OnResize inside it) stops in the inner
+// one, the call stack has both — the breakpoint in Resized before the run,
+// so the form's first sizes stop there too and are gone on from; a run-time
+// error in a handler stops at its line, and on Continue Studio follows the
+// program.
+async function webNestedAndError() {
+  const name = "debug-events-web-nested (web)";
+  const src = "tests/fixtures/studio_debug/events.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack, button } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 70);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    // (the form's first sizes as it shows — OnResize, OnShow, OnResize —
+    // stop there first: each stop gives Studio the keyboard, though the
+    // program's window had just come up and taken it, and F5 goes on)
+    const firstStops = [];
+    let firstOk = true;
+    for (let i = 0; i < 4; i++) {
+      const v = await until(where, (v) => v.startsWith("paused"), 2500);
+      if (!v.startsWith("paused")) break;
+      const keys = await keysBack();
+      await page.keyboard.press("F5");
+      const st = await until(status, (v) => v.startsWith("Running"), 3000);
+      firstStops.push(`${v} ${keys} → ${st}`);
+      firstOk = firstOk && v === "paused@70" && keys !== "IFRAME" && st.startsWith("Running");
+    }
+    record(name, firstStops.length > 0 && firstOk, `the form's first sizes stop in OnResize, Studio has the keyboard and F5 goes on (${firstStops.join("; ")})`);
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(500);
+    const frame = runFrame(page);
+    const grow = await frameBox(frame, "button", "Grow");
+    await page.mouse.click(grow.x, grow.y);
+    // (Grow's new width: OnResize inside Grow — the call stack has both, as
+    // on the desktop —, then Continue: the program goes on, Grow's click
+    // over, and no other stop)
+    const w = await until(where, (v) => v === "paused@70");
+    const keys = await keysBack();
+    const stack = (await prop("stacktree", "text")).replace(/\r/g, "");
+    record(name, w === "paused@70" && keys !== "IFRAME" && /^Resized\s+events\.rr:70\nGrow\s+events\.rr:91\n/.test(stack), `Grow's OnResize stops at its breakpoint, inside Grow; Studio has the keyboard (${w}, ${keys}, ${JSON.stringify(stack.slice(0, 80))})`);
+    await page.keyboard.press("F5");
+    const going = await until(status, (v) => v.startsWith("Running"), 3000);
+    const again = await until(where, (v) => v.startsWith("paused"), 1500);
+    record(name, going.startsWith("Running") && again === "running@0", `Continue: the program goes on, no other stop (${going}, ${again})`);
+    await page.keyboard.press("Shift+F5");
+    await until(status, (v) => !v.startsWith("Breakpoint"), 3000);
+    // (6: a fresh run, no breakpoint: the error in Oops's handler)
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const oops = await frameBox(runFrame(page), "button", "Oops");
+    await page.mouse.click(oops.x, oops.y);
+    const e = await until(where, (v) => v === "paused@95");
+    await keysBack();
+    const reason = await prop("session", "stopreason");
+    record("debug-events-web-error (web)", e === "paused@95" && reason === "exception", `a run-time error in a handler stops at its line (${e}, ${reason})`);
+    // (Continue: what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there and the program runs on, as
+    // on the desktop: running, ▶ off and ❙❙ on; the next click stops at the
+    // error again, three times)
+    for (let k = 1; k <= 3; k++) {
+      await page.keyboard.press("F5");
+      const after = await until(status, (v) => v.startsWith("Running") || /exit code/.test(v), 5000);
+      const running = after.startsWith("Running") && (await button("Pause")) && !(await button("Run (F5)"));
+      record("debug-events-web-error (web)", running, `Continue ${k} after the error: the handler ends, the program runs on (${after})`);
+      if (k === 3) break;
+      const again = await frameBox(runFrame(page), "button", "Oops");
+      await page.mouse.click(again.x, again.y);
+      const e2 = await until(where, (v) => v === "paused@95");
+      await keysBack();
+      record("debug-events-web-error (web)", e2 === "paused@95", `click ${k + 1}: the error stops at its line again (${e2})`);
+    }
+    // (the program answers: a click on Click runs its handler, no stop)
+    const click = await frameBox(runFrame(page), "button", "Click");
+    await page.mouse.click(click.x, click.y);
+    await page.waitForTimeout(600);
+    const st = await prop("session", "state");
+    record("debug-events-web-error (web)", st === "running", `after the errors the program still answers its events (${st})`);
+    await page.screenshot({ path: join(WORK, "debug-events-web-error-continued.png") });
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-2) The focus on the web (RapidR's OnEnter / OnExit): focus.rr with
+// breakpoints in the name's OnExit (41) and Greet's OnEnter (45); in the
+// program's window, Tab from the name stops at 41, F5, then at 45, F5 — three
+// rounds, Shift+Tab back between them; then a click on Greet from the name
+// stops the same way, before its OnClick.
+async function webFocusOrder() {
+  const name = "debug-events-web-focus-order (web)";
+  const src = "tests/fixtures/studio_debug/focus.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 41);
+    await page.keyboard.press("F9");
+    // (the caret to 45 as a person moves it: four lines down)
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("F9");
+    record(name, (await prop("bptree", "text")).replace(/\r/g, "").trim() === "focus.rr:41\nfocus.rr:45", `breakpoints at 41 and 45 (${JSON.stringify(await prop("bptree", "text"))})`);
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const stops = [];
+    const going = async () => {
+      await page.keyboard.press("F5");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    };
+    for (let k = 1; k <= 3; k++) {
+      // (the name has the focus: a click in it first, then Tab)
+      const ed = await frameBox(frame, "input");
+      await page.mouse.click(ed.x, ed.y);
+      await page.waitForTimeout(200);
+      await page.keyboard.press("Tab");
+      const a = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      if (k === 1) await page.screenshot({ path: join(WORK, "debug-events-web-focus-onexit.png") });
+      await going();
+      const b = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      await going();
+      stops.push(`${a} ${b}`);
+      record(name, a === "paused@41" && b === "paused@45", `Tab ${k}: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    }
+    // (a click on Greet from the name: the same two stops, then its OnClick)
+    const ed = await frameBox(frame, "input");
+    await page.mouse.click(ed.x, ed.y);
+    await page.waitForTimeout(300);
+    const greet = await frameBox(frame, "button", "Greet");
+    await page.mouse.click(greet.x, greet.y);
+    const a = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    const b = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    record(name, a === "paused@41" && b === "paused@45", `a click on Greet: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    // (the button let go while the program was stopped: dropped, as all its
+    // input then — Delphi's too: no OnClick. Clicked again, focused already:
+    // no OnExit / OnEnter, its OnClick runs)
+    await page.waitForTimeout(400);
+    await page.mouse.click(greet.x, greet.y);
+    await page.waitForTimeout(600);
+    record(name, (await where()).startsWith("running"), `Greet clicked again: no stop (${await where()})`);
+    // (the program's own label, read in its frame)
+    const steps = await frame.evaluate(() => String(window.__rapidr_rt.rapidr_get_prop("steps", "caption")));
+    record(name, / -name \+greet click$/.test(steps), `then its OnClick ran: the trail ends "-name +greet click" (${JSON.stringify(steps)})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-2, scenario 7 on the web) Stepping inside a handler with the
+// keyboard: steps.rr's Go (the button's OnClick) stops at its breakpoint
+// (33); F11 into Twice (its SUB line, 18), Shift+F11 back in Go (34), the
+// caret a line down and Ctrl+F10 (Run to Cursor: 35), a line up and
+// Ctrl+Shift+F10 (Set Next Statement: 34), F10 (35); F5 — running, and the
+// next click stops at 33 again. Then (scenario 11) the breakpoint taken off
+// while the program runs: the next click doesn't stop.
+async function webHandlerSteps() {
+  const name = "debug-steps-web-handler (web)";
+  const src = "tests/fixtures/studio_debug/steps.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src, "tests/fixtures/studio_debug/tally.inc"], 33);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const click = async () => {
+      const go = await frameBox(runFrame(page), "button", "Go");
+      await page.mouse.click(go.x, go.y);
+    };
+    const step = async (keys, want, what) => {
+      for (const k of keys) await page.keyboard.press(k);
+      const w = await until(where, (v) => v === `paused@${want}`, 4000);
+      await keysBack();
+      record(name, w === `paused@${want}`, `${what}: paused at ${want} (${w})`);
+    };
+    await click();
+    const w = await until(where, (v) => v === "paused@33");
+    await keysBack();
+    record(name, w === "paused@33", `the click stops at Go's breakpoint, 33 (${w})`);
+    await step(["F11"], 18, "Step Into Twice");
+    await step(["Shift+F11"], 34, "Step Out, back in Go");
+    await step(["ArrowDown", "Control+F10"], 35, "Run to Cursor a line down");
+    await step(["ArrowUp", "Control+Shift+F10"], 34, "Set Next Statement a line up");
+    await step(["F10"], 35, "Step Over");
+    await page.keyboard.press("F5");
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    await click();
+    const again = await until(where, (v) => v === "paused@33");
+    await keysBack();
+    record(name, again === "paused@33", `F5, the next click stops at 33 again (${again})`);
+    // (11: Continue, then the breakpoint off while it runs — a click in
+    // Studio's editor gives Studio the keyboard back (the program has it
+    // while it runs), Go to Line 33, F9)
+    await page.keyboard.press("F5");
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    const studioKeys = async () => {
+      // (a moment after Continue, as a person's: Continue hands the
+      // program's frame the keyboard —; the mouse onto Studio's editor and a
+      // click there: Studio has the keyboard again; then a click on line 33
+      // itself, its lines 20 pixels apart)
+      const before = await until(() => page.evaluate(() => document.activeElement && document.activeElement.tagName), (v) => v === "IFRAME", 3000);
+      await page.waitForTimeout(400);
+      await page.mouse.move(600, 300, { steps: 5 });
+      await page.waitForTimeout(200);
+      await page.mouse.click(600, 300);
+      await page.waitForTimeout(150);
+      const keys = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+      record(name, keys !== "IFRAME", `a click in Studio's editor while the program runs gives Studio the keyboard (${before} → ${keys})`);
+      const at = Number(await page.evaluate(() => String(window.rr.rapidr_get_prop("codedoc(0)", "caretline"))));
+      await page.mouse.click(600, 300 + (33 - at) * 20);
+      await page.waitForTimeout(200);
+    };
+    await studioKeys();
+    await page.keyboard.press("F9");
+    await page.waitForTimeout(300);
+    const bpOff = (await page.evaluate(() => String(window.rr.rapidr_get_prop("bptree", "text")))).trim();
+    await click();
+    await page.waitForTimeout(800);
+    const off = await where();
+    record(name, off.startsWith("running") && bpOff === "", `the breakpoint taken off while it runs: the next click doesn't stop (${off}, breakpoints ${JSON.stringify(bpOff)})`);
+    await studioKeys();
+    await page.keyboard.press("F9");
+    await page.waitForTimeout(300);
+    await click();
+    const on = await until(where, (v) => v === "paused@33");
+    record(name, on === "paused@33", `put back while it runs: the next click stops (${on})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-steps-web-handler".includes(f) || f === "debug-steps"))) {
+  await webHandlerSteps();
+}
+
+async function aiSettingsByMouse() {
+  const name = "ai-settings-web-mouse (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  try {
+    await page.addInitScript((root) => {
+      window.RAPIDR_STUDIO_TEST = { RAPIDR_AI_TEST_SERVER: root };
+      window.RAPIDR_FILE_SINK = () => {};
+    }, MOCK_ROOT);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "view.settings", open: "examples/gui/hello_form.rr" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("settingsdialog", "visible")).match(/^(-1|1|true)$/i), null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    await settingsByMouse(page, 1, (n, ok, what) => record(name, ok, what));
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "ai-settings-web-mouse".includes(f) || f === "ai-"))) {
+  await aiSettingsByMouse();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-commands-web-keys".includes(f) || f === "debug-commands"))) {
+  await debugByRealKeys();
+  await pausedProgramByMouse();
+  await themesPausedWeb();
+  await webCloseWhilePaused();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-events-web".includes(f) || f === "debug-events"))) {
+  await webEventFlows();
+  await webTypingWhilePaused();
+  await webDialogStep();
+  await webNestedAndError();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-events-web-focus-order".includes(f) || f === "debug-events"))) {
+  await webFocusOrder();
+}
+// (THEME-LIVE) The browser switches the page's colour scheme (playwright's
+// emulateMedia) on a live page — no test script: the page's own media
+// queries, followed as they change. Studio follows without a reload: the
+// look it reads, its Welcome page's colours (a page opened in that scheme's),
+// dark, high contrast (forced colours), light again; a capture of each.
+async function webColorScheme() {
+  const name = "theme-web-color-scheme (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: "light" });
+  const page = await ctx.newPage();
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, want, ms = 8000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (v === want) return v;
+      await page.waitForTimeout(150);
+    }
+    return v;
+  };
+  try {
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; });
+    const q = new URLSearchParams({ theme: "rapidr", window: "normal", fresh: "" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("studio", "caption")) === "RapidR Studio", null, { timeout: 90000, polling: 200 });
+    const look = () => prop("application", "theme");
+    record(name, (await until(look, "rapidr light")) === "rapidr light", `a page in the light scheme opens Studio light (${await look()})`);
+    for (const [media, want, page_, card] of [
+      [{ colorScheme: "dark" }, "rapidr dark", "2627858", "3812133"],
+      [{ forcedColors: "active" }, "rapidr high contrast", "0", "0"],
+      [{ forcedColors: "none", colorScheme: "light" }, "rapidr light", "16777215", "16777215"],
+    ]) {
+      await page.emulateMedia(media);
+      const got = await until(look, want);
+      const colors = `${await prop("welcome", "color")}/${await prop("excard(0)", "color")}`;
+      record(name, got === want && colors === `${page_}/${card}`, `the browser switched to ${JSON.stringify(media)}: Studio is ${got}, the Welcome page and its cards ${colors} (wanted ${page_}/${card}), no reload`);
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: join(WORK, `theme-web-color-scheme-${want.replace(/ /g, "-")}.png`) });
+    }
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "theme-web-color-scheme".includes(f) || f === "theme-"))) {
+  await webColorScheme();
+}
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunload".includes(f)))) {
   await beforeUnload("changed", 'wait,code:"ONE"=>"ONE x"', true);
   await beforeUnload("saved", 'wait,code:"ONE"=>"ONE x",file.save', false);
 }
-await browser.close();
+// (a browser that died — the system short of memory — fails its cases, and
+// the mock server still goes)
+await browser.close().catch(() => {});
 mockProc.kill();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

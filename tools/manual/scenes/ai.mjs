@@ -19,14 +19,43 @@ const MOCK = await new Promise((resolve) => mock.stdout.once("data", (d) => reso
 process.on("exit", () => mock.kill());
 
 const HOME_OF_SCENE = join(ROOT, "tests", "results", "manual-shots", "ai-home");
-const ENV = { RAPIDR_AI_KEYSTORE: "memory", ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "" };
-// (an assistant set up as a user sets it: Anthropic's format, the mock at
-// its address, a made-up key, the models fetched, the fast one picked, the
-// prices the user typed for the meter)
-const READY = `ai:on,ai:provider=anthropic,ai:base=${MOCK},ai:key=sk-ant-EXAMPLE-not-a-real-key-0000,ai:fetch,wait,wait,ai:model=example-mini,ai:prices=1/5`;
+// (Anthropic, OpenAI and DeepSeek played by the mock too:
+// RAPIDR_AI_TEST_SERVER, a loopback address only)
+const MOCK_ROOT = MOCK.replace(/\/v1$/, "");
+const ENV = { RAPIDR_AI_KEYSTORE: "memory", RAPIDR_AI_TEST_SERVER: MOCK_ROOT, ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "" };
+// (an assistant set up as a user sets it: Anthropic (the mock), a made-up
+// key, the models fetched, the fast one picked, the prices the user typed
+// for the meter)
+const READY = `ai:on,ai:provider=anthropic,ai:key=sk-ant-EXAMPLE-not-a-real-key-0000,ai:fetch,wait,wait,ai:model=example-mini,ai:prices=1/5`;
+// (the settings dialog used as a person uses it: its AI tab clicked, a key
+// typed key by key, Fetch Models pressed; the mock's answer decided by the
+// made-up key: "bad" refused, "org" an organisation's)
+const typeInto = (comp, text) => [...text].map((c) => (/[a-z]/.test(c) ? c.toUpperCase().charCodeAt(0) : /[0-9]/.test(c) ? c.charCodeAt(0) : 189)).map((k) => `${comp}.__key_${k}`).join(",");
+const idle = (n) => Array(n).fill("aionnote.onclick").join(",");
+const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
+const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 
 export const topic = "ai";
 export const scenes = [
+  {
+    // Tools > Settings > AI: a key the provider refused — what it said,
+    // whole, under the list; Fetch Models ready to be pressed again
+    name: "settings-refused-key",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    delay: 4,
+    window: 2,
+    env: { ...ENV, RAPIDR_TEST_EVENTS: [AI_TAB, "aiprovbox.__item_1", typeInto("aikeyedit", "example-bad-key-0000"), FETCH, idle(40)].join(",") },
+  },
+  {
+    // ... an organisation's Anthropic key: the workspace Anthropic wants
+    name: "settings-workspace",
+    open: "examples/gui/hello_form.rr",
+    do: "view.settings",
+    delay: 4,
+    window: 2,
+    env: { ...ENV, RAPIDR_TEST_EVENTS: [AI_TAB, "aiprovbox.__item_0", typeInto("aikeyedit", "example-org-key-0000"), FETCH, idle(40)].join(",") },
+  },
   {
     // Tools > Settings > AI
     name: "settings",
@@ -105,6 +134,17 @@ export const scenes = [
     env: {
       ...ENV,
       RAPIDR_TEST_EVENTS: `listbtn.onclick,${Array(4).fill("info.onclick").join(",")},modelbox.__item_0,askbtn.onclick,${Array(6).fill("info.onclick").join(",")}`,
+    },
+  },
+  {
+    // ... with Anthropic: its Workspace ID row (an organisation's key wants
+    // one), the models, a question answered
+    name: "rai-models-workspace",
+    program: "examples/ai/rai_models.rr",
+    delay: 3,
+    env: {
+      ...ENV,
+      RAPIDR_TEST_EVENTS: `providerbox.__item_0,${typeInto("keyedit", "example-org-key-0000")},${typeInto("wsedit", "wrkspc-example")},listbtn.onclick,${Array(6).fill("info.onclick").join(",")},modelbox.__item_0,askbtn.onclick,${Array(8).fill("info.onclick").join(",")}`,
     },
   },
 ];

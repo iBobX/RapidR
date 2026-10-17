@@ -47,6 +47,9 @@ pub const MAX_TOOL_CALLS: u32 = 25;
 pub const DEFAULT_MAX_TOKENS: i64 = 1024;
 /// The conversation is summarised once a request sends more (tokens).
 pub const DEFAULT_SUMMARY_AT: i64 = 40_000;
+/// A models list's waits: 10 s to connect, 30 s for the answer, one more
+/// try after a passing refusal.
+pub const MODELS_OPTIONS: Options = Options { connect_timeout: 10, read_timeout: 30, retries: 1 };
 
 /// How a runtime fires a component's event.
 pub trait Fire: Copy {
@@ -328,7 +331,10 @@ impl Ai {
     fn start(&mut self, job: Job, req: crate::wire::HttpRequest, format: crate::Format) -> Result<(), String> {
         self.last_request = req.redacted();
         let id = next_id();
-        let opts = if job == Job::Models { Options { retries: 1, ..Options::default() } } else { Options::default() };
+        // (a models list is a small answer the user waits for, a button
+        // greyed meanwhile: given up on sooner than an answer a model
+        // thinks over)
+        let opts = if job == Job::Models { MODELS_OPTIONS } else { Options::default() };
         http::start(id, req, opts)?;
         self.running = Some(Run { id, job, status: 0, retry_after: None, body: Vec::new(), decoder: Decoder::new(format), reply: Reply::default() });
         Ok(())
@@ -382,6 +388,8 @@ impl Ai {
     }
 
     fn refresh_models(&mut self) -> Result<(), String> {
+        // (a list asked for again: the newer request wins)
+        self.stale_models();
         if self.running.is_some() {
             return Err("Still answering: wait for it, or Cancel.".into());
         }
@@ -391,6 +399,16 @@ impl Ai {
         self.error.clear();
         self.audit_log("models", json!({}));
         Ok(())
+    }
+
+    /// A models list on its way that no longer applies (the provider, its
+    /// address, the workspace or the key changed, or a new list was asked
+    /// for): dropped — OnDone("cancelled").
+    fn stale_models(&mut self) {
+        if self.running.as_ref().is_some_and(|r| r.job == Job::Models) {
+            self.cancel();
+            self.status.clear();
+        }
     }
 
     fn cancel(&mut self) {
@@ -690,7 +708,10 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
         Some(match prop {
             "provider" => s(a.provider.clone()),
             "model" => s(a.model.clone()),
-            "baseurl" => s(if a.base_url.is_empty() { p.map_or("", |p| p.base_url).to_string() } else { a.base_url.clone() }),
+            "baseurl" => s(match p {
+                Some(p) if a.base_url.is_empty() || a.base_url.trim_end_matches('/').eq_ignore_ascii_case(p.base_url) => crate::provider::default_base(p),
+                _ => a.base_url.clone(),
+            }),
             "workspaceid" => s(a.workspace.clone()),
             // (never read back: KeyHint shows its end)
             "apikey" => s(""),
@@ -739,21 +760,41 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "provider" => {
                 let id = crate::provider(&t).map_or(String::new(), |p| p.id.to_string());
                 if id != a.provider {
+                    a.stale_models();
                     a.models.clear();
                     a.key.clear();
                 }
                 a.provider = id;
             }
             "model" => a.model = t.trim().to_string(),
-            "baseurl" => a.base_url = t.trim().to_string(),
-            "workspaceid" => a.workspace = t.trim().to_string(),
+            "baseurl" => {
+                if t.trim() != a.base_url {
+                    a.stale_models();
+                }
+                a.base_url = t.trim().to_string();
+            }
+            "workspaceid" => {
+                if t.trim() != a.workspace {
+                    a.stale_models();
+                }
+                a.workspace = t.trim().to_string();
+            }
             "apikey" => {
-                a.key = keys::clean(&t).unwrap_or_default();
+                let key = keys::clean(&t).unwrap_or_default();
+                if key != a.key {
+                    a.stale_models();
+                }
+                a.key = key;
                 if !a.key.is_empty() {
                     a.error.clear();
                 }
             }
-            "apikeysource" => a.key_source = t.trim().to_string(),
+            "apikeysource" => {
+                if t.trim() != a.key_source {
+                    a.stale_models();
+                }
+                a.key_source = t.trim().to_string();
+            }
             "maxtokens" => a.max_tokens = v.to_i64(),
             "summaryat" => a.summary_at = v.to_i64(),
             "system" => a.system = t,

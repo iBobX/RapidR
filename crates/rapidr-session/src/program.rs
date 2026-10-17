@@ -75,6 +75,9 @@ enum Node {
     Row(String, usize),
     /// An RNum's numbers.
     Num(String),
+    /// The globals an `$INCLUDE`d file made (RAPIDQ.INC's hundreds of
+    /// constants): the file's index in [`Origins::files`].
+    Include(u32),
 }
 
 /// The program's end of the protocol, for one run.
@@ -94,6 +97,17 @@ pub struct ProgramEnd {
     /// Why the program stopped beyond its reason (a condition that failed
     /// to evaluate): the next `stopped` event's description.
     note: Option<String>,
+    /// Which `$INCLUDE`d file made each global — worked out once, at the
+    /// first Globals asked for.
+    origins: Option<Origins>,
+}
+
+/// The globals `$INCLUDE`d files made, by slot (the program's own aren't
+/// in it): each file's name, and the file of each such global.
+#[derive(Clone, Default)]
+struct Origins {
+    files: Vec<String>,
+    of: std::collections::HashMap<u32, u32>,
 }
 
 /// A breakpoint where it landed, with its condition, hit count, log
@@ -513,16 +527,43 @@ impl ProgramEnd {
         // (name, value, the expression naming it, a component's property —
         // its text a value, never the component it may name)
         let mut named: Vec<(String, Value, String, bool)> = Vec::new();
-        if reference == GLOBALS_REF {
+        if reference == GLOBALS_REF || reference >= CHILDREN_REF && matches!(self.nodes.get((reference - CHILDREN_REF) as usize), Some(Node::Include(_))) {
             // (only the program's globals: a routine's STATICs and its own
             // undeclared variables, which the compiler keeps in global
-            // slots, are its frame's)
-            for (name, v) in vm.global_values(module) {
-                if !hidden(name) && rapidr_bcgen::global_slot(module, name) == GlobalSlot::Global {
-                    named.push((name.to_string(), v.clone(), name.to_string(), false));
+            // slots, are its frame's. The program's own first; those an
+            // $INCLUDEd file made — RAPIDQ.INC's hundreds of constants —
+            // under one item per file, closed, after them)
+            let wanted = match self.nodes.get(reference.wrapping_sub(CHILDREN_REF) as usize) {
+                Some(Node::Include(file)) if reference >= CHILDREN_REF => Some(*file),
+                _ => None,
+            };
+            let origins = self.origins.get_or_insert_with(|| global_origins(module)).clone();
+            let mut included: std::collections::BTreeMap<u32, usize> = std::collections::BTreeMap::new();
+            // (by slot: a global's name is the module's string at its index)
+            let globals: Vec<(u32, &str, Value)> = vm.globals.iter().enumerate().filter_map(|(i, v)| Some((i as u32, module.strings.get(i)?.as_str(), v.as_ref()?.clone()))).collect();
+            for (slot, name, v) in globals {
+                if hidden(name) || rapidr_bcgen::global_slot(module, name) != GlobalSlot::Global {
+                    continue;
+                }
+                let from = origins.of.get(&slot).copied();
+                match (from, wanted) {
+                    (None, None) => named.push((name.to_string(), v, name.to_string(), false)),
+                    (Some(f), None) => *included.entry(f).or_default() += 1,
+                    (Some(f), Some(w)) if f == w => named.push((name.to_string(), v, name.to_string(), false)),
+                    _ => {}
                 }
             }
             named.sort_by_key(|(n, ..)| n.to_ascii_lowercase());
+            if wanted.is_none() && !included.is_empty() {
+                let mut out: Vec<Variable> = named.into_iter().map(|(name, v, evaluate_name, property)| Variable { name, ..self.render(vm, &v, &evaluate_name, !property) }).collect();
+                let mut files: Vec<(String, u32, usize)> = included.into_iter().map(|(f, n)| (origins.files.get(f as usize).cloned().unwrap_or_default(), f, n)).collect();
+                files.sort_by_key(|(name, ..)| name.to_ascii_lowercase());
+                for (file, f, n) in files {
+                    let reference = self.offer(Node::Include(f));
+                    out.push(Variable { name: format!("$INCLUDE {file}"), value: format!("({n} {})", if n == 1 { "name" } else { "names" }), kind: "Include".into(), reference, count: n as u32, ..Default::default() });
+                }
+                return Ok(out);
+            }
         } else if reference == COMPONENTS_REF {
             // (the components no other holds, in the order they were made:
             // each shown as itself)
@@ -623,6 +664,8 @@ impl ProgramEnd {
                         })
                         .collect());
                 }
+                // (answered with the globals, above)
+                Node::Include(_) => {}
                 Node::Num(id) => {
                     let values = rapidr_value::datascience::num::with_data(&id, |a| a.get(start..end.min(a.len())).map(<[f64]>::to_vec).unwrap_or_default());
                     return Ok(values
@@ -812,6 +855,82 @@ fn index_label(bounds: &[(i64, i64)], mut k: usize) -> String {
     format!("({})", parts.iter().map(|p| p.to_string()).collect::<Vec<_>>().join(", "))
 }
 
+/// Which `$INCLUDE`d file made each global, by where the main program
+/// first stores into its slot (a CONST's or a DIM's value, where its file
+/// declares it): a line of an included file; or the one line a built-in
+/// include gives (RAPIDQ.INC's constants when no such file is on disk: the
+/// preprocessor puts them all on the `$INCLUDE`'s line, which is the
+/// program's own — that line holding every one of them is the include's).
+/// Globals first stored elsewhere, or never in the main code, are the
+/// program's own.
+fn global_origins(module: &Module) -> Origins {
+    use std::collections::{HashMap, HashSet};
+    let mut out = Origins::default();
+    let Some(main_fn) = module.functions.get(module.entry as usize) else { return out };
+    let file_of = |line: u32| module.source_map.locate(line).and_then(|(f, _)| module.source_map.file_index(f));
+    // (the program's own file: the one its main code ends in — unless
+    // that's an include, `.inc`, which a program may end with: then its
+    // first file that isn't one)
+    let is_inc = |f: u32| module.source_map.files.get(f as usize).is_some_and(|n| n.to_ascii_lowercase().ends_with(".inc"));
+    let main = match main_fn.line_info.last().and_then(|&(_, line)| file_of(line)) {
+        Some(f) if is_inc(f) => (0..module.source_map.files.len() as u32).find(|&i| !is_inc(i)).or(Some(f)),
+        other => other,
+    };
+    let code = &main_fn.code;
+    let mut first: HashMap<u32, u32> = HashMap::new();
+    let mut ip = 0;
+    while ip < code.len() {
+        let Some(op) = rapidr_bytecode::Op::from_u8(code[ip]) else { break };
+        if op == rapidr_bytecode::Op::StoreGlobal && ip + 5 <= code.len() {
+            let slot = u32::from_le_bytes([code[ip + 1], code[ip + 2], code[ip + 3], code[ip + 4]]);
+            if let Some(line) = main_fn.get_line_for_ip(ip) {
+                first.entry(slot).or_insert(line);
+            }
+        }
+        ip += 1 + op.operand_len();
+    }
+    let mut by_line: HashMap<u32, Vec<u32>> = HashMap::new();
+    for (slot, line) in first {
+        by_line.entry(line).or_default().push(slot);
+    }
+    let label = |out: &mut Origins, name: &str| -> u32 {
+        let at = out.files.iter().position(|f| f.eq_ignore_ascii_case(name)).unwrap_or_else(|| {
+            out.files.push(name.to_string());
+            out.files.len() - 1
+        });
+        at as u32
+    };
+    let name_of = |slot: u32| module.strings.get(slot as usize).map(|n| n.to_ascii_lowercase()).unwrap_or_default();
+    for (line, slots) in by_line {
+        let file = file_of(line);
+        if file.is_some() && file != main {
+            let name = file.and_then(|f| module.source_map.files.get(f as usize)).cloned().unwrap_or_default();
+            let at = label(&mut out, &name);
+            for slot in slots {
+                out.of.insert(slot, at);
+            }
+            continue;
+        }
+        if slots.len() < 2 {
+            continue;
+        }
+        let names: HashSet<String> = slots.iter().map(|&s| name_of(s)).collect();
+        for (file, consts, others) in rapidr_preprocessor::builtin_includes() {
+            if consts.is_empty() || !consts.iter().all(|(c, _)| names.contains(&c.to_ascii_lowercase())) {
+                continue;
+            }
+            let given: HashSet<String> = consts.iter().map(|(c, _)| c.to_ascii_lowercase()).chain(others.iter().map(|o| o.to_ascii_lowercase())).collect();
+            let at = label(&mut out, file);
+            for &slot in &slots {
+                if given.contains(&name_of(slot)) {
+                    out.of.insert(slot, at);
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Parses and compiles `source` against frame `frame`'s function.
 fn compile<H: Host + ?Sized>(vm: &Vm<'_, H>, module: &Module, frame: Option<usize>, source: &str) -> Result<rapidr_bcgen::Snippet, String> {
     let mut text = source.to_string();
@@ -864,6 +983,31 @@ impl BlockingDebugger {
     pub fn take_controls(&mut self) -> Vec<Control> {
         std::mem::take(&mut self.controls)
     }
+
+    /// The next request while the program is stopped; meanwhile its
+    /// windows' own events are served (`Host::serve_paused`: painted,
+    /// activated, moved — none of its code runs), so a paused program's
+    /// windows stay on the screen and reachable. The host's wait ends when
+    /// a request arrives (the session's reader wakes it). `None`: the IDE
+    /// went away, or the user closed the program's last window — it ends.
+    fn next_request<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>) -> Option<Request> {
+        loop {
+            match self.requests.try_recv() {
+                Ok(request) => return Some(request),
+                Err(TryRecvError::Disconnected) => return None,
+                Err(TryRecvError::Empty) => {
+                    if !vm.host.serve_paused() {
+                        return self.requests.recv().ok();
+                    }
+                    // (its last window closed by the user meanwhile: it
+                    // ends, as Stop ends it)
+                    if vm.host.closed_while_paused() {
+                        return None;
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
@@ -877,7 +1021,7 @@ impl<H: Host + ?Sized> Debugger<H> for BlockingDebugger {
         let event = self.end.stopped_event(vm, module);
         (self.send)(&event);
         loop {
-            let Ok(request) = self.requests.recv() else { return Resume::Terminate };
+            let Some(request) = self.next_request(vm) else { return Resume::Terminate };
             let (reply, control) = self.end.handle(vm, module, request, true);
             if let Some(reply) = reply {
                 (self.send)(&reply);
@@ -1050,6 +1194,104 @@ mod tests {
         assert!(matches!(by_re(7), EventBody::Evaluate { ref result, .. } if result == "42"), "{:?}", by_re(7));
         // (the main program's frame has none of them)
         assert!(names(8).iter().all(|(n, _)| n != "hits" && n != "p" && !n.contains("__") && !n.contains("::")), "{:?}", names(8));
+    }
+
+    #[test]
+    fn an_included_files_globals_come_after_the_programs_own_under_one_item() {
+        // (lines 1-3 come from defs.inc, as RAPIDQ.INC's constants do; the
+        // rest is the program's own file)
+        let src = "CONST CLR_A = 1\nCONST CLR_B = 2\nDIM IncCount AS INTEGER\nDIM mine AS INTEGER\nmine = CLR_A + CLR_B\nIncCount = 1\nPRINT mine\n";
+        let tokens = rapidr_lexer::Lexer::new(src, None).tokenize().unwrap();
+        let program = rapidr_parser::parse_tokens(&tokens).unwrap();
+        let mut m = rapidr_bcgen::compile_program_with_source(&program, Some(src)).unwrap().module;
+        m.source_map = rapidr_bytecode::SourceMap::from_origins("prog.bas", (1..=7u32).map(|l| if l <= 3 { (Some("defs.inc"), l) } else { (None, l - 3) }));
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 4, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        tx.send(req(3, Command::Variables { reference: GLOBALS_REF, start: None, count: None })).unwrap();
+        // (the include's item: the first reference offered at the stop)
+        tx.send(req(4, Command::Variables { reference: CHILDREN_REF, start: None, count: None })).unwrap();
+        tx.send(req(5, Command::Continue)).unwrap();
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output.trim(), "3");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone());
+        let Some(EventBody::Variables { variables }) = by_re(3) else { panic!("{sent:?}") };
+        let rows: Vec<(String, String, String)> = variables.iter().map(|v| (v.name.clone(), v.value.clone(), v.kind.clone())).collect();
+        assert_eq!(rows[0], ("mine".to_string(), "3".to_string(), rows[0].2.clone()), "{rows:?}");
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        assert_eq!((rows[1].0.as_str(), rows[1].1.as_str(), rows[1].2.as_str()), ("$INCLUDE defs.inc", "(3 names)", "Include"), "{rows:?}");
+        assert!(variables[1].reference == CHILDREN_REF && variables[1].count == 3, "{variables:?}");
+        // (opened: the file's names, in order)
+        let Some(EventBody::Variables { variables }) = by_re(4) else { panic!("{sent:?}") };
+        let rows: Vec<(String, String)> = variables.iter().map(|v| (v.name.clone(), v.value.clone())).collect();
+        assert_eq!(rows, [("CLR_A", "1"), ("CLR_B", "2"), ("IncCount", "1")].map(|(a, b)| (a.to_string(), b.to_string())), "{rows:?}");
+    }
+
+    #[test]
+    fn a_program_that_ends_with_an_include_is_still_its_own() {
+        // (prog.bas's own lines first, then tail.inc's — its last)
+        let src = "DIM mine AS INTEGER\nmine = 3\nPRINT mine\nCONST TAIL_A = 1\nCONST TAIL_B = 2\n";
+        let m = {
+            let tokens = rapidr_lexer::Lexer::new(src, None).tokenize().unwrap();
+            let program = rapidr_parser::parse_tokens(&tokens).unwrap();
+            let mut m = rapidr_bcgen::compile_program_with_source(&program, Some(src)).unwrap().module;
+            m.source_map = rapidr_bytecode::SourceMap::from_origins("prog.bas", (1..=5u32).map(|l| if l <= 3 { (None, l) } else { (Some("tail.inc"), l - 3) }));
+            m
+        };
+        let o = global_origins(&m);
+        let slot = |n: &str| m.strings.iter().position(|s| s == n).unwrap() as u32;
+        assert_eq!(o.files, ["tail.inc"]);
+        assert!(!o.of.contains_key(&slot("mine")) && o.of.get(&slot("TAIL_A")) == Some(&0) && o.of.get(&slot("TAIL_B")) == Some(&0), "{:?}", o.of);
+    }
+
+    #[test]
+    fn rapidq_incs_built_in_constants_are_grouped_too() {
+        // (no RAPIDQ.INC on disk: the preprocessor gives its constants on the
+        // $INCLUDE's own line, the program's file)
+        let dir = std::env::temp_dir().join(format!("rapidr-session-inc-{}", std::process::id()));
+        let pre = rapidr_preprocessor::preprocess_source("$INCLUDE \"RAPIDQ.INC\"\nDIM mine AS INTEGER\nCONST MINE_TOO = 2 : CONST AND_THIS = 3\nmine = 3\nPRINT mine\n", &dir, None, Default::default()).unwrap();
+        let src = pre.source.as_str();
+        let tokens = rapidr_lexer::Lexer::new(src, None).tokenize().unwrap();
+        let program = rapidr_parser::parse_tokens(&tokens).unwrap();
+        let mut m = rapidr_bcgen::compile_program_with_source(&program, Some(src)).unwrap().module;
+        m.source_map = rapidr_bytecode::SourceMap::from_origins("prog.bas", (1..=src.lines().count() as u32).map(|l| (None, l)));
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 5, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        tx.send(req(3, Command::Variables { reference: GLOBALS_REF, start: None, count: None })).unwrap();
+        tx.send(req(4, Command::Variables { reference: CHILDREN_REF, start: None, count: None })).unwrap();
+        tx.send(req(5, Command::Continue)).unwrap();
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone());
+        let Some(EventBody::Variables { variables }) = by_re(3) else { panic!("{sent:?}") };
+        let rows: Vec<(String, String)> = variables.iter().map(|v| (v.name.clone(), v.value.clone())).collect();
+        let n = rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.len() + 1;
+        // (the program's own, a line of two CONSTs of its own among them,
+        // then RAPIDQ.INC's — its constants and QBColor — under one item)
+        assert_eq!(rows, [("AND_THIS", "3"), ("mine", "3"), ("MINE_TOO", "2")].map(|(a, b)| (a.to_string(), b.to_string())).into_iter().chain([("$INCLUDE RAPIDQ.INC".to_string(), format!("({n} names)"))]).collect::<Vec<_>>());
+        let Some(EventBody::Variables { variables }) = by_re(4) else { panic!("{sent:?}") };
+        assert_eq!(variables.len(), n);
+        assert!(variables.iter().any(|v| v.name == "QBColor") && variables.iter().any(|v| v.name == "MB_OK"), "{:?}", variables.iter().map(|v| &v.name).collect::<Vec<_>>());
     }
 
     #[test]
@@ -1277,6 +1519,51 @@ mod tests {
         drop(vm);
         let out = sent.borrow().clone();
         out
+    }
+
+    /// A breakpoint in a one-line event handler stops on EVERY event —
+    /// also after a Step Over walked out of the handler (Robert, 2026-10-16:
+    /// typing into an edit stopped once, then never again).
+    #[test]
+    fn a_breakpoint_in_a_one_line_handler_stops_on_every_event() {
+        let src = "DIM n AS INTEGER\nSUB Changed\n    n = n + 1\nEND SUB\nn = 0\n";
+        let m = compile_program(src);
+        let handler = m.functions.iter().position(|f| f.name.eq_ignore_ascii_case("changed")).expect("the handler") as u32;
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let ide = tx.clone();
+        let count = Rc::new(std::cell::Cell::new(0u64));
+        // (the first stop: Step Over twice — out of the handler, back to the
+        // event loop; every later stop: Continue)
+        let mut dbg = BlockingDebugger::new(
+            rx,
+            Box::new(move |e: &Event| {
+                log.borrow_mut().push(e.clone());
+                if let EventBody::Stopped { .. } = &e.body {
+                    if e.re.is_none() {
+                        count.set(count.get() + 1);
+                        let next = if count.get() <= 2 { Command::StepOver } else { Command::Continue };
+                        ide.send(req(count.get() * 100, next)).unwrap();
+                    }
+                }
+            }),
+        );
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        let breakpoints = vec![SourceBreakpoint { line: 3, ..Default::default() }];
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: true })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        // (three key presses: three events of the same one-line handler)
+        for _ in 0..3 {
+            vm.invoke_function(&m, handler, vec![]).unwrap();
+        }
+        drop(vm);
+        let stops: Vec<(String, u32)> = stops_of(&sent.borrow()).into_iter().filter(|(reason, _)| reason == "breakpoint").collect();
+        assert_eq!(stops, vec![stop("breakpoint", 3); 3], "{:?}", sent.borrow());
     }
 
     fn stops_of(events: &[Event]) -> Vec<(String, u32)> {
@@ -1555,5 +1842,84 @@ mod tests {
         assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "2"));
         let (r, _) = end.handle(&mut vm, &m, req(3, Command::Evaluate { expr: "x".into(), frame: None, context: Some("hover".into()) }), true);
         assert!(matches!(r.map(|e| e.body), Some(EventBody::Evaluate { ref result, .. }) if result == "1"));
+    }
+
+    /// A host with windows: what the paused program's window system gets
+    /// while it's stopped (`serve_paused`), and when the IDE's request
+    /// comes (sent "from another thread" on the third turn, as the reader
+    /// does, waking the host).
+    #[derive(Default)]
+    struct WindowedHost {
+        inner: StubHost,
+        serves: u32,
+        /// What the program had printed at each turn (none of its code runs).
+        printed_at_turns: Vec<String>,
+        ide: Option<mpsc::Sender<Request>>,
+    }
+
+    impl Host for WindowedHost {
+        fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_builtin(name, args)
+        }
+        fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
+            self.inner.create_comp(kind, id)
+        }
+        fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
+            self.inner.set_prop(id, name, value)
+        }
+        fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
+            self.inner.get_prop(id, name)
+        }
+        fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
+            self.inner.call_method(id, method, args)
+        }
+        fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
+            self.inner.register_event(id, event, handler_fn_index)
+        }
+        fn print(&mut self, s: &str) -> Result<(), String> {
+            self.inner.print(s)
+        }
+        fn input(&mut self) -> Result<String, String> {
+            self.inner.input()
+        }
+        fn serve_paused(&mut self) -> bool {
+            self.serves += 1;
+            self.printed_at_turns.push(self.inner.output.clone());
+            if self.serves == 3 {
+                if let Some(ide) = &self.ide {
+                    ide.send(req(9, Command::Continue)).unwrap();
+                }
+            }
+            true
+        }
+    }
+
+    /// Stopped at a breakpoint, a program with windows keeps them served —
+    /// painted, activated, moved — turn after turn while the IDE thinks
+    /// (none of its code runs meanwhile), and goes on as soon as the IDE's
+    /// request arrives.
+    #[test]
+    fn a_stopped_program_keeps_its_windows_served_until_the_ide_says() {
+        let src = "PRINT \"before\"\nx = 1\nPRINT \"after\"\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = WindowedHost { ide: Some(tx.clone()), ..WindowedHost::default() };
+        let mut vm = Vm::new(&mut host);
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 2, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        vm.debugger = None;
+        drop(vm);
+        assert_eq!(host.serves, 3, "served until the request came");
+        assert!(host.printed_at_turns.iter().all(|p| p == "before\n"), "nothing ran while stopped: {:?}", host.printed_at_turns);
+        assert_eq!(host.inner.output, "before\nafter\n");
+        let sent = sent.borrow();
+        assert!(sent.iter().any(|e| matches!(e.body, EventBody::Stopped { line: Some(2), .. })));
+        assert!(sent.iter().any(|e| matches!(e.body, EventBody::Continued)));
     }
 }
