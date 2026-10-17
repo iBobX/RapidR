@@ -12,6 +12,10 @@ export const scenes = [
   // little: columns up in the notes' colours, sparks flying, the crystal big
   { name: "midi-visualizer", program: "examples/showcase/midi_visualizer.rr", args: ["44"], delay: 1,
     env: { RAPIDR_TEST_EVENTS: `playbtn.onclick,${wait("info", 60)}` } },
+  // the snake with the computer playing (C), the same apples every time
+  // (the seed 7), a while into the game
+  { name: "snake", program: "examples/showcase/snake.rr", args: ["7"], delay: 1,
+    env: { RAPIDR_TEST_EVENTS: `form.__key_32,form.__key_67,${wait("info", 500)}` } },
   // four sets, one set of numbers
   { name: "same-numbers", program: "examples/showcase/same_numbers.rr", delay: 1,
     env: { RAPIDR_TEST_EVENTS: wait("info", 3) } },

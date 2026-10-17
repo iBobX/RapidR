@@ -24,7 +24,7 @@ DECLARE SUB Frame
 DECLARE SUB SkyClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
 DECLARE SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
 DECLARE SUB Launch
-DECLARE SUB AutoChanged
+DECLARE SUB ShowStatus
 DECLARE SUB Hue2Rgb (h AS DOUBLE, BYREF r AS INTEGER, BYREF g AS INTEGER, BYREF b AS INTEGER)
 
 ' The sparks: where each is, how fast it moves, how much of its life is left
@@ -38,7 +38,7 @@ DIM alive AS INTEGER             ' sparks flying now
 ' The rockets on their way up, and where each will burst
 DIM rx(MAXROCKETS - 1) AS DOUBLE, ry(MAXROCKETS - 1) AS DOUBLE, rtarget(MAXROCKETS - 1) AS DOUBLE
 DIM rflying(MAXROCKETS - 1) AS INTEGER, rkind(MAXROCKETS - 1) AS INTEGER
-DIM pick AS INTEGER              ' the shape asked for with the keys 1 to 4; -1: any
+DIM autoOn AS INTEGER, pick AS INTEGER              ' the shape asked for with the keys 1 to 4; -1: any
 DIM bursts AS INTEGER, rockets AS INTEGER
 DIM lastTime AS DOUBLE, nextAuto AS DOUBLE
 DIM starX(79) AS INTEGER, starY(79) AS INTEGER, starB(79) AS INTEGER
@@ -55,29 +55,18 @@ FrameTimer.OnTimer = Frame
 CREATE Form AS RForm
     Caption = "Fireworks"
     ClientWidth = W
-    ClientHeight = H + 40
-    KeyPreview = 1                          ' the form hears the keys first
-    OnKeyDown = FormKey
+    ClientHeight = H + 32
+    OnKeyDown = FormKey                     ' (no button or box takes the keys: they come here)
     Center
     CREATE Sky AS RDXScreen
         Left = 0: Top = 0: Width = W: Height = H
         Init(W, H)
         OnMouseDown = SkyClick
         AccessibleName = "Sky"
-        AccessibleDescription = "Click for a firework, or press Space"
-    END CREATE
-    CREATE LaunchBtn AS RButton
-        Caption = "&Launch": Left = 12: Top = H + 8: Width = 90
-        OnClick = Launch
-        AccessibleDescription = "One rocket at random, as the Space key does"
-    END CREATE
-    CREATE AutoBox AS RCheckBox
-        Caption = "&Auto show": Left = 116: Top = H + 12: Width = 110
-        OnClick = AutoChanged
+        AccessibleDescription = "Click for a firework, or press Space. Keys 1 to 4 pick the shape, A turns the automatic show on or off"
     END CREATE
     CREATE Info AS RLabel
-        Left = 240: Top = H + 12: Width = W - 252
-        Caption = "Click the sky or press Space. 1 to 4 pick the shape, A the show."
+        Left = 12: Top = H + 8: Width = W - 24
     END CREATE
 END CREATE
 
@@ -132,6 +121,7 @@ SUB Burst (x AS DOUBLE, y AS DOUBLE, n AS INTEGER, kind AS INTEGER)
     NEXT
     flashX(bursts MOD 8) = x: flashY(bursts MOD 8) = y: flashAge(bursts MOD 8) = 0
     bursts = bursts + 1
+    ShowStatus
 END SUB
 
 ' Hue (0 to 1 round the colour wheel) as bright red, green and blue (0 to 255)
@@ -159,7 +149,12 @@ SUB Rocket (x AS DOUBLE, y AS DOUBLE)
             EXIT FOR
         END IF
     NEXT
-    Info.Caption = "Bursts so far: " + FORMAT$("%d", bursts) + ". Click the sky or press Space."
+    ShowStatus
+END SUB
+
+' The line under the sky: what has happened and which keys do what
+SUB ShowStatus
+    Info.Caption = "Bursts: " + FORMAT$("%d", bursts) + "   Shape: " + FIELD$("any|ball|ring|two rings|heart", "|", pick + 2) + "   Auto show: " + IIF(autoOn, "on", "off") + "     Click or Space: a rocket   1 to 4: shape (0 any)   A: auto show"
 END SUB
 
 SUB Launch
@@ -170,25 +165,19 @@ SUB SkyClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
     Rocket X, Y
 END SUB
 
-' Space: a rocket (and the key is used up, so a button that has the focus
-' doesn't press itself); A: the automatic show on or off; 1 to 4: the shape
+' The keys. Space: a rocket; A: the automatic show on or off; 1 to 4: the
+' shape, 0: any. (The window has no button or box, so the keys come to the form.)
 SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
     IF Key = 32 THEN
         Launch
-        Key = 0
     ELSEIF Key = 65 THEN
-        AutoBox.Checked = IIF(AutoBox.Checked, 0, 1)
-        AutoChanged
-        Key = 0
+        autoOn = 1 - autoOn
+        nextAuto = TIMER + 0.3
+        ShowStatus
     ELSEIF Key >= 48 AND Key <= 52 THEN          ' 1 ball, 2 ring, 3 two rings, 4 heart, 0 any
         pick = Key - 49
-        Info.Caption = "Next bursts: " + FIELD$("any|ball|ring|two rings|heart", "|", pick + 2)
-        Key = 0
+        ShowStatus
     END IF
-END SUB
-
-SUB AutoChanged
-    nextAuto = TIMER + 0.3
 END SUB
 
 ' Each frame: the rockets climb, every spark moves and is drawn with a tail,
@@ -200,7 +189,7 @@ SUB Frame
     dt = now - lastTime
     IF dt < 0 OR dt > 0.1 THEN dt = 0.016
     lastTime = now
-    IF AutoBox.Checked AND now >= nextAuto THEN
+    IF autoOn AND now >= nextAuto THEN
         Launch
         nextAuto = now + 0.6 + RND * 0.9
     END IF
@@ -270,6 +259,7 @@ END SUB
 
 RANDOMIZE TIMER
 pick = -1
+ShowStatus
 DIM q AS INTEGER
 FOR q = 0 TO 7
     flashAge(q) = 9                              ' no pop yet

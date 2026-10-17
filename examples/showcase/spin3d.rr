@@ -277,14 +277,14 @@ SUB MoonFaster
     Info.Caption = "Moon going round at " + FORMAT$("%.1f", moonSpeed / 0.6) + "x"
 END SUB
 
-' The arrow keys, used up here so a button that has the focus doesn't
-' move the focus away
+' The arrow keys: the form hears them first (KeyPreview), whichever
+' button has the focus
 SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
     SELECT CASE Key
-        CASE 37: SpinSlower: Key = 0              ' Left
-        CASE 39: SpinFaster: Key = 0              ' Right
-        CASE 40: MoonSlower: Key = 0              ' Down
-        CASE 38: MoonFaster: Key = 0              ' Up
+        CASE 37: SpinSlower                       ' Left
+        CASE 39: SpinFaster                       ' Right
+        CASE 40: MoonSlower                       ' Down
+        CASE 38: MoonFaster                       ' Up
     END SELECT
 END SUB
 

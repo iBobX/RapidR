@@ -266,18 +266,39 @@ export const cases = [
     events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
     expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
   // showcase/: the release post's programs (docs/manual/showcase.md)
-  // (a rocket launched and left to burst, then the next: the count of
-  // bursts says the first went off)
-  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `launchbtn.onclick,${wait("info", 30)},launchbtn.onclick`,
-    dump: "autobox.checked,info.caption", expect: ["autobox.checked=0", "info.caption=Bursts so far: 1."] },
+  // (Space launches a rocket; left to burst, the count in the line under the
+  // sky says it went off)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 30)}`,
+    dump: "info.caption", expect: ["info.caption=Bursts: 1   Shape: any   Auto show: off"] },
   // (the keys: 4 picks the heart; A turns the automatic show on, and it launches)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__key_52", dump: "info.caption",
-    expect: ["info.caption=Next bursts: heart"] },
-  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_65,${wait("info", 16)}`, dump: "autobox.checked,info.caption",
-    expect: ["autobox.checked=-1", "info.caption=Bursts so far: "] },
-  // (a click on the sky sends a rocket there; Space another one)
-  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
-    dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+    expect: ["info.caption=Bursts: 0   Shape: heart   Auto show: off"] },
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_65,${wait("info", 40)}`, dump: "info.caption",
+    expect: ["Auto show: on"] },
+  // (a click on the sky sends a rocket there)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)}`,
+    dump: "info.caption", expect: ["info.caption=Bursts: 1 "] },
+  // snake.rr: Space starts it; the first apple is straight ahead, so a second and a half on the
+  // score is 1; unsteered the snake reaches the wall and the game is over (Best says 1), Space
+  // starts again at 0; P pauses; a turn (Down) avoids the apple and ends at the bottom wall with 0;
+  // a click on the board starts it too
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 36)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 0   Speed 1", "statelabel.caption=Playing. Space or P pauses."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 90)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 1   Speed 1", "statelabel.caption=Game over: you scored 1. Press Space for another game."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 90)},form.__key_32,${wait("info", 4)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 0   Best 1   Speed 1", "statelabel.caption=Playing. Space or P pauses."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 6)},form.__key_80`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Paused. Space or P goes on."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 6)},form.__key_40,${wait("info", 80)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 0   Best 0   Speed 1", "statelabel.caption=Game over: you scored 0."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `board.__mousedown_100_100,board.__mouseup_100_100,${wait("info", 4)}`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Playing. Space or P pauses."] },
+  // (C lets the computer play: it eats the apple straight ahead and goes on; an arrow key takes over)
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], args: ["7"], events: `form.__key_32,form.__key_67,${wait("info", 40)}`,
+    dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score ", "statelabel.caption=The computer is playing. Any arrow key takes over; C stops it."] },
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], args: ["7"], events: `form.__key_32,form.__key_67,${wait("info", 10)},form.__key_40`,
+    dump: "statelabel.caption", expect: ["statelabel.caption=Playing. Space or P pauses."] },
   // same_numbers.rr: the four sets have the same numbers, measured by RNum
   // from the points drawn — as they open, and after New points (other points,
   // the same numbers) —; the line switched off with the mouse
@@ -295,7 +316,7 @@ export const cases = [
     expect: ["pilabel.caption=pi is about 3.1", "errlabel.caption=Off by 0.0", " darts, ", " inside the circle", "speedlabel.caption=Speed: 300,000 darts a second"] },
   { file: "showcase/monte_carlo_pi.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 10)},runbtn.onclick,resetbtn.onclick`,
     dump: "pilabel.caption,errlabel.caption,runbtn.caption", expect: ["pilabel.caption=pi is about ?", "errlabel.caption=No darts yet", "runbtn.caption=&Go on"] },
-  // spin3d.rr: the arrow keys (used up by the form) and the buttons change the speeds
+  // spin3d.rr: the arrow keys (the form hears them first) and the buttons change the speeds
   { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_39,form.__key_39,${wait("info", 6)}`,
     dump: "info.caption", expect: ["info.caption=Planet turning at 2.0x"] },
   { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_40,${wait("info", 6)}`,

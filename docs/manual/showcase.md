@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [A snake game](#a-snake-game) | a game for the keyboard alone: an `RCanvas`, an `RTimer`, arrays for the snake |
 | [Same numbers](#same-numbers) | four sets of points with the very same statistics and four different pictures, made by the program |
 | [Pi by darts](#pi-by-darts) | RNum throws and counts thousands of random darts; the estimate and its error update live |
 | [A planet](#a-planet) | a lit, shaded 3D planet with a ring and a moon, built from faces |
@@ -28,7 +29,9 @@ Where a program needs something a browser can't give it, its section says so.
 press Space, and a rocket flies up and bursts into a ball, a ring, two
 rings or a heart. Keys 1 to 4 pick the shape, 0 lets the program choose, A
 turns on an automatic show. The corner shows how many sparks are flying and
-how many frames a second the program draws.
+how many frames a second the program draws. The window has no buttons on
+purpose: it is played with the keys and the mouse on the sky, and the line
+under it says which key does what.
 
 ![Fireworks: a heart, a ball and two rings burst in the night sky; the corner says how many sparks and how many frames a second](images/showcase/fireworks.png)
 
@@ -87,6 +90,61 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## A snake game
+
+[`snake.rr`](../../examples/showcase/snake.rr): steer the snake with the
+arrow keys (or W A S D) to the apples; each one makes it longer and the game
+faster; it ends when the snake runs into a wall or into itself. **Space**
+(or Enter, P, or a click on the board) starts, pauses and starts again. The
+window has no buttons: it is played with the keys, and shows the score, the
+best score of the session and the speed.
+
+![A long snake, brighter at its head, on a dark checkerboard with an apple below it; under the board the score and the speed, and the line saying the computer is playing](images/showcase/snake.png)
+
+The snake is two arrays, `bx` and `by`: the squares it covers, head first. A
+step moves every square into the place of the one in front of it and puts
+the head one square on:
+
+```basic
+IF ate THEN length = length + 1
+FOR i = length - 1 TO 1 STEP -1
+    bx(i) = bx(i - 1): by(i) = by(i - 1)
+NEXT
+bx(0) = nx: by(0) = ny
+```
+
+When it eats, `length` grew first, so the tail doesn't move away: that is all
+"growing" is. Hitting itself is a loop over the squares: the one the head goes
+to must not be one of them (the tail square doesn't count unless the snake
+just grew, because it moves away at the same moment).
+
+Keys can come faster than steps, and a game that answered each at once would
+let a quick Left then Down turn the snake back on itself between two steps. So
+`AskTurn` keeps at most two turns waiting, never one straight back and never
+the way it already goes, and a step takes the oldest one. The keys are heard
+by the form (`OnKeyDown = FormKey`), because nothing in the window takes the
+keyboard focus: there are no buttons, so Space can't also press one. The
+speed is the timer's `Interval`, lowered at every third apple:
+
+```basic
+speed = 1 + score \ 3
+Clock.Interval = 140 - 7 * (speed - 1)
+```
+
+**The computer can play.** Press **C** and the computer steers (any arrow key
+gives the game back): at each step `AutoSteer` looks at going straight on,
+left and right, throws away the ones that hit a wall or the snake, and takes
+the one that ends nearest the apple. It is a few lines, it isn't clever (it
+sometimes closes itself in), and it plays long enough to show a long snake,
+as in the picture. A number after the program's name (`rapidr run snake.rr 7`)
+makes the apples come in the same places every time.
+
+The board is an `RCanvas`. Its `OnPaint` draws the checkerboard, the apple,
+the snake (brighter at the head) and, when the game isn't running, a veil with
+the words; each step ends with `Board.Repaint`. The first apple is always
+straight ahead of the snake, so the first move is easy; the others are put on
+any free square.
 
 ## Same numbers
 
@@ -230,8 +288,7 @@ Gouraud shading blends the light across faces) and the moon, made with
 `SetQuality(D3DRMRENDER_FLAT)`, shows its facets. The stars are 700 tiny
 squares far away drawn "unlit" (`D3DRMRENDER_UNLITFLAT`), so they are plain
 white whatever the lights do. The arrow keys come to the form first
-(`KeyPreview = 1`) and the handler uses the key up (`Key = 0`) so that a
-button with the focus doesn't also react.
+(`KeyPreview = 1`), whichever button has the focus.
 
 ## Signal lab
 
