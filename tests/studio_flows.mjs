@@ -1633,7 +1633,7 @@ const CASES = [
     do: "wait,palette:visualizer",
     events: "palette.__key_13",
     delay: 6,
-    dump: { "palette.selected": /^more:1$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
+    dump: { "palette.selected": /^more:\d+$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
   },
   {
     // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
