@@ -578,6 +578,11 @@ RapidR BASIC running ON an ESP32 (and later other boards), not only talking to o
 
 ## Showcase gaps (found 2026-10-16 while choosing showcase examples; after Preview 2)
 In order of how many showcase ideas each unlocks:
+- [ ] **RScope: live oscilloscope and spectrum analyzer from the microphone or line-in** (Robert, 2026-10-16; the next release's engineer WOW).
+  - Live audio input with sample blocks to the program: an RWave OnData event, or an RAudioIn. On the desktop `cpal` (MIT/Apache), on the web getUserMedia + AudioWorklet.
+  - A native `RNum.FFT` with windowing.
+  - Microphone permission done properly: macOS NSMicrophoneUsageDescription for Studio and built apps, the browser's prompt, and a visible "listening" indicator. Audio never leaves the device.
+  - Preview 2 ships signal_lab.rr (synthetic signals, an FFT written in BASIC) as the teaser.
 - [ ] RPlot heat map / image kind (correlation heat map, Mandelbrot, cell-life grid).
 - [ ] RDataFrame pivot table (sales pivot, survival by class).
 - [ ] RPlot bubble size on scatter (bubble charts over time).
