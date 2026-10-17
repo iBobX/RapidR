@@ -277,7 +277,8 @@ SUB StartStudio
     END IF
     i = i + 1
   WEND
-  DefaultFolder = HomeDir + "projects"
+  ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
+  DefaultFolder = Proj.ProjectsFolder(HomeDir)
   IF fresh = 0 THEN LoadSettings
   ' (RapidR's look by default, following the system)
   IF ThemeChoice = "" THEN ThemeChoice = "rapidr"

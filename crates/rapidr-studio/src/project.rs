@@ -488,6 +488,33 @@ fn example_to_open(path: &str, examples: &str) -> Result<(String, &'static str),
     }
 }
 
+/// ProjectsFolder(Home): where New Project puts projects by default —
+/// `<home>projects` while Studio runs from a folder of the user's (the
+/// repository), `Documents/RapidR/Projects` when Studio is installed (a
+/// home with its release.toml: the macOS app, /usr/lib/rapidr, Program
+/// Files) or its home can't be written: never inside RapidR itself.
+fn projects_folder(home: &str) -> String {
+    let own = format!("{home}projects");
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::path::Path;
+        let h = Path::new(home);
+        let installed = h.join("release.toml").is_file();
+        let writable = !home.is_empty() && h.is_dir() && {
+            let probe = h.join(".rapidr-write-probe");
+            let ok = std::fs::write(&probe, b"").is_ok();
+            let _ = std::fs::remove_file(&probe);
+            ok
+        };
+        if installed || !writable {
+            if let Some(d) = rapidr_project::program_files::documents_folder() {
+                return slashes(&d.join("RapidR").join("Projects").to_string_lossy());
+            }
+        }
+    }
+    own
+}
+
 /// ExampleOf(Path, Examples): the example (in folder `examples`) that
 /// `path` is the user's copy of; "" for any other file.
 fn example_of(path: &str, examples: &str) -> String {
@@ -650,6 +677,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             EXAMPLE_COPY.with(|e| e.borrow_mut().insert(name.to_ascii_lowercase(), what));
             Value::String(path)
         }
+        "projectsfolder" => Value::String(projects_folder(&s(0))),
         "exampleof" => Value::String(example_of(&s(0), &s(1))),
         "copyexampleagain" => {
             let r = copy_example_again(&s(0), &s(1));
@@ -767,6 +795,23 @@ fn patch_escaped(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// New Project's default folder is never inside an installed RapidR
+    /// (the final audit: it was the app bundle's, /usr/lib/rapidr's).
+    #[test]
+    fn projects_go_to_documents_when_installed() {
+        let base = std::env::temp_dir().join(format!("rapidr-projects-folder-{}", std::process::id()));
+        let (home, docs) = (base.join("home"), base.join("docs"));
+        std::fs::create_dir_all(&home).unwrap();
+        // (this test's alone: no other test here reads RAPIDR_DOCUMENTS)
+        std::env::set_var("RAPIDR_DOCUMENTS", &docs);
+        let h = format!("{}/", slashes(&home.to_string_lossy()));
+        assert_eq!(projects_folder(&h), format!("{h}projects"), "a folder of the user's keeps its own projects folder");
+        std::fs::write(home.join("release.toml"), "").unwrap();
+        assert_eq!(projects_folder(&h), slashes(&docs.join("RapidR").join("Projects").to_string_lossy()), "an install's go to Documents");
+        std::env::remove_var("RAPIDR_DOCUMENTS");
+        let _ = std::fs::remove_dir_all(&base);
+    }
 
     #[derive(Clone, Copy)]
     struct Quiet;
