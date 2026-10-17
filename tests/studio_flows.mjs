@@ -4156,7 +4156,8 @@ async function webNestedAndError() {
     for (let k = 1; k <= 3; k++) {
       await page.keyboard.press("F5");
       const after = await until(status, (v) => v.startsWith("Running") || /exit code/.test(v), 5000);
-      const running = after.startsWith("Running") && (await button("Pause")) && !(await button("Run (F5)"));
+      // (the status text says Running a pump before the tool bar's buttons follow — ❙❙ on, ▶ off: wait for them, as a person looks at them, instead of reading them in that gap: this check failed one run in five)
+      const running = after.startsWith("Running") && (await until(async () => (await button("Pause")) && !(await button("Run (F5)")), (v) => v === true, 3000)) === true;
       record("debug-events-web-error (web)", running, `Continue ${k} after the error: the handler ends, the program runs on (${after})`);
       if (k === 3) break;
       const again = await frameBox(runFrame(page), "button", "Oops");
@@ -4440,4 +4441,9 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunlo
 await browser.close().catch(() => {});
 mockProc.kill();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);
+// (a filter that names no flow — a case's full name, `debug-events-web-nested`, is longer than the filter the web groups match, `debug-events-web` — ran nothing and said "0 passed, 0 failed", exit 0: a typo looked like a green run)
+if (filters.length && passed + failed === 0) {
+  console.error(`no flow matches ${JSON.stringify(filters)}: nothing ran`);
+  process.exit(1);
+}
 process.exit(failed ? 1 : 0);
