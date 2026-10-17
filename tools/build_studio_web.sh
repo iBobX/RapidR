@@ -27,6 +27,10 @@ cd "$ROOT"
 BUILD_RUNTIME=1
 if [ "${1:-}" = "--no-runtime" ]; then BUILD_RUNTIME=0; shift; fi
 OUT="${1:-$ROOT/target/studio-web}"
+# (absolute: the examples are copied from inside examples/ below — a
+# relative OUT made examples/target/studio-web, which the examples' tests
+# then found)
+case "$OUT" in /*) ;; *) OUT="$ROOT/$OUT" ;; esac
 
 if [ "$BUILD_RUNTIME" = 1 ]; then
     bash tools/build_web_artifacts.sh
