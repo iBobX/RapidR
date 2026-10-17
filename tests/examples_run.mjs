@@ -278,6 +278,15 @@ export const cases = [
   // (a click on the sky sends a rocket there; Space another one)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
     dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+  // same_numbers.rr: the four sets have the same numbers, measured by RNum
+  // from the points drawn — as they open, and after New points (other points,
+  // the same numbers) —; the line switched off with the mouse
+  { file: "showcase/same_numbers.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 3)}`,
+    dump: "nums(0).caption,nums(1).caption,nums(2).caption,nums(3).caption,chart(3).title,linebox.checked",
+    expect: [0, 1, 2, 3].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["chart(3).title=D: a column, and one point far off", "linebox.checked=-1"]) },
+  { file: "showcase/same_numbers.rr", runtimes: ["run", "interp", "native", "web"], events: `newbtn.onclick,newbtn.onclick,linebox.__mousedown_8_8,linebox.__mouseup_8_8,${wait("info", 3)}`,
+    dump: "nums(1).caption,nums(2).caption,linebox.checked",
+    expect: [1, 2].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["linebox.checked=0"]) },
   // monte_carlo_pi.rr: the speed slider's End key (300,000 darts a second),
   // a second of darts: pi is found to its first digit and the numbers say how many;
   // Pause then Reset: no darts, and the button offers to go on

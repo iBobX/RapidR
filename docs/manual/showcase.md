@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [Same numbers](#same-numbers) | four sets of points with the very same statistics and four different pictures, made by the program |
 | [Pi by darts](#pi-by-darts) | RNum throws and counts thousands of random darts; the estimate and its error update live |
 | [A planet](#a-planet) | a lit, shaded 3D planet with a ring and a moon, built from faces |
 | [Signal lab](#signal-lab) | a signal generator, an oscilloscope held still by a trigger, and an FFT written in BASIC |
@@ -86,6 +87,65 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## Same numbers
+
+[`same_numbers.rr`](../../examples/showcase/same_numbers.rr) shows how much
+a handful of numbers can hide. Four sets of points are built to have the same
+mean and spread in x and in y, the same correlation and so the same line of
+best fit, and yet one is a loose cloud round a line, one a curve, one a line
+with a stray point and one a column of points with a single point far away.
+Under each chart are the numbers, **measured from the points drawn** with
+`RNum`; they come out the same four times. **New points** makes four other
+sets with the same numbers; **Show the line of best fit** switches the line.
+(An idea first shown by F. J. Anscombe in 1973; the points here are made by
+the program, not copied.)
+
+![Four scatter charts: points round a line, a curve, a line with one stray point, a column with one point far off; the same five lines of numbers under each](images/showcase/same-numbers.png)
+
+**How the program makes them.** It doesn't search for lucky points; it builds
+each set so that the numbers are right. Make x have mean 0 and spread 1
+(`xs`). Take a "shape" (random noise, the square of x, one point set to 1, a
+ramp) and remove from it its mean and everything it has in common with x:
+
+```basic
+dot = 0
+FOR i = 0 TO N - 1: dot = dot + (ss(i) - m) * xs(i): NEXT
+dot = dot / N
+FOR i = 0 TO N - 1: ss(i) = ss(i) - m - dot * xs(i): NEXT
+```
+
+What is left, scaled to spread 1, is a shape that is exactly uncorrelated with
+x. Then y is a blend of x and the shape, and its correlation with x is exactly
+the wanted one, `R`:
+
+```basic
+ys = R * xs(i) + SQR(1 - R * R) * ss(i) / ssv
+px(k, i) = MX + SX * xs(i)
+py(k, i) = MY + SY * ys
+```
+
+The last two lines stretch both to the wanted mean and spread. Since
+the correlation, both spreads and both means are the same, so is the line:
+its slope is the correlation times the spread of y over the spread of x. The
+curve is the square of x mixed in, the stray point is a shape that is 0
+everywhere but one place (the other points then lie exactly on a line), the
+column puts every x at one value but one.
+
+**The numbers shown are measured, not promised.** `Describe` fills an `RNum`
+with the x and y of each set and asks it:
+
+```basic
+mx = Xs4(k).Mean: my = Ys4(k).Mean
+sdx = Xs4(k).Std: sdy = Ys4(k).Std
+cov = Tmp.Mean - mx * my                    ' Tmp holds x * y for every point
+rr = cov / (sdx * sdy)
+```
+
+Each chart is an `RPlot` made in code (`DIM Chart(3) AS RPlot`, then
+`Chart(q).Parent = Form` and its place) with a `Scatter` series for the points
+and a `Plot` series for the line, all four on the same axes (`Xlim`, `Ylim`)
+so that their shapes can be compared.
 
 ## Pi by darts
 
