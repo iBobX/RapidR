@@ -67,6 +67,9 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //            examples where RapidR is installed): what it writes fails, and
 //            it must say so (the built executable is made elsewhere)
 //   without: files of the example's folder left out (its data missing)
+//   extra:   files of other examples' folders (`media/tune.mid`) copied beside it
+//   sameFile: a file the program writes must be byte for byte the one shipped
+//            beside it (make_song.rr's song.mid)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
 // hooks fire an event every 50 ms, so the program's timers run meanwhile)
 const wait = (comp, n) => Array(n).fill(`${comp}.onclick`).join(",");
@@ -262,6 +265,36 @@ export const cases = [
   { file: "iot/esp32_monitor.rr", runtimes: ["run", "interp", "native", "web"], env: { RAPIDR_TEST_COMPORT: "COM5:esp32" },
     events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
     expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
+  // showcase/: the release post's programs (docs/manual/showcase.md)
+  // (a rocket launched and left to burst, then the next: the count of
+  // bursts says the first went off)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `launchbtn.onclick,${wait("info", 30)},launchbtn.onclick`,
+    dump: "autobox.checked,info.caption", expect: ["autobox.checked=0", "info.caption=Bursts so far: 1."] },
+  // (the keys: 4 picks the heart; A turns the automatic show on, and it launches)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__key_52", dump: "info.caption",
+    expect: ["info.caption=Next bursts: heart"] },
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_65,${wait("info", 16)}`, dump: "autobox.checked,info.caption",
+    expect: ["autobox.checked=-1", "info.caption=Bursts so far: "] },
+  // (a click on the sky sends a rocket there; Space another one)
+  { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
+    dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+  // (the song read by the program itself — 819 notes, 128 beats a minute —,
+  // played a little, paused: the clock and the caption say so)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 24)},pausebtn.onclick`,
+    dump: "info.caption,clock.caption", expect: ["info.caption=Neon Loop - paused", " / 1:00"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 12)},stopbtn.onclick`,
+    dump: "info.caption,clock.caption,bar.position", expect: ["info.caption=Neon Loop - stopped", "clock.caption=0:00 / 1:00", "bar.position=0"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,clock.caption",
+    expect: ["info.caption=Neon Loop - 819 notes, 128 beats a minute. Press Play.", "clock.caption=0:00 / 1:00"] },
+  // (Load MIDI... with a file that isn't one: said in the window; then
+  // another song, a format 0 file with no name)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], extra: ["media/chime.wav"], fileDialog: "chime.wav", events: "loadbtn.onclick", dump: "info.caption,clock.caption",
+    expect: ["info.caption=That isn't a MIDI file (it doesn't start with MThd)"] },
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], extra: ["media/tune.mid"], fileDialog: "tune.mid", events: "loadbtn.onclick", dump: "info.caption,clock.caption",
+    expect: ["info.caption=Untitled song - 54 notes, 120 beats a minute. Press Play.", "clock.caption=0:00 / 0:08"] },
+  // (Calm ticked with the mouse, then play)
+  { file: "showcase/midi_visualizer.rr", runtimes: ["run", "interp", "native", "web"], events: `calmbox.__mousedown_8_8,calmbox.__mouseup_8_8,playbtn.onclick,${wait("info", 10)}`,
+    dump: "calmbox.checked,info.caption", expect: ["calmbox.checked=-1", "info.caption=Neon Loop - 819 notes"] },
   // rapidq/: RapidQ's own way, Q names, as RC.EXE compiles it
   { file: "rapidq/notepad.bas", runtimes: ["run", "interp", "native", "web"], events: "saveitem.onclick,newitem.onclick,openitem.onclick", dump: "form.caption,editor.linecount",
     fileDialog: "note.txt;note.txt", expect: ["form.caption=Notepad - note.txt", "editor.linecount=3"] },
@@ -359,6 +392,7 @@ function workCopy(c, runtime) {
     if ((c.without || []).includes(f) || /\.tmp\.|^big(_\d+)?\.csv$/.test(f)) continue;
     if (statSync(join(dir, f)).isFile() || c.includes) cpSync(join(dir, f), join(work, f), { recursive: true });
   }
+  for (const e of c.extra || []) cpSync(join(EXAMPLES, e), join(work, basename(e)));
   return work;
 }
 
@@ -445,6 +479,7 @@ async function runWeb(c) {
     const dir = join(EXAMPLES, dirname(c.file));
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && !(c.without || []).includes(f) && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
+    for (const e of c.extra || []) assets[basename(e)] = "data:application/octet-stream;base64," + readFileSync(join(EXAMPLES, e)).toString("base64");
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
     await page.evaluate(({ source, assets, env, gui, main, files }) => {
       window.__rapidr_assets = assets;
@@ -478,6 +513,11 @@ for (const c of cases.filter((c) => !filters.length || filters.some((f) => c.fil
     const missing = c.expect.filter((l) => !r.out.includes(l));
     ok(r.ok && !missing.length, `${c.file} (${runtime})`,
       `${r.why}${missing.length ? ` missing: ${missing.map((m) => JSON.stringify(m)).join(", ")}` : ""}\n    got: ${r.out.trim().split("\n").slice(-12).join("\n         ")}`);
+    if (c.sameFile && runtime === "run") {
+      const made = join(WORK, `${c.file.replace(/[/.]/g, "_")}-${runtime}`, c.sameFile);
+      const shipped = join(EXAMPLES, dirname(c.file), c.sameFile);
+      ok(existsSync(made) && readFileSync(made).equals(readFileSync(shipped)), `${c.file}: ${c.sameFile} is made again byte for byte`);
+    }
   }
 }
 if (browser) await browser.close();

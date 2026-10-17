@@ -1,0 +1,286 @@
+' fireworks.rr: click the sky, or press Space, and a rocket flies up and bursts.
+' Every spark is an element of arrays with its own position, speed and
+' brightness: gravity pulls it down, the air slows it, and it fades away.
+' Thousands fly at once, and the spark count and the frame rate show in the
+' corner. The shape of a burst (a ball, a ring, two rings, a heart) is worked
+' out with RNum, RapidR's numeric arrays: every spark's angle and speed in one
+' go, and for the heart the whole curve.
+'
+'   rapidr run fireworks.rr         (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc fireworks.rr -o fireworks.zip      (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. Keys: Space a rocket
+' at random, click a rocket to that spot, A turns the automatic show on and off.
+$THEME rapidr
+
+CONST W = 800                  ' the sky's size in pixels
+CONST H = 520
+CONST MAXSPARKS = 6000         ' the sparks that can fly at once (the oldest make room)
+CONST MAXROCKETS = 12
+CONST GRAVITY = 120            ' pixels a second, every second
+CONST PI2 = 6.2831853
+
+DECLARE SUB Frame
+DECLARE SUB SkyClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+DECLARE SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+DECLARE SUB Launch
+DECLARE SUB AutoChanged
+DECLARE SUB Hue2Rgb (h AS DOUBLE, BYREF r AS INTEGER, BYREF g AS INTEGER, BYREF b AS INTEGER)
+
+' The sparks: where each is, how fast it moves, how much of its life is left
+' (1 down to 0), how fast that runs out, and its colour
+DIM sx(MAXSPARKS - 1) AS SINGLE, sy(MAXSPARKS - 1) AS SINGLE
+DIM svx(MAXSPARKS - 1) AS SINGLE, svy(MAXSPARKS - 1) AS SINGLE
+DIM life(MAXSPARKS - 1) AS SINGLE, fade(MAXSPARKS - 1) AS SINGLE
+DIM cr(MAXSPARKS - 1) AS INTEGER, cg(MAXSPARKS - 1) AS INTEGER, cb(MAXSPARKS - 1) AS INTEGER
+DIM head AS INTEGER              ' the next slot a new spark takes
+DIM alive AS INTEGER             ' sparks flying now
+' The rockets on their way up, and where each will burst
+DIM rx(MAXROCKETS - 1) AS DOUBLE, ry(MAXROCKETS - 1) AS DOUBLE, rtarget(MAXROCKETS - 1) AS DOUBLE
+DIM rflying(MAXROCKETS - 1) AS INTEGER, rkind(MAXROCKETS - 1) AS INTEGER
+DIM pick AS INTEGER              ' the shape asked for with the keys 1 to 4; -1: any
+DIM bursts AS INTEGER, rockets AS INTEGER
+DIM lastTime AS DOUBLE, nextAuto AS DOUBLE
+DIM starX(79) AS INTEGER, starY(79) AS INTEGER, starB(79) AS INTEGER
+DIM skyline(19) AS INTEGER       ' the heights of 20 buildings along the ground
+DIM flashX(7) AS INTEGER, flashY(7) AS INTEGER, flashAge(7) AS DOUBLE    ' the pale pop at a burst
+
+' The numbers of a burst, made all at once (RNum)
+DIM Ang AS RNum, Spd AS RNum, Vx AS RNum, Vy AS RNum, Tmp AS RNum
+
+DIM FrameTimer AS RDXTimer
+FrameTimer.Interval = 0                     ' once a frame
+FrameTimer.OnTimer = Frame
+
+CREATE Form AS RForm
+    Caption = "Fireworks"
+    ClientWidth = W
+    ClientHeight = H + 40
+    KeyPreview = 1                          ' the form hears the keys first
+    OnKeyDown = FormKey
+    Center
+    CREATE Sky AS RDXScreen
+        Left = 0: Top = 0: Width = W: Height = H
+        Init(W, H)
+        OnMouseDown = SkyClick
+        AccessibleName = "Sky"
+        AccessibleDescription = "Click for a firework, or press Space"
+    END CREATE
+    CREATE LaunchBtn AS RButton
+        Caption = "&Launch": Left = 12: Top = H + 8: Width = 90
+        OnClick = Launch
+        AccessibleDescription = "One rocket at random, as the Space key does"
+    END CREATE
+    CREATE AutoBox AS RCheckBox
+        Caption = "&Auto show": Left = 116: Top = H + 12: Width = 110
+        OnClick = AutoChanged
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 240: Top = H + 12: Width = W - 252
+        Caption = "Click the sky or press Space. 1 to 4 pick the shape, A the show."
+    END CREATE
+END CREATE
+
+' One spark: its place, its velocity, its life in seconds and its colour
+SUB NewSpark (x AS DOUBLE, y AS DOUBLE, vx AS DOUBLE, vy AS DOUBLE, secs AS DOUBLE, r AS INTEGER, g AS INTEGER, b AS INTEGER)
+    DIM k AS INTEGER
+    k = head
+    head = (head + 1) MOD MAXSPARKS
+    sx(k) = x: sy(k) = y: svx(k) = vx: svy(k) = vy
+    life(k) = 1: fade(k) = 1 / secs
+    cr(k) = r: cg(k) = g: cb(k) = b
+END SUB
+
+' A burst of n sparks at (x, y), of a shape: 0 a ball, 1 a ring, 2 two rings,
+' 3 a heart. RNum does the sums: n angles round the circle, a speed for each,
+' and from them the direction every spark flies in.
+SUB Burst (x AS DOUBLE, y AS DOUBLE, n AS INTEGER, kind AS INTEGER)
+    DIM i AS INTEGER, r AS INTEGER, g AS INTEGER, b AS INTEGER, hue AS DOUBLE, size AS DOUBLE
+    Ang.Linspace 0, PI2, n                 ' n angles round the circle
+    Ang.Add(RND * PI2)                     ' turned a random amount
+    Spd.Uniform 0.35, 1, n                 ' speeds, from 35 % to the full 100 %
+    IF kind = 1 OR kind = 2 THEN Spd.Full n, 1        ' a ring: all alike
+    IF kind = 2 THEN
+        FOR i = 0 TO n - 1 STEP 2
+            Spd.Set i, 0.55                           ' every other spark: an inner ring
+        NEXT
+    END IF
+    Vx.Data = Ang.Data: Vx.Cos             ' the direction: cos and sin of the angle
+    Vy.Data = Ang.Data: Vy.Sin
+    IF kind = 3 THEN
+        ' a heart: x = 16 sin^3 t, y = -(13 cos t - 5 cos 2t - 2 cos 3t - cos 4t)
+        Vx.Data = Ang.Data: Vx.Sin: Vx.Power 3: Vx.Multiply 16
+        Vy.Data = Ang.Data: Vy.Cos: Vy.Multiply 13
+        Tmp.Data = Ang.Data: Tmp.Multiply 2: Tmp.Cos: Tmp.Multiply 5: Vy.Subtract Tmp
+        Tmp.Data = Ang.Data: Tmp.Multiply 3: Tmp.Cos: Tmp.Multiply 2: Vy.Subtract Tmp
+        Tmp.Data = Ang.Data: Tmp.Multiply 4: Tmp.Cos: Vy.Subtract Tmp
+        Vy.Negative
+        Vx.Multiply(1 / 17): Vy.Multiply(1 / 17)
+        Spd.Full n, 1
+    END IF
+    size = 240 + RND * 110                 ' how big it is, in pixels a second
+    Vx.Multiply "Spd": Vx.Multiply size    ' direction times speed times size
+    Vy.Multiply "Spd": Vy.Multiply size
+    hue = RND
+    FOR i = 0 TO n - 1
+        ' the burst's colour, each spark a little different; some glitter white
+        Hue2Rgb hue + (RND - 0.5) * 0.12, r, g, b
+        IF RND < 0.12 THEN
+            r = 255: g = 255: b = 255
+        END IF
+        NewSpark x, y, Vx.Get(i), Vy.Get(i), 1.1 + RND * 0.9, r, g, b
+    NEXT
+    flashX(bursts MOD 8) = x: flashY(bursts MOD 8) = y: flashAge(bursts MOD 8) = 0
+    bursts = bursts + 1
+END SUB
+
+' Hue (0 to 1 round the colour wheel) as bright red, green and blue (0 to 255)
+SUB Hue2Rgb (h AS DOUBLE, BYREF r AS INTEGER, BYREF g AS INTEGER, BYREF b AS INTEGER)
+    DIM x AS DOUBLE, i AS INTEGER, f AS DOUBLE
+    x = (h - INT(h)) * 6
+    i = INT(x): f = x - i
+    SELECT CASE i
+        CASE 0: r = 255: g = 40 + 215 * f: b = 40
+        CASE 1: r = 255 - 215 * f: g = 255: b = 40
+        CASE 2: r = 40: g = 255: b = 40 + 215 * f
+        CASE 3: r = 40: g = 255 - 215 * f: b = 255
+        CASE 4: r = 40 + 215 * f: g = 40: b = 255
+        CASE ELSE: r = 255: g = 40: b = 255 - 215 * f
+    END SELECT
+END SUB
+
+' A rocket from the ground at x that bursts at height y
+SUB Rocket (x AS DOUBLE, y AS DOUBLE)
+    DIM k AS INTEGER
+    FOR k = 0 TO MAXROCKETS - 1
+        IF rflying(k) = 0 THEN
+            rx(k) = x: ry(k) = H - 30: rtarget(k) = y: rflying(k) = 1
+            rkind(k) = IIF(pick >= 0, pick, INT(RND * 4))
+            EXIT FOR
+        END IF
+    NEXT
+    Info.Caption = "Bursts so far: " + FORMAT$("%d", bursts) + ". Click the sky or press Space."
+END SUB
+
+SUB Launch
+    Rocket 100 + RND * (W - 200), 70 + RND * (H - 300)
+END SUB
+
+SUB SkyClick (Button AS INTEGER, X AS INTEGER, Y AS INTEGER)
+    Rocket X, Y
+END SUB
+
+' Space: a rocket (and the key is used up, so a button that has the focus
+' doesn't press itself); A: the automatic show on or off; 1 to 4: the shape
+SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+    IF Key = 32 THEN
+        Launch
+        Key = 0
+    ELSEIF Key = 65 THEN
+        AutoBox.Checked = IIF(AutoBox.Checked, 0, 1)
+        AutoChanged
+        Key = 0
+    ELSEIF Key >= 48 AND Key <= 52 THEN          ' 1 ball, 2 ring, 3 two rings, 4 heart, 0 any
+        pick = Key - 49
+        Info.Caption = "Next bursts: " + FIELD$("any|ball|ring|two rings|heart", "|", pick + 2)
+        Key = 0
+    END IF
+END SUB
+
+SUB AutoChanged
+    nextAuto = TIMER + 0.3
+END SUB
+
+' Each frame: the rockets climb, every spark moves and is drawn with a tail,
+' the numbers show
+SUB Frame
+    DIM now AS DOUBLE, dt AS DOUBLE, i AS INTEGER, f AS DOUBLE, drag AS DOUBLE, x AS DOUBLE, y AS DOUBLE
+    DIM br AS DOUBLE, c AS INTEGER, rad AS DOUBLE
+    now = TIMER
+    dt = now - lastTime
+    IF dt < 0 OR dt > 0.1 THEN dt = 0.016
+    lastTime = now
+    IF AutoBox.Checked AND now >= nextAuto THEN
+        Launch
+        nextAuto = now + 0.6 + RND * 0.9
+    END IF
+    ' the rockets: up they go, a trail of sparks behind, a burst at the top
+    FOR i = 0 TO MAXROCKETS - 1
+        IF rflying(i) THEN
+            ry(i) = ry(i) - 480 * dt
+            NewSpark rx(i), ry(i), (RND - 0.5) * 40, 50 + RND * 60, 0.3 + RND * 0.3, 255, 170 + INT(RND * 60), 60
+            IF ry(i) <= rtarget(i) THEN
+                rflying(i) = 0
+                Burst rx(i), ry(i), 300 + INT(RND * 300), rkind(i)
+            END IF
+        END IF
+    NEXT
+    Sky.Fill(&H080A1C)                           ' the night, and its stars
+    FOR i = 0 TO 79
+        br = starB(i) * (0.55 + 0.45 * SIN(now * 2 + i))
+        Sky.Pset starX(i), starY(i), RGB(br, br, br * 1.1)
+    NEXT
+    ' the pale pop of a new burst: a disc that grows and is gone in a quarter of a second
+    FOR i = 0 TO 7
+        flashAge(i) = flashAge(i) + dt
+        IF flashAge(i) < 0.25 THEN
+            br = 1 - flashAge(i) * 4
+            rad = 10 + flashAge(i) * 160
+            c = RGB(70 * br, 70 * br, 90 * br)
+            Sky.Circle flashX(i) - rad, flashY(i) - rad, flashX(i) + rad, flashY(i) + rad, c, c
+        END IF
+    NEXT
+    drag = EXP(-dt * 1.6)                        ' the air slows a spark a little every frame
+    alive = 0
+    FOR i = 0 TO MAXSPARKS - 1
+        f = life(i)
+        IF f > 0 THEN
+            alive = alive + 1
+            svy(i) = (svy(i) + GRAVITY * dt) * drag
+            svx(i) = svx(i) * drag
+            sx(i) = sx(i) + svx(i) * dt
+            sy(i) = sy(i) + svy(i) * dt
+            f = f - fade(i) * dt
+            life(i) = f
+            IF f > 0 AND sy(i) < H THEN
+                ' it dims as it dies; the tail is where it just came from
+                br = f
+                IF f < 0.4 THEN br = f * f / 0.4
+                c = RGB(8 + cr(i) * br, 10 + cg(i) * br, 28 + cb(i) * br)
+                Sky.Line sx(i), sy(i), sx(i) - svx(i) * dt * 4, sy(i) - svy(i) * dt * 4, c
+            ELSE
+                life(i) = 0
+            END IF
+        END IF
+    NEXT
+    rockets = 0
+    FOR i = 0 TO MAXROCKETS - 1                  ' the rockets' bright heads
+        IF rflying(i) THEN
+            rockets = rockets + 1
+            Sky.FillRect rx(i) - 1, ry(i) - 1, rx(i) + 1, ry(i) + 1, &HFFFFFF
+        END IF
+    NEXT
+    FOR i = 0 TO 19                              ' the city: dark blocks along the ground
+        Sky.FillRect i * 40, H - skyline(i), i * 40 + 38, H, &H0C0818
+    NEXT
+    IF bursts = 0 AND alive = 0 AND rockets = 0 THEN Sky.TextOut W / 2 - 112, H / 2 - 40, "Click the sky or press Space", &HC8C8C8, -1
+    Sky.TextOut 10, 8, FORMAT$("%d", alive) + " sparks   " + FORMAT$("%d", FrameTimer.FrameRate) + " fps", &HFFFFFF, -1
+    Sky.Flip
+END SUB
+
+RANDOMIZE TIMER
+pick = -1
+DIM q AS INTEGER
+FOR q = 0 TO 7
+    flashAge(q) = 9                              ' no pop yet
+NEXT
+FOR q = 0 TO 79
+    starX(q) = INT(RND * W): starY(q) = INT(RND * (H - 140)): starB(q) = 90 + INT(RND * 150)
+NEXT
+FOR q = 0 TO 19
+    skyline(q) = 30 + INT(RND * 60)
+NEXT
+lastTime = TIMER
+nextAuto = TIMER + 0.4
+FrameTimer.Enabled = 1
+Form.ShowModal

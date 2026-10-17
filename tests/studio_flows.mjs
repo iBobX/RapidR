@@ -1614,6 +1614,17 @@ const CASES = [
     delay: 4,
     dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
   },
+  // (SHOWCASE) the showcase programs are in Open an Example (the palette),
+  // not cards on the Welcome page: "visualizer" typed finds one, Enter opens
+  // it as the user's own copy, with its song beside it
+  {
+    name: "palette-showcase",
+    open: "",
+    do: "wait,palette:visualizer",
+    events: "palette.__key_13",
+    delay: 6,
+    dump: { "palette.selected": /^more:1$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
+  },
   {
     // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
     // to the parameters

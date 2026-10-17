@@ -160,6 +160,19 @@ the original alone).
 | [todo.rr](web/todo.rr) | A to-do list kept in the browser's storage (`RWebStorage`): it's there again next visit | web | `rapidr bundle-bc web/todo.rr -o todo.zip` |
 | [browser.rr](web/browser.rr) | Asking the browser with `RJavaScript.Eval`; pages in the address's `#` with `RRouter` (Back works) | web | `rapidr bundle-bc web/browser.rr -o browser.zip` |
 
+### showcase/ — bigger programs, written from the idea alone
+
+Each is a whole program in one file, built only from what RapidR has today,
+with made-up data (the weather one asks a public server). Listed in
+RapidR Studio under **Open an Example**; [the manual's page](../docs/manual/showcase.md)
+has a picture of each and explains its best lines.
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [fireworks.rr](showcase/fireworks.rr) | Click the sky or press Space: a rocket flies up and bursts into thousands of sparks, each its own element of arrays with its own gravity, drag and fade; RNum works out the shapes (ball, ring, two rings, a heart); the spark count and the frame rate show in the corner | run · interp · native · web | `rapidr run showcase/fireworks.rr` |
+| [midi_visualizer.rr](showcase/midi_visualizer.rr) | A 3D scene that dances to a song: the program reads the `.mid` file itself (chunks, variable-length times, tempo, Note On), RMIDI plays it, every note moves the scene; Load MIDI…, a Calm switch | run · interp · native · web | `rapidr run showcase/midi_visualizer.rr` |
+| [make_song.rr](showcase/make_song.rr) | Composes [song.mid](showcase/song.mid), the visualizer's own 32-bar loop (kick, bass, arpeggio, pad), and writes it as a MIDI file | run · interp · native · web | `rapidr run showcase/make_song.rr` |
+
 ### studio/ and the IDE — RapidR Studio's parts
 
 | Example | What it shows | Runs on | Try |
