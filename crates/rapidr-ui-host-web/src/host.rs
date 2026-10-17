@@ -189,7 +189,9 @@ const STYLE: &str = r#"
 .rr-kwin .rr-koverlays { position: absolute; overflow: hidden; pointer-events: none; }
 .rr-kwin .rr-koverlays > * { pointer-events: auto; }
 .rr-a11y, .rr-a11y * { position: absolute; margin: 0; padding: 0; border: 0; background: transparent; color: transparent;
-  outline: none; overflow: hidden; pointer-events: none; white-space: pre; box-sizing: border-box; }
+  outline: none; overflow: hidden; pointer-events: none; white-space: pre; box-sizing: border-box;
+  /* (forced colours — Windows' High Contrast —: without this the browser paints the mirror's text in the system's colour over the canvas, every label twice) */
+  forced-color-adjust: none; }
 .rr-a11y input, .rr-a11y textarea { caret-color: transparent; resize: none; padding: 1px 3px; font: 13px "Liberation Sans", Arial, sans-serif; line-height: 15px; }
 .rr-a11y ::selection { background: transparent; color: transparent; }
 "#;

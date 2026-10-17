@@ -4421,6 +4421,14 @@ async function webColorScheme() {
       const colors = `${await prop("welcome", "color")}/${await prop("excard(0)", "color")}`;
       record(name, got === want && colors === `${page_}/${card}`, `the browser switched to ${JSON.stringify(media)}: Studio is ${got}, the Welcome page and its cards ${colors} (wanted ${page_}/${card}), no reload`);
       await page.waitForTimeout(400);
+      if (media.forcedColors === "active") {
+        // (forced colours — Windows' High Contrast —: the browser repaints every element in the system's colours unless told not to; the screen readers' mirror, laid over the canvas in transparent text, then showed every label twice, a serif face on top of the canvas's)
+        const adjust = await page.evaluate(() => {
+          const el = document.querySelector(".rr-a11y [role=button], .rr-a11y [role=menuitem], .rr-a11y [role=treeitem]");
+          return el ? getComputedStyle(el).forcedColorAdjust + "/" + getComputedStyle(el).color : "no mirror element";
+        });
+        record(name, adjust === "none/rgba(0, 0, 0, 0)", `in forced colours the screen readers' mirror stays invisible (forced-color-adjust/colour: ${adjust})`);
+      }
       await page.screenshot({ path: join(WORK, `theme-web-color-scheme-${want.replace(/ /g, "-")}.png`) });
     }
   } catch (e) {
