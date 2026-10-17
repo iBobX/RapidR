@@ -79,6 +79,9 @@ SUB FillPalette
   FOR i = 0 TO ExampleCount - 1
     Palette.AddCommand "example:" + LTRIM$(STR$(i)), FileTitle(ExampleFile(i)) + " - " + ExampleWhat(i), "", "Example", "RFORM"
   NEXT
+  FOR i = 0 TO MoreCount - 1
+    Palette.AddCommand "more:" + LTRIM$(STR$(i)), FileTitle(MoreFile(i)) + " - " + MoreWhat(i), "", "Example", "RFORM"
+  NEXT
   Palette.AddPrefix ":", "Go to line {}"
 END SUB
 
@@ -134,6 +137,8 @@ SUB PaletteCommand(Id AS STRING)
   DIM d AS INTEGER
   IF LEFT$(Id, 8) = "example:" THEN
     OpenProject HomeDir + "examples/" + ExampleFile(VAL(MID$(Id, 9)))
+  ELSEIF LEFT$(Id, 5) = "more:" THEN
+    OpenProject HomeDir + "examples/" + MoreFile(VAL(MID$(Id, 6)))
   ELSEIF LEFT$(Id, 5) = "open:" THEN
     OpenDocument MID$(Id, 6)
   ELSEIF LEFT$(Id, 5) = "line:" THEN

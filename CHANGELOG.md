@@ -7,6 +7,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Showcase: eight bigger programs, written from ideas alone** in
+  `examples/showcase/` (the data is made up by the programs; nothing is copied).
+  Fireworks (thousands of sparks, each with its own physics, shapes worked out
+  with `RNum`), a lit 3D planet with a ring and a moon, pi by throwing
+  darts (`RNum` throws and counts up to 300,000 a second), four sets of points
+  with the very same statistics, a Markdown notes app (live preview; files on
+  the desktop, the browser's storage on the web), a snake game for the
+  keyboard alone (the computer can play), a signal generator with an
+  oscilloscope and an FFT written in BASIC, and a MIDI visualizer that reads
+  the `.mid` file itself and makes a 3D scene dance to it (`song.mid` is an
+  original loop made by `make_song.rr`). Each runs as `rapidr run`, interpreted,
+  native and in the browser; Studio lists them under **Open an Example** (the
+  palette; the Welcome page keeps its cards); the manual has a
+  [Showcase page](docs/manual/showcase.md) with a picture and the best lines of
+  each. The examples test can now compare a written file with the shipped one
+  (`sameFile`), copy another example's file beside a program (`extra`) and open
+  the web page again to check what the browser kept (`reload`).
+
 ### Fixed
 - **RapidR Studio's examples work where RapidR is installed.** The examples
   there can't be changed (the macOS app, `/usr/lib/rapidr`, Program Files), and

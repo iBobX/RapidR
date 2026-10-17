@@ -579,6 +579,13 @@ RapidR BASIC running ON an ESP32 (and later other boards), not only talking to o
 
 ## Showcase gaps (found 2026-10-16 while choosing showcase examples; after Preview 2)
 In order of how many showcase ideas each unlocks:
+- [x] **SHOWCASE lane (2026-10-17): eight programs written from ideas alone in `examples/showcase/`** (fireworks, spin3d, monte_carlo_pi, same_numbers, notes, snake, signal_lab, midi_visualizer + make_song and its song.mid), each tested on run / interp / native / web, in Studio's Open an Example (the palette), with a section and a picture in [the manual's Showcase page](docs/manual/showcase.md). Gaps they found:
+  - [ ] **weather.rr waits for RHttp request headers.** MET Norway's terms ask every request to carry an identifying User-Agent (the app or its domain), and `RHttp` can't set a header (ureq's own is sent). Needs `RHttp.UserAgent` / `SetHeader`, the response headers' `Expires` (to cache as the service asks), and the real HTTP status and an error text on failure (today any failure, a 403 or 404 too, reads status 0 with an empty body). The service is open (CC BY 4.0 / NLOD 2.0, no key, `access-control-allow-origin: *`); on the web the browser identifies the page with its Origin and the request mustn't carry a custom header (no CORS preflight). Terms and the quotes: the SHOWCASE report.
+  - [ ] A way to ask whether the program runs in a browser (`Application.Platform`): notes.rr tests `Application.ExeName` for `.html`, and `RWebStorage` on the desktop prints `[WARN] … not implemented` on every call instead of staying quiet.
+  - [ ] The program can't swallow a key: `Key = 0` in OnKeyDown (even with `KeyPreview`) doesn't stop a focused button or box from reacting to Space as well, and there is no `ActiveControl`. The showcase windows that use Space have no focusable controls.
+  - [ ] The system's reduce-motion setting isn't visible to programs (the visualizer has a Calm switch of its own).
+  - [ ] Drawing on an `RDXScreen` or `RCanvas` costs 3.5 to 5 microseconds a call (measured): ~2,000 sparks a frame is about the most that holds 30 fps; a bulk way to draw points (an array of points in one call) would take fireworks to tens of thousands.
+  - [ ] `RNum` has no mask / gather (select the elements where another array is true), and an `RPlot` `Hline`'s label isn't in the legend.
 - [ ] **RScope: live oscilloscope and spectrum analyzer from the microphone or line-in** (Robert, 2026-10-16; the next release's engineer WOW).
   - Live audio input with sample blocks to the program: an RWave OnData event, or an RAudioIn. On the desktop `cpal` (MIT/Apache), on the web getUserMedia + AudioWorklet.
   - A native `RNum.FFT` with windowing.

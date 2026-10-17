@@ -1,0 +1,689 @@
+' midi_visualizer.rr: a song plays and a 3D scene dances to it, note by note.
+' The program reads the .mid file ITSELF (see ReadTrack) and builds a
+' timeline of notes; RMIDI plays the sound and tells the position, and each
+' note that falls due moves the scene:
+'   - a kick (or any drum) makes the glass crystal in the middle pulse,
+'   - a note's pitch picks its colour and how high its column and its spark go,
+'   - the bass shakes the camera,
+'   - the more notes a second, the faster the whole ring turns.
+'
+'   rapidr run midi_visualizer.rr          (run it, or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc midi_visualizer.rr -o visualizer.zip     (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. The song is song.mid
+' (made by make_song.rr, an original loop, built into the program); Load
+' MIDI... plays any .mid file instead. Where the system has no MIDI synth
+' (macOS, Linux, the web) RapidR's own synthesizer plays.
+'
+' Made not to flash (WCAG 2.3.1's three-flashes idea): a pulse is a movement,
+' not a change of light; the background brightens by a few percent only;
+' kick pulses start at least 340 ms apart (3 a second at most); the light
+' over the floor drifts to a note's colour over about a third of a second.
+' "Calm" makes every movement gentler still: no camera shake, slower
+' turning, softer pulses. (RapidR doesn't tell programs the system's
+' reduce-motion setting yet, so Calm is the user's to switch.)
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"
+$INCLUDE "QMidi.inc"
+$RESOURCE SONG AS "song.mid"
+
+CONST D3DRMLIGHT_AMBIENT = 0
+CONST D3DRMLIGHT_POINT = 1
+CONST D3DRMLIGHT_DIRECTIONAL = 3
+CONST D3DRMRENDER_FLAT = 136
+CONST PI = 3.14159265
+CONST MAXNOTES = 30000          ' the longest song shown (a file with more is cut)
+CONST NCOL = 24                 ' the ring: a column for each of the 12 notes of the scale, low and high
+CONST NSPARK = 32               ' sparks that fly up from the ring
+CONST RING = 4                  ' the ring's radius, and where the camera is
+CONST CAMY = 4.8
+CONST CAMZ = -12.5
+
+DECLARE SUB Setup
+DECLARE SUB Frame
+DECLARE SUB Moved (Position AS LONG)
+DECLARE SUB PlayIt
+DECLARE SUB PauseIt
+DECLARE SUB StopIt
+DECLARE SUB LoadOne
+DECLARE SUB CalmChanged
+
+' ---- the song, read from the file ------------------------------------------------
+DIM rawTick(MAXNOTES) AS LONG, rawKey(MAXNOTES) AS INTEGER, rawVel(MAXNOTES) AS INTEGER, rawChan(MAXNOTES) AS INTEGER
+DIM sortKey(MAXNOTES) AS DOUBLE
+DIM noteMs(MAXNOTES) AS LONG, noteKey(MAXNOTES) AS INTEGER, noteVel(MAXNOTES) AS INTEGER, noteChan(MAXNOTES) AS INTEGER
+DIM noteCount AS INTEGER, nextNote AS INTEGER
+DIM tempoTick(255) AS LONG, tempoUs(255) AS LONG
+DIM tempoCount AS INTEGER, division AS INTEGER
+DIM songName AS STRING, songFile AS STRING, songBpm AS INTEGER
+DIM Rd AS RFileStream
+
+' A number of n bytes, the biggest byte first (MIDI's way)
+FUNCTION ReadBE (n AS INTEGER) AS LONG
+    DIM v AS DOUBLE, i AS INTEGER
+    FOR i = 1 TO n
+        v = v * 256 + Rd.ReadByte
+    NEXT
+    ReadBE = v
+END FUNCTION
+
+' A "variable-length number": 7 bits a byte, the high bit set on every byte
+' but the last (delta times are written like this)
+FUNCTION ReadVLQ AS LONG
+    DIM v AS LONG, b AS INTEGER
+    DO
+        b = Rd.ReadByte
+        v = v * 128 + (b AND 127)
+    LOOP WHILE b >= 128
+    ReadVLQ = v
+END FUNCTION
+
+' One track: events, each after a delta time in ticks. Keep the Note Ons
+' and the tempo changes; skip the rest by their length.
+SUB ReadTrack (chunkEnd AS LONG)
+    DIM tick AS LONG, status AS INTEGER, run AS INTEGER, b AS INTEGER
+    DIM kind AS INTEGER, n AS LONG, d1 AS INTEGER, d2 AS INTEGER
+    DO WHILE Rd.Position < chunkEnd
+        tick = tick + ReadVLQ
+        b = Rd.ReadByte
+        IF b >= 128 THEN
+            status = b
+        ELSE
+            status = run                      ' running status: the byte was data
+            Rd.Position = Rd.Position - 1
+        END IF
+        IF status = &HFF THEN                 ' a meta event: kind, length, data
+            kind = Rd.ReadByte
+            n = ReadVLQ
+            IF kind = &H51 AND tempoCount < 255 THEN      ' tempo: microseconds a beat
+                tempoTick(tempoCount) = tick
+                tempoUs(tempoCount) = ReadBE(3)
+                tempoCount = tempoCount + 1
+            ELSEIF kind = 3 AND songName = "" AND n < 80 THEN  ' the first track name (plain letters only)
+                FOR d1 = 1 TO n
+                    d2 = Rd.ReadByte
+                    IF d2 >= 32 AND d2 < 127 THEN songName = songName + CHR$(d2)
+                NEXT
+            ELSE
+                Rd.Position = Rd.Position + n
+            END IF
+        ELSEIF status = &HF0 OR status = &HF7 THEN         ' sysex: skip it
+            Rd.Position = Rd.Position + ReadVLQ
+        ELSE                                  ' a channel event: 2 data bytes, 1 for C and D
+            run = status
+            d1 = Rd.ReadByte
+            IF (status \ 16) = 12 OR (status \ 16) = 13 THEN d2 = 0 ELSE d2 = Rd.ReadByte
+            IF (status \ 16) = 9 AND d2 > 0 AND noteCount < MAXNOTES THEN    ' Note On
+                rawTick(noteCount) = tick: rawKey(noteCount) = d1
+                rawVel(noteCount) = d2: rawChan(noteCount) = status AND 15
+                noteCount = noteCount + 1
+            END IF
+        END IF
+    LOOP
+END SUB
+
+' Ticks to milliseconds through the tempo changes
+FUNCTION TickMs (tick AS LONG) AS DOUBLE
+    DIM i AS INTEGER, us AS DOUBLE, lastTick AS LONG, lastUs AS LONG
+    lastUs = 500000                           ' 120 beats a minute until a tempo says otherwise
+    FOR i = 0 TO tempoCount - 1
+        IF tempoTick(i) >= tick THEN EXIT FOR
+        us = us + (tempoTick(i) - lastTick) * lastUs / division
+        lastTick = tempoTick(i): lastUs = tempoUs(i)
+    NEXT
+    TickMs = (us + (tick - lastTick) * lastUs / division) / 1000
+END FUNCTION
+
+' The whole file: "" when it is read, else what is wrong with it. The notes
+' of every track end up in time order (a sort of ms * 100000 + the note's number).
+FUNCTION ReadMidi (File AS STRING) AS STRING
+    DIM hdr AS LONG, tracks AS INTEGER, t AS INTEGER, id AS LONG, chunkEnd AS LONG, i AS INTEGER, j AS INTEGER
+    noteCount = 0: tempoCount = 0: songName = ""
+    IF Rd.Open(File, fmOpenRead) = 0 THEN
+        ReadMidi = "Can't open " + File
+        EXIT FUNCTION
+    END IF
+    ' (a chunk starts with 4 letters: "MThd" is the number &H4D546864 as 4 bytes)
+    IF ReadBE(4) <> &H4D546864 THEN
+        Rd.Close
+        ReadMidi = "That isn't a MIDI file (it doesn't start with MThd)"
+        EXIT FUNCTION
+    END IF
+    hdr = ReadBE(4)
+    j = ReadBE(2)                             ' the format: 0, 1 or 2
+    tracks = ReadBE(2)
+    division = ReadBE(2)                      ' ticks in a quarter note
+    Rd.Position = 8 + hdr
+    IF division >= 32768 OR division = 0 THEN
+        Rd.Close
+        ReadMidi = "This MIDI file counts time in SMPTE frames, not beats: not supported"
+        EXIT FUNCTION
+    END IF
+    FOR t = 1 TO tracks
+        id = ReadBE(4)
+        chunkEnd = ReadBE(4) + Rd.Position
+        IF chunkEnd > Rd.Size THEN chunkEnd = Rd.Size            ' a cut-off file: read what is there
+        IF id = &H4D54726B THEN ReadTrack chunkEnd               ' "MTrk"
+        Rd.Position = chunkEnd
+    NEXT
+    Rd.Close
+    ' (tempo changes in time order: a few, so a plain insertion sort)
+    FOR i = 1 TO tempoCount - 1
+        FOR j = i TO 1 STEP -1
+            IF tempoTick(j - 1) > tempoTick(j) THEN
+                SWAP tempoTick(j - 1), tempoTick(j)
+                SWAP tempoUs(j - 1), tempoUs(j)
+            END IF
+        NEXT
+    NEXT
+    IF noteCount = 0 THEN
+        ReadMidi = "This MIDI file has no notes"
+        EXIT FUNCTION
+    END IF
+    FOR i = 0 TO noteCount - 1
+        sortKey(i) = INT(TickMs(rawTick(i))) * 100000 + i
+    NEXT
+    QUICKSORT sortKey(0), sortKey(noteCount - 1), 0
+    FOR i = 0 TO noteCount - 1
+        j = sortKey(i) - INT(sortKey(i) / 100000) * 100000
+        noteMs(i) = INT(sortKey(i) / 100000)
+        noteKey(i) = rawKey(j): noteVel(i) = rawVel(j): noteChan(i) = rawChan(j)
+    NEXT
+    IF tempoCount > 0 THEN songBpm = 60000000 / tempoUs(0) ELSE songBpm = 120
+    IF songName = "" THEN songName = "Untitled song"
+    ReadMidi = ""
+END FUNCTION
+
+' ---- the window ------------------------------------------------------------------
+DIM Midi AS RMIDI
+Midi.Timer.Interval = 20
+Midi.OnChange = Moved
+
+DIM Frames AS RDXTimer
+Frames.Interval = 0                           ' once a frame
+Frames.OnTimer = Frame
+
+CREATE Form AS RForm
+    Caption = "MIDI visualizer"
+    ClientWidth = 760
+    ClientHeight = 546
+    MinWidth = 700: MinHeight = 420
+    Center
+    CREATE DX AS RDXScreen
+        Left = 0: Top = 0: Width = 760: Height = 440
+        Anchors = akLeft + akTop + akRight + akBottom      ' it grows with the window
+        Init(760, 440)
+        Use3D = 1
+        OnInitialize = Setup
+        AccessibleName = "Visualizer"
+        AccessibleDescription = "A 3D scene of a crystal in a ring of columns that moves with the music"
+    END CREATE
+    CREATE LoadBtn AS RButton
+        Caption = "&Load MIDI...": Left = 12: Top = 452: Width = 108
+        Anchors = akLeft + akBottom
+        OnClick = LoadOne
+    END CREATE
+    CREATE PlayBtn AS RButton
+        Caption = "&Play": Left = 128: Top = 452: Width = 74
+        Anchors = akLeft + akBottom
+        OnClick = PlayIt
+    END CREATE
+    CREATE PauseBtn AS RButton
+        Caption = "P&ause": Left = 208: Top = 452: Width = 74
+        Anchors = akLeft + akBottom
+        OnClick = PauseIt
+    END CREATE
+    CREATE StopBtn AS RButton
+        Caption = "&Stop": Left = 288: Top = 452: Width = 74
+        Anchors = akLeft + akBottom
+        OnClick = StopIt
+    END CREATE
+    CREATE CalmBox AS RCheckBox
+        Caption = "&Calm": Left = 380: Top = 456: Width = 70
+        Anchors = akLeft + akBottom
+        OnClick = CalmChanged
+        AccessibleDescription = "Gentler movement: no camera shake, softer pulses, slower turning"
+    END CREATE
+    CREATE LoopBox AS RCheckBox
+        Caption = "L&oop": Left = 456: Top = 456: Width = 70
+        Anchors = akLeft + akBottom
+        Checked = 1
+    END CREATE
+    CREATE Clock AS RLabel
+        Left = 600: Top = 458: Width = 148
+        Anchors = akRight + akBottom
+        Alignment = 1
+    END CREATE
+    CREATE Bar AS RProgressBar
+        Left = 12: Top = 490: Width = 736: Height = 12
+        Anchors = akLeft + akRight + akBottom
+        AccessibleName = "Position in the song"
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 512: Width = 736
+        Anchors = akLeft + akRight + akBottom
+    END CREATE
+    CREATE OpenDlg AS ROpenDialog
+        Filter = "MIDI files|*.mid;*.midi|All files|*.*"
+        Title = "Load a MIDI file"
+    END CREATE
+END CREATE
+
+' ---- the 3D scene ----------------------------------------------------------------
+DIM Face AS RD3DFace
+DIM Rig AS RD3DFrame                          ' the ring turns with this one
+DIM Gem AS RD3DFrame                          ' the crystal's turning
+DIM GemPulse AS RD3DFrame                     ' and its pulsing (a frame of its own: a scale
+DIM GemMesh AS RD3DMeshBuilder                ' replaces the frame's turn, so the two are apart)
+DIM Floor AS RD3DFrame
+DIM FloorMesh AS RD3DMeshBuilder
+DIM SunFrame AS RD3DFrame
+DIM Glow AS RD3DLight                         ' a point light that drifts to the colour of the last tone
+DIM GlowFrame AS RD3DFrame
+DIM colFrame(NCOL - 1) AS RD3DFrame
+DIM colMesh(NCOL - 1) AS RD3DMeshBuilder
+DIM sparkFrame(NSPARK - 1) AS RD3DFrame
+DIM sparkMesh(NSPARK - 1) AS RD3DMeshBuilder
+
+' What each part is doing now
+DIM colLevel(NCOL - 1) AS DOUBLE              ' a column's height above its resting one
+DIM sparkX(NSPARK - 1) AS DOUBLE, sparkY(NSPARK - 1) AS DOUBLE, sparkZ(NSPARK - 1) AS DOUBLE
+DIM sparkVy(NSPARK - 1) AS DOUBLE, sparkLife(NSPARK - 1) AS DOUBLE
+DIM pulse AS DOUBLE, shake AS DOUBLE, bgGlow AS DOUBLE, spin AS DOUBLE
+DIM glowR AS DOUBLE, glowG AS DOUBLE, glowB AS DOUBLE      ' the light's colour now
+DIM wantR AS DOUBLE, wantG AS DOUBLE, wantB AS DOUBLE       ' and the one it is drifting to
+DIM recent(63) AS LONG, recentAt AS INTEGER   ' when the last 64 notes fell due
+DIM lastKick AS LONG, lastTime AS DOUBLE, songPos AS LONG
+DIM calm AS INTEGER, hueNow AS DOUBLE
+DIM fps AS INTEGER, shownFps AS INTEGER, fpsSecond AS INTEGER
+
+' Hue (0 to 1 round the colour wheel) as red, green and blue (0 to 1)
+SUB Hue (h AS DOUBLE, BYREF r AS DOUBLE, BYREF g AS DOUBLE, BYREF b AS DOUBLE)
+    DIM x AS DOUBLE, i AS INTEGER, f AS DOUBLE
+    x = (h - INT(h)) * 6
+    i = INT(x): f = x - i
+    SELECT CASE i
+        CASE 0: r = 1: g = f: b = 0
+        CASE 1: r = 1 - f: g = 1: b = 0
+        CASE 2: r = 0: g = 1: b = f
+        CASE 3: r = 0: g = 1 - f: b = 1
+        CASE 4: r = f: g = 0: b = 1
+        CASE ELSE: r = 1: g = 0: b = 1 - f
+    END SELECT
+END SUB
+
+' A note's colour: low notes deep blue, then violet and pink, the high ones orange
+SUB NoteColour (key AS INTEGER, BYREF r AS DOUBLE, BYREF g AS DOUBLE, BYREF b AS DOUBLE)
+    DIM h AS DOUBLE
+    h = 0.62 + (key - 24) / 72 * 0.5
+    IF h > 1.14 THEN h = 1.14
+    Hue h, r, g, b
+    r = 0.25 + 0.75 * r: g = 0.25 + 0.75 * g: b = 0.25 + 0.75 * b
+END SUB
+
+' A box from (x0, y0, z0) to (x1, y1, z1): six faces, each listed clockwise
+' as seen from outside (the front of a face; the back isn't drawn)
+SUB AddQuad (MB AS RD3DMeshBuilder, x0 AS DOUBLE, y0 AS DOUBLE, z0 AS DOUBLE, x1 AS DOUBLE, y1 AS DOUBLE, z1 AS DOUBLE, x2 AS DOUBLE, y2 AS DOUBLE, z2 AS DOUBLE, x3 AS DOUBLE, y3 AS DOUBLE, z3 AS DOUBLE)
+    DX.CreateFace(Face)
+    Face.AddVertex(x0, y0, z0): Face.AddVertex(x1, y1, z1)
+    Face.AddVertex(x2, y2, z2): Face.AddVertex(x3, y3, z3)
+    Face.SetColorRGB(1, 1, 1)
+    MB.AddFace(Face)
+END SUB
+
+SUB BuildBox (MB AS RD3DMeshBuilder, x0 AS DOUBLE, y0 AS DOUBLE, z0 AS DOUBLE, x1 AS DOUBLE, y1 AS DOUBLE, z1 AS DOUBLE)
+    AddQuad MB, x0, y1, z0, x1, y1, z0, x1, y0, z0, x0, y0, z0          ' front
+    AddQuad MB, x1, y1, z1, x0, y1, z1, x0, y0, z1, x1, y0, z1          ' back
+    AddQuad MB, x0, y1, z1, x0, y1, z0, x0, y0, z0, x0, y0, z1          ' left
+    AddQuad MB, x1, y1, z0, x1, y1, z1, x1, y0, z1, x1, y0, z0          ' right
+    AddQuad MB, x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0          ' top
+    AddQuad MB, x1, y0, z1, x0, y0, z1, x0, y0, z0, x1, y0, z0          ' bottom
+    MB.SetQuality(D3DRMRENDER_FLAT)
+END SUB
+
+' A ball of rings x segs faces round the origin: a crystal when there are few
+SUB BuildBall (MB AS RD3DMeshBuilder, radius AS DOUBLE, rings AS INTEGER, segs AS INTEGER)
+    DIM i AS INTEGER, j AS INTEGER, a0 AS DOUBLE, a1 AS DOUBLE, b0 AS DOUBLE, b1 AS DOUBLE
+    FOR i = 0 TO rings - 1
+        a0 = PI * i / rings: a1 = PI * (i + 1) / rings
+        FOR j = 0 TO segs - 1
+            b0 = 2 * PI * j / segs: b1 = 2 * PI * (j + 1) / segs
+            DX.CreateFace(Face)
+            IF i > 0 THEN Face.AddVertex(radius * SIN(a0) * COS(b0), radius * COS(a0), radius * SIN(a0) * SIN(b0))
+            Face.AddVertex(radius * SIN(a0) * COS(b1), radius * COS(a0), radius * SIN(a0) * SIN(b1))
+            IF i < rings - 1 THEN Face.AddVertex(radius * SIN(a1) * COS(b1), radius * COS(a1), radius * SIN(a1) * SIN(b1))
+            Face.AddVertex(radius * SIN(a1) * COS(b0), radius * COS(a1), radius * SIN(a1) * SIN(b0))
+            Face.SetColorRGB(1, 1, 1)
+            MB.AddFace(Face)
+        NEXT
+    NEXT
+END SUB
+
+' A flat disc facing up, made of triangles from its middle
+SUB BuildDisc (MB AS RD3DMeshBuilder, radius AS DOUBLE, segs AS INTEGER)
+    DIM j AS INTEGER, a0 AS DOUBLE, a1 AS DOUBLE
+    FOR j = 0 TO segs - 1
+        a0 = 2 * PI * j / segs: a1 = 2 * PI * (j + 1) / segs
+        DX.CreateFace(Face)
+        Face.AddVertex(0, 0, 0)
+        Face.AddVertex(radius * COS(a1), 0, radius * SIN(a1))
+        Face.AddVertex(radius * COS(a0), 0, radius * SIN(a0))
+        Face.SetColorRGB(1, 1, 1)
+        MB.AddFace(Face)
+    NEXT
+    MB.SetQuality(D3DRMRENDER_FLAT)
+END SUB
+
+SUB Setup
+    DIM Ambient AS RD3DLight, Sun AS RD3DLight
+    glowR = 0.5: glowG = 0.5: glowB = 0.8: wantR = 0.5: wantG = 0.5: wantB = 0.8
+    DIM i AS INTEGER, a AS DOUBLE
+    ' the lights: a dim one everywhere, a white one from the upper left, and
+    ' the glow, a point light above the ring that takes the colour of each tone
+    DX.CreateLightRGB(D3DRMLIGHT_AMBIENT, 0.28, 0.28, 0.36, Ambient)
+    DX.AddLight(Ambient)
+    DX.CreateFrame(SunFrame)
+    DX.CreateLightRGB(D3DRMLIGHT_DIRECTIONAL, 0.7, 0.7, 0.8, Sun)
+    SunFrame.AddLight(Sun)
+    SunFrame.SetOrientation(0.5, -0.8, 1, 0, 1, 0)
+    DX.CreateFrame(GlowFrame)
+    DX.CreateLightRGB(D3DRMLIGHT_POINT, 0.5, 0.5, 0.8, Glow)
+    Glow.SetRange(40)
+    GlowFrame.AddLight(Glow)
+    GlowFrame.SetPosition(0, 4, -2)
+    ' the floor: a dark disc the ring stands on
+    DX.CreateFrame(Floor)
+    DX.CreateMeshBuilder(FloorMesh)
+    BuildDisc FloorMesh, 5.6, 40
+    FloorMesh.SetRGB(0.13, 0.14, 0.30)
+    Floor.AddVisual(FloorMesh)
+    Floor.SetPosition(0, -1.4, 0)
+    ' the rig the ring and the crystal sit in; it turns
+    DX.CreateFrame(Rig)
+    Rig.SetPosition(0, 0, 0)
+    Rig.CreateFrame(Gem)
+    Gem.CreateFrame(GemPulse)
+    DX.CreateMeshBuilder(GemMesh)
+    BuildBall GemMesh, 1.15, 5, 8
+    GemMesh.SetQuality(D3DRMRENDER_FLAT)
+    GemMesh.SetRGB(0.7, 0.8, 1)
+    GemPulse.AddVisual(GemMesh)
+    GemPulse.SetPosition(0, 0.2, 0)
+    ' the ring's columns, one a note of the scale
+    FOR i = 0 TO NCOL - 1
+        a = 2 * PI * i / NCOL
+        Rig.CreateFrame(colFrame(i))
+        DX.CreateMeshBuilder(colMesh(i))
+        BuildBox colMesh(i), -0.26, 0, -0.26, 0.26, 1, 0.26
+        colMesh(i).SetRGB(0.3, 0.3, 0.6)
+        colFrame(i).AddVisual(colMesh(i))
+        colFrame(i).AddScale(0, 1, 0.5, 1)
+        colFrame(i).SetPosition(RING * COS(a), -1.3, RING * SIN(a))
+    NEXT
+    ' the sparks, parked out of sight until a note launches one
+    FOR i = 0 TO NSPARK - 1
+        Rig.CreateFrame(sparkFrame(i))
+        DX.CreateMeshBuilder(sparkMesh(i))
+        BuildBox sparkMesh(i), -0.5, -0.5, -0.5, 0.5, 0.5, 0.5
+        sparkMesh(i).SetRGB(1, 1, 1)
+        sparkFrame(i).AddVisual(sparkMesh(i))
+        sparkFrame(i).AddScale(0, 0.001, 0.001, 0.001)
+        sparkFrame(i).SetPosition(0, -50, 0)
+    NEXT
+    Floor.SetBackgroundRGB(0.02, 0.02, 0.06)
+    DX.SetCameraPosition(0, CAMY, CAMZ)
+    DX.SetCameraOrientation(0, -0.36, 1, 0, 1, 0)
+    lastTime = TIMER
+    Frames.Enabled = 1
+END SUB
+
+' ---- the notes make things move --------------------------------------------------
+
+' One note, falling due: what kind of note it is decides what moves
+SUB NoteOn (ch AS INTEGER, key AS INTEGER, vel AS INTEGER)
+    DIM r AS DOUBLE, g AS DOUBLE, b AS DOUBLE, c AS INTEGER, k AS INTEGER, v AS DOUBLE, level AS DOUBLE
+    DIM amount AS DOUBLE
+    v = vel / 127
+    amount = 1: IF calm THEN amount = 0.35
+    recent(recentAt) = songPos: recentAt = (recentAt + 1) AND 63          ' for the notes a second
+    IF ch = 9 THEN
+        ' a drum. The kick (35, 36) makes the crystal pulse, and the other
+        ' drums nudge the turning. Never more than 3 pulses start a second.
+        IF key = 35 OR key = 36 THEN
+            IF songPos - lastKick >= 340 OR songPos < lastKick THEN
+                pulse = 1 * amount
+                bgGlow = 1
+                lastKick = songPos
+            END IF
+        ELSEIF key = 49 OR key = 57 THEN
+            spin = spin + 0.5 * amount                                  ' a crash: a push
+        ELSE
+            spin = spin + 0.06 * amount
+        END IF
+        EXIT SUB
+    END IF
+    NoteColour key, r, g, b
+    c = key MOD 12: IF key >= 60 THEN c = c + 12      ' the lower half of the ring plays the low notes
+    ' the pitch's height: from low (a stub) to high (a tall column)
+    level = (key - 28) / 60
+    IF level < 0.05 THEN level = 0.05
+    IF level > 1 THEN level = 1
+    IF key < 52 THEN
+        ' bass: a low, wide jump and a shake of the camera
+        colLevel(c) = colLevel(c) + 0.4 * v
+        IF calm = 0 THEN shake = shake + 0.35 * v
+    ELSE
+        colLevel(c) = colLevel(c) + (0.5 + 2.2 * level) * (0.5 + 0.5 * v) * amount + 0.2 * (1 - amount)
+        ' a spark flies up from the column: the first free one
+        FOR k = 0 TO NSPARK - 1
+            IF sparkLife(k) <= 0 THEN
+                sparkX(k) = RING * COS(2 * PI * c / NCOL): sparkZ(k) = RING * SIN(2 * PI * c / NCOL)
+                sparkY(k) = -0.9
+                sparkVy(k) = (1.2 + 3 * level) * (0.8 + 0.4 * v) * amount
+                sparkLife(k) = 1
+                sparkMesh(k).SetRGB(r, g, b)
+                EXIT FOR
+            END IF
+        NEXT
+    END IF
+    colMesh(c).SetRGB(r, g, b)
+    wantR = r: wantG = g: wantB = b          ' (the light drifts there, see Frame: no flicker)
+    hueNow = hueNow + 0.0004
+END SUB
+
+' Frame: the notes that are due, then everything moves a little, then draw
+SUB Frame
+    DIM now AS DOUBLE, dt AS DOUBLE, i AS INTEGER, density AS DOUBLE, count AS INTEGER, f AS DOUBLE
+    DIM x AS DOUBLE, y AS DOUBLE, z AS DOUBLE, r AS DOUBLE, g AS DOUBLE, b AS DOUBLE, turn AS DOUBLE, a AS DOUBLE, size AS DOUBLE
+    now = TIMER
+    dt = now - lastTime
+    IF dt < 0 OR dt > 0.2 THEN dt = 0.016
+    lastTime = now
+    ' the notes that fell due since the last frame
+    DO WHILE nextNote < noteCount AND Midi.State = MD_PLAY
+        IF noteMs(nextNote) > songPos THEN EXIT DO
+        NoteOn noteChan(nextNote), noteKey(nextNote), noteVel(nextNote)
+        nextNote = nextNote + 1
+    LOOP
+    ' the notes a second (those of the last two seconds of the song)
+    FOR i = 0 TO 63
+        IF recent(i) > songPos - 2000 AND recent(i) <= songPos THEN count = count + 1
+    NEXT
+    density = count / 2
+    ' everything eases back to rest: a column falls, the pulse, the shake and
+    ' the glow die away (Calm: more slowly)
+    f = 1 - EXP(-dt * IIF(calm, 3, 7))
+    pulse = pulse - pulse * f
+    shake = shake - shake * (1 - EXP(-dt * 9))
+    bgGlow = bgGlow - bgGlow * (1 - EXP(-dt * 4))
+    spin = spin - spin * (1 - EXP(-dt * 3))
+    FOR i = 0 TO NCOL - 1
+        colLevel(i) = colLevel(i) - colLevel(i) * f
+        colFrame(i).AddScale(0, 1, 0.45 + colLevel(i), 1)
+    NEXT
+    ' the sparks rise, shrink and are gone
+    FOR i = 0 TO NSPARK - 1
+        IF sparkLife(i) > 0 THEN
+            sparkLife(i) = sparkLife(i) - dt * IIF(calm, 0.5, 0.8)
+            sparkY(i) = sparkY(i) + sparkVy(i) * dt
+            sparkVy(i) = sparkVy(i) - 1.2 * dt
+            size = 0.42 * sparkLife(i)
+            IF sparkLife(i) <= 0 THEN
+                size = 0.001: sparkY(i) = -50
+            END IF
+            sparkFrame(i).AddScale(0, size, size, size)
+            sparkFrame(i).SetPosition(sparkX(i), sparkY(i), sparkZ(i))
+        END IF
+    NEXT
+    ' the crystal: bigger on a pulse, a slow colour drift; the rig turns
+    ' faster the more notes there are
+    size = 1 + 0.32 * pulse
+    GemPulse.AddScale(0, size, size, size)
+    Hue 0.58 + hueNow * 0.2, r, g, b
+    GemMesh.SetRGB(0.55 + 0.45 * r, 0.65 + 0.35 * g, 0.9 + 0.1 * b)
+    turn = 0.004 + density * 0.0011 + spin * 0.01
+    IF calm THEN turn = 0.003 + density * 0.0004
+    IF Midi.State <> MD_PLAY THEN turn = 0.003
+    Rig.SetRotation(0, 1, 0, turn)
+    Gem.SetRotation(0.3, 1, 0.2, -turn * 2.2)
+    DX.Move(1)
+    ' the camera, shaken by the bass
+    x = 0: y = CAMY: z = CAMZ
+    IF shake > 0.001 THEN
+        x = x + (RND - 0.5) * shake
+        y = y + (RND - 0.5) * shake * 0.7
+    END IF
+    DX.SetCameraPosition(x, y, z)
+    ' the light changes colour slowly (about a third of a second), never in a flicker
+    f = 1 - EXP(-dt * 3)
+    glowR = glowR + (wantR - glowR) * f: glowG = glowG + (wantG - glowG) * f: glowB = glowB + (wantB - glowB) * f
+    Glow.SetLightRGB(D3DRMLIGHT_POINT, glowR, glowG, glowB)
+    Floor.SetBackgroundRGB(0.02 + 0.05 * bgGlow, 0.02 + 0.04 * bgGlow, 0.06 + 0.07 * bgGlow)
+    DX.Render
+    ' the corner: song and speed
+    DX.TextOut(10, 8, songName, &HFFFFFF, -1)
+    DX.TextOut(10, 24, STR$(INT(density + 0.5)) + " notes a second", &HC8C8C8, -1)
+    fps = fps + 1
+    IF INT(now) <> fpsSecond THEN
+        shownFps = fps: fps = 0: fpsSecond = INT(now)
+    END IF
+    DX.TextOut(DX.Width - 62, 8, STR$(shownFps) + " fps", &HC8C8C8, -1)
+    DX.Flip
+END SUB
+
+' ---- RMIDI and the buttons --------------------------------------------------------
+
+FUNCTION Mmss (ms AS LONG) AS STRING
+    DIM s AS LONG
+    s = ms \ 1000
+    Mmss = STR$(s \ 60) + ":" + RIGHT$("0" + STR$(s MOD 60), 2)
+END FUNCTION
+
+' RMIDI's timer: the position in milliseconds
+SUB Moved (Position AS LONG)
+    DIM wasAt AS LONG
+    IF Midi.State = MD_PLAY THEN
+        songPos = Position
+        Bar.Position = Position * 100 \ Midi.Lenght
+    ELSEIF Midi.State = MD_STOP AND songPos > 0 THEN
+        ' the song ended (RMIDI stopped itself): round again, or rest
+        songPos = 0: nextNote = 0
+        Bar.Position = 0
+        IF LoopBox.Checked THEN
+            Midi.Play
+        ELSE
+            Info.Caption = songName + " - played to the end"
+        END IF
+    END IF
+    Clock.Caption = Mmss(songPos) + " / " + Mmss(Midi.Lenght + 500)
+END SUB
+
+SUB PlayIt
+    IF Midi.State = MD_PLAY OR Midi.FileOpen = 0 THEN EXIT SUB
+    Midi.Play
+    Info.Caption = songName + " - " + STR$(noteCount) + " notes, " + STR$(songBpm) + " beats a minute"
+END SUB
+
+SUB PauseIt
+    Midi.Pause
+    Info.Caption = songName + " - paused"
+END SUB
+
+SUB StopIt
+    Midi.Stop
+    Midi.CurrentFrame = 0
+    songPos = 0: nextNote = 0
+    Bar.Position = 0
+    Clock.Caption = Mmss(0) + " / " + Mmss(Midi.Lenght + 500)
+    Info.Caption = songName + " - stopped"
+END SUB
+
+SUB CalmChanged
+    calm = CalmBox.Checked
+END SUB
+
+' A song, from a file: read by this program for the scene, opened in RMIDI
+' for the sound. Returns "" or the reason it didn't work.
+FUNCTION OpenSong (File AS STRING) AS STRING
+    DIM why AS STRING
+    why = ReadMidi(File)
+    IF why <> "" THEN
+        OpenSong = why
+        EXIT FUNCTION
+    END IF
+    Midi.Close
+    IF Midi.Open(File) = 0 THEN
+        OpenSong = "RMIDI can't play it: " + Midi.Error
+        EXIT FUNCTION
+    END IF
+    songFile = File
+    songPos = 0: nextNote = 0
+    Bar.Position = 0
+    Clock.Caption = Mmss(0) + " / " + Mmss(Midi.Lenght + 500)
+    Info.Caption = songName + " - " + STR$(noteCount) + " notes, " + STR$(songBpm) + " beats a minute. Press Play."
+    OpenSong = ""
+END FUNCTION
+
+SUB LoadOne
+    DIM why AS STRING
+    IF OpenDlg.Execute THEN
+        Midi.Stop
+        why = OpenSong(OpenDlg.FileName)
+        IF why <> "" THEN Info.Caption = why
+    END IF
+END SUB
+
+' The shipped song: its bytes come out of the program into a file (in the
+' system's temporary folder, so it works where the program's own folder is
+' read-only) for the reader and for RMIDI
+FUNCTION TempFolder AS STRING
+    DIM d AS STRING
+    d = ENVIRON$("TMPDIR")
+    IF d = "" THEN d = ENVIRON$("TEMP")
+    IF d = "" THEN d = ENVIRON$("TMP")
+    IF d = "" AND DIREXISTS("/tmp") THEN d = "/tmp"           ' (Linux with none of them set)
+    IF d <> "" AND RIGHT$(d, 1) <> "/" AND RIGHT$(d, 1) <> "\" THEN d = d + "/"
+    TempFolder = d
+END FUNCTION
+
+DIM tmpSong AS STRING, firstWhy AS STRING, q AS INTEGER
+FOR q = 0 TO 63
+    recent(q) = -100000                       ' no note has fallen due yet
+NEXT
+tmpSong = TempFolder + "rapidr-visualizer-song.tmp.mid"
+EXTRACTRESOURCE SONG, tmpSong
+firstWhy = OpenSong(tmpSong)
+IF firstWhy <> "" THEN Info.Caption = firstWhy
+' a number after the program's name starts the song at that second:
+' rapidr run midi_visualizer.rr 40
+IF COMMANDCOUNT >= 1 AND Midi.FileOpen THEN
+    songPos = VAL(COMMAND$(1)) * 1000
+    Midi.CurrentFrame = songPos
+    DO WHILE nextNote < noteCount
+        IF noteMs(nextNote) >= songPos THEN EXIT DO
+        nextNote = nextNote + 1
+    LOOP
+END IF
+Form.ShowModal
+Midi.Close
+KILL tmpSong

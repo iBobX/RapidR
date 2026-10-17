@@ -1,0 +1,431 @@
+' signal_lab.rr: a signal generator and a two-screen oscilloscope.
+' Pick a wave (sine, square, triangle, sawtooth), set its frequency,
+' amplitude and noise, add a second tone. The top screen is the signal as an
+' oscilloscope shows it, held still by a trigger; the bottom screen is its
+' spectrum, worked out every frame by an FFT written here in BASIC
+' (FFT below: about 30 lines), with the peaks marked by their frequencies.
+'
+'   rapidr run signal_lab.rr          (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc signal_lab.rr -o lab.zip      (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. The signals are made
+' up by the program (no microphone: RapidR has no live audio input yet).
+' Sample rate 8192 a second, 1024 points a frame, so the spectrum has a
+' point every 8 Hz up to 4096 Hz; a tone above half of that "folds back"
+' (aliasing), as it does on a real analyzer.
+$THEME rapidr
+
+CONST FS = 8192                  ' samples a second
+CONST N = 1024                   ' points in a frame, and in the FFT (a power of two)
+CONST M = 1536                   ' samples made each frame: N, and room to find the trigger
+CONST PI = 3.14159265358979
+CONST SCOPEH = 276
+
+DECLARE SUB Tick
+DECLARE SUB ScopePaint
+DECLARE SUB SpecPaint
+DECLARE SUB ControlsChanged
+DECLARE SUB HoldClicked
+
+' the signal, and what the FFT works on
+DIM sig(M - 1) AS DOUBLE
+DIM re(N - 1) AS DOUBLE, im(N - 1) AS DOUBLE
+DIM cosT(N \ 2 - 1) AS DOUBLE, sinT(N \ 2 - 1) AS DOUBLE      ' the FFT's turning factors, made once
+DIM win(N - 1) AS DOUBLE                                       ' the Hann window
+DIM db(N \ 2) AS DOUBLE                                        ' the spectrum, in decibels
+DIM trig AS INTEGER                                            ' where the picture starts in sig
+DIM shown AS INTEGER                                           ' how many samples the plotT screen shows
+DIM peakK(5) AS DOUBLE, peakDb(5) AS DOUBLE, peakCount AS INTEGER
+DIM kind1 AS INTEGER                                           ' 0 sine, 1 square, 2 triangle, 3 sawtooth
+DIM f1 AS DOUBLE, a1 AS DOUBLE, f2 AS DOUBLE, a2 AS DOUBLE, noise AS DOUBLE
+DIM ph1 AS DOUBLE, ph2 AS DOUBLE, lastTime AS DOUBLE
+DIM frames AS INTEGER, fps AS INTEGER, fpsSecond AS LONG
+DIM msGen AS DOUBLE, msFft AS DOUBLE, msAll AS DOUBLE, peakText AS STRING
+
+CREATE Form AS RForm
+    Caption = "Signal lab"
+    ClientWidth = 960
+    ClientHeight = 600
+    MinWidth = 780: MinHeight = 520
+    Center
+    CREATE Tone1Box AS RGroupBox
+        Caption = "Tone": Left = 12: Top = 8: Width = 244: Height = 208
+        CREATE WSine AS RRadioButton
+            Caption = "&Sine": Left = 12: Top = 22: Width = 104
+            Checked = 1: OnClick = ControlsChanged
+        END CREATE
+        CREATE WSquare AS RRadioButton
+            Caption = "S&quare": Left = 124: Top = 22: Width = 104
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE WTriangle AS RRadioButton
+            Caption = "&Triangle": Left = 12: Top = 48: Width = 104
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE WSaw AS RRadioButton
+            Caption = "Saw&tooth": Left = 124: Top = 48: Width = 104
+            OnClick = ControlsChanged
+        END CREATE
+        CREATE FreqLabel AS RLabel
+            Left = 12: Top = 80: Width = 220
+        END CREATE
+        CREATE FreqBar AS RTrackBar
+            Left = 8: Top = 98: Width = 228: Height = 30
+            Min = 0: Max = 300: Position = 201: Frequency = 50: PageSize = 10
+            OnChange = ControlsChanged
+            AccessibleName = "Frequency of the tone"
+        END CREATE
+        CREATE AmpLabel AS RLabel
+            Left = 12: Top = 134: Width = 220
+        END CREATE
+        CREATE AmpBar AS RTrackBar
+            Left = 8: Top = 152: Width = 228: Height = 30
+            Min = 0: Max = 100: Position = 80: Frequency = 10: PageSize = 10
+            OnChange = ControlsChanged
+            AccessibleName = "Amplitude of the tone"
+        END CREATE
+    END CREATE
+    CREATE Tone2Box AS RGroupBox
+        Caption = "Second tone": Left = 12: Top = 224: Width = 244: Height = 168
+        CREATE Tone2On AS RCheckBox
+            Caption = "&Add a second tone": Left = 12: Top = 22: Width = 200
+            Checked = 1: OnClick = ControlsChanged
+        END CREATE
+        CREATE Freq2Label AS RLabel
+            Left = 12: Top = 52: Width = 220
+        END CREATE
+        CREATE Freq2Bar AS RTrackBar
+            Left = 8: Top = 70: Width = 228: Height = 30
+            Min = 0: Max = 300: Position = 230: Frequency = 50: PageSize = 10
+            OnChange = ControlsChanged
+            AccessibleName = "Frequency of the second tone"
+        END CREATE
+        CREATE Amp2Label AS RLabel
+            Left = 12: Top = 104: Width = 220
+        END CREATE
+        CREATE Amp2Bar AS RTrackBar
+            Left = 8: Top = 122: Width = 228: Height = 30
+            Min = 0: Max = 100: Position = 30: Frequency = 10: PageSize = 10
+            OnChange = ControlsChanged
+            AccessibleName = "Amplitude of the second tone"
+        END CREATE
+    END CREATE
+    CREATE ScopeBox AS RGroupBox
+        Caption = "Scope": Left = 12: Top = 400: Width = 244: Height = 186
+        CREATE NoiseLabel AS RLabel
+            Left = 12: Top = 22: Width = 220
+        END CREATE
+        CREATE NoiseBar AS RTrackBar
+            Left = 8: Top = 40: Width = 228: Height = 30
+            Min = 0: Max = 60: Position = 4: Frequency = 10: PageSize = 5
+            OnChange = ControlsChanged
+            AccessibleName = "Noise"
+        END CREATE
+        CREATE TrigBox AS RCheckBox
+            Caption = "T&rigger (holds the picture still)": Left = 12: Top = 82: Width = 224
+            Checked = 1: OnClick = ControlsChanged
+        END CREATE
+        CREATE HoldBtn AS RButton
+            Caption = "&Hold": Left = 12: Top = 112: Width = 90
+            OnClick = HoldClicked
+            AccessibleDescription = "Freezes the screens; press again to run"
+        END CREATE
+        CREATE Info AS RLabel
+            Left = 12: Top = 146: Width = 224: Height = 34
+        END CREATE
+    END CREATE
+    CREATE Scope AS RCanvas
+        Left = 268: Top = 8: Width = 680: Height = SCOPEH
+        Anchors = akLeft + akTop + akRight
+        OnPaint = ScopePaint
+        AccessibleName = "Oscilloscope"
+    END CREATE
+    CREATE Spec AS RCanvas
+        Left = 268: Top = 292: Width = 680: Height = 294
+        Anchors = akLeft + akTop + akRight + akBottom
+        OnPaint = SpecPaint
+        AccessibleName = "Spectrum"
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 1
+        Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' ---- the signal --------------------------------------------------------------------
+
+' One wave at phase p (counted in cycles): 0 sine, 1 square, 2 triangle, 3 sawtooth
+FUNCTION Wave (kind AS INTEGER, p AS DOUBLE) AS DOUBLE
+    DIM u AS DOUBLE
+    u = p - INT(p)                              ' where in the cycle: 0 up to 1
+    SELECT CASE kind
+        CASE 0: Wave = SIN(2 * PI * u)
+        CASE 1: Wave = IIF(u < 0.5, 1, -1)
+        CASE 2
+            IF u < 0.25 THEN
+                Wave = 4 * u
+            ELSEIF u < 0.75 THEN
+                Wave = 2 - 4 * u
+            ELSE
+                Wave = 4 * u - 4
+            END IF
+        CASE ELSE: Wave = 2 * u - 1
+    END SELECT
+END FUNCTION
+
+' ---- the FFT -------------------------------------------------------------------------
+' The Fast Fourier Transform of the N points in re() (and im(), which holds
+' zeros): what each frequency adds up to. Radix 2: the points are put in
+' "bit-reversed" order, then pairs of results are combined into fours, eights ...
+SUB FFT
+    DIM i AS INTEGER, j AS INTEGER, k AS INTEGER, bit AS INTEGER, size AS INTEGER, half AS INTEGER, stride AS INTEGER
+    DIM wr AS DOUBLE, wi AS DOUBLE, tr AS DOUBLE, ti AS DOUBLE
+    j = 0
+    FOR i = 0 TO N - 2                          ' 1. swap each point with the one at its bit-reversed place
+        IF i < j THEN
+            SWAP re(i), re(j)
+            SWAP im(i), im(j)
+        END IF
+        bit = N \ 2
+        DO WHILE bit >= 1 AND j >= bit
+            j = j - bit
+            bit = bit \ 2
+        LOOP
+        j = j + bit
+    NEXT
+    size = 2
+    DO WHILE size <= N                          ' 2. combine blocks of size / 2 into blocks of size
+        half = size \ 2
+        stride = N \ size                         ' (the turning factors, from the table made once)
+        FOR k = 0 TO half - 1
+            wr = cosT(k * stride): wi = -sinT(k * stride)
+            FOR i = k TO N - 1 STEP size
+                j = i + half
+                tr = wr * re(j) - wi * im(j)
+                ti = wr * im(j) + wi * re(j)
+                re(j) = re(i) - tr: im(j) = im(i) - ti
+                re(i) = re(i) + tr: im(i) = im(i) + ti
+            NEXT
+        NEXT
+        size = size * 2
+    LOOP
+END SUB
+
+' ---- a frame: make the signal, trigger, transform ----------------------------------------
+
+SUB Tick
+    DIM t0 AS DOUBLE, t1 AS DOUBLE, t2 AS DOUBLE, now AS DOUBLE, dt AS DOUBLE
+    DIM k AS INTEGER, x AS DOUBLE
+    DIM loudest AS DOUBLE, mag AS DOUBLE, a AS DOUBLE, b AS DOUBLE, c AS DOUBLE, best AS INTEGER, j AS INTEGER, taken AS INTEGER
+    now = TIMER
+    dt = now - lastTime
+    IF dt < 0 OR dt > 0.2 THEN dt = 0.033
+    lastTime = now
+    t0 = TIMER
+    ' 1. the signal: both tones, and noise (four random numbers added: close to a bell curve)
+    FOR k = 0 TO M - 1
+        x = a1 * Wave(kind1, ph1 + f1 * k / FS)
+        IF Tone2On.Checked THEN x = x + a2 * Wave(0, ph2 + f2 * k / FS)
+        x = x + noise * (RND + RND + RND + RND - 2) * 1.7
+        sig(k) = x
+    NEXT
+    ph1 = ph1 + f1 * dt: ph1 = ph1 - INT(ph1)
+    ph2 = ph2 + f2 * dt: ph2 = ph2 - INT(ph2)
+    ' 2. the trigger: the first place the signal climbs through zero, so every
+    ' picture starts the same way and the wave stands still (off: it starts
+    ' wherever the frame does, and the wave runs about)
+    trig = 0
+    IF TrigBox.Checked THEN
+        FOR k = 3 TO M - N - 1
+            IF sig(k - 2) < 0 AND sig(k - 1) < 0 AND sig(k) >= 0 THEN
+                trig = k
+                EXIT FOR
+            END IF
+        NEXT
+    END IF
+    shown = INT(3.5 * FS / f1)                  ' the plotT screen shows about three and a half cycles
+    IF shown < 48 THEN shown = 48
+    IF shown > N THEN shown = N
+    t1 = TIMER
+    ' 3. the spectrum: a window (Hann) so the ends of the frame don't ring, the FFT, decibels
+    FOR k = 0 TO N - 1
+        re(k) = sig(trig + k) * win(k)
+        im(k) = 0
+    NEXT
+    FFT
+    FOR k = 0 TO N \ 2
+        mag = SQR(re(k) * re(k) + im(k) * im(k)) * 4 / N         ' a tone of amplitude 1 reads 1
+        IF mag < 0.00003 THEN mag = 0.00003
+        db(k) = 20 * LOG(mag) / LOG(10)
+    NEXT
+    ' 4. the peaks: the highest points that stand above their neighbours and
+    ' within 30 dB of the highest, the frequency found between the bins (the
+    ' parabola through three points)
+    loudest = -100
+    FOR k = 1 TO N \ 2 - 1
+        IF db(k) > loudest THEN loudest = db(k)
+    NEXT
+    IF loudest < -60 THEN loudest = -60
+    peakCount = 0
+    DO WHILE peakCount < 6
+        best = -1
+        FOR k = 2 TO N \ 2 - 2
+            IF db(k) > loudest - 30 AND db(k) >= db(k - 1) AND db(k) > db(k + 1) AND (best < 0 OR db(k) > db(best)) THEN
+                taken = 0
+                FOR j = 0 TO peakCount - 1
+                    IF ABS(k - peakK(j)) < 3 THEN taken = 1
+                NEXT
+                IF taken = 0 THEN best = k
+            END IF
+        NEXT
+        IF best < 0 THEN EXIT DO
+        a = db(best - 1): b = db(best): c = db(best + 1)
+        peakK(peakCount) = best + 0.5 * (a - c) / (a - 2 * b + c)
+        peakDb(peakCount) = b
+        peakCount = peakCount + 1
+    LOOP
+    t2 = TIMER
+    msGen = msGen * 0.9 + (t1 - t0) * 100            ' (a running average, in milliseconds)
+    msFft = msFft * 0.9 + (t2 - t1) * 100
+    frames = frames + 1
+    IF INT(now) <> fpsSecond THEN
+        fps = frames: frames = 0: fpsSecond = INT(now)
+        peakText = ""
+        FOR j = 0 TO peakCount - 1
+            peakText = peakText + IIF(j > 0, ", ", "") + FORMAT$("%d", INT(peakK(j) * FS / N + 0.5)) + " Hz"
+        NEXT
+        Spec.AccessibleDescription = "Peaks at " + peakText
+        Scope.AccessibleDescription = FORMAT$("%d", INT(f1 + 0.5)) + " Hz " + RTRIM$(MID$("sine    square  triangle sawtooth", kind1 * 8 + 1, 8)) + " wave, about three cycles shown"
+        Info.Caption = FORMAT$("%d", fps) + " fps, a frame takes " + FORMAT$("%.1f", msAll) + " ms:" + CHR$(10) + "signal " + FORMAT$("%.1f", msGen) + ", FFT " + FORMAT$("%.1f", msFft) + ", drawing the rest"
+    END IF
+    Scope.Repaint
+    Spec.Repaint
+    msAll = msAll * 0.9 + (TIMER - t0) * 100
+END SUB
+
+' ---- the two screens -----------------------------------------------------------------
+
+SUB ScopePaint
+    DIM W AS INTEGER, H AS INTEGER, i AS INTEGER, x1 AS DOUBLE, y1 AS DOUBLE, x2 AS DOUBLE, y2 AS DOUBLE, sx AS DOUBLE, midY AS INTEGER, perDiv AS DOUBLE
+    W = Scope.Width: H = Scope.Height: midY = H \ 2
+    Scope.FillRect 0, 0, W, H, RGB(8, 22, 14)
+    FOR i = 0 TO 10                                           ' the graticule: 10 by 8 divisions
+        Scope.Line INT(i * (W - 1) / 10), 0, INT(i * (W - 1) / 10), H, RGB(34, 74, 48)
+    NEXT
+    FOR i = 0 TO 8
+        Scope.Line 0, INT(i * (H - 1) / 8), W, INT(i * (H - 1) / 8), RGB(34, 74, 48)
+    NEXT
+    Scope.Line 0, midY, W, midY, RGB(60, 120, 80)
+    Scope.Line W \ 2, 0, W \ 2, H, RGB(60, 120, 80)
+    ' the trace: sample trig + i at x = i * (width / shown); +-2 units fill the screen
+    Scope.PenWidth = 2
+    sx = (W - 1) / (shown - 1)
+    x1 = 0: y1 = midY - sig(trig) * (H / 4)
+    FOR i = 1 TO shown - 1
+        x2 = i * sx: y2 = midY - sig(trig + i) * (H / 4)
+        IF y1 < 0 THEN y1 = 0
+        IF y1 > H THEN y1 = H
+        IF y2 < 0 THEN y2 = 0
+        IF y2 > H THEN y2 = H
+        Scope.Line x1, y1, x2, y2, RGB(90, 255, 130)
+        x1 = x2: y1 = y2
+    NEXT
+    Scope.PenWidth = 1
+    perDiv = shown / FS * 1000 / 10
+    Scope.TextOut 8, 6, "TIME " + FORMAT$("%.2f", perDiv) + " ms/div   VOLTS 0.5 /div   TRIGGER " + IIF(TrigBox.Checked, "ON (rising, 0)", "OFF"), RGB(150, 230, 170), -1
+    Scope.TextOut W - 88, H - 20, FORMAT$("%d", fps) + " fps", RGB(150, 230, 170), -1
+END SUB
+
+SUB SpecPaint
+    DIM W AS INTEGER, H AS INTEGER, k AS INTEGER, x AS DOUBLE, y AS DOUBLE, level AS DOUBLE, bw AS DOUBLE, i AS INTEGER, r AS INTEGER, g AS INTEGER
+    DIM plotL AS INTEGER, plotB AS INTEGER, plotT AS INTEGER, plotW AS INTEGER, hz AS DOUBLE
+    W = Spec.Width: H = Spec.Height
+    plotL = 40: plotT = 8: plotB = H - 24: plotW = W - plotL - 10
+    Spec.FillRect 0, 0, W, H, RGB(10, 14, 26)
+    ' the grid: every 20 dB, every 500 Hz
+    FOR i = 0 TO 4
+        y = plotT + i * (plotB - plotT) / 4
+        Spec.Line plotL, y, plotL + plotW, y, RGB(36, 44, 70)
+        Spec.TextOut 4, y - 7, FORMAT$("%d", -i * 20), RGB(150, 160, 190), -1
+    NEXT
+    FOR i = 0 TO 8
+        x = plotL + i * plotW / 8
+        Spec.Line x, plotT, x, plotB, RGB(36, 44, 70)
+        IF i MOD 2 = 0 THEN Spec.TextOut IIF(i = 8, x - 44, x - 12), plotB + 4, FORMAT$("%d", i * 500) + IIF(i = 8, " Hz", ""), RGB(150, 160, 190), -1
+    NEXT
+    ' the bars: a line up from the plotB for each point, taller is louder
+    bw = plotW / (N \ 2)
+    Spec.PenWidth = 2
+    FOR k = 0 TO N \ 2 - 1
+        level = (db(k) + 80) / 80                               ' -80 dB at the plotB, 0 dB at the plotT
+        IF level < 0 THEN level = 0
+        IF level > 1 THEN level = 1
+        IF level > 0.01 THEN
+            x = plotL + k * bw
+            y = plotB - level * (plotB - plotT)
+            r = 60 + 195 * level: g = 200 - 120 * level
+            Spec.Line x, plotB, x, y, RGB(r, g, 255 - 200 * level)
+        END IF
+    NEXT
+    Spec.PenWidth = 1
+    ' the peaks: a marker and the frequency
+    FOR i = 0 TO peakCount - 1
+        hz = peakK(i) * FS / N
+        x = plotL + peakK(i) * bw
+        y = plotB - ((peakDb(i) + 80) / 80) * (plotB - plotT)
+        Spec.Line x, y - 4, x - 4, y - 10, RGB(255, 220, 90)
+        Spec.Line x, y - 4, x + 4, y - 10, RGB(255, 220, 90)
+        Spec.TextOut x - 12, IIF(y - 26 < plotT + 16, plotT + 16, y - 26), FORMAT$("%d", INT(hz + 0.5)), RGB(255, 220, 90), -1
+    NEXT
+    Spec.TextOut plotL + 8, plotT + 4, "SPECTRUM in dB, peaks in Hz (FFT of 1024 points: " + FORMAT$("%.1f", msFft) + " ms)", RGB(150, 160, 190), -1
+END SUB
+
+' ---- the controls ------------------------------------------------------------------------
+
+FUNCTION HzOf (pos AS INTEGER) AS DOUBLE
+    HzOf = INT(20 * 10 ^ (pos / 150) + 0.5)                   ' 20 Hz to 2000 Hz, a ratio a step, whole hertz
+END FUNCTION
+
+SUB ControlsChanged
+    IF WSquare.Checked THEN
+        kind1 = 1
+    ELSEIF WTriangle.Checked THEN
+        kind1 = 2
+    ELSEIF WSaw.Checked THEN
+        kind1 = 3
+    ELSE
+        kind1 = 0
+    END IF
+    f1 = HzOf(FreqBar.Position): a1 = AmpBar.Position / 100
+    f2 = HzOf(Freq2Bar.Position): a2 = Amp2Bar.Position / 100
+    noise = NoiseBar.Position / 100
+    FreqLabel.Caption = "Frequency: " + FORMAT$("%d", INT(f1 + 0.5)) + " Hz"
+    AmpLabel.Caption = "Amplitude: " + FORMAT$("%d", AmpBar.Position) + " %"
+    Freq2Label.Caption = "Frequency: " + FORMAT$("%d", INT(f2 + 0.5)) + " Hz"
+    Amp2Label.Caption = "Amplitude: " + FORMAT$("%d", Amp2Bar.Position) + " %"
+    NoiseLabel.Caption = "Noise: " + FORMAT$("%d", NoiseBar.Position) + " %"
+    Freq2Bar.Enabled = Tone2On.Checked: Amp2Bar.Enabled = Tone2On.Checked
+End SUB
+
+SUB HoldClicked
+    Clock.Enabled = IIF(Clock.Enabled, 0, 1)
+    HoldBtn.Caption = IIF(Clock.Enabled, "&Hold", "&Run")
+    Info.Caption = IIF(Clock.Enabled, "", "Held")
+    lastTime = TIMER
+END SUB
+
+' ---- start ----------------------------------------------------------------------------------
+
+DIM q AS INTEGER
+RANDOMIZE TIMER
+FOR q = 0 TO N - 1
+    win(q) = 0.5 - 0.5 * COS(2 * PI * q / (N - 1))             ' the Hann window
+NEXT
+FOR q = 0 TO N \ 2 - 1
+    cosT(q) = COS(2 * PI * q / N): sinT(q) = SIN(2 * PI * q / N)
+NEXT
+ControlsChanged
+lastTime = TIMER
+Clock.Enabled = 1
+Form.ShowModal

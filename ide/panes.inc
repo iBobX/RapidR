@@ -46,6 +46,11 @@ DIM ExText(16) AS RLabel
 DIM ExampleFile(16) AS STRING
 DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
+' More examples than the page has room for: only in "Open an Example" (the
+' command palette), not cards on this page
+DIM MoreFile(40) AS STRING
+DIM MoreWhat(40) AS STRING
+DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
 SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
@@ -89,6 +94,13 @@ SUB AddExample(File AS STRING, What AS STRING)
   ExampleCount = ExampleCount + 1
 END SUB
 
+SUB AddMoreExample(File AS STRING, What AS STRING)
+  IF MoreCount > 40 THEN EXIT SUB
+  MoreFile(MoreCount) = File
+  MoreWhat(MoreCount) = What
+  MoreCount = MoreCount + 1
+END SUB
+
 ' The examples that come with RapidR (examples/, as `rapidr examples` lists them).
 SUB FillExamples
   AddStart 0, "file.newProject", "New Project..."
@@ -114,6 +126,17 @@ SUB FillExamples
   AddExample "ai/rai_models.rr", "Ask an AI: models, an answer"
   AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
+  ' (the showcase: in Open an Example, not on the page)
+  MoreCount = 0
+  AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
+  AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
+  AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"
+  AddMoreExample "showcase/same_numbers.rr", "Four pictures, the very same numbers"
+  AddMoreExample "showcase/monte_carlo_pi.rr", "Pi by throwing darts, live"
+  AddMoreExample "showcase/spin3d.rr", "A lit 3D planet with a ring and a moon"
+  AddMoreExample "showcase/signal_lab.rr", "A signal generator, an oscilloscope and an FFT spectrum"
+  AddMoreExample "showcase/midi_visualizer.rr", "A 3D scene that dances to a song (reads the MIDI file itself)"
+  AddMoreExample "showcase/make_song.rr", "Composes the visualizer's song and writes a .mid file"
   LayOutWelcome
 END SUB
 

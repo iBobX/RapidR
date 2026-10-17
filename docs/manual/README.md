@@ -19,6 +19,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [Why RapidR](why-rapidr.md) | What RapidR does best, with only measured numbers (their conditions and the scripts that made them), and what it doesn't claim |
+| [Showcase](showcase.md) | Bigger programs written from an idea alone, each with a picture and its best lines explained: fireworks, a MIDI visualizer that reads the song file itself, and more |
 | [Getting started](getting-started.md) | Which download to take (the SDK or the Runtime), installing on Windows, macOS and Linux, your first console and GUI programs, running (`rapidr run`), compiling (`build-bc`), building executables (`build`) and the web |
 
 ## RapidR Studio

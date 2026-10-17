@@ -1,0 +1,251 @@
+' make_song.rr: composes song.mid, the 32-bar electronic loop that
+' midi_visualizer.rr plays, and writes it as a standard MIDI file with
+' RapidR's file I/O. Nothing is copied: every note comes from the rules below.
+'
+'   rapidr run make_song.rr          (writes song.mid next to the program)
+'
+' The song is in A minor at 128 beats a minute: four on the floor kick, an
+' off-beat bass, a 16th-note arpeggio and a pad on the chords Am F/A C G.
+' Every eight bars a new layer joins (pad and kick, then bass, then
+' arpeggio, then everything louder), and the last bar of each section is a
+' snare roll. Console program: it prints what it wrote.
+$INCLUDE "RAPIDQ.INC"
+
+CONST PPQ = 480                ' ticks in a quarter note (one beat)
+CONST BAR = 1920               ' ticks in a bar of 4 beats
+CONST BARS = 32                ' 32 bars at 128 beats a minute: 60 seconds
+CONST MAXEV = 4095             ' events a track can hold (a note is two)
+
+' The track being built: its note events, then its bytes
+DIM evTick(MAXEV) AS LONG, evKey(MAXEV) AS INTEGER, evVel(MAXEV) AS INTEGER, evOn(MAXEV) AS INTEGER
+DIM sortKey(MAXEV) AS LONG
+DIM evCount AS INTEGER
+DIM buf(60000) AS INTEGER
+DIM bufLen AS LONG
+DIM Song AS RFileStream
+
+' The chords, one a bar, over 4 bars (voiced to move as little as possible)
+DIM chord(3, 2) AS INTEGER
+DIM bassRoot(3) AS INTEGER
+DATA 57, 60, 64, 45         ' Am
+DATA 57, 60, 65, 41         ' F over A
+DATA 55, 60, 64, 48         ' C over G
+DATA 55, 59, 62, 43         ' G
+DIM c AS INTEGER, k AS INTEGER
+FOR c = 0 TO 3
+    FOR k = 0 TO 2
+        READ chord(c, k)
+    NEXT
+    READ bassRoot(c)
+NEXT
+
+' One bar's 16 arpeggio steps: which of the chord's six notes (its three
+' tones, then the same an octave up) each 16th plays
+DIM arp(15) AS INTEGER
+DATA 0, 1, 2, 1, 3, 2, 1, 2, 0, 1, 2, 4, 5, 4, 2, 1
+FOR k = 0 TO 15
+    READ arp(k)
+NEXT
+
+' ---- a track's bytes ---------------------------------------------------------------
+
+SUB PutByte (b AS INTEGER)
+    buf(bufLen) = b AND 255
+    bufLen = bufLen + 1
+END SUB
+
+' A MIDI "variable-length number": 7 bits a byte, the high bit set on all
+' but the last (a delta time of 480 ticks is the two bytes 83 60)
+SUB Delta (n AS LONG)
+    DIM groups(4) AS INTEGER, g AS INTEGER, v AS LONG
+    v = n
+    groups(0) = v AND 127
+    g = 0
+    v = v \ 128
+    DO WHILE v > 0
+        g = g + 1
+        groups(g) = (v AND 127) OR 128
+        v = v \ 128
+    LOOP
+    DO WHILE g >= 0
+        PutByte groups(g)
+        g = g - 1
+    LOOP
+END SUB
+
+SUB MetaText (kind AS INTEGER, text AS STRING)
+    DIM i AS INTEGER
+    Delta 0: PutByte &HFF: PutByte kind: PutByte LEN(text)
+    FOR i = 1 TO LEN(text)
+        PutByte ASC(MID$(text, i, 1))
+    NEXT
+END SUB
+
+' A note: a Note On and, dur ticks later, its Note Off
+SUB AddNote (tick AS LONG, dur AS LONG, key AS INTEGER, vel AS INTEGER)
+    evTick(evCount) = tick: evKey(evCount) = key: evVel(evCount) = vel: evOn(evCount) = 1
+    evCount = evCount + 1
+    evTick(evCount) = tick + dur: evKey(evCount) = key: evVel(evCount) = 0: evOn(evCount) = 0
+    evCount = evCount + 1
+END SUB
+
+' A chunk's length: four bytes, the biggest first
+SUB WriteLength
+    Song.WriteByte((bufLen \ 16777216) AND 255)
+    Song.WriteByte((bufLen \ 65536) AND 255)
+    Song.WriteByte((bufLen \ 256) AND 255)
+    Song.WriteByte(bufLen AND 255)
+END SUB
+
+' The finished track as a chunk of the file: "MTrk", its length, its bytes.
+' Events are put in time order by sorting keys that hold (tick, off before
+' on, which event): tick * 2 + on, times 4096, plus the event's number.
+SUB WriteTrack (chan AS INTEGER, program AS INTEGER, volume AS INTEGER, name AS STRING)
+    DIM i AS INTEGER, idx AS INTEGER, now AS LONG, last AS LONG
+    bufLen = 0
+    MetaText 3, name
+    IF program >= 0 THEN
+        Delta 0: PutByte &HC0 + chan: PutByte program
+        Delta 0: PutByte &HB0 + chan: PutByte 7: PutByte volume
+    END IF
+    IF evCount > 0 THEN
+        FOR i = 0 TO evCount - 1
+            sortKey(i) = (evTick(i) * 2 + evOn(i)) * 4096 + i
+        NEXT
+        QUICKSORT sortKey(0), sortKey(evCount - 1), 0
+        FOR i = 0 TO evCount - 1
+            idx = sortKey(i) MOD 4096
+            now = evTick(idx)
+            Delta now - last
+            last = now
+            IF evOn(idx) THEN PutByte &H90 + chan ELSE PutByte &H80 + chan
+            PutByte evKey(idx)
+            PutByte evVel(idx)
+        NEXT
+    END IF
+    Delta 0: PutByte &HFF: PutByte &H2F: PutByte 0        ' end of track
+    ' the chunk
+    Song.WriteByte ASC("M"): Song.WriteByte ASC("T"): Song.WriteByte ASC("r"): Song.WriteByte ASC("k")
+    WriteLength
+    FOR i = 0 TO bufLen - 1
+        Song.WriteByte buf(i)
+    NEXT
+    evCount = 0
+END SUB
+
+' ---- the five tracks ----------------------------------------------------------------
+
+' The conductor: the song's name, 4/4, and the tempo (468,750 microseconds a beat)
+SUB Conductor
+    bufLen = 0
+    MetaText 3, "Neon Loop"
+    MetaText 2, "An original loop made by make_song.rr (RapidR). MIT licence."
+    Delta 0: PutByte &HFF: PutByte &H58: PutByte 4: PutByte 4: PutByte 2: PutByte 24: PutByte 8
+    Delta 0: PutByte &HFF: PutByte &H51: PutByte 3: PutByte &H07: PutByte &H27: PutByte &H0E
+    Delta BARS * BAR: PutByte &HFF: PutByte &H2F: PutByte 0
+    Song.WriteByte ASC("M"): Song.WriteByte ASC("T"): Song.WriteByte ASC("r"): Song.WriteByte ASC("k")
+    WriteLength
+    DIM i AS INTEGER
+    FOR i = 0 TO bufLen - 1
+        Song.WriteByte buf(i)
+    NEXT
+END SUB
+
+' Drums, on channel 10: kick 36, clap 39, closed hat 42, open hat 46,
+' snare 38, crash 49
+SUB Drums
+    DIM b AS INTEGER, s AS INTEGER, beat AS INTEGER, t AS LONG, k AS INTEGER, lastBar AS INTEGER
+    FOR b = 0 TO BARS - 1
+        s = b \ 8                               ' the section: 0 to 3
+        lastBar = (b MOD 8 = 7)                 ' the bar that ends a section
+        t = b * BAR
+        IF b MOD 8 = 0 AND s > 0 THEN AddNote t, 960, 49, 100           ' a crash on the new section
+        FOR beat = 0 TO 3
+            ' four on the floor (the last bar of a section: only its first two beats)
+            IF NOT lastBar OR beat < 2 THEN AddNote t + beat * PPQ, 200, 36, 118
+            IF s >= 1 AND (beat = 1 OR beat = 3) AND NOT lastBar THEN AddNote t + beat * PPQ, 200, 39, 96
+            IF s >= 1 AND NOT lastBar THEN AddNote t + beat * PPQ + 240, 160, 46, 70    ' open hat off the beat
+            IF s >= 2 AND NOT lastBar THEN
+                AddNote t + beat * PPQ + 120, 80, 42, 48
+                AddNote t + beat * PPQ + 360, 80, 42, 48
+            END IF
+        NEXT
+        ' the snare roll: 8 sixteenths that get louder
+        IF lastBar THEN
+            FOR k = 0 TO 7
+                AddNote t + 960 + k * 120, 100, 38, 55 + k * 8
+            NEXT
+        END IF
+    NEXT
+    WriteTrack 9, -1, 0, "Drums"
+END SUB
+
+' Bass: from bar 9 on, a note on every off-beat eighth, the chord's root;
+' in the last section it jumps an octave on every second one
+SUB Bass
+    DIM b AS INTEGER, s AS INTEGER, beat AS INTEGER, key AS INTEGER
+    FOR b = 8 TO BARS - 1
+        s = b \ 8
+        FOR beat = 0 TO 3
+            IF NOT (b MOD 8 = 7 AND beat >= 2) THEN
+                key = bassRoot(b MOD 4)
+                IF s = 3 AND beat MOD 2 = 1 THEN key = key + 12
+                AddNote b * BAR + beat * PPQ + 240, 210, key, 104
+            END IF
+        NEXT
+    NEXT
+    WriteTrack 1, 38, 112, "Bass"
+END SUB
+
+' Arpeggio: from bar 17 on, the chord's notes run up and down in 16ths
+' (in the last section the second bar of each pair runs backwards)
+SUB Arpeggio
+    DIM b AS INTEGER, st AS INTEGER, n AS INTEGER, key AS INTEGER, vel AS INTEGER, at AS INTEGER
+    FOR b = 16 TO BARS - 1
+        FOR st = 0 TO 15
+            at = st
+            IF b >= 24 AND b MOD 2 = 1 THEN at = 15 - st
+            n = arp(at)
+            IF n < 3 THEN key = chord(b MOD 4, n) + 12 ELSE key = chord(b MOD 4, n - 3) + 24
+            vel = 72
+            IF st MOD 4 = 0 THEN vel = 100
+            IF NOT (b MOD 8 = 7 AND st >= 8) THEN AddNote b * BAR + st * 120, 105, key, vel
+        NEXT
+    NEXT
+    WriteTrack 2, 81, 96, "Arpeggio"
+END SUB
+
+' Pad: the chord of the bar held through it, louder in each section
+SUB Pad
+    DIM b AS INTEGER, k AS INTEGER
+    FOR b = 0 TO BARS - 1
+        FOR k = 0 TO 2
+            AddNote b * BAR, BAR - 40, chord(b MOD 4, k), 52 + (b \ 8) * 8
+        NEXT
+    NEXT
+    WriteTrack 3, 89, 90, "Pad"
+END SUB
+
+' ---- the file ---------------------------------------------------------------------
+
+IF Song.Open("song.mid", fmCreate) = 0 THEN
+    PRINT "Can't write song.mid here: the folder is read-only or full."
+    END
+END IF
+' the header: "MThd", 6 bytes: format 1, 5 tracks, 480 ticks a beat
+DIM h(13) AS INTEGER
+DATA 77, 84, 104, 100, 0, 0, 0, 6, 0, 1, 0, 5, 1, 224
+DIM i AS INTEGER
+FOR i = 0 TO 13
+    READ h(i)
+    Song.WriteByte h(i)
+NEXT
+Conductor
+Drums
+Bass
+Arpeggio
+Pad
+DIM size AS LONG
+size = Song.Size
+Song.Close
+PRINT "Wrote song.mid: "; size; " bytes, "; BARS; " bars, 5 tracks, 128 beats a minute."

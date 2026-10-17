@@ -1,0 +1,214 @@
+' same_numbers.rr: four sets of points with the very same numbers and four
+' very different pictures. Each chart shows its set, the line of best fit, and
+' under it the mean and spread of x and y, their correlation and the line's
+' equation, all worked out from the points drawn: the same four times.
+' An idea first shown by F. J. Anscombe (1973); the points here are made by
+' this program.
+'
+'   rapidr run same_numbers.rr       (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc same_numbers.rr -o numbers.zip       (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. "New points" makes
+' four other sets with the same numbers. How the sets are made: x and y are
+' first made to have mean 0 and spread 1; a "shape" (noise, a curve, one
+' stray point, a column) has what it shares with x taken away; then
+' y = r * x + sqrt(1 - r * r) * shape has correlation r exactly. Then each
+' is stretched to the wanted mean and spread. The statistics come from
+' RNum (Mean, Std, Dot), so they are measured, not promised.
+$THEME rapidr
+
+CONST N = 12                       ' points in a set
+CONST MX = 10                      ' the wanted numbers: mean and spread of x and y, and r
+CONST SX = 3
+CONST MY = 6
+CONST SY = 2
+CONST R = 0.8
+
+DECLARE SUB NewPoints
+DECLARE SUB ShowLineChanged
+DECLARE SUB DrawCharts
+DECLARE SUB LayOut
+
+DIM px(3, N - 1) AS DOUBLE, py(3, N - 1) AS DOUBLE        ' four sets of N points
+DIM xs(N - 1) AS DOUBLE, ss(N - 1) AS DOUBLE               ' a set's standardized x and its shape
+DIM Xs4(3) AS RNum, Ys4(3) AS RNum, Lx(3) AS RNum, Ly(3) AS RNum, Tmp AS RNum
+DIM Chart(3) AS RPlot
+DIM Nums(3) AS RLabel
+DIM Name(3) AS STRING
+DIM seed AS INTEGER
+DIM axLo AS DOUBLE, axHi AS DOUBLE, ayLo AS DOUBLE, ayHi AS DOUBLE      ' the axes all four charts share
+
+CREATE Form AS RForm
+    Caption = "Same numbers, four pictures"
+    ClientWidth = 960
+    ClientHeight = 676
+    MinWidth = 700: MinHeight = 560
+    OnResize = LayOut
+    Center
+    CREATE NewBtn AS RButton
+        Caption = "&New points": Left = 12: Top = 636: Width = 110
+        Anchors = akLeft + akBottom
+        OnClick = NewPoints
+        AccessibleDescription = "Makes four other sets of points with the same numbers"
+    END CREATE
+    CREATE LineBox AS RCheckBox
+        Caption = "Show the &line of best fit": Left = 134: Top = 640: Width = 200
+        Anchors = akLeft + akBottom
+        Checked = 1: OnClick = ShowLineChanged
+    END CREATE
+    CREATE Moral AS RLabel
+        Left = 350: Top = 630: Width = 598: Height = 36
+        Anchors = akLeft + akRight + akBottom
+        AutoSize = 0: WordWrap = 1
+        Caption = "The mean, the spread, the correlation and the line are the same in all four. Numbers alone don't show what the data look like: always draw it."
+    END CREATE
+END CREATE
+
+' The plain numbers of a set: mean and spread of x and of y, the correlation,
+' the line y = a + b x, all by RNum. (cov = mean(x * y) - mean(x) * mean(y))
+SUB Describe (k AS INTEGER)
+    DIM mx AS DOUBLE, my AS DOUBLE, sdx AS DOUBLE, sdy AS DOUBLE, cov AS DOUBLE, rr AS DOUBLE, b AS DOUBLE, a AS DOUBLE, i AS INTEGER
+    mx = Xs4(k).Mean: my = Ys4(k).Mean
+    sdx = Xs4(k).Std: sdy = Ys4(k).Std
+    Tmp.Clear                                   ' x * y for every point
+    FOR i = 0 TO N - 1
+        Tmp.Push Xs4(k).Get(i) * Ys4(k).Get(i)
+    NEXT
+    cov = Tmp.Mean - mx * my
+    rr = cov / (sdx * sdy)
+    b = cov / (sdx * sdx)
+    a = my - b * mx
+    Nums(k).Caption = "mean x " + FORMAT$("%.2f", mx) + "   mean y " + FORMAT$("%.2f", my) + CHR$(10) + "spread x " + FORMAT$("%.2f", sdx) + "   spread y " + FORMAT$("%.2f", sdy) + CHR$(10) + "correlation " + FORMAT$("%.3f", rr) + "   line y = " + FORMAT$("%.3f", a) + " + " + FORMAT$("%.3f", b) + " x"
+    ' the line, from the left edge of the points to the right
+    Lx(k).Clear: Ly(k).Clear
+    Lx(k).Push Xs4(k).Min: Lx(k).Push Xs4(k).Max
+    Ly(k).Push a + b * Xs4(k).Min: Ly(k).Push a + b * Xs4(k).Max
+END SUB
+
+' Set k from its x pattern (px, as set up by the caller) and its shape (ss):
+' standardize x, take from the shape what it shares with x, mix, stretch.
+SUB Build (k AS INTEGER)
+    DIM i AS INTEGER, m AS DOUBLE, v AS DOUBLE, dot AS DOUBLE, ssm AS DOUBLE, ssv AS DOUBLE, ys AS DOUBLE
+    ' x: mean 0, spread 1
+    m = 0
+    FOR i = 0 TO N - 1: m = m + px(k, i): NEXT
+    m = m / N
+    v = 0
+    FOR i = 0 TO N - 1: v = v + (px(k, i) - m) ^ 2: NEXT
+    v = SQR(v / N)
+    FOR i = 0 TO N - 1: xs(i) = (px(k, i) - m) / v: NEXT
+    ' the shape: mean 0, nothing in common with x, spread 1
+    m = 0
+    FOR i = 0 TO N - 1: m = m + ss(i): NEXT
+    m = m / N
+    dot = 0
+    FOR i = 0 TO N - 1: dot = dot + (ss(i) - m) * xs(i): NEXT
+    dot = dot / N
+    FOR i = 0 TO N - 1: ss(i) = ss(i) - m - dot * xs(i): NEXT
+    ssv = 0
+    FOR i = 0 TO N - 1: ssv = ssv + ss(i) * ss(i): NEXT
+    ssv = SQR(ssv / N)
+    ' mix, and stretch to the wanted mean and spread
+    FOR i = 0 TO N - 1
+        ys = R * xs(i) + SQR(1 - R * R) * ss(i) / ssv
+        px(k, i) = MX + SX * xs(i)
+        py(k, i) = MY + SY * ys
+    NEXT
+END SUB
+
+SUB FillSet (k AS INTEGER)
+    DIM i AS INTEGER
+    Xs4(k).Clear: Ys4(k).Clear
+    FOR i = 0 TO N - 1
+        Xs4(k).Push px(k, i): Ys4(k).Push py(k, i)
+    NEXT
+END SUB
+
+' Four sets: noise round a line, a curve, a line with one stray point, a
+' column of points with one far away
+SUB NewPoints
+    DIM i AS INTEGER, k AS INTEGER, stray AS INTEGER, far AS INTEGER, pad AS DOUBLE
+    seed = seed + 1
+    RANDOMIZE seed * 7919
+    ' A: x spread out evenly (a little uneven), the shape is noise
+    FOR i = 0 TO N - 1: px(0, i) = i + RND * 0.8: ss(i) = RND - 0.5: NEXT
+    Build 0
+    ' B: the shape is a curve: the square of x
+    FOR i = 0 TO N - 1: px(1, i) = i + RND * 0.8: NEXT
+    FOR i = 0 TO N - 1: ss(i) = (px(1, i) - (N - 1) / 2) ^ 2: NEXT
+    Build 1
+    ' C: the shape is one point, the stray one
+    stray = INT(RND * (N - 4)) + 2
+    FOR i = 0 TO N - 1: px(2, i) = i + RND * 0.8: ss(i) = 0: NEXT
+    ss(stray) = 1
+    Build 2
+    ' D: all the points over the same x but one, a long way off; the shape is a ramp
+    far = INT(RND * N)
+    FOR i = 0 TO N - 1
+        px(3, i) = 8: ss(i) = i + RND * 3
+    NEXT
+    px(3, far) = 19: ss(far) = (N - 1) / 2
+    Build 3
+    FOR k = 0 TO 3
+        FillSet k
+        Describe k
+    NEXT
+    ' the same axes for all four, so the pictures can be compared
+    axLo = Xs4(0).Min: axHi = Xs4(0).Max: ayLo = Ys4(0).Min: ayHi = Ys4(0).Max
+    FOR k = 1 TO 3
+        IF Xs4(k).Min < axLo THEN axLo = Xs4(k).Min
+        IF Xs4(k).Max > axHi THEN axHi = Xs4(k).Max
+        IF Ys4(k).Min < ayLo THEN ayLo = Ys4(k).Min
+        IF Ys4(k).Max > ayHi THEN ayHi = Ys4(k).Max
+    NEXT
+    pad = (axHi - axLo) * 0.05
+    axLo = axLo - pad: axHi = axHi + pad: ayLo = ayLo - 1: ayHi = ayHi + 1
+    DrawCharts
+END SUB
+
+' The four charts: the points, the line of best fit if wanted, the shared axes
+SUB DrawCharts
+    DIM k AS INTEGER
+    FOR k = 0 TO 3
+        Chart(k).Clear
+        Chart(k).Title = Name(k)
+        Chart(k).Grid = 1
+        Chart(k).Xlim axLo, axHi
+        Chart(k).Ylim ayLo, ayHi
+        Chart(k).Scatter(Xs4(k), Ys4(k), "points", "royalblue")
+        IF LineBox.Checked THEN Chart(k).Plot(Lx(k), Ly(k), "line of best fit", "tomato")
+        Chart(k).Show
+    NEXT
+END SUB
+
+SUB ShowLineChanged
+    DrawCharts
+END SUB
+
+' The four charts and their numbers share the window, whatever its size
+SUB LayOut
+    DIM w AS INTEGER, h AS INTEGER, cw AS INTEGER, ch AS INTEGER, q AS INTEGER
+    w = Form.ClientWidth: h = Form.ClientHeight
+    cw = (w - 36) \ 2: ch = (h - 52 - 2 * 58) \ 2
+    FOR q = 0 TO 3
+        Chart(q).Left = 12 + (q MOD 2) * (cw + 12): Chart(q).Top = 8 + (q \ 2) * (ch + 58)
+        Chart(q).Width = cw: Chart(q).Height = ch
+        Nums(q).Left = Chart(q).Left + 8: Nums(q).Top = Chart(q).Top + ch + 4: Nums(q).Width = cw - 16
+    NEXT
+END SUB
+
+Name(0) = "A: scattered round a line"
+Name(1) = "B: a curve"
+Name(2) = "C: a line and one stray point"
+Name(3) = "D: a column, and one point far off"
+DIM q AS INTEGER
+FOR q = 0 TO 3
+    Chart(q).Parent = Form
+    Chart(q).AccessibleName = Name(q)
+    Nums(q).Parent = Form
+    Nums(q).Height = 52
+    Nums(q).AutoSize = 0
+NEXT
+LayOut
+NewPoints
+Form.ShowModal

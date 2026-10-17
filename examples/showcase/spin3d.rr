@@ -1,0 +1,293 @@
+' spin3d.rr: a lit, shaded 3D scene that turns: a planet with oceans, land and
+' ice caps, a ring round it and a moon going round, in front of a field of
+' stars. The shapes are built from faces by the program (spheres, a ring), the
+' shading is Direct3D's: an ambient light and a sun, smooth over the planet,
+' flat on the moon's facets.
+'
+'   rapidr run spin3d.rr          (or open it in RapidR Studio and press F5)
+'   rapidr bundle-bc spin3d.rr -o planet.zip      (the web: unzip, serve the folder)
+'
+' Runs: desktop (run, interpreted, native) and the web. Arrow keys: Left and
+' Right slow down and speed up the planet's turning, Down and Up the moon's
+' going round; the buttons do the same.
+$THEME rapidr
+
+CONST D3DRMLIGHT_AMBIENT = 0
+CONST D3DRMLIGHT_DIRECTIONAL = 3
+CONST D3DRMRENDER_FLAT = 136
+CONST D3DRMRENDER_UNLITFLAT = 128
+CONST PI = 3.14159265
+CONST W = 720
+CONST H = 480
+CONST STARS = 700
+
+DECLARE SUB Setup
+DECLARE SUB Frame
+DECLARE SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+DECLARE SUB SpinSlower
+DECLARE SUB SpinFaster
+DECLARE SUB MoonSlower
+DECLARE SUB MoonFaster
+
+DIM Face AS RD3DFace
+DIM Tilt AS RD3DFrame                          ' the planet's axis, leaning over
+DIM PlanetFrame AS RD3DFrame
+DIM RingFrame AS RD3DFrame
+DIM MoonOrbit AS RD3DFrame                     ' turns, and the moon in it goes round
+DIM MoonFrame AS RD3DFrame
+DIM SunFrame AS RD3DFrame
+DIM StarFrame AS RD3DFrame
+DIM PlanetMesh AS RD3DMeshBuilder
+DIM RingMesh AS RD3DMeshBuilder
+DIM MoonMesh AS RD3DMeshBuilder
+DIM StarMesh AS RD3DMeshBuilder
+DIM spinSpeed AS DOUBLE, moonSpeed AS DOUBLE   ' radians a second
+DIM lastTime AS DOUBLE, shownFps AS INTEGER
+
+DIM FrameTimer AS RDXTimer
+FrameTimer.Interval = 0                        ' once a frame
+FrameTimer.OnTimer = Frame
+
+CREATE Form AS RForm
+    Caption = "Planet"
+    ClientWidth = W
+    ClientHeight = H + 44
+    KeyPreview = 1
+    OnKeyDown = FormKey
+    MinWidth = 560: MinHeight = 380
+    Center
+    CREATE DX AS RDXScreen
+        Left = 0: Top = 0: Width = W: Height = H
+        Anchors = akLeft + akTop + akRight + akBottom
+        Init(W, H)
+        Use3D = 1
+        OnInitialize = Setup
+        AccessibleName = "Planet"
+        AccessibleDescription = "A planet with a ring and a moon, turning"
+    END CREATE
+    CREATE SlowerBtn AS RButton
+        Caption = "&Slower": Left = 12: Top = H + 8: Width = 84
+        Anchors = akLeft + akBottom
+        OnClick = SpinSlower
+        AccessibleDescription = "Slows the planet's turning (Left arrow)"
+    END CREATE
+    CREATE FasterBtn AS RButton
+        Caption = "&Faster": Left = 102: Top = H + 8: Width = 84
+        Anchors = akLeft + akBottom
+        OnClick = SpinFaster
+        AccessibleDescription = "Speeds the planet's turning (Right arrow)"
+    END CREATE
+    CREATE MoonSlowerBtn AS RButton
+        Caption = "&Moon slower": Left = 206: Top = H + 8: Width = 110
+        Anchors = akLeft + akBottom
+        OnClick = MoonSlower
+        AccessibleDescription = "Slows the moon (Down arrow)"
+    END CREATE
+    CREATE MoonFasterBtn AS RButton
+        Caption = "M&oon faster": Left = 322: Top = H + 8: Width = 110
+        Anchors = akLeft + akBottom
+        OnClick = MoonFaster
+        AccessibleDescription = "Speeds the moon (Up arrow)"
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 448: Top = H + 13: Width = W - 460
+        Anchors = akLeft + akRight + akBottom
+    END CREATE
+END CREATE
+
+' A ball of rings x segs faces round the origin. Each face's colour is worked out
+' from where it is (ocean, land, mountain, ice), so a whole planet is one mesh.
+SUB BuildPlanet (MB AS RD3DMeshBuilder, radius AS DOUBLE, rings AS INTEGER, segs AS INTEGER, paint AS INTEGER)
+    DIM i AS INTEGER, j AS INTEGER, a0 AS DOUBLE, a1 AS DOUBLE, b0 AS DOUBLE, b1 AS DOUBLE
+    DIM am AS DOUBLE, bm AS DOUBLE, land AS DOUBLE, shade AS DOUBLE
+    FOR i = 0 TO rings - 1
+        a0 = PI * i / rings: a1 = PI * (i + 1) / rings
+        FOR j = 0 TO segs - 1
+            b0 = 2 * PI * j / segs: b1 = 2 * PI * (j + 1) / segs
+            ' the vertices, clockwise seen from outside (the poles are triangles)
+            DX.CreateFace(Face)
+            IF i > 0 THEN Face.AddVertex(radius * SIN(a0) * COS(b0), radius * COS(a0), radius * SIN(a0) * SIN(b0))
+            Face.AddVertex(radius * SIN(a0) * COS(b1), radius * COS(a0), radius * SIN(a0) * SIN(b1))
+            IF i < rings - 1 THEN Face.AddVertex(radius * SIN(a1) * COS(b1), radius * COS(a1), radius * SIN(a1) * SIN(b1))
+            Face.AddVertex(radius * SIN(a1) * COS(b0), radius * COS(a1), radius * SIN(a1) * SIN(b0))
+            IF paint THEN
+                ' land where two waves laid over each other are high; ice near the poles
+                am = (a0 + a1) / 2: bm = (b0 + b1) / 2
+                land = SIN(3 * bm + 2 * SIN(2 * am)) + SIN(2 * am * 2.5 + bm * 1.5) + 0.6 * SIN(7 * bm - 3 * am)
+                shade = 0.85 + 0.15 * SIN(11 * bm + 5 * am)
+                IF am < 0.38 OR am > PI - 0.38 THEN
+                    Face.SetColorRGB(0.92 * shade, 0.95 * shade, 1 * shade)
+                ELSEIF land > 0.55 THEN
+                    IF land > 1.5 THEN
+                        Face.SetColorRGB(0.62 * shade, 0.5 * shade, 0.38 * shade)      ' mountains
+                    ELSE
+                        Face.SetColorRGB(0.28 * shade, 0.58 * shade, 0.24 * shade)     ' land
+                    END IF
+                ELSE
+                    Face.SetColorRGB(0.1 * shade, 0.3 * shade, 0.7 * shade)             ' ocean
+                END IF
+            ELSE
+                Face.SetColorRGB(0.8, 0.8, 0.8)
+            END IF
+            MB.AddFace(Face)
+        NEXT
+    NEXT
+END SUB
+
+' A flat ring from radius r0 to r1, seen from both sides (a face is drawn
+' from its front only), in bands of alternating shades
+SUB BuildRing (MB AS RD3DMeshBuilder, r0 AS DOUBLE, r1 AS DOUBLE, segs AS INTEGER, bands AS INTEGER)
+    DIM j AS INTEGER, k AS INTEGER, a0 AS DOUBLE, a1 AS DOUBLE, ra AS DOUBLE, rb AS DOUBLE, tone AS DOUBLE, side AS INTEGER
+    FOR k = 0 TO bands - 1
+        ra = r0 + (r1 - r0) * k / bands: rb = r0 + (r1 - r0) * (k + 1) / bands
+        tone = 0.7 + 0.3 * ABS(SIN(k * 2.3 + 1))
+        FOR j = 0 TO segs - 1
+            a0 = 2 * PI * j / segs: a1 = 2 * PI * (j + 1) / segs
+            FOR side = 0 TO 1
+                DX.CreateFace(Face)
+                IF side = 0 THEN
+                    ' seen from above: clockwise
+                    Face.AddVertex(ra * COS(a0), 0, ra * SIN(a0)): Face.AddVertex(rb * COS(a0), 0, rb * SIN(a0))
+                    Face.AddVertex(rb * COS(a1), 0, rb * SIN(a1)): Face.AddVertex(ra * COS(a1), 0, ra * SIN(a1))
+                ELSE
+                    ' seen from below: the other way round
+                    Face.AddVertex(ra * COS(a1), 0, ra * SIN(a1)): Face.AddVertex(rb * COS(a1), 0, rb * SIN(a1))
+                    Face.AddVertex(rb * COS(a0), 0, rb * SIN(a0)): Face.AddVertex(ra * COS(a0), 0, ra * SIN(a0))
+                END IF
+                Face.SetColorRGB(tone, tone * 0.82, tone * 0.55)
+                MB.AddFace(Face)
+            NEXT
+        NEXT
+    NEXT
+END SUB
+
+' Stars: tiny squares far away, each turned to face the camera's side, drawn
+' with no light so they are plain white
+SUB BuildStars (MB AS RD3DMeshBuilder, count AS INTEGER)
+    DIM i AS INTEGER, x AS DOUBLE, y AS DOUBLE, z AS DOUBLE, ln AS DOUBLE, ux AS DOUBLE, uy AS DOUBLE, uz AS DOUBLE
+    DIM rx AS DOUBLE, ry AS DOUBLE, rz AS DOUBLE, s AS DOUBLE, d AS DOUBLE
+    FOR i = 1 TO count
+        ' a random direction, the sky all round (but not the far side of the world twice)
+        DO
+            x = RND * 2 - 1: y = RND * 2 - 1: z = RND * 2 - 1
+            ln = SQR(x * x + y * y + z * z)
+        LOOP WHILE ln > 1 OR ln < 0.2
+        x = x / ln: y = y / ln: z = z / ln
+        ' up (0,1,0) made square with the direction, right = up x direction
+        ux = -y * x: uy = 1 - y * y: uz = -y * z
+        ln = SQR(ux * ux + uy * uy + uz * uz)
+        IF ln < 0.001 THEN
+            ux = 1: uy = 0: uz = 0: ln = 1
+        END IF
+        ux = ux / ln: uy = uy / ln: uz = uz / ln
+        rx = uy * z - uz * y: ry = uz * x - ux * z: rz = ux * y - uy * x
+        d = 40: s = 0.025 + RND * 0.05           ' (in world units: a pinprick at that distance)
+        DX.CreateFace(Face)
+        Face.AddVertex(x * d + (-rx + ux) * s, y * d + (-ry + uy) * s, z * d + (-rz + uz) * s)
+        Face.AddVertex(x * d + (rx + ux) * s, y * d + (ry + uy) * s, z * d + (rz + uz) * s)
+        Face.AddVertex(x * d + (rx - ux) * s, y * d + (ry - uy) * s, z * d + (rz - uz) * s)
+        Face.AddVertex(x * d + (-rx - ux) * s, y * d + (-ry - uy) * s, z * d + (-rz - uz) * s)
+        Face.SetColorRGB(1, 1, 1)
+        MB.AddFace(Face)
+    NEXT
+    MB.SetQuality(D3DRMRENDER_UNLITFLAT)
+END SUB
+
+SUB Setup
+    DIM Ambient AS RD3DLight, Sun AS RD3DLight
+    ' the lights: a dim one everywhere, and the sun, from the upper left
+    DX.CreateLightRGB(D3DRMLIGHT_AMBIENT, 0.34, 0.34, 0.42, Ambient)
+    DX.AddLight(Ambient)
+    DX.CreateFrame(SunFrame)
+    DX.CreateLightRGB(D3DRMLIGHT_DIRECTIONAL, 1, 0.95, 0.85, Sun)
+    SunFrame.AddLight(Sun)
+    SunFrame.SetOrientation(1, -0.5, 1, 0, 1, 0)
+    SunFrame.SetBackgroundRGB(0.01, 0.01, 0.04)
+    ' the stars
+    DX.CreateFrame(StarFrame)
+    DX.CreateMeshBuilder(StarMesh)
+    BuildStars StarMesh, STARS
+    StarFrame.AddVisual(StarMesh)
+    ' the planet, leaning 23 degrees (its up is tilted towards +x), with its ring
+    DX.CreateFrame(Tilt)
+    Tilt.SetOrientation(0, 0, 1, 0.4, 0.92, 0)
+    Tilt.CreateFrame(PlanetFrame)
+    DX.CreateMeshBuilder(PlanetMesh)
+    BuildPlanet PlanetMesh, 1.3, 36, 72, 1
+    PlanetFrame.AddVisual(PlanetMesh)
+    Tilt.CreateFrame(RingFrame)
+    DX.CreateMeshBuilder(RingMesh)
+    BuildRing RingMesh, 1.75, 2.7, 60, 7
+    RingFrame.AddVisual(RingMesh)
+    ' the moon, in an orbit frame that turns about the planet's axis
+    Tilt.CreateFrame(MoonOrbit)
+    MoonOrbit.CreateFrame(MoonFrame)
+    DX.CreateMeshBuilder(MoonMesh)
+    BuildPlanet MoonMesh, 0.32, 8, 16, 0
+    MoonMesh.SetQuality(D3DRMRENDER_FLAT)
+    MoonFrame.AddVisual(MoonMesh)
+    MoonFrame.SetPosition(3.5, 0.3, 0)
+    DX.SetCameraPosition(0, 1.8, -8.2)
+    DX.SetCameraOrientation(0, -0.2, 1, 0, 1, 0)
+    spinSpeed = 0.5: moonSpeed = 0.6
+    lastTime = TIMER
+    FrameTimer.Enabled = 1
+END SUB
+
+SUB Frame
+    DIM now AS DOUBLE, dt AS DOUBLE
+    now = TIMER
+    dt = now - lastTime
+    IF dt < 0 OR dt > 0.2 THEN dt = 0.016
+    lastTime = now
+    ' the speeds are radians a second; a frame turns each frame by its share
+    PlanetFrame.SetRotation(0, 1, 0, spinSpeed * dt)
+    MoonOrbit.SetRotation(0, 1, 0, moonSpeed * dt)
+    MoonFrame.SetRotation(0, 1, 0, 1.5 * dt)
+    DX.Move(1)
+    DX.Render
+    DX.TextOut(10, 8, "Turning " + FORMAT$("%.1f", spinSpeed / 0.5) + "x   moon " + FORMAT$("%.1f", moonSpeed / 0.6) + "x   (arrow keys)", &HFFFFFF, -1)
+    DX.TextOut(DX.Width - 62, 8, FORMAT$("%d", FrameTimer.FrameRate) + " fps", &HC8C8C8, -1)
+    DX.Flip
+END SUB
+
+' ---- the speeds ------------------------------------------------------------------
+
+SUB SpinSlower
+    spinSpeed = spinSpeed - 0.25
+    IF spinSpeed < 0 THEN spinSpeed = 0
+    Info.Caption = "Planet turning at " + FORMAT$("%.1f", spinSpeed / 0.5) + "x"
+END SUB
+
+SUB SpinFaster
+    spinSpeed = spinSpeed + 0.25
+    IF spinSpeed > 6 THEN spinSpeed = 6
+    Info.Caption = "Planet turning at " + FORMAT$("%.1f", spinSpeed / 0.5) + "x"
+END SUB
+
+SUB MoonSlower
+    moonSpeed = moonSpeed - 0.3
+    IF moonSpeed < 0 THEN moonSpeed = 0
+    Info.Caption = "Moon going round at " + FORMAT$("%.1f", moonSpeed / 0.6) + "x"
+END SUB
+
+SUB MoonFaster
+    moonSpeed = moonSpeed + 0.3
+    IF moonSpeed > 6 THEN moonSpeed = 6
+    Info.Caption = "Moon going round at " + FORMAT$("%.1f", moonSpeed / 0.6) + "x"
+END SUB
+
+' The arrow keys: the form hears them first (KeyPreview), whichever
+' button has the focus
+SUB FormKey (BYREF Key AS WORD, Shift AS INTEGER)
+    SELECT CASE Key
+        CASE 37: SpinSlower                       ' Left
+        CASE 39: SpinFaster                       ' Right
+        CASE 40: MoonSlower                       ' Down
+        CASE 38: MoonFaster                       ' Up
+    END SELECT
+END SUB
+
+Info.Caption = "Left, Right: planet. Down, Up: moon."
+RANDOMIZE 7
+Form.ShowModal
