@@ -268,6 +268,10 @@ export const cases = [
     events: `connectbtn.onclick,${wait("state", 2)},resetbtn.onclick,${wait("state", 6)}`, dump: "ports.text,state.caption,log.linecount",
     expect: ["ports.text=COM5 (CP2102N USB to UART Bridge Controller)", "state.caption=Connected to COM5 at 115200   DTR 0  RTS 0", "log.linecount=9"] },
   // showcase/: the release post's programs (docs/manual/showcase.md)
+  // (make_song.rr writes song.mid with a file stream: the same bytes as
+  // the one shipped, which midi_visualizer.rr plays)
+  { file: "showcase/make_song.rr", runtimes: ["run", "interp", "native", "web"], without: ["song.mid"], sameFile: "song.mid",
+    expect: ["Wrote song.mid: 7120 bytes, 32 bars, 5 tracks, 128 beats a minute."] },
   // (Space launches a rocket; left to burst, the count in the line under the
   // sky says it went off)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 30)}`,

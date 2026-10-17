@@ -661,6 +661,7 @@ FUNCTION TempFolder AS STRING
     d = ENVIRON$("TMPDIR")
     IF d = "" THEN d = ENVIRON$("TEMP")
     IF d = "" THEN d = ENVIRON$("TMP")
+    IF d = "" AND DIREXISTS("/tmp") THEN d = "/tmp"           ' (Linux with none of them set)
     IF d <> "" AND RIGHT$(d, 1) <> "/" AND RIGHT$(d, 1) <> "\" THEN d = d + "/"
     TempFolder = d
 END FUNCTION
