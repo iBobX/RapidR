@@ -4389,6 +4389,49 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-even
 // queries, followed as they change. Studio follows without a reload: the
 // look it reads, its Welcome page's colours (a page opened in that scheme's),
 // dark, high contrast (forced colours), light again; a capture of each.
+// (USE-AUDIT) The manual's way to add a component — select the toolbox item, press
+// Enter — and then, as a person does, a click on a component of the form to select
+// it: it selects it. It used to place another component of the item's kind (the
+// click that picked the item had armed the placing tool, and Enter didn't spend it).
+// Real mouse and key events on the page, the result read from the accessibility mirror.
+async function webToolboxEnterThenClick() {
+  const name = "toolbox-enter-then-click (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  try {
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; });
+    const src = "examples/gui/hello_form.rr";
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.designer", open: src });
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; window.RAPIDR_FILE_SINK = () => {}; }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("studio", "caption")).includes("hello_form"), null, { timeout: 90000, polling: 200 });
+    await page.waitForTimeout(1500);
+    const click = async (locator) => {
+      const b = await locator.boundingBox();
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+      await page.waitForTimeout(500);
+    };
+    const labels = () => page.locator("[aria-label*='(RLabel)'][role=option]").count();
+    const before = await labels();
+    await click(page.getByRole("treeitem", { name: "RLabel — Label", exact: true }));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(700);
+    const added = await labels();
+    record(name, added === before + 1, `select the toolbox item and press Enter: one label more (${before} -> ${added})`);
+    await click(page.locator("[aria-label^='GreetButton (RButton)'][role=option]").first());
+    const after = await labels();
+    const sel = await page.locator("[aria-label^='GreetButton (RButton)'][role=option][aria-selected=true]").count();
+    record(name, after === added && sel === 1, `a click on the Greet button selects it and places nothing (${added} -> ${after} labels, Greet selected: ${sel === 1})`);
+    await page.screenshot({ path: join(WORK, "toolbox-enter-then-click-web.png") });
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "toolbox-enter-then-click".includes(f) || f === "toolbox"))) {
+  await webToolboxEnterThenClick();
+}
 async function webColorScheme() {
   const name = "theme-web-color-scheme (web)";
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: "light" });
