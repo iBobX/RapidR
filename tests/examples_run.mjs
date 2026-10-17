@@ -278,6 +278,15 @@ export const cases = [
   // (a click on the sky sends a rocket there; Space another one)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)},form.__key_32`,
     dump: "info.caption", expect: ["info.caption=Bursts so far: 1."] },
+  // spin3d.rr: the arrow keys (used up by the form) and the buttons change the speeds
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_39,form.__key_39,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Planet turning at 2.0x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_40,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Moon going round at 0.5x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `slowerbtn.onclick,slowerbtn.onclick,slowerbtn.onclick,moonfasterbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Moon going round at 1.5x"] },
+  { file: "showcase/spin3d.rr", runtimes: ["run", "interp", "native", "web"], events: `slowerbtn.onclick,slowerbtn.onclick,slowerbtn.onclick,${wait("info", 6)}`,
+    dump: "info.caption", expect: ["info.caption=Planet turning at 0.0x"] },
   // signal_lab.rr: with the noise off the analyzer finds the two tones the
   // sliders say (438 and 683 Hz), a screen reader is told; a square wave with
   // no second tone shows its odd harmonics, the 11th folded back (aliasing)

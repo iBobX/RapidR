@@ -16,6 +16,7 @@ Where a program needs something a browser can't give it, its section says so.
 | Program | What it shows |
 |---|---|
 | [Fireworks](#fireworks) | thousands of sparks, each with its own physics; RNum draws the shapes |
+| [A planet](#a-planet) | a lit, shaded 3D planet with a ring and a moon, built from faces |
 | [Signal lab](#signal-lab) | a signal generator, an oscilloscope held still by a trigger, and an FFT written in BASIC |
 | [A MIDI visualizer](#a-midi-visualizer) | a 3D scene that dances to a song the program reads itself |
 
@@ -84,6 +85,56 @@ draws about two thousand lines a frame, and measures:
 The cost is the drawing calls: each takes about 5 microseconds, so 2,000
 sparks are about 10 milliseconds of the frame's 16 or 33; the arithmetic for
 all of them takes less than one millisecond.
+
+## A planet
+
+[`spin3d.rr`](../../examples/showcase/spin3d.rr): a planet with oceans, land
+and ice caps, a ring and a moon going round it, in front of stars, lit by a
+sun. The **left and right arrow keys** slow down and speed up the planet's
+turning, **down and up** the moon's going round; the four buttons do the same.
+
+![The planet: blue oceans, green land and brown mountains, an ice cap, a ring of brown bands, a pale moon in front, stars behind](images/showcase/spin3d.png)
+
+Everything is built by the program from faces, a face being a flat polygon
+with a colour. A face's corners are listed clockwise as seen from outside,
+the way Direct3D tells its front, which is the side that is drawn. The planet
+is a ball of 36 rings of 72 faces; the lines that matter in `BuildPlanet`:
+
+```basic
+DX.CreateFace(Face)
+Face.AddVertex(radius * SIN(a0) * COS(b1), radius * COS(a0), radius * SIN(a0) * SIN(b1))
+...
+land = SIN(3 * bm + 2 * SIN(2 * am)) + SIN(2 * am * 2.5 + bm * 1.5) + 0.6 * SIN(7 * bm - 3 * am)
+IF land > 0.55 THEN Face.SetColorRGB(0.28 * shade, 0.58 * shade, 0.24 * shade)
+MB.AddFace(Face)
+```
+
+`a` is the angle from the north pole and `b` the angle round the axis; the
+land is where three waves of different sizes, laid over one another, are high,
+which makes continents (and the same planet every time). Ice is near the poles.
+
+**Frames make it move.** A frame is a place in the scene; things attached to
+it go where it goes. The planet, the ring and the moon's orbit are in a frame
+that leans over 23 degrees (`Tilt.SetOrientation(0, 0, 1, 0.4, 0.92, 0)`: the
+second three numbers are which way is up for it), so everything turns about
+the planet's leaning axis. Each frame the program says how far every part
+turns, and calls `DX.Move(1)`:
+
+```basic
+PlanetFrame.SetRotation(0, 1, 0, spinSpeed * dt)
+MoonOrbit.SetRotation(0, 1, 0, moonSpeed * dt)
+MoonFrame.SetRotation(0, 1, 0, 1.5 * dt)
+DX.Move(1)
+```
+
+The moon sits at 3.5 to the side in `MoonOrbit`, which turns, so it goes
+round; its own frame turns it about itself. The planet is smooth (the default
+Gouraud shading blends the light across faces) and the moon, made with
+`SetQuality(D3DRMRENDER_FLAT)`, shows its facets. The stars are 700 tiny
+squares far away drawn "unlit" (`D3DRMRENDER_UNLITFLAT`), so they are plain
+white whatever the lights do. The arrow keys come to the form first
+(`KeyPreview = 1`) and the handler uses the key up (`Key = 0`) so that a
+button with the focus doesn't also react.
 
 ## Signal lab
 
