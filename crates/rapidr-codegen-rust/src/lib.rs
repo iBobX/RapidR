@@ -1851,7 +1851,9 @@ impl RustCodegen {
                 );
             }
         }
-        self.line("p => rapidr_runtime_core::value::runtime_error(&format!(\"CALLFUNC: {p} is not a function pointer (use BIND or CODEPTR)\")),");
+        // (the web build's runtime is rapidr_runtime_web: the same error there)
+        let runtime = if self.target == AppTarget::Web { "rapidr_runtime_web" } else { "rapidr_runtime_core" };
+        self.line(&format!("p => {runtime}::value::runtime_error(&format!(\"CALLFUNC: {{p}} is not a function pointer (use BIND or CODEPTR)\")),"));
         self.indent -= 1;
         self.line("}");
         self.indent -= 1;
