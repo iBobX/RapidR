@@ -423,6 +423,8 @@ SUB ToolboxPick(TypeName AS STRING)
     EXIT SUB
   END IF
   DesignDoc(d).AddComponent TypeName, -1, -1
+  ' (the click that picked the item armed the placing tool, ToolboxSelect: spent now — else the next click on the form, meant to select a component, would place another)
+  DesignDoc(d).PlaceType = ""
   Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 

@@ -4156,7 +4156,8 @@ async function webNestedAndError() {
     for (let k = 1; k <= 3; k++) {
       await page.keyboard.press("F5");
       const after = await until(status, (v) => v.startsWith("Running") || /exit code/.test(v), 5000);
-      const running = after.startsWith("Running") && (await button("Pause")) && !(await button("Run (F5)"));
+      // (the status text says Running a pump before the tool bar's buttons follow — ❙❙ on, ▶ off: wait for them, as a person looks at them, instead of reading them in that gap: this check failed one run in five)
+      const running = after.startsWith("Running") && (await until(async () => (await button("Pause")) && !(await button("Run (F5)")), (v) => v === true, 3000)) === true;
       record("debug-events-web-error (web)", running, `Continue ${k} after the error: the handler ends, the program runs on (${after})`);
       if (k === 3) break;
       const again = await frameBox(runFrame(page), "button", "Oops");
@@ -4388,6 +4389,49 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-even
 // queries, followed as they change. Studio follows without a reload: the
 // look it reads, its Welcome page's colours (a page opened in that scheme's),
 // dark, high contrast (forced colours), light again; a capture of each.
+// (USE-AUDIT) The manual's way to add a component — select the toolbox item, press
+// Enter — and then, as a person does, a click on a component of the form to select
+// it: it selects it. It used to place another component of the item's kind (the
+// click that picked the item had armed the placing tool, and Enter didn't spend it).
+// Real mouse and key events on the page, the result read from the accessibility mirror.
+async function webToolboxEnterThenClick() {
+  const name = "toolbox-enter-then-click (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  try {
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; });
+    const src = "examples/gui/hello_form.rr";
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "wait,view.designer", open: src });
+    await page.addInitScript((files) => { window.RAPIDR_STUDIO_TEST_FILES = files; window.RAPIDR_FILE_SINK = () => {}; }, [{ path: src, text: readFileSync(join(ROOT, src), "utf8") }]);
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && String(window.rr.rapidr_get_prop("studio", "caption")).includes("hello_form"), null, { timeout: 90000, polling: 200 });
+    await page.waitForTimeout(1500);
+    const click = async (locator) => {
+      const b = await locator.boundingBox();
+      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+      await page.waitForTimeout(500);
+    };
+    const labels = () => page.locator("[aria-label*='(RLabel)'][role=option]").count();
+    const before = await labels();
+    await click(page.getByRole("treeitem", { name: "RLabel — Label", exact: true }));
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(700);
+    const added = await labels();
+    record(name, added === before + 1, `select the toolbox item and press Enter: one label more (${before} -> ${added})`);
+    await click(page.locator("[aria-label^='GreetButton (RButton)'][role=option]").first());
+    const after = await labels();
+    const sel = await page.locator("[aria-label^='GreetButton (RButton)'][role=option][aria-selected=true]").count();
+    record(name, after === added && sel === 1, `a click on the Greet button selects it and places nothing (${added} -> ${after} labels, Greet selected: ${sel === 1})`);
+    await page.screenshot({ path: join(WORK, "toolbox-enter-then-click-web.png") });
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "toolbox-enter-then-click".includes(f) || f === "toolbox"))) {
+  await webToolboxEnterThenClick();
+}
 async function webColorScheme() {
   const name = "theme-web-color-scheme (web)";
   const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 }, colorScheme: "light" });
@@ -4420,6 +4464,14 @@ async function webColorScheme() {
       const colors = `${await prop("welcome", "color")}/${await prop("excard(0)", "color")}`;
       record(name, got === want && colors === `${page_}/${card}`, `the browser switched to ${JSON.stringify(media)}: Studio is ${got}, the Welcome page and its cards ${colors} (wanted ${page_}/${card}), no reload`);
       await page.waitForTimeout(400);
+      if (media.forcedColors === "active") {
+        // (forced colours — Windows' High Contrast —: the browser repaints every element in the system's colours unless told not to; the screen readers' mirror, laid over the canvas in transparent text, then showed every label twice, a serif face on top of the canvas's)
+        const adjust = await page.evaluate(() => {
+          const el = document.querySelector(".rr-a11y [role=button], .rr-a11y [role=menuitem], .rr-a11y [role=treeitem]");
+          return el ? getComputedStyle(el).forcedColorAdjust + "/" + getComputedStyle(el).color : "no mirror element";
+        });
+        record(name, adjust === "none/rgba(0, 0, 0, 0)", `in forced colours the screen readers' mirror stays invisible (forced-color-adjust/colour: ${adjust})`);
+      }
       await page.screenshot({ path: join(WORK, `theme-web-color-scheme-${want.replace(/ /g, "-")}.png`) });
     }
   } catch (e) {
@@ -4440,4 +4492,9 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "beforeunlo
 await browser.close().catch(() => {});
 mockProc.kill();
 console.log(`\nRapidR Studio flows: ${passed} checks passed, ${failed} failed`);
+// (a filter that names no flow — a case's full name, `debug-events-web-nested`, is longer than the filter the web groups match, `debug-events-web` — ran nothing and said "0 passed, 0 failed", exit 0: a typo looked like a green run)
+if (filters.length && passed + failed === 0) {
+  console.error(`no flow matches ${JSON.stringify(filters)}: nothing ran`);
+  process.exit(1);
+}
 process.exit(failed ? 1 : 0);
