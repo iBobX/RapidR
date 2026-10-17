@@ -16,6 +16,11 @@ PRINT #1, "bread"
 PRINT #1, "apples"
 PRINT #1, "cheese"
 CLOSE #1
+' (written? A folder that can't be written leaves no file: say so, stop)
+IF FILEEXISTS(LOGFILE) = 0 THEN
+    PRINT "Couldn't write " + LOGFILE + ": this folder (" + CURDIR$ + ") can't be written. Run it from a folder of yours."
+    END
+END IF
 
 ' Add to it
 OPEN LOGFILE FOR APPEND AS #1

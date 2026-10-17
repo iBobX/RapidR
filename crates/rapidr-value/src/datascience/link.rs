@@ -134,6 +134,9 @@ struct Bound {
     field: String,
     /// The value it was last given.
     shown: Option<String>,
+    /// Why the text the user typed isn't its field's value (a number
+    /// column's letters): its `DataError`; "" when the field took it.
+    error: String,
 }
 
 /// An RDBGrid's view.
@@ -198,6 +201,8 @@ struct State {
     /// whether their document must be read again.
     json_file: HashMap<String, String>,
     json_stale: HashMap<String, bool>,
+    /// Why an RJSON's records couldn't be read (its `Error`; none: they could).
+    json_error: HashMap<String, String>,
     /// Design surfaces (`surface` → the designed program's folder).
     design: HashMap<String, String>,
     /// Design surfaces' `$RESOURCE`s: `surface` → (NAME → its file).
@@ -211,7 +216,7 @@ thread_local! {
     /// Something changed since the last sync (a frame, a link, a cursor).
     static DIRTY: Cell<bool> = const { Cell::new(false) };
     /// The runtime's RJSON documents: a component's JSON text.
-    static JSON_READER: Cell<Option<fn(&str) -> Option<String>>> = const { Cell::new(None) };
+    static JSON_READER: Cell<Option<JsonReader>> = const { Cell::new(None) };
     /// What a design-time read last gave: (path, options) → (length, hash, frame).
     static DESIGN_CACHE: RefCell<HashMap<(String, u8, bool), (usize, u64, Frame)>> = RefCell::new(HashMap::new());
 }
@@ -234,9 +239,14 @@ pub fn pending() -> bool {
     DIRTY.with(Cell::get) || with(|s| !s.out.is_empty())
 }
 
+/// A runtime's RJSON documents: RJSON `name`'s JSON text — its document,
+/// else its FileName's file —, `Err((FileName, why))` when that file can't
+/// be read, None when it has neither.
+pub type JsonReader = fn(&str) -> Option<Result<String, (String, String)>>;
+
 /// The runtime's RJSON documents (installed once by each runtime): the
 /// JSON text of RJSON `name`, if it has a document (or a FileName).
-pub fn set_json_reader(reader: fn(&str) -> Option<String>) {
+pub fn set_json_reader(reader: JsonReader) {
     JSON_READER.with(|r| r.set(Some(reader)));
 }
 
@@ -445,6 +455,14 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
                 _ => return None,
             })
         }
+        // (an RJSON as a source: why its records couldn't be read — its
+        // other members are the object's own)
+        "RJSON" if prop == "error" => {
+            ensure(&id);
+            Some(v_str(&with(|s| s.json_error.get(&id).cloned().unwrap_or_default())))
+        }
+        // (a bound REdit: why what the user typed isn't its field's value)
+        "REDIT" if prop == "dataerror" => Some(v_str(&with(|s| s.bound.get(&id).map(|b| b.error.clone()).unwrap_or_default()))),
         _ => None,
     }
 }
@@ -708,7 +726,8 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
         }
         ("RDATASOURCE", "field") => Ok(v_str(&field_value(&id, &arg(0)).unwrap_or_default())),
         ("RDATASOURCE", "setfield") => {
-            set_field(&id, &arg(0), &arg(1));
+            // (the program's own value: as it gives it)
+            let _ = set_field(&id, &arg(0), &arg(1), false);
             Ok(v_null())
         }
         ("RDATASOURCE", "refresh") => {
@@ -807,19 +826,21 @@ fn ensure_at(id: &str, depth: u8) {
 }
 
 /// A data file's text at run time: `file` as given (the current folder,
-/// then where the engine looks: `frame::read_text`), else beside the
-/// program (`rapidr run data/app.rr` reads `data/people.csv` for
-/// "people.csv", as the designer does).
+/// then where the engine looks: `frame::read_text`), else among the
+/// program's own files (`rapidr run data/app.rr` reads `data/people.csv`
+/// for "people.csv", as the designer does; a built app the one it came
+/// with: `command_line::files_folder`, a macOS app's Contents/Resources).
 pub fn read_beside(file: &str) -> Result<String, String> {
     match frame::read_text(file) {
         Ok(t) => Ok(t),
         Err(e) => {
             let f = file.replace('\\', "/");
             let relative = !(f.starts_with('/') || f.as_bytes().get(1) == Some(&b':') || f.contains("://"));
-            let program = crate::command_line::path().replace('\\', "/");
-            match program.rsplit_once('/') {
-                Some((dir, _)) if relative && !dir.is_empty() => frame::read_text(&format!("{dir}/{f}")).map_err(|_| e),
-                _ => Err(e),
+            let dir = crate::command_line::files_folder().map(|d| d.to_string_lossy().replace('\\', "/")).unwrap_or_default();
+            if relative && !dir.is_empty() {
+                frame::read_text(&format!("{}/{f}", dir.trim_end_matches('/'))).map_err(|_| e)
+            } else {
+                Err(e)
             }
         }
     }
@@ -915,7 +936,7 @@ fn load_csv(id: &str) {
 }
 
 fn load_json(id: &str) {
-    let file = with(|s| s.json_file.get(id).cloned().unwrap_or_default());
+    let mut file = with(|s| s.json_file.get(id).cloned().unwrap_or_default());
     if surface_of(id).is_none() && file.is_empty() && JSON_READER.with(Cell::get).is_none() {
         // (the runtime hasn't said where documents are yet: later)
         return;
@@ -930,21 +951,43 @@ fn load_json(id: &str) {
             design_path(&base, &file).and_then(|p| design_text(&p))
         }
         None => match JSON_READER.with(Cell::get).and_then(|r| r(id)) {
-            Some(t) => Ok(t),
+            Some(Ok(t)) => Ok(t),
+            Some(Err((named, why))) => {
+                file = named;
+                Err(why)
+            }
             None if !file.is_empty() => frame::read_text(&file),
-            None => return,
+            None => {
+                with(|s| s.json_error.remove(id));
+                return;
+            }
         },
     };
-    match text.map(|t| frame::parse_json_frame(&t)) {
+    let error = match text.map(|t| frame::parse_json_frame(&t)) {
         Ok(Some(mut f)) => {
             if surface_of(id).is_some() && f.height() > DESIGN_ROWS {
                 f = f.head(DESIGN_ROWS);
             }
             frame::set_frame(id, f);
+            None
         }
-        Ok(None) => queue(Update::Warn(format!("RJSON {id}: its document isn't JSON records ([{{…}}, …], JSON Lines or columns)"))),
-        Err(e) => queue(Update::Warn(format!("RJSON {id}: can't read \"{file}\" ({e})"))),
-    }
+        Ok(None) => {
+            queue(Update::Warn(format!("RJSON {id}: its document isn't JSON records ([{{…}}, …], JSON Lines or columns)")));
+            Some(if file.is_empty() { "its document isn't JSON records ([{…}, …], JSON Lines or columns)".to_string() } else { format!("\"{file}\" isn't JSON records ([{{…}}, …], JSON Lines or columns)") })
+        }
+        Err(e) => {
+            queue(Update::Warn(format!("RJSON {id}: can't read \"{file}\" ({e})")));
+            Some(unreadable(&file, &e))
+        }
+    };
+    with(|s| match error {
+        Some(e) => {
+            s.json_error.insert(id.to_string(), e);
+        }
+        None => {
+            s.json_error.remove(id);
+        }
+    });
 }
 
 // ---------------------------------------------------------------------------
@@ -1055,14 +1098,40 @@ fn field_value(owner: &str, field: &str) -> Option<String> {
 }
 
 /// The current row's `field` through `owner` becomes `value` (an empty
-/// value: missing).
-fn set_field(owner: &str, field: &str, value: &str) {
-    let Some((set, owner)) = dataset_of(owner) else { return };
+/// value: missing) — `check`ed (what the user typed): only when it is one
+/// of the column's type, a number column taking numbers only (Err: why
+/// not, the field unchanged).
+fn set_field(owner: &str, field: &str, value: &str, check: bool) -> Result<(), String> {
+    let Some((set, owner)) = dataset_of(owner) else { return Ok(()) };
     ensure(&set);
     let row = cursor(&owner).row;
-    let changed = frame::with_frame(&set, |f| f.col(field).filter(|_| row < f.height()).map(|c| (c, f.cell(row, c).map(|s| s.into_owned()).unwrap_or_default() != value)));
-    if let Some((c, true)) = changed {
-        frame::with_frame_mut(&set, |f| f.set_cell(row, c, (!value.is_empty()).then_some(value)));
+    let changed = frame::with_frame(&set, |f| {
+        f.col(field)
+            .filter(|_| row < f.height())
+            .map(|c| (c, f.cell(row, c).map(|s| s.into_owned()).unwrap_or_default() != value, if check { misfit(f, c, field, value) } else { None }))
+    });
+    match changed {
+        Some((_, _, Some(why))) => Err(why),
+        Some((c, true, None)) => {
+            frame::with_frame_mut(&set, |f| f.set_cell(row, c, (!value.is_empty()).then_some(value)));
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+/// Why `value` can't be column `c`'s (named `field`) of `f`: a number
+/// column's text that isn't a number. None: it can (an empty one: a
+/// missing value).
+fn misfit(f: &Frame, c: usize, field: &str, value: &str) -> Option<String> {
+    let v = value.trim();
+    if v.is_empty() {
+        return None;
+    }
+    match f.dtype(c) {
+        frame::DType::Int if v.parse::<i64>().is_err() => Some(format!("{field} is a whole number: \"{value}\" isn't one")),
+        frame::DType::Float if super::parse_num(v).is_none() => Some(format!("{field} is a number: \"{value}\" isn't one")),
+        _ => None,
     }
 }
 
@@ -1089,12 +1158,21 @@ pub fn edited(id: &str, text: &str) -> bool {
     if b.source.is_empty() || b.field.is_empty() || type_of(&id) != "REDIT" {
         return false;
     }
+    let target = resolve(&id, &b.source);
+    let r = set_field(&target, &b.field, text, true);
+    // (taken: what it shows is the field's; refused: the user's text stays
+    // in the edit — the field keeps its value, DataError says why — until
+    // the row or the field changes)
+    let shown = match &r {
+        Ok(()) => text.to_string(),
+        Err(_) => field_value(&target, &b.field).unwrap_or_default(),
+    };
     with(|s| {
         if let Some(b) = s.bound.get_mut(&id) {
-            b.shown = Some(text.to_string());
+            b.shown = Some(shown);
+            b.error = r.err().unwrap_or_default();
         }
     });
-    set_field(&resolve(&id, &b.source), &b.field, text);
     true
 }
 
@@ -1376,6 +1454,7 @@ fn sync_scope(prefix: Option<&str>) {
             with(|s| {
                 if let Some(b) = s.bound.get_mut(&id) {
                     b.shown = Some(value.clone());
+                    b.error.clear();
                 }
             });
             queue(Update::Set(id.clone(), prop.into(), v_str(&value)));

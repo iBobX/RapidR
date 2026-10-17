@@ -27,6 +27,38 @@ rapidr build notepad.bas --no-bundle       # just the executable, no icon
 rapidr build notepad.bas dist --keep-rust  # dist/notepad.app and dist/notepad-rust-source/
 ```
 
+## The program's data files go with it
+
+A program that reads a file beside it — `CSV.FileName = "staff.csv"`,
+`OPEN "prices.txt" FOR INPUT AS #1` — gets that file in the app: the build
+takes every file beside the program whose name its source has in it (the
+ones `rapidr examples copy` copies) and says so.
+
+```text
+$ rapidr build linked_data.rr dist --interp
+App: dist/linked_data.app
+  data files in the app's Contents/Resources: staff.csv (started from Finder, a launcher or Explorer, it finds them)
+```
+
+| System | Where they go | The folder a double-clicked app works in |
+|---|---|---|
+| macOS | `Name.app/Contents/Resources` | `Contents/Resources` (Finder, the Dock and `open` start apps in `/`: the app moves to its own files) |
+| Windows | beside the `.exe` | the `.exe`'s folder (Explorer starts it there, as RapidQ programs always were) |
+| Linux | `Name.AppDir/usr/bin`, beside the program | `usr/bin` (a launcher starts it in your home folder: the app moves to its own files) |
+
+Started from a terminal, a program keeps the terminal's folder — as a
+console program always does — so `"staff.csv"` is the one in the folder
+you're in; an `RCSV` or `RJson` that finds no such file there reads the
+one the app came with. `$RESOURCE` files are built into the program and
+don't need any of this.
+
+The app's own folder may be read-only — an app in `/Applications`, an
+`.exe` in Program Files, a signed macOS app (writing into it breaks its
+signature). Write what the user makes somewhere of theirs, a folder picked
+in a save dialog or their Documents, and check that it worked: a save
+that fails says why in `RDataFrame.Error` (or `FILEEXISTS` is false), as
+the examples in `examples/data/` show.
+
 ## Do I need Rust?
 
 Not to build an app. There are two kinds of build, and the first needs

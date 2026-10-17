@@ -11,7 +11,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
 | `rapidr ide [file]` | The IDE (SDK) |
-| `rapidr examples [copy <name\|all> [folder]]` | The example programs: listed, or copied (with their data files) into a folder to play with |
+| `rapidr examples [copy <name\|all> [folder]]` | The example programs: listed, or copied (with their include and data files) into a folder to play with — by name (`linked_data`), by topic (`data/linked_data`, `rapidq/shapes`), or `all`. Files already in the folder are never overwritten. RapidR Studio makes the same copy, in `Documents/RapidR/Examples/<name>`, when you open an example where RapidR is installed |
 | `rapidr serve <file> [--open]` | A program's web build, served on this computer only (127.0.0.1); `--open` opens it in the browser |
 | `rapidr build <file> [outdir] [flags]` | Build an executable or a web build (below) |
 | `rapidr <file.rr\|.bas> [flags]` | Shortcut for `build`, optimized by default |
@@ -180,6 +180,7 @@ run from. `rapidr setup --check` prints which.
 | `RAPIDR_PRINT_TO=<file or folder>` | printed documents go there as PDFs instead of to a printer |
 | `RAPIDR_REGISTRY=<file>` | RRegistry keeps its keys in this file instead of the system's (Windows' registry; a per-user store elsewhere) |
 | `RAPIDR_CONFIG_DIR=<folder>` | your RapidR folder (the trusted-files list) |
+| `RAPIDR_DOCUMENTS=<folder>` | the folder used as your Documents: RapidR Studio's copies of the examples (`RapidR/Examples/`) and builds that can't go beside their program (`RapidR/Builds/`) |
 | `RAPIDR_HOME=<folder>` | RapidR's home (above) |
 | `RAPIDR_TOOLCHAIN=msvc` | Windows native builds with Microsoft's toolchain |
 | `RAPIDR_INCLUDE_PATH=<folders>` | include folders, separated as in `PATH` (`:`; `;` on Windows), searched after `--include-dir`'s and RapidR Studio's |

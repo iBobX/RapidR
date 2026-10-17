@@ -117,3 +117,67 @@ fn notepad_becomes_an_app_that_opens() {
     assert_eq!(String::from_utf8_lossy(&ran.stdout).trim(), "hi");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// (EXAMPLES-DATA) A data example built as an app carries its data file
+/// (Contents/Resources/staff.csv), and started as Finder starts it — `open`,
+/// in `/`, no terminal — it reads it; started in another folder by a
+/// script or a terminal, the folder's own staff.csv comes first, the app's
+/// when there's none. Headless (RAPIDR_CAPTURE): no window shows.
+#[test]
+#[ignore]
+fn a_data_example_finds_its_data_wherever_it_starts() {
+    let dir = std::env::temp_dir().join(format!("rapidr-app-data-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let run = |args: &[&str]| {
+        let out = Command::new(rapidr()).args(args).current_dir(&dir).env("RAPIDR_DOCUMENTS", dir.join("docs")).output().unwrap();
+        let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+        assert!(out.status.success(), "rapidr {args:?}:\n{text}");
+        text
+    };
+    run(&["examples", "copy", "linked_data", "lk"]);
+    let built = run(&["build", "lk/linked_data.rr", "out", "--interp"]);
+    assert!(built.contains("data files in the app's Contents/Resources: staff.csv"), "{built}");
+    let app = dir.join("out/linked_data.app");
+    assert!(app.join("Contents/Resources/staff.csv").is_file());
+    assert!(Command::new("codesign").args(["--verify", "--strict"]).arg(&app).status().unwrap().success(), "signed with its data inside");
+
+    // `open`: Launch Services starts it in /, without a terminal
+    let dump = dir.join("open.out");
+    let status = Command::new("open")
+        .args(["-n", "-W", "-g", "-j"])
+        .arg("--env").arg(format!("RAPIDR_CAPTURE={}", dir.join("cap").display()))
+        .arg("--env").arg("RAPIDR_CAPTURE_DELAY=0.5")
+        .arg("--env").arg("RAPIDR_TEST_DUMP=grid.rowcount,status.caption")
+        .arg("--env").arg(format!("RAPIDR_PRINT_TO={}", dir.join("prints").display()))
+        .arg("--env").arg(format!("RAPIDR_REGISTRY={}", dir.join("registry.reg").display()))
+        .arg("--stdout").arg(&dump)
+        .arg(&app)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    let shown = std::fs::read_to_string(&dump).unwrap_or_default();
+    assert!(shown.contains("grid.rowcount=8") && shown.contains("status.caption=Row 1 of 8"), "opened from Finder's way: {shown:?}");
+
+    // a script in another folder (no terminal, not /): that folder first
+    let exe = app.join("Contents/MacOS/linked_data");
+    let elsewhere = dir.join("elsewhere");
+    std::fs::create_dir_all(&elsewhere).unwrap();
+    let start_in = |cwd: &Path| {
+        let out = Command::new(&exe)
+            .current_dir(cwd)
+            .stdin(std::process::Stdio::null())
+            .env("RAPIDR_CAPTURE", dir.join("cap2"))
+            .env("RAPIDR_CAPTURE_DELAY", "0.5")
+            .env("RAPIDR_TEST_DUMP", "grid.rowcount")
+            .env("RAPIDR_PRINT_TO", dir.join("prints"))
+            .env("RAPIDR_REGISTRY", dir.join("registry.reg"))
+            .output()
+            .unwrap();
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    };
+    assert!(start_in(&elsewhere).contains("grid.rowcount=8"), "no staff.csv there: the app's own");
+    std::fs::write(elsewhere.join("staff.csv"), "Name,Department,Salary,Years,Rating\nZed,Sales,1,1,1\n").unwrap();
+    assert!(start_in(&elsewhere).contains("grid.rowcount=1"), "the folder's own staff.csv first");
+    let _ = std::fs::remove_dir_all(&dir);
+}

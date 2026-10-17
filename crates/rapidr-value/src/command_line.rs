@@ -42,6 +42,84 @@ pub fn args() -> Vec<String> {
     }
 }
 
+/// Where the program's own files are: a built macOS app's
+/// `Contents/Resources` (`rapidr build` puts the data files the program
+/// names there, beside its bytecode), else the program's folder — a
+/// `.exe`'s, a Linux AppDir's `usr/bin`, a program file's. None on the web.
+pub fn files_folder() -> Option<std::path::PathBuf> {
+    let program = std::path::PathBuf::from(path());
+    if PROGRAM.get().is_none() {
+        if let Some(resources) = app_resources(&program) {
+            return Some(resources);
+        }
+    }
+    program.parent().filter(|p| !p.as_os_str().is_empty()).map(std::path::Path::to_path_buf)
+}
+
+/// `Name.app/Contents/Resources` when `exe` is `Name.app/Contents/MacOS/<exe>`.
+fn app_resources(exe: &std::path::Path) -> Option<std::path::PathBuf> {
+    let macos = exe.parent()?;
+    let contents = macos.parent()?;
+    let app = contents.parent()?;
+    if macos.file_name()? != "MacOS" || contents.file_name()? != "Contents" || !app.extension().is_some_and(|e| e.eq_ignore_ascii_case("app")) {
+        return None;
+    }
+    let resources = contents.join("Resources");
+    resources.is_dir().then_some(resources)
+}
+
+/// Whether `exe` is a Linux AppDir's program: `Name.AppDir/usr/bin/<exe>`
+/// beside the AppDir's `AppRun`.
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+fn in_appdir(exe: &std::path::Path) -> bool {
+    let Some(bin) = exe.parent() else { return false };
+    let Some(usr) = bin.parent() else { return false };
+    bin.file_name().is_some_and(|n| n == "bin") && usr.file_name().is_some_and(|n| n == "usr") && usr.parent().is_some_and(|d| d.join("AppRun").is_file())
+}
+
+/// Once, as a program starts: a built app the desktop started (Finder, the
+/// Dock, `open`, a Linux launcher — no terminal) works in the folder its
+/// files are in ([`files_folder`]), as a RapidQ program double-clicked on
+/// Windows works in its `.exe`'s, so `"staff.csv"` is the one it came
+/// with. macOS starts an app in `/`; a Linux launcher in the home folder.
+/// Anything started from a terminal keeps the terminal's folder, and so do
+/// console programs (never an app: a plain executable), Windows programs
+/// (Explorer starts them in their folder already) and program files the
+/// RapidR Runtime runs. Its answer: the folder it moved to.
+pub fn settle_current_folder() -> Option<std::path::PathBuf> {
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
+    {
+        use std::io::IsTerminal;
+        if PROGRAM.get().is_some() || std::io::stdin().is_terminal() || std::io::stdout().is_terminal() || std::io::stderr().is_terminal() {
+            return None;
+        }
+        let exe = std::env::current_exe().ok()?;
+        let cwd = std::env::current_dir().ok();
+        let to = if cfg!(target_os = "macos") {
+            // (launchd's: an app Finder, the Dock or `open` starts)
+            if cwd.as_deref() != Some(std::path::Path::new("/")) {
+                return None;
+            }
+            app_resources(&exe)?
+        } else {
+            if !in_appdir(&exe) {
+                return None;
+            }
+            let bin = exe.parent()?.to_path_buf();
+            if cwd.as_ref().is_some_and(|c| c == &bin) {
+                return None;
+            }
+            bin
+        };
+        std::env::set_current_dir(&to).ok()?;
+        Some(to)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+    {
+        None
+    }
+}
+
 /// A process's arguments as the program's: without the `-psn_…` an old
 /// macOS hands an app Finder starts (its process serial number, not an
 /// argument anyone typed).
@@ -122,6 +200,27 @@ mod tests {
         assert_eq!(s(command_count(&args)), "2");
         assert_eq!(s(command_line(&args)), "a b c");
         assert_eq!(s(command_line(&[])), "");
+    }
+
+    #[test]
+    fn an_apps_own_files() {
+        let dir = std::env::temp_dir().join(format!("rapidr-app-files-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let app = dir.join("Staff.app/Contents");
+        std::fs::create_dir_all(app.join("MacOS")).unwrap();
+        std::fs::create_dir_all(app.join("Resources")).unwrap();
+        assert_eq!(app_resources(&app.join("MacOS/staff")), Some(app.join("Resources")));
+        assert_eq!(app_resources(&dir.join("staff")), None, "a plain executable: its own folder");
+        assert_eq!(app_resources(&dir.join("Staff/Contents/MacOS/staff")), None, "not an .app");
+        #[cfg(any(target_os = "macos", target_os = "linux"))]
+        {
+            let appdir = dir.join("Staff.AppDir");
+            std::fs::create_dir_all(appdir.join("usr/bin")).unwrap();
+            assert!(!in_appdir(&appdir.join("usr/bin/staff")), "no AppRun: not an AppDir");
+            std::fs::write(appdir.join("AppRun"), "#!/bin/sh\n").unwrap();
+            assert!(in_appdir(&appdir.join("usr/bin/staff")));
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

@@ -1593,17 +1593,18 @@ thread_local! {
 }
 
 /// (I7) RJSON `name`'s document as JSON text, for a frame that takes its
-/// rows from it: what it parsed or loaded, else its FileName's file.
-pub(crate) fn json_document(name: &str) -> Option<String> {
+/// rows from it: what it parsed or loaded, else its FileName's file (Err:
+/// that file and why it can't be read).
+pub(crate) fn json_document(name: &str) -> Option<Result<String, (String, String)>> {
     if let Some(text) = JSON_WEB_STORES.with(|s| s.borrow().get(&name.to_lowercase()).cloned()) {
-        return Some(text);
+        return Some(Ok(text));
     }
     let file = rp_comp_get(name, "filename").to_string_val();
     if file.trim().is_empty() {
         return None;
     }
     install_file_hooks();
-    rapidr_value::datascience::link::read_beside(file.trim()).ok()
+    Some(rapidr_value::datascience::link::read_beside(file.trim()).map_err(|e| (file.trim().to_string(), e)))
 }
 
 fn json_web_method(name: &str, method: &str, args: &[Value]) -> Value {

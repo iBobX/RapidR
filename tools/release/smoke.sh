@@ -214,6 +214,20 @@ if [ "$KIND" = sdk ]; then
     check "its THIRD-PARTY-NOTICES.txt beside it (the install's)" grep -q "Rust standard library" "$W/THIRD-PARTY-NOTICES.txt"
     check "the IDE starts (headless)" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide 2>&1)" "Studio.caption=RapidR Studio"
     check "the IDE opens a file" has "$(RAPIDR_CAPTURE="$W/ide" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=Studio.caption "$R" ide "$W/hello.bas" 2>&1)" "Studio.caption=hello - RapidR Studio"
+    # (EXAMPLES-DATA) a data example built: its staff.csv inside the app, and the app started as
+    # the desktop starts it — macOS' Finder / `open` in /, a Linux launcher in the home folder, no
+    # terminal — reads it (it moves to its own files: command_line::settle_current_folder)
+    echo "== a data example built, started as the desktop starts it"
+    "$R" examples copy linked_data "$W/lk" > /dev/null 2>&1
+    "$R" build "$W/lk/linked_data.rr" "$W/lk-app" --interp > lk-build.log 2>&1
+    check "the build puts staff.csv with the app (and says so)" grep -q "data files .*: staff.csv" lk-build.log
+    mkdir -p "$W/home"
+    case "$(uname)" in
+        Darwin) LK="$W/lk-app/linked_data.app/Contents/MacOS/linked_data"; FROM=/ ;;
+        *) LK="$W/lk-app/linked_data.AppDir/AppRun"; FROM="$W/home" ;;
+    esac
+    out="$(cd "$FROM" && RAPIDR_CAPTURE="$W/lk-cap" RAPIDR_CAPTURE_DELAY=0.5 RAPIDR_TEST_DUMP=grid.rowcount,status.caption "$LK" < /dev/null 2>&1)"
+    check "started from the desktop (no terminal, in $FROM), it shows staff.csv's 8 rows" has "$out" "grid.rowcount=8"
     if [ "${SMOKE_NATIVE:-1}" = 1 ] && [ -x "$CARGO_BIN/cargo" ]; then
         echo "== rapidr setup and a native build: a throwaway rustup and cargo home, offline, the shipped sources"
         # (the user's own Rust is never touched: its default, read before and after)

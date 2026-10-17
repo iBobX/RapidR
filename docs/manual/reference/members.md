@@ -820,6 +820,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `DataSource` *(RapidR)* | component |  | Shows a data set's current row: an RDataSource, or a data set straight (with DataField: the column). What the user types goes back into the data set's table. |
 | `DataField` *(RapidR)* | string | `""` | The column of DataSource's current row it shows and edits ("name"). |
+| `DataError` *(RapidR)* (read-only) | string | `""` | Why the text the user typed isn't its DataField's value ("stock is a whole number: \"4x\" isn't one"): a number column takes numbers only. The field keeps its value and the edit the user's text until it's fixed or the row changes; "" when the field took it. Read it in OnChange to tell the user. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -3249,6 +3250,7 @@ Parses and builds JSON: get and set values by dotted path, list keys, pretty-pri
 | `Text` | string | `""` | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `FileName` | string | `""` | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Count` | int | 0 | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
+| `Error` (read-only) | string | `""` | Why its records couldn't be read as a data source (an RDataFrame's Source, a grid's): no such file, a file that can't be read, or a document that isn't records; "" when they could. RapidR's own. |
 
 | Method | |
 |---|---|
@@ -4403,6 +4405,7 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `Width` (read-only) | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Ncols` (read-only) | int |  | The number of columns in the data frame. |
 | `Empty` (read-only) | int |  | Non-zero when the data frame has no rows, or the bitmap holds no picture; read-only. |
+| `Error` (read-only) | string | `""` | Why the last LoadFromCSV, SaveToCSV, LoadFromJSON or SaveToJSON couldn't read or write its file, in plain words ("staff_edited.csv: this folder can't be written (it is read-only, or not yours)"); "" when it could. Check it after a save to tell the user. |
 
 | Method | |
 |---|---|
@@ -5355,6 +5358,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `ImportSummary` (read-only) | string |  | The last ImportRapidQ's summary: how many programs, files and names, and how many compile to the same bytecode as their originals. |
 | `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, each include file and where it was found, what was left and why, each program's proof. |
 | `ImportMissing` (read-only) | string |  | The include files the last ImportRapidQ found nowhere, a line each: the file and line of the $INCLUDE, the name as written and what to do, separated by tabs ("" when every include was found). |
+| `ExampleCopy` (read-only) | string |  | What the last ExampleToOpen did: "made" (it copied the example now), "kept" (it gave the copy that was there, as the user left it) or "" (the example itself). |
 | `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder (as RapidQ's include folder), for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
 
 | Method | |
@@ -5375,6 +5379,9 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `StopBuild` | Stops the Build that is running. |
 | `Reveal([Path AS STRING]) AS INTEGER` | Shows Path (else what the last Build made) selected in Finder, Explorer or the Linux file manager. |
 | `ImportRapidQ(Source AS STRING, [Dest AS STRING]) AS STRING` | Imports a RapidQ program — a .bas, .rqw, .rqb, .rq or .inc file and every file it includes (found as the compiler finds them: the program's folder, IncludeFolders, beside the including file; any case, \ or /), or a folder of them — as a copy with RapidR's names (QBUTTON becomes RButton) in Dest (else <name>-rapidr beside it, the next free name): the includes copied with it (RAPIDQ.INC and the others RapidR supplies stay built in), each program proved to compile to the same bytecode as its original, a report (ImportReport; ImportMissing lists the includes found nowhere) and a project for the copy (the RapidQ-compatible setting off). The original is only read. Gives the copy's project file to Open; "" when it can't (Error says why). On the web, Source is a file or folder in the page's store (one the user picked). |
+| `ExampleToOpen(Path AS STRING, Examples AS STRING) AS STRING` | The file to open for Path: when it is one of RapidR's examples (in folder Examples) where RapidR is installed (the macOS app, /usr/lib/rapidr, Program Files: a home with its release.toml) or where it can't be changed, the user's copy of it in Documents/RapidR/Examples/<its name>/ — made now with its include and data files (the files `rapidr examples copy` takes), or the copy already there, never overwritten (ExampleCopy says which); else Path itself. "" when the copy can't be made (Error says why). On the web, Path itself: the page's store keeps what the user saves. |
+| `ExampleOf(Path AS STRING, Examples AS STRING) AS STRING` | The example (in folder Examples) that Path is the user's copy of (Documents/RapidR/Examples/<name>/<file>); "" for any other file. |
+| `CopyExampleAgain(Path AS STRING, Examples AS STRING) AS STRING` | Copies the example again over the user's copy of it (Path: the copy, or the example): its program, include and data files as they come with RapidR replace the copy's; files the user added stay. The copy's main file; "" when it can't (Error says why). |
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |

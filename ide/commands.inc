@@ -59,6 +59,7 @@ SUB DefineCommands
   AddCmd "file.open", "&Open Project or File...", "File", "Ctrl+O", "", "", ""
   AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
   AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
+  AddCmd "file.exampleAgain", "Copy Example Again from the Ori&ginal...", "File", "", "", "example", "-"
   AddSep "File"
   AddCmd "file.importRapidQ", "&Import RapidQ Project or File...", "File", "", "", "", "import"
   AddCmd "file.importRapidQFolder", "Import RapidQ Fol&der...", "File", "", "", "", "import"
@@ -329,6 +330,8 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   SELECT CASE w
     CASE "": Result = 1
     CASE "project": Result = ProjectOpen
+    ' (the open project is the user's copy of an installed example)
+    CASE "example": Result = (ProjectOpen <> 0 AND ExampleOriginal <> "")
     ' (Add Form: a new form file in a project, else a form in the file open)
     CASE "addform": Result = (ProjectOpen <> 0 OR k = "code" OR k = "design")
     CASE "document": Result = (k = "code" OR k = "design")

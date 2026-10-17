@@ -135,6 +135,7 @@ properties = [
   { name = "Width", type = "int", access = "read", design = false },
   { name = "Ncols", type = "int", access = "read", design = false },
   { name = "Empty", type = "int", access = "read", design = false },
+  { name = "Error", type = "string", default = "", access = "read", design = false, doc = "Why the last LoadFromCSV, SaveToCSV, LoadFromJSON or SaveToJSON couldn't read or write its file, in plain words (\"staff_edited.csv: this folder can't be written (it is read-only, or not yours)\"); \"\" when it could. Check it after a save to tell the user." },
 ]
 methods = [
   { name = "Create", doc = "Makes the frame empty." },
