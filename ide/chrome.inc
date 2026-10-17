@@ -110,6 +110,7 @@ SUB ApplyChrome
   RecentNone.Font.Color = TC("page.dim")
   FOR k = 0 TO 4
     StartLink(k).Font.Color = TC("page.link")
+    StartRow(k).Color = TC("page")
   NEXT
   FOR k = 0 TO 5
     RecentLink(k).Font.Color = TC("page.link")

@@ -506,6 +506,16 @@ const CASES = [
     delay: 4,
     dump: { "studio.caption": /^notepad - RapidR Studio$/, "welcome.vertposition": /^[1-9]\d*$/, "excard(14).tabstop": /^1$/ },
   },
+  // (the final audit) The Welcome page's Start rows are keyboard stops
+  // with names, as the cards: Enter on "New Project..." opens its dialog
+  {
+    name: "welcome-start-keyboard",
+    look: "dark",
+    theme: "rapidr",
+    events: "startrow(0).__key_13",
+    delay: 4,
+    dump: { "startrow(0).tabstop": /^1$/, "startrow(0).accessiblename": /^New Project\.\.\.$/, "startrow(4).tabstop": /^1$/, "newdialog.visible": /^(1|-1|True)$/ },
+  },
   // (EXAMPLES-DATA) RapidR's examples where RapidR is installed (a
   // read-only home, as /usr/lib/rapidr or the macOS app): the Welcome
   // page's card clicked (the mouse, on its title) opens the user's copy in

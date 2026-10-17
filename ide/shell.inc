@@ -224,7 +224,16 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
 END SUB
 
 SUB WelcomeLink(Sender AS RLabel)
-  SELECT CASE Sender.Tag
+  StartAction Sender.Tag
+END SUB
+
+SUB StartRowPicked(Sender AS RPanel)
+  StartAction Sender.Tag
+END SUB
+
+' (the Welcome page's Start rows: by mouse, or Tab and Enter / Space)
+SUB StartAction(Which AS INTEGER)
+  SELECT CASE Which
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
     CASE 3: RunCommand "file.importRapidQ"

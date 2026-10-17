@@ -36,6 +36,9 @@ END SUB
 DIM StartIcon(4) AS RImage
 DIM StartBmp(4) AS RBitmap
 DIM StartLink(4) AS RLabel
+' (each Start row a panel: Tab reaches it, Enter or Space runs it, a
+' screen reader names it — as the example cards)
+DIM StartRow(4) AS RPanel
 DIM StartIconName(4) AS STRING
 DIM RecentLink(6) AS RLabel
 DIM ExCard(16) AS RPanel
@@ -54,11 +57,19 @@ DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
 SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
-  StartIcon(k).Parent = WelcomePage
-  StartIcon(k).Left = 48: StartIcon(k).Top = 168 + k * 28: StartIcon(k).Width = 16: StartIcon(k).Height = 16
+  StartRow(k).Parent = WelcomePage
+  StartRow(k).Left = 44: StartRow(k).Top = 164 + k * 28: StartRow(k).Width = 234: StartRow(k).Height = 24
+  StartRow(k).BevelOuter = 0
+  StartRow(k).Tag = k + 1
+  StartRow(k).Cursor = -21
+  StartRow(k).AccessibleName = Caption
+  StartRow(k).OnClick = StartRowPicked
+  StartRow(k).TabStop = 1
+  StartIcon(k).Parent = StartRow(k)
+  StartIcon(k).Left = 4: StartIcon(k).Top = 4: StartIcon(k).Width = 16: StartIcon(k).Height = 16
   StartIconName(k) = Icon
-  StartLink(k).Parent = WelcomePage
-  StartLink(k).Left = 74: StartLink(k).Top = 166 + k * 28: StartLink(k).Width = 200: StartLink(k).Height = 20
+  StartLink(k).Parent = StartRow(k)
+  StartLink(k).Left = 30: StartLink(k).Top = 2: StartLink(k).Width = 200: StartLink(k).Height = 20
   StartLink(k).Caption = Caption
   StartLink(k).Cursor = -21
   StartLink(k).Tag = k + 1
