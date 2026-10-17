@@ -91,11 +91,14 @@ def banner():
     parts = [bg]
     lk, _ = place_lockup("dark", 80, 92, 92)
     parts.append(lk)
-    p, _ = t("RapidQ-compatible BASIC, built new in Rust.", 32, 82, 252, WHITE, 650, -10)
+    p, _ = t("BASIC is powerful again.", 32, 82, 252, WHITE, 650, -10)
     parts.append(p)
-    p, _ = t("Native compiler, bytecode runtime, web output and an IDE.", 19, 82, 292, MIST, 450)
+    p, _ = t("A modern BASIC and IDE, built new in Rust: native, VM and web.", 19, 82, 292, MIST, 450)
     parts.append(p)
     p, _ = t("macOS  ·  Windows  ·  Linux  ·  the browser", 19, 82, 322, MIST, 450)
+    parts.append(p)
+    # (RapidQ compatibility: true, and small, as it is in RapidR)
+    p, _ = t("Runs RapidQ programs too.", 15, 82, 352, MIST, 400)
     parts.append(p)
     card, ch = code_card(760, 0, 440)
     parts.append(f'<g transform="translate(0 {_num((H - ch) / 2)})">{card}</g>')
@@ -108,11 +111,11 @@ def social():
     parts = [bg]
     lk, _ = place_lockup("dark", 96, 132, 112)
     parts.append(lk)
-    p, _ = t("RapidQ-compatible BASIC,", 46, 98, 340, WHITE, 650, -15)
+    p, _ = t("BASIC is", 46, 98, 340, WHITE, 650, -15)
     parts.append(p)
-    p, _ = t("built new in Rust.", 46, 98, 396, WHITE, 650, -15)
+    p, _ = t("powerful again.", 46, 98, 396, WHITE, 650, -15)
     parts.append(p)
-    p, _ = t("Native compiler · bytecode runtime · web · IDE", 21, 98, 446, MIST, 450)
+    p, _ = t("A modern BASIC and IDE, built new in Rust", 21, 98, 446, MIST, 450)
     parts.append(p)
     # platform chips
     x = 98
@@ -124,6 +127,8 @@ def social():
         p, _ = t(label, 17, x + 18, 506, TXT, 600)
         parts.append(p)
         x += cw + 12
+    p, _ = t("Runs RapidQ programs too.", 16, 98, 558, MIST, 400)
+    parts.append(p)
     card, ch = code_card(716, 0, 468, size=17, lh=29)
     parts.append(f'<g transform="translate(0 {_num((H - ch) / 2)})">{card}</g>')
     return svg_doc("".join(parts), W, H, defs=defs + grad(), title="RapidR")

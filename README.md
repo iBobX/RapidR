@@ -1,4 +1,4 @@
-<p align="center"><img src="design/brand/github/banner.png" alt="RapidR: RapidQ-compatible BASIC, built new in Rust" width="100%"></p>
+<p align="center"><img src="design/brand/github/banner.png" alt="RapidR: BASIC is powerful again. A modern BASIC and IDE, built new in Rust" width="100%"></p>
 
 # RapidR
 
@@ -7,27 +7,38 @@
 [![Rust](https://img.shields.io/badge/written%20in-Rust-orange.svg)](https://www.rust-lang.org/)
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20RapidR-5F7FFF?logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/roanbema)
 
-**RapidR runs and builds RapidQ BASIC programs — and takes them further.**
-Your RapidQ program, unchanged, runs as a native executable, in the RapidR
-interpreter, or in a web browser, on Windows, macOS and Linux, and behaves
-as it does under RapidQ. New programs get what RapidQ never had: high-DPI
-screens, screen-reader accessibility, themes, SQLite, data frames and
-charts, the web. RapidR is an original implementation written from the
-ground up in pure Rust — compatible with RapidQ, not a copy of it.
+**BASIC is powerful again.** RapidR is a modern BASIC with its own IDE,
+RapidR Studio: draw a window, write a few readable lines, press Run. The same
+program becomes a native app for Windows, macOS or Linux, a standalone app
+with no extra software, or a web app in any browser.
 
-- **RapidQ-compatible, measured against RapidQ itself.** RapidQ's own
-  compiler (RC.EXE) still runs in a virtual machine and is the ground truth:
-  numbers, PRINT, colours and edge cases print exactly what RapidQ prints.
+It's easy enough for a student on day one, and fast and strong enough for an
+engineer:
+- a multicore data engine that handles a million rows in about 20 ms;
+- a debugger that shows you everything;
+- a designer that shows your real data while you design;
+- AI help when you want it;
+- accessibility built in.
+
+RapidR is an original implementation, written from the ground up in Rust, and
+**RapidR Studio itself is written in RapidR**. Free and MIT-licensed; the apps
+you build are yours.
+
+👉 **Try it in your browser: [rapidr.dev](https://rapidr.dev)**, nothing to install.
+
+## What's inside
+
 - **Three runtimes, one behaviour.** Native code (via generated Rust), a
   bytecode interpreter (the RapidR Runtime, and standalone executables) and
   the browser (WebAssembly). The same conformance suite runs on all three.
-- **Every RapidQ object but OLE**: forms and every visual component
+- **A rich set of components**: forms and every visual component
   (`RForm`, `RButton`, `RStringGrid` …), the dialogs, menus, grids, list and
   tree views, MDI, the tray icon, `RRegistry`, the printer, sockets, MySQL,
   CGI, serial ports, downloads, `RMIDI` / `RWave` / `RVideo`, and the DirectX
   2D and Direct3D objects (reimplemented by RapidR on its own renderer).
-  RapidR's names are the ones it writes; RapidQ's names (`QFORM`, `QBUTTON` …)
-  work too.
+- **Compatible with RapidQ**: existing RapidQ programs run unchanged, with
+  RapidQ's names (`QFORM`, `QBUTTON` …) accepted beside RapidR's, and the
+  importer brings old projects over with their include files.
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidR Studio's look by default (light, dark or high contrast, as the
   system is set), RapidQ's exact classic look with `$THEME Classic`,
