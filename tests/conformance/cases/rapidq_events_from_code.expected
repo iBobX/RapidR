@@ -1,0 +1,41 @@
+E.Text = abc
+  E.OnChange abc
+.
+again
+.
+E.Text = empty
+  E.OnChange 
+.
+RE.Text = xyz
+  RE.OnChange
+.
+again
+.
+CK.Checked = 1
+  CK.OnClick1
+.
+again
+.
+CK.Checked = 0
+  CK.OnClick0
+.
+RB1.Checked = 1
+  RB1.OnClick
+.
+RB2.Checked = 1
+  RB2.OnClick
+.
+RB2.Checked = 0
+.
+SB.Position = 10
+  SB.OnChange10
+.
+again
+.
+TB.Position = 5
+.
+CB.ItemIndex = 1
+.
+LB.ItemIndex = 1
+.
+done

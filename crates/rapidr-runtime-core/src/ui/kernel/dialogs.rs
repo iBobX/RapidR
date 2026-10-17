@@ -21,7 +21,7 @@ use rapidr_ui_app::file_dialog::Request;
 use rapidr_ui_app::waits::{self, Wait};
 use rapidr_ui_host_winit::{FileRequest, Frame, HostCmd, Icon, WindowSpec};
 
-use super::{ensure_host, screen, step, with_kern, RtStore};
+use super::{ensure_host, screen, with_kern, RtStore};
 use crate::ui::program::Rt;
 use crate::value::{v_int, v_null, Value};
 
@@ -124,7 +124,7 @@ fn block(id: u64) -> Value {
         if let Some(v) = dialogs::finished(id) {
             return v;
         }
-        step(None);
+        super::wait_turn();
         crate::object::rp_serve_program();
     }
 }

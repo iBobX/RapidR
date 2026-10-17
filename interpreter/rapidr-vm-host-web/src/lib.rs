@@ -117,7 +117,8 @@ impl Host for WebHost {
     }
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
-        rp_comp_set(id, name, value);
+        // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
+        rp_prop_set(id, name, value);
         Ok(())
     }
 
@@ -400,7 +401,7 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         // Components reached through objects (rapidr_ast::objects): by id.
         "__objget" => rp_comp_read(&a0.to_string_val(), &a1.to_string_val()),
         "__objset" => {
-            rp_comp_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
+            rp_prop_set(&a0.to_string_val(), &a1.to_string_val(), args.get(2).cloned().unwrap_or_else(v_null));
             v_null()
         }
         "__objcall" => rp_comp_call(&a0.to_string_val(), &a1.to_string_val(), args.get(2..).unwrap_or(&[])),

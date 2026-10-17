@@ -2139,16 +2139,53 @@ const CASES = [
   },
   {
     // 6. a run-time error in a handler: it stops at the line (Continue
-    // enabled); Shift+F5 ends it; run again, the error again: F5 lets it end
-    // the program (exit code 1), Run enabled
+    // enabled); Shift+F5 ends it; run again, the error again: Continue
+    // (F5) does what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there, the program runs on —, so
+    // the next click stops at the error again, three times; the error in
+    // Output each time; the program still running after the last
     name: "debug-events-error",
     open: EVENTS_FILE,
     copy: true,
     desktopOnly: true,
-    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 1, 40) },
-    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,key:F5,wait,wait,wait,wait,cmds:report,cmds:log`,
-    delay: 16,
-    dump: { "outputbox.text": cmdsSeq(cmdsLine("paused@95:exception", "paused"), cmdsLine("stopped", "idle"), cmdsLine("paused@95:exception", "paused"), cmdsLine("error", "idle")) },
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("oopsbtn.__mousedown_10_10,oopsbtn.__mouseup_10_10", 3, 40) },
+    do: `key:F5,${"wait,".repeat(8)}cmds:report,key:Shift+F5,wait,wait,wait,cmds:report,key:F5,${"wait,".repeat(8)}cmds:report,${`key:F5,${"wait,".repeat(8)}cmds:report,`.repeat(2)}key:F5,wait,wait,wait,cmds:report,cmds:log`,
+    delay: 30,
+    // (Output keeps its last lines: the stops and the errors of the second
+    // run, then the whole log of the states)
+    dump: {
+      "outputbox.text": cmdsSeq(
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("paused@95:exception", "paused"),
+        "run-time error: Division by zero \\(at events\\.rr line 95\\)",
+        cmdsLine("running", "running"),
+        "\\[cmds-log\\]",
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("stopped", "idle"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("paused@95:exception", "paused"),
+        cmdsLine("running", "running"),
+      ),
+    },
+  },
+  {
+    // (DEBUG-2) the focus (RapidR's OnEnter / OnExit, as Delphi's): Tab from
+    // the name to Greet stops in the name's OnExit (41), then, F5, in
+    // Greet's OnEnter (45) — three rounds, Shift+Tab back between them (its
+    // own OnExit / OnEnter have no breakpoint): each stops every time, in
+    // that order
+    name: "debug-events-focus-order",
+    open: "tests/fixtures/studio_debug/focus.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: Array.from({ length: 3 }, () => ["nameedit.__key_9", ...Array(4).fill("otherbutton.__mousemove_5_5"), "greetbutton.__key_9_256", ...Array(4).fill("otherbutton.__mousemove_5_5")].join(",")).join(",") },
+    do: `line:41,key:F9,line:45,key:F9,key:F5,${"wait,".repeat(8)}${"key:F5,wait,wait,wait,wait,".repeat(6)}stops:report`,
+    delay: 22,
+    dump: { "outputbox.text": /\[stops\] 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint 41:breakpoint 45:breakpoint$/m },
   },
   {
     // 2. the close box (the form's OnClose, the close cancelled: Action = 0)
@@ -2180,6 +2217,101 @@ const CASES = [
     do: `line:85,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
     delay: 34,
     dump: { "outputbox.text": /\[stops\] 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step/ },
+  },
+  // ---- DEBUG-2: Robert's scenarios 7, 9, 10, 11, 13 (stepping, loops,
+  // recursion, breakpoints while running, a breakpoint in an included file;
+  // 8, 12, 14, 16 and 17 are the flows above: debug-events-* (F10 out of a
+  // handler), debug-condition-continue / -hit-count / -logpoint,
+  // debug-placed, debug-hover-frame / debug-datatip-* / debug-set-value,
+  // debug-step-watch / debug-changed and Immediate)
+  {
+    // 9. loops: a breakpoint on a FOR loop's body stops at every pass (40:
+    // i = 1, 2, 3); one on a loop written on one line (38) stops once, when
+    // the line is reached (the loop then runs round inside it)
+    name: "debug-steps-loop",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    webFiles: ["tests/fixtures/studio_debug/steps.rr", "tests/fixtures/studio_debug/tally.inc"],
+    do: `line:38,key:F9,line:40,key:F9,key:F5,${"wait,".repeat(5)}${"key:F5,wait,wait,wait,".repeat(4)}stops:report`,
+    delay: 12,
+    dump: { "outputbox.text": /\[stops\] 38:breakpoint 40:breakpoint 40:breakpoint 40:breakpoint$/m },
+  },
+  {
+    // 10. recursion: a breakpoint in a recursive FUNCTION stops at every
+    // level (Fact(4) → 4, 3, 2, 1); at the deepest the Call Stack lists
+    // them all, the program's line under them, and Locals is that level's
+    name: "debug-steps-recursion",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    webFiles: ["tests/fixtures/studio_debug/steps.rr", "tests/fixtures/studio_debug/tally.inc"],
+    do: `line:11,key:F9,key:F5,${"wait,".repeat(5)}${"key:F5,wait,wait,wait,".repeat(3)}stops:report`,
+    delay: 10,
+    dump: {
+      "outputbox.text": /\[stops\] 11:breakpoint 11:breakpoint 11:breakpoint 11:breakpoint$/m,
+      "stacktree.text": /^Fact\s+steps\.rr:11\nFact\s+steps\.rr:14\nFact\s+steps\.rr:14\nFact\s+steps\.rr:14\n\(the program\)\s+steps\.rr:42$/,
+      "varstree.text": /^Locals\n\tn = 1\n/,
+    },
+  },
+  {
+    // 13. a breakpoint in an $INCLUDEd file (tally.inc, opened from the
+    // project, the breakpoint set there, the file closed again): it stops
+    // there, and the editor opens the file at the line
+    name: "debug-steps-include",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: `open:tally.inc,wait,line:5,key:F9,wait,file.close,wait,key:F5,${"wait,".repeat(6)}`,
+    delay: 9,
+    dump: {
+      "session.state": /^paused$/,
+      "session.stopreason": /^breakpoint$/,
+      "session.currentfile": /tally\.inc$/,
+      "session.currentline": /^5$/,
+      "codedoc(1).caretline": /^5$/,
+      "stacktree.text": /^AddUp\s+tally\.inc:5\n\(the program\)\s+counter\.rr:6$/,
+    },
+  },
+  {
+    // 7. stepping inside a handler (Go, the button's OnClick): its
+    // breakpoint (33), Step Into Twice (its SUB line, 18, as VB's), Step
+    // Out back in Go (the next line, 34), Run to Cursor (35), Set Next
+    // Statement back to 34, Step Over (35); Continue — the next click stops
+    // at 33 again
+    name: "debug-steps-handler",
+    open: "tests/fixtures/studio_debug/steps.rr",
+    copyDir: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("gobtn.__mousedown_10_10,gobtn.__mouseup_10_10", 2, 20) },
+    do: `line:33,key:F9,key:F5,${"wait,".repeat(8)}key:F11,wait,wait,wait,key:Shift+F11,wait,wait,wait,line:35,debug.runToCursor,wait,wait,wait,goto:34,wait,wait,wait,key:F10,wait,wait,wait,key:F5,${"wait,".repeat(8)}stops:report`,
+    delay: 22,
+    dump: { "outputbox.text": /\[stops\] 33:breakpoint 18:step 34:step 35:breakpoint 34:goto 35:step 33:breakpoint$/m },
+  },
+  {
+    // 11. a breakpoint taken off while the program runs: the click after it
+    // doesn't stop (the first did); one put back stops the next click
+    name: "debug-steps-remove-running",
+    open: EVENTS_FILE,
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_TEST_PROGRAM_EVENTS: triggers("btn.__mousedown_10_10,btn.__mouseup_10_10", 8, 30) },
+    do: `line:58,key:F9,key:F5,${"wait,".repeat(8)}key:F5,wait,line:58,key:F9,${"wait,".repeat(8)}line:58,key:F9,${"wait,".repeat(8)}stops:report,cmds:report`,
+    delay: 16,
+    dump: { "outputbox.text": /\[stops\] 58:breakpoint 58:breakpoint\n[\s\S]*\[cmds\] paused@58/ },
+  },
+  {
+    // (DEBUG-2) a file name too long for the status bar: stopped, the bar
+    // says where with the name shortened in its middle — "Breakpoint:",
+    // its start, "…", its end and the line kept —, the whole in the bar's
+    // tooltip
+    name: "debug-status-long-name",
+    open: "tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr",
+    webFiles: ["tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr"],
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "session.currentline": /^6$/,
+      // (the hint is set only when a panel is shortened; the bar itself in
+      // the capture)
+      "status.hint": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
+    },
   },
   // ---- DEBUG-RUN, scenario 15: Variables > Globals — the program's own
   // variables first, RAPIDQ.INC's hundreds of constants after them under
@@ -3902,19 +4034,200 @@ async function webNestedAndError() {
     await keysBack();
     const reason = await prop("session", "stopreason");
     record("debug-events-web-error (web)", e === "paused@95" && reason === "exception", `a run-time error in a handler stops at its line (${e}, ${reason})`);
-    // (Continue: the browser's runtime fails the handler alone and the
-    // program goes on — the desktop's ends it, exit code 1: a difference of
-    // the runtimes, not the debugger's, in the lane's report — either way
-    // Studio follows: running, ▶ off and ❙❙ on; or ended, ▶ on)
-    await page.keyboard.press("F5");
-    const after = await until(status, (v) => v.startsWith("Running") || /exit code 1/.test(v), 5000);
-    const consistent = after.startsWith("Running") ? (await button("Pause")) && !(await button("Run (F5)")) : await button("Run (F5)");
-    record("debug-events-web-error (web)", consistent, `Continue after the error: Studio follows the program (${after})`);
+    // (Continue: what the program does without the debugger — RapidQ's
+    // (RC.EXE, DEBUG-2): the handler ends there and the program runs on, as
+    // on the desktop: running, ▶ off and ❙❙ on; the next click stops at the
+    // error again, three times)
+    for (let k = 1; k <= 3; k++) {
+      await page.keyboard.press("F5");
+      const after = await until(status, (v) => v.startsWith("Running") || /exit code/.test(v), 5000);
+      const running = after.startsWith("Running") && (await button("Pause")) && !(await button("Run (F5)"));
+      record("debug-events-web-error (web)", running, `Continue ${k} after the error: the handler ends, the program runs on (${after})`);
+      if (k === 3) break;
+      const again = await frameBox(runFrame(page), "button", "Oops");
+      await page.mouse.click(again.x, again.y);
+      const e2 = await until(where, (v) => v === "paused@95");
+      await keysBack();
+      record("debug-events-web-error (web)", e2 === "paused@95", `click ${k + 1}: the error stops at its line again (${e2})`);
+    }
+    // (the program answers: a click on Click runs its handler, no stop)
+    const click = await frameBox(runFrame(page), "button", "Click");
+    await page.mouse.click(click.x, click.y);
+    await page.waitForTimeout(600);
+    const st = await prop("session", "state");
+    record("debug-events-web-error (web)", st === "running", `after the errors the program still answers its events (${st})`);
+    await page.screenshot({ path: join(WORK, "debug-events-web-error-continued.png") });
+    await page.keyboard.press("Shift+F5");
   } catch (e) {
     record(name, false, e.message.split("\n")[0]);
   } finally {
     await ctx.close();
   }
+}
+
+// (DEBUG-2) The focus on the web (RapidR's OnEnter / OnExit): focus.rr with
+// breakpoints in the name's OnExit (41) and Greet's OnEnter (45); in the
+// program's window, Tab from the name stops at 41, F5, then at 45, F5 — three
+// rounds, Shift+Tab back between them; then a click on Greet from the name
+// stops the same way, before its OnClick.
+async function webFocusOrder() {
+  const name = "debug-events-web-focus-order (web)";
+  const src = "tests/fixtures/studio_debug/focus.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { prop, until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src], 41);
+    await page.keyboard.press("F9");
+    // (the caret to 45 as a person moves it: four lines down)
+    for (let i = 0; i < 4; i++) await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("F9");
+    record(name, (await prop("bptree", "text")).replace(/\r/g, "").trim() === "focus.rr:41\nfocus.rr:45", `breakpoints at 41 and 45 (${JSON.stringify(await prop("bptree", "text"))})`);
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const frame = runFrame(page);
+    const stops = [];
+    const going = async () => {
+      await page.keyboard.press("F5");
+      await until(status, (v) => v.startsWith("Running"), 3000);
+    };
+    for (let k = 1; k <= 3; k++) {
+      // (the name has the focus: a click in it first, then Tab)
+      const ed = await frameBox(frame, "input");
+      await page.mouse.click(ed.x, ed.y);
+      await page.waitForTimeout(200);
+      await page.keyboard.press("Tab");
+      const a = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      if (k === 1) await page.screenshot({ path: join(WORK, "debug-events-web-focus-onexit.png") });
+      await going();
+      const b = await until(where, (v) => v.startsWith("paused"));
+      await keysBack();
+      await going();
+      stops.push(`${a} ${b}`);
+      record(name, a === "paused@41" && b === "paused@45", `Tab ${k}: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    }
+    // (a click on Greet from the name: the same two stops, then its OnClick)
+    const ed = await frameBox(frame, "input");
+    await page.mouse.click(ed.x, ed.y);
+    await page.waitForTimeout(300);
+    const greet = await frameBox(frame, "button", "Greet");
+    await page.mouse.click(greet.x, greet.y);
+    const a = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    const b = await until(where, (v) => v.startsWith("paused"));
+    await keysBack();
+    await going();
+    record(name, a === "paused@41" && b === "paused@45", `a click on Greet: OnExit (41) then OnEnter (45) (${a}, ${b})`);
+    // (the button let go while the program was stopped: dropped, as all its
+    // input then — Delphi's too: no OnClick. Clicked again, focused already:
+    // no OnExit / OnEnter, its OnClick runs)
+    await page.waitForTimeout(400);
+    await page.mouse.click(greet.x, greet.y);
+    await page.waitForTimeout(600);
+    record(name, (await where()).startsWith("running"), `Greet clicked again: no stop (${await where()})`);
+    // (the program's own label, read in its frame)
+    const steps = await frame.evaluate(() => String(window.__rapidr_rt.rapidr_get_prop("steps", "caption")));
+    record(name, / -name \+greet click$/.test(steps), `then its OnClick ran: the trail ends "-name +greet click" (${JSON.stringify(steps)})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+
+// (DEBUG-2, scenario 7 on the web) Stepping inside a handler with the
+// keyboard: steps.rr's Go (the button's OnClick) stops at its breakpoint
+// (33); F11 into Twice (its SUB line, 18), Shift+F11 back in Go (34), the
+// caret a line down and Ctrl+F10 (Run to Cursor: 35), a line up and
+// Ctrl+Shift+F10 (Set Next Statement: 34), F10 (35); F5 — running, and the
+// next click stops at 33 again. Then (scenario 11) the breakpoint taken off
+// while the program runs: the next click doesn't stop.
+async function webHandlerSteps() {
+  const name = "debug-steps-web-handler (web)";
+  const src = "tests/fixtures/studio_debug/steps.rr";
+  const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+  const page = await ctx.newPage();
+  const { until, where, status, keysBack } = webDebug(page);
+  try {
+    await openStudioOn(page, src, [src, "tests/fixtures/studio_debug/tally.inc"], 33);
+    await page.keyboard.press("F9");
+    await page.keyboard.press("F5");
+    await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
+    await page.waitForTimeout(700);
+    const click = async () => {
+      const go = await frameBox(runFrame(page), "button", "Go");
+      await page.mouse.click(go.x, go.y);
+    };
+    const step = async (keys, want, what) => {
+      for (const k of keys) await page.keyboard.press(k);
+      const w = await until(where, (v) => v === `paused@${want}`, 4000);
+      await keysBack();
+      record(name, w === `paused@${want}`, `${what}: paused at ${want} (${w})`);
+    };
+    await click();
+    const w = await until(where, (v) => v === "paused@33");
+    await keysBack();
+    record(name, w === "paused@33", `the click stops at Go's breakpoint, 33 (${w})`);
+    await step(["F11"], 18, "Step Into Twice");
+    await step(["Shift+F11"], 34, "Step Out, back in Go");
+    await step(["ArrowDown", "Control+F10"], 35, "Run to Cursor a line down");
+    await step(["ArrowUp", "Control+Shift+F10"], 34, "Set Next Statement a line up");
+    await step(["F10"], 35, "Step Over");
+    await page.keyboard.press("F5");
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    await click();
+    const again = await until(where, (v) => v === "paused@33");
+    await keysBack();
+    record(name, again === "paused@33", `F5, the next click stops at 33 again (${again})`);
+    // (11: Continue, then the breakpoint off while it runs — a click in
+    // Studio's editor gives Studio the keyboard back (the program has it
+    // while it runs), Go to Line 33, F9)
+    await page.keyboard.press("F5");
+    await until(status, (v) => v.startsWith("Running"), 3000);
+    const studioKeys = async () => {
+      // (a moment after Continue, as a person's: Continue hands the
+      // program's frame the keyboard —; the mouse onto Studio's editor and a
+      // click there: Studio has the keyboard again; then a click on line 33
+      // itself, its lines 20 pixels apart)
+      const before = await until(() => page.evaluate(() => document.activeElement && document.activeElement.tagName), (v) => v === "IFRAME", 3000);
+      await page.waitForTimeout(400);
+      await page.mouse.move(600, 300, { steps: 5 });
+      await page.waitForTimeout(200);
+      await page.mouse.click(600, 300);
+      await page.waitForTimeout(150);
+      const keys = await page.evaluate(() => document.activeElement && document.activeElement.tagName);
+      record(name, keys !== "IFRAME", `a click in Studio's editor while the program runs gives Studio the keyboard (${before} → ${keys})`);
+      const at = Number(await page.evaluate(() => String(window.rr.rapidr_get_prop("codedoc(0)", "caretline"))));
+      await page.mouse.click(600, 300 + (33 - at) * 20);
+      await page.waitForTimeout(200);
+    };
+    await studioKeys();
+    await page.keyboard.press("F9");
+    await page.waitForTimeout(300);
+    const bpOff = (await page.evaluate(() => String(window.rr.rapidr_get_prop("bptree", "text")))).trim();
+    await click();
+    await page.waitForTimeout(800);
+    const off = await where();
+    record(name, off.startsWith("running") && bpOff === "", `the breakpoint taken off while it runs: the next click doesn't stop (${off}, breakpoints ${JSON.stringify(bpOff)})`);
+    await studioKeys();
+    await page.keyboard.press("F9");
+    await page.waitForTimeout(300);
+    await click();
+    const on = await until(where, (v) => v === "paused@33");
+    record(name, on === "paused@33", `put back while it runs: the next click stops (${on})`);
+    await page.keyboard.press("Shift+F5");
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-steps-web-handler".includes(f) || f === "debug-steps"))) {
+  await webHandlerSteps();
 }
 
 async function aiSettingsByMouse() {
@@ -3951,6 +4264,9 @@ if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-even
   await webTypingWhilePaused();
   await webDialogStep();
   await webNestedAndError();
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-events-web-focus-order".includes(f) || f === "debug-events"))) {
+  await webFocusOrder();
 }
 // (THEME-LIVE) The browser switches the page's colour scheme (playwright's
 // emulateMedia) on a live page — no test script: the page's own media

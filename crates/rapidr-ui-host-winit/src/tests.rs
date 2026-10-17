@@ -191,6 +191,8 @@ fn a_resize_is_laid_out_and_told_once() {
     let s = store();
     let mut d = desk(&s);
     d.resized("frm", 300, 150);
+    // (the form shown: its first component's OnEnter — the kernel's focus.rs)
+    d.events.retain(|e| !matches!(e, HostEvent::Kernel(_, KernelEvent::Fire { event, .. }) if event == "onenter"));
     assert_eq!(d.events, vec![HostEvent::Kernel("frm".into(), KernelEvent::Resized("frm".into(), 300, 150))]);
     assert_eq!(d.forms["frm"].spec.size, (300, 150));
     d.events.clear();

@@ -478,6 +478,16 @@ pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     crate::links_web::apply();
 }
 
+/// A property the program sets (an assignment in its code): the events
+/// RapidQ fires for it fire inside the set — an edit's OnChange, a check
+/// box's OnClick … (`rapidr_value::events::program_set`, the desktop's
+/// `rp_prop_set`). What the runtime sets itself goes through
+/// [`rp_comp_set`].
+pub fn rp_prop_set(name: &str, prop: &str, val: Value) {
+    let t = rp_comp_type(name);
+    rapidr_value::events::program_set(&t, prop, |p| rp_comp_get(name, p), || rp_comp_set(name, prop, val), || shown_once(name), |e| rp_fire_event(name, e));
+}
+
 fn comp_set(name: &str, prop: &str, val: Value) {
     // (`Label.Font.AddStyles = fsBold`: RapidQ takes the method so too)
     if let Some(changes) = rapidr_value::objects::font::component_style_call(&prop.to_ascii_lowercase(), std::slice::from_ref(&val)) {

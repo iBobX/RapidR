@@ -523,6 +523,19 @@ export const cases = [
   { name: "inspector_datafield", events: "insp.__key_40,insp.__key_40,insp.__key_115,insp.__key_40,insp.__key_13,breport.onclick",
     dump: "log.caption",
     expect: ["log.caption=DataField=age | [REDIT age]"] },
+  // (DEBUG-2) RapidR's OnEnter / OnExit: the form shown (the name entered),
+  // Tab three times round (each leaving, then the next entered; Other has
+  // no handlers), a click on Greet (left, entered, then its OnClick)
+  { name: "focus_order", events: "nameedit.__key_9,greetbutton.__key_9,otherbutton.__key_9,greetbutton.__mousedown_10_10,greetbutton.__mouseup_10_10",
+    dump: "steps.caption",
+    expect: ["steps.caption= +name -name +greet -greet +name -name +greet click"] },
+  // (DEBUG-2) A run-time error in a handler, RapidQ's way: the handler (and
+  // the one that fired it) stops at the error, the form goes on answering
+  { name: "handler_error", events: "oopsbtn.__mousedown_5_5,oopsbtn.__mouseup_5_5,finebtn.__mousedown_5_5,finebtn.__mouseup_5_5,outerbtn.__mousedown_5_5,outerbtn.__mouseup_5_5,oopsbtn.__mousedown_5_5,oopsbtn.__mouseup_5_5,finebtn.__mousedown_5_5,finebtn.__mouseup_5_5",
+    dump: "steps.caption",
+    expect: ["steps.caption= oops fine outer changed oops fine"] },
+  // (DEBUG-2) The events a program's own sets fire on a shown form (RC.EXE's)
+  { name: "set_events", events: "go.onclick", dump: "log.caption", expect: ["log.caption=log e r r c b s"] },
   { name: "rdbgrid", events: "grid.__cell_0_1,grid.__cell_1_-1,grid.__cell_1_-1,nameedit.__key_88",
     dump: "nameedit.text,agelbl.caption,grid.row,grid.sortcolumn,grid.sortdescending,info.caption",
     expect: ["nameedit.text=x", "agelbl.caption=25", "grid.row=1", "grid.sortcolumn=1", "grid.sortdescending=1", "info.caption=clicked 1,0 of 5"] },

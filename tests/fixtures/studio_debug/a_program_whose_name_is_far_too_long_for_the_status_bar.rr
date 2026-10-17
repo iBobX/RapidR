@@ -1,0 +1,8 @@
+' A program whose name doesn't fit Studio's status bar (tests/studio_flows.mjs
+' debug-status-long-name): stopped at line 5, the bar says where — the
+' name shortened in its middle, the line kept, the whole in its tooltip.
+DIM total AS INTEGER, i AS INTEGER
+FOR i = 1 TO 3
+  total = total + i
+NEXT
+PRINT "total"; total

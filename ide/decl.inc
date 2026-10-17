@@ -81,6 +81,10 @@ DIM ThemeName AS STRING
 ' "rapidr high contrast", "classic"; ThemeName is the theme drawn)
 DIM ThemeChoice AS STRING
 DIM StateText AS STRING
+' (the status bar's text measured: a long file name shortened in its middle)
+DIM StatusMeasure AS RBitmap
+DECLARE FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE SUB ShowStatusHint
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs

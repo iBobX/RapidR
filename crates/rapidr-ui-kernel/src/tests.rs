@@ -60,7 +60,13 @@ fn setup() -> (MemStore, FormUi, TextSystem) {
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&store, "form", false);
     drop(f.paint(&store, &mut ts, 1.0));
+    // (the form shown: its first component's OnEnter — focus.rs's tests')
+    f.take_events();
     (store, f, ts)
+}
+
+fn fire(id: &str, event: &str) -> KernelEvent {
+    KernelEvent::Fire { id: id.into(), event: event.into(), args: Vec::new() }
 }
 
 fn focused(f: &FormUi) -> String {
@@ -201,6 +207,7 @@ fn key_events_come_in_rapidq_order() {
     assert_eq!(f.take_events(), vec![KernelEvent::KeyUp { chain, vk: 65, shift: 0 }]);
     // a key that types nothing: no OnKeyPress; Shift in RapidQ's terms
     f.focus_id(&s, "tbLevel");
+    assert_eq!(f.take_events(), vec![fire("edname", "onexit"), fire("tblevel", "onenter")]);
     let chain = vec!["tblevel".to_string(), "form".to_string()];
     assert_eq!(key(&mut f, &s, &mut ts, 39, "", SHIFT), vec![KernelEvent::KeyDown { chain, vk: 39, shift: 256, text: String::new() }, change("tblevel")]);
     // a component inside a tab control: its chain goes through it
@@ -315,6 +322,7 @@ fn mouse_events_hover_and_capture() {
     let mut s2 = demo_store();
     s2.set("btnOK", "enabled", v_int(0));
     let mut g = FormUi::build(&s2, "form", false);
+    g.take_events();
     g.mouse_down(&s2, &mut ts, 223.0, 20.0, Button::Left, NONE);
     g.mouse_up(&s2, &mut ts, 223.0, 20.0, Button::Left, NONE);
     assert!(g.take_events().is_empty());
@@ -332,6 +340,7 @@ fn tree_places_children_and_the_menu_bar() {
     s.add("mnu", "RMAINMENU", Some("form"));
     let mut ts = TextSystem::new();
     let mut g = FormUi::build(&s, "form", true);
+    g.take_events();
     assert_eq!(g.menu_offset, rapidr_value::layout::MAIN_MENU_HEIGHT);
     assert_eq!(g.node("btnOK").unwrap().abs, (186, 8 + 28, 75, 25));
     assert!(g.node("mnu").is_none(), "non-visual: not placed");
@@ -931,18 +940,61 @@ fn a_list_hears_onenter_when_it_gets_the_focus() {
     let (s, mut f, mut ts) = members_form();
     // (the first in Tab order is focused as the form shows)
     assert_eq!(fired(f.take_events()), ["l1.onenter"]);
+    // (a press on the edit: the list's OnExit, the edit's OnEnter, then
+    // the press)
     f.mouse_down(&s, &mut ts, 155.0, 15.0, Button::Left, NONE);
     f.mouse_up(&s, &mut ts, 155.0, 15.0, Button::Left, NONE);
-    assert!(!fired(f.take_events()).iter().any(|e| e.ends_with("onenter")), "an edit has none");
-    // (a press on the file list: OnEnter before what the press does)
+    let ev = fired(f.take_events());
+    assert_eq!(ev[..3], ["l1.onexit", "ed.onenter", "ed.Down"], "{ev:?}");
+    // (a press on the file list: OnExit, OnEnter before what the press does)
     f.mouse_down(&s, &mut ts, 20.0, 125.0, Button::Left, NONE);
     let ev = fired(f.take_events());
-    assert_eq!(ev.first().map(String::as_str), Some("l2.onenter"), "{ev:?}");
-    // (SetFocus: entered; the same one again: nothing)
+    assert_eq!(ev[..2], ["ed.onexit", "l2.onenter"], "{ev:?}");
+    // (SetFocus: left and entered; the same one again: nothing)
     assert!(f.focus_id(&s, "l1"));
-    assert_eq!(fired(f.take_events()), ["l1.onenter"]);
+    assert_eq!(fired(f.take_events()), ["l2.onexit", "l1.onenter"]);
     assert!(f.focus_id(&s, "l1"));
     assert!(fired(f.take_events()).is_empty());
+}
+
+/// (DEBUG-2) RapidR's OnEnter / OnExit on every component that takes the
+/// focus, as Delphi's: Tab and Shift+Tab, a click on a button (OnExit and
+/// OnEnter before its OnMouseDown and OnClick), a press on what has the
+/// focus already (nothing), each once, in that order.
+#[test]
+fn onexit_then_onenter_as_the_focus_moves() {
+    let mut s = MemStore::new();
+    s.add("ff", "RFORM", None);
+    s.add("name", "REDIT", Some("ff")).set("name", "left", v_int(10)).set("name", "top", v_int(10));
+    s.add("greet", "RBUTTON", Some("ff")).set("greet", "left", v_int(10)).set("greet", "top", v_int(50)).set("greet", "caption", v_str("Greet"));
+    s.add("ck", "RCHECKBOX", Some("ff")).set("ck", "left", v_int(10)).set("ck", "top", v_int(90)).set("ck", "caption", v_str("Check"));
+    s.add("lbl", "RLABEL", Some("ff")).set("lbl", "left", v_int(200)).set("lbl", "top", v_int(10)).set("lbl", "caption", v_str("label"));
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "ff", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    assert_eq!(fired(f.take_events()), ["name.onenter"]);
+    // (Tab three times round: name → greet → ck → name; the label never)
+    f.move_focus(&s, false);
+    assert_eq!(fired(f.take_events()), ["name.onexit", "greet.onenter"]);
+    f.move_focus(&s, false);
+    assert_eq!(fired(f.take_events()), ["greet.onexit", "ck.onenter"]);
+    f.move_focus(&s, false);
+    assert_eq!(fired(f.take_events()), ["ck.onexit", "name.onenter"]);
+    // (Shift+Tab: back)
+    f.move_focus(&s, true);
+    assert_eq!(fired(f.take_events()), ["name.onexit", "ck.onenter"]);
+    // (a click on the button: left, entered, then its press and its click)
+    f.mouse_down(&s, &mut ts, 15.0, 55.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 15.0, 55.0, Button::Left, NONE);
+    assert_eq!(fired(f.take_events()), ["ck.onexit", "greet.onenter", "greet.Down", "greet.click", "greet.Up"]);
+    // (again: it has the focus — no OnExit, no OnEnter)
+    f.mouse_down(&s, &mut ts, 15.0, 55.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 15.0, 55.0, Button::Left, NONE);
+    assert_eq!(fired(f.take_events()), ["greet.Down", "greet.click", "greet.Up"]);
+    // (a click on the label: it takes no focus — nothing leaves)
+    f.mouse_down(&s, &mut ts, 205.0, 15.0, Button::Left, NONE);
+    f.mouse_up(&s, &mut ts, 205.0, 15.0, Button::Left, NONE);
+    assert!(!fired(f.take_events()).iter().any(|e| e.ends_with("onexit") || e.ends_with("onenter")));
 }
 
 #[test]

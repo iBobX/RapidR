@@ -1010,6 +1010,10 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
                 let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
                 // (keeps the focus where the kernel puts it, not on the page)
                 e.prevent_default();
+                // (a press in this page's window is the person's: the keyboard
+                // comes with it, from an embedded frame too — RapidR Studio
+                // clicked while its program runs takes its keys back)
+                crate::mirror::claim_keyboard();
                 let _ = el.set_pointer_capture(e.pointer_id());
                 let p = at(&el, &e);
                 let m = mouse_mods(&e, mac);
@@ -1132,6 +1136,8 @@ fn listeners(w: &Win, id: &str, mac: bool) -> Vec<Listener> {
         listen(&fr, "pointerdown", &mut out, move |e| {
             let Ok(e) = e.dyn_into::<web_sys::PointerEvent>() else { return };
             e.prevent_default();
+            // (the window's title bar pressed: the keyboard with it)
+            crate::mirror::claim_keyboard();
             let p = at(&el, &e);
             let page = (f64::from(e.client_x()), f64::from(e.client_y()));
             let _ = el.set_pointer_capture(e.pointer_id());

@@ -111,6 +111,68 @@ Form.Show               ' shows it and goes on; to keep it, wait:
 DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 ```
 
+### The focus: OnEnter and OnExit
+
+Every component that takes the keyboard focus — an edit, a button, a check
+box, a list, a grid … — has **OnEnter** (it got the focus) and **OnExit**
+(it lost it to another component of its form). They come with Tab and
+Shift+Tab, a click, `SetFocus` and a label's shortcut; the component that
+has the focus when its form shows gets its OnEnter then. The one leaving
+hears OnExit first, then the one arriving its OnEnter, both before what a
+click does (OnMouseDown, OnClick). Switching to another window or app and
+back fires neither, nor does hiding or disabling the focused component.
+
+```basic
+CREATE Age AS REdit
+    OnExit = AgeExit
+END CREATE
+
+SUB AgeExit
+    IF VAL(Age.Text) < 1 THEN Advice.Caption = "Type your age in years"
+END SUB
+```
+
+[focus_events.rr](../../examples/gui/focus_events.rr) shows both. They are
+RapidR's, as Delphi's: RapidQ has OnEnter only on its lists (RC.EXE never
+fires a QFILELISTBOX's; binding a QLISTBOX's stops the program) and no
+OnExit, so no RapidQ program changes.
+
+### Events your own code fires
+
+Setting some properties from code fires the event the user's change fires,
+inside the assignment — before the next line runs —, exactly as RapidQ
+does (checked against RapidQ's own compiler, RC.EXE):
+
+| The program sets | Fires |
+|---|---|
+| `Edit.Text` or `Edit.SelText` (the text changes) | OnChange |
+| `RichEdit.Text` (the text changes) | OnChange: once before its form has shown, **twice** after (RapidQ's rich edit hears its own change and the text's) |
+| `RichEdit.SelText` | OnChange |
+| `CheckBox.Checked` (on or off, a change) | OnClick |
+| `RadioButton.Checked = 1` (it was off) | OnClick — the button it turns off hears nothing |
+| `ScrollBar.Position` (a change) | OnChange (not OnScroll) |
+| the same value again; `RadioButton.Checked = 0` | nothing |
+| `ComboBox.ItemIndex`, `ComboBox.Text`, `ListBox.ItemIndex`, `TrackBar.Position`, `TabControl.TabIndex` | nothing |
+
+A handler that sets its own component's value runs itself again, and code
+that fills a form fires the handlers it binds: keep a flag while you do,
+as [csv_explorer.rr](../../examples/data/csv_explorer.rr) does with `Busy`.
+Not yet as RapidQ's: `RichEdit.AddStrings` fires OnChange there, and a
+QFILELISTBOX's OnChange comes when it first reads its folder.
+
+### A run-time error in a handler
+
+As in RapidQ, the handler stops at the line that failed — and so do the
+handlers that fired it (a click whose `Edit.Text = …` ran the failing
+OnChange) — and the program goes on: its windows keep answering, its timers
+keep ticking, the next click runs the handler again. RapidR writes the
+error where you see it (the program's error output, Studio's Output);
+RapidQ says nothing. In an event that ran inside a `DOEVENTS` the error
+also stops the code that called `DOEVENTS`: a main program's
+`DO: DOEVENTS: LOOP` ends there, the program with it, as RapidQ's does. An
+error in the main program ends the program. Under Studio's debugger the
+program first stops at the line (see [Debugging](debugging.md#when-the-program-fails)).
+
 ## The global objects
 
 | Object | What it has |

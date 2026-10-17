@@ -7,7 +7,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- **Events fire as RapidQ fires them** (checked against RapidQ's own compiler,
+  RC.EXE, in the Windows VM). Setting a property from code now fires the event the
+  user's change fires, inside the assignment: an `REdit`'s Text or SelText that
+  changes, its OnChange; an `RRichEdit`'s Text, OnChange (twice once its form has
+  shown, as RapidQ's); an `RCheckBox`'s Checked, OnClick; an `RRadioButton` turned
+  on, OnClick; an `RScrollBar`'s Position, OnChange. A combo box's or list box's
+  ItemIndex, a track bar's Position and a tab control's TabIndex fire nothing, as in
+  RapidQ. Every runtime (the interpreter, native builds, the web). The table:
+  docs/manual/components.md, "Events your own code fires".
+- **A run-time error in an event handler no longer ends the program**: as in
+  RapidQ, the handler stops at the line — with the handlers that fired it — and the
+  program goes on answering its events, its timers ticking; the error is written to
+  the program's error output (Studio's Output). In an event run by `DOEVENTS` the
+  error also stops the code that called it (a main program's `DOEVENTS` loop ends,
+  as RapidQ's). Under the debugger, Continue at such an error does the same — the
+  next click stops at the error again. Desktop, native builds and the web alike.
+
+### Added
+- **OnEnter and OnExit on every component that takes the focus** (RapidR's, as
+  Delphi's; RapidQ has OnEnter only on its lists, where it never fires, and no
+  OnExit): the component left hears OnExit, then the one reached OnEnter, before a
+  click's own events — by Tab, a click, SetFocus, a mnemonic. In the language
+  registry (27 components) and RapidR Studio's Events tab; a breakpoint in either
+  stops every time. Example: `examples/gui/focus_events.rr`.
+- **The debugger's scenarios as flows on both hosts**: stepping inside a handler
+  (Step Into, Step Out, Run to Cursor, Set Next Statement), a breakpoint on a loop's
+  body (every pass) and on a one-line loop (once), a recursive FUNCTION (every
+  level, the Call Stack listing them all), a breakpoint taken off and put back while
+  the program runs, a breakpoint in an `$INCLUDE`d file (it opens there).
+
 ### Fixed
+- **RapidR Studio on the web: a click in Studio while the program runs gives Studio
+  the keyboard back** (the program's frame kept it: F9 or Ctrl+G went to the
+  program).
+- **A stop right after Continue shows in Studio on macOS** (Tab from a field into
+  an OnExit breakpoint, Continue, the next field's OnEnter breakpoint): the system
+  made the program active only after it had given the front back, so the stopped
+  program stayed in front of Studio. A program stopped then hands the front back
+  again for a moment (found walking the debugger on the real screen).
+- **RapidR Studio's status bar shortens a long file name in its middle** (the line
+  number kept: `Breakpoint: a_pro…he_status_bar.rr:6`); resting the mouse on
+  the bar shows the whole. It was cut off at the end, the line lost.
 - **RapidR Studio's dark and high-contrast themes are readable everywhere.** The
   debugger's Variables, Watch, Call Stack and Breakpoints rows and the Breakpoints
   pane's When / Hit / Log / On labels were black or dark grey on the dark ground:

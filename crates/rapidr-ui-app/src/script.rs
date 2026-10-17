@@ -196,14 +196,22 @@ pub fn step<R: Program + Windows>(rt: R) {
     let next = sc(|s| s.as_mut().and_then(|sc| sc.events.pop_front()));
     match next {
         Some(e) => {
+            // (the next step soon after, however this one's handlers end — a
+            // native build's run-time error unwinds them: rapidr_value::catching)
+            struct Next<R: Program>(R);
+            impl<R: Program> Drop for Next<R> {
+                fn drop(&mut self) {
+                    let next = self.0.now() + Duration::from_millis(50);
+                    sc(|s| {
+                        if let Some(sc) = s.as_mut() {
+                            sc.next = next;
+                        }
+                    });
+                }
+            }
+            let _next = Next(rt);
             run_event(rt, e);
             rt.dispatch_pending();
-            let next = rt.now() + Duration::from_millis(50);
-            sc(|s| {
-                if let Some(sc) = s.as_mut() {
-                    sc.next = next;
-                }
-            });
         }
         None => {
             let next = rt.now() + Duration::from_millis(300);

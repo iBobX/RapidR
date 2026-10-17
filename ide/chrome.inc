@@ -144,8 +144,41 @@ SUB ApplyState
       Status.Color = TC("statusbar")
       Status.Font.Color = TC("statusbar.text")
   END SELECT
-  Status.Panel(0).Caption = "  " + StateText
+  ' (a long file name shortened in its middle — the line number at the end
+  ' stays —, the whole of it the bar's tooltip)
+  Status.Panel(0).Caption = "  " + FitMiddle(StateText, Status.Panel(0).Width - 14)
+  ShowStatusHint
 END SUB
+
+' (the bar's tooltip: what a shortened panel says in full)
+SUB ShowStatusHint
+  DIM h AS STRING
+  IF Status.Panel(0).Caption <> "  " + StateText THEN h = StateText
+  IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName THEN
+    IF h <> "" THEN h = h + " - "
+    h = h + ProjectName
+  END IF
+  Status.Hint = h
+  Status.ShowHint = (h <> "")
+END SUB
+
+' Text as it fits in Room pixels of the status bar's font: whole, or with
+' its middle taken out for "…" — its start and its end (a line number, a
+' file's extension) kept.
+FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+  DIM k AS INTEGER, n AS INTEGER, s AS STRING
+  StatusMeasure.Font.Name = StatusFont.Name: StatusMeasure.Font.Size = StatusFont.Size
+  IF StatusMeasure.TextWidth(Text) <= Room OR LEN(Text) < 6 THEN
+    Result = Text
+    EXIT FUNCTION
+  END IF
+  n = LEN(Text)
+  FOR k = n - 1 TO 4 STEP -1
+    s = LEFT$(Text, k \ 2) + "…" + RIGHT$(Text, k - k \ 2)
+    IF StatusMeasure.TextWidth(s) <= Room THEN EXIT FOR
+  NEXT
+  Result = s
+END FUNCTION
 
 SUB SetState(State AS STRING, Text AS STRING)
   RunState = State
@@ -169,7 +202,8 @@ SUB LayOutStatus
   Status.Panel(2).Width = 110
   Status.Panel(3).Width = 70
   Status.Panel(4).Width = 60
-  IF ProjectOpen THEN Status.Panel(1).Caption = ProjectName ELSE Status.Panel(1).Caption = ""
+  IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName, w - 12) ELSE Status.Panel(1).Caption = ""
+  ShowStatusHint
 END SUB
 
 SUB UpdateTitle

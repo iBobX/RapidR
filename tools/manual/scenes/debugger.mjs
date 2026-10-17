@@ -54,6 +54,10 @@ export const scenes = [
   // (DARK-FIX: the debugger in the other themes — every pane readable)
   { topic: "debugging", name: "dark-paused", theme: "rapidr-dark", open: SHOP, do: `${LOOP},run.start,wait,wait,wait,debug.stepInto,wait,wait,frame:1,wait,view.variables,view.callStack,wait`, delay: 11, crop: [0, 64, 1036, 706] },
   { topic: "debugging", name: "contrast-breakpoints", theme: "rapidr-high-contrast", open: SHOP, do: "line:76,debug.toggleBreakpoint,line:147,debug.toggleBreakpoint,bpcond:count > 1,run.start,wait,wait,wait,view.breakpoints,wait", delay: 9, crop: BOTTOM },
+  // (DEBUG-2: a breakpoint in focus_events.rr's NameExit — the name's
+  // OnExit —, Tab pressed in the program: stopped there, the program's
+  // window behind with the focus already on Age)
+  { topic: "debugging", name: "focus-onexit", open: "examples/gui/focus_events.rr", do: "line:56,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,wait,wait,view.variables", env: { RAPIDR_TEST_PROGRAM_EVENTS: "nameedit.__key_65,nameedit.__key_9" }, delay: 8, crop: WORKBENCH },
   { topic: "debugging", name: "set-next", open: COUNTER, do: `${HIT},debug.stepInto,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,debug.stepOver,wait,wait,wait,goto:6,wait,wait`, delay: 11, crop: WORKBENCH },
   // (the web: Studio in the browser, paused as on the desktop — its window
   // under the page's title bar — and a running program's window dragged

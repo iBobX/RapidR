@@ -60,6 +60,8 @@ events = [
   { name = "OnEventDblClick", params = "Event AS STRING", doc = "The user double-clicked an event's row: the program creates (or shows) its handler." },
   { name = "OnEditorRequest", params = "Prop AS STRING", doc = "The user asked for a property's own editor (its \"…\" button) where the inspector has none: the program shows one." },
   { name = "OnSelect", params = "Prop AS STRING", doc = "The selected row changed." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -101,6 +103,8 @@ events = [
   { name = "OnSelect", params = "Type AS STRING", doc = "The selected component changed." },
   { name = "OnDragStart", params = "Type AS STRING", doc = "The user started dragging a component out of the toolbox." },
   { name = "OnDragDrop", params = "Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER", doc = "A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is \"\" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -158,6 +162,8 @@ events = [
   { name = "OnDelete", params = "Path AS STRING, BYREF Cancel AS INTEGER", doc = "The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to." },
   { name = "OnMove", params = "Path AS STRING, NewPath AS STRING, Index AS INTEGER", doc = "The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath)." },
   { name = "OnNewFile", params = "Path AS STRING, Kind AS STRING", doc = "NewFile added a file and the user named it." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -203,6 +209,8 @@ methods = [
 events = [
   { name = "OnLinkClick", params = "File AS STRING, Line AS INTEGER", doc = "The user clicked a `file:line` place or a problem (or pressed Enter on it)." },
   { name = "OnPageChange", params = "Page AS STRING", doc = "The user showed another page." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -243,6 +251,8 @@ methods = [
 events = [
   { name = "OnCommand", params = "Id AS STRING", doc = "The user picked a command (Enter or a click): the palette has closed." },
   { name = "OnCancel", doc = "The user closed the palette without picking (Escape)." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]
@@ -283,4 +293,6 @@ methods = [
 ]
 events = [
   { name = "OnLinkClick", params = "Url AS STRING", doc = "The user clicked a link: its target as the text writes it (\"https://…\", \"other.md\", \"#heading\")." },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]

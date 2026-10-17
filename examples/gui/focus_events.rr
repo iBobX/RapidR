@@ -1,0 +1,83 @@
+' focus_events.rr: OnEnter and OnExit. Each box shows its help when the
+' keyboard focus comes to it (OnEnter) and checks what was typed when the
+' focus leaves it (OnExit). Move with Tab and Shift+Tab, or click.
+'
+'   rapidr run focus_events.rr
+'
+' Every component that takes the focus has both (RapidR's, as Delphi's):
+' the one left hears OnExit first, then the one reached its OnEnter.
+$THEME rapidr
+
+DECLARE SUB NameEnter
+DECLARE SUB NameExit
+DECLARE SUB AgeEnter
+DECLARE SUB AgeExit
+DECLARE SUB DoneEnter
+DECLARE SUB DoneClick
+
+CREATE Form AS RForm
+    Caption = "Focus events"
+    Width = 380: Height = 230
+    Center
+    CREATE NameLabel AS RLabel
+        Caption = "&Name:": Left = 16: Top = 20: Width = 70
+    END CREATE
+    CREATE NameEdit AS REdit
+        Left = 96: Top = 16: Width = 250
+        OnEnter = NameEnter
+        OnExit = NameExit
+    END CREATE
+    CREATE AgeLabel AS RLabel
+        Caption = "&Age:": Left = 16: Top = 56: Width = 70
+    END CREATE
+    CREATE AgeEdit AS REdit
+        Left = 96: Top = 52: Width = 60
+        OnEnter = AgeEnter
+        OnExit = AgeExit
+    END CREATE
+    CREATE DoneButton AS RButton
+        Caption = "&Done": Left = 96: Top = 90: Width = 90
+        OnEnter = DoneEnter
+        OnClick = DoneClick
+    END CREATE
+    CREATE Help AS RLabel
+        Left = 16: Top = 132: Width = 340
+    END CREATE
+    CREATE Check AS RLabel
+        Left = 16: Top = 156: Width = 340
+    END CREATE
+END CREATE
+
+SUB NameEnter
+    Help.Caption = "Your name, as you like to be called."
+END SUB
+
+SUB NameExit
+    IF LEN(TRIM$(NameEdit.Text)) = 0 THEN
+        Check.Caption = "The name is empty."
+    ELSE
+        Check.Caption = "Name: " + TRIM$(NameEdit.Text)
+    END IF
+END SUB
+
+SUB AgeEnter
+    Help.Caption = "Your age, in years."
+END SUB
+
+SUB AgeExit
+    IF VAL(AgeEdit.Text) < 1 OR VAL(AgeEdit.Text) > 130 THEN
+        Check.Caption = "The age should be a number of years."
+    ELSE
+        Check.Caption = "Age: " + LTRIM$(STR$(VAL(AgeEdit.Text)))
+    END IF
+END SUB
+
+SUB DoneEnter
+    Help.Caption = "Press Space to finish."
+END SUB
+
+SUB DoneClick
+    Check.Caption = "Thank you, " + TRIM$(NameEdit.Text) + "!"
+END SUB
+
+Form.ShowModal

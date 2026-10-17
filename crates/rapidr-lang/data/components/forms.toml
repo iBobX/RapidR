@@ -223,6 +223,8 @@ events = [
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnResize", origin = "rapidr" },
   { name = "WndProc" },
+  { name = "OnEnter", origin = "rapidr", doc = "Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.)" },
+  { name = "OnExit", origin = "rapidr", doc = "Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.)" },
 ]
 
 [[component]]
@@ -287,6 +289,8 @@ methods = [
 events = [
   { name = "OnChange" },
   { name = "OnClick", origin = "rapidr" },
+  { name = "OnEnter", origin = "rapidr" },
+  { name = "OnExit", origin = "rapidr" },
 ]
 
 [[component]]

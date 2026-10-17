@@ -150,7 +150,7 @@ impl FormUi {
     pub fn build(store: &dyn Store, form: &str, menu_in_window: bool) -> FormUi {
         let mut f = FormUi::build_unfocused(store, form, menu_in_window);
         f.focus = f.tab_order(store).first().copied();
-        // (the first focus is entered: a list's OnEnter as its form shows;
+        // (the first focus is entered: its OnEnter as its form shows;
         // a QEDIT focused then selects its text: AutoSelect)
         if let Some(i) = f.focus {
             f.entered(i);

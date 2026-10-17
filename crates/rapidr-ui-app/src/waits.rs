@@ -95,6 +95,15 @@ pub fn turn() -> Option<Wait> {
     ws(|s| s.waits.last().filter(|w| matches!(w, Wait::Popup | Wait::Once(_))).cloned())
 }
 
+/// Whether the innermost wait is an event loop that goes on after a run-time
+/// error in a handler it ran (RapidQ's ShowModal — RC.EXE, 2026-10-16 —, a
+/// dialog's, INPUT$'s, a kernel-drawn menu's, a drag's): not a turn
+/// (DOEVENTS', Popup's), which passes the error on to the code that called
+/// it, as RapidQ's DOEVENTS does (`rapidr_vm::Host::wait_catches_errors`).
+pub fn innermost_catches() -> bool {
+    ws(|s| s.waits.last().is_some_and(|w| !matches!(w, Wait::Popup | Wait::Once(_))))
+}
+
 /// Whether the innermost wait is over: none left, its modal form closed.
 /// (A wait for an answer ends with its result: [`answered`].)
 pub fn over() -> bool {

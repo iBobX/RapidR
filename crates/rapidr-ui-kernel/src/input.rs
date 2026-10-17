@@ -118,7 +118,7 @@ pub enum KernelEvent {
     /// Component `id`'s event `event` (lowercase: `oncaretmove`) with its
     /// arguments, fired as it is, nothing else to do: the IDE's components
     /// (RCODEEDITOR's OnCaretMove(Line, Column), RDIFFVIEW's OnHunkChange
-    /// …), a list's OnEnter (focus.rs), a button's OnStartDrag /
+    /// …), OnEnter / OnExit (focus.rs), a button's OnStartDrag /
     /// OnEndDrag (drag.rs).
     Fire { id: String, event: String, args: Vec<rapidr_value::Value> },
     /// The application's hint is now this (hint.rs): the long part of the
@@ -218,7 +218,7 @@ impl FormUi {
                 if out.focus.unwrap_or(true) && self.can_focus(store, i) {
                     let before = self.events.len();
                     self.set_focus_by_click(Some(i));
-                    // (a list's OnEnter before what the press did to it: a
+                    // (OnExit, OnEnter before what the press did to it: a
                     // list box takes the focus before it selects)
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
                     self.events.splice(mark..mark, entered);
