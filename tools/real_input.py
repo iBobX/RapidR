@@ -27,7 +27,7 @@ def front():
     if not ws or ws[0]['kCGWindowOwnerPID']!=pid: sys.exit("not frontmost: "+str(ws[0].get('kCGWindowOwnerName') if ws else None))
     return dict([w for w in ws if w['kCGWindowOwnerPID']==pid][0]['kCGWindowBounds'])
 def mouse(t,x,y,c=1):
-    e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonLeft); Quartz.CGEventSetIntegerValueField(e,Quartz.kCGMouseEventClickState,c); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e)
+    e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonLeft); Quartz.CGEventSetIntegerValueField(e,Quartz.kCGMouseEventClickState,c); Quartz.CGEventSetFlags(e,0); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e)
 for a in sys.argv[2:]:
     b=front(); kind,arg=a.split(":",1)
     if kind in ("c","C"):
@@ -56,7 +56,8 @@ for a in sys.argv[2:]:
             flags|={"cmd":Quartz.kCGEventFlagMaskCommand,"shift":Quartz.kCGEventFlagMaskShift,"ctrl":Quartz.kCGEventFlagMaskControl,"alt":Quartz.kCGEventFlagMaskAlternate}[m]
         for d in (True,False):
             e=Quartz.CGEventCreateKeyboardEvent(None,code,d)
-            if flags: Quartz.CGEventSetFlags(e,flags)
+            # (always set: an event with none takes the machine's held modifiers — a Cmd+Fn left down made a plain F5 Cmd+F5, which turned VoiceOver on)
+            Quartz.CGEventSetFlags(e,flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
     elif kind=="t":
         # text typed (t:RapidR Dark) by System Events, as the keyboard's

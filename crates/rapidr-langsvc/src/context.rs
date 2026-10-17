@@ -88,7 +88,8 @@ pub(crate) fn line_context(text: &str, offset: usize) -> LineContext {
     }
     let last_word = |s: &str| -> String {
         let t = s.trim_end();
-        let start = t.rfind(|c: char| !is_name_char(c)).map_or(0, |i| i + 1);
+        // (past the whole character: a non-ASCII one — ä, ñ, a Chinese character — is more than one byte)
+        let start = t.char_indices().rev().find(|&(_, c)| !is_name_char(c)).map_or(0, |(i, c)| i + c.len_utf8());
         t[start..].to_ascii_uppercase()
     };
     let prev = last_word(head);
@@ -429,6 +430,19 @@ mod tests {
         let t = "  Pri";
         assert_eq!(line_context(t, t.len()).place, Place::Code { statement_start: true });
         let t = "x = Le";
+        assert_eq!(line_context(t, t.len()).place, Place::Code { statement_start: false });
+    }
+
+    #[test]
+    fn a_non_ascii_letter_in_code_is_no_panic() {
+        // (typing `x = äb`, or a name with ñ, é, a Chinese character: the byte after the
+        // character is not a character boundary — this once aborted RapidR Studio)
+        for t in ["x = äb", "x = ä", "Año = 5", "x = 变量 + y", "  é", "x = ñ."] {
+            for offset in (0..=t.len()).filter(|&o| t.is_char_boundary(o)) {
+                let _ = line_context(t, offset);
+            }
+        }
+        let t = "x = äb";
         assert_eq!(line_context(t, t.len()).place, Place::Code { statement_start: false });
     }
 
