@@ -26,6 +26,8 @@ CONST R = 0.8
 
 DECLARE SUB NewPoints
 DECLARE SUB ShowLineChanged
+DECLARE SUB DrawCharts
+DECLARE SUB LayOut
 
 DIM px(3, N - 1) AS DOUBLE, py(3, N - 1) AS DOUBLE        ' four sets of N points
 DIM xs(N - 1) AS DOUBLE, ss(N - 1) AS DOUBLE               ' a set's standardized x and its shape
@@ -34,12 +36,14 @@ DIM Chart(3) AS RPlot
 DIM Nums(3) AS RLabel
 DIM Name(3) AS STRING
 DIM seed AS INTEGER
+DIM axLo AS DOUBLE, axHi AS DOUBLE, ayLo AS DOUBLE, ayHi AS DOUBLE      ' the axes all four charts share
 
 CREATE Form AS RForm
     Caption = "Same numbers, four pictures"
     ClientWidth = 960
     ClientHeight = 676
     MinWidth = 700: MinHeight = 560
+    OnResize = LayOut
     Center
     CREATE NewBtn AS RButton
         Caption = "&New points": Left = 12: Top = 636: Width = 110
@@ -123,7 +127,7 @@ END SUB
 ' Four sets: noise round a line, a curve, a line with one stray point, a
 ' column of points with one far away
 SUB NewPoints
-    DIM i AS INTEGER, k AS INTEGER, stray AS INTEGER, far AS INTEGER, lo AS DOUBLE, hi AS DOUBLE, ylo AS DOUBLE, yhi AS DOUBLE, pad AS DOUBLE
+    DIM i AS INTEGER, k AS INTEGER, stray AS INTEGER, far AS INTEGER, pad AS DOUBLE
     seed = seed + 1
     RANDOMIZE seed * 7919
     ' A: x spread out evenly (a little uneven), the shape is noise
@@ -150,20 +154,27 @@ SUB NewPoints
         Describe k
     NEXT
     ' the same axes for all four, so the pictures can be compared
-    lo = Xs4(0).Min: hi = Xs4(0).Max: ylo = Ys4(0).Min: yhi = Ys4(0).Max
+    axLo = Xs4(0).Min: axHi = Xs4(0).Max: ayLo = Ys4(0).Min: ayHi = Ys4(0).Max
     FOR k = 1 TO 3
-        IF Xs4(k).Min < lo THEN lo = Xs4(k).Min
-        IF Xs4(k).Max > hi THEN hi = Xs4(k).Max
-        IF Ys4(k).Min < ylo THEN ylo = Ys4(k).Min
-        IF Ys4(k).Max > yhi THEN yhi = Ys4(k).Max
+        IF Xs4(k).Min < axLo THEN axLo = Xs4(k).Min
+        IF Xs4(k).Max > axHi THEN axHi = Xs4(k).Max
+        IF Ys4(k).Min < ayLo THEN ayLo = Ys4(k).Min
+        IF Ys4(k).Max > ayHi THEN ayHi = Ys4(k).Max
     NEXT
-    pad = (hi - lo) * 0.05
+    pad = (axHi - axLo) * 0.05
+    axLo = axLo - pad: axHi = axHi + pad: ayLo = ayLo - 1: ayHi = ayHi + 1
+    DrawCharts
+END SUB
+
+' The four charts: the points, the line of best fit if wanted, the shared axes
+SUB DrawCharts
+    DIM k AS INTEGER
     FOR k = 0 TO 3
         Chart(k).Clear
         Chart(k).Title = Name(k)
         Chart(k).Grid = 1
-        Chart(k).Xlim lo - pad, hi + pad
-        Chart(k).Ylim ylo - 1, yhi + 1
+        Chart(k).Xlim axLo, axHi
+        Chart(k).Ylim ayLo, ayHi
         Chart(k).Scatter(Xs4(k), Ys4(k), "points", "royalblue")
         IF LineBox.Checked THEN Chart(k).Plot(Lx(k), Ly(k), "line of best fit", "tomato")
         Chart(k).Show
@@ -171,19 +182,18 @@ SUB NewPoints
 END SUB
 
 SUB ShowLineChanged
-    NewPointsKeep
+    DrawCharts
 END SUB
 
-' (the same points, with or without the line)
-SUB NewPointsKeep
-    DIM k AS INTEGER
-    FOR k = 0 TO 3
-        Chart(k).Clear
-        Chart(k).Title = Name(k)
-        Chart(k).Grid = 1
-        Chart(k).Scatter(Xs4(k), Ys4(k), "points", "royalblue")
-        IF LineBox.Checked THEN Chart(k).Plot(Lx(k), Ly(k), "line of best fit", "tomato")
-        Chart(k).Show
+' The four charts and their numbers share the window, whatever its size
+SUB LayOut
+    DIM w AS INTEGER, h AS INTEGER, cw AS INTEGER, ch AS INTEGER, q AS INTEGER
+    w = Form.ClientWidth: h = Form.ClientHeight
+    cw = (w - 36) \ 2: ch = (h - 52 - 2 * 58) \ 2
+    FOR q = 0 TO 3
+        Chart(q).Left = 12 + (q MOD 2) * (cw + 12): Chart(q).Top = 8 + (q \ 2) * (ch + 58)
+        Chart(q).Width = cw: Chart(q).Height = ch
+        Nums(q).Left = Chart(q).Left + 8: Nums(q).Top = Chart(q).Top + ch + 4: Nums(q).Width = cw - 16
     NEXT
 END SUB
 
@@ -194,13 +204,11 @@ Name(3) = "D: a column, and one point far off"
 DIM q AS INTEGER
 FOR q = 0 TO 3
     Chart(q).Parent = Form
-    Chart(q).Left = 12 + (q MOD 2) * 474: Chart(q).Top = 8 + (q \ 2) * 312
-    Chart(q).Width = 462: Chart(q).Height = 248
     Chart(q).AccessibleName = Name(q)
     Nums(q).Parent = Form
-    Nums(q).Left = 20 + (q MOD 2) * 474: Nums(q).Top = 8 + (q \ 2) * 312 + 252
-    Nums(q).Width = 446: Nums(q).Height = 52
+    Nums(q).Height = 52
     Nums(q).AutoSize = 0
 NEXT
+LayOut
 NewPoints
 Form.ShowModal

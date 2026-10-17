@@ -284,21 +284,21 @@ export const cases = [
   // (a click on the sky sends a rocket there)
   { file: "showcase/fireworks.rr", runtimes: ["run", "interp", "native", "web"], events: `sky.__mousedown_400_200,sky.__mouseup_400_200,${wait("info", 30)}`,
     dump: "info.caption", expect: ["info.caption=Bursts: 1 "] },
-  // notes.rr: the first note read and shown (92 words, 21 lines, one link); a letter typed (the
+  // notes.rr: the first note read and shown (96 words, 21 lines, one link); a letter typed (the
   // preview follows, the note is "changed"); New asks first: No throws the note away, Cancel keeps it;
   // Save as then New then Open brings the saved note back; Ctrl+B with nothing selected puts the
   // two marks in and the caret between them
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `${wait("info", 8)}`,
     dump: "status.simpletext,form.caption,preview.linkcount,preview.plaintext",
-    expect: ["status.simpletext=Untitled  (saved)   92 words, 21 lines.", "form.caption=Notes - Untitled", "preview.linkcount=1", "Write Markdown on the left. It shows on the right, as you type."] },
+    expect: ["status.simpletext=Untitled  (saved)   96 words, 21 lines.", "form.caption=Notes - Untitled", "preview.linkcount=1", "Write Markdown on the left. It shows on the right, as you type."] },
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `editor.__key_65,${wait("info", 8)}`,
     dump: "status.simpletext,form.caption,preview.plaintext", expect: ["status.simpletext=Untitled  (changed, not saved)", "form.caption=Notes - Untitled *", "preview.plaintext=a# Notes"] },
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "No", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
     dump: "status.simpletext,form.caption,editor.text", expect: ["status.simpletext=Untitled  (saved)   0 words, 0 lines.", "form.caption=Notes - Untitled"] },
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "Cancel", events: `editor.__key_65,newbtn.onclick,${wait("info", 8)}`,
-    dump: "status.simpletext,form.caption", expect: ["status.simpletext=Untitled  (changed, not saved)   92 words, 21 lines.", "form.caption=Notes - Untitled *"] },
+    dump: "status.simpletext,form.caption", expect: ["status.simpletext=Untitled  (changed, not saved)   96 words, 21 lines.", "form.caption=Notes - Untitled *"] },
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], fileDialog: "note.md;note.md", events: `saveasbtn.onclick,newbtn.onclick,${wait("info", 8)},openbtn.onclick,${wait("info", 8)}`,
-    dump: "status.simpletext,form.caption,preview.linkcount", expect: ["status.simpletext=note.md  (saved)   92 words, 21 lines.", "form.caption=Notes - note.md", "preview.linkcount=1"] },
+    dump: "status.simpletext,form.caption,preview.linkcount", expect: ["status.simpletext=note.md  (saved)   96 words, 21 lines.", "form.caption=Notes - note.md", "preview.linkcount=1"] },
   { file: "showcase/notes.rr", runtimes: ["run", "interp", "native", "web"], events: `bolditem.onclick,${wait("info", 4)}`,
     dump: "editor.selstart,form.caption", expect: ["editor.selstart=2", "form.caption=Notes - Untitled *"] },
   // (the web: the note is kept in the browser's storage — the page opened again, the typed letter is
@@ -306,11 +306,12 @@ export const cases = [
   { file: "showcase/notes.rr", runtimes: ["web"], events: `editor.__key_65,${wait("info", 16)}`, dump: "status.simpletext",
     reload: { events: `${wait("info", 8)}`, dump: "status.simpletext,preview.plaintext" },
     expect: ["Kept in this browser.", "preview.plaintext=a# Notes"] },
-  // snake.rr: Space starts it; the first apple is straight ahead, so a second and a half on the
-  // score is 1; unsteered the snake reaches the wall and the game is over (Best says 1), Space
+  // snake.rr: Space starts it; the first apple is straight ahead (7 steps of 140 ms, the wall 17), so
+  // between one second and 2.4 seconds on the score is 1 and it is still going (28 events: 1.4 s, with room
+  // for a busy machine); unsteered the snake reaches the wall and the game is over (Best says 1), Space
   // starts again at 0; P pauses; a turn (Down) avoids the apple and ends at the bottom wall with 0;
   // a click on the board starts it too
-  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 36)}`,
+  { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 28)}`,
     dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 0   Speed 1", "statelabel.caption=Playing. Space or P pauses."] },
   { file: "showcase/snake.rr", runtimes: ["run", "interp", "native", "web"], events: `form.__key_32,${wait("info", 90)}`,
     dump: "scorelabel.caption,statelabel.caption", expect: ["scorelabel.caption=Score 1   Best 1   Speed 1", "statelabel.caption=Game over: you scored 1. Press Space for another game."] },
@@ -334,8 +335,8 @@ export const cases = [
     dump: "nums(0).caption,nums(1).caption,nums(2).caption,nums(3).caption,chart(3).title,linebox.checked",
     expect: [0, 1, 2, 3].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["chart(3).title=D: a column, and one point far off", "linebox.checked=-1"]) },
   { file: "showcase/same_numbers.rr", runtimes: ["run", "interp", "native", "web"], events: `newbtn.onclick,newbtn.onclick,linebox.__mousedown_8_8,linebox.__mouseup_8_8,${wait("info", 3)}`,
-    dump: "nums(1).caption,nums(2).caption,linebox.checked",
-    expect: [1, 2].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["linebox.checked=0"]) },
+    dump: "nums(1).caption,nums(2).caption,linebox.checked,chart(0).count",
+    expect: [1, 2].map((k) => `nums(${k}).caption=mean x 10.00   mean y 6.00\nspread x 3.00   spread y 2.00\ncorrelation 0.800   line y = 0.667 + 0.533 x`).concat(["linebox.checked=0", "chart(0).count=1"]) },
   // monte_carlo_pi.rr: the speed slider's End key (300,000 darts a second),
   // a second of darts: pi is found to its first digit and the numbers say how many;
   // Pause then Reset: no darts, and the button offers to go on

@@ -99,8 +99,8 @@ understands Markdown. Write on the left; the right shows the note formatted,
 as you type: headings, lists, tables, quotes, code, **bold** and *italic*, and
 links you can click (they open in the browser). **New**, **Open** and
 **Save** work on files and have the usual keys (Ctrl+N, Ctrl+O, Ctrl+S,
-Ctrl+Shift+S, on a Mac with Cmd); the **Format** menu puts marks round the
-selected text (Ctrl+B bold, Ctrl+I italic, Ctrl+E code). The note's name and
+Ctrl+Shift+S, on a Mac with Cmd instead of Ctrl); the **Format** menu puts marks
+round the selected text (Ctrl+B bold, Ctrl+I italic, Ctrl+E code). The note's name and
 whether it is saved are in the title and under the window, with a count of
 words and lines. Changes are never lost without asking: New, Open and closing
 the window ask "Save the changes?" first.
@@ -259,7 +259,10 @@ rr = cov / (sdx * sdy)
 Each chart is an `RPlot` made in code (`DIM Chart(3) AS RPlot`, then
 `Chart(q).Parent = Form` and its place) with a `Scatter` series for the points
 and a `Plot` series for the line, all four on the same axes (`Xlim`, `Ylim`)
-so that their shapes can be compared.
+so that their shapes can be compared. `DrawCharts` draws them again whenever
+the line is switched (`Clear` also clears the axes, so it sets them each
+time), and `LayOut`, called from the form's `OnResize`, spreads the four
+charts and their numbers over whatever size the window has.
 
 ## Pi by darts
 

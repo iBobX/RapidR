@@ -9,7 +9,7 @@
 '
 ' Runs: desktop (run, interpreted, native) and the web. Keys: Ctrl+N new,
 ' Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as; Ctrl+B, Ctrl+I and Ctrl+E
-' make the selected text bold, italic or code.
+' make the selected text bold, italic or code (on a Mac: Cmd instead of Ctrl).
 $THEME rapidr
 $INCLUDE "RAPIDQ.INC"            ' alTop, alLeft, alClient, mtConfirmation, mrYes …
 
@@ -161,7 +161,7 @@ DATA "- tables, quotes and code"
 DATA ""
 DATA "> Select some words and press Ctrl+B, Ctrl+I or Ctrl+E."
 DATA ""
-DATA "| Keys | What they do |"
+DATA "| Keys (Cmd on a Mac) | What they do |"
 DATA "|---|---|"
 DATA "| Ctrl+N | a new note |"
 DATA "| Ctrl+O | open a note |"
@@ -173,9 +173,21 @@ DATA "x = 1 + 2: PRINT x"
 DATA "```"
 DATA "~"
 
+' The name of a file without the folders in front of it
+FUNCTION BaseOf (path AS STRING) AS STRING
+    DIM i AS INTEGER
+    BaseOf = path
+    FOR i = LEN(path) TO 1 STEP -1
+        IF MID$(path, i, 1) = "/" OR MID$(path, i, 1) = "\" THEN
+            BaseOf = MID$(path, i + 1)
+            EXIT FUNCTION
+        END IF
+    NEXT
+END FUNCTION
+
 SUB ShowStatus
     DIM name AS STRING, keep AS STRING
-    IF curFile = "" THEN name = "Untitled" ELSE name = curFile
+    IF curFile = "" THEN name = "Untitled" ELSE name = BaseOf(curFile)
     Form.Caption = "Notes - " + name + IIF(dirty, " *", "")
     keep = ""
     IF onWeb THEN keep = "  Kept in this browser."
@@ -219,7 +231,7 @@ FUNCTION SafeToLeave AS INTEGER
     DIM answer AS INTEGER
     SafeToLeave = 1
     IF dirty = 0 THEN EXIT FUNCTION
-    answer = MESSAGEDLG("Save the changes to " + IIF(curFile = "", "this note", curFile) + "?", mtConfirmation, mbYes OR mbNo OR mbCancel, 0)
+    answer = MESSAGEDLG("Save the changes to " + IIF(curFile = "", "this note", BaseOf(curFile)) + "?", mtConfirmation, mbYes OR mbNo OR mbCancel, 0)
     IF answer = mrCancel THEN
         SafeToLeave = 0
     ELSEIF answer = mrYes THEN
