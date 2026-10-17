@@ -470,7 +470,10 @@ fn example_to_open(path: &str, examples: &str) -> Result<(String, &'static str),
         if path.is_empty() || examples.is_empty() || !program_files::is_inside(p, Path::new(examples)) || !p.is_file() {
             return Ok((path.to_string(), ""));
         }
-        let (file, what) = program_files::example_to_open(p)?;
+        // (an install's home has its release.toml beside examples/: its
+        // examples are always copied — a writable app bundle's too)
+        let installed = Path::new(examples).parent().is_some_and(|home| home.join("release.toml").is_file());
+        let (file, what) = program_files::example_to_open(p, installed)?;
         let what = match what {
             ExampleOpen::InPlace => return Ok((path.to_string(), "")),
             ExampleOpen::Copied => "made",

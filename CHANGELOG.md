@@ -17,8 +17,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   data files (the very files `rapidr examples copy` takes: one implementation,
   `rapidr_project::program_files`) and never overwritten after; the Output says
   where it is, with **Copy again from the original** (also File > Copy Example
-  Again from the Original…, which asks first). A checkout's examples still open
-  where they are. `RAPIDR_DOCUMENTS` names another Documents folder (the tests').
+  Again from the Original…, which asks first). An install's examples are copied
+  even where the user could write them (a macOS app dragged to Applications:
+  nothing is written inside RapidR). A checkout's examples still open where
+  they are. `RAPIDR_DOCUMENTS` names another Documents folder (the tests').
 - **Built apps find their data files.** `rapidr build` (native and interpreted,
   every system) puts the data files the program names with the app — a macOS
   app's `Contents/Resources`, beside the `.exe`, an AppDir's `usr/bin` — and says

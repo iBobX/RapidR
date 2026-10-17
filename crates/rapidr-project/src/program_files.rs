@@ -182,13 +182,16 @@ pub enum ExampleOpen {
 }
 
 /// The file to open for example `src`: `src` itself where its folder can be
-/// written (a checkout's `examples/`), else its copy in
-/// `Documents/RapidR/Examples/<name>/` — made now if it isn't there (the
-/// program, its includes, its data); a copy that's there is never
-/// overwritten (files missing from it are copied again).
-pub fn example_to_open(src: &Path) -> Result<(PathBuf, ExampleOpen), String> {
+/// written and RapidR isn't `installed` (a checkout's `examples/`), else its
+/// copy in `Documents/RapidR/Examples/<name>/` — made now if it isn't there
+/// (the program, its includes, its data); a copy that's there is never
+/// overwritten (files missing from it are copied again). An install's
+/// examples are copied even where the folder could be written (a macOS app
+/// the user dragged to Applications: writing inside it would break its
+/// signature, and an update would take the changes away).
+pub fn example_to_open(src: &Path, installed: bool) -> Result<(PathBuf, ExampleOpen), String> {
     let folder = src.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
-    if can_write_in(folder) {
+    if !installed && can_write_in(folder) {
         return Ok((src.to_path_buf(), ExampleOpen::InPlace));
     }
     let to = example_copy_folder(src).ok_or("no Documents folder to copy the example to (no home folder)")?;
@@ -303,15 +306,18 @@ mod tests {
         // (RAPIDR_DOCUMENTS is this test's alone: no other test in this
         // crate reads it)
         std::env::set_var("RAPIDR_DOCUMENTS", &docs);
-        // (a writable folder: the example itself)
-        assert_eq!(example_to_open(&src).unwrap(), (src.clone(), ExampleOpen::InPlace));
-        fs::set_permissions(examples.join("data"), fs::Permissions::from_mode(0o555)).unwrap();
+        // (a writable folder: the example itself — but an install's example
+        // is copied even there)
+        assert_eq!(example_to_open(&src, false).unwrap(), (src.clone(), ExampleOpen::InPlace));
         let copy = docs.join("RapidR/Examples/rows/rows.rr");
+        assert_eq!(example_to_open(&src, true).unwrap(), (copy.clone(), ExampleOpen::Copied));
+        fs::remove_dir_all(&docs).unwrap();
+        fs::set_permissions(examples.join("data"), fs::Permissions::from_mode(0o555)).unwrap();
         if !can_write_in(&examples.join("data")) {
-            assert_eq!(example_to_open(&src).unwrap(), (copy.clone(), ExampleOpen::Copied));
+            assert_eq!(example_to_open(&src, false).unwrap(), (copy.clone(), ExampleOpen::Copied));
             assert!(docs.join("RapidR/Examples/rows/rows.csv").is_file());
             fs::write(&copy, "' mine\n").unwrap();
-            assert_eq!(example_to_open(&src).unwrap(), (copy.clone(), ExampleOpen::Existing));
+            assert_eq!(example_to_open(&src, false).unwrap(), (copy.clone(), ExampleOpen::Existing));
             assert_eq!(fs::read_to_string(&copy).unwrap(), "' mine\n", "the user's copy is never overwritten");
             assert_eq!(example_of_copy(&copy, &examples), Some(src.clone()));
             assert_eq!(example_of_copy(&src, &examples), None);

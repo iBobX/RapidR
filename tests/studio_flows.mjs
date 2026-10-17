@@ -525,6 +525,17 @@ const CASES = [
     desktopFiles: ["docs/RapidR/Examples/linked_data/linked_data.rr", "docs/RapidR/Examples/linked_data/staff.csv"],
   },
   {
+    // (an install the user could write: copied all the same — nothing is
+    // written inside RapidR, an update would take it away)
+    name: "example-installed-writable-home",
+    readOnlyHome: true,
+    installedWritable: true,
+    desktopOnly: true,
+    events: "extitle(1).__mousedown_5_5,extitle(1).__mouseup_5_5",
+    delay: 4,
+    dump: { "proj.folder": /docs\/RapidR\/Examples\/linked_data$/, "proj.examplecopy": /^made$/ },
+  },
+  {
     name: "example-readonly-home-kept",
     readOnlyHome: true,
     desktopOnly: true,
@@ -3134,7 +3145,10 @@ function runDesktop(c, scale = 1) {
       mkdirSync(dirname(join(dir, "docs", rel)), { recursive: true });
       writeFileSync(join(dir, "docs", rel), text);
     }
-    writableTree(home, false);
+    // (`installedWritable`: an install the user can write — a macOS app
+    // dragged to Applications —, known by its release.toml)
+    if (c.installedWritable) writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
+    else writableTree(home, false);
   }
   const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light"];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
