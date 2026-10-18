@@ -195,6 +195,13 @@ pub trait ToolProvider {
     fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
         None
     }
+    /// What the tools send with the user's `question`, as data the model
+    /// reads with it (RapidR Studio: a working program close to the new one
+    /// asked for): part of the request — "what was sent" shows it —, never
+    /// of the transcript. `None`: nothing.
+    fn question_context(&mut self, _question: &str) -> Option<String> {
+        None
+    }
 }
 
 /// Makes the tool provider of `component` for `kind`, attached to RAI
@@ -695,6 +702,18 @@ impl Ai {
         match self.messages.last_mut() {
             Some(m) if m.role == Role::User => m.content.push(Block::Text(text.to_string())),
             _ => self.messages.push(Message::user(text)),
+        }
+        // (what the tools send with the question: after it, in the same
+        // message, as data)
+        let extra: Vec<String> = self.tools.iter_mut().filter_map(|(_, _, t)| t.question_context(text)).collect();
+        if !extra.is_empty() {
+            let chars: usize = extra.iter().map(|e| e.chars().count()).sum();
+            if let Some(m) = self.messages.last_mut() {
+                for e in extra {
+                    m.content.push(Block::Text(format!("\n\n{e}")));
+                }
+            }
+            self.audit_log("context", json!({"chars": chars}));
         }
         self.say("user", text);
         self.question = text.to_string();

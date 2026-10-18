@@ -381,8 +381,8 @@ fn the_instructions() {
     assert!(p.contains("NameEdit.SetFocus") && p.contains("# The RapidR language"));
     // (the whole of what is sent every turn, the language guide in it: small)
     assert!(p.len() < 16_000, "{}", p.len());
-    assert_eq!(ai_tools::tools(false).len(), 6);
-    assert_eq!(ai_tools::tools(true).len(), 9);
+    assert_eq!(ai_tools::tools(false).len(), 7);
+    assert_eq!(ai_tools::tools(true).len(), 10);
 }
 
 /// A tool call as a compatible server streams it.
@@ -473,5 +473,53 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     server4.join().unwrap();
     assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 0);
     assert_eq!(rapidr_ai::rai::peek(n).1, "Answered.");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// "Build me a stopwatch": the closest recipe goes with the question, as
+/// data (in the request, not in the transcript); a question that isn't a
+/// new program, or read-only, sends none.
+#[test]
+fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
+    let _one = one_at_a_time();
+    let dir = std::env::temp_dir().join(format!("rapidr-ai-recipe-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let (url, server) = mock(vec![text_answer("Here it is."), text_answer("It counts.")]);
+    install();
+    let tools = "tools-recipe";
+    set(tools, "projectfolder", &s(""));
+    let n = "rai-recipe";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Build me a stopwatch")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_call(n, "ask", &[s("What does a stopwatch do?")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    let user_text = |k: usize, i: usize| -> String {
+        let req: Json = serde_json::from_str(&seen[k]).unwrap();
+        let users: Vec<&Json> = req["messages"].as_array().unwrap().iter().filter(|m| m["role"] == "user").collect();
+        let c = &users[i]["content"];
+        c.as_str().map(str::to_string).unwrap_or_else(|| c.as_array().unwrap().iter().filter_map(|b| b["text"].as_str()).collect())
+    };
+    let first = user_text(0, 0);
+    assert!(first.starts_with("Build me a stopwatch\n\n(RapidR Studio, not the user: a working RapidR program close to what the user wants") && first.contains("examples/recipes/stopwatch.rr") && first.contains("OnTimer = Tick"), "{first}");
+    assert!(!user_text(1, 1).contains("examples/recipes"), "{}", user_text(1, 1));
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("examples/recipes"), "the transcript shows the user's words only: {t}");
+    assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("\"op\":\"context\""));
+    // (read-only: no change can be made, no recipe sent)
+    let (url2, server2) = mock(vec![text_answer("I can describe one.")]);
+    rai_set(n, "baseurl", &url2);
+    set(tools, "permission", &s("read-only"));
+    assert_eq!(rai_call(n, "ask", &[s("Build me a quiz game")]).to_i64(), -1);
+    wait(n);
+    let req: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
+    let last = req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "user").unwrap().to_string();
+    assert!(last.contains("Build me a quiz game") && !last.contains("examples/recipes"), "{last}");
     let _ = std::fs::remove_dir_all(&dir);
 }

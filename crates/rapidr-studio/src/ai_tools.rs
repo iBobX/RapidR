@@ -108,6 +108,11 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
             "RapidR's compiler on a file of the project — or on `text` as that file would be with it — and the project's other files: its errors and warnings with line and column, or that there are none. Check every change before you propose it.",
             schema(json!({"path": {"type": "string", "description": "the file (relative); default: the main file"}, "text": {"type": "string", "description": "the file's text to check instead of what it has now"}}), &[]),
         ),
+        t(
+            "find_example",
+            "A short working RapidR program close to what you describe (a calculator, a timer, a to-do list, a quiz, a drawing pad, a CSV grid, a list with Start/Stop …), from RapidR's recipes: start from it and adapt it.",
+            schema(json!({"query": {"type": "string", "description": "what the program does, in a few words"}}), &["query"]),
+        ),
     ];
     if proposals {
         out.push(t(
@@ -251,6 +256,7 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "rapidr_describe" => describe(input),
         "rapidr_list" | "rapidr_get" => design(name, input, project),
         "check_code" => check(input, project),
+        "find_example" => find_example(input),
         "propose_edit" | "write_file" | "create_project" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
         // (a proposing tool's risk is a proposal's, whether it fitted or not:
         // the audit log says what was tried)
@@ -509,6 +515,18 @@ fn describe(input: &Json) -> Outcome {
         Reply::Ok(v) => ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target),
         Reply::Err(e) => err(e.message, format!("Looked up {target}: not found"), &target),
     }
+}
+
+/// The recipe closest to `query`, whole, and the next ones' names.
+fn find_example(input: &Json) -> Outcome {
+    let query = s(input, "query");
+    let found = crate::recipes::search(query);
+    let Some((_, best)) = found.first() else {
+        return ok(format!("No recipe is close to \"{query}\". The recipes: {}.", crate::recipes::all().iter().map(|r| r.title.as_str()).collect::<Vec<_>>().join("; ")), format!("Looked for an example of {query}: none close"), "read", query);
+    };
+    let others: Vec<&str> = found.iter().skip(1).take(2).map(|(_, r)| r.title.as_str()).collect();
+    let more = if others.is_empty() { String::new() } else { format!("\nAlso close: {}.", others.join("; ")) };
+    ok(format!("{} (examples/recipes/{}), a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.file, best.text.trim_end()), format!("Found an example: {}", best.title), "read", query)
 }
 
 fn design(name: &str, input: &Json, p: &Project) -> Outcome {

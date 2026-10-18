@@ -1,0 +1,77 @@
+' Recipe: Stopwatch (timer)
+' Keywords: stopwatch, timer, clock, countdown, elapsed time, start, stop, reset, lap, seconds, RTimer, cronómetro, cronometro, temporizador, reloj, relógio
+' An RTimer ticks every 100 ms while it is Enabled; the time shown comes
+' from TIMER (seconds since midnight), so a late tick doesn't lose time.
+'
+'   rapidr run stopwatch.rr
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
+
+DECLARE SUB StartStop
+DECLARE SUB ResetClick
+DECLARE SUB Tick
+
+DIM started AS DOUBLE      ' TIMER when Start was pressed
+DIM banked AS DOUBLE       ' seconds from the runs before the last Stop
+
+CREATE Form AS RForm
+    Caption = "Stopwatch"
+    ClientWidth = 260: ClientHeight = 130
+    Center
+    CREATE Display AS RLabel
+        Align = alTop: Height = 70
+        Caption = "0:00.0": Alignment = 2        ' centred
+        Font.Size = 30
+    END CREATE
+    CREATE StartBtn AS RButton
+        Caption = "&Start": Left = 16: Top = 82: Width = 110: Height = 32
+        OnClick = StartStop
+    END CREATE
+    CREATE ResetBtn AS RButton
+        Caption = "&Reset": Left = 134: Top = 82: Width = 110: Height = 32
+        OnClick = ResetClick
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 100: Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+FUNCTION Elapsed AS DOUBLE
+    Result = banked
+    IF Clock.Enabled THEN Result = banked + (TIMER - started)
+END FUNCTION
+
+' Seconds as m:ss.t
+FUNCTION Shown (t AS DOUBLE) AS STRING
+    DIM m AS INTEGER, s AS STRING
+    m = INT(t / 60)
+    s = FORMAT$("%.1f", t - m * 60)
+    IF LEN(s) < 4 THEN s = "0" + s
+    Result = STR$(m) + ":" + s
+END FUNCTION
+
+SUB Tick
+    Display.Caption = Shown(Elapsed)
+END SUB
+
+SUB StartStop
+    IF Clock.Enabled THEN
+        banked = Elapsed
+        Clock.Enabled = 0
+        StartBtn.Caption = "&Start"
+    ELSE
+        started = TIMER
+        Clock.Enabled = 1
+        StartBtn.Caption = "&Stop"
+    END IF
+    Tick
+END SUB
+
+SUB ResetClick
+    banked = 0
+    started = TIMER
+    Tick
+END SUB
+
+Form.ShowModal

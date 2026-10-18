@@ -32,6 +32,7 @@ pub mod help;
 pub mod import;
 pub mod langsvc;
 pub mod project;
+pub mod recipes;
 pub mod session;
 
 pub use rapidr_session::Transport;

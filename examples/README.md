@@ -62,6 +62,25 @@ claims, headless).
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
+### recipes/ — short programs to start from
+
+Small, complete programs of the shapes people ask for most. RapidR Studio's
+assistant starts from the closest one when you ask it for a new program
+([the manual](../docs/manual/ai-assistant.md#recipes-and-friendly-hints)); they're just as good to copy by hand.
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [calculator.rr](recipes/calculator.rr) | A calculator with sqrt, x², log, sin, cos, tan: one handler for every key (`Sender`), the display on top (`Align = alTop`) | run · interp · native · web | `rapidr run recipes/calculator.rr` |
+| [tip_calculator.rr](recipes/tip_calculator.rr) | Bill, tip and people in text boxes; the totals follow every change (`OnChange`) | run · interp · native · web | `rapidr run recipes/tip_calculator.rr` |
+| [stopwatch.rr](recipes/stopwatch.rr) | An `RTimer` stopwatch: Start / Stop and Reset | run · interp · native · web | `rapidr run recipes/stopwatch.rr` |
+| [todo_list.rr](recipes/todo_list.rr) | A to-do list: add with Enter, remove the one picked (`AddItems`, `DelItems`, `ItemIndex`) | run · interp · native · web | `rapidr run recipes/todo_list.rr` |
+| [unit_converter.rr](recipes/unit_converter.rr) | Kilometres, miles, degrees, kilograms: a combo box picks the conversion | run · interp · native · web | `rapidr run recipes/unit_converter.rr` |
+| [quiz_game.rr](recipes/quiz_game.rr) | Three questions from `DATA`, answer buttons sharing a handler, a score, Play again | run · interp · native · web | `rapidr run recipes/quiz_game.rr` |
+| [drawing_pad.rr](recipes/drawing_pad.rr) | Draw with the mouse on an `RCanvas` (`Align = alClient`), pick a colour, clear; `OnPaint` draws it again | run · interp · native · web | `rapidr run recipes/drawing_pad.rr` |
+| [password_generator.rr](recipes/password_generator.rr) | Random passwords (`RANDOMIZE`, `RND`) of a length you choose, with or without digits and symbols | run · interp · native · web | `rapidr run recipes/password_generator.rr` |
+| [csv_viewer.rr](recipes/csv_viewer.rr) | Open a CSV file (`ROpenDialog`) and show it in an `RStringGrid` (people.csv beside it) | run · interp · native · web | `rapidr run recipes/csv_viewer.rr` |
+| [server_manager.rr](recipes/server_manager.rr) | A list of sites with their status and Start / Stop / Restart buttons | run · interp · native · web | `rapidr run recipes/server_manager.rr` |
+
 ### graphics/ — drawing
 
 | Example | What it shows | Runs on | Try |
