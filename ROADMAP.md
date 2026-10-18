@@ -615,6 +615,7 @@ In order of how many showcase ideas each unlocks:
   - WCAG 2.2: never uninvited, always resumable, captions, keyboard and screen reader;
   - every lesson replayed as a test.
   - First 8 lessons from Welcome to Data in 10 minutes.
+- [ ] **Learn with RAI** (Robert, 2026-10-18; plan: [docs/learn-with-rai-plan.md](docs/learn-with-rai-plan.md)): the assistant that teaches. A Build / Pair / Coach / Quiz-me dial; a *why* per change; friendly errors with a hint before the fix; just-in-time tips on a budget; the infinite-loop catcher; Predict, then Run; marks for your code vs the AI's code; Teach-the-AI mode; a skill map with spaced review that stays local (COPPA: no accounts, nothing collected).
 
 ## Phase 4 — AI in the IDE (~6 weeks)
 
