@@ -1,0 +1,7 @@
+# Eval app: a CSV viewer (the file dialog answers people.csv, written beside
+# the program by the scoring).
+Build me a CSV viewer: open a CSV file and show it in a grid
+#! test open
+#! file-dialog people.csv
+#! click /open|load|browse/
+#! expect-count changed

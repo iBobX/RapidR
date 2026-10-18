@@ -133,6 +133,37 @@ it will look. Nothing is written until you choose a folder and press
 
 ![A new program from the assistant, previewed: its file, its code and its form](images/ai/new-program.png)
 
+Until you press **Create and Open**, the new program is still the
+assistant's to fix: if the compiler finds errors, it reads and corrects its
+own files, and **Preview…** always shows the latest version. Ask for a change
+before creating it (*"make the buttons bigger"*) and the preview follows.
+
+### Recipes and friendly hints
+
+When you ask for a new program, Studio first looks for the closest of its
+**recipes** — short, working programs of the shapes people ask for most: a
+calculator, a tip calculator, a stopwatch, a to-do list, a unit converter, a
+quiz, a drawing pad, a password generator, a CSV viewer, a list with Start /
+Stop buttons ([examples/recipes](../../examples/recipes/)). It sends that
+recipe with your request, so the assistant adapts a program that already
+works instead of inventing one. The search runs on your computer, in
+English, Spanish and Portuguese; *What was sent* shows the recipe that went.
+
+Each time the assistant checks its code, Studio adds **friendly hints**
+under the compiler's messages: the exact fix for habits from other languages
+(`!=` is `<>` in BASIC; there is no `BOOLEAN`, use `INTEGER`; one `AS` per
+name; no `[ ]` lists), a name that is never given a value (with the closest
+one the program has), a RapidQ constant used without `$INCLUDE "RAPIDQ.INC"`,
+a window that is never shown (`Form.ShowModal` missing), and a handler that
+does nothing yet or only says what "a real implementation would" do. Once
+it compiles, Studio also looks at the window as you would: a control cut off
+by the edge of its form, two controls on top of each other, a caption longer
+than its button. For a keypad or a toolbar the assistant can ask Studio to
+lay out the buttons (exact positions, one shared handler) instead of doing
+the arithmetic itself. The compiler itself is unchanged: your own programs
+compile exactly as before.
+These two help small local models most — see below.
+
 ## What was sent, and the audit log
 
 **Tools > What Was Sent to the AI…** shows the last request exactly as it
@@ -191,7 +222,7 @@ the files the assistant read or wrote earlier are replaced by short notes —
 it reads them again when it needs them. The status line stays honest: when
 an answer says it changed something but no change reached you, the
 assistant is asked once to really make it, and if it still doesn't, the
-status says *"The assistant described a change but didn't make one"*; a
+status says *"The assistant didn't make the change you asked for"*; a
 change that doesn't compile says so too. The assistant can't run your
 program, but it sees the last lines your last run printed. A model of 4 to 9
 billion parameters can build small programs this way; for bigger ones a

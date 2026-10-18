@@ -1,0 +1,66 @@
+' Recipe: To-do list
+' Keywords: to-do list, todo, tasks, task list, checklist, add item, remove item, delete, list box, shopping list, notes, lista de tareas, tareas, lista de compras, lista de tarefas, tarefas
+' Type a task and press Add (or Enter: the Default button); pick one in the
+' list and press Remove. The list is an RListBox: AddItems adds, DelItems
+' removes the item at an index, ItemIndex is the one picked (-1: none).
+'
+'   rapidr run todo_list.rr
+$THEME rapidr
+
+DECLARE SUB AddTask
+DECLARE SUB RemoveTask
+DECLARE SUB ShowCount
+
+CREATE Form AS RForm
+    Caption = "To-do List"
+    ClientWidth = 320: ClientHeight = 300
+    Center
+    CREATE TaskEdit AS REdit
+        Text = "": Left = 12: Top = 12: Width = 208
+    END CREATE
+    CREATE AddBtn AS RButton
+        Caption = "&Add": Left = 228: Top = 10: Width = 80: Height = 28
+        Default = 1          ' Enter presses it
+        OnClick = AddTask
+    END CREATE
+    CREATE TaskList AS RListBox
+        Left = 12: Top = 48: Width = 296: Height = 196
+    END CREATE
+    CREATE RemoveBtn AS RButton
+        Caption = "&Remove": Left = 12: Top = 254: Width = 100: Height = 30
+        OnClick = RemoveTask
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "No tasks yet.": Left = 124: Top = 260: Width = 184
+    END CREATE
+END CREATE
+
+SUB ShowCount
+    IF TaskList.ItemCount = 1 THEN
+        Status.Caption = "1 task"
+    ELSE
+        Status.Caption = STR$(TaskList.ItemCount) + " tasks"
+    END IF
+END SUB
+
+SUB AddTask
+    DIM t AS STRING
+    t = LTRIM$(RTRIM$(TaskEdit.Text))
+    IF t = "" THEN EXIT SUB
+    TaskList.AddItems t
+    TaskEdit.Text = ""
+    TaskEdit.SetFocus
+    ShowCount
+END SUB
+
+SUB RemoveTask
+    IF TaskList.ItemIndex < 0 THEN
+        Status.Caption = "Pick a task to remove."
+        EXIT SUB
+    END IF
+    TaskList.DelItems TaskList.ItemIndex
+    ShowCount
+END SUB
+
+TaskEdit.SetFocus
+Form.ShowModal

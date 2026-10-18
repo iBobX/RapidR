@@ -36,4 +36,6 @@ rapidr-icons.workspace = true
 rapidr-lexer.workspace = true
 rapidr-parser.workspace = true
 rapidr-bcgen.workspace = true
+# (examples/ai_eval.rs: the click tests' patterns)
+regex = "1.12"
 rapidr-codegen-rust.workspace = true

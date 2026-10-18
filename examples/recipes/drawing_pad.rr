@@ -1,0 +1,89 @@
+' Recipe: Drawing pad (canvas)
+' Keywords: drawing pad, draw, paint, sketch, canvas, mouse, pen, colour, color, brush, clear, RCanvas, OnMouseMove, dibujar, pintar, lienzo, desenhar, pintura
+' Draw with the mouse on an RCanvas (Align = alClient fills the form under
+' the tool bar). Every line is kept, so OnPaint draws them all again when
+' the window needs its picture.
+'
+'   rapidr run drawing_pad.rr
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
+
+CONST MAXLINES = 5000
+
+DECLARE SUB PenDown (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB PenMove (X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB PenUp (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+DECLARE SUB PaintAll
+DECLARE SUB PickColour (Sender AS RButton)
+DECLARE SUB ClearAll
+
+DIM x1(MAXLINES) AS INTEGER, y1(MAXLINES) AS INTEGER, x2(MAXLINES) AS INTEGER, y2(MAXLINES) AS INTEGER
+DIM colour(MAXLINES) AS INTEGER
+DIM lines AS INTEGER, strokes AS INTEGER
+DIM drawing AS INTEGER, lastX AS INTEGER, lastY AS INTEGER
+DIM pen AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Drawing Pad"
+    ClientWidth = 480: ClientHeight = 360
+    Center
+    CREATE Tools AS RPanel
+        Align = alTop: Height = 40
+        CREATE BlackBtn AS RButton: Caption = "Black": Left = 8: Top = 6: Width = 70: Height = 28: OnClick = PickColour: END CREATE
+        CREATE RedBtn AS RButton: Caption = "Red": Left = 84: Top = 6: Width = 70: Height = 28: OnClick = PickColour: END CREATE
+        CREATE BlueBtn AS RButton: Caption = "Blue": Left = 160: Top = 6: Width = 70: Height = 28: OnClick = PickColour: END CREATE
+        CREATE ClearBtn AS RButton: Caption = "&Clear": Left = 236: Top = 6: Width = 70: Height = 28: OnClick = ClearAll: END CREATE
+        CREATE Status AS RLabel: Caption = "Draw with the mouse.": Left = 316: Top = 12: Width = 156: END CREATE
+    END CREATE
+    CREATE Pad AS RCanvas
+        Align = alClient
+        OnPaint = PaintAll
+        OnMouseDown = PenDown
+        OnMouseMove = PenMove
+        OnMouseUp = PenUp
+    END CREATE
+END CREATE
+
+SUB PaintAll
+    DIM k AS INTEGER
+    Pad.FillRect(0, 0, Pad.Width, Pad.Height, RGB(255, 255, 255))
+    FOR k = 0 TO lines - 1
+        Pad.Line(x1(k), y1(k), x2(k), y2(k), colour(k))
+    NEXT
+END SUB
+
+SUB PenDown (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    drawing = 1: lastX = X: lastY = Y
+    strokes = strokes + 1
+END SUB
+
+SUB PenMove (X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    IF drawing = 0 OR lines >= MAXLINES THEN EXIT SUB
+    x1(lines) = lastX: y1(lines) = lastY: x2(lines) = X: y2(lines) = Y
+    colour(lines) = pen
+    lines = lines + 1
+    Pad.Line(lastX, lastY, X, Y, pen)         ' drawn now; PaintAll draws it again later
+    lastX = X: lastY = Y
+END SUB
+
+SUB PenUp (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)
+    PenMove X, Y, Shift
+    drawing = 0
+    Status.Caption = STR$(strokes) + IIF(strokes = 1, " stroke", " strokes")
+END SUB
+
+SUB PickColour (Sender AS RButton)
+    SELECT CASE Sender.Caption
+        CASE "Red": pen = RGB(220, 30, 30)
+        CASE "Blue": pen = RGB(30, 60, 220)
+        CASE ELSE: pen = RGB(0, 0, 0)
+    END SELECT
+END SUB
+
+SUB ClearAll
+    lines = 0: strokes = 0
+    Status.Caption = "Draw with the mouse."
+    Pad.Repaint
+END SUB
+
+Form.ShowModal

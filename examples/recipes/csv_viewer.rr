@@ -1,0 +1,64 @@
+' Recipe: CSV viewer (grid)
+' Keywords: csv viewer, csv, spreadsheet, table, grid, open file, file dialog, data, rows, columns, RStringGrid, ROpenDialog, visor csv, abrir archivo, tabla, planilla, visualizador csv, abrir arquivo, tabela
+' Open picks a file with an ROpenDialog; each line is read with LINE INPUT
+' and split at the commas with FIELD$; the RStringGrid shows it, the first
+' line as its header (FixedRows = 1). Quoted commas aren't handled here.
+'
+'   rapidr run csv_viewer.rr
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
+
+DECLARE SUB OpenFile
+
+CREATE Dlg AS ROpenDialog
+    Caption = "Open a CSV file"
+    Filter = "CSV files (*.csv)|*.csv|All files|*.*"
+END CREATE
+
+CREATE Form AS RForm
+    Caption = "CSV Viewer"
+    ClientWidth = 520: ClientHeight = 360
+    Center
+    CREATE Bar AS RPanel
+        Align = alTop: Height = 40
+        CREATE OpenBtn AS RButton
+            Caption = "&Open...": Left = 8: Top = 6: Width = 90: Height = 28
+            OnClick = OpenFile
+        END CREATE
+        CREATE Status AS RLabel
+            Caption = "Open a CSV file.": Left = 108: Top = 12: Width = 400
+        END CREATE
+    END CREATE
+    CREATE Grid AS RStringGrid
+        Align = alClient
+        ColCount = 2: RowCount = 2: FixedRows = 1: FixedCols = 0
+    END CREATE
+END CREATE
+
+SUB OpenFile
+    DIM f AS INTEGER, row AS INTEGER, c AS INTEGER, cols AS INTEGER, ln AS STRING
+    IF Dlg.Execute = 0 THEN EXIT SUB
+    f = FREEFILE
+    OPEN Dlg.FileName FOR INPUT AS #f
+    row = 0
+    DO WHILE NOT EOF(f)
+        LINE INPUT #f, ln
+        IF LEN(ln) > 0 THEN
+            ' the first line decides the columns
+            IF row = 0 THEN
+                cols = TALLY(ln, ",") + 1
+                Grid.ColCount = cols
+            END IF
+            Grid.RowCount = row + 1
+            FOR c = 1 TO cols
+                Grid.Cell(c - 1, row) = FIELD$(ln, ",", c)
+            NEXT
+            row = row + 1
+        END IF
+    LOOP
+    CLOSE #f
+    IF row < 2 THEN Grid.RowCount = 2
+    Status.Caption = Dlg.FileName + ": " + STR$(row - 1) + " rows"
+END SUB
+
+Form.ShowModal

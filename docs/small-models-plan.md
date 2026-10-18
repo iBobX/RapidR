@@ -94,3 +94,58 @@ Big models keep today's free agent mode. Small-model mode switches on by itself 
 6. Small-model mode: spec first (json_schema), one handler at a time.
 7. Optional embeddings (EmbeddingGemma or any `/v1/embeddings`).
 8. Measure again, then the post.
+
+## Results
+
+Measured on 2026-10-18 with `crates/rapidr-studio/examples/ai_eval.rs` and
+the click tests of `tests/ai-eval/apps/` (one conversation per app — Robert's
+own two turns for the scientific calculator; **score = the compiler takes it
+and every click test passes**). *Before*: `development` at 441cf32b. *After*:
+steps 1–5 of the order of work (the pending project, friendly hints, the
+recipes pushed by BM25, the `layout` tool and layout check). Models:
+`mlx-community/gemma-4-e4b-it-4bit` on mlx-serve on this Mac, and
+`claude-haiku-5-5` (Anthropic). The local window is what the server gave
+when it loaded the model (it sizes it by the memory free): 16,384 before;
+after, 47,104 for the first three apps and 33,792 for the rest.
+
+| App | gemma E4B before | gemma E4B after | Haiku before | Haiku after |
+|---|---|---|---|---|
+| Tip calculator | ✓ | ✓ | ✓ | ✓ |
+| Scientific calculator (Robert's two turns) | ✗ compiles, no + key, empty handlers | ✓ 2 + 3 = 5 | ✓ | ✓ |
+| Stopwatch | ✗ `AS BOOLEAN` | ✓ | ✓ | ✓ |
+| To-do list | ✗ syntax, after "no project open" | ✓ | ✓ | ✓ |
+| Unit converter | ✗ `OnChange = ()` | ✓ | ✗ shows "6 miles" | ✓ |
+| Quiz game | ✗ `[ … ]` lists | ✓ | ✓ | ✓ |
+| Drawing pad | ✗ `BOOLEAN`, `MOUSEEVENT` | ✓ | ✓ | ✓ |
+| Password generator | ✗ compiles, Generate shows nothing | ✓ | ✓ | ✓ |
+| CSV viewer | ✗ compiles, the grid stays empty | ✓ | ✓ | ✓ |
+| Web-server manager | ✓ | ✓ | ✓ | ✓ |
+| **Score** | **2 / 10** | **10 / 10** | **9 / 10** | **10 / 10** |
+| *Held out: BMI calculator, dice roller, countdown timer* | *not measured* | *3 / 3* | — | — |
+
+- **Read with care.** The ten eval apps are the shapes the ten recipes
+  cover, and gemma's ten passing programs *are* the pushed recipe, as it is
+  (the same lines, but for a caption or the last line break): Studio
+  delivered them, the model passed them on — which is the plan's principle,
+  but it is not the model writing an app. The **held-out** apps
+  (`tests/ai-eval/held-out/`: no recipe is them) show the adapting: gemma
+  made a working BMI calculator (70 kg, 175 cm → "BMI: 22.9", from the tip
+  calculator's shape), a dice roller (6 + 1 → "Total: 7") and a countdown
+  timer (9 s → "0:06.6" after the clicks), 3 of 3. Three apps are a small
+  sample: measure more held-out apps before a post says "builds apps".
+- **False claims** (an answer saying it changed something no tool changed):
+  0 in every run (73 conversations).
+- **"No project open"**: gemma before hit it in 7 of 10 conversations (it
+  tried to fix its new program before Create); after, in none.
+- **A second "before" run** at the 33,792 window (the after one) agreed:
+  tip calculator and unit converter passed, the scientific calculator,
+  stopwatch, to-do list and quiz failed (2 of the 6 measured); the rest and
+  the held-out apps weren't measured, because of the server (next point).
+- **The local server stops answering after a very long generation.** Three
+  times an answer took over five minutes (the eval gives up then); each
+  time mlx-serve's memory grew past 100 GB and afterwards it refused every
+  prompt — *"does not fit in GPU memory … only ~19 MB is available"* — until
+  it was restarted. A client can't prevent it; Studio says the server's own
+  words. Worth reporting to mlx-serve, and worth knowing before a live demo.
+- Every recipe passes its eval app's click test (`ai_eval --score`), so a
+  failing app is the model's program, not the test.

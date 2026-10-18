@@ -1,0 +1,8 @@
+# Held-out eval app: no recipe is this program (the nearest is the
+# stopwatch).
+Build me a countdown timer: I type the seconds, press Start, and it shows the time left
+#! test count
+#! type /sec|time|second|edit|input/ 9
+#! click /start/
+#! wait 40
+#! expect-changed /[1-8]/

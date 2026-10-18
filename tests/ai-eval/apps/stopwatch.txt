@@ -1,0 +1,6 @@
+# Eval app: a stopwatch.
+Build me a stopwatch
+#! test run
+#! click /start/
+#! wait 30
+#! expect-changed /[1-9]/

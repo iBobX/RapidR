@@ -1,0 +1,81 @@
+' Recipe: Server manager (a list with Start / Stop / Restart)
+' Keywords: web server manager, server, services, sites, start, stop, restart, status, running, stopped, list with buttons, control panel, manager, administrador de servidor, servidor web, sitios, gerenciador de servidor, sites
+' A list of sites and their status; pick one, then Start, Stop or Restart
+' it. The state is kept in arrays and the list shows it: Item(i) changes
+' one line. (Here starting a site only changes its status: put the real
+' work in StartSite / StopSite.)
+'
+'   rapidr run server_manager.rr
+$THEME rapidr
+
+CONST SITES = 3
+
+DECLARE SUB StartClick
+DECLARE SUB StopClick
+DECLARE SUB RestartClick
+
+DIM siteName(SITES) AS STRING, running(SITES) AS INTEGER
+siteName(1) = "www.example.com": running(1) = 1
+siteName(2) = "shop.example.com": running(2) = 0
+siteName(3) = "blog.example.com": running(3) = 1
+
+CREATE Form AS RForm
+    Caption = "Web Server Manager"
+    ClientWidth = 420: ClientHeight = 260
+    Center
+    CREATE SiteList AS RListBox
+        Left = 12: Top = 12: Width = 280: Height = 200
+    END CREATE
+    CREATE StartBtn AS RButton
+        Caption = "&Start": Left = 304: Top = 12: Width = 104: Height = 30: OnClick = StartClick
+    END CREATE
+    CREATE StopBtn AS RButton
+        Caption = "S&top": Left = 304: Top = 50: Width = 104: Height = 30: OnClick = StopClick
+    END CREATE
+    CREATE RestartBtn AS RButton
+        Caption = "&Restart": Left = 304: Top = 88: Width = 104: Height = 30: OnClick = RestartClick
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Pick a site.": Left = 12: Top = 224: Width = 396
+    END CREATE
+END CREATE
+
+' One site's line in the list: its name and its status.
+FUNCTION SiteLine (i AS INTEGER) AS STRING
+    Result = siteName(i) + "  -  " + IIF(running(i), "running", "stopped")
+END FUNCTION
+
+' The site picked (1 to SITES), or 0 after saying to pick one.
+FUNCTION Picked AS INTEGER
+    Result = SiteList.ItemIndex + 1
+    IF Result = 0 THEN Status.Caption = "Pick a site first."
+END FUNCTION
+
+SUB SetRunning (i AS INTEGER, onOff AS INTEGER)
+    running(i) = onOff
+    SiteList.Item(i - 1) = SiteLine(i)
+    Status.Caption = siteName(i) + " is " + IIF(onOff, "running", "stopped") + "."
+END SUB
+
+SUB StartClick
+    IF Picked THEN SetRunning Picked, 1
+END SUB
+
+SUB StopClick
+    IF Picked THEN SetRunning Picked, 0
+END SUB
+
+SUB RestartClick
+    DIM i AS INTEGER
+    i = Picked
+    IF i = 0 THEN EXIT SUB
+    SetRunning i, 0
+    SetRunning i, 1
+    Status.Caption = siteName(i) + " restarted."
+END SUB
+
+DIM k AS INTEGER
+FOR k = 1 TO SITES
+    SiteList.AddItems SiteLine(k)
+NEXT
+Form.ShowModal

@@ -148,6 +148,17 @@ SUB FillExamples
   AddMoreExample "showcase/signal_lab.rr", "A signal generator, an oscilloscope and an FFT spectrum"
   AddMoreExample "showcase/midi_visualizer.rr", "A 3D scene that dances to a song (reads the MIDI file itself)"
   AddMoreExample "showcase/make_song.rr", "Composes the visualizer's song and writes a .mid file"
+  ' (the recipes: short programs to start from — the assistant starts from them too)
+  AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
+  AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
+  AddMoreExample "recipes/stopwatch.rr", "Recipe: a stopwatch (RTimer)"
+  AddMoreExample "recipes/todo_list.rr", "Recipe: a to-do list, add and remove"
+  AddMoreExample "recipes/unit_converter.rr", "Recipe: a unit converter"
+  AddMoreExample "recipes/quiz_game.rr", "Recipe: a quiz with a score"
+  AddMoreExample "recipes/drawing_pad.rr", "Recipe: a drawing pad (RCanvas)"
+  AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
+  AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
+  AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
   LayOutWelcome
 END SUB
 

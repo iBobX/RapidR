@@ -71,7 +71,7 @@ pub const LOCAL_READ_TIMEOUT: u64 = 300;
 pub const ASSUMED_LOCAL_WINDOW: u64 = 16_384;
 /// The status after a turn whose answer said it changed something, asked
 /// once to make the change for real, and still made none.
-pub const CLAIM_STATUS: &str = "The assistant described a change but didn't make one. Ask again, or try a larger model.";
+pub const CLAIM_STATUS: &str = "The assistant didn't make the change you asked for. Ask again, or try a larger model.";
 
 /// A reply's cap for a model of `window` tokens: a quarter of it, between
 /// 256 and 8,192 (the rest is the conversation's).
@@ -193,6 +193,13 @@ pub trait ToolProvider {
     /// edit…" with no proposal), or the user said to go ahead — sent once a
     /// turn, as the conversation's next message. `None`: nothing to say.
     fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
+        None
+    }
+    /// What the tools send with the user's `question`, as data the model
+    /// reads with it (RapidR Studio: a working program close to the new one
+    /// asked for): part of the request — "what was sent" shows it —, never
+    /// of the transcript. `None`: nothing.
+    fn question_context(&mut self, _question: &str) -> Option<String> {
         None
     }
 }
@@ -696,6 +703,18 @@ impl Ai {
             Some(m) if m.role == Role::User => m.content.push(Block::Text(text.to_string())),
             _ => self.messages.push(Message::user(text)),
         }
+        // (what the tools send with the question: after it, in the same
+        // message, as data)
+        let extra: Vec<String> = self.tools.iter_mut().filter_map(|(_, _, t)| t.question_context(text)).collect();
+        if !extra.is_empty() {
+            let chars: usize = extra.iter().map(|e| e.chars().count()).sum();
+            if let Some(m) = self.messages.last_mut() {
+                for e in extra {
+                    m.content.push(Block::Text(format!("\n\n{e}")));
+                }
+            }
+            self.audit_log("context", json!({"chars": chars}));
+        }
         self.say("user", text);
         self.question = text.to_string();
         self.say("assistant", "");
@@ -966,7 +985,7 @@ impl Ai {
                     if !self.nudged && run.reply.stop != "max_tokens" {
                         self.nudged = true;
                         self.messages.push(Message::user(&nudge));
-                        self.note("No change was made in this answer: the assistant was asked to make it.");
+                        self.note("The assistant hadn't made the change yet, so Studio asked it to.");
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;

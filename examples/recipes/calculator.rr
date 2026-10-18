@@ -1,0 +1,103 @@
+' Recipe: Calculator (basic and scientific)
+' Keywords: calculator, scientific calculator, math, keypad, buttons, sqrt, square root, sin, cos, tan, log, square, plus minus, clear, calculadora, calculadora científica, cientifica
+' One handler for every key (Sender says which key was pressed), a display
+' on top (Align = alTop) and the keys in a grid below it.
+'
+'   rapidr run calculator.rr
+$THEME rapidr
+$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
+
+CONST PI = 3.14159265358979
+
+DECLARE SUB KeyPress (Sender AS RButton)
+
+DIM acc AS DOUBLE        ' the number before the operator
+DIM op AS STRING         ' the operator waiting: + - * / or ""
+DIM fresh AS INTEGER     ' 1: the next digit starts a new number
+
+CREATE Form AS RForm
+    Caption = "Calculator"
+    ClientWidth = 248: ClientHeight = 330
+    Center
+    CREATE Display AS RLabel
+        Align = alTop: Height = 54
+        Caption = "0": Alignment = 1           ' right-aligned
+        Font.Size = 22
+    END CREATE
+    ' the keys: 4 columns of 56 x 40, 4 pixels apart
+    CREATE KSqrt AS RButton: Caption = "sqrt": Left = 8: Top = 62: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KSquare AS RButton: Caption = "x^2": Left = 68: Top = 62: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KLog AS RButton: Caption = "log": Left = 128: Top = 62: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KClear AS RButton: Caption = "C": Left = 188: Top = 62: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KSin AS RButton: Caption = "sin": Left = 8: Top = 106: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KCos AS RButton: Caption = "cos": Left = 68: Top = 106: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KTan AS RButton: Caption = "tan": Left = 128: Top = 106: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KDiv AS RButton: Caption = "/": Left = 188: Top = 106: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K7 AS RButton: Caption = "7": Left = 8: Top = 150: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K8 AS RButton: Caption = "8": Left = 68: Top = 150: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K9 AS RButton: Caption = "9": Left = 128: Top = 150: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KMul AS RButton: Caption = "*": Left = 188: Top = 150: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K4 AS RButton: Caption = "4": Left = 8: Top = 194: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K5 AS RButton: Caption = "5": Left = 68: Top = 194: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K6 AS RButton: Caption = "6": Left = 128: Top = 194: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KSub AS RButton: Caption = "-": Left = 188: Top = 194: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K1 AS RButton: Caption = "1": Left = 8: Top = 238: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K2 AS RButton: Caption = "2": Left = 68: Top = 238: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K3 AS RButton: Caption = "3": Left = 128: Top = 238: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KAdd AS RButton: Caption = "+": Left = 188: Top = 238: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KSign AS RButton: Caption = "+/-": Left = 8: Top = 282: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE K0 AS RButton: Caption = "0": Left = 68: Top = 282: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KDot AS RButton: Caption = ".": Left = 128: Top = 282: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+    CREATE KEquals AS RButton: Caption = "=": Left = 188: Top = 282: Width = 56: Height = 40: OnClick = KeyPress: END CREATE
+END CREATE
+
+' The display's number; a new result starts the next number afresh.
+SUB Show (x AS DOUBLE)
+    Display.Caption = STR$(x)
+    fresh = 1
+END SUB
+
+' The waiting operator applied: acc (op) the display's number.
+SUB Calculate
+    DIM x AS DOUBLE
+    x = VAL(Display.Caption)
+    SELECT CASE op
+        CASE "+": acc = acc + x
+        CASE "-": acc = acc - x
+        CASE "*": acc = acc * x
+        CASE "/"
+            IF x = 0 THEN
+                Display.Caption = "Error": fresh = 1: op = "": EXIT SUB
+            END IF
+            acc = acc / x
+        CASE ELSE: acc = x
+    END SELECT
+    Show acc
+END SUB
+
+SUB KeyPress (Sender AS RButton)
+    DIM k AS STRING, x AS DOUBLE
+    k = Sender.Caption
+    ' a digit or the point: added to the number on the display
+    IF INSTR("0123456789.", k) > 0 THEN
+        IF fresh OR Display.Caption = "0" THEN Display.Caption = "": fresh = 0
+        IF k = "." AND INSTR(Display.Caption, ".") > 0 THEN EXIT SUB
+        Display.Caption = Display.Caption + k
+        EXIT SUB
+    END IF
+    x = VAL(Display.Caption)
+    SELECT CASE k
+        CASE "C": acc = 0: op = "": Show 0
+        CASE "+/-": Display.Caption = STR$(-x)
+        CASE "x^2": Show x * x
+        CASE "sqrt": IF x < 0 THEN Display.Caption = "Error" ELSE Show SQR(x)
+        CASE "log": IF x <= 0 THEN Display.Caption = "Error" ELSE Show LOG(x) / LOG(10)
+        CASE "sin": Show SIN(x * PI / 180)          ' degrees
+        CASE "cos": Show COS(x * PI / 180)
+        CASE "tan": Show TAN(x * PI / 180)
+        CASE "+", "-", "*", "/": Calculate: op = k
+        CASE "=": Calculate: op = ""
+    END SELECT
+END SUB
+
+Form.ShowModal

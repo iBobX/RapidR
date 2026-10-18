@@ -1,0 +1,5 @@
+# Eval app: a quiz game.
+Build me a quiz game: three questions about world capitals, each with answer buttons, and show the score
+#! test answer
+#! click-all
+#! expect-changed /score|correct|right|wrong|question|\d/
