@@ -89,3 +89,48 @@ Big models keep today's free agent mode. Small-model mode switches on by itself 
 6. Small-model mode: spec first (json_schema), one handler at a time.
 7. Optional embeddings (EmbeddingGemma or any `/v1/embeddings`).
 8. Measure again, then the post.
+
+## Results
+
+Measured on 2026-10-18 with `crates/rapidr-studio/examples/ai_eval.rs` and
+the click tests of `tests/ai-eval/apps/` (one conversation per app — Robert's
+own two turns for the scientific calculator; **score = the compiler takes it
+and every click test passes**). *Before*: `development` at 441cf32b. *After*:
+steps 1–5 of the order of work (the pending project, friendly hints, the
+recipes pushed by BM25, the `layout` tool and layout check). Models:
+`mlx-community/gemma-4-e4b-it-4bit` on mlx-serve on this Mac (window 16,384
+before, 47,104 after — the server sizes it by the memory free when it loads
+the model), and `claude-haiku-5-5` (Anthropic).
+
+| App | gemma E4B before | gemma E4B after | Haiku before | Haiku after |
+|---|---|---|---|---|
+| Tip calculator | ✓ | ✓ | ✓ | ✓ |
+| Scientific calculator (Robert's two turns) | ✗ compiles, no + key, empty handlers | ✓ 2 + 3 = 5 | ✓ | ✓ |
+| Stopwatch | ✗ `AS BOOLEAN` | ✓ | ✓ | ✓ |
+| To-do list | ✗ syntax, after "no project open" | — | ✓ | ✓ |
+| Unit converter | ✗ `OnChange = ()` | — | ✗ shows "6 miles" | ✓ |
+| Quiz game | ✗ `[ … ]` lists | — | ✓ | ✓ |
+| Drawing pad | ✗ `BOOLEAN`, `MOUSEEVENT` | — | ✓ | ✓ |
+| Password generator | ✗ compiles, Generate shows nothing | — | ✓ | ✓ |
+| CSV viewer | ✗ compiles, the grid stays empty | — | ✓ | ✓ |
+| Web-server manager | ✓ | — | ✓ | ✓ |
+| **Score** | **2 / 10** | **3 / 3 measured** | **9 / 10** | **10 / 10** |
+
+- **False claims** (an answer saying it changed something no tool changed):
+  0 in every run.
+- **"No project open"**: gemma before hit it in 7 of 10 conversations (it
+  tried to fix its new program before Create); after, in none.
+- **gemma after, apps 4–10: not measured.** Twice the local server stopped
+  answering: during a long generation (the to-do list's first answer, over
+  five minutes) mlx-serve's memory grew past 100 GB, and once the request was
+  given up every prompt was refused — *"does not fit in GPU memory … only
+  ~19 MB is available"* — until mlx-serve was restarted. The lane doesn't
+  restart Robert's server: the rest is measured with
+  `tests/ai-eval/apps/*.txt` (and the held-out `tests/ai-eval/held-out/`) once
+  it answers again.
+- **Read with care:** the ten eval apps are the shapes the ten recipes
+  cover, so "after" measures *a request that has a recipe*. The held-out
+  apps (a BMI calculator, a dice roller, a countdown timer — no recipe is
+  them) measure the rest; their numbers come with the rest of gemma's.
+- Every recipe passes its eval app's click test (`ai_eval --score`), so a
+  failing app is the model's program, not the test.
