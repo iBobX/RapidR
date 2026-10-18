@@ -382,7 +382,7 @@ fn the_instructions() {
     // (the whole of what is sent every turn, the language guide in it: small)
     assert!(p.len() < 16_000, "{}", p.len());
     assert_eq!(ai_tools::tools(false).len(), 7);
-    assert_eq!(ai_tools::tools(true).len(), 10);
+    assert_eq!(ai_tools::tools(true).len(), 11);
 }
 
 /// A tool call as a compatible server streams it.

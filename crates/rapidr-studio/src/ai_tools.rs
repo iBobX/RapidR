@@ -116,6 +116,22 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
     ];
     if proposals {
         out.push(t(
+            "layout",
+            "A grid of buttons laid out for you (a keypad, a toolbar): give the captions row by row; it returns the CREATE blocks with exact Left / Top / Width / Height, one shared OnClick handler, and the ClientWidth / ClientHeight the form needs. Paste them into the form's CREATE block.",
+            schema(
+                json!({
+                    "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "the captions, row by row: [[\"7\",\"8\",\"9\",\"/\"],[\"4\",\"5\",\"6\",\"*\"]]"},
+                    "left": {"type": "integer", "description": "the grid's left edge (default 8)"},
+                    "top": {"type": "integer", "description": "the grid's top edge (default 8; below a display, its bottom + 8)"},
+                    "width": {"type": "integer", "description": "each button's width (default 56)"},
+                    "height": {"type": "integer", "description": "each button's height (default 36)"},
+                    "gap": {"type": "integer", "description": "pixels between buttons (default 4)"},
+                    "on_click": {"type": "string", "description": "the SUB every button calls (SUB Name (Sender AS RButton): Sender.Caption says which)"}
+                }),
+                &["rows"],
+            ),
+        ));
+        out.push(t(
             "propose_edit",
             "Proposes changes to an existing file of the project, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — which must appear exactly once in the file, with enough lines around it to be unique — with `new_text`.",
             schema(
@@ -257,6 +273,7 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "rapidr_list" | "rapidr_get" => design(name, input, project),
         "check_code" => check(input, project),
         "find_example" => find_example(input),
+        "layout" => layout(input),
         "propose_edit" | "write_file" | "create_project" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
         // (a proposing tool's risk is a proposal's, whether it fitted or not:
         // the audit log says what was tried)
@@ -515,6 +532,68 @@ fn describe(input: &Json) -> Outcome {
         Reply::Ok(v) => ok(describe_text(&v), format!("Looked up {target} in RapidR's registry"), "read", &target),
         Reply::Err(e) => err(e.message, format!("Looked up {target}: not found"), &target),
     }
+}
+
+/// A button's name from its caption: `Key7`, `KeyPlus`, `KeySqrt`.
+fn key_name(prefix: &str, caption: &str) -> String {
+    let words: String = caption
+        .chars()
+        .map(|c| match c {
+            '+' => "Plus".to_string(),
+            '-' => "Minus".to_string(),
+            '*' | '×' => "Times".to_string(),
+            '/' | '÷' => "Divide".to_string(),
+            '=' => "Equals".to_string(),
+            '.' => "Dot".to_string(),
+            '%' => "Percent".to_string(),
+            '^' => "Power".to_string(),
+            '(' => "Open".to_string(),
+            ')' => "Close".to_string(),
+            '√' => "Sqrt".to_string(),
+            '±' => "Sign".to_string(),
+            c if c.is_ascii_alphanumeric() => c.to_string(),
+            _ => String::new(),
+        })
+        .collect();
+    let mut w = words;
+    if let Some(f) = w.get(..1) {
+        w = f.to_ascii_uppercase() + &w[1..];
+    }
+    format!("{prefix}{w}")
+}
+
+/// The `layout` tool: a grid of buttons as CREATE blocks with exact
+/// coordinates, and the client size the form needs.
+fn layout(input: &Json) -> Outcome {
+    let rows: Vec<Vec<String>> = input.get("rows").and_then(Json::as_array).into_iter().flatten().map(|r| r.as_array().into_iter().flatten().map(|c| c.as_str().map_or_else(|| c.to_string(), str::to_string)).collect()).filter(|r: &Vec<String>| !r.is_empty()).collect();
+    if rows.is_empty() || rows.len() > 20 || rows.iter().any(|r| r.len() > 12) {
+        return err("give rows: the captions row by row (at most 20 rows of 12)", "layout: no rows".into(), "");
+    }
+    let n = |k: &str, d: i64| input.get(k).and_then(Json::as_i64).filter(|v| (0..=2000).contains(v)).unwrap_or(d);
+    let (left, top, w, h, gap) = (n("left", 8), n("top", 8), n("width", 56).max(16), n("height", 36).max(16), n("gap", 4));
+    let handler = s(input, "on_click").trim();
+    let handler: String = handler.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_').collect();
+    let mut names: Vec<String> = Vec::new();
+    let mut lines = Vec::new();
+    for (r, row) in rows.iter().enumerate() {
+        for (c, caption) in row.iter().enumerate() {
+            if caption.is_empty() {
+                continue;
+            }
+            let mut name = key_name("Key", caption);
+            if name == "Key" || names.contains(&name) {
+                name = format!("Key{}_{}", r + 1, c + 1);
+            }
+            names.push(name.clone());
+            let on = if handler.is_empty() { String::new() } else { format!(": OnClick = {handler}") };
+            lines.push(format!("    CREATE {name} AS RButton: Caption = \"{}\": Left = {}: Top = {}: Width = {w}: Height = {h}{on}: END CREATE", caption.replace('"', "\"\""), left + c as i64 * (w + gap), top + r as i64 * (h + gap)));
+        }
+    }
+    let cols = rows.iter().map(Vec::len).max().unwrap_or(0) as i64;
+    let right = left + cols * w + (cols - 1).max(0) * gap + left;
+    let bottom = top + rows.len() as i64 * h + (rows.len() as i64 - 1) * gap + left;
+    let decl = if handler.is_empty() { String::new() } else { format!("\nThe handler: DECLARE SUB {handler} (Sender AS RButton) at the top, and SUB {handler} (Sender AS RButton) … END SUB — Sender.Caption is the key pressed.") };
+    ok(format!("{}\n\nThe grid needs the form's client area to be at least ClientWidth = {right}: ClientHeight = {bottom} (more below or beside it for other controls).{decl}", lines.join("\n")), format!("Laid out {} buttons", names.len()), "read", "")
 }
 
 /// The recipe closest to `query`, whole, and the next ones' names.
@@ -815,6 +894,101 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
         let Some((_, text)) = files.iter().find(|(p, _)| p.as_str() == *f) else { continue };
         for x in crate::friendly::program(text, *f == main || main.is_empty()) {
             push(&mut out, format!("{} {f}:{}:1: {}", if x.error { "error" } else { "warning" }, x.line, x.text));
+        }
+    }
+    // (the forms as a person would see them: cut off, overlapping, a
+    // caption too long — once the program compiles, it's what is left)
+    if !out.iter().any(|l| l.starts_with("error")) {
+        for l in layout_problems(files) {
+            push(&mut out, l);
+        }
+    }
+    out
+}
+
+/// What a person would see wrong in the forms the source makes, before
+/// running it (docs/small-models-plan.md §2, `check_layout`): a control
+/// past its form's client area (cut off), controls on top of each other, a
+/// button's caption longer than the button. Warnings, with the numbers; a
+/// control laid out by Align, and labels (which size to their text), aren't
+/// judged.
+pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
+    let srcs: Vec<(&str, &str)> = files.iter().filter(|(p, _)| is_source(p)).map(|(a, b)| (a.as_str(), b.as_str())).collect();
+    if srcs.is_empty() {
+        return Vec::new();
+    }
+    let model = rapidr_introspect::design::DesignModel::in_memory(&srcs);
+    let Reply::Ok(list) = rapidr_introspect::handle(Some(&model), &Request::List { scope: None, type_name: None, limit: Some(1000), cursor: None }) else { return Vec::new() };
+    struct Box_ {
+        id: String,
+        ty: String,
+        parent: String,
+        x: i64,
+        y: i64,
+        w: i64,
+        h: i64,
+        aligned: bool,
+        caption: String,
+        client: Option<(i64, i64)>,
+        visual: bool,
+    }
+    let mut boxes: Vec<Box_> = Vec::new();
+    for o in list["objects"].as_array().into_iter().flatten() {
+        let id = o["id"].as_str().unwrap_or("").to_string();
+        let ty = o["type"].as_str().unwrap_or("").to_string();
+        let comp = rapidr_lang::resolve_component(&ty);
+        let Reply::Ok(g) = rapidr_introspect::handle(Some(&model), &Request::Get { id: id.clone(), props: None }) else { continue };
+        let mut set: HashMap<String, Json> = HashMap::new();
+        for v in g["values"].as_array().into_iter().flatten() {
+            if v["source"] == "set" || v["name"].as_str().is_some_and(|n| n.eq_ignore_ascii_case("caption")) {
+                set.insert(v["name"].as_str().unwrap_or("").to_ascii_lowercase(), v["value"].clone());
+            }
+        }
+        let num = |k: &str| set.get(k).and_then(Json::as_i64);
+        let (dw, dh) = comp.and_then(|c| c.size).map_or((0, 0), |(w, h)| (i64::from(w), i64::from(h)));
+        let align = set.get("align").map(|a| a.as_str().map_or_else(|| a.to_string(), str::to_string)).unwrap_or_default();
+        let client = match (num("clientwidth"), num("clientheight"), num("width"), num("height")) {
+            (Some(w), Some(h), _, _) => Some((w, h)),
+            (_, _, Some(w), Some(h)) => Some((w - 16, h - 39)),
+            _ => None,
+        };
+        boxes.push(Box_ {
+            id,
+            ty: ty.to_ascii_uppercase(),
+            parent: o["parent"].as_str().unwrap_or("").to_string(),
+            x: num("left").unwrap_or(0),
+            y: num("top").unwrap_or(0),
+            w: num("width").unwrap_or(dw),
+            h: num("height").unwrap_or(dh),
+            aligned: !(align.is_empty() || align.eq_ignore_ascii_case("alNone") || align == "0"),
+            caption: set.get("caption").and_then(Json::as_str).unwrap_or("").replace('&', ""),
+            client,
+            visual: comp.is_some_and(|c| c.visual),
+        });
+    }
+    let mut out = Vec::new();
+    let judged = |b: &Box_| b.visual && !b.aligned && !b.ty.ends_with("FORM") && b.w > 0 && b.h > 0;
+    for f in boxes.iter().filter(|b| b.ty.ends_with("FORM")) {
+        let Some((cw, ch)) = f.client else { continue };
+        for b in boxes.iter().filter(|b| b.parent == f.id && judged(b)) {
+            if b.x + b.w > cw + 2 || b.y + b.h > ch + 2 {
+                out.push(format!("warning layout: {} (Left {} + Width {}, Top {} + Height {}) reaches past {}'s client area ({cw} × {ch}): it's cut off — make the form bigger (ClientWidth / ClientHeight) or move it", b.id, b.x, b.w, b.y, b.h, f.id));
+            }
+        }
+    }
+    let solid = |b: &Box_| judged(b) && !b.ty.ends_with("LABEL") && !b.ty.ends_with("PANEL") && !b.ty.ends_with("GROUPBOX") && !b.ty.ends_with("TIMER");
+    let all: Vec<&Box_> = boxes.iter().filter(|b| solid(b)).collect();
+    for (i, a) in all.iter().enumerate() {
+        for b in &all[i + 1..] {
+            if a.parent == b.parent && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h {
+                out.push(format!("warning layout: {} ({},{} {}×{}) and {} ({},{} {}×{}) overlap: move one", a.id, a.x, a.y, a.w, a.h, b.id, b.x, b.y, b.w, b.h));
+            }
+        }
+    }
+    for b in boxes.iter().filter(|b| judged(b) && b.ty.ends_with("BUTTON") && !b.caption.is_empty()) {
+        let need = b.caption.chars().count() as i64 * 7 + 12;
+        if need > b.w + 4 {
+            out.push(format!("warning layout: {}'s caption \"{}\" needs about {need} pixels, its Width is {}: make it wider or the caption shorter", b.id, b.caption, b.w));
         }
     }
     out
@@ -1430,6 +1604,39 @@ mod tests {
         let p = project(&files, &buffers);
         let w = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": src}), &p, &mut props, true);
         assert!(w.content.contains("doesn't compile") && w.content.contains("`!=` isn't BASIC"), "{}", w.content);
+    }
+
+    /// The `layout` tool's keypad compiles, fits the client size it says,
+    /// and check_code finds nothing wrong with how it looks; a form with a
+    /// button cut off, two on top of each other and a caption too long
+    /// gets those three warnings — and the recipes none.
+    #[test]
+    fn a_laid_out_keypad_and_the_layout_check() {
+        let o = run("layout", &json!({"rows": [["7", "8", "9", "/"], ["4", "5", "6", "*"], ["1", "2", "3", "-"], ["0", ".", "=", "+"]], "top": 60, "on_click": "KeyPress"}), &project(&[], &HashMap::new()), &mut Vec::new(), true);
+        assert!(!o.is_error && o.content.starts_with("    CREATE Key7 AS RButton: Caption = \"7\": Left = 8: Top = 60: Width = 56: Height = 36: OnClick = KeyPress: END CREATE"), "{}", o.content);
+        assert!(o.content.contains("CREATE KeyPlus AS RButton: Caption = \"+\": Left = 188: Top = 180") && o.content.contains("ClientWidth = 252: ClientHeight = 224"), "{}", o.content);
+        let blocks: String = o.content.lines().filter(|l| l.contains("CREATE ")).map(|l| format!("{l}\n")).collect();
+        let src = format!("$INCLUDE \"RAPIDQ.INC\"\nDECLARE SUB KeyPress (Sender AS RButton)\nCREATE Form AS RForm\n    ClientWidth = 252: ClientHeight = 224\n    CREATE Display AS RLabel\n        Align = alTop: Height = 52: Caption = \"0\"\n    END CREATE\n{blocks}END CREATE\nSUB KeyPress (Sender AS RButton)\n    Display.Caption = Sender.Caption\nEND SUB\nForm.ShowModal\n");
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), src);
+        let c = run("check_code", &json!({}), &project(&files, &buffers), &mut Vec::new(), true).content;
+        assert_eq!(c, "No problems: it compiles.");
+        // (cut off, overlapping, a long caption)
+        let bad = "CREATE Form AS RForm\n    ClientWidth = 200: ClientHeight = 100\n    CREATE A AS RButton\n        Caption = \"OK\": Left = 150: Top = 10: Width = 80: Height = 30\n    END CREATE\n    CREATE B AS RButton\n        Caption = \"Go\": Left = 10: Top = 10: Width = 80: Height = 30\n    END CREATE\n    CREATE C AS RButton\n        Caption = \"Calculate the total\": Left = 40: Top = 30: Width = 60: Height = 30\n    END CREATE\nEND CREATE\nForm.ShowModal\n";
+        let found = layout_problems(&[("main.rr".to_string(), bad.to_string())]);
+        assert!(found.iter().any(|l| l.contains("A (Left 150 + Width 80, Top 10 + Height 30) reaches past Form's client area (200 × 100)")), "{found:#?}");
+        assert!(found.iter().any(|l| l.contains("B (10,10 80×30) and C (40,30 60×30) overlap")), "{found:#?}");
+        assert!(found.iter().any(|l| l.contains("C's caption \"Calculate the total\" needs about 145 pixels, its Width is 60")), "{found:#?}");
+        // (RapidR's recipes: nothing)
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/recipes");
+        for e in std::fs::read_dir(&root).unwrap().flatten() {
+            if e.path().extension().is_some_and(|x| x == "rr") {
+                let text = std::fs::read_to_string(e.path()).unwrap();
+                let found = layout_problems(&[(e.file_name().to_string_lossy().to_string(), text)]);
+                assert!(found.is_empty(), "{}: {found:#?}", e.path().display());
+            }
+        }
     }
 
     /// The habits searched for in a whole file never compile: saying them
