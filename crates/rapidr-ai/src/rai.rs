@@ -431,7 +431,10 @@ impl Ai {
     /// request; once more after a reply when the list gave an unloaded
     /// model's largest — loaded now, it says its own).
     fn wants_probe(&self) -> bool {
-        self.local() && self.window().is_none() && !self.unsaid.contains(&self.model) && (self.probes == 0 || (self.probes == 1 && self.chats > 0))
+        // (a server on this computer is asked at every question: it sizes a
+        // model's window by the memory free when it loads it)
+        let first = self.probes == 0 && (self.window().is_none() || self.on_this_computer());
+        self.local() && !self.unsaid.contains(&self.model) && (first || (self.probes == 1 && self.chats > 0 && self.window().is_none()))
     }
 
     /// The conversation kept within the window's budget (70% of it, less
@@ -638,6 +641,16 @@ impl Ai {
         let tools = self.tool_list();
         let (system, system_tail) = self.prompts();
         let fixed = system.len() + system_tail.len() + tools.iter().map(|t| t.name.len() + t.description.len() + t.input_schema.to_string().len()).sum::<usize>();
+        // (a window smaller than the instructions and the tools alone: no
+        // request could fit — said plainly, nothing sent)
+        if let Some(w) = self.window() {
+            let need = (fixed as f64 / self.chars_per_token()) as u64;
+            if need + 512 > w {
+                // (asked again next time: the server may have more memory then)
+                self.windows.remove(&self.model);
+                return Err(format!("This model takes {} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {}). Choose a model or a server setting with a larger window: 8,192 tokens or more.", thousands(w), thousands(need)));
+            }
+        }
         let (before, after, cut) = self.compact(fixed);
         if cut > 0 {
             self.audit_log("compact", json!({"tokensBefore": before, "tokensAfter": after, "cut": cut, "window": self.budget_window()}));
@@ -1429,6 +1442,18 @@ mod tests {
         a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 12_288, loaded: Some(true) }]);
         a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false) }]);
         assert_eq!(a.window(), Some(12_288), "the window it ran with stays");
+        // (a window smaller than the instructions alone: said, nothing sent)
+        let mut tiny = local(4096);
+        tiny.tools.clear();
+        tiny.system = "x".repeat(13_000);
+        tiny.messages = vec![Message::user("hi")];
+        // (the models list asked already this turn)
+        tiny.probes = 1;
+        let ep = Endpoint::new(crate::provider("compatible").unwrap());
+        let e = tiny.start_chat(&ep).unwrap_err();
+        assert!(e.starts_with("This model takes 4,096 tokens at once") && e.contains("about 4,333"), "{e}");
+        assert!(tiny.running.is_none());
+        assert_eq!(tiny.window(), None, "asked again at the next question");
         // (a cloud provider: MaxTokens as set, as before)
         let cloud = Ai { provider: "anthropic".into(), model: "x".into(), max_tokens: 9000, ..Ai::default() };
         assert_eq!(cloud.max_tokens(), 9000);
