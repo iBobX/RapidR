@@ -624,31 +624,134 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
     if !main.is_empty() && main != target {
         checked.push(main);
     }
-    for f in checked {
+    let rel = |p: &std::path::Path| {
+        let file = p.to_string_lossy().replace('\\', "/");
+        file.strip_prefix(&format!("{}/", root.trim_end_matches('/'))).unwrap_or(&file).to_string()
+    };
+    let push = |out: &mut Vec<String>, l: String| {
+        if !out.contains(&l) {
+            out.push(l);
+        }
+    };
+    for f in &checked {
         for d in a.diagnostics(&full(f)) {
             let text = a.text(&d.file).unwrap_or_default();
             let (line, col) = crate::langsvc::line_col(&text, d.start);
-            let file = d.file.to_string_lossy().replace('\\', "/");
-            let file = file.strip_prefix(&format!("{}/", root.trim_end_matches('/'))).unwrap_or(&file).to_string();
-            let sev = format!("{:?}", d.severity).to_ascii_lowercase();
+            let file = rel(&d.file);
+            // (a RapidQ include's constant without its include is 0 — alClient
+            // is alNone, a layout that silently isn't: an error, for the
+            // assistant)
+            let sev = if d.code.as_deref() == Some("needs-include") { "error".to_string() } else { format!("{:?}", d.severity).to_ascii_lowercase() };
             let l = format!("{sev} {file}:{line}:{col}: {}", d.message);
-            if !out.contains(&l) {
-                out.push(l);
+            if out.contains(&l) {
+                continue;
+            }
+            out.push(l);
+            // (the habits from other languages on the line, and what the
+            // message means: the exact fix, under the compiler's words)
+            if sev == "error" {
+                let src = text.lines().nth(line.saturating_sub(1)).unwrap_or("");
+                for (_, h) in crate::friendly::for_message(&d.message).into_iter().chain(crate::friendly::for_line(src)) {
+                    push(&mut out, format!("hint {file}:{line}: {h}"));
+                }
+            }
+        }
+    }
+    // (the habits that never compile, on the lines the compiler didn't
+    // reach: it stops at its first syntax error)
+    for f in &checked {
+        let Some((_, text)) = files.iter().find(|(p, _)| p.as_str() == *f) else { continue };
+        for (k, line) in text.lines().enumerate() {
+            for (id, h) in crate::friendly::for_line(line) {
+                if crate::friendly::NEVER_BASIC.contains(&id) && !out.contains(&format!("hint {f}:{}: {h}", k + 1)) {
+                    push(&mut out, format!("error {f}:{}:1: {h}", k + 1));
+                }
             }
         }
     }
     // (properties no component has: the compiler takes them, they do
     // nothing — said once, in place of the compiler's own warning about the
-    // same member when it gave one)
+    // same member when it gave one; with what the component has, once)
     let sources: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).filter(|p| is_source(p)).collect();
+    let mut described: Vec<String> = Vec::new();
     for l in member_problems(files, &sources) {
         let place = l.split(": ").next().unwrap_or("").trim_start_matches("error ").rsplit_once(':').map_or("", |x| x.0).to_string();
         let prop = l.split(" has no property ").nth(1).and_then(|r| r.split([';', ' ']).next()).map(|p| p.rsplit('.').next().unwrap_or(p).to_ascii_uppercase()).unwrap_or_default();
         if let Some(k) = out.iter().position(|o| o.starts_with(&format!("warning {place}:")) && o.contains(&format!("Member {prop} not part of"))) {
-            out[k] = l;
-        } else if !out.contains(&l) {
-            out.push(l);
+            out[k] = l.clone();
+        } else {
+            push(&mut out, l.clone());
         }
+        let ty = l.split(": ").nth(1).and_then(|r| r.split(" has no property").next()).unwrap_or("").to_string();
+        if let Some(c) = rapidr_lang::resolve_component(&ty).filter(|_| !described.contains(&ty)) {
+            described.push(ty);
+            push(&mut out, format!("hint {place}: {}", crate::friendly::members(c)));
+        }
+    }
+    // (a method the compiler doesn't know on a component: what it has)
+    let unknown_members: Vec<(String, String)> = out
+        .iter()
+        .filter_map(|o| {
+            let (head, msg) = o.split_once(": ")?;
+            let ty = msg.strip_prefix("Member ")?.split(" not part of ").nth(1)?.split_whitespace().next()?.trim_end_matches(['.', ',']).to_string();
+            Some((head.split_whitespace().nth(1)?.rsplit_once(':')?.0.to_string(), ty))
+        })
+        .collect();
+    for (place, ty) in unknown_members {
+        if let Some(c) = rapidr_lang::resolve_component(&ty).filter(|c| !described.contains(&c.spelling())) {
+            described.push(c.spelling());
+            push(&mut out, format!("hint {place}: {}", crate::friendly::members(c)));
+        }
+    }
+    // (names never given a value: RapidQ makes each a new variable, 0 or
+    // "" — `IF ButtonPressed = "7"` is never true)
+    for f in &checked {
+        for l in undefined_names(&mut a, &full(f), &rel) {
+            push(&mut out, l);
+        }
+    }
+    // (what only the whole file shows: the window never shown, handlers
+    // that do nothing yet)
+    for f in &checked {
+        let Some((_, text)) = files.iter().find(|(p, _)| p.as_str() == *f) else { continue };
+        for x in crate::friendly::program(text, *f == main || main.is_empty()) {
+            push(&mut out, format!("{} {f}:{}:1: {}", if x.error { "error" } else { "warning" }, x.line, x.text));
+        }
+    }
+    out
+}
+
+/// The names the program reads but never gives a value, nor declares, in
+/// `file`: errors with the nearest name it has (a variable, a component, a
+/// routine, a builtin).
+fn undefined_names(a: &mut Analysis, file: &std::path::Path, rel: &dyn Fn(&std::path::Path) -> String) -> Vec<String> {
+    use rapidr_langsvc::model::{Access, SymbolKind};
+    let Some(s) = a.snapshot(file) else { return Vec::new() };
+    let m = &s.model;
+    let written: std::collections::HashSet<usize> = m.references.iter().filter(|r| r.access != Access::Read).map(|r| r.symbol).collect();
+    let known: Vec<&str> = m.symbols.iter().filter(|x| !x.implicit).map(|x| x.name.as_str()).collect();
+    let mut out = Vec::new();
+    let mut said: Vec<usize> = Vec::new();
+    for r in &m.references {
+        let sym = &m.symbols[r.symbol];
+        if !sym.implicit || !matches!(sym.kind, SymbolKind::Global | SymbolKind::Local | SymbolKind::Static) || written.contains(&r.symbol) || said.contains(&r.symbol) {
+            continue;
+        }
+        let base = sym.name.trim_end_matches(['$', '%', '#', '&', '!']);
+        // (a RapidQ include's constant: the include is what's missing, said
+        // by its own message)
+        if rapidr_lang::constant(base).is_some() || base.eq_ignore_ascii_case("this") {
+            continue;
+        }
+        let Some(at) = s.locate(r.span) else { continue };
+        if at.file != file {
+            continue;
+        }
+        said.push(r.symbol);
+        let text = a.text(&at.file).unwrap_or_default();
+        let (line, col) = crate::langsvc::line_col(&text, at.start);
+        let near = crate::friendly::closest(base, known.iter().copied()).map(|n| format!("; did you mean {n}?")).unwrap_or_default();
+        out.push(format!("error {}:{line}:{col}: {} is never given a value nor declared: RapidR makes it a new variable, always 0 or \"\" here{near} (declare it with DIM and set it, or use the right name)", rel(&at.file), sym.name));
     }
     out
 }
@@ -866,13 +969,14 @@ fn compile_errors(p: &Project, proposals: &[Proposal]) -> Option<String> {
     }
     let mut errors: Vec<String> = Vec::new();
     for q in &changed {
+        // (each error with the hints that say its fix)
         for l in diagnostics(&files, "/project", &q.path, p.main, p.compat.eq_ignore_ascii_case("rapidq")) {
-            if l.starts_with("error") && !errors.contains(&l) {
+            if (l.starts_with("error") || l.starts_with("hint")) && !errors.contains(&l) {
                 errors.push(l);
             }
         }
     }
-    (!errors.is_empty()).then(|| errors.iter().take(20).cloned().collect::<Vec<_>>().join("\n"))
+    (errors.iter().any(|l| l.starts_with("error"))).then(|| errors.iter().take(24).cloned().collect::<Vec<_>>().join("\n"))
 }
 
 fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
@@ -1145,6 +1249,104 @@ mod tests {
                 files.extend(incs.iter().cloned());
                 let name = files[0].0.clone();
                 found.extend(member_problems(&files, &[name.as_str()]));
+                seen += 1;
+            }
+        }
+        assert!(seen > 30, "{seen}");
+        assert!(found.is_empty(), "{} found:\n{}", found.len(), found.join("\n"));
+    }
+
+    /// Robert's scientific calculator (2026-10-18, gemma E4B): the habits
+    /// from other languages come back with their fixes, under the
+    /// compiler's own errors.
+    #[test]
+    fn check_code_says_the_fix_for_other_languages_habits() {
+        let src = "DECLARE SUB Press\nDIM waitingForOperand AS BOOLEAN AS BOOLEAN\nCREATE Form AS RForm\n    CREATE Display AS RLabel\n        Align = alTop\n    END CREATE\n    CREATE B7 AS RButton\n        Caption = \"7\": OnClick = Press\n    END CREATE\nEND CREATE\nSUB Press\n    IF ButtonPressed != \"7\" THEN Display.Caption = \"7\"\nEND SUB\n";
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), src.to_string());
+        let p = project(&files, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        // (the compiler stops at its first error — the `!` — and the habit
+        // on the line it never reached is said too)
+        assert!(c.contains("hint main.rr:12: `!=` isn't BASIC: \"not equal\" is `<>`"), "{c}");
+        assert!(c.contains("error main.rr:2:1: a name takes one `AS type`"), "{c}");
+        assert!(c.contains("never shows its window: end the main file with Form.ShowModal"), "{c}");
+        // (a RapidQ constant without its include: an error, for the assistant)
+        buffers.insert("main.rr".to_string(), "CREATE Form AS RForm\n    CREATE Display AS RLabel\n        Align = alTop\n    END CREATE\nEND CREATE\nForm.ShowModal\n".to_string());
+        let p = project(&files, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        assert!(c.contains("error main.rr:3:17: alTop is a RAPIDQ.INC constant"), "{c}");
+        // (a name never given a value, the nearest real one offered)
+        let src2 = "DECLARE SUB Press\nDIM ButtonPress AS STRING\nCREATE Form AS RForm\n    CREATE B7 AS RButton\n        Caption = \"7\": OnClick = Press\n    END CREATE\nEND CREATE\nSUB Press\n    ButtonPress = \"7\"\n    IF ButtonPressed = \"7\" THEN B7.Caption = \"8\"\nEND SUB\nForm.ShowModal\n";
+        buffers.insert("main.rr".to_string(), src2.to_string());
+        let p = project(&files, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        assert!(c.contains("error main.rr:10:8: ButtonPressed is never given a value nor declared") && c.contains("did you mean ButtonPress?"), "{c}");
+        // (a data type from another language; a placeholder handler)
+        let src3 = "DECLARE SUB Go\nDIM running AS BOOLEAN\nCREATE Form AS RForm\n    CREATE B AS RButton\n        OnClick = Go\n    END CREATE\nEND CREATE\nSUB Go\n    ' In a real implementation, this would start the server.\n    B.Caption = \"Started\"\nEND SUB\nForm.ShowModal\n";
+        buffers.insert("main.rr".to_string(), src3.to_string());
+        let p = project(&files, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        assert!(c.contains("Unknown data type BOOLEAN") && c.contains("hint main.rr:2: RapidR has no BOOLEAN: use INTEGER"), "{c}");
+        assert!(c.contains("error main.rr:9:1: SUB Go isn't finished: its comment says \"In a real implementation"), "{c}");
+        // (a property a component doesn't have: what it has, once)
+        let src4 = "CREATE Form AS RForm\n    CREATE G AS RStringGrid\n        ColumnCount = 2\n        RowHeight = 3\n    END CREATE\nEND CREATE\nForm.ShowModal\n";
+        buffers.insert("main.rr".to_string(), src4.to_string());
+        let p = project(&files, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        assert!(c.contains("RStringGrid has no property ColumnCount; did you mean ColCount?"), "{c}");
+        assert_eq!(c.matches("RStringGrid has — properties: ").count(), 1, "{c}");
+        // (the proposing tools say the same)
+        let mut props = Vec::new();
+        buffers.insert("main.rr".to_string(), "CREATE Form AS RForm\nEND CREATE\nForm.ShowModal\n".to_string());
+        let p = project(&files, &buffers);
+        let w = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": src}), &p, &mut props, true);
+        assert!(w.content.contains("doesn't compile") && w.content.contains("`!=` isn't BASIC"), "{}", w.content);
+    }
+
+    /// The habits searched for in a whole file never compile: saying them
+    /// where the compiler didn't reach can't contradict it.
+    #[test]
+    fn the_habits_searched_for_everywhere_never_compile() {
+        let samples = [("ne", "IF a != 1 THEN PRINT 1"), ("or", "IF a = 1 || b = 2 THEN PRINT 1"), ("braces", "IF a = 1 THEN {"), ("brackets", "a = [1, 2]"), ("comment", "a = 1 // one"), ("as-as", "DIM b AS INTEGER AS INTEGER")];
+        let mut compiles: Vec<String> = Vec::new();
+        for (id, line) in samples {
+            assert!(crate::friendly::for_line(line).iter().any(|(i, _)| *i == id), "{line}: {id}");
+            let mut a = Analysis::new(Options { roots: Some(Vec::new()), ..Options::default() });
+            a.update(PathBuf::from("/p/m.rr"), format!("DIM a AS INTEGER\n{line}\n"));
+            if !a.diagnostics(&PathBuf::from("/p/m.rr")).iter().any(|d| d.severity == rapidr_langsvc::Severity::Error) {
+                compiles.push(format!("{id}: {line}"));
+            }
+        }
+        assert!(compiles.is_empty(), "{compiles:?}");
+        assert!(crate::friendly::NEVER_BASIC.iter().all(|id| samples.iter().any(|(i, _)| i == id)));
+    }
+
+    /// The checks the assistant gets beyond the compiler's (names never
+    /// given a value, handlers that do nothing, the window never shown) find
+    /// nothing in RapidR's own programs: they don't cry wolf.
+    #[test]
+    fn rapidrs_own_programs_pass_the_assistants_extra_checks() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let read = |p: &std::path::Path| (p.strip_prefix(&root).unwrap().to_string_lossy().replace('\\', "/"), std::fs::read_to_string(p).unwrap_or_default());
+        let listed = |d: &std::path::Path, ext: &str| -> Vec<PathBuf> { std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == ext)).collect() };
+        let extra = |l: &&String| l.contains("is never given a value") || l.contains("does nothing yet") || l.contains("isn't finished") || l.contains("never shows its window");
+        let mut found = Vec::new();
+        let mut seen = 0;
+        let mut dirs = vec![root.join("examples")];
+        while let Some(d) = dirs.pop() {
+            for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                if e.path().is_dir() && !e.path().ends_with("rapidq") {
+                    dirs.push(e.path());
+                }
+            }
+            let incs: Vec<(String, String)> = listed(&d, "inc").iter().map(|p| read(p)).collect();
+            for f in listed(&d, "rr") {
+                let mut files = vec![read(&f)];
+                files.extend(incs.iter().cloned());
+                let name = files[0].0.clone();
+                found.extend(diagnostics(&files, "/p", &name, &name, false).iter().filter(extra).cloned());
                 seen += 1;
             }
         }
