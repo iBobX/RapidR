@@ -27,6 +27,40 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web page again to check what the browser kept (`reload`).
 
 ### Fixed
+- **RapidR Studio's assistant works with small models on your own computer**
+  (a 4B or 9B model served by mlx-serve, Ollama, LM Studio). A reply asked
+  for up to 65,535 tokens on a model whose whole window was 12,000–26,000
+  (and a reply nobody waited for kept the local GPU busy for many minutes);
+  the server's own token counts were never read; the whole conversation,
+  every file read and written, was sent again each time; an answer that
+  said "I am proposing the edit, please review it" with no change behind it
+  ended with "Answered."; an edit that missed only said to read the file
+  again. Now: the window comes from the server's models list (the loaded
+  model's, asked before a question), each reply gets a quarter of it (4,096
+  at most on this computer, 300 seconds of quiet allowed); usage is asked of
+  every compatible server (`stream_options`, asked again without it when a
+  server refuses the field) and written to the audit log for each request;
+  past 70% of the window earlier tool results and the file texts in earlier
+  tool calls become short notes, then old exchanges go, never the
+  instructions, the tools or the last question; an answer that claims a
+  change no tool made, or no change after "go ahead / just do it", is sent
+  back once ("call propose_edit, write_file or create_project now"), and
+  if nothing comes the status says *"The assistant described a change but
+  didn't make one. Ask again, or try a larger model."*; every proposal is
+  compiled at once and a change that doesn't compile says so (to the model,
+  which is asked once to fix it, and in the status); an edit that misses
+  shows the file's closest lines, numbered, fits lines that differ only in
+  indentation, and after two misses points to write_file; a file read twice
+  unchanged in one answer isn't sent again; write_file with
+  create_project's arguments does what they say; check_code names a
+  property no component has ("RListBox has no property ColumnWidths",
+  "did you mean ColCount?") — for the assistant only, the compiler and
+  `rapidr run` unchanged; the instructions say text alone changes nothing,
+  that it can't run programs (it sees the last run's output, its last 20
+  lines, as data: `RAIProjectTools.RunOutput` / `AddRunOutput`), and the
+  usual VB.NET / Python habits RapidR BASIC doesn't have. A headless replay
+  of a conversation against a real model, `crates/rapidr-studio/examples/ai_eval.rs`
+  with scripts in `tests/ai-eval/` (never in the suites), measured it.
 - **RapidR Studio's examples work where RapidR is installed.** The examples
   there can't be changed (the macOS app, `/usr/lib/rapidr`, Program Files), and
   `million_rows.rr` "wrote" its data and said so while nothing was written. Now

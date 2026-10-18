@@ -675,6 +675,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
   RunRaised = 0
   StopLog = ""
   OutputBox.Clear "output"
+  ' (the assistant sees the end of this run's output, not the last one's)
+  AITools.RunOutput = ""
   OutputBox.Page = "output"
   Dock.ShowPane("outputbox")
   ClearDebugPanes
@@ -799,6 +801,7 @@ DIM OutLineOpen AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
   OutputBox.Write Text
+  AITools.AddRunOutput Text
   IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 

@@ -1,0 +1,5 @@
+# A small program built in three steps, replayed by
+# crates/rapidr-studio/examples/ai_eval.rs: one user turn a line.
+Build me a tip calculator
+Add a split-between-people field
+Make the total bigger and bold

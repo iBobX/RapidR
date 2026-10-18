@@ -22,6 +22,8 @@
 //! * `rai` (feature `component`) — **RAI**, the component: a conversation
 //!   with a provider in a program or in RapidR Studio, its tools attached.
 //! * [`audit`] — the local audit log of what an assistant asked and did.
+//! * [`claims`] — whether an answer says it changed something (a small
+//!   model that says so without calling a tool is asked once to do it).
 //! * [`keys`] — API keys: the OS keychain on the desktop (macOS Keychain,
 //!   Windows Credential Manager, the Secret Service), the tab's session on
 //!   the web (remembered on the device only when the user asks); the
@@ -34,6 +36,7 @@
 
 pub mod audit;
 pub mod chat;
+pub mod claims;
 pub mod http;
 pub mod keys;
 pub mod provider;
