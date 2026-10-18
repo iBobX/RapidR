@@ -336,6 +336,27 @@ fn go_ahead_with_no_change_is_asked_once_and_the_change_comes() {
 }
 
 #[test]
+fn a_change_that_does_not_compile_is_said_and_the_retries_stop() {
+    let _one = one_at_a_time();
+    let dir = project_dir("broken");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let bad = |id: &str| sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": id, "function": {"name": "write_file", "arguments": "{\"path\":\"main.rr\",\"summary\":\"x\",\"text\":\"CREATE Form AS RForm\\nEND CREATE\\nNope x y\\nForm.ShowModal\\n\"}"}}]}, "finish_reason": "tool_calls"}]})]);
+    let (url, server) = mock(vec![bad("w1"), bad("w2"), bad("w3"), text_answer("It still has an error on line 2.")]);
+    let n = "rai-broken";
+    setup(n, "tools-broken", &dir, &url);
+    assert_eq!(rai_call(n, "ask", &[s("Add a list")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    // (each answer says it doesn't compile; the third says to stop; no nudge after it)
+    assert_eq!(seen.len(), 4, "{}", seen.len());
+    let last: Json = serde_json::from_str(&seen[3]).unwrap();
+    let tool = last["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "tool").unwrap()["content"].as_str().unwrap().to_string();
+    assert!(tool.contains("doesn't compile with it yet") && tool.contains("That is 3 tries in this answer that still don't compile: stop here"), "{tool}");
+    assert_eq!(rapidr_ai::rai::peek(n).1, "The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors.");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn the_last_runs_output_is_shown_as_data() {
     let n = "tools-run";
     set(n, "projectfolder", &s("/nowhere"));

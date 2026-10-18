@@ -49,6 +49,10 @@ struct Tools {
     broken: bool,
     /// The files read this turn, as they were read.
     reads: HashMap<String, String>,
+    /// This turn's edits that didn't fit their file.
+    misses: u32,
+    /// This turn's proposals that didn't compile.
+    tries: u32,
     /// The RAI the tools are attached to (its conversation records the
     /// user's decisions).
     rai: String,
@@ -182,6 +186,8 @@ impl ToolProvider for Handle {
             t.proposals.clear();
             t.broken = false;
             t.reads.clear();
+            t.misses = 0;
+            t.tries = 0;
         });
     }
 
@@ -203,12 +209,29 @@ impl ToolProvider for Handle {
                 }
             }
             let mut proposals = std::mem::take(&mut t.proposals);
-            let out = ai_tools::run(name, input, &t.project(), &mut proposals, may);
+            let mut out = ai_tools::run(name, input, &t.project(), &mut proposals, may);
             t.proposals = proposals;
+            // (edits that keep missing: a small model retries the same one —
+            // the whole file is surer)
+            if name == "propose_edit" && out.is_error && out.content.contains("isn't in") {
+                t.misses += 1;
+                if t.misses >= 2 {
+                    out.content.push_str(&format!("\n\nThat is {} changes in this answer that didn't fit. Don't try propose_edit again: call write_file with the file's whole new text.", t.misses));
+                }
+            }
             // (whether what the turn proposes compiles, as its last proposal
             // left it: the status says so, and the model is asked to fix it)
             if matches!(name, "propose_edit" | "write_file" | "create_project") && !out.is_error {
                 t.broken = out.note.contains("errors to fix");
+                // (a model that can't fix its errors rewrites the file again
+                // and again — minutes each on a local one: after three tries
+                // it stops and says what is left)
+                if t.broken {
+                    t.tries += 1;
+                    if t.tries >= 3 {
+                        out.content.push_str(&format!("\n\nThat is {} tries in this answer that still don't compile: stop here, and tell the user in two sentences which errors are left; they can ask you to go on.", t.tries));
+                    }
+                }
             }
             out
         })
@@ -234,7 +257,7 @@ impl ToolProvider for Handle {
             if !t.may_propose() {
                 None
             } else if !t.proposals.is_empty() {
-                t.broken.then(|| NUDGE_FIX.to_string())
+                (t.broken && t.tries < 3).then(|| NUDGE_FIX.to_string())
             } else if rapidr_ai::claims::claims_change(answer) {
                 Some(format!("{NUDGE} {}", t.where_to()))
             } else if rapidr_ai::claims::go_ahead(question) {

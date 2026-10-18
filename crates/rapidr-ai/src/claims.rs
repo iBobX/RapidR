@@ -43,10 +43,14 @@ const CLAIMS: &[&str] = &[
     "executei", "revise a alteração", "revise as alterações",
 ];
 
+/// The tools that make a change: an answer naming one, with none called,
+/// narrates a call instead of making it ("I will use write_file to …").
+const CHANGE_TOOLS: &[&str] = &["write_file", "propose_edit", "create_project"];
+
 /// Whether `text` says a change was made, proposed or run.
 pub fn claims_change(text: &str) -> bool {
     let low = text.to_lowercase().replace(['\u{2019}', '\u{2018}', '`'], "'");
-    CLAIMS.iter().any(|c| low.contains(c))
+    CLAIMS.iter().any(|c| low.contains(c)) || CHANGE_TOOLS.iter().any(|t| low.contains(t))
 }
 
 /// Phrases of a user telling the assistant to go on and make the change.
@@ -89,6 +93,7 @@ mod tests {
             "Pronto! Atualizei o arquivo main.rr.",
             "The change has been applied.",
             "Okay, I will add a field for the number of people. Shall I go on?",
+            "My apologies. Next I use `write_file` to push the final version.",
         ] {
             assert!(claims_change(yes), "{yes}");
         }

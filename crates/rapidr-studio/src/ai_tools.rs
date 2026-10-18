@@ -252,6 +252,23 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         // (a proposing tool's risk is a proposal's, whether it fitted or not:
         // the audit log says what was tried)
         "propose_edit" => Outcome { risk: "state", ..propose_edit(input, project, proposals) },
+        // (write_file called with create_project's arguments — a small model
+        // mixes them up: what they say is done — a new program when none is
+        // open, else each file written)
+        "write_file" if input.get("path").is_none() && input.get("files").and_then(Json::as_array).is_some() => {
+            if project.folder.is_empty() && input.get("name").is_some() {
+                return Outcome { risk: "state", ..create_project(input, proposals) };
+            }
+            let mut last = err("no files given", "write_file: no files".into(), "");
+            for f in input["files"].as_array().into_iter().flatten() {
+                let one = json!({"path": f.get("path").cloned().unwrap_or(Json::Null), "text": f.get("text").cloned().unwrap_or(Json::Null), "summary": input.get("summary").cloned().unwrap_or(json!(""))});
+                last = write_file(&one, project, proposals);
+                if last.is_error {
+                    break;
+                }
+            }
+            Outcome { risk: "state", ..last }
+        }
         "write_file" => Outcome { risk: "state", ..write_file(input, project, proposals) },
         "create_project" => Outcome { risk: "state", ..create_project(input, proposals) },
         other => err(format!("there is no tool `{other}`: the tools are {}", tools(may_propose).iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")), format!("{other}: no such tool"), ""),
@@ -861,6 +878,7 @@ fn compile_errors(p: &Project, proposals: &[Proposal]) -> Option<String> {
 fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
     let rel = match project_path(p.folder, s(input, "path")) {
         Ok(r) => r,
+        Err(e) if s(input, "path").trim().is_empty() => return err(format!("{e} (write_file takes path, text and summary)"), "write_file: no file named".into(), ""),
         Err(e) => return err(e, format!("Refused to write {}: outside the project", s(input, "path")), s(input, "path")),
     };
     if p.folder.is_empty() {
@@ -1026,6 +1044,10 @@ mod tests {
         assert!(twice.is_error && twice.content.contains("2 times"), "{}", twice.content);
         // (read-only: refused)
         assert!(run("write_file", &json!({"path": "a.rr", "text": "x", "summary": "s"}), &p, &mut props, false).is_error);
+        // (write_file with create_project's arguments: each file written)
+        let mixed = run("write_file", &json!({"name": "x", "main": "extra.rr", "summary": "more", "files": [{"path": "extra.rr", "text": "PRINT 2\n"}]}), &p, &mut props, true);
+        assert!(!mixed.is_error && props.iter().any(|q| q.path == "extra.rr" && q.kind == "create"), "{}", mixed.content);
+        props.retain(|q| q.path != "extra.rr");
         // (a new project: checked; errors go back)
         let np = run("create_project", &json!({"name": "hello-form", "main": "main.rr", "summary": "Hi", "files": [{"path": "main.rr", "text": "CREATE F AS RForm\n  Caption = \"Hello\"\nEND CREATE\nF.ShowModal\n"}]}), &p, &mut props, true);
         assert!(np.content.contains("compiles"), "{}", np.content);

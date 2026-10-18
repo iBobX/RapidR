@@ -180,6 +180,23 @@ a hello-form program"* (a working form program, made and checked) took from
 about 7,600 to 22,000 tokens sent — between a third and two thirds of them
 from the cache — and 400 to 2,000 received: a fraction of a cent.
 
+### Small models on your own computer
+
+A local model (Ollama, LM Studio, mlx-serve) takes only so many tokens at
+once — its *context window*, often 8,000 to 32,000. Studio asks the server
+for it before a question and keeps everything inside it: each reply gets at
+most a quarter of the window (and at most 4,096 tokens on this computer,
+whatever **Longest reply** says), and when the chat nears 70% of the window
+the files the assistant read or wrote earlier are replaced by short notes —
+it reads them again when it needs them. The status line stays honest: when
+an answer says it changed something but no change reached you, the
+assistant is asked once to really make it, and if it still doesn't, the
+status says *"The assistant described a change but didn't make one"*; a
+change that doesn't compile says so too. The assistant can't run your
+program, but it sees the last lines your last run printed. A model of 4 to 9
+billion parameters can build small programs this way; for bigger ones a
+larger model does better.
+
 ## RAI in your own programs
 
 **RAI** (Toolbox > AI) gives your program the same AI: a provider, its
