@@ -63,6 +63,32 @@ The concepts (variables, IF, loops, arrays, SUB and FUNCTION, events, forms, fil
 - **Modify:** "Make the tip calculator round up to the next peso."
 - **Learning paths:** tip calculator → quiz game → paint → data app. Each is a RapidR project and a guided lesson (Phase 3D), with RAI as coach.
 
+## 8. Hooked on learning, not on the screen (the psychology, used kindly)
+
+Robert (2026-10-18): use what we know about how people feel, the rush of "I'm about to make it", so people get *hooked on challenges* and learn deeply instead of letting the AI think for them. The levers we use, and how:
+- **Flow:** a challenge just above your skill. Coach and Quiz pick the next challenge from the skill map: never boring, never crushing.
+- **The goal gradient:** people speed up near the finish. Show "2 steps left" on a lesson or challenge, and start the bar a little filled (your project already counts).
+- **The "aha" and the curiosity gap:** before an explanation, a question that makes you *want* the answer ("Why do you think this prints 11 and not 10?"). Gotchas are revealed, not lectured.
+- **Competence, autonomy, belonging** (self-determination theory): real skill you can see (the map), your choice of path and dial, and sharing what you made (a link on rapidr.dev, later a class gallery).
+- **The unfinished-task pull** (the Zeigarnik effect): end a session on a small open question ("Tomorrow: can you make it save the history?"), which brings you back.
+- **The IKEA effect:** you value what you build yourself, so the AI leaves the last satisfying step to you.
+- **Celebrate real wins:** the first time your program runs, the first bug you fixed alone. Short and joyful, with sound off by default.
+
+**Ethics, with no dark patterns:**
+- No guilt streaks and no loss messages ("you'll lose your streak!").
+- No endless feeds, and nothing that pays for attention.
+- A gentle "good place to stop" after a long session.
+- Rewards are only for real learning, never for time spent.
+
+## 9. What people learn without noticing
+
+The same moments teach far more than BASIC, a little at a time:
+- **Studio itself:** shortcuts, the designer, the debugger.
+- **Programming:** loops, data, events, files, which carry over to every language.
+- **Design and 3D:** "why this layout reads better", "what a camera and a light do".
+- **Computers:** memory, files, the network, what a pixel is.
+- **Working with AI:** RAI shows *how* it reasoned and points out what made a request clear ("you told me the inputs and the result you wanted: that's why this worked"). People learn to collaborate with AI without a single lesson about it.
+
 ## Why this works with small local models
 
 Explaining code, asking about it and giving hints is much easier than building a program. A small local model like gemma-4-e4b can do it well, and RapidR feeds it the facts: the compiler's diagnostics, the registry, the debugger's values. **Free, offline, private**: nothing leaves the computer. That matters for schools.
