@@ -507,10 +507,10 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
         c.as_str().map(str::to_string).unwrap_or_else(|| c.as_array().unwrap().iter().filter_map(|b| b["text"].as_str()).collect())
     };
     let first = user_text(0, 0);
-    assert!(first.starts_with("Build me a stopwatch\n\n(RapidR Studio, not the user: a working RapidR program close to what the user wants") && first.contains("examples/recipes/stopwatch.rr") && first.contains("OnTimer = Tick"), "{first}");
-    assert!(!user_text(1, 1).contains("examples/recipes"), "{}", user_text(1, 1));
+    assert!(first.starts_with("Build me a stopwatch\n\n(RapidR Studio, not the user: a working RapidR program close to what the user wants") && first.contains("Recipe \"Stopwatch (timer)\"") && first.contains("OnTimer = Tick"), "{first}");
+    assert!(!user_text(1, 1).contains("a working RapidR program close to"), "{}", user_text(1, 1));
     let (t, _) = rapidr_ai::rai::peek(n);
-    assert!(!t.contains("examples/recipes"), "the transcript shows the user's words only: {t}");
+    assert!(!t.contains("a working RapidR program close to"), "the transcript shows the user's words only: {t}");
     assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("\"op\":\"context\""));
     // (read-only: no change can be made, no recipe sent)
     let (url2, server2) = mock(vec![text_answer("I can describe one.")]);
@@ -520,6 +520,6 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
     wait(n);
     let req: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
     let last = req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "user").unwrap().to_string();
-    assert!(last.contains("Build me a quiz game") && !last.contains("examples/recipes"), "{last}");
+    assert!(last.contains("Build me a quiz game") && !last.contains("a working RapidR program close to"), "{last}");
     let _ = std::fs::remove_dir_all(&dir);
 }

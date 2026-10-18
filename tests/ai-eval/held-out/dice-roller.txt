@@ -1,0 +1,5 @@
+# Held-out eval app: no recipe is this program.
+Build me a dice roller: a Roll button throws two dice and shows each one and their total
+#! test roll
+#! click /roll|throw/
+#! expect-changed /[1-9]/

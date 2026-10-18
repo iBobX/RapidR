@@ -1,0 +1,8 @@
+# Held-out eval app: no recipe is this program (the nearest is the tip
+# calculator) — how the assistant does beyond its recipes.
+Build me a BMI calculator: weight in kilograms and height in centimeters
+#! test bmi
+#! type /weight|kg|mass/ 70
+#! type /height|cm/ 175
+#! click? /calc|bmi|compute|^=$|^go$/
+#! expect /\b22\.(8|9)/

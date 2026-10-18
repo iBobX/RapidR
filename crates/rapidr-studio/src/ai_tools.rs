@@ -605,7 +605,7 @@ fn find_example(input: &Json) -> Outcome {
     };
     let others: Vec<&str> = found.iter().skip(1).take(2).map(|(_, r)| r.title.as_str()).collect();
     let more = if others.is_empty() { String::new() } else { format!("\nAlso close: {}.", others.join("; ")) };
-    ok(format!("{} (examples/recipes/{}), a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.file, best.code()), format!("Found an example: {}", best.title), "read", query)
+    ok(format!("Recipe \"{}\", a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.code()), format!("Found an example: {}", best.title), "read", query)
 }
 
 fn design(name: &str, input: &Json, p: &Project) -> Outcome {

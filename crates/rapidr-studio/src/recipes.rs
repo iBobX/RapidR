@@ -164,10 +164,10 @@ pub fn asks_for_new_program(question: &str, project_open: bool) -> bool {
 pub fn context_for(question: &str) -> Option<String> {
     let found = search(question);
     let (best, first) = found.first()?;
-    let mut out = format!("(RapidR Studio, not the user: a working RapidR program close to what the user wants — start from it and adapt it; keep what works: its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.)\n\n{} (examples/recipes/{}):\n```basic\n{}\n```", first.title, first.file, first.code());
+    let mut out = format!("(RapidR Studio, not the user: a working RapidR program close to what the user wants — start from it and adapt it; keep what works: its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.)\n\nRecipe \"{}\" (its file in the new project: main.rr):\n```basic\n{}\n```", first.title, first.code());
     if let Some((second, r)) = found.get(1) {
         if *second >= best * 0.75 && first.text.len() + r.text.len() < 6000 {
-            out.push_str(&format!("\n\nAnother close one, {} (examples/recipes/{}):\n```basic\n{}\n```", r.title, r.file, r.code()));
+            out.push_str(&format!("\n\nAnother close one, recipe \"{}\":\n```basic\n{}\n```", r.title, r.code()));
         }
     }
     Some(out)
@@ -232,7 +232,7 @@ mod tests {
     fn the_context_is_the_recipe_as_data() {
         let c = context_for("Build me a scientific calculator app").unwrap();
         assert!(c.starts_with("(RapidR Studio, not the user: a working RapidR program close to what the user wants"), "{c}");
-        assert!(c.contains("examples/recipes/calculator.rr") && c.contains("SUB KeyPress (Sender AS RButton)"), "{c}");
+        assert!(c.contains("Recipe \"Calculator (basic and scientific)\" (its file in the new project: main.rr)") && !c.contains("examples/recipes") && c.contains("SUB KeyPress (Sender AS RButton)"), "{c}");
         // (about 2K tokens at most: a small model's window is 8K and more)
         assert!(c.len() < 9000, "{}", c.len());
     }
