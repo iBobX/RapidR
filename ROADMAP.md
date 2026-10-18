@@ -615,6 +615,7 @@ In order of how many showcase ideas each unlocks:
   - WCAG 2.2: never uninvited, always resumable, captions, keyboard and screen reader;
   - every lesson replayed as a test.
   - First 8 lessons from Welcome to Data in 10 minutes.
+- [ ] **Small local models that build real apps** (Robert, 2026-10-18; plan: [docs/small-models-plan.md](docs/small-models-plan.md)): Studio is the brain, the model the hands. Recipes pushed by Studio (BM25, optional EmbeddingGemma), `layout`/`check_layout` tools, friendly hints for other-language habits, spec-first with one handler at a time, click-tested evals; post only with measured numbers.
 - [ ] **Learn with RAI** (Robert, 2026-10-18; plan: [docs/learn-with-rai-plan.md](docs/learn-with-rai-plan.md)): the assistant that teaches. A Build / Pair / Coach / Quiz-me dial; a *why* per change; friendly errors with a hint before the fix; just-in-time tips on a budget; the infinite-loop catcher; Predict, then Run; marks for your code vs the AI's code; Teach-the-AI mode; a skill map with spaced review that stays local (COPPA: no accounts, nothing collected).
 
 ## Phase 4 — AI in the IDE (~6 weeks)
