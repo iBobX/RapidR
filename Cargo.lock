@@ -4266,6 +4266,7 @@ dependencies = [
  "rapidr-project",
  "rapidr-session",
  "rapidr-value",
+ "regex",
  "serde_json",
 ]
 

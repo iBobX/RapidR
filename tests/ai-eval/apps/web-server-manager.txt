@@ -1,0 +1,15 @@
+# Eval app: the web-server manager's GUI (the shape of Robert's 2026-10-18
+# conversation, in one request).
+Build me a web server manager GUI: a list of sites with their status (running or stopped), and Start, Stop and Restart buttons
+#! test start
+#! pick #list 1
+#! click /stop/
+#! baseline
+#! click /start/
+#! expect-changed /run|start|on\b|active|up\b/
+#! test stop
+#! pick #list 1
+#! click /start/
+#! baseline
+#! click /stop/
+#! expect-changed /stop|off\b|down|inactive|halt/

@@ -1,0 +1,9 @@
+# Eval app: Robert's scientific calculator (his exact two turns, 2026-10-18).
+Build me a scientific calculator app
+Regular scientific calculator. GUI.
+#! test add
+#! click 2
+#! click +
+#! click 3
+#! click =
+#! expect /^\s*5(\.0*)?\s*$/

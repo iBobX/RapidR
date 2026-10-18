@@ -1,0 +1,5 @@
+# Eval app: a drawing pad.
+Build me a drawing pad: draw with the mouse, pick a colour, and a Clear button
+#! test draw
+#! drag #canvas 30 30 140 110
+#! expect-picture-changed

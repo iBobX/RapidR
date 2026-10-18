@@ -1,0 +1,8 @@
+# Eval app: a tip calculator. One user turn; then the click test (#! lines,
+# read by ai_eval's scoring: tests/ai-eval/README.md).
+Build me a tip calculator
+#! test tip
+#! type /bill|amount|check|price|cost|total|subtotal/ 100
+#! type? /tip|percent|%|rate/ 20
+#! click? /calc|compute|^=$|^tip$|^ok$|^go$|total/
+#! expect /\b1(15|18|20)(\.0+)?\b|\b(15|18|20)\.0+\b/

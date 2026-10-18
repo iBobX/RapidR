@@ -1,0 +1,14 @@
+# Eval app: a to-do list (add and remove).
+Build me a to-do list app where I can add and remove tasks
+#! test add
+#! type /task|item|todo|to-do|new|text|entry|input/ buy milk
+#! click /add/
+#! expect-count +1
+#! test remove
+#! type /task|item|todo|to-do|new|text|entry|input/ buy milk
+#! click /add/
+#! type /task|item|todo|to-do|new|text|entry|input/ call bob
+#! click /add/
+#! pick #list 0
+#! click /remove|delete|done/
+#! expect-count +1

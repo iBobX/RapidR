@@ -1,0 +1,6 @@
+# Eval app: a unit converter.
+Build me a unit converter from kilometers to miles
+#! test convert
+#! type /km|kilo|input|value|from/ 10
+#! click? /convert|^=$|^go$|calc/
+#! expect /\b6\.21/
