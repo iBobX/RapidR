@@ -37,7 +37,12 @@ Big models keep today's free agent mode. Small-model mode switches on by itself 
 - **The search, local and private:**
   - **BM25 keyword search** over recipes, examples and manual snippets. It needs no model and no download; we start here.
   - **Optional embeddings:** EmbeddingGemma (about 300M parameters) through the local server's embeddings endpoint (mlx-serve lists embedding support), or any OpenAI-compatible `/v1/embeddings`. Vectors for the recipes are computed once and cached.
-  - **Legal:** Gemma weights are under Google's Gemma terms, not an OSI licence. We never ship them; the user downloads them in their own server.
+  - **Legal (checked 2026-10-18 on Hugging Face):**
+    - **Gemma 4** (E4B and the rest) is **Apache-2.0** per Google's model card. The mlx-community 4-bit copy still carries an old "gemma" tag, so we link to Google's card.
+    - **EmbeddingGemma** is still under the older, gated Gemma Terms of Use, so it can only be the user's own choice, never required or recommended by default.
+    - **MiMo-V2.6-Distill-Qwen-9B** is MIT (Xiaomi).
+    - We never ship weights: Studio talks to whatever OpenAI-compatible server the user runs.
+    - "Gemma" and "Qwen" are trademarks: name them plainly, with no logos and no implied endorsement.
 - **Automatic facts on errors:** when check_code reports an unknown component, property or method, Studio attaches `rapidr_describe`'s entry to the error itself, so the model doesn't have to think of asking.
 
 ## 2. Studio builds the hard parts
