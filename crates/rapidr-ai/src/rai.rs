@@ -23,7 +23,11 @@
 //! * **Token economy**: the stable instructions first (cached by the
 //!   providers), what changes last; earlier turns' tool results left out
 //!   once answered; past SummaryAt tokens the conversation is summarised in
-//!   one short request; MaxTokens caps each reply; InputTokens /
+//!   one short request; MaxTokens caps each reply, never past what the
+//!   model's context window leaves (a compatible server's models list says
+//!   the window: asked before the turn's first request); a conversation
+//!   near 70% of the window has its earlier tool results and file texts
+//!   replaced by short notes; InputTokens /
 //!   OutputTokens / CachedTokens / Usage / Cost meter the session (Cost
 //!   from the prices the user gives: PriceIn / PriceOut, $ a million).
 //! * **Audit**: with Audit on, every request, tool call and decision goes
@@ -50,6 +54,105 @@ pub const DEFAULT_SUMMARY_AT: i64 = 40_000;
 /// A models list's waits: 10 s to connect, 30 s for the answer, one more
 /// try after a passing refusal.
 pub const MODELS_OPTIONS: Options = Options { connect_timeout: 10, read_timeout: 30, retries: 1 };
+/// A reply's cap for an OpenAI-compatible server whose model's context
+/// window isn't known: a local model's window is often small, and a reply
+/// that may run as long as it likes keeps a local GPU busy long after the
+/// question was given up on.
+pub const UNKNOWN_WINDOW_REPLY: u32 = 4096;
+/// A reply's cap for a model on this computer, whatever its window: what
+/// it writes in one go (a whole program file fits) in a minute or two; a
+/// local server keeps writing a reply nobody waits for any more.
+pub const LOCAL_REPLY: u32 = 4096;
+/// Seconds a model on this computer may go quiet before the answer is
+/// given up on.
+pub const LOCAL_READ_TIMEOUT: u64 = 300;
+/// The window assumed for a compatible server's model that doesn't say
+/// its own (a small local model's usual), for the context budget.
+pub const ASSUMED_LOCAL_WINDOW: u64 = 16_384;
+/// The status after a turn whose answer said it changed something, asked
+/// once to make the change for real, and still made none.
+pub const CLAIM_STATUS: &str = "The assistant described a change but didn't make one. Ask again, or try a larger model.";
+
+/// A reply's cap for a model of `window` tokens: a quarter of it, between
+/// 256 and 8,192 (the rest is the conversation's).
+pub fn reply_cap(window: u64) -> u32 {
+    (window / 4).clamp(256, 8192) as u32
+}
+
+/// How long a message is, in characters, as a request sends it.
+fn message_chars(m: &Message) -> usize {
+    m.content
+        .iter()
+        .map(|b| match b {
+            Block::Text(t) => t.len(),
+            Block::ToolUse { name, input, .. } => name.len() + input.to_string().len(),
+            Block::ToolResult { content, .. } => content.len(),
+            Block::Opaque(v) => v.to_string().len(),
+        })
+        .sum::<usize>()
+        + 16
+}
+
+/// A note in place of a long text left out of the conversation.
+const LEFT_OUT: &str = "left out to save the model's context";
+
+/// `input` with every long string in it (a file's text in write_file,
+/// propose_edit, create_project, check_code) replaced by a short note;
+/// how many were.
+fn stub_strings(v: &mut Json) -> usize {
+    match v {
+        Json::String(t) if t.len() > 300 && !t.starts_with('[') => {
+            *t = format!("[{} lines, {LEFT_OUT}: read_file gives the current text]", t.lines().count());
+            1
+        }
+        Json::Array(a) => a.iter_mut().map(stub_strings).sum(),
+        Json::Object(o) => o.values_mut().map(stub_strings).sum(),
+        _ => 0,
+    }
+}
+
+/// Earlier messages (`messages[..end]`) made short: tool results and the
+/// long texts in tool calls replaced by notes, long answers cut. How many
+/// were.
+fn stub_before(messages: &mut [Message], end: usize) -> usize {
+    // (each call's tool and file, for its result's note)
+    let mut calls: HashMap<String, String> = HashMap::new();
+    for m in messages.iter() {
+        for b in &m.content {
+            if let Block::ToolUse { id, name, input } = b {
+                let path = input.get("path").or_else(|| input.get("name")).and_then(Json::as_str).unwrap_or("");
+                calls.insert(id.clone(), if path.is_empty() { name.clone() } else { format!("{name} {path}") });
+            }
+        }
+    }
+    let mut n = 0;
+    for m in messages.iter_mut().take(end) {
+        let role = m.role;
+        for b in &mut m.content {
+            match b {
+                Block::ToolResult { id, content, .. } if content.len() > 200 && !content.starts_with('[') => {
+                    let what = calls.get(id.as_str()).cloned().unwrap_or_else(|| "a tool".into());
+                    *content = format!("[{what}: {} lines, {LEFT_OUT} — call it again for the current text]", content.lines().count());
+                    n += 1;
+                }
+                Block::ToolUse { input, .. } => n += stub_strings(input),
+                Block::Text(t) => {
+                    let keep = if role == Role::Assistant { 600 } else { 3000 };
+                    if t.len() > keep * 3 {
+                        let mut cut = keep;
+                        while !t.is_char_boundary(cut) {
+                            cut -= 1;
+                        }
+                        *t = format!("{}\n[… the rest {LEFT_OUT}]", &t[..cut]);
+                        n += 1;
+                    }
+                }
+                Block::Opaque(_) | Block::ToolResult { .. } => {}
+            }
+        }
+    }
+    n
+}
 
 /// How a runtime fires a component's event.
 pub trait Fire: Copy {
@@ -84,6 +187,14 @@ pub trait ToolProvider {
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome;
     /// One sentence on what the turn left (changes to review), if anything.
     fn turn_status(&self) -> Option<String>;
+    /// The turn's last answer, `answer` to the user's `question`, made no
+    /// tool call: what to tell the model when it should have — the answer
+    /// says it changed something nothing changed ("I am proposing the
+    /// edit…" with no proposal), or the user said to go ahead — sent once a
+    /// turn, as the conversation's next message. `None`: nothing to say.
+    fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
+        None
+    }
 }
 
 /// Makes the tool provider of `component` for `kind`, attached to RAI
@@ -107,6 +218,9 @@ enum Job {
     Chat,
     Models,
     Summary,
+    /// (a compatible server) Its models list, asked before a chat request
+    /// for the model's context window: no event, nothing shown.
+    Probe,
 }
 
 struct Run {
@@ -151,6 +265,30 @@ struct Ai {
     read: Vec<String>,
     /// (OpenAI) what each model answered about reasoning_effort with tools.
     reasoning: HashMap<String, bool>,
+    /// The models' context windows the provider's lists gave (tokens), and
+    /// whether each is the one the model runs with (a server may give an
+    /// unloaded model's largest).
+    windows: HashMap<String, (u64, bool)>,
+    /// Models whose window the server doesn't say (not asked again).
+    unsaid: Vec<String>,
+    /// (this turn) models lists asked for the window; chat requests sent;
+    /// the model asked to make the change it described; it still didn't;
+    /// a too long conversation sent again, shorter.
+    probes: u32,
+    chats: u32,
+    nudged: bool,
+    claim_left: bool,
+    too_long_retried: bool,
+    /// The next request made shorter than the budget (the server refused
+    /// it as too long without saying its window).
+    squeeze: bool,
+    /// The server refused `stream_options`.
+    no_stream_usage: bool,
+    /// The last chat request's size in characters (with `last_input`, the
+    /// characters a token takes).
+    last_chars: usize,
+    /// The turn's question, as the user asked it.
+    question: String,
     changed: bool,
     tokens: String,
     events: Vec<(&'static str, Vec<Value>)>,
@@ -217,9 +355,146 @@ impl Ai {
         crate::provider(&self.provider)
     }
 
+    /// A reply's cap: MaxTokens, never more than the model's window leaves
+    /// for it ([`reply_cap`]); for a compatible server whose window isn't
+    /// known, at most [`UNKNOWN_WINDOW_REPLY`].
     fn max_tokens(&self) -> u32 {
         let m = if self.max_tokens <= 0 { DEFAULT_MAX_TOKENS } else { self.max_tokens };
-        m.clamp(16, 128_000) as u32
+        let m = m.clamp(16, 128_000) as u32;
+        let m = if self.on_this_computer() { m.min(LOCAL_REPLY) } else { m };
+        match self.window() {
+            Some(w) => m.min(reply_cap(w)),
+            None if self.local() => m.min(UNKNOWN_WINDOW_REPLY),
+            None => m,
+        }
+    }
+
+    /// An OpenAI-compatible server (a local model, often small).
+    fn local(&self) -> bool {
+        self.provider == "compatible"
+    }
+
+    /// A compatible server on this computer (its default, Ollama's, is).
+    fn on_this_computer(&self) -> bool {
+        self.local() && (self.base_url.trim().is_empty() || crate::provider::loopback_url(&self.base_url).is_ok())
+    }
+
+    /// The model's context window, when the provider said it (and it is
+    /// the one the model runs with).
+    fn window(&self) -> Option<u64> {
+        self.windows.get(&self.model).filter(|(_, sure)| *sure).map(|(w, _)| *w)
+    }
+
+    /// The window the conversation is kept within: the model's; a
+    /// compatible server's model that doesn't say, [`ASSUMED_LOCAL_WINDOW`]
+    /// (or less, when its largest is less); a cloud model's that doesn't
+    /// say: none (they take far more than a conversation needs).
+    fn budget_window(&self) -> Option<u64> {
+        self.window().or_else(|| self.local().then(|| self.windows.get(&self.model).map_or(ASSUMED_LOCAL_WINDOW, |(w, _)| (*w).min(ASSUMED_LOCAL_WINDOW))))
+    }
+
+    /// The characters a token takes, from the last request's size and the
+    /// tokens the provider counted (3 until it has said: code and JSON
+    /// take fewer than prose).
+    fn chars_per_token(&self) -> f64 {
+        if self.last_input > 0 && self.last_chars > 0 {
+            (self.last_chars as f64 / self.last_input as f64).clamp(2.0, 6.0)
+        } else {
+            3.0
+        }
+    }
+
+    /// Another server: what was learnt of the last one is forgotten.
+    fn forget_server(&mut self) {
+        self.windows.clear();
+        self.unsaid.clear();
+        self.no_stream_usage = false;
+        self.last_chars = 0;
+        self.last_input = 0;
+    }
+
+    /// The models' windows a models list gives.
+    fn learn_windows(&mut self, models: &[ModelInfo]) {
+        for m in models.iter().filter(|m| m.context > 0) {
+            let sure = m.loaded != Some(false);
+            // (an unloaded model's largest window never replaces the one it
+            // was seen running with)
+            if !sure && self.windows.get(&m.id).is_some_and(|(_, s)| *s) {
+                continue;
+            }
+            self.windows.insert(m.id.clone(), (m.context, sure));
+        }
+    }
+
+    /// Before a chat request to a compatible server: whether to ask its
+    /// models list for the model's window first (at the turn's first
+    /// request; once more after a reply when the list gave an unloaded
+    /// model's largest — loaded now, it says its own).
+    fn wants_probe(&self) -> bool {
+        self.local() && self.window().is_none() && !self.unsaid.contains(&self.model) && (self.probes == 0 || (self.probes == 1 && self.chats > 0))
+    }
+
+    /// The conversation kept within the window's budget (70% of it, less
+    /// the reply's cap): earlier tool results and the files' texts in
+    /// earlier tool calls replaced by short notes, from the oldest — the
+    /// last two questions and what followed them whole while that is
+    /// enough, then only the last, then only its last exchange; past that,
+    /// the oldest exchanges left out. The instructions, the tools and the
+    /// question are never cut; the current text of a file is a read_file
+    /// away. `fixed`: the instructions' and the tools' characters.
+    /// Returns (estimated tokens before, after, notes made).
+    fn compact(&mut self, fixed: usize) -> (u64, u64, usize) {
+        let cpt = self.chars_per_token();
+        let tokens = |msgs: &[Message]| ((fixed + msgs.iter().map(message_chars).sum::<usize>()) as f64 / cpt) as u64;
+        let before = tokens(&self.messages);
+        let Some(w) = self.budget_window() else { return (before, before, 0) };
+        let mut budget = (w * 7 / 10).min(w.saturating_sub(u64::from(self.max_tokens()) + 256));
+        if std::mem::take(&mut self.squeeze) {
+            budget = budget.min(before * 6 / 10);
+        }
+        if before <= budget {
+            return (before, before, 0);
+        }
+        let questions: Vec<usize> = self.messages.iter().enumerate().filter(|(_, m)| m.role == Role::User && !m.text().trim().is_empty()).map(|(i, _)| i).collect();
+        let mut stages: Vec<usize> = Vec::new();
+        if questions.len() >= 2 {
+            stages.push(questions[questions.len() - 2]);
+        }
+        if let Some(&q) = questions.last() {
+            stages.push(q);
+        }
+        // (inside the turn: all but its last request's calls and results)
+        if let Some(last) = self.messages.iter().rposition(|m| m.role == Role::Assistant) {
+            stages.push(last);
+        }
+        let mut n = 0;
+        for end in stages {
+            n += stub_before(&mut self.messages, end);
+            if tokens(&self.messages) <= budget {
+                return (before, tokens(&self.messages), n);
+            }
+        }
+        // (still too long: the oldest exchanges left out, up to the last
+        // question, which stays — with a word that something is missing)
+        const MISSING: &str = "(Earlier messages of this conversation were left out to fit the model's context.)\n\n";
+        let mut dropped = false;
+        while tokens(&self.messages) > budget {
+            let qs: Vec<usize> = self.messages.iter().enumerate().filter(|(i, m)| *i > 0 && m.role == Role::User && !m.text().trim().is_empty()).map(|(i, _)| i).collect();
+            let Some(&next) = qs.first() else { break };
+            self.messages.drain(..next);
+            n += 1;
+            dropped = true;
+        }
+        if dropped {
+            if let Some(first) = self.messages.first_mut() {
+                // (results of calls left out go too: a result needs its call)
+                first.content.retain(|b| !matches!(b, Block::ToolResult { .. }));
+                if !matches!(first.content.first(), Some(Block::Text(t)) if t == MISSING) {
+                    first.content.insert(0, Block::Text(MISSING.into()));
+                }
+            }
+        }
+        (before, tokens(&self.messages), n)
     }
 
     fn key(&self) -> (Option<String>, keys::Source) {
@@ -329,26 +604,52 @@ impl Ai {
     }
 
     fn start(&mut self, job: Job, req: crate::wire::HttpRequest, format: crate::Format) -> Result<(), String> {
-        self.last_request = req.redacted();
+        // ("what was sent": what the user's words went in, not the models
+        // list asked on the way)
+        if job != Job::Probe {
+            self.last_request = req.redacted();
+        }
         let id = next_id();
         // (a models list is a small answer the user waits for, a button
         // greyed meanwhile: given up on sooner than an answer a model
         // thinks over)
-        let opts = if job == Job::Models { MODELS_OPTIONS } else { Options::default() };
+        // (a model on this computer may go quiet for minutes while it writes
+        // a tool call — a local server sends the call whole, at its end —
+        // and giving up doesn't stop it there: it is waited for longer)
+        let opts = if matches!(job, Job::Models | Job::Probe) {
+            MODELS_OPTIONS
+        } else if crate::provider::loopback_url(&req.url).is_ok() {
+            Options { read_timeout: LOCAL_READ_TIMEOUT, ..Options::default() }
+        } else {
+            Options::default()
+        };
         http::start(id, req, opts)?;
         self.running = Some(Run { id, job, status: 0, retry_after: None, body: Vec::new(), decoder: Decoder::new(format), reply: Reply::default() });
         Ok(())
     }
 
     fn start_chat(&mut self, ep: &Endpoint) -> Result<(), String> {
+        if self.wants_probe() {
+            self.probes += 1;
+            self.start(Job::Probe, wire::models_request(ep), ep.provider.format)?;
+            self.status = "Answering…".into();
+            return Ok(());
+        }
         let tools = self.tool_list();
         let (system, system_tail) = self.prompts();
+        let fixed = system.len() + system_tail.len() + tools.iter().map(|t| t.name.len() + t.description.len() + t.input_schema.to_string().len()).sum::<usize>();
+        let (before, after, cut) = self.compact(fixed);
+        if cut > 0 {
+            self.audit_log("compact", json!({"tokensBefore": before, "tokensAfter": after, "cut": cut, "window": self.budget_window()}));
+        }
         let reasoning_effort = wire::reasoning_for(ep.provider, &self.model, !tools.is_empty(), self.reasoning.get(&self.model).copied());
-        let req = ChatRequest { model: self.model.clone(), system, system_tail, messages: self.messages.clone(), tools, max_tokens: self.max_tokens(), reasoning_effort };
+        let req = ChatRequest { model: self.model.clone(), system, system_tail, messages: self.messages.clone(), tools, max_tokens: self.max_tokens(), reasoning_effort, no_stream_usage: self.no_stream_usage };
         let n = (req.messages.len(), req.tools.len(), req.max_tokens);
+        self.last_chars = fixed + req.messages.iter().map(message_chars).sum::<usize>();
         self.start(Job::Chat, wire::chat_request(ep, &req), ep.provider.format)?;
+        self.chats += 1;
         self.status = "Answering…".into();
-        self.audit_log("request", json!({"messages": n.0, "tools": n.1, "maxTokens": n.2}));
+        self.audit_log("request", json!({"messages": n.0, "tools": n.1, "maxTokens": n.2, "promptEstimate": after, "window": self.window()}));
         Ok(())
     }
 
@@ -368,6 +669,11 @@ impl Ai {
             t.begin_turn();
         }
         self.tool_calls = 0;
+        self.probes = 0;
+        self.chats = 0;
+        self.nudged = false;
+        self.claim_left = false;
+        self.too_long_retried = false;
         self.read.clear();
         self.turn_usage = Usage::default();
         self.error.clear();
@@ -378,6 +684,7 @@ impl Ai {
             _ => self.messages.push(Message::user(text)),
         }
         self.say("user", text);
+        self.question = text.to_string();
         self.say("assistant", "");
         self.audit_log("ask", json!({"chars": text.chars().count(), "digest": digest(&json!(text))}));
         if let Err(e) = self.start_chat(&ep) {
@@ -451,7 +758,7 @@ impl Ai {
                 run.retry_after = retry_after;
             }
             Incoming::Data(d) => {
-                if run.status == 200 && run.job != Job::Models {
+                if run.status == 200 && !matches!(run.job, Job::Models | Job::Probe) {
                     let job = run.job;
                     let events = run.decoder.feed(&d);
                     for e in &events {
@@ -476,8 +783,39 @@ impl Ai {
         }
     }
 
+    /// The turn goes on with another chat request (after a tool call, a
+    /// models list, a refusal worth answering): `false` when it couldn't
+    /// start (then the turn failed, saying why).
+    fn go_on(&mut self) -> bool {
+        match self.endpoint().and_then(|ep| self.start_chat(&ep)) {
+            Ok(()) => true,
+            Err(e) => {
+                self.fail(e);
+                false
+            }
+        }
+    }
+
     fn finished(&mut self, mut run: Run, result: Result<(), String>) {
         let p = self.provider().unwrap_or(&crate::PROVIDERS[3]);
+        if run.job == Job::Probe {
+            // (the window, when the list says it; whatever the answer, the
+            // question goes on)
+            if result.as_ref().is_err_and(|e| e == "stopped") {
+                return;
+            }
+            let body = String::from_utf8_lossy(&run.body).to_string();
+            if result.is_ok() && run.status == 200 {
+                if let Ok(models) = wire::parse_models(p, &body) {
+                    self.learn_windows(&models);
+                }
+            }
+            if !self.windows.contains_key(&self.model) && !self.unsaid.contains(&self.model) {
+                self.unsaid.push(self.model.clone());
+            }
+            self.go_on();
+            return;
+        }
         if let Err(e) = result {
             if e == "stopped" {
                 return;
@@ -499,13 +837,38 @@ impl Ai {
                         }
                     }
                 }
+                // (a server that doesn't know stream_options: asked again
+                // without it)
+                if !self.no_stream_usage && wire::stream_usage_refusal(run.status, &body) {
+                    self.no_stream_usage = true;
+                    self.go_on();
+                    return;
+                }
+                // (too long for the model: its window learnt when the
+                // server says it, the conversation made shorter, asked
+                // again once)
+                let e = wire::explain_error(p, run.status, &body, run.retry_after, &self.model);
+                if e.kind == wire::ErrorKind::TooLong && !self.too_long_retried {
+                    self.too_long_retried = true;
+                    match wire::context_from_error(&body) {
+                        Some(w) => {
+                            self.windows.insert(self.model.clone(), (w, true));
+                        }
+                        None => self.squeeze = true,
+                    }
+                    self.audit_log("too-long", json!({"window": self.window()}));
+                    self.go_on();
+                    return;
+                }
             }
             self.fail(wire::explain_error(p, run.status, &body, run.retry_after, &self.model).message);
             return;
         }
         match run.job {
+            Job::Probe => {}
             Job::Models => match wire::parse_models(p, &body) {
                 Ok(models) => {
+                    self.learn_windows(&models);
                     let n = models.len();
                     // (a model chosen before and no longer listed: chosen again)
                     if !self.model.is_empty() && !models.iter().any(|m| m.id == self.model) {
@@ -546,22 +909,56 @@ impl Ai {
                 self.usage.add(run.reply.usage);
                 self.turn_usage.add(run.reply.usage);
                 self.last_input = run.reply.usage.input;
+                let calls = run.reply.tool_calls();
+                self.audit_log("reply", json!({"inputTokens": run.reply.usage.input, "outputTokens": run.reply.usage.output, "stop": run.reply.stop, "toolCalls": calls.len()}));
                 if let Some(e) = run.reply.error.clone() {
-                    self.fail(format!("{} stopped answering: {e}", wire::short_name(p)));
+                    // (a stream that stopped as too long, or short of memory:
+                    // as the refusal — made shorter, asked again once)
+                    let said = json!({"error": {"message": e}}).to_string();
+                    let explained = wire::explain_error(p, 400, &said, None, &self.model);
+                    let too_long = explained.kind == wire::ErrorKind::TooLong || e.to_ascii_lowercase().contains("does not fit");
+                    if too_long && !self.too_long_retried {
+                        self.too_long_retried = true;
+                        match wire::context_from_error(&said) {
+                            Some(w) => {
+                                self.windows.insert(self.model.clone(), (w, true));
+                            }
+                            None => self.squeeze = true,
+                        }
+                        self.audit_log("too-long", json!({"window": self.window()}));
+                        self.go_on();
+                        return;
+                    }
+                    self.fail(if too_long { explained.message } else { format!("{} stopped answering: {e}", wire::short_name(p)) });
                     return;
                 }
-                let calls = run.reply.tool_calls();
                 if !run.reply.blocks.is_empty() {
                     self.messages.push(run.reply.message());
                 }
                 let text = run.reply.text();
                 if !text.trim().is_empty() {
                     self.answer = text.clone();
-                    self.events.push(("onmessage", vec![s(text)]));
+                    self.events.push(("onmessage", vec![s(text.clone())]));
                 }
                 if !calls.is_empty() {
                     self.run_tools(calls);
                     return;
+                }
+                // (an answer that says it changed something, and nothing
+                // did — or no change after the user said to go ahead: the
+                // model is asked once to make the change for real; an answer
+                // still saying so with nothing changed, and the status says so)
+                let nudge = self.tools.iter().find_map(|(_, _, t)| t.nudge(&self.question, &text));
+                if let Some(nudge) = nudge {
+                    if !self.nudged && run.reply.stop != "max_tokens" {
+                        self.nudged = true;
+                        self.messages.push(Message::user(&nudge));
+                        self.note("No change was made in this answer: the assistant was asked to make it.");
+                        self.audit_log("nudge", json!({}));
+                        self.go_on();
+                        return;
+                    }
+                    self.claim_left = crate::claims::claims_change(&text);
                 }
                 match run.reply.stop.as_str() {
                     "max_tokens" => self.note(&format!("The answer reached its length limit ({} tokens).", self.max_tokens())),
@@ -592,8 +989,10 @@ impl Ai {
     }
 
     fn end_turn(&mut self) {
-        self.status = self.tools.iter().find_map(|(_, _, t)| t.turn_status()).unwrap_or_else(|| "Answered.".into());
-        self.audit_log("answer", json!({"toolCalls": self.tool_calls, "inputTokens": self.turn_usage.input, "outputTokens": self.turn_usage.output, "provenance": self.read}));
+        // (what the turn left to review first; then an answer that says it
+        // changed what nothing changed; else it answered)
+        self.status = self.tools.iter().find_map(|(_, _, t)| t.turn_status()).or_else(|| self.claim_left.then(|| CLAIM_STATUS.to_string())).unwrap_or_else(|| "Answered.".into());
+        self.audit_log("answer", json!({"toolCalls": self.tool_calls, "inputTokens": self.turn_usage.input, "outputTokens": self.turn_usage.output, "provenance": self.read, "nudged": self.nudged, "claimLeft": self.claim_left}));
         // (past SummaryAt tokens: one short request summarises the
         // conversation, and the next questions start from the summary)
         let at = if self.summary_at <= 0 { DEFAULT_SUMMARY_AT } else { self.summary_at } as u64;
@@ -624,6 +1023,7 @@ impl Ai {
             tools: Vec::new(),
             max_tokens: 700,
             reasoning_effort: None,
+            no_stream_usage: self.no_stream_usage,
         };
         self.start(Job::Summary, wire::chat_request(ep, &req), ep.provider.format)?;
         self.status = "Summarising the conversation, to keep it cheap…".into();
@@ -763,6 +1163,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                     a.stale_models();
                     a.models.clear();
                     a.key.clear();
+                    a.forget_server();
                 }
                 a.provider = id;
             }
@@ -770,6 +1171,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "baseurl" => {
                 if t.trim() != a.base_url {
                     a.stale_models();
+                    a.forget_server();
                 }
                 a.base_url = t.trim().to_string();
             }

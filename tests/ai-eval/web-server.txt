@@ -1,0 +1,11 @@
+# Robert's conversation with RapidR Studio's assistant (2026-10-18), replayed
+# by crates/rapidr-studio/examples/ai_eval.rs: one user turn a line.
+Let's build a web server manager with a GUI. It needs Start, Restart, Stop, Settings and Sites buttons, and a list with all the sites it serves and their status (running or stopped). Make sense? Ask me questions.
+Yes, let's go step by step. Simple first.
+Sure, go ahead, write all.
+Implement the server. Structure everything module by module, then we go step by step.
+Yes, don't ask that much, just do. I need to approve anyways.
+continue
+Just implement. Keep working in the real thing.
+Ok
+Don't ask that much. Just do!

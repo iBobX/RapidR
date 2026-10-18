@@ -74,6 +74,9 @@ pub struct ChatRequest {
     /// current models take function tools in Chat Completions only with
     /// `none` ([`crate::wire::reasoning_for`]).
     pub reasoning_effort: Option<String>,
+    /// (OpenAI-compatible) Don't ask a streamed answer for its usage: the
+    /// server refused `stream_options` once.
+    pub no_stream_usage: bool,
 }
 
 /// Tokens a request used, as the provider reports them.

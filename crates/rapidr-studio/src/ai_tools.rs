@@ -249,10 +249,12 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "rapidr_list" | "rapidr_get" => design(name, input, project),
         "check_code" => check(input, project),
         "propose_edit" | "write_file" | "create_project" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
-        "propose_edit" => propose_edit(input, project, proposals),
-        "write_file" => write_file(input, project, proposals),
-        "create_project" => create_project(input, proposals),
-        other => err(format!("there is no tool `{other}`"), format!("{other}: no such tool"), ""),
+        // (a proposing tool's risk is a proposal's, whether it fitted or not:
+        // the audit log says what was tried)
+        "propose_edit" => Outcome { risk: "state", ..propose_edit(input, project, proposals) },
+        "write_file" => Outcome { risk: "state", ..write_file(input, project, proposals) },
+        "create_project" => Outcome { risk: "state", ..create_project(input, proposals) },
+        other => err(format!("there is no tool `{other}`: the tools are {}", tools(may_propose).iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")), format!("{other}: no such tool"), ""),
     }
 }
 
@@ -439,6 +441,159 @@ fn design(name: &str, input: &Json, p: &Project) -> Outcome {
     }
 }
 
+/// A source line's statements (split at `:` outside strings, the comment
+/// gone), each with the byte column it starts at.
+fn statements(line: &str) -> Vec<(usize, &str)> {
+    let mut out = Vec::new();
+    let mut start = 0;
+    let mut quoted = false;
+    for (i, c) in line.char_indices() {
+        match c {
+            '"' => quoted = !quoted,
+            '\'' if !quoted => {
+                out.push((start, &line[start..i]));
+                return out;
+            }
+            ':' if !quoted => {
+                out.push((start, &line[start..i]));
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    out.push((start, &line[start..]));
+    out
+}
+
+/// The member of `c` most like `name` (ColumnCount → ColCount), when one is
+/// close: the same start and end, most of the name.
+fn nearest_member(c: &rapidr_lang::Component, name: &str) -> Option<String> {
+    let want = name.to_ascii_lowercase();
+    let score = |m: &str| -> f64 {
+        let m = m.to_ascii_lowercase();
+        let pre = want.chars().zip(m.chars()).take_while(|(a, b)| a == b).count();
+        let suf = want.chars().rev().zip(m.chars().rev()).take_while(|(a, b)| a == b).count();
+        let (pre, suf) = (pre.min(m.len()), suf.min(m.len().saturating_sub(pre)));
+        if pre < 2 { 0.0 } else { (pre + suf) as f64 / want.len().max(m.len()) as f64 }
+    };
+    let names = c.properties.iter().map(|p| p.name).chain(c.events.iter().map(|e| e.name));
+    names.map(|n| (score(n), n)).filter(|(s, _)| *s >= 0.5).max_by(|a, b| a.0.total_cmp(&b.0)).map(|(_, n)| n.to_string())
+}
+
+/// A statement's assignment target (`Caption`, `List1.ColumnWidths`,
+/// `.Width`, `Font.Size`, `Cell(1, 2)`): the text before a top-level `=`,
+/// when it is one.
+fn assigned(stmt: &str) -> Option<&str> {
+    let mut depth = 0i32;
+    let mut quoted = false;
+    for (i, c) in stmt.char_indices() {
+        match c {
+            '"' => quoted = !quoted,
+            '(' if !quoted => depth += 1,
+            ')' if !quoted => depth -= 1,
+            '=' | '<' | '>' if !quoted && depth == 0 => {
+                if c != '=' {
+                    return None;
+                }
+                let lhs = stmt[..i].trim();
+                let head = lhs.split(['(', ' ']).next().unwrap_or("");
+                let ok = !head.is_empty() && head.chars().all(|ch| ch.is_alphanumeric() || ch == '_' || ch == '.' || ch == '$') && !lhs.contains(' ');
+                return ok.then_some(lhs);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Assignments to a property a component doesn't have — `ColumnWidths =
+/// 250` in an RListBox's CREATE block, `List1.ColumnWidths = 250` — which
+/// the compiler lets pass, as RapidQ's does (the program only warns when it
+/// runs), but which do nothing: for the assistant, errors saying where the
+/// component's properties are. Only components RapidR's registry knows
+/// (a TYPE's own objects aren't checked); `checked`: the files reported.
+pub fn member_problems(files: &[(String, String)], checked: &[&str]) -> Vec<String> {
+    use rapidr_lang::Component;
+    let words = |s: &str| s.split_whitespace().map(str::to_string).collect::<Vec<_>>();
+    // (the components the project makes or declares, by name: every type a
+    // name has somewhere — a name used for two components is checked
+    // against both)
+    let mut named: HashMap<String, Vec<&'static Component>> = HashMap::new();
+    for (_, text) in files {
+        for line in text.lines() {
+            for (_, st) in statements(line) {
+                let w = words(st);
+                let kw = w.first().map(|k| k.to_ascii_uppercase()).unwrap_or_default();
+                if (kw == "CREATE" || kw == "DIM") && w.len() >= 4 && w[2].eq_ignore_ascii_case("AS") {
+                    let name = w[1].trim_end_matches(',').to_ascii_lowercase();
+                    match rapidr_lang::resolve_component(w[3].trim_end_matches(',')).filter(|c| c.kind == rapidr_lang::Kind::Component) {
+                        Some(c) => named.entry(name).or_default().push(c),
+                        // (a name that is also something else: not checked)
+                        None => {
+                            named.insert(name.clone(), Vec::new());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // (what visual components take — Align, PopupMenu, Left, SelText … — is
+    // taken from any (three or more have it): the kernel treats them alike, whatever one
+    // registry entry lists)
+    let visual: Vec<&'static Component> = rapidr_lang::COMPONENTS.iter().filter(|c| c.kind == rapidr_lang::Kind::Component && c.visual).collect();
+    let common = |prop: &str| visual.iter().filter(|c| c.property(prop).is_some()).count() >= 3;
+    let has = |c: &Component, prop: &str| c.has_member(prop) || (c.visual && common(prop));
+    let mut out = Vec::new();
+    for (path, text) in files.iter().filter(|(p, _)| checked.contains(&p.as_str())) {
+        let mut creates: Vec<Option<&'static Component>> = Vec::new();
+        let mut withs: Vec<Option<&'static Component>> = Vec::new();
+        let mut in_type = false;
+        for (ln, line) in text.lines().enumerate() {
+            for (col, st) in statements(line) {
+                let w = words(st);
+                let Some(first) = w.first().map(|k| k.to_ascii_uppercase()) else { continue };
+                let second = w.get(1).map(|k| k.to_ascii_uppercase()).unwrap_or_default();
+                match (first.as_str(), second.as_str()) {
+                    ("TYPE", _) => in_type = true,
+                    ("END", "TYPE") => in_type = false,
+                    _ if in_type => {}
+                    ("CREATE", _) => creates.push(w.get(3).and_then(|t| rapidr_lang::resolve_component(t)).filter(|c| c.kind == rapidr_lang::Kind::Component)),
+                    ("END", "CREATE") => {
+                        creates.pop();
+                    }
+                    ("WITH", _) => withs.push(named.get(&second.to_ascii_lowercase()).filter(|t| t.len() == 1).map(|t| t[0])),
+                    ("END", "WITH") => {
+                        withs.pop();
+                    }
+                    _ => {
+                        let Some(lhs) = assigned(st) else { continue };
+                        let head = lhs.split('(').next().unwrap_or("");
+                        let parts: Vec<&str> = head.split('.').collect();
+                        let (owners, prop, owner_name): (Vec<&'static Component>, &str, String) = if let Some(rest) = head.strip_prefix('.') {
+                            (withs.last().copied().flatten().into_iter().collect(), rest.split('.').next().unwrap_or(""), String::new())
+                        } else if parts.len() == 1 {
+                            (creates.last().copied().flatten().into_iter().collect(), parts[0], String::new())
+                        } else if let Some(types) = named.get(&parts[0].to_ascii_lowercase()) {
+                            (types.clone(), parts[1], format!("{}.", parts[0]))
+                        } else {
+                            (Vec::new(), "", String::new())
+                        };
+                        let Some(&c) = owners.first() else { continue };
+                        if prop.is_empty() || owners.iter().any(|o| has(o, prop)) {
+                            continue;
+                        }
+                        let at = st.find(prop).map_or(col, |k| col + k) + 1;
+                        let ty = c.spelling();
+                        let near = nearest_member(c, prop).map(|m| format!("; did you mean {m}?")).unwrap_or_default();
+                        out.push(format!("error {path}:{}:{at}: {ty} has no property {owner_name}{prop}{near} (the compiler lets it pass, but it does nothing when the program runs; rapidr_describe {ty} lists its properties)", ln + 1));
+                    }
+                }
+            }
+        }
+    }
+    out
+}
+
 /// The compiler's diagnostics of `files` (path, text) for `target` (and,
 /// when it is an include, for the main file that includes it).
 fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str, compat: bool) -> Vec<String> {
@@ -463,6 +618,19 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
             if !out.contains(&l) {
                 out.push(l);
             }
+        }
+    }
+    // (properties no component has: the compiler takes them, they do
+    // nothing — said once, in place of the compiler's own warning about the
+    // same member when it gave one)
+    let sources: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).filter(|p| is_source(p)).collect();
+    for l in member_problems(files, &sources) {
+        let place = l.split(": ").next().unwrap_or("").trim_start_matches("error ").rsplitn(2, ':').nth(1).unwrap_or("").to_string();
+        let prop = l.split(" has no property ").nth(1).and_then(|r| r.split([';', ' ']).next()).map(|p| p.rsplit('.').next().unwrap_or(p).to_ascii_uppercase()).unwrap_or_default();
+        if let Some(k) = out.iter().position(|o| o.starts_with(&format!("warning {place}:")) && o.contains(&format!("Member {prop} not part of"))) {
+            out[k] = l;
+        } else if !out.contains(&l) {
+            out.push(l);
         }
     }
     out
@@ -496,9 +664,12 @@ fn check(input: &Json, p: &Project) -> Outcome {
     }
 }
 
-/// `old` with each edit applied; an edit whose old text isn't there exactly
-/// once is refused, saying so.
-fn apply_edits(old: &str, edits: &[Json]) -> Result<String, String> {
+/// `old` (the file `path`) with each edit applied. An old text that is in
+/// the file once but for its lines' indentation and trailing spaces fits
+/// those lines (a small model rarely copies indentation exactly); one that
+/// isn't there is refused with the file's lines closest to it, numbered,
+/// for the model to copy from; one that is there more than once, saying so.
+fn apply_edits(path: &str, old: &str, edits: &[Json]) -> Result<String, String> {
     let mut text = old.to_string();
     if edits.is_empty() {
         return Err("no edits given".into());
@@ -514,11 +685,114 @@ fn apply_edits(old: &str, edits: &[Json]) -> Result<String, String> {
         let (from, to) = if crlf && !from.contains("\r\n") { (from.replace('\n', "\r\n"), to.replace("\r\n", "\n").replace('\n', "\r\n")) } else { (from.to_string(), to.to_string()) };
         match text.matches(&from).count() {
             1 => text = text.replacen(&from, &to, 1),
-            0 => return Err(format!("edit {}: old_text isn't in the file (read it again: it must match exactly, spaces and line breaks too)", i + 1)),
+            0 => match loose_match(&text, &from) {
+                Some((start, end, indent)) => {
+                    // (the range ends before the last line's break, which stays)
+                    let to = if from.ends_with('\n') { to.strip_suffix('\n').map_or(to.as_str(), |t| t.strip_suffix('\r').unwrap_or(t)) } else { to.as_str() };
+                    text.replace_range(start..end, &reindent(to, &indent));
+                }
+                None => {
+                    return Err(format!(
+                        "edit {}: old_text isn't in {path} (it must match the file exactly, spaces and line breaks too). The lines of {path} closest to it (numbered here; the numbers aren't in the file):\n{}\nCopy old_text exactly from these lines, or use write_file with the file's whole new text.",
+                        i + 1,
+                        closest_lines(&text, &from)
+                    ))
+                }
+            },
             n => return Err(format!("edit {}: old_text is in the file {n} times: include more lines around it so it is once", i + 1)),
         }
     }
     Ok(text)
+}
+
+/// Where `from`'s lines are in `text` once, each line compared without its
+/// indentation and trailing spaces: the byte range of those whole lines
+/// (without the last line break), and each line's indentation in `from`
+/// and in the file.
+fn loose_match(text: &str, from: &str) -> Option<(usize, usize, Vec<(String, String)>)> {
+    let want: Vec<&str> = from.lines().collect();
+    let first = want.iter().position(|l| !l.trim().is_empty())?;
+    let last = want.iter().rposition(|l| !l.trim().is_empty())?;
+    let want = &want[first..=last];
+    // (each line of the text: its start, its end without the break)
+    let mut lines: Vec<(usize, usize)> = Vec::new();
+    let mut at = 0;
+    for piece in text.split_inclusive('\n') {
+        let body = piece.trim_end_matches(['\n', '\r']);
+        lines.push((at, at + body.len()));
+        at += piece.len();
+    }
+    let line = |k: usize| &text[lines[k].0..lines[k].1];
+    let mut found = None;
+    for k in 0..lines.len() {
+        if k + want.len() > lines.len() {
+            break;
+        }
+        if want.iter().enumerate().all(|(j, w)| line(k + j).trim() == w.trim()) {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(k);
+        }
+    }
+    let k = found?;
+    let lead = |s: &str| s[..s.len() - s.trim_start().len()].to_string();
+    let indents = want.iter().enumerate().map(|(j, w)| (lead(w), lead(line(k + j)))).collect();
+    Some((lines[k].0, lines[k + want.len() - 1].1, indents))
+}
+
+/// `to` at the file's indentation: shifted when the old text's lines were
+/// all off by the same indentation (more or less); else its first line
+/// given the file's, the rest as written.
+fn reindent(to: &str, indents: &[(String, String)]) -> String {
+    let more: Option<Vec<&str>> = indents.iter().map(|(t, f)| f.strip_suffix(t.as_str())).collect();
+    let less: Option<Vec<&str>> = indents.iter().map(|(t, f)| t.strip_suffix(f.as_str())).collect();
+    let same = |v: &[&str]| v.windows(2).all(|w| w[0] == w[1]);
+    let lines: Vec<&str> = to.split('\n').collect();
+    let shifted: Vec<String> = match (more, less) {
+        (Some(m), _) if same(&m) => lines.iter().map(|l| if l.trim().is_empty() { l.to_string() } else { format!("{}{l}", m[0]) }).collect(),
+        (_, Some(x)) if same(&x) => lines.iter().map(|l| l.strip_prefix(x[0]).unwrap_or(l).to_string()).collect(),
+        _ => lines
+            .iter()
+            .enumerate()
+            .map(|(j, l)| match indents.first() {
+                Some((_, f)) if j == 0 && !l.starts_with([' ', '\t']) => format!("{f}{l}"),
+                _ => l.to_string(),
+            })
+            .collect(),
+    };
+    shifted.join("\n")
+}
+
+/// The ≤ 30 lines of `text` most like `from`, numbered from 1.
+fn closest_lines(text: &str, from: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.is_empty() {
+        return "(the file is empty)".into();
+    }
+    let words = |t: &str| -> Vec<String> { t.to_lowercase().split(|c: char| !(c.is_alphanumeric() || c == '$' || c == '_')).filter(|w| !w.is_empty()).map(str::to_string).collect() };
+    let want: Vec<(String, Vec<String>)> = from.lines().map(str::trim).filter(|l| !l.is_empty()).map(|l| (l.to_string(), words(l))).collect();
+    let have: Vec<(String, Vec<String>)> = lines.iter().map(|l| (l.trim().to_string(), words(l))).collect();
+    let sim = |a: &(String, Vec<String>), b: &(String, Vec<String>)| -> f64 {
+        if a.0 == b.0 {
+            return 2.0;
+        }
+        if a.1.is_empty() || b.1.is_empty() {
+            return 0.0;
+        }
+        b.1.iter().filter(|w| a.1.contains(w)).count() as f64 / a.1.len().max(b.1.len()) as f64
+    };
+    let mut best = (0usize, 0.0f64);
+    for k in 0..have.len() {
+        let score: f64 = want.iter().enumerate().map(|(j, w)| have.get(k + j).map_or(0.0, |h| sim(h, w))).sum();
+        if score > best.1 {
+            best = (k, score);
+        }
+    }
+    let span = want.len().clamp(1, 24);
+    let start = best.0.saturating_sub(3);
+    let end = (best.0 + span + 3).min(lines.len()).min(start + 30);
+    lines[start..end].iter().enumerate().map(|(k, l)| format!("{:>4}| {l}", start + k + 1)).collect::<Vec<_>>().join("\n")
 }
 
 /// A proposal for `rel` replaces the turn's earlier one for that file.
@@ -545,17 +819,40 @@ fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
         return err(format!("{rel}: no such file (to make a new file, use write_file)"), format!("propose_edit: {rel} not found"), &rel);
     };
     let edits = input.get("edits").and_then(Json::as_array).cloned().unwrap_or_default();
-    match apply_edits(&current, &edits) {
+    match apply_edits(&rel, &current, &edits) {
         Ok(new) => {
             let original = p.text(&rel).unwrap_or_default();
             let summary = s(input, "summary").to_string();
             propose(proposals, Proposal { kind: "edit".into(), path: rel.clone(), old: original, new, summary: summary.clone(), ..Proposal::default() });
-            let mut o = ok(format!("Proposed to the user as a diff of {rel}; they decide whether to apply it. Don't propose it again: tell them in a sentence what it does."), format!("Proposed a change to {rel}: {summary}"), "state", &rel);
-            o.risk = "state";
-            o
+            match compile_errors(p, proposals) {
+                None => ok(format!("Proposed to the user as a diff of {rel}; they decide whether to apply it. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed a change to {rel}: {summary}"), "state", &rel),
+                Some(errors) => ok(format!("Proposed to the user as a diff of {rel}, but the project doesn't compile with it yet — fix these now (propose_edit again, or write_file with the file's whole text; it replaces this proposal):\n{errors}"), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
+            }
         }
         Err(e) => err(e, format!("A change to {rel} didn't fit the file"), &rel),
     }
+}
+
+/// The compiler's errors for the project as the turn's proposals would
+/// leave it (each changed file's proposed text), when it has some: what a
+/// proposing tool tells the model at once, so it fixes them without having
+/// to remember check_code.
+fn compile_errors(p: &Project, proposals: &[Proposal]) -> Option<String> {
+    let mut files = p.all();
+    let changed: Vec<&Proposal> = proposals.iter().filter(|q| q.project.is_empty() && is_source(&q.path)).collect();
+    for q in &changed {
+        files.retain(|(f, _)| *f != q.path);
+        files.push((q.path.clone(), q.new.clone()));
+    }
+    let mut errors: Vec<String> = Vec::new();
+    for q in &changed {
+        for l in diagnostics(&files, "/project", &q.path, p.main, p.compat.eq_ignore_ascii_case("rapidq")) {
+            if l.starts_with("error") && !errors.contains(&l) {
+                errors.push(l);
+            }
+        }
+    }
+    (!errors.is_empty()).then(|| errors.iter().take(20).cloned().collect::<Vec<_>>().join("\n"))
 }
 
 fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
@@ -573,7 +870,10 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
     let kind = if exists { "edit" } else { "create" };
     propose(proposals, Proposal { kind: kind.into(), path: rel.clone(), old: original, new: text, summary: summary.clone(), ..Proposal::default() });
     let what = if exists { "a new text for" } else { "the new file" };
-    ok(format!("Proposed {what} {rel} to the user as a diff; they decide. Don't propose it again: tell them in a sentence what it does."), format!("Proposed {what} {rel}: {summary}"), "state", &rel)
+    match compile_errors(p, proposals) {
+        None => ok(format!("Proposed {what} {rel} to the user as a diff; they decide. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed {what} {rel}: {summary}"), "state", &rel),
+        Some(errors) => ok(format!("Proposed {what} {rel} to the user as a diff, but the project doesn't compile with it yet — fix these now (write_file again with the whole corrected text; it replaces this proposal):\n{errors}"), format!("Proposed {what} {rel}: {summary} (errors to fix)"), "state", &rel),
+    }
 }
 
 /// A new project's name: its folder's.
@@ -707,7 +1007,8 @@ mod tests {
         assert_eq!(props.len(), 1);
         assert!(props[0].new.contains("\"Save\"") && props[0].new.contains("\"Notes\"") && props[0].old.contains("\"OK\""));
         let miss = run("propose_edit", &json!({"path": "main.rr", "summary": "x", "edits": [{"old_text": "nope", "new_text": "y"}]}), &p, &mut props, true);
-        assert!(miss.is_error && miss.content.contains("isn't in the file"));
+        assert!(miss.is_error && miss.content.contains("isn't in main.rr") && miss.content.contains("   2|     Caption = \"Notes\""), "{}", miss.content);
+        assert_eq!(miss.risk, "state", "a proposal that didn't fit is still a proposal's risk");
         let twice = run("propose_edit", &json!({"path": "main.rr", "summary": "x", "edits": [{"old_text": "Caption", "new_text": "y"}]}), &p, &mut props, true);
         assert!(twice.is_error && twice.content.contains("2 times"), "{}", twice.content);
         // (read-only: refused)
@@ -721,6 +1022,99 @@ mod tests {
         // (its include was found among its own files: only the property is wrong)
         assert!(!broken.content.contains("form.inc: not found") && broken.content.contains("form.inc"), "{}", broken.content);
         assert!(run("create_project", &json!({"name": "../x", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "x"}]}), &p, &mut props, true).is_error);
+    }
+
+    #[test]
+    fn an_edit_that_misses_shows_the_closest_lines() {
+        let text = (1..=60).map(|i| if i == 40 { "    SiteList.AddItems \"alpha\"".to_string() } else { format!("PRINT {i}") }).collect::<Vec<_>>().join("\n") + "\n";
+        let e = apply_edits("main.rr", &text, &[json!({"old_text": "SiteList.AddItem \"alpha\"\nPRINT 41x", "new_text": "x"})]).unwrap_err();
+        assert!(e.contains("isn't in main.rr") && e.contains("  40|     SiteList.AddItems \"alpha\"") && e.contains("write_file"), "{e}");
+        // (at most 30 lines, numbered from the file)
+        assert!(e.lines().filter(|l| l.contains("| ")).count() <= 30, "{e}");
+        assert!(!e.contains("   1| "), "{e}");
+        // (an old text that is there but for its indentation fits, the
+        // file's indentation kept)
+        let src = "CREATE Form AS RForm\n    CREATE B1 AS RButton\n        Caption = \"OK\"\n    END CREATE\nEND CREATE\n";
+        let fixed = apply_edits("main.rr", src, &[json!({"old_text": "CREATE B1 AS RButton\n    Caption = \"OK\"\n", "new_text": "CREATE B1 AS RButton\n    Caption = \"Save\"\n    Width = 90\n"})]).unwrap();
+        assert_eq!(fixed, "CREATE Form AS RForm\n    CREATE B1 AS RButton\n        Caption = \"Save\"\n        Width = 90\n    END CREATE\nEND CREATE\n", "{fixed}");
+        // (lines off by different amounts: the first line placed, the rest as written)
+        let fixed = apply_edits("main.rr", src, &[json!({"old_text": "Caption = \"OK\"\nEND CREATE", "new_text": "Caption = \"Save\"\n    Width = 90\nEND CREATE"})]).unwrap();
+        assert_eq!(fixed, "CREATE Form AS RForm\n    CREATE B1 AS RButton\n        Caption = \"Save\"\n    Width = 90\nEND CREATE\nEND CREATE\n", "{fixed}");
+        let one = apply_edits("main.rr", src, &[json!({"old_text": "  caption = \"OK\"  ", "new_text": "Caption = \"Go\""})]);
+        assert!(one.is_err(), "case still counts");
+        let one = apply_edits("main.rr", src, &[json!({"old_text": "  Caption = \"OK\"  ", "new_text": "  Caption = \"Go\""})]).unwrap();
+        assert!(one.contains("        Caption = \"Go\"\n"), "{one}");
+        // (twice: refused, as before)
+        let twice = "a\n  x = 1\nb\n  x = 1\n";
+        assert!(apply_edits("m.rr", twice, &[json!({"old_text": "x = 1", "new_text": "y"})]).unwrap_err().contains("2 times"));
+        assert!(apply_edits("m.rr", twice, &[json!({"old_text": " x = 1 ", "new_text": "y"})]).is_err());
+    }
+
+    #[test]
+    fn properties_no_component_has() {
+        let src = "DECLARE SUB Go\nCREATE Form AS RForm\n    Caption = \"Sites\"\n    CREATE SiteListView AS RListBox\n        Left = 8: Top = 8\n        ColumnWidths = 250, 100\n        OnClick = Go\n    END CREATE\nEND CREATE\nSUB Go\n    SiteListView.ColumnWidths = 3\n    SiteListView.Font.Size = 12\n    SiteListView.AddItems \"x\"\n    Form.Caption = \"x = 1\"\n    WITH SiteListView\n        .Nope = 1\n    END WITH\nEND SUB\nForm.ShowModal\n";
+        let files = vec![("main.rr".to_string(), src.to_string())];
+        let found = member_problems(&files, &["main.rr"]);
+        assert_eq!(found.len(), 3, "{found:#?}");
+        assert!(found[0].starts_with("error main.rr:6:9: RListBox has no property ColumnWidths") && found[0].contains("rapidr_describe RListBox"), "{}", found[0]);
+        assert!(found[1].starts_with("error main.rr:11:18: RListBox has no property SiteListView.ColumnWidths"), "{}", found[1]);
+        assert!(found[2].contains("main.rr:16:") && found[2].contains("Nope"), "{}", found[2]);
+        // (the nearest member named; said once where the compiler warned too)
+        let grid = vec![("g.rr".to_string(), "CREATE F AS RForm\n  CREATE G AS RStringGrid\n    ColumnCount = 2\n    ColCount = 2\n  END CREATE\nEND CREATE\nF.ShowModal\n".to_string())];
+        let g = member_problems(&grid, &["g.rr"]);
+        assert!(g.len() == 1 && g[0].contains("RStringGrid has no property ColumnCount; did you mean ColCount?"), "{g:#?}");
+        let d = diagnostics(&grid, "/p", "g.rr", "g.rr", false);
+        assert_eq!(d.iter().filter(|l| l.contains("COLUMNCOUNT") || l.contains("ColumnCount")).count(), 1, "{d:#?}");
+        // (a TYPE's objects and unknown names: not checked)
+        let t = vec![("a.rr".to_string(), "TYPE TBox EXTENDS QFORM\n  Extra AS INTEGER\nEND TYPE\nDIM B AS TBox\nB.Extra = 1\nCREATE F AS TBox\n  Extra = 2\nEND CREATE\nX.Y = 3\n".to_string())];
+        assert!(member_problems(&t, &["a.rr"]).is_empty());
+        // (check_code says it; the compiler and the runtime are unchanged:
+        // it still compiles)
+        let names = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), src.to_string());
+        let p = project(&names, &buffers);
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true);
+        assert!(c.content.contains("RListBox has no property ColumnWidths"), "{}", c.content);
+        let mut a = Analysis::new(Options { roots: Some(Vec::new()), ..Options::default() });
+        a.update(PathBuf::from("/p/main.rr"), src.to_string());
+        assert!(a.diagnostics(&PathBuf::from("/p/main.rr")).iter().all(|d| !d.message.contains("ColumnWidths")), "the compiler's own diagnostics don't change");
+    }
+
+    /// RapidR's own programs (the examples, RapidR Studio itself) set no
+    /// property their components don't have: the check names none there.
+    #[test]
+    fn rapidrs_own_programs_have_no_unknown_properties() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let read = |p: &std::path::Path| (p.strip_prefix(&root).unwrap().to_string_lossy().to_string(), std::fs::read_to_string(p).unwrap_or_default());
+        let listed = |d: &std::path::Path, ext: &str| -> Vec<PathBuf> { std::fs::read_dir(d).into_iter().flatten().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == ext)).collect() };
+        let mut found = Vec::new();
+        let mut seen = 0;
+        // (RapidR Studio: one program)
+        let ide: Vec<(String, String)> = listed(&root.join("ide"), "inc").iter().chain(listed(&root.join("ide"), "rr").iter()).map(|p| read(p)).collect();
+        let names: Vec<&str> = ide.iter().map(|(p, _)| p.as_str()).collect();
+        found.extend(member_problems(&ide, &names));
+        seen += ide.len();
+        // (each example: its file and the includes beside it; RapidQ-style
+        // examples keep RapidQ's own leniencies)
+        let mut dirs = vec![root.join("examples")];
+        while let Some(d) = dirs.pop() {
+            for e in std::fs::read_dir(&d).into_iter().flatten().flatten() {
+                if e.path().is_dir() && !e.path().ends_with("rapidq") {
+                    dirs.push(e.path());
+                }
+            }
+            let incs: Vec<(String, String)> = listed(&d, "inc").iter().map(|p| read(p)).collect();
+            for f in listed(&d, "rr") {
+                let mut files = vec![read(&f)];
+                files.extend(incs.iter().cloned());
+                let name = files[0].0.clone();
+                found.extend(member_problems(&files, &[name.as_str()]));
+                seen += 1;
+            }
+        }
+        assert!(seen > 30, "{seen}");
+        assert!(found.is_empty(), "{} found:\n{}", found.len(), found.join("\n"));
     }
 
     #[test]

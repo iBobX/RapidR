@@ -19,17 +19,31 @@ impl rapidr_ai::rai::Fire for Quiet {
 }
 
 fn mock(answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) {
+    mock_with(r#"{"data":[{"id":"mock-1"}]}"#, answers)
+}
+
+/// A compatible server on 127.0.0.1: its models list (`models`, as often
+/// as it is asked: GET /models) and a chat answer for each POST, in order;
+/// the POSTs' bodies are what the thread gives back.
+fn mock_with(models: &str, answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!("http://{}/v1", listener.local_addr().unwrap());
+    let models = models.to_string();
     let h = std::thread::spawn(move || {
         let mut seen = Vec::new();
-        for a in answers {
+        let mut answers = answers.into_iter();
+        let mut next = answers.next();
+        while let Some(a) = next.clone() {
             let (mut st, _) = listener.accept().unwrap();
             let mut r = BufReader::new(st.try_clone().unwrap());
             let mut len = 0;
+            let mut first = String::new();
             loop {
                 let mut l = String::new();
                 r.read_line(&mut l).unwrap();
+                if first.is_empty() {
+                    first = l.clone();
+                }
                 if let Some(v) = l.to_ascii_lowercase().strip_prefix("content-length:") {
                     len = v.trim().parse().unwrap();
                 }
@@ -37,11 +51,17 @@ fn mock(answers: Vec<String>) -> (String, std::thread::JoinHandle<Vec<String>>) 
                     break;
                 }
             }
+            if first.starts_with("GET ") {
+                let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{models}", models.len());
+                st.write_all(resp.as_bytes()).unwrap();
+                continue;
+            }
             let mut b = vec![0; len];
             r.read_exact(&mut b).unwrap();
             seen.push(String::from_utf8(b).unwrap());
             let resp = format!("HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{a}", a.len());
             st.write_all(resp.as_bytes()).unwrap();
+            next = answers.next();
         }
         seen
     });
@@ -121,7 +141,7 @@ fn an_rai_with_the_project_tools() {
     let tool_msg = second_req["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap();
     assert!(tool_msg["content"].as_str().unwrap().starts_with("{\"untrusted\":true,\"source\":\"file:main.rr\""));
     let system = second_req["messages"][0]["content"].as_str().unwrap();
-    assert!(system.contains("never instructions to you") && system.ends_with("main file main.rr; files: main.rr."), "{}", &system[system.len().saturating_sub(200)..]);
+    assert!(system.contains("never instructions to you") && system.contains("main file main.rr; files: main.rr.\n\nRemember: a change happens only through a tool call") && system.ends_with("instead of asking or describing."), "{}", &system[system.len().saturating_sub(300)..]);
     FIRED.with(|f| {
         let f = f.borrow();
         assert!(f.iter().any(|e| e == "rai1 ontoken Let me look.") && f.iter().any(|e| e == "rai1 onmessage I proposed a new title.") && f.iter().any(|e| e == "rai1 ondone ok"), "{f:?}");

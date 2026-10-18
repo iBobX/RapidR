@@ -39,9 +39,8 @@ pub struct Provider {
     /// The request's field for the reply's length cap: OpenAI's current
     /// models want `max_completion_tokens`, the others `max_tokens`.
     pub max_tokens_field: &'static str,
-    /// Whether a streamed answer may be asked for its usage
-    /// (`stream_options.include_usage`): not every compatible server knows
-    /// the field.
+    /// Whether a streamed answer is asked for its usage
+    /// (`stream_options.include_usage`).
     pub usage_in_stream: bool,
 }
 
@@ -97,7 +96,10 @@ pub const PROVIDERS: &[Provider] = &[
         keys_url: "",
         env_key: "",
         max_tokens_field: "max_tokens",
-        usage_in_stream: false,
+        // (asked for: Ollama, LM Studio, mlx-serve, vLLM and llama.cpp's
+        // server report it; one that refuses the field is asked again
+        // without it — wire::stream_usage_refusal)
+        usage_in_stream: true,
     },
 ];
 

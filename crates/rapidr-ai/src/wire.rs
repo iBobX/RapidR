@@ -231,7 +231,7 @@ fn openai_body(p: &Provider, req: &ChatRequest) -> Value {
     body.insert("model".into(), json!(req.model));
     body.insert(p.max_tokens_field.into(), json!(req.max_tokens.max(1)));
     body.insert("stream".into(), json!(true));
-    if p.usage_in_stream {
+    if p.usage_in_stream && !req.no_stream_usage {
         body.insert("stream_options".into(), json!({"include_usage": true}));
     }
     if let Some(r) = &req.reasoning_effort {
@@ -247,11 +247,46 @@ fn openai_body(p: &Provider, req: &ChatRequest) -> Value {
 
 // ---- the models list ----------------------------------------------------------------
 
-/// A model the provider offers: its id and, when it has one, its name.
-#[derive(Clone, Debug, PartialEq)]
+/// A model the provider offers: its id and, when it has one, its name;
+/// how many tokens it takes at once (its context window) and whether it
+/// is loaded, when the server says (a local server's list does: mlx-serve,
+/// LM Studio, vLLM, OpenRouter …).
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
+    /// Its context window in tokens (0: not said).
+    pub context: u64,
+    /// Loaded (`Some(true)`), not loaded (`Some(false)`: the window said
+    /// may be the model's largest, not the one it will run with), or not said.
+    pub loaded: Option<bool>,
+}
+
+/// The context window a models list's entry gives: the one it runs with
+/// when loaded (LM Studio's `loaded_context_length`), else the model's
+/// (`context_length`, vLLM's `max_model_len`, `context_window`, …); 0 when
+/// none.
+fn context_of(m: &Value) -> u64 {
+    let num = |v: &Value| v.as_u64().or_else(|| v.as_f64().map(|f| f as u64)).or_else(|| v.as_str().and_then(|t| t.trim().parse().ok())).unwrap_or(0);
+    for k in ["loaded_context_length", "context_length", "max_model_len", "context_window", "max_context_length", "max_input_tokens"] {
+        let n = num(&m[k]);
+        if n > 0 {
+            return n;
+        }
+    }
+    [&m["top_provider"]["context_length"], &m["meta"]["context_length"]].into_iter().map(num).find(|n| *n > 0).unwrap_or(0)
+}
+
+/// Whether a models list's entry says the model is loaded.
+fn loaded_of(m: &Value) -> Option<bool> {
+    if let Some(b) = m["loaded"].as_bool() {
+        return Some(b);
+    }
+    match m["state"].as_str()?.to_ascii_lowercase().as_str() {
+        "ready" | "loaded" | "running" => Some(true),
+        "unloaded" | "not-loaded" | "not_loaded" | "loading" => Some(false),
+        _ => None,
+    }
 }
 
 /// The provider's list of models (Anthropic's `GET /v1/models`, OpenAI's
@@ -277,7 +312,7 @@ pub fn parse_models(p: &Provider, body: &str) -> Result<Vec<ModelInfo>, String> 
             let id = m.get("id").or_else(|| m.get("name")).and_then(Value::as_str)?.to_string();
             let name = m.get("display_name").or_else(|| m.get("name")).and_then(Value::as_str).filter(|n| *n != id).unwrap_or("").to_string();
             let created = m.get("created").and_then(Value::as_i64).unwrap_or(0);
-            Some((created, ModelInfo { id, name }))
+            Some((created, ModelInfo { id, name, context: context_of(m), loaded: loaded_of(m) }))
         })
         .collect();
     if p.id == "openai" {
@@ -363,6 +398,44 @@ pub fn reasoning_refusal(status: u16, body: &str) -> Option<bool> {
     }
 }
 
+/// (OpenAI-compatible) An error answer refusing `stream_options` (a
+/// server that doesn't know the field): ask again without it.
+pub fn stream_usage_refusal(status: u16, body: &str) -> bool {
+    (400..500).contains(&status) && status != 401 && status != 429 && body.to_ascii_lowercase().contains("stream_options")
+}
+
+/// The context window an error answer about a too long prompt names, when
+/// it does: mlx-serve's "13927 tokens requested, 12288 available", OpenAI's
+/// "maximum context length is 8192 tokens", llama.cpp's "the available
+/// context size (4096 tokens)".
+pub fn context_from_error(body: &str) -> Option<u64> {
+    let low = provider_message(body).to_ascii_lowercase();
+    let number_before = |at: usize| -> Option<u64> {
+        let head = low[..at].trim_end();
+        let rev: String = head.chars().rev().take_while(|c| c.is_ascii_digit() || *c == ',').collect();
+        rev.chars().rev().filter(char::is_ascii_digit).collect::<String>().parse().ok()
+    };
+    let number_after = |at: usize| -> Option<u64> {
+        let tail = low[at..].trim_start_matches(|c: char| !c.is_ascii_digit());
+        tail.chars().take_while(|c| c.is_ascii_digit() || *c == ',').filter(char::is_ascii_digit).collect::<String>().parse().ok()
+    };
+    if low.contains("context") || low.contains("prompt") {
+        if let Some(i) = low.find(" available") {
+            if let Some(n) = number_before(i).filter(|n| *n >= 256) {
+                return Some(n);
+            }
+        }
+    }
+    for phrase in ["maximum context length is", "context size (", "context length of", "context window of", "n_ctx"] {
+        if let Some(i) = low.find(phrase) {
+            if let Some(n) = number_after(i + phrase.len()).filter(|n| *n >= 256) {
+                return Some(n);
+            }
+        }
+    }
+    None
+}
+
 // ---- errors -------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -436,6 +509,8 @@ pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<
         (ErrorKind::Key, format!("{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider."))
     } else if status == 403 {
         (ErrorKind::Permission, format!("{name} doesn't let this key do that (403){quoted}."))
+    } else if low.contains("gpu memory") || low.contains("out of memory") || low.contains("not enough memory") {
+        (ErrorKind::TooLong, format!("{name} is short of memory for this conversation{quoted}. Wait for the model to finish what it is doing, close other apps, start a new chat (it sends less), or choose a smaller model."))
     } else if low.contains("context_length") || low.contains("context length") || low.contains("prompt is too long") || low.contains("too many tokens") || status == 413 {
         (ErrorKind::TooLong, format!("The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more."))
     } else if status == 404 || low.contains("model_not_found") || (low.contains("model") && low.contains("does not exist")) {
@@ -456,6 +531,12 @@ pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<
 pub fn explain_connection(ep: &Endpoint, what: &str) -> ApiError {
     let host = ep.host();
     let local = host.starts_with("localhost") || host.starts_with("127.0.0.1");
+    let quiet = what.contains("stopped coming");
+    if local && quiet {
+        // (it answered, then went quiet: a local model writing a long change,
+        // or short of memory — not a server that isn't there)
+        return ApiError { kind: ErrorKind::Connection, status: 0, message: format!("The server at {host} began answering, then sent nothing more ({what}): a model on this computer writing a long change, or short of memory, can be that slow. Try again, ask for a smaller step, or choose a smaller model.") };
+    }
     let hint = if local {
         " Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page.".to_string()
     } else if what.to_ascii_lowercase().contains("timed out") || what.to_ascii_lowercase().contains("timeout") || what.contains(" seconds") {
@@ -502,6 +583,7 @@ mod tests {
             tools: vec![Tool { name: "read_file".into(), description: "Reads a file".into(), input_schema: json!({"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}) }],
             max_tokens: 1000,
             reasoning_effort: None,
+            no_stream_usage: false,
         }
     }
 
@@ -557,7 +639,15 @@ mod tests {
         let r = chat_request(&local, &convo());
         assert_eq!(r.url, "http://127.0.0.1:1234/v1/chat/completions");
         assert!(!r.headers.iter().any(|(k, _)| k == "authorization"));
-        assert!(!r.body.unwrap().contains("stream_options"));
+        // (a compatible server is asked for its usage too: the meter and
+        // the context budget need it; one that refuses the field is asked
+        // again without it)
+        assert!(r.body.unwrap().contains("\"stream_options\":{\"include_usage\":true}"));
+        let mut quiet = convo();
+        quiet.no_stream_usage = true;
+        assert!(!chat_request(&local, &quiet).body.unwrap().contains("stream_options"));
+        assert!(stream_usage_refusal(400, r#"{"error":{"message":"Unrecognized request argument supplied: stream_options"}}"#));
+        assert!(!stream_usage_refusal(400, r#"{"error":{"message":"bad model"}}"#));
         assert_eq!(local.host(), "127.0.0.1:1234");
     }
 
@@ -578,6 +668,18 @@ mod tests {
         assert!(parse_models(openai, "nope").is_err());
         let local = parse_models(provider("compatible").unwrap(), r#"{"models":[{"name":"llama3.2"}]}"#).unwrap();
         assert_eq!(local[0].id, "llama3.2");
+        assert_eq!((local[0].context, local[0].loaded), (0, None));
+        // (a local server's context windows: the loaded one when it says)
+        let mlx = parse_models(provider("compatible").unwrap(), r#"{"object":"list","data":[{"id":"gemma-x","loaded":true,"state":"ready","context_length":12288,"max_model_len":12288},{"id":"qwen-y","loaded":false,"state":"unloaded","context_length":262144},{"id":"lms","max_context_length":32768,"loaded_context_length":8192,"state":"loaded"},{"id":"or","top_provider":{"context_length":"65536"}}]}"#).unwrap();
+        let by = |id: &str| mlx.iter().find(|m| m.id == id).map(|m| (m.context, m.loaded)).unwrap();
+        assert_eq!(by("gemma-x"), (12288, Some(true)));
+        assert_eq!(by("qwen-y"), (262144, Some(false)));
+        assert_eq!(by("lms"), (8192, Some(true)));
+        assert_eq!(by("or"), (65536, None));
+        assert_eq!(context_from_error(r#"{"error":{"message":"Prompt exceeds maximum context length: 13927 tokens requested, 12288 available","type":"invalid_request_error"}}"#), Some(12288));
+        assert_eq!(context_from_error(r#"{"error":{"message":"This model's maximum context length is 8,192 tokens. However, your messages resulted in 9000 tokens."}}"#), Some(8192));
+        assert_eq!(context_from_error(r#"{"error":{"message":"the request exceeds the available context size (4096 tokens), try increasing it"}}"#), Some(4096));
+        assert_eq!(context_from_error(r#"{"error":{"message":"Rate limit reached"}}"#), None);
         let mut ep = Endpoint::new(anthropic);
         ep.key = "k".into();
         let r = models_request(&ep);
