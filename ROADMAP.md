@@ -620,7 +620,8 @@ In order of how many showcase ideas each unlocks:
   - [x] Friendly hints in check_code (`crates/rapidr-studio/src/friendly.rs`), the component's members beside an unknown property (2026-10-18).
   - [x] Ten recipes (`examples/recipes/`, click-tested on every runtime), pushed by BM25 with a new-program request; `find_example` (2026-10-18).
   - [x] The eval suite with click tests, and the measured BEFORE / AFTER table ([Results](docs/small-models-plan.md#results), 2026-10-18).
-  - [ ] `layout` / `check_layout` tools, handler skeletons.
+  - [x] The `layout` tool and the layout check in check_code (cut off, overlapping, a caption too long; 2026-10-18).
+  - [ ] Handler skeletons (an event's exact DECLARE SUB and SUB … END SUB).
   - [ ] Small-model mode: spec first (`json_schema`), one handler at a time.
   - [ ] Optional embeddings (EmbeddingGemma or any `/v1/embeddings`).
   - [ ] Measure again (MiMo 9B too), then the post.
