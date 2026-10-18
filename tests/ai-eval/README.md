@@ -51,6 +51,9 @@ Each test passes on its recipe (`examples/recipes/`):
       --score tests/ai-eval/apps/scientific-calculator.txt \
       --project examples/recipes --main calculator.rr --out scratch/score
 
+`held-out/` has three more (a BMI calculator, a dice roller, a countdown
+timer) that no recipe is: what the assistant does beyond its recipes.
+
 `--score` scores any program folder the same way (an earlier run's
 `final/`). `RAPIDR_AI_EVAL_RAPIDR` is the `rapidr` that runs it (default
 `target/release/rapidr`).

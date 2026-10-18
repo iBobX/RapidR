@@ -29,6 +29,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   implementation would" do; a component's members beside a property it
   doesn't have. The hints are their own module, for Learn with RAI later. The
   compiler and `rapidr run` are unchanged.
+- **The assistant's layout help**: a `layout` tool lays out a grid of buttons
+  (a keypad, a toolbar) with exact positions and one shared handler, and says
+  the client size the form needs; once a program compiles, its check says
+  what a person would see wrong — a control cut off by its form, controls on
+  top of each other, a caption longer than its button.
 - **Click-tested AI evals** (`tests/ai-eval/apps/`, `ai_eval.rs`): ten app
   requests, each program run headless after the conversation and used as a
   person would (buttons found by their captions); score = it compiles and the

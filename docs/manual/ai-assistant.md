@@ -155,8 +155,13 @@ under the compiler's messages: the exact fix for habits from other languages
 name; no `[ ]` lists), a name that is never given a value (with the closest
 one the program has), a RapidQ constant used without `$INCLUDE "RAPIDQ.INC"`,
 a window that is never shown (`Form.ShowModal` missing), and a handler that
-does nothing yet or only says what "a real implementation would" do. The
-compiler itself is unchanged: your own programs compile exactly as before.
+does nothing yet or only says what "a real implementation would" do. Once
+it compiles, Studio also looks at the window as you would: a control cut off
+by the edge of its form, two controls on top of each other, a caption longer
+than its button. For a keypad or a toolbar the assistant can ask Studio to
+lay out the buttons (exact positions, one shared handler) instead of doing
+the arithmetic itself. The compiler itself is unchanged: your own programs
+compile exactly as before.
 These two help small local models most — see below.
 
 ## What was sent, and the audit log
