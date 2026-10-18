@@ -35,6 +35,14 @@ const SOURCES: &[(&str, &str)] = &[
     ("server_manager.rr", include_str!("../../../examples/recipes/server_manager.rr")),
 ];
 
+impl Recipe {
+    /// Its text as a model gets it: without the search's lines (`' Recipe:`,
+    /// `' Keywords:`), which a model would copy into the user's program.
+    pub fn code(&self) -> String {
+        self.text.lines().filter(|l| !l.starts_with("' Recipe:") && !l.starts_with("' Keywords:")).collect::<Vec<_>>().join("\n").trim().to_string()
+    }
+}
+
 /// Every recipe.
 pub fn all() -> Vec<Recipe> {
     SOURCES
@@ -156,10 +164,10 @@ pub fn asks_for_new_program(question: &str, project_open: bool) -> bool {
 pub fn context_for(question: &str) -> Option<String> {
     let found = search(question);
     let (best, first) = found.first()?;
-    let mut out = format!("(RapidR Studio, not the user: a working RapidR program close to what the user wants — start from it and adapt it; keep what works: its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.)\n\n{} (examples/recipes/{}):\n```basic\n{}\n```", first.title, first.file, first.text.trim_end());
+    let mut out = format!("(RapidR Studio, not the user: a working RapidR program close to what the user wants — start from it and adapt it; keep what works: its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.)\n\n{} (examples/recipes/{}):\n```basic\n{}\n```", first.title, first.file, first.code());
     if let Some((second, r)) = found.get(1) {
         if *second >= best * 0.75 && first.text.len() + r.text.len() < 6000 {
-            out.push_str(&format!("\n\nAnother close one, {} (examples/recipes/{}):\n```basic\n{}\n```", r.title, r.file, r.text.trim_end()));
+            out.push_str(&format!("\n\nAnother close one, {} (examples/recipes/{}):\n```basic\n{}\n```", r.title, r.file, r.code()));
         }
     }
     Some(out)

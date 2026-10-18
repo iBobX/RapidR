@@ -265,7 +265,7 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         // mixes them up: what they say is done — a new program when none is
         // open, else each file written)
         "write_file" if input.get("path").is_none() && input.get("files").and_then(Json::as_array).is_some() => {
-            if project.folder.is_empty() && input.get("name").is_some() {
+            if project.folder.is_empty() {
                 return Outcome { risk: "state", ..create_project(input, proposals) };
             }
             let mut last = err("no files given", "write_file: no files".into(), "");
@@ -526,7 +526,7 @@ fn find_example(input: &Json) -> Outcome {
     };
     let others: Vec<&str> = found.iter().skip(1).take(2).map(|(_, r)| r.title.as_str()).collect();
     let more = if others.is_empty() { String::new() } else { format!("\nAlso close: {}.", others.join("; ")) };
-    ok(format!("{} (examples/recipes/{}), a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.file, best.text.trim_end()), format!("Found an example: {}", best.title), "read", query)
+    ok(format!("{} (examples/recipes/{}), a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.file, best.code()), format!("Found an example: {}", best.title), "read", query)
 }
 
 fn design(name: &str, input: &Json, p: &Project) -> Outcome {
@@ -1119,12 +1119,29 @@ fn project_name(name: &str) -> Result<String, String> {
     Ok(n.to_string())
 }
 
+/// A name a folder can have, made from `text` (a file's name, a title):
+/// letters, digits, - and _.
+fn folder_name(text: &str) -> String {
+    let stem = text.rsplit(['/', '\\']).next().unwrap_or(text);
+    let stem = stem.rsplit_once('.').map_or(stem, |(a, _)| a);
+    let n: String = stem.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    let n = n.trim_matches(['_', '-']).chars().take(60).collect::<String>();
+    if n.is_empty() { "NewProgram".into() } else { n }
+}
+
 fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
-    let name = match project_name(s(input, "name")) {
-        Ok(n) => n,
-        Err(e) => return err(e, "create_project: a name that can't be a folder".into(), s(input, "name")),
-    };
     let files = input.get("files").and_then(Json::as_array).cloned().unwrap_or_default();
+    // (a small model leaves out the name or the main file: what the files
+    // say is taken — the main file is the first program, the name its own)
+    let first_program = files.iter().map(|f| s(f, "path")).find(|p| is_source(p) && !p.to_ascii_lowercase().ends_with(".inc")).unwrap_or("").to_string();
+    let main_given = s(input, "main").trim().to_string();
+    let main_given = if main_given.is_empty() || !files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok()) { first_program.clone() } else { main_given };
+    let name_given = s(input, "name").trim();
+    let name_given = if name_given.is_empty() { folder_name(&main_given) } else { name_given.to_string() };
+    let name = match project_name(&name_given) {
+        Ok(n) => n,
+        Err(e) => return err(e, "create_project: a name that can't be a folder".into(), &name_given),
+    };
     if files.is_empty() || files.len() > MAX_FILES {
         return err(format!("a project has 1 to {MAX_FILES} files"), format!("create_project {name}: no files"), &name);
     }
@@ -1139,7 +1156,7 @@ fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
         }
         got.push((rel, s(f, "text").to_string()));
     }
-    let main = project_path("", s(input, "main")).unwrap_or_default();
+    let main = project_path("", &main_given).unwrap_or_default();
     if !got.iter().any(|(p, _)| *p == main) {
         return err(format!("the main file \"{}\" isn't among the files", s(input, "main")), format!("create_project {name}: no main file"), &name);
     }
@@ -1260,6 +1277,17 @@ mod tests {
         // (its include was found among its own files: only the property is wrong)
         assert!(!broken.content.contains("form.inc: not found") && broken.content.contains("form.inc"), "{}", broken.content);
         assert!(run("create_project", &json!({"name": "../x", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "x"}]}), &p, &mut props, true).is_error);
+        // (gemma E4B, 2026-10-18: no name, no main — the files say them)
+        let mut props = Vec::new();
+        let none = Project { folder: "", files: &[], main: "", compat: "", buffers: &HashMap::new() };
+        let bare = run("create_project", &json!({"summary": "Tips", "files": [{"path": "tip calculator.rr", "text": "CREATE F AS RForm\nEND CREATE\nF.ShowModal\n"}]}), &none, &mut props, true);
+        assert!(!bare.is_error && bare.content.contains("The project tip_calculator (1 file) compiles"), "{}", bare.content);
+        assert!(props.iter().any(|q| q.project == "tip_calculator" && q.main && q.path == "tip calculator.rr"), "{props:#?}");
+        let wrong_main = run("create_project", &json!({"name": "T", "main": "app.rr", "summary": "T", "files": [{"path": "forms.inc", "text": "CREATE F AS RForm\nEND CREATE\n"}, {"path": "main.rr", "text": "$INCLUDE \"forms.inc\"\nF.ShowModal\n"}]}), &none, &mut props, true);
+        assert!(!wrong_main.is_error && props.iter().any(|q| q.project == "T" && q.main && q.path == "main.rr"), "{}", wrong_main.content);
+        // (write_file with create_project's files and no project open: a new program too)
+        let mixed = run("write_file", &json!({"summary": "x", "files": [{"path": "main.rr", "text": "PRINT 1\n"}]}), &none, &mut props, true);
+        assert!(!mixed.is_error && props.iter().any(|q| q.project == "main"), "{}", mixed.content);
     }
 
     #[test]
