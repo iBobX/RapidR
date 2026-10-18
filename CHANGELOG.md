@@ -17,7 +17,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Studio finds the closest recipe itself (a keyword search on your computer,
   in English, Spanish and Portuguese) and sends it with your request, so the
   model adapts a program that works instead of inventing one; a
-  `find_example` tool finds one later. *What was sent* shows it.
+  `find_example` tool finds one later. *What was sent* shows it. Studio lists
+  them under **Open an Example** too.
 - **Friendly hints in the assistant's code checks**: under the compiler's own
   messages, the exact fix for habits from other languages (`!=`, `||`, one
   `AS` per name, braces, `[ ]` lists, `//` comments, `BOOLEAN` and `COLOR`

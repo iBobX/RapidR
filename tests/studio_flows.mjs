@@ -1637,6 +1637,16 @@ const CASES = [
     delay: 6,
     dump: { "palette.selected": /^more:\d+$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
   },
+  // (RECIPES) the recipes too: "sqrt" typed finds the calculator, Enter
+  // opens it as the user's own copy
+  {
+    name: "palette-recipe",
+    open: "",
+    do: "wait,palette:sqrt",
+    events: "palette.__key_13",
+    delay: 6,
+    dump: { "palette.selected": /^more:\d+$/, "studio.caption": /^calculator - RapidR Studio$/ },
+  },
   {
     // a snippet: `sub` and Tab — the skeleton, its name selected; Tab again
     // to the parameters
