@@ -8,6 +8,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Recipes: ten short working programs to start from** (`examples/recipes/`):
+  a calculator with square root, x², log, sin, cos and tan (one handler for
+  every key), a tip calculator, a stopwatch, a to-do list, a unit converter, a
+  quiz, a drawing pad, a password generator, a CSV viewer and a server manager
+  (a list with Start / Stop / Restart). Each is clicked by the examples suite
+  on every runtime. When you ask RapidR Studio's assistant for a new program,
+  Studio finds the closest recipe itself (a keyword search on your computer,
+  in English, Spanish and Portuguese) and sends it with your request, so the
+  model adapts a program that works instead of inventing one; a
+  `find_example` tool finds one later. *What was sent* shows it.
+- **Friendly hints in the assistant's code checks**: under the compiler's own
+  messages, the exact fix for habits from other languages (`!=`, `||`, one
+  `AS` per name, braces, `[ ]` lists, `//` comments, `BOOLEAN` and `COLOR`
+  types, an event's argument types), for a name never given a value (with the
+  closest real one), a RapidQ constant used without `$INCLUDE "RAPIDQ.INC"`
+  (`alClient` is 0 then), a window never shown (`Form.ShowModal` missing),
+  and a handler that does nothing yet or only says what "a real
+  implementation would" do; a component's members beside a property it
+  doesn't have. The hints are their own module, for Learn with RAI later. The
+  compiler and `rapidr run` are unchanged.
+- **Click-tested AI evals** (`tests/ai-eval/apps/`, `ai_eval.rs`): ten app
+  requests, each program run headless after the conversation and used as a
+  person would (buttons found by their captions); score = it compiles and the
+  click test passes. Results in [docs/small-models-plan.md](docs/small-models-plan.md#results).
 - **Showcase: eight bigger programs, written from ideas alone** in
   `examples/showcase/` (the data is made up by the programs; nothing is copied).
   Fireworks (thousands of sparks, each with its own physics, shapes worked out
@@ -27,6 +51,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web page again to check what the browser kept (`reload`).
 
 ### Fixed
+- **A new program the assistant proposed stays fixable until you create it.**
+  A small model that found errors in its new program tried to read and fix
+  it before you pressed Create, and got "no project open" — then lost its
+  way. Now reading, checking and changing work on the proposed program's
+  files, the Preview shows the latest version, and it stays across questions
+  until Create (or New Chat). `create_project` without a name or main file
+  takes them from its files. When the assistant only described a change, the
+  words are plainer: *"The assistant didn't make the change you asked for.
+  Ask again, or try a larger model."*
 - **RapidR Studio's assistant works with small models on your own computer**
   (a 4B or 9B model served by mlx-serve, Ollama, LM Studio). A reply asked
   for up to 65,535 tokens on a model whose whole window was 12,000–26,000

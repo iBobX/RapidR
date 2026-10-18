@@ -167,10 +167,10 @@ pub fn for_message(message: &str) -> Option<(&'static str, String)> {
             _ if up.contains("EVENT") || up.contains("ARGS") || up.ends_with("SENDER") => format!(
                 "{ty} isn't a RapidR type: an event's handler takes the event's own parameters — rapidr_describe the component; e.g. OnClick: SUB Name (no parameters, or Sender AS RButton), OnMouseDown: SUB Name(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)"
             ),
-            _ => match component_for(&ty) {
-                Some(r) => format!("{ty} isn't a RapidR type: the component is {r} (rapidr_describe {r})"),
-                None => return None,
-            },
+            _ => {
+                let r = component_for(&ty)?;
+                format!("{ty} isn't a RapidR type: the component is {r} (rapidr_describe {r})")
+            }
         };
         return Some(("type", fix));
     }

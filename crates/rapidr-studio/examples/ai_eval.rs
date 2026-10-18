@@ -402,8 +402,8 @@ mod score {
             let Some(t) = tests.last_mut() else { continue };
             // (a selector: /regex/ (may hold spaces) or one word)
             let split_sel = |r: &str| -> (String, String) {
-                if r.starts_with('/') {
-                    if let Some(end) = r[1..].find('/') {
+                if let Some(rest) = r.strip_prefix('/') {
+                    if let Some(end) = rest.find('/') {
                         return (r[..end + 2].to_string(), r[end + 2..].trim().to_string());
                     }
                 }
