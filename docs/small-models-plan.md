@@ -129,7 +129,9 @@ the model), and `claude-haiku-5-5` (Anthropic).
   `tests/ai-eval/apps/*.txt` (and the held-out `tests/ai-eval/held-out/`) once
   it answers again.
 - **Read with care:** the ten eval apps are the shapes the ten recipes
-  cover, so "after" measures *a request that has a recipe*. The held-out
+  cover, so "after" measures *a request that has a recipe* — and gemma's
+  three passing programs are the pushed recipe as it is (the calculator byte
+  for byte): Studio delivered them, the model passed them on. The held-out
   apps (a BMI calculator, a dice roller, a countdown timer — no recipe is
   them) measure the rest; their numbers come with the rest of gemma's.
 - Every recipe passes its eval app's click test (`ai_eval --score`), so a
