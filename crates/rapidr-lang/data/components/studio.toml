@@ -185,10 +185,12 @@ properties = [
   { name = "CompatMode", type = "string", design = false, doc = "\"rapidq\" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes." },
   { name = "Permission", type = "string", default = "propose", values = ["propose", "read-only"], doc = "What the model may do: \"propose\" (read the project and propose changes, shown as diffs the user decides on) or \"read-only\" (read and answer; the proposing tools aren't offered)." },
   { name = "ProposalCount", type = "int", access = "read", design = false, doc = "How many changes the last answer proposed (files changed, or a new project's files)." },
+  { name = "RunOutput", type = "string", design = false, doc = "The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it (\"\": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model." },
 ]
 methods = [
   { name = "SetFile", params = "Path AS STRING, Text AS STRING", effects = ["state"], doc = "A file's text as its editor has it, unsaved changes included: what the model reads of it (Path inside ProjectFolder)." },
   { name = "ClearFiles", value = true, effects = ["state"], doc = "Forgets the editors' texts SetFile gave: files are read from their store." },
+  { name = "AddRunOutput", params = "Text AS STRING", effects = ["state"], doc = "More of the running program's output (as it prints it): RunOutput keeps its last 20 lines for the model." },
   { name = "ProposalInfo", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index (from 0), tab-separated: its kind (\"edit\": a file changed, \"create\": a new file of the project, \"project\": a file of a new project), its path, its summary, the new project's name, True for the new project's main file, and the user's decision (\"\", \"applied\", \"partly\", \"rejected\", \"created\")." },
   { name = "ProposalOld", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as it was (\"\" for a new file): an RDiffView's LeftText." },
   { name = "ProposalNew", params = "Index AS INTEGER", returns = "STRING", effects = ["none"], doc = "Proposal Index's file as proposed: an RDiffView's RightText." },

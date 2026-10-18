@@ -625,7 +625,7 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
     // same member when it gave one)
     let sources: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).filter(|p| is_source(p)).collect();
     for l in member_problems(files, &sources) {
-        let place = l.split(": ").next().unwrap_or("").trim_start_matches("error ").rsplitn(2, ':').nth(1).unwrap_or("").to_string();
+        let place = l.split(": ").next().unwrap_or("").trim_start_matches("error ").rsplit_once(':').map_or("", |x| x.0).to_string();
         let prop = l.split(" has no property ").nth(1).and_then(|r| r.split([';', ' ']).next()).map(|p| p.rsplit('.').next().unwrap_or(p).to_ascii_uppercase()).unwrap_or_default();
         if let Some(k) = out.iter().position(|o| o.starts_with(&format!("warning {place}:")) && o.contains(&format!("Member {prop} not part of"))) {
             out[k] = l;
@@ -705,11 +705,14 @@ fn apply_edits(path: &str, old: &str, edits: &[Json]) -> Result<String, String> 
     Ok(text)
 }
 
+/// Each line's indentation: in the old text, in the file.
+type Indents = Vec<(String, String)>;
+
 /// Where `from`'s lines are in `text` once, each line compared without its
 /// indentation and trailing spaces: the byte range of those whole lines
 /// (without the last line break), and each line's indentation in `from`
 /// and in the file.
-fn loose_match(text: &str, from: &str) -> Option<(usize, usize, Vec<(String, String)>)> {
+fn loose_match(text: &str, from: &str) -> Option<(usize, usize, Indents)> {
     let want: Vec<&str> = from.lines().collect();
     let first = want.iter().position(|l| !l.trim().is_empty())?;
     let last = want.iter().rposition(|l| !l.trim().is_empty())?;
@@ -868,6 +871,16 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
     let original = if exists { p.text(&rel).unwrap_or_default() } else { String::new() };
     let summary = s(input, "summary").to_string();
     let kind = if exists { "edit" } else { "create" };
+    // (a file cut to a fraction of itself that doesn't compile is a
+    // snippet sent for the whole: refused, the file left as proposed so far)
+    let (old_lines, new_lines) = (original.lines().count(), text.lines().count());
+    if exists && old_lines >= 20 && new_lines * 4 < old_lines {
+        let mut trial = proposals.clone();
+        propose(&mut trial, Proposal { kind: kind.into(), path: rel.clone(), old: original.clone(), new: text.clone(), ..Proposal::default() });
+        if let Some(errors) = compile_errors(p, &trial) {
+            return err(format!("write_file would replace {rel} ({old_lines} lines) with {new_lines} lines that don't compile: write_file takes the file's whole new text. Send the complete file, or change a part with propose_edit.\n{errors}"), format!("Refused a shortened {rel} that doesn't compile"), &rel);
+        }
+    }
     propose(proposals, Proposal { kind: kind.into(), path: rel.clone(), old: original, new: text, summary: summary.clone(), ..Proposal::default() });
     let what = if exists { "a new text for" } else { "the new file" };
     match compile_errors(p, proposals) {

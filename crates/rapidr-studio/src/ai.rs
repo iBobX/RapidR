@@ -47,6 +47,8 @@ struct Tools {
     /// The turn's proposals, as its last proposing call left them, don't
     /// compile.
     broken: bool,
+    /// The files read this turn, as they were read.
+    reads: HashMap<String, String>,
     /// The RAI the tools are attached to (its conversation records the
     /// user's decisions).
     rai: String,
@@ -179,12 +181,27 @@ impl ToolProvider for Handle {
         with(&self.name, |t| {
             t.proposals.clear();
             t.broken = false;
+            t.reads.clear();
         });
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
         with(&self.name, |t| {
             let may = t.may_propose();
+            // (the same file read again in the same answer, unchanged: not
+            // sent again — a small model rereads in a loop, and each copy
+            // fills its window)
+            if name == "read_file" {
+                if let Ok(rel) = ai_tools::project_path(&t.folder, input.get("path").and_then(Json::as_str).unwrap_or("")) {
+                    let now = t.proposals.iter().find(|p| p.path == rel && p.project.is_empty()).map(|p| p.new.clone()).or_else(|| t.project().text(&rel).ok());
+                    if let Some(text) = now {
+                        if t.reads.get(&rel) == Some(&text) {
+                            return ToolOutcome { content: format!("{rel} hasn't changed since you read it in this answer: its text is above. Go on with the change (propose_edit or write_file)."), is_error: false, note: format!("{rel} again: unchanged"), read: None, risk: "read", target: rel };
+                        }
+                        t.reads.insert(rel, text);
+                    }
+                }
+            }
             let mut proposals = std::mem::take(&mut t.proposals);
             let out = ai_tools::run(name, input, &t.project(), &mut proposals, may);
             t.proposals = proposals;

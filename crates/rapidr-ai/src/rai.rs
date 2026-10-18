@@ -1389,3 +1389,101 @@ pub fn peek(name: &str) -> (String, String) {
 pub fn prompts_of(name: &str) -> (String, String) {
     with(name, |a| a.prompts())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn local(window: u64) -> Ai {
+        let mut a = Ai { provider: "compatible".into(), model: "m".into(), base_url: "http://127.0.0.1:9/v1".into(), max_tokens: 65535, ..Ai::default() };
+        a.windows.insert("m".into(), (window, true));
+        a
+    }
+
+    fn call(id: &str, name: &str, input: Json) -> Message {
+        Message { role: Role::Assistant, content: vec![Block::ToolUse { id: id.into(), name: name.into(), input }] }
+    }
+
+    fn result(id: &str, content: String) -> Message {
+        Message { role: Role::User, content: vec![Block::ToolResult { id: id.into(), content, is_error: false }] }
+    }
+
+    fn answer(t: &str) -> Message {
+        Message { role: Role::Assistant, content: vec![Block::Text(t.into())] }
+    }
+
+    #[test]
+    fn the_reply_never_takes_more_than_the_window_leaves() {
+        // (a local model of 8,000 tokens: a quarter; MaxTokens 65535 or not)
+        assert_eq!(local(8000).max_tokens(), 2000);
+        // (a large window: what a model on this computer writes in one go)
+        assert_eq!(local(131_072).max_tokens(), LOCAL_REPLY);
+        // (a window not said: a compatible server's modest default)
+        let mut a = local(8000);
+        a.windows.clear();
+        assert_eq!(a.max_tokens(), UNKNOWN_WINDOW_REPLY);
+        // (an unloaded model's largest window doesn't count as its own)
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false) }]);
+        assert_eq!(a.window(), None);
+        assert_eq!(a.budget_window(), Some(ASSUMED_LOCAL_WINDOW));
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 12_288, loaded: Some(true) }]);
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false) }]);
+        assert_eq!(a.window(), Some(12_288), "the window it ran with stays");
+        // (a cloud provider: MaxTokens as set, as before)
+        let cloud = Ai { provider: "anthropic".into(), model: "x".into(), max_tokens: 9000, ..Ai::default() };
+        assert_eq!(cloud.max_tokens(), 9000);
+        assert_eq!(cloud.budget_window(), None);
+    }
+
+    #[test]
+    fn a_long_conversation_keeps_its_questions_and_loses_old_file_texts() {
+        let file = "PRINT 1\n".repeat(2500);
+        let mut a = local(4000);
+        a.messages = vec![
+            Message::user("Write the server module"),
+            call("c1", "write_file", json!({"path": "Server.rr", "text": file, "summary": "the server"})),
+            result("c1", "Proposed the new file Server.rr to the user as a diff; they decide.".into()),
+            answer("I proposed Server.rr."),
+            Message::user("Now read main.rr"),
+            call("c2", "read_file", json!({"path": "main.rr"})),
+            result("c2", file.clone()),
+            answer("main.rr prints numbers."),
+            Message::user("Add a Stop button"),
+        ];
+        let fixed = 3000;
+        let (before, after, cut) = a.compact(fixed);
+        let budget = (4000u64 * 7 / 10).min(4000 - u64::from(a.max_tokens()) - 256);
+        assert!(before > budget && after <= budget && cut >= 2, "{before} → {after} (budget {budget}), {cut} cut");
+        // (every question still there, the last one whole)
+        let questions: Vec<String> = a.messages.iter().filter(|m| m.role == Role::User).map(Message::text).filter(|t| !t.is_empty()).collect();
+        assert_eq!(questions, ["Write the server module", "Now read main.rr", "Add a Stop button"]);
+        // (the file's text in the earlier call and the earlier result: notes)
+        let Block::ToolUse { input, .. } = &a.messages[1].content[0] else { panic!() };
+        assert!(input["text"].as_str().unwrap().starts_with("[2500 lines, left out"), "{input}");
+        assert_eq!(input["path"], "Server.rr");
+        let Block::ToolResult { content, .. } = &a.messages[6].content[0] else { panic!() };
+        assert!(content.starts_with("[read_file main.rr: 2500 lines, left out") && content.contains("call it again"), "{content}");
+        // (a small result stays as it was)
+        let Block::ToolResult { content, .. } = &a.messages[2].content[0] else { panic!() };
+        assert!(content.starts_with("Proposed the new file"));
+        // (nothing over budget: nothing cut)
+        let mut b = local(131_072);
+        b.messages = a.messages.clone();
+        assert_eq!(b.compact(fixed).2, 0);
+    }
+
+    #[test]
+    fn past_the_notes_the_oldest_exchanges_go_and_the_question_stays() {
+        let long = "word ".repeat(1500);
+        let mut a = local(2000);
+        a.messages = vec![Message::user(&long), answer(&long), Message::user(&long), call("c9", "list_files", json!({})), result("c9", "main.rr".into()), answer(&long), Message::user("And now?")];
+        let (_, after, _) = a.compact(600);
+        let budget = (2000u64 * 7 / 10).min(2000 - u64::from(a.max_tokens()) - 256);
+        assert!(after <= budget, "{after} > {budget}");
+        assert!(a.messages.first().unwrap().text().starts_with("(Earlier messages of this conversation were left out"), "{:?}", a.messages.first());
+        assert!(a.messages.last().unwrap().text().ends_with("And now?"));
+        // (no result left without its call)
+        let calls: Vec<String> = a.messages.iter().flat_map(|m| m.content.iter()).filter_map(|b| if let Block::ToolUse { id, .. } = b { Some(id.clone()) } else { None }).collect();
+        assert!(a.messages.iter().flat_map(|m| m.content.iter()).all(|b| !matches!(b, Block::ToolResult { id, .. } if !calls.contains(id))));
+    }
+}
