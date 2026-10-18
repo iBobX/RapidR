@@ -4,6 +4,8 @@ Robert's idea (2026-10-18): RapidR is for students and people who don't program 
 
 This builds on Phase 3D ([speech-and-tutorial-plan.md](speech-and-tutorial-plan.md)). Guided lessons are the scripted path; this plan is the AI path that goes with them.
 
+**The guiding line** (Robert, 2026-10-18): *AI doesn't make us dumber; how we use it does. Some people use it to stop thinking; others walk alongside it like a mentor, to learn, ask why and grow.* RapidR is the language that helps you walk alongside AI, so we become **smarter together**.
+
 ## The problem we solve
 
 An AI that writes everything gives you a program, but you learn nothing ("illusion of competence"). A tutor that only lectures kills the fun. Learning research points the same way again and again:
