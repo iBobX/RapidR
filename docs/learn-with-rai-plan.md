@@ -85,6 +85,8 @@ Robert (2026-10-18): use what we know about how people feel, the rush of "I'm ab
 The same moments teach far more than BASIC, a little at a time:
 - **Studio itself:** shortcuts, the designer, the debugger.
 - **Programming:** loops, data, events, files, which carry over to every language.
+- **Debugging:** breakpoints, stepping, watching values, reading an error. It's the most useful skill of all, so the bug hunts and Predict, then Run train it directly.
+- **Version control and diffs:** every AI proposal is a diff, so people learn to read one from day one. Later, Studio's history and Git ("save a version", "what changed since yesterday?", "undo to this point") come with plain-language explanations of commits, branches and merges.
 - **Design and 3D:** "why this layout reads better", "what a camera and a light do".
 - **Computers:** memory, files, the network, what a pixel is.
 - **Working with AI:** RAI shows *how* it reasoned and points out what made a request clear ("you told me the inputs and the result you wanted: that's why this worked"). People learn to collaborate with AI without a single lesson about it.
