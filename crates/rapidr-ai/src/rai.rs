@@ -71,7 +71,7 @@ pub const LOCAL_READ_TIMEOUT: u64 = 300;
 pub const ASSUMED_LOCAL_WINDOW: u64 = 16_384;
 /// The status after a turn whose answer said it changed something, asked
 /// once to make the change for real, and still made none.
-pub const CLAIM_STATUS: &str = "The assistant described a change but didn't make one. Ask again, or try a larger model.";
+pub const CLAIM_STATUS: &str = "The assistant didn't make the change you asked for. Ask again, or try a larger model.";
 
 /// A reply's cap for a model of `window` tokens: a quarter of it, between
 /// 256 and 8,192 (the rest is the conversation's).
@@ -966,7 +966,7 @@ impl Ai {
                     if !self.nudged && run.reply.stop != "max_tokens" {
                         self.nudged = true;
                         self.messages.push(Message::user(&nudge));
-                        self.note("No change was made in this answer: the assistant was asked to make it.");
+                        self.note("The assistant hadn't made the change yet, so Studio asked it to.");
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;

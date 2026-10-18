@@ -53,6 +53,12 @@ struct Tools {
     misses: u32,
     /// This turn's proposals that didn't compile.
     tries: u32,
+    /// A proposing tool changed something this turn (a new project kept
+    /// from an earlier turn, not created yet, isn't this turn's).
+    touched: bool,
+    /// The model was asked again this turn to make the change it only
+    /// described (or that the user said to make).
+    asked_again: bool,
     /// The RAI the tools are attached to (its conversation records the
     /// user's decisions).
     rai: String,
@@ -135,6 +141,12 @@ fn facts(t: &Tools) -> String {
         let name = if t.project_name.is_empty() { "(unnamed)" } else { &t.project_name };
         format!("The open project: {name}; main file {}; files: {}.", t.main, t.files.join(", "))
     };
+    // (a new program proposed and not created yet: still the model's to fix)
+    if let Some((name, main)) = ai_tools::pending(&t.proposals) {
+        let files: Vec<&str> = t.proposals.iter().filter(|p| p.kind == "project" && p.project == name).map(|p| p.path.as_str()).collect();
+        let how = if t.folder.is_empty() { format!("read_file, check_code, write_file and propose_edit work on its files ({})", files.join(", ")) } else { format!("its files are {name}/{main} …: read_file, write_file and propose_edit with those paths") };
+        f.push_str(&format!(" A new project {name} is proposed but not created yet: you can still fix it — {how}; the user creates it with Create."));
+    }
     if t.compat.eq_ignore_ascii_case("rapidq") {
         f.push_str(" It is RapidQ-compatible: write only what RapidQ's own compiler takes (no [R] extensions), with RapidQ's names.");
     }
@@ -183,11 +195,15 @@ impl ToolProvider for Handle {
 
     fn begin_turn(&mut self) {
         with(&self.name, |t| {
-            t.proposals.clear();
+            // (a new project proposed and not created yet stays: the model
+            // can still fix it, the user still preview and create it)
+            t.proposals.retain(|p| p.kind == "project" && p.decision != "created");
             t.broken = false;
             t.reads.clear();
             t.misses = 0;
             t.tries = 0;
+            t.touched = false;
+            t.asked_again = false;
         });
     }
 
@@ -199,7 +215,8 @@ impl ToolProvider for Handle {
             // fills its window)
             if name == "read_file" {
                 if let Ok(rel) = ai_tools::project_path(&t.folder, input.get("path").and_then(Json::as_str).unwrap_or("")) {
-                    let now = t.proposals.iter().find(|p| p.path == rel && p.project.is_empty()).map(|p| p.new.clone()).or_else(|| t.project().text(&rel).ok());
+                    let pending = |p: &Proposal| t.folder.is_empty() && p.kind == "project" && p.decision != "created";
+                    let now = t.proposals.iter().find(|p| p.path == rel && (p.project.is_empty() || pending(p))).map(|p| p.new.clone()).or_else(|| t.project().text(&rel).ok());
                     if let Some(text) = now {
                         if t.reads.get(&rel) == Some(&text) {
                             return ToolOutcome { content: format!("{rel} hasn't changed since you read it in this answer: its text is above. Go on with the change (propose_edit or write_file)."), is_error: false, note: format!("{rel} again: unchanged"), read: None, risk: "read", target: rel };
@@ -222,6 +239,7 @@ impl ToolProvider for Handle {
             // (whether what the turn proposes compiles, as its last proposal
             // left it: the status says so, and the model is asked to fix it)
             if matches!(name, "propose_edit" | "write_file" | "create_project") && !out.is_error {
+                t.touched = true;
                 t.broken = out.note.contains("errors to fix");
                 // (a model that can't fix its errors rewrites the file again
                 // and again — minutes each on a local one: after three tries
@@ -239,6 +257,12 @@ impl ToolProvider for Handle {
 
     fn turn_status(&self) -> Option<String> {
         with(&self.name, |t| {
+            // (nothing proposed in this answer: a new project from before,
+            // not created yet, is said — unless the model was asked again
+            // for a change it didn't make, which the status must say)
+            if !t.touched {
+                return ai_tools::pending(&t.proposals).filter(|_| !t.asked_again).map(|(name, _)| format!("The new program {name} isn't created yet: preview it, then create it."));
+            }
             let n = t.proposals.len();
             let files = t.proposals.iter().filter(|p| p.project.is_empty()).count();
             (n > 0).then(|| match (files, t.broken) {
@@ -256,11 +280,13 @@ impl ToolProvider for Handle {
         with(&self.name, |t| {
             if !t.may_propose() {
                 None
-            } else if !t.proposals.is_empty() {
+            } else if t.touched {
                 (t.broken && t.tries < 3).then(|| NUDGE_FIX.to_string())
             } else if rapidr_ai::claims::claims_change(answer) {
+                t.asked_again = true;
                 Some(format!("{NUDGE} {}", t.where_to()))
             } else if rapidr_ai::claims::go_ahead(question) {
+                t.asked_again = true;
                 Some(format!("{NUDGE_GO_AHEAD} {}", t.where_to()))
             } else {
                 None
@@ -273,7 +299,9 @@ impl Tools {
     /// Which tool a change goes through: the open project's files, or a
     /// new program.
     fn where_to(&self) -> String {
-        if self.folder.is_empty() {
+        if let Some((name, main)) = ai_tools::pending(&self.proposals).filter(|_| self.folder.is_empty()) {
+            format!("(The new project {name} isn't created yet: change its files with write_file or propose_edit — its main file is {main}.)")
+        } else if self.folder.is_empty() {
             "(No project is open: a new program is create_project.)".into()
         } else {
             format!("(The open project is {}: change its files with propose_edit or write_file; create_project only for a separate new program.)", if self.project_name.is_empty() { &self.main } else { &self.project_name })

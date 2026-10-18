@@ -242,6 +242,9 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
     if let Some(raw) = input.get("_invalid_json").and_then(Json::as_str) {
         return err(format!("the arguments weren't valid JSON ({}…): call {name} again with a JSON object", raw.chars().take(60).collect::<String>()), format!("{name}: arguments not understood"), "");
     }
+    if let Some(out) = on_pending(name, input, project, proposals, may_propose) {
+        return out;
+    }
     match name {
         "list_files" => list_files(project),
         "read_file" => read_file(input, project),
@@ -272,6 +275,84 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "write_file" => Outcome { risk: "state", ..write_file(input, project, proposals) },
         "create_project" => Outcome { risk: "state", ..create_project(input, proposals) },
         other => err(format!("there is no tool `{other}`: the tools are {}", tools(may_propose).iter().map(|t| t.name.as_str()).collect::<Vec<_>>().join(", ")), format!("{other}: no such tool"), ""),
+    }
+}
+
+/// The new project the proposals hold that the user hasn't created yet
+/// (create_project's): its name and main file.
+pub fn pending(proposals: &[Proposal]) -> Option<(String, String)> {
+    let files: Vec<&Proposal> = proposals.iter().filter(|p| p.kind == "project" && p.decision != "created").collect();
+    let first = files.first()?;
+    let main = files.iter().find(|p| p.main).map_or_else(|| first.path.clone(), |p| p.path.clone());
+    Some((first.project.clone(), main))
+}
+
+/// A tool on the new project proposed and not created yet: with no project
+/// open — or with a path that names it (`Calc/main.rr`) — reading,
+/// checking and changing work on its files, as if it were open, and a
+/// change updates the proposal (what the Preview shows). A small model
+/// fixes its new program's errors with read_file and write_file before the
+/// user presses Create; "no project open" there lost it.
+fn on_pending(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Proposal>, may_propose: bool) -> Option<Outcome> {
+    if !matches!(name, "list_files" | "read_file" | "check_code" | "propose_edit" | "write_file" | "rapidr_list" | "rapidr_get") {
+        return None;
+    }
+    // (write_file with create_project's arguments: a new project again)
+    if name == "write_file" && input.get("path").is_none() && input.get("files").is_some() {
+        return None;
+    }
+    let (pname, main) = pending(proposals)?;
+    let named = crate::slashes(s(input, "path").trim());
+    let named = named.trim_start_matches("./");
+    let stripped = named.get(..pname.len() + 1).filter(|p| p.eq_ignore_ascii_case(&format!("{pname}/"))).map(|_| named[pname.len() + 1..].to_string());
+    if !project.folder.is_empty() && stripped.is_none() {
+        return None;
+    }
+    let mut input = input.clone();
+    if let (Some(rel), Some(o)) = (stripped, input.as_object_mut()) {
+        o.insert("path".into(), json!(rel));
+    }
+    let files: Vec<String> = proposals.iter().filter(|p| p.kind == "project" && p.project == pname).map(|p| p.path.clone()).collect();
+    let buffers: HashMap<String, String> = proposals.iter().filter(|p| p.kind == "project" && p.project == pname).map(|p| (p.path.clone(), p.new.clone())).collect();
+    let folder = format!("/new/{pname}");
+    let vp = Project { folder: &folder, files: &files, main: &main, compat: "", buffers: &buffers };
+    let not_yet = format!("the new project {pname}, proposed and not created yet (the user creates it with Create; until then you can still change it with write_file or propose_edit)");
+    match name {
+        "list_files" => {
+            let o = list_files(&vp);
+            Some(Outcome { content: format!("No project is open: these are the files of {not_yet}:\n{}", o.content), note: format!("Listed the new project {pname}'s files"), ..o })
+        }
+        "propose_edit" | "write_file" if may_propose => {
+            let mut changed = Vec::new();
+            let out = run(name, &input, &vp, &mut changed, true);
+            if out.is_error {
+                return Some(Outcome { risk: "state", ..out });
+            }
+            let summary = proposals.iter().find(|p| p.kind == "project" && p.project == pname).map(|p| p.summary.clone()).unwrap_or_default();
+            for q in changed {
+                match proposals.iter_mut().find(|p| p.kind == "project" && p.project == pname && p.path == q.path) {
+                    Some(p) => p.new = q.new,
+                    None => proposals.push(Proposal { kind: "project".into(), path: q.path, new: q.new, summary: summary.clone(), project: pname.clone(), ..Proposal::default() }),
+                }
+            }
+            let got: Vec<(String, String)> = proposals.iter().filter(|p| p.kind == "project" && p.project == pname).map(|p| (p.path.clone(), p.new.clone())).collect();
+            let found = diagnostics(&got, &folder, &main, &main, false);
+            let rel = s(&input, "path").to_string();
+            let errors = found.iter().filter(|l| l.starts_with("error")).count();
+            Some(if errors == 0 {
+                ok(format!("Changed {rel} of {not_yet}. It compiles. Tell the user in a sentence what changed."), format!("Changed the new project {pname}: {rel}"), "state", &rel)
+            } else {
+                let shown: Vec<&String> = found.iter().filter(|l| l.starts_with("error") || l.starts_with("hint")).take(24).collect();
+                ok(
+                    format!("Changed {rel} of {not_yet}, but it doesn't compile yet — fix these now (write_file with the file's whole corrected text):\n{}", shown.iter().map(|l| l.as_str()).collect::<Vec<_>>().join("\n")),
+                    format!("Changed the new project {pname}: {rel} (errors to fix)"),
+                    "state",
+                    &rel,
+                )
+            })
+        }
+        "propose_edit" | "write_file" => None,
+        _ => Some(run(name, &input, &vp, &mut Vec::new(), may_propose)),
     }
 }
 

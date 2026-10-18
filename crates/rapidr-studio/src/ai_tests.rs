@@ -292,9 +292,9 @@ fn an_answer_that_claims_a_change_is_asked_once_then_told_plainly() {
     assert_eq!(last["role"], "user");
     assert!(last["content"].as_str().unwrap().contains("you called no tool, so nothing reached the user") && last["content"].as_str().unwrap().contains("The open project is demo"), "{last}");
     let (t, status) = rapidr_ai::rai::peek(n);
-    assert_eq!(status, "The assistant described a change but didn't make one. Ask again, or try a larger model.");
+    assert_eq!(status, "The assistant didn't make the change you asked for. Ask again, or try a larger model.");
     // (the nudge isn't a message of the user's: a note under the answer)
-    assert!(t.contains("*No change was made in this answer: the assistant was asked to make it.*") && t.matches("**You**").count() == 1, "{t}");
+    assert!(t.contains("*The assistant hadn't made the change yet, so Studio asked it to.*") && t.matches("**You**").count() == 1, "{t}");
     assert_eq!(get("tools-claim", "proposalcount").unwrap().to_i64(), 0);
     // (a plain answer to a question: no nudge, "Answered.")
     let (url2, server2) = mock(vec![text_answer("It shows a window with the caption Hi.")]);
@@ -383,4 +383,95 @@ fn the_instructions() {
     assert!(p.len() < 16_000, "{}", p.len());
     assert_eq!(ai_tools::tools(false).len(), 6);
     assert_eq!(ai_tools::tools(true).len(), 9);
+}
+
+/// A tool call as a compatible server streams it.
+fn call_answer(id: &str, tool: &str, args: Json) -> String {
+    sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": id, "function": {"name": tool, "arguments": args.to_string()}}]}, "finish_reason": "tool_calls"}]})])
+}
+
+/// Robert's scientific calculator on gemma E4B (2026-10-18): create_project
+/// proposed a program with errors, and the model fixed them with read_file
+/// and write_file before the user pressed Create — "no project open" lost
+/// it. Now the new project, not created yet, is the one the tools work on:
+/// the fix updates the proposal, the Preview shows it, Create writes it.
+#[test]
+fn a_new_project_not_created_yet_can_still_be_fixed() {
+    let _one = one_at_a_time();
+    let dir = std::env::temp_dir().join(format!("rapidr-ai-pending-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let broken = "DIM ready AS BOOLEAN\nCREATE Form AS RForm\n    Caption = \"Calc\"\nEND CREATE\nForm.ShowModal\n";
+    let fixed = "DIM ready AS INTEGER\nCREATE Form AS RForm\n    Caption = \"Calc\"\nEND CREATE\nForm.ShowModal\n";
+    let answers = vec![
+        call_answer("p1", "create_project", json!({"name": "Calc", "main": "main.rr", "summary": "A calculator", "files": [{"path": "main.rr", "text": broken}]})),
+        call_answer("r1", "read_file", json!({"path": "main.rr"})),
+        call_answer("w1", "write_file", json!({"path": "Calc/main.rr", "summary": "INTEGER", "text": fixed})),
+        text_answer("Fixed: it compiles now."),
+    ];
+    let (url, server) = mock(answers);
+    install();
+    let tools = "tools-pending";
+    set(tools, "projectfolder", &s(""));
+    set(tools, "projectfiles", &s(""));
+    set(tools, "mainfile", &s(""));
+    set(tools, "projectname", &s(""));
+    let n = "rai-pending";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Build me a scientific calculator app")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 4);
+    let tool_result = |k: usize| -> String {
+        let req: Json = serde_json::from_str(&seen[k]).unwrap();
+        req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "tool").unwrap()["content"].as_str().unwrap().to_string()
+    };
+    // (create_project: the error and its fix; read_file: the proposal's text)
+    assert!(tool_result(1).contains("doesn't compile yet") && tool_result(1).contains("RapidR has no BOOLEAN: use INTEGER"), "{}", tool_result(1));
+    assert!(tool_result(2).contains("DIM ready AS BOOLEAN") && !tool_result(2).contains("no project"), "{}", tool_result(2));
+    assert!(tool_result(3).contains("Changed main.rr of the new project Calc, proposed and not created yet") && tool_result(3).contains("It compiles."), "{}", tool_result(3));
+    // (the facts say it's there to fix)
+    let req: Json = serde_json::from_str(&seen[3]).unwrap();
+    let system = req["messages"][0]["content"].as_str().unwrap();
+    assert!(system.contains("A new project Calc is proposed but not created yet: you can still fix it"), "{}", &system[system.len().saturating_sub(600)..]);
+    let (t, status) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("no project open") && !t.contains("Couldn't read"), "{t}");
+    assert_eq!(status, "The assistant made a new program: preview it, then create it.");
+    // (one proposal, the fixed text: what the Preview shows)
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
+    assert!(call(tools, "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val().starts_with("project\tmain.rr\t"));
+    assert_eq!(call(tools, "proposalnew", &[Value::Integer(0)]).unwrap().to_string_val(), fixed);
+    // (the next question: still there, still editable)
+    let (url2, server2) = mock(vec![call_answer("e1", "propose_edit", json!({"path": "main.rr", "summary": "Title", "edits": [{"old_text": "Caption = \"Calc\"", "new_text": "Caption = \"Calculator\""}]})), text_answer("Renamed.")]);
+    rai_set(n, "baseurl", &url2);
+    assert_eq!(rai_call(n, "ask", &[s("Call the window Calculator")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(server2.join().unwrap().len(), 2);
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
+    assert!(call(tools, "proposalnew", &[Value::Integer(0)]).unwrap().to_string_val().contains("Caption = \"Calculator\""));
+    // (an answer that changes nothing: the status says the program waits)
+    let (url3, server3) = mock(vec![text_answer("It's a calculator.")]);
+    rai_set(n, "baseurl", &url3);
+    assert_eq!(rai_call(n, "ask", &[s("What does it do?")]).to_i64(), -1);
+    wait(n);
+    server3.join().unwrap();
+    assert_eq!(rapidr_ai::rai::peek(n).1, "The new program Calc isn't created yet: preview it, then create it.");
+    // (Create writes the latest; then it's the user's project, no longer a
+    // proposal: the next question starts without it)
+    let main = call(tools, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
+    let made = std::fs::read_to_string(&main).unwrap();
+    assert!(made.contains("DIM ready AS INTEGER") && made.contains("Calculator"), "{made}");
+    let (url4, server4) = mock(vec![text_answer("Sure.")]);
+    rai_set(n, "baseurl", &url4);
+    assert_eq!(rai_call(n, "ask", &[s("thanks")]).to_i64(), -1);
+    wait(n);
+    server4.join().unwrap();
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 0);
+    assert_eq!(rapidr_ai::rai::peek(n).1, "Answered.");
+    let _ = std::fs::remove_dir_all(&dir);
 }

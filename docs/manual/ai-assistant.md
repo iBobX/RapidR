@@ -191,7 +191,7 @@ the files the assistant read or wrote earlier are replaced by short notes —
 it reads them again when it needs them. The status line stays honest: when
 an answer says it changed something but no change reached you, the
 assistant is asked once to really make it, and if it still doesn't, the
-status says *"The assistant described a change but didn't make one"*; a
+status says *"The assistant didn't make the change you asked for"*; a
 change that doesn't compile says so too. The assistant can't run your
 program, but it sees the last lines your last run printed. A model of 4 to 9
 billion parameters can build small programs this way; for bigger ones a
