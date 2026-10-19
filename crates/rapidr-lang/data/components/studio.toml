@@ -185,6 +185,10 @@ properties = [
   { name = "CompatMode", type = "string", design = false, doc = "\"rapidq\" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes." },
   { name = "Permission", type = "string", default = "propose", values = ["propose", "read-only"], doc = "What the model may do: \"propose\" (read the project and propose changes, shown as diffs the user decides on) or \"read-only\" (read and answer; the proposing tools aren't offered)." },
   { name = "ProposalCount", type = "int", access = "read", design = false, doc = "How many changes the last answer proposed (files changed, or a new project's files)." },
+  { name = "ReviewFirst", type = "bool", default = false, design = false, doc = "True: a new program waits to be previewed and created (RapidR Studio's \"Ask before the assistant creates or changes files\"); False: the program creates it as the answer ends, and the model is told so." },
+  { name = "ProjectErrors", type = "int", access = "read", design = false, doc = "How many compile errors the new program proposed and not created yet has (0: it compiles)." },
+  { name = "CreatedFolder", type = "string", access = "read", design = false, doc = "The folder the last CreateProject made (\"\" when none, or once it was undone)." },
+  { name = "CreatedTitle", type = "string", access = "read", design = false, doc = "The title of the program the last CreateProject made, as the model named it (\"Scientific Calculator\")." },
   { name = "RunOutput", type = "string", design = false, doc = "The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it (\"\": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model." },
 ]
 methods = [
@@ -197,6 +201,9 @@ methods = [
   { name = "Patch", params = "OldText AS STRING, NewText AS STRING", returns = "STRING", effects = ["none"], doc = "The RCODEEDITOR.ApplyPatches line that turns OldText into NewText (the changed lines replaced, the file's own line breaks kept): applied, the change is one undo step. \"\" when they are the same." },
   { name = "Decide", params = "Index AS INTEGER, Decision AS STRING", effects = ["state"], doc = "Records the user's decision on proposal Index (\"applied\", \"partly\" or \"rejected\") in the RAI's conversation and audit log." },
   { name = "ClearProposals", value = true, effects = ["state"], doc = "Forgets the proposals." },
-  { name = "CreateProject", params = "Folder AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: writes files", doc = "Writes the new project the model proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; \"error: \" and why when it couldn't." },
+  { name = "CreateProject", params = "Folder AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: writes files", doc = "Writes the new project the model proposed in Folder, in a folder named from its title (\"Scientific Calculator\" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; \"error: \" and why when it couldn't. What it wrote is kept for Undo." },
+  { name = "UndoCheck", returns = "STRING", effects = ["none"], doc = "What changed in the folder CreateProject made since it wrote it, in plain words (\"main.rr was changed; notes.txt was added\"); \"\" when nothing did — then Undo needs no question." },
+  { name = "UndoFiles", returns = "STRING", effects = ["none"], doc = "The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added." },
+  { name = "UndoDone", returns = "INTEGER", effects = ["file-write"], test = "skip: removes folders", doc = "After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it)." },
 ]
 events = []

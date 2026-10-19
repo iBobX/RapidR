@@ -8,6 +8,32 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **A new program from the assistant opens straight in Studio**
+  (docs/ai-ux-plan.md §1): "Build a scientific calculator" ends with the
+  program open — its form in the designer — in your projects folder
+  (Documents/RapidR/Projects), in a folder named from its title ("Scientific
+  Calculator" → `ScientificCalculator`, then `ScientificCalculator2` …), with
+  a project file that keeps the title. No dialog, no folder question. A
+  banner across the top says what happened, with **▶ Run It** (the keyboard
+  is on it: Enter or F5 runs), **↺ Undo** and **What Did It Do?**; a program
+  that still has errors opens all the same, with **Run Anyway** and **Ask It
+  to Fix**. Undo closes it and removes exactly the files Studio wrote for it
+  (an explicit list, each checked to be inside its folder), asks first when
+  you changed or added files there (yours stay), and opens the project you
+  had before. Nothing runs until you press Run. Your unsaved changes are
+  asked about before anything opens. Tools > Settings > AI: **Ask before the
+  assistant creates or changes files** (off by default) keeps the preview
+  first.
+- **The assistant's chat tells the truth, in cards** (docs/ai-ux-plan.md
+  §3): what the tools did is written by Studio as small cards — the recipe
+  it started from, the program created (Open, Undo), a change proposed (+/−
+  lines, Review), the errors fixed — and the model's own short reply comes
+  after them. A reply that claimed a change before any tool made it shows
+  as one muted line ("An earlier draft said this was done before it was —
+  Studio asked it to actually do it"), never as the claim. One status line:
+  while the assistant works it is a short progress checklist ("✓ Found an
+  example · ✓ Wrote the program · … Working…"), read aloud by screen
+  readers once a step. RAI's new **Steps** property lists them.
 - **Recipes: ten short working programs to start from** (`examples/recipes/`):
   a calculator with square root, x², log, sin, cos and tan (one handler for
   every key), a tip calculator, a stopwatch, a to-do list, a unit converter, a
@@ -57,6 +83,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web page again to check what the browser kept (`reload`).
 
 ### Fixed
+- **The assistant never refuses a program for its title** (Robert's walk,
+  2026-10-18): "Scientific Calculator" was turned down as "a name that can't
+  be a folder"; any title now makes the program, its folder made from it
+  (accents dropped, words joined).
+- **The example Studio sends with a request is labelled as Studio's**, "not
+  from the user", so a model no longer thanks the user for "the recipe you
+  provided"; the instructions ask for one or two sentences after the tools,
+  without repeating names and paths the cards show.
+- **One status in the Assistant pane**: the bar above the input no longer
+  repeats the status sentence; it is one button that says what it opens
+  (**Review the Changes…**, **Preview the New Program…**).
 - **A new program the assistant proposed stays fixable until you create it.**
   A small model that found errors in its new program tried to read and fix
   it before you pressed Create, and got "no project open" — then lost its

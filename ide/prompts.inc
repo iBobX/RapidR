@@ -195,6 +195,30 @@ FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
   Result = Flag(PromptAnswer = PROMPT_SAVE)
 END FUNCTION
 
+' The assistant's new program changed since it was made, and the user
+' pressed Undo: Question (Detail under it) with Undo Anyway and Cancel
+' (Escape); 1 for Undo Anyway.
+FUNCTION AskUndoAnyway(Question AS STRING, Detail AS STRING) AS INTEGER
+  DIM y AS INTEGER
+  PromptAgain = 1
+  LayOutPrompt 0
+  PromptSave.Caption = "&Undo Anyway"
+  ' (what changed takes a few lines: all of it shows)
+  PromptText.Height = PromptText.Height * 2 + 4
+  y = PromptText.Top + PromptText.Height + 16
+  IF y > PromptSave.Top THEN
+    PromptSave.Top = y: PromptCancel.Top = y: PromptDont.Top = y
+    SavePrompt.ClientHeight = y + PromptSave.Height + 16
+  END IF
+  PromptTitle.Caption = Question
+  PromptText.Caption = Detail
+  PromptAnswer = PROMPT_CANCEL
+  SavePrompt.Center
+  SavePrompt.ShowModal
+  PromptAgain = 0
+  Result = Flag(PromptAnswer = PROMPT_SAVE)
+END FUNCTION
+
 ' Whether a document has changes not saved: Studio's window says so (the
 ' dot in macOS' close button; a browser asks before the page is left).
 SUB UpdateModified

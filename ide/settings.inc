@@ -100,7 +100,7 @@ CREATE SettingsDialog AS RForm
     END CREATE
     CREATE AIOnNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there, and the assistant changes nothing itself: it proposes, you review the changes and decide."
+      Caption = "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
     END CREATE
     CREATE AIProvLabel AS RLabel
       Caption = "&Provider:"
@@ -196,6 +196,10 @@ CREATE SettingsDialog AS RForm
     CREATE AIPermBox AS RComboBox
       Style = 2
       AccessibleName = "What the assistant may do"
+    END CREATE
+    CREATE AIReviewBox AS RCheckBox
+      Caption = "Ask before the assistant &creates or changes files"
+      AccessibleDescription = "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
     END CREATE
     CREATE AISetLinks AS RMarkdownView
       OpenLinks = 1
@@ -304,7 +308,9 @@ SUB LayOutSettingsDialog
   y = y + row
   AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
-  y = y + row + 4
+  y = y + row
+  AIReviewBox.Left = fx: AIReviewBox.Top = y: AIReviewBox.Width = fw: AIReviewBox.Height = 22
+  y = y + 28 + 4
   ' (the links and what Send shares: up to five lines and their margins (high contrast's face is wider))
   ph = y + 124
   IF ph < 420 THEN ph = 420
@@ -483,6 +489,7 @@ SUB AISettingsFill
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
+  AIReviewBox.Checked = AIReviewFirst
   AIWsEdit.Text = AIWorkspace
   IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = ""
   AISettingsProvider
@@ -702,6 +709,7 @@ SUB AISettingsTake
   IF n > 128000 THEN n = 128000
   AIMaxTokens = n
   IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
+  AIReviewFirst = Flag(AIReviewBox.Checked)
   AIPriceIn = VAL(AIPriceInEdit.Text)
   AIPriceOut = VAL(AIPriceOutEdit.Text)
   ' (on first: Send is enabled from the assistant's state as it now is)

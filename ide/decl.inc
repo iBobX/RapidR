@@ -268,6 +268,10 @@ DIM AIBase AS STRING
 DIM AIWorkspace AS STRING
 DIM AIMaxTokens AS INTEGER
 DIM AIPermission AS STRING
+' ("Ask before the assistant creates or changes files": a new program
+' previewed before it is created; off — the default — it opens at once,
+' with a Run it / Undo banner: docs/ai-ux-plan.md)
+DIM AIReviewFirst AS INTEGER
 DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
@@ -298,6 +302,10 @@ DECLARE SUB AIShowOrHide
 DECLARE FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
 DECLARE SUB AIStep(Stp AS STRING)
 DECLARE SUB InspectorRowSelected(Prop AS STRING)
+' (the new program's banner: its focus after the editor's, gone when
+' another project opens)
+DECLARE FUNCTION AIBannerTakesFocus AS INTEGER
+DECLARE SUB AIProjectChanged
 
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject

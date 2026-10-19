@@ -9,6 +9,12 @@
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "build me …"       create_project: a hello-form program (it compiles)
+//   "build a scientific calculator …"  create_project named "Scientific
+//                      Calculator" (a title with a space): RapidR's calculator recipe
+//   "build me a broken …"  create_project with a compile error it never fixes
+//   "pretend …"        first claims the program is made (no tool), then — asked
+//                      by Studio — makes it
+//   "slowly …"         any of these, each answer after a tool's held 6 s
 //   "check …"          check_code, then say what it found
 //   "describe …"       rapidr_describe RButton, rapidr_list, then answer
 //   "inject …"         try write_file outside its permission (read-only tests)
@@ -39,6 +45,7 @@
 //
 //   node tests/ai_mock_server.mjs [port]      (prints its /v1 URL)
 
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { pathToFileURL } from "node:url";
 
@@ -71,6 +78,25 @@ END SUB
 Form.ShowModal
 `;
 
+// (RapidR's own calculator recipe: what a model starting from it makes)
+const SCI_CALC = readFileSync(new URL("../examples/recipes/calculator.rr", import.meta.url), "utf8");
+
+// (a program with a form and one compile error: RapidR has no BOOLEAN)
+const BROKEN = `' broken: a form, and a type RapidR doesn't have.
+DIM ready AS BOOLEAN
+
+CREATE Form AS RForm
+    Caption = "Broken Tool"
+    Width = 300: Height = 140
+    CREATE Info AS RLabel
+        Caption = "Not quite there yet."
+        Left = 16: Top = 20: Width = 240
+    END CREATE
+END CREATE
+
+Form.ShowModal
+`;
+
 function lastUserText(messages) {
   for (const m of messages) {
     if (m.role !== "user") continue;
@@ -99,11 +125,36 @@ function toolResults(format, messages) {
   return out;
 }
 
+// (Studio asked the model to make the change it only claimed: its nudge,
+// a message of RapidR Studio's own)
+function nudged(messages) {
+  return messages.some((m) => m.role === "user" && JSON.stringify(m.content).includes("your answer says you made or will make a change"));
+}
+
 // What to answer: { text?, tools?: [{ name, input }] }.
-function script(first, results, system) {
+function script(first, results, system, messages = []) {
   const step = results.length;
   const q = first.toLowerCase();
   const mainFile = (system.match(/main file ([^;]+);/) || [])[1] || "main.rr";
+  // (Robert's chat, 2026-10-18: a title with spaces — the folder is made
+  // from it, "Scientific Calculator" → ScientificCalculator)
+  if (q.startsWith("build a scientific calculator")) {
+    if (step === 0) return { text: "", tools: [{ name: "create_project", input: { name: "Scientific Calculator", main: "main.rr", summary: "A calculator with sqrt, x², sin, cos and tan", files: [{ path: "main.rr", text: SCI_CALC }] } }] };
+    return { text: "Press **Run**, then click the keys: **sqrt**, **x²**, **sin**, **cos** and **tan** work on the number shown." };
+  }
+  // (a program that doesn't compile, and stays so: Studio creates it all
+  // the same, and says it has errors)
+  if (q.startsWith("build me a broken")) {
+    if (step === 0) return { tools: [{ name: "create_project", input: { name: "Broken Tool", main: "main.rr", summary: "Broken", files: [{ path: "main.rr", text: BROKEN } ] } }] };
+    return { text: "I couldn't fix the last error: a property RForm doesn't have." };
+  }
+  // (an answer that claims a program before making it: Studio asks once,
+  // then it is made — the claim collapses to one muted line)
+  if (q.startsWith("pretend")) {
+    if (!nudged(messages)) return { text: "I have created the hello-form project for you. It is ready to run!" };
+    if (step === 0) return { tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
+    return { text: "Type a name, then press **Greet**." };
+  }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
     if (step === 1) {
@@ -287,9 +338,20 @@ export function startMock(port = 0) {
       }
       const messages = json.messages || [];
       const system = anthropic ? (json.system || []).map((b) => b.text).join("") : (messages.find((m) => m.role === "system") || {}).content || "";
-      const answer = script(lastUserText(messages), toolResults(anthropic ? "anthropic" : "openai", messages), system);
-      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
-      (anthropic ? sseAnthropic : sseOpenAI)(res, answer, json.model || "mock");
+      // ("slowly …": the same script, each answer after the first held 6 s
+      // — a small local model's pace: the progress checklist shows meanwhile)
+      let first = lastUserText(messages);
+      const slow = /^slowly /i.test(first);
+      if (slow) first = first.replace(/^slowly /i, "");
+      const results = toolResults(anthropic ? "anthropic" : "openai", messages);
+      const answer = script(first, results, system, messages);
+      const reply = () => {
+        if (res.writableEnded || res.destroyed) return;
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
+        (anthropic ? sseAnthropic : sseOpenAI)(res, answer, json.model || "mock");
+      };
+      if (slow && results.length > 0) setTimeout(reply, 6000).unref();
+      else reply();
     });
   });
   const close = () => {

@@ -37,8 +37,12 @@ pub struct Proposal {
     pub new: String,
     /// One sentence: what the change does.
     pub summary: String,
-    /// A new project's name ("" for changes to the open project).
+    /// A new project's name ("" for changes to the open project): its
+    /// folder's, made from the title the model gave.
     pub project: String,
+    /// A new project's title, as the model gave it ("Scientific
+    /// Calculator"): its project file's name for it.
+    pub title: String,
     /// The new project's main file.
     pub main: bool,
     /// What the user decided: "", "applied", "rejected", "partly".
@@ -150,10 +154,10 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
         out.push(t(
             "create_project",
-            "Proposes a new program as a new project — its files (a main .rr file; more for forms or modules it $INCLUDEs) — which the user previews, then creates where they choose. Checked by the compiler: fix the errors it reports and call it again.",
+            "Makes a new program as a new project — its files (a main .rr file; more for forms or modules it $INCLUDEs) — which Studio opens for the user when your answer ends. Checked by the compiler: fix the errors it reports and call it again.",
             schema(
                 json!({
-                    "name": {"type": "string", "description": "the project's name: letters, digits, - and _ (its folder)"},
+                    "name": {"type": "string", "description": "the program's title, e.g. Scientific Calculator (its folder is made from it)"},
                     "main": {"type": "string", "description": "the main file's path, e.g. main.rr"},
                     "files": {"type": "array", "items": {"type": "object", "properties": {"path": {"type": "string"}, "text": {"type": "string"}}, "required": ["path", "text"], "additionalProperties": false}},
                     "summary": {"type": "string"}
@@ -351,11 +355,11 @@ fn on_pending(name: &str, input: &Json, project: &Project, proposals: &mut Vec<P
             if out.is_error {
                 return Some(Outcome { risk: "state", ..out });
             }
-            let summary = proposals.iter().find(|p| p.kind == "project" && p.project == pname).map(|p| p.summary.clone()).unwrap_or_default();
+            let (summary, title) = proposals.iter().find(|p| p.kind == "project" && p.project == pname).map(|p| (p.summary.clone(), p.title.clone())).unwrap_or_default();
             for q in changed {
                 match proposals.iter_mut().find(|p| p.kind == "project" && p.project == pname && p.path == q.path) {
                     Some(p) => p.new = q.new,
-                    None => proposals.push(Proposal { kind: "project".into(), path: q.path, new: q.new, summary: summary.clone(), project: pname.clone(), ..Proposal::default() }),
+                    None => proposals.push(Proposal { kind: "project".into(), path: q.path, new: q.new, summary: summary.clone(), project: pname.clone(), title: title.clone(), ..Proposal::default() }),
                 }
             }
             let got: Vec<(String, String)> = proposals.iter().filter(|p| p.kind == "project" && p.project == pname).map(|p| (p.path.clone(), p.new.clone())).collect();
@@ -1284,13 +1288,57 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
     }
 }
 
-/// A new project's name: its folder's.
-fn project_name(name: &str) -> Result<String, String> {
+/// A new project's folder name, from the title the model gave: a name
+/// that is one already (letters, digits, - and _) stays as it is; any
+/// other title becomes one — accents dropped, its words joined, each
+/// capitalised ("Scientific Calculator" → `ScientificCalculator`,
+/// "calculadora científica" → `CalculadoraCientifica`). Never fails: a
+/// title is never a reason to refuse a program (Robert's walk, 2026-10-18).
+pub fn project_name(name: &str) -> String {
     let n = name.trim();
-    if n.is_empty() || n.len() > 60 || !n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') || n.starts_with('-') {
-        return Err(format!("\"{name}\" can't be a project's name: use letters, digits, - and _ (a folder is made with it)"));
+    if !n.is_empty() && n.len() <= 60 && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') && !n.starts_with(['-', '_']) {
+        return n.to_string();
     }
-    Ok(n.to_string())
+    let plain: String = n.chars().flat_map(unaccent).collect();
+    let mut out = String::new();
+    for word in plain.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| !w.is_empty()) {
+        let mut cs = word.chars();
+        if let Some(first) = cs.next() {
+            out.push(first.to_ascii_uppercase());
+            out.extend(cs);
+        }
+    }
+    let out: String = out.chars().take(60).collect();
+    if out.is_empty() { "NewProgram".into() } else { out }
+}
+
+/// A letter without its accent (Latin letters; others as they are).
+fn unaccent(c: char) -> Vec<char> {
+    let s = match c {
+        'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ā' => "a",
+        'Á' | 'À' | 'Â' | 'Ä' | 'Ã' | 'Å' | 'Ā' => "A",
+        'é' | 'è' | 'ê' | 'ë' | 'ē' => "e",
+        'É' | 'È' | 'Ê' | 'Ë' | 'Ē' => "E",
+        'í' | 'ì' | 'î' | 'ï' | 'ī' => "i",
+        'Í' | 'Ì' | 'Î' | 'Ï' | 'Ī' => "I",
+        'ó' | 'ò' | 'ô' | 'ö' | 'õ' | 'ø' | 'ō' => "o",
+        'Ó' | 'Ò' | 'Ô' | 'Ö' | 'Õ' | 'Ø' | 'Ō' => "O",
+        'ú' | 'ù' | 'û' | 'ü' | 'ū' => "u",
+        'Ú' | 'Ù' | 'Û' | 'Ü' | 'Ū' => "U",
+        'ñ' => "n",
+        'Ñ' => "N",
+        'ç' => "c",
+        'Ç' => "C",
+        'ý' | 'ÿ' => "y",
+        'Ý' => "Y",
+        'ß' => "ss",
+        'æ' => "ae",
+        'Æ' => "Ae",
+        'œ' => "oe",
+        'Œ' => "Oe",
+        _ => return vec![c],
+    };
+    s.chars().collect()
 }
 
 /// A name a folder can have, made from `text` (a file's name, a title):
@@ -1311,11 +1359,9 @@ fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
     let main_given = s(input, "main").trim().to_string();
     let main_given = if main_given.is_empty() || !files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok()) { first_program.clone() } else { main_given };
     let name_given = s(input, "name").trim();
-    let name_given = if name_given.is_empty() { folder_name(&main_given) } else { name_given.to_string() };
-    let name = match project_name(&name_given) {
-        Ok(n) => n,
-        Err(e) => return err(e, "create_project: a name that can't be a folder".into(), &name_given),
-    };
+    let title = if name_given.is_empty() { folder_name(&main_given) } else { name_given.chars().take(80).collect::<String>() };
+    // (any title: its folder's name made from it)
+    let name = project_name(&title);
     if files.is_empty() || files.len() > MAX_FILES {
         return err(format!("a project has 1 to {MAX_FILES} files"), format!("create_project {name}: no files"), &name);
     }
@@ -1341,16 +1387,39 @@ fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
     proposals.retain(|p| p.project.is_empty());
     let summary = s(input, "summary").to_string();
     for (rel, text) in &got {
-        proposals.push(Proposal { kind: "project".into(), path: rel.clone(), old: String::new(), new: text.clone(), summary: summary.clone(), project: name.clone(), main: *rel == main, decision: String::new() });
+        proposals.push(Proposal { kind: "project".into(), path: rel.clone(), old: String::new(), new: text.clone(), summary: summary.clone(), project: name.clone(), title: title.clone(), main: *rel == main, decision: String::new() });
     }
     let n = got.len();
     if errors.is_empty() {
         let warn = if found.is_empty() { String::new() } else { format!(" Warnings:\n{}", found.join("\n")) };
         let files = if n == 1 { "1 file".to_string() } else { format!("{n} files") };
-        ok(format!("The project {name} ({files}) compiles, and is shown to the user to preview and create.{warn} Tell them in a sentence what it does."), format!("Proposed a new project, {name} ({files}): it compiles"), "state", &name)
+        ok(format!("The project {name} ({files}) compiles; Studio shows it to the user.{warn} Tell them in a sentence or two what it does and how to use it."), format!("Wrote the new program {title} ({files}): it compiles"), "state", &name)
     } else {
-        ok(format!("The project {name} doesn't compile yet — fix these and call create_project again with the whole project:\n{}", found.join("\n")), format!("Proposed a new project, {name}: {} errors to fix", errors.len()), "state", &name)
+        let e = errors.len();
+        ok(format!("The project {name} doesn't compile yet — fix these and call create_project again with the whole project:\n{}", found.join("\n")), format!("Wrote the new program {title}: {e} {} to fix", if e == 1 { "error" } else { "errors" }), "state", &name)
     }
+}
+
+/// How many errors the new project proposed and not created yet has.
+pub fn project_errors(proposals: &[Proposal]) -> usize {
+    let Some((name, main)) = pending(proposals) else { return 0 };
+    let got: Vec<(String, String)> = proposals.iter().filter(|p| p.kind == "project" && p.project == name && p.decision != "created").map(|p| (p.path.clone(), p.new.clone())).collect();
+    diagnostics(&got, &format!("/new/{name}"), &main, &main, false).iter().filter(|l| l.starts_with("error")).count()
+}
+
+/// How many errors the project has with the changes proposed.
+pub fn edit_errors(p: &Project, proposals: &[Proposal]) -> usize {
+    compile_errors(p, proposals).map_or(0, |e| e.lines().filter(|l| l.starts_with("error")).count())
+}
+
+/// The lines a change adds and removes: what lies between the lines both
+/// texts start and end with.
+pub fn line_delta(old: &str, new: &str) -> (usize, usize) {
+    let a: Vec<&str> = old.lines().collect();
+    let b: Vec<&str> = new.lines().collect();
+    let head = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
+    let tail = a[head..].iter().rev().zip(b[head..].iter().rev()).take_while(|(x, y)| x == y).count();
+    (b.len() - head - tail, a.len() - head - tail)
 }
 
 /// One `RCODEEDITOR.ApplyPatches` line that turns `old` into `new`: the
@@ -1450,7 +1519,15 @@ mod tests {
         assert!(broken.content.contains("doesn't compile"), "{}", broken.content);
         // (its include was found among its own files: only the property is wrong)
         assert!(!broken.content.contains("form.inc: not found") && broken.content.contains("form.inc"), "{}", broken.content);
-        assert!(run("create_project", &json!({"name": "../x", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "x"}]}), &p, &mut props, true).is_error);
+        // (a name that is a path: only its words make the folder — never a
+        // folder above the projects')
+        let up = run("create_project", &json!({"name": "../x", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "x"}]}), &p, &mut props, true);
+        assert!(!up.is_error && props.iter().any(|q| q.project == "X" && q.title == "../x"), "{}", up.content);
+        // (Robert's walk, 2026-10-18: a title with spaces was refused — any
+        // title makes a program now, its folder made from it)
+        let titled = run("create_project", &json!({"name": "Scientific Calculator", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "CREATE F AS RForm\nEND CREATE\nF.ShowModal\n"}]}), &p, &mut props, true);
+        assert!(!titled.is_error && titled.note == "Wrote the new program Scientific Calculator (1 file): it compiles", "{}", titled.note);
+        assert!(props.iter().any(|q| q.project == "ScientificCalculator" && q.title == "Scientific Calculator" && q.main), "{props:#?}");
         // (gemma E4B, 2026-10-18: no name, no main — the files say them)
         let mut props = Vec::new();
         let none = Project { folder: "", files: &[], main: "", compat: "", buffers: &HashMap::new() };
@@ -1462,6 +1539,29 @@ mod tests {
         // (write_file with create_project's files and no project open: a new program too)
         let mixed = run("write_file", &json!({"summary": "x", "files": [{"path": "main.rr", "text": "PRINT 1\n"}]}), &none, &mut props, true);
         assert!(!mixed.is_error && props.iter().any(|q| q.project == "main"), "{}", mixed.content);
+    }
+
+    #[test]
+    fn folder_names_from_titles() {
+        // (a name that is one already stays)
+        assert_eq!(project_name("hello-form"), "hello-form");
+        assert_eq!(project_name("Calc_2"), "Calc_2");
+        // (words joined, each capitalised)
+        assert_eq!(project_name("Scientific Calculator"), "ScientificCalculator");
+        assert_eq!(project_name("  tip   calculator! "), "TipCalculator");
+        assert_eq!(project_name("Celsius/Fahrenheit converter"), "CelsiusFahrenheitConverter");
+        // (accents dropped)
+        assert_eq!(project_name("calculadora científica"), "CalculadoraCientifica");
+        assert_eq!(project_name("Ñandú Straße"), "NanduStrasse");
+        // (nothing a folder can be named: a name all the same)
+        assert_eq!(project_name("¿?"), "NewProgram");
+        assert_eq!(project_name(""), "NewProgram");
+        assert_eq!(project_name("../.."), "NewProgram");
+        assert!(project_name(&"long words ".repeat(20)).len() <= 60);
+        // (the lines a change adds and removes)
+        assert_eq!(line_delta("a\nb\nc\n", "a\nB\nB2\nc\n"), (2, 1));
+        assert_eq!(line_delta("", "a\nb\n"), (2, 0));
+        assert_eq!(line_delta("a\n", "a\n"), (0, 0));
     }
 
     #[test]

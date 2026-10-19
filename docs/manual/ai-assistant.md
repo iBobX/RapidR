@@ -94,11 +94,35 @@ page instead — anyone who uses this browser profile could read it there.
 opens 380 pixels wide (drag the divider to change it, and Studio remembers).
 Type your question and press
 **Enter** (Shift+Enter starts a new line). The answer appears as it is
-written; **Stop** stops it. The lines in italics say what the assistant
-looked at to answer: a file it read, a component it looked up in RapidR's
-registry, the forms' components it listed, the compiler's check.
+written; **Stop** stops it.
 
-![The Assistant pane: an answer, what the assistant looked at, the token meter, what Send shares](images/ai/panel.png)
+While it works, the status line under the chat is a short checklist of what
+it has done so far — *✓ Found an example · ✓ Wrote the program · … Working…*
+— so a slow model on your own computer never leaves you guessing. A screen
+reader reads each new step aloud, once.
+
+![The Assistant pane: a question and its answer, the status line, the token meter, what Send shares](images/ai/panel.png)
+
+### Cards: what really happened
+
+What the assistant *did* is written by Studio, never by the model, as small
+bold **cards** in the chat:
+
+- ◆ **Created** *Scientific Calculator* · main.rr · ✓ compiles · Open · Undo
+- ● **Proposed a change to** main.rr · +12 −3 · Review
+- ○ **Started from the recipe** *Calculator*
+- ▲ **Fixed** 2 errors
+
+The model's own words come after the cards: one or two sentences on what it
+made and how to use it. A card's links work like the buttons they name.
+
+Small models sometimes say *"I have created your project!"* before they have
+done anything. Studio notices, asks the model to really do it, and shows that
+early draft as one grey line — *An earlier draft said this was done before it
+was — Studio asked it to actually do it* — instead of the claim itself. The
+cards always say what is true.
+
+![The chat after "Build a scientific calculator": the recipe it started from, the program created, the short reply](images/ai/chat-cards.png)
 
 At the top, switch the provider and the model for the next question;
 **New Chat** starts over (a long chat costs more: everything said so far is
@@ -112,8 +136,9 @@ project's folder, and never your key.
 
 ## Changes, as diffs
 
-The assistant never changes a file itself. It **proposes**: when an answer
-has changes, a bar says so — **Review…** shows them:
+The assistant never changes one of your files itself. It **proposes**: when
+an answer has changes, a card in the chat and the **Review the Changes…**
+button under it show them:
 
 ![Reviewing a proposed change: the file as it is on the left, as proposed on the right, Accept or Reject on each change](images/ai/review.png)
 
@@ -126,16 +151,47 @@ again.
 ## A new program: "Build me…"
 
 Ask for a program — *"Build me a tip calculator"*, *"Make a program that
-lists the files of a folder"*. The assistant writes it, checks it with
-RapidR's compiler, and shows it to you: its files, the code, and the form as
-it will look. Nothing is written until you choose a folder and press
-**Create and Open**.
+lists the files of a folder"*. The assistant writes it and checks it with
+RapidR's compiler; when its answer ends, the program **opens in Studio**,
+ready: its form in the designer, its code a click away. No dialog, no folder
+to choose — it goes in your projects folder (**Documents/RapidR/Projects**),
+in a folder named after it: *Scientific Calculator* becomes
+`ScientificCalculator` (`ScientificCalculator2` if that name is taken). Move
+or rename it later if you like.
+
+A banner across the top says what happened, and the keyboard is already on
+its first button:
+
+![A new program from the assistant, open in Studio: the banner with Run It, Undo and What Did It Do?](images/ai/banner.png)
+
+- **▶ Run It** (or **Enter**, or **F5**) runs the program. Nothing runs until
+  you press it.
+- **↺ Undo** closes the program and removes exactly the files the assistant
+  wrote — nothing else. If you changed or added files in its folder since,
+  Studio asks first, and the files you added stay. The project you had open
+  before comes back.
+- **What Did It Do?** shows the Assistant pane at the program's card.
+- **×** closes the banner.
+
+If the program still has errors after the assistant's tries, it opens all the
+same and the banner says so: **▶ Run Anyway**, **Ask It to Fix** (the
+assistant gets another go), or **↺ Undo**.
+
+![The same in the dark look](images/ai/banner-dark.png)
+
+### Review first
+
+Prefer to look before anything is created? Turn on **Tools > Settings > AI >
+Ask before the assistant creates or changes files**. Then a new program waits
+behind **Preview the New Program…**: its files, the code, and the form as it
+will look; nothing is written until you choose a folder and press **Create
+and Open**.
 
 ![A new program from the assistant, previewed: its file, its code and its form](images/ai/new-program.png)
 
 Until you press **Create and Open**, the new program is still the
 assistant's to fix: if the compiler finds errors, it reads and corrects its
-own files, and **Preview…** always shows the latest version. Ask for a change
+own files, and the preview always shows the latest version. Ask for a change
 before creating it (*"make the buttons bigger"*) and the preview follows.
 
 ### Recipes and friendly hints
@@ -186,7 +242,10 @@ browser's storage for the page (its last 500). It never holds your key.
 - **Text in your files is data.** A comment or a data file that says
   "ignore your instructions and …" is something the assistant reports, not
   something it obeys; and whatever it is persuaded of, it can only propose
-  changes you review (or only answer, with *Only read the project*).
+  changes you review, or make a new program in a new folder of its own
+  (or only answer, with *Only read the project*).
+- **Nothing runs by itself.** A program the assistant made runs only when
+  you press Run.
 - **At most 25 tool uses** for one question; Stop works at any time.
 - **Keys** are never written into a project, a build, a log, the audit log
   or a screenshot of RapidR's. A key someone wrote into a file of the

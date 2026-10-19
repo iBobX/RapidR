@@ -616,6 +616,10 @@ In order of how many showcase ideas each unlocks:
   - every lesson replayed as a test.
   - First 8 lessons from Welcome to Data in 10 minutes.
 - [ ] **Assistant UX: apply, show, undo** (Robert, 2026-10-18; plan: [docs/ai-ux-plan.md](docs/ai-ux-plan.md)): a new program opens straight in the IDE with a "Run it / Undo" banner; edits as tracked changes in the editor buffers (Keep/Undo, checkpoints; disk untouched until Keep/Save); truthful chat cards and a live progress checklist; focus, live regions and keyboard for everyone; "Review first" stays as an option.
+  - [x] Step 1: a new program created in the projects folder and opened at once (folder named from its title, a project file keeping the title), the banner (Run It focused, Undo of exactly the files Studio wrote — asked when changed —, What Did It Do?, Run Anyway / Ask It to Fix with errors), Review first as a setting (2026-10-18).
+  - [x] Step 2: chat cards written by Studio, a claim made before the change collapsed to one muted line, one status (the progress checklist while it works, announced), the recipe labelled "not from the user", 1–2 sentence replies (2026-10-18).
+  - [ ] Step 3: tracked changes in the editor buffers, the Keep/Undo bar, per-turn checkpoints.
+  - [ ] Undo on the web: KILL leaves the browser's saved copy (OPFS) of the removed files; the page's file sink needs a "removed" call.
 - [ ] **Small local models that build real apps** (Robert, 2026-10-18; plan: [docs/small-models-plan.md](docs/small-models-plan.md)): Studio is the brain, the model the hands. Recipes pushed by Studio (BM25, optional EmbeddingGemma), `layout`/`check_layout` tools, friendly hints for other-language habits, spec-first with one handler at a time, click-tested evals; post only with measured numbers.
   - [x] A proposed new project stays editable before Create; the Preview follows (2026-10-18).
   - [x] Friendly hints in check_code (`crates/rapidr-studio/src/friendly.rs`), the component's members beside an unknown property (2026-10-18).

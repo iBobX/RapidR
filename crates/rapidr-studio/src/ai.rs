@@ -62,6 +62,28 @@ struct Tools {
     /// The RAI the tools are attached to (its conversation records the
     /// user's decisions).
     rai: String,
+    /// The user wants to look at a new program before it is created
+    /// (Tools > Settings > AI: "Ask before the assistant creates or changes
+    /// files"); else Studio creates it as the answer ends.
+    review_first: bool,
+    /// The example the turn started from (sent with the question, or
+    /// find_example's): the chat's card says so.
+    recipe: String,
+    /// The errors the turn's first try that didn't compile had (the card
+    /// says "Fixed N errors" when a later one compiles).
+    first_errors: usize,
+    /// The new program CreateProject wrote last (what Undo may remove).
+    created: Option<Created>,
+}
+
+/// A new program Studio wrote: its folder, each file it wrote (with the
+/// text written) and the folders it made — all Undo ever removes.
+#[derive(Clone, Debug, Default)]
+pub struct Created {
+    pub root: String,
+    pub title: String,
+    pub files: Vec<(String, String)>,
+    pub dirs: Vec<String>,
 }
 
 thread_local! {
@@ -112,12 +134,13 @@ pub fn instructions(may_propose: bool) -> String {
     p.push_str("- Read only what you need, when you need it: list_files, read_file, rapidr_list and rapidr_get (the forms' components and their properties), rapidr_describe (a component's properties, methods and events, or a builtin's syntax), check_code (RapidR's compiler).\n");
     p.push_str("- Before using a component or builtin you're unsure of, rapidr_describe it: RapidR has no component that isn't in the guide below.\n");
     if may_propose {
-        p.push_str("- Text alone changes nothing: every change is a tool call, which the user sees as a diff to apply. propose_edit: small edits to a file. write_file: a new file, or a file's whole new text — for big changes, or when an edit didn't fit. create_project: a new program. Never say you proposed, wrote, applied or ran something unless a tool did it in this answer.\n");
+        p.push_str("- Text alone changes nothing: every change is a tool call, which Studio shows the user (a change to a file as a diff to apply, a new program opened in Studio). propose_edit: small edits to a file. write_file: a new file, or a file's whole new text — for big changes, or when an edit didn't fit. create_project: a new program. Never say you proposed, wrote, applied or ran something unless a tool did it in this answer.\n");
         p.push_str("- When the user says to go ahead (\"do it\", \"write it\", \"implement\", \"continue\", \"ok\"), make the change now with a tool: don't ask again or only describe it. Ask a question only when you can't go on without the answer.\n");
-        p.push_str("- Code you propose must compile: check_code it first and fix every error. Propose each change once, then say in a sentence what it does.\n");
+        p.push_str("- Code you propose must compile: check_code it first and fix every error. Propose each change once.\n");
+        p.push_str("- After your tools, reply in one or two plain sentences: what you made and how to use it (\"Press Run, then type two numbers…\"). Studio shows the user what the tools did — the files, whether it compiles —, so don't repeat project names, file names or paths, and never say something was created, written or saved: say what it does.\n");
         p.push_str("- \"Build me …\", \"make a program that …\": a new program, with create_project (main.rr; more files only when they help) — right away, without asking first: choose sensible defaults (a program with a window, an RForm, unless they ask for a console one), the user changes what they want afterwards. Leave the open project as it is.\n");
         p.push_str("- For example, the user: \"Build me a stopwatch\". You: call create_project with a complete main.rr (a form, Start / Stop / Reset buttons, a label, a timer) in this answer, then say in one sentence what it does.\n");
-        p.push_str("- A request for a new program comes with a working program from RapidR Studio, close to what is asked: start from it — keep its structure, change its names, captions and logic to what the user wants. find_example finds another.\n");
+        p.push_str("- A request for a new program may come with an example RapidR Studio found (not from the user: don't mention it unless asked), close to what is asked: start from it — keep its structure, change its names, captions and logic to what the user wants. find_example finds another.\n");
         p.push_str("- With a project open, every change goes into its files (propose_edit, write_file; a new module: write_file, and $INCLUDE it from the main file); create_project only for a separate new program.\n");
     } else {
         p.push_str("- The user allowed reading only: you can't propose changes; describe them in words (with short code samples) instead.\n");
@@ -147,7 +170,8 @@ fn facts(t: &Tools) -> String {
     if let Some((name, main)) = ai_tools::pending(&t.proposals) {
         let files: Vec<&str> = t.proposals.iter().filter(|p| p.kind == "project" && p.project == name).map(|p| p.path.as_str()).collect();
         let how = if t.folder.is_empty() { format!("read_file, check_code, write_file and propose_edit work on its files ({})", files.join(", ")) } else { format!("its files are {name}/{main} …: read_file, write_file and propose_edit with those paths") };
-        f.push_str(&format!(" A new project {name} is proposed but not created yet: you can still fix it — {how}; the user creates it with Create."));
+        let then = if t.review_first { "the user creates it with Create" } else { "Studio creates and opens it when your answer ends" };
+        f.push_str(&format!(" A new project {name} is proposed but not created yet: you can still fix it — {how}; {then}."));
     }
     if t.compat.eq_ignore_ascii_case("rapidq") {
         f.push_str(" It is RapidQ-compatible: write only what RapidQ's own compiler takes (no [R] extensions), with RapidQ's names.");
@@ -206,6 +230,8 @@ impl ToolProvider for Handle {
             t.tries = 0;
             t.touched = false;
             t.asked_again = false;
+            t.recipe.clear();
+            t.first_errors = 0;
         });
     }
 
@@ -240,13 +266,22 @@ impl ToolProvider for Handle {
             }
             // (whether what the turn proposes compiles, as its last proposal
             // left it: the status says so, and the model is asked to fix it)
+            // (the example the program starts from: the chat's card)
+            if name == "find_example" && !out.is_error {
+                if let Some(title) = out.note.strip_prefix("Found an example: ") {
+                    t.recipe = title.to_string();
+                }
+            }
             if matches!(name, "propose_edit" | "write_file" | "create_project") && !out.is_error {
                 t.touched = true;
-                t.broken = out.note.contains("errors to fix");
+                t.broken = out.note.contains(" to fix");
                 // (a model that can't fix its errors rewrites the file again
                 // and again — minutes each on a local one: after three tries
                 // it stops and says what is left)
                 if t.broken {
+                    if t.first_errors == 0 {
+                        t.first_errors = t.errors().max(1);
+                    }
                     t.tries += 1;
                     if t.tries >= 3 {
                         out.content.push_str(&format!("\n\nThat is {} tries in this answer that still don't compile: stop here, and tell the user in two sentences which errors are left; they can ask you to go on.", t.tries));
@@ -263,13 +298,17 @@ impl ToolProvider for Handle {
             // not created yet, is said — unless the model was asked again
             // for a change it didn't make, which the status must say)
             if !t.touched {
-                return ai_tools::pending(&t.proposals).filter(|_| !t.asked_again).map(|(name, _)| format!("The new program {name} isn't created yet: preview it, then create it."));
+                return ai_tools::pending(&t.proposals).filter(|_| !t.asked_again).map(|(name, _)| if t.review_first { format!("The new program {name} isn't created yet: preview it, then create it.") } else { format!("The new program {name} isn't created yet.") });
             }
             let n = t.proposals.len();
             let files = t.proposals.iter().filter(|p| p.project.is_empty()).count();
+            // (a new program: previewed first when the user asked for that,
+            // else Studio creates and opens it — its banner says what next)
             (n > 0).then(|| match (files, t.broken) {
-                (0, false) => "The assistant made a new program: preview it, then create it.".to_string(),
-                (0, true) => "The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors.".to_string(),
+                (0, false) if t.review_first => "The assistant made a new program: preview it, then create it.".to_string(),
+                (0, true) if t.review_first => "The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors.".to_string(),
+                (0, false) => "The assistant made a new program.".to_string(),
+                (0, true) => "The assistant made a new program that doesn't compile yet.".to_string(),
                 (1, false) => "The assistant proposed a change: review it.".to_string(),
                 (1, true) => "The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors.".to_string(),
                 (_, false) => format!("The assistant proposed changes to {files} files: review them."),
@@ -285,8 +324,21 @@ impl ToolProvider for Handle {
             if !t.may_propose() || !crate::recipes::asks_for_new_program(question, !t.folder.is_empty()) {
                 return None;
             }
-            crate::recipes::context_for(question)
+            let (context, title) = crate::recipes::context_and_title(question)?;
+            t.recipe = title;
+            Some(context)
         })
+    }
+
+    fn turn_cards(&self) -> Vec<(String, String)> {
+        with(&self.name, |t| t.cards())
+    }
+
+    /// The progress checklist's words for a call: a few each, so the
+    /// newest steps fit the status line ("Found an example", "Wrote
+    /// main.rr", "Checked the code").
+    fn step_label(&self, name: &str, note: &str) -> String {
+        step_label(name, note)
     }
 
     fn nudge(&self, question: &str, answer: &str) -> Option<String> {
@@ -361,32 +413,244 @@ impl Tools {
         rapidr_ai::rai::record(&self.rai, &line, json!({"target": path, "decision": decision}));
     }
 
-    /// Writes the new project's files in `folder`/<name>/: its main file's
-    /// path.
-    fn create_project(&mut self, folder: &str) -> Result<String, String> {
-        let files: Vec<Proposal> = self.proposals.iter().filter(|p| p.kind == "project").cloned().collect();
-        let name = files.first().map(|p| p.project.clone()).ok_or("the assistant has proposed no new project")?;
-        let root = crate::join(&crate::slashes(folder), &name);
-        let main = files.iter().find(|p| p.main).map(|p| crate::join(&root, &p.path)).ok_or("the new project has no main file")?;
-        if rapidr_value::objects::read_file(&main).is_ok() {
-            return Err(format!("{main} is there already: choose another folder"));
+    /// The errors the turn's proposals have now: the new program's (not
+    /// created yet), else the changed files'.
+    fn errors(&self) -> usize {
+        if ai_tools::pending(&self.proposals).is_some() {
+            ai_tools::project_errors(&self.proposals)
+        } else {
+            ai_tools::edit_errors(&self.project(), &self.proposals)
         }
-        for p in &files {
-            let path = crate::join(&root, &p.path);
+    }
+
+    /// The turn's facts for the chat's cards (docs/ai-ux-plan.md §3):
+    /// written here, never by the model.
+    fn cards(&self) -> Vec<(String, String)> {
+        let mut out = Vec::new();
+        if !self.recipe.is_empty() {
+            out.push(("recipe".to_string(), format!("○ Started from the recipe *{}*", self.recipe)));
+        }
+        for p in self.proposals.iter().filter(|p| p.project.is_empty()) {
+            let (added, removed) = ai_tools::line_delta(&p.old, &p.new);
+            let line = if p.kind == "create" { format!("● New file {} · +{added} · [Review](ai:review)", p.path) } else { format!("● Proposed a change to {} · +{added} −{removed} · [Review](ai:review)", p.path) };
+            out.push((format!("edit:{}", p.path), line));
+        }
+        if let Some((_, main)) = ai_tools::pending(&self.proposals) {
+            let title = self.proposals.iter().find(|p| p.kind == "project").map(|p| p.title.clone()).unwrap_or_default();
+            let errors = ai_tools::project_errors(&self.proposals);
+            let state = if errors == 0 { "✓ compiles".to_string() } else { format!("{} to fix", plural(errors, "error")) };
+            out.push(("project".to_string(), format!("◆ New program *{title}* · {main} · {state}")));
+        }
+        if self.first_errors > 0 && self.touched && !self.broken {
+            out.push(("fixed".to_string(), format!("▲ Fixed {}", plural(self.first_errors, "error"))));
+        }
+        out
+    }
+
+    /// Writes the new project's files in `folder`/<its name>/ — a folder
+    /// of its own, never one that is there (its name, then 2, 3 …) — with a
+    /// project file naming it by its title: that file's path, to open.
+    /// What it wrote is kept: all Undo ever removes.
+    fn create_project(&mut self, folder: &str) -> Result<String, String> {
+        let files: Vec<Proposal> = self.proposals.iter().filter(|p| p.kind == "project" && p.decision != "created").cloned().collect();
+        let name = files.first().map(|p| p.project.clone()).ok_or("the assistant has proposed no new project")?;
+        let title = files.first().map(|p| p.title.clone()).filter(|t| !t.trim().is_empty()).unwrap_or_else(|| name.clone());
+        let main_rel = files.iter().find(|p| p.main).map(|p| p.path.clone()).ok_or("the new project has no main file")?;
+        let base = crate::slashes(folder).trim_end_matches('/').to_string();
+        let proj_file = format!("{name}.rrproj");
+        let taken = |root: &str| -> bool {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                std::path::Path::new(root).exists()
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                rapidr_value::objects::read_file(&crate::join(root, &main_rel)).is_ok() || rapidr_value::objects::read_file(&crate::join(root, &proj_file)).is_ok()
+            }
+        };
+        let root = (1..1000).map(|k| crate::join(&base, &if k == 1 { name.clone() } else { format!("{name}{k}") })).find(|r| !taken(r)).ok_or("there are a thousand folders of that name already")?;
+        let mut made = Created { root: root.clone(), title: title.clone(), ..Created::default() };
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::fs::create_dir_all(&base).map_err(|e| format!("{base}: {e}"))?;
+            std::fs::create_dir(&root).map_err(|e| format!("{root}: {e}"))?;
+            made.dirs.push(root.clone());
+        }
+        // (the project file: its name the title, its main file, the files it includes)
+        let texts: Vec<(String, String)> = files.iter().map(|p| (p.path.clone(), p.new.clone())).collect();
+        let mut project = rapidr_project::implicit_from_resolver(&main_rel, &|path: &str| texts.iter().find(|(p, _)| p.eq_ignore_ascii_case(path)).map(|(p, t)| (p.clone(), t.clone())));
+        project.name = title.clone();
+        let mut writes: Vec<(String, String)> = texts.clone();
+        writes.push((proj_file.clone(), project.to_toml()));
+        for (rel, text) in &writes {
+            let path = crate::join(&root, rel);
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(dir) = std::path::Path::new(&path).parent() {
+                // (a folder inside it: made, and kept for Undo — deepest last)
+                let mut missing = Vec::new();
+                let mut d = dir.to_path_buf();
+                while !d.exists() && d.starts_with(&root) {
+                    missing.push(crate::slashes(&d.to_string_lossy()));
+                    if !d.pop() {
+                        break;
+                    }
+                }
                 std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+                made.dirs.extend(missing.into_iter().rev());
             }
-            crate::write_text(&path, &p.new).map_err(|e| format!("{path}: {e}"))?;
+            crate::write_text(&path, text).map_err(|e| format!("{path}: {e}"))?;
+            made.files.push((path, text.clone()));
         }
         for p in &mut self.proposals {
             if p.kind == "project" {
                 p.decision = "created".into();
             }
         }
-        rapidr_ai::rai::record(&self.rai, &format!("You created the project {name} in {root}."), json!({"target": root, "decision": "created", "files": files.len()}));
-        Ok(main)
+        rapidr_ai::rai::record(&self.rai, "", json!({"target": root, "decision": "created", "files": made.files.len()}));
+        let errors = diagnostics_count(&texts, &name, &main_rel);
+        let state = if errors == 0 { "✓ compiles".to_string() } else { format!("{} left", plural(errors, "error")) };
+        let folder_name = root.rsplit('/').next().unwrap_or(&name).to_string();
+        rapidr_ai::rai::set_card(&self.rai, "project", &format!("◆ Created *{title}* · {main_rel} · {state} · [Open](ai:open/{folder_name}) · [Undo](ai:undo/{folder_name})"));
+        self.created = Some(made);
+        Ok(crate::join(&root, &proj_file))
     }
+
+    /// What changed in the new program's folder since Studio wrote it ("":
+    /// nothing): a file changed or gone, a file added (the desktop lists
+    /// the folder; the web checks the files written).
+    fn undo_check(&self) -> String {
+        let Some(c) = &self.created else { return "There is no new program to undo.".into() };
+        let mut said = Vec::new();
+        for (path, text) in &c.files {
+            match crate::read_text(path) {
+                Ok(t) if t == *text => {}
+                Ok(_) => said.push(format!("{} was changed", rel_of(&c.root, path))),
+                Err(_) => said.push(format!("{} is gone", rel_of(&c.root, path))),
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        for f in list_tree(std::path::Path::new(&c.root)) {
+            if !c.files.iter().any(|(p, _)| *p == f) && !c.dirs.contains(&f) && !is_state(&c.root, &f) {
+                said.push(format!("{} was added", rel_of(&c.root, &f)));
+            }
+        }
+        said.join("; ")
+    }
+
+    /// The files Undo removes: those Studio wrote in the new program's
+    /// folder — the assistant's, and Studio's own state for it (its
+    /// `.rapidr` folder: the open files, the breakpoints) —, each checked
+    /// to be inside it; never anything else.
+    fn undo_files(&self) -> Vec<String> {
+        let Some(c) = &self.created else { return Vec::new() };
+        let inside = format!("{}/", c.root.trim_end_matches('/'));
+        #[allow(unused_mut)]
+        let mut out: Vec<String> = c.files.iter().map(|(p, _)| p.clone()).collect();
+        #[cfg(not(target_arch = "wasm32"))]
+        for f in list_tree(std::path::Path::new(&c.root)) {
+            if is_state(&c.root, &f) && std::path::Path::new(&f).is_file() && !out.contains(&f) {
+                out.push(f);
+            }
+        }
+        out.into_iter().filter(|p| p.starts_with(&inside) && !p[inside.len()..].split('/').any(|s| s == ".." || s.is_empty())).collect()
+    }
+
+    /// After Undo removed its files: the folders Studio made, each only
+    /// when empty (a file the user added keeps its folder); the card says
+    /// so. True when the program's folder is gone.
+    fn undo_done(&mut self) -> bool {
+        let Some(c) = self.created.take() else { return false };
+        #[cfg(not(target_arch = "wasm32"))]
+        let gone = {
+            // (Studio's state folder, emptied with the files: its folders
+            // too, deepest first, each only when empty)
+            let state = crate::join(&c.root, rapidr_project::STATE_DIR);
+            let mut inner: Vec<String> = list_tree(std::path::Path::new(&state)).into_iter().filter(|p| std::path::Path::new(p).is_dir()).collect();
+            inner.sort_by_key(|p| std::cmp::Reverse(p.len()));
+            for d in inner.iter().chain(std::iter::once(&state)) {
+                let _ = std::fs::remove_dir(d);
+            }
+            for d in c.dirs.iter().rev() {
+                let _ = std::fs::remove_dir(d);
+            }
+            !std::path::Path::new(&c.root).exists()
+        };
+        #[cfg(target_arch = "wasm32")]
+        let gone = true;
+        let left = if gone { String::new() } else { " (the files you added stay in its folder)".to_string() };
+        rapidr_ai::rai::record(&self.rai, &format!("Undone: the new program *{}* was removed{left}.", c.title), json!({"target": c.root, "decision": "undone", "files": c.files.len()}));
+        gone
+    }
+}
+
+/// A tool call's note (what it did, in a sentence) as a step of the
+/// progress checklist: a few words. Notes of calls that failed stay whole.
+pub fn step_label(name: &str, note: &str) -> String {
+    // (what is left to fix, after the step's own words)
+    let fix = note.rsplit_once(": ").map(|(_, t)| t).filter(|t| t.ends_with(" to fix")).map(|t| format!(": {t}")).or_else(|| note.ends_with("(errors to fix)").then(|| ": errors to fix".to_string())).unwrap_or_default();
+    let head = |s: &str| s.split(": ").next().unwrap_or(s).to_string();
+    match name {
+        "read_file" if note.starts_with("Read ") => note.split(" (").next().unwrap_or(note).to_string(),
+        "rapidr_describe" if note.starts_with("Looked up ") => note.trim_end_matches(" in RapidR's registry").to_string(),
+        "rapidr_list" | "rapidr_get" if !note.contains("not") => "Looked at the form".into(),
+        "list_files" => "Listed the files".into(),
+        "check_code" if note.starts_with("Checked") => match note.rsplit_once(": ") {
+            Some((_, t)) if !t.starts_with("no ") => format!("Checked: {}", t.split(',').next().unwrap_or(t)),
+            _ => "Checked the code".into(),
+        },
+        "find_example" if note.starts_with("Found an example") => "Found an example".into(),
+        "layout" if note.starts_with("Laid out") => "Laid out the buttons".into(),
+        "create_project" | "write_file" if note.starts_with("Wrote the new program") => format!("Wrote the program{fix}"),
+        "propose_edit" | "write_file" if note.starts_with("Changed the new project") => format!("Changed {}{fix}", note.rsplit(": ").next().unwrap_or("").trim_end_matches(" (errors to fix)")),
+        "propose_edit" | "write_file" if note.starts_with("Proposed") => format!("{}{fix}", head(note)),
+        _ => note.to_string(),
+    }
+}
+
+/// `n` and a noun, its plural with s.
+fn plural(n: usize, noun: &str) -> String {
+    if n == 1 {
+        format!("1 {noun}")
+    } else {
+        format!("{n} {noun}s")
+    }
+}
+
+/// The compiler's errors for a new program's files.
+fn diagnostics_count(files: &[(String, String)], name: &str, main: &str) -> usize {
+    let proposals: Vec<Proposal> = files.iter().map(|(p, t)| Proposal { kind: "project".into(), path: p.clone(), new: t.clone(), project: name.to_string(), main: p == main, ..Proposal::default() }).collect();
+    ai_tools::project_errors(&proposals)
+}
+
+/// Whether `path` is Studio's own state for the project at `root` (its
+/// `.rapidr` folder), never the user's.
+#[cfg(not(target_arch = "wasm32"))]
+fn is_state(root: &str, path: &str) -> bool {
+    let state = crate::join(root, rapidr_project::STATE_DIR);
+    path == state || path.starts_with(&format!("{state}/"))
+}
+
+/// `path` under `root`, relative.
+fn rel_of(root: &str, path: &str) -> String {
+    path.strip_prefix(&format!("{}/", root.trim_end_matches('/'))).unwrap_or(path).to_string()
+}
+
+/// Every file and folder under `root` (its own paths, `/` separated).
+#[cfg(not(target_arch = "wasm32"))]
+fn list_tree(root: &std::path::Path) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir(root) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                out.push(crate::slashes(&p.to_string_lossy()));
+                out.extend(list_tree(&p));
+            } else {
+                out.push(crate::slashes(&p.to_string_lossy()));
+            }
+        }
+    }
+    out
 }
 
 pub fn get(name: &str, prop: &str) -> Option<Value> {
@@ -400,6 +664,10 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "permission" => s(if t.may_propose() { "propose" } else { "read-only" }),
             "proposalcount" => Value::Integer(t.proposals.len() as i64),
             "runoutput" => s(t.run_output.clone()),
+            "reviewfirst" => crate::flag(t.review_first),
+            "projecterrors" => Value::Integer(ai_tools::project_errors(&t.proposals) as i64),
+            "createdfolder" => s(t.created.as_ref().map(|c| c.root.clone()).unwrap_or_default()),
+            "createdtitle" => s(t.created.as_ref().map(|c| c.title.clone()).unwrap_or_default()),
             _ => return None,
         })
     })
@@ -415,7 +683,8 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
             "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
-            "proposalcount" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" => {}
+            "reviewfirst" => x.review_first = matches!(t.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "yes"),
             "runoutput" => {
                 x.run_output.clear();
                 x.add_run_output(&t);
@@ -465,6 +734,9 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let folder = arg(0);
             s(with(name, |t| t.create_project(&folder).unwrap_or_else(|e| format!("error: {e}"))))
         }
+        "undocheck" => s(with(name, |t| t.undo_check())),
+        "undofiles" => s(with(name, |t| t.undo_files().join("\n"))),
+        "undodone" => crate::flag(with(name, Tools::undo_done)),
         _ => return None,
     })
 }

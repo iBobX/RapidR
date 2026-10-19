@@ -132,7 +132,17 @@ fn an_rai_with_the_project_tools() {
     wait(n);
     let (t, status) = rapidr_ai::rai::peek(n);
     assert!(t.starts_with("**You**\n\nRename the window to Notes"), "{t}");
-    assert!(t.contains("Let me look.") && t.contains("*Read main.rr (5 lines)*") && t.contains("*Proposed a change to main.rr: A new title*") && t.contains("I proposed a new title."), "{t}");
+    // (the chat: the replies, the change as a card Studio writes, the last
+    // reply after it; what each tool did is the progress checklist's)
+    assert!(t.contains("Let me look.\n\n##### ● Proposed a change to main.rr · +1 −1 · [Review](ai:review)\n\nI proposed a new title."), "{t}");
+    assert!(!t.contains("Read main.rr"), "{t}");
+    assert_eq!(rai_get(n, "steps"), "Read main.rr\nProposed a change to main.rr");
+    // (each step in a few words: the status line holds the newest three)
+    assert_eq!(step_label("create_project", "Wrote the new program Scientific Calculator: 2 errors to fix"), "Wrote the program: 2 errors to fix");
+    assert_eq!(step_label("check_code", "Checked main.rr: 2 errors, 0 warnings"), "Checked: 2 errors");
+    assert_eq!(step_label("check_code", "Checked main.rr: no problems"), "Checked the code");
+    assert_eq!(step_label("propose_edit", "Changed the new project Calc: main.rr (errors to fix)"), "Changed main.rr: errors to fix");
+    assert_eq!(step_label("write_file", "write_file: not allowed (read-only)"), "write_file: not allowed (read-only)");
     assert_eq!(status, "The assistant proposed a change: review it.");
     assert_eq!(get("tools1", "proposalcount").unwrap().to_i64(), 1);
     assert!(call("tools1", "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val().starts_with("edit\tmain.rr\tA new title\t\t0\t"));
@@ -211,11 +221,43 @@ fn a_new_program_is_created_where_the_user_says() {
         assert!(o.content.contains("compiles"), "{}", o.content);
         t.proposals = props;
     });
-    let main = call(n, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
-    assert!(main.ends_with("hello/main.rr"), "{main}");
+    let made = call(n, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
+    // (a project file naming it, its main file and what it includes)
+    assert!(made.ends_with("hello/hello.rrproj"), "{made}");
+    let proj = std::fs::read_to_string(&made).unwrap();
+    assert!(proj.contains("name = \"hello\"") && proj.contains("main.rr") && proj.contains("forms/main.inc"), "{proj}");
     assert!(std::fs::read_to_string(dir.join("hello/forms/main.inc")).unwrap().contains("Caption = \"Hello\""));
-    // (never over an existing project)
-    assert!(call(n, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val().contains("there already"));
+    assert_eq!(get(n, "createdfolder").unwrap().to_string_val(), format!("{}/hello", crate::slashes(&dir.to_string_lossy())));
+    // (never over an existing project: its name, then 2)
+    with(n, |t| t.proposals.iter_mut().for_each(|p| p.decision.clear()));
+    let again = call(n, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
+    assert!(again.ends_with("hello2/hello.rrproj"), "{again}");
+    // (Undo: unchanged — nothing to ask; the files Studio wrote, all inside
+    // its folder, and nothing else)
+    assert_eq!(call(n, "undocheck", &[]).unwrap().to_string_val(), "");
+    let files = call(n, "undofiles", &[]).unwrap().to_string_val();
+    let mut list: Vec<&str> = files.lines().collect();
+    list.sort_unstable();
+    let root = format!("{}/hello2", crate::slashes(&dir.to_string_lossy()));
+    assert_eq!(list, vec![format!("{root}/forms/main.inc"), format!("{root}/hello.rrproj"), format!("{root}/main.rr")]);
+    // (a file the user changed, one they added: said, so Studio asks)
+    std::fs::write(dir.join("hello2/main.rr"), "PRINT 1\n").unwrap();
+    std::fs::write(dir.join("hello2/notes.txt"), "mine").unwrap();
+    let said = call(n, "undocheck", &[]).unwrap().to_string_val();
+    assert!(said.contains("main.rr was changed") && said.contains("notes.txt was added"), "{said}");
+    // (the user's own file is never in the list)
+    assert!(!call(n, "undofiles", &[]).unwrap().to_string_val().contains("notes.txt"));
+    // (the files removed, as Studio does with the list: the folder stays
+    // for the user's file; the folders Studio made and emptied go)
+    for f in call(n, "undofiles", &[]).unwrap().to_string_val().lines() {
+        std::fs::remove_file(f).unwrap();
+    }
+    assert_eq!(call(n, "undodone", &[]).unwrap().to_i64(), 0, "the user's file keeps its folder");
+    assert!(dir.join("hello2/notes.txt").is_file() && !dir.join("hello2/forms").exists());
+    assert_eq!(get(n, "createdfolder").unwrap().to_string_val(), "", "undone: nothing more to undo");
+    assert_eq!(call(n, "undofiles", &[]).unwrap().to_string_val(), "");
+    // (the first one is untouched)
+    assert!(dir.join("hello/main.rr").is_file());
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -293,8 +335,12 @@ fn an_answer_that_claims_a_change_is_asked_once_then_told_plainly() {
     assert!(last["content"].as_str().unwrap().contains("you called no tool, so nothing reached the user") && last["content"].as_str().unwrap().contains("The open project is demo"), "{last}");
     let (t, status) = rapidr_ai::rai::peek(n);
     assert_eq!(status, "The assistant didn't make the change you asked for. Ask again, or try a larger model.");
-    // (the nudge isn't a message of the user's: a note under the answer)
-    assert!(t.contains("*The assistant hadn't made the change yet, so Studio asked it to.*") && t.matches("**You**").count() == 1, "{t}");
+    // (the nudge isn't a message of the user's; the claim that came before
+    // it is one muted line, never the claim as full text — the last reply,
+    // which still claims, shows, and the status says what is true)
+    assert!(t.contains("> *An earlier draft said this was done before it was — Studio asked it to actually do it.*") && t.matches("**You**").count() == 1, "{t}");
+    assert!(!t.contains("I am proposing the edit") && t.contains("I have written the change to main.rr."), "{t}");
+    assert!(rai_get(n, "steps").contains("Asked the model to make the change it described"));
     assert_eq!(get("tools-claim", "proposalcount").unwrap().to_i64(), 0);
     // (a plain answer to a question: no nudge, "Answered.")
     let (url2, server2) = mock(vec![text_answer("It shows a window with the caption Hi.")]);
@@ -417,6 +463,8 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     set(tools, "projectfiles", &s(""));
     set(tools, "mainfile", &s(""));
     set(tools, "projectname", &s(""));
+    // ("Review first": the program waits to be previewed and created)
+    set(tools, "reviewfirst", &s("1"));
     let n = "rai-pending";
     rai_set(n, "provider", "compatible");
     rai_set(n, "baseurl", &url);
@@ -442,6 +490,8 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     let (t, status) = rapidr_ai::rai::peek(n);
     assert!(!t.contains("no project open") && !t.contains("Couldn't read"), "{t}");
     assert_eq!(status, "The assistant made a new program: preview it, then create it.");
+    // (the cards: the recipe, the program as it is now, the errors fixed)
+    assert!(t.contains("##### ○ Started from the recipe *Calculator (basic and scientific)*\n\n##### ◆ New program *Calc* · main.rr · ✓ compiles\n\n##### ▲ Fixed 1 error\n\nFixed: it compiles now."), "{t}");
     // (one proposal, the fixed text: what the Preview shows)
     assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
     assert!(call(tools, "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val().starts_with("project\tmain.rr\t"));
@@ -463,8 +513,11 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     assert_eq!(rapidr_ai::rai::peek(n).1, "The new program Calc isn't created yet: preview it, then create it.");
     // (Create writes the latest; then it's the user's project, no longer a
     // proposal: the next question starts without it)
-    let main = call(tools, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
-    let made = std::fs::read_to_string(&main).unwrap();
+    let proj = call(tools, "createproject", &[s(dir.to_string_lossy())]).unwrap().to_string_val();
+    assert!(proj.ends_with("/Calc/Calc.rrproj"), "{proj}");
+    let made = std::fs::read_to_string(dir.join("Calc/main.rr")).unwrap();
+    // (the last answer's card: created, with Open and Undo)
+    assert!(rapidr_ai::rai::peek(n).0.contains("##### ◆ Created *Calc* · main.rr · ✓ compiles · [Open](ai:open/Calc) · [Undo](ai:undo/Calc)"), "{}", rapidr_ai::rai::peek(n).0);
     assert!(made.contains("DIM ready AS INTEGER") && made.contains("Calculator"), "{made}");
     let (url4, server4) = mock(vec![text_answer("Sure.")]);
     rai_set(n, "baseurl", &url4);
@@ -507,10 +560,12 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
         c.as_str().map(str::to_string).unwrap_or_else(|| c.as_array().unwrap().iter().filter_map(|b| b["text"].as_str()).collect())
     };
     let first = user_text(0, 0);
-    assert!(first.starts_with("Build me a stopwatch\n\n(RapidR Studio, not the user: a working RapidR program close to what the user wants") && first.contains("Recipe \"Stopwatch (timer)\"") && first.contains("OnTimer = Tick"), "{first}");
-    assert!(!user_text(1, 1).contains("a working RapidR program close to"), "{}", user_text(1, 1));
+    assert!(first.starts_with("Build me a stopwatch\n\n(An example RapidR Studio found — not from the user. Don't mention it unless asked.) A working RapidR program close to what the user wants") && first.contains("Example \"Stopwatch (timer)\"") && first.contains("OnTimer = Tick"), "{first}");
+    assert!(!user_text(1, 1).contains("A working RapidR program close to"), "{}", user_text(1, 1));
     let (t, _) = rapidr_ai::rai::peek(n);
-    assert!(!t.contains("a working RapidR program close to"), "the transcript shows the user's words only: {t}");
+    assert!(!t.contains("A working RapidR program close to"), "the transcript shows the user's words only: {t}");
+    // (the chat says which recipe it started from: a card Studio writes)
+    assert!(t.contains("##### ○ Started from the recipe *Stopwatch (timer)*"), "{t}");
     assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("\"op\":\"context\""));
     // (read-only: no change can be made, no recipe sent)
     let (url2, server2) = mock(vec![text_answer("I can describe one.")]);
@@ -520,6 +575,6 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
     wait(n);
     let req: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
     let last = req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "user").unwrap().to_string();
-    assert!(last.contains("Build me a quiz game") && !last.contains("a working RapidR program close to"), "{last}");
+    assert!(last.contains("Build me a quiz game") && !last.contains("A working RapidR program close to"), "{last}");
     let _ = std::fs::remove_dir_all(&dir);
 }
