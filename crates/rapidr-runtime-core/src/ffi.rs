@@ -747,16 +747,46 @@ pub fn rp_dll_call(args: &[Value]) -> Value {
     }
 }
 
-/// Unload a library (`UNLOADLIBRARY`).
+/// The library the cache keeps under the name `lib` (as `DECLARE … LIB`
+/// wrote it, in any case; "USER32.DLL" is not "USER32"), taken out of it:
+/// whether there was one.
+fn forget<T>(loaded: &mut HashMap<String, T>, lib: &str) -> bool {
+    loaded.remove(&lib.trim_matches('"').to_ascii_lowercase()).is_some()
+}
+
+/// `UNLOADLIBRARY(lib)`: a library the program loaded by that name leaves
+/// memory (dropped from the cache: FreeLibrary), and loads again at its next
+/// call. Anything else — a name never declared, one not loaded yet — does
+/// nothing. Only Windows has DLLs to unload: elsewhere nothing happens.
 pub fn ffi_unload(lib: &str) {
-    LOADED.with(|l| {
-        l.borrow_mut().remove(&lib.trim_matches('"').to_ascii_lowercase());
-    });
+    if cfg!(windows) {
+        LOADED.with(|l| {
+            forget(&mut l.borrow_mut(), lib);
+        });
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unloading_matches_the_declared_name_and_nothing_else() {
+        let mut loaded: HashMap<String, u8> = HashMap::new();
+        loaded.insert("user32".into(), 1);
+        loaded.insert("my.dll".into(), 2);
+        // (the name as declared, any case, even in quotes)
+        assert!(!forget(&mut loaded, "USER32.DLL"), "not the declared name: nothing");
+        assert!(!forget(&mut loaded, "kernel32"), "never declared: nothing");
+        assert_eq!(loaded.len(), 2);
+        assert!(forget(&mut loaded, "USER32"));
+        assert!(!forget(&mut loaded, "User32"), "already gone: nothing");
+        assert!(forget(&mut loaded, "\"My.DLL\""));
+        assert!(loaded.is_empty());
+        // (on a computer with no DLLs, or with none loaded: no error)
+        ffi_unload("USER32");
+        ffi_unload("never-declared");
+    }
 
     #[test]
     fn windows_libraries_need_windows_elsewhere() {

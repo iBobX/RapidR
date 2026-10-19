@@ -217,6 +217,6 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `SLEEP Num` | Pauses the program for a number of seconds; fractions allowed (`SLEEP 0.5`). |
 | `TIME$` *bare* | The local time as text, `HH:MM:SS`. |
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |
-| `UNLOADLIBRARY(DLLName)` *(not yet)* | Unloads a DLL the program loaded. |
+| `UNLOADLIBRARY(DLLName)` | Removes a DLL from memory — only one the program declared (`DECLARE … LIB "name"`), by that very name: `UNLOADLIBRARY("USER32")` unloads `LIB "USER32"`, while `UNLOADLIBRARY("USER32.DLL")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error. |
 
 158 builtins.
