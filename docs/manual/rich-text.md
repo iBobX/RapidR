@@ -1,6 +1,6 @@
 # Rich text: RRichEdit
 
-An `RRichEdit` (RapidQ's `QRICHEDIT`) is a text editor whose text is
+An `RRichEdit` (older name `QRICHEDIT`) is a text editor whose text is
 formatted: each character has its font, size, colour, bold, italic,
 underline and strike-out, and each paragraph its alignment, indents and a
 bullet. Programs format it through `SelAttributes`, the user types into it,
@@ -111,8 +111,8 @@ changes the end of the text (what an empty last line types in).
 paragraphs that have no alignment of their own; text set with `Text`
 afterwards gets it as its own.
 
-These are RapidQ's rules: RapidQ programs format and save exactly as they
-did under RapidQ.
+These are the classic rules: older programs format and save exactly as they
+always did.
 
 ## Paragraphs (RapidR's)
 
@@ -161,18 +161,18 @@ control's description tells the format at the caret ("At the caret: Arial
 12 point, bold, red"). In the browser the description is the field's
 `aria-description`.
 
-## RapidQ compatibility
+## Compatibility
 
-RapidQ's `QRICHEDIT` members behave as RapidQ's (checked against RapidQ's
-own compiler): `SelAttributes` and its members, `SelFont` (`SelAttributes =
+The `QRICHEDIT` members of programs written for RapidQ behave as they always
+did (the compatibility suite covers them): `SelAttributes` and its members, `SelFont` (`SelAttributes =
 Font`'s other name), `Font`, `Alignment`, `PlainText`, `SelText`,
 `AddStrings`, `Line`, `Clear`, `LoadFromFile` / `SaveToFile` and the
-streams (RapidQ's rich text files, byte for byte). RapidQ's own example
-`richedit/syntax` (syntax highlighting) shows its colours as it does under
-RapidQ.
+streams (the rich text files of those programs, byte for byte). The suite's
+example `richedit/syntax` (syntax highlighting) shows its colours as it always
+did.
 
-Differences that remain: RapidQ's `LineCount` and `Line(i)` count the lines
+Differences that remain: the classic `LineCount` and `Line(i)` count the lines
 as wrapped on screen when `WordWrap` is on, RapidR's count paragraphs (as
-RapidQ's do with `WordWrap = 0`); after `SelectAll` RapidQ's `SelLength`
+the classic ones do with `WordWrap = 0`); after `SelectAll` the classic `SelLength`
 counts the end of the text as two more characters; a document loaded from
-RTF is saved with RapidR's header (RapidQ keeps the loaded file's).
+RTF is saved with RapidR's header (the classic one keeps the loaded file's).

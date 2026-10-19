@@ -71,7 +71,7 @@ then reads and writes those files with its ordinary file I/O
   Windows; a browser that takes one group of types only (the file input
   below) gets every filter's extensions — and every file when the Filter
   has "All files", so nothing is greyed out.
-- Cancel returns 0, as RapidQ's `Execute`.
+- Cancel returns 0, as `Execute` does.
 
 What each browser does:
 

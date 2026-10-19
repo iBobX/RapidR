@@ -6,7 +6,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 
 | Command | |
 |---|---|
-| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or RapidQ's other source extensions `.rqw`, `.rqb` and `.rq`; compiled in memory first). This is the RapidR Runtime. |
+| `rapidr run <file> [args]` | Run a program: a `.rrbc`, or a source (`.rr` / `.bas`, or the older source extensions `.rqw`, `.rqb` and `.rq`; compiled in memory first). This is the RapidR Runtime. |
 | `rapidr <file.rrbc> [args]` | The same, for a compiled program (and for `#!/usr/bin/env rapidr` scripts) |
 | `rapidr open <file> [args]` | Run it as a double click does: a downloaded file asks first, a console program gets a terminal |
 | `rapidr info <file>` | The program's kind, bytecode format and the oldest runtime it needs |
@@ -31,9 +31,9 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr preprocess`, `lex`, `parse`, `codegen <file> [outdir]` | The compiler's stages, for curiosity and bug reports |
 
 Every command that compiles takes **`--include-dir <folder>`** (any number of
-times): a folder `$INCLUDE` looks in after the program's own folder, as
-RapidQ's include folder. Give it before a program's own arguments:
-`rapidr run --include-dir ~/RapidQ/include prog.bas`. How `$INCLUDE` finds
+times): a folder `$INCLUDE` looks in after the program's own folder. Give it
+before a program's own arguments:
+`rapidr run --include-dir ~/include prog.bas`. How `$INCLUDE` finds
 its file: [Include files](importing-rapidq.md#include-files).
 
 ## Builds
@@ -62,7 +62,7 @@ rapidr build prog.bas --web --interp       # web bundle: prog-web.zip
 
 Where things go — the output folder: the one you name, else the project's
 (`[build] output`, `build` by default) when the program has a `.rrproj`, else
-the source's own folder (RapidQ's way). It gets only what you ship:
+the source's own folder. It gets only what you ship:
 
 | Build | Output |
 |---|---|
@@ -131,7 +131,7 @@ directly. It is the same interpreter inside `--interp` executables.
   | File | Double click | Also |
   |---|---|---|
   | `.rrbc` | runs | |
-  | `.rr`, `.bas` (and RapidQ's `.rqw`, `.rqb`, `.rq`) | opens in the IDE (with only the Runtime: runs) | Windows: *Run*; macOS / Linux: *Open With > RapidR Runtime* |
+  | `.rr`, `.bas` (and the older `.rqw`, `.rqb`, `.rq`) | opens in the IDE (with only the Runtime: runs) | Windows: *Run*; macOS / Linux: *Open With > RapidR Runtime* |
 
   On Windows `.bas` becomes RapidR's by default only if you tick the
   installer's box (other BASICs use `.bas` too); RapidR is always listed

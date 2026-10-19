@@ -94,21 +94,20 @@ wasm-bindgen-cli --version 0.2.129`. `rapidr bundle-bc` needs neither.
 
 ## The program's output
 
-**`PRINT a, b` prints the values joined** — RapidQ's comma works like a
+**`PRINT a, b` prints the values joined** — the comma works like a
 semicolon. Put spaces in yourself, or use `TAB(n)` / `FORMAT$`.
 
-**Numbers print with nine decimals (`3.500000000`)** — RapidQ's format. Use
+**Numbers print with nine decimals (`3.500000000`)** — the classic format. Use
 `FORMAT$("%.2f", x)` or `STRF$` for others.
 
 **A large number prints as `-2147483648`** — PRINT shows a whole number as
-a 32-bit integer, as RapidQ does. `STR$(x)` gives `1E10`, `FORMAT$("%.0f",
+a 32-bit integer. `STR$(x)` gives `1E10`, `FORMAT$("%.0f",
 x)` gives `10000000000`.
 
-**`i = 2.7` stores 2** — stores into integer variables truncate (RapidQ's
-rule). Use `ROUND` (which is `INT(x + 0.5)`) when you mean rounding.
+**`i = 2.7` stores 2** — stores into integer variables truncate. Use `ROUND` (which is `INT(x + 0.5)`) when you mean rounding.
 
 **A string with `""` in it comes out wrong** — `""` isn't an escaped quote
-in RapidQ-compatible BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
+in RapidR's BASIC. Use `CHR$(34)` or `$ESCAPECHARS ON` and `\"`.
 
 **`ON ERROR GOTO` doesn't catch an error** — it's accepted and ignored;
 run-time errors end the program with their message and line.
@@ -123,8 +122,8 @@ desktop). The program goes on.
 — RapidR draws on the CPU when the only GPU is a software one; if
 detection fails, set `RAPIDR_RENDERER=cpu`.
 
-**The program doesn't look like RapidQ's Windows look** — programs are drawn
-in RapidR's own look unless they say `$THEME Classic` (RapidQ's exact look;
+**The program doesn't look like the classic Windows look** — programs are drawn
+in RapidR's own look unless they say `$THEME Classic` (the classic look;
 sizes and places are the same in both). Check also for a `RAPIDR_THEME`
 variable in your environment, which gives its theme to programs that name
 none ([Themes](components.md#themes)).
@@ -174,6 +173,6 @@ Studio) must allow the page's address ([Providers](ai-assistant.md#providers)).
 ## Reporting a problem
 
 Open an issue on GitHub (there are forms for bugs, RapidQ compatibility and
-test reports): <https://github.com/iBobX/RapidR/issues>. A RapidQ program
+test reports): <https://github.com/iBobX/RapidR/issues>. An older program
 that behaves differently under RapidR is a bug — please include it. Report
 security problems privately, as [SECURITY.md](../../SECURITY.md) explains.

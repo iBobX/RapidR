@@ -1,7 +1,7 @@
 # Data science
 
-RapidR's own components for numbers, tables, charts and JSON — not in
-RapidQ, and usable from any RapidR program, console or GUI. Every member
+RapidR's own components for numbers, tables, charts and JSON, usable
+from any RapidR program, console or GUI. Every member
 name, with its aliases and where it works: [reference/data-science.md](reference/data-science.md).
 
 | Component | |
@@ -384,5 +384,5 @@ PRINT j.Stringify                ' {"a":{"b":[1,2,3]},"count":5}
 
 `Parse`, `Get(path)`, `Set path, value`, `Has`, `Remove`, `Keys`,
 `Stringify`, `Prettify`, `LoadFile`, `SaveFile`. (Remember that `""`
-inside a string isn't a quote in RapidQ-compatible BASIC: write `CHR$(34)`, or use
+inside a string isn't a quote in RapidR's BASIC: write `CHR$(34)`, or use
 `$ESCAPECHARS ON` and `\"`.)

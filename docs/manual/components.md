@@ -2,19 +2,19 @@
 
 A RapidR program builds its windows from **components** — forms, buttons,
 lists, grids, timers — and uses **objects** that have no window (fonts,
-bitmaps, streams, string lists, databases). RapidR has every component and
-object RapidQ has except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
+bitmaps, streams, string lists, databases). RapidR has all the classic components and
+objects except OLE (QOLECONTAINER, QOLEOBJECT), and adds its own.
 
 The full list, with both names and where each runs:
 [reference/components.md](reference/components.md).
 
-## RapidQ's names
+## The older Q names
 
-RapidR's components are written `RButton`, `RForm`, `RStringGrid`, …. A
-RapidQ program's `QBUTTON`, `QFORM`, `QSTRINGGRID`, … are the same
-components (the RapidQ names), accepted everywhere. **Both names are one
+RapidR's components are written `RButton`, `RForm`, `RStringGrid`, ….
+Programs written for RapidQ use `QBUTTON`, `QFORM`, `QSTRINGGRID`, …: the
+same components, accepted everywhere. **Both names are one
 component**: the same properties, methods, events, defaults, look and
-behaviour, on every runtime. A few RapidQ names map to another R name:
+behaviour, on every runtime. A few Q names map to another R name:
 `QGAUGE` is `RProgressBar`, `QOUTLINE` (Windows 3.1's tree) is `RTreeView`,
 and RAPIDQ2.INC's `COMPORT` is `RComPort`.
 
@@ -27,17 +27,17 @@ and RAPIDQ2.INC's `COMPORT` is `RComPort`.
   ([The AI assistant and RAI](ai-assistant.md)), `RMarkdownView`
   ([Markdown](markdown.md)), `RCodeEditor`, the web components
   (`RWebView`, `RDOM`, …) and others.
-- A program written with RapidQ's names, using only RapidQ's components and
-  members, stays a plain RapidQ program, which RapidQ's own compiler still
+- A program written with Q names, using only the classic components and
+  members, stays a plain classic program, which the older compiler still
   builds. To bring one over to RapidR's names, import it (RapidR Studio's
   File ▸ Import RapidQ Project or File…, or `rapidr import-rapidq`): a
   converted copy and a report, the original left alone —
-  [Importing RapidQ programs](importing-rapidq.md).
+  [Importing older programs](importing-rapidq.md).
 - RapidR Studio shows RapidR's names (the toolbox, the inspector, Help,
-  completion); what it adds to a file written with RapidQ's names is written
-  with RapidQ's names, so a file never mixes them.
+  completion); what it adds to a file written with Q names is written
+  with Q names, so a file never mixes them.
 - Because a leading Q is read as R whenever the R component exists,
-  `QPLOT` is accepted and means `RPlot`, though RapidQ has no QPLOT. Prefer
+  `QPLOT` is accepted and means `RPlot`, though there never was a QPLOT. Prefer
   the R name for RapidR's own components.
 
 More on how the two families coexist (and how RapidR Studio writes them):
@@ -67,8 +67,8 @@ Inside `CREATE … END CREATE`, `Name = value` sets the component's property
 and a bare method name (`Center`, `AddItems "a", "b"`) calls it.
 Properties are read and written with `Component.Property`, methods called
 with `Component.Method args` (a SUB) or `x = Component.Method(args)`.
-RapidQ calls some methods without parentheses for their value (`WHILE
-DB.FetchRow`, `IF Dlg.Execute THEN`); RapidR does the same.
+Some methods can be called without parentheses for their value (`WHILE
+DB.FetchRow`, `IF Dlg.Execute THEN`).
 
 ## Events
 
@@ -84,24 +84,24 @@ SUB ButtonClick (Sender AS RButton)
 END SUB
 ```
 
-- Event handlers get RapidQ's arguments, with the component last as
+- Event handlers get the classic arguments, with the component last as
   `Sender`: `OnKeyDown (Key, Shift)`, `OnKeyPress (Key)`, `OnMouseDown
   (Button, X, Y, Shift)`, `OnMouseMove (X, Y, Shift)`, a grid's `OnDrawCell
   (Col, Row, State, Rect)`, … A handler may declare fewer parameters.
 - Handlers can be bound at run time too: `Btn(i).OnClick = Clicked`.
 - Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
-  dialog. The program ends when its main code does, as in RapidQ: forms
+  dialog. The program ends when its main code does: forms
   still open close with it and their timers stop.
 - A form's first `Show` (or `ShowModal`) fires `OnResize`, `OnShow`,
-  `OnResize`, as RapidQ does — lay a form out in `OnResize` and it is right
+  `OnResize` — lay a form out in `OnResize` and it is right
   when it appears. `OnPaint` comes after, when the program next waits. A size
   the program sets on a shown form (`Width`, `Height`, `ClientWidth`) fires
   `OnResize` at once; a new position fires nothing.
 - Under `ShowModal`, a `Close` (or a `ModalResult`) in the form's own
-  `OnShow` is lost, as in RapidQ: the form stays open, and gets its
+  `OnShow` is lost: the form stays open, and gets its
   `OnClose` when it's closed later. Close it from a timer or a button
   instead.
-- True / false properties read `1` or `0` (RapidQ's rule), RapidR Studio's
+- True / false properties read `1` or `0`, RapidR Studio's
   panel components too (`Console.ShowTabs`, `Tree.ShowFiles`).
 
 ```basic
@@ -133,20 +133,20 @@ END SUB
 ```
 
 [focus_events.rr](../../examples/gui/focus_events.rr) shows both. They are
-RapidR's, as Delphi's: RapidQ has OnEnter only on its lists (RC.EXE never
-fires a QFILELISTBOX's; binding a QLISTBOX's stops the program) and no
-OnExit, so no RapidQ program changes.
+RapidR's, as Delphi's: the classic components have OnEnter only on their lists
+(a QFILELISTBOX's never fires; binding a QLISTBOX's stops the program) and no
+OnExit, so no older program changes.
 
 ### Events your own code fires
 
 Setting some properties from code fires the event the user's change fires,
-inside the assignment — before the next line runs —, exactly as RapidQ
-does (checked against RapidQ's own compiler, RC.EXE):
+inside the assignment — before the next line runs —, exactly as the classic
+components do (the compatibility suite covers it):
 
 | The program sets | Fires |
 |---|---|
 | `Edit.Text` or `Edit.SelText` (the text changes) | OnChange |
-| `RichEdit.Text` (the text changes) | OnChange: once before its form has shown, **twice** after (RapidQ's rich edit hears its own change and the text's) |
+| `RichEdit.Text` (the text changes) | OnChange: once before its form has shown, **twice** after (the rich edit hears its own change and the text's) |
 | `RichEdit.SelText` | OnChange |
 | `CheckBox.Checked` (on or off, a change) | OnClick |
 | `RadioButton.Checked = 1` (it was off) | OnClick — the button it turns off hears nothing |
@@ -157,26 +157,26 @@ does (checked against RapidQ's own compiler, RC.EXE):
 A handler that sets its own component's value runs itself again, and code
 that fills a form fires the handlers it binds: keep a flag while you do,
 as [csv_explorer.rr](../../examples/data/csv_explorer.rr) does with `Busy`.
-Not yet as RapidQ's: `RichEdit.AddStrings` fires OnChange there, and a
+Not yet the same as in the classic components: there, `RichEdit.AddStrings` fires OnChange, and a
 QFILELISTBOX's OnChange comes when it first reads its folder.
 
 ### A run-time error in a handler
 
-As in RapidQ, the handler stops at the line that failed — and so do the
+The handler stops at the line that failed — and so do the
 handlers that fired it (a click whose `Edit.Text = …` ran the failing
 OnChange) — and the program goes on: its windows keep answering, its timers
 keep ticking, the next click runs the handler again. RapidR writes the
 error where you see it (the program's error output, Studio's Output);
-RapidQ says nothing. In an event that ran inside a `DOEVENTS` the error
+the classic components say nothing. In an event that ran inside a `DOEVENTS` the error
 also stops the code that called `DOEVENTS`: a main program's
-`DO: DOEVENTS: LOOP` ends there, the program with it, as RapidQ's does. An
+`DO: DOEVENTS: LOOP` ends there, the program with it. An
 error in the main program ends the program. Under Studio's debugger the
 program first stops at the line (see [Debugging](debugging.md#when-the-program-fails)).
 
 ### Windows messages: a form's WndProc
 
 A form's `WndProc` hears the messages Windows sends or posts to the form's
-window, as RapidQ's does: `WndProc = MySub` in the form's CREATE (or
+window: `WndProc = MySub` in the form's CREATE (or
 `Form.WndProc = MySub`), and `MySub (hWnd, uMsg, wParam, lParam)` runs for
 each one. On Windows that is every message of the window: the system's
 (`WM_SIZE`, `WM_MOVE`, `WM_ACTIVATE`, `WM_PAINT`, the mouse and the keys)
@@ -217,26 +217,26 @@ gets): before its window exists, `Form.Handle` is RapidR's own number.
 What to know:
 
 - `hWnd` is the form's `Handle`; `uMsg`, `wParam` and `lParam` are 32-bit
-  numbers (`&H80000000` arrives as -2147483648), as RapidQ gives them.
+  numbers (`&H80000000` arrives as -2147483648).
 - The handler runs just after Windows has handled the message, in the
-  order the messages came; what it returns doesn't matter (RapidQ ignores
-  it too). `DOEVENTS` inside it lets the next messages in, as in RapidQ.
-- Messages come from the moment the form's window shows. RapidQ calls
-  WndProc already while CREATE builds the form, so a handler that uses a
-  control created later in the block stops a RapidQ program; RapidR's
+  order the messages came; what it returns doesn't matter. `DOEVENTS`
+  inside it lets the next messages in.
+- Messages come from the moment the form's window shows. The classic
+  WndProc is called already while CREATE builds the form, so a handler that
+  uses a control created later in the block stops such a program; RapidR's
   doesn't.
-- Every form has its own WndProc. (RapidQ has one for the whole program:
+- Every form has its own WndProc. (The classic one is for the whole program:
   the last one bound hears every form's messages.)
 - A message whose lParam points to data (`WM_COPYDATA`,
   `WM_GETMINMAXINFO`) can't be read: `PEEK` reaches only the program's own
   memory.
 - RapidR draws a form's controls in the form's own window, so the mouse
-  over a control is the form's `WM_MOUSEMOVE` too (RapidQ's controls are
+  over a control is the form's `WM_MOUSEMOVE` too (the classic controls are
   windows of their own). RapidR's redraws of its controls are not handed
   over as `WM_PAINT`.
 - On macOS, Linux and the web there are no Windows messages: `WndProc`
   hears only the form's [system tray icon](directx-and-media.md#the-system-tray).
-  A control's `WndProc` is never called, on any system, as in RapidQ.
+  A control's `WndProc` is never called, on any system.
 
 The examples in [examples/windows/](../../examples/windows/) list a form's
 messages as they come, post `WM_USER + 1`, and read a MIDI keyboard.
@@ -268,12 +268,12 @@ the list shows once the window has drawn it, a moment later.)
 | `Application` | `ExeName`, `Path`, `Title`, `Icon`, `Terminate`, `Minimize`, `Theme` (RapidR's) |
 | `Screen` | `Width`, `Height`, `ClientWidth` / `ClientHeight` (the work area), `MouseX` / `MouseY`, `Monitors`, `Cursor`, `PixelsPerInch` (96), `Scale` (RapidR's) |
 | `Clipboard` | `Text`, `SetAsText`, `GetAsText(n)`, `Clear`, `HasFormat`, … — the system's clipboard on the desktop |
-| `Printer` | RapidQ's printer object (and `LPRINT`): each document becomes a PDF, sent to the printer with CUPS' `lp` on macOS and Linux, the browser's print dialog on the web; on Windows, or with no printer, it is saved as a PDF in the current folder. `RAPIDR_PRINT_TO=<file or folder>` saves it there instead |
+| `Printer` | The printer object (and `LPRINT`): each document becomes a PDF, sent to the printer with CUPS' `lp` on macOS and Linux, the browser's print dialog on the web; on Windows, or with no printer, it is saved as a PDF in the current folder. `RAPIDR_PRINT_TO=<file or folder>` saves it there instead |
 | `Mouse` | `X`, `Y` |
 
 A program run by the RapidR Runtime sees itself as if it were built:
 `Application.ExeName` and `Application.Path` name its file, and
-`COMMAND$(n)` / `CommandCount` see only its own arguments, as in RapidQ
+`COMMAND$(n)` / `CommandCount` see only its own arguments
 (`COMMAND$(0)` is the program's file; a bare `COMMAND$`, RapidR's, is the
 arguments joined with spaces) — however it runs: `rapidr run`, `rapidr
 run-bc`, a double-clicked file, a built executable. On the web they are the
@@ -282,12 +282,12 @@ page's query string's parts (`?a&b%20c`: `a`, `b c`).
 ## RapidR's additions to every component
 
 These are RapidR's, and additive: a program that doesn't use them behaves
-exactly as under RapidQ. Using one makes the program RapidR-only (RapidQ's
+exactly as before. Using one makes the program RapidR-only (the older
 compiler doesn't know it).
 
 | Addition | |
 |---|---|
-| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (Delphi's Anchors; RapidQ has `Align` only) |
+| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (Delphi's Anchors; the classic components have `Align` only) |
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (also `Constraints.MinWidth`, …) | bound every size the component takes, from the program, the layout or the user |
 | `AccessibleName`, `AccessibleDescription` | what a screen reader says, when the caption isn't enough |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
@@ -298,7 +298,7 @@ compiler doesn't know it).
 
 ### Files dropped on a form
 
-`OnDropFiles` (RapidR's; RapidQ has no such event) hears files dragged from
+`OnDropFiles` (RapidR's; the classic components have no such event) hears files dragged from
 Finder, File Explorer or a Linux file manager — in a browser, from the
 computer — and dropped anywhere on the form's window. `Files` holds their
 paths, one a line (`CHR$(10)` between them), in the order they came; a drop
@@ -343,7 +343,7 @@ panels and between split editors, the handles of the form designer, links in
 the Output panel, and a tab, file or toolbox item being carried (a closed
 hand). In RapidR's look the divider you can drag also lights up under the
 mouse. Set the component's `Cursor` (`crHandPoint`, `crSizeWE`, …) and your
-choice wins, exactly as in RapidQ; `crDefault` (0) means "the component's own".
+choice wins; `crDefault` (0) means "the component's own".
 On the desktop this is the system's cursor, on the web the page's cursor; they
 agree.
 
@@ -359,9 +359,9 @@ contrast) and is the same on macOS, Windows, Linux and the web.
 | `RapidR Light` (also `Modern`) | RapidR's look, light | `rapidr light` |
 | `RapidR Dark` (also `Dark`) | RapidR's look on the brand's Ink | `rapidr dark` |
 | `RapidR High Contrast` (also `HighContrast`) | Windows' High Contrast Black: white on black, thick focus rings | `rapidr high contrast` |
-| `Classic` (also `System`, `Light`, `Windows`, `Win95`, `Win2K`, …) | RapidQ's exact Windows look | `classic` |
+| `Classic` (also `System`, `Light`, `Windows`, `Win95`, `Win2K`, …) | The classic Windows look, exactly | `classic` |
 
-`$THEME Classic` at the top of a program gives it RapidQ's look exactly;
+`$THEME Classic` at the top of a program gives it the classic look exactly;
 `Application.Theme = "rapidr dark"` switches while it runs. The
 `RAPIDR_THEME` environment variable gives a theme to programs that name
 none (RapidR Studio's **Preview in Classic** uses it).
@@ -374,7 +374,7 @@ macOS' Appearance and Increase Contrast, Windows'
 app mode and High Contrast, the browser's colour scheme on the web — and
 when the program sets `Application.Theme`. It opens in the system's look
 from its first line. What RapidR draws follows by itself: every
-component, and RapidQ's system colours (`clBtnFace`, `clWindowText` …).
+component, and the system colours (`clBtnFace`, `clWindowText` …).
 
 A colour the program *read* from the theme with `Application.ThemeColor`
 is a number, though: it stays what it was. RapidR's
@@ -413,14 +413,14 @@ once.
 
 A theme changes only how things are drawn, never a size or a place: a
 component's Left, Top, Width and Height, a form's client area and an
-AutoSize label's size are RapidQ's in every theme. RapidQ's default font
+AutoSize label's size are the classic ones in every theme. The default font
 (MS Sans Serif) is drawn in Inter in RapidR's look, at the same pixel size;
-fonts a program names keep their face. RapidQ's system colours
+fonts a program names keep their face. The system colours
 (`clBtnFace`, `clWindow`, `clHighlight` …) are the theme's; a colour the
 program sets as RGB (`Color`, `Font.Color`) is painted as written, and
-reading a colour back gives what the program set, as in RapidQ. A QFONT
+reading a colour back gives what the program set. A QFONT
 you never gave a colour keeps the theme's text colour (its `Color` reads
-`clWindowText`, as RapidQ's does), so `Form.Font = MyFont` changes the face
+`clWindowText`), so `Form.Font = MyFont` changes the face
 and size of the form's text but never turns it black on a dark theme:
 
 ```basic
@@ -437,10 +437,9 @@ tokens](../theme-tokens.md).
 
 ## High-DPI screens
 
-A program's coordinates are logical pixels (1/96 inch, as RapidQ's, and as
-Windows at 100 %) on every screen, so old layouts stay as they were; everything is drawn at
+A program's coordinates are logical pixels (1/96 inch, as Windows at 100 %) on every screen, so old layouts stay as they were; everything is drawn at
 the screen's real resolution — text, lines, shapes, pictures and SVG images
-(accepted wherever RapidQ takes a bitmap) — so it is sharp on Retina and
+(accepted wherever a bitmap is) — so it is sharp on Retina and
 4K screens. `Screen.PixelsPerInch` reads 96; `Screen.Scale`
 tells the real ratio.
 
@@ -462,8 +461,8 @@ the author doing anything:
   clicks it (`OnClick`), and a screen reader announces a button named by
   its `AccessibleName`. That's a clickable card — RapidR Studio's Welcome
   page is made of them. In an `RScrollBox`, Tab onto a component below its
-  edge scrolls it into view (as in RapidQ). RapidQ's panels never take the
-  focus, and a panel without `TabStop` doesn't either.
+  edge scrolls it into view. A panel without `TabStop` never takes the
+  focus.
 
 ## How it is drawn
 

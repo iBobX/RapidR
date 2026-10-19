@@ -172,7 +172,7 @@ a single line.
   Call Stack shows both, the inner one on top.
 - **A run-time error in a handler** stops at its line, as in the main
   program. Continue (F5) then does what the program does without the
-  debugger, as RapidQ's: that handler ends there (and the handlers that
+  debugger: that handler ends there (and the handlers that
   fired it), the program runs on and the next event stops at the error
   again; the error is in Output. Stop (Shift+F5) ends the program.
 - **The focus** ([OnEnter and OnExit](components.md#the-focus-onenter-and-onexit)):
@@ -363,7 +363,7 @@ tables open the same way as in a data tip. In an event handler, open
 stays open from one stop to the next, and changed values are in blue.
 
 **Globals** lists your program's own variables first. The constants an
-`$INCLUDE` brings — RapidQ's `RAPIDQ.INC` has nearly five hundred: colours,
+`$INCLUDE` brings — `RAPIDQ.INC` has nearly five hundred: colours,
 keys, message box buttons — come after them, each file's under one item
 that stays closed until you open it:
 
@@ -441,7 +441,7 @@ Call Stack show the values that led to it. The message is in Output too,
 with the file and line: click it to go there. Press Shift+F5 to end the
 program, or F5 to let the error do what it does without the debugger: in
 the main program it ends the program; in an event handler it ends that
-handler and the program runs on (RapidQ's way — see
+handler and the program runs on (see
 [A run-time error in a handler](components.md#a-run-time-error-in-a-handler)).
 
 This program (`tools/manual/scenes/debugger/share.rr`) divides by a

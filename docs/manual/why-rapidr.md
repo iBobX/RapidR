@@ -1,9 +1,8 @@
 # Why RapidR
 
-RapidR is a home for BASIC programs — the ones people wrote for RapidQ years
-ago, and new ones — that runs them on today's computers: Windows, macOS,
-Linux and the web, from one source, with a modern look, accessibility, data
-tools and an AI that never holds your keys.
+RapidR is a modern home for BASIC programs: you write one source and it runs
+on today's computers — Windows, macOS, Linux and the web — with a modern look,
+accessibility, data tools and an AI that never holds your keys.
 
 This page says what RapidR does best. **Every number on it was measured,
 and the conditions are beside it**; the programs that measured them are in
@@ -89,8 +88,8 @@ You write a program once. It runs as a native executable, in the interpreter,
 and in a web browser, on Windows, macOS and Linux — and **it is checked to behave
 the same**:
 
-- A **conformance suite of over 250 programs**, many with RapidQ's own output
-  as the expected result, runs on all three runtimes.
+- A **conformance suite of over 250 programs**, each with its expected output,
+  runs on all three runtimes.
 - RapidR draws every window itself (its UI kernel), so a program doesn't change
   with the system it runs on. The tests **capture every window of the GUI test
   programs on the desktop and in a browser and require the two pictures to
@@ -102,26 +101,22 @@ the same**:
 - A web build is a static `.zip` for any web host: no server program, nothing
   contacted unless the program does it ([The web](web.md)).
 
-## Your RapidQ programs run unchanged
+## Older programs run unchanged
 
-RapidR's rule: everything RapidQ has behaves exactly as in RapidQ, and
-RapidR's extras are additive. RapidQ's own compiler (RC.EXE, in a Windows
-virtual machine) is the ground truth: when the manual leaves a question open,
-a probe program is compiled with it and RapidR is made to print what RapidQ
-prints.
+RapidR also runs programs written for RapidQ. The rule: what those programs
+do, they keep doing, and RapidR's extras are additive. A compatibility suite of
+428 older example programs keeps watch, program by program, and the results
+are published whole:
 
-The 428 example programs that come with RapidQ are the test, program by
-program, and the results are published whole:
-
-- **On Windows, beside RC.EXE** (2026-10-15): every program is run with RapidQ's
-  own compiler and with RapidR, interpreted and native, and their windows and
-  output compared. Of the 428, **140 come out the same**, 51 differ in some way
+- **On Windows** (2026-10-15): every program of the suite is run, interpreted
+  and native, and its windows and output compared with the suite's reference
+  results. Of the 428, **140 come out the same**, 51 differ in some way
   the notes describe, 32 fail (mostly what a 64-bit program can't do: 32-bit
   DLLs, x86 machine code), 13 aren't comparable, 64 aren't run (they would
   print, write the registry, start programs …), and **128 are programs
-  RapidQ's own compiler doesn't build or run**.
+  the original compiler doesn't build or run**.
   [Every program and what was seen](../rapidq-corpus-status.md).
-- **On macOS, Linux and the web**: of the portable programs (the API RapidQ's
+- **On macOS, Linux and the web**: of the portable programs (the API the older
   Windows and Linux versions shared), 114 ran unattended on each of macOS and
   Linux, interpreted and native, with **no problem found**, and the web matches
   the desktop. [Every program](../rapidq-corpus-status-unix.md).

@@ -1,20 +1,21 @@
 # The language
 
-RapidR's language is a RapidQ-compatible BASIC. This chapter is a working summary,
-with the rules where RapidQ (and so RapidR) differs from QBasic, VB or other
-BASICs — those are the ones that surprise people. Native builds, the
+RapidR's language is a modern BASIC, and programs written for RapidQ run as
+they are. This chapter is a working summary, with the rules where RapidR
+differs from QBasic, VB or other BASICs — those are the ones that surprise
+people. Native builds, the
 interpreter and the web give the same output for every example here.
 
-RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
+RapidR also accepts some syntax the classic language doesn't (VB's `#If`, `ON ERROR`,
 `i++`, …): see [Differences and extensions](differences.md).
 
 ## Source files
 
-- Extensions `.bas` and `.rr` are the same language. The other extensions
-  RapidQ's editors saved programs with are accepted too: `.rqw`, `.rqb` and
+- Extensions `.bas` and `.rr` are the same language. The older extensions
+  are accepted too: `.rqw`, `.rqb` and
   `.rq` (run, built, opened in RapidR Studio and `$INCLUDE`d like a `.bas`).
   A file is read as UTF-8; one that isn't valid UTF-8 is read as
-  Windows-1252 (ANSI), as RapidQ's programs usually are.
+  Windows-1252 (ANSI), as older programs usually are.
 - **Case doesn't matter** in keywords, names, components and builtins.
 - `:` separates statements on a line; `_` at the end of a line continues it
   (a string may continue too).
@@ -26,9 +27,9 @@ RapidR also accepts some syntax RapidQ doesn't (VB's `#If`, `ON ERROR`,
 
 ## Program kinds: `$APPTYPE`
 
-`$APPTYPE CONSOLE`, `$APPTYPE GUI`, `$APPTYPE CGI` (RapidQ's) and `$APPTYPE
+`$APPTYPE CONSOLE`, `$APPTYPE GUI`, `$APPTYPE CGI` (the classic ones) and `$APPTYPE
 WEB` (RapidR's). Without one, a program that creates components is a GUI
-program and any other a console program — as RapidQ decides. The kind
+program and any other a console program. The kind
 decides, for example, whether a Windows executable opens a console window,
 and whether a program double-clicked on macOS or Linux gets a terminal.
 
@@ -40,7 +41,7 @@ and whether a program double-clicked on macOS or Linux gets a terminal.
 | `WORD` | `??` | 0 … 65535 |
 | `SHORT` | `%` | -32768 … 32767 (`q% = 40000` holds -25536) |
 | `INTEGER`, `LONG` | `&` | 32-bit signed |
-| `DWORD` | `???` | 32-bit (signed, as RapidQ has it) |
+| `DWORD` | `???` | 32-bit (signed) |
 | `SINGLE` | `!` | 32-bit float |
 | `DOUBLE` | `#` | 64-bit float |
 | `STRING` | `$` | text; `STRING * n` is always n characters |
@@ -61,19 +62,19 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
   with a suffix (`n%`, `s$`) has the suffix's type.
 - **A store into an integer variable truncates** (`i = 2.7` gives 2);
   beyond 32 bits it gives -2147483648. A `BYVAL` parameter rounds half to
-  even instead, as RapidQ does.
+  even instead.
 - Inside a SUB or FUNCTION, `DIM` makes a local; `STATIC` keeps its value
   between calls. An undeclared variable a SUB uses before the main program
-  does is the SUB's own (kept between calls) — RapidQ's one-pass rule.
+  does is the SUB's own (kept between calls) — the one-pass rule.
 - `TRUE` and `FALSE`: a comparison gives -1 or 0 (`PRINT 1 = 1` prints
-  -1). With `$INCLUDE "RAPIDQ.INC"`, `True` is 1, as in RapidQ's file.
+  -1). With `$INCLUDE "RAPIDQ.INC"`, `True` is 1, as that file defines it.
 
 ## Constants: `clRed`, `mbYes`, `VK_ESCAPE`…
 
 Constants are names for fixed numbers, such as colours, message box buttons and
 key codes. The full list is in [the constants reference](reference/constants.md).
 
-**Today (as in RapidQ):** RapidQ's constants come with one line at the top of
+**Today:** the classic constants come with one line at the top of
 the program:
 
 ```basic
@@ -84,8 +85,8 @@ IF MESSAGEDLG("Save?", mtConfirmation, mbYes OR mbNo, 0) = mrYes THEN SaveIt
 ```
 
 RapidR has these constants built in, so the line needs no file: RapidR ships
-no copy of RapidQ's include. Without the line, `clRed` is an undeclared name
-and reads as 0, exactly as in RapidQ. Old programs behave the same.
+no copy of that include file. Without the line, `clRed` is an undeclared name
+and reads as 0. Old programs behave the same.
 
 RapidR's own constants, such as `akLeft` … `akBottom` for anchors, need no
 include. A variable or `CONST` of your own with the same name always wins.
@@ -102,7 +103,7 @@ CONST Title = "My Game"
 - In RapidR programs (`.rr`), every constant will be there with no
   `$INCLUDE` line. Only the ones your program uses are compiled in, and your
   own names still win.
-- RapidQ programs (`.bas`) keep RapidQ's rule.
+- Older programs (`.bas`) keep today's rule.
 - Constants will also be grouped by topic, so typing `Color.` in the editor
   lists every colour. The old names keep working.
 
@@ -114,7 +115,7 @@ DIM grid(2, 2) AS STRING      ' 0 … 2 in each dimension
 REDIM a(1 TO 5) AS INTEGER    ' resized, its values kept
 PRINT LBOUND(a), UBOUND(a)
 SWAP a(1), a(3)
-QUICKSORT a(1), a(5), 0       ' RapidQ's sort of a(1) … a(5); 0 ascending
+QUICKSORT a(1), a(5), 0       ' sorts a(1) … a(5); 0 ascending
 ```
 
 Whole arrays can be passed (`Fill M()`, `SUB Fill (list() AS STRING)`), and
@@ -140,10 +141,10 @@ From the loosest: `OR`, `XOR` · `AND` · `NOT` · comparisons (`=`, `<>`,
   `DEC x [, n]`.
 - `@var` passes a variable by reference.
 
-## Printing numbers: the rules RapidQ has
+## Printing numbers
 
-RapidR prints numbers exactly as RapidQ does (checked against RapidQ's
-compiler, RC.EXE):
+RapidR prints numbers in the classic way (the compatibility suite covers
+it):
 
 ```basic
 PRINT 1 / 3         ' 0.333333333
@@ -153,7 +154,7 @@ PRINT 1E10          ' -2147483648   (a whole number beyond 32 bits)
 PRINT STR$(1 / 3)   ' 0.333333333   (STR$: 9 significant digits)
 ```
 
-**PRINT's comma is a semicolon** in RapidQ: `PRINT 1, 2` prints `12`, with
+**PRINT's comma is a semicolon**: `PRINT 1, 2` prints `12`, with
 no tab zones. Use `;` with explicit spaces, `TAB(n)`, `SPACE$(n)`,
 `FORMAT$` or `STRF$` to lay out columns:
 
@@ -206,7 +207,7 @@ END
 ## SUBs and FUNCTIONs
 
 ```basic
-DECLARE FUNCTION Square (x AS DOUBLE) AS DOUBLE   ' optional, as in RapidQ
+DECLARE FUNCTION Square (x AS DOUBLE) AS DOUBLE   ' optional
 
 SUB Greet (Who AS STRING)
     PRINT "Hello, "; Who
@@ -233,20 +234,20 @@ PRINT Square(1.5)             ' 2.250000000
   `ParamVal(i)`, `ParamValCount`, `ParamStr$(i)`, `ParamStrCount`.
 - Function pointers: `BIND p TO MySub`, `CALLFUNC p, args`, `CODEPTR(MySub)`.
 - `DECLARE … LIB "user32"` (any DLL) calls the DLL's function **on
-  Windows**, in native builds and interpreted, with RapidQ's rules: a
+  Windows**, in native builds and interpreted, with these rules: a
   number goes by value unless `BYREF`, a `STRING` and a `TYPE` by address
   (what the DLL writes shows in the variable), `VARPTR` addresses are real
   pointers for the call. Up to 16 arguments, of which up to 8 `DOUBLE` /
   `SINGLE`. A 64-bit pointer a DLL returns or writes into a `LONG` is kept
   as a 32-bit stand-in that turns back into the pointer when given to a
-  DLL again. RapidQ's `SENDMESSAGE`, `POSTMESSAGE` and `KILLMESSAGE` are
+  DLL again. `SENDMESSAGE`, `POSTMESSAGE` and `KILLMESSAGE` are
   user32's functions the same way. On macOS, Linux and the web the program
   compiles and stops at the first such call with an error that names the
   function (and RapidR's portable equivalent when there is one); a
   library of the system's own (`LIB "libfoo.dylib"`, `"libfoo.so"`) loads
   there. With `RAPIDR_SANDBOX` set no library is loaded at all.
   docs/windows-dll-calls.md has the details.
-- `PEEK` / `POKE` / `PCOPY` work on the console's pages as in RapidQ
+- `PEEK` / `POKE` / `PCOPY` work on the console's pages
   (page 0 is the screen: even addresses a cell's character, odd ones its
   colour), and — RapidR's addition — `PEEK` / `POKE` on the program's own
   memory through `VARPTR`, on every system. Any other address is a
@@ -255,7 +256,7 @@ PRINT Square(1.5)             ' 2.250000000
 
 ## TYPEs and objects
 
-A `TYPE` is a record, and — as in RapidQ — can have methods, a constructor,
+A `TYPE` is a record, and can have methods, a constructor,
 events and inheritance:
 
 ```basic
@@ -310,7 +311,7 @@ See [Components and objects](components.md).
 
 ## Strings
 
-The builtins are the ones RapidQ has: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
+The builtins are the classic ones: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINSTR`,
 `UCASE$`, `LCASE$`, `TRIM$`, `REPLACE$` (overwrites at a position),
 `REPLACESUBSTR$` (find and replace), `INSERT$`, `DELETE$`, `REVERSE$`,
 `FIELD$`, `TALLY`, `STRING$`, `SPACE$`, `CHR$`, `ASC`, `HEX$`, `BIN$`,
@@ -318,7 +319,7 @@ The builtins are the ones RapidQ has: `LEFT$`, `MID$`, `RIGHT$`, `INSTR`, `RINST
 [the builtins reference](reference/builtins.md). String functions count
 characters, not bytes.
 
-- `""` inside a string is **not** an escaped quote (RapidQ reads two strings
+- `""` inside a string is **not** an escaped quote (it reads as two strings
   side by side). Use `CHR$(34)`, or turn on `$ESCAPECHARS ON` for `\"`,
   `\n`, `\t`, `\\`, `\x41`.
 
@@ -338,7 +339,7 @@ CLOSE #f
 PRINT FILEEXISTS("notes.txt"), FILELEN("notes.txt")
 ```
 
-The stream objects do the same with methods: `RFileStream` (RapidQ's
+The stream objects do the same with methods: `RFileStream` (older name
 `QFILESTREAM`: `Open`,
 `ReadLine`, `WriteLine`, `ReadNum`, `WriteNum`, `Read`, `Write`, `Seek`,
 `Size`, `Position`, `SaveArray`, `LoadArray`, …), `RMemoryStream` and
@@ -347,7 +348,7 @@ The stream objects do the same with methods: `RFileStream` (RapidQ's
 In a browser, files are the page's own (see [The web](web.md)).
 
 File names work as they do on Windows, on every system: `\` and `/` both
-separate folders, and a name finds its file in any case. A RapidQ program
+separate folders, and a name finds its file in any case. A program
 written on Windows finds its files on macOS and Linux unchanged:
 
 ```basic
@@ -366,26 +367,26 @@ case).
 [prompt,] var`, `INKEY$`, `INPUT$(n)`, `SLEEP seconds` (`SLEEP 0.5`), `BEEP`,
 `SOUND`. Colours and positions are written as ANSI sequences, so they work
 in any modern terminal and in the IDE's output panel. A bare `INPUT$`
-(no count) reads a whole line, as RapidQ's does — old programs end with
+(no count) reads a whole line — old programs end with
 `a = INPUT$` to wait before the window closes.
 
-**Box characters.** RapidQ's console showed characters 128 to 255 in the
-old DOS code page 437, so its programs draw boxes with them:
+**Box characters.** The classic console showed characters 128 to 255 in the
+old DOS code page 437, so older programs draw boxes with them:
 
 ```basic
 PRINT CHR$(201); STRING$(10, 205); CHR$(187)    ' ╔══════════╗
 ```
 
-RapidR shows a RapidQ program's console the same way: a file that isn't
+RapidR shows an older program's console the same way: a file that isn't
 UTF-8 (saved by an old Windows or DOS editor), or a `.bas` / `.rqb` / `.rq`
 / `.rqw` file of plain ASCII. A RapidR program (a `.rr` file, or any UTF-8
 file with accented letters) prints its text as it is — `CHR$(233)` is é. To
 draw boxes in a RapidR program, write the characters themselves
 (`PRINT "╔══╗"`).
 
-### Older RapidQ forms that still work
+### Older forms that still work
 
-RapidQ's compiler took a few forms that look odd today; RapidR takes them
+The classic compiler took a few forms that look odd today; RapidR takes them
 the same way:
 
 ```basic
@@ -405,7 +406,7 @@ SLEEP(Calc.Twice(3)) / 10         ' (…) starts the argument: SLEEP 0.6
 
 | Directive | |
 |---|---|
-| `$INCLUDE "file"` | include a file (RapidQ's include folders and `\` paths work; `RAPIDQ.INC` is built in) |
+| `$INCLUDE "file"` | include a file (include folders and `\` paths work; `RAPIDQ.INC` is built in) |
 | `$DEFINE NAME [text]`, `$UNDEF NAME` | text substitution |
 | `$IFDEF` / `$IFNDEF` / `$ELSE` / `$ENDIF` | conditional compilation |
 | `$MACRO NAME(x) = text` | a macro with parameters |
@@ -413,7 +414,7 @@ SLEEP(Calc.Twice(3)) / 10         ' (…) starts the argument: SLEEP 0.6
 | `$RESOURCE NAME AS "file"` | a file built into the program (`RESOURCE(n)`, `EXTRACTRESOURCE`, pictures) |
 | `$OPTION ICON "file.ico"` | the program's icon: its windows' and the built app's ([Building apps](building-apps.md)) |
 | `$ESCAPECHARS ON` | escape sequences in this file's strings |
-| `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | every variable must be declared (DIM, CONST, a parameter): an undeclared one stored into is RapidQ's `Undeclared identifier x`, read is its `Undefined symbol X` |
+| `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | every variable must be declared (DIM, CONST, a parameter): an undeclared one stored into gives `Undeclared identifier x`, read gives `Undefined symbol X` |
 | `$OPTIMIZE` | accepted |
 | `$THEME name` | RapidR's: the desktop look ([Components](components.md#themes)) |
 | `#If … Then` / `#ElseIf` / `#Else` / `#End If`, `#Const` | VB's conditional compilation |
@@ -427,7 +428,7 @@ An error in included code points at the include file and line.
   statement`.
 - A run-time error stops the program with its message and line: `run-time
   error: Division by zero (at err.bas line 4)`.
-- `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB, not RapidQ) are accepted
+- `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB's) are accepted
   so that such programs compile, and **ignored**: a run-time error still
   ends the program.
 
