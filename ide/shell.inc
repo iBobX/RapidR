@@ -10,7 +10,7 @@ FUNCTION ActiveCode AS INTEGER
 END FUNCTION
 
 SUB ShowAbout
-  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "Runs RapidQ programs, and takes them further: desktop and web from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "BASIC is powerful again: desktop and web apps from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 END SUB
 
 SUB ShowShortcuts

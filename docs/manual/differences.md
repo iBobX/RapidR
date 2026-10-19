@@ -1,10 +1,10 @@
 # Differences from RapidQ, and extensions
 
-RapidR is not RapidQ, and not a copy of it: it is an original
-implementation, written from the ground up in pure Rust, that is
-**compatible** with RapidQ. The rule it follows: everything RapidQ has
-behaves exactly as in RapidQ; RapidR's extensions are additive and never
-change what an existing program does.
+RapidR is an original implementation, written from the ground up in pure
+Rust, and it is **compatible** with RapidQ: it is not RapidQ and not a copy of
+it. The rule it follows: what programs written for RapidQ do, they keep
+doing; RapidR's extensions are additive and never change what an existing
+program does.
 
 ## Names
 
@@ -20,25 +20,22 @@ other source extensions, `.rqw`, `.rqb` and `.rq`, are read like `.bas`.
 To move a program to RapidR's names, [import it](importing-rapidq.md): a
 converted copy, proved to compile exactly as the original, with a report.
 
-## How compatibility is checked
+## How compatibility is kept
 
-- **RapidQ's own compiler is the ground truth.** RC.EXE (Rapid-Q 2006)
-  still runs in a Windows virtual machine; when the manual leaves a
-  question open, a probe program is compiled with it and RapidR is made to
-  print exactly what RapidQ prints. That settled PRINT's number format, its
-  comma, integer stores, rounding, the bit operators, division by zero,
-  string functions' edge cases, component colours and more
-  ([docs/rapidq-ground-truth.md](../rapidq-ground-truth.md)).
-- **The conformance suite** (over 250 programs, many with RapidQ's own
-  output as the expected result) runs on all three runtimes: native,
-  interpreted and in the browser.
-- **RapidQ's example corpus** (the 428 programs RapidQ ships): RapidR
+- **Reference behaviour.** When the manual leaves a question open, a probe
+  program settles it and RapidR follows the recorded result. That settled
+  PRINT's number format, its comma, integer stores, rounding, the bit
+  operators, division by zero, string functions' edge cases, component
+  colours and more ([docs/rapidq-ground-truth.md](../rapidq-ground-truth.md)).
+- **The conformance suite** (over 250 programs, each with its expected
+  output) runs on all three runtimes: native, interpreted and in the browser.
+- **The example corpus** (428 older example programs): RapidR
   compiles 358 of them; most of the rest call Windows DLLs directly or use
-  OLE (below). On Windows every one is run side by side with RC.EXE's build
-  of it — interpreted and as a native build, their windows compared — and
+  OLE (below). On Windows every one is run, interpreted and as a native
+  build, and their windows compared with the suite's reference results, and
   where each one stands is listed program by program in
   [rapidq-corpus-status.md](../rapidq-corpus-status.md). The programs that
-  use only the API RapidQ's Windows and Linux versions shared run on macOS,
+  use only the API the older Windows and Linux versions shared run on macOS,
   Linux and the web too: 114 of them ran with no problem on each of macOS
   (interpreted and native) and Linux, and the web matches the desktop
   ([rapidq-corpus-status-unix.md](../rapidq-corpus-status-unix.md)).

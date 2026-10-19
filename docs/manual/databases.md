@@ -3,7 +3,7 @@
 | Component | Database | Where |
 |---|---|---|
 | `RSQLite` (RapidR's) | SQLite itself (rusqlite; compiled to WebAssembly in the browser) | everywhere |
-| `RMySQL` (RapidQ name: `QMYSQL`) | a MySQL or MariaDB server | desktop (browsers can't open raw TCP connections) |
+| `RMySQL` (older name: `QMYSQL`) | a MySQL or MariaDB server | desktop (browsers can't open raw TCP connections) |
 
 Both share one model for results, parameters and events: what works with
 one works with the other.
@@ -60,7 +60,7 @@ placeholders, or the query is an error and doesn't run.
 
 ## MySQL
 
-`RMySQL` (RapidQ's `QMYSQL`), with its members:
+`RMySQL` (older name `QMYSQL`), with its members:
 
 ```basic
 DIM my AS RMySQL

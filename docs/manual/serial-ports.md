@@ -2,8 +2,8 @@
 
 ESP32, Arduino, Raspberry Pi Pico and most other microcontroller boards talk
 to a computer through a USB serial adapter. A RapidR program reaches them with
-**RComPort** — RapidQ's `QCOMPORT` (RAPIDQ2.INC's `COMPORT`), which works as it
-did in RapidQ — plus a few RapidR extras made for these boards: the ports
+**RComPort** (older names `QCOMPORT` and RAPIDQ2.INC's `COMPORT`), plus a few
+RapidR extras made for these boards: the ports
 listed with their USB IDs, the DTR / RTS lines that reset a board, whole lines
 in, and an event when a board is plugged in or out.
 
@@ -107,16 +107,16 @@ END SUB
 
 `OnLine` fires for each whole line (the runtime looks every 50 ms). A line it
 gives is read: `ReadString` and `ReadLine` don't see it again. `OnRxChar`
-(RapidQ's: bytes arrived) still fires as before.
+(the classic one: bytes arrived) still fires as before.
 
-`ReadString(Count, Wait)` and `WriteString(Text, Wait)` work as RapidQ's do,
+`ReadString(Count, Wait)` and `WriteString(Text, Wait)` work as they always did,
 for anything that isn't line by line.
 
 ## The modem lines: resetting a board
 
 | Member | |
 |---|---|
-| `DTR`, `RTS` | Data Terminal Ready and Request To Send: 1 set, 0 clear. Read back as set. A change happens at once on an open port, else at `Open`. Until a program sets them they follow `DcbFlags` (both set, as RapidQ opens a port) |
+| `DTR`, `RTS` | Data Terminal Ready and Request To Send: 1 set, 0 clear. Read back as set. A change happens at once on an open port, else at `Open`. Until a program sets them they follow `DcbFlags` (both set, the classic way a port opens) |
 | `CTS`, `DSR`, `CD`, `RI` | The lines the other end drives (read only; 0 while closed) |
 | `SendBreak(ms)` | Holds the line in a break (250 ms without an argument) |
 

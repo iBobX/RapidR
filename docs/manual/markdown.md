@@ -17,7 +17,7 @@ a project), or by clicking a link to it in another Markdown file. The report
 RapidR writes when it imports a RapidQ program (`rapidr-import-report.md`)
 opens the same way.
 
-![A RapidQ import's report in Preview: its summary, a table, its headings in the Outline](images/markdown/import-report.png)
+![An import report in Preview: its summary, a table, its headings in the Outline](images/markdown/import-report.png)
 
 **Preview | Source.** At the right of the document tabs, a Markdown file
 has a switch, as a form's file has *Design | Code*:
@@ -113,4 +113,4 @@ links, bulleted and numbered lists (nested), block quotes, code blocks (a
 is left out, and a picture shows its description in italics instead of the
 picture.
 
-`RMarkdownView` is RapidR's own; RapidQ has no such component.
+`RMarkdownView` is RapidR's own.

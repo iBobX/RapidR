@@ -72,7 +72,7 @@ Studio has done three things:
    $INCLUDE "Form2.rr"
    ```
 
-   That is how a RapidR (and RapidQ) program is made of several files:
+   That is how a RapidR program is made of several files:
    `$INCLUDE` puts the file's code where the line is, so `Form2` is created
    when the program starts — hidden, until the program shows it. The
    `$INCLUDE` is one undo step in `main.rr` (Ctrl+Z there takes it back).
@@ -111,7 +111,7 @@ written into the code at once, as the smallest change: one line.
 
 ![Form2 with a label, a text box and a button; the inspector shows Button1](images/designer/04-form2.png)
 
-A label sizes itself to its caption (its **AutoSize** is on, as in RapidQ),
+A label sizes itself to its caption (its **AutoSize** is on),
 so the designer writes no width for it.
 
 ### 5. Make the button do something
@@ -142,8 +142,8 @@ CREATE Form2 AS RForm
 END CREATE
 ```
 
-The SUB goes before the form, where RapidQ needs it (a SUB is known from
-the line it is written on), with the parameters RapidQ's event has.
+The SUB goes before the form, where it must be (a SUB is known from
+the line it is written on), with the parameters the event has.
 
 ### 6. Show Form2 from Form1
 
@@ -153,7 +153,7 @@ and make its OnClick handler as in step 5. Type `Form2.Show` in it:
 
 ![main.rr: the $INCLUDE of Form2.rr and Form1's button showing Form2](images/designer/06-main.png)
 
-The new button is **Button2**, not Button1: a RapidQ program's component
+The new button is **Button2**, not Button1: a program's component
 names are global (you write `Button1.Caption`, not `Form2.Button1.Caption`),
 so the designer never gives a name another file of the program uses.
 
@@ -194,7 +194,7 @@ runs it in a frame beside your code.
   (next section).
 
 The designer writes each file in its own names: RapidR's (RButton) in a file
-written with them, RapidQ's (QBUTTON) in a RapidQ program — a file that
+written with them, the older Q names (QBUTTON) in a program written for RapidQ — a file that
 creates `QFORM`s, or a `.bas` file — never a mix. Both names mean the same
 component.
 
@@ -241,7 +241,7 @@ needs:
 | font | Font ▸ Name `Arial`, Size `12`, Bold ☑, Color `clBlue` | `Font.Name = "Arial"`, `Font.Size = 12`, `Font.Bold = 1`, `Font.Color = …` |
 | number | Width `120` | `Width = 120` |
 
-RapidQ's named constants — `clYellow`, `taCenter`, `alClient` … — come
+The classic named constants — `clYellow`, `taCenter`, `alClient` … — come
 from `RAPIDQ.INC`. In a program that doesn't `$INCLUDE "RAPIDQ.INC"` (or
 define them), a name would read as nothing when it runs, so the designer
 writes the number instead.
@@ -255,8 +255,8 @@ the list also offers the SUBs of the file that fit.
 ## Child windows of an MDI form
 
 An MDI program has one main window (an **RFormMDI**) whose child windows
-open, move, tile and cascade inside it. RapidQ makes a child window of a
-component: the MDI form's `AddChild` shows it in a child window of its own.
+open, move, tile and cascade inside it. A child window is made of a
+component (a panel): the MDI form's `AddChild` shows it in a child window of its own.
 Drag **RForm** from the toolbox onto the RFormMDI in the designer, and
 Studio writes exactly that — a panel on the MDI form, named as a form, and
 the line that opens it as a child window when the program starts:
@@ -323,8 +323,8 @@ designer, scroll bars let you reach all of it.
 - Rename a file in the project tree (F2) and the `$INCLUDE` follows it;
   take it out of the project (Delete) and its `$INCLUDE` goes too (the file
   stays on the disk).
-- In a RapidQ program (`main.bas`), new forms and modules are `.bas` files
-  and use RapidQ's names, so RapidQ's own compiler can build it too.
+- In a program written with the older names (`main.bas`), new forms and modules
+  are `.bas` files and use the Q names, so the older compiler can build it too.
 
 ## The code the designer writes
 

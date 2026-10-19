@@ -166,7 +166,7 @@ changes first).
 
 - **Names you mix are fine.** RapidR reads `QBUTTON` and `RButton` as the
   same component, always, without any setting — in old and new files alike
-  (see [Components](components.md#rapidqs-names)).
+  (see [Components](components.md#the-older-q-names)).
 - **When you add to a file, Studio follows its style.** In a file written
   with RapidQ's names, the designer adds `QBUTTON` and completion offers
   RapidQ's names, so the file never mixes them; elsewhere, RapidR's names.

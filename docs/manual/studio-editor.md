@@ -22,7 +22,7 @@ after a component and the list shows its properties, methods and events:
 - The list narrows as you type. It matches the start of words too:
   `sm` finds `ShowModal`.
 - The box on the right describes the selected entry: its type, what it does,
-  and whether RapidQ has it.
+  and whether it is RapidR's own.
 - **Tab** or **Enter** puts the selected name in. **Escape** closes the list.
   **↑ ↓ Page Up Page Down** move through it. A click also chooses.
 - Names you chose recently come first next time.
@@ -53,10 +53,10 @@ END CREATE
 ```
 
 After `AS`, the list offers the built-in types, your TYPEs and every
-component under RapidR's names (`RButton`, `RForm`). RapidQ's names
+component under RapidR's names (`RButton`, `RForm`). The older Q names
 (`QButton`, `QForm`) work exactly the same: start typing one (`QBu`) and
 the list offers it too, after RapidR's. In a file that already uses
-RapidQ's names, the list offers those instead (and RapidR's once you type
+Q names, the list offers those instead (and RapidR's once you type
 an `R`), so a file keeps one style.
 
 ### Ctrl+Space
@@ -131,12 +131,12 @@ When you stop typing for a moment, Studio checks the program and underlines
 what's wrong with a wavy line: red for errors, amber for warnings. A sign in
 the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
-messages are RapidQ's compiler's own words, so they read the same as when
+messages are the compiler's own words, so they read the same as when
 you build.
 
 ### The RAPIDQ.INC warning
 
-RapidQ — and RapidR, to run old programs the same way — reads a name it
+RapidR, to run old programs the same way, reads a name it
 doesn't know as a new variable that is 0. So if a program uses `mbYes`
 without including RAPIDQ.INC, `mbYes` is 0, and a question like this one
 shows only an OK button:
@@ -158,8 +158,8 @@ warning above, the fix adds `$INCLUDE "RAPIDQ.INC"` to the top of the file:
 ![Ctrl+. on mbYes shows the fix Add $INCLUDE "RAPIDQ.INC"](images/studio-editor/quick-fix.png)
 
 Other fixes: a misspelt property (`NameEdit.Txet`) offers the nearest real
-ones ("Change to Text"); in a RapidQ-compatible project, a Q name RapidQ
-doesn't have (`QPLOT`) offers RapidR's (`RPLOT`).
+ones ("Change to Text"); in a RapidQ-compatible project, a Q name that
+doesn't exist (`QPLOT`) offers RapidR's (`RPLOT`).
 
 ## Typing help
 

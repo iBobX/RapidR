@@ -15,8 +15,8 @@ only want to run programs):
 - **The RapidR SDK**: the IDE, the `rapidr` command (compiler and runtime),
   everything needed to make standalone executables and web bundles, and
   RapidR's runtime sources for native builds. Install this to write programs.
-- **The RapidR Runtime**: only runs RapidR programs, and RapidQ programs, which RapidR runs
-  unchanged (`.rrbc`, `.rr`, `.bas`, `.rqw`, `.rqb`, `.rq`), like a Java runtime. Install this on machines that only
+- **The RapidR Runtime**: only runs programs (`.rrbc`, `.rr`, `.bas`, `.rqw`,
+  `.rqb`, `.rq`), like a Java runtime. Install this on machines that only
   run programs someone gave you.
 
 The SDK includes the Runtime. Installs are per user and need no
@@ -55,7 +55,7 @@ system). The files are the same ones whose checksums are published; see
    "Select Additional Tasks" page, leave *Add rapidr to PATH* ticked (it makes
    `rapidr` work in any Command Prompt or PowerShell window you open
    afterwards). Tick *Open .bas files with RapidR by default* only if RapidR
-   should open your RapidQ `.bas` files when you double-click them.
+   should open your `.bas` files when you double-click them.
    `.rrbc`, `.rr` and `.rrproj` files always belong to RapidR.
 5. **Click Install, then Finish.**
 
@@ -283,24 +283,24 @@ Form.ShowModal
 
 `rapidr run form.bas` opens the window; closing it ends the program.
 
-### RapidR's names and RapidQ's names
+### RapidR's names and the older Q names
 
 RapidR writes its components `RForm`, `RButton`, `RLabel`, `REdit`,
 `RStringGrid` …, and RapidR Studio, the examples and this manual use these
-names. RapidQ programs write `QFORM`, `QBUTTON`, `QLABEL` …: **RapidR
+names. Programs written for RapidQ use `QFORM`, `QBUTTON`, `QLABEL` …: **RapidR
 accepts those too, silently, with no setting** — `QFORM` and `RForm` are the
 same component, and you can mix them:
 
 ```basic
-DIM Old AS QBUTTON      ' RapidQ's name
+DIM Old AS QBUTTON      ' the older Q name
 DIM New AS RButton      ' RapidR's name: the same component
 ```
 
 The rule is simply Q → R (`QBUTTON` is `RButton`); a few differ: `QGAUGE` is
 `RProgressBar`, `QOUTLINE` is `RTreeView`, `COMPORT` is `RComPort`. The full
-list: [reference/components.md](reference/components.md). To turn a RapidQ
+list: [reference/components.md](reference/components.md). To turn such a
 program into one with RapidR's names, see
-[Importing RapidQ programs](importing-rapidq.md). A program that uses RapidQ's constants (`clRed`,
+[Importing older programs](importing-rapidq.md). A program that uses the classic constants (`clRed`,
 `MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`: RapidR supplies them
 through that line without needing the file.
 
@@ -397,6 +397,6 @@ is kept in the browser (the page's store), over the original.
 - [The examples](../../examples/README.md), in the order to read them.
 - [The component reference](reference/components.md), for every component's
   members.
-- Have RapidQ programs? [Importing RapidQ programs](importing-rapidq.md); they
+- Have older programs with Q names? [Importing older programs](importing-rapidq.md); they
   also run as they are.
 - A message you don't understand? [Troubleshooting](troubleshooting.md).

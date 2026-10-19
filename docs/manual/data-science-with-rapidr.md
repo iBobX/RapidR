@@ -5,7 +5,7 @@ in the designer, without writing code — then the code that filters,
 sorts and groups it, a million rows, and JSON. Everything here works the
 same in a native app, an interpreted one and a web browser.
 
-The components (all RapidR's own, none of them in RapidQ):
+The components (all RapidR's own):
 
 | Component | What it is |
 |---|---|
