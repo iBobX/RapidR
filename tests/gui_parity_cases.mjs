@@ -249,6 +249,16 @@ export const cases = [
     expect: ["lk.caption=fd65 d65,0 fpa p97 u65 fd13 d13,0 fp\r p13 u13 fd38 d38,0 u38 ", "lm.caption=down010200 move11210 up01222 panel34"] },
   { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
     expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
+  // QLISTBOX scrolls to what the program picks (Windows' LB_SETCURSEL and
+  // LB_SETTOPINDEX): four lists of 50 items, 7 rows and a bit showing — the
+  // last picked (the selected row at the bottom of the list), item 46 picked
+  // and the last made the top (the last page, with item 46 on it), item 13
+  // picked and item 11 made the top (item 13 the third row), and a message
+  // list (each new item picked: the newest at the bottom, after Send's three
+  // more too). The window's pixels: the selected row, and white above it.
+  { name: "list_scroll", events: "sendbtn.onclick", dump: "l1.itemindex,l2.itemindex,l3.itemindex,l4.itemindex,l4.itemcount",
+    expect: ["l1.itemindex=49", "l2.itemindex=45", "l3.itemindex=12", "l4.itemindex=52", "l4.itemcount=53"],
+    pixels: [[90, 101, "0078d7"], [90, 88, "ffffff"], [235, 49, "0078d7"], [235, 36, "ffffff"], [360, 44, "0078d7"], [360, 31, "ffffff"], [485, 101, "0078d7"], [485, 88, "ffffff"]] },
   { name: "startup_modal", events: "dlgok.onclick,rp.onclick,chk.onclick", dump: "lbl.caption,lbl2.caption,dlg.__shown,form.__shown",
     expect: ["lbl.caption=before after", "lbl2.caption=repainted1", "dlg.__shown=0", "form.__shown=1"] },
   { name: "tree_view", events: "tv.__toggle_0,tv.__node_2,tv.__node_1,tv.__toggle_4,btn.onclick", dump: "lbl.caption,lbl2.caption,tv.itemindex",

@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::grid::CellDraw;
-use rapidr_value::objects::list::ItemList;
+use rapidr_value::objects::list::{ItemList, ScrollTo};
 use rapidr_value::objects::ops::{Op, Place, Rect};
 use rapidr_value::objects::trackbar::Shape;
 use rapidr_value::objects::{with_list, with_list_mut};
@@ -492,6 +492,53 @@ pub fn scroll_into_view(id: &str, top: i64, bottom: i64, view: i64) {
     });
 }
 
+/// Component `id`'s bar (the vertical one, else the horizontal) moved to
+/// `to`, kept in range by the bar's next update.
+fn scroll_bar_to(id: &str, vertical: bool, to: i64) {
+    SCROLLS.with(|s| {
+        let mut s = s.borrow_mut();
+        let sc = s.entry(id.to_lowercase()).or_default();
+        sc.set(if vertical { "vertposition" } else { "horzposition" }, &rapidr_value::v_int(to.max(0)));
+    });
+}
+
+/// The scroll the program asked list `l` for (`ItemIndex` / `TopIndex` set),
+/// taken from the model: `None` when there is none, or when the items'
+/// heights aren't all known yet (it waits for the next paint).
+fn take_scroll_request(id: &str, l: &ItemList) -> Option<ScrollTo> {
+    let ask = l.scroll_to.filter(|_| !l.measuring())?;
+    with_list_mut(id, |m| m.scroll_to = None);
+    Some(ask)
+}
+
+/// Where a list's bar goes for the scroll the program asked for (Windows'
+/// LB_SETCURSEL: the least scrolling that shows the whole item;
+/// LB_SETTOPINDEX: the item at the top, as far as the bar goes): `span(i)`
+/// is item `i`'s start and end along the bar (content pixels), `pos` where
+/// the bar is now and `view` how much of the content shows. `None`: nothing
+/// to move.
+fn asked_position(ask: ScrollTo, l: &ItemList, span: impl Fn(usize) -> Option<(i64, i64)>, pos: i64, view: i64) -> Option<i64> {
+    match ask {
+        ScrollTo::Reveal => {
+            let (start, end) = span(usize::try_from(l.item_index).ok()?)?;
+            if start < pos {
+                Some(start)
+            } else if end > pos + view {
+                Some((end - view).min(start))
+            } else {
+                None
+            }
+        }
+        ScrollTo::Top(i) => Some(span(i)?.0),
+    }
+}
+
+/// `TopIndex` as the list shows now: the first item at the top (or, in
+/// Columns, the first of the leftmost column).
+fn shown_top(id: &str, first: usize) {
+    with_list_mut(id, |m| m.top_index = (first as i64).min(m.items.len().saturating_sub(1) as i64));
+}
+
 // ----------------------------------------------------------- drawing --
 
 /// Windows' sunken client edge around a white box `w` × `h` (a list box,
@@ -742,14 +789,27 @@ impl ComponentKind for ListBox {
             l.set_view(vw, vh);
             with_list_mut(cx.id, |m| m.set_view(vw, vh));
             let rects = l.item_rects();
+            // (what the program asked for, ItemIndex or TopIndex set)
+            let ask = take_scroll_request(cx.id, &l);
             // (one column scrolls down; Columns scroll across)
             let (dx, dy, cw, ch, bar) = if l.multi_column() {
                 let content = rects.iter().map(|r| r.2).max().unwrap_or(0);
-                let (pos, ch, bar) = hscroll(cx.id, iw, ih, content, l.column_layout().1);
+                if let Some(to) = ask.and_then(|a| asked_position(a, &l, |i| rects.get(i).map(|r| (r.0, r.2)), hscroll_position(cx.id), iw)) {
+                    scroll_bar_to(cx.id, false, to);
+                }
+                let (per, column) = l.column_layout();
+                let (pos, ch, bar) = hscroll(cx.id, iw, ih, content, column);
+                shown_top(cx.id, (pos / column.max(1) * per) as usize);
                 (pos, 0, iw, ch, bar)
             } else {
                 let content = rects.iter().map(|r| r.3).max().unwrap_or(0);
+                if let Some(to) = ask.and_then(|a| asked_position(a, &l, |i| rects.get(i).map(|r| (r.1, r.3)), vscroll_state(cx.id).0, ih)) {
+                    scroll_bar_to(cx.id, true, to);
+                }
                 let (pos, cw, bar) = vscroll(cx.id, iw, ih, content, l.row_height());
+                if !l.measuring() {
+                    shown_top(cx.id, rects.iter().position(|r| r.3 > pos).unwrap_or(0));
+                }
                 (0, pos, cw, ih, bar)
             };
             p.at((2, 2), |p| {
@@ -772,7 +832,11 @@ impl ComponentKind for ListBox {
             return;
         }
         let rh = l.row_height();
+        if let Some(to) = take_scroll_request(cx.id, &l).and_then(|a| asked_position(a, &l, |i| (i < l.items.len()).then(|| (i as i64 * rh, (i as i64 + 1) * rh)), vscroll_state(cx.id).0, ih)) {
+            scroll_bar_to(cx.id, true, to);
+        }
         let (pos, cw, bar) = vscroll(cx.id, iw, ih, l.items.len() as i64 * rh, rh);
+        shown_top(cx.id, (pos / rh).max(0) as usize);
         // (what the program drew on the list, where the list hasn't painted
         // it over: rapidr_value's ListCanvas)
         // (on the copy: drawing may read other objects; the model keeps
@@ -1249,5 +1313,117 @@ mod tests {
         // (a list view's model scrolls)
         f.mouse_wheel(&s, &mut ts, (260.0, 50.0), (0.0, 1.0), Mods::NONE);
         assert!(rapidr_value::objects::with_listview("wl", |lv| lv.scroll.1).unwrap() > 0);
+    }
+
+    // ------------------------------------------- the program scrolls --
+
+    /// A list box of 50 items, 100 pixels tall (96 inside the frame: 7 rows
+    /// of 13 and part of an 8th); with `columns`, in that many columns of
+    /// 20-pixel rows.
+    fn fifty(columns: i64) -> (MemStore, FormUi, TextSystem) {
+        form(|s| {
+            s.add("scl", "RLISTBOX", Some("f")).set("scl", "left", v_int(10)).set("scl", "top", v_int(10)).set("scl", "width", v_int(200)).set("scl", "height", v_int(100));
+            let items: Vec<_> = (1..=50).map(|i| v_str(&format!("Item {i}"))).collect();
+            s.call("scl", "additems", &items);
+            if columns > 0 {
+                s.set("scl", "itemheight", v_int(20)).set("scl", "columns", v_int(columns));
+            }
+        })
+    }
+
+    /// The program sets a property of the list (ItemIndex, TopIndex), and
+    /// the form paints.
+    fn program_sets(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, prop: &str, to: i64) {
+        rapidr_value::objects::with_list_mut("scl", |l| l.set(prop, &v_int(to)));
+        drop(f.paint(s, ts, 1.0));
+    }
+
+    /// Whether item `i` shows whole in the list box (as drawn now).
+    fn shows(f: &FormUi, i: usize) -> bool {
+        let (_, _, w, h) = f.node("scl").unwrap().abs;
+        super::item_rect("scl", i, w, h).is_some_and(|(x, y, iw, ih)| x >= 2 && y >= 2 && x + iw.min(w - 20) <= w - 2 && y + ih <= h - 2)
+    }
+
+    #[test]
+    fn setting_item_index_scrolls_the_least_that_shows_the_item() {
+        let (s, mut f, mut ts) = fifty(0);
+        assert!(shows(&f, 0) && !shows(&f, 49));
+        // (the last of 50: its row at the bottom, and TopIndex says where
+        // the list is now)
+        program_sets(&mut f, &s, &mut ts, "itemindex", 49);
+        assert!(shows(&f, 49), "item 50 is visible");
+        assert_eq!(with_list("scl", |l| l.item_index), Some(49));
+        let (pos, shown, range) = super::vscroll_state("scl");
+        assert!(shown && pos == range - 96, "scrolled to the end, not past it: {pos} of {range}");
+        assert_eq!(with_list("scl", |l| l.top_index), Some(pos / 13));
+        // (an item already in view: nothing moves)
+        program_sets(&mut f, &s, &mut ts, "itemindex", 47);
+        assert_eq!(super::vscroll_state("scl").0, pos);
+        // (above the view: that item becomes the top)
+        program_sets(&mut f, &s, &mut ts, "itemindex", 20);
+        assert_eq!(super::vscroll_state("scl").0, 20 * 13);
+        assert_eq!(with_list("scl", |l| l.top_index), Some(20));
+        // (just below the view: its bottom edge at the view's)
+        program_sets(&mut f, &s, &mut ts, "itemindex", 27);
+        assert!(shows(&f, 27));
+        assert_eq!(super::vscroll_state("scl").0, 28 * 13 - 96);
+        // (and back to the first)
+        program_sets(&mut f, &s, &mut ts, "itemindex", 0);
+        assert!(shows(&f, 0));
+        assert_eq!((super::vscroll_state("scl").0, with_list("scl", |l| l.top_index)), (0, Some(0)));
+    }
+
+    #[test]
+    fn setting_top_index_makes_that_item_the_first_row_but_not_past_the_end() {
+        let (s, mut f, mut ts) = fifty(0);
+        program_sets(&mut f, &s, &mut ts, "topindex", 10);
+        assert_eq!(super::vscroll_state("scl").0, 130);
+        assert_eq!(with_list("scl", |l| l.top_index), Some(10));
+        // (the selection isn't touched by it)
+        assert_eq!(with_list("scl", |l| l.item_index), Some(-1));
+        // (the last item: the list shows its last page, item 50 at the bottom)
+        program_sets(&mut f, &s, &mut ts, "topindex", 49);
+        assert!(shows(&f, 49));
+        let (pos, _, range) = super::vscroll_state("scl");
+        assert_eq!(pos, range - 96);
+        assert_eq!(with_list("scl", |l| l.top_index), Some(pos / 13));
+        program_sets(&mut f, &s, &mut ts, "topindex", 0);
+        assert_eq!((super::vscroll_state("scl").0, with_list("scl", |l| l.top_index)), (0, Some(0)));
+    }
+
+    #[test]
+    fn top_index_follows_the_users_scrolling_and_a_request_for_a_gone_item_is_dropped() {
+        let (s, mut f, mut ts) = fifty(0);
+        f.mouse_wheel(&s, &mut ts, (50.0, 50.0), (0.0, 2.0), Mods::NONE);
+        drop(f.paint(&s, &mut ts, 1.0));
+        assert_eq!(with_list("scl", |l| l.top_index), Some(6));
+        rapidr_value::objects::with_list_mut("scl", |l| {
+            l.set("itemindex", &v_int(30));
+            l.clear();
+        });
+        drop(f.paint(&s, &mut ts, 1.0));
+        assert_eq!(with_list("scl", |l| l.scroll_to), Some(None));
+        assert_eq!(super::vscroll_state("scl").0, 0);
+    }
+
+    #[test]
+    fn a_list_in_columns_scrolls_across_to_the_item() {
+        let (s, mut f, mut ts) = fifty(2);
+        assert!(shows(&f, 0) && !shows(&f, 49));
+        program_sets(&mut f, &s, &mut ts, "itemindex", 49);
+        assert!(shows(&f, 49), "item 50 is visible");
+        let top = with_list("scl", |l| l.top_index).unwrap();
+        // (a 100-pixel list less its frame and bar: 80, four 20-pixel rows a column)
+        assert!(top > 0 && top % 4 == 0, "the first item of the leftmost column: {top}");
+        program_sets(&mut f, &s, &mut ts, "itemindex", 0);
+        assert!(shows(&f, 0));
+        assert_eq!(with_list("scl", |l| l.top_index), Some(0));
+        // (TopIndex: the leftmost column starts with that item, or with
+        // the first of its column)
+        program_sets(&mut f, &s, &mut ts, "topindex", 32);
+        assert_eq!(with_list("scl", |l| l.top_index), Some(32));
+        program_sets(&mut f, &s, &mut ts, "topindex", 30);
+        assert_eq!(with_list("scl", |l| l.top_index), Some(28));
+        assert!(shows(&f, 30));
     }
 }
