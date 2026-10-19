@@ -114,14 +114,45 @@ Plan: ROADMAP Phase 3C (to be expanded into docs/hardware-plan.md as M3's first 
 - **Legal:** micro:bit, ESP32 and M5Stack names only to describe compatibility, no logos.
 - **Robert's hardware:** micro:bit, ESP32s (including the CAM), M5Stack and sensors. Each board is flashed only with his OK.
 
+**Speed, size and debugging: M3's heart** (Robert, 2026-10-19). RapidR on a board must stay tiny, be the fastest way to program it, and debug *on* the board. The targets are measured on Robert's boards, with the scripts published in `tools/bench/boards/`, so every claim can be reproduced:
+
+- **Two engines on the board, each the best at its job:**
+  - **Native** (BASIC → Rust → LLVM → machine code): the same compiler family as C, so **on par with hand-written C**. The target is within ~10% of an equivalent C program on loops, math, GPIO toggling and sensor reads. That's never slower than C because of RapidR, and we won't claim "faster than C" unless a benchmark shows it.
+  - **Bytecode VM on the board,** for instant edit-and-run with no reflash: the MicroPython experience, made faster. The target is **several times faster than MicroPython** on the same benchmarks, with less RAM. It runs as a pure interpreter with no JIT.
+- **No bloat, by construction:**
+  - `no_std` throughout;
+  - only the components a program uses get linked;
+  - no heap allocation in hot paths;
+  - integer and fixed-point maths where the chip has no FPU.
+- **Size budgets,** checked in CI on every build:
+  - **micro:bit v2** (512 KB flash, 128 KB RAM): the runtime ≤ ~120 KB flash and ≤ ~16 KB RAM baseline;
+  - **ESP32:** ≤ ~300 KB flash (Wi-Fi stack aside).
+- **Debugging on the board:**
+  - **VM:** Studio's debugger (breakpoints, stepping, values as trees, live pins) over USB serial;
+  - **Native:** probe-rs (MIT/Apache), with BASIC line mapping, through the micro:bit's on-board debugger chip and the ESP32-S3/C3's built-in USB-JTAG.
+- **Secure:**
+  - link mode accepts only RapidR's protocol from the USB host (no remote code by default);
+  - Wi-Fi credentials stored encrypted on the board;
+  - BLE pairing;
+  - optional secure boot and signed firmware on ESP32.
+- **Accessible:**
+  - the board panel, simulator and live pin view work with screen readers and the keyboard;
+  - what the board shows (the LED matrix's scrolling text, a small screen) can also be read aloud in Studio through RSpeech.
+- **Fable's part** (each with Robert's OK):
+  - the design review of the on-board VM (instruction set, memory layout, dispatch) and of the native board target;
+  - a performance review once the first benchmarks exist.
+
 | Lane | Model, size |
 |---|---|
 | Hardware design doc and spike (blink, display "Hello", Wi-Fi on Robert's ESP32; binary size, build time) | Opus M (on-board VM design review: Fable, if Robert agrees) |
 | Link firmware + components (link mode), ESP32 and micro:bit | Opus L ×2 |
+| On-board VM + native target: design (instruction set, memory, dispatch, size budgets) | **Fable** review (Robert's OK) → Opus |
+| Benchmarks harness on real boards vs MicroPython and C (`tools/bench/boards/`) | Opus M |
 | On-board runtime: ESP32 | Opus XL (as L steps) |
 | On-board runtime: micro:bit | Opus XL (as L steps) |
 | Displays and M5Stack GUI | Opus L |
 | Studio board panel, simulator, examples, lessons | Opus L + Sonnet M |
+| On-board debugging: VM over USB serial; native through probe-rs | Opus L |
 
 ### M4: Learn with RAI, speech and lessons
 Plans: [learn-with-rai-plan.md](learn-with-rai-plan.md), [speech-and-tutorial-plan.md](speech-and-tutorial-plan.md).
