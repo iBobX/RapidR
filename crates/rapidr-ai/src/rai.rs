@@ -72,6 +72,10 @@ pub const ASSUMED_LOCAL_WINDOW: u64 = 16_384;
 /// The status after a turn whose answer said it changed something, asked
 /// once to make the change for real, and still made none.
 pub const CLAIM_STATUS: &str = "The assistant didn't make the change you asked for. Ask again, or try a larger model.";
+/// What the chat shows in place of a reply that said a change was made
+/// before any tool made it (the model was asked to make it for real): one
+/// muted line, never the false claim as full text (docs/ai-ux-plan.md §3).
+pub const EARLIER_DRAFT: &str = "An earlier draft said this was done before it was — Studio asked it to actually do it.";
 
 /// A reply's cap for a model of `window` tokens: a quarter of it, between
 /// 256 and 8,192 (the rest is the conversation's).
@@ -202,6 +206,77 @@ pub trait ToolProvider {
     fn question_context(&mut self, _question: &str) -> Option<String> {
         None
     }
+    /// The facts of the turn the chat shows as cards, written by the tools
+    /// (never the model): (a key, one line of Markdown) — "Created … ·
+    /// [Open] · [Undo]", "Proposed a change to main.rr · +3 −1 · [Review]".
+    /// Asked after each tool call and at the turn's end.
+    fn turn_cards(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    /// A call of tool `name` as a step of the progress checklist, a few
+    /// words ("main.rr written"); its note by default.
+    fn step_label(&self, _name: &str, note: &str) -> String {
+        note.to_string()
+    }
+}
+
+/// The answer being given, as the chat shows it (docs/ai-ux-plan.md §3):
+/// the replies so far, the tools' cards, the final reply, notes (stopped,
+/// an error, a limit) — and the steps the progress checklist lists.
+#[derive(Default)]
+struct Turn {
+    /// The log's entry that shows it.
+    entry: Option<usize>,
+    /// Replies finished before the last (with the tools they called), each
+    /// with whether it claimed a change nothing made (shown collapsed).
+    drafts: Vec<(String, bool)>,
+    /// The reply streaming in.
+    current: String,
+    /// The reply that ended the turn.
+    last: String,
+    /// The tools' cards, and those set afterwards (`set_card`: a program
+    /// created, undone), which replace a tool's card of the same key.
+    cards: Vec<(String, String)>,
+    later: Vec<(String, String)>,
+    notes: Vec<String>,
+    /// What the tools did, one line a call (the progress checklist's).
+    steps: Vec<String>,
+}
+
+impl Turn {
+    /// The answer as Markdown: a collapsed line for a draft that claimed
+    /// too early, the replies with tools, the cards, the final reply, the
+    /// notes.
+    fn render(&self) -> String {
+        let mut parts: Vec<String> = Vec::new();
+        if self.drafts.iter().any(|(_, collapsed)| *collapsed) {
+            parts.push(format!("> *{EARLIER_DRAFT}*"));
+        }
+        for (t, collapsed) in &self.drafts {
+            if !collapsed && !t.trim().is_empty() {
+                parts.push(t.trim().to_string());
+            }
+        }
+        let mut cards: Vec<&(String, String)> = self.cards.iter().map(|c| self.later.iter().find(|l| l.0 == c.0).unwrap_or(c)).collect();
+        cards.extend(self.later.iter().filter(|l| !self.cards.iter().any(|c| c.0 == l.0)));
+        for (_, line) in cards {
+            if !line.trim().is_empty() {
+                // (a card is a small heading: bold, a line of its own, a
+                // place a screen reader's heading keys reach and ScrollTo
+                // finds)
+                parts.push(format!("##### {}", line.trim()));
+            }
+        }
+        for t in [&self.current, &self.last] {
+            if !t.trim().is_empty() {
+                parts.push(t.trim().to_string());
+            }
+        }
+        for n in &self.notes {
+            parts.push(format!("> *{}*", n.replace('*', "\\*")));
+        }
+        parts.join("\n\n")
+    }
 }
 
 /// Makes the tool provider of `component` for `kind`, attached to RAI
@@ -296,6 +371,8 @@ struct Ai {
     last_chars: usize,
     /// The turn's question, as the user asked it.
     question: String,
+    /// The answer being given, as the chat shows it.
+    turn: Turn,
     changed: bool,
     tokens: String,
     events: Vec<(&'static str, Vec<Value>)>,
@@ -549,28 +626,49 @@ impl Ai {
     }
 
     fn add_text(&mut self, t: &str) {
-        match self.log.last_mut() {
-            Some((who, text)) if who == "assistant" => text.push_str(t),
-            _ => self.log.push(("assistant".into(), t.to_string())),
-        }
+        self.turn.current.push_str(t);
         self.tokens.push_str(t);
+        self.show_turn();
+    }
+
+    /// A note under the answer (stopped, an error, a limit reached).
+    fn note(&mut self, line: &str) {
+        self.turn.notes.push(line.to_string());
+        self.show_turn();
+    }
+
+    /// The answer's entry in the chat, as the turn now is.
+    fn show_turn(&mut self) {
+        let text = self.turn.render();
+        match self.turn.entry.and_then(|k| self.log.get_mut(k)) {
+            Some((who, t)) if who == "assistant" => *t = text,
+            _ => {
+                self.log.push(("assistant".into(), text));
+                self.turn.entry = Some(self.log.len() - 1);
+            }
+        }
         self.changed = true;
     }
 
-    /// A line of what the assistant did (a tool), under its answer.
-    fn note(&mut self, line: &str) {
-        let line = format!("> *{}*", line.replace('*', "\\*"));
-        match self.log.last_mut() {
-            Some((who, text)) if who == "assistant" => {
-                if !text.is_empty() && !text.ends_with("\n\n") {
-                    text.push_str(if text.ends_with('\n') { "\n" } else { "\n\n" });
-                }
-                text.push_str(&line);
-                text.push_str("\n\n");
-            }
-            _ => self.log.push(("assistant".into(), format!("{line}\n\n"))),
+    /// The reply streamed in, finished: a draft before the tools it called
+    /// (`collapsed`: it claimed a change no tool made), else the last.
+    fn reply_done(&mut self, tools: bool, collapsed: bool) {
+        let text = std::mem::take(&mut self.turn.current);
+        if tools || collapsed {
+            self.turn.drafts.push((text, collapsed));
+        } else {
+            self.turn.last = text;
         }
-        self.changed = true;
+        self.show_turn();
+    }
+
+    /// The tools' cards, asked again (after their calls, at the turn's end).
+    fn refresh_cards(&mut self) {
+        let cards: Vec<(String, String)> = self.tools.iter().flat_map(|(_, _, t)| t.turn_cards()).collect();
+        if cards != self.turn.cards {
+            self.turn.cards = cards;
+            self.show_turn();
+        }
     }
 
     fn transcript(&self) -> String {
@@ -718,6 +816,9 @@ impl Ai {
         self.say("user", text);
         self.question = text.to_string();
         self.say("assistant", "");
+        // (the new answer's own entry; the last one stays as it was shown)
+        self.turn = Turn { entry: Some(self.log.len() - 1), ..Turn::default() };
+        self.refresh_cards();
         self.audit_log("ask", json!({"chars": text.chars().count(), "digest": digest(&json!(text))}));
         if let Err(e) = self.start_chat(&ep) {
             self.fail(e.clone());
@@ -773,7 +874,7 @@ impl Ai {
         self.running = None;
         self.error = message.clone();
         self.status = message.clone();
-        if self.log.last().is_some_and(|(w, _)| w == "assistant") {
+        if self.log.last().is_some_and(|(w, _)| w == "assistant") && self.turn.entry == Some(self.log.len() - 1) {
             self.note(&format!("Error: {message}"));
         }
         self.audit_log("error", json!({"message": message}));
@@ -973,6 +1074,7 @@ impl Ai {
                     self.events.push(("onmessage", vec![s(text.clone())]));
                 }
                 if !calls.is_empty() {
+                    self.reply_done(true, false);
                     self.run_tools(calls);
                     return;
                 }
@@ -985,13 +1087,19 @@ impl Ai {
                     if !self.nudged && run.reply.stop != "max_tokens" {
                         self.nudged = true;
                         self.messages.push(Message::user(&nudge));
-                        self.note("The assistant hadn't made the change yet, so Studio asked it to.");
+                        // (a reply that claimed the change: one muted line
+                        // in the chat, never the claim as full text — the
+                        // reply that comes next says what is true)
+                        let claimed = crate::claims::claims_change(&text);
+                        self.reply_done(!claimed, claimed);
+                        self.turn.steps.push("Asked the model to make the change it described".into());
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;
                     }
                     self.claim_left = crate::claims::claims_change(&text);
                 }
+                self.reply_done(false, false);
                 match run.reply.stop.as_str() {
                     "max_tokens" => self.note(&format!("The answer reached its length limit ({} tokens).", self.max_tokens())),
                     "refusal" => self.note("The model declined to answer this."),
@@ -1021,6 +1129,7 @@ impl Ai {
     }
 
     fn end_turn(&mut self) {
+        self.refresh_cards();
         // (what the turn left to review first; then an answer that says it
         // changed what nothing changed; else it answered)
         self.status = self.tools.iter().find_map(|(_, _, t)| t.turn_status()).or_else(|| self.claim_left.then(|| CLAIM_STATUS.to_string())).unwrap_or_else(|| "Answered.".into());
@@ -1074,8 +1183,12 @@ impl Ai {
             } else {
                 ToolOutcome { content: format!("there is no tool `{name}`"), is_error: true, note: format!("{name}: no such tool"), read: None, risk: "read", target: String::new() }
             };
+            // (what the call did: a step of the progress checklist — the
+            // chat shows the tools' cards instead, the facts that matter)
             if !out.note.is_empty() {
-                self.note(&out.note);
+                let label = self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).map_or_else(|| out.note.clone(), |(_, _, t)| t.step_label(&name, &out.note));
+                self.turn.steps.push(label);
+                self.changed = true;
             }
             if let Some(r) = &out.read {
                 if !self.read.contains(r) {
@@ -1086,6 +1199,7 @@ impl Ai {
             results.push(Block::ToolResult { id, content: out.content, is_error: out.is_error });
         }
         self.messages.push(Message { role: Role::User, content: results });
+        self.refresh_cards();
         if self.tool_calls > MAX_TOOL_CALLS {
             self.note(&format!("Stopped after {MAX_TOOL_CALLS} tool calls (a safety limit). Ask again to go on."));
             self.end_turn();
@@ -1159,6 +1273,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "status" => s(a.status.clone()),
             "answer" => s(a.answer.clone()),
             "transcript" => s(a.transcript()),
+            "steps" => s(a.turn.steps.join("\n")),
             "models" => s(a.models.iter().map(|m| format!("{}\t{}\t{}", m.id, m.name, wire::model_hint(&format!("{} {}", m.id, m.name)))).collect::<Vec<_>>().join("\n")),
             "modelcount" => Value::Integer(a.models.len() as i64),
             "haskey" => flag(a.key().0.is_some()),
@@ -1235,7 +1350,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "audit" => a.audit = truth(v),
             "pricein" => a.price_in = v.to_f64().max(0.0),
             "priceout" => a.price_out = v.to_f64().max(0.0),
-            "busy" | "error" | "status" | "answer" | "transcript" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" => {}
+            "busy" | "error" | "status" | "answer" | "transcript" | "steps" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" => {}
             _ => return false,
         }
         true
@@ -1268,6 +1383,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 a.events.clear();
                 a.messages.clear();
                 a.log.clear();
+                a.turn = Turn::default();
                 a.answer.clear();
                 a.error.clear();
                 for (_, _, t) in &mut a.tools {
@@ -1362,8 +1478,26 @@ fn audit_line(line: &str) -> String {
 /// `line` in the transcript, `fields` in the audit log.
 pub fn record(name: &str, line: &str, fields: Json) {
     with(name, |a| {
-        a.say("info", line);
+        if !line.is_empty() {
+            a.say("info", line);
+        }
         a.audit_log("decision", fields);
+    });
+}
+
+/// (tools) A card of the last answer set after it (a new program created,
+/// then undone): it replaces the tools' card of the same `key`, or comes
+/// after them. Never called from inside a tool call.
+pub fn set_card(name: &str, key: &str, line: &str) {
+    with(name, |a| {
+        if a.turn.entry.is_none() {
+            return;
+        }
+        match a.turn.later.iter_mut().find(|c| c.0 == key) {
+            Some(c) => c.1 = line.to_string(),
+            None => a.turn.later.push((key.to_string(), line.to_string())),
+        }
+        a.show_turn();
     });
 }
 

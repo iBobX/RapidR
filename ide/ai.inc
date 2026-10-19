@@ -6,8 +6,9 @@
 ' changes it proposes). Both are DIM'd in decl.inc. Here: its panel, docked
 ' with Properties (View > AI Assistant, Ctrl+I); the review of what it
 ' proposes (RDiffView: each file applied as one undo step in its editor); a
-' new program's preview before it is created; "What was sent"; the token
-' meter. Its settings: Tools > Settings > AI (settings.inc). And an RAI on a
+' new program created and opened at once with its banner — Run It, Undo,
+' What Did It Do? — (docs/ai-ux-plan.md), or previewed first when Review
+' first is on; "What was sent"; the token meter. Its settings: Tools > Settings > AI (settings.inc). And an RAI on a
 ' form, live in the designer: its Model list fetched once it has a key, the
 ' key typed in the inspector kept in the keychain, never in the code.
 '
@@ -39,6 +40,25 @@ DECLARE SUB AINewCreate
 DECLARE SUB AINewCancel
 DECLARE SUB AISentClose
 DECLARE SUB AIKeyNeeded
+DECLARE SUB AIChatLink(Url AS STRING)
+DECLARE SUB AIBannerRunClick
+DECLARE SUB AIBannerRunIn
+DECLARE SUB AIBannerRunOut
+DECLARE SUB AIBannerFixClick
+DECLARE SUB AIBannerUndoClick
+DECLARE SUB AIBannerWhatClick
+DECLARE SUB AIBannerCloseClick
+DECLARE SUB LayOutAIBanner
+DECLARE SUB AIProgressShow
+DECLARE SUB AIHideBanner
+DECLARE SUB AICreateNow
+DECLARE SUB AIShowReviewBar
+DECLARE FUNCTION AIUnsavedAsked AS INTEGER
+DECLARE SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
+DECLARE SUB AIShowBanner(Errs AS INTEGER)
+DECLARE SUB AIUndoProject
+DECLARE SUB AIForgetRecent(Path AS STRING)
+DECLARE FUNCTION AskUndoAnyway(Question AS STRING, Detail AS STRING) AS INTEGER
 DECLARE SUB InspectorEditorRequest(Prop AS STRING)
 DECLARE SUB DesignAIModelsIn(Count AS INTEGER)
 DECLARE SUB DesignAIError(Message AS STRING)
@@ -63,7 +83,6 @@ DIM AIModelBox AS RComboBox
 DIM AINewBtn AS RButton
 DIM AIChat AS RMarkdownView
 DIM AIReviewBar AS RPanel
-DIM AIReviewText AS RLabel
 DIM AIReviewBtn AS RButton
 DIM AIBottom AS RPanel
 DIM AIInput AS RMemo
@@ -73,6 +92,33 @@ DIM AINote AS RLabel
 DIM AIMeter AS RLabel
 DIM AISentLink AS RLabel
 DIM AIStatus AS RStatusBar
+' (while an answer runs, the status is its progress checklist: what it
+' said last, not said again)
+DIM AIProgressSaid AS STRING
+
+' ---- a new program, straight into the IDE (docs/ai-ux-plan.md §1) ---------------------
+' The banner across the top, under the tool bar: what the assistant made,
+' Run it (the keys go there), Undo, What did it do?; with errors left, Ask
+' it to fix too. Studio's own panel, in the look's colours.
+DIM AIBanner AS RPanel
+DIM AIBannerMark AS RPanel
+DIM AIBannerText AS RLabel
+DIM AIBannerRun AS RButton
+DIM AIBannerFix AS RButton
+DIM AIBannerUndo AS RButton
+DIM AIBannerWhat AS RButton
+DIM AIBannerClose AS RButton
+DIM AIBannerFont AS RFont
+' (the program the banner is about: its folder, its project file, its
+' errors; the project open before it, opened again by Undo)
+DIM AIBannerFolder AS STRING
+DIM AICreatedFile AS STRING
+DIM AIBannerErrors AS INTEGER
+DIM AIPrevProject AS STRING
+' (the banner's Run it takes the keys once the editor's opening is over)
+DIM AIBannerFocusTurns AS INTEGER
+' (tests: a file of the user's added to the new program's folder)
+DIM AITouch AS RFileStream
 
 ' ---- the review of the changes it proposes -----------------------------------------
 CREATE AIReview AS RForm
@@ -316,24 +362,65 @@ SUB SetUpAI
   AISentLink.AccessibleName = "What was sent to the assistant"
   AISentLink.OnClick = AISentLinkClick
 
-  ' (the proposals' bar: shown when the answer proposes changes)
+  ' (the proposals' bar: shown when the answer proposes changes — one
+  ' button that says what it opens; the status says the rest, once)
   AIReviewBar.Parent = AIPanel
   AIReviewBar.Align = 2
   AIReviewBar.Height = 46
   AIReviewBar.BevelOuter = 0
   AIReviewBar.Visible = 0
-  AIReviewText.Parent = AIReviewBar
-  AIReviewText.Left = 10: AIReviewText.Top = 4: AIReviewText.WordWrap = 1: AIReviewText.AutoSize = 0: AIReviewText.Height = 38
   AIReviewBtn.Parent = AIReviewBar
-  AIReviewBtn.Caption = "Review..."
+  AIReviewBtn.Caption = "Review the Changes..."
   AIReviewBtn.AccessibleName = "Review the proposed changes"
   AIReviewBtn.OnClick = AIReviewClick
 
-  ' (the conversation)
+  ' (the conversation; a card's links — Open, Undo, Review — come here)
   AIChat.Parent = AIPanel
   AIChat.Align = 5
   AIChat.FollowEnd = 1
   AIChat.AccessibleName = "Conversation with the assistant"
+  AIChat.OnLinkClick = AIChatLink
+
+  ' (the new program's banner, across Studio under the tool bar: hidden
+  ' until the assistant makes one)
+  AIBanner.Parent = Studio
+  AIBanner.Top = 60
+  AIBanner.Align = 1
+  AIBanner.Height = 56
+  AIBanner.BevelOuter = 0
+  AIBanner.Visible = 0
+  AIBanner.AccessibleName = "The assistant's new program"
+  AIBannerMark.Parent = AIBanner
+  AIBannerMark.BevelOuter = 0
+  AIBannerMark.Left = 0: AIBannerMark.Top = 0: AIBannerMark.Width = 6
+  AIBannerText.Parent = AIBanner
+  AIBannerText.WordWrap = 1: AIBannerText.AutoSize = 0
+  AIBannerRun.Parent = AIBanner
+  AIBannerRun.AccessibleName = "Run it"
+  AIBannerRun.AccessibleDescription = "Runs the new program (F5). Nothing runs until you press it."
+  AIBannerRun.OnClick = AIBannerRunClick
+  ' (the accent, and Enter, only while it has the keys: Enter in the
+  ' designer or a list never runs the program)
+  AIBannerRun.OnEnter = AIBannerRunIn
+  AIBannerRun.OnExit = AIBannerRunOut
+  AIBannerFix.Parent = AIBanner
+  AIBannerFix.Caption = "Ask It to Fix"
+  AIBannerFix.AccessibleName = "Ask the assistant to fix the errors"
+  AIBannerFix.OnClick = AIBannerFixClick
+  AIBannerUndo.Parent = AIBanner
+  AIBannerUndo.AccessibleName = "Undo"
+  AIBannerUndo.AccessibleDescription = "Closes the new program and removes the files the assistant wrote"
+  AIBannerUndo.OnClick = AIBannerUndoClick
+  AIBannerWhat.Parent = AIBanner
+  AIBannerWhat.Caption = "What Did It Do?"
+  AIBannerWhat.AccessibleName = "What did it do?"
+  AIBannerWhat.AccessibleDescription = "Shows what the assistant did, in the Assistant pane"
+  AIBannerWhat.OnClick = AIBannerWhatClick
+  AIBannerClose.Parent = AIBanner
+  AIBannerClose.Caption = "×"
+  AIBannerClose.AccessibleName = "Close the banner"
+  AIBannerClose.OnClick = AIBannerCloseClick
+  AIBanner.OnResize = LayOutAIBanner
 
   AIPanel.OnResize = LayOutAIPanel
   ' (Tools > Settings: its General and AI pages)
@@ -372,9 +459,25 @@ SUB LayOutAIPanel
   END IF
   AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
   IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
-  AIReviewText.Width = w - 124
-  AIReviewBtn.Left = w - 104: AIReviewBtn.Top = 9: AIReviewBtn.Width = 96: AIReviewBtn.Height = bh
+  AIReviewBtn.Left = 6: AIReviewBtn.Top = 9: AIReviewBtn.Width = w - 12: AIReviewBtn.Height = bh
   AIChat.EmptyText = AIEmptyText
+END SUB
+
+SUB AIBannerFonts
+  AIBannerFont.Name = UIFont.Name
+  AIBannerFont.Size = UIFont.Size + 3
+  AIBannerFont.Bold = 1
+  AIBanner.Color = TC("card")
+  AIBannerMark.Color = TC("accent")
+  AIBannerText.Font = AIBannerFont
+  AIBannerText.Font.Color = TC("page.text")
+  AIBannerRun.Font = UIFont
+  AIBannerRun.Font.Bold = 1
+  AIBannerFix.Font = UIFont
+  AIBannerUndo.Font = UIFont
+  AIBannerWhat.Font = UIFont
+  AIBannerClose.Font = UIFont
+  LayOutAIBanner
 END SUB
 
 SUB AIPanelFonts
@@ -387,8 +490,9 @@ SUB AIPanelFonts
   AISentLink.Font = DimFont
   AISentLink.Font.Color = TC("page.link")
   AIStatus.Font = StatusFont
-  AIReviewText.Font = UIFont
-  AIReviewText.Font.Bold = 1
+  AIReviewBtn.Font = UIFont
+  AIReviewBtn.Font.Bold = 1
+  AIBannerFonts
   AIRevHead.Font = UIFont
   AINewTitle.Font = SubFont
   AINewWhat.Font = UIFont
@@ -405,7 +509,7 @@ FUNCTION AIEmptyText AS STRING
   ELSEIF AI.Model = "" THEN
     Result = "Choose a model (Tools > Settings > AI: Fetch Models lists the provider's)."
   ELSE
-    Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". The assistant proposes changes; you decide."
+    Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". A new program opens in Studio, ready to run; changes to your files wait for you to review them."
   END IF
 END FUNCTION
 
@@ -433,6 +537,7 @@ SUB AIApplySettings
   AI.PriceIn = AIPriceIn
   AI.PriceOut = AIPriceOut
   AITools.Permission = AIPermission
+  AITools.ReviewFirst = AIReviewFirst
   ' (the key: Studio's keychain entry for the provider, else its usual
   ' environment variable — never in the settings)
   AI.APIKeySource = AIKeySourceOf(AIProvider)
@@ -549,6 +654,7 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIWorkspace") THEN AIWorkspace = Reg.ReadString("AIWorkspace")
   IF Reg.ValueExists("AIMaxTokens") THEN AIMaxTokens = VAL(Reg.ReadString("AIMaxTokens"))
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
+  IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
   IF Reg.ValueExists("AIPrices") THEN
     AIPriceIn = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 1))
     AIPriceOut = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 2))
@@ -567,6 +673,7 @@ SUB SaveAISettings
   Reg.WriteString("AIWorkspace", AIWorkspace)
   Reg.WriteString("AIMaxTokens", LTRIM$(STR$(AIMaxTokens)))
   Reg.WriteString("AIPermission", AIPermission)
+  Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
   Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
 END SUB
 
@@ -690,6 +797,7 @@ SUB AISend
   IF LTRIM$(RTRIM$(t)) = "" THEN EXIT SUB
   AISyncProject
   AIReviewBar.Visible = 0
+  AIProgressSaid = ""
   IF AI.Ask(t) THEN
     AIInput.Text = ""
   ELSE
@@ -697,6 +805,7 @@ SUB AISend
   END IF
   AIChat.Text = AI.Transcript
   AIEnableSend
+  AIProgressShow
 END SUB
 
 ' (Enter sends; Shift+Enter is a new line)
@@ -725,6 +834,36 @@ END SUB
 SUB AIUpdate
   AIChat.Text = AI.Transcript
   AIEnableSend
+  AIProgressShow
+END SUB
+
+' The progress checklist while an answer runs, in the one status line (a
+' screen reader announces it politely, once a step): the newest things the
+' tools did, ✓ each, and what goes on now — "✓ Found an example · ✓ Wrote
+' the program · … Checking". The answer done, the status says what it left.
+SUB AIProgressShow
+  DIM steps AS STRING, n AS INTEGER, i AS INTEGER, txt AS STRING, doing AS STRING, newest AS STRING, stepFrom AS INTEGER
+  IF AI.Busy = 0 THEN EXIT SUB
+  steps = AI.Steps
+  IF steps = "" THEN n = 0 ELSE n = TALLY(steps, CHR$(10)) + 1
+  stepFrom = n - 2
+  IF stepFrom < 1 THEN stepFrom = 1
+  FOR i = stepFrom TO n
+    txt = txt + "✓ " + FIELD$(steps, CHR$(10), i) + " · "
+  NEXT
+  IF n > 0 THEN newest = FIELD$(steps, CHR$(10), n)
+  IF INSTR(newest, " to fix") > 0 THEN
+    doing = "Fixing the errors…"
+  ELSEIF n = 0 THEN
+    doing = "Thinking…"
+  ELSE
+    doing = "Working…"
+  END IF
+  txt = txt + "… " + doing
+  IF txt <> AIProgressSaid THEN
+    AIProgressSaid = txt
+    AIStatus.SimpleText = txt
+  END IF
 END SUB
 
 SUB AIDone(Status AS STRING)
@@ -732,14 +871,35 @@ SUB AIDone(Status AS STRING)
   AIChat.Text = AI.Transcript
   ' (one sentence, announced: what happened, and what to do now)
   AIStatus.SimpleText = AI.Status
+  AIProgressShow
   AIEnableSend
   n = AITools.ProposalCount
-  IF Status = "ok" AND n > 0 THEN
-    AIReviewText.Caption = AI.Status
-    AIReviewBar.Visible = 1
-    IF AIProjectProposal THEN AIReviewBtn.Caption = "Preview..." ELSE AIReviewBtn.Caption = "Review..."
+  ' (an answer that failed after its tools — a local server short of memory
+  ' for the last sentence — still leaves what they made: Robert's walk of
+  ' 2026-10-18; Stop leaves it to Preview)
+  IF (Status = "ok" OR Status = "error") AND n > 0 THEN
+    IF AIProjectProposal AND AIReviewFirst = 0 THEN
+      ' (a new program: created and opened at once, its banner on top)
+      AICreateNow
+    ELSE
+      AIShowReviewBar
+    END IF
   END IF
   AIMeter.Caption = AI.Usage
+END SUB
+
+' (what waits for the user: a change to review, or — Review first — the
+' new program to look at; one button that says which)
+SUB AIShowReviewBar
+  IF AITools.ProposalCount = 0 THEN EXIT SUB
+  IF AIProjectProposal THEN
+    AIReviewBtn.Caption = "Preview the New Program..."
+    AIReviewBtn.AccessibleName = "Preview the new program before it is created"
+  ELSE
+    AIReviewBtn.Caption = "Review the Changes..."
+    AIReviewBtn.AccessibleName = "Review the proposed changes"
+  END IF
+  AIReviewBar.Visible = 1
 END SUB
 
 ' (no key: Tools > Settings > AI asks for one)
@@ -814,7 +974,7 @@ FUNCTION AIProjectProposal AS INTEGER
   DIM i AS INTEGER
   Result = 0
   FOR i = 0 TO AITools.ProposalCount - 1
-    IF FIELD$(AITools.ProposalInfo(i), CHR$(9), 1) = "project" THEN Result = 1
+    IF FIELD$(AITools.ProposalInfo(i), CHR$(9), 1) = "project" AND FIELD$(AITools.ProposalInfo(i), CHR$(9), 6) <> "created" THEN Result = 1
   NEXT
 END FUNCTION
 
@@ -1069,19 +1229,281 @@ SUB AINewBrowse
 END SUB
 
 SUB AINewCreate
-  DIM main AS STRING
+  DIM made AS STRING, errs AS INTEGER
   IF AINewFolder.Text = "" THEN AINewFolder.Text = DefaultFolder
   IF DIREXISTS(AINewFolder.Text) = 0 THEN MKDIR AINewFolder.Text
-  main = AITools.CreateProject(AINewFolder.Text)
-  IF main = "" OR LEFT$(main, 6) = "error:" THEN
-    SHOWMESSAGE "Can't create the project: " + MID$(main, 8)
+  errs = AITools.ProjectErrors
+  IF AIUnsavedAsked = 0 THEN EXIT SUB
+  IF ProjectOpen THEN AIPrevProject = ProjectFile ELSE AIPrevProject = ""
+  made = AITools.CreateProject(AINewFolder.Text)
+  IF made = "" OR LEFT$(made, 6) = "error:" THEN
+    SHOWMESSAGE "Can't create the project: " + MID$(made, 8)
     EXIT SUB
   END IF
   AINew.Close
+  AIOpenMade made, errs
+END SUB
+
+' (the open project's unsaved changes, before another project opens:
+' each document asked about, Save / Don't Save / Cancel — 0 on Cancel)
+FUNCTION AIUnsavedAsked AS INTEGER
+  DIM d AS INTEGER
+  Result = 1
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) THEN
+      IF AskToSave(d) = 0 THEN
+        Result = 0
+        EXIT FUNCTION
+      END IF
+    END IF
+  NEXT
+END FUNCTION
+
+' A new program the assistant made, straight into the IDE (docs/ai-ux-plan.md
+' §1): created in the projects folder (Documents/RapidR/Projects when Studio
+' is installed) in a folder named from its title, no question asked — the
+' user's unsaved changes asked about first, never lost —, opened (its form
+' in the designer), the banner on top with Run it. Nothing runs.
+SUB AICreateNow
+  DIM made AS STRING, errs AS INTEGER
+  errs = AITools.ProjectErrors
+  IF AIUnsavedAsked = 0 THEN
+    ' (kept to create later: Preview… creates it)
+    AIShowReviewBar
+    AIStatus.SimpleText = "The new program isn't created yet: your changes came first. Preview the New Program creates it."
+    EXIT SUB
+  END IF
+  IF ProjectOpen THEN AIPrevProject = ProjectFile ELSE AIPrevProject = ""
+  made = AITools.CreateProject(DefaultFolder)
+  IF made = "" OR LEFT$(made, 6) = "error:" THEN
+    AIShowReviewBar
+    AIStatus.SimpleText = "Can't create the new program in " + DefaultFolder + ": " + MID$(made, 8) + ". Preview the New Program lets you choose another folder."
+    EXIT SUB
+  END IF
+  AIOpenMade made, errs
+END SUB
+
+' (the program made: opened, said, its banner shown)
+SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
   AIReviewBar.Visible = 0
+  AICreatedFile = Made
+  OpenProject Made
   AIChat.Text = AI.Transcript
-  OpenProject main
-  AIStatus.SimpleText = "The new program is open: F5 runs it."
+  AIShowBanner Errs
+END SUB
+
+' The banner: what the assistant made and what to do with it, Run it
+' first (the keys go there, Enter runs); with errors left, Run anyway and
+' Ask it to fix.
+SUB AIShowBanner(Errs AS INTEGER)
+  DIM title AS STRING, errText AS STRING
+  title = AITools.CreatedTitle
+  AIBannerFolder = AITools.CreatedFolder
+  AIBannerErrors = Errs
+  IF Errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(Errs)) + " errors"
+  IF Errs = 0 THEN
+    AIBannerText.Caption = "The assistant made this program for you."
+    AIBannerRun.Caption = "▶  Run It"
+    AIBannerRun.AccessibleName = "Run it"
+    AIStatus.SimpleText = "Made " + title + ": Run It is at the top."
+  ELSE
+    AIBannerText.Caption = "The assistant made this program — it still has " + errText + "."
+    AIBannerRun.Caption = "▶  Run Anyway"
+    AIBannerRun.AccessibleName = "Run anyway"
+    AIStatus.SimpleText = "Made " + title + ", " + errText + " left: see the top."
+  END IF
+  AIBannerText.AccessibleName = AIBannerText.Caption
+  AIBannerUndo.Caption = "↺  Undo"
+  AIBannerFix.Visible = Flag(Errs > 0)
+  AIBanner.AccessibleDescription = title + ": " + AIBannerText.Caption
+  AIBanner.Visible = 1
+  AIBannerRun.Default = 1
+  AIBannerFonts
+  ' (the keys to Run it, after the editor's own focus on opening)
+  AIBannerFocusTurns = 2
+  AIBannerRun.SetFocus
+END SUB
+
+SUB AIHideBanner
+  AIBanner.Visible = 0
+  AIBannerRun.Default = 0
+  AIBannerFocusTurns = 0
+END SUB
+
+' (editor.inc's focus timer: the banner's Run it takes the keys while a
+' new program opens — True when it did)
+FUNCTION AIBannerTakesFocus AS INTEGER
+  Result = 0
+  IF AIBannerFocusTurns <= 0 OR AIBanner.Visible = 0 THEN EXIT FUNCTION
+  AIBannerFocusTurns = AIBannerFocusTurns - 1
+  AIBannerRun.SetFocus
+  Result = 1
+END FUNCTION
+
+' (another project opened, or none: the banner was about the new program)
+SUB AIProjectChanged
+  IF AIBanner.Visible = 0 THEN EXIT SUB
+  IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AIBannerFolder) THEN AIHideBanner
+END SUB
+
+SUB LayOutAIBanner
+  DIM w AS INTEGER, h AS INTEGER, bh AS INTEGER, x AS INTEGER, y0 AS INTEGER, pad AS INTEGER
+  IF ThemeName = "classic" THEN
+    bh = 25: h = 44
+  ELSE
+    bh = 34: h = 56
+  END IF
+  IF AIBanner.Height <> h THEN AIBanner.Height = h
+  w = AIBanner.ClientWidth
+  IF w < 400 THEN w = 400
+  pad = 12
+  y0 = (h - bh) \ 2
+  AIBannerMark.Height = h
+  ' (from the right: ×, What did it do?, Undo, Ask it to fix, Run it)
+  x = w - pad - bh
+  AIBannerClose.Left = x: AIBannerClose.Top = y0: AIBannerClose.Width = bh: AIBannerClose.Height = bh
+  x = x - 8 - 150
+  AIBannerWhat.Left = x: AIBannerWhat.Top = y0: AIBannerWhat.Width = 150: AIBannerWhat.Height = bh
+  x = x - 8 - 100
+  AIBannerUndo.Left = x: AIBannerUndo.Top = y0: AIBannerUndo.Width = 100: AIBannerUndo.Height = bh
+  IF AIBannerFix.Visible THEN
+    x = x - 8 - 132
+    AIBannerFix.Left = x: AIBannerFix.Top = y0: AIBannerFix.Width = 132: AIBannerFix.Height = bh
+  END IF
+  x = x - 8 - 136
+  AIBannerRun.Left = x: AIBannerRun.Top = y0: AIBannerRun.Width = 136: AIBannerRun.Height = bh
+  ' (one line, across from the buttons' middle)
+  AIBannerText.Left = 6 + pad + 4: AIBannerText.Top = (h - 26) \ 2 + 1
+  AIBannerText.Width = x - 16 - AIBannerText.Left: AIBannerText.Height = 26
+END SUB
+
+' Run it: as F5 — the program runs, Studio's Run.
+SUB AIBannerRunClick
+  RunCommand "run.start"
+END SUB
+
+SUB AIBannerRunIn
+  IF AIBanner.Visible THEN AIBannerRun.Default = 1
+END SUB
+
+SUB AIBannerRunOut
+  AIBannerRun.Default = 0
+END SUB
+
+' Ask it to fix: the assistant asked, in the chat, to fix what is left.
+SUB AIBannerFixClick
+  ShowAIPanel
+  AIInput.Text = "Please fix the errors that are left."
+  AISend
+END SUB
+
+SUB AIBannerUndoClick
+  AIUndoProject
+END SUB
+
+' What did it do?: the Assistant pane, the chat at the new program's card.
+SUB AIBannerWhatClick
+  DIM all AS STRING, i AS INTEGER, line AS STRING, anchor AS STRING
+  IF AIReady = 0 THEN EXIT SUB
+  Dock.ShowPane("aipanel")
+  Dock.FocusPane("aipanel")
+  LayOutAIPanel
+  all = AIChat.Headings
+  FOR i = 1 TO TALLY(all, CHR$(10)) + 1
+    line = FIELD$(all, CHR$(10), i)
+    IF INSTR(FIELD$(line, CHR$(9), 2), "Created") > 0 THEN anchor = FIELD$(line, CHR$(9), 3)
+  NEXT
+  IF anchor <> "" THEN AIChat.ScrollTo "#" + anchor
+END SUB
+
+SUB AIBannerCloseClick
+  AIHideBanner
+END SUB
+
+' (a recent project gone: off the list)
+SUB AIForgetRecent(Path AS STRING)
+  DIM acc AS STRING, i AS INTEGER, p AS STRING
+  FOR i = 1 TO TALLY(RecentList, CHR$(10))
+    p = FIELD$(RecentList, CHR$(10), i)
+    IF p <> "" AND LCASE$(p) <> LCASE$(Path) THEN acc = acc + p + CHR$(10)
+  NEXT
+  RecentList = acc
+  FillRecent
+END SUB
+
+' Undo (the banner's, a card's): the new program closed and the files
+' Studio wrote for it removed — only those, the explicit list Studio
+' kept, each inside its folder; its folder too when nothing else is in it.
+' Changed since (a file edited or added, changes not saved): asked first.
+' The project open before comes back.
+SUB AIUndoProject
+  DIM folder AS STRING, said AS STRING, files AS STRING, i AS INTEGER, f AS STRING, d AS INTEGER, gone AS INTEGER, title AS STRING
+  folder = AITools.CreatedFolder
+  title = AITools.CreatedTitle
+  IF folder = "" THEN
+    AIStatus.SimpleText = "There is no new program to undo."
+    AIHideBanner
+    EXIT SUB
+  END IF
+  said = AITools.UndoCheck()
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) AND LCASE$(LEFT$(DocFile(d), LEN(folder) + 1)) = LCASE$(folder + "/") THEN
+      IF said <> "" THEN said = said + "; "
+      said = said + FileTitle(DocFile(d)) + " has changes not saved"
+    END IF
+  NEXT
+  IF said <> "" THEN
+    IF AskUndoAnyway("Undo the new program " + title + "?", "It changed since the assistant made it: " + said + ". Undo removes the files the assistant wrote, with your changes to them; files you added stay.") = 0 THEN EXIT SUB
+  END IF
+  ' (its documents go without another question: Undo was the answer)
+  IF ProjectOpen AND LCASE$(Proj.Folder) = LCASE$(folder) THEN
+    FOR d = 0 TO DocCount - 1
+      IF DocOpen(d) THEN DocDirty(d) = 0
+    NEXT
+    UpdateModified
+    CloseProject
+  END IF
+  files = AITools.UndoFiles()
+  FOR i = 1 TO TALLY(files, CHR$(10)) + 1
+    f = FIELD$(files, CHR$(10), i)
+    IF f <> "" THEN
+      IF FILEEXISTS(f) THEN KILL f
+    END IF
+  NEXT
+  gone = AITools.UndoDone()
+  AIForgetRecent AICreatedFile
+  AICreatedFile = ""
+  AIHideBanner
+  AIChat.Text = AI.Transcript
+  IF AIPrevProject <> "" THEN
+    IF FILEEXISTS(AIPrevProject) THEN OpenProject AIPrevProject
+  END IF
+  AIPrevProject = ""
+  IF gone THEN
+    AIStatus.SimpleText = "Undone: " + title + " was removed."
+  ELSE
+    AIStatus.SimpleText = "Undone: the assistant's files of " + title + " were removed; the files you added stay in " + folder + "."
+  END IF
+  OutputLine "AI: " + AIStatus.SimpleText
+END SUB
+
+' (a card's link in the chat: Open, Undo, Review)
+SUB AIChatLink(Url AS STRING)
+  DIM verb AS STRING, which AS STRING
+  verb = LCASE$(FIELD$(Url, "/", 1))
+  which = MID$(Url, LEN(verb) + 2)
+  SELECT CASE verb
+    CASE "ai:review"
+      IF AITools.ProposalCount > 0 THEN AIReviewClick
+    CASE "ai:open", "ai:undo"
+      IF AICreatedFile = "" OR (which <> "" AND LCASE$(RIGHT$(AITools.CreatedFolder, LEN(which) + 1)) <> LCASE$("/" + which)) THEN
+        AIStatus.SimpleText = "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
+      ELSEIF verb = "ai:open" THEN
+        IF LCASE$(Proj.Folder) <> LCASE$(AITools.CreatedFolder) OR ProjectOpen = 0 THEN OpenProject AICreatedFile
+      ELSE
+        AIUndoProject
+      END IF
+  END SELECT
 END SUB
 
 SUB AINewCancel
@@ -1138,6 +1560,11 @@ SUB AIStep(Stp AS STRING)
     CASE "permission"
       AIPermission = arg
       AIApplySettings
+    CASE "reviewfirst"
+      ' (Tools > Settings > AI's "Ask before the assistant creates or
+      ' changes files")
+      AIReviewFirst = Flag(VAL(arg) <> 0)
+      AIApplySettings
     CASE "key"
       ' (tests and the manual's pictures only: a made-up key, never a real
       ' one — kept in memory, never in the keychain: under the tests' memory
@@ -1176,6 +1603,14 @@ SUB AIStep(Stp AS STRING)
     CASE "create"
       AINewFolder.Text = arg
       AINewCreate
+    CASE "undo": AIUndoProject
+    CASE "touch"
+      ' (a file of the user's in the new program's folder: Undo asks then)
+      IF AITools.CreatedFolder <> "" THEN
+        AITouch.Open(AITools.CreatedFolder + "/" + arg, 65535)
+        AITouch.WriteStr("mine", 4)
+        AITouch.Close
+      END IF
     CASE "settings": ShowSettingsPage 1
     CASE "sent": ShowWhatWasSent
     CASE ELSE: OutputLine "(ai:" + Stp + ": not a step)"

@@ -273,14 +273,16 @@ fn main() {
                 created += 1;
                 let folder = out.join(format!("projects{created}"));
                 std::fs::create_dir_all(&folder).unwrap();
-                let main = tools_call("createproject", &[s(folder.to_string_lossy())]);
-                if main.starts_with("error:") || main.is_empty() {
-                    applied.push(format!("create failed: {main}"));
+                // (its main file: the proposal marked main; CreateProject
+                // gives the project file it writes beside it)
+                let main_rel = (0..n).map(|j| tools_call("proposalinfo", &[Value::Integer(j)])).find(|i| i.split('\t').nth(4) == Some("1")).and_then(|i| i.split('\t').nth(1).map(str::to_string)).unwrap_or_else(|| path.to_string());
+                let made = tools_call("createproject", &[s(folder.to_string_lossy())]);
+                if made.starts_with("error:") || made.is_empty() {
+                    applied.push(format!("create failed: {made}"));
                     continue;
                 }
-                let main = PathBuf::from(main);
-                let root = main.parent().unwrap().to_path_buf();
-                open = Open { folder: root.to_string_lossy().to_string(), name: root.file_name().unwrap().to_string_lossy().to_string(), main: main.file_name().unwrap().to_string_lossy().to_string() };
+                let root = PathBuf::from(made).parent().unwrap().to_path_buf();
+                open = Open { folder: root.to_string_lossy().to_string(), name: root.file_name().unwrap().to_string_lossy().to_string(), main: main_rel };
                 applied.push(format!("created {}", open.name));
             } else if !open.folder.is_empty() {
                 let full = Path::new(&open.folder).join(path);

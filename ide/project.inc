@@ -65,6 +65,8 @@ SUB OpenProject(Path AS STRING)
   IF ExampleOriginal <> "" THEN SayExampleCopy p, copied
   UpdateTitle
   UpdateCommands
+  ' (another project than the assistant's new program: its banner goes)
+  AIProjectChanged
 END SUB
 
 ' The Output's line for an example's copy (Copied: "made" now, else the
@@ -129,6 +131,7 @@ SUB CloseProject
   ShowWelcome
   UpdateTitle
   UpdateCommands
+  AIProjectChanged
 END SUB
 
 ' File > Open: a project or a source file.

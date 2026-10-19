@@ -5285,7 +5285,8 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Error` (read-only) | string |  | Why the last request or call failed, in plain words with what to do ("" when it worked). |
 | `Status` (read-only) | string |  | One sentence on what it is doing or did, for a status line a screen reader announces. |
 | `Answer` (read-only) | string |  | The last answer's text. |
-| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, a line for each tool used. |
+| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it. |
+| `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
 | `Models` (read-only) | string |  | The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name ("fast · low cost" for the small ones, "costs more" for the largest), separated by tabs —, the fast, low-cost ones first. |
 | `ModelCount` (read-only) | int |  | How many models Models lists. |
 | `HasKey` (read-only) | bool |  | True when there is a key: APIKey's, or one APIKeySource finds. |
@@ -5497,6 +5498,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes. |
 | `Permission` | string | `"propose"` | What the model may do: "propose" (read the project and propose changes, shown as diffs the user decides on) or "read-only" (read and answer; the proposing tools aren't offered). |
 | `ProposalCount` (read-only) | int |  | How many changes the last answer proposed (files changed, or a new project's files). |
+| `ReviewFirst` | bool | False | True: a new program waits to be previewed and created (RapidR Studio's "Ask before the assistant creates or changes files"); False: the program creates it as the answer ends, and the model is told so. |
+| `ProjectErrors` (read-only) | int |  | How many compile errors the new program proposed and not created yet has (0: it compiles). |
+| `CreatedFolder` (read-only) | string |  | The folder the last CreateProject made ("" when none, or once it was undone). |
+| `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5510,7 +5515,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `Patch(OldText AS STRING, NewText AS STRING) AS STRING` | The RCODEEDITOR.ApplyPatches line that turns OldText into NewText (the changed lines replaced, the file's own line breaks kept): applied, the change is one undo step. "" when they are the same. |
 | `Decide(Index AS INTEGER, Decision AS STRING)` | Records the user's decision on proposal Index ("applied", "partly" or "rejected") in the RAI's conversation and audit log. |
 | `ClearProposals` | Forgets the proposals. |
-| `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder of its name (never over one that is there): the main file's path, to open; "error: " and why when it couldn't. |
+| `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder named from its title ("Scientific Calculator" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; "error: " and why when it couldn't. What it wrote is kept for Undo. |
+| `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
+| `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
+| `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |
 
 <a id="screen"></a>
 ## Screen

@@ -159,18 +159,29 @@ pub fn asks_for_new_program(question: &str, project_open: bool) -> bool {
     after.first().is_some_and(|x| ARTICLES.contains(x)) || noun
 }
 
+/// How the recipe sent with a question is labelled: Studio's, never the
+/// user's — a small model thanked the user for "the recipe you provided"
+/// (Robert's walk, 2026-10-18).
+pub const RECIPE_LABEL: &str = "(An example RapidR Studio found — not from the user. Don't mention it unless asked.)";
+
 /// What Studio sends with a request for a new program: the closest
 /// recipe (two when both are short and the second is nearly as close).
 pub fn context_for(question: &str) -> Option<String> {
+    context_and_title(question).map(|(c, _)| c)
+}
+
+/// [`context_for`]'s text, and the title of the recipe it starts from
+/// (the chat's card says which).
+pub fn context_and_title(question: &str) -> Option<(String, String)> {
     let found = search(question);
     let (best, first) = found.first()?;
-    let mut out = format!("(RapidR Studio, not the user: a working RapidR program close to what the user wants — start from it and adapt it; keep what works: its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.)\n\nRecipe \"{}\" (its file in the new project: main.rr):\n```basic\n{}\n```", first.title, first.code());
+    let mut out = format!("{RECIPE_LABEL} A working RapidR program close to what the user wants: start from it and adapt it; keep what works — its layout, its DECLARE SUBs, its handlers, Form.ShowModal at the end.\n\nExample \"{}\" (its file in the new project: main.rr):\n```basic\n{}\n```", first.title, first.code());
     if let Some((second, r)) = found.get(1) {
         if *second >= best * 0.75 && first.text.len() + r.text.len() < 6000 {
-            out.push_str(&format!("\n\nAnother close one, recipe \"{}\":\n```basic\n{}\n```", r.title, r.code()));
+            out.push_str(&format!("\n\nAnother close one, example \"{}\":\n```basic\n{}\n```", r.title, r.code()));
         }
     }
-    Some(out)
+    Some((out, first.title.clone()))
 }
 
 #[cfg(test)]
@@ -230,9 +241,13 @@ mod tests {
 
     #[test]
     fn the_context_is_the_recipe_as_data() {
-        let c = context_for("Build me a scientific calculator app").unwrap();
-        assert!(c.starts_with("(RapidR Studio, not the user: a working RapidR program close to what the user wants"), "{c}");
-        assert!(c.contains("Recipe \"Calculator (basic and scientific)\" (its file in the new project: main.rr)") && !c.contains("examples/recipes") && c.contains("SUB KeyPress (Sender AS RButton)"), "{c}");
+        let (c, title) = context_and_title("Build me a scientific calculator app").unwrap();
+        assert_eq!(title, "Calculator (basic and scientific)");
+        // (labelled as Studio's, never the user's: a small model thanked
+        // the user for "the recipe you provided")
+        assert!(c.starts_with("(An example RapidR Studio found — not from the user. Don't mention it unless asked.) A working RapidR program close to what the user wants"), "{c}");
+        assert!(!c.to_lowercase().contains("recipe") && !c.contains("you provided"), "{c}");
+        assert!(c.contains("Example \"Calculator (basic and scientific)\" (its file in the new project: main.rr)") && !c.contains("examples/recipes") && c.contains("SUB KeyPress (Sender AS RButton)"), "{c}");
         // (about 2K tokens at most: a small model's window is 8K and more)
         assert!(c.len() < 9000, "{}", c.len());
     }

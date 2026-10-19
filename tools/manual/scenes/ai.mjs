@@ -7,8 +7,22 @@
 // reach a picture.
 
 import { spawn } from "node:child_process";
+import { cpSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// (AI-UX) RapidR's home as an install has it — its examples (the recipes)
+// and Studio's pictures, a release.toml —, so a new program goes where an
+// installed Studio puts it: Documents/RapidR/Projects, here the scene's own
+// "Documents" (a short path on screen; never the user's)
+function installed(work, root) {
+  const home = join(work, "install");
+  mkdirSync(join(home, "ide"), { recursive: true });
+  cpSync(join(root, "examples"), join(home, "examples"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$|big(_\d+)?\.csv$/.test(src) });
+  cpSync(join(root, "ide", "assets"), join(home, "ide", "assets"), { recursive: true });
+  writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
+  return { home, env: { RAPIDR_DOCUMENTS: "Documents" } };
+}
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const mock = spawn(process.execPath, [join(ROOT, "tests", "ai_mock_server.mjs"), "0"], {
@@ -95,13 +109,41 @@ export const scenes = [
     env: ENV,
   },
   {
-    // "Build me …": the new program previewed before anything is written
+    // "Build me …" with Review first on: the new program previewed before
+    // anything is written
     name: "new-program",
     open: "examples/gui/hello_form.rr",
-    do: `${READY},ai:ask=build me a hello-form program,wait,wait,wait,wait,ai:review,wait`,
+    do: `${READY},ai:reviewfirst=1,ai:ask=build me a hello-form program,wait,wait,wait,wait,ai:review,wait`,
     delay: 8,
     window: 2,
     env: ENV,
+  },
+  {
+    // (AI-UX) "Build a scientific calculator": the program opens in Studio
+    // at once, its form in the designer, the banner with Run It on top
+    name: "banner",
+    studio: { do: `${READY},ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`, delay: 9 },
+    setup: (work, root) => installed(work, root),
+    env: ENV,
+    crop: [0, 0, 1280, 400],
+  },
+  {
+    // ... in the dark look
+    name: "banner-dark",
+    theme: "rapidr-dark",
+    studio: { do: `${READY},ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`, delay: 9 },
+    setup: (work, root) => installed(work, root),
+    env: ENV,
+    crop: [0, 0, 1280, 400],
+  },
+  {
+    // ... the chat: the cards Studio writes (the recipe it started from,
+    // the program created, with Open and Undo), then the model's short reply
+    name: "chat-cards",
+    studio: { do: `${READY},ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait`, delay: 9 },
+    setup: (work, root) => installed(work, root),
+    env: ENV,
+    crop: [896, 120, 384, 480],
   },
   {
     // What was sent: the last request, the key never shown
