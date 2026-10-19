@@ -704,7 +704,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Phase 8 — Truly native UI, `$UI native` (after 1.0; Robert, 2026-10-19; plan: [docs/native-ui-plan.md](docs/native-ui-plan.md))
 
-One component model with the real widgets of every OS: a UI "HAL", as wgpu is for graphics. Shared layout (theirs widgets, our geometry); drawn components (canvas, plot, grid, 3D) hosted inside native views; one conformance suite on every backend; drawn fallback per component. Published as a standalone MIT Rust crate. v1 keeps the drawn kernel with native-looking themes (`$THEME native`).
+One component model with the real widgets of every OS: a UI "HAL", as wgpu is for graphics. Our layout, their widgets; drawn components (canvas, plot, grid, 3D) hosted inside native views; one conformance suite on every backend; drawn fallback per component. Published as a standalone MIT Rust crate. v1 keeps the drawn kernel with native-looking themes (`$THEME native`).
 - [ ] N1 The backend contract: the kernel moves behind it, becoming backend #1 and the reference
 - [ ] N2 macOS: AppKit (objc2)
 - [ ] N3 Windows: Win32 common controls (RapidQ programs back on real Win32), then WinUI 3
