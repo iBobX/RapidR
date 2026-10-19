@@ -137,6 +137,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   usual VB.NET / Python habits RapidR BASIC doesn't have. A headless replay
   of a conversation against a real model, `crates/rapidr-studio/examples/ai_eval.rs`
   with scripts in `tests/ai-eval/` (never in the suites), measured it.
+- **A form's WndProc hears its window's Windows messages on Windows.** It
+  heard only the system tray icon's, so a program waiting for `WM_USER + 1`
+  from `PostMessageA(Form.Handle, …)` or for a MIDI keyboard's `MM_MIM_DATA`
+  (winmm's `midiInOpen` with `CALLBACK_WINDOW`) heard nothing. Now, as in
+  RapidQ, `WndProc (hWnd, uMsg, wParam, lParam)` gets every message Windows
+  sends or posts to the form's window — the system's too (`WM_SIZE`,
+  `WM_ACTIVATE`, the mouse, the keys) —, in native builds and interpreted;
+  wParam and lParam are 32-bit numbers, what the handler returns is ignored,
+  and a `DOEVENTS` inside it lets the next message in (all checked against
+  RapidQ's own compiler). RapidR's redraws of a form's controls are not handed
+  over as `WM_PAINT`, so a handler that changes a control on every message
+  doesn't run for ever. Only forms with a WndProc are listened to; macOS, Linux
+  and the web are unchanged (there WndProc hears the tray icon). New examples
+  in `examples/windows/`: the messages of a form as they come, `PostMessageA`
+  and `WM_USER + 1`, and a MIDI keyboard's notes; the manual's
+  [Windows messages](docs/manual/components.md#windows-messages-a-forms-wndproc)
+  section explains it.
 - **RapidR Studio's examples work where RapidR is installed.** The examples
   there can't be changed (the macOS app, `/usr/lib/rapidr`, Program Files), and
   `million_rows.rr` "wrote" its data and said so while nothing was written. Now

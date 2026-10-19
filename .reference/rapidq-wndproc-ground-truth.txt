@@ -1,0 +1,36 @@
+RapidQ ground truth: a QFORM's WndProc (RC.EXE, Windows 11 ARM VM, x86 emulation, 2026-10-18)
+Probes (RapidR lane worktree agent-a551da4ca9b08db7e, scratch/wp/rq; not committed): wp1.bas (every message
+logged with a phase marker; posts/sends from a QTIMER), wp2.bas (a FUNCTION as WndProc), wp3.bas (two forms),
+jg.bas + jga/jgb/jgc (a user's program and variants).
+
+1. WHICH MESSAGES: every message the form's window procedure gets, sent or posted.
+   Showing (phase 0, ShowModal): 18 SHOWWINDOW, 46 WINDOWPOSCHANGING x2, 1C ACTIVATEAPP, 86 NCACTIVATE, 7F GETICON,
+     06 ACTIVATE, 281 IME_SETCONTEXT, 282 IME_NOTIFY, 07 SETFOCUS, 85 NCPAINT, 14 ERASEBKGND, 47 WINDOWPOSCHANGED,
+     05 SIZE, 03 MOVE, 46, B000 (VCL's CM_ACTIVATE), 31F DWMNCRENDERINGCHANGED, 0F PAINT.
+   PostMessageA(Form.Handle, &H401, 7, 9) -> 401 w=7 l=9.  SendMessageA(..., &H402, 3, 4) -> 402 w=3 l=4, inside the call.
+   Form.Width + 40 -> 46, 24 GETMINMAXINFO, 83 NCCALCSIZE, 85, 14, 47, 05, 0F.
+   Posted 200 MOUSEMOVE -> 200, 84 NCHITTEST.  Posted 100 KEYDOWN 'A' -> BD00 (VCL CN_KEYDOWN), 100, BD02 (CN_CHAR), 102 CHAR 'a'.
+   Posted 3C3 MM_MIM_DATA w=1234 l=&H403C90 -> 3C3 w=1234 l=4209808.
+   Nothing logged once Form.Close ran (no WM_CLOSE / hide messages reached the handler).
+2. VALUES: Handle = Form.Handle (the HWND); uMsg, wParam, lParam 32-bit signed: wParam -1 -> -1, lParam &H80000000 ->
+   -2147483648; IME_SETCONTEXT's lParam &HC000000F -> -1073741809. (STR$ of such a LONG param prints -2.14748365E9.)
+3. RESULT: ignored. A FUNCTION WndProc returning 55 for &H402: SendMessageA still returns 0. Windows' / VCL's default
+   processing goes on (the form sized, painted, keys typed).
+4. RE-ENTRY: synchronous and re-entrant. DOEVENTS inside the handler for &H403 delivered the &H404 it had posted
+   nested (depth 1) before the handler returned.
+5. FROM BINDING: messages arrive from the moment WndProc is bound, while CREATE builds the form. A user's program
+   (WndProc = MyWinProc bound first in the CREATE, the handler setting RichEdit1.Text, RichEdit1 created later in
+   the block, ShowModal inside the CREATE) crashes in RC.EXE: exit 0xC000041D (STATUS_FATAL_USER_CALLBACK_EXCEPTION),
+   also with ShowModal after END CREATE. WndProc bound after the controls: works, shows "Received!".
+   ShowModal inside the CREATE block is fine in RapidQ.
+6. ONE PER PROGRAM: two forms with WndProc = P1 / P2: P2 (the last bound) got both forms' messages (Handle telling
+   them apart), P1 none (the manual: "Qform supports only one WndProc in the entire application"). That run then
+   hung (killed after 20 s).
+7. Controls' WndProc: never called (earlier lanes; unchanged).
+
+RapidR (2026-10-18, same probes run by RapidR on Windows, interpreted and native): 1-4 the same, but for VCL's own
+messages (B000, BD00, BD02: none) and winit's (WM_STYLECHANGING/CHANGED 7C/7D, registered C1F3 / C097, WM_MOUSELEAVE
+2A3 after a posted MOUSEMOVE; no GETMINMAXINFO on a resize); a SendMessage from the program's own code reaches the
+handler just after the call returns (queued: the host never calls program code). 5: messages from the moment the
+window shows (RapidR makes it then; no crash). 6: each form its own WndProc. RapidR's own control redraws are not
+handed over as WM_PAINT (they would loop with a handler that changes a control).

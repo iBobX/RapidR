@@ -33,8 +33,8 @@ example's CSV or JSON file sits beside it.
 ## The examples
 
 In the order to read them: the language first, then windows, drawing, data,
-the debugger, media and DirectX, the network, AI, boards, RapidQ programs, the
-web, and last the IDE's own parts. The **Runs on** column lists the ways each
+the debugger, media and DirectX, the network, AI, boards, RapidQ programs,
+Windows messages, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
 example is tested on (by `tests/examples_run.mjs`: every example, every way it
 claims, headless).
 
@@ -171,6 +171,20 @@ examples are kept in RapidQ's own style on purpose, to show that they run as
 they are. To bring a RapidQ program of your own over to RapidR's names, use
 `rapidr import-rapidq` (it writes a converted copy and a report, and leaves
 the original alone).
+
+### windows/ — Windows only: a form's Windows messages
+
+A form's `WndProc` hears every message Windows sends or posts to its window,
+as in RapidQ ([Windows messages](../docs/manual/components.md#windows-messages-a-forms-wndproc)).
+Windows only: on other systems WndProc receives only the tray icon's
+messages, and these examples say so instead of doing anything (the tests
+run them there for that).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [wndproc_messages.rr](windows/wndproc_messages.rr) | A little Spy++: each message of the form's window as it comes, its number in hex and its name | run · interp · native · web | `rapidr run windows/wndproc_messages.rr` |
+| [wndproc_postmessage.rr](windows/wndproc_postmessage.rr) | A button posts `WM_USER + 1` to the form with `PostMessageA(Form.Handle, …)`; WndProc shows its wParam and lParam | run · interp · native · web | `rapidr run windows/wndproc_postmessage.rr` |
+| [midi_in.rr](windows/midi_in.rr) | A MIDI keyboard's notes: winmm's `midiInOpen` with `CALLBACK_WINDOW` sends them to the form as `MM_MIM_DATA`; says so when there is no MIDI input; Test note posts one to try it without a keyboard | run · interp · native · web | `rapidr run windows/midi_in.rr` |
 
 ### web/ — what only a web page has
 

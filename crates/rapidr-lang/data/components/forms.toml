@@ -104,7 +104,7 @@ events = [
   { name = "OnPaint" },
   { name = "OnResize" },
   { name = "OnShow" },
-  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", doc = "Windows' messages to the form (Hwnd, Msg, wParam, lParam). RapidR has no Windows messages: it fires this with the messages of the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks; no other message comes." },
+  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", doc = "Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window, as RapidQ hands them over: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored, as in RapidQ. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks." },
   { name = "OnDblClick", origin = "rapidr" },
   { name = "OnTimer", origin = "rapidr" },
   { name = "OnLoad", origin = "rapidr" },

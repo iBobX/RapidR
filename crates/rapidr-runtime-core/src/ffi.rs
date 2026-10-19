@@ -404,6 +404,25 @@ fn long_result(n: i64) -> i64 {
     HANDLE_BASE + i as i64
 }
 
+/// A number from Windows as RapidQ's LONG (a window message's wParam and
+/// lParam: ui/kernel.rs): itself when it fits; a 64-bit value a DLL handed
+/// the program before (midiInOpen's HMIDIIN, which MM_MIM_DATA's wParam
+/// names) as the stand-in it got then; any other its low 32 bits — no new
+/// stand-in: messages carry pointers to Windows' own passing data
+/// (WM_WINDOWPOSCHANGING's, WM_GETMINMAXINFO's) by the million, which
+/// would fill the table the DLLs' results need.
+pub fn long_value(n: i64) -> i64 {
+    let low = n as i32 as i64;
+    if low == n || (n >> 32) == 0 {
+        return low;
+    }
+    let guard = POINTERS.lock().unwrap_or_else(|e| e.into_inner());
+    match guard.as_ref().and_then(|p| p.index.get(&n)) {
+        Some(&i) => HANDLE_BASE + i as i64,
+        None => low,
+    }
+}
+
 /// The pointer a stand-in from [`long_result`] stands for.
 fn pointer_of_handle(v: i64) -> Option<i64> {
     let i = usize::try_from(v - HANDLE_BASE).ok().filter(|&i| i < MAX_HANDLES)?;
@@ -803,6 +822,17 @@ mod tests {
             // memory there, so the value itself)
             assert_eq!(long_result(0x1234_0000_0005), 5);
         }
+        // A window message's wParam / lParam: RapidQ's LONG, a value a DLL
+        // gave the program as its stand-in, and no new stand-in for any
+        // other 64-bit pointer.
+        assert_eq!((long_value(7), long_value(-1), long_value(0xFFFF_FFFF), long_value(0x8000_0000)), (7, -1, -1, -2147483648));
+        assert_eq!(long_value(p), h);
+        let other = p + 0x10;
+        assert_eq!(long_value(other), other as i32 as i64);
+        let known = |n: i64| POINTERS.lock().unwrap().as_ref().is_some_and(|t| t.index.contains_key(&n));
+        assert!(!known(other), "no stand-in was made for it");
+        let h2 = long_result(other);
+        assert_eq!(long_value(other), h2);
     }
 
     /// Long calls mixing integers, DOUBLEs and SINGLEs (GDI+'s

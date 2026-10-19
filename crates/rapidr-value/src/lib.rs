@@ -23,6 +23,8 @@ pub mod memory;
 pub mod dll;
 pub mod handles;
 pub mod tray;
+// (a form's WndProc on Windows: its window's real messages)
+pub mod window_messages;
 pub mod mdi;
 pub mod dock;
 // (I1 / L-PANELS: RapidR Studio's panels as public components)
