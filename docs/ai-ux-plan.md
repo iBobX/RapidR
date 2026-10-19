@@ -72,3 +72,38 @@ not from making people approve a diff they may not be able to read.
 2. Chat cards, the collapsed "earlier draft", one status, and the live progress checklist.
 3. Tracked changes in the editor buffers, the Keep/Undo bar, and checkpoints. The current diff dialog becomes the "Review first" option.
 4. Accessibility pass: focus, live regions, keyboard, contrast, a screen-reader walk, and a captioned GIF for the manual.
+
+## 6. The review, made beautiful (Robert, 2026-10-19)
+
+After 2.120.0, Robert asked for two things:
+- **The diff should be prettier, and docked as a tab in the IDE**, not a separate window.
+- **The banner and chat buttons should match Studio's streamlined design**: today they look foreign.
+
+**What the best diff views do (the model to follow):**
+- **Xcode:** a side-by-side comparison, with a soft coloured *ribbon* connecting each change between the two sides, and calm tints rather than loud red and green.
+  - It has a minimap of changes in the scrollbar.
+  - Each change is a rounded block with its own discard control.
+  - Its typography is identical to the editor's.
+- **JetBrains:** the same connectors between the sides.
+  - Per-change ≫ / × arrows in the gutter, to take or drop a change.
+  - Word-level highlights inside changed lines.
+  - "Next / previous difference" always visible.
+- **VS Code / Cursor:** the change stays *in the editor* (inline, unified).
+  - A small floating Keep / Undo pill sits on each change.
+  - A bar shows "1 of 5 changes".
+  - Word-level highlighting is standard.
+- **GitHub / Sublime Merge:** a unified/split toggle; folded unchanged lines ("⋯ 24 lines"); a file list with +/− counts.
+
+**For RapidR Studio:**
+- **A "Review" tab docked in the editor area**, next to the file's own tab.
+- **Split / unified toggle,** remembered.
+- **Calm tints from the theme's tokens:**
+  - in light, dark and high contrast;
+  - with `+` / `−` markers and screen-reader names, so colour is never the only signal.
+- **Word-level highlights** inside changed lines.
+- **Xcode-style ribbons** between the sides in split view.
+- **Unchanged runs folded,** with a "⋯ N lines" button.
+- **A change minimap** in the scrollbar.
+- **Per-change controls:** a small Keep ✓ / Undo ↺ pill on each change. In Pair mode, the change's one-line *why* goes under it (Learn with RAI).
+- **A slim header bar** in the editor's own style: "main.rr · 5 changes · +496 −70 · Keep All · Undo All · ↑ ↓". Keyboard: F7 / Shift+F7 move between changes, Enter keeps, Backspace undoes.
+- **The same visual language** for the new-program banner, the chat cards and their buttons: Studio's toolbar buttons and tokens, not default push buttons. It also leads into step 3 (tracked changes in the editor itself): the same pills, inline.
