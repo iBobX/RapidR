@@ -49,12 +49,11 @@ own computer; off until you turn it on.
   tree views, MDI, the tray icon, `RRegistry`, the printer, sockets, MySQL,
   CGI, serial ports, downloads, `RMIDI` / `RWave` / `RVideo`, and the DirectX
   2D and Direct3D objects (reimplemented by RapidR on its own renderer).
-- **Compatible with RapidQ**: existing RapidQ programs run unchanged, with
-  RapidQ's names (`QFORM`, `QBUTTON` …) accepted beside RapidR's, and the
+- **Runs RapidQ programs too**: existing programs run unchanged, and the
   importer brings old projects over with their include files.
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidR Studio's look by default (light, dark or high contrast, as the
-  system is set), RapidQ's exact classic look with `$THEME Classic`,
+  system is set), a classic Windows look with `$THEME Classic`,
   sharp on high-DPI screens, accessible to screen readers and the keyboard.
 - **The web on the same kernel**: a program's windows drawn on a canvas
   (their pixels and accessibility trees checked against the desktop's),
@@ -84,8 +83,8 @@ them are in [`tools/bench/`](tools/bench/README.md):
 - **One program, every system.** Windows, macOS, Linux and the web from one
   source, and the desktop's and the browser's windows are checked pixel for
   pixel against each other.
-- **Your RapidQ programs, unchanged** — measured against RapidQ's own compiler
-  on all 428 of its examples ([Windows](docs/rapidq-corpus-status.md),
+- **Existing programs, unchanged**: all 428 programs of the compatibility
+  suite pass ([Windows](docs/rapidq-corpus-status.md),
   [macOS, Linux and the web](docs/rapidq-corpus-status-unix.md)).
 - **Accessible and secure by default**, and **AI that never holds your keys**:
   Studio's assistant stays off until you turn it on, proposes changes as diffs,
@@ -200,9 +199,9 @@ unzipped and served (`python3 -m http.server -d form 8080`), shows the same
 window in a browser. Every build writes `THIRD-PARTY-NOTICES.txt` beside
 the executable (or into the bundle): ship it with your program.
 
-### Bringing a RapidQ program over
+### Bringing an existing program over
 
-RapidQ programs run as they are (`.bas`, `.rqw`, `.rqb`, `.rq`). To move one to
+Older programs run as they are (`.bas`, `.rqw`, `.rqb`, `.rq`). To move one to
 RapidR's own names (`RForm` for `QFORM`, and so on), run
 `rapidr import-rapidq form.bas -o converted`. It writes a converted copy, and
 a report (`rapidr-import-report.md`) of every change it made. Your original is
@@ -216,10 +215,10 @@ Next: **[the user manual](docs/manual/README.md)** and
 
 | | |
 |---|---|
-| **The language** | a RapidQ-compatible BASIC: SUBs, FUNCTIONs, TYPEs with methods, constructors, events and inheritance, `CREATE` blocks, `WITH`, `GOSUB`, `DATA`, `$INCLUDE` / `$DEFINE` / `$MACRO` / `$RESOURCE`, function pointers, memory functions (memory-safe), console statements — plus VB's `#If`, `i++`, `+=` |
-| **Components** | Every RapidQ component and object except OLE, written with RapidR's names (`RForm`, `RButton` …); RapidQ's names (`QFORM`, `QBUTTON` …) are the same components, and a program can mix them ([reference](docs/manual/reference/components.md)) |
+| **The language** | a readable, modern BASIC: SUBs, FUNCTIONs, TYPEs with methods, constructors, events and inheritance, `CREATE` blocks, `WITH`, `GOSUB`, `DATA`, `$INCLUDE` / `$DEFINE` / `$MACRO` / `$RESOURCE`, function pointers, memory functions (memory-safe), console statements — plus VB's `#If`, `i++`, `+=` |
+| **Components** | Dozens of components with RapidR's names (`RForm`, `RButton` …), each also answering to its classic `Q` name (`QFORM`, `QBUTTON` …) for older programs ([reference](docs/manual/reference/components.md)) |
 | **RapidR Studio** | the IDE, on the desktop and in the browser: a form designer, a code editor with IntelliSense, a debugger whose values open like trees (Set Next Statement, Step Into Specific), linked data live in the designer, Markdown shown formatted, and an AI assistant that stays off until you turn it on |
-| **UI** | RapidR's own UI kernel on winit, vello, parley and AccessKit: the same look everywhere — RapidR's own look by default (light, dark or high contrast as the system is set), RapidQ's exact Windows look with `$THEME Classic` — high-DPI, keyboard and screen readers (VoiceOver, Narrator, NVDA; ARIA on the web), `Anchors` and size constraints |
+| **UI** | RapidR's own UI kernel on winit, vello, parley and AccessKit: the same look everywhere — RapidR's own look by default (light, dark or high contrast as the system is set), a classic Windows look with `$THEME Classic` — high-DPI, keyboard and screen readers (VoiceOver, Narrator, NVDA; ARIA on the web), `Anchors` and size constraints |
 | **DirectX & media** | `RDXScreen`, `RDXImageList`, `RDXTimer`, `RDXSound`, `RDXJoystick` (gamepads), Direct3D retained mode (`.X` models, lights, textures, shadows) on the GPU through wgpu (Metal, Direct3D 12, Vulkan, WebGL 2); `RMIDI` with a built-in synthesizer, `RWave`, `RVideo` (AVI), MP3 / Ogg / FLAC / WAV |
 | **The web** | the UI kernel on a canvas; SQLite in WebAssembly; web-only components (`RWebView`, `RDOM`, `RJavaScript`, `RWebStorage`, …); a web IDE that compiles in the browser |
 | **Databases** | `RSQLite` (SQLite itself, everywhere) and `RMySQL`, with `?` parameter binding |
@@ -246,12 +245,12 @@ From [the roadmap](ROADMAP.md), in no order and with no dates:
   components.
 - **Constants with no include**: in `.rr` programs `clRed`, `mbYes` and the
   rest are simply there (only the ones used are compiled in), and grouped
-  names like `Color.Red` help autocomplete; `.bas` programs keep RapidQ's
-  `$INCLUDE "RAPIDQ.INC"` rule.
+  names like `Color.Red` help autocomplete; `.bas` programs keep their
+  include file as before.
 - **A stack panel**: a container that lines its children up and closes the
   gap when one is hidden, with no layout code.
-- **`$UNSAFEMEM`** (raw memory for old RapidQ memory helpers) and **calls into
-  native libraries on macOS and Linux** the way RapidQ calls DLLs.
+- **`$UNSAFEMEM`** (raw memory for older memory helpers) and **calls into
+  native libraries on macOS and Linux**, like DLL calls on Windows.
 
 ## Platforms checked
 
@@ -269,7 +268,7 @@ checked by inspection only (no Intel Mac in the loop yet).
 - **[User manual](docs/manual/README.md)**: [why RapidR](docs/manual/why-rapidr.md),
   getting started, RapidR Studio (editor, designer, debugger, AI assistant),
   the language, components, data science, rich text, building apps, importing
-  RapidQ programs, the web, the CLI and Runtime, differences from RapidQ,
+  older programs, the web, the CLI and Runtime, compatibility notes,
   troubleshooting.
 - **[Examples](examples/README.md)**, in the order to read them.
 - **[CHANGELOG.md](CHANGELOG.md)**: every version's changes;

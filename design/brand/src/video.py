@@ -54,17 +54,17 @@ def title_card(line1, line2):
     return svg_doc("".join(parts), W, H, defs=defs + grad(), title="RapidR")
 
 
-def end_card():
+def end_card(line1="Smarter together.", line3="Free and open source (MIT)  ·  github.com/iBobX/RapidR", line4="Also works with free local models for simple apps."):
     W, H = 1920, 1080
     bg, defs = background(W, H)
     parts = [bg, centred_lockup(W / 2, 260, 120)]
-    p, _ = t("Smarter together.", 76, W / 2, 540, WHITE, 700, -15, anchor="middle")
+    p, _ = t(line1, 76, W / 2, 540, WHITE, 700, -15, anchor="middle")
     parts.append(p)
     p, _ = t("rapidr.dev", 54, W / 2, 640, CYAN, 650, anchor="middle")
     parts.append(p)
-    p, _ = t("Free and open source (MIT)  ·  github.com/iBobX/RapidR", 30, W / 2, 720, MIST, 450, anchor="middle")
+    p, _ = t(line3, 30, W / 2, 720, MIST, 450, anchor="middle")
     parts.append(p)
-    p, _ = t("Also works with free local models for simple apps.", 26, W / 2, 900, MIST, 400, anchor="middle")
+    p, _ = t(line4, 26, W / 2, 900, MIST, 400, anchor="middle")
     parts.append(p)
     return svg_doc("".join(parts), W, H, defs=defs + grad(), title="RapidR")
 
@@ -132,6 +132,23 @@ def blueprint(code_path, W=3000, H=1700):
             f'<stop offset="1" stop-color="#000" stop-opacity="0.65"/></radialGradient>')
     parts.append(f'<rect width="{W}" height="{H}" fill="url(#vig)"/>')
     return svg_doc("".join(parts), W, H, defs=defs, title="blueprint")
+
+
+def thumbnail_overlay(l1="Describe it.", l2="RAI builds it.", sub="3 apps · 3 sentences · real code", size=92):
+    """YouTube thumbnail text (1280 x 720, transparent right side for a frame)."""
+    W, H = 1280, 720
+    defs = ('<linearGradient id="fadeL" x1="0" x2="1" y1="0" y2="0">'
+            '<stop offset="0" stop-color="#050C1C" stop-opacity="0.97"/><stop offset="0.55" stop-color="#050C1C" stop-opacity="0.85"/>'
+            '<stop offset="1" stop-color="#050C1C" stop-opacity="0"/></linearGradient>')
+    parts = [f'<rect width="{W * 0.72}" height="{H}" fill="url(#fadeL)"/>']
+    lk, _ = place_lockup("dark", 64, 56, 64)
+    parts.append(lk)
+    for i, (line, col) in enumerate(((l1, WHITE), (l2, CYAN))):
+        p, _ = t(line, size, 60, 300 + i * 112, col, 800, -25)
+        parts.append(p)
+    p, _ = t(sub, 34, 64, 560, MIST, 500)
+    parts.append(p)
+    return svg_doc("".join(parts), W, H, defs=defs + grad(), title="thumbnail")
 
 
 def main():
