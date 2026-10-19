@@ -120,3 +120,9 @@ From the demo takes: Haiku builds apps that compile but sometimes don't *work* (
   - **Trusted:** it edits, looks and test-runs on its own, inside the project; the run is sandboxed, with no network unless the program asks and the user allows.
   - Teachers can lock the mode (Learn with RAI).
 - **Safety:** screenshots show only Studio's own windows and the program it runs, never the rest of the screen. Running stays inside the project and its data files. The same audit log records every look and run.
+
+**The banner, refined (Robert, 2026-10-19, with a screenshot):** today's banner is a tall, full-width strip with big push buttons. It's clear, but heavy: *"it hurts the eyes"*. The next version is **slim and native to Studio**:
+- **One line, about the height of the tab bar,** with a soft accent tint and a small ✨ icon.
+- **Text buttons in the toolbar's style** (▶ Run · ↺ Undo · What did it do?), not big framed buttons.
+- **It sits where the editor's tabs are, or as an info bar inside the editor area,** like an editor's "file changed on disk" bar, not across the whole window.
+- **It folds itself away** after the first Run, or after a few minutes. It's announced once to screen readers. Its height doesn't jump the layout.
