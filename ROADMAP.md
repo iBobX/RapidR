@@ -615,6 +615,7 @@ In order of how many showcase ideas each unlocks:
   - WCAG 2.2: never uninvited, always resumable, captions, keyboard and screen reader;
   - every lesson replayed as a test.
   - First 8 lessons from Welcome to Data in 10 minutes.
+- [ ] **Assistant UX: apply, show, undo** (Robert, 2026-10-18; plan: [docs/ai-ux-plan.md](docs/ai-ux-plan.md)): a new program opens straight in the IDE with a "Run it / Undo" banner; edits as tracked changes in the editor buffers (Keep/Undo, checkpoints; disk untouched until Keep/Save); truthful chat cards and a live progress checklist; focus, live regions and keyboard for everyone; "Review first" stays as an option.
 - [ ] **Small local models that build real apps** (Robert, 2026-10-18; plan: [docs/small-models-plan.md](docs/small-models-plan.md)): Studio is the brain, the model the hands. Recipes pushed by Studio (BM25, optional EmbeddingGemma), `layout`/`check_layout` tools, friendly hints for other-language habits, spec-first with one handler at a time, click-tested evals; post only with measured numbers.
   - [x] A proposed new project stays editable before Create; the Preview follows (2026-10-18).
   - [x] Friendly hints in check_code (`crates/rapidr-studio/src/friendly.rs`), the component's members beside an unknown property (2026-10-18).
