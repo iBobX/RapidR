@@ -347,10 +347,19 @@ pub fn web_file_len(path: &str) -> i64 {
     web_read_file(path).map_or(0, |b| b.len() as i64)
 }
 
-/// `KILL`: the page's saved copy of the file goes.
+/// `KILL`: the page's saved copy of the file goes — and a page that keeps
+/// the files its program writes (RapidR Studio's, in the browser's private
+/// file system) hears it, as it hears each write, so its copy goes too and
+/// the file doesn't come back at the next visit:
+/// `window.RAPIDR_FILE_REMOVED(path)`.
 pub fn web_remove_file(path: &str) {
     if let Some(name) = saved_name(path) {
         SAVED_FILES.with(|f| f.borrow_mut().remove(&name));
+    }
+    if let Some(w) = web_sys::window() {
+        if let Ok(f) = js_sys::Reflect::get(&w, &"RAPIDR_FILE_REMOVED".into()).and_then(|f| f.dyn_into::<js_sys::Function>()) {
+            let _ = f.call1(&JsValue::NULL, &JsValue::from_str(path));
+        }
     }
 }
 
