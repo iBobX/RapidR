@@ -67,12 +67,25 @@ Plans: preview2-fix-queue (memory), ROADMAP.
 | Web parity notes for menus, themes, focus_order | Sonnet S |
 | Decision: Apple Developer ID signing and notarization ($99/yr, Robert) and Windows signing | Robert |
 
+### MV: Versions, Git reinvented (**the next release**, "Preview 4: Versions"; Robert 2026-10-19)
+Plan: [versions-plan.md](versions-plan.md).
+- **Simple and Pro levels:**
+  - plain words, with Git's names in tooltips;
+  - nothing ever lost (safety points, undo of any action);
+  - one timeline for you and RAI's checkpoints.
+- **Diffs:** the beautiful docked Diff tab (shared with RAI), plus **visual form diffs** and CSV table diffs.
+- **Merging:** a three-way, form-aware Merge tab.
+- **Blame on hover.**
+- **Remotes:** GitHub (device flow, Publish, Clone, Sync), plus GitLab, Bitbucket and self-hosted remotes by token.
+- **The engine:** pure-Rust **gitoxide** (MIT/Apache). No libgit2 (copyleft) and no bundled `git`.
+- **Size:** ~20–25% of a week. Lanes G0–G10 are in the plan (Opus for the core, the UI and the remotes, Sonnet for blame and docs, Haiku for the survey, Fable for the security review with Robert's OK).
+
 ### M1: RAI 2, the assistant that sees and tests
 Plans: [ai-ux-plan.md](ai-ux-plan.md), [small-models-plan.md](small-models-plan.md).
 | Item | Model, size |
 |---|---|
 | A slim, native banner; buttons in Studio's style | Sonnet M |
-| The docked, beautiful review: split/unified view, ribbons, word-level highlights, Keep/Undo pills | Opus L |
+| The docked, beautiful review: split/unified view, ribbons, word-level highlights, Keep/Undo pills | built in MV (G2), shared with Versions |
 | Tracked changes in the editor buffers and checkpoints | Opus L |
 | `run_program` (scripted clicks, results) and screenshots **with permission**; the permission-mode dropdown | Opus L (design review: Fable, if Robert agrees) |
 | `search_manual`; a game-loop recipe; layout and handler-skeleton tools; spec-first for small models | Sonnet M + Opus M |

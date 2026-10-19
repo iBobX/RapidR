@@ -706,6 +706,21 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ---
 
+## Versions — Git in RapidR Studio, reinvented (the next release, "Preview 4"; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))
+
+- [ ] G0 Survey + spike: gitoxide's capabilities today, `cargo deny` with gix (no copyleft, no MPL), Studio's size impact, wasm check
+- [ ] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests
+- [ ] G2 The docked Diff tab (shared with RAI), visual form diffs, CSV table diffs
+- [ ] G3 The Versions panel, Timeline, Save a version, gutter marks, Project badges, status bar
+- [ ] G4 Experiments (branches), Bring into main, the three-way form-aware Merge tab
+- [ ] G5 Blame on hover, line history
+- [ ] G6 Accounts in the keychain; GitHub device flow (needs Ruta Internet's OAuth App, created by Robert), Publish, Clone, Sync; GitLab / Bitbucket / self-hosted by token; SSH through the system
+- [ ] G7 Pro: hunk staging, amend, stash, cherry-pick, tags, rebase, force-with-lease
+- [ ] G8 RAI: message suggestions, explain changes, help me merge
+- [ ] G9 Security review (credentials, transport, clone safety: no hooks or filters from a repo)
+- [ ] G10 The manual chapter, accessibility, USE-AUDIT, the release and video
+- [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
+
 ## Phase 8 — Truly native UI, `$UI native` (after 1.0; Robert, 2026-10-19; plan: [docs/native-ui-plan.md](docs/native-ui-plan.md))
 
 One component model with the real widgets of every OS: a UI "HAL", as wgpu is for graphics. Our layout, their widgets; drawn components (canvas, plot, grid, 3D) hosted inside native views; one conformance suite on every backend; drawn fallback per component. Published as a standalone MIT Rust crate. v1 keeps the drawn kernel with native-looking themes (`$THEME native`).
