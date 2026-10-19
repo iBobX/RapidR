@@ -126,3 +126,4 @@ From the demo takes: Haiku builds apps that compile but sometimes don't *work* (
 - **Text buttons in the toolbar's style** (▶ Run · ↺ Undo · What did it do?), not big framed buttons.
 - **It sits where the editor's tabs are, or as an info bar inside the editor area,** like an editor's "file changed on disk" bar, not across the whole window.
 - **It folds itself away** after the first Run, or after a few minutes. It's announced once to screen readers. Its height doesn't jump the layout.
+- **The manual for RAI:** a `search_manual` tool. The same BM25 search as the recipes, run over `docs/manual/` split by section, returns the 2–3 most relevant sections, shortened. The registry tells RAI *what exists*; the manual tells it *how to use it well* (events, DataSource, plotting a CSV). It's local, cheap, and needs nothing to download.
