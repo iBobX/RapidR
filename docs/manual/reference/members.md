@@ -5255,6 +5255,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `SelectAll` | Selects the whole text. |
 | `OpenLink(Url AS STRING) AS INTEGER` | Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link. |
 | `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text: True when there is one. |
+| `SetFocus` | Gives the view the keyboard focus: its keys scroll it, Tab steps through its links. |
 
 | Event | |
 |---|---|
