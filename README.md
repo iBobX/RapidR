@@ -5,6 +5,8 @@
 [![Release](https://img.shields.io/github/v/release/iBobX/RapidR?include_prereleases&label=release)](https://github.com/iBobX/RapidR/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/written%20in-Rust-orange.svg)](https://www.rust-lang.org/)
+[![YouTube](https://img.shields.io/badge/YouTube-RapidR%20BASIC-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@RapidRBASIC)
+[![Sponsor](https://img.shields.io/badge/Sponsor-iBobX-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/iBobX)
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20RapidR-5F7FFF?logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/roanbema)
 
 **BASIC is powerful again.** RapidR is a modern BASIC with its own IDE,
@@ -25,6 +27,17 @@ RapidR is an original implementation, written from the ground up in Rust, and
 you build are yours.
 
 👉 **Try it in your browser: [rapidr.dev](https://rapidr.dev)**, nothing to install.
+
+### New in 2.120: describe it, RAI builds it 🤖
+
+Tell RapidR Studio what you want, in your own words, and **RAI**, its assistant,
+builds the program, checks it with RapidR's compiler, fixes its own errors, and
+opens it ready to **▶ Run**. The code is plain, commented RapidR BASIC: read it,
+learn from it, make it yours. Claude, OpenAI, DeepSeek or a free model on your
+own computer; off until you turn it on.
+
+<p align="center"><a href="https://youtu.be/B0hq28e6iy0"><img src="design/brand/video/rai-demo-thumbnail.png" alt="Watch the 2-minute demo: three apps from three sentences in RapidR Studio" width="640"></a><br>
+<sub>▶ <b><a href="https://youtu.be/B0hq28e6iy0">Watch the 2-minute demo</a></b>: a graphing calculator, an Excel-like CSV plotter and a snake game, from three sentences · <a href="https://youtu.be/0imZYHo9OnA">en español</a> · <a href="https://youtu.be/rd8cKOSa8n4">em português</a></sub></p>
 
 ## What's inside
 
@@ -101,10 +114,10 @@ Each system has two packages (**most people want the SDK**):
 
 | System | SDK | Runtime only |
 |---|---|---|
-| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.119.0-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.119.0-windows-<arch>-setup.exe` |
-| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.119.0-macos-universal.dmg` | `RapidR-Runtime-2.119.0-macos-universal.dmg` |
-| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.119.0_<amd64\|arm64>.deb` or `rapidr-2.119.0-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
-| **Web** | `rapidr-web-2.119.0.zip`: the web IDE, for any static host | |
+| **Windows** 10 / 11, x64 or ARM64 | `RapidR-2.120.0-windows-x64-setup.exe` / `…-arm64-setup.exe` | `RapidR-Runtime-2.120.0-windows-<arch>-setup.exe` |
+| **macOS** 11 or newer, Apple silicon and Intel (one universal app) | `RapidR-2.120.0-macos-universal.dmg` | `RapidR-Runtime-2.120.0-macos-universal.dmg` |
+| **Linux** x86_64 or aarch64: Ubuntu 22.04, Debian 12 or newer | `rapidr_2.120.0_<amd64\|arm64>.deb` or `rapidr-2.120.0-linux-<arch>.tar.gz` | `rapidr-runtime_…` |
+| **Web** | `rapidr-web-2.120.0.zip`: the web IDE, for any static host | |
 
 - **Windows**: run the installer (per user, no administrator rights). It
   adds *RapidR Studio* to the Start menu and, if you keep the box ticked,
@@ -112,7 +125,7 @@ Each system has two packages (**most people want the SDK**):
 - **macOS**: drag *RapidR* (and/or *RapidR Runtime*) to Applications. Then
   `/Applications/RapidR Studio.app/Contents/MacOS/rapidr setup` offers to put
   `rapidr` on your PATH.
-- **Linux**: `sudo apt install ./rapidr_2.119.0_amd64.deb`, or unpack the
+- **Linux**: `sudo apt install ./rapidr_2.120.0_amd64.deb`, or unpack the
   `.tar.gz` and run `./install.sh` (into `~/.local`, no root). Linux needs
   OpenSSL 3 (HTTPS uses the system's), hence Ubuntu 22.04 / Debian 12 and
   newer.
@@ -226,7 +239,9 @@ From [the roadmap](ROADMAP.md), in no order and with no dates:
   run on — Windows 11, macOS, Linux.
 - **RapidR on the ESP32**: BASIC running on the board itself, flashed from
   Studio (today a program talks to a board over a serial port).
-- **More AI**: local AI models in Studio, and a drop-in chat component (RChat).
+- **More RAI**: an assistant that can look at and test-run what it builds (with
+  your permission), a coach mode that teaches as it helps, and a drop-in chat
+  component (RChat).
 - **More data connectors**: Excel, Parquet, PostgreSQL and more, as linked
   components.
 - **Constants with no include**: in `.rr` programs `clRed`, `mbYes` and the
@@ -290,15 +305,15 @@ tooling.
 
 ## Support RapidR
 
-RapidR is free and open source (MIT), built by one developer. If it's
-useful to you — or you'd like to see the IDE and the next releases sooner —
-you can support its development:
+RapidR is free and open source (MIT), made by one developer in his spare time.
+If it's useful to you, you can support its development:
 
-<p><a href="https://www.buymeacoffee.com/roanbema"><img src="https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=&slug=roanbema&button_colour=5F7FFF&font_colour=ffffff&font_family=Cookie&outline_colour=000000&coffee_colour=FFDD00" alt="Buy me a coffee — support RapidR's development" /></a></p>
+[![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on%20GitHub-iBobX-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge)](https://github.com/sponsors/iBobX)
+[![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-roanbema-5F7FFF?logo=buymeacoffee&logoColor=white&style=for-the-badge)](https://www.buymeacoffee.com/roanbema)
 
 Every coffee helps pay for the tools and compute that build RapidR. Thank
-you! Testing helps just as much: try your RapidQ programs and
-[report what differs](https://github.com/iBobX/RapidR/issues/new/choose).
+you! A ⭐ and a share help just as much, and so does testing: try your
+programs and [report what differs](https://github.com/iBobX/RapidR/issues/new/choose).
 
 ## Credits
 
