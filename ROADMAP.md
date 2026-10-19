@@ -621,6 +621,9 @@ In order of how many showcase ideas each unlocks:
   - [ ] Step 3: tracked changes in the editor buffers, the Keep/Undo bar, per-turn checkpoints.
   - [x] Undo on the web: KILL told the page's file sink nothing, so the browser's saved copy (OPFS) of the removed files came back at the next visit; it now says `RAPIDR_FILE_REMOVED` and Studio's page forgets the file (`tests/web_file_store.mjs`, with a reload; 2026-10-19).
   - [x] The chat's card links (Open, Undo, Review) by the keyboard: a markdown view's links are Tab stops inside it, with a ring, Enter / Space, Shift+Tab back from the box, named for a screen reader (flows `ai-card-keys*` on both hosts; 2026-10-19).
+  - [x] The banner's "What Did It Do?" scrolls to the turn's first card and focuses the chat; the banner and status say a program has errors after a new program opens and after changes are applied, by Run's own count (2026-10-19).
+  - [x] Recipe choice: titles and keywords above code, generic words and repeats ignored, none when nothing is clear (2026-10-19).
+  - [x] UNLOADLIBRARY (interpreter, native; a no-op elsewhere and on the web; a Windows VM check pending: 2026-10-19).
   - [x] A list box scrolls to what the program picks (found writing a message-list example): `ItemIndex` shows the item, `TopIndex` makes it the first row, `TopIndex` reads the first row shown — plain, Columns and owner-drawn lists, desktop, native and web (case `list_scroll`; 2026-10-19).
 - [ ] **Small local models that build real apps** (Robert, 2026-10-18; plan: [docs/small-models-plan.md](docs/small-models-plan.md)): Studio is the brain, the model the hands. Recipes pushed by Studio (BM25, optional EmbeddingGemma), `layout`/`check_layout` tools, friendly hints for other-language habits, spec-first with one handler at a time, click-tested evals; post only with measured numbers.
   - [x] A proposed new project stays editable before Create; the Preview follows (2026-10-18).

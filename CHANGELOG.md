@@ -83,6 +83,26 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web page again to check what the browser kept (`reload`).
 
 ### Fixed
+- **`UNLOADLIBRARY(DLLName)` works** (a user importing `Rapidq2.inc`, whose
+  programs end with it): a DLL the program declared leaves memory, by the
+  name `DECLARE … LIB` wrote (`"USER32"`, not `"USER32.DLL"`, as RapidQ), a
+  later call loads it again; a name never declared does nothing; off Windows
+  and on the web it does nothing, without an error. Interpreter and native
+  builds.
+- **The assistant's banner and status tell the truth about errors.** The
+  count after a new program opens, and after changes are applied to a
+  project (also one the assistant made earlier, under its banner), is Run's
+  own: "…it still has N errors", *Run Anyway*, *Ask It to Fix*, and the
+  status says the program has them.
+- **The banner's "What Did It Do?" works**: the Assistant pane opens with the
+  chat at the first card of the turn that made the program, and the keyboard
+  on the chat (its links are Tab stops).
+- **Examples for a request are chosen by what a program is, not by its words:**
+  a recipe's title and keywords decide; its code only breaks a tie; words
+  every request has ("just", "functions", "with") count for nothing; a word
+  repeated counts once; and a request no recipe's title or keywords match
+  gets no example, rather than a wrong one ("a scientific calculator with
+  graphs" sent the Password generator once).
 - **A list box scrolls to the item your program picks.** Setting `ItemIndex`
   (to the newest message of a message list, say) left the list at the top,
   the picked item out of sight. Now `ItemIndex` scrolls the least that shows
