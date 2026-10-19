@@ -5,6 +5,15 @@ use std::io::{self, Write};
 
 pub use crate::value::builtins::*;
 
+/// `UNLOADLIBRARY(DLLName)`: a DLL the program declared leaves memory; a
+/// program that declares none (or a build without DLL calls) is unchanged.
+pub fn rp_unloadlibrary(name: &Value) {
+    #[cfg(feature = "ffi")]
+    crate::ffi::ffi_unload(&name.to_string_val());
+    #[cfg(not(feature = "ffi"))]
+    let _ = name;
+}
+
 #[cfg(feature = "audio")]
 use rodio::Source;
 

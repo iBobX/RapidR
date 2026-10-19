@@ -56,6 +56,8 @@ DECLARE SUB AIShowReviewBar
 DECLARE FUNCTION AIUnsavedAsked AS INTEGER
 DECLARE SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
 DECLARE SUB AIShowBanner(Errs AS INTEGER)
+DECLARE SUB AISetBanner(Errs AS INTEGER)
+DECLARE SUB AIRecheck
 DECLARE SUB AIUndoProject
 DECLARE SUB AIForgetRecent(Path AS STRING)
 DECLARE FUNCTION AskUndoAnyway(Question AS STRING, Detail AS STRING) AS INTEGER
@@ -1145,6 +1147,8 @@ SUB AIApplyProposals
   ELSE
     AIStatus.SimpleText = LTRIM$(STR$(done)) + " files changed: Edit > Undo in each takes it back."
   END IF
+  ' (the changes in, is it a program that runs? the banner and the status say)
+  IF done > 0 THEN AIRecheck
   UpdateCommands
 END SUB
 
@@ -1285,10 +1289,14 @@ END SUB
 
 ' (the program made: opened, said, its banner shown)
 SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
+  DIM langErrs AS INTEGER
   AIReviewBar.Visible = 0
   AICreatedFile = Made
   OpenProject Made
   AIChat.Text = AI.Transcript
+  ' (the assistant's own check and Run's can differ: the larger is said)
+  langErrs = ProgramErrors
+  IF langErrs > Errs THEN Errs = langErrs
   AIShowBanner Errs
 END SUB
 
@@ -1299,18 +1307,34 @@ SUB AIShowBanner(Errs AS INTEGER)
   DIM title AS STRING, errText AS STRING
   title = AITools.CreatedTitle
   AIBannerFolder = AITools.CreatedFolder
+  IF Errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(Errs)) + " errors"
+  IF Errs = 0 THEN
+    AIStatus.SimpleText = "Made " + title + ": Run It is at the top."
+  ELSE
+    AIStatus.SimpleText = "Made " + title + ", " + errText + " left: see the top."
+  END IF
+  AISetBanner Errs
+  ' (the keys to Run it, after the editor's own focus on opening)
+  AIBannerFocusTurns = 2
+  AIBannerRun.SetFocus
+END SUB
+
+' The banner's words for a program with Errs errors: made for you, or still
+' with errors (Run anyway, Ask it to fix). Nothing else moves: not the keys,
+' not the status.
+SUB AISetBanner(Errs AS INTEGER)
+  DIM title AS STRING, errText AS STRING
+  title = AITools.CreatedTitle
   AIBannerErrors = Errs
   IF Errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(Errs)) + " errors"
   IF Errs = 0 THEN
     AIBannerText.Caption = "The assistant made this program for you."
     AIBannerRun.Caption = "▶  Run It"
     AIBannerRun.AccessibleName = "Run it"
-    AIStatus.SimpleText = "Made " + title + ": Run It is at the top."
   ELSE
     AIBannerText.Caption = "The assistant made this program — it still has " + errText + "."
     AIBannerRun.Caption = "▶  Run Anyway"
     AIBannerRun.AccessibleName = "Run anyway"
-    AIStatus.SimpleText = "Made " + title + ", " + errText + " left: see the top."
   END IF
   AIBannerText.AccessibleName = AIBannerText.Caption
   AIBannerUndo.Caption = "↺  Undo"
@@ -1319,9 +1343,25 @@ SUB AIShowBanner(Errs AS INTEGER)
   AIBanner.Visible = 1
   AIBannerRun.Default = 1
   AIBannerFonts
-  ' (the keys to Run it, after the editor's own focus on opening)
-  AIBannerFocusTurns = 2
-  AIBannerRun.SetFocus
+END SUB
+
+' After a turn that made or changed files: the program's errors as Run
+' counts them (the language service's — it sees what the assistant's own
+' check doesn't: Robert's walk, "Member CLEAR not part of class
+' DISPLAYCANVAS" under a banner that said "made for you"). The banner, if
+' it is about this program, says what is true; the status says so too.
+SUB AIRecheck
+  DIM errs AS INTEGER, errText AS STRING, said AS STRING
+  IF ProjectOpen = 0 THEN EXIT SUB
+  errs = ProgramErrors
+  IF AIBanner.Visible AND LCASE$(Proj.Folder) = LCASE$(AIBannerFolder) THEN
+    IF errs <> AIBannerErrors THEN AISetBanner errs
+  END IF
+  IF errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(errs)) + " errors"
+  said = AIStatus.SimpleText
+  IF errs > 0 AND INSTR(said, "error") = 0 THEN
+    AIStatus.SimpleText = said + " The program has " + errText + ": Problems lists them."
+  END IF
 END SUB
 
 SUB AIHideBanner
@@ -1401,19 +1441,33 @@ SUB AIBannerUndoClick
   AIUndoProject
 END SUB
 
-' What did it do?: the Assistant pane, the chat at the new program's card.
+' What did it do?: the Assistant pane, the chat scrolled to the first card
+' of the turn that made the program (its cards are level-5 headings, a blank
+' line apart: back from the one that says Created over those just before
+' it), and the keyboard on the chat — its links, Open and Undo, are Tab stops.
 SUB AIBannerWhatClick
-  DIM all AS STRING, i AS INTEGER, line AS STRING, anchor AS STRING
+  DIM all AS STRING, i AS INTEGER, n AS INTEGER, at AS INTEGER, line AS STRING, before AS STRING, anchor AS STRING
   IF AIReady = 0 THEN EXIT SUB
   Dock.ShowPane("aipanel")
   Dock.FocusPane("aipanel")
   LayOutAIPanel
   all = AIChat.Headings
-  FOR i = 1 TO TALLY(all, CHR$(10)) + 1
-    line = FIELD$(all, CHR$(10), i)
-    IF INSTR(FIELD$(line, CHR$(9), 2), "Created") > 0 THEN anchor = FIELD$(line, CHR$(9), 3)
+  n = TALLY(all, CHR$(10)) + 1
+  at = 0
+  FOR i = 1 TO n
+    IF INSTR(FIELD$(FIELD$(all, CHR$(10), i), CHR$(9), 2), "Created") > 0 THEN at = i
   NEXT
+  IF at > 0 THEN
+    DO WHILE at > 1
+      line = FIELD$(all, CHR$(10), at)
+      before = FIELD$(all, CHR$(10), at - 1)
+      IF VAL(FIELD$(before, CHR$(9), 1)) <> 5 OR VAL(FIELD$(line, CHR$(9), 4)) - VAL(FIELD$(before, CHR$(9), 4)) > 2 THEN EXIT DO
+      at = at - 1
+    LOOP
+    anchor = FIELD$(FIELD$(all, CHR$(10), at), CHR$(9), 3)
+  END IF
   IF anchor <> "" THEN AIChat.ScrollTo "#" + anchor
+  AIChat.SetFocus
 END SUB
 
 SUB AIBannerCloseClick

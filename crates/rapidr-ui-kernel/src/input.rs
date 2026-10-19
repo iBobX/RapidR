@@ -514,7 +514,11 @@ impl FormUi {
         let mut handled = false;
         // (a memo with WantTabs takes a plain Tab: components/memo.rs)
         if vk == 9 && !shortcut && !mods.alt && !crate::components::memo::takes_tab(self, store) && !crate::components::design::takes_tab(self, store) {
-            self.move_focus(store, mods.shift);
+            // (an RMARKDOWNVIEW's links are Tab stops inside it, one by one:
+            // components/panels/markdown.rs)
+            if !crate::components::panels::markdown::tab(self, mods.shift) {
+                self.move_focus(store, mods.shift);
+            }
             handled = true;
         } else if mods.alt && !mods.ctrl && (65..=90).contains(&vk) && !crate::components::codeeditor::find_takes_alt(self, vk) {
             let letter = (vk as u8 + 32) as char;

@@ -41,6 +41,7 @@ async function main() {
     // page's store; and from now on each write kept too)
     await restoreFiles(rt);
     window.RAPIDR_FILE_SINK = keepFile;
+    window.RAPIDR_FILE_REMOVED = forgetFile;
   }
   say("");
   rt.rapidr_run_bc(new Uint8Array(bytes));
@@ -71,8 +72,10 @@ async function main() {
 // name; at the next visit they go back into the page's store before the
 // shell starts, so projects made or saved in the browser stay. Files the
 // user opened from the computer are written back to those files as well
-// (the runtime's pickers); OPFS keeps a copy. Without OPFS (an old
-// browser, a private window) files last for the visit.
+// (the runtime's pickers); OPFS keeps a copy. A file Studio deletes (KILL:
+// RAPIDR_FILE_REMOVED) goes from OPFS too, so it isn't back at the next
+// visit. Without OPFS (an old browser, a private window) files last for the
+// visit.
 
 const STORE_DIR = "rapidr-studio";
 
@@ -117,6 +120,31 @@ function keepFile(path, bytes) {
       await w.close();
     } catch (e) {
       console.warn("[studio] can't keep", path, e);
+    }
+  });
+}
+
+// A path as the runtime compares them (and Windows does): any case, `\` and
+// `/` alike, no leading `./`.
+const fileKey = (path) => path.trim().replace(/\\/g, "/").replace(/^(\.\/)+/, "").toLowerCase();
+
+// KILL: the saved copy goes, under whatever case or slashes it was written
+// (in the queue: after the writes before it, before the ones after).
+function forgetFile(path) {
+  const key = fileKey(String(path));
+  writing = writing.then(async () => {
+    const dir = await storeDir();
+    if (!dir) return;
+    try {
+      const gone = [];
+      for await (const [name, h] of dir.entries()) {
+        let same = false;
+        try { same = h.kind === "file" && fileKey(decodeURIComponent(name)) === key; } catch { /* not one of ours */ }
+        if (same) gone.push(name);
+      }
+      for (const name of gone) await dir.removeEntry(name);
+    } catch (e) {
+      console.warn("[studio] can't forget", path, e);
     }
   });
 }

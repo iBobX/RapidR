@@ -3240,6 +3240,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "mkdir" => Some(format!("rp_mkdir(&{a0})")),
         "rmdir" => Some(format!("rp_rmdir(&{a0})")),
         "kill" => Some(format!("rp_kill(&{a0})")),
+        "unloadlibrary" => Some(format!("rp_unloadlibrary(&{a0})")),
         "rename" => Some(format!("rp_rename(&{a0}, &{a1})")),
         "curdir" => Some("rp_curdir()".to_string()),
         "chdir" => Some(format!("rp_chdir(&{a0})")),

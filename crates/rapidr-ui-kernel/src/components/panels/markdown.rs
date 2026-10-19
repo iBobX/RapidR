@@ -19,6 +19,10 @@
 //! press and a drag select text (Shift extends). The wheel and the bar
 //! scroll. The keys: Up / Down, Page Up / Page Down, Space, Home / End
 //! scroll; Ctrl+A selects everything; Ctrl+C / Cmd+C copies the selection.
+//! Its links are reachable by Tab: with the view focused, Tab steps to its
+//! first link, then each next one (a ring round the link, the view scrolling
+//! to it), and out of the view after the last; Shift+Tab the other way
+//! round; Enter or Space follows the link the keyboard has, as a click does.
 
 use std::rc::Rc;
 
@@ -40,6 +44,7 @@ use crate::input::{Clipboard, KernelEvent};
 use crate::paint::Painter;
 use crate::store;
 use crate::text::{note_missing, styles, Ink, TextSystem};
+use crate::tree::FormUi;
 
 pub struct MarkdownView;
 
@@ -502,6 +507,21 @@ impl Laid {
         Some(((k, c.index().min(self.doc.paras[k].text.len())), d == 0.0))
     }
 
+    /// Link `li`'s boxes (logical, from the text's top left), one for each
+    /// line it runs over.
+    fn link_rects(&self, li: usize, scale: f64) -> Vec<(f64, f64, f64, f64)> {
+        let Some(k) = self.doc.paras.iter().position(|p| p.runs.iter().any(|(_, st)| st.link == Some(li))) else { return Vec::new() };
+        let (p, s, l) = (&self.doc.paras[k], &self.spots[k], &self.boxes[k].layout);
+        let mut out = Vec::new();
+        for (r, _) in p.runs.iter().filter(|(_, st)| st.link == Some(li)) {
+            let sel = Selection::new(Cursor::from_byte_index(l, r.start, Affinity::Downstream), Cursor::from_byte_index(l, r.end, Affinity::Upstream));
+            for (b, _) in sel.geometry(l) {
+                out.push((s.x + b.x0 / scale, s.y + b.y0 / scale, (b.x1 - b.x0) / scale, (b.y1 - b.y0) / scale));
+            }
+        }
+        out
+    }
+
     /// The link under (x, y), if the point is on its text.
     fn link_at(&self, x: f64, y: f64, scale: f64) -> Option<usize> {
         let ((k, at), on) = self.hit(x, y, scale)?;
@@ -555,6 +575,22 @@ fn lay_out(cx: &mut Cx, theme: &'static Theme) -> (i64, Vec<Op>) {
             m.want = Some((s.y - 8.0).max(0.0) as i64);
         }
     }
+    // (the link the keyboard just moved to: shown, with a little of the
+    // text around it)
+    if model::with_mut(cx.id, |md| std::mem::take(&mut md.reveal_link)) {
+        if let Some(li) = model::with(cx.id, |md| md.link_focus).flatten() {
+            let rects = m.link_rects(li, scale);
+            if let Some(top) = rects.iter().map(|r| r.1).reduce(f64::min) {
+                let bottom = rects.iter().map(|r| r.1 + r.3).fold(0.0, f64::max);
+                let (margin, pos) = (16.0, vscroll_state(cx.id).0 as f64);
+                if top - margin < pos {
+                    m.want = Some((top - margin).max(0.0) as i64);
+                } else if bottom + margin > pos + bh as f64 {
+                    m.want = Some((bottom + margin - bh as f64).ceil() as i64);
+                }
+            }
+        }
+    }
     let content = m.height.ceil() as i64;
     let at = m.want.take().or_else(|| at_end.then_some((content - bh).max(0)));
     let step = (f.body.pixel_size() as f64 * 1.5).round() as i64;
@@ -586,6 +622,8 @@ impl ComponentKind for MarkdownView {
             }
         }
         let sel = model::with(cx.id, |md| md.selection).flatten().map(|(a, b)| if a <= b { (a, b) } else { (b, a) }).filter(|(a, b)| a != b);
+        // (the link the keyboard has: ringed)
+        let ringed = if cx.state.focused { model::with(cx.id, |md| md.link_focus).flatten().map(|li| m.link_rects(li, cx.scale)).unwrap_or_default() } else { Vec::new() };
         let (hl, hl_text) = if cx.state.focused { (l.selected, l.selected_text) } else { (l.inactive, l.inactive_text) };
         let top = pos as f64;
         let bottom = top + bh as f64;
@@ -638,6 +676,9 @@ impl ComponentKind for MarkdownView {
                     None => p.editor(item),
                 }
             }
+            for &(x, y, w, h) in &ringed {
+                p.focus_ring(((bx as f64 + x - 2.0).round() as i64, (by as f64 + y - top - 1.0).round() as i64, (w + 4.0).round() as i64, (h + 2.0).round() as i64), false);
+            }
         });
         p.at((bx, by), |p| p.ops(bar));
     }
@@ -659,6 +700,7 @@ impl ComponentKind for MarkdownView {
             MouseKind::Down if m.button == rapidr_value::input::Button::Left => {
                 let link = laid.link_at(x, y, scale);
                 PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), link));
+                model::with_mut(cx.id, |md| md.link_focus = None);
                 if link.is_none() {
                     if let Some((at, _)) = laid.hit(x, y, scale) {
                         model::with_mut(cx.id, |md| {
@@ -715,6 +757,15 @@ impl ComponentKind for MarkdownView {
         lay_out(cx, theme);
         let (pos, _, range) = vscroll_state(cx.id);
         let line = (BODY_PX as f64 * 1.5 * 2.0) as i64;
+        // (Enter or Space on the link the keyboard has: a click on it)
+        if matches!(k.vk, vk::ENTER | vk::SPACE) && !ctrl && !k.mods.alt {
+            if let Some(li) = model::with(cx.id, |md| md.link_focus).flatten() {
+                if let Some(url) = model::with_mut(cx.id, |md| md.doc().links.get(li).cloned()) {
+                    super::send(cx, User::Markdown(model::User::Link(url)));
+                    return true;
+                }
+            }
+        }
         let to = match k.vk {
             // Ctrl+A: everything; Ctrl+C / Cmd+C (Ctrl+Insert): the selection
             65 if ctrl => {
@@ -757,6 +808,8 @@ impl ComponentKind for MarkdownView {
         let (x0, y0) = (cx.rect.0 + bx, cx.rect.1 + by - pos);
         let at = |s: &Spot| (x0 + s.x.round() as i64, y0 + s.y.round() as i64, s.w.round() as i64, s.h.round() as i64);
         let np = m.doc.paras.len();
+        // (the link the keyboard has, while the view has the focus)
+        let focused_link = if cx.state.focused { model::with(cx.id, |md| md.link_focus).flatten() } else { None };
         // (the paragraphs around the view)
         let first_seen = (0..np).find(|&k| m.spots[k].y + m.spots[k].h >= pos as f64).unwrap_or(0);
         let last_seen = (0..np).rev().find(|&k| m.spots[k].y <= (pos + bh) as f64).unwrap_or(0);
@@ -776,6 +829,7 @@ impl ComponentKind for MarkdownView {
                 ln.name = text;
                 ln.description = m.doc.links.get(li).cloned().unwrap_or_default();
                 ln.actions = vec![Action::Click];
+                ln.states.focused = focused_link == Some(li);
                 let l = &m.boxes[k].layout;
                 let s = &m.spots[k];
                 let sel = Selection::new(Cursor::from_byte_index(l, r.start, Affinity::Downstream), Cursor::from_byte_index(l, r.end, Affinity::Upstream));
@@ -901,6 +955,29 @@ thread_local! {
     static PRESSED: std::cell::RefCell<std::collections::HashMap<String, Option<usize>>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
+/// Tab (Shift+Tab: `back`) with an RMARKDOWNVIEW focused: the keyboard goes
+/// to the view's next stop — the view itself, then each link; the view
+/// shows the link at its next paint. Whether it did; `false` when the view
+/// has no more (or isn't the focused component): the focus moves on.
+pub(crate) fn tab(f: &FormUi, back: bool) -> bool {
+    let Some(i) = f.focus.filter(|&i| f.nodes[i].type_name == "RMARKDOWNVIEW") else { return false };
+    model::with_mut(&f.nodes[i].id, |m| m.step_link_focus(back))
+}
+
+/// The focus came to node `i` by Tab (`back`: Shift+Tab): the view's link
+/// the keyboard starts at (the last, coming back; else the view itself).
+pub(crate) fn entered(f: &FormUi, i: usize, back: bool) {
+    if f.nodes[i].type_name == "RMARKDOWNVIEW" {
+        model::with_mut(&f.nodes[i].id, |m| m.enter_link_focus(back));
+    }
+}
+
+/// The view lost the focus: the keyboard's link goes (it starts at the view
+/// again the next time).
+pub(crate) fn blurred(id: &str) {
+    model::with_mut(id, |m| m.link_focus = None);
+}
+
 /// (no in-place editor)
 pub fn focus_left(_id: &str, _ed: crate::components::list::InPlace) -> Vec<KernelEvent> {
     Vec::new()
@@ -1019,5 +1096,116 @@ mod tests {
         assert!(list.items.iter().filter(|i| matches!(i, crate::display::Item::Text(_))).count() < 80);
         assert!(again < first);
         model::remove("md3");
+    }
+
+    /// A form: a button, the view (the text with two links), a button.
+    fn with_buttons(id: &str, text: &str) -> (MemStore, FormUi, TextSystem) {
+        let mut s = MemStore::new();
+        s.add("mform", "RFORM", None);
+        s.add("before", "RBUTTON", Some("mform")).set("before", "width", v_int(80));
+        s.add(id, "RMARKDOWNVIEW", Some("mform")).set(id, "top", v_int(40)).set(id, "width", v_int(500)).set(id, "height", v_int(200));
+        s.add("after", "RBUTTON", Some("mform")).set("after", "top", v_int(250)).set("after", "width", v_int(80));
+        model::remove(id);
+        model::with_mut(id, |m| m.set_text(text));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "mform", false);
+        f.paint(&s, &mut ts, 1.0);
+        (s, f, ts)
+    }
+
+    fn pressed(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, vk: i64, shift: bool) -> Vec<User> {
+        f.key_down(s, ts, vk, "", Mods { shift, ..Mods::NONE }, &mut MemClipboard::default());
+        f.take_events()
+            .into_iter()
+            .filter_map(|e| match e {
+                KernelEvent::Container(Container::Panel { action, .. }) => Some(action),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn tab_steps_through_the_links_with_a_ring_and_enter_follows_one() {
+        let (s, mut f, mut ts) = with_buttons("mdk", TEXT);
+        let kept = || model::with("mdk", |m| m.link_focus).flatten();
+        assert!(f.focus_id(&s, "mdk"));
+        assert_eq!(kept(), None, "the view itself first");
+        let ring = |f: &mut FormUi, ts: &mut TextSystem| {
+            let list = f.paint(&s, ts, 1.0);
+            list.items.iter().filter(|i| matches!(i, crate::display::Item::Op { op: rapidr_value::objects::ops::Op::Focus { .. } | rapidr_value::objects::ops::Op::Round { fill: None, stroke: Some(_), .. }, .. })).count()
+        };
+        let before = ring(&mut f, &mut ts);
+        // Tab: the first link, ringed, and named for a screen reader as the focused part
+        assert!(pressed(&mut f, &s, &mut ts, 9, false).is_empty());
+        assert_eq!((f.focused(), kept()), (Some("mdk"), Some(0)));
+        assert!(ring(&mut f, &mut ts) > before, "a ring round the link");
+        let tree = f.access_tree(&s, &mut ts);
+        let doc = tree.children.iter().find(|n| n.role == Role::Document).expect("the view");
+        assert!(doc.states.focused, "the view has the focus");
+        let links: Vec<(&str, bool)> = doc.children[1].children.iter().map(|l| (l.name.as_str(), l.states.focused)).collect();
+        assert_eq!(links, vec![("the docs", true), ("more", false)]);
+        // Enter, and Space: the link is followed, as a click does
+        let link = User::Markdown(model::User::Link("https://example.com".into()));
+        assert_eq!(pressed(&mut f, &s, &mut ts, 13, false), vec![link.clone()]);
+        assert_eq!(pressed(&mut f, &s, &mut ts, 32, false), vec![link]);
+        // Tab: the second link; Tab: out of the view, to the next component
+        pressed(&mut f, &s, &mut ts, 9, false);
+        assert_eq!(kept(), Some(1));
+        assert_eq!(pressed(&mut f, &s, &mut ts, 13, false), vec![User::Markdown(model::User::Link("#more".into()))]);
+        pressed(&mut f, &s, &mut ts, 9, false);
+        assert_eq!((f.focused(), kept()), (Some("after"), None));
+        // Shift+Tab back: into the view at its last link, the first, the view, out
+        pressed(&mut f, &s, &mut ts, 9, true);
+        assert_eq!((f.focused(), kept()), (Some("mdk"), Some(1)));
+        pressed(&mut f, &s, &mut ts, 9, true);
+        assert_eq!(kept(), Some(0));
+        pressed(&mut f, &s, &mut ts, 9, true);
+        assert_eq!((f.focused(), kept()), (Some("mdk"), None));
+        // (Space on the view itself still scrolls: no link to follow)
+        assert!(pressed(&mut f, &s, &mut ts, 32, false).is_empty());
+        pressed(&mut f, &s, &mut ts, 9, true);
+        assert_eq!(f.focused(), Some("before"));
+        // (the mouse takes the view: the keyboard's link goes)
+        assert!(f.focus_id(&s, "mdk"));
+        pressed(&mut f, &s, &mut ts, 9, false);
+        assert_eq!(kept(), Some(0));
+        f.mouse_down(&s, &mut ts, 300.0, 150.0, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 300.0, 150.0, Button::Left, Mods::NONE);
+        assert_eq!(kept(), None);
+        model::remove("mdk");
+    }
+
+    #[test]
+    fn the_view_scrolls_to_the_link_the_keyboard_has() {
+        // (forty paragraphs, then a link: Tab shows it; Shift+Tab back to the view and out)
+        let mut text = String::new();
+        for i in 0..40 {
+            text.push_str(&format!("paragraph {i}\n\n"));
+        }
+        text.push_str("last: [the end](ai:open/end)\n");
+        let (s, mut f, mut ts) = with_buttons("mds", &text);
+        assert!(f.focus_id(&s, "mds"));
+        let top = super::vscroll_state("mds").0;
+        assert_eq!(top, 0);
+        pressed(&mut f, &s, &mut ts, 9, false);
+        f.paint(&s, &mut ts, 1.0);
+        let (pos, _, range) = super::vscroll_state("mds");
+        assert!(pos > 800, "scrolled down to the link: {pos} of {range}");
+        // (the link is inside the view: what a screen reader is told of where it is)
+        let tree = f.access_tree(&s, &mut ts);
+        let doc = tree.children.iter().find(|n| n.role == Role::Document).expect("the view");
+        let link = doc.children.last().and_then(|p| p.children.first()).expect("the link");
+        assert_eq!((link.name.as_str(), link.states.focused), ("the end", true));
+        assert!(link.bounds.1 >= doc.bounds.1 && link.bounds.1 + link.bounds.3 <= doc.bounds.1 + doc.bounds.3, "{:?} in {:?}", link.bounds, doc.bounds);
+        // (a click away and Tab back from the next component: its last link, shown)
+        assert!(f.focus_id(&s, "after"));
+        model::with_mut("mds", |_| ());
+        f.mouse_wheel(&s, &mut ts, (50.0, 100.0), (0.0, -50.0), Mods::NONE);
+        f.paint(&s, &mut ts, 1.0);
+        assert_eq!(super::vscroll_state("mds").0, 0);
+        pressed(&mut f, &s, &mut ts, 9, true);
+        f.paint(&s, &mut ts, 1.0);
+        assert!(super::vscroll_state("mds").0 > 0, "Shift+Tab into the view shows its last link");
+        model::remove("mds");
     }
 }

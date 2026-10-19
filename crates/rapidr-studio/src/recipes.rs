@@ -3,8 +3,11 @@
 //! program and good at adapting one, so when the user asks for a new
 //! program Studio finds the closest recipe itself — BM25 over each
 //! recipe's header (its title and keywords, English, Spanish and
-//! Portuguese) and code, no model, no download — and sends it with the
-//! question, as data. `find_example` finds one later in a conversation.
+//! Portuguese; what it *is*) with its code only a tie-breaker (what it
+//! uses), no model, no download — and sends it with the question, as
+//! data. A request no recipe's title or keywords share a word with, or only
+//! weakly, gets none: no example beats a wrong one. `find_example` finds
+//! one later in a conversation.
 //!
 //! The recipes are `examples/recipes/*.rr`: idiomatic RapidR (RapidR's
 //! names, DECLARE SUB, Align, ShowModal), each clicked by the examples
@@ -71,6 +74,8 @@ fn fold(c: char) -> char {
 
 const STOP: &[&str] = &[
     "a", "an", "the", "me", "my", "i", "you", "it", "is", "are", "be", "to", "of", "and", "or", "for", "in", "on", "with", "that", "this", "please", "can", "could", "would", "want", "need", "like", "some", "build", "make", "create", "write", "app", "application", "program", "simple", "small", "basic", "gui", "window", "rapidr", "un", "una", "el", "la", "los", "las", "de", "del", "con", "para", "por", "que", "y", "o", "en", "mi", "hazme", "haz", "crea", "creame", "quiero", "programa", "aplicacion", "um", "uma", "o", "os", "as", "do", "da", "com", "e", "faz", "faca", "cria", "crie", "quero", "aplicativo", "aplicacao",
+    // (generic request words: they say nothing about which program)
+    "just", "also", "using", "use", "show", "add", "function", "feature", "thing", "something", "stuff", "any", "all", "more", "new", "good", "nice", "really", "very", "etc", "tool",
 ];
 
 /// A text's words, folded, the common ones gone, a plural's -s dropped.
@@ -85,51 +90,61 @@ pub fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// A recipe's words for the search: its header (title, keywords, what it
-/// shows) three times over — what it *is* weighs more than what it uses —
-/// and its code once.
-fn doc_words(r: &Recipe) -> Vec<String> {
-    let header: String = r.text.lines().take_while(|l| l.starts_with('\'')).collect::<Vec<_>>().join(" ");
-    let head = words(&header);
-    let mut out = Vec::new();
-    for _ in 0..3 {
-        out.extend(head.iter().cloned());
-    }
-    out.extend(words(r.text));
-    out
+/// A recipe's header words for the search: its title, keywords and what it
+/// shows — what it *is*.
+fn header_words(r: &Recipe) -> Vec<String> {
+    words(&r.text.lines().take_while(|l| l.starts_with('\'')).collect::<Vec<_>>().join(" "))
 }
 
-/// The recipes for `query`, best first, with their BM25 scores (only those
-/// that share a word with it).
-pub fn search(query: &str) -> Vec<(f64, Recipe)> {
-    let recipes = all();
-    let docs: Vec<Vec<String>> = recipes.iter().map(doc_words).collect();
+/// BM25 of each document in `docs` for the terms `q`.
+fn bm25(docs: &[Vec<String>], q: &[String]) -> Vec<f64> {
     let n = docs.len() as f64;
     let avg = docs.iter().map(Vec::len).sum::<usize>() as f64 / n.max(1.0);
-    let mut q = words(query);
-    q.dedup();
     let (k1, b) = (1.2, 0.75);
-    let mut scored: Vec<(f64, Recipe)> = recipes
-        .into_iter()
-        .zip(&docs)
-        .map(|(r, d)| {
+    docs.iter()
+        .map(|d| {
             let mut tf: HashMap<&str, f64> = HashMap::new();
             for w in d {
                 *tf.entry(w.as_str()).or_default() += 1.0;
             }
-            let score: f64 = q
-                .iter()
+            q.iter()
                 .map(|t| {
                     let df = docs.iter().filter(|d| d.iter().any(|w| w == t)).count() as f64;
                     let idf = ((n - df + 0.5) / (df + 0.5) + 1.0).ln();
                     let f = tf.get(t.as_str()).copied().unwrap_or(0.0);
                     idf * f * (k1 + 1.0) / (f + k1 * (1.0 - b + b * d.len() as f64 / avg))
                 })
-                .sum();
-            (score, r)
+                .sum()
         })
-        .filter(|(s, _)| *s > 0.0)
-        .collect();
+        .collect()
+}
+
+/// What the code's words count for next to the header's: a tie-breaker (a
+/// "generate" in some recipe's code says little of what it is).
+const CODE_WEIGHT: f64 = 0.15;
+
+/// The least a recipe's header must score for a request to count as asking
+/// for it (one keyword of a recipe among ten, about 1.5; a lone generic
+/// word shared with a long header, under 1).
+const LEAST_SCORE: f64 = 1.2;
+
+/// The recipes for `query`, best first, with their scores: BM25 over the
+/// headers (title, keywords) plus a little of the code's. Only those whose
+/// header shares a word with the request, and clearly: a request that
+/// matches no title or keyword (a poem, a word only code has) gets none.
+pub fn search(query: &str) -> Vec<(f64, Recipe)> {
+    let recipes = all();
+    let heads: Vec<Vec<String>> = recipes.iter().map(header_words).collect();
+    let codes: Vec<Vec<String>> = recipes.iter().map(|r| words(r.text)).collect();
+    // (each word once: a word said again and again weighs no more)
+    let mut q: Vec<String> = Vec::new();
+    for w in words(query) {
+        if !q.contains(&w) {
+            q.push(w);
+        }
+    }
+    let (head, code) = (bm25(&heads, &q), bm25(&codes, &q));
+    let mut scored: Vec<(f64, Recipe)> = recipes.into_iter().zip(head.into_iter().zip(code)).filter(|(_, (h, _))| *h >= LEAST_SCORE).map(|(r, (h, c))| (h + CODE_WEIGHT * c, r)).collect();
     scored.sort_by(|a, b| b.0.total_cmp(&a.0));
     scored
 }
@@ -250,5 +265,24 @@ mod tests {
         assert!(c.contains("Example \"Calculator (basic and scientific)\" (its file in the new project: main.rr)") && !c.contains("examples/recipes") && c.contains("SUB KeyPress (Sender AS RButton)"), "{c}");
         // (about 2K tokens at most: a small model's window is 8K and more)
         assert!(c.len() < 9000, "{}", c.len());
+    }
+
+    #[test]
+    fn titles_and_keywords_decide_not_the_words_a_request_always_has() {
+        // (Robert's walk, 2026-10-18: "functions" and "graphs" sent the
+        // Password generator, whose code says "generate" and "functions")
+        assert_eq!(top("Just make a scientific calculator with functions and graphs"), "calculator.rr");
+        assert_eq!(top("scientific calculator with graphs"), "calculator.rr");
+        assert_eq!(top("password"), "password_generator.rr");
+        assert_eq!(top("a web server manager"), "server_manager.rr");
+        assert_eq!(top("generate random passwords with symbols"), "password_generator.rr");
+        // (nothing close: no example, rather than a wrong one — a code-only
+        // word, a request about no recipe)
+        assert!(search("a poem").is_empty());
+        // (a long request: a word said again and again counts once)
+        let long = format!("Build a scientific calculator. {}", "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa ".repeat(14));
+        assert_eq!(top(&long), "calculator.rr");
+        assert!(context_and_title("a poem").is_none());
+        assert!(search("just make a thing with functions and graphs").is_empty(), "only words every request has");
     }
 }

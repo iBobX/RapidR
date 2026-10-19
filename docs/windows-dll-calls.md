@@ -32,6 +32,16 @@ RapidQ program before it starts (a message box: `decl/d4`). RapidR resolves
 each function the first time it is called and reports it as a run-time
 error naming the DLL and the function.
 
+`UNLOADLIBRARY(DLLName)` takes a DLL the program declared out of memory
+(Windows' `FreeLibrary` on the handle RapidR kept): `UNLOADLIBRARY("USER32")`
+for `LIB "USER32"`. The name must be the one the `DECLARE` wrote —
+`UNLOADLIBRARY("USER32.DLL")` does nothing, as RapidQ's — and capitals don't
+matter. A DLL not loaded yet, or never declared, does nothing; a later call
+to one of its functions loads it again, so a program never has to unload
+anything (the DLLs go when it ends). Off Windows there are no DLLs and it
+does nothing, without an error — `Rapidq2.inc`-style code that ends with
+`UNLOADLIBRARY("…")` runs on every platform and on the web.
+
 ### What RapidR does with that on 64-bit Windows
 
 RapidR programs are 64-bit (x64 and ARM64; the VM is Windows 11 ARM), so

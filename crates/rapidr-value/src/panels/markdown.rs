@@ -493,11 +493,18 @@ pub struct Markdown {
     /// (FollowEnd) A view at its end stays there as the text grows (a chat,
     /// a log); one the user scrolled up stays where they put it.
     pub follow_end: bool,
+    /// The link the keyboard has (Tab steps through a view's links; Enter
+    /// or Space follows it): its index in [`Doc::links`]. `None`: the view
+    /// itself has the focus.
+    pub link_focus: Option<usize>,
+    /// The keyboard just moved to a link: the view shows it at its next
+    /// paint (taken there).
+    pub reveal_link: bool,
 }
 
 impl Default for Markdown {
     fn default() -> Self {
-        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false }
+        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false, link_focus: None, reveal_link: false }
     }
 }
 
@@ -521,7 +528,42 @@ impl Markdown {
         self.text = text.to_string();
         self.doc = None;
         self.selection = None;
+        // (the links are new ones: the keyboard starts again)
+        self.link_focus = None;
+        self.reveal_link = false;
         self.rev += 1;
+    }
+
+    /// Tab (`back`: Shift+Tab) inside the view: the keyboard's next stop
+    /// among the view itself and its links, in order — the view, then each
+    /// link. Whether it moved there; `false` when it is at the end (the
+    /// start) and the focus should leave the view.
+    pub fn step_link_focus(&mut self, back: bool) -> bool {
+        let n = self.doc().links.len();
+        let to = match (self.link_focus.filter(|&i| i < n), back) {
+            (None, false) if n > 0 => Some(Some(0)),
+            (Some(i), false) if i + 1 < n => Some(Some(i + 1)),
+            (Some(0), true) => Some(None),
+            (Some(i), true) => Some(Some(i - 1)),
+            _ => None,
+        };
+        match to {
+            Some(t) => {
+                self.link_focus = t;
+                self.reveal_link = t.is_some();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// The focus came into the view by Tab (`back`: Shift+Tab, from the
+    /// component after it): forward, the view itself first; backward, its
+    /// last link.
+    pub fn enter_link_focus(&mut self, back: bool) {
+        let n = self.doc().links.len();
+        self.link_focus = if back && n > 0 { Some(n - 1) } else { None };
+        self.reveal_link = self.link_focus.is_some();
     }
 
     /// The selected text ("" when nothing is).
@@ -730,5 +772,37 @@ mod tests {
         assert!(is_web_link(" HTTPS://example.com"));
         assert!(!is_web_link("docs/other.md"));
         assert_eq!(slug("RapidQ's names — today!"), "rapidqs-names--today");
+    }
+
+    #[test]
+    fn the_keyboard_steps_through_the_view_then_each_link() {
+        let mut m = Markdown::default();
+        m.set_text("one [a](x.md) two [b](y.md) three");
+        // (forward: the view itself, a, b, then out)
+        assert_eq!(m.link_focus, None);
+        assert!(m.step_link_focus(false));
+        assert_eq!(m.link_focus, Some(0));
+        assert!(m.step_link_focus(false));
+        assert_eq!(m.link_focus, Some(1));
+        assert!(!m.step_link_focus(false), "past the last link the focus leaves");
+        assert_eq!(m.link_focus, Some(1));
+        // (backward: b, a, the view itself, then out)
+        assert!(m.step_link_focus(true));
+        assert_eq!(m.link_focus, Some(0));
+        assert!(m.step_link_focus(true));
+        assert_eq!(m.link_focus, None);
+        assert!(!m.step_link_focus(true));
+        // (coming in by Shift+Tab: the last link; by Tab: the view)
+        m.enter_link_focus(true);
+        assert_eq!(m.link_focus, Some(1));
+        m.enter_link_focus(false);
+        assert_eq!(m.link_focus, None);
+        // (new text: new links, the keyboard starts again; no links: Tab leaves)
+        m.link_focus = Some(1);
+        m.set_text("none here");
+        assert_eq!(m.link_focus, None);
+        assert!(!m.step_link_focus(false) && !m.step_link_focus(true));
+        m.enter_link_focus(true);
+        assert_eq!(m.link_focus, None);
     }
 }

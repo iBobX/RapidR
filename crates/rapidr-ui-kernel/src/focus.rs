@@ -82,6 +82,9 @@ impl FormUi {
             None => order[0],
         };
         self.set_focus(Some(next));
+        // (a view with links: the keyboard starts at its first stop, or its
+        // last coming back)
+        crate::components::panels::markdown::entered(self, next, back);
         // (out of view in a scroll box — the form's own bars too —: shown,
         // as Delphi's AutoScrollInView)
         crate::components::scrollbox::show_focused(self, store);
@@ -118,6 +121,9 @@ impl FormUi {
             if let Some(old) = self.focus.filter(|&o| o < self.nodes.len()) {
                 let (id, t) = (self.nodes[old].id.clone(), self.nodes[old].type_name.clone());
                 crate::components::list::focus_left(&id, &t, &mut self.events);
+                if t == "RMARKDOWNVIEW" {
+                    crate::components::panels::markdown::blurred(&id);
+                }
                 self.left(old);
             }
             if let Some(new) = i {

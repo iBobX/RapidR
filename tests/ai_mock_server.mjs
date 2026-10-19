@@ -8,6 +8,8 @@
 //   "hello …"          a short answer
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
+//   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
+//                      (a type RapidR doesn't have) before its form: a change that leaves an error
 //   "build me …"       create_project: a hello-form program (it compiles)
 //   "build a scientific calculator …"  create_project named "Scientific
 //                      Calculator" (a title with a space): RapidR's calculator recipe
@@ -166,6 +168,17 @@ function script(first, results, system, messages = []) {
       return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "The window's title becomes AI Notes", edits: [{ old_text: m[0], new_text: 'Caption = "AI Notes"' }] } }] };
     }
     return { text: "I proposed a new title for the window, **AI Notes**: review it and apply it if you like it." };
+  }
+  if (q.startsWith("break")) {
+    if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) {
+      let file = "";
+      try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+      const m = file.match(/^CREATE [^\n]*/m);
+      if (!m) return { text: "I couldn't find the form." };
+      return { tools: [{ name: "propose_edit", input: { path: mainFile, summary: "A flag before the form", edits: [{ old_text: m[0], new_text: "DIM ready AS BOOLEAN\n" + m[0] }] } }] };
+    }
+    return { text: "I added a flag before the form: review it and apply it if you like it." };
   }
   if (q.startsWith("build me")) {
     if (step === 0) return { text: "Here is a small program with a form.", tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets the name typed in it", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };

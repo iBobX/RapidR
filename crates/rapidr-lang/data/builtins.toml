@@ -1049,9 +1049,11 @@ doc = "The address of a TYPE variable's fields, for `MEMCPY` and the other memor
 [[builtin]]
 name = "UNLOADLIBRARY"
 syntax = "UNLOADLIBRARY(DLLName)"
+params = "DLLName AS STRING"
 group = "System"
-missing = true
-doc = "Unloads a DLL the program loaded."
+doc = "Removes a DLL from memory — only one the program declared (`DECLARE … LIB \"name\"`), by that very name: `UNLOADLIBRARY(\"USER32\")` unloads `LIB \"USER32\"`, while `UNLOADLIBRARY(\"USER32.DLL\")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error."
+effects = ["native"]
+example = "UNLOADLIBRARY(\"USER32\")   ' after DECLARE … LIB \"USER32\": the DLL leaves memory"
 
 [[builtin]]
 name = "VAL"

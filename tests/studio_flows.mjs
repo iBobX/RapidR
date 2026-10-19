@@ -276,6 +276,14 @@ const stopsAt = (line) => new RegExp(`\\[stops\\] ${line}:breakpoint ${line}:bre
 
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
+// (a long question: the chat's cards come well below the first screenful)
+const LONG_ASK = Array(14).fill("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa").join(" ") + ".";
+// (an a11y check's test) The node is inside the assistant's chat as it shows
+// now: its top and bottom within the conversation's own
+const SHOWN_IN_CHAT = (n, nodes) => {
+  const chat = nodes.find((x) => x.role === "document" && x.name === "Conversation with the assistant");
+  return !!chat && n.bounds[1] >= chat.bounds[1] && n.bounds[1] + n.bounds[3] <= chat.bounds[1] + chat.bounds[3];
+};
 // (DARK-FIX) RapidR's three looks, for the cases that run in each
 const LOOKS = ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"];
 // (IMPORT-INC) A RapidQ program in several files: its includes in lib/ and forms/
@@ -2877,6 +2885,119 @@ const CASES = [
     desktopFiles: ["docs/RapidR/Projects"],
     webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
   },
+  // ---- the chat's cards by the keyboard: Open and Undo are links in the
+  // conversation (a markdown view), each a Tab stop in it — after the text,
+  // before the box — with a ring round the link, a name for a screen reader,
+  // Enter or Space to follow. From the box, Shift+Tab comes back to the
+  // last link first.
+  {
+    // Shift+Tab, Shift+Tab: from the box to the last card's Undo, then its
+    // Open; Tab: on to Undo again (the order in the chat)
+    name: "ai-card-keys",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Tab",
+    delay: 9,
+    // (the ring round the link in each look, the text round it still AA)
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Undo", "link", "focused"], ["Open", "link"]],
+    dump: { "aibanner.__shown": /^1$/, "ai.transcript": /\[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)/ },
+    webDump: { "aibanner.__shown": /^1$/ },
+  },
+  {
+    // ... Tab once more leaves the chat for the box: its text box has the keys
+    name: "ai-card-keys-leave",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Tab,key:Tab",
+    delay: 9,
+    a11y: [["Ask the assistant", "", "focused"], ["Undo", "link"]],
+    dump: { "aibanner.__shown": /^1$/ },
+    webDump: { "aibanner.__shown": /^1$/ },
+  },
+  {
+    // ... Enter on Open opens the program again (its project was closed)
+    name: "ai-card-keys-open",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,file.closeProject,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Enter,wait,wait,wait",
+    delay: 10,
+    dump: { "proj.folder": /\/docs\/RapidR\/Projects\/ScientificCalculator$/, "proj.name": /^Scientific Calculator$/, "designdoc(0).__shown": /^1$/ },
+    webDump: { "proj.folder": /ScientificCalculator$/, "proj.name": /^Scientific Calculator$/ },
+  },
+  {
+    // ... Enter on Undo takes the program back, as the mouse's click does
+    name: "ai-card-keys-undo",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Enter,wait,wait",
+    delay: 9,
+    dump: {
+      "proj.folder": /^$/,
+      "aibanner.__shown": /^0$/,
+      "aitools.createdfolder": /^$/,
+      "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/,
+    },
+    desktopGone: ["docs/RapidR/Projects/ScientificCalculator"],
+    webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
+  },
+  {
+    // The banner's "What Did It Do?": the Assistant pane, the chat scrolled
+    // to the turn's first card (the chat was scrolled back to its top
+    // first, the card out of sight) and the keyboard on the chat. (Robert's
+    // walk, 2026-10-18: it did nothing.)
+    name: "ai-banner-what",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please. " + LONG_ASK + ",wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Home,wait",
+    events: "aibannerwhat.onclick",
+    delay: 9,
+    a11y: [["Conversation with the assistant", "document", "focused"], [/^○ Started from the recipe/, "heading", "", SHOWN_IN_CHAT]],
+    dump: { "aibanner.__shown": /^1$/ },
+    webDump: { "aibanner.__shown": /^1$/ },
+  },
+  {
+    // An edit applied that leaves the program with an error (a property the
+    // form doesn't have): the status says so — Problems has it — , not only
+    // that a file changed
+    name: "ai-edit-errors",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=break the window,wait,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: {
+      "codedoc(0).text": /DIM ready AS BOOLEAN\nCREATE Form AS RForm/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\. The program has 1 error: Problems lists them\.$/,
+    },
+  },
+  {
+    // ... and under the banner of a program the assistant made: the banner
+    // goes from "made this program for you" to the errors variant (Run
+    // Anyway, Ask It to Fix) — Robert's walk, 2026-10-18
+    name: "ai-banner-edit-errors",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.newChat,ai:ask=break the window,wait,wait,wait,wait,ai:apply,wait",
+    delay: 12,
+    a11y: [["Ask the assistant to fix the errors", "button"], ["Run anyway", "button"]],
+    dump: {
+      "aibanner.__shown": /^1$/,
+      "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/,
+      "aibannerrun.caption": /^▶  Run Anyway$/,
+      "aibannerfix.__shown": /^1$/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\. The program has 1 error: Problems lists them\.$/,
+    },
+    webDump: { "aibannertext.caption": /still has 1 error/, "aibannerfix.__shown": /^1$/ },
+  },
   {
     // ... a file the user added to its folder since: Undo asks first;
     // Cancel keeps everything
@@ -3726,7 +3847,7 @@ const check = (label, run, c) => {
   if (c.a11y) {
     // (AI-UX) What a screen reader is told: the windows' accessibility
     // trees (RAPIDR_TEST_A11Y's, the same on both hosts) — each check a
-    // [name, role, state] the tree must have a node for
+    // [name, role, state, test] the tree must have a node for
     const nodes = [];
     const walk = (n) => { if (!n) return; nodes.push(n); (n.children || []).forEach(walk); };
     try {
@@ -3734,8 +3855,9 @@ const check = (label, run, c) => {
     } catch {
       /* no tree: every check fails below */
     }
-    for (const [name, role, state] of c.a11y) {
-      const hit = nodes.find((n) => (name instanceof RegExp ? name.test(n.name) : n.name === name) && (!role || n.role === role) && (!state || (n.states || []).includes(state)));
+    // (a fourth, optional: a test of the node and the tree — where it is, say)
+    for (const [name, role, state, extra] of c.a11y) {
+      const hit = nodes.find((n) => (name instanceof RegExp ? name.test(n.name) : n.name === name) && (!role || n.role === role) && (!state || (n.states || []).includes(state)) && (!extra || extra(n, nodes)));
       const ok = !!hit;
       ok ? passed++ : failed++;
       console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): a11y ${role || "node"} ${name}${state ? ` (${state})` : ""}${ok ? "" : ` — not in the tree (${nodes.length} nodes; ${nodes.filter((n) => (n.states || []).includes("focused")).map((n) => `${n.role} "${n.name}"`).join(", ") || "nothing"} focused)`}`);

@@ -43,7 +43,7 @@ pub const BUILTINS: &[&str] = &[
     "extractresource", "field", "fileexists", "filelen", "fix", "floor", "format", "frac", "freefile",
     "hex", "hextodec",
     "iif", "input", "input_func", "insert", "instr", "int", "inv", "isnumeric",
-    "kill",
+    "kill", "unloadlibrary",
     "input_field", "lbound", "lcase", "left", "len", "line_input", "locate", "lof", "log", "ltrim",
     "math.e", "math.pi", "messagebox", "messagedlg", "mid", "mkdir", "mousex", "mousey", "msgbox",
     "oct", "open",

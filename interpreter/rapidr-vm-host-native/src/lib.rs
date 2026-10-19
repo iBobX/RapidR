@@ -385,6 +385,7 @@ fn call_builtin_key(lower: &str, args: &[Value]) -> Value {
         "mkdir" => { rp_mkdir(&a0); v_null() }
         "rmdir" => { rp_rmdir(&a0); v_null() }
         "kill" => { rp_kill(&a0); v_null() }
+        "unloadlibrary" => { rapidr_runtime_core::prelude::rp_unloadlibrary(&a0); v_null() }
         "rename" => { rp_rename(&a0, &a1); v_null() }
         "curdir" => rp_curdir(),
         "chdir" => { rp_chdir(&a0); v_null() }

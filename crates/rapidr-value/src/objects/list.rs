@@ -27,6 +27,14 @@
 //! all have answered. `State` is 0 for the selected item and 1 for the
 //! others, as RapidQ programs test it.
 //!
+//! Scrolling: a list box shows the item the program picks (`ItemIndex = i`
+//! scrolls the least that brings it into view, as Windows' LB_SETCURSEL) and
+//! `TopIndex = i` makes item `i` the first row shown, unless the list would
+//! scroll past its end (LB_SETTOPINDEX). The model only keeps the request
+//! ([`ScrollTo`]); the runtime that shows the list works it out at its next
+//! paint, when it knows the size of the view, and writes the first row shown
+//! back to `TopIndex`.
+//!
 //! Indexes out of range read as "" / 0 and are ignored when written, as
 //! RapidQ doesn't stop the program for them. A list holds at most
 //! [`MAX_ITEMS`] items.
@@ -55,6 +63,17 @@ pub const MAX_OWNER_DRAWN: usize = 5_000;
 // (13: a line of RapidQ's default font, MS Sans Serif 8, as its list boxes show them)
 pub const DEFAULT_ITEM_HEIGHT: i64 = 13;
 
+/// A scroll the program asked a list box for, done when the list is next
+/// shown (see the module docs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScrollTo {
+    /// `ItemIndex` was set: the least scrolling that shows that item.
+    Reveal,
+    /// `TopIndex` was set: this item the first row shown (as far as the
+    /// list can scroll).
+    Top(usize),
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ItemList {
     pub items: Vec<String>,
@@ -74,6 +93,9 @@ pub struct ItemList {
     /// `TabWidth` (dialog units, 0: the default stops) for tabs in items.
     pub tab_width: i64,
     pub top_index: i64,
+    /// The scroll the program asked for, not yet shown ([`ScrollTo`]); the
+    /// runtime that shows the list takes it.
+    pub scroll_to: Option<ScrollTo>,
     /// QCOMBOBOX: true. Its Text is its edit text.
     pub combo: bool,
     pub text: String,
@@ -583,6 +605,7 @@ impl ItemList {
         self.selected.clear();
         self.item_index = -1;
         self.top_index = 0;
+        self.scroll_to = None;
         // (a combo box's text goes with its items, every Style — typed text
         // too: CB_RESETCONTENT, as RC.EXE shows)
         if self.combo {
@@ -649,7 +672,12 @@ impl ItemList {
             return self.file_member(prop, std::slice::from_ref(val)).is_some();
         }
         match prop {
-            "itemindex" | "listindex" => self.select(val.to_i64()),
+            "itemindex" | "listindex" => {
+                self.select(val.to_i64());
+                if self.item_index >= 0 && !self.combo {
+                    self.scroll_to = Some(ScrollTo::Reveal);
+                }
+            }
             "duplicates" => self.duplicates = val.to_i64().clamp(0, 2),
             "sorted" => {
                 self.sorted = val.to_bool();
@@ -666,7 +694,12 @@ impl ItemList {
                     self.select(i);
                 }
             }
-            "topindex" => self.top_index = val.to_i64().clamp(0, self.items.len().saturating_sub(1) as i64),
+            "topindex" => {
+                self.top_index = val.to_i64().clamp(0, self.items.len().saturating_sub(1) as i64);
+                if !self.combo {
+                    self.scroll_to = Some(ScrollTo::Top(self.top_index as usize));
+                }
+            }
             "style" if !self.combo => self.style = val.to_i64(),
             // (a combo box's is kept by the runtime too: it builds the
             // widget from it)
@@ -884,6 +917,33 @@ mod tests {
         assert_eq!(l.get("itemindex").unwrap().to_i64(), -1);
         l.set("itemindex", &v_int(99));
         assert_eq!(l.get("itemindex").unwrap().to_i64(), -1);
+    }
+
+    #[test]
+    fn the_program_setting_item_index_or_top_index_asks_the_list_to_scroll() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &[s("a"), s("b"), s("c")]);
+        assert_eq!(l.scroll_to, None);
+        l.set("itemindex", &v_int(2));
+        assert_eq!(l.scroll_to, Some(ScrollTo::Reveal));
+        // (the last request wins; TopIndex stays within the items)
+        l.set("topindex", &v_int(99));
+        assert_eq!((l.scroll_to, l.get("topindex").unwrap().to_i64()), (Some(ScrollTo::Top(2)), 2));
+        l.scroll_to = None;
+        // (nothing selected: nothing to show; the user's clicks and a combo
+        // box's list don't ask)
+        l.set("itemindex", &v_int(-1));
+        assert_eq!(l.scroll_to, None);
+        l.click(1, false, false);
+        assert_eq!(l.scroll_to, None);
+        let mut c = ItemList::new(true);
+        c.call("additems", &[s("a"), s("b")]);
+        c.set("itemindex", &v_int(1));
+        c.set("topindex", &v_int(1));
+        assert_eq!(c.scroll_to, None);
+        l.set("itemindex", &v_int(1));
+        l.clear();
+        assert_eq!(l.scroll_to, None);
     }
 
     #[test]

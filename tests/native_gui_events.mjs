@@ -48,6 +48,7 @@
 //     that fired it), the form goes on; set_events.bas — the events a
 //     program's own sets fire (RC.EXE's).
 //   * tests/fixtures/list_columns.bas — QLISTBOX Columns, an owner-drawn QCOMBOBOX.
+//   * tests/fixtures/list_scroll.bas — a QLISTBOX scrolls to the item the program picks (ItemIndex, TopIndex); the capture's pixels.
 //   * tests/fixtures/startup_modal.bas — ShowModal in the main program waits; Form.Repaint.
 //   * tests/fixtures/tree_view.bas — QTREEVIEW nodes, Item(i), OnChanging / OnExpanding answers, OnDeletion.
 //   * tests/fixtures/file_dialogs.bas — QOPENDIALOG / QSAVEDIALOG / QFILEDIALOG answers (RAPIDR_TEST_FILE_DIALOG).
