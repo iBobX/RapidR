@@ -84,7 +84,10 @@ form's `WndProc`. RapidR keeps that one Windows call working everywhere:
 the icon shows in the macOS menu bar, the Windows notification area, the
 Linux tray (StatusNotifierItem) and a strip at the bottom right of a web
 page, and clicks reach `WndProc (hWnd, uMsg, wParam, lParam)` as Windows'
-mouse messages. `NI.hIcon = Application.Icon` shows the program's icon.
+mouse messages. `NI.hIcon = Application.Icon` shows the program's icon. On
+Windows the form's `WndProc` also hears every other message of its window
+(see [Windows messages](components.md#windows-messages-a-forms-wndproc)); on
+the other systems the tray's are the only ones.
 
 ## The registry
 

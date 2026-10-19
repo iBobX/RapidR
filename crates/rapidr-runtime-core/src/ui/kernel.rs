@@ -333,8 +333,9 @@ pub fn gui_serve_paused() -> bool {
         }
         desk.events = kept;
         desk.ignore_user = ignored;
-        // (the tray's clicks: dropped too)
+        // (the tray's clicks and the windows' messages: dropped too)
         let _ = host.tray_clicks();
+        let _ = rapidr_ui_host_winit::winmsg::take();
     });
     true
 }
@@ -408,6 +409,11 @@ pub fn step(max_wait: Option<Duration>) {
     if with_kern(|k| !k.desk.events.is_empty()).unwrap_or(false) {
         at_most(Duration::ZERO);
     }
+    // (a form's WndProc: messages its window got while the program ran — its
+    // own SendMessage to the form — heard at once)
+    if rapidr_ui_host_winit::winmsg::pending() {
+        at_most(Duration::ZERO);
+    }
     // (the kernel's deadlines: a caret's blink, a held scroll bar's repeat)
     if let Some(at) = with_kern(|k| k.desk.next_wake()).flatten() {
         at_most(at.saturating_duration_since(now));
@@ -440,6 +446,8 @@ pub fn step(max_wait: Option<Duration>) {
     #[cfg(feature = "network")]
     crate::ai::poll();
     crate::object::rp_run_deferred();
+    // (a form's WndProc on Windows: its window's messages, as they came)
+    deliver_window_messages();
     dispatch_pending();
     // (the system tray's clicks: the form's WndProc)
     for (key, mouse) in with_kern(|k| k.host.tray_clicks()).unwrap_or_default() {
@@ -459,6 +467,38 @@ pub fn step(max_wait: Option<Duration>) {
         return;
     }
     script::step(Rt);
+}
+
+/// (a form's WndProc on Windows) The messages its window got
+/// (`rapidr_ui_host_winit::winmsg`, `rapidr_value::window_messages`),
+/// each fired as the form's OnWndProc with (hWnd, uMsg, wParam, lParam):
+/// hWnd its `Handle`, wParam and lParam RapidQ's 32-bit LONGs (a 64-bit
+/// pointer as the stand-in a DLL's result gets, `ffi::long_value`).
+fn deliver_window_messages() {
+    let messages = rapidr_ui_host_winit::winmsg::take();
+    if messages.is_empty() {
+        return;
+    }
+    let mut form: Option<(i64, Option<String>)> = None;
+    for (hwnd, msg, wparam, lparam) in messages {
+        if form.as_ref().is_none_or(|(h, _)| *h != hwnd) {
+            form = Some((hwnd, rapidr_value::handles::name_of(hwnd)));
+        }
+        let Some((_, Some(name))) = &form else { continue };
+        crate::object::rp_fire_event_args(name, "onwndproc", &[v_int(hwnd), v_int(i64::from(msg)), v_int(long_value(wparam as i64)), v_int(long_value(lparam))]);
+    }
+}
+
+/// A message's wParam / lParam as RapidQ's LONG.
+fn long_value(n: i64) -> i64 {
+    #[cfg(feature = "ffi")]
+    {
+        crate::ffi::long_value(n)
+    }
+    #[cfg(not(feature = "ffi"))]
+    {
+        n as i32 as i64
+    }
 }
 
 /// The events the host queued, handled (each to completion; a handler may
@@ -567,6 +607,9 @@ fn tracking_tick(desk: &mut Desktop) -> rapidr_ui_host_winit::tracking::Turn {
         rapidr_value::catching(|| {
             timers::fire_due_then(Rt, crate::object::rp_serve_program);
             lists::pre_paint(Rt, &forms::shown_forms());
+            // (the windows' messages meanwhile — Windows' size / move
+            // loop's: a form's WndProc)
+            deliver_window_messages();
             crate::object::rp_serve_program();
         })
     });

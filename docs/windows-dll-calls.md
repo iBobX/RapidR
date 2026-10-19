@@ -261,8 +261,16 @@ What can't work, and says so by failing the Windows way (the API returns
 - **Subclassing**: `SetWindowLong(…, GWL_WNDPROC, CODEPTR(Proc))` and
   `CallWindowProc` need a callback into the program (not supported yet)
   and, for controls, a real HWND.
-- **Messages the program expects to receive** (`WM_*` through a `WndProc`,
-  `RegisterHotKey`'s `WM_HOTKEY`): the same.
+- **Messages the program expects to receive** through a form's `WndProc`
+  (`WndProc = Handler` in its CREATE): **received since 2026-10-18** — every
+  message Windows sends or posts to the form's window reaches the handler, as
+  RC.EXE hands them over (`rapidr_value::window_messages`, the winit host's
+  `winmsg.rs`: comctl32's SetWindowSubclass while a WndProc is bound;
+  handed to the program after the host's turn, in order). So
+  `RegisterHotKey(Form.Handle, …)`'s `WM_HOTKEY`, `PostMessageA`'s
+  `WM_USER + n` and winmm's `MM_MIM_DATA` arrive. The window exists once
+  the form first shows: `Form.Handle` read before that is RapidR's own
+  number, and a DLL given it then sends nowhere (open).
 - **Drawing on a form's DC** (`GetDC(Form.Handle)` + `Rectangle`) does draw
   on the window, but RapidR repaints the form from its own model on the
   next paint, so the drawing lasts until then. Draw on a QCANVAS instead.

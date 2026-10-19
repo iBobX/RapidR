@@ -32,6 +32,8 @@ pub mod shape;
 pub mod tracking;
 // (the system tray: rapidr_value::tray)
 pub mod tray;
+// (a form's WndProc on Windows: its window's real messages)
+pub mod winmsg;
 pub mod winit_host;
 // (C-SYS: Screen.Cursors' Windows cursors)
 #[cfg(target_os = "windows")]

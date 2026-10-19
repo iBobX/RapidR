@@ -287,6 +287,9 @@ impl Host for WinitHost {
     fn pump(&mut self, timeout: Option<Duration>, desk: &mut Desktop, store: &dyn Store) {
         // (ShapeForm on macOS: the mouse let through outside an outline)
         let timeout = if self.follow_outlines() { Some(timeout.map_or(OUTLINE_LOOK, |t| t.min(OUTLINE_LOOK))) } else { timeout };
+        // (a form's WndProc bound after its window was made: winmsg.rs)
+        #[cfg(target_os = "windows")]
+        crate::winmsg::follow(self.state.wins.iter().map(|(f, w)| (f.as_str(), &*w.window)));
         // Forms the program changed since the last pump: drawn again.
         for (f, w) in &self.state.wins {
             if desk.forms.get(f).is_some_and(|k| k.shown && k.ui.dirty) {
@@ -742,6 +745,20 @@ impl Shim<'_> {
                 return;
             }
         };
+        // (`Form.Handle` is the window's HWND from now on, so Windows API
+        // calls get the real window: docs/windows-dll-calls.md §3; and a
+        // form whose WndProc is bound hears the window's messages from its
+        // showing on: winmsg.rs)
+        #[cfg(target_os = "windows")]
+        {
+            use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+            if let Ok(h) = window.window_handle() {
+                if let RawWindowHandle::Win32(w) = h.as_raw() {
+                    rapidr_value::handles::set_native(f, w.hwnd.get() as i64);
+                }
+            }
+            crate::winmsg::hook(f, &window);
+        }
         // (AccessKit's adapter must exist before the window shows. A screen
         // reader's first question is answered at once, with the form as it
         // is now — the full tree follows with the next pump, as it did alone)
@@ -786,17 +803,6 @@ impl Shim<'_> {
             apply_shape(&window, f, &spec);
         }
         window.request_redraw();
-        // (`Form.Handle` is the window's HWND from now on, so Windows API
-        // calls get the real window: docs/windows-dll-calls.md §3)
-        #[cfg(target_os = "windows")]
-        {
-            use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
-            if let Ok(h) = window.window_handle() {
-                if let RawWindowHandle::Win32(w) = h.as_raw() {
-                    rapidr_value::handles::set_native(f, w.hwnd.get() as i64);
-                }
-            }
-        }
         let outline = outline_of(f, &spec);
         self.s.wins.insert(f.to_string(), Win { window, surface, access, sent: a11y::Sent::default(), cursor: (0.0, 0.0), pointer: None, ime: false, fullscreen: false, outline, passes: None });
     }

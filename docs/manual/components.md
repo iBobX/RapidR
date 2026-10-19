@@ -173,6 +173,74 @@ also stops the code that called `DOEVENTS`: a main program's
 error in the main program ends the program. Under Studio's debugger the
 program first stops at the line (see [Debugging](debugging.md#when-the-program-fails)).
 
+### Windows messages: a form's WndProc
+
+A form's `WndProc` hears the messages Windows sends or posts to the form's
+window, as RapidQ's does: `WndProc = MySub` in the form's CREATE (or
+`Form.WndProc = MySub`), and `MySub (hWnd, uMsg, wParam, lParam)` runs for
+each one. On Windows that is every message of the window: the system's
+(`WM_SIZE`, `WM_MOVE`, `WM_ACTIVATE`, `WM_PAINT`, the mouse and the keys)
+and the ones a program or a driver sends it. A program's own messages use
+the numbers from `WM_USER` (&H400) on:
+
+```basic
+CONST WM_USER = &H400
+DECLARE FUNCTION PostMessageA LIB "user32" ALIAS "PostMessageA" (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG) AS LONG
+DECLARE SUB MyWndProc (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+DECLARE SUB PostClick
+
+CREATE Form AS RForm
+    WndProc = MyWndProc
+    CREATE PostBtn AS RButton
+        Caption = "Post": OnClick = PostClick
+    END CREATE
+END CREATE
+
+SUB PostClick
+    PostMessageA(Form.Handle, WM_USER + 1, 7, 9)
+END SUB
+
+SUB MyWndProc (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+    IF uMsg = WM_USER + 1 THEN Form.Caption = "Got it: " + STR$(wParam) + ", " + STR$(lParam)
+END SUB
+
+Form.ShowModal
+```
+
+A MIDI keyboard works the same way: winmm's `midiInOpen` with
+`CALLBACK_WINDOW` (&H10000) and the form's `Handle` sends each MIDI
+message to the form as `MM_MIM_DATA` (&H3C3), the MIDI bytes in lParam
+(status in the low byte, note next, velocity above it). Open the device
+once the form is showing (from a button, or the first message WndProc
+gets): before its window exists, `Form.Handle` is RapidR's own number.
+
+What to know:
+
+- `hWnd` is the form's `Handle`; `uMsg`, `wParam` and `lParam` are 32-bit
+  numbers (`&H80000000` arrives as -2147483648), as RapidQ gives them.
+- The handler runs just after Windows has handled the message, in the
+  order the messages came; what it returns doesn't matter (RapidQ ignores
+  it too). `DOEVENTS` inside it lets the next messages in, as in RapidQ.
+- Messages come from the moment the form's window shows. RapidQ calls
+  WndProc already while CREATE builds the form, so a handler that uses a
+  control created later in the block stops a RapidQ program; RapidR's
+  doesn't.
+- Every form has its own WndProc. (RapidQ has one for the whole program:
+  the last one bound hears every form's messages.)
+- A message whose lParam points to data (`WM_COPYDATA`,
+  `WM_GETMINMAXINFO`) can't be read: `PEEK` reaches only the program's own
+  memory.
+- RapidR draws a form's controls in the form's own window, so the mouse
+  over a control is the form's `WM_MOUSEMOVE` too (RapidQ's controls are
+  windows of their own). RapidR's redraws of its controls are not handed
+  over as `WM_PAINT`.
+- On macOS, Linux and the web there are no Windows messages: `WndProc`
+  hears only the form's [system tray icon](directx-and-media.md#the-system-tray).
+  A control's `WndProc` is never called, on any system, as in RapidQ.
+
+The examples in [examples/windows/](../../examples/windows/) list a form's
+messages as they come, post `WM_USER + 1`, and read a MIDI keyboard.
+
 ## The global objects
 
 | Object | What it has |

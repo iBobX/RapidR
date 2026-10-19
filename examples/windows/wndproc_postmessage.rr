@@ -1,0 +1,73 @@
+' wndproc_postmessage.rr: a form's WndProc hears a message the program
+' posts to its own window with Windows' PostMessageA.
+'
+'   rapidr run wndproc_postmessage.rr
+'
+' Windows only: on other systems WndProc receives only the tray icon's
+' messages (there the button stays off and the form says so).
+'
+' WndProc = MyWndProc in the form's CREATE hands every message Windows
+' sends or posts to the form's window to MyWndProc: hWnd (the form's
+' Handle), uMsg (which message), wParam and lParam (its two numbers).
+' WM_USER (&H400) and the numbers after it are free for a program's own
+' messages. Click the button: it posts WM_USER + 1 with wParam = the
+' click's number and lParam = 9, and WndProc shows it arrived. A message
+' posted waits in the window's queue, so it arrives just after the click's
+' handler has finished.
+
+CONST WM_USER = &H400
+
+DECLARE FUNCTION PostMessageA LIB "user32" ALIAS "PostMessageA" (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG) AS LONG
+DECLARE SUB MyWndProc (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+DECLARE SUB PostClick
+
+DIM posted AS LONG
+DIM arrived AS LONG
+DIM onWindows AS INTEGER
+onWindows = (ENVIRON$("OS") = "Windows_NT")
+
+CREATE Form AS RForm
+    Caption = "WndProc and PostMessageA"
+    Width = 520
+    Height = 170
+    Center
+    WndProc = MyWndProc
+    CREATE PostBtn AS RButton
+        Caption = "&Post WM_USER + 1"
+        Left = 16: Top = 20: Width = 170
+        OnClick = PostClick
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Click the button: the form posts a message to itself."
+        Left = 16: Top = 64: Width = 480
+    END CREATE
+    CREATE Count AS RLabel
+        Caption = ""
+        Left = 16: Top = 92: Width = 480
+    END CREATE
+END CREATE
+
+SUB PostClick
+    ' (PostMessageA is Windows' own: elsewhere the call would stop the program)
+    IF onWindows = 0 THEN EXIT SUB
+    posted = posted + 1
+    ' (wParam: which click; lParam: 9)
+    IF PostMessageA(Form.Handle, WM_USER + 1, posted, 9) = 0 THEN
+        Status.Caption = "PostMessageA could not post to this window."
+    END IF
+END SUB
+
+SUB MyWndProc (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+    ' (every message of the form's window comes here; this one is ours)
+    IF uMsg = WM_USER + 1 THEN
+        arrived = arrived + 1
+        Status.Caption = "WM_USER + 1 arrived: wParam " + STR$(wParam) + ", lParam " + STR$(lParam)
+        Count.Caption = "Posted " + STR$(posted) + ", arrived " + STR$(arrived)
+    END IF
+END SUB
+
+IF onWindows = 0 THEN
+    PostBtn.Enabled = 0
+    Status.Caption = "Windows only: here a form's WndProc hears only its tray icon's messages."
+END IF
+Form.ShowModal

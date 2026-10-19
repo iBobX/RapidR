@@ -1,0 +1,150 @@
+' midi_in.rr: the notes a MIDI keyboard plays, heard in a form's WndProc.
+'
+'   rapidr run midi_in.rr
+'
+' Windows only: on other systems WndProc receives only the tray icon's
+' messages (there the buttons stay off and the form says so).
+'
+' Windows' winmm opens a MIDI input with midiInOpen. Given CALLBACK_WINDOW
+' and the form's Handle, it sends each MIDI message the keyboard plays to
+' the form's window as MM_MIM_DATA (&H3C3), which the form's WndProc hears:
+' wParam is the device, lParam the MIDI bytes — the status in its low byte
+' (&H90 note on, &H80 note off; the channel in the status's low 4 bits),
+' the note above it, the velocity above that.
+'
+' Open opens the first MIDI input (the form's window exists by then: its
+' Handle is the real one). Close, and closing the form, close it again.
+' Test note posts a made-up MM_MIM_DATA to the form itself: the same path,
+' without a keyboard.
+
+CONST MM_MIM_DATA = &H3C3
+CONST CALLBACK_WINDOW = &H10000
+
+DECLARE FUNCTION midiInGetNumDevs LIB "winmm" ALIAS "midiInGetNumDevs" () AS LONG
+DECLARE FUNCTION midiInOpen LIB "winmm" ALIAS "midiInOpen" (BYREF hMidiIn AS LONG, uDeviceID AS LONG, dwCallback AS LONG, dwInstance AS LONG, fdwOpen AS LONG) AS LONG
+DECLARE FUNCTION midiInStart LIB "winmm" ALIAS "midiInStart" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInStop LIB "winmm" ALIAS "midiInStop" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInReset LIB "winmm" ALIAS "midiInReset" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION midiInClose LIB "winmm" ALIAS "midiInClose" (hMidiIn AS LONG) AS LONG
+DECLARE FUNCTION PostMessageA LIB "user32" ALIAS "PostMessageA" (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG) AS LONG
+
+DECLARE SUB HearMidi (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+DECLARE SUB OpenClick
+DECLARE SUB CloseClick
+DECLARE SUB TestClick
+DECLARE SUB FormClose (BYREF Action AS INTEGER)
+DECLARE SUB CloseDevice
+DECLARE FUNCTION NoteName (note AS LONG) AS STRING
+
+DIM hMidiIn AS LONG
+DIM isOpen AS INTEGER
+DIM onWindows AS INTEGER
+onWindows = (ENVIRON$("OS") = "Windows_NT")
+
+CREATE Form AS RForm
+    Caption = "MIDI in"
+    Width = 460
+    Height = 360
+    Center
+    WndProc = HearMidi
+    OnClose = FormClose
+    CREATE OpenBtn AS RButton
+        Caption = "&Open"
+        Left = 12: Top = 12: Width = 90
+        OnClick = OpenClick
+    END CREATE
+    CREATE CloseBtn AS RButton
+        Caption = "&Close"
+        Left = 110: Top = 12: Width = 90
+        Enabled = 0
+        OnClick = CloseClick
+    END CREATE
+    CREATE TestBtn AS RButton
+        Caption = "&Test note"
+        Left = 208: Top = 12: Width = 110
+        OnClick = TestClick
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Click Open to listen to the first MIDI input."
+        Left = 12: Top = 50: Width = 430
+    END CREATE
+    CREATE Notes AS RListBox
+        Left = 12: Top = 76: Width = 430: Height = 236
+    END CREATE
+END CREATE
+
+SUB OpenClick
+    DIM r AS LONG
+    IF onWindows = 0 OR isOpen THEN EXIT SUB
+    IF midiInGetNumDevs() = 0 THEN
+        Status.Caption = "No MIDI input found: connect a MIDI keyboard, then click Open again."
+        EXIT SUB
+    END IF
+    r = midiInOpen(hMidiIn, 0, Form.Handle, 0, CALLBACK_WINDOW)
+    IF r <> 0 THEN
+        Status.Caption = "midiInOpen failed (error " + STR$(r) + "): is another program using the device?"
+        EXIT SUB
+    END IF
+    midiInStart(hMidiIn)
+    isOpen = 1
+    OpenBtn.Enabled = 0
+    CloseBtn.Enabled = 1
+    Status.Caption = "Listening: play some notes."
+END SUB
+
+SUB CloseDevice
+    IF isOpen THEN
+        midiInStop(hMidiIn)
+        midiInReset(hMidiIn)
+        midiInClose(hMidiIn)
+        isOpen = 0
+    END IF
+END SUB
+
+SUB CloseClick
+    CloseDevice
+    OpenBtn.Enabled = 1
+    CloseBtn.Enabled = 0
+    Status.Caption = "Closed."
+END SUB
+
+SUB FormClose (BYREF Action AS INTEGER)
+    ' (the device is the system's: always give it back)
+    CloseDevice
+END SUB
+
+SUB TestClick
+    ' (note on, channel 1, middle C (60 = &H3C), velocity 64 (&H40))
+    IF onWindows THEN PostMessageA(Form.Handle, MM_MIM_DATA, 0, &H403C90)
+END SUB
+
+SUB HearMidi (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+    DIM status AS LONG, note AS LONG, velocity AS LONG, kind AS LONG
+    IF uMsg <> MM_MIM_DATA THEN EXIT SUB
+    status = lParam AND &HFF
+    note = (lParam \ &H100) AND &H7F
+    velocity = (lParam \ &H10000) AND &H7F
+    kind = status AND &HF0
+    ' (the newest on top, 200 kept)
+    IF kind = &H90 AND velocity > 0 THEN
+        Notes.InsertItem 0, "note on   " + NoteName(note) + "   velocity " + STR$(velocity) + "   channel " + STR$((status AND &HF) + 1)
+    ELSEIF kind = &H80 OR kind = &H90 THEN
+        Notes.InsertItem 0, "note off  " + NoteName(note) + "   channel " + STR$((status AND &HF) + 1)
+    ELSE
+        ' (a controller, the pitch wheel, a clock tick …)
+        Notes.InsertItem 0, "status &H" + HEX$(status) + "   data " + STR$(note) + " " + STR$(velocity)
+    END IF
+    IF Notes.ItemCount > 200 THEN Notes.DelItems Notes.ItemCount - 1
+END SUB
+
+' MIDI note 60 is middle C, "C4".
+FUNCTION NoteName (note AS LONG) AS STRING
+    Result = RTRIM$(MID$("C C#D D#E F F#G G#A A#B ", (note MOD 12) * 2 + 1, 2)) + LTRIM$(STR$(note \ 12 - 1))
+END FUNCTION
+
+IF onWindows = 0 THEN
+    OpenBtn.Enabled = 0
+    TestBtn.Enabled = 0
+    Status.Caption = "Windows only: here a form's WndProc hears only its tray icon's messages."
+END IF
+Form.ShowModal

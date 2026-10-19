@@ -86,6 +86,19 @@ Check "GUI program runs (capture)" { (Out-Of $R @("run", "gui.bas")) -match "lbl
 Check "rapidrw.exe runs a windowed program" { $p = Start-Process -Wait -PassThru -FilePath $RW -ArgumentList "gui.bas"; $p.ExitCode -eq 0 }
 Remove-Item env:RAPIDR_TEST_DUMP
 
+Write-Host "== a form's WndProc hears its window's messages (a real window: PostMessageA WM_USER + 1)"
+# (its timer posts WM_USER + 1, wParam 7, lParam 9, to the form's real window; WndProc writes what came)
+Set-Content wndproc.bas ("DECLARE FUNCTION PostMessageA LIB `"user32`" ALIAS `"PostMessageA`" (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG) AS LONG`r`n" +
+    "DECLARE SUB P (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)`r`nDECLARE SUB Tick`r`n" +
+    "CREATE T AS QTIMER`r`n  Interval = 100: OnTimer = Tick`r`nEND CREATE`r`n" +
+    "CREATE Form AS QFORM`r`n  Caption = `"smoke`": WndProc = P`r`n  CREATE Lbl AS QLABEL`r`n    Caption = `"waiting`"`r`n  END CREATE`r`nEND CREATE`r`n" +
+    "SUB Tick`r`n  T.Enabled = 0`r`n  PostMessageA(Form.Handle, &H401, 7, 9)`r`nEND SUB`r`n" +
+    "SUB P (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)`r`n  IF uMsg = &H401 AND hWnd = Form.Handle THEN Lbl.Caption = `"got `" + HEX`$(uMsg) + `" `" + STR`$(wParam) + `" `" + STR`$(lParam)`r`nEND SUB`r`n" +
+    "Form.ShowModal`r`n")
+$env:RAPIDR_CAPTURE = "$T\work\wndproc"; $env:RAPIDR_CAPTURE_WINDOWS = "1"; $env:RAPIDR_CAPTURE_DELAY = "1"; $env:RAPIDR_TEST_DUMP = "lbl.caption"
+Check "interpreted: WndProc got WM_USER + 1 (7, 9)" { (Out-Of $R @("run", "wndproc.bas")) -match "lbl.caption=got 00000401 7 9" }
+Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_WINDOWS, env:RAPIDR_CAPTURE_DELAY, env:RAPIDR_TEST_DUMP
+
 Write-Host "== a downloaded file asks once (Mark of the Web)"
 Copy-Item hello.bas downloaded.bas
 Set-Content -Path "downloaded.bas" -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://example.com/downloaded.bas"
@@ -174,6 +187,11 @@ if ($kind -eq "sdk") {
         $env:RAPIDR_CAPTURE = "$T\work\gui"; $env:RAPIDR_CAPTURE_DELAY = "0.5"
         Check "native builds carry the mingw-w64 notices" { (Get-Content -Raw "$T\work\THIRD-PARTY-NOTICES.txt") -match "mingw-w64 runtime" }
         Check "native GUI fixture runs (capture)" { (Test-Path "$T\work\list_items.exe") -and ((Out-Of "$T\work\list_items.exe" @()) -match "captured window") }
+        # (a form's WndProc, native: the interpreted check's program, built)
+        Out-Of $R @("build", "wndproc.bas") | Out-Null
+        $env:RAPIDR_CAPTURE = "$T\work\wndproc-native"; $env:RAPIDR_CAPTURE_WINDOWS = "1"; $env:RAPIDR_CAPTURE_DELAY = "1"; $env:RAPIDR_TEST_DUMP = "lbl.caption"
+        Check "native: WndProc got WM_USER + 1 (7, 9)" { (Test-Path "$T\work\wndproc.exe") -and ((Out-Of "$T\work\wndproc.exe" @()) -match "lbl.caption=got 00000401 7 9") }
+        Remove-Item env:RAPIDR_CAPTURE_WINDOWS, env:RAPIDR_TEST_DUMP
         Remove-Item env:RAPIDR_CAPTURE, env:RAPIDR_CAPTURE_DELAY, env:CARGO_HOME, env:RUSTUP_HOME, env:CARGO_TARGET_DIR
         Remove-Item -Recurse -Force "$T\native-target", "$T\cargo-home", "$T\rustup-home" -ErrorAction SilentlyContinue
         Check "the user's own Rust unchanged (rustup default, active toolchain)" { (Users-Rust) -eq $usersBefore }

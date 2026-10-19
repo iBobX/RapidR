@@ -1,0 +1,132 @@
+' wndproc_messages.rr: the Windows messages a form's window receives,
+' listed as they come — a little Spy++.
+'
+'   rapidr run wndproc_messages.rr
+'
+' Windows only: on other systems WndProc receives only the tray icon's
+' messages (there the list stays empty and the form says so).
+'
+' WndProc = ShowMessage in the form's CREATE hands every message Windows
+' sends or posts to the form's window to ShowMessage: hWnd (the form's
+' Handle), uMsg (which message), wParam and lParam (its two numbers, what
+' they mean depends on the message). Move the form, resize it, click it,
+' type, switch to another window and back: each line is one message (the newest
+' on top), its number in hex and its name when it is a common one. The mouse sends
+' messages all the time it moves (WM_MOUSEMOVE, WM_NCHITTEST,
+' WM_SETCURSOR): they are left out unless the box is ticked.
+
+DECLARE SUB ShowMessage (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+DECLARE SUB ClearClick
+DECLARE FUNCTION MessageName (uMsg AS LONG) AS STRING
+
+DIM total AS LONG
+
+CREATE Form AS RForm
+    Caption = "Window messages"
+    Width = 520
+    Height = 420
+    Center
+    WndProc = ShowMessage
+    CREATE Hint AS RLabel
+        Caption = "Move, resize, click and type on this form: its messages show below."
+        Left = 12: Top = 10: Width = 490
+    END CREATE
+    CREATE Messages AS RListBox
+        Left = 12: Top = 34: Width = 490: Height = 280
+    END CREATE
+    CREATE MouseToo AS RCheckBox
+        Caption = "Show the &mouse's moves too"
+        Left = 12: Top = 324: Width = 240
+    END CREATE
+    CREATE ClearBtn AS RButton
+        Caption = "&Clear"
+        Left = 412: Top = 320: Width = 90
+        OnClick = ClearClick
+    END CREATE
+    CREATE Count AS RLabel
+        Caption = "No message yet."
+        Left = 12: Top = 354: Width = 490
+    END CREATE
+END CREATE
+
+SUB ShowMessage (hWnd AS LONG, uMsg AS LONG, wParam AS LONG, lParam AS LONG)
+    total = total + 1
+    ' (WM_SETCURSOR, WM_NCHITTEST, WM_NCMOUSEMOVE, WM_MOUSEMOVE: dozens a second)
+    IF MouseToo.Checked = 0 THEN
+        IF uMsg = &H20 OR uMsg = &H84 OR uMsg = &HA0 OR uMsg = &H200 THEN EXIT SUB
+    END IF
+    ' (the newest on top; wParam and lParam in hex, as Spy++ shows them)
+    Messages.InsertItem 0, RIGHT$("000" + HEX$(uMsg), 4) + "  " + MessageName(uMsg) + "   wParam &H" + HEX$(wParam) + "   lParam &H" + HEX$(lParam)
+    ' (the newest 300 kept)
+    IF Messages.ItemCount > 300 THEN Messages.DelItems Messages.ItemCount - 1
+    Count.Caption = STR$(total) + " messages so far"
+END SUB
+
+SUB ClearClick
+    Messages.Clear
+    total = 0
+    Count.Caption = "Cleared."
+END SUB
+
+' The names of some common messages (Windows has hundreds).
+FUNCTION MessageName (uMsg AS LONG) AS STRING
+    SELECT CASE uMsg
+    CASE &H1: Result = "WM_CREATE"
+    CASE &H2: Result = "WM_DESTROY"
+    CASE &H3: Result = "WM_MOVE"
+    CASE &H5: Result = "WM_SIZE"
+    CASE &H6: Result = "WM_ACTIVATE"
+    CASE &H7: Result = "WM_SETFOCUS"
+    CASE &H8: Result = "WM_KILLFOCUS"
+    CASE &HC: Result = "WM_SETTEXT"
+    CASE &HF: Result = "WM_PAINT"
+    CASE &H10: Result = "WM_CLOSE"
+    CASE &H14: Result = "WM_ERASEBKGND"
+    CASE &H18: Result = "WM_SHOWWINDOW"
+    CASE &H1C: Result = "WM_ACTIVATEAPP"
+    CASE &H20: Result = "WM_SETCURSOR"
+    CASE &H21: Result = "WM_MOUSEACTIVATE"
+    CASE &H24: Result = "WM_GETMINMAXINFO"
+    CASE &H46: Result = "WM_WINDOWPOSCHANGING"
+    CASE &H47: Result = "WM_WINDOWPOSCHANGED"
+    CASE &H7C: Result = "WM_STYLECHANGING"
+    CASE &H7D: Result = "WM_STYLECHANGED"
+    CASE &H7F: Result = "WM_GETICON"
+    CASE &H83: Result = "WM_NCCALCSIZE"
+    CASE &H84: Result = "WM_NCHITTEST"
+    CASE &H85: Result = "WM_NCPAINT"
+    CASE &H86: Result = "WM_NCACTIVATE"
+    CASE &HA0: Result = "WM_NCMOUSEMOVE"
+    CASE &HA1: Result = "WM_NCLBUTTONDOWN"
+    CASE &H100: Result = "WM_KEYDOWN"
+    CASE &H101: Result = "WM_KEYUP"
+    CASE &H102: Result = "WM_CHAR"
+    CASE &H104: Result = "WM_SYSKEYDOWN"
+    CASE &H105: Result = "WM_SYSKEYUP"
+    CASE &H112: Result = "WM_SYSCOMMAND"
+    CASE &H200: Result = "WM_MOUSEMOVE"
+    CASE &H201: Result = "WM_LBUTTONDOWN"
+    CASE &H202: Result = "WM_LBUTTONUP"
+    CASE &H203: Result = "WM_LBUTTONDBLCLK"
+    CASE &H204: Result = "WM_RBUTTONDOWN"
+    CASE &H205: Result = "WM_RBUTTONUP"
+    CASE &H20A: Result = "WM_MOUSEWHEEL"
+    CASE &H214: Result = "WM_SIZING"
+    CASE &H216: Result = "WM_MOVING"
+    CASE &H231: Result = "WM_ENTERSIZEMOVE"
+    CASE &H232: Result = "WM_EXITSIZEMOVE"
+    CASE &H281: Result = "WM_IME_SETCONTEXT"
+    CASE &H282: Result = "WM_IME_NOTIFY"
+    CASE &H2A3: Result = "WM_MOUSELEAVE"
+    CASE &H31F: Result = "WM_DWMNCRENDERINGCHANGED"
+    CASE &H3C3: Result = "MM_MIM_DATA"
+    CASE &H400 TO &H7FFF: Result = "WM_USER + " + STR$(uMsg - &H400)
+    CASE &HC000 TO &HFFFF: Result = "(a registered message)"
+    CASE ELSE: Result = ""
+    END SELECT
+END FUNCTION
+
+IF ENVIRON$("OS") <> "Windows_NT" THEN
+    Hint.Caption = "Windows only: here a form's WndProc hears only its tray icon's messages."
+END IF
+Form.ShowModal

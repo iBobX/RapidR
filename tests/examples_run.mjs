@@ -394,6 +394,32 @@ export const cases = [
   // on Windows — `Lib\Geometry.INC` is lib/geometry.inc)
   { file: "rapidq/shapes/shapes.bas", runtimes: ["run", "interp", "native", "web"], includes: true, events: "areabutton.onclick", dump: "answerlabel.caption",
     expect: ["answerlabel.caption=Circle: 12.57 square cm"] },
+  // windows/: a form's Windows messages (WndProc). On Windows real windows
+  // (RAPIDR_CAPTURE_WINDOWS: the headless host has no window to send to) and
+  // the messages arrive; elsewhere, and on the web, the examples say they
+  // need Windows and do nothing.
+  ...(process.platform === "win32" ? [
+    { file: "windows/wndproc_postmessage.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_CAPTURE_WINDOWS: "1" },
+      events: `postbtn.onclick,${wait("count", 4)}`, dump: "status.caption,count.caption",
+      expect: ["status.caption=WM_USER + 1 arrived: wParam 1, lParam 9", "count.caption=Posted 1, arrived 1"] },
+    { file: "windows/wndproc_messages.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_CAPTURE_WINDOWS: "1" },
+      events: wait("hint", 4), dump: "count.caption", expect: ["messages so far"] },
+    { file: "windows/midi_in.rr", runtimes: ["run", "interp", "native"], env: { RAPIDR_CAPTURE_WINDOWS: "1" },
+      events: `testbtn.onclick,${wait("status", 4)}`, dump: "notes.itemcount", expect: ["notes.itemcount=1"] },
+    { file: "windows/wndproc_postmessage.rr", runtimes: ["web"], events: "postbtn.onclick", dump: "status.caption,postbtn.enabled",
+      expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "postbtn.enabled=0"] },
+    { file: "windows/wndproc_messages.rr", runtimes: ["web"], events: "clearbtn.onclick", dump: "hint.caption",
+      expect: ["hint.caption=Windows only: here a form's WndProc hears only its tray icon's messages."] },
+    { file: "windows/midi_in.rr", runtimes: ["web"], events: "openbtn.onclick,testbtn.onclick", dump: "status.caption,notes.itemcount",
+      expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "notes.itemcount=0"] },
+  ] : [
+    { file: "windows/wndproc_postmessage.rr", runtimes: ["run", "interp", "native", "web"], events: "postbtn.onclick", dump: "status.caption,postbtn.enabled",
+      expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "postbtn.enabled=0"] },
+    { file: "windows/wndproc_messages.rr", runtimes: ["run", "interp", "native", "web"], events: "clearbtn.onclick", dump: "hint.caption",
+      expect: ["hint.caption=Windows only: here a form's WndProc hears only its tray icon's messages."] },
+    { file: "windows/midi_in.rr", runtimes: ["run", "interp", "native", "web"], events: "openbtn.onclick,testbtn.onclick", dump: "status.caption,notes.itemcount",
+      expect: ["status.caption=Windows only: here a form's WndProc hears only its tray icon's messages.", "notes.itemcount=0"] },
+  ]),
   // web/: what only a web page has
   { file: "web/todo.rr", runtimes: ["web"], events: "addbtn.onclick", dump: "info.caption,tasks.itemcount",
     expect: ["info.caption=1 to do, saved", "tasks.itemcount=1"] },
