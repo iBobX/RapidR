@@ -24,21 +24,9 @@ Codes of the keyboard's keys, as OnKeyDown and OnKeyUp events give them.
 
 ## PLAYWAV options
 
-Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it.
+Options for `PLAYWAV`, added together: wait for the sound to end (SND_SYNC) or play it in the background (SND_ASYNC), repeat it, play it from memory, no default sound when the file is missing, don't stop a sound that is playing.
 
-`SND_ASYNC` = 1, `SND_LOOP` = 8
-
-## PLAYWAV options
-
-More `PLAYWAV` options: no default sound, don't stop a sound playing, play from memory.
-
-`SND_MEMORY` = 4, `SND_NODEFAULT` = 2, `SND_NOSTOP` = 16
-
-## PLAYWAV options
-
-Options for `PLAYWAV`: wait for the sound to end, play it in the background, or repeat it.
-
-`SND_SYNC` = 0
+`SND_ASYNC` = 1, `SND_LOOP` = 8, `SND_MEMORY` = 4, `SND_NODEFAULT` = 2, `SND_NOSTOP` = 16, `SND_SYNC` = 0
 
 ## Character sets
 
