@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.120.0] — 2026-10-19 (Preview 3: RAI)
+
 ### Added
 - **A new program from the assistant opens straight in Studio**
   (docs/ai-ux-plan.md §1): "Build a scientific calculator" ends with the
