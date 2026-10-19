@@ -48,7 +48,7 @@ wgpu does this for graphics: one API, a backend per platform, capability flags, 
 | N3 | **Windows: Win32 common controls**, later **WinUI 3** | RapidQ itself was Win32 (Delphi VCL), so `$UI native` on Windows brings RapidQ programs home to real Win32 controls. WinUI 3 follows for the Windows 11 look | `windows-rs` (MIT/Apache); comctl32 is the system's; Windows App SDK (MIT, a redistributable runtime) |
 | N4 | **iOS / iPadOS: UIKit** | Reuses N2's Apple glue. Touch, the app lifecycle, safe areas, and a form becoming a screen. The bytecode VM is an interpreter (no JIT), so it's App Store-friendly | `objc2` (MIT/Apache); Xcode builds; a device or App Store build needs the user's own Apple Developer account |
 | N5 | **Android: Views through JNI** | Mobile for everyone, the most widespread device in schools | `jni`, `ndk` (MIT/Apache); the Android framework (Apache-2.0); Studio generates the Gradle project |
-| N6 | **Linux: GTK 4 (+ libadwaita)** | Linux has no single "native". GTK 4 is GNOME's, the most common desktop | `gtk4-rs` bindings (MIT). **GTK itself is LGPL-2.1+**: allowed only dynamically linked from the system, never bundled or static, and **only with Robert's approval** (our licence rule). Without approval, Linux keeps the drawn kernel with the Adwaita look |
+| N6 | **Linux: decided, our drawn kernel with the GNOME (Adwaita) look** | Linux has no single "native", and GTK is LGPL. Under the zero-risk rule (2026-10-19, Robert: "you decide") RapidR ships no GTK. Revisit only if many users ask, and then only GTK 4 linked from the system, never bundled, with Robert's approval | our own code |
 | N7 | **The web: real DOM controls** | `<button>`, `<input>`, `<select>`: native for browsers, great for mobile browsers and screen readers. *Note:* Robert decided in 2026 that the canvas kernel is the only web host; this would be an opt-in `$UI native` for the web, to be re-decided then | `web-sys` (MIT/Apache) |
 
 ## How RapidR uses it
@@ -70,7 +70,7 @@ wgpu does this for graphics: one API, a backend per platform, capability flags, 
 
 - **Size:** each desktop backend is a big project on its own, and mobile is bigger (a different app model). With AI lanes it's feasible step by step, but it competes with the weekly budget, so it goes after 1.0 and after the open gaps (our "close gaps first" rule).
 - **Maintenance:** OS updates change behaviour. The conformance suite per backend, capability flags and the drawn fallback keep programs running.
-- **Linux licensing:** GTK is LGPL. See N6: Robert's approval is needed, or we keep the drawn kernel there.
+- **Linux licensing:** decided at N6: no GTK, so the drawn kernel with the GNOME look.
 - **App stores:** distributing on iOS or Android needs the user's own developer accounts. We document the path; the cost is theirs.
 
 ## First concrete steps (when this starts)
