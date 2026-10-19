@@ -134,7 +134,7 @@ CREATE Studio AS RForm
     END CREATE
     CREATE WelcomeTag AS RLabel
       Left = 48: Top = 92: Width = 640: Height = 20
-      Caption = "Runs RapidQ programs, and takes them further: desktop and web from one source."
+      Caption = "BASIC is powerful again: desktop and web apps from one source."
     END CREATE
     CREATE StartHead AS RLabel
       Left = 48: Top = 136: Width = 220: Height = 22
