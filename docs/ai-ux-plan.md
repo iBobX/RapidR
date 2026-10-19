@@ -107,3 +107,16 @@ After 2.120.0, Robert asked for two things:
 - **Per-change controls:** a small Keep ✓ / Undo ↺ pill on each change. In Pair mode, the change's one-line *why* goes under it (Learn with RAI).
 - **A slim header bar** in the editor's own style: "main.rr · 5 changes · +496 −70 · Keep All · Undo All · ↑ ↓". Keyboard: F7 / Shift+F7 move between changes, Enter keeps, Backspace undoes.
 - **The same visual language** for the new-program banner, the chat cards and their buttons: Studio's toolbar buttons and tokens, not default push buttons. It also leads into step 3 (tracked changes in the editor itself): the same pills, inline.
+
+## 7. RAI that can see and test (Robert, 2026-10-19)
+
+From the demo takes: Haiku builds apps that compile but sometimes don't *work* (a calculator whose `=` was missing, functions that broke the display). RAI answered honestly: *"I can't reproduce a failure from the code alone, and I can't run the program."* That's the gap to close. RAI should **see and try** what it built, like a person would:
+- **Screenshots, with permission:** RAI can ask to see the designer or the running program ("May I look at the window? It uses more tokens"). The image goes to the model only after the user says yes. Off by default; the model must support images (cloud models do; some local ones too).
+- **Run and drive the program, with permission:** a `run_program` tool that starts the app headless with scripted events (Studio already has `RAPIDR_TEST_EVENTS` / `RAPIDR_TEST_DUMP`, which the recipes' click tests use). It returns what happened, for example "pressed 9, *, 5, =; Display.Caption = 45", plus errors and, if allowed, a screenshot. Then RAI can test its own app ("2 + 3 = gives 5? sin(x) plots?") and fix it before the user ever sees it.
+- **A permission mode, one dropdown,** like the best coding tools:
+  - **Ask every time** (the default for new users and kids): each change, each look, each run asks;
+  - **Accept edits:** changes apply as tracked changes (Keep/Undo), looks and runs still ask;
+  - **Plan only:** it explains and proposes, it changes nothing;
+  - **Trusted:** it edits, looks and test-runs on its own, inside the project; the run is sandboxed, with no network unless the program asks and the user allows.
+  - Teachers can lock the mode (Learn with RAI).
+- **Safety:** screenshots show only Studio's own windows and the program it runs, never the rest of the screen. Running stays inside the project and its data files. The same audit log records every look and run.
