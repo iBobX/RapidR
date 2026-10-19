@@ -262,7 +262,7 @@ Italic = { category = "Font", doc = "True for an italic font." }
 Item = { category = "Data", doc = "An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties." }
 ItemCount = { category = "Data", doc = "The number of items: list strings, tree nodes, list view rows or menu items." }
 ItemHeight = { category = "Layout", doc = "Each item's height, in pixels.", range = "0..", unit = "px" }
-ItemIndex = { category = "Data", doc = "The selected item, from 0; -1 when none is.", range = "-1..", unit = "index" }
+ItemIndex = { category = "Data", doc = "The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item.", range = "-1..", unit = "index" }
 Items = { category = "Data", doc = "RapidR's: the items as text, one per line; `Items(i)` is `Item(i)`." }
 ItemSeparator = { category = "Data", doc = "The text between node names in an outline path (`\\`)." }
 KeyItemCount = { category = "Data", doc = "The number of subkeys of the open registry key; read-only." }
@@ -488,7 +488,7 @@ Title = { category = "Window", doc = "The title of a dialog, the application (ta
 TitleColor = { category = "Appearance", doc = "The colour of the dock form's title text, as &HBBGGRR." }
 ToolTip = { category = "Help", doc = "The element's tooltip (its `title`)." }
 Top = { category = "Layout", doc = "The distance from the parent's top edge (a form's: the screen's), in pixels.", range = "any", unit = "px" }
-TopIndex = { category = "Layout", doc = "The item shown at the top of the list, from 0.", range = "0..", unit = "index" }
+TopIndex = { category = "Layout", doc = "The item shown at the top of the list, from 0. Setting it scrolls the list so that item is the first row (as far as the list goes: the last item shows its last page); reading it gives the first row shown.", range = "0..", unit = "index" }
 TopItem = { category = "Layout", doc = "The node shown at the top of the tree." }
 TopRow = { category = "Layout", doc = "The first scrollable row shown at the grid's top." }
 TrackNumber = { category = "Media", doc = "The number of tracks on the CD; read-only." }

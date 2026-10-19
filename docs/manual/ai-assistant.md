@@ -114,7 +114,13 @@ bold **cards** in the chat:
 - ▲ **Fixed** 2 errors
 
 The model's own words come after the cards: one or two sentences on what it
-made and how to use it. A card's links work like the buttons they name.
+made and how to use it. A card's links work like the buttons they name — by
+the mouse, and by the keyboard: from the box where you type, **Shift+Tab**
+goes back to the chat and stops on each link in turn (the last card's **Undo**
+first, then its **Open**), with a ring round the link and the chat scrolled to
+it; **Tab** goes the other way and, past the last link, back to the box.
+**Enter** (or **Space**) follows the link. A screen reader hears each one as
+a link named *Open*, *Undo* or *Review*.
 
 Small models sometimes say *"I have created your project!"* before they have
 done anything. Studio notices, asks the model to really do it, and shows that

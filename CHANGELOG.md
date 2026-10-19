@@ -83,6 +83,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the web page again to check what the browser kept (`reload`).
 
 ### Fixed
+- **A list box scrolls to the item your program picks.** Setting `ItemIndex`
+  (to the newest message of a message list, say) left the list at the top,
+  the picked item out of sight. Now `ItemIndex` scrolls the least that shows
+  the item, `TopIndex` makes an item the first row (never scrolling past the
+  end), and `TopIndex` reads the first row shown, also after the user
+  scrolled — in plain, `Columns` and owner-drawn lists, on the desktop, in
+  native builds and on the web.
+- **Studio for the web: Undo of the assistant's new program really removes
+  its files.** The browser's saved copy was not told, so the project came
+  back at the next visit; a file a program deletes with `KILL` now goes from
+  Studio's saved copy too.
+- **The chat's card links (Open, Undo, Review) work by the keyboard.** A
+  Markdown view's links are Tab stops inside it, after its text and before
+  the next control: a ring round the link, the view scrolling to it, Enter
+  or Space follows it, Shift+Tab comes back from the box to the last link;
+  a screen reader hears a link with its name. This holds for every
+  `RMarkdownView`, Studio's Markdown preview and your own programs.
 - **The assistant never refuses a program for its title** (Robert's walk,
   2026-10-18): "Scientific Calculator" was turned down as "a name that can't
   be a folder"; any title now makes the program, its folder made from it

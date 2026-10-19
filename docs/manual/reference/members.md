@@ -972,7 +972,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `ItemCount` (read-only) | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 | `ItemHeight` | int |  | Each item's height, in pixels. |
-| `ItemIndex` | int | -1 | The selected item, from 0; -1 when none is. |
+| `ItemIndex` | int | -1 | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MaxLength` | int |  | The most characters the user can type (0: no limit). |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
@@ -2293,7 +2293,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `ItemCount` (read-only) | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 | `ItemHeight` | int |  | Each item's height, in pixels. |
-| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. |
+| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MultiSelect` | bool | False | Lets the user select more than one item or file. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
@@ -2308,7 +2308,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `Text` | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `TopIndex` | int |  | The item shown at the top of the list, from 0. |
+| `TopIndex` | int |  | The item shown at the top of the list, from 0. Setting it scrolls the list so that item is the first row (as far as the list goes: the last item shows its last page); reading it gives the first row shown. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
@@ -2393,7 +2393,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `ItemCount` (read-only) | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
 | `ItemHeight` | int |  | Each item's height, in pixels. |
-| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. |
+| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Mask` | string | `"*.*"` | The file pattern shown (`*.*`, `*.bas;*.inc`). |
 | `MultiSelect` | bool | False | Lets the user select more than one item or file. |
@@ -2405,7 +2405,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `ShowIcons` | bool | False | Shows an icon beside each file name. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `TopIndex` | int |  | The item shown at the top of the list, from 0. |
+| `TopIndex` | int |  | The item shown at the top of the list, from 0. Setting it scrolls the list so that item is the first row (as far as the list goes: the last item shows its last page); reading it gives the first row shown. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
@@ -2649,7 +2649,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `Indent` | int | 19 | How far each level of the tree is indented, in pixels. |
 | `Item` | item |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
-| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. |
+| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Parent` (write-only) | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
@@ -2663,7 +2663,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
-| `TopIndex` | int |  | The item shown at the top of the list, from 0. |
+| `TopIndex` | int |  | The item shown at the top of the list, from 0. Setting it scrolls the list so that item is the first row (as far as the list goes: the last item shows its last page); reading it gives the first row shown. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Visible` | bool | True | Whether the control or form is shown. |
 | `BMPClosed` (write-only) | string |  | The picture (a .BMP file name) drawn beside a closed outline node; write-only. |
@@ -2775,7 +2775,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `HotTrack` | bool | False | Highlights the item, tab or header section under the mouse. |
 | `Item` | item |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `ItemCount` | int |  | The number of items: list strings, tree nodes, list view rows or menu items. |
-| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. |
+| `ItemIndex` | int |  | The selected item, from 0; -1 when none is. Setting it scrolls a list box the least that shows the item. |
 | `LargeImages` (write-only) | component |  | The image list of the icons shown in `vsIcon` view; write-only. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `MultiSelect` | bool | False | Lets the user select more than one item or file. |

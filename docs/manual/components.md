@@ -173,6 +173,26 @@ also stops the code that called `DOEVENTS`: a main program's
 error in the main program ends the program. Under Studio's debugger the
 program first stops at the line (see [Debugging](debugging.md#when-the-program-fails)).
 
+## Lists scroll to what you pick
+
+A list box shows the item your program picks, as Windows' list boxes do:
+setting `ItemIndex` scrolls the least that brings the item into view (nothing
+moves when it's already there), and setting `TopIndex` makes that item the
+first row shown — as far as the list can scroll: `TopIndex` of the last item
+shows the list's last page. Reading `TopIndex` gives the first row shown, also
+after the user scrolled. It works the same in a list in `Columns` (the list
+scrolls across), in an owner-drawn list, and on the desktop, in a native
+build and on the web.
+
+```basic
+' a message list: each new message added, then picked and shown
+Messages.AddItems "Hello, " + Name
+Messages.ItemIndex = Messages.ItemCount - 1
+```
+
+(`TopIndex` reads the list as it was last drawn: set it, and it reads what
+the list shows once the window has drawn it, a moment later.)
+
 ## The global objects
 
 | Object | What it has |

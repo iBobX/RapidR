@@ -47,6 +47,13 @@ separated by tabs, so they paste into a spreadsheet as columns.
   Markdown one in Preview, at the heading the link names (`notes.md#install`);
 - a heading of the same file (`#running-it`) scrolls there.
 
+Links work from the keyboard too. With the preview focused, **Tab** steps to
+its first link, then each next one — a ring marks it, and the preview scrolls
+to it — and out of the preview after the last; **Shift+Tab** goes back the
+other way. **Enter** or **Space** follows the link, as a click does. The same
+holds for an `RMarkdownView` in your own programs (below), where
+`OnLinkClick` hears it.
+
 **Outline.** The Outline pane lists the file's headings, nested by level.
 Click one: the preview scrolls to it (in Source, the editor goes to its
 line).
