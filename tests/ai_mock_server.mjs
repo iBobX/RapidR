@@ -15,6 +15,7 @@
 //   "pretend …"        first claims the program is made (no tool), then — asked
 //                      by Studio — makes it
 //   "slowly …"         any of these, each answer after a tool's held 6 s
+//   "then fail …"      any of these, each answer after a tool's refused (400)
 //   "check …"          check_code, then say what it found
 //   "describe …"       rapidr_describe RButton, rapidr_list, then answer
 //   "inject …"         try write_file outside its permission (read-only tests)
@@ -343,7 +344,12 @@ export function startMock(port = 0) {
       let first = lastUserText(messages);
       const slow = /^slowly /i.test(first);
       if (slow) first = first.replace(/^slowly /i, "");
+      // ("then fail …": the same script, every answer after a tool's a
+      // server error — a local server short of memory for the last words)
+      const failAfter = /^then fail /i.test(first);
+      if (failAfter) first = first.replace(/^then fail /i, "");
       const results = toolResults(anthropic ? "anthropic" : "openai", messages);
+      if (failAfter && results.length > 0) return send(400, { error: { message: "The generation was interrupted: the model ran out of memory.", type: "invalid_request_error" } });
       const answer = script(first, results, system, messages);
       const reply = () => {
         if (res.writableEnded || res.destroyed) return;

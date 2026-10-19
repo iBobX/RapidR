@@ -6,8 +6,9 @@
 ' changes it proposes). Both are DIM'd in decl.inc. Here: its panel, docked
 ' with Properties (View > AI Assistant, Ctrl+I); the review of what it
 ' proposes (RDiffView: each file applied as one undo step in its editor); a
-' new program's preview before it is created; "What was sent"; the token
-' meter. Its settings: Tools > Settings > AI (settings.inc). And an RAI on a
+' new program created and opened at once with its banner — Run It, Undo,
+' What Did It Do? — (docs/ai-ux-plan.md), or previewed first when Review
+' first is on; "What was sent"; the token meter. Its settings: Tools > Settings > AI (settings.inc). And an RAI on a
 ' form, live in the designer: its Model list fetched once it has a key, the
 ' key typed in the inspector kept in the keychain, never in the code.
 '
@@ -82,7 +83,6 @@ DIM AIModelBox AS RComboBox
 DIM AINewBtn AS RButton
 DIM AIChat AS RMarkdownView
 DIM AIReviewBar AS RPanel
-DIM AIReviewText AS RLabel
 DIM AIReviewBtn AS RButton
 DIM AIBottom AS RPanel
 DIM AIInput AS RMemo
@@ -369,8 +369,6 @@ SUB SetUpAI
   AIReviewBar.Height = 46
   AIReviewBar.BevelOuter = 0
   AIReviewBar.Visible = 0
-  AIReviewText.Parent = AIReviewBar
-  AIReviewText.Visible = 0
   AIReviewBtn.Parent = AIReviewBar
   AIReviewBtn.Caption = "Review the Changes..."
   AIReviewBtn.AccessibleName = "Review the proposed changes"
@@ -492,8 +490,6 @@ SUB AIPanelFonts
   AISentLink.Font = DimFont
   AISentLink.Font.Color = TC("page.link")
   AIStatus.Font = StatusFont
-  AIReviewText.Font = UIFont
-  AIReviewText.Font.Bold = 1
   AIReviewBtn.Font = UIFont
   AIReviewBtn.Font.Bold = 1
   AIBannerFonts
@@ -878,7 +874,10 @@ SUB AIDone(Status AS STRING)
   AIProgressShow
   AIEnableSend
   n = AITools.ProposalCount
-  IF Status = "ok" AND n > 0 THEN
+  ' (an answer that failed after its tools — a local server short of memory
+  ' for the last sentence — still leaves what they made: Robert's walk of
+  ' 2026-10-18; Stop leaves it to Preview)
+  IF (Status = "ok" OR Status = "error") AND n > 0 THEN
     IF AIProjectProposal AND AIReviewFirst = 0 THEN
       ' (a new program: created and opened at once, its banner on top)
       AICreateNow

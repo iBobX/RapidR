@@ -2937,6 +2937,22 @@ const CASES = [
     webDump: { "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/, "aibannerfix.__shown": /^1$/ },
   },
   {
+    // The model made the program, then the server failed on its last words
+    // (a local server short of memory, Robert's walk): the program is made
+    // all the same — opened, the banner on top; the chat says the error
+    name: "ai-new-direct-after-error",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=then fail Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "proj.folder": /ScientificCalculator$/,
+      "aibanner.__shown": /^1$/,
+      "ai.transcript": /##### ◆ Created \*Scientific Calculator\*[\s\S]*> \*Error: /,
+    },
+  },
+  {
     // ... Ask It to Fix (the mouse): the assistant is asked, in the chat,
     // with the program open — its files are the project's now
     name: "ai-new-direct-fix",
