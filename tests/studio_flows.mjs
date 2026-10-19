@@ -2877,6 +2877,68 @@ const CASES = [
     desktopFiles: ["docs/RapidR/Projects"],
     webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
   },
+  // ---- the chat's cards by the keyboard: Open and Undo are links in the
+  // conversation (a markdown view), each a Tab stop in it — after the text,
+  // before the box — with a ring round the link, a name for a screen reader,
+  // Enter or Space to follow. From the box, Shift+Tab comes back to the
+  // last link first.
+  {
+    // Shift+Tab, Shift+Tab: from the box to the last card's Undo, then its
+    // Open; Tab: on to Undo again (the order in the chat)
+    name: "ai-card-keys",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Tab",
+    delay: 9,
+    // (the ring round the link in each look, the text round it still AA)
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Undo", "link", "focused"], ["Open", "link"]],
+    dump: { "aibanner.__shown": /^1$/, "ai.transcript": /\[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)/ },
+    webDump: { "aibanner.__shown": /^1$/ },
+  },
+  {
+    // ... Tab once more leaves the chat for the box: its text box has the keys
+    name: "ai-card-keys-leave",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Tab,key:Tab",
+    delay: 9,
+    a11y: [["Ask the assistant", "", "focused"], ["Undo", "link"]],
+    dump: { "aibanner.__shown": /^1$/ },
+    webDump: { "aibanner.__shown": /^1$/ },
+  },
+  {
+    // ... Enter on Open opens the program again (its project was closed)
+    name: "ai-card-keys-open",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,file.closeProject,wait,ai.assistant,key:Shift+Tab,key:Shift+Tab,key:Enter,wait,wait,wait",
+    delay: 10,
+    dump: { "proj.folder": /\/docs\/RapidR\/Projects\/ScientificCalculator$/, "proj.name": /^Scientific Calculator$/, "designdoc(0).__shown": /^1$/ },
+    webDump: { "proj.folder": /ScientificCalculator$/, "proj.name": /^Scientific Calculator$/ },
+  },
+  {
+    // ... Enter on Undo takes the program back, as the mouse's click does
+    name: "ai-card-keys-undo",
+    readOnlyHome: true,
+    installedWritable: true,
+    open: "",
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please.,wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Enter,wait,wait",
+    delay: 9,
+    dump: {
+      "proj.folder": /^$/,
+      "aibanner.__shown": /^0$/,
+      "aitools.createdfolder": /^$/,
+      "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/,
+    },
+    desktopGone: ["docs/RapidR/Projects/ScientificCalculator"],
+    webDump: { "proj.folder": /^$/, "aibanner.__shown": /^0$/, "aitools.createdfolder": /^$/, "aistatus.simpletext": /^Undone: Scientific Calculator was removed\.$/ },
+  },
   {
     // ... a file the user added to its folder since: Undo asks first;
     // Cancel keeps everything
