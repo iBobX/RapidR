@@ -1,17 +1,14 @@
 # RapidR @VERSION@
 
-RapidR runs and builds RapidQ programs. It targets full compatibility with
-RapidQ on all three of its runtimes — the **native compiler** (your program as
-a native executable), the **interpreter** (the RapidR Runtime, and standalone
-executables that carry it) and the **web** (the same program in a browser) —
-and an existing RapidQ program behaves as it does under RapidQ.
+RapidR is a modern BASIC with its own IDE, RapidR Studio. Write a program once
+and run it three ways: as a **native** executable, as a standalone
+**interpreted** app (no extra software needed), or on the **web**, in a
+browser, on Windows, macOS and Linux alike. It comes with an AI assistant, a
+data-science stack (data frames, arrays, charts), SQLite and MySQL, high-DPI
+screens and accessibility, and more.
 
-RapidR also goes further than RapidQ, without changing what RapidQ programs
-do: a data-science stack (data frames, arrays, charts), an AI stack, SQLite and
-MySQL, high-DPI screens and accessibility, and more.
-
-RapidR is not a clone of RapidQ. It is an original implementation,
-written from the ground up in pure Rust, that is compatible with RapidQ.
+RapidR is an original implementation, written from the ground up in Rust.
+Existing RapidQ programs run too.
 
 <!-- What's new in this release: from CHANGELOG.md -->
 ## What's new
