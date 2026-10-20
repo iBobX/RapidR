@@ -67,8 +67,14 @@ Plans: preview2-fix-queue (memory), ROADMAP.
 | Web parity notes for menus, themes, focus_order | Sonnet S |
 | Decision: Apple Developer ID signing and notarization ($99/yr, Robert) and Windows signing | Robert |
 
-### MV: Versions, Git reinvented (**the next release**, "Preview 4: Versions"; Robert 2026-10-19)
-Plan: [versions-plan.md](versions-plan.md).
+### MV: Preview 4, "Studio, solid" (**the next release**; Robert 2026-10-20)
+Plan: [preview4-plan.md](preview4-plan.md). It grew on 2026-10-20 from Versions alone to the whole of Studio:
+- the IDE essentials: forms in any file, Open Recent, search you can see, Find References, Problems that tell the truth;
+- RAI runs and debugs, with permissions and safe test runs (moved here from M1);
+- knowledge, so every model writes correct RapidR;
+- a security audit and the six legal traps.
+
+Versions as below, plan [versions-plan.md](versions-plan.md):
 - **Simple and Pro levels:**
   - plain words, with Git's names in tooltips;
   - nothing ever lost (safety points, undo of any action);
@@ -87,7 +93,7 @@ Plans: [ai-ux-plan.md](ai-ux-plan.md), [small-models-plan.md](small-models-plan.
 | A slim, native banner; buttons in Studio's style | Sonnet M |
 | The docked, beautiful review: split/unified view, ribbons, word-level highlights, Keep/Undo pills | built in MV (G2), shared with Versions |
 | Tracked changes in the editor buffers and checkpoints | Opus L |
-| `run_program` (scripted clicks, results) and screenshots **with permission**; the permission-mode dropdown | Opus L (design review: Fable, if Robert agrees) |
+| `run_program` (scripted clicks, results) and screenshots **with permission**; the permission-mode dropdown | **moved into Preview 4** (preview4-plan R7–R9) |
 | `search_manual`; a game-loop recipe; layout and handler-skeleton tools; spec-first for small models | Sonnet M + Opus M |
 | **RChat** component | Opus L |
 

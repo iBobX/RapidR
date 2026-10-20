@@ -706,7 +706,47 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ---
 
-## Versions — Git in RapidR Studio, reinvented (the next release, "Preview 4"; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))
+## Preview 4 — Studio, solid: find anything, never lose anything, RAI runs and fixes its own work (the next release; Robert, 2026-10-20; plan: [docs/preview4-plan.md](docs/preview4-plan.md))
+
+★ = must-have; the rest boards the release only if it is ready (the train rule).
+
+**Studio essentials**
+- [ ] ★ S1 Forms in any file (from the code; several per file)
+- [ ] ★ S2 File ▸ Open Recent; reopen the last project and its tabs
+- [ ] ★ S3 Search you can see (a tab, scopes, `file:line:col`); Find References, Go to Definition
+- [ ] S4 RRegex for programs (Rust `regex`, linear time)
+- [ ] ★ S5 Problems that tell the truth (project-aware; a Targets setting)
+- [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line`
+- [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
+
+**RAI**
+- [ ] ★ R1 Chats kept, with a chat list (stored outside the project)
+- [ ] R2 Edit a sent message; Retry
+- [ ] ★ R3 Messages queue while RAI works
+- [ ] ★ R4 A live status line
+- [ ] R5 Context meter, Compact, `/` commands, reasoning effort
+- [ ] ★ R6 One model picker with ↻; the Set up RAI wizard
+- [ ] ★ R7 RAI runs and debugs (run, output, clicks, screenshots, debugger)
+- [ ] ★ R8 Permissions (Allow once / for this chat / Not now)
+- [ ] ★ R9 Safe test runs and the red card for risky code
+- [ ] ★ R10 Always the user's language
+- [ ] ★ R11 Transcript fixes (apply/reject log, targeted edits, truncated writes, pending set)
+
+**Knowledge**
+- [ ] ★ K1 The language card, generated
+- [ ] K2 A tested example for every method
+- [ ] ★ K3 `search_manual`, `project_outline`
+- [ ] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension)
+- [ ] K5 Project notes for RAI
+- [ ] K6 Evals and the "Which model?" report
+
+**Security and legal**
+- [ ] ★ X1 Threat model update
+- [ ] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan
+- [ ] ★ X3 The audit (Fable with Robert's OK, or Opus), with a public report
+- [ ] ★ X4 The six legal traps
+
+### Versions — Git in RapidR Studio, reinvented (part of Preview 4; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))
 
 - [ ] G0 Survey + spike: gitoxide's capabilities today, `cargo deny` with gix (no copyleft, no MPL), Studio's size impact, wasm check
 - [ ] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests
