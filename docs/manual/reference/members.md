@@ -5552,7 +5552,7 @@ The screen: its size and work area, the mouse's position, the monitors, the mous
 <a id="application"></a>
 ## Application
 
-The running program: its file and folder, title, icon, hint settings, RapidR's Theme (and OnThemeChange when the look changes), and Terminate to end it.
+The running program: its file and folder, title, icon, hint settings, RapidR's Theme (and OnThemeChange when the look changes), RapidR's Language (and OnLanguageChange), and Terminate to end it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5569,6 +5569,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Title` | string |  | The title of a dialog, the application (task bar), a print job, a notification or a plot. |
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
 | `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
+| `Language` *(RapidR)* | string |  | The language the program speaks, as a language tag (`es`, `es-AR`, `pt-BR`, `zh-Hans`): the system's until the program sets it. `TR$` and `TRN$` translate into it from the program's `lang` folder (`es-AR`: `lang/es-AR.po`, then `lang/es.po`, then the program's own text). Setting it reads the catalogs again; "" goes back to the system's language. Any spelling is taken (`es_ar` reads back as `es-AR`). |
 | `KeysPending` *(RapidR)* (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
 
 | Method | |
@@ -5585,6 +5586,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 
 | Event | |
 |---|---|
+| `OnLanguageChange` *(RapidR)* | The program's language changed (it set Language to another one): fires once per change, at the next turn of the event loop, from the moment the handler is bound. Text the program made with TR$ or TRN$ is a value, not a link: make it again here (`Label1.Caption = TR$("Save file")`). Language says the language now. |
 | `OnThemeChange` *(RapidR)* | The look the program is drawn in changed: the program set Theme to another look, or the system switched between light, dark and high contrast while the program follows it (RapidR's look, `$THEME rapidr`, the default). Fires once per change, after it, from the moment the handler is bound. Colours the program read with ThemeColor are values, not links: read them again here and assign them (`Label1.Font.Color = Application.ThemeColor("page.text")`); Windows' system colours (clBtnFace, clWindowText …) and components' own colours follow the look by themselves. Theme says the look now. |
 
 <a id="clipboard"></a>

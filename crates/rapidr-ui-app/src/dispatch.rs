@@ -74,11 +74,18 @@ fn event<R: Program + Windows>(rt: R, ev: KernelEvent) {
 /// (RapidR's) Application.OnThemeChange, once the look the program is drawn
 /// in has changed since it was last told (`rapidr_value::theme::
 /// take_change`: the program set Application.Theme to another look, or the
-/// system's look changed while the program follows it). Both hosts ask
-/// after dispatching their events, every turn.
+/// system's look changed while the program follows it), and
+/// Application.OnLanguageChange once its language has
+/// (`rapidr_value::i18n::take_change`). Both hosts ask after dispatching
+/// their events, every turn.
 pub fn look_changed<P: Program>(p: P) {
     if rapidr_value::theme::take_change() {
         p.fire("application", "onthemechange");
+    }
+    // (RapidR's Application.OnLanguageChange: the program set Language to
+    // another language this turn — rapidr_value::i18n)
+    if rapidr_value::i18n::take_change() {
+        p.fire("application", "onlanguagechange");
     }
 }
 
