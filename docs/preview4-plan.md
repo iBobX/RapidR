@@ -89,6 +89,9 @@ The model was capable. Studio made it work blind:
 - ★ E0 (the framework: a `kind` facet in the registry, sites from the language service, no layout shift, keyboard and screen reader), E1 (colour, files, fonts, choices, links), E2 (chips, line note, values while running), E6 (filling `kind`).
 - If ready: more helpers, live tweak while running (the WOW), and your own helpers in RapidR.
 
+### T: Programs in every language, first step (extra, Robert 2026-10-21)
+- T1 from [program-languages-plan.md](program-languages-plan.md): `TR$`, `TRN$`, `Application.Language`, PO files beside the program. Started 2026-10-21; ships in Preview 4 as an extra WOW.
+
 ### V: Versions (unchanged; [versions-plan.md](versions-plan.md))
 - ★ G0–G4, G8 checkpoints, G9 review, G10.
 - G5 blame, G6 remotes (needs Robert's GitHub OAuth App) and G7 Pro board the release if ready.
