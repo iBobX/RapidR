@@ -774,6 +774,19 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
 
 
+## Assembly (Robert's question, 2026-10-21; decided)
+- **No inline machine code and no 32→64-bit translation layer.**
+  - RapidQ never had assembly, and none of the 386 examples in its corpus run machine code. They use `VARPTR` and `CALLFUNC` only for DLL and COM calls, which RapidR has.
+  - A translation layer means writing a binary translator. Calling conventions and pointer sizes change between 32 and 64 bits, and ARM would need full emulation.
+  - It would also break safety and parity: the VM is `forbid(unsafe_code)`, the web can't run native code, and macOS/iOS forbid writable-and-executable memory.
+- **What people used assembly for is covered natively:**
+  - bytecode appended to an executable (`rapidr build --interp`, Export anywhere);
+  - function pointers (`CALLFUNC`, DLL calls);
+  - memory copies (`MEMCPY`);
+  - speed (native builds, the data engine).
+- [ ] Idea (after 1.0, with Learn with RAI): **an assembly lab.** A safe CPU simulator component (an x86-32 subset, ARM, RISC-V) with registers, flags and memory shown in the debugger, and stepping. It runs everywhere, the web included, and RAI explains each instruction. Later, the instructions a board really runs.
+- Only if users ask, after 1.0: real assembly blocks in **native builds only**, one block per architecture, assembled by Rust's own assembler, opt-in and marked unsafe.
+
 ## Lean builds and Export anywhere (for 1.0; Robert, 2026-10-21; plan: [docs/lean-builds-and-export-plan.md](docs/lean-builds-and-export-plan.md))
 
 - [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set
