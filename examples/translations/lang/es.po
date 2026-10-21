@@ -1,0 +1,27 @@
+# Spanish for languages.rr.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: es\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Languages"
+msgstr "Idiomas"
+
+msgid "Language:"
+msgstr "Idioma:"
+
+msgid "Hello, {name}!"
+msgstr "¡Hola, {name}!"
+
+msgid "{n} file"
+msgid_plural "{n} files"
+msgstr[0] "{n} archivo"
+msgstr[1] "{n} archivos"
+
+msgid "&Add a file"
+msgstr "&Añadir un archivo"
+
+msgctxt "button"
+msgid "&Save"
+msgstr "&Guardar"

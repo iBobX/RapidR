@@ -1,0 +1,12 @@
+# Simplified Chinese: one plural form.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Save file"
+msgstr "保存文件"
+
+msgid "{n} file"
+msgid_plural "{n} files"
+msgstr[0] "{n} 个文件"

@@ -130,6 +130,19 @@ export const cases = [
     expect: ["status.caption=South: 577 thousand in 4060 orders; best month December", "bestvalue.caption=December (66)"] },
   { file: "gui/tray.rr", runtimes: ["run", "interp", "native", "web"], events: "hidebtn.onclick,form.__tray_513,form.__tray_514", dump: "info.caption,form.__shown",
     expect: ["info.caption=Back from the tray (1)", "form.__shown=1"] },
+  // translations/ (TR$ / TRN$ with lang/*.po beside it — `includes`: the
+  // folder copied whole; on the web its lang/ files are the page's): it
+  // starts in the language given, the list switches it, OnLanguageChange
+  // writes the captions again. (Built executables find lang/ beside them:
+  // the suite builds them in another folder, so run and web only.)
+  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["es"], dump: "form.caption,greeting.caption,filecount.caption,savebutton.caption",
+    expect: ["form.caption=Idiomas", "greeting.caption=¡Hola, Ana!", "filecount.caption=1 archivo", "savebutton.caption=&Guardar"] },
+  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["en"], events: "languages.__item_2,addbutton.onclick,addbutton.onclick", dump: "greeting.caption,filecount.caption,addbutton.caption",
+    expect: ["greeting.caption=Olá, Ana!", "filecount.caption=3 arquivos", "addbutton.caption=&Adicionar um arquivo"] },
+  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["zh-Hans"], events: "addbutton.onclick", dump: "greeting.caption,filecount.caption",
+    expect: ["greeting.caption=你好，Ana！", "filecount.caption=2 个文件"] },
+  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["pt-BR"], dump: "savebutton.caption,languages.itemindex",
+    expect: ["savebutton.caption=&Salvar", "languages.itemindex=2"] },
   // recipes/ (the short programs RapidR Studio's assistant starts from: each
   // clicked as a user would)
   { file: "recipes/calculator.rr", runtimes: ["run", "interp", "native", "web"], events: "k2.onclick,kadd.onclick,k3.onclick,kequals.onclick", dump: "display.caption",
@@ -641,6 +654,11 @@ async function runWeb(c) {
     const assets = Object.fromEntries(readdirSync(dir).filter((f) => statSync(join(dir, f)).isFile() && !(c.without || []).includes(f) && ![".rr", ".bas", ".md"].includes(extname(f).toLowerCase()))
       .map((f) => [f, "data:application/octet-stream;base64," + readFileSync(join(dir, f)).toString("base64")]));
     for (const e of c.extra || []) assets[basename(e)] = "data:application/octet-stream;base64," + readFileSync(join(EXAMPLES, e)).toString("base64");
+    // (its translations, lang/es.po …: the page's files by that name, as a
+    // bundle serves them beside the program)
+    if (existsSync(join(dir, "lang"))) {
+      for (const f of readdirSync(join(dir, "lang"))) assets[`lang/${f}`] = "data:application/octet-stream;base64," + readFileSync(join(dir, "lang", f)).toString("base64");
+    }
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
     // (the program run once; `reload`: the page opened again — the browser's
     // storage kept — and the program run again with its own events and dump)

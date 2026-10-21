@@ -15,6 +15,9 @@
 //                         that, then stops with a run-time error whose
 //                         message has every non-empty line of this file
 //                         (e.g. RapidQ's "Division by zero")
+//   lang/                 translation catalogs (lang/es.po …) the i18n_*
+//                         cases read: beside each built program, as a
+//                         program's own lang folder
 //
 // Known bugs are tracked with a first-line marker in the .bas file:
 //   ' xfail: vm, codegen — reason (ROADMAP item)
@@ -87,6 +90,8 @@ function run(cmd, cmdArgs, opts = {}) {
 // Returns { compiled: bool, output: string, diagnostics: string }.
 function runVm(name, src, input, progArgs) {
   const rrbc = join(WORK, `${name}.rrbc`);
+  // (the program's lang folder: beside its .rrbc, as TR$ looks for it)
+  if (existsSync(join(CASES, "lang"))) cpSync(join(CASES, "lang"), join(WORK, "lang"), { recursive: true });
   const c = run(RAPIDR, ["build-bc", src, "-o", rrbc]);
   if (!c.ok) return { compiled: false, output: "", diagnostics: c.out + c.err };
   const r = run(RAPIDR, ["run-bc", rrbc, ...progArgs], { input });
@@ -100,8 +105,8 @@ function runCodegen(name, src, input, progArgs) {
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
   // (resource_files: files a case lists; picture_files: pictures it loads;
-  // video_files: QVIDEO's clips)
-  for (const folder of ["resource_files", "picture_files", "video_files"]) {
+  // video_files: QVIDEO's clips; lang: TR$'s catalogs, beside the program)
+  for (const folder of ["resource_files", "picture_files", "video_files", "lang"]) {
     const resources = join(CASES, folder);
     if (existsSync(resources)) cpSync(resources, join(dir, folder), { recursive: true });
   }
