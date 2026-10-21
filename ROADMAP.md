@@ -720,6 +720,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] S4 RRegex for programs (Rust `regex`, linear time)
 - [ ] ★ S5 Problems that tell the truth (project-aware; a Targets setting)
 - [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line`
+- [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
 
 **RAI**
