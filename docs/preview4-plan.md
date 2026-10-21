@@ -93,6 +93,9 @@ The model was capable. Studio made it work blind:
 ### T: Programs in every language, first step (extra, Robert 2026-10-21)
 - T1 from [program-languages-plan.md](program-languages-plan.md): `TR$`, `TRN$`, `Application.Language`, PO files beside the program. Started 2026-10-21; ships in Preview 4 as an extra WOW.
 
+### Launch companion (Robert, 2026-10-21)
+- RapidR Database Studio 0.1 (`~/Programming/RapidR/DatabaseStudio`), the first product written 100% in RapidR, launches with Preview 4 if it is ready, with one video in EN/ES/PT/ZH and one set of posts. This chat makes the video, the posts, the signed Windows/Linux builds (VMs) and the GitHub repo. Before that: the trademark check on its name and the six legal checks.
+
 ### V: Versions (unchanged; [versions-plan.md](versions-plan.md))
 - ★ G0–G4, G8 checkpoints, G9 review, G10.
 - G5 blame, G6 remotes (needs Robert's GitHub OAuth App) and G7 Pro board the release if ready.
