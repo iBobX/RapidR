@@ -62,7 +62,8 @@ pub enum Handler {
 /// it when they bind one): an OnStartDrag handler makes its button a drag
 /// source (`crate::drag`), a form's OnHint handler hears the program's
 /// hints (`crate::hints`), Application.OnThemeChange hears the look's
-/// changes from the look the program has now (`crate::theme::listen`), a
+/// changes from the look the program has now (`crate::theme::listen`),
+/// Application.OnLanguageChange the language's (`crate::i18n::listen`), a
 /// form's WndProc its window's messages on Windows
 /// (`crate::window_messages`).
 pub fn bound(name: &str, event: &str) {
@@ -74,6 +75,8 @@ pub fn bound(name: &str, event: &str) {
         crate::hints::set_receiver(name);
     } else if event.eq_ignore_ascii_case("onthemechange") && name.eq_ignore_ascii_case("application") {
         crate::theme::listen();
+    } else if event.eq_ignore_ascii_case("onlanguagechange") && name.eq_ignore_ascii_case("application") {
+        crate::i18n::listen();
     }
 }
 
