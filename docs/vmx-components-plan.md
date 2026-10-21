@@ -80,6 +80,25 @@ No wave is done until every point below holds. Speed and licences are never trad
 
   It goes through the Preview 4 security audit's checklist.
 
+## W1 shader origins (VMX's audit, received 2026-10-21; accepted)
+VMX audited, function by function, every piece of shader code the W1 demos use (`~/Herd/visualmusicator-x/docs/rapidr/W1-shader-provenance.md`). The result: everything is VMX's own code except two MIT snippets. Nothing came from Shadertoy. Decided for R3D's WGSL include library:
+- **Kept, with their MIT notices:**
+  - David Hoskins' "Hash without Sine" (2014) is **the only hash**. The common `sin`-based hash is not used anywhere.
+  - Ashima Arts and Stefan Gustavson's 3D simplex noise (webgl-noise, 2011–2016).
+- **Written fresh from the maths, in our own words:**
+  - value noise and fbm, with our own rotate-and-scale between octaves;
+  - rotations;
+  - HSV↔RGB, from the definition;
+  - the cosine palette, credited as a technique, with our own coefficients;
+  - SDF primitives and operators, from their geometric definitions, never copied from public listings;
+  - normals by a 6-tap central difference;
+  - hex tiling with axial/cube coordinates;
+  - our own bloom (a downsample/upsample chain).
+- **Notices:**
+  - THIRD_PARTY_NOTICES gains a "shader code" section with the two MIT notices. The notices also sit in the WGSL file's header.
+  - The W1 PR checks both.
+  - Any later shader import follows the same three steps: audit, keep the credit, or rewrite.
+
 ## Waves (each one a release with a WOW video)
 | Wave | REQUEST-001 milestones | Why first | Models |
 |---|---|---|---|
