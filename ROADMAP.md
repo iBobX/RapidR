@@ -779,6 +779,21 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
 - [ ] L5 macOS export signing decision and the "first launch" manual pages
 
+## Requests from RapidR apps (built 100% in RapidR, in their own repos; Robert relays each request)
+
+- **RapidR Database Studio** (working name; `~/Programming/RapidR/DatabaseStudio`, MIT; scope now: SQLite, MySQL/MariaDB and CSV). REQUEST-001:
+  - [ ] SQL mode for RCodeEditor (with schema completion)
+  - [ ] Background queries with streaming and Cancel
+  - [ ] Virtual data grid
+  - [ ] RSecrets (the OS keychain for programs)
+  - [ ] RChat (RAI as a component)
+  - [ ] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation)
+  - [ ] TLS for MySQL
+  - [ ] RNodeGraph (shared with Visualmusicator X W4)
+- **Visualmusicator X**: see the next section.
+
+Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
+
 ## After Preview 4 — R3D, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
 
 - [ ] W1 R3D core (R3DView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
