@@ -761,6 +761,14 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] G10 The manual chapter, accessibility, USE-AUDIT, the release and video
 - [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
 
+
+## After Preview 4 — R3D, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
+
+- [ ] W1 R3D core (R3DView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
+- [ ] W2 Scene graph, geometry, materials, instancing, GPU compute, reflections, generated textures
+- [ ] W3 RSynth: patch voices, FX, sample-accurate sequencer, our own pattern notation, AudioWorklet, offline render
+- [ ] W4 RMcpServer (the IDE's MCP security) + RNodeGraph, RTimeline, RPianoRoll, curve/gradient editors, knobs, multi-window
+- [ ] W5 Single-file web export, the tiny profile, direct backends
 ## Phase 8 — Truly native UI, `$UI native` (after 1.0; Robert, 2026-10-19; plan: [docs/native-ui-plan.md](docs/native-ui-plan.md))
 
 One component model with the real widgets of every OS: a UI "HAL", as wgpu is for graphics. Our layout, their widgets; drawn components (canvas, plot, grid, 3D) hosted inside native views; one conformance suite on every backend; drawn fallback per component. Published as a standalone MIT Rust crate. v1 keeps the drawn kernel with native-looking themes (`$THEME native`).
