@@ -101,7 +101,7 @@ After 2.120.0, Robert asked for two things:
   - in light, dark and high contrast;
   - with `+` / `−` markers and screen-reader names, so colour is never the only signal.
 - **Word-level highlights** inside changed lines.
-- **Xcode-style ribbons** between the sides in split view.
+- **Connecting ribbons** between the sides in split view.
 - **Unchanged runs folded,** with a "⋯ N lines" button.
 - **A change minimap** in the scrollbar.
 - **Per-change controls:** a small Keep ✓ / Undo ↺ pill on each change. In Pair mode, the change's one-line *why* goes under it (Learn with RAI).

@@ -47,7 +47,7 @@ Professional tools expose Git's vocabulary (stage, HEAD, detached, rebase) and l
   - the Timeline below.
 - **The Timeline:** a vertical graph of versions with their messages, authors and relative times. AI checkpoints are smaller and lighter. Clicking a version opens it; right-click (or the version's buttons) offers Go back, Undo, Copy here, Mark, What changed.
 - **The Diff tab:** docked in the editor area, the *same beautiful diff* the assistant uses (ai-ux-plan §6):
-  - split or unified view, Xcode-style ribbons, word-level highlights, folded unchanged lines;
+  - split or unified view, connecting ribbons, word-level highlights, folded unchanged lines;
   - a change minimap, and keyboard navigation (F7 / Shift+F7);
   - accessible: `+`/`−` markers and screen-reader names, never colour alone.
 - **RapidR's WOW: diffs that understand RapidR.**

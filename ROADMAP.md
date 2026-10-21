@@ -740,6 +740,15 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] K5 Project notes for RAI
 - [ ] K6 Evals and the "Which model?" report
 
+**Helpers** ([docs/code-helpers-plan.md](docs/code-helpers-plan.md))
+- [ ] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility
+- [ ] ★ E1 Value editors shared with Properties: colour, files and pictures, fonts, choices, links
+- [ ] ★ E2 Argument names, the line note, values while running
+- [ ] E3 Sounds, numbers, shortcuts, positions, patterns, formats
+- [ ] E4 Live tweak while running
+- [ ] E5 `RValueEditor`: helpers written in RapidR
+- [ ] ★ E6 `kind` across the registry
+
 **Security and legal**
 - [ ] ★ X1 Threat model update
 - [ ] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan

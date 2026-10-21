@@ -83,6 +83,12 @@ The model was capable. Studio made it work blind:
 | K5 | **Project notes for RAI** (`.rapidr/notes.md`): decisions that survive compaction and new chats, editable by you | Sonnet S |
 | K6 | **Evals and a "Which model?" report.** New cases: a multi-file app, a server, a game, and this evening's failures. Per model: Haiku, DeepSeek, Gemma (local) and others. Published with the release | Sonnet M (+ small API cost) |
 
+### E: Helpers, the code that shows and edits its own values ([code-helpers-plan.md](code-helpers-plan.md), Robert 2026-10-21)
+- What they are: inline marks (colour swatches, thumbnails, font samples, ▶, units, missing-file marks), argument-name chips, a one-line note for the caret's line, and values while running.
+- Value editors: one click or Ctrl+. opens one, and it writes back as a single undo step in your own format. The same editors serve the Properties panel, RAI's review cards and programs (`RValueEditor`).
+- ★ E0 (the framework: a `kind` facet in the registry, sites from the language service, no layout shift, keyboard and screen reader), E1 (colour, files, fonts, choices, links), E2 (chips, line note, values while running), E6 (filling `kind`).
+- If ready: more helpers, live tweak while running (the WOW), and your own helpers in RapidR.
+
 ### V: Versions (unchanged; [versions-plan.md](versions-plan.md))
 - ★ G0–G4, G8 checkpoints, G9 review, G10.
 - G5 blame, G6 remotes (needs Robert's GitHub OAuth App) and G7 Pro board the release if ready.
@@ -101,12 +107,14 @@ The model was capable. Studio made it work blind:
 1. **Thursday (after the reset):**
    - M0 (small; master-plan §3);
    - the quick wins: S2, S6, R3, R10, R11;
+   - the "RapidR's own words" sweep: no other products named in code, comments, docs or UI (about 340 mentions; RapidQ stays only as the compatibility footnote; Sonnet S);
    - S1;
    - G0 (survey and spike);
    - K1, the card.
 2. **Then:**
    - R7–R9: runs, permissions, safe runs. The Fable design review comes first, if Robert agrees;
    - S3, S5;
+   - E0–E2, E6 (helpers);
    - R1;
    - G1–G2.
 3. **Then:**
@@ -131,8 +139,9 @@ The model was capable. Studio made it work blind:
 | R | ~30% |
 | S | ~15% |
 | K | ~10% |
+| E (helpers) | ~10–15% |
 | X | ~10% (+ Fable) |
-| **Total** | **about one full week, spread over about two** |
+| **Total** | **a little over one full week, spread over about two** |
 
 The train rule keeps the date honest.
 
