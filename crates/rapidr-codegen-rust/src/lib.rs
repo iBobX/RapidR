@@ -3226,6 +3226,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         }),
         "rinstr" => Some(format!("rp_rinstr(&{a0}, &{a1})")),
         "format" => Some(format!("rp_format(&{a0}, &[{}])", args.get(1..).unwrap_or(&[]).iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        // (RapidR's) the program's text in its language (rapidr_value::i18n)
+        "tr" => Some(format!("i18n::rp_tr(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "trn" => Some(format!("i18n::rp_trn(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
         "strf" => Some(format!("rp_strf(&{a0}, &{a1}, &{a2}, &{})", args.get(3).map(|s| s.as_str()).unwrap_or("v_null()"))),
 
         // File I/O (function forms)
