@@ -807,7 +807,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation)
   - [ ] TLS for MySQL
   - [ ] RNodeGraph (shared with Visualmusicator X W4)
-  - [ ] Translation for programs (EN/ES/PT/ZH): docs/program-languages-plan.md
+  - [x] Translation for programs, first step (TR$, TRN$, Application.Language; merged 2026-10-21, 0905af73)
+  - [ ] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set)
 - **Visualmusicator X**: see the next section.
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
