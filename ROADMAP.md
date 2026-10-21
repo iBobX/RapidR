@@ -556,6 +556,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] RapidR Studio's own text (menus, dialogs, messages, Welcome) and the registry's hover / IntelliSense help in the four languages, following the OS language with a Settings override; compiler and runtime error messages too (RapidQ's own messages stay word for word where a program reads them)
 - [ ] The website, release notes and examples' comments in the four languages
 - [ ] Every new feature from then on lands in all four (the lane rules say so)
+- [ ] **Programs in every language** ([docs/program-languages-plan.md](docs/program-languages-plan.md), Robert 2026-10-21): `TR$`/`TRN$` with placeholders and plurals, forms whose captions translate themselves, PO files, `App.Language` + `OnLanguageChange`, `LFORMAT$`/`LDATE$`/`LMONEY$`, Studio's Translations editor, RAI drafts; Chinese input and fonts checked
 
 **Why RapidR (kept current in the manual and the README)** — [x] done for Preview 2 (DOCS-P2, 2026-10-15: [docs/manual/why-rapidr.md](docs/manual/why-rapidr.md), the README's "Why RapidR" block and "Coming next"; every number there with its conditions, to be re-measured with `tools/bench/` when the engine or the VM changes): a page that says what RapidR does best, with measured numbers only (conditions stated, scripts in tools/bench): its own multicore data engine (1M rows in 23 ms; pandas 372 ms on the same Mac), the lean VM, 15 ms debugger steps, one source for Windows / macOS / Linux / web, accessibility, security, RapidQ programs running unchanged.
 
@@ -790,6 +791,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation)
   - [ ] TLS for MySQL
   - [ ] RNodeGraph (shared with Visualmusicator X W4)
+  - [ ] Translation for programs (EN/ES/PT/ZH): docs/program-languages-plan.md
 - **Visualmusicator X**: see the next section.
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.

@@ -188,6 +188,7 @@ Plan: ROADMAP "Languages".
 | Item | Model, size |
 |---|---|
 | Studio's UI, compiler messages and the manual in Spanish, Portuguese and Chinese; the website | Sonnet L (translations) + Opus M (the i18n plumbing) |
+| **Programs in every language** ([program-languages-plan.md](program-languages-plan.md)): `TR$`/`TRN$`, forms that translate themselves, PO files, `App.Language`, the Translations editor, RAI drafts (Robert 2026-10-21; RapidR Database Studio asks for it first) | Opus M ×3 + Sonnet M ×2 |
 
 ### M6: Data, the last mile
 Plan: [data-science-plan.md](data-science-plan.md).
