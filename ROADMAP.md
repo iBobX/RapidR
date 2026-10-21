@@ -771,6 +771,14 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] Next: the web Studio syncing with GitHub through its REST API; pull requests; interactive rebase; LFS; submodules; signed commits
 
 
+## Lean builds and Export anywhere (for 1.0; Robert, 2026-10-21; plan: [docs/lean-builds-and-export-plan.md](docs/lean-builds-and-export-plan.md))
+
+- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set
+- [ ] L2 Native builds with only the features a program uses + the size profile; a size report in Studio
+- [ ] L3 Runner flavours (console, gui, gui+data, full) for desktop and wasm, built and signed with each release
+- [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
+- [ ] L5 macOS export signing decision and the "first launch" manual pages
+
 ## After Preview 4 — R3D, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
 
 - [ ] W1 R3D core (R3DView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)

@@ -106,6 +106,7 @@ Plans: ROADMAP Phase 3B, [native-ui-plan.md](native-ui-plan.md) (v1 part).
 | `$THEME native`: drawn Windows 11, macOS and GNOME looks, light and dark | Opus L + Sonnet M (theme tokens, screenshots) |
 
 ### M3: RapidR on boards: ESP32, micro:bit, M5Stack (**v1 scope**, Robert 2026-10-19)
+**Also in M3 — lean builds** (Robert 2026-10-21; [lean-builds-and-export-plan.md](lean-builds-and-export-plan.md)): each program carries only the components it uses (native: the minimal feature set; interpreted: the smallest runner flavour).
 Plan: ROADMAP Phase 3C (to be expanded into docs/hardware-plan.md as M3's first lane).
 - **Two ways in, both in v1:**
   1. **Link mode:** a program on the computer drives the board over USB, using small RapidR firmware we provide. It's the fastest way to motors, sensors and screens, and great for classrooms.
@@ -195,6 +196,7 @@ Plan: [data-science-plan.md](data-science-plan.md).
 | Excel, Parquet and PostgreSQL as linked components; any remaining speed and ease gaps | Opus L |
 
 ### M7: Hardening for 1.0
+**Also in M7 — Export anywhere** (Robert 2026-10-21; [lean-builds-and-export-plan.md](lean-builds-and-export-plan.md)): any Studio, even the web one, exports for Windows, macOS, Linux and the web (signed runner flavours + the program's bytecode).
 | Item | Model, size |
 |---|---|
 | **Security audit** (desktop, web, RAI, the board link) | **Fable** (Robert approves) → fixes on Opus |
