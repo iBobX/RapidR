@@ -768,20 +768,14 @@ fn read(name: &str) -> Option<Vec<u8>> {
 /// The catalog for exactly language `tag`, when the program has its file
 /// (`es-AR.po`, or `es_AR.po`, in either case).
 fn load(tag: &str) -> Option<Catalog> {
-    let mut names = vec![tag.to_string(), tag.replace('-', "_")];
-    names.extend([tag.to_ascii_lowercase(), tag.to_ascii_lowercase().replace('-', "_")]);
-    names.dedup();
-    let mut seen = Vec::new();
-    for name in names {
-        if seen.contains(&name) {
-            continue;
+    let lower = tag.to_ascii_lowercase();
+    let mut names: Vec<String> = Vec::with_capacity(4);
+    for name in [tag.to_string(), tag.replace('-', "_"), lower.replace('-', "_"), lower] {
+        if !names.contains(&name) {
+            names.push(name);
         }
-        if let Some(bytes) = read(&format!("{name}.po")) {
-            return Some(parse_po(&String::from_utf8_lossy(&bytes)));
-        }
-        seen.push(name);
     }
-    None
+    names.iter().find_map(|name| read(&format!("{name}.po"))).map(|bytes| parse_po(&String::from_utf8_lossy(&bytes)))
 }
 
 /// The current language's catalogs (read once per language).
