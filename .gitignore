@@ -19,6 +19,8 @@ examples/**
 !examples/**/*.avi
 !examples/**/*.dxg
 !examples/**/*.x
+# (translations: lang/es.po beside a program)
+!examples/**/*.po
 examples/**/*_rust/
 examples/**/*_web/
 examples/**/*.tmp.*

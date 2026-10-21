@@ -211,6 +211,10 @@ fn design_events(name: &str) {
 /// language service (as the desktop runtime installs it).
 pub fn install_object_hooks() {
     rapidr_value::objects::set_print_hook(web_print);
+    // TR$ / TRN$ (RapidR's): the browser's language, and the program's
+    // translations among the page's files (`lang/es.po`: the project's, or
+    // beside the page, fetched as the program's other files are).
+    rapidr_value::i18n::set_platform(browser_language, read_page_file);
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
@@ -223,6 +227,18 @@ pub fn install_object_hooks() {
             rapidr_langsvc::editor::install();
         }
     }
+}
+
+/// The browser's language (`navigator.language`: `es-AR`), Application.Language's default.
+fn browser_language() -> String {
+    web_sys::window().and_then(|w| w.navigator().language()).unwrap_or_default()
+}
+
+/// A file of the page's (a translation catalog): one the program saved, one
+/// of its project's, or one beside the page; None when there is none.
+fn read_page_file(path: &str) -> Option<Vec<u8>> {
+    install_file_hooks();
+    rapidr_value::objects::read_file(path).ok()
 }
 
 /// QREGISTRY's store in the page's local storage (`None`: nothing yet, or

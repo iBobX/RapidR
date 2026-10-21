@@ -55,6 +55,8 @@ pub mod registry;
 pub mod resources;
 pub mod environ;
 pub mod command_line;
+// (RapidR's) Programs in every language: TR$, TRN$, Application.Language.
+pub mod i18n;
 // RNUM, RDATAFRAME, RPLOT: one implementation for every runtime.
 pub mod datascience;
 // (Stage W3) What both runtimes' component registries give a new
@@ -1150,6 +1152,13 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
             return Some(new_object_array(&arg(0).to_string_val(), &arg(1).to_string_val(), &arg(2).to_string_val(), &bounds));
         }
         _ => {}
+    }
+    // (RapidR's) TR$ and TRN$: the program's text in its language (i18n).
+    if key == "tr" {
+        return Some(Ok(i18n::rp_tr(args)));
+    }
+    if key == "trn" {
+        return Some(Ok(i18n::rp_trn(args)));
     }
     if key == "__lprint" {
         return Some(Ok(lprint::lprint(args)));

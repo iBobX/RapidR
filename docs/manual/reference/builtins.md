@@ -187,6 +187,8 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `STRING$(Num, Char) or STRING$(Num, Char$)` | A string of `Num` copies of a character, given by its code or as the first character of a string: `STRING$(3, 65)` is `AAA`. |
 | `TALLY(Search$, Match$)` | The number of times `Match$` occurs in `Search$` (occurrences don't overlap); 0 for an empty `Match$`. |
 | `TRIM(String)` *(RapidR)* | The string without its leading and trailing spaces. |
+| `TR$(Text$ [, Context$] [, Name$, Value ...])` *(RapidR)* | The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$("Open", "menu")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error. |
+| `TRN$(Singular$, Plural$, Count [, Context$] [, Name$, Value ...])` *(RapidR)* | The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them. |
 | `UCASE$(String)` | The string in upper case. |
 | `VAL(String)` | The number at the start of a text, ignoring spaces and what follows it: `VAL("12abc")` is 12; 0 when there is none. |
 
@@ -219,4 +221,4 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |
 | `UNLOADLIBRARY(DLLName)` | Removes a DLL from memory — only one the program declared (`DECLARE … LIB "name"`), by that very name: `UNLOADLIBRARY("USER32")` unloads `LIB "USER32"`, while `UNLOADLIBRARY("USER32.DLL")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error. |
 
-158 builtins.
+160 builtins.

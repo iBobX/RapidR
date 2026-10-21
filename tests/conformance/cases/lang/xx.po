@@ -1,0 +1,16 @@
+this line is garbage
+msgid "Good"
+msgstr "Bueno"
+%%% more garbage %%%
+"a stray string"
+msgid "Bad
+msgstr "never used"
+msgid "Fine"
+msgstr "Bien"
+msgstr[99] "ignored"
+msgid "No translation"
+msgstr ""
+msgid "Half
+msgid "Also"
+msgstr "También"
+"unterminated

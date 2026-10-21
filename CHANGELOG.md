@@ -7,6 +7,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Programs in every language** (docs/program-languages-plan.md, lane T1):
+  `TR$("Save file")` gives the text in the program's language from PO files
+  in a `lang` folder beside the program (`lang/es.po`, `lang/pt-BR.po`,
+  `lang/zh-Hans.po`), read by RapidR's own small reader; `TRN$("{n} file",
+  "{n} files", count)` picks the language's plural form (its `Plural-Forms`);
+  `{name}` placeholders and contexts (`TR$("Open", "menu")`).
+  `Application.Language` follows the system (or the browser) until the
+  program sets it, and falls back `es-AR` → `es` → the program's own text;
+  `Application.OnLanguageChange` fires when it changes. The same on the
+  interpreter, native builds and the web. A new example,
+  examples/translations/languages.rr, and a manual page,
+  [Your program in every language](docs/manual/translations.md).
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added

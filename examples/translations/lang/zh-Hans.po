@@ -1,0 +1,26 @@
+# Simplified Chinese for languages.rr.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Language: zh-Hans\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Languages"
+msgstr "语言"
+
+msgid "Language:"
+msgstr "语言："
+
+msgid "Hello, {name}!"
+msgstr "你好，{name}！"
+
+msgid "{n} file"
+msgid_plural "{n} files"
+msgstr[0] "{n} 个文件"
+
+msgid "&Add a file"
+msgstr "添加文件(&A)"
+
+msgctxt "button"
+msgid "&Save"
+msgstr "保存(&S)"

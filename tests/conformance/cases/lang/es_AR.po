@@ -1,0 +1,4 @@
+# Argentina's Spanish: only what differs from es.po (the rest falls back).
+msgctxt "menu"
+msgid "Open"
+msgstr "Abrí"

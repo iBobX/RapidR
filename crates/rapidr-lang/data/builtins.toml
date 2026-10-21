@@ -1029,6 +1029,28 @@ origin = "rapidr"
 doc = "The string without its leading and trailing spaces."
 
 [[builtin]]
+name = "TR$"
+syntax = "TR$(Text$ [, Context$] [, Name$, Value ...])"
+params = "Text AS STRING, [Context AS STRING], [Placeholders AS VARIANT]..."
+returns = "STRING"
+group = "Strings"
+origin = "rapidr"
+doc = "The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$(\"Open\", \"menu\")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error."
+effects = ["file-read"]
+example = "PRINT TR$(\"Hello, {name}!\", \"name\", \"Ana\")   ' Hola, Ana! with lang/es.po and Application.Language = \"es\""
+
+[[builtin]]
+name = "TRN$"
+syntax = "TRN$(Singular$, Plural$, Count [, Context$] [, Name$, Value ...])"
+params = "Singular AS STRING, Plural AS STRING, Count AS DOUBLE, [Context AS STRING], [Placeholders AS VARIANT]..."
+returns = "STRING"
+group = "Strings"
+origin = "rapidr"
+doc = "The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them."
+effects = ["file-read"]
+example = "PRINT TRN$(\"{n} file\", \"{n} files\", 5)   ' 5 files (5 archivos in Spanish)"
+
+[[builtin]]
 name = "UBOUND"
 syntax = "UBOUND(ArrayName[, Dimension])"
 group = "Arrays and memory"

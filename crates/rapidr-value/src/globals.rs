@@ -178,6 +178,9 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         ("application", "showhint" | "hintpause" | "hinthidepause" | "hintshortpause" | "hintcolor") => hint_setting(prop),
         // (RapidR's: the theme drawn now — `auto` reads as what it chose)
         ("application", "theme") => v_str(&p.theme()),
+        // (RapidR's) the language the program speaks: what it set, else
+        // the system's (crate::i18n)
+        ("application", "language") => v_str(&crate::i18n::language()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
         ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,
@@ -207,6 +210,7 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
             p.set_icon();
         }
         ("application", "theme") => p.set_theme(&value.to_string_val()),
+        ("application", "language") => crate::i18n::set_language(&value.to_string_val()),
         // (read-only: what the platform answers)
         ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors" | "scale" | "pixelsperinch") => {}
         _ => store(object, prop, value.clone()),

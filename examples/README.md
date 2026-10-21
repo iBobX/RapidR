@@ -62,6 +62,12 @@ claims, headless).
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
+### translations/ — one program in every language
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [languages.rr](translations/languages.rr) | `TR$` and `TRN$` with PO files in `lang/` beside it (Spanish, Portuguese, Chinese): it starts in the system's language, a list switches `Application.Language`, `Application.OnLanguageChange` writes the captions again, "1 file" / "5 files" in each language's way ([the manual](../docs/manual/translations.md)) | run · web | `rapidr run translations/languages.rr es` |
+
 ### recipes/ — short programs to start from
 
 Small, complete programs of the shapes people ask for most. RapidR Studio's

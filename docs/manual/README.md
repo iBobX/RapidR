@@ -36,6 +36,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidR's BASIC differs from other BASICs |
+| [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es` |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the older Q names; the global objects; themes, high-DPI and accessibility |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
