@@ -743,6 +743,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension)
 - [ ] K5 Project notes for RAI
 - [ ] K6 Evals and the "Which model?" report
+- [ ] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`)
 
 **Helpers** ([docs/code-helpers-plan.md](docs/code-helpers-plan.md))
 - [ ] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility
@@ -809,6 +810,12 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] RNodeGraph (shared with Visualmusicator X W4)
   - [x] Translation for programs, first step (TR$, TRN$, Application.Language; merged 2026-10-21, 0905af73)
   - [ ] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set)
+  - [ ] SVGs built into the program and loaded by `$RESOURCE` name (`RImage.Load`, a button's `BMP`, `AddSVGFile`). Today `RImage.Load RES` says "could not load '65536'", and a build drops SVGs whose names the program computes
+  - [ ] A loaded SVG follows the theme: colour tokens and `currentColor` (today `currentColor` comes out black, invisible on dark)
+  - [ ] `END n` sets the exit code (an additive extension; today it's a syntax error), so console tools can fail a build
+  - [ ] Reference fixes, verified 2026-10-21:
+    - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
+    - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7
 - **Visualmusicator X**: see the next section.
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
