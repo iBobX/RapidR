@@ -35,6 +35,9 @@
 //! [folding]
 //! markers = [['start regex', 'end regex']]
 //! brackets = true                # multi-line bracket pairs fold
+//! statements = ";"               # a statement over several lines folds
+//!                                # (up to this character, outside strings
+//!                                # and comments: SQL's)
 //! offside = true                 # fold by indentation (the default when
 //!                                # neither markers nor brackets are given)
 //!
@@ -173,6 +176,7 @@ struct FoldingDef {
     #[serde(default)]
     brackets: bool,
     offside: Option<bool>,
+    statements: Option<String>,
 }
 
 #[derive(Deserialize, Clone, Default)]
@@ -259,6 +263,8 @@ pub struct Language {
     pub(crate) fold_marker_set: Option<regex::RegexSet>,
     pub fold_brackets: bool,
     pub fold_offside: bool,
+    /// What ends a statement, when a statement over several lines folds.
+    pub fold_statements: Option<char>,
     pub word: Regex,
     /// Which ASCII characters `word` takes (`is_word_char` runs per character).
     word_ascii: [bool; 128],
@@ -472,7 +478,12 @@ impl Language {
             let all: Vec<&str> = def.folding.markers.iter().map(|m| m[0].as_str()).chain(def.folding.markers.iter().map(|m| m[1].as_str())).collect();
             Some(regex::RegexSetBuilder::new(all).case_insensitive(ci).build().map_err(|e| LangError(at(&format!("[folding] markers: {e}"))))?)
         };
-        let fold_offside = def.folding.offside.unwrap_or(fold_markers.is_empty() && !def.folding.brackets);
+        let fold_statements = match def.folding.statements.as_deref() {
+            None => None,
+            Some(s) if s.chars().count() == 1 => s.chars().next(),
+            Some(s) => return err(at(&format!("[folding] statements: {s:?} must be one character"))),
+        };
+        let fold_offside = def.folding.offside.unwrap_or(fold_markers.is_empty() && !def.folding.brackets && fold_statements.is_none());
         let word = compile(def.language.word.as_deref().unwrap_or(r"[\p{Alphabetic}\p{Nd}_]+"), ci, &at("word"))?;
 
         Ok(Language {
@@ -492,6 +503,7 @@ impl Language {
             fold_marker_set,
             fold_brackets: def.folding.brackets,
             fold_offside,
+            fold_statements,
             word_ascii: std::array::from_fn(|i| in_a_word(&word, i as u8 as char)),
             word,
             keyword_suffixes: def.language.keyword_suffixes,
@@ -606,10 +618,22 @@ impl Languages {
         B.get_or_init(|| {
             let mut set = Languages::new();
             for (id, src) in BUILTIN_SOURCES {
-                let extra: &[(&str, &[&str])] = if *id == "rapidr-basic" { basic::keyword_groups() } else { &[] };
+                let sql = crate::sql::keyword_groups(crate::sql::Dialect::Any);
+                let extra: &[(&str, &[&str])] = match *id {
+                    "rapidr-basic" => basic::keyword_groups(),
+                    "sql" => &sql,
+                    _ => &[],
+                };
                 match set.load_with(src, extra) {
                     Ok(_) => {}
                     Err(e) => panic!("built-in language {id}: {e}"),
+                }
+            }
+            // (SQL's dialects: sql.toml with one dialect's words each)
+            let sql_src = BUILTIN_SOURCES.iter().find(|(id, _)| *id == "sql").map_or("", |(_, s)| s);
+            for d in [crate::sql::Dialect::Sqlite, crate::sql::Dialect::Mysql] {
+                if let Err(e) = set.load_with(&crate::sql::dialect_source(sql_src, d), &crate::sql::keyword_groups(d)) {
+                    panic!("built-in language {}: {e}", d.language_id());
                 }
             }
             set

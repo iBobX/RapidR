@@ -379,3 +379,57 @@ fn designer_patches_are_the_editors_undo_steps() {
     assert_eq!(text("ce9"), first);
     assert!(!with_code("ce9", |c| c.doc.can_undo()).unwrap(), "nothing left to undo");
 }
+
+/// SQL (REQUEST-001 item 1): the dialect's colours, completion from the
+/// program's schema as the user types, Ctrl+Enter's OnRunStatement with
+/// the statement at the caret (or the selection).
+#[test]
+fn sql_completes_the_schema_and_runs_the_statement() {
+    let (mut s, mut f, mut ts) = code_form("ce_sql", "SELECT 1;\nSELECT ");
+    s.set("ce_sql", "language", v_str("sql"));
+    s.set("ce_sql", "sqldialect", v_str("sqlite"));
+    with_code_mut("ce_sql", |c| {
+        c.set("language", &v_str("sql"));
+        c.set("sqldialect", &v_str("sqlite"));
+        assert_eq!(c.call("setschema", &[v_str(r#"{"people": [{"name": "id", "type": "INTEGER"}, "name", "city"], "orders": {"id": "INTEGER", "total": "REAL"}}"#)]).unwrap().to_i64(), -1);
+    });
+    assert_eq!(with_code("ce_sql", |c| (c.doc.language().id.clone(), c.get("language").unwrap().to_string_val())).unwrap(), ("sql-sqlite".to_string(), "sql".to_string()));
+    f.paint(&s, &mut ts, 1.0);
+    f.focus_id(&s, "ce_sql");
+    s.call("ce_sql", "gotolinecolumn", &[v_int(2), v_int(8)]);
+    f.paint(&s, &mut ts, 1.0);
+    // a word starts: the named tables' columns, the tables, the words
+    typed(&mut f, &s, &mut ts, "p");
+    let items = with_code("ce_sql", |c| c.get("completionitems").unwrap().to_string_val()).unwrap();
+    assert!(items.lines().any(|l| l == "people") && items.lines().any(|l| l == "PRAGMA"), "{items}");
+    key(&mut f, &s, &mut ts, 27, "", Mods::NONE);
+    // FROM people p … p.: its columns
+    with_code_mut("ce_sql", |c| c.set("text", &v_str("SELECT 1;\nSELECT p FROM people p")));
+    s.call("ce_sql", "gotolinecolumn", &[v_int(2), v_int(9)]);
+    f.paint(&s, &mut ts, 1.0);
+    typed(&mut f, &s, &mut ts, ".");
+    let items = with_code("ce_sql", |c| c.get("completionitems").unwrap().to_string_val()).unwrap();
+    assert_eq!(items.lines().collect::<Vec<_>>(), ["city", "id", "name"], "{items}");
+    key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
+    assert_eq!(text("ce_sql"), "SELECT 1;\nSELECT p.city FROM people p");
+    // Ctrl+Enter: the statement at the caret
+    let _ = f.take_events();
+    key(&mut f, &s, &mut ts, 13, "", Mods { ctrl: true, command: true, ..Mods::NONE });
+    let events = f.take_events();
+    let ran: Vec<String> = events
+        .iter()
+        .filter_map(|e| match e {
+            KernelEvent::Fire { event, args, .. } if event == "onrunstatement" => Some(args[0].to_string_val()),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(ran, ["SELECT p.city FROM people p"]);
+    assert_eq!(text("ce_sql"), "SELECT 1;\nSELECT p.city FROM people p", "Ctrl+Enter ran it, typed nothing");
+    // the selection, when there is one
+    with_code_mut("ce_sql", |c| c.set("selstart", &v_int(0)));
+    with_code_mut("ce_sql", |c| c.set("sellength", &v_int(8)));
+    assert_eq!(with_code("ce_sql", |c| c.get("currentstatement").unwrap().to_string_val()).unwrap(), "SELECT 1");
+    // MySQL's words instead
+    with_code_mut("ce_sql", |c| c.set("sqldialect", &v_str("mysql")));
+    assert_eq!(with_code("ce_sql", |c| c.doc.language().id.clone()).unwrap(), "sql-mysql");
+}

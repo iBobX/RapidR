@@ -5,7 +5,10 @@
 //!   1.5) the host fires the test's events, prints the dump, saves every
 //!   shown window as `<prefix>-<n>.bmp` and exits. User input is ignored.
 //! - `RAPIDR_TEST_EVENTS=b1.onclick,edit.__key_65,…`: the events, one per
-//!   turn of the loop ([`Action`] lists the synthetic ones).
+//!   turn of the loop ([`Action`] lists the synthetic ones). `db.__until_busy_0`
+//!   waits until a property reads a value (work in the background done:
+//!   a background query, at most 2 minutes); `grid.__do_end` is a
+//!   component's own test step (`__end`).
 //! - `RAPIDR_TEST_DUMP=lbl.caption,frm.__shown`: `component.property`s to
 //!   print as `lbl.caption=…` (`__shown`: 1 when the component is visible
 //!   up to its window, else 0); `comp.__cursor_X_Y` the mouse pointer's CSS
@@ -182,6 +185,12 @@ pub enum Action {
     /// (dark, high contrast), as the user switching it would make it (any
     /// component names it; [`system_look`]).
     Look(bool, bool),
+    /// `__until_PROP_VALUE`: the next steps wait until the component's PROP
+    /// reads VALUE (a background query's Busy 0), at most 2 minutes.
+    Until(String, String),
+    /// `__do_NAME`: the component's own test step `__NAME` (an RDBGrid's
+    /// `__end`: the End key), as `__cell_c_r` is a grid's.
+    Step(String),
     /// A synthetic event malformed (`__key_`, `__mouse…`, `__dblclick…`, `__item_`,
     /// `__node_`, `__toggle_`, `__edit…`, `__enter…`, `__escape…` without
     /// the right numbers): nothing happens.
@@ -231,6 +240,10 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Tray(m)
     } else if let Some(look) = event.strip_prefix("__look_").and_then(parse_look) {
         Action::Look(look.0, look.1)
+    } else if let Some((prop, value)) = event.strip_prefix("__until_").and_then(|r| r.split_once('_')) {
+        Action::Until(prop.to_string(), value.to_string())
+    } else if let Some(step) = event.strip_prefix("__do_").filter(|s| !s.is_empty()) {
+        Action::Step(format!("__{step}"))
     } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {

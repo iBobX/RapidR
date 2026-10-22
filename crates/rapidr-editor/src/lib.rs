@@ -21,6 +21,8 @@
 //! - [`snippet`]: snippet bodies expanded with their tab stops.
 //! - [`service`]: what an editor asks a language service (completion,
 //!   hover, diagnostics, keyword case …), and the one a runtime installs.
+//! - [`sql`]: SQL's dialects, the statement at the caret, completion from
+//!   a program's schema.
 
 pub mod buffer;
 pub mod document;
@@ -31,6 +33,7 @@ pub mod search;
 pub mod selection;
 pub mod snippet;
 pub mod service;
+pub mod sql;
 pub mod structure;
 pub mod transaction;
 

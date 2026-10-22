@@ -404,7 +404,10 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
             super::access::completion_moved(x);
             return true;
         }
-        if (k.vk == 13 && !m.shift) || (k.vk == 9 && !m.shift) {
+        // (SQL's Ctrl+Enter runs the statement, the list closed)
+        if k.vk == 13 && (cmd || m.ctrl) && x.c.is_sql() {
+            x.c.completion = None;
+        } else if (k.vk == 13 && !m.shift) || (k.vk == 9 && !m.shift) {
             return accept_completion(x);
         }
         if k.vk == 27 {
@@ -529,6 +532,13 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
             if let Some((_, other)) = x.c.doc.matching_bracket(head) {
                 x.c.doc.set_selections(Selections::caret(other));
             }
+        }
+        // (SQL: Ctrl+Enter — Cmd+Enter on a Mac — runs the selection or
+        // the statement at the caret: the program's OnRunStatement)
+        (13, true, false) if !shift && x.c.is_sql() => {
+            let sql = x.c.current_statement();
+            x.fire("onrunstatement", vec![rapidr_value::v_str(&sql)]);
+            return true;
         }
         (13, true, false) if !ro => {
             open_line(x, shift);

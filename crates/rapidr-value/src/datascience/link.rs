@@ -309,7 +309,7 @@ fn delimiter_of(v: &Value) -> u8 {
 pub fn create(id: &str, type_name: &str) -> bool {
     let ty = type_name.trim().to_ascii_uppercase();
     let ty = crate::designer::model::canonical_type(&ty);
-    let relevant = matches!(ty.as_str(), "RCSV" | "RDATASOURCE" | "RDBGRID" | "RDATAFRAME" | "RJSON" | "REDIT" | "RLABEL" | "RPLOT");
+    let relevant = matches!(ty.as_str(), "RCSV" | "RDATASOURCE" | "RDBGRID" | "RDATAFRAME" | "RJSON" | "REDIT" | "RLABEL" | "RPLOT" | "RSQLITE" | "RMYSQL");
     if !relevant {
         return false;
     }
@@ -581,7 +581,30 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             });
             Some(Ok(()))
         }
-        ("RDBGRID", "rowcount" | "colcount" | "columns" | "sortcolumn" | "sortdescending") => Some(Err(format!("{prop} can only be read"))),
+        // (RapidR's: the program says how the view is sorted — a database's
+        // rows it sorted itself with ORDER BY, -1 for none: the arrow
+        // follows; another data set's view is sorted by it)
+        ("RDBGRID", "sortcolumn") => {
+            let c = val.to_i64();
+            with(|s| {
+                if let Some(g) = s.grids.get_mut(&id) {
+                    g.sort = usize::try_from(c).ok().map(|c| (c, g.sort.is_some_and(|(_, d)| d)));
+                }
+            });
+            mark();
+            Some(Ok(()))
+        }
+        ("RDBGRID", "sortdescending") => {
+            let d = truthy(val);
+            with(|s| {
+                if let Some(g) = s.grids.get_mut(&id) {
+                    g.sort = g.sort.map(|(c, _)| (c, d));
+                }
+            });
+            mark();
+            Some(Ok(()))
+        }
+        ("RDBGRID", "rowcount" | "colcount" | "columns") => Some(Err(format!("{prop} can only be read"))),
         ("RPLOT", "datasource" | "kind" | "x" | "y") => {
             let kind = text.trim().to_ascii_lowercase();
             if prop == "kind" && !CHART_KINDS.contains(&kind.as_str()) {
@@ -998,10 +1021,36 @@ fn dataset_of(target: &str) -> Option<(String, String)> {
             (d.enabled && !set.is_empty() && set != t).then_some((set, t.clone()))
         }),
         Some("RDATAFRAME" | "RCSV" | "RJSON") => Some((t.clone(), t)),
-        // (anything else that has a frame by its name; an RSQLITE is the
-        // web's own binding's until rapidr-db joins this one: plan §4.6)
+        // (a database component: its last query's rows, once it has some —
+        // a background query's as they arrive: rapidr-db)
+        Some("RSQLITE" | "RMYSQL") => frame::has_frame(&t).then(|| (t.clone(), t)),
+        // (anything else that has a frame by its name)
         _ => frame::has_frame(&t).then(|| (t.clone(), t)),
     }
+}
+
+/// Whether `id` is a database component (RSQLITE, RMYSQL): its rows are
+/// sorted by the program asking again (ORDER BY), never in a grid's view.
+fn is_database(id: &str) -> bool {
+    matches!(type_of(&key(id)).as_str(), "RSQLITE" | "RMYSQL")
+}
+
+/// Whether something names component `id` as its data: a grid's, a bound
+/// control's or a chart's DataSource, an RDataSource's DataSet, a frame's
+/// Source (rapidr-db then keeps its Query's rows as a frame too).
+pub fn is_source(id: &str) -> bool {
+    let id = key(id);
+    if !active() {
+        return false;
+    }
+    with(|s| {
+        let names = |from: &String, target: &String| !target.is_empty() && resolve(from, target) == id;
+        s.grids.iter().any(|(k, g)| names(k, &g.source))
+            || s.bound.iter().any(|(k, b)| names(k, &b.source))
+            || s.charts.iter().any(|(k, c)| names(k, &c.source))
+            || s.dsrc.iter().any(|(k, d)| names(k, &d.dataset))
+            || s.pulls.iter().any(|(k, p)| names(k, &p.source))
+    })
 }
 
 fn cursor(owner: &str) -> Cursor {
@@ -1054,6 +1103,29 @@ fn move_to(owner: &str, m: Move) {
             Move::To(r) => (r.clamp(0, last), rows == 0, rows == 0),
         };
         *c = Cursor { row: row as usize, eof, bof };
+    });
+    mark();
+}
+
+/// Data set `id`'s rows were replaced by new ones (a database component's
+/// next query): the cursors over it — its own, an RDataSource's — back on
+/// the first row, and the grids that show it scrolled to the top (a
+/// current row left at the old rows' last would scroll the new ones there).
+pub fn rows_replaced(id: &str) {
+    let id = key(id);
+    let first = Cursor { row: 0, eof: false, bof: true };
+    with(|s| {
+        let dsrcs: Vec<String> = s.dsrc.iter().filter(|(k, d)| !d.dataset.is_empty() && resolve(k, &d.dataset) == id).map(|(k, _)| k.clone()).collect();
+        s.cursors.insert(id.clone(), first);
+        for d in &dsrcs {
+            s.cursors.insert(d.clone(), first);
+        }
+        for (k, g) in s.grids.iter_mut() {
+            let src = resolve(k, &g.source);
+            if !g.source.is_empty() && (src == id || dsrcs.contains(&src)) {
+                g.top = 0;
+            }
+        }
     });
     mark();
 }
@@ -1201,6 +1273,11 @@ pub fn grid(id: &str) -> Option<GridData> {
 pub fn grid_order(id: &str, d: &GridData) -> Option<(Rc<Vec<usize>>, Rc<Vec<usize>>)> {
     let id = key(id);
     let sort = d.sort?;
+    // (a database's rows: the program sorts them, asking again with ORDER
+    // BY on OnTitleClick — SortColumn / SortDescending say what was asked)
+    if is_database(&d.dataset) {
+        return None;
+    }
     if let Some((rows, places)) = with(|s| {
         s.grids.get(&id).and_then(|g| g.order.as_ref()).filter(|(set, v, k, _, _)| *set == d.dataset && *v == d.version && *k == sort).map(|(_, _, _, r, p)| (r.clone(), p.clone()))
     }) {
@@ -1434,7 +1511,9 @@ fn sync_scope(prefix: Option<&str>) {
             _ => continue,
         };
         let target = resolve(&id, &b.source);
-        if dataset_of(&target).is_none() {
+        // (a database component's bound widgets are the web runtime's own
+        // binding's for now: plan §4.6)
+        if is_database(&target) || dataset_of(&target).is_none() {
             continue;
         }
         let value = field_value(&target, &b.field).unwrap_or_default();

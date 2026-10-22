@@ -1,0 +1,73 @@
+' Background queries (RapidR's QueryAsync): rows stream in chunks with
+' OnRows(Count), then OnDone(Rows, Ms); errors and Cancel come as OnError;
+' one query at a time (the others are refused with "busy: …"). A console
+' program hears the events through DOEVENTS.
+$APPTYPE CONSOLE
+
+DIM DB AS RSQLite
+DIM Ended AS INTEGER, Told AS INTEGER, LastCount AS INTEGER, Rising AS INTEGER, R AS INTEGER
+Rising = 1
+
+SUB GotRows(Count AS INTEGER)
+    Told = Told + 1
+    IF Count <= LastCount THEN Rising = 0
+    LastCount = Count
+END SUB
+
+SUB Done(Rows AS INTEGER, Ms AS INTEGER)
+    PRINT "OnDone: "; Rows; " rows, ms >= 0: "; Ms >= 0
+    Ended = 1
+END SUB
+
+SUB Failed(Message AS STRING)
+    PRINT "OnError: "; Message
+    Ended = 1
+END SUB
+
+' (the events come while the program waits in DOEVENTS: at most a minute)
+SUB WaitForIt
+    DIM t0 AS DOUBLE
+    t0 = TIMER
+    DO
+        DOEVENTS
+    LOOP UNTIL Ended OR TIMER - t0 > 60
+    Ended = 0
+END SUB
+
+DB.OnRows = GotRows
+DB.OnDone = Done
+DB.OnError = Failed
+DB.Connect(":memory:")
+DB.Query("CREATE TABLE big (id INTEGER PRIMARY KEY, name TEXT, score REAL)")
+DB.Query("WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < 50000) INSERT INTO big SELECT i, 'p' || i, i % 7 + 0.5 FROM c")
+
+R = DB.QueryAsync("SELECT id, name, score FROM big WHERE id > ?", 10)
+PRINT "started: "; R
+PRINT "busy: "; DB.Busy
+' one at a time
+R = DB.QueryAsync("SELECT 1")
+PRINT "second: "; R
+Ended = 0
+WaitForIt
+PRINT "OnRows told, counting up: "; Told > 0; " "; Rising; " last "; LastCount
+PRINT "RowCount: "; DB.RowCount; " ColCount: "; DB.ColCount; " busy: "; DB.Busy
+PRINT "columns: "; DB.ColName(0); " "; DB.ColName(1); " "; DB.ColName(2); " types: "; DB.ColType(0); " "; DB.ColType(1); " "; DB.ColType(2)
+DB.FetchRow
+PRINT "first row: "; DB.Row(0); " "; DB.Row(1); " "; DB.Row(2)
+DB.RowSeek 49989
+DB.FetchRow
+PRINT "last row: "; DB.Row(0); " "; DB.Row(1)
+PRINT "a query again: "; DB.QueryScalar("SELECT COUNT(*) FROM big")
+
+' an error from SQLite
+DB.QueryAsync("SELECT * FROM no_such_table")
+WaitForIt
+
+' Cancel: rows without end
+DB.QueryAsync("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT x FROM c")
+R = DB.Cancel
+PRINT "cancel: "; R
+WaitForIt
+R = DB.Cancel
+PRINT "cancel again: "; R
+PRINT "busy: "; DB.Busy

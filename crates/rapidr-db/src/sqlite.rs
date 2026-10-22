@@ -16,6 +16,12 @@
 //! values statement after statement: one whose placeholders they don't
 //! fill isn't run; values left over are an error once the others ran.)
 //!
+//! `DB.QueryAsync(sql [, values …])` runs it in the background
+//! ([`crate::background`]): on the desktop on the connection's worker
+//! thread, on the web in slices of the page's thread ([`take_pending`]);
+//! the rows stream into the frame under the component's name, `Cancel`
+//! interrupts it.
+//!
 //! On the web the page has no file system: `Connect(name)` opens a
 //! database kept in memory for the page's session (SQLite's memory VFS),
 //! the project's file of that name (a `.db` asset) copied in first. Nothing
@@ -23,20 +29,51 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Write as _;
+use std::future::Future;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use rapidr_value::{v_int, v_null, v_str, Value};
 use rusqlite::fallible_iterator::FallibleIterator;
 use rusqlite::types::{Value as SqlValue, ValueRef};
-use rusqlite::{Batch, Connection, Statement};
+use rusqlite::{Batch, Connection, InterruptHandle, Statement};
 
+use crate::background::{self, Chunker, End, Shared};
 use crate::{cursor_method, param_method, params, publish, sql_and_params, Host, ResultSet};
 
 struct Db {
-    conn: Connection,
+    /// The connection, shared with a background query while it runs (it
+    /// holds the lock then: a query meanwhile is refused, never waited for).
+    conn: Arc<Mutex<Connection>>,
+    /// Stops what the connection is running (Cancel), from any thread.
+    interrupt: Arc<InterruptHandle>,
     results: ResultSet,
     /// Where each result column came from (table, column): None for an
     /// expression. The web's bound widgets write their edits back there.
     origins: Vec<Option<(String, String)>>,
+    /// The connection's worker thread (the desktop's background queries),
+    /// made by the first QueryAsync; it ends when the component closes.
+    #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+    worker: Option<std::sync::mpsc::Sender<Job>>,
+}
+
+impl Db {
+    fn new(conn: Connection) -> Db {
+        let interrupt = Arc::new(conn.get_interrupt_handle());
+        Db {
+            conn: Arc::new(Mutex::new(conn)),
+            interrupt,
+            results: ResultSet::default(),
+            origins: Vec::new(),
+            #[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+            worker: None,
+        }
+    }
+
+    /// The connection for a query now: Err while a background query has it.
+    fn conn(&self) -> Result<MutexGuard<'_, Connection>, String> {
+        self.conn.try_lock().map_err(|_| background::BUSY.to_string())
+    }
 }
 
 thread_local! {
@@ -47,6 +84,8 @@ thread_local! {
 /// A statement's rows.
 struct Table {
     columns: Vec<String>,
+    /// Their declared types ("" for an expression).
+    types: Vec<String>,
     rows: Vec<Vec<String>>,
     origins: Vec<Option<(String, String)>>,
 }
@@ -61,7 +100,10 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
         "connect" | "open" => return connect(host, name, &key, args),
         "close" | "disconnect" => return close(host, name, &key),
         "query" | "exec" => return query(host, name, &key, args),
+        "queryasync" => return query_async(host, name, &key, args),
+        "cancel" => return v_int(background::cancel(&key) as i64),
         "queryscalar" | "query_scalar" | "scalar" => return query_scalar(host, name, &key, args),
+        "schema" => return schema(host, name, &key),
         "escapestring" => {
             let s = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             return v_str(&s.replace('\'', "''"));
@@ -87,9 +129,11 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
 /// (or the connection failed: Connected says which).
 fn connect(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let path = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+    // (a background query on the connection it had stops)
+    background::forget(key);
     match open(host, &path) {
         Ok((conn, existed)) => {
-            let db = Db { conn, results: ResultSet::default(), origins: Vec::new() };
+            let db = Db::new(conn);
             // (a connection the component had closes)
             let old = DBS.with(|d| d.borrow_mut().insert(key.to_string(), db));
             drop(old);
@@ -146,8 +190,10 @@ fn open(host: &dyn Host, path: &str) -> Result<(Connection, bool), String> {
 }
 
 fn close(host: &dyn Host, name: &str, key: &str) -> Value {
+    background::forget(key);
     let closed = DBS.with(|d| d.borrow_mut().remove(key));
     host.set(name, "connected", v_int(0));
+    host.set(name, "busy", v_int(0));
     if closed.is_some() {
         drop(closed);
         host.fire(name, "ondisconnect", &[]);
@@ -162,9 +208,12 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let outcome = DBS.with(|d| {
         let mut dbs = d.borrow_mut();
         let db = dbs.get_mut(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
-        let table = run(&db.conn, &sql, &values)?;
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
+        let table = run(&*db.conn()?, &sql, &values)?;
         Ok::<_, String>(table.map(|t| {
-            db.results = ResultSet::new(t.columns, t.rows);
+            db.results = ResultSet::new(t.columns, t.rows).typed(t.types);
             db.origins = t.origins;
             (db.results.rows.len(), db.results.columns.len())
         }))
@@ -172,6 +221,8 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let ok = match outcome {
         Ok(size) => {
             if let Some(size) = size {
+                // (a grid bound to the component shows these rows too)
+                crate::publish_frame(key, || DBS.with(|d| d.borrow().get(key).map(|db| (db.results.columns.clone(), db.results.rows.clone()))));
                 publish(host, name, size);
             }
             true
@@ -193,12 +244,48 @@ fn query_scalar(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value
     let outcome = DBS.with(|d| {
         let dbs = d.borrow();
         let db = dbs.get(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
-        run(&db.conn, &sql, &values)
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
+        let found = run(&*db.conn()?, &sql, &values);
+        found
     });
     match outcome {
         Ok(table) => v_str(table.and_then(|t| t.rows.into_iter().next()?.into_iter().next()).as_deref().unwrap_or("")),
         Err(e) => {
             host.report(&format!("[SQLite] Query error: {e}"));
+            host.fire(name, "onerror", &[v_str(&e)]);
+            v_str("")
+        }
+    }
+}
+
+/// `Schema`: the database's tables and views with their columns and
+/// declared types, as JSON (RCODEEDITOR's SetSchema takes it). "" when not
+/// connected or busy (OnError says which).
+fn schema(host: &dyn Host, name: &str, key: &str) -> Value {
+    let outcome = DBS.with(|d| {
+        let dbs = d.borrow();
+        let db = dbs.get(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
+        let conn = db.conn()?;
+        let text = |e: rusqlite::Error| e.to_string();
+        let mut stmt = conn.prepare("SELECT name, type FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").map_err(text)?;
+        let names: Vec<(String, String)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).map_err(text)?.filter_map(Result::ok).collect();
+        let mut tables = Vec::new();
+        for (table, kind) in names {
+            let mut info = conn.prepare("SELECT name, type FROM pragma_table_info(?1)").map_err(text)?;
+            let columns: Vec<(String, String)> = info.query_map([&table], |r| Ok((r.get(0)?, r.get(1)?))).map_err(text)?.filter_map(Result::ok).collect();
+            tables.push((table, kind, columns));
+        }
+        Ok::<_, String>(crate::schema_json(&tables))
+    });
+    match outcome {
+        Ok(json) => v_str(&json),
+        Err(e) => {
+            host.report(&format!("[SQLite] Schema: {e}"));
             host.fire(name, "onerror", &[v_str(&e)]);
             v_str("")
         }
@@ -253,6 +340,7 @@ fn step(stmt: &mut Statement, values: &[Value], used: &mut usize) -> Result<Opti
         return Ok(None);
     }
     let columns = stmt.column_names().into_iter().map(String::from).collect();
+    let types = decl_types(stmt);
     let origins = stmt
         .columns_with_metadata()
         .iter()
@@ -263,7 +351,12 @@ fn step(stmt: &mut Statement, values: &[Value], used: &mut usize) -> Result<Opti
     while let Some(row) = found.next().map_err(text)? {
         rows.push((0..n).map(|i| row.get_ref(i).map(cell_text).unwrap_or_default()).collect());
     }
-    Ok(Some(Table { columns, rows, origins }))
+    Ok(Some(Table { columns, types, rows, origins }))
+}
+
+/// A statement's result columns' declared types ("" for an expression).
+fn decl_types(stmt: &Statement) -> Vec<String> {
+    stmt.columns().iter().map(|c| c.decl_type().unwrap_or("").to_string()).collect()
 }
 
 /// A BASIC value as SQLite's: an integer INTEGER, a number REAL, a string
@@ -288,14 +381,217 @@ fn cell_text(v: ValueRef) -> String {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Background queries
+// ---------------------------------------------------------------------------
+
+/// A background query: the SQL, its values, the connection, what it
+/// shares with the program's thread.
+pub struct Job {
+    sql: String,
+    values: Vec<SqlValue>,
+    conn: Arc<Mutex<Connection>>,
+    shared: Arc<Shared>,
+}
+
+impl Job {
+    /// Runs it to its end, `pause` awaited after each chunk of rows (the
+    /// web: the page's turn; the desktop's worker: nothing). The
+    /// connection's lock is held throughout, across the pauses too, on
+    /// purpose: it is the "busy" every other query of the component is
+    /// refused with (`try_lock`, never waited for), and on the web the
+    /// page has one thread, on the desktop the worker its own.
+    #[allow(clippy::await_holding_lock)]
+    pub async fn run<P, F>(self, pause: P)
+    where
+        P: FnMut() -> F,
+        F: Future<Output = ()>,
+    {
+        let start = background::now();
+        let end = match self.conn.try_lock() {
+            Ok(conn) => stream(&conn, &self.sql, &self.values, &self.shared, pause).await,
+            // (never: the component refuses a second query while one runs)
+            Err(_) => End::Failed(background::BUSY.to_string()),
+        };
+        // (the connection given back before the program hears it's done)
+        self.shared.end(end, background::ms_since(start));
+    }
+}
+
+/// The statements of `sql` in order, each one with result columns
+/// streamed into the shared rows in chunks (a later one starts them
+/// again), the values bound to their placeholders. How it ended.
+async fn stream<P, F>(conn: &Connection, sql: &str, values: &[SqlValue], shared: &Shared, mut pause: P) -> End
+where
+    P: FnMut() -> F,
+    F: Future<Output = ()>,
+{
+    let failed = |e: String| if shared.cancelled() { End::Cancelled } else { End::Failed(e) };
+    // (one statement: its placeholders counted before it runs, as Query)
+    if let Ok(stmt) = conn.prepare(sql) {
+        if stmt.parameter_count() != values.len() && stmt.expanded_sql().is_some() {
+            return End::Failed(params::wrong_count(stmt.parameter_count(), values.len()));
+        }
+    }
+    let mut used = 0;
+    let mut batch = Batch::new(conn, sql);
+    let mut text = String::new();
+    loop {
+        if shared.cancelled() {
+            return End::Cancelled;
+        }
+        let mut stmt = match batch.next() {
+            Ok(Some(stmt)) => stmt,
+            Ok(None) => break,
+            Err(e) => return failed(e.to_string()),
+        };
+        let wanted = stmt.parameter_count();
+        let Some(mine) = values.get(used..used + wanted) else {
+            return End::Failed(params::wrong_count(used + wanted, values.len()));
+        };
+        for (i, v) in mine.iter().enumerate() {
+            if let Err(e) = stmt.raw_bind_parameter(i + 1, v) {
+                return failed(e.to_string());
+            }
+        }
+        used += wanted;
+        let n = stmt.column_count();
+        if n == 0 {
+            if let Err(e) = stmt.raw_execute() {
+                return failed(e.to_string());
+            }
+            continue;
+        }
+        let columns: Vec<String> = stmt.column_names().into_iter().map(String::from).collect();
+        let types = decl_types(&stmt);
+        let mut chunk = Chunker::new(shared, columns, types, background::slice());
+        let mut rows = stmt.raw_query();
+        loop {
+            let row = match rows.next() {
+                Ok(Some(row)) => row,
+                Ok(None) => break,
+                Err(e) => return failed(e.to_string()),
+            };
+            for i in 0..n {
+                match row.get_ref(i) {
+                    Ok(ValueRef::Null) | Err(_) => chunk.push(i, None),
+                    Ok(ValueRef::Integer(v)) => {
+                        text.clear();
+                        let _ = write!(text, "{v}");
+                        chunk.push(i, Some(&text));
+                    }
+                    Ok(ValueRef::Real(x)) => {
+                        text.clear();
+                        let _ = write!(text, "{x}");
+                        chunk.push(i, Some(&text));
+                    }
+                    Ok(ValueRef::Text(t) | ValueRef::Blob(t)) => match std::str::from_utf8(t) {
+                        Ok(s) => chunk.push(i, Some(s)),
+                        Err(_) => chunk.push(i, Some(&String::from_utf8_lossy(t))),
+                    },
+                }
+            }
+            if chunk.end_row() {
+                pause().await;
+                if shared.cancelled() {
+                    return End::Cancelled;
+                }
+            }
+        }
+        chunk.flush();
+    }
+    if used != values.len() {
+        return End::Failed(params::wrong_count(used, values.len()));
+    }
+    End::Done
+}
+
+/// `QueryAsync(sql [, values …])`: 1 if the query started (its rows and
+/// end come as events), 0 if it didn't — not connected, or one still
+/// running (OnError says which).
+fn query_async(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
+    let (sql, values) = sql_and_params(key, args);
+    let refused = background::refused(key).or_else(|| (!DBS.with(|d| d.borrow().contains_key(key))).then(|| crate::NOT_CONNECTED.to_string()));
+    if let Some(e) = refused {
+        host.report(&format!("[SQLite] QueryAsync: {e}"));
+        host.fire(name, "onerror", &[v_str(&e)]);
+        return v_int(0);
+    }
+    let Some((conn, interrupt)) = DBS.with(|d| {
+        let mut dbs = d.borrow_mut();
+        let db = dbs.get_mut(key)?;
+        db.results = ResultSet::framed(key);
+        db.origins.clear();
+        Some((db.conn.clone(), db.interrupt.clone()))
+    }) else {
+        return v_int(0);
+    };
+    let shared = Shared::new();
+    let job = Job { sql, values: values.iter().map(sql_value).collect(), conn, shared: shared.clone() };
+    background::begin(host, name, key, shared, Some(Box::new(move || interrupt.interrupt())));
+    start(key, job);
+    v_int(1)
+}
+
+/// The desktop: the job goes to the connection's worker thread (made the
+/// first time).
+#[cfg(not(all(target_family = "wasm", target_os = "unknown")))]
+fn start(key: &str, job: Job) {
+    let rejected = DBS.with(|d| {
+        let mut dbs = d.borrow_mut();
+        let Some(db) = dbs.get_mut(key) else { return Some(job) };
+        let job = match &db.worker {
+            Some(tx) => match tx.send(job) {
+                Ok(()) => return None,
+                // (its thread ended: a new one)
+                Err(std::sync::mpsc::SendError(job)) => job,
+            },
+            None => job,
+        };
+        let (tx, rx) = std::sync::mpsc::channel::<Job>();
+        let spawned = std::thread::Builder::new().name(format!("rapidr-sqlite-{key}")).spawn(move || {
+            for job in rx {
+                background::block_on(job.run(background::no_pause));
+            }
+        });
+        if spawned.is_err() {
+            return Some(job);
+        }
+        let sent = tx.send(job).err().map(|e| e.0);
+        db.worker = Some(tx);
+        sent
+    });
+    if let Some(job) = rejected {
+        job.shared.end(End::Failed("the background query couldn't start (no thread)".into()), 0);
+    }
+}
+
+thread_local! {
+    /// The web's background queries waiting to be run on the page's thread.
+    static PENDING: RefCell<Vec<Job>> = const { RefCell::new(Vec::new()) };
+}
+
+/// The web: the job waits for the runtime ([`take_pending`]).
+#[cfg(all(target_family = "wasm", target_os = "unknown"))]
+fn start(_key: &str, job: Job) {
+    PENDING.with(|p| p.borrow_mut().push(job));
+}
+
+/// (the web's runtime, after each RSQLITE call) The background queries
+/// just started: it runs each on the page's thread, `pause` giving the
+/// page its turn between chunks (and polling, so their rows show).
+pub fn take_pending() -> Vec<Job> {
+    PENDING.with(|p| std::mem::take(&mut *p.borrow_mut()))
+}
+
 /// The web's bound widgets: each column of the row they show, and whether
 /// there is one. None when the component isn't connected.
 pub fn bound_fields(name: &str) -> Option<(Vec<(String, String)>, bool)> {
     DBS.with(|d| {
         let dbs = d.borrow();
         let r = &dbs.get(&name.to_lowercase())?.results;
-        let row = r.rows.get(r.bound_row());
-        let fields = r.columns.iter().cloned().zip(row.cloned().unwrap_or_default()).collect();
+        let row = r.row_cells(r.bound_row());
+        let fields = r.column_names().into_iter().zip(row.clone().unwrap_or_default()).collect();
         Some((fields, row.is_some()))
     })
 }
@@ -308,15 +604,16 @@ pub fn update_bound_field(name: &str, field: &str, value: &str) -> Result<(), St
         let mut dbs = d.borrow_mut();
         let Some(db) = dbs.get_mut(&name.to_lowercase()) else { return Ok(()) };
         let r = db.results.bound_row();
-        let Some(c) = db.results.columns.iter().position(|col| col.eq_ignore_ascii_case(field)) else { return Ok(()) };
-        let Some(row) = db.results.rows.get_mut(r) else { return Ok(()) };
-        row[c] = value.to_string();
+        let Some(c) = db.results.column_names().iter().position(|col| col.eq_ignore_ascii_case(field)) else { return Ok(()) };
+        let Some(row) = db.results.row_cells(r) else { return Ok(()) };
+        db.results.set_cell(r, c, value);
         let Some(Some((table, column))) = db.origins.get(c) else { return Ok(()) };
         let id = db.origins.iter().position(|o| matches!(o, Some((t, col)) if t == table && col.eq_ignore_ascii_case("id")));
         let (Some(i), Some(Some((_, id_column)))) = (id, id.and_then(|i| db.origins.get(i))) else { return Ok(()) };
         let quote = |s: &str| format!("\"{}\"", s.replace('"', "\"\""));
         let sql = format!("UPDATE {} SET {} = ?1 WHERE {} = ?2", quote(table), quote(column), quote(id_column));
-        db.conn.execute(&sql, [value, row[i].as_str()]).map(|_| ()).map_err(|e| e.to_string())
+        let done = db.conn()?.execute(&sql, [value, row[i].as_str()]).map(|_| ()).map_err(|e| e.to_string());
+        done
     })
 }
 
@@ -346,7 +643,7 @@ mod tests {
     fn rows(h: &Log) -> Vec<String> {
         let mut out = Vec::new();
         while call(h, "fetchrow", &[]) == "1" {
-            let n = DBS.with(|d| d.borrow()["db"].results.columns.len());
+            let n = DBS.with(|d| d.borrow()["db"].results.column_names().len());
             out.push((0..n).map(|i| call(h, "row", &[v_int(i as i64)])).collect::<Vec<_>>().join("|"));
         }
         out
@@ -397,5 +694,195 @@ mod tests {
         let log = h.0.borrow().join("\n");
         assert!(log.contains("onerror(wrong number of parameters: the SQL has 1 placeholder (?) and 0 values were given)"), "{log}");
         assert!(log.contains("onerror(wrong number of parameters: the SQL has 1 placeholder (?) and 2 values were given)"), "{log}");
+    }
+
+    /// Runs the background queries until they end (at most ~20 s): the
+    /// events land in the log as the program's thread would hear them.
+    fn settle(h: &Log) {
+        let start = std::time::Instant::now();
+        while background::poll(h) {
+            assert!(start.elapsed().as_secs() < 20, "a background query never ended");
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+
+    fn events(h: &Log, prefix: &str) -> Vec<String> {
+        h.0.borrow().iter().filter(|l| l.starts_with(prefix)).cloned().collect()
+    }
+
+    fn with_numbers(h: &Log, n: i64) {
+        call(h, "connect", &[v_str(":memory:")]);
+        let sql = format!(
+            "CREATE TABLE big (id INTEGER PRIMARY KEY, name TEXT, score REAL, note TEXT);
+             WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < {n})
+             INSERT INTO big SELECT i, 'p' || i, i % 97 + 0.5, CASE WHEN i % 10 = 0 THEN NULL ELSE 'n' END FROM c"
+        );
+        assert_eq!(call(h, "query", &[v_str(&sql)]), "1");
+        h.0.borrow_mut().clear();
+    }
+
+    #[test]
+    fn a_background_query_streams_its_rows() {
+        let h = Log::default();
+        with_numbers(&h, 20_000);
+        assert_eq!(call(&h, "queryasync", &[v_str("SELECT * FROM big WHERE id > ?"), v_int(5)]), "1");
+        settle(&h);
+        let log = h.0.borrow().join("\n");
+        assert!(log.contains("busy=1") && log.contains("busy=0"), "{log}");
+        assert!(log.contains("colcount=4"), "{log}");
+        let done = events(&h, "ondone(");
+        assert_eq!(done.len(), 1, "{log}");
+        assert!(done[0].starts_with("ondone(19995,"), "{log}");
+        // (OnRows counts up to every row)
+        let rows_told: Vec<i64> = events(&h, "onrows(").iter().map(|e| e["onrows(".len()..e.len() - 1].parse().unwrap()).collect();
+        assert!(!rows_told.is_empty() && rows_told.windows(2).all(|w| w[0] < w[1]) && *rows_told.last().unwrap() == 19995, "{rows_told:?}");
+        // the rows, where FetchRow walks them and a grid draws them
+        assert_eq!(rapidr_value::datascience::frame::with_frame("db", |f| (f.height(), f.width(), f.columns.join(","))), (19995, 4, "id,name,score,note".to_string()));
+        assert_eq!(call(&h, "fetchrow", &[]), "1");
+        assert_eq!((call(&h, "row", &[v_int(0)]), call(&h, "row", &[v_int(1)]), call(&h, "row", &[v_int(2)])), ("6".into(), "p6".into(), "6.5".into()));
+        call(&h, "rowseek", &[v_int(4)]);
+        call(&h, "fetchrow", &[]);
+        // (a NULL is "", as Row(i) always gave it)
+        assert_eq!((call(&h, "row", &[v_int(0)]), call(&h, "row", &[v_int(3)])), ("10".into(), "".into()));
+        // a query afterwards works again
+        assert_eq!(call(&h, "queryscalar", &[v_str("SELECT COUNT(*) FROM big")]), "20000");
+    }
+
+    /// The same code the web runs: the rows come in chunks — the first
+    /// ones small, so they show at once — with a pause after each.
+    #[test]
+    fn rows_come_in_growing_chunks_with_pauses() {
+        let h = Log::default();
+        with_numbers(&h, 10_000);
+        let conn = DBS.with(|d| d.borrow()["db"].conn.clone());
+        let shared = Shared::new();
+        let job = Job { sql: "SELECT id FROM big".into(), values: Vec::new(), conn, shared: shared.clone() };
+        background::begin(&h, "Db", "db", shared.clone(), None);
+        let mut sizes = Vec::new();
+        background::block_on(job.run(|| {
+            background::poll(&h);
+            sizes.push(rapidr_value::datascience::frame::with_frame("db", |f| f.height()));
+            background::no_pause()
+        }));
+        background::poll(&h);
+        assert_eq!(sizes.first(), Some(&64), "{sizes:?}");
+        assert!(sizes.len() >= 5 && sizes.windows(2).all(|w| w[0] < w[1]), "{sizes:?}");
+        assert!(events(&h, "ondone(10000,").len() == 1, "{:?}", h.0.borrow());
+    }
+
+    #[test]
+    fn cancel_stops_a_query_with_cancelled() {
+        let h = Log::default();
+        call(&h, "connect", &[v_str(":memory:")]);
+        // rows without end
+        call(&h, "queryasync", &[v_str("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c) SELECT x FROM c")]);
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        background::poll(&h);
+        assert_eq!(call(&h, "cancel", &[]), "1");
+        settle(&h);
+        assert_eq!(events(&h, "onerror("), ["onerror(cancelled)"]);
+        assert!(events(&h, "ondone(").is_empty());
+        // one long step (no row before the end): SQLite's interrupt stops it
+        h.0.borrow_mut().clear();
+        call(&h, "queryasync", &[v_str("WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c WHERE x < 1000000000) SELECT COUNT(*) FROM c")]);
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let start = std::time::Instant::now();
+        call(&h, "cancel", &[]);
+        settle(&h);
+        assert!(start.elapsed().as_millis() < 2000);
+        assert_eq!(events(&h, "onerror("), ["onerror(cancelled)"]);
+        // nothing running: Cancel says so
+        assert_eq!(call(&h, "cancel", &[]), "0");
+        assert_eq!(call(&h, "queryscalar", &[v_str("SELECT 41 + 1")]), "42");
+    }
+
+    #[test]
+    fn background_errors_and_refusals() {
+        let h = Log::default();
+        // not connected
+        assert_eq!(call(&h, "queryasync", &[v_str("SELECT 1")]), "0");
+        assert_eq!(events(&h, "onerror("), ["onerror(not connected: Connect first)"]);
+        with_numbers(&h, 300_000);
+        // SQLite's own message
+        call(&h, "queryasync", &[v_str("SELECT * FROM nothing_here")]);
+        settle(&h);
+        assert_eq!(events(&h, "onerror("), ["onerror(no such table: nothing_here)"]);
+        h.0.borrow_mut().clear();
+        // wrong counts, before anything runs
+        call(&h, "queryasync", &[v_str("SELECT * FROM big WHERE id = ?")]);
+        settle(&h);
+        assert_eq!(events(&h, "onerror("), ["onerror(wrong number of parameters: the SQL has 1 placeholder (?) and 0 values were given)"]);
+        h.0.borrow_mut().clear();
+        // one at a time: the others are refused, never waited for
+        assert_eq!(call(&h, "queryasync", &[v_str("SELECT a.id FROM big a, big b")]), "1");
+        assert_eq!(call(&h, "queryasync", &[v_str("SELECT 1")]), "0");
+        assert_eq!(call(&h, "query", &[v_str("SELECT 1")]), "0");
+        assert_eq!(call(&h, "queryscalar", &[v_str("SELECT 1")]), "");
+        let busy = format!("onerror({})", background::BUSY);
+        assert_eq!(events(&h, "onerror("), [busy.clone(), busy.clone(), busy]);
+        // Close stops it: no event after
+        h.0.borrow_mut().clear();
+        call(&h, "close", &[]);
+        settle(&h);
+        assert!(events(&h, "ondone(").is_empty() && events(&h, "onrows(").is_empty(), "{:?}", h.0.borrow());
+    }
+
+    #[test]
+    fn several_statements_stream_the_last_rows() {
+        let h = Log::default();
+        call(&h, "connect", &[v_str(":memory:")]);
+        call(&h, "queryasync", &[v_str("CREATE TABLE t (a, b); INSERT INTO t VALUES (?, ?), (3, 'x'); SELECT b, a FROM t ORDER BY a"), v_int(1), v_str("y")]);
+        settle(&h);
+        assert_eq!(events(&h, "ondone(").len(), 1, "{:?}", h.0.borrow());
+        assert_eq!(rows(&h), ["y|1", "x|3"]);
+        // a Query afterwards: its rows, and the frame a grid shows follows
+        call(&h, "query", &[v_str("SELECT a FROM t WHERE a > 2")]);
+        assert_eq!(rows(&h), ["3"]);
+        assert_eq!(rapidr_value::datascience::frame::with_frame("db", |f| (f.height(), f.columns.join(","))), (1, "a".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod column_tests {
+    use super::*;
+
+    struct Quiet;
+    impl Host for Quiet {
+        fn set(&self, _: &str, _: &str, _: Value) {}
+        fn fire(&self, _: &str, _: &str, _: &[Value]) {}
+        fn report(&self, _: &str) {}
+    }
+
+    /// ColName(i) and ColType(i): the result's own columns — names as the
+    /// statement gives them (a repeated one too), the declared types (""
+    /// for an expression) — for Query and for QueryAsync.
+    #[test]
+    fn column_names_and_types() {
+        let h = Quiet;
+        let call = |m: &str, args: &[Value]| method(&h, "Cols", m, args).to_string_val();
+        call("connect", &[v_str(":memory:")]);
+        call("query", &[v_str("CREATE TABLE people (id INTEGER PRIMARY KEY, name VARCHAR(40), born DATE, score REAL); INSERT INTO people (name) VALUES ('Ann')")]);
+        let cols = |what: &str| (0..5).map(|i| call(what, &[v_int(i)])).collect::<Vec<_>>();
+        assert_eq!(call("query", &[v_str("SELECT p.id, q.id, p.name AS who, p.born, p.score * 2 FROM people p, people q")]), "1");
+        assert_eq!(cols("colname"), ["id", "id", "who", "born", "p.score * 2"]);
+        assert_eq!(cols("coltype"), ["INTEGER", "INTEGER", "VARCHAR(40)", "DATE", ""]);
+        assert_eq!((call("colname", &[v_int(5)]), call("coltype", &[v_int(-1)])), (String::new(), String::new()));
+        call("queryasync", &[v_str("SELECT name, id AS n, id FROM people")]);
+        let start = std::time::Instant::now();
+        while background::poll(&h) {
+            assert!(start.elapsed().as_secs() < 10);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(cols("colname")[..3], ["name", "n", "id"]);
+        assert_eq!(cols("coltype")[..3], ["VARCHAR(40)", "INTEGER", "INTEGER"]);
+        // (not connected: nothing)
+        assert_eq!(method(&h, "Other", "colname", &[v_int(0)]).to_string_val(), "");
+        // Schema: the tables and views, their columns and declared types
+        call("query", &[v_str("CREATE VIEW grown AS SELECT name, born FROM people; CREATE TABLE \"odd \"\"name\"\"\" (x)")]);
+        assert_eq!(
+            call("schema", &[]),
+            r#"{"tables":[{"name":"grown","kind":"view","columns":[{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"}]},{"name":"odd \"name\"","kind":"table","columns":[{"name":"x","type":""}]},{"name":"people","kind":"table","columns":[{"name":"id","type":"INTEGER"},{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"},{"name":"score","type":"REAL"}]}]}"#
+        );
+        assert_eq!(method(&h, "Other", "schema", &[]).to_string_val(), "");
     }
 }

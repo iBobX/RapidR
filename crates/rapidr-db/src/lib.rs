@@ -19,8 +19,10 @@
 //! them). A bound value is never SQL text, so no value — `x' OR '1'='1` —
 //! can change what the statement does (SQL injection).
 
+use rapidr_value::datascience::{frame, link};
 use rapidr_value::{v_int, v_null, v_str, Value};
 
+pub mod background;
 mod params;
 mod results;
 
@@ -65,6 +67,59 @@ pub trait Host {
     fn row_changed(&self, _name: &str) {}
 }
 
+/// A table for `Schema`: its name, kind ("table" / "view") and columns
+/// (name, type).
+type SchemaTable = (String, String, Vec<(String, String)>);
+
+/// `Schema`'s JSON — what RCODEEDITOR's SetSchema takes: `{"tables":
+/// [{"name", "kind" ("table" / "view"), "columns": [{"name", "type"}]}]}`.
+fn schema_json(tables: &[SchemaTable]) -> String {
+    fn text(s: &str) -> String {
+        let mut out = String::with_capacity(s.len() + 2);
+        out.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+                c => out.push(c),
+            }
+        }
+        out.push('"');
+        out
+    }
+    let tables: Vec<String> = tables
+        .iter()
+        .map(|(name, kind, columns)| {
+            let cols: Vec<String> = columns.iter().map(|(n, t)| format!("{{\"name\":{},\"type\":{}}}", text(n), text(t))).collect();
+            format!("{{\"name\":{},\"kind\":{},\"columns\":[{}]}}", text(name), text(kind), cols.join(","))
+        })
+        .collect();
+    format!("{{\"tables\":[{}]}}", tables.join(","))
+}
+
+/// A Query's rows (`columns`, `rows`) as component `key`'s frame — what an
+/// RDBGrid bound to it draws — when it has one (a background query's
+/// before) or something is bound to it; otherwise nothing is copied.
+fn publish_frame(key: &str, rows: impl FnOnce() -> Option<(Vec<String>, Vec<Vec<String>>)>) {
+    if !(frame::has_frame(key) || link::is_source(key)) {
+        return;
+    }
+    let Some((columns, rows)) = rows() else { return };
+    let mut b = frame::FrameBuilder::new(&columns, rows.len());
+    for row in &rows {
+        for c in 0..columns.len() {
+            b.push(c, row.get(c).map(String::as_str));
+        }
+        b.end_row();
+    }
+    frame::set_frame(key, b.finish(0));
+    link::rows_replaced(key);
+}
+
 /// A component's new result set (`rows` × `columns`) after a query that
 /// returned rows: its properties, and the bound widgets. (Called once the
 /// component's state isn't borrowed: the host may run the program's code.)
@@ -76,7 +131,8 @@ fn publish(host: &dyn Host, name: &str, (rows, columns): (usize, usize)) {
 }
 
 /// The methods that walk a result set, the same for every database:
-/// FetchRow, FetchField, FieldSeek, RowSeek, Row(i). `None` for any other.
+/// FetchRow, FetchField, FieldSeek, RowSeek, Row(i), ColName(i), ColType(i).
+/// `None` for any other.
 fn cursor_method(results: Option<&mut ResultSet>, method: &str, args: &[Value]) -> Option<Value> {
     let n = || args.first().map(|v| v.to_i64()).unwrap_or(0);
     Some(match (method, results) {
@@ -91,6 +147,10 @@ fn cursor_method(results: Option<&mut ResultSet>, method: &str, args: &[Value]) 
             v_null()
         }
         ("row", Some(r)) => v_str(&r.cell(n())),
+        // (the last query's columns, from its metadata: from 0)
+        ("colname", Some(r)) => v_str(&usize::try_from(n()).ok().and_then(|i| r.column_names().into_iter().nth(i)).unwrap_or_default()),
+        ("coltype", Some(r)) => v_str(&usize::try_from(n()).ok().and_then(|i| r.column_types().into_iter().nth(i)).unwrap_or_default()),
+        ("colname" | "coltype", None) => v_str(""),
         ("fetchrow" | "fetchfield", None) => v_int(0),
         ("fieldseek" | "rowseek", None) => v_null(),
         ("row", None) => v_str(""),

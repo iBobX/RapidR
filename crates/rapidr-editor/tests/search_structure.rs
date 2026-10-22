@@ -92,6 +92,19 @@ fn bracket_and_indent_folds() {
 }
 
 #[test]
+fn sql_statement_folds() {
+    // a statement over several lines folds to its `;` (one on a line, a
+    // `;` in a string or a comment, don't); a bracketed list folds too
+    let src = "SELECT 1;\nSELECT id,\n       name -- a; b\nFROM people\nWHERE name <> ';';\n\nCREATE TABLE t (\n  a INTEGER,\n  b TEXT\n);\nSELECT 2; SELECT\n  3;\n";
+    for lang in ["sql", "sql-sqlite", "sql-mysql"] {
+        let mut d = doc(lang, src);
+        let folds = d.fold_ranges();
+        let f = |s, e, kind| FoldRange { start_line: s, end_line: e, kind };
+        assert_eq!(folds, [f(1, 4, FoldKind::Statement), f(6, 9, FoldKind::Bracket), f(10, 11, FoldKind::Statement)], "{lang}");
+    }
+}
+
+#[test]
 fn brackets() {
     let mut d = doc("rapidr-basic", "x = f(a(1), \")\" , b) ' (\ny = (\n2)");
     // from the open bracket and just after it

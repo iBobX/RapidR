@@ -1,6 +1,7 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
 # python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) C:x,y (click, screen coords) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
-#   m:x,y (the mouse moved there: hover), w:seconds (wait), k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt),
+#   m:x,y (the mouse moved there: hover), w:seconds (wait), r:x,y,n (the wheel, n notches down; negative: up),
+#   k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt),
 #   t:text (typed)
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
 # The UI kernel's windows take it as a user's input; run the program without
@@ -48,6 +49,15 @@ for a in sys.argv[2:]:
         mouse(Quartz.kCGEventMouseMoved,x,y)
     elif kind=="w":
         time.sleep(float(arg))
+    elif kind=="r":
+        # r:x,y,n — the mouse wheel at (x, y) in the window, n notches (a
+        # notch a line; positive scrolls the content down, as rolling the
+        # wheel towards you), one notch every 16 ms
+        x,y,n=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
+        mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1)
+        for _ in range(int(abs(n))):
+            e=Quartz.CGEventCreateScrollWheelEvent(None,Quartz.kCGScrollEventUnitLine,1,-1 if n>0 else 1)
+            Quartz.CGEventSetFlags(e,0); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.016)
     elif kind=="k":
         # k:cmd+shift+code or k:code+cmd+shift (modifiers held; the number is the key code)
         parts=arg.split("+"); code=int(next(p for p in parts if p.isdigit())); flags=0

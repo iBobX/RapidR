@@ -445,12 +445,19 @@ pub fn step(max_wait: Option<Duration>) {
     if crate::ai::busy() {
         at_most(Duration::from_millis(20));
     }
+    // (a background query's rows, heard as they come: a frame's time)
+    #[cfg(feature = "database")]
+    if crate::database::busy() {
+        at_most(Duration::from_millis(16));
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
     #[cfg(feature = "studio")]
     crate::studio::poll();
     #[cfg(feature = "network")]
     crate::ai::poll();
+    #[cfg(feature = "database")]
+    crate::database::poll();
     crate::object::rp_run_deferred();
     // (a form's WndProc on Windows: its window's messages, as they came)
     deliver_window_messages();

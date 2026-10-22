@@ -6,6 +6,11 @@
 //! storage yet. Widgets bound to a component (DataSource / DataField) show
 //! its current row and write their edits back.
 //!
+//! Background queries (QueryAsync): the page has no threads, so each runs
+//! on the page's thread as a task, in slices of a few milliseconds
+//! (rapidr-db's chunks), the page getting its turn after each — its rows
+//! appended and its events fired then ([`poll`]), the windows drawn.
+//!
 //! RMySQL is **not implementable in the browser** because the MySQL wire protocol
 //! requires raw TCP, which browsers cannot open. `mysql_method` below emits a
 //! single clear error and returns a sentinel value so user programs fail loudly
@@ -94,7 +99,41 @@ impl rapidr_db::Host for Web {
 }
 
 pub fn sqlite_method(name: &str, method: &str, args: &[Value]) -> Value {
-    rapidr_db::sqlite::method(&Web, name, method, args)
+    let v = rapidr_db::sqlite::method(&Web, name, method, args);
+    // (a QueryAsync: its task, on the page's thread)
+    for job in rapidr_db::sqlite::take_pending() {
+        wasm_bindgen_futures::spawn_local(async move {
+            job.run(|| {
+                poll();
+                next_turn()
+            })
+            .await;
+            poll();
+        });
+    }
+    v
+}
+
+/// The background queries' rows and events (OnRows, OnDone, OnError), the
+/// grids bound to them drawn again.
+fn poll() {
+    if rapidr_db::background::running() {
+        rapidr_db::background::poll(&Web);
+        crate::links_web::apply();
+    }
+}
+
+/// The page's turn: a task that wakes after the browser has handled its
+/// input and drawn (a zero timeout).
+fn next_turn() -> impl std::future::Future<Output = ()> {
+    let promise = js_sys::Promise::new(&mut |resolve, _| {
+        if let Some(window) = web_sys::window() {
+            let _ = window.set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, 0);
+        }
+    });
+    async move {
+        let _ = wasm_bindgen_futures::JsFuture::from(promise).await;
+    }
 }
 
 /// A widget bound to `db_name` (DataSource / DataField) edited: the row it

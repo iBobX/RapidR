@@ -41,6 +41,8 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
 | [Keeping secrets](secrets.md) | `RSecrets`: passwords and keys in the OS keychain, each program its own, never shown by the debugger or to an AI; none in a browser |
 | [Your own SVG icons](svg-icons.md) | `RImageList.AddSVGFile`, SVGs that take the theme's colours (`currentColor`, RapidR's colour tokens), SVGs built in with `$RESOURCE` |
+| [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events; background queries (`QueryAsync`, `Cancel`) streaming a million rows into an `RDBGrid`; column names and types; the SQL editor |
+| [The code editor in your programs](code-editor.md) | `RCodeEditor`: languages, files, completion; its SQL mode (dialects, completion from your tables, Ctrl+Enter runs the statement) |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (older name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 

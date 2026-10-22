@@ -5,7 +5,10 @@
 //! rests, the language's words' case as each word ends, definitions,
 //! renames and formatting — or, where no service serves the language, the
 //! program asked through its events (OnCompletionRequest …), which it
-//! answers with ShowCompletion, ShowHover and ShowSignature.
+//! answers with ShowCompletion, ShowHover and ShowSignature. SQL completes
+//! by itself (`rapidr_editor::sql`): its dialect's words and the tables and
+//! columns the program gave (SetSchema); LanguageService = False hands it
+//! to the program's OnCompletionRequest instead.
 //!
 //! Also the gutter's marks of what changed since the last save.
 
@@ -157,6 +160,23 @@ pub fn apply_service_edits(x: &mut Ctx, edits: Vec<service::Edit>, kind: EditKin
 /// program's (OnCompletionRequest).
 pub fn request_completion(x: &mut Ctx, explicit: bool) {
     let head = x.c.doc.selections().primary().head;
+    // (SQL: its words, the program's schema)
+    if x.c.opts.language_service && x.c.is_sql() && x.c.doc.len_bytes() <= SERVICE_LIMIT {
+        let text = x.c.doc.text();
+        let lang = x.c.doc.language().clone();
+        let schema = x.c.sql_schema.clone();
+        let (start, items) = rapidr_editor::sql::completions(&text, head, &schema, &lang);
+        if items.is_empty() {
+            x.c.completion = None;
+            return;
+        }
+        x.c.show_completion(items, true, Some(start.min(head)));
+        x.ui.completion_top = 0;
+        if super::popup::filtered(x).is_empty() {
+            x.c.completion = None;
+        }
+        return;
+    }
     if sync(x) {
         let file = x.file();
         let got = service::with(|s| s.completions(&file, head));

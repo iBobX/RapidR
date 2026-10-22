@@ -832,6 +832,10 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] Background queries with streaming and Cancel
   - [ ] Virtual data grid
   - [x] RSecrets (the OS keychain for programs) *(DBA, 2026-10-22: Save / Read / Delete / Exists on the keychain code Studio's keys use, each program under `rapidr-app:<program>:<service>`; values masked in the debugger (`rapidr_value::secrets`), the registry's method facet `secret`; the web fails with "not available in the browser"; the test keystore `RAPIDR_AI_KEYSTORE=memory` for programs; example data/secrets.rr, manual secrets.md)*
+  - [x] SQL mode for RCodeEditor (with schema completion) *(DBB, 2026-10-22: `SqlDialect` sqlite / mysql, completion of the dialect's words and the program's tables and columns — `SetSchema(json)`, `DB.Schema`, aliases —, statement folding, Ctrl+Enter's `OnRunStatement`, `CurrentStatement`; desktop and web)*
+  - [x] Background queries with streaming and Cancel *(DBB, 2026-10-22: `QueryAsync`, `OnRows`, `OnDone`, `Cancel`, `Busy` on RSQLite and RMySQL; a worker thread per connection on the desktop, 8 ms slices on the web; a million rows' first rows in 15-25 ms; also `ColName` / `ColType` from the result's metadata, MySQL's on read-only connections too)*
+  - [x] Virtual data grid *(DBB, 2026-10-22: RDBGrid bound to an RSQLite / RMySQL draws its rows as they stream, only those on screen; the program sorts with ORDER BY; Ctrl+C copies a row. Left: editing with undo — RDBGrid editing is data-science-plan phase 2)*
+  - [ ] RSecrets (the OS keychain for programs)
   - [ ] RChat (RAI as a component)
   - [ ] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation)
   - [x] TLS for MySQL *(DBA, 2026-10-22: `SSLMode` Preferred (default) / Disabled / Required / VerifyCA / VerifyFull, `SSLCA`, `Encrypted`, on the system's TLS (mysql's native-tls feature, no new crate); live: Required encrypted against a local MySQL 8.0.33; a mock server without TLS gives the plain-words error)*

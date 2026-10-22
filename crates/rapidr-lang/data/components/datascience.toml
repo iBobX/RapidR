@@ -276,17 +276,17 @@ visual = true
 size = [320, 160]
 default_event = "OnCellClick"
 sets = ["layout", "a11y"]
-doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own."
+doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); Ctrl+C copies it. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own."
 properties = [
-  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row) or a data set straight." },
+  { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON", "RSQLITE", "RMYSQL"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row), a data set straight, or a database component's last query (its rows as a background query brings them)." },
   { name = "ReadOnly", type = "bool", default = true, category = "Data", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },
   { name = "Row", type = "int", default = 0, design = false, doc = "The current row (a row of the data, from 0); set it to move there." },
   { name = "TopRow", type = "int", default = 0, design = false, doc = "The first row shown (in the grid's order)." },
   { name = "RowCount", type = "int", default = 0, access = "read", design = false, doc = "How many rows the data has." },
   { name = "ColCount", type = "int", default = 0, access = "read", design = false, doc = "How many columns the data has." },
   { name = "Columns", type = "string", default = "", access = "read", design = false, doc = "The columns' names: \"name,age,city\"." },
-  { name = "SortColumn", type = "int", default = -1, access = "read", design = false, doc = "The column its view is sorted by (-1: none, the data's own order)." },
-  { name = "SortDescending", type = "bool", default = false, access = "read", design = false, doc = "True: sorted highest first." },
+  { name = "SortColumn", type = "int", default = -1, design = false, doc = "The column its view is sorted by (-1: none, the data's own order); a heading's click sets it. Bound to a database component: the column the user asked for — the program sorts, asking again with ORDER BY, and sets it to -1 for a query of its own (the arrow goes). Setting it sorts another data set's view." },
+  { name = "SortDescending", type = "bool", default = false, design = false, doc = "True: sorted highest first (set it with SortColumn)." },
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Color", type = "color" },
   { name = "Enabled", type = "bool", default = true },
@@ -308,7 +308,7 @@ methods = [
 ]
 events = [
   { name = "OnCellClick", params = "Row AS INTEGER, Col AS INTEGER", doc = "A cell was clicked: its data row and column (from 0)." },
-  { name = "OnTitleClick", params = "Col AS INTEGER", doc = "A heading was clicked (the view is sorted by it)." },
+  { name = "OnTitleClick", params = "Col AS INTEGER", doc = "A heading was clicked (the view is sorted by it; a database's rows: the program asks again with ORDER BY, SortColumn and SortDescending saying how)." },
   { name = "OnClick" },
   { name = "OnDblClick" },
   { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER" },

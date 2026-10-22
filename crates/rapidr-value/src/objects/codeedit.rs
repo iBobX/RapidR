@@ -24,6 +24,12 @@
 //! files RapidQ's tools write) and its encoding (UTF-8, with or without a
 //! BOM, or Windows' Latin-1) are remembered by LoadFromFile and written
 //! back by SaveToFile.
+//!
+//! **SQL** (`Language = "sql"`; REQUEST-001 item 1): `SqlDialect` picks
+//! SQLite's or MySQL's words (colours, completion), `SetSchema(json)` gives
+//! completion the program's tables and columns, `CurrentStatement` is what
+//! Ctrl+Enter runs (OnRunStatement): the selection, or the statement at
+//! the caret (`rapidr_editor::sql`).
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
@@ -347,6 +353,10 @@ pub struct CodeEditor {
     /// Completions accepted lately, the latest first (they rank first among
     /// equals).
     pub recent: Vec<String>,
+    /// SQL's dialect (`SqlDialect`) and the tables completion offers
+    /// (`SetSchema`).
+    pub sql_dialect: rapidr_editor::sql::Dialect,
+    pub sql_schema: Arc<rapidr_editor::sql::Schema>,
 }
 
 impl Default for CodeEditor {
@@ -533,7 +543,76 @@ impl CodeEditor {
             fold_anchors: Vec::new(),
             fold_version: None,
             recent: Vec::new(),
+            sql_dialect: rapidr_editor::sql::Dialect::Any,
+            sql_schema: Arc::new(rapidr_editor::sql::Schema::default()),
         }
+    }
+
+    /// Whether the text is SQL (any dialect).
+    pub fn is_sql(&self) -> bool {
+        rapidr_editor::sql::is_sql(&self.doc.language().id)
+    }
+
+    /// `lang`, or its SqlDialect's words when it is SQL.
+    fn with_dialect(&self, lang: Arc<Language>) -> Arc<Language> {
+        if rapidr_editor::sql::is_sql(&lang.id) && self.sql_dialect != rapidr_editor::sql::Dialect::Any && !self.language_set.to_ascii_lowercase().starts_with("sql-") {
+            return Languages::builtin().get(self.sql_dialect.language_id()).unwrap_or(lang);
+        }
+        lang
+    }
+
+    /// What Ctrl+Enter runs (`CurrentStatement`): the selection; else SQL's
+    /// statement at the caret (another language's: the caret's line).
+    pub fn current_statement(&self) -> String {
+        let p = self.doc.selections().primary();
+        if !p.range().is_empty() {
+            return self.doc.slice(p.range()).into_owned();
+        }
+        let text = self.doc.text();
+        if self.is_sql() {
+            return text[rapidr_editor::sql::statement_at(&text, p.head)].to_string();
+        }
+        let line = self.doc.buffer().line_of(p.head);
+        self.doc.buffer().line_text(line).trim_end_matches(['\n', '\r']).to_string()
+    }
+
+    /// SetSchema's JSON: `{"tables": [{"name", "kind", "columns": [{"name",
+    /// "type"} or "name" …]} …]}`, a list of such tables, or `{"people":
+    /// ["id", "name"], "orders": {"id": "INTEGER"}}`. Empty: no tables.
+    pub fn set_schema(&mut self, json: &str) -> Result<(), String> {
+        use rapidr_editor::sql::{Column, Schema, Table};
+        if json.trim().is_empty() {
+            self.sql_schema = Arc::new(Schema::default());
+            return Ok(());
+        }
+        let v: serde_json::Value = serde_json::from_str(json).map_err(|e| format!("SetSchema: not JSON ({e})"))?;
+        let text = |v: &serde_json::Value| v.as_str().map(str::to_string).unwrap_or_else(|| if v.is_null() { String::new() } else { v.to_string() });
+        let columns = |v: &serde_json::Value| -> Vec<Column> {
+            match v {
+                serde_json::Value::Array(list) => list
+                    .iter()
+                    .map(|c| match c {
+                        serde_json::Value::Object(o) => Column { name: o.get("name").map(text).unwrap_or_default(), kind: o.get("type").map(text).unwrap_or_default() },
+                        other => Column { name: text(other), kind: String::new() },
+                    })
+                    .filter(|c| !c.name.is_empty())
+                    .collect(),
+                serde_json::Value::Object(o) => o.iter().map(|(k, t)| Column { name: k.clone(), kind: text(t) }).collect(),
+                _ => Vec::new(),
+            }
+        };
+        let table = |v: &serde_json::Value| -> Option<Table> {
+            let o = v.as_object()?;
+            Some(Table { name: o.get("name").map(text)?, kind: o.get("kind").or_else(|| o.get("type")).map(text).unwrap_or_else(|| "table".into()), columns: o.get("columns").map(columns).unwrap_or_default() })
+        };
+        let tables: Vec<Table> = match &v {
+            serde_json::Value::Array(list) => list.iter().filter_map(table).collect(),
+            serde_json::Value::Object(o) if o.get("tables").is_some_and(serde_json::Value::is_array) => o["tables"].as_array().map(|l| l.iter().filter_map(table).collect()).unwrap_or_default(),
+            serde_json::Value::Object(o) => o.iter().map(|(name, cols)| Table { name: name.clone(), kind: "table".into(), columns: columns(cols) }).collect(),
+            _ => return Err("SetSchema: a list of tables, or an object of them".into()),
+        };
+        self.sql_schema = Arc::new(Schema { tables });
+        Ok(())
     }
 
     fn changed(&mut self) {
@@ -1251,8 +1330,13 @@ impl CodeEditor {
             "wherey" => v_int(self.line_col(p.head).0 as i64 - 1),
             // (a function read without parentheses: `S$ = Ed.GetSubList`)
             "getsublist" => v_str(&super::code::sub_list(&self.doc.text()).join("\n")),
-            // (I2)
-            "language" => v_str(&self.doc.language().id),
+            // (I2; SQL's dialects read as "sql" when SqlDialect chose them)
+            "language" => {
+                let id = &self.doc.language().id;
+                v_str(if rapidr_editor::sql::is_sql(id) && !self.language_set.to_ascii_lowercase().starts_with("sql-") { "sql" } else { id })
+            }
+            "sqldialect" => v_str(self.sql_dialect.name()),
+            "currentstatement" => v_str(&self.current_statement()),
             "colorscheme" => v_str(&self.opts.color_scheme),
             "tabsize" => v_int(i64::from(self.doc.tab_size)),
             "insertspaces" => flag(self.doc.insert_spaces),
@@ -1347,11 +1431,20 @@ impl CodeEditor {
             "language" => {
                 let name = val.to_string_val();
                 self.language_set = name.clone();
-                let lang = language_named(&name);
+                let lang = self.with_dialect(language_named(&name));
                 self.doc.set_language(lang);
                 self.fold_version = None;
                 self.semantic.clear();
                 self.changed();
+            }
+            "sqldialect" => {
+                self.sql_dialect = rapidr_editor::sql::Dialect::named(&val.to_string_val());
+                if self.is_sql() {
+                    let base = Languages::builtin().get("sql").unwrap_or_else(|| self.doc.language().clone());
+                    let lang = self.with_dialect(base);
+                    self.doc.set_language(lang);
+                    self.fold_version = None;
+                }
             }
             "colorscheme" => self.opts.color_scheme = val.to_string_val(),
             "tabsize" => {
@@ -1567,6 +1660,7 @@ impl CodeEditor {
                 let items = Self::parse_items(&arg(0));
                 self.show_completion(items, false, None);
             }
+            "setschema" => return Some(flag(self.set_schema(&arg(0)).is_ok())),
             "wordat" => return Some(v_str(&self.word_at_line_col(num(0, 1), num(1, 1)))),
             "showhover" => {
                 let text = arg(0);
@@ -1793,7 +1887,8 @@ impl CodeEditor {
         self.file_ending = LineEnding::detect(&text);
         let text = self.program_text(&text);
         if self.language_set.is_empty() {
-            self.doc.set_language(Languages::builtin().for_path(path));
+            let lang = self.with_dialect(Languages::builtin().for_path(path));
+            self.doc.set_language(lang);
             if self.doc.language().id == "plaintext" && !path.contains('.') {
                 self.doc.set_language(basic());
             }

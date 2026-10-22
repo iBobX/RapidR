@@ -8,6 +8,10 @@ description = "RSQLITE and RMYSQL as every RapidR runtime has them: one SQLite (
 
 [dependencies]
 rapidr-value = { workspace = true }
+# A background query's milliseconds (OnDone): std's clock, or in a browser
+# (no OS clock on wasm32-unknown-unknown) `performance.now()` — already in
+# the tree (rapidr-ui-kernel's; MIT OR Apache-2.0).
+web-time = "1.1"
 # (no derive: it pulled the unmaintained proc-macro-error2; flate2 in pure
 # Rust: no system zlib.) Encrypted connections (RMySQL's SSLMode) on the
 # operating system's TLS through native-tls (MIT OR Apache-2.0), the same
@@ -23,12 +27,13 @@ mysql = { version = "28", optional = true, default-features = false, features = 
 # tells which table a result column came from (the web's bound widgets
 # write their edits back); `modern_sqlite` (which `bundled` implies) words
 # errors the same on the web: `no such function: f in SELECT f(1) at
-# offset 7`.
+# offset 7`. `column_decltype` (rusqlite's own Rust, no C option): a result
+# column's declared type, ColType(i).
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "modern_sqlite", "serialize", "backup", "column_metadata"] }
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "modern_sqlite", "serialize", "backup", "column_metadata", "column_decltype"] }
 
 [target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies]
-rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata"] }
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata", "column_decltype"] }
 
 [features]
 default = ["sqlite"]

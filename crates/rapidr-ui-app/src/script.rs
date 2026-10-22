@@ -28,6 +28,11 @@ struct Script {
     started: bool,
     /// The events done: the next step captures.
     finished: bool,
+    /// Since when an `__until_` step has waited, and whether its value was
+    /// there at the last look (it must be at two looks running: the
+    /// handlers the change queued run between them, and may change it back).
+    waiting: Option<Instant>,
+    seen: bool,
 }
 
 thread_local! {
@@ -41,7 +46,7 @@ fn sc<R>(f: impl FnOnce(&mut Option<Script>) -> R) -> R {
 /// The test's run starts (the host started under `RAPIDR_CAPTURE`): its
 /// first step at `next`.
 pub fn start(capture: Capture, next: Instant) {
-    sc(|s| *s = Some(Script { events: capture.events.clone().into(), capture, next, started: false, finished: false }));
+    sc(|s| *s = Some(Script { events: capture.events.clone().into(), capture, next, started: false, finished: false, waiting: None, seen: false }));
 }
 
 /// When the test's next step may run, or the next keystroke SendKeys
@@ -126,8 +131,11 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
             crate::windows::invalidate();
         }
         // (the lists lane's: the component synthesizes the input)
-        Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape => {
+        // (waited for in `step`)
+        Action::Until(..) => {}
+        Action::Item(_) | Action::Node(_) | Action::Toggle(_) | Action::Cell(..) | Action::Edit | Action::Enter | Action::Escape | Action::Step(_) => {
             let step = match e.action {
+                Action::Step(ref s) => s.clone(),
                 Action::Item(i) => format!("__item_{i}"),
                 Action::Node(i) => format!("__node_{i}"),
                 Action::Toggle(i) => format!("__toggle_{i}"),
@@ -194,6 +202,31 @@ pub fn step<R: Program + Windows>(rt: R) {
         }
     }
     let next = sc(|s| s.as_mut().and_then(|sc| sc.events.pop_front()));
+    // (`__until_`: the next step waits until the component's property reads
+    // that value — work in the background done —, looked at every 50 ms)
+    if let Some(TestEvent { comp, action: Action::Until(prop, value) }) = &next {
+        let now = rt.now();
+        let since = sc(|s| s.as_mut().map(|sc| *sc.waiting.get_or_insert(now))).unwrap_or(now);
+        let got = rt.get(comp, prop).to_string_val();
+        let late = now.saturating_duration_since(since) > Duration::from_secs(120);
+        if late {
+            eprintln!("[test] {comp}.{prop} never read {value} (it reads {got}): going on");
+        }
+        sc(|s| {
+            if let Some(sc) = s.as_mut() {
+                let there = got == *value;
+                if late || (there && sc.seen) {
+                    sc.waiting = None;
+                    sc.seen = false;
+                } else {
+                    sc.seen = there;
+                    sc.events.push_front(next.clone().expect("the step"));
+                }
+                sc.next = now + Duration::from_millis(50);
+            }
+        });
+        return;
+    }
     match next {
         Some(e) => {
             // (the next step soon after, however this one's handlers end — a
