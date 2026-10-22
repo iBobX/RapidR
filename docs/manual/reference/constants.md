@@ -2,7 +2,7 @@
 
 # Constants
 
-RapidQ's RAPIDQ.INC (built in: `$INCLUDE "RAPIDQ.INC"` needs no file), its library includes' and RapidR's own. Colours are RapidQ's: `&HBBGGRR`.
+RapidQ's RAPIDQ.INC, its library includes' and RapidR's own. A RapidR program (`.rr`) has RAPIDQ.INC's constants and its `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a RapidQ program (`.bas`) gets them with `$INCLUDE "RAPIDQ.INC"`, which needs no file. Colours are RapidQ's: `&HBBGGRR`.
 
 ## Message box buttons and icons
 
@@ -60,7 +60,7 @@ Raster operations for CopyMode: how drawing a picture combines its pixels with t
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red).
+Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC (and every .rr program, built in) also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red).
 
 `clAqua` = 16776960, `clBlack` = 0, `clBlue` = 16711680, `clDkGray` = 8421504, `clFuchsia` = 16711935, `clGray` = 8421504, `clGreen` = 65280, `clLime` = 65280, `clLtGray` = 12632256, `clMaroon` = 128, `clNavy` = 8388608, `clOlive` = 32896, `clPurple` = 16711935, `clRed` = 255, `clSilver` = 12632256, `clTeal` = 8421376, `clWhite` = 16777215, `clYellow` = 65535
 
@@ -528,7 +528,7 @@ How a bitmap chooses its transparent colour: automatically or the one set.
 
 ## Truth values
 
-The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1).
+The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1). Only with the include: a .rr program's own True is -1, as a comparison's.
 
 `True` = 1
 

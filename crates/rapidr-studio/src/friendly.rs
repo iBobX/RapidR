@@ -144,7 +144,7 @@ pub fn for_line(line: &str) -> Vec<(&'static str, String)> {
         add("event", "an event takes a SUB's name: OnChange = ValueChanged — with DECLARE SUB ValueChanged at the top and SUB ValueChanged … END SUB below; leave the line out if nothing should happen");
     }
     if w.iter().any(|x| x == "TRUE" || x == "FALSE") {
-        add("bool", "truth values are numbers: 1 is true, 0 is false — DIM done AS INTEGER: done = 1 (True is 1 only with $INCLUDE \"RAPIDQ.INC\"; there is no False)");
+        add("bool", "truth values are numbers: 1 is true, 0 is false — DIM done AS INTEGER: done = 1, then IF done THEN (a .rr program's True is -1 while a check box's Checked is 1: don't compare with True)");
     }
     out
 }

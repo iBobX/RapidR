@@ -16,3 +16,5 @@ rapidr-value = { workspace = true }
 rapidr-lexer = { workspace = true }
 rapidr-parser = { workspace = true }
 rapidr-vm = { workspace = true }
+# (RAPIDQ.INC's text: a RapidR program's built-in constants are its numbers)
+rapidr-preprocessor = { workspace = true }

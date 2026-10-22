@@ -3,7 +3,9 @@
 // bytecode VM and the Rust codegen must behave identically).
 //
 // Layout (tests/conformance/cases/):
-//   name.bas              the program (console only; no GUI)
+//   name.bas              the program (console only; no GUI) — a RapidQ
+//                         program; name.rr: a RapidR program (RAPIDQ.INC's
+//                         constants built in), built as .rr on both backends
 //   name.expected         exact expected stdout (trailing whitespace ignored)
 //   name.input            optional: what the program reads (INPUT) on stdin
 //   name.args             optional: the program's command-line arguments, one
@@ -32,7 +34,7 @@
 
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, copyFileSync, cpSync, rmSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "../cargo_builds.mjs";
 
@@ -101,7 +103,9 @@ function runVm(name, src, input, progArgs) {
 function runCodegen(name, src, input, progArgs) {
   const dir = join(WORK, "codegen");
   mkdirSync(dir, { recursive: true });
-  const rr = join(dir, `${name}.rr`);
+  // (the copy keeps the case's extension: a .bas is a RapidQ program, a
+  // .rr a RapidR one, on both backends alike)
+  const rr = join(dir, `${name}${extname(src)}`);
   copyFileSync(src, rr);
   // Files cases build in with $RESOURCE, next to the copy as next to the case.
   // (resource_files: files a case lists; picture_files: pictures it loads;
@@ -161,12 +165,14 @@ function check(result, expected, expectedError, runtimeError = null) {
   return null;
 }
 
-const cases = readdirSync(CASES).filter((f) => f.endsWith(".bas")).map((f) => f.slice(0, -4)).sort()
+// (each case's file: name.bas or name.rr)
+const caseFile = new Map(readdirSync(CASES).filter((f) => f.endsWith(".bas") || f.endsWith(".rr")).map((f) => [f.slice(0, f.lastIndexOf(".")), f]));
+const cases = [...caseFile.keys()].sort()
   .filter((n) => !filters.length || filters.some((f) => n.includes(f)));
 
 const tally = { PASS: 0, FAIL: 0, XFAIL: 0, XPASS: 0 };
 for (const name of cases) {
-  const src = join(CASES, `${name}.bas`);
+  const src = join(CASES, caseFile.get(name));
   const text = readFileSync(src, "utf8");
   const xfailLine = text.split("\n")[0].match(/^'\s*xfail:\s*([^—-]+)/i);
   const xfail = new Set(xfailLine ? xfailLine[1].split(",").map((s) => s.trim().toLowerCase()) : []);

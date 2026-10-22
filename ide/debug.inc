@@ -969,8 +969,10 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     nm = FIELD$(row, CHR$(9), 1)
     cref = VAL(FIELD$(row, CHR$(9), 4))
     cpath = Path + "/" + nm
-    ' (the globals an $INCLUDEd file made — RAPIDQ.INC's constants —, under
-    ' one closed item after the program's own: "$INCLUDE RAPIDQ.INC (n names)")
+    ' (the globals an $INCLUDEd file made — RAPIDQ.INC's constants, when a
+    ' program includes it —, under one closed item after the program's own:
+    ' "$INCLUDE RAPIDQ.INC (n names)"; a .rr program's built-in constants
+    ' are no globals, never listed)
     IF FIELD$(row, CHR$(9), 3) = "Include" THEN
       TreeAddChild w, Parent, nm + " " + FIELD$(row, CHR$(9), 2)
     ELSE

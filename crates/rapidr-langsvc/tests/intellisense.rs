@@ -94,6 +94,47 @@ fn rapidq_inc_constants_come_with_their_include() {
     assert!(edits.is_empty());
 }
 
+/// A RapidR program (`.rr`): RAPIDQ.INC's constants are built in — offered
+/// as they are (no include added), never flagged, their hover says so; a
+/// name the program has itself is its own (offered once, as its own).
+#[test]
+fn a_rapidr_program_has_the_constants_built_in() {
+    let complete_rr = |text: &str| {
+        let at = text.find('|').expect("a caret");
+        let text = text.replacen('|', "", 1);
+        let mut s = EditorService::new();
+        s.update("untitled-1.rr", &text);
+        s.completions("untitled-1.rr", at).items
+    };
+    let items = complete_rr("r = MessageDlg(\"Save?\", mtConfirmation, mbY|, 0)\n");
+    let yes = items.iter().find(|c| c.label == "mbYes").expect("mbYes offered");
+    assert_eq!(yes.detail, "built-in constant = 1");
+    assert!(yes.edits.is_empty(), "no include added: {:?}", yes.edits);
+    // (True / False stay RapidR's: not offered as RAPIDQ.INC's 1)
+    let items = complete_rr("x = Tr|\n");
+    assert!(!items.iter().any(|c| c.label == "True" && c.detail.contains("constant = 1")), "{:?}", items.iter().map(|c| (&c.label, &c.detail)).collect::<Vec<_>>());
+    // (the program's own mbNo: its own, not the built-in one too)
+    let items = complete_rr("DIM mbNo AS INTEGER = 5\nx = mbN|\n");
+    assert_eq!(items.iter().filter(|c| c.label.eq_ignore_ascii_case("mbNo")).count(), 1, "{:?}", items.iter().map(|c| (&c.label, &c.detail)).collect::<Vec<_>>());
+    // no hint, and the program compiles clean
+    let mut a = Analysis::default();
+    let p = PathBuf::from("/nowhere/prog.rr");
+    let text = "' Save prompt\n$APPTYPE GUI\nr = MessageDlg(\"Save?\", mtConfirmation, mbYes OR mbNo, 0)\nIF r = mrYes THEN PRINT r; QBColor(12)\n";
+    a.update(&p, text);
+    let d = a.diagnostics(&p);
+    assert!(d.is_empty(), "{d:?}");
+    // the hover: built in
+    let (mut s, offset) = {
+        let text = "r = MessageDlg(\"Save?\", mtConfirmation, mbY|es, 0)\n";
+        let at = text.find('|').unwrap();
+        let mut s = EditorService::new();
+        s.update("untitled-1.rr", &text.replacen('|', "", 1));
+        (s, at)
+    };
+    let hover = s.hover("untitled-1.rr", offset).expect("a hover");
+    assert!(hover.text.contains("CONST mbYes = 1") && hover.text.contains("built in"), "{}", hover.text);
+}
+
 fn hints(text: &str) -> (Analysis, PathBuf, Vec<FileDiagnostic>) {
     let mut a = Analysis::default();
     let p = PathBuf::from("/nowhere/prog.bas");

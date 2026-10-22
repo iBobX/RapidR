@@ -246,6 +246,27 @@ pub fn is_source_path(path: &Path) -> bool {
     path.extension().and_then(|e| e.to_str()).is_some_and(|e| SOURCE_EXTENSIONS.iter().any(|x| x.eq_ignore_ascii_case(e)))
 }
 
+/// Whether `path` names a RapidQ program by its extension: `.bas`, or
+/// RapidQ's `.rqw` / `.rqb` / `.rq` (any case). Such a program keeps
+/// RapidQ's rules exactly (its console's code page, RAPIDQ.INC's constants
+/// only with the `$INCLUDE`).
+pub fn is_rapidq_program_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| ["bas", "rqb", "rq", "rqw"].iter().any(|x| x.eq_ignore_ascii_case(e)))
+}
+
+/// Whether `path` names a RapidR program: a `.rr` file (any case). Its
+/// RapidQ standard constants (RAPIDQ.INC's) are built in, no `$INCLUDE`
+/// needed ([`RAPIDR_PROGRAM`]).
+pub fn is_rapidr_program_path(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("rr"))
+}
+
+/// The line the preprocessor adds to a RapidR program ([`is_rapidr_program_path`]),
+/// after its main file's last line: what tells the compilers it is one
+/// (`rapidr_ast::builtin_constants` gives it RAPIDQ.INC's constants
+/// without the include). A RapidQ program never gets it.
+pub const RAPIDR_PROGRAM: &str = "$OPTION RAPIDR";
+
 /// Where sources are read from when a host has no disk: a file's bytes by
 /// its path, `None` when there is no such file. RapidR Studio in a browser
 /// gives the page's files (what the user opened, the site's examples), so
@@ -500,7 +521,7 @@ pub fn preprocess_file(
     // UTF-8 file with other characters — RapidR's, or any `.rr` — prints
     // Unicode as it is. The mark: a last line, `$OPTION CONSOLE CP437`,
     // which the parser makes the program's first statement.
-    let rapidq_name = path.extension().and_then(|e| e.to_str()).is_some_and(|e| ["bas", "rqb", "rq", "rqw"].iter().any(|x| e.eq_ignore_ascii_case(x)));
+    let rapidq_name = is_rapidq_program_path(path);
     if matches!(encoding, SourceEncoding::Windows1252 | SourceEncoding::Windows1252Bom) || (rapidq_name && source.is_ascii()) {
         let main = Some(path.to_path_buf());
         if let Some(id) = state.files.iter().position(|f| f.path == main) {
@@ -633,8 +654,16 @@ fn preprocess_program(source: &str, encoding: SourceEncoding, base_dir: &Path, f
             state.libraries.push(file.to_ascii_uppercase());
         }
     }
-    let (main, main_id) = preprocess_with_state(source, encoding, base_dir, file_path, state)?;
+    let rapidr_program = file_path.as_deref().is_some_and(is_rapidr_program_path);
+    let (main, main_id) = preprocess_with_state(source, encoding, base_dir, file_path.clone(), state)?;
     out.push_output(main, (main_id, source.len(), false));
+    // A RapidR program's mark (RAPIDR_PROGRAM): a last line no file has,
+    // as `$OPTION CONSOLE CP437` is (preprocess_file).
+    if rapidr_program {
+        if let Some((end, lines)) = state.files.get(main_id).map(|f| (f.text.len(), f.lines.len())) {
+            out.push_line(MappedText::generated(RAPIDR_PROGRAM.to_string(), main_id, end..end), (file_path, lines + 1), (main_id, end, false));
+        }
+    }
     Ok(out)
 }
 
@@ -1786,6 +1815,24 @@ mod tests {
         assert!(result.contains("PRINT 1"));
         // Only the first line: elsewhere `#!` is the program's.
         assert!(preprocess("PRINT 1\n#!x\n").contains("#!x"));
+    }
+
+    /// A `.rr` program gets RapidR's mark on a last line of its own (its
+    /// constants are built in); a RapidQ program, or a text without a
+    /// name, doesn't — and line 2 is still line 2.
+    #[test]
+    fn a_rapidr_program_is_marked() {
+        use std::path::{Path, PathBuf};
+        let pre = |name: Option<&str>| preprocess_source("PRINT mbYes\nPRINT 2", ".", name.map(PathBuf::from), PreprocessOptions::default()).unwrap();
+        let rr = pre(Some("prog.rr"));
+        assert_eq!(rr.source, format!("PRINT mbYes\nPRINT 2\n{}", super::RAPIDR_PROGRAM));
+        assert_eq!(rr.line_map[1], (Some(PathBuf::from("prog.rr")), 2));
+        assert_eq!(rr.line_map[2], (Some(PathBuf::from("prog.rr")), 3));
+        for other in [Some("prog.bas"), Some("prog.RQW"), Some("prog"), None] {
+            assert_eq!(pre(other).source, "PRINT mbYes\nPRINT 2", "{other:?}");
+        }
+        assert!(super::is_rapidr_program_path(Path::new("A.RR")) && !super::is_rapidr_program_path(Path::new("a.bas")));
+        assert!(super::is_rapidq_program_path(Path::new("a.Bas")) && super::is_rapidq_program_path(Path::new("a.rqb")) && !super::is_rapidq_program_path(Path::new("a.rr")));
     }
 
     #[test]

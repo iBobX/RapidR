@@ -1,11 +1,12 @@
 //! What the compiler doesn't say, because RapidQ compiles it and it runs:
-//! a constant of RAPIDQ.INC (or of another RapidQ include) used without the
-//! `$INCLUDE` is RapidQ's implicit variable, always 0 (`mbYes` → 0: a
-//! MessageDlg with only an OK button). RapidR keeps that meaning; this is
-//! a warning beside the squiggles and in Problems, its fix adding the
-//! include. It reads the compiler's semantic model: its implicit symbols
-//! and how each use reads or writes them (a name the program stores in is
-//! its own variable).
+//! in a RapidQ program (`.bas` …), a constant of RAPIDQ.INC (or of another
+//! RapidQ include) used without the `$INCLUDE` is RapidQ's implicit
+//! variable, always 0 (`mbYes` → 0: a MessageDlg with only an OK button).
+//! RapidR keeps that meaning there; this is a warning beside the squiggles
+//! and in Problems, its fix adding the include. It reads the compiler's
+//! semantic model: its implicit symbols and how each use reads or writes
+//! them (a name the program stores in is its own variable). A RapidR
+//! program (`.rr`) has RAPIDQ.INC's constants built in: never this hint.
 
 use std::path::Path;
 
@@ -43,6 +44,10 @@ pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
         }
         let base = rapidr_ast::strip_type_suffix(&sym.name);
         let Some((_, group)) = rapidr_lang::constant(base).filter(|(_, g)| g.origin == Origin::RapidQ) else { continue };
+        // (built into a RapidR program: RAPIDQ.INC's own needs no include)
+        if s.rapidr_program() && group.source.eq_ignore_ascii_case(RAPIDQ_INC) {
+            continue;
+        }
         // (the include's own spelling: `mbYes`)
         let name = group.constants.iter().find(|(n, _)| n.eq_ignore_ascii_case(base)).map_or(base, |(n, _)| n);
         let inc = if group.source.eq_ignore_ascii_case(RAPIDQ_INC) { RAPIDQ_INC } else { group.source };

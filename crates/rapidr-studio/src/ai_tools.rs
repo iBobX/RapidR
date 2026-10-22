@@ -1673,11 +1673,20 @@ mod tests {
         assert!(c.contains("hint main.rr:12: `!=` isn't BASIC: \"not equal\" is `<>`"), "{c}");
         assert!(c.contains("error main.rr:2:1: a name takes one `AS type`"), "{c}");
         assert!(c.contains("never shows its window: end the main file with Form.ShowModal"), "{c}");
-        // (a RapidQ constant without its include: an error, for the assistant)
-        buffers.insert("main.rr".to_string(), "CREATE Form AS RForm\n    CREATE Display AS RLabel\n        Align = alTop\n    END CREATE\nEND CREATE\nForm.ShowModal\n".to_string());
+        // (RAPIDQ.INC's constants are built into a RapidR program: nothing
+        // to say; in a RapidQ program without its include, an error, for
+        // the assistant)
+        let aligned = "CREATE Form AS RForm\n    CREATE Display AS RLabel\n        Align = alTop\n    END CREATE\nEND CREATE\nForm.ShowModal\n";
+        buffers.insert("main.rr".to_string(), aligned.to_string());
         let p = project(&files, &buffers);
         let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
-        assert!(c.contains("error main.rr:3:17: alTop is a RAPIDQ.INC constant"), "{c}");
+        assert_eq!(c, "No problems: it compiles.");
+        let bas = vec!["main.bas".to_string()];
+        let mut bas_buffers = HashMap::new();
+        bas_buffers.insert("main.bas".to_string(), aligned.to_string());
+        let p = Project { main: "main.bas", ..project(&bas, &bas_buffers) };
+        let c = run("check_code", &json!({}), &p, &mut Vec::new(), true).content;
+        assert!(c.contains("error main.bas:3:17: alTop is a RAPIDQ.INC constant"), "{c}");
         // (a name never given a value, the nearest real one offered)
         let src2 = "DECLARE SUB Press\nDIM ButtonPress AS STRING\nCREATE Form AS RForm\n    CREATE B7 AS RButton\n        Caption = \"7\": OnClick = Press\n    END CREATE\nEND CREATE\nSUB Press\n    ButtonPress = \"7\"\n    IF ButtonPressed = \"7\" THEN B7.Caption = \"8\"\nEND SUB\nForm.ShowModal\n";
         buffers.insert("main.rr".to_string(), src2.to_string());
@@ -1716,7 +1725,7 @@ mod tests {
         assert!(!o.is_error && o.content.starts_with("    CREATE Key7 AS RButton: Caption = \"7\": Left = 8: Top = 60: Width = 56: Height = 36: OnClick = KeyPress: END CREATE"), "{}", o.content);
         assert!(o.content.contains("CREATE KeyPlus AS RButton: Caption = \"+\": Left = 188: Top = 180") && o.content.contains("ClientWidth = 252: ClientHeight = 224"), "{}", o.content);
         let blocks: String = o.content.lines().filter(|l| l.contains("CREATE ")).map(|l| format!("{l}\n")).collect();
-        let src = format!("$INCLUDE \"RAPIDQ.INC\"\nDECLARE SUB KeyPress (Sender AS RButton)\nCREATE Form AS RForm\n    ClientWidth = 252: ClientHeight = 224\n    CREATE Display AS RLabel\n        Align = alTop: Height = 52: Caption = \"0\"\n    END CREATE\n{blocks}END CREATE\nSUB KeyPress (Sender AS RButton)\n    Display.Caption = Sender.Caption\nEND SUB\nForm.ShowModal\n");
+        let src = format!("DECLARE SUB KeyPress (Sender AS RButton)\nCREATE Form AS RForm\n    ClientWidth = 252: ClientHeight = 224\n    CREATE Display AS RLabel\n        Align = alTop: Height = 52: Caption = \"0\"\n    END CREATE\n{blocks}END CREATE\nSUB KeyPress (Sender AS RButton)\n    Display.Caption = Sender.Caption\nEND SUB\nForm.ShowModal\n");
         let files = vec!["main.rr".to_string()];
         let mut buffers = HashMap::new();
         buffers.insert("main.rr".to_string(), src);

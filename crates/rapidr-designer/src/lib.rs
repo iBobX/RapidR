@@ -393,7 +393,7 @@ impl Document {
             Some((start, _)) if start <= self.text.len() => self.text[..start].matches('\n').count() + 1,
             _ => d.location.line.max(1),
         });
-        let constants = program_constants(&parse.program.statements);
+        let constants = program_constants(&parse.program);
         // (new components are written in the file's own style: R-NAMES)
         let names = parse.name_counts(file).writing_style();
         let rapidq_file = self.path.as_deref().and_then(|p| p.extension()).and_then(|e| e.to_str()).is_some_and(|e| ["bas", "inc", "rqw", "rqb", "rq"].iter().any(|x| x.eq_ignore_ascii_case(e)));
@@ -799,11 +799,15 @@ fn child_indent(text: &str, m: &FormDesign, spans: &HashMap<NodeId, BlockSpans>,
 }
 
 /// The program's integer CONSTs (lower case), in order — RAPIDQ.INC's when
-/// it includes it: `alClient` means 5 only then (else it's an undeclared
-/// variable, 0, in RapidQ and RapidR alike).
-fn program_constants(statements: &[Statement]) -> std::collections::BTreeMap<String, i64> {
+/// it includes it, or when it is a RapidR program (`.rr`: they are built
+/// in, its own CONSTs win): `alClient` means 5 only then (else, in a
+/// RapidQ program, it's an undeclared variable, 0).
+fn program_constants(program: &rapidr_ast::Program) -> std::collections::BTreeMap<String, i64> {
     let mut out = std::collections::BTreeMap::new();
-    for s in statements {
+    if rapidr_ast::builtin_constants::is_rapidr_program(program) {
+        out.extend(rapidr_ast::builtin_constants::constants().map(|(n, v)| (n.to_ascii_lowercase(), v)));
+    }
+    for s in &program.statements {
         if let Statement::Const(c) = s {
             if let Some(v) = const_value(&c.value, &out) {
                 out.insert(c.name.to_ascii_lowercase(), v);

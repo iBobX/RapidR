@@ -5,7 +5,6 @@
 '
 '   rapidr run calculator.rr
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
 
 CONST PI = 3.14159265358979
 

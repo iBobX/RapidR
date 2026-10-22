@@ -1,0 +1,26 @@
+' A RapidR program (.rr) has RapidQ's standard constants built in, with no
+' $INCLUDE "RAPIDQ.INC": the numbers the include gives (the same program
+' with the include prints the same), in SUBs, FUNCTIONs, CONSTs and CASEs
+' too; QBColor is the include's INTEGER array (0 TO 15),
+' assignable. True stays RapidR's own (-1); RAPIDQ.INC's True is 1.
+PRINT mbYes; " "; mbNo; " "; mbOK; " "; mrYes; " "; mtInformation
+PRINT crHandPoint; " "; crDefault; " "; crHourGlass
+PRINT clRed; " "; clBtnFace; " "; clScrollBar; " "; clNone
+PRINT MB_YESNO; " "; IDYES; " "; VK_F12; " "; alClient; " "; fmCreate
+PRINT QBColor(12); " "; QBColor(15); " "; LBOUND(QBColor); " "; UBOUND(QBColor)
+QBColor(3) = 300000.6
+PRINT QBColor(3)
+CONST both = mbYes OR mbNo
+PRINT both
+FUNCTION Pick(answer AS INTEGER) AS INTEGER
+  IF answer = mrYes THEN Result = clLime ELSE Result = clBlack
+END FUNCTION
+SUB Show
+  PRINT Pick(mrYes); " "; Pick(mrNo); " "; QBColor(1)
+END SUB
+Show
+SELECT CASE 6
+  CASE mrNo: PRINT "no"
+  CASE mrYes: PRINT "yes"
+END SELECT
+PRINT True; " "; False

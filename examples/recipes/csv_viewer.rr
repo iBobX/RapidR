@@ -6,7 +6,6 @@
 '
 '   rapidr run csv_viewer.rr
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
 
 DECLARE SUB OpenFile
 
