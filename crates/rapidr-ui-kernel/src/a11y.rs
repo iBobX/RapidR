@@ -140,6 +140,12 @@ impl FormUi {
             }
             return false;
         }
-        self.with_cx(store, ts, i, |k, cx| k.access(cx, action, part, value.as_ref())).unwrap_or(false)
+        let done = self.with_cx(store, ts, i, |k, cx| k.access(cx, action, part, value.as_ref())).unwrap_or(false);
+        // (a part focused — a dock manager's splitter —: its component has
+        // the keyboard)
+        if done && action == Action::Focus && self.focus != Some(i) && self.can_focus(store, i) {
+            self.set_focus(Some(i));
+        }
+        done
     }
 }

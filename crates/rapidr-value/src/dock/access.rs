@@ -97,11 +97,17 @@ pub fn describe_manager(id: &str, m: &Manager, g: &Geometry, at: (i64, i64)) -> 
         sp.name = format!("Resize {} and {}", name_of(&a), name_of(&b));
         // (ARIA's sense: a bar between left and right panes stands up)
         sp.orientation = Some(if s.axis == Axis::Row { Orientation::Vertical } else { Orientation::Horizontal });
+        // (where it is as a percentage of its split: the share before it —
+        // ARIA's separator's value — and an arrow's step, Shift's, the same)
         if let Some((_, ext)) = g.extents.iter().find(|(p, _)| *p == s.path) {
-            let total: i64 = ext.iter().sum();
-            sp.numeric = Some(Numeric { value: ext[..=s.index].iter().sum::<i64>() as f64, min: 0.0, max: total as f64, step: 8.0, jump: 40.0 });
+            let total = ext.iter().sum::<i64>().max(1) as f64;
+            let pct = |px: i64| (px as f64 * 1000.0 / total).round() / 10.0;
+            let value = pct(ext[..=s.index].iter().sum::<i64>());
+            sp.numeric = Some(Numeric { value, min: 0.0, max: 100.0, step: pct(super::manager::SPLIT_STEP), jump: pct(super::manager::SPLIT_JUMP) });
+            sp.value = Some(format!("{}%", value.round() as i64));
         }
-        sp.actions = vec![Action::Increment, Action::Decrement];
+        sp.actions = vec![Action::Increment, Action::Decrement, Action::Focus];
+        sp.states.focused = m.ui.split_key.as_ref().is_some_and(|k| k.splitter == i);
         sp.bounds = moved(s.rect, at);
         n.children.push(sp);
     }
@@ -212,9 +218,13 @@ pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) 
         let mut sp = AccessNode::new(part_id(id, PART_ITEM, DOC_SPLITTERS + i), Role::Splitter);
         sp.name = "Resize document groups".into();
         sp.orientation = Some(if s.axis == Axis::Row { Orientation::Vertical } else { Orientation::Horizontal });
+        // (as the dock manager's: a percentage)
         if let Some((_, ext)) = d.extents.iter().find(|(p, _)| *p == s.path) {
-            let total: i64 = ext.iter().sum();
-            sp.numeric = Some(Numeric { value: ext[..=s.index].iter().sum::<i64>() as f64, min: 0.0, max: total as f64, step: 8.0, jump: 40.0 });
+            let total = ext.iter().sum::<i64>().max(1) as f64;
+            let pct = |px: i64| (px as f64 * 1000.0 / total).round() / 10.0;
+            let value = pct(ext[..=s.index].iter().sum::<i64>());
+            sp.numeric = Some(Numeric { value, min: 0.0, max: 100.0, step: pct(super::manager::SPLIT_STEP), jump: pct(super::manager::SPLIT_JUMP) });
+            sp.value = Some(format!("{}%", value.round() as i64));
         }
         sp.actions = vec![Action::Increment, Action::Decrement];
         sp.bounds = moved(s.rect, at);

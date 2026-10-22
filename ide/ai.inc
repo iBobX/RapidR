@@ -768,8 +768,7 @@ END SUB
 ' (240 wide) is too narrow for a chat: the first time the pane shows, its
 ' column opens 380 wide. Only when the column is still the default width:
 ' one the user dragged stays as it is. (The width is in the layout's text,
-' on the line of the column that sits in the layout's row, as WidenDebugPanes
-' does it for the panes beside Output.)
+' on the line of the column that sits in the layout's row.)
 FUNCTION LayoutIndent(Line AS STRING) AS INTEGER
   LayoutIndent = LEN(Line) - LEN(LTRIM$(Line))
 END FUNCTION

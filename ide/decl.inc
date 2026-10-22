@@ -244,8 +244,23 @@ DECLARE SUB LayoutChanged
 DECLARE SUB SaveDebugState
 DECLARE SUB LoadDebugState
 DECLARE SUB DebugStateChanged
-DECLARE SUB DebugSideBar(IsOn AS INTEGER)
 DECLARE SUB DebugLayoutLoaded
+' (the editing and the debugging layout: debug.inc; Settings > General's
+' Debug panes — "auto", "always", "never" — and each layout's sizes,
+' kept with the settings: project.inc)
+DIM DebugPanesMode AS STRING
+DIM EditBottom AS INTEGER
+DIM DebugBottom AS INTEGER
+DIM DebugWidth AS INTEGER
+DECLARE SUB RememberLayoutSizes
+DECLARE SUB LayoutNoteGone
+DECLARE SUB LayOutStatus
+DECLARE SUB DebugLayoutRunStarts
+DECLARE SUB DebugLayoutPaused
+DECLARE SUB DebugLayoutRunEnds
+DECLARE SUB ToggleDebugPanes
+DECLARE SUB NeedDebugPanes
+DECLARE SUB SetDebugPanesMode(Mode AS STRING)
 DECLARE SUB ImmAnswer(Text AS STRING)
 DECLARE SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
 ' (Studio's settings were read: not --fresh)
