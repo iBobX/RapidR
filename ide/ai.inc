@@ -99,6 +99,8 @@ DIM AISendBtn AS RButton
 DIM AIStopBtn AS RButton
 DIM AINote AS RLabel
 DIM AIMeter AS RLabel
+' (measures the meter's text: how many lines it wraps to, AIMeterHigh)
+DIM AIMeterMeasure AS RBitmap
 DIM AISentLink AS RLabel
 DIM AIStatus AS RStatusBar
 ' (while an answer runs, the status is its progress checklist: what it
@@ -465,6 +467,42 @@ SUB SetUpAI
   IF AIReady = 0 THEN Dock.HidePane("aipanel")
 END SUB
 
+' How tall the meter is for its text wrapped at spaces to W pixels in its
+' font, as a WordWrap label wraps it: a line when it fits, more when it
+' doesn't (with cached tokens and prices it is longer than the pane is
+' wide: "· about $…" is never left out of a label one line high).
+FUNCTION AIMeterHigh(W AS INTEGER) AS INTEGER
+  DIM lines AS INTEGER, cur AS STRING, wd AS STRING, i AS INTEGER, n AS INTEGER, t AS STRING
+  AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = DimFont.Size
+  t = LTRIM$(RTRIM$(AIMeter.Caption))
+  lines = 1
+  IF t <> "" THEN
+    n = TALLY(t, " ") + 1
+    FOR i = 1 TO n
+      wd = FIELD$(t, " ", i)
+      IF cur = "" THEN
+        cur = wd
+      ELSEIF AIMeterMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
+        lines = lines + 1
+        cur = wd
+      ELSE
+        cur = cur + " " + wd
+      END IF
+    NEXT
+  END IF
+  ' (one line is 18 pixels, as it always was; each more adds a line's pitch)
+  Result = 18 + (lines - 1) * (AIMeterMeasure.TextHeight(" ") + 2)
+END FUNCTION
+
+' The meter shows the session's usage (its cost too once prices are
+' given); the panel is laid out again when the text needs more lines.
+SUB AIShowUsage
+  AIMeter.Caption = AI.Usage
+  IF AIMeter.Width > 0 THEN
+    IF AIMeterHigh(AIMeter.Width) <> AIMeter.Height THEN LayOutAIPanel
+  END IF
+END SUB
+
 ' The panel's controls placed for its width (the docks resize it).
 SUB LayOutAIPanel
   DIM w AS INTEGER, bh AS INTEGER, y AS INTEGER, mh AS INTEGER
@@ -481,7 +519,7 @@ SUB LayOutAIPanel
   AIInput.Left = 6: AIInput.Top = 6: AIInput.Width = w - 12: AIInput.Height = 64
   AISendBtn.Left = 6: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
   AIStopBtn.Left = 86: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
-  IF w >= 360 THEN mh = 18 ELSE mh = 34
+  mh = AIMeterHigh(w - 16)
   y = 82 + bh
   AIMeter.Left = 8: AIMeter.Top = y: AIMeter.Width = w - 16: AIMeter.Height = mh
   y = y + mh + 4
@@ -636,7 +674,7 @@ SUB AIEnableSend
   ' assistant is ready)
   AISendBtn.Enabled = Flag(AIReady <> 0)
   AIStopBtn.Enabled = Flag(AI.Busy <> 0)
-  AIMeter.Caption = AI.Usage
+  AIShowUsage
 END SUB
 
 ' (Studio's keychain entry for a provider's key, then the provider's usual
@@ -977,7 +1015,7 @@ SUB AIDone(Status AS STRING)
       AIShowReviewBar
     END IF
   END IF
-  AIMeter.Caption = AI.Usage
+  AIShowUsage
   AISendQueued Status
 END SUB
 

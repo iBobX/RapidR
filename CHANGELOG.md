@@ -185,6 +185,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   diagnostics were only asked for after typing. A text set from outside
   (`LoadFromFile`, `Text =`) is now diagnosed at the editor's next tick, before
   it is even drawn (`Model::diagnose_wanted`). Flow `editor-squiggles-on-open`.
+- **The Assistant's token meter is never cut off**: with cached tokens and
+  prices the line (`2,000 tokens sent (200 from the cache), 40 received · about
+  $0.0040`) is longer than the pane is wide, and the label, one line high
+  above 360 pixels, hid "· about $…" under the note. The meter's height now
+  follows its text wrapped at spaces (`AIMeterHigh`, `AIShowUsage` in
+  `ide/ai.inc`: one line is 18 pixels as before, each more adds a line).
+  Flow `ai-meter-long`, in the three looks.
 - **The debugger's Immediate and Watch see a `.rr` program's built-in
   constants**: `? mrYes` printed nothing while the program itself read 6. What
   the debugger compiles (Immediate, Watch, data tips, a changed value) now goes

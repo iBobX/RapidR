@@ -2748,7 +2748,26 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:prices=2/10,ai:ask=hello there,wait,wait,wait",
     delay: 5,
-    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/ },
+    capture: true,
+    // (one line: 18 pixels, as it always was)
+    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^18$/ },
+  },
+  {
+    // The meter with cached tokens and prices is longer than a line of the
+    // pane: it wraps, and its label is as tall as its lines — "· about $…"
+    // is never cut off at the end of a line that is too short for it
+    name: "ai-meter-long",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:prices=2/10,ai:ask=describe the form,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    dump: {
+      "aimeter.caption": /^2,000 tokens sent \(200 from the cache\), 40 received · about \$0\.0040$/,
+      // (two lines of the dim font: 18 + a line's 17, not the one line of a short text)
+      "aimeter.height": /^35$/,
+    },
   },
   {
     // Off by default: no pane, no provider, nothing sent

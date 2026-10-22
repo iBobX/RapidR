@@ -67,7 +67,9 @@ provider's prices (Settings has a **See prices** link to them).
    change it) — a limit on what one answer can cost.
 8. **Prices** (optional): what your provider charges, in dollars for a
    million tokens sent and for a million received, from its price page. The
-   token meter then shows an estimate of the cost.
+   token meter then shows an estimate of the cost; when the line is longer
+   than the pane is wide, the meter takes a second line, so the cost is
+   never cut off.
 9. **It may**: *Read the project, propose changes you review* (the
    default), or *Only read the project and answer*.
 
