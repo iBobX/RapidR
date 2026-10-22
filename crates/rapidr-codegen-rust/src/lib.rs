@@ -3614,6 +3614,20 @@ mod tests {
         generate(&program)
     }
 
+    /// `OnMessage` is `WndProc` (rapidr_ast::tray_calls): the same Rust.
+    #[test]
+    fn on_message_generates_what_wndproc_does() {
+        let program = |name: &str| {
+            format!(
+                "DECLARE SUB FormProc (h AS LONG, m AS LONG, w AS LONG, l AS LONG)\nCREATE Form AS QFORM\n  {name} = FormProc\nEND CREATE\n\
+                 Form.{name} = FormProc\nSUB FormProc (h AS LONG, m AS LONG, w AS LONG, l AS LONG)\n  PRINT m\nEND SUB\nForm.ShowModal\n"
+            )
+        };
+        let wndproc = gen(&program("WndProc"));
+        assert!(wndproc.contains("onwndproc"), "{wndproc}");
+        assert_eq!(gen(&program("OnMessage")), wndproc);
+    }
+
     #[test]
     fn hello_world_generates_rust() {
         let code = "PRINT \"Hello World\"\n";

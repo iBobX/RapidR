@@ -8,6 +8,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **`OnMessage`, another name for a form's `WndProc`**: `OnMessage = MySub` in
+  the form's CREATE (or `Form.OnMessage = MySub`) is the same event as
+  `WndProc` — the same four parameters (`Hwnd, Msg, wParam, lParam`), the same
+  delivery on every runtime: Windows' messages on Windows, the system tray
+  icon's on macOS, Linux and the web — so code written for either name runs
+  the same. In the language reference (`OnMessage` on RForm, marked RapidR's)
+  and the manual's [WndProc section](docs/manual/components.md#windows-messages-a-forms-wndproc).
 - **Programs in every language** (docs/program-languages-plan.md, lane T1):
   `TR$("Save file")` gives the text in the program's language from PO files
   in a `lang` folder beside the program (`lang/es.po`, `lang/pt-BR.po`,
