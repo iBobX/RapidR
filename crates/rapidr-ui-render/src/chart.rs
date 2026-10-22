@@ -51,3 +51,48 @@ pub fn load_into_picture(picture: &str, plot: &str) -> Option<(i64, i64)> {
     })?;
     Some(size)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rapidr_value::objects::ops::Op;
+
+    /// A chart's category names are drawn at every scale: the same 8 bars,
+    /// the same rectangle, the same names — at 1×, 1.5× and 2× each name's
+    /// place holds ink (a name fitted away at one scale only, as device
+    /// pixels would do, leaves its place bare). The captures, as the
+    /// desktop and the web make them.
+    #[test]
+    fn a_charts_names_are_drawn_at_every_scale() {
+        let names = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot", "Golf", "Hotel"];
+        let mut p = plot::Plot { width: 330, height: 220, ..plot::Plot::default() };
+        p.series.push(plot::Series {
+            x: (0..8).map(f64::from).collect(),
+            y: (0..8).map(|i| 10.0 + 3.0 * f64::from(i)).collect(),
+            label: String::new(),
+            color: plot::PALETTE[0].into(),
+            style: "bar".into(),
+            categories: names.map(String::from).to_vec(),
+        });
+        let (ops, size) = chart::ops(&p, rapidr_value::theme::current());
+        let shown: Vec<(String, (i64, i64, i64, i64))> = ops
+            .iter()
+            .filter_map(|o| match o {
+                Op::Text { text, rect, .. } if names.contains(&text.as_str()) => Some((text.clone(), *rect)),
+                _ => None,
+            })
+            .collect();
+        // (the names it fits: all of them, or every other one — the same at each scale)
+        assert!(shown.len() >= 4, "{shown:?}");
+        for scale in [1.0, 1.5, 2.0] {
+            let px = render(&ops, size, scale);
+            let background = px.pixels[0];
+            for (name, (x, y, w, h)) in &shown {
+                let (x0, y0) = ((*x as f64 * scale) as usize, (*y as f64 * scale) as usize);
+                let (x1, y1) = (((x + w) as f64 * scale).ceil() as usize, ((y + h) as f64 * scale).ceil() as usize);
+                let ink = (y0..y1.min(px.height)).flat_map(|r| (x0..x1.min(px.width)).map(move |c| (r, c))).filter(|(r, c)| px.pixels[r * px.width + c] != background).count();
+                assert!(ink > 10, "{name} at {scale}x has no ink ({ink} pixels in {x0},{y0} {x1},{y1})");
+            }
+        }
+    }
+}

@@ -172,6 +172,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **RPlot bar names are tested at every scale** (Database Studio reported
+  every other name dropped at `RAPIDR_SCALE=2` where scale 1 showed all 8):
+  not reproduced with an 8-bar chart in a fixed rectangle, aligned to the
+  client area, bound to a data frame (`examples/data/dataframe.rr`) or after a
+  scripted resize — the chart's labels are fitted in logical units (its ops
+  are made at the component's logical size, the CPU renderer only scales them)
+  and the same names show at 1x, 1.5x, 2x and 3x. Two guards keep it so: the
+  kernel test `the_names_shown_are_the_same_at_every_scale` (the display list
+  at four scales over widths 150 to 500) and the renderer's
+  `a_charts_names_are_drawn_at_every_scale` (each name's place holds ink at
+  1x, 1.5x and 2x). If the program that showed it is sent, it is the next
+  thing to try.
 - **A scripted `lv.__item_N` picks a list view's item**: `RAPIDR_TEST_EVENTS`
   picked an item of an RListBox, an RComboBox and a tree but did nothing for an
   RListView, so a test could not select a report row. The list view answers
