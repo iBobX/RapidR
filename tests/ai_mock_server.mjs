@@ -200,7 +200,9 @@ function nudged(messages) {
 function script(first, results, system, messages = []) {
   const step = results.length;
   const q = first.toLowerCase();
-  const mainFile = (system.match(/main file ([^;]+);/) || [])[1] || "main.rr";
+  // (the project's facts line, "The open project: …; main file x.rr; files:
+  // …" — not the language card's words about "the main file")
+  const mainFile = (system.match(/The open project: [^\n]*?; main file ([^;]+);/) || [])[1] || "main.rr";
   // (Robert's chat, 2026-10-18: a title with spaces — the folder is made
   // from it, "Scientific Calculator" → ScientificCalculator)
   if (q.startsWith("build a scientific calculator")) {
