@@ -1,4 +1,4 @@
-# R3D, audio, synth, app MCP and studio components: for Visualmusicator X and everyone (plan, 2026-10-21)
+# RStage, audio, synth, app MCP and studio components: for Visualmusicator X and everyone (plan, 2026-10-21)
 
 Robert (2026-10-21): Visualmusicator X (VMX) is the successor of his realtime, music-reactive visuals app. It will be written **entirely in RapidR**, as a flagship RapidR product. Everything VMX needs becomes a **general-purpose RapidR component** that any RapidR program can use.
 
@@ -16,7 +16,7 @@ VMX's own shows and scenes stay in VMX's repo. RapidR receives only general comp
 
 ## Answers to REQUEST-001 §4
 1. **Names.** The `R` prefix is right, and these are new RapidR components (origin rapidr, no Q aliases):
-   - the R3D family: `R3DView` (the component) with `R3DScene`, `R3DCamera`, `R3DObject`, `R3DShaderPass`, `R3DRenderTarget`, `R3DPost`;
+   - the RStage family: `RStageView` (the component) with `RStage`, `RStageCamera`, `RStageObject`, `RShaderPass`, `RRenderTarget`, `RPostFX`;
    - `RAudioAnalyzer`;
    - `RSynth`, which grows from the GM synth that already plays QMIDI (`rapidr-value/src/objects/synth.rs`). GM stays one preset bank;
    - `RMcpServer`;
@@ -30,7 +30,7 @@ VMX's own shows and scenes stay in VMX's repo. RapidR receives only general comp
 
    So keep the heavy per-frame work in shaders and compute, and let BASIC orchestrate. That is fast everywhere.
 3. **WebGPU on the web, with WebGL2 as the fallback: yes.**
-   - R3D presents directly and reads back asynchronously, so it doesn't share RDXScreen's reason for WebGL2.
+   - RStage presents directly and reads back asynchronously, so it doesn't share RDXScreen's reason for WebGL2.
    - RDXScreen keeps its own path for RapidQ compatibility.
    - Both use wgpu 30, with the same adapter policy.
 4. **The tiny profile (M7): yes, in scope, last.** It shares goals with the board work in master-plan M3: size budgets, a minimal runtime, only the components a program uses.
@@ -75,7 +75,7 @@ No wave is done until every point below holds. Speed and licences are never trad
   - **The synth:** the oscillator is called "Unison saw", never "Super Saw" (Roland's term). No DX7 ROM patches, and no presets named after products.
   - **Encryption:** shows encrypt through the browser's WebCrypto, never compiled-in AES.
   - **Video export:** only through the OS's H.264 and AAC encoders; never bundle FFmpeg, fdk-aac or faad2.
-  - **The name "R3D"** is a live US mark (Red.com/Nikon, reg 3,848,577, class 9), so the family gets a new name before W1. The name is Robert's decision.
+  - **The family is named RStage** (Robert, 2026-10-22). Its first name, "R3D", is a live US mark (Red.com/Nikon, reg 3,848,577, class 9), and "RScene" is one too (McQ, reg 4,412,026). "RStage" had only an unrelated class-41 mark.
 - **Protected web shows (AES-GCM, through WebCrypto):** they protect against casual copying. They are not real DRM, because the key ships with the page. The manual says so plainly.
 - **`RMcpServer`** uses exactly the IDE's MCP security:
   - loopback only;
@@ -87,7 +87,7 @@ No wave is done until every point below holds. Speed and licences are never trad
   It goes through the Preview 4 security audit's checklist.
 
 ## W1 shader origins (VMX's audit, received 2026-10-21; accepted)
-VMX audited, function by function, every piece of shader code the W1 demos use (`~/Herd/visualmusicator-x/docs/rapidr/W1-shader-provenance.md`). The result: everything is VMX's own code except two MIT snippets. Nothing came from Shadertoy. Decided for R3D's WGSL include library:
+VMX audited, function by function, every piece of shader code the W1 demos use (`~/Herd/visualmusicator-x/docs/rapidr/W1-shader-provenance.md`). The result: everything is VMX's own code except two MIT snippets. Nothing came from Shadertoy. Decided for RStage's WGSL include library:
 - **Kept, with their MIT notices:**
   - David Hoskins' "Hash without Sine" (2014) is **the only hash**. The common `sin`-based hash is not used anywhere.
   - Ashima Arts and Stefan Gustavson's 3D simplex noise (webgl-noise, 2011–2016).
@@ -108,7 +108,7 @@ VMX audited, function by function, every piece of shader code the W1 demos use (
 ## Waves (each one a release with a WOW video)
 | Wave | REQUEST-001 milestones | Why first | Models |
 |---|---|---|---|
-| W1 | **M1 R3D core** (R3DView, shader passes, HDR targets, post stack, async Capture) + **M3 RAudioAnalyzer** (bands, onsets, BPM PLL, drops, low-latency input, loopback devices) | "Visuals that react" is the first VMX demo and a huge RapidR WOW | Opus L × 2; a Fable design review of the R3D backend trait only with Robert's OK |
+| W1 | **M1 RStage core** (RStageView, shader passes, HDR targets, post stack, async Capture) + **M3 RAudioAnalyzer** (bands, onsets, BPM PLL, drops, low-latency input, loopback devices) | "Visuals that react" is the first VMX demo and a huge RapidR WOW | Opus L × 2; a Fable design review of the RStage backend trait only with Robert's OK |
 | W2 | **M2** scene graph, geometry, materials, instancing, GPU compute, reflections, generated textures | Ports the 3D and particle scenes | Opus L |
 | W3 | **M4 RSynth** (patch voices, FX, sample-accurate sequencer, our own notation, AudioWorklet, offline render) | Self-scored shows; music made in BASIC | Opus L |
 | W4 | **M5 RMcpServer** (shares the IDE's MCP code) + **M6** studio components (RNodeGraph, RTimeline, RPianoRoll, editors, multi-window, theme tokens) | The VMX editor; the docking builds on RDockManager | Opus L + Sonnet M |

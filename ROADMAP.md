@@ -828,9 +828,9 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
 
-## After Preview 4 — R3D, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
+## After Preview 4 — RStage, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
 
-- [ ] W1 R3D core (R3DView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
+- [ ] W1 RStage core (RStageView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
 - [ ] W2 Scene graph, geometry, materials, instancing, GPU compute, reflections, generated textures
 - [ ] W3 RSynth: patch voices, FX, sample-accurate sequencer, our own pattern notation, AudioWorklet, offline render
 - [ ] W4 RMcpServer (the IDE's MCP security) + RNodeGraph, RTimeline, RPianoRoll, curve/gradient editors, knobs, multi-window
