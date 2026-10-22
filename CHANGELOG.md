@@ -167,6 +167,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **The debugger names a parameter by its source name** in a SUB that takes
+  VARPTR of a global with the same name: `MyMsg` in Variables and in the
+  expressions typed there, not the internal `MyMsg__param`.
 - **INSTR with a start that isn't whole** gives RapidQ's real place (RC.EXE):
   the search begins where the start rounds half to even and the place counts
   from the start as given, `INSTR(2.5, "abcabc", "c")` = 3.5

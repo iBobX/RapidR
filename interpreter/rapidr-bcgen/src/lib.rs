@@ -357,7 +357,8 @@ impl Scope {
         let s = self.next_slot;
         self.next_slot += 1;
         self.locals.insert(name.to_string(), s);
-        self.display.push(name.to_string());
+        // (as the source writes it: rapidr_ast::memory::source_name)
+        self.display.push(rapidr_ast::memory::source_name(name));
         s
     }
     fn get(&self, name: &str) -> Option<u16> {
@@ -701,7 +702,7 @@ impl Bcgen {
     fn reserve_function(&mut self, name: &str, params: &[Parameter], _is_func: bool) -> u32 {
         let mut f = Function::default();
         f.name = name.to_string();
-        f.params = params.iter().map(|p| Param { name: p.name.clone(), by_ref: p.by_ref }).collect();
+        f.params = params.iter().map(|p| Param { name: rapidr_ast::memory::source_name(&p.name), by_ref: p.by_ref }).collect();
         self.module.add_function(f)
     }
 
@@ -3300,6 +3301,29 @@ mod tests {
         vm.resume(&m).unwrap();
         drop(vm);
         assert_eq!(h.output, "1007\nx=7\n");
+    }
+
+    /// A parameter renamed so VARPTR reaches the global of its name
+    /// (rapidr_ast::memory, `MyMsg__param`) is `MyMsg` in the debugger: the
+    /// frame's names, and an expression typed there reads the parameter.
+    #[test]
+    fn a_parameter_renamed_for_varptr_keeps_its_name_in_the_debugger() {
+        let src = "DEFSTR MyMsg = \"global\"\nSUB S(MyMsg AS STRING)\n  p = VARPTR(MyMsg)\n  PRINT MyMsg\nEND SUB\nS \"param\"\n";
+        let m = compile_with_source(src);
+        let f = m.functions.iter().find(|f| f.name.eq_ignore_ascii_case("S")).expect("S");
+        assert_eq!(f.params[0].name, "MyMsg");
+        assert!(f.local_names.iter().any(|n| n == "MyMsg") && !f.local_names.iter().any(|n| n.contains("__param")), "{:?}", f.local_names);
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        vm.add_breakpoint(4);
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        let top = vm.frames.len() - 1;
+        let s = snippet(&m, &vm, Some(top), &format!("{SNIPPET_RESULT} = MyMsg"));
+        assert_eq!(vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).unwrap().to_string_val(), "param");
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(h.output, "param\n");
     }
 
     #[test]
