@@ -165,6 +165,13 @@ Sizes and costs are as in [master-plan.md](master-plan.md) §2. Estimated total:
 
 ## 10. Decided
 
+### Decided by Robert after G0 (2026-10-22)
+- **Push: we build our own** over HTTPS on gitoxide's parts (G6, Opus). It is written from the protocol's description, with no code copied from any Git implementation. gitoxide has no push yet.
+- **Size accepted:** +5.1 MiB for local Versions. The network part uses `ureq`, which Studio already has, not reqwest.
+- **Repositories owned by another user** (a USB stick, another account's folder): Studio explains why it can't fully trust them and offers **Open read-only**.
+- **TLS:** the system's own, as everywhere in RapidR (`deny.toml` bans rustls, ring and webpki-roots).
+- **Kept from the spike:** a repository's own settings that would run programs (filters, diff and merge drivers, credential helpers) are stripped when it opens. Hooks never run. Local folders are handled in-process, never through the `git` command.
+
 - **Engine:** gitoxide (pure Rust, MIT/Apache). No libgit2 (copyleft, C) and no bundled `git`.
 - **Naming:** Simple mode speaks plain words, with Git's names in tooltips; Pro speaks Git. The product never calls itself "Git" (Git is the Software Freedom Conservancy's trademark): the panel is **Versions**.
 - **Safety:** destructive actions always save a safety point first, everything Studio does can be undone, and publishing defaults to private.
