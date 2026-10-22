@@ -1646,7 +1646,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: "wait,palette:stock",
     delay: 4,
-    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
+    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:20:Stock$/ },
   },
   // (SHOWCASE) the showcase programs are in Open an Example (the palette),
   // not cards on the Welcome page: "visualizer" typed finds one, Enter opens
@@ -2370,9 +2370,9 @@ const CASES = [
       RAPIDR_TEST_PROGRAM_MESSAGE_DIALOG: "Yes;Yes;Yes;",
       RAPIDR_TEST_PROGRAM_DIALOG_HOLD: "800",
     },
-    do: `line:85,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
+    do: `line:84,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
     delay: 34,
-    dump: { "outputbox.text": /\[stops\] 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step/ },
+    dump: { "outputbox.text": /\[stops\] 84:breakpoint 8[56]:step 84:breakpoint 8[56]:step 84:breakpoint 8[56]:step/ },
   },
   // ---- DEBUG-2: Robert's scenarios 7, 9, 10, 11, 13 (stepping, loops,
   // recursion, breakpoints while running, a breakpoint in an included file;
@@ -4745,7 +4745,7 @@ async function webDialogStep() {
   const page = await ctx.newPage();
   const { until, where, status, keysBack } = webDebug(page);
   try {
-    await openStudioOn(page, src, [src], 85);
+    await openStudioOn(page, src, [src], 84);
     await page.keyboard.press("F9");
     await page.keyboard.press("F5");
     await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
@@ -4754,9 +4754,9 @@ async function webDialogStep() {
     for (let k = 1; k <= 3; k++) {
       const ask = await frameBox(frame, "button", "Ask...");
       await page.mouse.click(ask.x, ask.y);
-      let w = await until(where, (v) => v === "paused@85");
+      let w = await until(where, (v) => v === "paused@84");
       await keysBack();
-      record(name, w === "paused@85", `Ask ${k}: stops on the dialog's line, 85 (${w})`);
+      record(name, w === "paused@84", `Ask ${k}: stops on the dialog's line, 84 (${w})`);
       await page.keyboard.press("F10");
       // (the step runs the dialog: it shows in the program's window)
       const yes = await until(async () => (await frame.getByRole("button", { name: "Yes", exact: true }).count()) > 0, (v) => v, 6000);
@@ -4765,8 +4765,8 @@ async function webDialogStep() {
       if (!yes) break;
       const at = await frameBox(frame, "button", "Yes");
       await page.mouse.click(at.x, at.y);
-      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@85");
-      record(name, /^paused@8[67]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
+      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@84");
+      record(name, /^paused@8[56]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
       await keysBack();
       await page.keyboard.press("F5");
       await until(status, (v) => v.startsWith("Running"), 3000);
