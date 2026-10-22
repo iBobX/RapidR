@@ -240,6 +240,14 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     reader(path)
 }
 
+/// A picture file's bytes (`RImage.Load`, a `BMP`, an `Icon`, an image
+/// list's file, a texture): the current folder's file, else the one the
+/// program came with (`command_line::read_or_programs_own`, the data links'
+/// rule) — a built app started in another folder still shows its pictures.
+pub fn read_picture(path: &str) -> Result<Vec<u8>, String> {
+    crate::command_line::read_or_programs_own(path, read_file)
+}
+
 pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
@@ -1666,7 +1674,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
         ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
-        ("bitmap", "loadfromfile" | "load") => Some(read_file(&arg(0).to_string_val()).and_then(|bytes| {
+        ("bitmap", "loadfromfile" | "load") => Some(read_picture(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {
                 Object::Bitmap(b) => b.load_bmp_bytes(&bytes),
                 _ => Ok(()),
@@ -1992,7 +2000,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         // stream.
         ("dximagelist", "loadfromfile" | "loadfromresource" | "loadfromstream") => {
             let bytes = match method.as_str() {
-                "loadfromfile" => read_file(&arg(0).to_string_val()),
+                "loadfromfile" => read_picture(&arg(0).to_string_val()),
                 "loadfromresource" => crate::resources::bytes(arg(0).to_i64()).map(|b| b.to_vec()).ok_or_else(|| format!("no resource {}", arg(0).to_i64())),
                 _ => Ok(with(&arg(0).to_string_val(), |o| match o {
                     Object::Stream(m) => m.read(usize::MAX),
@@ -2139,7 +2147,7 @@ pub fn load_image(v: &Value) -> Result<Bitmap, String> {
                 b.transparent_color = color;
             }
         }
-        None => b.load_bmp_bytes(&read_file(&s)?)?,
+        None => b.load_bmp_bytes(&read_picture(&s)?)?,
     }
     Ok(b)
 }

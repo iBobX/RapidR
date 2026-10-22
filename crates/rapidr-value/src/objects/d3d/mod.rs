@@ -620,7 +620,7 @@ fn move_frames(s: &mut Store, h: usize, delta: f64) {
 
 /// A texture file (BMP, PNG, JPEG — what the shared decoder reads).
 fn load_texture(file: &str) -> Result<Rc<Bitmap>, String> {
-    let bytes = super::read_file(file)?;
+    let bytes = super::read_picture(file)?;
     let mut b = Bitmap::default();
     b.load_bmp_bytes(&bytes)?;
     Ok(Rc::new(b))

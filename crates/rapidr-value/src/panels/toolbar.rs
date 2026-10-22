@@ -323,7 +323,7 @@ impl ToolBar {
 /// A picture file's pixels (BMP, PNG, JPEG, ICO, SVG), read through the
 /// objects' file hooks.
 fn load_picture(path: &str, revision: u64) -> Option<Arc<Picture>> {
-    let bytes = crate::objects::read_file(path).ok()?;
+    let bytes = crate::objects::read_picture(path).ok()?;
     use crate::objects::codec;
     let (px, alpha) = if codec::is_svg(&bytes) {
         let (px, a) = codec::decode_svg(&bytes, 1.0).ok()?;
