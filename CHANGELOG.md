@@ -167,6 +167,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **RapidQ-exact against RapidQ's own compiler (lane COMPAT, docs/rapidq-ground-truth.md)**:
+  `RINSTR(start, s, find)` uses its start on every runtime, as RapidQ does (only an
+  occurrence that ends by character `start` counts: `RINSTR(4, "hehe they", "he")` is 3; an
+  empty `find` gives 0); `VARPTR(name)` inside a SUB whose parameter has a global's name is
+  the global's address, as in RapidQ (a parameter is invisible to VARPTR there); a
+  `RUSTSTART … RUSTEND` block in the main program, or with code after it in a SUB, no longer
+  stops the parser at the next line (native builds run it, the interpreter and the web say
+  it's native-only). Confirmed equal: FILEEXISTS (1 / 0, so `NOT FILEEXISTS` of a file is -2,
+  true), Rectangle (outline only) / RoundRect (filled) / Circle (outline and fill colours, the
+  right and bottom edges left out), RAPIDQ.INC's names reading 0 in a `.bas` without the
+  include, and an OnClick handler with a number parameter. New conformance cases
+  `rapidq_rinstr_start`, `rapidq_varptr_parameter`, `rapidq_handler_wrong_params`,
+  `rapidq_fileexists`, `rapidq_shapes`; the reference documents Rectangle, RoundRect and
+  Circle as RapidQ draws them.
 - **Reference entries that taught a wrong call** (found by the new check,
   `rapidr lang truth`; the language reference, its manual pages and the
   assistant's language card say what the runtimes do now): `RDataFrame.Iloc` is

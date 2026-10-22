@@ -838,9 +838,9 @@ doc = "The last `Num` characters of a string (all of it when it is shorter)."
 name = "RINSTR"
 syntax = "RINSTR([Start,] SearchString, FindString)"
 group = "Strings"
-doc = "The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none."
-example = "DIM SearchString AS STRING = \"Hello World\"\nDIM FindString AS STRING = \"l\"\nPRINT RINSTR(SearchString, FindString)"
-expect = "10"
+doc = "The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none. With `Start`, only an occurrence that ends at or before character `Start` counts (the search is in `LEFT$(SearchString, Start)`): `RINSTR(4, \"hehe they\", \"he\")` is 3; a `Start` of 0 or less finds nothing. An empty `FindString` is never found."
+example = "DIM SearchString AS STRING = \"Hello World\"\nDIM FindString AS STRING = \"l\"\nPRINT RINSTR(SearchString, FindString); \"|\"; RINSTR(4, \"hehe they\", \"he\")"
+expect = "10|3"
 
 [[builtin]]
 name = "RMDIR"

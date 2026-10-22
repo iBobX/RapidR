@@ -1915,17 +1915,17 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 
 | Method | |
 |---|---|
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws a circle outline. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws the ellipse that fits the box from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out: its outline in colour `c`, its inside in colour `fill` (RapidQ's, RC.EXE). RapidR's own `Circle(cx, cy, r [, c])` (three or four arguments) draws a circle's outline around a centre. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was (RapidQ's, RC.EXE). `FillRect` fills one. |
 | `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c` (RapidQ's, RC.EXE). |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
@@ -3375,9 +3375,9 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `LoadFromStream(Stream)` | Loads the component's contents from an open stream. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Fills the area around (`x`, `y`) with colour `c`, up to the colour `borderc` that bounds it. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was (RapidQ's, RC.EXE). `FillRect` fills one. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws a rectangle (`x1`, `y1`)–(`x2`, `y2`) with corners rounded by an ellipse `x3` wide and `y3` high, in color `c`. |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c` (RapidQ's, RC.EXE). |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
