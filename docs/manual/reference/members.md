@@ -1412,7 +1412,9 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `MaxLength` | int |  | The most characters the user can type (0: no limit). |
 | `CharCase` | int |  | Turns typed text to `ecUpperCase` or `ecLowerCase`; `ecNormal` leaves it as typed. |
 | `WantTabs` | bool |  | Tab types (indents) in the editor rather than moving the focus on (True by default). |
-| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidr-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). |
+| `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidr-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). SQL completes its words and the program's tables (SetSchema), folds each statement, and Ctrl+Enter runs one (OnRunStatement). |
+| `SqlDialect` | string |  | Whose SQL the editor knows when Language is "sql": "sqlite" (RSQLite's: PRAGMA, GLOB, JULIANDAY …), "mysql" (RMySQL's, MariaDB's: SHOW, AUTO_INCREMENT, DATE_FORMAT …) or "" for both. Its colours and completion follow it. |
+| `CurrentStatement` (read-only) | string |  | What Ctrl+Enter runs: the selection, or else the SQL statement the caret is in (up to its ;) — another language's: the caret's line. Read it for a Run button: `DB.QueryAsync Editor.CurrentStatement`. |
 | `ColorScheme` | string |  | "auto" (the theme's) or a scheme's name: "classic", "modern", "dark", "highcontrast". |
 | `TabSize` | int |  | Columns per tab stop (4). |
 | `InsertSpaces` | bool |  | Tab inserts spaces (True) or a tab character. |
@@ -1508,6 +1510,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `GetMarkers([Kind AS STRING]) AS STRING` | The lines (from 1) with a marker of Kind (any when empty), comma-separated. |
 | `HasMarker(Line AS INTEGER, [Kind AS STRING]) AS INTEGER` | Whether a line (from 1) has a marker of Kind (any when empty). |
 | `ShowCompletion(Items)` | Shows a completion list at the caret: lines of tab-separated label, kind, detail and text to insert (a string or a QSTRINGLIST), or JSON. The answer to OnCompletionRequest. |
+| `SetSchema(Json AS STRING) AS INTEGER` | The tables, views and columns SQL completion offers (Language "sql"): JSON — {"tables": [{"name": "people", "kind": "table", "columns": [{"name": "id", "type": "INTEGER"}, …]}, …]}, a list of such tables, or the short {"people": ["id", "name"], "orders": {"id": "INTEGER"}}. After `name.` completion offers that table's columns (an alias's: FROM people p … p.), after FROM, JOIN, INTO, UPDATE the tables, elsewhere the named tables' columns, the tables, then the dialect's words. "" clears it. True when the JSON was read. |
 | `ShowHover(Text AS STRING)` | Shows a hover where OnHoverRequest asked (a fenced ``` block shows as code). |
 | `ShowDataTip(Rows AS STRING)` | A debugger's data tip where OnHoverRequest asked: a value as a tree that opens to any depth. A row a line, its fields tab-separated: depth (0 the top), flags (e: it opens, o: open, c: its value changed — marked —, t: a table's row, h: a table's header), its id (what OnDataTipExpand and OnDataTipAction give back), name, value, type, and a table row's cells (CHR$(31) between them). Shown again at the same place it keeps where it is scrolled; empty Rows hide it. |
 | `HideDataTip` | Hides the data tip. |
@@ -1548,6 +1551,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `OnHoverRequest(Line AS INTEGER, Column AS INTEGER)` | The mouse rests on the text and no language service answers (or, with DebugHover, on a word before the service): answer with ShowHover. |
 | `OnSignatureRequest(Line AS INTEGER, Column AS INTEGER)` | Signature help is wanted (after ( or ,) and no language service answers: answer with ShowSignature. |
 | `OnSave` | Ctrl+S (Cmd+S) in the editor. |
+| `OnRunStatement(SQL AS STRING)` | Ctrl+Enter (Cmd+Enter on a Mac) in SQL: the selection, or else the statement at the caret (CurrentStatement) — run it: `DB.QueryAsync SQL`. |
 | `OnNavigate(File AS STRING, Line AS INTEGER, Column AS INTEGER)` | Go to definition found it in another file: open it there. |
 | `OnReferences(Json AS STRING)` | Find references' places: a JSON list of {"file", "line", "column"}. |
 | `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |

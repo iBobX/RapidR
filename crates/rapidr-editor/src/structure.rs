@@ -23,6 +23,8 @@ pub enum FoldKind {
     Indent,
     /// An embedded language's region (`RUSTSTART` … `RUSTEND`, `<script>`).
     Embedded,
+    /// A statement over several lines, to its end (SQL's `;`).
+    Statement,
 }
 
 /// Lines `start_line + 1 ..= end_line` can be hidden under `start_line`.
@@ -148,6 +150,37 @@ impl Document {
                                 out.push(FoldRange { start_line: start, end_line: line, kind: FoldKind::Bracket });
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // statements over several lines: from the first line with code
+        // after the last end to the line of the next
+        if let Some(end) = lang.fold_statements {
+            let mut start: Option<usize> = None;
+            for line in 0..n {
+                if !outside(line) {
+                    continue;
+                }
+                let text = buf.line_text(line);
+                hl.tokens_into(buf, line, &mut tokens);
+                let code = |col: usize| !tokens.iter().any(|t| (t.kind.is_literal() || t.kind.base() == crate::lang::TokenKind::COMMENT) && (t.start as usize) <= col && col < t.end as usize);
+                let has_code = text.char_indices().any(|(col, c)| !c.is_whitespace() && code(col));
+                if start.is_none() && has_code {
+                    start = Some(line);
+                }
+                let ends = text.char_indices().any(|(col, c)| c == end && code(col));
+                if ends {
+                    if let Some(s) = start.take() {
+                        if line > s {
+                            out.push(FoldRange { start_line: s, end_line: line, kind: FoldKind::Statement });
+                        }
+                    }
+                    // (code after the end on the same line starts the next)
+                    let last = text.rfind(end).unwrap_or(0);
+                    if text[last + end.len_utf8()..].char_indices().any(|(col, c)| !c.is_whitespace() && code(last + end.len_utf8() + col)) {
+                        start = Some(line);
                     }
                 }
             }
