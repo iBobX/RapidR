@@ -852,3 +852,106 @@ fn the_answers_stay_in_the_users_language() {
     assert!(!system_of(&seen2, 0).contains("The user writes in") && !system_of(&seen2, 0).contains("Reply in French") && !system_of(&seen2, 0).contains("even when earlier messages, the conversation's summary"), "{}", system_of(&seen2, 0));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Characters a request's instructions and tools take.
+fn prompt_chars(sent: &Json) -> usize {
+    let system: usize = sent["messages"].as_array().unwrap().iter().filter(|m| m["role"] == "system").map(|m| m["content"].as_str().unwrap_or("").len()).sum();
+    system + sent["tools"].to_string().len()
+}
+
+/// K8: a model of a small window (8,192 tokens, the size of many local
+/// models) gets the lite instructions and tools, and the request fits it
+/// with room for the conversation and the reply; a large window, the full
+/// ones. The sizes, measured (about 3 characters a token, as RAI counts
+/// before the provider says):
+#[test]
+fn a_small_window_gets_the_lite_set() {
+    let _one = one_at_a_time();
+    let dir = project_dir("lite");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let (url, server) = mock_with(r#"{"object":"list","data":[{"id":"mock-1","loaded":true,"state":"ready","context_length":8192}]}"#, vec![text_answer("Hello.")]);
+    let n = "rai-lite";
+    setup(n, "tools-lite", &dir, &url);
+    assert_eq!(rai_call(n, "ask", &[s("What does main.rr do?")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    wait(n);
+    assert_eq!(rai_get(n, "error"), "", "it starts: no 'This model takes 8,192 tokens' refusal");
+    assert_eq!(rai_get(n, "lite"), "-1");
+    let lite: Json = serde_json::from_str(&server.join().unwrap()[0]).unwrap();
+    let names: Vec<&str> = lite["tools"].as_array().unwrap().iter().map(|t| t["function"]["name"].as_str().unwrap()).collect();
+    assert_eq!(names, ["list_files", "read_file", "rapidr_describe", "check_code", "search_manual", "propose_edit", "write_file", "create_project"]);
+    let (full_i, full_t) = (instructions(true).len(), serde_json::to_string(&ai_tools::tools(true).iter().map(|t| json!({"n": t.name, "d": t.description, "s": t.input_schema})).collect::<Vec<_>>()).unwrap().len());
+    let (lite_i, lite_t) = (instructions_lite(true).len(), serde_json::to_string(&ai_tools::tools_lite(true).iter().map(|t| json!({"n": t.name, "d": t.description, "s": t.input_schema})).collect::<Vec<_>>()).unwrap().len());
+    eprintln!("K8 sizes: full {full_i} + {full_t} chars (~{} tokens), lite {lite_i} + {lite_t} chars (~{} tokens); the lite request {} chars", (full_i + full_t) / 3, (lite_i + lite_t) / 3, prompt_chars(&lite));
+    // (the lite set and the reply's cap fit an 8K window with room to talk)
+    assert!((lite_i + lite_t) / 3 + 2048 < 6_000, "lite {} tokens", (lite_i + lite_t) / 3);
+    assert!((lite_i + lite_t) * 3 < full_i + full_t, "lite is under a third of the full set");
+    // (a large window: the full set)
+    let (url2, server2) = mock_with(r#"{"object":"list","data":[{"id":"mock-1","loaded":true,"state":"ready","context_length":131072}]}"#, vec![text_answer("Hi.")]);
+    rai_set(n, "baseurl", &url2);
+    assert_eq!(rai_call(n, "ask", &[s("And now?")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_get(n, "lite"), "0");
+    let full: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
+    assert!(full["tools"].as_array().unwrap().len() > 10);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// R4: a tool call in words, from its first fields.
+#[test]
+fn the_status_line_says_what_each_tool_does() {
+    let a = |n: &str, i: Json| ai_tools::activity(n, &i).unwrap();
+    assert_eq!(a("read_file", json!({"path": "sites.rr"})), "Reading sites.rr");
+    assert_eq!(a("read_file", json!({})), "Reading a file");
+    assert_eq!(a("search_manual", json!({"query": "menus"})), "Searching the manual");
+    assert_eq!(a("propose_edit", json!({"path": "server.rr"})), "Writing server.rr");
+    assert_eq!(a("create_project", json!({"name": "Stopwatch"})), "Writing Stopwatch");
+    assert_eq!(a("check_code", json!({})), "Checking the code");
+    assert_eq!(a("rapidr_describe", json!({"type": "RButton"})), "Looking up RButton");
+    assert!(ai_tools::activity("no_such_tool", &json!({})).is_none());
+}
+
+/// R1: the project's chats through RAIProjectTools — kept in Studio's data
+/// folder (here the test's), listed, searched, renamed, deleted and put
+/// back, a key pasted into a question never written.
+#[test]
+fn chats_are_kept_through_the_project_tools() {
+    let dir = std::env::temp_dir().join(format!("rapidr-studio-chats-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::env::set_var("RAPIDR_AI_CHATS", &dir);
+    let project = "/Users/someone/Documents/RapidR/Projects/Stopwatch";
+    let key = concat!("sk", "-proj-AbC123dEf456GhI789jKl012");
+    let state = json!({"version": 1, "messages": [], "log": [["user", format!("here is my key {key}")], ["assistant", "Don't paste keys."]], "marks": [{"log": 0, "msg": 0, "blocks": 0}]}).to_string();
+    let c = |m: &str, args: &[&str]| call("tools-chats", m, &args.iter().map(|a| s(*a)).collect::<Vec<_>>()).unwrap().to_string_val();
+    let title = c("chattitle", &["here is my key, what now?"]);
+    let id = c("savechat", &[project, "", &title, "mock-1", &state]);
+    assert!(!id.starts_with("error"), "{id}");
+    // (Studio's data folder, never the project's; the key nowhere)
+    let files: Vec<_> = walk(&dir);
+    assert_eq!(files.len(), 1);
+    assert!(!std::fs::read_to_string(&files[0]).unwrap().contains(key));
+    assert!(!std::path::Path::new(project).exists());
+    let list = c("chatlist", &[project]);
+    assert!(list.starts_with(&format!("{id}\there is my key, what now?\t")), "{list}");
+    assert!(c("searchchats", &[project, "paste"]).ends_with("\tDon't paste keys."));
+    assert_eq!(c("renamechat", &[project, &id, "Keys"]), "1");
+    let kept = c("deletechat", &[project, &id]);
+    assert!(kept.contains("\"Keys\""), "{kept}");
+    assert_eq!(c("chatlist", &[project]), "");
+    assert_eq!(c("restorechat", &[project, &kept]), id);
+    assert!(c("loadchat", &[project, &id]).contains("Don't paste keys."));
+    assert!(get("tools-chats", "chatsfolder").unwrap().to_string_val().ends_with("rapidr-studio-chats-".to_string().as_str()) || !get("tools-chats", "chatsfolder").unwrap().to_string_val().is_empty());
+    std::env::remove_var("RAPIDR_AI_CHATS");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+fn walk(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut out = Vec::new();
+    for e in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        if e.path().is_dir() {
+            out.extend(walk(&e.path()));
+        } else {
+            out.push(e.path());
+        }
+    }
+    out
+}

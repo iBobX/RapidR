@@ -31,6 +31,14 @@
 //   "name sites 7 and 8 …"  read sites.rr, send it whole for a two-line
 //                      change (refused), then the two lines with propose_edit
 //   "finish the count …"  read sites.rr, send it cut off (`END FUNCTI`): refused
+//   "trickle …"        any of these, each answer streamed slowly (a piece every
+//                      250 ms): the status line's activity is seen as it
+//                      changes — Reading main.rr, Writing main.rr (R4)
+//
+// A request that asks the model to think (Anthropic's `thinking`, an
+// OpenAI-compatible `reasoning_effort` other than "none") gets a short
+// reasoning first — Anthropic's thinking block with its signature, the
+// others' `reasoning_content` — as a real model streams it (R5).
 //
 // The model "mock-polyglot" answers every question in the language the
 // request's instructions name ("reply in Spanish"); with none named, in the
@@ -60,7 +68,8 @@
 //              (anthropic-workspace-id), as Anthropic does
 //
 // A compatible server (no key) plays the same through its address,
-// /s/<bad|fail|slow|garbage|empty|drop>/v1 — `drop`: every other request's
+// /s/<bad|fail|slow|garbage|empty|drop|tiny>/v1 — `tiny`: its models of an
+// 8,192-token window; `drop`: every other request's
 // connection is closed before any answer, as a network's hiccup (RapidR
 // tries it once more). GET /__log lists what was asked of it (the keys' last
 // four characters only).
@@ -302,10 +311,38 @@ function script(first, results, system, messages = []) {
 
 // ---- the two formats, streamed ---------------------------------------------------
 
-function sseOpenAI(res, answer, model) {
+// (the reasoning a model asked to think streams first)
+const THOUGHT = "The user wants a small change. I'll read the file first, keep the names it has, and check the code before I propose it.";
+
+// (the events written now, or one every 250 ms: "trickle …")
+function writer(res, paced) {
+  const queue = [];
+  return {
+    write: (t) => queue.push(t),
+    end: () => {
+      if (!paced) {
+        for (const t of queue) res.write(t);
+        res.end();
+        return;
+      }
+      const next = () => {
+        if (res.writableEnded || res.destroyed) return;
+        const t = queue.shift();
+        if (t === undefined) return res.end();
+        res.write(t);
+        setTimeout(next, 250);
+      };
+      next();
+    },
+  };
+}
+
+function sseOpenAI(out, answer, model, think) {
+  const res = out;
   const send = (o) => res.write(`data: ${JSON.stringify(o)}\n\n`);
   const base = { id: "chatcmpl-mock", object: "chat.completion.chunk", model };
   send({ ...base, choices: [{ index: 0, delta: { role: "assistant", content: "" } }] });
+  if (think) for (const piece of THOUGHT.match(/.{1,24}/gs)) send({ ...base, choices: [{ index: 0, delta: { reasoning_content: piece } }] });
   if (answer.text) for (const piece of answer.text.match(/.{1,12}/gs)) send({ ...base, choices: [{ index: 0, delta: { content: piece } }] });
   (answer.tools || []).forEach((t, i) => {
     const args = JSON.stringify(t.input);
@@ -318,10 +355,18 @@ function sseOpenAI(res, answer, model) {
   res.end();
 }
 
-function sseAnthropic(res, answer, model) {
+function sseAnthropic(out, answer, model, think) {
+  const res = out;
   const send = (type, o) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...o })}\n\n`);
   send("message_start", { message: { id: "msg_mock", type: "message", role: "assistant", model, content: [], usage: { input_tokens: 900, cache_read_input_tokens: 100, output_tokens: 1 } } });
   let i = 0;
+  if (think) {
+    send("content_block_start", { index: i, content_block: { type: "thinking", thinking: "" } });
+    for (const piece of THOUGHT.match(/.{1,24}/gs)) send("content_block_delta", { index: i, delta: { type: "thinking_delta", thinking: piece } });
+    send("content_block_delta", { index: i, delta: { type: "signature_delta", signature: "mock-signature" } });
+    send("content_block_stop", { index: i });
+    i++;
+  }
   if (answer.text) {
     send("content_block_start", { index: i, content_block: { type: "text", text: "" } });
     for (const piece of answer.text.match(/.{1,12}/gs)) send("content_block_delta", { index: i, delta: { type: "text_delta", text: piece } });
@@ -444,6 +489,9 @@ export function startMock(port = 0) {
       if (scenario === "org" && provider === "anthropic" && !req.headers["anthropic-workspace-id"]) return send(400, NO_WORKSPACE);
       if (req.method === "GET" && path.endsWith("/models")) {
         if (scenario === "empty") return send(200, provider === "anthropic" ? { data: [], has_more: false } : { object: "list", data: [] });
+        // (`tiny`: a small local model's window, 8,192 tokens, as mlx-serve
+        // and LM Studio list it — RAI sends it the lite set, K8)
+        if (scenario === "tiny") return send(200, { object: "list", data: MODELS.map((m) => ({ ...m, loaded: true, state: "ready", context_length: 8192 })) });
         // (AI_MOCK_MODELS: the manual's pictures' made-up names, every provider's)
         return send(200, who && !process.env.AI_MOCK_MODELS ? PROVIDER_MODELS[provider] : { object: "list", data: MODELS });
       }
@@ -464,6 +512,10 @@ export function startMock(port = 0) {
       let first = asked.text;
       const slow = /^slowly /i.test(first);
       if (slow) first = first.replace(/^slowly /i, "");
+      const paced = /^trickle /i.test(first);
+      if (paced) first = first.replace(/^trickle /i, "");
+      // (asked to think: Anthropic's thinking, a compatible reasoning_effort)
+      const think = !!(anthropic ? json.thinking : json.reasoning_effort && json.reasoning_effort !== "none");
       // ("then fail …": the same script, every answer after a tool's a
       // server error — a local server short of memory for the last words)
       const failAfter = /^then fail /i.test(first);
@@ -474,7 +526,8 @@ export function startMock(port = 0) {
       const reply = () => {
         if (res.writableEnded || res.destroyed) return;
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
-        (anthropic ? sseAnthropic : sseOpenAI)(res, answer, json.model || "mock");
+        const out = writer(res, paced);
+        (anthropic ? sseAnthropic : sseOpenAI)(out, answer, json.model || "mock", think);
       };
       if (slow && results.length > 0) setTimeout(reply, 6000).unref();
       else reply();

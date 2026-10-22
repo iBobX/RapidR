@@ -27,6 +27,8 @@
 '   settings.inc   Tools > Settings: the include folders, the AI tab
 '   ai.inc         the AI assistant: its panel, the review of its changes,
 '                  a new program's preview, what was sent
+'   aichats.inc    its chats, kept per project: the list, edit and retry
+'   aisetup.inc    Set up RAI: free on this computer, or a cloud key
 '   prompts.inc    Save / Don't Save / Cancel before changes would be lost
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
@@ -50,6 +52,8 @@ $INCLUDE "debug.inc"
 $INCLUDE "build.inc"
 $INCLUDE "settings.inc"
 $INCLUDE "ai.inc"
+$INCLUDE "aichats.inc"
+$INCLUDE "aisetup.inc"
 $INCLUDE "prompts.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"

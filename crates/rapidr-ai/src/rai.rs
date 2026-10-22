@@ -39,6 +39,16 @@
 //!   aren't in its questions' language).
 //! * **Audit**: with Audit on, every request, tool call and decision goes
 //!   to the local audit log ([`crate::audit`]): never keys, never contents.
+//! * **A chat that lasts** (docs/preview4-plan.md R1, R2, R4, R5):
+//!   ChatState is the conversation as JSON (keys redacted) to keep and
+//!   load again; Rewind(N) takes question N and what followed out (an
+//!   edited question, Retry); Activity / Elapsed / Quiet say what it does
+//!   now ("Reading main.rr", "Searching the manual"), for how long, and
+//!   how long the provider has been silent; ContextTokens / ContextLimit
+//!   meter the conversation, Compact summarises it now; Effort asks the
+//!   model to think (Anthropic's adaptive thinking or budget, an
+//!   OpenAI-compatible reasoning_effort) and the transcript shows "Thought
+//!   for N s", expandable; Editable adds Edit and Retry links.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -46,7 +56,7 @@ use std::collections::HashMap;
 use rapidr_value::Value;
 use serde_json::{json, Value as Json};
 
-use crate::chat::{Block, ChatRequest, Message, Role, Tool, Usage};
+use crate::chat::{Block, ChatRequest, Message, Role, Thinking, Tool, Usage};
 use crate::http::{self, Incoming, Options};
 use crate::stream::{Decoder, Event, Reply};
 use crate::wire::{self, Endpoint, ModelInfo};
@@ -83,6 +93,175 @@ pub const CLAIM_STATUS: &str = "The assistant didn't make the change you asked f
 /// before any tool made it (the model was asked to make it for real): one
 /// muted line, never the false claim as full text (docs/ai-ux-plan.md §3).
 pub const EARLIER_DRAFT: &str = "An earlier draft said this was done before it was — Studio asked it to actually do it.";
+
+/// Below this many tokens of context window a model is sent its tools'
+/// lite set — shorter instructions, fewer tools — so a small local model
+/// can start (docs/preview4-plan.md K8).
+pub const LITE_BELOW: u64 = 16_384;
+/// Seconds without a word from the provider before Studio's status line
+/// says so ("No answer from the model for 30 s: wait, or Stop").
+pub const QUIET_AFTER: i64 = 30;
+
+/// The tokens an effort adds to a reply's cap for the thinking (Anthropic
+/// counts it in max_tokens): low, medium, high.
+fn thinking_room(effort: &str) -> u32 {
+    match effort {
+        "low" => 2048,
+        "medium" => 6144,
+        _ => 16_384,
+    }
+}
+
+/// An older model's thinking budget for an effort (at least 1,024).
+fn thinking_budget(effort: &str) -> u32 {
+    match effort {
+        "low" => 2048,
+        "medium" => 6144,
+        _ => 12_288,
+    }
+}
+
+/// Now, in milliseconds (a clock that only goes forward on the desktop).
+pub(crate) fn now_ms() -> f64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        js_sys::Date::now()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        use std::sync::OnceLock;
+        use std::time::Instant;
+        static START: OnceLock<Instant> = OnceLock::new();
+        START.get_or_init(Instant::now).elapsed().as_secs_f64() * 1000.0
+    }
+}
+
+/// A string field of a tool call's arguments still being written
+/// (`"path": "main.rr"`), once its value is whole.
+fn partial_field(args: &str, field: &str) -> Option<String> {
+    let key = format!("\"{field}\"");
+    let at = args.find(&key)? + key.len();
+    let rest = args[at..].trim_start().strip_prefix(':')?.trim_start().strip_prefix('"')?;
+    let mut out = String::new();
+    let mut esc = false;
+    for c in rest.chars() {
+        if esc {
+            out.push(c);
+            esc = false;
+            continue;
+        }
+        match c {
+            '\\' => esc = true,
+            '"' => return Some(out),
+            c => out.push(c),
+        }
+    }
+    None
+}
+
+/// How a model took an effort (Anthropic: learnt from what the provider
+/// lists, then from its refusals — each refusal steps down once).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum EffortWay {
+    /// Adaptive thinking at the effort, its summary shown.
+    Adaptive,
+    /// Adaptive thinking, without asking for the summary.
+    AdaptivePlain,
+    /// A thinking budget (older models).
+    Budget,
+    /// None: the model doesn't take one.
+    Off,
+}
+
+/// A question of the chat: its entry in the transcript, and where it is in
+/// the messages the model is sent (the message, how many blocks were in it
+/// before) — `None` once a summary replaced them (it can't be edited then).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Mark {
+    log: usize,
+    msg: Option<usize>,
+    blocks: usize,
+}
+
+/// An answer's reasoning, as the provider showed it: the transcript's
+/// entry it belongs to, how long the model thought, its text, and whether
+/// the transcript shows it (open) or only "Thought for N s".
+#[derive(Clone, Debug, Default, PartialEq)]
+struct Thought {
+    log: usize,
+    secs: f64,
+    text: String,
+    open: bool,
+}
+
+/// "Thought for 12 s · show" (a link that opens it), or the reasoning under
+/// "Thought for 12 s · hide"; while it thinks, "Thinking…".
+fn thought_line(k: usize, th: &Thought, live: bool) -> String {
+    if live {
+        return "*Thinking…*".into();
+    }
+    let secs = th.secs.round().max(1.0) as u64;
+    let head = format!("Thought for {secs} s");
+    if th.text.trim().is_empty() {
+        return format!("*{head}*");
+    }
+    if !th.open {
+        return format!("[{head} · show](rai:thought/{})", k + 1);
+    }
+    let quoted = th.text.trim().lines().map(|l| if l.trim().is_empty() { ">".to_string() } else { format!("> {l}") }).collect::<Vec<_>>().join("\n");
+    format!("[{head} · hide](rai:thought/{})\n\n{quoted}", k + 1)
+}
+
+/// A message as ChatState keeps it (a provider's own blocks — thinking,
+/// bound to the turn that made it — left out).
+fn message_json(m: &Message) -> Json {
+    let content: Vec<Json> = m
+        .content
+        .iter()
+        .filter_map(|b| match b {
+            Block::Text(t) => Some(json!({"type": "text", "text": t})),
+            Block::ToolUse { id, name, input } => Some(json!({"type": "tool_use", "id": id, "name": name, "input": input})),
+            Block::ToolResult { id, content, is_error } => Some(json!({"type": "tool_result", "id": id, "content": content, "is_error": is_error})),
+            Block::Opaque(_) => None,
+        })
+        .collect();
+    json!({"role": if m.role == Role::User { "user" } else { "assistant" }, "content": content})
+}
+
+fn message_of(v: &Json) -> Option<Message> {
+    let role = match v["role"].as_str()? {
+        "user" => Role::User,
+        "assistant" => Role::Assistant,
+        _ => return None,
+    };
+    let content = v["content"]
+        .as_array()?
+        .iter()
+        .filter_map(|b| {
+            let s = |k: &str| b[k].as_str().unwrap_or("").to_string();
+            Some(match b["type"].as_str()? {
+                "text" => Block::Text(s("text")),
+                "tool_use" => Block::ToolUse { id: s("id"), name: s("name"), input: b["input"].clone() },
+                "tool_result" => Block::ToolResult { id: s("id"), content: s("content"), is_error: b["is_error"].as_bool().unwrap_or(false) },
+                _ => return None,
+            })
+        })
+        .collect();
+    Some(Message { role, content })
+}
+
+/// A conversation as a provider takes it: every tool call answered by the
+/// next message (a chat kept in the middle of a turn loses the calls that
+/// have no result).
+fn repair(messages: &mut [Message]) {
+    for k in 0..messages.len() {
+        if messages[k].role != Role::Assistant {
+            continue;
+        }
+        let answered: Vec<String> = messages.get(k + 1).map(|n| n.content.iter().filter_map(|b| if let Block::ToolResult { id, .. } = b { Some(id.clone()) } else { None }).collect()).unwrap_or_default();
+        messages[k].content.retain(|b| !matches!(b, Block::ToolUse { id, .. } if !answered.contains(id)));
+    }
+}
 
 /// A reply's cap for a model of `window` tokens: a quarter of it, between
 /// 256 and 8,192 (the rest is the conversation's).
@@ -225,6 +404,16 @@ pub trait ToolProvider {
     fn step_label(&self, _name: &str, note: &str) -> String {
         note.to_string()
     }
+    /// What a call of tool `name` does while the model writes it or it runs,
+    /// for the live status line ("Reading main.rr", "Searching the
+    /// manual"); `input` may be partial (the fields whole so far). `None`:
+    /// "Using <name>".
+    fn activity(&self, _name: &str, _input: &Json) -> Option<String> {
+        None
+    }
+    /// The model's context window is small (under [`LITE_BELOW`] tokens):
+    /// the lite instructions and tools from now on; `false`, the full ones.
+    fn set_lite(&mut self, _lite: bool) {}
     /// What happened to the user's proposals while the turn ran (one
     /// proposed earlier, still waiting, replaced by a newer one; one set
     /// aside because its file changed): (a line for the conversation, the
@@ -407,6 +596,36 @@ struct Ai {
     language_seen: String,
     /// The answer being given, as the chat shows it.
     turn: Turn,
+    /// Edit links on the questions and Retry on the last answer
+    /// (RapidR Studio's chat).
+    editable: bool,
+    /// The reasoning effort chosen: "", "low", "medium" or "high".
+    effort: String,
+    /// (Anthropic) How each model took an effort.
+    effort_way: HashMap<String, EffortWay>,
+    /// The questions, in order.
+    marks: Vec<Mark>,
+    /// The answers' reasoning.
+    thoughts: Vec<Thought>,
+    /// What it does now, in words (the live status line).
+    activity: String,
+    /// When the answer (or Compact) began, when the provider last sent
+    /// anything, when the model began thinking (ms; 0: none).
+    turn_started: f64,
+    last_data: f64,
+    thinking_since: f64,
+    /// The tool calls being written: by index, the tool's name, its
+    /// arguments so far, and whether the status names their file yet.
+    tool_args: HashMap<usize, (String, String, bool)>,
+    /// The instructions' and tools' size in characters (0: not known yet).
+    last_fixed: usize,
+    /// The last reply's output tokens.
+    last_output: u64,
+    /// A summary asked for by Compact; the status before an automatic one.
+    compacting: bool,
+    status_before_summary: String,
+    /// The tools' lite set was sent (a small window).
+    lite: bool,
     changed: bool,
     tokens: String,
     events: Vec<(&'static str, Vec<Value>)>,
@@ -656,6 +875,9 @@ impl Ai {
             let qs: Vec<usize> = self.messages.iter().enumerate().filter(|(i, m)| *i > 0 && m.role == Role::User && !m.text().trim().is_empty()).map(|(i, _)| i).collect();
             let Some(&next) = qs.first() else { break };
             self.messages.drain(..next);
+            for m in &mut self.marks {
+                m.msg = m.msg.and_then(|x| x.checked_sub(next));
+            }
             n += 1;
             dropped = true;
         }
@@ -665,6 +887,10 @@ impl Ai {
                 first.content.retain(|b| !matches!(b, Block::ToolResult { .. }));
                 if !matches!(first.content.first(), Some(Block::Text(t)) if t == MISSING) {
                     first.content.insert(0, Block::Text(MISSING.into()));
+                }
+                // (a question there: taken out whole, the note with it)
+                for m in self.marks.iter_mut().filter(|m| m.msg == Some(0)) {
+                    m.blocks = 0;
                 }
             }
         }
@@ -710,6 +936,275 @@ impl Ai {
     fn say(&mut self, who: &str, text: &str) {
         self.log.push((who.to_string(), text.to_string()));
         self.changed = true;
+    }
+
+    /// What it does now, said on the status line.
+    fn set_activity(&mut self, what: &str) {
+        if self.activity != what {
+            self.activity = what.to_string();
+            self.changed = true;
+        }
+    }
+
+    /// Nothing runs any more: the status line's clock stops.
+    fn idle(&mut self) {
+        self.thinking_done();
+        self.tool_args.clear();
+        self.turn_started = 0.0;
+        self.set_activity("");
+    }
+
+    /// The model thinks (a piece of its reasoning, or only that it does):
+    /// its time counted, its text kept with the answer's entry.
+    fn thinking(&mut self, piece: &str) {
+        let starting = self.thinking_since == 0.0;
+        if starting {
+            self.thinking_since = now_ms();
+        }
+        if let Some(log) = self.turn.entry {
+            let k = match self.thoughts.iter().position(|t| t.log == log) {
+                Some(k) => k,
+                None => {
+                    self.thoughts.push(Thought { log, ..Thought::default() });
+                    self.thoughts.len() - 1
+                }
+            };
+            let t = &mut self.thoughts[k].text;
+            if !piece.is_empty() {
+                // (thinking again after its tools: a paragraph of its own)
+                if starting && !t.is_empty() && !t.ends_with("\n\n") {
+                    t.push_str("\n\n");
+                }
+                t.push_str(piece);
+            }
+        }
+        if starting {
+            self.show_turn();
+        }
+        self.set_activity("Thinking");
+    }
+
+    /// The thinking ended (the answer or a tool call began): its seconds
+    /// counted.
+    fn thinking_done(&mut self) {
+        if self.thinking_since == 0.0 {
+            return;
+        }
+        let secs = (now_ms() - self.thinking_since) / 1000.0;
+        self.thinking_since = 0.0;
+        if let Some(log) = self.turn.entry {
+            if let Some(t) = self.thoughts.iter_mut().find(|t| t.log == log) {
+                t.secs += secs;
+            }
+        }
+        if self.turn.entry.is_some() {
+            self.show_turn();
+        }
+    }
+
+    /// A tool call's activity in words, from its tools.
+    fn tool_activity(&self, name: &str, input: &Json) -> String {
+        self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).and_then(|(_, _, t)| t.activity(name, input)).unwrap_or_else(|| format!("Using {name}"))
+    }
+
+    /// The instructions' and tools' size in characters, as the next request
+    /// sends them.
+    fn fixed_chars(&mut self) -> usize {
+        if self.last_fixed == 0 {
+            let (system, tail) = self.prompts();
+            let tools: usize = self.tool_list().iter().map(|t| t.name.len() + t.description.len() + t.input_schema.to_string().len()).sum();
+            self.last_fixed = system.len() + tail.len() + tools;
+        }
+        self.last_fixed
+    }
+
+    /// The conversation's size in tokens, as the next request would send
+    /// it: the last request's, as the provider counted it, with the reply
+    /// it got; else estimated from its characters.
+    fn context_tokens(&mut self) -> u64 {
+        if self.last_input > 0 {
+            return self.last_input + self.last_output;
+        }
+        if self.provider().is_none() {
+            return 0;
+        }
+        let chars = self.fixed_chars() + self.messages.iter().map(message_chars).sum::<usize>();
+        (chars as f64 / self.chars_per_token()) as u64
+    }
+
+    /// The conversation's own messages in tokens, estimated (what Compact
+    /// makes smaller: the instructions and tools stay as they are).
+    fn messages_tokens(&self) -> u64 {
+        (self.messages.iter().map(message_chars).sum::<usize>() as f64 / self.chars_per_token()) as u64
+    }
+
+    /// Where the conversation is compacted by itself: SummaryAt, or 70% of
+    /// the model's window when that is less.
+    fn context_limit(&self) -> u64 {
+        let at = if self.summary_at <= 0 { DEFAULT_SUMMARY_AT } else { self.summary_at } as u64;
+        match self.budget_window() {
+            Some(w) => at.min(w * 7 / 10),
+            None => at,
+        }
+    }
+
+    /// (Anthropic) How the model takes an effort: as it refused before,
+    /// else as the provider's list says, else adaptive thinking.
+    fn effort_way(&self) -> EffortWay {
+        if let Some(w) = self.effort_way.get(&self.model) {
+            return *w;
+        }
+        match self.models.iter().find(|m| m.id == self.model).map(|m| m.thinking.as_str()) {
+            Some("enabled") => EffortWay::Budget,
+            Some("none") => EffortWay::Off,
+            _ => EffortWay::Adaptive,
+        }
+    }
+
+    /// The thinking an Anthropic request asks for (Effort chosen).
+    fn thinking_request(&self) -> Option<Thinking> {
+        let effort = self.effort.trim().to_ascii_lowercase();
+        if effort.is_empty() || self.provider().is_none_or(|p| p.format != crate::Format::Anthropic) {
+            return None;
+        }
+        match self.effort_way() {
+            EffortWay::Adaptive => Some(Thinking::Adaptive { effort, summarized: true }),
+            EffortWay::AdaptivePlain => Some(Thinking::Adaptive { effort, summarized: false }),
+            EffortWay::Budget => Some(Thinking::Budget(thinking_budget(&effort))),
+            EffortWay::Off => None,
+        }
+    }
+
+    /// Whether the provider and model take an effort (the effort list is
+    /// offered).
+    fn effort_supported(&self) -> bool {
+        match self.provider() {
+            None => false,
+            Some(p) if p.id == "deepseek" => false,
+            Some(p) if p.format == crate::Format::Anthropic => self.effort_way() != EffortWay::Off,
+            Some(_) => match self.reasoning.get(&self.model) {
+                Some(false) => false,
+                Some(true) => self.tools.is_empty(),
+                None => true,
+            },
+        }
+    }
+
+    /// The conversation as ChatState gives it: the messages, the
+    /// transcript, the questions, the reasoning, the user's language —
+    /// API keys and the program's secrets left out.
+    fn chat_state(&self) -> String {
+        let mut v = json!({
+            "version": 1,
+            "messages": self.messages.iter().map(message_json).collect::<Vec<_>>(),
+            "log": self.log.iter().map(|(w, t)| json!([w, t])).collect::<Vec<_>>(),
+            "marks": self.marks.iter().map(|m| json!({"log": m.log, "msg": m.msg, "blocks": m.blocks})).collect::<Vec<_>>(),
+            "thoughts": self.thoughts.iter().map(|t| json!({"log": t.log, "secs": t.secs, "text": t.text, "open": t.open})).collect::<Vec<_>>(),
+            "language": self.language_seen,
+        });
+        let known: Vec<String> = [Some(self.key.clone()), self.key().0].into_iter().flatten().filter(|k| !k.is_empty()).collect();
+        crate::chats::redact_json(&mut v, &known);
+        mask_json(&mut v);
+        v.to_string()
+    }
+
+    /// A conversation ChatState gave, in place of this one (the one
+    /// answering stops). Its parts checked: nothing points past its end.
+    fn set_chat_state(&mut self, text: &str) -> Result<(), String> {
+        let v: Json = serde_json::from_str(text).map_err(|e| format!("not a chat's state: {e}"))?;
+        if !v.is_object() {
+            return Err("not a chat's state".into());
+        }
+        self.cancel();
+        self.events.clear();
+        let mut messages: Vec<Message> = v["messages"].as_array().map(|a| a.iter().filter_map(message_of).collect()).unwrap_or_default();
+        repair(&mut messages);
+        let log: Vec<(String, String)> = v["log"].as_array().map(|a| a.iter().filter_map(|e| Some((e[0].as_str()?.to_string(), e[1].as_str()?.to_string()))).collect()).unwrap_or_default();
+        let marks: Vec<Mark> = v["marks"]
+            .as_array()
+            .map(|a| {
+                a.iter()
+                    .filter_map(|m| {
+                        let log_at = m["log"].as_u64()? as usize;
+                        (log_at < log.len()).then(|| Mark { log: log_at, msg: m["msg"].as_u64().map(|x| x as usize).filter(|x| *x <= messages.len()), blocks: m["blocks"].as_u64().unwrap_or(0) as usize })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let thoughts: Vec<Thought> = v["thoughts"].as_array().map(|a| a.iter().filter_map(|t| Some(Thought { log: t["log"].as_u64()? as usize, secs: t["secs"].as_f64().unwrap_or(0.0), text: t["text"].as_str().unwrap_or("").to_string(), open: t["open"].as_bool().unwrap_or(false) })).filter(|t| t.log < log.len()).collect()).unwrap_or_default();
+        self.messages = messages;
+        self.log = log;
+        self.marks = marks;
+        self.thoughts = thoughts;
+        self.language_seen = v["language"].as_str().unwrap_or("").to_string();
+        self.turn = Turn::default();
+        self.answer.clear();
+        self.error.clear();
+        self.status.clear();
+        self.last_input = 0;
+        self.last_output = 0;
+        self.idle();
+        self.changed = true;
+        Ok(())
+    }
+
+    /// Takes question `q` (from 1) and everything after it out of the
+    /// conversation and the transcript (an edited question, Retry): its
+    /// text, to ask again.
+    fn rewind(&mut self, q: usize) -> Result<String, String> {
+        if self.running.is_some() {
+            return Err("Still answering: wait for it, or Stop.".into());
+        }
+        let Some(mark) = q.checked_sub(1).and_then(|i| self.marks.get(i)).copied() else {
+            return Err(format!("There is no question {q} in this chat."));
+        };
+        let Some(msg) = mark.msg else {
+            return Err("That question is from before the chat was compacted: it can't be edited. Ask it again as a new question.".into());
+        };
+        let text = self.log.get(mark.log).map(|(_, t)| t.clone()).unwrap_or_default();
+        self.log.truncate(mark.log);
+        if msg < self.messages.len() {
+            self.messages.truncate(msg + 1);
+            if mark.blocks == 0 {
+                self.messages.pop();
+            } else {
+                self.messages[msg].content.truncate(mark.blocks);
+            }
+        }
+        self.marks.truncate(q - 1);
+        self.thoughts.retain(|t| t.log < mark.log);
+        self.turn = Turn::default();
+        self.answer.clear();
+        self.error.clear();
+        self.status.clear();
+        self.last_input = 0;
+        self.last_output = 0;
+        self.changed = true;
+        self.audit_log("rewind", json!({"question": q}));
+        Ok(text)
+    }
+
+    /// Compact: the conversation summarised now, in one short request
+    /// (the next questions start from the summary).
+    fn compact_now(&mut self) -> Result<(), String> {
+        if self.running.is_some() {
+            return Err("Still answering: wait for it, or Stop.".into());
+        }
+        if self.messages.len() < 3 {
+            return Err("Nothing to compact yet: the chat is still short.".into());
+        }
+        let ep = self.endpoint()?;
+        if self.model.trim().is_empty() {
+            return Err("Choose a model first (RefreshModels lists the provider's).".into());
+        }
+        self.compacting = true;
+        self.turn_started = now_ms();
+        if let Err(e) = self.start_summary(&ep) {
+            self.compacting = false;
+            self.turn_started = 0.0;
+            return Err(e);
+        }
+        Ok(())
     }
 
     fn add_text(&mut self, t: &str) {
@@ -758,17 +1253,39 @@ impl Ai {
         }
     }
 
+    /// The conversation as Markdown: each question (Edit beside "You" when
+    /// Editable), each answer with "Thought for N s" when the model
+    /// thought (Retry beside the last "Assistant"), the notes between.
     fn transcript(&self) -> String {
+        let busy = self.running.is_some();
+        let last_answer = self.log.iter().rposition(|(w, _)| w == "assistant");
         let mut out = String::new();
-        for (who, text) in &self.log {
+        for (i, (who, text)) in self.log.iter().enumerate() {
             if !out.is_empty() {
                 out.push_str("\n\n");
             }
             match who.as_str() {
-                "user" => out.push_str(&format!("**You**\n\n{}", text.trim_end())),
+                "user" => {
+                    out.push_str("**You**");
+                    if self.editable && !busy {
+                        if let Some(q) = self.marks.iter().position(|m| m.log == i && m.msg.is_some()) {
+                            out.push_str(&format!(" · [Edit](rai:edit/{})", q + 1));
+                        }
+                    }
+                    out.push_str(&format!("\n\n{}", text.trim_end()));
+                }
                 "assistant" => {
                     let t = text.trim_end();
-                    out.push_str(&format!("**Assistant**\n\n{}", if t.is_empty() { "…" } else { t }));
+                    out.push_str("**Assistant**");
+                    if self.editable && !busy && Some(i) == last_answer && self.marks.last().is_some_and(|m| m.msg.is_some() && m.log < i) {
+                        out.push_str(" · [Retry](rai:retry)");
+                    }
+                    out.push_str("\n\n");
+                    if let Some((k, th)) = self.thoughts.iter().enumerate().find(|(_, th)| th.log == i) {
+                        out.push_str(&thought_line(k, th, busy && self.turn.entry == Some(i) && self.thinking_since > 0.0));
+                        out.push_str("\n\n");
+                    }
+                    out.push_str(if t.is_empty() { "…" } else { t });
                 }
                 _ => out.push_str(&format!("*{}*", text.trim_end())),
             }
@@ -820,6 +1337,16 @@ impl Ai {
         };
         http::start(id, req, opts)?;
         self.running = Some(Run { id, job, status: 0, retry_after: None, body: Vec::new(), decoder: Decoder::new(format), reply: Reply::default() });
+        self.last_data = now_ms();
+        if self.turn_started == 0.0 && job != Job::Models {
+            self.turn_started = self.last_data;
+        }
+        match job {
+            Job::Probe => self.set_activity("Asking the server about the model"),
+            Job::Summary => self.set_activity("Compacting the conversation"),
+            Job::Chat => self.set_activity("Thinking"),
+            Job::Models => {}
+        }
         Ok(())
     }
 
@@ -830,6 +1357,16 @@ impl Ai {
             self.status = "Answering…".into();
             return Ok(());
         }
+        // (a small window: the tools' lite set — K8)
+        let lite = self.budget_window().is_some_and(|w| w < LITE_BELOW);
+        if lite != self.lite {
+            self.lite = lite;
+            self.last_fixed = 0;
+            self.audit_log("lite", json!({"lite": lite, "window": self.budget_window()}));
+        }
+        for (_, _, t) in &mut self.tools {
+            t.set_lite(lite);
+        }
         let tools = self.tool_list();
         let (system, system_tail) = self.prompts();
         // (the answers' language, when ReplyLanguage says one: R10)
@@ -839,6 +1376,7 @@ impl Ai {
             None => system_tail,
         };
         let fixed = system.len() + system_tail.len() + tools.iter().map(|t| t.name.len() + t.description.len() + t.input_schema.to_string().len()).sum::<usize>();
+        self.last_fixed = fixed;
         // (a window smaller than the instructions and the tools alone: no
         // request could fit — said plainly, nothing sent)
         if let Some(w) = self.window() {
@@ -853,8 +1391,15 @@ impl Ai {
         if cut > 0 {
             self.audit_log("compact", json!({"tokensBefore": before, "tokensAfter": after, "cut": cut, "window": self.budget_window()}));
         }
-        let reasoning_effort = wire::reasoning_for(ep.provider, &self.model, !tools.is_empty(), self.reasoning.get(&self.model).copied());
-        let req = ChatRequest { model: self.model.clone(), system, system_tail, messages: self.messages.clone(), tools, max_tokens: self.max_tokens(), reasoning_effort, no_stream_usage: self.no_stream_usage };
+        let reasoning_effort = wire::reasoning_for(ep.provider, &self.model, !tools.is_empty(), self.reasoning.get(&self.model).copied(), &self.effort);
+        // (an effort: the thinking counts in the reply's tokens — room for it)
+        let thinking = self.thinking_request();
+        let max_tokens = match &thinking {
+            Some(Thinking::Adaptive { effort, .. }) => self.max_tokens() + thinking_room(effort),
+            Some(Thinking::Budget(n)) => self.max_tokens() + n,
+            None => self.max_tokens(),
+        };
+        let req = ChatRequest { model: self.model.clone(), system, system_tail, messages: self.messages.clone(), tools, max_tokens, reasoning_effort, no_stream_usage: self.no_stream_usage, thinking };
         let n = (req.messages.len(), req.tools.len(), req.max_tokens);
         self.last_chars = fixed + req.messages.iter().map(message_chars).sum::<usize>();
         self.start(Job::Chat, wire::chat_request(ep, &req), ep.provider.format)?;
@@ -893,6 +1438,11 @@ impl Ai {
         self.error.clear();
         self.answer.clear();
         self.trim_tool_results();
+        // (where the question goes: Rewind takes it out from there)
+        let (msg, blocks) = match self.messages.last() {
+            Some(m) if m.role == Role::User => (self.messages.len() - 1, m.content.len()),
+            _ => (self.messages.len(), 0),
+        };
         match self.messages.last_mut() {
             Some(m) if m.role == Role::User => m.content.push(Block::Text(text.to_string())),
             _ => self.messages.push(Message::user(text)),
@@ -910,7 +1460,11 @@ impl Ai {
             self.audit_log("context", json!({"chars": chars}));
         }
         self.say("user", text);
+        self.marks.push(Mark { log: self.log.len() - 1, msg: Some(msg), blocks });
         self.question = text.to_string();
+        self.turn_started = now_ms();
+        self.thinking_since = 0.0;
+        self.tool_args.clear();
         // (the language the user writes in, when the question says it)
         if let Some(l) = crate::lang::detect(text) {
             self.language_seen = l.to_string();
@@ -962,17 +1516,25 @@ impl Ai {
                     self.messages.push(Message { role: Role::Assistant, content: vec![Block::Text(text.clone())] });
                     self.answer = text;
                 }
+                self.thinking_done();
                 self.note("Stopped.");
                 self.flush_records();
                 self.status = "Stopped.".into();
                 self.audit_log("cancel", json!({}));
             }
+            if r.job == Job::Summary {
+                self.compacting = false;
+                self.status = std::mem::take(&mut self.status_before_summary);
+            }
+            self.idle();
             self.events.push(("ondone", vec![s("cancelled")]));
         }
     }
 
     fn fail(&mut self, message: String) {
         self.running = None;
+        self.compacting = false;
+        self.idle();
         self.flush_records();
         self.error = message.clone();
         self.status = message.clone();
@@ -987,6 +1549,8 @@ impl Ai {
 
     fn incoming(&mut self, what: Incoming) {
         let Some(run) = self.running.as_mut() else { return };
+        // (the provider said something: the status line's silence ends)
+        self.last_data = now_ms();
         match what {
             Incoming::Status { status, retry_after } => {
                 run.status = status;
@@ -1001,9 +1565,7 @@ impl Ai {
                     }
                     if job == Job::Chat {
                         for e in events {
-                            if let Event::Text(t) = e {
-                                self.add_text(&t);
-                            }
+                            self.live(e);
                         }
                     }
                 } else if run.body.len() < 8_000_000 {
@@ -1015,6 +1577,49 @@ impl Ai {
                     self.finished(run, result);
                 }
             }
+        }
+    }
+
+    /// What a streamed event says of the answer, live: its text, its
+    /// thinking, the tool it calls (the status line's activity).
+    fn live(&mut self, e: Event) {
+        match e {
+            Event::Text(t) => {
+                self.thinking_done();
+                if !t.is_empty() {
+                    self.set_activity("Writing the answer");
+                }
+                self.add_text(&t);
+            }
+            Event::Thinking(t) => self.thinking(&t),
+            Event::ToolStart { index, name, .. } => {
+                self.thinking_done();
+                let what = self.tool_activity(&name, &json!({}));
+                self.tool_args.insert(index, (name, String::new(), false));
+                self.set_activity(&what);
+            }
+            Event::ToolArgs { index, json } => {
+                let Some((name, args, named)) = self.tool_args.get_mut(&index) else { return };
+                args.push_str(&json);
+                if *named {
+                    return;
+                }
+                // (its file, once the arguments name it whole: "Writing server.rr")
+                let mut input = serde_json::Map::new();
+                for f in ["path", "name", "query", "title", "type", "builtin"] {
+                    if let Some(v) = partial_field(args, f) {
+                        input.insert(f.into(), json!(v));
+                    }
+                }
+                if input.is_empty() {
+                    return;
+                }
+                *named = true;
+                let name = name.clone();
+                let what = self.tool_activity(&name, &Json::Object(input));
+                self.set_activity(&what);
+            }
+            _ => {}
         }
     }
 
@@ -1062,9 +1667,35 @@ impl Ai {
         let body = String::from_utf8_lossy(&run.body).to_string();
         if run.status != 200 {
             if run.job == Job::Chat {
+                // (an effort the model doesn't take as it was sent: asked
+                // again the next simpler way, said once it takes none)
+                if p.format == crate::Format::Anthropic && !self.effort.is_empty() {
+                    if let Some(display) = wire::thinking_refusal(run.status, &body) {
+                        let now = self.effort_way();
+                        let next = match now {
+                            EffortWay::Adaptive if display => EffortWay::AdaptivePlain,
+                            EffortWay::Adaptive | EffortWay::AdaptivePlain => EffortWay::Budget,
+                            EffortWay::Budget | EffortWay::Off => EffortWay::Off,
+                        };
+                        if next != now {
+                            self.effort_way.insert(self.model.clone(), next);
+                            self.audit_log("effort", json!({"way": format!("{next:?}")}));
+                            if next == EffortWay::Off {
+                                self.note("This model takes no effort setting: it answers as it usually does.");
+                            }
+                            if self.go_on() {
+                                return;
+                            }
+                            return;
+                        }
+                    }
+                }
                 if let Some(wants) = wire::reasoning_refusal(run.status, &body) {
                     if self.reasoning.get(&self.model) != Some(&wants) {
                         self.reasoning.insert(self.model.clone(), wants);
+                        if !self.effort.is_empty() {
+                            self.note(if wants { "This model can't think at an effort while it uses tools here: it answers without one." } else { "This model takes no effort setting: it answers as it usually does." });
+                        }
                         if let Ok(ep) = self.endpoint() {
                             if self.start_chat(&ep).is_ok() {
                                 return;
@@ -1123,7 +1754,10 @@ impl Ai {
                 run.reply.finish();
                 self.usage.add(run.reply.usage);
                 let summary = run.reply.text();
+                let compacting = std::mem::take(&mut self.compacting);
+                let before_status = std::mem::take(&mut self.status_before_summary);
                 if !summary.trim().is_empty() {
+                    let before = self.messages_tokens();
                     // (the language goes with the summary: the next answers
                     // stay in the user's, whatever the summary is in)
                     let language = self.reply_language().map(|(l, _)| format!(" I write in {l}: reply in {l}.")).unwrap_or_default();
@@ -1131,22 +1765,40 @@ impl Ai {
                         Message::user(&format!("(A summary of our conversation so far, to save tokens.{language})\n\n{}", summary.trim())),
                         Message { role: Role::Assistant, content: vec![Block::Text("Understood: I'll go on from there.".into())] },
                     ];
-                    self.say("info", "The conversation so far was summarised, to keep each question cheap.");
+                    // (the questions before it are the summary's now: not
+                    // edited any more)
+                    for m in &mut self.marks {
+                        m.msg = None;
+                    }
+                    self.last_input = 0;
+                    self.last_output = 0;
+                    if compacting {
+                        let after = self.messages_tokens();
+                        let said = format!("The chat was compacted: what each question sends of it went from about {} tokens to about {}.", thousands(before), thousands(after));
+                        self.say("info", &said);
+                        self.status = said;
+                    } else {
+                        self.say("info", "The conversation so far was summarised, to keep each question cheap.");
+                        self.status = if before_status.is_empty() { "Done.".into() } else { before_status };
+                    }
+                } else {
+                    self.status = if compacting { "The chat wasn't compacted: the model gave no summary.".into() } else if before_status.is_empty() { "Done.".into() } else { before_status };
                 }
-                self.status = "Done.".into();
+                self.idle();
                 self.events.push(("ondone", vec![s("ok")]));
             }
             Job::Chat => {
                 for e in run.decoder.finish() {
                     run.reply.apply(&e);
-                    if let Event::Text(t) = e {
-                        self.add_text(&t);
-                    }
+                    self.live(e);
                 }
+                self.thinking_done();
+                self.tool_args.clear();
                 run.reply.finish();
                 self.usage.add(run.reply.usage);
                 self.turn_usage.add(run.reply.usage);
                 self.last_input = run.reply.usage.input;
+                self.last_output = run.reply.usage.output;
                 let calls = run.reply.tool_calls();
                 self.audit_log("reply", json!({"inputTokens": run.reply.usage.input, "outputTokens": run.reply.usage.output, "stop": run.reply.stop, "toolCalls": calls.len()}));
                 if let Some(e) = run.reply.error.clone() {
@@ -1245,11 +1897,13 @@ impl Ai {
         let at = if self.summary_at <= 0 { DEFAULT_SUMMARY_AT } else { self.summary_at } as u64;
         if self.last_input > at && self.messages.len() > 4 {
             if let Ok(ep) = self.endpoint() {
+                self.status_before_summary = self.status.clone();
                 if self.start_summary(&ep).is_ok() {
                     return;
                 }
             }
         }
+        self.idle();
         self.events.push(("ondone", vec![s("ok")]));
     }
 
@@ -1271,6 +1925,7 @@ impl Ai {
             max_tokens: 700,
             reasoning_effort: None,
             no_stream_usage: self.no_stream_usage,
+            thinking: None,
         };
         self.start(Job::Summary, wire::chat_request(ep, &req), ep.provider.format)?;
         self.status = "Summarising the conversation, to keep it cheap…".into();
@@ -1285,6 +1940,8 @@ impl Ai {
             let out = if self.tool_calls > MAX_TOOL_CALLS {
                 ToolOutcome { content: "the turn's limit of tool calls was reached: answer with what you have".into(), is_error: true, note: String::new(), read: None, risk: "read", target: String::new() }
             } else if let Some(k) = self.tools.iter().position(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).or_else(|| (self.tools.len() == 1).then_some(0)) {
+                let what = self.tool_activity(&name, &input);
+                self.set_activity(&what);
                 self.tools[k].2.call(&name, &input)
             } else {
                 ToolOutcome { content: format!("there is no tool `{name}`"), is_error: true, note: format!("{name}: no such tool"), read: None, risk: "read", target: String::new() }
@@ -1402,6 +2059,18 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "lastrequest" => s(a.last_request.clone()),
             "toolcalls" => Value::Integer(i64::from(a.tool_calls)),
             "auditlocation" => s(audit::location()),
+            "chatstate" => s(a.chat_state()),
+            "editable" => flag(a.editable),
+            "effort" => s(a.effort.clone()),
+            "effortsupported" => flag(a.effort_supported()),
+            "activity" => s(if a.running.is_some() { a.activity.clone() } else { String::new() }),
+            "elapsed" => Value::Integer(if a.running.is_some() && a.turn_started > 0.0 { ((now_ms() - a.turn_started) / 1000.0) as i64 } else { 0 }),
+            "quiet" => Value::Integer(if a.running.as_ref().is_some_and(|r| r.job != Job::Models) { ((now_ms() - a.last_data) / 1000.0) as i64 } else { 0 }),
+            "contexttokens" => Value::Integer(a.context_tokens() as i64),
+            "contextlimit" => Value::Integer(a.context_limit() as i64),
+            "contextwindow" => Value::Integer(a.window().unwrap_or(0) as i64),
+            "questioncount" => Value::Integer(a.marks.len() as i64),
+            "lite" => flag(a.lite),
             _ => return None,
         })
     })
@@ -1458,10 +2127,24 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "summaryat" => a.summary_at = v.to_i64(),
             "system" => a.system = t,
             "replylanguage" => a.language_pin = t.trim().to_string(),
+            "editable" => {
+                a.editable = truth(v);
+                a.changed = true;
+            }
+            "effort" => {
+                let e = t.trim().to_ascii_lowercase();
+                a.effort = if matches!(e.as_str(), "low" | "medium" | "high") { e } else { String::new() };
+            }
+            "chatstate" => {
+                if let Err(e) = a.set_chat_state(&t) {
+                    a.error = e.clone();
+                    a.status = e;
+                }
+            }
             "audit" => a.audit = truth(v),
             "pricein" => a.price_in = v.to_f64().max(0.0),
             "priceout" => a.price_out = v.to_f64().max(0.0),
-            "busy" | "error" | "status" | "answer" | "transcript" | "steps" | "userlanguage" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" => {}
+            "busy" | "error" | "status" | "answer" | "transcript" | "steps" | "userlanguage" | "models" | "modelcount" | "haskey" | "keyhint" | "keysource" | "keyenv" | "keystore" | "needskey" | "pricingurl" | "keysurl" | "providers" | "presets" | "inputtokens" | "outputtokens" | "cachedtokens" | "usage" | "cost" | "lastrequest" | "toolcalls" | "auditlocation" | "effortsupported" | "activity" | "elapsed" | "quiet" | "contexttokens" | "contextlimit" | "contextwindow" | "questioncount" | "lite" => {}
             _ => return false,
         }
         true
@@ -1494,6 +2177,10 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 a.events.clear();
                 a.messages.clear();
                 a.log.clear();
+                a.marks.clear();
+                a.thoughts.clear();
+                a.last_input = 0;
+                a.last_output = 0;
                 a.turn = Turn::default();
                 a.answer.clear();
                 a.error.clear();
@@ -1503,6 +2190,39 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 }
                 a.status = "A new chat.".into();
                 a.changed = true;
+            });
+            Value::Null
+        }
+        "compact" => flag(with(name, |a| match a.compact_now() {
+            Ok(()) => true,
+            Err(e) => {
+                a.error = e.clone();
+                a.status = e;
+                false
+            }
+        })),
+        "rewind" => {
+            let q = args.first().map_or(0, Value::to_i64).max(0) as usize;
+            s(with(name, |a| match a.rewind(q) {
+                Ok(t) => t,
+                Err(e) => {
+                    a.error = e.clone();
+                    a.status = e;
+                    String::new()
+                }
+            }))
+        }
+        "questiontext" => {
+            let q = args.first().map_or(0, Value::to_i64);
+            s(with(name, |a| usize::try_from(q).ok().and_then(|q| q.checked_sub(1)).and_then(|i| a.marks.get(i)).and_then(|m| a.log.get(m.log)).map(|(_, t)| t.clone()).unwrap_or_default()))
+        }
+        "togglethought" => {
+            let k = args.first().map_or(0, Value::to_i64);
+            with(name, |a| {
+                if let Some(t) = usize::try_from(k).ok().and_then(|k| k.checked_sub(1)).and_then(|i| a.thoughts.get_mut(i)) {
+                    t.open = !t.open;
+                    a.changed = true;
+                }
             });
             Value::Null
         }
@@ -1573,6 +2293,21 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
         _ => return None,
     };
     Some(result)
+}
+
+/// Every string in `v` with the program's noted secrets masked
+/// ([`rapidr_value::secrets`]).
+fn mask_json(v: &mut Json) {
+    match v {
+        Json::String(t) => {
+            if let std::borrow::Cow::Owned(m) = rapidr_value::secrets::mask(t) {
+                *t = m;
+            }
+        }
+        Json::Array(a) => a.iter_mut().for_each(mask_json),
+        Json::Object(o) => o.values_mut().for_each(mask_json),
+        _ => {}
+    }
 }
 
 /// An audit log line in words: time, what, target, decision.
@@ -1701,11 +2436,11 @@ mod tests {
         a.windows.clear();
         assert_eq!(a.max_tokens(), UNKNOWN_WINDOW_REPLY);
         // (an unloaded model's largest window doesn't count as its own)
-        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false) }]);
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false), ..ModelInfo::default() }]);
         assert_eq!(a.window(), None);
         assert_eq!(a.budget_window(), Some(ASSUMED_LOCAL_WINDOW));
-        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 12_288, loaded: Some(true) }]);
-        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false) }]);
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 12_288, loaded: Some(true), ..ModelInfo::default() }]);
+        a.learn_windows(&[ModelInfo { id: "m".into(), name: String::new(), context: 262_144, loaded: Some(false), ..ModelInfo::default() }]);
         assert_eq!(a.window(), Some(12_288), "the window it ran with stays");
         // (a window smaller than the instructions alone: said, nothing sent)
         let mut tiny = local(4096);
@@ -1778,5 +2513,133 @@ mod tests {
         // (no result left without its call)
         let calls: Vec<String> = a.messages.iter().flat_map(|m| m.content.iter()).filter_map(|b| if let Block::ToolUse { id, .. } = b { Some(id.clone()) } else { None }).collect();
         assert!(a.messages.iter().flat_map(|m| m.content.iter()).all(|b| !matches!(b, Block::ToolResult { id, .. } if !calls.contains(id))));
+    }
+}
+
+#[cfg(test)]
+mod chat_tests {
+    use super::*;
+
+    /// A question and its answer as ask() and the reply leave them.
+    fn exchange(a: &mut Ai, q: &str, answer: &str) {
+        let (msg, blocks) = match a.messages.last() {
+            Some(m) if m.role == Role::User => (a.messages.len() - 1, m.content.len()),
+            _ => (a.messages.len(), 0),
+        };
+        a.messages.push(Message::user(q));
+        a.say("user", q);
+        a.marks.push(Mark { log: a.log.len() - 1, msg: Some(msg), blocks });
+        a.messages.push(Message { role: Role::Assistant, content: vec![Block::Text(answer.into())] });
+        a.say("assistant", answer);
+    }
+
+    fn chat() -> Ai {
+        let mut a = Ai { provider: "anthropic".into(), model: "claude-x".into(), ..Ai::default() };
+        exchange(&mut a, "Build me a stopwatch", "Press Run.");
+        exchange(&mut a, "Add a lap button", "Done: a Lap button.");
+        exchange(&mut a, "Make it blue", "It's blue now.");
+        a
+    }
+
+    #[test]
+    fn a_chat_is_kept_and_loaded_again_without_keys() {
+        let mut a = chat();
+        a.key = concat!("sk", "-ant-api03-SECRETsecret0123456789abcd").into();
+        exchange(&mut a, concat!("My key is sk", "-ant-api03-SECRETsecret0123456789abcd, why?"), "Never paste keys.");
+        a.thoughts.push(Thought { log: a.log.len() - 1, secs: 3.4, text: "The user pasted a key.".into(), open: false });
+        let state = a.chat_state();
+        assert!(!state.contains("SECRETsecret"), "{state}");
+        let mut b = Ai { provider: "anthropic".into(), model: "claude-x".into(), ..Ai::default() };
+        b.set_chat_state(&state).unwrap();
+        assert_eq!(b.messages.len(), 8);
+        assert_eq!(b.marks.len(), 4);
+        assert!(b.transcript().contains("**You**\n\nAdd a lap button"));
+        assert!(b.transcript().contains("[Thought for 3 s · show](rai:thought/1)"));
+        assert!(b.transcript().contains("My key is [key removed], why?"));
+        // (not a chat's state: said, nothing changed)
+        assert!(b.set_chat_state("not json").is_err());
+        assert_eq!(b.marks.len(), 4);
+    }
+
+    #[test]
+    fn rewind_takes_a_question_and_what_followed_out() {
+        let mut a = chat();
+        a.thoughts.push(Thought { log: 5, secs: 1.0, text: "blue".into(), open: false });
+        assert_eq!(a.rewind(2).unwrap(), "Add a lap button");
+        assert_eq!(a.log.len(), 2);
+        assert_eq!(a.messages.len(), 2);
+        assert_eq!(a.marks.len(), 1);
+        assert!(a.thoughts.is_empty());
+        assert!(a.rewind(5).is_err());
+        // (a question merged into the tool results left by a stopped answer)
+        let mut b = Ai::default();
+        b.messages = vec![Message::user("q1"), Message { role: Role::Assistant, content: vec![Block::ToolUse { id: "t".into(), name: "read_file".into(), input: json!({}) }] }, Message { role: Role::User, content: vec![Block::ToolResult { id: "t".into(), content: "x".into(), is_error: false }] }];
+        b.say("user", "q1");
+        b.marks.push(Mark { log: 0, msg: Some(0), blocks: 0 });
+        b.messages[2].content.push(Block::Text("q2".into()));
+        b.say("user", "q2");
+        b.marks.push(Mark { log: 1, msg: Some(2), blocks: 1 });
+        assert_eq!(b.rewind(2).unwrap(), "q2");
+        assert_eq!(b.messages[2].content.len(), 1, "the tool's result stays, the question goes");
+        // (summarised: the questions before can't be edited)
+        let mut c = chat();
+        for m in &mut c.marks {
+            m.msg = None;
+        }
+        assert!(c.rewind(1).unwrap_err().contains("compacted"));
+    }
+
+    #[test]
+    fn the_transcript_offers_edit_retry_and_the_thinking() {
+        let mut a = chat();
+        assert!(!a.transcript().contains("rai:edit"), "not Editable: no links");
+        a.editable = true;
+        let t = a.transcript();
+        for q in 1..=3 {
+            assert!(t.contains(&format!("**You** · [Edit](rai:edit/{q})\n\n")), "{t}");
+        }
+        assert_eq!(t.matches("[Retry](rai:retry)").count(), 1);
+        assert!(t.contains("**Assistant** · [Retry](rai:retry)\n\nIt's blue now."), "{t}");
+        let th = Thought { log: 1, secs: 12.4, text: "First the form.\n\nThen the timer.".into(), open: false };
+        assert_eq!(thought_line(0, &th, false), "[Thought for 12 s · show](rai:thought/1)");
+        let open = Thought { open: true, ..th.clone() };
+        assert_eq!(thought_line(0, &open, false), "[Thought for 12 s · hide](rai:thought/1)\n\n> First the form.\n>\n> Then the timer.");
+        assert_eq!(thought_line(0, &Thought { text: String::new(), ..th }, false), "*Thought for 12 s*");
+        assert_eq!(thought_line(0, &open, true), "*Thinking…*");
+    }
+
+    #[test]
+    fn the_status_line_names_the_file_as_soon_as_the_call_does() {
+        assert_eq!(partial_field(r#"{"path": "server.rr", "text": "PRINT"#, "path").as_deref(), Some("server.rr"));
+        assert_eq!(partial_field(r#"{"path": "serv"#, "path"), None);
+        assert_eq!(partial_field(r#"{"query":"a \"b\" c"}"#, "query").as_deref(), Some("a \"b\" c"));
+        assert_eq!(partial_field(r#"{"text": "x"}"#, "path"), None);
+    }
+
+    #[test]
+    fn an_effort_asks_each_model_as_it_takes_it() {
+        let mut a = Ai { provider: "anthropic".into(), model: "claude-x".into(), ..Ai::default() };
+        assert_eq!(a.thinking_request(), None, "no effort: nothing asked");
+        a.effort = "high".into();
+        assert_eq!(a.thinking_request(), Some(Thinking::Adaptive { effort: "high".into(), summarized: true }));
+        a.models = vec![ModelInfo { id: "claude-x".into(), thinking: "enabled".into(), ..ModelInfo::default() }];
+        assert_eq!(a.thinking_request(), Some(Thinking::Budget(12_288)));
+        a.effort_way.insert("claude-x".into(), EffortWay::Off);
+        assert_eq!(a.thinking_request(), None);
+        assert!(!a.effort_supported());
+        let d = Ai { provider: "deepseek".into(), model: "deepseek-chat".into(), effort: "high".into(), ..Ai::default() };
+        assert!(!d.effort_supported() && d.thinking_request().is_none());
+        assert!(Ai { provider: "compatible".into(), ..Ai::default() }.effort_supported());
+    }
+
+    #[test]
+    fn the_meter_counts_against_where_it_compacts() {
+        let mut a = chat();
+        a.last_input = 12_000;
+        a.last_output = 400;
+        assert_eq!(a.context_tokens(), 12_400);
+        assert_eq!(a.context_limit(), DEFAULT_SUMMARY_AT as u64);
+        a.windows.insert("claude-x".into(), (20_000, true));
+        assert_eq!(a.context_limit(), 14_000);
     }
 }

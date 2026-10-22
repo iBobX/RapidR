@@ -40,6 +40,7 @@ DECLARE SUB AISetTakeRows
 DECLARE SUB AISetNote(Text AS STRING)
 DECLARE FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
 DECLARE SUB SettingsClosed(Action AS INTEGER)
+DECLARE SUB SettingsSetupClick
 DECLARE SUB SettingsPathRefresh
 DECLARE SUB SettingsFillPath
 
@@ -131,6 +132,13 @@ CREATE SettingsDialog AS RForm
     AccessibleName = "AI"
     CREATE AIOnBox AS RCheckBox
       Caption = "&Turn on the AI assistant"
+    END CREATE
+    ' (R6: the guided way — free on this computer, or a cloud key)
+    CREATE AISetupBtn AS RButton
+      Caption = "Set &Up RAI..."
+      AccessibleName = "Set up RAI, step by step"
+      AccessibleDescription = "Free on this computer, or a cloud service with your key: what each costs and sends, in plain words"
+      OnClick = SettingsSetupClick
     END CREATE
     CREATE AIOnNote AS RLabel
       WordWrap = 1: AutoSize = 0
@@ -316,8 +324,9 @@ SUB LayOutSettingsDialog
   ' ---- AI ----
   lx = pad: fx = pad + 112: fw = w - 112
   y = pad - 4
-  AIOnBox.Left = lx: AIOnBox.Top = y: AIOnBox.Width = w: AIOnBox.Height = 22
+  AIOnBox.Left = lx: AIOnBox.Top = y: AIOnBox.Width = w - 156: AIOnBox.Height = 22
   AIOnBox.Font.Bold = 1
+  AISetupBtn.Left = lx + w - 148: AISetupBtn.Top = y - (bh - 22) \ 2: AISetupBtn.Width = 148: AISetupBtn.Height = bh
   y = y + 26
   AIOnNote.Left = lx: AIOnNote.Top = y: AIOnNote.Width = w: AIOnNote.Height = 68
   AIOnNote.Font.Color = TC("page.dim")
@@ -506,6 +515,12 @@ END SUB
 ' (nothing of the AI tab reaches the assistant: its own RAI is dropped)
 SUB SettingsCancel
   SettingsDialog.Close
+END SUB
+
+' (Set Up RAI…: the settings left as they were, the wizard instead)
+SUB SettingsSetupClick
+  SettingsCancel
+  ShowAISetup
 END SUB
 
 ' However it closes (OK, Cancel, Escape, its close box, Themes and Views):

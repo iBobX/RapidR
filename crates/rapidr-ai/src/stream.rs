@@ -21,6 +21,11 @@ pub enum Event {
     ToolArgs { index: usize, json: String },
     /// A block to send back as it came (Anthropic's thinking).
     Opaque(Value),
+    /// The model thinks: more of its reasoning's text, as the provider
+    /// shows it ("" when it shows none — Anthropic's thinking block
+    /// starting, its summary left out). For the chat only: nothing of it
+    /// goes back to the model but the Opaque block.
+    Thinking(String),
     /// Tokens so far (each field the largest seen counts).
     Usage(Usage),
     /// Why the answer ended: `end`, `tool_use`, `max_tokens`, `refusal`,
@@ -91,8 +96,12 @@ impl Decoder {
                         }
                     }
                     "tool_use" => out.push(Event::ToolStart { index, id: b["id"].as_str().unwrap_or("").to_string(), name: b["name"].as_str().unwrap_or("").to_string() }),
-                    // (thinking, redacted thinking: kept whole, sent back)
-                    _ => {
+                    // (thinking, redacted thinking: kept whole, sent back;
+                    // the chat says the model thinks)
+                    kind => {
+                        if kind.contains("thinking") {
+                            out.push(Event::Thinking(b["thinking"].as_str().unwrap_or("").to_string()));
+                        }
                         self.opaque.insert(index, b.clone());
                     }
                 }
@@ -103,6 +112,11 @@ impl Decoder {
                     "text_delta" => out.push(Event::Text(d["text"].as_str().unwrap_or("").to_string())),
                     "input_json_delta" => out.push(Event::ToolArgs { index, json: d["partial_json"].as_str().unwrap_or("").to_string() }),
                     kind => {
+                        if kind == "thinking_delta" {
+                            if let Some(t) = d["thinking"].as_str().filter(|t| !t.is_empty()) {
+                                out.push(Event::Thinking(t.to_string()));
+                            }
+                        }
                         if let Some(b) = self.opaque.get_mut(&index) {
                             // (thinking_delta → "thinking", signature_delta → "signature")
                             let field = kind.strip_suffix("_delta").unwrap_or(kind);
@@ -139,6 +153,12 @@ impl Decoder {
         }
         if let Some(choice) = v["choices"].as_array().and_then(|c| c.first()) {
             let d = &choice["delta"];
+            // (a reasoning model's thinking: DeepSeek's, LM Studio's and
+            // vLLM's `reasoning_content`, Ollama's and OpenRouter's
+            // `reasoning`)
+            if let Some(t) = d["reasoning_content"].as_str().or_else(|| d["reasoning"].as_str()).filter(|t| !t.is_empty()) {
+                out.push(Event::Thinking(t.to_string()));
+            }
             if let Some(t) = d["content"].as_str().filter(|t| !t.is_empty()) {
                 out.push(Event::Text(t.to_string()));
             }
@@ -208,6 +228,7 @@ impl Reply {
                 }
             }
             Event::Opaque(v) => self.blocks.push(Block::Opaque(v.clone())),
+            Event::Thinking(_) => {}
             Event::Usage(u) => {
                 self.usage.input = self.usage.input.max(u.input);
                 self.usage.output = self.usage.output.max(u.output);

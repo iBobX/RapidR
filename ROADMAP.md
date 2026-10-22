@@ -740,12 +740,12 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
 
 **RAI**
-- [ ] ★ R1 Chats kept, with a chat list (stored outside the project)
-- [ ] R2 Edit a sent message; Retry
+- [x] ★ R1 Chats kept, with a chat list (stored outside the project) (2026-10-22: per project in Studio's data folder — `chats/` beside the settings, the page's storage on the web —, keys and tokens redacted (`rapidr_ai::chats`, unit-tested); opening a project shows its newest chat; Chats: open, rename, delete with Undo, search titles and text; New Chat keeps the old one; the chat that made a new program goes with it; RAI.ChatState; flows ai-r1-*)
+- [x] R2 Edit a sent message; Retry (2026-10-22: Edit beside each question, a bar saying what Send will do, what followed moved to a saved copy "… (before the edit)"; Retry beside the last answer; RAI.Rewind/QuestionText; flows ai-r2-*)
 - [x] ★ R3 Messages queue while RAI works (2026-10-22: Send/Enter while it works shows *Queued: …* above the box, × takes it back, sent when the answer ends; Stop gives it back to the box; flows ai-r3-*, walked on the real screen with the mock and live with Haiku)
-- [ ] ★ R4 A live status line
-- [ ] R5 Context meter, Compact, `/` commands, reasoning effort
-- [ ] ★ R6 One model picker with ↻; the Set up RAI wizard
+- [x] ★ R4 A live status line (2026-10-22: what it does now from the stream — Thinking, Reading sites.rr, Searching the manual, Writing server.rr, Checking the code — the steps done after it, the seconds beside Stop, "No answer from the model for 30 s: wait, or Stop", "Waiting for you"; RAI.Activity/Elapsed/Quiet; flows ai-r4-*; "Running your program" comes with R7)
+- [x] R5 Context meter, Compact, `/` commands, reasoning effort (2026-10-22: the meter against where it compacts by itself, Compact and /compact; /new /chats /model /effort /undo /help listed as typed; Effort Low/Medium/High — Anthropic adaptive thinking (a budget on older models, stepping down on a refusal), OpenAI-compatible reasoning_effort, off for DeepSeek —; "Thought for N s", a link that opens it; flows ai-r5-*)
+- [x] ★ R6 One model picker with ↻; the Set up RAI wizard (2026-10-22: the provider row gone from the pane (Settings'), ↻ beside the model; Set Up RAI — free on this computer (finds Ollama, LM Studio, MLX Serve; never starts one) or a cloud key (a key found can be used; Test; a model) with cost and privacy in plain words; Tools, Ctrl+I before set-up, Settings > AI; flows ai-r6-*)
 - [ ] ★ R7 RAI runs and debugs (run, output, clicks, screenshots, debugger)
 - [ ] ★ R8 Permissions (Allow once / for this chat / Not now)
 - [ ] ★ R9 Safe test runs and the red card for risky code
@@ -758,6 +758,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [x] ★ K3 `search_manual`, `project_outline` (2026-10-22: the program as the compiler reads it — include order, forms, SUBs/FUNCTIONs with parameters, globals with types, lines; BM25 over the manual's guide pages; a mock-provider test checks every request offers both)
 - [x] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension) (2026-10-22: docs/rai-mistake-ledger.md, 12 entries; `FOR i AS INTEGER` in both compilers and the web — rapidr_ast::for_as, conformance for_as; a name declared again says where the first one is, in which file; an unknown SUB names the nearest; K4b: the `NOT FILEEXISTS` warning and its quick fix)
 - [ ] K5 Project notes for RAI
+- [ ] K8 Follow-ups from the KNOW lane — [x] the lite card and tool set for windows under 16K tokens (2026-10-22: short instructions, the card, eight tools: about 2,500 tokens instead of 7,800 at 3 characters a token — a live Claude Haiku first question with the full set counted 10,966 input tokens, project facts included —; an 8,192-token model starts and answers; RAI.Lite; flow ai-k8-lite); the web's preprocessed line numbers, `REDIM` without `AS`, the eval's click test and K6's run still open
 - [ ] K6 Evals and the "Which model?" report
 - [x] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`) *(K7, 2026-10-22: `rapidr lang truth` — syntax lines and examples compile, the new `expect` facet is run, in `regress.sh unit`; it found and fixed `Iloc`, `Select`, `GroupBy`, `Nlargest`, `Nsmallest`, `FromList`, `QUICKSORT` and more; docs/ai-architecture.md §2.)*
 

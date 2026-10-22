@@ -246,8 +246,11 @@ SUB DefineCommands
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
   AddCmd "view.keyboardShortcuts", "&Keyboard Shortcuts", "Tools", "", "", "", ""
   AddSep "Tools"
+  AddCmd "ai.setup", "Set &Up RAI...", "Tools", "", "", "", "-"
   AddCmd "ai.settings", "&AI Settings...", "Tools", "", "", "", "ai.assistant"
   AddCmd "ai.newChat", "New AI &Chat", "Tools", "", "", "ai", "ai.ask"
+  AddCmd "ai.chats", "AI C&hats", "Tools", "", "", "ai", "-"
+  AddCmd "ai.compact", "Co&mpact the AI Chat", "Tools", "", "", "ai", "-"
   AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
   AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
 
