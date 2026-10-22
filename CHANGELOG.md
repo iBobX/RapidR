@@ -8,6 +8,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The Output, Build and Problems pages wrap long lines** (ROutputConsole's
+  new `WordWrap`, RapidR's own, True unless a program sets it). A line longer
+  than the pane breaks onto more rows at a space near the edge (else at the
+  edge), so a long message reads whole instead of running off. It stays one
+  line to the mouse (a click on any of its rows selects it, `file:line` links
+  work on every row), the selection, Copy and a screen reader, and the wheel
+  and the bar move by rows. On the Problems page a row grows to hold its whole
+  message, the place after its last row (or under it). Off, a line is cut at
+  the edge as before — a problem's message ends in "…" — and resting the mouse
+  on it shows the whole text (an Output line's too: new). In RapidR Studio:
+  **View > Wrap Long Output Lines** (a check item, kept in the settings) and
+  **Wrap Long Lines** in the pane's right-click menu; flows `problems-wrap`,
+  `output-wrap-long-line`, `output-wrap-menu`, `output-wrap-off`,
+  `output-wrap-remembered` (the text contrast judged in every look), kernel
+  tests for the flow, the click, the copy, the wheel and the tooltips, the
+  manual's "Long lines in Output and Problems".
 - **Labels as links: `TabStop` on an RLabel** (RapidR's own; RapidQ's QLABEL
   never takes the focus, and a label without it doesn't). A label given
   `TabStop = 1` is a link: Tab reaches it (in `TabOrder`), the theme's focus

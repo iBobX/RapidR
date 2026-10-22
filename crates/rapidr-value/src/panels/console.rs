@@ -143,6 +143,9 @@ pub struct View {
     pub follow: bool,
     /// Its top line (absolute) while it doesn't follow.
     pub top: u64,
+    /// How far into that line the page is scrolled, in pixels (a wrapped
+    /// line takes several rows; the wheel stops between them).
+    pub sub: i64,
     /// The selection: the line it started at and the line it reaches (the
     /// caret). A Problems page's focused row is `caret`.
     pub anchor: Option<u64>,
@@ -151,7 +154,7 @@ pub struct View {
 
 impl Default for View {
     fn default() -> Self {
-        View { follow: true, top: 0, anchor: None, caret: None }
+        View { follow: true, top: 0, sub: 0, anchor: None, caret: None }
     }
 }
 
@@ -180,6 +183,9 @@ pub struct Console {
     pub page: Page,
     pub show_tabs: bool,
     pub auto_scroll: bool,
+    /// (RapidR's, on by default) A line longer than the page is wide wraps
+    /// onto more rows; off, it's cut at the edge.
+    pub word_wrap: bool,
     pub max_lines: usize,
     /// The search box's text.
     pub filter: String,
@@ -209,6 +215,7 @@ impl Default for Console {
             page: Page::Output,
             show_tabs: true,
             auto_scroll: true,
+            word_wrap: true,
             max_lines: 5000,
             filter: String::new(),
             views: [View::default(); 3],
@@ -255,6 +262,12 @@ impl Console {
     /// The first absolute line of page `p` (0 for the problems).
     pub fn first(&self, p: Page) -> u64 {
         self.screen(p).map_or(0, |s| s.first)
+    }
+
+    /// Page `p`'s text revision: it goes up with every change to what the
+    /// page shows (a layout of its lines is good while it stays).
+    pub fn rev(&self, p: Page) -> u64 {
+        self.screen(p).map_or(self.problems_rev, |s| s.rev)
     }
 
     /// How many lines (rows) page `p` has.
@@ -556,6 +569,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "filter" => Value::String(c.filter.clone()),
             "showtabs" => basic_bool(c.show_tabs),
             "autoscroll" => basic_bool(c.auto_scroll),
+            "wordwrap" => basic_bool(c.word_wrap),
             "linecount" => Value::Integer(c.count(c.page) as i64),
             "problemcount" => Value::Integer(c.problems.len() as i64),
             "text" => Value::String(c.text(c.page)),
@@ -581,6 +595,7 @@ pub fn rt_set<R: Runtime>(_rt: R, name: &str, prop: &str, v: &Value) -> bool {
         }
         "showtabs" => with_mut(name, |c| c.show_tabs = truth(v)),
         "autoscroll" => with_mut(name, |c| c.set_auto_scroll(truth(v))),
+        "wordwrap" => with_mut(name, |c| c.word_wrap = truth(v)),
         _ => return false,
     }
     true

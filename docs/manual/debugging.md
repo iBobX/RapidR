@@ -52,6 +52,26 @@ The tool bar has the same commands: ▶ Run (Continue while paused),
 ▷ Run Without Debugging, ❙❙ Pause, ■ Stop and Build, then Step Into, Step
 Over, Step Out and Toggle Breakpoint.
 
+### Long lines in Output and Problems
+
+A line longer than the pane is wide wraps onto the next row — at a space
+where it can, so a long message reads whole instead of running off the edge.
+The same goes for the **Build** page and for the **Problems** page, whose
+rows grow to hold their whole message (the place, `Main.rr:12:5`, follows its
+last row). It is still one line to the mouse, the selection and Copy: a click
+on any row of it selects the line, and Ctrl+C copies it without line breaks
+of its own. **View ▸ Wrap Long Output Lines** turns it off (so does the
+pane's right-click menu, **Wrap Long Lines**); Studio remembers the choice.
+Off, a long line is cut at the edge and a problem's message ends in "…", and
+resting the mouse on either shows the whole text in a tooltip. A screen
+reader reads each line whole either way. In your own programs an
+`ROutputConsole` has the same switch: its `WordWrap` property, True unless
+you set it.
+
+![The Output pane in the debugging layout: one long line of output wrapped over three rows at spaces, then the next line](images/panes/output-wrap.png)
+
+![The same with Wrap Long Output Lines off: the long line is cut at the pane's edge](images/panes/output-cut.png)
+
 ### Two layouts: editing and debugging
 
 Studio arranges its panes for what you are doing.

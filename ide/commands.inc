@@ -134,6 +134,8 @@ SUB DefineCommands
   AddCmd "view.outline", "O&utline", "View", "", "", "", "symbols/module"
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
+  ' (long lines of the Output, Build and Problems pages: wrapped, or cut at the edge)
+  AddCmd "view.outputWrap", "Wrap &Long Output Lines", "View", "", "", "", ""
   AddCmd "view.immediate", "&Immediate", "View", "", "", "", "terminal"
   AddCmd "view.variables", "&Variables", "View", "", "", "", "RVARIABLESVIEW"
   AddCmd "view.watch", "W&atch", "View", "", "", "", "debug.addWatch"
@@ -423,6 +425,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.highcontrast", ThemeChoice = "rapidr high contrast"
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
   CheckCmd "view.previewClassic", PreviewClassic
+  CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
 END SUB
 
 SUB MenuPicked(Sender AS RMenuItem)

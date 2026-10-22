@@ -182,6 +182,7 @@ properties = [
   { name = "ShowTabs", type = "bool", default = true, doc = "Whether the pages' tabs (and the search box) are shown above the text." },
   { name = "EmptyText", type = "string", default = "", doc = "What the Output page says while it has nothing (\"Press F5 to run\")." },
   { name = "AutoScroll", type = "bool", default = true, doc = "New output scrolls the page to its end (unless the user scrolled up)." },
+  { name = "WordWrap", type = "bool", default = true, origin = "rapidr", doc = "True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip)." },
   { name = "LineCount", type = "int", access = "read", design = false, doc = "How many lines the shown page has." },
   { name = "ProblemCount", type = "int", access = "read", design = false, doc = "How many problems the Problems page lists." },
   { name = "Text", type = "string", access = "read", design = false, doc = "The shown page's text, without colours." },

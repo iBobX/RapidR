@@ -1552,9 +1552,9 @@ const CASES = [
     dump: { "studio.caption": /^Shelf - RapidR Studio$/, "dock.documentcount": /^2$/, "reopenrow.visible": /^0$/ },
   },
   // (A11Y) The Welcome page's Recent links are keyboard stops (a label
-  // given TabStop is a link): Shift+Tab from the offer to reopen reaches the
-  // project's link — a screen reader's focus is on a link named by the file —
-  // and Enter on it opens the project, as a click does.
+  // given TabStop is a link). With the offer to reopen the last project
+  // there, Shift+Tab from it reaches the project's link — a screen reader's
+  // focus is on a link named by the file —…
   {
     name: "welcome-recent-link-keyboard",
     open: "tests/fixtures/studio_forms/Shelf.rrproj",
@@ -1563,17 +1563,25 @@ const CASES = [
     do: "wait",
     delay: 3,
     restart: { noOpen: true, events: "studio.__key_9_256", delay: 4 },
-    a11y: [["Shelf.rrproj", "link", "focused", (n) => (n.actions || []).includes("click") && (n.description || "").endsWith("Shelf.rrproj")], [/^Reopen Shelf/, "button"]],
+    // (the ring round the focused link, in every look, the page's text judged too)
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    a11y: [["Shelf", "link", "focused", (n) => (n.actions || []).includes("click") && (n.description || "").endsWith("Shelf.rrproj")], [/^Reopen Shelf/, "button"]],
     dump: { "studio.caption": /^RapidR Studio$/, "recentlink(0).tabstop": /^(1|-1)$/, "recentlink(0).visible": /^(1|-1)$/ },
   },
+  // …and without it (turned off in Settings), Shift+Tab from the Project
+  // pane walks back over the example cards (17) to the same link (18 times); Enter on
+  // it opens the project, as a click does.
   {
     name: "welcome-recent-link-enter",
     open: "tests/fixtures/studio_forms/Shelf.rrproj",
     copyDir: true,
     webFiles: SHELF_FILES,
-    do: "wait",
-    delay: 3,
-    restart: { noOpen: true, events: "studio.__key_9_256,studio.__key_13", delay: 4 },
+    do: "wait,view.settings,wait",
+    events: "reopenbox.__mousedown_6_6,reopenbox.__mouseup_6_6,settingsokbtn.__key_13",
+    delay: 4,
+    restart: { noOpen: true, do: "wait", delay: 4, events: [...Array(18).fill("studio.__key_9_256"), "studio.__key_13"].join(",") },
     dump: { "studio.caption": /^Shelf - RapidR Studio$/, "reopenrow.visible": /^0$/ },
   },
   // (S2) …Clear Recent (Alt+F, R, C): the list is empty — the menu says
@@ -2002,6 +2010,65 @@ const CASES = [
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait",
     delay: 8,
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // (A11Y) …and the Problems page wraps a long message onto more rows, so
+    // it reads whole (WordWrap, on unless turned off) — captured in every
+    // look, the page's text judged against what it is drawn on
+    name: "problems-wrap",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait,view.problems,view.debugPanes,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    dump: { "outputbox.page": /^problems$/, "outputbox.wordwrap": /^(1|-1|True)$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // (A11Y) A long line of the program's output wraps in the Output pane —
+    // one logical line (the pane's text keeps it whole), several rows to look at
+    name: "output-wrap-long-line",
+    open: "tests/fixtures/studio_long_output.bas",
+    webFiles: ["tests/fixtures/studio_long_output.bas"],
+    do: "run.start,wait,wait,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    dump: { "outputbox.page": /^output$/, "outputbox.text": /^Shipping the order to Ada Lovelace, 12 Market Street, Manchester, M1 1AA, United Kingdom, by courier on Tuesday the fourteenth of March, signed for at the front desk; the next delivery is the week after that\.\ndone/, "outputbox.wordwrap": /^(1|-1|True)$/ },
+  },
+  {
+    // (A11Y) View > Wrap Long Output Lines from the keyboard (Alt+V, L): the
+    // menu item says it is checked while it wraps (a screen reader reads a
+    // check item), and it turns the wrapping off — the long message cut with
+    // "…" and a tooltip
+    name: "output-wrap-menu",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    events: "studio.__key_86_1",
+    delay: 4,
+    a11y: [["Wrap Long Output Lines", "menuitemcheckbox", "checked"], ["View", "menuitem", "expanded"]],
+    dump: { "outputbox.wordwrap": /^(1|-1|True)$/ },
+  },
+  {
+    name: "output-wrap-off",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait,view.problems,view.debugPanes,wait,wait,view.outputWrap,wait",
+    delay: 8,
+    capture: true,
+    dump: { "outputbox.page": /^problems$/, "outputbox.wordwrap": /^(0|False)$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // …and Studio remembers it: started again, it is still off
+    name: "output-wrap-remembered",
+    open: "tests/fixtures/hello_form.bas",
+    copy: true,
+    do: "view.outputWrap,wait",
+    delay: 3,
+    restart: { events: "", delay: 3 },
+    dump: { "outputbox.wordwrap": /^(0|False)$/ },
   },
   {
     // a file that opens with a warning shows its squiggle as it opens — no

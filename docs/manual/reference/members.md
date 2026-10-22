@@ -5184,6 +5184,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `ShowTabs` | bool | True | Whether the pages' tabs (and the search box) are shown above the text. |
 | `EmptyText` | string | `""` | What the Output page says while it has nothing ("Press F5 to run"). |
 | `AutoScroll` | bool | True | New output scrolls the page to its end (unless the user scrolled up). |
+| `WordWrap` | bool | True | True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip). |
 | `LineCount` (read-only) | int |  | How many lines the shown page has. |
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
