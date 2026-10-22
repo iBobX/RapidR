@@ -105,7 +105,7 @@ pub struct Tab {
 /// A group of panes: where it is (in the dock manager's coordinates; a
 /// floating one's in its window's), and in its own coordinates its
 /// header's tabs (one tab shows as a title), buttons and the place of the
-/// active pane's component.
+/// active pane's component (inside the group's 1-pixel frame).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Group {
     pub slot: Slot,
@@ -152,7 +152,7 @@ pub struct DocGroup {
     pub tabs: Vec<Tab>,
     /// The switch's segments: (the view, its caption, its place).
     pub switch: Vec<(DocView, String, Rect)>,
-    /// Under the strip.
+    /// Under the strip, inside the group's frame.
     pub content: Rect,
     /// Where the shown document's component(s) go: one, or two side by
     /// side with the splitter between them.
@@ -321,9 +321,12 @@ pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<
             x += wd;
         }
     }
-    // (flush with the group's edges, over the header's bottom line: the
-    // pane's own border is the group's)
-    let content = (0, HEADER - 1, w, (h - HEADER + 1).max(0));
+    // (inside the group's 1-pixel frame — left, right and bottom —, its top
+    // over the header's bottom line: the frame shows the whole height
+    // beside the pane, never only beside its header; the pane's component
+    // draws no border of its own in the dock — the kernel's `hosted` —, so
+    // there is one edge, the group's)
+    let content = (1, HEADER - 1, (w - 2).max(0), (h - HEADER).max(0));
     Group { slot, panes: panes.to_vec(), active: active.min(panes.len().saturating_sub(1)), rect, tabs, buttons, content, path }
 }
 
@@ -427,7 +430,9 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
         tabs.push(Tab { pane: p.clone(), rect: (x, gy, wd, DOC_TABS), close: Some(close), text: (x + 12 - shed + icon, close.0 - 4) });
         x += wd + 1;
     }
-    let content = (gx, gy + DOC_TABS, gw, (gh - DOC_TABS).max(0));
+    // (under the strip, inside the group's 1-pixel frame on the left, the
+    // right and the bottom: one edge the whole height, as a docked group's)
+    let content = (gx + 1, gy + DOC_TABS, (gw - 2).max(0), (gh - DOC_TABS - 1).max(0));
     let (cx, cy, cw, ch) = content;
     let (places, view_splitter) = if views.len() >= 2 && titles.view(&shown) == DocView::Split {
         let first = ((cw - GAP) * titles.view_ratio(&shown).clamp(100, 900) / 1000).max(0);

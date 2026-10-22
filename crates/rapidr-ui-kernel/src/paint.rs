@@ -53,11 +53,29 @@ pub struct Painter<'a> {
     /// Inside [`Painter::zoomed`]: its magnification and where its (0, 0)
     /// is on the device.
     zoom: Option<crate::display::Zoom>,
+    /// The component being drawn is a dock manager's pane ([`Painter::hosted`]).
+    hosted: bool,
 }
 
 impl<'a> Painter<'a> {
     pub fn new(list: &'a mut DisplayList) -> Self {
-        Painter { list, origin: (0, 0), theme: theme::current(), zoom: None }
+        Painter { list, origin: (0, 0), theme: theme::current(), zoom: None, hosted: false }
+    }
+
+    /// The component being drawn is a dock manager's pane — the component
+    /// of a docked, floating or slid-out group (RDOCKGROUP) or a document
+    /// (RDOCKDOCS), or a box filling such a pane (`FormUi::hosted`): the
+    /// group's 1-pixel frame is its edge, so in RapidR's
+    /// looks it draws no border or focus ring of its own
+    /// ([`Painter::fluent_field`], the code editor) — one edge, never two;
+    /// its group shows the focus. The classic look's components keep their
+    /// sunken edges. Set while the form draws it.
+    pub fn hosted(&self) -> bool {
+        self.hosted
+    }
+
+    pub(crate) fn set_hosted(&mut self, hosted: bool) {
+        self.hosted = hosted;
     }
 
     /// Draws what `f` draws magnified `zoom` times, with its (0, 0) at
@@ -277,11 +295,18 @@ impl<'a> Painter<'a> {
     /// tree, a grid): rounded, filled `fill`, a hairline border; ringed in
     /// the focus colour when `focused` is `Some(true)` (a box whose
     /// component draws its own focus; lists, trees and grids are ringed by
-    /// the form, [`ComponentKind::field`]).
+    /// the form, [`ComponentKind::field`]). A dock's pane
+    /// ([`Painter::hosted`]): square, no border and no ring — the group's
+    /// frame is its edge, and its group says it has the focus (the header's
+    /// accent line and tint; high contrast's frame in the accent).
     ///
     /// [`ComponentKind::field`]: crate::components::ComponentKind::field
     pub fn fluent_field(&mut self, w: i64, h: i64, fill: u32, focused: Option<bool>) {
         let t = self.theme;
+        if self.hosted {
+            self.fill((0, 0, w, h), fill);
+            return;
+        }
         self.round((0, 0, w, h), t.radius, Some(fill), Some(t.border), 1.0);
         if focused == Some(true) {
             self.field_focus(w, h);
@@ -733,6 +758,22 @@ impl FormUi {
         list
     }
 
+    /// Node `i` is a dock manager's pane ([`Painter::hosted`]): the
+    /// component of a dock group or of the document area — or a box out to
+    /// the left, right and bottom edges of such a pane when that is a plain
+    /// panel, drawing no edge of its own (Studio's Watch, Breakpoints and
+    /// Search lists) —, its edge the group's frame.
+    fn hosted(&self, i: usize, store: &dyn Store) -> bool {
+        let Some(q) = self.nodes[i].parent else { return false };
+        let parent = &self.nodes[q];
+        if matches!(parent.type_name.as_str(), "RDOCKGROUP" | "RDOCKDOCS") {
+            return true;
+        }
+        let (x, y, w, h) = self.nodes[i].rect;
+        let reaches = x <= 0 && x + w >= parent.rect.2 && y + h >= parent.rect.3;
+        reaches && parent.type_name == "RPANEL" && crate::components::panel::plain(store, &parent.id) && self.hosted(q, store)
+    }
+
     fn paint_node(&mut self, i: usize, store: &dyn Store, ts: &mut TextSystem, p: &mut Painter, default: Option<usize>, focused_is_button: bool) {
         if !self.nodes[i].shown {
             return;
@@ -753,6 +794,8 @@ impl FormUi {
         let children = self.children(i);
         let (scale, system_corner) = (self.scale, self.system_corner);
         let room = self.nodes[i].kind.map_or((0, 0, w, h), |k| k.room(store, &self.nodes[i].id, &store.font(&self.nodes[i].id), w, h));
+        // (a dock manager's pane: its group's frame is its edge)
+        let hosted = self.hosted(i, store);
         p.at((x, y), |p| {
             p.clipped(room, |p| {
                 let node = &mut self.nodes[i];
@@ -760,8 +803,11 @@ impl FormUi {
                     // (painting fires nothing)
                     let mut events = Vec::new();
                     let mut cx = Cx { store, text: ts, id: &node.id, rect: node.abs, font: store.font(&node.id), state, ui: &mut node.ui, events: &mut events, scale, system_corner };
+                    p.set_hosted(hosted);
                     kind.paint(&mut cx, p);
-                    if state.focused && kind.field() {
+                    p.set_hosted(false);
+                    // (a dock's pane: its group shows the focus, Painter::fluent_field)
+                    if state.focused && kind.field() && !hosted {
                         p.items_focus(w, h);
                     }
                 }

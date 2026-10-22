@@ -108,11 +108,11 @@ export const cases = [
   // moved by the keyboard (MovePane, Left, Enter: left of its group), F6
   // in Properties (the next area: Output); SaveLayout / changes / LoadLayout give the
   // same text; tabbed documents, both closed (OnDocumentClose's Cancel
-  // keeps Doc1), Properties floated (its window). Pixels: Explorer's inactive classic title bar, a gutter.
+  // keeps Doc1), Properties floated (its window); the panes' sizes inside their groups' 1-pixel frames. Pixels: Explorer's inactive classic title bar, a gutter.
   { name: "dock_manager", events: "dock.__mousedown_300_352,dock.__mouseup_300_352,dock.__mousedown_265_200,dock.__mousemove_285_200,dock.__mousemove_305_200,dock.__mouseup_305_200,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_12_40,dock.__mouseup_12_40,dock.__mousedown_700_12,dock.__mousemove_710_20,dock.__mousemove_164_296,dock.__mouseup_164_296,bmove.onclick,dock.__key_37,dock.__key_13,props.__key_117,bsave.onclick,btabs.onclick,breport.onclick",
     dump: "lbl.caption,info.caption",
     expect: ["lbl.caption=- p:output L p:props p:props L p:output L p:output p:explorer L p:props L [hidden autohide] L loaded same L c:doc1 c:doc2 a:doc1 p:doc2 L p:props L",
-      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 280x493 298x302"],
+      "info.caption=tabs 6 explorer output doc1 | docked floating docked docked autohide document | 278x492 296x301"],
     pixels: [[150, 5, "808080"], [306, 200, "f0f0f0"]], clientWidth: 898 },
   // RDIFFVIEW (I2, rapidr_value::objects::diffview): two versions of a
   // program, three hunks. A click on the first hunk's Accept button (pressed
