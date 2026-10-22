@@ -86,6 +86,7 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
         "close" | "disconnect" => return close(host, name, &key),
         "query" | "execute" => return query(host, name, &key, args),
         "queryasync" => return query_async(host, name, &key, args),
+        "schema" => return schema(host, name, &key),
         "cancel" => return v_int(background::cancel(&key) as i64),
         "escapestring" => {
             // (EscapeString(S, Length): the first Length characters)
@@ -623,6 +624,45 @@ fn my_value(v: &Value) -> MyValue {
     }
 }
 
+/// `Schema`: the current database's tables and views with their columns
+/// and types (information_schema: a read-only connection's too), as JSON
+/// (RCODEEDITOR's SetSchema takes it). "" when not connected, busy, or no
+/// database is selected (OnError says why).
+fn schema(host: &dyn Host, name: &str, key: &str) -> Value {
+    let done = with_db(key, |db| {
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
+        let mut conn = db.conn()?;
+        let text = |e: mysql::Error| e.to_string();
+        let tables: Vec<(String, String)> = conn
+            .query("SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME")
+            .map_err(text)?;
+        let columns: Vec<(String, String, String)> = conn
+            .query("SELECT TABLE_NAME, COLUMN_NAME, UPPER(COLUMN_TYPE) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, ORDINAL_POSITION")
+            .map_err(text)?;
+        Ok::<_, String>(
+            tables
+                .into_iter()
+                .map(|(table, kind)| {
+                    let cols = columns.iter().filter(|(t, _, _)| *t == table).map(|(_, c, ty)| (c.clone(), ty.clone())).collect();
+                    let kind = if kind.contains("VIEW") { "view" } else { "table" }.to_string();
+                    (table, kind, cols)
+                })
+                .collect::<Vec<_>>(),
+        )
+    });
+    match done {
+        Some(Ok(tables)) => v_str(&crate::schema_json(&tables)),
+        Some(Err(e)) => {
+            host.report(&format!("[MySQL] Schema: {e}"));
+            host.fire(name, "onerror", &[v_str(&e)]);
+            v_str("")
+        }
+        None => v_str(""),
+    }
+}
+
 /// `SelectDB(name)`: 1 if the server now uses that database.
 fn select_db(host: &dyn Host, key: &str, args: &[Value]) -> Value {
     let db = args.first().map(|v| v.to_string_val()).unwrap_or_default();
@@ -1012,6 +1052,10 @@ mod tests {
         settle();
         assert!(start.elapsed().as_secs() < 10, "Cancel took {:?}", start.elapsed());
         assert!(h.0.borrow().iter().any(|e| e == "onerror(cancelled)"), "{:?}", h.0.borrow());
+        // Schema: the database's tables (the TEMPORARY one isn't listed by
+        // information_schema; a JSON object of tables)
+        let json = call("schema", &[]);
+        assert!(json.starts_with("{\"tables\":["), "{json}");
         // and the connection still answers
         assert_eq!(call("query", &[v_str("SELECT 41 + 1 AS answer")]), "1");
         assert_eq!(call("colname", &[v_int(0)]), "answer");

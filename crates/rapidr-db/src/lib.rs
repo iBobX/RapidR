@@ -67,6 +67,36 @@ pub trait Host {
     fn row_changed(&self, _name: &str) {}
 }
 
+/// `Schema`'s JSON — what RCODEEDITOR's SetSchema takes: `{"tables":
+/// [{"name", "kind" ("table" / "view"), "columns": [{"name", "type"}]}]}`.
+fn schema_json(tables: &[(String, String, Vec<(String, String)>)]) -> String {
+    fn text(s: &str) -> String {
+        let mut out = String::with_capacity(s.len() + 2);
+        out.push('"');
+        for c in s.chars() {
+            match c {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+                c => out.push(c),
+            }
+        }
+        out.push('"');
+        out
+    }
+    let tables: Vec<String> = tables
+        .iter()
+        .map(|(name, kind, columns)| {
+            let cols: Vec<String> = columns.iter().map(|(n, t)| format!("{{\"name\":{},\"type\":{}}}", text(n), text(t))).collect();
+            format!("{{\"name\":{},\"kind\":{},\"columns\":[{}]}}", text(name), text(kind), cols.join(","))
+        })
+        .collect();
+    format!("{{\"tables\":[{}]}}", tables.join(","))
+}
+
 /// A Query's rows (`columns`, `rows`) as component `key`'s frame — what an
 /// RDBGrid bound to it draws — when it has one (a background query's
 /// before) or something is bound to it; otherwise nothing is copied.

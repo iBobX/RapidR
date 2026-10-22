@@ -3468,6 +3468,7 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 | `Cancel AS INTEGER` | Stops the background query (SQLite's interrupt): OnError("cancelled") follows — or OnDone, if it had just finished. Returns 1 if one was running. |
 | `FetchRow` | Moves to the next row of the last query's rows: 1, or 0 past the last. |
 | `ColName(Index AS INTEGER) AS STRING` | The name of column `Index` (from 0) of the last query's rows, as the statement gives it (`SELECT name AS who` → "who"; a repeated name stays as it is). "" past the last column. A background query's too, as soon as its columns are known. |
+| `Schema AS STRING` | The database's tables and views, each with its columns and their declared types, as JSON — what an RCodeEditor's SetSchema takes: `Editor.SetSchema DB.Schema`. "" when not connected or while a background query runs (OnError says which). |
 | `ColType(Index AS INTEGER) AS STRING` | The declared type of column `Index` (from 0) of the last query's rows, as the table declares it ("INTEGER", "VARCHAR(40)", "DATE"); "" for an expression (`COUNT(*)`, `a + 1`) or past the last column. |
 | `FetchField` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
 | `RowSeek(row)` | The next FetchRow fetches row `row` (from 0). |
@@ -3521,6 +3522,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `FetchLengths AS INTEGER` | Measures the current row's fields in bytes for Length(i), which keeps those values until the next FetchLengths. Returns 1, or 0 when there's no current row (before the first FetchRow, past the last). |
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
 | `ColName(Index AS INTEGER) AS STRING` *(RapidR)* | The name of column `Index` (from 0) of the last query's rows, from the result's own metadata (`SELECT name AS who` → "who"): known on a read-only connection too, nothing run again. "" past the last column. A background query's too, as soon as its columns are known. |
+| `Schema AS STRING` *(RapidR)* | The selected database's tables and views, each with its columns and their types (from information_schema: a read-only connection's too), as JSON — what an RCodeEditor's SetSchema takes: `Editor.SetSchema DB.Schema`. "" when not connected or while a background query runs (OnError says which). |
 | `ColType(Index AS INTEGER) AS STRING` *(RapidR)* | The type of column `Index` (from 0) of the last query's rows, from the result's metadata, as MySQL names it in a table: "INT", "BIGINT UNSIGNED", "DECIMAL", "VARCHAR", "TEXT", "BLOB", "DATETIME", "ENUM", "JSON" …; "" past the last column. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |

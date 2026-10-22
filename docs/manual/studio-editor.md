@@ -219,5 +219,5 @@ file):
   `preserve`.
 
 Your own programs can use the same editor: it is the RCodeEditor component
-(see [Components](components.md) and the
-[members reference](reference/members.md#rcodeeditor)).
+(see [The code editor in your programs](code-editor.md), with its SQL mode,
+and the [members reference](reference/members.md#rcodeeditor)).

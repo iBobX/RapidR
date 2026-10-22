@@ -637,6 +637,20 @@ mod tests {
         assert!(f.test_action(&s, &mut ts, "kg_dbgrid", "__end"));
         let t = texts(&f.paint(&s, &mut ts, 1.0));
         assert!(t.contains(&"n100063".to_string()), "{t:?}");
+        // scrolled by the wheel through the rows: a frame's drawing stays
+        // the rows on screen's, wherever it is (printed with --nocapture)
+        let mut worst = std::time::Duration::ZERO;
+        for i in 0..60 {
+            f.mouse_wheel(&s, &mut ts, (200.0, 150.0), (0.0, if i % 2 == 0 { -3.0 } else { -40.0 }), crate::input::Mods::NONE);
+            let start = std::time::Instant::now();
+            let list = f.paint(&s, &mut ts, 2.0);
+            worst = worst.max(start.elapsed());
+            assert!(texts(&list).len() < 200);
+        }
+        let top = link::grid("kg_dbgrid").unwrap().top;
+        assert!(top < 100_000 - 500, "the wheel scrolled up from the end: top {top}");
+        eprintln!("RDBGrid, 100,064 rows: the slowest of 60 scrolled frames drew in {:.2} ms (top now {top})", worst.as_secs_f64() * 1000.0);
+        assert!(worst.as_millis() < 250, "{worst:?}");
         // a heading clicked: asked, not sorted here
         link::grid_title_click("kg_dbgrid", 1);
         let d = link::grid("kg_dbgrid").unwrap();
@@ -646,5 +660,37 @@ mod tests {
         let mut clip = crate::MemClipboard::default();
         f.key_down(&s, &mut ts, 67, "", crate::input::Mods { ctrl: true, ..crate::input::Mods::NONE }, &mut clip);
         assert_eq!(clip.0.as_deref(), Some("100063\tn100063"));
+    }
+
+    /// Rows streaming in (an empty result, then its columns, then chunks
+    /// that grow), drawn after each: the view stays at the first row.
+    #[test]
+    fn streaming_rows_keep_the_view_at_the_top() {
+        let names = ["id", "name"];
+        link::create("kg_db2", "RSQLITE");
+        frame::set_frame("kg_db2", frame::Frame::default());
+        let s = form("kg_dbgrid2");
+        link::set("kg_dbgrid2", "datasource", &v_str("kg_db2"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "f", true);
+        f.paint(&s, &mut ts, 2.0);
+        frame::set_frame("kg_db2", frame::Frame::with_columns(&names));
+        f.paint(&s, &mut ts, 2.0);
+        let (mut from, mut n) = (0, 64);
+        while from < 300_000 {
+            let mut b = frame::FrameBuilder::new(&names, n);
+            for i in from..from + n {
+                b.push(0, Some(&i.to_string()));
+                b.push(1, Some(&format!("n{i}")));
+                b.end_row();
+            }
+            frame::with_frame_mut("kg_db2", |fr| fr.append(&b.finish(0)));
+            f.paint(&s, &mut ts, 2.0);
+            assert_eq!(link::grid("kg_dbgrid2").unwrap().top, 0, "after {} rows", from + n);
+            from += n;
+            n = (n * 2).min(65_536);
+        }
+        let t = texts(&f.paint(&s, &mut ts, 2.0));
+        assert!(t.contains(&"n0".to_string()), "{t:?}");
     }
 }

@@ -317,7 +317,11 @@ END CREATE
   rows scroll smoothly); a click or the arrow keys move the current row; a
   heading's click sorts its view (again: the other way, a third time: the
   data's order) without changing the data. Numbers are right-aligned, a
-  missing value is a dimmed `null`; screen readers hear a grid.
+  missing value is a dimmed `null`; Ctrl+C (Cmd+C) copies the current row;
+  screen readers hear a grid. Its `DataSource` can also be an `RSQLite` or
+  an `RMySQL`: their last query's rows, a background query's as they
+  arrive — the program sorts those by asking again with `ORDER BY`
+  ([Databases](databases.md#a-querys-rows-in-a-grid)).
 - **DataSource + DataField** on **REdit** (its `Text`) and **RLabel** (its
   `Caption`): the field of the current row; what the user types in an
   edit goes back into the table. RapidR's own properties on these

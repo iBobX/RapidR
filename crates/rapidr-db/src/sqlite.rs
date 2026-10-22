@@ -103,6 +103,7 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
         "queryasync" => return query_async(host, name, &key, args),
         "cancel" => return v_int(background::cancel(&key) as i64),
         "queryscalar" | "query_scalar" | "scalar" => return query_scalar(host, name, &key, args),
+        "schema" => return schema(host, name, &key),
         "escapestring" => {
             let s = args.first().map(|v| v.to_string_val()).unwrap_or_default();
             return v_str(&s.replace('\'', "''"));
@@ -253,6 +254,38 @@ fn query_scalar(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value
         Ok(table) => v_str(table.and_then(|t| t.rows.into_iter().next()?.into_iter().next()).as_deref().unwrap_or("")),
         Err(e) => {
             host.report(&format!("[SQLite] Query error: {e}"));
+            host.fire(name, "onerror", &[v_str(&e)]);
+            v_str("")
+        }
+    }
+}
+
+/// `Schema`: the database's tables and views with their columns and
+/// declared types, as JSON (RCODEEDITOR's SetSchema takes it). "" when not
+/// connected or busy (OnError says which).
+fn schema(host: &dyn Host, name: &str, key: &str) -> Value {
+    let outcome = DBS.with(|d| {
+        let dbs = d.borrow();
+        let db = dbs.get(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
+        let conn = db.conn()?;
+        let text = |e: rusqlite::Error| e.to_string();
+        let mut stmt = conn.prepare("SELECT name, type FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").map_err(text)?;
+        let names: Vec<(String, String)> = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).map_err(text)?.filter_map(Result::ok).collect();
+        let mut tables = Vec::new();
+        for (table, kind) in names {
+            let mut info = conn.prepare("SELECT name, type FROM pragma_table_info(?1)").map_err(text)?;
+            let columns: Vec<(String, String)> = info.query_map([&table], |r| Ok((r.get(0)?, r.get(1)?))).map_err(text)?.filter_map(Result::ok).collect();
+            tables.push((table, kind, columns));
+        }
+        Ok::<_, String>(crate::schema_json(&tables))
+    });
+    match outcome {
+        Ok(json) => v_str(&json),
+        Err(e) => {
+            host.report(&format!("[SQLite] Schema: {e}"));
             host.fire(name, "onerror", &[v_str(&e)]);
             v_str("")
         }
@@ -839,5 +872,12 @@ mod column_tests {
         assert_eq!(cols("coltype")[..3], ["VARCHAR(40)", "INTEGER", "INTEGER"]);
         // (not connected: nothing)
         assert_eq!(method(&h, "Other", "colname", &[v_int(0)]).to_string_val(), "");
+        // Schema: the tables and views, their columns and declared types
+        call("query", &[v_str("CREATE VIEW grown AS SELECT name, born FROM people; CREATE TABLE \"odd \"\"name\"\"\" (x)")]);
+        assert_eq!(
+            call("schema", &[]),
+            r#"{"tables":[{"name":"grown","kind":"view","columns":[{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"}]},{"name":"odd \"name\"","kind":"table","columns":[{"name":"x","type":""}]},{"name":"people","kind":"table","columns":[{"name":"id","type":"INTEGER"},{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"},{"name":"score","type":"REAL"}]}]}"#
+        );
+        assert_eq!(method(&h, "Other", "schema", &[]).to_string_val(), "");
     }
 }

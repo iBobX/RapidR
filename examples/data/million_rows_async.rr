@@ -162,8 +162,8 @@ END SUB
 
 SUB QueryDone(Rows AS INTEGER, Ms AS INTEGER)
     IF Mode = "make" THEN
-        ' (what the editor completes: the table and its columns)
-        Editor.SetSchema "{""big"": {""id"": ""INTEGER"", ""customer"": ""TEXT"", ""city"": ""TEXT"", ""amount"": ""REAL"", ""day"": ""TEXT""}}"
+        ' (what the editor completes: the database's tables and columns)
+        Editor.SetSchema DB.Schema
         Status.Caption = "Made the table in " + STR$(Ms) + " ms."
         Mode = ""
         RunQuery "SELECT * FROM big"

@@ -17,7 +17,7 @@ const ANY: &[&str] = &[
 /// QSQLITE / QMYSQL (and RapidR's `DB.ClearParams`).
 const DATABASE: &[&str] = &[
     "connect", "disconnect", "query", "fetchrow", "fetchfield", "fetchlengths", "fieldseek", "rowseek", "row", "rowblob",
-    "escapestring", "selectdb", "createdb", "dropdb", "clearparams", "cancel",
+    "escapestring", "selectdb", "createdb", "dropdb", "clearparams", "cancel", "schema",
 ];
 
 /// QSOCKET, QSERVERSOCKET, RHTTP. (`Showmessage Sock.GetHostIP`: RapidQ's

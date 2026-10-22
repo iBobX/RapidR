@@ -8,6 +8,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Background queries, a grid of a database's rows, and an SQL editor**
+  (RapidR Database Studio's REQUEST-001 items 1-3; every program has them).
+  - `QueryAsync(sql [, values…])` on `RSQLite` and `RMySQL` runs a query in
+    the background: the rows stream in chunks (`OnRows(Count)`, `RowCount`
+    following), then `OnDone(Rows, Ms)` or `OnError(Message)`; `Cancel` stops
+    it (`OnError("cancelled")`: SQLite's interrupt, MySQL's `KILL QUERY` on a
+    second connection); `Busy`. One query at a time: a query while one runs
+    is refused at once with `OnError("busy: …")`, never waited for. On the
+    desktop each connection runs its queries on a worker thread; in a
+    browser on the page's thread in 8 ms slices, the page drawn between them.
+    Measured with the new example: a million rows on the desktop, first rows
+    after 15-25 ms, all in about 200 ms; 100,000 in Chromium, first rows after
+    1-25 ms; a button clicked meanwhile answered at once on both.
+  - `RDBGrid.DataSource` can be an `RSQLite` or `RMySQL`: their last query's
+    rows (a background query's as they arrive), drawn only on screen. A
+    heading's click on a database's rows is the program's to sort with
+    `ORDER BY` (`SortColumn`, `SortDescending`). Ctrl+C copies the current
+    row; End shows the last row whole; columns are sized from the first and
+    the last rows.
+  - `ColName(i)` and `ColType(i)` on both: a result's column names and types
+    from its own metadata (SQLite's declared types; MySQL's column types, on
+    a read-only connection too). `Schema`: the database's tables, views and
+    columns as JSON.
+  - `RCodeEditor` with `Language = "sql"`: `SqlDialect` (`sqlite`, `mysql`),
+    completion of the dialect's words and the program's tables and columns
+    (`SetSchema(json)`, `Editor.SetSchema DB.Schema`; aliases resolved), a
+    statement over several lines folds (`[folding] statements` in language
+    definitions), Ctrl+Enter fires `OnRunStatement(SQL)` with the selection
+    or the statement at the caret (`CurrentStatement`).
+  - Example `examples/data/million_rows_async.rr`; manual: Databases and the
+    new "The code editor in your programs"; tests: rapidr-db unit tests and a
+    live MySQL test (`RAPIDR_TEST_MYSQL`), the conformance case
+    `sqlite_query_async` (VM and native), `tests/web_query_async.mjs`, the
+    examples suite on every runtime. GUI test hooks: `comp.__until_PROP_VALUE`
+    waits for work in the background, `comp.__do_NAME` runs a component's own
+    test step.
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong
