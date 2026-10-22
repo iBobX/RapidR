@@ -69,6 +69,14 @@ pub fn compile(parsed: &Parsed) -> Vec<FileDiagnostic> {
     }
 }
 
+/// The lexer's and the parser's errors — the program's syntax, what no
+/// other file can fix —, wherever they are (the stages after them never
+/// run on a program that has some).
+pub fn syntax(parsed: &Parsed) -> Vec<FileDiagnostic> {
+    let tools = &parsed.tools;
+    tools.diagnostics[tools.preprocessor_diagnostics..].iter().filter(|d| d.severity == Severity::Error).filter_map(|d| at_pre(parsed, d)).collect()
+}
+
 /// 5. `$OPTION ICON` files that aren't there: RC.EXE's `ICON file x does
 /// not exist.` at the directive, as the build reports it after compiling.
 /// (Not on the web: there the project's assets hold the icon, checked when

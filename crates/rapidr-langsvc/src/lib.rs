@@ -527,6 +527,22 @@ impl Analysis {
         out
     }
 
+    /// The syntax errors in `file` (the lexer's and the parser's), as the
+    /// program it belongs to parses it: an `$INCLUDE`d file through a
+    /// program that includes it — its macros are the program's —, else on
+    /// its own. What a file's text alone gets wrong, whatever the other
+    /// files say (RapidR Studio's assistant refuses a change that has one).
+    pub fn syntax_errors(&mut self, file: &Path) -> Vec<FileDiagnostic> {
+        let s = match self.includer(file) {
+            Some((_, s)) => s,
+            None => match self.root_snapshot(file) {
+                Some(s) => s,
+                None => return Vec::new(),
+            },
+        };
+        diagnostics::syntax(&s.parsed).into_iter().filter(|d| d.file == file).collect()
+    }
+
     pub fn completions(&mut self, file: &Path, offset: usize) -> Completions {
         let Some(text) = self.text(file) else { return Completions::default() };
         let Some(s) = self.quick_snapshot(file) else { return Completions::default() };

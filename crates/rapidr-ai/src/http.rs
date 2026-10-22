@@ -4,7 +4,13 @@
 //! the answer's status, its body's bytes as they come, its end. A request
 //! the provider refuses for a passing reason (429 rate limits, 5xx, 529
 //! "overloaded") is tried again by itself, waiting what `retry-after` says
-//! (at most 20 seconds), before the error is passed on.
+//! (at most 20 seconds), before the error is passed on. So is a request
+//! that never reached the provider — the name not found (DNS), no
+//! connection, a connection closed before any answer —, once, 2 seconds
+//! later ([`NET_RETRY_WAIT`]): a network's passing hiccup no longer ends a
+//! question (Robert's evening with DeepSeek, 2026-10-20). A refusal (4xx)
+//! is never tried again, nor an answer that stopped coming half-way (the
+//! model would be paid twice for it).
 
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -38,6 +44,10 @@ impl Default for Options {
         Options { connect_timeout: 20, read_timeout: 180, retries: 2 }
     }
 }
+
+/// Seconds before a request that never reached the provider is tried again
+/// (once).
+pub const NET_RETRY_WAIT: u64 = 2;
 
 static INBOX: Mutex<Vec<(u64, Incoming)>> = Mutex::new(Vec::new());
 static CANCELLED: Mutex<Option<HashSet<u64>>> = Mutex::new(None);
@@ -144,11 +154,24 @@ mod native {
     use std::io::Read;
     use std::time::Duration;
 
-    use super::{backoff, cancelled, passing, Incoming, Options};
+    use super::{backoff, cancelled, passing, Incoming, Options, NET_RETRY_WAIT};
     use crate::wire::HttpRequest;
 
+    /// (the tests' walks) `RAPIDR_AI_TEST_DNS_FAIL_ONCE` set: the first name
+    /// the process looks up isn't found, as a network's DNS hiccup — what
+    /// the retry is for, seen without unplugging anything.
+    static DNS_FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
     fn agent(opts: Options) -> ureq::Agent {
-        let builder = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(opts.connect_timeout)).timeout_read(Duration::from_secs(opts.read_timeout)).user_agent(concat!("RapidR/", env!("CARGO_PKG_VERSION")));
+        let mut builder = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(opts.connect_timeout)).timeout_read(Duration::from_secs(opts.read_timeout)).user_agent(concat!("RapidR/", env!("CARGO_PKG_VERSION")));
+        if std::env::var_os("RAPIDR_AI_TEST_DNS_FAIL_ONCE").is_some() && !DNS_FAILED.load(std::sync::atomic::Ordering::SeqCst) {
+            builder = builder.resolver(|netloc: &str| {
+                if !DNS_FAILED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+                    return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "the name wasn't found (a test's DNS failure)"));
+                }
+                std::net::ToSocketAddrs::to_socket_addrs(netloc).map(Iterator::collect)
+            });
+        }
         match ureq::native_tls::TlsConnector::new() {
             Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)).build(),
             Err(_) => builder.build(),
@@ -173,6 +196,31 @@ mod native {
         }
     }
 
+    /// Whether the request never reached the provider, for a passing
+    /// reason worth one more try: the name not found, no connection (none
+    /// in time either), a connection closed before any answer. Never an
+    /// answer that didn't come in time (the provider has the question:
+    /// asked again, it would be paid twice).
+    fn unreached(t: &ureq::Transport) -> bool {
+        match t.kind() {
+            ureq::ErrorKind::Dns | ureq::ErrorKind::ConnectionFailed => true,
+            ureq::ErrorKind::Io => !timed_out(t),
+            _ => false,
+        }
+    }
+
+    /// Waits `seconds`, or less when the request is stopped meanwhile;
+    /// whether it is still wanted.
+    fn wait_unless_stopped(id: u64, seconds: u64) -> bool {
+        for _ in 0..seconds * 10 {
+            if cancelled(id) {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        !cancelled(id)
+    }
+
     /// Whether the transport gave up waiting (to connect, or for the answer).
     fn timed_out(t: &ureq::Transport) -> bool {
         let io = std::error::Error::source(t).and_then(|e| e.downcast_ref::<std::io::Error>()).is_some_and(|e| matches!(e.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock));
@@ -190,10 +238,12 @@ mod native {
     }
 
     pub fn send(id: u64, req: &HttpRequest, opts: Options, on: &mut dyn FnMut(Incoming)) {
-        let agent = agent(opts);
         let mut attempt = 0;
+        // (one more try for a request that never reached the provider)
+        let mut unreached_tries = 0;
         loop {
             attempt += 1;
+            let agent = agent(opts);
             let mut r = agent.request(req.method, &req.url);
             for (k, v) in &req.headers {
                 r = r.set(k, v);
@@ -241,6 +291,14 @@ mod native {
                     return;
                 }
                 Err(ureq::Error::Transport(t)) => {
+                    if unreached(&t) && unreached_tries == 0 && !cancelled(id) {
+                        unreached_tries += 1;
+                        if wait_unless_stopped(id, NET_RETRY_WAIT) {
+                            continue;
+                        }
+                        on(Incoming::Done(Err("stopped".into())));
+                        return;
+                    }
                     let what = if !timed_out(&t) {
                         words(&t)
                     } else if t.kind() == ureq::ErrorKind::ConnectionFailed {
@@ -265,7 +323,7 @@ mod web {
     use wasm_bindgen_futures::JsFuture;
     use web_sys::{AbortController, Headers, RequestInit, RequestMode, Response};
 
-    use super::{backoff, cancelled, finished, notify, passing, push, Incoming, Options};
+    use super::{backoff, cancelled, finished, notify, passing, push, Incoming, Options, NET_RETRY_WAIT};
     use crate::wire::HttpRequest;
 
     thread_local! {
@@ -339,6 +397,9 @@ mod web {
     async fn fetch(id: u64, req: &HttpRequest, opts: Options, ctrl: &AbortController) -> Result<(), String> {
         let window = web_sys::window().ok_or("no browser window")?;
         let mut attempt = 0;
+        // (one more try for a request that never reached the provider: the
+        // browser says only that it couldn't fetch)
+        let mut unreached_tries = 0;
         loop {
             attempt += 1;
             let init = RequestInit::new();
@@ -354,6 +415,14 @@ mod web {
             }
             init.set_signal(Some(&ctrl.signal()));
             let resp = match within(window.fetch_with_str_and_init(&req.url, &init), opts.connect_timeout + opts.read_timeout).await {
+                Ok(Err(e)) if unreached_tries == 0 && !cancelled(id) => {
+                    unreached_tries += 1;
+                    sleep(NET_RETRY_WAIT).await;
+                    if cancelled(id) {
+                        return Err(js_words(&e));
+                    }
+                    continue;
+                }
                 Ok(r) => r.map_err(|e| js_words(&e))?,
                 Err(()) => {
                     ctrl.abort();
@@ -491,5 +560,48 @@ mod tests {
         assert_eq!(backoff(1, None), 2);
         assert_eq!(backoff(2, None), 6);
         assert_eq!(backoff(1, Some(90)), 20);
+    }
+
+    /// Robert's evening with DeepSeek (2026-10-20): "Couldn't reach
+    /// api.deepseek.com: the name wasn't found (DNS)" on one question, and
+    /// he had to send it again. A request that never reached the provider
+    /// is tried once more, 2 seconds later; a refusal never is.
+    #[test]
+    fn a_request_that_never_reached_the_provider_is_tried_once_more() {
+        // (the connection closed before any answer: the second try answers)
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (first, _) = listener.accept().unwrap();
+            drop(first);
+            let (mut s, _) = listener.accept().unwrap();
+            let mut r = BufReader::new(s.try_clone().unwrap());
+            loop {
+                let mut line = String::new();
+                r.read_line(&mut line).unwrap();
+                if line == "\r\n" || line.is_empty() {
+                    break;
+                }
+            }
+            s.write_all(ok("{}", "application/json").as_bytes()).unwrap();
+        });
+        let started = std::time::Instant::now();
+        let req = HttpRequest { method: "GET", url: format!("{url}/v1/models"), headers: vec![], body: None };
+        let mut body = Vec::new();
+        let (status, _) = run_blocking(&req, Options { retries: 0, ..Options::default() }, |d| body.extend_from_slice(d)).unwrap();
+        assert_eq!((status, body.as_slice()), (200, b"{}".as_slice()));
+        assert!(started.elapsed() >= std::time::Duration::from_secs(NET_RETRY_WAIT), "it waited before trying again");
+        server.join().unwrap();
+        // (a name that is never found: tried twice, then the error in words)
+        let started = std::time::Instant::now();
+        let nowhere = HttpRequest { method: "GET", url: "http://no-such-host.invalid/v1/models".into(), headers: vec![], body: None };
+        let e = run_blocking(&nowhere, Options { retries: 0, connect_timeout: 3, ..Options::default() }, |_| {}).unwrap_err();
+        assert!(e.contains("DNS") && started.elapsed() >= std::time::Duration::from_secs(NET_RETRY_WAIT), "{e}");
+        // (a refusal: passed on at once, never tried again)
+        let refused = "HTTP/1.1 401 Unauthorized\r\ncontent-length: 2\r\nconnection: close\r\n\r\n{}".to_string();
+        let (url, server) = serve(vec![refused]);
+        let req = HttpRequest { method: "GET", url: format!("{url}/x"), headers: vec![], body: None };
+        assert_eq!(run_blocking(&req, Options::default(), |_| {}).unwrap().0, 401);
+        assert_eq!(server.join().unwrap().len(), 1);
     }
 }

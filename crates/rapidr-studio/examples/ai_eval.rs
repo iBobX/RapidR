@@ -184,6 +184,8 @@ fn main() {
     ai_set("model", &model);
     ai_set("maxtokens", &max_tokens);
     ai_set("audit", "-1");
+    // (as RapidR Studio sets it: the answers in the user's language)
+    ai_set("replylanguage", "auto");
     if ai_call("attachcomponent", &[s(TOOLS), s("project")]).to_i64() == 0 {
         panic!("attach: {}", ai_get("error"));
     }
@@ -294,6 +296,8 @@ fn main() {
                 applied.push(format!("applied {path}"));
             }
         }
+        // (what was decided is done with, as Studio's review leaves it)
+        tools_call("cleardecided", &[]);
         if !applied.is_empty() {
             println!("   applied: {}", applied.join(", "));
         }

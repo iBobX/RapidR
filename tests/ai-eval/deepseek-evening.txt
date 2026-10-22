@@ -1,0 +1,12 @@
+# Robert's evening with DeepSeek (2026-10-20), the parts R3, R10 and R11 of
+# docs/preview4-plan.md fixed, in miniature — replayed by
+# crates/rapidr-studio/examples/ai_eval.rs, one user turn a line. What to look
+# for in the run's lines: the second turn proposes `sites.rr · +1 −1` (a
+# targeted edit, never the whole file), no tool result says "cut off" or
+# "syntax error" for a change that was then proposed, the fourth answer is in
+# Spanish and the fifth in English again.
+Build me a small program with three files: main.rr makes a window with a list and a Start button, sites.rr has a SUB FillSites that adds 40 sites (site 1 … site 40) to the list, server.rr has a SUB StartServer that sets a label to "Serving".
+In sites.rr, call site 7 "seven". Only that line changes.
+Add a StopServer SUB to server.rr, and a Stop button in main.rr that calls it.
+¿Qué hace el botón Stop?
+And what does the Start button do?

@@ -14,13 +14,20 @@
 '
 ' Hidden until it is turned on AND a provider, a key and a model are
 ' chosen: no AI pane, no AI button, no AI command, nothing sent. Then
-' nothing is sent until Send; the panel says what Send shares.
+' nothing is sent until Send; the panel says what Send shares. Send while
+' it works queues the message ("Queued: …", × takes it back): it goes when
+' the answer ends; typing never stops an answer — Stop does, and gives the
+' queued message back to the box (docs/preview4-plan.md R3).
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIDone(Status AS STRING)
 DECLARE SUB AIModelsIn(Count AS INTEGER)
 DECLARE SUB AIErrorSaid(Message AS STRING)
 DECLARE SUB AISend
+DECLARE SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+DECLARE SUB AIShowQueue
+DECLARE SUB AIQueueCancelClick
+DECLARE SUB AISendQueued(Status AS STRING)
 DECLARE SUB AIStopClick
 DECLARE SUB AINewChat
 DECLARE SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
@@ -97,6 +104,12 @@ DIM AIStatus AS RStatusBar
 ' (while an answer runs, the status is its progress checklist: what it
 ' said last, not said again)
 DIM AIProgressSaid AS STRING
+' (a message sent while it works: it waits here, shown above the box, and
+' goes when the answer ends)
+DIM AIQueueBar AS RPanel
+DIM AIQueueText AS RLabel
+DIM AIQueueCancel AS RButton
+DIM AIQueued AS STRING
 
 ' ---- a new program, straight into the IDE (docs/ai-ux-plan.md §1) ---------------------
 ' The banner across the top, under the tool bar: what the assistant made,
@@ -279,6 +292,9 @@ SUB SetUpAI
   AI.OnKeyNeeded = AIKeyNeeded
   ' (every request, tool call and decision in the local audit log)
   AI.Audit = 1
+  ' (the answers in the language of the user's latest message, whatever
+  ' the files, the tools or a long chat's summary are written in)
+  AI.ReplyLanguage = "auto"
   ' (the project as the assistant's tools: on demand, never all at once)
   AI.AttachComponent AITools, "project"
   ' (Tools > Settings > AI's own: its lists and errors on its tab)
@@ -363,6 +379,22 @@ SUB SetUpAI
   AISentLink.Cursor = -21
   AISentLink.AccessibleName = "What was sent to the assistant"
   AISentLink.OnClick = AISentLinkClick
+
+  ' (a message sent while the assistant works: "Queued: …" just above the
+  ' box, × takes it back; hidden while there is none)
+  AIQueueBar.Parent = AIPanel
+  AIQueueBar.Align = 2
+  AIQueueBar.Height = 32
+  AIQueueBar.BevelOuter = 0
+  AIQueueBar.Visible = 0
+  AIQueueBar.AccessibleName = "Queued message"
+  AIQueueText.Parent = AIQueueBar
+  AIQueueText.AutoSize = 0: AIQueueText.WordWrap = 0
+  AIQueueCancel.Parent = AIQueueBar
+  AIQueueCancel.Caption = "×"
+  AIQueueCancel.AccessibleName = "Cancel the queued message"
+  AIQueueCancel.AccessibleDescription = "It won't be sent"
+  AIQueueCancel.OnClick = AIQueueCancelClick
 
   ' (the proposals' bar: shown when the answer proposes changes — one
   ' button that says what it opens; the status says the rest, once)
@@ -462,6 +494,9 @@ SUB LayOutAIPanel
   AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
   IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
   AIReviewBtn.Left = 6: AIReviewBtn.Top = 9: AIReviewBtn.Width = w - 12: AIReviewBtn.Height = bh
+  AIQueueCancel.Left = w - 34: AIQueueCancel.Top = (32 - 26) \ 2: AIQueueCancel.Width = 28: AIQueueCancel.Height = 26
+  AIQueueText.Left = 8: AIQueueText.Top = 8: AIQueueText.Width = w - 48: AIQueueText.Height = 18
+  AIShowQueue
   AIChat.EmptyText = AIEmptyText
 END SUB
 
@@ -494,6 +529,9 @@ SUB AIPanelFonts
   AIStatus.Font = StatusFont
   AIReviewBtn.Font = UIFont
   AIReviewBtn.Font.Bold = 1
+  AIQueueText.Font = UIFont
+  AIQueueText.Font.Color = TC("page.text")
+  AIQueueCancel.Font = UIFont
   AIBannerFonts
   AIRevHead.Font = UIFont
   AINewTitle.Font = SubFont
@@ -594,7 +632,9 @@ FUNCTION AIModelId(Text AS STRING) AS STRING
 END FUNCTION
 
 SUB AIEnableSend
-  AISendBtn.Enabled = Flag(AI.Busy = 0 AND AIReady <> 0)
+  ' (Send while it works queues the message: enabled whenever the
+  ' assistant is ready)
+  AISendBtn.Enabled = Flag(AIReady <> 0)
   AIStopBtn.Enabled = Flag(AI.Busy <> 0)
   AIMeter.Caption = AI.Usage
 END SUB
@@ -796,18 +836,67 @@ END SUB
 SUB AISend
   DIM t AS STRING
   t = AIInput.Text
+  ' (the line break Enter may have left at its end isn't the user's)
+  DO WHILE RIGHT$(t, 1) = CHR$(10) OR RIGHT$(t, 1) = CHR$(13)
+    t = LEFT$(t, LEN(t) - 1)
+  LOOP
   IF LTRIM$(RTRIM$(t)) = "" THEN EXIT SUB
+  ' (while it works: the message waits, shown, and goes when the answer
+  ' ends — typing never stops an answer; a second one joins the first)
+  IF AI.Busy THEN
+    IF AIQueued = "" THEN AIQueued = t ELSE AIQueued = AIQueued + CHR$(10) + CHR$(10) + t
+    AIInput.Text = ""
+    AIShowQueue
+    AIInput.SetFocus
+    EXIT SUB
+  END IF
+  AISendNow t, 1
+END SUB
+
+' (a question to the assistant now: typed in the box, or the one queued)
+SUB AISendNow(T AS STRING, FromBox AS INTEGER)
   AISyncProject
   AIReviewBar.Visible = 0
   AIProgressSaid = ""
-  IF AI.Ask(t) THEN
-    AIInput.Text = ""
+  IF AI.Ask(T) THEN
+    IF FromBox THEN AIInput.Text = ""
   ELSE
     AIStatus.SimpleText = AI.Error
+    ' (not sent: the words go back to the box, never lost)
+    IF FromBox = 0 THEN
+      IF AIInput.Text = "" THEN AIInput.Text = T ELSE AIInput.Text = T + CHR$(10) + AIInput.Text
+    END IF
   END IF
   AIChat.Text = AI.Transcript
   AIEnableSend
   AIProgressShow
+END SUB
+
+' (the queued message, above the box: its first line, shortened to fit)
+SUB AIShowQueue
+  DIM first AS STRING, room AS INTEGER, k AS INTEGER
+  IF AIQueued = "" THEN
+    IF AIQueueBar.Visible THEN AIQueueBar.Visible = 0
+    EXIT SUB
+  END IF
+  first = AIQueued
+  k = INSTR(first, CHR$(10))
+  IF k > 0 THEN first = LEFT$(first, k - 1) + " …"
+  room = (AIQueueText.Width - 60) \ 7
+  IF room < 12 THEN room = 12
+  IF LEN(first) > room THEN first = LEFT$(first, room - 1) + "…"
+  AIQueueText.Caption = "Queued: " + first
+  AIQueueText.AccessibleName = "Queued: " + AIQueued
+  AIQueueText.Hint = AIQueued
+  IF AIQueueBar.Visible = 0 THEN AIQueueBar.Visible = 1
+END SUB
+
+' (×: the queued message isn't sent)
+SUB AIQueueCancelClick
+  AIQueued = ""
+  AIShowQueue
+  AIStatus.SimpleText = "The queued message won't be sent."
+  AIInput.SetFocus
 END SUB
 
 ' (Enter sends; Shift+Enter is a new line)
@@ -818,6 +907,7 @@ SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
   END IF
 END SUB
 
+' (Stop ends the answer; a queued message goes back to the box, unsent)
 SUB AIStopClick
   AI.Cancel
   AIEnableSend
@@ -888,6 +978,23 @@ SUB AIDone(Status AS STRING)
     END IF
   END IF
   AIMeter.Caption = AI.Usage
+  AISendQueued Status
+END SUB
+
+' (the message queued while it worked, once it is done: sent now — or,
+' after Stop, given back to the box, unsent)
+SUB AISendQueued(Status AS STRING)
+  DIM q AS STRING
+  IF AIQueued = "" OR AI.Busy <> 0 THEN EXIT SUB
+  q = AIQueued
+  AIQueued = ""
+  AIShowQueue
+  IF Status = "cancelled" THEN
+    IF AIInput.Text = "" THEN AIInput.Text = q ELSE AIInput.Text = q + CHR$(10) + AIInput.Text
+    AIStatus.SimpleText = "Stopped. Your queued message is back in the box, not sent."
+  ELSE
+    AISendNow q, 0
+  END IF
 END SUB
 
 ' (what waits for the user: a change to review, or — Review first — the
@@ -927,6 +1034,8 @@ SUB AIModelsIn(Count AS INTEGER)
   AIFilling = 0
   AIStatus.SimpleText = AI.Status
   AIEnableSend
+  ' (a message sent while the list came: it goes now)
+  AISendQueued "ok"
 END SUB
 
 SUB AIProviderPicked
@@ -1128,16 +1237,25 @@ SUB AIApplyProposals
       ELSEIF AIMatches(CodeDoc(d).Text, AITools.ProposalOld(i)) = 0 THEN
         ' (the user changed it since the assistant read it: never overwritten)
         OutputLine "AI: " + path + " changed since the assistant read it; its change wasn't applied (ask again)"
-        AITools.Decide i, "rejected"
+        AITools.Decide i, "stale"
       ELSE
         patch = AITools.Patch(CodeDoc(d).Text, newText)
-        IF patch <> "" THEN CodeDoc(d).ApplyPatches patch, 0
-        ProjectFileChanged d
-        IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
-        done = done + 1
+        ' (said only when it really changed: a patch the editor refused
+        ' leaves the file as it was, and the chat says so)
+        IF patch <> "" AND CodeDoc(d).ApplyPatches(patch, 0) = 0 THEN
+          OutputLine "AI: the change to " + path + " couldn't be applied in its editor (ask again)"
+          AITools.Decide i, "failed"
+        ELSE
+          ProjectFileChanged d
+          IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
+          done = done + 1
+        END IF
       END IF
     END IF
   NEXT
+  ' (what was decided is done with: a review opened again shows only what
+  ' still waits, and nothing is said twice)
+  AITools.ClearDecided
   AIReviewBar.Visible = 0
   AIChat.Text = AI.Transcript
   IF done = 0 THEN
@@ -1380,8 +1498,16 @@ FUNCTION AIBannerTakesFocus AS INTEGER
   Result = 1
 END FUNCTION
 
-' (another project opened, or none: the banner was about the new program)
+' (another project opened, or none: the banner was about the new program;
+' the changes proposed to the project before wait no more — never applied
+' to another project's files)
 SUB AIProjectChanged
+  IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 THEN
+    IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AITools.ProjectFolder) THEN
+      AITools.ClearProposals
+      AIReviewBar.Visible = 0
+    END IF
+  END IF
   IF AIBanner.Visible = 0 THEN EXIT SUB
   IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AIBannerFolder) THEN AIHideBanner
 END SUB
@@ -1548,7 +1674,11 @@ SUB AIChatLink(Url AS STRING)
   which = MID$(Url, LEN(verb) + 2)
   SELECT CASE verb
     CASE "ai:review"
-      IF AITools.ProposalCount > 0 THEN AIReviewClick
+      IF AITools.ProposalCount > 0 THEN
+        AIReviewClick
+      ELSE
+        AIStatus.SimpleText = "Nothing waits for review: those changes were applied or rejected already."
+      END IF
     CASE "ai:open", "ai:undo"
       IF AICreatedFile = "" OR (which <> "" AND LCASE$(RIGHT$(AITools.CreatedFolder, LEN(which) + 1)) <> LCASE$("/" + which)) THEN
         AIStatus.SimpleText = "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
@@ -1572,7 +1702,12 @@ FUNCTION AICommand(Id AS STRING) AS INTEGER
   SELECT CASE Id
     CASE "ai.assistant": ShowAIPanel
     CASE "ai.newChat": IF AIOn THEN AINewChat
-    CASE "ai.review": IF AITools.ProposalCount > 0 THEN AIReviewClick
+    CASE "ai.review"
+      IF AITools.ProposalCount > 0 THEN
+        AIReviewClick
+      ELSE
+        AIStatus.SimpleText = "Nothing waits for review: those changes were applied or rejected already."
+      END IF
     CASE "ai.whatWasSent": ShowWhatWasSent
     CASE "ai.settings": ShowSettingsPage 1
     CASE ELSE: Result = 0
@@ -1647,6 +1782,9 @@ SUB AIStep(Stp AS STRING)
       ' (the next steps wait for the answer: a real provider takes its time)
       IF AI.Busy THEN DoList = "ai:wait," + DoList
     CASE "type": AIInput.Text = arg
+    CASE "summaryat"
+      ' (tests: the conversation summarised sooner)
+      AI.SummaryAt = VAL(arg)
     CASE "stop": AIStopClick
     CASE "new": AINewChat
     CASE "review": AIReviewClick

@@ -3,7 +3,8 @@
 // both wire formats RapidR uses — OpenAI-compatible Chat Completions
 // (`/v1/chat/completions`, `/v1/models`) and Anthropic's Messages
 // (`/v1/messages`, `/v1/models`) — streamed as server-sent events, with
-// scripted answers chosen by the conversation's first message:
+// scripted answers chosen by the user's latest question (a note of RapidR
+// Studio's own, a conversation's summary, aren't questions):
 //
 //   "hello …"          a short answer
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
@@ -21,6 +22,22 @@
 //   "check …"          check_code, then say what it found
 //   "describe …"       rapidr_describe RButton, rapidr_list, then answer
 //   "inject …"         try write_file outside its permission (read-only tests)
+//   "and add a clear button"  a short answer (the message queued while the
+//                      last answer ran: tests/studio_flows.mjs ai-r3-*)
+//   "add stopserver …" propose_edit server.rr (tests/fixtures/studio_ai_sites):
+//                      a StopServer SUB
+//   "now add a stop button …"  propose_edit main.rr: a Stop button that calls
+//                      StopServer — which only that waiting change has
+//   "name sites 7 and 8 …"  read sites.rr, send it whole for a two-line
+//                      change (refused), then the two lines with propose_edit
+//   "finish the count …"  read sites.rr, send it cut off (`END FUNCTI`): refused
+//
+// The model "mock-polyglot" answers every question in the language the
+// request's instructions name ("reply in Spanish"); with none named, in the
+// language of the conversation's first message — after a summary, the
+// summary's. It writes a summary in the language it's asked for, else in
+// German: the drift of Robert's evening with DeepSeek (2026-10-20), where
+// two answers came in German to a user who wrote English.
 //
 // Each step of a script is the number of tool results so far. CORS is
 // open (the web Studio's page calls it from its origin).
@@ -43,8 +60,10 @@
 //              (anthropic-workspace-id), as Anthropic does
 //
 // A compatible server (no key) plays the same through its address,
-// /s/<bad|fail|slow|garbage|empty>/v1. GET /__log lists what was asked of
-// it (the keys' last four characters only).
+// /s/<bad|fail|slow|garbage|empty|drop>/v1 — `drop`: every other request's
+// connection is closed before any answer, as a network's hiccup (RapidR
+// tries it once more). GET /__log lists what was asked of it (the keys' last
+// four characters only).
 //
 //   node tests/ai_mock_server.mjs [port]      (prints its /v1 URL)
 
@@ -100,17 +119,60 @@ END CREATE
 Form.ShowModal
 `;
 
-function lastUserText(messages) {
-  for (const m of messages) {
-    if (m.role !== "user") continue;
-    if (typeof m.content === "string") return m.content;
-    const t = (m.content || []).find((b) => b.type === "text");
-    if (t) return t.text;
-  }
-  return "";
+// (a user message's text: its text blocks)
+function userText(m) {
+  if (typeof m.content === "string") return m.content;
+  return (m.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
 }
 
-// (the tool results so far, in order: { name, content })
+// The question to answer: the user's latest (RapidR Studio's own notes —
+// "(RapidR Studio, not the user: …)" — and a conversation's summary aren't
+// questions), and where it is.
+function latestQuestion(messages) {
+  let at = 0;
+  let text = "";
+  messages.forEach((m, i) => {
+    if (m.role !== "user") return;
+    const t = userText(m).trim();
+    if (!t || /^\((RapidR Studio, not the user|A summary of our conversation)/.test(t)) return;
+    at = i;
+    text = t;
+  });
+  return { at, text };
+}
+
+// (the language a text is in, as the polyglot mock tells it)
+function languageOf(text) {
+  if (/[¿¡ñ]|\b(el|los|qué|botón|también)\b/i.test(text)) return "Spanish";
+  if (/\b(der|die|das|und|nicht|möchte|Nutzer|Formular)\b/.test(text)) return "German";
+  if (/\b(le|les|est|pour|vous|bouton)\b/i.test(text)) return "French";
+  return "English";
+}
+
+const POLYGLOT = {
+  English: "The form has a list of sites, a Start button and a status line.",
+  Spanish: "El formulario tiene una lista de sitios, un botón Start y una línea de estado.",
+  German: "Das Formular hat eine Liste der Sites, einen Start-Knopf und eine Statuszeile.",
+  French: "Le formulaire a une liste de sites, un bouton Start et une ligne d'état.",
+};
+const SUMMARY = {
+  English: "The user asked what the Sites form shows: a list of sites, a Start button and a status line.",
+  Spanish: "El usuario preguntó qué muestra el formulario Sites.",
+  German: "Der Nutzer fragte, was das Formular Sites zeigt: eine Liste, einen Start-Knopf und eine Statuszeile.",
+  French: "L'utilisateur a demandé ce que montre le formulaire Sites.",
+};
+
+// The polyglot model's answer: in the language the instructions name, else
+// the conversation's first message's; a summary in the one asked for, else
+// German.
+function polyglot(system, messages) {
+  const named = (system.match(/\b(?:reply|summary) in (English|Spanish|German|French)\b/i) || [])[1];
+  if (/^You summarise a conversation/.test(system)) return { text: SUMMARY[named || "German"] };
+  const first = messages.find((m) => m.role === "user");
+  return { text: POLYGLOT[named || languageOf(first ? userText(first) : "")] };
+}
+
+// (the tool results since the question, in order: { name, content })
 function toolResults(format, messages) {
   const calls = new Map();
   const out = [];
@@ -195,6 +257,41 @@ function script(first, results, system, messages = []) {
   if (q.startsWith("inject")) {
     if (step === 0) return { tools: [{ name: "write_file", input: { path: "../outside.txt", text: "pwned", summary: "x" } }] };
     return { text: "I can't change files here." };
+  }
+  // (R3: the message queued while the last answer ran)
+  if (q.startsWith("and add a clear button")) return { text: "A **Clear** button next to Greet would empty the name box: say the word, and Studio shows you the change to review." };
+  // (R11, tests/fixtures/studio_ai_sites: a change to a module that waits
+  // for the user, then main.rr calling what only that change has)
+  if (q.startsWith("add stopserver")) {
+    if (step === 0) return { tools: [{ name: "propose_edit", input: { path: "server.rr", summary: "A StopServer SUB", edits: [{ old_text: "END SUB", new_text: "END SUB\n\nSUB StopServer\n    Serving = 0\n    Status.Caption = \"Stopped.\"\nEND SUB" }] } }] };
+    return { text: "StopServer stops the server and says so." };
+  }
+  if (q.startsWith("now add a stop button")) {
+    if (step === 0) {
+      return { tools: [{ name: "propose_edit", input: { path: "main.rr", summary: "A Stop button", edits: [
+        { old_text: "DECLARE SUB StartClick", new_text: "DECLARE SUB StartClick\nDECLARE SUB StopClick" },
+        { old_text: "    CREATE Status AS RLabel", new_text: "    CREATE StopButton AS RButton\n        Caption = \"S&top\"\n        Left = 104: Top = 216: Width = 90\n        OnClick = StopClick\n    END CREATE\n    CREATE Status AS RLabel" },
+        { old_text: "Form.ShowModal", new_text: "SUB StopClick\n    StopServer\nEND SUB\n\nForm.ShowModal" },
+      ] } }] };
+    }
+    return { text: "Press **Stop** to stop the server." };
+  }
+  // (R11: a two-line fix sent as the whole file — refused —, then as two edits)
+  if (q.startsWith("name sites 7 and 8")) {
+    if (step === 0) return { tools: [{ name: "read_file", input: { path: "sites.rr" } }] };
+    let file = "";
+    try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+    if (step === 1) return { tools: [{ name: "write_file", input: { path: "sites.rr", summary: "Sites 7 and 8 named", text: file.replace('"site 7"', '"site seven"').replace('"site 8"', '"site eight"') } }] };
+    if (step === 2) return { tools: [{ name: "propose_edit", input: { path: "sites.rr", summary: "Sites 7 and 8 named", edits: [{ old_text: '    SiteList.AddItems "site 7"', new_text: '    SiteList.AddItems "site seven"' }, { old_text: '    SiteList.AddItems "site 8"', new_text: '    SiteList.AddItems "site eight"' }] } }] };
+    return { text: "Sites 7 and 8 are called seven and eight now." };
+  }
+  // (R11: a reply that ran out of room — the file cut off at `END FUNCTI`)
+  if (q.startsWith("finish the count")) {
+    if (step === 0) return { tools: [{ name: "read_file", input: { path: "sites.rr" } }] };
+    let file = "";
+    try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+    if (step === 1) return { tools: [{ name: "write_file", input: { path: "sites.rr", summary: "The count", text: file.trimEnd().replace(/END FUNCTION$/, "END FUNCTI") } }] };
+    return { text: "My change was cut off before its end, so it wasn't proposed: ask again and I'll send only the lines that change." };
   }
   // (examples/ai/rai_models.rr's question)
   if (q.startsWith("say hello")) return { text: "Hello, friend, nice meeting you." };
@@ -292,12 +389,14 @@ function keyOf(headers) {
   return headers["x-api-key"] || bearer || "";
 }
 const keyHint = (k) => (k ? `…${k.slice(-4)}` : "");
-const SCENARIOS = ["bad", "fail", "slow", "garbage", "empty", "org"];
+const SCENARIOS = ["bad", "fail", "slow", "garbage", "empty", "org", "drop"];
 
 /** Starts the mock on `port` (0: any); resolves to { url, root, close, requests }. */
 export function startMock(port = 0) {
   const requests = [];
   const held = new Set();
+  // (the `drop` scenario's requests: every other one's connection closed)
+  let drops = 0;
   const server = createServer((req, res) => {
     if (req.method === "OPTIONS") {
       res.writeHead(204, CORS).end();
@@ -325,6 +424,11 @@ export function startMock(port = 0) {
       const key = keyOf(req.headers);
       let scenario = (path.match(/^\/s\/([a-z]+)\//) || [])[1] || "";
       if (who) scenario = key ? SCENARIOS.find((w) => key.toLowerCase().includes(w)) || "" : "bad";
+      if (scenario === "drop" && drops++ % 2 === 0) {
+        // (no answer at all: the connection closed, as a network's hiccup)
+        req.socket.destroy();
+        return;
+      }
       if (scenario === "slow") {
         // (no answer: the client gives up; the socket goes with the server,
         // or after two minutes)
@@ -354,16 +458,17 @@ export function startMock(port = 0) {
       const system = anthropic ? (json.system || []).map((b) => b.text).join("") : (messages.find((m) => m.role === "system") || {}).content || "";
       // ("slowly …": the same script, each answer after the first held 6 s
       // — a small local model's pace: the progress checklist shows meanwhile)
-      let first = lastUserText(messages);
+      const asked = latestQuestion(messages);
+      let first = asked.text;
       const slow = /^slowly /i.test(first);
       if (slow) first = first.replace(/^slowly /i, "");
       // ("then fail …": the same script, every answer after a tool's a
       // server error — a local server short of memory for the last words)
       const failAfter = /^then fail /i.test(first);
       if (failAfter) first = first.replace(/^then fail /i, "");
-      const results = toolResults(anthropic ? "anthropic" : "openai", messages);
+      const results = toolResults(anthropic ? "anthropic" : "openai", messages.slice(asked.at));
       if (failAfter && results.length > 0) return send(400, { error: { message: "The generation was interrupted: the model ran out of memory.", type: "invalid_request_error" } });
-      const answer = script(first, results, system, messages);
+      const answer = json.model === "mock-polyglot" ? polyglot(system, messages) : script(first, results, system, messages);
       const reply = () => {
         if (res.writableEnded || res.destroyed) return;
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });

@@ -9,12 +9,21 @@
 //! | `rapidr_describe` | read | a component type's or builtin's registry entry (the introspection interface) |
 //! | `rapidr_list`, `rapidr_get` | read | the forms' components and their properties, from the source (design time) |
 //! | `check_code` | read | RapidR's compiler on a file, or on text as that file would be |
-//! | `propose_edit`, `write_file` | proposal | a change shown to the user as a diff: nothing is written until they apply it |
+//! | `propose_edit` | proposal | a change to a file — only the parts that change (search and replace, each old text once in the file) — shown to the user as a diff: nothing is written until they apply it |
+//! | `write_file` | proposal | a new file's text (or a file rewritten almost entirely), shown the same way |
 //! | `create_project` | proposal | a new program's files, previewed before anything is created |
 //!
 //! What a tool returns from the project (a file, a property's value) goes
 //! back to the model as data, marked untrusted with where it came from
 //! (§5.5): never folded into the instructions.
+//!
+//! A proposal is refused, nothing proposed, when its text has a syntax
+//! error or is cut off at the end (a reply that ran out half-way: `END
+//! FUNCTI`), in a module too; and a whole-file rewrite of a file over
+//! [`WHOLE_FILE_LINES`] lines that keeps most of it (a 2-line fix sent as
+//! `+382 −384`) is refused with a word to send the changed parts with
+//! propose_edit (docs/preview4-plan.md R11). Every check sees the project
+//! with all the proposals still waiting for the user applied together.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -137,7 +146,7 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
         out.push(t(
             "propose_edit",
-            "Proposes changes to an existing file of the project, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — which must appear exactly once in the file, with enough lines around it to be unique — with `new_text`.",
+            "The way to change an existing file of the project: send only the parts that change, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — a few whole lines copied exactly from the file, appearing exactly once in it — with `new_text`. Several edits in one call for changes in several places.",
             schema(
                 json!({
                     "path": {"type": "string"},
@@ -149,7 +158,7 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
         out.push(t(
             "write_file",
-            "Proposes a file's whole new text (a new file of the project, or one rewritten), shown to the user as a diff they accept or reject.",
+            "A new file's whole text (or, rarely, an existing file rewritten almost entirely), shown to the user as a diff they accept or reject. To change part of an existing file use propose_edit: a whole-file rewrite of a file over 40 lines that keeps most of it is refused.",
             schema(json!({"path": {"type": "string"}, "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"]),
         ));
         out.push(t(
@@ -1090,7 +1099,7 @@ fn apply_edits(path: &str, old: &str, edits: &[Json]) -> Result<String, String> 
                 }
                 None => {
                     return Err(format!(
-                        "edit {}: old_text isn't in {path} (it must match the file exactly, spaces and line breaks too). The lines of {path} closest to it (numbered here; the numbers aren't in the file):\n{}\nCopy old_text exactly from these lines, or use write_file with the file's whole new text.",
+                        "edit {}: old_text isn't in {path} (it must match the file exactly, spaces and line breaks too). The lines of {path} closest to it (numbered here; the numbers aren't in the file):\n{}\nCopy old_text exactly from these lines (without the numbers) and call propose_edit again.",
                         i + 1,
                         closest_lines(&text, &from)
                     ))
@@ -1195,11 +1204,14 @@ fn closest_lines(text: &str, from: &str) -> String {
     lines[start..end].iter().enumerate().map(|(k, l)| format!("{:>4}| {l}", start + k + 1)).collect::<Vec<_>>().join("\n")
 }
 
-/// A proposal for `rel` replaces the turn's earlier one for that file.
+/// A proposal for `rel` replaces the earlier one for that file (this
+/// turn's, or one still waiting for the user): the file as it was, and
+/// whether it is a new one, stay the earlier's.
 fn propose(proposals: &mut Vec<Proposal>, p: Proposal) {
     if let Some(k) = proposals.iter().position(|q| q.path == p.path && q.project == p.project) {
         let old = proposals[k].old.clone();
-        proposals[k] = Proposal { old, ..p };
+        let kind = proposals[k].kind.clone();
+        proposals[k] = Proposal { old, kind, ..p };
     } else {
         proposals.push(p);
     }
@@ -1221,12 +1233,15 @@ fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
     let edits = input.get("edits").and_then(Json::as_array).cloned().unwrap_or_default();
     match apply_edits(&rel, &current, &edits) {
         Ok(new) => {
+            if let Some((why, short)) = refused(p, proposals, &rel, &current, &new) {
+                return err(why, format!("Refused a change to {rel}: {short}"), &rel);
+            }
             let original = p.text(&rel).unwrap_or_default();
             let summary = s(input, "summary").to_string();
             propose(proposals, Proposal { kind: "edit".into(), path: rel.clone(), old: original, new, summary: summary.clone(), ..Proposal::default() });
             match compile_errors(p, proposals) {
                 None => ok(format!("Proposed to the user as a diff of {rel}; they decide whether to apply it. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed a change to {rel}: {summary}"), "state", &rel),
-                Some(errors) => ok(format!("Proposed to the user as a diff of {rel}, but the project doesn't compile with it yet — fix these now (propose_edit again, or write_file with the file's whole text; it replaces this proposal):\n{errors}"), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
+                Some(errors) => ok(format!("Proposed to the user as a diff of {rel}, but the project doesn't compile with it yet — fix these now with propose_edit on the lines in error (it builds on this proposal):\n{errors}"), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
             }
         }
         Err(e) => err(e, format!("A change to {rel} didn't fit the file"), &rel),
@@ -1238,12 +1253,8 @@ fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
 /// proposing tool tells the model at once, so it fixes them without having
 /// to remember check_code.
 fn compile_errors(p: &Project, proposals: &[Proposal]) -> Option<String> {
-    let mut files = p.all();
+    let files = project_files(p, proposals);
     let changed: Vec<&Proposal> = proposals.iter().filter(|q| q.project.is_empty() && is_source(&q.path)).collect();
-    for q in &changed {
-        files.retain(|(f, _)| *f != q.path);
-        files.push((q.path.clone(), q.new.clone()));
-    }
     let mut errors: Vec<String> = Vec::new();
     for q in &changed {
         // (each error with the hints that say its fix)
@@ -1270,6 +1281,18 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
     let original = if exists { p.text(&rel).unwrap_or_default() } else { String::new() };
     let summary = s(input, "summary").to_string();
     let kind = if exists { "edit" } else { "create" };
+    // (cut off, or a syntax error: refused, said first)
+    if let Some((why, short)) = refused(p, proposals, &rel, &original, &text) {
+        return err(why, format!("Refused {rel}: {short}"), &rel);
+    }
+    // (a whole file sent for a few lines' change: refused — the changed
+    // parts go with propose_edit; a model whose edits keep missing may
+    // rewrite it: Studio says so in `_rewrite_ok`)
+    if exists && !is_new_project(p) && input.get("_rewrite_ok").and_then(Json::as_bool) != Some(true) {
+        if let Some(why) = needless_rewrite(&rel, &original, &text) {
+            return err(why, format!("Refused a whole-file rewrite of {rel}: only a few lines change"), &rel);
+        }
+    }
     // (a file cut to a fraction of itself that doesn't compile is a
     // snippet sent for the whole: refused, the file left as proposed so far)
     let (old_lines, new_lines) = (original.lines().count(), text.lines().count());
@@ -1284,7 +1307,7 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
     let what = if exists { "a new text for" } else { "the new file" };
     match compile_errors(p, proposals) {
         None => ok(format!("Proposed {what} {rel} to the user as a diff; they decide. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed {what} {rel}: {summary}"), "state", &rel),
-        Some(errors) => ok(format!("Proposed {what} {rel} to the user as a diff, but the project doesn't compile with it yet — fix these now (write_file again with the whole corrected text; it replaces this proposal):\n{errors}"), format!("Proposed {what} {rel}: {summary} (errors to fix)"), "state", &rel),
+        Some(errors) => ok(format!("Proposed {what} {rel} to the user as a diff, but the project doesn't compile with it yet — fix these now with propose_edit on the lines in error (it builds on this proposal):\n{errors}"), format!("Proposed {what} {rel}: {summary} (errors to fix)"), "state", &rel),
     }
 }
 
@@ -1374,6 +1397,10 @@ fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
         if got.iter().any(|(p, _)| *p == rel) {
             return err(format!("{rel} is given twice"), format!("create_project {name}: a file given twice"), &name);
         }
+        // (a file cut off at the end: refused, nothing proposed)
+        if let Some(at) = cut_off("", s(f, "text")) {
+            return err(format!("{rel}'s text is cut off: {at}. Nothing was made. Call create_project again with every file complete."), format!("Refused the new program {title}: {rel} is cut off"), &name);
+        }
         got.push((rel, s(f, "text").to_string()));
     }
     let main = project_path("", &main_given).unwrap_or_default();
@@ -1412,14 +1439,181 @@ pub fn edit_errors(p: &Project, proposals: &[Proposal]) -> usize {
     compile_errors(p, proposals).map_or(0, |e| e.lines().filter(|l| l.starts_with("error")).count())
 }
 
-/// The lines a change adds and removes: what lies between the lines both
-/// texts start and end with.
+/// The lines a change adds and removes: the lines of each text not in
+/// their longest common run of lines (a change at the top and one at the
+/// bottom of a long file are two lines, not the file).
 pub fn line_delta(old: &str, new: &str) -> (usize, usize) {
     let a: Vec<&str> = old.lines().collect();
     let b: Vec<&str> = new.lines().collect();
-    let head = a.iter().zip(&b).take_while(|(x, y)| x == y).count();
-    let tail = a[head..].iter().rev().zip(b[head..].iter().rev()).take_while(|(x, y)| x == y).count();
-    (b.len() - head - tail, a.len() - head - tail)
+    let kept = common_lines(&a, &b, |x, y| x == y);
+    (b.len() - kept, a.len() - kept)
+}
+
+/// How many lines `a` and `b` have in common, in order (the longest
+/// common subsequence), lines compared with `same`. A pair of files too
+/// large to compare line by line counts only the lines both start and end
+/// with.
+fn common_lines(a: &[&str], b: &[&str], same: impl Fn(&str, &str) -> bool) -> usize {
+    let head = a.iter().zip(b).take_while(|(x, y)| same(x, y)).count();
+    let tail = a[head..].iter().rev().zip(b[head..].iter().rev()).take_while(|(x, y)| same(x, y)).count();
+    let (a, b) = (&a[head..a.len() - tail], &b[head..b.len() - tail]);
+    if a.is_empty() || b.is_empty() || a.len().saturating_mul(b.len()) > 50_000_000 {
+        return head + tail;
+    }
+    // (one row at a time: the lengths only)
+    let mut prev = vec![0u32; b.len() + 1];
+    let mut row = vec![0u32; b.len() + 1];
+    for x in a {
+        for (j, y) in b.iter().enumerate() {
+            row[j + 1] = if same(x, y) { prev[j] + 1 } else { row[j].max(prev[j + 1]) };
+        }
+        std::mem::swap(&mut prev, &mut row);
+    }
+    head + tail + prev[b.len()] as usize
+}
+
+/// A file a whole-file rewrite is refused for when it keeps most of it:
+/// more lines than this.
+pub const WHOLE_FILE_LINES: usize = 40;
+
+/// Why write_file's `text` for an existing file of more than
+/// [`WHOLE_FILE_LINES`] lines is refused: it keeps more than half of the
+/// file's lines (trailing spaces aside) — a few lines' change sent as the
+/// whole file. `None`: it changes most of it, or the file is short.
+fn needless_rewrite(rel: &str, old: &str, new: &str) -> Option<String> {
+    let a: Vec<&str> = old.lines().collect();
+    if a.len() <= WHOLE_FILE_LINES {
+        return None;
+    }
+    let b: Vec<&str> = new.lines().collect();
+    let kept = common_lines(&a, &b, |x, y| x.trim_end() == y.trim_end());
+    let changed = (a.len() - kept).max(b.len() - kept);
+    (changed * 2 < a.len()).then(|| {
+        format!(
+            "Not proposed: write_file would send all {} lines of {rel} to change {} of them. Send only the parts that change with propose_edit: edits, each with old_text (a few whole lines copied exactly from {rel}, appearing once) and new_text (what replaces them); several edits in one call for several places. write_file is for a new file, or for rewriting most of one.",
+            b.len(),
+            changed.max(1)
+        )
+    })
+}
+
+/// Whether `p` is a new program proposed and not created yet (its files
+/// are the proposals: rewriting one whole costs nothing on disk).
+fn is_new_project(p: &Project) -> bool {
+    p.folder.starts_with("/new/")
+}
+
+/// The project's files as the proposals waiting for the user would leave
+/// them (each changed file's proposed text, each new file): what every
+/// check sees.
+fn project_files(p: &Project, proposals: &[Proposal]) -> Vec<(String, String)> {
+    let mut files = p.all();
+    for q in proposals.iter().filter(|q| q.project.is_empty() && is_source(&q.path)) {
+        files.retain(|(f, _)| *f != q.path);
+        files.push((q.path.clone(), q.new.clone()));
+    }
+    files
+}
+
+/// Where `new` (a file's text; `old` what it replaces, "" for a new file)
+/// is cut off: it ends in the middle of a closing keyword (`END FUNCTI`),
+/// or with a SUB, FUNCTION, CREATE or TYPE still open that `old` closed.
+/// What it ends with, in words; `None` when it ends whole.
+pub fn cut_off(old: &str, new: &str) -> Option<String> {
+    const ENDS: &[&str] = &["END SUB", "END FUNCTION", "END CREATE", "END TYPE", "END SUBI", "END FUNCTIONI", "END IF", "END SELECT", "END WITH"];
+    let last = new.lines().enumerate().filter(|(_, l)| !l.trim().is_empty()).last();
+    if let Some((n, line)) = last {
+        let words = line.trim().to_ascii_uppercase().split_whitespace().collect::<Vec<_>>().join(" ");
+        if words.starts_with("END ") && !ENDS.contains(&words.as_str()) && ENDS.iter().any(|e| e.starts_with(&words)) {
+            return Some(format!("it ends in the middle of a line (line {}: `{}`)", n + 1, line.trim()));
+        }
+    }
+    let (open, kind) = open_blocks(new);
+    if open > 0 && open_blocks(old).0 == 0 {
+        let n = new.lines().count();
+        return Some(format!("it ends at line {n} with a {kind} still open (no END {kind})"));
+    }
+    None
+}
+
+/// The SUBs, FUNCTIONs, CREATE and TYPE blocks still open at the text's
+/// end, and the last one opened.
+fn open_blocks(text: &str) -> (usize, &'static str) {
+    let mut stack: Vec<&'static str> = Vec::new();
+    for line in text.lines() {
+        for (_, st) in statements(line) {
+            let w: Vec<String> = st.split_whitespace().take(3).map(str::to_ascii_uppercase).collect();
+            let first = w.first().map(String::as_str).unwrap_or("");
+            let second = w.get(1).map(String::as_str).unwrap_or("");
+            match first {
+                "SUB" | "SUBI" if !second.is_empty() => stack.push("SUB"),
+                "FUNCTION" | "FUNCTIONI" if !second.is_empty() && second != "=" => stack.push("FUNCTION"),
+                "CREATE" if w.get(2).map(String::as_str) == Some("AS") => stack.push("CREATE"),
+                "TYPE" if !second.is_empty() => stack.push("TYPE"),
+                "END" => {
+                    let kind = match second {
+                        "SUB" | "SUBI" => "SUB",
+                        "FUNCTION" | "FUNCTIONI" => "FUNCTION",
+                        "CREATE" => "CREATE",
+                        "TYPE" => "TYPE",
+                        _ => continue,
+                    };
+                    if let Some(k) = stack.iter().rposition(|o| *o == kind) {
+                        stack.truncate(k);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    (stack.len(), stack.last().copied().unwrap_or(""))
+}
+
+/// The syntax errors of `target` (the lexer's and the parser's), in the
+/// project `files` — the compiler's words, a line each, each with the
+/// hints that say its fix (another language's habit on the line).
+fn syntax_problems(files: &[(String, String)], root: &str, target: &str) -> Vec<String> {
+    let mut a = Analysis::new(Options { roots: Some(Vec::new()), ..Options::default() });
+    let full = |rel: &str| PathBuf::from(format!("{}/{rel}", root.trim_end_matches('/')));
+    for (rel, text) in files {
+        a.update(full(rel), text.clone());
+    }
+    let mut out: Vec<String> = Vec::new();
+    for d in a.syntax_errors(&full(target)) {
+        let text = a.text(&d.file).unwrap_or_default();
+        let (line, col) = crate::langsvc::line_col(&text, d.start);
+        out.push(format!("error {target}:{line}:{col}: {}", d.message));
+        let src = text.lines().nth(line.saturating_sub(1)).unwrap_or("");
+        for (_, h) in crate::friendly::for_message(&d.message).into_iter().chain(crate::friendly::for_line(src)) {
+            let hint = format!("hint {target}:{line}: {h}");
+            if !out.contains(&hint) {
+                out.push(hint);
+            }
+        }
+    }
+    out
+}
+
+/// Why the proposed `new` text of `rel` (replacing `old`) is refused: cut
+/// off at its end, or a syntax error — each always refused, in a module
+/// too, the project checked with every proposal waiting for the user
+/// applied. (The message for the model, a few words for the step.)
+fn refused(p: &Project, proposals: &[Proposal], rel: &str, old: &str, new: &str) -> Option<(String, String)> {
+    if !is_source(rel) {
+        return None;
+    }
+    if let Some(at) = cut_off(old, new) {
+        return Some((format!("Not proposed: the new text of {rel} is cut off — {at}. A reply that ran out of room ends like that. Send the change again, complete: only the parts that change, with propose_edit."), "it is cut off at the end".into()));
+    }
+    let mut files = project_files(p, proposals);
+    files.retain(|(f, _)| f != rel);
+    files.push((rel.to_string(), new.to_string()));
+    let errors = syntax_problems(&files, "/project", rel);
+    if errors.is_empty() {
+        return None;
+    }
+    let shown: Vec<&str> = errors.iter().take(12).map(String::as_str).collect();
+    Some((format!("Not proposed: the new text of {rel} has a syntax error, so it can't be part of the program — fix it and send the change again (propose_edit, with every line it needs):\n{}", shown.join("\n")), "a syntax error".into()))
 }
 
 /// One `RCODEEDITOR.ApplyPatches` line that turns `old` into `new`: the
@@ -1432,8 +1626,11 @@ pub fn patch(old: &str, new: &str) -> String {
     }
     let a: Vec<&str> = old.split('\n').collect();
     let b: Vec<&str> = new.split('\n').collect();
+    // (the old text's last line never counts as common start: a change that
+    // adds a blank line and more at the end — a new SUB after the last —
+    // would start past the old text's end, and the patch apply nothing)
     let mut pre = 0;
-    while pre < a.len() && pre < b.len() && a[pre] == b[pre] {
+    while pre + 1 < a.len().min(b.len()) && a[pre] == b[pre] {
         pre += 1;
     }
     let mut suf = 0;
@@ -1568,7 +1765,7 @@ mod tests {
     fn an_edit_that_misses_shows_the_closest_lines() {
         let text = (1..=60).map(|i| if i == 40 { "    SiteList.AddItems \"alpha\"".to_string() } else { format!("PRINT {i}") }).collect::<Vec<_>>().join("\n") + "\n";
         let e = apply_edits("main.rr", &text, &[json!({"old_text": "SiteList.AddItem \"alpha\"\nPRINT 41x", "new_text": "x"})]).unwrap_err();
-        assert!(e.contains("isn't in main.rr") && e.contains("  40|     SiteList.AddItems \"alpha\"") && e.contains("write_file"), "{e}");
+        assert!(e.contains("isn't in main.rr") && e.contains("  40|     SiteList.AddItems \"alpha\"") && e.contains("call propose_edit again") && !e.contains("write_file"), "{e}");
         // (at most 30 lines, numbered from the file)
         assert!(e.lines().filter(|l| l.contains("| ")).count() <= 30, "{e}");
         assert!(!e.contains("   1| "), "{e}");
@@ -1712,7 +1909,8 @@ mod tests {
         buffers.insert("main.rr".to_string(), "CREATE Form AS RForm\nEND CREATE\nForm.ShowModal\n".to_string());
         let p = project(&files, &buffers);
         let w = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": src}), &p, &mut props, true);
-        assert!(w.content.contains("doesn't compile") && w.content.contains("`!=` isn't BASIC"), "{}", w.content);
+        // (syntax errors: refused, nothing proposed, the fix said)
+        assert!(w.is_error && w.content.starts_with("Not proposed: the new text of main.rr has a syntax error") && w.content.contains("`!=` isn't BASIC") && props.is_empty(), "{}", w.content);
     }
 
     /// The `layout` tool's keypad compiles, fits the client size it says,
@@ -1806,5 +2004,79 @@ mod tests {
         assert_eq!(patch("a\nb\nc", "c"), "0\t0\t2\t0\t");
         // (a CR LF file keeps its breaks)
         assert_eq!(patch("a\r\nb\r\nc\r\n", "a\nX\tY\nc\n"), "1\t0\t2\t0\tX\\tY\\r\\n");
+        // (a blank line and a new SUB after the last line: inserted before the
+        // old text's end — it was a patch past it, applying nothing, while the
+        // chat said "You applied the change")
+        assert_eq!(patch("SUB A\nEND SUB\n", "SUB A\nEND SUB\n\nSUB B\nEND SUB\n"), "2\t0\t2\t0\t\\nSUB B\\nEND SUB\\n");
+        assert_eq!(patch("x", "x\n\ny"), "0\t0\t0\t1\tx\\n\\ny");
+    }
+
+    /// R11: what is refused, and what isn't.
+    #[test]
+    fn syntax_errors_and_cut_off_texts_are_refused_even_in_modules() {
+        let files = vec!["main.rr".to_string(), "server.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "$INCLUDE \"server.rr\"\nStartServer\n".to_string());
+        buffers.insert("server.rr".to_string(), "SUB StartServer\n    PRINT 1\nEND SUB\n".to_string());
+        let p = project(&files, &buffers);
+        let mut props = Vec::new();
+        // (a module the main file includes: a syntax error refused)
+        let bad = run("propose_edit", &json!({"path": "server.rr", "summary": "x", "edits": [{"old_text": "PRINT 1", "new_text": "IF x != 1 THEN PRINT 1"}]}), &p, &mut props, true);
+        assert!(bad.is_error && bad.content.starts_with("Not proposed: the new text of server.rr has a syntax error") && bad.content.contains("error server.rr:2:"), "{}", bad.content);
+        assert!(props.is_empty());
+        // (a new module nothing includes yet: refused all the same)
+        let lone = run("write_file", &json!({"path": "other.rr", "summary": "x", "text": "SUB Other\n    PRINT (\nEND SUB\n"}), &p, &mut props, true);
+        assert!(lone.is_error && lone.content.contains("has a syntax error"), "{}", lone.content);
+        // (cut off: an END cut short, a SUB never closed)
+        let cut = run("write_file", &json!({"path": "server.rr", "summary": "x", "text": "SUB StartServer\n    PRINT 1\nEND SU"}), &p, &mut props, true);
+        assert!(cut.is_error && cut.content.contains("cut off — it ends in the middle of a line (line 3: `END SU`)"), "{}", cut.content);
+        let open = run("propose_edit", &json!({"path": "server.rr", "summary": "x", "edits": [{"old_text": "    PRINT 1\nEND SUB\n", "new_text": "    PRINT 1\n"}]}), &p, &mut props, true);
+        assert!(open.is_error && open.content.contains("with a SUB still open (no END SUB)"), "{}", open.content);
+        assert!(props.is_empty());
+        // (a type RapidR doesn't have isn't a syntax error: proposed, with
+        // the error to fix, as before)
+        let boolean = run("propose_edit", &json!({"path": "main.rr", "summary": "x", "edits": [{"old_text": "StartServer\n", "new_text": "DIM ready AS BOOLEAN\nStartServer\n"}]}), &p, &mut props, true);
+        assert!(!boolean.is_error && boolean.content.contains("doesn't compile with it yet"), "{}", boolean.content);
+        // (a new program with a file cut off: nothing made)
+        let mut np = Vec::new();
+        let made = run("create_project", &json!({"name": "Cut", "main": "main.rr", "summary": "x", "files": [{"path": "main.rr", "text": "CREATE F AS RForm\n    Caption = \"x\"\nEND CREATE\nF.ShowModal\nSUB Go\n    PRINT 1\nEND SU"}]}), &project(&[], &HashMap::new()), &mut np, true);
+        assert!(made.is_error && made.content.contains("main.rr's text is cut off") && np.is_empty(), "{}", made.content);
+        // (one-line blocks, a layout tool's buttons, close themselves)
+        assert_eq!(cut_off("", "CREATE F AS RForm\n    CREATE K AS RButton: Caption = \"7\": END CREATE\nEND CREATE\n"), None);
+        assert_eq!(cut_off("", "SUB A\nEND SUB\nFUNCTION B AS INTEGER\n    Result = 1\nEND FUNCTION\n"), None);
+        // (a file that was never closed, in RapidQ's leniency, stays so)
+        assert_eq!(cut_off("SUB A\n    PRINT 1\n", "SUB A\n    PRINT 2\n"), None);
+    }
+
+    /// R11: a few lines' change sent as the whole file of a long one is
+    /// refused (unless Studio says the edits kept missing); a short file,
+    /// a new one, or a rewrite of most of one are taken; the card counts
+    /// the lines that change, wherever they are.
+    #[test]
+    fn a_whole_file_rewrite_needs_to_change_most_of_the_file() {
+        let long: String = (1..=120).map(|i| format!("PRINT {i}\n")).collect();
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), long.clone());
+        let p = project(&files, &buffers);
+        let mut props = Vec::new();
+        let few = long.replace("PRINT 3\n", "PRINT 33\n").replace("PRINT 118\n", "PRINT 1188\n");
+        let w = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": few}), &p, &mut props, true);
+        assert!(w.is_error && w.content.contains("to change 2 of them") && w.note == "Refused a whole-file rewrite of main.rr: only a few lines change", "{}", w.content);
+        // (Studio's word: the edits kept missing)
+        let w = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": few, "_rewrite_ok": true}), &p, &mut props, true);
+        assert!(!w.is_error, "{}", w.content);
+        assert_eq!(line_delta(&props[0].old, &props[0].new), (2, 2));
+        props.clear();
+        // (most of it changes: taken)
+        let most: String = (1..=120).map(|i| format!("PRINT {}\n", i * 2)).collect();
+        assert!(!run("write_file", &json!({"path": "main.rr", "summary": "x", "text": most}), &p, &mut props, true).is_error);
+        // (a short file, and a new one: taken)
+        let mut short = HashMap::new();
+        short.insert("main.rr".to_string(), "PRINT 1\nPRINT 2\n".to_string());
+        assert!(!run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "PRINT 1\nPRINT 3\n"}), &project(&files, &short), &mut Vec::new(), true).is_error);
+        assert!(!run("write_file", &json!({"path": "new.rr", "summary": "x", "text": long}), &p, &mut Vec::new(), true).is_error);
+        // (the lines that change, not the span between the first and the last)
+        assert_eq!(line_delta(&long, &long.replace("PRINT 1\n", "PRINT 0\n").replace("PRINT 120\n", "PRINT 121\n")), (2, 2));
     }
 }
