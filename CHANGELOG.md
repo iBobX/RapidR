@@ -64,6 +64,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   2026-10-22): they say "code completion" and "code help" in plain words. The
   words check now scans `CHANGELOG.md` and `docs/release-notes/` too, so the
   trademark cannot come back.
+- **Notices: every file in a licence-named folder is a notice** (legal review
+  of 2026-10-22). `rapidr notices` used to pick up licence files by their
+  names only, so the two MIT notices `faster-hex` (a gitoxide dependency)
+  keeps in `LICENSE-THIRD-PARTY/fast-hex` and `LICENSE-THIRD-PARTY/Rust Project
+  Developers` would have been left out of `THIRD-PARTY-NOTICES.txt` once
+  Versions joins Studio. A folder called `LICENSE-THIRD-PARTY`, `licenses`,
+  `LICENSES` or the like now gives every file inside it. Across the 711
+  packages of the workspace's graph this adds exactly those two files; a unit
+  test with a folder shaped like `faster-hex`'s keeps it so.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which

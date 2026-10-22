@@ -39,7 +39,11 @@ For each kind it runs `cargo tree -e normal --target <triple>` (normal
 dependencies: what is compiled into the output; build scripts and dev
 dependencies are not) and `cargo metadata`, reads each crate's licence files
 (`LICENSE*`, `COPYING*`, `COPYRIGHT*`, `NOTICE*`, and those of code bundled
-in subfolders, e.g. SDL_GameControllerDB's in `gilrs`), picks among
+in subfolders, e.g. SDL_GameControllerDB's in `gilrs`; **every file inside a
+licence-named folder** — `LICENSE-THIRD-PARTY/`, `licenses/`, `LICENSES/` —
+whatever its name, e.g. the two MIT notices `faster-hex` keeps in
+`LICENSE-THIRD-PARTY/fast-hex` and `LICENSE-THIRD-PARTY/Rust Project
+Developers`), picks among
 `A OR B` alternatives the one whose text the crate ships with the fewest
 obligations (MIT first), and keeps every `NOTICE` file (Apache-2.0 §4(d);
 none of today's crates has one). A crate that ships no file for its licence

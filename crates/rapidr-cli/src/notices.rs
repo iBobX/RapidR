@@ -545,6 +545,14 @@ fn is_licence_name(name: &str) -> bool {
     ["licen", "copying", "copyright", "notice", "unlicense", "ftl.txt"].iter().any(|p| lower.starts_with(p)) && !code.iter().any(|c| lower.ends_with(c))
 }
 
+/// A licence-looking folder name (`LICENSE-THIRD-PARTY`, `licenses`,
+/// `LICENSES`, `NOTICES`): the same words as a licence file's name, with no
+/// file extension to tell code from text.
+fn is_licence_dir(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    ["licen", "copying", "copyright", "notice", "unlicense"].iter().any(|p| lower.starts_with(p))
+}
+
 /// Folders inside a crate whose licence files aren't about compiled code.
 const SKIP_DIRS: &[&str] = &["tests", "test", "testdata", "testsuite", "examples", "benches", "fixtures", "autotests", "target", ".git", "sqlcipher", "sqlite3mc", "docs-src"];
 
@@ -629,8 +637,12 @@ fn licence_files(p: &Package) -> Vec<(String, String, bool)> {
         let path = p.dir.join(f);
         add(f.replace('\\', "/"), &path, false);
     }
-    let mut stack = vec![(p.dir.clone(), String::new(), 0)];
-    while let Some((dir, rel, depth)) = stack.pop() {
+    // (the flag: inside a licence-named folder, `LICENSE-THIRD-PARTY/`,
+    // `licenses/`, `LICENSES/`: every file there is a licence or notice file,
+    // whatever it is called: faster-hex keeps `LICENSE-THIRD-PARTY/fast-hex`
+    // and `LICENSE-THIRD-PARTY/Rust Project Developers`)
+    let mut stack = vec![(p.dir.clone(), String::new(), 0, false)];
+    while let Some((dir, rel, depth, in_licence_dir)) = stack.pop() {
         let mut entries: Vec<_> = fs::read_dir(&dir).into_iter().flatten().flatten().collect();
         entries.sort_by_key(|e| e.file_name());
         for e in entries {
@@ -638,9 +650,9 @@ fn licence_files(p: &Package) -> Vec<(String, String, bool)> {
             let sub = if rel.is_empty() { name.clone() } else { format!("{rel}/{name}") };
             if e.path().is_dir() {
                 if depth < 4 && !SKIP_DIRS.contains(&name.as_str()) {
-                    stack.push((e.path(), sub, depth + 1));
+                    stack.push((e.path(), sub, depth + 1, in_licence_dir || is_licence_dir(&name)));
                 }
-            } else if depth > 0 && is_licence_name(&name) {
+            } else if depth > 0 && (in_licence_dir || is_licence_name(&name)) {
                 add(sub, &e.path(), true);
             }
         }
@@ -1145,6 +1157,82 @@ mod tests {
         theirs.sort();
         ours.sort();
         assert_eq!(theirs, ours);
+    }
+
+    /// A crate folder shaped like faster-hex 0.10.1's (the gitoxide crates
+    /// use it): its own `LICENSE`, and two MIT notices inside a folder named
+    /// `LICENSE-THIRD-PARTY/`, in files whose names say nothing
+    /// (`fast-hex`, `Rust Project Developers`). Made in a temporary folder:
+    /// no network, no registry.
+    fn faster_hex_shaped(tag: &str) -> Package {
+        let dir = std::env::temp_dir().join(format!("rapidr-notices-test-{}-{tag}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let write = |rel: &str, text: &str| {
+            let path = dir.join(rel);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, text).unwrap();
+        };
+        write("LICENSE", &mit_with("Copyright (c) 2018 Nervos Foundation"));
+        write("LICENSE-THIRD-PARTY/fast-hex", &mit_with("Copyright (c) 2017 Zach Bjornson"));
+        write("LICENSE-THIRD-PARTY/Rust Project Developers", &mit_with("Copyright (c) 2017 The Rust Project Developers"));
+        write("src/lib.rs", "pub fn hex() {}\n");
+        // not licences: a test fixture's, and a plain file in a plain folder
+        write("tests/LICENSE", "a test fixture's licence: never shipped");
+        write("data/readme.txt", "not a licence");
+        Package {
+            name: "faster-hex".into(),
+            version: "0.10.1".into(),
+            license: Some("MIT".into()),
+            license_file: None,
+            dir,
+            authors: vec![],
+            url: "https://github.com/NervosFoundation/faster-hex".into(),
+        }
+    }
+
+    /// Every file inside a licence-named folder is a licence or notice file,
+    /// whatever its name (a folder's file names are not licence-looking), so
+    /// both of faster-hex's notices reach `THIRD-PARTY-NOTICES.txt`.
+    #[test]
+    fn every_file_in_a_licence_named_folder_is_a_notice() {
+        let p = faster_hex_shaped("folder");
+        let files = licence_files(&p);
+        let rels: Vec<&str> = files.iter().map(|(rel, _, _)| rel.as_str()).collect();
+        assert_eq!(rels, ["LICENSE", "LICENSE-THIRD-PARTY/Rust Project Developers", "LICENSE-THIRD-PARTY/fast-hex"], "{rels:?}");
+        // the folder's files are bundled third-party notices: always kept
+        assert!(files.iter().filter(|(rel, _, _)| rel.starts_with("LICENSE-THIRD-PARTY/")).all(|(_, _, bundled)| *bundled));
+
+        let c = crate_component(&p, &HashMap::new()).unwrap();
+        let titles: Vec<&str> = c.blocks.iter().map(|b| b.title.as_str()).collect();
+        assert_eq!(titles, ["faster-hex 0.10.1 — LICENSE", "faster-hex 0.10.1 — LICENSE-THIRD-PARTY/Rust Project Developers", "faster-hex 0.10.1 — LICENSE-THIRD-PARTY/fast-hex"]);
+        let all: String = c.blocks.iter().map(|b| b.text.as_str()).collect();
+        for line in ["Copyright (c) 2018 Nervos Foundation", "Copyright (c) 2017 Zach Bjornson", "Copyright (c) 2017 The Rust Project Developers"] {
+            assert!(all.contains(line), "missing {line:?}");
+        }
+        let _ = fs::remove_dir_all(&p.dir);
+    }
+
+    /// The folder rule is for licence-named folders only: a plain file in a
+    /// plain folder is still not a licence, folders such as `licenses/` and
+    /// `LICENSES/` count whatever their case, and `tests/` is still skipped
+    /// inside them.
+    #[test]
+    fn only_licence_named_folders_widen_the_search() {
+        assert!(is_licence_dir("LICENSE-THIRD-PARTY") && is_licence_dir("licenses") && is_licence_dir("LICENSES") && is_licence_dir("Notices"));
+        assert!(!is_licence_dir("src") && !is_licence_dir("data") && !is_licence_dir("tests"));
+
+        let p = faster_hex_shaped("only");
+        let files = licence_files(&p);
+        assert!(files.iter().all(|(rel, _, _)| rel != "data/readme.txt" && rel != "tests/LICENSE" && rel != "src/lib.rs"), "{:?}", files.iter().map(|f| &f.0).collect::<Vec<_>>());
+        // a nested folder in a licence folder is searched too
+        fs::create_dir_all(p.dir.join("licenses/deep")).unwrap();
+        fs::write(p.dir.join("licenses/deep/some-author"), "Copyright (c) 2020 Some Author").unwrap();
+        fs::create_dir_all(p.dir.join("licenses/tests")).unwrap();
+        fs::write(p.dir.join("licenses/tests/fixture"), "skipped").unwrap();
+        let rels: Vec<String> = licence_files(&p).into_iter().map(|(rel, _, _)| rel).collect();
+        assert!(rels.contains(&"licenses/deep/some-author".to_string()), "{rels:?}");
+        assert!(!rels.contains(&"licenses/tests/fixture".to_string()), "{rels:?}");
+        let _ = fs::remove_dir_all(&p.dir);
     }
 
     /// The gdtoa notice is cut whole from mingw-w64's runtime notices: its
