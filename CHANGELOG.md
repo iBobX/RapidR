@@ -11,7 +11,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
   takes no number), so a console tool can fail a build:
   `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.
-  `n` is any numeric expression, stored as a LONG is; a plain `END`, running
+  `n` is any numeric expression, stored as a LONG is; a bare name must be
+  one you declared (`DIM code AS INTEGER = 5`, then `END code`), so a typo
+  in a block's ending — `END SUBB`, `END FUNCTON` — stays RapidQ's syntax
+  error ("did you mean END SUB?") instead of quietly ending the program; a plain `END`, running
   off the end of the program, `END IF` and `END SUB` are as they were. It
   works under `rapidr run`, in interpreted and native builds and in programs
   with windows; in a web page the program ends and the number is ignored.

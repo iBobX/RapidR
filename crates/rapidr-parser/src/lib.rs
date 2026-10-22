@@ -73,6 +73,7 @@ pub fn parse_tokens_with_type_names(tokens: &[Token]) -> (Program, Vec<Diagnosti
     rapidr_ast::set_program_types(&type_names);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
+    parser.check_end_codes(&program);
     let mut type_names = parser.type_names;
     type_names.sort_by_key(|s| (s.start, s.end));
     type_names.dedup();
@@ -423,6 +424,22 @@ impl<'a> Parser<'a> {
 
     fn peek_identifier_eq(&self, value: &str) -> bool {
         matches!(self.peek(), Some(t) if t.lexeme.eq_ignore_ascii_case(value))
+    }
+
+    /// RapidQ's "Syntax error in END statement" for each `END word` whose
+    /// bare word names nothing the program declared there
+    /// ([`rapidr_ast::end_codes`]): `END SUBB`, `END FUNCTON`, `END Enum` —
+    /// a typo of a block's closer, and no exit code. Close to a closer, the
+    /// message says which.
+    fn check_end_codes(&mut self, program: &Program) {
+        for u in rapidr_ast::end_codes::unresolved_end_codes(program) {
+            let Some(at) = self.tokens.iter().position(|t| t.span.start == u.span.start && t.kind == TokenType::End) else { continue };
+            let mut message = "Syntax error in END statement".to_string();
+            if let Some(closer) = rapidr_ast::end_codes::closer_suggestion(&u.word) {
+                message.push_str(&format!(" (did you mean END {closer}?)"));
+            }
+            self.error_at(at, message);
+        }
     }
 
     /// Whether the `END` at the cursor is followed by an exit code (RapidR's
@@ -3974,6 +3991,31 @@ mod tests {
         // (an expression that doesn't end the line is the usual leftover error)
         let errs = errors("END 1 )\n");
         assert!(errs.iter().any(|e| e.2.contains("Expected end-of-line")), "{errs:?}");
+    }
+
+    #[test]
+    fn a_bare_name_after_end_must_be_declared() {
+        // (declared and in scope: a DIM, CONST, DEFINT, a parameter, a local,
+        // a SUB, anywhere in the program's top level)
+        let ok = "DIM code AS INTEGER = 5\nCONST Failed = 3\nDEFINT n = 2\nSUB Done\nEND SUB\nSUB S(p AS INTEGER)\n  DIM q AS INTEGER\n  IF p THEN END p\n  IF q THEN END q\n  END Failed\nEND SUB\nSUB B\n  END g\nEND SUB\nDIM g AS INTEGER\nEND code\nEND n\nEND Done\n";
+        assert_eq!(errors(ok), vec![], "declared names are exit codes");
+        // (a typo of a block's closer, an unknown word, an implicit variable)
+        let errs = errors("PRINT 1\nEND SUBB\nEND FUNCTON\nEND Enum\nk = 3\nEND k\nEND wiht\n");
+        let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
+        assert_eq!(lines, vec![2, 3, 4, 6, 7], "{errs:?}");
+        assert_eq!(errs[0].2, "Syntax error in END statement (did you mean END SUB?)");
+        assert_eq!(errs[1].2, "Syntax error in END statement (did you mean END FUNCTION?)");
+        assert_eq!(errs[2].2, "Syntax error in END statement", "no closer is close to Enum");
+        assert_eq!(errs[3].2, "Syntax error in END statement", "storing into k didn't declare it");
+        assert_eq!(errs[4].2, "Syntax error in END statement (did you mean END WITH?)");
+        // (inside a block, the typo is reported on its own line)
+        let errs = errors("SUB Foo\n  PRINT 1\nEND SUBB\n");
+        assert!(errs.iter().any(|e| e.0 == 3 && e.2.contains("did you mean END SUB?")), "{errs:?}");
+        // (another routine's local is not in scope)
+        let errs = errors("SUB A\n  DIM x AS INTEGER\nEND SUB\nSUB B\n  END x\nEND SUB\n");
+        assert_eq!(errs.iter().map(|e| e.0).collect::<Vec<_>>(), vec![5], "{errs:?}");
+        // (anything longer than a bare name is an expression: accepted)
+        assert_eq!(errors("END nothing + 1\nEND (3)\nEND -1\nEND unknown(2)\n"), vec![]);
     }
 
     #[test]

@@ -221,9 +221,14 @@ PRINT "ok"                        ' running off the end is exit code 0 too
 ```
 
 `n` is any number or numeric expression (`END failures + 1`), stored as a
-LONG is, so `END 2.9` ends with 2. A plain `END` ends with 0, as it always
-did, and `END IF`, `END SUB` and the other block endings are what they
-were. After a run, read the code in the shell: `echo $?` on macOS and Linux,
+LONG is, so `END 2.9` ends with 2. A bare name has to be one you declared
+(`DIM code AS INTEGER = 5` then `END code`; a `CONST`, a parameter or a
+local does too): a typo in a block's ending, `END SUBB` or `END FUNCTON`,
+and a name that was never declared stay the syntax error they are in
+RapidQ, with a "did you mean END SUB?" hint when the word is close to one,
+rather than quietly ending the program there. A plain `END` ends with 0, as
+it always did, and `END IF`, `END SUB` and the other block endings are what
+they were. After a run, read the code in the shell: `echo $?` on macOS and Linux,
 `echo %ERRORLEVEL%` in Windows' Command Prompt. It is the same for
 `rapidr run`, for an app built with `rapidr build` (native or `--interp`)
 and for a program with windows. macOS and Linux keep the low 8 bits of the
