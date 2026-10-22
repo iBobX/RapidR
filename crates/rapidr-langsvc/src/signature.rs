@@ -149,7 +149,7 @@ fn push_params(label: &mut String, texts: &[String]) -> Vec<(usize, usize)> {
 }
 
 /// A builtin's signature: the registry's syntax line, each parameter's
-/// range found in it (`MID$(String, Position, Num)`, `LOCATE [Y%][, X%]`).
+/// range found in it (`MID$(Text$, Position, Num)`, `LOCATE [Y%][, X%]`).
 fn syntax_signature(syntax: &str, doc: String) -> Signature {
     let bytes = syntax.as_bytes();
     let name_end = syntax.find(['(', ' ', '[']).unwrap_or(syntax.len());
