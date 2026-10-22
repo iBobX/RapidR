@@ -70,10 +70,13 @@ impl Source {
     }
 }
 
-fn memory_only() -> bool {
+/// Whether keys and programs' secrets are kept in this process's memory
+/// only: `RAPIDR_AI_KEYSTORE=memory` (or `RAPIDR_KEYSTORE=memory`), the
+/// test keystore — the user's keychain is never touched.
+pub(crate) fn memory_only() -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        std::env::var("RAPIDR_AI_KEYSTORE").is_ok_and(|v| v.eq_ignore_ascii_case("memory"))
+        ["RAPIDR_AI_KEYSTORE", "RAPIDR_KEYSTORE"].iter().any(|k| std::env::var(k).is_ok_and(|v| v.trim().eq_ignore_ascii_case("memory")))
     }
     #[cfg(target_arch = "wasm32")]
     {
@@ -384,7 +387,7 @@ fn looks_like_key(s: &str) -> bool {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-mod store {
+pub(crate) mod store {
     use std::sync::{Arc, OnceLock};
 
     use keyring_core::Entry;
@@ -428,25 +431,50 @@ mod store {
     }
 
     pub fn get(account: &str) -> Option<String> {
-        if !ready() {
-            return None;
-        }
-        Entry::new(super::SERVICE, account).ok()?.get_password().ok()
+        get_in(super::SERVICE, account).ok().flatten()
     }
 
     pub fn set(account: &str, key: &str) -> Result<(), String> {
-        if !ready() {
-            return Err("there is no keychain here".into());
-        }
-        let e = Entry::new(super::SERVICE, account).map_err(|e| e.to_string())?;
-        e.set_password(key).map_err(|e| format!("the keychain refused it: {e}"))
+        set_in(super::SERVICE, account, key)
     }
 
     pub fn delete(account: &str) {
-        if ready() {
-            if let Ok(e) = Entry::new(super::SERVICE, account) {
-                let _ = e.delete_credential();
-            }
+        let _ = delete_in(super::SERVICE, account);
+    }
+
+    /// The item `account` of keychain service `service` (`None`: there is
+    /// none). RapidR Studio's keys are under [`super::SERVICE`]; programs'
+    /// secrets under their own services (crate::secrets).
+    pub fn get_in(service: &str, account: &str) -> Result<Option<String>, String> {
+        if !ready() {
+            return Err("there is no keychain here".into());
+        }
+        let e = Entry::new(service, account).map_err(|e| e.to_string())?;
+        match e.get_password() {
+            Ok(v) => Ok(Some(v)),
+            Err(keyring_core::Error::NoEntry) => Ok(None),
+            Err(e) => Err(format!("the keychain couldn't be read: {e}")),
+        }
+    }
+
+    pub fn set_in(service: &str, account: &str, value: &str) -> Result<(), String> {
+        if !ready() {
+            return Err("there is no keychain here".into());
+        }
+        let e = Entry::new(service, account).map_err(|e| e.to_string())?;
+        e.set_password(value).map_err(|e| format!("the keychain refused it: {e}"))
+    }
+
+    /// Deletes the item; whether there was one.
+    pub fn delete_in(service: &str, account: &str) -> Result<bool, String> {
+        if !ready() {
+            return Err("there is no keychain here".into());
+        }
+        let e = Entry::new(service, account).map_err(|e| e.to_string())?;
+        match e.delete_credential() {
+            Ok(()) => Ok(true),
+            Err(keyring_core::Error::NoEntry) => Ok(false),
+            Err(e) => Err(format!("the keychain refused it: {e}")),
         }
     }
 

@@ -8,9 +8,13 @@ description = "RSQLITE and RMYSQL as every RapidR runtime has them: one SQLite (
 
 [dependencies]
 rapidr-value = { workspace = true }
-# (no derive: it pulled the unmaintained proc-macro-error2; no TLS: RapidR
-# never asks for it; flate2 in pure Rust: no system zlib)
-mysql = { version = "28", optional = true, default-features = false, features = ["minimal-rust", "buffer-pool"] }
+# (no derive: it pulled the unmaintained proc-macro-error2; flate2 in pure
+# Rust: no system zlib.) Encrypted connections (RMySQL's SSLMode) on the
+# operating system's TLS through native-tls (MIT OR Apache-2.0), the same
+# crate and features HTTPS uses (ureq): Security.framework on macOS,
+# SChannel on Windows, the system's OpenSSL 3 on Linux. No TLS library is
+# compiled in (never the crate's rustls features: deny.toml bans them).
+mysql = { version = "28", optional = true, default-features = false, features = ["minimal-rust", "buffer-pool", "native-tls"] }
 
 # One SQLite everywhere: compiled from its C sources into native builds and
 # the interpreter (`bundled`), and into the web's wasm (sqlite-wasm-rs).

@@ -106,8 +106,8 @@ struct Strip {
 }
 
 thread_local! {
-    /// By BMP / BMPHandle value and the screen's scale.
-    static STRIPS: RefCell<HashMap<(String, usize), Option<Strip>>> = RefCell::new(HashMap::new());
+    /// By BMP / BMPHandle value, the screen's scale and the theme's icon palette.
+    static STRIPS: RefCell<HashMap<(String, usize, &'static str), Option<Strip>>> = RefCell::new(HashMap::new());
 }
 
 /// Frame `frame` of `count` of the glyph strip `value` (BMP's file or
@@ -116,7 +116,8 @@ thread_local! {
 /// its own transparency.
 fn glyph(value: &Value, count: i64, frame: i64) -> Option<Frame> {
     let scale = rapidr_value::objects::bitmap::display_scale();
-    let key = (format!("{value:?}"), scale);
+    // (and the theme: an SVG glyph is drawn in its colours)
+    let key = (format!("{value:?}"), scale, rapidr_value::theme::current().icon_palette());
     STRIPS.with(|s| {
         let mut s = s.borrow_mut();
         let strip = s.entry(key).or_insert_with(|| {

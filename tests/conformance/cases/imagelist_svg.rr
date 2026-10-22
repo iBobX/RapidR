@@ -1,0 +1,46 @@
+' RImageList.AddSVGFile and SVG pictures that follow the theme (RapidR's;
+' REQUEST-001 item 10): an SVG file and a $RESOURCE drawn at the list's
+' size; currentColor and RapidR's colour tokens take the theme's colours
+' and follow it, a Theme fixes them, an illustration keeps its own; a
+' picture file's place takes a $RESOURCE's name (RBitmap.LoadFromFile).
+$RESOURCE INK_SVG AS "resource_files/ink.svg"
+DIM IL AS RImageList
+DIM B AS RBitmap
+
+SUB Show (Look AS STRING)
+    DIM i AS INTEGER
+    Application.Theme = Look
+    PRINT Look; ":";
+    FOR i = 0 TO IL.Count - 1
+        B.FillRect 0, 0, 16, 16, &HFFFFFF
+        IL.Draw B, 0, 0, i
+        PRINT " "; HEX$(B.Pixel(8, 8));
+    NEXT
+    PRINT
+END SUB
+
+DIM F AS STRING
+F = "rr_test_svg_token.svg"
+OPEN F FOR OUTPUT AS #1
+PRINT #1, "<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><rect width='24' height='24' fill='#2F5BFF'/></svg>"
+CLOSE #1
+OPEN "rr_test_svg_art.svg" FOR OUTPUT AS #1
+PRINT #1, "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'><rect width='16' height='16' fill='#3A7BD5'/></svg>"
+CLOSE #1
+
+Application.Theme = "rapidr light"
+IL.Width = 16: IL.Height = 16
+B.Width = 16: B.Height = 16
+PRINT IL.AddSVGFile(INK_SVG); " "; IL.AddSVGFile(F); " "; IL.AddSVGFile(F, "dark"); " "; IL.AddSVGFile("rr_test_svg_art.svg"); " "; IL.Count
+' (ink: the theme's; the blue token: the theme's blue; "dark": stays; the illustration's own)
+Show "rapidr light"
+Show "rapidr dark"
+Show "rapidr high contrast"
+Show "rapidr light"
+
+' A $RESOURCE's name where a picture file goes; drawn at its own size.
+DIM P AS RBitmap
+P.LoadFromFile INK_SVG
+PRINT P.Width; " "; P.Height; " "; HEX$(P.Pixel(8, 8))
+KILL F
+KILL "rr_test_svg_art.svg"

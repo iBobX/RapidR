@@ -217,6 +217,33 @@ methods = [
 events = []
 
 [[component]]
+name = "RSECRETS"
+display = "Secrets"
+visual = false
+doc = "Keeps passwords, tokens and keys in the operating system's keychain (the macOS Keychain, Windows Credential Manager, the Secret Service on Linux), by a service and a name: never in the program, a file or the settings. Each program has its own items (kept as rapidr-app:<program>:<service>, the program's file name in lower case), so no program reaches another's or RapidR Studio's. What it reads and saves is never shown: the debugger shows ••••, an AI is never given it, and Error never says it. A browser has no keychain: on the web Available is False and every call fails (Error says so); nothing is kept in the page's storage. For tests, RAPIDR_AI_KEYSTORE=memory keeps everything in the program's memory. RapidR's own."
+example = """
+DIM Secrets AS RSecrets
+IF Secrets.Save("MySQL", "office", "my password") THEN PRINT "kept in "; Secrets.Store
+pw$ = Secrets.Read("MySQL", "office")
+PRINT "read back: "; LEN(pw$); " characters"
+IF Secrets.Exists("MySQL", "office") THEN Secrets.Delete "MySQL", "office"
+IF Secrets.Error <> "" THEN PRINT "couldn't: "; Secrets.Error
+"""
+properties = [
+  { name = "Available", type = "bool", access = "read", design = false, doc = "True where secrets can be kept: a keychain RapidR can use (or the test keystore). False in a browser, and on a Linux without the Secret Service." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last call failed (\"\" when it worked): no keychain here, the keychain refused, an empty service or name, a value longer than 1,024 characters. Never the value." },
+  { name = "Store", type = "string", access = "read", design = false, doc = "Where secrets are kept here, in words: \"the macOS Keychain\", \"Windows Credential Manager\", \"the Secret Service (GNOME Keyring or KWallet)\"; with the test keystore, memory." },
+  { name = "Program", type = "string", access = "read", design = false, doc = "The name this program's items are kept under: its file's name in lower case (dbstudio.rr, DBStudio.exe and DBStudio.app are all dbstudio)." },
+]
+methods = [
+  { name = "Save", params = "Service AS STRING, Name AS STRING, Value AS STRING", returns = "INTEGER", effects = ["registry"], risk = "irreversible", secret = true, test = "args: \"RapidR conformance\", \"case\", \"not-a-real-secret\"", doc = "Keeps `Value` in the keychain as `Name` of `Service` (both your own words: \"MySQL\", \"office\"), replacing what was kept there. True when it was kept; False when not (Error says why). `Value` is a credential: never shown." },
+  { name = "Read", params = "Service AS STRING, Name AS STRING", returns = "STRING", effects = ["registry"], secret = true, test = "args: \"RapidR conformance\", \"case\"", doc = "What is kept as `Name` of `Service`: \"\" when nothing is (Exists tells them apart) or the keychain can't be read (Error says why). The value is a credential: the debugger shows ••••." },
+  { name = "Delete", params = "Service AS STRING, Name AS STRING", returns = "INTEGER", effects = ["registry"], risk = "irreversible", test = "args: \"RapidR conformance\", \"case\"", doc = "Removes `Name` of `Service` from the keychain. True when there was one; False when there wasn't or it couldn't (Error says why)." },
+  { name = "Exists", params = "Service AS STRING, Name AS STRING", returns = "INTEGER", effects = ["registry"], test = "args: \"RapidR conformance\", \"case\"", doc = "True when something is kept as `Name` of `Service`." },
+]
+events = []
+
+[[component]]
 name = "RJSON"
 display = "Json"
 visual = false
@@ -398,6 +425,7 @@ methods = [
   { name = "InsertBMPHandle", params = "Index AS INTEGER, BMP_Resource, Mask AS INTEGER" },
   { name = "InsertICOHandle", params = "Index AS INTEGER, ICO_Resource" },
   { name = "AddIcon", params = "Name AS STRING, [Theme AS STRING]", origin = "rapidr", doc = "Adds one of RapidR's own icons (an icon name, a component type or a command id) at the list's Width × Height, in the current theme's colours or Theme's." },
+  { name = "AddSVGFile", params = "FileName AS STRING, [Theme AS STRING]", returns = "INTEGER", origin = "rapidr", effects = ["file-read"], test = "skip: needs an SVG file (tests/conformance/cases/imagelist_svg.rr)", doc = "Adds your own SVG icon — a file, or one built into the program by `$RESOURCE` (its name) — drawn at the list's Width × Height and at the screen's scale, so it stays sharp at 2×. Drawn with RapidR's icon colour tokens (ink #5B6478, blue #2F5BFF … as their light values) or `currentColor`, it takes the theme's colours (light, dark, high contrast) and follows the theme when it changes; Theme (\"dark\", \"highcontrast\" …) fixes them. An SVG with colours of its own keeps them. Returns the new image's index.", example = "DIM Icons AS RImageList\nIcons.Width = 16: Icons.Height = 16\nIcons.AddSVGFile \"icons/table.svg\"\nIcons.AddSVGFile \"icons/table.svg\", \"dark\"" },
 ]
 events = []
 

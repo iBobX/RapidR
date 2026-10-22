@@ -187,6 +187,8 @@ fn method(c: &Component, m: &rapidr_lang::Method) -> Value {
         ("effects", if m.effects.is_empty() { Value::Null } else { effects(m.effects) }),
         ("risk", m.risk().map_or(Value::Null, |r| json!(r.as_str()))),
         ("needsPerson", if m.effects.contains(&Effect::Wait) { json!(true) } else { Value::Null }),
+        // (its result or its value is a credential: never given to a model)
+        ("secret", if m.secret { json!(true) } else { Value::Null }),
         ("origin", json!(m.origin.as_str())),
         ("only", only(m.runtimes).map_or(Value::Null, |o| json!(o))),
         ("doc", json!(m.doc)),

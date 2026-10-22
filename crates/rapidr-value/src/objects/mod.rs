@@ -251,6 +251,20 @@ pub fn read_or_own(path: &str) -> Result<Vec<u8>, String> {
     crate::command_line::read_or_programs_own(path, read_file)
 }
 
+/// The bytes of a picture a program names wherever a picture file goes
+/// (`RImage.Load`, `LoadFromFile`, `AddSVGFile`): a `$RESOURCE`'s handle —
+/// `Image.Load RES`, the picture built into the program — else a file
+/// ([`read_or_own`]). A number that is no resource's is a file's name, as
+/// before.
+pub fn picture_bytes(v: &Value) -> Result<Vec<u8>, String> {
+    if matches!(v, Value::Integer(_) | Value::Double(_)) {
+        if let Some(b) = crate::resources::bytes(v.to_i64()) {
+            return Ok(b.to_vec());
+        }
+    }
+    read_or_own(&v.to_string_val())
+}
+
 pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
@@ -372,7 +386,13 @@ fn imagelist_images(id: &str) -> Vec<Bitmap> {
         return Vec::new();
     }
     with(id, |o| match o {
-        Object::ImageList(l) => l.images.clone(),
+        Object::ImageList(l) => {
+            // (its SVGs in the current theme's colours, before they're copied)
+            for b in &mut l.images {
+                b.follow_theme();
+            }
+            l.images.clone()
+        }
         _ => Vec::new(),
     })
     .unwrap_or_default()
@@ -472,7 +492,8 @@ pub fn list_item_pixels(id: &str, i: usize, width: i64, font: &Font) -> Option<(
 /// RGBA, scale): a tree node's icon.
 pub fn imagelist_pixels(id: &str, i: i64) -> Option<(usize, usize, Vec<u8>, usize)> {
     with(id, |o| match o {
-        Object::ImageList(l) => usize::try_from(i).ok().and_then(|i| l.images.get(i)).map(|b| b.clone().display_rgba()),
+        // (the list's own image: an SVG drawn again in a new theme stays so)
+        Object::ImageList(l) => usize::try_from(i).ok().and_then(|i| l.images.get_mut(i)).map(Bitmap::display_rgba),
         _ => None,
     })?
 }
@@ -1677,7 +1698,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
         ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
-        ("bitmap", "loadfromfile" | "load") => Some(read_or_own(&arg(0).to_string_val()).and_then(|bytes| {
+        // (a `$RESOURCE`'s handle too: `Image.Load RES`)
+        ("bitmap", "loadfromfile" | "load") => Some(picture_bytes(&arg(0)).and_then(|bytes| {
             with(id, |o| match o {
                 Object::Bitmap(b) => b.load_bmp_bytes(&bytes),
                 _ => Ok(()),
@@ -1845,6 +1867,49 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect(dest, &src, src_rect) });
             Some(Ok(Value::Null))
         }
+        // AddSVGFile(FileName [, Theme]) (RapidR's): an SVG — a file or a
+        // `$RESOURCE` — drawn at the list's Width × Height, kept whole (so
+        // drawn again at the screen's scale), in the current theme's colours
+        // and the next one's, or Theme's. Its index.
+        ("imagelist", "addsvgfile") => {
+            let source = arg(0);
+            let bytes = match picture_bytes(&source) {
+                Ok(b) => b,
+                Err(e) => return Some(Err(e)),
+            };
+            if !codec::is_svg(&bytes) {
+                return Some(Err(format!("{}: not an SVG image", source.to_string_val())));
+            }
+            let (w, h) = with(id, |o| match o {
+                Object::ImageList(l) => (l.width.max(1) as u32, l.height.max(1) as u32),
+                _ => (16, 16),
+            })?;
+            let text = String::from_utf8_lossy(&bytes);
+            let Some(sized) = codec::svg_sized(&text, w, h) else {
+                return Some(Err(format!("{}: not an SVG image", source.to_string_val())));
+            };
+            let theme = match args.get(1).map(Value::to_string_val).filter(|t| !t.trim().is_empty()) {
+                None => bitmap::SvgTheme::Follow,
+                Some(t) => match crate::theme::choose(&t) {
+                    crate::theme::Choice::Theme(t) => bitmap::SvgTheme::Fixed(t.icon_palette()),
+                    crate::theme::Choice::Auto => bitmap::SvgTheme::Follow,
+                    crate::theme::Choice::Unknown => return Some(Err(format!("`{t}` isn't a theme (rapidr, dark, highcontrast, classic …)"))),
+                },
+            };
+            let mut b = Bitmap::default();
+            if let Err(e) = b.load_svg(sized.as_bytes(), theme) {
+                return Some(Err(e));
+            }
+            let at = with(id, |o| match o {
+                Object::ImageList(l) => {
+                    let at = l.images.len();
+                    l.insert_icon(at, &b);
+                    at as i64
+                }
+                _ => -1,
+            })?;
+            Some(Ok(v_int(at)))
+        }
         // (…ICOFile / …ICOHandle: an icon keeps its own see-through parts)
         ("imagelist", "addbmpfile" | "addbmphandle" | "insertbmpfile" | "insertbmphandle" | "addicofile" | "addicohandle" | "inserticofile" | "inserticohandle") => {
             let insert = method.starts_with("insert");
@@ -1948,10 +2013,11 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             // takes those four, not a form); an Index out of range draws
             // nothing. The runtime shows the target again.
             let i = arg(3).to_i64();
-            let image = with(id, |o| match o {
-                Object::ImageList(l) if i >= 0 => l.images.get(i as usize).cloned(),
-                _ => None,
-            })?;
+            if with(id, |o| matches!(o, Object::ImageList(_))) != Some(true) {
+                return None;
+            }
+            // (an SVG that follows the theme: in the current one's colours)
+            let image = image_at(id, i);
             let target = arg(0).to_string_val();
             // (a QIMAGE without a picture gets one its size first, as for
             // its own drawing methods; a QCANVAS is always its size)
@@ -2179,7 +2245,10 @@ pub fn icon_pixels(v: &Value) -> Option<(usize, usize, Vec<u8>, usize)> {
 /// Image `index` of image list `id` (for drawing it onto a canvas).
 pub fn image_at(id: &str, index: i64) -> Option<Bitmap> {
     with(id, |o| match o {
-        Object::ImageList(l) if index >= 0 => l.images.get(index as usize).cloned(),
+        Object::ImageList(l) if index >= 0 => l.images.get_mut(index as usize).map(|b| {
+            b.follow_theme();
+            b.clone()
+        }),
         _ => None,
     })?
 }
@@ -2273,6 +2342,79 @@ mod tests {
 
     fn call_ok(id: &str, method: &str, args: &[Value]) -> Value {
         call(id, method, args, &no_props).expect("handled").expect("ok")
+    }
+
+    /// A program's own SVGs (REQUEST-001 item 10): AddSVGFile draws one at
+    /// the list's size, kept whole (crisp at 2×); `currentColor` and the
+    /// tokens take the theme's colours and follow it; Theme$ fixes them; an
+    /// illustration keeps its own; RImage.Load themes too.
+    #[cfg(feature = "icons")]
+    #[test]
+    fn program_svgs_in_image_lists_follow_the_theme() {
+        use crate::theme::{choose, Choice};
+        let set = |n: &str| {
+            if let Choice::Theme(t) = choose(n) {
+                crate::theme::set(t)
+            }
+        };
+        set("rapidr light");
+        bitmap::set_display_scale(2.0);
+        let dir = std::env::temp_dir().join(format!("rapidr-svg-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = |name: &str, svg: &str| {
+            let p = dir.join(name);
+            std::fs::write(&p, svg).unwrap();
+            v_str(&p.to_string_lossy())
+        };
+        // (24 × 24, no viewBox: drawn into the list's 16 × 16)
+        let mono = file("mono.svg", r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><rect x="2" y="2" width="20" height="20" fill="currentColor"/></svg>"#);
+        let art = file("art.svg", r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><rect width="16" height="16" fill="#3A7BD5"/></svg>"##);
+        let not_svg = file("not.svg", "hello");
+        assert!(create("t_svgl", "RIMAGELIST"));
+        assert_eq!(call_ok("t_svgl", "addsvgfile", std::slice::from_ref(&mono)).to_i64(), 0);
+        assert_eq!(call_ok("t_svgl", "addsvgfile", &[mono.clone(), v_str("highcontrast")]).to_i64(), 1);
+        assert_eq!(call_ok("t_svgl", "addsvgfile", std::slice::from_ref(&art)).to_i64(), 2);
+        assert!(call("t_svgl", "addsvgfile", &[not_svg], &no_props).unwrap().unwrap_err().contains("not an SVG"));
+        assert!(call("t_svgl", "addsvgfile", &[mono.clone(), v_str("purple")], &no_props).unwrap().unwrap_err().contains("isn't a theme"));
+        assert_eq!(imagelist_size("t_svgl"), Some((16, 16)));
+        // (the centre pixel as the screen shows it: 32 × 32 at 2×, RGB)
+        let centre = |i: i64| {
+            let (w, h, rgba, scale) = imagelist_pixels("t_svgl", i).unwrap();
+            assert_eq!((w, h, scale), (32, 32, 2), "kept whole: drawn again at 2×, not enlarged");
+            let at = (16 * w + 16) * 4;
+            u32::from(rgba[at]) << 16 | u32::from(rgba[at + 1]) << 8 | u32::from(rgba[at + 2])
+        };
+        assert_eq!(centre(0), 0x5B6478, "light: the ink");
+        assert_eq!(centre(1), 0xFFFFFF, "Theme$ highcontrast: white");
+        assert_eq!(centre(2), 0x3A7BD5, "an illustration's own colour");
+        set("dark");
+        assert_eq!(centre(0), 0xC9D1E3, "dark: drawn again in its ink");
+        assert_eq!(centre(1), 0xFFFFFF, "a named theme stays");
+        assert_eq!(centre(2), 0x3A7BD5);
+        set("highcontrast");
+        assert_eq!(centre(0), 0xFFFFFF);
+        // (RImage.Load: the same rule)
+        assert!(create("t_svgi", "RIMAGE"));
+        call_ok("t_svgi", "load", std::slice::from_ref(&mono));
+        assert_eq!(with("t_svgi", |o| if let Object::Bitmap(b) = o { b.pixel(12, 12) } else { None }).flatten(), Some(0xFFFFFF));
+        set("rapidr light");
+        let ink = with("t_svgi", |o| if let Object::Bitmap(b) = o { b.display_rgba(); b.pixel(12, 12) } else { None }).flatten();
+        assert_eq!(ink, Some(crate::theme::bgr(0x5B6478)), "drawn again when shown in the new theme");
+        for id in ["t_svgl", "t_svgi"] {
+            remove(id);
+        }
+        bitmap::set_display_scale(1.0);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn svgs_sized() {
+        let s = codec::svg_sized(r#"<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="24px" height='24'><g/></svg>"#, 16, 16).unwrap();
+        assert!(s.starts_with("<?xml version=\"1.0\"?><svg xmlns="), "{s}");
+        assert!(s.contains("viewBox=\"0 0 24 24\" width=\"16\" height=\"16\">"), "{s}");
+        let s = codec::svg_sized(r#"<svg viewBox="0 0 32 32" width="32" height="32"/>"#, 24, 24).unwrap();
+        assert_eq!(s, r#"<svg viewBox="0 0 32 32" width="24" height="24"/>"#);
+        assert!(codec::svg_sized("<svgx/>", 1, 1).is_none());
     }
 
     #[test]

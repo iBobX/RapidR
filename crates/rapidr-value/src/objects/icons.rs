@@ -15,7 +15,7 @@
 //! is an error the program can see, as a missing file is.
 
 #[cfg(feature = "icons")]
-use super::bitmap::{display_scale, Bitmap};
+use super::bitmap::{display_scale, Bitmap, SvgTheme};
 use super::{with, Object};
 use crate::Value;
 
@@ -43,7 +43,7 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
             let size = args.get(1).map_or(16, Value::to_i64);
             Some(icon_svg(&text(0).unwrap_or_default(), size, text(2).as_deref()).and_then(|svg| {
                 with(id, |o| match o {
-                    Object::Bitmap(b) => b.load_bmp_bytes(svg.as_bytes()),
+                    Object::Bitmap(b) => b.load_svg(svg.as_bytes(), SvgTheme::AsWritten),
                     _ => Ok(()),
                 })
                 .unwrap_or(Ok(()))
@@ -96,7 +96,7 @@ pub fn icon_svg(name: &str, size: i64, theme: Option<&str>) -> Result<String, St
 #[cfg(feature = "icons")]
 pub fn icon_bitmap(name: &str, size: i64, theme: Option<&str>) -> Result<Bitmap, String> {
     let mut b = Bitmap::default();
-    b.load_bmp_bytes(icon_svg(name, size, theme)?.as_bytes())?;
+    b.load_svg(icon_svg(name, size, theme)?.as_bytes(), SvgTheme::AsWritten)?;
     Ok(b)
 }
 

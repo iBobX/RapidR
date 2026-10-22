@@ -82,8 +82,9 @@ function run(cmd, cmdArgs, opts = {}) {
   rmSync(registry, { force: true });
   // (and no real gamepad: QDXJOYSTICK reads an empty test script; no
   // real serial port: QCOMPORT has the empty test script's — none; no
-  // sound, MIDI output or recording input)
-  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry, RAPIDR_TEST_JOYSTICK: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_SOUND: "", RAPIDR_TEST_MIDI: "", RAPIDR_TEST_WAVE_IN: "", RAPIDR_TEST_SYSTEM_LOOK: process.env.RAPIDR_TEST_SYSTEM_LOOK || "light" } };
+  // sound, MIDI output or recording input; keys and RSecrets in the test
+  // keystore, never the keychain)
+  opts = { ...opts, env: { ...(opts.env || process.env), RAPIDR_PRINT_TO: PRINTS, RAPIDR_REGISTRY: registry, RAPIDR_AI_KEYSTORE: "memory", RAPIDR_TEST_JOYSTICK: "", RAPIDR_TEST_COMPORT: "", RAPIDR_TEST_SOUND: "", RAPIDR_TEST_MIDI: "", RAPIDR_TEST_WAVE_IN: "", RAPIDR_TEST_SYSTEM_LOOK: process.env.RAPIDR_TEST_SYSTEM_LOOK || "light" } };
   const r = spawnSync(cmd, cmdArgs, { encoding: "utf8", timeout: TIMEOUT_MS, maxBuffer: MAX_OUTPUT, ...opts });
   rmSync(registry, { force: true });
   let err = r.stderr || "";

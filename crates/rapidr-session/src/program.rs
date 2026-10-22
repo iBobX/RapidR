@@ -264,6 +264,8 @@ impl ProgramEnd {
                 Ok(v) => rapidr_value::format::print_text(&v),
                 Err(e) => format!("<{e}>"),
             });
+            // (a logpoint never spells out a credential the program holds)
+            let text = rapidr_value::secrets::mask(&text).into_owned();
             output(Event::new(EventBody::Output { stream: "stdout".into(), text: text + "\n" }));
             return false;
         }
@@ -419,7 +421,7 @@ impl ProgramEnd {
                     self.evaluate_with(vm, module, frame, text, hover).map(|v| {
                         if whole {
                             let kind = self.render(vm, &v, "", false).kind;
-                            Variable { value: v.to_string_val(), kind, ..Default::default() }
+                            Variable { value: rapidr_value::secrets::mask(&v.to_string_val()).into_owned(), kind, ..Default::default() }
                         } else {
                             self.render(vm, &v, text, true)
                         }
@@ -702,6 +704,11 @@ impl ProgramEnd {
             Value::Double(_) => plain(rapidr_value::format::print_text(v), "Double"),
             Value::Boolean(b) => plain((if *b { "True" } else { "False" }).into(), "Boolean"),
             Value::String(s) => {
+                // (a credential the program holds — RSecrets.Read's, a
+                // secret property's: never shown, rapidr_value::secrets)
+                if rapidr_value::secrets::is_secret(s) {
+                    return plain(rapidr_value::secrets::MASK.into(), "String");
+                }
                 if components {
                     if let Some(shown) = self.component_value(vm, s, evaluate_name) {
                         return shown;
@@ -784,6 +791,11 @@ fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Optio
             continue;
         }
         if let Ok(v) = vm.host.get_prop(id, p.name) {
+            // (a credential — RMySQL's Password, RAI's APIKey: noted, so it
+            // shows as •••• here and wherever else the program holds it)
+            if p.secret {
+                rapidr_value::secrets::note(&v.to_string_val());
+            }
             props.push((p.name.to_string(), v));
         }
     }
@@ -1091,6 +1103,51 @@ mod tests {
 
     fn req(seq: u64, command: Command) -> Request {
         Request::new(seq, command)
+    }
+
+    /// A credential the program holds (RSecrets.Read's, a secret property's:
+    /// rapidr_value::secrets) is never shown: a variable, a watch, a hover
+    /// and a logpoint give •••• in its place; other values show as ever.
+    #[test]
+    fn the_debugger_never_shows_a_secret() {
+        rapidr_value::secrets::note("hunter2-db-password");
+        let src = "pw$ = \"hunter2-db-password\"\nconn$ = \"pw=\" + pw$\nn = 19\nPRINT n\n";
+        let m = compile_program(src);
+        let (tx, rx) = mpsc::channel();
+        let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+        let log = sent.clone();
+        let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        let logpoint = SourceBreakpoint { line: 3, log: Some("the password is {pw$}".into()), ..Default::default() };
+        tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![logpoint, SourceBreakpoint { line: 4, ..Default::default() }] })).unwrap();
+        tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+        assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+        for (seq, c) in [
+            (3, Command::Variables { reference: GLOBALS_REF, start: None, count: None }),
+            (4, Command::Evaluate { expr: "pw$".into(), frame: None, context: Some("hover".into()) }),
+            (5, Command::Evaluate { expr: "\"user \" + \"ada\"".into(), frame: None, context: Some("watch".into()) }),
+            (6, Command::Continue),
+        ] {
+            tx.send(req(seq, c)).unwrap();
+        }
+        vm.debug_mode = true;
+        vm.debugger = Some(Box::new(dbg));
+        vm.run(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output, "19\n", "the program itself has the value");
+        let sent = sent.borrow();
+        let by_re = |re: u64| sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()).unwrap();
+        let EventBody::Variables { variables } = by_re(3) else { panic!() };
+        let shown = |name: &str| variables.iter().find(|v| v.name.eq_ignore_ascii_case(name)).map(|v| v.value.clone()).unwrap();
+        assert_eq!(shown("pw$"), "••••");
+        assert_eq!(shown("conn$"), "••••", "a value holding one");
+        assert_eq!(shown("n"), "19");
+        assert!(matches!(by_re(4), EventBody::Evaluate { ref result, .. } if result == "••••"), "{:?}", by_re(4));
+        // (a string without it: as ever)
+        assert!(matches!(by_re(5), EventBody::Evaluate { ref result, .. } if result == "\"user ada\""), "{:?}", by_re(5));
+        let all: String = sent.iter().filter_map(|e| if let EventBody::Output { text, .. } = &e.body { Some(text.clone()) } else { None }).collect();
+        assert!(all.contains("the password is ••••") && !all.contains("hunter2"), "{all}");
     }
 
     #[test]

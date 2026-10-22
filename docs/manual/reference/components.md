@@ -93,6 +93,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/stringlist.svg" width="20" height="20" alt=""> | [`RStringList`](members.md#rstringlist) | `QSTRINGLIST` | RapidQ | everywhere |
 | <img src="../icons/light/components/printer.svg" width="20" height="20" alt=""> | [`RPrinter`](members.md#rprinter) | `QPRINTER` | RapidQ | everywhere |
 | <img src="../icons/light/components/registry.svg" width="20" height="20" alt=""> | [`RRegistry`](members.md#rregistry) | `QREGISTRY` | RapidQ | everywhere |
+| <img src="../icons/light/components/secrets.svg" width="20" height="20" alt=""> | [`RSecrets`](members.md#rsecrets) | — | RapidR | everywhere |
 | <img src="../icons/light/components/json.svg" width="20" height="20" alt=""> | [`RJson`](members.md#rjson) | — | RapidR | everywhere |
 | <img src="../icons/light/components/font.svg" width="20" height="20" alt=""> | [`RFont`](members.md#rfont) | `QFONT` | RapidQ | everywhere |
 | <img src="../icons/light/components/memorystream.svg" width="20" height="20" alt=""> | [`RMemoryStream`](members.md#rmemorystream) | `QMEMORYSTREAM` | RapidQ | everywhere |
@@ -215,4 +216,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-115 components; 76 of them have a RapidQ name.
+116 components; 76 of them have a RapidQ name.

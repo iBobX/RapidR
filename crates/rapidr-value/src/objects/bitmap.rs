@@ -245,6 +245,11 @@ pub struct Bitmap {
     /// The SVG these pixels were drawn from, until something draws on them:
     /// what's shown is drawn from it again at a new screen scale.
     pub(crate) svg: Option<std::rc::Rc<Vec<u8>>>,
+    /// That SVG in a theme's colours (its tokens and `currentColor`,
+    /// [`Bitmap::load_svg`]): the source the program gave, and the palette
+    /// it is drawn in — the current theme's, drawn again when it changes
+    /// ([`Bitmap::follow_theme`]), unless the program named one.
+    pub(crate) themed: Option<Themed>,
     /// What draws these pixels again at a screen scale (an RPLOT's chart,
     /// `LoadFromPlot`), until something draws on them — as `svg`.
     pub(crate) redraw: Option<Redraw>,
@@ -304,6 +309,51 @@ fn blend(under: u32, over: u32, a: u8) -> u32 {
 /// Color of a new bitmap's pixels.
 const BACKGROUND: u32 = 0xFFFFFF;
 
+/// An SVG drawn in a theme's colours ([`Bitmap::themed`]).
+#[derive(Debug, Clone)]
+pub(crate) struct Themed {
+    /// The SVG as the program gave it.
+    source: std::rc::Rc<Vec<u8>>,
+    /// The icon palette it is drawn in (rapidr_icons': classic, modern,
+    /// dark, highcontrast).
+    palette: &'static str,
+    /// The program named the palette: it stays.
+    fixed: bool,
+}
+
+/// Which colours a loaded SVG is drawn in ([`Bitmap::load_svg`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SvgTheme {
+    /// The current theme's, and the next one's when it changes (what every
+    /// picture a program loads gets).
+    Follow,
+    /// This icon palette's (`Theme$` given: classic, modern, dark,
+    /// highcontrast).
+    Fixed(&'static str),
+    /// As written (an SVG already themed: RapidR's own icons).
+    AsWritten,
+}
+
+/// The icon palette of the current theme.
+fn current_palette() -> &'static str {
+    crate::theme::current().icon_palette()
+}
+
+/// `svg` in `palette`'s colours (rapidr_icons::theme_svg); `None` when
+/// nothing in it follows a theme, or without the icon set.
+fn themed_text(svg: &[u8], palette: &str) -> Option<Vec<u8>> {
+    #[cfg(feature = "icons")]
+    {
+        let text = std::str::from_utf8(svg).ok()?;
+        rapidr_icons::theme_svg(text, &rapidr_icons::Style::new(palette)).map(String::into_bytes)
+    }
+    #[cfg(not(feature = "icons"))]
+    {
+        let _ = (svg, palette);
+        None
+    }
+}
+
 impl Default for Bitmap {
     fn default() -> Self {
         Self {
@@ -320,6 +370,7 @@ impl Default for Bitmap {
             alpha: None,
             hi: None,
             svg: None,
+            themed: None,
             redraw: None,
             revision: next_revision(),
             pixel_format: 0,
@@ -347,6 +398,7 @@ impl Bitmap {
     /// What the screen shows made current (at the display scale), and its
     /// revision: equal revisions show the same `display_rgba`.
     pub fn display_revision(&mut self) -> u64 {
+        self.follow_theme();
         self.hi_mut();
         self.revision
     }
@@ -466,6 +518,7 @@ impl Bitmap {
     pub fn take_display(&mut self, src: &mut Bitmap) {
         self.hi = src.hi.take();
         self.svg = src.svg.take();
+        self.themed = src.themed.take();
         self.redraw = src.redraw.take();
         self.touch();
     }
@@ -479,6 +532,7 @@ impl Bitmap {
     /// scale when there is one, else the pixels themselves (scale 1). The
     /// runtimes draw it in the bitmap's size (width / scale × height / scale).
     pub fn display_rgba(&mut self) -> (usize, usize, Vec<u8>, usize) {
+        self.follow_theme();
         let transparent = self.transparent.then_some(self.transparent_color);
         if self.img.pixels.is_empty() {
             return (0, 0, Vec::new(), 1);
@@ -1053,32 +1107,80 @@ impl Bitmap {
         out
     }
 
-    /// Loads a BMP — or an SVG, drawn at its size (with its soft edges).
+    /// Loads a BMP — or an SVG, drawn at its size (with its soft edges), in
+    /// the current theme's colours and the next one's ([`SvgTheme::Follow`]).
     pub fn load_bmp_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
+        if is_svg(bytes) {
+            return self.load_svg(bytes, SvgTheme::Follow);
+        }
         self.hi = None;
         self.touch();
         self.svg = None;
+        self.themed = None;
         self.redraw = None;
-        if is_svg(bytes) {
-            let (img, alpha) = decode_svg(bytes, 1.0)?;
-            // What the screen shows: the SVG drawn at the display scale.
-            let s = display_scale();
-            if s > 1 {
-                if let Ok((fine, fine_alpha)) = decode_svg(bytes, s as f32) {
-                    self.hi = Some(Box::new(fit_hi(fine, fine_alpha, img.width * s, img.height * s, s)));
-                }
-            }
-            self.img = img;
-            self.alpha = Some(alpha);
-            self.svg = Some(std::rc::Rc::new(bytes.to_vec()));
-            return Ok(());
-        }
         let (img, alpha) = super::codec::decode_raster(bytes)?;
         self.img = img;
         self.alpha = alpha;
         self.pixel_format = bmp_pixel_format(bytes);
         self.auto_transparent_color();
         Ok(())
+    }
+
+    /// Loads an SVG, drawn at its size (with its soft edges) and, at a
+    /// high-DPI scale, drawn again at it. Its RapidR colour tokens and
+    /// `currentColor` take `theme`'s colours (rapidr_icons::theme_svg: an
+    /// illustration's own colours stay as drawn).
+    pub fn load_svg(&mut self, bytes: &[u8], theme: SvgTheme) -> Result<(), String> {
+        let palette = match theme {
+            SvgTheme::Follow => Some(current_palette()),
+            SvgTheme::Fixed(p) => Some(p),
+            SvgTheme::AsWritten => None,
+        };
+        let drawn = palette.and_then(|p| themed_text(bytes, p).map(|t| (t, p)));
+        let shown: &[u8] = drawn.as_ref().map_or(bytes, |(t, _)| t);
+        let (img, alpha) = decode_svg(shown, 1.0)?;
+        self.hi = None;
+        self.touch();
+        self.redraw = None;
+        // What the screen shows: the SVG drawn at the display scale.
+        let s = display_scale();
+        if s > 1 {
+            if let Ok((fine, fine_alpha)) = decode_svg(shown, s as f32) {
+                self.hi = Some(Box::new(fit_hi(fine, fine_alpha, img.width * s, img.height * s, s)));
+            }
+        }
+        self.img = img;
+        self.alpha = Some(alpha);
+        self.svg = Some(std::rc::Rc::new(shown.to_vec()));
+        self.themed = drawn.map(|(_, palette)| Themed { source: std::rc::Rc::new(bytes.to_vec()), palette, fixed: matches!(theme, SvgTheme::Fixed(_)) });
+        Ok(())
+    }
+
+    /// An SVG that follows the theme, drawn again in the current theme's
+    /// colours when it changed since (a host asks before showing it:
+    /// [`Bitmap::display_rgba`], [`Bitmap::display_revision`]). Whether it
+    /// was. Pixels drawn on since are kept.
+    pub fn follow_theme(&mut self) -> bool {
+        let Some(t) = self.themed.as_ref().filter(|t| !t.fixed && self.svg.is_some()) else { return false };
+        let now = current_palette();
+        if t.palette == now {
+            return false;
+        }
+        let source = t.source.clone();
+        let Some(drawn) = themed_text(&source, now) else { return false };
+        let Ok((img, alpha)) = decode_svg(&drawn, 1.0) else { return false };
+        if (img.width, img.height) != (self.img.width, self.img.height) {
+            return false;
+        }
+        self.img = img;
+        self.alpha = Some(alpha);
+        self.svg = Some(std::rc::Rc::new(drawn));
+        self.hi = None;
+        if let Some(t) = self.themed.as_mut() {
+            t.palette = now;
+        }
+        self.touch();
+        true
     }
 
     /// Takes `img` as its pixels (opaque; a chart's: `LoadFromPlot`).

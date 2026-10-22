@@ -1200,6 +1200,12 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
                 return v;
             }
         }
+        // RSecrets: a page has no keychain (Available is False, Error says so).
+        if rapidr_ai::secrets::component::is_secrets(&t) {
+            if let Some(v) = rapidr_ai::secrets::component::get(name, &lprop) {
+                return v;
+            }
+        }
     }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
@@ -1453,6 +1459,13 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         // (I8) RAI, the AI component (ai_web.rs).
         if rapidr_ai::rai::is_rai(&t) {
             if let Some(v) = crate::ai_web::call(name, &method.to_ascii_lowercase(), args) {
+                return v;
+            }
+        }
+        // RSecrets: every call fails in a browser, with the reason in Error
+        // and the console (no fallback to the page's storage).
+        if rapidr_ai::secrets::component::is_secrets(&t) {
+            if let Some(v) = rapidr_ai::secrets::component::call(name, &method.to_ascii_lowercase(), args) {
                 return v;
             }
         }

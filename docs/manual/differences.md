@@ -133,7 +133,8 @@ with RapidQ's compiler.
   `RDATASOURCE`, `RDBGRID` ([Data science](data-science.md)), `RAI`
   ([The AI assistant and RAI](ai-assistant.md)), `RMARKDOWNVIEW`,
   `RCODEEDITOR`, `RDESIGNSURFACE`, `RMEMO`, `RUPDOWN`, `RDATETIMEPICKER`,
-  `RTOOLBAR`, the web components ([reference](reference/components.md)).
+  `RTOOLBAR`, `RSECRETS` ([Keeping secrets](secrets.md)), the web
+  components ([reference](reference/components.md)).
 - On existing components: `DataSource` and `DataField` on `REdit` and
   `RLabel`; `Paragraph` and `TextRTF` on `RRichEdit`
   ([Rich text](rich-text.md)); `Form.OnDropFiles`.
@@ -141,7 +142,13 @@ with RapidQ's compiler.
   `AccessibleDescription`, `Scale` / `OnScaleChanged`; `Application.Theme`
   ([Components](components.md#rapidrs-additions-to-every-component)).
 - SQL parameter binding (`Query sql, values…`, `AddParam`): no SQL injection.
-- SVG images wherever RapidQ takes a bitmap.
+- SVG images wherever RapidQ takes a bitmap; drawn with `currentColor` or
+  RapidR's colour tokens, they take the theme's colours, and
+  `RImageList.AddSVGFile` adds them at the list's size
+  ([Your own SVG icons](svg-icons.md)). A `$RESOURCE`'s name goes wherever
+  a picture file goes (`RImage.Load RES`).
+- Encrypted MySQL connections: RMySQL's `SSLMode`, `SSLCA` and `Encrypted`
+  ([Databases](databases.md#encrypted-connections)).
 - RDXJoystick's axes, buttons and events; QMIDI without a system
   synthesizer.
 

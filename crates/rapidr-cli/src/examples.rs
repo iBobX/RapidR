@@ -207,9 +207,11 @@ fn copy_all(dir: &Path, examples: &[Example], to: &Path) -> Result<Vec<PathBuf>,
         here.sort();
         files.extend(here);
     }
-    // (and what each includes from below its folder: rapidq/shapes/lib/…)
+    // (and what each takes from below its folder: what it includes,
+    // rapidq/shapes/lib/…, and the files it names there, gui/icons/*.svg —
+    // all of `files_of`, as `copy <name>` copies)
     for e in examples {
-        for f in program_files::includes_of(&dir.join(&e.rel)) {
+        for f in program_files::files_of(&dir.join(&e.rel)).unwrap_or_default() {
             if !files.contains(&f) {
                 files.push(f);
             }
@@ -230,7 +232,9 @@ mod tests {
         assert!(!e.is("hell") && !e.is("gui/hello"));
         let dir = std::env::temp_dir().join(format!("rapidr-examples-test-{}", std::process::id()));
         fs::create_dir_all(dir.join("media")).unwrap();
-        fs::write(dir.join("media/song.rr"), "' song.rr: a song with QMIDI. More here.\n$RESOURCE T AS \"tune.mid\"\n").unwrap();
+        fs::write(dir.join("media/song.rr"), "' song.rr: a song with QMIDI. More here.\n$RESOURCE T AS \"tune.mid\"\n$RESOURCE ICON AS \"art/note.svg\"\n").unwrap();
+        fs::create_dir_all(dir.join("media/art")).unwrap();
+        fs::write(dir.join("media/art/note.svg"), "<svg/>").unwrap();
         fs::write(dir.join("media/tune.mid"), "x").unwrap();
         fs::write(dir.join("media/other.wav"), "y").unwrap();
         fs::write(dir.join("README.md"), "# index").unwrap();
@@ -240,13 +244,15 @@ mod tests {
         // one: the program and the data it names, not the folder's others
         let out = dir.join("out");
         let copied = copy_one(&dir, &all[0], &out).unwrap();
-        assert_eq!(copied, [out.join("song.rr"), out.join("tune.mid")]);
+        assert_eq!(copied, [out.join("song.rr"), out.join("tune.mid"), out.join("art/note.svg")]);
         // never over a file that's there
         assert!(copy_one(&dir, &all[0], &out).unwrap_err().contains("already there"));
         // all: by topic, with the index
         let every = dir.join("every");
         copy_all(&dir, &all, &every).unwrap();
         assert!(every.join("README.md").is_file() && every.join("media/other.wav").is_file() && every.join("media/song.rr").is_file());
+        // (and the files it names below its folder: its $RESOURCE's picture)
+        assert!(every.join("media/art/note.svg").is_file());
         fs::remove_dir_all(&dir).unwrap();
     }
 

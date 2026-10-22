@@ -19,6 +19,8 @@ examples/**
 !examples/**/*.avi
 !examples/**/*.dxg
 !examples/**/*.x
+# (pictures an example builds in with $RESOURCE: gui/icons/*.svg)
+!examples/**/*.svg
 # (translations: lang/es.po beside a program)
 !examples/**/*.po
 examples/**/*_rust/

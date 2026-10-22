@@ -130,6 +130,9 @@ a 1200 × 800 window to try it with
 - **RSQLite** is SQLite itself, compiled to WebAssembly; `Connect "x.db"`
   opens the project's `x.db` in memory for the session (changes aren't
   saved to the browser's storage yet).
+- **RSecrets** keeps nothing in a browser: a page has no keychain, and
+  RapidR never puts secrets in the page's storage. `Available` is False and
+  every call fails, `Error` saying so ([Keeping secrets](secrets.md#in-a-browser)).
 - **RMySQL** and **RServerSocket** don't work in a browser (no raw TCP);
   call a server of yours with RHttp instead. **RSocket** connects over
   WebSocket. **RHttp** uses the browser's fetch, so the browser's CORS

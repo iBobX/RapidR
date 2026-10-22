@@ -93,6 +93,8 @@ const env = (dir, extra) => ({
   RAPIDR_SCALE: String(SCALE),
   RAPIDR_PRINT_TO: join(dir, "prints"),
   RAPIDR_REGISTRY: join(dir, "studio.reg"),
+  // (AI keys and programs' RSecrets in the test keystore: never the keychain)
+  RAPIDR_AI_KEYSTORE: "memory",
   ...extra,
 });
 

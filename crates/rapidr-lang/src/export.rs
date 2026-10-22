@@ -142,7 +142,7 @@ fn effects_json(effects: &[Effect]) -> String {
 fn method_json(m: &Method) -> String {
     let o = Obj::new().s("name", m.name).s("signature", &m.signature()).raw("params", params_json(m.params)).opt("returns", m.returns).b_true("value", m.value);
     let o = origin_fields(o, m.origin, m.from, m.runtimes, m.missing).opt("set", m.set);
-    let o = o.raw_nonempty("effects", effects_json(m.effects)).opt("risk", m.risk().map(Risk::as_str)).s_nonempty("example", m.example).s_nonempty("expect", m.expect);
+    let o = o.raw_nonempty("effects", effects_json(m.effects)).opt("risk", m.risk().map(Risk::as_str)).s_nonempty("example", m.example).s_nonempty("expect", m.expect).b_true("secret", m.secret);
     o.s("doc", m.doc).done()
 }
 
