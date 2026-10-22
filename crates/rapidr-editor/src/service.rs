@@ -271,6 +271,66 @@ pub struct SemanticToken {
     pub kind: &'static str,
 }
 
+/// What a helper is (docs/code-helpers-plan.md): a value the editor shows
+/// and edits, a parameter's name, or a line's help.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum HelperKind {
+    /// A colour: `value` its RapidQ number (`&HBBGGRR`, a system colour's
+    /// `&H800000nn`) in decimal.
+    Color,
+    /// A font's name (`value`).
+    Font,
+    /// A file's name (`value`); `label` its kind: `image`, `sound`, `any`.
+    File,
+    /// One of a set of constants (`choices`); `flag`: they are flags,
+    /// added together (`value` `mbYes+mbNo`).
+    Choice,
+    /// True or False.
+    Bool,
+    /// Another component (`value` its name; `choices` the program's
+    /// components of a type it takes).
+    Component,
+    /// An event's SUB (`value` its name, empty when none is written yet;
+    /// `choices` the program's SUBs; `label` the handler's parameters;
+    /// `hint` a new handler's name; `at` where a new SUB goes).
+    Handler,
+    /// An argument's parameter name (`label`), shown before it; `flag`:
+    /// shown without Ctrl (a literal argument of a call of several).
+    ArgName,
+    /// The line's one-line help (`label`), at the end of the caret's line.
+    Note,
+}
+
+/// One helper over bytes `start..end` of a file (the value it shows; a
+/// chip's argument; a note's statement).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HelperSite {
+    pub kind: HelperKind,
+    pub start: usize,
+    pub end: usize,
+    /// The value as the service read it (see [`HelperKind`]).
+    pub value: String,
+    /// How the value is written, so a new one is written the same way:
+    /// a colour `rgb` (`RGB(r, g, b)`), `hex` (`&HBBGGRR`), `const`
+    /// (`clRed`), `number`; a file's or font's `string`; a choice's `const`,
+    /// `number`, `flags+` (`a + b`), `flags-or` (`a OR b`); a Boolean's
+    /// `word`; a link's `name`. Empty: shown, not editable (an expression).
+    pub form: String,
+    pub label: String,
+    pub choices: Vec<String>,
+    pub flag: bool,
+    /// A handler's: where a new SUB is put (a line's start).
+    pub at: usize,
+    /// A handler's: the name a new one gets (`Button1Click`).
+    pub hint: String,
+}
+
+impl HelperSite {
+    pub fn new(kind: HelperKind, start: usize, end: usize) -> HelperSite {
+        HelperSite { kind, start, end, value: String::new(), form: String::new(), label: String::new(), choices: Vec::new(), flag: false, at: 0, hint: String::new() }
+    }
+}
+
 /// A language service, as an editor uses it. Every method answers for the
 /// text last given with [`LanguageService::update`].
 pub trait LanguageService {
@@ -312,6 +372,13 @@ pub trait LanguageService {
     /// (none: no quick fix there).
     fn code_actions(&mut self, file: &str, start: usize, end: usize) -> Vec<CodeAction> {
         let _ = (file, start, end);
+        Vec::new()
+    }
+    /// The helpers of `file` (docs/code-helpers-plan.md): its values the
+    /// editor shows and edits, its arguments' parameter names, its lines'
+    /// help — sorted by `start`. Asked when typing pauses.
+    fn helpers(&mut self, file: &str) -> Vec<HelperSite> {
+        let _ = file;
         Vec::new()
     }
     /// The characters that open completion by themselves (`.`).
