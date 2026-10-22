@@ -172,7 +172,13 @@ pub fn palette(t: &Theme) -> Palette {
         tab_hover: if dark { mix(t.face, 0xFFFFFF, 0.07) } else { mix(t.face, 0x000000, 0.045) },
         accent: if dark { t.accent } else { t.caption },
         underline: if dark { mix(t.face, 0xFFFFFF, 0.30) } else { mix(t.face, 0x000000, 0.28) },
-        border: if dark { mix(t.border, t.face, 0.25) } else { t.border },
+        // (each pane's edge, the whole height: in the light look the gutter
+        // is a greyer band beside the white panes, the edges 1.38:1 on
+        // them; the dark look's gutter is the panes' own colour, so its two
+        // edges alone show the gap — halfway to the hot border, 1.7:1 on
+        // the gutter and the panes, 1.6 on a header: seen at rest, still a
+        // hairline. SPLIT-3: at 1.37 they hid until the mouse came)
+        border: if dark { mix(t.border, t.border_hot, 0.5) } else { t.border },
         body: t.window,
         workspace: if dark { mix(t.face, 0x000000, 0.45) } else { mix(t.face, t.shadow, 0.65) },
         doc_strip: t.face,
@@ -871,10 +877,11 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
         }
         glyph(&mut ops, *b, *r, ink, gr.slot != Slot::Flyout);
     }
-    // ---- the border
-    if p.classic {
-        frame(&mut ops, (0, HEADER, w, h - HEADER), t.shadow, 1);
-    } else {
+    // ---- the border: RapidR's looks frame the group all round, the pane's
+    // component inside the frame (the frame its edge the whole height); the
+    // classic look's components draw their own sunken edges under the title
+    // bar, a pixel of the button face around them
+    if !p.classic {
         frame(&mut ops, (0, 0, w, h), if p.contrast && active { p.accent } else { p.border }, 1);
         if active && !p.contrast {
             fill(&mut ops, (0, 0, w, 2), p.accent);
@@ -916,8 +923,16 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
         let active_group = active_doc.as_ref().is_some_and(|a| gr.docs.contains(a));
         fill(&mut ops, (gx, gy, gw, strip), p.doc_strip);
         fill(&mut ops, (gx, gy + strip, gw, gh - strip), p.body);
-        // (the strip's bottom line, under the tabs but the shown one)
-        fill(&mut ops, (gx, gy + strip - 1, gw, 1), p.border);
+        // (the strip's bottom line, under the tabs but the shown one; RapidR's
+        // looks frame the page under it as a docked group is framed — its
+        // sides and bottom the whole height, the documents' views inside —,
+        // the shown tab joined to it; the classic look's documents draw
+        // their own sunken edges)
+        if p.classic {
+            fill(&mut ops, (gx, gy + strip - 1, gw, 1), p.border);
+        } else {
+            frame(&mut ops, (gx, gy + strip - 1, gw, gh - strip + 1), p.border, 1);
+        }
         for (i, tab) in gr.tabs.iter().enumerate() {
             let shown = gr.active == i;
             let (x, y, tw, th) = tab.rect;
@@ -925,8 +940,12 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
             let lifted = dragging.as_deref() == Some(tab.pane.as_str());
             if p.classic {
                 if shown {
+                    // (its bottom edge below the strip, cut off: the tab
+                    // open into its page)
                     fill(&mut ops, (x, y + 2, tw, th - 2), t.face);
+                    ops.push(Op::ClipPush { rect: (gx, gy, gw, strip) });
                     ops.push(Op::Edge { rect: (x, y + 2, tw, th + 1), light: vec![t.light], dark: vec![t.dark_shadow, t.shadow] });
+                    ops.push(Op::ClipPop);
                 } else {
                     fill(&mut ops, (x + tw, y + 7, 1, th - 13), t.shadow);
                     if hot {

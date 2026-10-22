@@ -305,15 +305,17 @@ pub fn paint(cx: &mut Cx, p: &mut Painter) {
 fn paint_view(x: &mut Ctx, p: &mut Painter, w: i64, h: i64, caret_on: bool) {
     let sc = x.scheme;
     let t = rapidr_value::theme::current();
-    // (the frame: the classic look's sunken edge, a flat line otherwise)
+    // (the frame: the classic look's sunken edge, a flat line otherwise —
+    // none for a dock's document, its group's frame is its edge: the ring
+    // stays the page's colour)
     p.fill((0, 0, w, h), sc.background);
-    if t.fluent() {
+    if !t.fluent() {
+        p.sunken_edge((0, 0, w, h));
+    } else if !p.hosted() {
         p.op(Op::Fill { rect: (0, 0, w, 1), color: t.border });
         p.op(Op::Fill { rect: (0, h - 1, w, 1), color: t.border });
         p.op(Op::Fill { rect: (0, 0, 1, h), color: t.border });
         p.op(Op::Fill { rect: (w - 1, 0, 1, h), color: t.border });
-    } else {
-        p.sunken_edge((0, 0, w, h));
     }
     let origin = p.origin();
     layout_rows(x, origin);

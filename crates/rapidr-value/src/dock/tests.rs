@@ -154,7 +154,8 @@ fn geometry_places_groups_splitters_strips_and_documents() {
     assert_eq!(g.groups.len(), 3);
     let explorer = g.group_of("explorer").unwrap();
     assert_eq!(explorer.rect, (0, 0, DEFAULT_SIDE, 700));
-    assert_eq!(explorer.content, (0, HEADER - 1, DEFAULT_SIDE, 700 - HEADER + 1));
+    // (inside its 1-pixel frame, over the header's bottom line)
+    assert_eq!(explorer.content, (1, HEADER - 1, DEFAULT_SIDE - 2, 700 - HEADER));
     assert!(explorer.single() && explorer.buttons.iter().map(|b| b.0).eq([Button::Pin, Button::Close]));
     let output = g.group_of("output").unwrap();
     assert_eq!((output.tabs.len(), output.active), (2, 1));
@@ -998,4 +999,92 @@ fn a_pane_given_a_new_size_has_its_contents_laid_out_at_it() {
     Fake.set("s8out", "width", crate::Value::Integer(10));
     runtime::apply(Fake, dock);
     assert!(laid().contains(&"s8out".to_string()));
+}
+
+// ------------------------------------------- the panes' edges (SPLIT-3) --
+
+/// What `ops` leave on a `w` × `h` grid — their fills (a frame, a header,
+/// a strip are fills; text and glyphs are not) — with a pane's component
+/// then over each of `panes` (it draws over everything it covers).
+fn painted(ops: &[crate::objects::ops::Op], (w, h): (i64, i64), panes: &[Rect]) -> Vec<u32> {
+    // (not a colour: a pane's own pixels)
+    const PANE: u32 = 0x0100_0000;
+    let mut px = vec![0u32; (w * h) as usize];
+    let mut put = |r: Rect, c: u32| {
+        for y in r.1.max(0)..(r.1 + r.3).min(h) {
+            for x in r.0.max(0)..(r.0 + r.2).min(w) {
+                px[(y * w + x) as usize] = c;
+            }
+        }
+    };
+    for o in ops {
+        if let crate::objects::ops::Op::Fill { rect, color } = o {
+            put(*rect, *color);
+        }
+    }
+    for r in panes {
+        put(*r, PANE);
+    }
+    px
+}
+
+#[test]
+fn every_pane_keeps_its_edge_all_the_way_down() {
+    // (SPLIT-3: a pane's component sits inside its group's 1-pixel frame —
+    // left, right and bottom —, so the frame shows the whole height beside
+    // it, not only beside the header or the tab strip; the same for each
+    // group of documents. Every look lays them out alike; RapidR's looks
+    // draw the frame, the classic look the components' own sunken edges)
+    use crate::theme::ALL;
+    let mut m = tabbed();
+    let g = m.geometry().clone();
+    let d = g.documents.clone().unwrap();
+    let active_doc = m.active_document();
+    for t in ALL {
+        let p = look::palette(t);
+        for gr in &g.groups {
+            let (w, h) = (gr.rect.2, gr.rect.3);
+            let (cx, cy, cw, ch) = gr.content;
+            assert_eq!((cx, cy, cx + cw, cy + ch), (1, HEADER - 1, w - 1, h - 1), "{}: {:?} inside its frame", t.name, gr.panes);
+            if !t.fluent() {
+                continue;
+            }
+            for active in [false, true] {
+                let px = painted(&look::group_ops(&m, gr, t, &Font::default(), active), (w, h), &[gr.content]);
+                let edge = if p.contrast && active { p.accent } else { p.border };
+                let at = |x: i64, y: i64| px[(y * w + x) as usize];
+                // (under the active one's accent along the top)
+                for y in 3..h {
+                    assert_eq!((at(0, y), at(w - 1, y)), (edge, edge), "{}: {:?} active {active}, its sides at y {y}", t.name, gr.panes);
+                }
+                for x in 0..w {
+                    assert_eq!(at(x, h - 1), edge, "{}: {:?} active {active}, its bottom at x {x}", t.name, gr.panes);
+                }
+            }
+        }
+        let (w, h) = (d.rect.2, d.rect.3);
+        let places: Vec<Rect> = d.groups.iter().flat_map(|gr| gr.places.clone()).collect();
+        let px = painted(&look::documents_ops(&m, &d, t, &Font::default()), (w, h), &places);
+        for gr in &d.groups {
+            let (gx, gy, gw, gh) = gr.rect;
+            let (cx, cy, cw, ch) = gr.content;
+            assert_eq!((cx, cy, cx + cw, cy + ch), (gx + 1, gy + geometry::DOC_TABS, gx + gw - 1, gy + gh - 1), "{}: the documents inside their frame", t.name);
+            assert!(gr.places.iter().all(|r| r.0 >= cx && r.1 >= cy && r.0 + r.2 <= cx + cw && r.1 + r.3 <= cy + ch), "{}: each view inside it", t.name);
+            if !t.fluent() {
+                continue;
+            }
+            let active = active_doc.as_ref().is_some_and(|a| gr.docs.contains(a));
+            let edge = if p.contrast && active { p.accent } else { p.border };
+            let at = |x: i64, y: i64| px[(y * w + x) as usize];
+            // (from the strip's bottom line down; high contrast frames the
+            // strip too)
+            let top = if p.contrast { gy } else { gy + geometry::DOC_TABS - 1 };
+            for y in top..gy + gh {
+                assert_eq!((at(gx, y), at(gx + gw - 1, y)), (edge, edge), "{}: the documents' sides at y {y}", t.name);
+            }
+            for x in gx..gx + gw {
+                assert_eq!(at(x, gy + gh - 1), edge, "{}: the documents' bottom at x {x}", t.name);
+            }
+        }
+    }
 }
