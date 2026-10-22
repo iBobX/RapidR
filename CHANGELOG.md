@@ -19,7 +19,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   at the top of each pane. A pane's component in a dock draws no border or
   focus ring of its own there (one edge, never two; the group's accent line
   says which pane has the focus), so the code editor, the Outline, Variables
-  and Call Stack trees and the Immediate box no longer stack a second line.
+  and Call Stack trees, the Watch, Breakpoints and Search lists (a box out to
+  the edges of a plain panel that is the pane counts too) and the Immediate
+  box no longer stack a second line.
   The dark look's edge is a little stronger (1.7:1 against the gutter and the
   panes, was 1.37), since its gutter is the panes' own colour; the light look
   is unchanged, high contrast's edges are its crisp white (the accent around
@@ -27,7 +29,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   accessible value is now a whole percentage ("33"), the same on the desktop
   and in the browser (Chrome read 32.7 back as 32.70000076293945). Unit tests:
   `every_pane_keeps_its_edge_all_the_way_down` (every look, docked groups and
-  one or two groups of documents) and `a_panes_edge_shows_at_rest_in_every_look`.
+  one or two groups of documents) and `a_panes_edge_shows_at_rest_in_every_look`;
+  the dock_manager parity case's pane sizes (each 2 narrower, 1 shorter). Studio
+  goldens approved in light, dark and high contrast: `welcome` (1x, 2x),
+  `designer-pins` (1x, 2x), `designer-handles`, `editor-completion` (1x, 2x),
+  `editor-hover`, `editor-problems`, `debug-variables`, `debug-callstack`,
+  `debug-breakpoints`, `debug-watch`, `debug-datatip` (1x, 2x), `debug-error`,
+  `markdown`, `richtext`, `import-report`, `find-in-files`, `palette`,
+  `ai-panel`; the manual's `panes/splitters-*` shots made again.
 - **Tab names are no longer cut short while there is room for them** (found
   in high contrast, where the debugging layout's "Breakpoints (2)" showed as
   "Breakpoints…"; light and dark did the same). When a dock group or the

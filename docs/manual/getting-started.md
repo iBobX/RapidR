@@ -408,7 +408,7 @@ cut with "…" — the shortest are never cut for a long one's sake. In every
 look, high contrast too, the whole name is the tab's tooltip and what a
 screen reader says.
 
-![Two splitters at rest: the narrow gaps between the editor, the left column and the bottom panel, each with a short grey grip in its middle](images/panes/splitters-rest.png)
+![Two splitters at rest: the narrow gaps between the editor, the left column and the bottom panel, each pane with its thin edge down both sides, each gap with a short grey grip in its middle](images/panes/splitters-rest.png)
 
 ![The mouse resting on the left splitter: the whole gap turns blue, its grip white](images/panes/splitters-hover.png)
 
