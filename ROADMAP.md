@@ -820,6 +820,11 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
 - [ ] L5 macOS export signing decision and the "first launch" manual pages
 
+## The company website: rutainternet.company (Robert, 2026-10-22)
+- [ ] A products section: RapidR, RapidR Database Studio and Visualmusicator X, with links, screenshots and the support links. It also helps Stripe's business review, since the site is the company's website there.
+- [ ] A privacy page (no telemetry; which AI providers, hosts and the stores see what). The legal review needs one for store builds and the MCP server.
+- [ ] Before publishing: the six legal checks (fonts self-hosted, no trackers without consent…) and a lawyer-agent review. Find out how the site is built and hosted first.
+
 ## Requests from RapidR apps (built 100% in RapidR, in their own repos; Robert relays each request)
 
 - **RapidR Database Studio** (working name; `~/Programming/RapidR/DatabaseStudio`, MIT; scope now: SQLite, MySQL/MariaDB and CSV). REQUEST-001:
