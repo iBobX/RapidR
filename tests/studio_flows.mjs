@@ -1659,6 +1659,16 @@ const CASES = [
     delay: 6,
     dump: { "palette.selected": /^more:\d+$/, "studio.caption": /^midi_visualizer - RapidR Studio$/ },
   },
+  // (REQUEST-001) the background queries example too: "background" typed
+  // finds it, Enter opens it as the user's own copy
+  {
+    name: "palette-million-rows-async",
+    open: "",
+    do: "wait,palette:in the background",
+    events: "palette.__key_13",
+    delay: 6,
+    dump: { "palette.selected": /^more:\d+$/, "studio.caption": /^million_rows_async - RapidR Studio$/ },
+  },
   // (RECIPES) the recipes too: "sqrt" typed finds the calculator, Enter
   // opens it as the user's own copy
   {
