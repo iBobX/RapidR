@@ -5,8 +5,8 @@
 //! from `$INCLUDE "RAPIDQ.INC"` — without the line, RapidQ reads such a
 //! name as an undeclared variable, 0, and so does RapidR there (unchanged).
 //! A RapidR program (`.rr`: the preprocessor marks it with
-//! [`rapidr_preprocessor::RAPIDR_PROGRAM`]) has them with no include, as
-//! VB and Delphi programs have theirs. This pass, the first both backends
+//! [`rapidr_preprocessor::RAPIDR_PROGRAM`]) has them with no include: they
+//! are part of the language. This pass, the first both backends
 //! run, gives them:
 //!
 //! - **The constants** become their numbers where the program reads them

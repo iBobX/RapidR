@@ -27,7 +27,8 @@ copyleft (no GPL, LGPL, MPL or similar), nothing asks you to publish source
 code, to credit anyone in your documentation or advertising, or to do
 anything else, and RapidR's checks fail if that ever changes.
 
-**Encryption.** HTTPS (`RHttp`, `QDownload`) uses the operating system's
+**Encryption.** HTTPS (`RHttp`, `QDownload`) and encrypted MySQL/MariaDB
+connections (`RMySQL.SSLMode`) use the operating system's
 own TLS (macOS, Windows, and on Linux the system's OpenSSL 3, which every
 current distribution installs): no TLS library and no AES code is compiled
 into your program. A desktop program does contain a little standard
@@ -40,7 +41,7 @@ else:
   connection that has neither TLS nor a local socket.
 - **A Diffie-Hellman key exchange**, on Linux and the BSDs only, in the
   keyring client (the `secret-service` crate) that keeps the AI component's
-  API keys in the system's Secret Service (GNOME Keyring, KWallet). The AES
+  API keys and programs' `RSecrets` in the system's Secret Service (GNOME Keyring, KWallet). The AES
   encryption and the key derivation that follow it are the system's OpenSSL
   3, not compiled-in code. On macOS and Windows the keys go to the system's
   Keychain and Credential Manager, and no code of RapidR's is involved.
