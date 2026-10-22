@@ -166,6 +166,7 @@ Sizes and costs are as in [master-plan.md](master-plan.md) §2. Estimated total:
 ## 10. Decided
 
 ### Decided by Robert after G0 (2026-10-22)
+- **Host names (legal review 2026-10-22):** GitHub is named, because we integrate through its OAuth app. GitLab's guidelines ask for a signed authorization to use its name on websites and in marketing, so the UI and marketing say "Other Git servers (by token)" and never name GitLab or Bitbucket until that is checked.
 - **Push: we build our own** over HTTPS on gitoxide's parts (G6, Opus). It is written from the protocol's description, with no code copied from any Git implementation. gitoxide has no push yet.
 - **Size accepted:** +5.1 MiB for local Versions. The network part uses `ureq`, which Studio already has, not reqwest.
 - **Repositories owned by another user** (a USB stick, another account's folder): Studio explains why it can't fully trust them and offers **Open read-only**.
