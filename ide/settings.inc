@@ -112,6 +112,18 @@ CREATE SettingsDialog AS RForm
       AccessibleName = "Read your login shell's PATH again"
       OnClick = SettingsPathRefresh
     END CREATE
+    ' (S9: the debugging layout — debug.inc)
+    CREATE DebugPanesLabel AS RLabel
+      Caption = "&Debug panes:"
+    END CREATE
+    CREATE DebugPanesBox AS RComboBox
+      Style = 2
+      AccessibleName = "Debug panes"
+    END CREATE
+    CREATE DebugPanesNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+      Caption = "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
+    END CREATE
   END CREATE
   ' ---- AI ----
   CREATE AIPage AS RPanel
@@ -291,6 +303,13 @@ SUB LayOutSettingsDialog
     IF ThemeName = "classic" THEN PathList.ItemHeight = 16 ELSE PathList.ItemHeight = 22
     y = y + PathList.Height + pad
   END IF
+  DebugPanesLabel.Left = pad: DebugPanesLabel.Top = y + 5: DebugPanesLabel.Width = 108
+  DebugPanesLabel.Font.Bold = 1
+  DebugPanesBox.Left = pad + 112: DebugPanesBox.Top = y: DebugPanesBox.Width = 160
+  y = y + row
+  DebugPanesNote.Left = pad: DebugPanesNote.Top = y: DebugPanesNote.Width = w: DebugPanesNote.Height = 36
+  DebugPanesNote.Font.Color = TC("page.dim")
+  y = y + 36 + pad
   ' (the General page as tall as what's on it)
   gh = y
 
@@ -389,6 +408,14 @@ SUB ShowSettingsPage(k AS INTEGER)
     IF f <> "" THEN IncFolders.AddItems f
   NEXT
   SettingsPicked
+  ' (S9: Debug panes, as it is now)
+  DebugPanesBox.Clear
+  DebugPanesBox.AddItems "Automatic", "Always", "Never"
+  SELECT CASE DebugPanesMode
+    CASE "always": DebugPanesBox.ItemIndex = 1
+    CASE "never": DebugPanesBox.ItemIndex = 2
+    CASE ELSE: DebugPanesBox.ItemIndex = 0
+  END SELECT
   AISettingsFill
   SettingsTabs.TabIndex = k
   SettingsTabChanged
@@ -440,6 +467,12 @@ SUB SettingsOk
   NEXT
   SetIncludeFolders all
   ReopenLast = Flag(ReopenBox.Checked)
+  ' (S9: Debug panes)
+  SELECT CASE DebugPanesBox.ItemIndex
+    CASE 1: SetDebugPanesMode "always"
+    CASE 2: SetDebugPanesMode "never"
+    CASE ELSE: SetDebugPanesMode "auto"
+  END SELECT
   AISettingsTake
   SettingsDialog.Close
   SaveSettings

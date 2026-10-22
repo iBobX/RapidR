@@ -52,6 +52,49 @@ The tool bar has the same commands: ▶ Run (Continue while paused),
 ▷ Run Without Debugging, ❙❙ Pause, ■ Stop and Build, then Step Into, Step
 Over, Step Out and Toggle Breakpoint.
 
+### Two layouts: editing and debugging
+
+Studio arranges its panes for what you are doing.
+
+- **While you edit**, the bottom panel under your code spans its whole
+  width. Its tabs are **Output** (with its own Output, Build and Problems
+  pages), **Immediate** and **Breakpoints**, so a long warning in Problems
+  has room to be read. Breakpoints is there too: you can see and change your
+  breakpoints before you run.
+- **When you run with the debugger** (F5, F10, F11, Run to Cursor), Studio
+  switches to the debugging layout: **Variables**, **Watch**, **Call Stack**
+  and **Breakpoints** appear in a group beside Output and Immediate. When
+  the program stops at a breakpoint, Variables comes to the front and the
+  editor shows the line where it stopped.
+- **When the program ends**, Studio switches back to the editing layout.
+
+Each layout remembers its own sizes: drag the splitter above the bottom
+panel while you edit, and again while you debug, and Studio keeps both,
+even after you close and open it again. Run ▸ Run Without Debugging (Ctrl+F5)
+keeps the editing layout, since there is nothing to inspect.
+
+**View ▸ Debug Panes** (Ctrl+Shift+D) shows or hides the debug panes at any
+time. Shown this way, they stay after the program ends until you hide them
+again (they are pinned). View ▸ Variables, Watch or Call Stack and Debug ▸
+Add Watch show them too.
+
+**Tools ▸ Settings ▸ General ▸ Debug panes** chooses when they appear:
+
+| Setting | What happens |
+|---|---|
+| Automatic (the default) | They appear when a run with the debugger starts and leave when it ends. |
+| Always | The debugging layout all the time. |
+| Never | Only when you ask (View ▸ Debug Panes, Ctrl+Shift+D). |
+
+The switch never takes the keyboard from where you are typing; only a
+breakpoint that hits moves it, to the line where the program stopped. The
+status bar says which layout you are in for a few seconds, and a screen
+reader reads it out.
+
+![The debugging layout at a breakpoint: Variables, Watch, Call Stack and Breakpoints (1) beside Output; Variables in front](images/debugging/layout-debugging.png)
+
+![The editing layout: the bottom panel spans the whole width, with Output, Immediate and Breakpoints as tabs](images/debugging/layout-editing.png)
+
 ### Which commands you can use when
 
 A command is greyed out when it can't do anything; when it isn't, it works
@@ -417,10 +460,10 @@ Your program still has the value.
 ### The Call Stack
 
 The **Call Stack** shows how the program got where it is: the SUB it is in
-first, then the code that called it, down to the main program. When the
-program first stops, the Call Stack takes the Toolbox's place at the bottom
-left (you don't need the Toolbox while you debug); the Toolbox comes back
-when the program ends. View ▸ Call Stack shows it at any time.
+first, then the code that called it, down to the main program. It is a tab
+of the debug panes beside Output (see
+[Two layouts](#two-layouts-editing-and-debugging)); View ▸ Call Stack
+shows it at any time.
 
 Click a line of the Call Stack to look at that caller: the editor shows its
 line with a grey arrow, and Variables shows its locals.

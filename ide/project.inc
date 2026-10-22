@@ -306,6 +306,12 @@ SUB LoadSettings
     IF Reg.ValueExists("Layout") AND Reg.ValueExists("LayoutVersion") THEN
       IF Reg.ReadString("LayoutVersion") = LTRIM$(STR$(LAYOUT_VERSION)) THEN SavedLayout = Reg.ReadString("Layout")
     END IF
+    ' (S9: the debug panes' setting, each layout's sizes — debug.inc)
+    IF Reg.ValueExists("DebugPanes") THEN DebugPanesMode = Reg.ReadString("DebugPanes")
+    IF DebugPanesMode <> "always" AND DebugPanesMode <> "never" THEN DebugPanesMode = "auto"
+    IF Reg.ValueExists("EditBottom") THEN EditBottom = VAL(Reg.ReadString("EditBottom"))
+    IF Reg.ValueExists("DebugBottom") THEN DebugBottom = VAL(Reg.ReadString("DebugBottom"))
+    IF Reg.ValueExists("DebugWidth") THEN DebugWidth = VAL(Reg.ReadString("DebugWidth"))
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     ' (S2: on unless turned off)
@@ -326,6 +332,12 @@ SUB SaveSettings
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("Layout", Dock.SaveLayout)
   Reg.WriteString("LayoutVersion", LTRIM$(STR$(LAYOUT_VERSION)))
+  ' (S9: the layout shown's sizes first)
+  RememberLayoutSizes
+  Reg.WriteString("DebugPanes", DebugPanesMode)
+  Reg.WriteString("EditBottom", LTRIM$(STR$(EditBottom)))
+  Reg.WriteString("DebugBottom", LTRIM$(STR$(DebugBottom)))
+  Reg.WriteString("DebugWidth", LTRIM$(STR$(DebugWidth)))
   SaveSession
   SaveDebugState
   Reg.WriteString("Recent", RecentList)

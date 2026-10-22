@@ -179,8 +179,6 @@ DIM ImmAt AS INTEGER
 ' (where the program is paused, its file as Studio opened it)
 DIM PausedFile AS STRING
 DIM PausedLine AS INTEGER
-' (the run's first stop brought the Call Stack forward; its end, the toolbox)
-DIM StackShown AS INTEGER
 DIM BreakOnErrors AS INTEGER
 ' (the budgets' measures, ms: F5 to the program's first form, a step to its
 ' line shown with its values; -1 not measured)
@@ -689,6 +687,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
   Session.BreakOnError = Flag(WithDebugger <> 0 AND BreakOnErrors <> 0)
   IF Session.Start THEN
     SetState "running", "Running " + FileTitle(ProjectMain)
+    ' (with the debugger: the debugging layout — S9)
+    IF WithDebugger THEN DebugLayoutRunStarts
   ELSE
     OutputLine "Can't run " + ProjectMain + ": " + Session.Error
     SetState "error", "Can't run " + FileTitle(ProjectMain)
@@ -715,22 +715,181 @@ SUB GoToFirstProblem
   NEXT
 END SUB
 
-' The Call Stack in the Toolbox's place (On), or the Toolbox back: a run's
-' first stop, its end.
-SUB DebugSideBar(IsOn AS INTEGER)
-  StackShown = IsOn
-  IF IsOn THEN
-    Dock.ShowPane("stacktree")
-    Dock.HidePane("toolbox")
+' ---- the editing layout and the debugging layout (S9) ----------------------------------
+' While you edit, the bottom panel (Output with its Output, Build and Problems
+' pages, Immediate, Breakpoints) spans the whole width under the documents.
+' When a run with the debugger starts, Studio switches to the debugging
+' layout: Variables, Watch, Call Stack and Breakpoints in a group beside
+' Output and Immediate; at a pause Variables comes to the front. When the
+' program ends it switches back. Each layout keeps its own sizes (the bottom
+' panel's height; the debug panes' width), saved with the settings.
+' Settings > General > Debug panes: Automatic (the default), Always (the
+' debugging layout all the time) or Never (only when asked). View > Debug
+' Panes (Ctrl+Shift+D) shows or hides them now: shown by hand they stay
+' (pinned) after the program ends until hidden again. The switch is said in
+' the status bar (a screen reader hears it); it never takes the keyboard.
+
+' (DebugPanesMode, decl.inc: Automatic "auto", Always "always", Never
+' "never". The debugging layout is shown; turned on by hand: kept after
+' the run; turned off by hand during a run: not brought back until the
+' next one. EditBottom, DebugBottom, DebugWidth, decl.inc: each layout's
+' sizes — the bottom panel's height while editing and while debugging,
+' the debug panes' width; 0: as the dock has it)
+DIM DebugLayoutOn AS INTEGER
+DIM DebugPanesPinned AS INTEGER
+DIM DebugPanesDeclined AS INTEGER
+' (the status bar's note of the switch, then the project's name again)
+DIM LayoutNoteTimer AS RTimer
+LayoutNoteTimer.Interval = 4000
+LayoutNoteTimer.Enabled = 0
+LayoutNoteTimer.OnTimer = LayoutNoteGone
+
+' (a sentence in the status bar's middle panel for a few seconds: the
+' status bar is a live region, a screen reader reads it out)
+SUB LayoutNote(Text AS STRING)
+  Status.Panel(1).Caption = Text
+  LayoutNoteTimer.Enabled = 0
+  LayoutNoteTimer.Enabled = 1
+END SUB
+
+SUB LayoutNoteGone
+  LayoutNoteTimer.Enabled = 0
+  LayOutStatus
+END SUB
+
+' (the sizes the layout shown has now, kept for the next time it shows)
+SUB RememberLayoutSizes
+  DIM h AS INTEGER, w AS INTEGER
+  h = Dock.PaneExtent("outputbox", "height")
+  IF DebugLayoutOn THEN
+    IF h > 0 THEN DebugBottom = h
+    w = Dock.PaneExtent("varstree", "width")
+    IF w > 0 THEN DebugWidth = w
   ELSE
-    Dock.ShowPane("toolbox")
-    Dock.HidePane("stacktree")
+    IF h > 0 THEN EditBottom = h
   END IF
 END SUB
 
-' (a layout kept while a program was paused: the toolbox back in its place)
+' The debugging layout: the debug panes beside Output, Breakpoints with
+' them, at their sizes. Remember: the editing layout's sizes kept first.
+SUB DebugPanesIn(Remember AS INTEGER)
+  DIM w AS INTEGER, total AS INTEGER
+  IF Remember THEN RememberLayoutSizes
+  IF Dock.PaneState("varstree") = "hidden" THEN Dock.DockPane("varstree", "right:outputbox")
+  IF Dock.PaneState("watchpanel") = "hidden" THEN Dock.DockPane("watchpanel", "tab:varstree")
+  IF Dock.PaneState("stacktree") = "hidden" THEN Dock.DockPane("stacktree", "tab:varstree")
+  Dock.DockPane("bppanel", "tab:varstree")
+  Dock.ShowPane("varstree")
+  IF DebugBottom > 0 THEN Dock.PaneExtent("outputbox", "height", DebugBottom)
+  ' (the first time: the debug panes three fifths of the bottom panel —
+  ' their four tabs have room)
+  w = DebugWidth
+  IF w <= 0 THEN
+    total = Dock.PaneExtent("outputbox", "width") + Dock.PaneExtent("varstree", "width")
+    IF total >= 600 THEN w = total * 3 \ 5
+  END IF
+  IF w > 0 THEN Dock.PaneExtent("varstree", "width", w)
+  DebugLayoutOn = 1
+  CheckCmd "view.debugPanes", 1
+END SUB
+
+' The editing layout: the debug panes gone, Breakpoints a tab beside
+' Output, the bottom panel the whole width, at its height.
+SUB DebugPanesOut(Remember AS INTEGER)
+  DIM a AS STRING, imm AS INTEGER
+  IF Remember THEN RememberLayoutSizes
+  ' (the keyboard in a pane that goes: to the code, never lost)
+  a = LCASE$(Dock.ActivePane)
+  imm = Dock.PaneVisible("immediatebox")
+  Dock.DockPane("bppanel", "tab:outputbox")
+  ' (Output — or Immediate, if it was — stays in front: Breakpoints joins
+  ' them as a tab behind)
+  IF imm THEN Dock.ShowPane("immediatebox") ELSE Dock.ShowPane("outputbox")
+  Dock.HidePane("varstree")
+  Dock.HidePane("watchpanel")
+  Dock.HidePane("stacktree")
+  IF EditBottom > 0 THEN Dock.PaneExtent("outputbox", "height", EditBottom)
+  DebugLayoutOn = 0
+  CheckCmd "view.debugPanes", 0
+  IF a = "varstree" OR a = "watchpanel" OR a = "stacktree" THEN
+    IF ActiveCode >= 0 THEN Dock.FocusPane(DocPane(ActiveCode))
+  END IF
+END SUB
+
+' (the switch, said)
+SUB ShowDebugLayout
+  IF DebugLayoutOn THEN EXIT SUB
+  DebugPanesIn 1
+  LayoutNote "Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output"
+END SUB
+
+SUB ShowEditingLayout
+  IF DebugLayoutOn = 0 THEN EXIT SUB
+  DebugPanesOut 1
+  LayoutNote "Editing layout: the bottom panel is full width"
+END SUB
+
+' A run with the debugger starts: the debugging layout (Automatic, Always).
+SUB DebugLayoutRunStarts
+  DebugPanesDeclined = 0
+  IF DebugPanesMode <> "never" THEN ShowDebugLayout
+END SUB
+
+' A pause: the debugging layout (unless hidden by hand during this run, or
+' Never), Variables in front.
+SUB DebugLayoutPaused
+  IF DebugPanesMode <> "never" AND DebugPanesDeclined = 0 THEN ShowDebugLayout
+  IF DebugLayoutOn THEN Dock.ShowPane("varstree")
+END SUB
+
+' The program ended: the editing layout, unless pinned or Always.
+SUB DebugLayoutRunEnds
+  DebugPanesDeclined = 0
+  IF DebugPanesMode <> "always" AND DebugPanesPinned = 0 THEN ShowEditingLayout
+END SUB
+
+' View > Debug Panes (Ctrl+Shift+D): shown or hidden now; shown by hand,
+' they stay after the program ends (pinned) until hidden again.
+SUB ToggleDebugPanes
+  IF DebugLayoutOn THEN
+    DebugPanesPinned = 0
+    IF RunState = "running" OR RunState = "paused" THEN DebugPanesDeclined = 1
+    ShowEditingLayout
+  ELSE
+    DebugPanesPinned = 1
+    DebugPanesDeclined = 0
+    ShowDebugLayout
+  END IF
+END SUB
+
+' (a debug pane asked for — View > Variables, Add Watch —: the debugging
+' layout shown, as by hand)
+SUB NeedDebugPanes
+  IF DebugLayoutOn THEN EXIT SUB
+  DebugPanesPinned = 1
+  DebugPanesDeclined = 0
+  ShowDebugLayout
+END SUB
+
+' A layout loaded (at start-up, a project's session, Reset Layout): the
+' layout the mode says, at its sizes — whatever the text had (a layout
+' saved while a program was paused).
 SUB DebugLayoutLoaded
-  IF StackShown = 0 AND Dock.PaneVisible("stacktree") THEN DebugSideBar 0
+  IF DebugPanesMode = "always" OR DebugPanesPinned THEN
+    DebugPanesOut 0
+    DebugPanesIn 0
+  ELSE
+    DebugPanesIn 0
+    DebugPanesOut 0
+  END IF
+END SUB
+
+' Settings > General > Debug panes chosen.
+SUB SetDebugPanesMode(Mode AS STRING)
+  DebugPanesMode = Mode
+  IF Mode = "always" THEN ShowDebugLayout
+  IF Mode = "never" AND DebugPanesPinned = 0 THEN ShowEditingLayout
+  IF Mode = "auto" AND DebugPanesPinned = 0 AND RunState <> "running" AND RunState <> "paused" THEN ShowEditingLayout
 END SUB
 
 ' (a new run places every breakpoint again: the code may have changed)
@@ -847,7 +1006,8 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   FillCallStack
   FillVariables
   FillWatches
-  IF StackShown = 0 THEN DebugSideBar 1
+  ' (the debugging layout, Variables in front — S9)
+  DebugLayoutPaused
   Studio.SetFocus
   ' (a step's command to its line shown with its values: PerfStep)
   IF StepStarted > 0 THEN
@@ -881,7 +1041,8 @@ SUB ProgramExited(Code AS INTEGER)
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
   ClearDebugPanes
-  IF StackShown THEN DebugSideBar 0
+  ' (the editing layout again — S9)
+  DebugLayoutRunEnds
 END SUB
 
 ' ---- Variables and Watch: trees of values ----------------------------------------------------
@@ -1286,6 +1447,7 @@ SUB AddWatch(Expr AS STRING)
   IF e = "" THEN EXIT SUB
   Session.Watches = Session.Watches + e + CHR$(10)
   FillWatches
+  NeedDebugPanes
   Dock.ShowPane("watchpanel")
   DebugStateChanged
 END SUB
@@ -1332,6 +1494,7 @@ SUB AddWatchCommand
   IF e <> "" THEN
     AddWatch e
   ELSE
+    NeedDebugPanes
     Dock.FocusPane("watchpanel")
     WatchEdit.SetFocus
   END IF
@@ -1936,10 +2099,18 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
       BreakOnErrors = 1 - BreakOnErrors
       CheckCmd "debug.breakOnErrors", BreakOnErrors
       IF BreakOnErrors THEN SetState RunState, "The debugger stops at run-time errors" ELSE SetState RunState, "Run-time errors end the program"
-    CASE "view.variables": Dock.FocusPane("varstree")
-    CASE "view.watch": Dock.FocusPane("watchpanel")
-    CASE "view.callStack": Dock.FocusPane("stacktree")
+    ' (the debug panes asked for while editing: the debugging layout, as by hand)
+    CASE "view.variables"
+      NeedDebugPanes
+      Dock.FocusPane("varstree")
+    CASE "view.watch"
+      NeedDebugPanes
+      Dock.FocusPane("watchpanel")
+    CASE "view.callStack"
+      NeedDebugPanes
+      Dock.FocusPane("stacktree")
     CASE "view.breakpoints": Dock.FocusPane("bppanel")
+    CASE "view.debugPanes": ToggleDebugPanes
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
@@ -2066,6 +2237,10 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       ' (stops:report — every stop of this run: "[stops] 58:breakpoint
       ' 58:breakpoint 59:step …", line and reason)
       OutputLine "[stops]" + StopLog
+    CASE "extent"
+      ' (extent:<pane>:<width|height>:<pixels> — a splitter dragged so the
+      ' pane's part is that size, as the user drags it — S9's sizes)
+      Dock.PaneExtent(FIELD$(arg, ":", 1), FIELD$(arg, ":", 2), VAL(FIELD$(arg, ":", 3)))
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
@@ -2132,31 +2307,6 @@ SUB DebugTree(t AS RTreeView, Title AS STRING)
   t.ReadOnly = 1
   t.HideSelection = 0
   t.AccessibleName = Title
-END SUB
-
-' (the debugger's group beside Output as wide as Output, so its four tabs
-' have room: their sizes in the layout's text)
-SUB WidenDebugPanes
-  DIM lay AS STRING, n AS INTEGER, k AS INTEGER, ln AS STRING, sp AS INTEGER, acc AS STRING, lead AS STRING
-  DIM total AS INTEGER, outAt AS INTEGER, varsAt AS INTEGER
-  lay = Dock.SaveLayout
-  n = TALLY(lay, CHR$(10))
-  FOR k = 1 TO n + 1
-    ln = FIELD$(lay, CHR$(10), k)
-    IF INSTR(ln, " tabs ") > 0 AND INSTR(ln, " outputbox") > 0 THEN outAt = k: total = total + VAL(LTRIM$(ln))
-    IF INSTR(ln, " tabs ") > 0 AND INSTR(ln, " varstree") > 0 THEN varsAt = k: total = total + VAL(LTRIM$(ln))
-  NEXT
-  IF outAt = 0 OR varsAt = 0 OR total < 600 THEN EXIT SUB
-  FOR k = 1 TO n + 1
-    ln = FIELD$(lay, CHR$(10), k)
-    IF k = outAt OR k = varsAt THEN
-      lead = LEFT$(ln, LEN(ln) - LEN(LTRIM$(ln)))
-      sp = INSTR(LTRIM$(ln), " ")
-      IF k = varsAt THEN ln = lead + Num(total * 3 \ 5) + MID$(LTRIM$(ln), sp) ELSE ln = lead + Num(total - total * 3 \ 5) + MID$(LTRIM$(ln), sp)
-    END IF
-    IF k <= n THEN acc = acc + ln + CHR$(10) ELSE acc = acc + ln
-  NEXT
-  Dock.LoadLayout(acc)
 END SUB
 
 ' The panes beside Output (Variables, Watch, Call Stack, Breakpoints), the
@@ -2278,18 +2428,17 @@ SUB SetUpDebug
   BpTree.OnDblClick = BpTreeOpen
   BpTree.OnKeyDown = BpTreeKey
 
+  ' (the debugging layout's group beside Output — Variables, Watch, Call
+  ' Stack, Breakpoints —; Breakpoints is a tab beside Output while editing:
+  ' DebugLayoutLoaded, after the layout is read, puts each where the mode
+  ' says)
   Dock.AddPane(VarsTree, "Variables", "right:outputbox", "variables")
   Dock.AddPane(WatchPanel, "Watch", "tab:varstree", "watch")
-  ' (the call stack in the toolbox's place while the program runs — a
-  ' paused program needs no toolbox —, beside Variables, in the side
-  ' bar: DebugSideBar)
-  Dock.AddPane(StackTree, "Call Stack", "tab:toolbox", "callstack")
+  Dock.AddPane(StackTree, "Call Stack", "tab:varstree", "callstack")
   Dock.AddPane(BpPanel, "Breakpoints", "tab:varstree", "breakpoint")
-  Dock.HidePane("stacktree")
-  Dock.ShowPane("toolbox")
   Dock.ShowPane("varstree")
+  IF DebugPanesMode = "" THEN DebugPanesMode = "auto"
   SetUpValueMenus
-  WidenDebugPanes
   FillVariables
   FillWatches
   FillBreakpoints

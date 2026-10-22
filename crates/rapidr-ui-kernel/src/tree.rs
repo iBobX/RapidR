@@ -308,6 +308,11 @@ impl FormUi {
     /// pixels, the menu bar's included): the innermost, the last created
     /// on top, only where its parents show it.
     pub fn hit(&self, x: f64, y: f64) -> Option<usize> {
+        // (a dock manager's splitter takes the mouse a little past its
+        // gutter, over the panes' edges: components/dock.rs)
+        if let Some(i) = crate::components::dock::splitter_claim(self, x, y) {
+            return Some(i);
+        }
         let inside = |r: Rect| x >= r.0 as f64 && y >= r.1 as f64 && x < (r.0 + r.2) as f64 && y < (r.1 + r.3) as f64;
         (0..self.nodes.len()).rev().find(|&i| self.nodes[i].shown && self.ancestry(i).iter().all(|&a| inside(self.nodes[a].abs)))
     }

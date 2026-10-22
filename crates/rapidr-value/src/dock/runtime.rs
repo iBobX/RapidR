@@ -51,12 +51,21 @@ pub trait Runtime: Copy + 'static {
     fn focus(self, name: &str);
     /// `form.Show` (a floating window's first showing: built, shown).
     fn show(self, form: &str);
+    /// A pane's component has a new size: what is inside it laid out at
+    /// that size — its aligned and anchored children (even while the dock
+    /// manager is itself being laid out by its form, when a size stored
+    /// lays nothing out), its scroll bars — and its OnResize, for what its
+    /// program lays out itself.
+    fn relayout(self, name: &str);
 }
 
 thread_local! {
     /// Placing components sets their properties: those sets mustn't place
     /// them again.
     static APPLYING: Cell<bool> = const { Cell::new(false) };
+    /// The panes' components given a new size while placing (S8): laid out
+    /// at it once the placing is done ([`Runtime::relayout`]).
+    static RESIZED: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// The component of a group slot.
@@ -159,6 +168,33 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             let ok = manager::with_mut(dock, |m| m.begin_move(&name(0)));
             rt.restructure();
             return Some(int(if ok { -1 } else { 0 }));
+        }
+        // (RapidR's) The keyboard to a splitter: the one beside the pane
+        // named (else beside the active pane or document, else the first)
+        "focussplitter" => {
+            let want = Some(name(0)).filter(|n| !n.trim().is_empty());
+            let ok = manager::with_mut(dock, |m| {
+                let near = want.clone().or_else(|| m.active_pane.clone()).or_else(|| m.active_document());
+                m.focus_splitter(near.as_deref())
+            });
+            if ok {
+                // (the dock manager holds the keyboard while it lasts: the
+                // kernel gives it back after — components/dock.rs)
+                rt.focus(dock);
+                rt.restructure();
+            }
+            return Some(int(if ok { -1 } else { 0 }));
+        }
+        // (RapidR's) A docked pane's width or height ("width" / "height"):
+        // the part of its nearest split that holds it; with Extent, that
+        // part gets that size (its neighbour gives or takes the room)
+        "paneextent" => {
+            let axis = if s(1).trim().eq_ignore_ascii_case("height") { super::Axis::Column } else { super::Axis::Row };
+            if args.len() < 3 {
+                return Some(int(manager::with_mut(dock, |m| m.pane_extent(&name(0), axis)).unwrap_or(0)));
+            }
+            let want = arg(2).to_i64();
+            manager::with_mut(dock, |m| m.set_pane_extent(&name(0), axis, want))
         }
         "savelayout" => return Some(Value::String(manager::with_mut(dock, |m| m.save()))),
         "loadlayout" => manager::with_mut(dock, |m| m.load(&s(0))),
@@ -513,6 +549,24 @@ fn place<R: Runtime>(rt: R, name: &str, parent: &str, r: Rect) {
     }
 }
 
+/// [`place`] for a pane's component: when its size changed, what's in it
+/// is laid out again once the placing is done ([`Runtime::relayout`]) — a
+/// pane placed while its dock manager is itself being laid out (the window
+/// restored, maximized or scaled at start-up) would otherwise keep its
+/// contents at the size they had (S8).
+fn place_pane<R: Runtime>(rt: R, name: &str, parent: &str, r: Rect) {
+    let before = (rt.get(name, "width").to_i64(), rt.get(name, "height").to_i64());
+    place(rt, name, parent, r);
+    if before != (r.2, r.3) {
+        RESIZED.with(|v| {
+            let mut v = v.borrow_mut();
+            if !v.iter().any(|n| n.eq_ignore_ascii_case(name)) {
+                v.push(name.to_string());
+            }
+        });
+    }
+}
+
 fn hide<R: Runtime>(rt: R, name: &str) {
     // (Visible unset reads as nothing: shown)
     let v = rt.get(name, "visible");
@@ -541,6 +595,10 @@ pub fn apply<R: Runtime>(rt: R, dock: &str) {
     apply_now(rt, dock);
     APPLYING.with(|a| a.set(false));
     rt.restructure();
+    // (each pane given a new size: its contents at that size)
+    for name in RESIZED.with(|v| std::mem::take(&mut *v.borrow_mut())) {
+        rt.relayout(&name);
+    }
 }
 
 fn apply_now<R: Runtime>(rt: R, dock: &str) {
@@ -553,7 +611,7 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
         place(rt, &name, dock, gr.rect);
         for (k, p) in gr.panes.iter().enumerate() {
             if k == gr.active {
-                place(rt, p, &name, gr.content);
+                place_pane(rt, p, &name, gr.content);
             } else {
                 hide(rt, p);
             }
@@ -626,7 +684,7 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
             let gr = d.groups.iter().find(|g| g.shown().map(String::as_str) == Some(p.as_str()));
             for c in &all {
                 match (gr, shown.iter().position(|x| x == c)) {
-                    (Some(g), Some(i)) if i < g.places.len() => place(rt, c, &docs, g.places[i]),
+                    (Some(g), Some(i)) if i < g.places.len() => place_pane(rt, c, &docs, g.places[i]),
                     _ => hide(rt, c),
                 }
             }
@@ -653,7 +711,7 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
         Some(f) => {
             let name = ensure_group(rt, dock, Slot::Flyout, dock);
             place(rt, &name, dock, f.rect);
-            place(rt, &f.panes[0], &name, f.content);
+            place_pane(rt, &f.panes[0], &name, f.content);
             placed.push(f.panes[0].clone());
         }
         None => hide(rt, &fly),
@@ -682,7 +740,7 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
         for (k, p) in fl.panes.iter().enumerate() {
             placed.push(p.clone());
             if k == fl.active {
-                place(rt, p, &gname, gr.content);
+                place_pane(rt, p, &gname, gr.content);
             } else {
                 hide(rt, p);
             }

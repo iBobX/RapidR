@@ -354,9 +354,8 @@ END SUB
 SUB LayoutChanged
   LayoutSaver.Enabled = 0
   LayoutSaver.Enabled = 1
-  ' (a panel's OnResize doesn't come from the dock: the assistant's controls
-  ' follow the width its pane has been given)
-  LayOutAIPanel
+  ' (the assistant's controls follow the width its pane is given: its
+  ' OnResize, which the dock fires when it gives a pane a new size — S8)
 END SUB
 
 SUB SaveSoon

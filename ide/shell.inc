@@ -103,7 +103,13 @@ SUB RunCommand(Id AS STRING)
     CASE "view.theme.highcontrast": SetTheme "rapidr high contrast"
     CASE "view.theme.classic": SetTheme "classic"
     CASE "view.previewClassic": TogglePreviewClassic
-    CASE "view.layout": Dock.ResetLayout
+    CASE "view.layout"
+      ' (every pane where it started, both layouts at their first sizes)
+      Dock.ResetLayout
+      EditBottom = 0: DebugBottom = 0: DebugWidth = 0
+      DebugLayoutLoaded
+    CASE "window.resizePanes"
+      IF Dock.FocusSplitter("") = 0 THEN SetState RunState, "No splitter to move"
     CASE "view.settings": ShowSettings
     CASE "view.keyboardShortcuts": ShowShortcuts
     ' ---- project ----
@@ -319,7 +325,8 @@ SUB StartStudio
   SetUpDocuments
   SetUpSearch
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
-  ' (a layout kept while a program was paused: the toolbox back)
+  ' (the editing layout — or the debugging one, Settings' Always —, at its
+  ' sizes, whatever layout was kept: one saved while a program ran)
   DebugLayoutLoaded
   FillExamples
   FillPalette

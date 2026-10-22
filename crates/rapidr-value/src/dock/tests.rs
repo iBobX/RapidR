@@ -654,3 +654,348 @@ fn the_chrome_reads_in_rapidrs_looks() {
         }
     }
 }
+
+// ------------------------------------------------- splitters (SPLIT, S9) --
+
+#[test]
+fn a_splitter_shows_at_rest_against_both_its_neighbours() {
+    // (at rest quiet: the band the panes' own gap, the ground, with a soft
+    // line along it, 1.2 to 1.8:1 against the panes — a header, the active
+    // one's, a pane's body, a document's strip —; high contrast's line
+    // crisp. The grip carries the cue: 3:1 against its band and the line
+    // it sits on, WCAG 1.4.11. Lit, the band 3:1 against the panes, the
+    // grip 3:1 on it)
+    use crate::theme::{contrast, ALL};
+    for t in ALL.into_iter().filter(|t| t.fluent()) {
+        let p = look::palette(t);
+        for (beside, bg) in [("a header", p.header), ("the active header", p.header_active), ("a pane", p.body), ("the documents' strip", p.doc_strip)] {
+            let (line, lit) = (contrast(p.splitter_line, bg), contrast(p.splitter_hot, bg));
+            if p.contrast {
+                assert!(line >= 7.0, "{}: the line beside {beside}", t.name);
+            } else {
+                assert!((1.2..=1.8).contains(&line), "{}: the line beside {beside} {bg:06X}: {line:.2}, quiet", t.name);
+            }
+            assert!(lit >= 3.0, "{}: the lit band beside {beside} {bg:06X}: {lit:.2}", t.name);
+        }
+        for (what, grip, band) in [("at rest", p.grip, p.splitter), ("under the mouse", p.grip_hot, p.splitter_hot)] {
+            assert!(contrast(grip, band) >= 3.0, "{}: the grip {what} {grip:06X} on {band:06X}: {:.2}", t.name, contrast(grip, band));
+        }
+        // (on its soft line too; high contrast's grip is its crisp line
+        // grown thick, the same white)
+        if p.contrast {
+            assert_eq!(p.grip, p.splitter_line, "{}", t.name);
+        } else {
+            assert!(contrast(p.grip, p.splitter_line) >= 3.0, "{}: the grip on its line", t.name);
+        }
+        // (from the theme's tokens, never a colour of its own)
+        assert_eq!((p.grip, p.grip_hot), (t.splitter_grip, t.accent_text), "{}", t.name);
+        if p.contrast {
+            assert_eq!((p.splitter, p.splitter_line), (t.splitter, t.border), "{}", t.name);
+        } else {
+            assert_eq!((p.splitter, p.splitter_line), (p.ground, t.splitter), "{}", t.name);
+        }
+    }
+}
+
+#[test]
+fn every_splitter_is_drawn_at_rest_with_its_grip_and_hot_in_the_accent() {
+    use crate::objects::ops::Op;
+    let mut m = ide();
+    let g = m.geometry().clone();
+    let t = &crate::theme::RAPIDR;
+    let p = look::palette(t);
+    let fills = |ops: &[Op], color: u32| ops.iter().filter(|o| matches!(o, Op::Fill { color: c, .. } if *c == color)).count();
+    let grips = |ops: &[Op], color: u32| ops.iter().filter(|o| matches!(o, Op::Stroke { color: c, .. } if *c == color)).count();
+    let band = |ops: &[Op], color: u32, r: (i64, i64, i64, i64)| ops.iter().any(|o| matches!(o, Op::Fill { color: c, rect } if *c == color && *rect == r));
+    let rest = look::manager_ops(&m, &g, t, &Font::default());
+    // (each: the gap the panes leave and the grip in it — nothing else,
+    // nothing over the panes: their own edges show where they meet, no
+    // third line between them)
+    let line = |s: &geometry::Splitter| {
+        let (x, y, w, h) = s.rect;
+        if s.axis == Axis::Row { (x + w / 2, y, 1, h) } else { (x, y + h / 2, w, 1) }
+    };
+    assert!(g.splitters.iter().all(|s| band(&rest, p.splitter, s.rect)), "the gap under each splitter");
+    assert_eq!(fills(&rest, p.splitter_line), 0, "no line between framed panes");
+    assert_eq!(grips(&rest, p.grip), g.splitters.len(), "a grip on each");
+    // (where nothing frames the panes — two views, two groups of
+    // documents, RSPLITTER —: a soft line along the middle, the grip on it)
+    for s in &g.splitters {
+        let mut ops = Vec::new();
+        look::splitter_ops(&mut ops, s.rect, s.axis == Axis::Row, false, &p, look::SplitterLook::Rest);
+        assert!(band(&ops, p.splitter, s.rect) && band(&ops, p.splitter_line, line(s)), "{ops:?}");
+        assert_eq!(grips(&ops, p.grip), 1);
+    }
+    // (under the mouse: lit only once the mouse has rested there)
+    m.ui.hover = Some(manager::Part::Manager(Hit::Splitter(0)));
+    assert_eq!(look::manager_ops(&m, &g, t, &Font::default()), rest, "not at once: no flicker passing over");
+    m.ui.hot_ready = true;
+    let hot = look::manager_ops(&m, &g, t, &Font::default());
+    assert!(band(&hot, p.splitter_hot, g.splitters[0].rect), "the whole band in the accent");
+    assert_eq!(grips(&hot, p.grip_hot) + grips(&hot, p.grip), g.splitters.len());
+    assert!(grips(&hot, p.grip_hot) >= 1, "its grip in the accent's text colour");
+    // (the grip: 20 to 28 long, 3 thick, centred along the splitter, on
+    // its line across it — within half a pixel of the middle, its edges on
+    // whole pixels: crisp at 1x —, inside its band, never over the panes)
+    for s in &g.splitters {
+        let stands = s.axis == Axis::Row;
+        let (a, b, width) = look::grip(s.rect, stands, false).expect("a grip");
+        let (x, y, w, h) = (s.rect.0 as f64, s.rect.1 as f64, s.rect.2 as f64, s.rect.3 as f64);
+        let (cx, cy) = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+        let long = if stands { b.1 - a.1 } else { b.0 - a.0 } + width;
+        assert!((20.0..=28.0).contains(&long), "{long}");
+        assert_eq!(width, look::GRIP_THICK);
+        let (along, mid) = if stands { (cy, y + h / 2.0) } else { (cx, x + w / 2.0) };
+        assert_eq!(along, mid, "centred along");
+        let (across, start, thick) = if stands { (cx, x, w) } else { (cy, y, h) };
+        assert!((across - (start + thick / 2.0)).abs() <= 0.5, "on the middle");
+        let (lo, hi) = (across - width / 2.0, across + width / 2.0);
+        assert!(lo >= start && hi <= start + thick, "inside its band: {lo}..{hi} of {start}+{thick}");
+        assert_eq!((lo.fract(), hi.fract()), (0.0, 0.0), "on whole pixels");
+        let l = line(s);
+        let l = if stands { l.0 as f64 } else { l.1 as f64 };
+        assert!(lo <= l && l + 1.0 <= hi, "over its line");
+    }
+    // (high contrast: the black gap between the panes' crisp white edges,
+    // the grip white; unframed, a crisp line of its own)
+    let hc = &crate::theme::RAPIDR_HIGH_CONTRAST;
+    let ph = look::palette(hc);
+    m.ui.hover = None;
+    let hco = look::manager_ops(&m, &g, hc, &Font::default());
+    assert!(g.splitters.iter().all(|s| band(&hco, ph.splitter, s.rect)), "the black gap");
+    assert_eq!(grips(&hco, ph.grip), g.splitters.len(), "a white grip on each");
+    let s = &g.splitters[0];
+    let mut ops = Vec::new();
+    look::splitter_ops(&mut ops, s.rect, s.axis == Axis::Row, false, &ph, look::SplitterLook::Rest);
+    assert!(band(&ops, ph.splitter_line, line(s)), "a crisp line");
+    // (the classic look: RapidQ's — the button-face gap, no grip)
+    m.ui.hover = None;
+    let classic = look::manager_ops(&m, &g, &crate::theme::CLASSIC, &Font::default());
+    assert_eq!(classic.iter().filter(|o| matches!(o, Op::Stroke { .. })).count(), 0, "no grip");
+}
+
+#[test]
+fn where_two_splitters_meet_a_corner_moves_both() {
+    let mut m = ide();
+    let g = m.geometry().clone();
+    // (left | middle, and the middle's documents above Output: a T)
+    let c = g.corners.first().expect("a corner where the splitters meet").clone();
+    let (sv, sh) = (g.splitters[c.stands].clone(), g.splitters[c.lies].clone());
+    assert_eq!((sv.axis, sh.axis), (Axis::Row, Axis::Column));
+    assert_eq!((c.rect.2, c.rect.3), (geometry::CORNER, geometry::CORNER));
+    assert_eq!((c.rect.0 + c.rect.2 / 2, c.rect.1 + c.rect.3 / 2), (sv.rect.0 + sv.rect.2 / 2, sh.rect.1 + sh.rect.3 / 2), "centred where they cross");
+    assert_eq!(g.hit(c.rect.0 + 4, c.rect.1 + 4), Some(Hit::Corner(0)));
+    // (under the mouse, rested: both bands lit)
+    m.ui.hover = Some(manager::Part::Manager(Hit::Corner(0)));
+    m.ui.hot_ready = true;
+    let mut hot = look::hot_splitters(&m, &g);
+    hot.sort();
+    let mut both = vec![c.stands, c.lies];
+    both.sort();
+    assert_eq!(hot, both);
+    // (the keyboard: Alt and an arrow across a splitter move the one it meets)
+    m.ui.hover = None;
+    m.ui.split_key = Some(manager::SplitKey { splitter: c.lies, back: None });
+    let before = m.split_now(c.stands).unwrap();
+    let step = m.split_key(39, false, true);
+    let Some(User::Split { splitter, extents, .. }) = step.moved else { panic!("{step:?}") };
+    assert_eq!(splitter, c.stands);
+    assert_eq!(extents[sv.index], before[sv.index] + manager::SPLIT_STEP);
+    // (Alt with an arrow along it: itself, as without Alt)
+    let step = m.split_key(40, false, true);
+    assert!(matches!(step.moved, Some(User::Split { splitter, .. }) if splitter == c.lies), "{step:?}");
+}
+
+#[test]
+fn a_splitter_is_grabbed_a_little_past_its_gutter() {
+    let mut m = ide();
+    let g = m.geometry().clone();
+    let s = g.splitters.iter().find(|s| s.axis == Axis::Row).unwrap().clone();
+    let (x, y) = (s.rect.0, s.rect.1 + s.rect.3 / 2);
+    // (8 pixels: the gutter's 4 and 2 each side)
+    for dx in -geometry::GRAB..GAP + geometry::GRAB {
+        assert!(matches!(g.hit(x + dx, y), Some(Hit::Splitter(_))), "{dx}");
+    }
+    assert_eq!(g.hit(x - geometry::GRAB - 1, y), None);
+    assert_eq!(g.hit(x + GAP + geometry::GRAB, y), None);
+}
+
+#[test]
+fn a_splitter_takes_the_keyboard() {
+    let mut m = ide();
+    // (beside Output: the splitter between the documents and it)
+    assert!(m.focus_splitter(Some("output")));
+    let k = m.ui.split_key.clone().unwrap();
+    let s = m.geometry().splitters[k.splitter].clone();
+    assert_eq!(s.axis, Axis::Column, "the one above Output");
+    let at = |m: &mut Manager| m.split_now(k.splitter).unwrap()[s.index];
+    let before = at(&mut m);
+    // (an arrow: 10 pixels, carried out as the user's step)
+    let step = m.split_key(40, false, false);
+    assert!(step.took && !step.leave);
+    let Some(u) = step.moved else { panic!() };
+    m.user(u);
+    assert_eq!(at(&mut m), before + manager::SPLIT_STEP);
+    // (Shift: 50; up: back)
+    let u = m.split_key(38, true, false).moved.unwrap();
+    m.user(u);
+    assert_eq!(at(&mut m), before + manager::SPLIT_STEP - manager::SPLIT_JUMP);
+    // (Home: its least)
+    let u = m.split_key(36, false, false).moved.unwrap();
+    m.user(u);
+    assert_eq!(at(&mut m), geometry::MIN_EXTENT);
+    // (End: its most — the other side at its least)
+    let u = m.split_key(35, false, false).moved.unwrap();
+    m.user(u);
+    let ext = m.split_now(k.splitter).unwrap();
+    assert_eq!(ext[s.index + 1], geometry::MIN_EXTENT);
+    // (Tab: the next splitter; Shift+Tab back)
+    let n = m.geometry().splitters.len();
+    assert!(m.split_key(9, false, false).took);
+    assert_eq!(m.ui.split_key.as_ref().unwrap().splitter, (k.splitter + 1) % n);
+    m.split_key(9, true, false);
+    assert_eq!(m.ui.split_key.as_ref().unwrap().splitter, k.splitter);
+    // (Enter / Escape: it leaves; another key leaves and goes on; Shift alone stays)
+    assert_eq!(m.split_key(16, false, false), manager::SplitKeyStep { took: false, moved: None, leave: false });
+    assert!(m.split_key(13, false, false).leave);
+    assert!(m.split_key(27, false, false).leave);
+    let other = m.split_key(65, false, false);
+    assert!(!other.took && other.leave);
+}
+
+#[test]
+fn a_double_click_puts_a_splitter_back_where_it_was() {
+    let mut m = ide();
+    let i = m.geometry().splitters.iter().position(|s| s.axis == Axis::Column).unwrap();
+    let first = m.split_now(i).unwrap();
+    let u = m.split_by(i, -120).unwrap();
+    m.user(u);
+    assert_ne!(m.split_now(i).unwrap(), first);
+    let u = m.split_default(i).unwrap();
+    m.user(u);
+    assert_eq!(m.split_now(i).unwrap(), first);
+}
+
+#[test]
+fn a_panes_width_and_height_read_and_set() {
+    let mut m = ide();
+    let h = m.pane_extent("output", Axis::Column).unwrap();
+    assert_eq!(h, DEFAULT_BOTTOM);
+    assert_eq!(m.pane_extent("explorer", Axis::Row), Some(DEFAULT_SIDE));
+    let out = m.set_pane_extent("problems", Axis::Column, 260);
+    assert!(out.changed);
+    assert_eq!(m.pane_extent("output", Axis::Column), Some(260));
+    m.set_pane_extent("explorer", Axis::Row, 300);
+    assert_eq!(m.pane_extent("explorer", Axis::Row), Some(300));
+    // (a floating or hidden pane: none)
+    m.hide_pane("properties");
+    assert_eq!(m.pane_extent("properties", Axis::Row), None);
+}
+
+#[test]
+fn a_screen_reader_hears_where_a_splitter_is_as_a_percentage() {
+    let mut m = ide();
+    m.focus_splitter(Some("explorer"));
+    let g = m.geometry().clone();
+    let n = access::describe_manager("dock", &m, &g, (0, 0));
+    let k = m.ui.split_key.as_ref().unwrap().splitter;
+    let sp = &n.children[k];
+    let num = sp.numeric.unwrap();
+    assert_eq!((num.min, num.max), (0.0, 100.0));
+    assert!(num.value > 0.0 && num.value < 100.0, "{}", num.value);
+    assert_eq!(sp.value.as_deref(), Some(format!("{}%", num.value.round() as i64).as_str()));
+    assert!(sp.states.focused, "the splitter given the keyboard is focused");
+    assert!(sp.actions.contains(&crate::objects::a11y::Action::Focus));
+}
+
+/// A runtime over a table of properties (the dock's runtime glue, without
+/// a GUI): which components were laid out again, their OnResize.
+mod relayout {
+    use super::super::runtime::{self, Runtime};
+    use crate::Value;
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static PROPS: RefCell<HashMap<(String, String), Value>> = RefCell::new(HashMap::new());
+        static TYPES: RefCell<HashMap<String, String>> = RefCell::new(HashMap::new());
+        pub static LAID: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+    }
+
+    #[derive(Clone, Copy)]
+    pub struct Fake;
+
+    impl Runtime for Fake {
+        fn get(self, name: &str, prop: &str) -> Value {
+            PROPS.with(|p| p.borrow().get(&(name.to_ascii_lowercase(), prop.to_ascii_lowercase())).cloned().unwrap_or(Value::Null))
+        }
+        fn set(self, name: &str, prop: &str, v: Value) {
+            PROPS.with(|p| p.borrow_mut().insert((name.to_ascii_lowercase(), prop.to_ascii_lowercase()), v));
+        }
+        fn create(self, name: &str, type_name: &str) {
+            TYPES.with(|t| t.borrow_mut().insert(name.to_ascii_lowercase(), type_name.to_string()));
+        }
+        fn exists(self, name: &str) -> bool {
+            TYPES.with(|t| t.borrow().contains_key(&name.to_ascii_lowercase()))
+        }
+        fn type_of(self, name: &str) -> String {
+            TYPES.with(|t| t.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
+        }
+        fn fire(self, _: &str, _: &str, _: &[Value]) {}
+        fn fire_then(self, _: &str, _: &str, args: &[Value], then: runtime::Then) {
+            then(args)
+        }
+        fn children(self, _: &str) -> Vec<(String, String)> {
+            Vec::new()
+        }
+        fn restructure(self) {}
+        fn focus(self, _: &str) {}
+        fn show(self, _: &str) {}
+        fn relayout(self, name: &str) {
+            LAID.with(|l| l.borrow_mut().push(name.to_ascii_lowercase()));
+        }
+    }
+
+    pub fn component(name: &str, t: &str, w: i64, h: i64) {
+        Fake.create(name, t);
+        Fake.set(name, "width", Value::Integer(w));
+        Fake.set(name, "height", Value::Integer(h));
+    }
+}
+
+#[test]
+fn a_pane_given_a_new_size_has_its_contents_laid_out_at_it() {
+    // (S8: a pane placed while its dock manager is itself laid out — the
+    // window restored or maximized at start-up — is laid out again at its
+    // size; one whose size didn't change isn't)
+    use relayout::{component, Fake, LAID};
+    use runtime::Runtime;
+    let dock = "s8dock";
+    component(dock, "RDOCKMANAGER", 1000, 700);
+    for p in ["s8left", "s8out", "s8vars"] {
+        component(p, "RPANEL", 440, 190);
+    }
+    manager::with_mut(dock, |m| {
+        m.add_pane("s8left", "Left", "left", "");
+        m.add_pane("s8out", "Output", "bottom:documents", "");
+        m.add_pane("s8vars", "Variables", "tab:s8out", "");
+    });
+    let laid = || LAID.with(|l| std::mem::take(&mut *l.borrow_mut()));
+    runtime::apply(Fake, dock);
+    let first = laid();
+    assert!(first.contains(&"s8left".to_string()) && first.contains(&"s8vars".to_string()), "{first:?}");
+    // (the same size again: nothing)
+    runtime::apply(Fake, dock);
+    assert_eq!(laid(), Vec::<String>::new());
+    // (the window grows: the shown panes again, at their new size)
+    Fake.set(dock, "width", crate::Value::Integer(1600));
+    runtime::apply(Fake, dock);
+    let grown = laid();
+    assert!(grown.contains(&"s8vars".to_string()), "{grown:?}");
+    assert_eq!(Fake.get("s8vars", "width").to_i64(), manager::with_mut(dock, |m| m.geometry().group_of("s8vars").unwrap().content.2));
+    // (a tab shown at a size it hadn't: laid out too)
+    manager::with_mut(dock, |m| m.show_pane("s8out"));
+    Fake.set("s8out", "width", crate::Value::Integer(10));
+    runtime::apply(Fake, dock);
+    assert!(laid().contains(&"s8out".to_string()));
+}

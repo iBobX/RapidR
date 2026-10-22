@@ -27,6 +27,10 @@ const BP = "line:11,debug.toggleBreakpoint";
 const HIT = `${BP},run.start,wait,wait,wait`;
 
 export const scenes = [
+  // (S9: the editing layout — the bottom panel the whole width — and the
+  // debugging layout at a breakpoint, Variables in front)
+  { topic: "debugging", name: "layout-editing", open: COUNTER, do: "wait", delay: 4, crop: [0, 64, 1036, 706] },
+  { topic: "debugging", name: "layout-debugging", open: COUNTER, do: HIT, delay: 6, crop: [0, 64, 1036, 706] },
   { topic: "debugging", name: "breakpoint-set", open: COUNTER, do: `${BP},wait`, delay: 4, crop: EDITOR },
   { topic: "debugging", name: "breakpoint-hit", open: COUNTER, do: HIT, delay: 6, crop: [0, 0, 1036, 770] },
   { topic: "debugging", name: "breakpoint-condition", open: COUNTER, do: `${BP},debug.editBreakpoint,bpcond:i = 2,wait`, delay: 4, crop: WORKBENCH },
@@ -34,7 +38,7 @@ export const scenes = [
   { topic: "debugging", name: "step-into", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "watch", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,watch:total + k,watch:n * 100,view.watch,wait`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "set-value", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100`, delay: 7, crop: BOTTOM },
-  { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables,frame:1,wait`, delay: 7, crop: WORKBENCH },
+  { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.callStack,frame:1,wait`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "immediate", open: COUNTER, do: `${BP},bpcond:i = 3,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:? total * 10,key:Enter,wait,wait,wait,type:total = 0,key:Enter,wait,wait,wait,type:? total,key:Enter,wait,wait`, delay: 12, crop: BOTTOM },
   // (DEBUG-RUN: paused, ▶ is Continue — the Debug menu opened by a click on it)
   { topic: "debugging", name: "paused-debug-menu", open: COUNTER, do: `${HIT},key:Alt+D`, delay: 6, crop: [0, 0, 560, 345] },
