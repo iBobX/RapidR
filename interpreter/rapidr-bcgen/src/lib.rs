@@ -3158,6 +3158,18 @@ mod tests {
         assert_eq!(run(&format!("{}\nPRINT True\n", rapidr_preprocessor::rapidq_inc_text())).output, "1\n");
     }
 
+    /// The preprocessor's mark of a RapidR program (a line after the
+    /// file's last) and the QBColor array it gets are on no line after the
+    /// program's code: a breakpoint after the last line never moves there.
+    #[test]
+    fn built_in_constants_add_no_line_after_the_programs() {
+        let src = format!("' a comment\nPRINT QBColor(1)\nPRINT mbYes\n{}\n", rapidr_preprocessor::RAPIDR_PROGRAM);
+        let compiled = compile_program_with_source(&parse(&src), Some(&src)).expect("compiles");
+        let main = &compiled.module.functions[compiled.module.entry as usize];
+        let lines: Vec<u32> = main.line_info.iter().map(|(_, line)| *line).collect();
+        assert!(!lines.is_empty() && lines.iter().all(|l| (2..=3).contains(l)), "{lines:?}");
+    }
+
     #[test]
     fn print_string() {
         let h = run(r#"PRINT "hello""#);

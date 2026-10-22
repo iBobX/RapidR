@@ -98,20 +98,60 @@ pub fn is_rapidr_program(program: &Program) -> bool {
 }
 
 /// The program with its built-in constants and `QBColor` (see the module);
-/// a RapidQ program as it is.
+/// a RapidQ program as it is. The mark itself is taken out: it is no code,
+/// and a line of its own (after the file's last) would be a place a
+/// breakpoint could move to.
 pub fn lower(program: &Program) -> Program {
     let Some(at) = mark(program) else { return program.clone() };
     let mut program = program.clone();
+    program.statements.retain(|s| !is_mark(s));
     let mut own = HashSet::new();
     own_names(&program.statements, &mut own, false);
     let mut qbcolor = false;
     rewrite_block(&mut program.statements, &own, &mut qbcolor);
     if qbcolor && !own.contains("qbcolor") {
-        let mut init = qbcolor_statements(at);
+        // (on the program's first line of code, as the include's are on
+        // its `$INCLUDE` line: never on a line after the file's last)
+        let first = program.statements.iter().filter_map(code_start).filter(|s| *s < at.start).min();
+        let mut init = qbcolor_statements(first.map_or(at, |s| TextSpan::new(s, s)));
         init.append(&mut program.statements);
         program.statements = init;
     }
     program
+}
+
+/// Where a statement of the main program's code starts: `None` for what
+/// runs no code there (directives, comments, routines, TYPEs, DECLAREs).
+fn code_start(s: &Statement) -> Option<usize> {
+    let span = match s {
+        Statement::Directive(_) | Statement::Comment(_) | Statement::Subroutine(_) | Statement::Function(_) | Statement::Type(_) | Statement::Declare(_) | Statement::RustBlock(_) => return None,
+        Statement::Assignment(a) => a.span,
+        Statement::Bind(b) => b.span,
+        Statement::Call(c) => c.span,
+        Statement::Close(c) => c.span,
+        Statement::Const(c) => c.span,
+        Statement::Create(c) => c.span,
+        Statement::Dim(d) => d.span,
+        Statement::DoLoop(d) => d.span,
+        Statement::Exit(e) => e.span,
+        Statement::For(f) => f.span,
+        Statement::If(i) => i.span,
+        Statement::Import(i) => i.span,
+        Statement::Input(i) => i.span,
+        Statement::Label(l) => l.span,
+        Statement::Goto(j) | Statement::Gosub(j) => j.span,
+        Statement::Line(l) => l.span,
+        Statement::Open(o) => o.span,
+        Statement::Print(p) => p.span,
+        Statement::PrintHash(p) => p.span,
+        Statement::Return(r) => r.span,
+        Statement::Seek(s) => s.span,
+        Statement::SelectCase(s) => s.span,
+        Statement::While(w) => w.span,
+        Statement::With(w) => w.span,
+        Statement::WriteHash(w) => w.span,
+    };
+    Some(span.start)
 }
 
 /// `DIM QBColor(0 TO 15) AS INTEGER` and its 16 values, as the include
@@ -393,12 +433,14 @@ mod tests {
         let rr = Program { span: TextSpan::default(), statements: vec![print(call), mark_stmt()] };
         let out = lower(&rr);
         assert!(matches!(&out.statements[0], Statement::Dim(d) if d.declarators[0].name == "QBColor" && d.type_name == "INTEGER"));
-        assert_eq!(out.statements.len(), 17 + 2);
-        // (the mark's place: no file has it)
-        assert!(matches!(&out.statements[1], Statement::Assignment(a) if a.span == TextSpan::new(90, 104)));
+        // (the 17 statements and the PRINT; the mark is gone: no code)
+        assert_eq!(out.statements.len(), 17 + 1);
+        assert!(!out.statements.iter().any(is_mark));
+        // (on the program's first line of code, never after its last)
+        assert!(matches!(&out.statements[1], Statement::Assignment(a) if a.span == TextSpan::new(0, 0)));
         // (not used: nothing added)
         let rr = Program { span: TextSpan::default(), statements: vec![print(id("clRed")), mark_stmt()] };
-        assert_eq!(lower(&rr).statements.len(), 2);
+        assert_eq!(lower(&rr).statements.len(), 1);
     }
 
     #[test]

@@ -19,7 +19,9 @@
 //                               copy to import …) → { open?, do?, home?
 //                               (Studio's --home: an install's copy),
 //                               env? (more of the hooks' environment),
-//                               cwd? (where `program` runs instead) }
+//                               cwd? (where `program` runs instead; or
+//                               Studio, `open` relative to it: a short
+//                               path on screen, never the machine's) }
 //     run: { from, dir, file, events, delay }
 //                               a program an earlier scene made, run in
 //                               <that scene's folder>/<dir>, its windows
@@ -119,11 +121,13 @@ function desktop(s, dir, open, steps, extra = {}) {
     if (open) args.push(isAbsolute(open) ? open : join(ROOT, open));
     r = spawnSync(RAPIDR, args, { cwd: dir, encoding: "utf8", timeout: delay * 1000 + 300000, env: env(dir, capture) });
   } else {
-    // (`home`: RapidR's home as the setup made it — an install's, read-only)
-    const args = ["run", "ide/studio.rr", "--home", extra.home || ".", "--fresh", "--theme", theme];
+    // (`home`: RapidR's home as the setup made it — an install's, read-only;
+    // `cwd`: Studio started in the setup's folder, `open` relative to it)
+    const here = extra.cwd || ROOT;
+    const args = ["run", extra.cwd ? join(ROOT, "ide", "studio.rr") : "ide/studio.rr", "--home", extra.home || (extra.cwd ? ROOT : "."), "--fresh", "--theme", theme];
     if (steps) args.push("--do", steps);
     if (open) args.push(open);
-    r = spawnSync(RAPIDR, args, { cwd: ROOT, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, capture) });
+    r = spawnSync(RAPIDR, args, { cwd: here, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, capture) });
   }
   const bmp = join(dir, s.program === true ? "window-program-1.bmp" : `window-${s.window || 1}.bmp`);
   if (!existsSync(bmp)) throw new Error(`no capture (${((r && r.stderr) || "").trim().split("\n").slice(-2).join(" / ")})`);

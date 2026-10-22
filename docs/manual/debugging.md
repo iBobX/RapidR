@@ -365,7 +365,8 @@ stays open from one stop to the next, and changed values are in blue.
 **Globals** lists your program's own variables first. The constants an
 `$INCLUDE` brings — `RAPIDQ.INC` has nearly five hundred: colours,
 keys, message box buttons — come after them, each file's under one item
-that stays closed until you open it:
+that stays closed until you open it (the constants built into a `.rr`
+program aren't variables: they aren't listed):
 
 ![Variables > Globals: picked = 255 and warning = "Low on paper", then the closed item $INCLUDE RAPIDQ.INC (484 names)](images/debugging/variables-include.png)
 

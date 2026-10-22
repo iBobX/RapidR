@@ -300,9 +300,10 @@ The rule is simply Q → R (`QBUTTON` is `RButton`); a few differ: `QGAUGE` is
 `RProgressBar`, `QOUTLINE` is `RTreeView`, `COMPORT` is `RComPort`. The full
 list: [reference/components.md](reference/components.md). To turn such a
 program into one with RapidR's names, see
-[Importing older programs](importing-rapidq.md). A program that uses the classic constants (`clRed`,
-`MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`: RapidR supplies them
-through that line without needing the file.
+[Importing older programs](importing-rapidq.md). A RapidQ program (`.bas`) that uses the classic
+constants (`clRed`, `MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`:
+RapidR supplies them through that line without needing the file. A RapidR
+program (`.rr`) has them built in, with no line.
 
 ## Building
 
