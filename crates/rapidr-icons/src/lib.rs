@@ -1,6 +1,7 @@
 //! RapidR's own icon set (docs/ide-plan.md, decision D8; the design system
 //! is design/icons/README.md): every action, component, file type, symbol,
-//! toolbox group and glyph of RapidR Studio, the manual and the website.
+//! toolbox group, glyph and debugger value kind of RapidR Studio, the
+//! manual and the website.
 //!
 //! - **Sources**: design/icons/src (SVG, drawn by design/icons/tools), each
 //!   icon hinted at 16, 24 and 32 px. `generated.rs` holds them optimized,
@@ -18,13 +19,13 @@
 
 mod generated;
 
-pub use generated::{COMMANDS, COMPONENTS, FILES, MARKERS, PROJECT_KINDS, SYMBOLS, TOOLBOX_GROUPS};
+pub use generated::{COMMANDS, COMPONENTS, DEBUG_KINDS, FILES, MARKERS, PROJECT_KINDS, SYMBOLS, TOOLBOX_GROUPS};
 
 /// The hinted sizes every icon is drawn at.
 pub const SIZES: [u32; 3] = [16, 24, 32];
 
 /// Category order a bare name is looked up in ([`get`]).
-pub const CATEGORIES: [&str; 6] = ["actions", "glyphs", "components", "files", "symbols", "groups"];
+pub const CATEGORIES: [&str; 7] = ["actions", "glyphs", "components", "files", "symbols", "groups", "debug"];
 
 /// One icon: its id (`category/name`), its title (what it means, in words:
 /// a tooltip or an accessible name when nothing else names it), and its
@@ -140,6 +141,13 @@ pub fn marker(kind: &str) -> Option<&'static Icon> {
 /// A symbol kind's icon (`sub`, `function`, `variable` …).
 pub fn symbol(kind: &str) -> Option<&'static Icon> {
     lookup(SYMBOLS, kind)
+}
+
+/// A debugger value kind's or section's icon (`integer`, `text`, `array`,
+/// `record`, `locals`, `watch`, `changed` …: inventory.toml's
+/// [debug-kinds]).
+pub fn debug_kind(kind: &str) -> Option<&'static Icon> {
+    lookup(DEBUG_KINDS, kind)
 }
 
 /// A project-tree node kind's icon (`module`, `form`, `include` …).

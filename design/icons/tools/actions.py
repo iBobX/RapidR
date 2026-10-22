@@ -111,6 +111,15 @@ def copy(g):
     g.rect(9, 8, 11, 13, r=2)
 
 
+@icon("copy-value", A, "Copy value")
+def copy_value(g):
+    # Copy, its front sheet holding an equals sign: the value
+    copy(g)
+    x0, x1 = (12.5, 16.5) if g.size == 16 else (12, 17)
+    g.line(x0, 12.5, x1, 12.5)
+    g.line(x0, 16.5, x1, 16.5)
+
+
 @icon("paste", A, "Paste")
 def paste(g):
     g.path("M8 5 H6 A2 2 0 0 0 4 7 V19 A2 2 0 0 0 6 21 H10")
@@ -320,6 +329,18 @@ def logpoint(g):
     g.poly([(12, 4.5), (19.5, 12), (12, 19.5), (4.5, 12)], close=True, c="red", fill="red")
 
 
+@icon("breakpoint-hit-count", A, "Breakpoint with a hit count (stops on the nth time)", mono=False)
+def breakpoint_hit_count(g):
+    # the dot with a number sign (#) cut through it: it counts
+    g.circle(12, 12, 6.5, c="red", fill="red")
+    if g.size == 16:
+        g.cut(lambda m: m.native(16, "M6 5H7V11H6Z M9 5H10V11H9Z M5 6H11V7H5Z M5 9H11V10H5Z", c=None, fill="fg"), gap=0)
+    elif g.size == 24:
+        g.cut(lambda m: m.native(24, "M9.5 7.75H11V16.75H9.5Z M13.5 7.75H15V16.75H13.5Z M7.75 9.5H16.75V11H7.75Z M7.75 13.5H16.75V15H7.75Z", c=None, fill="fg"), gap=0)
+    else:
+        g.cut(lambda m: m.native(32, "M12.5 10H14.5V22H12.5Z M17.5 10H19.5V22H17.5Z M10 12.5H22V14.5H10Z M10 17.5H22V19.5H10Z", c=None, fill="fg"), gap=0)
+
+
 @icon("breakpoint-hit", A, "Breakpoint, stopped here", mono=False)
 def breakpoint_hit(g):
     g.circle(10, 12, 6.5, c="red", fill="red")
@@ -345,6 +366,13 @@ def bookmark(g):
 def watch(g):
     g.path("M2.5 12 C5.5 6.5 9 4.5 12 4.5 C15 4.5 18.5 6.5 21.5 12 C18.5 17.5 15 19.5 12 19.5 C9 19.5 5.5 17.5 2.5 12 Z")
     g.circle(12, 12, 3)
+
+
+@icon("add-watch", A, "Add watch")
+def add_watch(g):
+    with g.sub(-1, -1.5):
+        watch(g)
+    plus_badge(g)
 
 
 # ---- designer --------------------------------------------------------------------
@@ -699,6 +727,15 @@ def delete(g):
 def edit(g):
     g.path("M15 4.5 L19.5 9 L9 19.5 L3.5 20.5 L4.5 15 Z")
     g.line(12.5, 7, 17, 11.5)
+
+
+@icon("edit-value", A, "Edit value")
+def edit_value(g):
+    # an equals sign (a value) and the pencil that changes it
+    g.path("M14.5 3 L19 7.5 L8.5 18 L3 19.5 L4.5 14 Z")
+    g.line(12.5, 5, 17, 9.5)
+    g.line(13.5, 15.5, 20.5, 15.5)
+    g.line(13.5, 19.5, 20.5, 19.5)
 
 
 @icon("rename", A, "Rename")

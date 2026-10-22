@@ -4,12 +4,15 @@
 
     python3 design/icons/tools/sheets.py OUTDIR [--cats actions,components] [--scales 1,2]
                                                 [--renderer rust|rsvg] [--names a,b]
+                                                [--set NAME --ids category/name,…]
 
 With `--renderer rust` (the default) the pixels are crates/rapidr-icons'
 own (resvg, through `cargo run -p rapidr-icons --example render`): the
 variant the runtime picks for each device size, themed as the runtime does.
 `rsvg` composes the sheet with rsvg-convert instead (no build needed).
-Writes OUTDIR/<category>-<scale>x.png.
+Writes OUTDIR/<category>-<scale>x.png; with `--set`, one sheet of the icons
+`--ids` names, whatever their category: OUTDIR/<NAME>-<scale>x.png (the
+review of a lane's new icons).
 """
 
 import argparse
@@ -105,13 +108,23 @@ def sheet(cat, keys, scale, outdir, renderer):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("outdir")
-    ap.add_argument("--cats", default=",".join(c for c in ("actions", "glyphs", "components", "files", "symbols", "groups")))
+    ap.add_argument("--cats", default=",".join(c for c in ("actions", "glyphs", "components", "files", "symbols", "groups", "debug")))
     ap.add_argument("--scales", default="1,2")
     ap.add_argument("--renderer", default="rust", choices=("rust", "rsvg"))
     ap.add_argument("--names")
     ap.add_argument("--tag", default="")
+    ap.add_argument("--set")
+    ap.add_argument("--ids")
     a = ap.parse_args()
     os.makedirs(a.outdir, exist_ok=True)
+    if a.set:
+        keys = [k.strip() for k in (a.ids or "").split(",") if k.strip()]
+        unknown = [k for k in keys if k not in kit.ICONS]
+        if unknown or not keys:
+            sys.exit(f"sheets: no such icons: {', '.join(unknown) or '(none named)'}")
+        for sc in a.scales.split(","):
+            print(sheet(a.set, keys, float(sc) if "." in sc else int(sc), a.outdir, a.renderer))
+        return
     for cat in a.cats.split(","):
         keys = [k for k, s in kit.ICONS.items() if s["cat"] == cat]
         if a.names:

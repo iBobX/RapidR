@@ -6,3 +6,4 @@ import planned  # noqa: F401
 import files  # noqa: F401
 import symbols  # noqa: F401
 import groups  # noqa: F401
+import debug  # noqa: F401

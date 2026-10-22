@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Handle (a number that stands for something the system keeps: a window, a file, a picture)</title>
+  <path d="M3 6H29V12A3.5 3.5 0 0 0 29 20V26H3V20A3.5 3.5 0 0 0 3 12L3 6Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <path d="M11 12L11 20" stroke="#007F9C"/>
+</svg>
