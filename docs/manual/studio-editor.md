@@ -195,7 +195,7 @@ underlines it, and the fix writes the test that works,
 
 The code shows its own values. When a line sets a colour, a small swatch of
 that colour sits right after it; a picture's name shows the picture; a
-font's name shows a sample in that font. Click the mark, or put the caret
+font's name shows a small sample. Click the mark, or put the caret
 on the value and press **Ctrl+.**, and an editor opens beside it. What you
 pick is written back into your code, as one step that **Ctrl+Z** undoes.
 
@@ -240,9 +240,12 @@ anywhere else on your computer, and nothing is fetched from the internet.
 
 ### Fonts
 
-A font's name (`TitleFont.Name = "Inter"`) shows a sample in that font. Its
-editor lists the fonts on your computer, each in its own face, with a
-preview line.
+A font's name (`TitleFont.Name = "Inter"`) shows a small "Aa" sample. Its
+editor lists the fonts on your computer with a preview line (in the
+Properties panel, the size, Bold and Italic too). The sample and the preview
+are drawn the way your program will draw the font: RapidR draws every
+program with its own built-in faces, so a program looks the same on every
+computer, and a font it doesn't have is drawn in the nearest of them.
 
 ### Choices, True or False, and links
 

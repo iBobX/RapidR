@@ -194,11 +194,12 @@ pub fn paint_decos(x: &mut Ctx, p: &mut Painter, shown: &[Shown]) {
             if chip {
                 // (the code's font is monospaced: the label's width counted,
                 // never measured — a frame shapes nothing for it)
+                // (the pill fills its columns but a small gap before the
+                // argument, the same gap for a short name and a long one)
                 let label = format!("{}:", site.label);
-                let tw = (label.chars().count() as f64 * x.ui.metrics.ch * chip_scale).ceil() as i64;
-                let pill = (r.0, r.1 + 3, (tw + 8).min(r.2 - 2).max(6), r.3 - 6);
+                let pill = (r.0, r.1 + 3, (r.2 - 5).max(6), r.3 - 6);
                 p.round(pill, 4.0, Some(chip_bg), None, 1.0);
-                p.text((pill.0 + 4, pill.1, pill.2, pill.3), &label, &chip_font, chip_ink, Place::Left);
+                p.text(pill, &label, &chip_font, chip_ink, Place::Center);
                 continue;
             }
             paint_mark(p, site, r, &folder, &x.c.helpers, sc, t, &code);
@@ -218,8 +219,12 @@ fn paint_mark(p: &mut Painter, site: &HelperSite, r: Rect, folder: &str, helpers
             crate::value_view::swatch(p, sq, s.rgb(t), true);
         }
         HelperKind::Font => {
-            let f = Font { name: site.value.clone(), ..code.clone() };
-            p.clipped(r, |p| p.text(r, "Aa", &f, sc.text, Place::Center));
+            // (a sample on a small tile: a mark, never read as the code's
+            // own text)
+            let tile = (r.0 + 1, r.1 + 3, (r.2 - 2).max(6), (r.3 - 6).max(6));
+            p.round(tile, 3.0, Some(blend(sc.text, sc.background, if sc.dark { 0.14 } else { 0.07 })), Some(blend(sc.text, sc.background, 0.3)), 1.0);
+            let f = Font { name: site.value.clone(), size: -(((tile.3 as f64) * 0.72).round() as i64).max(7), ..code.clone() };
+            p.clipped(tile, |p| p.text(tile, "Aa", &f, sc.text, Place::Center));
         }
         HelperKind::File => {
             let there = file_there(helpers, folder, &site.value);
@@ -457,6 +462,30 @@ pub fn open(x: &mut Ctx, i: usize) {
     x.c.helpers.editor_text = said;
     x.c.completion = None;
     x.c.hover = None;
+}
+
+/// An open editor follows its value as the code scrolls or the window
+/// resizes; its value out of sight, it closes (nothing written).
+pub fn follow(x: &mut Ctx) {
+    let Some(site) = value_edit::with(x.id, |p| match &p.owner {
+        Owner::Code(s) => Some(s.clone()),
+        Owner::Inspector(_) => None,
+    })
+    .flatten() else {
+        return;
+    };
+    let line = x.c.doc.buffer().line_of(site.end.min(x.c.doc.len_bytes()));
+    let top = x.ui.geo.text.1 as f64;
+    let bottom = top + x.ui.geo.text.3 as f64;
+    let lh = x.ui.lh();
+    let seen = x.ui.shown.iter().any(|sh| sh.row.line == line && sh.top + lh > top && sh.top < bottom);
+    if !seen {
+        value_edit::close(x.id);
+        x.c.helpers.editor_text.clear();
+        return;
+    }
+    let a = anchor_of(x, &site);
+    value_edit::with(x.id, |p| p.anchor = a);
 }
 
 /// A new SUB's name not taken (`Button1Click`, else `Button1Click2` …).

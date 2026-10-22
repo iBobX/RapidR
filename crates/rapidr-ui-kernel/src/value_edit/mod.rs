@@ -168,6 +168,12 @@ pub struct Popover {
 
 const TITLE_H: i64 = 30;
 const PAD: i64 = 10;
+/// A font's preview line, its size and style row, a picture's preview.
+const PREVIEW_H: i64 = 48;
+const ROW_H: i64 = 28;
+const PICTURE_H: i64 = 140;
+/// Apply and Cancel's row, with its margins.
+const BUTTONS_H: i64 = 8 + 30 + 8;
 
 impl Popover {
     /// A colour editor of `value` (the project's colours its palette).
@@ -201,18 +207,22 @@ impl Popover {
     pub fn size(&self) -> (i64, i64) {
         match &self.editor {
             Editor::Color(c) => (color::WIDTH, TITLE_H + c.height()),
-            Editor::List { list, kind, size, .. } => {
+            Editor::List { list, kind, size, style, .. } => {
                 let w = match kind {
                     ListKind::File(FileKind::Image) => 420,
                     ListKind::Font => 380,
-                    _ => 300,
+                    _ => 320,
                 };
-                let extra = match kind {
-                    ListKind::Font => 56 + if size.is_some() { 36 } else { 0 },
-                    ListKind::Flags => 44,
-                    _ => 0,
+                // (under the list: a font's preview, its size and style
+                // row, Apply and Cancel; a picture's preview beside it)
+                let list_bottom = 8 + list.height();
+                let body = match kind {
+                    ListKind::Font => list_bottom + 6 + PREVIEW_H + if size.is_some() || style.is_some() { 8 + ROW_H } else { 0 } + BUTTONS_H,
+                    ListKind::Flags => list_bottom + BUTTONS_H,
+                    ListKind::File(FileKind::Image) => (list_bottom + 8).max(8 + PICTURE_H + 6 + 20 + 8),
+                    _ => list_bottom + 8,
                 };
-                (w, TITLE_H + list.height() + extra + PAD + 6)
+                (w, TITLE_H + body)
             }
         }
     }
@@ -429,13 +439,17 @@ impl Popover {
         let th = text_size("Ag", font).1;
         p.text((r.0 + PAD + 2, r.1 + (TITLE_H - th) / 2 + 2, r.2 - 2 * PAD, th), &self.title, &bold, look.text, Place::TopLeft);
         let keys = match &self.editor {
-            Editor::Color(_) => "Enter keeps · Esc",
-            Editor::List { kind: ListKind::Flags, .. } => "Space ticks · Enter",
-            Editor::List { kind: ListKind::Bool, .. } => "Space turns · Enter",
-            _ => "Enter picks · Esc",
+            Editor::Color(_) => "Enter keeps · Esc cancels",
+            Editor::List { kind: ListKind::Flags, .. } => "Space ticks · Enter keeps",
+            Editor::List { kind: ListKind::Bool, .. } => "Space turns · Enter keeps",
+            _ => "Enter picks · Esc cancels",
         };
+        // (the keys' reminder where it fits beside the heading — whole or
+        // not at all; the dialog's description says them too)
         let kw = text_size(keys, font).0;
-        p.text((r.0 + r.2 - PAD - kw, r.1 + (TITLE_H - th) / 2 + 2, kw + 2, th), keys, font, look.dim, Place::TopLeft);
+        if text_size(&self.title, &bold).0 + kw + 3 * PAD <= r.2 {
+            p.text((r.0 + r.2 - PAD - kw, r.1 + (TITLE_H - th) / 2 + 2, kw + 2, th), keys, font, look.dim, Place::TopLeft);
+        }
         p.fill((r.0 + 1, r.1 + TITLE_H - 1, r.2 - 2, 1), look.border);
         let body = (r.0, r.1 + TITLE_H, r.2, r.3 - TITLE_H);
         match &self.editor {
@@ -447,7 +461,7 @@ impl Popover {
                 match kind {
                     ListKind::File(FileKind::Image) => {
                         // (the selected picture's preview, beside the list)
-                        let pv = (body.0 + lr.0 + lr.2 + 10, body.1 + lr.1, body.2 - lr.2 - lr.0 - 2 * PAD, 140);
+                        let pv = (body.0 + lr.0 + lr.2 + 10, body.1 + lr.1, body.2 - lr.2 - lr.0 - 2 * PAD, PICTURE_H);
                         p.round(pv, 4.0, Some(look.field), Some(look.border), 1.0);
                         if let Some(i) = list.selected() {
                             let it = &list.items[i];
@@ -469,7 +483,7 @@ impl Popover {
                         let pt = size.as_ref().and_then(|f| f.text.parse::<i64>().ok()).unwrap_or(14).clamp(6, 36);
                         let (b, it) = style.unwrap_or((false, false));
                         let sample = Font { name: name.clone(), size: pt, styles: u8::from(b) | (u8::from(it) << 1), ..Font::default() };
-                        let pr = (body.0 + PAD, body.1 + lr.1 + lr.3 + 6, body.2 - 2 * PAD, 48);
+                        let pr = (body.0 + PAD, body.1 + lr.1 + lr.3 + 6, body.2 - 2 * PAD, PREVIEW_H);
                         p.round(pr, 4.0, Some(look.field), Some(look.border), 1.0);
                         p.clipped(pr, |p| p.text((pr.0 + 8, pr.1, pr.2 - 16, pr.3), "The quick brown fox 0123", &sample, look.text, Place::Left));
                         let (sr, br, ir) = font_parts(lr, body.2);
@@ -563,8 +577,8 @@ fn list_rect(list: &ListEd, body: Rect, kind: ListKind) -> Rect {
 /// A font editor's size field, Bold and Italic toggles (relative), under
 /// its preview.
 fn font_parts(lr: Rect, w: i64) -> (Rect, Rect, Rect) {
-    let y = lr.1 + lr.3 + 6 + 48 + 8;
-    ((PAD, y, 110, 28), (PAD + 120, y, 80, 28), (PAD + 210, y, 80, w - PAD - 210 - PAD))
+    let y = lr.1 + lr.3 + 6 + PREVIEW_H + 8;
+    ((PAD, y, 110, ROW_H), (PAD + 120, y, 80, ROW_H), (PAD + 210, y, w - PAD - 210 - PAD, ROW_H))
 }
 
 /// Apply and Cancel at a body's bottom right (relative).
@@ -803,6 +817,49 @@ mod tests {
         p.place((1200, 800));
         assert_eq!(p.rect.0, 168);
         assert!(p.rect.1 + h <= 800 && p.rect.1 >= 0 && !(p.rect.0 < 160 && p.rect.0 + w > 100));
+    }
+
+    /// Every part of a list editor inside it, none over another (a font's
+    /// preview, its size and style row, Apply and Cancel; a picture's
+    /// preview with its name, with a single picture in the list).
+    #[test]
+    fn a_list_editor_holds_its_parts() {
+        let inside = |r: Rect, w: i64, h: i64| r.0 >= 0 && r.1 >= 0 && r.0 + r.2 <= w && r.1 + r.3 <= h;
+        let apart = |a: Rect, b: Rect| a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1 || a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0;
+        for (sized, n) in [(false, 1), (true, 1), (false, 30), (true, 30)] {
+            let items = (0..n).map(|i| list::Item::new(format!("Font {i}"))).collect();
+            let mut p = Popover::list(Owner::Inspector("font".into()), ListKind::Font, items, Some(0), (0, 0, 10, 10));
+            if sized {
+                if let Editor::List { size, style, .. } = &mut p.editor {
+                    *size = Some(size_field(10));
+                    *style = Some((false, false));
+                }
+            }
+            let (w, h) = p.size();
+            let body = (w, h - TITLE_H);
+            let Editor::List { list, .. } = &p.editor else { unreachable!() };
+            let lr = list_rect(list, (0, 0, body.0, body.1), ListKind::Font);
+            let preview = (PAD, lr.1 + lr.3 + 6, body.0 - 2 * PAD, PREVIEW_H);
+            let (apply, cancel) = buttons(body.0, body.1);
+            let mut parts = vec![lr, preview, apply, cancel];
+            if sized {
+                let (sr, br, ir) = font_parts(lr, body.0);
+                parts.extend([sr, br, ir]);
+            }
+            for (i, a) in parts.iter().enumerate() {
+                assert!(inside(*a, body.0, body.1), "part {i} {a:?} outside {body:?} (sized {sized}, {n} fonts)");
+                for b in &parts[i + 1..] {
+                    assert!(apart(*a, *b), "{a:?} over {b:?} (sized {sized}, {n} fonts)");
+                }
+            }
+        }
+        let p = Popover::list(Owner::Inspector("picture".into()), ListKind::File(FileKind::Image), vec![list::Item::new("logo.svg")], Some(0), (0, 0, 10, 10));
+        let (w, h) = p.size();
+        let Editor::List { list, .. } = &p.editor else { unreachable!() };
+        let lr = list_rect(list, (0, 0, w, h - TITLE_H), ListKind::File(FileKind::Image));
+        // (the preview and its name under it)
+        assert!(lr.1 + PICTURE_H + 6 + 20 <= h - TITLE_H, "{h}");
+        assert!(lr.0 + lr.2 + 10 + 2 * PAD <= w);
     }
 }
 

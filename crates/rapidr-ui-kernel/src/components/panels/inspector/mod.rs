@@ -330,6 +330,31 @@ fn anchor(cx: &Cx, v: &V, i: usize) -> Rect {
     (cx.rect.0 + vx, cx.rect.1 + y, vw, h)
 }
 
+/// An open value editor follows its row as the panel scrolls or resizes;
+/// its row out of sight (or gone), it closes — nothing written.
+fn follow(cx: &Cx, v: &V) {
+    use crate::value_edit::{self, Owner};
+    let Some(key) = value_edit::with(cx.id, |p| match &p.owner {
+        Owner::Inspector(k) => Some(k.clone()),
+        Owner::Code(_) => None,
+    })
+    .flatten() else {
+        return;
+    };
+    let Some(i) = v.rows.iter().position(|r| r.key == key) else {
+        value_edit::close(cx.id);
+        return;
+    };
+    let rr = v.row_rect(i);
+    let (_, ly, _, lh) = v.g.list;
+    if rr.1 + rr.3 <= ly || rr.1 >= ly + lh {
+        value_edit::close(cx.id);
+        return;
+    }
+    let a = anchor(cx, v, i);
+    value_edit::with(cx.id, |p| p.anchor = a);
+}
+
 /// The shared value editors (docs/code-helpers-plan.md E1: the code's
 /// helpers open the same ones): a colour row's colour editor, a font row's
 /// font editor. Whether row `i` has one.
@@ -833,6 +858,7 @@ impl ComponentKind for Inspector {
         v.pos = pos;
         v.cw = cw;
         v.nw = geo::name_width(&v.m, cw);
+        follow(cx, &v);
         let editing = editing_key(cx.id);
         if editing.is_none() {
             list::drop_editor(cx);

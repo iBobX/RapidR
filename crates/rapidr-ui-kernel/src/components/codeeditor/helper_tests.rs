@@ -479,3 +479,37 @@ fn the_editor_hangs_from_its_value() {
     let node_top = f.nodes.iter().find(|n| n.id == "hl9").unwrap().abs.1;
     assert_eq!(anchor.1, node_top + top.round() as i64, "the value's row, not the editor's top");
 }
+
+/// The editor follows its value as the view scrolls or the editor
+/// resizes; its value scrolled out of sight, it closes and nothing is
+/// written (a resized window once left it hanging over other code).
+#[test]
+fn the_editor_follows_its_value_and_closes_out_of_sight() {
+    let mut code: String = (0..80).map(|i| format!("PRINT {i}\n")).collect();
+    code.push_str("Form1.Color = RGB(1, 2, 3)\n");
+    code.push_str(&(0..80).map(|i| format!("PRINT {i}\n")).collect::<String>());
+    let (mut s, mut f, mut ts) = form("hl10", &code);
+    f.focus_id(&s, "hl10");
+    set_sites("hl10", vec![site(&code, "RGB(1, 2, 3)", HelperKind::Color, "197121", "rgb")]);
+    f.paint(&s, &mut ts, 1.0);
+    s.call("hl10", "gotoline", &[v_int(80)]);
+    key(&mut f, &s, &mut ts, 35, "", Mods::NONE);
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    f.paint(&s, &mut ts, 1.0);
+    let before = crate::value_edit::with("hl10", |p| p.anchor).unwrap();
+    // (the editor moved down in its form: its anchor follows the row)
+    s.set("hl10", "top", v_int(40));
+    f.sync(&s);
+    f.paint(&s, &mut ts, 1.0);
+    let at = code.find("RGB(1").unwrap();
+    let (_, top) = caret_at(&f, "hl10", at);
+    let node_top = f.nodes.iter().find(|n| n.id == "hl10").unwrap().abs.1;
+    let after = crate::value_edit::with("hl10", |p| p.anchor).expect("still open: its row in sight");
+    assert_eq!(after.1, node_top + top.round() as i64, "follows its row ({before:?} then {after:?})");
+    // (scrolled far away: it closes, the code as it was)
+    s.call("hl10", "gotoline", &[v_int(0)]);
+    f.paint(&s, &mut ts, 1.0);
+    assert!(!crate::value_edit::is_open("hl10"), "closed with its row out of sight");
+    assert!(with_code("hl10", |c| c.doc.text().contains("RGB(1, 2, 3)")).unwrap());
+    assert_eq!(with_code("hl10", |c| c.helpers.editor_text.clone()).unwrap(), "");
+}

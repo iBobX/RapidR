@@ -474,6 +474,7 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
     // line's note and a paused program's values at the lines' ends
     super::helpers::paint_decos(x, p, &shown);
     super::helpers::paint_line_ends(x, p, &shown, head_line);
+    super::helpers::follow(x);
     // whitespace
     if x.c.opts.show_whitespace {
         for sh in &shown {

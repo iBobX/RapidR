@@ -12,12 +12,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   E2, E6; docs/code-helpers-plan.md). In RapidR Studio's code editor, desktop
   and web alike: a colour written as `RGB(…)`, `&H…` or a constant shows a
   swatch after it; a picture's name its thumbnail, or a red mark when the
-  file isn't in the project; a font's name a sample in that font; a sound a
+  file isn't in the project; a font's name a small sample; a sound a
   ▶. A click on a mark, or Ctrl+. (Cmd+.) on a value, opens a value editor:
   a colour wheel around a saturation-and-brightness square with the Red,
   Green, Blue and Hex numbers, the name in words, the old colour beside the
   new and the project's, standard and system colours; the project's
-  pictures with a preview; the fonts in their own faces; a constant set's
+  pictures with a preview; the fonts with a preview line; a constant set's
   choices (ticks for flags, a toggle for True/False); the program's SUBs and
   **Create handler**, which writes the new SUB and the link as one step.
   What is picked is written back as one undo step in the code's own form
