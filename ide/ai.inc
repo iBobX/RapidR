@@ -18,6 +18,16 @@
 ' it works queues the message ("Queued: …", × takes it back): it goes when
 ' the answer ends; typing never stops an answer — Stop does, and gives the
 ' queued message back to the box (docs/preview4-plan.md R3).
+'
+' Preview 4's R1–R6 (docs/preview4-plan.md): the chats are kept per project
+' in Studio's data folder and listed (Chats: switch, rename, delete with
+' Undo, search; aichats.inc); a sent question can be edited, and the last
+' answer retried — what followed moves to a saved copy; the status line
+' says what RAI does now (Reading main.rr, Searching the manual…) with
+' its seconds, and when the model has been silent for 30; a context meter
+' with Compact, / commands, the reasoning effort and "Thought for N s"; one
+' model list with ↻ (the provider is chosen in Settings, or by Set up RAI:
+' aisetup.inc).
 
 DECLARE SUB AIUpdate
 DECLARE SUB AIDone(Status AS STRING)
@@ -31,7 +41,6 @@ DECLARE SUB AISendQueued(Status AS STRING)
 DECLARE SUB AIStopClick
 DECLARE SUB AINewChat
 DECLARE SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
-DECLARE SUB AIProviderPicked
 DECLARE SUB AIModelPicked
 DECLARE SUB AIReviewClick
 DECLARE SUB AISentLinkClick
@@ -74,6 +83,39 @@ DECLARE SUB DesignAIError(Message AS STRING)
 DECLARE FUNCTION DesignAIProviderName AS STRING
 DECLARE FUNCTION DesignAIKey AS STRING
 DECLARE SUB DesignAIKeyNote
+DECLARE SUB AIRefreshClick
+DECLARE SUB AIEffortPicked
+DECLARE SUB AICompactClick
+DECLARE SUB AIClockTick(Sender AS RTimer)
+DECLARE SUB AIInputChanged
+DECLARE SUB AISlashPicked
+DECLARE SUB AIShowSlash
+DECLARE FUNCTION AIRunSlash(T AS STRING) AS INTEGER
+DECLARE SUB AIShowContext
+DECLARE SUB AIUndoLast
+DECLARE SUB AIEditCancelClick
+DECLARE SUB AIFillEffort
+DECLARE SUB AISetEffort(E AS STRING)
+DECLARE FUNCTION AIThousands(N AS INTEGER) AS STRING
+DECLARE SUB AISlashComplete
+DECLARE FUNCTION AIMatches(A AS STRING, B AS STRING) AS INTEGER
+' (aichats.inc: the chats kept, edit and retry)
+DECLARE SUB SetUpAIChats
+DECLARE SUB LayOutAIChats
+DECLARE SUB AIShowChatTitle
+DECLARE SUB AIChatsFonts
+DECLARE SUB AISaveChat
+DECLARE SUB AIChatsClick
+DECLARE SUB AIShowChats(Show AS INTEGER)
+DECLARE SUB AIStartNewChat
+DECLARE SUB AILoadProjectChat
+DECLARE SUB AIEditQuestion(Q AS INTEGER)
+DECLARE SUB AIRetry
+DECLARE FUNCTION AISendEdited(T AS STRING) AS INTEGER
+DECLARE FUNCTION AIChatStep(Verb AS STRING, Arg AS STRING) AS INTEGER
+' (aisetup.inc: Set up RAI)
+DECLARE SUB SetUpAISetup
+DECLARE FUNCTION AISetupStep(Verb AS STRING, Arg AS STRING) AS INTEGER
 
 CONST AIMAXPROPS = 32
 
@@ -112,6 +154,76 @@ DIM AIQueueBar AS RPanel
 DIM AIQueueText AS RLabel
 DIM AIQueueCancel AS RButton
 DIM AIQueued AS STRING
+' (R6: one model list, ↻ fetches it again; the effort beside it)
+DIM AIRefreshBtn AS RButton
+DIM AIEffortBox AS RComboBox
+' (Low/Medium/High, kept per user: "" — the model's own way)
+DIM AIEffort AS STRING
+' (R1: the chats — the Chats button, the chat's title beside it)
+DIM AIChatsBtn AS RButton
+DIM AIChatTitle AS RLabel
+' (R4: the seconds the answer has taken, beside Stop — a label a screen
+' reader reads when asked, never announced each second; the status says
+' once when the model has been silent for 30)
+DIM AIElapsed AS RLabel
+DIM AIClock AS RTimer
+DIM AIQuietSaid AS INTEGER
+' (seconds of silence before it is said: 30; the tests', less)
+DIM AIQuietAfter AS INTEGER
+' (R5: the context meter and Compact)
+DIM AIContextBar AS RProgressBar
+DIM AIContextText AS RLabel
+DIM AICompactBtn AS RButton
+' (R5: the / commands, listed while one is typed)
+DIM AISlashBar AS RPanel
+DIM AISlashList AS RListBox
+DIM AISlashShown AS STRING
+' (R2: editing a sent question — the bar that says what Send will do)
+DIM AIEditBar AS RPanel
+DIM AIEditText AS RLabel
+DIM AIEditCancel AS RButton
+DIM AIEditing AS INTEGER
+' (/undo: the files the last review changed, as they were and became)
+DIM AIUndoDoc(AIMAXPROPS) AS INTEGER
+DIM AIUndoBefore(AIMAXPROPS) AS STRING
+DIM AIUndoAfter(AIMAXPROPS) AS STRING
+DIM AIUndoCount AS INTEGER
+' ---- R1: the chats kept (aichats.inc) ----
+' (the chat shown: its id — "" until it is first kept —, the project it
+' belongs to — its project file, "" none, CHR$(1) before the first —, its
+' title)
+DIM AIChatId AS STRING
+DIM AIChatProject AS STRING
+DIM AIChatName AS STRING
+' (the assistant made a new program, or undid one: the chat moves with
+' the project, it isn't replaced)
+DIM AIRehoming AS INTEGER
+' (the list: the ids and titles it shows, a line each)
+DIM AIChatIds AS STRING
+DIM AIChatTitles AS STRING
+' (a chat deleted, kept for Undo: what it was, and its project)
+DIM AIChatDeleted AS STRING
+DIM AIChatDeletedProject AS STRING
+DIM AIChatDeletedTitle AS STRING
+
+DIM AIChatsPanel AS RPanel
+DIM AIChatsHead AS RPanel
+DIM AIChatSearch AS REdit
+DIM AIChatsFoot AS RPanel
+DIM AIChatsOpenBtn AS RButton
+DIM AIChatsRenameBtn AS RButton
+DIM AIChatsDeleteBtn AS RButton
+DIM AIChatSearchLabel AS RLabel
+DIM AIChatList AS RListBox
+DIM AIChatsNote AS RLabel
+DIM AIRenameBar AS RPanel
+DIM AIRenameEdit AS REdit
+DIM AIRenameOk AS RButton
+DIM AIRenameCancel AS RButton
+DIM AIChatUndoBar AS RPanel
+DIM AIChatUndoText AS RLabel
+DIM AIChatUndoBtn AS RButton
+
 
 ' ---- a new program, straight into the IDE (docs/ai-ux-plan.md §1) ---------------------
 ' The banner across the top, under the tool bar: what the assistant made,
@@ -309,8 +421,8 @@ SUB SetUpAI
   DesignAI.OnError = DesignAIError
   Inspector.OnEditorRequest = InspectorEditorRequest
   Inspector.OnSelect = InspectorRowSelected
-  ' (the providers, as the component lists them: one list for the panel
-  ' and the settings)
+  ' (the providers, as the component lists them: the settings' list and
+  ' Set up RAI's)
   all = AI.Providers
   AIProvCount = 0
   FOR i = 1 TO TALLY(all, CHR$(10)) + 1
@@ -318,31 +430,50 @@ SUB SetUpAI
     IF line <> "" AND AIProvCount < 8 THEN
       AIProvIds(AIProvCount) = FIELD$(line, CHR$(9), 1)
       AIProvNames(AIProvCount) = FIELD$(line, CHR$(9), 2)
-      AIProviderBox.AddItems FIELD$(line, CHR$(9), 3)
       AIProvCount = AIProvCount + 1
     END IF
   NEXT
+  ' (R2: Edit under each question, Retry under the last answer)
+  AI.Editable = 1
 
   AIPanel.Parent = Studio
   AIPanel.Width = 360: AIPanel.Height = 520
   AIPanel.BevelOuter = 0
   AIPanel.AccessibleName = "AI Assistant"
 
-  ' (the top strip: who answers — switchable here — and a new chat)
+  ' (the top strip: the chats and this one's title, a new chat; the model
+  ' — the provider is Settings' — with ↻, and the effort)
   AITop.Parent = AIPanel
   AITop.Align = 1
   AITop.Height = 70
   AITop.BevelOuter = 0
-  AIProviderBox.Parent = AITop
-  AIProviderBox.Style = 2
-  AIProviderBox.AccessibleName = "AI provider"
-  AIProviderBox.OnChange = AIProviderPicked
+  AIChatsBtn.Parent = AITop
+  AIChatsBtn.Caption = "Chats"
+  AIChatsBtn.AccessibleName = "Chats"
+  AIChatsBtn.AccessibleDescription = "This project's chats: switch, rename, delete, search"
+  AIChatsBtn.OnClick = AIChatsClick
+  AIChatTitle.Parent = AITop
+  AIChatTitle.AutoSize = 0: AIChatTitle.WordWrap = 0
+  AIChatTitle.AccessibleName = "This chat"
   AIModelBox.Parent = AITop
   AIModelBox.AccessibleName = "Model"
   AIModelBox.OnChange = AIModelPicked
+  AIRefreshBtn.Parent = AITop
+  AIRefreshBtn.Caption = "↻"
+  AIRefreshBtn.AccessibleName = "Refresh the model list"
+  AIRefreshBtn.Hint = "Ask the provider for its models again"
+  AIRefreshBtn.ShowHint = 1
+  AIRefreshBtn.OnClick = AIRefreshClick
+  AIEffortBox.Parent = AITop
+  AIEffortBox.Style = 2
+  AIEffortBox.AddItems "Effort: Auto", "Effort: Low", "Effort: Medium", "Effort: High"
+  AIEffortBox.AccessibleName = "Reasoning effort"
+  AIEffortBox.AccessibleDescription = "How hard the model thinks before it answers: more takes longer and costs more"
+  AIEffortBox.OnChange = AIEffortPicked
   AINewBtn.Parent = AITop
   AINewBtn.Caption = "New Chat"
   AINewBtn.AccessibleName = "Start a new chat"
+  AINewBtn.AccessibleDescription = "This chat is kept: Chats lists it"
   AINewBtn.OnClick = AINewChat
 
   ' (the bottom: the status sentence a screen reader announces, the box
@@ -381,6 +512,57 @@ SUB SetUpAI
   AISentLink.Cursor = -21
   AISentLink.AccessibleName = "What was sent to the assistant"
   AISentLink.OnClick = AISentLinkClick
+  ' (R4: the answer's seconds, right of Stop while it works)
+  AIElapsed.Parent = AIBottom
+  AIElapsed.AutoSize = 0: AIElapsed.WordWrap = 0
+  AIElapsed.Alignment = 1
+  AIElapsed.AccessibleName = "Time the answer has taken"
+  AIClock.Interval = 1000
+  AIQuietAfter = 30
+  AIClock.Enabled = 0
+  AIClock.OnTimer = AIClockTick
+  ' (R5: how full the conversation is, against where it is compacted by
+  ' itself; Compact does it now)
+  AIContextBar.Parent = AIBottom
+  AIContextBar.Min = 0: AIContextBar.Max = 100
+  AIContextBar.ShowText = 0
+  AIContextBar.AccessibleName = "Context used"
+  AIContextText.Parent = AIBottom
+  AIContextText.AutoSize = 0: AIContextText.WordWrap = 0
+  AIContextText.AccessibleName = "Context"
+  AICompactBtn.Parent = AIBottom
+  AICompactBtn.Caption = "Compact"
+  AICompactBtn.AccessibleName = "Compact the chat"
+  AICompactBtn.AccessibleDescription = "Summarises this chat now, so each question sends less (/compact)"
+  AICompactBtn.OnClick = AICompactClick
+  AIInput.OnChange = AIInputChanged
+
+  ' (R5: the / commands while one is typed, just above the box)
+  AISlashBar.Parent = AIPanel
+  AISlashBar.Align = 2
+  AISlashBar.Height = 132
+  AISlashBar.BevelOuter = 0
+  AISlashBar.Visible = 0
+  AISlashBar.AccessibleName = "Commands"
+  AISlashList.Parent = AISlashBar
+  AISlashList.Align = 5
+  AISlashList.AccessibleName = "Commands: Up and Down choose, Tab completes, Enter runs"
+  AISlashList.OnClick = AISlashPicked
+  AISlashList.OnDblClick = AISlashPicked
+
+  ' (R2: a sent question being edited — what Send will do, and Cancel)
+  AIEditBar.Parent = AIPanel
+  AIEditBar.Align = 2
+  AIEditBar.Height = 72
+  AIEditBar.BevelOuter = 0
+  AIEditBar.Visible = 0
+  AIEditBar.AccessibleName = "Editing a sent question"
+  AIEditText.Parent = AIEditBar
+  AIEditText.AutoSize = 0: AIEditText.WordWrap = 1
+  AIEditCancel.Parent = AIEditBar
+  AIEditCancel.Caption = "Cancel"
+  AIEditCancel.AccessibleName = "Stop editing the question"
+  AIEditCancel.OnClick = AIEditCancelClick
 
   ' (a message sent while the assistant works: "Queued: …" just above the
   ' box, × takes it back; hidden while there is none)
@@ -458,6 +640,13 @@ SUB SetUpAI
   AIBannerClose.OnClick = AIBannerCloseClick
   AIBanner.OnResize = LayOutAIBanner
 
+  ' (R1: the chats list, in the conversation's place while shown;
+  ' Set up RAI's window)
+  SetUpAIChats
+  SetUpAISetup
+  ' (the chat kept last when no project is open: shown again)
+  AILoadProjectChat
+
   AIPanel.OnResize = LayOutAIPanel
   ' (Tools > Settings: its General and AI pages)
   SettingsTabs.AddTabs "General", "AI"
@@ -505,30 +694,47 @@ END SUB
 
 ' The panel's controls placed for its width (the docks resize it).
 SUB LayOutAIPanel
-  DIM w AS INTEGER, bh AS INTEGER, y AS INTEGER, mh AS INTEGER
+  DIM w AS INTEGER, bh AS INTEGER, y AS INTEGER, mh AS INTEGER, ew AS INTEGER
   w = AIPanel.ClientWidth
   IF w < 200 THEN w = 200
   IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
-  ' (who answers above, the model below: the docks keep the panel narrow)
-  AIProviderBox.Left = 6: AIProviderBox.Top = 5: AIProviderBox.Width = w - 98
+  ' (the chats and this one's title above, New Chat at the right; the
+  ' model below with ↻ and the effort: the docks keep the panel narrow)
+  AIChatsBtn.Left = 6: AIChatsBtn.Top = 4: AIChatsBtn.Width = 64: AIChatsBtn.Height = bh
   AINewBtn.Left = w - 86: AINewBtn.Top = 4: AINewBtn.Width = 80: AINewBtn.Height = bh
-  AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12
-  ' (the box; Send and Stop; the meter, two lines when narrow; "What was
+  AIChatTitle.Left = 78: AIChatTitle.Top = 4 + (bh - 18) \ 2: AIChatTitle.Width = w - 86 - 6 - 78: AIChatTitle.Height = 18
+  ew = 118
+  IF w < 300 THEN ew = 96
+  AIEffortBox.Left = w - 6 - ew: AIEffortBox.Top = 38: AIEffortBox.Width = ew
+  AIRefreshBtn.Left = w - 6 - ew - 4 - 30: AIRefreshBtn.Top = 37: AIRefreshBtn.Width = 30: AIRefreshBtn.Height = bh
+  AIModelBox.Left = 6: AIModelBox.Top = 38: AIModelBox.Width = w - 12 - ew - 4 - 30 - 4
+  ' (the box; Send and Stop, the answer's seconds at the right; the
+  ' context with Compact; the meter, two lines when narrow; "What was
   ' sent" beside the buttons when it fits, else under the meter; what
   ' Send shares)
   AIInput.Left = 6: AIInput.Top = 6: AIInput.Width = w - 12: AIInput.Height = 64
   AISendBtn.Left = 6: AISendBtn.Top = 76: AISendBtn.Width = 74: AISendBtn.Height = bh
   AIStopBtn.Left = 86: AIStopBtn.Top = 76: AIStopBtn.Width = 74: AIStopBtn.Height = bh
-  mh = AIMeterHigh(w - 16)
+  AIElapsed.Left = w - 62: AIElapsed.Top = 76 + (bh - 16) \ 2: AIElapsed.Width = 56: AIElapsed.Height = 18
   y = 82 + bh
+  AICompactBtn.Left = w - 6 - 84: AICompactBtn.Top = y: AICompactBtn.Width = 84: AICompactBtn.Height = bh
+  AIContextBar.Left = 8: AIContextBar.Top = y + (bh - 8) \ 2: AIContextBar.Width = 56: AIContextBar.Height = 8
+  AIContextText.Left = 70: AIContextText.Top = y + (bh - 18) \ 2: AIContextText.Width = w - 6 - 84 - 6 - 70: AIContextText.Height = 18
+  y = y + bh + 6
+  mh = AIMeterHigh(w - 16)
   AIMeter.Left = 8: AIMeter.Top = y: AIMeter.Width = w - 16: AIMeter.Height = mh
   y = y + mh + 4
-  IF w - 176 >= 96 THEN
-    AISentLink.Left = 170: AISentLink.Top = 76 + (bh - 16) \ 2: AISentLink.Width = w - 176
+  IF w - 176 - 60 >= 96 THEN
+    AISentLink.Left = 170: AISentLink.Top = 76 + (bh - 16) \ 2: AISentLink.Width = w - 176 - 60
   ELSE
     AISentLink.Left = 8: AISentLink.Top = y: AISentLink.Width = w - 16
     y = y + 22
   END IF
+  AIEditText.Left = 8: AIEditText.Top = 6: AIEditText.Width = w - 16 - 84: AIEditText.Height = 60
+  AIEditCancel.Left = w - 6 - 76: AIEditCancel.Top = (72 - bh) \ 2: AIEditCancel.Width = 76: AIEditCancel.Height = bh
+  IF ThemeName = "classic" THEN AISlashList.ItemHeight = 16 ELSE AISlashList.ItemHeight = 22
+  LayOutAIChats
+  AIShowChatTitle
   AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
   IF AIBottom.Height <> y + 68 THEN AIBottom.Height = y + 68
   AIReviewBtn.Left = 6: AIReviewBtn.Top = 9: AIReviewBtn.Width = w - 12: AIReviewBtn.Height = bh
@@ -570,6 +776,22 @@ SUB AIPanelFonts
   AIQueueText.Font = UIFont
   AIQueueText.Font.Color = TC("page.text")
   AIQueueCancel.Font = UIFont
+  AIChatsBtn.Font = UIFont
+  AIChatTitle.Font = UIFont
+  AIChatTitle.Font.Bold = 1
+  AIChatTitle.Font.Color = TC("page.text")
+  AIRefreshBtn.Font = UIFont
+  AIEffortBox.Font = UIFont
+  AIElapsed.Font = DimFont
+  AIElapsed.Font.Color = TC("page.dim")
+  AIContextText.Font = DimFont
+  AIContextText.Font.Color = TC("page.dim")
+  AICompactBtn.Font = UIFont
+  AISlashList.Font = UIFont
+  AIEditText.Font = UIFont
+  AIEditText.Font.Color = TC("page.text")
+  AIEditCancel.Font = UIFont
+  AIChatsFonts
   AIBannerFonts
   AIRevHead.Font = UIFont
   AINewTitle.Font = SubFont
@@ -581,13 +803,13 @@ END SUB
 ' What the empty conversation says: how to start, or what is missing.
 FUNCTION AIEmptyText AS STRING
   IF AI.Provider = "" THEN
-    Result = "The AI assistant needs a provider: Tools > Settings > AI (a local server such as Ollama needs no key)."
+    Result = "RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key)."
   ELSEIF AI.NeedsKey AND AI.HasKey = 0 THEN
-    Result = "Add your API key in Tools > Settings > AI, then ask about this project or for a new program."
+    Result = "Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program."
   ELSEIF AI.Model = "" THEN
-    Result = "Choose a model (Tools > Settings > AI: Fetch Models lists the provider's)."
+    Result = "Choose a model in the list above (↻ asks the provider for its models)."
   ELSE
-    Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". A new program opens in Studio, ready to run; changes to your files wait for you to review them."
+    Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
   END IF
 END FUNCTION
 
@@ -620,12 +842,10 @@ SUB AIApplySettings
   ' environment variable — never in the settings)
   AI.APIKeySource = AIKeySourceOf(AIProvider)
   AI.Model = AIModelOf(AIProvider)
+  AI.Effort = AIEffort
   AIFilling = 1
-  AIProviderBox.ItemIndex = -1
-  FOR k = 0 TO AIProvCount - 1
-    IF AIProvIds(k) = AIProvider THEN AIProviderBox.ItemIndex = k
-  NEXT
   AIFillModels
+  AIFillEffort
   AIFilling = 0
   AINote.Caption = "Send shares your message, this chat and what the assistant reads of this project with " + AIProviderName + ": nothing else, nothing before."
   AIChat.EmptyText = AIEmptyText
@@ -655,6 +875,70 @@ SUB AIFillModels
   END IF
   AIModelBox.ItemIndex = k
   AIModelBox.Text = AI.Model
+  ' (who answers: said, not a row of its own — Settings changes it)
+  AIModelBox.AccessibleDescription = "A model of " + AIProviderName + ". The provider is chosen in Tools > Settings > AI, or Set up RAI."
+  AIModelBox.Hint = AIProviderName + "'s models (the provider: Tools > Settings > AI)"
+  AIModelBox.ShowHint = 1
+END SUB
+
+' The effort list as the setting is, offered where the provider and model
+' take one (DeepSeek's models choose for themselves).
+SUB AIFillEffort
+  SELECT CASE AIEffort
+    CASE "low": AIEffortBox.ItemIndex = 1
+    CASE "medium": AIEffortBox.ItemIndex = 2
+    CASE "high": AIEffortBox.ItemIndex = 3
+    CASE ELSE: AIEffortBox.ItemIndex = 0
+  END SELECT
+  AIEffortBox.Enabled = Flag(AI.EffortSupported <> 0)
+  IF AI.EffortSupported THEN
+    AIEffortBox.Hint = "Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does."
+  ELSE
+    AIEffortBox.Hint = "This provider's models choose how much to think for themselves."
+  END IF
+  AIEffortBox.ShowHint = 1
+END SUB
+
+' (Effort picked: kept, said)
+SUB AIEffortPicked
+  DIM e AS STRING
+  IF AIFilling THEN EXIT SUB
+  SELECT CASE AIEffortBox.ItemIndex
+    CASE 1: e = "low"
+    CASE 2: e = "medium"
+    CASE 3: e = "high"
+    CASE ELSE: e = ""
+  END SELECT
+  AISetEffort e
+END SUB
+
+SUB AISetEffort(E AS STRING)
+  AIEffort = E
+  AI.Effort = E
+  SaveSettings
+  AIFilling = 1
+  AIFillEffort
+  AIFilling = 0
+  IF E = "" THEN
+    AIStatus.SimpleText = "Effort: Auto, as the model usually thinks."
+  ELSE
+    AIStatus.SimpleText = "Effort: " + UCASE$(LEFT$(E, 1)) + MID$(E, 2) + " — slower, and it costs more."
+  END IF
+END SUB
+
+' ↻: the provider's models asked for again (a model it no longer lists is
+' forgotten, chosen again); the list fills when they come.
+SUB AIRefreshClick
+  IF AI.Busy THEN
+    AIStatus.SimpleText = "RAI is answering: ↻ works once it is done (or Stop)."
+    EXIT SUB
+  END IF
+  IF AI.RefreshModels THEN
+    AIRefreshBtn.Enabled = 0
+    AIStatus.SimpleText = AI.Status
+  ELSE
+    AIStatus.SimpleText = AI.Error
+  END IF
 END SUB
 
 ' (a model as the lists show it: its id, and the costlier ones marked —
@@ -674,7 +958,91 @@ SUB AIEnableSend
   ' assistant is ready)
   AISendBtn.Enabled = Flag(AIReady <> 0)
   AIStopBtn.Enabled = Flag(AI.Busy <> 0)
+  AIRefreshBtn.Enabled = Flag(AI.Busy = 0 AND AI.Provider <> "")
+  AICompactBtn.Enabled = Flag(AI.Busy = 0 AND AI.QuestionCount > 0)
+  ' (the clock while it works: the seconds, the provider's silence)
+  IF AI.Busy THEN
+    IF AIClock.Enabled = 0 THEN
+      AIQuietSaid = 0
+      AIClock.Enabled = 1
+    END IF
+  ELSE
+    AIClock.Enabled = 0
+    AIElapsed.Caption = ""
+  END IF
   AIShowUsage
+  AIShowContext
+END SUB
+
+' The context meter: how much the next question sends, against where the
+' chat is compacted by itself (SummaryAt, or 70% of the model's window).
+SUB AIShowContext
+  DIM used AS INTEGER, limit AS INTEGER, pct AS INTEGER, t AS STRING
+  used = AI.ContextTokens
+  limit = AI.ContextLimit
+  IF limit <= 0 THEN limit = 1
+  pct = (used * 100) \ limit
+  IF pct > 100 THEN pct = 100
+  IF AIContextBar.Position <> pct THEN AIContextBar.Position = pct
+  IF used <= 0 THEN
+    t = "Context: empty"
+  ELSE
+    t = "Context: " + AIThousands(used) + " of " + AIThousands(limit) + " (" + LTRIM$(STR$(pct)) + "%)"
+  END IF
+  IF AIContextText.Caption <> t THEN
+    AIContextText.Caption = t
+    AIContextText.Hint = "About " + AIThousands(used) + " tokens go with the next question. At " + AIThousands(limit) + " the chat is compacted by itself; Compact does it now."
+    AIContextText.ShowHint = 1
+    AIContextBar.AccessibleDescription = t
+  END IF
+END SUB
+
+' (1234567 → "1,234,567")
+FUNCTION AIThousands(N AS INTEGER) AS STRING
+  DIM t AS STRING, acc AS STRING, i AS INTEGER, k AS INTEGER
+  t = LTRIM$(STR$(N))
+  FOR i = LEN(t) TO 1 STEP -1
+    acc = MID$(t, i, 1) + acc
+    k = k + 1
+    IF k MOD 3 = 0 AND i > 1 THEN acc = "," + acc
+  NEXT
+  Result = acc
+END FUNCTION
+
+' (every second while it works: its seconds beside Stop; past 30 s with no
+' word from the provider, the status says so once — wait, or Stop)
+SUB AIClockTick(Sender AS RTimer)
+  DIM q AS INTEGER, e AS INTEGER
+  IF AI.Busy = 0 THEN
+    AIClock.Enabled = 0
+    AIElapsed.Caption = ""
+    EXIT SUB
+  END IF
+  e = AI.Elapsed
+  ' (an answer's seconds; nothing while only the model list is asked for)
+  IF AI.Activity = "" AND e = 0 THEN AIElapsed.Caption = "" ELSE AIElapsed.Caption = LTRIM$(STR$(e)) + " s"
+  q = AI.Quiet
+  IF q >= AIQuietAfter THEN
+    IF AIQuietSaid = 0 THEN
+      AIQuietSaid = 1
+      AIStatus.SimpleText = "No answer from the model for " + LTRIM$(STR$(q)) + " s: wait, or Stop."
+      AIProgressSaid = AIStatus.SimpleText
+    END IF
+  ELSEIF AIQuietSaid THEN
+    ' (it speaks again: the status says what it does)
+    AIQuietSaid = 0
+    AIProgressSaid = ""
+    AIProgressShow
+  END IF
+END SUB
+
+SUB AICompactClick
+  IF AI.Compact THEN
+    AIStatus.SimpleText = "Compacting the chat…"
+    AIEnableSend
+  ELSE
+    AIStatus.SimpleText = AI.Error
+  END IF
 END SUB
 
 ' (Studio's keychain entry for a provider's key, then the provider's usual
@@ -735,6 +1103,7 @@ SUB LoadAISettings
   IF Reg.ValueExists("AIMaxTokens") THEN AIMaxTokens = VAL(Reg.ReadString("AIMaxTokens"))
   IF Reg.ValueExists("AIPermission") THEN AIPermission = Reg.ReadString("AIPermission")
   IF Reg.ValueExists("AIReviewFirst") THEN AIReviewFirst = VAL(Reg.ReadString("AIReviewFirst"))
+  IF Reg.ValueExists("AIEffort") THEN AIEffort = Reg.ReadString("AIEffort")
   IF Reg.ValueExists("AIPrices") THEN
     AIPriceIn = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 1))
     AIPriceOut = VAL(FIELD$(Reg.ReadString("AIPrices"), "/", 2))
@@ -754,6 +1123,7 @@ SUB SaveAISettings
   Reg.WriteString("AIMaxTokens", LTRIM$(STR$(AIMaxTokens)))
   Reg.WriteString("AIPermission", AIPermission)
   Reg.WriteString("AIReviewFirst", LTRIM$(STR$(AIReviewFirst)))
+  Reg.WriteString("AIEffort", AIEffort)
   Reg.WriteString("AIPrices", LTRIM$(STR$(AIPriceIn)) + "/" + LTRIM$(STR$(AIPriceOut)))
 END SUB
 
@@ -831,11 +1201,12 @@ SUB AIShowOrHide
   AIChat.EmptyText = AIEmptyText
 END SUB
 
-' View > AI Assistant (Ctrl+I): the panel, the keyboard in its box; off,
-' Tools > Settings > AI.
+' View > AI Assistant (Ctrl+I): the panel, the keyboard in its box; not
+' set up yet, Set up RAI (the provider chosen, a model; Settings > AI has
+' every detail).
 SUB ShowAIPanel
   IF AIReady = 0 THEN
-    ShowSettingsPage 1
+    ShowAISetup
     EXIT SUB
   END IF
   Dock.FocusPane("aipanel")
@@ -878,6 +1249,20 @@ SUB AISend
     t = LEFT$(t, LEN(t) - 1)
   LOOP
   IF LTRIM$(RTRIM$(t)) = "" THEN EXIT SUB
+  ' (a / command: Studio's, never sent)
+  IF LEFT$(LTRIM$(t), 1) = "/" AND AIEditing = 0 THEN
+    IF AIRunSlash(LTRIM$(t)) THEN
+      AIInput.Text = ""
+      AIShowSlash
+    END IF
+    EXIT SUB
+  END IF
+  ' (a sent question edited: what followed it moves to a saved copy, then
+  ' the new text is asked — aichats.inc)
+  IF AIEditing > 0 THEN
+    IF AISendEdited(t) THEN AIInput.Text = ""
+    EXIT SUB
+  END IF
   ' (while it works: the message waits, shown, and goes when the answer
   ' ends — typing never stops an answer; a second one joins the first)
   IF AI.Busy THEN
@@ -892,6 +1277,8 @@ END SUB
 
 ' (a question to the assistant now: typed in the box, or the one queued)
 SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+  ' (the answer followed again, a thought opened before or not)
+  AIChat.FollowEnd = 1
   AISyncProject
   AIReviewBar.Visible = 0
   AIProgressSaid = ""
@@ -936,12 +1323,203 @@ SUB AIQueueCancelClick
   AIInput.SetFocus
 END SUB
 
-' (Enter sends; Shift+Enter is a new line)
+' (Enter sends; Shift+Enter is a new line; while the / commands show, Up and
+' Down choose one, Tab completes it, Enter runs it, Escape closes them;
+' Escape while a question is edited stops editing)
 SUB AIInputKey(Key AS INTEGER, Shift AS INTEGER)
+  IF AISlashBar.Visible THEN
+    IF Key = 38 OR Key = 40 THEN
+      IF Key = 38 AND AISlashList.ItemIndex > 0 THEN AISlashList.ItemIndex = AISlashList.ItemIndex - 1
+      IF Key = 40 AND AISlashList.ItemIndex < AISlashList.ItemCount - 1 THEN AISlashList.ItemIndex = AISlashList.ItemIndex + 1
+      Key = 0
+      EXIT SUB
+    END IF
+    IF Key = 9 AND Shift = 0 THEN
+      Key = 0
+      AISlashComplete
+      EXIT SUB
+    END IF
+    IF Key = 27 THEN
+      Key = 0
+      AISlashBar.Visible = 0
+      EXIT SUB
+    END IF
+    IF Key = 13 AND Shift = 0 THEN
+      ' (a command not typed whole: the one chosen)
+      IF INSTR(AIInput.Text, " ") = 0 AND AISlashList.ItemIndex >= 0 THEN AIInput.Text = FIELD$(AISlashList.Item(AISlashList.ItemIndex), " ", 1)
+    END IF
+  END IF
+  IF Key = 27 AND AIEditing > 0 THEN
+    Key = 0
+    AIEditCancelClick
+    EXIT SUB
+  END IF
   IF Key = 13 AND Shift = 0 THEN
     Key = 0
     AISend
   END IF
+END SUB
+
+' ---- the / commands (R5) -------------------------------------------------------------
+' Typed at the start of the box: listed as they are typed, run on Enter,
+' never sent to the model.
+
+' (the commands, a line each: the command, what it does)
+FUNCTION AISlashCommands AS STRING
+  Result = "/compact" + CHR$(9) + "Summarise this chat now: each question then sends less" + CHR$(10)
+  Result = Result + "/new" + CHR$(9) + "Start a new chat (this one is kept in Chats)" + CHR$(10)
+  Result = Result + "/chats" + CHR$(9) + "This project's chats: switch, rename, delete, search" + CHR$(10)
+  Result = Result + "/model" + CHR$(9) + "Choose the model (/model name picks it)" + CHR$(10)
+  Result = Result + "/effort" + CHR$(9) + "How hard it thinks: /effort low, medium, high or auto" + CHR$(10)
+  Result = Result + "/undo" + CHR$(9) + "Undo the assistant's last change" + CHR$(10)
+  Result = Result + "/help" + CHR$(9) + "What you can type here"
+END FUNCTION
+
+' The list under the box follows what is typed: the commands that start
+' with it ("/c" → /compact, /chats); none, hidden.
+SUB AIInputChanged
+  AIShowSlash
+END SUB
+
+SUB AIShowSlash
+  DIM t AS STRING, all AS STRING, i AS INTEGER, line AS STRING, cw AS STRING, shown AS STRING, n AS INTEGER
+  t = LCASE$(LTRIM$(AIInput.Text))
+  IF LEFT$(t, 1) <> "/" OR INSTR(t, " ") > 0 OR INSTR(t, CHR$(10)) > 0 OR AIEditing > 0 THEN
+    IF AISlashBar.Visible THEN AISlashBar.Visible = 0
+    AISlashShown = ""
+    EXIT SUB
+  END IF
+  all = AISlashCommands
+  FOR i = 1 TO TALLY(all, CHR$(10)) + 1
+    line = FIELD$(all, CHR$(10), i)
+    cw = FIELD$(line, CHR$(9), 1)
+    IF LEFT$(cw, LEN(t)) = t THEN
+      shown = shown + cw + "   " + FIELD$(line, CHR$(9), 2) + CHR$(10)
+      n = n + 1
+    END IF
+  NEXT
+  IF n = 0 THEN
+    AISlashBar.Visible = 0
+    AISlashShown = ""
+    EXIT SUB
+  END IF
+  IF shown <> AISlashShown THEN
+    AISlashShown = shown
+    AISlashList.Clear
+    FOR i = 1 TO n
+      AISlashList.AddItems FIELD$(shown, CHR$(10), i)
+    NEXT
+    AISlashList.ItemIndex = 0
+    AISlashBar.Height = n * 22 + 8
+  END IF
+  IF AISlashBar.Visible = 0 THEN AISlashBar.Visible = 1
+END SUB
+
+' (Tab, or a click: the command chosen, in the box)
+SUB AISlashComplete
+  IF AISlashList.ItemIndex < 0 THEN EXIT SUB
+  AIInput.Text = FIELD$(AISlashList.Item(AISlashList.ItemIndex), " ", 1) + " "
+  AISlashBar.Visible = 0
+  AIInput.SetFocus
+END SUB
+
+SUB AISlashPicked
+  AISlashComplete
+END SUB
+
+' Runs a / command; False when it isn't one (the box keeps it, the status
+' says so).
+FUNCTION AIRunSlash(T AS STRING) AS INTEGER
+  DIM cmd AS STRING, arg AS STRING, k AS INTEGER
+  k = INSTR(T, " ")
+  IF k > 0 THEN
+    cmd = LCASE$(LEFT$(T, k - 1))
+    arg = LTRIM$(RTRIM$(MID$(T, k + 1)))
+  ELSE
+    cmd = LCASE$(RTRIM$(T))
+  END IF
+  Result = 1
+  SELECT CASE cmd
+    CASE "/compact": AICompactClick
+    CASE "/new": AINewChat
+    CASE "/chats": AIShowChats 1
+    CASE "/model"
+      IF arg = "" THEN
+        AIModelBox.SetFocus
+        AIStatus.SimpleText = "Choose the model in the list (↻ asks " + AIProviderName + " for its models again)."
+      ELSE
+        AIModelBox.Text = arg
+        AIModelPicked
+        AIStatus.SimpleText = "The model is " + AI.Model + " now."
+      END IF
+    CASE "/effort"
+      SELECT CASE LCASE$(arg)
+        CASE "low", "medium", "high": AISetEffort LCASE$(arg)
+        CASE "auto", "off", "": AISetEffort ""
+        CASE ELSE
+          AIStatus.SimpleText = "/effort takes low, medium, high or auto."
+          Result = 0
+      END SELECT
+    CASE "/undo": AIUndoLast
+    CASE "/help"
+      AIStatus.SimpleText = "Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed."
+      AIInput.Text = "/"
+      AIShowSlash
+      Result = 0
+    CASE ELSE
+      AIStatus.SimpleText = cmd + " isn't a command: /help lists them. (To send it, start it with a space.)"
+      Result = 0
+  END SELECT
+END FUNCTION
+
+' /undo: what the assistant changed last taken back — a new program it
+' made (as the banner's Undo), else the files the last review changed, each
+' as one undo step, when its editor still has what the review left.
+SUB AIUndoLast
+  DIM i AS INTEGER, d AS INTEGER, done AS INTEGER, stale AS STRING, patch AS STRING
+  IF AIBanner.Visible AND AITools.CreatedFolder <> "" THEN
+    AIUndoProject
+    EXIT SUB
+  END IF
+  IF AIUndoCount = 0 THEN
+    AIStatus.SimpleText = "Nothing to undo: the assistant changed nothing since Studio started (or it was undone)."
+    EXIT SUB
+  END IF
+  FOR i = 0 TO AIUndoCount - 1
+    d = AIUndoDoc(i)
+    IF d >= 0 AND d < DocCount THEN
+      IF DocOpen(d) AND AIMatches(CodeDoc(d).Text, AIUndoAfter(i)) THEN
+        patch = AITools.Patch(CodeDoc(d).Text, AIUndoBefore(i))
+        IF patch <> "" THEN
+          IF CodeDoc(d).ApplyPatches(patch, 0) THEN
+            ProjectFileChanged d
+            done = done + 1
+          END IF
+        END IF
+      ELSE
+        IF stale <> "" THEN stale = stale + ", "
+        IF DocOpen(d) THEN stale = stale + FileTitle(DocFile(d)) ELSE stale = stale + "a closed file"
+      END IF
+    END IF
+  NEXT
+  AIUndoCount = 0
+  IF stale <> "" THEN
+    AIStatus.SimpleText = "Undone in " + LTRIM$(STR$(done)) + " file(s); " + stale + " changed since: Edit > Undo there."
+  ELSEIF done = 1 THEN
+    AIStatus.SimpleText = "Undone: the assistant's last change is taken back (Edit > Redo puts it back)."
+  ELSE
+    AIStatus.SimpleText = "Undone: the assistant's last changes are taken back in " + LTRIM$(STR$(done)) + " files."
+  END IF
+  IF done > 0 THEN AIRecheck
+END SUB
+
+' (Cancel, or Escape: the question isn't edited; the box empties)
+SUB AIEditCancelClick
+  AIEditing = 0
+  AIEditBar.Visible = 0
+  AIInput.Text = ""
+  AIStatus.SimpleText = "Not edited: the chat is as it was."
+  AIInput.SetFocus
 END SUB
 
 ' (Stop ends the answer; a queued message goes back to the box, unsent)
@@ -950,12 +1528,11 @@ SUB AIStopClick
   AIEnableSend
 END SUB
 
+' New Chat: this one kept (Chats lists it), a new one started.
 SUB AINewChat
-  AI.NewChat
+  AIStartNewChat
   AITools.ClearProposals
-  AIChat.Text = AI.Transcript
   AIReviewBar.Visible = 0
-  AIStatus.SimpleText = AI.Status
   AIEnableSend
   AIInput.SetFocus
 END SUB
@@ -975,20 +1552,29 @@ SUB AIProgressShow
   IF AI.Busy = 0 THEN EXIT SUB
   steps = AI.Steps
   IF steps = "" THEN n = 0 ELSE n = TALLY(steps, CHR$(10)) + 1
-  stepFrom = n - 2
-  IF stepFrom < 1 THEN stepFrom = 1
-  FOR i = stepFrom TO n
-    txt = txt + "✓ " + FIELD$(steps, CHR$(10), i) + " · "
-  NEXT
   IF n > 0 THEN newest = FIELD$(steps, CHR$(10), n)
-  IF INSTR(newest, " to fix") > 0 THEN
+  ' (what it does now, as RAI says it — Thinking, Reading sites.rr,
+  ' Searching the manual, Writing server.rr, Checking the code —; between
+  ' requests, what the last step left)
+  IF AI.Activity <> "" THEN
+    doing = AI.Activity + "…"
+  ELSEIF INSTR(newest, " to fix") > 0 THEN
     doing = "Fixing the errors…"
   ELSEIF n = 0 THEN
     doing = "Thinking…"
   ELSE
     doing = "Working…"
   END IF
-  txt = txt + "… " + doing
+  ' (what it does now first — the line is one line, a screen reader reads
+  ' it from the start —, then the newest steps done, ✓ each)
+  txt = doing
+  stepFrom = n - 1
+  IF stepFrom < 1 THEN stepFrom = 1
+  FOR i = n TO stepFrom STEP -1
+    txt = txt + " · ✓ " + FIELD$(steps, CHR$(10), i)
+  NEXT
+  ' (the provider silent for 30 s: that stays said until it speaks)
+  IF AIQuietSaid THEN EXIT SUB
   IF txt <> AIProgressSaid THEN
     AIProgressSaid = txt
     AIStatus.SimpleText = txt
@@ -1012,9 +1598,13 @@ SUB AIDone(Status AS STRING)
       AICreateNow
     ELSE
       AIShowReviewBar
+      ' (R4: what it waits for, said)
+      IF AIReviewBar.Visible AND LEFT$(AIStatus.SimpleText, 16) <> "Waiting for you" THEN AIStatus.SimpleText = "Waiting for you — " + AIStatus.SimpleText
     END IF
   END IF
   AIShowUsage
+  ' (R1: the chat kept, as it is now)
+  AISaveChat
   AISendQueued Status
 END SUB
 
@@ -1068,27 +1658,24 @@ SUB AIModelsIn(Count AS INTEGER)
     AISetModelOf AI.Provider, ""
   END IF
   AIFillModels
+  AIFillEffort
   AIFilling = 0
   AIStatus.SimpleText = AI.Status
+  IF AIModelBox.ItemCount > 0 AND AI.Model = "" THEN AIStatus.SimpleText = AI.Status + " Choose one in the list."
   AIEnableSend
   ' (a message sent while the list came: it goes now)
   AISendQueued "ok"
-END SUB
-
-SUB AIProviderPicked
-  DIM k AS INTEGER
-  IF AIFilling THEN EXIT SUB
-  k = AIProviderBox.ItemIndex
-  IF k < 0 OR k >= AIProvCount THEN EXIT SUB
-  AIProvider = AIProvIds(k)
-  AIApplySettings
-  SaveSettings
 END SUB
 
 SUB AIModelPicked
   IF AIFilling THEN EXIT SUB
   AI.Model = AIModelId(AIModelBox.Text)
   AISetModelOf AI.Provider, AI.Model
+  ' (the model chosen is kept, as Settings keeps it)
+  SaveSettings
+  AIFilling = 1
+  AIFillEffort
+  AIFilling = 0
   AIEnableSend
   AIShowOrHide
 END SUB
@@ -1243,6 +1830,7 @@ END SUB
 SUB AIApplyProposals
   DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
   DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, f AS RFileStream
+  DIM before AS STRING, undoN AS INTEGER
   FOR i = 0 TO AITools.ProposalCount - 1
     IF i >= AIMAXPROPS THEN EXIT FOR
     info = AITools.ProposalInfo(i)
@@ -1276,6 +1864,7 @@ SUB AIApplyProposals
         OutputLine "AI: " + path + " changed since the assistant read it; its change wasn't applied (ask again)"
         AITools.Decide i, "stale"
       ELSE
+        before = CodeDoc(d).Text
         patch = AITools.Patch(CodeDoc(d).Text, newText)
         ' (said only when it really changed: a patch the editor refused
         ' leaves the file as it was, and the chat says so)
@@ -1283,6 +1872,13 @@ SUB AIApplyProposals
           OutputLine "AI: the change to " + path + " couldn't be applied in its editor (ask again)"
           AITools.Decide i, "failed"
         ELSE
+          ' (/undo: the file as it was and became)
+          IF undoN < AIMAXPROPS THEN
+            AIUndoDoc(undoN) = d
+            AIUndoBefore(undoN) = before
+            AIUndoAfter(undoN) = CodeDoc(d).Text
+            undoN = undoN + 1
+          END IF
           ProjectFileChanged d
           IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
           done = done + 1
@@ -1294,6 +1890,7 @@ SUB AIApplyProposals
   ' still waits, and nothing is said twice)
   AITools.ClearDecided
   AIReviewBar.Visible = 0
+  IF undoN > 0 THEN AIUndoCount = undoN
   AIChat.Text = AI.Transcript
   IF done = 0 THEN
     AIStatus.SimpleText = "Nothing was changed: no change was accepted."
@@ -1304,6 +1901,8 @@ SUB AIApplyProposals
   END IF
   ' (the changes in, is it a program that runs? the banner and the status say)
   IF done > 0 THEN AIRecheck
+  ' (the decisions are in the chat: kept)
+  AISaveChat
   UpdateCommands
 END SUB
 
@@ -1447,7 +2046,10 @@ SUB AIOpenMade(Made AS STRING, Errs AS INTEGER)
   DIM langErrs AS INTEGER
   AIReviewBar.Visible = 0
   AICreatedFile = Made
+  ' (the chat that made it goes with it: the new project's)
+  AIRehoming = 1
   OpenProject Made
+  AIRehoming = 0
   AIChat.Text = AI.Transcript
   ' (the assistant's own check and Run's can differ: the larger is said)
   langErrs = ProgramErrors
@@ -1539,6 +2141,8 @@ END FUNCTION
 ' the changes proposed to the project before wait no more — never applied
 ' to another project's files)
 SUB AIProjectChanged
+  ' (R1: the project's own chats — its newest shown; aichats.inc)
+  AILoadProjectChat
   IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 THEN
     IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AITools.ProjectFolder) THEN
       AITools.ClearProposals
@@ -1666,7 +2270,9 @@ SUB AIUndoProject
   IF said <> "" THEN
     IF AskUndoAnyway("Undo the new program " + title + "?", "It changed since the assistant made it: " + said + ". Undo removes the files the assistant wrote, with your changes to them; files you added stay.") = 0 THEN EXIT SUB
   END IF
-  ' (its documents go without another question: Undo was the answer)
+  ' (its documents go without another question: Undo was the answer; the
+  ' chat stays, and goes back with the project open before)
+  AIRehoming = 1
   IF ProjectOpen AND LCASE$(Proj.Folder) = LCASE$(folder) THEN
     FOR d = 0 TO DocCount - 1
       IF DocOpen(d) THEN DocDirty(d) = 0
@@ -1689,6 +2295,7 @@ SUB AIUndoProject
   IF AIPrevProject <> "" THEN
     IF FILEEXISTS(AIPrevProject) THEN OpenProject AIPrevProject
   END IF
+  AIRehoming = 0
   AIPrevProject = ""
   IF gone THEN
     AIStatus.SimpleText = "Undone: " + title + " was removed."
@@ -1704,6 +2311,17 @@ SUB AIChatLink(Url AS STRING)
   verb = LCASE$(FIELD$(Url, "/", 1))
   which = MID$(Url, LEN(verb) + 2)
   SELECT CASE verb
+    ' (R2, R5: RAI's own links — Edit a question, Retry, the thinking)
+    CASE "rai:edit": AIEditQuestion VAL(which)
+    CASE "rai:retry": AIRetry
+    CASE "rai:thought"
+      ' (the view no longer follows the end — it does again at the next
+      ' question —: the link goes to the top, the thought opening below it)
+      IF AI.Busy = 0 THEN AIChat.FollowEnd = 0
+      AI.ToggleThought VAL(which)
+      AIChat.Text = AI.Transcript
+      ' (the link at the top, as much of the thought under it as fits)
+      IF AI.Busy = 0 THEN AIChat.ScrollTo Url
     CASE "ai:review"
       IF AITools.ProposalCount > 0 THEN
         AIReviewClick
@@ -1741,6 +2359,13 @@ FUNCTION AICommand(Id AS STRING) AS INTEGER
       END IF
     CASE "ai.whatWasSent": ShowWhatWasSent
     CASE "ai.settings": ShowSettingsPage 1
+    CASE "ai.setup": ShowAISetup
+    CASE "ai.chats"
+      IF AIReady THEN
+        ShowAIPanel
+        AIShowChats 1
+      END IF
+    CASE "ai.compact": IF AIReady THEN AICompactClick
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
@@ -1758,7 +2383,18 @@ SUB AIStep(Stp AS STRING)
   ELSE
     verb = Stp
   END IF
+  ' (the chats' steps — aichats.inc —, Set up RAI's — aisetup.inc)
+  IF AIChatStep(verb, arg) THEN EXIT SUB
+  IF AISetupStep(verb, arg) THEN EXIT SUB
   SELECT CASE verb
+    CASE "effort": AISetEffort arg
+    CASE "quietafter": AIQuietAfter = VAL(arg)
+    CASE "compact": AICompactClick
+    CASE "refresh": AIRefreshClick
+    CASE "slash"
+      ' (a / command typed in the box, as the user types it)
+      AIInput.Text = arg
+      AIShowSlash
     CASE "on": SetAIOn 1
     CASE "ready"
       ' (the AI's commands and pane, once ready)
@@ -1812,6 +2448,9 @@ SUB AIStep(Stp AS STRING)
     CASE "wait"
       ' (the next steps wait for the answer: a real provider takes its time)
       IF AI.Busy THEN DoList = "ai:wait," + DoList
+    CASE "designwait"
+      ' (the next steps wait for the designer's RAI's model list)
+      IF DesignAI.Busy THEN DoList = "ai:designwait," + DoList
     CASE "type": AIInput.Text = arg
     CASE "summaryat"
       ' (tests: the conversation summarised sooner)

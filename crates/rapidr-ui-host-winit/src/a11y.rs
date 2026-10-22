@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, TextDirection, TextPosition, TextSelection, Toggled, TreeId, TreeInfo, TreeUpdate};
+use accesskit::{Action as AAction, ActionData, ActionRequest, Affine, Live, Node, NodeId, Orientation as AOrientation, Rect as ARect, Role as ARole, TextDirection, TextPosition, TextSelection, Toggled, TreeId, TreeInfo, TreeUpdate};
 use rapidr_ui_kernel::AccessValue;
 use rapidr_value::objects::a11y::{AccessNode, Action, Orientation, Role, TextInfo, TextPos};
 
@@ -34,7 +34,10 @@ fn role(r: Role) -> ARole {
         Role::Row => ARole::Row,
         Role::Cell => ARole::Cell,
         Role::MenuBar => ARole::MenuBar,
+        Role::Menu => ARole::Menu,
         Role::MenuItem => ARole::MenuItem,
+        Role::MenuItemCheckBox => ARole::MenuItemCheckBox,
+        Role::MenuItemRadio => ARole::MenuItemRadio,
         Role::Image => ARole::Image,
         Role::Canvas => ARole::Canvas,
         Role::SpinButton => ARole::SpinButton,
@@ -98,6 +101,14 @@ fn node(n: &AccessNode) -> Node {
     if let Some(c) = n.shortcut {
         a.set_access_key(format!("Alt+{c}"));
     }
+    // (a menu item's ShortCut, which a screen reader says after its name;
+    // an item with a submenu says it has one)
+    if let Some(k) = &n.accelerator {
+        a.set_keyboard_shortcut(k.as_str());
+    }
+    if matches!(n.role, Role::MenuItem | Role::MenuItemCheckBox | Role::MenuItemRadio) && n.states.expanded.is_some() {
+        a.set_has_popup(accesskit::HasPopup::Menu);
+    }
     if let Some(l) = n.labelled_by {
         a.push_labelled_by(NodeId(l));
     }
@@ -122,6 +133,12 @@ fn node(n: &AccessNode) -> Node {
     }
     if let Some(v) = s.expanded {
         a.set_expanded(v);
+    }
+    // (a status node is a live region — polite, or assertive: what changes
+    // in it is said without the focus moving, as the web's aria-live)
+    if n.role == Role::Status {
+        a.set_live(if s.assertive { Live::Assertive } else { Live::Polite });
+        a.set_live_atomic();
     }
     for act in n.actions.iter().filter_map(|&x| action(x)) {
         a.add_action(act);
@@ -205,6 +222,16 @@ fn flatten(n: &AccessNode, out: &mut Vec<(NodeId, Node)>, focus: &mut Option<Nod
     }
     for c in &n.children {
         flatten(c, out, focus);
+    }
+}
+
+/// The program's announcement (`Application.Announce`) as live regions in
+/// a window's tree: the focused window's, so it is said once.
+pub fn announce_into(tree: &mut AccessNode) {
+    use rapidr_value::objects::a11y::{announcement, announcement_nodes};
+    if let Some(a) = announcement() {
+        let nodes = announcement_nodes(tree.id, &a);
+        tree.children.extend(nodes);
     }
 }
 
@@ -292,6 +319,55 @@ pub fn request(req: &ActionRequest) -> Option<(u64, Action, Option<AccessValue>)
 mod tests {
     use super::*;
 
+    /// Application.Announce: the focused window's live regions get the text,
+    /// and AccessKit's platform adapters announce it — they announce a live
+    /// node added with a label, or whose label changed (accesskit_macos'
+    /// event.rs; Windows' UIA_LiveRegionChanged, AT-SPI's Announcement
+    /// alike), which is what is checked here, on AccessKit's own consumer:
+    /// politely, at once when assertive, and the same text twice is said twice.
+    #[test]
+    fn an_announcement_is_a_live_region_a_screen_reader_says() {
+        use accesskit_consumer::{common_filter, FilterResult, NodeRef, Tree, TreeChangeHandler};
+        struct Said(Vec<(String, Live)>);
+        impl TreeChangeHandler for Said {
+            fn node_added(&mut self, n: &NodeRef) {
+                if let (Some(l), true) = (n.label(), n.live() != Live::Off && common_filter(n) == FilterResult::Include) {
+                    self.0.push((l, n.live()));
+                }
+            }
+            fn node_updated(&mut self, old: &NodeRef, new: &NodeRef) {
+                if let (Some(l), true) = (new.label(), new.live() != Live::Off && (new.label() != old.label() || new.live() != old.live())) {
+                    self.0.push((l, new.live()));
+                }
+            }
+            fn focus_moved(&mut self, _: Option<&NodeRef>, _: Option<&NodeRef>) {}
+            fn node_removed(&mut self, _: &NodeRef) {}
+        }
+        let window = || {
+            let mut w = AccessNode::new(100, Role::Window);
+            w.bounds = (0, 0, 300, 200);
+            w.children.push(AccessNode { name: "Run".into(), bounds: (10, 10, 80, 24), ..AccessNode::new(101, Role::Button) });
+            w
+        };
+        let mut sent = Sent::default();
+        let mut first = window();
+        announce_into(&mut first);
+        let mut tree = Tree::new(update(&first, 1.0, &mut sent, true).unwrap(), true);
+        for (text, assertive) in [("3 rows found", false), ("3 rows found", false), ("The connection was lost", true)] {
+            rapidr_value::objects::a11y::announce(text, assertive).expect("said");
+            let mut w = window();
+            announce_into(&mut w);
+            assert_eq!(w.children.len(), 3, "the button and the two live regions");
+            let mut said = Said(Vec::new());
+            tree.update_and_process_changes(update(&w, 1.0, &mut sent, false).expect("changed"), &mut said);
+            assert_eq!(said.0, vec![(text.to_string(), if assertive { Live::Assertive } else { Live::Polite })], "{text}");
+        }
+        // (nothing new: nothing said)
+        let mut w = window();
+        announce_into(&mut w);
+        assert!(update(&w, 1.0, &mut sent, false).is_none());
+    }
+
     #[test]
     fn a_label_says_its_text_as_its_value() {
         // (AccessKit names a label from its value: UIA's Name, AXValue)
@@ -301,6 +377,39 @@ mod tests {
         let button = node(&AccessNode { name: "OK".into(), ..AccessNode::new(2, Role::Button) });
         assert_eq!(button.label(), Some("OK"));
         assert_eq!(button.value(), None);
+    }
+
+    #[test]
+    fn menus_reach_accesskit_with_their_roles_states_and_keys() {
+        // (an open menu: Menu > items; a check mark, a radio dot, a disabled
+        // item, a submenu, the ShortCut)
+        let mut menu = AccessNode::new(1, Role::Menu);
+        menu.name = "File".into();
+        let mut check = AccessNode::new(2, Role::MenuItemCheckBox);
+        check.name = "Word wrap".into();
+        check.states.checked = Some(true);
+        check.accelerator = Some("Ctrl+W".into());
+        let mut radio = AccessNode::new(3, Role::MenuItemRadio);
+        radio.name = "Beginner".into();
+        radio.states.checked = Some(false);
+        radio.states.disabled = true;
+        let mut sub = AccessNode::new(4, Role::MenuItem);
+        sub.name = "Recent".into();
+        sub.states.expanded = Some(false);
+        menu.children = vec![check, radio, sub];
+        let mut root = AccessNode::new(0, Role::Window);
+        root.children.push(menu);
+        let mut sent = Sent::default();
+        let up = update(&root, 1.0, &mut sent, true).unwrap();
+        let by_id: HashMap<NodeId, &Node> = up.nodes.iter().map(|(id, n)| (*id, n)).collect();
+        let m = by_id[&NodeId(1)];
+        assert_eq!((m.role(), m.label()), (ARole::Menu, Some("File")));
+        assert_eq!(m.children(), &[NodeId(2), NodeId(3), NodeId(4)]);
+        let (c, r, s) = (by_id[&NodeId(2)], by_id[&NodeId(3)], by_id[&NodeId(4)]);
+        assert_eq!((c.role(), c.toggled(), c.keyboard_shortcut()), (ARole::MenuItemCheckBox, Some(Toggled::True), Some("Ctrl+W")));
+        assert_eq!((r.role(), r.toggled(), r.is_disabled()), (ARole::MenuItemRadio, Some(Toggled::False), true));
+        assert_eq!((s.role(), s.is_expanded(), s.has_popup()), (ARole::MenuItem, Some(false), Some(accesskit::HasPopup::Menu)));
+        assert_eq!(c.has_popup(), None);
     }
 
     /// A code editor's node: "Dim a\r\n\tb = a + 1\n" plus a 300-character

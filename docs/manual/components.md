@@ -299,6 +299,8 @@ compiler doesn't know it).
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
 | `Application.Theme`, `$THEME`, `Application.OnThemeChange` | the look, and when it changes (below) |
 | `TabStop` on a panel | the panel takes the keyboard focus: a clickable card ([Accessibility](#accessibility)) |
+| `TabStop` on a label | the label is a link: Tab reaches it, Enter or Space clicks it ([Accessibility](#accessibility)) |
+| `Application.Announce Text [, Assertive]` | a screen reader says Text without the focus moving ([below](#telling-screen-readers-about-news-applicationannounce)) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
 | `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
 
@@ -474,6 +476,16 @@ the author doing anything:
   Narrator and NVDA (UI Automation) on Windows, AT-SPI on Linux (through
   AccessKit); in a browser, an ARIA mirror of the same tree.
 - A component's name is its caption, or its `AccessibleName`.
+- Menus are read too. A menu bar drawn in the window (Windows, Linux, the
+  web; macOS uses the system's own) is a menu bar of menu items; a menu
+  that is open — a drop-down, a submenu, a pop-up menu — is a menu with its
+  items inside it: a check mark or a radio dot is "checked", a greyed item
+  "disabled", its `ShortCut` is said after its name, an item with a submenu
+  says it is collapsed or expanded, and the item the arrow keys chose has
+  the screen reader's focus, so it is read as the keys move. A screen
+  reader can also press an item, open or close a submenu and move to an
+  item, as the keyboard and the mouse do. An item's `Hint` is its
+  description.
 - (RapidR's) A panel with `TabStop = 1` takes the focus like a button:
   Tab reaches it, the theme's focus ring shows around it, Enter or Space
   clicks it (`OnClick`), and a screen reader announces a button named by
@@ -481,6 +493,40 @@ the author doing anything:
   page is made of them. In an `RScrollBox`, Tab onto a component below its
   edge scrolls it into view. A panel without `TabStop` never takes the
   focus.
+- (RapidR's) A label with `TabStop = 1` is a link: Tab reaches it, the
+  theme's focus ring shows around its text, Enter or Space clicks it
+  (`OnClick`), and a screen reader announces a link named by its
+  `Caption` (or `AccessibleName`). RapidR Studio's Recent list is made of
+  them. The link's text sits 4 pixels inside the label's rectangle, so the
+  ring has room round the letters. A label without `TabStop` never takes the
+  focus, as in RapidQ.
+  `examples/gui/links.rr` shows it.
+
+### Telling screen readers about news: Application.Announce
+
+Some news has no focus to go with it: a search found 3 rows, a new card
+appeared in a feed, a download finished, the connection was lost.
+`Application.Announce` (RapidR's) has the screen reader say it, without
+moving the focus from where the person is working:
+
+```basic
+Application.Announce "3 rows found"                    ' politely
+Application.Announce "The connection was lost", True   ' at once
+```
+
+- Politely (the default): the screen reader says it when it has finished
+  what it is saying. Use it for nearly everything.
+- `Assertive` True: it interrupts and says it at once. Keep it for what
+  can't wait — an error, a lost connection.
+- The same text announced twice is said twice. Keep it short: a few words.
+- On the desktop it goes through the focused window's live regions
+  (AccessKit), to the system's screen reader; in a browser through the
+  page's `aria-live` region. With no screen reader on, nothing happens and
+  nothing shows.
+
+The local API example
+([examples/network/local_api.rr](../../examples/network/local_api.rr))
+announces each request it answers.
 
 ## How it is drawn
 

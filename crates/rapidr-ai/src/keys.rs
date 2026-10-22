@@ -72,15 +72,50 @@ impl Source {
 
 /// Whether keys and programs' secrets are kept in this process's memory
 /// only: `RAPIDR_AI_KEYSTORE=memory` (or `RAPIDR_KEYSTORE=memory`), the
-/// test keystore — the user's keychain is never touched.
+/// test keystore — the user's keychain is never touched. A run whose
+/// registry is redirected (`RAPIDR_REGISTRY`: tests, captures, sandboxes)
+/// gets the memory keystore too unless it says `RAPIDR_AI_KEYSTORE=system`,
+/// so no test harness can reach the user's real Keychain by forgetting the
+/// variable (2026-10-22: a capture of Studio's AI settings asked Robert for
+/// his keychain password again and again).
 pub(crate) fn memory_only() -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        ["RAPIDR_AI_KEYSTORE", "RAPIDR_KEYSTORE"].iter().any(|k| std::env::var(k).is_ok_and(|v| v.trim().eq_ignore_ascii_case("memory")))
+        let var = |k: &str| std::env::var(k).ok();
+        memory_only_from(var("RAPIDR_AI_KEYSTORE"), var("RAPIDR_KEYSTORE"), var("RAPIDR_REGISTRY"))
     }
     #[cfg(target_arch = "wasm32")]
     {
         false
+    }
+}
+
+/// [`memory_only`]'s rule, from the variables' values.
+pub(crate) fn memory_only_from(ai: Option<String>, ks: Option<String>, registry: Option<String>) -> bool {
+    let is = |v: &Option<String>, want: &str| v.as_deref().is_some_and(|v| v.trim().eq_ignore_ascii_case(want));
+    if is(&ai, "memory") || is(&ks, "memory") {
+        return true;
+    }
+    if is(&ai, "system") || is(&ks, "system") {
+        return false;
+    }
+    registry.as_deref().is_some_and(|r| !r.trim().is_empty())
+}
+
+#[cfg(test)]
+mod memory_rule_tests {
+    use super::memory_only_from as m;
+    fn s(v: &str) -> Option<String> {
+        Some(v.to_string())
+    }
+    #[test]
+    fn a_redirected_registry_never_reaches_the_real_keychain() {
+        assert!(m(s("memory"), None, None));
+        assert!(m(None, s("memory"), None));
+        assert!(m(None, None, s("/tmp/test.reg")));
+        assert!(!m(s("system"), None, s("/tmp/test.reg")));
+        assert!(!m(None, None, None));
+        assert!(!m(None, None, s("  ")));
     }
 }
 
@@ -565,7 +600,7 @@ mod tests {
         assert_eq!(w.len(), 1);
         assert!(w[0].starts_with("line 2: an API key is written in the program"), "{w:?}");
         assert!(!w[0].contains("abcdefghij"), "never the key itself");
-        assert_eq!(build_warnings("x$ = \"sk-ant-api03-0123456789abcdefghij\"", false).len(), 1);
+        assert_eq!(build_warnings(concat!("x$ = \"sk", "-ant-api03-0123456789abcdefghij\""), false).len(), 1);
         // (a comment, an empty key, a short sk- word: nothing)
         assert!(build_warnings("' APIKey = \"sk-ant-0123456789abcdefghijkl\"\nAI.APIKey = \"\"\nPRINT \"sk-short\"", false).is_empty());
         let never = build_warnings("DIM AI AS RAI\nAI.APIKeySource = \"env:OPENAI_API_KEY\"", true);
@@ -574,7 +609,7 @@ mod tests {
 
     #[test]
     fn keys_in_files_are_redacted() {
-        let text = "AI.APIKey = \"sk-proj-abcdefghijklmnopqrstuvwxyz\"\nOPENAI_API_KEY=sk-ant-api03-0123456789abcdefghij\nPRINT \"sk-short\"\n";
+        let text = concat!("AI.APIKey = \"sk-proj-abcdefghijklmnopqrstuvwxyz\"\nOPENAI_API_KEY=sk", "-ant-api03-0123456789abcdefghij\nPRINT \"sk-short\"\n");
         let r = redact(text);
         assert!(!r.contains("abcdefghij") && !r.contains("0123456789"), "{r}");
         assert_eq!(r.matches("(an API key, not shown)").count(), 2, "{r}");

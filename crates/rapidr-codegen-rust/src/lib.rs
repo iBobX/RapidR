@@ -53,6 +53,9 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     // rapidr_ast::for_as — its errors are the bytecode compiler's, which
     // every native build runs first)
     let declared = rapidr_ast::for_as::lower(program);
+    // (`Result` in a FUNCTION is its value: rapidr_ast::function_result, as
+    // the bytecode compiler runs it)
+    let declared = rapidr_ast::function_result::lower(&declared);
     let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(&declared))));
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
@@ -2593,15 +2596,17 @@ impl RustCodegen {
                         if self.is_component_var(&name) {
                             return format!("v_str(\"{snake}\")");
                         }
-                        // Module-level scalar or array → read from global storage
-                        if self.is_global_scalar(&name) || self.is_global_array(&name) {
-                            return format!("gv(\"{snake}\")");
-                        }
-                        // RapidQ's RESULT inside a FUNCTION is its return value.
+                        // RapidQ's RESULT inside a FUNCTION is its return
+                        // value — a global named Result's too (RC.EXE;
+                        // rapidr_ast::function_result)
                         if name.eq_ignore_ascii_case("result") {
                             if let Some(fname) = &self.current_function {
                                 return format!("_{}.clone()", to_snake(fname));
                             }
+                        }
+                        // Module-level scalar or array → read from global storage
+                        if self.is_global_scalar(&name) || self.is_global_array(&name) {
+                            return format!("gv(\"{snake}\")");
                         }
                         // A FUNCTION named without parentheses is called
                         // (`y = Five + 1`) — inside itself too, as RC.EXE

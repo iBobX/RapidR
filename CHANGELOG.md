@@ -10,7 +10,199 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ### Legal
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
+### Fixed
+- **Tab names are no longer cut short while there is room for them** (found
+  in high contrast, where the debugging layout's "Breakpoints (2)" showed as
+  "Breakpoints…"; light and dark did the same). When a dock group or the
+  documents' strip is too narrow for all its tabs, the tabs now give up their
+  padding first — every tab alike, the names whole — and only then are the
+  widest trimmed to one width, so a short name is never cut for a long one's
+  sake (before, every tab shrank in proportion and the widest lost its end).
+  The geometry says where each title is drawn (`Tab.text`) and the painters
+  use it. A name that still can't fit keeps its full tooltip and its full
+  accessible name. Flow `tabs-fit-names` (the three looks, contrast judged),
+  unit tests for the squeeze and for a crowded group; the Studio goldens
+  `debug-variables`, `debug-callstack`, `debug-breakpoints`, `debug-watch`,
+  `debug-datatip` (tab strip), `debug-error` (the Output's long line wraps)
+  and `palette` (one more command, a shorter scroll thumb) approved in all
+  three looks.
+
 ### Added
+- **Servers that only this computer reaches** (REQUEST-003, for RapidR
+  Database Studio). RSocket's `Open(Port, Address)` and its new
+  `BindAddress` property (RapidR's) choose where a QSOCKET server listens:
+  `"127.0.0.1"` this computer only — nothing on the network can reach it,
+  and the system doesn't ask about incoming connections. Without them it
+  is `0.0.0.0` (every interface), as RapidQ's. RServerSocket's `Host` was
+  already its listening address (now documented: `0.0.0.0` by default).
+  The web still answers -1 (a page can't listen).
+- **RServerSocket: data arrives whole** (REQUEST-003: a POST's body was
+  lost). Its connections are now read as bytes into a buffer and cut by
+  the new `Mode` (RapidR's): `"lines"` (the default: each line trimmed,
+  blank ones left out, as before — but a line that comes slowly is never
+  dropped any more, and a last line without its end comes when the client
+  closes), `"bytes"` (what arrived, nothing trimmed or dropped) and
+  `"http"` (each whole HTTP request: head and body, by its Content-Length
+  or its chunks — joined, given a Content-Length —, "100 Continue" sent to
+  a client that waits for it, 4 MB at most, malformed or too large ones
+  answered 400 / 413 / 431 / 505 and closed). `Send(Address, Data)` sends
+  without a line end, `Disconnect(Address)` closes one client; `Port 0`
+  takes a free port and `Port` says which; `Stop` closes the clients'
+  connections. One framing (`rapidr_runtime_core::netframe`) for it and
+  RHttpServer. The example `examples/network/echo_server.rr` (curl gets
+  1 MB back whole, by length and chunked); the examples suite starts a
+  client for server examples (`client`, tests/http_client_probe.mjs).
+- **RHttpServer: a local web server for programs** (REQUEST-003 item 1;
+  desktop only). `Host` (127.0.0.1 unless set) and `Port`, `Start` /
+  `Stop`; each request whole in `OnRequest (Method, Path, Headers, Body)`
+  on the program's own thread, one at a time, woken by its arrival (the
+  window never waits for the network; DOEVENTS serves it in a console
+  program), with `Query`, `Header(Name)`, `Peer` and `Request` (its number,
+  to answer later). `Respond(Status, Headers, Body [, Request])` answers
+  (Content-Length and a text Content-Type added); `BeginStream`,
+  `SendEvent(Data [, EventName])`, `EndStream` stream Server-Sent Events
+  (chunked on HTTP/1.1) — enough for MCP's Streamable HTTP; keep-alive,
+  `Close`. Refused by the server itself: a Host that isn't its own (DNS
+  rebinding, 403; `AllowedHosts`), a request a browser marks
+  `Sec-Fetch-Site: cross-site` or whose Origin isn't allowed (403;
+  `AllowedOrigins`), anything but GET and HEAD while no `Token` is set
+  (401, "this server has no Token"), a missing or wrong
+  `Authorization: Bearer` when `Token` is set (401; an allowed page's CORS
+  preflight passes), bodies over `MaxRequestSize` (413), requests slower
+  than `Timeout` (408), more than `MaxConnections` (503). A link or an
+  image on another site can still send a GET without an Origin: the manual
+  says GET handlers must only read, and anything more needs a Token.
+  `NewToken` sets Token to 64 hex digits from the operating system's
+  secure random source (getrandom, already in the build through
+  native-tls: no new crate) and returns it. Plain HTTP: on 127.0.0.1
+  nothing goes over the network, but other programs on the computer can
+  connect, so the Token is the protection (the manual says so). On the web
+  `Start` fails and `Error` says why. The example
+  `examples/network/local_api.rr`, an examples-suite case driving it with
+  a client (401, 403 twice, 413, /hello, /echo, three events), its own
+  component icon (a server and a globe), the manual's
+  [Networking](docs/manual/network.md) page.
+- **`Application.Announce(Text [, Assertive])`** (REQUEST-003 item 3): a
+  screen reader says Text without the focus moving — politely, or at once
+  when Assertive is True; the same text twice is said twice. On the desktop
+  through the focused window's AccessKit live regions (two status nodes
+  taking turns, `rapidr_value::objects::a11y::announcement_nodes`), on the
+  web through the page's `aria-live` regions. Desktop status nodes are now
+  live regions too (polite, as the web's `aria-live` always had them): the
+  code editor's and the designer's announcements are live there as well.
+  The local API example announces each request it answers; the
+  manual's [Accessibility](docs/manual/components.md#accessibility).
+- **RMarkdownView colours SQL code blocks** (REQUEST-003 item 2): a
+  ```` ```sql ```` block (```` ```sqlite ````, ```` ```mysql ```` with that
+  dialect's words) is coloured as the code editor colours SQL, and
+  ```` ```json ````, ```` ```html ````, ```` ```css ````,
+  ```` ```javascript ````, ```` ```toml ````, ```` ```csv ````,
+  ```` ```rust ````, ```` ```markdown ```` blocks as theirs, in the
+  theme's colours; any other stays plain. The example
+  `examples/gui/markdown_code.rr`, the manual's
+  [Markdown](docs/manual/markdown.md#code-blocks-in-colour).
+- **The Output, Build and Problems pages wrap long lines** (ROutputConsole's
+  new `WordWrap`, RapidR's own, True unless a program sets it). A line longer
+  than the pane breaks onto more rows at a space near the edge (else at the
+  edge), so a long message reads whole instead of running off. It stays one
+  line to the mouse (a click on any of its rows selects it, `file:line` links
+  work on every row), the selection, Copy and a screen reader, and the wheel
+  and the bar move by rows. On the Problems page a row grows to hold its whole
+  message, the place after its last row (or under it). Off, a line is cut at
+  the edge as before — a problem's message ends in "…" — and resting the mouse
+  on it shows the whole text (an Output line's too: new). In RapidR Studio:
+  **View > Wrap Long Output Lines** (a check item, kept in the settings) and
+  **Wrap Long Lines** in the pane's right-click menu; flows `problems-wrap`,
+  `output-wrap-long-line`, `output-wrap-menu`, `output-wrap-off`,
+  `output-wrap-remembered` (the text contrast judged in every look), kernel
+  tests for the flow, the click, the copy, the wheel and the tooltips, the
+  manual's "Long lines in Output and Problems".
+- **Labels as links: `TabStop` on an RLabel** (RapidR's own; RapidQ's QLABEL
+  never takes the focus, and a label without it doesn't). A label given
+  `TabStop = 1` is a link: Tab reaches it (in `TabOrder`), the theme's focus
+  ring shows round its text, Enter or Space clicks it (`OnClick`), `OnEnter`,
+  `OnExit` and `SetFocus` work, and a screen reader announces a link named by
+  its `Caption` (or `AccessibleName`), with the `Hint` as its description.
+  RapidR Studio's Welcome page Recent links were the mouse-only ones left —
+  Tab skipped them; now Shift+Tab from the offer to reopen reaches the link
+  and Enter opens the project (flows `welcome-recent-link-keyboard` and
+  `welcome-recent-link-enter`). The registry's RLABEL has the property, the
+  method and the events; the example `examples/gui/links.rr`; the manual's
+  Accessibility section.
+- **Menus drawn in the window are in the accessibility tree** (Windows,
+  Linux and the web; macOS uses the system's own menu bar). An open menu —
+  a bar's drop-down, a submenu, a pop-up menu or an edit's context menu —
+  is a `menu` node with its items inside it: `menuitem`, `menuitemcheckbox`
+  and `menuitemradio` with their checked state, disabled items disabled, a
+  submenu's item collapsed or expanded (with a "has a menu" mark) and holding
+  its submenu, the item's ShortCut as its keyboard shortcut (AccessKit's
+  `keyboard_shortcut`, ARIA's `aria-keyshortcuts`) and its Hint as its
+  description. The item the arrow keys (or the mouse) chose has the screen
+  reader's focus — and no component has it meanwhile — so VoiceOver,
+  Narrator, NVDA, Orca and a browser's screen reader read each item as the
+  keys move; the bar selected with F10 or Alt focuses its item the same way.
+  A screen reader can press an item, expand or collapse a submenu and move to
+  an item. `RAPIDR_TEST_A11Y`'s JSON carries `accelerator`. Kernel tests walk
+  the keys and read the tree, Studio's `open-recent` flow reads the File menu
+  and its Open Recent submenu on both hosts, and `tests/web_a11y.mjs`
+  compares the kernel's menu nodes with Chrome's on the new `menus_open`
+  fixture.
+- **RAI keeps your chats, and shows what it is doing** (Preview 4 R1, R2,
+  R4, R5, R6, K8; Robert's notes on RAI). In RapidR Studio:
+  - **Chats are kept**, per project, across restarts: opening a project
+    shows its newest chat again. **Chats** lists them — open, rename,
+    delete (with **Undo**), search titles and text; **New Chat** keeps the
+    one it replaces. They are kept in Studio's data folder, never in the
+    project's (`chats/` beside the settings: `~/Library/Application
+    Support/RapidR/chats` on macOS, `%APPDATA%\RapidR\chats` on Windows,
+    `~/.config/rapidr/chats` on Linux; the page's storage on the web), one
+    file a chat; API keys and tokens are replaced by *[key removed]* before
+    anything is written (`rapidr_ai::chats`, unit-tested); Delete removes
+    the file. A chat the assistant used to make a new program goes with
+    that program's project (and back when it is undone).
+  - **Edit a sent question** (Edit beside *You*): a bar says what Send will
+    do; what followed the question moves to a saved copy, "… (before the
+    edit)", nothing lost. **Retry** beside the last answer.
+  - **A live status line**: what it does now — *Thinking*, *Reading
+    sites.rr*, *Searching the manual*, *Writing server.rr*, *Checking the
+    code* — from the stream itself (a tool call's file named as soon as the
+    model writes it), the steps done after it, the seconds beside Stop, and
+    *No answer from the model for 30 s: wait, or Stop*; *Waiting for you*
+    when a change waits for review.
+  - **The context meter** (how much the next question sends, against where
+    the chat is compacted by itself) and **Compact**; **/ commands** listed
+    as you type: `/compact /new /chats /model /effort /undo /help`.
+  - **Reasoning effort** Low / Medium / High where the provider has it —
+    Anthropic's adaptive thinking at that effort (an older model's thinking
+    budget, stepping down by itself when a model refuses), an
+    OpenAI-compatible `reasoning_effort`; DeepSeek's models choose for
+    themselves. The reasoning shows as **Thought for N s**, a link that opens
+    and closes it (the link goes to the top of the chat, the reasoning under
+    it: RMarkdownView's `ScrollTo` also takes a link's target now).
+  - **One model list with ↻**; the provider row is gone from the pane (it is
+    Settings'). **Set Up RAI**, a two-step wizard for a first-time user: free
+    on this computer (finds Ollama, LM Studio and MLX Serve running — it
+    never starts one) or a cloud key (a key already found can be used; Test;
+    a model, the fast ones first), with what each costs and sends in plain
+    words. Tools > Set Up RAI, Ctrl+I before it is set up, and Settings > AI.
+  - **A lite set for small windows** (K8): a model of a context window under
+    16,384 tokens gets short instructions, the language card and eight
+    tools — about 2,500 tokens instead of 7,800 (estimated at three
+    characters a token, `rapidr-studio`'s `a_small_window_gets_the_lite_set`;
+    a live Claude Haiku question with the full set counted 10,966 input
+    tokens, the project's facts and the question included) —, so an
+    8,192-token local model starts and answers again.
+  - RAI, for every program: `ChatState` (the conversation as JSON, keys
+    removed), `Rewind(N)`, `QuestionCount`, `QuestionText(N)`, `Editable`,
+    `Activity`, `Elapsed`, `Quiet`, `ContextTokens`, `ContextLimit`,
+    `ContextWindow`, `Compact`, `Effort`, `EffortSupported`,
+    `ToggleThought(N)`, `Lite`; RAIProjectTools: `ChatList`, `SearchChats`,
+    `SaveChat`, `LoadChat`, `DeleteChat`, `RestoreChat`, `RenameChat`,
+    `ChatTitle`, `ChatsFolder`, `Lite`. Anthropic's models list's
+    capabilities are read (how each model thinks). Flows `ai-r1-*` …
+    `ai-r6-*`, `ai-k8-lite`; the mock provider streams thinking and writes
+    slowly on request; the manual's [AI assistant](docs/manual/ai-assistant.md)
+    page and seven new pictures.
 - **Versions, the engine (lane G1, docs/versions-plan.md).** `rapidr-vcs`
   speaks plain words over gitoxide: save a version (every changed file or
   some), the timeline, what changed, go back (a new version with the old
@@ -460,6 +652,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A FUNCTION's parameter or local named `Result`** means the FUNCTION's
+  own value (RapidQ's RESULT) on every runtime, as RC.EXE has it: in
+  `FUNCTION F (Id AS STRING, Result AS STRING)`, `F = Id + Result` adds
+  the result so far, and `Result = x` sets the value returned. The
+  interpreter (and so the web) read the parameter while native builds read
+  RESULT, so a program answered differently built (RapidR Database
+  Studio's MCP answers came back empty only in its built app). One pass,
+  `rapidr_ast::function_result`, for both compilers; a global `Result`
+  doesn't reach inside a FUNCTION either (native builds read it). The
+  editor warns about such a parameter or DIM (`hidden-result`).
+  Conformance case `function_result_name` (RC.EXE's output, the Windows VM).
+- The studio flow `ai-designer-rai` failed on the web now and then: its 13
+  steps, 400 ms apart, outlasted its 5-second capture on a slow start, so
+  the Model pick looked lost. It now waits for the model list
+  (`ai:designwait`) and captures at 8 s. Not a product bug.
+- RAI's models list from a server running with no model yet (Ollama answers
+  `"data": null`) is an empty list, not "not a models list"; Set Up RAI
+  says the server has no model yet and to download one in it first.
+- **No test run reaches the real keychain.** `tests/studio_shell.mjs` ran
+  Studio without `RAPIDR_AI_KEYSTORE=memory`: its `settings-ai` scene asked
+  the keychain for the AI keys, macOS asked for the login keychain's
+  password, and each run timed out with no capture. A redirected registry
+  (`RAPIDR_REGISTRY`) now means the memory keystore unless
+  `RAPIDR_AI_KEYSTORE=system`; the shell and add-form harnesses set it too,
+  and the shell's runs keep the AI's chats in their own folder.
 - **The debugger names a parameter by its source name** in a SUB that takes
   VARPTR of a global with the same name: `MyMsg` in Variables and in the
   expressions typed there, not the internal `MyMsg__param`.

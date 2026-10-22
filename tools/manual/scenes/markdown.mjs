@@ -6,4 +6,8 @@ export const scenes = [
   { topic: "markdown", name: "preview", open: "tests/fixtures/markdown/README.md", do: "wait", delay: 4 },
   { topic: "markdown", name: "side-by-side", open: "tests/fixtures/markdown/README.md", do: "wait,view:Split", delay: 4 },
   { topic: "markdown", name: "import-report", open: "tests/fixtures/markdown/rapidr-import-report.md", do: "wait", delay: 4 },
+  // (code blocks coloured by their language: examples/gui/markdown_code.rr,
+  // light and dark)
+  { topic: "markdown", name: "sql-code", program: "examples/gui/markdown_code.rr", delay: 2, crop: [0, 0, 544, 440] },
+  { topic: "markdown", name: "sql-code-dark", program: "examples/gui/markdown_code.rr", delay: 2, crop: [0, 0, 544, 440], env: { RAPIDR_TEST_EVENTS: "themebtn.onclick" } },
 ];

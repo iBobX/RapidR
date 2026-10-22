@@ -100,12 +100,21 @@ export const cases = [
   { file: "debugging/shop.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick,totalbtn.onclick", dump: "totallabel.caption,orderlist.itemcount",
     expect: ["totallabel.caption=Total: 25.00", "orderlist.itemcount=4"] },
   // gui/
+  // (code blocks coloured by their language — sql, basic — in each theme)
+  { file: "gui/markdown_code.rr", runtimes: ["run", "interp", "native", "web"], events: "themebtn.onclick", dump: "themelabel.caption,view.linkcount",
+    expect: ["themelabel.caption=Now: rapidr dark", "view.linkcount=0"] },
   { file: "gui/hello_form.rr", runtimes: ["run", "interp", "native", "web"], events: "greetbutton.onclick,greetbutton.onclick", dump: "answer.caption",
     expect: ["answer.caption=Hello, World! (2)"] },
   // (Tab out of each box: its OnExit checks it, the next one's OnEnter
   // shows its help)
   { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
     expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
+  // (a label given TabStop is a link: Enter on the second, Space on the
+  // third — the keys go to the link, which takes the focus)
+  { file: "gui/links.rr", runtimes: ["run", "interp", "native", "web"], events: "link2.__key_13", dump: "answer.caption",
+    expect: ["answer.caption=Opened pantry.rr"] },
+  { file: "gui/links.rr", runtimes: ["run", "interp", "native", "web"], events: "link3.__key_32", dump: "answer.caption",
+    expect: ["answer.caption=Opened stopwatch.rr"] },
   // (Add a point twice: the score 2, marked changed; the values' plain text)
   { file: "gui/value_tree.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick,addbtn.onclick", dump: "said.caption,values.text",
     expect: ["said.caption=Score = 2 (changed)", "\tBackground = -2147483633", "\tScores = Array(1 TO 10)"] },
@@ -346,6 +355,19 @@ export const cases = [
     expect: ["Forecast for Harbour Town (updated 2026-10-06 06:00)", "  Tuesday   10 to 15 C, showers", "Warmest: Monday"] },
   { file: "network/download.rr", runtimes: ["run", "interp", "native", "web"], args: ["{http}/examples/network/forecast.json"], events: "fetchbtn.onclick", dump: "info.caption",
     expect: ["info.caption=Saved 290 bytes of examples/network/forecast.json"] },
+  // (servers: on 127.0.0.1, a port of the suite's, tests/http_client_probe.mjs
+  // their client) echo_server.rr: RServerSocket's Mode "http" — 1 MB by
+  // Content-Length and chunked, each back whole; it ends after 3 requests
+  { file: "network/echo_server.rr", runtimes: ["run", "interp", "native"], args: ["{port}", "3"], client: { mode: "echo" },
+    expect: ["client: echo word 200 same", "client: echo 1 MB 200 same", "client: echo 1 MB chunked 200 same", "1048576 characters", "Served 3 requests."] },
+  // local_api.rr: RHttpServer refusing what it must by itself (no or a
+  // wrong token, another site's page, another host name, too large), its
+  // answers, three Server-Sent Events
+  { file: "network/local_api.rr", runtimes: ["run", "interp", "native"], args: ["{port}", "suite-token"], client: { mode: "api", args: ["suite-token"] },
+    events: wait("log", 140), dump: "status.caption,urllabel.caption",
+    expect: ["client: no token 401", "client: wrong token 401", "client: foreign origin 403", "client: foreign host 403", "client: cross-site 403", "client: hello 200 Hello from RapidR",
+      "client: echo 200 application/json same", 'client: events 200 text/event-stream 3 {"tick":1} {"tick":2} {"tick":3}', "client: too large 413", "client: not found 404",
+      "status.caption=4 requests answered", "(this computer only)"] },
   // ai/ (the tests' mock provider, local: an OpenAI-compatible server)
   { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
     events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",
@@ -600,7 +622,29 @@ const env = (extra = {}) => ({
   ...extra,
 });
 const isGui = (c) => c.dump !== undefined;
-const args = (c) => (c.args || []).map((a) => a.replace("{http}", `http://${http.address}`).replace("{aimock}", AI_MOCK));
+const args = (c) => (c.args || []).map((a) => a.replace("{http}", `http://${http.address}`).replace("{aimock}", AI_MOCK).replace("{port}", String(c.port || 0)));
+
+// (`client`: a server example's client — tests/http_client_probe.mjs —
+// started with the program, on the port `{port}` gave it; what it got back
+// added to the program's output for `expect`. Ports from 47800, one a run:
+// 127.0.0.1 only.)
+let nextPort = 47800;
+function startClient(c) {
+  if (!c.client) return null;
+  const out = join(WORK, `client-${c.port}.txt`);
+  rmSync(out, { force: true });
+  rmSync(`${out}.done`, { force: true });
+  const child = spawnAsync(process.execPath, [join(ROOT, "tests/http_client_probe.mjs"), c.client.mode, String(c.port), out, ...(c.client.args || [])], { stdio: "ignore" });
+  return { child, out };
+}
+function clientLines(cl) {
+  if (!cl) return "";
+  const until = Date.now() + 30000;
+  const nap = new Int32Array(new SharedArrayBuffer(4));
+  while (!existsSync(`${cl.out}.done`) && Date.now() < until) Atomics.wait(nap, 0, 0, 100);
+  if (!existsSync(`${cl.out}.done`)) cl.child.kill();
+  return `\n${existsSync(cl.out) ? readFileSync(cl.out, "utf8") : "client: no answer"}`;
+}
 
 /// The hooks' environment for a GUI case (the desktop's names; the web
 /// takes the same through rapidr_set_test_env).
@@ -635,6 +679,7 @@ function spawn(cmd, cmdArgs, opts) {
 }
 
 function runDesktop(c, runtime) {
+  if (c.client) c.port = nextPort++;
   const work = workCopy(c, runtime);
   const src = join(work, basename(c.file));
   const stem = basename(c.file, extname(c.file));
@@ -652,7 +697,9 @@ function runDesktop(c, runtime) {
     }
   };
   if (runtime === "run") {
+    const cl = startClient(c);
     const r = readOnly(() => spawn(RAPIDR, ["run", src, ...args(c)], runOpts));
+    r.out += clientLines(cl);
     // (RAPIDR_SHOTS=dir: the windows as captured kept, to look at —
     // <example>-<case>-<window>@<scale>x.bmp; RAPIDR_SCALE sets the scale)
     if (process.env.RAPIDR_SHOTS && isGui(c)) {
@@ -688,7 +735,11 @@ function runDesktop(c, runtime) {
       renameSync(hidden, work);
       rmSync(cwd, { recursive: true, force: true });
     }
-  } else r = readOnly(() => spawn(exe, args(c), runOpts));
+  } else {
+    const cl = startClient(c);
+    r = readOnly(() => spawn(exe, args(c), runOpts));
+    r.out += clientLines(cl);
+  }
   // (the native build's ~350 MB in the shared target, gone)
   if (native) dropBuild(CARGO_TARGET, stem);
   rmSync(out, { recursive: true, force: true });

@@ -107,10 +107,35 @@ The full list is in the [reference](reference/members.md#rmarkdownview).
 
 **What is shown.** CommonMark Markdown, with GitHub's tables and
 `~~strikethrough~~`: headings, paragraphs, **bold**, *italic*, inline code,
-links, bulleted and numbered lists (nested), block quotes, code blocks (a
-` ```basic ` block is coloured as the code editor colours BASIC), tables
-(columns aligned as the `:---:` row says) and rules. HTML inside the text
-is left out, and a picture shows its description in italics instead of the
-picture.
+links, bulleted and numbered lists (nested), block quotes, code blocks
+(coloured by their language: see below), tables (columns aligned as the
+`:---:` row says) and rules. HTML inside the text is left out, and a
+picture shows its description in italics instead of the picture.
+
+### Code blocks in colour
+
+A code block is coloured as RapidR's code editor colours its language, in
+the program's theme: keywords, names, strings, numbers and comments each
+in their own colour, which follow the theme when it changes. The language
+is the word after the opening ```` ``` ````:
+
+| Fence | Coloured as |
+|---|---|
+| ```` ```sql ```` | SQL: every dialect's words |
+| ```` ```sqlite ````, ```` ```mysql ```` (or `mariadb`) | SQL with that dialect's words (`PRAGMA`, `AUTO_INCREMENT` …) |
+| ```` ```basic ```` (or `rapidr`, `rr`, `bas`, `rapidq`, `vb` …) | RapidR's BASIC |
+| ```` ```json ````, ```` ```html ````, ```` ```css ````, ```` ```javascript ```` (`js`), ```` ```toml ````, ```` ```csv ````, ```` ```rust ````, ```` ```markdown ```` | that language |
+| any other word, or none | plain, in the code font |
+
+So a program that shows the SQL it ran — a database tool's history, an
+AI's queries — shows it as the editor would:
+
+![An RMarkdownView: a SQL query coloured, its answer as a table, the BASIC that ran it](images/markdown/sql-code.png)
+
+![The same in the dark theme: the colours follow](images/markdown/sql-code-dark.png)
+
+The example is [examples/gui/markdown_code.rr](../../examples/gui/markdown_code.rr)
+(the **Theme** button switches the look). It works the same on the desktop
+and on the web.
 
 `RMarkdownView` is RapidR's own.

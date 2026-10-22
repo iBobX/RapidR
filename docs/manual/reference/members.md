@@ -1768,6 +1768,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `TabStop` *(RapidR)* | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default, and RapidQ's QLABEL) leaves it out of the keyboard's way. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
 | `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
@@ -1794,6 +1795,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` *(RapidR)* | Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it. |
 
 | Event | |
 |---|---|
@@ -1803,6 +1805,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
+| `OnExit` *(RapidR)* | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rimage"></a>
 ## RImage <small>(RapidQ name: QIMAGE)</small>
@@ -3596,6 +3600,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
 | `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
 | `Host` *(RapidR)* | string |  | The server's host name or address. |
+| `BindAddress` *(RapidR)* *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (RapidQ's way, the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
 | `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
 | `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
 | `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
@@ -3612,7 +3617,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `GetPeerName(Socket AS INTEGER) AS VARIANT` | Returns the address of the other end of socket `Socket`. |
 | `IsClientReady(Sock AS INTEGER, ClientSock AS INTEGER) AS VARIANT` | Returns true when client socket `ClientSock` of server socket `Sock` has data to read. |
 | `IsServerReady(Sock AS INTEGER) AS VARIANT` | Returns true when socket `Sock` has data from the server to read. |
-| `Open(PortNum AS INTEGER) AS VARIANT` *(web)* | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Open(PortNum AS INTEGER, [Address AS STRING]) AS VARIANT` | Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: "127.0.0.1" this computer only; without it, BindAddress (0.0.0.0, every network interface, as RapidQ). A browser can't listen: -1 on the web. |
 | `Peek(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read. |
 | `Read(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadByte(Socket AS INTEGER) AS BYTE` | Reads one byte from the socket or stream. |
@@ -3633,23 +3638,26 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 <a id="rserversocket"></a>
 ## RServerSocket
 
-A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own).
+A TCP server: listens on a port, accepts clients and exchanges data with them — by lines (the default), as the bytes come, or as whole HTTP requests (Mode). Its events come when the program calls Poll (from an RTimer). RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own). For a web API, a dashboard or an MCP server, RHttpServer does the HTTP for you.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Host` | string |  | The server's host name or address. |
-| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Host` | string | `"0.0.0.0"` | The address it listens on: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it). Set it before Start. |
+| `Port` | int |  | The port it listens on; 0 lets the system pick a free one, and Port says which after Start. |
 | `ClientCount` | int |  | The number of clients connected to the server now. |
+| `Mode` | string | `"lines"` | How what a client sends reaches OnDataReceived: "lines" (the default) each line, trimmed, blank ones left out — a last line without its end when the client closes; "bytes" what came as it came, nothing trimmed or dropped; "http" each whole HTTP request: its request line, headers, a blank line and its body, whatever its size, by its Content-Length or its chunks (joined, with a Content-Length), up to 4 MB (answer it with Send). Set it before Start. |
 
 | Method | |
 |---|---|
-| `Start` *(desktop)* | Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened. |
-| `Stop` *(desktop)* | Stops what is running: playback (back to the start), recording, or the server. |
-| `Broadcast` *(desktop)* | Sends a line of text to every connected client. |
-| `Listen` *(desktop)* | Starts the server listening on its `Host` and `Port`. Same as `Start`. |
-| `Accept` *(desktop)* | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
-| `Poll` *(desktop)* | Handles what is waiting on the server: new clients, messages and disconnections, each as its event. |
-| `SendTo` *(desktop)* | Sends a line of text to one client, by its address. |
+| `Start AS INTEGER` *(desktop)* | Listens on Host:Port: 1 when it does, 0 when it can't (the port is taken). |
+| `Stop` *(desktop)* | Stops listening and closes every client's connection. |
+| `Broadcast(Data AS STRING)` *(desktop)* | Sends Data and a line end to every client. |
+| `Listen AS INTEGER` *(desktop)* | The same as Start. |
+| `Accept` *(desktop)* | The same as Poll. |
+| `Poll` *(desktop)* | Fires the events that came since the last Poll: OnClientConnect, OnDataReceived, OnClientDisconnect. Call it from an RTimer (every 25 to 100 ms). |
+| `SendTo(Address AS STRING, Data AS STRING) AS INTEGER` *(desktop)* | Sends Data and a line end to the client at Address (as OnClientConnect gave it): 1 when it was sent. |
+| `Send(Address AS STRING, Data AS STRING) AS INTEGER` *(desktop)* | Sends Data as it is, nothing added, to the client at Address: an HTTP response, part of a line. 1 when it was sent. |
+| `Disconnect(Address AS STRING) AS INTEGER` *(desktop)* | Closes the connection of the client at Address (OnClientDisconnect follows): 1 when there was one. |
 
 | Event | |
 |---|---|
@@ -3657,6 +3665,46 @@ A TCP server: listens on a port, accepts clients and exchanges data with them. R
 | `OnClientDisconnect(Address AS STRING)` | Fires when a client disconnects from the server socket; the handler gets the client's address. |
 | `OnDataReceived(Address AS STRING, Data AS STRING)` | Fires when data arrives from a client; the handler gets the client's address and the data. |
 | `OnError` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rhttpserver"></a>
+## RHttpServer
+
+A local web server for the program: a web API, a dashboard, an MCP server. It listens on 127.0.0.1 (this computer only) unless Host says otherwise, and gives the program each request whole — its method, path, headers and body — in OnRequest, on the program's own thread (the window never freezes). The program answers then or later with Respond, or streams Server-Sent Events (BeginStream, SendEvent, EndStream). The server refuses by itself what doesn't belong: a Host that isn't its own (DNS rebinding), a request a browser marks as coming from another site's page (Sec-Fetch-Site) or whose Origin isn't allowed, anything but GET and HEAD while no Token is set, a missing or wrong token when Token is set, a request too large or too slow. A link, an image or a script on another site's page can still send a GET with no Origin: GET handlers must only read, never change anything, and anything beyond harmless reads needs a Token (NewToken makes one). Plain HTTP, no TLS: meant for 127.0.0.1, where nothing goes over the network — other programs and users of the same computer can still connect, so the Token is the protection. RapidR's own; desktop only (a web page can't listen for connections).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string | `"127.0.0.1"` | The address it listens on: 127.0.0.1, this computer only (the default); 0.0.0.0 every network interface (then list the names other computers use in AllowedHosts). Set it before Start. |
+| `Port` | int | 0 | The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. |
+| `Token` | string | `""` | When set, every request must carry it as `Authorization: Bearer <token>`, else the server answers 401 by itself. Without one, the server answers only GET and HEAD (anything else gets 401): set one for anything that changes something. Make it with NewToken (never RND: it is not for secrets), and keep it with RSecrets. Set it before Start. |
+| `AllowedOrigins` | string | `""` | Web pages that may call the server, by origin (`https://example.com`), separated by commas; "*" any. A page's own requests (fetch) carry its Origin, and one from any other page is refused with 403, as is anything a browser marks `Sec-Fetch-Site: cross-site`. But a link, an image or a script on another site's page can send a GET with no Origin at all: GET handlers must only read, and anything beyond harmless reads needs a Token. Requests that aren't from a page (curl, an AI app) have no Origin. The server's own address is always allowed. Set it before Start. |
+| `AllowedHosts` | string | `""` | More names the server answers to (`myhost:8080`), separated by commas; "*" any. A request for any other host name is refused with 403: a web page can't reach it by a name of its own (DNS rebinding). 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start. |
+| `MaxRequestSize` | int | 4194304 | The largest body a request may have; a larger one is refused with 413. Set it before Start. |
+| `MaxConnections` | int | 32 | How many connections may be open at once; one more is answered 503. Set it before Start. |
+| `Timeout` | int | 30000 | How long a request may take to arrive whole (else 408), and how long an idle connection stays open. Set it before Start. |
+| `Listening` (read-only) | bool |  | True while it listens. |
+| `Url` (read-only) | string |  | Its address once started: `http://127.0.0.1:47110/`. |
+| `Error` (read-only) | string |  | Why Start failed (the port is taken, a wrong Host); "" when it worked. |
+| `Request` (read-only) | int |  | The number of the request OnRequest is handling: keep it to answer later (Respond's, BeginStream's, SendEvent's last argument). |
+| `Method` (read-only) | string |  | The request's method (GET, POST …), as OnRequest's Method. |
+| `Path` (read-only) | string |  | The request's path without the query (`/mcp`), as sent (not decoded). |
+| `Query` (read-only) | string |  | What follows the path's `?` (`q=1&n=2`), "" without one. |
+| `Peer` (read-only) | string |  | The address the request came from (`127.0.0.1:53211`). |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't (Error says why). |
+| `NewToken AS STRING` | Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it, to give the program that will call the server (keep it with RSecrets). "" when the system gives none (Error says why). Call it before Start. |
+| `Stop` | Stops listening; the open connections are closed. |
+| `Respond(Status AS INTEGER, Headers AS STRING, Body AS STRING, [Request AS INTEGER]) AS INTEGER` | Answers a request: its status (200, 404 …), its headers (`Name: value` lines, CHR$(13) + CHR$(10) or CHR$(10) between; the server adds Content-Length and, for text, Content-Type) and its body. Without Request, the one OnRequest is handling. True when it was sent; False when that request was answered already or its client went away. |
+| `BeginStream([Headers AS STRING], [Request AS INTEGER]) AS INTEGER` | Answers a request with a stream of Server-Sent Events (200, `text/event-stream`, and Headers); SendEvent sends each, EndStream ends it. Without Request, the one OnRequest is handling. |
+| `SendEvent(Data AS STRING, [EventName AS STRING], [Request AS INTEGER]) AS INTEGER` | Sends one event on a stream BeginStream began: `event: EventName` (when given) and Data as `data:` lines. False when the client went away (the stream is over). |
+| `EndStream([Request AS INTEGER]) AS INTEGER` | Ends a stream BeginStream began. |
+| `Close([Request AS INTEGER]) AS INTEGER` | Closes a request's connection now, without an answer. |
+| `Header(Name AS STRING, [Request AS INTEGER]) AS STRING` | A header of the request (`Content-Type`, any case): "" when it has none. |
+
+| Event | |
+|---|---|
+| `OnRequest(Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)` | A request arrived: its method, its path (without the query: Query has it), its headers (`Name: value` lines, CR LF between) and its body, as text. One at a time: the next waits until this handler is over. Answer with Respond (or BeginStream), now or later with the Request number; a request no handler answers stays open until its client gives up. |
 
 <a id="rhttp"></a>
 ## RHttp
@@ -5188,6 +5236,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `ShowTabs` | bool | True | Whether the pages' tabs (and the search box) are shown above the text. |
 | `EmptyText` | string | `""` | What the Output page says while it has nothing ("Press F5 to run"). |
 | `AutoScroll` | bool | True | New output scrolls the page to its end (unless the user scrolled up). |
+| `WordWrap` | bool | True | True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip). |
 | `LineCount` (read-only) | int |  | How many lines the shown page has. |
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
@@ -5273,7 +5322,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 <a id="rmarkdownview"></a>
 ## RMarkdownView
 
-A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
+A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5310,7 +5359,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `Clear` | Shows nothing. |
 | `SelectAll` | Selects the whole text. |
 | `OpenLink(Url AS STRING) AS INTEGER` | Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link. |
-| `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text: True when there is one. |
+| `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text — or the paragraph with a link to that target, as written: True when there is one. |
 | `SetFocus` | Gives the view the keyboard focus: its keys scroll it, Tab steps through its links. |
 
 | Event | |
@@ -5344,6 +5393,18 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Error` (read-only) | string |  | Why the last request or call failed, in plain words with what to do ("" when it worked). |
 | `Status` (read-only) | string |  | One sentence on what it is doing or did, for a status line a screen reader announces. |
 | `Answer` (read-only) | string |  | The last answer's text. |
+| `Effort` | string |  | How hard the model thinks before it answers: "" (the default) as the model usually does; "low", "medium" or "high" ask for more thinking where the provider has it — Anthropic's adaptive thinking at that effort (a thinking budget on older models), an OpenAI-compatible reasoning_effort; DeepSeek's models choose for themselves. More thinking takes longer and costs more: each answer may use up to 16,384 more tokens at high. The answer's reasoning, when the provider shows it, is in Transcript as "Thought for N s" (ToggleThought shows it). A model that takes none says so once and answers as usual (EffortSupported). |
+| `EffortSupported` (read-only) | bool |  | True when Provider and Model take an Effort (False for DeepSeek, and for a model that refused one). |
+| `ChatState` | string |  | The conversation as JSON — its messages, its transcript, its questions, the answers' reasoning, the user's language — to keep (a file, a database) and set back later, in this run or the next: setting it replaces the conversation (an answer being written stops). API keys and tokens in it are removed ("[key removed]"), as are the program's secrets. RapidR Studio keeps its chats this way. |
+| `Editable` | bool | False | True: Transcript has an Edit link under each question (rai:edit/N) and Retry under the last answer (rai:retry), for an RMarkdownView's OnLinkClick: the program calls Rewind and asks again. RapidR Studio's chat. |
+| `QuestionCount` (read-only) | int |  | How many questions the conversation has (QuestionText and Rewind number them from 1). |
+| `Activity` (read-only) | string |  | What it is doing now, in words, while Busy: "Thinking", "Writing the answer", what an attached tool does ("Reading main.rr", "Searching the manual", "Writing server.rr"), "Compacting the conversation"; "" when idle. OnUpdate fires when it changes. |
+| `Elapsed` (read-only) | int |  | Seconds since the answer (or Compact) began; 0 when idle. A timer shows it ticking. |
+| `Quiet` (read-only) | int |  | Seconds since the provider last sent anything while an answer runs (0 when idle): past 30, say "No answer from the model for 30 s: wait, or Stop". |
+| `ContextTokens` (read-only) | int |  | The conversation's size in tokens as the next question would send it (the instructions, tools, messages and the last reply): the last request's as the provider counted it, else estimated. With ContextLimit, a context meter. |
+| `ContextLimit` (read-only) | int |  | Where the conversation is compacted by itself: SummaryAt, or 70% of the model's context window when that is less. |
+| `ContextWindow` (read-only) | int |  | The model's context window in tokens, when the provider's models list says it (0 when not). |
+| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens): the attached tools sent their lite instructions and tools, so a small local model can start. |
 | `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it. |
 | `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
 | `Models` (read-only) | string |  | The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name ("fast · low cost" for the small ones, "costs more" for the largest), separated by tabs —, the fast, low-cost ones first. |
@@ -5375,6 +5436,10 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not — a refused key, no answer within 30 seconds (10 to connect) … in plain words. A Model the list no longer has is cleared: choose again. Asked again, the newer request replaces the one on its way; changing Provider, BaseURL, WorkspaceID, APIKey or APIKeySource drops it too (OnDone("cancelled")). True when it started. |
 | `RememberKey([OnThisDevice AS INTEGER]) AS INTEGER` | Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept. |
 | `ForgetKey` | Removes the key kept under APIKeySource's keychain NAME, and APIKey's. |
+| `Compact AS INTEGER` | Summarises the conversation now, in one short request; the next questions start from the summary (a long chat costs less). Status then says how much smaller it is; the questions before it can't be edited any more. False when it can't (answering, a short chat: Error says why). |
+| `Rewind(Question AS INTEGER) AS STRING` | Takes question Question (from 1) and everything after it out of the conversation and the transcript, and returns its text — to edit it and ask again, or to Retry the last. "" when it can't (answering; a question from before the conversation was compacted): Error says why. Keep ChatState first to keep what is taken out. |
+| `QuestionText(Question AS INTEGER) AS STRING` | Question Question's text (from 1), as the user asked it. |
+| `ToggleThought(Index AS INTEGER)` | Shows or hides answer Index's reasoning in Transcript (rai:thought/Index, the "Thought for N s" link). |
 | `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |
 | `ModelName(Index AS INTEGER) AS STRING` | Model Index's id in Models (from 0), for a list's choice. |
 | `AuditLog([Count AS INTEGER]) AS STRING` | The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened, its target, and the decision or result. |
@@ -5566,6 +5631,8 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ProjectErrors` (read-only) | int |  | How many compile errors the new program proposed and not created yet has (0: it compiles). |
 | `CreatedFolder` (read-only) | string |  | The folder the last CreateProject made ("" when none, or once it was undone). |
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
+| `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
+| `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5581,6 +5648,14 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ClearDecided` | Forgets the proposals the user decided on (after a review is applied): what is left waits for a decision. |
 | `ClearProposals` | Forgets the proposals. |
 | `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder named from its title ("Scientific Calculator" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; "error: " and why when it couldn't. What it wrote is kept for Undo. |
+| `ChatList(Project AS STRING) AS STRING` | The kept chats of the project in folder Project ("": no project), the newest first, a line each, tab-separated: its id, its title, when it was last changed (ISO 8601, UTC) and how many questions it has. |
+| `SearchChats(Project AS STRING, Text AS STRING) AS STRING` | The project's chats whose title or text has Text in it (any case), as ChatList gives them, with a fifth field: the first line that has it ("" when the title does). |
+| `SaveChat(Project AS STRING, Id AS STRING, Title AS STRING, Model AS STRING, State AS STRING) AS STRING` | Keeps a chat of the project (State: an RAI's ChatState) in Studio's data folder — a new one when Id is "" —, API keys and tokens removed: its id; "error: " and why when it couldn't. A title the user gave (RenameChat) stays. |
+| `LoadChat(Project AS STRING, Id AS STRING) AS STRING` | A kept chat's state, for an RAI's ChatState ("" when there is none). |
+| `DeleteChat(Project AS STRING, Id AS STRING) AS STRING` | Removes a kept chat for good (its file; on the web, its item): what it was, for RestoreChat (Undo); "" when there was none. |
+| `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
+| `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
+| `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |
@@ -5645,6 +5720,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Terminate` | Ends it: stops the thread, or ends the program. |
 | `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
+| `Announce(Text AS STRING, [Assertive AS INTEGER])` *(RapidR)* | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

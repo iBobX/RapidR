@@ -72,8 +72,11 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   python3 tools/check_doc_links.py
   # (RapidR's own words: no other products as models or comparisons in the
   # code, docs or UI text; tools/words-allowlist.txt lists what stays)
-  python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; echo "(unit done)"; fi
-if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; fi
+  python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  # (no API key's shape anywhere, real or made up: tests build theirs from two pieces)
+  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"; echo "(unit done)"; fi
+if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,

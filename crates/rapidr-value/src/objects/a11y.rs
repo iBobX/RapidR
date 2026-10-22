@@ -54,7 +54,13 @@ pub enum Role {
     Row,
     Cell,
     MenuBar,
+    /// A menu's panel when it's open (a drop-down, a submenu, a pop-up):
+    /// its items inside.
+    Menu,
     MenuItem,
+    /// A menu item with a check mark (a radio item: [`Role::MenuItemRadio`]).
+    MenuItemCheckBox,
+    MenuItemRadio,
     Image,
     Canvas,
     /// A QUPDOWN (a number with up / down arrows).
@@ -101,7 +107,10 @@ impl Role {
             Role::Row => "row",
             Role::Cell => "gridcell",
             Role::MenuBar => "menubar",
+            Role::Menu => "menu",
             Role::MenuItem => "menuitem",
+            Role::MenuItemCheckBox => "menuitemcheckbox",
+            Role::MenuItemRadio => "menuitemradio",
             Role::Image => "img",
             Role::Canvas => "canvas",
             Role::SpinButton => "spinbutton",
@@ -177,6 +186,9 @@ pub struct States {
     pub read_only: bool,
     pub multiline: bool,
     pub modal: bool,
+    /// A live region (a Status node) said at once, interrupting: an
+    /// assertive announcement. Status nodes are polite otherwise.
+    pub assertive: bool,
 }
 
 /// A node of a form's accessibility tree.
@@ -193,6 +205,9 @@ pub struct AccessNode {
     pub orientation: Option<Orientation>,
     /// Alt + this letter activates it (a caption's `&` mnemonic).
     pub shortcut: Option<char>,
+    /// The key that does it without the menu (a menu item's ShortCut, as
+    /// Windows writes it: "Ctrl+N"); a screen reader says it after the name.
+    pub accelerator: Option<String>,
     /// The node naming it (a QLABEL), when its name comes from one.
     pub labelled_by: Option<u64>,
     /// A tree item's depth (1: a top-level node).
@@ -315,6 +330,7 @@ impl AccessNode {
             numeric: None,
             orientation: None,
             shortcut: None,
+            accelerator: None,
             labelled_by: None,
             level: None,
             states: States::default(),
@@ -355,6 +371,14 @@ impl AccessNode {
         }
     }
 
+    /// [`AccessNode::walk`], each node changeable.
+    pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut AccessNode)) {
+        f(self);
+        for c in &mut self.children {
+            c.walk_mut(f);
+        }
+    }
+
     /// The tree as JSON (what `RAPIDR_TEST_A11Y` writes): roles, names,
     /// values and states, deterministic.
     pub fn to_json(&self) -> String {
@@ -380,6 +404,9 @@ impl AccessNode {
         if let Some(c) = self.shortcut {
             s.push_str(&format!(",\"shortcut\":{}", json_str(&format!("Alt+{c}"))));
         }
+        if let Some(a) = &self.accelerator {
+            s.push_str(&format!(",\"accelerator\":{}", json_str(a)));
+        }
         if let Some(l) = self.labelled_by {
             s.push_str(&format!(",\"labelledBy\":{l}"));
         }
@@ -388,7 +415,7 @@ impl AccessNode {
         }
         let st = &self.states;
         let mut states = Vec::new();
-        for (on, name) in [(st.focused, "focused"), (st.disabled, "disabled"), (st.read_only, "readonly"), (st.multiline, "multiline"), (st.modal, "modal")] {
+        for (on, name) in [(st.focused, "focused"), (st.disabled, "disabled"), (st.read_only, "readonly"), (st.multiline, "multiline"), (st.modal, "modal"), (st.assertive, "assertive")] {
             if on {
                 states.push(format!("\"{name}\""));
             }
@@ -446,6 +473,70 @@ pub const PART_EDITOR: u64 = 6;
 pub const PART_POPUP: u64 = 7;
 /// A component's live region (RDESIGNSURFACE: what its last change did).
 pub const PART_STATUS: u64 = 8;
+/// A window's live regions for the program's announcements
+/// ([`announcement_nodes`]).
+pub const PART_ANNOUNCE: u64 = 9;
+
+/// What the program last asked screen readers to say
+/// (`Application.Announce(Text [, Assertive])`, RapidR's): its text, said
+/// politely (when the reader is done with what it says now) or at once,
+/// without the focus moving. `seq` counts them, so the same text said
+/// twice is said twice.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Announcement {
+    pub seq: u64,
+    pub text: String,
+    pub assertive: bool,
+}
+
+thread_local! {
+    static ANNOUNCED: std::cell::RefCell<Announcement> = std::cell::RefCell::new(Announcement::default());
+}
+
+/// `Application.Announce`: `text` to be said (the hosts tell screen
+/// readers: the desktop through AccessKit's live regions, the web through
+/// the page's aria-live regions). Empty text says nothing.
+pub fn announce(text: &str, assertive: bool) -> Option<Announcement> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    Some(ANNOUNCED.with(|a| {
+        let mut a = a.borrow_mut();
+        a.seq += 1;
+        a.text = text.to_string();
+        a.assertive = assertive;
+        a.clone()
+    }))
+}
+
+/// The program's last announcement (`None` before its first).
+pub fn announcement() -> Option<Announcement> {
+    ANNOUNCED.with(|a| {
+        let a = a.borrow();
+        (a.seq > 0).then(|| a.clone())
+    })
+}
+
+/// The live regions a window's tree carries once the program has announced
+/// something (`window`: the window's node id): two status nodes taking
+/// turns — the newest announcement in one, the other empty — so each new
+/// one (the same text again too) is a region that just got its text, which
+/// screen readers say: politely, or at once when it's assertive. Placed at
+/// the window's corner, 1 × 1.
+pub fn announcement_nodes(window: u64, a: &Announcement) -> Vec<AccessNode> {
+    (0..2u64)
+        .map(|slot| {
+            let mut n = AccessNode::new(window ^ (PART_ANNOUNCE << 56 | slot), Role::Status);
+            if a.seq % 2 == slot {
+                n.name = a.text.clone();
+                n.states.assertive = a.assertive;
+            }
+            n.bounds = (0, 0, 1, 1);
+            n
+        })
+        .collect()
+}
 
 /// A component's stable node id: FNV-1a of its lowercase id, kept off the
 /// top byte (parts mix their kind there) and never 0.
@@ -710,6 +801,13 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         "RPANEL" if flag(get, "tabstop", false) => {
             own_caption(&mut n, false);
             n.role = Role::Button;
+            n.actions = vec![Action::Click, Action::Focus];
+        }
+        // (RapidR's: a label given TabStop is a link — Tab reaches it, Enter
+        // / Space clicks it — so a screen reader hears a link)
+        "RLABEL" if flag(get, "tabstop", false) => {
+            own_caption(&mut n, false);
+            n.role = Role::Link;
             n.actions = vec![Action::Click, Action::Focus];
         }
         "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
@@ -1148,6 +1246,10 @@ mod tests {
         assert_eq!(describe("p", "RPANEL", &props(&[]), (200, 60), &font).role, Role::Pane);
         let n = describe("card", "RPANEL", &props(&[("tabstop", v_int(1))]), (200, 60), &font);
         assert_eq!((n.role, n.actions.contains(&Action::Click)), (Role::Button, true));
+        // (RapidR's) a label: a label; given TabStop, a link
+        assert_eq!(describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr"))]), (200, 20), &font).role, Role::Label);
+        let n = describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr")), ("tabstop", v_int(1))]), (200, 20), &font);
+        assert_eq!((n.role, n.name.as_str(), n.actions.contains(&Action::Click), n.actions.contains(&Action::Focus)), (Role::Link, "notepad.rr", true, true));
         let n = describe("pb", "RPROGRESSBAR", &props(&[("position", v_int(30)), ("max", v_int(60))]), (100, 16), &font);
         assert_eq!((n.role, n.value.as_deref(), n.numeric.unwrap().max), (Role::ProgressIndicator, Some("50%"), 60.0));
         let n = describe("ud", "RUPDOWN", &props(&[("position", v_int(4)), ("increment", v_int(2))]), (16, 25), &font);

@@ -188,6 +188,56 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// The lite set for a small context window (under 16K tokens; K8): the
+/// tools a small model needs to read, check and change a program, each
+/// said in a line — no form introspection, examples, outline or layout.
+pub fn tools_lite(proposals: bool) -> Vec<Tool> {
+    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
+    let path = || json!({"type": "string"});
+    let mut out = vec![
+        t("list_files", "The project's files.", schema(json!({}), &[])),
+        t("read_file", "A project file's text.", schema(json!({"path": path()}), &["path"])),
+        t("rapidr_describe", "A component's or builtin's members and syntax.", schema(json!({"type": {"type": "string"}, "builtin": {"type": "string"}}), &[])),
+        t("check_code", "Compiles a file (or `text` as that file): its errors.", schema(json!({"path": path(), "text": {"type": "string"}}), &[])),
+        t("search_manual", "RapidR's manual: the sections that answer a question.", schema(json!({"query": {"type": "string"}}), &["query"])),
+    ];
+    if proposals {
+        out.push(t(
+            "propose_edit",
+            "Changes a file: each edit's old_text (whole lines, once in the file) becomes new_text. The user reviews it.",
+            schema(json!({"path": path(), "edits": {"type": "array", "items": {"type": "object", "properties": {"old_text": {"type": "string"}, "new_text": {"type": "string"}}, "required": ["old_text", "new_text"], "additionalProperties": false}}, "summary": {"type": "string"}}), &["path", "edits", "summary"]),
+        ));
+        out.push(t("write_file", "A new file's whole text.", schema(json!({"path": path(), "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"])));
+        out.push(t(
+            "create_project",
+            "A new program (main.rr, and other files it $INCLUDEs), opened in Studio when you finish.",
+            schema(json!({"name": {"type": "string"}, "main": {"type": "string"}, "files": {"type": "array", "items": {"type": "object", "properties": {"path": path(), "text": {"type": "string"}}, "required": ["path", "text"], "additionalProperties": false}}, "summary": {"type": "string"}}), &["name", "main", "files", "summary"]),
+        ));
+    }
+    out
+}
+
+/// A tool call as the live status line says it, while the model writes it
+/// or it runs ("Reading main.rr", "Searching the manual", "Writing
+/// server.rr"); `input` may hold only the fields written so far.
+pub fn activity(name: &str, input: &Json) -> Option<String> {
+    let field = |k: &str| input.get(k).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    Some(match name {
+        "read_file" => field("path").map_or_else(|| "Reading a file".to_string(), |p| format!("Reading {p}")),
+        "list_files" => "Listing the files".into(),
+        "project_outline" => "Reading the project's outline".into(),
+        "search_manual" => "Searching the manual".into(),
+        "find_example" => "Finding an example".into(),
+        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| "Looking up RapidR's reference".to_string(), |t| format!("Looking up {t}")),
+        "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
+        "check_code" => "Checking the code".into(),
+        "layout" => "Laying out the buttons".into(),
+        "propose_edit" | "write_file" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
+        "create_project" => field("name").map_or_else(|| "Writing the new program".to_string(), |n| format!("Writing {n}")),
+        _ => return None,
+    })
+}
+
 /// A path the model gave, as a project's relative path: inside the
 /// project's folder, never above it.
 pub fn project_path(folder: &str, path: &str) -> Result<String, String> {

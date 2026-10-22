@@ -32,7 +32,10 @@ use rapidr_value::panels::console::{self as model, Match, Page, Problem, Severit
 use rapidr_value::panels::rows::{self, vk};
 use rapidr_value::panels::User;
 
+use std::rc::Rc;
+
 use super::common::{self, look, Look};
+use super::console_flow::{self as flow, Flow, MARGIN, PLACE_GAP, PROBLEM_LEFT};
 use crate::a11y::AccessValue;
 use crate::components::list::{self, bar_mouse, bar_tick, begin_edit, editing, end_edit, vscroll_at, vscroll_state, InPlace};
 use crate::components::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
@@ -50,8 +53,6 @@ const A11Y_PROBLEMS: usize = 12;
 const A11Y_PROBLEM: usize = 1000;
 /// The most problems described one by one.
 const A11Y_MAX_PROBLEMS: usize = 2000;
-/// The text's margin at a line's left.
-const MARGIN: i64 = 6;
 
 /// Where its parts are (its own pixels).
 #[derive(Clone, Debug)]
@@ -66,6 +67,10 @@ struct Geo {
     /// A line's (a problem's row's) height.
     lh: i64,
     mono: Font,
+    /// The tabs', the search box's and the problems' font.
+    chrome: Font,
+    /// WordWrap: a long line wraps onto more rows.
+    wrap: bool,
 }
 
 /// The output's font: the component's when the program set one, else
@@ -125,7 +130,8 @@ fn geo(cx: &Cx) -> Geo {
         (None, Vec::new(), None, i)
     };
     let body = (i, top, (w - 2 * i).max(0), (h - top - i).max(0));
-    Geo { strip, tabs, search, body, lh, mono }
+    let wrap = model::with(cx.id, |c| c.word_wrap).unwrap_or(true);
+    Geo { strip, tabs, search, body, lh, mono, chrome: chrome(cx), wrap }
 }
 
 /// The search editor's box over the search box's text (`list::editor_area`
@@ -190,32 +196,73 @@ fn badge_of(problems: &[Problem]) -> Option<(usize, Severity)> {
     })
 }
 
+impl Geo {
+    /// The shown page's rows at `width` (made again only when the page's
+    /// text, the width, the fonts or WordWrap changed).
+    fn flow(&self, id: &str, page: Page, width: i64) -> Rc<Flow> {
+        flow::flow(&flow::Params { id, page, width, mono: &self.mono, chrome: &self.chrome, lh: self.lh, wrap: self.wrap })
+    }
+
+    /// The rows as the last paint laid them out (the width it left room
+    /// for beside the bar), up to date with the page's text now.
+    fn current_flow(&self, id: &str) -> Rc<Flow> {
+        let page = model::with(id, |c| c.page).unwrap_or_default();
+        let width = flow::last(id).filter(|f| f.page == page).map_or(self.body.2, |f| f.width);
+        self.flow(id, page, width)
+    }
+}
+
 impl Console {
     /// The bar's place now: the shown page's position (pixels), the width
-    /// beside the bar, the bar's ops; the view kept in step with it.
-    fn scroll(cx: &Cx, g: &Geo) -> (i64, i64, Vec<rapidr_value::objects::ops::Op>) {
+    /// beside the bar, the bar's ops, and the page's rows at that width (a
+    /// bar takes room, and the lines wrap to what is left); the view kept in
+    /// step with it.
+    fn scroll(cx: &Cx, g: &Geo) -> (i64, i64, Vec<rapidr_value::objects::ops::Op>, Rc<Flow>) {
+        let page = model::with(cx.id, |c| c.page).unwrap_or_default();
+        let mut f = g.flow(cx.id, page, g.body.2);
+        let mut out = Self::place(cx, g, page, &f);
+        if out.1 < g.body.2 {
+            let narrower = g.flow(cx.id, page, out.1);
+            if narrower.total() != f.total() {
+                f = narrower;
+                out = Self::place(cx, g, page, &f);
+            }
+        }
+        (out.0, out.1, out.2, f)
+    }
+
+    /// The bar for rows `f`: its position, the width beside it, its ops.
+    fn place(cx: &Cx, g: &Geo, page: Page, f: &Flow) -> (i64, i64, Vec<rapidr_value::objects::ops::Op>) {
         let (_, _, bw, bh) = g.body;
+        let rh = row_height(g, page);
+        let pad = if page == Page::Problems { 0 } else { 4 };
+        let content = f.total() + pad;
+        let room = (bh - pad).max(1);
         model::with_mut(cx.id, |c| {
-            let page = c.page;
-            let rh = row_height(g, page);
-            let (first, count) = (c.first(page), c.count(page));
-            let pad = if page == Page::Problems { 0 } else { 4 };
-            let content = count as i64 * rh + pad;
-            let view_rows = ((bh - pad) / rh).max(1);
+            let first = c.first(page);
             let v = c.view_mut();
-            // (a match or a key moved the caret: shown)
+            let here = |v: &model::View| f.pos_of(v.top.saturating_sub(first) as usize, v.sub);
+            // (a match or a key moved the caret: shown — its line's top
+            // when it is taller than the page)
             if let (Some(caret), true) = (v.caret, !v.follow) {
-                let top = v.top.max(first);
-                if caret < top {
-                    v.top = caret;
-                } else if caret >= top + view_rows as u64 {
-                    v.top = caret + 1 - view_rows as u64;
+                let i = (caret.saturating_sub(first) as usize).min(f.count().saturating_sub(1));
+                let (ct, cb) = (f.top(i), f.top(i + 1));
+                let cur = here(v);
+                if ct < cur || cb - ct > room {
+                    v.top = first + i as u64;
+                    v.sub = 0;
+                } else if cb > cur + room {
+                    let (li, sub) = f.locate(cb - room);
+                    v.top = first + li as u64;
+                    v.sub = sub;
                 }
             }
-            let at = if v.follow { content } else { (v.top.saturating_sub(first) as i64) * rh };
+            let at = if v.follow { content } else { here(v) };
             let (pos, cw, ops) = vscroll_at(cx.id, bw, bh, content, rh, Some(at));
             if !v.follow {
-                v.top = first + (pos / rh) as u64;
+                let (i, sub) = f.locate(pos);
+                v.top = first + i as u64;
+                v.sub = sub;
             }
             (pos, cw, ops)
         })
@@ -225,27 +272,28 @@ impl Console {
     /// it — and new output again once it's at the end.
     fn follow_bar(cx: &Cx, g: &Geo) {
         let (pos, shown, range) = vscroll_state(cx.id);
+        let f = g.current_flow(cx.id);
         model::with_mut(cx.id, |c| {
             let page = c.page;
-            let rh = row_height(g, page);
             let first = c.first(page);
             let auto = c.auto_scroll;
             let v = c.view_mut();
             v.follow = auto && (!shown || pos >= range - g.body.3);
-            v.top = first + (pos / rh) as u64;
+            let (i, sub) = f.locate(pos);
+            v.top = first + i as u64;
+            v.sub = sub;
         });
     }
 
-    fn snapshot(cx: &Cx, g: &Geo, pos: i64) -> Snapshot {
+    fn snapshot(cx: &Cx, g: &Geo, pos: i64, f: &Flow) -> Snapshot {
         let (_, _, _, bh) = g.body;
         model::with_mut(cx.id, |c| {
             let page = c.page;
-            let rh = row_height(g, page);
             let first = c.first(page);
             let count = c.count(page);
             let pad = if page == Page::Problems { 0 } else { 2 };
-            let start = ((pos - pad).max(0) / rh) as usize;
-            let end = (((pos + bh) / rh) as usize + 1).min(count);
+            let start = f.line_at((pos - pad).max(0)).unwrap_or(0);
+            let end = f.line_at(pos + bh).map_or(0, |i| i + 1).min(count);
             let lines = match c.screen(page) {
                 Some(s) => (start..end).filter_map(|i| s.line(i).map(|l| (first + i as u64, l.clone()))).collect(),
                 None => Vec::new(),
@@ -326,7 +374,7 @@ impl Console {
         }
     }
 
-    fn paint_lines(cx: &Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look, cw: i64) {
+    fn paint_lines(cx: &Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look, cw: i64, f: &Flow) {
         let (bx, by, _, bh) = g.body;
         let lh = g.lh;
         let focused = cx.state.focused && editing(cx.id).is_none();
@@ -341,108 +389,147 @@ impl Console {
         }
         p.clipped((bx, by, cw, bh), |p| {
             for (abs, line) in &s.lines {
-                let i = (abs - s.first) as i64;
-                let y = by + 2 + i * lh - s.pos;
-                let row = (bx, y, cw, lh);
+                let i = (abs - s.first) as usize;
+                let top = by + 2 + f.top(i) - s.pos;
+                let chars: Vec<char> = line.text().chars().collect();
+                // (a line that wraps is more rows: the characters each shows)
+                let rows = f.rows_of(i, chars.len());
                 let selected = sel.is_some_and(|(a, b)| (a..=b).contains(abs));
                 if selected {
-                    p.fill(row, if focused { l.selected } else { l.inactive });
+                    p.fill((bx, top, cw, f.height(i)), if focused { l.selected } else { l.inactive });
                 }
-                let chars: Vec<char> = line.text().chars().collect();
-                let x_of = |k: usize| -> i64 { bx + MARGIN + if k == 0 { 0 } else { text_size(&chars[..k.min(chars.len())].iter().collect::<String>(), font).0 } };
-                // (the program's backgrounds; none in high contrast)
                 let spans = line.spans();
-                if !l.contrast {
-                    for &(a, b, attr) in &spans {
-                        if let Some(bg) = attr.bg {
-                            let (xa, xb) = (x_of(a), x_of(b));
-                            p.fill((xa, y, xb - xa, lh), PALETTE[bg as usize & 15]);
-                        }
-                    }
-                }
-                // (the search's matches; the current one ringed)
-                for m in s.matches.iter().filter(|m| m.line == *abs) {
-                    let (xa, xb) = (x_of(m.start), x_of(m.end));
-                    let r = (xa - 1, y, xb - xa + 2, lh);
-                    p.round(r, 2.0, Some(l.found), None, 1.0);
-                    if s.current == Some(*m) {
-                        p.ring(r, 2.0, if l.contrast { l.focus } else { l.warning }, if l.contrast { 2.0 } else { 1.5 });
-                    }
-                }
                 let links = rapidr_value::panels::console::links::of_line(line);
                 let default_ink = if selected && focused { l.selected_text } else { l.text };
-                for (a, b, attr) in spans {
-                    // (cut where links start and end: a link in the link colour)
-                    let mut cuts = vec![a, b];
-                    for k in &links {
-                        for e in [k.start, k.end] {
-                            if e > a && e < b {
-                                cuts.push(e);
+                for (r, &(ra, rb)) in rows.iter().enumerate() {
+                    let y = top + r as i64 * lh;
+                    // (a character's left, from the row's: its first character's)
+                    let x_of = |k: usize| -> i64 { bx + MARGIN + if k <= ra { 0 } else { text_size(&chars[ra..k.min(rb)].iter().collect::<String>(), font).0 } };
+                    // (the program's backgrounds; none in high contrast)
+                    if !l.contrast {
+                        for &(a, b, attr) in &spans {
+                            let (a, b) = (a.max(ra), b.min(rb));
+                            if let (Some(bg), true) = (attr.bg, a < b) {
+                                let (xa, xb) = (x_of(a), x_of(b));
+                                p.fill((xa, y, xb - xa, lh), PALETTE[bg as usize & 15]);
                             }
                         }
                     }
-                    cuts.sort_unstable();
-                    cuts.dedup();
-                    for pair in cuts.windows(2) {
-                        let (ra, rb) = (pair[0], pair[1]);
-                        let in_link = links.iter().any(|k| k.start <= ra && rb <= k.end);
-                        let ink = match attr.fg {
-                            Some(fg) if !l.contrast => PALETTE[fg as usize & 15],
-                            _ if in_link => l.link,
-                            _ => default_ink,
-                        };
-                        // (a colour that wouldn't read on what's behind it: made to)
-                        let behind = match attr.bg {
-                            Some(bg) if !l.contrast => PALETTE[bg as usize & 15],
-                            _ if selected => if focused { l.selected } else { l.inactive },
-                            _ => l.body,
-                        };
-                        let ink = readable(ink, behind, l);
-                        let run: String = chars[ra..rb].iter().collect();
-                        let xa = x_of(ra);
-                        p.text((xa, y, cw.max(1) * 4, lh), &run, font, ink, Place::Left);
+                    // (the search's matches; the current one ringed)
+                    for m in s.matches.iter().filter(|m| m.line == *abs) {
+                        let (a, b) = (m.start.max(ra), m.end.min(rb));
+                        if a >= b {
+                            continue;
+                        }
+                        let (xa, xb) = (x_of(a), x_of(b));
+                        let rect = (xa - 1, y, xb - xa + 2, lh);
+                        p.round(rect, 2.0, Some(l.found), None, 1.0);
+                        if s.current == Some(*m) {
+                            p.ring(rect, 2.0, if l.contrast { l.focus } else { l.warning }, if l.contrast { 2.0 } else { 1.5 });
+                        }
+                    }
+                    for &(a0, b0, attr) in &spans {
+                        let (a, b) = (a0.max(ra), b0.min(rb));
+                        if a >= b {
+                            continue;
+                        }
+                        // (cut where links start and end: a link in the link colour)
+                        let mut cuts = vec![a, b];
+                        for k in &links {
+                            for e in [k.start, k.end] {
+                                if e > a && e < b {
+                                    cuts.push(e);
+                                }
+                            }
+                        }
+                        cuts.sort_unstable();
+                        cuts.dedup();
+                        for pair in cuts.windows(2) {
+                            let (xa_k, xb_k) = (pair[0], pair[1]);
+                            let in_link = links.iter().any(|k| k.start <= xa_k && xb_k <= k.end);
+                            let ink = match attr.fg {
+                                Some(fg) if !l.contrast => PALETTE[fg as usize & 15],
+                                _ if in_link => l.link,
+                                _ => default_ink,
+                            };
+                            // (a colour that wouldn't read on what's behind it: made to)
+                            let behind = match attr.bg {
+                                Some(bg) if !l.contrast => PALETTE[bg as usize & 15],
+                                _ if selected => if focused { l.selected } else { l.inactive },
+                                _ => l.body,
+                            };
+                            let ink = readable(ink, behind, l);
+                            let run: String = chars[xa_k..xb_k].iter().collect();
+                            p.text((x_of(xa_k), y, cw.max(1) * 4, lh), &run, font, ink, Place::Left);
+                        }
+                    }
+                    // (the link under the mouse: underlined)
+                    if let Some(h) = s.hover_link.filter(|h| h.line == *abs) {
+                        let (a, b) = (h.start.max(ra), h.end.min(rb));
+                        if a < b {
+                            let (xa, xb) = (x_of(a), x_of(b));
+                            p.fill((xa, y + lh - 3, xb - xa, 1), l.link);
+                        }
                     }
                 }
-                // (the link under the mouse: underlined)
-                if let Some(h) = s.hover_link.filter(|h| h.line == *abs) {
-                    let (xa, xb) = (x_of(h.start), x_of(h.end));
-                    p.fill((xa, y + lh - 3, xb - xa, 1), l.link);
-                }
                 if focused && s.view.caret == Some(*abs) && sel.is_some_and(|(a, b)| a != b) {
-                    common::row_focus(p, row, l);
+                    common::row_focus(p, (bx, top, cw, f.height(i)), l);
                 }
             }
         });
     }
 
-    fn paint_problems(cx: &Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look, cw: i64) {
+    fn paint_problems(cx: &Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look, cw: i64, f: &Flow) {
         let (bx, by, _, bh) = g.body;
         let focused = cx.state.focused && editing(cx.id).is_none();
         if s.count == 0 {
             p.text((bx, by, cw, bh.min(rows::ROW * 3)), "No problems", &chrome(cx), l.dim, Place::Center);
             return;
         }
+        let font = &g.chrome;
         p.clipped((bx, by, cw, bh), |p| {
             for (i, pr) in &s.problems {
-                let y = by + *i as i64 * rows::ROW - s.pos;
-                let row = (bx, y, cw, rows::ROW);
+                let y = by + f.top(*i) - s.pos;
+                let row = (bx, y, cw, f.height(*i));
                 let selected = s.view.caret == Some(*i as u64);
                 let ink = common::row(p, row, l, selected, focused, s.hover_row == Some(*i));
                 let marker = rapidr_icons::marker(pr.severity.name()).map_or(pr.severity.name(), |m| m.id);
                 common::icon(p, marker, bx + 8, y + (rows::ROW - 16) / 2, 16, None, false);
                 let place = pr.place();
-                let (pw, _) = text_size(&place, &chrome(cx));
-                let tx = bx + 30;
+                let (pw, _) = text_size(&place, font);
+                let tx = bx + PROBLEM_LEFT;
                 let room = cw - (tx - bx) - 8;
-                let mroom = if place.is_empty() { room } else { (room - pw - 12).max(room.min(60)) };
-                let msg = common::elide(&pr.message, &chrome(cx), mroom);
-                let (mw, _) = text_size(&msg, &chrome(cx));
-                p.text((tx, y, mroom, rows::ROW), &msg, &chrome(cx), ink, Place::Left);
-                if !place.is_empty() {
-                    let px = tx + mw + 12;
-                    let shown = common::elide(&place, &chrome(cx), bx + cw - 8 - px);
-                    let dim = if selected && focused && !l.classic { ink } else if selected && focused { l.selected_text } else { l.dim };
-                    p.text((px, y, bx + cw - px, rows::ROW), &shown, &chrome(cx), dim, Place::Left);
+                let dim = if selected && focused && !l.classic { ink } else if selected && focused { l.selected_text } else { l.dim };
+                if g.wrap {
+                    // (WordWrap: the message whole, in as many rows as it takes —
+                    // the place after its last row, or under it when it doesn't fit)
+                    let chars: Vec<char> = pr.message.chars().collect();
+                    let msg_rows = f.rows_of(*i, chars.len());
+                    let below = f.broken(*i).is_some_and(|b| b.place_below);
+                    let th = f.text_h;
+                    let block = msg_rows.len() as i64 + i64::from(below);
+                    let ty = y + (f.height(*i) - block * th) / 2;
+                    let mut last = (tx, ty);
+                    for (k, &(ra, rb)) in msg_rows.iter().enumerate() {
+                        let text: String = chars[ra..rb].iter().collect::<String>().trim_end().to_string();
+                        let at = ty + k as i64 * th;
+                        p.text((tx, at, room.max(1), th), &text, font, ink, Place::Left);
+                        last = (tx + text_size(&text, font).0 + PLACE_GAP, at);
+                    }
+                    if !place.is_empty() {
+                        let (px, py) = if below { (tx, ty + msg_rows.len() as i64 * th) } else { last };
+                        p.text((px, py, (bx + cw - 8 - px).max(1), th), &place, font, dim, Place::Left);
+                    }
+                } else {
+                    let mroom = if place.is_empty() { room } else { (room - pw - 12).max(room.min(60)) };
+                    let msg = common::elide(&pr.message, font, mroom);
+                    let (mw, _) = text_size(&msg, font);
+                    p.text((tx, y, mroom, rows::ROW), &msg, font, ink, Place::Left);
+                    if !place.is_empty() {
+                        let px = tx + mw + 12;
+                        let shown = common::elide(&place, font, bx + cw - 8 - px);
+                        p.text((px, y, bx + cw - px, rows::ROW), &shown, font, dim, Place::Left);
+                    }
                 }
                 // (the selection shows the focus; classic's dotted rectangle too)
                 if selected && focused && l.classic {
@@ -461,29 +548,36 @@ impl Console {
             return None;
         }
         let (pos, _, _) = vscroll_state(cx.id);
+        let f = g.current_flow(cx.id);
         model::with(cx.id, |c| {
             let page = c.page;
             let first = c.first(page);
             if page == Page::Problems {
-                let i = (yi - by + pos) / rows::ROW;
-                return usize::try_from(i).ok().filter(|&i| i < c.problems.len()).map(|i| (i as u64, 0));
+                let at = yi - by + pos;
+                return (at < f.total()).then(|| f.line_at(at)).flatten().filter(|&i| i < c.problems.len()).map(|i| (i as u64, 0));
             }
-            let i = (yi - by - 2 + pos).div_euclid(g.lh);
-            let i = usize::try_from(i).ok().filter(|&i| i < c.count(page))?;
-            let text = c.line_text(page, i).unwrap_or_default();
-            // (the character under x: the one whose middle is past it)
-            let mut at = 0;
+            let at = yi - by - 2 + pos;
+            if at < 0 || at >= f.total() {
+                return None;
+            }
+            let i = f.line_at(at).filter(|&i| i < c.count(page))?;
+            let chars: Vec<char> = c.line_text(page, i).unwrap_or_default().chars().collect();
+            // (the row of the line it's on, and the character under x in
+            // it: the one whose middle is past it)
+            let rows = f.rows_of(i, chars.len());
+            let r = (((at - f.top(i)) / g.lh).max(0) as usize).min(rows.len() - 1);
+            let (ra, rb) = rows[r];
+            let mut found = ra;
             let mut prefix = String::new();
-            for (k, ch) in text.chars().enumerate() {
-                prefix.push(ch);
-                let w = text_size(&prefix, &g.mono).0;
-                if bx + MARGIN + w > xi {
-                    at = k;
-                    break;
+            for (k, ch) in chars[ra..rb].iter().enumerate() {
+                prefix.push(*ch);
+                found = ra + k;
+                if bx + MARGIN + text_size(&prefix, &g.mono).0 > xi {
+                    return Some((first + i as u64, found));
                 }
-                at = k + 1;
+                found = ra + k + 1;
             }
-            Some((first + i as u64, at))
+            Some((first + i as u64, found))
         })
         .flatten()
     }
@@ -599,8 +693,13 @@ impl ComponentKind for Console {
     }
 
     /// (tooltip.rs) A problem's row whose message doesn't fit its width:
-    /// the whole message and its place (S9).
+    /// the whole message and its place (S9) — likewise an Output or Build
+    /// line cut at the edge: its whole text. While WordWrap is on (the
+    /// default) nothing is cut, so there is none.
     fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        if model::with(id, |c| c.word_wrap).unwrap_or(true) {
+            return None;
+        }
         let l = look(rapidr_value::theme::current());
         let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
         let i = common::inset(&l);
@@ -615,7 +714,14 @@ impl ComponentKind for Console {
         let font = Font { color: 0, ..rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current()) };
         model::with(id, |c| {
             if c.page != Page::Problems {
-                return None;
+                // (a line cut at the edge, whole: the monospaced font's, as
+                // the page draws it)
+                let mono = if store::string(store, id, "fontname").trim().is_empty() { Console::mono_default() } else { Font { color: 0, ..store.font(id) } };
+                let lh = text_size("Ag", &mono).1 + 2;
+                let k = usize::try_from((yi - by - 2 + pos).div_euclid(lh)).ok()?;
+                let text = c.line_text(c.page, k)?;
+                // (the room as paint_lines gives it, a scroll bar's width spared)
+                return (text_size(&text, &mono).0 > bw - 16 - MARGIN - 4).then_some(text);
             }
             let k = usize::try_from((yi - by + pos) / rows::ROW).ok()?;
             let pr = c.problems.get(k)?;
@@ -638,12 +744,12 @@ impl ComponentKind for Console {
         let (w, h) = (cx.width(), cx.height());
         common::ground(p, w, h, &l);
         let g = geo(cx);
-        let (pos, cw, bar) = Self::scroll(cx, &g);
-        let s = Self::snapshot(cx, &g, pos);
+        let (pos, cw, bar, f) = Self::scroll(cx, &g);
+        let s = Self::snapshot(cx, &g, pos, &f);
         if s.page == Page::Problems {
-            Self::paint_problems(cx, p, &g, &s, &l, cw);
+            Self::paint_problems(cx, p, &g, &s, &l, cw, &f);
         } else {
-            Self::paint_lines(cx, p, &g, &s, &l, cw);
+            Self::paint_lines(cx, p, &g, &s, &l, cw, &f);
         }
         p.at((g.body.0, g.body.1), |p| p.ops(bar));
         Self::paint_strip(cx, p, &g, &s, &l);
@@ -770,8 +876,9 @@ impl ComponentKind for Console {
         }
         let ctrl = k.mods.ctrl || k.mods.command;
         let Some((page, first, count, caret, filter)) = model::with(cx.id, |c| (c.page, c.first(c.page), c.count(c.page), c.view().caret, c.filter.clone())) else { return false };
-        let rh = row_height(&g, page);
-        let page_rows = (g.body.3 / rh).max(1) as usize;
+        // (a page of lines: as many as fit in the view from the caret's — the
+        // wrapped ones take more rows)
+        let page_rows = g.current_flow(cx.id).lines_in(caret.and_then(|c| c.checked_sub(first)).unwrap_or(0) as usize, g.body.3);
         match k.vk {
             // Ctrl+F: the search box
             70 if ctrl && !k.mods.alt => Self::start_search(cx, &g, None),
@@ -893,7 +1000,7 @@ impl ComponentKind for Console {
         // (the position as the model has it now — AutoScroll's end once lines
         // were written — not as the last paint left it: a hidden pane isn't
         // painted on every host)
-        let (pos, _, _) = Self::scroll(cx, &g);
+        let (pos, _, _, f) = Self::scroll(cx, &g);
         if page == Page::Problems {
             let mut lb = AccessNode::new(part_id(cx.id, PART_ROW, A11Y_PROBLEMS), Role::ListBox);
             lb.name = "Problems".into();
@@ -901,13 +1008,13 @@ impl ComponentKind for Console {
             lb.states.focused = !editing_now;
             let (problems, caret) = model::with(cx.id, |c| (c.problems.clone(), c.view().caret)).unwrap_or_default();
             // (a long list: the rows around the ones in view)
-            let start = ((pos / rows::ROW) as usize).saturating_sub(A11Y_MAX_PROBLEMS / 2).min(problems.len().saturating_sub(A11Y_MAX_PROBLEMS));
+            let start = f.line_at(pos).unwrap_or(0).saturating_sub(A11Y_MAX_PROBLEMS / 2).min(problems.len().saturating_sub(A11Y_MAX_PROBLEMS));
             for (i, pr) in problems.iter().enumerate().skip(start).take(A11Y_MAX_PROBLEMS) {
                 let mut o = AccessNode::new(part_id(cx.id, PART_ITEM, A11Y_PROBLEM + i), Role::ListBoxOption);
                 o.name = pr.spoken();
                 o.states.selected = Some(caret == Some(i as u64));
                 o.actions = vec![Action::Click];
-                o.bounds = at((g.body.0, g.body.1 + i as i64 * rows::ROW - pos, g.body.2, rows::ROW));
+                o.bounds = at((g.body.0, g.body.1 + f.top(i) - pos, g.body.2, f.height(i)));
                 lb.children.push(o);
             }
             n.children.push(lb);
@@ -919,9 +1026,10 @@ impl ComponentKind for Console {
             t.states.focused = !editing_now;
             t.bounds = at(g.body);
             // (what's in view)
-            let rows_in_view = (g.body.3 / g.lh).max(1) as usize + 1;
-            let start = (pos.max(0) / g.lh) as usize;
-            t.value = model::with(cx.id, |c| (start..(start + rows_in_view).min(c.count(page))).filter_map(|i| c.line_text(page, i)).collect::<Vec<_>>().join("\n"));
+            // (the lines the view shows, each whole, wrapped or not)
+            let start = f.line_at((pos - 2).max(0)).unwrap_or(0);
+            let end = f.line_at(pos + g.body.3).map_or(0, |i| i + 1);
+            t.value = model::with(cx.id, |c| (start..end.min(c.count(page))).filter_map(|i| c.line_text(page, i)).collect::<Vec<_>>().join("\n"));
             n.children.push(t);
         }
         n
@@ -1092,6 +1200,141 @@ mod tests {
         model::remove("con1");
     }
 
+    /// WordWrap (on by default): a line longer than the page wraps onto more
+    /// rows — one logical line to the mouse, the selection, a copy and a
+    /// screen reader — and with it off the line is cut at the edge again,
+    /// its whole text a tooltip.
+    #[test]
+    fn long_output_lines_wrap_and_the_toggle_cuts_them() {
+        use crate::components::ComponentKind;
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_wrap");
+        let mut ts = TextSystem::new();
+        model::remove("con_wrap");
+        let long = "word ".repeat(60).trim_end().to_string();
+        model::with_mut("con_wrap", |c| c.write(&format!("first\n{long}\nlast\n")));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let wrapped = super::flow::last("con_wrap").expect("a flow was made");
+        let rows = wrapped.rows_of(1, long.chars().count());
+        assert!(rows.len() >= 3, "300 characters in a 500-pixel page: {rows:?}");
+        assert_eq!(wrapped.count(), 3);
+        // (every row but the last ends after a space — a word isn't cut)
+        for &(a, b) in &rows[..rows.len() - 1] {
+            assert_eq!(long.chars().nth(b - 1), Some(' '), "row {a}..{b}");
+        }
+        // The text is drawn in pieces, none wider than the page.
+        let drawn = f.paint(&s, &mut ts, 1.0).dump();
+        assert!(drawn.matches("\"word word").count() >= rows.len(), "{drawn}");
+        // The mouse: any of the long line's rows is the line (the caret on it); the next line is where its last row ends.
+        let lh = rapidr_value::objects::text::text_size("Ag", &super::Console::mono_default()).1 + 2;
+        let y = |row: i64| (2 + 28 + 2 + row * lh + lh / 2) as f64;
+        click(&mut f, &s, &mut ts, 60.0, y(2), Mods::NONE);
+        assert_eq!(model::with("con_wrap", |c| c.view().caret).flatten(), Some(1), "the second row of the long line is the long line");
+        click(&mut f, &s, &mut ts, 60.0, y(1 + rows.len() as i64), Mods::NONE);
+        assert_eq!(model::with("con_wrap", |c| c.view().caret).flatten(), Some(2));
+        // A copy is the line, not its rows; a screen reader reads it whole.
+        click(&mut f, &s, &mut ts, 60.0, y(2), Mods::NONE);
+        let mut clip = MemClipboard::default();
+        f.key_down(&s, &mut ts, 67, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some(long.as_str()));
+        assert!(f.access_tree(&s, &mut ts).to_json().contains(&long));
+        // No tooltip while it wraps; off, the line is cut and the tip is the whole text.
+        assert_eq!(super::Console.tip_at(&s, "con_wrap", 100.0, y(1)), None);
+        model::with_mut("con_wrap", |c| c.word_wrap = false);
+        f.paint(&s, &mut ts, 1.0);
+        let cut = super::flow::last("con_wrap").unwrap();
+        assert_eq!((cut.count(), cut.total(), cut.broken(1).is_none()), (3, 3 * lh, true));
+        assert_eq!(super::Console.tip_at(&s, "con_wrap", 100.0, y(1)).as_deref(), Some(long.as_str()));
+        assert_eq!(super::Console.tip_at(&s, "con_wrap", 100.0, y(0)), None, "a short line");
+        model::remove("con_wrap");
+    }
+
+    /// The wheel moves a wrapped page by rows, not by lines: it stops in the
+    /// middle of a tall line (the view's top is a line and the pixels into
+    /// it), and what's drawn at the top is that row.
+    #[test]
+    fn the_wheel_scrolls_through_a_wrapped_line_row_by_row() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_scr");
+        let mut ts = TextSystem::new();
+        model::remove("con_scr");
+        let long = "word ".repeat(80).trim_end().to_string();
+        model::with_mut("con_scr", |c| {
+            for _ in 0..6 {
+                c.write(&format!("{long}\n"));
+            }
+            // (scrolled to the top, not following the end)
+            let first = c.first(Page::Output);
+            let v = c.view_mut();
+            v.follow = false;
+            v.top = first;
+        });
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let lh = rapidr_value::objects::text::text_size("Ag", &super::Console::mono_default()).1 + 2;
+        let fl = super::flow::last("con_scr").unwrap();
+        let line_rows = fl.height(0) / lh;
+        assert!(line_rows >= 4, "{line_rows} rows to a line");
+        // One notch of the wheel: a few rows, inside the first line.
+        f.mouse_wheel(&s, &mut ts, (200.0, 100.0), (0.0, 1.0), Mods::NONE);
+        f.paint(&s, &mut ts, 1.0);
+        let (top, sub) = model::with("con_scr", |c| (c.view().top, c.view().sub)).unwrap();
+        assert_eq!(top, 0, "still in the first line");
+        assert!(sub > 0 && sub % lh == 0 && sub < fl.height(0), "scrolled {sub} px into it");
+        // The page is where the view says: its row at the top is the same.
+        let (pos, _, _) = super::list::vscroll_state("con_scr");
+        assert_eq!(pos, fl.pos_of(0, sub));
+        // The same again after the paint (the view didn't jump back to the line's top).
+        f.paint(&s, &mut ts, 1.0);
+        assert_eq!(model::with("con_scr", |c| c.view().sub), Some(sub));
+        model::remove("con_scr");
+    }
+
+    /// The Problems page wraps too: a long message in as many rows as it
+    /// needs, the row as tall, a click on any of them the one problem.
+    #[test]
+    fn a_long_problem_wraps_to_its_whole_message() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_pwrap");
+        let mut ts = TextSystem::new();
+        model::remove("con_pwrap");
+        let long = "mtInformation is a RAPIDQ.INC constant, and without the include it is 0: add $INCLUDE \"RAPIDQ.INC\" at the top of the program so the constant has its value again";
+        model::with_mut("con_pwrap", |c| {
+            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into() });
+            c.show(Page::Problems);
+        });
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let fl = super::flow::last("con_pwrap").unwrap();
+        let rows = fl.rows_of(0, long.chars().count());
+        assert!(rows.len() >= 2, "{rows:?}");
+        assert!(fl.height(0) > rapidr_value::panels::rows::ROW, "a taller row for the long one");
+        assert_eq!(fl.height(1), rapidr_value::panels::rows::ROW, "the short one keeps its row");
+        // Drawn whole: every word of the message is in a text op.
+        let drawn = f.paint(&s, &mut ts, 1.0).dump();
+        for word in ["mtInformation", "constant,", "value"] {
+            assert!(drawn.contains(word), "{word} in {drawn}");
+        }
+        assert!(!drawn.contains('…'), "nothing cut short: {drawn}");
+        // A click low in the tall row is its problem (0); the short one is below it.
+        let top = (2 + 28) as f64;
+        click(&mut f, &s, &mut ts, 100.0, top + fl.height(0) as f64 - 4.0, Mods::NONE);
+        assert_eq!(model::with("con_pwrap", |c| c.view().caret).flatten(), Some(0));
+        click(&mut f, &s, &mut ts, 100.0, top + fl.height(0) as f64 + 6.0, Mods::NONE);
+        assert_eq!(model::with("con_pwrap", |c| c.view().caret).flatten(), Some(1));
+        // The screen reader's row is as tall as the row is.
+        let tree = f.access_tree(&s, &mut ts);
+        let list = tree.children[0].children.last().unwrap();
+        assert_eq!((list.children[0].bounds.3, list.children[1].bounds.3), (fl.height(0), rapidr_value::panels::rows::ROW));
+        // Off: both rows alike, the long message cut with an ellipsis.
+        model::with_mut("con_pwrap", |c| c.word_wrap = false);
+        let cut = f.paint(&s, &mut ts, 1.0).dump();
+        assert!(cut.contains('…'), "{cut}");
+        model::remove("con_pwrap");
+    }
+
     /// (S9) A problem's row cut short ("…"): resting the mouse on it shows
     /// the whole message and its place; a short one, nothing.
     #[test]
@@ -1104,7 +1347,12 @@ mod tests {
             c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into() });
             c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into() });
             c.show(Page::Problems);
+            // (wrapped — the default — the row shows it whole: no tooltip)
+            assert_eq!(c.word_wrap, true);
         });
+        let row = |k: i64| (rapidr_value::panels::rows::TABS + 4 + k * rapidr_value::panels::rows::ROW + rapidr_value::panels::rows::ROW / 2) as f64;
+        assert_eq!(super::Console.tip_at(&s, "con_tip", 100.0, row(0)), None);
+        model::with_mut("con_tip", |c| c.word_wrap = false);
         let row = |k: i64| (rapidr_value::panels::rows::TABS + 4 + k * rapidr_value::panels::rows::ROW + rapidr_value::panels::rows::ROW / 2) as f64;
         let tip = super::Console.tip_at(&s, "con_tip", 100.0, row(0));
         assert_eq!(tip.as_deref(), Some(format!("{long} — a.rr:3:7").as_str()));

@@ -182,6 +182,7 @@ properties = [
   { name = "ShowTabs", type = "bool", default = true, doc = "Whether the pages' tabs (and the search box) are shown above the text." },
   { name = "EmptyText", type = "string", default = "", doc = "What the Output page says while it has nothing (\"Press F5 to run\")." },
   { name = "AutoScroll", type = "bool", default = true, doc = "New output scrolls the page to its end (unless the user scrolled up)." },
+  { name = "WordWrap", type = "bool", default = true, origin = "rapidr", doc = "True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip)." },
   { name = "LineCount", type = "int", access = "read", design = false, doc = "How many lines the shown page has." },
   { name = "ProblemCount", type = "int", access = "read", design = false, doc = "How many problems the Problems page lists." },
   { name = "Text", type = "string", access = "read", design = false, doc = "The shown page's text, without colours." },
@@ -262,7 +263,7 @@ visual = true
 size = [400, 300]
 default_event = "OnLinkClick"
 sets = ["layout", "a11y"]
-doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it."
+doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Text", type = "string", default = "", editor = "multiline", doc = "The Markdown text shown (CommonMark, with GitHub's tables and ~~strikethrough~~)." },
@@ -289,7 +290,7 @@ methods = [
   { name = "Clear", value = true, doc = "Shows nothing." },
   { name = "SelectAll", value = true, doc = "Selects the whole text." },
   { name = "OpenLink", params = "Url AS STRING", returns = "INTEGER", test = "skip: opens the browser", doc = "Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link." },
-  { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text: True when there is one." },
+  { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text — or the paragraph with a link to that target, as written: True when there is one." },
   { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the view the keyboard focus: its keys scroll it, Tab steps through its links." },
 ]
 events = [

@@ -56,7 +56,10 @@ pub fn aria_role(role: Role) -> Option<&'static str> {
         Role::Row => "row",
         Role::Cell => "gridcell",
         Role::MenuBar => "menubar",
+        Role::Menu => "menu",
         Role::MenuItem => "menuitem",
+        Role::MenuItemCheckBox => "menuitemcheckbox",
+        Role::MenuItemRadio => "menuitemradio",
         Role::Image => "img",
         Role::SpinButton => "spinbutton",
         Role::Splitter => "separator",
@@ -101,6 +104,29 @@ fn yes_no(b: bool) -> &'static str {
     }
 }
 
+/// A ShortCut as Windows writes it ("Ctrl+Shift+N", "Del") in ARIA's key
+/// names ("Control+Shift+N", "Delete") for `aria-keyshortcuts`.
+pub fn aria_keys(shortcut: &str) -> String {
+    shortcut
+        .split('+')
+        .map(|k| match k {
+            "Ctrl" => "Control",
+            "Esc" => "Escape",
+            "BkSp" => "Backspace",
+            "PgUp" => "PageUp",
+            "PgDn" => "PageDown",
+            "Ins" => "Insert",
+            "Del" => "Delete",
+            "Left" => "ArrowLeft",
+            "Right" => "ArrowRight",
+            "Up" => "ArrowUp",
+            "Down" => "ArrowDown",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 /// The ARIA attributes node `n` needs (its role's, its name, its states).
 pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
     let mut a = Vec::new();
@@ -125,8 +151,15 @@ pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
     if !description.is_empty() {
         a.push(("aria-description", description));
     }
-    if let Some(c) = n.shortcut {
-        a.push(("aria-keyshortcuts", format!("Alt+{}", c.to_ascii_uppercase())));
+    // (Alt + the caption's letter, and a menu item's ShortCut: ARIA's key
+    // names — Control, Delete —, one after the other)
+    let keys: Vec<String> = n.shortcut.map(|c| format!("Alt+{}", c.to_ascii_uppercase())).into_iter().chain(n.accelerator.as_deref().map(aria_keys)).collect();
+    if !keys.is_empty() {
+        a.push(("aria-keyshortcuts", keys.join(" ")));
+    }
+    // (an item that opens a menu says so)
+    if matches!(n.role, Role::MenuItem | Role::MenuItemCheckBox | Role::MenuItemRadio) && st.expanded.is_some() {
+        a.push(("aria-haspopup", "menu".into()));
     }
     if st.disabled {
         a.push(("aria-disabled", "true".into()));
@@ -160,7 +193,7 @@ pub fn attributes(n: &AccessNode) -> Vec<(&'static str, String)> {
             a.push(("aria-valuetext", v.clone()));
         }
     }
-    if let Some(o) = n.orientation.filter(|_| matches!(n.role, Role::Slider | Role::Splitter | Role::ListBox | Role::TabList | Role::MenuBar)) {
+    if let Some(o) = n.orientation.filter(|_| matches!(n.role, Role::Slider | Role::Splitter | Role::ListBox | Role::TabList | Role::MenuBar | Role::Menu)) {
         a.push(("aria-orientation", if o == Orientation::Vertical { "vertical" } else { "horizontal" }.into()));
     }
     if n.role == Role::Status {
@@ -358,6 +391,35 @@ mod tests {
         plain.children.push(r.clone());
         assert!(attributes(&plain).contains(&("role", "grid".into())));
         assert!(attributes(&r).contains(&("aria-label", "Row 1".into())));
+    }
+
+    #[test]
+    fn menus_say_their_roles_states_and_keys() {
+        let mut menu = AccessNode::new(1, Role::Menu);
+        menu.name = "File".into();
+        menu.orientation = Some(Orientation::Vertical);
+        let a = attributes(&menu);
+        assert!(a.contains(&("role", "menu".into())) && a.contains(&("aria-label", "File".into())) && a.contains(&("aria-orientation", "vertical".into())), "{a:?}");
+        let mut radio = AccessNode::new(2, Role::MenuItemRadio);
+        radio.name = "Beginner".into();
+        radio.states.checked = Some(true);
+        radio.shortcut = Some('b');
+        radio.accelerator = Some("Ctrl+Shift+Del".into());
+        radio.states.expanded = Some(false);
+        let a = attributes(&radio);
+        assert!(a.contains(&("role", "menuitemradio".into())), "{a:?}");
+        assert!(a.contains(&("aria-checked", "true".into())), "{a:?}");
+        assert!(a.contains(&("aria-keyshortcuts", "Alt+B Control+Shift+Delete".into())), "{a:?}");
+        assert!(a.contains(&("aria-haspopup", "menu".into())) && a.contains(&("aria-expanded", "false".into())), "{a:?}");
+        // (a check item: aria-checked, not pressed; disabled says so)
+        let mut check = AccessNode::new(3, Role::MenuItemCheckBox);
+        check.states.checked = Some(false);
+        check.states.disabled = true;
+        let a = attributes(&check);
+        assert!(a.contains(&("role", "menuitemcheckbox".into())) && a.contains(&("aria-checked", "false".into())) && a.contains(&("aria-disabled", "true".into())), "{a:?}");
+        assert!(!a.iter().any(|(k, _)| *k == "aria-haspopup"), "{a:?}");
+        assert_eq!(aria_keys("F5"), "F5");
+        assert_eq!(aria_keys("Ctrl+Alt+PgUp"), "Control+Alt+PageUp");
     }
 
     #[test]

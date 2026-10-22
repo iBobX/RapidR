@@ -27,6 +27,9 @@ const NETWORK: &[&str] = &[
     "get", "post", "gethostip", "gethostname",
 ];
 
+/// RHTTPSERVER (`IF Web.Start THEN`).
+const HTTP_SERVER: &[&str] = &["start", "newtoken"];
+
 /// QFILESTREAM, QMEMORYSTREAM (and the web's file bridge).
 const STREAM: &[&str] = &["open", "readall", "eof", "readline", "readln", "readbyte", "pickfile", "download", "loadfromurl"];
 
@@ -102,7 +105,7 @@ const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", 
 const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
-const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey"];
+const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey", "compact"];
 const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided"];
 
 /// The web's own components.
@@ -128,6 +131,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
     match t {
         "RSQLITE" | "RMYSQL" => &[DATABASE],
         "RSOCKET" | "RSERVERSOCKET" | "RHTTP" => &[NETWORK],
+        "RHTTPSERVER" => &[HTTP_SERVER],
         "RFILESTREAM" | "RMEMORYSTREAM" => &[STREAM],
         "RJSON" => &[JSON],
         "RSTRINGLIST" => &[STRING_LIST],
@@ -158,7 +162,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS, LINKED, AI, AI_TOOLS]
         .iter()
         .any(|list| list.contains(&member))
 }
@@ -193,6 +197,7 @@ mod tests {
         assert!(is_value_method("RFORM", "showmodal"));
         assert!(is_value_method("ROPENDIALOG", "execute"));
         assert!(is_value_method("QSOCKET", "gethostip"));
+        assert!(is_value_method("RHTTPSERVER", "start"));
         // (a property of these types, a method of others)
         assert!(!is_value_method("RUPDOWN", "max"));
         assert!(!is_value_method("QTRACKBAR", "min"));

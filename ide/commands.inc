@@ -134,6 +134,8 @@ SUB DefineCommands
   AddCmd "view.outline", "O&utline", "View", "", "", "", "symbols/module"
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
+  ' (long lines of the Output, Build and Problems pages: wrapped, or cut at the edge)
+  AddCmd "view.outputWrap", "Wrap &Long Output Lines", "View", "", "", "", ""
   AddCmd "view.immediate", "&Immediate", "View", "", "", "", "terminal"
   AddCmd "view.variables", "&Variables", "View", "", "", "", "RVARIABLESVIEW"
   AddCmd "view.watch", "W&atch", "View", "", "", "", "actions/watch"
@@ -244,8 +246,11 @@ SUB DefineCommands
   AddCmd "view.settings", "&Settings...", "Tools", "", "", "", ""
   AddCmd "view.keyboardShortcuts", "&Keyboard Shortcuts", "Tools", "", "", "", ""
   AddSep "Tools"
+  AddCmd "ai.setup", "Set &Up RAI...", "Tools", "", "", "", "-"
   AddCmd "ai.settings", "&AI Settings...", "Tools", "", "", "", "ai.assistant"
   AddCmd "ai.newChat", "New AI &Chat", "Tools", "", "", "ai", "ai.ask"
+  AddCmd "ai.chats", "AI C&hats", "Tools", "", "", "ai", "-"
+  AddCmd "ai.compact", "Co&mpact the AI Chat", "Tools", "", "", "ai", "-"
   AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
   AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
 
@@ -423,6 +428,7 @@ SUB UpdateCommands
   CheckCmd "view.theme.highcontrast", ThemeChoice = "rapidr high contrast"
   CheckCmd "view.theme.classic", ThemeChoice = "classic"
   CheckCmd "view.previewClassic", PreviewClassic
+  CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
 END SUB
 
 SUB MenuPicked(Sender AS RMenuItem)

@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn finds_and_masks() {
-        let text = "PRINT 1\nKey$ = \"sk-proj-abcdefghijklmnopqrstuv\"\n-----BEGIN OPENSSH PRIVATE KEY-----\nCONST API_KEY = \"9f8e7d6c5b4a3210\"\nPassword = \"your-password\"\ntoken = \"ghp_0123456789abcdefghijABCDEFGHIJ012345\"\n";
+        let text = concat!("PRINT 1\nKey$ = \"sk-proj-abcdefghijklmnopqrstuv\"\n-----BEGIN OPENSSH PRIVATE KEY-----\nCONST API_KEY = \"9f8e7d6c5b4a3210\"\nPassword = \"your-password\"\ntoken = \"gh", "p_0123456789abcdefghijABCDEFGHIJ012345\"\n");
         let w = scan_text("main.rr", text);
         let got: Vec<(usize, &str)> = w.iter().map(|w| (w.line, w.what.as_str())).collect();
         assert_eq!(got, [(2, "an API key (sk-\u{2026})"), (3, "a private key"), (4, "a password or key written in the code"), (6, "a GitHub token")]);

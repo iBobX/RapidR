@@ -232,3 +232,16 @@ fn go_to_definition_of_an_implicit_variable_is_where_it_is_first_stored() {
     assert_eq!(defs.len(), 1);
     assert_eq!(defs[0].start, text.find("total = 5").unwrap());
 }
+
+#[test]
+fn a_function_parameter_named_result_is_a_warning() {
+    // (inside a FUNCTION, Result is its own value — RapidQ's RESULT — so the
+    // parameter can't be read: rapidr_ast::function_result)
+    let text = "FUNCTION F (Id AS STRING, Result AS STRING) AS STRING\n    F = Id + Result\nEND FUNCTION\nSUB S (Result AS STRING)\n    PRINT Result\nEND SUB\nPRINT F(\"a\", \"b\")\nS \"c\"\n";
+    let (_, _, d) = hints(text);
+    let w: Vec<&FileDiagnostic> = d.iter().filter(|d| d.code.as_deref() == Some("hidden-result")).collect();
+    assert_eq!(w.len(), 1, "the FUNCTION's only, not the SUB's: {d:?}");
+    assert_eq!(w[0].severity, Severity::Warning);
+    assert!(text[w[0].start..w[0].end].starts_with("Result"), "{:?}", &text[w[0].start..w[0].end]);
+    assert!(w[0].message.contains("FUNCTION F"), "{}", w[0].message);
+}

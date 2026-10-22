@@ -4,7 +4,7 @@
 
 use serde_json::{json, Map, Value};
 
-use crate::chat::{Block, ChatRequest, Role};
+use crate::chat::{Block, ChatRequest, Role, Thinking};
 use crate::provider::{Format, Provider};
 
 /// Where a request goes and as whom.
@@ -146,6 +146,18 @@ fn anthropic_body(req: &ChatRequest) -> Value {
     body.insert("model".into(), json!(req.model));
     body.insert("max_tokens".into(), json!(req.max_tokens.max(1)));
     body.insert("stream".into(), json!(true));
+    // (an effort chosen: adaptive thinking with its summary shown, or an
+    // older model's budget — max_tokens leaves room for it, RAI's job)
+    match &req.thinking {
+        Some(Thinking::Adaptive { effort, summarized }) => {
+            body.insert("thinking".into(), if *summarized { json!({"type": "adaptive", "display": "summarized"}) } else { json!({"type": "adaptive"}) });
+            body.insert("output_config".into(), json!({"effort": effort}));
+        }
+        Some(Thinking::Budget(n)) => {
+            body.insert("thinking".into(), json!({"type": "enabled", "budget_tokens": n}));
+        }
+        None => {}
+    }
     if !req.system.is_empty() || !req.system_tail.is_empty() {
         // (the stable instructions and the tools are the same every turn:
         // cached by the provider, read again at a tenth of the price; what
@@ -260,6 +272,26 @@ pub struct ModelInfo {
     /// Loaded (`Some(true)`), not loaded (`Some(false)`: the window said
     /// may be the model's largest, not the one it will run with), or not said.
     pub loaded: Option<bool>,
+    /// (Anthropic's list) How it thinks when asked to: "adaptive" (with an
+    /// effort), "enabled" (a thinking budget), "none"; "" when not said.
+    pub thinking: String,
+}
+
+/// How an Anthropic models list's entry says the model thinks
+/// (`capabilities.thinking`): "adaptive", "enabled", "none", or "".
+fn thinking_of(m: &Value) -> String {
+    let t = &m["capabilities"]["thinking"];
+    if t.is_null() {
+        return String::new();
+    }
+    if t["types"]["adaptive"]["supported"].as_bool() == Some(true) {
+        "adaptive"
+    } else if t["types"]["enabled"]["supported"].as_bool() == Some(true) || t["supported"].as_bool() == Some(true) {
+        "enabled"
+    } else {
+        "none"
+    }
+    .into()
 }
 
 /// The context window a models list's entry gives: the one it runs with
@@ -304,7 +336,11 @@ pub fn models_request(ep: &Endpoint) -> HttpRequest {
 /// when its undated name isn't there).
 pub fn parse_models(p: &Provider, body: &str) -> Result<Vec<ModelInfo>, String> {
     let v: Value = serde_json::from_str(body).map_err(|e| format!("the models list isn't JSON: {e}"))?;
-    // (Ollama's own /api/tags shape too: {"models": [{"name"}]})
+    // (Ollama's own /api/tags shape too: {"models": [{"name"}]}; a server
+    // with no model yet — Ollama says `"data": null` — lists none)
+    if v.get("data").is_some_and(Value::is_null) && v.get("models").is_none() {
+        return Ok(Vec::new());
+    }
     let list = v.get("data").or_else(|| v.get("models")).and_then(Value::as_array).ok_or("the answer has no models list")?;
     let mut items: Vec<(i64, ModelInfo)> = list
         .iter()
@@ -312,7 +348,7 @@ pub fn parse_models(p: &Provider, body: &str) -> Result<Vec<ModelInfo>, String> 
             let id = m.get("id").or_else(|| m.get("name")).and_then(Value::as_str)?.to_string();
             let name = m.get("display_name").or_else(|| m.get("name")).and_then(Value::as_str).filter(|n| *n != id).unwrap_or("").to_string();
             let created = m.get("created").and_then(Value::as_i64).unwrap_or(0);
-            Some((created, ModelInfo { id, name, context: context_of(m), loaded: loaded_of(m) }))
+            Some((created, ModelInfo { id, name, context: context_of(m), loaded: loaded_of(m), thinking: thinking_of(m) }))
         })
         .collect();
     if p.id == "openai" {
@@ -370,17 +406,36 @@ pub fn sort_models(models: &mut [ModelInfo]) {
     });
 }
 
-/// (OpenAI) What `reasoning_effort` a request with tools says: OpenAI's
+/// (OpenAI-compatible) What `reasoning_effort` a request says. OpenAI's
 /// newest models take function tools in Chat Completions only with `none`
-/// ("use /v1/responses or set reasoning_effort to 'none'"), older ones
-/// don't know the field. No model is named here: the first request says
-/// nothing, and the provider's answer ([`reasoning_refusal`]: `refused`,
-/// kept per model) decides from then on.
-pub fn reasoning_for(p: &Provider, _model: &str, tools: bool, refused: Option<bool>) -> Option<String> {
-    if p.id != "openai" || !tools {
+/// ("use /v1/responses or set reasoning_effort to 'none'"), older ones and
+/// many servers don't know the field. No model is named here: the first
+/// request says the effort the user chose (RAI.Effort; nothing without
+/// one), and the provider's answer ([`reasoning_refusal`]: `refused`, kept
+/// per model) decides from then on — the field left out, or `none` with
+/// tools. DeepSeek's models choose for themselves: never sent.
+pub fn reasoning_for(p: &Provider, _model: &str, tools: bool, refused: Option<bool>, effort: &str) -> Option<String> {
+    if p.format != Format::OpenAi || p.id == "deepseek" {
         return None;
     }
-    refused.unwrap_or(false).then(|| "none".to_string())
+    match refused {
+        Some(false) => None,
+        Some(true) if tools => Some("none".into()),
+        _ if !effort.trim().is_empty() => Some(effort.trim().to_ascii_lowercase()),
+        _ => None,
+    }
+}
+
+/// (Anthropic) An error answer about thinking or effort for a model asked
+/// to think: whether it is about them (the request is then sent the next
+/// simpler way: [`crate::rai`]'s steps down), and whether it names the
+/// `display` field.
+pub fn thinking_refusal(status: u16, body: &str) -> Option<bool> {
+    let low = body.to_ascii_lowercase();
+    if status != 400 || !["thinking", "effort", "output_config", "adaptive", "budget_tokens"].iter().any(|w| low.contains(w)) {
+        return None;
+    }
+    Some(low.contains("display"))
 }
 
 /// (OpenAI) An error answer about `reasoning_effort`: `Some(true)` — the
@@ -584,6 +639,7 @@ mod tests {
             max_tokens: 1000,
             reasoning_effort: None,
             no_stream_usage: false,
+            thinking: None,
         }
     }
 
@@ -612,6 +668,31 @@ mod tests {
         assert!(!shown.contains("sk-ant-secret") && shown.contains("x-api-key: (your API key, not shown)"), "{shown}");
         ep.browser = true;
         assert!(chat_request(&ep, &convo()).headers.contains(&("anthropic-dangerous-direct-browser-access".into(), "true".into())));
+        // (no effort: nothing said of thinking)
+        assert!(b.get("thinking").is_none() && b.get("output_config").is_none());
+        // (an effort: adaptive thinking with its summary, or an older model's budget)
+        let mut req = convo();
+        req.thinking = Some(Thinking::Adaptive { effort: "high".into(), summarized: true });
+        let b: Value = serde_json::from_str(chat_request(&ep, &req).body.as_deref().unwrap()).unwrap();
+        assert_eq!(b["thinking"], json!({"type": "adaptive", "display": "summarized"}));
+        assert_eq!(b["output_config"]["effort"], "high");
+        req.thinking = Some(Thinking::Budget(6144));
+        let b: Value = serde_json::from_str(chat_request(&ep, &req).body.as_deref().unwrap()).unwrap();
+        assert_eq!(b["thinking"], json!({"type": "enabled", "budget_tokens": 6144}));
+        assert!(b.get("output_config").is_none());
+        // (what the provider refuses of it: told apart)
+        assert_eq!(thinking_refusal(400, r#"{"error":{"message":"thinking.display: Extra inputs are not permitted"}}"#), Some(true));
+        assert_eq!(thinking_refusal(400, r#"{"error":{"message":"adaptive thinking is not supported on this model"}}"#), Some(false));
+        assert_eq!(thinking_refusal(400, r#"{"error":{"message":"messages: text content blocks must be non-empty"}}"#), None);
+        assert_eq!(thinking_refusal(401, "thinking"), None);
+        // (an Anthropic models list says how each model thinks)
+        let list = parse_models(provider("anthropic").unwrap(), r#"{"data":[{"id":"claude-a","max_input_tokens":1000000,"capabilities":{"thinking":{"supported":true,"types":{"enabled":{"supported":false},"adaptive":{"supported":true}}}}},{"id":"claude-b","capabilities":{"thinking":{"supported":true,"types":{"enabled":{"supported":true},"adaptive":{"supported":false}}}}},{"id":"claude-c"}]}"#).unwrap();
+        let by = |id: &str| list.iter().find(|m| m.id == id).map(|m| (m.thinking.clone(), m.context)).unwrap();
+        // (a server running with no model yet: an empty list, not an error)
+        assert_eq!(parse_models(provider("compatible").unwrap(), r#"{"object":"list","data":null}"#).unwrap(), Vec::new());
+        assert_eq!(by("claude-a"), ("adaptive".into(), 1_000_000));
+        assert_eq!(by("claude-b").0, "enabled");
+        assert_eq!(by("claude-c").0, "");
     }
 
     #[test]
@@ -697,12 +778,18 @@ mod tests {
     #[test]
     fn openai_reasoning_with_tools() {
         let o = provider("openai").unwrap();
-        assert_eq!(reasoning_for(o, "gpt-6-luna", true, None), None);
-        assert_eq!(reasoning_for(o, "gpt-6-luna", false, Some(true)), None);
-        assert_eq!(reasoning_for(o, "gpt-4.1-mini", true, None), None);
-        assert_eq!(reasoning_for(o, "gpt-5.4-mini", true, Some(true)).as_deref(), Some("none"));
-        assert_eq!(reasoning_for(o, "gpt-6-sol", true, Some(false)), None);
-        assert_eq!(reasoning_for(provider("deepseek").unwrap(), "gpt-6-luna", true, None), None);
+        assert_eq!(reasoning_for(o, "gpt-6-luna", true, None, ""), None);
+        assert_eq!(reasoning_for(o, "gpt-6-luna", false, Some(true), ""), None);
+        assert_eq!(reasoning_for(o, "gpt-4.1-mini", true, None, ""), None);
+        assert_eq!(reasoning_for(o, "gpt-5.4-mini", true, Some(true), "").as_deref(), Some("none"));
+        assert_eq!(reasoning_for(o, "gpt-6-sol", true, Some(false), ""), None);
+        assert_eq!(reasoning_for(provider("deepseek").unwrap(), "gpt-6-luna", true, None, "high"), None);
+        // (an effort chosen: said, until the model refuses the field)
+        assert_eq!(reasoning_for(o, "o4-mini", true, None, "High").as_deref(), Some("high"));
+        assert_eq!(reasoning_for(provider("compatible").unwrap(), "gpt-oss", true, None, "low").as_deref(), Some("low"));
+        assert_eq!(reasoning_for(o, "gpt-6-sol", true, Some(true), "high").as_deref(), Some("none"));
+        assert_eq!(reasoning_for(o, "gpt-6-sol", false, Some(true), "high").as_deref(), Some("high"));
+        assert_eq!(reasoning_for(o, "gpt-4.1", true, Some(false), "high"), None);
         let said = r#"{"error":{"message":"Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'."}}"#;
         assert_eq!(reasoning_refusal(400, said), Some(true));
         assert_eq!(reasoning_refusal(400, r#"{"error":{"message":"Unrecognized request argument supplied: reasoning_effort"}}"#), Some(false));

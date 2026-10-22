@@ -53,12 +53,14 @@ claims, headless).
 |---------|---------------|---------|-----|
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [focus_events.rr](gui/focus_events.rr) | `OnEnter` and `OnExit` (RapidR's own): a box's help when the focus comes to it, its check when the focus leaves it ([the manual](../docs/manual/components.md#the-focus-onenter-and-onexit)) | run · interp · native · web | `rapidr run gui/focus_events.rr` |
+| [links.rr](gui/links.rr) | Labels as links (`TabStop = 1`, RapidR's own): Tab walks them, a focus ring shows, Enter or Space follows one, a screen reader says "link" ([the manual](../docs/manual/components.md#accessibility)) | run · interp · native · web | `rapidr run gui/links.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
 | [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [markdown_code.rr](gui/markdown_code.rr) | Code in Markdown, coloured as the code editor colours it: an `RMarkdownView` with a ```` ```sql ```` query, its answer as a table and the ```` ```basic ```` that ran it; the colours follow the theme ([the manual](../docs/manual/markdown.md)) | run · interp · native · web | `rapidr run gui/markdown_code.rr` |
 | [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [value_tree.rr](gui/value_tree.rr) | A tree that shows values as RapidR Studio's debugger does (`SetItemValue`, `Item(i).Changed`): each with its kind's icon, numbers, text and True/False in their colours, a colour as a swatch and its name, an array with its count, a changed value marked ([the manual](../docs/manual/debugging.md#how-values-look)) | run · interp · native · web | `rapidr run gui/value_tree.rr` |
@@ -133,14 +135,17 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | [sprites.rr](directx/sprites.rr) | An `RDXScreen`, sprites from an `RDXImageList` ([sprites.dxg](directx/sprites.dxg)), an `RDXTimer` animating them, `Flip` | run · interp · native · web | `rapidr run directx/sprites.rr` |
 | [d3d_cube.rr](directx/d3d_cube.rr) | Direct3D: a `.X` model ([cube.x](directx/cube.x)) in a mesh builder, lights, the camera, a spinning frame | run · interp · native · web | `rapidr run directx/d3d_cube.rr` |
 
-### network/ — HTTP (against a server on your own machine)
+### network/ — HTTP clients and servers (on your own machine)
 
-Start a server in the folder first, e.g. `cd network && python3 -m http.server 8000`.
+For the clients, start a server in the folder first, e.g. `cd network && python3 -m http.server 8000`.
+The servers listen on 127.0.0.1 (this computer only): try them with `curl`.
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [http_json.rr](network/http_json.rr) | `RHttp.Get` fetching a JSON document ([forecast.json](network/forecast.json)), read with `RJson` | run · interp · native · web | `rapidr run network/http_json.rr http://127.0.0.1:8000/forecast.json` |
 | [download.rr](network/download.rr) | `RDownload` (RapidQ's `QDOWNLOAD`): a file into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
+| [local_api.rr](network/local_api.rr) | A web API in a program (`RHttpServer`) on 127.0.0.1: `/hello`, `/echo` and three Server-Sent Events from `/events`, a token every request needs, the requests the server refuses by itself (another site's page, another host name, too large), each answer announced to screen readers ([the manual](../docs/manual/network.md)) | run · interp · native | `rapidr run network/local_api.rr`, then the `curl` line it shows |
+| [echo_server.rr](network/echo_server.rr) | `RServerSocket` with `Mode = "http"`: each request arrives whole, a body of any size (by its length or in chunks), and is sent back with `Send` and `Disconnect`; this computer only (`Host = "127.0.0.1"`) | run · interp · native | `rapidr run network/echo_server.rr`, then `curl -d hello http://127.0.0.1:47120/echo` |
 
 On a web page the address goes after `?` in the page's address
 (`index.html?http://127.0.0.1:8000/forecast.json`); serve the page from the

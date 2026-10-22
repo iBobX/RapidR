@@ -8,6 +8,7 @@
 
 const COUNTER = "tools/manual/scenes/debugger/counter.rr";
 const MEET = [130, 330, 620, 280];
+const LONG = "tools/manual/scenes/panes/long_output.rr";
 
 export const topic = "panes";
 
@@ -18,4 +19,9 @@ export const scenes = [
   // (Window ▸ Resize Panes from the editor: the splitter above the bottom
   // panel takes the keyboard, its grip longer)
   { name: "splitters-keyboard", open: COUNTER, do: "wait,window.resizePanes", delay: 4, crop: MEET },
+  // (the manual's "Long lines in Output and Problems", docs/manual/debugging.md:
+  // a line of output longer than the pane wraps at spaces; View > Wrap Long
+  // Output Lines off, it is cut at the edge)
+  { name: "output-wrap", open: LONG, do: "run.start,wait,wait,wait,wait", delay: 8, crop: [0, 568, 1036, 190] },
+  { name: "output-cut", open: LONG, do: "view.outputWrap,run.start,wait,wait,wait,wait", delay: 8, crop: [0, 568, 1036, 190] },
 ];

@@ -152,10 +152,26 @@ fn heading_ratio(level: u8) -> f64 {
     }
 }
 
-/// Whether a code block's language is BASIC (coloured as the code editor
-/// colours it).
-fn is_basic(lang: &str) -> bool {
-    matches!(lang, "basic" | "bas" | "rapidq" | "rapidr" | "rr" | "rq" | "rqw" | "rqb" | "inc" | "qbasic" | "freebasic" | "vb" | "vbnet" | "vb6")
+/// The code editor's language for a code block's (its fence's word, in
+/// lower case): BASIC, SQL (`sql`; `sqlite`, `mysql` with their dialect's
+/// words) and the editor's other languages, coloured as the code editor
+/// colours them; `None` for any other (plain).
+pub fn code_language(lang: &str) -> Option<&'static str> {
+    Some(match lang {
+        "basic" | "bas" | "rapidq" | "rapidr" | "rr" | "rq" | "rqw" | "rqb" | "inc" | "qbasic" | "freebasic" | "vb" | "vbnet" | "vb6" => "rapidr-basic",
+        "sql" => "sql",
+        "sqlite" | "sqlite3" => "sql-sqlite",
+        "mysql" | "mariadb" => "sql-mysql",
+        "json" | "jsonl" => "json",
+        "toml" => "toml",
+        "csv" => "csv",
+        "css" => "css",
+        "javascript" | "js" | "mjs" => "javascript",
+        "rust" | "rs" => "rust",
+        "markdown" | "md" => "markdown",
+        "html" | "htm" | "xhtml" => "html",
+        _ => return None,
+    })
 }
 
 /// A run's parley styles over the paragraph's.
@@ -199,12 +215,12 @@ fn shape(ts: &mut TextSystem, p: &Para, f: &Faces, scale: f32) -> Layout<Ink> {
     // (a long word or path breaks where it must, rather than run out)
     b.push_default(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
     match &p.kind {
-        Kind::Code(lang) if is_basic(lang) => {
-            // (RapidR BASIC's colours as the code editor gives them: its
-            // language definition and the theme's scheme — S-EDITOR's one
+        Kind::Code(lang) if code_language(lang).is_some() => {
+            // (BASIC's, SQL's … colours as the code editor gives them: the
+            // language's definition and the theme's scheme — S-EDITOR's one
             // highlighter, as the editor's popups use it)
             let languages = rapidr_editor::lang::Languages::builtin();
-            let mut hl = rapidr_editor::Highlighter::new(languages.get("rapidr-basic").unwrap_or_else(|| languages.plain_text()));
+            let mut hl = rapidr_editor::Highlighter::new(code_language(lang).and_then(|id| languages.get(id)).unwrap_or_else(|| languages.plain_text()));
             let scheme = rapidr_value::code_scheme::for_theme(f.theme);
             let mut state = rapidr_editor::ROOT;
             let mut at = 0;
@@ -1035,6 +1051,57 @@ mod tests {
         assert_eq!(doc.children[2].children[1].role, Role::ListItem);
         assert_eq!(doc.children[3].children[1].children[1].name, "2");
         model::remove("md1");
+    }
+
+    /// A code block's glyph runs: (their text, colour 0xRRGGBB), runs of one
+    /// colour merged.
+    fn code_inks(fence: &str, code: &str) -> (Vec<(String, u32)>, u32) {
+        let theme = rapidr_value::theme::current();
+        let f = super::Faces {
+            body: rapidr_value::objects::font::Font { name: String::new(), size: -14, color: 0, styles: 0 },
+            mono: rapidr_value::objects::font::Font { name: "JetBrains Mono".into(), size: -13, color: 0, styles: 0 },
+            l: super::look(theme),
+            theme,
+        };
+        let doc = model::Doc::parse(&format!("```{fence}\n{code}\n```\n"));
+        let mut ts = TextSystem::new();
+        let mut layout = super::shape(&mut ts, &doc.paras[0], &f, 1.0);
+        layout.break_all_lines(None);
+        let text = doc.paras[0].text.clone();
+        let mut out: Vec<(String, u32)> = Vec::new();
+        // (each character's colour: its cluster's glyphs' style)
+        for line in layout.lines() {
+            for run in line.runs() {
+                for cluster in run.clusters() {
+                    let Some(g) = cluster.glyphs().next() else { continue };
+                    let (piece, ink) = (&text[cluster.text_range()], layout.styles()[g.style_index()].brush.0);
+                    match out.last_mut() {
+                        Some((t, c)) if *c == ink => t.push_str(piece),
+                        _ => out.push((piece.to_string(), ink)),
+                    }
+                }
+            }
+        }
+        (out, f.l.text)
+    }
+
+    #[test]
+    fn sql_code_blocks_have_the_code_editors_colours() {
+        let colour = |runs: &[(String, u32)], word: &str| runs.iter().find(|(t, _)| t.contains(word)).map(|r| r.1).unwrap_or_else(|| panic!("{word} in {runs:?}"));
+        for fence in ["sql", "SQL", "sqlite", "mysql"] {
+            let (runs, text) = code_inks(&fence.to_lowercase(), "SELECT name, 'Ada' FROM people WHERE id = 42 -- the first");
+            let (kw, s, n, c) = (colour(&runs, "SELECT"), colour(&runs, "'Ada'"), colour(&runs, "42"), colour(&runs, "-- the first"));
+            assert_ne!(kw, text, "{fence}: a keyword isn't the text's colour: {runs:?}");
+            assert!(kw != s && s != c && kw != c && n != text, "{fence}: keywords, strings, numbers, comments apart: {runs:?}");
+            assert_eq!(colour(&runs, "FROM"), kw);
+        }
+        // (and the editor's other languages; an unknown one stays plain)
+        let (json, text) = code_inks("json", "{\"a\": 1}");
+        assert!(json.len() > 1 && json.iter().any(|r| r.1 != text), "{json:?}");
+        let (plain, text) = code_inks("cobol", "SELECT x FROM y");
+        assert!(plain.iter().all(|r| r.1 == text), "{plain:?}");
+        assert_eq!(super::code_language("sqlite"), Some("sql-sqlite"));
+        assert_eq!(super::code_language("rr"), Some("rapidr-basic"));
     }
 
     #[test]

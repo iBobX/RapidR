@@ -166,6 +166,73 @@ export const scenes = [
     crop: [640, 30, 640, 720],
   },
   {
+    // (Preview 4 R6) Set up RAI: free on this computer — the scene's mock
+    // playing Ollama, nothing at the others' addresses — or a cloud key
+    name: "setup",
+    open: "examples/gui/hello_form.rr",
+    do: `ai:setupprobes=${MOCK}|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup,wait,wait`,
+    delay: 5,
+    window: 2,
+    env: ENV,
+  },
+  {
+    // ... a cloud key (a made-up one) tested: the models listed, the fast
+    // one first; what it costs and what is sent
+    name: "setup-cloud",
+    open: "examples/gui/hello_form.rr",
+    // (a modal window: its steps are the input, once it shows)
+    do: "ai:setupprobes=http://127.0.0.1:9/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup",
+    delay: 4,
+    window: 2,
+    env: { ...ENV, RAPIDR_TEST_EVENTS: ["aisucloudradio.__mousedown_8_12", "aisucloudradio.__mouseup_8_12", idle(2), "aisunextbtn.__mousedown_30_14", "aisunextbtn.__mouseup_30_14", idle(2), "aisuprovbox.__item_0", idle(2), typeInto("aisukeyedit", "example-key-not-real-0000"), "aisutestbtn.__mousedown_30_14", "aisutestbtn.__mouseup_30_14", "aisucloud.__until_busy_0", idle(6)].join(",") },
+  },
+  {
+    // (R1) Chats: the project's chats, the newest first, where they are kept
+    name: "chats",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:ask=Add a Clear button to the form,ai:wait,ai:new,ai:ask=Make the window larger,ai:wait,ai:new,ai:ask=describe the form,ai:wait,wait,ai:chats`,
+    delay: 8,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (R2) A sent question edited: the bar says what Send will do
+    name: "edit",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:ask=hello there,ai:wait,ai:ask=describe the form,ai:wait,wait,ai:edit=1,wait`,
+    delay: 7,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (R4) The status line while it works: what it does now, the steps
+    // done, the seconds beside Stop (the mock writes slowly: "trickle")
+    name: "status",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:ask=trickle rename the window,wait,wait,wait,wait,wait,wait,wait`,
+    delay: 5.6,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (R5) Effort High: "Thought for N s", opened to show the reasoning
+    name: "thought",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:effort=high,ai:ask=hello,ai:wait,wait,ai:thought=1,wait`,
+    delay: 6,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (R5) "/" typed: the commands listed above the box, narrowed by "c"
+    name: "slash",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:ask=hello,ai:wait,wait,ai.assistant,type:/c`,
+    delay: 6,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
     // What was sent: the last request, the key never shown
     name: "what-was-sent",
     open: "examples/gui/hello_form.rr",

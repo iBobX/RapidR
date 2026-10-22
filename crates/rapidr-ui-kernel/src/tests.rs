@@ -289,6 +289,55 @@ fn mnemonics_click_buttons_and_focus_after_labels() {
     assert_eq!(tree.find(node_id("btnok")).unwrap().shortcut, Some('o'));
 }
 
+// (RapidR's) A label given TabStop is a link: Tab reaches it, the ring shows
+// round its text, Enter and Space click it, a screen reader hears a link.
+// A label without TabStop (RapidQ's QLABEL) is never a tab stop.
+#[test]
+fn a_label_with_tabstop_is_a_link() {
+    let (mut s, _, mut ts) = setup();
+    for (i, name) in ["lnkA", "lnkB"].into_iter().enumerate() {
+        s.add(name, "RLABEL", Some("form")).set(name, "caption", v_str(&format!("notepad{i}.rr"))).set(name, "left", v_int(8)).set(name, "top", v_int(100 + 24 * i as i64));
+        s.set(name, "width", v_int(230)).set(name, "height", v_int(20));
+    }
+    s.set("lnkA", "tabstop", v_int(1)).set("lnkB", "tabstop", v_int(1));
+    let mut f = FormUi::build(&s, "form", false);
+    drop(f.paint(&s, &mut ts, 1.0));
+    f.take_events();
+    // Tab walks to both links, after the components before them; lblName (no TabStop) isn't one.
+    let mut seen = Vec::new();
+    for _ in 0..6 {
+        key(&mut f, &s, &mut ts, 9, "\t", NONE);
+        seen.push(focused(&f));
+    }
+    assert_eq!(seen, ["btnok", "tblevel", "tcpages", "lnka", "lnkb", "edname"]);
+    // The ring: drawn only while focused, round the text (not the 230 px rectangle).
+    let ring = |f: &mut FormUi, ts: &mut TextSystem| f.paint(&s, ts, 1.0).dump();
+    f.focus_id(&s, "lnkA");
+    let with = ring(&mut f, &mut ts);
+    f.focus_id(&s, "btnOK");
+    let without = ring(&mut f, &mut ts);
+    assert_ne!(with, without, "the focused link is drawn differently (its focus ring)");
+    // Enter and Space click it; a letter doesn't; Alt+Enter isn't a click.
+    f.focus_id(&s, "lnkB");
+    f.take_events();
+    assert_eq!(clicks_and_changes(key(&mut f, &s, &mut ts, 13, "\r", NONE)), vec![click("lnkb")]);
+    assert_eq!(clicks_and_changes(key(&mut f, &s, &mut ts, 32, " ", NONE)), vec![click("lnkb")]);
+    assert!(clicks_and_changes(key(&mut f, &s, &mut ts, 65, "a", NONE)).is_empty());
+    assert!(clicks_and_changes(key(&mut f, &s, &mut ts, 13, "\r", ALT)).is_empty());
+    // A screen reader: a link named by its text, focused, with Click; Click does it.
+    let tree = f.access_tree(&s, &mut ts);
+    let link = tree.find(node_id("lnkb")).unwrap();
+    assert_eq!((link.role, link.name.as_str(), link.states.focused), (Role::Link, "notepad1.rr", true));
+    assert!(link.actions.contains(&Action::Click) && link.actions.contains(&Action::Focus));
+    assert_eq!(tree.find(node_id("lblname")).unwrap().role, Role::Label);
+    assert!(f.access_action(&s, &mut ts, node_id("lnka"), Action::Click, None));
+    assert_eq!(clicks_and_changes(f.take_events()), vec![click("lnka")]);
+    // A disabled link isn't a tab stop and isn't clicked.
+    s.set("lnkA", "enabled", v_int(0));
+    f.sync(&s);
+    assert!(!f.tab_order(&s).iter().any(|&i| f.nodes[i].id == "lnka"));
+}
+
 #[test]
 fn mouse_events_hover_and_capture() {
     let (s, mut f, mut ts) = setup();

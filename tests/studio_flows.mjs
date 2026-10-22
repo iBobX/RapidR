@@ -416,6 +416,13 @@ const AI_TAB = "settingstabs.__mousedown_75_12,settingstabs.__mouseup_75_12";
 const FETCH = "aifetchbtn.__mousedown_60_14,aifetchbtn.__mouseup_60_14";
 const OK = "settingsokbtn.__mousedown_40_14,settingsokbtn.__mouseup_40_14";
 const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
+// (Preview 4 R1–R6) the assistant set up on the mock, and a click (press,
+// release) at (x, y) of a component
+const AI_READY = "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small";
+const CLICK = (comp, x, y) => `${comp}.__mousedown_${x}_${y},${comp}.__mouseup_${x}_${y}`;
+// (Set up RAI — a modal window: its steps are input once it shows — "a
+// cloud service" picked, Next, Anthropic in the provider list)
+const SETUP_CLOUD = [CLICK("aisucloudradio", 8, 12), idle(2), CLICK("aisunextbtn", 30, 14), idle(2), "aisuprovbox.__item_0", idle(2)].join(",");
 
 const CASES = [
   {
@@ -1516,7 +1523,17 @@ const CASES = [
     do: "wait,open:ui.rr,wait,wait",
     delay: 4,
     restart: { noOpen: true, events: "studio.__key_70_1,studio.__key_82", delay: 4 },
-    a11y: [[/^Reopen Shelf, and the 2 files you had open$/, "button", "focused"], ["File", "menuitem", "expanded"]],
+    // (the open menu is in the tree: File's menu with its items — checked,
+    // disabled, with their keys — and no node but the chosen item has the focus)
+    a11y: [
+      [/^Reopen Shelf, and the 2 files you had open$/, "button"],
+      ["File", "menuitem", "expanded"],
+      ["File", "menu", null, (n) => (n.children || []).some((i) => i.role === "menuitem" && /Open Recent/.test(i.name) && (i.states || []).includes("expanded"))],
+      [/Open Recent/, "menuitem", "expanded"],
+      [/^1 {2}Shelf\.rrproj {2}— {2}/, "menuitem", "focused"],
+      ["New Project...", "menuitem", null, (n) => n.accelerator === "Ctrl+N"],
+      ["Save All", "menuitem", null, (n) => n.accelerator === "Ctrl+Shift+S"],
+    ],
     dump: { "mi(13).caption": /^Open &Recent$/, "mi(14).caption": /^&1 {2}Shelf\.rrproj {2}— {2}\S+$/, "mi(14).visible": /^(1|-1)$/, "mi(15).visible": /^0$/, "mi(24).visible": /^0$/, "mi(26).caption": /^&Clear Recent$/, "mi(26).enabled": /^(1|-1)$/, "reopenrow.visible": /^(1|-1)$/, "recentnone.visible": /^0$/, "studio.caption": /^RapidR Studio$/ },
   },
   // (S2) …its first item picked from the keyboard (Alt+F, R, 1): open.
@@ -1540,6 +1557,39 @@ const CASES = [
     delay: 4,
     restart: { noOpen: true, events: "reopenrow.__key_13", delay: 4 },
     dump: { "studio.caption": /^Shelf - RapidR Studio$/, "dock.documentcount": /^2$/, "reopenrow.visible": /^0$/ },
+  },
+  // (A11Y) The Welcome page's Recent links are keyboard stops (a label
+  // given TabStop is a link). With the offer to reopen the last project
+  // there, Shift+Tab from it reaches the project's link — a screen reader's
+  // focus is on a link named by the file —…
+  {
+    name: "welcome-recent-link-keyboard",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__key_9_256", delay: 4 },
+    // (the ring round the focused link, in every look, the page's text judged too)
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    a11y: [["Shelf", "link", "focused", (n) => (n.actions || []).includes("click") && (n.description || "").endsWith("Shelf.rrproj")], [/^Reopen Shelf/, "button"]],
+    dump: { "studio.caption": /^RapidR Studio$/, "recentlink(0).tabstop": /^(1|-1)$/, "recentlink(0).visible": /^(1|-1)$/ },
+  },
+  // …and without it (turned off in Settings), Shift+Tab from the Project
+  // pane walks back over the example cards (17) to the same link (18 times); Enter on
+  // it opens the project, as a click does.
+  {
+    name: "welcome-recent-link-enter",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait,view.settings,wait",
+    events: "reopenbox.__mousedown_6_6,reopenbox.__mouseup_6_6,settingsokbtn.__key_13",
+    delay: 4,
+    restart: { noOpen: true, do: "wait", delay: 4, events: [...Array(18).fill("studio.__key_9_256"), "studio.__key_13"].join(",") },
+    dump: { "studio.caption": /^Shelf - RapidR Studio$/, "reopenrow.visible": /^0$/ },
   },
   // (S2) …Clear Recent (Alt+F, R, C): the list is empty — the menu says
   // so, the Welcome page too; the offer stays (the files are there).
@@ -1967,6 +2017,82 @@ const CASES = [
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait",
     delay: 8,
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // (A11Y) The debugging layout's narrow group — Variables, Watch, Call
+    // Stack, Breakpoints (2) — keeps every tab's name whole in every look,
+    // high contrast too (the tabs' padding gives way before a name is cut;
+    // a name that still can't fit has its tooltip and its full accessible
+    // name): the shown tab is a screen reader's "Breakpoints (2)"
+    name: "tabs-fit-names",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,line:147,debug.toggleBreakpoint,bpcond:count > 1,run.start,wait,wait,wait,view.breakpoints,wait",
+    delay: 9,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    a11y: [["Breakpoints (2)", "tab", "selected"], ["Variables", "tab"], ["Watch", "tab"], ["Call Stack", "tab"]],
+    dump: { "dock.activepane": /^bppanel$/ },
+  },
+  {
+    // (A11Y) …and the Problems page wraps a long message onto more rows, so
+    // it reads whole (WordWrap, on unless turned off) — captured in every
+    // look, the page's text judged against what it is drawn on
+    name: "problems-wrap",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait,view.problems,view.debugPanes,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    dump: { "outputbox.page": /^problems$/, "outputbox.wordwrap": /^(1|-1|True)$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // (A11Y) A long line of the program's output wraps in the Output pane —
+    // one logical line (the pane's text keeps it whole), several rows to look at
+    name: "output-wrap-long-line",
+    open: "tests/fixtures/studio_long_output.bas",
+    webFiles: ["tests/fixtures/studio_long_output.bas"],
+    do: "run.start,wait,wait,wait,wait",
+    delay: 8,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    dump: { "outputbox.page": /^output$/, "outputbox.text": /^Shipping the order to Ada Lovelace, 12 Market Street, Manchester, M1 1AA, United Kingdom, by courier on Tuesday the fourteenth of March, signed for at the front desk; the next delivery is the week after that\.\ndone/, "outputbox.wordwrap": /^(1|-1|True)$/ },
+  },
+  {
+    // (A11Y) View > Wrap Long Output Lines from the keyboard (Alt+V, L): the
+    // menu item says it is checked while it wraps (a screen reader reads a
+    // check item), and it turns the wrapping off — the long message cut with
+    // "…" and a tooltip
+    name: "output-wrap-menu",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    events: "studio.__key_86_1",
+    delay: 4,
+    a11y: [["Wrap Long Output Lines", "menuitemcheckbox", "checked"], ["View", "menuitem", "expanded"]],
+    dump: { "outputbox.wordwrap": /^(1|-1|True)$/ },
+  },
+  {
+    name: "output-wrap-off",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait,view.problems,view.debugPanes,wait,wait,view.outputWrap,wait",
+    delay: 8,
+    capture: true,
+    dump: { "outputbox.page": /^problems$/, "outputbox.wordwrap": /^(0|False)$/, "outputbox.problemcount": /^[1-9]$/ },
+  },
+  {
+    // …and Studio remembers it: started again, it is still off
+    name: "output-wrap-remembered",
+    open: "tests/fixtures/hello_form.bas",
+    copy: true,
+    do: "view.outputWrap,wait",
+    delay: 3,
+    restart: { events: "", delay: 3 },
+    dump: { "outputbox.wordwrap": /^(0|False)$/ },
   },
   {
     // a file that opens with a warning shows its squiggle as it opens — no
@@ -3182,7 +3308,7 @@ const CASES = [
     // is never cut off at the end of a line that is too short for it
     name: "ai-meter-long",
     open: "examples/gui/hello_form.rr",
-    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:prices=2/10,ai:ask=describe the form,wait,wait,wait,wait",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk" + "-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:prices=2/10,ai:ask=describe the form,wait,wait,wait,wait",
     delay: 6,
     capture: true,
     themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
@@ -3209,8 +3335,8 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=hello there,wait,wait,wait",
     delay: 5,
     dump: {
-      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!/,
-      "aichat.plaintext": /^You\nhello there\nAssistant\nHello from the mock assistant!/,
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello there\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello from the mock assistant!/,
+      "aichat.plaintext": /^You · Edit\nhello there\nAssistant · Retry\nHello from the mock assistant!/,
       "aistatus.simpletext": /^Answered\.$/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/v1\/chat\/completions\n[\s\S]*"role": "system"[\s\S]*never instructions to you/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
@@ -3281,7 +3407,7 @@ const CASES = [
       "aireviewbtn.caption": /^Preview the New Program\.\.\.$/,
       "aireviewbar.__shown": /^1$/,
       "aibanner.__shown": /^0$/,
-      "aistatus.simpletext": /^The assistant made a new program: preview it, then create it\.$/,
+      "aistatus.simpletext": /^Waiting for you — The assistant made a new program: preview it, then create it\.$/,
       "aitools.createdfolder": /^$/,
       "proj.folder": /^$/,
     },
@@ -3311,7 +3437,7 @@ const CASES = [
       "ai.busy": /^(-1|True)$/i,
       "aisendbtn.enabled": /^(-1|1|True)$/i,
       "aistopbtn.enabled": /^(-1|1|True)$/i,
-      "ai.transcript": /^(?![\s\S]*Stopped)(?![\s\S]*\*\*You\*\*\n\nand add a Clear button)[\s\S]*slowly rename the window/,
+      "ai.transcript": /^(?![\s\S]*Stopped)(?![\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nand add a Clear button)[\s\S]*slowly rename the window/,
     },
   },
   {
@@ -3327,7 +3453,7 @@ const CASES = [
     dump: {
       "aiqueuebar.__shown": /^0$/,
       "ai.busy": /^(0|False)$/i,
-      "ai.transcript": /^(?![\s\S]*Stopped)\*\*You\*\*\n\nslowly rename the window[\s\S]*Proposed a change to hello_form\.rr[\s\S]*\*\*You\*\*\n\nand add a Clear button\n\n\*\*Assistant\*\*\n\nA \*\*Clear\*\* button next to Greet would empty the name box/,
+      "ai.transcript": /^(?![\s\S]*Stopped)\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nslowly rename the window[\s\S]*Proposed a change to hello_form\.rr[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nand add a Clear button\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nA \*\*Clear\*\* button next to Greet would empty the name box/,
     },
   },
   {
@@ -3362,7 +3488,7 @@ const CASES = [
       "aiinput.text": /^and add a Clear button$/,
       "aistatus.simpletext": /^Stopped\. Your queued message is back in the box, not sent\.$/,
       "ai.busy": /^(0|False)$/i,
-      "ai.transcript": /Stopped\.(?![\s\S]*\*\*You\*\*\n\nand add a Clear button)/,
+      "ai.transcript": /Stopped\.(?![\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nand add a Clear button)/,
     },
   },
   {
@@ -3380,7 +3506,7 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:summaryat=1,ai:ask=What does the form show?,ai:wait,ai:ask=And the list?,ai:wait,ai:ask=Is that all of it?,ai:wait,ai:ask=and the button?,ai:wait,ai:ask=¿Y el botón Start?,ai:wait",
     delay: 12,
     dump: {
-      "ai.transcript": /^(?![\s\S]*Das Formular)[\s\S]*The conversation so far was summarised[\s\S]*\*\*You\*\*\n\nand the button\?\n\n\*\*Assistant\*\*\n\nThe form has a list of sites[\s\S]*\*\*You\*\*\n\n¿Y el botón Start\?\n\n\*\*Assistant\*\*\n\nEl formulario tiene una lista de sitios/,
+      "ai.transcript": /^(?![\s\S]*Das Formular)[\s\S]*The conversation so far was summarised[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nand the button\?\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nThe form has a list of sites[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\n¿Y el botón Start\?\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nEl formulario tiene una lista de sitios/,
       "ai.userlanguage": /^Spanish$/,
       // (the last request: the chat summarised again, now in Spanish)
       "ai.lastrequest": /Write the summary in Spanish \(español\) \(the language the user writes in\)/,
@@ -3401,7 +3527,7 @@ const CASES = [
     delay: 8,
     dump: {
       "ai.steps": /^Proposed a change to main\.rr$/,
-      "ai.transcript": /##### ● Proposed a change to server\.rr · \+5 −0[\s\S]*\*\*You\*\*\n\nnow add a Stop button to main\.rr\n\n\*\*Assistant\*\*\n\n##### ● Proposed a change to main\.rr · \+10 −0 · \[Review\]\(ai:review\)\n\nPress \*\*Stop\*\*(?![\s\S]*server\.rr ·)[\s\S]*\*You applied the change to server\.rr\.\*\n\n\*You applied the change to main\.rr\.\*$/,
+      "ai.transcript": /##### ● Proposed a change to server\.rr · \+5 −0[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nnow add a Stop button to main\.rr\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n##### ● Proposed a change to main\.rr · \+10 −0 · \[Review\]\(ai:review\)\n\nPress \*\*Stop\*\*(?![\s\S]*server\.rr ·)[\s\S]*\*You applied the change to server\.rr\.\*\n\n\*You applied the change to main\.rr\.\*$/,
       "aitools.proposalcount": /^0$/,
       // (both files changed in their editors: main.rr open, server.rr opened)
       "codedoc(0).text": /StopServer/,
@@ -3438,7 +3564,7 @@ const CASES = [
       "ai.steps": /^Read sites\.rr\nRefused a whole-file rewrite of sites\.rr: only a few lines change\nProposed a change to sites\.rr$/,
       "ai.transcript": /##### ● Proposed a change to sites\.rr · \+2 −2 · \[Review\]\(ai:review\)\n\nSites 7 and 8 are called seven and eight now\.$/,
       "aitools.proposalcount": /^1$/,
-      "aistatus.simpletext": /^The assistant proposed a change: review it\.$/,
+      "aistatus.simpletext": /^Waiting for you — The assistant proposed a change: review it\.$/,
     },
   },
   {
@@ -3469,7 +3595,7 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=hello there,ai:wait",
     delay: 6,
     dump: {
-      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!(?![\s\S]*Error)/,
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello there\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello from the mock assistant!(?![\s\S]*Error)/,
       "aistatus.simpletext": /^Answered\.$/,
     },
   },
@@ -3483,8 +3609,380 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mockroot}/s/drop/v1,ai:model=mock-small,ai:ask=hello there,ai:wait",
     delay: 9,
     dump: {
-      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!(?![\s\S]*Error)/,
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello there\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello from the mock assistant!(?![\s\S]*Error)/,
       "aistatus.simpletext": /^Answered\.$/,
+    },
+  },
+  // ---- Preview 4 R1–R6, K8 (docs/preview4-plan.md): chats kept, a sent
+  // question edited, the live status line, the context meter and the /
+  // commands, the effort and "Thought for N s", one model list with ↻,
+  // Set up RAI, the lite set for a small window ----
+  {
+    // R1: Studio closed and started again on the same project — its chat
+    // is there, as it was (kept in Studio's data folder: here the case's)
+    name: "ai-r1-kept-restart",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello there,ai:wait,wait`,
+    delay: 4,
+    restart: { do: "wait,wait", delay: 4 },
+    dump: {
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello there\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello from the mock assistant!/,
+      "aichattitle.caption": /^hello there$/,
+      "ai.questioncount": /^1$/,
+    },
+  },
+  {
+    // R1: New Chat keeps the old one; Chats (the mouse) lists both, the
+    // older picked and opened — its conversation back, the newer kept
+    name: "ai-r1-chats-switch",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsopenbtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello one\n\n(?![\s\S]*hello two)/,
+      "aichattitle.caption": /^hello one$/,
+      "aichatspanel.__shown": /^0$/,
+      "aichat.__shown": /^1$/,
+      "aistatus.simpletext": /^Opened "hello one"\.$/,
+    },
+  },
+  {
+    // ... the list itself: both chats, the newest first and marked open;
+    // where they are kept said under it (never the project's folder)
+    name: "ai-r1-chats-list",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aichatlist.itemcount": /^2$/,
+      // (the list's items, a line each)
+      "aichatlist.text": /^hello two — 1 question, \d{4}-\d\d-\d\d \(open\)\r?\nhello one — 1 question, \d{4}-\d\d-\d\d\s*$/,
+      "aichatsnote.caption": /^Kept on this computer, in Studio's own folder — never in the project\. Delete removes a chat for good\.$/,
+      "aichatsnote.hint": /chats$|^this browser's storage for the page$/,
+      "aibottom.__shown": /^0$/,
+      "aichatsbtn.caption": /^Back$/,
+    },
+  },
+  {
+    // R1: Delete (the mouse) removes a chat — Undo offered beside the
+    // list; Undo (the mouse) puts it back
+    name: "ai-r1-chats-delete",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsdeletebtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.itemcount": /^1$/,
+      "aichatundobar.__shown": /^1$/,
+      "aichatundotext.caption": /^Deleted "hello one"\.$/,
+      "aistatus.simpletext": /^Deleted "hello one"\. Undo puts it back\.$/,
+      "ai.transcript": /hello two/,
+    },
+  },
+  {
+    name: "ai-r1-chats-undo",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), "aichatlist.__item_1", CLICK("aichatsdeletebtn", 20, 12), idle(2), CLICK("aichatundobtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.itemcount": /^2$/,
+      "aichatundobar.__shown": /^0$/,
+      "aistatus.simpletext": /^Put back: "hello one"\.$/,
+    },
+  },
+  {
+    // R1: Search (typed) finds a chat by what was said, not only its
+    // title; Rename (the mouse, a name typed, Enter) names it
+    name: "ai-r1-chats-search-rename",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=check the code,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), typeInto("aichatsearch", "rename"), idle(2), CLICK("aichatsrenamebtn", 20, 12), "airenameedit.__key_65_16", typeInto("airenameedit", "Greetings"), "airenameedit.__key_13", idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.itemcount": /^1$/,
+      "aichatlist.text": /^Greetings — 1 question, .*: "Hello from the mock assistant! Ask me to \*\*rename\*\*/,
+      "aistatus.simpletext": /^Renamed: "Greetings"\.$/,
+    },
+  },
+  {
+    // R2: Edit under the first question (the keyboard: Tab to the link,
+    // Enter) — the bar says what Send will do; nothing changed yet
+    name: "ai-r2-edit-bar",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: ["aichat.__key_9", "aichat.__key_13", idle(4)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aieditbar.__shown": /^1$/,
+      "aiedittext.caption": /^Editing your question\. Send replaces it: its answer and the 1 question after it move to a saved copy of this chat \(in Chats\)\.$/,
+      "aiinput.text": /^hello one$/,
+      "ai.questioncount": /^2$/,
+    },
+  },
+  {
+    // ... the question changed and sent (typed, Enter): the replies below
+    // it moved to a saved copy — nothing lost —, the new one asked
+    name: "ai-r2-edit-send",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: ["aichat.__key_9", "aichat.__key_13", idle(2), "aiinput.__key_65_16", typeInto("aiinput", "say hello please"), "aiinput.__key_13", "ai.__until_busy_0", idle(2), CLICK("aichatsbtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nsay hello please\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello, friend, nice meeting you\.(?![\s\S]*hello two)/,
+      "aichatlist.itemcount": /^2$/,
+      "aichatlist.text": /hello one \(before the edit\) — 2 questions, /,
+      "outputbox.text": /AI: the chat before the edit is kept as "hello one \(before the edit\)" \(Chats\)\./,
+      "aieditbar.__shown": /^0$/,
+    },
+  },
+  {
+    // R2: Retry under the last answer: asked again, the answer before kept
+    name: "ai-r2-retry",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,wait,ai:retry,ai:wait,wait,ai:chats`,
+    delay: 6,
+    dump: {
+      "ai.questioncount": /^1$/,
+      "aichatlist.itemcount": /^2$/,
+      "aichatlist.text": /hello one \(before Retry\) — 1 question, /,
+      "outputbox.text": /AI: the answer before Retry is kept in "hello one \(before Retry\)" \(Chats\)\./,
+    },
+  },
+  {
+    // R4: the live status line while the model writes (paced: a piece
+    // every 250 ms) — what it does now first, the steps done after, the
+    // seconds beside Stop
+    name: "ai-r4-status",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=trickle rename the window,wait,wait,wait,wait,wait,wait`,
+    delay: 3.5,
+    webDelay: 6,
+    capture: true,
+    dump: {
+      "aistatus.simpletext": /^(Reading hello_form\.rr|Writing hello_form\.rr|Thinking|Writing the answer)…( · ✓ |$)/,
+      "aielapsed.caption": /^\d+ s$/,
+      "ai.busy": /^(-1|True)$/i,
+    },
+  },
+  {
+    // R4: a provider that says nothing (the mock's `slow`): the status
+    // says so (here after 2 s: the tests' threshold), wait or Stop
+    name: "ai-r4-quiet",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mockroot}/s/slow/v1,ai:model=mock-small,ai:quietafter=2,ai:ask=hello there,wait,wait,wait,wait,wait,wait,wait,wait,wait",
+    delay: 5,
+    dump: {
+      "aistatus.simpletext": /^No answer from the model for \d+ s: wait, or Stop\.$/,
+      "aistopbtn.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // R5: the context meter, and Compact (the mouse): the chat summarised,
+    // said in it and in the status; its questions before can't be edited
+    name: "ai-r5-compact",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aicompactbtn", 20, 12), "ai.__until_busy_0", idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "ai.transcript": /\*The chat was compacted: what each question sends of it went from about [\d,]+ tokens to about [\d,]+\.\*(?![\s\S]*rai:edit)/,
+      "aistatus.simpletext": /^The chat was compacted: what each question sends of it went from about [\d,]+ tokens to about [\d,]+\.$/,
+      "aicontexttext.caption": /^Context: [\d,]+ of 11,468 \(\d+%\)$/,
+    },
+  },
+  {
+    // R5: "/" typed lists the commands; "/c" narrows them; Escape closes
+    name: "ai-r5-slash-list",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,wait,ai.assistant,type:/c`,
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "aislashbar.__shown": /^1$/,
+      "aislashlist.itemcount": /^2$/,
+      "aislashlist.text": /^\/compact {3}Summarise this chat now[^\n]*\r?\n\/chats {3}This project's chats/,
+    },
+  },
+  {
+    // ... /compact and Enter: the chat compacted, the box empty, nothing
+    // sent to the model as a question
+    name: "ai-r5-slash-compact",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai:ask=hello two,ai:wait,wait,ai.assistant,type:/compact,key:Enter,ai:wait,wait`,
+    delay: 6,
+    dump: {
+      "ai.transcript": /The chat was compacted(?![\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\n\/compact)/,
+      "aiinput.text": /^$/,
+      "aislashbar.__shown": /^0$/,
+    },
+  },
+  {
+    // R5: Effort High (the list, the mouse) with Anthropic (the mock): the
+    // request asks it to think, the answer shows "Thought for N s"; its
+    // link (the keyboard) shows the reasoning
+    name: "ai-r5-effort-thought",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `ai:on,ai:provider=anthropic,ai:key=mock-good-key-1,ai:fetch,wait,wait,ai:model=claude-mock-haiku-1,ai.assistant,wait`,
+    events: ["aieffortbox.__item_3", idle(2), typeInto("aiinput", "hello"), "aiinput.__key_13", "ai.__until_busy_0", idle(2), "aichat.__key_9", "aichat.__key_9", "aichat.__key_9", "aichat.__key_13", idle(4)].join(","),
+    delay: 4,
+    capture: true,
+    dump: {
+      "ai.lastrequest": /"thinking": \{\s*"type": "adaptive",\s*"display": "summarized"\s*\},\s*"output_config": \{\s*"effort": "high"/,
+      "ai.transcript": /\[Thought for \d+ s · hide\]\(rai:thought\/1\)\n\n> The user wants a small change\./,
+      "aieffortbox.text": /^Effort: High$/,
+      // (the view stays where the link was clicked: it follows the end
+      // again at the next question)
+      "aichat.followend": /^(0|False)$/i,
+    },
+  },
+  {
+    // R6: one model list — the provider is Settings' — and ↻ (the mouse)
+    // asks for the models again: the list has them
+    name: "ai-r6-refresh",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},wait,ai.assistant`,
+    events: [CLICK("airefreshbtn", 12, 12), "ai.__until_busy_0", idle(4)].join(","),
+    delay: 4,
+    dump: {
+      "aimodelbox.itemcount": /^2$/,
+      "aimodelbox.text": /^mock-small$/,
+      "airefreshbtn.enabled": /^(-1|1|True)$/i,
+      "aistatus.simpletext": /^The server lists 2 models\.$/,
+      "aimodelbox.accessibledescription": /^A model of the server at http:\/\/127\.0\.0\.1:\d+\/v1\. The provider is chosen in Tools > Settings > AI, or Set up RAI\.$/,
+    },
+  },
+  {
+    // R6: Set up RAI, free on this computer — the servers looked for (the
+    // tests' addresses: the mock as Ollama, nothing for the others);
+    // found, said in plain words
+    name: "ai-r6-setup-found",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
+    events: [idle(6)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisetup.visible": /^(-1|1|True)$/i,
+      "aisufoundtext.caption": /^✓ Found on this computer: Ollama \(2 models\)\. Not running: LM Studio, MLX Serve\.$/,
+      "aisulocal.checked": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // ... Next (the mouse), the server and its model, Finish (the mouse):
+    // the assistant on, set up, its pane shown
+    name: "ai-r6-setup-local",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
+    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aisetup.visible": /^(0|False)$/i,
+      "ai.provider": /^compatible$/,
+      "ai.model": /^mock-small$/,
+      "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/v1$/,
+      "aistatus.simpletext": /^RAI is ready: mock-small\.$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+    },
+  },
+  {
+    // R6: a cloud key — a refused one said plainly; another typed, Test
+    // (the mouse): the models listed, the fast one first; Finish keeps the
+    // key (the tests' memory store) and turns the assistant on
+    name: "ai-r6-setup-cloud",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupprobes=http://127.0.0.1:9/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup",
+    events: [SETUP_CLOUD, typeInto("aisukeyedit", "mock-bad-key-1"), CLICK("aisutestbtn", 30, 14), "aisucloud.__until_busy_0", idle(4), "aisukeyedit.__key_65_16", typeInto("aisukeyedit", "mock-good-key-1"), CLICK("aisutestbtn", 30, 14), "aisucloud.__until_busy_0", idle(4), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "ai.provider": /^anthropic$/,
+      "ai.model": /^claude-mock-haiku-1$/,
+      "ai.haskey": /^(-1|1|True)$/i,
+      "aisetup.visible": /^(0|False)$/i,
+    },
+  },
+  {
+    // ... the refused key's words, before another is tried
+    name: "ai-r6-setup-badkey",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupprobes=http://127.0.0.1:9/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup",
+    events: [SETUP_CLOUD, typeInto("aisukeyedit", "mock-bad-key-1"), CLICK("aisutestbtn", 30, 14), "aisucloud.__until_busy_0", idle(6)].join(","),
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisutestnote.caption": /refused the API key \(401\)/,
+      "aisutestbtn.enabled": /^(-1|1|True)$/i,
+      "ai.provider": /^$/,
+    },
+  },
+  {
+    // K8: a model of an 8,192-token window (the mock's `tiny`) gets the
+    // lite instructions and tools — it starts, and answers
+    name: "ai-k8-lite",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mockroot}/s/tiny/v1,ai:model=mock-small,ai:ask=hello there,ai:wait,wait",
+    delay: 5,
+    dump: {
+      "ai.lite": /^(-1|True)$/i,
+      "ai.transcript": /^\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nhello there\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\nHello from the mock assistant!(?![\s\S]*takes 8,192 tokens)/,
+      "aitools.lite": /^(1|-1|True)$/i,
     },
   },
   // ---- AI-UX (docs/ai-ux-plan.md §1–3): a new program straight into the
@@ -3512,7 +4010,7 @@ const CASES = [
       "aibannerrun.caption": /^▶  Run It$/,
       "aibannerfix.__shown": /^0$/,
       "aistatus.simpletext": /^Made Scientific Calculator: Run It is at the top\.$/,
-      "ai.transcript": /\*\*Assistant\*\*\n\n##### ○ Started from the recipe \*Calculator \(basic and scientific\)\*\n\n##### ◆ Created \*Scientific Calculator\* · main\.rr · ✓ compiles · \[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)\n\nPress \*\*Run\*\*/,
+      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n##### ○ Started from the recipe \*Calculator \(basic and scientific\)\*\n\n##### ◆ Created \*Scientific Calculator\* · main\.rr · ✓ compiles · \[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)\n\nPress \*\*Run\*\*/,
       "aireviewbar.__shown": /^0$/,
     },
     desktopFiles: ["docs/RapidR/Projects/ScientificCalculator/main.rr", "docs/RapidR/Projects/ScientificCalculator/ScientificCalculator.rrproj"],
@@ -3790,7 +4288,7 @@ const CASES = [
     events: "aibannerfix.__mousedown_30_15,aibannerfix.__mouseup_30_15," + Array(30).fill("aibannertext.onclick").join(","),
     delay: 8,
     dump: {
-      "ai.transcript": /\*\*You\*\*\n\nPlease fix the errors that are left\./,
+      "ai.transcript": /\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nPlease fix the errors that are left\./,
       "ai.lastrequest": /The open project: Broken Tool; main file main\.rr/,
     },
   },
@@ -3805,7 +4303,7 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=pretend you made a hello program,wait,ai:wait,wait,wait,wait",
     delay: 8,
     dump: {
-      "ai.transcript": /\*\*Assistant\*\*\n\n> \*An earlier draft said this was done before it was — Studio asked it to actually do it\.\*\n\n##### ◆ Created \*hello-form\* · main\.rr · ✓ compiles[^\n]*\n\nType a name, then press \*\*Greet\*\*\.$/,
+      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n> \*An earlier draft said this was done before it was — Studio asked it to actually do it\.\*\n\n##### ◆ Created \*hello-form\* · main\.rr · ✓ compiles[^\n]*\n\nType a name, then press \*\*Greet\*\*\.$/,
       "aichat.plaintext": /^(?![\s\S]*I have created)/,
       "aibanner.__shown": /^1$/,
     },
@@ -3825,7 +4323,7 @@ const CASES = [
     dump: {
       "ai.busy": /^(-1|1|True)$/i,
       "ai.steps": /^Wrote the program$/,
-      "aistatus.simpletext": /^✓ Wrote the program · … Working…$/,
+      "aistatus.simpletext": /^Thinking… · ✓ Wrote the program$/,
       "ai.transcript": /##### ◆ New program \*Scientific Calculator\* · main\.rr · ✓ compiles/,
       "aibanner.__shown": /^0$/,
     },
@@ -3863,7 +4361,7 @@ const CASES = [
     // listed through the introspection interface
     name: "ai-anthropic-format",
     open: "examples/gui/hello_form.rr",
-    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:ask=describe the form,wait,wait,wait,wait",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk" + "-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:ask=describe the form,wait,wait,wait,wait",
     delay: 6,
     dump: {
       "ai.steps": /^Looked up RButton\nLooked at the form$/,
@@ -3892,12 +4390,16 @@ const CASES = [
     // An RAI on a form, live in the designer: no models until it has a
     // key; the key typed goes to the keychain (here the test's memory
     // store) and the code says only where it is; then the provider's own
-    // models in the Model row, the fast, low-cost ones first; one picked
+    // models in the Model row, the fast, low-cost ones first; one picked.
+    // (ai:designwait waits for the list, not a fixed time; the capture
+    // comes after the last step even when the page starts slowly — 13
+    // steps 400 ms apart outlasted the old 5 s on a cold web start, and the
+    // Model pick seemed not to stick)
     name: "ai-designer-rai",
     open: "tests/fixtures/studio_ai/rai_form.rr",
     webFiles: ["tests/fixtures/studio_ai/rai_form.rr"],
-    do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL={mock},row:Model,prop:APIKey=sk-ant-fake-designer-0000,wait,wait,wait,row:Model,prop:Model=mock-small,wait",
-    delay: 5,
+    do: "wait,view.designer,pick:AI,prop:Provider=anthropic,prop:BaseURL={mock},row:Model,prop:APIKey=sk" + "-ant-fake-designer-0000,ai:designwait,row:Model,prop:Model=mock-small,wait",
+    delay: 8,
     dump: {
       "inspector.target": /^AI$/,
       "inspector.selected": /^Model$/,
@@ -4024,7 +4526,8 @@ const CASES = [
       "ai.model": /^gpt-mock-mini$/,
       "ai.modelcount": /^3$/,
       "ai.haskey": /^(-1|1|True)$/i,
-      "aiproviderbox.text": /^OpenAI$/,
+      // (R6: no provider row in the pane — the model list says whose)
+      "aimodelbox.accessibledescription": /^A model of OpenAI\. /,
       "aimodelbox.text": /^gpt-mock-mini$/,
       "aisendbtn.enabled": /^(-1|1|True)$/i,
     },
@@ -4332,6 +4835,9 @@ function runDesktop(c, scale = 1) {
       RAPIDR_AI_KEYSTORE: "memory",
       RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       RAPIDR_AI_AUDIT: join(dir, "ai-audit.jsonl"),
+      // (R1: the case's kept chats in its own folder — kept across a
+      // restart, never another case's)
+      RAPIDR_AI_CHATS: join(dir, "chats"),
       // (S6: the user's login shell isn't read by the tests — the PATH
       // cases give one of their own, RAPIDR_LOGIN_SHELL)
       RAPIDR_LOGIN_PATH: "off",

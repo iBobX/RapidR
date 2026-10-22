@@ -20,7 +20,7 @@
 //!
 //! [`layout::MAIN_MENU_HEIGHT`]: rapidr_value::layout::MAIN_MENU_HEIGHT
 
-use rapidr_value::objects::a11y::{mnemonic, node_id, part_id, AccessNode, Action, Role, PART_MENU};
+use rapidr_value::objects::a11y::{mnemonic, node_id, part_id, AccessNode, Action, Orientation, Role, PART_MENU, PART_POPUP};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::menu::{self, Kind};
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -91,6 +91,8 @@ pub struct ItemView {
     pub submenu: bool,
     /// Its ShortCut as Windows shows it ("Ctrl+N").
     pub keys: String,
+    /// Its Hint (a screen reader reads it as the item's description).
+    pub hint: String,
 }
 
 /// The visible items under `parent`, as drawn.
@@ -115,6 +117,7 @@ pub fn items(parent: &str) -> Vec<ItemView> {
                     } else {
                         menu::parse_shortcut(&n.shortcut).map(|s| s.text()).unwrap_or_else(|| shown.to_string())
                     },
+                    hint: n.hint.clone(),
                 }
             })
         })
@@ -688,7 +691,8 @@ impl FormUi {
         }
     }
 
-    /// The bar for screen readers (a MenuBar of MenuItems), when drawn.
+    /// The bar for screen readers (a MenuBar of MenuItems), when drawn: the
+    /// item whose menu is down has that menu inside it.
     pub fn describe_menu_bar(&self, store: &dyn Store) -> Option<AccessNode> {
         let main = self.main_menu(store)?;
         let bar = self.bar_items(store);
@@ -697,37 +701,187 @@ impl FormUi {
         }
         let mut n = AccessNode::new(node_id(&main), Role::MenuBar);
         n.bounds = (0, 0, self.client.0, self.menu_offset);
+        n.orientation = Some(Orientation::Horizontal);
         // (the shared items, each where it's drawn, a submenu open or not)
         n.children = rapidr_value::objects::a11y::menu_bar(&main);
-        for (k, (c, (_, r))) in n.children.iter_mut().zip(bar).enumerate() {
+        for (k, (c, (item, r))) in n.children.iter_mut().zip(bar).enumerate() {
             c.bounds = r;
+            c.accelerator = Some(item.keys.clone()).filter(|k| !k.is_empty());
+            c.description = item.hint.clone();
+            // (the keyboard on the bar: this item is where a screen reader's
+            // cursor is)
+            c.states.focused = self.menus.keyboard && !self.menu_open() && self.menus.hot_top == Some(k);
             if c.states.expanded.is_some() {
-                c.states.expanded = Some(self.menus.open_top == Some(k) && self.menu_open());
+                let open = self.menus.open_top == Some(k) && self.menu_open() && self.menus.popup.is_none();
+                c.states.expanded = Some(open);
+                c.actions.push(if open { Action::Collapse } else { Action::Expand });
+                if open && self.menus.panels.first().is_some_and(|p| p.parent == item.id) {
+                    c.children.push(self.describe_panel(0));
+                }
             }
         }
         Some(n)
     }
 
-    /// A screen reader's click on a bar item (`target` its part id):
-    /// `None` when it isn't one.
+    /// A pop-up menu (QPOPUPMENU, an edit's context menu) open now, for
+    /// screen readers: its panel, items and open submenus inside.
+    pub fn describe_popup_menu(&self) -> Option<AccessNode> {
+        self.menus.popup.as_ref().filter(|_| self.menu_open())?;
+        Some(self.describe_panel(0))
+    }
+
+    /// Whether the menus hold the keyboard: a menu is open, or the bar is
+    /// selected from the keyboard (F10, Alt). A screen reader's focus is on
+    /// one of their nodes then, and on nothing else.
+    pub fn menus_have_focus(&self) -> bool {
+        self.menu_open() || self.menus.keyboard
+    }
+
+    /// Open panel `pi` as a Menu node (named by the item it drops from),
+    /// its items inside — a check mark, a radio dot, a disabled item as
+    /// states, the ShortCut as the accelerator — and the panel's open
+    /// submenu inside the item it belongs to. The item the keys or the mouse
+    /// chose has the focus (the innermost panel's; the panel itself while no
+    /// item is chosen).
+    fn describe_panel(&self, pi: usize) -> AccessNode {
+        let panel = &self.menus.panels[pi];
+        let last = pi + 1 == self.menus.panels.len();
+        let list = items(&panel.parent);
+        let mut menu_node = AccessNode::new(part_id(&panel.parent, PART_POPUP, 0), Role::Menu);
+        menu_node.name = menu::with(&panel.parent, |n| mnemonic(menu::split_caption(&n.caption).0).0).filter(|c| !c.is_empty()).unwrap_or_else(|| "Menu".to_string());
+        menu_node.bounds = panel.rect;
+        menu_node.orientation = Some(Orientation::Vertical);
+        menu_node.states.focused = last && panel.hot.is_none();
+        for (k, ((top, h), item)) in rows(&list).into_iter().zip(&list).enumerate() {
+            // (a separator is a line, not something to read: left out, as the bar's)
+            if item.separator {
+                continue;
+            }
+            let role = if item.radio {
+                Role::MenuItemRadio
+            } else if item.checked {
+                Role::MenuItemCheckBox
+            } else {
+                Role::MenuItem
+            };
+            let mut n = AccessNode::new(node_id(&item.id), role);
+            n.name = mnemonic(&item.caption).0;
+            n.description = item.hint.clone();
+            n.accelerator = Some(item.keys.clone()).filter(|k| !k.is_empty());
+            n.states.disabled = !item.enabled;
+            if item.radio || item.checked {
+                n.states.checked = Some(item.checked);
+            }
+            n.states.focused = last && panel.hot == Some(k);
+            n.bounds = (panel.rect.0 + BORDER, panel.rect.1 + top, panel.rect.2 - 2 * BORDER, h);
+            n.actions = vec![Action::Click, Action::Focus];
+            if item.submenu {
+                let open = self.menus.panels.get(pi + 1).is_some_and(|s| s.parent == item.id);
+                n.states.expanded = Some(open);
+                n.actions.push(if open { Action::Collapse } else { Action::Expand });
+                if open {
+                    n.children.push(self.describe_panel(pi + 1));
+                }
+            }
+            menu_node.children.push(n);
+        }
+        menu_node
+    }
+
+    /// A screen reader's request on a menu node (`target` its id): a bar
+    /// item or an item of an open panel — Click picks it (a submenu's item
+    /// opens or closes its menu), Expand and Collapse open and close a
+    /// submenu, Focus chooses it as the arrow keys would. `None` when the
+    /// target isn't a menu's.
     pub(crate) fn menu_access(&mut self, store: &dyn Store, target: u64, action: Action) -> Option<bool> {
+        for pi in 0..self.menus.panels.len() {
+            let list = items(&self.menus.panels[pi].parent);
+            if let Some(k) = list.iter().position(|i| !i.separator && node_id(&i.id) == target) {
+                return Some(self.panel_item_access(pi, k, &list[k], action));
+            }
+        }
         let main = self.main_menu(store)?;
         let bar = self.bar_items(store);
         let k = (0..bar.len()).find(|&k| part_id(&main, PART_MENU, k) == target)?;
-        if action != Action::Click || !bar[k].0.enabled {
-            return Some(false);
-        }
-        if bar[k].0.submenu {
-            if self.menus.open_top == Some(k) && self.menu_open() {
-                self.close_menus();
-            } else {
-                self.open_top(store, k, true);
+        let open = self.menus.open_top == Some(k) && self.menu_open() && self.menus.popup.is_none();
+        let item = &bar[k].0;
+        match action {
+            Action::Click if item.enabled => {
+                if item.submenu {
+                    if open {
+                        self.close_menus();
+                    } else {
+                        self.open_top(store, k, true);
+                    }
+                } else {
+                    let id = item.id.clone();
+                    self.pick(&id);
+                }
+                Some(true)
             }
-        } else {
-            let id = bar[k].0.id.clone();
-            self.pick(&id);
+            Action::Expand if item.enabled && item.submenu => {
+                if !open {
+                    self.open_top(store, k, true);
+                }
+                Some(true)
+            }
+            Action::Collapse if item.submenu => {
+                if open {
+                    self.close_menus();
+                }
+                Some(true)
+            }
+            Action::Focus if !self.menu_open() => {
+                self.menus.keyboard = true;
+                self.menus.hot_top = Some(k);
+                self.dirty = true;
+                Some(true)
+            }
+            _ => Some(false),
         }
-        Some(true)
+    }
+
+    /// `action` on panel `pi`'s item `k` (see [`FormUi::menu_access`]).
+    fn panel_item_access(&mut self, pi: usize, k: usize, item: &ItemView, action: Action) -> bool {
+        let open = self.menus.panels.get(pi + 1).is_some_and(|s| s.parent == item.id);
+        match action {
+            Action::Click if item.enabled => {
+                if item.submenu {
+                    if open {
+                        self.menus.panels.truncate(pi + 1);
+                        self.menus.panels[pi].hot = Some(k);
+                        self.dirty = true;
+                    } else {
+                        self.open_sub(pi, k, true);
+                    }
+                } else {
+                    self.pick(&item.id);
+                }
+                true
+            }
+            Action::Expand if item.enabled && item.submenu => {
+                if !open {
+                    self.open_sub(pi, k, true);
+                }
+                true
+            }
+            Action::Collapse if item.submenu => {
+                if open {
+                    self.menus.panels.truncate(pi + 1);
+                    self.menus.panels[pi].hot = Some(k);
+                    self.dirty = true;
+                }
+                true
+            }
+            Action::Focus => {
+                // (as the mouse's move onto it: deeper menus close)
+                self.menus.panels.truncate(pi + 1);
+                self.menus.panels[pi].hot = Some(k);
+                self.dirty = true;
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Whether `id` is a menu of this form's (its main menu, or a pop-up
@@ -747,6 +901,7 @@ fn first_item(list: &[ItemView]) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use rapidr_value::input::Button;
+    use rapidr_value::objects::a11y::{node_id, AccessNode, Action, Orientation, Role};
     use rapidr_value::{v_int, v_str};
 
     use crate::{FormUi, KernelEvent, MemClipboard, MemStore, Mods, TextSystem};
@@ -920,6 +1075,145 @@ mod tests {
         f.menus.system_bar = true;
         f.key_down(&s, &mut ts, 121, "", Mods::NONE, &mut clip);
         assert!(!f.menus.keyboard);
+    }
+
+    /// The nodes of the tree that have the focus, as "role name".
+    fn focused(tree: &AccessNode) -> Vec<String> {
+        let mut out = Vec::new();
+        tree.walk(&mut |n| {
+            if n.states.focused {
+                out.push(format!("{} {}", n.role.name(), n.name));
+            }
+        });
+        out
+    }
+
+    // (the menus in the accessibility tree: the AccessKit tree's source)
+    #[test]
+    fn an_open_menu_is_in_the_accessibility_tree_and_the_keys_walk_it() {
+        let (s, mut f, mut ts) = setup("mb5");
+        let mut clip = MemClipboard::default();
+        // Closed: the bar's items, File collapsed, the form focused.
+        let tree = f.access_tree(&s, &mut ts);
+        let file = &tree.children[0].children[0];
+        assert_eq!((file.role, file.name.as_str(), file.states.expanded), (Role::MenuItem, "File", Some(false)));
+        assert!(file.children.is_empty() && file.actions.contains(&Action::Expand));
+        assert_eq!(focused(&tree), vec!["window ".to_string()]);
+        // Alt+F: File's menu drops down inside File, its first item chosen.
+        f.key_down(&s, &mut ts, 70, "", ALT, &mut clip);
+        let tree = f.access_tree(&s, &mut ts);
+        let file = &tree.children[0].children[0];
+        assert_eq!(file.states.expanded, Some(true));
+        assert!(file.actions.contains(&Action::Collapse));
+        let menu = &file.children[0];
+        assert_eq!((menu.role, menu.name.as_str(), menu.orientation), (Role::Menu, "File", Some(Orientation::Vertical)));
+        // (the separator isn't a node; each item has its role, name and states)
+        let names: Vec<(Role, &str)> = menu.children.iter().map(|c| (c.role, c.name.as_str())).collect();
+        assert_eq!(names, vec![(Role::MenuItem, "New"), (Role::MenuItemRadio, "Beginner"), (Role::MenuItemRadio, "Expert"), (Role::MenuItem, "Exit")]);
+        let [new, beginner, expert, exit] = &menu.children[..] else { panic!("four items") };
+        assert_eq!(new.accelerator.as_deref(), Some("Ctrl+N"));
+        assert_eq!((beginner.states.checked, expert.states.checked), (Some(true), Some(false)));
+        assert!(exit.states.disabled && !new.states.disabled);
+        assert_eq!(new.shortcut, None);
+        let (_, _, w, h) = new.bounds;
+        assert!(w > 20 && h == super::ITEM_H, "{:?}", new.bounds);
+        // The focus is on New alone: not the form, not File.
+        assert_eq!(focused(&tree), vec!["menuitem New".to_string()]);
+        // The keys walk it: Down is Beginner, Down Expert, Down Exit (disabled, still chosen), Down wraps to New.
+        for want in ["menuitemradio Beginner", "menuitemradio Expert", "menuitem Exit", "menuitem New"] {
+            f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
+            assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec![want.to_string()]);
+        }
+        f.key_down(&s, &mut ts, 38, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem Exit".to_string()]);
+        // Right moves to Edit: its menu replaces File's; Sub has a submenu, collapsed, then Right opens it.
+        f.key_down(&s, &mut ts, 39, "", Mods::NONE, &mut clip);
+        let tree = f.access_tree(&s, &mut ts);
+        let (file, edit) = (&tree.children[0].children[0], &tree.children[0].children[1]);
+        assert!(file.children.is_empty() && file.states.expanded == Some(false));
+        let sub = &edit.children[0].children[0];
+        assert_eq!((sub.name.as_str(), sub.states.expanded), ("Sub", Some(false)));
+        assert_eq!(focused(&tree), vec!["menuitem Sub".to_string()]);
+        f.key_down(&s, &mut ts, 39, "", Mods::NONE, &mut clip);
+        let tree = f.access_tree(&s, &mut ts);
+        let sub = &tree.children[0].children[1].children[0].children[0];
+        assert_eq!(sub.states.expanded, Some(true));
+        let deep = &sub.children[0];
+        assert_eq!((deep.role, deep.name.as_str()), (Role::Menu, "Sub"));
+        assert_eq!(deep.children[0].name, "Deep");
+        assert_eq!(focused(&tree), vec!["menuitem Deep".to_string()]);
+        // Escape closes the submenu, then the menu: the bar's item is chosen (F10's state), then the form has the focus again.
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem Edit".to_string()]);
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["window ".to_string()]);
+        // It all reads as JSON (RAPIDR_TEST_A11Y's, the AX probe's).
+        f.key_down(&s, &mut ts, 70, "", ALT, &mut clip);
+        let json = f.access_tree(&s, &mut ts).to_json();
+        for want in ["\"role\":\"menu\"", "\"role\":\"menuitemradio\"", "\"name\":\"Beginner\"", "\"accelerator\":\"Ctrl+N\"", "\"checked\"", "\"not-checked\""] {
+            assert!(json.contains(want), "{want} in {json}");
+        }
+    }
+
+    #[test]
+    fn a_screen_reader_drives_the_menus() {
+        let (s, mut f, mut ts) = setup("mb6");
+        let id = |name: &str| node_id(&format!("mb6{name}"));
+        let bar = |f: &mut FormUi, ts: &mut TextSystem| f.access_tree(&s, ts).children[0].children.iter().map(|c| c.id).collect::<Vec<_>>();
+        let (file, edit) = (bar(&mut f, &mut ts)[0], bar(&mut f, &mut ts)[1]);
+        // Expand File: its menu is open, the first item chosen. Collapse closes it.
+        assert!(f.access_action(&s, &mut ts, file, Action::Expand, None));
+        assert!(f.menu_open());
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem New".to_string()]);
+        assert!(f.access_action(&s, &mut ts, file, Action::Collapse, None));
+        assert!(!f.menu_open());
+        // Click Edit drops it; Expand on Sub (an item of the open panel) opens its submenu.
+        assert!(f.access_action(&s, &mut ts, edit, Action::Click, None));
+        assert!(f.access_action(&s, &mut ts, id("sub"), Action::Expand, None));
+        assert_eq!(f.menus.panels.len(), 2);
+        assert!(f.access_action(&s, &mut ts, id("sub"), Action::Collapse, None));
+        assert_eq!(f.menus.panels.len(), 1);
+        // Click File while Edit's is down: File's drops instead. A disabled item's Click is refused.
+        assert!(f.access_action(&s, &mut ts, file, Action::Click, None));
+        assert!(!f.access_action(&s, &mut ts, id("quit"), Action::Click, None));
+        assert!(picks(&mut f).is_empty() && f.menu_open());
+        // Focus chooses an item as the arrow keys would; Click picks it.
+        assert!(f.access_action(&s, &mut ts, id("exp"), Action::Focus, None));
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitemradio Expert".to_string()]);
+        assert!(f.access_action(&s, &mut ts, id("exp"), Action::Click, None));
+        assert_eq!(picks(&mut f), vec!["mb6exp".to_string()]);
+        assert!(!f.menu_open());
+        // Closed menus have no item nodes: a stale id does nothing.
+        assert!(!f.access_action(&s, &mut ts, id("exp"), Action::Click, None));
+    }
+
+    #[test]
+    fn the_bar_selected_with_f10_has_the_focus_and_a_popup_menu_is_in_the_tree() {
+        let (s, mut f, mut ts) = setup("mb7");
+        let mut clip = MemClipboard::default();
+        f.key_down(&s, &mut ts, 121, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem File".to_string()]);
+        f.key_down(&s, &mut ts, 39, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem Edit".to_string()]);
+        f.key_down(&s, &mut ts, 27, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["window ".to_string()]);
+        // A pop-up menu (the context menu of an edit, QPOPUPMENU): last in the form, its items inside.
+        let mut s = s;
+        s.add("mb7pop", "RPOPUPMENU", Some("mb7form"));
+        for (id, caption) in [("mb7p1", "Cut"), ("mb7p2", "&Paste")] {
+            s.add(id, "RMENUITEM", Some("mb7pop")).set(id, "caption", v_str(caption)).set(id, "parent", v_str("mb7pop"));
+        }
+        assert!(f.open_popup("mb7pop", 40, 60));
+        let tree = f.access_tree(&s, &mut ts);
+        let menu = tree.children.last().unwrap();
+        assert_eq!((menu.role, menu.name.as_str()), (Role::Menu, "Menu"));
+        assert_eq!(menu.children.iter().map(|c| c.name.as_str()).collect::<Vec<_>>(), ["Cut", "Paste"]);
+        assert_eq!((menu.bounds.0, menu.bounds.1), (40, 60));
+        // (the menu itself has the focus until an item is chosen)
+        assert_eq!(focused(&tree), vec!["menu Menu".to_string()]);
+        f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
+        assert_eq!(focused(&f.access_tree(&s, &mut ts)), vec!["menuitem Cut".to_string()]);
     }
 
     #[test]

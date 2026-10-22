@@ -191,10 +191,23 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("connected", v_int(0));
             put("timeout", v_int(5000));
         }
+        // (Host's 0.0.0.0 and Mode's "lines": the registry's defaults)
         "RSERVERSOCKET" => {
-            put("host", v_str("0.0.0.0"));
             put("port", v_int(0));
             put("clientcount", v_int(0));
+        }
+        // (RapidR's local HTTP server, runtime-core's httpserver on the
+        // desktop: what it reads back; Host, Port, Token … are the
+        // registry's defaults)
+        "RHTTPSERVER" => {
+            put("listening", v_int(0));
+            put("url", v_str(""));
+            put("error", v_str(""));
+            put("request", v_int(0));
+            put("method", v_str(""));
+            put("path", v_str(""));
+            put("query", v_str(""));
+            put("peer", v_str(""));
         }
         "RHTTP" => {
             put("host", v_str(""));

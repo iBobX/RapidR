@@ -114,6 +114,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 |---|---|---|---|---|
 | <img src="../icons/light/components/socket.svg" width="20" height="20" alt=""> | [`RSocket`](members.md#rsocket) | `QSOCKET` | RapidQ | desktop (TCP); web (WebSocket) |
 | <img src="../icons/light/components/serversocket.svg" width="20" height="20" alt=""> | [`RServerSocket`](members.md#rserversocket) | — | RapidR | desktop |
+| <img src="../icons/light/components/httpserver.svg" width="20" height="20" alt=""> | [`RHttpServer`](members.md#rhttpserver) | — | RapidR | desktop |
 | <img src="../icons/light/components/http.svg" width="20" height="20" alt=""> | [`RHttp`](members.md#rhttp) | — | RapidR | everywhere |
 | <img src="../icons/light/components/cgi.svg" width="20" height="20" alt=""> | [`RCGI`](members.md#rcgi) | `QCGI` | qcgi.inc | everywhere |
 | <img src="../icons/light/components/comport.svg" width="20" height="20" alt=""> | [`RComPort`](members.md#rcomport) | `QCOMPORT`, `COMPORT` | RapidQ | desktop (serial2); web (Web Serial) |
@@ -216,4 +217,4 @@ RapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of t
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-116 components; 76 of them have a RapidQ name.
+117 components; 76 of them have a RapidQ name.
