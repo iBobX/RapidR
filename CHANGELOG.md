@@ -167,6 +167,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **`True` in a RapidQ program (`.bas`) is RapidQ's** (RC.EXE): without
+  `$INCLUDE "RAPIDQ.INC"` it is an undeclared name that reads 0 (`IF True THEN`
+  doesn't run), with the code editor's "True is a RAPIDQ.INC constant" warning as
+  for mbYes; with the include it is 1. A RapidR program (`.rr`) keeps `True` = -1
+  built in. Four test fixtures that meant RapidR's True now include RAPIDQ.INC.
 - **RapidQ-exact against RapidQ's own compiler (lane COMPAT, docs/rapidq-ground-truth.md)**:
   `RINSTR(start, s, find)` uses its start on every runtime, as RapidQ does (only an
   occurrence that ends by character `start` counts: `RINSTR(4, "hehe they", "he")` is 3; an

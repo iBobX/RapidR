@@ -2427,7 +2427,11 @@ impl Bcgen {
                     is_local: self.scope.get(&id.name).is_some(),
                     is_known_global: self.is_known_global(&id.name),
                     is_bare_builtin: builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str()),
-                    is_bool_name: matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse"),
+                    // (RapidR's True / False: a RapidR program's are vtTrue /
+                    // vtFalse by now, rapidr_ast::builtin_constants; a RapidQ
+                    // program's are names like mbYes — but in the debugger's
+                    // expressions, which have no program around them)
+                    is_bool_name: matches!(name_lower.as_str(), "vttrue" | "vtfalse") || (self.snippet && matches!(name_lower.as_str(), "true" | "false")),
                     is_rapidr_constant: rapidr_ast::rapidr_constant(&id.name).is_some(),
                     is_function: self.fn_indices.contains_key(&id.name) && self.fn_is_func.get(&id.name).copied() == Some(true),
                 };

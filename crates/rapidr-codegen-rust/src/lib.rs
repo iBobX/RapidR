@@ -400,7 +400,7 @@ impl RustCodegen {
                     && !self.defined_functions.contains(n)
                     && !self.component_vars.contains_key(n)
                     // (`RESULT` is a FUNCTION's own return value)
-                    && !matches!(n, "true" | "false" | "vttrue" | "vtfalse" | "_with_" | "result")
+                    && !matches!(n, "vttrue" | "vtfalse" | "_with_" | "result")
                     && (n != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(n, &[]).is_none() || assigned.contains(n))
                     // (RapidR's own constants, unless the program assigns them)
@@ -743,7 +743,7 @@ impl RustCodegen {
                 !self.top_level_vars.contains(name.as_str())
                     && !self.defined_functions.contains(name.as_str())
                     && !self.component_vars.contains_key(name.as_str())
-                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    && !matches!(name.as_str(), "vttrue" | "vtfalse" | "_with_")
                     // (`pi` is the constant unless the program assigns it)
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
@@ -2022,7 +2022,7 @@ impl RustCodegen {
                     && !self.component_vars.contains_key(name.as_str())
                     && !self.is_global_scalar(name)
                     && !self.is_global_array(name)
-                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    && !matches!(name.as_str(), "vttrue" | "vtfalse" | "_with_")
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
                     && (rapidr_ast::rapidr_constant(name).is_none() || assigned.contains(name.as_str()))
@@ -2575,10 +2575,12 @@ impl RustCodegen {
                     return format!("v_int({n})");
                 }
                 match name_lower.as_str() {
-                    // (unless the program has its own: RAPIDQ.INC's `CONST
-                    // True = 1`, as the VM reads it)
-                    "true" | "vttrue" if !variable => "v_bool(true)".to_string(),
-                    "false" | "vtfalse" if !variable => "v_bool(false)".to_string(),
+                    // RapidR's True / False (a RapidR program's, made
+                    // vtTrue / vtFalse by rapidr_ast::builtin_constants; a
+                    // RapidQ program's True is a variable or the include's
+                    // `CONST True = 1`), as the VM reads them.
+                    "vttrue" if !variable => "v_bool(true)".to_string(),
+                    "vtfalse" if !variable => "v_bool(false)".to_string(),
                     // An omitted argument (`COLOR , 1`, `INSTR(, a, b)`)
                     "__omitted" => "v_null()".to_string(),
                     _ => {

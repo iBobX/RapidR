@@ -1,6 +1,7 @@
 ' A main program waiting in a DOEVENTS loop for a timer (RapidQ's way to
 ' keep a form alive while busy): the timer's events run meanwhile — on the
 ' web too, where the loop used to freeze the page.
+$INCLUDE "RAPIDQ.INC"
 DECLARE SUB Tick
 DIM Ticks AS INTEGER
 CREATE Form AS QFORM
