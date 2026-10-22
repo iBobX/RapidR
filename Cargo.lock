@@ -5193,6 +5193,10 @@ name = "rapidr-diagnostics"
 version = "2.120.0"
 
 [[package]]
+name = "rapidr-diff"
+version = "2.120.0"
+
+[[package]]
 name = "rapidr-editor"
 version = "2.120.0"
 dependencies = [
@@ -5536,6 +5540,9 @@ name = "rapidr-vcs"
 version = "2.120.0"
 dependencies = [
  "gix",
+ "rapidr-diff",
+ "regex",
+ "serde_json",
  "tempfile",
 ]
 

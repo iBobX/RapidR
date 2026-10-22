@@ -476,6 +476,19 @@ fn never_runs_configured_programs_or_hooks() {
         v.share_to_folder(&shared, "main").unwrap(),
         Share::Shared { .. }
     ));
+    // G1's actions too: checkpoints, restoring, going back, Undo, the
+    // secret scan, getting the latest (the filters would run while
+    // snapshots read the files)
+    write(&dir, "a.txt", &read(&dir, "a.txt").replace("line 7\n", "rai 7\n"));
+    let cp = v.checkpoint("rai", &ana()).unwrap();
+    write(&dir, "a.txt", &read(&dir, "a.txt").replace("rai 7\n", "after 7\n"));
+    v.check_secrets(None).unwrap();
+    v.restore_snapshot(&cp.id).unwrap();
+    v.undo().unwrap();
+    v.restore_file("a.txt", "HEAD").unwrap();
+    v.go_back("HEAD~1", &ana()).unwrap();
+    v.undo().unwrap();
+    v.get_latest_from_folder(&shared, "main", &ana()).unwrap();
 
     let left: Vec<String> = std::fs::read_dir(&marks)
         .unwrap()
