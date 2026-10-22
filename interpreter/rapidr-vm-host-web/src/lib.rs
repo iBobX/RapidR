@@ -256,9 +256,9 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
         "rinstr" => {
             if args.len() >= 3 {
-                rp_rinstr(&a0, &a1, &a2)
+                rp_rinstr_from(&a0, &a1, &a2)
             } else {
-                rp_rinstr(&v_null(), &a0, &a1)
+                rp_rinstr(&a0, &a1)
             }
         }
         "format" => rp_format(&a0, args.get(1..).unwrap_or(&[])),

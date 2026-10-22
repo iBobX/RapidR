@@ -3235,9 +3235,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // RINSTR([start,] s, find): the start is optional, as INSTR's.
         "rinstr" => {
             if args.len() >= 3 {
-                Some(format!("rp_rinstr(&{a0}, &{a1}, &{a2})"))
+                Some(format!("rp_rinstr_from(&{a0}, &{a1}, &{a2})"))
             } else {
-                Some(format!("rp_rinstr(&v_null(), &{a0}, &{a1})"))
+                Some(format!("rp_rinstr(&{a0}, &{a1})"))
             }
         }
         "format" => Some(format!("rp_format(&{a0}, &[{}])", args.get(1..).unwrap_or(&[]).iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),

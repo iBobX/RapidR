@@ -644,9 +644,9 @@ mod tests {
 
     #[test]
     fn test_rinstr() {
-        assert_eq!(rp_rinstr(&v_null(), &v_str("hello world hello"), &v_str("hello")), v_int(13));
-        assert_eq!(rp_rinstr(&v_null(), &v_str("hello"), &v_str("xyz")), v_int(0));
-        assert_eq!(rp_rinstr(&v_int(4), &v_str("hehe they"), &v_str("he")), v_int(3));
+        assert_eq!(rp_rinstr(&v_str("hello world hello"), &v_str("hello")), v_int(13));
+        assert_eq!(rp_rinstr(&v_str("hello"), &v_str("xyz")), v_int(0));
+        assert_eq!(rp_rinstr_from(&v_int(4), &v_str("hehe they"), &v_str("he")), v_int(3));
     }
 
     #[test]

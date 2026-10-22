@@ -167,6 +167,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **`RINSTR(text, find)` compiles natively again with any generation of the
+  compiler** (found by RapidR Database Studio): the two-argument form keeps its
+  runtime function `rp_rinstr(text, find)`, the form with a start has its own
+  (`rp_rinstr_from`); both agree with RC.EXE on the VM, native builds and the web
+  (`rapidq_rinstr_two_args`).
 - **An event handler's STRING or number parameter gets "" / 0, not the Sender**
   (RC.EXE): `OnClick = H` with `SUB H(T AS STRING)` reads "" in T when the event
   fires (a number parameter 0), as RapidQ's first call does; an object parameter

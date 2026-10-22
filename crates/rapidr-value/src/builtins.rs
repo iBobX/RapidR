@@ -603,9 +603,16 @@ pub fn rp_replacesubstr(s: &Value, find: &Value, replacement: &Value) -> Value {
     crate::strings::replace_all(s, find, replacement)
 }
 
-/// RINSTR([start,] s, find) — the last occurrence (1-based, 0 if not
-/// found); `start` is `Value::Null` without one (`crate::strings::rinstr`).
-pub fn rp_rinstr(start: &Value, s: &Value, substr: &Value) -> Value {
+/// RINSTR(s, find) — the last occurrence (1-based, 0 if not found;
+/// `crate::strings::rinstr`). Native builds of either generation call it
+/// with these two arguments.
+pub fn rp_rinstr(s: &Value, substr: &Value) -> Value {
+    crate::strings::rinstr(&Value::Null, s, substr)
+}
+
+/// RINSTR(start, s, find) — the last occurrence that ends by character
+/// `start` (`crate::strings::rinstr`).
+pub fn rp_rinstr_from(start: &Value, s: &Value, substr: &Value) -> Value {
     crate::strings::rinstr(start, s, substr)
 }
 
