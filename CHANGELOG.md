@@ -8,6 +8,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Menus drawn in the window are in the accessibility tree** (Windows,
+  Linux and the web; macOS uses the system's own menu bar). An open menu —
+  a bar's drop-down, a submenu, a pop-up menu or an edit's context menu —
+  is a `menu` node with its items inside it: `menuitem`, `menuitemcheckbox`
+  and `menuitemradio` with their checked state, disabled items disabled, a
+  submenu's item collapsed or expanded (with a "has a menu" mark) and holding
+  its submenu, the item's ShortCut as its keyboard shortcut (AccessKit's
+  `keyboard_shortcut`, ARIA's `aria-keyshortcuts`) and its Hint as its
+  description. The item the arrow keys (or the mouse) chose has the screen
+  reader's focus — and no component has it meanwhile — so VoiceOver,
+  Narrator, NVDA, Orca and a browser's screen reader read each item as the
+  keys move; the bar selected with F10 or Alt focuses its item the same way.
+  A screen reader can press an item, expand or collapse a submenu and move to
+  an item. `RAPIDR_TEST_A11Y`'s JSON carries `accelerator`. Kernel tests walk
+  the keys and read the tree, Studio's `open-recent` flow reads the File menu
+  and its Open Recent submenu on both hosts, and `tests/web_a11y.mjs`
+  compares the kernel's menu nodes with Chrome's on the new `menus_open`
+  fixture.
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS

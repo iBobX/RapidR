@@ -1516,7 +1516,17 @@ const CASES = [
     do: "wait,open:ui.rr,wait,wait",
     delay: 4,
     restart: { noOpen: true, events: "studio.__key_70_1,studio.__key_82", delay: 4 },
-    a11y: [[/^Reopen Shelf, and the 2 files you had open$/, "button", "focused"], ["File", "menuitem", "expanded"]],
+    // (the open menu is in the tree: File's menu with its items — checked,
+    // disabled, with their keys — and no node but the chosen item has the focus)
+    a11y: [
+      [/^Reopen Shelf, and the 2 files you had open$/, "button"],
+      ["File", "menuitem", "expanded"],
+      ["File", "menu", null, (n) => (n.children || []).some((i) => i.role === "menuitem" && /Open Recent/.test(i.name) && (i.states || []).includes("expanded"))],
+      [/Open Recent/, "menuitem", "expanded"],
+      [/^1 {2}Shelf\.rrproj {2}— {2}/, "menuitem", "focused"],
+      ["New Project...", "menuitem", null, (n) => n.accelerator === "Ctrl+N"],
+      ["Save All", "menuitem", null, (n) => n.accelerator === "Ctrl+Shift+S"],
+    ],
     dump: { "mi(13).caption": /^Open &Recent$/, "mi(14).caption": /^&1 {2}Shelf\.rrproj {2}— {2}\S+$/, "mi(14).visible": /^(1|-1)$/, "mi(15).visible": /^0$/, "mi(24).visible": /^0$/, "mi(26).caption": /^&Clear Recent$/, "mi(26).enabled": /^(1|-1)$/, "reopenrow.visible": /^(1|-1)$/, "recentnone.visible": /^0$/, "studio.caption": /^RapidR Studio$/ },
   },
   // (S2) …its first item picked from the keyboard (Alt+F, R, 1): open.

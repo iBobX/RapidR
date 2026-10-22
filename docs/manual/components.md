@@ -462,6 +462,16 @@ the author doing anything:
   Narrator and NVDA (UI Automation) on Windows, AT-SPI on Linux (through
   AccessKit); in a browser, an ARIA mirror of the same tree.
 - A component's name is its caption, or its `AccessibleName`.
+- Menus are read too. A menu bar drawn in the window (Windows, Linux, the
+  web; macOS uses the system's own) is a menu bar of menu items; a menu
+  that is open — a drop-down, a submenu, a pop-up menu — is a menu with its
+  items inside it: a check mark or a radio dot is "checked", a greyed item
+  "disabled", its `ShortCut` is said after its name, an item with a submenu
+  says it is collapsed or expanded, and the item the arrow keys chose has
+  the screen reader's focus, so it is read as the keys move. A screen
+  reader can also press an item, open or close a submenu and move to an
+  item, as the keyboard and the mouse do. An item's `Hint` is its
+  description.
 - (RapidR's) A panel with `TabStop = 1` takes the focus like a button:
   Tab reaches it, the theme's focus ring shows around it, Enter or Space
   clicks it (`OnClick`), and a screen reader announces a button named by
