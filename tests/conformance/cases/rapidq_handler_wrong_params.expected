@@ -1,4 +1,6 @@
 H called, N is 0: -1
-HS called
+HS called [] 0
 HO called, Checked 1
+HD called -1 []
+HS called [direct] 6
 done

@@ -1124,6 +1124,13 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__shell_notifyicon" => return Some(Ok(tray::shell_notify_icon_builtin(&arg(0), &arg(1)))),
         "__to_fixed" => return Some(Ok(rp_fixed_string(&arg(0), arg(1).to_i64().max(0) as usize))),
         "__arg_round" => return Some(Ok(numeric::arg_round(&arg(0)))),
+        // An event handler's start (rapidr_ast::event_params): the Sender
+        // only for an object parameter.
+        "__sender_param" => return Some(Ok(events::sender_param(&arg(0), &arg(1), &arg(2)))),
+        "__event_done" => {
+            events::event_done();
+            return Some(Ok(Value::Null));
+        }
         // Stores into declared numeric types (`numeric`, rapidr_ast::numeric).
         _ if key.starts_with("__to_") => {
             if let Some(kind) = numeric::NumKind::from_builtin(key) {

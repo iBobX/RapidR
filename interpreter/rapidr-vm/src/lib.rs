@@ -1411,7 +1411,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// [`Self::invoke_event`]; `nested`: run right after a host operation
     /// of the code below (see [`Frame::nested`]).
     fn invoke(&mut self, module: &Module, event: QueuedEvent, nested: bool) -> Result<Value, VmError> {
-        let QueuedEvent { handler: fn_index, args, then } = event;
+        let QueuedEvent { handler: fn_index, args, then, sender } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         // (the debugger: an event's handler starts afresh — its first line
         // is a new line even when it's the one the last event ran, so a
@@ -1436,7 +1436,12 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
         top.stop = true;
         top.then = then;
         top.nested = nested;
-        match self.exec(module) {
+        // (the Sender's place, for the handler's first statements:
+        // rapidr_value::events::sender_param; taken by its `__event_done`)
+        let outer = rapidr_value::events::arm_sender(sender);
+        let ran = self.exec(module);
+        rapidr_value::events::arm_sender(outer);
+        match ran {
             // The handler returned (its value is on top), or ENDed.
             Ok(()) if self.frames.len() == base_frames => Ok(self.stack.pop().unwrap_or(Value::Null)),
             Ok(()) => Ok(Value::Null),

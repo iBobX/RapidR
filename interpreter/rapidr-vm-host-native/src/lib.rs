@@ -478,7 +478,7 @@ fn install_event_queue() -> Option<obj::IndirectDispatcher> {
     obj::rp_set_cooperative_waits(true);
     obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
         // (with the continuation of an event fired with rp_fire_event_then)
-        let event = QueuedEvent { then: rapidr_value::events::take_armed(), ..QueuedEvent::new(fn_index, args.to_vec()) };
+        let event = QueuedEvent::fired(fn_index, args);
         EVENTS.with(|q| q.borrow_mut().push_back(event));
     }))
 }

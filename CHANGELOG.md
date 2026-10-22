@@ -167,6 +167,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **An event handler's STRING or number parameter gets "" / 0, not the Sender**
+  (RC.EXE): `OnClick = H` with `SUB H(T AS STRING)` reads "" in T when the event
+  fires (a number parameter 0), as RapidQ's first call does; an object parameter
+  is still the Sender. The same on the VM, native builds and the web — they gave
+  the Sender's name ("CK" interpreted, "ck" native).
 - **`True` in a RapidQ program (`.bas`) is RapidQ's** (RC.EXE): without
   `$INCLUDE "RAPIDQ.INC"` it is an undeclared name that reads 0 (`IF True THEN`
   doesn't run), with the code editor's "True is a RAPIDQ.INC constant" warning as

@@ -95,7 +95,7 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — native builds run them
     // first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(program))));
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // (the system tray: Shell_NotifyIcon and a form's WndProc —
@@ -3090,6 +3090,37 @@ mod tests {
             let src = format!("{lib}{tail}");
             compile_program_with_source(&parse(&src), Some(&src)).expect("compiles");
         }
+    }
+
+    /// rapidr_ast::event_params: a SUB bound to an event starts by giving
+    /// its STRING / number parameters "" / 0 in the Sender's place (and
+    /// taking the event's mark); an object, untyped, BYREF parameter keeps
+    /// what it gets; a SUB no event names is left alone.
+    #[test]
+    fn event_handlers_get_the_sender_prologue() {
+        let p = rapidr_ast::event_params::lower(&parse(
+            "SUB H(T AS STRING, N AS INTEGER, O AS QBUTTON, V, BYREF R AS STRING, S$)\nEND SUB\nSUB G\nEND SUB\nSUB NotBound(T AS STRING)\nEND SUB\nCREATE F AS QFORM\n  CREATE B AS QBUTTON\n    OnClick = H\n  END CREATE\nEND CREATE\nF.OnShow = G\n",
+        ));
+        let prologue = |n: &str| -> Vec<String> {
+            let Some(Statement::Subroutine(r)) = p.statements.iter().find(|s| matches!(s, Statement::Subroutine(r) if r.name == n)) else { panic!("{n}") };
+            r.body
+                .iter()
+                .filter_map(|s| match s {
+                    Statement::Assignment(a) => match &a.value {
+                        Expression::FunctionCall(c) => match &c.args[..] {
+                            [Expression::Literal(Literal { value: LiteralValue::Integer(i), .. }), _, Expression::Literal(Literal { value: LiteralValue::String(k), .. })] => Some(format!("{i}{k}")),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    Statement::Call(_) => Some("done".into()),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(prologue("H"), ["0S", "1N", "5S", "done"]);
+        assert_eq!(prologue("G"), ["done"]);
+        assert!(prologue("NotBound").is_empty());
     }
 
     /// A RUSTSTART block, in the main program or a SUB: the native-only

@@ -50,7 +50,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — the bytecode compiler runs
     // them first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(program))));
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
@@ -3183,6 +3183,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_double" => Some(format!("numeric::to_double(&{a0})")),
         "__to_single" => Some(format!("numeric::to_single(&{a0})")),
         "__arg_round" => Some(format!("numeric::arg_round(&{a0})")),
+        // An event handler's start (rapidr_ast::event_params).
+        "__sender_param" => Some(format!("rr_events::sender_param(&{a0}, &{a1}, &{a2})")),
+        "__event_done" => Some("{ rr_events::event_done(); v_null() }".to_string()),
         "__to_fixed" => Some(format!("rp_fixed_string(&{a0}, ({a1}).to_i64().max(0) as usize)")),
         "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
         "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),

@@ -27,12 +27,58 @@ pub struct QueuedEvent {
     pub handler: u32,
     pub args: Vec<Value>,
     pub then: Vec<u32>,
+    /// The Sender's place among `args` when the runtime fired the event
+    /// ([`call`] hands it last): the VM marks it for the handler's
+    /// [`sender_param`]s. `None` for a call that isn't an event's.
+    pub sender: Option<usize>,
 }
 
 impl QueuedEvent {
     pub fn new(handler: u32, args: Vec<Value>) -> Self {
-        QueuedEvent { handler, args, then: Vec::new() }
+        QueuedEvent { handler, args, then: Vec::new(), sender: None }
     }
+
+    /// A handler of an event [`call`] fired, with its arguments (the Sender
+    /// last) and the continuation armed for it ([`take_armed`]): what a host
+    /// queues for the VM.
+    pub fn fired(handler: u32, args: &[Value]) -> Self {
+        QueuedEvent { handler, args: args.to_vec(), then: take_armed(), sender: args.len().checked_sub(1) }
+    }
+}
+
+thread_local! {
+    /// The Sender's place among the arguments of the event handler about to
+    /// start, until the handler's first statements take it ([`event_done`]).
+    static SENDER: Cell<Option<usize>> = const { Cell::new(None) };
+}
+
+/// Marks the Sender's place for the event handler about to start (see
+/// [`sender_param`]): [`call`] for a compiled one, the VM for a queued one.
+/// Returns the mark it replaces, which the caller puts back once the
+/// handler has run (a handler that an event interrupted before its first
+/// statements finds its own mark again).
+pub fn arm_sender(at: Option<usize>) -> Option<usize> {
+    SENDER.with(|s| s.replace(at))
+}
+
+/// `p = __sender_param(i, p, kind)` at an event handler's start
+/// (rapidr_ast::event_params): RapidQ hands the Sender only to an object
+/// parameter, so a STRING parameter (`kind` "S") in its place gets "" and a
+/// number one ("N") 0 (RC.EXE: what the handler's first call reads). Any
+/// other parameter, or a call that isn't an event's, keeps `v`.
+pub fn sender_param(i: &Value, v: &Value, kind: &Value) -> Value {
+    let here = SENDER.with(|s| s.get()).is_some_and(|at| i.to_i64() == at as i64);
+    match (here, kind.to_string_val().as_str()) {
+        (true, "S") => v_str(""),
+        (true, _) => crate::v_int(0),
+        (false, _) => v.clone(),
+    }
+}
+
+/// `__event_done` after an event handler's [`sender_param`]s: the mark is
+/// taken, so a routine the handler calls keeps its arguments.
+pub fn event_done() {
+    SENDER.with(|s| s.set(None));
 }
 
 /// A handler bound to a component's event.
@@ -107,6 +153,10 @@ pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32,
         }
     }
     let back = Back((!queued).then_some(armed));
+    // (a compiled handler runs now: the Sender's place marked for its
+    // first statements, `sender_param`; a queued one's travels with it,
+    // `QueuedEvent::fired`)
+    let outer = if queued { None } else { Some(arm_sender(Some(args.len()))) };
     match handler {
         Handler::Arity0(f) => f(),
         Handler::Arity1(f) => f(a(&all, 0)),
@@ -128,6 +178,9 @@ pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32,
             indirect(id, &with_this);
         }
         Handler::Closure(f) => f(&mut all),
+    }
+    if let Some(outer) = outer {
+        arm_sender(outer);
     }
     drop(back);
     all

@@ -601,7 +601,7 @@ fn start_session(session: Session) {
     });
     let _ = obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
         // (with the continuation of an event fired with rp_fire_event_then)
-        let event = Event { then: rapidr_value::events::take_armed(), ..Event::new(fn_index, args.to_vec()) };
+        let event = Event::fired(fn_index, args);
         // Between two time slices the program is busy: the event waits
         // until it waits.
         if dialog::is_yielded() {
