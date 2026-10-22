@@ -120,6 +120,18 @@ It comes after S10 phase 2, in the same panes | Opus M |
 - G5 blame, G6 remotes (needs Robert's GitHub OAuth App) and G7 Pro board the release if ready.
 - The docked Diff tab (G2) is shared with RAI's review.
 
+### EXT: the VS Code extension, current with Preview 4 (Robert, 2026-10-22: "so the minimalist users can use it instead")
+| # | Item | Model, size |
+|---|---|---|
+| EXT1 ★ | **Grammar and snippets for the new language:** `END n`, `OnMessage`, `TR$`/`TRN$`/`Application.Language`, RapidR names | Sonnet S |
+| EXT2 ★ | **Everything Studio's language service gains, through the language server:**<br>• Find References and Go to Definition (S3);<br>• argument-name hints and the line note (E2), as inlay hints;<br>• colour swatches and pickers (E1), as document colours;<br>• the `NOT FILEEXISTS` hint (K4b), as a code action;<br>• project-aware diagnostics (S5).<br>One implementation: the editor and the extension share the server. | Opus M (server side, with the E and S lanes) + Sonnet S (client) |
+| EXT3 ★ | **Debugging through the debug adapter:**<br>• set values while paused (S11: setVariable/setExpression);<br>• value kinds, so the editor shows proper icons;<br>• the exit code shown when the program ends. | Sonnet M |
+| EXT4 ★ | **Commands:**<br>• open the translation files;<br>• "Open in RapidR Studio";<br>• the examples;<br>• the builds, which now carry subfolders and `lang/`. | Sonnet S |
+| EXT5 ★ | **Notices and legal:**<br>• THIRD_PARTY_NOTICES for the extension's own npm packages, regenerated;<br>• the trademark line "Visual Studio Code is a trademark of Microsoft; this extension is not affiliated with or endorsed by Microsoft";<br>• the package.json `sponsor` link;<br>• RapidR-first wording;<br>• a **lawyer-agent review** before publishing: the Marketplace publisher terms and Microsoft's naming rules for extensions, plus the Open VSX publisher agreement if we publish there too. | Sonnet S + the lawyer agent |
+| EXT6 ★ | **The real walk in VS Code:**<br>• install the .vsix;<br>• completion, a breakpoint, change a value, run, build;<br>• screenshots for the README;<br>• publishing waits for Robert's go. | Sonnet S (visual) |
+
+It is scheduled at the end of Preview 4, after the language-service features merge, so the extension ships everything at once.
+
 ### X: Security audit and legal
 | # | Item | Model, size |
 |---|---|---|

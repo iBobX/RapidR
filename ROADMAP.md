@@ -759,6 +759,14 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] E5 `RValueEditor`: helpers written in RapidR
 - [ ] ★ E6 `kind` across the registry
 
+**The VS Code extension, current with Preview 4**
+- [ ] ★ EXT1 Grammar and snippets for the new language
+- [ ] ★ EXT2 The language service's new features through the language server (references, inlay hints, document colours, code actions)
+- [ ] ★ EXT3 Debugging: set values, value kinds, exit codes
+- [ ] ★ EXT4 Commands (translations, Open in RapidR Studio, examples, builds)
+- [ ] ★ EXT5 Notices, the trademark line, the sponsor link, a lawyer-agent review before publishing
+- [ ] ★ EXT6 The real walk in VS Code; publishing on Robert's go
+
 **Security and legal**
 - [ ] ★ X1 Threat model update
 - [ ] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan
