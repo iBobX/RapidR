@@ -67,9 +67,13 @@ pub trait Host {
     fn row_changed(&self, _name: &str) {}
 }
 
+/// A table for `Schema`: its name, kind ("table" / "view") and columns
+/// (name, type).
+type SchemaTable = (String, String, Vec<(String, String)>);
+
 /// `Schema`'s JSON — what RCODEEDITOR's SetSchema takes: `{"tables":
 /// [{"name", "kind" ("table" / "view"), "columns": [{"name", "type"}]}]}`.
-fn schema_json(tables: &[(String, String, Vec<(String, String)>)]) -> String {
+fn schema_json(tables: &[SchemaTable]) -> String {
     fn text(s: &str) -> String {
         let mut out = String::with_capacity(s.len() + 2);
         out.push('"');

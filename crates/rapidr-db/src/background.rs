@@ -44,6 +44,9 @@ pub const BUSY: &str = "busy: a background query is running (Cancel it, or wait 
 /// What OnError gets after Cancel.
 pub const CANCELLED: &str = "cancelled";
 
+/// A result's columns: their names and declared types.
+pub type Columns = (Vec<String>, Vec<String>);
+
 /// How a background query ended.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum End {
@@ -65,7 +68,7 @@ struct Progress {
     /// The current statement's columns (names, declared types), new since
     /// the program's thread last looked (a statement with result columns
     /// starts the rows again).
-    columns: Option<(Vec<String>, Vec<String>)>,
+    columns: Option<Columns>,
     /// Chunks of rows not yet taken.
     chunks: Vec<Frame>,
     /// How it ended, and the milliseconds it took.
@@ -108,7 +111,7 @@ impl Shared {
     }
 
     /// What came since the last look: new columns, chunks, the end.
-    fn take(&self) -> (Option<(Vec<String>, Vec<String>)>, Vec<Frame>, Option<(End, u64)>) {
+    fn take(&self) -> (Option<Columns>, Vec<Frame>, Option<(End, u64)>) {
         let mut p = self.lock();
         (p.columns.take(), std::mem::take(&mut p.chunks), p.end.take())
     }
@@ -154,7 +157,7 @@ impl<'a> Chunker<'a> {
         self.builder.end_row();
         let n = self.builder.rows();
         // (the clock read every 64 rows: cheap, and a slice is still kept)
-        if n >= self.target || (n % 64 == 0 && self.since.elapsed() >= self.slice) {
+        if n >= self.target || (n.is_multiple_of(64) && self.since.elapsed() >= self.slice) {
             self.flush();
             return true;
         }
@@ -234,12 +237,12 @@ thread_local! {
     static ACTIVE: RefCell<Vec<Active>> = const { RefCell::new(Vec::new()) };
     /// Each component's background result's columns, as the database named
     /// and typed them (the frame's names make a repeated one unique: `id_2`).
-    static META: RefCell<std::collections::HashMap<String, (Vec<String>, Vec<String>)>> = RefCell::new(std::collections::HashMap::new());
+    static META: RefCell<std::collections::HashMap<String, Columns>> = RefCell::new(std::collections::HashMap::new());
 }
 
 /// Component `key`'s background result's columns: their names and
 /// declared types ("" where the database has none).
-pub fn meta(key: &str) -> Option<(Vec<String>, Vec<String>)> {
+pub fn meta(key: &str) -> Option<Columns> {
     META.with(|m| m.borrow().get(key).cloned())
 }
 

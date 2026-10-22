@@ -396,7 +396,12 @@ pub struct Job {
 
 impl Job {
     /// Runs it to its end, `pause` awaited after each chunk of rows (the
-    /// web: the page's turn; the desktop's worker: nothing).
+    /// web: the page's turn; the desktop's worker: nothing). The
+    /// connection's lock is held throughout, across the pauses too, on
+    /// purpose: it is the "busy" every other query of the component is
+    /// refused with (`try_lock`, never waited for), and on the web the
+    /// page has one thread, on the desktop the worker its own.
+    #[allow(clippy::await_holding_lock)]
     pub async fn run<P, F>(self, pause: P)
     where
         P: FnMut() -> F,
