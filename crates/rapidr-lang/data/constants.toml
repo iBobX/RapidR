@@ -1179,3 +1179,14 @@ constants = [
   ["akright", 4],
   ["akbottom", 8],
 ]
+
+[[group]]
+name = "List view change kinds"
+source = "RapidR"
+origin = "rapidr"
+doc = "What changed in an item, the `Change` an RListView's OnChange hears: its caption edited (ctText), an image (ctImage), its check box or state image (ctState). Built into a RapidR program (`.rr`) only: RapidQ's includes don't have them, so a RapidQ program (`.bas`) reads the names as variables that are 0."
+constants = [
+  ["ctText", 0],
+  ["ctImage", 1],
+  ["ctState", 2],
+]

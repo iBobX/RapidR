@@ -8,6 +8,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **`ctText`, `ctImage`, `ctState` (0, 1, 2) in `.rr` programs**: the `Change`
+  kinds an RListView's OnChange hears are RapidR's own, in none of RapidQ's
+  includes, so they are built in the way RAPIDQ.INC's constants are (the same
+  pass, `rapidr_ast::builtin_constants`, both backends; a name the program
+  declares wins) for a RapidR program only — a RapidQ program reads them as
+  undeclared variables, 0, as RapidQ does. In the language registry as RapidR's
+  (origin `rapidr`), completion and hover; `docs/manual/reference/constants.md`
+  lists them. Conformance: `rr_builtin_constants` (the numbers) and
+  `rr_only_constants_not_in_bas` (nothing in a `.bas`), on both backends.
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong

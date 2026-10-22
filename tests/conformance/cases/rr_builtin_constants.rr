@@ -24,3 +24,4 @@ SELECT CASE 6
   CASE mrYes: PRINT "yes"
 END SELECT
 PRINT True; " "; False
+PRINT ctText; " "; ctImage; " "; ctState

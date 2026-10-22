@@ -170,7 +170,8 @@ fn constants_are_the_preprocessors() {
     assert_eq!(rapidq_inc, pre, "RAPIDQ.INC's constants, in order");
     let rapidr: Vec<(String, i64)> =
         CONSTANT_GROUPS.iter().filter(|g| g.origin == Origin::RapidR).flat_map(|g| g.constants.iter().map(|(n, v)| (n.to_ascii_lowercase(), *v))).collect();
-    let ast: Vec<(String, i64)> = rapidr_ast::RAPIDR_CONSTANTS.iter().map(|(n, v)| (n.to_string(), *v)).collect();
+    // (and the ones only a .rr program has: builtin_constants::RAPIDR_ONLY)
+    let ast: Vec<(String, i64)> = rapidr_ast::RAPIDR_CONSTANTS.iter().chain(rapidr_ast::builtin_constants::RAPIDR_ONLY).map(|(n, v)| (n.to_ascii_lowercase(), *v)).collect();
     assert_eq!(rapidr, ast, "RapidR's own constants");
     // (the library includes': rapidr_preprocessor's LIBRARY_INCLUDES)
     let src = repo("crates/rapidr-preprocessor/src/lib.rs");

@@ -22,6 +22,11 @@
 //! - **`True` and `False` stay RapidR's** (-1 and 0, what a comparison
 //!   gives): RAPIDQ.INC's `True` is 1, which a RapidR program gets only
 //!   with the include, as before.
+//! - **RapidR's own, for `.rr` only** ([`RAPIDR_ONLY`]): names RapidQ has in
+//!   none of its includes — `ctText`, `ctImage`, `ctState`, an RListView's
+//!   OnChange kinds — are built in the same way; a RapidQ program has none
+//!   of them (they are RapidR's extension: in a `.bas` they read as
+//!   undeclared variables, 0).
 //!
 //! `$INCLUDE "RAPIDQ.INC"` in a RapidR program still works: its constants
 //! and array are then the program's own, and nothing here applies.
@@ -54,10 +59,23 @@ fn table() -> &'static HashMap<String, i64> {
     TABLE.get_or_init(|| constants().map(|(n, v)| (n.to_ascii_lowercase(), v)).collect())
 }
 
-/// The constants a RapidR program has built in (RAPIDQ.INC's, in its
-/// order, but `True` and `False`), with RAPIDQ.INC's spelling.
+/// RapidR's own constants that only a `.rr` program has (RapidQ has them in
+/// none of its includes, so a `.bas` program never does): an RListView's
+/// OnChange `Change` kinds — the caption edited, an image, the check box or
+/// state image (`rapidr_value::objects::listview::CT_TEXT` …). In the
+/// language registry as RapidR's (`constants.toml`).
+pub const RAPIDR_ONLY: &[(&str, i64)] = &[("ctText", 0), ("ctImage", 1), ("ctState", 2)];
+
+/// Whether `name` is one of [`RAPIDR_ONLY`] (any case).
+pub fn is_rapidr_only(name: &str) -> bool {
+    RAPIDR_ONLY.iter().any(|(n, _)| n.eq_ignore_ascii_case(name))
+}
+
+/// The constants a RapidR program has built in: RAPIDQ.INC's (in its order,
+/// but `True` and `False`, with RAPIDQ.INC's spelling), then
+/// [`RAPIDR_ONLY`].
 pub fn constants() -> impl Iterator<Item = (&'static str, i64)> {
-    rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.iter().filter(|(n, _)| !rapidq_only(n)).map(|&(n, v)| (n, v))
+    rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.iter().filter(|(n, _)| !rapidq_only(n)).map(|&(n, v)| (n, v)).chain(RAPIDR_ONLY.iter().copied())
 }
 
 /// The value of built-in constant `name` (any case, a type suffix ignored),
@@ -454,6 +472,18 @@ mod tests {
         // (True stays RapidR's)
         assert!(matches!(printed(&out.statements[3]), Expression::Identifier(_)));
         assert!(is_rapidr_program(&rr) && !is_rapidr_program(&bas));
+    }
+
+    #[test]
+    fn ct_kinds_are_a_rapidr_programs_only() {
+        let bas = Program { span: TextSpan::default(), statements: vec![print(id("ctState")), print(id("ctImage"))] };
+        // (a RapidQ program: untouched — they read as variables)
+        assert_eq!(lower(&bas), bas);
+        let rr = Program { span: TextSpan::default(), statements: vec![print(id("ctText")), print(id("ctImage")), print(id("ctState")), print(id("CTSTATE")), mark_stmt()] };
+        let out = lower(&rr);
+        assert_eq!([0, 1, 2, 2], [0, 1, 2, 3].map(|i| int(printed(&out.statements[i])).unwrap()));
+        assert!(is_rapidr_only("ctstate") && !is_rapidr_only("mbYes"));
+        assert!(is_builtin_name("ctImage"));
     }
 
     #[test]

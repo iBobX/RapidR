@@ -132,6 +132,11 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
             // program's $INCLUDE "RAPIDQ.INC": its own names)
             for g in rapidr_lang::CONSTANT_GROUPS.iter().filter(|g| g.origin == Origin::RapidR) {
                 for (name, value) in g.constants {
+                    // (the ones only a .rr program has — ctText … — aren't
+                    // offered to a RapidQ program)
+                    if !s.rapidr_program() && rapidr_ast::builtin_constants::is_rapidr_only(name) {
+                        continue;
+                    }
                     let label = pretty_constant(name);
                     out.push(Completion {
                         label,
