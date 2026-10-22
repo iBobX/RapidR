@@ -96,6 +96,10 @@ pub struct Tab {
     pub pane: String,
     pub rect: Rect,
     pub close: Option<Rect>,
+    /// Where its title is drawn: the x it starts at (past the icon) and
+    /// the x it must end by (before the close button), in `rect`'s
+    /// coordinates. A tab that fits its title whole has room for all of it.
+    pub text: (i64, i64),
 }
 
 /// A group of panes: where it is (in the dock manager's coordinates; a
@@ -242,6 +246,44 @@ fn tab_width(title: &str, font: &Font, icon: bool, close: bool, pad: i64) -> i64
     w + 2 * pad + if icon { ICON + 6 } else { 0 } + if close { BUTTON } else { 0 }
 }
 
+/// The widths of tabs that want `want` pixels each in `room`, when they
+/// don't all fit: the padding goes first — every tab alike, up to `give`
+/// pixels each, so the names stay whole — and then the widest tabs are
+/// trimmed to one width (a short name is never cut for a long one's sake),
+/// none under `floor`.
+pub fn squeeze(want: &[i64], room: i64, give: i64, floor: i64) -> Vec<i64> {
+    let n = want.len() as i64;
+    let total: i64 = want.iter().sum();
+    if n == 0 || total <= room {
+        return want.to_vec();
+    }
+    let take = ((total - room + n - 1) / n).min(give);
+    let mut w: Vec<i64> = want.iter().map(|&x| x - take).collect();
+    if total - take * n <= room {
+        return w;
+    }
+    let kept = |x: i64, cap: i64| x.min(cap).max(floor.min(x));
+    let (mut lo, mut hi) = (floor, w.iter().copied().max().unwrap_or(floor));
+    while lo < hi {
+        let mid = (lo + hi + 1) / 2;
+        if w.iter().map(|&x| kept(x, mid)).sum::<i64>() <= room {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    for x in &mut w {
+        *x = kept(*x, lo);
+    }
+    w
+}
+
+/// How much of a group tab's padding (10 left, 8 right) can go before its
+/// title is cut: down to 4 and 2.
+const GROUP_GIVE: i64 = 12;
+/// …and a document tab's, its left (12 down to 6): the close button keeps its room.
+const DOC_GIVE: i64 = 6;
+
 /// A group's header and content in its own coordinates, `w` × `h`.
 pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<usize>, titles: &dyn Titles, font: &Font) -> Group {
     let (w, h) = (rect.2, rect.3);
@@ -261,16 +303,21 @@ pub fn group(slot: Slot, panes: &[String], active: usize, rect: Rect, path: Vec<
     let room = (x - 4).max(0);
     let mut tabs = Vec::new();
     if panes.len() == 1 {
-        tabs.push(Tab { pane: panes[0].clone(), rect: (0, 0, room + 4, HEADER), close: None });
+        let icon = if titles.icon(&panes[0]).is_empty() { 0 } else { ICON + 6 };
+        tabs.push(Tab { pane: panes[0].clone(), rect: (0, 0, room + 4, HEADER), close: None, text: (8 + icon, room) });
     } else {
-        let widths: Vec<i64> = panes.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), false, 10)).collect();
-        let total: i64 = widths.iter().sum();
-        // (too many to fit: each gives up room in proportion, none under 40)
-        let fit = |wd: i64| if total > room && total > 0 { (wd * room / total).max(40) } else { wd };
+        let want: Vec<i64> = panes.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), false, 10)).collect();
+        // (too many to fit: the padding goes first, then the widest tabs
+        // are trimmed alike, none under 40)
+        let widths = squeeze(&want, room, GROUP_GIVE, 40);
         let mut x = 4;
-        for (p, wd) in panes.iter().zip(widths) {
-            let wd = fit(wd);
-            tabs.push(Tab { pane: p.clone(), rect: (x, 0, wd, HEADER), close: None });
+        for ((p, wd), want) in panes.iter().zip(widths).zip(want) {
+            let icon = if titles.icon(p).is_empty() { 0 } else { ICON + 6 };
+            let shed = (want - wd).clamp(0, GROUP_GIVE);
+            // (10 left and 8 right, less what was shed: the left gives the
+            // larger half)
+            let (left, right) = (10 - (shed + 1) / 2, 8 - shed / 2);
+            tabs.push(Tab { pane: p.clone(), rect: (x, 0, wd, HEADER), close: None, text: (x + left + icon, x + wd - right) });
             x += wd;
         }
     }
@@ -370,15 +417,17 @@ pub fn doc_group(docs: &[String], active: usize, rect: Rect, path: Vec<usize>, t
         right -= total + 8;
     }
     let room = (right - gx).max(0);
-    let widths: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).min(260)).collect();
-    let total: i64 = widths.iter().map(|w| w + 1).sum();
-    let fit = |wd: i64| if total > room && total > 0 { (wd * room / total).max(MIN_TAB.min(wd)) } else { wd };
+    let want: Vec<i64> = docs.iter().map(|p| tab_width(&titles.title(p), font, !titles.icon(p).is_empty(), true, 12).min(260)).collect();
+    // (too many to fit — each tab's pixel of gap counted: the padding goes
+    // first, then the widest tabs are trimmed alike, none under MIN_TAB)
+    let widths = squeeze(&want, room - docs.len() as i64, DOC_GIVE, MIN_TAB);
     let mut x = gx;
     let mut tabs = Vec::new();
-    for (p, wd) in docs.iter().zip(widths) {
-        let wd = fit(wd);
+    for ((p, wd), want) in docs.iter().zip(widths).zip(want) {
         let close = (x + wd - BUTTON - 6, gy + (DOC_TABS - BUTTON) / 2 + 1, BUTTON - 2, BUTTON - 2);
-        tabs.push(Tab { pane: p.clone(), rect: (x, gy, wd, DOC_TABS), close: Some(close) });
+        let icon = if titles.icon(p).is_empty() { 0 } else { ICON + 6 };
+        let shed = (want - wd).clamp(0, DOC_GIVE);
+        tabs.push(Tab { pane: p.clone(), rect: (x, gy, wd, DOC_TABS), close: Some(close), text: (x + 12 - shed + icon, close.0 - 4) });
         x += wd + 1;
     }
     // (under the strip, inside the group's 1-pixel frame on the left, the

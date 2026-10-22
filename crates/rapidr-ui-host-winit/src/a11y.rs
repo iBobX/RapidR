@@ -34,7 +34,10 @@ fn role(r: Role) -> ARole {
         Role::Row => ARole::Row,
         Role::Cell => ARole::Cell,
         Role::MenuBar => ARole::MenuBar,
+        Role::Menu => ARole::Menu,
         Role::MenuItem => ARole::MenuItem,
+        Role::MenuItemCheckBox => ARole::MenuItemCheckBox,
+        Role::MenuItemRadio => ARole::MenuItemRadio,
         Role::Image => ARole::Image,
         Role::Canvas => ARole::Canvas,
         Role::SpinButton => ARole::SpinButton,
@@ -97,6 +100,14 @@ fn node(n: &AccessNode) -> Node {
     }
     if let Some(c) = n.shortcut {
         a.set_access_key(format!("Alt+{c}"));
+    }
+    // (a menu item's ShortCut, which a screen reader says after its name;
+    // an item with a submenu says it has one)
+    if let Some(k) = &n.accelerator {
+        a.set_keyboard_shortcut(k.as_str());
+    }
+    if matches!(n.role, Role::MenuItem | Role::MenuItemCheckBox | Role::MenuItemRadio) && n.states.expanded.is_some() {
+        a.set_has_popup(accesskit::HasPopup::Menu);
     }
     if let Some(l) = n.labelled_by {
         a.push_labelled_by(NodeId(l));
@@ -301,6 +312,39 @@ mod tests {
         let button = node(&AccessNode { name: "OK".into(), ..AccessNode::new(2, Role::Button) });
         assert_eq!(button.label(), Some("OK"));
         assert_eq!(button.value(), None);
+    }
+
+    #[test]
+    fn menus_reach_accesskit_with_their_roles_states_and_keys() {
+        // (an open menu: Menu > items; a check mark, a radio dot, a disabled
+        // item, a submenu, the ShortCut)
+        let mut menu = AccessNode::new(1, Role::Menu);
+        menu.name = "File".into();
+        let mut check = AccessNode::new(2, Role::MenuItemCheckBox);
+        check.name = "Word wrap".into();
+        check.states.checked = Some(true);
+        check.accelerator = Some("Ctrl+W".into());
+        let mut radio = AccessNode::new(3, Role::MenuItemRadio);
+        radio.name = "Beginner".into();
+        radio.states.checked = Some(false);
+        radio.states.disabled = true;
+        let mut sub = AccessNode::new(4, Role::MenuItem);
+        sub.name = "Recent".into();
+        sub.states.expanded = Some(false);
+        menu.children = vec![check, radio, sub];
+        let mut root = AccessNode::new(0, Role::Window);
+        root.children.push(menu);
+        let mut sent = Sent::default();
+        let up = update(&root, 1.0, &mut sent, true).unwrap();
+        let by_id: HashMap<NodeId, &Node> = up.nodes.iter().map(|(id, n)| (*id, n)).collect();
+        let m = by_id[&NodeId(1)];
+        assert_eq!((m.role(), m.label()), (ARole::Menu, Some("File")));
+        assert_eq!(m.children(), &[NodeId(2), NodeId(3), NodeId(4)]);
+        let (c, r, s) = (by_id[&NodeId(2)], by_id[&NodeId(3)], by_id[&NodeId(4)]);
+        assert_eq!((c.role(), c.toggled(), c.keyboard_shortcut()), (ARole::MenuItemCheckBox, Some(Toggled::True), Some("Ctrl+W")));
+        assert_eq!((r.role(), r.toggled(), r.is_disabled()), (ARole::MenuItemRadio, Some(Toggled::False), true));
+        assert_eq!((s.role(), s.is_expanded(), s.has_popup()), (ARole::MenuItem, Some(false), Some(accesskit::HasPopup::Menu)));
+        assert_eq!(c.has_popup(), None);
     }
 
     /// A code editor's node: "Dim a\r\n\tb = a + 1\n" plus a 300-character

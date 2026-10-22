@@ -103,6 +103,7 @@ SUB RunCommand(Id AS STRING)
     CASE "view.theme.highcontrast": SetTheme "rapidr high contrast"
     CASE "view.theme.classic": SetTheme "classic"
     CASE "view.previewClassic": TogglePreviewClassic
+    CASE "view.outputWrap": ToggleOutputWrap
     CASE "view.layout"
       ' (every pane where it started, both layouts at their first sizes)
       Dock.ResetLayout

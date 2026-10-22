@@ -589,11 +589,44 @@ END SUB
 
 ' ---- the look ----------------------------------------------------------------------------
 
+' ---- the Output pane's long lines: wrapped (the default) or cut ------------------------
+' (View > Wrap Long Output Lines, and the pane's own right-click menu; kept in
+' the settings: OutputNoWrap is 1 once it was turned off)
+
+DIM OutputMenu AS RPopupMenu
+DIM OutputMenuWrap AS RMenuItem
+DIM OutputMenuClear AS RMenuItem
+
+SUB ToggleOutputWrap
+  OutputNoWrap = Flag(OutputNoWrap = 0)
+  OutputBox.WordWrap = Flag(OutputNoWrap = 0)
+  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
+  CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
+END SUB
+
+SUB OutputMenuOpening
+  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
+END SUB
+
+SUB ClearOutputPage
+  OutputBox.Clear
+END SUB
+
 ' (what each panel says while it has nothing to show)
 SUB SetUpPanels
   ProjectTree.EmptyText = "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
   Inspector.EmptyText = "Select a component on a form to see its properties."
   OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
+  OutputBox.WordWrap = Flag(OutputNoWrap = 0)
+  OutputMenuWrap.Caption = "&Wrap Long Lines"
+  OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
+  OutputMenuWrap.OnClick = ToggleOutputWrap
+  OutputMenuClear.Caption = "&Clear"
+  OutputMenuClear.OnClick = ClearOutputPage
+  OutputMenu.AddItems OutputMenuWrap
+  OutputMenu.AddItems OutputMenuClear
+  OutputMenu.OnPopup = OutputMenuOpening
+  OutputBox.PopupMenu = OutputMenu
   Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
   ' (RapidR's names: RButton, RLabel …; the designer writes each file in
   ' its own — a form written with RapidQ's names gets QBUTTON)

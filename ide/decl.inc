@@ -31,6 +31,8 @@ CONST MAXDOCS = 32
 
 DIM Cmd(MAXCMDS) AS StudioCommand
 DIM CmdCount AS INTEGER
+' (1 once the Output and Problems pages were told not to wrap long lines: panels.inc)
+DIM OutputNoWrap AS INTEGER
 
 ' The menus: every item (top menus, submenus, commands, separators) is one
 ' of these, made from the table at start-up.

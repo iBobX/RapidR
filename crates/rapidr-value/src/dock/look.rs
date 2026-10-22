@@ -835,13 +835,14 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
             } else {
                 p.tab_text
             };
-            let mut tx = x + 10;
+            // (the geometry's text place: its padding gave way before the
+            // title was cut)
+            let tx = tab.text.0;
             let ic = titles.icon(&tab.pane);
             if !ic.is_empty() {
-                icon(&mut ops, &ic, tx, (HEADER - 16) / 2, ink, if p.classic && !shown { ink } else { p.accent });
-                tx += 22;
+                icon(&mut ops, &ic, tx - 22, (HEADER - 16) / 2, ink, if p.classic && !shown { ink } else { p.accent });
             }
-            let room = x + tw - tx - 8;
+            let room = tab.text.1 - tx;
             let f = if shown { bold(font) } else { font.clone() };
             let title = fitted(&titles.title(&tab.pane), &f, room);
             text(&mut ops, (tx, 0, room.max(0), HEADER), &title, &f, ink, Place::Left, 0);
@@ -979,14 +980,13 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
             } else {
                 p.tab_text
             };
-            let mut tx = x + 12;
+            let tx = tab.text.0;
             let ic = titles.icon(&tab.pane);
             if !ic.is_empty() {
-                icon(&mut ops, &ic, tx, y + (th - 16) / 2, ink, p.accent);
-                tx += 22;
+                icon(&mut ops, &ic, tx - 22, y + (th - 16) / 2, ink, p.accent);
             }
             let close = tab.close.unwrap_or((x + tw, y, 0, 0));
-            let room = close.0 - tx - 4;
+            let room = tab.text.1 - tx;
             let title = fitted(&titles.title(&tab.pane), font, room);
             text(&mut ops, (tx, y, room.max(0), th), &title, font, ink, Place::Left, 0);
             // (a change not saved: a dot, the close button under the mouse;

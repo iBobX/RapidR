@@ -54,7 +54,13 @@ pub enum Role {
     Row,
     Cell,
     MenuBar,
+    /// A menu's panel when it's open (a drop-down, a submenu, a pop-up):
+    /// its items inside.
+    Menu,
     MenuItem,
+    /// A menu item with a check mark (a radio item: [`Role::MenuItemRadio`]).
+    MenuItemCheckBox,
+    MenuItemRadio,
     Image,
     Canvas,
     /// A QUPDOWN (a number with up / down arrows).
@@ -101,7 +107,10 @@ impl Role {
             Role::Row => "row",
             Role::Cell => "gridcell",
             Role::MenuBar => "menubar",
+            Role::Menu => "menu",
             Role::MenuItem => "menuitem",
+            Role::MenuItemCheckBox => "menuitemcheckbox",
+            Role::MenuItemRadio => "menuitemradio",
             Role::Image => "img",
             Role::Canvas => "canvas",
             Role::SpinButton => "spinbutton",
@@ -193,6 +202,9 @@ pub struct AccessNode {
     pub orientation: Option<Orientation>,
     /// Alt + this letter activates it (a caption's `&` mnemonic).
     pub shortcut: Option<char>,
+    /// The key that does it without the menu (a menu item's ShortCut, as
+    /// Windows writes it: "Ctrl+N"); a screen reader says it after the name.
+    pub accelerator: Option<String>,
     /// The node naming it (a QLABEL), when its name comes from one.
     pub labelled_by: Option<u64>,
     /// A tree item's depth (1: a top-level node).
@@ -315,6 +327,7 @@ impl AccessNode {
             numeric: None,
             orientation: None,
             shortcut: None,
+            accelerator: None,
             labelled_by: None,
             level: None,
             states: States::default(),
@@ -355,6 +368,14 @@ impl AccessNode {
         }
     }
 
+    /// [`AccessNode::walk`], each node changeable.
+    pub fn walk_mut(&mut self, f: &mut dyn FnMut(&mut AccessNode)) {
+        f(self);
+        for c in &mut self.children {
+            c.walk_mut(f);
+        }
+    }
+
     /// The tree as JSON (what `RAPIDR_TEST_A11Y` writes): roles, names,
     /// values and states, deterministic.
     pub fn to_json(&self) -> String {
@@ -379,6 +400,9 @@ impl AccessNode {
         }
         if let Some(c) = self.shortcut {
             s.push_str(&format!(",\"shortcut\":{}", json_str(&format!("Alt+{c}"))));
+        }
+        if let Some(a) = &self.accelerator {
+            s.push_str(&format!(",\"accelerator\":{}", json_str(a)));
         }
         if let Some(l) = self.labelled_by {
             s.push_str(&format!(",\"labelledBy\":{l}"));
@@ -710,6 +734,13 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
         "RPANEL" if flag(get, "tabstop", false) => {
             own_caption(&mut n, false);
             n.role = Role::Button;
+            n.actions = vec![Action::Click, Action::Focus];
+        }
+        // (RapidR's: a label given TabStop is a link — Tab reaches it, Enter
+        // / Space clicks it — so a screen reader hears a link)
+        "RLABEL" if flag(get, "tabstop", false) => {
+            own_caption(&mut n, false);
+            n.role = Role::Link;
             n.actions = vec![Action::Click, Action::Focus];
         }
         "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
@@ -1148,6 +1179,10 @@ mod tests {
         assert_eq!(describe("p", "RPANEL", &props(&[]), (200, 60), &font).role, Role::Pane);
         let n = describe("card", "RPANEL", &props(&[("tabstop", v_int(1))]), (200, 60), &font);
         assert_eq!((n.role, n.actions.contains(&Action::Click)), (Role::Button, true));
+        // (RapidR's) a label: a label; given TabStop, a link
+        assert_eq!(describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr"))]), (200, 20), &font).role, Role::Label);
+        let n = describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr")), ("tabstop", v_int(1))]), (200, 20), &font);
+        assert_eq!((n.role, n.name.as_str(), n.actions.contains(&Action::Click), n.actions.contains(&Action::Focus)), (Role::Link, "notepad.rr", true, true));
         let n = describe("pb", "RPROGRESSBAR", &props(&[("position", v_int(30)), ("max", v_int(60))]), (100, 16), &font);
         assert_eq!((n.role, n.value.as_deref(), n.numeric.unwrap().max), (Role::ProgressIndicator, Some("50%"), 60.0));
         let n = describe("ud", "RUPDOWN", &props(&[("position", v_int(4)), ("increment", v_int(2))]), (16, 25), &font);

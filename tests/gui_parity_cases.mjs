@@ -328,6 +328,10 @@ export const cases = [
   // (a message box: its caption, the icon left of the text, the buttons
   // with their mnemonics)
   { name: "message_icons", events: "", dump: "lbl.caption", expect: ["lbl.caption=asked"] },
+  // (an open menu in the accessibility tree: Alt+F, Down x4 to Recent, Right
+  // opens its submenu — the kernel's menu / menuitem / radio / check nodes
+  // and Chrome's, compared by tests/web_a11y.mjs)
+  { name: "menus_open", events: "form.__key_70_1,form.__key_40,form.__key_40,form.__key_40,form.__key_40,form.__key_39", dump: "lbl.caption", expect: ["lbl.caption=ready"] },
   { name: "menus", events: "expert.onclick,newitem.onclick", dump: "lbl.caption,beg.checked,expert.checked", expect: ["lbl.caption=new0154Ctrl+N", "beg.checked=0", "expert.checked=1"] },
   { name: "modal_result", events: "ed.__key_65,okbtn.onclick,nobtn.onclick", dump: "lbl.caption", expect: ["lbl.caption=17OKe"] },
   { name: "input_chars", events: "lbl.__key_65,lbl.__key_66,lbl.__key_67", dump: "lbl.caption", expect: ["lbl.caption=[abc]-1"] },

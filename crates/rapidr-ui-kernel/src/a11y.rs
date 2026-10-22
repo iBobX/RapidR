@@ -43,10 +43,24 @@ impl FormUi {
         if let Some(bar) = self.describe_menu_bar(store) {
             root.children.push(bar);
         }
+        let own = root.children.len();
         for i in self.roots() {
             if let Some(n) = self.describe(store, ts, i) {
                 root.children.push(n);
             }
+        }
+        // (a menu has the keyboard — one is open, or the bar was selected
+        // with F10 or Alt —: the focus is on its item, so a screen reader
+        // reads the item the keys chose, and no component has it meanwhile)
+        if self.menus_have_focus() {
+            root.states.focused = false;
+            for c in &mut root.children[own..] {
+                c.walk_mut(&mut |n| n.states.focused = false);
+            }
+        }
+        // (a pop-up menu open: over the form's components, last)
+        if let Some(popup) = self.describe_popup_menu() {
+            root.children.push(popup);
         }
         root
     }

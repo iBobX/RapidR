@@ -1088,3 +1088,62 @@ fn every_pane_keeps_its_edge_all_the_way_down() {
         }
     }
 }
+
+/// (A11Y) Tabs that don't all fit give up their padding before their names
+/// are cut, then the widest are trimmed alike — a short name is never cut
+/// for a long one's sake.
+#[test]
+fn tabs_that_do_not_fit_give_up_padding_before_their_names() {
+    // (they fit: untouched)
+    assert_eq!(geometry::squeeze(&[100, 80], 200, 12, 40), vec![100, 80]);
+    // (26 pixels over for four tabs: 7 each off the padding, every name whole)
+    let w = geometry::squeeze(&[108, 82, 112, 147], 423, 12, 40);
+    assert_eq!(w, vec![101, 75, 105, 140]);
+    // (more than the padding can give: the padding all gone — 12 each — and the
+    // widest trimmed alike to a common width, the short ones kept)
+    let w = geometry::squeeze(&[300, 100, 100], 400, 12, 40);
+    assert_eq!(w, vec![224, 88, 88]);
+    assert!(w.iter().sum::<i64>() <= 400);
+    // (the tabs trimmed alike down to what's left, a narrow one only by its padding)
+    let w = geometry::squeeze(&[200, 200, 30], 100, 12, 40);
+    assert_eq!(w, vec![41, 41, 18]);
+    // (never under the floor when there's room for it)
+    assert_eq!(geometry::squeeze(&[200, 200], 100, 12, 40), vec![50, 50]);
+    assert_eq!(geometry::squeeze(&[200, 200], 60, 12, 40), vec![40, 40]);
+}
+
+/// …in the geometry: a crowded group's tabs have room for every title when
+/// the padding can make it, and the title's place is what's drawn in.
+#[test]
+fn a_crowded_group_keeps_its_names_whole() {
+    use geometry::Titles;
+    struct T;
+    impl Titles for T {
+        fn title(&self, pane: &str) -> String {
+            pane.to_string()
+        }
+        fn icon(&self, _pane: &str) -> String {
+            "x".into()
+        }
+    }
+    let font = Font::default();
+    let panes: Vec<String> = ["Variables", "Watch", "Call Stack", "Breakpoints (12)"].iter().map(|s| s.to_string()).collect();
+    let bold = Font { styles: font.styles | 1, ..font.clone() };
+    let natural: i64 = panes.iter().map(|p| crate::objects::text::text_size(p, &bold).0 + 20 + 22).sum();
+    // (a few pixels short of what the tabs want, the buttons' room taken off)
+    let w = natural + 4 + 2 * 22 + 4 - 20;
+    let gr = geometry::group(Slot::Docked(0), &panes, 3, (0, 0, w, 200), vec![], &T, &font);
+    for (p, t) in panes.iter().zip(&gr.tabs) {
+        let room = t.text.1 - t.text.0;
+        let need = crate::objects::text::text_size(p, &bold).0;
+        assert!(room >= need, "{p}: room {room} for {need}");
+        assert!(t.text.0 > t.rect.0 + 22 && t.text.1 < t.rect.0 + t.rect.2, "{p}: the text is inside its tab");
+    }
+    // (the tabs still end where the buttons begin)
+    let first_button = gr.buttons.iter().map(|b| b.1 .0).min().unwrap();
+    assert!(gr.tabs.last().map(|t| t.rect.0 + t.rect.2).unwrap() <= first_button);
+    // (and plenty of room: the paddings as they were, 10 and 8)
+    let wide = geometry::group(Slot::Docked(0), &panes, 3, (0, 0, w + 400, 200), vec![], &T, &font);
+    let t = &wide.tabs[0];
+    assert_eq!((t.text.0 - t.rect.0, t.rect.0 + t.rect.2 - t.text.1), (10 + 22, 8));
+}

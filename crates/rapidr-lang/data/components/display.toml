@@ -30,6 +30,7 @@ properties = [
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"], access = "write", design = false },
   { name = "ShowHint", type = "bool", default = false },
   { name = "Tag", type = "int" },
+  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default, and RapidQ's QLABEL) leaves it out of the keyboard's way." },
   { name = "Top", type = "int", default = 0 },
   { name = "Transparent", type = "bool", default = false },
   { name = "UpperColor", type = "color", default = -2147483628 },
@@ -48,6 +49,7 @@ properties = [
 methods = [
   { name = "Repaint", origin = "rapidr" },
   { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it." },
 ]
 events = [
   { name = "OnClick" },
@@ -56,6 +58,8 @@ events = [
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
+  { name = "OnEnter", origin = "rapidr", doc = "Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.)" },
+  { name = "OnExit", origin = "rapidr", doc = "Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.)" },
 ]
 
 [[component]]
