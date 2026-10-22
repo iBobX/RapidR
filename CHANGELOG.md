@@ -249,6 +249,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   diagnostics were only asked for after typing. A text set from outside
   (`LoadFromFile`, `Text =`) is now diagnosed at the editor's next tick, before
   it is even drawn (`Model::diagnose_wanted`). Flow `editor-squiggles-on-open`.
+  The same pass gives the file's semantic colours at once (a SUB's name, a
+  component's, a constant's), so the Studio goldens of the scenes that open a
+  file (`debug-variables`, `-callstack`, `-breakpoints`, `-watch`, `-datatip`,
+  `-error`, `import-report`; light, dark and high contrast, 1x and 2x: 24
+  images) were approved: only the code area differs, in those colours.
 - **The Assistant's token meter is never cut off**: with cached tokens and
   prices the line (`2,000 tokens sent (200 from the cache), 40 received · about
   $0.0040`) is longer than the pane is wide, and the label, one line high
