@@ -92,7 +92,7 @@ pub fn command(args: &[String]) -> ExitCode {
                 }
                 let model = opt(rest, "--model").filter(|m| !m.is_empty()).ok_or("give --model: no model is assumed (rapidr ai models lists the provider's)")?;
                 let max = opt(rest, "--max-tokens").and_then(|m| m.parse().ok()).unwrap_or(1024);
-                let req = ChatRequest { model: model.clone(), system: String::new(), system_tail: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max, reasoning_effort: None, no_stream_usage: false };
+                let req = ChatRequest { model: model.clone(), system: String::new(), system_tail: String::new(), messages: vec![Message::user(&question)], tools: Vec::new(), max_tokens: max, reasoning_effort: None, no_stream_usage: false, thinking: None };
                 let http = wire::chat_request(&ep, &req);
                 let mut decoder = Decoder::new(ep.provider.format);
                 let mut reply = Reply::default();

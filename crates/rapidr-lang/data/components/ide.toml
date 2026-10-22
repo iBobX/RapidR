@@ -290,7 +290,7 @@ methods = [
   { name = "Clear", value = true, doc = "Shows nothing." },
   { name = "SelectAll", value = true, doc = "Selects the whole text." },
   { name = "OpenLink", params = "Url AS STRING", returns = "INTEGER", test = "skip: opens the browser", doc = "Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link." },
-  { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text: True when there is one." },
+  { name = "ScrollTo", params = "Heading AS STRING", returns = "INTEGER", doc = "Scrolls a heading to the top, named by its anchor (\"#getting-started\") or its text — or the paragraph with a link to that target, as written: True when there is one." },
   { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the view the keyboard focus: its keys scroll it, Tab steps through its links." },
 ]
 events = [

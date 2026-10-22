@@ -148,6 +148,13 @@ impl Doc {
         self.paras.iter().enumerate().filter(|(_, p)| matches!(p.kind, Kind::Heading(_))).nth(k).map(|(i, _)| i)
     }
 
+    /// The first paragraph with a link to `target` (as written: RapidR
+    /// Studio's `rai:thought/1`).
+    pub fn link_para(&self, target: &str) -> Option<usize> {
+        let k = self.links.iter().position(|l| l == target)?;
+        self.paras.iter().position(|p| p.runs.iter().any(|(_, s)| s.link == Some(k)))
+    }
+
     /// The link at byte `at` of paragraph `para`.
     pub fn link_at(&self, para: usize, at: usize) -> Option<usize> {
         let p = self.paras.get(para)?;
@@ -645,11 +652,15 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             basic_bool(ok)
         }
         "scrollto" => {
-            // (a heading's anchor or its text)
+            // (a heading's anchor or its text; else a link's target: the
+            // paragraph with that link)
             let want = s(0);
             let found = with_mut(name, |m| {
                 let doc = m.doc();
-                let at = doc.anchor_para(&want).or_else(|| doc.paras.iter().position(|p| matches!(p.kind, Kind::Heading(_)) && p.text.eq_ignore_ascii_case(want.trim())));
+                let at = doc
+                    .anchor_para(&want)
+                    .or_else(|| doc.paras.iter().position(|p| matches!(p.kind, Kind::Heading(_)) && p.text.eq_ignore_ascii_case(want.trim())))
+                    .or_else(|| doc.link_para(want.trim()));
                 m.scroll_to = at;
                 at.is_some()
             });
@@ -756,6 +767,9 @@ mod tests {
         assert_eq!(doc.headings()[1].3, 4);
         assert_eq!(doc.anchor_para("#Getting-Started-1"), Some(2));
         assert_eq!(doc.link_at(3, 0), Some(0));
+        // (a link's target names its paragraph too)
+        assert_eq!(doc.link_para("#getting-started-1"), Some(3));
+        assert_eq!(doc.link_para("#nowhere"), None);
         m.selection = Some(((1, 2), (0, 4)));
         assert_eq!(m.selected_text(), "ing started\nte");
         m.select_all();

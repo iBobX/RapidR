@@ -600,7 +600,7 @@ mod tests {
         assert_eq!(w.len(), 1);
         assert!(w[0].starts_with("line 2: an API key is written in the program"), "{w:?}");
         assert!(!w[0].contains("abcdefghij"), "never the key itself");
-        assert_eq!(build_warnings("x$ = \"sk-ant-api03-0123456789abcdefghij\"", false).len(), 1);
+        assert_eq!(build_warnings(concat!("x$ = \"sk", "-ant-api03-0123456789abcdefghij\""), false).len(), 1);
         // (a comment, an empty key, a short sk- word: nothing)
         assert!(build_warnings("' APIKey = \"sk-ant-0123456789abcdefghijkl\"\nAI.APIKey = \"\"\nPRINT \"sk-short\"", false).is_empty());
         let never = build_warnings("DIM AI AS RAI\nAI.APIKeySource = \"env:OPENAI_API_KEY\"", true);
@@ -609,7 +609,7 @@ mod tests {
 
     #[test]
     fn keys_in_files_are_redacted() {
-        let text = "AI.APIKey = \"sk-proj-abcdefghijklmnopqrstuvwxyz\"\nOPENAI_API_KEY=sk-ant-api03-0123456789abcdefghij\nPRINT \"sk-short\"\n";
+        let text = concat!("AI.APIKey = \"sk-proj-abcdefghijklmnopqrstuvwxyz\"\nOPENAI_API_KEY=sk", "-ant-api03-0123456789abcdefghij\nPRINT \"sk-short\"\n");
         let r = redact(text);
         assert!(!r.contains("abcdefghij") && !r.contains("0123456789"), "{r}");
         assert_eq!(r.matches("(an API key, not shown)").count(), 2, "{r}");

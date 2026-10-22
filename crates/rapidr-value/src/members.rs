@@ -102,7 +102,7 @@ const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", 
 const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
-const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey"];
+const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey", "compact"];
 const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided"];
 
 /// The web's own components.

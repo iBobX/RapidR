@@ -22,6 +22,8 @@
 //! * `rai` (feature `component`) — **RAI**, the component: a conversation
 //!   with a provider in a program or in RapidR Studio, its tools attached.
 //! * [`audit`] — the local audit log of what an assistant asked and did.
+//! * [`chats`] — RapidR Studio's kept chats: per project, in Studio's data
+//!   folder (never the project's), keys and tokens redacted.
 //! * [`claims`] — whether an answer says it changed something (a small
 //!   model that says so without calling a tool is asked once to do it).
 //! * [`lang`] — the language a message is written in, so the answer is in
@@ -42,6 +44,7 @@
 
 pub mod audit;
 pub mod chat;
+pub mod chats;
 pub mod claims;
 pub mod http;
 pub mod keys;
@@ -54,7 +57,7 @@ pub mod sse;
 pub mod stream;
 pub mod wire;
 
-pub use chat::{Block, ChatRequest, Message, Role, Tool, Usage};
+pub use chat::{Block, ChatRequest, Message, Role, Thinking, Tool, Usage};
 pub use provider::{provider, Format, Provider, PROVIDERS};
 pub use stream::{Decoder, Event, Reply};
 pub use wire::{ApiError, Endpoint, HttpRequest, ModelInfo};

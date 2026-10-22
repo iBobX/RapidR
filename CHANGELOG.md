@@ -91,6 +91,62 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and its Open Recent submenu on both hosts, and `tests/web_a11y.mjs`
   compares the kernel's menu nodes with Chrome's on the new `menus_open`
   fixture.
+- **RAI keeps your chats, and shows what it is doing** (Preview 4 R1, R2,
+  R4, R5, R6, K8; Robert's notes on RAI). In RapidR Studio:
+  - **Chats are kept**, per project, across restarts: opening a project
+    shows its newest chat again. **Chats** lists them — open, rename,
+    delete (with **Undo**), search titles and text; **New Chat** keeps the
+    one it replaces. They are kept in Studio's data folder, never in the
+    project's (`chats/` beside the settings: `~/Library/Application
+    Support/RapidR/chats` on macOS, `%APPDATA%\RapidR\chats` on Windows,
+    `~/.config/rapidr/chats` on Linux; the page's storage on the web), one
+    file a chat; API keys and tokens are replaced by *[key removed]* before
+    anything is written (`rapidr_ai::chats`, unit-tested); Delete removes
+    the file. A chat the assistant used to make a new program goes with
+    that program's project (and back when it is undone).
+  - **Edit a sent question** (Edit beside *You*): a bar says what Send will
+    do; what followed the question moves to a saved copy, "… (before the
+    edit)", nothing lost. **Retry** beside the last answer.
+  - **A live status line**: what it does now — *Thinking*, *Reading
+    sites.rr*, *Searching the manual*, *Writing server.rr*, *Checking the
+    code* — from the stream itself (a tool call's file named as soon as the
+    model writes it), the steps done after it, the seconds beside Stop, and
+    *No answer from the model for 30 s: wait, or Stop*; *Waiting for you*
+    when a change waits for review.
+  - **The context meter** (how much the next question sends, against where
+    the chat is compacted by itself) and **Compact**; **/ commands** listed
+    as you type: `/compact /new /chats /model /effort /undo /help`.
+  - **Reasoning effort** Low / Medium / High where the provider has it —
+    Anthropic's adaptive thinking at that effort (an older model's thinking
+    budget, stepping down by itself when a model refuses), an
+    OpenAI-compatible `reasoning_effort`; DeepSeek's models choose for
+    themselves. The reasoning shows as **Thought for N s**, a link that opens
+    and closes it (the link goes to the top of the chat, the reasoning under
+    it: RMarkdownView's `ScrollTo` also takes a link's target now).
+  - **One model list with ↻**; the provider row is gone from the pane (it is
+    Settings'). **Set Up RAI**, a two-step wizard for a first-time user: free
+    on this computer (finds Ollama, LM Studio and MLX Serve running — it
+    never starts one) or a cloud key (a key already found can be used; Test;
+    a model, the fast ones first), with what each costs and sends in plain
+    words. Tools > Set Up RAI, Ctrl+I before it is set up, and Settings > AI.
+  - **A lite set for small windows** (K8): a model of a context window under
+    16,384 tokens gets short instructions, the language card and eight
+    tools — about 2,500 tokens instead of 7,800 (estimated at three
+    characters a token, `rapidr-studio`'s `a_small_window_gets_the_lite_set`;
+    a live Claude Haiku question with the full set counted 10,966 input
+    tokens, the project's facts and the question included) —, so an
+    8,192-token local model starts and answers again.
+  - RAI, for every program: `ChatState` (the conversation as JSON, keys
+    removed), `Rewind(N)`, `QuestionCount`, `QuestionText(N)`, `Editable`,
+    `Activity`, `Elapsed`, `Quiet`, `ContextTokens`, `ContextLimit`,
+    `ContextWindow`, `Compact`, `Effort`, `EffortSupported`,
+    `ToggleThought(N)`, `Lite`; RAIProjectTools: `ChatList`, `SearchChats`,
+    `SaveChat`, `LoadChat`, `DeleteChat`, `RestoreChat`, `RenameChat`,
+    `ChatTitle`, `ChatsFolder`, `Lite`. Anthropic's models list's
+    capabilities are read (how each model thinks). Flows `ai-r1-*` …
+    `ai-r6-*`, `ai-k8-lite`; the mock provider streams thinking and writes
+    slowly on request; the manual's [AI assistant](docs/manual/ai-assistant.md)
+    page and seven new pictures.
 - **Versions, the engine (lane G1, docs/versions-plan.md).** `rapidr-vcs`
   speaks plain words over gitoxide: save a version (every changed file or
   some), the timeline, what changed, go back (a new version with the old
@@ -513,6 +569,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- The studio flow `ai-designer-rai` failed on the web now and then: its 13
+  steps, 400 ms apart, outlasted its 5-second capture on a slow start, so
+  the Model pick looked lost. It now waits for the model list
+  (`ai:designwait`) and captures at 8 s. Not a product bug.
+- RAI's models list from a server running with no model yet (Ollama answers
+  `"data": null`) is an empty list, not "not a models list"; Set Up RAI
+  says the server has no model yet and to download one in it first.
+- **No test run reaches the real keychain.** `tests/studio_shell.mjs` ran
+  Studio without `RAPIDR_AI_KEYSTORE=memory`: its `settings-ai` scene asked
+  the keychain for the AI keys, macOS asked for the login keychain's
+  password, and each run timed out with no capture. A redirected registry
+  (`RAPIDR_REGISTRY`) now means the memory keystore unless
+  `RAPIDR_AI_KEYSTORE=system`; the shell and add-form harnesses set it too,
+  and the shell's runs keep the AI's chats in their own folder.
 - **The debugger names a parameter by its source name** in a SUB that takes
   VARPTR of a global with the same name: `MyMsg` in Variables and in the
   expressions typed there, not the internal `MyMsg__param`.

@@ -22,6 +22,41 @@ provider's prices (Settings has a **See prices** link to them).
 
 ## Setting it up
 
+### Set up RAI, step by step
+
+**Tools > Set Up RAI…** (also **Set Up RAI…** on the AI page of Settings,
+and **Ctrl+I** before the assistant is set up) asks one thing at a time:
+
+1. **Where should RAI's answers come from?**
+   - **Free, on this computer.** A model runs on your own computer with
+     Ollama, LM Studio or MLX Serve (free programs you install). Nothing you
+     ask leaves the computer, and it costs nothing; it needs a fast computer
+     with plenty of memory, and answers are slower and simpler than a cloud
+     model's. Studio looks for each of them at once and says what it found —
+     *✓ Found on this computer: Ollama (3 models)* — or that none is
+     running. It never starts one for you: start yours, then **Look Again**.
+   - **A cloud service, with your own key**: Anthropic (Claude), OpenAI or
+     DeepSeek — usually the best answers. You pay the provider for what you
+     use; the page says what a question costs and what is sent.
+
+   ![Set up RAI: free on this computer (Ollama found), or a cloud service with your key](images/ai/setup.png)
+
+2. **On this computer**: the server (the ones running first) and one of its
+   models. **In the cloud**: the provider, your key (**Get a key** opens the
+   provider's page that makes one; a key Studio already finds — in the
+   keychain, or the provider's environment variable — can be used as it is),
+   **Test the Key**, then a model — the fast, low-cost ones are listed
+   first. A key the provider refuses is said in plain words, right there;
+   type another and test again.
+
+   ![Set up RAI with a cloud key: the key tested, the models listed, what it costs and what is sent](images/ai/setup-cloud.png)
+
+**Finish** turns the assistant on, keeps a key you typed in your system's
+keychain (never in a project), and shows the Assistant pane. **Cancel**
+changes nothing. Everything can be changed later in Settings.
+
+### Every setting: Tools > AI Settings
+
 **Tools > AI Settings…** (or **Tools > Settings**, the **AI** page):
 
 ![Tools > Settings, the AI page: the provider, a key kept for the session, the model picked from the provider's list, the reply limit, the prices, the permission](images/ai/settings.png)
@@ -120,12 +155,25 @@ name not found, no connection for a moment —, Studio tries once more, two
 seconds later, by itself; you only see an error if that fails too. A
 refusal (a wrong key, no credit left) is never tried again.
 
-While it works, the status line under the chat is a short checklist of what
-it has done so far — *✓ Found an example · ✓ Wrote the program · … Working…*
-— so a slow model on your own computer never leaves you guessing. A screen
-reader reads each new step aloud, once.
+**What it is doing now.** While it works, the status line under the chat
+says what it does at this moment, then the steps it has done:
+*Thinking…*, *Reading sites.rr…*, *Searching the manual…*, *Writing
+server.rr…*, *Checking the code…* — *Writing server.rr… · ✓ Read sites.rr*.
+The seconds the answer has taken show beside **Stop**. If the model sends
+nothing for 30 seconds, the status line says so: *No answer from the model
+for 30 s: wait, or Stop.* (a model on your own computer can be that slow
+while it writes a long change). When the answer leaves something for you —
+a change to review —, it says *Waiting for you*. A screen reader reads
+each new step aloud, once; the seconds are read only when you ask for them.
 
-![The Assistant pane: a question and its answer, the status line, the token meter, what Send shares](images/ai/panel.png)
+![The status line while the assistant works: what it does now (Reading hello_form.rr), the seconds beside Stop](images/ai/status.png)
+
+**The model, and ↻.** The list at the top of the pane is the provider's
+models; pick another for the next question. **↻** asks the provider for its
+models again (a new model, or one you just downloaded to your computer). The
+provider itself is chosen in Settings, or with Set up RAI.
+
+![The Assistant pane: a question and its answer, the status line, the context meter, the token meter, what Send shares](images/ai/panel.png)
 
 ### Cards: what really happened
 
@@ -154,17 +202,90 @@ early draft as one grey line — *An earlier draft said this was done before it
 was — Studio asked it to actually do it* — instead of the claim itself. The
 cards always say what is true.
 
-![The chat after "Build a scientific calculator": the recipe it started from, the program created, the short reply](images/ai/chat-cards.png)
+![The chat after "Build a scientific calculator": the program created, with Open and Undo, and the short reply](images/ai/chat-cards.png)
 
-At the top, switch the provider and the model for the next question;
-**New Chat** starts over (a long chat costs more: everything said so far is
-sent with each question).
+At the top, **Chats** lists this project's chats (see [Your chats are
+kept](#your-chats-are-kept)), and **New Chat** starts another — the one you
+leave is kept. A long chat costs more, as everything said so far is sent with
+each question: **Compact** makes it smaller (see [The context meter and
+Compact](#the-context-meter-and-compact)).
 
 The assistant reads only what it needs, when it needs it: the project's
 files, the components on your forms and their properties, RapidR's own
 description of every component, property, method, event and function, and
 what the compiler says about the code. It can't read anything outside the
 project's folder, and never your key.
+
+## Your chats are kept
+
+Each project keeps its own chats. Close Studio, open the project again
+tomorrow: its latest chat is there, as you left it. **New Chat** starts
+another and keeps the one you leave.
+
+**Chats** (at the top of the pane; **Tools > AI Chats**; `/chats`) shows the
+project's chats in the chat's place, the newest first, the one open marked
+*(open)*:
+
+![Chats: this project's chats, the newest first; Open, Rename, Delete, Back; where they are kept](images/ai/chats.png)
+
+- **Search** (the box on top) finds a chat by its title or by anything said
+  in it; the line that has it is shown beside the title.
+- **Open** (or a double-click) shows that chat; the one you leave is kept.
+- **Rename** gives a chat your own name (Enter keeps it, Escape doesn't);
+  until you do, a chat is named after its first question.
+- **Delete** removes a chat from your computer at once; **Undo**, beside the
+  list, puts it back.
+- **Back** (or Escape in the search box) returns to the chat.
+
+**Where they are kept.** On your computer, in Studio's own folder — never in
+the project's folder, so a chat is never shared, committed or shipped with
+your program by accident: `~/Library/Application Support/RapidR/chats` on a
+Mac, `%APPDATA%\RapidR\chats` on Windows, `~/.config/rapidr/chats` on Linux —
+a folder for each project, a file for each chat. In Studio on the web, in the
+browser's storage for Studio's page. API keys and tokens you paste into a
+question are replaced by *[key removed]* before anything is written. **Delete**
+removes a chat's file; deleting the `chats` folder removes them all.
+
+### Editing a question, Retry
+
+Beside each of your questions, **Edit** puts it back in the box to change.
+A bar above the box says what Send will do — *Send replaces it: its answer
+and the 2 questions after it move to a saved copy of this chat* — and
+**Cancel** (or Escape) leaves everything as it was. Send asks the changed
+question; what followed it is kept, nothing lost, as a copy named *… (before
+the edit)* in Chats.
+
+![Editing a sent question: the bar says the replies below it move to a saved copy](images/ai/edit.png)
+
+**Retry**, beside the last answer, asks the last question again — handy
+after changing the model or the effort; the answer it replaces is kept as
+*… (before Retry)*.
+
+Questions from before the chat was compacted can't be edited (the model has
+only their summary): ask again as a new question.
+
+## Thinking harder: the effort
+
+The **Effort** list beside the model asks the model to think more before it
+answers: **Low**, **Medium** or **High** (**Auto**: as the model usually
+does). Thinking more helps with hard problems — a tricky bug, a bigger
+change — and takes longer and costs more: at High, an answer may use up to
+16,384 more tokens for its thinking. `/effort high` does the same from the
+box.
+
+When the model thinks, its answer starts with **Thought for 12 s** — a link
+that shows the reasoning the provider shares, and hides it again (the
+link goes to the top of the chat, the reasoning opens under it). Adaptive thinking
+is the model's choice: at High it thinks when the question needs it — an
+easy question may still be answered straight away, with no link:
+
+![Effort High: the answer starts with "Thought for 1 s · hide", the model's reasoning under it](images/ai/thought.png)
+
+Anthropic's Claude models think adaptively at the effort you choose (an
+older model, with a thinking budget); OpenAI and servers on your computer
+are asked with their own setting, where the model has one; DeepSeek's
+models choose for themselves, so the list is off for them. A model that
+takes no effort says so once and answers as it usually does.
 
 ## Changes, as diffs
 
@@ -356,6 +477,10 @@ browser's storage for the page (its last 500). It never holds your key.
   project is replaced by *(an API key, not shown)* before the assistant
   reads the file.
 - **A model on your own computer** (Ollama, LM Studio): nothing leaves it.
+- **Your chats stay on your computer**, in Studio's folder, never in the
+  project (see [Your chats are kept](#your-chats-are-kept)); keys and tokens
+  in them are removed before they are written, and **Delete** removes a
+  chat for good.
 
 ## Tokens: what makes a question cheap
 
@@ -374,6 +499,37 @@ a hello-form program"* (a working form program, made and checked) took from
 about 7,600 to 22,000 tokens sent — between a third and two thirds of them
 from the cache — and 400 to 2,000 received: a fraction of a cent.
 
+### The context meter and Compact
+
+Under the buttons, the **context meter** shows how much the next question
+will send — *Context: 12,400 of 40,000 (31%)*. At the right end (40,000
+tokens, or 70% of a smaller model's window) the chat is compacted by itself:
+summarised in one short request, and the next questions start from the
+summary. **Compact** (or `/compact`) does it now — the chat says *The chat
+was compacted: what each question sends of it went from about 12,400 tokens
+to about 900*. Nothing you see goes: the chat still shows every question and
+answer; only what is sent becomes smaller. (A chat of one question has
+nothing to compact yet, and says so.)
+
+### Commands: type /
+
+Type **/** at the start of the box: the commands are listed above it, and
+narrow as you type (`/c` → `/compact`, `/chats`). **Up** and **Down**
+choose one, **Tab** completes it, **Enter** runs it, **Escape** closes the
+list. A command is Studio's: it is never sent to the model.
+
+| Command | What it does |
+|---|---|
+| `/compact` | Summarise this chat now: each question then sends less |
+| `/new` | Start a new chat (this one is kept in Chats) |
+| `/chats` | This project's chats: switch, rename, delete, search |
+| `/model` | Choose the model; `/model name` picks it |
+| `/effort` | How hard it thinks: `/effort low`, `medium`, `high` or `auto` |
+| `/undo` | Undo the assistant's last change: a new program it made (as the banner's Undo), else the files the last review changed, while each is as the review left it |
+| `/help` | The commands |
+
+![Typing / lists the commands; /c narrows them](images/ai/slash.png)
+
 ### Small models on your own computer
 
 A local model (Ollama, LM Studio, mlx-serve) takes only so many tokens at
@@ -390,6 +546,16 @@ change that doesn't compile says so too. The assistant can't run your
 program, but it sees the last lines your last run printed. A model of 4 to 9
 billion parameters can build small programs this way; for bigger ones a
 larger model does better.
+
+**A small window gets the lite set.** RapidR's full instructions — how the
+assistant works, the language card, an example program, the names of every
+component — and its tools are large: Claude counted about 11,000 tokens for
+a first question, the project's facts included. A model whose window is
+under 16,384 tokens (many small local models run with 8,192) would have no
+room left, so it gets the **lite set** instead: a few lines on how to work,
+the language card, and the eight tools a small model needs (read, check,
+search the manual, change, create), about a third of the full set. It can
+start, and answer, in an 8,192-token window.
 
 ## RAI in your own programs
 
@@ -452,6 +618,21 @@ PRINT AI.Usage; AI.Error
   (with **PriceIn** / **PriceOut** set), **Audit** (the audit log above).
 - **PricingURL** and **KeysURL**: the provider's price page and the page
   that makes keys, for your own links.
+- **A chat that lasts**: **ChatState** is the conversation as text (JSON) to
+  keep in a file or a database and set back later — API keys and tokens in
+  it are removed. **Rewind(N)** takes question *N* and everything after it
+  out and gives back its text, to edit and ask again; **QuestionCount** and
+  **QuestionText(N)** number them; **Editable** adds *Edit* and *Retry*
+  links to **Transcript** for an RMarkdownView.
+- **What it is doing**: **Activity** (*"Reading main.rr"*, *"Writing the
+  answer"*), **Elapsed** (seconds since the answer began) and **Quiet**
+  (seconds since the provider last sent anything), for a status line.
+- **Context**: **ContextTokens** against **ContextLimit** (where it
+  compacts by itself), **Compact** now.
+- **Effort** (`""`, `"low"`, `"medium"`, `"high"`): the model thinks more
+  before it answers, where the provider has it (**EffortSupported**); the
+  reasoning shows in **Transcript** as *Thought for N s*, and
+  **ToggleThought(N)** shows or hides it.
 
 Every property, method and event: [RAI in the reference](reference/members.md#rai).
 

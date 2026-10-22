@@ -5312,7 +5312,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `Clear` | Shows nothing. |
 | `SelectAll` | Selects the whole text. |
 | `OpenLink(Url AS STRING) AS INTEGER` | Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link. |
-| `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text: True when there is one. |
+| `ScrollTo(Heading AS STRING) AS INTEGER` | Scrolls a heading to the top, named by its anchor ("#getting-started") or its text — or the paragraph with a link to that target, as written: True when there is one. |
 | `SetFocus` | Gives the view the keyboard focus: its keys scroll it, Tab steps through its links. |
 
 | Event | |
@@ -5346,6 +5346,18 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Error` (read-only) | string |  | Why the last request or call failed, in plain words with what to do ("" when it worked). |
 | `Status` (read-only) | string |  | One sentence on what it is doing or did, for a status line a screen reader announces. |
 | `Answer` (read-only) | string |  | The last answer's text. |
+| `Effort` | string |  | How hard the model thinks before it answers: "" (the default) as the model usually does; "low", "medium" or "high" ask for more thinking where the provider has it — Anthropic's adaptive thinking at that effort (a thinking budget on older models), an OpenAI-compatible reasoning_effort; DeepSeek's models choose for themselves. More thinking takes longer and costs more: each answer may use up to 16,384 more tokens at high. The answer's reasoning, when the provider shows it, is in Transcript as "Thought for N s" (ToggleThought shows it). A model that takes none says so once and answers as usual (EffortSupported). |
+| `EffortSupported` (read-only) | bool |  | True when Provider and Model take an Effort (False for DeepSeek, and for a model that refused one). |
+| `ChatState` | string |  | The conversation as JSON — its messages, its transcript, its questions, the answers' reasoning, the user's language — to keep (a file, a database) and set back later, in this run or the next: setting it replaces the conversation (an answer being written stops). API keys and tokens in it are removed ("[key removed]"), as are the program's secrets. RapidR Studio keeps its chats this way. |
+| `Editable` | bool | False | True: Transcript has an Edit link under each question (rai:edit/N) and Retry under the last answer (rai:retry), for an RMarkdownView's OnLinkClick: the program calls Rewind and asks again. RapidR Studio's chat. |
+| `QuestionCount` (read-only) | int |  | How many questions the conversation has (QuestionText and Rewind number them from 1). |
+| `Activity` (read-only) | string |  | What it is doing now, in words, while Busy: "Thinking", "Writing the answer", what an attached tool does ("Reading main.rr", "Searching the manual", "Writing server.rr"), "Compacting the conversation"; "" when idle. OnUpdate fires when it changes. |
+| `Elapsed` (read-only) | int |  | Seconds since the answer (or Compact) began; 0 when idle. A timer shows it ticking. |
+| `Quiet` (read-only) | int |  | Seconds since the provider last sent anything while an answer runs (0 when idle): past 30, say "No answer from the model for 30 s: wait, or Stop". |
+| `ContextTokens` (read-only) | int |  | The conversation's size in tokens as the next question would send it (the instructions, tools, messages and the last reply): the last request's as the provider counted it, else estimated. With ContextLimit, a context meter. |
+| `ContextLimit` (read-only) | int |  | Where the conversation is compacted by itself: SummaryAt, or 70% of the model's context window when that is less. |
+| `ContextWindow` (read-only) | int |  | The model's context window in tokens, when the provider's models list says it (0 when not). |
+| `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens): the attached tools sent their lite instructions and tools, so a small local model can start. |
 | `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it. |
 | `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
 | `Models` (read-only) | string |  | The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name ("fast · low cost" for the small ones, "costs more" for the largest), separated by tabs —, the fast, low-cost ones first. |
@@ -5377,6 +5389,10 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `RefreshModels AS INTEGER` | Asks Provider which models the key can use (OpenAI's chat models only): OnModelsLoaded(Count) when Models has them, OnError when not — a refused key, no answer within 30 seconds (10 to connect) … in plain words. A Model the list no longer has is cleared: choose again. Asked again, the newer request replaces the one on its way; changing Provider, BaseURL, WorkspaceID, APIKey or APIKeySource drops it too (OnDone("cancelled")). True when it started. |
 | `RememberKey([OnThisDevice AS INTEGER]) AS INTEGER` | Keeps APIKey in the keychain under APIKeySource's keychain NAME, for the next runs. On the web it is kept for the tab, and on this device too when OnThisDevice is True (the page's storage: anyone using this browser profile could read it). True when it was kept. |
 | `ForgetKey` | Removes the key kept under APIKeySource's keychain NAME, and APIKey's. |
+| `Compact AS INTEGER` | Summarises the conversation now, in one short request; the next questions start from the summary (a long chat costs less). Status then says how much smaller it is; the questions before it can't be edited any more. False when it can't (answering, a short chat: Error says why). |
+| `Rewind(Question AS INTEGER) AS STRING` | Takes question Question (from 1) and everything after it out of the conversation and the transcript, and returns its text — to edit it and ask again, or to Retry the last. "" when it can't (answering; a question from before the conversation was compacted): Error says why. Keep ChatState first to keep what is taken out. |
+| `QuestionText(Question AS INTEGER) AS STRING` | Question Question's text (from 1), as the user asked it. |
+| `ToggleThought(Index AS INTEGER)` | Shows or hides answer Index's reasoning in Transcript (rai:thought/Index, the "Thought for N s" link). |
 | `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |
 | `ModelName(Index AS INTEGER) AS STRING` | Model Index's id in Models (from 0), for a list's choice. |
 | `AuditLog([Count AS INTEGER]) AS STRING` | The audit log's last Count lines (50 by default), oldest first, tab-separated: the time, what happened, its target, and the decision or result. |
@@ -5568,6 +5584,8 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ProjectErrors` (read-only) | int |  | How many compile errors the new program proposed and not created yet has (0: it compiles). |
 | `CreatedFolder` (read-only) | string |  | The folder the last CreateProject made ("" when none, or once it was undone). |
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
+| `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
+| `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5583,6 +5601,14 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ClearDecided` | Forgets the proposals the user decided on (after a review is applied): what is left waits for a decision. |
 | `ClearProposals` | Forgets the proposals. |
 | `CreateProject(Folder AS STRING) AS STRING` | Writes the new project the model proposed in Folder, in a folder named from its title ("Scientific Calculator" → ScientificCalculator; never over one that is there: then ScientificCalculator2, 3 …), with a project file naming it by its title: that file's path, to open; "error: " and why when it couldn't. What it wrote is kept for Undo. |
+| `ChatList(Project AS STRING) AS STRING` | The kept chats of the project in folder Project ("": no project), the newest first, a line each, tab-separated: its id, its title, when it was last changed (ISO 8601, UTC) and how many questions it has. |
+| `SearchChats(Project AS STRING, Text AS STRING) AS STRING` | The project's chats whose title or text has Text in it (any case), as ChatList gives them, with a fifth field: the first line that has it ("" when the title does). |
+| `SaveChat(Project AS STRING, Id AS STRING, Title AS STRING, Model AS STRING, State AS STRING) AS STRING` | Keeps a chat of the project (State: an RAI's ChatState) in Studio's data folder — a new one when Id is "" —, API keys and tokens removed: its id; "error: " and why when it couldn't. A title the user gave (RenameChat) stays. |
+| `LoadChat(Project AS STRING, Id AS STRING) AS STRING` | A kept chat's state, for an RAI's ChatState ("" when there is none). |
+| `DeleteChat(Project AS STRING, Id AS STRING) AS STRING` | Removes a kept chat for good (its file; on the web, its item): what it was, for RestoreChat (Undo); "" when there was none. |
+| `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
+| `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
+| `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |

@@ -57,6 +57,17 @@ pub struct Tool {
     pub input_schema: Value,
 }
 
+/// (Anthropic) How the model thinks before it answers (RAI.Effort,
+/// docs/preview4-plan.md R5).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Thinking {
+    /// Adaptive thinking at an effort ("low", "medium", "high"), with a
+    /// readable summary of the reasoning when `summarized` (current models).
+    Adaptive { effort: String, summarized: bool },
+    /// A thinking budget, in tokens (older models, Haiku 4.5's kind).
+    Budget(u32),
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatRequest {
     pub model: String,
@@ -77,6 +88,9 @@ pub struct ChatRequest {
     /// (OpenAI-compatible) Don't ask a streamed answer for its usage: the
     /// server refused `stream_options` once.
     pub no_stream_usage: bool,
+    /// (Anthropic) Thinking before the answer, when the user chose an
+    /// effort.
+    pub thinking: Option<Thinking>,
 }
 
 /// Tokens a request used, as the provider reports them.

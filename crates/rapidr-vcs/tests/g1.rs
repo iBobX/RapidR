@@ -241,7 +241,7 @@ fn the_secret_scan_warns_with_the_line() {
     let mut v = Versions::start(&dir, &ana()).unwrap();
     write(&dir, "main.rr", "PRINT 1\n");
     v.save_version("One", &ana()).unwrap();
-    write(&dir, "main.rr", "PRINT 1\nDIM Key AS STRING\nKey = \"sk-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWX\"\n");
+    write(&dir, "main.rr", concat!("PRINT 1\nDIM Key AS STRING\nKey = \"sk", "-ant-api03-ABCDEFGHIJKLMNOPQRSTUVWX\"\n"));
     write(&dir, "deploy/id_rsa", "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----\n");
     let found = v.check_secrets(None).unwrap();
     let lines: Vec<(&str, usize)> = found.iter().map(|w| (w.path.as_str(), w.line)).collect();

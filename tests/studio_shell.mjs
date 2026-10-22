@@ -264,6 +264,8 @@ function runDesktop(scene, theme, scale) {
       // (never the user's real Keychain: Studio's AI settings read keys)
       RAPIDR_AI_KEYSTORE: "memory",
       RAPIDR_KEYSTORE: "memory",
+      // (the AI's chats in the run's folder, never Studio's own)
+      RAPIDR_AI_CHATS: join(dir, "chats"),
     },
   });
   const file = join(dir, `window-${scene.window || 1}.bmp`);
