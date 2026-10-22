@@ -255,10 +255,22 @@ impl ComponentKind for ListViewBox {
         editor_menu(cx, edit_rect(cx.id)?)
     }
 
-    /// `__edit` (F2), `__enter` ("Renamed" typed, then Enter), `__escape`.
+    /// `__item_i` (a click on item i's caption: picked, OnClick — as a
+    /// list's, a combo's and a tree's), `__edit` (F2), `__enter`
+    /// ("Renamed" typed, then Enter), `__escape`.
     fn test_action(&self, cx: &mut Cx, action: &str) -> bool {
         let key = |vk: i64| KeyIn { vk, text: "", mods: crate::input::Mods::NONE };
         let mut clip = crate::input::MemClipboard::default();
+        if let Some(i) = action.strip_prefix("__item_").and_then(|s| s.parse::<usize>().ok()) {
+            setup(cx);
+            if let Some((x, y)) = with_listview_mut(cx.id, |lv| lv.click_point(i)).flatten() {
+                // (a test's click is never a double click: its count is 1)
+                let at = MouseIn { kind: MouseKind::Down, x: x as f64 + 0.5, y: y as f64 + 0.5, button: rapidr_value::input::Button::Left, mods: crate::input::Mods::NONE, inside: true, captured: true, clicks: 1 };
+                self.mouse(cx, &at);
+                self.mouse(cx, &MouseIn { kind: MouseKind::Up, ..at });
+            }
+            return true;
+        }
         match action {
             "__edit" => {
                 self.key(cx, &key(113), &mut clip);

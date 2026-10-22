@@ -1256,6 +1256,21 @@ impl ListView {
         events
     }
 
+    /// A point of the control where a click picks item `i` (the item
+    /// brought into view first): the middle of where its caption is — in
+    /// any view. `None` when there is no such item or no point of it takes
+    /// a click (the control too small to show it).
+    pub fn click_point(&mut self, i: usize) -> Option<(i64, i64)> {
+        if i >= self.items.len() {
+            return None;
+        }
+        self.show_item(i);
+        let l = self.layout();
+        let p = self.parts(&l, i);
+        let at = ((p.label.0 + p.label.2) / 2, (p.label.1 + p.label.3) / 2);
+        (self.item_at(&l, at.0, at.1) == Some((i, false))).then_some(at)
+    }
+
     /// Where item `i`'s caption is edited (in the control), if it shows.
     pub fn editor_rect(&mut self, i: usize) -> Option<(i64, i64, i64, i64)> {
         if i >= self.items.len() {

@@ -176,6 +176,10 @@ export const cases = [
   // Windows' classic list view in MS Sans Serif 8)
   { name: "listview_columns", events: "lv.__mousedown_20_57,lv.__mouseup_20_57", dump: "lbl.caption",
     expect: ["lbl.caption=2|photo.jpg|Deflated|5|3|200|Method"] },
+  // (a script picks a report row as it picks a list's, a combo's, a tree's:
+  // `lv.__item_N` — item 10 is below the fold, brought into view)
+  { name: "listview_item_pick", events: "lv.__item_1,lv.__item_10", dump: "lbl.caption",
+    expect: ["lbl.caption=1:item 1|10:item 10|"] },
   { name: "listview_views", events: "lv.__mousedown_45_31,lv.__mouseup_45_31,lv.__mousedown_8_49,lv.__mouseup_8_49,lv.__key_40,lv.__key_32,lv.__mousedown_150_10,lv.__mouseup_150_10,btn2.onclick,lv.__mousedown_190_20,lv.__mouseup_190_20,lv.__edit,lv.__enter,btn.onclick", dump: "lbl.caption",
     expect: ["lbl.caption=c0:2 k c1:2 k c0:2 c1:2 c1:2 h1 c1:2 c2:2 k c2:0 | 2 0 Apple 0 2 0"] },
   { name: "grid_moving", events: "btn.onclick", dump: "lbl.caption",

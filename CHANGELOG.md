@@ -172,6 +172,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A scripted `lv.__item_N` picks a list view's item**: `RAPIDR_TEST_EVENTS`
+  picked an item of an RListBox, an RComboBox and a tree but did nothing for an
+  RListView, so a test could not select a report row. The list view answers
+  `__item_N` like the others: a click on the item's caption (any view; an item
+  below the fold is brought into view first), then OnClick
+  (`ListView::click_point`). Test `a_scripted_item_pick_selects_a_list_view_item_in_every_view`
+  and the parity fixture `listview_item_pick`.
 - **A message box is as wide as its title needs**: `MessageDlg` (mtInformation,
   one OK button, a short text) made a window 99 pixels wide, narrower than the
   title bar needs for "Information" with its icon and close box, so the title
