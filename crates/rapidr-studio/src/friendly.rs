@@ -153,6 +153,12 @@ pub fn for_line(line: &str) -> Vec<(&'static str, String)> {
 /// from other languages, the type of an event's argument.
 pub fn for_message(message: &str) -> Option<(&'static str, String)> {
     let after = |prefix: &str| message.strip_prefix(prefix).map(|r| r.trim().trim_matches(['\'', '`', '"']).to_string());
+    // (Robert's evening with DeepSeek, 2026-10-20: "expecting DOUBLE but got
+    // STRING" on lines storing what a socket read — the variable was never
+    // declared, and an undeclared name is a DOUBLE: docs/rai-mistake-ledger.md)
+    if message.starts_with("Type mismatch, expecting type DOUBLE, but got STRING") {
+        return Some(("undeclared", "the variable on the left is a DOUBLE — declared so, or never declared (an undeclared name is a DOUBLE): DIM it AS STRING before its first use, or store a number in it".to_string()));
+    }
     if let Some(ty) = after("Unknown data type").or_else(|| after("Unknown type")) {
         let up = ty.to_ascii_uppercase();
         let fix = match up.as_str() {
@@ -384,6 +390,8 @@ mod tests {
 
     #[test]
     fn messages_read_for_what_they_mean() {
+        let (id, t) = for_message("Type mismatch, expecting type DOUBLE, but got STRING").unwrap();
+        assert!(id == "undeclared" && t.contains("DIM it AS STRING"), "{t}");
         let (_, t) = for_message("Unknown data type BOOLEAN").unwrap();
         assert!(t.contains("INTEGER"), "{t}");
         let (_, t) = for_message("Unknown data type COLOR").unwrap();

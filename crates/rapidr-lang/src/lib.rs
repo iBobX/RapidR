@@ -92,6 +92,7 @@
 //! programs ([`conformance`]) every runtime runs (tests/lang_conformance.mjs).
 
 pub mod ai;
+pub mod card;
 pub mod conformance;
 pub mod export;
 pub mod truth;
@@ -369,6 +370,23 @@ pub struct TypeName {
     pub name: &'static str,
     pub origin: Origin,
     pub doc: &'static str,
+}
+
+/// A rule of the language card ([`card`]): what AI models get wrong when
+/// they write RapidR, said once (data/language.toml `[[rule]]`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Rule {
+    pub name: &'static str,
+    /// The card's line.
+    pub text: &'static str,
+    /// The statement it is about (`FOR`): the card shows its syntax.
+    pub statement: &'static str,
+    /// A RapidR program (.rr) that shows it: `rapidr lang truth` compiles it.
+    pub right: &'static str,
+    /// What `right` prints (then it is run too).
+    pub expect: &'static str,
+    /// The habit, as a model writes it (shown only).
+    pub wrong: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

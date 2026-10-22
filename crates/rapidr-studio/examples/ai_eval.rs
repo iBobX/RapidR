@@ -613,9 +613,12 @@ mod score {
     pub fn score(folder: &Path, main: &str, tests: &[Test], work: &Path) -> Score {
         let files = vec![main.to_string()];
         let mut all_files: Vec<String> = files.clone();
+        // (every source file beside it: a program of several .rr modules —
+        // the DeepSeek evening's — includes them; the language service reads
+        // only the files it is given)
         for e in std::fs::read_dir(folder).into_iter().flatten().flatten() {
             let n = e.file_name().to_string_lossy().to_string();
-            if n.to_ascii_lowercase().ends_with(".inc") {
+            if crate::is_source(&n) && !all_files.contains(&n) {
                 all_files.push(n);
             }
         }

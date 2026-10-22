@@ -72,6 +72,11 @@ fn fold(c: char) -> char {
     }
 }
 
+/// A text with its accents folded ([`fold`]).
+pub fn fold_text(text: &str) -> String {
+    text.chars().map(fold).collect()
+}
+
 const STOP: &[&str] = &[
     "a", "an", "the", "me", "my", "i", "you", "it", "is", "are", "be", "to", "of", "and", "or", "for", "in", "on", "with", "that", "this", "please", "can", "could", "would", "want", "need", "like", "some", "build", "make", "create", "write", "app", "application", "program", "simple", "small", "basic", "gui", "window", "rapidr", "un", "una", "el", "la", "los", "las", "de", "del", "con", "para", "por", "que", "y", "o", "en", "mi", "hazme", "haz", "crea", "creame", "quiero", "programa", "aplicacion", "um", "uma", "o", "os", "as", "do", "da", "com", "e", "faz", "faca", "cria", "crie", "quero", "aplicativo", "aplicacao",
     // (generic request words: they say nothing about which program)

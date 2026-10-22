@@ -5412,9 +5412,11 @@ name = "rapidr-studio"
 version = "2.120.0"
 dependencies = [
  "rapidr-ai",
+ "rapidr-ast",
  "rapidr-bcgen",
  "rapidr-codegen-rust",
  "rapidr-designer",
+ "rapidr-diagnostics",
  "rapidr-editor",
  "rapidr-icons",
  "rapidr-import",

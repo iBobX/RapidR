@@ -3,6 +3,7 @@
 //! ```text
 //! rapidr lang export --json [-o FILE]     the registry as JSON (the IDE's completion data)
 //! rapidr lang export --prompt [--compact] [-o FILE]   the AI system prompt's language section
+//! rapidr lang export --card [-o FILE]   the language card (the rules models get wrong, ~2K tokens)
 //! rapidr lang export --manual [DIR]       the manual's reference pages (docs/manual/reference)
 //! rapidr lang export --all [--check]      every file the repository keeps generated, from its root
 //! rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]
@@ -36,7 +37,7 @@ pub fn command(args: &[String]) -> ExitCode {
         Some("ai-check") => ai_check_cmd(&args[1..]),
         Some("truth") => crate::lang_truth::command(&args[1..]),
         _ => {
-            eprintln!("usage: rapidr lang export --json|--prompt [-o FILE] | --manual [DIR] | --all [--check]");
+            eprintln!("usage: rapidr lang export --json|--prompt|--card [-o FILE] | --manual [DIR] | --all [--check]");
             eprintln!("       rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]");
             eprintln!("       rapidr lang ai-check [--summary|--json] [--strict] [NAME…]");
             eprintln!("       rapidr lang truth [--verbose] [--list] [--emit DIR] [NAME…]");
@@ -103,6 +104,11 @@ fn export_cmd(args: &[String]) -> ExitCode {
     if flag("--json") {
         return write_or_print(out, &export::json());
     }
+    if flag("--card") {
+        let card = rapidr_lang::card::card();
+        eprintln!("the language card: about {} tokens (budget {})", rapidr_lang::card::estimate_tokens(&card), rapidr_lang::card::BUDGET_TOKENS);
+        return write_or_print(out, &card);
+    }
     if flag("--prompt") {
         // (--compact: RapidR Studio's assistant's, which describes the rest on demand)
         return write_or_print(out, &if flag("--compact") { export::prompt_compact() } else { export::prompt() });
@@ -114,7 +120,7 @@ fn export_cmd(args: &[String]) -> ExitCode {
     } else if flag("--all") {
         generated_files()
     } else {
-        eprintln!("rapidr lang export: --json, --prompt, --manual or --all");
+        eprintln!("rapidr lang export: --json, --prompt, --card, --manual or --all");
         return ExitCode::from(2);
     };
     let mut stale = Vec::new();
