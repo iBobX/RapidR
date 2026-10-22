@@ -41,6 +41,12 @@ fn single(store: &dyn Store, id: &str) -> bool {
     store::int(store, id, "borderstyle", 0) == 1
 }
 
+/// It draws no edge: no bevels, no client edge (BevelOuter = 0, as
+/// Studio's panes are).
+pub fn plain(store: &dyn Store, id: &str) -> bool {
+    !single(store, id) && frames(store, id).is_empty()
+}
+
 /// The panel's frames (outermost first).
 pub fn frames(store: &dyn Store, id: &str) -> Vec<bevel::Frame> {
     bevel::frames(prop(store, id, "bevelouter"), prop(store, id, "bevelinner"), prop(store, id, "bevelwidth"), prop(store, id, "borderwidth"))

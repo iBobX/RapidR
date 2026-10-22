@@ -392,9 +392,11 @@ is kept in the browser (the page's store), over the original.
 
 Studio's window is made of panes: Project and Toolbox on the left,
 Properties and Outline on the right, your documents in the middle and, under
-them, the bottom panel (Output, Immediate, Breakpoints). Between two panes
+them, the bottom panel (Output, Immediate, Breakpoints). Each pane has a
+thin edge all the way round, in every look (light, dark and high contrast),
+so you always see where one pane ends and the next begins. Between two panes
 there is a **splitter**. At rest it stays quiet: the narrow gap between the
-panes with a short grip in its middle. Rest the mouse on it for a moment and
+panes' edges with a short grip in its middle. Rest the mouse on it for a moment and
 the whole gap turns the accent colour, the pointer a resize arrow. Drag it
 to give one pane more room. **Double-click** it to put it back where it was
 at first. Where two splitters meet, grab the meeting point to move both at

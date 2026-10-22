@@ -360,7 +360,9 @@ at least 3:1 contrast against the gap. When the mouse rests on it for a
 moment (passing over it doesn't flicker) and while it is dragged, the whole
 splitter takes the accent colour. Studio's own splitters between its panes
 look the same, without the line: the panes' own edges already show where
-they meet. Your program's splitters keep the place and size you gave them;
+they meet (each pane of an `RDockManager` has a thin edge down both sides and
+along the bottom, and what you put in a pane draws no border of its own
+there). Your program's splitters keep the place and size you gave them;
 only the drawing is new. The classic look draws RapidQ's raised bar, as
 before.
 On the desktop this is the system's cursor, on the web the page's cursor; they

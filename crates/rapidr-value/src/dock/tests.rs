@@ -905,6 +905,11 @@ fn a_screen_reader_hears_where_a_splitter_is_as_a_percentage() {
     assert_eq!((num.min, num.max), (0.0, 100.0));
     assert!(num.value > 0.0 && num.value < 100.0, "{}", num.value);
     assert_eq!(sp.value.as_deref(), Some(format!("{}%", num.value.round() as i64).as_str()));
+    // (a whole number: the same on every host — a browser keeps it as a
+    // 32-bit float, 32.7 read back as 32.70000076293945)
+    assert_eq!(num.value.fract(), 0.0);
+    assert_eq!(f64::from(num.value as f32), num.value);
+    assert_eq!(access::share(&[327, 673], 0).1, "33%");
     assert!(sp.states.focused, "the splitter given the keyboard is focused");
     assert!(sp.actions.contains(&crate::objects::a11y::Action::Focus));
 }
@@ -1036,57 +1041,97 @@ fn every_pane_keeps_its_edge_all_the_way_down() {
     // group of documents. Every look lays them out alike; RapidR's looks
     // draw the frame, the classic look the components' own sunken edges)
     use crate::theme::ALL;
-    let mut m = tabbed();
-    let g = m.geometry().clone();
-    let d = g.documents.clone().unwrap();
-    let active_doc = m.active_document();
-    for t in ALL {
-        let p = look::palette(t);
-        for gr in &g.groups {
-            let (w, h) = (gr.rect.2, gr.rect.3);
-            let (cx, cy, cw, ch) = gr.content;
-            assert_eq!((cx, cy, cx + cw, cy + ch), (1, HEADER - 1, w - 1, h - 1), "{}: {:?} inside its frame", t.name, gr.panes);
-            if !t.fluent() {
-                continue;
+    // (one group of documents, then two side by side)
+    let mut split = tabbed();
+    split.user(User::MoveDocument("module2".into(), DocTarget::Split { anchor: "form1".into(), side: Side::Right }));
+    for mut m in [tabbed(), split] {
+        let g = m.geometry().clone();
+        let d = g.documents.clone().unwrap();
+        let active_doc = m.active_document();
+        for t in ALL {
+            let p = look::palette(t);
+            for gr in &g.groups {
+                let (w, h) = (gr.rect.2, gr.rect.3);
+                let (cx, cy, cw, ch) = gr.content;
+                assert_eq!((cx, cy, cx + cw, cy + ch), (1, HEADER - 1, w - 1, h - 1), "{}: {:?} inside its frame", t.name, gr.panes);
+                if !t.fluent() {
+                    continue;
+                }
+                for active in [false, true] {
+                    let px = painted(&look::group_ops(&m, gr, t, &Font::default(), active), (w, h), &[gr.content]);
+                    let edge = if p.contrast && active { p.accent } else { p.border };
+                    let at = |x: i64, y: i64| px[(y * w + x) as usize];
+                    // (under the active one's accent along the top)
+                    for y in 3..h {
+                        assert_eq!((at(0, y), at(w - 1, y)), (edge, edge), "{}: {:?} active {active}, its sides at y {y}", t.name, gr.panes);
+                    }
+                    for x in 0..w {
+                        assert_eq!(at(x, h - 1), edge, "{}: {:?} active {active}, its bottom at x {x}", t.name, gr.panes);
+                    }
+                }
             }
-            for active in [false, true] {
-                let px = painted(&look::group_ops(&m, gr, t, &Font::default(), active), (w, h), &[gr.content]);
+            let (w, h) = (d.rect.2, d.rect.3);
+            let places: Vec<Rect> = d.groups.iter().flat_map(|gr| gr.places.clone()).collect();
+            let px = painted(&look::documents_ops(&m, &d, t, &Font::default()), (w, h), &places);
+            for gr in &d.groups {
+                let (gx, gy, gw, gh) = gr.rect;
+                let (cx, cy, cw, ch) = gr.content;
+                assert_eq!((cx, cy, cx + cw, cy + ch), (gx + 1, gy + geometry::DOC_TABS, gx + gw - 1, gy + gh - 1), "{}: the documents inside their frame", t.name);
+                assert!(gr.places.iter().all(|r| r.0 >= cx && r.1 >= cy && r.0 + r.2 <= cx + cw && r.1 + r.3 <= cy + ch), "{}: each view inside it", t.name);
+                if !t.fluent() {
+                    continue;
+                }
+                let active = active_doc.as_ref().is_some_and(|a| gr.docs.contains(a));
                 let edge = if p.contrast && active { p.accent } else { p.border };
                 let at = |x: i64, y: i64| px[(y * w + x) as usize];
-                // (under the active one's accent along the top)
-                for y in 3..h {
-                    assert_eq!((at(0, y), at(w - 1, y)), (edge, edge), "{}: {:?} active {active}, its sides at y {y}", t.name, gr.panes);
+                // (from the strip's bottom line down; high contrast frames the
+                // strip too)
+                let top = if p.contrast { gy } else { gy + geometry::DOC_TABS - 1 };
+                for y in top..gy + gh {
+                    assert_eq!((at(gx, y), at(gx + gw - 1, y)), (edge, edge), "{}: the documents' sides at y {y}", t.name);
                 }
-                for x in 0..w {
-                    assert_eq!(at(x, h - 1), edge, "{}: {:?} active {active}, its bottom at x {x}", t.name, gr.panes);
+                for x in gx..gx + gw {
+                    assert_eq!(at(x, gy + gh - 1), edge, "{}: the documents' bottom at x {x}", t.name);
                 }
             }
         }
-        let (w, h) = (d.rect.2, d.rect.3);
-        let places: Vec<Rect> = d.groups.iter().flat_map(|gr| gr.places.clone()).collect();
-        let px = painted(&look::documents_ops(&m, &d, t, &Font::default()), (w, h), &places);
-        for gr in &d.groups {
-            let (gx, gy, gw, gh) = gr.rect;
-            let (cx, cy, cw, ch) = gr.content;
-            assert_eq!((cx, cy, cx + cw, cy + ch), (gx + 1, gy + geometry::DOC_TABS, gx + gw - 1, gy + gh - 1), "{}: the documents inside their frame", t.name);
-            assert!(gr.places.iter().all(|r| r.0 >= cx && r.1 >= cy && r.0 + r.2 <= cx + cw && r.1 + r.3 <= cy + ch), "{}: each view inside it", t.name);
-            if !t.fluent() {
-                continue;
-            }
-            let active = active_doc.as_ref().is_some_and(|a| gr.docs.contains(a));
-            let edge = if p.contrast && active { p.accent } else { p.border };
-            let at = |x: i64, y: i64| px[(y * w + x) as usize];
-            // (from the strip's bottom line down; high contrast frames the
-            // strip too)
-            let top = if p.contrast { gy } else { gy + geometry::DOC_TABS - 1 };
-            for y in top..gy + gh {
-                assert_eq!((at(gx, y), at(gx + gw - 1, y)), (edge, edge), "{}: the documents' sides at y {y}", t.name);
-            }
-            for x in gx..gx + gw {
-                assert_eq!(at(x, gy + gh - 1), edge, "{}: the documents' bottom at x {x}", t.name);
-            }
+        assert!(!d.groups.is_empty());
+    }
+}
+
+#[test]
+fn a_panes_edge_shows_at_rest_in_every_look() {
+    // (SPLIT-3: between two panes the gap is their two edges and the gutter
+    // between them. Each edge stands at least 1.3:1 off its pane — a
+    // hairline, like the splitter token's 1.3 to 1.6 —, and at most 2:1, not
+    // a wireframe. The light look's gutter is itself a greyer band beside the
+    // white panes (1.17:1), so the edges only finish it; the dark look's
+    // gutter is the panes' own colour (about 1:1), so its two edges alone
+    // show the gap: they stand at least 1.6:1 off it and off the panes (now
+    // 1.70:1; at 1.37 the gap hid until the mouse came). High contrast's
+    // edges are its crisp white)
+    use crate::theme::{contrast, ALL};
+    for t in ALL.into_iter().filter(|t| t.fluent()) {
+        let p = look::palette(t);
+        let (edge, band) = (contrast(p.border, p.body), contrast(p.ground, p.body));
+        if p.contrast {
+            assert!(contrast(p.border, p.ground) >= 7.0 && edge >= 7.0, "{}: crisp edges", t.name);
+            continue;
+        }
+        assert!((1.3..=2.0).contains(&edge), "{}: the edge {:06X} on a pane {:06X}: {edge:.2}", t.name, p.border, p.body);
+        assert!((1.25..=2.0).contains(&contrast(p.border, p.header)), "{}: beside a header {:.2}", t.name, contrast(p.border, p.header));
+        let on_gutter = contrast(p.border, p.ground);
+        if band >= 1.15 {
+            // (the gutter a band of its own: the light look)
+            assert!(on_gutter >= 1.1, "{}: the edge on its gutter {on_gutter:.2}", t.name);
+        } else {
+            assert!(on_gutter >= 1.6 && edge >= 1.6, "{}: the gutter is the panes' colour ({band:.2}): the edges alone show the gap — {on_gutter:.2} on it, {edge:.2} on a pane", t.name);
         }
     }
+    // (the light look as it was: Robert's; the dark one's edge 1.7:1)
+    assert_eq!(look::palette(&crate::theme::RAPIDR).border, crate::theme::RAPIDR.border);
+    let dark = look::palette(&crate::theme::RAPIDR_DARK);
+    assert!((contrast(dark.border, dark.ground) - 1.70).abs() < 0.02, "{:.3}", contrast(dark.border, dark.ground));
 }
 
 /// (A11Y) Tabs that don't all fit give up their padding before their names

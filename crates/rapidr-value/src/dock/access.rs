@@ -27,6 +27,19 @@ const DOC_SPLITTERS: usize = 6000;
 const DOC_TABLISTS: usize = 7000;
 const TABLIST: usize = 999;
 
+/// Where splitter `index` of a split whose children are `ext` long is: the
+/// share before it in whole percents, as a number (0 to 100) and as said
+/// ("45%"), with an arrow's step and Shift's in tenths. Whole numbers so
+/// every host reports the same one: a browser keeps the number as a 32-bit
+/// float, and 32.7 came back from its tree as 32.70000076293945 (web_a11y).
+pub fn share(ext: &[i64], index: usize) -> (Numeric, String) {
+    let total = ext.iter().sum::<i64>().max(1) as f64;
+    let tenths = |px: i64| (px as f64 * 1000.0 / total).round() / 10.0;
+    let before: i64 = ext.iter().take(index + 1).sum();
+    let value = (before as f64 * 100.0 / total).round();
+    (Numeric { value, min: 0.0, max: 100.0, step: tenths(super::manager::SPLIT_STEP), jump: tenths(super::manager::SPLIT_JUMP) }, format!("{value}%"))
+}
+
 /// A part of a dock manager's components, from its index (`a11y::part_id`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccessPart {
@@ -100,11 +113,9 @@ pub fn describe_manager(id: &str, m: &Manager, g: &Geometry, at: (i64, i64)) -> 
         // (where it is as a percentage of its split: the share before it —
         // ARIA's separator's value — and an arrow's step, Shift's, the same)
         if let Some((_, ext)) = g.extents.iter().find(|(p, _)| *p == s.path) {
-            let total = ext.iter().sum::<i64>().max(1) as f64;
-            let pct = |px: i64| (px as f64 * 1000.0 / total).round() / 10.0;
-            let value = pct(ext[..=s.index].iter().sum::<i64>());
-            sp.numeric = Some(Numeric { value, min: 0.0, max: 100.0, step: pct(super::manager::SPLIT_STEP), jump: pct(super::manager::SPLIT_JUMP) });
-            sp.value = Some(format!("{}%", value.round() as i64));
+            let (numeric, said) = share(ext, s.index);
+            sp.numeric = Some(numeric);
+            sp.value = Some(said);
         }
         sp.actions = vec![Action::Increment, Action::Decrement, Action::Focus];
         sp.states.focused = m.ui.split_key.as_ref().is_some_and(|k| k.splitter == i);
@@ -220,11 +231,9 @@ pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) 
         sp.orientation = Some(if s.axis == Axis::Row { Orientation::Vertical } else { Orientation::Horizontal });
         // (as the dock manager's: a percentage)
         if let Some((_, ext)) = d.extents.iter().find(|(p, _)| *p == s.path) {
-            let total = ext.iter().sum::<i64>().max(1) as f64;
-            let pct = |px: i64| (px as f64 * 1000.0 / total).round() / 10.0;
-            let value = pct(ext[..=s.index].iter().sum::<i64>());
-            sp.numeric = Some(Numeric { value, min: 0.0, max: 100.0, step: pct(super::manager::SPLIT_STEP), jump: pct(super::manager::SPLIT_JUMP) });
-            sp.value = Some(format!("{}%", value.round() as i64));
+            let (numeric, said) = share(ext, s.index);
+            sp.numeric = Some(numeric);
+            sp.value = Some(said);
         }
         sp.actions = vec![Action::Increment, Action::Decrement];
         sp.bounds = moved(s.rect, at);

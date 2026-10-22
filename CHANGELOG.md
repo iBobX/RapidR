@@ -11,6 +11,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
 ### Fixed
+- **Studio: each pane keeps its thin edge all the way down, and in dark the
+  gaps between panes show without hovering.** A docked pane's component (and
+  each group of documents) now sits inside its group's 1-pixel frame instead
+  of over it, so the frame runs down both sides and along the bottom; before,
+  it showed only beside the header or the tab strip — the "extra pixel or two"
+  at the top of each pane. A pane's component in a dock draws no border or
+  focus ring of its own there (one edge, never two; the group's accent line
+  says which pane has the focus), so the code editor, the Outline, Variables
+  and Call Stack trees and the Immediate box no longer stack a second line.
+  The dark look's edge is a little stronger (1.7:1 against the gutter and the
+  panes, was 1.37), since its gutter is the panes' own colour; the light look
+  is unchanged, high contrast's edges are its crisp white (the accent around
+  the active one), and the classic look keeps its sunken edges. A splitter's
+  accessible value is now a whole percentage ("33"), the same on the desktop
+  and in the browser (Chrome read 32.7 back as 32.70000076293945). Unit tests:
+  `every_pane_keeps_its_edge_all_the_way_down` (every look, docked groups and
+  one or two groups of documents) and `a_panes_edge_shows_at_rest_in_every_look`.
 - **Tab names are no longer cut short while there is room for them** (found
   in high contrast, where the debugging layout's "Breakpoints (2)" showed as
   "Breakpoints…"; light and dark did the same). When a dock group or the
