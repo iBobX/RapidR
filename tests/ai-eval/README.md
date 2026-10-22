@@ -14,6 +14,13 @@ is checked with check_code.
       tests/ai-eval/tip-calculator.txt --out scratch/ai-eval/tip
 
 Never part of the test suites: it needs a model, and a model's answers vary.
+
+`deepseek-evening.txt` replays, in miniature, what Robert's evening with
+DeepSeek (2026-10-20) showed (docs/preview4-plan.md R10, R11): a two-line fix
+must come as a targeted edit (`+1 −1`, never the whole file), and the answers
+follow the language of the latest message (Spanish, then English again). The
+same paths run against the mock in tests/studio_flows.mjs (`ai-r3-*`,
+`ai-r10-*`, `ai-r11-*`), with no model and no cost.
 `RAPIDR_AI_EVAL_URL` (default `http://127.0.0.1:11234/v1`),
 `RAPIDR_AI_EVAL_PROVIDER` (`compatible` or `anthropic`), `RAPIDR_AI_EVAL_KEY`,
 `RAPIDR_AI_EVAL_WORKSPACE`, `RAPIDR_AI_EVAL_MAXTOKENS` (default 65535).

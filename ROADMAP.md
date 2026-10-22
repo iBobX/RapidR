@@ -726,15 +726,15 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 **RAI**
 - [ ] ★ R1 Chats kept, with a chat list (stored outside the project)
 - [ ] R2 Edit a sent message; Retry
-- [ ] ★ R3 Messages queue while RAI works
+- [x] ★ R3 Messages queue while RAI works (2026-10-22: Send/Enter while it works shows *Queued: …* above the box, × takes it back, sent when the answer ends; Stop gives it back to the box; flows ai-r3-*, walked on the real screen with the mock and live with Haiku)
 - [ ] ★ R4 A live status line
 - [ ] R5 Context meter, Compact, `/` commands, reasoning effort
 - [ ] ★ R6 One model picker with ↻; the Set up RAI wizard
 - [ ] ★ R7 RAI runs and debugs (run, output, clicks, screenshots, debugger)
 - [ ] ★ R8 Permissions (Allow once / for this chat / Not now)
 - [ ] ★ R9 Safe test runs and the red card for risky code
-- [ ] ★ R10 Always the user's language
-- [ ] ★ R11 Transcript fixes (apply/reject log, targeted edits, truncated writes, pending set)
+- [x] ★ R10 Always the user's language (2026-10-22: RAI.ReplyLanguage "auto" in Studio — every request ends by naming the language of the latest message, the summary is written in it and says it; `UserLanguage`; flow ai-r10-language, walked with the mock and live in Spanish)
+- [x] ★ R11 Transcript fixes (apply/reject log, targeted edits, truncated writes, pending set) (2026-10-22: each decision said once — stale/failed/replaced/set aside said as such; a patch adding a SUB at a file's end applied nothing while saying "applied" — fixed; whole-file rewrites of 40+ lines refused for hunks; cut-off and syntax-error changes refused in every file; waiting changes kept across questions and checked together; one retry for DNS/connection failures; flows ai-r11-*)
 
 **Knowledge**
 - [ ] ★ K1 The language card, generated

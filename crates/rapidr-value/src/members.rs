@@ -103,7 +103,7 @@ const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", 
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
 const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey"];
-const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals"];
+const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided"];
 
 /// The web's own components.
 const WEB: &[&str] = &[

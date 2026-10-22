@@ -1,0 +1,7 @@
+' server.rr: the server's start (a fixture: it only says so).
+DIM Serving AS INTEGER
+
+SUB StartServer
+    Serving = 1
+    Status.Caption = "Starting..."
+END SUB

@@ -96,6 +96,28 @@ Type your question and press
 **Enter** (Shift+Enter starts a new line). The answer appears as it is
 written; **Stop** stops it.
 
+**Typing while it works.** You don't have to wait. Type your next message
+and press **Enter** (or **Send**) while the assistant is still answering:
+nothing is interrupted. The message waits in a line just above the box —
+*Queued: and add a Clear button* — and goes by itself as soon as the answer
+ends. **×** on that line takes it back. **Stop** is a button of its own: it
+ends the answer, and a queued message goes back into the box, unsent, for
+you to send or change.
+
+![A message typed while the assistant works: queued above the box, with × to take it back](images/ai/queued.png)
+
+**Your language.** The assistant answers in the language of your latest
+message: write in Spanish and the answer is in Spanish — even when your
+files, earlier messages or the summary of a long chat are in another
+language. When a message is too short to tell (*ok*, a line of code), it
+keeps the language you were writing in; before your first message, Studio's
+language.
+
+**A dropped connection.** When a question can't reach the provider — its
+name not found, no connection for a moment —, Studio tries once more, two
+seconds later, by itself; you only see an error if that fails too. A
+refusal (a wrong key, no credit left) is never tried again.
+
 While it works, the status line under the chat is a short checklist of what
 it has done so far — *✓ Found an example · ✓ Wrote the program · … Working…*
 — so a slow model on your own computer never leaves you guessing. A screen
@@ -112,6 +134,8 @@ bold **cards** in the chat:
 - ● **Proposed a change to** main.rr · +12 −3 · Review
 - ○ **Started from the recipe** *Calculator*
 - ▲ **Fixed** 2 errors
+- × **Refused** sites.rr: it is cut off at the end (a change Studio didn't
+  pass on to you — see [Small, exact changes](#small-exact-changes))
 
 The model's own words come after the cards: one or two sentences on what it
 made and how to use it. A card's links work like the buttons they name — by
@@ -153,6 +177,48 @@ accepts it, Backspace rejects it); **Accept All**, **Reject All**, then
 **Apply**. What you applied is one step in each file's undo: **Edit >
 Undo** takes it back. **Tools > Review the AI's Changes…** opens the review
 again.
+
+The chat says each decision once, as it happened: *You applied the change
+to server.rr*, *You rejected the change to main.rr*, or — when you edited the
+file after the assistant read it — *The change to main.rr wasn't applied:
+main.rr changed after the assistant read it*. A review opened again shows
+only what still waits.
+
+### Small, exact changes
+
+The assistant changes an existing file by sending only the lines that
+change, each with the few lines it replaces. A two-line fix is a two-line
+change — **+2 −2** on its card, however long the file. Studio refuses a
+change, and tells the model how to send it properly, when it is:
+
+- **a whole file sent back for a few lines** — a file of more than 40 lines
+  that the change mostly keeps;
+- **cut off before its end** — a reply that ran out of room stops in the
+  middle of a line, like `END FUNCTI`, or with a SUB still open;
+- **a syntax error** — a line RapidR can't read.
+
+The last two are refused in every file, a module included. A refused change
+never reaches you; if the model doesn't send it again, properly, a **×
+Refused** card says what happened.
+
+![A change cut off at its end, refused: the card says so, there is nothing to review](images/ai/refused.png)
+
+### Changes wait for you
+
+You don't have to review a change before you ask the next question. The
+changes you haven't applied or rejected yet wait, and the assistant works
+with them: it reads those files as it proposed them, and the compiler checks
+your project with every waiting change in place — so a change to main.rr
+that calls a SUB a waiting change adds to a module compiles. **Review the
+Changes…** shows them all together.
+
+- A newer change to the same file builds on the one that waits, and the
+  chat says *The change to server.rr proposed before was replaced by a
+  newer proposal*.
+- If you edit a file yourself while a change to it waits, that change is
+  set aside at your next question, and the chat says so: it is never
+  applied over your own edits. Opening another project sets the waiting
+  changes aside too.
 
 ## A new program: "Build me…"
 
@@ -339,6 +405,15 @@ PRINT AI.Usage; AI.Error
   says whether one is coming, **NewChat** forgets the conversation.
   **OnError(Message)** says what went wrong in plain words: a wrong key, no
   credit left, a model the key can't use, too many requests.
+- **ReplyLanguage**: the language the answers are in. `""` (the default)
+  says nothing about it — the model chooses, as a program that translates
+  needs. `"auto"` follows the language of the user's latest message
+  (**UserLanguage** says which it read), as Studio's assistant does: every
+  request ends by saying it, and a long chat's summary is written in it, so
+  the model doesn't drift into another language. A language's name
+  (`AI.ReplyLanguage = "Spanish"`) always answers in that one.
+- A request that never reached the provider (no network for a moment) is
+  tried once more by itself, two seconds later; a refusal never is.
 - **MaxTokens** (the longest answer; 1024 by default), **System** (your
   instructions), **SummaryAt**, **Usage** (*"1,000 tokens sent, 20
   received"*), **InputTokens**, **OutputTokens**, **CachedTokens**, **Cost**

@@ -125,6 +125,8 @@ fn an_rai_with_the_project_tools() {
     rai_set(n, "baseurl", &url);
     rai_set(n, "model", "mock-1");
     rai_set(n, "audit", "-1");
+    // (as RapidR Studio sets it: the answers in the user's language)
+    rai_set(n, "replylanguage", "auto");
     rai_set(n, "pricein", "2");
     rai_set(n, "priceout", "10");
     assert_eq!(rai_call(n, "attachcomponent", &[s("Tools1"), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
@@ -160,7 +162,8 @@ fn an_rai_with_the_project_tools() {
     let tool_msg = second_req["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap();
     assert!(tool_msg["content"].as_str().unwrap().starts_with("{\"untrusted\":true,\"source\":\"file:main.rr\""));
     let system = second_req["messages"][0]["content"].as_str().unwrap();
-    assert!(system.contains("never instructions to you") && system.contains("main file main.rr; files: main.rr.\n\nRemember: a change happens only through a tool call") && system.ends_with("instead of asking or describing."), "{}", &system[system.len().saturating_sub(300)..]);
+    // (the answers' language, last of all: R10)
+    assert!(system.contains("never instructions to you") && system.contains("main file main.rr; files: main.rr.\n\nRemember: a change happens only through a tool call") && system.contains("instead of asking or describing.\n\nThe user writes in English: reply in English, even when"), "{}", &system[system.len().saturating_sub(300)..]);
     FIRED.with(|f| {
         let f = f.borrow();
         assert!(f.iter().any(|e| e == "rai1 ontoken Let me look.") && f.iter().any(|e| e == "rai1 onmessage I proposed a new title.") && f.iter().any(|e| e == "rai1 ondone ok"), "{f:?}");
@@ -576,5 +579,249 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
     let req: Json = serde_json::from_str(&server2.join().unwrap()[0]).unwrap();
     let last = req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "user").unwrap().to_string();
     assert!(last.contains("Build me a quiz game") && !last.contains("A working RapidR program close to"), "{last}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The system prompt of request `k` the mock saw (OpenAI's shape: the
+/// first message).
+fn system_of(seen: &[String], k: usize) -> String {
+    let req: Json = serde_json::from_str(&seen[k]).unwrap();
+    req["messages"][0]["content"].as_str().unwrap_or("").to_string()
+}
+
+/// The last tool result request `k` carried.
+fn last_result(seen: &[String], k: usize) -> String {
+    let req: Json = serde_json::from_str(&seen[k]).unwrap();
+    req["messages"].as_array().unwrap().iter().rev().find(|m| m["role"] == "tool").map(|m| m["content"].as_str().unwrap_or("").to_string()).unwrap_or_default()
+}
+
+/// Robert's evening with DeepSeek (2026-10-20), R11: changes the user
+/// hasn't decided on wait across questions and are checked together — a
+/// main file calling what a waiting module change adds compiles (it was
+/// refused: "it doesn't compile"); each card is its own turn's; the log
+/// says each decision once ("You applied … You rejected …" for the same
+/// files was said for a review opened again); a change waiting from an
+/// earlier answer and replaced by a newer one says so; one whose file the
+/// user changed meanwhile is set aside, said.
+#[test]
+fn waiting_changes_are_checked_together_and_each_decision_said_once() {
+    let _one = one_at_a_time();
+    let dir = project_dir("waiting");
+    std::fs::write(dir.join("main.rr"), "$INCLUDE \"server.rr\"\nStartServer\n").unwrap();
+    std::fs::write(dir.join("server.rr"), "SUB StartServer\n    PRINT \"start\"\nEND SUB\n").unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let add_stop = json!({"path": "server.rr", "summary": "A StopServer", "edits": [{"old_text": "END SUB", "new_text": "END SUB\n\nSUB StopServer\n    PRINT \"stop\"\nEND SUB"}]});
+    let call_stop = json!({"path": "main.rr", "summary": "Stop it", "edits": [{"old_text": "StartServer\n", "new_text": "StartServer\nStopServer\n"}]});
+    let (url, server) = mock(vec![call_answer("a1", "propose_edit", add_stop), text_answer("Added StopServer."), call_answer("b1", "propose_edit", call_stop), text_answer("main.rr calls it.")]);
+    install();
+    let tools = "tools-waiting";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr\nserver.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    let n = "rai-waiting";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Add a StopServer to the server module")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rapidr_ai::rai::peek(n).1, "The assistant proposed a change: review it.");
+    // (the user doesn't review it yet, and asks for more)
+    assert_eq!(rai_call(n, "ask", &[s("Now call it from main.rr after StartServer")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 4);
+    // (main.rr calls StopServer, which only the waiting change has: it
+    // compiles, the two checked together)
+    assert!(last_result(&seen, 3).contains("It compiles."), "{}", last_result(&seen, 3));
+    // (the model is told what waits)
+    assert!(system_of(&seen, 2).contains("Changes you proposed earlier wait for the user's review: server.rr."), "{}", system_of(&seen, 2));
+    // (two proposals wait; this answer's card is main.rr's only)
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 2);
+    let (t, status) = rapidr_ai::rai::peek(n);
+    let second = t.rsplit("**You**").next().unwrap();
+    assert!(second.contains("##### ● Proposed a change to main.rr · +1 −0") && !second.contains("server.rr ·"), "{second}");
+    assert!(status.starts_with("The assistant proposed changes to 2 files"), "{status}");
+    // (applied, both: said once each — a review opened again and applied
+    // or rejected says nothing more)
+    call(tools, "decide", &[Value::Integer(0), s("applied")]);
+    call(tools, "decide", &[Value::Integer(1), s("applied")]);
+    call(tools, "decide", &[Value::Integer(0), s("rejected")]);
+    call(tools, "decide", &[Value::Integer(1), s("rejected")]);
+    call(tools, "cleardecided", &[]);
+    let t = rapidr_ai::rai::peek(n).0;
+    assert_eq!(t.matches("*You applied the change to").count(), 2, "{t}");
+    assert!(!t.contains("You rejected"), "{t}");
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 0, "what is decided is gone: nothing more to review");
+    // (the files as the user applied them)
+    std::fs::write(dir.join("server.rr"), "SUB StartServer\n    PRINT \"start\"\nEND SUB\n\nSUB StopServer\n    PRINT \"stop\"\nEND SUB\n").unwrap();
+    std::fs::write(dir.join("main.rr"), "$INCLUDE \"server.rr\"\nStartServer\nStopServer\n").unwrap();
+    // (a change waiting from an earlier answer, replaced by a newer one:
+    // said, once)
+    let one = json!({"path": "main.rr", "summary": "Title", "edits": [{"old_text": "StartServer\n", "new_text": "PRINT \"one\"\nStartServer\n"}]});
+    let two = json!({"path": "main.rr", "summary": "Title", "edits": [{"old_text": "PRINT \"one\"", "new_text": "PRINT \"two\""}]});
+    let (url2, server2) = mock(vec![call_answer("c1", "propose_edit", one), text_answer("One."), call_answer("d1", "propose_edit", two), text_answer("Two.")]);
+    rai_set(n, "baseurl", &url2);
+    assert_eq!(rai_call(n, "ask", &[s("Print one first")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_call(n, "ask", &[s("No, print two")]).to_i64(), -1);
+    wait(n);
+    server2.join().unwrap();
+    let t = rapidr_ai::rai::peek(n).0;
+    assert!(t.ends_with("*The change to main.rr proposed before was replaced by a newer proposal.*"), "{t}");
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
+    assert!(call(tools, "proposalnew", &[Value::Integer(0)]).unwrap().to_string_val().contains("PRINT \"two\""));
+    // (the user changes main.rr meanwhile: the waiting change is set
+    // aside, said before the next question — never applied over it)
+    call(tools, "setfile", &[s("main.rr"), s("$INCLUDE \"server.rr\"\nStartServer\nPRINT \"mine\"\n")]);
+    let (url3, server3) = mock(vec![text_answer("Fine.")]);
+    rai_set(n, "baseurl", &url3);
+    assert_eq!(rai_call(n, "ask", &[s("What does main.rr do?")]).to_i64(), -1);
+    wait(n);
+    server3.join().unwrap();
+    let (t, status) = rapidr_ai::rai::peek(n);
+    assert!(t.contains("*The change to main.rr proposed before was set aside: main.rr changed since.*\n\n**You**\n\nWhat does main.rr do?"), "{t}");
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 0);
+    assert_eq!(status, "Answered.");
+    let audit = std::fs::read_to_string(dir.join("audit.jsonl")).unwrap();
+    assert!(audit.contains("\"decision\":\"replaced\"") && audit.contains("\"decision\":\"set-aside\""), "{audit}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// R11: a 2-line fix arrived as `+382 −384`, a file arrived cut off (`END
+/// FUNCTI`). A whole-file rewrite that keeps most of a long file is
+/// refused with a word to send the changed parts; a cut-off text is
+/// refused in plain words (a module too); the parts sent with propose_edit
+/// are proposed, their card counting the lines that change.
+#[test]
+fn a_cut_off_file_or_a_needless_rewrite_is_refused() {
+    let _one = one_at_a_time();
+    let dir = project_dir("refused");
+    let body: String = (1..=290).map(|i| format!("    PRINT \"site {i}\"\n")).collect();
+    let sites = format!("SUB ListSites\n{body}END SUB\n\nFUNCTION SiteCount AS INTEGER\n    Result = 290\nEND FUNCTION\n");
+    assert_eq!(sites.lines().count(), 296);
+    std::fs::write(dir.join("main.rr"), "$INCLUDE \"sites.rr\"\nListSites\nPRINT SiteCount\n").unwrap();
+    std::fs::write(dir.join("sites.rr"), &sites).unwrap();
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let rewritten = sites.replace("\"site 7\"", "\"site seven\"").replace("Result = 290", "Result = 291");
+    let cut = rewritten.trim_end().strip_suffix("END FUNCTION").unwrap().to_string() + "END FUNCTI";
+    let hunks = json!({"path": "sites.rr", "summary": "Seven", "edits": [{"old_text": "    PRINT \"site 7\"\n", "new_text": "    PRINT \"site seven\"\n"}, {"old_text": "Result = 290", "new_text": "Result = 291"}]});
+    let answers = vec![
+        call_answer("w1", "write_file", json!({"path": "sites.rr", "summary": "Seven", "text": rewritten})),
+        call_answer("w2", "write_file", json!({"path": "sites.rr", "summary": "Seven", "text": cut})),
+        call_answer("e1", "propose_edit", hunks),
+        call_answer("w3", "write_file", json!({"path": "stop.rr", "summary": "Stop", "text": "SUB StopAll\n    PRINT \"stop\"\nEND SU"})),
+        text_answer("Site 7 is called seven now."),
+    ];
+    let (url, server) = mock(answers);
+    install();
+    let tools = "tools-refused";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr\nsites.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    let n = "rai-refused";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("Call site 7 seven, and count one more")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 5);
+    // (the whole file for two lines: refused, the hunks asked for)
+    let r1 = last_result(&seen, 1);
+    assert!(r1.starts_with("Error: Not proposed: write_file would send all 296 lines of sites.rr to change 2 of them. Send only the parts that change with propose_edit"), "{r1}");
+    // (cut off: refused in plain words, said before anything else)
+    let r2 = last_result(&seen, 2);
+    assert!(r2.starts_with("Error: Not proposed: the new text of sites.rr is cut off — it ends in the middle of a line (line 296: `END FUNCTI`)."), "{r2}");
+    // (the parts: proposed, it compiles)
+    assert!(last_result(&seen, 3).contains("It compiles."), "{}", last_result(&seen, 3));
+    // (a new module cut off: refused too)
+    assert!(last_result(&seen, 4).contains("is cut off"), "{}", last_result(&seen, 4));
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(t.contains("##### ● Proposed a change to sites.rr · +2 −2 · [Review](ai:review)"), "{t}");
+    assert!(t.contains("##### × Refused stop.rr: it is cut off at the end"), "{t}");
+    assert!(!t.contains("× Refused sites.rr") && !t.contains("× Refused a whole-file"), "a refusal then proposed is no card: {t}");
+    assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
+    assert!(rai_get(n, "steps").contains("Refused a whole-file rewrite of sites.rr"), "{}", rai_get(n, "steps"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// R10: two answers came in German to a user who always wrote English,
+/// after the conversation was summarised. Every request says the user's
+/// language last; the summary is asked in it, and carries it.
+#[test]
+fn the_answers_stay_in_the_users_language() {
+    let _one = one_at_a_time();
+    let dir = project_dir("language");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let answers = vec![
+        call_answer("r1", "read_file", json!({"path": "main.rr"})),
+        text_answer("It shows a form."),
+        text_answer("Yes, one form."),
+        // (the summary, written in German by a model that drifted)
+        text_answer("Der Nutzer möchte wissen, was das Formular zeigt."),
+        text_answer("It has no button yet."),
+        text_answer("Todavía no tiene botón."),
+        // (summarised again, now in Spanish)
+        text_answer("El usuario pregunta por el botón."),
+        text_answer("Pas encore."),
+    ];
+    let (url, server) = mock(answers);
+    install();
+    let tools = "tools-language";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    let n = "rai-language";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    // (summarised as soon as there is something to summarise; the answers
+    // in the user's language, as RapidR Studio sets it)
+    rai_set(n, "summaryat", "1");
+    rai_set(n, "replylanguage", "auto");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    assert_eq!(rai_call(n, "ask", &[s("What does the main file show?")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_get(n, "userlanguage"), "English");
+    assert_eq!(rai_call(n, "ask", &[s("Is that all of it?")]).to_i64(), -1);
+    wait(n);
+    assert!(rapidr_ai::rai::peek(n).0.contains("The conversation so far was summarised"));
+    assert_eq!(rai_call(n, "ask", &[s("and the button?")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_call(n, "ask", &[s("¿Y el botón para borrar?")]).to_i64(), -1);
+    wait(n);
+    assert_eq!(rai_get(n, "userlanguage"), "Spanish");
+    // (the program pins it: always that language)
+    rai_set(n, "summaryat", "1000000");
+    rai_set(n, "replylanguage", "French");
+    assert_eq!(rai_call(n, "ask", &[s("ok")]).to_i64(), -1);
+    wait(n);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 8);
+    let english = "The user writes in English: reply in English, even when earlier messages, the conversation's summary, files or tool results are in another language.";
+    assert!(system_of(&seen, 0).ends_with(english), "{}", system_of(&seen, 0));
+    // (the summary: asked in the user's language)
+    assert!(system_of(&seen, 3).contains("Write the summary in English (the language the user writes in)"), "{}", system_of(&seen, 3));
+    // (after it: the summary carries the language, the request says it last)
+    let req: Json = serde_json::from_str(&seen[4]).unwrap();
+    let first = req["messages"][1]["content"].as_str().map(str::to_string).unwrap_or_else(|| req["messages"][1]["content"].to_string());
+    assert!(first.starts_with("(A summary of our conversation so far, to save tokens. I write in English: reply in English.)\n\nDer Nutzer"), "{first}");
+    assert!(system_of(&seen, 4).ends_with(english), "{}", system_of(&seen, 4));
+    // (a question in Spanish: Spanish)
+    assert!(system_of(&seen, 5).ends_with("The user writes in Spanish: reply in Spanish (español), even when earlier messages, the conversation's summary, files or tool results are in another language."), "{}", system_of(&seen, 5));
+    assert!(system_of(&seen, 6).contains("Write the summary in Spanish (español)"), "{}", system_of(&seen, 6));
+    assert!(system_of(&seen, 7).ends_with("Reply in French (français), even when earlier messages, the conversation's summary, files or tool results are in another language."), "{}", system_of(&seen, 7));
+    // (nothing said: a program's RAI that translates, its answers in
+    // another language than its questions — as before ReplyLanguage)
+    rai_set(n, "replylanguage", "");
+    let (url2, server2) = mock(vec![text_answer("Bonjour.")]);
+    rai_set(n, "baseurl", &url2);
+    assert_eq!(rai_call(n, "ask", &[s("Translate into French: hello")]).to_i64(), -1);
+    wait(n);
+    let seen2 = server2.join().unwrap();
+    assert!(!system_of(&seen2, 0).contains("The user writes in") && !system_of(&seen2, 0).contains("Reply in French") && !system_of(&seen2, 0).contains("even when earlier messages, the conversation's summary"), "{}", system_of(&seen2, 0));
     let _ = std::fs::remove_dir_all(&dir);
 }

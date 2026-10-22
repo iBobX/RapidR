@@ -37,7 +37,8 @@ const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
-// key, no network, no cost): {mock} in a case's steps is its base URL.
+// key, no network, no cost): {mock} in a case's steps is its base URL,
+// {mockroot} its root (a scenario's address: {mockroot}/s/drop/v1).
 const mockProc = spawn(process.execPath, [join(HERE, "ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
 const MOCK_URL = await new Promise((resolve) => mockProc.stdout.once("data", (d) => resolve(String(d).trim())));
 // (the cloud providers — Anthropic, OpenAI, DeepSeek — played by the same
@@ -2782,6 +2783,207 @@ const CASES = [
       "proj.folder": /^$/,
     },
   },
+  // ---- Robert's evening with DeepSeek (docs/preview4-plan.md R3, R10, R11),
+  // against the mock; tests/fixtures/studio_ai_sites is a small three-file
+  // project (main.rr includes server.rr and a 297-line sites.rr) ----
+  {
+    // R3: Send while the assistant works (the answer held 6 s) queues the
+    // message — typed with real keys, Enter — shown above the box as
+    // "Queued: …"; nothing stops, nothing is sent yet
+    name: "ai-r3-queued",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    // (the queued line in every look: its text readable, WCAG AA)
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    capture: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=slowly rename the window,wait,wait,ai.assistant,type:and add a Clear button,key:Enter,wait",
+    delay: 4,
+    webDelay: 7,
+    dump: {
+      "aiqueuebar.__shown": /^1$/,
+      "aiqueuetext.caption": /^Queued: and add a Clear button$/,
+      "aiinput.text": /^$/,
+      "ai.busy": /^(-1|True)$/i,
+      "aisendbtn.enabled": /^(-1|1|True)$/i,
+      "aistopbtn.enabled": /^(-1|1|True)$/i,
+      "ai.transcript": /^(?![\s\S]*Stopped)(?![\s\S]*\*\*You\*\*\n\nand add a Clear button)[\s\S]*slowly rename the window/,
+    },
+  },
+  {
+    // ... and sent when the answer ends: the second question and its
+    // answer in the chat, the queued line gone
+    name: "ai-r3-queued-sent",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=slowly rename the window,wait,wait,ai.assistant,type:and add a Clear button,key:Enter,wait",
+    delay: 14,
+    webDelay: 22,
+    dump: {
+      "aiqueuebar.__shown": /^0$/,
+      "ai.busy": /^(0|False)$/i,
+      "ai.transcript": /^(?![\s\S]*Stopped)\*\*You\*\*\n\nslowly rename the window[\s\S]*Proposed a change to hello_form\.rr[\s\S]*\*\*You\*\*\n\nand add a Clear button\n\n\*\*Assistant\*\*\n\nA \*\*Clear\*\* button next to Greet would empty the name box/,
+    },
+  },
+  {
+    // ... × (the mouse) takes it back: the line goes, the status says it
+    // won't be sent; the answer goes on
+    name: "ai-r3-queued-cancel",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=slowly rename the window,wait,wait,ai.assistant,type:and add a Clear button,key:Enter,wait",
+    events: "aiqueuecancel.__mousedown_14_13,aiqueuecancel.__mouseup_14_13,aiqueuetext.onclick,aiqueuetext.onclick",
+    delay: 5,
+    dump: {
+      "aiqueuebar.__shown": /^0$/,
+      "aistatus.simpletext": /^The queued message won't be sent\.$/,
+      "ai.busy": /^(-1|True)$/i,
+      "ai.transcript": /^(?![\s\S]*and add a Clear button)/,
+    },
+  },
+  {
+    // ... Stop (the mouse) ends the answer and gives the queued message
+    // back to the box, unsent
+    name: "ai-r3-queued-stop",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=slowly rename the window,wait,wait,ai.assistant,type:and add a Clear button,key:Enter,wait",
+    events: "aistopbtn.__mousedown_20_12,aistopbtn.__mouseup_20_12,aiqueuetext.onclick,aiqueuetext.onclick",
+    delay: 5,
+    dump: {
+      "aiqueuebar.__shown": /^0$/,
+      "aiinput.text": /^and add a Clear button$/,
+      "aistatus.simpletext": /^Stopped\. Your queued message is back in the box, not sent\.$/,
+      "ai.busy": /^(0|False)$/i,
+      "ai.transcript": /Stopped\.(?![\s\S]*\*\*You\*\*\n\nand add a Clear button)/,
+    },
+  },
+  {
+    // R10: the reply's language follows the user's latest message, even
+    // after the conversation is summarised (forced: SummaryAt 1). The
+    // mock's polyglot model answers in the language its instructions name,
+    // else in the conversation's first message's — after a summary, the
+    // summary's, which it writes in German unless told: the drift of the
+    // evening. English stays English; a question in Spanish gets Spanish.
+    name: "ai-r10-language",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-polyglot,ai:summaryat=1,ai:ask=What does the form show?,ai:wait,ai:ask=And the list?,ai:wait,ai:ask=Is that all of it?,ai:wait,ai:ask=and the button?,ai:wait,ai:ask=¿Y el botón Start?,ai:wait",
+    delay: 12,
+    dump: {
+      "ai.transcript": /^(?![\s\S]*Das Formular)[\s\S]*The conversation so far was summarised[\s\S]*\*\*You\*\*\n\nand the button\?\n\n\*\*Assistant\*\*\n\nThe form has a list of sites[\s\S]*\*\*You\*\*\n\n¿Y el botón Start\?\n\n\*\*Assistant\*\*\n\nEl formulario tiene una lista de sitios/,
+      "ai.userlanguage": /^Spanish$/,
+      // (the last request: the chat summarised again, now in Spanish)
+      "ai.lastrequest": /Write the summary in Spanish \(español\) \(the language the user writes in\)/,
+    },
+  },
+  {
+    // R11: a change to a module waits for the user (not reviewed), the
+    // next question's change to main.rr calls what only that change has:
+    // checked together, it compiles (it was refused); each card is its own
+    // answer's. Applied: "You applied" once per file — a review applied
+    // again says nothing more (it said "You rejected" for the same files)
+    name: "ai-r11-waiting-together",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add StopServer to the server,ai:wait,ai:ask=now add a Stop button to main.rr,ai:wait,wait,wait,ai:apply,wait,ai:apply,wait",
+    delay: 8,
+    dump: {
+      "ai.steps": /^Proposed a change to main\.rr$/,
+      "ai.transcript": /##### ● Proposed a change to server\.rr · \+5 −0[\s\S]*\*\*You\*\*\n\nnow add a Stop button to main\.rr\n\n\*\*Assistant\*\*\n\n##### ● Proposed a change to main\.rr · \+10 −0 · \[Review\]\(ai:review\)\n\nPress \*\*Stop\*\*(?![\s\S]*server\.rr ·)[\s\S]*\*You applied the change to server\.rr\.\*\n\n\*You applied the change to main\.rr\.\*$/,
+      "aitools.proposalcount": /^0$/,
+      // (both files changed in their editors: main.rr open, server.rr opened)
+      "codedoc(0).text": /StopServer/,
+      "codedoc(1).text": /SUB StopServer/,
+    },
+  },
+  {
+    // ... applied once: both changes in their editors, and the program
+    // has no error (the module, changed and not saved, counted as its
+    // editor has it — "1 error" was said of a program that had none)
+    name: "ai-r11-applied-status",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add StopServer to the server,ai:wait,ai:ask=now add a Stop button to main.rr,ai:wait,wait,wait,ai:apply,wait,wait",
+    delay: 8,
+    dump: {
+      "aistatus.simpletext": /^2 files changed: Edit > Undo in each takes it back\.$/,
+      "aibanner.__shown": /^0$/,
+    },
+  },
+  {
+    // R11: a two-line fix sent as the whole 297-line file is refused (the
+    // model is told to send the parts); the two edits are proposed: the
+    // card counts the two lines
+    name: "ai-r11-hunks",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=name sites 7 and 8,ai:wait",
+    delay: 6,
+    dump: {
+      "ai.steps": /^Read sites\.rr\nRefused a whole-file rewrite of sites\.rr: only a few lines change\nProposed a change to sites\.rr$/,
+      "ai.transcript": /##### ● Proposed a change to sites\.rr · \+2 −2 · \[Review\]\(ai:review\)\n\nSites 7 and 8 are called seven and eight now\.$/,
+      "aitools.proposalcount": /^1$/,
+      "aistatus.simpletext": /^The assistant proposed a change: review it\.$/,
+    },
+  },
+  {
+    // R11: a file cut off at `END FUNCTI` is refused in plain words —
+    // nothing to review, a card says so
+    name: "ai-r11-cut-off",
+    capture: true,
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_ai_sites/main.rr", "tests/fixtures/studio_ai_sites/server.rr", "tests/fixtures/studio_ai_sites/sites.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=finish the count,ai:wait",
+    delay: 6,
+    dump: {
+      "ai.transcript": /##### × Refused sites\.rr: it is cut off at the end\n\nMy change was cut off before its end/,
+      "aitools.proposalcount": /^0$/,
+      "aireviewbar.__shown": /^0$/,
+      "aistatus.simpletext": /^Answered\.$/,
+    },
+  },
+  {
+    // R11: the name not found (DNS) on the first try — the walk's stand-in
+    // for "Couldn't reach api.deepseek.com" —: tried again 2 s later, the
+    // answer comes, no error shown
+    name: "ai-r11-retry-dns",
+    desktopOnly: true,
+    open: "examples/gui/hello_form.rr",
+    env: { RAPIDR_AI_TEST_DNS_FAIL_ONCE: "1" },
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=hello there,ai:wait",
+    delay: 6,
+    dump: {
+      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!(?![\s\S]*Error)/,
+      "aistatus.simpletext": /^Answered\.$/,
+    },
+  },
+  {
+    // ... a connection closed before any answer, every other time (the
+    // mock's `drop`): each request tried once more, the answer comes
+    name: "ai-r11-retry-drop",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mockroot}/s/drop/v1,ai:model=mock-small,ai:ask=hello there,ai:wait",
+    delay: 9,
+    dump: {
+      "ai.transcript": /^\*\*You\*\*\n\nhello there\n\n\*\*Assistant\*\*\n\nHello from the mock assistant!(?![\s\S]*Error)/,
+      "aistatus.simpletext": /^Answered\.$/,
+    },
+  },
   // ---- AI-UX (docs/ai-ux-plan.md §1–3): a new program straight into the
   // IDE, a banner to run it, Undo, the chat's cards ----
   {
@@ -3574,7 +3776,7 @@ function runDesktop(c, scale = 1) {
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
-  const steps = c.do ? c.do.replaceAll("{dir}", dir).replaceAll("{mock}", MOCK_URL) : "";
+  const steps = c.do ? c.do.replaceAll("{dir}", dir).replaceAll("{mockroot}", MOCK_ROOT).replaceAll("{mock}", MOCK_URL) : "";
   if (c.importFrom) {
     cpSync(join(ROOT, dirname(c.importFrom)), join(dir, "src"), { recursive: true });
     // (before: steps ahead of the import — Studio's include folders; {root}: the repository)
@@ -3757,7 +3959,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     });
     await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, {
       RAPIDR_CAPTURE: "web",
-      RAPIDR_CAPTURE_DELAY: String(c.delay),
+      // (webDelay: a page's Studio starts later than the desktop's — a case
+      // timed against an answer the mock holds says when it looks there)
+      RAPIDR_CAPTURE_DELAY: String(c.webDelay ?? c.delay),
       RAPIDR_TEST_DUMP: [...Object.keys(c.webDump || c.dump), "studio.caption"].join(","),
       RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
@@ -3771,7 +3975,7 @@ async function runWebPage(ctx, c, last, scale, record) {
     // (the program's files are in the page's store: imported from there;
     // {dir}: the case's own folder in the page's store)
     const doSteps = c.webDo ?? c.do;
-    const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`).replaceAll("{mock}", MOCK_URL) : "";
+    const steps = doSteps ? doSteps.replaceAll("{dir}", `/flows/${c.name}`).replaceAll("{mockroot}", MOCK_ROOT).replaceAll("{mock}", MOCK_URL) : "";
     // (before: steps ahead of the import; {root}/: the store's paths are the repository's)
     const before = c.before ? c.before.replaceAll("{root}/", "") + "," : "";
     if (c.importFrom) q.set("do", before + `import:${c.importFrom}` + (steps ? "," + steps : ""));
@@ -3779,7 +3983,7 @@ async function runWebPage(ctx, c, last, scale, record) {
     if (c.open) q.set("open", c.open);
     await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
     // (the test's end, or — Studio quit — the program's)
-    await page.waitForFunction(() => window.rr && (window.rr.rapidr_test_results() || window.rr.rapidr_main_done()), null, { timeout: Math.max(90000, c.delay * 1000 + 60000), polling: 200 });
+    await page.waitForFunction(() => window.rr && (window.rr.rapidr_test_results() || window.rr.rapidr_main_done()), null, { timeout: Math.max(90000, (c.webDelay ?? c.delay) * 1000 + 60000), polling: 200 });
     const raw = await page.evaluate(() => window.rr.rapidr_test_results());
     const quit = !raw && (await page.evaluate(() => window.rr.rapidr_main_done()));
     const results = raw ? JSON.parse(raw) : { dump: [] };

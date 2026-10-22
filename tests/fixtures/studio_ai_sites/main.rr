@@ -1,0 +1,33 @@
+' Sites: a small three-file project for the AI assistant's flows
+' (tests/studio_flows.mjs, the ai-r3 / ai-r10 / ai-r11 cases): main.rr
+' makes the window and includes the server and the sites modules.
+DECLARE SUB StartClick
+
+CREATE Form AS RForm
+    Caption = "Sites"
+    Width = 360: Height = 300
+    Center
+    CREATE SiteList AS RListBox
+        Left = 8: Top = 8: Width = 336: Height = 200
+    END CREATE
+    CREATE StartButton AS RButton
+        Caption = "&Start"
+        Left = 8: Top = 216: Width = 90
+        OnClick = StartClick
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Stopped."
+        Left = 200: Top = 220: Width = 150
+    END CREATE
+END CREATE
+
+$INCLUDE "server.rr"
+$INCLUDE "sites.rr"
+
+SUB StartClick
+    StartServer
+    FillSites
+    Status.Caption = "Serving " + STR$(SiteCount) + " sites."
+END SUB
+
+Form.ShowModal

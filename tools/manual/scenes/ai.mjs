@@ -146,6 +146,26 @@ export const scenes = [
     crop: [896, 120, 384, 480],
   },
   {
+    // (R3) A message sent while the assistant works: queued above the box,
+    // × to take it back; it goes when the answer ends
+    name: "queued",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:ask=slowly rename the window,wait,wait,ai.assistant,type:and add a Clear button,key:Enter,wait`,
+    delay: 6,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (R11) A change cut off at its end (`END FUNCTI`): refused, a card
+    // says so, nothing to review (Studio's three-file test project)
+    name: "refused",
+    open: "tests/fixtures/studio_ai_sites/main.rr",
+    do: `${READY},ai:ask=finish the count,wait,ai:wait,wait`,
+    delay: 7,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
     // What was sent: the last request, the key never shown
     name: "what-was-sent",
     open: "examples/gui/hello_form.rr",

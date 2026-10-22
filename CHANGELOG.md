@@ -21,6 +21,47 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
 
+### Fixed
+- **RAI after Robert's evening with DeepSeek** (docs/preview4-plan.md R3,
+  R10, R11; the assistant in Studio and RAI in programs):
+  - **Typing while RAI works queues the message** (R3): Send or Enter
+    during an answer shows *Queued: …* above the box (× takes it back) and
+    sends it when the answer ends; it never stops the answer. **Stop** is its
+    own button, and gives a queued message back to the box, unsent.
+  - **The answers stay in the user's language** (R10): every request ends by
+    naming the language of the user's latest message (kept while a message
+    is too short to tell; Studio's or the program's language before the
+    first); a long chat's summary is written in it and says it. Two answers
+    had come in German to a user who wrote English. RAI's new
+    **ReplyLanguage** says how: `""` nothing (the default, as before: a
+    translator's answers aren't in its questions' language), `"auto"` the
+    user's (Studio's assistant), or one language always; **UserLanguage**
+    is the language RAI read in the latest message.
+  - **The apply/reject log says only what happened** (R11): each decision
+    once (a review opened again said *You rejected* for changes just
+    applied); *wasn't applied: the file changed* instead of *rejected*; *the
+    change … was replaced by a newer proposal*; a waiting change whose file
+    you edited is set aside, said. A change that adds a blank line and a new
+    SUB after a file's last line applied nothing while the chat said *You
+    applied the change* (its patch started past the file's end): it applies
+    now, and a patch an editor refuses is said as such. After applying, a
+    module changed and not saved counts as its editor has it (Studio said
+    *the program has 1 error* of a program that had none).
+  - **Targeted edits** (R11): a few lines' change sent as a whole file of
+    more than 40 lines is refused, and the model is told to send the parts
+    (propose_edit's search-and-replace edits); the cards count the lines
+    that really change (a 2-line fix had shown `+382 −384`).
+  - **A cut-off or broken change is refused** (R11): a file ending in the
+    middle of a line (`END FUNCTI`) or with a SUB still open, or with a
+    syntax error, is never proposed — in a module too —, a × card says so.
+  - **Waiting changes are checked together** (R11): changes not yet
+    reviewed wait across questions; the model reads them, and the compiler
+    checks the project with all of them applied (main.rr calling a SUB a
+    waiting module change adds compiles; it was refused).
+  - **A request that never reached the provider is tried once more**
+    (R11): the name not found (DNS), no connection, a connection closed
+    before any answer — 2 seconds later, by itself; never a refusal.
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added

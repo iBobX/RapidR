@@ -640,12 +640,16 @@ END SUB
 ' The whole program's errors (its main file's analysis, with the files it
 ' includes), Problems showing them when there are any (S-DESIGN-2).
 FUNCTION ProgramErrors AS INTEGER
-  DIM dm AS INTEGER, d AS INTEGER
-  dm = DocOf(ProjectMain)
-  IF dm >= 0 THEN Lang.Update ProjectMain, CodeDoc(dm).Text
-  ' (the editors' popups go: the program comes up over them)
+  DIM d AS INTEGER
+  ' (every open file as its editor has it — a module the assistant's change
+  ' was just applied to, not saved yet, counts as its editor shows it; it
+  ' counted as the disk had it, and "1 error" was said of a program that
+  ' has none); the editors' popups go: the program comes up over them
   FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) THEN CodeDoc(d).HidePopups
+    IF DocOpen(d) THEN
+      IF IsBasicFile(DocFile(d)) THEN Lang.Update DocFile(d), CodeDoc(d).Text
+      CodeDoc(d).HidePopups
+    END IF
   NEXT
   FillProblemsOf ProjectMain
   Result = Lang.ErrorCount
