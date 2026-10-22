@@ -463,7 +463,7 @@ pub fn rp_playsound(filename: &Value) -> Value {
     {
         std::thread::spawn(move || {
             if let Ok((_stream, handle)) = rodio::OutputStream::try_default() {
-                if let Ok(bytes) = std::fs::read(crate::value::paths::host(&path)) {
+                if let Ok(bytes) = crate::value::command_line::read_or_programs_own(&path, |p| std::fs::read(crate::value::paths::host(p)).map_err(|e| e.to_string())) {
                     if let Ok(source) = crate::sound::decode(bytes) {
                         let sink = rodio::Sink::try_new(&handle).unwrap();
                         sink.append(source);

@@ -8,6 +8,9 @@
 //  2. A logo in the current folder wins — RapidQ reads the current folder's
 //     file first, and still does (a red sun).
 //  3. With no logo anywhere: none (the picture stays empty).
+//  4. loads.rr: a list's, a grid's and a tree's LoadFromFile, an RWave's and
+//     an RMIDI's Open, a .X model's Load — the files it came with, a list
+//     file in the current folder first, nothing when there's none.
 //
 // Usage (repo root, after building ./rapidr):
 //   node tests/built_elsewhere.mjs [--native]
@@ -85,6 +88,38 @@ for (const kind of kinds) {
   rmSync(join(out, "art"), { recursive: true, force: true });
   r = start("none");
   ok(r.out.includes("logo.empty=-1"), `${kind}: no logo anywhere: none (${r.out.trim().split("\n").filter((l) => l.startsWith("logo")).join("")})`);
+
+  // 4. The other files a program loads (loads.rr): a list, a grid and a
+  // tree's LoadFromFile, a wave and a MIDI song's Open, a .X model's Load.
+  const lout = join(WORK, kind, "loads-out");
+  const lbuild = spawnSync(RAPIDR, ["build", join(src, "loads.rr"), lout, "--no-bundle", ...(kind === "native" ? ["--debug"] : ["--interp"])], { encoding: "utf8", env: env({}), timeout: 1800000 });
+  const carried = ["data/names.txt", "data/table.csv", "data/tree.txt", "media/chime.wav", "media/tune.mid", "models/model.x"];
+  const line = (lbuild.stdout.match(/data files beside the executable: (.*) \(/) || [])[1] || "";
+  ok(lbuild.status === 0 && carried.every((f) => line.split(", ").includes(f)), `${kind}: loads.rr built with ${carried.join(", ")} (${line || lbuild.stdout + lbuild.stderr})`);
+  if (lbuild.status !== 0) continue;
+  const loads = (shot) => {
+    renameSync(src, `${src}-hidden`);
+    try {
+      const x = spawnSync(join(lout, `loads${EXE}`), [], { cwd, encoding: "utf8", input: "", timeout: 60000,
+        env: env({ RAPIDR_CAPTURE: join(WORK, kind, shot), RAPIDR_TEST_DUMP: "info.caption,mesh.caption" }) });
+      return `${x.stdout}${x.stderr}`;
+    } finally {
+      renameSync(`${src}-hidden`, src);
+    }
+  };
+  let got = loads("loads-own");
+  ok(got.includes("info.caption=list Ben, grid pears, tree4, wave1, midi1") && got.includes("mesh.caption=faces2"),
+    `${kind}: started elsewhere, the list, grid, tree, wave, MIDI song and model it came with (${got.trim().split("\n").filter((l) => l.includes("caption")).join(" | ")})`);
+  // (the current folder's list wins)
+  mkdirSync(join(cwd, "data"), { recursive: true });
+  writeFileSync(join(cwd, "data/names.txt"), "Zed\nYan\n");
+  got = loads("loads-here");
+  ok(got.includes("info.caption=list Yan, grid pears"), `${kind}: a list file in the current folder wins (${got.trim().split("\n").filter((l) => l.startsWith("info")).join("")})`);
+  rmSync(join(cwd, "data"), { recursive: true, force: true });
+  for (const d of ["data", "media", "models"]) rmSync(join(lout, d), { recursive: true, force: true });
+  got = loads("loads-none");
+  ok(got.includes("wave0, midi0") && got.includes("mesh.caption=faces0") && got.includes("info.caption=list , grid , tree0"),
+    `${kind}: none anywhere: nothing loaded (${got.trim().split("\n").filter((l) => l.includes("caption")).join(" | ")})`);
 }
 console.log(failed ? `\nBuilt elsewhere: ${failed} FAILED` : "\nBuilt elsewhere: ALL CHECKS PASSED");
 process.exit(failed ? 1 : 0);
