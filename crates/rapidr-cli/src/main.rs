@@ -714,13 +714,61 @@ fn app_plan(path: &str, target: &str, opts: &package::Options) -> Result<package
     let stem = Path::new(path).file_stem().and_then(|s| s.to_str()).unwrap_or("program");
     let mut plan = package::plan(stem, system, console, opts, project.as_ref(), option_icon.as_deref())?;
     // (the data files it names, with the app — not the `$RESOURCE`s: those
-    // are built into it)
+    // are built into it): beside it, below it (`art/logo.svg`), its
+    // translations (`lang/es.po`)
     let built_in: Vec<PathBuf> = pre.as_ref().map(|p| p.resources.iter().filter_map(|r| r.path.clone()).collect()).unwrap_or_default();
     plan.data = rapidr_project::program_files::data_files_of(Path::new(path))
         .into_iter()
         .filter(|f| !built_in.iter().any(|r| rapidr_project::program_files::same_path(r, f)))
+        .map(|f| (f.file_name().unwrap_or_default().to_string_lossy().into_owned(), f))
         .collect();
+    let carried = carried_for_build(path, &built_in);
+    plan.data.extend(carried.files);
+    plan.data.extend(carried.catalogs.unwrap_or_default().into_iter().map(|(name, f)| (format!("{}/{name}", rapidr_project::ship::LANG_FOLDER), f)));
     Ok(plan)
+}
+
+/// What a build of `path` takes from the folders below the program's
+/// (`rapidr_project::program_files::carried_of`, every kind of build): the
+/// files there its source names — not the `$RESOURCE`s (`built_in`), built
+/// into it — and its translations; what it names outside its folder is said
+/// as a warning and never copied.
+fn carried_for_build(path: &str, built_in: &[PathBuf]) -> rapidr_project::program_files::Carried {
+    let mut carried = rapidr_project::program_files::carried_of(Path::new(path));
+    carried.files.retain(|(_, f)| !built_in.iter().any(|r| rapidr_project::program_files::same_path(r, f)));
+    for w in &carried.warnings {
+        eprintln!("warning: {w}");
+    }
+    carried
+}
+
+/// The files a program's `$RESOURCE`s (and `$OPTION ICON`) build into it.
+fn built_in_files(path: &str) -> Vec<PathBuf> {
+    preprocess_file(path, PreprocessOptions::default()).map(|p| p.resources.iter().filter_map(|r| r.path.clone()).collect()).unwrap_or_default()
+}
+
+/// A web build's files from below the program's folder ([`carried_for_build`]):
+/// the ones its source names join the page's files (`assets`, by their path:
+/// `art/logo.svg`); its translations, the catalogs that go beside the page
+/// (`lang/`, with their list: rapidr_webbundle::lang_files), are the answer —
+/// `None` for a program that doesn't translate.
+fn web_carried(path: &Path, assets: &mut std::collections::HashMap<String, String>) -> Option<Vec<(String, Vec<u8>)>> {
+    let file = path.to_string_lossy();
+    let carried = carried_for_build(&file, &built_in_files(&file));
+    for (to, f) in &carried.files {
+        match fs::read(f) {
+            Ok(bytes) => {
+                assets.insert(to.clone(), data_url(to, &bytes));
+            }
+            Err(e) => eprintln!("warning: {}: {e}", f.display()),
+        }
+    }
+    let catalogs: Option<Vec<(String, Vec<u8>)>> = carried.catalogs.map(|list| list.into_iter().filter_map(|(name, f)| fs::read(&f).ok().map(|b| (name, b))).collect());
+    if let Some(list) = catalogs.as_ref() {
+        let names: Vec<&str> = list.iter().map(|(n, _)| n.as_str()).collect();
+        println!("Translations beside the page: {} ({})", if names.is_empty() { "none".to_string() } else { names.iter().map(|n| format!("lang/{n}")).collect::<Vec<_>>().join(", ") }, rapidr_webbundle::LANG_INDEX);
+    }
+    catalogs
 }
 
 /// Cargo run on the generated project in `project_dir`, its target folder
@@ -973,7 +1021,8 @@ fn web_site(source_path: &Path, made: &cache::Artifacts, stem: &str, needs: &rap
 
     // Step 3: Generate index.html
     let wasm_module = rapidr_codegen_rust::crate_name(stem).replace('-', "_");
-    let assets = collect_assets(source_path);
+    let mut assets = collect_assets(source_path);
+    let catalogs = web_carried(source_path, &mut assets);
     if !assets.is_empty() {
         println!("Embedding {} asset(s) in index.html...", assets.len());
         for name in assets.keys() {
@@ -982,6 +1031,14 @@ fn web_site(source_path: &Path, made: &cache::Artifacts, stem: &str, needs: &rap
     }
     for (name, text) in rapidr_webbundle::native_site_files(stem, &wasm_module, &assets, needs, &notices::html_head_lines()) {
         fs::write(web_out.join(&name), text).map_err(|e| format!("Cannot write {name}: {e}"))?;
+    }
+    // (its translations beside the page, with their list)
+    for (name, data) in catalogs.as_deref().map(rapidr_webbundle::lang_files).unwrap_or_default() {
+        let to = web_out.join(&name);
+        if let Some(dir) = to.parent() {
+            fs::create_dir_all(dir).map_err(|e| format!("Cannot create {}: {e}", dir.display()))?;
+        }
+        fs::write(&to, data).map_err(|e| format!("Cannot write {name}: {e}"))?;
     }
     println!("Content-Security-Policy: {}", rapidr_webbundle::content_security_policy(needs));
     // (the fallback fonts beside the page: loaded as its text needs them)
@@ -1165,6 +1222,8 @@ pub(crate) struct WebBundle {
     wasm: Vec<u8>,
     js: String,
     assets: std::collections::HashMap<String, String>,
+    /// Its translations (`lang/*.po`), when it translates.
+    catalogs: Option<Vec<(String, Vec<u8>)>>,
     fonts: Vec<(String, Vec<u8>)>,
     notices: String,
     pub needs: rapidr_webbundle::WebNeeds,
@@ -1179,6 +1238,7 @@ impl WebBundle {
             rapidrintr_js: &self.js,
             title: None,
             assets: Some(&self.assets),
+            catalogs: self.catalogs.as_deref(),
             fonts: &self.fonts,
             notices: &self.notices,
             needs: &self.needs,
@@ -1229,7 +1289,8 @@ pub(crate) fn web_bundle(path: &str, wasm_path: Option<String>, js_path: Option<
 
     // 3. The open-source notices it ships with, the program's assets, the fonts.
     let notices = notices::text(&notices::Kind::Web).map_err(|e| (notices::missing(&e), 1))?;
-    let assets = collect_assets(Path::new(path));
+    let mut assets = collect_assets(Path::new(path));
+    let catalogs = web_carried(Path::new(path), &mut assets);
     if !assets.is_empty() {
         println!("Embedding {} asset(s) in web bundle...", assets.len());
         for name in assets.keys() {
@@ -1237,7 +1298,7 @@ pub(crate) fn web_bundle(path: &str, wasm_path: Option<String>, js_path: Option<
         }
     }
     let fonts = fallback_fonts(&wasm_p.parent().unwrap_or(Path::new(".")).join("fonts"));
-    Ok(WebBundle { stem, rrbc, wasm, js, assets, fonts, notices, needs })
+    Ok(WebBundle { stem, rrbc, wasm, js, assets, catalogs, fonts, notices, needs })
 }
 
 /// The fallback fonts' files in `dir` (`index.json`, the chunks,
@@ -1444,8 +1505,13 @@ fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<P
     Err(format!("could not build or find {exe_name} (cargo build -p rapidr-runner-stub)"))
 }
 
-fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
+/// A file of the page's as a data URL (`rapidr-assets.js`), its type by its name.
+fn data_url(name: &str, bytes: &[u8]) -> String {
     use base64::Engine;
+    format!("data:{};base64,{}", rapidr_webbundle::mime_for(name), base64::engine::general_purpose::STANDARD.encode(bytes))
+}
+
+fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, String> {
     let mut assets = std::collections::HashMap::new();
     let source_dir = source_path.parent().unwrap_or(Path::new("."));
     
@@ -1464,10 +1530,7 @@ fn collect_assets(source_path: &Path) -> std::collections::HashMap<String, Strin
                 if asset_exts.contains(&ext_lower.as_str()) {
                     if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
                         if let Ok(bytes) = fs::read(&path) {
-                            let mime = rapidr_webbundle::mime_for(filename);
-                            let encoded_base64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                            let data_url = format!("data:{};base64,{}", mime, encoded_base64);
-                            assets.insert(filename.to_string(), data_url);
+                            assets.insert(filename.to_string(), data_url(filename, &bytes));
                         }
                     }
                 }

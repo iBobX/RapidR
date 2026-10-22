@@ -24,13 +24,14 @@ pub mod forms;
 mod implicit;
 pub mod program_files;
 mod project;
+pub mod ship;
 mod v1;
 mod workspace;
 
 use std::path::Path;
 
 pub use error::ProjectError;
-pub use implicit::{actual_path, implicit_from_resolver, implicit_from_sources, include_targets, named_files};
+pub use implicit::{actual_path, implicit_from_resolver, implicit_from_sources, include_targets, named_files, named_paths};
 pub use project::{
     basic_string, defines_form, kind_for_file, kind_for_path, kind_for_source, normalize_path, Ai,
     Build, Compat, CompatLevel, DataAccess, Designer, FileKind, Project, ProjectFile, Run,

@@ -25,7 +25,7 @@ pub struct MacApp<'a> {
     pub icon: &'a Icon,
     /// The program (Mach-O, thin or universal).
     pub executable: &'a [u8],
-    /// More files for Contents/Resources: (name, contents).
+    /// More files for Contents/Resources: (path there, `/`-separated; contents).
     pub resources: Vec<(String, Vec<u8>)>,
     /// LSMinimumSystemVersion.
     pub minimum_system: &'a str,
@@ -92,7 +92,12 @@ pub fn write(folder: &Path, app: &MacApp) -> Result<PathBuf, String> {
     }
     write(contents.join("Resources").join(ICON_FILE), &app.icon.icns())?;
     for (name, bytes) in &app.resources {
-        write(contents.join("Resources").join(name), bytes)?;
+        // (in their folders: `lang/es.po`, `art/logo.svg`)
+        let at = contents.join("Resources").join(name);
+        if let Some(dir) = at.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| io(dir, e))?;
+        }
+        write(at, bytes)?;
     }
     Ok(path)
 }
@@ -173,10 +178,10 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let info = AppInfo::new("Hello", "hello");
         let icon = Icon::rapidr_default();
-        let app = MacApp { info: &info, icon: &icon, executable: b"#!/bin/sh\necho hi\n", resources: vec![("hello.rrbc".into(), b"RRBC".to_vec())], minimum_system: "10.13" };
+        let app = MacApp { info: &info, icon: &icon, executable: b"#!/bin/sh\necho hi\n", resources: vec![("hello.rrbc".into(), b"RRBC".to_vec()), ("lang/es.po".into(), b"msgid".to_vec())], minimum_system: "10.13" };
         let path = write(&dir, &app).unwrap();
         assert_eq!(path, dir.join("Hello.app"));
-        for f in ["Contents/Info.plist", "Contents/PkgInfo", "Contents/MacOS/hello", "Contents/Resources/AppIcon.icns", "Contents/Resources/hello.rrbc"] {
+        for f in ["Contents/Info.plist", "Contents/PkgInfo", "Contents/MacOS/hello", "Contents/Resources/AppIcon.icns", "Contents/Resources/hello.rrbc", "Contents/Resources/lang/es.po"] {
             assert!(path.join(f).is_file(), "{f}");
         }
         // again: replaced

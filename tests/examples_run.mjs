@@ -36,7 +36,7 @@
 //   node tests/examples_run.mjs [--runtimes run,interp,native,web] [filter …]
 
 import { spawn as spawnAsync, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dropBuild } from "./cargo_builds.mjs";
@@ -70,6 +70,9 @@ const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 //   reload:  (web) { events, dump }: the page opened again — the browser's
 //            storage kept — and the program run again; `expect` is of that run
 //   extra:   files of other examples' folders (`media/tune.mid`) copied beside it
+//   elsewhere: (interp, native) built outside the example's folder and
+//            started from another, empty one, the example's folder hidden
+//            meanwhile: what it needs (lang/*.po …) must have come with the build
 //   sameFile: a file the program writes must be byte for byte the one shipped
 //            beside it (make_song.rr's song.mid)
 // (`wait(c, n)`: n clicks on a component that does nothing with them — the
@@ -133,15 +136,15 @@ export const cases = [
   // translations/ (TR$ / TRN$ with lang/*.po beside it — `includes`: the
   // folder copied whole; on the web its lang/ files are the page's): it
   // starts in the language given, the list switches it, OnLanguageChange
-  // writes the captions again. (Built executables find lang/ beside them:
-  // the suite builds them in another folder, so run and web only.)
-  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["es"], dump: "form.caption,greeting.caption,filecount.caption,savebutton.caption",
+  // writes the captions again. Built executables carry lang/ (T1b):
+  // `elsewhere`, started from another folder with the example's gone.
+  { file: "translations/languages.rr", runtimes: ["run", "interp", "native", "web"], includes: true, elsewhere: true, args: ["es"], dump: "form.caption,greeting.caption,filecount.caption,savebutton.caption",
     expect: ["form.caption=Idiomas", "greeting.caption=¡Hola, Ana!", "filecount.caption=1 archivo", "savebutton.caption=&Guardar"] },
-  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["en"], events: "languages.__item_2,addbutton.onclick,addbutton.onclick", dump: "greeting.caption,filecount.caption,addbutton.caption",
+  { file: "translations/languages.rr", runtimes: ["run", "interp", "web"], includes: true, elsewhere: true, args: ["en"], events: "languages.__item_2,addbutton.onclick,addbutton.onclick", dump: "greeting.caption,filecount.caption,addbutton.caption",
     expect: ["greeting.caption=Olá, Ana!", "filecount.caption=3 arquivos", "addbutton.caption=&Adicionar um arquivo"] },
   { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["zh-Hans"], events: "addbutton.onclick", dump: "greeting.caption,filecount.caption",
     expect: ["greeting.caption=你好，Ana！", "filecount.caption=2 个文件"] },
-  { file: "translations/languages.rr", runtimes: ["run", "web"], includes: true, args: ["pt-BR"], dump: "savebutton.caption,languages.itemindex",
+  { file: "translations/languages.rr", runtimes: ["run", "interp", "web"], includes: true, elsewhere: true, args: ["pt-BR"], dump: "savebutton.caption,languages.itemindex",
     expect: ["savebutton.caption=&Salvar", "languages.itemindex=2"] },
   // recipes/ (the short programs RapidR Studio's assistant starts from: each
   // clicked as a user would)
@@ -608,7 +611,7 @@ function runDesktop(c, runtime) {
     return r;
   }
   const native = runtime === "native";
-  const out = c.readOnly ? `${work}-${runtime}-out` : join(work, `${stem}-${runtime}`);
+  const out = c.readOnly || c.elsewhere ? `${work}-${runtime}-out` : join(work, `${stem}-${runtime}`);
   // (a native build: debug, quick to compile; either kind's executable in
   // the output folder)
   const build = spawn(RAPIDR, ["build", src, out, "--no-bundle", ...(native ? ["--debug"] : ["--interp"])], {
@@ -617,7 +620,20 @@ function runDesktop(c, runtime) {
   const exe = join(out, `${stem}${EXE}`);
   let r;
   if (!build.ok || !existsSync(exe)) r = { out: build.out.split("\n").filter((l) => /^error|error:/.test(l)).slice(0, 8).join("\n") || build.out.slice(-800), ok: false, why: ` (build failed${build.why})` };
-  else r = readOnly(() => spawn(exe, args(c), runOpts));
+  else if (c.elsewhere) {
+    // (started from an empty folder of its own, the example's folder hidden:
+    // only what the build put beside the executable can help)
+    const cwd = `${work}-${runtime}-cwd`, hidden = `${work}-hidden`;
+    rmSync(cwd, { recursive: true, force: true });
+    mkdirSync(cwd, { recursive: true });
+    renameSync(work, hidden);
+    try {
+      r = spawn(exe, args(c), { ...runOpts, cwd, env: env({ ...hooks(c, cwd), ...(c.env || {}) }) });
+    } finally {
+      renameSync(hidden, work);
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  } else r = readOnly(() => spawn(exe, args(c), runOpts));
   // (the native build's ~350 MB in the shared target, gone)
   if (native) dropBuild(CARGO_TARGET, stem);
   rmSync(out, { recursive: true, force: true });

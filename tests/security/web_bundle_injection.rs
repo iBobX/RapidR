@@ -46,6 +46,7 @@ fn bundle(name: &str, assets: &HashMap<String, String>, needs: &WebNeeds) -> Has
         rapidrintr_js: "export default async function init(){}\n",
         title: None,
         assets: Some(assets),
+        catalogs: None,
         fonts: &[],
         notices: "NOTICES",
         needs,

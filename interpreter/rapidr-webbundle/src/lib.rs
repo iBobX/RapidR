@@ -13,6 +13,7 @@
 //!   rapidrintr_bg.wasm      <- bytecode VM compiled to wasm
 //!   <project>.rrbc          <- the user's compiled bytecode
 //!   rapidr-assets.js        <- the project's files (when it has some)
+//!   lang/index.txt, lang/*.po <- its translations (a program that translates)
 //!   rapidr-webview.html     <- the frame an RWEBVIEW's Html runs in
 //!   bundle_console.js, ansi_screen.js <- the on-page console for PRINT
 //!   _headers, .htaccess     <- the same policy and safe headers, for hosts that read them
@@ -56,6 +57,9 @@ pub struct BundleInputs<'a> {
     pub title: Option<&'a str>,
     /// Optional embedded assets map (filename -> data URL)
     pub assets: Option<&'a HashMap<String, String>>,
+    /// The program's translations, `lang/*.po` as (file name, contents),
+    /// when it translates ([`lang_files`]); `None` when it doesn't.
+    pub catalogs: Option<&'a [(String, Vec<u8>)]>,
     /// The fallback fonts' files (`fonts/`: `index.json`, the chunks,
     /// `OFL.txt`; tools/fonts.py), by name — the page loads the ones its
     /// text needs. Empty: none (characters the built-in fonts lack show as
@@ -96,13 +100,44 @@ pub const WEBVIEW_FRAME_FILE: &str = "rapidr-webview.html";
 pub const WEBVIEW_FRAME_HTML: &str = include_str!("../web/rapidr-webview.html");
 /// The project's files, for the runtime (`window.__rapidr_assets`).
 pub const ASSETS_FILE: &str = "rapidr-assets.js";
+/// The list of the translations beside a page: one catalog's file name
+/// (`es.po`) per line; `#` lines are comments. The web runtime reads it
+/// once and asks only for the catalogs it names, so a language the program
+/// has no file for costs no request ([`parse_lang_index`]).
+pub const LANG_INDEX: &str = "lang/index.txt";
+
+/// A translated program's files beside its page: each catalog as
+/// `lang/<name>` and the list of them ([`LANG_INDEX`]) — the list even when
+/// there is none, so the page asks for nothing. A name that isn't a plain
+/// `.po` file name is left out.
+pub fn lang_files(catalogs: &[(String, Vec<u8>)]) -> Vec<(String, Vec<u8>)> {
+    let ok = |n: &str| n.len() > 3 && !n.starts_with('.') && !n.contains(['/', '\\']) && n.to_ascii_lowercase().ends_with(".po");
+    let mut index = String::from("# The translations beside this page (RapidR): one file of lang/ per line.\n# A language the program asks for is looked for only when it is listed here.\n");
+    let mut out = Vec::new();
+    for (name, data) in catalogs.iter().filter(|(n, _)| ok(n)) {
+        index.push_str(name);
+        index.push('\n');
+        out.push((format!("lang/{name}"), data.clone()));
+    }
+    out.insert(0, (LANG_INDEX.to_string(), index.into_bytes()));
+    out
+}
+
+/// The catalogs a page's [`LANG_INDEX`] lists, as written.
+pub fn parse_lang_index(text: &str) -> Vec<String> {
+    text.lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('.') && !l.contains(['/', '\\']) && l.to_ascii_lowercase().ends_with(".po"))
+        .map(str::to_string)
+        .collect()
+}
 
 /// The files that are the program's own, by name: its page (with its
 /// policy), the loader, the bytecode, the project's files, the console, the
 /// RWEBVIEW frame and the hosts' configuration. [`bundle_files`] adds the
 /// runtime, the notices and the fonts; RapidR Studio on the web has those
 /// beside its own page and adds them itself.
-pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: Option<&HashMap<String, String>>, needs: &WebNeeds) -> Vec<(String, Vec<u8>)> {
+pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: Option<&HashMap<String, String>>, catalogs: Option<&[(String, Vec<u8>)]>, needs: &WebNeeds) -> Vec<(String, Vec<u8>)> {
     let mut out: Vec<(String, Vec<u8>)> = Vec::new();
     let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
     let title = title.unwrap_or(project_name);
@@ -116,6 +151,11 @@ pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: 
     if let Some(assets) = assets {
         add(ASSETS_FILE, render_assets_js(assets).as_bytes());
     }
+    if let Some(catalogs) = catalogs {
+        for (name, data) in lang_files(catalogs) {
+            add(&name, &data);
+        }
+    }
     add("bundle_console.js", BUNDLE_CONSOLE_JS.as_bytes());
     add("ansi_screen.js", ANSI_SCREEN_JS.as_bytes());
     add(WEBVIEW_FRAME_FILE, WEBVIEW_FRAME_HTML.as_bytes());
@@ -128,7 +168,7 @@ pub fn page_files(project_name: &str, rrbc: &[u8], title: Option<&str>, assets: 
 /// The bundle's files, by name (what [`build_bundle`] zips; `rapidr serve`
 /// serves them from memory).
 pub fn bundle_files(inputs: &BundleInputs<'_>) -> Result<Vec<(String, Vec<u8>)>, String> {
-    let mut out = page_files(inputs.project_name, inputs.rrbc, inputs.title, inputs.assets, inputs.needs);
+    let mut out = page_files(inputs.project_name, inputs.rrbc, inputs.title, inputs.assets, inputs.catalogs, inputs.needs);
     let mut add = |name: &str, data: &[u8]| out.push((name.to_string(), data.to_vec()));
     add("rapidrintr.js", inputs.rapidrintr_js.as_bytes());
     // wasm-bindgen's generated `rapidrintr.js` expects to fetch
@@ -157,6 +197,7 @@ pub fn mime_for(name: &str) -> &'static str {
         Some("gif") => "image/gif",
         Some("bmp") => "image/bmp",
         Some("csv") => "text/csv",
+        Some("svg") => "image/svg+xml",
         Some("txt") => "text/plain",
         Some("wav") => "audio/wav",
         Some("mp3") => "audio/mpeg",
@@ -349,6 +390,7 @@ mod tests {
             rapidrintr_js: "export default async function init(){};\nexport function rapidr_run_bc(){}\n",
             title: None,
             assets,
+            catalogs: None,
             fonts: &[],
             notices: "THIRD-PARTY SOFTWARE NOTICES AND LICENCES",
             needs,
@@ -360,7 +402,7 @@ mod tests {
         let needs = WebNeeds::default();
         let mut assets = HashMap::new();
         assets.insert("data.csv".to_string(), format!("data:{};base64,YQ==", mime_for("data.CSV")));
-        let files = page_files("demo", b"RRBC", None, Some(&assets), &needs);
+        let files = page_files("demo", b"RRBC", None, Some(&assets), None, &needs);
         let names: Vec<&str> = files.iter().map(|(n, _)| n.as_str()).collect();
         for want in ["index.html", "loader.js", "demo.rrbc", "rapidr-assets.js", "bundle_console.js", "ansi_screen.js", "rapidr-webview.html", "_headers", ".htaccess"] {
             assert!(names.contains(&want), "missing {want} in {names:?}");
@@ -368,6 +410,25 @@ mod tests {
         // (the runtime, the notices and the fonts are the bundle's)
         assert!(!names.contains(&"rapidrintr_bg.wasm") && !names.contains(&NOTICES_FILE), "{names:?}");
         assert_eq!(mime_for("a.csv"), "text/csv");
+    }
+
+    /// (T1b) A translated program's page has its catalogs and their list —
+    /// the list even with none — and the list reads back as written.
+    #[test]
+    fn a_translated_page_lists_its_catalogs() {
+        let needs = WebNeeds::default();
+        let catalogs = vec![("es.po".to_string(), b"msgid \"a\"".to_vec()), ("pt-BR.po".to_string(), Vec::new()), ("../x.po".to_string(), Vec::new())];
+        let files = page_files("demo", b"RRBC", None, None, Some(&catalogs), &needs);
+        let get = |n: &str| files.iter().find(|(f, _)| f == n).map(|(_, d)| d.clone());
+        let index = String::from_utf8(get(LANG_INDEX).unwrap()).unwrap();
+        assert_eq!(parse_lang_index(&index), ["es.po", "pt-BR.po"]);
+        assert_eq!(get("lang/es.po").unwrap(), b"msgid \"a\"");
+        assert!(get("lang/pt-BR.po").is_some() && !files.iter().any(|(f, _)| f.contains("..")));
+        let none = page_files("demo", b"RRBC", None, None, Some(&[]), &needs);
+        assert_eq!(parse_lang_index(&String::from_utf8(none.iter().find(|(f, _)| f == LANG_INDEX).unwrap().1.clone()).unwrap()), Vec::<String>::new());
+        assert!(!page_files("demo", b"RRBC", None, None, None, &needs).iter().any(|(f, _)| f.starts_with("lang/")), "a program that doesn't translate: no lang/");
+        assert_eq!(parse_lang_index("# c\n es.po \n\nsub/x.po\n.h.po\nfr.po\nnotes.txt\n"), ["es.po", "fr.po"]);
+        assert_eq!(mime_for("art/logo.SVG"), "image/svg+xml");
     }
 
     #[cfg(feature = "zip")]

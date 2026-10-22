@@ -113,6 +113,17 @@ Application.OnLanguageChange = LanguageChanged
 - Where: in a `lang` folder beside the program file you run (`rapidr run
   hello.rr`, RapidR Studio's Run), beside a built executable, or beside a
   web page's files.
+- A build takes them along: `rapidr build` (native or `--interp`), the
+  web builds and RapidR Studio's Build copy the `lang` folder's `.po`
+  files into what they make — a macOS app's `Contents/Resources/lang`,
+  `lang/` beside an `.exe` or in a Linux AppDir's `usr/bin`, `lang/`
+  beside a web page. A built app speaks every language you translated,
+  wherever it's started ([Building apps](building-apps.md#the-programs-data-files-go-with-it)).
+- They stay plain files in what you ship, so a user can add a language
+  without rebuilding: put `lang/fr.po` beside the app's other files. On
+  the web, also add its name to `lang/index.txt`: a page asks only for
+  the files listed there, so a language it has no file for costs no
+  request.
 - The format is PO, the plain-text format translation tools and
   translators already know. RapidR reads it with its own small reader:
   - `msgid` is the program's text, `msgstr` its translation; `msgctxt` a
@@ -144,8 +155,6 @@ Application.OnLanguageChange = LanguageChanged
 ## Not yet
 
 - Forms translating their own captions without code (coming next).
-- Building the `.po` files into an executable or a web bundle: today they
-  stay beside it, so a user can also add a language without rebuilding.
 - Numbers, dates and money in each language's style (`FORMAT$` and the
   other functions stay exactly as they are).
 - A translations editor in RapidR Studio.

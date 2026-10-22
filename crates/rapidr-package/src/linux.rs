@@ -26,7 +26,7 @@ pub struct AppDir<'a> {
     pub info: &'a AppInfo,
     pub icon: &'a Icon,
     pub executable: &'a [u8],
-    /// More files beside the program in usr/bin: (name, contents).
+    /// More files beside the program in usr/bin: (path there, `/`-separated; contents).
     pub files: Vec<(String, Vec<u8>)>,
 }
 
@@ -173,9 +173,9 @@ mod tests {
         let mut info = AppInfo::new("Note Pad", "notepad");
         info.description = "Edits text".into();
         let icon = Icon::rapidr_default();
-        let path = write(&dir.join(""), &AppDir { info: &info, icon: &icon, executable: b"\x7fELF", files: vec![] }).unwrap();
+        let path = write(&dir.join(""), &AppDir { info: &info, icon: &icon, executable: b"\x7fELF", files: vec![("art/logo.svg".into(), b"<svg/>".to_vec())] }).unwrap();
         let id = "dev.rapidr.app.note-pad";
-        for f in ["AppRun", ".DirIcon", "usr/bin/notepad", &format!("{id}.desktop"), &format!("{id}.png"),
+        for f in ["AppRun", ".DirIcon", "usr/bin/notepad", "usr/bin/art/logo.svg", &format!("{id}.desktop"), &format!("{id}.png"),
                   &format!("usr/share/icons/hicolor/512x512/apps/{id}.png"), &format!("usr/share/icons/hicolor/scalable/apps/{id}.svg")] {
             assert!(path.join(f).is_file(), "{f}");
         }

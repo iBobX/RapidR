@@ -234,11 +234,59 @@ fn browser_language() -> String {
     web_sys::window().and_then(|w| w.navigator().language()).unwrap_or_default()
 }
 
-/// A file of the page's (a translation catalog): one the program saved, one
-/// of its project's, or one beside the page; None when there is none.
+/// A file of the page's (a translation catalog, `lang/es.po`): one the
+/// program saved or one of its project's (no request), else one beside the
+/// page that the page's list of catalogs names ([`page_catalogs`]); None
+/// when there is none. A language the page has no file for is never asked
+/// for: no failed request.
 fn read_page_file(path: &str) -> Option<Vec<u8>> {
     install_file_hooks();
-    rapidr_value::objects::read_file(path).ok()
+    if let Some(bytes) = web_project_file(path) {
+        return Some(bytes);
+    }
+    let name = path.replace('\\', "/");
+    let name = name.strip_prefix("lang/")?;
+    let listed = page_catalogs().into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
+    rapidr_value::objects::read_file(&format!("lang/{listed}")).ok()
+}
+
+/// The catalogs the page has, read once: its list
+/// (`rapidr_webbundle::LANG_INDEX`, `lang/index.txt`: among the project's
+/// files, else beside the page — every translated program's build writes
+/// one), else the project's own `lang/*.po` files (RapidR Studio's run), else
+/// none.
+fn page_catalogs() -> Vec<String> {
+    thread_local!(static LISTED: RefCell<Option<Vec<String>>> = const { RefCell::new(None) });
+    if let Some(list) = LISTED.with(|l| l.borrow().clone()) {
+        return list;
+    }
+    let index = rapidr_webbundle::LANG_INDEX;
+    let list = match web_project_file(index) {
+        Some(bytes) => rapidr_webbundle::parse_lang_index(&String::from_utf8_lossy(&bytes)),
+        None => {
+            let own: Vec<String> = asset_names().into_iter().filter_map(|n| file_key(&n).strip_prefix("lang/").map(str::to_string)).filter(|n| n.ends_with(".po") && !n.contains('/')).collect();
+            if !own.is_empty() {
+                own
+            } else {
+                rapidr_value::objects::read_file(index).map(|bytes| rapidr_webbundle::parse_lang_index(&String::from_utf8_lossy(&bytes))).unwrap_or_default()
+            }
+        }
+    };
+    LISTED.with(|l| *l.borrow_mut() = Some(list.clone()));
+    list
+}
+
+/// The names of the program's project files (`window.__rapidr_assets`,
+/// without their `assets/` twins) and of the files it saved.
+fn asset_names() -> Vec<String> {
+    let mut names: Vec<String> = SAVED_FILES.with(|f| f.borrow().keys().cloned().collect());
+    if let Some(window) = web_sys::window() {
+        let window: JsValue = window.into();
+        if let Some(assets) = js_sys::Reflect::get(&window, &JsValue::from_str("__rapidr_assets")).ok().and_then(|a| a.dyn_into::<js_sys::Object>().ok()) {
+            names.extend(js_sys::Object::keys(&assets).iter().filter_map(|n| n.as_string()).filter(|n| !n.starts_with("assets/")));
+        }
+    }
+    names
 }
 
 /// QREGISTRY's store in the page's local storage (`None`: nothing yet, or

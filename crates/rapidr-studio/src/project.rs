@@ -214,9 +214,11 @@ pub fn main_of_folder(folder: &str, files: &[String]) -> Option<String> {
 /// its main file's name, every source (path, text) — the main file and what
 /// it `$INCLUDE`s — and every data file (path, bytes) its sources name that
 /// is there (`rapidr_project::named_files`: a `$RESOURCE`'s file, a CSV it
-/// loads …), paths relative to its folder. The compiler builds the
-/// `$RESOURCE`s in; the program reads the others as files beside it.
-pub fn program_files(program: &str) -> Result<ProgramFiles, String> {
+/// loads …), paths relative to its folder (`art/logo.svg` too, never one
+/// outside it); and its translations when it translates (`lang/*.po`, the
+/// names `list` gives for a folder). The compiler builds the `$RESOURCE`s
+/// in; the program reads the others as files beside it.
+pub fn program_files(program: &str, list: &dyn Fn(&str) -> Vec<String>) -> Result<ProgramFiles, String> {
     let program = slashes(program);
     let folder = folder_of(&program);
     let main = program.rsplit('/').next().unwrap_or(&program).to_string();
@@ -249,7 +251,24 @@ pub fn program_files(program: &str) -> Result<ProgramFiles, String> {
             }
         }
     }
-    Ok(ProgramFiles { main, sources, data })
+    // (its translations, as a build takes them: rapidr_project::ship)
+    let lang = join(&folder, rapidr_project::ship::LANG_FOLDER);
+    let mut names: Vec<String> = list(&lang).into_iter().filter(|n| rapidr_project::ship::is_catalog(n)).collect();
+    names.sort();
+    let translates = !names.is_empty() || sources.iter().any(|(_, t)| rapidr_project::ship::uses_translations(t));
+    let catalogs = translates.then(|| {
+        let mut found = Vec::new();
+        for name in names {
+            if let Ok(bytes) = rapidr_value::objects::read_file(&join(&lang, &name)) {
+                if bytes.len() <= room {
+                    room -= bytes.len();
+                    found.push((name, bytes));
+                }
+            }
+        }
+        found
+    });
+    Ok(ProgramFiles { main, sources, data, catalogs })
 }
 
 /// [`program_files`]' answer.
@@ -260,6 +279,9 @@ pub struct ProgramFiles {
     pub sources: Vec<(String, String)>,
     /// (path, bytes) of each data file.
     pub data: Vec<(String, Vec<u8>)>,
+    /// (file name, bytes) of each translation catalog (`lang/es.po`) when
+    /// the program translates; `None` when it doesn't.
+    pub catalogs: Option<Vec<(String, Vec<u8>)>>,
 }
 
 fn exists(path: &str) -> bool {

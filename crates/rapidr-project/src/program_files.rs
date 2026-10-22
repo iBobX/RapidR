@@ -48,11 +48,7 @@ pub fn data_files_of(src: &Path) -> Vec<PathBuf> {
     let Some(parent) = src.parent() else { return Vec::new() };
     let parent = if parent.as_os_str().is_empty() { Path::new(".") } else { parent };
     let includes = includes_of(src);
-    let mut text = fs::read_to_string(src).unwrap_or_default();
-    for inc in &includes {
-        text.push('\n');
-        text.push_str(&String::from_utf8_lossy(&fs::read(inc).unwrap_or_default()));
-    }
+    let text = program_text(src, &includes);
     // (a name counts only as a whole string literal — "staff.csv" — and
     // only a name with an extension: a word the program prints, `PRINT
     // "hello"`, isn't the executable `hello` a build left beside it)
@@ -73,6 +69,97 @@ pub fn data_files_of(src: &Path) -> Vec<PathBuf> {
     data
 }
 
+/// The text of program `src` and of the files it includes (`includes`):
+/// where its files are named.
+fn program_text(src: &Path, includes: &[PathBuf]) -> String {
+    let mut text = fs::read_to_string(src).unwrap_or_default();
+    for inc in includes {
+        text.push('\n');
+        text.push_str(&String::from_utf8_lossy(&fs::read(inc).unwrap_or_default()));
+    }
+    text
+}
+
+/// What a program takes with it from the folders below its own
+/// ([`carried_of`]; the rules: [`crate::ship`]).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Carried {
+    /// The files in folders below the program's that its source names
+    /// (`"art/logo.svg"`, `"data\sample.csv"`): (its path from the
+    /// program's folder as on disk, `/`-separated; the file).
+    pub files: Vec<(String, PathBuf)>,
+    /// Its translations when it is translated — it uses `TR$`, `TRN$` or
+    /// `Application.Language`, or has a `lang` folder: each `lang/*.po`
+    /// (file name; the file), by name. `None`: it isn't translated.
+    pub catalogs: Option<Vec<(String, PathBuf)>>,
+    /// The files its source names that are outside its folder
+    /// (`"../secret.txt"`, `"/etc/hosts"`, a link leading out), said in
+    /// plain words: never taken.
+    pub warnings: Vec<String>,
+}
+
+/// What program `src` takes with it from below its folder: the files there
+/// its source (or a file it includes) names, its translations; and what it
+/// names outside its folder, as warnings. The files right beside it are
+/// [`data_files_of`]'s; programs and its includes are never data.
+pub fn carried_of(src: &Path) -> Carried {
+    let mut out = Carried::default();
+    let Some(folder) = src.parent() else { return out };
+    let folder = if folder.as_os_str().is_empty() { Path::new(".") } else { folder };
+    let includes = includes_of(src);
+    let text = program_text(src, &includes);
+    let outside = |name: &str| format!("\"{name}\" is outside the program's folder: not copied (a build takes only files from the program's folder and the folders below it)");
+    for (name, _) in crate::named_paths(&text) {
+        match crate::ship::place(&name) {
+            crate::ship::Place::Beside => {}
+            crate::ship::Place::Below(rel) => {
+                let Some(found) = rapidr_preprocessor::find_file(folder, &rel) else { continue };
+                if is_program(&found) || includes.iter().any(|i| same_path(i, &found)) {
+                    continue;
+                }
+                // (a link inside the folder that leads out of it: the same)
+                if !is_inside(&found, folder) {
+                    out.warnings.push(outside(&name));
+                    continue;
+                }
+                let to = found.strip_prefix(folder).map(|p| p.to_string_lossy().replace('\\', "/")).unwrap_or(rel);
+                if !out.files.iter().any(|(t, _)| t.eq_ignore_ascii_case(&to)) {
+                    out.files.push((to, found));
+                }
+            }
+            crate::ship::Place::Outside => {
+                let unix = name.replace('\\', "/");
+                let at = if crate::implicit::is_absolute(&unix) { PathBuf::from(&unix) } else { folder.join(&unix) };
+                if at.is_file() && !out.warnings.contains(&outside(&name)) {
+                    out.warnings.push(outside(&name));
+                }
+            }
+        }
+    }
+    // (its translations: the lang folder in any case, its .po files)
+    let lang = fs::read_dir(folder).ok().and_then(|entries| {
+        entries.flatten().map(|e| e.path()).find(|p| p.is_dir() && p.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(crate::ship::LANG_FOLDER)))
+    });
+    if lang.is_some() || crate::ship::uses_translations(&text) {
+        let mut catalogs: Vec<(String, PathBuf)> = Vec::new();
+        for entry in lang.and_then(|l| fs::read_dir(l).ok()).into_iter().flat_map(|d| d.flatten()) {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !path.is_file() || !crate::ship::is_catalog(&name) {
+                continue;
+            }
+            if !is_inside(&path, folder) {
+                out.warnings.push(outside(&format!("{}/{name}", crate::ship::LANG_FOLDER)));
+                continue;
+            }
+            catalogs.push((name, path));
+        }
+        catalogs.sort();
+        out.catalogs = Some(catalogs);
+    }
+    out
+}
+
 /// The program's string literals ("…" on one line), lowercased: the file
 /// names it can name.
 fn quoted_strings(text: &str) -> std::collections::HashSet<String> {
@@ -88,13 +175,16 @@ fn quoted_strings(text: &str) -> std::collections::HashSet<String> {
 }
 
 /// Every file of program `src`: itself, what it includes from its folder,
-/// its data files ([`data_files_of`]).
+/// its data files ([`data_files_of`]), and what it takes from below its
+/// folder ([`carried_of`]: `art/logo.svg`, its `lang/*.po`).
 pub fn files_of(src: &Path) -> Result<Vec<PathBuf>, String> {
     if !src.is_file() {
         return Err(format!("{}: no such file", src.display()));
     }
     let mut files = vec![src.to_path_buf()];
-    for f in includes_of(src).into_iter().chain(data_files_of(src)) {
+    let carried = carried_of(src);
+    let below = carried.files.into_iter().chain(carried.catalogs.unwrap_or_default()).map(|(_, f)| f);
+    for f in includes_of(src).into_iter().chain(data_files_of(src)).chain(below) {
         if !files.contains(&f) {
             files.push(f);
         }
@@ -295,6 +385,82 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
     use super::*;
+
+    /// (T1b) A program takes the files below its folder that it names, its
+    /// translations, and nothing outside its folder.
+    #[test]
+    fn what_a_program_takes_from_below_its_folder() {
+        let dir = scratch("carried");
+        let app = dir.join("app");
+        for d in ["art", "Data", "lang", "lib", "notes"] {
+            fs::create_dir_all(app.join(d)).unwrap();
+        }
+        fs::write(
+            app.join("app.rr"),
+            "$INCLUDE \"lib/util.inc\"\nLogo.Load \"art/logo.svg\"\nCSV.FileName = \"data\\Sample.csv\"\n\
+             x$ = \"../secret.txt\": y$ = \"art/../../secret.txt\"\nz$ = \"art/missing.png\"\nPRINT TR$(\"Hello\")\n\
+             ' \"notes/old.txt\" is in a comment\nw$ = \"/no/such/file.txt\"\n",
+        )
+        .unwrap();
+        fs::write(app.join("lib/util.inc"), "' util\nIcon.Load \"art/icon.png\"\nOther.Load \"lib/util.inc\"\n").unwrap();
+        fs::write(app.join("art/logo.svg"), "<svg/>").unwrap();
+        fs::write(app.join("art/icon.png"), "png").unwrap();
+        fs::write(app.join("art/unnamed.png"), "png").unwrap();
+        fs::write(app.join("Data/sample.csv"), "a\n1\n").unwrap();
+        fs::write(app.join("notes/old.txt"), "old").unwrap();
+        fs::write(app.join("lang/es.po"), "msgid \"Hello\"\nmsgstr \"Hola\"\n").unwrap();
+        fs::write(app.join("lang/pt-BR.po"), "").unwrap();
+        fs::write(app.join("lang/README.txt"), "not a catalog").unwrap();
+        fs::write(app.join("lang/.hidden.po"), "").unwrap();
+        fs::write(dir.join("secret.txt"), "secret").unwrap();
+        let c = carried_of(&app.join("app.rr"));
+        let files: Vec<&str> = c.files.iter().map(|(t, _)| t.as_str()).collect();
+        assert_eq!(files, ["art/logo.svg", "Data/sample.csv", "art/icon.png"], "named, found in any case; not the include, not a comment's");
+        let catalogs: Vec<&str> = c.catalogs.as_ref().unwrap().iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(catalogs, ["es.po", "pt-BR.po"]);
+        assert_eq!(c.warnings.len(), 2, "{:?}", c.warnings);
+        assert!(c.warnings[0].starts_with("\"../secret.txt\" is outside the program's folder: not copied"), "{:?}", c.warnings);
+        assert!(c.warnings[1].starts_with("\"art/../../secret.txt\""), "{:?}", c.warnings);
+        // (a copy of it carries them, as they are below it)
+        let out = dir.join("copy");
+        copy_program(&app.join("app.rr"), &out, Existing::Refuse).unwrap();
+        for f in ["app.rr", "lib/util.inc", "art/logo.svg", "art/icon.png", "Data/sample.csv", "lang/es.po", "lang/pt-BR.po"] {
+            assert!(out.join(f).is_file(), "{f}");
+        }
+        for f in ["art/unnamed.png", "notes/old.txt", "lang/README.txt", "secret.txt"] {
+            assert!(!out.join(f).exists(), "{f}");
+        }
+
+        // A program that doesn't translate and has no lang folder: none.
+        fs::write(dir.join("plain.rr"), "PRINT \"Language: \"; 1\nLanguage = 2\n").unwrap();
+        assert_eq!(carried_of(&dir.join("plain.rr")).catalogs, None);
+        // One that translates without a lang folder: an empty list.
+        let t = dir.join("t");
+        fs::create_dir_all(&t).unwrap();
+        fs::write(t.join("t.rr"), "Application.Language = \"es\"\n").unwrap();
+        assert_eq!(carried_of(&t.join("t.rr")).catalogs, Some(Vec::new()));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// (T1b) A link in the program's folder that leads out of it is never
+    /// followed.
+    #[cfg(unix)]
+    #[test]
+    fn a_link_out_of_the_folder_is_not_taken() {
+        let dir = scratch("carried-link");
+        let app = dir.join("app");
+        fs::create_dir_all(app.join("art")).unwrap();
+        fs::create_dir_all(app.join("lang")).unwrap();
+        fs::write(dir.join("secret.txt"), "secret").unwrap();
+        fs::write(dir.join("secret.po"), "secret").unwrap();
+        std::os::unix::fs::symlink(dir.join("secret.txt"), app.join("art/link.txt")).unwrap();
+        std::os::unix::fs::symlink(dir.join("secret.po"), app.join("lang/es.po")).unwrap();
+        fs::write(app.join("app.rr"), "x$ = \"art/link.txt\"\n").unwrap();
+        let c = carried_of(&app.join("app.rr"));
+        assert!(c.files.is_empty() && c.catalogs == Some(Vec::new()), "{c:?}");
+        assert_eq!(c.warnings.len(), 2, "{:?}", c.warnings);
+        fs::remove_dir_all(&dir).unwrap();
+    }
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("rapidr-program-files-{name}-{}", std::process::id()));
