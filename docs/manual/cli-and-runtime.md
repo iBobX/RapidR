@@ -25,7 +25,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Print the third-party notices a kind of build carries |
 | `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | RapidR's AI providers from a terminal: which there are, a provider's own models, a question and its streamed answer; the key comes from the provider's environment variable or the keychain ([The AI assistant and RAI](ai-assistant.md)) |
 | `rapidr lsp`, `rapidr dap` | The language server and the debug adapter (standard protocols over stdin and stdout), for other editors such as VS Code |
-| `rapidr lang export --json\|--prompt\|--manual\|--all` | What the language registry generates: the data for IntelliSense, an AI prompt, and [the reference tables](reference/components.md) of this manual |
+| `rapidr lang export --json\|--prompt\|--manual\|--all` | What the language registry generates: the data for completion and hover help, an AI prompt, and [the reference tables](reference/components.md) of this manual |
 | `rapidr about`, `rapidr version` | |
 | `rapidr --log <file> <command…>` | A command's output (and cargo's) in a file |
 | `rapidr preprocess`, `lex`, `parse`, `codegen <file> [outdir]` | The compiler's stages, for curiosity and bug reports |

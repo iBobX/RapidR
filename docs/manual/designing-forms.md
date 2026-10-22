@@ -99,7 +99,7 @@ ways works:
   form to draw it at the size you want;
 - **drag** the item from the toolbox onto the form.
 
-Each new component is named as Delphi and Visual Basic name them — Label1,
+Each new component is named by its type and a number — Label1,
 Edit1, Button1 — and is selected, so the inspector shows it.
 
 ### 4. Set their properties

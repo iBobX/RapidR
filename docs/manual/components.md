@@ -133,7 +133,7 @@ END SUB
 ```
 
 [focus_events.rr](../../examples/gui/focus_events.rr) shows both. They are
-RapidR's, as Delphi's: the classic components have OnEnter only on their lists
+RapidR's own: the classic components have OnEnter only on their lists
 (a QFILELISTBOX's never fires; binding a QLISTBOX's stops the program) and no
 OnExit, so no older program changes.
 
@@ -287,7 +287,7 @@ compiler doesn't know it).
 
 | Addition | |
 |---|---|
-| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (Delphi's Anchors; the classic components have `Align` only) |
+| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (the classic components have `Align` only) |
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (also `Constraints.MinWidth`, …) | bound every size the component takes, from the program, the layout or the user |
 | `AccessibleName`, `AccessibleDescription` | what a screen reader says, when the caption isn't enough |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |
