@@ -458,7 +458,11 @@ impl<'a> Painter<'a> {
         if rect.2 <= 0 || rect.3 <= 0 || picture.width == 0 || picture.height == 0 {
             return;
         }
-        self.list.images.insert(source.to_string(), picture);
+        // (the same picture again — an icon on every row of a list — is
+        // kept once)
+        if !self.list.images.get(source).is_some_and(|had| std::sync::Arc::ptr_eq(had, &picture)) {
+            self.list.images.insert(source.to_string(), picture);
+        }
         self.op(Op::Image { source: source.to_string(), revision, rect });
     }
 

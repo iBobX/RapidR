@@ -776,6 +776,7 @@ pub static DEBUG_KINDS: &[(&str, &str)] = &[
     (r#"locals"#, r#"debug/locals"#),
     (r#"globals"#, r#"debug/globals"#),
     (r#"watch"#, r#"debug/watch"#),
+    (r#"call-stack"#, r#"components/callstackview"#),
     (r#"frame"#, r#"debug/frame"#),
     (r#"current-frame"#, r#"actions/execution-point"#),
     (r#"changed"#, r#"glyphs/changed"#),

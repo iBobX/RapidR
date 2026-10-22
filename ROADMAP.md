@@ -723,6 +723,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes
 - [ ] ★ S10 A debugger that looks as good as it works: value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
+  - [x] Phase 1: the icons (design/icons `debug/`, the hit-count breakpoint, add watch, copy and edit value, the changed mark; review sheets `debugger-new`, `debugger-family`) and the UI kernel's `value_view` (a value and its kind in, a drawn, accessible row out; `debug.*` theme tokens, contrast-tested); no raster icon in Studio's UI
+  - [ ] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (after the DOCK lane), walked in every look
 - [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
 
 **RAI**
