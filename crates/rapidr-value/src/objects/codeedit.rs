@@ -129,6 +129,11 @@ pub struct TipRow {
     pub header: bool,
     /// What the program knows the row by (OnDataTipExpand / OnDataTipAction).
     pub id: String,
+    /// What the registry knows of it (`color`, `handle`, `const:alClient`:
+    /// TreeView.SetItemValue's Hint) and how many children it has: how its
+    /// value is drawn.
+    pub hint: String,
+    pub count: u32,
 }
 
 /// A debugger's data tip: the value under a resting mouse as a tree that
@@ -148,7 +153,7 @@ impl DataTip {
     /// The rows from `ShowDataTip`'s text: one a line, its fields
     /// tab-separated — depth, flags (`e` it opens, `o` open, `c` changed,
     /// `t` a table's row, `h` a table's header), id, name, value, kind, the
-    /// cells (separated by CHR$(31)).
+    /// cells (separated by CHR$(31)), the hint, the children's count.
     pub fn parse(text: &str) -> Vec<TipRow> {
         text.lines()
             .filter(|l| !l.trim().is_empty())
@@ -168,6 +173,8 @@ impl DataTip {
                     value: field(4).to_string(),
                     kind: field(5).to_string(),
                     cells: if field(6).is_empty() { Vec::new() } else { field(6).split('\u{1f}').map(str::to_string).collect() },
+                    hint: field(7).to_string(),
+                    count: field(8).trim().parse().unwrap_or(0),
                 }
             })
             .collect()

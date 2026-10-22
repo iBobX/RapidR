@@ -41,6 +41,7 @@ use rapidr_value::ide_theme::{self, ValueColors};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
+use rapidr_value::objects::tree::ItemValue;
 use rapidr_value::panels::inspector::values::{color_hex, color_name, is_system_color};
 use rapidr_value::theme::Theme;
 
@@ -88,6 +89,9 @@ pub enum ValueKind {
     Watch,
     /// The Call Stack's heading.
     CallStack,
+    /// A breakpoint (the Breakpoints pane): its state's icon, as the
+    /// gutter's.
+    Breakpoint,
     /// A call on the stack (Call Stack's rows).
     Frame,
     /// The call the program is stopped in.
@@ -117,6 +121,7 @@ impl ValueKind {
             ValueKind::Globals => "globals",
             ValueKind::Watch => "watch",
             ValueKind::CallStack => "call-stack",
+            ValueKind::Breakpoint => "breakpoint",
             ValueKind::Frame => "frame",
             ValueKind::CurrentFrame => "current-frame",
         }
@@ -144,6 +149,7 @@ impl ValueKind {
             ValueKind::Globals => "globals",
             ValueKind::Watch => "watch",
             ValueKind::CallStack => "call stack",
+            ValueKind::Breakpoint => "breakpoint",
             ValueKind::Frame => "call",
             ValueKind::CurrentFrame => "current call",
         }
@@ -151,14 +157,9 @@ impl ValueKind {
 
     /// A section's heading or a call on the stack (no ` = `, no value).
     pub fn is_section(self) -> bool {
-        matches!(self, ValueKind::Locals | ValueKind::Globals | ValueKind::Watch | ValueKind::CallStack | ValueKind::Frame | ValueKind::CurrentFrame)
+        matches!(self, ValueKind::Locals | ValueKind::Globals | ValueKind::Watch | ValueKind::CallStack | ValueKind::Breakpoint | ValueKind::Frame | ValueKind::CurrentFrame)
     }
 
-    /// A heading, drawn bold (Locals, Globals, Watch, Call Stack; a call on
-    /// the stack is a plain row).
-    fn heading(self) -> bool {
-        matches!(self, ValueKind::Locals | ValueKind::Globals | ValueKind::Watch | ValueKind::CallStack)
-    }
 
     /// The kind of a value the debugger describes as `kind`
     /// (rapidr_session's `Variable::kind`: `Integer`, `Double`, `String`,
@@ -337,6 +338,8 @@ pub struct ValueRow {
     /// The value's first part (after the name and ` = `).
     value_at: usize,
     changed: bool,
+    /// A heading: its title bold.
+    bold: bool,
     access: String,
     /// The parts' widths in the font they were last measured in.
     widths: RefCell<Option<(FontKey, Vec<i64>)>>,
@@ -508,7 +511,7 @@ impl ValueRow {
                 b.push(if text.is_empty() { name } else { text }, Part::Dim);
                 String::new()
             }
-            ValueKind::Locals | ValueKind::Globals | ValueKind::Watch | ValueKind::CallStack | ValueKind::Frame | ValueKind::CurrentFrame => {
+            ValueKind::Locals | ValueKind::Globals | ValueKind::Watch | ValueKind::CallStack | ValueKind::Breakpoint | ValueKind::Frame | ValueKind::CurrentFrame => {
                 // (a section: built by ValueRow::section)
                 b.push(text, Part::Dim);
                 text.to_string()
@@ -537,11 +540,67 @@ impl ValueRow {
         } else {
             rapidr_icons::debug_kind(kind.icon_key())
         };
-        ValueRow { kind, icon, text: b.text, parts: b.parts, swatch, value_at, changed: v.changed, access, widths: RefCell::new(None) }
+        ValueRow { kind, icon, text: b.text, parts: b.parts, swatch, value_at, changed: v.changed, bold: false, access, widths: RefCell::new(None) }
     }
 
-    /// A section's heading (Locals, Globals, Watch, a call on the stack):
-    /// its icon and `title`, bold, read as the title.
+    /// A tree node's value (`TreeView.SetItemValue`: rapidr_value's
+    /// [`ItemValue`]): a heading's row, or a value's, its hint read
+    /// (`color`, `handle`, `const:<name>`, `result`).
+    pub fn from_item(v: &ItemValue, changed: bool) -> ValueRow {
+        if v.kind.eq_ignore_ascii_case("breakpoint") {
+            return ValueRow::breakpoint(&v.name, v.hint.trim());
+        }
+        if v.is_section() {
+            let kind = match v.kind.to_ascii_lowercase().as_str() {
+                "locals" => ValueKind::Locals,
+                "globals" => ValueKind::Globals,
+                "watch" => ValueKind::Watch,
+                "callstack" => ValueKind::CallStack,
+                "frame" => ValueKind::Frame,
+                "currentframe" => ValueKind::CurrentFrame,
+                _ => ValueKind::Components,
+            };
+            return ValueRow::section(kind, &v.name);
+        }
+        let mut hint = Hint::None;
+        let mut result = false;
+        for h in v.hint.split(',').map(str::trim) {
+            match h {
+                "color" => hint = Hint::Color,
+                "handle" => hint = Hint::Handle,
+                "result" => result = true,
+                _ => {
+                    if let Some(c) = h.strip_prefix("const:").filter(|c| !c.is_empty()) {
+                        hint = Hint::Constant(c);
+                    }
+                }
+            }
+        }
+        ValueRow::new(&ValueInfo { name: &v.name, kind: &v.kind, text: &v.value, count: v.count, changed, result, hint })
+    }
+
+    /// A breakpoint's row (the Breakpoints pane): `title` after its state's
+    /// icon — `on`, `off`, `unverified` (not bound to code yet),
+    /// `conditional`, `hitcount`, `log` — read as "Main.rr:20,
+    /// conditional breakpoint".
+    pub fn breakpoint(title: &str, state: &str) -> ValueRow {
+        let (marker, words) = match state.to_ascii_lowercase().as_str() {
+            "off" | "disabled" => ("breakpoint-disabled", "breakpoint, off"),
+            "unverified" => ("breakpoint-unverified", "breakpoint, not bound to code yet"),
+            "conditional" => ("breakpoint-conditional", "conditional breakpoint"),
+            "hitcount" => ("breakpoint-hit-count", "breakpoint with a hit count"),
+            "log" => ("logpoint", "log point"),
+            _ => ("breakpoint", "breakpoint"),
+        };
+        let mut row = ValueRow::section(ValueKind::Breakpoint, title);
+        row.icon = rapidr_icons::marker(marker).or(row.icon);
+        row.access = format!("{title}, {words}");
+        row
+    }
+
+    /// A section's heading (Locals, Globals, Components, Watch, Call
+    /// Stack: bold) or a call on the stack (Frame, CurrentFrame): its icon
+    /// and `title`, read as the title.
     pub fn section(kind: ValueKind, title: &str) -> ValueRow {
         let mut b = Builder { text: String::new(), parts: Vec::with_capacity(1) };
         b.push(title, Part::Heading);
@@ -554,6 +613,7 @@ impl ValueRow {
             swatch: None,
             value_at: 0,
             changed: false,
+            bold: !matches!(kind, ValueKind::Frame | ValueKind::CurrentFrame | ValueKind::Breakpoint),
             widths: RefCell::new(None),
         }
     }
@@ -601,7 +661,7 @@ impl ValueRow {
         let key = font_key(font);
         let stale = self.widths.borrow().as_ref().is_none_or(|(k, _)| *k != key);
         if stale {
-            let bold = self.kind.heading().then(|| Font { styles: font.styles | 1, ..font.clone() });
+            let bold = self.bold.then(|| Font { styles: font.styles | 1, ..font.clone() });
             let f = bold.as_ref().unwrap_or(font);
             let w = self.parts.iter().map(|(r, _)| text_size(&self.text[r.clone()], f).0).collect();
             *self.widths.borrow_mut() = Some((key, w));
@@ -624,6 +684,34 @@ impl ValueRow {
     /// and marked after it. Returns the width drawn.
     pub fn paint(&self, p: &mut Painter, rect: Rect, style: &RowStyle<'_>) -> i64 {
         let (x0, y, w, h) = rect;
+        let icon = (h - 2).clamp(8, 16);
+        let mut x = x0;
+        if let Some(i) = self.icon {
+            p.icon_of(i, (x, y + (h - icon) / 2, icon, icon), None, !style.enabled);
+            x += icon + GAP;
+        }
+        x += self.paint_from(p, (x, y, (x0 + w - x).max(0), h), style, 0, icon);
+        x - x0
+    }
+
+    /// Draws only the value — its swatch, its parts, its changed highlight
+    /// and mark — from `rect`'s left (a data tip's value column, beside a
+    /// name it lays out itself). Returns the width drawn.
+    pub fn paint_value(&self, p: &mut Painter, rect: Rect, style: &RowStyle<'_>) -> i64 {
+        let icon = (rect.3 - 2).clamp(8, 16);
+        self.paint_from(p, rect, style, self.value_at, icon)
+    }
+
+    /// How wide the value alone is drawn ([`ValueRow::paint_value`]).
+    pub fn value_width(&self, font: &Font, icon: i64) -> i64 {
+        let side = self.swatch.map_or(0, |_| swatch_side(icon) + GAP);
+        let mark = if self.changed { GAP + mark_side(icon) } else { 0 };
+        self.widths(font).iter().skip(self.value_at).sum::<i64>() + side + mark
+    }
+
+    /// Parts `first..` drawn from `rect`'s left; the width drawn.
+    fn paint_from(&self, p: &mut Painter, rect: Rect, style: &RowStyle<'_>, first: usize, icon: i64) -> i64 {
+        let (x0, y, w, h) = rect;
         let t = p.theme();
         let colors = ide_theme::values(t);
         let ink = |part: Part| -> u32 {
@@ -635,21 +723,18 @@ impl ValueRow {
                 part.color(&colors)
             }
         };
-        let icon = (h - 2).clamp(8, 16);
         let mut x = x0;
-        if let Some(i) = self.icon {
-            p.icon_of(i, (x, y + (h - icon) / 2, icon, icon), None, !style.enabled);
-            x += icon + GAP;
-        }
         let widths = self.widths(style.font);
-        let bold = self.kind.heading().then(|| Font { styles: style.font.styles | 1, ..style.font.clone() });
+        let bold = self.bold.then(|| Font { styles: style.font.styles | 1, ..style.font.clone() });
         let font = bold.as_ref().unwrap_or(style.font);
         let right = x0 + w;
+        let first = first.min(widths.len());
         // (changed: the value highlighted, under its swatch, text and mark)
         if self.changed && style.enabled && style.selected_ink.is_none() {
-            let from = x + widths[..self.value_at.min(widths.len())].iter().sum::<i64>();
+            let value_at = self.value_at.clamp(first, widths.len());
+            let from = x + widths[first..value_at].iter().sum::<i64>();
             let swatch = self.swatch.map_or(0, |_| swatch_side(icon) + GAP);
-            let to = (from + swatch + widths[self.value_at.min(widths.len())..].iter().sum::<i64>() + GAP + mark_side(icon)).min(right);
+            let to = (from + swatch + widths[value_at..].iter().sum::<i64>() + GAP + mark_side(icon)).min(right);
             let r = (from - 3, y + 1, to - from + 6, h - 2);
             if t.contrast {
                 p.round(r, 3.0, None, Some(colors.changed), 1.0);
@@ -659,7 +744,7 @@ impl ValueRow {
                 p.fill(r, colors.changed_back);
             }
         }
-        for (k, ((range, part), tw)) in self.parts.iter().zip(widths.iter()).enumerate() {
+        for (k, ((range, part), tw)) in self.parts.iter().zip(widths.iter()).enumerate().skip(first) {
             if self.swatch.is_some_and(|(_, at)| at == k) {
                 let side = swatch_side(icon);
                 let theme = style.program_theme.unwrap_or(t);

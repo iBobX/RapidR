@@ -418,6 +418,14 @@ pub trait ComponentKind: Sync {
         None
     }
 
+    /// The strip (top, bottom: rows of it) the tip at (x, y) speaks for —
+    /// a pane's header, a tab strip: the tip shows above it, or in it beside
+    /// the mouse, never over what's under it (a pane's first row);
+    /// `None`: under the mouse, as Windows' tips.
+    fn tip_strip(&self, _store: &dyn crate::store::Store, _id: &str, _x: f64, _y: f64) -> Option<(i64, i64)> {
+        None
+    }
+
     /// A right click let go on it (or the menu key): an edit's context
     /// menu — Undo, Cut, Copy, Paste, Delete, Select All, which of them
     /// apply now — that the kernel shows there; `None`: it has none.

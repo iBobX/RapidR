@@ -38,6 +38,11 @@ and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
                  the program goes on with it (total 112)
          include a breakpoint in tally.inc (opened from the project tree,
                  closed again): F5 stops there and opens it
+         look    (S10, also look-light / look-dark / look-contrast) shop.rr
+                 paused in AddUp in each look: Variables' values with their
+                 kinds' icons, read by VoiceOver as sentences; a data tip;
+                 a watch typed; the Call Stack; Breakpoints; the panes'
+                 Close tip above their header
 
   python3 tools/macos/debug_walk.py [paths…]   (all by default)
 
@@ -722,6 +727,108 @@ def values_walk():
     check("[values] after F5 the program used the new value: total 112", "total112" in text.replace(" ", ""), text[-200:])
 
 
+KEY_T, KEY_O, KEY_L = 17, 31, 37
+
+
+def ax_all(pid, text, exact=False):
+    """Every node whose title, description or value has `text`."""
+    out = []
+    for w in ax(pid):
+        for n in walk(w):
+            for f in ("title", "desc", "value"):
+                v = str(n.get(f) or "")
+                if (v == text) if exact else (text in v):
+                    out.append(n)
+                    break
+    return out
+
+
+def look_walk(theme):
+    """S10: the debugger's look, used as a person does — shop.rr paused at
+    76 (in AddUp's loop) in `theme`: Variables' values drawn with their
+    kinds' icons and read by VoiceOver as sentences; the mouse resting on
+    `orders`: its data tip, the array's count; a watch typed into Watch;
+    the Call Stack's current call; the Breakpoints pane; the mouse resting
+    on the panes' Close button: its tip above the header, the first row
+    clear."""
+    tag = {"rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-contrast": "contrast"}[theme]
+    src = f"{WORK}/shop-{tag}.rr"
+    subprocess.run(["cp", f"{W}/examples/debugging/shop.rr", src])
+    studio = start_studio(src, theme, "wait,wait,line:76")
+    check(f"[look {tag}] Studio in front", wait_front(studio))
+    key(studio, F9)
+    key(studio, F5)
+    ok, text = stops_at(studio, f"70-look-{tag}-paused", f"shop-{tag}.rr:76")
+    check(f"[look {tag}] F5: paused at 76", ok, text[-160:])
+    if not ok:
+        return
+    ax_click(studio, "Variables")
+    time.sleep(0.8)
+    path = shot_window(studio, f"71-look-{tag}-variables")
+    for said in ("Locals", "Globals", "i, whole number 1", "count, whole number 3", "orders, array 1 to 10, 10 items"):
+        check(f"[look {tag}] VoiceOver reads Variables' {said!r}", ax_find(studio, said, exact=True) is not None)
+    # the data tip: the mouse resting on `orders` in line 76
+    box = next((b for b in ocr_boxes(path) if "LineTotal(orders" in b["text"].replace(" ", "")), None)
+    if box is None:
+        check(f"[look {tag}] line 76 found on the screen", False)
+        return
+    t = box["text"]
+    at = t.find("orders")
+    x, y = screen_point(studio, path, box, (at + 3) / max(1, len(t)))
+    mouse(Quartz.kCGEventMouseMoved, x, y)
+    time.sleep(2.0)
+    path, text = studio_text(studio, f"72-look-{tag}-datatip")
+    flat = text.replace(" ", "")
+    check(f"[look {tag}] the mouse resting on orders: its data tip, the array and its count", "Array(1TO10)" in flat and "10items" in flat, text[-240:])
+    mouse(Quartz.kCGEventMouseMoved, x, y + 260)
+    time.sleep(0.6)
+    # a watch typed into Watch
+    ax_click(studio, "Watch")
+    time.sleep(0.6)
+    box_node = ax_find(studio, "Add a watch")
+    if box_node and "x" in box_node:
+        click_at(studio, box_node["x"] + box_node["w"] / 2, box_node["y"] + box_node["h"] / 2)
+        for k in (KEY_T, KEY_O, KEY_T, KEY_A, KEY_L):
+            key(studio, k)
+        key(studio, ENTER)
+        time.sleep(1.5)
+    path, text = studio_text(studio, f"73-look-{tag}-watch")
+    # (total is a DOUBLE: a decimal number)
+    check(f"[look {tag}] the watch typed: VoiceOver reads 'total, decimal number …'", bool(ax_all(studio, "total, decimal number")), text[-200:])
+    # the Call Stack: the current call first
+    ax_click(studio, "Call Stack")
+    time.sleep(0.6)
+    shot_window(studio, f"74-look-{tag}-callstack")
+    check(f"[look {tag}] the Call Stack: AddUp, where the program is", bool(ax_all(studio, f"AddUp   shop-{tag}.rr:76")))
+    # the Breakpoints pane: the breakpoint and its state
+    ax_click(studio, "Breakpoints", exact=False)
+    time.sleep(0.6)
+    shot_window(studio, f"75-look-{tag}-breakpoints")
+    check(f"[look {tag}] Breakpoints: VoiceOver reads 'shop-{tag}.rr:76, breakpoint'", ax_find(studio, f"shop-{tag}.rr:76, breakpoint", exact=True) is not None)
+    # the panes' Close button: its tip above the header (the first row clear)
+    tab = ax_find(studio, "Variables", exact=True)
+    # (the group's buttons: "Close Variables" …, on its header's row)
+    closes = [n for n in ax_all(studio, "Close ") if "y" in n and tab and str(n.get("title") or n.get("desc") or "").startswith("Close ") and abs(n["y"] - tab["y"]) < 20]
+    if not closes:
+        check(f"[look {tag}] the panes' Close button found (VoiceOver)", False, json.dumps(tab))
+        return
+    # (the Variables group's own: the first right of its tab)
+    c = min((n for n in closes if n["x"] > tab["x"]), key=lambda n: n["x"], default=closes[0])
+    mouse(Quartz.kCGEventMouseMoved, c["x"] + c["w"] / 2, c["y"] + c["h"] / 2)
+    time.sleep(1.6)
+    # (the tip is drawn in the window's popup layer: the screen around the
+    # header captured, not the window alone)
+    top = tab["y"] - 70
+    path = shot_screen_region(c["x"] - 220, top, 300, 120, f"76-look-{tag}-close-tip")
+    scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / 300
+    tips = [b for b in ocr_boxes(path) if b["text"].strip().startswith("Close")]
+    header_top = tab["y"] - 4
+    above = [b for b in tips if top + (b["y"] + b["h"]) / scale <= header_top + 2]
+    check(f"[look {tag}] the Close button's tip sits above the panes' header, not over the first row", bool(above), f"tips at {[round(top + b['y'] / scale) for b in tips]} ({[b['text'] for b in tips]}), header at {round(tab['y'])}")
+    mouse(Quartz.kCGEventMouseMoved, c["x"] - 200, c["y"] + 80)
+    time.sleep(0.3)
+
+
 def include_walk():
     """DEBUG-2: a breakpoint in an $INCLUDEd file — tally.inc opened from the
     project tree, a breakpoint on its line 5, the file closed; F5 stops there
@@ -833,6 +940,11 @@ try:
     for name, fn in (("focus", focus_walk), ("loops", loops_walk), ("values", values_walk), ("include", include_walk)):
         if name in paths:
             fn()
+            close_all(); started.clear(); time.sleep(1)
+    # (S10: the debugger's look, in the three looks)
+    for name, theme in (("look-light", "rapidr-light"), ("look-dark", "rapidr-dark"), ("look-contrast", "rapidr-high-contrast")):
+        if name in paths or "look" in paths:
+            look_walk(theme)
             close_all(); started.clear(); time.sleep(1)
     log(f"walk took {time.time() - t0:.0f} s")
 finally:

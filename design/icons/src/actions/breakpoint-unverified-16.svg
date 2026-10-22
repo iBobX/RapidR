@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
   <title>Breakpoint (not yet bound)</title>
-  <circle cx="8" cy="8" r="4.5" fill="#FCE1E2" stroke="#D92D36"/>
+  <circle cx="8" cy="8" r="4.5" fill="#FCE1E2"/>
+  <circle cx="8" cy="8" r="4.5" stroke="#D92D36" stroke-linecap="butt" stroke-dasharray="4.712 2.356" stroke-dashoffset="2.356"/>
 </svg>

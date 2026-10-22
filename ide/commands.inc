@@ -136,7 +136,7 @@ SUB DefineCommands
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
   AddCmd "view.immediate", "&Immediate", "View", "", "", "", "terminal"
   AddCmd "view.variables", "&Variables", "View", "", "", "", "RVARIABLESVIEW"
-  AddCmd "view.watch", "W&atch", "View", "", "", "", "debug.addWatch"
+  AddCmd "view.watch", "W&atch", "View", "", "", "", "actions/watch"
   AddCmd "view.callStack", "Call &Stack", "View", "", "", "", "RCALLSTACKVIEW"
   AddCmd "view.breakpoints", "&Breakpoints", "View", "", "", "", "RBREAKPOINTLIST"
   ' (S9: the debugging layout now — shown by hand it stays: debug.inc)

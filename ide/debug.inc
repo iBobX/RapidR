@@ -285,14 +285,20 @@ FUNCTION FindBreakpoint(InFile AS STRING, LineNo AS INTEGER) AS INTEGER
   NEXT
 END FUNCTION
 
-' (its marker's kind: what the gutter draws)
+' (its marker's kind: what the gutter draws — off a ring, never bound to
+' code a dashed ring, a log point a diamond, a condition "=", a hit count
+' "#": each its own icon)
 FUNCTION BpKind(i AS INTEGER) AS STRING
-  IF BpOn(i) = 0 OR BpNever(i) THEN
+  IF BpOn(i) = 0 THEN
     Result = "breakpoint.disabled"
+  ELSEIF BpNever(i) THEN
+    Result = "breakpoint.unverified"
   ELSEIF BpLog(i) <> "" THEN
     Result = "breakpoint.log"
-  ELSEIF BpCond(i) <> "" OR BpHit(i) <> "" THEN
+  ELSEIF BpCond(i) <> "" THEN
     Result = "breakpoint.conditional"
+  ELSEIF BpHit(i) <> "" THEN
+    Result = "breakpoint.hitcount"
   ELSE
     Result = "breakpoint"
   END IF
@@ -306,6 +312,8 @@ SUB UnmarkBreakpoint(i AS INTEGER)
   CodeDoc(d).RemoveMarker BpLine(i), "breakpoint.conditional"
   CodeDoc(d).RemoveMarker BpLine(i), "breakpoint.log"
   CodeDoc(d).RemoveMarker BpLine(i), "breakpoint.disabled"
+  CodeDoc(d).RemoveMarker BpLine(i), "breakpoint.hitcount"
+  CodeDoc(d).RemoveMarker BpLine(i), "breakpoint.unverified"
 END SUB
 
 SUB MarkBreakpoint(i AS INTEGER)
@@ -507,10 +515,14 @@ FUNCTION BreakpointText(i AS INTEGER) AS STRING
 END FUNCTION
 
 SUB FillBreakpoints
-  DIM i AS INTEGER
+  DIM i AS INTEGER, state AS STRING
   BpTree.Clear
   FOR i = 0 TO BpCount - 1
     BpTree.AddItems BreakpointText(i)
+    ' (its state's icon, as the gutter's: the kind after "breakpoint.")
+    state = MID$(BpKind(i), 12)
+    IF state = "" THEN state = "on"
+    BpTree.SetItemValue i, BreakpointText(i), "Breakpoint", "", 0, state
   NEXT
   IF BpCount = 0 THEN BpPicked = -1
   IF BpPicked >= 0 THEN BpTree.ItemIndex = BpPicked
@@ -1067,6 +1079,14 @@ SUB TreeAddChild(w AS INTEGER, Parent AS INTEGER, Text AS STRING)
   IF w = 0 THEN VarsTree.AddChildItems Parent, Text ELSE WatchTree.AddChildItems Parent, Text
 END SUB
 
+' (item i a value: drawn as one — its kind's icon, its value styled by kind
+' — and read as a sentence; Hint is what the registry knows of a property:
+' color, handle, const:alClient, readonly. A row with no kind stays text.)
+SUB TreeSetValue(w AS INTEGER, i AS INTEGER, Nm AS STRING, Kind AS STRING, Value AS STRING, Count AS INTEGER, Hint AS STRING)
+  IF Kind = "" THEN EXIT SUB
+  IF w = 0 THEN VarsTree.SetItemValue i, Nm, Kind, Value, Count, Hint ELSE WatchTree.SetItemValue i, Nm, Kind, Value, Count, Hint
+END SUB
+
 FUNCTION TreeCount(w AS INTEGER) AS INTEGER
   IF w = 0 THEN Result = VarsTree.ItemCount ELSE Result = WatchTree.ItemCount
 END FUNCTION
@@ -1085,15 +1105,15 @@ SUB TreeItemData(w AS INTEGER, i AS INTEGER, Ref AS INTEGER, Path AS STRING)
 END SUB
 
 ' (an item's value: the expression naming it, its type; changed since the
-' last stop: marked in the changed colour)
+' last stop: highlighted and marked)
 SUB TreeItemValue(w AS INTEGER, i AS INTEGER, Expr AS STRING, Kind AS STRING, Changed AS INTEGER)
   IF i > MAXVARITEMS THEN EXIT SUB
   IF w = 0 THEN
     VarItemExpr(i) = Expr: VarItemKind(i) = Kind
-    IF Changed THEN VarsTree.Item(i).TextColor = ChangedColor
+    IF Changed THEN VarsTree.Item(i).Changed = 1
   ELSE
     WatchItemExpr(i) = Expr: WatchItemKind(i) = Kind
-    IF Changed THEN WatchTree.Item(i).TextColor = ChangedColor
+    IF Changed THEN WatchTree.Item(i).Changed = 1
   END IF
 END SUB
 
@@ -1145,6 +1165,7 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     END IF
     item = TreeCount(w) - 1
     TreeItemData w, item, cref, cpath
+    TreeSetValue w, item, nm, FIELD$(row, CHR$(9), 3), FIELD$(row, CHR$(9), 2), VAL(FIELD$(row, CHR$(9), 5)), FIELD$(row, CHR$(9), 10)
     TreeItemValue w, item, FIELD$(row, CHR$(9), 6), FIELD$(row, CHR$(9), 3), VAL(FIELD$(row, CHR$(9), 7))
     IF cref > 0 AND IsOpen(opened, cpath) THEN
       IF RefIn(cref) THEN
@@ -1159,6 +1180,7 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
     TreeAddChild w, Parent, "… " + Num(Total - n) + " more"
     item = TreeCount(w) - 1
     TreeItemData w, item, 0, Path + "/[more]"
+    TreeSetValue w, item, "… " + Num(Total - n) + " more", "More", "", 0, ""
     IF item <= MAXVARITEMS THEN
       IF w = 0 THEN
         VarItemMore(item) = n: VarItemRef(item) = Ref: VarsTree.Item(item).HasChildren = 1
@@ -1196,6 +1218,7 @@ SUB FillVariables
     EXIT SUB
   END IF
   VarsTree.AddItems "Locals"
+  VarsTree.SetItemValue 0, "Locals", "Locals", ""
   TreeItemData 0, 0, 0, "L"
   root = 0
   IF Session.LocalsRef > 0 THEN AddValueChildren 0, root, Session.LocalsRef, "L", 0, "", 0
@@ -1205,12 +1228,14 @@ SUB FillVariables
   END IF
   VarsTree.AddItems "Globals"
   root = VarsTree.ItemCount - 1
+  VarsTree.SetItemValue root, "Globals", "Globals", ""
   TreeItemData 0, root, 0, "G"
   AddValueChildren 0, root, Session.GlobalsRef, "G", 0, "", 0
   ' (the program's components — its forms, frames, timers —, each opening
   ' to its properties and the components it holds; filled once opened)
   VarsTree.AddItems "Components"
   root = VarsTree.ItemCount - 1
+  VarsTree.SetItemValue root, "Components", "Components", ""
   TreeItemData 0, root, Session.ComponentsRef, "C"
   IF IsOpen(VarsOpen, "C") THEN AddValueChildren 0, root, Session.ComponentsRef, "C", 0, "", 0
   ReopenTree 0
@@ -1250,6 +1275,7 @@ SUB FillWatches
     WatchTree.AddItems ValueText(expr, value)
     item = WatchTree.ItemCount - 1
     TreeItemData 1, item, wref, "W" + Num(k)
+    IF RunState = "paused" THEN TreeSetValue 1, item, expr, FIELD$(row, CHR$(9), 3), value, VAL(FIELD$(row, CHR$(9), 6)), ""
     TreeItemValue 1, item, expr, FIELD$(row, CHR$(9), 3), Flag(RunState = "paused" AND VAL(FIELD$(row, CHR$(9), 5)) <> 0)
     IF RunState = "paused" AND wref > 0 AND IsOpen(WatchOpen, "W" + Num(k)) THEN
       IF RefIn(wref) THEN AddValueChildren 1, item, wref, "W" + Num(k), 0, "", VAL(FIELD$(row, CHR$(9), 6)) ELSE TreeFetch = TreeFetch + "|" + Num(wref)
@@ -1517,6 +1543,11 @@ SUB FillCallStack
     FrameFile(k - 1) = DebugPath(FIELD$(row, CHR$(9), 2))
     FrameLine(k - 1) = VAL(FIELD$(row, CHR$(9), 3))
     StackTree.AddItems FrameName(k - 1) + "   " + FileTitle(FrameFile(k - 1)) + ":" + Num(FrameLine(k - 1))
+    IF k = 1 THEN
+      StackTree.SetItemValue k - 1, StackTree.Item(k - 1).Text, "CurrentFrame", ""
+    ELSE
+      StackTree.SetItemValue k - 1, StackTree.Item(k - 1).Text, "Frame", ""
+    END IF
     FrameCount = k
   NEXT
   IF FrameCount > 0 THEN StackTree.ItemIndex = Session.Frame
@@ -1729,7 +1760,7 @@ END SUB
 
 ' (a row of the tip: depth, flags, its number — its id —, name, value,
 ' type, a table's cells)
-SUB TipRow(Depth AS INTEGER, Flags AS STRING, Path AS STRING, Expr AS STRING, Nm AS STRING, Value AS STRING, Kind AS STRING, Ref AS INTEGER, Cells AS STRING)
+SUB TipRow(Depth AS INTEGER, Flags AS STRING, Path AS STRING, Expr AS STRING, Nm AS STRING, Value AS STRING, Kind AS STRING, Ref AS INTEGER, Cells AS STRING, Hint AS STRING, Count AS INTEGER)
   IF TipRowCount > MAXTIPROWS THEN EXIT SUB
   TipRowPath(TipRowCount) = Path
   TipRowExpr(TipRowCount) = Expr
@@ -1737,7 +1768,7 @@ SUB TipRow(Depth AS INTEGER, Flags AS STRING, Path AS STRING, Expr AS STRING, Nm
   TipRowValue(TipRowCount) = Value
   TipRowRef(TipRowCount) = Ref
   TipRowMore(TipRowCount) = -1
-  TipRows = TipRows + Num(Depth) + CHR$(9) + Flags + CHR$(9) + Num(TipRowCount) + CHR$(9) + Nm + CHR$(9) + Value + CHR$(9) + Kind + CHR$(9) + Cells + CHR$(10)
+  TipRows = TipRows + Num(Depth) + CHR$(9) + Flags + CHR$(9) + Num(TipRowCount) + CHR$(9) + Nm + CHR$(9) + Value + CHR$(9) + Kind + CHR$(9) + Cells + CHR$(9) + Hint + CHR$(9) + Num(Count) + CHR$(10)
   TipRowCount = TipRowCount + 1
 END SUB
 
@@ -1755,7 +1786,7 @@ SUB ShowTip
   IF TipRef > 0 THEN flags = flags + "e"
   IF TipRef > 0 AND IsOpen(TipOpen, "T") THEN flags = flags + "o"
   IF TipChanged THEN flags = flags + "c"
-  TipRow 0, flags, "T", TipExpr, TipExpr, TipValue, TipKind, TipRef, ""
+  TipRow 0, flags, "T", TipExpr, TipExpr, TipValue, TipKind, TipRef, "", "", TipTotal
   IF TipRef > 0 AND IsOpen(TipOpen, "T") THEN TipChildren TipRef, "T", 1, TipColumns, TipTotal
   CodeDoc(HoverDoc).ShowDataTip TipRows
   TipShown = 1
@@ -1767,14 +1798,14 @@ SUB TipChildren(Ref AS INTEGER, Path AS STRING, Depth AS INTEGER, Columns AS STR
   IF Depth > 16 THEN EXIT SUB
   IF RefIn(Ref) = 0 THEN
     TipFetch = TipFetch + "|" + Num(Ref)
-    TipRow Depth, "", Path + "/…", "", "…", "", "", 0, ""
+    TipRow Depth, "", Path + "/…", "", "…", "", "", 0, "", "", 0
     EXIT SUB
   END IF
   rows = Session.Variables(Ref)
   n = TALLY(rows, CHR$(10))
   ' (a table: its columns' names over its rows)
   cols = Columns
-  IF cols <> "" AND n > 0 THEN TipRow Depth, "h", Path + "/[columns]", "", "", "", "", 0, cols
+  IF cols <> "" AND n > 0 THEN TipRow Depth, "h", Path + "/[columns]", "", "", "", "", 0, cols, "", 0
   FOR k = 1 TO n
     IF TipRowCount > MAXTIPROWS THEN EXIT SUB
     row = FIELD$(rows, CHR$(10), k)
@@ -1787,12 +1818,12 @@ SUB TipChildren(Ref AS INTEGER, Path AS STRING, Depth AS INTEGER, Columns AS STR
     IF cref > 0 AND IsOpen(TipOpen, cpath) THEN flags = flags + "o"
     IF VAL(FIELD$(row, CHR$(9), 7)) THEN flags = flags + "c"
     IF cells <> "" THEN flags = flags + "t"
-    TipRow Depth, flags, cpath, FIELD$(row, CHR$(9), 6), nm, FIELD$(row, CHR$(9), 2), FIELD$(row, CHR$(9), 3), cref, cells
+    TipRow Depth, flags, cpath, FIELD$(row, CHR$(9), 6), nm, FIELD$(row, CHR$(9), 2), FIELD$(row, CHR$(9), 3), cref, cells, FIELD$(row, CHR$(9), 10), VAL(FIELD$(row, CHR$(9), 5))
     IF cref > 0 AND IsOpen(TipOpen, cpath) THEN TipChildren cref, cpath, Depth + 1, FIELD$(row, CHR$(9), 8), VAL(FIELD$(row, CHR$(9), 5))
   NEXT
   ' (more than came: the next page when it's clicked)
   IF Total > n AND n > 0 THEN
-    TipRow Depth, "e", Path + "/[more]", "", "…", Num(Total - n) + " more", "", Ref, ""
+    TipRow Depth, "e", Path + "/[more]", "", "…", Num(Total - n) + " more", "", Ref, "", "", 0
     TipRowMore(TipRowCount - 1) = n
   END IF
 END SUB
@@ -2159,7 +2190,11 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       ' focused — then key:F2 edits it)
       FOR k = 0 TO VarsTree.ItemCount - 1
         IF k <= MAXVARITEMS THEN
-          IF LCASE$(VarItemPath(k)) = LCASE$(arg) THEN VarsTree.ItemIndex = k
+          IF LCASE$(VarItemPath(k)) = LCASE$(arg) THEN
+            VarsTree.ItemIndex = k
+            ' (in view: a few rows above it show too)
+            IF k > 3 THEN VarsTree.TopIndex = k - 3
+          END IF
         END IF
       NEXT
       Dock.FocusPane("varstree")
@@ -2214,12 +2249,12 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       arg = ""
       FOR k = 0 TO VarsTree.ItemCount - 1
         IF k <= MAXVARITEMS THEN
-          IF VarsTree.Item(k).TextColor = ChangedColor THEN arg = arg + " " + VarItemPath(k)
+          IF VarsTree.Item(k).Changed THEN arg = arg + " " + VarItemPath(k)
         END IF
       NEXT
       FOR k = 0 TO WatchTree.ItemCount - 1
         IF k <= MAXVARITEMS THEN
-          IF WatchTree.Item(k).TextColor = ChangedColor THEN arg = arg + " " + WatchItemPath(k)
+          IF WatchTree.Item(k).Changed THEN arg = arg + " " + WatchItemPath(k)
         END IF
       NEXT
       OutputLine "[changed]" + arg
@@ -2286,19 +2321,11 @@ SUB ApplyDebugFonts(Rows AS INTEGER)
   BpTree.Font = UIFont: BpTree.ItemHeight = Rows
 END SUB
 
-' The changed values' colour in the theme (chrome.inc's ApplyChrome): the
-' items marked take the new one.
+' The changed values' colour in the theme (chrome.inc's ApplyChrome). The
+' trees draw changed values in the theme's own colours (Item(i).Changed:
+' highlighted and marked), which follow a change of theme by themselves.
 SUB ApplyDebugColors
-  DIM was AS LONG, k AS INTEGER
-  was = ChangedColor
   ChangedColor = Application.ThemeColor("debug.changed")
-  IF was = ChangedColor THEN EXIT SUB
-  FOR k = 0 TO VarsTree.ItemCount - 1
-    IF VarsTree.Item(k).TextColor = was THEN VarsTree.Item(k).TextColor = ChangedColor
-  NEXT
-  FOR k = 0 TO WatchTree.ItemCount - 1
-    IF WatchTree.Item(k).TextColor = was THEN WatchTree.Item(k).TextColor = ChangedColor
-  NEXT
 END SUB
 
 SUB DebugTree(t AS RTreeView, Title AS STRING)

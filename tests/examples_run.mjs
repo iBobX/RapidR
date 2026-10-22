@@ -106,6 +106,9 @@ export const cases = [
   // shows its help)
   { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
     expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
+  // (Add a point twice: the score 2, marked changed; the values' plain text)
+  { file: "gui/value_tree.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick,addbtn.onclick", dump: "said.caption,values.text",
+    expect: ["said.caption=Score = 2 (changed)", "\tBackground = -2147483633", "\tScores = Array(1 TO 10)"] },
   { file: "gui/menus.rr", runtimes: ["run", "interp", "native", "web"], events: "wrapitem.onclick,smallitem.onclick,upperitem.onclick", dump: "status.simpletext,text.text,wrapitem.checked,largeitem.checked",
     expect: ["status.simpletext=Text size 9", "text.text=RIGHT-CLICK ME FOR THE POP-UP MENU.", "wrapitem.checked=0", "largeitem.checked=0"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "colourbtn.onclick,askbtn.onclick", dump: "answer.caption,sample.color",

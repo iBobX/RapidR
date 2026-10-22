@@ -14,9 +14,16 @@
 //! node, after Windows' double-click time unless a double click comes —
 //! asks to edit the selected node's text, and its editor's Enter asks
 //! OnEdited.
+//!
+//! A node that is a value (RapidR's `SetItemValue`: a debugger's Variables
+//! and Watch) is drawn as one by `value_view` — its kind's icon, the value
+//! styled by kind, a changed value highlighted and marked — and read to
+//! screen readers as a sentence; its row is built once per change of the
+//! tree, not per frame.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, PART_ITEM};
 use rapidr_value::objects::ops::{Place, Rect};
@@ -35,6 +42,7 @@ use crate::a11y::AccessValue;
 use crate::input::Clipboard;
 use crate::paint::{ink, Painter};
 use crate::store::{self, Store};
+use crate::value_view::{RowStyle, ValueRow};
 
 thread_local! {
     /// (the input lane's) A click on the selected node of a focused tree:
@@ -66,6 +74,39 @@ fn icon(cx: &Cx, node: usize, selected: bool) -> Option<(crate::display::Picture
     let scale = px.3.max(1) as i64;
     let (w, h) = (px.0 as i64 / scale, px.1 as i64 / scale);
     Some((picture_of(px), w, h))
+}
+
+thread_local! {
+    /// Value nodes' rows, built when the tree changes (its version): by
+    /// tree, by node.
+    static VALUE_ROWS: RefCell<HashMap<String, (u64, HashMap<usize, Rc<ValueRow>>)>> = RefCell::new(HashMap::new());
+}
+
+/// Node `n`'s value row, when it is a value (SetItemValue).
+fn value_row(id: &str, n: usize) -> Option<Rc<ValueRow>> {
+    let version = with_tree(id, |t| t.version)?;
+    let cached = VALUE_ROWS.with(|v| {
+        let mut v = v.borrow_mut();
+        if v.len() > 64 && !v.contains_key(id) {
+            v.clear();
+        }
+        let entry = v.entry(id.to_string()).or_insert_with(|| (version, HashMap::new()));
+        if entry.0 != version {
+            *entry = (version, HashMap::new());
+        }
+        entry.1.get(&n).cloned()
+    });
+    if cached.is_some() {
+        return cached;
+    }
+    let (value, changed) = with_tree(id, |t| t.nodes.get(n).and_then(|node| node.value.as_ref().map(|v| ((**v).clone(), node.changed)))).flatten()?;
+    let row = Rc::new(ValueRow::from_item(&value, changed));
+    VALUE_ROWS.with(|v| {
+        if let Some(e) = v.borrow_mut().get_mut(id) {
+            e.1.insert(n, row.clone());
+        }
+    });
+    Some(row)
 }
 
 /// The rows as drawn now (inside the frame; TopIndex's row first).
@@ -235,6 +276,29 @@ impl ComponentKind for Tree {
                         expander(p, c, mid, BUTTON, expanded);
                     }
                     let mut x = row.left;
+                    // (a value: drawn as one, its selection's ink over all of it)
+                    if let Some(vr) = value_row(cx.id, row.node) {
+                        let shown = row.selected && (focused || !hide);
+                        let t = p.theme();
+                        let ink = if shown && focused {
+                            Some(t.highlight_text)
+                        } else if shown {
+                            Some(t.text)
+                        } else {
+                            None
+                        };
+                        let icon_side = (row.height - 2).clamp(8, 16);
+                        if shown && !t.fluent() {
+                            let tr = (x, row.top + 1, vr.width(&font, icon_side) + 4, row.height - 2);
+                            p.fill(tr, if focused { t.highlight } else { t.unfocused });
+                            if focused {
+                                p.focus(tr);
+                            }
+                        }
+                        let style = RowStyle { selected_ink: ink, enabled, ..RowStyle::new(&font) };
+                        vr.paint(p, (x + 2, row.top, (cw - x - 2).max(0), row.height), &style);
+                        continue;
+                    }
                     if let Some((pic, iw, ih)) = icon(cx, row.node, row.selected) {
                         p.picture(&format!("{}#icon{}", cx.id, row.node), 0, pic, (x, row.top + (row.height - ih) / 2, iw, ih));
                         x += iw + 2;
@@ -410,6 +474,16 @@ impl ComponentKind for Tree {
         for row in rows(cx) {
             if let Some(item) = n.children.iter_mut().find(|c| c.id == part_id(cx.id, PART_ITEM, row.node)) {
                 item.bounds = (x0 + 2, y0 + 2 + row.top, cx.rect.2 - 4, row.height);
+            }
+        }
+        // (a value is read as a sentence: "FontColor, colour clWindowText")
+        let shown = with_tree(cx.id, |t| t.visible_rows()).unwrap_or_default();
+        let ids: HashMap<u64, usize> = shown.into_iter().take(n.children.len()).map(|i| (part_id(cx.id, PART_ITEM, i), i)).collect();
+        for item in &mut n.children {
+            let Some(&i) = ids.get(&item.id) else { continue };
+            if let Some(vr) = value_row(cx.id, i) {
+                item.name = vr.accessible_name().to_string();
+                item.description = vr.description().to_string();
             }
         }
         n

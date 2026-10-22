@@ -696,7 +696,7 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
             // markers (the strongest first), else the line's worst problem
             let kinds: Vec<String> = x.c.markers_on(line).map(|m| m.kind.clone()).collect();
             let icon_rect = (g.glyph_x + 1, top + (lh as i64 - 16) / 2, 16, 16);
-            const ORDER: [&str; 10] = ["breakpoint", "breakpoint.conditional", "breakpoint.log", "breakpoint.disabled", "current", "frame", "exception", "bookmark", "error", "warning"];
+            const ORDER: [&str; 12] = ["breakpoint", "breakpoint.conditional", "breakpoint.hitcount", "breakpoint.log", "breakpoint.disabled", "breakpoint.unverified", "current", "frame", "exception", "bookmark", "error", "warning"];
             let marker = ORDER.into_iter().find(|k| kinds.iter().any(|m| m == k)).map(str::to_string).or_else(|| kinds.first().cloned());
             // (the debugger's line over a breakpoint: the arrow on the dot)
             let here = ["exception", "current", "frame"].into_iter().find(|k| kinds.iter().any(|m| m == k));
@@ -705,30 +705,26 @@ fn paint_gutter(x: &mut Ctx, p: &mut Painter) {
                 Some("frame") => sc.line_number,
                 _ => sc.current_statement,
             };
-            let dot = (icon_rect.0 + 2, icon_rect.1 + 2, 12, 12);
             match marker.as_deref() {
-                Some("breakpoint") => {
-                    p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
-                }
-                // (a condition or hit count: the dot with a bar across)
-                Some("breakpoint.conditional") => {
-                    p.op(Op::Round { rect: dot, radius: 6.0, fill: Some(sc.breakpoint), stroke: None, width: 1.0 });
-                    p.fill((dot.0 + 3, dot.1 + 5, 6, 2), sc.gutter);
-                }
-                // (a logpoint: a diamond)
-                Some("breakpoint.log") => {
-                    let (cxp, cyp) = (icon_rect.0 as f64 + 8.0, icon_rect.1 as f64 + 8.0);
-                    p.op(Op::Polygon { points: vec![(cxp, cyp - 6.0), (cxp + 6.0, cyp), (cxp, cyp + 6.0), (cxp - 6.0, cyp)], color: sc.breakpoint });
-                }
-                // (switched off: a ring)
-                Some("breakpoint.disabled") => {
-                    p.op(Op::Round { rect: dot, radius: 6.0, fill: None, stroke: Some(sc.line_number), width: 1.5 });
+                // (the breakpoints' states: the icon set's, so each reads
+                // apart — a dot; with a condition "="; with a hit count "#";
+                // a log point's diamond; off, a ring; not yet bound to code,
+                // a dashed ring)
+                Some(kind @ ("breakpoint" | "breakpoint.conditional" | "breakpoint.hitcount" | "breakpoint.log" | "breakpoint.disabled" | "breakpoint.unverified")) => {
+                    let icon = match kind {
+                        "breakpoint.conditional" => "actions/breakpoint-conditional",
+                        "breakpoint.hitcount" => "actions/breakpoint-hit-count",
+                        "breakpoint.log" => "actions/logpoint",
+                        "breakpoint.disabled" => "actions/breakpoint-disabled",
+                        "breakpoint.unverified" => "actions/breakpoint-unverified",
+                        _ => "actions/breakpoint",
+                    };
+                    p.icon(icon, icon_rect, None, false);
                 }
                 // (the arrows: drawn below, over any dot)
                 Some("current") | Some("exception") | Some("frame") => {}
                 Some("bookmark") => {
-                    let (bx, by) = (icon_rect.0 as f64 + 4.0, icon_rect.1 as f64 + 2.0);
-                    p.op(Op::Polygon { points: vec![(bx, by), (bx + 8.0, by), (bx + 8.0, by + 12.0), (bx + 4.0, by + 9.0), (bx, by + 12.0)], color: sc.bookmark });
+                    p.icon("actions/bookmark", icon_rect, Some(sc.bookmark), false);
                 }
                 Some("error") => {
                     p.icon("actions/error", icon_rect, Some(sc.error), false);

@@ -1,0 +1,74 @@
+' value_tree.rr: a tree that shows values as RapidR Studio's debugger does
+' (RTreeView.SetItemValue and Item(i).Changed): each value with its kind's
+' icon; numbers, text and True/False in their own colours; an empty text as
+' a quiet ""; a colour as a swatch with its name; an array with its count; a
+' value that changed highlighted and marked. Screen readers hear each row as
+' a sentence ("Score, whole number 3").
+'
+'   rapidr run gui/value_tree.rr     then press "Add a point": the score
+'                                    goes up and is marked as changed
+$THEME rapidr
+
+DIM score AS INTEGER
+DIM item AS INTEGER
+
+CREATE Form AS RForm
+  Caption = "Values, as the debugger shows them"
+  Width = 460: Height = 380
+  Center
+  CREATE Values AS RTreeView
+    Left = 10: Top = 10: Width = 424: Height = 280
+    ItemHeight = 22
+    ReadOnly = 1
+    HideSelection = 0
+    AccessibleName = "Values"
+  END CREATE
+  CREATE AddBtn AS RButton
+    Left = 10: Top = 302: Width = 140: Height = 28
+    Caption = "Add a point"
+  END CREATE
+  CREATE Said AS RLabel
+    Left = 162: Top = 308: Width = 272: Height = 20
+    Caption = ""
+  END CREATE
+END CREATE
+
+' (a child of the heading: its name, the debugger's word for its kind, the
+' value as the debugger writes it; how many children; what more is known —
+' color, handle, const:<name>)
+SUB AddValue(Name AS STRING, Kind AS STRING, Value AS STRING, Count AS INTEGER, Hint AS STRING)
+  Values.AddChildItems 0, Name
+  item = Values.ItemCount - 1
+  Values.SetItemValue item, Name, Kind, Value, Count, Hint
+END SUB
+
+SUB Fill
+  Values.Clear
+  Values.AddItems "Game"
+  Values.SetItemValue 0, "Game", "Locals", ""
+  AddValue "Score", "Integer", LTRIM$(STR$(score)), 0, ""
+  AddValue "Ratio", "Double", "0.75", 0, ""
+  AddValue "Player", "String", CHR$(34) + "Ada" + CHR$(34), 0, ""
+  AddValue "Note", "String", CHR$(34) + CHR$(34), 0, ""
+  AddValue "Done", "Boolean", "False", 0, ""
+  AddValue "Scores", "Array", "Array(1 TO 10)", 10, ""
+  ' (clBtnFace, -2147483633: a system colour, drawn as the theme has it)
+  AddValue "Background", "Integer", "-2147483633", 0, "color"
+  ' (&H0080FF: orange — RapidQ's colours are blue, green, red)
+  AddValue "Pen", "Integer", "33023", 0, "color"
+  AddValue "Align", "Integer", "5", 0, "const:alClient"
+  Values.Expand 0, 0
+END SUB
+
+SUB AddPoint
+  score = score + 1
+  Fill
+  ' (Score is the heading's first child: item 1)
+  Values.Item(1).Changed = 1
+  Values.ItemIndex = 1
+  Said.Caption = Values.Item(1).Text + " (changed)"
+END SUB
+
+AddBtn.OnClick = AddPoint
+Fill
+Form.ShowModal
