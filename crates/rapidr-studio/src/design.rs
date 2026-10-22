@@ -432,7 +432,7 @@ mod tests {
         type_keys(&mut s, "&File");
         assert!(s.key(13, "", false, false));
         // the File item is there, its menu open, its Type Here being typed
-        let file = s.designer.design.find("File1").expect("named as Delphi names it");
+        let file = s.designer.design.find("File1").expect("named by type and number");
         assert_eq!(s.menu_open, vec![file]);
         assert!(s.editing.is_some());
         type_keys(&mut s, "&Open...");
@@ -647,7 +647,7 @@ mod tests {
     }
 
     /// Nothing selected, the inspector shows the form itself — its
-    /// properties and its events (Delphi's) — and a handler made for one of
+    /// properties and its events — and a handler made for one of
     /// the form's events is written and bound as a component's is.
     #[test]
     fn the_form_itself_is_inspected_with_its_events() {

@@ -1,5 +1,5 @@
 //! A form or a module added to a program (RapidR Studio's Project > Add
-//! Form / Add Module, as Delphi's File > New > Form): the new file's text,
+//! Form / Add Module, as RapidQ's File > New > Form): the new file's text,
 //! in the program's own names (RapidR's `RForm`, or RapidQ's `QFORM` for a
 //! program written with them), and the `$INCLUDE` that brings it into the
 //! main program — RapidQ's way of making a program of several files: an

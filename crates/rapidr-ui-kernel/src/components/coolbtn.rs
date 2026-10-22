@@ -1,7 +1,7 @@
 //! QCOOLBTN, a Windows-classic speed button: raised (Flat: no frame until
 //! the mouse is over it, then a thin raised one), sunken while pressed
 //! and while Down, its caption a pixel down and right then. It never takes
-//! the focus (a graphic control, as Delphi's TSpeedButton). Buttons
+//! the focus (a graphic control, as RapidQ's own SpeedButton). Buttons
 //! sharing a parent and a non-zero GroupIndex are a group
 //! (`rapidr_value::toggle_group`, as the web's): a click puts
 //! one down and the others up; the one down comes up only with AllowAllUp;

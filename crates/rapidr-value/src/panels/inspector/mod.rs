@@ -1,4 +1,4 @@
-//! RPROPERTYINSPECTOR's model (docs/ide-components.md §3.4): Delphi's object
+//! RPROPERTYINSPECTOR's model (docs/ide-components.md §3.4): the object
 //! inspector as a public component — the data the kernel draws
 //! (`rapidr-ui-kernel`'s `components/panels/inspector/`) and the program's
 //! members and events through the runtime glue.

@@ -2,11 +2,11 @@
 //! runtime-core's layout): its panels left to right, each `Panel(i).Width`
 //! pixels (100 by default; the last one takes the rest), each a thin
 //! sunken box with its Caption on one line — or its SimpleText in one box
-//! when SimplePanel is set (VCL's TStatusBar: SimpleText alone shows
+//! when SimplePanel is set (RapidQ's TStatusBar: SimpleText alone shows
 //! nothing, RC.EXE; no panels is one empty box); as the web runtime lays
 //! it out.
 //!
-//! (the input lane's) Its **size grip** (Delphi's TStatusBar.SizeGrip,
+//! (the input lane's) Its **size grip** (RapidQ's own StatusBar.SizeGrip,
 //! RapidQ's SizeGrip, True by default): on a sizeable form, docked at its
 //! bottom, the bar's bottom-right square shows Windows' classic grip (the
 //! last box ends before it), and a drag from it resizes the window — the
@@ -56,7 +56,7 @@ pub fn panels(store: &dyn Store, id: &str, w: i64, h: i64) -> Vec<(Rect, String)
     // edges; the last ends before the size grip)
     let boxed = |x: i64, pw: i64| (x, 2, (pw - 2).max(0), (h - 3).max(0));
     let w = if has_grip(store, id) { w - STATUS_GRIP } else { w };
-    // (SimpleText shows only with SimplePanel, as VCL's TStatusBar; no
+    // (SimpleText shows only with SimplePanel, as RapidQ's TStatusBar; no
     // panels without it: one empty box)
     if store::flag(store, id, "simplepanel", false) {
         return vec![(boxed(1, w), store::string(store, id, "simpletext"))];

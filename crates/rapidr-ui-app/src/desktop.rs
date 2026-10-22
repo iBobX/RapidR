@@ -742,7 +742,7 @@ pub fn cursor_at(desk: &mut Desktop, store: &dyn Store, form: &str, (x, y): (f64
     let Desktop { forms, text, .. } = desk;
     let Some(f) = forms.get_mut(form) else { return Cursor::Default };
     // (a drag source dragged: nothing takes a drop — RapidQ has no
-    // OnDragOver — so the no-drop pointer, as the VCL shows it)
+    // OnDragOver — so the no-drop pointer, as RapidQ shows it)
     if f.ui.dragging_source() {
         return Cursor::NoDrop;
     }

@@ -136,7 +136,7 @@ def main():
     ap.add_argument("--examples", required=True)
     ap.add_argument("--run", action="append", default=[])
     ap.add_argument("--web", action="append", default=[])
-    ap.add_argument("--title", default="RapidQ's examples on macOS, Linux and the web")
+    ap.add_argument("--title", default="RapidQ's examples under RapidR on macOS, Linux and the web")
     ap.add_argument("--intro")
     ap.add_argument("--notes")
     ap.add_argument("-o", "--out", required=True)

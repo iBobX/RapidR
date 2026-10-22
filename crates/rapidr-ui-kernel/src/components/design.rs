@@ -481,7 +481,7 @@ impl View {
                         let prop = rapidr_value::designer::model::prop_key(&p.name);
                         // (event handlers — bare names — are bound, not stored:
                         // `value_of` reads none; what's hidden shows at design
-                        // time, as in Delphi's designer)
+                        // time, as designers show it)
                         if prop == "visible" || prop == "parent" {
                             continue;
                         }
@@ -608,7 +608,7 @@ impl ComponentKind for Design {
     /// The designer's pointer (rapidr-value's `pointer_at`): a selection
     /// handle's or the form's edge's sizing arrows (kept while dragged), the
     /// placing tool's cross, the four arrows over a selected component (the
-    /// Delphi designer's move pointer; kept while it is dragged), else the
+    /// designer's move pointer; kept while it is dragged), else the
     /// arrow.
     fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> Cursor {
         use rapidr_value::objects::design::Pointer;

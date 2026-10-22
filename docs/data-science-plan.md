@@ -1,6 +1,6 @@
 # Data science with RapidR — the plan (I7, the WOW 1.0 priority)
 
-Robert's priority for the WOW 1.0 (ROADMAP.md, stage I7, "PRIORITY for the WOW 1.0"; docs/ide-plan.md §I7): RapidR as the best **and** the easiest data-science tool — a school kid can use it, it is fast on millions of rows, its RDataFrame covers what Polars covers in RapidR's own way, sources and data-aware components link Delphi- and Xojo-style, everything is live in RapidR Studio's designer, and every component is AI- and MCP-ready through the language registry.
+Robert's priority for the WOW 1.0 (ROADMAP.md, stage I7, "PRIORITY for the WOW 1.0"; docs/ide-plan.md §I7): RapidR as the best **and** the easiest data-science tool — a school kid can use it, it is fast on millions of rows, its RDataFrame covers what Polars covers in RapidR's own way, sources and data-aware components are linked components (drop one in the tray, point at it), everything is live in RapidR Studio's designer, and every component is AI- and MCP-ready through the language registry.
 
 This document is the architecture and the plan: the engine, the source components, the data-aware components, the BASIC API, the web's limits, licences, performance budgets and the benchmark suite, how each piece registers in the language registry, and the phases with their sizes. §12 records what phase 1 (lane DATA-ARCH) built and measured.
 
@@ -63,7 +63,7 @@ Columns are stored in **chunks** (64 Ki rows a chunk, or a whole column for smal
 
 ### 2.5 Lazy plans and the optimizer (phase 3)
 
-RDataFrame's methods stay eager (a kid's mental model: the frame changes now). Under them, and under the transform components (RDFFilter, RDFSort, RDFGroup, RDFJoin, RDFCompute, RDFSelect, RDFLimit — Delphi's chained datasets) and `SQL`, is a **logical plan**: `Scan(source, columns, predicate) → Filter → Project → Join → GroupBy → Sort → Limit`. The optimizer: predicate pushdown (into the scan: a CSV's rows are tested as they're parsed, a Parquet's row groups skipped by their statistics, a SQL source's `WHERE`), projection pushdown (only the columns used are parsed / fetched), limit pushdown (a designer preview reads 1,000 rows, not a million), filter fusion, constant folding, and re-using an unchanged sub-plan's result (the designer re-evaluates a chain whenever a property changes). `df.Explain` prints the optimized plan.
+RDataFrame's methods stay eager (a kid's mental model: the frame changes now). Under them, and under the transform components (RDFFilter, RDFSort, RDFGroup, RDFJoin, RDFCompute, RDFSelect, RDFLimit — chained datasets) and `SQL`, is a **logical plan**: `Scan(source, columns, predicate) → Filter → Project → Join → GroupBy → Sort → Limit`. The optimizer: predicate pushdown (into the scan: a CSV's rows are tested as they're parsed, a Parquet's row groups skipped by their statistics, a SQL source's `WHERE`), projection pushdown (only the columns used are parsed / fetched), limit pushdown (a designer preview reads 1,000 rows, not a million), filter fusion, constant folding, and re-using an unchanged sub-plan's result (the designer re-evaluates a chain whenever a property changes). `df.Explain` prints the optimized plan.
 
 ### 2.6 Streaming and out-of-core (phase 4)
 
@@ -138,7 +138,7 @@ All of it is one module, `rapidr_value::datascience::link`, shared by every runt
 | Methods | `First`, `Prior`, `Next`, `Last`, `Field(Name)` (the current row's value), `SetField(Name, Value)`, `Refresh` |
 | Events | `OnDataChange` (the row moved, or the data changed), `OnStateChange` |
 
-Phase 5 adds Delphi's editing states (`Edit`, `Insert`, `Post`, `Cancel`, `Delete`, `State = "edit" / "insert"`) for database sources that post back by primary key (rapidr-db's dataset model, ide-plan §I7), and `MasterSource` + `MasterFields` / `DetailFields` for master–detail (the detail's rows are those matching the master's current row, re-filtered as the master moves).
+Phase 5 adds editing states (`Edit`, `Insert`, `Post`, `Cancel`, `Delete`, `State = "edit" / "insert"`) for database sources that post back by primary key (rapidr-db's dataset model, ide-plan §I7), and `MasterSource` + `MasterFields` / `DetailFields` for master–detail (the detail's rows are those matching the master's current row, re-filtered as the master moves).
 
 ### 4.3 Bound controls: DataSource + DataField
 
@@ -295,7 +295,7 @@ Budgets are enforced by `tools/bench/frame_bench` (exit code 1 when a budget is 
 - `bench_pandas.py`, `bench_polars.py` — the same data and operations in pandas and Polars, run only where those are installed (`python3 tools/bench/bench_pandas.py`; never dependencies of RapidR, never shipped); `tools/bench/compare.sh` runs everything available and prints one table.
 - `make_data.py` / the Rust generator — the same deterministic data for all (a CSV written once to `tests/results/bench/`).
 
-## 10. The language registry: IntelliSense, MCP, AI
+## 10. The language registry: completion, MCP, AI
 
 Every component here has a complete registry entry (`crates/rapidr-lang/data/components/datascience.toml`): `kind = "component"`, `visual`, `size`, the group "Data science", a doc in plain words, every property with its type (`component` + `kinds` for links, `editor = "file"` for `FileName`), default, access and design flags, every method with its parameters, return and doc, every event with its parameters. Properties added to REdit / RLabel carry `origin = "rapidr"`. From it come the compilers' component list, the IDE's completion and help, the inspector's editors and pickers, the manual's reference pages and the AI system prompt (docs/ide-ai.md) — no hand-written list anywhere else.
 
@@ -350,8 +350,8 @@ Through a RapidR program (`tools/bench/bench_rapidr.rr`, 1 M rows, the file read
 
 ## 13. Open questions for Robert
 
-1. **Bound controls write back on every keystroke** (simple, immediate). Delphi posts when the user leaves the field; the dataset editing states of phase 5 (Edit / Post / Cancel) would make that the rule for database sources. Keep per-keystroke for in-memory frames?
+1. **Bound controls write back on every keystroke** (simple, immediate). Many data tools post when the user leaves the field; the dataset editing states of phase 5 (Edit / Post / Cancel) would make that the rule for database sources. Keep per-keystroke for in-memory frames?
 2. **`RDataFrame.Source` re-pulls when the source changes**, discarding what the program did to the frame (Filter, Sort …). That keeps "the frame shows the file" true for a child; phase 3's transform components (RDFFilter …) are the way to keep a pipeline. Agreed?
-3. **Data components outside the form** (top-level `CREATE People AS RCSV`) run fine but the designer reads only the form's own (the tray's) — as Delphi's form designer. Should top-level data components show at design time too?
+3. **Data components outside the form** (top-level `CREATE People AS RCSV`) run fine but the designer reads only the form's own (the tray's), as form designers usually do. Should top-level data components show at design time too?
 4. **Oracle**: not planned (its client's licence) unless a legal review says otherwise.
 5. **Polars isn't installed on this Mac** (pandas 3.0.1 is): `pip install polars` (a download — Robert's call) and `tools/bench/compare.sh` adds its column.

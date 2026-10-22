@@ -8,7 +8,7 @@
 //! the colour picker's swatches are clicked. The keyboard: Up / Down, Page
 //! Up / Down, Home / End; Left / Right close and open (an enum's: the
 //! previous / next constant); Enter or F2 types a value (Enter keeps it,
-//! Escape drops it, Tab goes on to the next row's, as Delphi's); Space
+//! Escape drops it, Tab goes on to the next row's); Space
 //! toggles; Alt+Down (F4) drops a list; Delete puts a value back;
 //! Ctrl+F searches; letters go to a property by its name.
 
@@ -606,7 +606,7 @@ impl Inspector {
         match k.vk {
             vk::TAB => {
                 if finish(cx, true) {
-                    // (Delphi's: on to the next (Shift: previous) row that types)
+                    // (on to the next (Shift: previous) row that types)
                     let step: i64 = if k.mods.shift { -1 } else { 1 };
                     let mut j = i as i64 + step;
                     while j >= 0 && (j as usize) < v.rows.len() {
@@ -733,7 +733,7 @@ impl Inspector {
                 RowKind::Event if !was => {}
                 _ => {
                     // (the click that starts the edit leaves the whole value
-                    // selected, as Delphi's Object Inspector does: typing
+                    // selected, as inspectors do: typing
                     // replaces it; a later click places the caret)
                     let typed = begin(cx, &v, &r.key);
                     if !typed && matches!(geo::row_kind(&v.m, &r), Some(Kind::Bool)) && was && !v.m.read_only {

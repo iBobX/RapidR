@@ -377,7 +377,7 @@ impl FormDesign {
     }
 
     /// A name no component has: `base` followed by the smallest number from
-    /// 1 (`Button1`, `Button2` …), as Delphi names new components.
+    /// 1 (`Button1`, `Button2` …), numbered by type.
     pub fn unique_name(&self, base: &str) -> String {
         let base = base.trim_end_matches(|c: char| c.is_ascii_digit());
         (1..).map(|n| format!("{base}{n}")).find(|n| self.find(n).is_none()).unwrap_or_default()
@@ -385,8 +385,8 @@ impl FormDesign {
 
     /// The name a new component of this type gets, after its name in
     /// mixed case as the registry spells it (`QBUTTON` → `Button1`,
-    /// `QCHECKBOX` → `CheckBox1`, `QSTRINGGRID` → `StringGrid1`), as Delphi
-    /// and VB name them.
+    /// `QCHECKBOX` → `CheckBox1`, `QSTRINGGRID` → `StringGrid1`), by type
+    /// and number.
     pub fn new_name(&self, type_written: &str) -> String {
         if let Some(c) = rapidr_lang::component(type_written) {
             return self.unique_name(c.display);

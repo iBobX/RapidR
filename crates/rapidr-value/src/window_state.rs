@@ -8,7 +8,7 @@
 //!   the maximized bounds — the work area on the desktop, the page's
 //!   viewport on the web — and OnResize fires as for a user's resize;
 //!   restored, the bounds it had come back (Windows' rcNormalPosition).
-//! - Minimized, the bounds stay what they were (Delphi reads a minimized
+//! - Minimized, the bounds stay what they were (RapidQ reads a minimized
 //!   form's normal bounds) and nothing is resized: no OnResize. The form
 //!   stays Visible.
 //!

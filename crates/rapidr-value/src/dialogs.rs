@@ -77,7 +77,7 @@ pub fn message_dlg_title(msg_type: i64) -> &'static str {
     }
 }
 
-/// A MESSAGEDLG box's caption, as Delphi's MessageDlg gives it: its type's
+/// A MESSAGEDLG box's caption, as RapidQ's MessageDlg gives it: its type's
 /// ([`message_dlg_title`]), and mtCustom's (or an unknown type's) the
 /// application's title (`app_title`: Application.Title).
 pub fn message_dlg_caption(msg_type: i64, app_title: &str) -> String {
@@ -88,7 +88,7 @@ pub fn message_dlg_caption(msg_type: i64, app_title: &str) -> String {
 }
 
 /// The picture a message box shows left of its text: Windows' MB_ICONxxx /
-/// IDI_xxx, Delphi's mtWarning … mtConfirmation.
+/// IDI_xxx, RapidQ's mtWarning … mtConfirmation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum MsgIcon {
     /// A yellow triangle with a black "!" (MB_ICONEXCLAMATION, mtWarning).
@@ -296,7 +296,7 @@ pub fn button_caption(label: &str) -> String {
     }
 }
 
-/// Where a message box's parts go (logical pixels), as Delphi's
+/// Where a message box's parts go (logical pixels), as RapidQ's
 /// MessageDlg lays them out (CreateMessageDialog, in MS Sans Serif's
 /// dialog units): the icon at the top left, the text right of it, the
 /// buttons centred under both.
@@ -310,7 +310,7 @@ pub struct MessageLayout {
     pub buttons: Vec<(i64, i64, i64, i64)>,
 }
 
-/// Delphi's MessageDlg metrics (8 / 10 / 4 dialog units, 50 × 14 buttons).
+/// RapidQ's MessageDlg metrics (8 / 10 / 4 dialog units, 50 × 14 buttons).
 pub const MARGIN: (i64, i64) = (12, 13);
 pub const SPACING: (i64, i64) = (15, 16);
 pub const BUTTON: (i64, i64) = (75, 23);
@@ -374,7 +374,7 @@ mod tests {
 
     #[test]
     fn captions_and_icons() {
-        // (Delphi: the type's caption; mtCustom's is Application.Title)
+        // (RapidQ: the type's caption; mtCustom's is Application.Title)
         assert_eq!(message_dlg_caption(3, "app"), "Confirm");
         assert_eq!(message_dlg_caption(4, "app"), "app");
         assert_eq!(message_dlg_icon(0), Some(MsgIcon::Warning));
@@ -416,7 +416,7 @@ mod tests {
 
     #[test]
     fn layout_puts_the_text_right_of_the_icon() {
-        // Delphi's metrics: margins 12 × 13, the icon's 32 + 15, buttons
+        // RapidQ's metrics: margins 12 × 13, the icon's 32 + 15, buttons
         // 75 × 23 six apart, 16 under the text
         let l = message_layout(200, 26, 3, true);
         assert_eq!(l.icon, Some((12, 13, 32, 32)));

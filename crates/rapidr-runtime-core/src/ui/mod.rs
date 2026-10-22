@@ -37,7 +37,7 @@ pub use kernel::{
     text_push, gui_set_text, gui_set_input_value, text_pull, gui_get_text, gui_get_input_value,
     // Waits (DOEVENTS and the VM's pump: [`gui_doevents`], [`gui_pump_wait`]).
     // (`gui_choice`, the dialogs lane's: the box's icon, and whether it
-    // beeps as Windows' MessageBox does — MESSAGEBOX; Delphi's MessageDlg
+    // beeps as Windows' MessageBox does — MESSAGEBOX; RapidQ's MessageDlg
     // doesn't)
     gui_showmodal, gui_wait_key, gui_take_wait_started, gui_set_cooperative_waits,
     // (stopped for the debugger: the windows served, the program not run;

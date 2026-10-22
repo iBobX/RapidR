@@ -305,7 +305,7 @@ mod tests {
     }
 }
 
-/// QBUTTON's `Kind` (RapidQ's bkCustom 0 … bkAll 10, Delphi's TBitBtn): the
+/// QBUTTON's `Kind` (RapidQ's bkCustom 0 … bkAll 10, RapidQ's own BitBtn): the
 /// caption it gets and the ModalResult it closes a modal form with (bkClose
 /// closes the form; bkHelp only gets its caption). None for bkCustom.
 pub fn button_kind(kind: i64) -> Option<(&'static str, i64)> {
@@ -378,7 +378,7 @@ pub fn take_posted_paints() -> Vec<String> {
 /// in docs/manual/events.md): a QEDIT's Text or SelText that changes the text
 /// fires its OnChange inside the set, before the next statement; a
 /// QRICHEDIT's too (twice for Text once its form has shown: the multi-line
-/// edit's own change and the VCL's text change); a QCHECKBOX's Checked that
+/// edit's own change and RapidQ's text change); a QCHECKBOX's Checked that
 /// changes fires its OnClick; a QRADIOBUTTON's Checked set to True from
 /// False its OnClick (set to False, or the sibling it unchecks: nothing); a
 /// QSCROLLBAR's Position that changes its OnChange (not OnScroll). The same

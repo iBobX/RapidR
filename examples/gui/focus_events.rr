@@ -4,7 +4,7 @@
 '
 '   rapidr run focus_events.rr
 '
-' Every component that takes the focus has both (RapidR's, as Delphi's):
+' Every component that takes the focus has both (RapidR's own):
 ' the one left hears OnExit first, then the one reached its OnEnter.
 $THEME rapidr
 

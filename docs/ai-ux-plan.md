@@ -80,19 +80,19 @@ After 2.120.0, Robert asked for two things:
 - **The banner and chat buttons should match Studio's streamlined design**: today they look foreign.
 
 **What the best diff views do (the model to follow):**
-- **Xcode:** a side-by-side comparison, with a soft coloured *ribbon* connecting each change between the two sides, and calm tints rather than loud red and green.
+- **A side-by-side design:** a comparison, with a soft coloured *ribbon* connecting each change between the two sides, and calm tints rather than loud red and green.
   - It has a minimap of changes in the scrollbar.
   - Each change is a rounded block with its own discard control.
   - Its typography is identical to the editor's.
-- **JetBrains:** the same connectors between the sides.
+- **A second design:** the same connectors between the sides.
   - Per-change ≫ / × arrows in the gutter, to take or drop a change.
   - Word-level highlights inside changed lines.
   - "Next / previous difference" always visible.
-- **VS Code / Cursor:** the change stays *in the editor* (inline, unified).
+- **An inline design:** the change stays *in the editor* (inline, unified).
   - A small floating Keep / Undo pill sits on each change.
   - A bar shows "1 of 5 changes".
   - Word-level highlighting is standard.
-- **GitHub / Sublime Merge:** a unified/split toggle; folded unchanged lines ("⋯ 24 lines"); a file list with +/− counts.
+- **Web and Git clients:** a unified/split toggle; folded unchanged lines ("⋯ 24 lines"); a file list with +/− counts.
 
 **For RapidR Studio:**
 - **A "Review" tab docked in the editor area**, next to the file's own tab.

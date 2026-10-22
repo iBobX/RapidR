@@ -30,7 +30,7 @@
 //! `TextOut` and `Draw` on the grid are kept per cell ([`CellDraw`]) and
 //! drawn over the cell until the grid changes again. Rect is in the grid's
 //! own coordinates (cells from the top left, 1px grid lines), like
-//! Delphi's for an unscrolled grid.
+//! RapidQ's for an unscrolled grid.
 //!
 //! Indexes out of range read as "" / 0 and are ignored when written, as
 //! RapidQ doesn't stop the program for them. Sizes are capped so a program
@@ -42,7 +42,7 @@ use std::hash::{Hash, Hasher};
 use super::bitmap::Bitmap;
 use crate::{v_int, v_str, Value};
 
-/// Delphi's TGridDrawState bits, as OnDrawCell's State.
+/// RapidQ's own GridDrawState bits, as OnDrawCell's State.
 pub const GD_SELECTED: i64 = 1;
 pub const GD_FOCUSED: i64 = 2;
 pub const GD_FIXED: i64 = 4;
@@ -227,7 +227,7 @@ impl Default for StringGrid {
             top_row: 1,
             left_col: 1,
             separator: ",".into(),
-            // Delphi's defaults: lines everywhere, range selection.
+            // RapidQ's defaults: lines everywhere, range selection.
             options: bit(GO_FIXED_VERT_LINE) | bit(GO_FIXED_HORZ_LINE) | bit(GO_VERT_LINE) | bit(GO_HORZ_LINE) | bit(GO_RANGE_SELECT),
             column_styles: Vec::new(),
             column_lists: Vec::new(),
@@ -494,7 +494,7 @@ impl StringGrid {
             "rowcount" | "rows" => self.resize(count, self.col_count),
             // (a grid not scrolled, its current cell the first one beside the
             // fixed ones, stays so: with FixedCols = 0 column 0 shows and is
-            // the current one, as Delphi's grid does)
+            // the current one, as RapidQ's grid does)
             "fixedcols" => {
                 let old = self.fixed_cols() as i64;
                 self.want_fixed_cols = count;
@@ -519,7 +519,7 @@ impl StringGrid {
                 }
                 self.fix_selection();
             }
-            // Setting the default size sizes every column / row (Delphi).
+            // Setting the default size sizes every column / row (as in RapidQ).
             "defaultcolwidth" | "colwidth" => {
                 self.default_col_width = n.clamp(0, 10_000);
                 self.col_widths.fill(self.default_col_width);

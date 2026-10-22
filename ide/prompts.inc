@@ -1,5 +1,5 @@
 ' prompts.inc: the question Studio asks before changes would be lost, as
-' macOS and Xcode ask it. One document: "Do you want to save the changes you
+' macOS asks it. One document: "Do you want to save the changes you
 ' made to main.rr?" — Save (Enter), Don't Save, Cancel (Escape). Quitting
 ' with several documents changed: Save All (Enter), Review Changes... (each
 ' one asked in turn), Discard Changes, Cancel (Escape). The buttons in the

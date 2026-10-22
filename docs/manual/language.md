@@ -2,7 +2,7 @@
 
 RapidR's language is a modern BASIC, and programs written for RapidQ run as
 they are. This chapter is a working summary, with the rules where RapidR
-differs from QBasic, VB or other BASICs — those are the ones that surprise
+differs from other BASICs — those are the ones that surprise
 people. Native builds, the
 interpreter and the web give the same output for every example here.
 

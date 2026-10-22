@@ -23,7 +23,7 @@
 //!   left.
 //! - Text is drawn in the screen's Font, MS Sans Serif 8 until the program
 //!   sets one (`Font = QFont`, `Font.Size = …`): DelphiX's surface canvas
-//!   was a TCanvas with Delphi's default font, as the manual's chapter 13
+//!   was a TCanvas with its default font, as the manual's chapter 13
 //!   screenshots show ("FPS: 20").
 //! - FullScreen (manual: set before ShowModal, with the form bsNone): the
 //!   form's window covers the screen and the surface keeps its size — as
@@ -41,7 +41,7 @@
 //!   Green, &HFF0000 = Red"). `Line(0, 0, 200, 200, &HFF)` is red, as the
 //!   manual's example says.
 //! - **QDXIMAGELIST** ([`DxImageList`]): the pictures of a DelphiX image
-//!   library (`.DXG`, a TPictureCollection streamed by Delphi), drawn onto
+//!   library (`.DXG`, a TPictureCollection streamed as a form), drawn onto
 //!   its Parent screen with `Draw(Item, X, Y, Pattern)` — the fourth
 //!   argument (the manual's "Mask") is DelphiX's pattern index into a
 //!   picture cut into PatternWidth × PatternHeight cells; a Transparent
@@ -87,7 +87,7 @@ pub struct DxScreen {
     pub background: u32,
 }
 
-/// DelphiX's surface canvas font: Delphi's default TFont.
+/// DelphiX's surface canvas font: the default TFont.
 fn screen_font() -> super::font::Font {
     super::font::Font { name: "MS Sans Serif".into(), size: 8, color: 0, styles: 0 }
 }
@@ -356,7 +356,7 @@ impl DxImageList {
     }
 }
 
-/// Delphi's colour names (TColor, &HBBGGRR) an image library's
+/// Colour names (TColor, &HBBGGRR) an image library's
 /// TransparentColor is streamed as.
 fn delphi_color(name: &str) -> Option<u32> {
     Some(match name.to_ascii_lowercase().as_str() {
@@ -380,7 +380,7 @@ fn delphi_color(name: &str) -> Option<u32> {
     })
 }
 
-/// A value of Delphi's binary form streams (TPF0).
+/// A value of the binary form streams (TPF0).
 #[derive(Debug, Clone, PartialEq)]
 enum Streamed {
     Int(i64),
@@ -391,7 +391,7 @@ enum Streamed {
     Other,
 }
 
-/// A reader of Delphi's binary form streams (Classes.pas' TReader).
+/// A reader of binary form streams (Classes.pas' TReader).
 struct Reader<'a> {
     b: &'a [u8],
     at: usize,
@@ -500,7 +500,7 @@ impl Reader<'_> {
 
 /// A picture's `Picture.Data` (a graphic class's name, then its data) as
 /// a BMP file: DelphiX's TDIB streams a BITMAPINFOHEADER, its palette and
-/// its rows; Delphi's TBitmap the size and a BMP file.
+/// its rows; a TBitmap the size and a BMP file.
 fn picture_bmp(data: &[u8]) -> Result<Vec<u8>, String> {
     let bad = || "a picture in the image library RapidR can't read".to_string();
     let class_len = *data.first().ok_or_else(bad)? as usize;
@@ -533,7 +533,7 @@ fn picture_bmp(data: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 /// The pictures of a DelphiX image library (`.DXG`: a resource header,
-/// then a TPictureCollectionComponent streamed as a Delphi form, `TPF0`).
+/// then a TPictureCollectionComponent streamed as a form, `TPF0`).
 pub fn parse_dxg(bytes: &[u8]) -> Result<Vec<DxPicture>, String> {
     let start = bytes.windows(4).position(|w| w == b"TPF0").ok_or("not a DelphiX image library (.DXG)")?;
     let mut r = Reader { b: bytes, at: start + 4 };

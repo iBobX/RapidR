@@ -2,7 +2,7 @@
 
 # Constants
 
-RapidQ's RAPIDQ.INC (built in: `$INCLUDE "RAPIDQ.INC"` needs no file), its library includes' and RapidR's own. Colours are RapidQ's: `&HBBGGRR`.
+RapidR's own, and the ones programs written for RapidQ use, built in: RAPIDQ.INC (`$INCLUDE "RAPIDQ.INC"` needs no file) and its library includes'. Colours are `&HBBGGRR`, as RapidQ stores them.
 
 ## Message box buttons and icons
 

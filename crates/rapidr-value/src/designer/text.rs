@@ -74,8 +74,8 @@ pub fn file_uses_rapidq_names(text: &str, path: &str) -> bool {
     rapidr_project::forms::uses_rapidq_names(text, path)
 }
 
-/// A new component of `type_name` (any of its names) at `rect`: named as
-/// Delphi names them (`Button1`), written in the file's style
+/// A new component of `type_name` (any of its names) at `rect`: named by
+/// type and number (`Button1`), written in the file's style
 /// ([`FormDesign::names`]: `RButton`, or `QBUTTON` in a RapidQ-style
 /// file), with its Caption (its name, where it has one) and its Left / Top
 /// / Width / Height.
@@ -129,7 +129,7 @@ mod tests {
         assert!(file_uses_rapidq_names("' notes\nCREATE Form AS QFORM\nEND CREATE\n", "a.rr"));
         assert!(!file_uses_rapidq_names("CREATE Form1 AS RForm\nEND CREATE\n", "a.bas"));
         assert!(file_uses_rapidq_names("PRINT 1\n", "old.bas") && !file_uses_rapidq_names("PRINT 1\n", "new.rr"));
-        // (named after the registry's mixed-case spelling, as Delphi and VB)
+        // (named after the registry's mixed-case spelling, by type and number)
         for (ty, name) in [("QCHECKBOX", "CheckBox1"), ("RSTRINGGRID", "StringGrid1"), ("QCOMBOBOX", "ComboBox1"), ("QRICHEDIT", "RichEdit1"), ("QDXSCREEN", "DXScreen1")] {
             assert_eq!(new_component(&d, ty, Rect::new(0, 0, 10, 10)).name, name);
         }

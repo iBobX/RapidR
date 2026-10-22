@@ -36,8 +36,8 @@ against and compatibility needs it:
 - the names of components, properties, methods, events, functions and
   constants, and the constants' numbers (written in RapidR's own order and
   layout, with the public origin of each number noted where there is one:
-  Microsoft's Win32 documentation, Embarcadero's documentation of the VCL
-  types);
+  Microsoft's Win32 documentation, the published documentation of the types
+  RapidQ's own runtime uses);
 - behaviour: what a program prints, returns or shows, observed by running
   **your own** test programs (with RapidR, or with RapidQ as described in
   [docs/rapidq-ground-truth.md](docs/rapidq-ground-truth.md));
@@ -50,8 +50,8 @@ adapt the manual's examples or programs from the RapidQ corpus. When a
 behaviour is ported from observation, say so in the commit or the code
 comment ("as RC.EXE prints", "observed with RapidQ").
 
-The same applies to other products RapidQ used or imitated (Delphi's VCL,
-Windows, DelphiX, DirectX): names, numbers, formats and behaviour, never
+The same applies to other products RapidQ used or imitated (its component
+toolkit, Windows, DirectX, the libraries behind its game objects): names, numbers, formats and behaviour, never
 their code, documentation text or artwork.
 
 ## Where RapidQ material may live on your machine
@@ -65,7 +65,7 @@ written into the repository or into a RapidR build or installer.
 
 ## Names and trademarks
 
-Use "RapidQ" (and Delphi, Windows, DirectX, …) only to say what RapidR is
+Use "RapidQ" (and Windows, DirectX, …) only to say what RapidR is
 compatible with or to name a platform ("compatible with RapidQ", "as in
 RapidQ"). Never name a RapidR component, package, file, theme or product
 after them, and never use their logos. RapidR's own components are `R…`;

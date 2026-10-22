@@ -10,7 +10,7 @@
 //! program's settings persist between runs the way RapidQ's did in the
 //! registry; nothing outside the store is read or changed.
 //!
-//! The API is Delphi's TRegistry, which QREGISTRY's names follow: OpenKey /
+//! The API is that of a registry object, which QREGISTRY's names follow: OpenKey /
 //! KeyExists / CreateKey / DeleteKey take a path relative to the open key
 //! (`\` first: from the root); names are case-insensitive and keep their
 //! case; GetDataType is TRegDataType's (0 unknown, 1 string, 2 expandable

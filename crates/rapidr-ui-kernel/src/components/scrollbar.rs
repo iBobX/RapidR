@@ -1,4 +1,4 @@
-//! QSCROLLBAR (RapidR's RSCROLLBAR, Delphi's TScrollBar): a Windows scroll
+//! QSCROLLBAR (RapidR's RSCROLLBAR, RapidQ's own ScrollBar): a Windows scroll
 //! bar on its own — Kind 0 (sbHorizontal) or 1 (sbVertical), Position
 //! between Min and Max (less a PageSize but one), SmallChange for an arrow
 //! or an arrow key, LargeChange for a click in the track or Page Up / Page

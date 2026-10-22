@@ -1,5 +1,5 @@
 // The manual's "The code editor" page (docs/manual/studio-editor.md): RapidR
-// Studio's IntelliSense on examples/gui/hello_form.rr, typed through the
+// Studio's completion on examples/gui/hello_form.rr, typed through the
 // keyboard the way a user types (S-EDITOR).
 export const topic = "studio-editor";
 

@@ -4,7 +4,7 @@
 //! the kernel draws them over the components and gives them the mouse
 //! first — a press on a bar never reaches the component under it, nor
 //! OnMouseDown. Scrolling moves the components (their Left / Top, as
-//! Delphi's ScrollBy): the kernel queues a
+//! RapidQ's ScrollBy): the kernel queues a
 //! [`Container::Scrolled`] and runtime-core moves them after the pump.
 //!
 //! A scroll box is its edge (BorderStyle bsSingle, its default: Windows'
@@ -66,7 +66,7 @@ impl ComponentKind for ScrollBox {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        // (the input lane's: OnClick, OnDblClick in RapidQ's order)
         super::canvas::click_or_double(cx, m)
     }
 
@@ -146,7 +146,7 @@ fn scrolled(f: &mut FormUi, id: &str, (dx, dy): (i64, i64)) {
     }
 }
 
-/// (Delphi's AutoScrollInView) The keyboard's focus moved onto a component
+/// (RapidQ's AutoScrollInView) The keyboard's focus moved onto a component
 /// out of view: each scroll box holding it, innermost first, then the
 /// form, scrolls by the least that shows it (`scrollbars::Scroller::
 /// reveal`) — Tab reaches what's below a scroll box's edge and shows it.

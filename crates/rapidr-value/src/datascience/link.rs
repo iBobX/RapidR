@@ -1,5 +1,5 @@
 //! Linked data (docs/data-science-plan.md §3, §4): sources, data sets, the
-//! current row, and the controls bound to them — Delphi's and Xojo's
+//! current row, and the controls bound to them — the
 //! linked components, the RapidR way, one model for native builds, the
 //! interpreter, the web and RapidR Studio's designer.
 //!
@@ -119,7 +119,7 @@ impl Default for Dsrc {
     }
 }
 
-/// A current row and Delphi's EOF / BOF.
+/// A current row and RapidQ's EOF / BOF.
 #[derive(Clone, Copy, Debug, Default)]
 struct Cursor {
     row: usize,
@@ -1661,7 +1661,7 @@ mod tests {
         let ups = sync();
         assert!(!ups.iter().any(|u| matches!(u, Update::Set(id, ..) if id == "t1edit")), "{ups:?}");
         assert!(ups.contains(&Update::Redraw("t1grid".into())));
-        // (EOF the Delphi way)
+        // (EOF as data sets report it)
         call("t1ds", "next", &[]);
         assert_eq!(get("t1ds", "eof"), Some(v_int(0)));
         call("t1ds", "next", &[]);

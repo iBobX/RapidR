@@ -15,7 +15,7 @@
 //! The SUB's parameters are the registry's for that event
 //! (`rapidr_lang`: `OnKeyDown` → `Key AS WORD, Shift AS INTEGER`), its
 //! name the component's and the event's without "On" (`Button1Click`, as
-//! Delphi names them), made unique when a FUNCTION or another SUB of
+//! the usual way), made unique when a FUNCTION or another SUB of
 //! another meaning has it. A SUB of that name already in the file is bound
 //! as it is, never written twice.
 

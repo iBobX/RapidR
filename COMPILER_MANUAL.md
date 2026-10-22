@@ -32,10 +32,12 @@
 
 ## 1. What RapidR is
 
-An original implementation, in pure Rust, of a compiler and runtimes that
-are compatible with RapidQ BASIC (William Yu's Rapid-Q, last released 2006)
-and extend it. It is not a port or a clone of RapidQ: no RapidQ code is
-used; RapidQ's documented and observed behaviour is the specification.
+An original implementation, in pure Rust, of a modern BASIC: a compiler,
+three runtimes, a UI kernel and RapidR Studio. It runs programs written for
+RapidQ BASIC (William Yu's Rapid-Q, last released 2006) as they are, and
+extends the language. It is not a port or a clone of RapidQ: no RapidQ code
+is used; RapidQ's documented and observed behaviour is the specification of
+that compatibility.
 
 One source program can be:
 
@@ -339,9 +341,10 @@ python3 tools/fonts.py fetch       # the CJK fallback fonts' sources, once (pinn
 - Fixtures' media: `tools/make_avi_fixtures.py`, `make_media_fixture.py`,
   `make_dx_fixture.py`, `make_digit_bitmaps.py`.
 
-## 12. RapidQ's compiler as the ground truth
+## 12. Compatibility: RapidQ's compiler as the ground truth
 
-RC.EXE runs in the Windows 11 VM. `tools/rc_probe.sh` compiles and runs a
+For the programs RapidR shares with RapidQ it does what RapidQ does, and
+RC.EXE (RapidQ's compiler) is how that is checked. It runs in the Windows 11 VM. `tools/rc_probe.sh` compiles and runs a
 folder of probe programs there and returns RapidQ's exact output;
 `tools/rapidq_truth.py` runs the conformance cases, RapidQ's console
 examples or a probe folder through RC.EXE and RapidR and lists every

@@ -517,7 +517,7 @@ pub fn text_out(bmp: &mut Bitmap, x: i64, y: i64, text: &str, font: &Font, color
 /// `TextRect(Rect, x, y, text, colour, background)`: the text as TextOut
 /// draws it at (x, y), but only inside `rect` (Left, Top, Right, Bottom;
 /// the right and bottom edges excluded). A background colour fills the
-/// whole rectangle first, as Windows' ExtTextOut does for Delphi's
+/// whole rectangle first, as Windows' ExtTextOut does for RapidQ's
 /// TextRect with a solid brush; `None` (-1) leaves what's there.
 #[allow(clippy::too_many_arguments)]
 pub fn text_rect(bmp: &mut Bitmap, rect: (i64, i64, i64, i64), x: i64, y: i64, text: &str, font: &Font, color: u32, background: Option<u32>) {

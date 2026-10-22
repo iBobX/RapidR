@@ -958,7 +958,7 @@ fn a_list_hears_onenter_when_it_gets_the_focus() {
 }
 
 /// (DEBUG-2) RapidR's OnEnter / OnExit on every component that takes the
-/// focus, as Delphi's: Tab and Shift+Tab, a click on a button (OnExit and
+/// focus, in the usual way: Tab and Shift+Tab, a click on a button (OnExit and
 /// OnEnter before its OnMouseDown and OnClick), a press on what has the
 /// focus already (nothing), each once, in that order.
 #[test]

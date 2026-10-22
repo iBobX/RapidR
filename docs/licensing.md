@@ -370,8 +370,8 @@ and trademarks, in [legal/rapidq-review.md](legal/rapidq-review.md)
   the remaining four tiny images (`rr_star.svg`, `rr_disc.ico`,
   `picture_res.bmp`, `two_colors.jpg`) are the project's own. No icon is
   taken from RapidQ or an icon pack; the apps use the system's default icon.
-- **Names**: "RapidQ", "Visual Basic", "Delphi", "Windows", "DirectX",
-  "Xojo" and others are used nominatively ("compatible with", "as in");
+- **Names**: "RapidQ", "Windows", "DirectX" and the few other platforms
+  and tools a feature has to name are used nominatively ("compatible with", "as in");
   LEGAL.md and NOTICE have the trademark and no-affiliation statement, and
   CONTRIBUTING.md the rule against copying RapidQ material.
 

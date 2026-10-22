@@ -128,7 +128,7 @@ const SCENES = [
   { name: "editor-hover", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:ShowMessage \"Hi\",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait", delay: 7 },
   { name: "editor-signature", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,type:x$ = MID$(,wait", delay: 6 },
   { name: "editor-tab", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Tab,type:clicks = 0,key:Escape,key:Enter,key:Tab,key:Tab,type:x,key:Escape", delay: 6 },
-  // (Robert's IntelliSense pass) F12 on a call: the caret on its SUB, the
+  // (Robert's completion pass) F12 on a call: the caret on its SUB, the
   // code view kept; mbYes without RAPIDQ.INC squiggled and in Problems;
   // completing it with the include it brings; Ctrl+Space's list
   { name: "editor-f12", open: "examples/gui/hello_form.rr", do: "view.code,focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12,wait", delay: 6 },

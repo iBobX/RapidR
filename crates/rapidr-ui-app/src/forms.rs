@@ -28,11 +28,11 @@ struct Forms {
     /// The forms shown modally now, innermost last.
     modal: Vec<String>,
     /// Modal forms the program hid (Visible = 0, Hide): their ShowModal
-    /// still waits — VCL's, so RapidQ's: only Close (ModalResult) ends it
+    /// still waits — RapidQ's: only Close (ModalResult) ends it
     /// (examples/forms/titlebtn.bas hides its form into the system tray and
     /// shows it again).
     hidden_modal: HashSet<String>,
-    /// Modal forms whose ShowModal's OnShow runs now. VCL's ShowModal sets
+    /// Modal forms whose ShowModal's OnShow runs now. RapidQ's ShowModal sets
     /// ModalResult to 0 once the form has shown, so a Close or ModalResult
     /// there is lost: the form stays (RC.EXE; RapidQ's OpenGL/GL_test1.bas
     /// calls Close in OnShow when a texture file is missing).
@@ -260,7 +260,7 @@ fn window_made<P: Program>(p: P, name: &str, made: bool) {
     p.store(&lower(name), "__shownonce", v_bool(true));
 }
 
-/// OnResize as the VCL fires it (RC.EXE, probes 2026-10-08): when a form's
+/// OnResize as RapidQ fires it (RC.EXE, probes 2026-10-08): when a form's
 /// window is first made and shown — OnResize, OnShow, OnResize again
 /// ([`show`], [`begin_modal`]); later whenever its size changes while the
 /// window exists, shown or hidden, the program's change or the user's
@@ -455,7 +455,7 @@ pub fn hide<P: Program>(p: P, name: &str) {
 /// as `caHide`) decides whether the form goes, stays or is minimized.
 pub fn close<P: Program>(p: P, name: &str) {
     use rapidr_value::events::{CloseAction, CA_HIDE};
-    // (in its ShowModal's OnShow: lost, as VCL's ModalResult is then —
+    // (in its ShowModal's OnShow: lost, as RapidQ's ModalResult is then —
     // no OnClose, the form stays)
     if st(|s| s.modal_onshow.contains(&lower(name))) {
         return;
@@ -543,7 +543,7 @@ pub fn begin_modal<R: Program + Windows>(rt: R, name: &str) {
     }
     window_made(rt, &name, made);
     first_show_resize(rt, &name, first);
-    // (VCL's ShowModal: Show — OnShow —, then ModalResult := 0; a Close
+    // (RapidQ's ShowModal: Show — OnShow —, then ModalResult := 0; a Close
     // or ModalResult in OnShow is lost: Forms::modal_onshow)
     st(|s| s.modal_onshow.insert(name.clone()));
     let shown = name.clone();

@@ -1,6 +1,6 @@
 # Truly native UI for RapidR: one component model, the real widgets of every OS (plan, 2026-10-19)
 
-Robert (2026-10-19): bring the magic of SwiftUI to every platform, with **real** native UI. That means a UI layer that does for widgets what a graphics translation layer does for DirectX → Vulkan/Metal: one RapidR program, and on each OS the platform's own buttons, lists, menus and text fields. It ships as a Rust crate others can use, and RapidR uses it for `$UI native`. It's a long road, and that's fine: it lets students and people with few resources target real OSes and devices (macOS, Windows, Linux, iOS/iPadOS, Android).
+Robert (2026-10-19): bring declarative UI (live previews, adaptive layout, state that drives the screen) to every platform, with **real** native UI. That means a UI layer that does for widgets what a graphics translation layer does for DirectX → Vulkan/Metal: one RapidR program, and on each OS the platform's own buttons, lists, menus and text fields. It ships as a Rust crate others can use, and RapidR uses it for `$UI native`. It's a long road, and that's fine: it lets students and people with few resources target real OSes and devices (macOS, Windows, Linux, iOS/iPadOS, Android).
 
 **Decision for v1:** RapidR 1.0 ships with today's drawn UI kernel and native-*looking* themes (Fluent, macOS, Adwaita) under `$THEME native`. The truly native layer is the post-1.0 project described here.
 
@@ -29,9 +29,9 @@ wgpu does this for graphics: one API, a backend per platform, capability flags, 
 2. **Native where it exists, drawn where it doesn't.** Buttons, edits, lists, trees, tabs, menus, dialogs and the tray are native. `RCanvas`, `RPlot`, the data grid, DirectX and rich custom components are drawn by our kernel inside a native view: a wgpu surface on the native window, with AccessKit for accessibility. The two mix freely in one form. A component with no native backend yet simply falls back to its drawn version, so a program never fails to run.
 3. **Measured parity, not promised parity.** The conformance suite we already have (scripted events plus dumps of what the program sees) runs against **every** backend. Where an OS behaves differently (when `OnChange` fires, for example), the difference is written down per backend. RapidQ-exact behaviour stays guaranteed on the kernel, the default. `$UI native` is opt-in.
 
-## What "the magic of SwiftUI" means, and how we get it
+## What "declarative magic" means, and how we get it
 
-| SwiftUI's magic | RapidR |
+| Declarative magic | RapidR |
 |---|---|
 | One code, native on every Apple device | One code, native on every OS (this plan) |
 | Live previews | Already there: the live designer shows real data while you design |
@@ -44,8 +44,8 @@ wgpu does this for graphics: one API, a backend per platform, capability flags, 
 | # | Backend | Why this order | Built on (licence) |
 |---|---|---|---|
 | N1 | **The contract** | The kernel moves behind the backend trait, becoming backend #1 and the reference. Nothing changes for users | — |
-| N2 | **macOS: AppKit** | Robert develops on a Mac; `objc2` is excellent; AppKit maps closely to Delphi/RapidQ controls (NSButton, NSTextField, NSTableView, NSOutlineView) | `objc2` (MIT/Apache); AppKit is the system's |
-| N3 | **Windows: Win32 common controls**, later **WinUI 3** | RapidQ itself was Win32 (Delphi VCL), so `$UI native` on Windows brings RapidQ programs home to real Win32 controls. WinUI 3 follows for the Windows 11 look | `windows-rs` (MIT/Apache); comctl32 is the system's; Windows App SDK (MIT, a redistributable runtime) |
+| N2 | **macOS: AppKit** | Robert develops on a Mac; `objc2` is excellent; AppKit maps closely to RapidQ's controls (NSButton, NSTextField, NSTableView, NSOutlineView) | `objc2` (MIT/Apache); AppKit is the system's |
+| N3 | **Windows: Win32 common controls**, later **WinUI 3** | RapidQ itself was Win32, so `$UI native` on Windows brings RapidQ programs home to real Win32 controls. WinUI 3 follows for the Windows 11 look | `windows-rs` (MIT/Apache); comctl32 is the system's; Windows App SDK (MIT, a redistributable runtime) |
 | N4 | **iOS / iPadOS: UIKit** | Reuses N2's Apple glue. Touch, the app lifecycle, safe areas, and a form becoming a screen. The bytecode VM is an interpreter (no JIT), so it's App Store-friendly | `objc2` (MIT/Apache); Xcode builds; a device or App Store build needs the user's own Apple Developer account |
 | N5 | **Android: Views through JNI** | Mobile for everyone, the most widespread device in schools | `jni`, `ndk` (MIT/Apache); the Android framework (Apache-2.0); Studio generates the Gradle project |
 | N6 | **Linux: decided, our drawn kernel with the GNOME (Adwaita) look** | Linux has no single "native", and GTK is LGPL. Under the zero-risk rule (2026-10-19, Robert: "you decide") RapidR ships no GTK. Revisit only if many users ask, and then only GTK 4 linked from the system, never bundled, with Robert's approval | our own code |
@@ -54,7 +54,7 @@ wgpu does this for graphics: one API, a backend per platform, capability flags, 
 ## How RapidR uses it
 
 - `$UI native` (the program) or a Studio project setting picks the native backend. `$THEME native` remains the *look* of the drawn kernel, so the two are distinct and both useful.
-- Studio's designer shows the native look per target ("preview as macOS / Windows / iPad / Android"), the way SwiftUI previews devices.
+- Studio's designer shows the native look per target ("preview as macOS / Windows / iPad / Android"), as a live preview shows a device.
 - Builds: `rapidr build --target ios|android` generates and drives the Xcode or Gradle project. `rapidr setup` installs what's missing, after asking, as it does for Rust today.
 - **The crate is public.** `rapidr-ui` (name to be decided after a trademark check; never Apple's or Microsoft's names) is published under MIT for any Rust developer. Every Rust app that uses it is a door to RapidR.
 

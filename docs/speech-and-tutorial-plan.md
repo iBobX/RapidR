@@ -1,6 +1,6 @@
 # RSpeech and Studio's guided lessons: plan (2026-10-16, after Preview 2)
 
-Research on 2026-10-16, with licences read from the source files. Robert asked for speech for accessibility and an in-Studio tutorial in the spirit of Delphi's guided tours and Swift Playgrounds.
+Research on 2026-10-16, with licences read from the source files. Robert asked for speech for accessibility and an in-Studio tutorial in the spirit of guided tours and interactive playgrounds.
 
 ## RSpeech: text to speech for every program
 
@@ -54,11 +54,11 @@ On Linux, never link `libspeechd`, which is LGPL. Don't depend on the `tts` crat
 ## Guided lessons in Studio
 
 ### What we learn from others
-- **Delphi:** its tours can't be resumed once stopped.
-- **VS Code walkthroughs:** steps complete on events.
-- **MakeCode:** lessons are written in Markdown.
-- **Swift Playgrounds:** instant results while typing, challenges.
-- **Clippy:** failed by interrupting people, uninvited. So we never start a lesson on our own.
+- **Guided tours in IDEs:** they can't be resumed once stopped.
+- **Walkthroughs in editors:** steps complete on events.
+- **Block-coding sites:** lessons are written in Markdown.
+- **Playground apps:** instant results while typing, challenges.
+- **Office assistants of the 1990s:** failed by interrupting people, uninvited. So we never start a lesson on our own.
 
 ### The lesson format
 One Markdown file per lesson: front matter plus one block per step. It's easy to translate, review, and write by hand or with the AI.

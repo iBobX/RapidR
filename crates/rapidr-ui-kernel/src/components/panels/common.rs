@@ -1,6 +1,6 @@
 //! What RapidR Studio's panels share when they draw: one look across the
 //! inspector, the toolbox, the project tree, the console, the toolbar and
-//! the palette — Xcode / Xojo-class in the modern and dark themes, Delphi's
+//! the palette — soft and flat in the modern and dark themes, grey and raised
 //! in the classic one, black, white and the accent in high contrast —
 //! every colour taken from the theme ([`Look`]: the theme's tokens, and the
 //! icon palette's hues for errors, warnings and badges), never chosen here.

@@ -262,7 +262,7 @@ pub(crate) fn component_doc(c: &Component) -> Option<String> {
     match c.rapidq {
         Some(q) if c.kind == Kind::Component => doc.push_str(&format!("**{}** — RapidQ name: {q} (one component under two names).", c.spelling())),
         Some(q) => doc.push_str(&format!("**{}**: RapidQ's {q}, under its RapidQ name.", c.spelling())),
-        None => doc.push_str(&format!("**{}** is RapidR's own (RapidQ doesn't have it).", c.spelling())),
+        None => doc.push_str(&format!("**{}** is RapidR's own.", c.spelling())),
     }
     let notes = compat::notes(Origin::RapidQ, Origin::RapidQ, c.kind == Kind::Planned, c.runtimes, c.from);
     if !notes.is_empty() {

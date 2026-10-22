@@ -5,7 +5,7 @@
 ' ---- the command table (docs/ide-plan.md I1) -------------------------------
 ' One row per command: what the menus, the tool bar, the keyboard and the
 ' command palette all show and run. Shortcut is the key bound in the menus
-' (VB6 / Delphi's: F5 Run, Shift+F5 Stop, F9 breakpoint, F8 / F10 / F11
+' (the usual keys: F5 Run, Shift+F5 Stop, F9 breakpoint, F8 / F10 / F11
 ' stepping, Ctrl+S, Ctrl+O, Ctrl+N, Ctrl+Shift+P); Shown is a key the
 ' focused control keeps (Ctrl+C in an editor), shown in the menu only.
 ' EnabledWhen names the state the command needs: "" always, "project",

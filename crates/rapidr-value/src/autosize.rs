@@ -1,5 +1,5 @@
-//! A QLABEL's `AutoSize` (Delphi's TCustomLabel.AdjustBounds, which RapidQ's
-//! QLABEL is), the same on every runtime. Pinned with RC.EXE (console
+//! A QLABEL's `AutoSize` (AdjustBounds of the label control RapidQ's
+//! QLABEL is built on), the same on every runtime. Pinned with RC.EXE (console
 //! programs creating labels on a form and printing their sizes; the
 //! numbers are MS Sans Serif 8's, which `objects::text` measures exactly):
 //!
@@ -12,7 +12,7 @@
 //!     MS Sans Serif draws r a pixel wider: fonts/README.md; setting the caption it
 //!     already has does nothing: an explicit `Width = 20` stays);
 //!   - the font it's drawn in changes — any of its properties, its colour
-//!     too: its own, its parent's (Delphi's ParentFont: `Form.Font.Color =
+//!     too: its own, its parent's (RapidQ's ParentFont: `Form.Font.Color =
 //!     &HFF0000` resizes the form's labels and those in its panels), or a
 //!     new Parent with another font (a DIM'd label given a bold form's
 //!     Parent; RapidR doesn't follow a panel moved to another parent into
@@ -29,15 +29,15 @@
 //!   (not counted; `&&` is one `&`), tabs to the next multiple of 8 average
 //!   character widths; Width the widest line, Height the lines × the font's
 //!   line height. An empty caption (or a lone `&`) measures one space
-//!   (3 × 13: Delphi's DoDrawText adds a space). With WordWrap the lines
+//!   (3 × 13: RapidQ's DoDrawText adds a space). With WordWrap the lines
 //!   break at spaces to fit the current Width, and Width becomes the widest
 //!   line — a word wider than the Width keeps its width (`"Centred text
 //!   again"` at Width 30: 37 × 39).
 //! * Alignment taRightJustify (1) keeps the right edge (Left moves);
 //!   taCenter (2) and taLeftJustify keep Left.
 //!
-//! A QEDIT's `AutoSize` (Delphi's TCustomEdit.AdjustHeight, which RapidQ's
-//! QEDIT is), pinned with RC.EXE the same way: AutoSize is True until set;
+//! A QEDIT's `AutoSize` (AdjustHeight of the edit control RapidQ's
+//! QEDIT is built on), pinned with RC.EXE the same way: AutoSize is True until set;
 //! the edit's Height becomes its font's line height + 8 (21 for MS Sans
 //! Serif 8, 32 at 14 points, 24 for Arial 10, 26 for Courier New 12; bold
 //! changes nothing) when its font changes — its own or a parent's, before
@@ -225,7 +225,7 @@ pub fn text_extent(caption: &str, font: &Font, wrap: Option<i64>) -> (i64, i64) 
 
 fn rapidq_extent(caption: &str, font: &Font, wrap: Option<i64>) -> (i64, i64) {
     let mut text = shown(caption);
-    // (Delphi's DoDrawText measures an empty caption, or a lone `&`, as a
+    // (RapidQ's DoDrawText measures an empty caption, or a lone `&`, as a
     // space)
     if caption.is_empty() || caption == "&" {
         text = " ".into();
@@ -324,7 +324,7 @@ pub fn changed_labels(name: &str, before: Before, stored: &dyn Fn(&str, &str) ->
 /// The labels a font or Parent change of `id` (of type `type_name`) may
 /// resize: `id` itself when it's a label, and the labels inside it, at any
 /// depth (`children` lists a component's children as (name, type)) — a
-/// font passes down to them (Delphi's ParentFont).
+/// font passes down to them (RapidQ's ParentFont).
 pub fn labels_under(id: &str, type_name: &str, children: &dyn Fn(&str) -> Vec<(String, String)>) -> Vec<String> {
     // (a label or an edit holds no components)
     if sized_by_font(type_name) {

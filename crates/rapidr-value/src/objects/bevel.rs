@@ -1,4 +1,4 @@
-//! A QPANEL's bevels as RapidQ (Delphi's TPanel) draws them, the same in
+//! A QPANEL's bevels as RapidQ draws them, the same in
 //! both runtimes: the outer bevel (BevelOuter), BorderWidth pixels of
 //! space, then the inner bevel (BevelInner), each BevelWidth pixels of
 //! one-pixel 3D frames. `bvNone` 0, `bvLowered` 1, `bvRaised` 2, `bvSpace`
@@ -77,7 +77,7 @@ mod tests {
 }
 
 /// How far inside a QPANEL its aligned children start, on every side
-/// (Delphi's TCustomPanel.AdjustClientRect): BevelWidth for each bevel it
+/// (RapidQ's own CustomPanel.AdjustClientRect): BevelWidth for each bevel it
 /// has, BorderWidth between them, and Windows' two-pixel client edge with
 /// BorderStyle bsSingle. RC.EXE: a default panel's alLeft button at Left 1
 /// and its alTop one at Top 1; with an inner raised bevel too and
@@ -105,7 +105,7 @@ pub fn default(prop: &str) -> Option<i64> {
     })
 }
 
-/// QBEVEL (`QBevel.inc`, Delphi's TBevel on a QPANEL) — what its Shape
+/// QBEVEL (`QBevel.inc`, RapidQ's own Bevel on a QPANEL) — what its Shape
 /// and Style set, the include's rules: `bsBox` 1 is an outer bevel (Style
 /// `bsLowered` 0 lowered, `bsRaised` 1 raised), `bsFrame` 6 two (lowered:
 /// an etched line, raised: a bump), every other shape no bevel — the

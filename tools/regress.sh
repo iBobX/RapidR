@@ -17,7 +17,9 @@
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
 #                                     examples, gui, visual, web, studio,
-#                                     studio-goldens, security, perf, legal),
+#                                     studio-goldens, security, perf, legal,
+#                                     words (the quick one: no other
+#                                     products named in RapidR's text)),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -58,7 +60,11 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # dispatch answers is in it; what it generates is current: cargo test)
   python3 tools/lang_dispatch.py --check
   # (the manual's, the README's and the examples' links and heading anchors)
-  python3 tools/check_doc_links.py; echo "(unit done)"; fi
+  python3 tools/check_doc_links.py
+  # (RapidR's own words: no other products as models or comparisons in the
+  # code, docs or UI text; tools/words-allowlist.txt lists what stays)
+  python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; echo "(unit done)"; fi
+if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,

@@ -1,13 +1,13 @@
 //! What a dock manager looks like, as the kernel's ops, in every theme:
 //!
-//! - **modern / dark** (Fluent; VS Code, Rider, Visual Studio 2022): the
+//! - **modern / dark** (Fluent): the
 //!   groups as panels on a slightly darker ground with 4-pixel gutters, a
 //!   1-pixel border; a header with the pane's icon and title (one pane) or
 //!   tabs (more), the shown tab underlined, the active group's header
 //!   tinted with the accent's line on top; hover fills on tabs and
 //!   buttons; documents as tabs (the shown one joined to the page, the
 //!   accent along its top) or MDI windows on the workspace.
-//! - **classic** (Delphi 7 / Visual Studio 6): title bars in the
+//! - **classic** (the classic Windows look): title bars in the
 //!   caption's colours (the active group's in the active caption's), tabs
 //!   as raised 3D tabs, the workspace Windows' AppWorkspace grey.
 //! - **highcontrast**: black, white borders everywhere, the accent's

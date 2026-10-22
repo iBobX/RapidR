@@ -149,7 +149,7 @@ with RapidQ's compiler.
 
 - Three runtimes from one source: native executables, the interpreter and
   the browser.
-- RapidR Studio: a form designer, a code editor with IntelliSense, a
+- RapidR Studio: a form designer, a code editor with completion and hover help, a
   debugger, linked data live in the designer, an AI assistant (off until
   you turn it on), on the desktop and in the browser.
 - High-DPI drawing, screen-reader accessibility and themes for every

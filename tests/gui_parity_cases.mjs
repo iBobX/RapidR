@@ -391,7 +391,7 @@ export const cases = [
     expect: ["lbl.caption=ing1 ed1:Renamed c0:2 c0:0 c0:2 c1:2 dbl |Renamed Renamed two"] },
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off. OnResize also fires
-  // twice as the window is first shown, around OnShow, as RC.EXE's VCL
+  // twice as the window is first shown, around OnShow, as RC.EXE's runtime
   // does — docs/rapidq-ground-truth.md)
   { name: "size_grip", events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
     expect: ["lbl.caption=w318 g1 r320x240 r320x240 r370x280 d100 off d356 ", "form.width=370", "form.height=280"] },

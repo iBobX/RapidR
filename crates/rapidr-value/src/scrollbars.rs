@@ -1,6 +1,6 @@
 //! A QFORM's and a QSCROLLBOX's scroll bars (RapidQ manual: AutoScroll,
 //! HorzIncrement / HorzMargin / HorzPosition / HorzRange / HorzTracking /
-//! HorzVisible and their Vert… twins), as Delphi's TScrollingWinControl
+//! HorzVisible and their Vert… twins), as RapidQ's own ScrollingWinControl
 //! has them — shared by the desktop and web runtimes, which draw the same
 //! [`Scroller::ops`] and move the same components.
 //!
@@ -8,10 +8,10 @@
 //! (one not aligned, or aligned alLeft / alTop; alRight / alBottom ones add
 //! their size) plus the Margin; a bar shows when its Range is more than the
 //! client area (the other bar, once shown, takes 17 pixels of it). Scrolling
-//! moves the components (Delphi's ScrollBy): a component's Left / Top are
+//! moves the components (RapidQ's ScrollBy): a component's Left / Top are
 //! where it is now in the client area. Position stays within
 //! 0..Range - client size; with no bar it's 0. The arrows move Increment
-//! pixels, a click in the track a page (Delphi's PageIncrement, 80), the
+//! pixels, a click in the track a page (RapidQ's PageIncrement, 80), the
 //! thumb drags (with Tracking the components follow it, without it they
 //! move when it's let go); the wheel scrolls three Increments.
 
@@ -24,7 +24,7 @@ use crate::{v_int, Value};
 
 /// A scroll bar's thickness (Windows' SM_CXVSCROLL).
 pub const BAR: i64 = 17;
-/// A click in the track moves this far (Delphi's PageIncrement).
+/// A click in the track moves this far (RapidQ's PageIncrement).
 const PAGE: i64 = 80;
 /// The thumb's smallest length.
 const MIN_THUMB: i64 = 8;
@@ -105,7 +105,7 @@ pub fn bare(type_name: &str, border_style: &Value) -> bool {
     type_name.eq_ignore_ascii_case("RFORM") && !matches!(border_style, Value::Null) && border_style.to_i64() == 0
 }
 
-/// A scroll bar on its own (a QSCROLLBAR, Delphi's TScrollBar): set on a
+/// A scroll bar on its own (a QSCROLLBAR, RapidQ's own ScrollBar): set on a
 /// [`Scroller`] ([`Scroller::alone`]), its one bar fills the area it draws
 /// end to end and side to side, the thumb where the component's Position
 /// puts it — so it looks exactly like a container's bars in every theme.
@@ -325,7 +325,7 @@ impl Scroller {
         if vertical { (0, d) } else { (d, 0) }
     }
 
-    /// (Delphi's ScrollInView: the keyboard's focus moved onto a component
+    /// (RapidQ's ScrollInView: the keyboard's focus moved onto a component
     /// out of view) `r` — the component's rectangle in the client area as
     /// it shows now — brought into view by the least scrolling that shows
     /// all of it (its top or left edge when it's bigger than the view):
@@ -560,7 +560,7 @@ impl Scroller {
     /// The program reading AutoScroll, HorzPosition, … (`None`: not one).
     pub fn get(&self, prop: &str) -> Option<Value> {
         let flag = |b: bool| v_int(b as i64);
-        // (a Delphi Boolean: RC.EXE reads a form's AutoScroll as 1)
+        // (a Boolean of RapidQ's runtime: RC.EXE reads a form's AutoScroll as 1)
         if prop == "autoscroll" {
             return Some(v_int(i64::from(self.auto)));
         }
@@ -588,7 +588,7 @@ impl Scroller {
     pub fn set(&mut self, prop: &str, val: &Value) -> Option<()> {
         let n = val.to_i64();
         if prop == "autoscroll" {
-            // (turned off, the ranges go — the bars with them — as Delphi's
+            // (turned off, the ranges go — the bars with them — as RapidQ's
             // SetAutoScroll; RC.EXE: ClientWidth 347 → 364, and back on)
             let auto = val.to_bool();
             if self.auto && !auto {

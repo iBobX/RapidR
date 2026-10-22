@@ -109,7 +109,7 @@ impl ComponentKind for PushButton {
         let shift = i64::from(s.pressed);
         let mut color = ink_of(cx, t.face);
         // (its glyph, BMP / BMPHandle, beside the caption, the two centred
-        // together as Delphi's TBitBtn lays them out: image.rs)
+        // together as RapidQ's own BitBtn lays them out: image.rs)
         let ((x, y, cw, ch), place) = super::image::paint_glyph(cx, p, (shift, shift, w, h), s.enabled, s.pressed, false).unwrap_or(((shift, shift, w, h), Place::Center));
         if !s.enabled {
             // (embossed, as Windows' DrawState: white a pixel down and right,

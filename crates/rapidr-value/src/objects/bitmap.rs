@@ -5,7 +5,7 @@
 //! A QIMAGE's picture is one too (`picture`): the same loading and drawing,
 //! while its Width / Height are the control's, not the picture's; drawing
 //! on an image without a picture first gives it one the control's size, as
-//! Delphi's TImage does.
+//! RapidQ's own Image does.
 //!
 //! A QCANVAS is one too (`canvas`): the same drawing methods and text, on a
 //! surface that is always the control's size, filled with its `Color`. So
@@ -252,7 +252,7 @@ pub struct Bitmap {
     /// drawing method, a load, a new size, `invalidate_display`): a host
     /// keeps the picture it uploaded until it does ([`Bitmap::revision`]).
     pub(crate) revision: u64,
-    /// A QBITMAP's PixelFormat (Delphi's TPixelFormat: pfDevice 0, pf1bit 1,
+    /// A QBITMAP's PixelFormat (RapidQ's own PixelFormat: pfDevice 0, pf1bit 1,
     /// pf4bit 2, pf8bit 3, pf15bit 4, pf16bit 5, pf24bit 6, pf32bit 7):
     /// pfDevice until a BMP is loaded, then the file's (RC.EXE: a new or
     /// sized QBITMAP reads 0, one loaded from an 8-bit BMP 3, a 24-bit 6);
@@ -895,7 +895,7 @@ impl Bitmap {
             "rectangle" => self.rectangle(n(0), n(1), n(2), n(3), c(4)),
             "fillrect" => self.fill_rect(n(0), n(1), n(2), n(3), c(4)),
             // `Circle(x1, y1, x2, y2, c, fill)`: outlined in c, filled with
-            // the color fill (Delphi's pen and brush).
+            // the color fill (RapidQ's pen and brush).
             "circle" => {
                 if args.len() > 5 {
                     self.ellipse(n(0), n(1), n(2), n(3), c(5), true);

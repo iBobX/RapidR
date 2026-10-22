@@ -118,8 +118,8 @@ declares, F12 goes to the first place it is given a value.
 ![After F12 on the call greet, the caret is on SUB Greet at line 42, and the other uses of Greet are highlighted](images/studio-editor/go-to-definition.png)
 
 F12 works in the code of a form's file too. With the caret off a name (or
-in the designer), F12 switches between the form's designer and its code, as
-in Delphi; **F7** (code), **Shift+F7** (designer) and the **Design | Code**
+in the designer), F12 switches between the form's designer and its code;
+**F7** (code), **Shift+F7** (designer) and the **Design | Code**
 switch at the right of the tab do too.
 
 Related: **Shift+F12** (Find References) selects every use of the name and

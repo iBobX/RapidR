@@ -133,7 +133,7 @@ pub fn form_outer(form: &str, client_width: i64, client_height: i64) -> (i64, i6
 /// The client area of `parent` in its children's coordinates: a form's
 /// inside; any other container's whole size.
 pub fn client_rect(parent: &str) -> Rect {
-    // A form's / scroll box's: Delphi's (AdjustClientRect) — the scrolled
+    // A form's / scroll box's: the scrolled
     // area, as large as the ranges.
     if crate::scroll_web::scrolls(parent) {
         let (cw, ch) = crate::scroll_web::client(parent);

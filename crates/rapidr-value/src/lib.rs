@@ -536,7 +536,7 @@ pub fn rp_fixed_string(val: &Value, n: usize) -> Value {
 }
 
 /// A component property or method result as a program reads it: RapidQ's
-/// are Delphi Booleans, true reads 1 (RC.EXE: `Check.Checked = -1 : PRINT
+/// are Booleans of RapidQ's runtime, true reads 1 (RC.EXE: `Check.Checked = -1 : PRINT
 /// Check.Checked` shows 1, `Form.Enabled` 1; RAPIDQ.INC's `True` is 1, so
 /// programs test `.Checked = True`). A comparison's own result stays -1.
 pub fn property_read(v: Value) -> Value {
@@ -601,7 +601,7 @@ impl Value {
     pub fn to_string_val(&self) -> String {
         match self {
             Value::Integer(n) => n.to_string(),
-            // As RapidQ shows numbers (Delphi's FloatToStr, `format`): 15
+            // As RapidQ shows numbers (RapidQ's FloatToStr, `format`): 15
             // significant digits, so PRINT 2 ^ 10 → 1024 and 0.1 + 0.2 → 0.3.
             Value::Double(n) => crate::format::float_to_str(*n),
             Value::String(s) => s.clone(),

@@ -249,7 +249,7 @@ Index = { category = "Data", doc = "On a joystick, which one it reads (0 the fir
 InitialDir = { category = "Behavior", doc = "The folder the dialog or tree starts in." }
 InnerHTML = { category = "Data", doc = "The element's contents as HTML." }
 InnerText = { category = "Data", doc = "The element's contents as plain text." }
-InputMask = { category = "Behavior", doc = "A mask the typed text must fit (Delphi's edit-mask format, such as `!99/99/0000;1;_`)." }
+InputMask = { category = "Behavior", doc = "A mask the typed text must fit (the classic edit-mask format, such as `!99/99/0000;1;_`)." }
 InQue = { category = "Network", doc = "Bytes waiting in the receive buffer now; read-only." }
 Interval = { category = "Behavior", doc = "The milliseconds between a timer's ticks; on a media object, between its position updates.", range = "0..", unit = "ms" }
 IsDown = { category = "Data", doc = "True while the joystick is pushed down (towards the player), as the last `Update` read it." }

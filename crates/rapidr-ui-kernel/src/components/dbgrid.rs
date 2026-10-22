@@ -298,7 +298,7 @@ impl ComponentKind for DbGrid {
                             }
                         });
                         p.fill((x + colw, 0, 1, rh), t.fixed_lines);
-                        // (the classic look: Delphi's raised fixed cells)
+                        // (the classic look: RapidQ's raised fixed cells)
                         if !t.fluent() {
                             p.thin_raised((x, 0, *colw, rh));
                         }

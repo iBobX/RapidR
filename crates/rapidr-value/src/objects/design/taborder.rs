@@ -1,8 +1,8 @@
-//! The Tab-order editor (docs/studio-wow.md DES-13), Visual Studio's
+//! The Tab-order editor (docs/studio-wow.md DES-13), the
 //! View ▸ Tab Order on the canvas: with TabOrderMode on, every component
 //! that takes the focus carries its place in the Tab order — `0`, `1` …
-//! in its container, `2.0`, `2.1` inside the third one (Delphi's and VB's
-//! TabIndex count from 0). Clicking components in the order wanted
+//! in its container, `2.0`, `2.1` inside the third one (a TabIndex
+//! counts from 0). Clicking components in the order wanted
 //! renumbers them: the first clicked in a container becomes its 0, the next
 //! its 1, the ones not clicked yet keep their order after them. Each click
 //! is written at once as `TabOrder = n` in the CREATE blocks whose number

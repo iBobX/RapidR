@@ -261,7 +261,7 @@ web IDE alike:
 
 ## Linked data components
 
-Delphi- and Xojo-style components connected by properties, in the designer
+Linked components connected by properties, in the designer
 or in code; RapidR Studio's designer shows their data live. A step-by-step
 start is [Data science with RapidR](data-science-with-rapidr.md); the
 examples are [`linked_data.rr`](../../examples/data/linked_data.rr),

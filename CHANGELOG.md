@@ -31,6 +31,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   command. Every repository its tests write passes the system's
   `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
+### Changed
+- **RapidR's own words** (Robert, 2026-10-21): the code comments, docs,
+  manual, plans, examples and Studio's help text describe RapidR in RapidR's
+  own words, with no other IDEs or products as models or comparisons;
+  RapidQ's behaviour is stated as RapidQ's. A check
+  (`tools/check_words.py`, in `tools/regress.sh`'s unit stage and alone as
+  the `words` stage) fails when such a word comes back outside
+  `tools/words-allowlist.txt` (fonts' names, build tools a platform needs,
+  legal and history texts, fixture data).
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added

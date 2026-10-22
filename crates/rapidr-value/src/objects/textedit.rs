@@ -20,8 +20,8 @@
 //! `richtext.rs`): every change of the text here goes through its formats,
 //! so they follow the text whoever changed it.
 //!
-//! AddStrings and Line(i) = s change the text as RapidQ's Lines do (the
-//! VCL's: RC.EXE, probes w_r1 / w_s1): a line is added at the end — after
+//! AddStrings and Line(i) = s change the text as RapidQ's Lines do (RapidQ's
+//! own: RC.EXE, probes w_r1 / w_s1): a line is added at the end — after
 //! a line break, or before one when the text doesn't end with one — and
 //! the caret is left after what was added or changed.
 
@@ -221,7 +221,7 @@ impl TextEdit {
         Some((start, end))
     }
 
-    /// AddStrings' line `s` at the end (the VCL's Lines.Add): after the
+    /// AddStrings' line `s` at the end (RapidQ's Lines.Add): after the
     /// text's last break, or a break before it when the text doesn't end
     /// with one; the caret after it.
     fn add_line(&mut self, s: &str) {
@@ -232,7 +232,7 @@ impl TextEdit {
         } else {
             std::iter::once('\n').chain(s).collect()
         };
-        // (the VCL selects where it adds first: an insertion format at
+        // (RapidQ selects where it adds first: an insertion format at
         // another caret goes)
         self.sel_start = at;
         self.sel_len = 0;
@@ -240,7 +240,7 @@ impl TextEdit {
         self.splice(at, at, &ins);
     }
 
-    /// Line(i) = s (the VCL's Lines.Put): the line's text replaced, the
+    /// Line(i) = s (RapidQ's Lines.Put): the line's text replaced, the
     /// caret after it.
     fn set_line(&mut self, i: usize, s: &str) {
         let Some((a, b)) = self.line_range(i) else { return };
@@ -318,7 +318,7 @@ impl TextEdit {
     /// remakes the control: the component keeps it).
     fn rich_set(&mut self, prop: &str, val: &Value) -> bool {
         if prop == "wordwrap" {
-            // (only a change remakes it: the VCL's SetWordWrap)
+            // (only a change remakes it: RapidQ's SetWordWrap)
             if self.rich.is_some() && self.wraps != Some(val.to_bool()) {
                 if self.wraps.is_some() {
                     self.recreated();
@@ -513,7 +513,7 @@ impl TextEdit {
         match prop {
             "text" => self.set_text(&val.to_string_val()),
             "seltext" => self.replace_selection(&val.to_string_val()),
-            // (setting SelStart drops the selection, as Delphi)
+            // (setting SelStart drops the selection, as RapidQ does)
             "selstart" => {
                 self.sel_start = self.inner(val.to_i64().max(0) as usize);
                 self.sel_len = 0;

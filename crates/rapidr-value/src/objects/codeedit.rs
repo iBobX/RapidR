@@ -1119,8 +1119,8 @@ impl CodeEditor {
 
     /// Shows completion items at the primary caret.
     /// The completion items that match what's typed since the list opened,
-    /// best first (indexes into the list's items) — VS Code's and Xcode's
-    /// fuzzy matching: the typed letters as the label's start (its case,
+    /// best first (indexes into the list's items) — fuzzy
+    /// matching: the typed letters as the label's start (its case,
     /// then any case), then on its word starts (`ss` → SelStart, `gsl` →
     /// GetSubList), then anywhere together, then anywhere in order; among
     /// equals, the ones accepted lately first, then the service's group,

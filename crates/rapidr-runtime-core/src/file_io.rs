@@ -133,7 +133,7 @@ fn set_file_rec(path: &Path, name: &str) {
         Some(t) => (
             format!("{}-{}-{}", t.month(), t.day(), t.year()),
             format!("{}:{:02}", t.hour(), t.minute()),
-            // (a DOS date and time, as Delphi's FileAge: newer is greater)
+            // (a DOS date and time, as RapidQ's FileAge: newer is greater)
             (((t.year() as i64 - 1980) << 25) | ((t.month() as i64) << 21) | ((t.day() as i64) << 16) | ((t.hour() as i64) << 11) | ((t.minute() as i64) << 5) | (t.second() as i64 / 2)),
         ),
         None => (String::new(), String::new(), 0),
