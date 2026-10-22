@@ -457,6 +457,12 @@ pub fn rp_end() {
     wasm_bindgen::throw_str(END_UNWIND);
 }
 
+/// `END n` (RapidR's): in the browser a program has no exit code, so it
+/// ends as `END` does and the number is ignored.
+pub fn rp_end_code(_code: &Value) {
+    rp_end()
+}
+
 /// Stops the browser reporting [`END_UNWIND`] as an uncaught error.
 fn swallow_end_unwind() {
     let Some(window) = web_sys::window() else { return };

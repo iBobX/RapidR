@@ -481,7 +481,7 @@ fn timer_periods_are_windows_ticks() {
 }
 
 #[test]
-fn onresize_as_the_vcl_fires_it() {
+fn onresize_as_rapidq_fires_it() {
     // (RC.EXE: none before the window exists, two around OnShow, then one
     // for each change of size — shown or hidden — none for a move, the same
     // size or a second Show)

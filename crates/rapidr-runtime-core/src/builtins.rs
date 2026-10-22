@@ -291,11 +291,23 @@ pub fn rp_environ(name: &Value) -> Value {
 
 
 pub fn rp_end() {
+    end_program(0)
+}
+
+/// `END n` (RapidR's): the program ends as `END` does, with exit code `n`
+/// (stored as a LONG would be; the system keeps what it can of it: all 32
+/// bits on Windows, the low 8 on macOS and Linux).
+pub fn rp_end_code(code: &Value) {
+    let n = crate::value::numeric::int_of(code, crate::value::numeric::NumKind::Long);
+    end_program(n as i32)
+}
+
+fn end_program(code: i32) -> ! {
     // What the program wrote to files it never closed is kept.
     crate::file_io::rp_close_all();
     #[cfg(feature = "gui")]
     crate::ui::before_exit();
-    std::process::exit(0);
+    std::process::exit(code);
 }
 
 /// `SHOWMESSAGE text`: RapidQ's modal message box with an OK button,

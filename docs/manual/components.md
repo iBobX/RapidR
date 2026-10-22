@@ -207,6 +207,12 @@ END SUB
 Form.ShowModal
 ```
 
+`OnMessage` is RapidR's other name for `WndProc`: `OnMessage = MyWndProc` in
+the form's CREATE (or `Form.OnMessage = MyWndProc`) is the same event, with
+the same four parameters, heard in the same places, and the same on every
+system. Use whichever name reads better to you. A program that binds both
+on one form hears its messages in the handler bound last.
+
 A MIDI keyboard works the same way: winmm's `midiInOpen` with
 `CALLBACK_WINDOW` (&H10000) and the form's `Handle` sends each MIDI
 message to the form as `MM_MIM_DATA` (&H3C3), the MIDI bytes in lParam

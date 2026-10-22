@@ -96,7 +96,7 @@ if want web; then
   # Studio's run frame — its isolation, its file pickers — on Studio's web
   # build, made here from the current sources and runtime)
   RAPIDR="$PWD/rapidr" bash tools/build_studio_web.sh --no-runtime >/dev/null || echo "tools/build_studio_web.sh: FAILED"
-  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
+  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

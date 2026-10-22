@@ -11,7 +11,7 @@
 | `DIM name[(bounds)] [AS type] [= value] [, …]` | Declares variables or arrays, with a type and optionally a first value; inside a SUB or FUNCTION, locals. `DIM m` with no type is a DOUBLE. |
 | `REDIM [PRESERVE] name(bounds) [AS type]` | Resizes an array that exists (or creates it); the elements whose indexes are still inside the new bounds keep their values. |
 | `STATIC name[(bounds)] AS type` | Inside a SUB or FUNCTION, declares a local variable that keeps its value from one call to the next. |
-| `CONST name = expression [, …]` | Names a value fixed for the whole program: `CONST MaxItems = 3`. |
+| `CONST name [AS type] = expression` | Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST, as in RapidQ: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each. |
 | `DEFINT name [= value] [, …]` | Declares INTEGER (32-bit) variables or arrays, optionally with first values (`DEFINT k(1 TO 3) = {7, 8, 9}`). |
 | `DEFSTR name [= value] [, …]` | Declares STRING variables or arrays, optionally with first values. |
 | `DEFBYTE name [= value] [, …]` | Declares BYTE variables or arrays, optionally with first values. |
@@ -63,7 +63,7 @@
 | `GOTO label` | Continues the program at a label or line number. |
 | `GOSUB label … RETURN` | Jumps to a label; the `RETURN` there comes back to the statement after the GOSUB. |
 | `RETURN` | Goes back to the statement after the last `GOSUB`. |
-| `END` | Ends the program at once; files it wrote are kept. `END IF`, `END SUB` and the like close blocks. |
+| `END [exit code]` | Ends the program at once; files it wrote are kept. `END n` (RapidR's; RapidQ's END takes no number) ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are the syntax error they are in RapidQ. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks. |
 | `ON ERROR RESUME NEXT \| GOTO label` *(RapidR)* | VB's error trapping, accepted so such programs compile and ignored: a run-time error still ends the program. |
 
 ## Console
