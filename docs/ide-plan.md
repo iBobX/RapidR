@@ -96,7 +96,7 @@ rapidr-langsvc     NEW  the language service: semantic model on the parser, comp
 rapidr-lsp         NEW  `rapidr lsp` (stdio) over rapidr-langsvc                         desktop only
 rapidr-dap         NEW  `rapidr dap` (stdio) over rapidr-session                          desktop only
 rapidr-jsonrpc     NEW  JSON-RPC 2.0 framing shared by LSP and MCP                        wasm-safe
-rapidr-ai          NEW  the provider layer (Anthropic, OpenAI-compatible, Gemini,         desktop: ureq + rustls;
+rapidr-ai          NEW  the provider layer (Anthropic, OpenAI-compatible, Gemini,         desktop: ureq + system TLS;
                         Ollama, LM Studio), streaming, tool calls; RAI's engine           web: fetch
 rapidr-secrets     NEW  API keys: OS keychain (desktop), session / opt-in encrypted (web)
 rapidr-mcp         NEW  the MCP server: tool registry, permission tiers, audit log,       core wasm-safe
@@ -563,7 +563,7 @@ Checked with `cargo info` on 2026-10-05; versions move, so `tools/regress.sh leg
 | MCP | `rmcp` 3.5.1 (official SDK) | Apache-2.0 | Licence fine; **don't** (tokio-based, not for the browser, large); our own on `rapidr-jsonrpc`; `rmcp` as a dev-only conformance client at most |
 | JSON-RPC | `jsonrpc-core` 18 | MIT | Unmaintained; our own (small) |
 | Keychain | `keyring` 4.2 → `keyring-core` 1.0 + `apple-native-keyring-store` 1.1, `windows-native-keyring-store` 1.0, `zbus-secret-service-keyring-store` 1.0 (via `zbus` 5, MIT) | MIT OR Apache-2.0 | **Use** (not the `dbus-secret-service` store: it links the C libdbus, AFL / GPL) |
-| HTTPS | `ureq` 2.12 + `rustls` 0.23 + `ring` (Apache-2.0 AND ISC) | MIT OR Apache-2.0 | Already in the workspace; prefer `rustls-platform-verifier` (MIT OR Apache-2.0) over `webpki-roots` (CDLA-Permissive-2.0, outside the stricter list) for new code |
+| HTTPS | `ureq` with the system's TLS (`native-tls`) | MIT OR Apache-2.0 | rustls, ring and webpki-roots are banned by `deny.toml` (licensing.md) |
 | JSON | `serde`, `serde_json` | MIT OR Apache-2.0 | Already in the workspace |
 | TOML (project file) | `toml` | MIT OR Apache-2.0 | Use if D2 picks TOML |
 | Data frames | our own (`rapidr_value::datascience`, D7); Parquet readers later | — | Parquet: check the codecs' crates (zstd, lz4, snappy, brotli — each permissive, verify). The alternative measured: `polars` 0.46 (MIT) — 180 crates on wasm, `cargo deny` clean |

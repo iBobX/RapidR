@@ -108,8 +108,8 @@ Loading is lazy: setting `FileName` (and `Delimiter` …) marks the source stale
 | RDeltaLake | Delta tables read (write later) | `delta_kernel` (Apache-2.0); not `deltalake` (pulls DataFusion + tokio) | ✓ | — (desktop only: many files, object stores) | 5 |
 | RSQLite | SQLite (existing RSQLITE, now also a source) | rusqlite (MIT) + SQLite (public domain), in the tree | ✓ | ✓ (wasm SQLite, in the tree) | 2 |
 | RMySQL | MySQL / MariaDB (existing RMYSQL, now also a source) | `mysql` (MIT OR Apache-2.0), in the tree | ✓ | ✗ desktop only | 2 |
-| RPostgres | PostgreSQL and Amazon Redshift | `postgres` (MIT OR Apache-2.0) + rustls (§8) | ✓ | ✗ desktop only | 5 |
-| RSQLServer | Microsoft SQL Server / Azure SQL | `tiberius` (MIT OR Apache-2.0) + rustls | ✓ | ✗ desktop only | 5 |
+| RPostgres | PostgreSQL and Amazon Redshift | `postgres` (MIT OR Apache-2.0) + the system's TLS (§8) | ✓ | ✗ desktop only | 5 |
+| RSQLServer | Microsoft SQL Server / Azure SQL | `tiberius` (MIT OR Apache-2.0) + the system's TLS | ✓ | ✗ desktop only | 5 |
 | RS3, RAzureBlob, RAzureFile | cloud files (any of the formats above inside) | `object_store` (Apache-2.0 OR MIT) for S3 / Blob; Azure Files over its REST API (our own small client) | ✓ | ✓ over HTTPS (CORS and a presigned / SAS URL) | 6 |
 | RDBConnection + RDBQuery / RDBTable | ide-plan's dataset model for SQL sources | rapidr-db | ✓ | SQLite only | 2 |
 | Oracle | — | `oracle` needs Oracle's own client (Instant Client, Oracle's licence) | **not planned**: a legal and dependency review first | — | — |
@@ -256,8 +256,8 @@ Checked on crates.io and the crates' repositories, 2026-10-15 (the latest stable
 | Avro | apache-avro 0.22 (default features) | Apache-2.0 | likely | none by default (bzip2 / xz / zstd are opt-in C) | phase 5 |
 | Delta Lake | delta_kernel 0.29 | Apache-2.0 | core only | build-time protoc (vendored) | phase 5, desktop. **Not** `deltalake` 1.1: tokio + object_store + its own fork of the kernel (buoyant_kernel) on a different Arrow major — heavy and out of step |
 | PostgreSQL / Redshift | postgres 0.19 (tokio-postgres 0.7) | MIT OR Apache-2.0 | ✗ (TCP) | none; TLS separate | phase 5, desktop |
-| SQL Server | tiberius 0.13, **without** default `native-tls` (rustls instead) | MIT OR Apache-2.0 | ✗ (TCP) | default native-tls = OpenSSL on Linux | phase 5, desktop |
-| TLS for the above | rustls 0.23 with the **ring** provider; webpki-roots 1.0 | Apache-2.0 OR ISC OR MIT; ring: Apache-2.0 AND ISC; webpki-roots: CDLA-Permissive-2.0 (add to deny.toml's allow-list after review) | — | ring's C / asm via cc; avoid aws-lc-rs (cmake, no wasm) | phase 5 |
+| SQL Server | tiberius 0.13 with `native-tls`: the system's TLS, as everywhere in RapidR | MIT OR Apache-2.0 | ✗ (TCP) | OpenSSL from the system on Linux (dynamic, never bundled) | phase 5, desktop |
+| TLS for the above | the system's TLS through `native-tls` (Security.framework, SChannel, the system's OpenSSL). `deny.toml` bans rustls, ring, aws-lc and webpki-roots (see licensing.md) | MIT OR Apache-2.0 | — | — | phase 5 |
 | S3, Azure Blob | object_store 0.14 (cloud features) | MIT OR Apache-2.0 | partly (cloud features not on wasm: the web uses presigned / SAS URLs over fetch) | ring | phase 6, desktop; the web over HTTPS |
 | Azure Files | no official Rust crate — our own small REST client over the HTTP stack already in the tree | — | ✓ (fetch) | none | phase 6 |
 | SQL over frames | sqlparser 0.63 | Apache-2.0 | ✓ | none | phase 3 |

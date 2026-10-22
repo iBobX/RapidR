@@ -14,7 +14,7 @@ What the user asked for, in short: an MCP server inside the IDE, started and sto
 2. **Transparent.** Every request can be inspected before or after it is sent (the exact JSON, the key redacted); the context the assistant attaches is shown as chips the user can remove; usage (tokens, and cost where the provider reports prices) is shown per turn and per session.
 3. **One way in.** The built-in assistant and external agents use **the same tools with the same permission checks**; there is no back door for either.
 4. **Previewed changes.** Every edit an AI proposes is shown as a diff (RDiffView) before it applies, unless the user chose a tier that applies edits automatically (with a checkpoint); one step undoes a whole AI turn.
-5. **No vendor SDKs, permissive licences only.** Plain HTTPS / JSON with our own client (`ureq` + `rustls` on the desktop, `fetch` on the web), our own MCP implementation.
+5. **No vendor SDKs, permissive licences only.** Plain HTTPS / JSON with our own client (`ureq` with the system's TLS on the desktop, `fetch` on the web), our own MCP implementation.
 6. **The same layer everywhere.** The IDE's provider layer is `RAI`'s; the IDE's tools are the components' tool providers, which users' programs can expose to `RAI` too.
 
 ---
