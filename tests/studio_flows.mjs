@@ -940,6 +940,24 @@ const CASES = [
     dump: { "codedoc(0).text": /\nx\$ = NameEdit\.Text\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
   },
   {
+    // (K4b, docs/rai-mistake-ledger.md) `NOT FILEEXISTS(f)` is always true —
+    // FILEEXISTS gives 1, NOT 1 is -2: a warning in the code, and Ctrl+.
+    // offers `FILEEXISTS(f) = 0`
+    name: "editor-not-fileexists",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:IF NOT FILEEXISTS(\"notes.txt\") THEN PRINT 1,key:Escape,wait,wait,wait,key:Home,key:Right,key:Right,key:Right,key:Right,key:Ctrl+.,wait",
+    delay: 8,
+    dump: { "codedoc(0).diagnosticcount": /^1$/, "codedoc(0).completionitems": /^Write FILEEXISTS\("notes\.txt"\) = 0$/ },
+  },
+  {
+    // …Enter applies it: the warning goes
+    name: "editor-not-fileexists-fix",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:IF NOT FILEEXISTS(\"notes.txt\") THEN PRINT 1,key:Escape,wait,wait,wait,key:Home,key:Right,key:Right,key:Right,key:Right,key:Ctrl+.,wait,key:Enter,wait,wait,wait",
+    delay: 11,
+    dump: { "codedoc(0).text": /\nIF FILEEXISTS\("notes\.txt"\) = 0 THEN PRINT 1\n?$/, "codedoc(0).diagnosticcount": /^0$/ },
+  },
+  {
     // F12 on a call goes to its SUB
     name: "editor-go-to-definition",
     open: "examples/gui/hello_form.rr",
