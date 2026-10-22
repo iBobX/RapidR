@@ -762,7 +762,11 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ### Versions — Git in RapidR Studio, reinvented (part of Preview 4; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))
 
-- [ ] G0 Survey + spike: gitoxide's capabilities today, `cargo deny` with gix (no copyleft, no MPL), Studio's size impact, wasm check
+- [x] G0 Survey + spike: gitoxide's capabilities today, `cargo deny` with gix (no copyleft, no MPL), Studio's size impact, wasm check. Done 2026-10-22 ([docs/versions-g0.md](docs/versions-g0.md), `crates/rapidr-vcs`, 6 tests; the repositories they write are checked by the system's git):
+  - gix 0.89 does everything local; the licences pass (MPL uluru avoided);
+  - +5.1 MiB stripped for Studio, +3.3 MiB more with reqwest for the network;
+  - `gix` doesn't build for wasm, but its plumbing does;
+  - **no push in gitoxide**: building our own send-pack in G6 is Robert's decision.
 - [ ] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests
 - [ ] G2 The docked Diff tab (shared with RAI), visual form diffs, CSV table diffs
 - [ ] G3 The Versions panel, Timeline, Save a version, gutter marks, Project badges, status bar

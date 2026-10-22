@@ -20,6 +20,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   interpreter, native builds and the web. A new example,
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
+- **Versions, the engine proved** (lane G0, not in Studio yet;
+  [docs/versions-g0.md](docs/versions-g0.md)): a new crate, `rapidr-vcs`,
+  built on gitoxide 0.89 (pure Rust, MIT OR Apache-2.0). It can start
+  versioning a folder, save a version, list what changed (with hunks),
+  show the timeline, find who wrote each line, start experiments, bring
+  one into another (fast-forward or a three-way merge; conflicts are
+  reported and nothing is touched) and share with a folder. It never runs
+  hooks, filter, diff or merge drivers, credential helpers or the `git`
+  command. Every repository its tests write passes the system's
+  `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 

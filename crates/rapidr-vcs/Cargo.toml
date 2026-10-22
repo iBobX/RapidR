@@ -1,0 +1,40 @@
+[package]
+name = "rapidr-vcs"
+description = "Versions (Git) for RapidR Studio on gitoxide — lane G0's spike (docs/versions-g0.md): start/open, save a version, what changed (hunks), who wrote, experiments, bring into, share with a local bare repository. Pure Rust; never runs hooks, filter/diff/merge drivers or the git command."
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# gitoxide (MIT OR Apache-2.0), without its defaults: only what Versions
+# needs. No `interrupt` (signal handlers belong to the host), no regex
+# revspecs, no archives, no notes, no mailmap yet.
+[dependencies]
+gix = { version = "0.89", default-features = false, features = [
+    "sha1",
+    # threads for status and packs (Studio runs them off the UI thread)
+    "parallel",
+    # the pack delta cache: clru (MIT). NOT `max-performance-safe` /
+    # `pack-cache-lru-static`: they pull uluru, which is MPL-2.0.
+    "pack-cache-lru-dynamic",
+    # blob-diff (imara-diff), revision (rev-walk, merge bases), index
+    "basic",
+    "status",
+    "dirwalk",
+    # checkout of a tree into the working folder (switching experiments,
+    # going back, after a merge)
+    "worktree-mutation",
+    "blame",
+    "merge",
+] }
+
+[features]
+default = []
+# Remotes over the network (lane G6): HTTPS with the operating system's TLS
+# (reqwest + native-tls, as deny.toml requires: no rustls/ring), SSH through
+# the system's `ssh`. Not used by the spike's tests (no network in tests);
+# here so `cargo deny` and the size measurement see what G6 will add.
+network = ["gix/blocking-network-client", "gix/blocking-http-transport-reqwest-native-tls"]
+
+[dev-dependencies]
+tempfile = "3"

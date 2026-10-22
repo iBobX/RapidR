@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**598 libraries** under 22 license expressions.
+**682 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (355)
+## Apache-2.0 OR MIT (423)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -69,6 +69,7 @@ their `OFL.txt`.
 | block-buffer | 0.12.1 | <https://github.com/RustCrypto/utils> |
 | block-padding | 0.4.2 | <https://github.com/RustCrypto/utils> |
 | blocking | 1.7.0 | <https://github.com/smol-rs/blocking> |
+| bstr | 1.13.1 | <https://github.com/BurntSushi/bstr> |
 | btoi | 0.5.0 | <https://github.com/niklasf/rust-btoi> |
 | bufstream | 0.1.4 | <https://github.com/alexcrichton/bufstream> |
 | bumpalo | 3.20.2 | <https://github.com/fitzgen/bumpalo> |
@@ -91,7 +92,10 @@ their `OFL.txt`.
 | cpufeatures | 0.2.17 | <https://github.com/RustCrypto/utils> |
 | cpufeatures | 0.3.1 | <https://github.com/RustCrypto/utils> |
 | crc32fast | 1.5.0 | <https://github.com/srijs/rust-crc32fast> |
+| crossbeam | 0.8.5 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-channel | 0.5.15 | <https://github.com/crossbeam-rs/crossbeam> |
+| crossbeam-deque | 0.8.8 | <https://github.com/crossbeam-rs/crossbeam> |
+| crossbeam-epoch | 0.9.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-queue | 0.3.12 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
@@ -101,6 +105,10 @@ their `OFL.txt`.
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
 | debug-ignore | 1.0.5 | <https://github.com/sunshowers-code/debug-ignore> |
+| defmt | 0.3.101 | <https://github.com/knurling-rs/defmt> |
+| defmt | 1.2.0 | <https://github.com/knurling-rs/defmt> |
+| defmt-macros | 1.2.0 | <https://github.com/knurling-rs/defmt> |
+| defmt-parser | 1.1.0 | <https://github.com/knurling-rs/defmt> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
 | digest | 0.11.3 | <https://github.com/RustCrypto/traits> |
@@ -117,9 +125,10 @@ their `OFL.txt`.
 | event-listener-strategy | 0.5.4 | <https://github.com/smol-rs/event-listener-strategy> |
 | fallible-iterator | 0.3.0 | <https://github.com/sfackler/rust-fallible-iterator> |
 | fallible-streaming-iterator | 0.1.9 | <https://github.com/sfackler/fallible-streaming-iterator> |
-| fastrand | 2.3.0 | <https://github.com/smol-rs/fastrand> |
+| fastrand | 2.5.0 | <https://github.com/smol-rs/fastrand> |
 | fdeflate | 0.3.7 | <https://github.com/image-rs/fdeflate> |
 | fearless_simd | 0.7.0 | <https://github.com/linebender/fearless_simd> |
+| filetime | 0.2.29 | <https://github.com/alexcrichton/filetime> |
 | flate2 | 1.1.9 | <https://github.com/rust-lang/flate2-rs> |
 | fnv | 1.0.7 | <https://github.com/servo/rust-fnv> |
 | font-types | 0.12.6 | <https://github.com/googlefonts/fontations> |
@@ -143,14 +152,71 @@ their `OFL.txt`.
 | getrandom | 0.4.2 | <https://github.com/rust-random/getrandom> |
 | gilrs | 0.11.2 | <https://gitlab.com/gilrs-project/gilrs> |
 | gilrs-core | 0.6.8 | <https://gitlab.com/gilrs-project/gilrs> |
+| gix | 0.89.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-actor | 0.44.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-attributes | 0.37.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-bitmap | 0.6.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-blame | 0.19.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-chunk | 0.10.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-command | 0.12.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-commitgraph | 0.41.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-config | 0.62.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-config-value | 0.21.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-date | 0.18.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-diff | 0.69.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-dir | 0.31.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-discover | 0.57.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-error | 0.5.1 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-filter | 0.36.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-fs | 0.24.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-glob | 0.29.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-hash | 0.28.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-hashtable | 0.18.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-ignore | 0.24.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-index | 0.57.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-lock | 26.0.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-macros | 0.2.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-merge | 0.22.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-note | 0.3.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-object | 0.66.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-odb | 0.86.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-pack | 0.76.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-packetline | 0.24.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-parallel | 0.50.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-path | 0.14.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-pathspec | 0.22.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-protocol | 0.67.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-quote | 0.10.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-ref | 0.69.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-refspec | 0.47.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-revision | 0.51.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-revwalk | 0.37.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-sec | 0.16.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-shallow | 0.15.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-status | 0.36.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-submodule | 0.36.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-tempfile | 26.0.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-trace | 0.3.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-transport | 0.61.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-traverse | 0.63.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-url | 0.40.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-utils | 0.5.1 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-validate | 0.13.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-worktree | 0.58.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-worktree-state | 0.36.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-worktree-stream | 0.38.0 | <https://github.com/GitoxideLabs/gitoxide> |
+| gix-zlib | 0.3.0 | <https://github.com/GitoxideLabs/gitoxide> |
 | glifo | 0.4.0 | <https://github.com/linebender/vello> |
 | glob | 0.3.3 | <https://github.com/rust-lang/glob> |
 | gpu-allocator | 0.28.0 | <https://github.com/Traverse-Research/gpu-allocator> |
 | guillotiere | 0.7.0 | <https://github.com/nical/guillotiere> |
 | half | 2.7.1 | <https://github.com/VoidStarKat/half-rs> |
+| hash32 | 0.3.1 | <https://github.com/japaric/hash32> |
+| hashbrown | 0.14.5 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.15.5 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.16.1 | <https://github.com/rust-lang/hashbrown> |
 | hashbrown | 0.17.1 | <https://github.com/rust-lang/hashbrown> |
+| heapless | 0.8.0 | <https://github.com/rust-embedded/heapless> |
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
 | hermit-abi | 0.5.3 | <https://github.com/hermit-os/hermit-rs> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
@@ -167,6 +233,7 @@ their `OFL.txt`.
 | idna_adapter | 1.2.1 | <https://github.com/hsivonen/idna_adapter> |
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
 | inout | 0.2.3 | <https://github.com/RustCrypto/utils> |
+| io-close | 0.3.7 | <https://gitlab.com/wufz/io-close> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
 | java-locator | 0.1.9 | <https://github.com/astonbitecode/java-locator> |
@@ -272,6 +339,7 @@ their `OFL.txt`.
 | serde_spanned | 1.1.1 | <https://github.com/toml-rs/toml> |
 | serde_urlencoded | 0.7.1 | <https://github.com/nox/serde_urlencoded> |
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
+| sha1dc | 0.1.5 | <https://github.com/srijs/sha1dc> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
 | sha2 | 0.11.1 | <https://github.com/RustCrypto/hashes> |
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
@@ -381,7 +449,7 @@ their `OFL.txt`.
 | zbus-secret-service-keyring-store | 1.0.1 | <https://github.com/open-source-cooperative/zbus-secret-service-keyring-store.git> |
 | zeroize | 1.9.1 | <https://github.com/RustCrypto/utils> |
 
-## MIT (130)
+## MIT (136)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -394,11 +462,13 @@ their `OFL.txt`.
 | bytes | 1.11.1 | <https://github.com/tokio-rs/bytes> |
 | calloop | 0.13.0 | <https://github.com/Smithay/calloop> |
 | calloop-wayland-source | 0.3.0 | <https://github.com/smithay/calloop-wayland-source> |
+| clru | 0.6.3 | <https://github.com/marmeladema/clru-rs> |
 | combine | 4.6.7 | <https://github.com/Marwes/combine> |
 | coreaudio-sys | 0.2.17 | <https://github.com/RustAudio/coreaudio-sys.git> |
 | coremidi | 0.9.2 | <https://github.com/chris-zen/coremidi> |
 | coremidi-sys | 3.2.1 | <https://github.com/jonas-k/coremidi-sys> |
 | crunchy | 0.2.4 | <https://github.com/eira-fransham/crunchy> |
+| dashmap | 6.2.1 | <https://github.com/xacrimon/dashmap> |
 | dispatch | 0.2.0 | <http://github.com/SSheldon/rust-dispatch> |
 | dlib | 0.5.3 | <https://github.com/elinorbgr/dlib> |
 | dlopen2 | 0.9.0 | <https://github.com/OpenByteDev/dlopen2> |
@@ -406,7 +476,9 @@ their `OFL.txt`.
 | drm-ffi | 0.9.1 | <https://github.com/Smithay/drm-rs> |
 | drm-fourcc | 2.2.0 | <https://github.com/danielzfranklin/drm-fourcc-rs> |
 | drm-sys | 0.8.1 | <https://github.com/Smithay/drm-rs> |
+| dua-core | 4.2.0 | <https://github.com/Byron/dua-cli> |
 | endi | 1.1.1 | <https://github.com/zeenix/endi> |
+| faster-hex | 0.10.1 | <https://github.com/NervosFoundation/faster-hex> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |
 | fluent-uri | 0.1.4 | <https://github.com/yescallop/fluent-uri-rs> |
 | generic-array | 0.14.7 | <https://github.com/fizyk20/generic-array.git> |
@@ -429,6 +501,7 @@ their `OFL.txt`.
 | mio | 1.2.0 | <https://github.com/tokio-rs/mio> |
 | multer | 3.1.0 | <https://github.com/rwf2/multer> |
 | nix | 0.31.3 | <https://github.com/nix-rust/nix> |
+| nonempty | 0.12.0 | <https://github.com/cloudhead/nonempty> |
 | objc-sys | 0.3.5 | <https://github.com/madsmtm/objc2> |
 | objc2 | 0.5.2 | <https://github.com/madsmtm/objc2> |
 | objc2 | 0.6.4 | <https://github.com/madsmtm/objc2> |
@@ -457,6 +530,7 @@ their `OFL.txt`.
 | phf_macros | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
+| prodash | 31.0.1 | <https://github.com/GitoxideLabs/prodash> |
 | pulldown-cmark | 0.13.4 | <https://github.com/raphlinus/pulldown-cmark> |
 | quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
@@ -569,6 +643,29 @@ their `OFL.txt`.
 | wide | 1.7.1 | <https://github.com/Lokathor/wide> |
 | xkeysym | 0.2.1 | <https://github.com/notgull/xkeysym> |
 
+## Apache-2.0 (18)
+
+| Library | Version | Upstream |
+|---|---|---|
+| ab_glyph | 0.2.32 | <https://github.com/alexheretic/ab-glyph> |
+| ab_glyph_rasterizer | 0.1.10 | <https://github.com/alexheretic/ab-glyph> |
+| accesskit_winit | 0.34.1 | <https://github.com/AccessKit/accesskit> |
+| claxon | 0.4.3 | <https://github.com/ruuda/claxon> |
+| codespan-reporting | 0.13.1 | <https://github.com/brendanzab/codespan> |
+| cpal | 0.15.3 | <https://github.com/rustaudio/cpal> |
+| gethostname | 1.1.0 | <https://codeberg.org/swsnr/gethostname.rs.git> |
+| gix-imara-diff | 0.3.1 | <https://github.com/GitoxideLabs/gitoxide> |
+| glutin_wgl_sys | 0.6.1 | <https://github.com/rust-windowing/glutin> |
+| hound | 3.5.1 | <https://github.com/ruuda/hound> |
+| oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
+| oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
+| openssl | 0.10.81 | <https://github.com/rust-openssl/rust-openssl> |
+| owned_ttf_parser | 0.25.1 | <https://github.com/alexheretic/owned-ttf-parser> |
+| spirv | 0.4.0+sdk-1.4.341.0 | <https://github.com/gfx-rs/rspirv> |
+| sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
+| unicode-bom | 2.0.3 | <https://gitlab.com/philbooth/unicode-bom> |
+| winit | 0.30.13 | <https://github.com/rust-windowing/winit> |
+
 ## Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT (17)
 
 | Library | Version | Upstream |
@@ -591,33 +688,17 @@ their `OFL.txt`.
 | wit-component | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-component> |
 | wit-parser | 0.244.0 | <https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wit-parser> |
 
-## Apache-2.0 (16)
-
-| Library | Version | Upstream |
-|---|---|---|
-| ab_glyph | 0.2.32 | <https://github.com/alexheretic/ab-glyph> |
-| ab_glyph_rasterizer | 0.1.10 | <https://github.com/alexheretic/ab-glyph> |
-| accesskit_winit | 0.34.1 | <https://github.com/AccessKit/accesskit> |
-| claxon | 0.4.3 | <https://github.com/ruuda/claxon> |
-| codespan-reporting | 0.13.1 | <https://github.com/brendanzab/codespan> |
-| cpal | 0.15.3 | <https://github.com/rustaudio/cpal> |
-| gethostname | 1.1.0 | <https://codeberg.org/swsnr/gethostname.rs.git> |
-| glutin_wgl_sys | 0.6.1 | <https://github.com/rust-windowing/glutin> |
-| hound | 3.5.1 | <https://github.com/ruuda/hound> |
-| oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
-| oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
-| openssl | 0.10.81 | <https://github.com/rust-openssl/rust-openssl> |
-| owned_ttf_parser | 0.25.1 | <https://github.com/alexheretic/owned-ttf-parser> |
-| spirv | 0.4.0+sdk-1.4.341.0 | <https://github.com/gfx-rs/rspirv> |
-| sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
-| winit | 0.30.13 | <https://github.com/rust-windowing/winit> |
-
-## MIT OR Unlicense (7)
+## MIT OR Unlicense (12)
 
 | Library | Version | Upstream |
 |---|---|---|
 | aho-corasick | 1.1.4 | <https://github.com/BurntSushi/aho-corasick> |
 | byteorder | 1.5.0 | <https://github.com/BurntSushi/byteorder> |
+| jiff | 0.2.38 | <https://github.com/BurntSushi/jiff> |
+| jiff-core | 0.1.1 | <https://github.com/BurntSushi/jiff> |
+| jiff-static | 0.2.38 | <https://github.com/BurntSushi/jiff> |
+| jiff-tzdb | 0.1.9 | <https://github.com/BurntSushi/jiff> |
+| jiff-tzdb-platform | 0.1.3 | <https://github.com/BurntSushi/jiff> |
 | memchr | 2.8.0 | <https://github.com/BurntSushi/memchr> |
 | same-file | 1.0.6 | <https://github.com/BurntSushi/same-file> |
 | termcolor | 1.4.1 | <https://github.com/BurntSushi/termcolor> |
@@ -643,6 +724,15 @@ their `OFL.txt`.
 | libloading | 0.7.4 | <https://github.com/nagisa/rust_libloading/> |
 | libloading | 0.8.9 | <https://github.com/nagisa/rust_libloading/> |
 
+## Zlib (4)
+
+| Library | Version | Upstream |
+|---|---|---|
+| foldhash | 0.1.5 | <https://github.com/orlp/foldhash> |
+| foldhash | 0.2.0 | <https://github.com/orlp/foldhash> |
+| slotmap | 1.1.1 | <https://github.com/orlp/slotmap> |
+| zlib-rs | 0.6.8 | <https://github.com/trifectatechfoundation/zlib-rs> |
+
 ## Apache-2.0 OR BSD-2-Clause OR MIT (3)
 
 | Library | Version | Upstream |
@@ -651,13 +741,12 @@ their `OFL.txt`.
 | zerocopy | 0.8.47 | <https://github.com/google/zerocopy> |
 | zerocopy-derive | 0.8.47 | <https://github.com/google/zerocopy> |
 
-## Zlib (3)
+## (MIT OR Apache-2.0) AND Unicode-3.0 (2)
 
 | Library | Version | Upstream |
 |---|---|---|
-| foldhash | 0.1.5 | <https://github.com/orlp/foldhash> |
-| foldhash | 0.2.0 | <https://github.com/orlp/foldhash> |
-| slotmap | 1.1.1 | <https://github.com/orlp/slotmap> |
+| unicode-ident | 1.0.24 | <https://github.com/dtolnay/unicode-ident> |
+| unicode-normalization | 0.1.26 | <https://github.com/unicode-rs/unicode-normalization> |
 
 ## Apache-2.0 OR BSD-3-Clause OR MIT (2)
 
@@ -693,12 +782,6 @@ their `OFL.txt`.
 |---|---|---|
 | encoding_rs | 0.8.35 | <https://github.com/hsivonen/encoding_rs> |
 
-## (MIT OR Apache-2.0) AND Unicode-3.0 (1)
-
-| Library | Version | Upstream |
-|---|---|---|
-| unicode-ident | 1.0.24 | <https://github.com/dtolnay/unicode-ident> |
-
 ## 0BSD OR Apache-2.0 OR MIT (1)
 
 | Library | Version | Upstream |
@@ -722,6 +805,12 @@ their `OFL.txt`.
 | Library | Version | Upstream |
 |---|---|---|
 | ryu | 1.0.23 | <https://github.com/dtolnay/ryu> |
+
+## Apache-2.0 OR CC0-1.0 OR MIT-0 (1)
+
+| Library | Version | Upstream |
+|---|---|---|
+| dunce | 1.0.5 | <https://gitlab.com/kornelski/dunce> |
 
 ## MIT AND BSD-3-Clause (1)
 
