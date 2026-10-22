@@ -7,6 +7,23 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **Tab names are no longer cut short while there is room for them** (found
+  in high contrast, where the debugging layout's "Breakpoints (2)" showed as
+  "Breakpoints…"; light and dark did the same). When a dock group or the
+  documents' strip is too narrow for all its tabs, the tabs now give up their
+  padding first — every tab alike, the names whole — and only then are the
+  widest trimmed to one width, so a short name is never cut for a long one's
+  sake (before, every tab shrank in proportion and the widest lost its end).
+  The geometry says where each title is drawn (`Tab.text`) and the painters
+  use it. A name that still can't fit keeps its full tooltip and its full
+  accessible name. Flow `tabs-fit-names` (the three looks, contrast judged),
+  unit tests for the squeeze and for a crowded group; the Studio goldens
+  `debug-variables`, `debug-callstack`, `debug-breakpoints`, `debug-watch`,
+  `debug-datatip` (tab strip), `debug-error` (the Output's long line wraps)
+  and `palette` (one more command, a shorter scroll thumb) approved in all
+  three looks.
+
 ### Added
 - **The Output, Build and Problems pages wrap long lines** (ROutputConsole's
   new `WordWrap`, RapidR's own, True unless a program sets it). A line longer

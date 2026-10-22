@@ -2012,6 +2012,23 @@ const CASES = [
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
   },
   {
+    // (A11Y) The debugging layout's narrow group — Variables, Watch, Call
+    // Stack, Breakpoints (2) — keeps every tab's name whole in every look,
+    // high contrast too (the tabs' padding gives way before a name is cut;
+    // a name that still can't fit has its tooltip and its full accessible
+    // name): the shown tab is a screen reader's "Breakpoints (2)"
+    name: "tabs-fit-names",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,line:147,debug.toggleBreakpoint,bpcond:count > 1,run.start,wait,wait,wait,view.breakpoints,wait",
+    delay: 9,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    a11y: [["Breakpoints (2)", "tab", "selected"], ["Variables", "tab"], ["Watch", "tab"], ["Call Stack", "tab"]],
+    dump: { "dock.activepane": /^bppanel$/ },
+  },
+  {
     // (A11Y) …and the Problems page wraps a long message onto more rows, so
     // it reads whole (WordWrap, on unless turned off) — captured in every
     // look, the page's text judged against what it is drawn on

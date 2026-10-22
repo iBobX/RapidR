@@ -366,8 +366,8 @@ in a canvas. See [The web](web.md).
 On the Welcome page, **Examples** opens a program to run and read; start with
 `hello_form.rr`, then the data examples. A window too short for all of
 them scrolls (the wheel, the bar); from the keyboard, Tab and Shift+Tab
-go from card to card — the page scrolls to the one you reach — and Enter
-opens it. Studio opens in your system's light, dark or high-contrast look
+go from card to card and to each project under **Recent** — the page
+scrolls to the one you reach, a ring shows round it — and Enter opens it. Studio opens in your system's light, dark or high-contrast look
 and follows it when you switch ([Themes](components.md#when-the-look-changes)).
 
 The examples where RapidR is installed can't be changed (the macOS app,
@@ -399,6 +399,12 @@ the whole gap turns the accent colour, the pointer a resize arrow. Drag it
 to give one pane more room. **Double-click** it to put it back where it was
 at first. Where two splitters meet, grab the meeting point to move both at
 once (the pointer turns into a four-way arrow).
+
+A pane's tabs keep their names whole: when a group is too narrow for all its
+tabs, they give up some padding first, and only then are the longest names
+cut with "…" — the shortest are never cut for a long one's sake. In every
+look, high contrast too, the whole name is the tab's tooltip and what a
+screen reader says.
 
 ![Two splitters at rest: the narrow gaps between the editor, the left column and the bottom panel, each with a short grey grip in its middle](images/panes/splitters-rest.png)
 
