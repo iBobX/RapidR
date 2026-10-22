@@ -57,7 +57,9 @@ fn handlers(stmts: &[Statement], routines: &HashMap<String, usize>, out: &mut Ve
                 Expression::MemberAccess(m) => m.member.as_str(),
                 _ => return,
             };
-            if event.len() <= 2 || !event[..2].eq_ignore_ascii_case("on") {
+            // (OnMessage is WndProc's other name — a window procedure gets the
+            // message's four numbers and no Sender — rapidr_ast::tray_calls)
+            if event.len() <= 2 || !event[..2].eq_ignore_ascii_case("on") || event.eq_ignore_ascii_case("onmessage") {
                 return;
             }
             if let Expression::Identifier(h) = &a.value {
