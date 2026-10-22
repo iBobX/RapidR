@@ -1,0 +1,203 @@
+' million_rows_async.rr: a million rows from SQLite in the background. The
+' window keeps answering while they stream in, an RDBGrid shows them as
+' they come (it draws only the rows on screen), Cancel stops a long query,
+' and the SQL editor completes the table's columns and runs what you
+' select with Ctrl+Enter.
+'
+'   rapidr run million_rows_async.rr [rows]
+'
+' The database lives in memory, so nothing is written to disk. Make data
+' fills a table `big` with made-up orders (1,000,000 rows unless you type
+' another number in Rows; 100,000 is plenty on the web) with one SQL
+' statement, in the background too, then runs the editor's query. Run (or
+' Ctrl+Enter in the editor; Cmd+Enter on a Mac) runs the statement at the
+' caret or the selection with QueryAsync. The status line says when the
+' first rows came and how long the whole query took. Click Ping while
+' rows stream: it answers at once. Click a heading: the query runs again
+' sorted by that column (ORDER BY: the program sorts a database's rows,
+' not the grid); a second click sorts it the other way, a third unsorts.
+$THEME rapidr
+
+DECLARE SUB MakeData
+DECLARE SUB RunQuery(SQL AS STRING)
+DECLARE SUB RunClicked
+DECLARE SUB CancelClicked
+DECLARE SUB PingClicked
+DECLARE SUB RunStatement(SQL AS STRING)
+DECLARE SUB GotRows(Count AS INTEGER)
+DECLARE SUB QueryDone(Rows AS INTEGER, Ms AS INTEGER)
+DECLARE SUB QueryFailed(Message AS STRING)
+DECLARE SUB SortBy(Col AS INTEGER)
+DECLARE SUB Idle(Text AS STRING)
+
+DIM Mode AS STRING, LastSQL AS STRING
+DIM Started AS DOUBLE, FirstMs AS INTEGER, Pings AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "A million rows, in the background"
+    ClientWidth = 780: ClientHeight = 540
+    Center
+    CREATE DB AS RSQLite
+        OnRows = GotRows
+        OnDone = QueryDone
+        OnError = QueryFailed
+    END CREATE
+    CREATE Bar AS RPanel
+        Align = alTop: Height = 40: BevelOuter = 0
+        CREATE MakeBtn AS RButton
+            Caption = "&Make data": Left = 8: Top = 7: Width = 96: Height = 26
+            OnClick = MakeData
+        END CREATE
+        CREATE RowsLabel AS RLabel
+            Caption = "Rows:": Left = 114: Top = 13: Width = 40
+        END CREATE
+        CREATE RowsEdit AS REdit
+            Text = "1000000": Left = 156: Top = 9: Width = 84
+        END CREATE
+        CREATE RunBtn AS RButton
+            Caption = "&Run (Ctrl+Enter)": Left = 252: Top = 7: Width = 130: Height = 26
+            Enabled = 0
+            OnClick = RunClicked
+        END CREATE
+        CREATE CancelBtn AS RButton
+            Caption = "&Cancel": Left = 388: Top = 7: Width = 80: Height = 26
+            Enabled = 0
+            OnClick = CancelClicked
+        END CREATE
+        CREATE PingBtn AS RButton
+            Caption = "&Ping": Left = 488: Top = 7: Width = 70: Height = 26
+            OnClick = PingClicked
+        END CREATE
+        CREATE PingLabel AS RLabel
+            Caption = "Pings: 0": Left = 566: Top = 13: Width = 210
+        END CREATE
+    END CREATE
+    CREATE Editor AS RCodeEditor
+        Align = alTop: Height = 100
+        Language = "sql"
+        SqlDialect = "sqlite"
+        Text = "SELECT * FROM big;" + CHR$(10) + "SELECT city, COUNT(*) AS orders, ROUND(AVG(amount), 2) AS average" + CHR$(10) + "FROM big GROUP BY city ORDER BY orders DESC;"
+        OnRunStatement = RunStatement
+    END CREATE
+    CREATE StatusBar AS RPanel
+        Align = alBottom: Height = 28: BevelOuter = 0
+        CREATE Status AS RLabel
+            Left = 8: Top = 6: Width = 760
+            Caption = "Click Make data to fill a table with made-up orders."
+        END CREATE
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Align = alClient
+        DataSource = DB
+        OnTitleClick = SortBy
+    END CREATE
+END CREATE
+
+' Ready for the next query: the buttons back, what happened in the status.
+SUB Idle(Text AS STRING)
+    Status.Caption = Text
+    MakeBtn.Enabled = 1
+    RunBtn.Enabled = 1
+    CancelBtn.Enabled = 0
+    Mode = ""
+END SUB
+
+' One SQL statement fills `big` (a recursive count, each number an order),
+' in the background: the window answers meanwhile.
+SUB MakeData
+    DIM n AS LONG
+    n = VAL(RowsEdit.Text)
+    IF n <= 0 THEN n = 1000000
+    Mode = "make"
+    MakeBtn.Enabled = 0: RunBtn.Enabled = 0: CancelBtn.Enabled = 1
+    Status.Caption = "Making " + STR$(n) + " rows..."
+    Started = TIMER
+    DB.QueryAsync "DROP TABLE IF EXISTS big; CREATE TABLE big (id INTEGER PRIMARY KEY, customer TEXT, city TEXT, amount REAL, day TEXT); WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < ?) INSERT INTO big SELECT i, 'customer ' || (i * 37 % 9973), CASE i % 7 WHEN 0 THEN 'Lima' WHEN 1 THEN 'Madrid' WHEN 2 THEN 'Porto' WHEN 3 THEN 'Quito' WHEN 4 THEN 'Rosario' WHEN 5 THEN 'Sevilla' ELSE 'Valencia' END, ROUND((i * 7919 % 100000) / 100.0, 2), date('2026-01-01', '+' || (i % 365) || ' days') FROM c", n
+END SUB
+
+' A query in the background: its rows stream into the grid.
+SUB RunQuery(SQL AS STRING)
+    IF TRIM$(SQL) = "" THEN EXIT SUB
+    IF DB.Busy THEN
+        Status.Caption = "A query is still running: Cancel it, or wait."
+        EXIT SUB
+    END IF
+    LastSQL = SQL
+    Mode = "query"
+    FirstMs = -1
+    MakeBtn.Enabled = 0: RunBtn.Enabled = 0: CancelBtn.Enabled = 1
+    Status.Caption = "Running..."
+    Started = TIMER
+    DB.QueryAsync SQL
+END SUB
+
+SUB RunClicked
+    RunQuery Editor.CurrentStatement
+END SUB
+
+' Ctrl+Enter in the editor: the statement at the caret, or the selection.
+SUB RunStatement(SQL AS STRING)
+    RunQuery SQL
+END SUB
+
+SUB CancelClicked
+    DB.Cancel
+END SUB
+
+'' Answered at once, even while a million rows stream in.
+SUB PingClicked
+    Pings = Pings + 1
+    IF DB.Busy THEN
+        PingLabel.Caption = "Pings: " + STR$(Pings) + ", with " + STR$(DB.RowCount) + " rows in"
+    ELSE
+        PingLabel.Caption = "Pings: " + STR$(Pings)
+    END IF
+END SUB
+
+SUB GotRows(Count AS INTEGER)
+    IF Mode <> "query" THEN EXIT SUB
+    IF FirstMs < 0 THEN FirstMs = INT((TIMER - Started) * 1000)
+    Status.Caption = STR$(Count) + " rows so far (the first after " + STR$(FirstMs) + " ms)..."
+END SUB
+
+SUB QueryDone(Rows AS INTEGER, Ms AS INTEGER)
+    IF Mode = "make" THEN
+        ' (what the editor completes: the table and its columns)
+        Editor.SetSchema "{""big"": {""id"": ""INTEGER"", ""customer"": ""TEXT"", ""city"": ""TEXT"", ""amount"": ""REAL"", ""day"": ""TEXT""}}"
+        Status.Caption = "Made the table in " + STR$(Ms) + " ms."
+        Mode = ""
+        RunQuery "SELECT * FROM big"
+        EXIT SUB
+    END IF
+    Idle STR$(Rows) + " rows in " + STR$(Ms) + " ms; the first showed after " + STR$(FirstMs) + " ms."
+END SUB
+
+SUB QueryFailed(Message AS STRING)
+    IF Message = "cancelled" THEN
+        Idle "Cancelled after " + STR$(DB.RowCount) + " rows."
+    ELSE
+        Idle "SQLite says: " + Message
+    END IF
+END SUB
+
+' A heading clicked: the same query again, sorted by that column (the
+' grid says which, and which way: SortColumn, SortDescending).
+SUB SortBy(Col AS INTEGER)
+    DIM base AS STRING, order AS STRING
+    IF LastSQL = "" OR DB.Busy THEN EXIT SUB
+    base = RTRIM$(LastSQL)
+    IF RIGHT$(base, 1) = ";" THEN base = LEFT$(base, LEN(base) - 1)
+    IF Grid.SortColumn < 0 THEN
+        RunQuery base
+    ELSE
+        order = " ORDER BY " + STR$(Grid.SortColumn + 1)
+        IF Grid.SortDescending THEN order = order + " DESC"
+        RunQuery "SELECT * FROM (" + base + ")" + order
+        ' (RunQuery keeps the SQL it ran; the next sort starts from the plain one)
+        LastSQL = base
+    END IF
+END SUB
+
+DB.Connect ":memory:"
+IF VAL(COMMAND$(1)) > 0 THEN RowsEdit.Text = COMMAND$(1)
+Form.ShowModal

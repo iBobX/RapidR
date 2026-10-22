@@ -271,6 +271,21 @@ export const cases = [
   { file: "data/million_rows.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
     events: "groupbtn.onclick,grid.__cell_0_1", dump: "grid.rowcount,grid.columns,grid.row",
     expect: ["grid.rowcount=5", "grid.columns=dept,salary,years", "grid.row=1"] },
+  // (REQUEST-001: background queries — 20,000 rows here, a million by
+  // default; a Ping answered while the table is made, a heading's click
+  // runs the query again sorted, End goes to the last row; Ctrl+Enter in
+  // the SQL editor runs the statement at the caret — here before there's
+  // a table: SQLite's message; Cancel stops making 3,000,000 rows)
+  { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "native", "web"], args: ["20000"],
+    events: "makebtn.onclick,pingbtn.onclick,db.__until_busy_0,grid.__cell_1_-1,db.__until_busy_0,grid.__do_end",
+    dump: "db.rowcount,grid.rowcount,grid.sortcolumn,grid.row,pinglabel.caption,status.caption,cancelbtn.enabled,runbtn.enabled",
+    expect: ["db.rowcount=20000", "grid.rowcount=20000", "grid.sortcolumn=1", "grid.row=19999", "pinglabel.caption=Pings: 1", "status.caption=20000 rows in", "cancelbtn.enabled=0", "runbtn.enabled=1"] },
+  { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "editor.__key_13_16", dump: "status.caption",
+    expect: ["status.caption=SQLite says: no such table: big"] },
+  { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "native"], args: ["3000000"],
+    events: "makebtn.onclick,cancelbtn.onclick,db.__until_busy_0", dump: "status.caption,db.busy,makebtn.enabled",
+    expect: ["status.caption=Cancelled after", "db.busy=0", "makebtn.enabled=1"] },
   // (EXAMPLES-DATA: where the example's folder can't be written — RapidR's
   // examples where it's installed — the window says why, nothing pretends;
   // a data file missing, the same; letters typed into a number field are

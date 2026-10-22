@@ -66,7 +66,9 @@ thread_local! {
     static SHOWN: RefCell<HashMap<String, (usize, Option<(usize, bool)>)>> = RefCell::new(HashMap::new());
 }
 
-/// Most rows looked at to size a column (the widest text among them).
+/// Most rows looked at to size a column (the widest text among them): the
+/// first ones and as many of the last (where the numbers are widest when
+/// they count up — a database's ids as its rows stream in).
 const SAMPLE_ROWS: usize = 200;
 const MIN_COL: i64 = 44;
 const MAX_COL: i64 = 320;
@@ -85,9 +87,10 @@ fn widths(ts: &mut TextSystem, id: &str, d: &link::GridData, font: &Font) -> (Ve
     }
     let (names, samples): (Vec<String>, Vec<String>) = frame::with_frame(&d.dataset, |f| {
         let n = f.height().min(SAMPLE_ROWS);
+        let tail = f.height().saturating_sub(SAMPLE_ROWS).max(n)..f.height();
         let names = f.columns.clone();
         let samples = (0..f.width())
-            .map(|c| (0..n).filter_map(|r| f.cell(r, c).map(|s| s.into_owned())).max_by_key(|s| s.chars().count()).unwrap_or_default())
+            .map(|c| (0..n).chain(tail.clone()).filter_map(|r| f.cell(r, c).map(|s| s.into_owned())).max_by_key(|s| s.chars().count()).unwrap_or_default())
             .collect();
         (names, samples)
     });
@@ -140,6 +143,15 @@ fn layout(cx: &mut Cx, d: &link::GridData) -> Layout {
         sc.vert.position = d.top as i64 * row_h;
         let content = Child { left: -sc.horz.position, top: -sc.vert.position, width: total_w, height: total_h, align: rapidr_value::layout::Align::None, visible: true };
         sc.update(iw, ih, &[content]);
+        // (scrolled to the end, the last row shows whole: the content ends a
+        // whole page of rows below the last top row)
+        let (_, ch) = sc.client(iw, ih);
+        let page = ((ch - row_h - 1).max(0) / row_h.max(1)).max(1);
+        let whole = (d.rows as i64 - page).max(0) * row_h + ch;
+        if whole > total_h {
+            sc.vert.position = d.top as i64 * row_h;
+            sc.update(iw, ih, &[Child { height: whole, top: -sc.vert.position, ..content }]);
+        }
         let top = (sc.vert.position / row_h.max(1)) as usize;
         (crate::paint::bar_ops(sc, iw, ih), sc.client(iw, ih), top, sc.horz.position)
     });

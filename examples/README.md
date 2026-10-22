@@ -107,6 +107,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | [linked_data.rr](data/linked_data.rr) | Linked components with almost no code: `RCSV` → `RDataFrame` → `RDataSource` → an `RDBGrid` and bound edits and labels; live in Studio's designer | run · interp · native · web | `rapidr run data/linked_data.rr` |
 | [json_source.rr](data/json_source.rr) | A JSON file ([products.json](data/products.json)) as a data source for a grid and edits; filtered, grouped, saved back as JSON | run · interp · native · web | `rapidr run data/json_source.rr` |
 | [million_rows.rr](data/million_rows.rr) | A million rows in an `RDBGrid` that draws only the rows on screen; filter, sort and group them all, with the time each took | run · interp · native · web | `rapidr run data/million_rows.rr [rows]` |
+| [million_rows_async.rr](data/million_rows_async.rr) | A million rows from SQLite in the background (`QueryAsync`, `OnRows`, `OnDone`, `Cancel`): the window keeps answering, an `RDBGrid` shows the rows as they stream in, a heading's click sorts with `ORDER BY`; an SQL `RCodeEditor` completes the table's columns (`SetSchema`) and runs the statement with Ctrl+Enter | run · interp · native · web | `rapidr run data/million_rows_async.rr [rows]` |
 
 ### debugging/ — RapidR Studio's debugger
 
