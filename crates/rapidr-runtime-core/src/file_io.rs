@@ -123,6 +123,23 @@ fn dir_entries(pattern: &str, attr: i64) -> (std::path::PathBuf, Vec<String>) {
     (folder, names)
 }
 
+/// FILEEXISTS with `*` / `?` in its name part (RC.EXE, 2026-10-22): the
+/// folder's entries, its own `.` and `..` first, in Windows' order — the
+/// first that matches must be a file (`rapidr_value::objects::filelist::
+/// wildcard_file_exists`). A folder that isn't there finds nothing.
+pub fn wildcard_file_exists(pattern: &str) -> bool {
+    let pat = if cfg!(windows) { pattern.to_string() } else { pattern.replace('\\', "/") };
+    let path = Path::new(&pat);
+    let Some(glob) = path.file_name().and_then(|s| s.to_str()) else { return false };
+    let folder = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => crate::value::paths::host(&p.to_string_lossy()),
+        _ => std::path::PathBuf::from("."),
+    };
+    let Ok(dir) = fs::read_dir(&folder) else { return false };
+    let entries = dir.flatten().map(|e| (e.file_name().to_string_lossy().into_owned(), e.file_type().map(|t| t.is_dir()).unwrap_or(false)));
+    crate::value::objects::filelist::wildcard_file_exists(glob, entries)
+}
+
 /// FileRec for the file DIR$ just found (crate::value::globals::FileRec).
 fn set_file_rec(path: &Path, name: &str) {
     use chrono::{DateTime, Datelike, Local, Timelike};

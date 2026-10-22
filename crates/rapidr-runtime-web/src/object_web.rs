@@ -355,6 +355,27 @@ fn asset_bytes(path: &str) -> Option<Vec<u8>> {
     crate::database_web::decode_base64(&data)
 }
 
+/// FILEEXISTS with `*` / `?` in the name: the program's files (saved this
+/// session, its project's) in the pattern's folder (the page has the
+/// program's own folder only: `*.txt` or `./*.txt`; any other folder has
+/// nothing), as the desktop's — the folder's own `.` and `..` first, so
+/// `*` and `*.*` are 0 as in RapidQ (filelist::wildcard_file_exists).
+pub fn web_wildcard_exists(pattern: &str) -> bool {
+    let split = |k: &str| -> (String, String) {
+        match k.rfind('/') {
+            Some(i) => (k[..i].trim_start_matches("./").to_string(), k[i + 1..].to_string()),
+            None => (String::new(), k.to_string()),
+        }
+    };
+    let (folder, glob) = split(&file_key(pattern));
+    let folder = if folder == "." { String::new() } else { folder };
+    let names = asset_names().into_iter().filter_map(|n| {
+        let (f, last) = split(&file_key(&n));
+        (f == folder).then_some((last, false))
+    });
+    crate::value::objects::filelist::wildcard_file_exists(&glob, names)
+}
+
 /// Whether the program can open `path`: a file saved this session or one of
 /// its project's files (FILEEXISTS).
 pub fn web_file_exists(path: &str) -> bool {

@@ -167,6 +167,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **FILEEXISTS with wildcards** (RC.EXE): `FILEEXISTS("*.bas")` is 1 when the
+  first name the folder lists for the pattern is a file, as in RapidQ (`*` and
+  `*.*` meet the folder's own `.` first and are 0, a pattern only a folder
+  matches is 0), on the desktop and, among the program's files, on the web. A
+  `?` at the end of a name or before its dot may match nothing, as Windows reads
+  it — for DIR$ and QFILELISTBOX's masks too.
 - **`RINSTR(text, find)` compiles natively again with any generation of the
   compiler** (found by RapidR Database Studio): the two-argument form keeps its
   runtime function `rp_rinstr(text, find)`, the form with a start has its own

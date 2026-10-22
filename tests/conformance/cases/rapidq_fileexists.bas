@@ -2,8 +2,12 @@
 ' docs/rapidq-ground-truth.md) — so NOT FILEEXISTS(f) is -2 for a file, which
 ' is true: `IF NOT FILEEXISTS(f) THEN` runs its THEN for a file too, in
 ' RapidQ as here. A folder and "" are 0. The .expected is RC.EXE's output.
-F$ = "tests/conformance/cases/rapidq_fileexists.bas"
-M$ = "tests/conformance/cases/no_such_file.txt"
+' (The cases' own data file: in their folder on disk, among the program's
+' files on the web, which has no folders.)
+D$ = "tests/conformance/cases/resource_files/"
+IF DIREXISTS(D$) = 0 THEN D$ = ""
+F$ = D$ + "hello.txt"
+M$ = D$ + "no_such_file.txt"
 PRINT "exists "; FILEEXISTS(F$)
 PRINT "missing "; FILEEXISTS(M$)
 PRINT "not exists "; NOT FILEEXISTS(F$)
