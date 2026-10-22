@@ -84,7 +84,9 @@ impl Options {
 }
 
 /// The project a source belongs to: `--project`, a `.rrproj` itself, or the
-/// one `.rrproj` beside it whose main file it is. (its folder, the project)
+/// one `.rrproj` beside it whose main file it is — or in a folder above it
+/// (up to two), when its `main` is exactly this file (`src/main.rr` of a
+/// project kept one folder up). (its folder, the project)
 pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(PathBuf, rapidr_project::Project)>, String> {
     let load = |p: &Path| -> Result<(PathBuf, rapidr_project::Project), String> {
         let project = rapidr_project::Project::load(p).map_err(|e| format!("{}: {e}", p.display()))?;
@@ -95,22 +97,37 @@ pub fn project_for(source: &Path, explicit: Option<&str>) -> Result<Option<(Path
     }
     let folder = source.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new("."));
     let Some(name) = source.file_name() else { return Ok(None) };
-    let mut found = None;
-    for entry in fs::read_dir(folder).into_iter().flatten().flatten() {
-        let p = entry.path();
-        if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("rrproj")) {
-            continue;
-        }
-        // (a web IDE v1 project, or something else: not this one's)
-        let Ok((dir, project)) = load(&p) else { continue };
-        if Path::new(&project.main).file_name().is_some_and(|m| m.eq_ignore_ascii_case(name)) && dir.join(&project.main).is_file() {
-            if found.is_some() {
-                return Ok(None);
+    // (the source's folder, then the two above it: the nearest one with a
+    // project of this file decides; two projects of it there are none)
+    let absolute = fs::canonicalize(folder).unwrap_or_else(|_| folder.to_path_buf());
+    let searched = std::iter::once(folder.to_path_buf()).chain(absolute.ancestors().skip(1).take(2).map(Path::to_path_buf));
+    for (level, searching) in searched.enumerate() {
+        let mut found = None;
+        for entry in fs::read_dir(&searching).into_iter().flatten().flatten() {
+            let p = entry.path();
+            if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("rrproj")) {
+                continue;
             }
-            found = Some((dir, project));
+            // (a web IDE v1 project, or something else: not this one's)
+            let Ok((dir, project)) = load(&p) else { continue };
+            let mine = if level == 0 {
+                Path::new(&project.main).file_name().is_some_and(|m| m.eq_ignore_ascii_case(name)) && dir.join(&project.main).is_file()
+            } else {
+                // (above the file: only a project whose main is exactly this file)
+                rapidr_project::program_files::same_path(&dir.join(&project.main), source)
+            };
+            if mine {
+                if found.is_some() {
+                    return Ok(None);
+                }
+                found = Some((dir, project));
+            }
+        }
+        if found.is_some() {
+            return Ok(found);
         }
     }
-    Ok(found)
+    Ok(None)
 }
 
 /// What the build will make.
@@ -139,7 +156,13 @@ pub fn plan(stem: &str, system: System, console: bool, opts: &Options, project: 
     let name = pick(&opts.name, build.map(|b| &b.app_name))
         .or_else(|| project.map(|(_, p)| p.name.clone()).filter(|n| !n.trim().is_empty()))
         .unwrap_or_else(|| stem.to_string());
-    let mut info = AppInfo::new(name.trim(), stem);
+    // The executable is named after the project (its `.rrproj`'s name, made
+    // a file name: spaces and the like become `-`) when a project is built,
+    // after the main file only for a single file — so an app's
+    // Contents/MacOS/<exe> (Info.plist's CFBundleExecutable), a Windows
+    // `.exe` and an AppDir's usr/bin/<exe> are the project's, never `main`.
+    let exe = project.and_then(|(_, p)| rapidr_package::exe_name_for(&p.name)).unwrap_or_else(|| stem.to_string());
+    let mut info = AppInfo::new(name.trim(), &exe);
     if let Some(id) = pick(&opts.bundle_id, build.map(|b| &b.bundle_id)) {
         info.bundle_id = id.trim().to_string();
     }
@@ -341,6 +364,54 @@ mod tests {
 
     fn args(list: &[&str]) -> Vec<String> {
         list.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// The executable is named after the project when one is built and after
+    /// the main file only for a single file — on every system: an app's
+    /// Contents/MacOS/<exe> and its Info.plist's CFBundleExecutable, a
+    /// Windows .exe, an AppDir's usr/bin/<exe> (and its desktop entry's Exec).
+    #[test]
+    fn the_executable_is_named_after_the_project() {
+        let project = (PathBuf::from("."), rapidr_project::Project::new("Database Studio", "src/main.rr"));
+        let o = Options::default();
+        for system in [System::MacOs, System::Windows, System::Linux] {
+            // (a project: its name, the spaces a dash; `main` is the main file's)
+            let p = plan("main", system, false, &o, Some(&project), None).unwrap();
+            assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("Database Studio", "Database-Studio"), "{system:?}");
+            // (a single file: the file's own name)
+            let p = plan("main", system, false, &o, None, None).unwrap();
+            assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("main", "main"), "{system:?}");
+        }
+        let p = plan("main", System::MacOs, false, &o, Some(&project), None).unwrap();
+        let plist = rapidr_package::macos::info_plist(&p.info, "10.13").unwrap();
+        assert!(plist.contains("<key>CFBundleExecutable</key>\n\t<string>Database-Studio</string>"), "{plist}");
+        assert!(plist.contains("<key>CFBundleName</key>\n\t<string>Database Studio</string>"), "{plist}");
+        let p = plan("main", System::Linux, false, &o, Some(&project), None).unwrap();
+        assert!(rapidr_package::linux::desktop_entry(&p.info, &p.info.exe, &p.info.bundle_id).contains("Exec=Database-Studio %F"));
+        // (a project whose name leaves nothing usable: the main file's)
+        let blank = (PathBuf::from("."), rapidr_project::Project::new("***", "src/main.rr"));
+        assert_eq!(plan("main", System::Linux, false, &o, Some(&blank), None).unwrap().info.exe, "main");
+        // (--name changes the name people see, not the executable)
+        let named = Options { name: Some("Shown As".into()), ..Options::default() };
+        let p = plan("main", System::MacOs, false, &named, Some(&project), None).unwrap();
+        assert_eq!((p.info.name.as_str(), p.info.exe.as_str()), ("Shown As", "Database-Studio"));
+    }
+
+    /// A project kept one folder above its main file (`src/main.rr`) is the
+    /// file's project; one whose main is another file is not.
+    #[test]
+    fn a_project_above_its_main_file_is_found() {
+        let dir = std::env::temp_dir().join(format!("rapidr-cli-project-for-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::write(dir.join("src/main.rr"), "PRINT 1\n").unwrap();
+        fs::write(dir.join("src/other.rr"), "PRINT 2\n").unwrap();
+        rapidr_project::Project::new("Database Studio", "src/main.rr").save(&dir.join("Studio.rrproj")).unwrap();
+        let found = project_for(&dir.join("src/main.rr"), None).unwrap().expect("src/main.rr's project");
+        assert_eq!(found.1.name, "Database Studio");
+        // (another file of the folder: not its main)
+        assert!(project_for(&dir.join("src/other.rr"), None).unwrap().is_none());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

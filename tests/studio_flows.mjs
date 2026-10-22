@@ -702,7 +702,7 @@ const CASES = [
     do: "run.build",
     // (cargo checks the runner first: a minute on a busy machine)
     delay: 90,
-    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
+    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|Notes\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
     webDump: { "outputbox.text": /Can't build: Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
   },
   // Run > Build Web App: the program as a web app, <project>-web.zip (the

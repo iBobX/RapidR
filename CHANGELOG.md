@@ -181,6 +181,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A project's executable is named after the project**: RapidR Database
+  Studio's build made `Contents/MacOS/main`, after `src/main.rr`. A build of a
+  project now names the executable after the `.rrproj`'s `name` (letters,
+  digits, `-`, `_` and `.` kept, any other run one `-`, Windows device names
+  made `-app`, 64 characters at most: `rapidr_package::exe_name_for`) — the
+  Mac app's `Contents/MacOS/<exe>` and `CFBundleExecutable`, the Windows
+  `.exe`, a Linux AppDir's `usr/bin/<exe>` and desktop entry, native and
+  `--interp` alike — and a single file keeps the file's name. `--name` and
+  `app_name` still change only what people see. The project is found beside the
+  source or one or two folders above it when its `main` is exactly that file
+  (`src/main.rr`); `--project` says it outright. There is no `$OPTION EXENAME`
+  in RapidR's options, so none was added. Tests:
+  `the_executable_is_named_after_the_project` (all three systems, the plist and
+  the desktop entry), `a_projects_executable_name`,
+  `a_project_above_its_main_file_is_found`; checked by building a project
+  interpreted (`Database Studio.app/Contents/MacOS/Database-Studio`).
 - **A program's standard input is read line by line as it arrives**:
   `OPEN "/dev/stdin" FOR INPUT AS #f` read the whole input before the first
   `LINE INPUT #f` returned, so a program that answers one line with one line

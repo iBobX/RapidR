@@ -141,7 +141,7 @@ without it: add --interp". It changes nothing and leaves nothing half built.
 | `--app-version <v>` | `version` | Up to four numbers with dots: `1.0`, `2.3.1` | `1.0` |
 | `--company <name>` | `company` | Who makes it: Windows' company name and the copyright line | none |
 | `--bundle` / `--no-bundle` | | An app even for a console program / only the executable | |
-| `--project <file.rrproj>` | | The project whose settings to use | the `.rrproj` beside the source that names it as its main file |
+| `--project <file.rrproj>` | | The project whose settings to use | the `.rrproj` beside the source that names it as its main file (or one or two folders above it, with exactly that file as its `main`) |
 | `[output folder]`, `--output <folder>` | `output` | Where the app goes (a folder of the project's) | the project's `build`; without a project the source's folder |
 | `--keep-rust` / `--no-keep-rust` | `keep_rust` | A native build also leaves its generated Rust in `<output>/<program>-rust-source` (with a README saying what it is) | deleted |
 
@@ -186,6 +186,26 @@ rapidr build 3dcube.bas --interp --name "3D Cube"    # "3D Cube.app"
   "No such process". Older versions of `rapidr build` stopped with that
   message for such a name; now `rapidr build` hands `codesign` the full path
   and signs and checks the app.
+
+### The executable's name
+
+The program inside has a name of its own: `Contents/MacOS/<name>` in a Mac
+app (the `CFBundleExecutable` of its `Info.plist`), `<name>.exe` on Windows,
+`usr/bin/<name>` in a Linux AppDir (and the desktop entry's `Exec`), also for
+a plain executable with `--no-bundle` and for an interpreted build (`--interp`)
+alike. It is named **after the project** when a project is built: the
+`.rrproj`'s `name`, made a file name the same on every system — letters,
+digits, `-`, `_` and `.` stay, a run of anything else (spaces, punctuation,
+`/ \ : * ? " < > |`) becomes one `-`, at most 64 characters, and a Windows
+device name such as `con` or `nul` gets `-app`. The project "Database
+Studio" in `src/main.rr` makes `Database Studio.app` with
+`Contents/MacOS/Database-Studio`, not `main`. A single file (no project) keeps
+the file's own name: `notepad.bas` makes `notepad`. A project's `.rrproj` is
+found when it is beside the source, or one or two folders above it with that
+source as its `main` (`--project <file.rrproj>` says it outright).
+
+`--name` and the project's `app_name` change what people see (the `.app`'s
+name, Explorer's, the menu's), never the executable's name.
 
 ## Icons
 
