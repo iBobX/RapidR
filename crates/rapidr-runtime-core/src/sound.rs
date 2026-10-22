@@ -20,7 +20,8 @@ pub fn rp_playwav(source: &Value, options: &Value) {
                 stop();
                 return;
             }
-            match std::fs::read(crate::value::paths::host(&path)) {
+            // (the current folder's, else the one the program came with)
+            match crate::value::command_line::read_or_programs_own(&path, |p| std::fs::read(crate::value::paths::host(p)).map_err(|e| e.to_string())) {
                 Ok(b) => Some(b),
                 Err(e) => {
                     eprintln!("[rapidr] PLAYWAV: can't read {path}: {e}");

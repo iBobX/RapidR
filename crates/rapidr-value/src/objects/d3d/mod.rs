@@ -620,7 +620,7 @@ fn move_frames(s: &mut Store, h: usize, delta: f64) {
 
 /// A texture file (BMP, PNG, JPEG — what the shared decoder reads).
 fn load_texture(file: &str) -> Result<Rc<Bitmap>, String> {
-    let bytes = super::read_picture(file)?;
+    let bytes = super::read_or_own(file)?;
     let mut b = Bitmap::default();
     b.load_bmp_bytes(&bytes)?;
     Ok(Rc::new(b))
@@ -1097,7 +1097,7 @@ fn apply_wrap(w: &Wrap, m: &mut Mesh) {
 /// matrices applied; its materials' colours and textures a face's (a
 /// texture file read from beside the `.X` file or the current directory).
 fn load_x(file: &str) -> Result<Mesh, String> {
-    let bytes = super::read_file(file)?;
+    let bytes = super::read_or_own(file)?;
     let x = xfile::parse_x(&bytes)?;
     let flat = xfile::flatten(&x);
     let mut m = Mesh { verts: flat.positions.iter().map(|p| v3(p[0] as f64, p[1] as f64, p[2] as f64)).collect(), ..Mesh::default() };

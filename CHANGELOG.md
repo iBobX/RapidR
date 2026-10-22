@@ -59,6 +59,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   folder still comes first, as in RapidQ; `FILEEXISTS` and `OPEN` are
   unchanged. Native and interpreted builds; the web reads the page's files
   as before. tests/built_elsewhere.mjs.
+  The same for the other files a program loads: sounds (`PLAYWAV`,
+  `PLAYSOUND`, `RWave` / `RMIDI` / `RVideo`'s `Open`, a DirectX sound's
+  `FileName`), `.X` models, and a list's, grid's or tree's `LoadFromFile`.
 - **Versions, the engine proved** (lane G0, not in Studio yet;
   [docs/versions-g0.md](docs/versions-g0.md)): a new crate, `rapidr-vcs`,
   built on gitoxide 0.89 (pure Rust, MIT OR Apache-2.0). It can start

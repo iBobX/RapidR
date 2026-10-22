@@ -129,7 +129,7 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Option<Result<Value, Stri
             })
             .map(Ok),
         Lib::Download(d) => d.call(method, args).map(Ok),
-        Lib::Media(m) => media::with_id(id, || m.call(method, args, &|f| super::read_file(f))).map(Ok),
+        Lib::Media(m) => media::with_id(id, || m.call(method, args, &|f| super::read_or_own(f))).map(Ok),
     })?;
     if let Some((stream, bytes)) = pending_write {
         super::stream_append(&stream, &bytes);

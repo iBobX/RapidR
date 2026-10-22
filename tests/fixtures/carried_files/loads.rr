@@ -1,0 +1,52 @@
+' loads.rr: the files a program loads from folders below its own — a list,
+' a grid, a tree (LoadFromFile), a wave and a MIDI song (Open), a .X model
+' (MeshBuilder.Load) — for tests/built_elsewhere.mjs: built, then started in
+' another folder, it still finds the ones it came with (the current
+' folder's first, as RapidQ reads them). Nothing plays.
+$THEME rapidr
+
+DECLARE SUB Setup
+
+DIM Wave AS RWave
+DIM Midi AS RMIDI
+DIM MeshFrame AS RD3DFrame
+DIM MB AS RD3DMeshBuilder
+
+CREATE Form AS RForm
+    Width = 440: Height = 260
+    CREATE Names AS RListBox
+        Left = 8: Top = 8: Width = 100: Height = 80
+    END CREATE
+    CREATE Table AS RStringGrid
+        Left = 116: Top = 8: Width = 150: Height = 80
+    END CREATE
+    CREATE Tree AS RTreeView
+        Left = 274: Top = 8: Width = 150: Height = 80
+    END CREATE
+    CREATE DX AS RDXScreen
+        Left = 8: Top = 96: Width = 64: Height = 48
+        Init(64, 48)
+        Use3D = 1
+        OnInitialize = Setup
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 8: Top = 160: Width = 420: AutoSize = 0
+    END CREATE
+    CREATE Mesh AS RLabel
+        Left = 8: Top = 190: Width = 420: AutoSize = 0
+    END CREATE
+END CREATE
+
+SUB Setup
+    DX.CreateFrame(MeshFrame)
+    DX.CreateMeshBuilder(MB)
+    MB.Load("models/model.x")
+    Mesh.Caption = "faces" + STR$(MB.FaceCount)
+END SUB
+
+Names.LoadFromFile "data/names.txt"
+Table.LoadFromFile "data/table.csv"
+Tree.LoadFromFile "data/tree.txt"
+Info.Caption = "list " + Names.Item(1) + ", grid " + Table.Cell(0, 2) + ", tree" + STR$(Tree.ItemCount) + _
+    ", wave" + STR$(Wave.Open("media/chime.wav")) + ", midi" + STR$(Midi.Open("media/tune.mid"))
+Form.ShowModal

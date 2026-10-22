@@ -72,8 +72,9 @@ pub fn programs_own(file: &str) -> Option<String> {
 /// ([`programs_own`]): a built app started from a terminal or a script in
 /// another folder still finds the files it came with. Additive: a file in
 /// the current folder always wins. The error is the first read's. One rule
-/// for the data links (`RCSV`, `RJson`: `datascience::link::read_beside`) and
-/// the pictures (`objects::read_picture`).
+/// for the data links (`RCSV`, `RJson`: `datascience::link::read_beside`),
+/// the files objects load (`objects::read_or_own`: pictures, sounds, MIDI,
+/// meshes, lists) and the runtimes' sounds (PLAYWAV, PLAYSOUND).
 pub fn read_or_programs_own<T>(file: &str, read: impl Fn(&str) -> Result<T, String>) -> Result<T, String> {
     match read(file) {
         Ok(t) => Ok(t),

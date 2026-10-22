@@ -240,11 +240,14 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     reader(path)
 }
 
-/// A picture file's bytes (`RImage.Load`, a `BMP`, an `Icon`, an image
-/// list's file, a texture): the current folder's file, else the one the
-/// program came with (`command_line::read_or_programs_own`, the data links'
-/// rule) — a built app started in another folder still shows its pictures.
-pub fn read_picture(path: &str) -> Result<Vec<u8>, String> {
+/// A file a program loads — a picture (`RImage.Load`, a `BMP`, an `Icon`,
+/// an image list's file, a texture), a sound or a MIDI file (QWAVE, QMIDI,
+/// QVIDEO, QDXSOUND), a `.X` mesh, a grid's, list's or tree's
+/// `LoadFromFile` —: the current folder's file, else the one the program
+/// came with (`command_line::read_or_programs_own`, the data links' rule):
+/// a built app started in another folder still finds its files.
+/// (`FILEEXISTS`, `OPEN` and the streams read only where RapidQ reads.)
+pub fn read_or_own(path: &str) -> Result<Vec<u8>, String> {
     crate::command_line::read_or_programs_own(path, read_file)
 }
 
@@ -1280,7 +1283,7 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     // A QDXSOUND's FileName: the WAV file read.
     if prop == "filename" && with(id, |o| matches!(o, Object::DxSound(_))) == Some(true) {
         let name = val.to_string_val();
-        let bytes = read_file(&name);
+        let bytes = read_or_own(&name);
         return with(id, |o| match o {
             Object::DxSound(s) => Some(bytes.and_then(|b| s.load(id, &name, &b))),
             _ => None,
@@ -1674,7 +1677,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
         ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
-        ("bitmap", "loadfromfile" | "load") => Some(read_picture(&arg(0).to_string_val()).and_then(|bytes| {
+        ("bitmap", "loadfromfile" | "load") => Some(read_or_own(&arg(0).to_string_val()).and_then(|bytes| {
             with(id, |o| match o {
                 Object::Bitmap(b) => b.load_bmp_bytes(&bytes),
                 _ => Ok(()),
@@ -1881,7 +1884,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         ("grid", "loadfromfile" | "loadfromstream") => {
             let (rows, cols, max) = grid_range(args);
             let bytes = if method == "loadfromfile" {
-                match read_file(&arg(0).to_string_val()) {
+                match read_or_own(&arg(0).to_string_val()) {
                     Ok(b) => b,
                     Err(e) => return Some(Err(e)),
                 }
@@ -1898,7 +1901,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         // A node per line, a tab per level.
         ("tree", "loadfromfile") => {
-            let bytes = match read_file(&arg(0).to_string_val()) {
+            let bytes = match read_or_own(&arg(0).to_string_val()) {
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
@@ -1915,7 +1918,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         // One item per line.
         ("list", "loadfromfile") => {
-            let bytes = match read_file(&arg(0).to_string_val()) {
+            let bytes = match read_or_own(&arg(0).to_string_val()) {
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
@@ -2000,7 +2003,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         // stream.
         ("dximagelist", "loadfromfile" | "loadfromresource" | "loadfromstream") => {
             let bytes = match method.as_str() {
-                "loadfromfile" => read_picture(&arg(0).to_string_val()),
+                "loadfromfile" => read_or_own(&arg(0).to_string_val()),
                 "loadfromresource" => crate::resources::bytes(arg(0).to_i64()).map(|b| b.to_vec()).ok_or_else(|| format!("no resource {}", arg(0).to_i64())),
                 _ => Ok(with(&arg(0).to_string_val(), |o| match o {
                     Object::Stream(m) => m.read(usize::MAX),
@@ -2147,7 +2150,7 @@ pub fn load_image(v: &Value) -> Result<Bitmap, String> {
                 b.transparent_color = color;
             }
         }
-        None => b.load_bmp_bytes(&read_picture(&s)?)?,
+        None => b.load_bmp_bytes(&read_or_own(&s)?)?,
     }
     Ok(b)
 }

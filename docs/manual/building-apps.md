@@ -86,10 +86,16 @@ has no such file, these read the one the app came with:
 - an `RCSV` or `RJson`'s file;
 - pictures: `RImage.Load` / `LoadFromFile`, a `BMP` (an image's, a
   button's), an `Icon`, an `RImageList`'s `AddBMPFile` / `AddICOFile`, a
-  toolbar's pictures, a DirectX image list's or texture's file.
+  toolbar's pictures, a DirectX image list's or texture's file;
+- sounds and music: `PLAYWAV`, `PLAYSOUND`, an `RWave`, `RMIDI` or
+  `RVideo`'s `Open`, a DirectX sound's `FileName`;
+- 3D models: a mesh builder's `.X` file (`Load`);
+- lists: an `RListBox`, `RComboBox`, `RStringList`, `RStringGrid` or
+  `RTreeView`'s `LoadFromFile`.
 
 A file in the current folder always wins. `FILEEXISTS` and the file
-commands (`OPEN`, `KILL` …) still look only where RapidQ looks.
+commands (`OPEN`, `KILL` …) and streams still look only where RapidQ
+looks.
 Translations are always read from the app's own `lang` folder. `$RESOURCE` files are built into the program and
 don't need any of this.
 
