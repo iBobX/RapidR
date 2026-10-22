@@ -36,9 +36,10 @@ properties = [
 methods = [
   { name = "Open", params = "Path AS STRING", returns = "INTEGER", test = "skip: needs a project file", doc = "Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not." },
   { name = "OpenFolder", params = "Folder AS STRING", returns = "INTEGER", test = "skip: needs a project folder", doc = "Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened." },
-  { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written." },
+  { name = "Save", params = "[Path AS STRING]", returns = "INTEGER", value = true, test = "skip: writes a file", doc = "Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path), each source file's kind as its code says (FollowCode). True when it was written." },
+  { name = "FollowCode", returns = "STRING", value = true, effects = ["file-read", "state"], test = "skip: needs a project file", doc = "The files' kinds as their code says now (forms come from the code: a source or include that creates a form at its top level is a form file, one that no longer does a module or include again), read from the files as saved; not written until Save. The files whose kind changed, a line each: the path and its new kind, tab-separated (\"\" when none did)." },
   { name = "New", params = "Template AS STRING, Name AS STRING, Folder AS STRING", returns = "INTEGER", test = "skip: writes files", doc = "A new project from a template (\"console\", \"gui\", \"rapidq\", \"data\" or \"mdi\"): the main file (main.rr, or main.bas for \"rapidq\", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. On a computer without Rust (see RustReady) the new project's BuildKind is \"interpreted\", the build that works there." },
-  { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added." },
+  { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file (its kind from its name and code — a file that creates a form is a form file —, or Kind: module, form, include, resource, asset, data). True when it was added." },
   { name = "RemoveFile", params = "Path AS STRING", returns = "INTEGER", doc = "Takes a file out of the project (the file itself stays). True when it was in it." },
   { name = "Close", value = true, doc = "No project is open any more." },
   { name = "File", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path, relative to the folder (from 0)." },
@@ -113,6 +114,8 @@ properties = [
   { name = "GlobalsRef", type = "int", access = "read", design = false, doc = "The program's globals, for Variables." },
   { name = "Watches", type = "string", design = false, doc = "The watch expressions, one a line: evaluated at every stop (WatchValues)." },
   { name = "BrowserURL", type = "string", access = "read", design = false, doc = "Where RunInBrowser serves the program (on this machine only), once it does." },
+  { name = "ShellPath", type = "string", access = "read", design = false, doc = "The PATH the programs run from here get, and their SHELL and RUN calls: on macOS and Linux your login shell's (an app started from the Dock or Finder has a short one, so php, curl or Homebrew's tools wouldn't be found), read once (ReadShellPath) with three seconds to answer; when it can't say, this process's PATH and the usual folders that are there (Homebrew's, /usr/local/bin, ~/.cargo/bin …). \"\" where the PATH isn't changed: Windows (its apps have the full one) and the web. Only read: your shell's files are never written." },
+  { name = "ShellPathSource", type = "string", access = "read", design = false, doc = "Where ShellPath came from, in words: your login shell, or why it couldn't say and the usual folders were added." },
 ]
 methods = [
   { name = "Start", returns = "INTEGER", value = true, test = "skip: runs a program", doc = "Runs Program. True when it started; Error says why not." },
@@ -140,6 +143,8 @@ methods = [
   { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
   { name = "RunInBrowser", returns = "INTEGER", value = true, test = "skip: opens a browser", doc = "Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is." },
   { name = "StopBrowser", value = true, doc = "Ends what RunInBrowser serves." },
+  { name = "ReadShellPath", value = true, effects = ["process"], test = "skip: runs the login shell", doc = "Starts reading your login shell's PATH in the background (RapidR Studio does at start-up): ShellPath waits for it. Nothing on Windows and the web." },
+  { name = "RefreshShellPath", returns = "STRING", value = true, effects = ["process", "wait"], test = "skip: runs the login shell", doc = "Reads your login shell's PATH again now (after you changed your shell's startup files): the new ShellPath." },
 ]
 events = [
   { name = "OnOutput", params = "Text AS STRING", doc = "The program printed Text (PRINT, errors, logpoints)." },

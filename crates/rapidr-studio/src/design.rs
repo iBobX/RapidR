@@ -253,6 +253,38 @@ mod tests {
         assert!(has_word("a Button1 b", "button1") && !has_word("Button10", "Button1"));
     }
 
+    // (Preview 4 S1) A file of three forms: FormNames lists them; a name
+    // of another form — the form, or a component on it — designs that form
+    // (said for a screen reader); the form's own name selects the form
+    // itself; a change is written into the right block.
+    #[test]
+    fn several_forms_in_one_file() {
+        install();
+        let src = "CREATE Form AS RForm\n    Caption = \"Shelf\"\n    CREATE AddBtn AS RButton\n    END CREATE\nEND CREATE\n\nCREATE NewForm AS RForm\n    Caption = \"New Item\"\n    CREATE NameEdit AS REdit\n    END CREATE\nEND CREATE\n\nCREATE CfgForm AS RForm\n    Caption = \"Options\"\nEND CREATE\n";
+        let mut s = DesignSurface::default();
+        assert!(s.open_source(src));
+        assert_eq!(s.get("formnames").unwrap().to_string_val(), "Form\nNewForm\nCfgForm");
+        assert_eq!(s.root_name(), "Form", "the first, as before");
+        // a component of NewForm: NewForm designed, it selected
+        assert!(s.select_name("nameedit"));
+        assert_eq!(s.root_name(), "NewForm");
+        assert_eq!(s.title(), "New Item");
+        assert_eq!(s.selection().map(|i| s.call("getname", &[rapidr_value::v_int(i as i64)]).unwrap().to_string_val()).as_deref(), Some("NameEdit"));
+        // a form by its name: designed, nothing selected (the form itself)
+        assert!(s.select_name("CfgForm"));
+        assert_eq!(s.root_name(), "CfgForm");
+        assert!(s.selection().is_none());
+        assert_eq!(s.announcement, "Designing CfgForm, form 3 of 3 in this file");
+        assert!(s.select_name("CfgForm"), "its own name again: still the form");
+        // a name nowhere in the file: nothing changes
+        assert!(!s.select_name("Nope"));
+        assert_eq!(s.root_name(), "CfgForm");
+        // a change goes into CfgForm's block
+        assert!(s.add_at("RBUTTON", (16, 16), None).is_some());
+        let text = s.get("source").unwrap().to_string_val();
+        assert!(text.contains("CREATE CfgForm AS RForm\n    Caption = \"Options\"\n    CREATE Button1 AS RButton"), "{text}");
+    }
+
     #[test]
     fn a_file_without_a_form() {
         install();

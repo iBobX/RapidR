@@ -122,6 +122,8 @@ SUB ApplyChrome
     ExText(k).Font.Color = TC("page.dim")
   NEXT
   LoadWelcomeIcons
+  ' (S2: the offer to reopen the last project, a card as the examples)
+  ApplyReopenChrome
   ImmediateBox.Font = MonoFont
   ApplyDebugColors
   ApplySearchChrome

@@ -1,0 +1,41 @@
+' main.rr: RapidR Studio's seven-file test project (tests/studio_flows.mjs,
+' Preview 4 S1): a program shaped like a real one — its windows in ui.rr
+' (three forms in one file), the rest in modules. This file makes no form;
+' the project file (Shelf.rrproj) still says it does, and that ui.rr is a
+' module: Studio's tree follows the code, and Save writes what it says.
+'
+'    rapidr run main.rr
+$THEME rapidr
+$INCLUDE "globals.rr"
+$INCLUDE "store.rr"
+$INCLUDE "ui.rr"
+$INCLUDE "lists.rr"
+$INCLUDE "prices.rr"
+$INCLUDE "report.rr"
+
+SUB AddClicked
+    NewForm.ShowModal
+END SUB
+
+SUB OptionsClicked
+    CfgForm.ShowModal
+END SUB
+
+SUB AddOk
+    AddItem NameEdit.Text
+    FillShelf
+    NewForm.Close
+END SUB
+
+SUB CfgOk
+    ShopName = ShopEdit.Text
+    CfgForm.Close
+END SUB
+
+AddBtn.OnClick = AddClicked
+OptionsBtn.OnClick = OptionsClicked
+AddOkBtn.OnClick = AddOk
+CfgOkBtn.OnClick = CfgOk
+LoadItems
+FillShelf
+Form.ShowModal

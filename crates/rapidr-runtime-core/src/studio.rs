@@ -70,6 +70,12 @@ impl Host for Desktop {
         if let Some(path) = rapidr_studio::project::include_path_env() {
             env.push(("RAPIDR_INCLUDE_PATH".into(), Some(path)));
         }
+        // (your Terminal's PATH, not the short one a Finder-started app
+        // has: the program's SHELL and RUN find php, curl, Homebrew's tools
+        // — rapidr_studio::login_path, S6)
+        if let Some(path) = rapidr_studio::login_path::program_path() {
+            env.push(("PATH".into(), Some(path)));
+        }
         let mut transport = rapidr_session::process::ProcessTransport::spawn_with_env(&exe, &full.to_string_lossy(), args, cwd, &env).map_err(|e| format!("{}: {e}", exe.display()))?;
         // (what the program says wakes Studio's loop: a debugger step's
         // stop and its snapshot heard as they come, not every 20 ms)

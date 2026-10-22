@@ -38,6 +38,8 @@
 //     crop: [x, y, w, h],       the part of the window, in logical pixels
 //                               (the image is at 2x); none: all of it
 //     theme,                    (default "rapidr-light")
+//     fresh: false,             (desktop) Studio reads its settings: the
+//                               scene's studio.reg, its setup's to write
 //     host: "desktop" | "web",  (default desktop) — the web: Studio for the
 //                               web at STUDIO_WEB_URL, in Chromium
 //     webFiles: [paths],        (web) the files the page's store has
@@ -126,7 +128,9 @@ function desktop(s, dir, open, steps, extra = {}) {
     // (`home`: RapidR's home as the setup made it — an install's, read-only;
     // `cwd`: Studio started in the setup's folder, `open` relative to it)
     const here = extra.cwd || ROOT;
-    const args = ["run", extra.cwd ? join(ROOT, "ide", "studio.rr") : "ide/studio.rr", "--home", extra.home || (extra.cwd ? ROOT : "."), "--fresh", "--theme", theme];
+    // (`fresh: false`: Studio reads its settings — the scene's own registry,
+    // studio.reg in its folder, as its setup wrote it: Open Recent …)
+    const args = ["run", extra.cwd ? join(ROOT, "ide", "studio.rr") : "ide/studio.rr", "--home", extra.home || (extra.cwd ? ROOT : "."), ...(s.fresh === false ? [] : ["--fresh"]), "--theme", theme];
     if (steps) args.push("--do", steps);
     if (open) args.push(open);
     r = spawnSync(RAPIDR, args, { cwd: here, encoding: "utf8", timeout: delay * 1000 + 90000, env: env(dir, capture) });

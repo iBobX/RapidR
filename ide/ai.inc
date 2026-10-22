@@ -1640,13 +1640,7 @@ END SUB
 
 ' (a recent project gone: off the list)
 SUB AIForgetRecent(Path AS STRING)
-  DIM acc AS STRING, i AS INTEGER, p AS STRING
-  FOR i = 1 TO TALLY(RecentList, CHR$(10))
-    p = FIELD$(RecentList, CHR$(10), i)
-    IF p <> "" AND LCASE$(p) <> LCASE$(Path) THEN acc = acc + p + CHR$(10)
-  NEXT
-  RecentList = acc
-  FillRecent
+  ForgetRecent Path
 END SUB
 
 ' Undo (the banner's, a card's): the new program closed and the files

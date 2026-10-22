@@ -35,6 +35,8 @@ const filters = process.argv.slice(2);
 const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
+// (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
+const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
 // key, no network, no cost): {mock} in a case's steps is its base URL,
@@ -1465,6 +1467,135 @@ const CASES = [
     delay: 5,
     restart: { do: "wait,wait", delay: 5 },
     dump: { "dock.documentgroupcount": /^2$/, "dock.documentcount": /^2$/, "dock.layout": /^groups split row\n[\s\S]*^view codedoc\(0\) split 500$/m },
+  },
+  // (Preview 4 S1, Robert's seven-file program) Forms come from the code:
+  // the project file says main.rr is the form and ui.rr a module, but
+  // ui.rr makes three forms and main.rr none. The tree (what a screen
+  // reader is told) lists ui.rr under Forms with its three forms, main.rr
+  // under Modules; the keyboard walks to NewForm (Home, Down × 4) and Enter
+  // opens it in ui.rr's designer — the designer says which form of three.
+  {
+    name: "forms-from-code",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    events: "projecttree.__key_36,projecttree.__key_40,projecttree.__key_40,projecttree.__key_40,projecttree.__key_40,projecttree.__key_13",
+    delay: 6,
+    a11y: [
+      ["ui.rr", "treeitem", null, (n) => n.description === "form, 3 forms"],
+      ["Form, RForm", "treeitem", null, (n) => n.description === "form"],
+      ["NewForm, RForm", "treeitem", "selected"],
+      ["CfgForm, RForm", "treeitem"],
+      ["main.rr", "treeitem", null, (n) => n.description === "module, the main file"],
+      [/^Designing NewForm, form 2 of 3 in this file$/, "status"],
+    ],
+    dump: { "projecttree.selected": /^ui\.rr#NewForm$/, "designdoc(1).formname": /^NewForm$/, "designdoc(1).formnames": /^Form\nNewForm\nCfgForm$/, "designdoc(0).formname": /^$/, "dock.activedocument": /^codedoc\(1\)$/, "inspector.target": /^NewForm$/ },
+  },
+  // (S1) …and Save (Ctrl+S on any file) writes the project file as the
+  // code says: main.rr a module, ui.rr a form file; the Output says so.
+  {
+    name: "forms-follow-save",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait,file.save,wait",
+    delay: 5,
+    files: { "Shelf.rrproj": /path = "main\.rr"\nkind = "module"[\s\S]*path = "ui\.rr"\nkind = "form"/ },
+    dump: { "outputbox.text": /main\.rr makes no form: now under Modules\nui\.rr makes a form: now under Forms\nSaved \S*Shelf\.rrproj/ },
+  },
+  // (Preview 4 S2) File > Open Recent: Studio started again (as from the
+  // Dock: no project named), the menu opened from the keyboard (Alt+F, R)
+  // lists the project with its folder — its items are MI(14) … MI(23),
+  // "No Recent Projects or Files" MI(24), Clear Recent MI(26) — and the
+  // Welcome page offers to reopen it, the keyboard on the offer.
+  {
+    name: "open-recent",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait,open:ui.rr,wait,wait",
+    delay: 4,
+    restart: { noOpen: true, events: "studio.__key_70_1,studio.__key_82", delay: 4 },
+    a11y: [[/^Reopen Shelf, and the 2 files you had open$/, "button", "focused"], ["File", "menuitem", "expanded"]],
+    dump: { "mi(13).caption": /^Open &Recent$/, "mi(14).caption": /^&1 {2}Shelf\.rrproj {2}— {2}\S+$/, "mi(14).visible": /^(1|-1)$/, "mi(15).visible": /^0$/, "mi(24).visible": /^0$/, "mi(26).caption": /^&Clear Recent$/, "mi(26).enabled": /^(1|-1)$/, "reopenrow.visible": /^(1|-1)$/, "recentnone.visible": /^0$/, "studio.caption": /^RapidR Studio$/ },
+  },
+  // (S2) …its first item picked from the keyboard (Alt+F, R, 1): open.
+  {
+    name: "open-recent-pick",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__key_70_1,studio.__key_82,studio.__key_49", delay: 4 },
+    dump: { "studio.caption": /^Shelf - RapidR Studio$/, "reopenrow.visible": /^0$/ },
+  },
+  // (S2) …Enter on the offer: the project and the two files open again.
+  {
+    name: "reopen-last",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait,open:ui.rr,wait,wait",
+    delay: 4,
+    restart: { noOpen: true, events: "reopenrow.__key_13", delay: 4 },
+    dump: { "studio.caption": /^Shelf - RapidR Studio$/, "dock.documentcount": /^2$/, "reopenrow.visible": /^0$/ },
+  },
+  // (S2) …Clear Recent (Alt+F, R, C): the list is empty — the menu says
+  // so, the Welcome page too; the offer stays (the files are there).
+  {
+    name: "clear-recent",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__key_70_1,studio.__key_82,studio.__key_67,studio.__key_70_1,studio.__key_82", delay: 4 },
+    dump: { "recentnone.visible": /^(1|-1)$/, "outputbox.text": /Open Recent cleared/, "mi(14).visible": /^0$/, "mi(24).visible": /^(1|-1)$/, "mi(24).enabled": /^0$/, "mi(26).enabled": /^0$/ },
+  },
+  // (S2) The offer turned off (Tools > Settings > General): Studio starts
+  // on the Welcome page as it always did, the Project pane focused.
+  {
+    name: "reopen-off",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait,view.settings,wait",
+    events: "reopenbox.__mousedown_6_6,reopenbox.__mouseup_6_6,settingsokbtn.__key_13",
+    delay: 4,
+    restart: { noOpen: true, do: "wait", delay: 3, events: "" },
+    dump: { "reopenrow.visible": /^0$/, "studio.caption": /^RapidR Studio$/ },
+  },
+  // (Preview 4 S6) Run gets your login shell's PATH: a stand-in shell
+  // (it prints a greeting around it, as startup files do) — the program's
+  // ENVIRON$("PATH") is its PATH, its SHELL finds sh; Tools > Settings
+  // shows the folders and where they came from.
+  {
+    name: "run-login-path",
+    open: "tests/fixtures/studio_path/path_check.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_LOGIN_PATH: "", RAPIDR_LOGIN_SHELL: join(ROOT, "tests/fixtures/studio_path/login_shell.sh") },
+    do: "wait,run.start,wait,wait,wait,view.settings,wait",
+    delay: 6,
+    dump: {
+      "outputbox.text": /PATH=\/opt\/rapidr-test\/bin:\/usr\/bin:\/bin:\/usr\/sbin:\/sbin[^\n]*\n(brew: not found|\S*brew)\n\/bin\/sh\n/,
+      "pathlist.itemcount": /^([5-9]|\d\d+)$/,
+      "pathnote.caption": /^Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order\. From your login shell \(\S*login_shell\.sh\), as Terminal has it\.$/,
+      "pathrefresh.visible": /^(1|-1)$/,
+    },
+  },
+  // (S6) A login shell that never answers: given three seconds, then
+  // Studio's own PATH and the usual folders — Settings says why.
+  {
+    name: "run-login-path-hung",
+    open: "tests/fixtures/studio_path/path_check.rr",
+    copy: true,
+    desktopOnly: true,
+    env: { RAPIDR_LOGIN_PATH: "", RAPIDR_LOGIN_SHELL: join(ROOT, "tests/fixtures/studio_path/hung_shell.sh") },
+    do: "wait,view.settings,wait",
+    delay: 7,
+    dump: { "pathnote.caption": /Your login shell couldn't say \(\S*hung_shell\.sh didn't answer in 3 seconds\): Studio's own PATH and the usual folders that are on this computer\.$/ },
   },
   // (S-SHELL-2, CMD-3) Find in Files over a project and the file it
   // includes: the results by file, the open editor's text and the disk's.
@@ -3936,6 +4067,9 @@ function runDesktop(c, scale = 1) {
       RAPIDR_AI_KEYSTORE: "memory",
       RAPIDR_AI_TEST_SERVER: MOCK_ROOT,
       RAPIDR_AI_AUDIT: join(dir, "ai-audit.jsonl"),
+      // (S6: the user's login shell isn't read by the tests — the PATH
+      // cases give one of their own, RAPIDR_LOGIN_SHELL)
+      RAPIDR_LOGIN_PATH: "off",
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
@@ -3948,7 +4082,12 @@ function runDesktop(c, scale = 1) {
     const again = args.filter((a) => a !== "--fresh");
     const k = again.indexOf("--do");
     if (k >= 0) again.splice(k, 2);
-    if (c.restart.do) again.splice(again.length - 1, 0, "--do", c.restart.do);
+    // (noOpen: started without the project — as from the Dock — S2's offer)
+    if (c.restart.noOpen && c.open) again.pop();
+    if (c.restart.do) {
+      if (c.restart.noOpen) again.push("--do", c.restart.do);
+      else again.splice(again.length - 1, 0, "--do", c.restart.do);
+    }
     r = run(again, c.restart.delay || c.delay, "events" in c.restart ? c.restart.events : c.events);
   }
   // (the install's copy writable again: the results folder can be cleared)
@@ -4044,7 +4183,7 @@ async function runWeb(browser, c, scale = 1, record = () => {}) {
   // (started again in the same browser profile: the page's settings kept)
   const ctx = await browser.newContext(opts);
   await runWebPage(ctx, c, false, scale, record);
-  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false, ...("events" in c.restart ? { events: c.restart.events } : {}) }, true, scale, record);
+  return runWebPage(ctx, { ...c, do: c.restart.do, delay: c.restart.delay || c.delay, fresh: false, ...("events" in c.restart ? { events: c.restart.events } : {}), ...(c.restart.noOpen ? { open: "" } : {}) }, true, scale, record);
 }
 
 async function runWebPage(ctx, c, last, scale, record) {

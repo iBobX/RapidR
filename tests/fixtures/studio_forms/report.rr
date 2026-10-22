@@ -1,0 +1,8 @@
+' report.rr: the shelf as one line of text.
+
+FUNCTION ShelfReport AS STRING
+    DIM i AS INTEGER
+    FOR i = 0 TO ItemCount - 1
+        Result = Result + Items(i) + ";"
+    NEXT
+END FUNCTION

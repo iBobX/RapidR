@@ -54,10 +54,20 @@ FUNCTION CmdKeys(i AS INTEGER) AS STRING
 END FUNCTION
 
 SUB DefineCommands
+  DIM rk AS INTEGER
   ' ---- File ----
   AddCmd "file.newProject", "&New Project...", "File", "Ctrl+N", "", "", ""
   AddCmd "file.open", "&Open Project or File...", "File", "Ctrl+O", "", "", ""
   AddCmd "file.openFolder", "Open &Folder...", "File", "", "", "", "files/folder-open"
+  ' (S2) the projects and files opened last, newest first (project.inc's
+  ' FillRecent names the items; the ones not used are hidden)
+  AddSubmenu "File", "Recent", "Open &Recent"
+  FOR rk = 1 TO MAXRECENT
+    AddCmd "file.recent." + LTRIM$(STR$(rk)), "Recent " + LTRIM$(STR$(rk)), "File/Recent", "", "", "", "-"
+  NEXT
+  AddCmd "file.recentNone", "No Recent Projects or Files", "File/Recent", "", "", "never", "-"
+  AddSep "File/Recent"
+  AddCmd "file.clearRecent", "&Clear Recent", "File/Recent", "", "", "recentlist", "-"
   AddCmd "file.openExample", "Open &Example...", "File", "", "", "", "RFORM"
   AddCmd "file.exampleAgain", "Copy Example Again from the Ori&ginal...", "File", "", "", "example", "-"
   AddSep "File"
@@ -329,6 +339,9 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   IF ActiveDoc >= 0 THEN k = DocKind(ActiveDoc)
   SELECT CASE w
     CASE "": Result = 1
+    ' (Open Recent's "No Recent Projects or Files": a note, never a command)
+    CASE "never": Result = 0
+    CASE "recentlist": Result = Flag(RecentList <> "")
     CASE "project": Result = ProjectOpen
     ' (the open project is the user's copy of an installed example)
     CASE "example": Result = (ProjectOpen <> 0 AND ExampleOriginal <> "")

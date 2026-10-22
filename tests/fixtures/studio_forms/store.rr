@@ -1,0 +1,13 @@
+' store.rr: the items, kept in memory.
+
+SUB AddItem(Name AS STRING)
+    IF Name = "" OR ItemCount >= 100 THEN EXIT SUB
+    Items(ItemCount) = Name
+    ItemCount = ItemCount + 1
+END SUB
+
+SUB LoadItems
+    ShopName = "Corner Shop"
+    AddItem "Apples"
+    AddItem "Bread"
+END SUB

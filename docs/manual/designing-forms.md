@@ -326,6 +326,10 @@ designer, scroll bars let you reach all of it.
   stays on the disk).
 - In a program written with the older names (`main.bas`), new forms and modules
   are `.bas` files and use the Q names, so the older compiler can build it too.
+- One file can hold several forms (`CREATE Form AS RForm`, `CREATE NewForm AS
+  RForm` …): the project tree shows each under the file, and opening one
+  designs it. The tree takes what is a form from your code, not from the
+  project file: see [Projects in RapidR Studio](studio-projects.md).
 
 ## The code the designer writes
 

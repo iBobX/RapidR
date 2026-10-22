@@ -1,0 +1,33 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Shelf"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "globals.rr"
+kind = "module"
+
+[[files]]
+path = "store.rr"
+kind = "module"
+
+[[files]]
+path = "ui.rr"
+kind = "module"
+
+[[files]]
+path = "lists.rr"
+kind = "module"
+
+[[files]]
+path = "prices.rr"
+kind = "module"
+
+[[files]]
+path = "report.rr"
+kind = "module"

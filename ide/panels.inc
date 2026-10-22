@@ -68,7 +68,8 @@ SUB FillPalette
   DIM i AS INTEGER, cat AS STRING, icon AS STRING
   Palette.Clear
   FOR i = 0 TO CmdCount - 1
-    IF Cmd(i).Id <> "" THEN
+    ' (Open Recent's items are named by FillRecent: "recent:k" entries)
+    IF Cmd(i).Id <> "" AND LEFT$(Cmd(i).Id, 12) <> "file.recent." AND Cmd(i).Id <> "file.recentNone" THEN
       cat = Cmd(i).Category
       IF INSTR(cat, "/") > 0 THEN cat = LEFT$(cat, INSTR(cat, "/") - 1)
       icon = CmdIcon(i)
@@ -141,6 +142,8 @@ SUB PaletteCommand(Id AS STRING)
     OpenProject HomeDir + "examples/" + MoreFile(VAL(MID$(Id, 6)))
   ELSEIF LEFT$(Id, 5) = "open:" THEN
     OpenDocument MID$(Id, 6)
+  ELSEIF LEFT$(Id, 7) = "recent:" THEN
+    OpenRecent VAL(MID$(Id, 8))
   ELSEIF LEFT$(Id, 5) = "line:" THEN
     d = ActiveCode
     IF d >= 0 THEN
@@ -189,7 +192,8 @@ FUNCTION ProjectPath(Path AS STRING) AS STRING
   END IF
 END FUNCTION
 
-' Opened (double click, Enter): a file — its documents; a form's component —
+' Opened (double click, Enter): a file — its documents; a form — that form
+' in its file's designer (a file may make several: S1); a form's component —
 ' its form in the designer, that component selected.
 SUB ProjectNodeOpen(Path AS STRING)
   DIM d AS INTEGER, comp AS STRING
@@ -200,11 +204,14 @@ SUB ProjectNodeOpen(Path AS STRING)
   d = DocOf(ProjectPath(Path))
   IF d < 0 THEN EXIT SUB
   IF DocHasForm(d) = 0 THEN EXIT SUB
-  Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
+  ' (the Design view, the form that holds it designed, it selected)
+  ShowDesigner d
   DesignDoc(d).SelectName comp
+  InspectActive
 END SUB
 
-' Selected: a component of the open form is selected in its designer too.
+' Selected: a form, or a component of one, shown in its open designer too
+' (the file's other form designed when it's one of its: S1).
 SUB ProjectNodeSelect(Path AS STRING)
   DIM d AS INTEGER
   IF INSTR(Path, "#") = 0 THEN EXIT SUB

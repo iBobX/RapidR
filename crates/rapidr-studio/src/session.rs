@@ -256,6 +256,13 @@ pub fn split_args(s: &str) -> Vec<String> {
 }
 
 pub fn get(name: &str, prop: &str) -> Option<Value> {
+    // (the PATH the program gets: your login shell's, S6 — "" where it
+    // isn't changed, Windows and the web)
+    match prop {
+        "shellpath" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.path).unwrap_or_default())),
+        "shellpathsource" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.describe()).unwrap_or_default())),
+        _ => {}
+    }
     with(name, |m| {
         let s = &m.session;
         Some(match prop {
@@ -326,6 +333,13 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         flag(ok)
     };
     Some(match method {
+        // (S6) ReadShellPath: your login shell's PATH read in the background
+        // (Studio's start-up); RefreshShellPath: read again now, the PATH
+        "readshellpath" => {
+            crate::login_path::start();
+            Value::Null
+        }
+        "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default()),
         "start" => {
             let (program, run_args, theme, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.session.state() != State::Stopped));
             if running {
@@ -689,6 +703,8 @@ mod browser {
         stop(name);
         let mut cmd = Command::new(&rapidr);
         cmd.arg("serve").arg(program).arg("--open").stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        // (your Terminal's PATH: S6)
+        crate::login_path::apply(&mut cmd);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;

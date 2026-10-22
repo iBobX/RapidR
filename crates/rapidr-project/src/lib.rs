@@ -33,7 +33,7 @@ use std::path::Path;
 pub use error::ProjectError;
 pub use implicit::{actual_path, implicit_from_resolver, implicit_from_sources, include_targets, named_files, named_paths};
 pub use project::{
-    basic_string, defines_form, kind_for_file, kind_for_path, kind_for_source, normalize_path, Ai,
+    basic_string, defines_form, kind_for_file, kind_for_path, kind_for_source, normalize_path, top_level_forms, Ai,
     Build, Compat, CompatLevel, DataAccess, Designer, FileKind, Project, ProjectFile, Run,
     DEFAULT_OUTPUT, FORMAT, HEADER, TEMPLATES,
 };

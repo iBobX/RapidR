@@ -38,6 +38,8 @@ SUB OpenProject(Path AS STRING)
     EXIT SUB
   END IF
   CloseAllDocuments
+  ' (S2: the start-up's offer to reopen is done with)
+  HideReopen
   ProjectOpen = 1
   ProjectName = Proj.Name
   ProjectMain = Proj.Folder
@@ -48,7 +50,8 @@ SUB OpenProject(Path AS STRING)
   ' (the project's include files read for the language service: on the web
   ' they are in the page's store, not on a disk it could read)
   FOR i = 0 TO Proj.FileCount - 1
-    IF Proj.FileKind(i) = "include" THEN Lang.Update Proj.FullPath(i), Proj.FileText(Proj.FullPath(i))
+    ' (an .inc that makes a form is a form file: read too)
+    IF Proj.FileKind(i) = "include" OR FileExt(Proj.File(i)) = "inc" THEN Lang.Update Proj.FullPath(i), Proj.FileText(Proj.FullPath(i))
   NEXT
   AddRecent p
   FillProjectTree
@@ -305,6 +308,8 @@ SUB LoadSettings
     END IF
     LoadSession
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
+    ' (S2: on unless turned off)
+    IF Reg.ValueExists("ReopenLast") THEN ReopenLast = Flag(Reg.ReadString("ReopenLast") <> "0")
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
     ' (Tools > Settings > Include folders: settings.inc)
     IF Reg.ValueExists("IncludeFolders") THEN Proj.IncludeFolders = Reg.ReadString("IncludeFolders")
@@ -324,13 +329,15 @@ SUB SaveSettings
   SaveSession
   SaveDebugState
   Reg.WriteString("Recent", RecentList)
+  Reg.WriteString("ReopenLast", LTRIM$(STR$(ReopenLast)))
   Reg.WriteString("Folder", DefaultFolder)
   Reg.WriteString("IncludeFolders", Proj.IncludeFolders)
   SaveAISettings
   Reg.CloseKey
 END SUB
 
-' (the recent projects, newest first, one a line, at most 8)
+' (the recent projects and files, newest first, one a line, at most
+' MAXRECENT: File > Open Recent, the Welcome page's Recent)
 SUB AddRecent(Path AS STRING)
   DIM acc AS STRING, n AS INTEGER, i AS INTEGER, p AS STRING, kept AS INTEGER
   acc = Path + CHR$(10)
@@ -338,11 +345,75 @@ SUB AddRecent(Path AS STRING)
   n = TALLY(RecentList, CHR$(10))
   FOR i = 1 TO n
     p = FIELD$(RecentList, CHR$(10), i)
-    IF p <> "" AND LCASE$(p) <> LCASE$(Path) AND kept < 8 THEN
+    IF p <> "" AND LCASE$(p) <> LCASE$(Path) AND kept < MAXRECENT THEN
       acc = acc + p + CHR$(10)
       kept = kept + 1
     END IF
   NEXT
   RecentList = acc
   FillRecent
+END SUB
+
+' (a recent item that isn't there any more: off the list)
+SUB ForgetRecent(Path AS STRING)
+  DIM acc AS STRING, i AS INTEGER, p AS STRING
+  FOR i = 1 TO TALLY(RecentList, CHR$(10))
+    p = FIELD$(RecentList, CHR$(10), i)
+    IF p <> "" AND LCASE$(p) <> LCASE$(Path) THEN acc = acc + p + CHR$(10)
+  NEXT
+  RecentList = acc
+  FillRecent
+END SUB
+
+' File > Open Recent's k-th item (the Welcome page's Recent links too): it
+' opens — one that isn't there any more is taken off the list, and the
+' status bar and the Output say so.
+SUB OpenRecent(k AS INTEGER)
+  DIM p AS STRING
+  IF k < 1 OR k > TALLY(RecentList, CHR$(10)) THEN EXIT SUB
+  p = FIELD$(RecentList, CHR$(10), k)
+  IF p = "" THEN EXIT SUB
+  IF FILEEXISTS(p) = 0 THEN
+    ForgetRecent p
+    OutputLine FileTitle(p) + " isn't there any more (" + p + "): taken off Open Recent"
+    ' (short: the status bar's first part is narrow; the Output says where)
+    SetState "error", FileTitle(p) + " isn't there any more"
+    SaveSettings
+    UpdateCommands
+    EXIT SUB
+  END IF
+  OpenProject p
+END SUB
+
+' File > Open Recent > Clear Recent: the list emptied (the files stay).
+SUB ClearRecent
+  RecentList = ""
+  FillRecent
+  SaveSettings
+  OutputLine "Open Recent cleared"
+  SetState RunState, "Open Recent cleared"
+  UpdateCommands
+END SUB
+
+' (S2) The start-up's offer: the project Studio last had open, with the
+' files that were open in it — a row on the Welcome page, focused, so
+' Enter reopens it (Tools > Settings > General turns the offer off). One
+' that isn't there any more isn't offered; it goes off Recent, said once.
+FUNCTION ReopenCandidate AS STRING
+  IF ReopenLast = 0 OR SessionProject = "" THEN EXIT FUNCTION
+  IF FILEEXISTS(SessionProject) = 0 THEN
+    OutputLine "The last project, " + FileTitle(SessionProject) + ", isn't there any more (" + SessionProject + "): taken off Open Recent"
+    ForgetRecent SessionProject
+    SessionProject = ""
+    SessionFiles = ""
+    EXIT FUNCTION
+  END IF
+  Result = SessionProject
+END FUNCTION
+
+SUB ReopenLastProject
+  DIM p AS STRING
+  p = ReopenPath
+  HideReopen
+  IF p <> "" THEN OpenProject p
 END SUB

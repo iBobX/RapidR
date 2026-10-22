@@ -1,0 +1,5 @@
+' prices.rr: an item's price, as text.
+
+FUNCTION PriceText(i AS INTEGER) AS STRING
+    Result = FORMAT$("%.2f", 1.5 + i)
+END FUNCTION

@@ -69,6 +69,7 @@ SUB RunCommand(Id AS STRING)
     CASE "file.newProject": AskNew
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
+    CASE "file.clearRecent": ClearRecent
     CASE "file.openExample": ShowPalette "Example"
     CASE "file.exampleAgain": CopyExampleAgain
     CASE "file.importRapidQ": AskImportRapidQ
@@ -136,6 +137,9 @@ SUB RunCommand(Id AS STRING)
       ' (a test step: import:<file or folder> — imported without the dialog)
       IF LEFT$(Id, 7) = "import:" THEN
         ImportRapidQ MID$(Id, 8)
+      ELSEIF LEFT$(Id, 12) = "file.recent." THEN
+        ' (File > Open Recent's items: the list's k-th, newest first)
+        OpenRecent VAL(MID$(Id, 13))
       ELSEIF LEFT$(Id, 9) = "includes:" THEN
         ' (a test step: includes:<folder>|<folder> — Settings > Include
         ' folders without the dialog)
@@ -165,7 +169,10 @@ END SUB
 ' (the keyboard starts in the Project pane, as it always has: the Welcome
 ' page's cards are Tab stops, and come first in the window)
 SUB StudioShown
-  IF ActiveDoc < 0 THEN Dock.FocusPane("projecttree")
+  IF ActiveDoc < 0 THEN
+    ' (S2: the offer to reopen the last project has the keyboard: Enter)
+    IF StartShift > 0 THEN ReopenRow.SetFocus ELSE Dock.FocusPane("projecttree")
+  END IF
 END SUB
 
 SUB StudioClose(Action AS INTEGER)
@@ -288,7 +295,12 @@ SUB StartStudio
   WEND
   ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
   DefaultFolder = Proj.ProjectsFolder(HomeDir)
+  ' (S2: offered unless the settings turned it off)
+  ReopenLast = 1
   IF fresh = 0 THEN LoadSettings
+  ' (S6: your login shell's PATH for the programs run from here, read in the
+  ' background now — a Run waits for it, three seconds at most)
+  Session.ReadShellPath
   ' (RapidR's look by default, following the system)
   IF ThemeChoice = "" THEN ThemeChoice = "rapidr"
   Application.Theme = ThemeChoice
@@ -320,7 +332,12 @@ SUB StartStudio
   OutputLine "RapidR Studio is ready."
   LayOutWelcome
   ApplyPreview
-  IF startFile <> "" THEN OpenProject startFile
+  IF startFile <> "" THEN
+    OpenProject startFile
+  ELSEIF fresh = 0 THEN
+    ' (S2: the last project and its files, offered on the Welcome page)
+    ShowReopen
+  END IF
   UpdateTitle
   UpdateCommands
   IF DoList <> "" THEN Macro.Enabled = 1

@@ -1,0 +1,10 @@
+' lists.rr: the shelf's list, filled from the items.
+
+SUB FillShelf
+    DIM i AS INTEGER
+    ShelfList.Clear
+    FOR i = 0 TO ItemCount - 1
+        ShelfList.AddItems Items(i) + "  " + PriceText(i)
+    NEXT
+    Form.Caption = ShopName + " - " + STR$(ItemCount) + " items"
+END SUB

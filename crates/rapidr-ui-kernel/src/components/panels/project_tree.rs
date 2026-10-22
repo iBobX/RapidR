@@ -595,7 +595,23 @@ impl ComponentKind for ProjectTree {
                 NodeKind::Project => "project".into(),
                 NodeKind::Group(_) => format!("{} file{}", r.count.unwrap_or(0), if r.count == Some(1) { "" } else { "s" }),
                 NodeKind::Folder(..) => "folder".into(),
-                NodeKind::File(p) => m.file(p).map(|f| if r.main { format!("{}, the main file", f.kind.as_str()) } else { f.kind.as_str().to_string() }).unwrap_or_default(),
+                NodeKind::File(p) => m
+                    .file(p)
+                    .map(|f| {
+                        // (a file of several forms says how many: S1)
+                        let kind = match m.form_count(p) {
+                            n if n > 1 => format!("{}, {n} forms", f.kind.as_str()),
+                            _ => f.kind.as_str().to_string(),
+                        };
+                        if r.main {
+                            format!("{kind}, the main file")
+                        } else {
+                            kind
+                        }
+                    })
+                    .unwrap_or_default(),
+                // (a form: Enter opens it in the designer)
+                NodeKind::Component { ty, .. } if matches!(ty.as_str(), "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI") => "form".into(),
                 NodeKind::Component { .. } => "component".into(),
             };
             item.level = Some(r.level + 1);

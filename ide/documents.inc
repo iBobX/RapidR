@@ -248,8 +248,32 @@ FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
   CodeDoc(d).SaveToFile DocFile(d)
   DocDirty(d) = 0
   DocTitles d
+  ProjectFollowsCode
   Result = 1
 END FUNCTION
+
+' (S1) The project file follows the code: a file saved that now makes a
+' form is listed as a form file, one that no longer does as a module — the
+' .rrproj written again, the Output says what changed.
+SUB ProjectFollowsCode
+  DIM changed AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING
+  IF ProjectOpen = 0 OR Proj.Kind <> "project" THEN EXIT SUB
+  changed = Proj.FollowCode
+  IF changed = "" THEN EXIT SUB
+  n = TALLY(changed, CHR$(10))
+  FOR i = 1 TO n
+    row = FIELD$(changed, CHR$(10), i)
+    ' (short lines: the Output pane is narrow)
+    IF FIELD$(row, CHR$(9), 2) = "form" THEN
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes a form: now under Forms"
+    ELSEIF FIELD$(row, CHR$(9), 2) = "include" THEN
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Includes"
+    ELSE
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Modules"
+    END IF
+  NEXT
+  SaveProjectFile
+END SUB
 
 SUB SaveAll
   DIM d AS INTEGER

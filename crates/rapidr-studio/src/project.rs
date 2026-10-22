@@ -6,7 +6,8 @@
 //! | Member | |
 //! |---|---|
 //! | `Open(Path)` → True / False | a `.rrproj` (format 2, or the web IDE's v1 JSON, imported: its files written beside it where none is there yet), or a `.bas` / `.rr` / `.inc` file with the files it `$INCLUDE`s (RapidQ's way: no project file) |
-//! | `Save([Path])` → True / False | the `.rrproj` (an implicit project becomes one: `<folder>/<Name>.rrproj` or Path) |
+//! | `Save([Path])` → True / False | the `.rrproj` (an implicit project becomes one: `<folder>/<Name>.rrproj` or Path), its files' kinds as their code says |
+//! | `FollowCode` → text | the files' kinds as their code says now (forms come from the code, several in a file too): the files whose kind changed, a line each (path, kind) |
 //! | `New(Template, Name, Folder)` → True / False | `console` or `gui`: `main.rr` and `<Name>.rrproj` written in Folder |
 //! | `AddFile(Path [, Kind])`, `RemoveFile(Path)` → True / False | paths relative to the project's folder (or absolute inside it) |
 //! | `Close` | no project |
@@ -23,7 +24,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use rapidr_project::{import_v1, is_v1_json, kind_for_path, normalize_path, FileKind, Project};
+use rapidr_project::{import_v1, is_v1_json, kind_for_path, kind_for_source, normalize_path, FileKind, Project};
 use rapidr_value::Value;
 
 use crate::{flag, folder_of, int_arg, join, read_text, slashes, text_arg, write_text, Host};
@@ -339,10 +340,20 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// The project's files' kinds as their code on the disk (the page's store
+/// on the web) says now — forms come from the code: the files whose kind
+/// changed, a line each, its path and new kind tab-separated.
+fn follow_code(m: &mut Model) -> String {
+    let folder = m.folder.clone();
+    m.project.follow_code(&|rel: &str| read_text(&join(&folder, rel)).ok()).iter().map(|(p, k)| format!("{p}\t{}\n", kind_name(*k))).collect()
+}
+
 fn save(m: &mut Model, to: &str) -> Result<(), String> {
     if m.kind.is_empty() {
         return Err("no project is open".into());
     }
+    // (the kinds written are the code's: S1)
+    follow_code(m);
     let file = if !to.is_empty() {
         slashes(to)
     } else if !m.file_name.is_empty() {
@@ -612,6 +623,15 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             }
         }
         "save" => changing(&|m| save(m, &s(0))),
+        // FollowCode → the files whose kind changed ("" none): the kinds
+        // as the code says now, not saved yet (Save writes them)
+        "followcode" => {
+            let changed = with(name, |m| if m.kind.is_empty() { String::new() } else { follow_code(m) });
+            if !changed.is_empty() {
+                host.fire(name, "onchange", &[]);
+            }
+            Value::String(changed)
+        }
         // (the desktop only asks whether Rust is there; the web builds nothing)
         "new" => {
             let interpreted = host.rapidr().is_some_and(|r| !crate::build::rust_ready(&r));
@@ -626,7 +646,9 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 return Err("no project is open".into());
             }
             let rel = project_path(&m.folder, &s(0));
-            let kind = kind_parse(&s(1)).unwrap_or_else(|| kind_for_path(&rel));
+            // (no kind given: its code says — a file that creates a form is
+            // a form file, whoever wrote it: S1)
+            let kind = kind_parse(&s(1)).unwrap_or_else(|| read_text(&join(&m.folder, &rel)).map_or_else(|_| kind_for_path(&rel), |t| kind_for_source(&rel, &t)));
             if m.project.add_file(&rel, kind) { Ok(()) } else { Err(format!("{rel} is in the project already")) }
         }),
         "removefile" => changing(&|m| {
@@ -972,6 +994,43 @@ mod tests {
         assert_eq!(call("rustready", &[]).to_i64(), 1);
         assert_eq!(call("open", &[Value::String(format!("{d}/nope.rr"))]).to_i64(), 0);
         assert!(get("error").contains("no such file"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    // (S1, Robert's 7-file program) The project file says main.rr is the
+    // form and ui.rr a module; the code says ui.rr makes three forms and
+    // main.rr none. FollowCode says what changes; Save writes the code's
+    // kinds; a form file added without a kind (RAI's new file) is a form.
+    #[test]
+    fn the_project_file_follows_the_code() {
+        let dir = std::env::temp_dir().join(format!("rapidr-studio-follow-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let d = slashes(&dir.to_string_lossy());
+        let mut p = Project::new("Web", "main.rr");
+        p.files.clear();
+        p.add_file("main.rr", FileKind::Form);
+        p.add_file("ui.rr", FileKind::Module);
+        std::fs::write(dir.join("Web.rrproj"), p.to_toml()).unwrap();
+        std::fs::write(dir.join("main.rr"), "$INCLUDE \"ui.rr\"\nForm.ShowModal\n").unwrap();
+        std::fs::write(dir.join("ui.rr"), "CREATE Form AS RForm\nEND CREATE\nCREATE NewForm AS RForm\nEND CREATE\nCREATE CfgForm AS RForm\nEND CREATE\n").unwrap();
+        let call = |m: &str, args: &[Value]| call(Quiet, "pf", m, args).unwrap();
+        assert_eq!(call("open", &[Value::String(format!("{d}/Web.rrproj"))]).to_i64(), 1);
+        // (as the file says, until the code is followed)
+        assert_eq!(call("filekind", &[Value::Integer(0)]).to_string_val(), "form");
+        assert_eq!(call("followcode", &[]).to_string_val(), "main.rr\tmodule\nui.rr\tform\n");
+        assert_eq!(call("followcode", &[]).to_string_val(), "");
+        assert_eq!(call("save", &[]).to_i64(), 1);
+        let saved = std::fs::read_to_string(dir.join("Web.rrproj")).unwrap();
+        assert!(saved.contains("path = \"main.rr\"\nkind = \"module\"") && saved.contains("path = \"ui.rr\"\nkind = \"form\""), "{saved}");
+        // (a form written by the assistant, added with no kind)
+        std::fs::write(dir.join("about.rr"), "CREATE About AS RForm\nEND CREATE\n").unwrap();
+        assert_eq!(call("addfile", &[Value::String(format!("{d}/about.rr"))]).to_i64(), 1);
+        assert_eq!(call("filekind", &[Value::Integer(2)]).to_string_val(), "form");
+        // (the form taken out of the code, saved: a module again when the project is saved)
+        std::fs::write(dir.join("about.rr"), "SUB About\nEND SUB\n").unwrap();
+        assert_eq!(call("save", &[]).to_i64(), 1);
+        assert!(std::fs::read_to_string(dir.join("Web.rrproj")).unwrap().contains("path = \"about.rr\"\nkind = \"module\""));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

@@ -1,0 +1,8 @@
+' path_check.rr: the PATH a program run from RapidR Studio gets (Preview 4
+' S6): your login shell's, as Terminal has it — so its SHELL finds Homebrew's
+' tools even when Studio was started from the Dock or Finder.
+'
+'    rapidr run path_check.rr
+PRINT "PATH=" + ENVIRON$("PATH")
+SHELL "command -v brew || echo 'brew: not found'"
+SHELL "command -v sh"
