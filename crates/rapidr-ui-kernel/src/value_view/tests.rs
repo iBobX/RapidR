@@ -90,6 +90,7 @@ fn kinds_from_the_debuggers_words() {
         ValueKind::Globals,
         ValueKind::Watch,
         ValueKind::CallStack,
+        ValueKind::Breakpoint,
         ValueKind::Frame,
         ValueKind::CurrentFrame,
     ] {
@@ -300,6 +301,51 @@ fn widths_and_sections() {
         long.paint(p, (0, 0, 60, 18), &RowStyle::new(&f));
     });
     assert!(texts(&list).len() < 3);
+}
+
+/// A tree node's value (SetItemValue) as a row: its hint read, a heading,
+/// a breakpoint with its state's icon and words.
+#[test]
+fn rows_from_tree_nodes() {
+    use rapidr_value::objects::tree::ItemValue;
+    let item = |name: &str, kind: &str, value: &str, hint: &str| ItemValue { name: name.into(), kind: kind.into(), value: value.into(), count: 0, hint: hint.into() };
+    let fc = ValueRow::from_item(&item("FontColor", "Integer", "-2147483640", "color"), false);
+    assert_eq!((fc.text(), fc.swatch()), ("FontColor = clWindowText", Some(Swatch::System(8))));
+    let ws = ValueRow::from_item(&item("WindowState", "Integer", "2", "const:wsMaximized"), true);
+    assert_eq!((ws.text(), ws.accessible_name()), ("WindowState = wsMaximized (2)", "WindowState, constant wsMaximized, changed"));
+    let h = ValueRow::from_item(&item("Handle", "Integer", "4242", "handle,readonly"), false);
+    assert_eq!(h.kind(), ValueKind::Handle);
+    let g = ValueRow::from_item(&item("Globals", "Globals", "", ""), false);
+    assert_eq!((g.kind(), g.icon().map(|i| i.id)), (ValueKind::Globals, Some("debug/globals")));
+    let c = ValueRow::from_item(&item("Components", "Components", "", ""), false);
+    assert_eq!((c.kind(), c.text()), (ValueKind::Components, "Components"));
+    let form_parts = ValueRow::from_item(&item("Components", "Components", "(3)", ""), false);
+    assert_eq!(form_parts.text(), "Components (3)");
+    let top = ValueRow::from_item(&item("UpdateScore   Main.rr:42", "CurrentFrame", "", ""), false);
+    assert_eq!(top.icon().map(|i| i.id), Some("actions/execution-point"));
+    for (state, icon, said) in [
+        ("on", "actions/breakpoint", "Main.rr:20, breakpoint"),
+        ("off", "actions/breakpoint-disabled", "Main.rr:20, breakpoint, off"),
+        ("unverified", "actions/breakpoint-unverified", "Main.rr:20, breakpoint, not bound to code yet"),
+        ("conditional", "actions/breakpoint-conditional", "Main.rr:20, conditional breakpoint"),
+        ("hitcount", "actions/breakpoint-hit-count", "Main.rr:20, breakpoint with a hit count"),
+        ("log", "actions/logpoint", "Main.rr:20, log point"),
+    ] {
+        let b = ValueRow::from_item(&item("Main.rr:20", "Breakpoint", "", state), false);
+        assert_eq!((b.icon().map(|i| i.id), b.accessible_name()), (Some(icon), said));
+    }
+}
+
+/// The value alone (a data tip's column): no icon, no name.
+#[test]
+fn the_value_alone() {
+    let f = font();
+    let r = ValueRow::new(&ValueInfo { name: "Lives", kind: "Integer", text: "2", changed: true, ..Default::default() });
+    let mut drawn = 0;
+    let list = painted(&RAPIDR, 1.0, |p| drawn = r.paint_value(p, (0, 0, 200, 18), &RowStyle::new(&f)));
+    assert_eq!(texts(&list), [("2".into(), ide_theme::values(&RAPIDR).number)]);
+    assert_eq!(drawn, r.value_width(&f, 16));
+    assert!(images(&list).iter().all(|i| i.contains("glyphs/changed")));
 }
 
 /// Thousands of rows: built once; each frame draws only ops — one picture

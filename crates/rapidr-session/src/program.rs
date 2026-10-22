@@ -459,10 +459,11 @@ impl ProgramEnd {
                     Some((kind, props)) => {
                         let properties = props
                             .into_iter()
-                            .map(|(name, v)| {
+                            .map(|(name, v, p)| {
                                 // (a property's text is a value, not a component it names)
                                 let evaluate_name = child_name(&object, &name);
-                                Variable { name, ..self.render(vm, &v, &evaluate_name, false) }
+                                let hint = property_hint(p, &v);
+                                Variable { name, hint, ..self.render(vm, &v, &evaluate_name, false) }
                             })
                             .collect();
                         Event::reply(seq, EventBody::Properties { kind, properties })
@@ -619,9 +620,10 @@ impl ProgramEnd {
                         let reference = self.offer(Node::Parts(id.clone()));
                         out.push(Variable { name: "Components".into(), value: format!("({})", parts.len()), kind: "Components".into(), reference, count: parts.len() as u32, ..Default::default() });
                     }
-                    for (name, v) in props {
+                    for (name, v, p) in props {
                         let evaluate_name = child_name(&id, &name);
-                        out.push(Variable { name, ..self.render(vm, &v, &evaluate_name, false) });
+                        let hint = property_hint(p, &v);
+                        out.push(Variable { name, hint, ..self.render(vm, &v, &evaluate_name, false) });
                     }
                     return Ok(out);
                 }
@@ -781,7 +783,7 @@ fn plural(n: usize, what: &str) -> String {
 /// registry lists them, each read through the host as the program reads it
 /// (`None`: not a component).
 #[allow(clippy::type_complexity)]
-fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Option<(String, Vec<(String, Value)>)> {
+fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Option<(String, Vec<(String, Value, &'static rapidr_lang::Property)>)> {
     let kind = vm.host.component_type(id)?;
     let comp = rapidr_lang::component(&kind);
     let shown = comp.map_or(kind.clone(), |c| c.spelling());
@@ -796,11 +798,38 @@ fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Optio
             if p.secret {
                 rapidr_value::secrets::note(&v.to_string_val());
             }
-            props.push((p.name.to_string(), v));
+            props.push((p.name.to_string(), v, p));
         }
     }
-    props.sort_by_key(|(n, _)| n.to_ascii_lowercase());
+    props.sort_by_key(|(n, ..)| n.to_ascii_lowercase());
     Some((shown, props))
+}
+
+/// What the registry knows about property `p` holding `v`, for the
+/// debugger ([`Variable::hint`]): `color`, `handle`, `const:<name>` (an
+/// enum's constant with this value), `readonly`.
+fn property_hint(p: &rapidr_lang::Property, v: &Value) -> String {
+    let mut out: Vec<String> = Vec::new();
+    let lower = p.name.to_ascii_lowercase();
+    match p.ty {
+        rapidr_lang::Type::Color => out.push("color".into()),
+        rapidr_lang::Type::Int if lower == "hwnd" || lower.ends_with("handle") => out.push("handle".into()),
+        rapidr_lang::Type::Enum => {
+            let n = match v {
+                Value::Integer(i) => Some(*i),
+                Value::Double(d) if d.fract() == 0.0 => Some(*d as i64),
+                _ => None,
+            };
+            if let Some(c) = n.and_then(|n| p.values.iter().find(|c| rapidr_lang::constant(c).is_some_and(|(x, _)| x == n))) {
+                out.push(format!("const:{c}"));
+            }
+        }
+        _ => {}
+    }
+    if p.access == rapidr_lang::Access::Read {
+        out.push("readonly".into());
+    }
+    out.join(",")
 }
 
 /// Whether function `f` of `module` calls a SUB, a FUNCTION or a method.
@@ -1787,6 +1816,9 @@ mod tests {
         fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
             Ok(match (id.to_ascii_lowercase().as_str(), name.to_ascii_lowercase().as_str()) {
                 ("form1", "caption") => Value::String("Main".into()),
+                ("form1", "color") => Value::Integer(-2147483633),
+                ("form1", "windowstate") => Value::Integer(2),
+                ("form1", "handle") => Value::Integer(4242),
                 ("button1", "caption") => Value::String("OK".into()),
                 _ => Value::Null,
             })
@@ -1877,6 +1909,13 @@ mod tests {
         let form = vars(103);
         assert_eq!((form[0].name.as_str(), form[0].count), ("Components", 1));
         assert!(form.iter().any(|v| v.name == "Caption" && v.value == "\"Main\"" && v.evaluate_name == "Form1.Caption"), "{form:?}");
+        // (what the registry knows rides along: a colour, an enum's constant,
+        // a handle that can't be set; a caption is just text)
+        let hint = |name: &str| form.iter().find(|v| v.name == name).map(|v| v.hint.clone()).unwrap_or_else(|| panic!("no {name} in {form:?}"));
+        assert_eq!(hint("Color"), "color");
+        assert_eq!(hint("WindowState"), "const:wsMaximized");
+        assert_eq!(hint("Handle"), "handle,readonly");
+        assert_eq!(hint("Caption"), "");
         // the RNum paged
         let page = vars(104);
         assert_eq!(page.len(), 10);

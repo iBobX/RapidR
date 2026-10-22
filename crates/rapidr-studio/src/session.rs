@@ -405,7 +405,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let reference = int_arg(args, 0, 0).max(0) as u32;
             with(name, |m| {
                 table(m.vars.get(&reference).into_iter().flatten().map(|(v, changed)| {
-                    vec![v.name.clone(), v.value.clone(), v.kind.clone(), v.reference.to_string(), v.count.to_string(), v.evaluate_name.clone(), flag_text(*changed), v.columns.join("\u{1f}"), v.cells.join("\u{1f}")]
+                    vec![v.name.clone(), v.value.clone(), v.kind.clone(), v.reference.to_string(), v.count.to_string(), v.evaluate_name.clone(), flag_text(*changed), v.columns.join("\u{1f}"), v.cells.join("\u{1f}"), v.hint.clone()]
                 }))
             })
         }

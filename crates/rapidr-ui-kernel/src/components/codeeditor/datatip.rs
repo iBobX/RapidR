@@ -24,6 +24,17 @@ use super::CodeUi;
 use crate::input::KernelEvent;
 use crate::paint::Painter;
 use crate::tree::FormUi;
+use crate::value_view::{RowStyle, ValueRow};
+
+/// Row `r` as the debugger's panes draw a value (value_view); `None` for a
+/// row that is no value ("…" while its children come, "12 more").
+fn value_row(r: &TipRow) -> Option<ValueRow> {
+    if r.kind.is_empty() {
+        return None;
+    }
+    let item = rapidr_value::objects::tree::ItemValue { name: r.name.clone(), kind: r.kind.clone(), value: r.value.clone(), count: r.count, hint: r.hint.clone() };
+    Some(ValueRow::from_item(&item, r.changed))
+}
 
 /// A row's height, and how many show at once.
 pub const ROW_H: i64 = 20;
@@ -98,8 +109,11 @@ pub fn layout(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64,
                 }
             }
         } else {
-            name_w = name_w.max(indent + text_size(&r.name, &cf).0);
-            value_w = value_w.max(text_size(&r.value, &cf).0.min(VALUE_MAX));
+            // (the kind's icon before the name; the value as value_view
+            // draws it: a swatch, a count, the changed mark)
+            name_w = name_w.max(indent + ICON + 4 + text_size(&r.name, &cf).0);
+            let vw = value_row(r).map_or_else(|| text_size(&r.value, &cf).0, |v| v.value_width(&cf, ICON));
+            value_w = value_w.max(vw.min(VALUE_MAX));
             kind_w = kind_w.max(text_size(&r.kind, &uf).0.min(KIND_MAX));
         }
     }
@@ -232,15 +246,27 @@ pub fn paint(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
                     cx += cw;
                 }
             } else {
+                // (the kind's icon, the name, " = ", the value as the
+                // debugger's panes draw it: value_view's)
+                let row = value_row(r);
                 let name_x = indent + TRIANGLE;
-                p.text((name_x, ty, (x + l.value_x - name_x).max(10), th), &r.name, &cf, sc.popup_text, Place::TopLeft);
+                if let Some(icon) = row.as_ref().and_then(ValueRow::icon) {
+                    p.icon_of(icon, (name_x, ry + (ROW_H - ICON) / 2, ICON, ICON), None, false);
+                }
+                let text_x = name_x + ICON + 4;
+                p.text((text_x, ty, (x + l.value_x - text_x).max(10), th), &r.name, &cf, sc.popup_text, Place::TopLeft);
                 p.text((x + l.value_x - eq_w, ty, eq_w + 2, th), " = ", &cf, sc.popup_detail, Place::TopLeft);
                 // (the actions take the type's place on the row under the mouse)
                 let right = if hot { action_rects(&l, r).first().map_or(x + w - 8, |a| a.0 .0 - 6) } else { x + w - 12 - l.kind_w - 10 };
                 let vw = (right - (x + l.value_x)).max(20);
-                let shown = fit(&r.value, if r.changed { &bold } else { &cf }, vw);
-                let color = if r.changed { sc.mark_changed } else { value_color(sc, &r.kind) };
-                p.text((x + l.value_x, ty, vw + 2, th), &shown, if r.changed { &bold } else { &cf }, color, Place::TopLeft);
+                if let Some(row) = row.as_ref().filter(|row| row.value_width(&cf, ICON) <= vw) {
+                    row.paint_value(p, (x + l.value_x, ry, vw, ROW_H), &RowStyle::new(&cf));
+                } else {
+                    // (too long for the column: cut short, in its kind's colour)
+                    let shown = fit(&r.value, if r.changed { &bold } else { &cf }, vw);
+                    let color = if r.changed { sc.mark_changed } else { value_color(sc, &r.kind) };
+                    p.text((x + l.value_x, ty, vw + 2, th), &shown, if r.changed { &bold } else { &cf }, color, Place::TopLeft);
+                }
                 if !hot && !r.kind.is_empty() {
                     let kind = fit(&r.kind, &uf, l.kind_w);
                     let kw = text_size(&kind, &uf).0;

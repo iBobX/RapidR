@@ -431,6 +431,7 @@ methods = [
   { name = "AlphaSort", origin = "rapidr" },
   { name = "AddRoot", value = true, origin = "rapidr" },
   { name = "AddNode", origin = "rapidr" },
+  { name = "SetItemValue", params = "Index AS INTEGER, Name AS STRING, Kind AS STRING, Value AS STRING, [Count AS INTEGER], [Hint AS STRING]", origin = "rapidr", doc = "Shows node Index as a value, as a debugger's Variables and Watch do: its kind's icon, then `Name = Value` with the value styled by kind (numbers, text, True/False, constants), an empty text as a quiet `\"\"`, a colour as a swatch and its name, an array with its count. Kind is the debugger's word for it (`Integer`, `Double`, `String`, `Boolean`, `Array`, `Empty`, a TYPE's or a component's name, `Include`, `Components`, `More`) or a heading's (`Locals`, `Globals`, `Components` with no Value, `Watch`, `CallStack`, `Frame`, `CurrentFrame`: drawn as a title with its icon; `Breakpoint`, its state in Hint — `on`, `off`, `unverified`, `conditional`, `hitcount`, `log` — drawn with the gutter's icon for it). Count is how many children it has (an array's elements); Hint says what more is known, comma-separated: `color`, `handle`, `const:alClient`, `result`, `readonly`. The node's Text becomes `Name = Value`; screen readers hear a sentence (\"FontColor, colour clWindowText\"). An empty Kind and Value make it a plain node again, with Name as its text." },
 ]
 events = [
   { name = "OnClick" },

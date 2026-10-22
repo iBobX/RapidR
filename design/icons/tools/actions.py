@@ -4,7 +4,7 @@ breakpoints, the execution point and the statuses."""
 
 import math
 
-from kit import icon
+from kit import icon, num, color
 from motifs import arrowhead, page, folder, folder_open, window, magnifier, floppy, gear, star4, rot
 
 A = "actions"
@@ -312,7 +312,19 @@ def breakpoint_disabled(g):
 
 @icon("breakpoint-unverified", A, "Breakpoint (not yet bound)", mono=False)
 def breakpoint_unverified(g):
-    g.circle(12, 12, 6.5, c="red", fill="red-tint")
+    # a dashed ring: there, but not bound to code yet (a disabled one is a
+    # solid ring; in high contrast, where hue is gone, the dashes tell them
+    # apart)
+    r = max(1.0, g.L(6.5))
+    cx, cy = g._centre(12, 0, r), g._centre(12, 1, r)
+    # (dashes twice their gaps, one at each quarter: square to the pixel
+    # grid where the ring runs straight)
+    n = {16: 4, 24: 8, 32: 8}[g.size]
+    per = 2 * math.pi * r / n
+    dash, gap = per * 2 / 3, per / 3
+    g.add(f'<circle cx="{num(cx)}" cy="{num(cy)}" r="{num(r)}" fill="{color("red-tint")}"/>')
+    g.add(f'<circle cx="{num(cx)}" cy="{num(cy)}" r="{num(r)}" stroke="{color("red")}" stroke-linecap="butt" '
+          f'stroke-dasharray="{num(dash)} {num(gap)}" stroke-dashoffset="{num(dash / 2)}"/>')
 
 
 @icon("breakpoint-conditional", A, "Conditional breakpoint", mono=False)

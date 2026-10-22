@@ -8,6 +8,24 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **A debugger that looks as good as it works** (Preview 4 S10). In
+  RapidR Studio, Variables, Watch, the Call Stack, the Breakpoints pane and
+  the data tips draw each value with its kind's icon, the value in its
+  kind's colour (the code editor's), an empty text as a quiet `""`, a colour
+  as a swatch and its name (`FontColor = ■ clWindowText`), an array with its
+  count (`ColName = Array(0 TO 64) · 65 items`), a property's constant by
+  name (`WindowState = wsMaximized (2)`); a value that changed since the
+  last stop is highlighted and marked. Screen readers hear each row as a
+  sentence ("FontColor, colour clWindowText"). The margin and the
+  Breakpoints pane mark each breakpoint by its kind: a condition `=`, a hit
+  count `#` (no longer the same as a condition), a log point's diamond,
+  off a ring, not bound to code a dashed ring — the shapes tell them apart
+  in high contrast too. A pane header's tooltip (Close, Auto Hide) shows
+  above the header instead of over the pane's first row. For your own
+  programs: `TreeView.SetItemValue i, Name, Kind, Value [, Count [, Hint]]`
+  shows a tree node as a value, and `Item(i).Changed` marks it; the
+  debugger session gives each property's hint (`color`, `handle`,
+  `const:…`, `readonly`). See [the manual](docs/manual/debugging.md#how-values-look).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS
@@ -198,7 +216,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`crates/rapidr-cli/tests/lang_truth.rs`); `--verbose` lists what is not run
   and why, `--emit DIR` writes the `expect` programs for the other runtimes.
 - **The debugger's own icons and a value row that draws a value as what it
-  is** (Preview 4 S10, phase 1; Studio's panes take them up in phase 2). A
+  is** (Preview 4 S10, phase 1: the icons and the UI kernel's `value_view`). A
   new two-tone icon category, `debug/`, our own drawings hinted at 16, 24
   and 32 px in every look: whole and decimal numbers, text, True/False,
   arrays, handles, empty, a FUNCTION's result, and the sections Locals,

@@ -1076,6 +1076,44 @@ mod tests {
         assert!(super::editing("tv").is_none());
     }
 
+    /// (RapidR's) Value nodes (SetItemValue) are drawn as values — their
+    /// kind's icon, the value in its token's colour, a changed one marked —
+    /// and read as sentences; plain nodes beside them are as they were.
+    #[test]
+    fn tree_values_are_drawn_and_read_as_values() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("tv", "RTREEVIEW", Some("f")).set("tv", "width", v_int(300)).set("tv", "height", v_int(200));
+            s.call("tv", "additems", &[v_str("Locals"), v_str("plain")]);
+            s.call("tv", "addchilditems", &[v_int(0), v_str("x"), v_str("y")]);
+            s.call("tv", "setitemvalue", &[v_int(0), v_str("Locals"), v_str("Locals"), v_str("")]);
+            s.call("tv", "setitemvalue", &[v_int(1), v_str("Score"), v_str("Integer"), v_str("42")]);
+            s.call("tv", "setitemvalue", &[v_int(2), v_str("FontColor"), v_str("Integer"), v_str("-2147483640"), v_int(0), v_str("color")]);
+            s.call("tv", "item.changed=", &[v_int(1), v_int(1)]);
+        });
+        with_tree("tv", |t| t.set_expanded(0, true, false));
+        let list = f.paint(&s, &mut ts, 1.0);
+        let images: Vec<&str> = list.items.iter().filter_map(|i| match i {
+            Item::Op { op: Op::Image { source, .. }, .. } => Some(source.as_str()),
+            _ => None,
+        }).collect();
+        for icon in ["debug/locals", "debug/integer", "glyphs/changed"] {
+            assert!(images.iter().any(|s| s.contains(icon)), "{icon} in {images:?}");
+        }
+        let texts: Vec<(&str, u32)> = list.items.iter().filter_map(|i| match i {
+            Item::Op { op: Op::Text { text, color, .. }, .. } => Some((text.as_str(), *color)),
+            _ => None,
+        }).collect();
+        let c = rapidr_value::ide_theme::values(rapidr_value::theme::current());
+        assert!(texts.contains(&("42", c.number)), "{texts:?}");
+        assert!(texts.contains(&("clWindowText", c.constant)), "{texts:?}");
+        assert!(texts.iter().any(|(t, _)| *t == "plain"), "{texts:?}");
+        // (the Text property says it plainly; screen readers hear sentences)
+        assert_eq!(with_tree("tv", |t| t.nodes[2].text.clone()).as_deref(), Some("FontColor = -2147483640"));
+        let tree = f.access_tree(&s, &mut ts);
+        let names: Vec<String> = tree.children[0].children.iter().map(|c| c.name.clone()).collect();
+        assert_eq!(names, ["Locals", "Score, whole number 42, changed", "FontColor, colour clWindowText", "plain"]);
+    }
+
     #[test]
     fn grid_cells_and_owner_drawing() {
         let (s, mut f, mut ts) = form(|s| {

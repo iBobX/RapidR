@@ -19,7 +19,13 @@
 //! * `ItemCount`, `ItemIndex`, `TopIndex`, `ShowButtons`, `ShowLines`,
 //!   `ShowRoot`, `Indent`, `ReadOnly`, `HideSelection`, `SortType`;
 //! * `LoadFromFile` / `SaveToFile`: a node per line, indented by a tab per
-//!   level ([`TreeView::to_text`] / [`TreeView::load_text`]).
+//!   level ([`TreeView::to_text`] / [`TreeView::load_text`]);
+//! * (RapidR's) `SetItemValue i, Name, Kind, Value [, Count [, Hint]]`:
+//!   the node is a value ([`ItemValue`]: a debugger's Variables and Watch)
+//!   — the UI kernel draws it with its kind's icon and the value styled by
+//!   kind; its Text says it plainly (`Score = 42`) — and `Item(i).Changed`
+//!   marks it changed since the program last stopped; `Item(i).ValueKind`
+//!   reads the kind.
 //!
 //! What the user does goes through the runtime, which asks the program
 //! first (OnChanging, OnExpanding, OnCollapsing, OnEditing, OnEdited answer
@@ -45,11 +51,64 @@ pub struct Node {
     /// (RapidR's) `TextColor`: the node's text colour (BGR, as RapidQ's
     /// colours); -1 for the tree's own.
     pub text_color: i64,
+    /// (RapidR's) `SetItemValue`: the node is a value, drawn as one.
+    pub value: Option<Box<ItemValue>>,
+    /// (RapidR's) `Item(i).Changed`: its value changed since the program
+    /// last stopped (highlighted and marked).
+    pub changed: bool,
 }
 
 impl Node {
     fn new(text: String, level: usize) -> Node {
-        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false, text_color: -1 }
+        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false, text_color: -1, value: None, changed: false }
+    }
+}
+
+/// A node that is a value (`SetItemValue`): what a debugger knows of it.
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct ItemValue {
+    pub name: String,
+    /// The debugger's kind (`Integer`, `Double`, `String`, `Boolean`,
+    /// `Array`, `Empty`, a TYPE's or a component's name, `Include`,
+    /// `Components`, `More`) or a heading's (`Locals`, `Globals`,
+    /// `Components` with no value, `Watch`, `CallStack`, `Frame`,
+    /// `CurrentFrame`; `Breakpoint`, its state the hint: `on`, `off`,
+    /// `unverified`, `conditional`, `hitcount`, `log`).
+    pub kind: String,
+    /// The value as the debugger writes it (`42`, `"Hi"`, `Array(0 TO 9)`).
+    pub value: String,
+    /// How many children (an array's elements, a TYPE's fields).
+    pub count: u32,
+    /// What the registry knows, comma-separated: `color`, `handle`,
+    /// `const:alClient`, `result`, `readonly`.
+    pub hint: String,
+}
+
+impl ItemValue {
+    /// A section's heading or a call on the stack: no value, its name its
+    /// title (`Components` with no value is the program's components'
+    /// heading; with one, a form's group of components).
+    pub fn is_section(&self) -> bool {
+        match self.kind.to_ascii_lowercase().as_str() {
+            "locals" | "globals" | "watch" | "callstack" | "frame" | "currentframe" | "breakpoint" => true,
+            "components" => self.value.is_empty(),
+            _ => false,
+        }
+    }
+
+    /// What the node's Text says: `Score = 42`; a section's title; an
+    /// `$INCLUDE`'s or a form's group `$INCLUDE RAPIDQ.INC (412 names)`.
+    pub fn plain(&self) -> String {
+        let kind = self.kind.to_ascii_lowercase();
+        if self.is_section() || kind == "more" || self.value.is_empty() && kind.is_empty() {
+            self.name.clone()
+        } else if self.name.is_empty() {
+            self.value.clone()
+        } else if kind == "include" || kind == "components" {
+            format!("{} {}", self.name, self.value)
+        } else {
+            format!("{} = {}", self.name, self.value)
+        }
     }
 }
 
@@ -403,6 +462,27 @@ impl TreeView {
                 self.changed();
             }
             "sort" | "alphasort" => self.sort(),
+            // (RapidR's) the node a value: SetItemValue i, Name, Kind, Value [, Count [, Hint]]
+            "setitemvalue" => {
+                let Some(i) = index(args.first()).filter(|&i| i < self.nodes.len()) else { return Some(Value::Null) };
+                let text = |k: usize| args.get(k).map(Value::to_string_val).unwrap_or_default();
+                let v = ItemValue {
+                    name: text(1),
+                    kind: text(2),
+                    value: text(3),
+                    count: args.get(4).map_or(0, |c| c.to_i64().clamp(0, i64::from(u32::MAX)) as u32),
+                    hint: text(5),
+                };
+                let node = &mut self.nodes[i];
+                if v.kind.is_empty() && v.value.is_empty() {
+                    node.value = None;
+                    node.text = v.name;
+                } else {
+                    node.text = v.plain();
+                    node.value = Some(Box::new(v));
+                }
+                self.changed();
+            }
             // RapidR's older names: AddRoot(s), AddChild(parent text, s).
             "addroot" => {
                 let at = self.nodes.len();
@@ -470,7 +550,7 @@ impl TreeView {
         if setter {
             let val = args.get(1).cloned().unwrap_or(Value::Null);
             let Some(i) = i else {
-                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded" | "textcolor").then_some(Value::Null);
+                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded" | "textcolor" | "changed").then_some(Value::Null);
             };
             match member {
                 "text" => self.nodes[i].text = val.to_string_val(),
@@ -479,6 +559,7 @@ impl TreeView {
                 "stateindex" => self.nodes[i].state_index = val.to_i64(),
                 "haschildren" => self.nodes[i].has_children = val.to_bool(),
                 "textcolor" => self.nodes[i].text_color = val.to_i64(),
+                "changed" => self.nodes[i].changed = val.to_bool(),
                 "selected" if val.to_bool() => self.select(i as i64),
                 "selected" => {
                     if self.item_index == i as i64 {
@@ -502,6 +583,8 @@ impl TreeView {
             "count" => v_int(i.map_or(0, |i| self.children(i).len() as i64)),
             "haschildren" => flag(i.is_some_and(|i| self.has_children(i))),
             "textcolor" => v_int(node.map_or(-1, |n| n.text_color)),
+            "changed" => flag(node.is_some_and(|n| n.changed)),
+            "valuekind" => v_str(node.and_then(|n| n.value.as_ref()).map_or("", |v| &v.kind)),
             "selected" => flag(i.is_some_and(|i| self.item_index == i as i64)),
             "isvisible" => flag(i.is_some_and(|i| self.is_visible(i))),
             "index" | "absoluteindex" => v_int(i.map_or(-1, |i| i as i64)),
@@ -769,5 +852,28 @@ mod tests {
         assert_eq!(t.rows(ROW_HEIGHT, 30).len(), 2);
         t.show_root = false;
         assert_eq!((t.rows(ROW_HEIGHT, 200)[0].center, t.rows(ROW_HEIGHT, 200)[0].button), (None, None));
+    }
+
+    /// (RapidR's) A node as a value: its Text says it plainly, its value
+    /// kept for drawing; Changed marks it; a node made plain again is.
+    #[test]
+    fn values_as_nodes() {
+        let mut t = TreeView::default();
+        t.call("additems", &[s("Locals"), s("x"), s("x"), s("x")]);
+        t.call("setitemvalue", &[v_int(0), s("Locals"), s("Locals"), s("")]);
+        t.call("setitemvalue", &[v_int(1), s("Score"), s("Integer"), s("42")]);
+        t.call("setitemvalue", &[v_int(2), s("ColName"), s("Array"), s("Array(0 TO 64)"), v_int(65)]);
+        t.call("setitemvalue", &[v_int(3), s("$INCLUDE RAPIDQ.INC"), s("Include"), s("(412 names)")]);
+        assert_eq!(texts(&t), ["Locals", "Score = 42", "ColName = Array(0 TO 64)", "$INCLUDE RAPIDQ.INC (412 names)"]);
+        assert_eq!(t.nodes[2].value.as_deref(), Some(&ItemValue { name: "ColName".into(), kind: "Array".into(), value: "Array(0 TO 64)".into(), count: 65, hint: String::new() }));
+        assert!(t.nodes[0].value.as_ref().is_some_and(|v| v.is_section()));
+        assert_eq!(t.call("item.valuekind", &[v_int(1)]).unwrap().to_string_val(), "Integer");
+        assert_eq!(t.call("item.changed", &[v_int(1)]).unwrap().to_i64(), 0);
+        t.call("item.changed=", &[v_int(1), v_int(-1)]);
+        assert_eq!(t.call("item.changed", &[v_int(1)]).unwrap().to_i64(), 1);
+        t.call("setitemvalue", &[v_int(1), s("plain"), s(""), s("")]);
+        assert_eq!((t.nodes[1].text.as_str(), t.nodes[1].value.is_none()), ("plain", true));
+        // (out of range: nothing, no error)
+        assert_eq!(t.call("setitemvalue", &[v_int(99), s("a"), s("Integer"), s("1")]), Some(Value::Null));
     }
 }

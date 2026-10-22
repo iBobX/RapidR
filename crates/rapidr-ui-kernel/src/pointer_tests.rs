@@ -416,3 +416,33 @@ fn a_header_sections_edge_and_a_grids_sizable_column_edge_show_the_column_resize
     assert_eq!(after.iter().zip(&before).filter(|(a, b)| a != b).count(), 1, "one row sized");
     assert!(after.iter().sum::<i64>() > before.iter().sum::<i64>());
 }
+
+/// (S10, Robert) A pane header's tip — its Close button's — shows above the
+/// header, never over the pane's first row (it used to sit under the mouse,
+/// on the first row of Watch).
+#[test]
+fn a_pane_headers_tip_sits_above_its_header() {
+    use rapidr_value::dock::geometry::Button as DockButton;
+    let (s, g) = docked("gt");
+    let (mut f, mut ts) = built(&s, "gtf");
+    let gr = g.groups.iter().find(|gr| gr.panes.iter().any(|p| p == "gtout")).expect("the Output group").clone();
+    let (_, b) = *gr.buttons.iter().find(|(b, _)| *b == DockButton::Close).expect("its Close button");
+    // (the button's rectangle is the group's own: the group sits at its rect)
+    let (x, y) = ((gr.rect.0 + b.0 + b.2 / 2) as f64 + 0.5, (gr.rect.1 + b.1 + b.3 / 2) as f64 + 0.5);
+    let t0 = crate::tick::now();
+    crate::tick::set_test_now(Some(t0));
+    f.mouse_move(&s, &mut ts, x, y, NONE);
+    let later = t0 + std::time::Duration::from_millis(800);
+    crate::tick::set_test_now(Some(later));
+    f.tick(&s, &mut ts, later);
+    crate::tick::set_test_now(None);
+    assert!(f.tip.shown && f.tip.text == "Close", "{:?}", f.tip);
+    let list = f.paint(&s, &mut ts, 1.0);
+    let tip = list.items.iter().find_map(|i| match i {
+        crate::Item::Op { origin, op: crate::Op::Text { text, rect, .. } } if text == "Close" => Some((origin.1 + rect.1, rect.3)),
+        _ => None,
+    });
+    let (top, h) = tip.expect("the tip drawn");
+    assert!(top + h <= gr.rect.1, "the tip ({top}..{}) above the header at {}", top + h, gr.rect.1);
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+}
