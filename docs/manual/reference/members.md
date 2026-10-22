@@ -4429,10 +4429,10 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `To_json(filename)` | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
 | `Head([n])` | Keeps the first n rows (default 5). |
 | `Tail([n])` | Keeps the last n rows (default 5). |
-| `Cell(col, row)` | The text of a cell (col: an index from 0, or a column name); "" for a missing value. |
+| `Cell(row, col)` | The text of a cell (row: from 0, the first data row; col: an index from 0, or a column name); "" for a missing value. The row comes first: `Frame.Cell(2, 0)` is the third row's first column. |
 | `CellByName(row, columnName)` | The text of a cell by its column name. |
 | `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `SetCell(col, row, value)` | Sets a cell (col: an index or a name); past the end the frame grows. |
+| `SetCell(row, col, value)` | Sets a cell (row from 0; col: an index or a name); past the end the frame grows. The row comes first, as in Cell. |
 | `Iloc(row)` | Keeps rows start to end (not included). |
 | `Select(col1, col2, …)` | Keeps those columns, in that order. |
 | `Sort(column, [ascending])` | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |

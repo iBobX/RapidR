@@ -813,7 +813,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] SVGs built into the program and loaded by `$RESOURCE` name (`RImage.Load`, a button's `BMP`, `AddSVGFile`). Today `RImage.Load RES` says "could not load '65536'", and a build drops SVGs whose names the program computes
   - [ ] A loaded SVG follows the theme: colour tokens and `currentColor` (today `currentColor` comes out black, invisible on dark)
   - [x] `END n` sets the exit code (an additive extension; RapidQ's END takes none), so console tools can fail a build. *(LANG-SMALL, 2026-10-22: `rapidr run`, interpreted and native builds, GUI programs; the web ends and ignores the number; conformance cases with a new `.expected-exit`.)*
-  - [ ] Reference fixes, verified 2026-10-21:
+  - [x] Reference fixes, verified 2026-10-21 *(LANG-SMALL, 2026-10-22: the registry and the generated pages say `Cell(row, col)`, `SetCell(row, col, value)` (the same slip) and `CONST name [AS type] = expression`; a registry test keeps them right until K7)*:
     - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
     - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7
 - **Visualmusicator X**: see the next section.

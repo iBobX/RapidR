@@ -37,6 +37,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
 
+### Fixed
+- **Two wrong reference entries** (found by RapidR Database Studio, which
+  followed them): a data frame's `Cell` and `SetCell` take the **row first**,
+  `Cell(row, col)` and `SetCell(row, col, value)`, as the code always did —
+  the reference said `(col, row)`; and `CONST` is one constant to a statement,
+  `CONST name [AS type] = expression`, as in RapidQ — the reference offered a
+  list (`CONST a = 1, b = 2`), which was always an error. The language
+  reference, the manual's reference pages and the assistant's language card
+  now say what the code does.
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added

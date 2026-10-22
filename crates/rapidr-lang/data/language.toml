@@ -20,9 +20,9 @@ doc = "Inside a SUB or FUNCTION, declares a local variable that keeps its value 
 
 [[statement]]
 name = "CONST"
-syntax = "CONST name = expression [, …]"
+syntax = "CONST name [AS type] = expression"
 group = "Declarations"
-doc = "Names a value fixed for the whole program: `CONST MaxItems = 3`."
+doc = "Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST, as in RapidQ: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each."
 
 [[statement]]
 name = "DEFINT"

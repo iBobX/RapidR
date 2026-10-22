@@ -11,7 +11,7 @@
 | `DIM name[(bounds)] [AS type] [= value] [, …]` | Declares variables or arrays, with a type and optionally a first value; inside a SUB or FUNCTION, locals. `DIM m` with no type is a DOUBLE. |
 | `REDIM [PRESERVE] name(bounds) [AS type]` | Resizes an array that exists (or creates it); the elements whose indexes are still inside the new bounds keep their values. |
 | `STATIC name[(bounds)] AS type` | Inside a SUB or FUNCTION, declares a local variable that keeps its value from one call to the next. |
-| `CONST name = expression [, …]` | Names a value fixed for the whole program: `CONST MaxItems = 3`. |
+| `CONST name [AS type] = expression` | Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST, as in RapidQ: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each. |
 | `DEFINT name [= value] [, …]` | Declares INTEGER (32-bit) variables or arrays, optionally with first values (`DEFINT k(1 TO 3) = {7, 8, 9}`). |
 | `DEFSTR name [= value] [, …]` | Declares STRING variables or arrays, optionally with first values. |
 | `DEFBYTE name [= value] [, …]` | Declares BYTE variables or arrays, optionally with first values. |
