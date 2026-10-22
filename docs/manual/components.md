@@ -496,7 +496,9 @@ the author doing anything:
   theme's focus ring shows around its text, Enter or Space clicks it
   (`OnClick`), and a screen reader announces a link named by its
   `Caption` (or `AccessibleName`). RapidR Studio's Recent list is made of
-  them. A label without `TabStop` never takes the focus, as in RapidQ.
+  them. The link's text sits 4 pixels inside the label's rectangle, so the
+  ring has room round the letters. A label without `TabStop` never takes the
+  focus, as in RapidQ.
   `examples/gui/links.rr` shows it.
 
 ## How it is drawn

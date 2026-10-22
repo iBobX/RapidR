@@ -304,7 +304,7 @@ SUB FillRecent
   IF n > 6 THEN n = 6
   FOR i = 0 TO 5
     RecentLink(i).Parent = WelcomePage
-    RecentLink(i).Left = 48: RecentLink(i).Top = 354 + StartShift + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
+    RecentLink(i).Left = 44: RecentLink(i).Top = 354 + StartShift + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
     RecentLink(i).Cursor = -21
     RecentLink(i).Tag = i
     ' (links: Tab reaches each, the focus ring shows, Enter or Space opens it)

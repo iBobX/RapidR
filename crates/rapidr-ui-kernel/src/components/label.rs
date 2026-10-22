@@ -24,6 +24,10 @@ use crate::text::bgr_to_rgb;
 
 pub struct Label;
 
+/// A link's text is this far inside its rectangle, on each side: the focus
+/// ring has room round the letters.
+const LINK_PAD: i64 = 4;
+
 /// (RapidR's) The program gave the label `TabStop = 1`: it's a link and
 /// takes the focus.
 fn tab_stop(store: &dyn Store, id: &str) -> bool {
@@ -102,20 +106,23 @@ impl ComponentKind for Label {
         let text = store::string(cx.store, cx.id, "caption");
         let color = ink_of(cx, backdrop(cx.store, cx.id));
         let wrap = store::flag(cx.store, cx.id, "wordwrap", false);
-        // (RapidR's TabStop: the focus ring round the link's text — not the
-        // label's whole, wider rectangle —, a little off it, kept inside)
-        if cx.state.focused && tab_stop(cx.store, cx.id) {
-            let tw = text_size(&mnemonic(&text).0, &cx.font).0.min(w);
+        // (RapidR's TabStop: a link's text sits LINK_PAD inside its rectangle,
+        // so the focus ring round it — not round the label's whole, wider
+        // rectangle — has room off the letters, kept inside the label)
+        let link = tab_stop(cx.store, cx.id);
+        let pad = if link { LINK_PAD } else { 0 };
+        if link && cx.state.focused {
+            let tw = text_size(&mnemonic(&text).0, &cx.font).0.min(w - 2 * pad).max(0);
             let x = match place(cx.store, cx.id) {
-                Place::TopRight => w - tw,
+                Place::TopRight => w - pad - tw,
                 Place::TopCenter => (w - tw) / 2,
-                _ => 0,
+                _ => pad,
             };
-            let (l, r) = ((x - 3).max(0), (x + tw + 3).min(w));
+            let (l, r) = ((x - LINK_PAD).max(0), (x + tw + LINK_PAD).min(w));
             p.focus_ring((l, 0, (r - l).max(1), h), false);
         }
         if !wrap && !text.contains(['\r', '\n']) {
-            caption(p, (0, 0, w, h), &text, &cx.font, color, place(cx.store, cx.id));
+            caption(p, (pad, 0, w - 2 * pad, h), &text, &cx.font, color, place(cx.store, cx.id));
             return;
         }
         // (DrawText: a line at each line break, and with WordWrap broken
@@ -130,7 +137,7 @@ impl ComponentKind for Label {
             }
             // (the `&`s are gone from the lines: drawn as they are)
             let shown = line.replace('&', "&&");
-            caption(p, (0, top, w, line_h), &shown, &cx.font, color, place(cx.store, cx.id));
+            caption(p, (pad, top, w - 2 * pad, line_h), &shown, &cx.font, color, place(cx.store, cx.id));
         }
     }
 
