@@ -201,6 +201,15 @@ export const cases = [
   // preview switched on by its button)
   { file: "studio/form_designer.rr", runtimes: ["run", "interp", "native", "web"], events: "bpreview.onclick", dump: "ds.compcount,ds.previewwidth,ds.previewheight",
     expect: ["ds.compcount=6", "ds.previewwidth=440", "ds.previewheight=300"] },
+  // (RDiffView's views, Versions G2: the text view at the start, then the
+  // table; the form view where the designer reads forms — `rapidr run`
+  // and the web; a built executable has no designer and says so)
+  { file: "studio/diff_views.rr", runtimes: ["run", "interp", "native", "web"], dump: "diff.kind,diff.hunkcount,info.caption",
+    expect: ["diff.kind=text", "diff.hunkcount=1", "info.caption=1 change(s): Line 2 changed"] },
+  { file: "studio/diff_views.rr", runtimes: ["run", "interp", "native", "web"], events: "btable.onclick", dump: "diff.kind,diff.changecount,info.caption",
+    expect: ["diff.kind=table", "diff.changecount=4", "info.caption=4 change(s): Added column: City ..."] },
+  { file: "studio/diff_views.rr", runtimes: ["run", "web"], events: "bform.onclick", dump: "diff.kind,diff.changecount,info.caption",
+    expect: ["diff.kind=form", "diff.changecount=2", "info.caption=2 change(s): Go: Caption \"OK\" → \"Say hello\"; Width = 110 (new) ..."] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },

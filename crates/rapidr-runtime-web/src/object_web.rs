@@ -180,8 +180,9 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     // (the kernel's tree has it)
     crate::kernel_web::created(&name_clone);
     install_object_hooks();
-    // (I4) a design surface reads its Source with the designer (rapidr-studio)
-    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
+    // (I4) a design surface reads its Source with the designer (rapidr-studio);
+    // so does a diff view's form view (Kind = "form", Versions G2)
+    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") || type_name.eq_ignore_ascii_case("RDIFFVIEW") {
         rapidr_studio::design::install();
     }
     // (I7: an RJSON's document can be a data source)

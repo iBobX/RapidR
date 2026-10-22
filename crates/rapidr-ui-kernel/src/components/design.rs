@@ -450,8 +450,9 @@ impl View {
     }
 
     /// The store filled again from `design`: every component as its
-    /// CREATE block makes it.
-    fn rebuild(&mut self, surface: &str, design: &FormDesign) {
+    /// CREATE block makes it; `live`: its data sources read too (a design
+    /// surface's; a [`Picture`] reads no file).
+    fn rebuild(&mut self, surface: &str, design: &FormDesign, live: bool) {
         self.store.clear();
         // (I7: the designed form's data, live — its sources read under the
         // surface's own names, from the designed program's folder only:
@@ -459,8 +460,10 @@ impl View {
         let folder = with_design(surface, |d| d.source_file.replace('\\', "/")).map(|f| f.rsplit_once('/').map(|(dir, _)| dir.to_string()).unwrap_or_default()).unwrap_or_default();
         // (its $RESOURCEs: an RCSV whose FileName names one reads that file)
         let resources = with_design(surface, |d| link::resources_in(&d.get("source").map(|v| v.to_string_val()).unwrap_or_default())).unwrap_or_default();
-        link::design_resources(surface, &resources);
-        link::design_build(surface, &folder, design);
+        if live {
+            link::design_resources(surface, &resources);
+            link::design_build(surface, &folder, design);
+        }
         let root = design.root();
         for id in design.ids() {
             let Some(n) = design.node(id) else { continue };
@@ -499,7 +502,7 @@ impl View {
             }
         }
         // (what the bound controls show: their fields of the first row)
-        let (shown, _warnings) = link::design_sync(surface);
+        let (shown, _warnings) = if live { link::design_sync(surface) } else { Default::default() };
         for (id, prop, v) in shown {
             let ty = self.store.mem.type_of(&id);
             if !ty.is_empty() {
@@ -529,6 +532,73 @@ impl View {
                 None => rapidr_value::scrollbars::remove(&k),
             }
         }
+    }
+}
+
+/// A designed form drawn on its own, as the designer draws it — its
+/// window's frame and its components in their real looks — with no
+/// surface around it, no selection and no data read: RDIFFVIEW's form
+/// view shows the form before and after a change with two of these.
+pub struct Picture(View);
+
+impl Default for Picture {
+    fn default() -> Self {
+        Picture(View::new())
+    }
+}
+
+impl Drop for Picture {
+    fn drop(&mut self) {
+        self.0.store.clear();
+    }
+}
+
+impl Picture {
+    /// An editor's layout of a component drawn here (the renderer finds a
+    /// display list's editor items through the window's form).
+    pub fn editor_layout_at(&self, id: &str, para: usize) -> Option<&parley::Layout<crate::text::Ink>> {
+        self.0.editor_layout_at(id, para)
+    }
+
+    /// `d`'s form drawn with its window's top left at `at`, magnified by
+    /// `zoom`; `key`: the prefix of its components' ids in its own store
+    /// (unique per picture, never a BASIC name: it holds a `~`).
+    pub fn paint(&mut self, p: &mut Painter, text: &mut crate::text::TextSystem, key: &str, d: &DesignSurface, at: (i64, i64), zoom: f64) {
+        let view = &mut self.0;
+        if view.built.as_ref() != Some(&d.designer.design) {
+            view.rebuild(key, &d.designer.design, false);
+        }
+        view.place(key, placed(d));
+        let (fw, fh) = d.layout().form_size();
+        let border = d.border();
+        let form_id = view.form.clone();
+        let look = crate::frame::Look {
+            title: d.title(),
+            active: true,
+            border,
+            caption: true,
+            frame: crate::frame::frame_of(view.store.get(&form_id, "borderstyle").to_i64().max(if border { 1 } else { 0 }), match view.store.get(&form_id, "bordericons") {
+                Value::Null => crate::frame::BI_DEFAULT,
+                v => v.to_i64(),
+            }),
+            maximized: false,
+            icon: crate::frame::icon_of(&view.store, &form_id),
+        };
+        let (ix, iy) = crate::frame::inset(border, true);
+        p.zoomed(at, zoom, |p| {
+            crate::frame::paint_into(p, &look, (fw, fh));
+            let View { ui, store, form, .. } = view;
+            let f = ui.get_or_insert_with(|| {
+                let mut f = FormUi::build_unfocused(store, form, true);
+                f.blinks = false;
+                f
+            });
+            f.sync(store);
+            let (iw, ih) = (f.client.0, f.client.1 + f.menu_offset);
+            p.at((ix, iy), |p| {
+                p.clipped((0, 0, iw, ih), |p| f.paint_into(store, text, p, &mut |_| {}));
+            });
+        });
     }
 }
 
@@ -658,7 +728,7 @@ impl ComponentKind for Design {
             return;
         };
         if let Some(design) = &shown.changed {
-            view.rebuild(cx.id, design);
+            view.rebuild(cx.id, design, true);
         }
         view.place(cx.id, std::mem::take(&mut shown.placed));
         let t = p.theme();

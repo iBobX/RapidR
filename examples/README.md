@@ -227,6 +227,7 @@ has a picture of each and explains its best lines.
 |---------|---------------|---------|-----|
 | [panels.rr](studio/panels.rr) | The IDE's public components docked together: toolbar, toolbox, project tree, designer with the inspector, output console, command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
 | [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): select and drag components, smart guides, anchor pins, undo, the resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
+| [diff_views.rr](studio/diff_views.rr) | What changed? `RDiffView`'s three views: two versions of a program (the changed words marked), of a form (the form before and after, the changed components outlined, the changes in words), of a CSV file (rows and cells); `Summary` says them in words (the form view: `rapidr run` and the web) | run · interp · native · web | `rapidr run studio/diff_views.rr` |
 | [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 
 ## Making the data files again

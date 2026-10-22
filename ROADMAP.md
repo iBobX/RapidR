@@ -790,8 +790,17 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - +5.1 MiB stripped for Studio, +3.3 MiB more with reqwest for the network;
   - `gix` doesn't build for wasm, but its plumbing does;
   - **no push in gitoxide**: building our own send-pack in G6 is Robert's decision.
-- [ ] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests
-- [ ] G2 The docked Diff tab (shared with RAI), visual form diffs, CSV table diffs
+- [x] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests. Done 2026-10-22 (lane VERSIONS-1):
+  - save (all or some files), timeline, what changed, go back (a new version), restore a file, experiments rewriting only what differs, get latest from / share with a shared folder in-process;
+  - safety points `refs/rapidr/safety/<n>` before every risky action, the history `.git/rapidr/history.jsonl` with Undo (refuses when it would overwrite newer work), RAI checkpoints `refs/rapidr/checkpoints/<n>`;
+  - the secret check before a save (our own patterns, the line masked); another account's project refused with the reason, opened read-only on request; errors in plain words;
+  - 17 tests, every repository `git fsck --strict`-checked; 1,000 versions: timeline 49 ms, status 0.6 ms (release).
+  - Left for later lanes: Undo this version (revert) and cherry-pick (G7), the action history's pruning, packs instead of loose objects when sharing many.
+- [x] G2 The diff model and its kernel views (the docking into Studio is G3). Done 2026-10-22 (lane VERSIONS-1):
+  - `rapidr-diff`: RapidR's own Myers (from the paper), hunks, word marks, CSV tables, forms in words; a 4,500-line file in 0.25–16 ms;
+  - RDiffView `Kind` = text (word marks) / form (the form before and after as the designer draws it, changed components outlined, changes listed) / table (rows, cells, columns); `ChangeCount`, `Summary`, `HasHeader`; headless captures in light, dark, high contrast (rapidr-designer/tests/diff_capture.rs);
+  - the old GNU-diff-shaped Myers module in rapidr-value replaced.
+  - Left: the docked Diff tab (G3), side-by-side image diffs and onion skin, folding unchanged table rows, F7 through form and table changes.
 - [ ] G3 The Versions panel, Timeline, Save a version, gutter marks, Project badges, status bar
 - [ ] G4 Experiments (branches), Bring into main, the three-way form-aware Merge tab
 - [ ] G5 Blame on hover, line history

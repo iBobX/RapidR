@@ -209,9 +209,10 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     if rapidr_value::objects::rqlib::is_type(type_name) {
         crate::io::created(name, type_name);
     }
-    // (I4) a design surface reads its Source with the designer (rapidr-studio)
+    // (I4) a design surface reads its Source with the designer (rapidr-studio);
+    // so does a diff view's form view (Kind = "form", Versions G2)
     #[cfg(feature = "studio")]
-    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") {
+    if type_name.eq_ignore_ascii_case("RDESIGNSURFACE") || type_name.eq_ignore_ascii_case("RDIFFVIEW") {
         rapidr_studio::design::install();
     }
 }

@@ -33,9 +33,10 @@ members = [
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
     "crates/rapidr-package",
-    # Versions (Git) on gitoxide: lane G0's spike, not in Studio yet
-    # (docs/versions-g0.md)
+    # Versions (Git) on gitoxide, not in Studio yet (docs/versions-plan.md)
     "crates/rapidr-vcs",
+    # RapidR's own diff engine (Myers' paper): RDIFFVIEW, Versions, RAI
+    "crates/rapidr-diff",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",
@@ -93,6 +94,7 @@ rapidr-ai = { path = "crates/rapidr-ai" }
 rapidr-lsp = { path = "crates/rapidr-lsp" }
 rapidr-dap = { path = "crates/rapidr-dap" }
 rapidr-package = { path = "crates/rapidr-package" }
+rapidr-diff = { path = "crates/rapidr-diff" }
 
 # Crates.io crates RapidR replaces with its own. Every generated program's
 # Cargo.toml gets the same section (rapidr-codegen-rust: PATCHES; an

@@ -27,6 +27,10 @@ ttf-parser = { version = "0.25", default-features = false, features = ["std"] }
 # RCODEEDITOR's model (objects/codeedit.rs): the editor's document — rope,
 # selections, undo tree, search, language definitions (GUI-free, wasm-safe).
 rapidr-editor = { workspace = true }
+# RDIFFVIEW's diff (objects/diffview.rs): RapidR's own engine, shared with
+# Versions and RAI — Myers' algorithm written from the paper, word marks,
+# CSV tables, forms (no dependencies, wasm-safe).
+rapidr-diff = { workspace = true }
 # Its JSON arguments (ApplyEdits, SetDiagnostics, ShowCompletion; MIT OR
 # Apache-2.0, already in the tree).
 serde_json = "1"

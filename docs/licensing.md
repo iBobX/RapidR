@@ -527,3 +527,16 @@ Still open:
    from Myers' 1986 paper ("An O(ND) Difference Algorithm and Its
    Variations"), never from Git's xdiff, `gix-imara-diff` or any other
    implementation, and no code or comment is copied from them.
+   *Since 2026-10-22 (lane VERSIONS-1):* that code is `crates/rapidr-diff`,
+   written from the paper (§2's greedy search, §4b's linear-space middle
+   snake), and Versions' own diffs (What changed?, the secret check) and
+   RDiffView use it. Two things remain: (a) `gix-imara-diff` is still
+   compiled into Versions, inside gitoxide, because gix's `blob-diff`
+   (status's rename tracking), `blame` and `merge` features use it — the
+   question stays open until it is answered or those features are replaced
+   (G4 merges, G5 blame); (b) RDiffView's previous Myers module
+   (`rapidr-value/src/objects/diffview/myers.rs`, 2026-10-06) said it
+   followed GNU diff's `compareseq` / `diag` (GPL) and used their variable
+   names and their "too expensive" rule: it was deleted and replaced by
+   `rapidr-diff`, so it ships in nothing built from now on. Releases up to
+   2.120.0 carried it; whether that needs anything more is for Robert.

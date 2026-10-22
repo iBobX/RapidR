@@ -1564,10 +1564,14 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 <a id="rdiffview"></a>
 ## RDiffView
 
-Two texts compared line by line, the way a code review shows them: side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed characters marked, in the language's syntax colours. Each run of changes (a hunk) has Accept and Reject buttons; ResultText is the text the decisions give. RapidR's own; RapidR Studio's assistant and "compare with saved" use it.
+Two texts compared, the way a code review shows them: line by line, side by side or in one column, the removed lines tinted on one side and the added lines on the other, the changed words marked, in the language's syntax colours; each run of changes (a hunk) has Accept and Reject buttons, and ResultText is the text the decisions give. Kind = "form" compares two versions of a program's forms instead (the form before and after, the changed components outlined, the changed properties listed), Kind = "table" two CSV files (rows, columns and cells). RapidR's own diff (Myers' algorithm); RapidR Studio's assistant, "compare with saved" and Versions use it.
 
 | Property | Type | Default | |
 |---|---|---|---|
+| `Kind` | string | `"text"` | What the texts are compared as: "text" (lines, with hunks to accept or reject), "form" (a program's CREATE blocks: components and their properties, the form drawn before and after as the designer draws it; it needs RapidR Studio's form designer, which `rapidr run`, RapidR Studio and web programs have — an executable built on its own says so instead) or "table" (CSV: columns by name, rows by their first column when its values are unique, else by content; changed cells marked). Only "text" has hunks. |
+| `ChangeCount` (read-only) | int |  | How many changes there are: hunks (text), components added, removed or changed (form), rows added, removed or changed and columns added or removed (table). |
+| `Summary` (read-only) | string |  | The changes in words, one per line: "Lines 4–6 changed"; "GreetButton: Caption \"&Greet\" → \"&Say hello\"; Width 90 → 110", "Added Hint (RLabel)"; "Row 1 (Id 1): Score 10 → 12", "Added column: Email". What a screen reader and the AI read. |
+| `HasHeader` | bool | True | Kind = "table": the CSV texts' first row names the columns (columns are then matched by name). False: every row is data, and the columns are "Column 1", "Column 2", … |
 | `LeftText` | string | `""` | The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF. |
 | `RightText` | string | `""` | The changed text (the right side), compared with LeftText. |
 | `Language` | string | `"rapidr-basic"` | How the text is coloured: a language id ("rapidr-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
