@@ -317,10 +317,9 @@ impl ProjectTree {
         let folder = self.folder();
         let sources: Vec<String> = self.project.files.iter().filter(|f| follows_code(f)).map(|f| f.path.clone()).collect();
         for path in sources {
-            let key = path.to_lowercase();
-            if !self.texts.contains_key(&key) {
+            if let std::collections::hash_map::Entry::Vacant(e) = self.texts.entry(path.to_lowercase()) {
                 if let Some(t) = read(&format!("{folder}{path}")) {
-                    self.texts.insert(key, t);
+                    e.insert(t);
                 }
             }
         }
