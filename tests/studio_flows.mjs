@@ -1056,6 +1056,37 @@ const CASES = [
     dump: { "codedoc(0).helpertext": /^Logo\.Load "logo\.svg"; picture logo\.svg; Loads a picture/ },
   },
   {
+    // the picture editor (Ctrl+. on it): the project's pictures, the one in
+    // the code picked, its preview inside the editor (the real walk once
+    // found it drawn past the editor's bottom)
+    name: "helpers-picture-editor",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:44,key:End,key:Ctrl+.,wait`,
+    delay: 9,
+    capture: true,
+    dump: { "codedoc(0).helpereditortext": /logo\.svg/ },
+  },
+  {
+    // the font editor: the font in the code picked, its preview line clear
+    // of Apply and Cancel; Esc leaves the code as it was
+    name: "helpers-font-editor",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:41,key:End,key:Ctrl+.,wait`,
+    delay: 9,
+    capture: true,
+    dump: { "codedoc(0).helpereditortext": /^Font: Inter/ },
+  },
+  {
+    name: "helpers-font-escape",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:41,key:End,key:Ctrl+.,wait,key:Down,key:Escape,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\nTitleFont\.Name = "Inter"\n/, "codedoc(0).helpereditortext": /^$/ },
+  },
+  {
     // …and a name typed wrong: the red mark, said "missing"
     name: "helpers-picture-missing",
     open: "examples/studio/helpers.rr",

@@ -74,8 +74,9 @@ fn line_span(x: &Ctx, line: usize) -> (usize, usize) {
 // ---- files: inside the project only; thumbnails cached ----------------------
 
 thread_local! {
-    /// (folder, value) → the thumbnail (`None`: not a picture, or not there).
-    static THUMBS: RefCell<HashMap<(String, String), Option<Arc<Picture>>>> = RefCell::new(HashMap::new());
+    /// (folder, value, side) → the thumbnail (`None`: not a picture, or
+    /// not there).
+    static THUMBS: RefCell<HashMap<(String, String, usize), Option<Arc<Picture>>>> = RefCell::new(HashMap::new());
 }
 
 /// The folder files are read from: ProjectFolder, else the code file's.
@@ -92,7 +93,14 @@ pub fn file_there(h: &Helpers, folder: &str, value: &str) -> Option<bool> {
 /// A picture file's thumbnail (its longest side [`THUMB`] pixels), read
 /// only from inside `folder`; cached.
 pub fn thumbnail(folder: &str, value: &str) -> Option<Arc<Picture>> {
-    let key = (folder.to_string(), value.to_string());
+    thumbnail_sized(folder, value, THUMB)
+}
+
+/// A picture file at most `side` pixels a side (a value editor's preview
+/// asks for a bigger one: drawn sharp, not a mark's thumbnail enlarged); a
+/// drawing (SVG) is drawn at that size, never enlarged from a small one.
+pub fn thumbnail_sized(folder: &str, value: &str, side: usize) -> Option<Arc<Picture>> {
+    let key = (folder.to_string(), value.to_string(), side);
     if let Some(v) = THUMBS.with(|t| t.borrow().get(&key).cloned()) {
         return v;
     }
@@ -100,12 +108,17 @@ pub fn thumbnail(folder: &str, value: &str) -> Option<Arc<Picture>> {
         let bytes = rapidr_value::objects::read_file(&path).ok()?;
         use rapidr_value::objects::codec;
         let (px, alpha) = if codec::is_svg(&bytes) {
-            let (px, a) = codec::decode_svg(&bytes, 1.0).ok()?;
+            let (mut px, mut a) = codec::decode_svg(&bytes, 1.0).ok()?;
+            let longest = px.width.max(px.height).max(1);
+            if longest < side {
+                let k = (side as f32 / longest as f32).min(16.0);
+                (px, a) = codec::decode_svg(&bytes, k).ok()?;
+            }
             (px, Some(a))
         } else {
             codec::decode_raster(&bytes).ok()?
         };
-        Some(Arc::new(shrink(px.width, px.height, &px.pixels, alpha.as_deref())))
+        Some(Arc::new(shrink(px.width, px.height, &px.pixels, alpha.as_deref(), side)))
     });
     THUMBS.with(|t| {
         let mut t = t.borrow_mut();
@@ -117,10 +130,10 @@ pub fn thumbnail(folder: &str, value: &str) -> Option<Arc<Picture>> {
     pic
 }
 
-/// A picture made at most [`THUMB`] pixels a side (each pixel the average
-/// of the ones it covers); RapidQ's BGR in, RGBA out.
-fn shrink(w: usize, h: usize, px: &[u32], alpha: Option<&[u8]>) -> Picture {
-    let k = (w.max(h) as f64 / THUMB as f64).max(1.0);
+/// A picture made at most `side` pixels a side (each pixel the average of
+/// the ones it covers); RapidQ's BGR in, RGBA out.
+fn shrink(w: usize, h: usize, px: &[u32], alpha: Option<&[u8]>, side: usize) -> Picture {
+    let k = (w.max(h) as f64 / side.max(1) as f64).max(1.0);
     let (tw, th) = (((w as f64 / k).round() as usize).max(1), ((h as f64 / k).round() as usize).max(1));
     let mut rgba = vec![0u8; tw * th * 4];
     for ty in 0..th {
@@ -728,7 +741,7 @@ mod tests {
     #[test]
     fn thumbnails_are_small() {
         let px: Vec<u32> = (0..200 * 100).map(|i| if i % 2 == 0 { 0x0000FF } else { 0xFF0000 }).collect();
-        let p = shrink(200, 100, &px, None);
+        let p = shrink(200, 100, &px, None, THUMB);
         assert_eq!((p.width, p.height), (64, 32));
         // (red and blue averaged: purple, opaque)
         assert!(p.rgba[0] > 50 && p.rgba[2] > 50 && p.rgba[3] == 255, "{:?}", &p.rgba[..4]);

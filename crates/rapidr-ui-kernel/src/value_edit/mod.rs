@@ -465,7 +465,9 @@ impl Popover {
                         p.round(pv, 4.0, Some(look.field), Some(look.border), 1.0);
                         if let Some(i) = list.selected() {
                             let it = &list.items[i];
-                            match crate::components::codeeditor::helpers::thumbnail(folder, &it.label) {
+                            // (sharp at twice the preview's size: a screen's
+                            // pixels at 2x)
+                            match crate::components::codeeditor::helpers::thumbnail_sized(folder, &it.label, 2 * PICTURE_H as usize) {
                                 Some(pic) => {
                                     let fit = fit_into((pv.0 + 6, pv.1 + 6, pv.2 - 12, pv.3 - 12), pic.width as i64, pic.height as i64);
                                     p.picture(&format!("value-edit/preview/{folder}/{}", it.label), 1, pic, fit);
