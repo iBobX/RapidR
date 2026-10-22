@@ -134,8 +134,9 @@ lists them in Output; **F2** renames a name everywhere it is used.
 
 ## Problems while you type
 
-When you stop typing for a moment, Studio checks the program and underlines
-what's wrong with a wavy line: red for errors, amber for warnings. A sign in
+When you open a file, and when you stop typing for a moment, Studio checks
+the program and underlines what's wrong with a wavy line: red for errors,
+amber for warnings. A sign in
 the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
 messages are the compiler's own words, so they read the same as when

@@ -326,6 +326,36 @@ fn the_language_service_completes_cases_and_diagnoses() {
     assert_eq!(text("ce4"), "DIM x = Form.ShowModal\nmb");
 }
 
+/// A file that opens with problems shows its squiggles as it opens (the
+/// text set from outside, as LoadFromFile and `Text =` do): no edit needed
+/// — they once appeared only after the first keystroke, while Problems
+/// listed them already.
+#[test]
+fn a_document_set_from_outside_is_diagnosed_as_it_appears() {
+    svc::install(Box::new(Fake { text: String::new() }));
+    let (mut s, mut f, mut ts) = code_form("ce10", "x = 1\nPRINT x\n");
+    // (nothing typed, nothing drawn yet: the tick that follows the text
+    // coming diagnoses it)
+    let later = crate::tick::now() + std::time::Duration::from_millis(1);
+    crate::tick::set_test_now(Some(later));
+    f.tick(&s, &mut ts, later);
+    crate::tick::set_test_now(None);
+    assert_eq!(with_code("ce10", |c| c.diagnostics.len()).unwrap(), 1, "the problem is known without an edit");
+    let list = f.paint(&s, &mut ts, 1.0);
+    assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Stroke { .. }, .. })), "and underlined");
+    // (taken: no more diagnosing at each tick)
+    assert!(!with_code("ce10", |c| c.diagnose_wanted).unwrap());
+    // (another file loaded into the same editor: diagnosed again)
+    s.set("ce10", "text", v_str("y = 2\n"));
+    assert_eq!(with_code("ce10", |c| c.diagnostics.len()).unwrap(), 0, "the old file's problems went with it");
+    assert!(with_code("ce10", |c| c.diagnose_wanted).unwrap());
+    let later = later + std::time::Duration::from_millis(1);
+    crate::tick::set_test_now(Some(later));
+    f.tick(&s, &mut ts, later);
+    crate::tick::set_test_now(None);
+    assert_eq!(with_code("ce10", |c| c.diagnostics.len()).unwrap(), 1, "a second file too");
+}
+
 /// The designer's changes through ApplyPatches (S-DESIGN-2's shared
 /// undo): each a step of the editor's own history, Ctrl+Z typed in the
 /// editor takes them back one at a time to the text as loaded — and then

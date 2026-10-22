@@ -415,6 +415,12 @@ pub fn format(x: &mut Ctx) -> bool {
 
 /// The view's deadlines that came: diagnostics, a resting mouse's hover.
 pub fn tick(x: &mut Ctx, at: Instant) {
+    // (a text set from outside — LoadFromFile, Text = — is diagnosed at
+    // once, whether or not it is drawn yet: a file opens with its
+    // squiggles, not only after the first edit)
+    if std::mem::take(&mut x.c.diagnose_wanted) {
+        diagnose(x);
+    }
     if x.ui.service.diagnose_at.is_some_and(|t| t <= at) {
         diagnose(x);
     }

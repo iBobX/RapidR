@@ -326,6 +326,11 @@ pub struct CodeEditor {
     /// the whole document is replaced (or too much happened unseen).
     pub line_edits: Vec<(usize, usize, usize)>,
     pub generation: u64,
+    /// The whole document was replaced from outside (LoadFromFile,
+    /// `Text =`): its problems are due at the view's next tick, before it
+    /// is ever drawn — a file opens with its squiggles, not after the first
+    /// edit. The view takes it.
+    pub diagnose_wanted: bool,
     /// Places the view follows through edits (a snippet's tab stops): the
     /// byte, and whether text typed at it goes before it (`true`: the
     /// place stays at the typed text's start).
@@ -521,6 +526,7 @@ impl CodeEditor {
             update_depth: 0,
             line_edits: Vec::new(),
             generation: 0,
+            diagnose_wanted: false,
             anchors: Vec::new(),
             requests: Vec::new(),
             folds: Vec::new(),
@@ -715,6 +721,7 @@ impl CodeEditor {
         doc.track_changes(true);
         self.doc = doc;
         self.generation += 1;
+        self.diagnose_wanted = true;
         self.line_edits.clear();
         self.folded.clear();
         self.folds.clear();

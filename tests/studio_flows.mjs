@@ -1810,6 +1810,17 @@ const CASES = [
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
   },
   {
+    // a file that opens with a warning shows its squiggle as it opens — no
+    // edit, no key: the code's problem count is Problems', from the start
+    name: "editor-squiggles-on-open",
+    open: "tests/fixtures/studio_open_warnings.bas",
+    webFiles: ["tests/fixtures/studio_open_warnings.bas"],
+    do: "wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/, "codedoc(0).text": /^' RapidR Studio's squiggles on open/ },
+  },
+  {
     // completing a RAPIDQ.INC constant brings its include along (one step)
     name: "editor-complete-with-include",
     open: "tests/fixtures/hello_form.bas",

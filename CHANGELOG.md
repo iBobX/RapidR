@@ -180,6 +180,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   takes it as `min_w`), in RapidR's light, dark and high-contrast looks and in
   the classic one; a wider text or more buttons keep their own width, and the
   input box too. Test: `a_dialog_is_as_wide_as_its_title_needs`.
+- **A file opens with its squiggles**: a `.bas` with warnings listed them in
+  Problems but the editor underlined nothing until the first edit, because
+  diagnostics were only asked for after typing. A text set from outside
+  (`LoadFromFile`, `Text =`) is now diagnosed at the editor's next tick, before
+  it is even drawn (`Model::diagnose_wanted`). Flow `editor-squiggles-on-open`.
 - **The debugger's Immediate and Watch see a `.rr` program's built-in
   constants**: `? mrYes` printed nothing while the program itself read 6. What
   the debugger compiles (Immediate, Watch, data tips, a changed value) now goes
