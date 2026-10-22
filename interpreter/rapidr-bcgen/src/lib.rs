@@ -3154,7 +3154,8 @@ mod tests {
     /// undeclared variables (empty), as before.
     #[test]
     fn built_in_constants_are_the_includes() {
-        let names: Vec<&str> = rapidr_ast::builtin_constants::constants().map(|(n, _)| n).collect();
+        // (RAPIDQ.INC's: RapidR's own, `ctText` …, are in no include)
+        let names: Vec<&str> = rapidr_ast::builtin_constants::constants().map(|(n, _)| n).filter(|n| !rapidr_ast::builtin_constants::is_rapidr_only(n)).collect();
         let mut body = String::new();
         for n in &names {
             body.push_str(&format!("PRINT {n}\n"));
@@ -3167,6 +3168,9 @@ mod tests {
         assert_eq!(built_in.lines().count(), names.len() + 18);
         // (the RapidQ program without the include: undeclared names, 0)
         assert_eq!(run("PRINT mbYes; clRed\n").output, "00\n");
+        // (RapidR's own, for a .rr only: 0 1 2 there, undeclared in a RapidQ program)
+        assert_eq!(run(&format!("PRINT ctText; ctImage; ctState\n{mark}\n")).output, "012\n");
+        assert_eq!(run("PRINT ctImage; ctState\n").output, "00\n");
         // (True stays RapidR's -1 in a RapidR program; RAPIDQ.INC's is 1)
         assert_eq!(run(&format!("PRINT True\n{mark}\n")).output, "-1\n");
         assert_eq!(run(&format!("{}\nPRINT True\n", rapidr_preprocessor::rapidq_inc_text())).output, "1\n");
