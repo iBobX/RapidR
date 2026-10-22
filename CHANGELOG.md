@@ -172,6 +172,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A program's standard input is read line by line as it arrives**:
+  `OPEN "/dev/stdin" FOR INPUT AS #f` read the whole input before the first
+  `LINE INPUT #f` returned, so a program that answers one line with one line
+  (an MCP stdio server) never answered until its client closed the pipe. The
+  file is now read as it comes: `LINE INPUT #f, s` returns once its line has
+  arrived, `EOF(f)` waits for the next byte or the end, and what is behind the
+  position is dropped, so a server that runs for days does not grow
+  (`rapidr_value::basic_files`, the one implementation of the VM, the native
+  builds and the web runtime). The console's `INPUT s` already did. The web has
+  no standard input: there the name is a file that is not there (the manual's
+  Files page says so). Tests: `a_stream_gives_each_line_as_soon_as_it_has_come`
+  and `tests/stdin_lines.mjs`, which pipes two lines with a pause and checks
+  that the first is answered before the second is written, on the VM, in an
+  interpreted build and (with `--runtimes native`) in a native one.
 - **RPlot bar names are tested at every scale** (Database Studio reported
   every other name dropped at `RAPIDR_SCALE=2` where scale 1 showed all 8):
   not reproduced with an 8-bar chart in a fixed rectangle, aligned to the
