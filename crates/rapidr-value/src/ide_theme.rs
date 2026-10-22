@@ -90,7 +90,71 @@ pub struct IdeColors {
     /// mark (`code_scheme`'s `mark_changed`), Windows' blue in the classic
     /// look.
     pub changed: u32,
+    /// The debugger's values as Variables, Watch, the data tips and the
+    /// Properties panel draw them ([`ValueColors`]).
+    pub values: ValueColors,
     pub editor: EditorColors,
+}
+
+/// A value's parts as the debugger draws them (0xRRGGBB, on the `window`
+/// ground): its name, the ` = `, its value styled by kind — the code
+/// editor's own token colours (`code_scheme`), so a number in Watch is the
+/// colour it is in the code — and the quiet parts (an empty text's `""`, an
+/// array's count). Each reads at 4.5:1 on the window (7:1 in high contrast):
+/// the theme's contrast tests check them all. A selected row draws in its
+/// selection's text colour instead.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ValueColors {
+    pub name: u32,
+    /// ` = `, ` · ` between a value's parts.
+    pub punctuation: u32,
+    pub number: u32,
+    /// A text (STRING) value, quotes and all.
+    pub string: u32,
+    /// True and False.
+    pub keyword: u32,
+    /// A constant's name (`clWindowText`, `alClient`).
+    pub constant: u32,
+    /// A type's name (`Array(0 TO 64)`, a TYPE's, a component's).
+    pub type_name: u32,
+    /// The quiet parts: `""`, `· 65 items`, Empty.
+    pub dim: u32,
+    /// A value changed since the program last stopped (`debug.changed`):
+    /// its mark, and its highlight's frame in high contrast.
+    pub changed: u32,
+    /// The highlight behind a changed value (`debug.changedback`): the
+    /// changed colour, faint, on the window — every part still reads on it.
+    /// High contrast frames the value instead (this is the window).
+    pub changed_back: u32,
+}
+
+/// The debugger's value colours in `t` ([`ValueColors`]).
+pub fn values(t: &Theme) -> ValueColors {
+    let code = crate::code_scheme::for_theme(t);
+    let tok = |name: &str| code.token_named(name).color;
+    let changed = if t.look == Look::Classic {
+        0x0066CC
+    } else if t.contrast {
+        crate::code_scheme::HIGH_CONTRAST.mark_changed
+    } else {
+        code.mark_changed
+    };
+    ValueColors {
+        name: t.text,
+        punctuation: t.secondary_text(),
+        number: tok("number"),
+        string: tok("string"),
+        keyword: tok("keyword"),
+        constant: tok("constant"),
+        type_name: tok("type"),
+        dim: t.secondary_text(),
+        changed,
+        changed_back: if t.contrast {
+            t.window
+        } else {
+            mix(t.window, changed, if t.dark { 150 } else { 80 })
+        },
+    }
 }
 
 /// The classic editor: RCODEEDITOR's colours since it came (the classic look's).
@@ -198,6 +262,7 @@ pub fn ide(t: &Theme) -> IdeColors {
             card: t.face,
             card_border: t.shadow,
             changed: 0x0066CC,
+            values: values(t),
             editor,
         };
     }
@@ -220,6 +285,7 @@ pub fn ide(t: &Theme) -> IdeColors {
             card: 0x000000,
             card_border: 0xFFFFFF,
             changed: crate::code_scheme::HIGH_CONTRAST.mark_changed,
+            values: values(t),
             editor,
         };
     }
@@ -249,6 +315,7 @@ pub fn ide(t: &Theme) -> IdeColors {
         card: t.control,
         card_border: t.border,
         changed: crate::code_scheme::for_theme(t).mark_changed,
+        values: values(t),
         editor,
     }
 }
@@ -257,6 +324,7 @@ impl IdeColors {
     /// Every token by name, as `Application.ThemeColor` reads them.
     pub fn colors(&self) -> Vec<(&'static str, u32)> {
         let e = &self.editor;
+        let v = &self.values;
         vec![
             ("toolbar", self.toolbar),
             ("toolbar.border", self.toolbar_border),
@@ -275,6 +343,15 @@ impl IdeColors {
             ("card", self.card),
             ("card.border", self.card_border),
             ("debug.changed", self.changed),
+            ("debug.name", v.name),
+            ("debug.punctuation", v.punctuation),
+            ("debug.number", v.number),
+            ("debug.string", v.string),
+            ("debug.keyword", v.keyword),
+            ("debug.constant", v.constant),
+            ("debug.type", v.type_name),
+            ("debug.dim", v.dim),
+            ("debug.changedback", v.changed_back),
             ("editor.background", e.background),
             ("editor.text", e.text),
             ("editor.gutter", e.gutter),
@@ -336,6 +413,41 @@ mod tests {
                 assert!(contrast(ink, ground) >= 4.5, "{}: {what} {:06X} on {:06X}", t.name, ink, ground);
             }
         }
+    }
+
+    /// The debugger's values (Variables, Watch, the data tips, the
+    /// Properties panel: the UI kernel's value_view) read on the window
+    /// they're drawn on: AA, AAA in high contrast — the contrast gate's
+    /// entries for the `debug.*` tokens.
+    #[test]
+    fn debugger_values_read_on_the_window() {
+        for t in ALL {
+            let v = values(t);
+            assert_eq!(v, ide(t).values);
+            let need = if t.contrast { 7.0 } else { 4.5 };
+            for (what, ink) in [
+                ("name", v.name),
+                ("punctuation", v.punctuation),
+                ("number", v.number),
+                ("string", v.string),
+                ("keyword", v.keyword),
+                ("constant", v.constant),
+                ("type", v.type_name),
+                ("dim", v.dim),
+                ("changed", v.changed),
+            ] {
+                assert!(contrast(ink, t.window) >= need, "{}: debug.{what} {:06X} on {:06X}: {:.2}", t.name, ink, t.window, contrast(ink, t.window));
+                // (a changed value keeps its colours on its highlight; its
+                // mark, a glyph, needs 3:1)
+                let on_back = if what == "changed" { 3.0 } else { need };
+                assert!(contrast(ink, v.changed_back) >= on_back, "{}: debug.{what} {:06X} on the changed highlight {:06X}: {:.2}", t.name, ink, v.changed_back, contrast(ink, v.changed_back));
+            }
+            // (the highlight shows: not the window)
+            assert!(t.contrast || v.changed_back != t.window, "{}", t.name);
+            // (the kinds stay apart: a number isn't drawn as text)
+            assert!(v.number != v.string && v.string != v.keyword, "{}", t.name);
+        }
+        assert_eq!(color_by_name(&crate::theme::RAPIDR, "debug.number"), Some(values(&crate::theme::RAPIDR).number));
     }
 
     #[test]

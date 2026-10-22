@@ -27,6 +27,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples run today. In `tools/regress.sh`'s unit stage, and a cargo test
   (`crates/rapidr-cli/tests/lang_truth.rs`); `--verbose` lists what is not run
   and why, `--emit DIR` writes the `expect` programs for the other runtimes.
+- **The debugger's own icons and a value row that draws a value as what it
+  is** (Preview 4 S10, phase 1; Studio's panes take them up in phase 2). A
+  new two-tone icon category, `debug/`, our own drawings hinted at 16, 24
+  and 32 px in every look: whole and decimal numbers, text, True/False,
+  arrays, handles, empty, a FUNCTION's result, and the sections Locals,
+  Globals, Watch and a call on the stack; new actions for a breakpoint with
+  a hit count, Add Watch, Copy Value and Edit Value; a "changed since the
+  last stop" mark. The UI kernel's `value_view` draws one value as a row —
+  its kind's icon (a component's own), its name, ` = `, its value in the
+  code editor's colours, an empty text as a quiet `""`, a colour as a
+  swatch and its name (`FontColor = ■ clWindowText`, drawn in the theme's
+  own colour), an array with its count (`Array(0 TO 64) · 65 items`), a
+  changed value highlighted and marked — and gives screen readers a
+  sentence for it ("FontColor, colour clWindowText"). It is built for
+  thousands of rows (each icon's picture made once and shared by every row
+  that shows it), and the Properties panel and the code's helpers will use
+  it too. New theme colours, readable by programs through
+  `Application.ThemeColor`: `debug.name`, `debug.number`, `debug.string`,
+  `debug.keyword`, `debug.constant`, `debug.type`, `debug.dim`,
+  `debug.punctuation`, `debug.changedback`, each 4.5:1 on the window (7:1
+  in high contrast). Every icon is in the [icon catalog](docs/manual/icons/index.html).
 - **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
   takes no number), so a console tool can fail a build:
   `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.

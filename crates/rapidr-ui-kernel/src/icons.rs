@@ -48,6 +48,37 @@ pub fn picture(name: &str, logical: u32, scale: f64, theme: &str, color: Option<
     Some((key, pic))
 }
 
+/// A picture of an icon already found, by what makes it: the icon, its
+/// logical size, the scale's bits, the palette, its `currentColor` (-1:
+/// the palette's), disabled.
+type IconKey = (usize, u32, u64, &'static str, i64, bool);
+/// A picture and its name in a display list.
+type Named = (Arc<str>, Arc<Picture>);
+
+thread_local! {
+    static BY_ICON: RefCell<HashMap<IconKey, Named>> = RefCell::new(HashMap::new());
+}
+
+/// [`picture`] for an icon already found (`rapidr_icons::debug_kind`, a
+/// value row's cached icon): no lookup by name and no key spelled out per
+/// call — what a list drawing thousands of rows needs (value_view).
+pub fn picture_of(icon: &'static rapidr_icons::Icon, logical: u32, scale: f64, theme: &'static str, color: Option<u32>, disabled: bool) -> Option<Named> {
+    let k: IconKey = (icon as *const rapidr_icons::Icon as usize, logical, scale.to_bits(), theme, color.map_or(-1, i64::from), disabled);
+    if let Some(hit) = BY_ICON.with(|c| c.borrow().get(&k).cloned()) {
+        return Some(hit);
+    }
+    let (key, pic) = picture(icon.id, logical, scale, theme, color, disabled)?;
+    let hit: Named = (key.into(), pic);
+    BY_ICON.with(|c| {
+        let mut c = c.borrow_mut();
+        if c.len() >= KEEP {
+            c.clear();
+        }
+        c.insert(k, hit.clone());
+    });
+    Some(hit)
+}
+
 impl Painter<'_> {
     /// Draws icon `name` centred in `rect` (logical pixels), as big as the
     /// rectangle's shorter side, in the current theme; `color` is its
@@ -60,6 +91,18 @@ impl Painter<'_> {
             return false;
         }
         let Some((key, pic)) = picture(name, side as u32, self.scale(), self.theme().icon_palette(), color, disabled) else { return false };
+        self.picture(&key, 0, pic, (x + (w - side) / 2, y + (h - side) / 2, side, side));
+        true
+    }
+
+    /// [`Painter::icon`] for an icon already found ([`picture_of`]).
+    pub fn icon_of(&mut self, icon: &'static rapidr_icons::Icon, rect: Rect, color: Option<u32>, disabled: bool) -> bool {
+        let (x, y, w, h) = rect;
+        let side = w.min(h);
+        if side <= 0 {
+            return false;
+        }
+        let Some((key, pic)) = picture_of(icon, side as u32, self.scale(), self.theme().icon_palette(), color, disabled) else { return false };
         self.picture(&key, 0, pic, (x + (w - side) / 2, y + (h - side) / 2, side, side));
         true
     }

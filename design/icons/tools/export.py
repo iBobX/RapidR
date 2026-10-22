@@ -35,7 +35,7 @@ ICONS = os.path.dirname(HERE)
 ROOT = os.path.dirname(os.path.dirname(ICONS))
 OUT = os.path.join(ROOT, "docs", "manual", "icons")
 CAT_TITLES = {"actions": "Actions", "glyphs": "Glyphs", "components": "Components", "files": "Files",
-              "symbols": "Symbols", "groups": "Toolbox groups"}
+              "symbols": "Symbols", "groups": "Toolbox groups", "debug": "Debugger"}
 
 
 def standalone(key, theme):
@@ -61,7 +61,7 @@ def uses():
         add(n, f"{t} (planned)", "components")
     for section, cat, fmt in (("commands", "actions", "command {}"), ("markers", "actions", "marker {}"),
                               ("files", "files", ".{}"), ("project-kinds", "files", "project tree: {}"),
-                              ("symbols", "symbols", "symbol {}")):
+                              ("symbols", "symbols", "symbol {}"), ("debug-kinds", "debug", "debugger: {}")):
         for k, v in inv.get(section, {}).items():
             add(v, fmt.format(k) if k != "*" else "any other file", cat)
     for gid, g in inv.get("toolbox-groups", {}).items():

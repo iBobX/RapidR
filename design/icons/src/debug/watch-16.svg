@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Watch (an expression you follow)</title>
+  <path d="M1.5 8.5C3.5 4.5 5.5 2.5 8.5 2.5C10.5 2.5 12.5 4.5 14.5 8.5C12.5 11.5 10.5 13.5 8.5 13.5C5.5 13.5 3.5 11.5 1.5 8.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <circle cx="8" cy="8" r="2.5" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <rect x="7" y="7" width="2" height="2" fill="#2F5BFF"/>
+</svg>

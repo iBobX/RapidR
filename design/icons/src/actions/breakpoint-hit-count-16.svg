@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Breakpoint with a hit count (stops on the nth time)</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16"><rect width="16" height="16" fill="white"/><path d="M6 5H7V11H6Z M9 5H10V11H9Z M5 6H11V7H5Z M5 9H11V10H5Z" fill="black" stroke="black" stroke-width="0"/></mask></defs>
+  <g mask="url(#m1)"><circle cx="8" cy="8" r="4.5" fill="#D92D36" stroke="#D92D36"/></g>
+</svg>

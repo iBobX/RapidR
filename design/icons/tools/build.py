@@ -14,9 +14,9 @@
    only currentColor in a monochrome icon).
 3. Check the inventory (design/icons/inventory.toml): every component type in
    the language registry (crates/rapidr-lang/data/components), every planned
-   component, command, marker, file kind, project kind, symbol and toolbox
-   group names an icon that exists at every size; every component is in one
-   toolbox group.
+   component, command, marker, file kind, project kind, symbol, debugger
+   kind and toolbox group names an icon that exists at every size; every
+   component is in one toolbox group.
 4. Generate crates/rapidr-icons/src/generated.rs (the palettes from
    palette.py, the inventory, each icon's place in the bundle) and
    crates/rapidr-icons/src/icons.deflate (every optimized SVG, one after
@@ -41,7 +41,7 @@ ROOT = os.path.dirname(os.path.dirname(ICONS_DIR))
 SRC = os.path.join(ICONS_DIR, "src")
 OUT_RS = os.path.join(ROOT, "crates", "rapidr-icons", "src", "generated.rs")
 OUT_BIN = os.path.join(ROOT, "crates", "rapidr-icons", "src", "icons.deflate")
-CATEGORIES = ("actions", "glyphs", "components", "files", "symbols", "groups")
+CATEGORIES = ("actions", "glyphs", "components", "files", "symbols", "groups", "debug")
 
 
 def fail(msg):
@@ -169,7 +169,7 @@ def inventory(icons):
         components.append((t, ref, True))
     tables = {}
     for section, cat in (("commands", "actions"), ("markers", "actions"), ("files", "files"),
-                         ("project-kinds", "files"), ("symbols", "symbols")):
+                         ("project-kinds", "files"), ("symbols", "symbols"), ("debug-kinds", "debug")):
         rows = []
         for k, v in inv.get(section, {}).items():
             ref = icon_ref(v, cat)
@@ -260,7 +260,7 @@ def generate(icons, components, tables, groups):
         L.append(f"    ({rs_str(t)}, {rs_str(ref)}, {'true' if planned else 'false'}),")
     L.append("];")
     for section, const in (("commands", "COMMANDS"), ("markers", "MARKERS"), ("files", "FILES"),
-                           ("project-kinds", "PROJECT_KINDS"), ("symbols", "SYMBOLS")):
+                           ("project-kinds", "PROJECT_KINDS"), ("symbols", "SYMBOLS"), ("debug-kinds", "DEBUG_KINDS")):
         L.append("")
         L.append(f"/// inventory.toml's [{section}]: (key, icon).")
         L.append(f"pub static {const}: &[(&str, &str)] = &[")

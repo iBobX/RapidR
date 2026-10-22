@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Globals (the program's own variables)</title>
+  <circle cx="16.5" cy="16.5" r="12.5" fill="#E3E9FF" stroke="#2F5BFF"/>
+  <ellipse cx="16.5" cy="16.5" rx="5.5" ry="12.5" stroke="#2F5BFF"/>
+  <path d="M3 16L29 16" stroke="#2F5BFF"/>
+</svg>

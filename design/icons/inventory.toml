@@ -189,6 +189,7 @@ breakpoint = "breakpoint"
 breakpoint-disabled = "breakpoint-disabled"
 breakpoint-unverified = "breakpoint-unverified"
 breakpoint-conditional = "breakpoint-conditional"
+breakpoint-hit-count = "breakpoint-hit-count"
 logpoint = "logpoint"
 breakpoint-hit = "breakpoint-hit"
 execution-point = "execution-point"
@@ -270,6 +271,40 @@ label = "label"
 directive = "directive"
 module = "module"
 resource = "resource"
+
+[debug-kinds]
+# The debugger's value kinds and the sections it groups values in
+# (docs/preview4-plan.md S10): what Variables, Watch, the data tips and the
+# Properties panel draw beside a value (rapidr_icons::debug_kind; the UI
+# kernel's value_view). A value that has an icon elsewhere keeps it: a
+# constant, a record (a TYPE); a component shows its own type's icon, this
+# table's `component` only when its type has none.
+integer = "integer"
+decimal = "decimal"
+text = "text"
+boolean = "boolean"
+array = "array"
+record = "symbols/type"
+constant = "symbols/constant"
+component = "symbols/component"
+handle = "handle"
+empty = "empty"
+result = "result"
+# (a colour is a whole number: the swatch beside its value says the rest)
+color = "integer"
+# (an RDataFrame's row: a row of cells)
+row = "array"
+# (the $INCLUDE files' names, a form's components as one item, "… n more")
+include = "files/inc"
+components = "symbols/component"
+more = "actions/more"
+locals = "locals"
+globals = "globals"
+watch = "watch"
+call-stack = "components/callstackview"
+frame = "frame"
+current-frame = "actions/execution-point"
+changed = "glyphs/changed"
 
 [toolbox-groups]
 # docs/ide-plan.md I1 (RToolbox) and R-NAMES (2026-10-08): the groups by

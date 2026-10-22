@@ -29,12 +29,12 @@ fn every_component_type_has_an_icon() {
     }
 }
 
-/// Every command, marker, file kind, project kind, symbol and toolbox group
-/// names an icon that exists.
+/// Every command, marker, file kind, project kind, symbol, debugger kind and
+/// toolbox group names an icon that exists.
 #[test]
 fn every_command_and_kind_has_an_icon() {
     let mut missing = Vec::new();
-    for (table, what) in [(COMMANDS, "command"), (MARKERS, "marker"), (FILES, "file"), (PROJECT_KINDS, "project kind"), (SYMBOLS, "symbol")] {
+    for (table, what) in [(COMMANDS, "command"), (MARKERS, "marker"), (FILES, "file"), (PROJECT_KINDS, "project kind"), (SYMBOLS, "symbol"), (DEBUG_KINDS, "debugger kind")] {
         for (k, id) in table {
             if get(id).is_none() {
                 missing.push(format!("{what} {k} -> {id}"));
@@ -50,6 +50,11 @@ fn every_command_and_kind_has_an_icon() {
     for c in ["file.save", "run.start", "debug.stepOver", "designer.alignLeft", "view.dock"] {
         assert!(command(c).is_some(), "{c}");
     }
+    // (the debugger's kinds: its own drawings, and the ones it shares)
+    for (k, id) in [("integer", "debug/integer"), ("text", "debug/text"), ("record", "symbols/type"), ("constant", "symbols/constant"), ("changed", "glyphs/changed"), ("current-frame", "actions/execution-point")] {
+        assert_eq!(debug_kind(k).map(|i| i.id), Some(id), "{k}");
+    }
+    assert_eq!(marker("breakpoint-hit-count").map(|i| i.id), Some("actions/breakpoint-hit-count"));
 }
 
 /// Every component is in exactly one toolbox group.

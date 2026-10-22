@@ -1,6 +1,6 @@
 # RapidR's icons
 
-RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group and glyph of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 344 icons in six categories, each hinted at 16, 24 and 32 px.
+RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group, glyph and debugger value kind of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 364 icons in seven categories, each hinted at 16, 24 and 32 px.
 
 | Category | What | Colour |
 |---|---|---|
@@ -10,8 +10,9 @@ RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8):
 | `files` | File types and folders | Two-tone |
 | `symbols` | The language service's symbol and completion kinds | Two-tone |
 | `groups` | The toolbox's groups | Two-tone |
+| `debug` | The debugger's value kinds (whole and decimal numbers, text, True/False, arrays, handles, empty, a FUNCTION's result) and the sections it groups values in (locals, globals, watch, a call on the stack) | Two-tone: a value is a tile in its family's hue |
 
-The review sheets in [`review/`](review) show every category at 16, 24 and 32 px in the four themes at 1× and 2×. The mock-ups in `review/mockup-*.png` show the icons in context: a toolbar and a toolbox drawn by the UI kernel.
+The review sheets in [`review/`](review) show every category at 16, 24 and 32 px in the four themes at 1× and 2×. A lane that adds icons also leaves a sheet of just those (`sheets.py --set NAME --ids …`): `debugger-new-*.png` are the debugger's (S10), `debugger-family-*.png` the debugger's whole vocabulary, old and new. The mock-ups in `review/mockup-*.png` show the icons in context: a toolbar and a toolbox drawn by the UI kernel.
 
 ## The grid
 
@@ -68,6 +69,7 @@ Icons use **colour tokens**, never fixed colours. A token's value depends on the
 | `spark` | `#19C6E6` | `#19C6E6` | The brand gradient's end (blue to spark): the RapidR mark, AI |
 
 - **Two-tone.** A component icon draws the control's shape as a neutral frame (`ink` on `paper`) and marks its key part in one hue, an outline over that hue's tint: the check of a check box, the arrow of a combo box, the selected row of a list. An icon has one hue, sometimes two when the meaning needs them (the X, Y and Z axes, a colour dialog).
+- **The debugger's values** take the hue their text is drawn in: numbers teal, text amber, True/False blue, arrays and handles cyan (a handle is something outside the program), a FUNCTION's result violet (code you call), empty ink. A value that has an icon elsewhere keeps it: a constant is `symbols/constant`, a record (a TYPE) `symbols/type`, a component its own type's.
 - **Monochrome icons** (actions, glyphs) use `currentColor` only, so they follow the theme and the caller. Colour appears only where it carries meaning: run and continue (teal), stop and errors (red), warnings (amber), information (blue), hints (cyan), breakpoints (red), the execution point (Run Amber) and AI (the gradient).
 - **Contrast.** In every theme, every hue's outline has at least 3:1 (WCAG 1.4.11, graphics) against the theme's backgrounds, against `paper` and against its own tint. `currentColor` has at least 4.5:1. The crate's tests check this (`contrast_in_every_theme`).
 - **High contrast is monochrome.** Outlines and solids are white and tints are black, on Windows' High Contrast Black. Shape carries the meaning; nothing depends on hue.
@@ -92,14 +94,14 @@ Icons use **colour tokens**, never fixed colours. A token's value depends on the
 - **Actions** are named for what they do (`step-over`, `bring-to-front`).
 - **Components** are named for their type without the R (`RBUTTON` → `button`, `RDBGRID` → `dbgrid`).
 - **Files** are named for their kind (`rr`, `image`, `data`).
-- **Lookups** (`rapidr_icons::get`) take an id, a bare name (searched in the order actions, glyphs, components, files, symbols, groups), a component type (`QBUTTON`, `RBUTTON`, `QGAUGE`) or a command id (`file.save`).
+- **Lookups** (`rapidr_icons::get`) take an id, a bare name (searched in the order actions, glyphs, components, files, symbols, groups, debug), a component type (`QBUTTON`, `RBUTTON`, `QGAUGE`) or a command id (`file.save`).
 
 ## Inventory
 
 [`inventory.toml`](inventory.toml) says what has an icon:
 
 - **Components** come from the code: every type in `rapidr_ast::COMPONENT_TYPES` gets the icon of its name, with exceptions in `[component-aliases]`. The IDE plan's components are listed in `[planned-components]` so they have icons the day they land. When the language registry (`rapidr-lang`) lands, the build reads its components instead.
-- **The IDE's commands** (`[commands]`: `file.save` → `save`), the markers, file extensions, project-tree kinds, symbol kinds and toolbox groups (with their members).
+- **The IDE's commands** (`[commands]`: `file.save` → `save`), the markers, file extensions, project-tree kinds, symbol kinds, the debugger's value kinds and sections (`[debug-kinds]`: `integer`, `record` → `symbols/type`, `changed` → `glyphs/changed`) and toolbox groups (with their members).
 - The build fails, and so do the crate's tests (`every_component_type_has_an_icon`, `every_command_and_kind_has_an_icon`, `toolbox_groups_hold_every_component_once`), when one of these has no icon.
 
 ## Pipeline
@@ -112,7 +114,7 @@ python3 design/icons/tools/build.py --check  # fail if anything is out of date (
 1. **Draw.** The geometry is Python, standard library only:
    - [`tools/kit.py`](tools/kit.py): the kit and the hinter;
    - [`tools/motifs.py`](tools/motifs.py): shared shapes;
-   - `actions.py`, `glyphs.py`, `components.py`, `planned.py`, `files.py`, `symbols.py`, `groups.py`: one function per icon.
+   - `actions.py`, `glyphs.py`, `components.py`, `planned.py`, `files.py`, `symbols.py`, `groups.py`, `debug.py`: one function per icon.
 
    The sources are written to `src/`. A source drawn in an editor instead is never overwritten if it holds `data-hand-drawn`.
 2. **Optimize.** This is our own code ([`tools/build.py`](tools/build.py)). It strips the XML declaration, comments, `<title>`, `<desc>`, `<metadata>`, editor attributes and whitespace, and checks:
@@ -134,7 +136,7 @@ Dev tools (they need `rsvg-convert` and Pillow):
 ## Using them
 
 - **Rust** ([`crates/rapidr-icons`](../../crates/rapidr-icons)):
-  - `get`, `component`, `command`, `file`, `symbol` find an icon;
+  - `get`, `component`, `command`, `file`, `symbol`, `debug_kind` find an icon;
   - `themed_svg` gives an icon's SVG in a theme;
   - `render` gives its pixels for a logical size and a display scale.
 

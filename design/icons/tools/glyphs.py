@@ -140,3 +140,9 @@ def drop_target(g):
 @icon("modified", GL, "Unsaved changes")
 def modified(g):
     g.dot(12, 12, 4)
+
+
+@icon("changed", GL, "Changed since the program last stopped")
+def changed(g):
+    # delta: a change (drawn in the theme's debug.changed colour)
+    g.poly([(12, 5), (19.5, 18.5), (4.5, 18.5)], close=True)
