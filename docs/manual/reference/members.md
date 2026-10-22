@@ -113,6 +113,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
 | `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window, as RapidQ hands them over: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored, as in RapidQ. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks. |
+| `OnMessage(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` *(RapidR)* | Another name for WndProc (RapidR's): `OnMessage = MySub` in its CREATE (or `Form.OnMessage = MySub`). It is the same event, with the same four parameters, delivered the same way and in the same places: on Windows every message Windows sends or posts to the form's window; on macOS, Linux and the web only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon). With both bound, the one bound last hears the messages. |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 | `OnLoad` *(RapidR)* | Fires when the content has loaded: the web view's page, a file read in the browser. |
@@ -4428,10 +4429,10 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `To_json(filename)` | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
 | `Head([n])` | Keeps the first n rows (default 5). |
 | `Tail([n])` | Keeps the last n rows (default 5). |
-| `Cell(col, row)` | The text of a cell (col: an index from 0, or a column name); "" for a missing value. |
+| `Cell(row, col)` | The text of a cell (row: from 0, the first data row; col: an index from 0, or a column name); "" for a missing value. The row comes first: `Frame.Cell(2, 0)` is the third row's first column. |
 | `CellByName(row, columnName)` | The text of a cell by its column name. |
 | `At` | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
-| `SetCell(col, row, value)` | Sets a cell (col: an index or a name); past the end the frame grows. |
+| `SetCell(row, col, value)` | Sets a cell (row from 0; col: an index or a name); past the end the frame grows. The row comes first, as in Cell. |
 | `Iloc(row)` | Keeps rows start to end (not included). |
 | `Select(col1, col2, …)` | Keeps those columns, in that order. |
 | `Sort(column, [ascending])` | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |

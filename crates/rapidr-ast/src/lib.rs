@@ -11,6 +11,7 @@ pub mod type_values;
 pub mod library;
 pub mod method_equals;
 pub mod tray_calls;
+pub mod end_codes;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {

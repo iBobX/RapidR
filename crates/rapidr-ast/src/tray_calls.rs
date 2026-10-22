@@ -11,6 +11,8 @@
 //! - a QFORM's `WndProc = Handler` (in its CREATE, or `Form.WndProc =
 //!   Handler`) is its event `OnWndProc`: the runtimes fire it with the
 //!   tray's messages, (hWnd, uMsg, wParam, lParam) as Windows would.
+//!   RapidR's `OnMessage` is another name for it: one event, one delivery
+//!   (it becomes `OnWndProc` here, and nothing after this pass can tell).
 //!
 //! Every other Windows call stays the compilers' clear error.
 
@@ -20,6 +22,12 @@ use crate::*;
 
 /// The builtin the tray's calls become.
 pub const SHELL_NOTIFY_ICON: &str = "__shell_notifyicon";
+
+/// Whether `name` is a form's Windows-message handler: RapidQ's `WndProc`,
+/// or RapidR's other name for it, `OnMessage`.
+fn is_wndproc_name(name: &str) -> bool {
+    name.eq_ignore_ascii_case("wndproc") || name.eq_ignore_ascii_case("onmessage")
+}
 
 /// Whether DECLARE `d` is Windows' Shell_NotifyIcon (shell32).
 fn is_shell_notify_icon(d: &DeclareStatement) -> bool {
@@ -73,7 +81,7 @@ pub fn lower(program: &Program) -> Program {
             for b in &mut c.body {
                 if let Statement::Assignment(a) = b {
                     if let Expression::Identifier(t) = &mut a.target {
-                        if t.name.eq_ignore_ascii_case("wndproc") && matches!(a.value, Expression::Identifier(_)) {
+                        if is_wndproc_name(&t.name) && matches!(a.value, Expression::Identifier(_)) {
                             t.name = "OnWndProc".into();
                         }
                     }
@@ -82,7 +90,7 @@ pub fn lower(program: &Program) -> Program {
         }
         Statement::Assignment(a) => {
             if let Expression::MemberAccess(m) = &mut a.target {
-                if m.member.eq_ignore_ascii_case("wndproc") && matches!(m.object.as_ref(), Expression::Identifier(o) if forms.contains(&o.name.to_ascii_lowercase())) {
+                if is_wndproc_name(&m.member) && matches!(m.object.as_ref(), Expression::Identifier(o) if forms.contains(&o.name.to_ascii_lowercase())) {
                     m.member = "OnWndProc".into();
                 }
             }

@@ -15,7 +15,11 @@
 //                         that, then stops with a run-time error whose
 //                         message has every non-empty line of this file
 //                         (e.g. RapidQ's "Division by zero")
-//   lang/                 translation catalogs (lang/es.po …) the i18n_*
+//   name.expected-exit    optional: the exit code the program ends with
+//                         (END n: a number alone on the first line); the
+//                         output is checked as usual, and any other code —
+//                         0 too — fails the case
+//   lang/                translation catalogs (lang/es.po …) the i18n_*
 //                         cases read: beside each built program, as a
 //                         program's own lang folder
 //
@@ -84,7 +88,7 @@ function run(cmd, cmdArgs, opts = {}) {
   if (r.error?.code === "ENOBUFS") err += `\noutput exceeded ${MAX_OUTPUT} bytes (runaway loop?)`;
   else if (r.error?.code === "ETIMEDOUT") err += `\ntimed out after ${opts.timeout || TIMEOUT_MS} ms`;
   else if (r.error) err += `\n${r.error}`;
-  return { ok: r.status === 0 && !r.error, out: r.stdout || "", err };
+  return { ok: r.status === 0 && !r.error, status: r.status, out: r.stdout || "", err };
 }
 
 // Returns { compiled: bool, output: string, diagnostics: string }.
@@ -95,7 +99,7 @@ function runVm(name, src, input, progArgs) {
   const c = run(RAPIDR, ["build-bc", src, "-o", rrbc]);
   if (!c.ok) return { compiled: false, output: "", diagnostics: c.out + c.err };
   const r = run(RAPIDR, ["run-bc", rrbc, ...progArgs], { input });
-  return { compiled: true, output: r.out, diagnostics: c.err + r.err, crashed: !r.ok };
+  return { compiled: true, output: r.out, diagnostics: c.err + r.err, crashed: !r.ok, status: r.status };
 }
 
 function runCodegen(name, src, input, progArgs) {
@@ -123,7 +127,7 @@ function runCodegen(name, src, input, progArgs) {
   // (its build, ~350 MB, gone once it ran: tests/cargo_builds.mjs)
   rmSync(bin, { force: true });
   dropBuild(env.CARGO_TARGET_DIR, name);
-  return { compiled: true, output: r.out, diagnostics: r.err, crashed: !r.ok };
+  return { compiled: true, output: r.out, diagnostics: r.err, crashed: !r.ok, status: r.status };
 }
 
 // Cargo output is mostly warnings from the runtime crates; keep only the
@@ -141,7 +145,7 @@ function cargoErrors(text) {
 
 const RUNNERS = { vm: runVm, codegen: runCodegen };
 
-function check(result, expected, expectedError, runtimeError = null) {
+function check(result, expected, expectedError, runtimeError = null, exitCode = null) {
   if (expectedError !== null) {
     if (result.compiled) return "compiled, but a compile error was expected";
     const missing = expectedError.split("\n").map((l) => l.trim()).filter(Boolean)
@@ -154,6 +158,9 @@ function check(result, expected, expectedError, runtimeError = null) {
     const missing = runtimeError.split("\n").map((l) => l.trim()).filter(Boolean)
       .filter((needle) => !result.diagnostics.includes(needle));
     if (missing.length) return `error output lacks: ${missing.join(" | ")}\n--- error output ---\n${result.diagnostics.trim()}`;
+  } else if (exitCode !== null) {
+    // (END n ends the program on purpose, with that code)
+    if (result.status !== exitCode) return `exit code ${result.status}, expected ${exitCode}\n${result.diagnostics.trim()}\n--- output ---\n${result.output}`;
   } else if (result.crashed) return `crashed:\n${result.diagnostics.trim()}\n--- output ---\n${result.output}`;
   if (norm(result.output) !== norm(expected)) {
     return `output differs\n--- expected ---\n${norm(expected)}\n--- actual ---\n${norm(result.output)}`;
@@ -183,13 +190,15 @@ for (const name of cases) {
   const expectedError = existsSync(errPath) ? readFileSync(errPath, "utf8") : null;
   const runtimePath = join(CASES, `${name}.expected-runtime-error`);
   const runtimeError = existsSync(runtimePath) ? readFileSync(runtimePath, "utf8") : null;
+  const exitPath = join(CASES, `${name}.expected-exit`);
+  const exitCode = existsSync(exitPath) ? Number.parseInt(readFileSync(exitPath, "utf8").trim(), 10) : null;
   const inputPath = join(CASES, `${name}.input`);
   const input = existsSync(inputPath) ? readFileSync(inputPath, "utf8") : "";
   const argsPath = join(CASES, `${name}.args`);
   const progArgs = existsSync(argsPath) ? readFileSync(argsPath, "utf8").replace(/\r\n/g, "\n").split("\n").filter((l) => l !== "") : [];
 
   for (const backend of backends) {
-    const problem = check(RUNNERS[backend](name, src, input, progArgs), expected, expectedError, runtimeError);
+    const problem = check(RUNNERS[backend](name, src, input, progArgs), expected, expectedError, runtimeError, exitCode);
     let status;
     if (problem && xfail.has(backend)) status = "XFAIL";
     else if (problem) status = "FAIL";
