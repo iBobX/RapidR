@@ -24,9 +24,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - `RDBGrid.DataSource` can be an `RSQLite` or `RMySQL`: their last query's
     rows (a background query's as they arrive), drawn only on screen. A
     heading's click on a database's rows is the program's to sort with
-    `ORDER BY` (`SortColumn`, `SortDescending`). Ctrl+C copies the current
-    row; End shows the last row whole; columns are sized from the first and
-    the last rows.
+    `ORDER BY` (`SortColumn`, `SortDescending`, which a program can now set:
+    -1 takes the arrow away). A new query's rows show from the top. Ctrl+C
+    copies the current row; End shows the last row whole; columns are sized
+    from the first and the last rows.
   - `ColName(i)` and `ColType(i)` on both: a result's column names and types
     from its own metadata (SQLite's declared types; MySQL's column types, on
     a read-only connection too). `Schema`: the database's tables, views and
@@ -36,7 +37,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     (`SetSchema(json)`, `Editor.SetSchema DB.Schema`; aliases resolved), a
     statement over several lines folds (`[folding] statements` in language
     definitions), Ctrl+Enter fires `OnRunStatement(SQL)` with the selection
-    or the statement at the caret (`CurrentStatement`).
+    or the statement at the caret, up to its `;` or a blank line
+    (`CurrentStatement`).
   - Example `examples/data/million_rows_async.rr`; manual: Databases and the
     new "The code editor in your programs"; tests: rapidr-db unit tests and a
     live MySQL test (`RAPIDR_TEST_MYSQL`), the conformance case
