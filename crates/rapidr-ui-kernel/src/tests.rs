@@ -697,20 +697,20 @@ fn named(id: &str, events: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn double_clicks_come_in_the_vcl_order() {
+fn double_clicks_come_in_rapidqs_order() {
     let (s, mut f, mut ts) = clicks_form();
     // (WM_LBUTTONDOWN: OnMouseDown; up: OnClick, OnMouseUp; the double
     // click's press: OnDblClick, OnMouseDown; its release: OnMouseUp)
-    let vcl = ["down", "click", "up", "dbl", "down", "up"];
-    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 2), named("pn", &vcl));
-    assert_eq!(press_times(&mut f, &s, &mut ts, (100.0, 20.0), 2), named("lb", &vcl));
-    assert_eq!(press_times(&mut f, &s, &mut ts, (180.0, 20.0), 2), named("img", &vcl));
+    let dbl_order = ["down", "click", "up", "dbl", "down", "up"];
+    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 2), named("pn", &dbl_order));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (100.0, 20.0), 2), named("lb", &dbl_order));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (180.0, 20.0), 2), named("img", &dbl_order));
     // (the form's open area too)
-    assert_eq!(press_times(&mut f, &s, &mut ts, (200.0, 200.0), 2), named("f", &vcl));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (200.0, 200.0), 2), named("f", &dbl_order));
     // (QCANVAS: no OnDblClick in RapidQ — every click is a click)
     assert_eq!(press_times(&mut f, &s, &mut ts, (260.0, 20.0), 2), named("cv", &["down", "click", "up", "down", "click", "up"]));
     // (a third press starts over as a single click, a fourth is a double)
-    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 4), named("pn", &[&vcl[..], &vcl[..]].concat()));
+    assert_eq!(press_times(&mut f, &s, &mut ts, (20.0, 20.0), 4), named("pn", &[&dbl_order[..], &dbl_order[..]].concat()));
     // (a list box: OnClick, then OnDblClick in its second's place)
     assert_eq!(press_times(&mut f, &s, &mut ts, (340.0, 14.0), 2), named("lst", &["click", "down", "up", "ondblclick", "down", "up"]));
 }
