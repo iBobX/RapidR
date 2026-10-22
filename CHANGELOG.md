@@ -8,6 +8,31 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **RapidR Studio: an editing layout and a debugging layout** (Preview 4
+  S9). While you edit, the bottom panel spans the documents' whole width,
+  with Output (its Output, Build and Problems pages), Immediate and
+  Breakpoints as tabs; a long Problems message shows whole in a tooltip.
+  When a run with the debugger starts, Variables, Watch, Call Stack and
+  Breakpoints appear beside Output (Variables in front at a pause); when
+  it ends, they go. Each layout keeps its own sizes across restarts.
+  View ▸ Debug Panes (Ctrl+Shift+D) shows or hides them by hand (shown so,
+  they stay); Tools ▸ Settings ▸ General ▸ Debug panes: Automatic, Always or
+  Never. The switch is said in the status bar and never takes the keyboard.
+  The Call Stack is now one of the debug panes (no longer in the Toolbox's
+  place). See [Debugging: two layouts](docs/manual/debugging.md#two-layouts-editing-and-debugging).
+- **Splitters you can see, grab and move from the keyboard** (RapidR
+  Studio's panes, the document groups, RSplitter in RapidR's look): a line
+  and a grip at rest (two new theme tokens, `splitter` and `splitter_grip`,
+  3:1 against both sides in light, dark and high contrast), the accent under
+  the mouse (in the light look too, where the highlight was a near-white
+  nobody saw); an 8-pixel grab area over a 4-pixel gutter; a double click puts
+  a splitter back where it was. Window ▸ Resize Panes (Ctrl+F6) gives the
+  keyboard to the splitter beside the active pane: arrows move it 10 pixels,
+  Shift+arrows 50, Home / End as far as it goes, Tab the next one, Enter or
+  Escape back. A screen reader hears a separator whose value is a
+  percentage. RDockManager gains `FocusSplitter` and `PaneExtent(Name,
+  "width" | "height", [Extent])`. Programs' RSplitters keep their geometry;
+  only the drawing changes. See [Panes and splitters](docs/manual/getting-started.md#panes-and-splitters).
 - **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
   takes no number), so a console tool can fail a build:
   `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.
@@ -61,6 +86,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   legal and history texts, fixture data).
 
 ### Fixed
+- **RapidR Studio's panes at start-up** (Preview 4 S8): a pane placed while
+  the window was still being given its size (restored, maximized or scaled
+  at start-up) kept its contents at their old size until the window was
+  resized — the Breakpoints list a narrow strip with its "When" field under
+  it, the Assistant's input row. The dock manager now lays out what is
+  inside every pane it gives a new size (its aligned and anchored
+  controls, its scroll bars) and fires the pane's OnResize, on the desktop
+  and the web.
 - **Two wrong reference entries** (found by RapidR Database Studio, which
   followed them): a data frame's `Cell` and `SetCell` take the **row first**,
   `Cell(row, col)` and `SetCell(row, col, value)`, as the code always did —

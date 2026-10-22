@@ -387,6 +387,34 @@ is kept in the browser (the page's store), over the original.
 
 ![The Welcome page scrolled to its last cards: Shift+Tab from the Project pane reached hello.rr, ringed, ready for Enter](images/themes/studio-welcome-last-card.png)
 
+### Panes and splitters
+
+Studio's window is made of panes: Project and Toolbox on the left,
+Properties and Outline on the right, your documents in the middle and, under
+them, the bottom panel (Output, Immediate, Breakpoints). Between two panes
+there is a **splitter**: a thin line with a short grip in its middle. Drag
+it to give one pane more room. **Double-click** it to put it back where it
+was at first.
+
+From the keyboard, **F6** goes from pane to pane, and **Ctrl+F6** (Window ▸
+Resize Panes) gives the keyboard to the splitter beside the pane you are in.
+Its grip gets a focus ring. Then:
+
+| Key | What it does |
+|---|---|
+| Left / Right, Up / Down | Move the splitter 10 pixels |
+| Shift + an arrow | Move it 50 pixels |
+| Home / End | Move it as far as it goes, one way or the other |
+| Tab / Shift+Tab | Go to the next / previous splitter |
+| Enter or Escape | Give the keyboard back to where it was |
+
+A screen reader hears a splitter as a *separator* named after the two panes
+it divides, and says where it is as a percentage ("45%").
+
+While a program runs with the debugger, Studio shows the debug panes beside
+Output; when it ends, the bottom panel gets the whole width again
+([Debugging: two layouts](debugging.md#two-layouts-editing-and-debugging)).
+
 ## Where next
 
 - [Why RapidR](why-rapidr.md): what it does best, with measured numbers.

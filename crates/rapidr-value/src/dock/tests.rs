@@ -665,7 +665,7 @@ fn a_splitter_shows_at_rest_against_both_its_neighbours() {
     use crate::theme::{contrast, ALL};
     for t in ALL.into_iter().filter(|t| t.fluent()) {
         let p = look::palette(t);
-        for (what, c) in [("line", p.splitter), ("grip", p.grip)] {
+        for (what, c) in [("line", p.splitter), ("grip", p.grip), ("highlight under the mouse", p.splitter_hot)] {
             for (beside, bg) in [("the ground", p.ground), ("a header", p.header), ("the active header", p.header_active), ("a pane", p.body), ("the documents' strip", p.doc_strip)] {
                 assert!(contrast(c, bg) >= 3.0, "{}: the splitter's {what} {c:06X} beside {beside} {bg:06X}: {:.2}", t.name, contrast(c, bg));
             }

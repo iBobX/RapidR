@@ -1091,4 +1091,27 @@ mod tests {
         assert_eq!(con.children.last().unwrap().children[0].name, "Warning: w, a.bas line 3");
         model::remove("con1");
     }
+
+    /// (S9) A problem's row cut short ("…"): resting the mouse on it shows
+    /// the whole message and its place; a short one, nothing.
+    #[test]
+    fn a_problem_cut_short_shows_whole_in_a_tooltip() {
+        use crate::components::ComponentKind;
+        let s = store("con_tip");
+        model::remove("con_tip");
+        let long = "mtInformation is a RAPIDQ.INC constant, and without the include it is 0: add $INCLUDE \"RAPIDQ.INC\" at the top of the program";
+        model::with_mut("con_tip", |c| {
+            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into() });
+            c.show(Page::Problems);
+        });
+        let row = |k: i64| (rapidr_value::panels::rows::TABS + 4 + k * rapidr_value::panels::rows::ROW + rapidr_value::panels::rows::ROW / 2) as f64;
+        let tip = super::Console.tip_at(&s, "con_tip", 100.0, row(0));
+        assert_eq!(tip.as_deref(), Some(format!("{long} — a.rr:3:7").as_str()));
+        assert_eq!(super::Console.tip_at(&s, "con_tip", 100.0, row(1)), None, "a message that fits");
+        // (the Output page: none)
+        model::with_mut("con_tip", |c| c.show(Page::Output));
+        assert_eq!(super::Console.tip_at(&s, "con_tip", 100.0, row(0)), None);
+        model::remove("con_tip");
+    }
 }

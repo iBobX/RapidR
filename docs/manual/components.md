@@ -350,6 +350,15 @@ the Output panel, and a tab, file or toolbox item being carried (a closed
 hand). In RapidR's look the divider you can drag also lights up under the
 mouse. Set the component's `Cursor` (`crHandPoint`, `crSizeWE`, …) and your
 choice wins; `crDefault` (0) means "the component's own".
+
+**A splitter you can see.** In RapidR's look (light, dark and high
+contrast) an `RSplitter` shows at rest: a thin line along its middle and a
+short grip in the middle of that line, so people see there is something to
+drag. Both have at least 3:1 contrast against what is around them. Under
+the mouse and while it is dragged, the line and the grip take the accent
+colour. Studio's own splitters between its panes look the same. Your
+program's splitters keep the place and size you gave them; only the drawing
+is new. The classic look draws RapidQ's raised bar, as before.
 On the desktop this is the system's cursor, on the web the page's cursor; they
 agree.
 

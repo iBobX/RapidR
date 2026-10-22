@@ -132,7 +132,10 @@ what's wrong with a wavy line: red for errors, amber for warnings. A sign in
 the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
 messages are the compiler's own words, so they read the same as when
-you build.
+you build. While you edit, the bottom panel spans the whole width under
+your code, so a long message has room; one still too long for its row ends
+in "…", and resting the mouse on it shows all of it in a tooltip
+([Debugging: two layouts](debugging.md#two-layouts-editing-and-debugging)).
 
 ### The RAPIDQ.INC warning
 

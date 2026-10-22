@@ -173,7 +173,9 @@ pub fn palette(t: &Theme) -> Palette {
         button_pressed: if dark { mix(t.face, 0xFFFFFF, 0.18) } else { mix(t.face, 0x000000, 0.14) },
         splitter: t.splitter,
         grip: t.splitter_grip,
-        splitter_hot: if dark { t.accent } else { t.caption },
+        // (the accent, light and dark: the light look's caption is the
+        // title bar's near-white surface, a highlight nobody saw)
+        splitter_hot: t.accent,
         strip_tab: if dark { mix(t.face, 0xFFFFFF, 0.04) } else { t.window },
         strip_tab_hover: if dark { mix(t.face, 0xFFFFFF, 0.12) } else { mix(t.window, t.accent, 0.10) },
         strip_text: mix(t.text, t.face, 0.15),
