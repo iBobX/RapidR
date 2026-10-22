@@ -576,6 +576,36 @@ impl Project {
         }
     }
 
+    /// The project's source files' kinds as their code says now (forms come
+    /// from the code, not from what the project file said before): a source
+    /// or include that creates a form at the top level is a `Form`; a `Form`
+    /// whose code has none any more is a module again (an include, for an
+    /// `.inc`). `text_of` gives a file's text by its project path (`None`:
+    /// it can't be read — its kind stays). The files whose kind changed,
+    /// with their new kind, in the project's order.
+    pub fn follow_code(&mut self, text_of: &dyn Fn(&str) -> Option<String>) -> Vec<(String, FileKind)> {
+        let mut changed = Vec::new();
+        for f in &mut self.files {
+            if !matches!(f.kind, FileKind::Form | FileKind::Module | FileKind::Include) || !matches!(kind_for_path(&f.path), FileKind::Module | FileKind::Include) {
+                continue;
+            }
+            let Some(text) = text_of(&f.path) else { continue };
+            let kind = if defines_form(&text) {
+                FileKind::Form
+            } else if f.kind == FileKind::Form {
+                kind_for_path(&f.path)
+            } else {
+                // (a module or an include the project says it is: as it says)
+                f.kind
+            };
+            if kind != f.kind {
+                f.kind = kind;
+                changed.push((f.path.clone(), kind));
+            }
+        }
+        changed
+    }
+
     /// Whether the project has this file.
     pub fn contains(&self, path: &str) -> bool {
         self.position(&normalize_path(path)).is_some()
@@ -671,65 +701,104 @@ pub fn kind_for_path(path: &str) -> FileKind {
     }
 }
 
-/// The kind of a file from its path and text: a `.rr` / `.bas` file that
-/// creates a form at the top level is a `Form`.
+/// The kind of a file from its path and text: a source (`.rr`, `.bas`,
+/// RapidQ's `.rqw` …) or an include (`.inc`) that creates a form at the top
+/// level is a `Form` — forms come from the code, in any file.
 pub fn kind_for_source(path: &str, text: &str) -> FileKind {
     match kind_for_path(path) {
-        FileKind::Module if defines_form(text) => FileKind::Form,
+        FileKind::Module | FileKind::Include if defines_form(text) => FileKind::Form,
         kind => kind,
     }
 }
 
-/// The kind of a file on disk (reads `.rr` / `.bas` files to recognize
-/// forms; a file that cannot be read is taken by its extension).
+/// The kind of a file on disk (reads `.rr` / `.bas` / `.inc` files to
+/// recognize forms; a file that cannot be read is taken by its extension).
 pub fn kind_for_file(path: &Path) -> FileKind {
     let name = path.to_string_lossy();
     match kind_for_path(&name) {
-        FileKind::Module => match std::fs::read(path) {
+        FileKind::Module | FileKind::Include => match std::fs::read(path) {
             Ok(bytes) => kind_for_source(&name, &String::from_utf8_lossy(&bytes)),
-            Err(_) => FileKind::Module,
+            Err(_) => kind_for_path(&name),
         },
         kind => kind,
     }
 }
 
 /// Whether the source creates a form at the top level
-/// (`CREATE x AS QFORM | RFORM | QFORMMDI | RFORMMDI`, any case), by a
-/// simple line scan that tracks `CREATE` / `END CREATE` nesting.
+/// (`CREATE x AS QFORM | RFORM | QFORMMDI | RFORMMDI`, any case).
 pub fn defines_form(text: &str) -> bool {
+    !top_level_forms(text).is_empty()
+}
+
+/// The forms `text` creates at the top level, in order: each one's name
+/// (`CREATE Form AS RForm`, `CREATE NewForm AS QFORM` …; RapidR's names and
+/// RapidQ's, any case). A simple scan of its statements — split at `:`
+/// outside strings, comments (`'`, `REM`) left out — that follows the
+/// `CREATE` / `END CREATE` nesting: a form inside another component isn't
+/// one of them.
+pub fn top_level_forms(text: &str) -> Vec<String> {
     let mut depth = 0usize;
+    let mut out = Vec::new();
     for line in text.lines() {
-        let mut words = line.split_whitespace();
-        let Some(first) = words.next() else { continue };
-        if first.eq_ignore_ascii_case("CREATE") {
-            if depth == 0 {
-                let _name = words.next();
-                let as_kw = words.next();
-                let ty = words.next().map(|t| {
-                    t.chars()
-                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-                        .collect::<String>()
-                        .to_ascii_uppercase()
-                });
-                if as_kw.is_some_and(|w| w.eq_ignore_ascii_case("AS"))
-                    && matches!(
-                        ty.as_deref(),
-                        Some("QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI")
-                    )
-                {
-                    return true;
+        for st in statements(line) {
+            let mut words = st.split_whitespace();
+            let Some(first) = words.next() else { continue };
+            if first.eq_ignore_ascii_case("CREATE") {
+                if depth == 0 {
+                    let name = words.next().unwrap_or("");
+                    let as_kw = words.next();
+                    let ty = words.next().map(|t| t.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '_').collect::<String>().to_ascii_uppercase());
+                    let name: String = name.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
+                    if !name.is_empty() && as_kw.is_some_and(|w| w.eq_ignore_ascii_case("AS")) && matches!(ty.as_deref(), Some("QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI")) {
+                        out.push(name);
+                    }
                 }
+                depth += 1;
+            } else if first.eq_ignore_ascii_case("END") && words.next().is_some_and(|w| w.eq_ignore_ascii_case("CREATE")) {
+                depth = depth.saturating_sub(1);
             }
-            depth += 1;
-        } else if first.eq_ignore_ascii_case("END")
-            && words
-                .next()
-                .is_some_and(|w| w.eq_ignore_ascii_case("CREATE"))
-        {
-            depth = depth.saturating_sub(1);
         }
     }
-    false
+    out
+}
+
+/// A line's statements: split at `:` outside strings, without its comment
+/// (`'` outside a string, or a statement starting `REM`); strings blanked.
+fn statements(line: &str) -> Vec<String> {
+    let is_rem = |st: &str| {
+        let t = st.trim_start();
+        t.get(..3).is_some_and(|h| h.eq_ignore_ascii_case("REM")) && t[3..].chars().next().is_none_or(|c| !(c.is_alphanumeric() || c == '_'))
+    };
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut in_str = false;
+    for ch in line.chars() {
+        if in_str {
+            if ch == '"' {
+                in_str = false;
+            }
+            cur.push(if ch == '"' { '"' } else { ' ' });
+            continue;
+        }
+        match ch {
+            '"' => {
+                in_str = true;
+                cur.push('"');
+            }
+            '\'' => break,
+            ':' => {
+                if is_rem(&cur) {
+                    return out;
+                }
+                out.push(std::mem::take(&mut cur));
+            }
+            c => cur.push(c),
+        }
+    }
+    if !is_rem(&cur) {
+        out.push(cur);
+    }
+    out
 }
 
 /// A BASIC string literal for `s`. RapidQ has no `""` escape, so a quote
@@ -897,7 +966,49 @@ mod tests {
             "CREATE P AS QPANEL\n CREATE F AS QFORM\n END CREATE\nEND CREATE"
         ));
         assert!(!defines_form("' CREATE F AS QFORM\nPRINT 1"));
-        assert_eq!(kind_for_source("x.inc", form), FileKind::Include);
+        // (forms come from the code, in any file: an include's too)
+        assert_eq!(kind_for_source("x.inc", form), FileKind::Form);
+        assert_eq!(kind_for_source("x.inc", "SUB A\nEND SUB\n"), FileKind::Include);
+        assert_eq!(kind_for_source("people.csv", form), FileKind::Data);
+    }
+
+    #[test]
+    fn top_level_forms_from_statements() {
+        let ui = "' ui.rr: three windows\nCREATE Form AS RForm\n    CREATE B AS RButton: END CREATE\n    Caption = \"CREATE Ghost AS RForm\"\nEND CREATE\n\nCREATE NewForm AS RForm: Caption = \"New\": END CREATE\nREM CREATE Old AS QFORM\ncreate CfgForm as qform ' settings\n  CREATE Inner AS RFORM\n  END CREATE\nEND CREATE\nCREATE Timer1 AS RTimer\nEND CREATE\n";
+        assert_eq!(top_level_forms(ui), ["Form", "NewForm", "CfgForm"]);
+        assert!(top_level_forms("$INCLUDE \"ui.rr\"\nForm.ShowModal\n").is_empty());
+    }
+
+    // (S1, Robert's 7-file program: ui.rr made three forms but the project
+    // file still said "module"; main.rr had none left but still said "form")
+    #[test]
+    fn kinds_follow_the_code() {
+        let mut p = Project::new("Web", "main.rr");
+        p.files.clear();
+        for (path, kind) in [("main.rr", FileKind::Form), ("ui.rr", FileKind::Module), ("globals.rr", FileKind::Module), ("lib/forms.inc", FileKind::Include), ("lib/util.rr", FileKind::Include), ("gone.rr", FileKind::Form), ("data.csv", FileKind::Data)] {
+            p.add_file(path, kind);
+        }
+        let texts = |path: &str| -> Option<String> {
+            Some(match path {
+                "main.rr" => "$INCLUDE \"ui.rr\"\nForm.ShowModal\n",
+                "ui.rr" => "CREATE Form AS RForm\nEND CREATE\nCREATE NewForm AS RForm\nEND CREATE\n",
+                "globals.rr" => "DIM x AS INTEGER\n",
+                "lib/forms.inc" => "CREATE About AS QFORM\nEND CREATE\n",
+                "lib/util.rr" => "SUB A\nEND SUB\n",
+                "data.csv" => "CREATE X AS RForm\n",
+                _ => return None,
+            }.to_string())
+        };
+        let changed = p.follow_code(&texts);
+        assert_eq!(changed, [("main.rr".to_string(), FileKind::Module), ("ui.rr".to_string(), FileKind::Form), ("lib/forms.inc".to_string(), FileKind::Form)]);
+        let kind = |path: &str| p.files.iter().find(|f| f.path == path).unwrap().kind;
+        // (an include the project names so stays one; a file not read keeps its kind; data stays data)
+        assert_eq!(kind("lib/util.rr"), FileKind::Include);
+        assert_eq!(kind("gone.rr"), FileKind::Form);
+        assert_eq!(kind("data.csv"), FileKind::Data);
+        assert!(p.to_toml().contains("path = \"ui.rr\"\nkind = \"form\""));
+        // (again: nothing changes)
+        assert!(p.follow_code(&texts).is_empty());
     }
 
     #[test]

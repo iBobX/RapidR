@@ -27,6 +27,8 @@ FUNCTION OpenMarkdownFile(Path AS STRING) AS INTEGER
   IF IsMarkdownFile(Path) = 0 THEN EXIT FUNCTION
   IF FILEEXISTS(Path) = 0 THEN EXIT FUNCTION
   OpenDocument Path
+  ' (S2: in File > Open Recent too)
+  AddRecent Path
   SetState "stopped", "Ready"
   Result = 1
 END FUNCTION

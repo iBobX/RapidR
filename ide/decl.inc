@@ -25,8 +25,8 @@ TYPE StudioCommand
   Tool AS INTEGER
 END TYPE
 
-CONST MAXCMDS = 200
-CONST MAXMENUS = 240
+CONST MAXCMDS = 240
+CONST MAXMENUS = 280
 CONST MAXDOCS = 32
 
 DIM Cmd(MAXCMDS) AS StudioCommand
@@ -74,6 +74,11 @@ DIM ExampleOriginal AS STRING
 DIM ExampleJustCopied AS STRING
 DECLARE FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
 DIM RecentList AS STRING
+' (S2) at start-up, offer to reopen the last project and its files (a
+' setting, on unless turned off: Tools > Settings > General)
+DIM ReopenLast AS INTEGER
+DIM ReopenPath AS STRING
+CONST MAXRECENT = 10
 DIM SavedLayout AS STRING
 DIM DefaultFolder AS STRING
 DIM RunStarted AS DOUBLE
@@ -249,6 +254,15 @@ DIM SettingsRead AS INTEGER
 DIM DebugLoading AS INTEGER
 DECLARE SUB LoadSession
 DECLARE SUB RestoreSession(Path AS STRING)
+' (S1, S2: project.inc, documents.inc, panes.inc)
+DECLARE SUB ProjectFollowsCode
+DECLARE SUB OpenRecent(k AS INTEGER)
+DECLARE SUB ClearRecent
+DECLARE SUB ForgetRecent(Path AS STRING)
+DECLARE FUNCTION ReopenCandidate AS STRING
+DECLARE SUB ReopenLastProject
+DECLARE SUB ShowReopen
+DECLARE SUB HideReopen
 DECLARE FUNCTION WorkspaceCommand(Id AS STRING) AS INTEGER
 DECLARE FUNCTION SearchCommand(Id AS STRING) AS INTEGER
 

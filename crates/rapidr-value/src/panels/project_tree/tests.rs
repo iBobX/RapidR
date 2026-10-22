@@ -233,3 +233,56 @@ fn save_writes_what_was_read() {
     assert!(text.starts_with(rapidr_project::HEADER));
     assert!(text.contains("Tools.inc"));
 }
+
+// (S1, Robert's 7-file program) The project file said ui.rr was a module
+// and main.rr the form; the code says ui.rr makes three forms and main.rr
+// none. The tree follows the code: ui.rr under Forms, open on its three
+// forms (each closed: one a line), main.rr under Modules — and it follows
+// the editor's text as it changes.
+const WEB: &str = r#"format = 2
+name = "Web"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "globals.rr"
+kind = "module"
+
+[[files]]
+path = "ui.rr"
+kind = "module"
+"#;
+
+const UI: &str = "CREATE Form AS RForm\n    CREATE SitesList AS RListBox\n    END CREATE\nEND CREATE\n\nCREATE NewForm AS RForm\n    CREATE NameEdit AS REdit\n    END CREATE\nEND CREATE\n\nCREATE CfgForm AS RForm\n    CREATE SaveBtn AS RButton\n    END CREATE\nEND CREATE\n";
+
+#[test]
+fn forms_come_from_the_code() {
+    let mut t = ProjectTree::default();
+    let read = files(&[("web/Web.rrproj", WEB), ("web/main.rr", "$INCLUDE \"globals.rr\"\n$INCLUDE \"ui.rr\"\nForm.ShowModal\n"), ("web/globals.rr", "DIM Port AS INTEGER\n"), ("web/ui.rr", UI)]);
+    assert!(t.load("web/Web.rrproj", None, &read));
+    assert_eq!(shown(&t), ["Web -", "  Forms -", "    ui.rr -", "      Form +", "      NewForm +", "      CfgForm +", "  Modules -", "    main.rr", "    globals.rr"]);
+    assert_eq!(t.form_count("ui.rr"), 3);
+    assert_eq!(t.file("ui.rr").unwrap().kind, FileKind::Form);
+    assert_eq!(t.file("main.rr").unwrap().kind, FileKind::Module);
+    // (each form a node of its own: the program opens it by its path)
+    assert_eq!(t.key_of("ui.rr#cfgform").as_deref(), Some("ui.rr#CfgForm"));
+    t.set_open("ui.rr#NewForm", true);
+    assert!(shown(&t).contains(&"        NameEdit".to_string()));
+    // (Save writes what the code says)
+    assert!(t.project.to_toml().contains("path = \"ui.rr\"\nkind = \"form\""));
+    assert!(t.project.to_toml().contains("path = \"main.rr\"\nkind = \"module\""));
+    // (the editor's text: a form typed into globals.rr makes it a form file;
+    // taken out again, a module)
+    t.set_text("globals.rr", "CREATE About AS RForm\nEND CREATE\n");
+    assert_eq!(t.file("globals.rr").unwrap().kind, FileKind::Form);
+    assert!(shown(&t).contains(&"    globals.rr +".to_string()));
+    t.selected = "globals.rr#About".into();
+    t.set_text("globals.rr", "DIM Port AS INTEGER\n");
+    assert_eq!(t.file("globals.rr").unwrap().kind, FileKind::Module);
+    assert!(t.selected.is_empty(), "its form's node went: {}", t.selected);
+    // (NewForm still open as it was left: its component's row above)
+    assert_eq!(shown(&t)[5..], ["        NameEdit".to_string(), "      CfgForm +".into(), "  Modules -".into(), "    main.rr".into(), "    globals.rr".into()]);
+}

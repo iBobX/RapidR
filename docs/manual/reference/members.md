@@ -224,6 +224,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 |---|---|
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` *(RapidR)* | Gives the panel the keyboard focus when it takes it (TabStop = True: a clickable card): its focus ring shows, and Enter or Space clicks it. |
 
 | Event | |
 |---|---|
@@ -2141,6 +2142,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Source` | string |  | The program's source text. Setting it reads the file's forms and shows the one FormName names (else its first RForm) at its own size, drawn as the running program draws it; setting the same text again changes nothing. From then on every change made in the designer is written back into this text as the smallest edits (OnSourceEdit), and reading Source gives the text as they left it. Set it again whenever the code is edited elsewhere. |
 | `SourceFile` | string |  | The source's file name, set before Source: its $INCLUDE files are found from there. |
 | `FormName` | string |  | The name of the form being designed ("" when the source creates none). Setting it designs that form of the source instead. |
+| `FormNames` (read-only) | string |  | The forms the source creates at its top level, one a line, in order: a file may create several (`CREATE Form AS RForm`, `CREATE NewForm AS RForm` …). Set FormName to design another, or SelectName one of its names. |
 | `SelIndex` | int |  | The index of the selected component (the first selected); -1 when nothing is, which means the form itself. |
 | `PlaceType` | string |  | The placing tool: a component type ("RButton"). The next click on the form places one at its default size, or a drag draws its rectangle; Shift keeps the tool for another. Escape or "" turns it off. |
 | `CanUndo` (read-only) | int |  | Whether Undo has a change to undo. |
@@ -2167,7 +2169,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `AddMdiChild AS STRING` | A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's children are components it shows in child windows): a panel on the MDI form named as a form (Form2), and `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written after the form, one undo step. Its name; "" when the form isn't an MDI main window. |
 | `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named by type and number (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
 | `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
-| `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. |
+| `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. In a file that creates several forms, a name of another form (the form itself or one of its components) designs that form first; a form's own name selects the form itself. |
 | `SelectAll` | Selects every component on the form. |
 | `DeleteSelection AS INTEGER` | Deletes the selected components (one undo step). |
 | `CopySelection AS STRING` | Keeps the selected components for Paste and returns their CREATE blocks as text, for the clipboard. |
@@ -5370,9 +5372,10 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 |---|---|
 | `Open(Path AS STRING) AS INTEGER` | Opens a .rrproj, or a .bas / .rr / .inc file with what it includes. True when it opened; Error says why not. |
 | `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
-| `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path). True when it was written. |
+| `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path), each source file's kind as its code says (FollowCode). True when it was written. |
+| `FollowCode AS STRING` | The files' kinds as their code says now (forms come from the code: a source or include that creates a form at its top level is a form file, one that no longer does a module or include again), read from the files as saved; not written until Save. The files whose kind changed, a line each: the path and its new kind, tab-separated ("" when none did). |
 | `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. On a computer without Rust (see RustReady) the new project's BuildKind is "interpreted", the build that works there. |
-| `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name, or Kind: module, form, include, resource, asset, data). True when it was added. |
+| `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name and code — a file that creates a form is a form file —, or Kind: module, form, include, resource, asset, data). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
 | `Close` | No project is open any more. |
 | `File(Index AS INTEGER) AS STRING` | File Index's path, relative to the folder (from 0). |
@@ -5447,6 +5450,8 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `GlobalsRef` (read-only) | int |  | The program's globals, for Variables. |
 | `Watches` | string |  | The watch expressions, one a line: evaluated at every stop (WatchValues). |
 | `BrowserURL` (read-only) | string |  | Where RunInBrowser serves the program (on this machine only), once it does. |
+| `ShellPath` (read-only) | string |  | The PATH the programs run from here get, and their SHELL and RUN calls: on macOS and Linux your login shell's (an app started from the Dock or Finder has a short one, so php, curl or Homebrew's tools wouldn't be found), read once (ReadShellPath) with three seconds to answer; when it can't say, this process's PATH and the usual folders that are there (Homebrew's, /usr/local/bin, ~/.cargo/bin …). "" where the PATH isn't changed: Windows (its apps have the full one) and the web. Only read: your shell's files are never written. |
+| `ShellPathSource` (read-only) | string |  | Where ShellPath came from, in words: your login shell, or why it couldn't say and the usual folders were added. |
 
 | Method | |
 |---|---|
@@ -5475,6 +5480,8 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
 | `RunInBrowser AS INTEGER` | Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is. |
 | `StopBrowser` | Ends what RunInBrowser serves. |
+| `ReadShellPath` | Starts reading your login shell's PATH in the background (RapidR Studio does at start-up): ShellPath waits for it. Nothing on Windows and the web. |
+| `RefreshShellPath AS STRING` | Reads your login shell's PATH again now (after you changed your shell's startup files): the new ShellPath. |
 
 | Event | |
 |---|---|

@@ -83,6 +83,8 @@ pub fn start(name: &str, rapidr: PathBuf, args: &[String], cwd: &str) -> Result<
     }
     let mut cmd = Command::new(&rapidr);
     cmd.args(args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    // (your Terminal's PATH: the tools a build runs are found as there — S6)
+    crate::login_path::apply(&mut cmd);
     if !cwd.is_empty() {
         cmd.current_dir(cwd);
     }

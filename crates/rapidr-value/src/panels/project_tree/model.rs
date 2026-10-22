@@ -308,34 +308,49 @@ impl ProjectTree {
         self.texts.iter().filter(|(k, _)| self.given.contains(*k)).map(|(k, v)| (k.clone(), v.clone())).collect()
     }
 
-    /// Reads the forms' components again (their texts read through `read`
-    /// unless known).
+    /// Reads the files' kinds and the forms' components again from their
+    /// code (their texts read through `read` unless known): forms come from
+    /// the code, in any source file — several in one file too — whatever
+    /// the project file said ([`Project::follow_code`]).
     pub fn scan_all(&mut self, read: &dyn Fn(&str) -> Option<String>) {
         self.comps.clear();
         let folder = self.folder();
-        let forms: Vec<String> = self.project.files.iter().filter(|f| f.kind == FileKind::Form).map(|f| f.path.clone()).collect();
-        for path in forms {
+        let sources: Vec<String> = self.project.files.iter().filter(|f| follows_code(f)).map(|f| f.path.clone()).collect();
+        for path in sources {
             let key = path.to_lowercase();
             if !self.texts.contains_key(&key) {
                 if let Some(t) = read(&format!("{folder}{path}")) {
-                    self.texts.insert(key.clone(), t);
+                    self.texts.insert(key, t);
                 }
             }
+        }
+        let texts = &self.texts;
+        self.project.follow_code(&|p: &str| texts.get(&p.to_lowercase()).cloned());
+        let forms: Vec<String> = self.project.files.iter().filter(|f| f.kind == FileKind::Form).map(|f| f.path.to_lowercase()).collect();
+        for key in forms {
             if let Some(t) = self.texts.get(&key) {
                 self.comps.insert(key, scan::creates(t));
             }
         }
     }
 
-    /// A file's text given (SetFileText): its components listed from it.
+    /// A file's text given (SetFileText): its kind follows its code (a
+    /// form file when it creates a form, a module again when it no longer
+    /// does), its components listed from it.
     pub fn set_text(&mut self, path: &str, text: &str) {
         let key = normalize_path(path).to_lowercase();
         self.texts.insert(key.clone(), text.to_string());
         self.given.insert(key.clone());
-        if self.file(&key).is_some_and(|f| f.kind == FileKind::Form) {
-            self.comps.insert(key, scan::creates(text));
-            self.keep_selection();
+        let Some(i) = self.index_of(&key) else { return };
+        if follows_code(&self.project.files[i]) {
+            self.project.follow_code(&|p: &str| p.eq_ignore_ascii_case(&key).then(|| text.to_string()));
         }
+        if self.project.files[i].kind == FileKind::Form {
+            self.comps.insert(key, scan::creates(text));
+        } else {
+            self.comps.remove(&key);
+        }
+        self.keep_selection();
     }
 
     /// The components (at any depth) the CREATE blocks of the project's
@@ -391,7 +406,7 @@ impl ProjectTree {
         let key = p.to_lowercase();
         let kind = kind.unwrap_or_else(|| {
             let k = kind_for_path(&p);
-            if k != FileKind::Module {
+            if k != FileKind::Module && k != FileKind::Include {
                 return k;
             }
             if !self.texts.contains_key(&key) {
@@ -626,13 +641,25 @@ impl ProjectTree {
     }
 
     /// A node's default: the project, its groups, folders and components
-    /// open; files closed.
-    fn default_open(key: &str) -> bool {
-        key.starts_with('@') || key.contains('#')
+    /// open; files closed — but a file that makes several forms is open,
+    /// its forms closed (its forms show, one a line, each opened alone).
+    fn default_open(&self, key: &str) -> bool {
+        if key.starts_with('@') {
+            return true;
+        }
+        match key.split_once('#') {
+            None => self.form_count(key) > 1,
+            Some((file, name)) => self.form_count(file) <= 1 || !self.comps.get(&file.to_lowercase()).is_some_and(|cs| cs.iter().any(|c| is_form_type(&c.ty) && c.name.eq_ignore_ascii_case(name))),
+        }
+    }
+
+    /// How many forms file `path` makes at its top level.
+    pub fn form_count(&self, path: &str) -> usize {
+        self.comps.get(&path.to_lowercase()).map_or(0, |cs| cs.iter().filter(|c| is_form_type(&c.ty)).count())
     }
 
     pub fn expanded(&self, key: &str) -> bool {
-        self.is_open(key, Self::default_open(key))
+        self.is_open(key, self.default_open(key))
     }
 
     pub fn set_open(&mut self, key: &str, open: bool) {
@@ -889,6 +916,17 @@ impl ProjectTree {
             }
         }
     }
+}
+
+/// Whether a project file's kind comes from its code: a source or an
+/// include (a form file when it creates a form).
+fn follows_code(f: &ProjectFile) -> bool {
+    matches!(f.kind, FileKind::Form | FileKind::Module | FileKind::Include) && matches!(kind_for_path(&f.path), FileKind::Module | FileKind::Include)
+}
+
+/// Whether a component type (as `scan` keeps it, uppercase) is a form's.
+fn is_form_type(ty: &str) -> bool {
+    matches!(ty, "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI")
 }
 
 /// The written name of component `name` (any case) in `cs`.

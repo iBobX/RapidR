@@ -215,6 +215,7 @@ properties = [
 methods = [
   { name = "Repaint" },
   { name = "Refresh", value = true, origin = "rapidr" },
+  { name = "SetFocus", value = true, origin = "rapidr", effects = ["ui"], doc = "Gives the panel the keyboard focus when it takes it (TabStop = True: a clickable card): its focus ring shows, and Enter or Space clicks it." },
 ]
 events = [
   { name = "OnClick" },

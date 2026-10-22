@@ -29,6 +29,11 @@ rapidr-ai = { workspace = true, features = ["component"] }
 rapidr-introspect = { workspace = true, features = ["design"] }
 serde_json = "1"
 
+# Run gets your Terminal's PATH (login_path.rs): the login shell read in a
+# session of its own (setsid), ended with what it started after its time
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
 [dev-dependencies]
 # (tests: every component of the toolbox added to a form, and the program
 # written compiles to bytecode and to Rust)

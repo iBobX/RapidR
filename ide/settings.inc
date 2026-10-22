@@ -40,6 +40,8 @@ DECLARE SUB AISetTakeRows
 DECLARE SUB AISetNote(Text AS STRING)
 DECLARE FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
 DECLARE SUB SettingsClosed(Action AS INTEGER)
+DECLARE SUB SettingsPathRefresh
+DECLARE SUB SettingsFillPath
 
 ' (the provider shown on the AI tab; its list being filled: its OnChange
 ' isn't the user's)
@@ -89,6 +91,26 @@ CREATE SettingsDialog AS RForm
       Caption = "Themes and &Views..."
       AccessibleName = "The themes and views, in the command palette"
       OnClick = SettingsViews
+    END CREATE
+    ' (S2) the start-up's offer to reopen the last project
+    CREATE ReopenBox AS RCheckBox
+      Caption = "&Offer to reopen the last project and its files at start-up"
+      AccessibleDescription = "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
+    END CREATE
+    ' (S6) the PATH the programs run from here get: your login shell's
+    CREATE PathLabel AS RLabel
+      Caption = "Programs' &PATH"
+    END CREATE
+    CREATE PathNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+    END CREATE
+    CREATE PathList AS RListBox
+      AccessibleName = "The folders programs run from Studio find commands in, in order"
+    END CREATE
+    CREATE PathRefresh AS RButton
+      Caption = "Re&fresh"
+      AccessibleName = "Read your login shell's PATH again"
+      OnClick = SettingsPathRefresh
     END CREATE
   END CREATE
   ' ---- AI ----
@@ -223,7 +245,7 @@ END CREATE
 ' LayOutAppDialog does)
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
-  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER
+  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
   IF ThemeName = "classic" THEN
     pad = 16: w = 520: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
   ELSE
@@ -245,10 +267,32 @@ SUB LayOutSettingsDialog
   IncFoldersNote.Font.Color = TC("page.dim")
   y = y + nh + 8
   IncFolders.Left = pad: IncFolders.Top = y: IncFolders.Width = w - side - 12: IncFolders.Height = lh
+  IF ThemeName = "classic" THEN IncFolders.ItemHeight = 16 ELSE IncFolders.ItemHeight = 22
   IncAdd.Left = pad + w - side: IncAdd.Top = y: IncAdd.Width = side: IncAdd.Height = bh
   IncRemove.Left = pad + w - side: IncRemove.Top = y + bh + 8: IncRemove.Width = side: IncRemove.Height = bh
   y = y + lh + pad
   SettingsViewsBtn.Left = pad: SettingsViewsBtn.Top = y: SettingsViewsBtn.Width = side + 40: SettingsViewsBtn.Height = bh
+  y = y + bh + pad
+  ReopenBox.Left = pad: ReopenBox.Top = y: ReopenBox.Width = w: ReopenBox.Height = 22
+  y = y + 22 + pad
+  ' (the programs' PATH: where it isn't changed — Windows, the web — not shown)
+  IF PathLabel.Visible THEN
+    ' (Refresh on the heading's row: the folders get the whole width)
+    PathLabel.Left = pad: PathLabel.Top = y + (bh - 18) \ 2
+    PathLabel.Font.Bold = 1
+    PathRefresh.Left = pad + w - side: PathRefresh.Top = y: PathRefresh.Width = side: PathRefresh.Height = bh
+    y = y + bh + 6
+    nh = AISetLinesHigh(PathNote.Caption, w)
+    PathNote.Left = pad: PathNote.Top = y: PathNote.Width = w: PathNote.Height = nh
+    PathNote.Font.Color = TC("page.dim")
+    y = y + nh + 8
+    ' (a row each, as tall as the dialog's text needs)
+    PathList.Left = pad: PathList.Top = y: PathList.Width = w: PathList.Height = 5 * row \ 2 + 30
+    IF ThemeName = "classic" THEN PathList.ItemHeight = 16 ELSE PathList.ItemHeight = 22
+    y = y + PathList.Height + pad
+  END IF
+  ' (the General page as tall as what's on it)
+  gh = y
 
   ' ---- AI ----
   lx = pad: fx = pad + 112: fw = w - 112
@@ -314,6 +358,7 @@ SUB LayOutSettingsDialog
   ' (the links and what Send shares: up to five lines and their margins (high contrast's face is wider))
   ph = y + 124
   IF ph < 420 THEN ph = 420
+  IF ph < gh THEN ph = gh
   AISetLinks.Left = lx - 18: AISetLinks.Top = y - 12: AISetLinks.Width = w + 36: AISetLinks.Height = ph - y + 8
   AISetLinks.Font = DimFont
   GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
@@ -333,6 +378,8 @@ END SUB
 ' Tools > Settings, on page k (0 General, 1 AI).
 SUB ShowSettingsPage(k AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, f AS STRING, all AS STRING
+  ReopenBox.Checked = ReopenLast
+  SettingsFillPath
   LayOutSettingsDialog
   IncFolders.Clear
   all = Proj.IncludeFolders
@@ -392,9 +439,35 @@ SUB SettingsOk
     all = all + IncFolders.Item(i)
   NEXT
   SetIncludeFolders all
+  ReopenLast = Flag(ReopenBox.Checked)
   AISettingsTake
   SettingsDialog.Close
   SaveSettings
+END SUB
+
+' (S6) The programs' PATH: its folders, where it came from — shown where
+' Studio changes it (macOS, Linux), not on Windows or the web.
+SUB SettingsFillPath
+  DIM p AS STRING, n AS INTEGER, i AS INTEGER, shown AS INTEGER
+  p = Session.ShellPath
+  shown = Flag(p <> "")
+  PathLabel.Visible = shown: PathNote.Visible = shown: PathList.Visible = shown: PathRefresh.Visible = shown
+  PathList.Clear
+  IF shown = 0 THEN EXIT SUB
+  PathNote.Caption = "Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. " + Session.ShellPathSource
+  n = TALLY(p, ":") + 1
+  FOR i = 1 TO n
+    IF FIELD$(p, ":", i) <> "" THEN PathList.AddItems FIELD$(p, ":", i)
+  NEXT
+END SUB
+
+' Refresh: your login shell read again (its startup files changed) — the
+' next Run gets the new PATH.
+SUB SettingsPathRefresh
+  Session.RefreshShellPath
+  SettingsFillPath
+  LayOutSettingsDialog
+  OutputLine "Programs' PATH read again. " + Session.ShellPathSource
 END SUB
 
 ' (nothing of the AI tab reaches the assistant: its own RAI is dropped)

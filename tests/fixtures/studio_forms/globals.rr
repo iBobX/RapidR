@@ -1,0 +1,8 @@
+' globals.rr: the names every file shares.
+
+DIM ShopName AS STRING
+DIM Items(100) AS STRING
+DIM ItemCount AS INTEGER
+
+DECLARE SUB AddItem(Name AS STRING)
+DECLARE SUB FillShelf

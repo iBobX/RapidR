@@ -8,6 +8,44 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Forms come from your code, several in one file** (Preview 4 S1). The
+  Project pane takes each file's kind from its code, not from what the
+  project file said: a file that creates a form at its top level (`CREATE …
+  AS RForm`, `RFormMDI`, `QFORM`, `QFORMMDI`; an `.inc` too) is under
+  Forms, one that creates none under Modules, and it follows what you type.
+  A file of several forms opens to show each of them; opening one (double
+  click, Enter) designs that form in the file's designer, and selecting a
+  form or one of its components switches the designer to it, announced
+  ("Designing NewForm, form 2 of 3 in this file"). On Save the `.rrproj`
+  is written with the code's kinds and the Output says what changed; a file
+  the AI assistant writes is added by its code too. New members:
+  `RProject.FollowCode`, `RDesignSurface.FormNames`; `SelectName` designs
+  the form that holds the name; `RProjectTree` describes a file of several
+  forms ("form, 3 forms") and a form node ("form") to screen readers.
+- **File ▸ Open Recent** (Preview 4 S2): the last ten projects and files,
+  newest first, each with its folder (`~` for your home), a number key
+  each, and Clear Recent; the same in the command palette ("Open Recent").
+  One that isn't there any more is taken off the list, with a note in the
+  status bar and the Output. When Studio starts without a file, the
+  Welcome page offers the last project with the files you had open in it,
+  a card with the keyboard's focus (Enter reopens it all, tabs and layout
+  as they were); Tools ▸ Settings ▸ General turns the offer off. Markdown
+  files opened on their own are on the list too. `RPanel.SetFocus` (a
+  card that takes the focus).
+- **Programs run from Studio get your Terminal's PATH** (Preview 4 S6). On
+  macOS and Linux an app started from the Dock or Finder has the system's
+  short PATH, so a program's `SHELL "php …"`, `command -v curl` or a
+  Homebrew tool failed from Studio. Studio now reads your login shell's
+  PATH once at start-up (`$SHELL -l -i -c` printing it between markers, in
+  a session of its own with no terminal, three seconds at most; it only
+  reads, never writes your shell's files), else uses its own PATH plus the
+  usual folders that exist (`/opt/homebrew/bin`, `/usr/local/bin`,
+  `~/.cargo/bin` …). Run, Build and Run in Browser get it, and so do the
+  program's `SHELL` and `RUN`. Tools ▸ Settings ▸ General shows the folders
+  and where they came from, with Refresh. Windows and the web are
+  unchanged. New `RProgramSession` members: `ShellPath`,
+  `ShellPathSource`, `ReadShellPath`, `RefreshShellPath`. Manual: [Projects
+  in RapidR Studio](docs/manual/studio-projects.md).
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong

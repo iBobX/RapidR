@@ -41,6 +41,15 @@ DIM StartLink(4) AS RLabel
 DIM StartRow(4) AS RPanel
 DIM StartIconName(4) AS STRING
 DIM RecentLink(6) AS RLabel
+' (S2) the start-up's offer to reopen the last project: a card at the top of
+' Start, focused (Enter reopens it); Start and Recent below it move down by
+' StartShift while it shows
+DIM ReopenRow AS RPanel
+DIM ReopenIcon AS RImage
+DIM ReopenBmp AS RBitmap
+DIM ReopenTitle AS RLabel
+DIM ReopenText AS RLabel
+DIM StartShift AS INTEGER
 DIM ExCard(16) AS RPanel
 DIM ExIcon(16) AS RImage
 DIM ExBmp(16) AS RBitmap
@@ -114,6 +123,8 @@ END SUB
 
 ' The examples that come with RapidR (examples/, as `rapidr examples` lists them).
 SUB FillExamples
+  ' (S2: the offer to reopen shows only when ShowReopen makes it)
+  ReopenRow.Visible = 0
   AddStart 0, "file.newProject", "New Project..."
   AddStart 1, "file.open", "Open Project or File..."
   AddStart 2, "file.import", "Import a RapidQ Program..."
@@ -237,13 +248,54 @@ SUB LayOutWelcome
   NEXT
 END SUB
 
+' (a path shown short: the home folder as ~)
+FUNCTION ShortPath(Path AS STRING) AS STRING
+  DIM home AS STRING
+  home = ENVIRON$("HOME")
+  IF home <> "" AND LCASE$(LEFT$(Path, LEN(home) + 1)) = LCASE$(home + "/") THEN Result = "~" + MID$(Path, LEN(home) + 1) ELSE Result = Path
+END FUNCTION
+
+' The Recent list's places: the Welcome page's first six links, and File >
+' Open Recent's items (S2: every one, each named with its folder, "No
+' Recent Projects or Files" when there are none).
 SUB FillRecent
-  DIM n AS INTEGER, i AS INTEGER, p AS STRING
+  DIM n AS INTEGER, i AS INTEGER, p AS STRING, c AS INTEGER, folder AS STRING
   n = TALLY(RecentList, CHR$(10))
+  FOR i = 1 TO MAXRECENT
+    c = CmdIndex("file.recent." + LTRIM$(STR$(i)))
+    IF c >= 0 THEN
+      IF Cmd(c).Item >= 0 THEN
+        IF i <= n THEN
+          p = FIELD$(RecentList, CHR$(10), i)
+          folder = LEFT$(p, RINSTR(REPLACESUBSTR$(p, "\", "/"), "/") - 1)
+          ' (&1 … &9, then &0: a key each, as the menus' other items)
+          ' (an & in a name is shown as one, not a key)
+          MI(Cmd(c).Item).Caption = "&" + LTRIM$(STR$(i MOD 10)) + "  " + REPLACESUBSTR$(FileTitle(p) + "  —  " + ShortPath(folder), "&", "&&")
+          MI(Cmd(c).Item).Hint = p
+          MI(Cmd(c).Item).Visible = 1
+        ELSE
+          MI(Cmd(c).Item).Visible = 0
+        END IF
+      END IF
+    END IF
+  NEXT
+  c = CmdIndex("file.recentNone")
+  IF c >= 0 THEN
+    IF Cmd(c).Item >= 0 THEN MI(Cmd(c).Item).Visible = Flag(n = 0)
+  END IF
+  ' (and in the command palette, for the keyboard: "Open Recent")
+  FOR i = 1 TO MAXRECENT
+    Palette.RemoveCommand "recent:" + LTRIM$(STR$(i))
+    IF i <= n THEN
+      p = FIELD$(RecentList, CHR$(10), i)
+      folder = LEFT$(p, RINSTR(REPLACESUBSTR$(p, "\", "/"), "/") - 1)
+      Palette.AddCommand "recent:" + LTRIM$(STR$(i)), FileTitle(p) + " - " + ShortPath(folder), "", "Open Recent", "nav.history"
+    END IF
+  NEXT
   IF n > 6 THEN n = 6
   FOR i = 0 TO 5
     RecentLink(i).Parent = WelcomePage
-    RecentLink(i).Left = 48: RecentLink(i).Top = 354 + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
+    RecentLink(i).Left = 48: RecentLink(i).Top = 354 + StartShift + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
     RecentLink(i).Cursor = -21
     RecentLink(i).Tag = i
     RecentLink(i).OnClick = RecentPicked
@@ -270,5 +322,85 @@ SUB CardLabelPicked(Sender AS RLabel)
 END SUB
 
 SUB RecentPicked(Sender AS RLabel)
-  OpenProject FIELD$(RecentList, CHR$(10), Sender.Tag + 1)
+  OpenRecent Sender.Tag + 1
+END SUB
+
+' Start and Recent where they go: below the offer to reopen while it shows.
+SUB PlaceStart
+  DIM k AS INTEGER
+  FOR k = 0 TO 4
+    StartRow(k).Top = 164 + StartShift + k * 28
+  NEXT
+  RecentHead.Top = 324 + StartShift
+  RecentNone.Top = 354 + StartShift
+  FillRecent
+END SUB
+
+' (S2) The offer to reopen the last project and its files, at start-up:
+' a card at the top of Start — Enter, Space or a click reopens it; the
+' keyboard starts on it.
+SUB ShowReopen
+  DIM n AS INTEGER, name AS STRING
+  ReopenPath = ReopenCandidate
+  IF ReopenPath = "" THEN EXIT SUB
+  n = TALLY(SessionFiles, CHR$(10))
+  name = BaseName(ReopenPath)
+  ReopenRow.Parent = WelcomePage
+  ReopenRow.Left = 44: ReopenRow.Top = 164: ReopenRow.Width = 234: ReopenRow.Height = 52
+  ReopenRow.BevelOuter = 0
+  ReopenRow.Cursor = -21
+  ReopenRow.TabStop = 1
+  ReopenRow.OnClick = ReopenPicked
+  ReopenIcon.Parent = ReopenRow
+  ReopenIcon.Left = 12: ReopenIcon.Top = 14: ReopenIcon.Width = 24: ReopenIcon.Height = 24
+  ReopenTitle.Parent = ReopenRow
+  ReopenTitle.Left = 46: ReopenTitle.Top = 8: ReopenTitle.Width = 180: ReopenTitle.Height = 18
+  ReopenTitle.Caption = "Reopen " + name
+  ReopenTitle.Cursor = -21
+  ReopenTitle.OnClick = ReopenLabelPicked
+  ReopenText.Parent = ReopenRow
+  ReopenText.Left = 46: ReopenText.Top = 28: ReopenText.Width = 180: ReopenText.Height = 18
+  IF n = 1 THEN
+    ReopenText.Caption = "and the file you had open"
+  ELSEIF n > 1 THEN
+    ReopenText.Caption = "and the " + LTRIM$(STR$(n)) + " files you had open"
+  ELSE
+    ReopenText.Caption = "where you left it"
+  END IF
+  ReopenText.Cursor = -21
+  ReopenText.OnClick = ReopenLabelPicked
+  ReopenRow.AccessibleName = ReopenTitle.Caption + ", " + ReopenText.Caption
+  ReopenRow.Hint = ReopenPath
+  ReopenRow.Visible = 1
+  StartShift = 60
+  ApplyReopenChrome
+  PlaceStart
+END SUB
+
+SUB HideReopen
+  ReopenRow.Visible = 0
+  IF StartShift = 0 THEN EXIT SUB
+  ReopenPath = ""
+  StartShift = 0
+  PlaceStart
+END SUB
+
+' (its look in the current theme: a card, as the examples')
+SUB ApplyReopenChrome
+  IF StartShift = 0 THEN EXIT SUB
+  ReopenRow.Color = TC("card")
+  ReopenTitle.Font = CardFont
+  ReopenTitle.Font.Color = TC("page.text")
+  ReopenText.Font = DimFont
+  ReopenText.Font.Color = TC("page.dim")
+  ReopenBmp.LoadIcon "nav.history", 24
+  ReopenIcon.BMPHandle = ReopenBmp
+END SUB
+
+SUB ReopenPicked(Sender AS RPanel)
+  ReopenLastProject
+END SUB
+
+SUB ReopenLabelPicked(Sender AS RLabel)
+  ReopenLastProject
 END SUB

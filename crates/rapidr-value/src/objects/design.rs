@@ -2264,6 +2264,7 @@ impl DesignSurface {
             "source" => v_str(&self.source.as_ref().map(|a| a.doc.borrow().text()).unwrap_or_default()),
             "sourcefile" => v_str(&self.source_file),
             "formname" => v_str(&self.root_name()),
+            "formnames" => v_str(&self.form_names().join("\n")),
             "formtype" => v_str(&{
                 let d = &self.designer.design;
                 d.node(d.root()).map(|n| n.type_written.clone()).unwrap_or_default()
@@ -2376,9 +2377,54 @@ impl DesignSurface {
         (ox + spot.0, oy + spot.1)
     }
 
+    /// The forms the source makes (its top-level forms, in order: a file
+    /// may make several — FormNames).
+    pub fn form_names(&self) -> Vec<String> {
+        let Some(a) = &self.source else { return Vec::new() };
+        let forms = a.doc.borrow().forms();
+        forms.into_iter().filter(|(_, t)| crate::designer::model::is_form_type(&crate::designer::model::canonical_type(t))).map(|(n, _)| n).collect()
+    }
+
+    /// The source's other form that is named `name` or holds a component
+    /// named so (any case): its name.
+    fn form_holding(&self, name: &str) -> Option<String> {
+        let a = self.source.as_ref()?;
+        let doc = a.doc.borrow();
+        let forms = doc.forms();
+        forms.iter().enumerate().filter(|(k, (_, t))| Some(*k) != a.form && crate::designer::model::is_form_type(&crate::designer::model::canonical_type(t))).find_map(|(k, (n, _))| {
+            let holds = n.eq_ignore_ascii_case(name) || doc.designer(k).is_some_and(|d| d.design.find(name).is_some());
+            holds.then(|| n.clone())
+        })
+    }
+
     /// Selects the component named `name` (any case) alone; whether there
-    /// is one.
+    /// is one. In a file that makes several forms, a name of another form —
+    /// the form itself or one of its components — designs that form first
+    /// (S1: each form opens in the designer from the project tree); the
+    /// form's own name selects nothing (the form itself, as a click on its
+    /// face does).
     pub fn select_name(&mut self, name: &str) -> bool {
+        let here = self.outside.iter().any(|o| o.name.eq_ignore_ascii_case(name)) || self.designer.design.find(name).is_some();
+        if !here {
+            if let Some(form) = self.form_holding(name) {
+                let count = self.form_names().len();
+                let at = self.form_names().iter().position(|n| n.eq_ignore_ascii_case(&form)).map_or(1, |i| i + 1);
+                self.want_form = form.clone();
+                self.pick_form(true);
+                self.outbox.push(DesignEvent::Select(-1));
+                self.say(format!("Designing {form}, form {at} of {count} in this file"));
+            }
+        }
+        if self.root_name().eq_ignore_ascii_case(name) {
+            let changed = self.outside_sel.is_some() || !self.designer.selection.ids().is_empty();
+            self.outside_sel = None;
+            self.designer.selection.clear();
+            self.selected_raw = -1;
+            if changed {
+                self.outbox.push(DesignEvent::Select(-1));
+            }
+            return true;
+        }
         if let Some(k) = self.outside.iter().position(|o| o.name.eq_ignore_ascii_case(name)) {
             let changed = self.outside_sel != Some(k);
             let ok = self.select_outside(k);

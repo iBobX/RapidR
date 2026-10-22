@@ -96,10 +96,10 @@ const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
-const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser"];
+const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
 const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey"];
