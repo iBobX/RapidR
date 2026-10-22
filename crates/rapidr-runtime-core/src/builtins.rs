@@ -291,11 +291,23 @@ pub fn rp_environ(name: &Value) -> Value {
 
 
 pub fn rp_end() {
+    end_program(0)
+}
+
+/// `END n` (RapidR's): the program ends as `END` does, with exit code `n`
+/// (stored as a LONG would be; the system keeps what it can of it: all 32
+/// bits on Windows, the low 8 on macOS and Linux).
+pub fn rp_end_code(code: &Value) {
+    let n = crate::value::numeric::int_of(code, crate::value::numeric::NumKind::Long);
+    end_program(n as i32)
+}
+
+fn end_program(code: i32) -> ! {
     // What the program wrote to files it never closed is kept.
     crate::file_io::rp_close_all();
     #[cfg(feature = "gui")]
     crate::ui::before_exit();
-    std::process::exit(0);
+    std::process::exit(code);
 }
 
 /// `SHOWMESSAGE text`: RapidQ's modal message box with an OK button,
@@ -683,8 +695,8 @@ pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
     show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): Delphi's
-/// MessageDlg — the type's caption ("Warning" …; mtCustom's is
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): the
+/// message dialog — the type's caption ("Warning" …; mtCustom's is
 /// Application.Title) and icon; returns mr*.
 pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
     use crate::value::dialogs as d;

@@ -5,8 +5,8 @@
 
 use crate::{v_int, v_str, Value};
 
-/// A status panel's width before the program sets one (RC.EXE; Delphi's
-/// TStatusPanel).
+/// A status panel's width before the program sets one (RC.EXE; RapidQ's
+/// status panel).
 pub const PANEL_WIDTH: i64 = 50;
 
 /// A QSTATUSBAR method on its properties (`get` / `set`): `AddPanels

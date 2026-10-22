@@ -1,7 +1,7 @@
 //! A QFORM's and a QSCROLLBOX's scroll bars in this runtime: the shared
 //! model (rapidr_value::scrollbars) works out the ranges and the bars from
 //! the components; scrolling moves the components (their Left / Top), as
-//! Delphi's ScrollBy; the UI kernel draws the bars and passes them the
+//! RapidQ's ScrollBy; the UI kernel draws the bars and passes them the
 //! mouse.
 
 use std::cell::Cell;

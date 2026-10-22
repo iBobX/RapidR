@@ -20,7 +20,7 @@ rapidr-db = { workspace = true }
 rapidr-d3d-gpu = { workspace = true }
 # RPLOT's charts: the UI kernel's renderer, the desktop's (chart.rs)
 rapidr-ui-render = { workspace = true }
-# The language service for the code editor's IntelliSense (RCODEEDITOR),
+# The language service for the code editor's completion and hovers (RCODEEDITOR),
 # installed at the runtime's start as the desktop's is (RLANGUAGESERVICE,
 # through rapidr-studio, carries it anyway)
 rapidr-langsvc = { workspace = true }

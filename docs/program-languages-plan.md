@@ -45,7 +45,7 @@ Robert (2026-10-21): RapidR programs, such as RapidR Database Studio, must speak
 - **Typing Chinese:** the kernel already receives the input method's composition (winit IME events and preedit text in the kernel). It gets a walk-through with real Pinyin input on macOS, Windows and Linux.
 - **Fonts:**
   - The desktop uses the system's CJK fonts.
-  - The web needs a font file. The usual open CJK fonts are under the SIL Open Font License, which is not on our list yet, so it **needs Robert's approval** before bundling. Until then, the web asks the browser for a system font where it can.
+  - The web needs a font file. RapidR already ships OFL-1.1 Noto Sans SC and KR in the web fallback (LICENSES.md §Noto; legal review 2026-10-22, item 2c). The OFL covers font files only, never code. Its duties: ship the copyright line and the OFL text with the font; never sell the font alone; subsets can't use a reserved name (Noto CJK has none); serve the font from our own origin.
 - **Right-to-left** (Arabic, Hebrew) comes later: the kernel's layout mirroring.
 
 ## 5. Lanes (master-plan M5, plus what RapidR Database Studio asks for first)

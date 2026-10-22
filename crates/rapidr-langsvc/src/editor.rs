@@ -8,7 +8,7 @@
 //! its UI thread (the editor's service is per thread): `rapidr` on the
 //! desktop, the web runtime built with its `langsvc` feature (RapidR
 //! Studio in the browser). Every RCODEEDITOR of a program there then has
-//! its IntelliSense for RapidQ / RapidR BASIC.
+//! its completion and hover help for RapidQ / RapidR BASIC.
 
 use std::path::{Path, PathBuf};
 

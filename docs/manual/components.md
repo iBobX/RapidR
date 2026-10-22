@@ -133,7 +133,7 @@ END SUB
 ```
 
 [focus_events.rr](../../examples/gui/focus_events.rr) shows both. They are
-RapidR's, as Delphi's: the classic components have OnEnter only on their lists
+RapidR's own: the classic components have OnEnter only on their lists
 (a QFILELISTBOX's never fires; binding a QLISTBOX's stops the program) and no
 OnExit, so no older program changes.
 
@@ -206,6 +206,12 @@ END SUB
 
 Form.ShowModal
 ```
+
+`OnMessage` is RapidR's other name for `WndProc`: `OnMessage = MyWndProc` in
+the form's CREATE (or `Form.OnMessage = MyWndProc`) is the same event, with
+the same four parameters, heard in the same places, and the same on every
+system. Use whichever name reads better to you. A program that binds both
+on one form hears its messages in the handler bound last.
 
 A MIDI keyboard works the same way: winmm's `midiInOpen` with
 `CALLBACK_WINDOW` (&H10000) and the form's `Handle` sends each MIDI
@@ -287,7 +293,7 @@ compiler doesn't know it).
 
 | Addition | |
 |---|---|
-| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (Delphi's Anchors; the classic components have `Align` only) |
+| `Anchors = akLeft + akRight` (`akTop`, `akBottom`) | keeps the component's distances to its parent's edges as the parent is resized (the classic components have `Align` only) |
 | `MinWidth`, `MinHeight`, `MaxWidth`, `MaxHeight` (also `Constraints.MinWidth`, …) | bound every size the component takes, from the program, the layout or the user |
 | `AccessibleName`, `AccessibleDescription` | what a screen reader says, when the caption isn't enough |
 | `Form.Scale`, `Screen.Scale`, `OnScaleChanged` | how fine the screen is (2 on a Retina screen, 1.5 at 150 %) |

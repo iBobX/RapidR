@@ -457,6 +457,12 @@ pub fn rp_end() {
     wasm_bindgen::throw_str(END_UNWIND);
 }
 
+/// `END n` (RapidR's): in the browser a program has no exit code, so it
+/// ends as `END` does and the number is ignored.
+pub fn rp_end_code(_code: &Value) {
+    rp_end()
+}
+
 /// Stops the browser reporting [`END_UNWIND`] as an uncaught error.
 fn swallow_end_unwind() {
     let Some(window) = web_sys::window() else { return };
@@ -702,8 +708,8 @@ pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
     show_choice_beep(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): Delphi's
-/// MessageDlg — the type's caption ("Warning" …; mtCustom's is
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): the
+/// message dialog — the type's caption ("Warning" …; mtCustom's is
 /// Application.Title) and icon; returns mr*.
 pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
     use crate::value::dialogs as d;

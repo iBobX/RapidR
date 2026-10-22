@@ -1,4 +1,4 @@
-' linked_data.rr: linked data components, Delphi- and Xojo-style — a CSV
+' linked_data.rr: linked data components — a CSV
 ' file, a frame, a data source, a grid and edits connected by properties,
 ' with almost no code. RapidR Studio's designer shows the rows live while
 ' you design the form.

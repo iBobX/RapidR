@@ -6,7 +6,7 @@
 //! Items hang under a menu or another item by CREATE nesting (`Parent`),
 //! `AddItems`, `Insert`, and come off with `DelItems` / `DelIndex`. Each has
 //! Caption ("-" is a separator), Checked, RadioItem (checking one unchecks
-//! its radio siblings, as Delphi's group 0), Enabled, Visible, ShortCut
+//! its radio siblings, as RapidQ's group 0), Enabled, Visible, ShortCut
 //! ("Ctrl+N", "F2", "Shift+Del", …), Hint, Tag, Command (a number of its
 //! own), MenuIndex (its place; setting it moves the item) and Count.
 
@@ -443,7 +443,7 @@ pub fn split_caption(caption: &str) -> (&str, &str) {
     }
 }
 
-/// "Ctrl+N", "Shift+Ctrl+F5", "Alt+X", "F2", "Del" (Delphi's ShortCut text,
+/// "Ctrl+N", "Shift+Ctrl+F5", "Alt+X", "F2", "Del" (RapidQ's ShortCut text,
 /// case and order free).
 pub fn parse_shortcut(text: &str) -> Option<Shortcut> {
     let t = text.trim();

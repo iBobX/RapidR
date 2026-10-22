@@ -9,15 +9,15 @@
 //! any RapidR program can draw chrome that follows the theme, as Studio's
 //! shell does.
 //!
-//! - **classic** (Delphi 7 / Visual Basic 6): grey tool and status bars,
-//!   VB6's code colours (the colours RCODEEDITOR always drew: classic
+//! - **classic** (the classic Windows look): grey tool and status bars,
+//!   the classic code colours (the colours RCODEEDITOR always drew: classic
 //!   programs look the same).
-//! - **rapidr light** (Visual Studio 2022 / Xcode, light): flat bars on
+//! - **rapidr light**: flat bars on
 //!   the window's face, a status bar in RapidR's blue (the theme's accent)
 //!   that turns green while the program runs and orange while it is
 //!   paused in the debugger.
-//! - **rapidr dark**: the same, dark (the editor in Visual Studio Code's
-//!   Dark+ colours).
+//! - **rapidr dark**: the same, dark (the editor in its
+//!   own dark colours).
 //! - **rapidr high contrast**: black, white text and borders, the state said in
 //!   words (never by colour alone), the editor in High Contrast Black's
 //!   colours.
@@ -53,7 +53,7 @@ pub struct EditorColors {
     pub comment: u32,
     pub number: u32,
     pub directive: u32,
-    /// Keywords bold (VB6's look).
+    /// Keywords bold (the classic look).
     pub bold_keywords: bool,
     /// Comments italic.
     pub italic_comments: bool,
@@ -93,7 +93,7 @@ pub struct IdeColors {
     pub editor: EditorColors,
 }
 
-/// The classic editor: RCODEEDITOR's colours since it came (VB6's).
+/// The classic editor: RCODEEDITOR's colours since it came (the classic look's).
 const CLASSIC_EDITOR: EditorColors = EditorColors {
     background: 0xFFFFFF,
     text: 0x000000,
@@ -179,7 +179,7 @@ pub fn editor(t: &Theme) -> EditorColors {
 pub fn ide(t: &Theme) -> IdeColors {
     let editor = editor(t);
     if t.look == Look::Classic {
-        // (Delphi 7: everything on the face, the state in words)
+        // (classic: everything on the face, the state in words)
         return IdeColors {
             toolbar: t.face,
             toolbar_border: t.shadow,

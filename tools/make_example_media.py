@@ -149,7 +149,7 @@ def clip():
 # --- sprites.dxg --------------------------------------------------------
 # (the layout tools/make_dx_fixture.py documents: DelphiX's TDXImageList
 # saved — a resource header, then a TPictureCollectionComponent streamed as
-# a Delphi binary form, each picture an 8-bit TDIB)
+# a binary form, each picture an 8-bit TDIB)
 
 def short(s):
     return bytes([len(s)]) + s.encode("latin-1")

@@ -18,7 +18,7 @@ Checked with RC.EXE (`decl/d1`, `decl2/d2`, `decl2/d5`, `decl/d3`):
 
 | Parameter | RapidQ passes | After the call |
 |---|---|---|
-| `x AS LONG` (nothing said), `BYVAL x AS LONG` | the 32-bit value (**by value is the default**, unlike Visual Basic: `nSize As Long` given 64 made GetComputerName read address 64 and crash) | — |
+| `x AS LONG` (nothing said), `BYVAL x AS LONG` | the 32-bit value (**by value is the default**, unlike BASICs whose default is by reference: `nSize As Long` given 64 made GetComputerName read address 64 and crash) | — |
 | `BYREF x AS LONG` | the address of the variable | the variable holds what the DLL wrote (`nSize` came back 15) |
 | `x AS STRING`, `BYVAL x AS STRING` | the address of the string's characters (a NUL after them) | the string holds what the DLL wrote, its length unchanged (`GetWindowsDirectoryA(s, 260)` on `s = SPACE$(260)`) |
 | `x AS STRING * n` | the n characters' address (through `VARPTR(buf)` or straight) | the same |

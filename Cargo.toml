@@ -33,6 +33,9 @@ members = [
     "crates/rapidr-lsp",
     "crates/rapidr-dap",
     "crates/rapidr-package",
+    # Versions (Git) on gitoxide: lane G0's spike, not in Studio yet
+    # (docs/versions-g0.md)
+    "crates/rapidr-vcs",
     # (a spike, out of every regular build: docs/web-host-plan.md)
     "crates/rapidr-ui-host-web",
     "interpreter/rapidr-bytecode",

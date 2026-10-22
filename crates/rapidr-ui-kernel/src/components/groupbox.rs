@@ -28,7 +28,7 @@ impl ComponentKind for GroupBox {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        // (the input lane's: OnClick, OnDblClick in RapidQ's order)
         super::canvas::click_or_double(cx, m)
     }
 
@@ -41,7 +41,7 @@ impl ComponentKind for GroupBox {
         let (shown, _) = mnemonic(&text);
         let (tw, th) = text_size(if shown.is_empty() { "X" } else { &shown }, &cx.font);
         // (the frame's top through the caption's middle: TextHeight div 2 - 1,
-        // as the VCL's TGroupBox)
+        // as RapidQ's TGroupBox)
         let top = if t.fluent() { th / 2 } else { th / 2 - 1 };
         if t.fluent() {
             p.ring((0, top, w, h - top), t.radius, t.border, 1.0);
@@ -53,7 +53,7 @@ impl ComponentKind for GroupBox {
         }
         // (the caption over the frame, a pixel of background each side)
         let tw = tw.min(w - CAPTION_LEFT - 2).max(0);
-        // (classic: the text's own cell, opaque, as the VCL draws it — in black
+        // (classic: the text's own cell, opaque, as RapidQ draws it — in black
         // even while disabled; fluent: a margin each side, greyed)
         if t.fluent() {
             p.fill((CAPTION_LEFT - 2, 0, tw + 4, th), back);

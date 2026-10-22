@@ -62,7 +62,7 @@
 //   * tests/fixtures/outline.bas — QOUTLINE (a tree view): AddLines by indent, AddChild(Index, S), Item(i), Row.
 //   * tests/fixtures/panel_bevels.bas — QPANEL bevels; a TYPE extending QPANEL created in a form, PROPERTY SET with `.Field`.
 //   * tests/fixtures/tree_edit.bas — QTREEVIEW in-place editing: OnEditing's AllowEdit, OnEdited's S, Escape, ReadOnly.
-//   * tests/fixtures/dbl_clicks.bas — double clicks in the VCL's order (`__dblclick_x_y`).
+//   * tests/fixtures/dbl_clicks.bas — double clicks in RapidQ's order (`__dblclick_x_y`).
 //   * tests/fixtures/pause_edit.bas — a click on the selected tree node / list view item edits it after a pause.
 //   * tests/fixtures/size_grip.bas — QSTATUSBAR's size grip resizes the window (OnResize, Width / Height).
 //   * tests/fixtures/a11y_form.bas — what a screen reader is told (its tree and keys: tests/web_a11y.mjs).

@@ -1,6 +1,6 @@
-//! RPROJECTTREE's look: Xcode's navigator and VS Code's explorer in the
+//! RPROJECTTREE's look: a modern file navigator in the
 //! fluent themes (soft rounded rows, chevrons, the accent's mark on the
-//! selected one, counts in pills), Delphi's project manager in the classic
+//! selected one, counts in pills), a plain project manager in the classic
 //! one (± boxes, a full-row highlight) — every colour from the theme
 //! (`common::look`).
 

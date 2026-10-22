@@ -744,7 +744,7 @@ pub fn is_trackbar(id: &str) -> bool {
 /// A QTRACKBAR's model, to read.
 /// A QTRACKBAR's Orientation, `None` for anything else — read before
 /// setting it: a trackbar turned (0 ↔ 1) swaps its Width and Height, as
-/// RapidQ's (Delphi's TTrackBar; RC.EXE: 160 × 40 then `Orientation = 1`
+/// RapidQ's (TrackBar; RC.EXE: 160 × 40 then `Orientation = 1`
 /// reads 40 × 160, a new one's 150 × 45 becomes 45 × 150, setting the same
 /// Orientation again changes nothing) — [`trackbar_turned`].
 pub fn trackbar_orientation(id: &str) -> Option<i64> {
@@ -1000,14 +1000,14 @@ pub fn dxjoystick_look(id: &str) -> Vec<(&'static str, Vec<Value>)> {
 }
 
 /// RapidQ's font for every component, a canvas's and a new QFONT's (RC.EXE:
-/// `Font.Name` reads MS Sans Serif, `Font.Size` 8 — Delphi's default; the
+/// `Font.Name` reads MS Sans Serif, `Font.Size` 8 — RapidQ's default; the
 /// face RapidR draws it with is RapidR Sans, `objects::text`).
 pub const DEFAULT_FONT_NAME: &str = "MS Sans Serif";
 pub const DEFAULT_FONT_SIZE: i64 = 8;
 
 /// A component's font property `flat` (`fontname`, `fontsize`, `fontbold`
 /// …) as RapidQ has it: its own when the program set one, else its
-/// parent's, followed live (Delphi's ParentFont), else RapidQ's default
+/// parent's, followed live (RapidQ's ParentFont), else RapidQ's default
 /// (MS Sans Serif, 8, no styles) — what the program reads and what's drawn.
 pub fn inherited_font_prop(id: &str, flat: &str, props: &dyn Fn(&str, &str) -> Value) -> Value {
     let mut at = id.to_string();
@@ -1030,7 +1030,7 @@ pub fn inherited_font_prop(id: &str, flat: &str, props: &dyn Fn(&str, &str) -> V
 }
 
 /// The font properties a component takes as its own before the program
-/// first changes one of them (`prop`, any spelling): Delphi's ParentFont
+/// first changes one of them (`prop`, any spelling): RapidQ's ParentFont
 /// ends there, so the font it had from its parents stays its own and a
 /// parent's later change doesn't reach it (RC.EXE: a label made bold, then
 /// `Form.Font.AddStyles(fsItalic)` — the form italic, the label not).
@@ -1104,7 +1104,7 @@ pub fn form_color(v: &Value) -> i64 {
 /// A program's colour number as &HBBGGRR: Windows' system colours
 /// (`&H80000000 + index`: clBtnFace, clWindow, … — what RapidQ's Color
 /// reads until the program sets one) in the current theme's colours, as
-/// Delphi's ColorToRGB turns them; any other number its low 24 bits.
+/// RapidQ's ColorToRGB turns them; any other number its low 24 bits.
 pub fn color_bgr(n: i64) -> u32 {
     let n32 = n as u32;
     if n32 & 0xFF00_0000 == 0x8000_0000 && n32 & 0x00FF_FF00 == 0 {
@@ -2063,7 +2063,7 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
     let create = mode == 65535;
     let writable = create || mode == 1 || mode == 2;
     let native = NATIVE_FILES.with(std::cell::Cell::get);
-    // (RC.EXE: a file that can't be opened stops the program — Delphi's
+    // (RC.EXE: a file that can't be opened stops the program — RapidQ's
     // EFOpenError "Cannot open file x.", EFCreateError "Cannot create file x.")
     let data = if create { Vec::new() } else { read_file(path).map_err(|_| crate::exception(&format!("Cannot open file {path}.")))? };
     #[cfg(not(target_arch = "wasm32"))]

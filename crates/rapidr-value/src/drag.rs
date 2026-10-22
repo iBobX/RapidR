@@ -1,11 +1,11 @@
-//! Dragging a QBUTTON, the two ways RapidQ's runtime (Delphi's VCL) has —
+//! Dragging a QBUTTON, the two ways RapidQ's runtime has —
 //! for every runtime (the UI kernel's input does the work: `drag.rs`
 //! there).
 //!
 //! What RC.EXE's programs do (probes in the Windows VM, messages and the
 //! real mouse):
 //!
-//! - **OnStartDrag bound** makes the button a drag source (the VCL's
+//! - **OnStartDrag bound** makes the button a drag source (RapidQ's
 //!   DragMode dmAutomatic): a left press on it starts a drag at once —
 //!   OnStartDrag fires, OnMouseDown doesn't — and its release ends it:
 //!   OnEndDrag fires, OnMouseUp and OnClick don't. Both events have no

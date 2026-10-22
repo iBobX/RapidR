@@ -2410,7 +2410,7 @@ CREATE EventEditorDlg AS RForm
 END CREATE
 
 ' ============================================================
-' CREATE IDE FORM — VB6-Style Layout
+' CREATE IDE FORM — Classic Layout
 ' ============================================================
 
 CREATE IDE AS RForm

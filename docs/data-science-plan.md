@@ -1,6 +1,6 @@
 # Data science with RapidR — the plan (I7, the WOW 1.0 priority)
 
-Robert's priority for the WOW 1.0 (ROADMAP.md, stage I7, "PRIORITY for the WOW 1.0"; docs/ide-plan.md §I7): RapidR as the best **and** the easiest data-science tool — a school kid can use it, it is fast on millions of rows, its RDataFrame covers what Polars covers in RapidR's own way, sources and data-aware components link Delphi- and Xojo-style, everything is live in RapidR Studio's designer, and every component is AI- and MCP-ready through the language registry.
+Robert's priority for the WOW 1.0 (ROADMAP.md, stage I7, "PRIORITY for the WOW 1.0"; docs/ide-plan.md §I7): RapidR as the best **and** the easiest data-science tool — a school kid can use it, it is fast on millions of rows, its RDataFrame covers what Polars covers in RapidR's own way, sources and data-aware components are linked components (drop one in the tray, point at it), everything is live in RapidR Studio's designer, and every component is AI- and MCP-ready through the language registry.
 
 This document is the architecture and the plan: the engine, the source components, the data-aware components, the BASIC API, the web's limits, licences, performance budgets and the benchmark suite, how each piece registers in the language registry, and the phases with their sizes. §12 records what phase 1 (lane DATA-ARCH) built and measured.
 
@@ -63,7 +63,7 @@ Columns are stored in **chunks** (64 Ki rows a chunk, or a whole column for smal
 
 ### 2.5 Lazy plans and the optimizer (phase 3)
 
-RDataFrame's methods stay eager (a kid's mental model: the frame changes now). Under them, and under the transform components (RDFFilter, RDFSort, RDFGroup, RDFJoin, RDFCompute, RDFSelect, RDFLimit — Delphi's chained datasets) and `SQL`, is a **logical plan**: `Scan(source, columns, predicate) → Filter → Project → Join → GroupBy → Sort → Limit`. The optimizer: predicate pushdown (into the scan: a CSV's rows are tested as they're parsed, a Parquet's row groups skipped by their statistics, a SQL source's `WHERE`), projection pushdown (only the columns used are parsed / fetched), limit pushdown (a designer preview reads 1,000 rows, not a million), filter fusion, constant folding, and re-using an unchanged sub-plan's result (the designer re-evaluates a chain whenever a property changes). `df.Explain` prints the optimized plan.
+RDataFrame's methods stay eager (a kid's mental model: the frame changes now). Under them, and under the transform components (RDFFilter, RDFSort, RDFGroup, RDFJoin, RDFCompute, RDFSelect, RDFLimit — chained datasets) and `SQL`, is a **logical plan**: `Scan(source, columns, predicate) → Filter → Project → Join → GroupBy → Sort → Limit`. The optimizer: predicate pushdown (into the scan: a CSV's rows are tested as they're parsed, a Parquet's row groups skipped by their statistics, a SQL source's `WHERE`), projection pushdown (only the columns used are parsed / fetched), limit pushdown (a designer preview reads 1,000 rows, not a million), filter fusion, constant folding, and re-using an unchanged sub-plan's result (the designer re-evaluates a chain whenever a property changes). `df.Explain` prints the optimized plan.
 
 ### 2.6 Streaming and out-of-core (phase 4)
 
@@ -108,8 +108,8 @@ Loading is lazy: setting `FileName` (and `Delimiter` …) marks the source stale
 | RDeltaLake | Delta tables read (write later) | `delta_kernel` (Apache-2.0); not `deltalake` (pulls DataFusion + tokio) | ✓ | — (desktop only: many files, object stores) | 5 |
 | RSQLite | SQLite (existing RSQLITE, now also a source) | rusqlite (MIT) + SQLite (public domain), in the tree | ✓ | ✓ (wasm SQLite, in the tree) | 2 |
 | RMySQL | MySQL / MariaDB (existing RMYSQL, now also a source) | `mysql` (MIT OR Apache-2.0), in the tree | ✓ | ✗ desktop only | 2 |
-| RPostgres | PostgreSQL and Amazon Redshift | `postgres` (MIT OR Apache-2.0) + rustls (§8) | ✓ | ✗ desktop only | 5 |
-| RSQLServer | Microsoft SQL Server / Azure SQL | `tiberius` (MIT OR Apache-2.0) + rustls | ✓ | ✗ desktop only | 5 |
+| RPostgres | PostgreSQL and Amazon Redshift | `postgres` (MIT OR Apache-2.0) + the system's TLS (§8) | ✓ | ✗ desktop only | 5 |
+| RSQLServer | Microsoft SQL Server / Azure SQL | `tiberius` (MIT OR Apache-2.0) + the system's TLS | ✓ | ✗ desktop only | 5 |
 | RS3, RAzureBlob, RAzureFile | cloud files (any of the formats above inside) | `object_store` (Apache-2.0 OR MIT) for S3 / Blob; Azure Files over its REST API (our own small client) | ✓ | ✓ over HTTPS (CORS and a presigned / SAS URL) | 6 |
 | RDBConnection + RDBQuery / RDBTable | ide-plan's dataset model for SQL sources | rapidr-db | ✓ | SQLite only | 2 |
 | Oracle | — | `oracle` needs Oracle's own client (Instant Client, Oracle's licence) | **not planned**: a legal and dependency review first | — | — |
@@ -138,7 +138,7 @@ All of it is one module, `rapidr_value::datascience::link`, shared by every runt
 | Methods | `First`, `Prior`, `Next`, `Last`, `Field(Name)` (the current row's value), `SetField(Name, Value)`, `Refresh` |
 | Events | `OnDataChange` (the row moved, or the data changed), `OnStateChange` |
 
-Phase 5 adds Delphi's editing states (`Edit`, `Insert`, `Post`, `Cancel`, `Delete`, `State = "edit" / "insert"`) for database sources that post back by primary key (rapidr-db's dataset model, ide-plan §I7), and `MasterSource` + `MasterFields` / `DetailFields` for master–detail (the detail's rows are those matching the master's current row, re-filtered as the master moves).
+Phase 5 adds editing states (`Edit`, `Insert`, `Post`, `Cancel`, `Delete`, `State = "edit" / "insert"`) for database sources that post back by primary key (rapidr-db's dataset model, ide-plan §I7), and `MasterSource` + `MasterFields` / `DetailFields` for master–detail (the detail's rows are those matching the master's current row, re-filtered as the master moves).
 
 ### 4.3 Bound controls: DataSource + DataField
 
@@ -256,8 +256,8 @@ Checked on crates.io and the crates' repositories, 2026-10-15 (the latest stable
 | Avro | apache-avro 0.22 (default features) | Apache-2.0 | likely | none by default (bzip2 / xz / zstd are opt-in C) | phase 5 |
 | Delta Lake | delta_kernel 0.29 | Apache-2.0 | core only | build-time protoc (vendored) | phase 5, desktop. **Not** `deltalake` 1.1: tokio + object_store + its own fork of the kernel (buoyant_kernel) on a different Arrow major — heavy and out of step |
 | PostgreSQL / Redshift | postgres 0.19 (tokio-postgres 0.7) | MIT OR Apache-2.0 | ✗ (TCP) | none; TLS separate | phase 5, desktop |
-| SQL Server | tiberius 0.13, **without** default `native-tls` (rustls instead) | MIT OR Apache-2.0 | ✗ (TCP) | default native-tls = OpenSSL on Linux | phase 5, desktop |
-| TLS for the above | rustls 0.23 with the **ring** provider; webpki-roots 1.0 | Apache-2.0 OR ISC OR MIT; ring: Apache-2.0 AND ISC; webpki-roots: CDLA-Permissive-2.0 (add to deny.toml's allow-list after review) | — | ring's C / asm via cc; avoid aws-lc-rs (cmake, no wasm) | phase 5 |
+| SQL Server | tiberius 0.13 with `native-tls`: the system's TLS, as everywhere in RapidR | MIT OR Apache-2.0 | ✗ (TCP) | OpenSSL from the system on Linux (dynamic, never bundled) | phase 5, desktop |
+| TLS for the above | the system's TLS through `native-tls` (Security.framework, SChannel, the system's OpenSSL). `deny.toml` bans rustls, ring, aws-lc and webpki-roots (see licensing.md) | MIT OR Apache-2.0 | — | — | phase 5 |
 | S3, Azure Blob | object_store 0.14 (cloud features) | MIT OR Apache-2.0 | partly (cloud features not on wasm: the web uses presigned / SAS URLs over fetch) | ring | phase 6, desktop; the web over HTTPS |
 | Azure Files | no official Rust crate — our own small REST client over the HTTP stack already in the tree | — | ✓ (fetch) | none | phase 6 |
 | SQL over frames | sqlparser 0.63 | Apache-2.0 | ✓ | none | phase 3 |
@@ -295,7 +295,7 @@ Budgets are enforced by `tools/bench/frame_bench` (exit code 1 when a budget is 
 - `bench_pandas.py`, `bench_polars.py` — the same data and operations in pandas and Polars, run only where those are installed (`python3 tools/bench/bench_pandas.py`; never dependencies of RapidR, never shipped); `tools/bench/compare.sh` runs everything available and prints one table.
 - `make_data.py` / the Rust generator — the same deterministic data for all (a CSV written once to `tests/results/bench/`).
 
-## 10. The language registry: IntelliSense, MCP, AI
+## 10. The language registry: completion, MCP, AI
 
 Every component here has a complete registry entry (`crates/rapidr-lang/data/components/datascience.toml`): `kind = "component"`, `visual`, `size`, the group "Data science", a doc in plain words, every property with its type (`component` + `kinds` for links, `editor = "file"` for `FileName`), default, access and design flags, every method with its parameters, return and doc, every event with its parameters. Properties added to REdit / RLabel carry `origin = "rapidr"`. From it come the compilers' component list, the IDE's completion and help, the inspector's editors and pickers, the manual's reference pages and the AI system prompt (docs/ide-ai.md) — no hand-written list anywhere else.
 
@@ -350,8 +350,8 @@ Through a RapidR program (`tools/bench/bench_rapidr.rr`, 1 M rows, the file read
 
 ## 13. Open questions for Robert
 
-1. **Bound controls write back on every keystroke** (simple, immediate). Delphi posts when the user leaves the field; the dataset editing states of phase 5 (Edit / Post / Cancel) would make that the rule for database sources. Keep per-keystroke for in-memory frames?
+1. **Bound controls write back on every keystroke** (simple, immediate). Many data tools post when the user leaves the field; the dataset editing states of phase 5 (Edit / Post / Cancel) would make that the rule for database sources. Keep per-keystroke for in-memory frames?
 2. **`RDataFrame.Source` re-pulls when the source changes**, discarding what the program did to the frame (Filter, Sort …). That keeps "the frame shows the file" true for a child; phase 3's transform components (RDFFilter …) are the way to keep a pipeline. Agreed?
-3. **Data components outside the form** (top-level `CREATE People AS RCSV`) run fine but the designer reads only the form's own (the tray's) — as Delphi's form designer. Should top-level data components show at design time too?
+3. **Data components outside the form** (top-level `CREATE People AS RCSV`) run fine but the designer reads only the form's own (the tray's), as form designers usually do. Should top-level data components show at design time too?
 4. **Oracle**: not planned (its client's licence) unless a legal review says otherwise.
 5. **Polars isn't installed on this Mac** (pandas 3.0.1 is): `pip install polars` (a download — Robert's call) and `tools/bench/compare.sh` adds its column.

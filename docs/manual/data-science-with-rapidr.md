@@ -16,7 +16,7 @@ The components (all RapidR's own):
 | `RDBGrid` | a grid that shows a data set straight from its table, a million rows as easily as ten |
 | `REdit`, `RLabel` | with `DataSource` and `DataField`, they show (and an edit changes) a column of the current row |
 
-They are *linked components*, as in Delphi and Xojo: you connect them with
+They are *linked components*: you connect them with
 properties, in the designer or in code, and they keep each other up to
 date.
 

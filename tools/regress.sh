@@ -17,7 +17,9 @@
 #   tools/regress.sh                  every stage, then the build caches go
 #   tools/regress.sh gui web          only these stages (unit, conformance,
 #                                     examples, gui, visual, web, studio,
-#                                     studio-goldens, security, perf, legal),
+#                                     studio-goldens, security, perf, legal,
+#                                     words (the quick one: no other
+#                                     products named in RapidR's text)),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -58,7 +60,11 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # dispatch answers is in it; what it generates is current: cargo test)
   python3 tools/lang_dispatch.py --check
   # (the manual's, the README's and the examples' links and heading anchors)
-  python3 tools/check_doc_links.py; echo "(unit done)"; fi
+  python3 tools/check_doc_links.py
+  # (RapidR's own words: no other products as models or comparisons in the
+  # code, docs or UI text; tools/words-allowlist.txt lists what stays)
+  python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; echo "(unit done)"; fi
+if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,
@@ -90,7 +96,7 @@ if want web; then
   # Studio's run frame — its isolation, its file pickers — on Studio's web
   # build, made here from the current sources and runtime)
   RAPIDR="$PWD/rapidr" bash tools/build_studio_web.sh --no-runtime >/dev/null || echo "tools/build_studio_web.sh: FAILED"
-  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
+  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi

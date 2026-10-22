@@ -1,7 +1,7 @@
 //! Progress meters, drawn from Min, Max and Position:
 //!
 //! - QGAUGE (RapidR's RPROGRESSBAR; QPROGRESSBAR too): RapidQ's gauge, as
-//!   Delphi's TGauge draws it — BackColor (white) behind, ForeColor
+//!   RapidQ's own Gauge draws it — BackColor (white) behind, ForeColor
 //!   (black) done, BorderStyle bsSingle a black frame, ShowText the
 //!   percentage in the middle (in BackColor over the done part); Kind
 //!   gkText 0, gkHorizontalBar 1 (the default), gkVerticalBar 2, gkPie 3,

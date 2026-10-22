@@ -935,7 +935,7 @@ impl Manager {
                     (_, geometry::Button::Close) => self.hide_pane(&pane),
                     (Slot::Flyout, geometry::Button::Pin) => self.auto_hide(&pane, false),
                     (_, geometry::Button::Pin) => {
-                        // (the whole group goes to the strip, as Visual Studio's pin)
+                        // (the whole group goes to the strip)
                         let group: Vec<String> = self.geometry().group_of(&pane).map(|g| g.panes.clone()).unwrap_or_default();
                         let mut out = Outcome::default();
                         for p in group {

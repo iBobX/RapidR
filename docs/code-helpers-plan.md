@@ -111,3 +111,6 @@ It is one implementation in many places: one look and one set of keys to learn.
 | E6 ★ | Filling `kind` across the registry (mechanical, checked by E0's test) | Sonnet S |
 
 **Budget:** about 10–15% of a week. The ★ lanes come after Preview 4's quick wins, alongside S3 and S5.
+
+## Prior art (legal note, 2026-10-22)
+Inline colour swatches, argument-name chips, inline values and number scrubbing are long-established, public editor techniques (examples from 2012 and earlier in open-source editors and browser developer tools). The legal review found no live patents. We use our own designs and our own words, and never other products' feature names.

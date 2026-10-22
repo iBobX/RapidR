@@ -201,7 +201,7 @@ pub fn color_name(v: i64) -> Option<&'static str> {
 }
 
 /// The 16 colours of the picker's first grid, in the order Windows' and
-/// Delphi's palettes show them.
+/// RapidQ's colour palettes show them.
 pub const STANDARD_COLORS: [&str; 16] = ["clBlack", "clMaroon", "clGreen", "clOlive", "clNavy", "clPurple", "clTeal", "clGray", "clSilver", "clRed", "clLime", "clYellow", "clBlue", "clFuchsia", "clAqua", "clWhite"];
 
 /// The system's colours (a control with one follows the theme), in the

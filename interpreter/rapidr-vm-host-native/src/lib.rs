@@ -345,7 +345,7 @@ fn call_builtin_key(lower: &str, args: &[Value]) -> Value {
         "commandcount" => rp_commandcount(),
         "environ" => rp_environ(&a0),
         "doevents" => { rp_doevents(); v_null() }
-        "end" => { rp_end(); v_null() }
+        "end" => { if args.is_empty() { rp_end() } else { rp_end_code(&a0) }; v_null() }
         "showmessage" => { rp_showmessage(&a0); v_null() }
         "msgbox" => rp_msgbox(&a0),
         "messagebox" => rp_messagebox(&a0, &a1, &a2),

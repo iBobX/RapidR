@@ -11,7 +11,7 @@
 //!
 //! It never takes the focus (a TCustomControl: keys go to the form, as
 //! RapidQ's DirectX examples expect of Form.OnKeyDown); OnClick and
-//! OnDblClick in the VCL's order, OnMouseDown / Move / Up by the kernel's
+//! OnDblClick in RapidQ's order, OnMouseDown / Move / Up by the kernel's
 //! routing.
 
 use rapidr_value::objects::a11y::AccessNode;

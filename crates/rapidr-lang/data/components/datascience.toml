@@ -157,10 +157,10 @@ methods = [
   { name = "To_json", params = "filename", value = true },
   { name = "Head", params = "[n]", value = true, doc = "Keeps the first n rows (default 5)." },
   { name = "Tail", params = "[n]", value = true, doc = "Keeps the last n rows (default 5)." },
-  { name = "Cell", params = "col, row", doc = "The text of a cell (col: an index from 0, or a column name); \"\" for a missing value." },
+  { name = "Cell", params = "row, col", doc = "The text of a cell (row: from 0, the first data row; col: an index from 0, or a column name); \"\" for a missing value. The row comes first: `Frame.Cell(2, 0)` is the third row's first column." },
   { name = "CellByName", params = "row, columnName", value = true, doc = "The text of a cell by its column name." },
   { name = "At", value = true },
-  { name = "SetCell", params = "col, row, value", value = true, doc = "Sets a cell (col: an index or a name); past the end the frame grows." },
+  { name = "SetCell", params = "row, col, value", value = true, doc = "Sets a cell (row from 0; col: an index or a name); past the end the frame grows. The row comes first, as in Cell." },
   { name = "Iloc", params = "row", value = true, doc = "Keeps rows start to end (not included)." },
   { name = "Select", params = "col1, col2 ...", value = true, doc = "Keeps those columns, in that order." },
   { name = "Sort", params = "column, [ascending]", value = true, doc = "Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last." },
@@ -245,7 +245,7 @@ name = "RDATASOURCE"
 display = "DataSource"
 visual = false
 default_event = "OnDataChange"
-doc = "The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the controls bound to it: grids, edits and labels with DataSource = it follow it as it moves. First, Next, Prior, Last and Row move it; Field reads the current row. RapidR's own, after Delphi's TDataSource."
+doc = "The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the controls bound to it: grids, edits and labels with DataSource = it follow it as it moves. First, Next, Prior, Last and Row move it; Field reads the current row. RapidR's own."
 properties = [
   { name = "DataSet", type = "component", kinds = ["RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "The data set whose rows it walks." },
   { name = "Row", type = "int", default = 0, category = "Data", design = false, doc = "The current row, from 0; set it to move there." },
@@ -276,7 +276,7 @@ visual = true
 size = [320, 160]
 default_event = "OnCellClick"
 sets = ["layout", "a11y"]
-doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own, after Delphi's TDBGrid."
+doc = "A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own."
 properties = [
   { name = "DataSource", type = "component", kinds = ["RDATASOURCE", "RDATAFRAME", "RCSV", "RJSON"], category = "Data", doc = "What it shows: an RDataSource (it follows that current row) or a data set straight." },
   { name = "ReadOnly", type = "bool", default = true, category = "Data", doc = "True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits)." },

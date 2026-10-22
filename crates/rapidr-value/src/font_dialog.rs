@@ -1,4 +1,4 @@
-//! QFONTDIALOG (RapidQ manual, Appendix A: Delphi's TFontDialog over
+//! QFONTDIALOG (RapidQ manual, Appendix A: RapidQ's own FontDialog over
 //! Windows' ChooseFont) — the same on every runtime: its properties and
 //! methods, the request a dialog shows and the answer it stores, its
 //! layout. The kernel draws it from this and the web builds its page

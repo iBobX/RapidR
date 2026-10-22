@@ -57,7 +57,7 @@ pub fn start_all<P: Program>(p: P) {
     }
 }
 
-/// Windows' timer tick: a QTIMER (Delphi's TTimer, SetTimer) fires on it,
+/// Windows' timer tick: a QTIMER (RapidQ's own Timer, SetTimer) fires on it,
 /// so its period is its Interval rounded up to whole ticks — RC.EXE's
 /// builds in Windows 11 count about 50 ticks a second at Interval 1, 27 at
 /// 20, 14 at 50, 8 at 100.
@@ -65,7 +65,7 @@ const WINDOWS_TICK_US: u64 = 15_625;
 
 /// A QTIMER's period: its Interval (at least Windows' 10 ms) rounded up to
 /// Windows' timer ticks; `None` for an Interval of 0 or less — such a
-/// timer never fires (RC.EXE), as Delphi's TTimer.
+/// timer never fires (RC.EXE), as RapidQ's own Timer.
 pub fn timer_period(interval_ms: i64) -> Option<Duration> {
     if interval_ms <= 0 {
         return None;

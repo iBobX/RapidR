@@ -657,7 +657,7 @@ The UI kernel is the web runtime's only GUI host, as §5 planned. There is no `?
 - `menu_web.rs`;
 - the DOM dialogs in `dialog_web.rs`: message boxes, input, colour, font, and the DOM ShowModal wait;
 - `scroll_web.rs`'s SVG bars;
-- the DOM half of `object_web.rs`: widget creation, the DOM event binding for drawn components, the VCL click order, the OnShow bookkeeping;
+- the DOM half of `object_web.rs`: widget creation, the DOM event binding for drawn components, RapidQ's click order, the OnShow bookkeeping;
 - the data science DOM placeholders;
 - the `rapidr-rrcss` crate. `rapidr_webbundle::PAGE_CSS` is the page's few rules now.
 

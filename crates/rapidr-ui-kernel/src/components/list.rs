@@ -125,7 +125,7 @@ fn show(id: &str, sel: (usize, usize)) {
 
 /// Starts editing in component `id` (runtime-core, once OnEditing allowed
 /// it; the component itself for a list view), the text all selected (as
-/// Windows' label edits and Delphi's grid editor start).
+/// Windows' label edits and RapidQ's grid editor start).
 pub fn begin_edit(id: &str, edit: InPlace) {
     let n = edit.text.chars().count();
     MASKS.with(|m| m.borrow_mut().remove(&id.to_lowercase()));

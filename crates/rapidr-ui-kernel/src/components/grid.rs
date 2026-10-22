@@ -1,6 +1,6 @@
 //! QSTRINGGRID: the shared model (`rapidr_value::objects::grid::StringGrid`)
 //! holds the cells, sizes, options and the selection, and keeps what
-//! OnDrawCell drew per cell; this draws Delphi's grid — a sunken white
+//! OnDrawCell drew per cell; this draws RapidQ's grid — a sunken white
 //! box, the fixed rows and columns as raised grey cells, the 1-pixel lines
 //! between cells, the selected cells white on blue, a gcsList column's
 //! selected cell with its drop-down button, an ellipsis column's "…"
@@ -184,7 +184,7 @@ fn show_selection(id: &str, w: i64, h: i64) {
     }
 }
 
-/// TopRow / LeftCol moved so cell (c, r) shows (Delphi scrolls the
+/// TopRow / LeftCol moved so cell (c, r) shows (RapidQ's grid scrolls the
 /// selection into view).
 fn scroll_to_cell(g: &mut StringGrid, c: i64, r: i64, l: &Layout) {
     let (fc, fr) = (g.fixed_cols() as i64, g.fixed_rows() as i64);

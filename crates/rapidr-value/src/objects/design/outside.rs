@@ -1,7 +1,7 @@
 //! The tray's components from outside the designed form: what the program
 //! creates in top-level CREATE blocks of its own — notepad.bas's
 //! `CREATE OpenDialog AS QOPENDIALOG … END CREATE` beside its form, a
-//! timer, a pop-up menu. Delphi's form owns its non-visual components;
+//! timer, a pop-up menu. A form owns its non-visual components;
 //! RapidQ's programs often make them apart, so the tray shows both: the
 //! form's own first, then these (their API indexes follow the form's
 //! components). Selecting one shows its properties in the inspector
@@ -99,7 +99,7 @@ impl DesignSurface {
                 r
             }
             _ => {
-                // (nothing selected: the form itself, as Delphi inspects it —
+                // (nothing selected: the form itself, as an inspector shows it —
                 // its properties and its events)
                 let form = self.designer.selection.ids().is_empty().then(|| self.designer.design.root());
                 if let Some(root) = form {

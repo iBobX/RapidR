@@ -179,8 +179,7 @@ a single line.
   Tab from one control to the next stops in the first one's OnExit, then,
   F5, in the second one's OnEnter — every time. A click that moves the
   focus stops there too, before the click's own OnClick; the click is then
-  over (the button was let go while the program was stopped: dropped, as
-  in Delphi), so click again to see its OnClick.
+  over (the button was let go while the program was stopped: dropped), so click again to see its OnClick.
 
 ![focus_events.rr stopped in NameExit, the name's OnExit, at line 56 after Tab was pressed in the program; the Call Stack shows NameExit over the program's line](images/debugging/focus-onexit.png)
 - **While the program is stopped**, what you type or click in its windows
@@ -232,7 +231,7 @@ While the program is paused:
 | Ctrl+Shift+F10 | Debug ▸ Set Next Statement | The program goes on from the caret's line instead (see below). |
 | F5 | Debug ▸ Continue | Runs on to the next breakpoint, or the end. |
 
-F8 also steps into and Shift+F8 steps over, as in Visual Basic. When the
+F8 also steps into and Shift+F8 steps over. When the
 program isn't running, F10 and F11 start it and stop at its first line, and
 Run to Cursor starts it and stops at the caret's line.
 

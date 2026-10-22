@@ -52,7 +52,7 @@ pub fn chart_ops(id: &str, size: (i64, i64), theme: &'static Theme) -> Rc<Vec<Op
 /// (RapidR Studio's designer) What a chart with no data yet shows while its
 /// form is designed — its data come when the program runs: sample bars
 /// under its Title (or "Sample data"), so the designer shows a chart, as
-/// Delphi's and Xojo's do.
+/// other designers do.
 fn design_sample(title: &str) -> plot::Plot {
     let mut p = plot::Plot { title: if title.trim().is_empty() { "Sample data".into() } else { title.to_string() }, ..plot::Plot::default() };
     p.series.push(plot::Series {

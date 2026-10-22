@@ -1,6 +1,6 @@
 //! `rapidr lsp`: the Language Server Protocol over stdio, on
 //! [`rapidr_langsvc`] (docs/ide-plan.md, I3). VS Code (the RapidR
-//! extension), and any editor that speaks LSP, get the same IntelliSense as
+//! extension), and any editor that speaks LSP, get the same completion and hovers as
 //! RapidR Studio: completion, hover, signature help, go to definition,
 //! references, rename, diagnostics in the compiler's own words, the
 //! outline, semantic highlighting, formatting and quick fixes.

@@ -1,5 +1,5 @@
 //! QGLASSFRAME: built into RapidQ's compiler (RC.EXE) and runtime —
-//! UtilMind's freeware "Glassy Form" (Delphi's TGlassy): a part of the form
+//! UtilMind's freeware "Glassy Form" (its TGlassy): a part of the form
 //! drawn as see-through glass, of a chosen colour and degree of
 //! transparency. RapidQ's manual describes it as a transparent, shaded look,
 //! warns that it is buggy, and points to QFormEx in RapidQ2.inc instead.
@@ -7,7 +7,7 @@
 //! Its members are RC.EXE's (`rapidr_ast::fixed_members`): no Caption, Tag,
 //! Font or OnPaint. Values as RC.EXE stores them: Transparency is a byte
 //! (`-5` → 251, `256` → 0, `33.7` → 33; 60 to begin with), TransparentColor
-//! the glass's colour (0, black), Moveable a Delphi Boolean kept as given
+//! the glass's colour (0, black), Moveable a Boolean kept as given
 //! (1 to begin with; 5 reads 5), Handle read-only; 105 × 105.
 //!
 //! What it shows: the glass's colour laid over what's under it at
@@ -33,7 +33,7 @@ pub fn stored(prop: &str, v: &Value) -> Option<Value> {
     }
 }
 
-/// A value stored into a Delphi Byte: cut toward zero, wrapped.
+/// A value stored into a byte: cut toward zero, wrapped.
 fn to_byte(v: &Value) -> i64 {
     crate::objects::record::to_int32(v).rem_euclid(256)
 }

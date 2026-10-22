@@ -1,4 +1,4 @@
-//! IntelliSense as Robert asked for it in RapidR Studio (S-EDITOR): members
+//! Completion as Robert asked for it in RapidR Studio (S-EDITOR): members
 //! after `.` for RapidR's and RapidQ's names, TYPEs, WITH and CREATE; R
 //! names first after `AS`; RAPIDQ.INC's constants offered with their
 //! include; a RAPIDQ.INC constant used without the include flagged, with

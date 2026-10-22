@@ -458,7 +458,7 @@ fn statements_page() -> String {
 
 fn constants_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Constants\n\nRapidQ's RAPIDQ.INC (built in: `$INCLUDE \"RAPIDQ.INC\"` needs no file), its library includes' and RapidR's own. Colours are RapidQ's: `&HBBGGRR`.\n\n");
+    out.push_str("# Constants\n\nRapidR's own, and the ones programs written for RapidQ use, built in: RAPIDQ.INC (`$INCLUDE \"RAPIDQ.INC\"` needs no file) and its library includes'. Colours are `&HBBGGRR`, as RapidQ stores them.\n\n");
     for g in CONSTANT_GROUPS {
         let _ = write!(out, "## {}\n\n{}{}\n\n", g.name, md(g.doc), if g.source == "RAPIDQ.INC" { String::new() } else { format!(" (`{}`)", g.source) });
         let items = g.constants.iter().map(|(n, v)| format!("`{n}` = {v}")).collect::<Vec<_>>().join(", ");
@@ -528,7 +528,7 @@ fn reach_mark(effects: &[Effect]) -> String {
 pub fn prompt() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (generated from its registry)\n\n");
-    out.push_str("RapidR is a BASIC compatible with RapidQ: it runs RapidQ programs unchanged and extends them. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs RapidQ programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
     out.push_str("## Statements\n\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -582,7 +582,7 @@ pub fn prompt() -> String {
 pub fn prompt_compact() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (names only: rapidr_describe gives a component's properties, methods and events, or a builtin's syntax)\n\n");
-    out.push_str("RapidR is a BASIC compatible with RapidQ; names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs RapidQ programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
     out.push_str("## Statements\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });

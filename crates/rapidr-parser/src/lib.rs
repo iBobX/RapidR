@@ -73,6 +73,7 @@ pub fn parse_tokens_with_type_names(tokens: &[Token]) -> (Program, Vec<Diagnosti
     rapidr_ast::set_program_types(&type_names);
     let mut parser = Parser::new(retagged.as_deref().unwrap_or(tokens));
     let program = parser.parse_program();
+    parser.check_end_codes(&program);
     let mut type_names = parser.type_names;
     type_names.sort_by_key(|s| (s.start, s.end));
     type_names.dedup();
@@ -425,6 +426,37 @@ impl<'a> Parser<'a> {
         matches!(self.peek(), Some(t) if t.lexeme.eq_ignore_ascii_case(value))
     }
 
+    /// RapidQ's "Syntax error in END statement" for each `END word` whose
+    /// bare word names nothing the program declared there
+    /// ([`rapidr_ast::end_codes`]): `END SUBB`, `END FUNCTON`, `END Enum` —
+    /// a typo of a block's closer, and no exit code. Close to a closer, the
+    /// message says which.
+    fn check_end_codes(&mut self, program: &Program) {
+        for u in rapidr_ast::end_codes::unresolved_end_codes(program) {
+            let Some(at) = self.tokens.iter().position(|t| t.span.start == u.span.start && t.kind == TokenType::End) else { continue };
+            let mut message = "Syntax error in END statement".to_string();
+            if let Some(closer) = rapidr_ast::end_codes::closer_suggestion(&u.word) {
+                message.push_str(&format!(" (did you mean END {closer}?)"));
+            }
+            self.error_at(at, message);
+        }
+    }
+
+    /// Whether the `END` at the cursor is followed by an exit code (RapidR's
+    /// `END n`): a word, number or sign that starts an expression, and not
+    /// the word that closes a block (`END IF`, `END SUBI`, `END EVENT` …).
+    fn end_exit_code_follows(&self) -> bool {
+        const CLOSERS: &[&str] = &[
+            "SUB", "FUNCTION", "SUBI", "FUNCTIONI", "IF", "SELECT", "WITH", "CREATE", "TYPE", "STRUCT", "CONSTRUCTOR", "EVENT", "PROPERTY", "SET", "GET",
+        ];
+        let Some(next) = self.tokens.get(self.pos + 1) else { return false };
+        match next.kind {
+            TokenType::Number | TokenType::LParen | TokenType::Minus | TokenType::Plus => true,
+            TokenType::Identifier => !CLOSERS.iter().any(|w| next.lexeme.eq_ignore_ascii_case(w)),
+            _ => false,
+        }
+    }
+
     fn peek_is_end_followed_by(&self, kw: &str) -> bool {
         self.peek_kind() == Some(TokenType::End)
             && self.tokens.get(self.pos + 1).map_or(false, |t| {
@@ -719,6 +751,20 @@ impl<'a> Parser<'a> {
                     span: tok.span,
                     callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),
                     args: Vec::new(),
+                }))
+            }
+            // RapidR's `END n`: the program ends with exit code n (a numeric
+            // expression; RapidQ's END takes none). The word after END must
+            // start an expression and not close a block (`END IF`, `END SUB`
+            // … never reach here; a stray one stays RC.EXE's error).
+            TokenType::End if self.end_exit_code_follows() => {
+                let start = self.pos;
+                let tok = self.advance()?;
+                let code = self.parse_expression()?;
+                Some(Statement::Call(CallStatement {
+                    span: self.span_from(start),
+                    callee: Expression::Identifier(Identifier { span: tok.span, name: "END".into() }),
+                    args: vec![code],
                 }))
             }
             // RapidQ `SUBI Name (...)` / `FUNCTIONI Name (...) AS T`: any number of arguments.
@@ -3213,7 +3259,7 @@ impl<'a> Parser<'a> {
             let span = self.peek().map(|t| t.span).unwrap_or_default();
             return Some(Expression::Identifier(Identifier { span, name: OMITTED_ARGUMENT.to_string() }));
         }
-        // `ByVal 0&` in a call (Visual Basic's way to pass a value to an
+        // `ByVal 0&` in a call (the classic BASIC way to pass a value to an
         // API function): the value.
         if matches!(self.peek_kind(), Some(TokenType::ByVal | TokenType::ByRef)) && !matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::RParen)) {
             self.advance();
@@ -3905,6 +3951,71 @@ mod tests {
         let stmts = parse("PRINT 1\nEND\nSUB Foo()\nEND SUB\n");
         assert!(matches!(&stmts[1], Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name == "END")));
         assert!(matches!(&stmts[2], Statement::Subroutine(_)));
+    }
+
+    /// The name and arguments of a statement that is a call of `END`.
+    fn end_call(s: &Statement) -> Option<usize> {
+        match s {
+            Statement::Call(c) if matches!(&c.callee, Expression::Identifier(i) if i.name == "END") => Some(c.args.len()),
+            _ => None,
+        }
+    }
+
+    #[test]
+    fn end_takes_an_exit_code() {
+        // (RapidR's `END n`: one numeric expression; plain END stays as it was)
+        let stmts = parse("END\nEND 3\nEND code + 1\nEND (2 * 3)\nEND -1\nPRINT 1: END 4\nIF a THEN END 5\nEND TYPE\n");
+        let counts: Vec<Option<usize>> = stmts.iter().map(end_call).collect();
+        assert_eq!(counts[0], Some(0), "{stmts:?}");
+        assert_eq!(counts[1], Some(1));
+        assert_eq!(counts[2], Some(1));
+        assert_eq!(counts[3], Some(1));
+        assert_eq!(counts[4], Some(1));
+        assert_eq!(counts[6], Some(1), "after a colon");
+        assert!(matches!(&stmts[7], Statement::If(i) if matches!(i.then_body.first().map(end_call), Some(Some(1)))), "{stmts:?}");
+        assert_eq!(counts[8], Some(0), "END TYPE is a plain END (RC.EXE's)");
+    }
+
+    #[test]
+    fn end_blocks_still_close_and_strays_stay_errors() {
+        // (END IF, END SUB … close their blocks; with no block open, or with
+        // a word that isn't a number, they are still RC.EXE's error)
+        let ok = parse("IF a THEN\n  PRINT 1\nEND IF\nSUB Foo()\n  END 2\nEND SUB\nSELECT CASE a\n  CASE 1\n    END 3\nEND SELECT\n");
+        assert!(matches!(&ok[0], Statement::If(_)) && matches!(&ok[1], Statement::Subroutine(_)) && matches!(&ok[2], Statement::SelectCase(_)), "{ok:?}");
+        let errs = errors("END IF\nEND SUB\nEND \"text\"\nEND FUNCTION\nEND EVENT\nEND SUBI\n");
+        let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
+        assert_eq!(lines, vec![1, 2, 3, 4, 5, 6], "{errs:?}");
+        for e in &errs {
+            assert!(e.2.contains("Syntax error in END statement"), "{errs:?}");
+        }
+        // (an expression that doesn't end the line is the usual leftover error)
+        let errs = errors("END 1 )\n");
+        assert!(errs.iter().any(|e| e.2.contains("Expected end-of-line")), "{errs:?}");
+    }
+
+    #[test]
+    fn a_bare_name_after_end_must_be_declared() {
+        // (declared and in scope: a DIM, CONST, DEFINT, a parameter, a local,
+        // a SUB, anywhere in the program's top level)
+        let ok = "DIM code AS INTEGER = 5\nCONST Failed = 3\nDEFINT n = 2\nSUB Done\nEND SUB\nSUB S(p AS INTEGER)\n  DIM q AS INTEGER\n  IF p THEN END p\n  IF q THEN END q\n  END Failed\nEND SUB\nSUB B\n  END g\nEND SUB\nDIM g AS INTEGER\nEND code\nEND n\nEND Done\n";
+        assert_eq!(errors(ok), vec![], "declared names are exit codes");
+        // (a typo of a block's closer, an unknown word, an implicit variable)
+        let errs = errors("PRINT 1\nEND SUBB\nEND FUNCTON\nEND Enum\nk = 3\nEND k\nEND wiht\n");
+        let lines: Vec<usize> = errs.iter().map(|e| e.0).collect();
+        assert_eq!(lines, vec![2, 3, 4, 6, 7], "{errs:?}");
+        assert_eq!(errs[0].2, "Syntax error in END statement (did you mean END SUB?)");
+        assert_eq!(errs[1].2, "Syntax error in END statement (did you mean END FUNCTION?)");
+        assert_eq!(errs[2].2, "Syntax error in END statement", "no closer is close to Enum");
+        assert_eq!(errs[3].2, "Syntax error in END statement", "storing into k didn't declare it");
+        assert_eq!(errs[4].2, "Syntax error in END statement (did you mean END WITH?)");
+        // (inside a block, the typo is reported on its own line)
+        let errs = errors("SUB Foo\n  PRINT 1\nEND SUBB\n");
+        assert!(errs.iter().any(|e| e.0 == 3 && e.2.contains("did you mean END SUB?")), "{errs:?}");
+        // (another routine's local is not in scope)
+        let errs = errors("SUB A\n  DIM x AS INTEGER\nEND SUB\nSUB B\n  END x\nEND SUB\n");
+        assert_eq!(errs.iter().map(|e| e.0).collect::<Vec<_>>(), vec![5], "{errs:?}");
+        // (anything longer than a bare name is an expression: accepted)
+        assert_eq!(errors("END nothing + 1\nEND (3)\nEND -1\nEND unknown(2)\n"), vec![]);
     }
 
     #[test]

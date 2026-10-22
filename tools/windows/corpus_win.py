@@ -223,7 +223,7 @@ def win_class(h):
 
 
 def windows_of(pid):
-    """The process's visible top-level windows (not Delphi's 0 × 0
+    """The process's visible top-level windows (not RapidQ's hidden 0 × 0
     TApplication), oldest first."""
     found = []
 

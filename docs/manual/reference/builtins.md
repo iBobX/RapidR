@@ -163,7 +163,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `CONVBASE$(Str$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
 | `DELETE$(String$, Index, Count)` | The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$("Hello", 2, 3)` is `Ho`. |
 | `FIELD$(StringExpresion, Deliminator, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
-| `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values, Pascal style: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. |
+| `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. |
 | `HEX$(Number)` | The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first. |
 | `HEXTODEC(Hex$)` | The number a string of hexadecimal digits stands for (`&H` or `0x` in front allowed): `HEXTODEC("FF")` is 255; 0 when it isn't hexadecimal. |
 | `INSERT$(Source$,Dest$,Index)` | `Dest$` with `Source$` inserted before character `Index` (1 the first): `INSERT$("hi", "Hello", 3)` is `Hehillo`. |

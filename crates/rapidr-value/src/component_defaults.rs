@@ -214,7 +214,7 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
     p
 }
 
-/// clBtnFace, Windows' system colour COLOR_BTNFACE as a Delphi TColor
+/// clBtnFace, Windows' system colour COLOR_BTNFACE as a RapidQ colour value
 /// (`&H8000000F`): what a QFORM's and a QPANEL's Color reads until the
 /// program sets one (RC.EXE).
 pub const CL_BTN_FACE: i64 = -2147483633;
@@ -227,7 +227,7 @@ pub const CL_WINDOW: i64 = -2147483643;
 /// (`stored`, not Null: then None, the runtime's value stands); else for a
 /// QFORM, QPANEL (QBEVEL) clBtnFace; for a QLABEL, QCANVAS, QGROUPBOX,
 /// QBUTTON, QSCROLLBOX, QTABCONTROL, QGAUGE or QOVALBTN its parent's Color,
-/// followed live (Delphi's ParentColor: `parent()` reads it, None without a
+/// followed live (RapidQ's ParentColor: `parent()` reads it, None without a
 /// parent) and clWindow without one; for the other components RC.EXE was
 /// asked about, clWindow. None too for a type
 /// without such a default. The kernel draws a never-set Color as before —
@@ -254,7 +254,7 @@ pub const CL_WINDOW_TEXT: i64 = -2147483640;
 
 /// What `component.Font.Color` reads in a program, as RapidQ has it
 /// (RC.EXE): the colour the program set (`set`: the runtime's mark), else
-/// its parent's Font.Color followed live (Delphi's ParentFont, every
+/// its parent's Font.Color followed live (RapidQ's ParentFont, every
 /// component) — `parent()`, None without a parent — and clWindowText at the
 /// top. The kernel draws an unset one in the theme's text colour and a
 /// parent's chosen one as RapidQ draws ParentFont (the kernel stores).
@@ -265,8 +265,8 @@ pub fn font_color_read(set: bool, value: Value, parent: impl FnOnce() -> Option<
     parent().unwrap_or_else(|| v_int(CL_WINDOW_TEXT))
 }
 
-/// Whether a component of `type_name` is a window of its own (Delphi's
-/// TWinControl): what a form's Pixel reads over it is -1, as RC.EXE shows
+/// Whether a component of `type_name` is a window of its own (RapidQ's
+/// windowed controls): what a form's Pixel reads over it is -1, as RC.EXE shows
 /// (the form's canvas is clipped to its own client area); the graphic
 /// controls — QLABEL, QCANVAS, QIMAGE — are drawn on the form, so Pixel
 /// reads what they show.
@@ -325,7 +325,7 @@ pub fn form_pixel(shown: bool, client: (i64, i64), x: i64, y: i64, color: i64, c
 }
 
 /// Whether a component of `type_name` takes its parent's Color while it
-/// has none of its own (Delphi's ParentColor, as RC.EXE shows it).
+/// has none of its own (RapidQ's ParentColor, as RC.EXE shows it).
 pub fn parent_color(type_name: &str) -> bool {
     matches!(type_name.to_ascii_uppercase().as_str(), "RLABEL" | "RCANVAS" | "RGROUPBOX" | "RBUTTON" | "RSCROLLBOX" | "RTABCONTROL" | "RPROGRESSBAR" | "ROVALBTN")
 }

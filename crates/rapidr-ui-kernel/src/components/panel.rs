@@ -1,4 +1,4 @@
-//! QPANEL as RapidQ (Delphi's TPanel) draws it: its Color, its bevels
+//! QPANEL as RapidQ draws it: its Color, its bevels
 //! from the shared model (`rapidr_value::objects::bevel`: BevelOuter,
 //! BorderWidth, BevelInner, each BevelWidth one-pixel frames; a raised
 //! outer bevel by default) — the same frames the web runtime draws — and
@@ -56,7 +56,7 @@ impl ComponentKind for Panel {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        // (the input lane's: OnClick, OnDblClick in RapidQ's order)
         super::canvas::click_or_double(cx, m)
     }
 

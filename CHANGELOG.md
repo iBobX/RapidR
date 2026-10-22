@@ -8,6 +8,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
+  takes no number), so a console tool can fail a build:
+  `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.
+  `n` is any numeric expression, stored as a LONG is; a bare name must be
+  one you declared (`DIM code AS INTEGER = 5`, then `END code`), so a typo
+  in a block's ending — `END SUBB`, `END FUNCTON` — stays RapidQ's syntax
+  error ("did you mean END SUB?") instead of quietly ending the program; a plain `END`, running
+  off the end of the program, `END IF` and `END SUB` are as they were. It
+  works under `rapidr run`, in interpreted and native builds and in programs
+  with windows; in a web page the program ends and the number is ignored.
+  A new conformance check, `.expected-exit`, asserts a program's exit code.
+  See [the manual](docs/manual/language.md#end-and-the-exit-code).
+- **`OnMessage`, another name for a form's `WndProc`**: `OnMessage = MySub` in
+  the form's CREATE (or `Form.OnMessage = MySub`) is the same event as
+  `WndProc` — the same four parameters (`Hwnd, Msg, wParam, lParam`), the same
+  delivery on every runtime: Windows' messages on Windows, the system tray
+  icon's on macOS, Linux and the web — so code written for either name runs
+  the same. In the language reference (`OnMessage` on RForm, marked RapidR's)
+  and the manual's [WndProc section](docs/manual/components.md#windows-messages-a-forms-wndproc).
 - **Programs in every language** (docs/program-languages-plan.md, lane T1):
   `TR$("Save file")` gives the text in the program's language from PO files
   in a `lang` folder beside the program (`lang/es.po`, `lang/pt-BR.po`,
@@ -20,6 +39,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   interpreter, native builds and the web. A new example,
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
+- **Versions, the engine proved** (lane G0, not in Studio yet;
+  [docs/versions-g0.md](docs/versions-g0.md)): a new crate, `rapidr-vcs`,
+  built on gitoxide 0.89 (pure Rust, MIT OR Apache-2.0). It can start
+  versioning a folder, save a version, list what changed (with hunks),
+  show the timeline, find who wrote each line, start experiments, bring
+  one into another (fast-forward or a three-way merge; conflicts are
+  reported and nothing is touched) and share with a folder. It never runs
+  hooks, filter, diff or merge drivers, credential helpers or the `git`
+  command. Every repository its tests write passes the system's
+  `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
+
+### Changed
+- **RapidR's own words** (Robert, 2026-10-21): the code comments, docs,
+  manual, plans, examples and Studio's help text describe RapidR in RapidR's
+  own words, with no other IDEs or products as models or comparisons;
+  RapidQ's behaviour is stated as RapidQ's. A check
+  (`tools/check_words.py`, in `tools/regress.sh`'s unit stage and alone as
+  the `words` stage) fails when such a word comes back outside
+  `tools/words-allowlist.txt` (fonts' names, build tools a platform needs,
+  legal and history texts, fixture data).
+
+### Fixed
+- **Two wrong reference entries** (found by RapidR Database Studio, which
+  followed them): a data frame's `Cell` and `SetCell` take the **row first**,
+  `Cell(row, col)` and `SetCell(row, col, value)`, as the code always did —
+  the reference said `(col, row)`; and `CONST` is one constant to a statement,
+  `CONST name [AS type] = expression`, as in RapidQ — the reference offered a
+  list (`CONST a = 1, b = 2`), which was always an error. The language
+  reference, the manual's reference pages and the assistant's language card
+  now say what the code does.
 
 ### Fixed
 - **RAI after Robert's evening with DeepSeek** (docs/preview4-plan.md R3,

@@ -8,7 +8,7 @@ use crate::store::{self, Store};
 use crate::tree::FormUi;
 
 /// A single-line edit (QEDIT) the focus enters selects all its text
-/// (VCL's AutoSelect); the program reads it at once (the shared model).
+/// (RapidQ's AutoSelect); the program reads it at once (the shared model).
 pub(crate) fn select_on_entry(id: &str, type_name: &str) {
     if type_name.eq_ignore_ascii_case("REDIT") {
         rapidr_value::objects::with_textedit_mut(id, |t| {
@@ -86,14 +86,14 @@ impl FormUi {
         // last coming back)
         crate::components::panels::markdown::entered(self, next, back);
         // (out of view in a scroll box — the form's own bars too —: shown,
-        // as Delphi's AutoScrollInView)
+        // as RapidQ's AutoScrollInView)
         crate::components::scrollbox::show_focused(self, store);
         // (the keyboard's focus shows its hint: tooltip.rs)
         self.tip_focus(store);
     }
 
     /// The focus to `i` (Tab, a mnemonic, `SetFocus`, the form showing …): a
-    /// QEDIT it enters selects its text (VCL's TEdit.AutoSelect — RC.EXE:
+    /// QEDIT it enters selects its text (RapidQ's TEdit.AutoSelect — RC.EXE:
     /// SelStart 0, SelLength the text's length once the form shows with
     /// it focused, and each time the focus comes back, wherever the
     /// program left the selection; not a QRICHEDIT or memo).
@@ -108,7 +108,7 @@ impl FormUi {
     }
 
     /// The focus to `i` by a mouse press: the caret stays where the click
-    /// put it (VCL skips AutoSelect while the left button is down).
+    /// put it (RapidQ skips AutoSelect while the left button is down).
     pub(crate) fn set_focus_by_click(&mut self, i: Option<usize>) {
         self.focus_to(i);
     }
@@ -135,7 +135,7 @@ impl FormUi {
     }
 
     /// Node `i` got the focus: its OnEnter — RapidR's on every component
-    /// that takes the focus, as Delphi's (the VCL's CM_ENTER): after the
+    /// that takes the focus, as RapidQ's CM_ENTER does: after the
     /// OnExit of the one it left, before what a click on it does (its
     /// OnMouseDown, OnClick). By Tab, a click, SetFocus, a mnemonic, and
     /// for the first one as its form shows. RapidQ has none but its lists'
@@ -149,9 +149,9 @@ impl FormUi {
     }
 
     /// Node `i` lost the focus to another of its form's components: its
-    /// OnExit (RapidR's, Delphi's CM_EXIT), before the other's OnEnter.
+    /// OnExit (RapidR's; CM_EXIT), before the other's OnEnter.
     /// Another window or app taking the front isn't leaving (the form keeps
-    /// its focused component, as Delphi's), nor is the component hidden or
+    /// its focused component, as in RapidQ), nor is the component hidden or
     /// disabled while focused.
     pub(crate) fn left(&mut self, i: usize) {
         let id = self.nodes[i].id.clone();

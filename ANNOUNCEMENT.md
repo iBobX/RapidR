@@ -117,7 +117,7 @@ original implementation, written from the ground up in pure Rust.
 >
 > **Known limits**: OLE / COM objects compile but do nothing; Windows API
 > calls (`DECLARE … LIB "user32"`) aren't emulated; the installers aren't
-> code-signed; the IDE is early — IntelliSense, a debugger and AI
+> code-signed; the IDE is early — completion, a debugger and AI
 > assistance are the next milestone ([ROADMAP.md](ROADMAP.md)).
 >
 > Downloads, checksums and the full list:

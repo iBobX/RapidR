@@ -1,6 +1,6 @@
-//! An inspector drawn: Xcode's and Xojo's inspectors in the fluent themes
+//! An inspector drawn: soft modern rows in the fluent themes
 //! (soft rows, a hairline between the columns, swatches and check boxes
-//! drawn crisp), a tidy Delphi 7 object inspector in the classic one (the
+//! drawn crisp), a tidy grid in the classic look (the
 //! selected name in the highlight, ± headings, grooves between the rows) —
 //! every colour from the theme's look (`common::look`).
 
@@ -60,7 +60,7 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
     // (RapidR's name, RapidQ's as a note: R-NAMES)
     let (long, short) = if objects.is_empty() || kind == "mixed types" { (kind.clone(), kind.clone()) } else { (type_label(&kind, false), type_label(&kind, true)) };
     if l.classic {
-        // (Delphi's object selector: a sunken white box, "Button1: RButton")
+        // (the object selector: a sunken white box, "Button1: RButton")
         let r = (x + 4, y + 4, w - 8, h - 8);
         p.fill(r, l.field);
         p.sunken_edge(r);
@@ -269,7 +269,7 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
         _ => {}
     }
     // (the row's ground: fluent's soft selection across it; classic
-    // highlights the name only, as Delphi does)
+    // highlights the name only)
     let focused = c.focused && !c.searching;
     let mut ink = l.text;
     if l.classic {

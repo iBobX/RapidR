@@ -77,7 +77,7 @@ pub fn rp_replace(s: &Value, replacement: &Value, index: &Value) -> Value {
     let chars: Vec<char> = s.to_string_val().chars().collect();
     let rep = replacement.to_string_val();
     let index = index.to_i64();
-    // Delphi's Copy(s, 1, index - 1) + r + Copy(s, index + Length(r), MaxInt).
+    // RapidQ's Copy(s, 1, index - 1) + r + Copy(s, index + Length(r), MaxInt).
     let before = (index - 1).clamp(0, chars.len() as i64) as usize;
     let after = (index + rep.chars().count() as i64).max(1);
     let after = ((after - 1) as usize).min(chars.len());

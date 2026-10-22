@@ -168,7 +168,7 @@ pub fn click_on_release(cx: &mut Cx, m: &MouseIn) -> MouseOut {
     MouseOut { press: false, focus: Some(false) }
 }
 
-/// (the input lane's) A VCL control's clicks (csClickEvents and
+/// (the input lane's) A RapidQ control's clicks (csClickEvents and
 /// csDoubleClicks: QPANEL, QLABEL, QGROUPBOX, QSCROLLBOX, QIMAGE): a double
 /// click's second press is OnDblClick, before its OnMouseDown (Windows'
 /// WM_LBUTTONDBLCLK), and its release no click; a single click let go over

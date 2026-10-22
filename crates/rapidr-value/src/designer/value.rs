@@ -93,8 +93,8 @@ pub fn write_str(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
 }
 
-/// How the designer writes Anchors: RapidR's constants added, in Delphi's
-/// order (`akLeft + akTop + akRight`); `0` for none.
+/// How the designer writes Anchors: RapidR's constants added, in the
+/// usual order (`akLeft + akTop + akRight`); `0` for none.
 pub fn write_anchors(bits: i64) -> String {
     let names: Vec<&str> = [(AK_LEFT, "akLeft"), (AK_TOP, "akTop"), (AK_RIGHT, "akRight"), (AK_BOTTOM, "akBottom")].iter().filter(|(b, _)| bits & b != 0).map(|(_, n)| *n).collect();
     if names.is_empty() {

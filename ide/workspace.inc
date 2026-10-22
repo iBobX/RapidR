@@ -1,14 +1,14 @@
 ' workspace.inc: RapidR Studio's documents area (docs/studio-wow.md; the
-' S-SHELL-2 lane) — documents as tabs, as Xcode, VS Code and Delphi show
-' them (no window inside the window): one tab a source file, its close
+' S-SHELL-2 lane) — documents as tabs
+' (no window inside the window): one tab a source file, its close
 ' button, a dot while it has changes, a middle click closes it, a drag
 ' along the strip reorders it.
 '
 '   Design | Code    a file with a form has the switch at the right of its
 '                    tab strip (RDOCKMANAGER's AddView): its designer, its
-'                    code, or both side by side; F12 toggles (Delphi's;
-'                    in the code, on a name, it goes to that name's
-'                    definition, VS Code's), F7 the code, Shift+F7 the
+'                    code, or both side by side; F12 toggles (in the code,
+'                    on a name, it goes to that name's definition),
+'                    F7 the code, Shift+F7 the
 '                    designer
 '   groups           a tab dragged to a side of the area splits it into
 '                    groups (VS Code's editor groups), or Window > Split
@@ -59,7 +59,7 @@ SUB SetUpDocuments
 END SUB
 
 ' Document d's tab: its code; a form's file gets its designer as a view and
-' opens on it (Delphi), the switch saying Design | Code.
+' opens on it, the switch saying Design | Code.
 SUB AddDocumentTab(d AS INTEGER)
   DIM title AS STRING
   title = FileTitle(DocFile(d))
@@ -126,8 +126,8 @@ SUB ShowView(View AS STRING)
   IF View = "Design" THEN Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
-' F12: the form, then its code, as Delphi — and in the code, on a name,
-' that name's definition, as VS Code (Edit > Go to Definition); off a name
+' F12: the form, then its code — and in the code, on a name,
+' that name's definition (Edit > Go to Definition); off a name
 ' (or in a file without a form) the toggle.
 SUB ToggleDesign
   DIM d AS INTEGER

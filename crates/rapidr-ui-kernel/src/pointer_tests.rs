@@ -77,7 +77,7 @@ fn splitters_show_the_resize_pointer_for_their_direction_and_keep_it_while_held(
     assert_eq!(at(&mut f, &s, &mut ts, 150, 202), Cursor::RowResize, "between top and bottom");
     assert_eq!(at(&mut f, &s, &mut ts, 50, 50), Cursor::Default);
     // (the program's crHSplit / crVSplit on it: the direction decides, as
-    // Delphi's TSplitter; crSizeWE is taken as asked)
+    // RapidQ's own Splitter; crSizeWE is taken as asked)
     s.set("vs", "cursor", v_int(-15));
     f.sync(&s);
     assert_eq!(at(&mut f, &s, &mut ts, 102, 50), Cursor::ColResize);

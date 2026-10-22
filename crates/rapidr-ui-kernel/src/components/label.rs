@@ -55,7 +55,7 @@ impl ComponentKind for Label {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        // (the input lane's: OnClick, OnDblClick in RapidQ's order)
         super::canvas::click_or_double(cx, m)
     }
 

@@ -1,4 +1,4 @@
-//! Hints as RapidQ's runtime (Delphi's VCL) keeps them, for every runtime:
+//! Hints as RapidQ's runtime keeps them, for every runtime:
 //! a component's `Hint` is "short|long" (the short part shows in the
 //! tooltip, the long part is the application's hint), and a form's
 //! `OnHint (Hint AS STRING)` is the application's one hint event.
@@ -8,7 +8,7 @@
 //! last one fires OnHint with the **long** hint — whatever its ShowHint —
 //! and moving onto the form's open area (no hint) fires it with "". The
 //! hint of a component without one is its parent's (up to the form). As
-//! the VCL's `Application.OnHint`, there is one handler for the whole
+//! RapidQ's `Application.OnHint`, there is one handler for the whole
 //! program: the one bound last, whichever form it was bound on, hears the
 //! hints of every form ([`set_receiver`]).
 
@@ -46,18 +46,18 @@ pub fn change(long: &str) -> bool {
 }
 
 /// The part of a hint the tooltip shows: before the first `|` (all of it
-/// without one) — the VCL's GetShortHint.
+/// without one) — RapidQ's GetShortHint.
 pub fn short_hint(hint: &str) -> &str {
     hint.split_once('|').map_or(hint, |(s, _)| s)
 }
 
 /// The application's part of a hint: after the first `|` (all of it
-/// without one) — the VCL's GetLongHint.
+/// without one) — RapidQ's GetLongHint.
 pub fn long_hint(hint: &str) -> &str {
     hint.split_once('|').map_or(hint, |(_, l)| l)
 }
 
-/// The VCL's hint timings (Application.HintPause, HintHidePause), in
+/// RapidQ's hint timings (Application.HintPause, HintHidePause), in
 /// milliseconds: a tooltip shows after the mouse rests this long on a
 /// component, and goes after the second.
 pub const HINT_PAUSE_MS: i64 = 500;

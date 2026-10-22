@@ -55,6 +55,23 @@ The model was capable. Studio made it work blind:
 | S5 ★ | **Problems that tell the truth.** Module files are checked as part of their project. Errors come first, grouped by file. Portability notes appear only when the project targets the web (a project **Targets** setting), one per component | Opus M |
 | S6 ★ | **Run gets your Terminal's PATH.** On macOS and Linux, GUI apps start with a short PATH, so `SHELL "php …"` fails from Studio but works in Terminal; Studio reads the login shell's PATH once. Runtime errors show `file:line` as a link | Sonnet S |
 | S8 ★ | **Layout at start-up.** Seen by Robert on 2026-10-21: just after Studio starts, some panes' contents keep a narrow width (the Breakpoints list, the Assistant's input row) until the window is resized. Likely cause: a pane's contents are laid out while hidden, or before the window reaches its final (restored, scaled) size, and showing a tab doesn't re-run the layout. Fix it at the root, in the dock or kernel layout, not per pane. Add a start-up flow test that checks every pane's controls fill their pane | Opus S |
+| S9 ★ | **An editing layout and a debugging layout** (Robert, 2026-10-22: "make room, so we can better read the warnings while coding"). **While you edit,** the bottom panel spans the full width, with Output, Problems, Build, Immediate and Breakpoints as tabs; Problems shows full messages with a tooltip, and wraps on demand. **When a run or debug starts,** Studio switches to the debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output and Immediate, with Variables in front at a pause and the editor showing the paused line. **When the program ends,** it switches back. Studio remembers each layout's sizes separately; a pin keeps the debug panes, and Settings offers Debug panes: Automatic, Always or Never. The switch is announced to screen readers, focus never jumps while you type, and there's a keyboard shortcut to toggle it. Built in the dock, the same lane as S8 | Opus M (visual) |
+| S10 ★ | **A debugger that looks as good as it works** (Robert, 2026-10-22). Variables, Watch, Breakpoints, Call Stack and the datatips get:
+- an icon for each kind of value (number, text, true/false, array, record, component with its own toolbox icon, constant);
+- values styled by kind: an empty text shows as `""`, colours show a swatch and their name (`FontColor = clWindowText ■`), arrays show their count;
+- section icons, a highlight on values that changed since the last step, and breakpoint states (on, off, condition, hit count).
+
+All icons are SVG in RapidR's icon system, and the value drawing is a shared kernel module that the helpers (E0/E1) and the Properties panel reuse. The audit found no bitmap icons in Studio; it is re-checked, including the web Studio | Opus M (visual; after the dock lane) |
+| S11 ★ | **Change values while paused** (Robert, 2026-10-22). Pro debuggers let you edit a value in place while the program is paused, and RapidR will too.
+- **How:** in Variables and Watch, double-click, F2 or "Set Value" edits a number, text, true/false, a constant from its set (a dropdown), an array element, a record field, or a component's writable property (through its normal setter, so the form updates).
+- **The editors:** the value editors from the helpers (E1): colour, font, choices.
+- **Validation:** typed input with plain-words errors ("Width needs a whole number"); read-only properties say so.
+- **After a change:** the value shows the changed mark, and one undo restores it while still paused.
+- **Immediate:** an assignment (`x = 5`) works the same way.
+- **Everywhere:** the VM on the desktop, the web Studio, and `rapidr dap`'s setVariable/setExpression for editor extensions.
+- **Accessible:** fully by keyboard, and announced to screen readers.
+
+It comes after S10 phase 2, in the same panes | Opus M |
 | S7 | **Responsive and beautiful pass**, measured on the 4,500-line project: typing latency, open, search, scroll. The docked diff and streamlined buttons (ai-ux §6, shared with Versions G2) | Opus M (visual, one lane at a time) |
 
 ### R: RAI, the assistant that runs and fixes its own work
@@ -80,7 +97,8 @@ The model was capable. Studio made it work blind:
 | K1 ★ | **The language card** (about 2K tokens, sent with every chat), generated from the compiler and the registry so it can never drift. It holds the rules models actually get wrong | Opus M |
 | K2 | **Every method with a tested 3-line example**, generated and compiled in the regression suite. Exact signatures (the "expecting DOUBLE but got STRING" errors) | Sonnet M |
 | K3 ★ | **`search_manual`** (BM25 over docs/manual) and **`project_outline`** (files, include order, forms, and each file's SUBs, FUNCTIONs and globals), so a model never re-declares a name or calls one that doesn't exist | Sonnet M |
-| K4 ★ | **The mistake ledger.** Each recurring model mistake becomes one of three things: (a) an additive extension when it is safe and unambiguous, such as `FOR i AS INTEGER = 1 TO n` (written constantly by models trained on FreeBASIC and VB), in both backends and the web, never changing RapidQ behaviour; (b) a compiler message that says the fix; or (c) a line in the card | Opus M |
+| K4 ★ | **The mistake ledger.** Each recurring model mistake becomes one of three things: (a) an additive extension when it is safe and unambiguous, such as `FOR i AS INTEGER = 1 TO n` (written constantly by models trained on other BASIC dialects), in both backends and the web, never changing RapidQ behaviour; (b) a compiler message that says the fix; or (c) a line in the card | Opus M |
+| K4b | Ledger entries found on 2026-10-22. Reference errors: RDataFrame `Iloc` takes `(start, end)` and `Select` takes one comma-separated string (K7 will catch both). A hint: `NOT FILEEXISTS(x)` is always true, because FILEEXISTS returns 1 (RapidQ-exact) and NOT 1 = -2, so the language service warns and suggests `= 0` | Sonnet S |
 | K5 | **Project notes for RAI** (`.rapidr/notes.md`): decisions that survive compaction and new chats, editable by you | Sonnet S |
 | K7 ★ | **The reference tells the truth.** A generated check compiles (and runs where possible) every `syntax` and `example` in the registry. The language card is built from the registry, so a wrong entry teaches every model a wrong signature. Found by Database Studio: `RDataFrame.Cell` is documented `(col, row)` but is `(row, col)`; `CONST a = 1, b = 2` is documented but never existed in RapidQ | Sonnet M |
 | K6 | **Evals and a "Which model?" report.** New cases: a multi-file app, a server, a game, and this evening's failures. Per model: Haiku, DeepSeek, Gemma (local) and others. Published with the release | Sonnet M (+ small API cost) |
@@ -106,7 +124,7 @@ The model was capable. Studio made it work blind:
 | # | Item | Model, size |
 |---|---|---|
 | X1 ★ | Threat model update for the new surfaces: RAI runs code, stored chats, Git credentials and remotes, regex, project-wide search, MCP | Opus S |
-| X2 ★ | Automated: `cargo deny` / `cargo audit`; fuzzing of the lexer and parser, `.rrproj`, regex patterns and Git objects; a secret scan of the tree | Sonnet M |
+| X2 ★ | Found by G0 (2026-10-22): `cargo deny check advisories` already fails on `zip` 0.6.6 (RUSTSEC-2026-0367/0368/0369, in `extract()`, which RapidR never calls; upgrade anyway), the unmaintained `zbus_names`/`zvariant`, and a yanked `inout`. Automated: `cargo deny` / `cargo audit`; fuzzing of the lexer and parser, `.rrproj`, regex patterns and Git objects; a secret scan of the tree | Sonnet M |
 | X3 ★ | **The audit**: on Fable with Robert's OK (or Opus); Opus fixes; a public report in `docs/security/` | Fable or Opus L |
 | X4 ★ | **The six legal traps** (Robert's rule, one Sonnet each): Versions adds a GitHub sign-in and chats keep personal data locally. Most are expected to be N/A; the check proves it | 6 × Sonnet S |
 

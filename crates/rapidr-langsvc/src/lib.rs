@@ -1,4 +1,4 @@
-//! RapidR's language service (docs/ide-plan.md, I3): IntelliSense that
+//! RapidR's language service (docs/ide-plan.md, I3): editor help that
 //! knows the program — completion, hover, signature help, go to
 //! definition, references, rename, diagnostics in the compiler's own words,
 //! outline, semantic tokens, formatting and code actions. One engine for

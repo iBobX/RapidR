@@ -310,7 +310,7 @@ impl Cursor {
     }
 }
 
-/// Who gets a key's OnKeyDown / OnKeyPress / OnKeyUp, as RapidQ (Delphi)
+/// Who gets a key's OnKeyDown / OnKeyPress / OnKeyUp, as RapidQ
 /// sends them: `chain` is the focused component up to its form. The form
 /// gets the keys typed in its controls only with KeyPreview on — and then
 /// first, before the focused control (RapidQ's manual, QFORM's

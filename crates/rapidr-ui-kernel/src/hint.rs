@@ -36,7 +36,7 @@ impl FormUi {
     }
 
     /// Whether node `i` (`None`: the form) shows its hint: its ShowHint,
-    /// else its parent's (the VCL's ParentShowHint), the form's False when
+    /// else its parent's (RapidQ's ParentShowHint), the form's False when
     /// never set.
     fn shows_hint(&self, store: &dyn Store, i: Option<usize>) -> bool {
         let mut at = i;
@@ -51,7 +51,7 @@ impl FormUi {
 
     /// The tooltip over node `i` (`None`: the form's open area; tooltip.rs)
     /// when Application.ShowHint is on: the short part of the hint of the
-    /// first of it and its parents that shows hints (the VCL's
+    /// first of it and its parents that shows hints (RapidQ's
     /// GetHintControl), its own Hint else its parent's …; "" when none
     /// does.
     pub(crate) fn hint_tip(&self, store: &dyn Store, i: Option<usize>) -> String {

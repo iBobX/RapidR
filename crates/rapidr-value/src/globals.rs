@@ -132,7 +132,7 @@ pub fn application_icon() -> Option<Value> {
 
 /// Application's hint settings (lowercase `prop`: ShowHint, HintPause,
 /// HintHidePause, HintShortPause — milliseconds — and HintColor), as the
-/// program set them or the VCL's defaults: what the UI kernel's tooltips
+/// program set them or RapidQ's defaults: what the UI kernel's tooltips
 /// follow.
 pub fn hint_setting(prop: &str) -> Value {
     stored("application", prop).unwrap_or_else(|| match prop {

@@ -153,6 +153,12 @@ export const cases = [
     // (web: the page's tray strip, tray_web.rs — no icon left in it, hidden)
     webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
     webExpect: "0 none" },
+  // The same program with RapidR's OnMessage, another name for WndProc:
+  // the same event, so the same lines (and the same page strip on the web).
+  { name: "tray_icon_onmessage", events: "btn.onclick,form.__tray_513,form.__tray_514,form.__tray_513", dump: "lbl.caption,form.__shown",
+    expect: ["lbl.caption=add10 mod1 7:00000201f 7:00000202f del10", "form.__shown=1"],
+    webCheck: `document.querySelectorAll(".rr-tray-icon").length + " " + getComputedStyle(document.getElementById("rr-tray")).display`,
+    webExpect: "0 none" },
   // QBEVEL and QDIGDISPLAY built in (no include library): Shape / Style
   // set the bevels or draw a line pair; the display's size and segments.
   // Pixels: the top line's light and dark rows, the right line's dark and
@@ -391,7 +397,7 @@ export const cases = [
     expect: ["lbl.caption=ing1 ed1:Renamed c0:2 c0:0 c0:2 c1:2 dbl |Renamed Renamed two"] },
   // (QSTATUSBAR's size grip dragged 50 across, 40 down; then a press on
   // the bar, and on the corner once SizeGrip is off. OnResize also fires
-  // twice as the window is first shown, around OnShow, as RC.EXE's VCL
+  // twice as the window is first shown, around OnShow, as RC.EXE's runtime
   // does — docs/rapidq-ground-truth.md)
   { name: "size_grip", events: "bar.__mousedown_306_18,bar.__mousemove_356_58,bar.__mouseup_356_58,bar.__mousedown_100_10,bar.__mouseup_100_10,btn.onclick,bar.__mousedown_356_18,bar.__mouseup_356_18", dump: "lbl.caption,form.width,form.height",
     expect: ["lbl.caption=w318 g1 r320x240 r320x240 r370x280 d100 off d356 ", "form.width=370", "form.height=280"] },

@@ -1,4 +1,4 @@
-//! QTREEVIEW's nodes (RapidQ manual, Appendix A; Delphi's TTreeNodes): the
+//! QTREEVIEW's nodes (RapidQ manual, Appendix A; RapidQ's own TreeNodes): the
 //! runtimes show them (`with_tree`); the program changes them through the
 //! methods and `Item(i)` below, the same on the desktop and the web.
 //!

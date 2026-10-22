@@ -221,7 +221,7 @@ fn the_divider_between_the_columns_shows_the_resize_pointer() {
 }
 
 /// (the final audit) The click that starts editing a value leaves it all
-/// selected: typing replaces it (as Delphi's Object Inspector), not adds to
+/// selected: typing replaces it (as in an inspector), not adds to
 /// its end; F4 drops a value's list, as Alt+Down.
 #[test]
 fn a_click_on_a_value_then_typing_replaces_it() {

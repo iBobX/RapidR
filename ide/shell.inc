@@ -109,8 +109,8 @@ SUB RunCommand(Id AS STRING)
     CASE "project.addFile": AddFileToProject
     CASE "project.addForm"
       ' (the file open makes no form: one added to it; else a new form file
-      ' of the program, its main file including it — Delphi's File > New >
-      ' Form)
+      ' of the program, its main file including it — Project >
+      ' Add Form)
       d = ActiveCode
       IF d >= 0 AND DesignDoc(d).FormName = "" THEN
         d = DesignCommand("designer.addForm")
@@ -179,7 +179,7 @@ SUB StudioClose(Action AS INTEGER)
   SaveSettings
 END SUB
 
-' (keys the menus don't hold: VB6's F8 stepping beside F11 / F10)
+' (keys the menus don't hold: F8 stepping beside F11 / F10)
 SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
   IF Key = 119 THEN
     IF Shift = 0 THEN RunCommand "debug.stepInto"
