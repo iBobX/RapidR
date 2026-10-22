@@ -8,6 +8,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Labels as links: `TabStop` on an RLabel** (RapidR's own; RapidQ's QLABEL
+  never takes the focus, and a label without it doesn't). A label given
+  `TabStop = 1` is a link: Tab reaches it (in `TabOrder`), the theme's focus
+  ring shows round its text, Enter or Space clicks it (`OnClick`), `OnEnter`,
+  `OnExit` and `SetFocus` work, and a screen reader announces a link named by
+  its `Caption` (or `AccessibleName`), with the `Hint` as its description.
+  RapidR Studio's Welcome page Recent links were the mouse-only ones left —
+  Tab skipped them; now Shift+Tab from the offer to reopen reaches the link
+  and Enter opens the project (flows `welcome-recent-link-keyboard` and
+  `welcome-recent-link-enter`). The registry's RLABEL has the property, the
+  method and the events; the example `examples/gui/links.rr`; the manual's
+  Accessibility section.
 - **Menus drawn in the window are in the accessibility tree** (Windows,
   Linux and the web; macOS uses the system's own menu bar). An open menu —
   a bar's drop-down, a submenu, a pop-up menu or an edit's context menu —

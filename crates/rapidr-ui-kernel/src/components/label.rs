@@ -2,17 +2,33 @@
 //! (taLeftJustify 0, taRightJustify 1, taCenter 2), cut at its edges as
 //! Windows' static control; a Color fills it when the program set one;
 //! `&` marks a mnemonic that focuses the next component.
+//!
+//! (RapidR's) With `TabStop = 1` a label is a link: Tab reaches it, the
+//! theme's focus ring shows around its text, Enter or Space clicks it
+//! (OnClick), a screen reader announces a link named by its caption (or
+//! AccessibleName) — what RapidR Studio's Recent list is. QLABEL has no
+//! TabStop: RapidQ's labels never take the focus, and a label that isn't
+//! given it doesn't.
 
-use rapidr_value::objects::a11y::{mnemonic, AccessNode};
+use rapidr_value::objects::a11y::{mnemonic, AccessNode, Action};
 use rapidr_value::objects::ops::{Place, Rect};
+use rapidr_value::objects::text::text_size;
 use rapidr_value::Value;
 
-use super::{ComponentKind, Cx, MouseIn, MouseOut};
+use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseOut};
+use crate::a11y::AccessValue;
+use crate::input::Clipboard;
 use crate::paint::{backdrop, caption, ink_of, Painter};
 use crate::store::{self, Store};
 use crate::text::bgr_to_rgb;
 
 pub struct Label;
+
+/// (RapidR's) The program gave the label `TabStop = 1`: it's a link and
+/// takes the focus.
+fn tab_stop(store: &dyn Store, id: &str) -> bool {
+    store::flag(store, id, "tabstop", false)
+}
 
 /// Where its caption sits for its Alignment.
 pub fn place(store: &dyn Store, id: &str) -> Place {
@@ -28,7 +44,24 @@ impl ComponentKind for Label {
         "RLABEL"
     }
 
-    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
+    fn focusable(&self, store: &dyn Store, id: &str) -> bool {
+        tab_stop(store, id)
+    }
+
+    // (RapidR's TabStop: Enter or Space clicks it, as a link)
+    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
+        if matches!(k.vk, 13 | 32) && !k.mods.alt && !k.mods.command && tab_stop(cx.store, cx.id) {
+            cx.click();
+            return true;
+        }
+        false
+    }
+
+    fn access(&self, cx: &mut Cx, action: Action, _part: Option<usize>, _value: Option<&AccessValue>) -> bool {
+        if action == Action::Click && cx.state.enabled && tab_stop(cx.store, cx.id) {
+            cx.click();
+            return true;
+        }
         false
     }
 
@@ -69,6 +102,18 @@ impl ComponentKind for Label {
         let text = store::string(cx.store, cx.id, "caption");
         let color = ink_of(cx, backdrop(cx.store, cx.id));
         let wrap = store::flag(cx.store, cx.id, "wordwrap", false);
+        // (RapidR's TabStop: the focus ring round the link's text — not the
+        // label's whole, wider rectangle —, a little off it, kept inside)
+        if cx.state.focused && tab_stop(cx.store, cx.id) {
+            let tw = text_size(&mnemonic(&text).0, &cx.font).0.min(w);
+            let x = match place(cx.store, cx.id) {
+                Place::TopRight => w - tw,
+                Place::TopCenter => (w - tw) / 2,
+                _ => 0,
+            };
+            let (l, r) = ((x - 3).max(0), (x + tw + 3).min(w));
+            p.focus_ring((l, 0, (r - l).max(1), h), false);
+        }
         if !wrap && !text.contains(['\r', '\n']) {
             caption(p, (0, 0, w, h), &text, &cx.font, color, place(cx.store, cx.id));
             return;

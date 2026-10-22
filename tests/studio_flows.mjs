@@ -1551,6 +1551,31 @@ const CASES = [
     restart: { noOpen: true, events: "reopenrow.__key_13", delay: 4 },
     dump: { "studio.caption": /^Shelf - RapidR Studio$/, "dock.documentcount": /^2$/, "reopenrow.visible": /^0$/ },
   },
+  // (A11Y) The Welcome page's Recent links are keyboard stops (a label
+  // given TabStop is a link): Shift+Tab from the offer to reopen reaches the
+  // project's link — a screen reader's focus is on a link named by the file —
+  // and Enter on it opens the project, as a click does.
+  {
+    name: "welcome-recent-link-keyboard",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__key_9_256", delay: 4 },
+    a11y: [["Shelf.rrproj", "link", "focused", (n) => (n.actions || []).includes("click") && (n.description || "").endsWith("Shelf.rrproj")], [/^Reopen Shelf/, "button"]],
+    dump: { "studio.caption": /^RapidR Studio$/, "recentlink(0).tabstop": /^(1|-1)$/, "recentlink(0).visible": /^(1|-1)$/ },
+  },
+  {
+    name: "welcome-recent-link-enter",
+    open: "tests/fixtures/studio_forms/Shelf.rrproj",
+    copyDir: true,
+    webFiles: SHELF_FILES,
+    do: "wait",
+    delay: 3,
+    restart: { noOpen: true, events: "studio.__key_9_256,studio.__key_13", delay: 4 },
+    dump: { "studio.caption": /^Shelf - RapidR Studio$/, "reopenrow.visible": /^0$/ },
+  },
   // (S2) …Clear Recent (Alt+F, R, C): the list is empty — the menu says
   // so, the Welcome page too; the offer stays (the files are there).
   {

@@ -1762,6 +1762,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
+| `TabStop` *(RapidR)* | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default, and RapidQ's QLABEL) leaves it out of the keyboard's way. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
 | `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
@@ -1788,6 +1789,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 |---|---|
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SetFocus` *(RapidR)* | Gives the label the keyboard focus when it takes it (TabStop = True: a link): its focus ring shows, and Enter or Space clicks it. |
 
 | Event | |
 |---|---|
@@ -1797,6 +1799,8 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
+| `OnExit` *(RapidR)* | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rimage"></a>
 ## RImage <small>(RapidQ name: QIMAGE)</small>

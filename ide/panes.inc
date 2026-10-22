@@ -160,6 +160,7 @@ SUB FillExamples
   AddMoreExample "showcase/midi_visualizer.rr", "A 3D scene that dances to a song (reads the MIDI file itself)"
   AddMoreExample "showcase/make_song.rr", "Composes the visualizer's song and writes a .mid file"
   AddMoreExample "data/million_rows_async.rr", "A million rows from SQLite in the background, an SQL editor"
+  AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
@@ -306,6 +307,8 @@ SUB FillRecent
     RecentLink(i).Left = 48: RecentLink(i).Top = 354 + StartShift + i * 24: RecentLink(i).Width = 230: RecentLink(i).Height = 20
     RecentLink(i).Cursor = -21
     RecentLink(i).Tag = i
+    ' (links: Tab reaches each, the focus ring shows, Enter or Space opens it)
+    RecentLink(i).TabStop = 1
     RecentLink(i).OnClick = RecentPicked
     IF i < n THEN
       p = FIELD$(RecentList, CHR$(10), i + 1)

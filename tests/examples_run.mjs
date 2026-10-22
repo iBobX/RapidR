@@ -106,6 +106,12 @@ export const cases = [
   // shows its help)
   { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
     expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
+  // (a label given TabStop is a link: Enter on the second, Space on the
+  // third — the keys go to the link, which takes the focus)
+  { file: "gui/links.rr", runtimes: ["run", "interp", "native", "web"], events: "link2.__key_13", dump: "answer.caption",
+    expect: ["answer.caption=Opened pantry.rr"] },
+  { file: "gui/links.rr", runtimes: ["run", "interp", "native", "web"], events: "link3.__key_32", dump: "answer.caption",
+    expect: ["answer.caption=Opened stopwatch.rr"] },
   { file: "gui/menus.rr", runtimes: ["run", "interp", "native", "web"], events: "wrapitem.onclick,smallitem.onclick,upperitem.onclick", dump: "status.simpletext,text.text,wrapitem.checked,largeitem.checked",
     expect: ["status.simpletext=Text size 9", "text.text=RIGHT-CLICK ME FOR THE POP-UP MENU.", "wrapitem.checked=0", "largeitem.checked=0"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "colourbtn.onclick,askbtn.onclick", dump: "answer.caption,sample.color",

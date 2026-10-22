@@ -53,6 +53,7 @@ claims, headless).
 |---------|---------------|---------|-----|
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [focus_events.rr](gui/focus_events.rr) | `OnEnter` and `OnExit` (RapidR's own): a box's help when the focus comes to it, its check when the focus leaves it ([the manual](../docs/manual/components.md#the-focus-onenter-and-onexit)) | run · interp · native · web | `rapidr run gui/focus_events.rr` |
+| [links.rr](gui/links.rr) | Labels as links (`TabStop = 1`, RapidR's own): Tab walks them, a focus ring shows, Enter or Space follows one, a screen reader says "link" ([the manual](../docs/manual/components.md#accessibility)) | run · interp · native · web | `rapidr run gui/links.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |

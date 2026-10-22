@@ -736,6 +736,13 @@ pub fn describe(id: &str, type_name: &str, get: Props, size: (i64, i64), font: &
             n.role = Role::Button;
             n.actions = vec![Action::Click, Action::Focus];
         }
+        // (RapidR's: a label given TabStop is a link — Tab reaches it, Enter
+        // / Space clicks it — so a screen reader hears a link)
+        "RLABEL" if flag(get, "tabstop", false) => {
+            own_caption(&mut n, false);
+            n.role = Role::Link;
+            n.actions = vec![Action::Click, Action::Focus];
+        }
         "RLABEL" | "RGROUPBOX" | "RPANEL" | "RBEVEL" => own_caption(&mut n, false),
         // (QDIGDISPLAY: the text it shows)
         "RDIGDISPLAY" => n.name = super::digdisplay_text(id).unwrap_or_else(|| text(get, "display")),
@@ -1172,7 +1179,11 @@ mod tests {
         assert_eq!(describe("p", "RPANEL", &props(&[]), (200, 60), &font).role, Role::Pane);
         let n = describe("card", "RPANEL", &props(&[("tabstop", v_int(1))]), (200, 60), &font);
         assert_eq!((n.role, n.actions.contains(&Action::Click)), (Role::Button, true));
-        let n = describe("pb","RPROGRESSBAR", &props(&[("position", v_int(30)), ("max", v_int(60))]), (100, 16), &font);
+        // (RapidR's) a label: a label; given TabStop, a link
+        assert_eq!(describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr"))]), (200, 20), &font).role, Role::Label);
+        let n = describe("l", "RLABEL", &props(&[("caption", v_str("notepad.rr")), ("tabstop", v_int(1))]), (200, 20), &font);
+        assert_eq!((n.role, n.name.as_str(), n.actions.contains(&Action::Click), n.actions.contains(&Action::Focus)), (Role::Link, "notepad.rr", true, true));
+        let n = describe("pb", "RPROGRESSBAR", &props(&[("position", v_int(30)), ("max", v_int(60))]), (100, 16), &font);
         assert_eq!((n.role, n.value.as_deref(), n.numeric.unwrap().max), (Role::ProgressIndicator, Some("50%"), 60.0));
         let n = describe("ud", "RUPDOWN", &props(&[("position", v_int(4)), ("increment", v_int(2))]), (16, 25), &font);
         assert_eq!((n.role, n.numeric.unwrap().value, n.numeric.unwrap().step), (Role::SpinButton, 4.0, 2.0));

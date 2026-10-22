@@ -1,0 +1,58 @@
+' links.rr: labels as links you can reach with the keyboard. Press Tab to
+' walk the three links (a ring shows round the one with the focus), Enter or
+' Space follows it; a click does too. A screen reader announces each as a
+' link.
+'
+'   rapidr run links.rr
+'
+' TabStop = 1 on an RLabel is RapidR's own: a label without it is RapidQ's
+' (it never takes the focus). The hand cursor (Cursor = -21) is the
+' program's choice.
+$THEME rapidr
+
+DECLARE SUB Picked1
+DECLARE SUB Picked2
+DECLARE SUB Picked3
+
+CREATE Form AS RForm
+    Caption = "Links"
+    Width = 360: Height = 220
+    Center
+    CREATE Heading AS RLabel
+        Caption = "Recent projects": Left = 20: Top = 16: Width = 300
+        Font.Size = 12
+    END CREATE
+    CREATE Link1 AS RLabel
+        Caption = "notepad.rr": Left = 28: Top = 50: Width = 280
+        TabStop = 1: Cursor = -21
+        Hint = "examples/gui/notepad.rr"
+        OnClick = Picked1
+    END CREATE
+    CREATE Link2 AS RLabel
+        Caption = "pantry.rr": Left = 28: Top = 78: Width = 280
+        TabStop = 1: Cursor = -21
+        OnClick = Picked2
+    END CREATE
+    CREATE Link3 AS RLabel
+        Caption = "stopwatch.rr": Left = 28: Top = 106: Width = 280
+        TabStop = 1: Cursor = -21
+        OnClick = Picked3
+    END CREATE
+    CREATE Answer AS RLabel
+        Caption = "Tab to a link, then press Enter.": Left = 20: Top = 150: Width = 300
+    END CREATE
+END CREATE
+
+SUB Picked1
+    Answer.Caption = "Opened notepad.rr"
+END SUB
+
+SUB Picked2
+    Answer.Caption = "Opened pantry.rr"
+END SUB
+
+SUB Picked3
+    Answer.Caption = "Opened stopwatch.rr"
+END SUB
+
+Form.ShowModal
