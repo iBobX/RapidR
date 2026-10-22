@@ -38,7 +38,15 @@ pub fn describe(cx: &mut Cx) -> AccessNode {
             d.push_str("; ");
             d.push_str(h);
         }
+        // (helpers on this line: said on demand, never announced)
+        if super::helpers::line_has_helpers(x) {
+            d.push_str("; helpers on this line: Ctrl+K H reads them, Ctrl+. edits");
+        }
         let mut kids = Vec::new();
+        // (an open value editor: a dialog inside the editor)
+        if let Some(dialog) = crate::value_edit::access(x.id) {
+            kids.push(dialog);
+        }
         // (the live region: what was just announced)
         let mut live = AccessNode::new(node_id(&format!("{}$live", x.id)), Role::Status);
         live.name = x.ui.announce.clone();
@@ -216,7 +224,8 @@ fn laid_pieces<'a>(x: &'a Ctx, line: usize, text: &str, tab: usize) -> Option<Ve
             return None;
         }
         // (a composition shows inside it: its characters still where drawn)
-        if sh.text.preedit.is_none() && RowText::new(text, r.clone(), tab, display_cols(&text[..r.start], tab), None).text != sh.text.text {
+        let ins: Vec<(usize, usize, bool)> = sh.decos.iter().map(|d| (d.at - sh.line_start, d.cols, d.chip)).collect();
+        if sh.text.preedit.is_none() && RowText::with_decos(text, r.clone(), tab, display_cols(&text[..r.start], tab), None, &ins, r.end >= text.len()).text != sh.text.text {
             return None;
         }
         x.ui.cache.layout(sh.slot)?;

@@ -79,6 +79,9 @@ DIM RecentList AS STRING
 ' (S2) at start-up, offer to reopen the last project and its files (a
 ' setting, on unless turned off: Tools > Settings > General)
 DIM ReopenLast AS INTEGER
+' (the code's helpers: off, quiet, helpful — the default — or everything;
+' Tools > Settings, editor.inc)
+DIM EditorHelpers AS STRING
 DIM ReopenPath AS STRING
 CONST MAXRECENT = 10
 DIM SavedLayout AS STRING
@@ -201,6 +204,9 @@ DECLARE SUB FocusCodeSoon(d AS INTEGER)
 DECLARE SUB DesignerSourceEdit(d AS INTEGER, StartLine AS INTEGER, StartCol AS INTEGER, EndLine AS INTEGER, EndCol AS INTEGER, Text AS STRING)
 DECLARE SUB EditorFocusTick
 DECLARE SUB EditorSettings(d AS INTEGER)
+DECLARE SUB EditorProjectFiles(d AS INTEGER)
+DECLARE SUB ShowPausedValues
+DECLARE FUNCTION PausedRows(Ref AS INTEGER) AS STRING
 DECLARE SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
 DECLARE SUB CodeReferences(Json AS STRING, Sender AS RCodeEditor)
 DECLARE SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCodeEditor)

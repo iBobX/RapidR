@@ -30,6 +30,7 @@
 pub mod access;
 pub mod datatip;
 pub mod find;
+pub mod helpers;
 pub mod input;
 pub mod lang;
 pub mod paint;
@@ -160,6 +161,9 @@ pub struct CodeUi {
     pub changes: lang::LineChanges,
     /// The frame's rows: (row index, row, cache slot, device origin).
     pub shown: Vec<paint::Shown>,
+    /// Ctrl went down alone: when holding it shows every argument's name
+    /// (helpers.rs).
+    pub ctrl_at: Option<Instant>,
 }
 
 impl CodeUi {
@@ -194,6 +198,7 @@ impl CodeUi {
             cache_key: (0, "", 0),
             changes: lang::LineChanges::default(),
             shown: Vec::new(),
+            ctrl_at: None,
         }
     }
 
@@ -215,7 +220,7 @@ impl CodeUi {
     /// The deadline the view needs next (the soonest of its own).
     pub fn next_wake(&self) -> Option<Instant> {
         let s = &self.service;
-        [self.idle_at, s.diagnose_at, s.hover_at.map(|h| h.0)].into_iter().flatten().min()
+        [self.idle_at, s.diagnose_at, s.hover_at.map(|h| h.0), self.ctrl_at].into_iter().flatten().min()
     }
 }
 
@@ -228,6 +233,8 @@ pub struct Ctx<'a> {
     pub store: &'a dyn Store,
     pub id: &'a str,
     pub size: (i64, i64),
+    /// The component's place in the form (absolute logical pixels).
+    pub abs: (i64, i64),
     pub scale: f64,
     pub focused: bool,
     pub enabled: bool,
@@ -300,10 +307,11 @@ pub fn with_view<R>(cx: &mut Cx, f: impl FnOnce(&mut Ctx) -> R) -> Option<R> {
     let Cx { store, text, id, rect, state, ui, events, scale, .. } = cx;
     let ui = ui.code.get_or_insert_with(|| Box::new(CodeUi::new()));
     let (w, h) = (rect.2, rect.3);
+    let abs = (rect.0, rect.1);
     let (focused, enabled, scale) = (state.focused, state.enabled, *scale);
     with_code_mut(id, |c| {
         let scheme = scheme_of(c);
-        let mut ctx = Ctx { c, ui, ts: text, events, store: *store, id, size: (w, h), scale, focused, enabled, scheme };
+        let mut ctx = Ctx { c, ui, ts: text, events, store: *store, id, size: (w, h), abs, scale, focused, enabled, scheme };
         sync(&mut ctx);
         f(&mut ctx)
     })
@@ -468,6 +476,10 @@ impl ComponentKind for CodeEditor {
             let (tx, ty, tw, th) = v.ui.geo.text;
             let (bx, by, bw, bh) = v.ui.geo.bars;
             if x >= tx && y >= ty && x < tx + tw && y < ty + th && !v.ui.bars.on_bars(x - bx, y - by, bw, bh) {
+                // (a helper's mark opens its editor: a hand)
+                if helpers::mark_at(v, x as f64, y as f64).is_some() {
+                    return Cursor::Hand;
+                }
                 Cursor::IBeam
             } else {
                 Cursor::Default
@@ -546,5 +558,7 @@ pub fn bar_width() -> i64 {
     BAR
 }
 
+#[cfg(test)]
+mod helper_tests;
 #[cfg(test)]
 mod tests;

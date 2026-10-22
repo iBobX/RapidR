@@ -1450,6 +1450,13 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `SignatureText` (read-only) | string |  | The signature help showing now (the call's signature), empty when none is. |
 | `FoldCount` (read-only) | int |  | How many places are folded. |
 | `Outline` (read-only) | string |  | The file's outline, one entry a line: kind, name, line (from 1) and depth, tab-separated — the language service's (SUBs, FUNCTIONs, TYPEs and their members, the CREATE tree), else the SUBs and FUNCTIONs. |
+| `Helpers` | string | `"helpful"` | How much the code's helpers show (docs/code-helpers-plan.md): "quiet" a mark after each value it knows (a colour's swatch, a picture's thumbnail or a red mark when the file is missing, a font's sample, a sound's ▶); "helpful" also the caret line's one-line help at its end, the parameter's name before a literal argument of a call of several, and a paused program's values (ShowLineValues); "everything" every argument's name and a ▾ after each choice and link too; "off" none. Holding Ctrl a moment shows every argument's name. A click on a mark, or Ctrl+. (Cmd+.) on a value, opens its editor; what it picks is written back as one undo step in the code's own form. |
+| `HelpersOff` | string |  | Helpers turned off one by one, comma-separated: color, font, file, choice, link, names (the argument names), note (the line's help), values (a paused program's). |
+| `ProjectFolder` | string |  | The folder the helpers read pictures from and the file editor lists ("": the code file's own). Nothing outside it is ever read; nothing is fetched from the network. |
+| `ProjectFiles` | string |  | The project's files, a line each, relative to ProjectFolder: what the file and picture editor offers, and how a file is known to be there. |
+| `HelperText` (read-only) | string |  | The caret's line read with its helpers, as Ctrl+K H says it: the line, then what each value is ("orange, 255 130 20", "picture logo.png, missing") and the line's help. |
+| `HelperEditorText` (read-only) | string |  | What the open value editor shows, in words ("orange, 255 130 20 (was blue, 0 0 255)", "Choose a value: alClient"); "" when none is open. |
+| `LineValuesText` (read-only) | string |  | The values ShowLineValues gave that the caret's line shows at its end: "Score = 42, Name$ = "Bob"". |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
@@ -1471,8 +1478,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `LoadFromFile` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
-| `SaveToFile` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
+| `LoadFromFile(FileName AS STRING)` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
+| `SaveToFile([FileName AS STRING])` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
 | `AddStrings` | Appends the strings given, each as a new line. |
 | `GotoSub` | Moves the caret to the SUB or FUNCTION of the name given. |
 | `GotoLine` | Moves the caret to the line given and scrolls it into view. |
@@ -1523,6 +1530,10 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
 | `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
 | `QuickFix` | Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a RapidR name RapidQ doesn't know. Enter or Tab applies the one picked, as one undo step. |
+| `OpenHelper` | Opens the value editor of the helper at the caret, as Ctrl+. (Cmd+.) does on a value: a colour's, a picture's, a font's, a choice's, a link's or a handler's ("Create handler"); elsewhere the quick fixes. |
+| `ReadLineWithHelpers` | Has a screen reader say the caret's line with its helpers (Ctrl+K H): HelperText. |
+| `ShowLineValues(Rows AS STRING, FromLine AS INTEGER, [ToLine AS INTEGER])` | A paused program's values at the ends of the lines FromLine to ToLine (from 1; the paused routine's, up to the paused line) that use them: Rows a line each, name, value and kind tab-separated, as the debugger writes them ("Score\t42\tInteger"). Drawn as Variables draws them (a colour's swatch, "" for an empty text). |
+| `HideLineValues` | Takes ShowLineValues' values away (the program runs on, or ended). |
 | `FormatDocument` | Re-indents the text and cases its words (the language service's; Shift+Alt+F). |
 | `GotoDefinition` | Jumps to the declaration of what's at the caret (F12); in another file, OnNavigate. |
 | `FindReferences` | Selects every use of what's at the caret here and tells OnReferences (Shift+F12). |
@@ -1872,11 +1883,11 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
-| `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
+| `SaveToFile(FileName AS STRING)` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
 | `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
-| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
+| `Load(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
 | `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
 
 | Event | |

@@ -16,6 +16,9 @@ rapidr-value = { workspace = true }
 rapidr-editor = { workspace = true }
 # RapidR's own icons (icons.rs: Painter::icon); GUI-free, builds for wasm32.
 rapidr-icons = { workspace = true }
+# The language registry's `kind` facet (value_edit: a file's kind), already
+# under rapidr-value; GUI-free, wasm-safe.
+rapidr-lang = { workspace = true }
 # Text shaping, layout and editing (MIT OR Apache-2.0; pure Rust). Its
 # "system" feature adds the platform's fonts as fallbacks (CJK, emoji) for
 # what the built-in Liberation fonts lack; its platform crates are

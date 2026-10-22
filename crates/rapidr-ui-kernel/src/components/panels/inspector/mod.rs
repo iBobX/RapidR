@@ -50,7 +50,7 @@ const PART_TABS: usize = 2_000_000;
 const PART_SEARCH: usize = 3_000_000;
 const PART_VIEW: usize = 3_000_001;
 const PART_PINS: usize = 4_000_000;
-const PART_SWATCHES: usize = 5_000_000;
+const PART_PINS_END: usize = 5_000_000;
 const PART_EDIT: usize = 6_000_000;
 
 thread_local! {
@@ -128,7 +128,7 @@ impl V {
     /// show it.
     fn on_divider(&self, x: i64, y: i64) -> bool {
         let (lx, ly, _, lh) = self.g.list;
-        (x - (lx + self.nw)).abs() <= 3 && y >= ly && y < ly + lh && self.row_at(x, y).is_some_and(|(i, _)| !matches!(self.rows[i].kind, RowKind::Category | RowKind::Pins | RowKind::Picker))
+        (x - (lx + self.nw)).abs() <= 3 && y >= ly && y < ly + lh && self.row_at(x, y).is_some_and(|(i, _)| !matches!(self.rows[i].kind, RowKind::Category | RowKind::Pins))
     }
 
     fn selected(&self) -> Option<usize> {
@@ -147,9 +147,6 @@ impl V {
     fn value_rect(&self, i: usize) -> Rect {
         let rr = self.row_rect(i);
         let r = &self.rows[i];
-        if r.kind == RowKind::Picker {
-            return geo::picker(rr).field;
-        }
         let parts = geo::parts(&self.m, r, rr, self.nw);
         let (vx, y, vw, h) = parts.value;
         let right = parts.button.map_or(vx + vw - 2, |b| b.0 - 2);
@@ -230,7 +227,7 @@ fn begin(cx: &mut Cx, v: &V, key: &str) -> bool {
     let r = &v.rows[i];
     let typed = match r.kind {
         RowKind::Category | RowKind::Pins => false,
-        RowKind::Picker | RowKind::Event | RowKind::Line(_) | RowKind::AddLine => true,
+        RowKind::Event | RowKind::Line(_) | RowKind::AddLine => true,
         _ => geo::row_kind(&v.m, r).is_some_and(|k| k.typed()),
     };
     if !typed {
@@ -242,7 +239,6 @@ fn begin(cx: &mut Cx, v: &V, key: &str) -> bool {
         RowKind::AddLine => String::new(),
         _ if secret => String::new(),
         RowKind::Line(_) => r.text.clone(),
-        RowKind::Picker => v.m.value_text(r.key.split('#').next().unwrap_or("")).unwrap_or_default(),
         _ if r.mixed => String::new(),
         _ => r.text.clone(),
     };
@@ -272,7 +268,7 @@ fn finish(cx: &mut Cx, keep: bool) -> bool {
         // (an unchanged value isn't a change)
         let same = model::with(cx.id, |m| {
             let rows = m.rows();
-            rows.iter().find(|r| r.key == key).is_some_and(|r| !r.mixed && r.text == text && !matches!(r.kind, RowKind::AddLine | RowKind::Picker))
+            rows.iter().find(|r| r.key == key).is_some_and(|r| !r.mixed && r.text == text && !matches!(r.kind, RowKind::AddLine))
         })
         .unwrap_or(false);
         if !same && !commit(cx, &key, &text) {
@@ -312,12 +308,6 @@ fn toggle_pin(cx: &mut Cx, v: &V, r: &Row, k: usize) {
     commit(cx, &format!("{}.{}", p.key(), FLAGS[k].to_ascii_lowercase()), if on { "False" } else { "True" });
 }
 
-/// The colour picker row `r`'s swatch `k` picked.
-fn pick_swatch(cx: &mut Cx, r: &Row, k: usize) {
-    let base = r.key.split('#').next().unwrap_or("").to_string();
-    commit(cx, &base, geo::swatch_name(k));
-}
-
 /// An enum row's next (or previous) constant.
 fn cycle(cx: &mut Cx, v: &V, r: &Row, step: i64) -> bool {
     let Some(Kind::Enum(values)) = geo::row_kind(&v.m, r) else { return false };
@@ -330,7 +320,112 @@ fn cycle(cx: &mut Cx, v: &V, r: &Row, step: i64) -> bool {
     true
 }
 
-/// Row `i`'s list dropped (or its picker opened, or the program asked for
+/// Row `i`'s value's place in the form (absolute): where a value editor
+/// hangs from.
+fn anchor(cx: &Cx, v: &V, i: usize) -> Rect {
+    let r = &v.rows[i];
+    let rr = v.row_rect(i);
+    let parts = geo::parts(&v.m, r, rr, v.nw);
+    let (vx, y, vw, h) = parts.value;
+    (cx.rect.0 + vx, cx.rect.1 + y, vw, h)
+}
+
+/// An open value editor follows its row as the panel scrolls or resizes;
+/// its row out of sight (or gone), it closes — nothing written.
+fn follow(cx: &Cx, v: &V) {
+    use crate::value_edit::{self, Owner};
+    let Some(key) = value_edit::with(cx.id, |p| match &p.owner {
+        Owner::Inspector(k) => Some(k.clone()),
+        Owner::Code(_) => None,
+    })
+    .flatten() else {
+        return;
+    };
+    let Some(i) = v.rows.iter().position(|r| r.key == key) else {
+        value_edit::close(cx.id);
+        return;
+    };
+    let rr = v.row_rect(i);
+    let (_, ly, _, lh) = v.g.list;
+    if rr.1 + rr.3 <= ly || rr.1 >= ly + lh {
+        value_edit::close(cx.id);
+        return;
+    }
+    let a = anchor(cx, v, i);
+    value_edit::with(cx.id, |p| p.anchor = a);
+}
+
+/// The shared value editors (docs/code-helpers-plan.md E1: the code's
+/// helpers open the same ones): a colour row's colour editor, a font row's
+/// font editor. Whether row `i` has one.
+fn open_editor(cx: &mut Cx, v: &V, i: usize) -> bool {
+    use crate::value_edit::{self, list::Item, ListKind, Owner, Popover};
+    let r = &v.rows[i];
+    if r.kind != RowKind::Prop || v.m.read_only {
+        return false;
+    }
+    let Some(p) = v.m.snap.props.get(r.prop) else { return false };
+    let anchor = anchor(cx, v, i);
+    let owner = Owner::Inspector(r.key.clone());
+    let pop = match p.kind {
+        Kind::Color => {
+            let value = p.value.as_ref().map_or(0, |x| x.to_i64());
+            // (the colours the inspected components use: the palette's first)
+            let mut project: Vec<i64> = v.m.snap.props.iter().filter(|q| q.kind == Kind::Color).filter_map(|q| q.value.as_ref().map(|x| x.to_i64())).collect();
+            project.dedup();
+            Popover::color(owner, value, &project, anchor)
+        }
+        Kind::Font => {
+            let part = |n: &str| p.parts.iter().find(|q| q.name.eq_ignore_ascii_case(n)).and_then(|q| q.value.clone());
+            let name = part("Name").map(|x| x.to_string_val()).unwrap_or_default();
+            let size = part("Size").map_or(8, |x| x.to_i64());
+            let bold = part("Bold").is_some_and(|x| x.to_bool());
+            let italic = part("Italic").is_some_and(|x| x.to_bool());
+            let names = cx.text.family_names();
+            let mut items: Vec<Item> = names.iter().map(|n| {
+                let mut it = Item::new(n.clone());
+                it.face = Some(n.clone());
+                it
+            }).collect();
+            if !name.is_empty() && !names.iter().any(|n| n.eq_ignore_ascii_case(&name)) {
+                let mut it = Item::new(name.clone());
+                it.detail = "not on this computer".into();
+                items.insert(0, it);
+            }
+            let sel = items.iter().position(|it| it.label.eq_ignore_ascii_case(&name));
+            let mut pop = Popover::list(owner, ListKind::Font, items, sel, anchor);
+            if let value_edit::Editor::List { size: s, style, .. } = &mut pop.editor {
+                *s = Some(value_edit::size_field(size));
+                *style = Some((bold, italic));
+            }
+            pop
+        }
+        _ => return false,
+    };
+    value_edit::open(cx.id, pop, (i64::MAX / 4, i64::MAX / 4));
+    true
+}
+
+/// What a value editor picked for row `key` (crate::value_edit): set as
+/// typed into the row (checked, then OnPropertyChange).
+pub fn apply_picked(cx: &mut Cx, key: &str, picked: &crate::value_edit::Picked) {
+    use crate::value_edit::Picked;
+    match picked {
+        Picked::Color(c) => {
+            let text = values::color_name(*c).map_or_else(|| values::color_hex(*c), str::to_string);
+            commit(cx, key, &text);
+        }
+        Picked::Font { name, size, bold, italic } => {
+            commit(cx, &format!("{key}.name"), name);
+            commit(cx, &format!("{key}.size"), &size.to_string());
+            commit(cx, &format!("{key}.bold"), if *bold { "True" } else { "False" });
+            commit(cx, &format!("{key}.italic"), if *italic { "True" } else { "False" });
+        }
+        _ => {}
+    }
+}
+
+/// Row `i`'s list dropped (or its editor opened, or the program asked for
 /// its editor).
 fn drop(cx: &mut Cx, v: &V, i: usize) {
     let r = &v.rows[i];
@@ -338,9 +433,7 @@ fn drop(cx: &mut Cx, v: &V, i: usize) {
     if v.m.read_only {
         return;
     }
-    if matches!(kind, Kind::Color) && r.kind == RowKind::Prop {
-        let (key, open) = (r.key.clone(), !r.expanded);
-        ui(cx, |m| m.set_open(&key, open));
+    if open_editor(cx, v, i) {
         return;
     }
     if r.kind == RowKind::Event || kind.drops() {
@@ -366,7 +459,6 @@ fn activate(cx: &mut Cx, v: &V, i: usize) {
             ui(cx, |m| m.set_open(&r.key, open));
         }
         RowKind::Pins => toggle_pin(cx, v, &r, v.m.ui.pin),
-        RowKind::Picker => pick_swatch(cx, &r, v.m.ui.swatch),
         RowKind::Event if r.text.is_empty() => send(cx, User::Inspector(Act::EventDblClick(r.name.clone()))),
         _ => {
             let kind = geo::row_kind(&v.m, &r);
@@ -391,11 +483,6 @@ fn go(cx: &mut Cx, v: &V, to: usize, from: Option<usize>) {
     let down = from.is_none_or(|f| f < to);
     match r.kind {
         RowKind::Pins => ui(cx, |m| m.ui.pin = if down { 1 } else { 3 }),
-        RowKind::Picker => {
-            let cur = v.m.snap.props.get(r.prop).and_then(|p| p.value.as_ref()).map(|x| x.to_i64());
-            let at = (0..geo::swatch_count()).find(|&k| values::color_value(geo::swatch_name(k)) == cur);
-            ui(cx, |m| m.ui.swatch = at.unwrap_or(if down { 0 } else { geo::swatch_count() - 1 }));
-        }
         _ => {}
     }
     let key = r.key.clone();
@@ -428,31 +515,8 @@ impl Inspector {
                         None => {}
                     }
                 }
-                (RowKind::Picker, vk::UP | vk::DOWN | vk::LEFT | vk::RIGHT) => {
-                    let n = geo::swatch_count() as i64;
-                    let s = v.m.ui.swatch as i64;
-                    let cols = geo::COLUMNS as i64;
-                    // (the standard grid's two rows, then the system's three)
-                    let next = match k.vk {
-                        vk::LEFT => (s - 1).max(0),
-                        vk::RIGHT => (s + 1).min(n - 1),
-                        vk::UP => s - cols,
-                        _ => s + cols,
-                    };
-                    if (0..n).contains(&next) {
-                        ui(cx, |m| m.ui.swatch = next as usize);
-                        return true;
-                    }
-                    if matches!(k.vk, vk::LEFT | vk::RIGHT) {
-                        return true;
-                    }
-                }
                 (RowKind::Pins, vk::SPACE | vk::ENTER) => {
                     toggle_pin(cx, v, r, v.m.ui.pin);
-                    return true;
-                }
-                (RowKind::Picker, vk::SPACE | vk::ENTER) => {
-                    pick_swatch(cx, r, v.m.ui.swatch);
                     return true;
                 }
                 _ => {}
@@ -528,11 +592,6 @@ impl Inspector {
                 _ if geo::resettable(&r) && !r.is_default && !r.mixed && !v.m.read_only => send(cx, User::Inspector(Act::Reset(r.key.clone()))),
                 _ => {}
             },
-            vk::ESCAPE if r.kind == RowKind::Picker => {
-                let base = r.key.split('#').next().unwrap_or("").to_string();
-                ui(cx, |m| m.set_open(&base, false));
-                select(cx, &base);
-            }
             _ => return Self::type_ahead(cx, v, k, Some(i)),
         }
         forget_typed(cx);
@@ -721,13 +780,6 @@ impl Inspector {
                 ui(cx, |mm| mm.ui.pin = k);
                 toggle_pin(cx, &v, &r, k);
             }
-            Part::Swatch(k) if !v.m.read_only => {
-                ui(cx, |mm| mm.ui.swatch = k);
-                pick_swatch(cx, &r, k);
-            }
-            Part::Field => {
-                begin(cx, &v, &r.key);
-            }
             Part::Value => match r.kind {
                 // (an event's SUB: double click makes one; a press selects)
                 RowKind::Event if !was => {}
@@ -806,6 +858,7 @@ impl ComponentKind for Inspector {
         v.pos = pos;
         v.cw = cw;
         v.nw = geo::name_width(&v.m, cw);
+        follow(cx, &v);
         let editing = editing_key(cx.id);
         if editing.is_none() {
             list::drop_editor(cx);
@@ -1018,6 +1071,10 @@ impl ComponentKind for Inspector {
             };
         }
         n.children.clear();
+        // (an open value editor: a dialog inside the panel)
+        if let Some(dialog) = crate::value_edit::access(cx.id) {
+            n.children.push(dialog);
+        }
         let (ax, ay) = (cx.rect.0, cx.rect.1);
         let at = |r: Rect| (ax + r.0, ay + r.1, r.2, r.3);
         let editing = editing_key(cx.id);
@@ -1064,11 +1121,10 @@ impl ComponentKind for Inspector {
             let mut row = AccessNode::new(part_id(cx.id, PART_ROW, i), Role::Row);
             row.name = match r.kind {
                 RowKind::Pins => "Anchors editor".into(),
-                RowKind::Picker => "Colour picker".into(),
                 RowKind::AddLine => r.name.clone(),
                 _ => r.prop_name(&v.m.snap.props, &v.m.snap.events),
             };
-            if !matches!(r.kind, RowKind::Category | RowKind::Pins | RowKind::Picker) {
+            if !matches!(r.kind, RowKind::Category | RowKind::Pins) {
                 row.value = Some(if r.mixed { String::new() } else { r.text.clone() });
             }
             // (a category 1, its rows 2, their parts 3; A–Z: rows 1, parts 2)
@@ -1106,20 +1162,6 @@ impl ComponentKind for Inspector {
                         pin.actions = vec![Action::Click];
                         pin.bounds = at(*s);
                         row.children.push(pin);
-                    }
-                }
-                RowKind::Picker => {
-                    let pk = geo::picker(rr);
-                    let cur = v.m.snap.props.get(r.prop).and_then(|p| p.value.as_ref()).map(|x| x.to_i64());
-                    for (k, s) in pk.swatches.iter().enumerate() {
-                        let name = geo::swatch_name(k);
-                        let mut sw = AccessNode::new(part_id(cx.id, PART_ITEM, PART_SWATCHES + i * 64 + k), Role::ListBoxOption);
-                        sw.name = name.to_string();
-                        sw.states.selected = Some(values::color_value(name) == cur);
-                        sw.states.focused = focused && selected == Some(i) && v.m.ui.swatch == k && editing.is_none();
-                        sw.actions = vec![Action::Click];
-                        sw.bounds = at(*s);
-                        row.children.push(sw);
                     }
                 }
                 _ => {}
@@ -1162,15 +1204,7 @@ impl ComponentKind for Inspector {
                 ui(cx, |m| m.alphabetic = !m.alphabetic);
                 true
             }
-            p if (PART_SWATCHES..PART_EDIT).contains(&p) && action == Action::Click => {
-                let (i, k) = ((p - PART_SWATCHES) / 64, (p - PART_SWATCHES) % 64);
-                let Some(r) = v.rows.get(i).cloned() else { return false };
-                select(cx, &r.key);
-                ui(cx, |m| m.ui.swatch = k);
-                pick_swatch(cx, &r, k);
-                true
-            }
-            p if (PART_PINS..PART_SWATCHES).contains(&p) && action == Action::Click => {
+            p if (PART_PINS..PART_PINS_END).contains(&p) && action == Action::Click => {
                 let (i, k) = ((p - PART_PINS) / 4, (p - PART_PINS) % 4);
                 let Some(r) = v.rows.get(i).cloned() else { return false };
                 select(cx, &r.key);

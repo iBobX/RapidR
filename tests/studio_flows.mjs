@@ -279,6 +279,11 @@ const stopsAt = (line) => new RegExp(`\\[stops\\] ${line}:breakpoint ${line}:bre
 
 // (S-DEBUG: the debugger's program and the file it includes)
 const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/studio_debug/tally.inc"];
+// (E0–E2) The code's helpers' example: its picture beside it. Typing pauses
+// a moment before the helpers come (the language service's), so the steps
+// wait for them first.
+const HELPERS_FILES = ["examples/studio/helpers.rr", "examples/studio/logo.svg"];
+const HELPERS_READY = "focus:codedoc(0),wait,wait,wait,wait";
 // (a long question: the chat's cards come well below the first screenful)
 const LONG_ASK = Array(14).fill("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa").join(" ") + ".";
 // (an a11y check's test) The node is inside the assistant's chat as it shows
@@ -973,6 +978,167 @@ const CASES = [
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:F12",
     delay: 6,
     dump: { "codedoc(0).caretline": /^42$/ },
+  },
+  // (E0–E2, docs/code-helpers-plan.md) The code's helpers on
+  // examples/studio/helpers.rr, by the keys a user presses: Ctrl+. on a
+  // value opens its editor, what it picks is written back in the code's own
+  // form as one undo step; the helpers read with the line (HelperText,
+  // Ctrl+K H's words); Quiet hides the note; a paused program's values at
+  // the lines' ends.
+  {
+    name: "helpers-colour-open",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait`,
+    delay: 8,
+    capture: true,
+    dump: {
+      "codedoc(0).helpereditortext": /^.+, 250 246 238 \(was .+, 250 246 238\)$/,
+      "codedoc(0).helpertext": /^Color = RGB\(250, 246, 238\); .+, 250 246 238/,
+    },
+  },
+  {
+    // Red 0, Green 0, Blue 255 typed, Enter: RGB(…) stays RGB(…)
+    name: "helpers-colour-write",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait,key:Tab,key:Tab,type:0,key:Tab,type:0,key:Tab,type:255,key:Enter,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\n {4}Color = RGB\(0, 0, 255\)\n/, "codedoc(0).helpereditortext": /^$/ },
+  },
+  {
+    // …and one Ctrl+Z puts it back
+    name: "helpers-colour-undo",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait,key:Tab,key:Tab,type:0,key:Tab,type:0,key:Tab,type:255,key:Enter,wait,key:Ctrl+Z,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\n {4}Color = RGB\(250, 246, 238\)\n/ },
+  },
+  {
+    // &H stays &H: the Hex field typed
+    name: "helpers-hex",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:26,key:End,key:Ctrl+.,wait,key:Tab,key:Tab,key:Tab,key:Tab,key:Tab,type:#102030,key:Enter,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\n {8}FontColor = &H302010\n/ },
+  },
+  {
+    // Esc: the code as it was, the editor gone
+    name: "helpers-escape",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait,key:Right,key:Right,key:Escape,wait`,
+    delay: 8,
+    dump: { "codedoc(0).text": /\n {4}Color = RGB\(250, 246, 238\)\n/, "codedoc(0).helpereditortext": /^$/, "codedoc(0).canundo": /^(0|False)$/i },
+  },
+  {
+    // a choice: Align's constants, Down picks the next
+    name: "helpers-choice",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:35,key:End,key:Ctrl+.,wait,key:Down,key:Enter,wait`,
+    delay: 8,
+    capture: true,
+    dump: { "codedoc(0).text": /\n {8}Align = alTop\n/ },
+  },
+  {
+    // an event: the list opens on its SUB, Create handler at the top (Home)
+    // — the new SUB before the form, linked, one undo step
+    name: "helpers-create-handler",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:36,key:End,key:Ctrl+.,wait,key:Home,key:Enter,wait`,
+    delay: 8,
+    dump: { "codedoc(0).text": /\nSUB AgainClick\n {4}\nEND SUB\n\nCREATE Form AS RForm\n[\s\S]*\n {8}OnClick = AgainClick\n/ },
+  },
+  {
+    // the picture's mark: there…
+    name: "helpers-picture",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:44,key:End`,
+    delay: 7,
+    dump: { "codedoc(0).helpertext": /^Logo\.Load "logo\.svg"; picture logo\.svg; Loads a picture/ },
+  },
+  {
+    // the picture editor (Ctrl+. on it): the project's pictures, the one in
+    // the code picked, its preview inside the editor (the real walk once
+    // found it drawn past the editor's bottom)
+    name: "helpers-picture-editor",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:44,key:End,key:Ctrl+.,wait`,
+    delay: 9,
+    capture: true,
+    dump: { "codedoc(0).helpereditortext": /logo\.svg/ },
+  },
+  {
+    // the font editor: the font in the code picked, its preview line clear
+    // of Apply and Cancel; Esc leaves the code as it was
+    name: "helpers-font-editor",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:41,key:End,key:Ctrl+.,wait`,
+    delay: 9,
+    capture: true,
+    dump: { "codedoc(0).helpereditortext": /^Font: Inter/ },
+  },
+  {
+    name: "helpers-font-escape",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:41,key:End,key:Ctrl+.,wait,key:Down,key:Escape,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\nTitleFont\.Name = "Inter"\n/, "codedoc(0).helpereditortext": /^$/ },
+  },
+  {
+    // …and a name typed wrong: the red mark, said "missing"
+    name: "helpers-picture-missing",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:44,key:End,key:Left,type:x,key:Escape,key:Down,wait,wait,wait,wait,key:Up,key:End`,
+    delay: 9,
+    dump: { "codedoc(0).helpertext": /picture logo\.svgx, missing/ },
+  },
+  {
+    // the line's help, read with it; Quiet: the colours only
+    name: "helpers-note",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `${HELPERS_READY},line:48,key:End`,
+    delay: 7,
+    capture: true,
+    dump: { "codedoc(0).helpertext": /RGB\(255, 130, 20\); orange, 255 130 20; .*rectangle/i, "codedoc(0).helpers": /^helpful$/ },
+  },
+  {
+    name: "helpers-quiet",
+    open: "examples/studio/helpers.rr",
+    webFiles: HELPERS_FILES,
+    do: `helpers:quiet,${HELPERS_READY},line:48,key:End`,
+    delay: 7,
+    dump: { "codedoc(0).helpertext": /^(?![\s\S]*rectangle)[\s\S]*orange, 255 130 20$/i, "codedoc(0).helpers": /^quiet$/ },
+  },
+  {
+    // the debugger stopped on line 6: the values of the names each line
+    // above uses, at its end (Variables' values)
+    name: "helpers-values-paused",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: { "session.state": /^paused$/, "codedoc(0).linevaluestext": /^i = 1$/ },
+  },
+  {
+    // …gone once it ends
+    name: "helpers-values-gone",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,debug.toggleBreakpoint,run.start,wait,wait,wait",
+    delay: 9,
+    dump: { "session.state": /^stopped$/, "codedoc(0).linevaluestext": /^$/ },
   },
   // (S-PANELS) The inspector on the designer: pantry's AddBtn selected,
   // its Caption and Width set in the inspector — the code shows them as the

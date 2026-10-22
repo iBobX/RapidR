@@ -31,6 +31,7 @@ mod compat;
 mod complete;
 mod context;
 mod format;
+mod helpers;
 mod hints;
 mod hover;
 mod navigate;
@@ -630,6 +631,16 @@ impl Analysis {
         let Some(text) = self.text(file) else { return Vec::new() };
         let Some(s) = self.quick_snapshot(file) else { return Vec::new() };
         case::case_edits(&s, file, &text, scope, self.options.case)
+    }
+
+    /// The helpers of a file (docs/code-helpers-plan.md): its values with
+    /// their kinds and how each is written, its arguments' parameter names,
+    /// its lines' help — from the program's analysis, made again when the
+    /// text changed (an editor asks when typing pauses).
+    pub fn helpers(&mut self, file: &Path) -> Vec<rapidr_editor::service::HelperSite> {
+        let Some(text) = self.text(file) else { return Vec::new() };
+        let Some(s) = self.snapshot(file) else { return Vec::new() };
+        helpers::helpers(&s, file, &text)
     }
 
     /// Fixes for the diagnostics in a range of a file.

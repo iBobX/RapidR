@@ -308,9 +308,19 @@ pub fn diagnose(x: &mut Ctx) {
     x.c.set_service_diagnostics(mine);
     let tokens = service::with(|s| s.semantic_tokens(&file)).unwrap_or_default();
     x.c.semantic = tokens.into_iter().map(|t| rapidr_value::objects::codeedit::SemanticSpan { start: t.start, end: t.end, kind: t.kind }).collect();
+    // (the code's helpers, from the same analysis: docs/code-helpers-plan.md)
+    super::helpers::fetch(x);
     // (the caret line's problems, for screen readers: announced when they change)
     if x.c.line_severity_summary() != before {
         super::access::announce_line_problems(x);
+    }
+}
+
+/// Ctrl+. (Cmd+.) on a helper's value: its value editor; elsewhere the
+/// service's fixes ([`quick_fix`]).
+pub fn helper_or_fix(x: &mut Ctx) {
+    if !super::helpers::open_at_caret(x) {
+        quick_fix(x);
     }
 }
 

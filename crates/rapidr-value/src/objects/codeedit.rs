@@ -229,6 +229,10 @@ pub enum Request {
     Rename(String),
     /// The find box: `find`, `replace`, `goto`, `rename`.
     Find(String),
+    /// Ctrl+.: the value editor of the helper at the caret (OpenHelper).
+    OpenHelper,
+    /// The caret's line read with its helpers (ReadLineWithHelpers).
+    ReadLine,
 }
 
 /// The editor's options (the program's properties; the view reads them).
@@ -364,6 +368,9 @@ pub struct CodeEditor {
     /// (`SetSchema`).
     pub sql_dialect: rapidr_editor::sql::Dialect,
     pub sql_schema: Arc<rapidr_editor::sql::Schema>,
+    /// The code's helpers (docs/code-helpers-plan.md): the language
+    /// service's sites, the settings, the values while paused.
+    pub helpers: super::codehelp::Helpers,
 }
 
 impl Default for CodeEditor {
@@ -552,6 +559,7 @@ impl CodeEditor {
             recent: Vec::new(),
             sql_dialect: rapidr_editor::sql::Dialect::Any,
             sql_schema: Arc::new(rapidr_editor::sql::Schema::default()),
+            helpers: super::codehelp::Helpers::default(),
         }
     }
 
@@ -815,6 +823,10 @@ impl CodeEditor {
         self.fold_version = None;
         self.diagnostics.clear();
         self.semantic.clear();
+        self.helpers.sites.clear();
+        self.helpers.pending = None;
+        self.helpers.typing_at = None;
+        self.helpers.version += 1;
         self.markers.retain(|m| m.at <= text.len());
         self.hide_popups();
     }
@@ -869,6 +881,7 @@ impl CodeEditor {
             if let Some(s) = &mut self.signature {
                 s.at = set.map_pos(s.at, Assoc::Before);
             }
+            self.helpers.map(set);
         }
         // (markers on lines: each at its line's start, one per kind)
         let buf = self.doc.buffer();
@@ -1397,6 +1410,25 @@ impl CodeEditor {
             "signaturetext" => v_str(self.signature.as_ref().map_or("", |s| s.label.as_str())),
             "foldcount" => v_int(self.folded.len() as i64),
             "outline" => v_str(&self.outline()),
+            // (the code's helpers: docs/code-helpers-plan.md)
+            "helpers" => v_str(self.helpers.level.name()),
+            "helpersoff" => v_str(&self.helpers.off.join(",")),
+            "projectfolder" => v_str(&self.helpers.project_folder),
+            "projectfiles" => v_str(&self.helpers.project_files.join("\n")),
+            "helpertext" => {
+                let buf = self.doc.buffer();
+                let line = buf.line_of(p.head);
+                let (a, b) = (buf.line_start(line), buf.line_end(line));
+                let text = buf.line_text(line).into_owned();
+                let folder = self.helpers.folder(&self.file_name);
+                v_str(&self.helpers.describe_line(a, b, &text, &|h| self.helpers.file_there(&folder, &h.value)))
+            }
+            "helpereditortext" => v_str(&self.helpers.editor_text),
+            "linevaluestext" => {
+                let line = self.doc.buffer().line_of(p.head);
+                let text = self.doc.buffer().line_text(line).into_owned();
+                v_str(&self.helpers.values_on(line, &text).iter().map(|v| format!("{} = {}", v.name, v.value)).collect::<Vec<_>>().join(", "))
+            }
             _ => return None,
         })
     }
@@ -1497,6 +1529,18 @@ impl CodeEditor {
             "autoindent" => {
                 self.opts.auto_indent = b;
                 self.doc.auto_indent = b;
+            }
+            "helpers" => {
+                self.helpers.level = super::codehelp::Level::parse(&val.to_string_val());
+                self.helpers.version += 1;
+            }
+            "helpersoff" => {
+                self.helpers.off = val.to_string_val().split([',', ';', ' ']).map(|s| s.trim().to_ascii_lowercase()).filter(|s| super::codehelp::SWITCHES.contains(&s.as_str())).collect();
+                self.helpers.version += 1;
+            }
+            "projectfolder" => self.helpers.project_folder = val.to_string_val(),
+            "projectfiles" => {
+                self.helpers.project_files = val.to_string_val().lines().map(|l| l.trim().replace('\\', "/")).filter(|l| !l.is_empty()).collect();
             }
             "lineending" => {
                 self.file_ending = match val.to_string_val().trim().to_ascii_uppercase().as_str() {
@@ -1703,6 +1747,19 @@ impl CodeEditor {
             }
             "formatdocument" => self.requests.push(Request::Format),
             "quickfix" => self.requests.push(Request::QuickFix),
+            // (the code's helpers: docs/code-helpers-plan.md)
+            "openhelper" => self.requests.push(Request::OpenHelper),
+            "readlinewithhelpers" => self.requests.push(Request::ReadLine),
+            "showlinevalues" => {
+                let from = (num(1, 1) - 1).max(0) as usize;
+                let to = (num(2, num(1, 1)) - 1).max(0) as usize;
+                self.helpers.set_values(&arg(0), from, to);
+            }
+            "hidelinevalues" => {
+                self.helpers.values.clear();
+                self.helpers.values_lines = None;
+                self.helpers.version += 1;
+            }
             "gotodefinition" => self.requests.push(Request::Definition),
             "findreferences" => self.requests.push(Request::References),
             "rename" => self.requests.push(Request::Rename(arg(0))),

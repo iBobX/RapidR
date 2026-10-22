@@ -1,7 +1,7 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
 # python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) dc:x,y (double click) pd:/pm:/pu:x,y (press, drag, release) C:x,y (click, screen coords) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
 #   m:x,y (the mouse moved there: hover), w:seconds (wait), r:x,y,n (the wheel, n notches down; negative: up),
-#   k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt),
+#   k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt), kd:code / ku:code (a key held down, let go),
 #   t:text (typed)
 # Needs Accessibility + Screen Recording for the Claude Code helper app.
 # The UI kernel's windows take it as a user's input; run the program without
@@ -85,6 +85,15 @@ for a in sys.argv[2:]:
             # (always set: an event with none takes the machine's held modifiers — a Cmd+Fn left down made a plain F5 Cmd+F5, which turned VoiceOver on)
             Quartz.CGEventSetFlags(e,flags)
             Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
+    elif kind in ("kd","ku"):
+        # kd:code / ku:code — a key pressed and held, then let go (a held
+        # modifier: kd:59 is Control down, ku:59 Control up; between them
+        # w: and s: — what shows while it is held)
+        code=int(arg); down=kind=="kd"
+        mods={59:Quartz.kCGEventFlagMaskControl,62:Quartz.kCGEventFlagMaskControl,55:Quartz.kCGEventFlagMaskCommand,56:Quartz.kCGEventFlagMaskShift,58:Quartz.kCGEventFlagMaskAlternate}
+        e=Quartz.CGEventCreateKeyboardEvent(None,code,down)
+        Quartz.CGEventSetFlags(e,mods.get(code,0) if down else 0)
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap,e)
     elif kind=="t":
         # text typed (t:RapidR Dark) by System Events, as the keyboard's
         # keys (an event carrying only a Unicode string is dropped by

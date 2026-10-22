@@ -93,11 +93,12 @@
 
 pub mod ai;
 pub mod card;
+pub mod kinds;
 pub mod conformance;
 pub mod export;
 pub mod truth;
 
-pub use ai::{Effect, Risk};
+pub use ai::{syntax_param_names, Effect, Risk};
 
 /// Where a name comes from: RapidQ (its manual, its include files or its
 /// compiler RC.EXE have it) or RapidR (an extension: RC.EXE refuses it).
@@ -206,6 +207,11 @@ pub struct Property {
     pub effects: &'static [Effect],
     /// It holds a credential: never shown to an AI.
     pub secret: bool,
+    /// What its value is beyond its type ([`kinds`]: `color`, `font`,
+    /// `file:image`, `choice:values`, `component:QFORM` …): its own `kind`,
+    /// else what its type says. The code editor's helpers show and edit it;
+    /// an AI writes a valid one.
+    pub kind: Option<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -259,6 +265,8 @@ pub struct Method {
     /// (RSecrets' Read and Save): never shown to an AI, `••••` in the
     /// debugger (rapidr_value::secrets).
     pub secret: bool,
+    /// Its parameters' kinds, by name ([`kinds`]): `("FileName", "file:image")`.
+    pub arg_kinds: &'static [(&'static str, &'static str)],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -337,6 +345,11 @@ pub struct Builtin {
     pub example: &'static str,
     /// What `example` prints, when it is a whole program that does.
     pub expect: &'static str,
+    /// What the value it gives is ([`kinds`]: RGB's `color`).
+    pub kind: Option<&'static str>,
+    /// Its parameters' kinds, by name — its `params`', else its syntax's
+    /// ([`syntax_param_names`]): PLAYWAV's `("FileName", "file:sound")`.
+    pub arg_kinds: &'static [(&'static str, &'static str)],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -401,6 +414,13 @@ pub struct ConstantGroup {
     pub origin: Origin,
     pub doc: &'static str,
     pub constants: &'static [(&'static str, i64)],
+    /// Its choice set's id, when a value may be one of them (`kind =
+    /// "choice:<set>"`): `msgdlg-buttons`.
+    pub set: Option<&'static str>,
+    /// The set's constants are flags, added together (`mbYes + mbNo`).
+    pub flags: bool,
+    /// What every constant of it is ([`kinds`]): the colours' `color`.
+    pub kind: Option<&'static str>,
 }
 
 include!(concat!(env!("OUT_DIR"), "/registry.rs"));
@@ -534,9 +554,25 @@ pub fn words(kind: &str) -> Vec<&'static str> {
     w
 }
 
-/// A constant's value by name (any case), and its group.
+/// A constant's value by name (any case), and its group (the first group
+/// that has it). An index made once: the language service asks for every
+/// name of a program.
 pub fn constant(name: &str) -> Option<(i64, &'static ConstantGroup)> {
-    CONSTANT_GROUPS.iter().find_map(|g| g.constants.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| (*v, g)))
+    static INDEX: std::sync::OnceLock<std::collections::HashMap<String, (i64, &'static ConstantGroup)>> = std::sync::OnceLock::new();
+    let index = INDEX.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for g in CONSTANT_GROUPS {
+            for (n, v) in g.constants {
+                m.entry(n.to_ascii_lowercase()).or_insert((*v, g));
+            }
+        }
+        m
+    });
+    if name.bytes().any(|b| b.is_ascii_uppercase()) {
+        index.get(&name.to_ascii_lowercase()).copied()
+    } else {
+        index.get(name).copied()
+    }
 }
 
 /// A constant expression's value (`akLeft + akTop`, `alNone`, `5`).
@@ -712,6 +748,11 @@ pub fn params_text(params: &[Param]) -> String {
 }
 
 impl Method {
+    /// Parameter `name`'s kind (any case).
+    pub fn arg_kind(&self, name: &str) -> Option<&'static str> {
+        self.arg_kinds.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, k)| *k)
+    }
+
     /// `Name(params) [AS type]`.
     pub fn signature(&self) -> String {
         let mut s = format!("{}{}", self.name, params_text(self.params));
@@ -720,6 +761,22 @@ impl Method {
             s.push_str(r);
         }
         s
+    }
+}
+
+impl Builtin {
+    /// Its parameters' names: its `params`', else its syntax's.
+    pub fn param_names(&self) -> Vec<String> {
+        if self.params.is_empty() {
+            syntax_param_names(self.syntax)
+        } else {
+            self.params.iter().map(|p| p.name.trim_end_matches("()").trim_end_matches(['$', '%', '&', '#', '!']).to_string()).collect()
+        }
+    }
+
+    /// Parameter `name`'s kind (any case).
+    pub fn arg_kind(&self, name: &str) -> Option<&'static str> {
+        self.arg_kinds.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, k)| *k)
     }
 }
 

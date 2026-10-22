@@ -215,6 +215,87 @@ fn unit(u: &str, at: &str) -> Res<()> {
     }
 }
 
+/// A `kind` (docs/code-helpers-plan.md §2): one of [`KINDS`],
+/// `component:<TYPE>[|<TYPE>…]` / `component:any`, or `choice:<set>` — `values`
+/// (only where the entry has `values`: `own_values`), `bool`, or a constant
+/// group's `set`.
+fn kind_word(ctx: &Ctx, k: &str, own_values: bool, at: &str) -> Res<()> {
+    if KINDS.contains(&k) {
+        return Ok(());
+    }
+    if let Some(types) = k.strip_prefix("component:") {
+        let ok = types == "any" || (!types.is_empty() && types.split('|').all(|t| !t.is_empty() && t.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit())));
+        return if ok { Ok(()) } else { Err(format!("{at}: kind `{k}` (component:any, or component types in upper case: component:QFORM|QPANEL)")) };
+    }
+    if let Some(set) = k.strip_prefix("choice:") {
+        return match set {
+            "bool" => Ok(()),
+            "values" if own_values => Ok(()),
+            "values" => Err(format!("{at}: kind `choice:values` needs the entry's `values`")),
+            s if ctx.choice_sets.contains_key(s) => Ok(()),
+            s => Err(format!("{at}: kind `choice:{s}`: no constant group has `set = \"{s}\"` (constants.toml)")),
+        };
+    }
+    Err(format!("{at}: kind `{k}` (one of {}, component:<TYPE>, choice:<set>)", KINDS.join(", ")))
+}
+
+/// A property's kind: its own `kind`, else what its type and editor say
+/// (`color`, `font`, a picture's `file:image`, an enum's `choice:values` — a
+/// Cursor's `cursor` —, a set's `choice:values`, a Boolean's `choice:bool`,
+/// a component's `component:<its kinds>`).
+#[allow(clippy::too_many_arguments)]
+fn property_kind(ctx: &Ctx, p: &Table, ty: &str, name: &str, values: &[String], kinds: &[String], editor: Option<&str>, at: &str) -> Res<Option<String>> {
+    if let Some(k) = s(p, "kind") {
+        kind_word(ctx, k, !values.is_empty(), at)?;
+        return Ok(Some(k.to_string()));
+    }
+    Ok(match (ty, editor) {
+        (_, Some("file")) => Some("file:any".into()),
+        (_, Some("picture")) => Some("file:image".into()),
+        ("Color", _) => Some("color".into()),
+        ("Font", _) => Some("font".into()),
+        ("Picture", _) => Some("file:image".into()),
+        ("Enum", _) if name.eq_ignore_ascii_case("cursor") || name.eq_ignore_ascii_case("dragcursor") => Some("cursor".into()),
+        ("Enum" | "Set", _) if !values.is_empty() => Some("choice:values".into()),
+        ("Bool", _) => Some("choice:bool".into()),
+        ("Component", _) if kinds.is_empty() => Some("component:any".into()),
+        ("Component", _) => Some(format!("component:{}", kinds.iter().map(|k| k.to_ascii_uppercase()).collect::<Vec<_>>().join("|"))),
+        _ => None,
+    })
+}
+
+/// The names of a `params` text's parameters (`[BYREF] Name [AS Type]`).
+fn param_names(text: &str) -> Vec<String> {
+    text.split(',')
+        .filter_map(|part| {
+            let p = part.trim().trim_end_matches("...").trim().trim_start_matches('[').trim_end_matches(']');
+            let p = p.split('=').next().unwrap_or("").trim();
+            let mut words = p.split_whitespace();
+            let first = words.next()?;
+            let name = if first.eq_ignore_ascii_case("BYREF") || first.eq_ignore_ascii_case("BYVAL") { words.next()? } else { first };
+            Some(name.trim_end_matches("()").trim_end_matches(['$', '%', '&', '#', '!']).to_string())
+        })
+        .collect()
+}
+
+/// `arg_kinds = { Name = "kind" }`: each names one of `names` (any case),
+/// its kind a [`kind_word`]. The code of the list (`&[("Name", "kind")]`).
+fn arg_kinds(ctx: &Ctx, t: &Table, names: &[String], at: &str) -> Res<String> {
+    let Some(v) = t.get("arg_kinds") else { return Ok("&[]".into()) };
+    let table = v.as_table().ok_or_else(|| format!("{at}: `arg_kinds` is a table: {{ Name = \"kind\" }}"))?;
+    let mut code = String::from("&[");
+    for (n, k) in table {
+        let k = k.as_str().ok_or_else(|| format!("{at}: arg_kinds.{n} is text"))?;
+        let Some(real) = names.iter().find(|x| x.eq_ignore_ascii_case(n)) else {
+            return Err(format!("{at}: arg_kinds names `{n}`, which isn't one of its parameters ({})", names.join(", ")));
+        };
+        kind_word(ctx, k, false, &format!("{at}, arg_kinds.{n}"))?;
+        write!(code, "({}, {}), ", lit(real), lit(k)).unwrap();
+    }
+    code.push(']');
+    Ok(code)
+}
+
 // --- parameters ----------------------------------------------------------------
 
 /// `[BYREF] Name [AS Type] [= default]`, optional ones in `[…]`, a trailing
@@ -299,6 +380,8 @@ struct Ctx {
     sets: HashMap<String, Table>,
     /// items.toml's objects (a type = "item" property's kinds).
     items: Vec<String>,
+    /// constants.toml's choice sets (`set = "…"`): whether each is a flag set.
+    choice_sets: HashMap<String, bool>,
 }
 
 const TYPES: &[(&str, &str)] = &[
@@ -324,7 +407,7 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         p,
         &[
             "name", "type", "values", "kinds", "default", "access", "design", "indexed", "category", "origin", "from", "only", "missing", "editor", "doc", "range",
-            "unit", "effects", "secret",
+            "unit", "effects", "secret", "kind",
         ],
         at,
     )?;
@@ -413,8 +496,9 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         unit(u, at)?;
     }
     let (effects_code, _) = effects(p, at)?;
+    let kind = property_kind(ctx, p, ty, name, &values, &kinds, editor, at)?;
     let code = format!(
-        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, editor: {}, doc: {}, range: {}, unit: {}, effects: {effects_code}, secret: {} }}",
+        "Property {{ name: {}, ty: Type::{ty}, values: &[{}], kinds: &[{}], default: {default}, access: {access}, design: {design}, indexed: {indexed}, category: {}, origin: {}, from: {}, runtimes: {}, missing: {}, set: {}, editor: {}, doc: {}, range: {}, unit: {}, effects: {effects_code}, secret: {}, kind: {} }}",
         lit(name),
         values.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
         kinds.iter().map(|v| lit(v)).collect::<Vec<_>>().join(", "),
@@ -429,6 +513,7 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
         opt(range.as_deref()),
         opt(unit_v.as_deref()),
         b(p, "secret").unwrap_or(false),
+        opt(kind.as_deref()),
     );
     Ok((code, range_names))
 }
@@ -438,9 +523,10 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
 const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression", "secret"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
-    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example", "expect", "secret"], at)?;
+    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example", "expect", "secret", "arg_kinds"], at)?;
     let name = req(m, "name", at)?;
     let at = &format!("{at}, method {name}");
+    let arg_kinds_code = arg_kinds(ctx, m, &param_names(s(m, "params").unwrap_or("")), at)?;
     let expect = expect_facet(m, at)?;
     let (effects_code, effects_risk) = effects(m, at)?;
     let risk_code = risk(m, effects_risk, at)?;
@@ -453,7 +539,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
     let (gdoc, _) = ctx.glossary.doc("method", name);
     let doc = s(m, "doc").map(str::to_string).filter(|d| !d.is_empty()).unwrap_or(gdoc);
     Ok(format!(
-        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {}, secret: {} }}",
+        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {}, secret: {}, arg_kinds: {arg_kinds_code} }}",
         lit(name),
         params(s(m, "params").unwrap_or(""), at)?,
         opt(s(m, "returns")),
@@ -640,9 +726,10 @@ fn build(dir: &Path) -> Res<String> {
     // Constants first: everything else names them.
     let consts_t = load(&by_name("constants.toml").ok_or("constants.toml missing")?)?;
     let mut constants = HashMap::new();
+    let mut choice_sets: HashMap<String, bool> = HashMap::new();
     let mut groups_code = Vec::new();
     for g in tables(&consts_t, "group", "constants.toml")? {
-        keys_allowed(g, &["name", "source", "origin", "doc", "constants"], "constants.toml")?;
+        keys_allowed(g, &["name", "source", "origin", "doc", "constants", "set", "flags", "kind"], "constants.toml")?;
         let gname = req(g, "name", "constants.toml")?;
         let at = format!("constants.toml: {gname}");
         let mut items = Vec::new();
@@ -655,13 +742,33 @@ fn build(dir: &Path) -> Res<String> {
             }
             items.push(format!("({}, {v})", lit(n)));
         }
+        let set = s(g, "set");
+        if let Some(id) = set {
+            if !id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') || matches!(id, "values" | "bool") {
+                return Err(format!("{at}: set `{id}` (lower-case words and dashes; not `values` or `bool`)"));
+            }
+            if choice_sets.insert(id.to_string(), b(g, "flags").unwrap_or(false)).is_some() {
+                return Err(format!("{at}: set `{id}` twice"));
+            }
+        } else if g.contains_key("flags") {
+            return Err(format!("{at}: `flags` says a `set` is a flag set: name the set"));
+        }
+        let gkind = s(g, "kind");
+        if let Some(k) = gkind {
+            if !KINDS.contains(&k) {
+                return Err(format!("{at}: kind `{k}` (one of {})", KINDS.join(", ")));
+            }
+        }
         groups_code.push(format!(
-            "ConstantGroup {{ name: {}, source: {}, origin: {}, doc: {}, constants: &[{}] }}",
+            "ConstantGroup {{ name: {}, source: {}, origin: {}, doc: {}, constants: &[{}], set: {}, flags: {}, kind: {} }}",
             lit(gname),
             lit(req(g, "source", &at)?),
             origin(g, "rapidq", &at)?,
             lit(s(g, "doc").unwrap_or("")),
-            items.join(", ")
+            items.join(", "),
+            opt(set),
+            b(g, "flags").unwrap_or(false),
+            opt(gkind),
         ));
     }
     // The glossary: docs and categories by member name.
@@ -709,7 +816,7 @@ fn build(dir: &Path) -> Res<String> {
             items_names.push(req(o, "name", "items.toml")?.to_string());
         }
     }
-    let ctx = Ctx { constants, glossary, sets, items: items_names };
+    let ctx = Ctx { constants, glossary, sets, items: items_names, choice_sets };
 
     let mut comps = Vec::new();
     let mut component_types = Vec::new();
@@ -755,9 +862,19 @@ fn build(dir: &Path) -> Res<String> {
             keys_allowed(&t, &["builtin", "internal"], &file)?;
             let mut keys = HashSet::new();
             for x in tables(&t, "builtin", &file)? {
-                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc", "effects", "risk", "example", "expect"], &file)?;
+                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc", "effects", "risk", "example", "expect", "kind", "arg_kinds"], &file)?;
                 let name = req(x, "name", &file)?;
                 let at = format!("{file}: {name}");
+                // (its parameters' kinds, by their names: `params`', else the syntax's)
+                let names = match s(x, "params") {
+                    Some(p) if !p.trim().is_empty() => param_names(p),
+                    _ => syntax_param_names(s(x, "syntax").unwrap_or("")),
+                };
+                let arg_kinds_code = arg_kinds(&ctx, x, &names, &at)?;
+                let bkind = s(x, "kind");
+                if let Some(k) = bkind {
+                    kind_word(&ctx, k, false, &at)?;
+                }
                 let key = builtin_key(name);
                 if !keys.insert(key.clone()) {
                     return Err(format!("{at}: another builtin has the key `{key}`"));
@@ -765,7 +882,7 @@ fn build(dir: &Path) -> Res<String> {
                 let (effects_code, effects_risk) = effects(x, &at)?;
                 let risk_code = risk(x, effects_risk, &at)?;
                 builtins.push(format!(
-                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {} }}",
+                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {}, kind: {}, arg_kinds: {arg_kinds_code} }}",
                     lit(name),
                     lit(&key),
                     lit(s(x, "syntax").unwrap_or("")),
@@ -779,6 +896,7 @@ fn build(dir: &Path) -> Res<String> {
                     lit(s(x, "doc").unwrap_or("")),
                     lit(s(x, "example").unwrap_or("")),
                     lit(&expect_facet(x, &at)?),
+                    opt(bkind),
                 ));
             }
             internal = strs(&t, "internal", &file)?;

@@ -17,9 +17,6 @@ pub const MISC: &str = "Misc";
 
 /// The anchors' pin editor row's height.
 pub const PINS_H: i64 = 112;
-/// The colour picker row's height.
-pub const PICKER_H: i64 = 184;
-
 /// A property the inspector shows (the selection's, when several are
 /// inspected: only the ones they all have).
 #[derive(Clone, Debug, PartialEq)]
@@ -119,8 +116,6 @@ pub enum RowKind {
     AddLine,
     /// The anchors' pin editor.
     Pins,
-    /// A colour's picker.
-    Picker,
     /// An event (Events page).
     Event,
 }
@@ -160,7 +155,7 @@ impl Row {
     pub fn describe(&self) -> String {
         match self.kind {
             RowKind::Category => format!("[{}]", self.name),
-            RowKind::Pins | RowKind::Picker => format!("({})", self.name),
+            RowKind::Pins => format!("({})", self.name),
             _ => format!("{}={}", self.name, self.text),
         }
     }
@@ -337,9 +332,6 @@ fn parts(out: &mut Vec<Row>, p: &Prop, i: usize, level: usize) {
             }
             let add = if p.kind == Kind::Columns { "Add a column" } else { "Add a line" };
             out.push(row(format!("{key}#+"), RowKind::AddLine, add.into(), String::new(), true, ROW));
-        }
-        Kind::Color => {
-            out.push(row(format!("{key}#picker"), RowKind::Picker, "Colour picker".into(), p.text(), p.is_default, PICKER_H));
         }
         _ => {}
     }

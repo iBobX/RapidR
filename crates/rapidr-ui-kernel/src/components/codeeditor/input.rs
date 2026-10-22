@@ -45,6 +45,8 @@ pub(super) fn schedule(cx: &mut Cx) {
 /// OnChange, the caret in view, the language service.
 pub fn edited(x: &mut Ctx, typed: Option<char>) {
     x.c.edited();
+    // (the line typed on keeps its helpers' widths until the caret leaves it)
+    x.c.helpers.typing_at = Some(x.c.doc.selections().primary().head);
     x.c.modified = x.c.doc.is_modified();
     x.c.unhide_carets();
     x.change();
@@ -62,6 +64,10 @@ pub fn report_moves(x: &mut Ctx) {
     if (line, col) != x.ui.last_caret {
         let line_changed = line != x.ui.last_caret.0;
         x.ui.last_caret = (line, col);
+        // (the line typed on left: its helpers come up to date)
+        if line_changed {
+            x.c.helpers.release();
+        }
         x.fire("oncaretmove", vec![v_int(line as i64), v_int(col as i64)]);
         super::access::caret_moved(x, line_changed);
     }
@@ -347,6 +353,10 @@ pub fn key(cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
 }
 
 fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+    // (Ctrl with another key: a shortcut, not a hold for the names)
+    if k.vk != 17 && (k.mods.ctrl || k.mods.command) {
+        super::helpers::ctrl_used(x);
+    }
     // (the find box has the keyboard while it's focused)
     if x.ui.find.as_ref().is_some_and(|f| f.focused) {
         let r = find::key(x, k, clip);
@@ -371,6 +381,11 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
             73 => {
                 let head = x.c.doc.selections().primary().head;
                 lang::hover(x, head);
+                true
+            }
+            // (Ctrl+K H: the caret's line read with its helpers)
+            72 => {
+                super::helpers::read_line(x);
                 true
             }
             67 if !ro => {
@@ -567,9 +582,10 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
             lang::request_signature(x);
             return true;
         }
-        // (Ctrl+. — Cmd+. on a Mac —: the quick fixes at the caret)
+        // (Ctrl+. — Cmd+. on a Mac —: a helper's value editor, else the
+        // quick fixes at the caret)
         (190, true, false) if !ro => {
-            lang::quick_fix(x);
+            lang::helper_or_fix(x);
             return true;
         }
         (32, true, false) => {
@@ -849,6 +865,14 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
             if !inside(g.text, mx, my) {
                 return MouseOut::default();
             }
+            // (a helper's mark: its value editor)
+            if m.button == Button::Left && !m.mods.shift && !m.mods.alt {
+                layout_rows(x, abs);
+                if let Some(site) = super::helpers::mark_at(x, mx, my) {
+                    super::helpers::open(x, site);
+                    return MouseOut::default();
+                }
+            }
             let at = byte_at(x, abs, mx, my);
             // (Ctrl / Cmd+click: to the definition)
             if m.mods.command && !m.mods.alt && m.clicks == 1 {
@@ -1108,6 +1132,8 @@ fn requests(x: &mut Ctx) {
             Request::Completion => lang::request_completion(x, true),
             Request::Signature => lang::request_signature(x),
             Request::QuickFix => lang::quick_fix(x),
+            Request::OpenHelper => lang::helper_or_fix(x),
+            Request::ReadLine => super::helpers::read_line(x),
             // (TriggerHover, Ctrl+K Ctrl+I: as a resting mouse — a debugger's
             // data tip first while DebugHover is on)
             Request::Hover(at) => lang::mouse_hover(x, at),
@@ -1194,6 +1220,7 @@ pub fn tick(cx: &mut Cx) {
             }
         }
         lang::tick(x, at);
+        super::helpers::tick(x, at);
     });
     schedule(cx);
 }

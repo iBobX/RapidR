@@ -196,6 +196,122 @@ underlines it, and the fix writes the test that works,
   `while`, `do` or `with` and press Tab for the whole block; Tab again moves
   to the next part to fill in.
 
+## Helpers
+
+The code shows its own values. When a line sets a colour, a small swatch of
+that colour sits right after it; a picture's name shows the picture; a
+font's name shows a small sample. Click the mark, or put the caret
+on the value and press **Ctrl+.**, and an editor opens beside it. What you
+pick is written back into your code, as one step that **Ctrl+Z** undoes.
+
+The pictures below were made with `examples/studio/helpers.rr` open (File >
+Open Example…, "The code shows its own values").
+
+![Color = RGB(250, 246, 238) has a cream swatch after it and FontColor = &H6B3A1F a dark one; the caret's line shows its help at its end](images/studio-editor/helpers.png)
+
+### Colours
+
+A colour written as `RGB(255, 130, 20)`, as `&H1482FF` or as a constant
+(`clTeal`) shows its swatch. Its editor has a colour wheel with a square for
+how strong and how bright, the Red, Green, Blue and Hex numbers, the
+colour's name in words, the old colour beside the new one, and a palette:
+the colours your program already uses first, then the standard and the
+system colours.
+
+![The colour editor beside Color = RGB(250, 246, 238): a hue wheel around a square, Red 250, Green 246, Blue 238 and Hex #FAF6EE, "&HEEF6FA · white", the old and new swatches, and the project's, standard and system colours](images/studio-editor/helpers-colour.png)
+
+Your code keeps its own way of writing the colour: `RGB(…)` stays
+`RGB(…)`, `&H…` stays `&H…` with as many digits, and a constant stays a
+constant when the new colour has a name (`clRed`; otherwise it becomes
+`RGB(…)`).
+
+Keys in the colour editor: **Tab** moves from the wheel to the square, the
+four numbers, the palette and the buttons. On the wheel, the arrow keys turn
+the colour a step (with **Shift**, ten); on the square, Left and Right make
+it weaker or stronger, Up and Down brighter or darker. **Enter** keeps the
+colour, **Esc** leaves the code as it was.
+
+### Pictures, sounds and files
+
+A picture's name (`Logo.Load "logo.svg"`, a button's `BMP`) shows a small
+thumbnail. When the file isn't in your project, a red mark shows instead,
+so a typing mistake shows before you run. A sound shows a ▶ mark.
+
+The file editor lists your project's files of that kind, with a preview of
+the picture you are on; type to filter the list, **Enter** picks.
+
+Pictures are only ever read from inside your project's folder, never from
+anywhere else on your computer, and nothing is fetched from the internet.
+
+### Fonts
+
+A font's name (`TitleFont.Name = "Inter"`) shows a small "Aa" sample. Its
+editor lists the fonts on your computer with a preview line (in the
+Properties panel, the size, Bold and Italic too). The sample and the preview
+are drawn the way your program will draw the font: RapidR draws every
+program with its own built-in faces, so a program looks the same on every
+computer, and a font it doesn't have is drawn in the nearest of them.
+
+### Choices, True or False, and links
+
+**Ctrl+.** on a constant opens the list of the ones that fit there:
+`Align = alClient` offers `alNone`, `alTop` … `alClient`. For a set of flags
+(`MESSAGEDLG`'s buttons, `mbYes + mbNo`) each has a tick box: **Space**
+ticks, **Enter** writes them all. On `True` or `False`, **Space** turns it
+over.
+
+On an event (`OnClick = SaveClick`) the list offers your program's SUBs,
+and first **Create handler "AgainClick"** (the component's name and the event's): it writes a new SUB for you, before
+the form's CREATE block, links it, and puts the caret inside it, ready to
+type — one undo step. It works on `OnClick =` with nothing after it yet,
+too.
+
+![OnClick = Recolour with the Handler editor open under it: Create handler "AgainClick" first, then the program's SUBs, Recolour picked](images/studio-editor/helpers-handler.png)
+
+A link to another component (`PopupMenu = …`, `Parent = …`) offers the
+components of your program that fit.
+
+### The line's help and the argument names
+
+The line the caret is on shows a short help at its end, in grey: what the
+call or the property does. Calls with several numbers or texts show each
+argument's name before it, as a small grey label (`x1:`, `c:`), so
+`FillRect 0, 0, 107, 60, …` reads as what it means (a name that says
+nothing, like `FORMAT$`'s `S$`, gets no label). Hold **Ctrl** a moment
+to see every argument's name; let go and they go.
+
+![x1:, y1:, x2:, y2: before FillRect's numbers and a swatch after each colour; a sample after the font's name "Inter" and the picture's thumbnail after "logo.svg"; the caret's line ends with "Fills a rectangle from (x1,y1) to (x2,y2)."](images/studio-editor/helpers-names.png)
+
+None of this ever moves your code about while you type: the marks and the
+names keep their room on the line you are typing on until you leave it.
+
+### Values while your program is paused
+
+When the debugger stops (a breakpoint, a step), each line of the routine
+it stopped in shows the values of the names it uses at its end, the same way
+the Variables panel shows them (a colour as a swatch, an empty text as
+`""`). They go when the program runs on.
+
+![The debugger paused on a line; the lines above show i = 1 and total = 0 at their ends](images/studio-editor/helpers-values.png)
+
+### How much shows
+
+Tools > Settings > General > **Code helpers**:
+
+- **Helpful** (the default): the marks, the line's help, the argument names
+  for numbers and texts, and the values while paused;
+- **Quiet**: the marks only;
+- **Everything**: every argument's name, and a ▾ mark after each choice and
+  link as well;
+- **Off**.
+
+### With a screen reader
+
+**Ctrl+K**, then **H**, reads the caret's line with its helpers: "Color =
+RGB(255, 130, 20); orange, 255 130 20". Nothing is announced while you type
+as helpers come and go. The editors are dialogs inside the code editor:
+each part is named, Tab moves through them, the focus never jumps.
+
 ## Keyboard shortcuts
 
 | Keys | What it does | Menu |
@@ -207,7 +323,9 @@ underlines it, and the fix writes the test that works,
 | F12 | Go to Definition | Edit > Go to Definition |
 | Shift+F12 | Find References | Edit > Find References |
 | F2 | Rename everywhere | Edit > Rename Symbol… |
-| Ctrl+. | Quick fix | Edit > Quick Fix… |
+| Ctrl+. | On a value: its editor (colour, picture, font, choice, handler); elsewhere a quick fix | Edit > Quick Fix… |
+| Ctrl+K, H | Read the line with its helpers (screen readers) | |
+| Ctrl, held a moment | Show every argument's name | |
 | F1 | Help on the word at the caret | Help |
 | F7 / Shift+F7 | A form's code / designer | View > Code / Designer |
 | Tab / Shift+Tab | Indent / outdent | Edit > Advanced > Indent / Outdent Lines |
@@ -223,13 +341,15 @@ underlines it, and the fix writes the test that works,
 
 ## Settings
 
-Studio keeps two editor settings in its registry key
+Studio keeps three editor settings in its registry key
 (`HKCU\Software\RapidR\Studio`; on macOS and Linux RapidR's own registry
 file):
 
 - `KeywordCase`: `upper` (the default), `lower`, `proper` or `preserve`;
 - `IdentifierCase`: `declaration` (your names as declared, the default) or
-  `preserve`.
+  `preserve`;
+- `Helpers`: `helpful` (the default), `quiet`, `everything` or `off`
+  (Tools > Settings > General > Code helpers).
 
 Your own programs can use the same editor: it is the RCodeEditor component
 (see [The code editor in your programs](code-editor.md), with its SQL mode,

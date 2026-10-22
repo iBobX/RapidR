@@ -318,6 +318,8 @@ SUB LoadSettings
     IF Reg.ValueExists("Recent") THEN RecentList = Reg.ReadString("Recent")
     ' (S2: on unless turned off)
     IF Reg.ValueExists("ReopenLast") THEN ReopenLast = Flag(Reg.ReadString("ReopenLast") <> "0")
+    ' (the code's helpers: helpful unless chosen otherwise)
+    IF Reg.ValueExists("Helpers") THEN EditorHelpers = Reg.ReadString("Helpers")
     IF Reg.ValueExists("Folder") THEN DefaultFolder = Reg.ReadString("Folder")
     ' (Tools > Settings > Include folders: settings.inc)
     IF Reg.ValueExists("IncludeFolders") THEN Proj.IncludeFolders = Reg.ReadString("IncludeFolders")
@@ -345,6 +347,7 @@ SUB SaveSettings
   SaveDebugState
   Reg.WriteString("Recent", RecentList)
   Reg.WriteString("ReopenLast", LTRIM$(STR$(ReopenLast)))
+  Reg.WriteString("Helpers", EditorHelpers)
   Reg.WriteString("Folder", DefaultFolder)
   Reg.WriteString("IncludeFolders", Proj.IncludeFolders)
   SaveAISettings

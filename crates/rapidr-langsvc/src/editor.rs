@@ -276,6 +276,10 @@ impl ed::LanguageService for EditorService {
         case::TRIGGERS
     }
 
+    fn helpers(&mut self, file: &str) -> Vec<ed::HelperSite> {
+        self.analysis.helpers(&path(file))
+    }
+
     fn position(&mut self, file: &str, offset: usize) -> Option<(usize, usize)> {
         let text = self.analysis.text(&path(file))?;
         let before = text.get(..offset)?;

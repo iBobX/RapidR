@@ -326,6 +326,40 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Variables and Watch copies the value again (it looked for the wrong
   key bit).
   See [the manual](docs/manual/debugging.md#changing-a-value).
+- **Helpers: the code shows and edits its own values** (Preview 4 E0, E1,
+  E2, E6; docs/code-helpers-plan.md). In RapidR Studio's code editor, desktop
+  and web alike: a colour written as `RGB(…)`, `&H…` or a constant shows a
+  swatch after it; a picture's name its thumbnail, or a red mark when the
+  file isn't in the project; a font's name a small sample; a sound a
+  ▶. A click on a mark, or Ctrl+. (Cmd+.) on a value, opens a value editor:
+  a colour wheel around a saturation-and-brightness square with the Red,
+  Green, Blue and Hex numbers, the name in words, the old colour beside the
+  new and the project's, standard and system colours; the project's
+  pictures with a preview; the fonts with a preview line; a constant set's
+  choices (ticks for flags, a toggle for True/False); the program's SUBs and
+  **Create handler**, which writes the new SUB and the link as one step.
+  What is picked is written back as one undo step in the code's own form
+  (`RGB()` stays `RGB()`, `&H` stays `&H`, a constant stays a constant). The
+  caret line's one-line help shows at its end, argument names before a
+  call's literal arguments (all of them while Ctrl is held), and while the
+  debugger is paused the paused routine's lines show their values at their
+  ends, drawn as Variables draws them. Marks and names take fixed columns of
+  the row (the caret stops beside the text, word wrap counts them, nothing
+  before them moves; the line being typed on keeps them until the caret
+  leaves). Tools > Settings > General > Code helpers: Helpful (the default),
+  Quiet, Everything or Off; RCodeEditor's `Helpers`, `HelpersOff`,
+  `ProjectFolder`, `ProjectFiles`, `HelperText`, `HelperEditorText`,
+  `LineValuesText`, `OpenHelper`, `ReadLineWithHelpers` (Ctrl+K H),
+  `ShowLineValues`, `HideLineValues`. Pictures are read only from inside the
+  project's folder; nothing is fetched from the network. The Properties
+  panel's colours and fonts open the same editors (its old swatch grid is
+  gone). The registry's new `kind` facet (color, font, file:image|sound|any,
+  shortcut, cursor, range, handler, component:<TYPE>, choice:<set>) on
+  properties, parameters, builtins and constant groups, filled across the
+  registry and checked by a test, is where the helpers' sites come from (the
+  language service's `helpers`), and the AI export carries it. The example
+  `examples/studio/helpers.rr`; the manual's
+  [Helpers](docs/manual/studio-editor.md#helpers).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS

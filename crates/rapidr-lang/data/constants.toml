@@ -8,6 +8,8 @@
 [[group]]
 name = "Message box buttons and icons"
 source = "RAPIDQ.INC"
+set = "messagebox-flags"
+flags = true
 doc = "Flags for `MESSAGEBOX`: which buttons it shows, added to the icon it shows."
 constants = [
   ["MB_ABORTRETRYIGNORE", 2],
@@ -81,6 +83,8 @@ constants = [
 [[group]]
 name = "PLAYWAV options"
 source = "RAPIDQ.INC"
+set = "playwav-options"
+flags = true
 doc = "Options for `PLAYWAV`, added together: wait for the sound to end (SND_SYNC) or play it in the background (SND_ASYNC), repeat it, play it from memory, no default sound when the file is missing, don't stop a sound that is playing."
 constants = [
   ["SND_ASYNC", 1],
@@ -199,6 +203,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC (and every .rr program, built in) also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red)."
 constants = [
   ["clAqua", 16776960],
@@ -224,6 +229,7 @@ constants = [
 [[group]]
 name = "System colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["cl3DDkShadow", -2147483627],
@@ -237,6 +243,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clBtnFace", -2147483633],
@@ -245,6 +252,7 @@ constants = [
 [[group]]
 name = "System colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["clBtnHighlight", -2147483628],
@@ -253,6 +261,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clBtnShadow", -2147483632],
@@ -262,6 +271,7 @@ constants = [
 [[group]]
 name = "System colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["clCaptionText", -2147483639],
@@ -270,6 +280,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clGrayText", -2147483631],
@@ -280,6 +291,7 @@ constants = [
 [[group]]
 name = "System colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["clHilight", -2147483635],
@@ -297,6 +309,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clWindow", -2147483643],
@@ -305,6 +318,7 @@ constants = [
 [[group]]
 name = "System colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "The system's colours for parts of the user interface; a control using one follows the theme."
 constants = [
   ["clWindowFrame", -2147483642],
@@ -313,6 +327,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods."
 constants = [
   ["clWindowText", -2147483640],
@@ -429,6 +444,7 @@ constants = [
 [[group]]
 name = "Special colours"
 source = "RAPIDQ.INC"
+kind = "color"
 doc = "Colours meaning no colour, or the control's default one."
 constants = [
   ["clDefault", 536870912],
@@ -703,6 +719,7 @@ constants = [
 [[group]]
 name = "Message dialog types"
 source = "RAPIDQ.INC"
+set = "msgdlg-type"
 doc = "The kind of message `MESSAGEDLG` shows, which sets its caption and icon."
 constants = [
   ["mtConfirmation", 3],
@@ -1020,6 +1037,8 @@ constants = [
 [[group]]
 name = "Message dialog buttons"
 source = "RAPIDQ.INC"
+set = "msgdlg-buttons"
+flags = true
 doc = "Buttons for `MESSAGEDLG`, added together for more than one."
 constants = [
   ["mbAbort", 32],

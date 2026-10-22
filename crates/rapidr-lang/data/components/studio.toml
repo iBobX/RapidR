@@ -8,15 +8,15 @@ visual = false
 default_event = "OnChange"
 doc = "A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, or RapidQ's .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it."
 properties = [
-  { name = "FileName", type = "string", access = "read", design = false, doc = "The .rrproj file (\"\" for a source file opened without one)." },
+  { name = "FileName", type = "string", access = "read", design = false, doc = "The .rrproj file (\"\" for a source file opened without one).", kind = "file:any" },
   { name = "Folder", type = "string", access = "read", design = false, doc = "The project's folder: its files' paths are relative to it." },
   { name = "Kind", type = "string", access = "read", design = false, doc = "What is open: \"project\" (a .rrproj), \"file\" (a source file and its includes), \"v1\" (a web IDE project, imported) or \"\" (nothing)." },
   { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Open, Save, New, AddFile or RemoveFile failed (\"\" when it worked)." },
   { name = "Name", type = "string", doc = "The project's name." },
-  { name = "MainFile", type = "string", doc = "The file the program starts from (relative to the folder)." },
+  { name = "MainFile", type = "string", doc = "The file the program starts from (relative to the folder).", kind = "file:any" },
   { name = "FileCount", type = "int", access = "read", design = false, doc = "How many files the project has." },
   { name = "CompatMode", type = "string", doc = "\"rapidq\" for a RapidQ-compatible project (RapidR's extensions reported), else \"\"." },
-  { name = "Icon", type = "string", doc = "The app's icon file (.icns, .ico, .png or .svg), relative to the folder; \"\" for the main file's $OPTION ICON, else RapidR's icon for programs." },
+  { name = "Icon", type = "string", doc = "The app's icon file (.icns, .ico, .png or .svg), relative to the folder; \"\" for the main file's $OPTION ICON, else RapidR's icon for programs.", kind = "file:image" },
   { name = "AppName", type = "string", doc = "The app's name, as Finder, Explorer and the applications menu show it; \"\" for the project's Name." },
   { name = "BundleID", type = "string", doc = "The app's reverse-DNS identifier (com.example.notepad); \"\" for dev.rapidr.app.<name>." },
   { name = "Version", type = "string", doc = "The app's version: up to four numbers with dots (1.0, 2.3.1); \"\" for 1.0." },
@@ -80,11 +80,11 @@ properties = [
   { name = "ErrorCount", type = "int", access = "read", design = false, doc = "How many errors the last Diagnostics found." },
 ]
 methods = [
-  { name = "Update", params = "File AS STRING, Text AS STRING", doc = "A file's text as the editor has it (saved or not)." },
-  { name = "Close", params = "File AS STRING", value = true, doc = "Forgets the editor's text of a file: it is read from its file again." },
-  { name = "Outline", params = "File AS STRING", returns = "STRING", doc = "The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs." },
+  { name = "Update", params = "File AS STRING, Text AS STRING", doc = "A file's text as the editor has it (saved or not).", arg_kinds = { File = "file:any" } },
+  { name = "Close", params = "File AS STRING", value = true, doc = "Forgets the editor's text of a file: it is read from its file again.", arg_kinds = { File = "file:any" } },
+  { name = "Outline", params = "File AS STRING", returns = "STRING", doc = "The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs.", arg_kinds = { File = "file:any" } },
   { name = "Help", params = "Word AS STRING, [OfType AS STRING]", returns = "STRING", doc = "The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. \"\" when the word isn't known." },
-  { name = "Diagnostics", params = "File AS STRING", returns = "STRING", doc = "The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs." },
+  { name = "Diagnostics", params = "File AS STRING", returns = "STRING", doc = "The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs.", arg_kinds = { File = "file:any" } },
 ]
 events = []
 
@@ -102,7 +102,7 @@ properties = [
   { name = "StopOnEntry", type = "bool", default = false, doc = "Stop at the program's first statement when it starts." },
   { name = "Theme", type = "string", doc = "The look the program is drawn in when it names none (any name `$THEME` takes; \"\" its default, RapidR's look): `classic` previews it as RapidQ drew it." },
   { name = "State", type = "string", access = "read", design = false, doc = "\"stopped\", \"running\" or \"paused\"." },
-  { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file." },
+  { name = "CurrentFile", type = "string", access = "read", design = false, doc = "Where the program is paused: its file.", kind = "file:any" },
   { name = "CurrentLine", type = "int", access = "read", design = false, doc = "Where the program is paused: its line (from 1; 0 when not paused)." },
   { name = "StopReason", type = "string", access = "read", design = false, doc = "Why it paused: \"breakpoint\", \"step\", \"pause\", \"entry\" or \"exception\"." },
   { name = "StopMessage", type = "string", access = "read", design = false, doc = "A run-time error's message, when that's why it paused." },
@@ -126,10 +126,10 @@ methods = [
   { name = "StepIn", returns = "INTEGER", value = true, doc = "Runs one statement, into a SUB or FUNCTION it calls." },
   { name = "StepOver", returns = "INTEGER", value = true, doc = "Runs one statement, a call whole." },
   { name = "StepOut", returns = "INTEGER", value = true, doc = "Runs to the end of the SUB or FUNCTION and stops after its call." },
-  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING], [HitCount AS STRING], [LogMessage AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, or its rules changed. Condition: it stops only when that is true. HitCount: only on that hit (3), or >= 3, > 3, <= 3, < 3, % 3 (every third). LogMessage: a logpoint, which prints the message ({expression} shows its value) and goes on." },
-  { name = "ClearBreakpoint", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "Removes a breakpoint." },
-  { name = "ClearBreakpoints", params = "[File AS STRING]", returns = "INTEGER", doc = "Removes a file's breakpoints (every file's when none is given)." },
-  { name = "RunToCursor", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "The program stops at that line once (a paused one goes on to it; a stopped one stops there once started)." },
+  { name = "SetBreakpoint", params = "File AS STRING, Line AS INTEGER, [Condition AS STRING], [HitCount AS STRING], [LogMessage AS STRING]", returns = "INTEGER", doc = "A breakpoint at a line (from 1) of a file, or its rules changed. Condition: it stops only when that is true. HitCount: only on that hit (3), or >= 3, > 3, <= 3, < 3, % 3 (every third). LogMessage: a logpoint, which prints the message ({expression} shows its value) and goes on.", arg_kinds = { File = "file:any" } },
+  { name = "ClearBreakpoint", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "Removes a breakpoint.", arg_kinds = { File = "file:any" } },
+  { name = "ClearBreakpoints", params = "[File AS STRING]", returns = "INTEGER", doc = "Removes a file's breakpoints (every file's when none is given).", arg_kinds = { File = "file:any" } },
+  { name = "RunToCursor", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", doc = "The program stops at that line once (a paused one goes on to it; a stopped one stops there once started).", arg_kinds = { File = "file:any" } },
   { name = "StackTrace", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "The call stack as the last stop fetched it, the innermost first: a line each, its name, file and line tab-separated." },
   { name = "Variables", params = "Ref AS INTEGER", returns = "STRING", test = "skip: needs a paused program", doc = "Ref's values as fetched (LocalsRef, GlobalsRef, a value's children after Expand): a line each, tab-separated: its name, value, type, children's reference (0: none) and count, the expression that names it (a(2).Name, Form1.Caption), 1 when its value changed since the last stop, a table's columns and a table row's cells (an RDataFrame's; CHR$(31) between them), and what the registry knows of a property (`color`, `handle`, `bool`, `const:alClient`, `choices:alNone|alTop|…`, `readonly`, comma-separated: TreeView.SetItemValue's Hint)." },
   { name = "WatchValues", returns = "STRING", value = true, test = "skip: needs a paused program", doc = "Each watch with its value at this stop: a line each, its expression, value, type, children's reference, 1 when its value changed since the last stop, and how many children it has, tab-separated." },
@@ -137,7 +137,7 @@ methods = [
   { name = "ExpandMore", params = "Ref AS INTEGER, Start AS INTEGER", test = "skip: needs a paused program", doc = "Fetches the next 100 of a value's children from Start (a big array, frame or RNum pages): added to Variables(Ref), then OnVariables(Ref)." },
   { name = "Evaluate", params = "Expr AS STRING, [Context AS STRING]", returns = "INTEGER", test = "skip: needs a paused program", doc = "Evaluates in the selected frame of the paused program: its answer comes as OnEvaluate(Id, Result, Kind, Ref, Count, Columns) with the Id returned (Ref: its children, for Expand). Context \"repl\" (the Immediate window's): \"? expression\" gives its value, a statement runs; \"clipboard\": the value whole, as plain text (a long string uncut); \"hover\": a data tip's, refused when it would call a SUB, FUNCTION or method." },
   { name = "SetVariable", params = "Name AS STRING, Value AS STRING", returns = "INTEGER", test = "skip: needs a paused program", doc = "A variable of the selected frame set to an expression's value: OnEvaluate(Id, NewValue), then the values again (OnVariables(0))." },
-  { name = "SetNextStatement", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", test = "skip: needs a paused program", doc = "Set Next Statement: the paused program goes on from that line (a line without code: the next with some) — within the SUB or FUNCTION it is paused in. OnEvaluate(Id, \"\") then OnStopped(\"goto\", File, Line); OnEvaluate(Id, \"error: …\") when it can't. Paused at a run-time error, the program then goes on instead of failing (fix a value, run the line again or skip it)." },
+  { name = "SetNextStatement", params = "File AS STRING, Line AS INTEGER", returns = "INTEGER", test = "skip: needs a paused program", doc = "Set Next Statement: the paused program goes on from that line (a line without code: the next with some) — within the SUB or FUNCTION it is paused in. OnEvaluate(Id, \"\") then OnStopped(\"goto\", File, Line); OnEvaluate(Id, \"error: …\") when it can't. Paused at a run-time error, the program then goes on instead of failing (fix a value, run the line again or skip it).", arg_kinds = { File = "file:any" } },
   { name = "StepInTargets", test = "skip: needs a paused program", doc = "Step Into Specific's choices: the SUBs and FUNCTIONs the paused line still calls, in the order it calls them — OnStepInTargets(Targets)." },
   { name = "StepInTarget", params = "Id AS INTEGER", returns = "INTEGER", test = "skip: needs a paused program", doc = "Step Into Specific: into the call of that SUB or FUNCTION (an id from OnStepInTargets) the paused line makes; a line that doesn't make it is stepped over." },
   { name = "Input", params = "Text AS STRING", returns = "INTEGER", doc = "A line for the program's INPUT." },
@@ -185,7 +185,7 @@ AI.AttachComponent Tools, "project"
 properties = [
   { name = "ProjectFolder", type = "string", design = false, doc = "The project's folder: files are read inside it only (\"\" — no project)." },
   { name = "ProjectFiles", type = "string", design = false, doc = "The project's files, a line each, relative to ProjectFolder (what list_files gives the model)." },
-  { name = "MainFile", type = "string", design = false, doc = "The project's main file, relative to ProjectFolder." },
+  { name = "MainFile", type = "string", design = false, doc = "The project's main file, relative to ProjectFolder.", kind = "file:any" },
   { name = "ProjectName", type = "string", design = false, doc = "The project's name, as the model is told it." },
   { name = "CompatMode", type = "string", design = false, doc = "\"rapidq\" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes." },
   { name = "Permission", type = "string", default = "propose", values = ["propose", "read-only"], doc = "What the model may do: \"propose\" (read the project and propose changes, shown as diffs the user decides on) or \"read-only\" (read and answer; the proposing tools aren't offered)." },

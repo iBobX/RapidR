@@ -59,6 +59,26 @@ SUB EditorSettings(d AS INTEGER)
   END IF
   CodeDoc(d).KeywordCase = EditorKeywordCase
   CodeDoc(d).IdentifierCase = EditorIdentifierCase
+  ' (the code's helpers: docs/manual/studio-editor.md, "Helpers")
+  IF EditorHelpers = "" THEN EditorHelpers = "helpful"
+  CodeDoc(d).Helpers = EditorHelpers
+  EditorProjectFiles d
+END SUB
+
+' (document d's helpers read pictures only from the project's folder, and
+' offer its files: the project's own, else the code file's folder)
+SUB EditorProjectFiles(d AS INTEGER)
+  DIM i AS INTEGER, all AS STRING
+  IF ProjectOpen = 0 THEN
+    CodeDoc(d).ProjectFolder = ""
+    CodeDoc(d).ProjectFiles = ""
+    EXIT SUB
+  END IF
+  FOR i = 0 TO Proj.FileCount - 1
+    all = all + Proj.File(i) + CHR$(10)
+  NEXT
+  CodeDoc(d).ProjectFolder = Proj.Folder
+  CodeDoc(d).ProjectFiles = all
 END SUB
 
 ' ---- the status bar: the caret, the file's encoding and line breaks ---------------------
@@ -255,6 +275,7 @@ FUNCTION ChordKeys(Chord AS STRING) AS STRING
 END FUNCTION
 
 FUNCTION EditorStep(Id AS STRING) AS INTEGER
+  DIM d AS INTEGER
   IF LEFT$(Id, 5) = "type:" OR LEFT$(Id, 4) = "key:" OR LEFT$(Id, 6) = "focus:" THEN OutputLine "> " + Id
   IF LEFT$(Id, 6) = "focus:" THEN
     Dock.FocusPane(MID$(Id, 7))
@@ -264,6 +285,13 @@ FUNCTION EditorStep(Id AS STRING) AS INTEGER
     Result = 1
   ELSEIF LEFT$(Id, 4) = "key:" THEN
     Application.SendKeys ChordKeys(MID$(Id, 5))
+    Result = 1
+  ELSEIF LEFT$(Id, 8) = "helpers:" THEN
+    ' (helpers:quiet — Settings > Code helpers, as its OK sets it)
+    EditorHelpers = MID$(Id, 9)
+    FOR d = 0 TO DocCount - 1
+      IF DocOpen(d) THEN CodeDoc(d).Helpers = EditorHelpers
+    NEXT
     Result = 1
   END IF
 END FUNCTION

@@ -20,7 +20,7 @@ properties = [
   { name = "Busy", type = "int", access = "read", design = false, doc = "1 while a background query (QueryAsync) runs, else 0." },
 ]
 methods = [
-  { name = "Connect", params = "file", value = true, doc = "Opens (or creates) the database file; \":memory:\" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first)." },
+  { name = "Connect", params = "file", value = true, doc = "Opens (or creates) the database file; \":memory:\" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first).", arg_kinds = { file = "file:any" } },
   { name = "Close", value = true },
   { name = "Query", params = "sql, [value] ...", value = true, doc = "Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message)." },
   { name = "QueryAsync", params = "sql, [value] ...", returns = "INTEGER", effects = ["state"], example = "DIM DB AS RSQLITE\nDIM sql AS STRING\nDB.Connect \":memory:\"\nsql = \"SELECT 42\"\nDB.QueryAsync sql", doc = "Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) (\"cancelled\" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError \"busy: …\"). Returns 1 if it started, else 0 (OnError says why). On the web it runs on the page's thread in slices of a few milliseconds, the page drawn between them." },
@@ -97,8 +97,8 @@ methods = [
   { name = "RowSeek", params = "Row AS INTEGER", returns = "VARIANT", value = true },
   { name = "SelectDB", params = "DB AS STRING", returns = "INTEGER", value = true },
   { name = "ClearParams", value = true, origin = "rapidr", doc = "Drops the values queued with AddParam." },
-  { name = "LoadBlob", params = "File AS STRING", returns = "STRING", doc = "Reads a file's bytes and returns them as EscapeString would, ready to go between quotes in an INSERT or UPDATE. \"\" if the file can't be read (OnError says why)." },
-  { name = "SaveBlob", params = "Field AS INTEGER, File AS STRING", doc = "Writes field `Field` (from 0) of the current row, its bytes as the server sent them, to a new file `File` (no FetchLengths needed). Does nothing without a current row or such a field." },
+  { name = "LoadBlob", params = "File AS STRING", returns = "STRING", doc = "Reads a file's bytes and returns them as EscapeString would, ready to go between quotes in an INSERT or UPDATE. \"\" if the file can't be read (OnError says why).", arg_kinds = { File = "file:any" } },
+  { name = "SaveBlob", params = "Field AS INTEGER, File AS STRING", doc = "Writes field `Field` (from 0) of the current row, its bytes as the server sent them, to a new file `File` (no FetchLengths needed). Does nothing without a current row or such a field.", arg_kinds = { File = "file:any" } },
 ]
 events = [
   { name = "OnConnect", origin = "rapidr" },

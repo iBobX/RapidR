@@ -182,6 +182,15 @@ impl FormUi {
         if self.menu_mouse_down(store, x, y) {
             return;
         }
+        // (an open value editor: a press on it is its own; one elsewhere
+        // drops it and goes on — docs/code-helpers-plan.md)
+        if button == Button::Left {
+            let clicks = self.last_click.filter(|c| (x - c.2).abs() <= crate::tick::DOUBLE_CLICK_DISTANCE && (y - c.3).abs() <= crate::tick::DOUBLE_CLICK_DISTANCE && crate::tick::now().saturating_duration_since(c.0) <= crate::tick::DOUBLE_CLICK).map_or(1, |c| c.4.saturating_add(1));
+            if crate::value_edit::mouse_down(self, store, ts, x, y, clicks) {
+                self.last_click = Some((crate::tick::now(), None, x, y, clicks));
+                return;
+            }
+        }
         // (an open drop-down list, over everything but menus)
         if crate::components::combo::popup_mouse_down(self, store, x, y) || crate::components::codeeditor::popup::popup_mouse_down(self, store, ts, x, y) {
             return;
@@ -283,6 +292,10 @@ impl FormUi {
         if self.menu_mouse_move(store, x, y) {
             return;
         }
+        // (a value editor's wheel or square being dragged)
+        if crate::value_edit::mouse_move(self, store, ts, x, y) {
+            return;
+        }
         // (a debugger's data tip keeps the mouse over it and on the way there)
         if self.capture.is_none() && crate::components::codeeditor::datatip::mouse_move(self, x, y) {
             return;
@@ -337,6 +350,9 @@ impl FormUi {
         self.mouse_at = (x, y);
         // (a drag's release is its end's: drag.rs)
         if self.drag_release() {
+            return;
+        }
+        if crate::value_edit::mouse_up(self) {
             return;
         }
         if self.menu_mouse_up(store, x, y) {
@@ -444,7 +460,7 @@ impl FormUi {
     /// "scroll inactive windows" rule, not the focused control's.
     pub fn mouse_wheel(&mut self, store: &dyn Store, ts: &mut TextSystem, (x, y): (f64, f64), (dx, dy): (f64, f64), mods: Mods) {
         self.tip_hide();
-        if self.menu_open() || crate::components::combo::popup_wheel(self, store, x, y, dy) || crate::components::codeeditor::popup::popup_wheel(self, x, y, dy) {
+        if self.menu_open() || crate::value_edit::wheel(self, x, y, dy) || crate::components::combo::popup_wheel(self, store, x, y, dy) || crate::components::codeeditor::popup::popup_wheel(self, x, y, dy) {
             return;
         }
         let chain = self.hit(x, y).map(|i| self.ancestry(i)).unwrap_or_default();
@@ -493,6 +509,15 @@ impl FormUi {
             // (an edit's context menu's pick, done now)
             self.edit_commands(store, ts, clip);
             return;
+        }
+        // (an open value editor has the keys: Tab moves inside it, Enter
+        // keeps, Esc drops — docs/code-helpers-plan.md)
+        if crate::value_edit::key(self, store, ts, vk, text, mods) {
+            return;
+        }
+        // (Ctrl alone held a moment: a code editor shows every argument's name)
+        if vk == 17 {
+            crate::components::codeeditor::helpers::ctrl(self, true);
         }
         // (I4: Escape drops a component being dragged in from a toolbox)
         if vk == 27 && crate::components::design::drop_cancel(self, store) {
@@ -548,6 +573,9 @@ impl FormUi {
     }
 
     pub fn key_up(&mut self, vk: i64, mods: Mods) {
+        if vk == 17 {
+            crate::components::codeeditor::helpers::ctrl(self, false);
+        }
         let chain = self.key_chain();
         self.events.push(KernelEvent::KeyUp { chain, vk, shift: mods.shift_state() });
         // (the input lane's: a lone Alt let go selects the in-window bar's

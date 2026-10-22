@@ -35,7 +35,7 @@ doc = "The running program: its file and folder, title, icon, hint settings, Rap
 properties = [
   { name = "ExeName", type = "string", access = "read" },
   { name = "Handle", type = "int", access = "read" },
-  { name = "HelpFile", type = "string" },
+  { name = "HelpFile", type = "string", kind = "file:any" },
   { name = "HintColor", type = "color" },
   { name = "HintHidePause", type = "int" },
   { name = "HintPause", type = "int" },
@@ -104,7 +104,7 @@ name = "FileRec"
 kind = "global"
 doc = "What the last DIR$ found: the file's name, short name, date, time and size."
 properties = [
-  { name = "FileName", type = "string", access = "read" },
+  { name = "FileName", type = "string", access = "read", kind = "file:any" },
   { name = "ShortName", type = "string", access = "read" },
   { name = "Date", type = "string", access = "read" },
   { name = "Time", type = "string", access = "read" },

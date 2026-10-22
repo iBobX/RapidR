@@ -127,8 +127,17 @@ fn property_json(p: &Property) -> String {
     let o = o.s_nonempty("category", p.category);
     let o = origin_fields(o, p.origin, p.from, p.runtimes, p.missing).opt("set", p.set);
     // (the AI facets: docs/ai-architecture.md §2.4)
-    let o = o.opt("range", p.range).opt("unit", p.unit).raw_nonempty("effects", effects_json(p.effects)).b_true("secret", p.secret);
+    let o = o.opt("range", p.range).opt("unit", p.unit).raw_nonempty("effects", effects_json(p.effects)).b_true("secret", p.secret).opt("kind", p.kind);
     o.s("doc", p.doc).done()
+}
+
+/// `{"FileName":"file:image"}` (the `kind` facet of each parameter that
+/// has one), or "" for none.
+fn arg_kinds_json(kinds: &[(&str, &str)]) -> String {
+    if kinds.is_empty() {
+        return String::new();
+    }
+    format!("{{{}}}", kinds.iter().map(|(n, k)| format!("{}:{}", json_str(n), json_str(k))).collect::<Vec<_>>().join(","))
 }
 
 /// `["ui","state"]`, or "" for none.
@@ -143,6 +152,7 @@ fn method_json(m: &Method) -> String {
     let o = Obj::new().s("name", m.name).s("signature", &m.signature()).raw("params", params_json(m.params)).opt("returns", m.returns).b_true("value", m.value);
     let o = origin_fields(o, m.origin, m.from, m.runtimes, m.missing).opt("set", m.set);
     let o = o.raw_nonempty("effects", effects_json(m.effects)).opt("risk", m.risk().map(Risk::as_str)).s_nonempty("example", m.example).s_nonempty("expect", m.expect).b_true("secret", m.secret);
+    let o = o.raw_nonempty("arg_kinds", arg_kinds_json(m.arg_kinds));
     o.s("doc", m.doc).done()
 }
 
@@ -197,6 +207,7 @@ pub fn json() -> String {
             .b_true("bare", b.bare);
         let o = origin_fields(o, b.origin, None, b.runtimes, b.missing);
         let o = o.raw_nonempty("effects", effects_json(b.effects)).opt("risk", b.risk().map(Risk::as_str)).s_nonempty("example", b.example).s_nonempty("expect", b.expect);
+        let o = o.opt("kind", b.kind).raw_nonempty("arg_kinds", arg_kinds_json(b.arg_kinds));
         o.s("doc", b.doc).done()
     }));
     let statements = list(STATEMENTS.iter().map(|s| {

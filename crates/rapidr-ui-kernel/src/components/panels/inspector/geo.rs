@@ -7,7 +7,7 @@
 //! colour picker's swatches.
 
 use rapidr_value::objects::ops::Rect;
-use rapidr_value::panels::inspector::values::{self, Kind};
+use rapidr_value::panels::inspector::values::Kind;
 use rapidr_value::panels::inspector::{model::PINS_H, Inspector, Row, RowKind};
 use rapidr_value::panels::rows::{ROW, SEARCH, TABS};
 
@@ -73,10 +73,6 @@ pub enum Part {
     Button,
     /// The anchors editor's pin (0 left, 1 top, 2 right, 3 bottom).
     Pin(usize),
-    /// The colour picker's swatch.
-    Swatch(usize),
-    /// The colour picker's value field.
-    Field,
 }
 
 /// A row's place: (x, y, w, h) in the panel, given the list's scroll.
@@ -102,7 +98,7 @@ pub struct RowParts {
 pub fn row_kind(m: &Inspector, r: &Row) -> Option<Kind> {
     match r.kind {
         RowKind::Event => Some(Kind::Text),
-        RowKind::Category | RowKind::Pins | RowKind::Picker => None,
+        RowKind::Category | RowKind::Pins => None,
         RowKind::Flag(_) => Some(Kind::Bool),
         RowKind::FontPart(i) => m.snap.props.get(r.prop)?.parts.get(i).map(|q| q.kind.clone()),
         RowKind::Line(_) | RowKind::AddLine => Some(Kind::Text),
@@ -154,65 +150,12 @@ pub fn pins(rr: Rect) -> (Rect, Rect, [Rect; 4]) {
     (parent, control, [left, top, right, bottom])
 }
 
-/// The colour picker's places in its row `rr`: each swatch (the 16
-/// standard colours, then the system's), the current colour's field.
-pub struct Picker {
-    pub standard_label: Rect,
-    pub system_label: Rect,
-    pub swatches: Vec<Rect>,
-    pub preview: Rect,
-    pub field: Rect,
-}
-
-/// Swatches across a picker's grid.
-pub const COLUMNS: usize = 8;
-const SWATCH: i64 = 18;
-const GAP: i64 = 4;
-
-pub fn picker(rr: Rect) -> Picker {
-    let (x, y, w, _) = rr;
-    let grid_w = COLUMNS as i64 * (SWATCH + GAP) - GAP;
-    let x0 = x + ((w - grid_w) / 2).max(8);
-    let cell = |row: i64, col: i64, top: i64| (x0 + col * (SWATCH + GAP), top + row * (SWATCH + GAP), SWATCH, SWATCH);
-    let standard_label = (x0, y + 6, grid_w, 14);
-    let mut swatches = Vec::new();
-    for i in 0..values::STANDARD_COLORS.len() as i64 {
-        swatches.push(cell(i / COLUMNS as i64, i % COLUMNS as i64, y + 22));
-    }
-    let system_top = y + 22 + 2 * (SWATCH + GAP) + 4;
-    let system_label = (x0, system_top, grid_w, 14);
-    for i in 0..values::SYSTEM_COLORS.len() as i64 {
-        swatches.push(cell(i / COLUMNS as i64, i % COLUMNS as i64, system_top + 16));
-    }
-    let bottom = system_top + 16 + 3 * (SWATCH + GAP) + 2;
-    let preview = (x0, bottom, 28, 20);
-    let field = (x0 + 34, bottom, grid_w - 34, 20);
-    Picker { standard_label, system_label, swatches, preview, field }
-}
-
-/// The colour a picker's swatch `i` is.
-pub fn swatch_name(i: usize) -> &'static str {
-    values::STANDARD_COLORS.get(i).copied().unwrap_or_else(|| values::SYSTEM_COLORS.get(i - values::STANDARD_COLORS.len()).copied().unwrap_or("clBlack"))
-}
-
-/// How many swatches a picker has.
-pub fn swatch_count() -> usize {
-    values::STANDARD_COLORS.len() + values::SYSTEM_COLORS.len()
-}
-
 /// What a press at (x, y) of row `r` (at `rr`) lands on.
 pub fn part_at(m: &Inspector, r: &Row, rr: Rect, nw: i64, x: i64, y: i64) -> Part {
     match r.kind {
         RowKind::Pins => {
             let (_, _, struts) = pins(rr);
             return struts.iter().position(|s| inside(*s, x, y)).map_or(Part::Name, Part::Pin);
-        }
-        RowKind::Picker => {
-            let pk = picker(rr);
-            if inside(pk.field, x, y) || inside(pk.preview, x, y) {
-                return Part::Field;
-            }
-            return pk.swatches.iter().position(|s| inside(*s, x, y)).map_or(Part::Name, Part::Swatch);
         }
         RowKind::Category => return Part::Expander,
         _ => {}
@@ -226,7 +169,8 @@ pub fn part_at(m: &Inspector, r: &Row, rr: Rect, nw: i64, x: i64, y: i64) -> Par
     if x < rr.0 + nw {
         return if inside(p.reset, x, y) && !r.is_default && !r.mixed && resettable(r) { Part::Reset } else { Part::Name };
     }
-    if p.button.is_some_and(|b| inside((b.0, rr.1, b.2, rr.3), x, y)) {
+    // (the "…" button, and a colour's swatch: the colour editor)
+    if p.button.is_some_and(|b| inside((b.0, rr.1, b.2, rr.3), x, y)) || p.swatch.is_some_and(|s| inside((s.0 - 2, rr.1, s.2 + 4, rr.3), x, y)) {
         return Part::Button;
     }
     if p.check.is_some_and(|c| inside((c.0 - 3, rr.1, c.2 + 6, rr.3), x, y)) {

@@ -22,7 +22,7 @@ methods = [
   { name = "DeleteFrame", params = "Frame AS RD3DFrame" },
   { name = "DeleteLight", params = "Light AS RD3DLight" },
   { name = "DeleteVisual", params = "Visual AS RD3DMeshBuilder" },
-  { name = "Load", params = "FileName AS STRING" },
+  { name = "Load", params = "FileName AS STRING", arg_kinds = { FileName = "file:any" } },
   { name = "LookAt", params = "F AS RD3DFrame, Constraint AS INTEGER" },
   { name = "Move", params = "D AS DOUBLE" },
   { name = "SetBackgroundImage", params = "Texture AS RD3DTexture" },

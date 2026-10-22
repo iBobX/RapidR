@@ -10,7 +10,7 @@ doc = "The system's Open dialog: Execute shows it and returns whether the user c
 properties = [
   { name = "PickFolder", type = "bool", default = false, origin = "rapidr", doc = "Execute chooses a folder instead of a file; FileName is the folder (on the web its files are read in, and saving one writes it back)." },
   { name = "Caption", type = "string", default = "" },
-  { name = "FileName", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "", kind = "file:any" },
   { name = "Filter", type = "string", default = "" },
   { name = "FilterIndex", type = "int", default = 1 },
   { name = "InitialDir", type = "string", default = "" },
@@ -30,7 +30,7 @@ visual = false
 doc = "The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName."
 properties = [
   { name = "Caption", type = "string", default = "" },
-  { name = "FileName", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "", kind = "file:any" },
   { name = "Filter", type = "string", default = "" },
   { name = "FilterIndex", type = "int", default = 1 },
   { name = "InitialDir", type = "string", default = "" },
@@ -52,7 +52,7 @@ doc = "RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with s
 properties = [
   { name = "Caption", type = "string", default = "Open" },
   { name = "DefaultExt", type = "string", default = "" },
-  { name = "FileName", type = "string", default = "" },
+  { name = "FileName", type = "string", default = "", kind = "file:any" },
   { name = "FileTitle", type = "string", access = "read", design = false, default = "" },
   { name = "Files", type = "string", design = false, indexed = 1 },
   { name = "Filter", type = "string", default = "All Files|*.*" },
@@ -101,7 +101,7 @@ doc = "A font picker: Execute shows it and returns 1 when the user chooses a fon
 properties = [
   { name = "Color", type = "color" },
   { name = "FontCount", type = "int", access = "read", design = false },
-  { name = "FontName", type = "string", access = "read", design = false, indexed = 1 },
+  { name = "FontName", type = "string", access = "read", design = false, indexed = 1, kind = "font" },
   { name = "MaxFontSize", type = "int" },
   { name = "MinFontSize", type = "int" },
   { name = "Size", type = "int" },

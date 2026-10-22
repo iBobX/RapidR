@@ -265,7 +265,6 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     }
     match r.kind {
         RowKind::Pins => return pins(p, m, r, rr, selected, c),
-        RowKind::Picker => return picker(p, m, r, rr, selected, c),
         _ => {}
     }
     // (the row's ground: fluent's soft selection across it; classic
@@ -336,7 +335,7 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     value(p, m, r, i, rr, nw, &parts, selected, hover, ink, c);
     // (the line under the mouse, or held: the accent a little softened, 2
     // pixels, as the dock's splitters' hot line; it says "drag me")
-    if !l.classic && (m.ui.hover == Some(Hover::Divider) || m.ui.drag.is_some()) && !matches!(r.kind, RowKind::Pins | RowKind::Picker) {
+    if !l.classic && (m.ui.hover == Some(Hover::Divider) || m.ui.drag.is_some()) && !matches!(r.kind, RowKind::Pins) {
         p.fill((x + nw - 1, y, 2, h), mix(l.body, l.accent, 0.8));
     }
     if selected && focused && c.editing.is_none() && l.classic {
@@ -511,67 +510,6 @@ pub fn anchors_words(mask: i64) -> String {
     s
 }
 
-/// A colour's picker: the 16 standard colours, the system's, the current
-/// one with its spelling (a click there types a value).
-fn picker(p: &mut Painter, m: &Inspector, r: &Row, rr: Rect, selected: bool, c: &Ctx) {
-    let l = c.l;
-    p.fill(rr, if l.classic { l.body } else { mix(l.chrome, l.body, 0.5) });
-    let pk = geo::picker(rr);
-    let small = Font { size: (c.font.size - 1).max(6), ..c.font.clone() };
-    p.text(pk.standard_label, "Standard", &small, l.dim, Place::Left);
-    p.text(pk.system_label, "System (follow the theme)", &small, l.dim, Place::Left);
-    let current = m.snap.props.get(r.prop).and_then(|pr| match r.key.split('#').next().and_then(|k| k.split_once('.')) {
-        Some((_, part)) => pr.parts.iter().find(|q| q.name.eq_ignore_ascii_case(part)).and_then(|q| q.value.clone()),
-        None => pr.value.clone(),
-    });
-    let cur = current.as_ref().map(|v| v.to_i64());
-    for (k, s) in pk.swatches.iter().enumerate() {
-        let name = geo::swatch_name(k);
-        let v = values::color_value(name).unwrap_or(0);
-        swatch(p, *s, swatch_rgb(p, v), l);
-        let hot = m.ui.hover == Some(Hover::Swatch(k));
-        if cur == Some(v) {
-            let ring = if l.classic { l.text } else { l.accent };
-            p.ring((s.0 - 2, s.1 - 2, s.2 + 4, s.3 + 4), 4.0, ring, 1.5);
-        } else if hot {
-            p.ring((s.0 - 2, s.1 - 2, s.2 + 4, s.3 + 4), 4.0, l.dim, 1.0);
-        }
-        if selected && c.focused && m.ui.swatch == k && c.editing.is_none() && !c.searching {
-            if l.classic {
-                p.focus((s.0 - 3, s.1 - 3, s.2 + 6, s.3 + 6));
-            } else {
-                p.ring((s.0 - 3, s.1 - 3, s.2 + 6, s.3 + 6), 5.0, l.focus, 1.5);
-            }
-        }
-    }
-    // (the current colour, as written; the hot swatch's name while hovered)
-    match cur {
-        Some(v) => swatch(p, pk.preview, swatch_rgb(p, v), l),
-        None => p.round(pk.preview, 3.0, None, Some(l.border), 1.0),
-    }
-    let f = pk.field;
-    if c.editing != Some(r.key.as_str()) {
-        if l.classic {
-            p.fill(f, l.field);
-            p.sunken_edge(f);
-        } else {
-            p.round(f, 4.0, Some(l.field), Some(l.field_border), 1.0);
-        }
-        let shown = match m.ui.hover {
-            Some(Hover::Swatch(k)) => {
-                let name = geo::swatch_name(k);
-                format!("{name}  {}", values::color_hex(values::color_value(name).unwrap_or(0)))
-            }
-            _ => cur.map(|v| match values::color_name(v) {
-                Some(n) => format!("{n}  {}", values::color_hex(v)),
-                None => values::color_hex(v),
-            })
-            .unwrap_or_default(),
-        };
-        p.text((f.0 + 6, f.1, f.2 - 8, f.3), &common::elide(&shown, c.font, f.2 - 8), c.font, l.text, Place::Left);
-    }
-}
-
 /// The empty list's words.
 pub fn empty(p: &mut Painter, r: Rect, m: &Inspector, c: &Ctx) {
     let text = if !m.filter.trim().is_empty() {
@@ -591,7 +529,6 @@ pub fn hover_of(part: Part, i: usize) -> Hover {
         Part::Button => Hover::Button(i),
         Part::Check => Hover::Check(i),
         Part::Pin(k) => Hover::Pin(k),
-        Part::Swatch(k) => Hover::Swatch(k),
         _ => Hover::Row(i),
     }
 }
