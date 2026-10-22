@@ -3227,7 +3227,14 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         } else {
             format!("data::restore_compiled(Some(&{a0}))")
         }),
-        "rinstr" => Some(format!("rp_rinstr(&{a0}, &{a1})")),
+        // RINSTR([start,] s, find): the start is optional, as INSTR's.
+        "rinstr" => {
+            if args.len() >= 3 {
+                Some(format!("rp_rinstr(&{a0}, &{a1}, &{a2})"))
+            } else {
+                Some(format!("rp_rinstr(&v_null(), &{a0}, &{a1})"))
+            }
+        }
         "format" => Some(format!("rp_format(&{a0}, &[{}])", args.get(1..).unwrap_or(&[]).iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
         // (RapidR's) the program's text in its language (rapidr_value::i18n)
         "tr" => Some(format!("i18n::rp_tr(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
@@ -3615,6 +3622,15 @@ mod tests {
         let tokens = Lexer::new(code, None).tokenize().unwrap();
         let program = parse_tokens(&tokens).expect("test source should parse");
         generate(&program)
+    }
+
+    /// A RUSTSTART block in the main program: its Rust between the
+    /// program's own statements, in order.
+    #[test]
+    fn ruststart_in_the_main_program_is_emitted_in_place() {
+        let rust = gen("PRINT \"before\"\nRUSTSTART\nlet rr_top_level_block = 1;\nRUSTEND\nPRINT \"after\"\n");
+        let (b, r, a) = (rust.find("\"before\"").unwrap(), rust.find("rr_top_level_block").unwrap(), rust.find("\"after\"").unwrap());
+        assert!(b < r && r < a, "{rust}");
     }
 
     #[test]

@@ -1,0 +1,7 @@
+in S: param 42
+same as global: -1 -1
+text there: global
+param now: changed
+main: global 7
+main text there: global
+local: -1

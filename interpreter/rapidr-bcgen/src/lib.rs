@@ -3088,6 +3088,20 @@ mod tests {
         }
     }
 
+    /// A RUSTSTART block, in the main program or a SUB: the native-only
+    /// message at its line, not a parse error.
+    #[test]
+    fn ruststart_is_native_only_wherever_it_is() {
+        for src in [
+            "PRINT \"before\"\nRUSTSTART\nprintln!(\"rust\");\nRUSTEND\nPRINT \"after\"\n",
+            "PRINT \"before\"\nSUB S\n  RUSTSTART\n  println!(\"rust\");\n  RUSTEND\n  PRINT 1\nEND SUB\nS\n",
+        ] {
+            let Err(err) = compile_program_with_source(&parse(src), Some(src)) else { panic!("should not compile: {src}") };
+            assert!(err.contains("only work in native builds"), "{err}");
+            assert!(err.starts_with("2:") || err.starts_with("3:"), "{err}");
+        }
+    }
+
     #[test]
     fn unknown_names_in_unused_code_only_pass_in_libraries() {
         let src = "SUB Helper\n  Frobble 1\nEND SUB\nPRINT \"ok\"\n";

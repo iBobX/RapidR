@@ -528,8 +528,15 @@ impl<'a> Parser<'a> {
                 }
             }
             if let Some(stmt) = self.parse_statement() {
+                // A RUSTSTART block's token runs through its RUSTEND line
+                // (end of line included): the next line follows, in the
+                // main program as in a SUB.
+                let rust_block = matches!(stmt, Statement::RustBlock(_));
                 stmts.push(stmt);
                 stmts.append(&mut self.pending);
+                if rust_block {
+                    continue;
+                }
                 // Handle colon-separated statements on the same line
                 while self.match_kind(TokenType::Colon) {
                     if self.at_end() || self.peek_kind() == Some(TokenType::Newline) {
@@ -1570,11 +1577,9 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         let tok = self.advance()?; // RustStart token — lexeme contains the raw Rust body
         let code = tok.lexeme.clone();
+        let span = self.span_from(start);
         self.skip_newlines();
-        Some(RustBlockStatement {
-            span: self.span_from(start),
-            code,
-        })
+        Some(RustBlockStatement { span, code })
     }
 
     fn parse_assignment_or_call(&mut self) -> Option<Statement> {
@@ -3872,6 +3877,23 @@ mod tests {
                 .map(|d| (d.location.line, d.location.column, d.message.clone()))
                 .collect(),
         }
+    }
+
+    /// A RUSTSTART … RUSTEND block in the main program, followed by more
+    /// code (it was "Expected end-of-line but got PRINT"), and inside a SUB
+    /// with code after it.
+    #[test]
+    fn ruststart_blocks_are_followed_by_the_next_line() {
+        let top = parse("PRINT \"before\"\nRUSTSTART\nprintln!(\"rust\");\nRUSTEND\nPRINT \"after\"\n");
+        assert_eq!(top.len(), 3, "{top:?}");
+        assert!(matches!(&top[1], Statement::RustBlock(r) if r.code.contains("println!")), "{top:?}");
+        assert!(matches!(&top[2], Statement::Print(_)), "{top:?}");
+        // (at the end of the program, after a blank line, in a SUB)
+        assert_eq!(parse("RUSTSTART\nlet _x = 1;\nRUSTEND\n").len(), 1);
+        assert_eq!(parse("RUSTSTART\nlet _x = 1;\nRUSTEND\n\nPRINT 1\n").len(), 2);
+        let sub = parse("SUB S\n  RUSTSTART\n  let _x = 1;\n  RUSTEND\n  PRINT 1\nEND SUB\n");
+        let Statement::Subroutine(s) = &sub[0] else { panic!("{sub:?}") };
+        assert_eq!(s.body.len(), 2, "{sub:?}");
     }
 
     #[test]
