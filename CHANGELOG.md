@@ -167,6 +167,10 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **INSTR with a start that isn't whole** gives RapidQ's real place (RC.EXE):
+  the search begins where the start rounds half to even and the place counts
+  from the start as given, `INSTR(2.5, "abcabc", "c")` = 3.5
+  (`rapidq_instr_real_start`).
 - **FILEEXISTS with wildcards** (RC.EXE): `FILEEXISTS("*.bas")` is 1 when the
   first name the folder lists for the pattern is a file, as in RapidQ (`*` and
   `*.*` meet the folder's own `.` first and are 0, a pattern only a folder

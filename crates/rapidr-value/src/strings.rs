@@ -52,22 +52,36 @@ pub fn right(s: &Value, n: &Value) -> Value {
 /// RapidQ computes it (RC.EXE): an empty needle is never found; the search
 /// is in the text from `start` (before the first character: all of it) and
 /// the place found is counted from `start` (0 counts as 1), so
-/// `INSTR(-5, "abc", "b")` is -4.
+/// `INSTR(-5, "abc", "b")` is -4. A real start (RC.EXE, 2026-10-22) is
+/// rounded half to even to find where the search begins, and the place is
+/// counted from the start as given: `INSTR(2.5, "abcabc", "c")` searches
+/// from character 2 and is 3.5, `INSTR(2.7, "abcabc", "b")` from 3 and 4.7.
 pub fn instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
     let hay = chars(haystack);
     let nee = chars(needle);
     if nee.is_empty() {
         return v_int(0);
     }
-    let start = match start {
-        Value::Null => 1,
-        s => match s.to_i64() {
+    // (a real start that isn't whole: where the search begins, and the
+    // start itself for the place found)
+    let real = match start {
+        Value::Double(d) if d.fract() != 0.0 && d.is_finite() => Some(*d),
+        _ => None,
+    };
+    let start = match (start, real) {
+        (Value::Null, _) => 1,
+        (_, Some(d)) => crate::format::int32(d),
+        (s, None) => match s.to_i64() {
             0 => 1,
             n => n,
         },
     };
-    match find_chars(&hay, &nee, (start - 1).max(0) as usize) {
-        Some(i) => v_int(i as i64 + 1 - (start - 1).max(0) + (start - 1)),
+    let from = (start - 1).max(0);
+    match find_chars(&hay, &nee, from as usize) {
+        Some(i) => match real {
+            Some(d) => crate::v_dbl(i as f64 - from as f64 + d),
+            None => v_int(i as i64 + 1 - from + (start - 1)),
+        },
         None => v_int(0),
     }
 }
@@ -199,6 +213,19 @@ mod tests {
         assert_eq!(right(&s("abc"), &v_int(99)).to_string_val(), "abc");
         assert_eq!(instr(&v_int(9), &s("abc"), &s("c")).to_i64(), 0);
         assert_eq!(delete(&s("abc"), &v_int(3), &v_int(99)).to_string_val(), "ab");
+    }
+
+    /// RC.EXE's answers (2026-10-22): a real start begins the search where
+    /// it rounds half to even, and the place counts from it as given.
+    #[test]
+    fn instr_with_a_real_start_as_rapidq() {
+        let r = |start: f64, h: &str, n: &str| instr(&Value::Double(start), &s(h), &s(n)).to_f64();
+        assert_eq!(r(2.5, "abcabc", "c"), 3.5);
+        assert_eq!(r(2.7, "abcabc", "b"), 4.7);
+        assert_eq!(r(3.5, "abcabc", "c"), 5.5);
+        assert_eq!(r(4.5, "abcabc", "a"), 4.5);
+        assert_eq!(r(2.5, "abcabc", "z"), 0.0);
+        assert!(matches!(instr(&Value::Double(2.0), &s("abcabc"), &s("c")), Value::Integer(3)));
     }
 
     /// RC.EXE's answers (2026-10-22): the needle ends at or before `start`.
