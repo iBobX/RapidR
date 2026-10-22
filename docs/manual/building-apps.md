@@ -40,6 +40,38 @@ App: dist/linked_data.app
   data files in the app's Contents/Resources: staff.csv (started from Finder, a launcher or Explorer, it finds them)
 ```
 
+What a build takes with the program:
+
+- **Files beside it** whose names the source has in it (`"staff.csv"`).
+- **Files in folders below it** whose paths the source has in it, in the
+  same folders: `RImage.Load "art/logo.svg"` takes `art/logo.svg`,
+  `"data\sample.csv"` takes `data/sample.csv` (either slash, the names in
+  any case). Other files in those folders stay behind.
+- **Its translations**: the `.po` files of its `lang` folder, when the
+  program uses `TR$`, `TRN$` or `Application.Language`, or has a `lang`
+  folder ([Your program in every language](translations.md)).
+- Every kind of build does this: native, interpreted (`--interp`), for
+  the web (`--web`, `bundle-bc`), RapidR Studio's Build, and `rapidr
+  examples copy`. `$RESOURCE` files are built into the program instead.
+
+```text
+$ rapidr build app.rr dist --interp
+App: dist/app.app
+  data files in the app's Contents/Resources: art/logo.svg, lang/es.po (started from Finder, a launcher or Explorer, it finds them)
+```
+
+A build never takes anything from outside the program's folder. A name
+that leads out of it — `"../secret.txt"`, `"/etc/hosts"`, a link in the
+folder that points elsewhere — is not copied, and the build says so:
+
+```text
+warning: "../secret.txt" is outside the program's folder: not copied (a build takes only files from the program's folder and the folders below it)
+```
+
+On the web, the files from folders below go with the page's other files,
+and the translations beside the page, in `lang/`, with `lang/index.txt`
+listing them.
+
 | System | Where they go | The folder a double-clicked app works in |
 |---|---|---|
 | macOS | `Name.app/Contents/Resources` | `Contents/Resources` (Finder, the Dock and `open` start apps in `/`: the app moves to its own files) |
@@ -47,9 +79,10 @@ App: dist/linked_data.app
 | Linux | `Name.AppDir/usr/bin`, beside the program | `usr/bin` (a launcher starts it in your home folder: the app moves to its own files) |
 
 Started from a terminal, a program keeps the terminal's folder — as a
-console program always does — so `"staff.csv"` is the one in the folder
-you're in; an `RCSV` or `RJson` that finds no such file there reads the
-one the app came with. `$RESOURCE` files are built into the program and
+console program always does — so `"staff.csv"` and `"art/logo.svg"` are
+the ones in the folder you're in; an `RCSV` or `RJson` that finds no such
+file there reads the one the app came with, and translations are always
+read from the app's own `lang` folder. `$RESOURCE` files are built into the program and
 don't need any of this.
 
 The app's own folder may be read-only — an app in `/Applications`, an

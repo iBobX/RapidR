@@ -46,10 +46,21 @@ pub fn include_targets(text: &str) -> Vec<String> {
 /// belongs to its project: `rapidr examples copy` copies them, RapidR
 /// Studio lists them and gives them to the program it runs in a browser.
 pub fn named_files(text: &str) -> Vec<(String, bool)> {
+    scan_named(text, false)
+}
+
+/// [`named_files`] with the absolute paths a source names too (`"/etc/x.txt"`,
+/// `"C:\data\x.csv"`): what a build tells about and never takes
+/// (`crate::ship`).
+pub fn named_paths(text: &str) -> Vec<(String, bool)> {
+    scan_named(text, true)
+}
+
+fn scan_named(text: &str, absolute_too: bool) -> Vec<(String, bool)> {
     let mut out: Vec<(String, bool)> = Vec::new();
     let mut push = |name: &str, resource: bool| {
         let name = name.trim();
-        if !looks_like_file(name) {
+        if !(looks_like_file(name) || absolute_too && is_absolute(name) && looks_like_file_name(name)) {
             return;
         }
         match out.iter_mut().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
@@ -80,7 +91,13 @@ pub fn named_files(text: &str) -> Vec<(String, bool)> {
 
 /// Whether a string literal reads as a relative file name.
 fn looks_like_file(s: &str) -> bool {
-    if s.len() < 3 || s.len() > 260 || s.contains("://") || is_absolute(s) || s.contains(['<', '>', '|', '*', '?', '"', '\n', '\t']) {
+    !is_absolute(s) && looks_like_file_name(s)
+}
+
+/// Whether a string literal reads as a file's path, relative or not: a
+/// name with an extension of 1–5 letters or digits, no URL.
+fn looks_like_file_name(s: &str) -> bool {
+    if s.len() < 3 || s.len() > 260 || s.contains("://") || s.contains(['<', '>', '|', '*', '?', '"', '\n', '\t']) {
         return false;
     }
     let name = s.rsplit(['/', '\\']).next().unwrap_or(s);
@@ -92,7 +109,7 @@ fn looks_like_file(s: &str) -> bool {
     }
 }
 
-fn is_absolute(path: &str) -> bool {
+pub(crate) fn is_absolute(path: &str) -> bool {
     let b = path.as_bytes();
     path.starts_with('/') || path.starts_with('\\') || (b.len() >= 2 && b[1] == b':')
 }

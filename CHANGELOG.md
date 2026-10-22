@@ -20,6 +20,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   interpreter, native builds and the web. A new example,
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
+- **A built program takes every file it needs** (lane T1b): the files in
+  folders below the program's that its source names (`"art/logo.svg"`,
+  `"data\sample.csv"`) go with it, in their folders, and so does its
+  `lang/` folder (the `.po` files) when it translates — in every kind of
+  build (native, interpreted, the web, `bundle-bc`), RapidR Studio's
+  builds, and `rapidr examples copy`. A name that leads out of the
+  program's folder (`"../secret.txt"`, an absolute path) is never copied:
+  the build says so in a warning. A web page gets `lang/index.txt`, the
+  list of its translations, and asks only for those: a language without a
+  file costs no request (before, up to five failed requests).
+  [Building apps](docs/manual/building-apps.md#the-programs-data-files-go-with-it).
 - **Versions, the engine proved** (lane G0, not in Studio yet;
   [docs/versions-g0.md](docs/versions-g0.md)): a new crate, `rapidr-vcs`,
   built on gitoxide 0.89 (pure Rust, MIT OR Apache-2.0). It can start

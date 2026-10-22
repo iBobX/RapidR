@@ -28,6 +28,7 @@ Robert (2026-10-21): RapidR programs, such as RapidR Database Studio, must speak
 - **Bundling:**
   - Builds embed the files: native, interpreted and web alike.
   - Or keep them beside the program, so a user can add a language without rebuilding.
+  - Done (T1b, 2026-10-22): every build copies `lang/*.po` beside what it makes, as files (a macOS app's `Contents/Resources/lang`, `lang/` beside an executable or a web page); a web page also gets `lang/index.txt` and asks only for the catalogs it lists.
 
 ## 3. In Studio
 - **A Translations editor:**

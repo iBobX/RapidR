@@ -122,10 +122,12 @@ pub struct Plan {
     /// plain executable.
     pub bundle: bool,
     /// The data files the program names (`rapidr_project::program_files`:
-    /// "staff.csv" beside it), put with what the build makes so the app
-    /// finds them wherever it's started: in a macOS app's
-    /// Contents/Resources, an AppDir's usr/bin, beside an executable.
-    pub data: Vec<PathBuf>,
+    /// "staff.csv" beside it, "art/logo.svg" below it) and its translations
+    /// (`lang/es.po`), put with what the build makes so the app finds them
+    /// wherever it's started: in a macOS app's Contents/Resources, an
+    /// AppDir's usr/bin, beside an executable — each as (its path there,
+    /// `/`-separated; the file).
+    pub data: Vec<(String, PathBuf)>,
 }
 
 /// Decides the app's name, details and icon. `stem` is the executable's
@@ -262,11 +264,14 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
             fs::write(&path, whole(&bytes)?).map_err(|e| format!("write {}: {e}", path.display()))?;
             make_executable(&path);
             notices::write(dest_dir, notices).map_err(|e| notices::missing(&e))?;
-            // (beside the executable — not over themselves when it's built
-            // beside its program, RC.EXE's way)
-            for f in &plan.data {
-                let to = dest_dir.join(f.file_name().unwrap_or_default());
+            // (beside the executable, in their folders below it — not over
+            // themselves when it's built beside its program, RC.EXE's way)
+            for (rel, f) in &plan.data {
+                let to = dest_dir.join(rel);
                 if !rapidr_project::program_files::same_path(f, &to) {
+                    if let Some(dir) = to.parent() {
+                        fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+                    }
                     fs::copy(f, &to).map_err(|e| format!("{} to {}: {e}", f.display(), to.display()))?;
                 }
             }
@@ -283,7 +288,7 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
         println!("  {} {} ({}), icon: {}", plan.info.name, plan.info.version, plan.info.bundle_id, plan.icon.origin);
     }
     if !plan.data.is_empty() {
-        let names: Vec<String> = plan.data.iter().map(|f| f.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect();
+        let names: Vec<&str> = plan.data.iter().map(|(rel, _)| rel.as_str()).collect();
         let place = match (plan.system, plan.bundle) {
             (System::MacOs, true) => "in the app's Contents/Resources",
             (System::Linux, true) => "in the AppDir's usr/bin",
@@ -295,12 +300,9 @@ pub fn finish(plan: &Plan, binary: &[u8], rrbc: Option<&[u8]>, dest_dir: &Path, 
     Ok(made)
 }
 
-/// The plan's data files as (name, contents), for an app's insides.
+/// The plan's data files as (path, contents), for an app's insides.
 fn data_files(plan: &Plan) -> Result<Vec<(String, Vec<u8>)>, String> {
-    plan.data
-        .iter()
-        .map(|f| Ok((f.file_name().unwrap_or_default().to_string_lossy().into_owned(), fs::read(f).map_err(|e| format!("{}: {e}", f.display()))?)))
-        .collect()
+    plan.data.iter().map(|(rel, f)| Ok((rel.clone(), fs::read(f).map_err(|e| format!("{}: {e}", f.display()))?))).collect()
 }
 
 /// `rapidr install-app <Name.AppDir>` (Linux): the app in the user's

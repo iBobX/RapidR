@@ -731,6 +731,19 @@ const CASES = [
     webDump: { "outputbox.text": /✓ Built dataframe-web\.zip — unzip on any web host/ },
     web: (page, scale, record) => builtWebApp(page, record, "dataframe-web.zip", ["dataframe.rrbc", "rapidr-assets.js"]),
   },
+  // (T1b) A program that translates: its lang/*.po go in the zip beside the
+  // page, with their list (lang/index.txt), as the CLI's builds put them
+  {
+    name: "build-web-app-translations",
+    open: "examples/translations/languages.rr",
+    copyDir: true,
+    webFiles: ["examples/translations/languages.rr", "examples/translations/lang/es.po", "examples/translations/lang/pt.po", "examples/translations/lang/zh-Hans.po"],
+    do: "run.buildWeb",
+    delay: 25,
+    dump: { "proj.builtpath": /languages-web\.zip$/, "outputbox.text": /Translations beside the page: lang\/es\.po, lang\/pt\.po, lang\/zh-Hans\.po/ },
+    webDump: { "outputbox.text": /lang\/index\.txt[\s\S]*lang\/es\.po[\s\S]*✓ Built languages-web\.zip — unzip on any web host/ },
+    web: (page, scale, record) => builtWebApp(page, record, "languages-web.zip", ["languages.rrbc", "lang/index.txt", "lang/es.po", "lang/pt.po", "lang/zh-Hans.po"]),
+  },
   // (NO-RUST) A computer without Rust (RAPIDR_NO_RUST=1 says so): Build
   // Native App asks first (prompts.inc) — Enter is Build Interpreted Instead
   // (the app, "(interpreted)" in the log), Cancel builds nothing, Install

@@ -1,0 +1,19 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Carried files"
+msgstr "Archivos que viajan"
+
+msgid "Hello, world!"
+msgstr "¡Hola, mundo!"
+
+msgid "Language: {lang}"
+msgstr "Idioma: {lang}"
+
+msgid "The logo is here"
+msgstr "El logo está aquí"
+
+msgid "No logo"
+msgstr "Sin logo"
