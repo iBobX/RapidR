@@ -84,6 +84,8 @@ EXTRA = [
     ("example-richtext", "examples/gui/richtext.rr"),
     ("example-stopwatch", "examples/gui/stopwatch.rr"),
     ("example-themes", "examples/gui/themes.rr"),
+    # (programs' own SVG icons in a tree and an RImage: each theme's colours, sharp at 2x)
+    ("example-svg_icons", "examples/gui/svg_icons.rr"),
     ("example-canvas", "examples/graphics/canvas.rr"),
     ("example-notepad", "examples/rapidq/notepad.bas"),
     ("example-dataframe", "examples/data/dataframe.rr", {"RAPIDR_TEST_EVENTS": "ChartBtn.onclick"}),

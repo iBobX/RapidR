@@ -3,7 +3,7 @@
 ' size; currentColor and RapidR's colour tokens take the theme's colours
 ' and follow it, a Theme fixes them, an illustration keeps its own; a
 ' picture file's place takes a $RESOURCE's name (RBitmap.LoadFromFile).
-$RESOURCE INK_SVG AS "resource_files/ink.svg"
+$RESOURCE INK_SVG AS "picture_files/ink.svg"
 DIM IL AS RImageList
 DIM B AS RBitmap
 

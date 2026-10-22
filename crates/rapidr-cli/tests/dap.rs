@@ -284,6 +284,34 @@ fn a_subs_own_variables_are_its_locals_not_globals() {
     dap.ok("disconnect", json!({}));
 }
 
+/// RSecrets in a debugged program (the test keystore: never the
+/// keychain): what Read gave and what Save was given show as •••• in the
+/// variables, a watch and a hover; the program itself has the value.
+#[test]
+fn the_debugger_shows_no_secret() {
+    let src = "DIM Secrets AS RSecrets\nok = Secrets.Save(\"MySQL\", \"office\", \"s3cret-db-pw\")\npw$ = Secrets.Read(\"MySQL\", \"office\")\nconn$ = \"user=ada;pw=\" + pw$\nn = LEN(pw$)\nPRINT \"length \"; n\n";
+    let dir = folder("secrets", &[("main.rr", src)]);
+    let mut dap = Dap::start_with(&dir, &[("RAPIDR_AI_KEYSTORE", "memory".into())]);
+    dap.launch(&dir.join("main.rr"), json!({}));
+    dap.ok("setBreakpoints", json!({ "source": { "path": dir.join("main.rr") }, "breakpoints": [{ "line": 6 }] }));
+    dap.ok("configurationDone", json!({}));
+    assert_eq!(dap.stopped(), ("breakpoint".into(), "main.rr".into(), 6));
+    let frames = dap.ok("stackTrace", json!({ "threadId": 1 }))["stackFrames"].clone();
+    let scopes = dap.ok("scopes", json!({ "frameId": frames[0]["id"] }))["scopes"].clone();
+    let globals = dap.variables(&scopes[1]["variablesReference"]);
+    let value = |name: &str| globals.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| v.clone()).unwrap_or_else(|| panic!("{name}: {globals:?}"));
+    assert_eq!(value("pw$"), "••••");
+    assert_eq!(value("conn$"), "••••");
+    assert_eq!(value("n"), "12");
+    assert!(globals.iter().all(|(_, v)| !v.contains("s3cret")), "{globals:?}");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "pw$", "frameId": frames[0]["id"], "context": "hover" }))["result"], "••••");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "MID$(pw$, 1, 6)", "frameId": frames[0]["id"], "context": "watch" }))["result"], "\"s3cret\"", "a part of it is another string");
+    dap.ok("continue", json!({ "threadId": 1 }));
+    assert_eq!(dap.exited(), 0);
+    assert!(dap.stdout.contains("length 12"), "{}", dap.stdout);
+    dap.ok("disconnect", json!({}));
+}
+
 #[test]
 fn a_program_that_does_not_compile_says_why() {
     let dir = folder("compile-error", &[("bad.bas", "PRINT \"a\"\nIF THEN\n")]);

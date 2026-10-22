@@ -2,9 +2,10 @@
 ' theme. The tree's pictures are SVGs in an RImageList (AddSVGFile, RapidR's):
 ' each is drawn at the list's size and again at the screen's scale, so it is
 ' crisp on a 2x screen. Drawn with currentColor and RapidR's colour tokens,
-' they take the theme's ink and hues: pick Light, Dark or High contrast and
-' they are drawn again. The big picture is an RImage loaded from a
-' $RESOURCE by its name (Picture.Load DATABASE_SVG).
+' they take the theme's ink and hues: the system's look to begin with;
+' pick Light, Dark or High contrast and they are drawn again. The big
+' picture is an RImage loaded from a $RESOURCE by its name
+' (Picture.Load DATABASE_SVG).
 '
 '   rapidr run gui/svg_icons.rr
 '
@@ -37,23 +38,27 @@ CREATE Form AS RForm
     CREATE Tree AS RTreeView
         Left = 12: Top = 12: Width = 190: Height = 200
     END CREATE
+    CREATE PickSystem AS RRadioButton
+        Caption = "&System": Left = 220: Top = 12: Width = 150: Checked = 1
+        OnClick = Switch
+    END CREATE
     CREATE PickLight AS RRadioButton
-        Caption = "&Light": Left = 220: Top = 12: Width = 150: Checked = 1
+        Caption = "&Light": Left = 220: Top = 36: Width = 150
         OnClick = Switch
     END CREATE
     CREATE PickDark AS RRadioButton
-        Caption = "&Dark": Left = 220: Top = 36: Width = 150
+        Caption = "&Dark": Left = 220: Top = 60: Width = 150
         OnClick = Switch
     END CREATE
     CREATE PickContrast AS RRadioButton
-        Caption = "&High contrast": Left = 220: Top = 60: Width = 150
+        Caption = "&High contrast": Left = 220: Top = 84: Width = 150
         OnClick = Switch
     END CREATE
     CREATE Picture AS RImage
-        Left = 220: Top = 96: Width = 48: Height = 48
+        Left = 220: Top = 116: Width = 48: Height = 48
     END CREATE
     CREATE Now AS RLabel
-        Left = 220: Top = 160: Width = 160
+        Left = 220: Top = 176: Width = 170
     END CREATE
 END CREATE
 
@@ -76,7 +81,6 @@ Tree.Item(1).Expanded = 1
 
 ' A $RESOURCE by its name, where a picture file goes.
 Picture.Load DATABASE_SVG
-Application.Theme = "rapidr light"
 Now.Caption = "Theme: " + Application.Theme
 
 ' (the icons are drawn again in the new theme's colours by themselves)
@@ -86,8 +90,10 @@ SUB Switch (Sender AS RRadioButton)
             Application.Theme = "rapidr dark"
         CASE "&High contrast"
             Application.Theme = "rapidr high contrast"
-        CASE ELSE
+        CASE "&Light"
             Application.Theme = "rapidr light"
+        CASE ELSE
+            Application.Theme = "rapidr"
     END SELECT
     Now.Caption = "Theme: " + Application.Theme
 END SUB
