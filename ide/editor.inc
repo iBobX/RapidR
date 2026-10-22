@@ -98,7 +98,7 @@ SUB EditorFocusTick
   ' ai.inc)
   IF AIBannerTakesFocus THEN EXIT SUB
   IF FocusDoc >= 0 AND FocusDoc < DocCount THEN
-    ' (a form's file opens on its designer, Delphi's way: the designer
+    ' (a form's file opens on its designer: the designer
     ' takes the keys then; the code's caret when the code is shown)
     IF DocOpen(FocusDoc) THEN
       IF DocViewNow(FocusDoc) = "Design" THEN

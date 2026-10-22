@@ -386,7 +386,7 @@ END SUB
 
 ' (ActiveDesign, the active document's designer: designer.inc)
 
-' ---- a form from the toolbox: a document, not a component (Delphi, Xojo) --
+' ---- a form from the toolbox: a document, not a component --
 ' RForm (or RFormMDI) clicked, double-clicked or dragged adds a form FILE
 ' to the program — Project > Add Form — never a form inside a form.
 

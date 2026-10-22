@@ -38,7 +38,7 @@ SUB ApplyFonts
   Dock.Font = UIFont
   Status.Font = StatusFont
   ' (Studio's dialogs: the chrome font's face and size on the form, which
-  ' their components follow — Delphi's ParentFont; not a QFONT, whose
+  ' their components follow — inherited from the parent; not a QFONT, whose
   ' colour would be chosen for them and win over the theme's text colour;
   ' sizes to match)
   NewDialog.Font.Name = UIFont.Name: NewDialog.Font.Size = UIFont.Size

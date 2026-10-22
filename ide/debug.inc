@@ -388,7 +388,7 @@ END SUB
 
 ' The running program placed a breakpoint elsewhere than its line (one on a
 ' comment, a blank line, a DIM): it moves to the line the program stops at,
-' as Xcode and VS Code show it; with no code after it in its file, it never
+' as debuggers show it; with no code after it in its file, it never
 ' stops — drawn as a ring, and the Breakpoints pane says so.
 SUB BreakpointPlaced(InFile AS STRING, LineNo AS INTEGER, NewLine AS INTEGER)
   DIM i AS INTEGER, j AS INTEGER
@@ -1149,7 +1149,7 @@ END SUB
 
 ' ---- values set in place ------------------------------------------------------------------------
 ' F2 (or a click on the selected item) on a value in Variables or Watch
-' edits it, as Xcode's and VS Code's variables do: what's typed — an
+' edits it, as debuggers' variables do: what's typed — an
 ' expression — is set in the paused program (SetVariable: the frame's
 ' local, a global, an array's element, a TYPE's field, a component's
 ' property), then every value is fetched again. The item reads
@@ -1905,7 +1905,7 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
     CASE "run.pause": IF RunState = "running" THEN Session.Pause
     CASE "debug.showProgram": ShowProgram 1
     CASE "debug.stepInto"
-      ' (not running: it starts, stopping at the first line — VB6's F8)
+      ' (not running: it starts, stopping at the first line)
       IF RunState = "paused" THEN
         Session.StepIn
       ELSEIF RunState <> "running" THEN
@@ -2275,8 +2275,8 @@ SUB SetUpDebug
   Dock.AddPane(VarsTree, "Variables", "right:outputbox", "variables")
   Dock.AddPane(WatchPanel, "Watch", "tab:varstree", "watch")
   ' (the call stack in the toolbox's place while the program runs — a
-  ' paused program needs no toolbox —, beside Variables, as Xcode's debug
-  ' navigator and VS Code's Run view take the side bar: DebugSideBar)
+  ' paused program needs no toolbox —, beside Variables, in the side
+  ' bar: DebugSideBar)
   Dock.AddPane(StackTree, "Call Stack", "tab:toolbox", "callstack")
   Dock.AddPane(BpPanel, "Breakpoints", "tab:varstree", "breakpoint")
   Dock.HidePane("stacktree")
@@ -2293,7 +2293,7 @@ END SUB
 ' In Studio's settings (the per-user store; the page's on the web) by the
 ' project's file, saved a moment after they change (as the layout is:
 ' workspace.inc) and when Studio closes: opening the project again brings
-' them back, as Xcode, Delphi and VS Code do. Files relative to the
+' them back. Files relative to the
 ' project's folder; a row a breakpoint: file, line, on, condition, hit
 ' count, log message (tab-separated).
 
