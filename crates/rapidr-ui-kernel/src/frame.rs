@@ -91,6 +91,30 @@ pub fn outer(inside: (i64, i64), border: bool, caption: bool) -> (i64, i64) {
     (inside.0 + fw, inside.1 + fh)
 }
 
+/// The narrowest inside a window with `frame` can have for its whole
+/// `title` to show in the frame the kernel draws, in the current theme
+/// (logical pixels): the icon, the title in the frame's own font, a gap and
+/// the title bar's buttons ([`paint_into`] lays them out the same way). A
+/// dialog whose text and buttons are narrower than its title takes this
+/// width, so "Information" isn't cut off.
+pub fn inside_for_title(title: &str, frame: Frame) -> i64 {
+    let t = rapidr_value::theme::current();
+    let base = if t.fluent() { rapidr_value::ide_theme::chrome_font(t) } else { Font::default() };
+    let font = Font { styles: base.styles | 1, ..base };
+    let m = Metrics::window(t, false);
+    let shown: Vec<Button> = buttons(frame).into_iter().map(|(b, _)| b).collect();
+    // (how far from the window's right edge the leftmost button reaches;
+    // without buttons, the title ends at the border)
+    let reach = m.buttons(1000, &shown).iter().map(|(_, r)| 1000 - r.0).max().unwrap_or(m.border);
+    // (the icon is assumed: the application's is on a window's title bar
+    // on the desktop and on the web)
+    let text_x = m.border + if t.fluent() { 8 + 20 } else { 2 + 17 };
+    let title_w = rapidr_value::objects::text::text_size(title, &font).0;
+    // (the title is clipped 4 pixels before the buttons; 2 more for
+    // rounding and the glyphs' overhang)
+    text_x + title_w + 4 + 2 + reach - m.around().0
+}
+
 /// What's at (x, y) of a window's frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Part {

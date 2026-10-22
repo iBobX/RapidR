@@ -172,6 +172,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A message box is as wide as its title needs**: `MessageDlg` (mtInformation,
+  one OK button, a short text) made a window 99 pixels wide, narrower than the
+  title bar needs for "Information" with its icon and close box, so the title
+  was cut off. The width now also fits the title (`frame::inside_for_title`:
+  the icon, the title in the frame's own font, the buttons; `message_layout`
+  takes it as `min_w`), in RapidR's light, dark and high-contrast looks and in
+  the classic one; a wider text or more buttons keep their own width, and the
+  input box too. Test: `a_dialog_is_as_wide_as_its_title_needs`.
 - **The debugger's Immediate and Watch see a `.rr` program's built-in
   constants**: `? mrYes` printed nothing while the program itself read 6. What
   the debugger compiles (Immediate, Watch, data tips, a changed value) now goes

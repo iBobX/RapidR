@@ -122,6 +122,14 @@ impl Dialog {
         self.applied.take()
     }
 
+    /// The narrowest inside this dialog's window can have: what its title
+    /// needs, so a short text with one button doesn't cut "Information"
+    /// off (`frame::inside_for_title`, for the frame every dialog has: a
+    /// close box only).
+    fn title_width(&self) -> i64 {
+        crate::frame::inside_for_title(&self.title, crate::frame::Frame { resizable: false, close: true, minimize: false, maximize: false })
+    }
+
     fn child(&self, part: &str) -> String {
         format!("{}:{part}", self.id)
     }
@@ -164,7 +172,7 @@ impl Dialog {
         let lines = wrap(text, &font, WRAP);
         let line_h = text_size("Ag", &font).1.max(1);
         let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0);
-        let layout = message_layout(text_w, lines.len() as i64 * line_h, labels.len(), icon.is_some());
+        let layout = message_layout(text_w, lines.len() as i64 * line_h, labels.len(), icon.is_some(), d.title_width());
         if let (Some(icon), Some(rect)) = (icon, layout.icon) {
             let id = d.put("icon", "RDLGPART", rect);
             d.set(&id, "part", Value::String("icon".into()));
@@ -207,7 +215,7 @@ impl Dialog {
         let line_h = text_size("Ag", &font).1.max(1);
         let text_w = lines.iter().map(|l| text_size(l, &font).0).max().unwrap_or(0).max(FIELD_W);
         let text_h = lines.len() as i64 * line_h;
-        let layout = message_layout(text_w, text_h + GAP + FIELD_H, 1 + usize::from(cancel.is_some()), false);
+        let layout = message_layout(text_w, text_h + GAP + FIELD_H, 1 + usize::from(cancel.is_some()), false, d.title_width());
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
@@ -851,6 +859,52 @@ mod tests {
         assert_eq!(shapes, icon_shapes(MsgIcon::Warning).len());
         let tree = f.access_tree(&d.store, &mut ts).to_json();
         assert!(tree.contains(r#""role":"img","name":"Warning""#), "{tree}");
+    }
+
+    /// A short text with one button is narrower than its title's room: the
+    /// window takes the title's width, in every look (RapidR's light, dark
+    /// and high contrast, the classic one), and the frame the kernel draws
+    /// shows the whole title, never the clipped "Informa". Wider text or
+    /// more buttons keep their own width.
+    #[test]
+    fn a_dialog_is_as_wide_as_its_title_needs() {
+        use crate::display::{Item, Picture};
+        use crate::frame::{self, Frame, Look};
+        use rapidr_value::theme;
+        let close_only = Frame { resizable: false, close: true, minimize: false, maximize: false };
+        let was = theme::current();
+        for t in [&theme::CLASSIC, &theme::RAPIDR, &theme::RAPIDR_DARK, &theme::RAPIDR_HIGH_CONTRAST] {
+            theme::set(t);
+            let needs = frame::inside_for_title("Information", close_only);
+            // (the buttons and a short text alone make 99 pixels)
+            let d = Dialog::message(21, "Information", "Saved.", &["OK"], None);
+            assert!(needs > 99, "{}: {needs}", t.name);
+            assert_eq!(d.size.0, needs, "{}", t.name);
+            // (with an icon, MessageDlg's mtInformation: at least that)
+            let with_icon = Dialog::message(25, "Information", "Saved.", &["OK"], Some(MsgIcon::Information));
+            assert!(with_icon.size.0 >= needs, "{}: {:?}", t.name, with_icon.size);
+            // (the frame the kernel draws, with the application's icon, gives the title the room it measures)
+            let icon = Arc::new(Picture { width: 16, height: 16, rgba: vec![0; 16 * 16 * 4] });
+            let look = Look { title: "Information".into(), active: true, border: true, caption: true, frame: close_only, maximized: false, icon: Some((icon, 1)) };
+            let (w, h) = frame::outer(d.size, true, true);
+            let list = frame::paint(&look, (w, h), 1.0);
+            let title = list.items.iter().find_map(|i| match i {
+                Item::Op { op: Op::Text { rect, text, font, .. }, .. } if text == "Information" => Some((rect.2, text_size(text, font).0)),
+                _ => None,
+            });
+            let (room, wanted) = title.expect("the title is drawn");
+            assert!(room >= wanted, "{}: the title's room {room} < its width {wanted}", t.name);
+            // (a long text, or three buttons, make it wider than the title needs: as before)
+            let wide = Dialog::message(22, "Information", "A message long enough to be wider than its title needs.", &["OK"], None);
+            assert!(wide.size.0 > d.size.0);
+            let three = Dialog::message(23, "Q", "?", &["Yes", "No", "Cancel"], None);
+            assert_eq!(three.size.0, 3 * 75 + 2 * 6 + 24, "{}", t.name);
+            // (INPUT's box is wide already; a title of its own length widens it)
+            let long = "A title longer than the input box's field is wide, to be sure";
+            let p = Dialog::prompt(24, long, "Name?", "", "OK", None);
+            assert_eq!(p.size.0, frame::inside_for_title(long, close_only).max(240 + 24), "{}", t.name);
+        }
+        theme::set(was);
     }
 
     #[test]

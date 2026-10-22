@@ -6,7 +6,7 @@
 // themes. Each is opened by a real click and closed with Escape.
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
-// on RAPIDR_URL): node tests/capture_dialog_screens.mjs [out-dir]
+// on RAPIDR_URL): [RAPIDR_DIALOGS=Info,Dlg] node tests/capture_dialog_screens.mjs [out-dir]
 // (default scratch/dialogs): <theme>_<dialog>_<scale>x.png
 
 import { chromium } from "playwright";
@@ -15,9 +15,12 @@ import * as k from "./web_kernel_page.mjs";
 
 const URL_BASE = process.env.RAPIDR_URL || "http://localhost:8765";
 const OUT = process.argv[2] || "scratch/dialogs";
+// (RAPIDR_DIALOGS=Info,Dlg: only these)
+const ONLY = process.env.RAPIDR_DIALOGS ? process.env.RAPIDR_DIALOGS.split(",") : null;
 mkdirSync(OUT, { recursive: true });
 const THEMES = ["classic", "modern", "dark", "highcontrast"];
-const DIALOGS = ["Box", "Dlg", "Show", "Input", "Color", "Font", "Child", "SaveAs", "Gesture"];
+// (Info: MessageDlg's information box, one OK button and a short text — the narrowest dialog, whose window must be as wide as its title "Information" needs)
+const DIALOGS = ["Box", "Dlg", "Show", "Input", "Color", "Font", "Child", "SaveAs", "Gesture", "Info"];
 
 const source = (theme) => [
   `$THEME ${theme}`,
@@ -53,6 +56,7 @@ const source = (theme) => [
   'SUB AskBox', '  Result.Caption = STR$(MESSAGEBOX("Save the changes to notes.txt?", "Notepad", MB_YESNOCANCEL OR MB_ICONQUESTION))', 'END SUB',
   'SUB AskDlg', '  Result.Caption = STR$(MESSAGEDLG("The disk is almost full.", mtWarning, mbOK OR mbCancel, 0))', 'END SUB',
   'SUB AskShow', '  SHOWMESSAGE "The file was saved."', 'END SUB',
+  'SUB AskInfo', '  Result.Caption = STR$(MESSAGEDLG("Saved.", mtInformation, mbOK, 0))', 'END SUB',
   'SUB AskInput',
   '  DIM N AS STRING',
   '  INPUT "Your name? ", N',
@@ -95,7 +99,7 @@ for (const scale of [1, 2]) {
     await page.waitForFunction(() => window.rrReady, null, { timeout: 30000 });
     await page.evaluate((src) => window.rr.rapidr_run_bc(window.rr.compile(src, "dialogs", {})), source(theme));
     await k.waitFor(page, "BBox");
-    for (const d of DIALOGS) {
+    for (const d of DIALOGS.filter((n) => !ONLY || ONLY.includes(n))) {
       const b = await page.locator("#rr-b" + d.toLowerCase()).boundingBox();
       await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
       if (d === "Gesture") await page.waitForTimeout(6200);
