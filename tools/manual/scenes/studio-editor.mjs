@@ -23,6 +23,9 @@ const START = "focus:codedoc(0),key:Ctrl+End,key:Enter";
 const MID = ["focus:codedoc(0)", "key:Ctrl+Home", ...Array(9).fill("key:Down")].join(",");
 // (the editor from line 1 to line 22)
 const EDITOR = [244, 90, 792, 440];
+// (E0–E2) the helpers' example, the helpers come when typing pauses
+const HELPERS = "examples/studio/helpers.rr";
+const HELPERS_READY = "focus:codedoc(0),wait,wait,wait,wait";
 
 export const scenes = [
   // `form.` then `c`: the members of the form that start so, with the docs
@@ -45,4 +48,16 @@ export const scenes = [
   { name: "quick-fix", setup: (work, root) => asBas(work, root, `${MID},type:x = mbYes,key:Escape,wait,wait,wait,key:Left,key:Ctrl+.,wait`), delay: 8, crop: [244, 90, 792, 260] },
   // `NOT FILEEXISTS(…)` is always true (K4b): underlined, and Ctrl+. offers `= 0`
   { name: "not-fileexists", open: OPEN, do: `${MID},type:IF NOT FILEEXISTS("notes.txt") THEN PRINT 1,key:Escape,wait,wait,wait,wait,wait,key:Home,key:Right,key:Right,key:Right,key:Right,key:Ctrl+.,wait`, delay: 12, crop: [244, 90, 792, 260] },
+  // (E0–E2, docs/code-helpers-plan.md) The helpers on examples/studio/helpers.rr:
+  // the colours' swatches and the picture's thumbnail, the caret on the form's
+  // Color
+  { name: "helpers", open: HELPERS, do: `${HELPERS_READY},line:18,key:End`, delay: 8, crop: EDITOR },
+  // Ctrl+. on it: the colour editor
+  { name: "helpers-colour", open: HELPERS, do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait`, delay: 9, crop: [244, 90, 792, 640] },
+  // OnClick: the handler's list, Create handler first
+  { name: "helpers-handler", open: HELPERS, do: `${HELPERS_READY},line:36,key:End,key:Ctrl+.,wait`, delay: 9, crop: [244, 200, 792, 460] },
+  // the stripes' FillRects: the argument names, the line's help at its end
+  { name: "helpers-names", open: HELPERS, do: `${HELPERS_READY},line:48,key:End`, delay: 8, crop: [244, 90, 792, 440] },
+  // the debugger paused: the values at the lines' ends
+  { name: "helpers-values", open: "tests/fixtures/studio_debug/counter.rr", do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait", delay: 7, crop: [244, 90, 792, 260] },
 ];

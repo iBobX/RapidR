@@ -394,6 +394,7 @@ impl Helpers {
         if self.level == Level::Off {
             return out;
         }
+        let mut note: Option<String> = None;
         for i in self.in_range(start, end) {
             let h = &self.sites[i];
             if !self.on(Self::switch_of(h.kind)) {
@@ -417,13 +418,21 @@ impl Helpers {
                 HelperKind::Component => Some(format!("link to {}", h.value)),
                 HelperKind::Handler if h.value.is_empty() => Some("no handler yet: Ctrl+. offers the SUBs".to_string()),
                 HelperKind::Handler => Some(format!("handler {}", h.value)),
-                HelperKind::Note if self.level >= Level::Helpful => Some(h.label.clone()),
+                // (the line's help after its values)
+                HelperKind::Note if self.level >= Level::Helpful => {
+                    note = Some(h.label.clone());
+                    None
+                }
                 _ => None,
             };
             if let Some(s) = said {
                 out.push_str("; ");
                 out.push_str(&s);
             }
+        }
+        if let Some(n) = note {
+            out.push_str("; ");
+            out.push_str(&n);
         }
         out
     }

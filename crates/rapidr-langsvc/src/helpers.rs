@@ -407,7 +407,7 @@ impl Walk<'_> {
         if let Some((a, _)) = self.here(span) {
             self.note(a, params.doc);
         }
-        self.arguments(&params, args);
+        self.arguments(&params, args, false);
     }
 
     /// The parameters of a builtin or of one of the program's routines.
@@ -445,9 +445,10 @@ impl Walk<'_> {
         Some(Params { names, kinds, doc: m.doc })
     }
 
-    /// The arguments' chips and values.
-    fn arguments(&mut self, params: &Params, args: &[&Expression]) {
-        let several = args.len() > 1;
+    /// The arguments' chips and values (`quiet`: their names only while
+    /// Ctrl is held — an `RGB(…)`'s, whose swatch says it all).
+    fn arguments(&mut self, params: &Params, args: &[&Expression], quiet: bool) {
+        let several = args.len() > 1 && !quiet;
         for (i, arg) in args.iter().enumerate() {
             let Some(name) = params.names.get(i) else { break };
             if let Some(k) = params.kinds.get(i).copied().flatten().and_then(ValueKind::parse) {
@@ -488,14 +489,15 @@ impl Walk<'_> {
                     // (an array's element looks the same: only a routine's call)
                     if let Expression::Identifier(id) = f.callee.as_ref() {
                         if let Some(p) = self.routine_params(&id.name) {
-                            self.arguments(&p, &args);
+                            let quiet = rapidr_lang::builtin(&id.name).is_some_and(|b| b.kind.is_some());
+                            self.arguments(&p, &args, quiet);
                         }
                     }
                 }
                 Expression::MethodCall(m) => {
                     let args: Vec<&Expression> = m.args.iter().collect();
                     if let Some(p) = self.method_params(&m.object, &m.method, m.span.start) {
-                        self.arguments(&p, &args);
+                        self.arguments(&p, &args, false);
                     }
                 }
                 Expression::Identifier(id) => {
@@ -670,6 +672,8 @@ mod tests {
         assert!(!chips.iter().any(|c| c.0 == "x" && c.1 == "x"), "x for x needs no chip: {chips:?}");
         assert!(chips.contains(&("y", "40", true)) && chips.contains(&("r", "12", true)), "{chips:?}");
         assert!(chips.contains(&("x1", "0", true)) && chips.contains(&("c", "RGB(1, 2, 3)", false)), "{chips:?}");
+        // (an RGB(…)'s: only while Ctrl is held — its swatch says it)
+        assert!(chips.contains(&("Red", "1", false)), "{chips:?}");
         assert!(chips.contains(&("Position", "2", true)), "{chips:?}");
         // (the canvas colour argument is a colour too)
         assert!(of(&all, HelperKind::Color).iter().any(|h| h.value == (1 | 2 << 8 | 3 << 16).to_string()));
@@ -679,6 +683,31 @@ mod tests {
     fn what_it_cannot_evaluate_shows_nothing() {
         let (_, all) = sites("c = 5\nCREATE Form1 AS RForm\n  Color = c\n  CREATE i AS RImage\n  END CREATE\nEND CREATE\ni.Load \"a\" + \".png\"\nForm1.Color = RGB(c, 0, 0)\n");
         assert!(of(&all, HelperKind::Color).is_empty() && of(&all, HelperKind::File).is_empty(), "{all:#?}");
+    }
+
+    /// The helpers' cost when typing pauses, on a real project (the folder
+    /// RAPIDR_BENCH_DIR, its main.rr: Preview 4's 4,500 lines), after the
+    /// diagnostics made the analysis (as the editor asks):
+    ///
+    ///   RAPIDR_BENCH_DIR=… cargo test --release -p rapidr-langsvc helpers_cost -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn helpers_cost() {
+        let Ok(dir) = std::env::var("RAPIDR_BENCH_DIR") else { return };
+        let dir = PathBuf::from(dir);
+        let mut a = Analysis::new(Options::default());
+        let mut files: Vec<PathBuf> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rr")).collect();
+        files.sort();
+        for f in &files {
+            a.update(f.clone(), std::fs::read_to_string(f).unwrap());
+        }
+        for f in &files {
+            let _ = a.diagnostics(f);
+            let t = std::time::Instant::now();
+            let n = a.helpers(f).len();
+            let lines = std::fs::read_to_string(f).unwrap().lines().count();
+            println!("[helpers] {} ({lines} lines): {n} sites in {:.2} ms", f.file_name().unwrap().to_string_lossy(), t.elapsed().as_secs_f64() * 1000.0);
+        }
     }
 
     #[test]

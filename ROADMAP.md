@@ -757,13 +757,13 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [x] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`) *(K7, 2026-10-22: `rapidr lang truth` — syntax lines and examples compile, the new `expect` facet is run, in `regress.sh unit`; it found and fixed `Iloc`, `Select`, `GroupBy`, `Nlargest`, `Nsmallest`, `FromList`, `QUICKSORT` and more; docs/ai-architecture.md §2.)*
 
 **Helpers** ([docs/code-helpers-plan.md](docs/code-helpers-plan.md))
-- [ ] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility
-- [ ] ★ E1 Value editors shared with Properties: colour, files and pictures, fonts, choices, links
-- [ ] ★ E2 Argument names, the line note, values while running
+- [x] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility (2026-10-22: `rapidr_editor::service::HelperSite` from `rapidr-langsvc` — span, kind, value, write-back form; the model's `codehelp` — levels Off/Quiet/Helpful/Everything, a switch per helper, the line typed on keeping its decorations; marks and chips as blank columns of the row: no shift before them, the caret beside the text, word wrap counts them; the popover host `crate::value_edit`, Ctrl+. on a value, Ctrl+K H reads the line, Ctrl held shows every name; flows helpers-*)
+- [x] ★ E1 Value editors shared with Properties: colour, files and pictures, fonts, choices, links (2026-10-22: one colour editor — wheel and square, R/G/B/Hex, the name, old and new, the project's, standard and system colours —, a list for choices (ticks for flags), True/False, links and handlers (Create handler), the project's files with a preview, fonts with a sample; written back as one undo step in the code's form; the Properties panel's colours and fonts open the same editors, its old swatch grid gone)
+- [x] ★ E2 Argument names, the line note, values while running (2026-10-22: chips before a call's literal arguments, all while Ctrl is held; the caret line's note from the registry's doc; the paused routine's values at the lines' ends — RCodeEditor.ShowLineValues from Studio's pause, drawn by `value_view`)
 - [ ] E3 Sounds, numbers, shortcuts, positions, patterns, formats
 - [ ] E4 Live tweak while running
 - [ ] E5 `RValueEditor`: helpers written in RapidR
-- [ ] ★ E6 `kind` across the registry
+- [x] ★ E6 `kind` across the registry (2026-10-22: properties by their type unless they say, method/builtin `arg_kinds`, builtins' `kind`, constant groups' `kind`/`set`/`flags`; tests/kinds.rs: every colour, file and font value has one)
 
 **The VS Code extension, current with Preview 4**
 - [ ] ★ EXT1 Grammar and snippets for the new language

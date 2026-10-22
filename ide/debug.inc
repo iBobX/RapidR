@@ -606,6 +606,7 @@ SUB ClearPausedMarks
       CodeDoc(d).ClearMarkers "current"
       CodeDoc(d).ClearMarkers "frame"
       CodeDoc(d).ClearMarkers "exception"
+      CodeDoc(d).HideLineValues
       CodeDoc(d).DebugHover = Flag(RunState = "paused")
     END IF
   NEXT
@@ -847,6 +848,7 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   FillCallStack
   FillVariables
   FillWatches
+  ShowPausedValues
   IF StackShown = 0 THEN DebugSideBar 1
   Studio.SetFocus
   ' (a step's command to its line shown with its values: PerfStep)
@@ -869,6 +871,48 @@ SUB ProgramFormShown(Id AS STRING)
     END IF
   END IF
 END SUB
+
+' The values at the ends of the paused routine's lines (the code's helpers,
+' docs/code-helpers-plan.md H4): its locals and the globals, on the lines
+' from the routine's first to the paused one — the program's own lines: the
+' 40 before the pause.
+SUB ShowPausedValues
+  DIM d AS INTEGER, all AS STRING, outl AS STRING, n AS INTEGER, k AS INTEGER, e AS STRING, kd AS STRING, first AS INTEGER
+  d = DocOf(PausedFile)
+  IF d < 0 OR PausedLine < 1 THEN EXIT SUB
+  IF Session.LocalsRef > 0 THEN all = PausedRows(Session.LocalsRef)
+  all = all + PausedRows(Session.GlobalsRef)
+  first = PausedLine - 40
+  IF first < 1 THEN first = 1
+  IF FrameCount > 0 THEN
+    IF FrameName(0) <> "(the program)" THEN
+      outl = CodeDoc(d).Outline
+      n = TALLY(outl, CHR$(10)) + 1
+      FOR k = 1 TO n
+        e = FIELD$(outl, CHR$(10), k)
+        kd = LCASE$(FIELD$(e, CHR$(9), 1))
+        IF (kd = "sub" OR kd = "function") AND LCASE$(FIELD$(e, CHR$(9), 2)) = LCASE$(FrameName(0)) THEN first = VAL(FIELD$(e, CHR$(9), 3))
+      NEXT
+    END IF
+  END IF
+  CodeDoc(d).ShowLineValues all, first, PausedLine
+END SUB
+
+' (reference Ref's values as ShowLineValues takes them: name, value, kind;
+' an $INCLUDE's names and the components left out)
+FUNCTION PausedRows(Ref AS INTEGER) AS STRING
+  DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING, kd AS STRING
+  IF Ref <= 0 THEN EXIT FUNCTION
+  rows = Session.Variables(Ref)
+  n = TALLY(rows, CHR$(10))
+  FOR k = 1 TO n
+    row = FIELD$(rows, CHR$(10), k)
+    kd = FIELD$(row, CHR$(9), 3)
+    IF kd <> "Include" AND kd <> "Components" THEN
+      Result = Result + FIELD$(row, CHR$(9), 1) + CHR$(9) + FIELD$(row, CHR$(9), 2) + CHR$(9) + kd + CHR$(10)
+    END IF
+  NEXT
+END FUNCTION
 
 SUB ProgramContinued
   SetState "running", "Running " + FileTitle(ProjectMain)

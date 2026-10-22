@@ -150,6 +150,7 @@ SUB FillExamples
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
+  AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"

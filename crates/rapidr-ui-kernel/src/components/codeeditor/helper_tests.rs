@@ -393,3 +393,25 @@ fn typing_latency() {
     let (off, on) = (report[0].1, report[1].1);
     println!("[typing] helpers on / off: {:.1}%", (on / off - 1.0) * 100.0);
 }
+
+/// The editor hangs from the value it edits, even when a key scrolled the
+/// view since the last frame (it once hung from the editor's top).
+#[test]
+fn the_editor_hangs_from_its_value() {
+    let mut code: String = (0..80).map(|i| format!("PRINT {i}\n")).collect();
+    code.push_str("Form1.Color = RGB(1, 2, 3)\n");
+    let (mut s, mut f, mut ts) = form("hl9", &code);
+    f.focus_id(&s, "hl9");
+    set_sites("hl9", vec![site(&code, "RGB(1, 2, 3)", HelperKind::Color, "197121", "rgb")]);
+    f.paint(&s, &mut ts, 1.0);
+    // (to the last line by the program, End, Ctrl+. — no frame between)
+    s.call("hl9", "gotoline", &[v_int(80)]);
+    key(&mut f, &s, &mut ts, 35, "", Mods::NONE);
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    let anchor = crate::value_edit::with("hl9", |p| p.anchor).unwrap();
+    f.paint(&s, &mut ts, 1.0);
+    let at = code.find("RGB(1").unwrap();
+    let (_, top) = caret_at(&f, "hl9", at);
+    let node_top = f.nodes.iter().find(|n| n.id == "hl9").unwrap().abs.1;
+    assert_eq!(anchor.1, node_top + top.round() as i64, "the value's row, not the editor's top");
+}

@@ -450,8 +450,9 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
             for at in [a, b] {
                 if let Some(sh) = shown_at(x.ui, x.c, at) {
                     let x0 = caret_x(x.ui, sh, at);
-                    let len = x.c.doc.buffer().char_after(at).map_or(1, char::len_utf8);
-                    let x1 = caret_x(x.ui, sh, at + len).max(x0 + ch_dev);
+                    // (a bracket is a column wide: a helper's chip after it
+                    // is no part of it)
+                    let x1 = x0 + ch_dev;
                     let (y0, y1) = (row_dev(sh.top), row_dev(sh.top + lh));
                     dev_fill(p, (x0, y0, x1, y1), sc.bracket);
                     dev_frame(p, (x0, y0, x1, y1), s.round().max(1.0), sc.bracket_frame);

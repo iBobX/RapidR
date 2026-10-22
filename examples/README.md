@@ -227,6 +227,7 @@ has a picture of each and explains its best lines.
 |---------|---------------|---------|-----|
 | [panels.rr](studio/panels.rr) | The IDE's public components docked together: toolbar, toolbox, project tree, designer with the inspector, output console, command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
 | [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): select and drag components, smart guides, anchor pins, undo, the resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
+| [helpers.rr](studio/helpers.rr) | A small window to try Studio's code helpers on: colours written as `RGB()`, `&H` and constants (each shows its swatch), a picture (its thumbnail), a font (its sample), a choice and an event's SUB; click a swatch or press Ctrl+. on a value to change it ([the manual](../docs/manual/studio-editor.md#helpers)) | run · interp · native · web | `rapidr run studio/helpers.rr` |
 | [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 
 ## Making the data files again

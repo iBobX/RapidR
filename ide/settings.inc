@@ -97,6 +97,19 @@ CREATE SettingsDialog AS RForm
       Caption = "&Offer to reopen the last project and its files at start-up"
       AccessibleDescription = "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
     END CREATE
+    ' (E) the code's helpers: what the code editor shows beside the code
+    CREATE HelpersLabel AS RLabel
+      Caption = "Code &helpers"
+    END CREATE
+    CREATE HelpersBox AS RComboBox
+      Style = 2
+      AccessibleName = "Code helpers"
+      AccessibleDescription = "What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names"
+    END CREATE
+    CREATE HelpersNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+      Caption = "Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name."
+    END CREATE
     ' (S6) the PATH the programs run from here get: your login shell's
     CREATE PathLabel AS RLabel
       Caption = "Programs' &PATH"
@@ -275,6 +288,15 @@ SUB LayOutSettingsDialog
   y = y + bh + pad
   ReopenBox.Left = pad: ReopenBox.Top = y: ReopenBox.Width = w: ReopenBox.Height = 22
   y = y + 22 + pad
+  ' (the code's helpers: the label and its choice on a row, the note under)
+  HelpersLabel.Left = pad: HelpersLabel.Top = y + (bh - 18) \ 2
+  HelpersLabel.Font.Bold = 1
+  HelpersBox.Left = pad + side: HelpersBox.Top = y: HelpersBox.Width = w - side
+  y = y + bh + 6
+  nh = AISetLinesHigh(HelpersNote.Caption, w)
+  HelpersNote.Left = pad: HelpersNote.Top = y: HelpersNote.Width = w: HelpersNote.Height = nh
+  HelpersNote.Font.Color = TC("page.dim")
+  y = y + nh + pad
   ' (the programs' PATH: where it isn't changed — Windows, the web — not shown)
   IF PathLabel.Visible THEN
     ' (Refresh on the heading's row: the folders get the whole width)
@@ -379,6 +401,18 @@ END SUB
 SUB ShowSettingsPage(k AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, f AS STRING, all AS STRING
   ReopenBox.Checked = ReopenLast
+  IF HelpersBox.ItemCount = 0 THEN
+    HelpersBox.AddItems "Off"
+    HelpersBox.AddItems "Quiet: the marks only"
+    HelpersBox.AddItems "Helpful: marks, the line's help, argument names"
+    HelpersBox.AddItems "Everything: every argument's name, choices marked too"
+  END IF
+  SELECT CASE EditorHelpers
+    CASE "off": HelpersBox.ItemIndex = 0
+    CASE "quiet": HelpersBox.ItemIndex = 1
+    CASE "everything": HelpersBox.ItemIndex = 3
+    CASE ELSE: HelpersBox.ItemIndex = 2
+  END SELECT
   SettingsFillPath
   LayOutSettingsDialog
   IncFolders.Clear
@@ -440,6 +474,16 @@ SUB SettingsOk
   NEXT
   SetIncludeFolders all
   ReopenLast = Flag(ReopenBox.Checked)
+  ' (the code's helpers, in every open document at once)
+  SELECT CASE HelpersBox.ItemIndex
+    CASE 0: EditorHelpers = "off"
+    CASE 1: EditorHelpers = "quiet"
+    CASE 3: EditorHelpers = "everything"
+    CASE ELSE: EditorHelpers = "helpful"
+  END SELECT
+  FOR i = 0 TO DocCount - 1
+    IF DocOpen(i) THEN CodeDoc(i).Helpers = EditorHelpers
+  NEXT
   AISettingsTake
   SettingsDialog.Close
   SaveSettings

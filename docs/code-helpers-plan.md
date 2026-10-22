@@ -112,5 +112,10 @@ It is one implementation in many places: one look and one set of keys to learn.
 
 **Budget:** about 10–15% of a week. The ★ lanes come after Preview 4's quick wins, alongside S3 and S5.
 
+## Status (2026-10-22, lane HELPERS)
+Done (E0, E1, E2, E6): the `kind` facet (crates/rapidr-lang `kinds`, tests/kinds.rs); the sites (`rapidr_editor::service::HelperSite`, `rapidr-langsvc` helpers.rs); the model (`rapidr_value::objects::codehelp`); the kernel's decorations, popover host and value editors (`codeeditor/helpers.rs`, `value_edit/`); the Properties panel on the same colour and font editors; Studio's setting, project files and paused values; flows `helpers-*` on both hosts; the manual's "Helpers".
+
+Left: H5's "drop a file onto the code writes its path"; H7's ▶ playing the sound (the mark shows, its click opens the file editor); a mark's tooltip; E3–E5 (numbers, shortcuts, positions, patterns, formats; live tweak; `RValueEditor`); S11 reusing the editors in Variables and Watch; EXT2's inlay hints and document colours from the same sites.
+
 ## Prior art (legal note, 2026-10-22)
 Inline colour swatches, argument-name chips, inline values and number scrubbing are long-established, public editor techniques (examples from 2012 and earlier in open-source editors and browser developer tools). The legal review found no live patents. We use our own designs and our own words, and never other products' feature names.

@@ -23,7 +23,7 @@ use rapidr_editor::{Buffer, EditKind, Selections};
 use rapidr_lang::kinds::FileKind;
 use rapidr_value::objects::codehelp::{self, Helpers, Level};
 use rapidr_value::objects::font::Font;
-use rapidr_value::objects::ops::{Op, Place, Rect};
+use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
 
 use super::paint::{blend, legible, Shown};
@@ -258,7 +258,6 @@ pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line
     let origin = p.origin();
     let s = x.scale;
     let sc = x.scheme;
-    let t = p.theme();
     let font = Font { name: x.ui.font.name.clone(), size: x.ui.font.size, ..Font::default() };
     let note_font = Font { styles: 2, ..font.clone() };
     let lh = x.ui.lh().round() as i64;
@@ -285,7 +284,6 @@ pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line
             let icon = (lh - 6).clamp(8, 16);
             let total: i64 = rows.iter().map(|r| r.width(&font, icon) + 14).sum();
             p.round((lx - 6, top + 2, total + 4, lh - 4), 4.0, Some(bg), None, 1.0);
-            let _ = t;
             for r in &rows {
                 let w = r.paint(p, (lx, top, r.width(&font, icon) + 4, lh), &style);
                 lx += w + 14;
@@ -301,7 +299,6 @@ pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line
             }
         }
     }
-    let _ = Op::ClipPop;
 }
 
 // ---- the mouse, the keys ----------------------------------------------------
@@ -344,6 +341,9 @@ pub fn open_at_caret(x: &mut Ctx) -> bool {
 /// Opens site `i`'s value editor, hanging from its mark (or its value).
 pub fn open(x: &mut Ctx, i: usize) {
     let Some(site) = x.c.helpers.sites.get(i).cloned() else { return };
+    // (the rows as they are now: a key may have scrolled since the last frame)
+    let abs = x.abs;
+    super::paint::layout_rows(x, abs);
     let anchor = anchor_of(x, &site);
     let owner = Owner::Code(site.clone());
     let pop = match site.kind {
