@@ -2803,16 +2803,151 @@ const CASES = [
   },
   {
     // a nested field set in place (F2 in Variables): orders(1).Buyer.Name,
-    // the watch on it and the tree showing the new value
+    // the watch on it and the tree showing the new value — (S11) text typed
+    // as it is, no quotes: its whole text fetched first, then the editor
     name: "debug-set-nested",
     open: "examples/debugging/shop.rr",
     webFiles: ["examples/debugging/shop.rr"],
-    do: "line:76,debug.toggleBreakpoint,watch:orders(1).Buyer.Name,run.start,wait,wait,wait,view.variables,expand:G/orders,wait,wait,expand:G/orders/(1),wait,wait,expand:G/orders/(1)/Buyer,wait,wait,varpick:G/orders/(1)/Buyer/Name,key:F2,type:\"Grace\",key:Enter,wait,wait,wait",
+    do: "line:76,debug.toggleBreakpoint,watch:orders(1).Buyer.Name,run.start,wait,wait,wait,view.variables,expand:G/orders,wait,wait,expand:G/orders/(1),wait,wait,expand:G/orders/(1)/Buyer,wait,wait,varpick:G/orders/(1)/Buyer/Name,key:F2,wait,wait,type:Grace,key:Enter,wait,wait,wait",
     delay: 11,
     dump: {
       "watchtree.text": /^orders\(1\)\.Buyer\.Name = "Grace"$/,
       "varstree.text": /\t\t\t\tName = "Grace"/,
     },
+  },
+  // ---- (S11) values set as their kind wants ----------------------------------------
+  {
+    // text where a whole number goes: refused, Output says why in plain
+    // words, the status bar points there; the value stays
+    name: "debug-set-refused",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/total,key:F2,type:abc,key:Enter,wait,wait,wait",
+    delay: 7,
+    dump: {
+      "varstree.text": /\ttotal = 0\n/,
+      "outputbox.text": /^total holds a whole number, and abc isn't one\. Type a number such as 42\.$/m,
+    },
+    a11y: [[/Can't set total: see Output/, "label"]],
+  },
+  {
+    // set, marked changed; Edit > Undo — Ctrl+Z, which the desktop's menu
+    // takes — in Variables puts it back while paused
+    name: "debug-set-undo",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/total,key:F2,type:7,key:Enter,wait,wait,wait,changed:report,edit.undo,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "varstree.text": /\ttotal = 0\n/,
+      "outputbox.text": /^\[changed\][^\n]* G\/total/m,
+    },
+    a11y: [[/total is back to 0/, "label"]],
+  },
+  {
+    // Immediate's `name = value`: the same checks — refused in plain words
+    // there —, answered only when what it holds isn't what was typed (7.9
+    // into a whole number is 7), and Variables shows it
+    name: "debug-immediate-set",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:total = 100,key:Enter,wait,wait,wait,type:total = \"many\",key:Enter,wait,wait,wait,type:total = 7.9,key:Enter,wait,wait,wait,view.variables,wait",
+    delay: 11,
+    dump: {
+      "immediatebox.text": /^total = 100\r?\ntotal = "many"\r?\ntotal holds a whole number, and "many" isn't one\. Type a number such as 42\.\r?\ntotal = 7\.9\r?\ntotal = 7\r?\n?$/,
+      "varstree.text": /\ttotal = 7\n/,
+    },
+  },
+  {
+    // a long text with line breaks: its whole text in a window of its own
+    name: "debug-set-text-window",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,varpick:G/notes,key:F2,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "valueeditor.__shown": /^1$/,
+      "valueeditorbox.text": /^Opening hours: 8 to 18\.\r?\nClosed on Sundays\.\r?\nAsk about the cake of the day!$/,
+    },
+  },
+  {
+    // …and Set: the text with its new lines, stored as CHR$(10) between them
+    name: "debug-set-text-lines",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,varpick:G/notes,key:F2,wait,wait,wait,valueset:Open 9 to 5.\\nClosed on Mondays.,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "valueeditor.__shown": /^0$/,
+      "varstree.text": /\tnotes = "Open 9 to 5\.\\nClosed on Mondays\."\n/,
+    },
+  },
+  {
+    // a property's constants: a menu, one picked; a read-only property and
+    // a whole array refused in plain words
+    name: "debug-set-choice",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,choice:crHandPoint,varpick:C/Form/Cursor,key:F2,wait,wait,wait,varpick:C/Form/Handle,key:F2,wait,wait",
+    delay: 12,
+    dump: { "outputbox.text": /^Handle can't be changed: it's read-only\.$/m },
+    a11y: [[/^Cursor, constant crHandPoint, changed$/, "treeitem"], [/Can't set Handle: see Output/, "label"]],
+  },
+  {
+    // …the status bar names the constant picked
+    name: "debug-set-choice-said",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,choice:crHandPoint,varpick:C/Form/Cursor,varmenu:set,wait,wait,wait",
+    delay: 11,
+    dump: { "session.state": /^paused$/ },
+    a11y: [[/Form\.Cursor = crHandPoint/, "label"]],
+  },
+  {
+    // the menu itself: the property's constants, the one it has ticked
+    name: "debug-set-choice-menu",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,varpick:C/Form/Cursor,key:F2,wait,wait",
+    delay: 10,
+    dump: {
+      "choiceitem(0).caption": /^crDefault$/,
+      "choiceitem(0).checked": /^(1|-1)$/,
+      "choiceitem(1).checked": /^0$/,
+      "choiceitem(21).caption": /^crHandPoint$/,
+    },
+  },
+  {
+    // an on / off property: its number, then a quiet "off"; `on` typed sets 1
+    name: "debug-set-on-off",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,varpick:C/Form/KeyPreview,wait,key:F2,type:on,key:Enter,wait,wait,wait",
+    delay: 12,
+    dump: { "varstree.text": /\t\tKeyPreview = 1\n/ },
+    a11y: [[/^KeyPreview, 1, on/, "treeitem"]],
+  },
+  {
+    // a watch's own place set from Watch (Set Value…): checked the same way,
+    // the watch and Variables showing it
+    name: "debug-set-watch",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,watch:count,run.start,wait,wait,wait,view.watch,watchpick:W1,watchmenu:set,wait,type:5,key:Enter,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "watchtree.text": /^count = 5$/,
+      "varstree.text": /\tcount = 5\n/,
+    },
+  },
+  {
+    // a whole array: refused; open it and set an element
+    name: "debug-set-array",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,varpick:G/orders,key:F2,wait,wait",
+    delay: 8,
+    dump: { "outputbox.text": /^orders is an array: open it and set its elements one at a time\.$/m },
   },
   {
     // Set Next Statement: the arrow carried back to a line runs it again;

@@ -30,7 +30,7 @@ pub use kernel::{
     // Windows (`gui_set_window_state`: the WindowState lane's, Form.WindowState
     // set; it was `from`).
     gui_show, gui_show_visible, gui_hide, gui_close, gui_center, gui_move_form, gui_set_form_border, gui_apply_icon,
-    gui_apply_icons, gui_set_window_state, gui_menu_popup, gui_set_modified,
+    gui_apply_icons, gui_set_window_state, gui_menu_popup, gui_menu_popup_at, gui_set_modified,
     // (form members: HideTitleBar / ShowTitleBar, ShapeForm, StartDrag)
     gui_title_bar, gui_shape_changed, gui_start_drag,
     // Text between the store and the host's editors.

@@ -138,6 +138,7 @@ impl Dap {
     fn launch(&mut self, program: &Path, more: Value) {
         let init = self.ok("initialize", json!({ "adapterID": "rapidr", "linesStartAt1": true, "columnsStartAt1": true }));
         assert_eq!(init["supportsConfigurationDoneRequest"], true);
+        assert_eq!((init["supportsSetVariable"].clone(), init["supportsSetExpression"].clone()), (json!(true), json!(true)));
         let mut args = json!({ "program": program, "cwd": program.parent().unwrap() });
         for (k, v) in more.as_object().unwrap() {
             args[k] = v.clone();
@@ -232,6 +233,16 @@ fn breakpoints_in_two_files_the_stack_variables_and_stepping() {
     // Set a variable: AddUp then returns 4 + 3.
     let set = dap.ok("setVariable", json!({ "variablesReference": scopes[0]["variablesReference"], "name": "a", "value": "4" }));
     assert_eq!(set["value"], "4");
+    // (S11) setExpression — a watch's place set — with the same checks:
+    // text where a whole number goes is refused in plain words, the value
+    // kept; an array element set through its expression.
+    assert_eq!(dap.ok("setExpression", json!({ "expression": "a", "value": "4", "frameId": top }))["value"], "4");
+    let refused = dap.request("setExpression", json!({ "expression": "a", "value": "\"x\"", "frameId": top }));
+    assert_eq!(refused["success"], false);
+    assert!(refused["message"].as_str().unwrap_or("").contains("holds a whole number"), "{refused}");
+    assert_eq!(dap.ok("evaluate", json!({ "expression": "a", "frameId": top, "context": "hover" }))["result"], "4");
+    let refused = dap.request("setVariable", json!({ "variablesReference": scopes[0]["variablesReference"], "name": "a", "value": "nothing_here" }));
+    assert!(refused["message"].as_str().unwrap_or("").contains("a holds a whole number, and nothing_here isn't one"), "{refused}");
 
     // Step over, out (back in the program's line 7), over, in.
     dap.ok("next", json!({ "threadId": 1 }));

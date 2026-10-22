@@ -19,6 +19,7 @@ properties = [
   { name = "Level", type = "int", access = "read", design = false, category = "Data", doc = "How deep the node is: 0 for a root node." },
   { name = "Count", type = "int", access = "read", design = false, category = "Data", doc = "How many children the node has." },
   { name = "IsVisible", type = "bool", access = "read", design = false, category = "Behavior", doc = "Whether the node can be seen (all its parents expanded)." },
+  { name = "Top", type = "int", access = "read", design = false, origin = "rapidr", category = "Data", doc = "Where the node's row starts, in pixels from the tree's top edge (scrolled with TopIndex: negative above the rows shown); -1 when it can't be seen. A menu under the node: `Menu.PopupAt Tree, 40, Tree.Item(i).Top + Tree.ItemHeight`." },
   { name = "Index", type = "int", access = "read", design = false, category = "Data", doc = "The node's position among its parent's children, from 0." },
   { name = "AbsoluteIndex", type = "int", access = "read", design = false, category = "Data", doc = "The node's position in the whole tree, from 0." },
   { name = "Parent", type = "int", access = "read", design = false, category = "Data", doc = "The index of the node's parent; -1 for a root node." },

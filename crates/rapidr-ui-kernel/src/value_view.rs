@@ -220,6 +220,10 @@ pub enum Hint<'a> {
     Color,
     /// A handle (a window's, a file's).
     Handle,
+    /// A True / False property kept as a number (`type = "bool"`): the
+    /// number shown as it is (what the program reads — True is -1 in a
+    /// `.rr`), "on" or "off" after it.
+    Bool,
     /// One of the property's constants, by name (`alClient`).
     Constant(&'a str),
 }
@@ -409,7 +413,17 @@ impl ValueRow {
         let said: String = match kind {
             ValueKind::Integer | ValueKind::Decimal | ValueKind::Handle => {
                 b.push(text, Part::Number);
-                format!("{} {text}", kind.words())
+                // (a True / False property: the number it is, on or off after it)
+                let on = (v.hint == Hint::Bool).then(|| parse_whole(text).is_some_and(|n| n != 0));
+                match on {
+                    Some(on) => {
+                        let word = if on { "on" } else { "off" };
+                        b.push(" · ", Part::Punctuation);
+                        b.push(word, Part::Dim);
+                        format!("{text}, {word}")
+                    }
+                    None => format!("{} {text}", kind.words()),
+                }
             }
             ValueKind::Text => {
                 let inner = text.strip_prefix('"').and_then(|t| t.strip_suffix('"')).unwrap_or(text);
@@ -568,6 +582,7 @@ impl ValueRow {
             match h {
                 "color" => hint = Hint::Color,
                 "handle" => hint = Hint::Handle,
+                "bool" => hint = Hint::Bool,
                 "result" => result = true,
                 _ => {
                     if let Some(c) = h.strip_prefix("const:").filter(|c| !c.is_empty()) {
@@ -700,6 +715,13 @@ impl ValueRow {
     pub fn paint_value(&self, p: &mut Painter, rect: Rect, style: &RowStyle<'_>) -> i64 {
         let icon = (rect.3 - 2).clamp(8, 16);
         self.paint_from(p, rect, style, self.value_at, icon)
+    }
+
+    /// Where the value starts in a row drawn in `font` with an icon `icon`
+    /// px square (its in-place editor's left: a tree's `EditItem`).
+    pub fn value_x(&self, font: &Font, icon: i64) -> i64 {
+        let lead = if self.icon.is_some() { icon + GAP } else { 0 };
+        lead + self.widths(font).iter().take(self.value_at).sum::<i64>()
     }
 
     /// How wide the value alone is drawn ([`ValueRow::paint_value`]).

@@ -37,6 +37,8 @@ struct World {
     /// The dialogs' windows the host made (id, title) and closed.
     dialogs: Vec<(String, String)>,
     closed: Vec<String>,
+    /// The pop-up menus opened: (form, menu, x, y) in the window's inside.
+    popups: Vec<(String, String, i64, i64)>,
 }
 
 thread_local! {
@@ -177,13 +179,17 @@ impl Windows for Mem {
         forms::shown_forms()
     }
     fn place_of(self, comp: &str) -> Option<(String, (i64, i64))> {
-        Some((self.form_of(comp)?, (0, 0)))
+        // (where the kernel laid it out: a test's "__placex" / "__placey")
+        let at = (self.get(comp, "__placex").to_i64(), self.get(comp, "__placey").to_i64());
+        Some((self.form_of(comp)?, at))
     }
     fn system_resized(self, form: &str, (w, h): (i64, i64), (x, y): (i64, i64)) {
         // (what the desktop's kernel queues for a resize and a move)
         world(|w_| w_.events.extend([KernelEvent::Resized(form.into(), w, h), KernelEvent::Moved(form.into(), x, y)]));
     }
-    fn open_popup(self, _form: &str, _menu: &str, _x: i64, _y: i64, _program: bool) {}
+    fn open_popup(self, form: &str, menu: &str, x: i64, y: i64, _program: bool) {
+        world(|w| w.popups.push((form.into(), menu.into(), x, y)));
+    }
     fn open_dialog(self, id: &str, title: &str, _size: (i64, i64)) {
         world(|w| w.dialogs.push((id.into(), title.into())));
     }
@@ -502,4 +508,17 @@ fn onresize_as_rapidq_fires_it() {
     assert_eq!(count("f.onresize"), 3);
     forms::show(Mem, "f");
     assert_eq!(count("f.onresize"), 3);
+}
+
+/// (RapidR's) `PopupMenu.PopupAt(Control, X, Y)`: OnPopup, then the menu at
+/// (X, Y) of the control, wherever the kernel laid it out in its window.
+#[test]
+fn popup_at_opens_the_menu_inside_its_control() {
+    form_with_button();
+    make("m", "RPOPUPMENU", None);
+    Mem.store("b", "__placex", v_int(120));
+    Mem.store("b", "__placey", v_int(64));
+    crate::menus::popup_at(Mem, "M", "B", 80, 20);
+    assert_eq!(fired(), ["m.onpopup"]);
+    assert_eq!(world(|w| w.popups.clone()), [("f".to_string(), "m".to_string(), 200, 84)]);
 }

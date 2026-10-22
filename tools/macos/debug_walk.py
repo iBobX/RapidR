@@ -43,6 +43,12 @@ and enabled: tools/macos/ui_probe.swift), captures read back with OCR.
                  kinds' icons, read by VoiceOver as sentences; a data tip;
                  a watch typed; the Call Stack; Breakpoints; the panes'
                  Close tip above their header
+         set     (S11, also set-light / set-dark / set-contrast) shop.rr
+                 paused at 76: F2 on count, abc refused (Output says why),
+                 7 set and marked changed, Cmd+Z back to 3; F2 on notes:
+                 its whole three lines in a window of its own, Esc leaves
+                 it; the form's Cursor double-clicked: its constants as a
+                 menu, crHandPoint picked; Immediate's count = 5
 
   python3 tools/macos/debug_walk.py [paths…]   (all by default)
 
@@ -100,6 +106,31 @@ def wins(pid=None):
 def top_pid():
     ws = wins()
     return ws[0]["pid"] if ws else None
+
+
+def owner_at(x, y):
+    """Whose window is under the point (x, y) on the screen — any layer: a
+    notification's banner, a menu, a system prompt over ours counts (lane
+    rules §7). The menu bar's and the Dock's own strips are left out."""
+    for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly, Quartz.kCGNullWindowID):
+        b = w["kCGWindowBounds"]
+        if not (b["X"] <= x < b["X"] + b["Width"] and b["Y"] <= y < b["Y"] + b["Height"]):
+            continue
+        if w.get("kCGWindowOwnerName") in ("Window Server", "Dock") and w.get("kCGWindowLayer", 0) > 0 and w.get("kCGWindowAlpha", 1) == 0:
+            continue
+        if w.get("kCGWindowAlpha", 1) == 0:
+            continue
+        return w["kCGWindowOwnerPID"], w.get("kCGWindowOwnerName")
+    return None, None
+
+
+def mine_under(pid, x, y):
+    """The point is on one of `pid`'s windows (or a child's: its popups)."""
+    owner, name = owner_at(x, y)
+    if owner == pid:
+        return True
+    log(f"  (the window under ({x:.0f}, {y:.0f}) is {name!r}, pid {owner} — not ours)")
+    return False
 
 
 def front_pid():
@@ -193,6 +224,8 @@ def mouse(kind, x, y):
 def click_at(pid, x, y, need_front=True):
     if need_front and not mine_in_front(pid):
         raise SystemExit(f"stopped: pid {pid} isn't in front — no click")
+    if need_front and not mine_under(pid, x, y):
+        raise SystemExit(f"stopped: the point ({x:.0f}, {y:.0f}) isn't on pid {pid}'s window — no click")
     mouse(Quartz.kCGEventMouseMoved, x, y)
     time.sleep(0.1)
     mouse(Quartz.kCGEventLeftMouseDown, x, y)
@@ -204,6 +237,8 @@ def click_at(pid, x, y, need_front=True):
 def double_click_at(pid, x, y):
     if not mine_in_front(pid):
         raise SystemExit(f"stopped: pid {pid} isn't in front — no double click")
+    if not mine_under(pid, x, y):
+        raise SystemExit(f"stopped: the point ({x:.0f}, {y:.0f}) isn't on pid {pid}'s window — no double click")
     mouse(Quartz.kCGEventMouseMoved, x, y)
     time.sleep(0.1)
     for n in (1, 2):
@@ -829,6 +864,161 @@ def look_walk(theme):
     time.sleep(0.3)
 
 
+# (US keys: what type_keys types)
+KEYCODES = {**{c: k for c, k in zip("asdfhgzxcv", (0, 1, 2, 3, 4, 5, 6, 7, 8, 9))}, "b": 11, "q": 12, "w": 13, "e": 14, "r": 15,
+            "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23, "=": 24, "9": 25, "7": 26, "8": 28, "0": 29,
+            "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40, "n": 45, "m": 46, " ": 49, ".": 47}
+LEFT, RIGHT, UP = 123, 124, 126
+
+
+def type_keys(pid, text):
+    for c in text:
+        key(pid, KEYCODES[c])
+
+
+def scroll_at(x, y, lines):
+    """The wheel turned `lines` lines (down: negative) with the mouse at (x, y)."""
+    mouse(Quartz.kCGEventMouseMoved, x, y)
+    time.sleep(0.1)
+    e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, lines)
+    Quartz.CGEventSetLocation(e, (x, y))
+    Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+    time.sleep(0.5)
+
+
+def node_with(pid, start):
+    """The first node whose title or description starts with `start`."""
+    for w in ax(pid):
+        for n in walk(w):
+            for f in ("title", "desc"):
+                if str(n.get(f) or "").startswith(start) and "x" in n:
+                    return n
+    return None
+
+
+def click_node(pid, start, double=False):
+    n = node_with(pid, start)
+    if not n:
+        return None
+    (double_click_at if double else click_at)(pid, n["x"] + 40, n["y"] + n["h"] / 2)
+    return n
+
+
+def set_walk(theme):
+    """S11: values changed while paused, as a person does it — shop.rr
+    stopped at 76 in `theme`: F2 on count, text typed where a number goes
+    (refused, Output says why), then 7 (set, marked changed), Ctrl+Z (back);
+    F2 on notes, a text of three lines: its whole text in a window of its
+    own, Esc leaves it; the form's Cursor double-clicked: its constants as a
+    menu, crHandPoint picked; Immediate's `count = 5`."""
+    tag = {"rapidr-light": "light", "rapidr-dark": "dark", "rapidr-high-contrast": "contrast"}[theme]
+    src = f"{WORK}/shop-set-{tag}.rr"
+    subprocess.run(["cp", f"{W}/examples/debugging/shop.rr", src])
+    studio = start_studio(src, theme, "wait,wait,line:76")
+    check(f"[set {tag}] Studio in front", wait_front(studio))
+    key(studio, F9)
+    key(studio, F5)
+    ok, text = stops_at(studio, f"80-set-{tag}-paused", f"shop-set-{tag}.rr:76")
+    check(f"[set {tag}] F5: paused at 76", ok, text[-160:])
+    if not ok:
+        return
+    ax_click(studio, "Variables")
+    time.sleep(0.6)
+    # count: text where a whole number goes, refused in plain words
+    if not click_node(studio, "count, whole number 3"):
+        check(f"[set {tag}] Variables shows count = 3", False)
+        return
+    key(studio, F2)
+    time.sleep(0.6)
+    shot_window(studio, f"81-set-{tag}-editor")
+    type_keys(studio, "abc")
+    key(studio, ENTER)
+    time.sleep(1.2)
+    path, text = studio_text(studio, f"82-set-{tag}-refused")
+    flat = text.replace(" ", "")
+    check(f"[set {tag}] abc refused: Output says count holds a whole number, and abc isn't one", "countholdsawholenumber" in flat and "abcisn" in flat, text[-260:])
+    check(f"[set {tag}] the status bar: Can't set count: see Output", ax_find(studio, "Can't set count: see Output") is not None)
+    check(f"[set {tag}] count still 3", ax_find(studio, "count, whole number 3") is not None)
+    # 7: set, marked changed; Ctrl+Z (Cmd+Z here): back to 3
+    key(studio, F2)
+    time.sleep(0.6)
+    key(studio, KEYCODES["7"])
+    key(studio, ENTER)
+    time.sleep(1.5)
+    shot_window(studio, f"83-set-{tag}-set")
+    check(f"[set {tag}] F2, 7, Enter: VoiceOver reads 'count, whole number 7, changed'", ax_find(studio, "count, whole number 7, changed", exact=True) is not None)
+    check(f"[set {tag}] the status bar: count = 7 (Ctrl+Z undoes)", ax_find(studio, "count = 7  (Ctrl+Z undoes)") is not None)
+    key(studio, KEYCODES["z"], ("cmd",))
+    time.sleep(1.5)
+    shot_window(studio, f"84-set-{tag}-undone")
+    check(f"[set {tag}] Cmd+Z: count is back to 3", ax_find(studio, "count, whole number 3", exact=True) is not None and ax_find(studio, "count is back to 3") is not None)
+    # notes: three lines — the whole text in its own window; Esc leaves it
+    if not click_node(studio, "notes, text"):
+        check(f"[set {tag}] Variables shows notes", False)
+        return
+    key(studio, F2)
+    time.sleep(1.5)
+    ws = wins(studio)
+    path = shot_window(studio, f"85-set-{tag}-text-window")
+    text = ocr(path) if path else ""
+    check(f"[set {tag}] F2 on notes: a window 'Set notes' with its three lines", len(ws) >= 2 and "Setnotes" in text.replace(" ", "") and "ClosedonSundays" in text.replace(" ", "") and "cakeoftheday" in text.replace(" ", ""), text[-260:])
+    key(studio, ESC)
+    time.sleep(1.0)
+    check(f"[set {tag}] Esc: the window goes, notes as it was", len(wins(studio)) == 1 and ax_find(studio, "Opening hours: 8 to 18.") is not None)
+    # the form's Cursor: its constants as a menu
+    for section in ("Locals", "Globals"):
+        if click_node(studio, section):
+            key(studio, LEFT)
+    if not click_node(studio, "Components"):
+        check(f"[set {tag}] Variables shows Components", False)
+        return
+    key(studio, RIGHT)
+    time.sleep(1.2)
+    if not click_node(studio, "Form, "):
+        check(f"[set {tag}] Components shows Form", False)
+        return
+    key(studio, RIGHT)
+    time.sleep(1.5)
+    tree = ax_find(studio, "Variables", exact=True)
+    cur = node_with(studio, "Cursor, constant crDefault")
+    for _ in range(6):
+        pane = node_with(studio, "Components")
+        if cur and pane and cur["y"] < pane["y"] + 160:
+            break
+        if pane:
+            scroll_at(pane["x"] + 120, pane["y"] + 40, -2)
+        cur = node_with(studio, "Cursor, constant crDefault")
+    if not cur:
+        check(f"[set {tag}] the form's Cursor shown (crDefault)", False, json.dumps(tree))
+        return
+    double_click_at(studio, cur["x"] + 40, cur["y"] + cur["h"] / 2)
+    time.sleep(1.0)
+    path = shot_screen_region(cur["x"] - 20, cur["y"] - 20, 360, 420, f"86-set-{tag}-choices")
+    boxes = ocr_boxes(path)
+    pick = next((b for b in boxes if b["text"].strip() == "crHandPoint"), None)
+    check(f"[set {tag}] double-click on Cursor: a menu of its constants (crHandPoint among them)", pick is not None, " | ".join(b["text"] for b in boxes)[-300:])
+    if pick is None:
+        key(studio, ESC)
+        return
+    scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / 360
+    click_at(studio, cur["x"] - 20 + (pick["x"] + pick["w"] / 2) / scale, cur["y"] - 20 + (pick["y"] + pick["h"] / 2) / scale)
+    time.sleep(1.5)
+    shot_window(studio, f"87-set-{tag}-cursor-set")
+    check(f"[set {tag}] crHandPoint picked: VoiceOver reads 'Cursor, constant crHandPoint, changed'", ax_find(studio, "Cursor, constant crHandPoint, changed", exact=True) is not None)
+    check(f"[set {tag}] the status bar: Form.Cursor = crHandPoint", ax_find(studio, "Form.Cursor = crHandPoint") is not None)
+    # Immediate: count = 5
+    ax_click(studio, "Immediate", exact=False)
+    time.sleep(0.6)
+    imm = next((n for n in ax_all(studio, "Immediate") if n.get("role") in ("AXTextArea", "AXTextField")), None)
+    if imm and "x" in imm:
+        click_at(studio, imm["x"] + imm["w"] / 2, imm["y"] + imm["h"] - 12)
+    type_keys(studio, "count = 5")
+    key(studio, ENTER)
+    time.sleep(1.5)
+    path, text = studio_text(studio, f"88-set-{tag}-immediate")
+    check(f"[set {tag}] Immediate: count = 5 answered, Variables reads count 5", "count=5" in text.replace(" ", "") and ax_find(studio, "count, whole number 5") is not None, text[-200:])
+
+
 def include_walk():
     """DEBUG-2: a breakpoint in an $INCLUDEd file — tally.inc opened from the
     project tree, a breakpoint on its line 5, the file closed; F5 stops there
@@ -945,6 +1135,11 @@ try:
     for name, theme in (("look-light", "rapidr-light"), ("look-dark", "rapidr-dark"), ("look-contrast", "rapidr-high-contrast")):
         if name in paths or "look" in paths:
             look_walk(theme)
+            close_all(); started.clear(); time.sleep(1)
+    # (S11: values changed while paused, in the three looks)
+    for name, theme in (("set-light", "rapidr-light"), ("set-dark", "rapidr-dark"), ("set-contrast", "rapidr-high-contrast")):
+        if name in paths or "set" in paths:
+            set_walk(theme)
             close_all(); started.clear(); time.sleep(1)
     log(f"walk took {time.time() - t0:.0f} s")
 finally:

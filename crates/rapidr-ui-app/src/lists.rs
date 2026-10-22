@@ -116,6 +116,9 @@ fn tree_begin_edit<P: Program>(p: P, name: &str, i: usize) {
         &[v_int(i as i64), v_int(-1)],
         Box::new(move |a| {
             if a[1].to_i64() == 0 {
+                // (refused — the program may have opened an editor of its
+                // own instead, EditItem: shown now)
+                invalidate();
                 return;
             }
             let Some(text) = rapidr_value::objects::with_tree(&tree, |m| m.nodes.get(i).map(|n| n.text.clone())).flatten() else { return };

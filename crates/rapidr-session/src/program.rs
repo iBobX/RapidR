@@ -435,14 +435,8 @@ impl ProgramEnd {
             }
             Command::SetVariable { frame, name, value } => {
                 let frame = self.frame_for(vm, frame, paused);
-                let event = match self
-                    .run(vm, module, frame, &format!("{name} = ({value})"), true)
-                    .and_then(|_| self.evaluate(vm, module, frame, &name))
-                {
-                    Ok(v) => {
-                        let r = self.render(vm, &v, &name, true);
-                        Event::reply(seq, EventBody::Evaluate { result: r.value, kind: r.kind, reference: r.reference, count: r.count, columns: r.columns })
-                    }
+                let event = match self.set_value(vm, module, frame, &name, &value) {
+                    Ok(r) => Event::reply(seq, EventBody::Evaluate { result: r.value, kind: r.kind, reference: r.reference, count: r.count, columns: r.columns }),
                     Err(e) => Event::error(seq, e),
                 };
                 (reply(event), Control::None)
@@ -516,6 +510,80 @@ impl ProgramEnd {
             return Ok(Value::String(name.to_string()));
         }
         Ok(v)
+    }
+
+    /// Sets what `target` names — a variable of `frame` or a global, an
+    /// array's element, a TYPE's field, a component's property (through its
+    /// setter: the form updates) — to `value`, an expression, checked first
+    /// and refused in plain words: a name that isn't there, a read-only
+    /// property, a whole array or record, text where a number goes. A
+    /// number stored into a whole number converts as the program's own
+    /// store does; a number into text becomes its text. Answers the value
+    /// as it is now (the debugger's `setVariable`, `setExpression`; an
+    /// Immediate `x = 5`).
+    pub fn set_value<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, target: &str, value: &str) -> Result<Variable, String> {
+        let target = target.trim();
+        let text = value.trim();
+        if target.is_empty() {
+            return Err("Name what to set: a variable, an element such as a(2), a field such as p.Name.".into());
+        }
+        if text.is_empty() {
+            return Err(format!("Type the new value of {target}."));
+        }
+        let root = target.split(['.', '(']).next().unwrap_or(target).trim();
+        if !known_name(vm, module, frame, root) {
+            return Err(format!("There's no {root} here: check its spelling."));
+        }
+        // (a component's property: the registry says whether it can be set;
+        // its setter does the rest, as the program's own `Form1.Caption =`)
+        if let Some((obj, prop)) = target.rsplit_once('.').filter(|(_, p)| !p.contains('(')) {
+            if let Some(kind) = vm.host.component_type(obj.trim()) {
+                let p = rapidr_lang::component(&kind).and_then(|c| c.properties.iter().find(|p| p.name.eq_ignore_ascii_case(prop.trim())));
+                if let Some(p) = p {
+                    if p.access == rapidr_lang::Access::Read {
+                        return Err(format!("{} can't be changed: it's read-only.", p.name));
+                    }
+                }
+                let now = self.evaluate(vm, module, frame, target).ok();
+                self.check_value_name(vm, module, frame, target, now.as_ref(), text)?;
+                self.run(vm, module, frame, &format!("{target} = ({text})"), true)?;
+                let v = self.evaluate(vm, module, frame, target)?;
+                return Ok(self.render(vm, &v, target, true));
+            }
+        }
+        let now = self.evaluate(vm, module, frame, target)?;
+        match &now {
+            Value::Array(_) => return Err(format!("{target} is an array: set its elements one at a time, such as {target}(1).")),
+            Value::Object(o) => {
+                let field = o.names.first().map_or("a field".to_string(), |f| format!("{target}.{f}"));
+                return Err(format!("{target} is a record (a TYPE): set its fields one at a time, such as {field}."));
+            }
+            _ => {}
+        }
+        self.check_value_name(vm, module, frame, target, Some(&now), text)?;
+        let new = self.evaluate(vm, module, frame, text)?;
+        let new = fit_value(&now, new, target, text)?;
+        self.run(vm, module, frame, &format!("{target} = {}", literal(&new)), true)?;
+        let v = self.evaluate(vm, module, frame, target)?;
+        Ok(self.render(vm, &v, target, true))
+    }
+
+    /// A value typed as a bare name that is no variable, constant or
+    /// component: refused — for what `target` holds `now`: a number's
+    /// "isn't one", text's "put it in quotes" (what was meant was text,
+    /// most likely).
+    fn check_value_name<H: Host + ?Sized>(&mut self, vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, target: &str, now: Option<&Value>, text: &str) -> Result<(), String> {
+        let bare = text.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && text.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '$' | '%' | '&' | '!' | '#'));
+        let words = ["true", "false"];
+        if bare && !words.contains(&text.to_ascii_lowercase().as_str()) && rapidr_lang::constant(text).is_none() && !known_name(vm, module, frame, text) {
+            return Err(match now {
+                Some(Value::Integer(_)) => format!("{target} holds a whole number, and {text} isn't one. Type a number such as 42."),
+                Some(Value::Double(_)) => format!("{target} holds a number, and {text} isn't one. Type a number such as 3.5."),
+                Some(Value::Boolean(_)) => format!("{target} is True or False: type True or False."),
+                _ => format!("{text} isn't a variable or a constant here. To set text, put it in quotes: \"{text}\"."),
+            });
+        }
+        Ok(())
     }
 
     /// Runs BASIC statements in `frame` (what they assign to its locals is
@@ -770,6 +838,107 @@ impl ProgramEnd {
     }
 }
 
+/// Whether `name` (a bare name, any case) is one of `frame`'s variables or
+/// parameters, one of its routine's STATICs, a global, a constant the
+/// program made, or a component.
+fn known_name<H: Host + ?Sized>(vm: &mut Vm<'_, H>, module: &Module, frame: Option<usize>, name: &str) -> bool {
+    let name = name.trim();
+    if name.is_empty() {
+        return false;
+    }
+    if let Some(f) = frame.and_then(|i| vm.frames.get(i)) {
+        if module.functions.get(f.fn_index as usize).is_some_and(|func| func.local_names.iter().any(|n| n.eq_ignore_ascii_case(name))) {
+            return true;
+        }
+    }
+    let in_globals = vm.globals.iter().enumerate().any(|(i, v)| {
+        v.is_some()
+            && module.strings.get(i).is_some_and(|n| {
+                n.eq_ignore_ascii_case(name)
+                    || matches!(rapidr_bcgen::global_slot(module, n), GlobalSlot::Routine { name: var, .. } if var.eq_ignore_ascii_case(name))
+            })
+    });
+    in_globals || vm.host.component_type(name).is_some()
+}
+
+/// `new` made to fit where it goes, which holds `now` ([`ProgramEnd::set_value`]):
+/// a whole number stays one (as the program's own store converts), a
+/// decimal one too; text where a number goes is refused unless it reads as
+/// one; a number where text goes becomes its text; True / False stay
+/// True / False. Empty (a variable never set) takes anything.
+fn fit_value(now: &Value, new: Value, target: &str, typed: &str) -> Result<Value, String> {
+    use rapidr_value::numeric::{convert, NumKind};
+    let number = |v: &Value| -> Option<Value> {
+        match v {
+            Value::Integer(_) | Value::Double(_) => Some(v.clone()),
+            Value::Boolean(b) => Some(Value::Integer(if *b { -1 } else { 0 })),
+            Value::String(s) => {
+                let t = s.trim();
+                t.parse::<f64>().ok().filter(|f| f.is_finite()).map(|_| if t.contains(['.', 'e', 'E']) { Value::Double(t.parse().unwrap_or(0.0)) } else { Value::Integer(t.parse().unwrap_or(0)) })
+            }
+            _ => None,
+        }
+    };
+    Ok(match now {
+        Value::Integer(_) => {
+            let n = number(&new).ok_or_else(|| format!("{target} holds a whole number, and {typed} isn't one. Type a number such as 42."))?;
+            convert(&n, NumKind::Long)
+        }
+        Value::Double(_) => {
+            let n = number(&new).ok_or_else(|| format!("{target} holds a number, and {typed} isn't one. Type a number such as 3.5."))?;
+            convert(&n, NumKind::Double)
+        }
+        Value::String(_) => match new {
+            Value::String(_) => new,
+            Value::Integer(_) | Value::Double(_) => Value::String(rapidr_value::format::print_text(&new).trim().to_string()),
+            Value::Boolean(b) => Value::String((if b { "True" } else { "False" }).into()),
+            _ => return Err(format!("{target} holds text: type it in quotes, such as \"hello\".")),
+        },
+        Value::Boolean(_) => match new {
+            Value::Boolean(_) => new,
+            Value::Integer(n) => Value::Boolean(n != 0),
+            Value::Double(f) => Value::Boolean(f != 0.0),
+            _ => return Err(format!("{target} is True or False: type True or False.")),
+        },
+        _ => new,
+    })
+}
+
+/// A value written as BASIC (what `set_value` stores through the program's
+/// own assignment): a number, True / False, text in quotes — its line
+/// breaks and other control characters as CHR$(n).
+fn literal(v: &Value) -> String {
+    match v {
+        Value::Integer(n) => n.to_string(),
+        Value::Double(f) if f.is_finite() => {
+            let t = format!("{f:?}");
+            if t.contains(['e', 'E']) { format!("{f}") } else { t }
+        }
+        Value::Boolean(b) => (if *b { "True" } else { "False" }).into(),
+        Value::Null => "\"\"".into(),
+        Value::String(s) => {
+            let mut parts: Vec<String> = Vec::new();
+            let mut run = String::new();
+            for c in s.chars() {
+                if (c as u32) < 0x20 || c == '\u{7f}' {
+                    if !run.is_empty() {
+                        parts.push(basic_string(&run));
+                        run.clear();
+                    }
+                    parts.push(format!("CHR$({})", c as u32));
+                } else {
+                    run.push(c);
+                }
+            }
+            if !run.is_empty() || parts.is_empty() {
+                parts.push(basic_string(&run));
+            }
+            parts.join(" + ")
+        }
+        other => basic_string(&other.to_string_val()),
+    }
+}
+
 /// "1 row", "3 rows".
 fn plural(n: usize, what: &str) -> String {
     if n == 1 {
@@ -806,8 +975,10 @@ fn component_properties<H: Host + ?Sized>(vm: &mut Vm<'_, H>, id: &str) -> Optio
 }
 
 /// What the registry knows about property `p` holding `v`, for the
-/// debugger ([`Variable::hint`]): `color`, `handle`, `const:<name>` (an
-/// enum's constant with this value), `readonly`.
+/// debugger ([`Variable::hint`]): `color`, `handle`, `bool` (a True /
+/// False property, read as the number it is), `const:<name>` (an enum's
+/// constant with this value) and `choices:<a>|<b>…` (all of them),
+/// `readonly`.
 fn property_hint(p: &rapidr_lang::Property, v: &Value) -> String {
     let mut out: Vec<String> = Vec::new();
     let lower = p.name.to_ascii_lowercase();
@@ -823,7 +994,12 @@ fn property_hint(p: &rapidr_lang::Property, v: &Value) -> String {
             if let Some(c) = n.and_then(|n| p.values.iter().find(|c| rapidr_lang::constant(c).is_some_and(|(x, _)| x == n))) {
                 out.push(format!("const:{c}"));
             }
+            // (what it can be: the choices a value editor offers)
+            if !p.values.is_empty() {
+                out.push(format!("choices:{}", p.values.join("|")));
+            }
         }
+        rapidr_lang::Type::Bool => out.push("bool".into()),
         _ => {}
     }
     if p.access == rapidr_lang::Access::Read {
@@ -1913,7 +2089,8 @@ mod tests {
         // a handle that can't be set; a caption is just text)
         let hint = |name: &str| form.iter().find(|v| v.name == name).map(|v| v.hint.clone()).unwrap_or_else(|| panic!("no {name} in {form:?}"));
         assert_eq!(hint("Color"), "color");
-        assert_eq!(hint("WindowState"), "const:wsMaximized");
+        assert_eq!(hint("WindowState"), "const:wsMaximized,choices:wsNormal|wsMinimized|wsMaximized");
+        assert_eq!(hint("KeyPreview"), "bool");
         assert_eq!(hint("Handle"), "handle,readonly");
         assert_eq!(hint("Caption"), "");
         // the RNum paged
@@ -1968,6 +2145,52 @@ mod tests {
         vm.resume(&m).unwrap();
         drop(vm);
         assert_eq!(host.output.trim(), "after5");
+    }
+
+    /// (S11) Values set while paused: checked first, refused in plain words,
+    /// fitted to what the variable holds; an array's elements one at a time
+    /// (a record's fields: the Studio flow debug-set-nested).
+    #[test]
+    fn values_set_while_paused_are_checked_in_plain_words() {
+        let src = "DIM count AS INTEGER\nDIM nm AS STRING\nDIM d AS DOUBLE\nDIM a(3) AS INTEGER\ncount = 3\nPRINT count\n";
+        let m = compile_program(src);
+        let mut host = StubHost::default();
+        let mut vm = Vm::new(&mut host);
+        vm.debug_mode = true;
+        vm.set_file_breakpoints(&m, "prog.bas", &[6]);
+        let r = vm.run(&m);
+        assert!(matches!(r, Err(rapidr_vm::VmError::Paused)), "{r:?}");
+        let mut end = ProgramEnd::new();
+        let mut set = |n: &str, v: &str| match end.set_value(&mut vm, &m, None, n, v) {
+            Ok(r) => Ok((r.value, r.kind)),
+            Err(e) => Err(e),
+        };
+        assert_eq!(set("count", "42"), Ok(("42".into(), "Integer".into())));
+        assert_eq!(set("count", "count + 1"), Ok(("43".into(), "Integer".into())));
+        // (a decimal into a whole number: as the program's own store)
+        assert_eq!(set("count", "7.9"), Ok(("7".into(), "Integer".into())));
+        assert_eq!(set("count", "\"12\""), Ok(("12".into(), "Integer".into())));
+        assert_eq!(set("count", "\"abc\""), Err("count holds a whole number, and \"abc\" isn't one. Type a number such as 42.".into()));
+        // (a bare name that is nothing here: a number's words for a number,
+        // "put it in quotes" for text)
+        assert_eq!(set("count", "abc"), Err("count holds a whole number, and abc isn't one. Type a number such as 42.".into()));
+        assert_eq!(set("nm", "abc"), Err("abc isn't a variable or a constant here. To set text, put it in quotes: \"abc\".".into()));
+        assert_eq!(set("nm", "\"Ada\""), Ok(("\"Ada\"".into(), "String".into())));
+        assert_eq!(set("nm", "42"), Ok(("\"42\"".into(), "String".into())));
+        // (text with line breaks is stored as CHR$(10) between its parts —
+        // the test host has no CHR$: the literal itself)
+        assert_eq!(super::literal(&Value::String("a\nb \"c\"".into())), "\"a\" + CHR$(10) + \"b \"\"c\"\"\"");
+        assert_eq!(super::literal(&Value::Double(0.1)), "0.1");
+        assert_eq!(set("d", "3"), Ok(("3".into(), "Double".into())));
+        assert_eq!(set("d", "\"x\""), Err("d holds a number, and \"x\" isn't one. Type a number such as 3.5.".into()));
+        assert_eq!(set("a", "1"), Err("a is an array: set its elements one at a time, such as a(1).".into()));
+        assert_eq!(set("a(2)", "5"), Ok(("5".into(), "Integer".into())));
+        assert_eq!(set("nope", "1"), Err("There's no nope here: check its spelling.".into()));
+        assert!(set("count", "(1").unwrap_err().contains("isn't an expression"));
+        // (the refused sets changed nothing: count is the 12 set last)
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(host.output.trim(), "12");
     }
 
     /// Hovering never runs code: an expression that calls a FUNCTION is

@@ -863,6 +863,10 @@ pub fn gui_menu_popup(name: &str, x: i32, y: i32) {
     rapidr_ui_app::menus::popup(Rt, name, x, y);
 }
 
+pub fn gui_menu_popup_at(name: &str, control: &str, x: i64, y: i64) {
+    rapidr_ui_app::menus::popup_at(Rt, name, control, x, y);
+}
+
 // ---------------------------------------------------- the facade: text --
 //
 // The kernel's edits read the shared text model (`TextEdit::revision`) and

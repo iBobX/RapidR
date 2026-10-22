@@ -255,6 +255,7 @@ impl<W: Write> Adapter<W> {
                     "supportsEvaluateForHovers": true,
                     "supportsTerminateRequest": true,
                     "supportsSetVariable": true,
+                    "supportsSetExpression": true,
                     "supportsStepInTargetsRequest": true,
                     "supportsGotoTargetsRequest": true,
                     "exceptionBreakpointFilters": [
@@ -368,6 +369,20 @@ impl<W: Write> Adapter<W> {
                     return self.fail(seq, command, "that variable is gone (the program went on)");
                 };
                 let path = child_path(parent.as_deref(), &a.name);
+                self.send(Command::SetVariable { frame, name: path.clone(), value: a.value }, Some((seq, command, Pending::SetVariable { path, frame })));
+            }
+            // (a watch's or the console's expression set: the same checks
+            // as setVariable — a read-only property, text where a number
+            // goes, refused in plain words)
+            "setExpression" => {
+                let Ok(a) = serde_json::from_value::<dap::SetExpressionArguments>(args) else {
+                    return self.fail(seq, command, "setExpression: bad arguments");
+                };
+                if !self.stopped {
+                    return self.fail(seq, command, "the program isn't stopped");
+                }
+                let frame = a.frame_id.filter(|&f| f >= 1).map(|f| (f - 1) as u32);
+                let path = a.expression.trim().to_string();
                 self.send(Command::SetVariable { frame, name: path.clone(), value: a.value }, Some((seq, command, Pending::SetVariable { path, frame })));
             }
             // (Step Into Specific: the calls the stopped line still makes)

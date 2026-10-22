@@ -1160,6 +1160,11 @@ pub fn popup(name: &str, x: i64, y: i64) {
     rapidr_ui_app::menus::popup(Web, name, x as i32, y as i32);
 }
 
+/// (RapidR's) `PopupMenu.PopupAt(Control, X, Y)`.
+pub fn popup_at(name: &str, control: &str, x: i64, y: i64) {
+    rapidr_ui_app::menus::popup_at(Web, name, control, x, y);
+}
+
 /// `Form.HideTitleBar` / `ShowTitleBar` (rapidr_ui_app::forms::set_title_bar).
 pub fn title_bar(name: &str, show: bool) {
     forms::set_title_bar(Web, &lower(name), show);

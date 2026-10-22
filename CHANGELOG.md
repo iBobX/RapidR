@@ -66,6 +66,33 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   shows a tree node as a value, and `Item(i).Changed` marks it; the
   debugger session gives each property's hint (`color`, `handle`,
   `const:…`, `readonly`). See [the manual](docs/manual/debugging.md#how-values-look).
+- **Change values while paused** (Preview 4 S11). In RapidR Studio's
+  Variables and Watch, F2, a double click or the menu's *Set Value…* opens
+  an editor over the value only (the name stays), the value selected. What
+  you type is checked for the value's kind before it reaches the program:
+  text is typed without quotes, numbers take a number or a constant's name
+  (`clRed`), on/off properties take `on`/`off`, True/False values `yes`/`no`
+  too, a colour `#RRGGBB`, and `=` starts an expression (`=total * 2`). A
+  property's constants (`Cursor`, `WindowState` …) come as a menu with the
+  current one ticked. A text is always edited **whole**, never the
+  shortened display; a long one, or one with line breaks, opens in a
+  window of its own (its line breaks kept as the program had them). Refused
+  in plain words, in Output beside Variables, the status bar pointing there:
+  *total holds a whole number, and abc isn't one. Type a number such as
+  42.*, a read-only property, a whole array or record, a component, a
+  credential (`••••`, never edited from its mask). A value set is marked
+  changed, the status bar says what it is now, and **Ctrl+Z** puts it back
+  while the program stays paused. The Immediate pane's `name = value` sets
+  through the same checks (and Ctrl+Z). An on/off property shows its number
+  with a quiet *on*/*off* after it (`KeyPreview = 0 · off`) — never `True`,
+  which is `-1` in a `.rr`. The debugger session checks every set
+  (`setVariable`) the same way, and the debug adapter (`rapidr dap`) adds
+  `setExpression` (a watch's place set). For your own trees:
+  `TreeView.EditItem Index [, Text]` opens a node's editor with that text,
+  `TreeView.SetFocus` gives a tree the keyboard, `Item(i).Top` says where a
+  node's row is, and `PopupMenu.PopupAt Control, X, Y` shows a menu at a
+  place inside a control wherever it sits (a menu under a tree's node).
+  See [the manual](docs/manual/debugging.md#changing-a-value).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS

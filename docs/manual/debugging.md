@@ -449,6 +449,7 @@ for its kind, its name, `=`, then the value in its kind's colour.
 | ![](icons/light/debug/decimal.svg) | A decimal number (SINGLE, DOUBLE) | `Ratio = 0.75` |
 | ![](icons/light/debug/text.svg) | Text (STRING) | `Title = "Hello"`; an empty text as a quiet `""` |
 | ![](icons/light/debug/boolean.svg) | True or False | `Done = True` |
+| ![](icons/light/debug/integer.svg) | A property that is on or off | `Visible = 1 · on`, `KeyPreview = 0 · off`: the number the program reads, then a quiet *on* or *off* |
 | ![](icons/light/debug/array.svg) | An array | `ColName = Array(0 TO 64) · 65 items` |
 | ![](icons/light/symbols/type.svg) | A TYPE's value | `p = Point · 2 fields` |
 | ![](icons/light/components/button.svg) | A component (each its own icon, as in the toolbox) | `Sender = Button1 · RButton` |
@@ -467,21 +468,70 @@ dark in a light theme and light in a dark one.
 as a sentence: "FontColor, colour clWindowText", "Title, empty text",
 "ColName, array 0 to 64, 65 items", "Score, whole number 42, changed".
 
-**Changing a value.** Select a value and press **F2** (or click it once
-more after selecting it). Type the new value and press **Enter**; Escape
-cancels. You can type any expression: `100`, `total * 2`, `"Hello"`. The
-program goes on with the new value. This works for local and global
-variables, array elements, the fields of TYPEs — however deep, such as
-`orders(1).Buyer.Name` — and component properties.
+An *on* or *off* property shows the number your program reads — `1` or
+`0`, never `True`: in a `.rr` program `True` is `-1` — with a quiet *on*
+or *off* after it.
 
-![Variables: total being edited, 100 typed in its place](images/debugging/set-value.png)
+**More.** Right-click a value (in Variables or Watch) for *Copy Value*
+(Ctrl+C: the whole value), *Copy Expression* (the name that reaches it,
+such as `orders(1).Buyer.Name`), *Add Watch*, *View Text…* and *Set
+Value…* (F2).
+
+### Changing a value
+
+While the program is paused you can change a value and let the program go
+on with it. Select it in **Variables** (or a value inside a watch) and
+press **F2**, double-click it, or right-click it and choose **Set Value…**.
+An editor opens over the value — only the value, the name stays as it is —
+with the value selected: type the new one and press **Enter**; **Escape**
+leaves it as it was.
+
+![Variables: total being changed, 100 typed over its value](images/debugging/set-value.png)
 
 Set `total` to `100` at the first stop, remove the breakpoint (F9) and
 press F5: Output shows `total = 112`.
 
-**More.** Right-click a value (in Variables or Watch) for *Copy Value*
-(Ctrl+C: the whole value), *Copy Expression* (the name that reaches it,
-such as `orders(1).Buyer.Name`), *Add Watch* and *View Text…*.
+What you type is checked against the kind of value first, so a slip
+never reaches your program:
+
+- **Numbers** take a number (`42`, `-3.5`, `&HFF`) or a constant's name
+  (`clRed`, `MAXORDERS`). Text where a number goes is refused, and
+  **Output** (beside Variables) says why in plain words: *total holds a
+  whole number, and abc isn't one. Type a number such as 42.* The status
+  bar says *Can't set total: see Output*, and the value stays as it was.
+
+  ![Output: total holds a whole number, and abc isn't one; the status bar: Can't set total: see Output](images/debugging/set-value-refused.png)
+- **Text** is typed as it is, without quotes: type `Grace` and the name is
+  `"Grace"`. The editor always holds the **whole** text, never the
+  shortened one a long value shows. A text longer than about 80 characters,
+  or one with line breaks, opens in a window of its own, lines and all:
+  **Set** keeps it, **Cancel** leaves it.
+
+  ![Set notes: the whole text in a window, on its three lines, with Set and Cancel](images/debugging/set-value-text.png)
+- **On / off** properties take `on` or `off` (also `yes`, `no`, `1`, `0`).
+  **True / False** values take `True` or `False` (also `yes` and `no`).
+- **A property's constants** — `Cursor`, `WindowState`, `Align` … — come as
+  a menu: the one it has now is ticked, click the one you want.
+
+  ![Set Value on the form's Cursor: a menu of crDefault, crNone, crArrow … with crDefault ticked](images/debugging/set-value-choices.png)
+- **An expression**: start with `=` and type it — `=total * 2`,
+  `=LEFT$(Name, 3)` — and it's worked out in the paused program.
+- A **colour** also takes the web's `#RRGGBB` (`#FF8000`).
+
+Some values can't be set, and Output says why: a **read-only**
+property (*Handle can't be changed: it's read-only.*), an **array** or a
+**TYPE** as a whole (open it and set its elements or fields one at a
+time), a **component** (open it and set its properties), and a credential
+(it shows as `••••` and stays unseen). This works for local and global
+variables, array elements, the fields of TYPEs — however deep, such as
+`orders(1).Buyer.Name` — and component properties such as `Form.Caption`.
+
+A value you set is **highlighted** as changed, and the status bar says
+what it is now (*total = 100 (Ctrl+Z undoes)*). **Ctrl+Z** (Edit ▸ Undo;
+⌘Z on a Mac) in Variables or Watch puts it back, one value at a time,
+while the program stays paused; once it goes on, what you set stays.
+
+![Variables after Set: total = 100, highlighted as changed; the status bar: total = 100 (Ctrl+Z undoes)](images/debugging/set-value-done.png)
 
 ### Watch
 
@@ -525,8 +575,11 @@ arrow, and Variables shows its locals.
 Type a line and press **Enter**:
 
 - `? expression` prints a value: `? total * 10` → `60`;
-- anything else runs as a statement where the program is paused:
-  `total = 0` changes `total`.
+- `name = value` sets a value as Variables does — `total = 100`,
+  `orders(1).Qty = 5`, `Form.Caption = "Shop"`: checked first (`total =
+  "abc"` is refused in the same plain words), highlighted as changed, and
+  Ctrl+Z in Variables puts it back;
+- anything else runs as a statement where the program is paused.
 
 In a `.rr` program the constants RapidQ's programs use (`mbYes`, `clRed`,
 `mrYes` …) are built in, in Immediate and in Watch too: `? mrYes` → `6`. A name
@@ -656,3 +709,5 @@ Studio in the browser.
   switch to it yourself.
 - Completion while you type in the Immediate pane.
 - Editing a value inside a data tip (F2 in Variables and Watch does it).
+- A colour picker and a font list when you set a value: for now type a
+  colour as a number, a name such as `clRed` or `#RRGGBB`.

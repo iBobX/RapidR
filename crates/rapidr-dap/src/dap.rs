@@ -147,6 +147,17 @@ pub struct SetVariableArguments {
     pub value: String,
 }
 
+/// `setExpression`: an expression that names a place (`total`, `a(2)`,
+/// `orders(1).Buyer.Name`, `Form1.Caption`) set to `value`.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetExpressionArguments {
+    pub expression: String,
+    pub value: String,
+    #[serde(default)]
+    pub frame_id: Option<i64>,
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DisconnectArguments {

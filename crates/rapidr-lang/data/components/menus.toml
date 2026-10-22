@@ -79,6 +79,7 @@ methods = [
   { name = "Popup", params = "X AS INTEGER, Y AS INTEGER" },
   { name = "Clear", value = true, origin = "rapidr" },
   { name = "Add", origin = "rapidr" },
+  { name = "PopupAt", params = "Control, X AS INTEGER, Y AS INTEGER", origin = "rapidr", effects = ["ui"], doc = "Shows the menu at (X, Y) inside Control (any component on a form), its top-left corner the origin, wherever Control sits in its window (docked, in a panel): a menu under a list's item or beside a button, where Popup takes the screen's coordinates. As with Popup, OnPopup comes first and the item picked fires its OnClick." },
 ]
 events = [
   { name = "OnPopup" },
