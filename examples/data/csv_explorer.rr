@@ -12,7 +12,6 @@
 ' chart, and the form's OnDropFiles hears the files dropped on it.
 ' shop.csv is made-up data: a small shop's year. $RESOURCE builds it into
 ' the program, so the program runs from anywhere, a browser too.
-$INCLUDE "RAPIDQ.INC"
 $RESOURCE SHOP_CSV AS "shop.csv"
 
 DECLARE SUB OpenClicked

@@ -5,8 +5,7 @@
 '
 ' An RMainMenu holds RMenuItems; an item made inside another is in its
 ' submenu. Caption "-" is a separator, "&" marks the access key.
-' RAPIDQ.INC (built in) names the constants RapidQ programs use: alClient, mrOk, …
-$INCLUDE "RAPIDQ.INC"
+' The constants RapidQ programs use (alClient, mrOk, …) are built in: no include.
 
 DECLARE SUB NewText
 DECLARE SUB QuitApp

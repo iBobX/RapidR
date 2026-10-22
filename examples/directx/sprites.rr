@@ -7,7 +7,6 @@
 ' flicker). sprites.dxg is a DelphiX image library with two pictures,
 ' "ball" and "star" (made by tools/make_example_media.py); $RESOURCE builds
 ' it into the program. Click the screen to add a ball.
-$INCLUDE "RAPIDQ.INC"
 $RESOURCE SPRITE_FILE AS "sprites.dxg"
 
 DECLARE SUB Frame

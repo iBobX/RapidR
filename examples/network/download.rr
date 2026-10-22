@@ -8,7 +8,6 @@
 ' RDownload speaks HTTP to Server:Port for File. OutDevice 2 saves into
 ' OutFile (1 keeps it in OutVar); StateDevice 2 moves its StateGauge (an
 ' RProgressBar we put on the form). LeechFile downloads, the form still answering.
-$INCLUDE "RAPIDQ.INC"
 $INCLUDE "qdownload.inc"
 
 DECLARE SUB Fetch

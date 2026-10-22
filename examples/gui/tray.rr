@@ -7,7 +7,6 @@
 ' "Hide in the tray" hides the window and adds the icon; clicking the icon
 ' brings the window back and removes it. RapidR shows the icon on Windows,
 ' macOS and Linux alike (and in a strip on a web page).
-$INCLUDE "RAPIDQ.INC"
 
 CONST NIM_ADD = 0
 CONST NIM_MODIFY = 1

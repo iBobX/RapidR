@@ -7,7 +7,6 @@
 ' Stop play a file; New, Lenght (the library's spelling) and Record record
 ' one, Save writes it. The first recording asks the system for the
 ' microphone. chime.wav was made by tools/make_example_media.py.
-$INCLUDE "RAPIDQ.INC"
 $INCLUDE "QWave.inc"
 $RESOURCE CHIME AS "chime.wav"
 

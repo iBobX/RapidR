@@ -7,7 +7,6 @@
 ' rotations), mesh builders (the shapes), lights and a camera. The screen
 ' renders the scene into its back buffer (DX.Render), then Flip shows it.
 ' cube.x was written by tools/make_example_media.py.
-$INCLUDE "RAPIDQ.INC"
 $RESOURCE CUBE_X AS "cube.x"
 
 CONST D3DRMLIGHT_AMBIENT = 0

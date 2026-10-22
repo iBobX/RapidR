@@ -114,6 +114,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
 ### Changed
+- **The `.rr` examples no longer include RAPIDQ.INC**: a RapidR program has
+  RapidQ's constants built in, so the 18 examples that still had
+  `$INCLUDE "RAPIDQ.INC"` (and the RMarkdownView snippet in the manual) lose the
+  line and run the same on every runtime; `.bas` programs and `examples/rapidq/`
+  keep it, as RapidQ needs it.
 - **RapidR's own words** (Robert, 2026-10-21): the code comments, docs,
   manual, plans, examples and Studio's help text describe RapidR in RapidR's
   own words, with no other IDEs or products as models or comparisons;

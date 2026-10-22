@@ -9,7 +9,6 @@
 ' Every eight bars a new layer joins (pad and kick, then bass, then
 ' arpeggio, then everything louder), and the last bar of each section is a
 ' snare roll. Console program: it prints what it wrote.
-$INCLUDE "RAPIDQ.INC"
 
 CONST PPQ = 480                ' ticks in a quarter note (one beat)
 CONST BAR = 1920               ' ticks in a bar of 4 beats
