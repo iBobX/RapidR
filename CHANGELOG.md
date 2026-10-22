@@ -192,6 +192,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   follows its text wrapped at spaces (`AIMeterHigh`, `AIShowUsage` in
   `ide/ai.inc`: one line is 18 pixels as before, each more adds a line).
   Flow `ai-meter-long`, in the three looks.
+- **The web conformance run has the translations**: `i18n_tr`, `i18n_trn` and
+  `i18n_broken_po` failed on the web because the page was handed no `lang/`
+  catalogs. The runner now gives a program that translates the case folder's
+  `lang/*.po` as its project files, as a web build carries them
+  (`rapidr_project::ship`).
 - **The debugger's Immediate and Watch see a `.rr` program's built-in
   constants**: `? mrYes` printed nothing while the program itself read 6. What
   the debugger compiles (Immediate, Watch, data tips, a changed value) now goes
