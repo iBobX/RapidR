@@ -47,6 +47,10 @@ pub struct Palette {
     pub glyph: u32,
     pub button_hover: u32,
     pub button_pressed: u32,
+    /// A splitter at rest: its line and grip (the theme's tokens); under
+    /// the mouse, held or given the keyboard: `splitter_hot`.
+    pub splitter: u32,
+    pub grip: u32,
     pub splitter_hot: u32,
     pub strip_tab: u32,
     pub strip_tab_hover: u32,
@@ -93,6 +97,8 @@ pub fn palette(t: &Theme) -> Palette {
             glyph: t.text,
             button_hover: t.face,
             button_pressed: t.face,
+            splitter: t.splitter,
+            grip: t.splitter_grip,
             splitter_hot: t.shadow,
             strip_tab: t.face,
             strip_tab_hover: t.light,
@@ -128,6 +134,8 @@ pub fn palette(t: &Theme) -> Palette {
             glyph: t.text,
             button_hover: 0x000000,
             button_pressed: t.accent,
+            splitter: t.splitter,
+            grip: t.splitter_grip,
             splitter_hot: t.hot_text,
             strip_tab: 0x000000,
             strip_tab_hover: 0x000000,
@@ -163,6 +171,8 @@ pub fn palette(t: &Theme) -> Palette {
         glyph: mix(t.text, t.face, 0.30),
         button_hover: if dark { mix(t.face, 0xFFFFFF, 0.12) } else { mix(t.face, 0x000000, 0.08) },
         button_pressed: if dark { mix(t.face, 0xFFFFFF, 0.18) } else { mix(t.face, 0x000000, 0.14) },
+        splitter: t.splitter,
+        grip: t.splitter_grip,
         splitter_hot: if dark { t.accent } else { t.caption },
         strip_tab: if dark { mix(t.face, 0xFFFFFF, 0.04) } else { t.window },
         strip_tab_hover: if dark { mix(t.face, 0xFFFFFF, 0.12) } else { mix(t.window, t.accent, 0.10) },
@@ -382,6 +392,81 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
     }
 }
 
+// ------------------------------------------------------------ splitters --
+
+/// How a splitter shows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SplitterLook {
+    Rest,
+    /// Under the mouse or held.
+    Hot,
+    /// Given the keyboard (the dock manager's FocusSplitter).
+    Keyboard,
+}
+
+/// The grip's length along a splitter (the keyboard's: longer), and its
+/// thickness across.
+pub const GRIP: i64 = 24;
+pub const GRIP_KEYBOARD: i64 = 40;
+pub const GRIP_THICK: i64 = 3;
+
+/// A splitter in `r` — one standing between left and right (`stands`),
+/// else lying between top and bottom — in RapidR's look: at rest a
+/// 1-pixel line along its middle and, in the middle of that, a grip (a
+/// short pill) that says "drag me", both 3:1 against what's beside them
+/// (the theme's `splitter` and `splitter_grip`); under the mouse or held,
+/// the accent's 2-pixel line and grip (today's highlight); given the
+/// keyboard, the same with a longer grip. The classic look draws only the
+/// highlight, as it always has. RDOCKMANAGER's splitters, its document
+/// area's and RSPLITTER all draw this way (one implementation).
+pub fn splitter_ops(ops: &mut Vec<Op>, r: Rect, stands: bool, p: &Palette, look: SplitterLook) {
+    let (x, y, w, h) = r;
+    let (len, thick) = if stands { (h, w) } else { (w, h) };
+    if len <= 0 || thick <= 0 {
+        return;
+    }
+    let along = |ops: &mut Vec<Op>, off: i64, t: i64, color: u32| {
+        let rect = if stands { (x + off, y, t, h) } else { (x, y + off, w, t) };
+        fill(ops, rect, color);
+    };
+    if look != SplitterLook::Rest {
+        along(ops, (thick / 2 - 1).max(0), 2.min(thick), p.splitter_hot);
+    }
+    if p.classic {
+        return;
+    }
+    if look == SplitterLook::Rest {
+        along(ops, thick / 2, 1, p.splitter);
+    }
+    // (the grip: centred on the line, along the middle)
+    let gl = (if look == SplitterLook::Keyboard { GRIP_KEYBOARD } else { GRIP }).min(len - 8);
+    if gl < 8 {
+        return;
+    }
+    let gt = GRIP_THICK.min(thick);
+    let go = (thick / 2 - 1).clamp(0, thick - gt);
+    let gs = (len - gl) / 2;
+    let rect = if stands { (x + go, y + gs, gt, gl) } else { (x + gs, y + go, gl, gt) };
+    let color = if look == SplitterLook::Rest { p.grip } else { p.splitter_hot };
+    ops.push(Op::Round { rect, radius: gt as f64 / 2.0, fill: Some(color), stroke: None, width: 0.0 });
+}
+
+/// The grip's rectangle of a splitter (where [`splitter_ops`] draws it):
+/// the keyboard's focus ring goes around it.
+pub fn grip_rect(r: Rect, stands: bool, keyboard: bool) -> Rect {
+    let (x, y, w, h) = r;
+    let (len, thick) = if stands { (h, w) } else { (w, h) };
+    let gl = (if keyboard { GRIP_KEYBOARD } else { GRIP }).min(len - 8).max(0);
+    let gt = GRIP_THICK.min(thick);
+    let go = (thick / 2 - 1).clamp(0, (thick - gt).max(0));
+    let gs = (len - gl) / 2;
+    if stands {
+        (x + go, y + gs, gt, gl)
+    } else {
+        (x + gs, y + go, gl, gt)
+    }
+}
+
 // ----------------------------------------------------------- the ground --
 
 /// The dock manager itself (under its groups): the ground, a splitter
@@ -395,11 +480,18 @@ pub fn manager_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op>
         (None, Some(Part::Manager(geometry::Hit::Splitter(i)))) => Some(*i),
         _ => None,
     };
-    if let Some(s) = hot_split.and_then(|i| g.splitters.get(i)) {
-        let (x, y, w, h) = s.rect;
-        // (a line along the middle of the gutter)
-        let r = if s.axis == super::Axis::Row { (x + w / 2 - 1, y, 2, h) } else { (x, y + h / 2 - 1, w, 2) };
-        fill(&mut ops, r, p.splitter_hot);
+    // (every splitter: its line and grip at rest, the accent's under the
+    // mouse, held or given the keyboard)
+    let keyed = m.ui.split_key.as_ref().map(|k| k.splitter);
+    for (i, s) in g.splitters.iter().enumerate() {
+        let look = if keyed == Some(i) {
+            SplitterLook::Keyboard
+        } else if hot_split == Some(i) {
+            SplitterLook::Hot
+        } else {
+            SplitterLook::Rest
+        };
+        splitter_ops(&mut ops, s.rect, s.axis == super::Axis::Row, &p, look);
     }
     for (side, r) in &g.strips {
         fill(&mut ops, *r, p.ground);
@@ -462,6 +554,13 @@ pub fn manager_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op>
 pub fn overlay_ops(m: &Manager, g: &Geometry, t: &Theme, font: &Font) -> Vec<Op> {
     let p = palette(t);
     let mut ops = Vec::new();
+    // (the splitter given the keyboard: the focus ring around its grip,
+    // over the panes beside it)
+    if let Some(s) = m.ui.split_key.as_ref().and_then(|k| g.splitters.get(k.splitter)) {
+        let (gx, gy, gw, gh) = grip_rect(s.rect, s.axis == super::Axis::Row, true);
+        let ring = (gx - 3, gy - 3, gw + 6, gh + 6);
+        ops.push(Op::Round { rect: ring, radius: if p.contrast || p.classic { 0.0 } else { 4.0 }, fill: None, stroke: Some(t.focus), width: t.focus_width });
+    }
     if let Some(f) = &g.flyout {
         let (x, y, w, h) = f.rect;
         // (a shadow falling from its open edge onto what it slides over,
@@ -872,22 +971,17 @@ pub fn documents_ops(m: &Manager, d: &Documents, t: &Theme, font: &Font) -> Vec<
         if let Some(vs) = gr.view_splitter {
             let hot = matches!(hover, Some(DocHit::ViewSplitter(a)) if a == g) || m.ui.doc_split.as_ref().is_some_and(|s| s.views_of == Some(g));
             fill(&mut ops, vs, p.ground);
-            if hot {
-                fill(&mut ops, (vs.0 + vs.2 / 2 - 1, vs.1, 2, vs.3), p.splitter_hot);
-            }
+            splitter_ops(&mut ops, vs, true, &p, if hot { SplitterLook::Hot } else { SplitterLook::Rest });
         }
         if p.contrast {
             frame(&mut ops, gr.rect, if active_group { p.accent } else { p.border }, 1);
         }
     }
-    // (the splitters between groups: hot under the mouse or held)
+    // (the splitters between groups: at rest, hot under the mouse or held)
     for (i, sp) in d.splitters.iter().enumerate() {
         let held = m.ui.doc_split.as_ref().is_some_and(|s| s.views_of.is_none() && s.splitter == i);
-        if held || hover == Some(DocHit::Splitter(i)) {
-            let (x, y, w, h) = sp.rect;
-            let r = if sp.axis == super::Axis::Row { (x + w / 2 - 1, y, 2, h) } else { (x, y + h / 2 - 1, w, 2) };
-            fill(&mut ops, r, p.splitter_hot);
-        }
+        let look = if held || hover == Some(DocHit::Splitter(i)) { SplitterLook::Hot } else { SplitterLook::Rest };
+        splitter_ops(&mut ops, sp.rect, sp.axis == super::Axis::Row, &p, look);
     }
     ops
 }

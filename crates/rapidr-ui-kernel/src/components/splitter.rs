@@ -43,16 +43,19 @@ impl ComponentKind for Splitter {
         let (w, h) = (cx.width(), cx.height());
         let t = p.theme();
         p.fill((0, 0, w, h), t.face);
-        // (a fluent theme's: no edges, the face between the panes)
         if !t.fluent() {
+            // (the classic look: RapidQ's raised bar)
             p.thin_raised((0, 0, w, h));
-        } else if cx.state.hover || cx.state.held {
-            // (RapidR's look: a line along the middle, the accent — the dock's
-            // splitters' — under the mouse or held: it says "drag me")
-            let hot = rapidr_value::dock::look::palette(t).splitter_hot;
-            let line = if vertical(cx.store, cx.id) { (0, h / 2 - 1, w, 2) } else { (w / 2 - 1, 0, 2, h) };
-            p.fill(line, hot);
+            return;
         }
+        // (RapidR's look: the dock manager's splitters' — a line along the
+        // middle and a grip at rest, the accent's under the mouse or held:
+        // it says "drag me". Its place and size are the program's.)
+        use rapidr_value::dock::look::{palette, splitter_ops, SplitterLook};
+        let look = if cx.state.hover || cx.state.held { SplitterLook::Hot } else { SplitterLook::Rest };
+        let mut ops = Vec::new();
+        splitter_ops(&mut ops, (0, 0, w, h), !vertical(cx.store, cx.id), &palette(t), look);
+        p.ops(ops);
     }
 
     /// Between two columns (or two rows): the resize pointer, `crHSplit` /

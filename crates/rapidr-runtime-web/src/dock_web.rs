@@ -46,6 +46,11 @@ impl Runtime for Web {
     fn show(self, form: &str) {
         rp_comp_call(form, "show", &[]);
     }
+    fn relayout(self, name: &str) {
+        crate::layout_web::client_changed(name);
+        crate::scroll_web::update(name);
+        rp_fire_event_args(name, "onresize", &[]);
+    }
 }
 
 /// An RDOCKMANAGER method (`None`: not one of its own).

@@ -166,6 +166,12 @@ pub struct Theme {
     pub border: u32,
     pub border_hot: u32,
     pub border_strong: u32,
+    /// A splitter at rest (a dock manager's between its panes, an
+    /// RSPLITTER's): the line along its middle and the grip in the middle
+    /// of that line that says "drag me" — 3:1 against what's on both sides
+    /// (WCAG 1.4.11). Under the mouse and held it's the accent's.
+    pub splitter: u32,
+    pub splitter_grip: u32,
 
     // ---- metrics ----
     /// Corners' radius (fluent), in pixels.
@@ -248,6 +254,9 @@ pub const CLASSIC: Theme = Theme {
     border: 0x808080,
     border_hot: 0x808080,
     border_strong: 0x404040,
+    // (the classic look draws splitters raised, as Windows did)
+    splitter: 0xA0A0A0,
+    splitter_grip: 0x696969,
     radius: 0.0,
     focus_width: 1.0,
     shadow_ink: 0x000000,
@@ -388,6 +397,9 @@ pub const RAPIDR: Theme = Theme {
     border: 0xD5DCE8,
     border_hot: 0xBCC4D6,
     border_strong: 0x8A93A6,
+    // (3.4:1 on the dock's ground, 3.7 on Paper; the grip Slate, 5:1)
+    splitter: 0x768097,
+    splitter_grip: SLATE,
     radius: 5.0,
     focus_width: 2.0,
     shadow_ink: INK,
@@ -461,6 +473,10 @@ pub const RAPIDR_DARK: Theme = Theme {
     border: ink(150),
     border_hot: ink(220),
     border_strong: 0x7D879E,
+    // (3.8:1 on the dock's ground, 3.5 on the face; the grip the
+    // secondary text's grey, 7:1)
+    splitter: 0x6B7590,
+    splitter_grip: 0x9CA5BA,
     radius: 5.0,
     focus_width: 2.0,
     shadow_ink: 0x000000,
@@ -534,6 +550,8 @@ pub const RAPIDR_HIGH_CONTRAST: Theme = Theme {
     border: 0xFFFFFF,
     border_hot: 0xFFFF00,
     border_strong: 0xFFFFFF,
+    splitter: 0xFFFFFF,
+    splitter_grip: 0xFFFFFF,
     radius: 4.0,
     focus_width: 3.0,
     shadow_ink: 0x000000,
@@ -940,6 +958,8 @@ impl Theme {
             border,
             border_hot,
             border_strong,
+            splitter,
+            splitter_grip,
             radius: _,
             focus_width: _,
             shadow_ink,
@@ -1003,6 +1023,8 @@ impl Theme {
             ("border", border),
             ("border_hot", border_hot),
             ("border_strong", border_strong),
+            ("splitter", splitter),
+            ("splitter_grip", splitter_grip),
             ("elevation", shadow_ink),
         ]
     }
@@ -1071,6 +1093,12 @@ mod tests {
             // accent show: 3:1, WCAG's non-text contrast — RapidR's look)
             if t.fluent() {
                 for (what, fg, bg) in [("disabled", t.gray_text, t.face), ("focus", t.focus, t.face), ("rim", t.border_strong, t.window), ("accent", t.accent, t.face)] {
+                    assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
+                }
+                // (a splitter at rest — its line and its grip — shows
+                // against what's on both sides of it: a panel, a field;
+                // the dock's own grounds: dock::look's test)
+                for (what, fg, bg) in [("splitter on face", t.splitter, t.face), ("splitter on window", t.splitter, t.window), ("grip on face", t.splitter_grip, t.face), ("grip on window", t.splitter_grip, t.window)] {
                     assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
                 }
                 // (an inactive window's title: still text)

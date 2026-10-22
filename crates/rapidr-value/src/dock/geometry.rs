@@ -13,6 +13,9 @@ use crate::objects::text::text_size;
 
 /// Between two docked neighbours: the splitter you drag.
 pub const GAP: i64 = 4;
+/// How far past a splitter's gutter, each way, the mouse still takes it
+/// (over the panes' edges): 8 pixels in all for the 4 of the gutter.
+pub const GRAB: i64 = 2;
 /// The least a docked group is along a split.
 pub const MIN_EXTENT: i64 = 60;
 /// A group's header (its title or tabs, its buttons).
@@ -521,8 +524,16 @@ impl Geometry {
         if let Some(t) = self.strip_tabs.iter().find(|t| inside(&t.rect)) {
             return Some(Hit::Strip(t.pane.clone()));
         }
-        // (a splitter: its gap, a pixel more each way to grab)
-        self.splitters.iter().position(|s| inside(&(s.rect.0 - 1, s.rect.1 - 1, s.rect.2 + 2, s.rect.3 + 2))).map(Hit::Splitter)
+        // (a splitter: its gap, GRAB pixels more each way across it — over
+        // the panes' edges: the kernel gives the dock manager the mouse
+        // there — but not past its ends)
+        self.splitters
+            .iter()
+            .position(|s| {
+                let r = if s.axis == Axis::Row { (s.rect.0 - GRAB, s.rect.1, s.rect.2 + 2 * GRAB, s.rect.3) } else { (s.rect.0, s.rect.1 - GRAB, s.rect.2, s.rect.3 + 2 * GRAB) };
+                inside(&r)
+            })
+            .map(Hit::Splitter)
     }
 
     /// The areas a dragged pane can go into or beside, with the compass

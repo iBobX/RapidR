@@ -1812,6 +1812,95 @@ const CASES = [
     dump: { "codedoc(0).canundo": /^(0|False)$/i, "codedoc(0).text": /CREATE Form AS QFORM/ },
     same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
   },
+  // ---- S8 / S9: the panes at start-up; the editing and debugging layouts ----
+  // (S8) Studio started maximized (the window's size given after the panes
+  // were placed, as a restored or scaled window at start-up): the
+  // Breakpoints pane's list and its strip fill the pane, the Welcome page
+  // its document — before any resize
+  {
+    name: "layout-startup-fills",
+    desktopArgs: ["--maximized"],
+    maximized: true,
+    viewport: { width: 1600, height: 1000 },
+    do: "wait,focus:bppanel,wait",
+    delay: 4,
+    capture: true,
+    dump: { "bppanel.width": /^\d+$/, "bptree.width": /^\d+$/, "bpstrip.width": /^\d+$/, "bppanel.height": /^\d+$/, "bpstrip.top": /^\d+$/, "bpstrip.height": /^\d+$/, "welcome.width": /^\d+$/, "welcomepage.width": /^\d+$/, "studio.width": /^\d+$/ },
+    checks: [
+      (d) => [+d["bptree.width"] === +d["bppanel.width"] && +d["bpstrip.width"] === +d["bppanel.width"], `Breakpoints' list and strip fill its width (${d["bptree.width"]}, ${d["bpstrip.width"]} of ${d["bppanel.width"]})`],
+      (d) => [+d["bpstrip.top"] + +d["bpstrip.height"] === +d["bppanel.height"], `its strip at its bottom (${d["bpstrip.top"]} + ${d["bpstrip.height"]} of ${d["bppanel.height"]})`],
+      (d) => [+d["bppanel.width"] > 900, `the bottom panel spans the maximized window's documents (${d["bppanel.width"]} wide of ${d["studio.width"]})`],
+      (d) => [Math.abs(+d["welcomepage.width"] - +d["welcome.width"]) <= 17, `the Welcome page fills its document (${d["welcomepage.width"]} of ${d["welcome.width"]})`],
+    ],
+  },
+  {
+    // (S9) Editing: the bottom panel is one group the documents' width —
+    // Output, Immediate, Breakpoints —, the debug panes hidden
+    name: "layout-editing",
+    do: "wait",
+    delay: 3,
+    dump: { "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree[^\n]*watchpanel[^\n]*stacktree/, "outputbox.width": /^\d+$/ },
+    checks: [(d) => [+d["outputbox.width"] >= 780, `Output the documents' whole width (${d["outputbox.width"]})`]],
+  },
+  {
+    // (S9) A run with the debugger: the debugging layout — Variables,
+    // Watch, Call Stack, Breakpoints beside Output —, Variables in front at
+    // the pause, the editor at the paused line
+    name: "layout-debug-paused",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "session.state": /^paused$/,
+      "dock.layout": /split row\n\s+\d+ tabs \d+ outputbox immediatebox\n\s+\d+ tabs 0 varstree watchpanel stacktree bppanel\n/,
+      "varstree.visible": /^-1$/,
+      "watchpanel.visible": /^0$/,
+      "varstree.text": /^Locals/,
+    },
+  },
+  {
+    // (S9) …and when the program ends, the editing layout again; View >
+    // Debug Panes (Ctrl+Shift+D) brings them back by hand, and they stay
+    name: "layout-debug-ends",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "session.state": /^stopped$/,
+      "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree/,
+      "outputbox.text": /ended, exit code 0/,
+    },
+  },
+  {
+    // (S9) Each layout keeps its own sizes, across a restart: the bottom
+    // panel 260 high while editing; 330 high, the debug panes 420 wide
+    // while debugging
+    name: "layout-sizes-kept",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    desktopOnly: true,
+    do: "extent:outputbox:height:260,line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,extent:outputbox:height:330,extent:varstree:width:420,wait,wait,wait,run.stop,wait,wait,wait,wait",
+    delay: 9,
+    restart: { do: "wait,wait,wait,run.start,wait,wait,wait,wait", delay: 6 },
+    dump: {
+      "session.state": /^paused$/,
+      "dock.layout": /^\s+330 split row\n\s+\d+ tabs \d+ outputbox immediatebox\n\s+420 tabs 0 varstree/m,
+    },
+  },
+  {
+    // (S9) …and the editing layout's, started again
+    name: "layout-sizes-kept-editing",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    desktopOnly: true,
+    do: "extent:outputbox:height:260,line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,extent:outputbox:height:330,wait,wait,wait,run.stop,wait,wait,wait,wait",
+    delay: 9,
+    restart: { do: "wait,wait", delay: 3 },
+    dump: { "dock.layout": /^\s+260 tabs \d+ outputbox immediatebox bppanel$/m },
+  },
   // ---- S-DEBUG: running and debugging (docs/studio-wow.md RUN / DBG) ----
   // counter.rr includes tally.inc (AddUp, the SUB stepped into); oops.rr
   // divides by zero in a SUB. `line:N` puts the caret on line N, F9 sets a
@@ -2027,8 +2116,9 @@ const CASES = [
   },
   {
     // the whole paused session, to look at (docs/studio-wow.md DBG): into
-    // AddUp in tally.inc, two steps; the Call Stack in the toolbox's place
-    // beside Variables, the line marked, a data tip on total
+    // AddUp in tally.inc, two steps; the Call Stack one of the debug panes
+    // beside Output (S9's debugging layout), the line marked, a data tip on
+    // total
     name: "debug-paused-session",
     open: "tests/fixtures/studio_debug/counter.rr",
     webFiles: DEBUG_FILES,
@@ -2041,7 +2131,7 @@ const CASES = [
       "codedoc(1).datatiptext": /^total = 0$/,
       "stacktree.text": /^AddUp\s+tally\.inc:4\n\(the program\)\s+counter\.rr:6$/,
       "varstree.text": /^Locals\n\tn = 1\n\tk = 0\nGlobals\n\ti = 1\n\ttotal = 0\nComponents$/,
-      "dock.layout": /^    180 tabs 0 stacktree$/m,
+      "dock.layout": /^\s+\d+ tabs 0 varstree watchpanel stacktree bppanel$/m,
     },
   },
   {
@@ -3570,7 +3660,7 @@ function runDesktop(c, scale = 1) {
     if (c.installedWritable) writeFileSync(join(home, "release.toml"), 'version = "0.0.0"\nrust = "1.0.0"\nkind = "sdk"\n');
     else writableTree(home, false);
   }
-  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light"];
+  const args = ["run", "ide/studio.rr", "--home", home, "--fresh", "--theme", c.theme || "rapidr-light", ...(c.desktopArgs || [])];
   // (R-NAMES: a RapidQ program's folder copied here, imported from there —
   // the import writes its copy beside it; {dir}: the case's own folder —
   // a new project goes there)
@@ -3862,6 +3952,19 @@ const check = (label, run, c) => {
       ok ? passed++ : failed++;
       console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): a11y ${role || "node"} ${name}${state ? ` (${state})` : ""}${ok ? "" : ` — not in the tree (${nodes.length} nodes; ${nodes.filter((n) => (n.states || []).includes("focused")).map((n) => `${n.role} "${n.name}"`).join(", ") || "nothing"} focused)`}`);
     }
+  }
+  // (S8 / S9: what the dumped values say together — a pane's controls
+  // filling it, a size kept — each `(dump) => [ok, what]`)
+  for (const check of c.checks || []) {
+    let ok = false;
+    let what = String(check);
+    try {
+      [ok, what] = check(dump);
+    } catch (e) {
+      what = `${what}: ${e.message}`;
+    }
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (${label}): ${what}`);
   }
   for (const [k, file] of Object.entries(c.same || {})) {
     const want = readFileSync(join(ROOT, file), "utf8").replace(/\r\n/g, "\n").replace(/\n+$/, "");

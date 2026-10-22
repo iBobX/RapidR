@@ -156,6 +156,30 @@ pub struct KeyMove {
     pub guide: Guide,
 }
 
+/// A splitter given the keyboard (FocusSplitter): its index in the
+/// geometry, and the component the keyboard goes back to after.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SplitKey {
+    pub splitter: usize,
+    pub back: Option<String>,
+}
+
+/// What a key did to the splitter that has the keyboard
+/// ([`Manager::split_key`]).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SplitKeyStep {
+    /// The key was the splitter's (else it goes on to the focused component).
+    pub took: bool,
+    /// The splitter moved: the split's new extents.
+    pub moved: Option<User>,
+    /// The keyboard leaves the splitter (Enter, Escape, another key).
+    pub leave: bool,
+}
+
+/// How far an arrow moves a splitter given the keyboard, and Shift+arrow.
+pub const SPLIT_STEP: i64 = 10;
+pub const SPLIT_JUMP: i64 = 50;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ui {
     pub hover: Option<Part>,
@@ -165,6 +189,8 @@ pub struct Ui {
     pub moving: Option<KeyMove>,
     pub doc_drag: Option<DocDrag>,
     pub doc_split: Option<DocSplitDrag>,
+    /// A splitter given the keyboard.
+    pub split_key: Option<SplitKey>,
 }
 
 /// An event for the program (OnPaneChange (Name), OnDocumentActivate
@@ -1250,5 +1276,178 @@ impl Manager {
         ext[b] -= delta;
         let _ = flex;
         Some(ext)
+    }
+
+    /// Splitter `i`'s split's extents as laid out now.
+    pub fn split_now(&mut self, i: usize) -> Option<Vec<i64>> {
+        let g = self.geometry();
+        let s = g.splitters.get(i)?;
+        g.extents.iter().find(|(p, _)| *p == s.path).map(|(_, e)| e.clone())
+    }
+
+    /// Splitter `i` moved `delta` pixels from where it is: the user's step
+    /// (`None`: it can't move).
+    pub fn split_by(&mut self, i: usize, delta: i64) -> Option<User> {
+        let start = self.split_now(i)?;
+        let extents = self.split_extents(i, &start, delta)?;
+        (extents != start).then_some(User::Split { splitter: i, extents, done: true })
+    }
+
+    /// Splitter `i` where it is by default (a double click on it): the two
+    /// panes beside it as the layout AddPane made them has them, at this
+    /// size — matched by the panes on each side; a split the default
+    /// layout hasn't, its two sides shared evenly.
+    pub fn split_default(&mut self, i: usize) -> Option<User> {
+        let g = self.geometry().clone();
+        let s = g.splitters.get(i)?.clone();
+        let now = g.extents.iter().find(|(p, _)| *p == s.path)?.1.clone();
+        let Some(Node::Split { children, .. }) = self.layout.root.at(&s.path) else { return None };
+        let side = |n: &Node| -> (Vec<String>, bool) {
+            let mut v = Vec::new();
+            n.panes(&mut v);
+            (v, n.has_documents())
+        };
+        let (a, b) = (side(&children[s.index]), side(&children[s.index + 1]));
+        // (the default layout at this size: a copy of this manager reset)
+        let mut d = self.clone();
+        d.ui = Ui::default();
+        let _ = d.reset();
+        let dg = d.geometry().clone();
+        let shares = |n: &Node, want: &(Vec<String>, bool)| {
+            let (v, docs) = side(n);
+            (want.1 && docs) || want.0.iter().any(|p| v.contains(p))
+        };
+        let mut want_a = None;
+        for (path, ext) in &dg.extents {
+            let Some(Node::Split { axis, children: dc, .. }) = d.layout.root.at(path) else { continue };
+            if *axis != s.axis {
+                continue;
+            }
+            for k in 0..dc.len().saturating_sub(1) {
+                if shares(&dc[k], &a) && shares(&dc[k + 1], &b) && !shares(&dc[k], &b) && !shares(&dc[k + 1], &a) {
+                    // (the share the first side had of the two)
+                    let pair = ext[k] + ext[k + 1];
+                    let mine = now[s.index] + now[s.index + 1];
+                    want_a = Some(if pair > 0 { ext[k] * mine / pair } else { mine / 2 });
+                }
+            }
+        }
+        let want_a = want_a.unwrap_or((now[s.index] + now[s.index + 1]) / 2);
+        self.split_by(i, want_a - now[s.index])
+    }
+
+    /// FocusSplitter: the splitter beside `pane`'s group (or the document
+    /// area, for a document), else the first, takes the keyboard. Whether
+    /// there is one.
+    pub fn focus_splitter(&mut self, pane: Option<&str>) -> bool {
+        let g = self.geometry().clone();
+        if g.splitters.is_empty() {
+            self.ui.split_key = None;
+            return false;
+        }
+        let pane = pane.map(str::to_ascii_lowercase);
+        // (the splitter that resizes its group: in the nearest split around
+        // it, the one before it — above, left —, else the one after)
+        let path = pane.as_deref().and_then(|p| match self.layout.root.path_of(p) {
+            Some(path) => Some(path),
+            None if self.layout.documents.iter().any(|d| d == p) => self.layout.root.documents_path(),
+            None => None,
+        });
+        let near = path.and_then(|path| {
+            (1..=path.len()).rev().find_map(|k| {
+                let (parent, i) = (&path[..k - 1], path[k - 1]);
+                let at = |index: usize| g.splitters.iter().position(|s| s.path == parent && s.index == index);
+                i.checked_sub(1).and_then(at).or_else(|| at(i))
+            })
+        });
+        let back = self.ui.split_key.as_ref().and_then(|k| k.back.clone());
+        self.ui.split_key = Some(SplitKey { splitter: near.unwrap_or(0), back });
+        true
+    }
+
+    /// A key while a splitter has the keyboard: the arrows move it
+    /// [`SPLIT_STEP`] pixels (Shift: [`SPLIT_JUMP`]) — left and up toward
+    /// its start, right and down toward its end —, Home and End to its
+    /// least and its most, Tab and Shift+Tab the next and the previous
+    /// splitter, Enter and Escape leave it; any other key leaves it too,
+    /// and goes on to the component it goes back to.
+    pub fn split_key(&mut self, vk: i64, shift: bool) -> SplitKeyStep {
+        let Some(k) = self.ui.split_key.clone() else { return SplitKeyStep::default() };
+        let n = self.geometry().splitters.len();
+        if k.splitter >= n {
+            self.ui.split_key = None;
+            return SplitKeyStep { took: false, moved: None, leave: true };
+        }
+        let step = if shift { SPLIT_JUMP } else { SPLIT_STEP };
+        let delta = match vk {
+            37 | 38 => Some(-step),
+            39 | 40 => Some(step),
+            // (Home / End: as far as it goes)
+            36 => Some(-100_000),
+            35 => Some(100_000),
+            _ => None,
+        };
+        if let Some(d) = delta {
+            return SplitKeyStep { took: true, moved: self.split_by(k.splitter, d), leave: false };
+        }
+        match vk {
+            9 => {
+                let next = if shift { (k.splitter + n - 1) % n } else { (k.splitter + 1) % n };
+                self.ui.split_key = Some(SplitKey { splitter: next, ..k });
+                SplitKeyStep { took: true, moved: None, leave: false }
+            }
+            13 | 27 => SplitKeyStep { took: true, moved: None, leave: true },
+            // (a modifier alone: still the splitter's)
+            16 | 17 | 18 | 91 | 92 | 93 => SplitKeyStep { took: false, moved: None, leave: false },
+            _ => SplitKeyStep { took: false, moved: None, leave: true },
+        }
+    }
+
+    /// Where a docked pane's width (`axis` Row) or height (Column) is
+    /// decided: the nearest split around its group laying its children
+    /// out along `axis`, and which child of it holds the pane.
+    fn pane_split(&self, pane: &str, axis: Axis) -> Option<(Vec<usize>, usize)> {
+        let path = self.layout.root.path_of(&pane.to_ascii_lowercase())?;
+        (1..=path.len()).rev().find_map(|k| {
+            let parent = &path[..k - 1];
+            match self.layout.root.at(parent) {
+                Some(Node::Split { axis: a, .. }) if *a == axis => Some((parent.to_vec(), path[k - 1])),
+                _ => None,
+            }
+        })
+    }
+
+    /// PaneExtent: the width (`axis` Row) or height (Column) a docked
+    /// pane's group has — in the nearest split that lays panes out that
+    /// way, the part holding it (a bottom pane's height is the whole
+    /// bottom panel's, beside the documents) — `None`: no such split.
+    pub fn pane_extent(&mut self, pane: &str, axis: Axis) -> Option<i64> {
+        let (parent, i) = self.pane_split(pane, axis)?;
+        let g = self.geometry();
+        g.extents.iter().find(|(p, _)| *p == parent).and_then(|(_, e)| e.get(i).copied())
+    }
+
+    /// PaneExtent with a size: that part that extent, its neighbour across
+    /// the splitter after it (else before it) giving or taking the room —
+    /// each side kept at its least.
+    pub fn set_pane_extent(&mut self, pane: &str, axis: Axis, extent: i64) -> Outcome {
+        let Some((parent, i)) = self.pane_split(pane, axis) else { return Outcome::default() };
+        let Some(now) = self.pane_extent(pane, axis) else { return Outcome::default() };
+        let g = self.geometry().clone();
+        let after = g.splitters.iter().position(|s| s.path == parent && s.index == i);
+        let before = (i > 0).then(|| g.splitters.iter().position(|s| s.path == parent && s.index == i - 1)).flatten();
+        let step = match (after, before) {
+            (Some(s), _) => self.split_by(s, extent - now),
+            (None, Some(s)) => self.split_by(s, now - extent),
+            _ => None,
+        };
+        match step {
+            Some(u) => {
+                let mut out = self.user(u);
+                out.changed = true;
+                out
+            }
+            None => Outcome::default(),
+        }
     }
 }

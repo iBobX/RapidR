@@ -90,6 +90,18 @@ CREATE SettingsDialog AS RForm
       AccessibleName = "The themes and views, in the command palette"
       OnClick = SettingsViews
     END CREATE
+    ' (S9: the debugging layout — debug.inc)
+    CREATE DebugPanesLabel AS RLabel
+      Caption = "&Debug panes:"
+    END CREATE
+    CREATE DebugPanesBox AS RComboBox
+      Style = 2
+      AccessibleName = "Debug panes"
+    END CREATE
+    CREATE DebugPanesNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+      Caption = "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
+    END CREATE
   END CREATE
   ' ---- AI ----
   CREATE AIPage AS RPanel
@@ -249,6 +261,13 @@ SUB LayOutSettingsDialog
   IncRemove.Left = pad + w - side: IncRemove.Top = y + bh + 8: IncRemove.Width = side: IncRemove.Height = bh
   y = y + lh + pad
   SettingsViewsBtn.Left = pad: SettingsViewsBtn.Top = y: SettingsViewsBtn.Width = side + 40: SettingsViewsBtn.Height = bh
+  y = y + bh + pad
+  DebugPanesLabel.Left = pad: DebugPanesLabel.Top = y + 5: DebugPanesLabel.Width = 108
+  DebugPanesLabel.Font.Bold = 1
+  DebugPanesBox.Left = pad + 112: DebugPanesBox.Top = y: DebugPanesBox.Width = 160
+  y = y + row
+  DebugPanesNote.Left = pad: DebugPanesNote.Top = y: DebugPanesNote.Width = w: DebugPanesNote.Height = 36
+  DebugPanesNote.Font.Color = TC("page.dim")
 
   ' ---- AI ----
   lx = pad: fx = pad + 112: fw = w - 112
@@ -342,6 +361,14 @@ SUB ShowSettingsPage(k AS INTEGER)
     IF f <> "" THEN IncFolders.AddItems f
   NEXT
   SettingsPicked
+  ' (S9: Debug panes, as it is now)
+  DebugPanesBox.Clear
+  DebugPanesBox.AddItems "Automatic", "Always", "Never"
+  SELECT CASE DebugPanesMode
+    CASE "always": DebugPanesBox.ItemIndex = 1
+    CASE "never": DebugPanesBox.ItemIndex = 2
+    CASE ELSE: DebugPanesBox.ItemIndex = 0
+  END SELECT
   AISettingsFill
   SettingsTabs.TabIndex = k
   SettingsTabChanged
@@ -392,6 +419,12 @@ SUB SettingsOk
     all = all + IncFolders.Item(i)
   NEXT
   SetIncludeFolders all
+  ' (S9: Debug panes)
+  SELECT CASE DebugPanesBox.ItemIndex
+    CASE 1: SetDebugPanesMode "always"
+    CASE 2: SetDebugPanesMode "never"
+    CASE ELSE: SetDebugPanesMode "auto"
+  END SELECT
   AISettingsTake
   SettingsDialog.Close
   SaveSettings

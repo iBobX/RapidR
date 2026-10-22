@@ -108,6 +108,118 @@ fn the_splitter_is_hot_under_the_mouse_in_rapidrs_look() {
     assert_ne!(rest, hot, "a line along the splitter's middle");
     f.mouse_move(&s, &mut ts, 20.5, 50.5, NONE);
     assert_eq!(f.paint(&s, &mut ts, 1.0).dump(), rest, "and gone when the mouse leaves");
+    // (at rest it shows: a line along it and a grip, the theme's tokens —
+    // the dock's splitters' look, one implementation)
+    let t = &rapidr_value::theme::RAPIDR;
+    assert!(rest.contains(&format!("#{:06x}", t.splitter)), "the line at rest:\n{rest}");
+    assert!(rest.contains(&format!("#{:06x}", t.splitter_grip)), "the grip at rest:\n{rest}");
+    // (its place and size are the program's: unchanged)
+    assert_eq!((f.node("vs").unwrap().abs.0, f.node("vs").unwrap().abs.2), (100, 6));
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+}
+
+/// A dock manager with its groups and panes as the runtime places them:
+/// Left | (documents / Output), 800 × 500, in RapidR's look.
+fn docked(tag: &str) -> (MemStore, rapidr_value::dock::geometry::Geometry) {
+    use rapidr_value::dock::{geometry::Slot, manager};
+    rapidr_value::theme::set(&rapidr_value::theme::RAPIDR);
+    let (form, dock) = (format!("{tag}f"), format!("{tag}k"));
+    let mut s = MemStore::new();
+    s.add(&form, "RFORM", None);
+    s.add(&dock, "RDOCKMANAGER", Some(&form));
+    place(&mut s, &dock, (0, 0, 800, 500));
+    manager::with_mut(&dock, |m| {
+        m.resize((800, 500), &rapidr_value::objects::font::Font::default());
+        m.add_pane(&format!("{tag}left"), "Left", "left", "");
+        m.add_pane(&format!("{tag}out"), "Output", "bottom:documents", "");
+        m.layout.mode = rapidr_value::dock::DocumentMode::Tabs;
+        m.touch();
+    });
+    let g = manager::with_mut(&dock, |m| m.geometry().clone());
+    for (k, gr) in g.groups.iter().enumerate() {
+        let name = format!("{dock}__{}", Slot::Docked(k).suffix());
+        s.add(&name, "RDOCKGROUP", Some(&dock)).set(&name, "__dock", v_str(&dock)).set(&name, "__slot", v_str(&Slot::Docked(k).suffix()));
+        place(&mut s, &name, gr.rect);
+        // (each pane a field filling its group: it takes the keyboard)
+        let pane = gr.panes[gr.active].clone();
+        s.add(&pane, "REDIT", Some(&name));
+        place(&mut s, &pane, gr.content);
+    }
+    (s, g)
+}
+
+#[test]
+fn a_dock_splitter_is_grabbed_over_the_edges_of_the_panes_beside_it() {
+    use rapidr_value::dock::manager::User;
+    use rapidr_value::dock::Axis;
+    let (s, g) = docked("ga");
+    let (mut f, mut ts) = built(&s, "gaf");
+    let sp = g.splitters.iter().find(|sp| sp.axis == Axis::Row).unwrap().clone();
+    let y = sp.rect.1 + sp.rect.3 / 2;
+    // (8 pixels: 2 over the left pane, the gutter's 4, 2 over the right one)
+    for x in sp.rect.0 - 2..sp.rect.0 + sp.rect.2 + 2 {
+        assert_eq!(at(&mut f, &s, &mut ts, x, y), Cursor::ColResize, "x {x}");
+    }
+    assert_eq!(at(&mut f, &s, &mut ts, sp.rect.0 - 3, y), Cursor::IBeam, "the pane's own beyond");
+    // (a drag from over the pane's edge moves the splitter 40 pixels)
+    let (x0, y0) = ((sp.rect.0 - 2) as f64 + 0.5, y as f64 + 0.5);
+    f.mouse_down(&s, &mut ts, x0, y0, Button::Left, NONE);
+    f.mouse_move(&s, &mut ts, x0 + 40.0, y0, NONE);
+    f.mouse_up(&s, &mut ts, x0 + 40.0, y0, Button::Left, NONE);
+    let moved = f.take_events().into_iter().any(|e| match e {
+        crate::KernelEvent::Container(crate::components::form::Container::Dock { action: User::Split { extents, done: true, .. }, .. }) => extents[0] == g.extents.iter().find(|(p, _)| *p == sp.path).unwrap().1[0] + 40,
+        _ => false,
+    });
+    assert!(moved, "the split's new extents, let go");
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+}
+
+#[test]
+fn a_dock_splitter_takes_the_keyboard_and_gives_it_back() {
+    use rapidr_value::dock::manager::{self, User, SPLIT_JUMP, SPLIT_STEP};
+    use rapidr_value::dock::Axis;
+    let (s, g) = docked("gb");
+    let (mut f, mut ts) = built(&s, "gbf");
+    // (the keyboard in Output's field, then FocusSplitter beside it: the
+    // splitter above Output, the dock manager holding the keyboard)
+    assert!(f.focus_id(&s, "gbout"));
+    assert!(manager::with_mut("gbk", |m| m.focus_splitter(Some("gbout"))));
+    assert!(f.focus_id(&s, "gbk"), "the dock manager takes the keyboard while a splitter has it");
+    let k = manager::with("gbk", |m| m.ui.split_key.clone()).flatten().unwrap();
+    assert_eq!(k.back.as_deref(), Some("gbout"), "where it goes back to");
+    assert_eq!(g.splitters[k.splitter].axis, Axis::Column);
+    let mods = |shift| crate::Mods { shift, ..NONE };
+    let step = |f: &mut crate::FormUi| {
+        f.take_events().into_iter().find_map(|e| match e {
+            crate::KernelEvent::Container(crate::components::form::Container::Dock { action: User::Split { extents, .. }, .. }) => Some(extents),
+            _ => None,
+        })
+    };
+    let start = g.extents.iter().find(|(p, _)| *p == g.splitters[k.splitter].path).unwrap().1.clone();
+    let mut clip = crate::input::MemClipboard(None);
+    // (Down: 10 pixels; Shift+Up: 50 back)
+    f.key_down(&s, &mut ts, 40, "", mods(false), &mut clip);
+    assert_eq!(step(&mut f).unwrap()[0], start[0] + SPLIT_STEP);
+    f.key_down(&s, &mut ts, 38, "", mods(true), &mut clip);
+    assert_eq!(step(&mut f).unwrap()[0], start[0] - SPLIT_JUMP, "(from where the model has it)");
+    // (drawn as given the keyboard: the focus ring over it)
+    let shown = f.paint(&s, &mut ts, 1.0).dump();
+    assert!(shown.contains(&format!("#{:06x}", rapidr_value::theme::RAPIDR.focus)), "the focus ring");
+    // (the screen reader's focus on the splitter, its value a percentage)
+    fn focused(n: &rapidr_value::objects::a11y::AccessNode) -> Option<rapidr_value::objects::a11y::AccessNode> {
+        if n.states.focused {
+            return Some(n.clone());
+        }
+        n.children.iter().find_map(focused)
+    }
+    let tree = f.access_tree(&s, &mut ts);
+    let sp = focused(&tree).expect("a focused node");
+    assert_eq!(sp.role, rapidr_value::objects::a11y::Role::Splitter, "{sp:?}");
+    assert!(sp.value.as_deref().is_some_and(|v| v.ends_with('%')), "{:?}", sp.value);
+    // (Escape: the keyboard back in the field it came from)
+    f.key_down(&s, &mut ts, 27, "", mods(false), &mut clip);
+    assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("gbout"));
+    assert!(manager::with("gbk", |m| m.ui.split_key.is_none()).unwrap());
     rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
 }
 

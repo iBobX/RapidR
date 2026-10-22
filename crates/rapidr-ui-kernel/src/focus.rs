@@ -126,6 +126,12 @@ impl FormUi {
                 }
                 self.left(old);
             }
+            // (a dock manager's splitter given the keyboard: where it goes
+            // back to; the keyboard gone elsewhere, the splitter lets go —
+            // components/dock.rs)
+            let old_id = self.focus.filter(|&o| o < self.nodes.len()).map(|o| (self.nodes[o].id.clone(), self.nodes[o].type_name.clone()));
+            let new_id = i.filter(|&n| n < self.nodes.len()).map(|n| (self.nodes[n].id.clone(), self.nodes[n].type_name.clone()));
+            crate::components::dock::focus_moved(old_id.as_ref().map(|(a, b)| (a.as_str(), b.as_str())), new_id.as_ref().map(|(a, b)| (a.as_str(), b.as_str())));
             if let Some(new) = i {
                 self.entered(new);
             }

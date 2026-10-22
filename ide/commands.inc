@@ -129,6 +129,8 @@ SUB DefineCommands
   AddCmd "view.watch", "W&atch", "View", "", "", "", "debug.addWatch"
   AddCmd "view.callStack", "Call &Stack", "View", "", "", "", "RCALLSTACKVIEW"
   AddCmd "view.breakpoints", "&Breakpoints", "View", "", "", "", "RBREAKPOINTLIST"
+  ' (S9: the debugging layout now — shown by hand it stays: debug.inc)
+  AddCmd "view.debugPanes", "&Debug Panes", "View", "Ctrl+Shift+D", "", "", "RVARIABLESVIEW"
   AddCmd "view.welcome", "&Welcome Page", "View", "", "", "", "help"
   AddCmd "ai.assistant", "&AI Assistant", "View", "Ctrl+I", "", "", ""
   AddSep "View"
@@ -244,6 +246,9 @@ SUB DefineCommands
   AddCmd "window.next", "&Next Document", "Window", "", "Ctrl+Tab", "document", "nav.forward"
   AddCmd "window.previous", "&Previous Document", "Window", "", "Ctrl+Shift+Tab", "document", "nav.back"
   AddCmd "window.nextArea", "Next &Area", "Window", "", "F6", "", "-"
+  ' (the keyboard to the splitter beside the active pane: arrows move it,
+  ' Tab the next one, Enter or Escape back — RDOCKMANAGER's FocusSplitter)
+  AddCmd "window.resizePanes", "&Resize Panes", "Window", "Ctrl+F6", "", "", "-"
   AddSep "Window"
   AddCmd "file.closeAll", "Close &All Documents", "Window", "", "", "document", ""
 

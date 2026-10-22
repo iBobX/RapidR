@@ -45,6 +45,11 @@ impl Runtime for Desktop {
     fn show(self, form: &str) {
         rp_comp_call(form, "show", &[]);
     }
+    fn relayout(self, name: &str) {
+        crate::layout::client_changed(name);
+        crate::scroll::update(name);
+        rp_fire_event_args(name, "onresize", &[]);
+    }
 }
 
 /// An RDOCKMANAGER method (`None`: not one of its own).

@@ -684,6 +684,8 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `ClosePane(Name AS STRING)` | Closes a document (OnDocumentClose may cancel) or hides a tool pane. |
 | `DockPane(Name AS STRING, Where AS STRING)` | Docks a pane where Where says (AddPane's places). |
 | `MovePane(Name AS STRING) AS INTEGER` | Starts moving a pane from the keyboard with the docking compass. |
+| `FocusSplitter([Name AS STRING]) AS INTEGER` | Gives the keyboard to a splitter: the one beside the pane named (else beside the active pane or document, else the first). The arrows move it 10 pixels, Shift+arrows 50, Home and End take it as far as it goes each way, Tab and Shift+Tab go to the next and the previous splitter, Enter or Escape gives the keyboard back. A screen reader hears it as a separator whose value is a percentage. True when there was a splitter. |
+| `PaneExtent(Name AS STRING, Direction AS STRING, [Extent AS INTEGER]) AS INTEGER` | A docked pane's width (Direction "width") or height ("height") in pixels: in the nearest split that lays panes out that way, the part holding it (a pane at the bottom's height is the whole bottom panel's). With Extent, that part gets that size and its neighbour gives or takes the room, each kept at its least. 0 when the pane isn't docked in such a split. |
 | `SaveLayout AS STRING` | The layout as text, for LoadLayout. |
 | `LoadLayout(Text AS STRING) AS INTEGER` | Restores a layout SaveLayout gave; True when it was read. |
 | `ResetLayout` | Puts every pane back where AddPane placed it. |

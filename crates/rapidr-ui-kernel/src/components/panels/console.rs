@@ -598,6 +598,38 @@ impl ComponentKind for Console {
         "ROUTPUTCONSOLE"
     }
 
+    /// (tooltip.rs) A problem's row whose message doesn't fit its width:
+    /// the whole message and its place (S9).
+    fn tip_at(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<String> {
+        let l = look(rapidr_value::theme::current());
+        let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
+        let i = common::inset(&l);
+        let show_tabs = model::with(id, |c| c.show_tabs).unwrap_or(true);
+        let top = if show_tabs { i + rows::TABS } else { i };
+        let (bx, by, bw, bh) = (i, top, (w - 2 * i).max(0), (h - top - i).max(0));
+        let (xi, yi) = (x.floor() as i64, y.floor() as i64);
+        if xi < bx || yi < by || xi >= bx + bw || yi >= by + bh {
+            return None;
+        }
+        let (pos, _, _) = vscroll_state(id);
+        let font = Font { color: 0, ..rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current()) };
+        model::with(id, |c| {
+            if c.page != Page::Problems {
+                return None;
+            }
+            let k = usize::try_from((yi - by + pos) / rows::ROW).ok()?;
+            let pr = c.problems.get(k)?;
+            let place = pr.place();
+            // (the row's room, as paint_problems gives it, a scroll bar's
+            // width spared: what doesn't fit there is cut with "…")
+            let (mw, _) = text_size(&pr.message, &font);
+            let (pw, _) = text_size(&place, &font);
+            let room = bw - 30 - 8 - 16 - if place.is_empty() { 0 } else { pw + 12 };
+            (mw > room).then(|| if place.is_empty() { pr.message.clone() } else { format!("{} — {}", pr.message, place) })
+        })
+        .flatten()
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         if editing(cx.id).is_none() {
             cx.ui.edit = None;

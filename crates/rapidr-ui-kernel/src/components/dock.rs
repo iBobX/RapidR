@@ -77,13 +77,65 @@ pub fn stacked(parent: &str, mut children: Vec<(String, String)>) -> Vec<(String
     children
 }
 
+/// The keyboard moved from `old` to `new` (each a node's id and type): a
+/// dock manager taking it for a splitter (FocusSplitter) remembers where
+/// it goes back to; one it leaves for another component lets its
+/// splitter go.
+pub fn focus_moved(old: Option<(&str, &str)>, new: Option<(&str, &str)>) {
+    if let Some((id, "RDOCKMANAGER")) = new {
+        if manager::exists(id) {
+            manager::with_mut(id, |m| {
+                if let Some(k) = m.ui.split_key.as_mut() {
+                    if k.back.is_none() {
+                        k.back = old.map(|(o, _)| o.to_string());
+                    }
+                }
+            });
+        }
+    }
+    if let Some((id, "RDOCKMANAGER")) = old {
+        if manager::exists(id) && new.map(|(n, _)| n) != Some(id) {
+            manager::with_mut(id, |m| m.ui.split_key = None);
+        }
+    }
+}
+
+/// A point (the form's client area) on a dock manager's splitter — its
+/// gutter or `geometry::GRAB` pixels past it over the panes beside it —: that dock
+/// manager's node, which takes the mouse there before the panes do (not
+/// where its slid-out pane covers it).
+pub fn splitter_claim(f: &FormUi, x: f64, y: f64) -> Option<usize> {
+    for (i, n) in f.nodes.iter().enumerate() {
+        if n.type_name != "RDOCKMANAGER" || !n.shown || !manager::exists(&n.id) {
+            continue;
+        }
+        let (ax, ay, aw, ah) = n.abs;
+        let (lx, ly) = ((x - ax as f64).floor() as i64, (y - ay as f64).floor() as i64);
+        if lx < 0 || ly < 0 || lx >= aw || ly >= ah || !f.ancestry(i).iter().all(|&a| f.nodes[a].shown) {
+            continue;
+        }
+        let on = manager::with_mut(&n.id, |m| {
+            let g = m.geometry();
+            if g.flyout.as_ref().is_some_and(|fl| lx >= fl.rect.0 && ly >= fl.rect.1 && lx < fl.rect.0 + fl.rect.2 && ly < fl.rect.1 + fl.rect.3) {
+                return false;
+            }
+            matches!(g.hit(lx, ly), Some(Hit::Splitter(_)))
+        });
+        if on {
+            return Some(i);
+        }
+    }
+    None
+}
+
 impl ComponentKind for DockManager {
     fn name(&self) -> &'static str {
         "RDOCKMANAGER"
     }
 
-    fn focusable(&self, _store: &dyn Store, _id: &str) -> bool {
-        false
+    /// Only while one of its splitters has the keyboard (FocusSplitter).
+    fn focusable(&self, _store: &dyn Store, id: &str) -> bool {
+        manager::with(id, |m| m.ui.split_key.is_some()).unwrap_or(false)
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
@@ -137,12 +189,25 @@ impl ComponentKind for DockManager {
                 }
             }),
             MouseKind::Down if m.button == Button::Left => match hit {
+                // (a double click: the splitter where it is by default)
+                Some(Hit::Splitter(i)) if m.double() => {
+                    if let Some(step) = manager::with_mut(&id, |d| {
+                        d.ui.split = None;
+                        d.split_default(i)
+                    }) {
+                        send(cx, &id, step);
+                    }
+                }
                 Some(Hit::Splitter(i)) => manager::with_mut(&id, |d| {
                     let g = d.geometry().clone();
                     let s = &g.splitters[i];
                     let start = g.extents.iter().find(|(p, _)| *p == s.path).map(|(_, e)| e.clone()).unwrap_or_default();
                     let from = if s.axis == Axis::Row { x } else { y };
                     d.ui.split = Some(SplitDrag { splitter: i, start, from });
+                    // (the keyboard on a splitter: on this one now)
+                    if let Some(k) = d.ui.split_key.as_mut() {
+                        k.splitter = i;
+                    }
                 }),
                 Some(Hit::Strip(p)) => {
                     let open = manager::with(&id, |d| d.flyout.as_deref() == Some(p.as_str())).unwrap_or(false);
@@ -198,18 +263,22 @@ impl ComponentKind for DockManager {
         let Some(part) = part.and_then(access::decode) else { return false };
         match (part, action) {
             (AccessPart::Splitter(i), Action::Increment | Action::Decrement) => {
-                let step = if action == Action::Increment { 8 } else { -8 };
-                let ext = manager::with_mut(&id, |d| {
-                    let g = d.geometry().clone();
-                    let s = g.splitters.get(i)?;
-                    let start = g.extents.iter().find(|(p, _)| *p == s.path)?.1.clone();
-                    d.split_extents(i, &start, step)
-                });
-                if let Some(extents) = ext {
-                    send(cx, &id, User::Split { splitter: i, extents, done: true });
+                let step = if action == Action::Increment { manager::SPLIT_STEP } else { -manager::SPLIT_STEP };
+                if let Some(u) = manager::with_mut(&id, |d| d.split_by(i, step)) {
+                    send(cx, &id, u);
                 }
                 true
             }
+            // (a screen reader's focus on a splitter: it has the keyboard —
+            // the kernel focuses the dock manager after: a11y.rs)
+            (AccessPart::Splitter(i), Action::Focus) => manager::with_mut(&id, |d| {
+                let ok = d.geometry().splitters.len() > i;
+                if ok {
+                    let back = d.ui.split_key.as_ref().and_then(|k| k.back.clone());
+                    d.ui.split_key = Some(manager::SplitKey { splitter: i, back });
+                }
+                ok
+            }),
             (AccessPart::Strip(i), Action::Click) => {
                 let p = manager::with_mut(&id, |d| d.geometry().strip_tabs.get(i).map(|t| t.pane.clone())).map(|p| {
                     let open = manager::with(&id, |d| d.flyout.as_deref() == Some(p.as_str())).unwrap_or(false);
@@ -505,6 +574,25 @@ impl ComponentKind for DockDocs {
                         send(cx, &dock, User::View(doc, *v));
                     }
                 }
+                // (a double click: back to its default — the two sides even,
+                // two views half and half)
+                Some(DocHit::Splitter(i)) if m.double() => {
+                    let sp = &d.splitters[i];
+                    if let Some((_, start)) = d.extents.iter().find(|(p, _)| *p == sp.path) {
+                        if sp.index + 1 < start.len() {
+                            let half = (start[sp.index] + start[sp.index + 1]) / 2;
+                            let extents = doc_extents(start, sp.index, half - start[sp.index]);
+                            manager::with_mut(&dock, |mm| mm.ui.doc_split = None);
+                            send(cx, &dock, User::DocSplit { path: sp.path.clone(), extents, done: true });
+                        }
+                    }
+                }
+                Some(DocHit::ViewSplitter(g)) if m.double() => {
+                    if let Some(doc) = d.groups[g].shown().cloned() {
+                        manager::with_mut(&dock, |mm| mm.ui.doc_split = None);
+                        send(cx, &dock, User::ViewRatio(doc, 500, true));
+                    }
+                }
                 Some(DocHit::Splitter(i)) => {
                     let sp = &d.splitters[i];
                     let start = d.extents.iter().find(|(p, _)| *p == sp.path).map(|(_, e)| e.clone()).unwrap_or_default();
@@ -597,7 +685,7 @@ impl ComponentKind for DockDocs {
             (Some(AccessPart::DocSplitter(i)), Action::Increment | Action::Decrement) => {
                 let Some(sp) = d.splitters.get(i) else { return false };
                 let Some((_, start)) = d.extents.iter().find(|(p, _)| *p == sp.path) else { return false };
-                let step = if action == Action::Increment { 8 } else { -8 };
+                let step = if action == Action::Increment { manager::SPLIT_STEP } else { -manager::SPLIT_STEP };
                 let extents = doc_extents(start, sp.index, step);
                 send(cx, &dock, User::DocSplit { path: sp.path.clone(), extents, done: true });
             }
@@ -723,6 +811,25 @@ pub fn key(f: &mut FormUi, store: &dyn Store, _ts: &mut TextSystem, vk: i64, mod
         }
         return took;
     }
+    // (a splitter given the keyboard: the arrows move it, Home / End,
+    // Tab the next one, Enter / Escape give the keyboard back)
+    if manager::with(&dock, |m| m.ui.split_key.is_some()).unwrap_or(false) {
+        let step = manager::with_mut(&dock, |m| m.split_key(vk, mods.shift));
+        f.dirty = true;
+        if let Some(a) = step.moved {
+            push(f, a);
+        }
+        if step.leave {
+            let back = manager::with_mut(&dock, |m| m.ui.split_key.take().and_then(|k| k.back));
+            let again = back.and_then(|b| f.index_of(&b)).filter(|&i| f.can_focus(store, i));
+            let again = again.or_else(|| {
+                let area = manager::with(&dock, |m| m.active_pane.clone().or_else(|| m.active_document())).flatten()?;
+                f.first_focus_in(store, &area)
+            });
+            f.set_focus(again);
+        }
+        return step.took;
+    }
     match vk {
         // F6 / Shift+F6: the next / previous area
         117 if !ctrl && !mods.alt => {
@@ -799,7 +906,11 @@ pub fn splitter_cursor(store: &dyn Store, kind: &str, id: &str, x: i64, y: i64) 
                 if let Some(s) = m.ui.split.clone() {
                     return m.geometry().splitters.get(s.splitter).map(|s| s.axis == Axis::Row);
                 }
-                m.geometry().splitters.iter().find(|s| grab(&s.rect)).map(|s| s.axis == Axis::Row)
+                // (the manager's own hit: the gutter and GRAB pixels across it)
+                match m.geometry().hit(x, y) {
+                    Some(Hit::Splitter(i)) => m.geometry().splitters.get(i).map(|s| s.axis == Axis::Row),
+                    _ => None,
+                }
             })
         }
         "RDOCKDOCS" => {
