@@ -167,9 +167,13 @@ pub struct Theme {
     pub border_hot: u32,
     pub border_strong: u32,
     /// A splitter at rest (a dock manager's between its panes, an
-    /// RSPLITTER's): the line along its middle and the grip in the middle
-    /// of that line that says "drag me" — 3:1 against what's on both sides
-    /// (WCAG 1.4.11). Under the mouse and held it's the accent's.
+    /// RSPLITTER's): the 1-pixel line along the middle of its band (the
+    /// band itself the panes' own gap) — quiet, about 1.3 to 1.6:1 against
+    /// the panes on both sides, just showing where they meet (high
+    /// contrast: black, the crisp line `border`) — and the small grip on
+    /// that line that says "drag me", 3:1 against the band and the line
+    /// (WCAG 1.4.11, the control's cue). Under the mouse and held the band
+    /// is the accent's.
     pub splitter: u32,
     pub splitter_grip: u32,
 
@@ -397,9 +401,10 @@ pub const RAPIDR: Theme = Theme {
     border: 0xD5DCE8,
     border_hot: 0xBCC4D6,
     border_strong: 0x8A93A6,
-    // (3.4:1 on the dock's ground, 3.7 on Paper; the grip Slate, 5:1)
-    splitter: 0x768097,
-    splitter_grip: SLATE,
+    // (the band quiet: 1.37:1 on Paper, 1.46 on white; the grip, a soft
+    // slate, 3.3:1 on the band)
+    splitter: 0xD0D6E2,
+    splitter_grip: 0x687289,
     radius: 5.0,
     focus_width: 2.0,
     shadow_ink: INK,
@@ -473,10 +478,10 @@ pub const RAPIDR_DARK: Theme = Theme {
     border: ink(150),
     border_hot: ink(220),
     border_strong: 0x7D879E,
-    // (3.8:1 on the dock's ground, 3.5 on the face; the grip the
-    // secondary text's grey, 7:1)
-    splitter: 0x6B7590,
-    splitter_grip: 0x9CA5BA,
+    // (the band quiet: 1.5:1 on the face, 1.6 on the window; the grip
+    // 3.35:1 on the band)
+    splitter: ink(170),
+    splitter_grip: 0x858FA5,
     radius: 5.0,
     focus_width: 2.0,
     shadow_ink: 0x000000,
@@ -550,7 +555,8 @@ pub const RAPIDR_HIGH_CONTRAST: Theme = Theme {
     border: 0xFFFFFF,
     border_hot: 0xFFFF00,
     border_strong: 0xFFFFFF,
-    splitter: 0xFFFFFF,
+    // (the gap black, a crisp white line along it: border; the grip white)
+    splitter: 0x000000,
     splitter_grip: 0xFFFFFF,
     radius: 4.0,
     focus_width: 3.0,
@@ -1095,11 +1101,18 @@ mod tests {
                 for (what, fg, bg) in [("disabled", t.gray_text, t.face), ("focus", t.focus, t.face), ("rim", t.border_strong, t.window), ("accent", t.accent, t.face)] {
                     assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
                 }
-                // (a splitter at rest — its line and its grip — shows
-                // against what's on both sides of it: a panel, a field;
-                // the dock's own grounds: dock::look's test)
-                for (what, fg, bg) in [("splitter on face", t.splitter, t.face), ("splitter on window", t.splitter, t.window), ("grip on face", t.splitter_grip, t.face), ("grip on window", t.splitter_grip, t.window)] {
+                // (a splitter: its grip 3:1 against its line, at rest and
+                // in the accent — the control's cue; the line itself quiet,
+                // 1.2 to 1.8:1 against a panel and a field, high contrast's
+                // crisp: dock::look's test)
+                for (what, fg, bg) in [("grip on the line", t.splitter_grip, t.splitter), ("the accent's grip", t.accent_text, t.accent)] {
                     assert!(contrast(fg, bg) >= 3.0, "{}: {what} {:.2}", t.name, contrast(fg, bg));
+                }
+                if !t.contrast {
+                    for (what, bg) in [("face", t.face), ("window", t.window)] {
+                        let c = contrast(t.splitter, bg);
+                        assert!((1.2..=1.8).contains(&c), "{}: the splitter's line on the {what}: {c:.2}, quiet", t.name);
+                    }
                 }
                 // (an inactive window's title: still text)
                 assert!(contrast(t.inactive_caption_text, t.inactive_caption) >= need, "{}: inactive caption", t.name);

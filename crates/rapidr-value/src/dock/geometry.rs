@@ -173,6 +173,20 @@ pub struct Splitter {
     pub rect: Rect,
 }
 
+/// Where a standing splitter (between left and right) and a lying one
+/// (between top and bottom) meet — one ending at the other's band: a
+/// [`CORNER`]-square place that drags both at once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Corner {
+    /// The standing splitter's index and the lying one's.
+    pub stands: usize,
+    pub lies: usize,
+    pub rect: Rect,
+}
+
+/// A corner's side (the four-way grab where two splitters meet).
+pub const CORNER: i64 = 8;
+
 /// An auto-hidden pane's tab on its strip.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StripTab {
@@ -209,6 +223,8 @@ pub struct Geometry {
     pub groups: Vec<Group>,
     pub documents: Option<Documents>,
     pub splitters: Vec<Splitter>,
+    /// Where two splitters meet.
+    pub corners: Vec<Corner>,
     /// The strips (by side) and their tabs.
     pub strips: Vec<(Side, Rect)>,
     pub strip_tabs: Vec<StripTab>,
@@ -445,6 +461,27 @@ impl Builder<'_> {
     }
 }
 
+/// Where the standing splitters meet the lying ones: one's end against the
+/// other's band (a T), the corner square centred where their middles cross.
+pub fn corners(splitters: &[Splitter]) -> Vec<Corner> {
+    let mut out = Vec::new();
+    for (v, sv) in splitters.iter().enumerate().filter(|(_, s)| s.axis == Axis::Row) {
+        let (vx, vy, vw, vh) = sv.rect;
+        for (h, sh) in splitters.iter().enumerate().filter(|(_, s)| s.axis == Axis::Column) {
+            let (hx, hy, hw, hh) = sh.rect;
+            // (the lying one ends at the standing one's band, within its
+            // length; or the standing one ends at the lying one's)
+            let lying_ends = (hx == vx + vw || hx + hw == vx) && hy >= vy && hy + hh <= vy + vh;
+            let standing_ends = (vy == hy + hh || vy + vh == hy) && vx >= hx && vx + vw <= hx + hw;
+            if lying_ends || standing_ends {
+                let (cx, cy) = (vx + vw / 2, hy + hh / 2);
+                out.push(Corner { stands: v, lies: h, rect: (cx - CORNER / 2, cy - CORNER / 2, CORNER, CORNER) });
+            }
+        }
+    }
+    out
+}
+
 /// Everything's place for a `size` dock manager. `flyout`: the auto-hidden
 /// pane slid out, and its extent.
 pub fn compute(layout: &Layout, size: (i64, i64), titles: &dyn Titles, font: &Font, flyout: Option<(&str, i64)>) -> Geometry {
@@ -483,6 +520,7 @@ pub fn compute(layout: &Layout, size: (i64, i64), titles: &dyn Titles, font: &Fo
     let mut builder = Builder { layout, titles, font, g };
     builder.place(&layout.root, inner, Vec::new());
     let mut g = builder.g;
+    g.corners = corners(&g.splitters);
     if let Some((pane, extent)) = flyout {
         if let Some(Some(side)) = Side::ALL.iter().map(|s| layout.autohide[s.index()].iter().any(|p| p == pane).then_some(*s)).find(Option::is_some) {
             let (x, y, iw, ih) = inner;
@@ -523,6 +561,10 @@ impl Geometry {
         let inside = |r: &Rect| x >= r.0 && y >= r.1 && x < r.0 + r.2 && y < r.1 + r.3;
         if let Some(t) = self.strip_tabs.iter().find(|t| inside(&t.rect)) {
             return Some(Hit::Strip(t.pane.clone()));
+        }
+        // (where two splitters meet: both at once)
+        if let Some(c) = self.corners.iter().position(|c| inside(&c.rect)) {
+            return Some(Hit::Corner(c));
         }
         // (a splitter: its gap, GRAB pixels more each way across it — over
         // the panes' edges: the kernel gives the dock manager the mouse
@@ -634,6 +676,8 @@ pub enum Guide {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Hit {
     Splitter(usize),
+    /// Where two splitters meet ([`Geometry::corners`]).
+    Corner(usize),
     Strip(String),
 }
 

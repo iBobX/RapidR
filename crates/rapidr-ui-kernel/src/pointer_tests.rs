@@ -103,9 +103,20 @@ fn the_splitter_is_hot_under_the_mouse_in_rapidrs_look() {
     let mut ts = TextSystem::new();
     let mut f = FormUi::build(&s, "sf", false);
     let rest = f.paint(&s, &mut ts, 1.0).dump();
+    // (lit once the mouse has rested on it a moment: passing over it
+    // doesn't flicker — the tick paints it then)
+    let t0 = crate::tick::now();
+    crate::tick::set_test_now(Some(t0));
     f.mouse_move(&s, &mut ts, 103.5, 50.5, NONE);
+    assert_eq!(f.paint(&s, &mut ts, 1.0).dump(), rest, "not at once");
+    let later = t0 + std::time::Duration::from_millis(rapidr_value::dock::look::HOT_DELAY_MS + 10);
+    crate::tick::set_test_now(Some(later));
+    assert!(f.next_wake().is_some_and(|w| w <= later), "a tick is due");
+    f.tick(&s, &mut ts, later);
     let hot = f.paint(&s, &mut ts, 1.0).dump();
-    assert_ne!(rest, hot, "a line along the splitter's middle");
+    crate::tick::set_test_now(None);
+    assert_ne!(rest, hot, "the band in the accent");
+    assert!(hot.contains(&format!("#{:06x}", rapidr_value::theme::RAPIDR.accent)), "{hot}");
     f.mouse_move(&s, &mut ts, 20.5, 50.5, NONE);
     assert_eq!(f.paint(&s, &mut ts, 1.0).dump(), rest, "and gone when the mouse leaves");
     // (at rest it shows: a line along it and a grip, the theme's tokens —
@@ -171,6 +182,50 @@ fn a_dock_splitter_is_grabbed_over_the_edges_of_the_panes_beside_it() {
         _ => false,
     });
     assert!(moved, "the split's new extents, let go");
+    rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+}
+
+#[test]
+fn where_two_dock_splitters_meet_the_corner_drags_both() {
+    use rapidr_value::dock::manager::{self, User};
+    let (s, g) = docked("gc");
+    let (mut f, mut ts) = built(&s, "gcf");
+    let c = g.corners.first().expect("Left | (documents / Output): a corner").clone();
+    let (cx, cy) = (c.rect.0 + c.rect.2 / 2, c.rect.1 + c.rect.3 / 2);
+    // (the four-way arrows; lit — both bands — once the mouse rests)
+    let t0 = crate::tick::now();
+    crate::tick::set_test_now(Some(t0));
+    assert_eq!(at(&mut f, &s, &mut ts, cx, cy), Cursor::Move);
+    assert!(!manager::with("gck", |m| m.ui.hot_ready).unwrap(), "not at once");
+    let later = t0 + std::time::Duration::from_millis(rapidr_value::dock::look::HOT_DELAY_MS + 10);
+    f.tick(&s, &mut ts, later);
+    crate::tick::set_test_now(None);
+    let mut hot = manager::with_mut("gck", |m| {
+        let g = m.geometry().clone();
+        rapidr_value::dock::look::hot_splitters(m, &g)
+    });
+    hot.sort();
+    let mut both = vec![c.stands, c.lies];
+    both.sort();
+    assert_eq!(hot, both, "both bands lit");
+    // (a drag from the corner: both splitters follow, 30 right and 20 up)
+    let (x0, y0) = (cx as f64 + 0.5, cy as f64 + 0.5);
+    f.mouse_down(&s, &mut ts, x0, y0, Button::Left, NONE);
+    assert_eq!(at(&mut f, &s, &mut ts, cx + 30, cy - 20), Cursor::Move, "held: the four-way arrows");
+    f.mouse_up(&s, &mut ts, x0 + 30.0, y0 - 20.0, Button::Left, NONE);
+    let moved: Vec<(usize, Vec<i64>)> = f
+        .take_events()
+        .into_iter()
+        .filter_map(|e| match e {
+            crate::KernelEvent::Container(crate::components::form::Container::Dock { action: User::Split { splitter, extents, done: true }, .. }) => Some((splitter, extents)),
+            _ => None,
+        })
+        .collect();
+    let start = |i: usize| g.extents.iter().find(|(p, _)| *p == g.splitters[i].path).unwrap().1.clone();
+    let (sv, sh) = (&g.splitters[c.stands], &g.splitters[c.lies]);
+    assert!(moved.iter().any(|(i, e)| *i == c.stands && e[sv.index] == start(c.stands)[sv.index] + 30), "{moved:?}");
+    assert!(moved.iter().any(|(i, e)| *i == c.lies && e[sh.index] == start(c.lies)[sh.index] - 20), "{moved:?}");
+    assert!(manager::with("gck", |m| m.ui.split.is_none() && m.ui.split2.is_none()).unwrap(), "let go");
     rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
 }
 

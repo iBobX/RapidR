@@ -183,9 +183,15 @@ pub const SPLIT_JUMP: i64 = 50;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Ui {
     pub hover: Option<Part>,
+    /// The mouse has rested on the splitter (or corner) under it long
+    /// enough for it to light up (`look::HOT_DELAY_MS`; the kernel's tick
+    /// sets it).
+    pub hot_ready: bool,
     pub pressed: Option<Part>,
     pub drag: Option<Drag>,
     pub split: Option<SplitDrag>,
+    /// A corner held: the lying splitter dragged with `split`'s standing one.
+    pub split2: Option<SplitDrag>,
     pub moving: Option<KeyMove>,
     pub doc_drag: Option<DocDrag>,
     pub doc_split: Option<DocSplitDrag>,
@@ -1370,10 +1376,13 @@ impl Manager {
     /// its start, right and down toward its end —, Home and End to its
     /// least and its most, Tab and Shift+Tab the next and the previous
     /// splitter, Enter and Escape leave it; any other key leaves it too,
-    /// and goes on to the component it goes back to.
-    pub fn split_key(&mut self, vk: i64, shift: bool) -> SplitKeyStep {
+    /// and goes on to the component it goes back to. With Alt, the arrows
+    /// across it move the splitter it meets at a corner instead (as a drag
+    /// of that corner does).
+    pub fn split_key(&mut self, vk: i64, shift: bool, alt: bool) -> SplitKeyStep {
         let Some(k) = self.ui.split_key.clone() else { return SplitKeyStep::default() };
-        let n = self.geometry().splitters.len();
+        let g = self.geometry().clone();
+        let n = g.splitters.len();
         if k.splitter >= n {
             self.ui.split_key = None;
             return SplitKeyStep { took: false, moved: None, leave: true };
@@ -1387,6 +1396,26 @@ impl Manager {
             35 => Some(100_000),
             _ => None,
         };
+        // (Alt and an arrow across it: the splitter it meets at a corner)
+        let across = match (g.splitters[k.splitter].axis, vk) {
+            (Axis::Row, 38 | 40) | (Axis::Column, 37 | 39) => true,
+            _ => false,
+        };
+        if alt && across {
+            let other = g.corners.iter().find_map(|c| {
+                if c.stands == k.splitter {
+                    Some(c.lies)
+                } else if c.lies == k.splitter {
+                    Some(c.stands)
+                } else {
+                    None
+                }
+            });
+            return match (other, delta) {
+                (Some(o), Some(d)) => SplitKeyStep { took: true, moved: self.split_by(o, d), leave: false },
+                _ => SplitKeyStep { took: true, moved: None, leave: false },
+            };
+        }
         if let Some(d) = delta {
             return SplitKeyStep { took: true, moved: self.split_by(k.splitter, d), leave: false };
         }

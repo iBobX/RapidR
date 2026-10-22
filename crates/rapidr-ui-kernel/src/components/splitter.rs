@@ -23,6 +23,15 @@ thread_local! {
     /// Where the splitter being dragged was pressed (in the window: along
     /// its axis).
     static FROM: Cell<Option<f64>> = const { Cell::new(None) };
+    /// The splitter the mouse rests on, since when (it lights up after
+    /// `dock::look::HOT_DELAY_MS`, so passing over it doesn't flicker).
+    static RESTS: std::cell::RefCell<Option<(String, crate::tick::Instant)>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Whether the mouse has rested on splitter `id` long enough to light it up.
+fn rested(id: &str) -> bool {
+    let wait = std::time::Duration::from_millis(rapidr_value::dock::look::HOT_DELAY_MS);
+    RESTS.with(|r| r.borrow().as_ref().is_some_and(|(at, since)| at == id && crate::tick::now().saturating_duration_since(*since) >= wait))
 }
 
 /// It moves up and down (Align alTop 1 / alBottom 2), else left and right.
@@ -52,9 +61,9 @@ impl ComponentKind for Splitter {
         // middle and a grip at rest, the accent's under the mouse or held:
         // it says "drag me". Its place and size are the program's.)
         use rapidr_value::dock::look::{palette, splitter_ops, SplitterLook};
-        let look = if cx.state.hover || cx.state.held { SplitterLook::Hot } else { SplitterLook::Rest };
+        let look = if cx.state.held || (cx.state.hover && rested(cx.id)) { SplitterLook::Hot } else { SplitterLook::Rest };
         let mut ops = Vec::new();
-        splitter_ops(&mut ops, (0, 0, w, h), !vertical(cx.store, cx.id), &palette(t), look);
+        splitter_ops(&mut ops, (0, 0, w, h), !vertical(cx.store, cx.id), false, &palette(t), look);
         p.ops(ops);
     }
 
@@ -71,6 +80,26 @@ impl ComponentKind for Splitter {
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let along = |m: &MouseIn| if vertical(cx.store, cx.id) { m.y + cx.rect.1 as f64 } else { m.x + cx.rect.0 as f64 };
         match m.kind {
+            // (resting on it: lit after a moment — the tick paints it then)
+            MouseKind::Move if !m.captured => {
+                let fresh = RESTS.with(|r| {
+                    let mut r = r.borrow_mut();
+                    let fresh = r.as_ref().is_none_or(|(at, _)| at != cx.id);
+                    if fresh {
+                        *r = Some((cx.id.to_string(), crate::tick::now()));
+                    }
+                    fresh
+                });
+                if fresh {
+                    cx.ui.wake = Some(crate::tick::now() + std::time::Duration::from_millis(rapidr_value::dock::look::HOT_DELAY_MS));
+                }
+            }
+            MouseKind::Leave => RESTS.with(|r| {
+                let mut r = r.borrow_mut();
+                if r.as_ref().is_some_and(|(at, _)| at == cx.id) {
+                    *r = None;
+                }
+            }),
             MouseKind::Down => {
                 FROM.with(|f| f.set(Some(along(m))));
                 cx.events.push(KernelEvent::Container(Container::SplitBegin(cx.id.to_string())));

@@ -352,13 +352,16 @@ mouse. Set the component's `Cursor` (`crHandPoint`, `crSizeWE`, …) and your
 choice wins; `crDefault` (0) means "the component's own".
 
 **A splitter you can see.** In RapidR's look (light, dark and high
-contrast) an `RSplitter` shows at rest: a thin line along its middle and a
-short grip in the middle of that line, so people see there is something to
-drag. Both have at least 3:1 contrast against what is around them. Under
-the mouse and while it is dragged, the line and the grip take the accent
-colour. Studio's own splitters between its panes look the same. Your
-program's splitters keep the place and size you gave them; only the drawing
-is new. The classic look draws RapidQ's raised bar, as before.
+contrast) an `RSplitter` shows at rest without shouting: a quiet gap with a
+soft 1-pixel line along its middle (crisp in high contrast) and a short
+grip on that line, so people see there is something to drag. The grip has
+at least 3:1 contrast against the gap. When the mouse rests on it for a
+moment (passing over it doesn't flicker) and while it is dragged, the whole
+splitter takes the accent colour. Studio's own splitters between its panes
+look the same, without the line: the panes' own edges already show where
+they meet. Your program's splitters keep the place and size you gave them;
+only the drawing is new. The classic look draws RapidQ's raised bar, as
+before.
 On the desktop this is the system's cursor, on the web the page's cursor; they
 agree.
 

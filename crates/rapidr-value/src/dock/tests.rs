@@ -659,19 +659,41 @@ fn the_chrome_reads_in_rapidrs_looks() {
 
 #[test]
 fn a_splitter_shows_at_rest_against_both_its_neighbours() {
-    // (WCAG 1.4.11, non-text contrast: the line and the grip 3:1 against
-    // the ground they're drawn on and the panes on both sides — a header,
-    // the active one's, a pane's body, a document's strip)
+    // (at rest quiet: the band the panes' own gap, the ground, with a soft
+    // line along it, 1.2 to 1.8:1 against the panes — a header, the active
+    // one's, a pane's body, a document's strip —; high contrast's line
+    // crisp. The grip carries the cue: 3:1 against its band and the line
+    // it sits on, WCAG 1.4.11. Lit, the band 3:1 against the panes, the
+    // grip 3:1 on it)
     use crate::theme::{contrast, ALL};
     for t in ALL.into_iter().filter(|t| t.fluent()) {
         let p = look::palette(t);
-        for (what, c) in [("line", p.splitter), ("grip", p.grip), ("highlight under the mouse", p.splitter_hot)] {
-            for (beside, bg) in [("the ground", p.ground), ("a header", p.header), ("the active header", p.header_active), ("a pane", p.body), ("the documents' strip", p.doc_strip)] {
-                assert!(contrast(c, bg) >= 3.0, "{}: the splitter's {what} {c:06X} beside {beside} {bg:06X}: {:.2}", t.name, contrast(c, bg));
+        for (beside, bg) in [("a header", p.header), ("the active header", p.header_active), ("a pane", p.body), ("the documents' strip", p.doc_strip)] {
+            let (line, lit) = (contrast(p.splitter_line, bg), contrast(p.splitter_hot, bg));
+            if p.contrast {
+                assert!(line >= 7.0, "{}: the line beside {beside}", t.name);
+            } else {
+                assert!((1.2..=1.8).contains(&line), "{}: the line beside {beside} {bg:06X}: {line:.2}, quiet", t.name);
             }
+            assert!(lit >= 3.0, "{}: the lit band beside {beside} {bg:06X}: {lit:.2}", t.name);
+        }
+        for (what, grip, band) in [("at rest", p.grip, p.splitter), ("under the mouse", p.grip_hot, p.splitter_hot)] {
+            assert!(contrast(grip, band) >= 3.0, "{}: the grip {what} {grip:06X} on {band:06X}: {:.2}", t.name, contrast(grip, band));
+        }
+        // (on its soft line too; high contrast's grip is its crisp line
+        // grown thick, the same white)
+        if p.contrast {
+            assert_eq!(p.grip, p.splitter_line, "{}", t.name);
+        } else {
+            assert!(contrast(p.grip, p.splitter_line) >= 3.0, "{}: the grip on its line", t.name);
         }
         // (from the theme's tokens, never a colour of its own)
-        assert_eq!((p.splitter, p.grip), (t.splitter, t.splitter_grip), "{}", t.name);
+        assert_eq!((p.grip, p.grip_hot), (t.splitter_grip, t.accent_text), "{}", t.name);
+        if p.contrast {
+            assert_eq!((p.splitter, p.splitter_line), (t.splitter, t.border), "{}", t.name);
+        } else {
+            assert_eq!((p.splitter, p.splitter_line), (p.ground, t.splitter), "{}", t.name);
+        }
     }
 }
 
@@ -683,24 +705,105 @@ fn every_splitter_is_drawn_at_rest_with_its_grip_and_hot_in_the_accent() {
     let t = &crate::theme::RAPIDR;
     let p = look::palette(t);
     let fills = |ops: &[Op], color: u32| ops.iter().filter(|o| matches!(o, Op::Fill { color: c, .. } if *c == color)).count();
-    let grips = |ops: &[Op], color: u32| ops.iter().filter(|o| matches!(o, Op::Round { fill: Some(c), .. } if *c == color)).count();
+    let grips = |ops: &[Op], color: u32| ops.iter().filter(|o| matches!(o, Op::Stroke { color: c, .. } if *c == color)).count();
+    let band = |ops: &[Op], color: u32, r: (i64, i64, i64, i64)| ops.iter().any(|o| matches!(o, Op::Fill { color: c, rect } if *c == color && *rect == r));
     let rest = look::manager_ops(&m, &g, t, &Font::default());
-    assert_eq!(fills(&rest, p.splitter), g.splitters.len(), "a line along each splitter");
+    // (each: the gap the panes leave and the grip in it — nothing else,
+    // nothing over the panes: their own edges show where they meet, no
+    // third line between them)
+    let line = |s: &geometry::Splitter| {
+        let (x, y, w, h) = s.rect;
+        if s.axis == Axis::Row { (x + w / 2, y, 1, h) } else { (x, y + h / 2, w, 1) }
+    };
+    assert!(g.splitters.iter().all(|s| band(&rest, p.splitter, s.rect)), "the gap under each splitter");
+    assert_eq!(fills(&rest, p.splitter_line), 0, "no line between framed panes");
     assert_eq!(grips(&rest, p.grip), g.splitters.len(), "a grip on each");
-    // (under the mouse: that one the accent's, line and grip)
+    // (where nothing frames the panes — two views, two groups of
+    // documents, RSPLITTER —: a soft line along the middle, the grip on it)
+    for s in &g.splitters {
+        let mut ops = Vec::new();
+        look::splitter_ops(&mut ops, s.rect, s.axis == Axis::Row, false, &p, look::SplitterLook::Rest);
+        assert!(band(&ops, p.splitter, s.rect) && band(&ops, p.splitter_line, line(s)), "{ops:?}");
+        assert_eq!(grips(&ops, p.grip), 1);
+    }
+    // (under the mouse: lit only once the mouse has rested there)
     m.ui.hover = Some(manager::Part::Manager(Hit::Splitter(0)));
+    assert_eq!(look::manager_ops(&m, &g, t, &Font::default()), rest, "not at once: no flicker passing over");
+    m.ui.hot_ready = true;
     let hot = look::manager_ops(&m, &g, t, &Font::default());
-    assert_eq!(fills(&hot, p.splitter), g.splitters.len() - 1);
-    assert_eq!((fills(&hot, p.splitter_hot), grips(&hot, p.splitter_hot)), (1, 1));
-    // (the grip in the middle of the splitter, along it)
+    assert!(band(&hot, p.splitter_hot, g.splitters[0].rect), "the whole band in the accent");
+    assert_eq!(grips(&hot, p.grip_hot) + grips(&hot, p.grip), g.splitters.len());
+    assert!(grips(&hot, p.grip_hot) >= 1, "its grip in the accent's text colour");
+    // (the grip: 20 to 28 long, 3 thick, centred along the splitter, on
+    // its line across it — within half a pixel of the middle, its edges on
+    // whole pixels: crisp at 1x —, inside its band, never over the panes)
+    for s in &g.splitters {
+        let stands = s.axis == Axis::Row;
+        let (a, b, width) = look::grip(s.rect, stands, false).expect("a grip");
+        let (x, y, w, h) = (s.rect.0 as f64, s.rect.1 as f64, s.rect.2 as f64, s.rect.3 as f64);
+        let (cx, cy) = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+        let long = if stands { b.1 - a.1 } else { b.0 - a.0 } + width;
+        assert!((20.0..=28.0).contains(&long), "{long}");
+        assert_eq!(width, look::GRIP_THICK);
+        let (along, mid) = if stands { (cy, y + h / 2.0) } else { (cx, x + w / 2.0) };
+        assert_eq!(along, mid, "centred along");
+        let (across, start, thick) = if stands { (cx, x, w) } else { (cy, y, h) };
+        assert!((across - (start + thick / 2.0)).abs() <= 0.5, "on the middle");
+        let (lo, hi) = (across - width / 2.0, across + width / 2.0);
+        assert!(lo >= start && hi <= start + thick, "inside its band: {lo}..{hi} of {start}+{thick}");
+        assert_eq!((lo.fract(), hi.fract()), (0.0, 0.0), "on whole pixels");
+        let l = line(s);
+        let l = if stands { l.0 as f64 } else { l.1 as f64 };
+        assert!(lo <= l && l + 1.0 <= hi, "over its line");
+    }
+    // (high contrast: the black gap between the panes' crisp white edges,
+    // the grip white; unframed, a crisp line of its own)
+    let hc = &crate::theme::RAPIDR_HIGH_CONTRAST;
+    let ph = look::palette(hc);
+    m.ui.hover = None;
+    let hco = look::manager_ops(&m, &g, hc, &Font::default());
+    assert!(g.splitters.iter().all(|s| band(&hco, ph.splitter, s.rect)), "the black gap");
+    assert_eq!(grips(&hco, ph.grip), g.splitters.len(), "a white grip on each");
     let s = &g.splitters[0];
-    let gr = look::grip_rect(s.rect, s.axis == Axis::Row, false);
-    assert_eq!(gr.1 + gr.3 / 2, s.rect.1 + s.rect.3 / 2, "centred along it");
-    assert!(gr.0 >= s.rect.0 && gr.0 + gr.2 <= s.rect.0 + s.rect.2, "within its gutter");
-    // (the classic look: as before — nothing at rest)
+    let mut ops = Vec::new();
+    look::splitter_ops(&mut ops, s.rect, s.axis == Axis::Row, false, &ph, look::SplitterLook::Rest);
+    assert!(band(&ops, ph.splitter_line, line(s)), "a crisp line");
+    // (the classic look: RapidQ's — the button-face gap, no grip)
     m.ui.hover = None;
     let classic = look::manager_ops(&m, &g, &crate::theme::CLASSIC, &Font::default());
-    assert_eq!(grips(&classic, crate::theme::CLASSIC.splitter_grip), 0);
+    assert_eq!(classic.iter().filter(|o| matches!(o, Op::Stroke { .. })).count(), 0, "no grip");
+}
+
+#[test]
+fn where_two_splitters_meet_a_corner_moves_both() {
+    let mut m = ide();
+    let g = m.geometry().clone();
+    // (left | middle, and the middle's documents above Output: a T)
+    let c = g.corners.first().expect("a corner where the splitters meet").clone();
+    let (sv, sh) = (g.splitters[c.stands].clone(), g.splitters[c.lies].clone());
+    assert_eq!((sv.axis, sh.axis), (Axis::Row, Axis::Column));
+    assert_eq!((c.rect.2, c.rect.3), (geometry::CORNER, geometry::CORNER));
+    assert_eq!((c.rect.0 + c.rect.2 / 2, c.rect.1 + c.rect.3 / 2), (sv.rect.0 + sv.rect.2 / 2, sh.rect.1 + sh.rect.3 / 2), "centred where they cross");
+    assert_eq!(g.hit(c.rect.0 + 4, c.rect.1 + 4), Some(Hit::Corner(0)));
+    // (under the mouse, rested: both bands lit)
+    m.ui.hover = Some(manager::Part::Manager(Hit::Corner(0)));
+    m.ui.hot_ready = true;
+    let mut hot = look::hot_splitters(&m, &g);
+    hot.sort();
+    let mut both = vec![c.stands, c.lies];
+    both.sort();
+    assert_eq!(hot, both);
+    // (the keyboard: Alt and an arrow across a splitter move the one it meets)
+    m.ui.hover = None;
+    m.ui.split_key = Some(manager::SplitKey { splitter: c.lies, back: None });
+    let before = m.split_now(c.stands).unwrap();
+    let step = m.split_key(39, false, true);
+    let Some(User::Split { splitter, extents, .. }) = step.moved else { panic!("{step:?}") };
+    assert_eq!(splitter, c.stands);
+    assert_eq!(extents[sv.index], before[sv.index] + manager::SPLIT_STEP);
+    // (Alt with an arrow along it: itself, as without Alt)
+    let step = m.split_key(40, false, true);
+    assert!(matches!(step.moved, Some(User::Split { splitter, .. }) if splitter == c.lies), "{step:?}");
 }
 
 #[test]
@@ -728,35 +831,35 @@ fn a_splitter_takes_the_keyboard() {
     let at = |m: &mut Manager| m.split_now(k.splitter).unwrap()[s.index];
     let before = at(&mut m);
     // (an arrow: 10 pixels, carried out as the user's step)
-    let step = m.split_key(40, false);
+    let step = m.split_key(40, false, false);
     assert!(step.took && !step.leave);
     let Some(u) = step.moved else { panic!() };
     m.user(u);
     assert_eq!(at(&mut m), before + manager::SPLIT_STEP);
     // (Shift: 50; up: back)
-    let u = m.split_key(38, true).moved.unwrap();
+    let u = m.split_key(38, true, false).moved.unwrap();
     m.user(u);
     assert_eq!(at(&mut m), before + manager::SPLIT_STEP - manager::SPLIT_JUMP);
     // (Home: its least)
-    let u = m.split_key(36, false).moved.unwrap();
+    let u = m.split_key(36, false, false).moved.unwrap();
     m.user(u);
     assert_eq!(at(&mut m), geometry::MIN_EXTENT);
     // (End: its most — the other side at its least)
-    let u = m.split_key(35, false).moved.unwrap();
+    let u = m.split_key(35, false, false).moved.unwrap();
     m.user(u);
     let ext = m.split_now(k.splitter).unwrap();
     assert_eq!(ext[s.index + 1], geometry::MIN_EXTENT);
     // (Tab: the next splitter; Shift+Tab back)
     let n = m.geometry().splitters.len();
-    assert!(m.split_key(9, false).took);
+    assert!(m.split_key(9, false, false).took);
     assert_eq!(m.ui.split_key.as_ref().unwrap().splitter, (k.splitter + 1) % n);
-    m.split_key(9, true);
+    m.split_key(9, true, false);
     assert_eq!(m.ui.split_key.as_ref().unwrap().splitter, k.splitter);
     // (Enter / Escape: it leaves; another key leaves and goes on; Shift alone stays)
-    assert_eq!(m.split_key(16, false), manager::SplitKeyStep { took: false, moved: None, leave: false });
-    assert!(m.split_key(13, false).leave);
-    assert!(m.split_key(27, false).leave);
-    let other = m.split_key(65, false);
+    assert_eq!(m.split_key(16, false, false), manager::SplitKeyStep { took: false, moved: None, leave: false });
+    assert!(m.split_key(13, false, false).leave);
+    assert!(m.split_key(27, false, false).leave);
+    let other = m.split_key(65, false, false);
     assert!(!other.took && other.leave);
 }
 

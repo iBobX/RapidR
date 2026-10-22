@@ -21,16 +21,19 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   The Call Stack is now one of the debug panes (no longer in the Toolbox's
   place). See [Debugging: two layouts](docs/manual/debugging.md#two-layouts-editing-and-debugging).
 - **Splitters you can see, grab and move from the keyboard** (RapidR
-  Studio's panes, the document groups, RSplitter in RapidR's look): a line
-  and a grip at rest (two new theme tokens, `splitter` and `splitter_grip`,
-  3:1 against both sides in light, dark and high contrast), the accent under
-  the mouse (in the light look too, where the highlight was a near-white
-  nobody saw); an 8-pixel grab area over a 4-pixel gutter; a double click puts
-  a splitter back where it was. Window ▸ Resize Panes (Ctrl+F6) gives the
-  keyboard to the splitter beside the active pane: arrows move it 10 pixels,
-  Shift+arrows 50, Home / End as far as it goes, Tab the next one, Enter or
-  Escape back. A screen reader hears a separator whose value is a
-  percentage. RDockManager gains `FocusSplitter` and `PaneExtent(Name,
+  Studio's panes, the document groups, RSplitter in RapidR's look): quiet
+  at rest, the panes' own gap with a short grip in its middle (two new theme
+  tokens: `splitter_grip`, 3:1 against the gap in light, dark and high
+  contrast, and `splitter`, a soft 1-pixel line along the middle where no
+  pane edge shows it, crisp in high contrast); the whole gap in the accent
+  once the mouse rests on it (150 ms, no flicker passing over) and while it
+  is dragged, in the light look too; an 8-pixel grab area over a 4-pixel
+  gutter; where two splitters meet, the corner moves both; a double click
+  puts a splitter back where it was. Window ▸ Resize Panes (Ctrl+F6) gives
+  the keyboard to the splitter beside the active pane: arrows move it 10
+  pixels, Shift+arrows 50, Alt+an arrow across it the splitter it meets,
+  Home / End as far as it goes, Tab the next one, Enter or Escape back. A
+  screen reader hears a separator whose value is a percentage. RDockManager gains `FocusSplitter` and `PaneExtent(Name,
   "width" | "height", [Extent])`. Programs' RSplitters keep their geometry;
   only the drawing changes. See [Panes and splitters](docs/manual/getting-started.md#panes-and-splitters).
 - **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
