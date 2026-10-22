@@ -1,4 +1,4 @@
-// RapidR for VS Code: a thin client. IntelliSense, diagnostics, navigation,
+// RapidR for VS Code: a thin client. Code completion, diagnostics, navigation,
 // rename and formatting come from `rapidr lsp` (the language server, Rust);
 // debugging from `rapidr dap` (the debug adapter, Rust); run / build
 // commands run `rapidr` in a terminal. This file only finds rapidr and wires

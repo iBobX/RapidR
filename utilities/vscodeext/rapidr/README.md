@@ -10,7 +10,7 @@ This extension is a thin client. The language intelligence comes from RapidR its
 
 ## Features
 
-### IntelliSense that knows your program
+### Code completion that knows your program
 
 The completion list includes the builtins, the keywords, the components (offered under RapidR's names, such as `RButton`, with "RapidQ name: QBUTTON" as the detail; in a RapidQ-compatible project they are offered under RapidQ's names, with "RapidR name: RButton") with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
 

@@ -123,7 +123,7 @@ describe('RapidR for VS Code', () => {
         });
     });
 
-    describe('IntelliSense (rapidr lsp)', () => {
+    describe('Code completion (rapidr lsp)', () => {
         let doc;
         before(async () => {
             doc = await open('main.bas');
