@@ -8,6 +8,44 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Every model writes correct RapidR: the language card, the outline, the
+  manual, the mistake ledger** (ROADMAP K1, K3, K4, K4b; docs/rai-mistake-ledger.md).
+  - **The language card** (K1): about 1,300 tokens of the rules models get
+    wrong, sent with every RAI chat — DIM before use (an undeclared name is a
+    DOUBLE), a global declared once in the whole program, only SUBs that
+    exist, `FOR i AS INTEGER`, `True` is -1 while `Checked` and `FILEEXISTS`
+    give 1, arrays, `CREATE` windows, each event SUB's parameters, the types,
+    RapidR's names. Generated from the registry (new `[[rule]]` entries in
+    data/language.toml, each with a program `rapidr lang truth` compiles and
+    runs as a `.rr`), never hand-written; a test fails when it names
+    something the registry doesn't have or grows past 2,000 tokens.
+    `rapidr lang export --card` prints it. It replaces the hand-written
+    language lines of Studio's assistant prompt.
+  - **`project_outline` and `search_manual`** (K3), two new RAI tools: the
+    program as the compiler reads it (files in include order, who includes
+    whom, each file's forms and components, SUBs and FUNCTIONs with their
+    parameters, globals with their types, CONSTs and TYPEs, with lines; a
+    file the main file doesn't include, said), and BM25 over the manual's
+    guide pages (the best three sections, trimmed). The outline's
+    description tells models to call it before multi-file changes.
+  - **`FOR i AS INTEGER = 1 TO n [STEP s]`** (K4), a RapidR extension: the
+    counter is declared where it isn't yet (a local in a SUB, a global in
+    the main program); the same type is the same variable, another type or
+    a non-number type is an error that says so. One front-end pass
+    (`rapidr_ast::for_as`) both compilers run: the VM, native builds and the
+    web behave alike; plain `FOR i = …` is unchanged.
+  - **Messages that say the fix** (K4): a name declared again says where
+    the first one is, in which file (`Identifier siteCount already used, try
+    another name — it is declared in globals.rr:12 already …`; a file
+    `$INCLUDE`d twice is said as such); an unknown SUB or FUNCTION names the
+    nearest of the program's and the builtins (`— did you mean
+    ShowNumber?`), or says no file has it. RapidQ's words come first, as
+    before. check_code adds a hint under "expecting type DOUBLE, but got
+    STRING": the variable was never declared.
+  - **`NOT FILEEXISTS(x)` is always true** (K4b): FILEEXISTS gives 1 and NOT 1
+    is -2, so the editor warns — `FILEEXISTS gives 1, and NOT 1 is -2 (true):
+    write FILEEXISTS(x) = 0` — and its quick fix (Ctrl+.) writes it; also
+    DIREXISTS (every builtin whose reference says "True (1)").
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong

@@ -43,4 +43,6 @@ export const scenes = [
   { name: "problems", setup: (work, root) => asBas(work, root, `${START},type:x = mbYes,key:Escape,wait,wait,wait,view.problems`), delay: 8, crop: [244, 480, 792, 225] },
   // Ctrl+. on it: the fix
   { name: "quick-fix", setup: (work, root) => asBas(work, root, `${MID},type:x = mbYes,key:Escape,wait,wait,wait,key:Left,key:Ctrl+.,wait`), delay: 8, crop: [244, 90, 792, 260] },
+  // `NOT FILEEXISTS(…)` is always true (K4b): underlined, and Ctrl+. offers `= 0`
+  { name: "not-fileexists", open: OPEN, do: `${MID},type:IF NOT FILEEXISTS("notes.txt") THEN PRINT 1,key:Escape,wait,wait,wait,wait,wait,key:Home,key:Right,key:Right,key:Right,key:Right,key:Ctrl+.,wait`, delay: 12, crop: [244, 90, 792, 260] },
 ];

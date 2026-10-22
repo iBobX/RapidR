@@ -747,10 +747,10 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [x] ★ R11 Transcript fixes (apply/reject log, targeted edits, truncated writes, pending set) (2026-10-22: each decision said once — stale/failed/replaced/set aside said as such; a patch adding a SUB at a file's end applied nothing while saying "applied" — fixed; whole-file rewrites of 40+ lines refused for hunks; cut-off and syntax-error changes refused in every file; waiting changes kept across questions and checked together; one retry for DNS/connection failures; flows ai-r11-*)
 
 **Knowledge**
-- [ ] ★ K1 The language card, generated
+- [x] ★ K1 The language card, generated (2026-10-22: `rapidr_lang::card`, ~1,300 tokens in every RAI chat, from `[[rule]]` entries whose programs `rapidr lang truth` compiles and runs, the registry's syntax, types, event parameters and names; tests: under 2,000 tokens, only the registry's names; `rapidr lang export --card`)
 - [ ] K2 A tested example for every method
-- [ ] ★ K3 `search_manual`, `project_outline`
-- [ ] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension)
+- [x] ★ K3 `search_manual`, `project_outline` (2026-10-22: the program as the compiler reads it — include order, forms, SUBs/FUNCTIONs with parameters, globals with types, lines; BM25 over the manual's guide pages; a mock-provider test checks every request offers both)
+- [x] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension) (2026-10-22: docs/rai-mistake-ledger.md, 12 entries; `FOR i AS INTEGER` in both compilers and the web — rapidr_ast::for_as, conformance for_as; a name declared again says where the first one is, in which file; an unknown SUB names the nearest; K4b: the `NOT FILEEXISTS` warning and its quick fix)
 - [ ] K5 Project notes for RAI
 - [ ] K6 Evals and the "Which model?" report
 - [x] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`) *(K7, 2026-10-22: `rapidr lang truth` — syntax lines and examples compile, the new `expect` facet is run, in `regress.sh unit`; it found and fixed `Iloc`, `Select`, `GroupBy`, `Nlargest`, `Nsmallest`, `FromList`, `QUICKSORT` and more; docs/ai-architecture.md §2.)*

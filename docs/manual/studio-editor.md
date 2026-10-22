@@ -169,6 +169,13 @@ Other fixes: a misspelt property (`NameEdit.Txet`) offers the nearest real
 ones ("Change to Text"); in a RapidQ-compatible project, a Q name that
 doesn't exist (`QPLOT`) offers RapidR's (`RPLOT`).
 
+`IF NOT FILEEXISTS(f) THEN` looks right but is always true: FILEEXISTS
+gives 1 when the file is there, and `NOT 1` is -2 — true as well. Studio
+underlines it, and the fix writes the test that works,
+`IF FILEEXISTS(f) = 0 THEN` (DIREXISTS the same):
+
+![IF NOT FILEEXISTS("notes.txt") is underlined; Ctrl+. offers Write FILEEXISTS("notes.txt") = 0](images/studio-editor/not-fileexists.png)
+
 ## Typing help
 
 - **Tab** at the start of a line indents it by the file's unit (four spaces,
