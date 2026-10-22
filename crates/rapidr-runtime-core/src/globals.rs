@@ -21,6 +21,13 @@ thread_local! {
 }
 
 impl Platform for Desktop {
+    // (Application.Announce) the windows' trees sent again: the focused
+    // one's live regions say it (rapidr_ui_host_winit::a11y)
+    fn announce(&self, _a: &rapidr_value::objects::a11y::Announcement) {
+        #[cfg(feature = "gui")]
+        crate::ui::kernel::announced();
+    }
+
     fn set_icon(&self) {
         #[cfg(feature = "gui")]
         crate::ui::gui_apply_icons();

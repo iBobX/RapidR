@@ -19,6 +19,7 @@ properties = [
   { name = "Transferred", type = "int", access = "read", design = false },
   { name = "WMessage", type = "int", default = 0 },
   { name = "Host", type = "string", origin = "rapidr" },
+  { name = "BindAddress", type = "string", default = "0.0.0.0", origin = "rapidr", only = "desktop", values = ["0.0.0.0", "127.0.0.1"], doc = "The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (RapidQ's way, the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections)." },
   { name = "Port", type = "int", origin = "rapidr" },
   { name = "Connected", type = "int", origin = "rapidr" },
   { name = "Timeout", type = "int", origin = "rapidr" },
@@ -34,7 +35,7 @@ methods = [
   { name = "GetPeerName", params = "Socket AS INTEGER", returns = "VARIANT" },
   { name = "IsClientReady", params = "Sock AS INTEGER, ClientSock AS INTEGER", returns = "VARIANT" },
   { name = "IsServerReady", params = "Sock AS INTEGER", returns = "VARIANT" },
-  { name = "Open", params = "PortNum AS INTEGER", returns = "VARIANT", only = "web" },
+  { name = "Open", params = "PortNum AS INTEGER, [Address AS STRING]", returns = "VARIANT", effects = ["network"], test = "args: 0, \"127.0.0.1\"", doc = "Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: \"127.0.0.1\" this computer only; without it, BindAddress (0.0.0.0, every network interface, as RapidQ). A browser can't listen: -1 on the web." },
   { name = "Peek", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT" },
   { name = "Read", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT", value = true },
   { name = "ReadByte", params = "Socket AS INTEGER", returns = "BYTE" },
@@ -58,26 +59,90 @@ display = "ServerSocket"
 visual = false
 only = "desktop"
 default_event = "OnClientConnect"
-doc = "A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own)."
+doc = "A TCP server: listens on a port, accepts clients and exchanges data with them — by lines (the default), as the bytes come, or as whole HTTP requests (Mode). Its events come when the program calls Poll (from an RTimer). RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own). For a web API, a dashboard or an MCP server, RHttpServer does the HTTP for you."
+example = """
+DIM Srv AS RServerSocket
+Srv.Host = "127.0.0.1"
+Srv.Port = 47100
+IF Srv.Start THEN PRINT "listening on port "; Srv.Port
+Srv.Stop
+"""
 properties = [
-  { name = "Host", type = "string" },
-  { name = "Port", type = "int" },
+  { name = "Host", type = "string", default = "0.0.0.0", values = ["0.0.0.0", "127.0.0.1"], doc = "The address it listens on: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it). Set it before Start." },
+  { name = "Port", type = "int", range = "0..65535", doc = "The port it listens on; 0 lets the system pick a free one, and Port says which after Start." },
   { name = "ClientCount", type = "int" },
+  { name = "Mode", type = "string", default = "lines", values = ["lines", "bytes", "http"], origin = "rapidr", doc = "How what a client sends reaches OnDataReceived: \"lines\" (the default) each line, trimmed, blank ones left out — a last line without its end when the client closes; \"bytes\" what came as it came, nothing trimmed or dropped; \"http\" each whole HTTP request: its request line, headers, a blank line and its body, whatever its size, by its Content-Length or its chunks (joined, with a Content-Length), up to 4 MB (answer it with Send). Set it before Start." },
 ]
 methods = [
-  { name = "Start", value = true, only = "desktop" },
-  { name = "Stop", value = true, only = "desktop" },
-  { name = "Broadcast", value = true, only = "desktop" },
-  { name = "Listen", value = true, only = "desktop" },
-  { name = "Accept", value = true, only = "desktop" },
-  { name = "Poll", only = "desktop" },
-  { name = "SendTo", only = "desktop" },
+  { name = "Start", returns = "INTEGER", value = true, only = "desktop", effects = ["network"], test = "skip: listens on a port (the examples suite starts one on 127.0.0.1)", doc = "Listens on Host:Port: 1 when it does, 0 when it can't (the port is taken)." },
+  { name = "Stop", value = true, only = "desktop", effects = ["network"], doc = "Stops listening and closes every client's connection." },
+  { name = "Broadcast", params = "Data AS STRING", value = true, only = "desktop", effects = ["network"], doc = "Sends Data and a line end to every client." },
+  { name = "Listen", returns = "INTEGER", value = true, only = "desktop", effects = ["network"], test = "skip: listens on a port (the examples suite starts one on 127.0.0.1)", doc = "The same as Start." },
+  { name = "Accept", value = true, only = "desktop", doc = "The same as Poll." },
+  { name = "Poll", only = "desktop", effects = ["state"], doc = "Fires the events that came since the last Poll: OnClientConnect, OnDataReceived, OnClientDisconnect. Call it from an RTimer (every 25 to 100 ms)." },
+  { name = "SendTo", params = "Address AS STRING, Data AS STRING", returns = "INTEGER", only = "desktop", effects = ["network"], doc = "Sends Data and a line end to the client at Address (as OnClientConnect gave it): 1 when it was sent." },
+  { name = "Send", params = "Address AS STRING, Data AS STRING", returns = "INTEGER", only = "desktop", origin = "rapidr", effects = ["network"], doc = "Sends Data as it is, nothing added, to the client at Address: an HTTP response, part of a line. 1 when it was sent." },
+  { name = "Disconnect", params = "Address AS STRING", returns = "INTEGER", only = "desktop", origin = "rapidr", effects = ["network"], doc = "Closes the connection of the client at Address (OnClientDisconnect follows): 1 when there was one." },
 ]
 events = [
   { name = "OnClientConnect", params = "Address AS STRING" },
   { name = "OnClientDisconnect", params = "Address AS STRING" },
   { name = "OnDataReceived", params = "Address AS STRING, Data AS STRING" },
   { name = "OnError" },
+]
+
+[[component]]
+name = "RHTTPSERVER"
+display = "HttpServer"
+visual = false
+only = "desktop"
+default_event = "OnRequest"
+doc = "A local web server for the program: a web API, a dashboard, an MCP server. It listens on 127.0.0.1 (this computer only) unless Host says otherwise, and gives the program each request whole — its method, path, headers and body — in OnRequest, on the program's own thread (the window never freezes). The program answers then or later with Respond, or streams Server-Sent Events (BeginStream, SendEvent, EndStream). The server refuses by itself what doesn't belong: a Host that isn't its own (DNS rebinding), a request a browser marks as coming from another site's page (Sec-Fetch-Site) or whose Origin isn't allowed, anything but GET and HEAD while no Token is set, a missing or wrong token when Token is set, a request too large or too slow. A link, an image or a script on another site's page can still send a GET with no Origin: GET handlers must only read, never change anything, and anything beyond harmless reads needs a Token (NewToken makes one). Plain HTTP, no TLS: meant for 127.0.0.1, where nothing goes over the network — other programs and users of the same computer can still connect, so the Token is the protection. RapidR's own; desktop only (a web page can't listen for connections)."
+example = """
+DIM Web AS RHttpServer
+SUB Answer (Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)
+    IF Path = "/hello" THEN
+        Web.Respond 200, "Content-Type: text/plain", "Hello from RapidR"
+    ELSE
+        Web.Respond 404, "", "Not found"
+    END IF
+END SUB
+Web.OnRequest = Answer
+Web.Port = 47110
+IF Web.Start THEN PRINT "open "; Web.Url; "hello"
+Web.Stop
+"""
+properties = [
+  { name = "Host", type = "string", default = "127.0.0.1", values = ["127.0.0.1", "0.0.0.0"], doc = "The address it listens on: 127.0.0.1, this computer only (the default); 0.0.0.0 every network interface (then list the names other computers use in AllowedHosts). Set it before Start." },
+  { name = "Port", type = "int", default = 0, range = "0..65535", doc = "The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start." },
+  { name = "Token", type = "string", default = "", design = false, secret = true, doc = "When set, every request must carry it as `Authorization: Bearer <token>`, else the server answers 401 by itself. Without one, the server answers only GET and HEAD (anything else gets 401): set one for anything that changes something. Make it with NewToken (never RND: it is not for secrets), and keep it with RSecrets. Set it before Start." },
+  { name = "AllowedOrigins", type = "string", default = "", doc = "Web pages that may call the server, by origin (`https://example.com`), separated by commas; \"*\" any. A page's own requests (fetch) carry its Origin, and one from any other page is refused with 403, as is anything a browser marks `Sec-Fetch-Site: cross-site`. But a link, an image or a script on another site's page can send a GET with no Origin at all: GET handlers must only read, and anything beyond harmless reads needs a Token. Requests that aren't from a page (curl, an AI app) have no Origin. The server's own address is always allowed. Set it before Start." },
+  { name = "AllowedHosts", type = "string", default = "", doc = "More names the server answers to (`myhost:8080`), separated by commas; \"*\" any. A request for any other host name is refused with 403: a web page can't reach it by a name of its own (DNS rebinding). 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start." },
+  { name = "MaxRequestSize", type = "int", default = 4194304, range = "1..", unit = "bytes", doc = "The largest body a request may have; a larger one is refused with 413. Set it before Start." },
+  { name = "MaxConnections", type = "int", default = 32, range = "1..", doc = "How many connections may be open at once; one more is answered 503. Set it before Start." },
+  { name = "Timeout", type = "int", default = 30000, range = "1..", unit = "ms", doc = "How long a request may take to arrive whole (else 408), and how long an idle connection stays open. Set it before Start." },
+  { name = "Listening", type = "bool", access = "read", design = false, doc = "True while it listens." },
+  { name = "Url", type = "string", access = "read", design = false, doc = "Its address once started: `http://127.0.0.1:47110/`." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why Start failed (the port is taken, a wrong Host); \"\" when it worked." },
+  { name = "Request", type = "int", access = "read", design = false, doc = "The number of the request OnRequest is handling: keep it to answer later (Respond's, BeginStream's, SendEvent's last argument)." },
+  { name = "Method", type = "string", access = "read", design = false, doc = "The request's method (GET, POST …), as OnRequest's Method." },
+  { name = "Path", type = "string", access = "read", design = false, doc = "The request's path without the query (`/mcp`), as sent (not decoded)." },
+  { name = "Query", type = "string", access = "read", design = false, doc = "What follows the path's `?` (`q=1&n=2`), \"\" without one." },
+  { name = "Peer", type = "string", access = "read", design = false, doc = "The address the request came from (`127.0.0.1:53211`)." },
+]
+methods = [
+  { name = "Start", returns = "INTEGER", value = true, effects = ["network"], test = "skip: listens on a port (the examples suite starts one on 127.0.0.1)", doc = "Starts listening on Host:Port: True when it does, False when it can't (Error says why)." },
+  { name = "NewToken", returns = "STRING", value = true, effects = ["state"], secret = true, doc = "Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it, to give the program that will call the server (keep it with RSecrets). \"\" when the system gives none (Error says why). Call it before Start." },
+  { name = "Stop", effects = ["network"], doc = "Stops listening; the open connections are closed." },
+  { name = "Respond", params = "Status AS INTEGER, Headers AS STRING, Body AS STRING, [Request AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Answers a request: its status (200, 404 …), its headers (`Name: value` lines, CHR$(13) + CHR$(10) or CHR$(10) between; the server adds Content-Length and, for text, Content-Type) and its body. Without Request, the one OnRequest is handling. True when it was sent; False when that request was answered already or its client went away." },
+  { name = "BeginStream", params = "[Headers AS STRING], [Request AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Answers a request with a stream of Server-Sent Events (200, `text/event-stream`, and Headers); SendEvent sends each, EndStream ends it. Without Request, the one OnRequest is handling." },
+  { name = "SendEvent", params = "Data AS STRING, [EventName AS STRING], [Request AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Sends one event on a stream BeginStream began: `event: EventName` (when given) and Data as `data:` lines. False when the client went away (the stream is over)." },
+  { name = "EndStream", params = "[Request AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Ends a stream BeginStream began." },
+  { name = "Close", params = "[Request AS INTEGER]", returns = "INTEGER", value = true, effects = ["network"], doc = "Closes a request's connection now, without an answer." },
+  { name = "Header", params = "Name AS STRING, [Request AS INTEGER]", returns = "STRING", effects = ["none"], doc = "A header of the request (`Content-Type`, any case): \"\" when it has none." },
+]
+events = [
+  { name = "OnRequest", params = "Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING", doc = "A request arrived: its method, its path (without the query: Query has it), its headers (`Name: value` lines, CR LF between) and its body, as text. One at a time: the next waits until this handler is over. Answer with Respond (or BeginStream), now or later with the Request number; a request no handler answers stays open until its client gives up." },
 ]
 
 [[component]]

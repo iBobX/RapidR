@@ -133,8 +133,9 @@ a 1200 × 800 window to try it with
 - **RSecrets** keeps nothing in a browser: a page has no keychain, and
   RapidR never puts secrets in the page's storage. `Available` is False and
   every call fails, `Error` saying so ([Keeping secrets](secrets.md#in-a-browser)).
-- **RMySQL** and **RServerSocket** don't work in a browser (no raw TCP);
-  call a server of yours with RHttp instead. **RSocket** connects over
+- **RMySQL**, **RServerSocket** and **RHttpServer** don't work in a browser
+  (no raw TCP, and a page can't listen for connections); call a server of
+  yours with RHttp instead. **RSocket** connects over
   WebSocket. **RHttp** uses the browser's fetch, so the browser's CORS
   rules apply.
 - **RComPort** uses Web Serial, **RDXJoystick** the Gamepad API, **RMIDI**

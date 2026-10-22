@@ -330,6 +330,7 @@ for (const c of chosen) {
   await page.close();
 }
 if (chosen.some((c) => c.name === "a11y_form")) await keys();
+if (!filters.length || filters.some((f) => "announce".includes(f))) await announce();
 await browser.close();
 console.log(`\nKernel host: Chrome's tree equal to the kernel's for ${same} of ${same + differ} cases`);
 console.log(`Web accessibility (kernel host): ${passed} checks passed, ${failed} failed, ${skipped} skipped`);
@@ -429,5 +430,51 @@ async function keys() {
   await page.waitForTimeout(200);
   ok((await caption()).endsWith(" ok cancel"), `a11y_form: Escape clicks the Cancel button [got: ${await caption()}]`);
   ok(errors.length === 0, `a11y_form: no page errors (${errors.join("; ")})`);
+  await page.close();
+}
+
+/// Application.Announce (RapidR's) on the web: the page's aria-live regions
+/// (rapidr-ui-host-web's host.rs) get the text — polite or assertive, the
+/// other emptied —, the same text again is said again (the region emptied,
+/// then given it), and Chrome's tree has it in a live region.
+async function announce() {
+  const page = await browser.newPage({ deviceScaleFactor: dpr });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${URL_BASE}/tests/web_kernel.html`, { waitUntil: "load" });
+  await page.waitForFunction(() => window.rrReady, null, { timeout: 15000 });
+  const source = [
+    "SUB Polite",
+    "  Application.Announce \"3 rows found\"",
+    "END SUB",
+    "SUB Urgent",
+    "  Application.Announce \"The connection was lost\", True",
+    "END SUB",
+    "CREATE Form AS RForm",
+    "  Caption = \"Announce\": Width = 300: Height = 120",
+    "  CREATE Say AS RButton: Caption = \"Say\": Left = 10: Top = 10: OnClick = Polite: END CREATE",
+    "  CREATE Shout AS RButton: Caption = \"Shout\": Left = 100: Top = 10: OnClick = Urgent: END CREATE",
+    "END CREATE",
+    "Form.ShowModal",
+  ].join("\n");
+  await page.evaluate((src) => window.rr.rapidr_run_bc(window.rr.compile(src, "announce.rr", {})), source);
+  await k.waitFor(page, "Say");
+  const region = (id) => page.evaluate((id) => { const e = document.getElementById(id); return e ? [e.getAttribute("aria-live"), e.textContent] : null; }, id);
+  ok(JSON.stringify(await region("rr-announce-polite")) === '["polite",""]' && JSON.stringify(await region("rr-announce-assertive")) === '["assertive",""]', "announce: the page's live regions are there before the first announcement");
+  await k.click(page, "Say");
+  await page.waitForTimeout(300);
+  ok((await region("rr-announce-polite"))?.[1] === "3 rows found", `announce: said politely [got: ${JSON.stringify(await region("rr-announce-polite"))}]`);
+  const tree = await snapshot(page);
+  const live = tree.order.find((n) => prop(n, "live") === "polite" && squash(n.name?.value).includes("3 rows found") || (prop(n, "live") === "polite" && under(tree, n).some((c) => squash(c.name?.value) === "3 rows found")));
+  ok(!!live, "announce: Chrome's tree has it in a polite live region");
+  // (the same again: emptied, then said again)
+  await k.click(page, "Say");
+  const emptied = (await region("rr-announce-polite"))?.[1];
+  await page.waitForTimeout(300);
+  ok(emptied === "" && (await region("rr-announce-polite"))?.[1] === "3 rows found", `announce: the same text again is said again [emptied: "${emptied}"]`);
+  await k.click(page, "Shout");
+  await page.waitForTimeout(300);
+  ok((await region("rr-announce-assertive"))?.[1] === "The connection was lost" && (await region("rr-announce-polite"))?.[1] === "", `announce: assertive, the polite region emptied [got: ${JSON.stringify(await region("rr-announce-assertive"))}]`);
+  ok(errors.length === 0, `announce: no page errors (${errors.join("; ")})`);
   await page.close();
 }

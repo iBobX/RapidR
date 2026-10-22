@@ -5352,6 +5352,7 @@ version = "2.120.0"
 dependencies = [
  "arboard",
  "chrono",
+ "getrandom 0.4.2",
  "gilrs",
  "libc",
  "libloading 0.8.9",

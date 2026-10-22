@@ -906,10 +906,15 @@ impl Shim<'_> {
                 w.window.set_ime_cursor_area(LogicalPosition::new(x as f64, y as f64), LogicalSize::new(cw.max(1) as f64, ch.max(1) as f64));
             }
         }
-        // (a screen reader listening: the nodes that changed)
+        // (a screen reader listening: the nodes that changed — the
+        // program's announcements in the focused window's live regions)
+        let focused = w.window.has_focus();
         let (ui, sent, store) = (&mut k.ui, &mut w.sent, self.store);
         w.access.update_if_active(|| {
-            let tree = ui.access_tree(store, text);
+            let mut tree = ui.access_tree(store, text);
+            if focused {
+                a11y::announce_into(&mut tree);
+            }
             a11y::update(&tree, scale, sent, false).unwrap_or_else(|| a11y::unchanged(sent))
         });
     }
@@ -1054,7 +1059,10 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
                         let scale = self.scale_of(&f);
                         let Desktop { forms, text, .. } = &mut *self.desk;
                         if let (Some(k), Some(w)) = (forms.get_mut(&f), self.s.wins.get_mut(&f)) {
-                            let tree = k.ui.access_tree(self.store, text);
+                            let mut tree = k.ui.access_tree(self.store, text);
+                            if w.window.has_focus() {
+                                a11y::announce_into(&mut tree);
+                            }
                             let sent = &mut w.sent;
                             w.access.update_if_active(|| a11y::update(&tree, scale, sent, true).expect("a full tree"));
                         }

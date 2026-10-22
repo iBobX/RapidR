@@ -355,7 +355,9 @@ impl RustCodegen {
             return None;
         }
         let k = key(name);
-        if self.shadowed.contains(&k) {
+        // (RESULT in a FUNCTION is its value, never a global named Result:
+        // rapidr_ast::function_result)
+        if self.shadowed.contains(&k) || (k == "result" && self.current_function.is_some()) {
             return None;
         }
         let kind = *self.typed_globals.get(&k)?;

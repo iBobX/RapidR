@@ -52,6 +52,10 @@ pub trait Platform {
     }
     /// `Application.Theme = name`: draw with that theme from now on.
     fn set_theme(&self, _name: &str) {}
+    /// `Application.Announce` (RapidR's): screen readers told `a`
+    /// ([`crate::objects::a11y::announce`] kept it) — the desktop's windows
+    /// sent to AccessKit again, the web's page live region given its text.
+    fn announce(&self, _a: &crate::objects::a11y::Announcement) {}
 }
 
 thread_local! {
@@ -280,6 +284,14 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
         // (RapidR's) keystrokes to the program's own windows, as the
         // user's (crate::send_keys); False for a malformed string
         ("application", "sendkeys") => v_bool(crate::send_keys::send(&arg(0).to_string_val()).is_ok()),
+        // (RapidR's) Text said by screen readers without the focus moving:
+        // politely, or at once when Assertive is true
+        ("application", "announce") => {
+            if let Some(a) = crate::objects::a11y::announce(&arg(0).to_string_val(), args.get(1).is_some_and(Value::to_bool)) {
+                p.announce(&a);
+            }
+            v_null()
+        }
         ("screen", "getpixeldepth") => v_int(32),
         ("screen", "monitors") => v_int(p.monitors()),
         ("screen", "mousebuttons") => v_int(3),

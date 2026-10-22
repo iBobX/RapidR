@@ -107,7 +107,7 @@ pub fn websocket_method(name: &str, method: &str, args: &[Value]) -> Value {
     // RapidQ reports it — no socket (-1), nothing ready, nothing read.
     let qsocket = matches!(
         (method, args.len()),
-        ("connect", 2) | ("open", 1) | ("accept", 1) | ("connectionready", 1) | ("isserverready", 1) | ("isclientready", 2)
+        ("connect", 2) | ("open", 1 | 2) | ("accept", 1) | ("connectionready", 1) | ("isserverready", 1) | ("isclientready", 2)
             | ("read" | "peek", 2) | ("readbyte", 1) | ("readline", 1) | ("write", 3) | ("writeline" | "writebyte", 2)
             | ("close", 1) | ("getpeername", 1) | ("gethostname" | "gethostip", 0)
     );

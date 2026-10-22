@@ -3597,6 +3597,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
 | `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
 | `Host` *(RapidR)* | string |  | The server's host name or address. |
+| `BindAddress` *(RapidR)* *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (RapidQ's way, the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
 | `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
 | `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
 | `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
@@ -3613,7 +3614,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `GetPeerName(Socket AS INTEGER) AS VARIANT` | Returns the address of the other end of socket `Socket`. |
 | `IsClientReady(Sock AS INTEGER, ClientSock AS INTEGER) AS VARIANT` | Returns true when client socket `ClientSock` of server socket `Sock` has data to read. |
 | `IsServerReady(Sock AS INTEGER) AS VARIANT` | Returns true when socket `Sock` has data from the server to read. |
-| `Open(PortNum AS INTEGER) AS VARIANT` *(web)* | Opens what the component works with: a media file or device, a file stream in a mode, a serial port, the clipboard, or a listening socket on a port. |
+| `Open(PortNum AS INTEGER, [Address AS STRING]) AS VARIANT` | Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: "127.0.0.1" this computer only; without it, BindAddress (0.0.0.0, every network interface, as RapidQ). A browser can't listen: -1 on the web. |
 | `Peek(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read. |
 | `Read(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadByte(Socket AS INTEGER) AS BYTE` | Reads one byte from the socket or stream. |
@@ -3634,23 +3635,26 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 <a id="rserversocket"></a>
 ## RServerSocket
 
-A TCP server: listens on a port, accepts clients and exchanges data with them. RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own).
+A TCP server: listens on a port, accepts clients and exchanges data with them — by lines (the default), as the bytes come, or as whole HTTP requests (Mode). Its events come when the program calls Poll (from an RTimer). RapidR's own; desktop only: a web page can't listen for network connections (a browser lets it open WebSockets and HTTP requests, never a port of its own). For a web API, a dashboard or an MCP server, RHttpServer does the HTTP for you.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `Host` | string |  | The server's host name or address. |
-| `Port` | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `Host` | string | `"0.0.0.0"` | The address it listens on: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it). Set it before Start. |
+| `Port` | int |  | The port it listens on; 0 lets the system pick a free one, and Port says which after Start. |
 | `ClientCount` | int |  | The number of clients connected to the server now. |
+| `Mode` | string | `"lines"` | How what a client sends reaches OnDataReceived: "lines" (the default) each line, trimmed, blank ones left out — a last line without its end when the client closes; "bytes" what came as it came, nothing trimmed or dropped; "http" each whole HTTP request: its request line, headers, a blank line and its body, whatever its size, by its Content-Length or its chunks (joined, with a Content-Length), up to 4 MB (answer it with Send). Set it before Start. |
 
 | Method | |
 |---|---|
-| `Start` *(desktop)* | Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened. |
-| `Stop` *(desktop)* | Stops what is running: playback (back to the start), recording, or the server. |
-| `Broadcast` *(desktop)* | Sends a line of text to every connected client. |
-| `Listen` *(desktop)* | Starts the server listening on its `Host` and `Port`. Same as `Start`. |
-| `Accept` *(desktop)* | Takes a waiting client connection: with a listening socket's number it returns the new client socket's number; on an RSERVERSOCKET it handles waiting clients and messages, as `Poll`. |
-| `Poll` *(desktop)* | Handles what is waiting on the server: new clients, messages and disconnections, each as its event. |
-| `SendTo` *(desktop)* | Sends a line of text to one client, by its address. |
+| `Start AS INTEGER` *(desktop)* | Listens on Host:Port: 1 when it does, 0 when it can't (the port is taken). |
+| `Stop` *(desktop)* | Stops listening and closes every client's connection. |
+| `Broadcast(Data AS STRING)` *(desktop)* | Sends Data and a line end to every client. |
+| `Listen AS INTEGER` *(desktop)* | The same as Start. |
+| `Accept` *(desktop)* | The same as Poll. |
+| `Poll` *(desktop)* | Fires the events that came since the last Poll: OnClientConnect, OnDataReceived, OnClientDisconnect. Call it from an RTimer (every 25 to 100 ms). |
+| `SendTo(Address AS STRING, Data AS STRING) AS INTEGER` *(desktop)* | Sends Data and a line end to the client at Address (as OnClientConnect gave it): 1 when it was sent. |
+| `Send(Address AS STRING, Data AS STRING) AS INTEGER` *(desktop)* | Sends Data as it is, nothing added, to the client at Address: an HTTP response, part of a line. 1 when it was sent. |
+| `Disconnect(Address AS STRING) AS INTEGER` *(desktop)* | Closes the connection of the client at Address (OnClientDisconnect follows): 1 when there was one. |
 
 | Event | |
 |---|---|
@@ -3658,6 +3662,46 @@ A TCP server: listens on a port, accepts clients and exchanges data with them. R
 | `OnClientDisconnect(Address AS STRING)` | Fires when a client disconnects from the server socket; the handler gets the client's address. |
 | `OnDataReceived(Address AS STRING, Data AS STRING)` | Fires when data arrives from a client; the handler gets the client's address and the data. |
 | `OnError` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+
+<a id="rhttpserver"></a>
+## RHttpServer
+
+A local web server for the program: a web API, a dashboard, an MCP server. It listens on 127.0.0.1 (this computer only) unless Host says otherwise, and gives the program each request whole — its method, path, headers and body — in OnRequest, on the program's own thread (the window never freezes). The program answers then or later with Respond, or streams Server-Sent Events (BeginStream, SendEvent, EndStream). The server refuses by itself what doesn't belong: a Host that isn't its own (DNS rebinding), a request a browser marks as coming from another site's page (Sec-Fetch-Site) or whose Origin isn't allowed, anything but GET and HEAD while no Token is set, a missing or wrong token when Token is set, a request too large or too slow. A link, an image or a script on another site's page can still send a GET with no Origin: GET handlers must only read, never change anything, and anything beyond harmless reads needs a Token (NewToken makes one). Plain HTTP, no TLS: meant for 127.0.0.1, where nothing goes over the network — other programs and users of the same computer can still connect, so the Token is the protection. RapidR's own; desktop only (a web page can't listen for connections).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string | `"127.0.0.1"` | The address it listens on: 127.0.0.1, this computer only (the default); 0.0.0.0 every network interface (then list the names other computers use in AllowedHosts). Set it before Start. |
+| `Port` | int | 0 | The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. |
+| `Token` | string | `""` | When set, every request must carry it as `Authorization: Bearer <token>`, else the server answers 401 by itself. Without one, the server answers only GET and HEAD (anything else gets 401): set one for anything that changes something. Make it with NewToken (never RND: it is not for secrets), and keep it with RSecrets. Set it before Start. |
+| `AllowedOrigins` | string | `""` | Web pages that may call the server, by origin (`https://example.com`), separated by commas; "*" any. A page's own requests (fetch) carry its Origin, and one from any other page is refused with 403, as is anything a browser marks `Sec-Fetch-Site: cross-site`. But a link, an image or a script on another site's page can send a GET with no Origin at all: GET handlers must only read, and anything beyond harmless reads needs a Token. Requests that aren't from a page (curl, an AI app) have no Origin. The server's own address is always allowed. Set it before Start. |
+| `AllowedHosts` | string | `""` | More names the server answers to (`myhost:8080`), separated by commas; "*" any. A request for any other host name is refused with 403: a web page can't reach it by a name of its own (DNS rebinding). 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start. |
+| `MaxRequestSize` | int | 4194304 | The largest body a request may have; a larger one is refused with 413. Set it before Start. |
+| `MaxConnections` | int | 32 | How many connections may be open at once; one more is answered 503. Set it before Start. |
+| `Timeout` | int | 30000 | How long a request may take to arrive whole (else 408), and how long an idle connection stays open. Set it before Start. |
+| `Listening` (read-only) | bool |  | True while it listens. |
+| `Url` (read-only) | string |  | Its address once started: `http://127.0.0.1:47110/`. |
+| `Error` (read-only) | string |  | Why Start failed (the port is taken, a wrong Host); "" when it worked. |
+| `Request` (read-only) | int |  | The number of the request OnRequest is handling: keep it to answer later (Respond's, BeginStream's, SendEvent's last argument). |
+| `Method` (read-only) | string |  | The request's method (GET, POST …), as OnRequest's Method. |
+| `Path` (read-only) | string |  | The request's path without the query (`/mcp`), as sent (not decoded). |
+| `Query` (read-only) | string |  | What follows the path's `?` (`q=1&n=2`), "" without one. |
+| `Peer` (read-only) | string |  | The address the request came from (`127.0.0.1:53211`). |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't (Error says why). |
+| `NewToken AS STRING` | Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it, to give the program that will call the server (keep it with RSecrets). "" when the system gives none (Error says why). Call it before Start. |
+| `Stop` | Stops listening; the open connections are closed. |
+| `Respond(Status AS INTEGER, Headers AS STRING, Body AS STRING, [Request AS INTEGER]) AS INTEGER` | Answers a request: its status (200, 404 …), its headers (`Name: value` lines, CHR$(13) + CHR$(10) or CHR$(10) between; the server adds Content-Length and, for text, Content-Type) and its body. Without Request, the one OnRequest is handling. True when it was sent; False when that request was answered already or its client went away. |
+| `BeginStream([Headers AS STRING], [Request AS INTEGER]) AS INTEGER` | Answers a request with a stream of Server-Sent Events (200, `text/event-stream`, and Headers); SendEvent sends each, EndStream ends it. Without Request, the one OnRequest is handling. |
+| `SendEvent(Data AS STRING, [EventName AS STRING], [Request AS INTEGER]) AS INTEGER` | Sends one event on a stream BeginStream began: `event: EventName` (when given) and Data as `data:` lines. False when the client went away (the stream is over). |
+| `EndStream([Request AS INTEGER]) AS INTEGER` | Ends a stream BeginStream began. |
+| `Close([Request AS INTEGER]) AS INTEGER` | Closes a request's connection now, without an answer. |
+| `Header(Name AS STRING, [Request AS INTEGER]) AS STRING` | A header of the request (`Content-Type`, any case): "" when it has none. |
+
+| Event | |
+|---|---|
+| `OnRequest(Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)` | A request arrived: its method, its path (without the query: Query has it), its headers (`Name: value` lines, CR LF between) and its body, as text. One at a time: the next waits until this handler is over. Answer with Respond (or BeginStream), now or later with the Request number; a request no handler answers stays open until its client gives up. |
 
 <a id="rhttp"></a>
 ## RHttp
@@ -5275,7 +5319,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 <a id="rmarkdownview"></a>
 ## RMarkdownView
 
-A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
+A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5673,6 +5717,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Terminate` | Ends it: stops the thread, or ends the program. |
 | `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
+| `Announce(Text AS STRING, [Assertive AS INTEGER])` *(RapidR)* | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |
 | `SetPriority(Priority AS LONG) AS VARIANT` *(not yet)* | Sets the program's process priority. |
 

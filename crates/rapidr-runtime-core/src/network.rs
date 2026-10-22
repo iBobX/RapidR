@@ -238,8 +238,16 @@ mod qsocket {
                 rp_comp_set(name, "mysocket", v_int(id));
                 v_int(id)
             }
-            ("open", 1) => {
-                let id = TcpListener::bind(("0.0.0.0", n(0).clamp(0, 65535) as u16)).map_or(-1, |l| add(Sock::Server { l, pending: Vec::new() }));
+            // (RapidR's: the address listened on — Open's second argument,
+            // else BindAddress; every network interface, "0.0.0.0", as
+            // RapidQ's, unless one is given: "127.0.0.1" this computer only)
+            ("open", 1 | 2) => {
+                let given = match args.get(1) {
+                    Some(a) => a.to_string_val(),
+                    None => crate::object::rp_comp_get(name, "bindaddress").to_string_val(),
+                };
+                let host = if given.trim().is_empty() { "0.0.0.0".to_string() } else { given.trim().to_string() };
+                let id = TcpListener::bind((host.as_str(), n(0).clamp(0, 65535) as u16)).map_or(-1, |l| add(Sock::Server { l, pending: Vec::new() }));
                 rp_comp_set(name, "mysocket", v_int(id));
                 v_int(id)
             }
@@ -370,9 +378,13 @@ enum ServerEvent {
     ClientDisconnect { addr: String },
 }
 
+/// A connected client: its id, the stream the program writes to, its
+/// address.
+type Clients = Arc<Mutex<Vec<(usize, TcpStream, String)>>>;
+
 struct ServerState {
     /// Shared client list that background threads can write to and broadcast to
-    clients: Arc<Mutex<Vec<(usize, TcpStream, String)>>>,
+    clients: Clients,
     /// Receiver for events from background threads
     events: mpsc::Receiver<ServerEvent>,
     /// Flag to signal shutdown
@@ -391,7 +403,9 @@ pub fn server_socket_method(name: &str, method: &str, args: &[Value]) -> Value {
         "broadcast" => server_broadcast(&name_lower, args),
         "accept" => server_accept(&name_lower),
         "poll" => server_poll(&name_lower),
-        "sendto" => server_sendto(&name_lower, args),
+        "sendto" => server_sendto(&name_lower, args, true),
+        "send" => server_sendto(&name_lower, args, false),
+        "disconnect" => server_disconnect(&name_lower, args),
         _ => {
             eprintln!("[WARN] RServerSocket.{}() not implemented", method);
             v_null()
@@ -399,23 +413,34 @@ pub fn server_socket_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
 }
 
+/// How long a write to a client may wait for it to read (a client that
+/// never reads doesn't hold the program forever).
+const WRITE_WAIT: Duration = Duration::from_secs(10);
+
 fn server_start(name: &str) -> Value {
     let host = crate::object::rp_comp_get(name, "host").to_string_val();
-    let port = crate::object::rp_comp_get(name, "port").to_i64() as u16;
-    let addr = format!("{}:{}", host, port);
+    let host = if host.trim().is_empty() { "0.0.0.0".to_string() } else { host.trim().to_string() };
+    let port = crate::object::rp_comp_get(name, "port").to_i64().clamp(0, 65535) as u16;
+    let framing = crate::netframe::Framing::by_name(&crate::object::rp_comp_get(name, "mode").to_string_val(), crate::netframe::Limits::default());
 
-    let listener = match TcpListener::bind(&addr) {
+    // (one already listening under this name: stopped first)
+    server_stop(name);
+    let listener = match TcpListener::bind((host.as_str(), port)) {
         Ok(l) => l,
         Err(e) => {
             eprintln!("[ServerSocket] Bind error: {}", e);
             return v_int(0);
         }
     };
+    // (Port 0: the port the system picked)
+    if let Ok(a) = listener.local_addr() {
+        rp_comp_set(name, "port", v_int(i64::from(a.port())));
+    }
     let _ = listener.set_nonblocking(true);
 
     let (tx, rx) = mpsc::channel::<ServerEvent>();
     let running = Arc::new(Mutex::new(true));
-    let clients: Arc<Mutex<Vec<(usize, TcpStream, String)>>> = Arc::new(Mutex::new(Vec::new()));
+    let clients: Clients = Arc::new(Mutex::new(Vec::new()));
     let next_id = Arc::new(Mutex::new(1usize));
 
     // Spawn accept thread
@@ -429,8 +454,9 @@ fn server_start(name: &str) -> Value {
             match listener.accept() {
                 Ok((stream, addr)) => {
                     let addr_str = addr.to_string();
-                    let _ = stream.set_read_timeout(Some(Duration::from_millis(100)));
                     let _ = stream.set_nonblocking(false);
+                    let _ = stream.set_read_timeout(Some(Duration::from_millis(100)));
+                    let _ = stream.set_write_timeout(Some(WRITE_WAIT));
 
                     let mut id_lock = accept_next_id.lock().unwrap();
                     let client_id = *id_lock;
@@ -444,93 +470,80 @@ fn server_start(name: &str) -> Value {
                     };
 
                     // Store in shared clients list
-                    accept_clients.lock().unwrap().push(
-                        (client_id, stream, addr_str.clone())
-                    );
+                    accept_clients.lock().unwrap().push((client_id, stream, addr_str.clone()));
 
-                    let _ = accept_tx.send(ServerEvent::ClientConnect {
-                        addr: addr_str.clone(),
-                    });
+                    let _ = accept_tx.send(ServerEvent::ClientConnect { addr: addr_str.clone() });
 
                     // Spawn per-client reader thread
                     let reader_tx = accept_tx.clone();
                     let reader_running = Arc::clone(&accept_running);
                     let reader_clients = Arc::clone(&accept_clients);
                     std::thread::spawn(move || {
-                        let mut reader = BufReader::new(read_stream);
-                        loop {
-                            if !*reader_running.lock().unwrap() { break; }
-                            let mut line = String::new();
-                            match reader.read_line(&mut line) {
-                                Ok(0) => {
-                                    // Connection closed
-                                    let _ = reader_tx.send(ServerEvent::ClientDisconnect {
-                                        addr: addr_str.clone(),
-                                    });
-                                    reader_clients.lock().unwrap().retain(|(id, _, _)| *id != client_id);
-                                    break;
-                                }
-                                Ok(_) => {
-                                    let trimmed = line.trim().to_string();
-                                    if !trimmed.is_empty() {
-                                        let _ = reader_tx.send(ServerEvent::DataReceived {
-                                            addr: addr_str.clone(),
-                                            data: trimmed,
-                                        });
-                                    }
-                                }
-                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock
-                                    || e.kind() == std::io::ErrorKind::TimedOut => {
-                                    // No data available yet — just loop
-                                    std::thread::sleep(Duration::from_millis(10));
-                                }
-                                Err(_) => {
-                                    let _ = reader_tx.send(ServerEvent::ClientDisconnect {
-                                        addr: addr_str.clone(),
-                                    });
-                                    reader_clients.lock().unwrap().retain(|(id, _, _)| *id != client_id);
-                                    break;
-                                }
-                            }
-                        }
+                        read_client(read_stream, framing, &reader_running, |data| {
+                            let _ = reader_tx.send(ServerEvent::DataReceived { addr: addr_str.clone(), data });
+                        });
+                        reader_clients.lock().unwrap().retain(|(id, _, _)| *id != client_id);
+                        let _ = reader_tx.send(ServerEvent::ClientDisconnect { addr: addr_str.clone() });
                     });
                 }
-                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-                    std::thread::sleep(Duration::from_millis(50));
-                }
                 Err(_) => {
-                    std::thread::sleep(Duration::from_millis(50));
+                    std::thread::sleep(Duration::from_millis(20));
                 }
             }
         }
     });
 
     SERVERS.with(|s| {
-        s.borrow_mut().insert(
-            name.to_string(),
-            ServerState {
-                clients,
-                events: rx,
-                running,
-            },
-        );
+        s.borrow_mut().insert(name.to_string(), ServerState { clients, events: rx, running });
     });
-
-    // Start automatic polling thread that fires events on the main thread via stdout messages
-    // For console apps, we auto-poll by launching a helper thread that prints events
-    let name_owned = name.to_string();
-    start_auto_poll(&name_owned);
-
     v_int(1)
 }
 
-/// Auto-poll: drain channel events and fire them on the main thread.
-/// For console-mode servers, start a polling thread that uses channels.
-fn start_auto_poll(name: &str) {
-    // For now, events will be fired when server.poll() is called explicitly,
-    // or from the accept/read threads directly via println.
-    // The chat example will be updated to use a poll loop.
-    let _ = name;
+/// A client's connection read until it closes (or the server stops): what
+/// arrives cut as `framing` says (crate::netframe — nothing that arrived is
+/// lost however slowly it comes), each piece given to `deliver` as the
+/// program gets it. An HTTP request (Mode "http") arrives whole: its head,
+/// then its body by its Content-Length or its chunks; a client waiting for
+/// `100 Continue` is told to go on; one the limits refuse is answered with
+/// the status and closed.
+fn read_client(mut stream: TcpStream, framing: crate::netframe::Framing, running: &Mutex<bool>, mut deliver: impl FnMut(String)) {
+    use crate::netframe::{Framer, Piece};
+    let mut framer = Framer::new(framing);
+    let mut buf = vec![0u8; 16 * 1024];
+    loop {
+        if !*running.lock().unwrap() {
+            return;
+        }
+        let pieces = match stream.read(&mut buf) {
+            Ok(0) => {
+                for p in framer.finish() {
+                    if let Piece::Text(t) = p {
+                        deliver(t);
+                    }
+                }
+                return;
+            }
+            Ok(n) => framer.feed(&buf[..n]),
+            Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut || e.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(_) => return,
+        };
+        for p in pieces {
+            match p {
+                Piece::Text(t) => deliver(t),
+                Piece::Request(r) => deliver(r.whole_text()),
+                Piece::Continue(_) => {
+                    let _ = stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n");
+                }
+                Piece::Refuse(status, why) => {
+                    let body = format!("{why}\n");
+                    let head = crate::netframe::response_head(status, &[("Content-Type".into(), "text/plain; charset=utf-8".into())], Some(body.len()), false, true);
+                    let _ = stream.write_all(format!("{head}{body}").as_bytes());
+                    let _ = stream.shutdown(std::net::Shutdown::Both);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 /// Drain pending events and fire handlers on the calling thread.
@@ -569,6 +582,11 @@ fn server_stop(name: &str) -> Value {
     SERVERS.with(|s| {
         if let Some(state) = s.borrow_mut().remove(name) {
             *state.running.lock().unwrap() = false;
+            // (the clients' connections closed now, not when their readers
+            // next look)
+            for (_, stream, _) in state.clients.lock().unwrap().iter() {
+                let _ = stream.shutdown(std::net::Shutdown::Both);
+            }
         }
     });
     v_null()
@@ -588,23 +606,33 @@ fn server_broadcast(name: &str, args: &[Value]) -> Value {
     v_null()
 }
 
-/// Send data to a specific client by index (0-based) or address.
-fn server_sendto(name: &str, args: &[Value]) -> Value {
+/// SendTo(Address, Data): Data and a line end to the client at Address;
+/// Send(Address, Data) (RapidR's): Data as it is, nothing added — an HTTP
+/// response, bytes. 1 when it was written.
+fn server_sendto(name: &str, args: &[Value], line: bool) -> Value {
     let target = args.first().map(|v| v.to_string_val()).unwrap_or_default();
     let data = args.get(1).map(|v| v.to_string_val()).unwrap_or_default();
-    SERVERS.with(|s| {
+    let sent = SERVERS.with(|s| {
         let servers = s.borrow();
-        if let Some(state) = servers.get(name) {
-            let mut clients = state.clients.lock().unwrap();
-            for (_, stream, addr) in clients.iter_mut() {
-                if addr == &target {
-                    let _ = writeln!(stream, "{}", data);
-                    break;
-                }
-            }
-        }
+        let Some(state) = servers.get(name) else { return false };
+        let mut clients = state.clients.lock().unwrap();
+        let Some((_, stream, _)) = clients.iter_mut().find(|(_, _, addr)| addr == &target) else { return false };
+        if line { writeln!(stream, "{}", data).is_ok() } else { stream.write_all(data.as_bytes()).is_ok() }
     });
-    v_null()
+    v_int(sent as i64)
+}
+
+/// Disconnect(Address) (RapidR's): the client at Address's connection
+/// closed (OnClientDisconnect follows). 1 when there was one.
+fn server_disconnect(name: &str, args: &[Value]) -> Value {
+    let target = args.first().map(|v| v.to_string_val()).unwrap_or_default();
+    let closed = SERVERS.with(|s| {
+        let servers = s.borrow();
+        let Some(state) = servers.get(name) else { return false };
+        let clients = state.clients.lock().unwrap();
+        clients.iter().find(|(_, _, addr)| addr == &target).map(|(_, stream, _)| stream.shutdown(std::net::Shutdown::Both).is_ok()).unwrap_or(false)
+    });
+    v_int(closed as i64)
 }
 
 fn server_accept(name: &str) -> Value {
@@ -707,7 +735,8 @@ mod qsocket_tests {
     #[test]
     fn rapidq_sockets_talk_over_loopback() {
         let port = 47000 + (std::process::id() % 900) as i64;
-        let srv = call("open", &[v_int(port)]).to_i64();
+        // (this computer only: Open's address, RapidR's)
+        let srv = call("open", &[v_int(port), v_str("127.0.0.1")]).to_i64();
         assert!(srv > 0);
         let c = call("connect", &[v_str("127.0.0.1"), v_int(port)]).to_i64();
         assert!(c > 0);
@@ -722,5 +751,48 @@ mod qsocket_tests {
             call("close", &[v_int(s)]);
         }
         assert_eq!(call("connect", &[v_str("127.0.0.1"), v_int(1)]).to_i64(), -1);
+    }
+
+    /// RServerSocket's reader (Mode "http"): a POST of 1 MB, sent in pieces
+    /// with pauses longer than a read's wait, arrives as one whole request;
+    /// the client asking for 100 Continue is told to go on.
+    #[test]
+    fn a_slow_post_arrives_whole() {
+        use std::io::{Read, Write};
+        use std::sync::Mutex;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        let body = "0123456789abcdef".repeat(65536);
+        let wire = format!("POST /echo HTTP/1.1\r\nHost: {addr}\r\nExpect: 100-continue\r\nContent-Length: {}\r\n\r\n", body.len());
+        let client = std::thread::spawn(move || {
+            let mut c = std::net::TcpStream::connect(addr).unwrap();
+            c.write_all(wire.as_bytes()).unwrap();
+            let mut cont = [0u8; 25];
+            c.read_exact(&mut cont).unwrap();
+            assert_eq!(&cont, b"HTTP/1.1 100 Continue\r\n\r\n");
+            for (i, part) in body.as_bytes().chunks(300_000).enumerate() {
+                if i > 0 {
+                    std::thread::sleep(std::time::Duration::from_millis(150));
+                }
+                c.write_all(part).unwrap();
+            }
+            c
+        });
+        let (stream, _) = listener.accept().unwrap();
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(100)));
+        let running = Mutex::new(true);
+        let mut got = Vec::new();
+        let framing = crate::netframe::Framing::Http(crate::netframe::Limits::default());
+        std::thread::scope(|s| {
+            let reader = s.spawn(|| super::read_client(stream, framing, &running, |d| got.push(d)));
+            // (the client closes once it has sent it all)
+            drop(client.join().unwrap());
+            reader.join().unwrap();
+        });
+        assert_eq!(got.len(), 1, "one request");
+        let (head, received) = got[0].split_once("\r\n\r\n").unwrap();
+        assert!(head.starts_with("POST /echo HTTP/1.1\r\n"), "{head}");
+        assert_eq!(received.len(), 1_048_576);
+        assert_eq!(received, "0123456789abcdef".repeat(65536));
     }
 }

@@ -263,7 +263,7 @@ visual = true
 size = [400, 300]
 default_event = "OnLinkClick"
 sets = ["layout", "a11y"]
-doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (BASIC's coloured as the code editor colours it), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it."
+doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Text", type = "string", default = "", editor = "multiline", doc = "The Markdown text shown (CommonMark, with GitHub's tables and ~~strikethrough~~)." },

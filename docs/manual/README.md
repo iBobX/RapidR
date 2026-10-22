@@ -30,7 +30,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
 | [The AI assistant and RAI](ai-assistant.md) | Setting up a provider and a key, asking, changes as diffs you accept, "Build me…", what was sent, privacy and tokens; the `RAI` component for your own programs, and keeping keys out of them |
-| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs |
+| [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs, its code blocks coloured by language (SQL, BASIC, JSON …) |
 | [Versions: never lose your work](versions.md) | Saving versions, the timeline, going back, experiments, shared folders, safety points and Undo, the secret check — in plain words with Git's names beside them (the Studio panel comes in Preview 4); `RDiffView`'s text, form and table views in your own programs |
 
 ## The language and its components
@@ -46,6 +46,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events; background queries (`QueryAsync`, `Cancel`) streaming a million rows into an `RDBGrid`; column names and types; the SQL editor |
 | [The code editor in your programs](code-editor.md) | `RCodeEditor`: languages, files, completion; its SQL mode (dialects, completion from your tables, Ctrl+Enter runs the statement) |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
+| [Networking: sockets and a local web server](network.md) | Servers on `127.0.0.1` (this computer only) or the network; `RServerSocket` by lines, bytes or whole HTTP requests; `RHttpServer`: a local API, Server-Sent Events, the token, the requests it refuses by itself, an MCP server |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (older name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 
 ## Data science and rich text

@@ -182,6 +182,21 @@ fn started() -> bool {
     kern().is_some()
 }
 
+/// `Application.Announce`: every window drawn again, so the focused one's
+/// tree — with its live regions holding the announcement (the winit host
+/// adds them) — reaches the screen reader at the next turn.
+pub fn announced() {
+    if !started() {
+        return;
+    }
+    with_kern(|k| {
+        for f in k.desk.forms.values_mut() {
+            f.ui.dirty = true;
+        }
+    });
+    crate::object::rp_wake();
+}
+
 /// Wakes the window loop from another thread: a wait in [`step`] ends at
 /// once (RapidR Studio's program sessions: what the program says is heard
 /// when it arrives, not at the next poll).
@@ -456,6 +471,10 @@ pub fn step(max_wait: Option<Duration>) {
     crate::studio::poll();
     #[cfg(feature = "network")]
     crate::ai::poll();
+    // (RHttpServer: a request that arrived — it woke the loop — to the
+    // program's OnRequest)
+    #[cfg(feature = "network")]
+    crate::httpserver::poll();
     #[cfg(feature = "database")]
     crate::database::poll();
     crate::object::rp_run_deferred();

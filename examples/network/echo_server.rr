@@ -1,0 +1,62 @@
+' echo_server.rr: RServerSocket answering web requests itself (Mode "http"):
+' each request arrives whole — its body too, however large and however
+' it is sent — and the server sends back what it got. Only this computer
+' can reach it (Host = "127.0.0.1").
+'
+'   rapidr run echo_server.rr               (port 47120)
+'   rapidr run echo_server.rr 47120 3       (a port, and stop after 3 requests)
+'
+' Then, in a terminal:
+'   curl -d "hello" http://127.0.0.1:47120/echo
+'   curl --data-binary @big.json http://127.0.0.1:47120/echo
+'   curl http://127.0.0.1:47120/quit        (the server stops)
+'
+' For a web API with less to write, RHttpServer reads and answers HTTP
+' for you (network/local_api.rr).
+$APPTYPE CONSOLE
+
+DIM Srv AS RServerSocket
+DIM Served AS INTEGER, Limit AS INTEGER, Done AS INTEGER
+DIM CRLF AS STRING
+CRLF = CHR$(13) + CHR$(10)
+
+' One whole request: its request line, headers, a blank line, its body.
+SUB Got (Address AS STRING, Data AS STRING)
+    DIM headEnd AS INTEGER, firstLine AS STRING, body AS STRING, answer AS STRING
+    headEnd = INSTR(Data, CRLF + CRLF)
+    firstLine = LEFT$(Data, INSTR(Data, CRLF) - 1)
+    body = MID$(Data, headEnd + 4)
+    IF INSTR(firstLine, " /quit ") THEN
+        answer = "Bye" + CHR$(10)
+        Done = 1
+    ELSE
+        answer = body
+    END IF
+    ' (the answer ends where the connection does: Connection: close, then
+    ' Disconnect — no length to count)
+    Srv.Send Address, "HTTP/1.1 200 OK" + CRLF + "Content-Type: text/plain; charset=utf-8" + CRLF + "Connection: close" + CRLF + CRLF + answer
+    Srv.Disconnect Address
+    Served = Served + 1
+    PRINT firstLine; " from "; Address; ": "; LEN(body); " characters"
+    IF Limit > 0 AND Served >= Limit THEN Done = 1
+END SUB
+
+Srv.OnDataReceived = Got
+Srv.Host = "127.0.0.1"
+Srv.Mode = "http"
+Srv.Port = 47120
+IF COMMAND$(1) <> "" THEN Srv.Port = VAL(COMMAND$(1))
+Limit = VAL(COMMAND$(2))
+IF Srv.Start = 0 THEN
+    PRINT "Port "; Srv.Port; " is taken: give another one."
+    END 1
+END IF
+PRINT "Echo server on http://127.0.0.1:"; Srv.Port; "/ (only this computer)"
+DO
+    Srv.Poll
+    SLEEP 0.01
+LOOP UNTIL Done
+' (a moment for the last answer to leave)
+SLEEP 0.2
+Srv.Stop
+PRINT "Served "; Served; " requests."

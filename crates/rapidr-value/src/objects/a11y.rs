@@ -186,6 +186,9 @@ pub struct States {
     pub read_only: bool,
     pub multiline: bool,
     pub modal: bool,
+    /// A live region (a Status node) said at once, interrupting: an
+    /// assertive announcement. Status nodes are polite otherwise.
+    pub assertive: bool,
 }
 
 /// A node of a form's accessibility tree.
@@ -412,7 +415,7 @@ impl AccessNode {
         }
         let st = &self.states;
         let mut states = Vec::new();
-        for (on, name) in [(st.focused, "focused"), (st.disabled, "disabled"), (st.read_only, "readonly"), (st.multiline, "multiline"), (st.modal, "modal")] {
+        for (on, name) in [(st.focused, "focused"), (st.disabled, "disabled"), (st.read_only, "readonly"), (st.multiline, "multiline"), (st.modal, "modal"), (st.assertive, "assertive")] {
             if on {
                 states.push(format!("\"{name}\""));
             }
@@ -470,6 +473,70 @@ pub const PART_EDITOR: u64 = 6;
 pub const PART_POPUP: u64 = 7;
 /// A component's live region (RDESIGNSURFACE: what its last change did).
 pub const PART_STATUS: u64 = 8;
+/// A window's live regions for the program's announcements
+/// ([`announcement_nodes`]).
+pub const PART_ANNOUNCE: u64 = 9;
+
+/// What the program last asked screen readers to say
+/// (`Application.Announce(Text [, Assertive])`, RapidR's): its text, said
+/// politely (when the reader is done with what it says now) or at once,
+/// without the focus moving. `seq` counts them, so the same text said
+/// twice is said twice.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Announcement {
+    pub seq: u64,
+    pub text: String,
+    pub assertive: bool,
+}
+
+thread_local! {
+    static ANNOUNCED: std::cell::RefCell<Announcement> = std::cell::RefCell::new(Announcement::default());
+}
+
+/// `Application.Announce`: `text` to be said (the hosts tell screen
+/// readers: the desktop through AccessKit's live regions, the web through
+/// the page's aria-live regions). Empty text says nothing.
+pub fn announce(text: &str, assertive: bool) -> Option<Announcement> {
+    let text = text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    Some(ANNOUNCED.with(|a| {
+        let mut a = a.borrow_mut();
+        a.seq += 1;
+        a.text = text.to_string();
+        a.assertive = assertive;
+        a.clone()
+    }))
+}
+
+/// The program's last announcement (`None` before its first).
+pub fn announcement() -> Option<Announcement> {
+    ANNOUNCED.with(|a| {
+        let a = a.borrow();
+        (a.seq > 0).then(|| a.clone())
+    })
+}
+
+/// The live regions a window's tree carries once the program has announced
+/// something (`window`: the window's node id): two status nodes taking
+/// turns — the newest announcement in one, the other empty — so each new
+/// one (the same text again too) is a region that just got its text, which
+/// screen readers say: politely, or at once when it's assertive. Placed at
+/// the window's corner, 1 × 1.
+pub fn announcement_nodes(window: u64, a: &Announcement) -> Vec<AccessNode> {
+    (0..2u64)
+        .map(|slot| {
+            let mut n = AccessNode::new(window ^ (PART_ANNOUNCE << 56 | slot), Role::Status);
+            if a.seq % 2 == slot {
+                n.name = a.text.clone();
+                n.states.assertive = a.assertive;
+            }
+            n.bounds = (0, 0, 1, 1);
+            n
+        })
+        .collect()
+}
 
 /// A component's stable node id: FNV-1a of its lowercase id, kept off the
 /// top byte (parts mix their kind there) and never 0.

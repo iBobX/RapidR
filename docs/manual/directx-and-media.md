@@ -64,7 +64,8 @@ own texts), `Volume`, their `Timer` and `OnChange`. A program that
 | Object | |
 |---|---|
 | `RComPort` | a serial port (older name `COMPORT`, from RAPIDQ2.INC): `Port`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Open`, `Close`, `ReadString`, `WriteString`, `OnRxChar`, `OnComError`, … — serial2 on the desktop (nothing to install on Linux), Web Serial in the browser; RapidR's extras for IoT boards (ListPorts, DTR / RTS, ReadLine, OnLine, OnPortsChanged) in [Serial ports and IoT boards](serial-ports.md) |
-| `RSocket` (older name `QSOCKET`), `RServerSocket` | TCP client and server (the browser: WebSocket client only) |
+| `RSocket` (older name `QSOCKET`), `RServerSocket` | TCP client and server (the browser: WebSocket client only); servers in [Networking](network.md): this computer only (`127.0.0.1`), by lines, bytes or whole HTTP requests |
+| `RHttpServer` | a web server in your program, on `127.0.0.1`: a local API, a dashboard, an MCP server ([Networking](network.md)) |
 | `RHttp` | HTTP(S) `Get` and `Post` |
 | `RDownload` | older name `QDOWNLOAD` (`Qdownload.inc`), with `LeechFile`: a file from a web server into a variable or a file, with progress; port 443 is HTTPS, redirects are followed, and the program's windows keep working while it waits |
 | `RCGI` | older name `QCGI` (`qcgi.inc`), the CGI object: the CGI variables as properties, `Parse`, `Get(Name, Value)` — for `$APPTYPE CGI` programs behind a web server |

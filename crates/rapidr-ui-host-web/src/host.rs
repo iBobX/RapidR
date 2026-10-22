@@ -259,6 +259,8 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
                 }
             }
         }
+        // (the program's announcements' live regions, there before the first)
+        live_regions(&doc);
         let clip = PageClipboard::default();
         let desk = Desktop::new(Box::new(clip.clone()));
         let mac = window().navigator().platform().map(|p| p.contains("Mac") || p.contains("iP")).unwrap_or(false);
@@ -269,6 +271,44 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
 
 pub fn installed() -> bool {
     HOST.with(|h| h.borrow().is_some())
+}
+
+/// The page's live regions for the program's announcements
+/// (`Application.Announce`): `#rr-announce-polite` (aria-live polite) and
+/// `#rr-announce-assertive` (assertive), off screen, made once.
+fn live_regions(doc: &web_sys::Document) -> Option<(HtmlElement, HtmlElement)> {
+    let region = |id: &str, live: &str| -> Option<HtmlElement> {
+        if let Some(el) = doc.get_element_by_id(id) {
+            return el.dyn_into().ok();
+        }
+        let el: HtmlElement = doc.create_element("div").ok()?.dyn_into().ok()?;
+        el.set_id(id);
+        // (aria-live alone, no role: the page's own regions aren't a window's
+        // status bar to anything reading the tree)
+        let _ = el.set_attribute("aria-live", live);
+        let _ = el.set_attribute("aria-atomic", "true");
+        // (seen by screen readers only: the visually hidden pattern)
+        let _ = el.set_attribute("style", "position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap");
+        doc.body()?.append_child(&el).ok()?;
+        Some(el)
+    };
+    Some((region("rr-announce-polite", "polite")?, region("rr-announce-assertive", "assertive")?))
+}
+
+/// `Application.Announce` on the web: `text` put in the page's polite or
+/// assertive live region, which screen readers say without the focus
+/// moving. The region is emptied first and given the text a moment later,
+/// so the same text said twice is said twice.
+pub fn announce(text: &str, assertive: bool) {
+    let Some(doc) = window().document() else { return };
+    let Some((polite, urgent)) = live_regions(&doc) else { return };
+    let (el, other) = if assertive { (urgent, polite) } else { (polite, urgent) };
+    other.set_text_content(None);
+    el.set_text_content(None);
+    let text = text.to_string();
+    let later = Closure::once(move || el.set_text_content(Some(&text)));
+    let _ = window().set_timeout_with_callback_and_timeout_and_arguments_0(later.as_ref().unchecked_ref(), 60);
+    later.forget();
 }
 
 /// (RapidR's OnDropFiles) `accepts(form)`: whether files dropped on the
