@@ -21,6 +21,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   examples/translations/languages.rr, and a manual page,
   [Your program in every language](docs/manual/translations.md).
 
+### Changed
+- **RapidR's own words** (Robert, 2026-10-21): the code comments, docs,
+  manual, plans, examples and Studio's help text describe RapidR in RapidR's
+  own words, with no other IDEs or products as models or comparisons;
+  RapidQ's behaviour is stated as RapidQ's. A check
+  (`tools/check_words.py`, in `tools/regress.sh`'s unit stage and alone as
+  the `words` stage) fails when such a word comes back outside
+  `tools/words-allowlist.txt` (fonts' names, build tools a platform needs,
+  legal and history texts, fixture data).
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added
