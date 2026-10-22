@@ -35,6 +35,11 @@ WORDS = [
     r"delphi", r"xojo", r"xcode", r"jetbrains", r"vb6", r"intellisense",
     r"codelens", r"codea", r"qb64", r"freebasic", r"purebasic", r"lazarus",
     r"vcl", r"swiftui", r"visual\s+basic",
+    # Another implementation's internal names (2026-10-22: a diff routine had
+    # been translated from GNU diff): code is written from papers and specs,
+    # never from another implementation, so these never appear in it.
+    r"compareseq", r"diffseq", r"fxybest", r"bxybest", r"too_expensive",
+    r"gnulib", r"xdiffi", r"xdl_\w+",
 ]
 RX = re.compile(r"\b(" + "|".join(WORDS) + r")\b", re.I)
 

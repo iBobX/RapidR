@@ -25,7 +25,10 @@ that its copyright notice and licence text go with the program.
 of components, with every licence text in full. Nothing in your program is
 copyleft (no GPL, LGPL, MPL or similar), nothing asks you to publish source
 code, to credit anyone in your documentation or advertising, or to do
-anything else, and RapidR's checks fail if that ever changes.
+anything else. RapidR's checks fail if a dependency's licence ever breaks
+that, and code is written from papers and specifications, never translated
+from another implementation (see docs/licensing.md §8 for the one exception
+found and removed: a diff routine in 2.118.0–2.120.0).
 
 **Encryption.** HTTPS (`RHttp`, `QDownload`) and encrypted MySQL/MariaDB
 connections (`RMySQL.SSLMode`) use the operating system's

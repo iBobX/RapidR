@@ -538,5 +538,19 @@ Still open:
    (`rapidr-value/src/objects/diffview/myers.rs`, 2026-10-06) said it
    followed GNU diff's `compareseq` / `diag` (GPL) and used their variable
    names and their "too expensive" rule: it was deleted and replaced by
-   `rapidr-diff`, so it ships in nothing built from now on. Releases up to
-   2.120.0 carried it; whether that needs anything more is for Robert.
+   `rapidr-diff`, so it ships in nothing built from now on.
+   **The lawyer agent's verdict (2026-10-22): derivative.** It is a
+   line-by-line translation of gnulib's `diffseq.h` / diffutils'
+   `analyze.c`, both GPL-3.0-or-later, Copyright FSF. Its identifiers and
+   GNU-only details match. So **that file, in the commits from 4865e459
+   until its deletion in f00d825a (tags v2.118.0, v2.119.0, v2.120.0), is
+   under GPL-3.0-or-later, not MIT.** It reached the CLI and Studio, the
+   interpreted runners, the web runtime, and native programs built with those
+   versions. Steps:
+   - remove the affected release binaries (Robert);
+   - a CHANGELOG note telling users to rebuild;
+   - no history rewrite: the source stays public and is labelled here;
+   - no relicensing of binaries, and no contact with the FSF unless someone
+     writes, in which case fix within 30 days.
+
+   The record is [legal/review-2026-10-22-gpl-diff.md](legal/review-2026-10-22-gpl-diff.md).
