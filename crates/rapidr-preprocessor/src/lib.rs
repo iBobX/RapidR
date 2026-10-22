@@ -1077,6 +1077,8 @@ impl PreprocessResult {
         let prefix = format!("{main}:");
         text.lines()
             .map(|message| {
+                let own = message.strip_prefix(&prefix).and_then(|r| r.split_once(':')).and_then(|(l, _)| l.parse::<usize>().ok());
+                let message = &self.resolve_places(main, own, message);
                 let Some(rest) = message.strip_prefix(&prefix) else { return message.to_string() };
                 let Some((line, tail)) = rest.split_once(':') else { return message.to_string() };
                 let Ok(line) = line.parse::<usize>() else { return message.to_string() };
@@ -1088,6 +1090,40 @@ impl PreprocessResult {
             })
             .collect::<Vec<_>>()
             .join("\n")
+    }
+
+    /// The file (its name) and line that byte `offset` of the preprocessed
+    /// source came from; `main`: the program's file, for its own lines.
+    pub fn origin_of(&self, main: &str, offset: usize) -> Option<(String, usize)> {
+        let offset = offset.min(self.source.len());
+        let line = self.source.as_bytes()[..offset].iter().filter(|&&b| b == b'\n').count() + 1;
+        self.origin_of_line(main, line)
+    }
+
+    /// The file (its name) and line that preprocessed line `line` (from 1)
+    /// came from.
+    pub fn origin_of_line(&self, main: &str, line: usize) -> Option<(String, usize)> {
+        let (file, original) = self.line_map.get(line.checked_sub(1)?)?;
+        let path = file.as_deref().unwrap_or(Path::new(main));
+        let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().to_string());
+        Some((name, *original))
+    }
+
+    /// A compiler message's places of other code
+    /// ([`rapidr_diagnostics::place_mark`]: an earlier declaration) as
+    /// `file:line` — `globals.rr:12`. `own`: the preprocessed line the
+    /// message is about; when the other place is the same line of the same
+    /// file, that file is included twice, and the message says so.
+    pub fn resolve_places(&self, main: &str, own: Option<usize>, text: &str) -> String {
+        let own = own.and_then(|l| self.origin_of_line(main, l));
+        rapidr_diagnostics::resolve_place_marks(text, |offset| {
+            let (file, line) = self.origin_of(main, offset)?;
+            if own.as_ref() == Some(&(file.clone(), line)) {
+                Some(format!("{file}:{line}, the same line: {file} is $INCLUDEd twice — $INCLUDE each file once"))
+            } else {
+                Some(format!("{file}:{line}"))
+            }
+        })
     }
 }
 

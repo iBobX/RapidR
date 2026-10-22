@@ -1130,8 +1130,11 @@ fn compile_inner(main: &str, source: &str, files: Vec<(String, String)>, resourc
 
     // (as the desktop compiler: lines from $INCLUDEd files are a library's)
     let library_lines: Vec<bool> = pre.line_map.iter().map(|(file, _)| file.as_ref().is_some_and(|f| *f != main_path)).collect();
+    // (a message naming another place — `already declared in globals.rr:12`
+    // — names its file and line: rapidr_diagnostics::place_mark)
+    let places = |e: String| e.lines().map(|l| pre.resolve_places(main, l.split(':').next().and_then(|n| n.parse().ok()), l)).collect::<Vec<_>>().join("\n");
     let mut compiled = rapidr_bcgen::compile_program_with_libraries(&program, Some(&pre.source), &library_lines)
-        .map_err(|e| format!("bcgen error: {e}"))?;
+        .map_err(|e| format!("bcgen error: {}", places(e)))?;
     // Run-time errors and the debugger name each line's file and line.
     let origins = pre.line_map.iter().map(|(file, line)| (file.as_deref().and_then(|f| f.to_str()), *line as u32));
     compiled.module.source_map = rapidr_bytecode::SourceMap::from_origins(main, origins);

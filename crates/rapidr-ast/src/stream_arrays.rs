@@ -248,7 +248,7 @@ impl Pass {
                 }),
             );
         }
-        Some(Statement::For(ForStatement { span, variable: var, start: int(0), end: binary(count.clone(), BinaryOperator::Subtract, int(1)), step: None, body }))
+        Some(Statement::For(ForStatement { span, variable: var, declared_type: None, start: int(0), end: binary(count.clone(), BinaryOperator::Subtract, int(1)), step: None, body }))
     }
 }
 

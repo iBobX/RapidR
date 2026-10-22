@@ -1,0 +1,4 @@
+4:1
+FOR name AS INTEGER: name is already declared AS STRING (in for_as_errors.rr:3)
+5:1
+a FOR counter is a number

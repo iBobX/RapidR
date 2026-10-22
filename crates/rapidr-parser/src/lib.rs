@@ -1821,6 +1821,10 @@ impl<'a> Parser<'a> {
         let start = self.pos;
         self.expect(TokenType::For)?;
         let variable = self.expect(TokenType::Identifier)?.lexeme.clone();
+        // `FOR i AS INTEGER = …` (a RapidR extension, written constantly by
+        // models that know other BASICs): the counter declared where it
+        // isn't yet (rapidr_ast::for_as)
+        let declared_type = if self.match_kind(TokenType::As) { Some(self.read_type()?) } else { None };
         self.expect(TokenType::Eq)?;
         // (`For N = To 29` with no start: RC.EXE counts from 0 — RapidQ's
         // music/StutterBox.rqb)
@@ -1848,6 +1852,7 @@ impl<'a> Parser<'a> {
         Some(ForStatement {
             span: self.span_from(start),
             variable,
+            declared_type,
             start: from,
             end: to,
             step,

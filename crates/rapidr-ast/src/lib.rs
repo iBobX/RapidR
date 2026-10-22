@@ -6,6 +6,7 @@ pub mod array_refs;
 pub mod suffix_routines;
 pub mod suffix_vars;
 pub mod for_locals;
+pub mod for_as;
 pub mod memory;
 pub mod type_values;
 pub mod library;
@@ -19,6 +20,61 @@ pub fn strip_type_suffix(name: &str) -> &str {
     let base = name.trim_end_matches('?');
     let base = if base.len() < name.len() { base } else { name.strip_suffix(['$', '%', '&', '!', '#']).unwrap_or(name) };
     if base.is_empty() { name } else { base }
+}
+
+/// Levenshtein distance (characters).
+pub fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut prev = row[0];
+        row[0] = i + 1;
+        for j in 0..b.len() {
+            let cur = row[j + 1];
+            row[j + 1] = (prev + usize::from(ca != b[j])).min(row[j] + 1).min(cur + 1);
+            prev = cur;
+        }
+    }
+    row[b.len()]
+}
+
+/// The candidates nearest `name` — any case, type suffixes aside — when
+/// they are close (a few letters different for its length): those of the
+/// smallest distance, at most three, in the candidates' order —
+/// `ShowNumbr` → `ShowNumber`; `NStr` → `INSTR`, `STR$`.
+pub fn closest_names<'a>(name: &str, candidates: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
+    let want = strip_type_suffix(name).to_ascii_lowercase();
+    let mut best: Vec<&str> = Vec::new();
+    let mut best_d = usize::MAX;
+    for c in candidates {
+        let base = strip_type_suffix(c).to_ascii_lowercase();
+        let d = edit_distance(&want, &base);
+        let room = (want.chars().count().max(base.chars().count()) / 3).max(1);
+        if d == 0 || d > room || d > best_d {
+            continue;
+        }
+        if d < best_d {
+            best_d = d;
+            best.clear();
+        }
+        if best.len() < 3 && !best.iter().any(|b| b.eq_ignore_ascii_case(c)) {
+            best.push(c);
+        }
+    }
+    best
+}
+
+/// What the compilers say after `Unknown SUB or FUNCTION 'name'`: the
+/// nearest of the program's own SUBs and FUNCTIONs (`routines`) and the
+/// language's builtins (the registry's), or that none is near — the fix,
+/// for a person and for a model that called a helper no file has.
+pub fn unknown_routine_fix(name: &str, routines: &[&str]) -> String {
+    let builtins = rapidr_lang::BUILTINS.iter().filter(|b| !b.missing && !b.name.starts_with("__")).map(|b| b.name);
+    match closest_names(name, routines.iter().copied().chain(builtins)).as_slice() {
+        [] => " — no file of the program has a SUB or FUNCTION of that name, and no builtin has it: write it (SUB … END SUB, in the main file or a file it $INCLUDEs), or call one that exists".to_string(),
+        [one] => format!(" — did you mean {one}?"),
+        [rest @ .., last] => format!(" — did you mean {} or {last}?", rest.join(", ")),
+    }
 }
 
 /// Whether `ident` names routine `routine` (both as written): the same
@@ -202,6 +258,10 @@ pub struct ElseIfBranch {
 pub struct ForStatement {
     pub span: TextSpan,
     pub variable: String,
+    /// `FOR i AS INTEGER = …` (a RapidR extension): the counter's type as
+    /// written. [`for_as::lower`] declares the counter and clears it, the
+    /// first pass both backends run; `None` for RapidQ's `FOR i = …`.
+    pub declared_type: Option<String>,
     pub start: Expression,
     pub end: Expression,
     pub step: Option<Expression>,
@@ -2100,31 +2160,44 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             out.push((span, format!("Expected ( but got {got}")));
         }
     }
-    fn dims(stmts: &[Statement], seen: &mut HashSet<String>, out: &mut Vec<(TextSpan, String)>) {
+    // (RapidQ's words, then where the first one is — in a program of
+    // several files, the other file: the name is the program's once)
+    fn dims(stmts: &[Statement], seen: &mut HashMap<String, usize>, out: &mut Vec<(TextSpan, String)>, main: bool) {
         for s in stmts {
             match s {
                 Statement::Dim(d) if !d.is_redim && !d.is_static => {
                     for v in &d.declarators {
-                        if !seen.insert(v.name.to_ascii_lowercase()) {
-                            out.push((v.span, format!("Identifier {} already used, try another name", v.name)));
+                        match seen.get(&v.name.to_ascii_lowercase()) {
+                            Some(&first) => out.push((
+                                v.span,
+                                format!(
+                                    "Identifier {} already used, try another name — it is declared in {} already: {}",
+                                    v.name,
+                                    rapidr_diagnostics::place_mark(first),
+                                    if main { "a global is declared once in the whole program (its main file and every file it $INCLUDEs)" } else { "a SUB declares a name once" }
+                                ),
+                            )),
+                            None => {
+                                seen.insert(v.name.to_ascii_lowercase(), v.span.start);
+                            }
                         }
                     }
                 }
                 Statement::If(i) => {
-                    dims(&i.then_body, seen, out);
+                    dims(&i.then_body, seen, out, main);
                     for b in &i.elseif_branches {
-                        dims(&b.body, seen, out);
+                        dims(&b.body, seen, out, main);
                     }
-                    dims(&i.else_body, seen, out);
+                    dims(&i.else_body, seen, out, main);
                 }
-                Statement::For(f) => dims(&f.body, seen, out),
-                Statement::While(w) => dims(&w.body, seen, out),
-                Statement::DoLoop(d) => dims(&d.body, seen, out),
+                Statement::For(f) => dims(&f.body, seen, out, main),
+                Statement::While(w) => dims(&w.body, seen, out, main),
+                Statement::DoLoop(d) => dims(&d.body, seen, out, main),
                 Statement::SelectCase(c) => {
                     for case in &c.cases {
-                        dims(&case.body, seen, out);
+                        dims(&case.body, seen, out, main);
                     }
-                    dims(&c.case_else, seen, out);
+                    dims(&c.case_else, seen, out, main);
                 }
                 _ => {}
             }
@@ -2248,10 +2321,10 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     out.extend(unknown_type_checks(program, &outside_types));
     out.extend(fixed_member_checks(program, &outside_types, &component_types));
     out.extend(registry_member_checks(program, &outside_types, &component_types));
-    let mut global_dims = HashSet::new();
+    let mut global_dims = HashMap::new();
     let main: Vec<Statement> = outside_types.iter().filter(|s| !matches!(s, Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
-    dims(&main, &mut global_dims, &mut out);
-    let result_declared = global_dims.contains("result");
+    dims(&main, &mut global_dims, &mut out, true);
+    let result_declared = global_dims.contains_key("result");
     if !result_declared {
         let plain: Vec<Statement> = main.iter().filter(|s| !matches!(s, Statement::Create(_) | Statement::With(_))).cloned().collect();
         result_outside(&plain, &mut out);
@@ -2259,13 +2332,13 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
     for s in &program.statements {
         match s {
             Statement::Subroutine(r) => {
-                let mut seen = HashSet::new();
-                dims(&r.body, &mut seen, &mut out);
-                if !result_declared && !seen.contains("result") {
+                let mut seen = HashMap::new();
+                dims(&r.body, &mut seen, &mut out, false);
+                if !result_declared && !seen.contains_key("result") {
                     result_outside(&r.body, &mut out);
                 }
             }
-            Statement::Function(f) => dims(&f.body, &mut HashSet::new(), &mut out),
+            Statement::Function(f) => dims(&f.body, &mut HashMap::new(), &mut out, false),
             _ => {}
         }
     }
