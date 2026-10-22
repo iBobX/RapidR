@@ -376,7 +376,8 @@ SUB OpenRecent(k AS INTEGER)
   IF FILEEXISTS(p) = 0 THEN
     ForgetRecent p
     OutputLine FileTitle(p) + " isn't there any more (" + p + "): taken off Open Recent"
-    SetState "error", FileTitle(p) + " isn't there any more: taken off Open Recent"
+    ' (short: the status bar's first part is narrow; the Output says where)
+    SetState "error", FileTitle(p) + " isn't there any more"
     SaveSettings
     UpdateCommands
     EXIT SUB

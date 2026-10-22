@@ -1483,7 +1483,7 @@ const CASES = [
     do: "wait,file.save,wait",
     delay: 5,
     files: { "Shelf.rrproj": /path = "main\.rr"\nkind = "module"[\s\S]*path = "ui\.rr"\nkind = "form"/ },
-    dump: { "outputbox.text": /main\.rr creates no form now: it's a module in the project\nui\.rr creates a form: it's under Forms in the project now\nSaved \S*Shelf\.rrproj/ },
+    dump: { "outputbox.text": /main\.rr makes no form: now under Modules\nui\.rr makes a form: now under Forms\nSaved \S*Shelf\.rrproj/ },
   },
   // (Preview 4 S2) File > Open Recent: Studio started again (as from the
   // Dock: no project named), the menu opened from the keyboard (Alt+F, R)

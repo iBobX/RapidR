@@ -53,8 +53,8 @@ END CREATE
   the Output says what changed:
 
   ```text
-  main.rr creates no form now: it's a module in the project
-  ui.rr creates a form: it's under Forms in the project now
+  main.rr makes no form: now under Modules
+  ui.rr makes a form: now under Forms
   Saved …/Shelf.rrproj
   ```
 

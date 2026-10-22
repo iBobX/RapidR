@@ -263,10 +263,13 @@ SUB ProjectFollowsCode
   n = TALLY(changed, CHR$(10))
   FOR i = 1 TO n
     row = FIELD$(changed, CHR$(10), i)
+    ' (short lines: the Output pane is narrow)
     IF FIELD$(row, CHR$(9), 2) = "form" THEN
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " creates a form: it's under Forms in the project now"
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes a form: now under Forms"
+    ELSEIF FIELD$(row, CHR$(9), 2) = "include" THEN
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Includes"
     ELSE
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " creates no form now: it's a " + FIELD$(row, CHR$(9), 2) + " in the project"
+      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Modules"
     END IF
   NEXT
   SaveProjectFile

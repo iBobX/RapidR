@@ -248,11 +248,18 @@ SUB LayOutWelcome
   NEXT
 END SUB
 
-' (a path shown short: the home folder as ~)
+' (a path shown short: the home folder as ~; a long one with its first
+' folder and its last two, … between — a menu item stays readable)
 FUNCTION ShortPath(Path AS STRING) AS STRING
-  DIM home AS STRING
+  DIM home AS STRING, p AS STRING, n AS INTEGER
   home = ENVIRON$("HOME")
-  IF home <> "" AND LCASE$(LEFT$(Path, LEN(home) + 1)) = LCASE$(home + "/") THEN Result = "~" + MID$(Path, LEN(home) + 1) ELSE Result = Path
+  p = REPLACESUBSTR$(Path, "\", "/")
+  IF home <> "" AND LCASE$(LEFT$(p, LEN(home) + 1)) = LCASE$(home + "/") THEN p = "~" + MID$(p, LEN(home) + 1)
+  n = TALLY(p, "/")
+  IF LEN(p) > 40 AND n > 3 THEN
+    p = FIELD$(p, "/", 1) + "/" + FIELD$(p, "/", 2) + "/…/" + FIELD$(p, "/", n) + "/" + FIELD$(p, "/", n + 1)
+  END IF
+  Result = p
 END FUNCTION
 
 ' The Recent list's places: the Welcome page's first six links, and File >
