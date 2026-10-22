@@ -616,6 +616,12 @@ pub(crate) enum Typed {
 
 const SMALL: u64 = 1_000_000_000_000_000;
 
+/// Whether whole numbers read the same as `f64`s (each under 1e15: its
+/// float's own text is its integer's).
+fn small_ints(v: &[i64]) -> bool {
+    v.iter().all(|x| x.unsigned_abs() < SMALL)
+}
+
 /// How the cells of `t` (`valid`: which aren't null) can be stored without
 /// losing a byte.
 pub(crate) fn type_cells(t: &Texts, valid: Option<&Bitmap>) -> Typed {
@@ -1025,8 +1031,64 @@ impl Column {
         Column::new(data, valid)
     }
 
-    /// `other`'s cells after these.
+    /// `other`'s cells after these. Columns of two storages meet at the
+    /// cost of the smaller side where that's lossless — nulls take the
+    /// other's type, small whole numbers become `f64` beside fractions,
+    /// anything else becomes text once and stays text — so appending many
+    /// chunks of rows (a background query's) never copies the column over
+    /// and over. The cells and the type read the same as [`Column::from_cells`]
+    /// of all of them would.
     pub(crate) fn append(&mut self, other: &Column) {
+        let n = self.len();
+        if other.is_empty() {
+            return;
+        }
+        if !self.same_storage(other) {
+            if other.valid_count() == 0 {
+                // (a chunk of nulls: more nulls)
+                self.grow(n + other.len());
+                return;
+            }
+            if self.valid_count() == 0 {
+                // (nulls so far: the other's storage, these as its nulls)
+                let mut c = other.slice(0..0);
+                c.grow(n);
+                c.append(other);
+                *self = c;
+                return;
+            }
+            match (&self.data, &other.data) {
+                (Data::Int(v), Data::Float(_)) if small_ints(v) => {
+                    let floats = v.iter().map(|&x| x as f64).collect();
+                    self.data = Data::Float(Arc::new(floats));
+                    self.changed();
+                }
+                (Data::Float(_), Data::Int(v)) if small_ints(v) => {
+                    let floats: Vec<f64> = v.iter().map(|&x| x as f64).collect();
+                    let theirs = Column::new(Data::Float(Arc::new(floats)), other.valid.as_deref().cloned());
+                    self.append(&theirs);
+                    return;
+                }
+                _ => {
+                    self.make_text();
+                    if !matches!(other.data, Data::Text(_)) {
+                        let mut t = Texts::with_capacity(other.len(), other.len() * 8);
+                        let mut s = String::new();
+                        for i in 0..other.len() {
+                            s.clear();
+                            if other.write(i, &mut s) {
+                                t.push(&s);
+                            } else {
+                                t.push_empty();
+                            }
+                        }
+                        let theirs = Column::new(Data::Text(Arc::new(t)), other.valid.as_deref().cloned());
+                        self.append(&theirs);
+                        return;
+                    }
+                }
+            }
+        }
         let n = self.len();
         let same = match (&mut self.data, &other.data) {
             (Data::Int(a), Data::Int(b)) => {
@@ -1057,6 +1119,11 @@ impl Column {
             let theirs = other.valid.as_deref().cloned().unwrap_or_else(|| Bitmap::filled(other.len(), true));
             self.valid_mut(n).extend(&theirs);
         }
+    }
+
+    /// Whether `other` is stored as these are (both `i64`, both text …).
+    fn same_storage(&self, other: &Column) -> bool {
+        std::mem::discriminant(&self.data) == std::mem::discriminant(&other.data)
     }
 
     /// A column kept as text, stored typed when that's lossless (None:

@@ -18,9 +18,17 @@
 //! As in RapidQ, the calls that change the server — CreateDB, DropDB,
 //! Refresh, SelectDB — return 1 when they worked and 0 when they didn't
 //! (the C client's functions return the other way round).
+//!
+//! `DB.QueryAsync(sql [, values …])` runs it in the background on the
+//! connection's worker thread ([`crate::background`]), the rows streaming
+//! into the frame under the component's name; `Cancel` asks the server to
+//! stop it (`KILL QUERY`, from a second connection of the pool). A
+//! background query's cells are text: binary data (RowBlob, SaveBlob)
+//! wants Query.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use mysql::consts::{CapabilityFlags, ColumnType};
 use mysql::prelude::{Protocol, Queryable};
@@ -28,10 +36,18 @@ use mysql::{Column, QueryResult, Value as MyValue};
 use rapidr_value::objects::codec::bytes_to_string;
 use rapidr_value::{v_int, v_null, v_str, Value};
 
+use crate::background::{self, Chunker, End, Shared};
 use crate::{cursor_method, param_method, params, publish, sql_and_params, Host, ResultSet};
 
 struct Db {
-    conn: mysql::PooledConn,
+    /// The connection, shared with a background query while it runs (it
+    /// holds the lock then: a query meanwhile is refused, never waited for).
+    conn: Arc<Mutex<mysql::PooledConn>>,
+    /// The server's id for it (Cancel's KILL QUERY).
+    id: u32,
+    /// The connection's worker thread (background queries), made by the
+    /// first QueryAsync; it ends when the component closes.
+    worker: Option<std::sync::mpsc::Sender<Job>>,
     results: ResultSet,
     databases: Vec<String>,
     /// What the last FetchLengths found (Length(i)): the byte lengths of
@@ -69,6 +85,8 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
         }
         "close" | "disconnect" => return close(host, name, &key),
         "query" | "execute" => return query(host, name, &key, args),
+        "queryasync" => return query_async(host, name, &key, args),
+        "cancel" => return v_int(background::cancel(&key) as i64),
         "escapestring" => {
             // (EscapeString(S, Length): the first Length characters)
             let s = text(0);
@@ -136,6 +154,13 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
             host.report(&format!("[WARN] RMySQL.{method}() not implemented"));
             v_null()
         }
+    }
+}
+
+impl Db {
+    /// The connection for a query now: Err while a background query has it.
+    fn conn(&self) -> Result<MutexGuard<'_, mysql::PooledConn>, String> {
+        self.conn.try_lock().map_err(|_| background::BUSY.to_string())
     }
 }
 
@@ -220,7 +245,9 @@ fn open(host: &dyn Host, name: &str, key: &str, server: Server) -> bool {
             // (the databases the server has: DB(i), DBCount)
             let databases: Vec<String> = conn.query("SHOW DATABASES").unwrap_or_default();
             let count = databases.len() as i64;
-            let db = Db { conn, results: ResultSet::default(), databases, lengths: Vec::new() };
+            let id = conn.connection_id();
+            background::forget(key);
+            let db = Db { conn: Arc::new(Mutex::new(conn)), id, worker: None, results: ResultSet::default(), databases, lengths: Vec::new() };
             DBS.with(|d| d.borrow_mut().insert(key.to_string(), db));
             POOLS.with(|p| p.borrow_mut().insert(key.to_string(), pool));
             host.set(name, "connected", v_int(1));
@@ -244,11 +271,22 @@ fn open(host: &dyn Host, name: &str, key: &str, server: Server) -> bool {
 /// again: DB(i), DBCount.
 fn server_command(host: &dyn Host, name: &str, key: &str, sql: &str, databases: bool) -> Value {
     let done = with_db(key, |db| {
-        db.conn.query_drop(sql)?;
-        if databases {
-            db.databases = db.conn.query("SHOW DATABASES")?;
-        }
-        Ok::<_, mysql::Error>(db.databases.len() as i64)
+        let found = (|| {
+            if let Some(busy) = background::refused(key) {
+                return Err(busy);
+            }
+            let mut conn = db.conn()?;
+            let text = |e: mysql::Error| e.to_string();
+            conn.query_drop(sql).map_err(text)?;
+            let list = if databases { Some(conn.query("SHOW DATABASES").map_err(text)?) } else { None };
+            Ok::<_, String>(list)
+        })();
+        found.map(|list| {
+            if let Some(list) = list {
+                db.databases = list;
+            }
+            db.databases.len() as i64
+        })
     });
     match done {
         Some(Ok(count)) => {
@@ -259,7 +297,7 @@ fn server_command(host: &dyn Host, name: &str, key: &str, sql: &str, databases: 
         }
         Some(Err(e)) => {
             host.report(&format!("[MySQL] {sql}: {e}"));
-            host.fire(name, "onerror", &[v_str(&e.to_string())]);
+            host.fire(name, "onerror", &[v_str(&e)]);
             v_int(0)
         }
         None => v_int(0),
@@ -327,7 +365,7 @@ fn load_blob(host: &dyn Host, name: &str, file: &str) -> Value {
 /// server sent, written to the file (made new). Nothing without a current
 /// row or such a column.
 fn save_blob(host: &dyn Host, name: &str, key: &str, field: i64, file: &str) {
-    let bytes = with_db(key, |db| db.results.cell_bytes(field).map(<[u8]>::to_vec)).flatten();
+    let bytes = with_db(key, |db| db.results.cell_bytes(field).map(|b| b.into_owned())).flatten();
     if let Some(bytes) = bytes {
         if let Err(e) = std::fs::write(file, bytes) {
             host.report(&format!("[MySQL] SaveBlob {file}: {e}"));
@@ -337,9 +375,11 @@ fn save_blob(host: &dyn Host, name: &str, key: &str, field: i64, file: &str) {
 }
 
 fn close(host: &dyn Host, name: &str, key: &str) -> Value {
+    background::forget(key);
     let closed = DBS.with(|d| d.borrow_mut().remove(key));
     POOLS.with(|p| p.borrow_mut().remove(key));
     host.set(name, "connected", v_int(0));
+    host.set(name, "busy", v_int(0));
     if closed.is_some() {
         drop(closed);
         host.fire(name, "ondisconnect", &[]);
@@ -354,18 +394,24 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let outcome = DBS.with(|d| {
         let mut dbs = d.borrow_mut();
         let db = dbs.get_mut(key).ok_or_else(|| crate::NOT_CONNECTED.to_string())?;
+        if let Some(busy) = background::refused(key) {
+            return Err(busy);
+        }
         let text = |e: mysql::Error| e.to_string();
-        let table = if values.is_empty() {
-            let mut result = db.conn.query_iter(&sql).map_err(text)?;
-            collect(&mut result, text_cell)?
-        } else {
-            let stmt = db.conn.prep(&sql).map_err(text)?;
-            if stmt.num_params() as usize != values.len() {
-                return Err(params::wrong_count(stmt.num_params() as usize, values.len()));
+        let table = {
+            let mut conn = db.conn()?;
+            if values.is_empty() {
+                let mut result = conn.query_iter(&sql).map_err(text)?;
+                collect(&mut result, text_cell)?
+            } else {
+                let stmt = conn.prep(&sql).map_err(text)?;
+                if stmt.num_params() as usize != values.len() {
+                    return Err(params::wrong_count(stmt.num_params() as usize, values.len()));
+                }
+                let values: Vec<MyValue> = values.iter().map(my_value).collect();
+                let mut result = conn.exec_iter(&stmt, mysql::Params::Positional(values)).map_err(text)?;
+                collect(&mut result, binary_cell)?
             }
-            let values: Vec<MyValue> = values.iter().map(my_value).collect();
-            let mut result = db.conn.exec_iter(&stmt, mysql::Params::Positional(values)).map_err(text)?;
-            collect(&mut result, binary_cell)?
         };
         Ok::<_, String>(table.map(|(columns, rows, raw)| {
             db.results = ResultSet::with_raw(columns, rows, raw);
@@ -376,6 +422,8 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let ok = match outcome {
         Ok(size) => {
             if let Some(size) = size {
+                // (a grid bound to the component shows these rows too)
+                crate::publish_frame(key, || DBS.with(|d| d.borrow().get(key).map(|db| (db.results.columns.clone(), db.results.rows.clone()))));
                 publish(host, name, size);
             }
             true
@@ -518,7 +566,11 @@ fn select_db(host: &dyn Host, key: &str, args: &[Value]) -> Value {
     let done = DBS.with(|d| {
         let mut dbs = d.borrow_mut();
         let state = dbs.get_mut(key)?;
-        Some(state.conn.query_drop(format!("USE `{}`", db.replace('`', "``"))))
+        if let Some(busy) = background::refused(key) {
+            return Some(Err(busy));
+        }
+        let used = state.conn().and_then(|mut c| c.query_drop(format!("USE `{}`", db.replace('`', "``"))).map_err(|e| e.to_string()));
+        Some(used)
     });
     match done {
         Some(Ok(())) => v_int(1),
@@ -528,6 +580,155 @@ fn select_db(host: &dyn Host, key: &str, args: &[Value]) -> Value {
         }
         None => v_int(0),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Background queries
+// ---------------------------------------------------------------------------
+
+/// A background query: the SQL, its values, the connection, what it
+/// shares with the program's thread.
+pub struct Job {
+    sql: String,
+    values: Vec<MyValue>,
+    conn: Arc<Mutex<mysql::PooledConn>>,
+    shared: Arc<Shared>,
+}
+
+impl Job {
+    /// Runs it to its end on the worker thread.
+    fn run(self) {
+        let start = background::now();
+        let end = match self.conn.try_lock() {
+            Ok(mut conn) => stream(&mut conn, &self.sql, self.values, &self.shared),
+            // (never: the component refuses a second query while one runs)
+            Err(_) => End::Failed(background::BUSY.to_string()),
+        };
+        // (the connection given back before the program hears it's done)
+        self.shared.end(end, background::ms_since(start));
+    }
+}
+
+/// The query, its result sets' rows streamed into the shared rows in
+/// chunks (a later set with columns starts them again). How it ended.
+fn stream(conn: &mut mysql::PooledConn, sql: &str, values: Vec<MyValue>, shared: &Shared) -> End {
+    let failed = |e: String| if shared.cancelled() { End::Cancelled } else { End::Failed(e) };
+    if values.is_empty() {
+        match conn.query_iter(sql) {
+            Ok(mut result) => stream_sets(&mut result, text_cell, shared),
+            Err(e) => failed(e.to_string()),
+        }
+    } else {
+        let stmt = match conn.prep(sql) {
+            Ok(stmt) => stmt,
+            Err(e) => return failed(e.to_string()),
+        };
+        if stmt.num_params() as usize != values.len() {
+            return End::Failed(params::wrong_count(stmt.num_params() as usize, values.len()));
+        }
+        match conn.exec_iter(&stmt, mysql::Params::Positional(values)) {
+            Ok(mut result) => stream_sets(&mut result, binary_cell, shared),
+            Err(e) => failed(e.to_string()),
+        }
+    }
+}
+
+fn stream_sets<T: Protocol>(result: &mut QueryResult<'_, '_, '_, T>, cell: fn(&MyValue, &Column) -> String, shared: &Shared) -> End {
+    let failed = |e: String| if shared.cancelled() { End::Cancelled } else { End::Failed(e) };
+    while let Some(set) = result.iter() {
+        let columns: Vec<Column> = set.columns().as_ref().to_vec();
+        if columns.is_empty() {
+            continue;
+        }
+        let names: Vec<String> = columns.iter().map(|c| c.name_str().into_owned()).collect();
+        let mut chunk = Chunker::new(shared, names, background::slice());
+        for row in set {
+            let row = match row {
+                Ok(row) => row,
+                Err(e) => return failed(e.to_string()),
+            };
+            for (i, column) in columns.iter().enumerate() {
+                match row.as_ref(i) {
+                    None | Some(MyValue::NULL) => chunk.push(i, None),
+                    Some(v) => match bytes_cell(v, column, cell) {
+                        (_, Some(bytes)) => chunk.push(i, Some(&String::from_utf8_lossy(&bytes))),
+                        (text, None) => chunk.push(i, Some(&text)),
+                    },
+                }
+            }
+            if chunk.end_row() && shared.cancelled() {
+                return End::Cancelled;
+            }
+        }
+        chunk.flush();
+    }
+    if shared.cancelled() {
+        End::Cancelled
+    } else {
+        End::Done
+    }
+}
+
+/// `QueryAsync(sql [, values …])`: 1 if the query started (its rows and
+/// end come as events), 0 if it didn't — not connected, or one still
+/// running (OnError says which).
+fn query_async(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
+    let (sql, values) = sql_and_params(key, args);
+    let refused = background::refused(key).or_else(|| (!connected(key)).then(|| crate::NOT_CONNECTED.to_string()));
+    if let Some(e) = refused {
+        host.report(&format!("[MySQL] QueryAsync: {e}"));
+        host.fire(name, "onerror", &[v_str(&e)]);
+        return v_int(0);
+    }
+    let Some((conn, id)) = with_db(key, |db| {
+        db.results = ResultSet::framed(key);
+        db.lengths.clear();
+        (db.conn.clone(), db.id)
+    }) else {
+        return v_int(0);
+    };
+    let shared = Shared::new();
+    let job = Job { sql, values: values.iter().map(my_value).collect(), conn, shared: shared.clone() };
+    // (Cancel: the server stops the statement — asked on a second
+    // connection, away from the program's thread)
+    let pool = POOLS.with(|p| p.borrow().get(key).cloned());
+    let kill: Box<dyn Fn()> = Box::new(move || {
+        if let Some(pool) = pool.clone() {
+            let _ = std::thread::Builder::new().name("rapidr-mysql-kill".into()).spawn(move || {
+                if let Ok(mut c) = pool.get_conn() {
+                    let _ = c.query_drop(format!("KILL QUERY {id}"));
+                }
+            });
+        }
+    });
+    background::begin(host, name, key, shared, Some(kill));
+    let rejected = DBS.with(|d| {
+        let mut dbs = d.borrow_mut();
+        let Some(db) = dbs.get_mut(key) else { return Some(job) };
+        let job = match &db.worker {
+            Some(tx) => match tx.send(job) {
+                Ok(()) => return None,
+                Err(std::sync::mpsc::SendError(job)) => job,
+            },
+            None => job,
+        };
+        let (tx, rx) = std::sync::mpsc::channel::<Job>();
+        let spawned = std::thread::Builder::new().name(format!("rapidr-mysql-{key}")).spawn(move || {
+            for job in rx {
+                job.run();
+            }
+        });
+        if spawned.is_err() {
+            return Some(job);
+        }
+        let sent = tx.send(job).err().map(|e| e.0);
+        db.worker = Some(tx);
+        sent
+    });
+    if let Some(job) = rejected {
+        job.shared.end(End::Failed("the background query couldn't start (no thread)".into()), 0);
+    }
+    v_int(1)
 }
 
 #[cfg(test)]

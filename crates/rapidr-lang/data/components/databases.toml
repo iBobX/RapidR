@@ -17,11 +17,14 @@ properties = [
   { name = "Row", type = "int" },
   { name = "TableCount", type = "int" },
   { name = "DBCount", type = "int" },
+  { name = "Busy", type = "int", access = "read", design = false, doc = "1 while a background query (QueryAsync) runs, else 0." },
 ]
 methods = [
   { name = "Connect", params = "file", value = true, doc = "Opens (or creates) the database file; \":memory:\" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first)." },
   { name = "Close", value = true },
   { name = "Query", params = "sql, [value] ...", value = true, doc = "Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message)." },
+  { name = "QueryAsync", params = "sql, [value] ...", returns = "INTEGER", effects = ["state"], example = "DIM DB AS RSQLITE\nDB.Connect \":memory:\"\nsql = \"SELECT 42\"\nDB.QueryAsync sql", doc = "Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) (\"cancelled\" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError \"busy: …\"). Returns 1 if it started, else 0 (OnError says why). On the web it runs on the page's thread in slices of a few milliseconds, the page drawn between them." },
+  { name = "Cancel", returns = "INTEGER", value = true, effects = ["state"], doc = "Stops the background query (SQLite's interrupt): OnError(\"cancelled\") follows — or OnDone, if it had just finished. Returns 1 if one was running." },
   { name = "FetchRow", value = true, doc = "Moves to the next row of the last query's rows: 1, or 0 past the last." },
   { name = "FetchField", value = true },
   { name = "RowSeek", params = "row", value = true, doc = "The next FetchRow fetches row `row` (from 0)." },
@@ -32,7 +35,9 @@ methods = [
 events = [
   { name = "OnConnect" },
   { name = "OnDisconnect" },
-  { name = "OnError", params = "Message AS STRING" },
+  { name = "OnError", params = "Message AS STRING", doc = "Something failed: the message (a query's error, \"not connected: Connect first\", \"busy: …\" while a background query runs, \"cancelled\" after Cancel)." },
+  { name = "OnRows", params = "Count AS INTEGER", doc = "A background query's rows arrived: Count is how many have so far (RowCount too). Fired a few dozen times a second at most." },
+  { name = "OnDone", params = "Rows AS INTEGER, Ms AS INTEGER", doc = "A background query finished: its rows, and the milliseconds it took." },
 ]
 
 [[component]]
@@ -52,6 +57,7 @@ properties = [
   { name = "Length", type = "int", access = "read", design = false, indexed = 1, doc = "`Length(i)`: how many bytes field `i` (from 0) of the row the last FetchLengths measured has (a NULL 0); 0 before any." },
   { name = "Row", type = "string", access = "read", design = false, indexed = 1 },
   { name = "RowCount", type = "int", access = "read", design = false },
+  { name = "Busy", type = "int", access = "read", design = false, origin = "rapidr", doc = "1 while a background query (QueryAsync) runs, else 0." },
   { name = "Table", type = "string", access = "read", design = false, indexed = 1 },
   { name = "TableCount", type = "int", access = "read", design = false },
   { name = "Host", type = "string", origin = "rapidr" },
@@ -74,6 +80,8 @@ methods = [
   { name = "FetchRow", returns = "VARIANT", value = true },
   { name = "FieldSeek", params = "Position AS INTEGER", returns = "VARIANT", value = true },
   { name = "Query", params = "Query AS STRING", returns = "INTEGER", value = true, doc = "Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message)." },
+  { name = "QueryAsync", params = "Query AS STRING, [Value] ...", returns = "INTEGER", origin = "rapidr", effects = ["state"], doc = "Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) (\"cancelled\" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError \"busy: …\"). Returns 1 if it started, else 0 (OnError says why). Its cells are text (binary data: use Query, RowBlob)." },
+  { name = "Cancel", returns = "INTEGER", value = true, origin = "rapidr", effects = ["state"], doc = "Stops the background query (the server's KILL QUERY): OnError(\"cancelled\") follows — or OnDone, if it had just finished. Returns 1 if one was running." },
   { name = "RealConnect", params = "Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER", doc = "Connects like Connect, with more say: `DB` is the database to use (\"\" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP (\"\" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL is ignored: no TLS). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell).", test = "args: \"\", \"\", \"\", \"\", 0, \"/nonexistent/rapidr-conformance.sock\", 0" },
   { name = "Refresh", params = "RefreshFlags AS INTEGER", returns = "INTEGER", value = true, doc = "Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message)." },
   { name = "RowBlob", params = "Row AS INTEGER, Bytes AS LONG", returns = "STRING", value = true, doc = "Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. \"\" without a current row or such a field." },
@@ -86,5 +94,7 @@ methods = [
 events = [
   { name = "OnConnect", origin = "rapidr" },
   { name = "OnDisconnect", origin = "rapidr" },
-  { name = "OnError", params = "Message AS STRING", origin = "rapidr" },
+  { name = "OnError", params = "Message AS STRING", origin = "rapidr", doc = "Something failed: the message (the server's, \"busy: …\" while a background query runs, \"cancelled\" after Cancel)." },
+  { name = "OnRows", params = "Count AS INTEGER", origin = "rapidr", doc = "A background query's rows arrived: Count is how many have so far (RowCount too)." },
+  { name = "OnDone", params = "Rows AS INTEGER, Ms AS INTEGER", origin = "rapidr", doc = "A background query finished: its rows, and the milliseconds it took." },
 ]

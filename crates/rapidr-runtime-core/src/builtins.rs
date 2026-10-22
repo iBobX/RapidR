@@ -259,6 +259,9 @@ pub fn rp_doevents() {
         crate::ai::poll();
         crate::object::rp_run_deferred();
     }
+    // (a background query's rows and events, also in a console program)
+    #[cfg(feature = "database")]
+    crate::database::poll();
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).

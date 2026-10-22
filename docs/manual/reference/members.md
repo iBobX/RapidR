@@ -3453,12 +3453,15 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 | `Row` | int |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `TableCount` | int |  | The number of tables in the database. |
 | `DBCount` | int |  | The number of databases the server lists. |
+| `Busy` (read-only) | int |  | 1 while a background query (QueryAsync) runs, else 0. |
 
 | Method | |
 |---|---|
 | `Connect(file)` | Opens (or creates) the database file; ":memory:" for one in memory. Returns 1 if the database was there already, 0 if new. On the web a database lasts for the page's session (a project's .db file is read in first). |
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
 | `Query(sql, [value, …])` | Runs the SQL's statements; one with result columns (SELECT, WITH, PRAGMA, … RETURNING) gives the rows FetchRow walks. Values after the SQL are bound to its ? placeholders (never spliced into it: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
+| `QueryAsync(sql, [value, …]) AS INTEGER` | Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) ("cancelled" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError "busy: …"). Returns 1 if it started, else 0 (OnError says why). On the web it runs on the page's thread in slices of a few milliseconds, the page drawn between them. |
+| `Cancel AS INTEGER` | Stops the background query (SQLite's interrupt): OnError("cancelled") follows — or OnDone, if it had just finished. Returns 1 if one was running. |
 | `FetchRow` | Moves to the next row of the last query's rows: 1, or 0 past the last. |
 | `FetchField` | Moves to the next column of the query's result and fills the field information; returns false when none are left. |
 | `RowSeek(row)` | The next FetchRow fetches row `row` (from 0). |
@@ -3470,7 +3473,9 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 |---|---|
 | `OnConnect` | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
 | `OnDisconnect` | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+| `OnError(Message AS STRING)` | Something failed: the message (a query's error, "not connected: Connect first", "busy: …" while a background query runs, "cancelled" after Cancel). |
+| `OnRows(Count AS INTEGER)` | A background query's rows arrived: Count is how many have so far (RowCount too). Fired a few dozen times a second at most. |
+| `OnDone(Rows AS INTEGER, Ms AS INTEGER)` | A background query finished: its rows, and the milliseconds it took. |
 
 <a id="rmysql"></a>
 ## RMySQL <small>(RapidQ name: QMYSQL)</small>
@@ -3487,6 +3492,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `Length` (read-only) | int |  | `Length(i)`: how many bytes field `i` (from 0) of the row the last FetchLengths measured has (a NULL 0); 0 before any. |
 | `Row` (read-only) | string |  | The selected row: of a grid's selected cell or a tree's node, from 0; on a database, the current result row (MySQL: `Row(i)`, its field i). |
 | `RowCount` (read-only) | int |  | The number of rows: of a grid (fixed ones included), of a query's result, of a data frame. |
+| `Busy` *(RapidR)* (read-only) | int |  | 1 while a background query (QueryAsync) runs, else 0. |
 | `Table` (read-only) | string |  | A table's name, `Table(i)` from 0, as the database lists them; read-only. |
 | `TableCount` (read-only) | int |  | The number of tables in the database. |
 | `Host` *(RapidR)* | string |  | The server's host name or address. |
@@ -3510,6 +3516,8 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
+| `QueryAsync(Query AS STRING, [Value, …]) AS INTEGER` *(RapidR)* | Runs the SQL in the background: the program and its windows keep answering while the rows come. Values after the SQL are bound to its ? placeholders, as in Query. The rows arrive in chunks — OnRows(Count) with the rows so far, RowCount following —, then OnDone(Rows, Ms), or OnError(Message) ("cancelled" after Cancel). FetchRow and Row(i) walk the rows that have arrived; an RDBGrid with DataSource = this component draws them as they come, only the rows on screen. One query at a time: Query, QueryScalar and QueryAsync while one runs are refused (OnError "busy: …"). Returns 1 if it started, else 0 (OnError says why). Its cells are text (binary data: use Query, RowBlob). |
+| `Cancel AS INTEGER` *(RapidR)* | Stops the background query (the server's KILL QUERY): OnError("cancelled") follows — or OnDone, if it had just finished. Returns 1 if one was running. |
 | `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL is ignored: no TLS). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
 | `Refresh(RefreshFlags AS INTEGER) AS INTEGER` | Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message). |
 | `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` | Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. "" without a current row or such a field. |
@@ -3523,7 +3531,9 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 |---|---|
 | `OnConnect` *(RapidR)* | Fires when the connection is made: a database opened by Connect, a socket connected to its host. |
 | `OnDisconnect` *(RapidR)* | Fires when the connection is closed: a database by Close, a socket by either side. |
-| `OnError(Message AS STRING)` *(RapidR)* | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
+| `OnError(Message AS STRING)` *(RapidR)* | Something failed: the message (the server's, "busy: …" while a background query runs, "cancelled" after Cancel). |
+| `OnRows(Count AS INTEGER)` *(RapidR)* | A background query's rows arrived: Count is how many have so far (RowCount too). |
+| `OnDone(Rows AS INTEGER, Ms AS INTEGER)` *(RapidR)* | A background query finished: its rows, and the milliseconds it took. |
 
 <a id="rsocket"></a>
 ## RSocket <small>(RapidQ name: QSOCKET)</small>
@@ -4544,18 +4554,18 @@ The current row of a data set (an RDataFrame, an RCSV, an RJSON), shared by the 
 <a id="rdbgrid"></a>
 ## RDBGrid
 
-A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV or an RJSON — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); a click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged. RapidR's own.
+A grid that shows a data set straight from its table — an RDataSource, an RDataFrame, an RCSV, an RJSON, or an RSQLite's or RMySQL's last query (a background query's rows as they arrive) — drawing only the rows on screen, so a million rows scroll smoothly. A click or the arrows move the current row (bound edits follow); Ctrl+C copies it. A click on a heading sorts the view by that column (again: descending, a third time: back), the data itself unchanged; a database's rows are sorted by the program: on OnTitleClick it asks again with ORDER BY, SortColumn and SortDescending saying what was clicked. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `DataSource` | component |  | What it shows: an RDataSource (it follows that current row) or a data set straight. |
+| `DataSource` | component |  | What it shows: an RDataSource (it follows that current row), a data set straight, or a database component's last query (its rows as a background query brings them). |
 | `ReadOnly` | bool | True | True: the cells are shown, not edited (editing in the grid comes later; edit through bound REdits). |
 | `Row` | int | 0 | The current row (a row of the data, from 0); set it to move there. |
 | `TopRow` | int | 0 | The first row shown (in the grid's order). |
 | `RowCount` (read-only) | int | 0 | How many rows the data has. |
 | `ColCount` (read-only) | int | 0 | How many columns the data has. |
 | `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
-| `SortColumn` (read-only) | int | -1 | The column its view is sorted by (-1: none, the data's own order). |
+| `SortColumn` (read-only) | int | -1 | The column its view is sorted by (-1: none, the data's own order). Bound to a database component: the column the user asked for — the program sorts, asking again with ORDER BY. |
 | `SortDescending` (read-only) | bool | False | True: sorted highest first. |
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
@@ -4587,7 +4597,7 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | Event | |
 |---|---|
 | `OnCellClick(Row AS INTEGER, Col AS INTEGER)` | A cell was clicked: its data row and column (from 0). |
-| `OnTitleClick(Col AS INTEGER)` | A heading was clicked (the view is sorted by it). |
+| `OnTitleClick(Col AS INTEGER)` | A heading was clicked (the view is sorted by it; a database's rows: the program asks again with ORDER BY, SortColumn and SortDescending saying how). |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |

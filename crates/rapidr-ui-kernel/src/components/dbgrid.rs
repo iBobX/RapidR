@@ -14,9 +14,16 @@
 //! edits follow; OnCellClick(Row, Col)); a click on a heading sorts the
 //! grid's view by that column, again descending, a third time back to the
 //! data's order (OnTitleClick(Col)) — the data stays as it is; the arrows,
-//! Page Up / Down, Home / End move the current row; the wheel and the bars
+//! Page Up / Down, Home / End move the current row; Ctrl+C (Cmd+C, also
+//! Ctrl+Insert) copies it, its cells tab-separated; the wheel and the bars
 //! scroll. A screen reader hears a grid: the headings, then the rows on
 //! screen, each named "Row 12 of 1000000", the current one selected.
+//!
+//! Bound to a database component (RSQLITE, RMYSQL) it draws that
+//! component's last query — a background query's rows as they arrive, the
+//! bar growing — and a heading's click only says what was asked
+//! (OnTitleClick, SortColumn / SortDescending, the arrow): the program
+//! sorts by asking again with ORDER BY (`link::grid_order`).
 //!
 //! On a design surface (RapidR Studio's designer) it shows the data the
 //! designer read for the designed form (`link::design_begin`), or what to
@@ -151,6 +158,12 @@ fn data_row(order: &Option<(Rc<Vec<usize>>, Rc<Vec<usize>>)>, v: usize) -> usize
 /// Data row `r`'s place in the view.
 fn view_row(order: &Option<(Rc<Vec<usize>>, Rc<Vec<usize>>)>, r: usize) -> usize {
     order.as_ref().and_then(|(_, p)| p.get(r).copied()).unwrap_or(r)
+}
+
+/// Data row `r` of `dataset` as Copy puts it on the clipboard: its cells
+/// tab-separated (a missing value empty).
+fn row_text(dataset: &str, r: usize) -> String {
+    frame::with_frame(dataset, |f| (0..f.width()).map(|c| f.cell(r, c).map(|s| s.replace(['\t', '\n', '\r'], " ")).unwrap_or_default()).collect::<Vec<_>>().join("\t"))
 }
 
 /// The column at x of the cells' area (after the gutter, scrolled).
@@ -387,8 +400,16 @@ impl ComponentKind for DbGrid {
         MouseOut::default()
     }
 
-    fn key(&self, cx: &mut Cx, k: &KeyIn, _clip: &mut dyn Clipboard) -> bool {
+    fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
         let Some(d) = link::grid(cx.id) else { return false };
+        // (Ctrl+C / Cmd+C, Ctrl+Insert: the current row, tab-separated)
+        let command = k.mods.ctrl || k.mods.command;
+        if command && !k.mods.alt && (k.vk == 67 || k.vk == 45) {
+            if d.rows > 0 {
+                clip.set_text(&row_text(&d.dataset, d.row));
+            }
+            return true;
+        }
         let l = layout(cx, &d);
         let order = link::grid_order(cx.id, &d);
         let now = view_row(&order, d.row) as i64;
@@ -496,8 +517,12 @@ impl ComponentKind for DbGrid {
 
     /// (tests) `__cell_C_R`: the cell in column C of view row R clicked (the
     /// current row, OnCellClick); R = -1: heading C clicked (the view
-    /// sorted, OnTitleClick).
+    /// sorted, OnTitleClick). `__end`: the End key (the last row).
     fn test_action(&self, cx: &mut Cx, action: &str) -> bool {
+        if action == "__end" {
+            let mut clip = crate::input::MemClipboard::default();
+            return self.key(cx, &KeyIn { vk: 35, text: "", mods: crate::input::Mods::NONE }, &mut clip);
+        }
         let Some((c, r)) = action.strip_prefix("__cell_").and_then(|rc| rc.split_once('_')).and_then(|(c, r)| Some((c.parse::<i64>().ok()?, r.parse::<i64>().ok()?))) else { return false };
         let Some(d) = link::grid(cx.id) else { return false };
         if r < 0 {
@@ -568,5 +593,46 @@ mod tests {
         let d = link::grid("kg_grid").unwrap();
         assert_eq!(d.sort, Some((2, false)));
         assert_eq!(frame::frame("kg_df").cell(0, 1).as_deref(), Some("p0"));
+    }
+
+    /// A database's rows (a background query's, arriving): drawn as they
+    /// come, sorted by the program (a heading's click only says what was
+    /// asked), Ctrl+C copying the current row.
+    #[test]
+    fn a_databases_rows_as_they_come() {
+        let names = ["id", "name"];
+        let chunk = |from: usize, n: usize| {
+            let mut b = frame::FrameBuilder::new(&names, n);
+            for i in from..from + n {
+                b.push(0, Some(&i.to_string()));
+                b.push(1, Some(&format!("n{i}")));
+                b.end_row();
+            }
+            b.finish(0)
+        };
+        link::create("kg_db", "RSQLITE");
+        frame::set_frame("kg_db", frame::Frame::with_columns(&names));
+        frame::with_frame_mut("kg_db", |f| f.append(&chunk(0, 64)));
+        let s = form("kg_dbgrid");
+        link::set("kg_dbgrid", "datasource", &v_str("kg_db"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "f", true);
+        let t = texts(&f.paint(&s, &mut ts, 1.0));
+        assert!(t.contains(&"n0".to_string()) && t.contains(&"name".to_string()), "{t:?}");
+        // more rows arrive: the grid has them (End goes to the last)
+        frame::with_frame_mut("kg_db", |f| f.append(&chunk(64, 100_000)));
+        assert_eq!(link::grid("kg_dbgrid").unwrap().rows, 100_064);
+        assert!(f.test_action(&s, &mut ts, "kg_dbgrid", "__end"));
+        let t = texts(&f.paint(&s, &mut ts, 1.0));
+        assert!(t.contains(&"n100063".to_string()), "{t:?}");
+        // a heading clicked: asked, not sorted here
+        link::grid_title_click("kg_dbgrid", 1);
+        let d = link::grid("kg_dbgrid").unwrap();
+        assert_eq!(d.sort, Some((1, false)));
+        assert!(link::grid_order("kg_dbgrid", &d).is_none());
+        // Ctrl+C: the current row, tab-separated
+        let mut clip = crate::MemClipboard::default();
+        f.key_down(&s, &mut ts, 67, "", crate::input::Mods { ctrl: true, ..crate::input::Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some("100063\tn100063"));
     }
 }

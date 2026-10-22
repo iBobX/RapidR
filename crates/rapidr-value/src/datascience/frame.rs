@@ -300,6 +300,34 @@ impl Frame {
         }
     }
 
+    /// A frame with these columns and no rows (a name already taken gets
+    /// `_2`, `_3` … — `SELECT a.id, b.id` — an empty one `column_N`).
+    pub fn with_columns<S: AsRef<str>>(names: &[S]) -> Frame {
+        let mut f = Frame::default();
+        for n in names {
+            f.add_column(n.as_ref());
+        }
+        f
+    }
+
+    /// `other`'s rows after these, column by column (its columns past
+    /// these are dropped; a column it lacks gets nulls). A background
+    /// query's next chunk of rows (rapidr-db): each column is copied once,
+    /// whatever the chunks' types ([`Column::append`] keeps one storage).
+    pub fn append(&mut self, other: &Frame) {
+        let n = other.height;
+        if n == 0 {
+            return;
+        }
+        for (c, col) in self.cols.iter_mut().enumerate() {
+            match other.cols.get(c) {
+                Some(theirs) => col.append(theirs),
+                None => col.grow(col.len() + n),
+            }
+        }
+        self.height += n;
+    }
+
     /// The first `n` rows, as a frame of their own.
     pub fn head(&self, n: usize) -> Frame {
         let mut f = self.clone();
@@ -325,6 +353,56 @@ impl Frame {
                 *c = t;
             }
         }
+    }
+}
+
+/// Rows gathered cell by cell into a frame of their own, each column
+/// stored as lossless as can be once it's finished (`i64`, `f64` … or
+/// text) — a background query's chunk, built off the program's thread
+/// (rapidr-db) and then [`Frame::append`]ed.
+pub struct FrameBuilder {
+    columns: Vec<String>,
+    cols: Vec<column::Builder>,
+    rows: usize,
+}
+
+impl FrameBuilder {
+    /// No rows yet, these columns (named as [`Frame::with_columns`] names
+    /// them).
+    pub fn new<S: AsRef<str>>(names: &[S], rows_hint: usize) -> FrameBuilder {
+        let columns = Frame::with_columns(names).columns;
+        let cols = columns.iter().map(|_| column::Builder::new(rows_hint)).collect();
+        FrameBuilder { columns, cols, rows: 0 }
+    }
+
+    /// Cell `col` of the row being added (None: null). Every column gets
+    /// one before [`FrameBuilder::end_row`].
+    #[inline]
+    pub fn push(&mut self, col: usize, cell: Option<&str>) {
+        if let Some(b) = self.cols.get_mut(col) {
+            b.push(cell);
+        }
+    }
+
+    /// The row's cells are in.
+    #[inline]
+    pub fn end_row(&mut self) {
+        self.rows += 1;
+    }
+
+    pub fn rows(&self) -> usize {
+        self.rows
+    }
+
+    pub fn width(&self) -> usize {
+        self.columns.len()
+    }
+
+    /// The frame (and a new builder for the next rows, the same columns).
+    pub fn finish(&mut self, rows_hint: usize) -> Frame {
+        let cols = std::mem::replace(&mut self.cols, self.columns.iter().map(|_| column::Builder::new(rows_hint)).collect());
+        let height = std::mem::take(&mut self.rows);
+        Frame { columns: self.columns.clone(), cols: cols.into_iter().map(column::Builder::finish).collect(), height }
     }
 }
 
@@ -1147,6 +1225,49 @@ mod tests {
     use super::*;
 
     const PEOPLE: &str = "name,age,city\nbob,30,NYC\namy,25,LA\n\"Lee, Jo\",41,NYC\ncat,,LA\n";
+
+    /// Chunks of rows appended (a background query's) read exactly as the
+    /// same cells gathered at once: each cell's text and each column's
+    /// type, whatever the chunks' storages (nulls, whole numbers then
+    /// fractions, numbers then text, Booleans).
+    #[test]
+    fn appended_chunks_read_as_one_frame() {
+        let chunks: Vec<Vec<[Option<&str>; 4]>> = vec![
+            vec![[Some("1"), None, Some("true"), None], [Some("2"), None, Some("false"), Some("x")]],
+            vec![[Some("3"), Some("2.5"), Some("true"), Some("4")]],
+            vec![[None, None, None, None]],
+            vec![[Some("4.5"), Some("7"), Some("maybe"), Some("5")], [Some("5"), Some("1e3"), Some("true"), None]],
+        ];
+        let names = ["a", "b", "c", "d"];
+        let mut whole = Frame::with_columns(&names);
+        let mut all: Vec<[Option<&str>; 4]> = Vec::new();
+        for rows in &chunks {
+            let mut b = FrameBuilder::new(&names, rows.len());
+            for row in rows {
+                for (c, cell) in row.iter().enumerate() {
+                    b.push(c, *cell);
+                }
+                b.end_row();
+            }
+            whole.append(&b.finish(0));
+            all.extend(rows.iter().copied());
+        }
+        let mut once = Frame::with_columns(&names);
+        for row in &all {
+            once.push_row(&row.iter().map(|c| c.map(str::to_string)).collect::<Vec<_>>());
+        }
+        once.retype();
+        assert_eq!(whole.height(), all.len());
+        for c in 0..4 {
+            assert_eq!(whole.dtype(c), once.dtype(c), "column {c}");
+            for r in 0..all.len() {
+                assert_eq!(whole.cell(r, c), once.cell(r, c), "({r}, {c})");
+                assert_eq!(whole.cell(r, c).as_deref(), all[r][c].map(|s| if s == "1e3" { "1e3" } else { s }), "({r}, {c})");
+            }
+        }
+        // (a duplicate name, an empty one)
+        assert_eq!(Frame::with_columns(&["id", "id", ""]).columns, ["id", "id_2", "column_3"]);
+    }
 
     fn call(h: &TestHost, name: &str, m: &str, args: &[Value]) -> Value {
         dataframe_method(name, m, args, h)

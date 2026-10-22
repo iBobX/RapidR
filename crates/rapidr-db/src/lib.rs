@@ -19,8 +19,10 @@
 //! them). A bound value is never SQL text, so no value — `x' OR '1'='1` —
 //! can change what the statement does (SQL injection).
 
+use rapidr_value::datascience::{frame, link};
 use rapidr_value::{v_int, v_null, v_str, Value};
 
+pub mod background;
 mod params;
 mod results;
 
@@ -63,6 +65,24 @@ pub trait Host {
     /// The current row changed (a query's rows, FetchRow): the web's
     /// widgets bound to the component (DataSource / DataField) show it.
     fn row_changed(&self, _name: &str) {}
+}
+
+/// A Query's rows (`columns`, `rows`) as component `key`'s frame — what an
+/// RDBGrid bound to it draws — when it has one (a background query's
+/// before) or something is bound to it; otherwise nothing is copied.
+fn publish_frame(key: &str, rows: impl FnOnce() -> Option<(Vec<String>, Vec<Vec<String>>)>) {
+    if !(frame::has_frame(key) || link::is_source(key)) {
+        return;
+    }
+    let Some((columns, rows)) = rows() else { return };
+    let mut b = frame::FrameBuilder::new(&columns, rows.len());
+    for row in &rows {
+        for c in 0..columns.len() {
+            b.push(c, row.get(c).map(String::as_str));
+        }
+        b.end_row();
+    }
+    frame::set_frame(key, b.finish(0));
 }
 
 /// A component's new result set (`rows` × `columns`) after a query that
