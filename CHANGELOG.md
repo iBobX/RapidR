@@ -11,6 +11,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
 ### Fixed
+- **A parameter or variable named like a keyword no longer changes your
+  strings** (found by Database Studio, whose Open button went blank). After
+  `SUB Show(Open AS STRING)`, every string literal `"Open"` (any case) became
+  that parameter — empty outside the SUB — until the next SUB or FUNCTION;
+  after `Step = 2` or `DEFSTR return`, every `"Step"` or `"return"` printed
+  the variable's value for the rest of the program. Any keyword that can
+  name a parameter or a variable did it (Open, Close, Input, Kill, Seek,
+  Write, Print, Step, Type, Case, Bind…). The parser read a string literal's
+  text as a word; a literal is now always data, on every runtime (VM, native
+  build, web). Also `5 "SHL" 2` is no longer a shift: it's 5, as RC.EXE
+  reads it. Conformance cases `keyword_param_literals` (checked against
+  RC.EXE) and `keyword_param_literals_rr`.
 - **Tab names are no longer cut short while there is room for them** (found
   in high contrast, where the debugging layout's "Breakpoints (2)" showed as
   "Breakpoints…"; light and dark did the same). When a dock group or the
