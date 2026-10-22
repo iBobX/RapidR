@@ -125,11 +125,18 @@ def owner_at(x, y):
 
 
 def mine_under(pid, x, y):
-    """The point is on one of `pid`'s windows (or a child's: its popups)."""
-    owner, name = owner_at(x, y)
-    if owner == pid:
+    """The element under the point is `pid`'s, as a click would find it
+    (an accessibility hit test: a notification's banner there is the
+    banner's; Notification Center's see-through rest of the screen isn't)."""
+    r = subprocess.run([PROBE, "hit", str(int(x)), str(int(y))], capture_output=True, text=True)
+    try:
+        hit = json.loads(r.stdout or "{}").get("pid")
+    except json.JSONDecodeError:
+        hit = None
+    if hit == pid:
         return True
-    log(f"  (the window under ({x:.0f}, {y:.0f}) is {name!r}, pid {owner} — not ours)")
+    owner, name = owner_at(x, y)
+    log(f"  (the element under ({x:.0f}, {y:.0f}) is pid {hit}'s; the window there {name!r}, pid {owner} — not ours)")
     return False
 
 
@@ -876,8 +883,11 @@ def type_keys(pid, text):
         key(pid, KEYCODES[c])
 
 
-def scroll_at(x, y, lines):
-    """The wheel turned `lines` lines (down: negative) with the mouse at (x, y)."""
+def scroll_at(pid, x, y, lines):
+    """The wheel turned `lines` lines (down: negative) with the mouse at (x,
+    y) — only over `pid`'s own window, as a click."""
+    if not mine_in_front(pid) or not mine_under(pid, x, y):
+        raise SystemExit(f"stopped: the point ({x:.0f}, {y:.0f}) isn't on pid {pid}'s window — no scroll")
     mouse(Quartz.kCGEventMouseMoved, x, y)
     time.sleep(0.1)
     e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, lines)
@@ -935,7 +945,7 @@ def set_walk(theme):
     key(studio, ENTER)
     time.sleep(1.2)
     path, text = studio_text(studio, f"82-set-{tag}-refused")
-    flat = text.replace(" ", "")
+    flat = text.replace(" ", "").replace("|", "")
     check(f"[set {tag}] abc refused: Output says count holds a whole number, and abc isn't one", "countholdsawholenumber" in flat and "abcisn" in flat, text[-260:])
     check(f"[set {tag}] the status bar: Can't set count: see Output", ax_find(studio, "Can't set count: see Output") is not None)
     check(f"[set {tag}] count still 3", ax_find(studio, "count, whole number 3") is not None)
@@ -979,29 +989,45 @@ def set_walk(theme):
         return
     key(studio, RIGHT)
     time.sleep(1.5)
-    tree = ax_find(studio, "Variables", exact=True)
-    cur = node_with(studio, "Cursor, constant crDefault")
-    for _ in range(6):
-        pane = node_with(studio, "Components")
-        if cur and pane and cur["y"] < pane["y"] + 160:
+    # (the row on the screen: below the Components heading, above the
+    # status bar — scrolled to it with the wheel; a row out of view has no
+    # place to click)
+    # (the tree is under its tab, down to the status bar; a row out of view
+    # has no size — AccessKit's — and is scrolled to with the wheel over
+    # the tree)
+    win = wins(studio)[0]
+    bottom = win["y"] + win["h"] - 40
+    # (the tab: of the nodes named Variables, the short one — the tree
+    # itself is named so too)
+    tab = min((n for n in ax_all(studio, "Variables") if str(n.get("title") or n.get("desc")) == "Variables" and n.get("h", 0) > 4), key=lambda n: n["h"], default=None)
+    if not tab:
+        check(f"[set {tag}] the Variables tab found (VoiceOver)", False)
+        return
+    top = tab["y"] + tab["h"] + 4
+    cur = None
+    for _ in range(10):
+        c = node_with(studio, "Cursor, constant crDefault")
+        if c and c.get("h", 0) > 4 and top <= c["y"] < bottom - c["h"]:
+            cur = c
             break
-        if pane:
-            scroll_at(pane["x"] + 120, pane["y"] + 40, -2)
-        cur = node_with(studio, "Cursor, constant crDefault")
+        scroll_at(studio, tab["x"] + 160, top + 60, -2)
     if not cur:
-        check(f"[set {tag}] the form's Cursor shown (crDefault)", False, json.dumps(tree))
+        shot_window(studio, f"86-set-{tag}-no-cursor")
+        check(f"[set {tag}] the form's Cursor shown (crDefault)", False)
         return
     double_click_at(studio, cur["x"] + 40, cur["y"] + cur["h"] / 2)
     time.sleep(1.0)
-    path = shot_screen_region(cur["x"] - 20, cur["y"] - 20, 360, 420, f"86-set-{tag}-choices")
+    rx, ry = max(win["x"], cur["x"] - 20), max(win["y"], cur["y"] - 300)
+    rw, rh = min(360, win["x"] + win["w"] - rx), min(560, win["y"] + win["h"] - ry)
+    path = shot_screen_region(rx, ry, rw, rh, f"86-set-{tag}-choices")
     boxes = ocr_boxes(path)
     pick = next((b for b in boxes if b["text"].strip() == "crHandPoint"), None)
     check(f"[set {tag}] double-click on Cursor: a menu of its constants (crHandPoint among them)", pick is not None, " | ".join(b["text"] for b in boxes)[-300:])
     if pick is None:
         key(studio, ESC)
         return
-    scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / 360
-    click_at(studio, cur["x"] - 20 + (pick["x"] + pick["w"] / 2) / scale, cur["y"] - 20 + (pick["y"] + pick["h"] / 2) / scale)
+    scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / rw
+    click_at(studio, rx + (pick["x"] + pick["w"] / 2) / scale, ry + (pick["y"] + pick["h"] / 2) / scale)
     time.sleep(1.5)
     shot_window(studio, f"87-set-{tag}-cursor-set")
     check(f"[set {tag}] crHandPoint picked: VoiceOver reads 'Cursor, constant crHandPoint, changed'", ax_find(studio, "Cursor, constant crHandPoint, changed", exact=True) is not None)
@@ -1016,7 +1042,7 @@ def set_walk(theme):
     key(studio, ENTER)
     time.sleep(1.5)
     path, text = studio_text(studio, f"88-set-{tag}-immediate")
-    check(f"[set {tag}] Immediate: count = 5 answered, Variables reads count 5", "count=5" in text.replace(" ", "") and ax_find(studio, "count, whole number 5") is not None, text[-200:])
+    check(f"[set {tag}] Immediate: count = 5 typed, set — the status bar: count = 5", "count=5" in text.replace(" ", "") and ax_find(studio, "count = 5  (Ctrl+Z undoes)") is not None, text[-200:])
 
 
 def include_walk():

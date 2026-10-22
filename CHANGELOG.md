@@ -281,9 +281,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`setVariable`) the same way, and the debug adapter (`rapidr dap`) adds
   `setExpression` (a watch's place set). For your own trees:
   `TreeView.EditItem Index [, Text]` opens a node's editor with that text,
-  `TreeView.SetFocus` gives a tree the keyboard, `Item(i).Top` says where a
-  node's row is, and `PopupMenu.PopupAt Control, X, Y` shows a menu at a
-  place inside a control wherever it sits (a menu under a tree's node).
+  `TreeView.SetFocus` gives a tree the keyboard, its `OnUndo` hears Ctrl+Z
+  (⌘Z) on it, `Item(i).Top` says where a node's row is, and
+  `PopupMenu.PopupAt Control, X, Y` shows a menu at a place inside a
+  control wherever it sits (a menu under a tree's node). Ctrl+C in
+  Variables and Watch copies the value again (it looked for the wrong
+  key bit).
   See [the manual](docs/manual/debugging.md#changing-a-value).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,

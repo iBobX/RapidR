@@ -65,7 +65,7 @@ func emit(_ v: Any) {
 
 let args = CommandLine.arguments
 guard args.count >= 3 else {
-    FileHandle.standardError.write("usage: ui_probe tree <pid> | ocr <image.png>\n".data(using: .utf8)!)
+    FileHandle.standardError.write("usage: ui_probe tree <pid> | ocr <image.png> | hit <x> <y>\n".data(using: .utf8)!)
     exit(2)
 }
 switch args[1] {
@@ -75,6 +75,16 @@ case "tree":
     usleep(300000)
     let wins = (attr(app, kAXWindowsAttribute as String) as? [AXUIElement]) ?? []
     emit(wins.map { node($0, 0) })
+case "hit":
+    // (the element under a point of the screen, as a click would find it,
+    // and its process: a notification's banner over a window is the
+    // banner's — the lanes' §7 check before every click)
+    guard args.count >= 4, let x = Float(args[2]), let y = Float(args[3]) else { exit(2) }
+    var el: AXUIElement?
+    let err = AXUIElementCopyElementAtPosition(AXUIElementCreateSystemWide(), x, y, &el)
+    var pid: pid_t = 0
+    if err == .success, let el = el { AXUIElementGetPid(el, &pid) }
+    emit(["pid": Int(pid), "error": Int(err.rawValue)])
 case "ocr":
     guard let img = NSImage(contentsOfFile: args[2]), let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
         FileHandle.standardError.write("can't read \(args[2])\n".data(using: .utf8)!)

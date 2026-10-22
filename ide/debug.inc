@@ -1843,6 +1843,11 @@ SUB ChoicePicked(Sender AS RMenuItem)
   SetValue ItemExpr(EditW, EditI), ChoiceValue(k), ChoiceValue(k)
 END SUB
 
+' (Ctrl+Z — ⌘Z — in Variables or Watch: the trees' OnUndo)
+SUB TreeUndo
+  IF RunState = "paused" THEN UndoSetValue
+END SUB
+
 ' Ctrl+Z in Variables or Watch while paused: the last value set goes back.
 SUB UndoSetValue
   IF UndoCount < 1 THEN
@@ -2647,7 +2652,8 @@ END SUB
 
 ' (Ctrl+C in Variables or Watch: the value copied — true when it was)
 FUNCTION CopyKey(w AS INTEGER, Key AS INTEGER, Shift AS INTEGER) AS INTEGER
-  IF Key = 67 AND (Shift AND 2) <> 0 THEN
+  ' (Ctrl+C: ssCtrl is 16)
+  IF Key = 67 AND (Shift AND 16) <> 0 THEN
     ValueAction "copy", PickedExpr(w), PickedShown(w)
     Result = 1
   END IF
@@ -2994,6 +3000,7 @@ SUB SetUpDebug
   VarsTree.OnEdited = VarsEdited
   VarsTree.OnKeyDown = VarsTreeKey
   VarsTree.OnDblClick = VarsDblClick
+  VarsTree.OnUndo = TreeUndo
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -3019,6 +3026,7 @@ SUB SetUpDebug
   WatchTree.OnCollapsed = WatchCollapsed
   WatchTree.OnKeyDown = WatchTreeKey
   WatchTree.OnDblClick = WatchDblClick
+  WatchTree.OnUndo = TreeUndo
   WatchTree.ReadOnly = 0
   WatchTree.OnEditing = WatchEditing
   WatchTree.OnEdited = WatchEdited

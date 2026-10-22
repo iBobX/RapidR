@@ -442,6 +442,12 @@ impl ComponentKind for Tree {
         }
         // (the input lane's: a key forgets a pending edit)
         cancel_edit_soon(cx);
+        // (RapidR's OnUndo: Ctrl+Z — ⌘Z on a Mac — on the tree, for the
+        // program to take back what it last did there)
+        if k.vk == 90 && k.mods.command && !k.mods.shift && !k.mods.alt {
+            fire(cx, "onundo", Vec::new());
+            return true;
+        }
         if k.mods.alt || k.mods.command {
             return false;
         }

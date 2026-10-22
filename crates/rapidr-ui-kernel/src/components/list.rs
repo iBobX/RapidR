@@ -1215,6 +1215,20 @@ mod tests {
         (s, f, ts)
     }
 
+    /// (RapidR's OnUndo) Ctrl+Z — ⌘Z on a Mac, the shortcut key — on a
+    /// tree that isn't editing: the program's; while a node is edited, the
+    /// editor's own.
+    #[test]
+    fn ctrl_z_on_a_tree_is_its_programs_undo() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        key(&mut f, &s, &mut ts, 90, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert!(lists(f.take_events()).contains(&KernelEvent::List("tv".into(), ListAction::Fire("onundo".into(), Vec::new()))));
+        super::super::tree::open_editor("tv", 0, "one");
+        key(&mut f, &s, &mut ts, 90, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert!(!lists(f.take_events()).iter().any(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "onundo")));
+    }
+
     #[test]
     fn a_tree_nodes_editor_is_the_text_editor() {
         let (s, mut f, mut ts) = tree_form();

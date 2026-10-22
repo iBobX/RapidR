@@ -2957,17 +2957,27 @@ const CASES = [
     a11y: [[/Can't set total: see Output/, "label"]],
   },
   {
-    // set, marked changed; Edit > Undo — Ctrl+Z, which the desktop's menu
-    // takes — in Variables puts it back while paused
+    // set, marked changed; Ctrl+Z in Variables (the tree's OnUndo) puts it
+    // back while paused
     name: "debug-set-undo",
     open: "tests/fixtures/studio_debug/counter.rr",
     webFiles: DEBUG_FILES,
-    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/total,key:F2,type:7,key:Enter,wait,wait,wait,changed:report,edit.undo,wait,wait,wait",
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/total,key:F2,type:7,key:Enter,wait,wait,wait,changed:report,key:Ctrl+Z,wait,wait,wait",
     delay: 9,
     dump: {
       "varstree.text": /\ttotal = 0\n/,
       "outputbox.text": /^\[changed\][^\n]* G\/total/m,
     },
+    a11y: [[/total is back to 0/, "label"]],
+  },
+  {
+    // …and Edit > Undo, Variables in front: the same
+    name: "debug-set-undo-menu",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/total,key:F2,type:7,key:Enter,wait,wait,wait,edit.undo,wait,wait,wait",
+    delay: 9,
+    dump: { "varstree.text": /\ttotal = 0\n/ },
     a11y: [[/total is back to 0/, "label"]],
   },
   {
