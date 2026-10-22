@@ -51,13 +51,15 @@ export const scenes = [
   // (E0–E2, docs/code-helpers-plan.md) The helpers on examples/studio/helpers.rr:
   // the colours' swatches and the picture's thumbnail, the caret on the form's
   // Color
-  { name: "helpers", open: HELPERS, do: `${HELPERS_READY},line:18,key:End`, delay: 8, crop: EDITOR },
+  // (line 38 brings the form's CREATE block into view, lines 17 to 38; the
+  // caret then to its Color, line 18, already in view: nothing scrolls)
+  { name: "helpers", open: HELPERS, do: `${HELPERS_READY},line:38,wait,wait,wait,line:18,key:End`, delay: 8, crop: EDITOR },
   // Ctrl+. on it: the colour editor
-  { name: "helpers-colour", open: HELPERS, do: `${HELPERS_READY},line:18,key:End,key:Ctrl+.,wait`, delay: 9, crop: [244, 90, 792, 640] },
+  { name: "helpers-colour", open: HELPERS, do: `${HELPERS_READY},line:38,wait,wait,wait,line:18,key:End,key:Ctrl+.,wait`, delay: 11, crop: [244, 110, 800, 520], smooth: true },
   // OnClick: the handler's list, Create handler first
-  { name: "helpers-handler", open: HELPERS, do: `${HELPERS_READY},line:36,key:End,key:Ctrl+.,wait`, delay: 9, crop: [244, 200, 792, 460] },
+  { name: "helpers-handler", open: HELPERS, do: `${HELPERS_READY},line:38,wait,wait,wait,line:36,key:End,key:Ctrl+.,wait`, delay: 11, crop: [244, 330, 792, 400] },
   // the stripes' FillRects: the argument names, the line's help at its end
-  { name: "helpers-names", open: HELPERS, do: `${HELPERS_READY},line:48,key:End`, delay: 8, crop: [244, 90, 792, 440] },
+  { name: "helpers-names", open: HELPERS, do: `${HELPERS_READY},line:49,key:End`, delay: 8, crop: [244, 90, 792, 440] },
   // the debugger paused: the values at the lines' ends
   { name: "helpers-values", open: "tests/fixtures/studio_debug/counter.rr", do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait", delay: 7, crop: [244, 90, 792, 260] },
 ];

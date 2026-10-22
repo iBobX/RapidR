@@ -329,6 +329,49 @@ fn typing_latency() {
             Some(files.iter().filter_map(|p| std::fs::read_to_string(p).ok()).collect::<Vec<_>>().join("\n"))
         })
         .unwrap_or_else(|| (0..4500).map(|i| format!("    Canvas.FillRect {i}, 10, 200, 40, RGB({}, 130, 20) ' row {i}", i % 255)).collect::<Vec<_>>().join("\n"));
+    // (RAPIDR_BENCH_SITES: the language service's real sites for each of
+    // RAPIDR_BENCH_DIR's files — rapidr-langsvc's helpers_cost writes them —
+    // joined as the files are, instead of a site on every line)
+    let parse = |rows: &str, offset: usize| -> Vec<HelperSite> {
+        rows.lines()
+            .filter_map(|l| {
+                let f: Vec<&str> = l.split('\t').collect();
+                let kind = match *f.first()? {
+                    "Color" => HelperKind::Color,
+                    "Font" => HelperKind::Font,
+                    "File" => HelperKind::File,
+                    "Choice" => HelperKind::Choice,
+                    "Bool" => HelperKind::Bool,
+                    "Component" => HelperKind::Component,
+                    "Handler" => HelperKind::Handler,
+                    "ArgName" => HelperKind::ArgName,
+                    _ => HelperKind::Note,
+                };
+                let mut h = HelperSite::new(kind, offset + f.get(1)?.parse::<usize>().ok()?, offset + f.get(2)?.parse::<usize>().ok()?);
+                h.value = f.get(3)?.to_string();
+                h.form = f.get(4)?.to_string();
+                h.label = f.get(5)?.to_string();
+                h.flag = *f.get(6)? == "1";
+                Some(h)
+            })
+            .collect()
+    };
+    let real: Option<(String, Vec<HelperSite>)> = std::env::var("RAPIDR_BENCH_DIR").ok().zip(std::env::var("RAPIDR_BENCH_SITES").ok().filter(|s| !s.is_empty())).and_then(|(dir, out)| {
+        let mut files: Vec<_> = std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rr")).collect();
+        files.sort();
+        let (mut all, mut sites) = (String::new(), Vec::new());
+        for f in &files {
+            if !all.is_empty() {
+                all.push('\n');
+            }
+            let name = f.file_name()?.to_string_lossy().into_owned();
+            let rows = std::fs::read_to_string(std::path::Path::new(&out).join(format!("{name}.sites"))).unwrap_or_default();
+            sites.extend(parse(&rows, all.len()));
+            all.push_str(&std::fs::read_to_string(f).ok()?);
+        }
+        Some((all, sites))
+    });
+    let text = real.as_ref().map_or(text, |(t, _)| t.clone());
     let lines = text.lines().count();
     // (a helper or more on every line: a colour mark after the line's
     // first `(…)` group or its end, an argument name before its first number)
@@ -355,14 +398,14 @@ fn typing_latency() {
         out
     };
     let mut report = Vec::new();
-    for level in ["off", "helpful"] {
+    for level in ["off", "quiet", "helpful"] {
         let id = format!("bench{level}");
         let (mut s, mut f, mut ts) = form(&id, &text);
         f.focus_id(&s, &id);
         with_code_mut(&id, |c| {
             c.set("helpers", &v_str(level));
             if level != "off" {
-                let all = sites(&c.text());
+                let all = real.as_ref().map_or_else(|| sites(&c.text()), |(_, s)| s.clone());
                 c.helpers.set_sites(all, None);
             }
         });
@@ -372,6 +415,7 @@ fn typing_latency() {
         key(&mut f, &s, &mut ts, 35, "", Mods::NONE);
         f.paint(&s, &mut ts, 2.0);
         let mut times = Vec::new();
+        let (mut keys, mut paints) = (Vec::new(), Vec::new());
         for k in 0..300 {
             let t = std::time::Instant::now();
             if k % 2 == 0 {
@@ -379,18 +423,38 @@ fn typing_latency() {
             } else {
                 key(&mut f, &s, &mut ts, 8, "", Mods::NONE);
             }
+            let tk = t.elapsed().as_secs_f64() * 1000.0;
             f.paint(&s, &mut ts, 2.0);
-            times.push(t.elapsed().as_secs_f64() * 1000.0);
+            let all = t.elapsed().as_secs_f64() * 1000.0;
+            times.push(all);
+            keys.push(tk);
+            paints.push(all - tk);
         }
+        keys.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        paints.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        println!("[typing] helpers {level}: the key {:.3} ms, the frame {:.3} ms (medians)", keys[150], paints[150]);
         times.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let (median, p95) = (times[times.len() / 2], times[times.len() * 95 / 100]);
         let n = with_code(&id, |c| c.helpers.sites.len()).unwrap();
+        // (the sites mapped through one typed key, alone)
+        let map_us = with_code_mut(&id, |c| {
+            let len = c.doc.len_bytes();
+            let at = c.doc.selections().primary().head;
+            let t = std::time::Instant::now();
+            for _ in 0..300 {
+                let set = rapidr_editor::ChangeSet::new(vec![rapidr_editor::transaction::Change::insert(at, "a".to_string())], len).unwrap();
+                c.helpers.map(&set);
+            }
+            t.elapsed().as_secs_f64() * 1e6 / 300.0
+        })
+        .unwrap();
+        println!("[typing] helpers {level}: the sites through an edit {map_us:.1} µs");
         report.push((level, median, p95, n));
     }
     for (level, median, p95, n) in &report {
         println!("[typing] {lines} lines, helpers {level} ({n} sites): median {median:.3} ms, p95 {p95:.3} ms per key and frame");
     }
-    let (off, on) = (report[0].1, report[1].1);
+    let (off, on) = (report[0].1, report[2].1);
     println!("[typing] helpers on / off: {:.1}%", (on / off - 1.0) * 100.0);
 }
 

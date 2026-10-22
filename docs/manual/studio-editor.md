@@ -202,7 +202,7 @@ pick is written back into your code, as one step that **Ctrl+Z** undoes.
 The pictures below were made with `examples/studio/helpers.rr` open (File >
 Open Example…, "The code shows its own values").
 
-![Color = RGB(250, 246, 238) has a cream swatch after it, FontColor = &H6B3A1F a brown one, and FillRect's colour arguments an orange, a teal and a blue one](images/studio-editor/helpers.png)
+![Color = RGB(250, 246, 238) has a cream swatch after it and FontColor = &H6B3A1F a dark one; the caret's line shows its help at its end](images/studio-editor/helpers.png)
 
 ### Colours
 
@@ -213,7 +213,7 @@ colour's name in words, the old colour beside the new one, and a palette:
 the colours your program already uses first, then the standard and the
 system colours.
 
-![The colour editor: a hue wheel around a square, Red 255 Green 130 Blue 20 and Hex #FF8214, "&H1482FF · orange", the old and new swatches, and the palette below](images/studio-editor/helpers-colour.png)
+![The colour editor beside Color = RGB(250, 246, 238): a hue wheel around a square, Red 250, Green 246, Blue 238 and Hex #FAF6EE, "&HEEF6FA · white", the old and new swatches, and the project's, standard and system colours](images/studio-editor/helpers-colour.png)
 
 Your code keeps its own way of writing the colour: `RGB(…)` stays
 `RGB(…)`, `&H…` stays `&H…` with as many digits, and a constant stays a
@@ -253,12 +253,12 @@ ticks, **Enter** writes them all. On `True` or `False`, **Space** turns it
 over.
 
 On an event (`OnClick = SaveClick`) the list offers your program's SUBs,
-and first **Create handler "OkClick"**: it writes a new SUB for you, before
+and first **Create handler "AgainClick"** (the component's name and the event's): it writes a new SUB for you, before
 the form's CREATE block, links it, and puts the caret inside it, ready to
 type — one undo step. It works on `OnClick =` with nothing after it yet,
 too.
 
-![OnClick = with the Handler editor open: Create handler "OkClick" first, then the program's SUBs](images/studio-editor/helpers-handler.png)
+![OnClick = Recolour with the Handler editor open under it: Create handler "AgainClick" first, then the program's SUBs, Recolour picked](images/studio-editor/helpers-handler.png)
 
 A link to another component (`PopupMenu = …`, `Parent = …`) offers the
 components of your program that fit.
@@ -271,7 +271,7 @@ argument's name before it, as a small grey label (`x1:`, `c:`), so
 `FillRect 0, 0, 107, 60, …` reads as what it means. Hold **Ctrl** a moment
 to see every argument's name; let go and they go.
 
-![The caret on a FillRect line: x1:, y1:, x2:, y2: before its numbers, and "Fills a rectangle from (x1,y1) to (x2,y2)." at the line's end](images/studio-editor/helpers-names.png)
+![x1:, y1:, x2:, y2: before FillRect's numbers and a swatch after each colour; a sample after the font's name "Inter" and the picture's thumbnail after "logo.svg"; the caret's line ends with "Fills a rectangle from (x1,y1) to (x2,y2)."](images/studio-editor/helpers-names.png)
 
 None of this ever moves your code about while you type: the marks and the
 names keep their room on the line you are typing on until you leave it.

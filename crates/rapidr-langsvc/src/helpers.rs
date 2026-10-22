@@ -48,6 +48,8 @@ pub(crate) fn helpers(s: &Snapshot, file: &Path, text: &str) -> Vec<HelperSite> 
         creates: Vec::new(),
         top: 0,
         subs: program_subs(s),
+        routines: std::collections::HashMap::new(),
+        fid: s.parsed.tools.file_id(s.parsed.file_key(file).unwrap_or(file)),
     };
     w.statements(&s.parsed.program.statements, None);
     let mut out = w.out;
@@ -71,6 +73,10 @@ struct Walk<'a> {
     top: usize,
     /// The program's SUBs (a handler's choices).
     subs: Vec<String>,
+    /// Each routine's parameters, found once (lower-case name).
+    routines: std::collections::HashMap<String, Option<Params>>,
+    /// The file's id in the program's origin map.
+    fid: Option<usize>,
 }
 
 /// The program's SUBs, as declared (a handler is one).
@@ -82,6 +88,7 @@ fn program_subs(s: &Snapshot) -> Vec<String> {
 }
 
 /// What a parameter list says: names, and each one's kind.
+#[derive(Clone)]
 struct Params {
     names: Vec<String>,
     kinds: Vec<Option<&'static str>>,
@@ -91,8 +98,13 @@ struct Params {
 impl Walk<'_> {
     /// A span of the AST in this file (bytes), when it's here.
     fn here(&self, span: TextSpan) -> Option<(usize, usize)> {
-        let l = self.s.locate_range(span)?;
-        crate::front::same_file(&l.file, self.file).then_some((l.start, l.end.min(self.text.len())))
+        // (the origin map straight, not `Snapshot::locate`: that one counts
+        // a location's line and column too — the whole file's bytes up to
+        // it, for each of the thousands of places a program has; the walk
+        // took 90 ms on a 4,500-line project that way)
+        let fid = self.fid?;
+        let o = self.s.parsed.tools.preprocessed.origins.origin_span(span.start, span.end)?;
+        (o.exact && o.file == fid).then_some((o.start, o.end.max(o.start).min(self.text.len())))
     }
 
     fn push(&mut self, h: HelperSite) {
@@ -410,8 +422,19 @@ impl Walk<'_> {
         self.arguments(&params, args, false);
     }
 
-    /// The parameters of a builtin or of one of the program's routines.
-    fn routine_params(&self, name: &str) -> Option<Params> {
+    /// The parameters of a builtin or of one of the program's routines
+    /// (found once a name).
+    fn routine_params(&mut self, name: &str) -> Option<Params> {
+        let key = name.to_ascii_lowercase();
+        if let Some(p) = self.routines.get(&key) {
+            return p.clone();
+        }
+        let p = self.find_routine_params(name);
+        self.routines.insert(key, p.clone());
+        p
+    }
+
+    fn find_routine_params(&self, name: &str) -> Option<Params> {
         let scope = self.s.model.scope_at(0);
         if let Some(sym) = self.s.model.lookup(name, scope).map(|id| &self.s.model.symbols[id]) {
             if matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) {
@@ -704,8 +727,16 @@ mod tests {
         for f in &files {
             let _ = a.diagnostics(f);
             let t = std::time::Instant::now();
-            let n = a.helpers(f).len();
+            let sites = a.helpers(f);
+            let n = sites.len();
             let lines = std::fs::read_to_string(f).unwrap().lines().count();
+            // (RAPIDR_BENCH_SITES: each file's sites written there, for the
+            // editor's typing benchmark — the real ones, not made up)
+            if let Ok(out) = std::env::var("RAPIDR_BENCH_SITES") {
+                let rows: Vec<String> = sites.iter().map(|h| format!("{:?}\t{}\t{}\t{}\t{}\t{}\t{}", h.kind, h.start, h.end, h.value.replace(['\t', '\n'], " "), h.form, h.label.replace(['\t', '\n'], " "), u8::from(h.flag))).collect();
+                std::fs::create_dir_all(&out).unwrap();
+                std::fs::write(PathBuf::from(&out).join(format!("{}.sites", f.file_name().unwrap().to_string_lossy())), rows.join("\n")).unwrap();
+            }
             println!("[helpers] {} ({lines} lines): {n} sites in {:.2} ms", f.file_name().unwrap().to_string_lossy(), t.elapsed().as_secs_f64() * 1000.0);
         }
     }

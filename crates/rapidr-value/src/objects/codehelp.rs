@@ -226,20 +226,53 @@ impl Helpers {
 
     /// Every site's bytes through an edit.
     pub fn map(&mut self, set: &ChangeSet) {
+        let changes = set.changes();
+        let (Some(first), Some(last)) = (changes.first(), changes.last()) else { return };
+        // (a key typed is one small change: the sites before it stay, the
+        // ones after it move by the same few bytes — only the ones it
+        // touches are mapped one by one; a 4,500-line file's thousands of
+        // sites cost a couple of microseconds a key)
+        let (from, to) = (first.range.start, last.range.end);
+        let delta: isize = changes.iter().map(|c| c.insert.len() as isize - c.range.len() as isize).sum();
+        let shift = |p: usize| (p as isize + delta).max(0) as usize;
         let map_all = |v: &mut Vec<HelperSite>| {
-            v.retain_mut(|h| {
+            let mut gone = false;
+            // (sorted by start: those starting before the edit are left
+            // alone but the few just before it, which may reach into it —
+            // a line's note, a value over a line)
+            let first = v.partition_point(|h| h.start < from);
+            let from_i = first.saturating_sub(64);
+            for h in v[from_i..].iter_mut() {
+                if h.end < from {
+                    // (before the edit; a handler's SUB goes before its site)
+                    continue;
+                }
+                if h.start > to {
+                    h.start = shift(h.start);
+                    h.end = shift(h.end);
+                    if h.kind == HelperKind::Handler && h.at > to {
+                        h.at = shift(h.at);
+                    } else if h.kind == HelperKind::Handler && h.at >= from {
+                        h.at = set.map_pos(h.at, Assoc::Before);
+                    }
+                    continue;
+                }
                 let (a, b) = (set.map_pos(h.start, Assoc::After), set.map_pos(h.end, Assoc::Before));
                 // (a site the edit removed goes; a point stays a point)
                 if h.start < h.end && b <= a {
-                    return false;
+                    h.end = usize::MAX;
+                    gone = true;
+                    continue;
                 }
                 h.start = a;
                 h.end = b.max(a);
-                if h.kind == HelperKind::Handler {
+                if h.kind == HelperKind::Handler && h.at >= from {
                     h.at = set.map_pos(h.at, Assoc::Before);
                 }
-                true
-            });
+            }
+            if gone {
+                v.retain(|h| h.end != usize::MAX);
+            }
         };
         map_all(&mut self.sites);
         if let Some(p) = &mut self.pending {
@@ -705,6 +738,24 @@ mod tests {
         assert_eq!(h.sites[0].value, "65280");
         assert!(h.release());
         assert_eq!(h.sites.len(), 2);
+    }
+
+    #[test]
+    fn sites_follow_the_edits() {
+        let mut h = Helpers::default();
+        h.set_sites(vec![site(HelperKind::Color, 2, 5, "1", false), site(HelperKind::Color, 10, 14, "1", false), site(HelperKind::Color, 20, 22, "1", false)], None);
+        // (two bytes typed at 8: the first stays, the others move)
+        let set = ChangeSet::new(vec![rapidr_editor::transaction::Change::insert(8, "ab".to_string())], 30).unwrap();
+        h.map(&set);
+        assert_eq!(h.sites.iter().map(|s| (s.start, s.end)).collect::<Vec<_>>(), [(2, 5), (12, 16), (22, 24)]);
+        // (the second's text deleted: it goes)
+        let set = ChangeSet::new(vec![rapidr_editor::transaction::Change::new(11..17, String::new())], 32).unwrap();
+        h.map(&set);
+        assert_eq!(h.sites.iter().map(|s| (s.start, s.end)).collect::<Vec<_>>(), [(2, 5), (16, 18)]);
+        // (typed inside one: its end follows)
+        let set = ChangeSet::new(vec![rapidr_editor::transaction::Change::insert(3, "x".to_string())], 26).unwrap();
+        h.map(&set);
+        assert_eq!(h.sites.iter().map(|s| (s.start, s.end)).collect::<Vec<_>>(), [(2, 6), (17, 19)]);
     }
 
     #[test]

@@ -24,7 +24,6 @@ use rapidr_lang::kinds::FileKind;
 use rapidr_value::objects::codehelp::{self, Helpers, Level};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
-use rapidr_value::objects::text::text_size;
 
 use super::paint::{blend, legible, Shown};
 use super::view::x_of;
@@ -160,22 +159,25 @@ fn shrink(w: usize, h: usize, px: &[u32], alpha: Option<&[u8]>) -> Picture {
 fn deco_rect(x: &Ctx, sh: &Shown, disp: usize, cols: usize, origin: (i64, i64)) -> Option<Rect> {
     let layout = x.ui.cache.layout(sh.slot)?;
     let s = x.scale;
+    // (its columns are blanks of the monospaced code font: one lookup)
     let x0 = (sh.origin.0 + x_of(layout, disp)) / s - origin.0 as f64;
-    let x1 = (sh.origin.0 + x_of(layout, disp + cols)) / s - origin.0 as f64;
-    Some((x0.round() as i64, sh.top.round() as i64, (x1 - x0).round() as i64, x.ui.lh().round() as i64))
+    let w = cols as f64 * x.ui.metrics.ch;
+    Some((x0.round() as i64, sh.top.round() as i64, w.round() as i64, x.ui.lh().round() as i64))
 }
 
 /// The marks and chips of the rows in view.
 pub fn paint_decos(x: &mut Ctx, p: &mut Painter, shown: &[Shown]) {
-    if x.c.helpers.sites.is_empty() || x.c.helpers.level == Level::Off {
+    if x.c.helpers.sites.is_empty() || x.c.helpers.level == Level::Off || shown.iter().all(|sh| sh.text.decos.is_empty()) {
         return;
     }
+    let x: &Ctx = x;
     let origin = p.origin();
     let folder = folder_of(x);
     let sc = x.scheme;
     let t = p.theme();
     let code = Font { name: x.ui.font.name.clone(), size: x.ui.font.size, ..Font::default() };
-    let chip_font = Font { size: -((x.ui.metrics.px * 0.82).round() as i64).max(8), ..code.clone() };
+    let chip_scale = 0.82;
+    let chip_font = Font { size: -((x.ui.metrics.px * chip_scale as f32).round() as i64).max(8), ..code.clone() };
     let chip_bg = blend(sc.text, sc.background, if sc.dark { 0.14 } else { 0.07 });
     let chip_ink = legible(blend(sc.text, sc.background, 0.6), chip_bg, sc.text);
     let mut drawn = 0;
@@ -185,18 +187,21 @@ pub fn paint_decos(x: &mut Ctx, p: &mut Painter, shown: &[Shown]) {
                 return;
             }
             drawn += 1;
-            let Some(d) = sh.decos.get(k).copied() else { continue };
-            let Some(site) = x.c.helpers.sites.get(d.site).cloned() else { continue };
+            let Some(d) = sh.decos.get(k) else { continue };
+            let Some(site) = x.c.helpers.sites.get(d.site) else { continue };
             // (relative to the painter's origin: the component's)
             let Some(r) = deco_rect(x, sh, disp, cols, origin) else { continue };
             if chip {
-                let tw = text_size(&format!("{}:", site.label), &chip_font).0;
+                // (the code's font is monospaced: the label's width counted,
+                // never measured — a frame shapes nothing for it)
+                let label = format!("{}:", site.label);
+                let tw = (label.chars().count() as f64 * x.ui.metrics.ch * chip_scale).ceil() as i64;
                 let pill = (r.0, r.1 + 3, (tw + 8).min(r.2 - 2).max(6), r.3 - 6);
                 p.round(pill, 4.0, Some(chip_bg), None, 1.0);
-                p.text((pill.0 + 4, pill.1, pill.2, pill.3), &format!("{}:", site.label), &chip_font, chip_ink, Place::Left);
+                p.text((pill.0 + 4, pill.1, pill.2, pill.3), &label, &chip_font, chip_ink, Place::Left);
                 continue;
             }
-            paint_mark(p, &site, r, &folder, &x.c.helpers, sc, t, &code);
+            paint_mark(p, site, r, &folder, &x.c.helpers, sc, t, &code);
         }
     }
 }
@@ -252,19 +257,24 @@ fn paint_mark(p: &mut Painter, site: &HelperSite, r: Rect, folder: &str, helpers
 /// At the ends of the rows in view: the caret line's note, and a paused
 /// program's values on the lines that use them.
 pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line: usize) {
-    if x.c.helpers.level < Level::Helpful {
+    if x.c.helpers.level < Level::Helpful || x.c.helpers.sites.is_empty() && x.c.helpers.values_lines.is_none() {
         return;
     }
+    // (without a paused program's values only the caret's line has an end
+    // to draw: its note)
+    let values = x.c.helpers.values_lines;
     let origin = p.origin();
     let s = x.scale;
     let sc = x.scheme;
     let font = Font { name: x.ui.font.name.clone(), size: x.ui.font.size, ..Font::default() };
     let note_font = Font { styles: 2, ..font.clone() };
     let lh = x.ui.lh().round() as i64;
-    for sh in shown {
+    for (k, sh) in shown.iter().enumerate() {
+        if values.is_none_or(|(a, b)| sh.row.line < a || sh.row.line > b) && sh.row.line != caret_line {
+            continue;
+        }
         // (a line's last row only)
-        let last = shown.iter().rfind(|o| o.row.line == sh.row.line).map_or(sh.index, |o| o.index);
-        if sh.index != last {
+        if shown.get(k + 1).is_some_and(|o| o.row.line == sh.row.line) {
             continue;
         }
         // (a run-time error's or a pause's own note is there: it has the end)
@@ -294,8 +304,9 @@ pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line
             let (a, b) = line_span(x, sh.row.line);
             if let Some(note) = x.c.helpers.note(a, b) {
                 let ink = legible(blend(sc.text, sc.background, 0.55), sc.background, sc.text);
-                let (tw, th) = text_size(note, &note_font);
-                p.text((lx, top + (lh - th) / 2, tw + 4, th), note, &note_font, ink, Place::TopLeft);
+                // (as wide as the rest of the row: nothing measured a frame)
+                let room = (x.ui.geo.text.0 + x.ui.geo.text.2 - lx).max(0) + (x.ui.scroll.0 as i64);
+                p.text((lx, top, room.max(1), lh), note, &note_font, ink, Place::Left);
             }
         }
     }

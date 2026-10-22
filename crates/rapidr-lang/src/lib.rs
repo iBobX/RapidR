@@ -554,9 +554,25 @@ pub fn words(kind: &str) -> Vec<&'static str> {
     w
 }
 
-/// A constant's value by name (any case), and its group.
+/// A constant's value by name (any case), and its group (the first group
+/// that has it). An index made once: the language service asks for every
+/// name of a program.
 pub fn constant(name: &str) -> Option<(i64, &'static ConstantGroup)> {
-    CONSTANT_GROUPS.iter().find_map(|g| g.constants.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| (*v, g)))
+    static INDEX: std::sync::OnceLock<std::collections::HashMap<String, (i64, &'static ConstantGroup)>> = std::sync::OnceLock::new();
+    let index = INDEX.get_or_init(|| {
+        let mut m = std::collections::HashMap::new();
+        for g in CONSTANT_GROUPS {
+            for (n, v) in g.constants {
+                m.entry(n.to_ascii_lowercase()).or_insert((*v, g));
+            }
+        }
+        m
+    });
+    if name.bytes().any(|b| b.is_ascii_uppercase()) {
+        index.get(&name.to_ascii_lowercase()).copied()
+    } else {
+        index.get(name).copied()
+    }
 }
 
 /// A constant expression's value (`akLeft + akTop`, `alNone`, `5`).

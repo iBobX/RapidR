@@ -37,6 +37,8 @@
 //     window: n,                the n-th window captured (default 1)
 //     crop: [x, y, w, h],       the part of the window, in logical pixels
 //                               (the image is at 2x); none: all of it
+//     smooth: true,             gradients (a colour wheel): the palette
+//                               dithered, so they don't break into bands
 //     theme,                    (default "rapidr-light")
 //     fresh: false,             (desktop) Studio reads its settings: the
 //                               scene's studio.reg, its setup's to write
@@ -188,7 +190,7 @@ for (const s of scenes.filter((s) => !filters.length || filters.some((f) => `${s
     if (extra.home || extra.cwd) spawnSync("chmod", ["-R", "u+w", dir]);
     const out = join(IMAGES, s.topic, `${s.name}.png`);
     mkdirSync(dirname(out), { recursive: true });
-    const r = spawnSync("python3", [join(HERE, "png.py"), src, out, ...(s.crop || []).map(String)], { encoding: "utf8" });
+    const r = spawnSync("python3", [join(HERE, "png.py"), src, out, ...(s.crop || []).map(String), ...(s.smooth ? ["--smooth"] : [])], { encoding: "utf8" });
     if (r.status !== 0) throw new Error((r.stderr || "").trim().split("\n").pop());
     made++;
     console.log(`✓ ${id}: ${r.stdout.trim().split(" ").slice(1).join(" ")}`);

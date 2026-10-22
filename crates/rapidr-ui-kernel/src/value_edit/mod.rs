@@ -212,19 +212,35 @@ impl Popover {
                     ListKind::Flags => 44,
                     _ => 0,
                 };
-                (w, TITLE_H + list.height() + extra + PAD + 22)
+                (w, TITLE_H + list.height() + extra + PAD + 6)
             }
         }
     }
 
-    /// Placed under its anchor (over it when there's no room), inside the
-    /// form's `client` area.
+    /// Placed under its anchor, else over it; where neither has room,
+    /// beside it (its right, else its left), as high as fits — the value it
+    /// edits stays in sight; else as whole as the form's `client` area
+    /// allows.
     pub fn place(&mut self, client: (i64, i64)) {
         let (w, h) = self.size();
-        let (ax, ay, _, ah) = self.anchor;
+        let (ax, ay, aw, ah) = self.anchor;
         let below = ay + ah + 4;
-        let y = if below + h <= client.1 || ay - h - 4 < 0 { below } else { ay - h - 4 };
+        let above = ay - h - 4;
         let x = ax.clamp(0, (client.0 - w).max(0));
+        let (x, y) = if below + h <= client.1 {
+            (x, below)
+        } else if above >= 0 {
+            (x, above)
+        } else {
+            let y = (ay + ah / 2 - h / 2).clamp(0, (client.1 - h).max(0));
+            if ax + aw + 8 + w <= client.0 {
+                (ax + aw + 8, y)
+            } else if ax - 8 - w >= 0 {
+                (ax - 8 - w, y)
+            } else {
+                (x, y)
+            }
+        };
         self.rect = (x, y.max(0), w, h);
     }
 
@@ -764,6 +780,29 @@ fn sync(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, i: usize) {
     let said = said(&id);
     if f.nodes[i].type_name == "RCODEEDITOR" {
         f.with_cx(store, ts, i, |_, cx| crate::components::codeeditor::helpers::editor_said(cx, &said));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_popover_keeps_its_value_in_sight() {
+        let mut p = Popover::color(Owner::Inspector("color".into()), 255, &[], (100, 100, 60, 20));
+        let (w, h) = p.size();
+        // (room below)
+        p.place((1200, 1400));
+        assert_eq!((p.rect.0, p.rect.1), (100, 124));
+        // (room above only)
+        p.anchor = (100, 900, 60, 20);
+        p.place((1200, 1000));
+        assert_eq!(p.rect.1, 900 - h - 4);
+        // (neither: beside it, its line in sight)
+        p.anchor = (100, 400, 60, 20);
+        p.place((1200, 800));
+        assert_eq!(p.rect.0, 168);
+        assert!(p.rect.1 + h <= 800 && p.rect.1 >= 0 && !(p.rect.0 < 160 && p.rect.0 + w > 100));
     }
 }
 
