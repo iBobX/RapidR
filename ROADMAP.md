@@ -855,6 +855,12 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] RChat (RAI as a component)
   - [ ] RMcpServer (shared with Visualmusicator X W4 and the IDE's MCP: one implementation)
   - [x] TLS for MySQL *(DBA, 2026-10-22: `SSLMode` Preferred (default) / Disabled / Required / VerifyCA / VerifyFull, `SSLCA`, `Encrypted`, on the system's TLS (mysql's native-tls feature, no new crate); live: Required encrypted against a local MySQL 8.0.33; a mock server without TLS gives the plain-words error)*
+  - [x] REQUEST-003 backlog: a parameter named `Result` *(DBC, 2026-10-22: inside a FUNCTION it is the FUNCTION's value on every runtime, as RC.EXE has it; `rapidr_ast::function_result`, an editor warning; conformance function_result_name)*
+  - [x] REQUEST-003: a server only this computer reaches *(DBC, 2026-10-22: RSocket's `Open(Port, Address)` and `BindAddress` (default 0.0.0.0, RapidQ's), RServerSocket's `Host` documented; manual network.md)*
+  - [x] REQUEST-003: RServerSocket's data arrives whole *(DBC, 2026-10-22: a byte buffer cut by `Mode` lines / bytes / http — a request whole by Content-Length or chunks, 100 Continue —, `Send`, `Disconnect`; curl's 1 MB comes back whole; example network/echo_server.rr)*
+  - [x] REQUEST-003: RHttpServer, a local HTTP server *(DBC, 2026-10-22: 127.0.0.1 by default, OnRequest on the program's thread, Respond now or later, Server-Sent Events, Token / AllowedOrigins / AllowedHosts / MaxRequestSize / Timeout / MaxConnections refusals by the server itself; std only; example network/local_api.rr in the examples suite with a client. Left: RMcpServer on it)*
+  - [x] REQUEST-003: polite screen-reader announcements *(DBC, 2026-10-22: `Application.Announce(Text [, Assertive])`, AccessKit live regions on the desktop — status nodes are live there now —, the page's aria-live regions on the web)*
+  - [x] REQUEST-003: SQL colours in RMarkdownView *(DBC, 2026-10-22: a code block coloured by its fence's language — sql, sqlite, mysql, json, html … — with the code editor's definitions; example gui/markdown_code.rr)*
   - [ ] RNodeGraph (shared with Visualmusicator X W4)
   - [x] Translation for programs, first step (TR$, TRN$, Application.Language; merged 2026-10-21, 0905af73)
   - [x] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set) *(DBA, 2026-10-22: drawn at the list's size and the screen's scale; example gui/svg_icons.rr, manual svg-icons.md)*

@@ -23,6 +23,10 @@ rapidr-db = { workspace = true, optional = true, features = ["mysql"] }
 # linked dynamically, never shipped; libssl-dev to build). No TLS library is
 # compiled into a program (docs/licensing.md §2.5), and the certificates are the system's.
 ureq = { version = "2", optional = true, default-features = false, features = ["gzip", "native-tls"] }
+# RHttpServer.NewToken: a token from the operating system's secure random
+# source (getrandom, MIT OR Apache-2.0 — already in the build through
+# native-tls' tempfile: no new crate)
+getrandom = { version = "0.4.2", optional = true, default-features = false }
 # RAI, the AI component (rapidr-ai: Anthropic, OpenAI, DeepSeek and
 # OpenAI-compatible servers over the same ureq; keys in the OS keychain
 # through keyring-core and its per-OS stores, MIT OR Apache-2.0)
@@ -80,7 +84,7 @@ gilrs = { version = "0.11", optional = true }
 [features]
 default = ["database", "network", "gui", "datascience", "audio", "ffi", "gamepad"]
 database = ["dep:rapidr-db"]
-network = ["dep:ureq", "dep:rapidr-ai"]
+network = ["dep:ureq", "dep:rapidr-ai", "dep:getrandom"]
 # The desktop host: the UI kernel, the host-neutral program glue
 # (rapidr-ui-app) and the winit host (docs/desktop-host-plan.md), reached
 # through `src/ui`; the system clipboard.

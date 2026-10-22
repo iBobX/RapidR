@@ -37,6 +37,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `debug-breakpoints`, `debug-watch`, `debug-datatip` (1x, 2x), `debug-error`,
   `markdown`, `richtext`, `import-report`, `find-in-files`, `palette`,
   `ai-panel`; the manual's `panes/splitters-*` shots made again.
+- **A parameter or variable named like a keyword no longer changes your
+  strings** (found by Database Studio, whose Open button went blank). After
+  `SUB Show(Open AS STRING)`, every string literal `"Open"` (any case) became
+  that parameter — empty outside the SUB — until the next SUB or FUNCTION;
+  after `Step = 2` or `DEFSTR return`, every `"Step"` or `"return"` printed
+  the variable's value for the rest of the program. Any keyword that can
+  name a parameter or a variable did it (Open, Close, Input, Kill, Seek,
+  Write, Print, Step, Type, Case, Bind…). The parser read a string literal's
+  text as a word; a literal is now always data, on every runtime (VM, native
+  build, web). Also `5 "SHL" 2` is no longer a shift: it's 5, as RC.EXE
+  reads it. Conformance cases `keyword_param_literals` (checked against
+  RC.EXE) and `keyword_param_literals_rr`.
 - **Tab names are no longer cut short while there is room for them** (found
   in high contrast, where the debugging layout's "Breakpoints (2)" showed as
   "Breakpoints…"; light and dark did the same). When a dock group or the
@@ -54,6 +66,79 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   three looks.
 
 ### Added
+- **Servers that only this computer reaches** (REQUEST-003, for RapidR
+  Database Studio). RSocket's `Open(Port, Address)` and its new
+  `BindAddress` property (RapidR's) choose where a QSOCKET server listens:
+  `"127.0.0.1"` this computer only — nothing on the network can reach it,
+  and the system doesn't ask about incoming connections. Without them it
+  is `0.0.0.0` (every interface), as RapidQ's. RServerSocket's `Host` was
+  already its listening address (now documented: `0.0.0.0` by default).
+  The web still answers -1 (a page can't listen).
+- **RServerSocket: data arrives whole** (REQUEST-003: a POST's body was
+  lost). Its connections are now read as bytes into a buffer and cut by
+  the new `Mode` (RapidR's): `"lines"` (the default: each line trimmed,
+  blank ones left out, as before — but a line that comes slowly is never
+  dropped any more, and a last line without its end comes when the client
+  closes), `"bytes"` (what arrived, nothing trimmed or dropped) and
+  `"http"` (each whole HTTP request: head and body, by its Content-Length
+  or its chunks — joined, given a Content-Length —, "100 Continue" sent to
+  a client that waits for it, 4 MB at most, malformed or too large ones
+  answered 400 / 413 / 431 / 505 and closed). `Send(Address, Data)` sends
+  without a line end, `Disconnect(Address)` closes one client; `Port 0`
+  takes a free port and `Port` says which; `Stop` closes the clients'
+  connections. One framing (`rapidr_runtime_core::netframe`) for it and
+  RHttpServer. The example `examples/network/echo_server.rr` (curl gets
+  1 MB back whole, by length and chunked); the examples suite starts a
+  client for server examples (`client`, tests/http_client_probe.mjs).
+- **RHttpServer: a local web server for programs** (REQUEST-003 item 1;
+  desktop only). `Host` (127.0.0.1 unless set) and `Port`, `Start` /
+  `Stop`; each request whole in `OnRequest (Method, Path, Headers, Body)`
+  on the program's own thread, one at a time, woken by its arrival (the
+  window never waits for the network; DOEVENTS serves it in a console
+  program), with `Query`, `Header(Name)`, `Peer` and `Request` (its number,
+  to answer later). `Respond(Status, Headers, Body [, Request])` answers
+  (Content-Length and a text Content-Type added); `BeginStream`,
+  `SendEvent(Data [, EventName])`, `EndStream` stream Server-Sent Events
+  (chunked on HTTP/1.1) — enough for MCP's Streamable HTTP; keep-alive,
+  `Close`. Refused by the server itself: a Host that isn't its own (DNS
+  rebinding, 403; `AllowedHosts`), a request a browser marks
+  `Sec-Fetch-Site: cross-site` or whose Origin isn't allowed (403;
+  `AllowedOrigins`), anything but GET and HEAD while no `Token` is set
+  (401, "this server has no Token"), a missing or wrong
+  `Authorization: Bearer` when `Token` is set (401; an allowed page's CORS
+  preflight passes), bodies over `MaxRequestSize` (413), requests slower
+  than `Timeout` (408), more than `MaxConnections` (503). A link or an
+  image on another site can still send a GET without an Origin: the manual
+  says GET handlers must only read, and anything more needs a Token.
+  `NewToken` sets Token to 64 hex digits from the operating system's
+  secure random source (getrandom, already in the build through
+  native-tls: no new crate) and returns it. Plain HTTP: on 127.0.0.1
+  nothing goes over the network, but other programs on the computer can
+  connect, so the Token is the protection (the manual says so). On the web
+  `Start` fails and `Error` says why. The example
+  `examples/network/local_api.rr`, an examples-suite case driving it with
+  a client (401, 403 twice, 413, /hello, /echo, three events), its own
+  component icon (a server and a globe), the manual's
+  [Networking](docs/manual/network.md) page.
+- **`Application.Announce(Text [, Assertive])`** (REQUEST-003 item 3): a
+  screen reader says Text without the focus moving — politely, or at once
+  when Assertive is True; the same text twice is said twice. On the desktop
+  through the focused window's AccessKit live regions (two status nodes
+  taking turns, `rapidr_value::objects::a11y::announcement_nodes`), on the
+  web through the page's `aria-live` regions. Desktop status nodes are now
+  live regions too (polite, as the web's `aria-live` always had them): the
+  code editor's and the designer's announcements are live there as well.
+  The local API example announces each request it answers; the
+  manual's [Accessibility](docs/manual/components.md#accessibility).
+- **RMarkdownView colours SQL code blocks** (REQUEST-003 item 2): a
+  ```` ```sql ```` block (```` ```sqlite ````, ```` ```mysql ```` with that
+  dialect's words) is coloured as the code editor colours SQL, and
+  ```` ```json ````, ```` ```html ````, ```` ```css ````,
+  ```` ```javascript ````, ```` ```toml ````, ```` ```csv ````,
+  ```` ```rust ````, ```` ```markdown ```` blocks as theirs, in the
+  theme's colours; any other stays plain. The example
+  `examples/gui/markdown_code.rr`, the manual's
+  [Markdown](docs/manual/markdown.md#code-blocks-in-colour).
 - **The Output, Build and Problems pages wrap long lines** (ROutputConsole's
   new `WordWrap`, RapidR's own, True unless a program sets it). A line longer
   than the pane breaks onto more rows at a space near the edge (else at the
@@ -578,6 +663,17 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **A FUNCTION's parameter or local named `Result`** means the FUNCTION's
+  own value (RapidQ's RESULT) on every runtime, as RC.EXE has it: in
+  `FUNCTION F (Id AS STRING, Result AS STRING)`, `F = Id + Result` adds
+  the result so far, and `Result = x` sets the value returned. The
+  interpreter (and so the web) read the parameter while native builds read
+  RESULT, so a program answered differently built (RapidR Database
+  Studio's MCP answers came back empty only in its built app). One pass,
+  `rapidr_ast::function_result`, for both compilers; a global `Result`
+  doesn't reach inside a FUNCTION either (native builds read it). The
+  editor warns about such a parameter or DIM (`hidden-result`).
+  Conformance case `function_result_name` (RC.EXE's output, the Windows VM).
 - The studio flow `ai-designer-rai` failed on the web now and then: its 13
   steps, 400 ms apart, outlasted its 5-second capture on a slow start, so
   the Model pick looked lost. It now waits for the model list

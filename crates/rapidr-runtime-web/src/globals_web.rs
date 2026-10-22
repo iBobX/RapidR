@@ -107,6 +107,11 @@ fn screen_prop(prop: &str) -> i64 {
 }
 
 impl Platform for Web {
+    // (Application.Announce) the page's aria-live region says it
+    fn announce(&self, a: &rapidr_value::objects::a11y::Announcement) {
+        rapidr_ui_host_web::host::announce(&a.text, a.assertive);
+    }
+
     fn theme(&self) -> String {
         rapidr_value::theme::current().name.to_string()
     }

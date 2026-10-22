@@ -40,6 +40,13 @@ pub mod database;
 
 #[cfg(feature = "network")]
 pub mod network;
+/// A server connection's bytes cut into lines, text or HTTP requests
+/// (RServerSocket's Mode, RHttpServer).
+#[cfg(feature = "network")]
+pub mod netframe;
+/// RHttpServer: a local HTTP server for programs.
+#[cfg(feature = "network")]
+pub mod httpserver;
 
 /// RAI, the AI component (rapidr_ai::rai), on the desktop.
 #[cfg(feature = "network")]

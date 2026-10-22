@@ -94,6 +94,9 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     // (`FOR i AS INTEGER`: the counter declared — rapidr_ast::for_as, the
     // first pass, native builds run it first too — or what is wrong with it)
     let (declared, for_as_errors) = rapidr_ast::for_as::lower_with_errors(program);
+    // (`Result` in a FUNCTION is its value, a parameter or DIM of that name
+    // hidden: rapidr_ast::function_result — native builds run it too)
+    let declared = rapidr_ast::function_result::lower(&declared);
     let program = &declared;
     // (a RapidR program's built-in constants first: rapidr_ast::
     // builtin_constants; RapidQ's library objects RapidR implements,

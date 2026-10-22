@@ -1635,6 +1635,10 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return crate::network_web::http_method(&uname, &lmethod, args);
     }
 
+    if comp_type == "RHTTPSERVER" {
+        return http_server_web_method(&uname, &lmethod);
+    }
+
     // WebSocket special handling
     if comp_type == "RSOCKET" || comp_type == "RSERVERSOCKET" {
         return crate::network_web::websocket_method(&uname, &lmethod, args);
@@ -1983,6 +1987,22 @@ fn fs_get_text(name: &str) -> String {
 
 fn fs_set_text(name: &str, text: &str) {
     rapidr_value::objects::stream_load(name, rapidr_value::objects::codec::string_to_bytes(text));
+}
+
+/// RHttpServer on the web: desktop only — a page can't listen for
+/// connections. Start fails and Error says why; the rest answer nothing.
+fn http_server_web_method(name: &str, method: &str) -> Value {
+    match method {
+        "start" => {
+            rp_comp_set(name, "error", v_str("RHttpServer runs on the desktop only: a web page can't listen for connections"));
+            rp_comp_set(name, "listening", v_int(0));
+            v_int(0)
+        }
+        "header" | "newtoken" => v_str(""),
+        "stop" => v_null(),
+        "respond" | "beginstream" | "sendevent" | "endstream" | "close" => v_int(0),
+        _ => v_null(),
+    }
 }
 
 fn filestream_web_method(name: &str, method: &str, args: &[Value]) -> Value {

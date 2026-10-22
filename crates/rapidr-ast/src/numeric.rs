@@ -252,12 +252,17 @@ impl Pass<'_> {
 
     /// A SUB/FUNCTION: its own scope, BYVAL typed parameters converted on
     /// entry.
-    fn routine(globals: &Scope, params: &[Parameter], body: &mut Vec<Statement>, result: Option<(String, Conv)>, span: TextSpan) {
+    fn routine(globals: &Scope, params: &[Parameter], body: &mut Vec<Statement>, result: Option<(String, Conv)>, span: TextSpan, function: bool) {
         let mut locals = Scope::new();
         for p in params {
             locals.insert(key(&p.name), slot_for(&p.type_name, None, p.is_array));
         }
         declare(body, &mut locals);
+        // (a FUNCTION's RESULT is its value, never a global named Result:
+        // not converted — crate::function_result)
+        if function {
+            locals.insert("result".to_string(), Slot::Other);
+        }
         // A local of the function's own name would shadow its result.
         let result = result.filter(|(f, _)| !locals.contains_key(f));
         let mut pass = Pass { globals, locals, result, in_create: 0 };
@@ -300,14 +305,14 @@ pub fn lower(mut program: Program) -> Program {
         match &mut s {
             Statement::Subroutine(sub) => {
                 let span = sub.span;
-                Pass::routine(&globals, &sub.params, &mut sub.body, None, span);
+                Pass::routine(&globals, &sub.params, &mut sub.body, None, span, false);
                 out.push(s);
             }
             Statement::Function(f) => {
                 let span = f.span;
                 // (its result isn't converted: RapidQ returns what was
                 // stored, see the module docs)
-                Pass::routine(&globals, &f.params, &mut f.body, None, span);
+                Pass::routine(&globals, &f.params, &mut f.body, None, span, true);
                 out.push(s);
             }
             _ => {

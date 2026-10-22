@@ -586,6 +586,16 @@ def http(g):
     globe(g)
 
 
+@icon("httpserver", C, "HTTP server")
+def httpserver(g):
+    # (a server's rack, the web's globe on it: RHttpServer)
+    g.rect(3, 14, 18, 7, r=2, c="cyan", fill="cyan-tint")
+    g.dot(7, 17.5, 1.25, fill="cyan")
+    if g.size != 16:
+        g.line(11.5, 17.5, 17, 17.5, c="cyan")
+    globe(g, cx=12, cy=7, r=5)
+
+
 @icon("download", C, "Download")
 def download(g):
     g.path("M4 14 V19 A1 1 0 0 0 5 20 H19 A1 1 0 0 0 20 19 V14", c="ink")

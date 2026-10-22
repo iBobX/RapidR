@@ -1,0 +1,65 @@
+' markdown_code.rr: code in Markdown, coloured. An RMarkdownView colours a
+' code block as the code editor colours that language, by the word after
+' its opening ``` — sql (or sqlite, mysql), basic, json, html and the
+' editor's other languages. A query, its answer as a table, and the BASIC
+' that ran it; Theme switches the look, and the colours follow.
+'
+'   rapidr run gui/markdown_code.rr
+
+$THEME rapidr
+
+DECLARE SUB NextTheme
+
+DIM Fence AS STRING, NL AS STRING, Q AS STRING
+Fence = "```"
+NL = CHR$(10)
+Q = CHR$(34)
+
+CREATE Form AS RForm
+    Caption = "Code in Markdown"
+    Width = 560: Height = 580
+    Center
+    CREATE View AS RMarkdownView
+        Left = 0: Top = 0: Width = 544: Height = 500
+        AccessibleName = "The query report"
+    END CREATE
+    CREATE ThemeBtn AS RButton
+        Caption = "&Theme": Left = 16: Top = 508: Width = 90
+        OnClick = NextTheme
+    END CREATE
+    CREATE ThemeLabel AS RLabel
+        Left = 120: Top = 513: Width = 400
+    END CREATE
+END CREATE
+
+View.Text = "## Who wrote the most books?" + NL + NL _
+    + Fence + "sql" + NL _
+    + "SELECT author, COUNT(*) AS books -- one row an author" + NL _
+    + "FROM books" + NL _
+    + "WHERE published >= 1990 AND title <> 'Untitled'" + NL _
+    + "GROUP BY author" + NL _
+    + "ORDER BY books DESC" + NL _
+    + "LIMIT 3;" + NL _
+    + Fence + NL + NL _
+    + "| Author | Books |" + NL + "|---|--:|" + NL _
+    + "| Ada | 12 |" + NL + "| Grace | 9 |" + NL + "| Linus | 7 |" + NL + NL _
+    + "The program that asked:" + NL + NL _
+    + Fence + "basic" + NL _
+    + "DIM Db AS RSQLite" + NL _
+    + "Db.Connect " + Q + "books.db" + Q + NL _
+    + "Db.Query " + Q + "SELECT author FROM books" + Q + "   ' the query above" + NL _
+    + Fence + NL
+
+SUB NextTheme
+    IF Application.Theme = "rapidr dark" THEN
+        Application.Theme = "rapidr high contrast"
+    ELSEIF Application.Theme = "rapidr high contrast" THEN
+        Application.Theme = "rapidr light"
+    ELSE
+        Application.Theme = "rapidr dark"
+    END IF
+    ThemeLabel.Caption = "Now: " + Application.Theme
+END SUB
+
+ThemeLabel.Caption = "Now: " + Application.Theme
+Form.ShowModal

@@ -128,7 +128,7 @@ with RapidQ's compiler.
 
 **Components and members**
 
-- RapidR-only components: `RSQLITE`, `RJSON`, `RHTTP`, `RSERVERSOCKET`,
+- RapidR-only components: `RSQLITE`, `RJSON`, `RHTTP`, `RSERVERSOCKET`, `RHTTPSERVER` ([Networking](network.md)),
   `RNUM`, `RDATAFRAME`, `RPLOT` and the linked data components `RCSV`,
   `RDATASOURCE`, `RDBGRID` ([Data science](data-science.md)), `RAI`
   ([The AI assistant and RAI](ai-assistant.md)), `RMARKDOWNVIEW`,

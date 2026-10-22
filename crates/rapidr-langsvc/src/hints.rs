@@ -24,6 +24,8 @@ pub(crate) const RAPIDQ_INC: &str = "RAPIDQ.INC";
 pub(crate) const NEEDS_INCLUDE: &str = "needs-include";
 /// `NOT FILEEXISTS(x)`: always true (docs/rai-mistake-ledger.md).
 pub(crate) const NOT_ONE: &str = "not-one-is-yes";
+/// A FUNCTION's parameter or DIM named `Result` (never reachable there).
+pub(crate) const HIDDEN_RESULT: &str = "hidden-result";
 
 /// `NOT` before a builtin that gives 1 for yes — FILEEXISTS, DIREXISTS (the
 /// registry's: their docs say "True (1)") —: RapidQ-exact, they give 1,
@@ -59,6 +61,26 @@ fn not_one(s: &Snapshot) -> Vec<FileDiagnostic> {
             severity: Severity::Warning,
             message: format!("{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"),
             code: Some(NOT_ONE.into()),
+        });
+    }
+    out
+}
+
+/// A FUNCTION's parameter or DIM named `Result`: inside the FUNCTION,
+/// `Result` is its own value (RapidQ's RESULT), so that variable can never
+/// be read or set (rapidr_ast::function_result) — compiled as RapidQ does,
+/// and a warning here.
+fn hidden_result(s: &Snapshot) -> Vec<FileDiagnostic> {
+    let mut out = Vec::new();
+    for (span, function) in rapidr_ast::function_result::hidden(&s.parsed.program) {
+        let Some(at) = s.locate_range(span) else { continue };
+        out.push(FileDiagnostic {
+            file: at.file,
+            start: at.start,
+            end: at.end.max(at.start + 1),
+            severity: Severity::Warning,
+            message: format!("Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"),
+            code: Some(HIDDEN_RESULT.into()),
         });
     }
     out
@@ -103,6 +125,7 @@ pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
         }
     }
     out.extend(not_one(s));
+    out.extend(hidden_result(s));
     out.sort_by(|a, b| (&a.file, a.start).cmp(&(&b.file, b.start)));
     out
 }
