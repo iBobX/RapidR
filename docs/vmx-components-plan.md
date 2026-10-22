@@ -70,7 +70,13 @@ No wave is done until every point below holds. Speed and licences are never trad
 - **Mesh decoding:**
   - meshoptimizer's format and code are MIT;
   - DEFLATE through miniz_oxide (MIT/Apache/Zlib).
-- **Protected web shows (AES-GCM):** they protect against casual copying. They are not real DRM, because the key ships with the page. The manual says so plainly.
+- **Legal review 2026-10-22 (docs/legal/review-2026-10-22.md):**
+  - **Music analysis:** pre-2006 published methods only (Scheirer 1998, Goto/Dixon 2001, Bello 2005, autocorrelation, PLL), with the papers cited in code, and our own drop heuristic.
+  - **The synth:** the oscillator is called "Unison saw", never "Super Saw" (Roland's term). No DX7 ROM patches, and no presets named after products.
+  - **Encryption:** shows encrypt through the browser's WebCrypto, never compiled-in AES.
+  - **Video export:** only through the OS's H.264 and AAC encoders; never bundle FFmpeg, fdk-aac or faad2.
+  - **The name "R3D"** is a live US mark (Red.com/Nikon, reg 3,848,577, class 9), so the family gets a new name before W1. The name is Robert's decision.
+- **Protected web shows (AES-GCM, through WebCrypto):** they protect against casual copying. They are not real DRM, because the key ships with the page. The manual says so plainly.
 - **`RMcpServer`** uses exactly the IDE's MCP security:
   - loopback only;
   - a token;

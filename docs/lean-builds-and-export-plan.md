@@ -51,7 +51,7 @@ An interpreted executable is a **runner plus the program's bytecode and resource
 | Target | What the export makes | Honest notes |
 |---|---|---|
 | Windows x64 / arm64 | A folder (zip) with the runner `.exe` and the program's data file beside it, or one `.exe` | Keep the data **beside** the exe so the runner's signature stays valid. An unsigned exe shows SmartScreen's "unknown publisher" (the signing decision, M0) |
-| macOS universal | A `.app` (zip) | Changing a signed app's contents breaks its seal, so the export needs an ad-hoc signature. The only browser-side signer we know of is MPL-2.0, which **needs Robert's approval**. Otherwise the runner reads the program from beside the app. Downloaded apps still show Apple's warning unless they carry a Developer ID signature, which is made on a Mac with the user's own Apple account. The manual explains "Open Anyway" plainly |
+| macOS universal | A `.app` (zip) | Changing a signed app's contents breaks its seal, so the export makes an **ad-hoc signature with our own small signer**: a code directory of SHA-256 page hashes, no certificates, written from public descriptions (legal review 2026-10-22, 7b). We don't use the MPL apple-codesign crate (it brings `ring` and other banned crates), and we copy nothing from ldid or xnu. Note that macOS moves downloaded apps to a random read-only place, so the program must live inside the bundle, not beside it. Downloaded apps still show Apple's warning unless they carry a Developer ID signature, which is made on a Mac with the user's own Apple account. The manual explains "Open Anyway" plainly |
 | Linux x64 / arm64 | `tar.gz` (runner + data); an AppImage later | No signing needed |
 | The web | What we have today (one folder, or later a single HTML file: vmx-components-plan W5) | — |
 
@@ -61,6 +61,7 @@ An interpreted executable is a **runner plus the program's bytecode and resource
   - The host must allow the browser to fetch them (CORS). GitHub's release downloads don't, so we use rapidr.dev or GitHub Pages.
   - No user code ever goes to a server.
 - **Licences:** our runners and code only; any ad-hoc signer must pass `cargo deny` or get Robert's approval.
+- **Signing identity (legal review 2026-10-22, 7c, High):** RapidR's own signing identity (Ruta Internet's Windows certificate or Apple Developer ID) signs only RapidR's own tools, **never export runners or users' code**. Otherwise any exported app, malware included, would show Ruta as its publisher, and a revocation would break every RapidR release. Export runners stay unsigned or ad-hoc; users sign their apps with their own certificates. Decided before any certificate is bought.
 
 ## 4. Where it sits
 - **Lean builds:** master-plan **M3** (speed and size), since boards need the same small runtime.

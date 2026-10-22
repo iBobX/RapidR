@@ -44,7 +44,7 @@ On Linux, never link `libspeechd`, which is LGPL. Don't depend on the `tts` crat
 | Supertonic-3 (OpenRAIL-M) | restrictions flow down to users |
 | Piper voices `en_US ryan`, `zh_CN xiao_ya` | non-commercial |
 | Voice cloning | consent and likeness law not researched |
-| Saving system voices to WAV | the vendors' terms are not checked yet |
+| Saving system voices to WAV | **not on macOS**: its licence allows System Voices and Personal Voice only for personal, non-commercial use (Tahoe SLA §2.F; legal review 2026-10-22, 8a). Our public videos never use macOS system voices. Other OSes: check their terms before offering it |
 
 ### Effort (rough)
 - RSpeech on 4 hosts, with Studio integration, the manual and real-voice checks on each OS: 2–3 weeks.
