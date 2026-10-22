@@ -92,10 +92,11 @@ impl Module {
         out.extend_from_slice(MAGIC);
         out.extend_from_slice(&VERSION.to_le_bytes());
         // flags: bit 0 = a source map follows the entry point; bit 1 =
-        // resources follow (after the source map).
+        // resources follow (after the source map); bit 2 = made from a
+        // RapidR program (an older runtime ignores it).
         let has_map = !self.source_map.runs.is_empty();
         let has_resources = !self.resources.is_empty();
-        out.extend_from_slice(&(u16::from(has_map) | u16::from(has_resources) << 1).to_le_bytes());
+        out.extend_from_slice(&(u16::from(has_map) | u16::from(has_resources) << 1 | u16::from(self.rapidr_program) << 2).to_le_bytes());
         out.extend_from_slice(&HEADER_LEN.to_le_bytes());
         for part in MIN_RUNTIME {
             out.extend_from_slice(&part.to_le_bytes());
@@ -190,7 +191,7 @@ impl Module {
                 resources.push((name, r.read_n(len)?.to_vec()));
             }
         }
-        Ok(Module { consts, strings, functions, entry, source_map, resources, app_type: header.app_type })
+        Ok(Module { consts, strings, functions, entry, source_map, resources, app_type: header.app_type, rapidr_program: flags & 4 != 0 })
     }
 }
 

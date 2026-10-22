@@ -8,7 +8,8 @@
 //! ```text
 //! magic       : 4 bytes  "RRBC"
 //! version     : u16 LE    the format (current = 3; 2 is still read)
-//! flags       : u16 LE    bit 0: a source map follows, bit 1: resources
+//! flags       : u16 LE    bit 0: a source map follows, bit 1: resources,
+//!                         bit 2: made from a RapidR program (`.rr`)
 //! -- format 3 on: the header, which every later format keeps as it is --
 //! header_len  : u16 LE    bytes of header after this field (now 7)
 //! min_runtime : 3 × u16 LE the oldest RapidR Runtime that runs it
@@ -115,6 +116,11 @@ pub struct Module {
     pub resources: Vec<(String, Vec<u8>)>,
     /// Console or windowed ($APPTYPE): which launcher runs it.
     pub app_type: AppType,
+    /// It was made from a RapidR program (a `.rr`): its built-in constants
+    /// (`mbYes` …) are no variables of the module, so the debugger's
+    /// Immediate and Watch need to know to give them too
+    /// (`rapidr_ast::builtin_constants`).
+    pub rapidr_program: bool,
 }
 
 /// What kind of program a module is: `$APPTYPE CONSOLE | GUI | CGI` (and

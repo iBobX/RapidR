@@ -1144,6 +1144,56 @@ mod tests {
         assert!(sent.iter().any(|e| e.body == EventBody::Continued));
     }
 
+    /// Immediate and Watch in a RapidR program (`.rr`: the preprocessor's
+    /// mark ends it) see the built-in constants as the program's code does:
+    /// `?mbYes` is 1 (RapidQ's value; mrYes is 6), `PRINT mrYes` prints 6, a
+    /// Watch of `mbYes + mrYes` is 7 — and a RapidQ program (`.bas`) has none.
+    #[test]
+    fn the_debuggers_immediate_and_watch_see_a_rapidr_programs_built_in_constants() {
+        let asked = |src: &str| -> (Vec<Event>, String) {
+            let m = compile_program(src);
+            let (tx, rx) = mpsc::channel();
+            let sent: Rc<RefCell<Vec<Event>>> = Rc::default();
+            let log = sent.clone();
+            let mut dbg = BlockingDebugger::new(rx, Box::new(move |e| log.borrow_mut().push(e.clone())));
+            let mut host = StubHost::default();
+            let mut vm = Vm::new(&mut host);
+            tx.send(req(1, Command::SetBreakpoints { file: "prog.bas".into(), breakpoints: vec![SourceBreakpoint { line: 4, ..Default::default() }] })).unwrap();
+            tx.send(req(2, Command::Start { program: None, args: vec![], debug: true, stop_on_entry: false, break_on_error: false })).unwrap();
+            assert_eq!(dbg.until_start(&mut vm, &m), Some(false));
+            for (seq, expr, context) in [(3, "?mbYes", "repl"), (4, "mbYes + mrYes", "watch"), (5, "PRINT mrYes", "repl"), (6, "?own", "repl"), (7, "?mbNo", "repl")] {
+                tx.send(req(seq, Command::Evaluate { expr: expr.into(), frame: None, context: Some(context.into()) })).unwrap();
+            }
+            tx.send(req(8, Command::Continue)).unwrap();
+            vm.debug_mode = true;
+            vm.debugger = Some(Box::new(dbg));
+            vm.run(&m).unwrap();
+            drop(vm);
+            let sent = sent.borrow().clone();
+            (sent, host.output.clone())
+        };
+        let result = |sent: &[Event], re: u64| -> String {
+            match sent.iter().find(|e| e.re == Some(re)).map(|e| e.body.clone()) {
+                Some(EventBody::Evaluate { result, .. }) => result,
+                other => format!("{other:?}"),
+            }
+        };
+        // (the program's own `mbNo` is the program's, not the constant's 2)
+        let body = "DIM mbNo AS INTEGER\nmbNo = 9\nown = 3\nPRINT mbNo\n";
+        let (rr, printed) = asked(&format!("{body}{}\n", rapidr_preprocessor::RAPIDR_PROGRAM));
+        assert_eq!(result(&rr, 3), "1");
+        assert_eq!(result(&rr, 4), "7");
+        assert_eq!(result(&rr, 5), "");
+        assert_eq!(printed, "6\n9\n");
+        assert_eq!(result(&rr, 6), "3");
+        assert_eq!(result(&rr, 7), "9");
+        // (a RapidQ program's: an undeclared name, nothing)
+        let (bas, printed) = asked(body);
+        assert_eq!(result(&bas, 3), "");
+        assert_eq!(result(&bas, 7), "9");
+        assert_eq!(printed, "\n9\n");
+    }
+
     /// A SUB's STATIC and its own undeclared variable (RapidQ's implicit
     /// scope) live in global slots (`SUB Tick::hits`, `Tick__p`): they are
     /// the SUB frame's Locals under their source names, never Globals.

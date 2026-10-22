@@ -1935,6 +1935,21 @@ const CASES = [
     },
   },
   {
+    // a .rr program has RapidQ's constants built in, and so does Immediate
+    // while it is stopped: "? mbYes" says 1 and "? mrYes" 6 (RapidQ's own
+    // values), the program's own i still 1 (counter.rr has no include of
+    // RAPIDQ.INC)
+    name: "debug-immediate-built-in-constants",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,focus:immediatebox,type:? mbYes,key:Enter,wait,wait,type:? mrYes + mbYes * 10,key:Enter,wait,wait,type:? i,key:Enter,wait,wait",
+    delay: 9,
+    dump: {
+      "session.state": /^paused$/,
+      "immediatebox.text": /\? mbYes\s*\n\s*1\s*\n[\s\S]*\? mrYes \+ mbYes \* 10\s*\n\s*16\s*\n[\s\S]*\? i\s*\n\s*1\s*$/,
+    },
+  },
+  {
     // a logpoint prints and goes on: the program runs to its end
     name: "debug-logpoint",
     open: "tests/fixtures/studio_debug/counter.rr",

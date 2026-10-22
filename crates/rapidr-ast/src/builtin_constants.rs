@@ -25,6 +25,10 @@
 //!
 //! `$INCLUDE "RAPIDQ.INC"` in a RapidR program still works: its constants
 //! and array are then the program's own, and nothing here applies.
+//!
+//! What the debugger evaluates (Immediate, Watch, data tips) goes through
+//! the same pass ([`lower_snippet`]), so `?mbYes` there is what it is in
+//! the program.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
@@ -118,6 +122,31 @@ pub fn lower(program: &Program) -> Program {
         program.statements = init;
     }
     program
+}
+
+/// [`lower`] for what the debugger compiles against a running RapidR
+/// program (a Watch, the Immediate window, a data tip): `statements` have no
+/// mark and no program around them, and `known(name)` says whether the
+/// running program has `name` as its own at that place (a local of the
+/// frame, a global, a routine: a DIM mbYes in it, so `?mbYes` shows that).
+/// `QBColor`, when the snippet uses it and the program has no such array
+/// yet, is declared and filled at the snippet's start.
+pub fn lower_snippet(statements: &[Statement], known: &dyn Fn(&str) -> bool) -> Vec<Statement> {
+    let mut statements = statements.to_vec();
+    let mut own = HashSet::new();
+    own_names(&statements, &mut own, false);
+    own.extend(constants().map(|(n, _)| key(n)).filter(|k| known(k)));
+    if known(QBCOLOR) {
+        own.insert(key(QBCOLOR));
+    }
+    let mut qbcolor = false;
+    rewrite_block(&mut statements, &own, &mut qbcolor);
+    if qbcolor && !own.contains("qbcolor") {
+        let mut init = qbcolor_statements(TextSpan::default());
+        init.append(&mut statements);
+        statements = init;
+    }
+    statements
 }
 
 /// Where a statement of the main program's code starts: `None` for what
@@ -441,6 +470,25 @@ mod tests {
         // (not used: nothing added)
         let rr = Program { span: TextSpan::default(), statements: vec![print(id("clRed")), mark_stmt()] };
         assert_eq!(lower(&rr).statements.len(), 1);
+    }
+
+    #[test]
+    fn what_the_debugger_evaluates_has_them_too() {
+        // (no mark, no program: the snippet alone; `known`: what the
+        // running program has as its own)
+        let known = |n: &str| n.eq_ignore_ascii_case("mbNo");
+        let out = lower_snippet(&[print(id("mbYes")), print(id("mbNo")), print(id("True"))], &known);
+        assert_eq!(int(printed(&out[0])), Some(1));
+        assert!(matches!(printed(&out[1]), Expression::Identifier(_)));
+        assert!(matches!(printed(&out[2]), Expression::Identifier(_)));
+        // (a snippet's own store: its own name)
+        let set = Statement::Assignment(AssignmentStatement { span: TextSpan::default(), target: id("mbYes"), value: Expression::Literal(Literal { span: TextSpan::default(), value: LiteralValue::Integer(5) }) });
+        let out = lower_snippet(&[set, print(id("mbYes"))], &|_| false);
+        assert!(matches!(printed(&out[1]), Expression::Identifier(_)));
+        // (QBColor: declared and filled in front when the program has none)
+        let call = Expression::FunctionCall(FunctionCallExpression { span: TextSpan::default(), callee: Box::new(id("QBColor")), args: vec![Expression::Literal(Literal { span: TextSpan::default(), value: LiteralValue::Integer(12) })] });
+        assert_eq!(lower_snippet(&[print(call.clone())], &|_| false).len(), 17 + 1);
+        assert_eq!(lower_snippet(&[print(call)], &|n| n.eq_ignore_ascii_case("QBColor")).len(), 1);
     }
 
     #[test]

@@ -172,6 +172,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **The debugger's Immediate and Watch see a `.rr` program's built-in
+  constants**: `? mrYes` printed nothing while the program itself read 6. What
+  the debugger compiles (Immediate, Watch, data tips, a changed value) now goes
+  through the same built-in constants pass as the program
+  (`rapidr_ast::builtin_constants::lower_snippet`, called by the debugger's
+  `compile_snippet`), the program's own names (locals, globals, routines, a
+  `DIM mbYes`) winning. The compiled module says it came from a `.rr` (bit 2 of
+  the `.rrbc` flags; an older runtime ignores it). RapidQ's value of `mbYes`
+  is 1 (`mrYes` is 6); a `.bas` program has none, as before.
 - **Reference entries that taught a wrong call** (found by the new check,
   `rapidr lang truth`; the language reference, its manual pages and the
   assistant's language card say what the runtimes do now): `RDataFrame.Iloc` is
