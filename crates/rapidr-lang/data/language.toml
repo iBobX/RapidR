@@ -245,9 +245,9 @@ doc = "Goes back to the statement after the last `GOSUB`."
 
 [[statement]]
 name = "END"
-syntax = "END"
+syntax = "END [exit code]"
 group = "Flow"
-doc = "Ends the program at once; files it wrote are kept. `END IF`, `END SUB` and the like close blocks."
+doc = "Ends the program at once; files it wrote are kept. `END n` (RapidR's; RapidQ's END takes no number) ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks."
 
 [[statement]]
 name = "ON ERROR"

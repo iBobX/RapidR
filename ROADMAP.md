@@ -812,7 +812,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [ ] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set)
   - [ ] SVGs built into the program and loaded by `$RESOURCE` name (`RImage.Load`, a button's `BMP`, `AddSVGFile`). Today `RImage.Load RES` says "could not load '65536'", and a build drops SVGs whose names the program computes
   - [ ] A loaded SVG follows the theme: colour tokens and `currentColor` (today `currentColor` comes out black, invisible on dark)
-  - [ ] `END n` sets the exit code (an additive extension; today it's a syntax error), so console tools can fail a build
+  - [x] `END n` sets the exit code (an additive extension; RapidQ's END takes none), so console tools can fail a build. *(LANG-SMALL, 2026-10-22: `rapidr run`, interpreted and native builds, GUI programs; the web ends and ignores the number; conformance cases with a new `.expected-exit`.)*
   - [ ] Reference fixes, verified 2026-10-21:
     - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
     - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7

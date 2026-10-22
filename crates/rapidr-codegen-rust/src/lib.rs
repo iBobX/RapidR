@@ -3100,7 +3100,8 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "commandcount" => Some("rp_commandcount()".to_string()),
         "environ" => Some(format!("rp_environ(&{a0})")),
         "doevents" => Some("rp_doevents()".to_string()),
-        "end" => Some("rp_end()".to_string()),
+        "end" if args.is_empty() => Some("rp_end()".to_string()),
+        "end" => Some(format!("rp_end_code(&{a0})")),
         "showmessage" => Some(format!("rp_showmessage(&{a0})")),
         "msgbox" => Some(format!("rp_msgbox(&{a0})")),
         "messagebox" => Some(format!("rp_messagebox(&{a0}, &{a1}, &{a2})")),
@@ -3612,6 +3613,15 @@ mod tests {
         let tokens = Lexer::new(code, None).tokenize().unwrap();
         let program = parse_tokens(&tokens).expect("test source should parse");
         generate(&program)
+    }
+
+    #[test]
+    fn end_with_an_exit_code_generates_rp_end_code() {
+        // (RapidR's `END n`; a plain END is RapidQ's, exit code 0)
+        assert!(gen("PRINT 1\nEND\n").contains("rp_end()"));
+        let rust = gen("DIM n AS INTEGER\nn = 2\nEND n + 1\n");
+        assert!(rust.contains("rp_end_code(&"), "{rust}");
+        assert!(!rust.contains("rp_end()"), "{rust}");
     }
 
     /// `OnMessage` is `WndProc` (rapidr_ast::tray_calls): the same Rust.

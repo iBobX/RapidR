@@ -204,6 +204,33 @@ END
 
 `DATA`, `READ` and `RESTORE [label]` work as in other BASICs.
 
+### `END` and the exit code
+
+`END` ends the program at once; the files it wrote are kept. RapidR's
+`END n` ends it with the exit code `n`, so a console tool can tell the
+system, or the script that ran it, whether it worked. 0 means success, as
+everywhere else:
+
+```basic
+IF COMMANDCOUNT = 0 THEN
+    PRINT "usage: check FILE"
+    END 2
+END IF
+IF FILEEXISTS(COMMAND$(1)) = 0 THEN END 1
+PRINT "ok"                        ' running off the end is exit code 0 too
+```
+
+`n` is any number or numeric expression (`END failures + 1`), stored as a
+LONG is, so `END 2.9` ends with 2. A plain `END` ends with 0, as it always
+did, and `END IF`, `END SUB` and the other block endings are what they
+were. After a run, read the code in the shell: `echo $?` on macOS and Linux,
+`echo %ERRORLEVEL%` in Windows' Command Prompt. It is the same for
+`rapidr run`, for an app built with `rapidr build` (native or `--interp`)
+and for a program with windows. macOS and Linux keep the low 8 bits of the
+number (0 to 255); Windows keeps all 32. A program running in a web page has
+no exit code: it just ends, and the number is ignored. (RapidQ's `END` takes
+no number, so a program that uses `END n` doesn't compile there.)
+
 ## SUBs and FUNCTIONs
 
 ```basic

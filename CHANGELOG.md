@@ -8,6 +8,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
+  takes no number), so a console tool can fail a build:
+  `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.
+  `n` is any numeric expression, stored as a LONG is; a plain `END`, running
+  off the end of the program, `END IF` and `END SUB` are as they were. It
+  works under `rapidr run`, in interpreted and native builds and in programs
+  with windows; in a web page the program ends and the number is ignored.
+  A new conformance check, `.expected-exit`, asserts a program's exit code.
+  See [the manual](docs/manual/language.md#end-and-the-exit-code).
 - **`OnMessage`, another name for a form's `WndProc`**: `OnMessage = MySub` in
   the form's CREATE (or `Form.OnMessage = MySub`) is the same event as
   `WndProc` — the same four parameters (`Hwnd, Msg, wParam, lParam`), the same
