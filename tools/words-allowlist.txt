@@ -30,11 +30,7 @@ docs/release-notes/ ::
 * :: github.com/JetBrains/
 crates/rapidr-value/fonts/ ::
 
-# ---- code symbols and files (never renamed in the words lane) ----
-# The file crates/rapidr-langsvc/tests/intellisense.rs, named in docs.
-* :: tests/intellisense.rs
-# A local variable of a test (the order of a double click's events).
-crates/rapidr-ui-kernel/src/tests.rs :: vcl
+# ---- code (behaviour, not wording) ----
 # Markdown fences: the language tags a code block may carry, all shown as BASIC.
 crates/rapidr-ui-kernel/src/components/panels/markdown.rs :: "freebasic"
 crates/rapidr-ui-kernel/src/components/panels/markdown.rs :: "vb6"

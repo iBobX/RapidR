@@ -358,7 +358,7 @@ impl DxImageList {
 
 /// Colour names (TColor, &HBBGGRR) an image library's
 /// TransparentColor is streamed as.
-fn delphi_color(name: &str) -> Option<u32> {
+fn dxg_color(name: &str) -> Option<u32> {
     Some(match name.to_ascii_lowercase().as_str() {
         "clblack" => 0x000000,
         "clmaroon" => 0x000080,
@@ -554,7 +554,7 @@ pub fn parse_dxg(bytes: &[u8]) -> Result<Vec<DxPicture>, String> {
             b.transparent = matches!(value("Transparent"), Some(Streamed::Bool(true)) | None);
             b.transparent_color = match value("TransparentColor") {
                 Some(Streamed::Int(c)) => *c as u32 & 0xFF_FFFF,
-                Some(Streamed::Text(name)) => delphi_color(name).unwrap_or(0),
+                Some(Streamed::Text(name)) => dxg_color(name).unwrap_or(0),
                 _ => 0,
             };
             let name = match value("Name") {

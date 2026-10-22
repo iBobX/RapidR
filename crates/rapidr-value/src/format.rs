@@ -311,7 +311,7 @@ pub fn int32_of(n: i64) -> i64 {
 /// ([`int32`]: `PRINT 1E10` shows -2147483648, so do NaN and the
 /// infinities); any other with 9 decimals (`3.500000000`, `0.333333333`,
 /// `-0.000000000` for a tiny negative one). The digits are RapidQ's
-/// `FloatToDecimal` ones as its runtime gets them ([`delphi_digits`]):
+/// `FloatToDecimal` ones as its runtime gets them ([`rapidq_digits`]):
 /// 18 of them, from double-precision arithmetic, so `123456789.1` shows
 /// `123456789.100000000` and `1234567890.1` `1234567890.099999840`, as
 /// RC.EXE's programs do (a few values ≥ 1E7 still differ in their last
@@ -321,7 +321,7 @@ pub fn print_double(v: f64) -> String {
     if v.is_nan() || v.is_infinite() || v == v.trunc() {
         return int32(v).to_string();
     }
-    let mut d = delphi_digits(v.abs());
+    let mut d = rapidq_digits(v.abs());
     d.round_to(d.exp as i64 + 9);
     let mut out = String::from(if v < 0.0 { "-" } else { "" });
     if d.exp <= 0 {
@@ -342,7 +342,7 @@ pub fn print_double(v: f64) -> String {
 /// (`FBSTP`). Reproduces RC.EXE-built programs' digits beyond the 16th
 /// (`1234567890.1` prints `…099999840`, `1.0000000015` `1.000000001`) —
 /// most of them.
-fn delphi_digits(x: f64) -> Decimal {
+fn rapidq_digits(x: f64) -> Decimal {
     let e2 = ((x.to_bits() >> 52) & 0x7ff) as i64 - 1023;
     let mut e = ((e2 * 19728) >> 16) + 1;
     let k = 18 - e;

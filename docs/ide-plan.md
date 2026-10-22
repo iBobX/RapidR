@@ -1217,7 +1217,7 @@ These were measured on a heavily loaded machine (load average 18–27 from paral
   - the hover and signature popups may cover the panes beside the editor (as VS Code's do).
 
 **Robert's auto-completion pass (2026-10-08, after S-SHELL-2):**
-- **Members after `.`** for every kind of object — RapidR's and RapidQ's component names, arrays of components, TYPEs (and a TYPE extending a component: its fields, then the component's), WITH blocks, CREATE bodies (what can be set: no read-only properties, no methods). `crates/rapidr-langsvc/tests/intellisense.rs`.
+- **Members after `.`** for every kind of object — RapidR's and RapidQ's component names, arrays of components, TYPEs (and a TYPE extending a component: its fields, then the component's), WITH blocks, CREATE bodies (what can be set: no read-only properties, no methods). `crates/rapidr-langsvc/tests/completion.rs`.
 - **R names first** after `AS` (`RButton` before `QButton`, `ROBJECT` before `QOBJECT`; the Q name's detail "RapidQ's name for RButton"); a file written with Q names (more `AS QFORM` than `AS RFORM`) keeps to them; the CREATE snippet and the members' "property of …" follow the file's style. The `q_and_r_names` golden case now expects both names.
 - **RAPIDQ.INC without the include** (Robert's save prompt: `mbYes`, `mbNo`, `mbCancel` were 0, only OK showed):
   - the semantic model now knows RapidQ's implicit variables: the compiler's own `DIM name AS DOUBLE` for an undeclared name spans the whole program, and the model took the first use for the declaration (so every name looked declared); such a symbol is now `implicit`, its uses recorded as Read or Write. INPUT and SWAP (a read then a store at the same place) count as Write;
