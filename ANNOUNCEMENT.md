@@ -78,7 +78,8 @@ original implementation, written from the ground up in pure Rust.
 > everywhere (compiled to wasm on the web) with parameter binding, JSON,
 > HTTP, data frames and charts. Every build writes the
 > `THIRD-PARTY-NOTICES.txt` its dependency graph needs; nothing copyleft
-> or cryptographic is compiled into a program. MIT.
+> and no TLS library is compiled into a program (HTTPS is the operating
+> system's). MIT.
 
 ---
 

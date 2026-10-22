@@ -70,6 +70,49 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the `words` stage) fails when such a word comes back outside
   `tools/words-allowlist.txt` (fonts' names, build tools a platform needs,
   legal and history texts, fixture data).
+- **Another company's trademark for code completion is gone from this
+  changelog and the v2.117 and v2.118 release notes** (legal review of
+  2026-10-22): they say "code completion" and "code help" in plain words. The
+  words check now scans `CHANGELOG.md` and `docs/release-notes/` too, so the
+  trademark cannot come back.
+- **Notices: every file in a licence-named folder is a notice** (legal review
+  of 2026-10-22). `rapidr notices` used to pick up licence files by their
+  names only, so the two MIT notices `faster-hex` (a gitoxide dependency)
+  keeps in `LICENSE-THIRD-PARTY/fast-hex` and `LICENSE-THIRD-PARTY/Rust Project
+  Developers` would have been left out of `THIRD-PARTY-NOTICES.txt` once
+  Versions joins Studio. A folder called `LICENSE-THIRD-PARTY`, `licenses`,
+  `LICENSES` or the like now gives every file inside it. Across the 711
+  packages of the workspace's graph this adds exactly those two files; a unit
+  test with a folder shaped like `faster-hex`'s keeps it so.
+- **Cryptography: the legal texts say what is really there, and the Linux
+  keyring uses the system's OpenSSL** (legal review of 2026-10-22). LEGAL.md,
+  LICENSES.md and docs/licensing.md said no encryption code was compiled into
+  a program. That was wrong: the MySQL client (`mysql_common`) has its own
+  RSA-OAEP and SHA-1/SHA-256, and on Linux and the BSDs the keyring client
+  (`secret-service`) had AES-CBC, HKDF and a Diffie-Hellman key exchange
+  compiled in. They now list exactly what remains (docs/licensing.md §2.5),
+  and README, the announcement, the manual and the release templates say "no
+  TLS library" instead of "no encryption code". On Linux and the BSDs the AI
+  keys' keyring session now takes its AES and key derivation from the system's
+  OpenSSL 3, which HTTPS loads anyway (`rapidr-ai` asks for `crypto-openssl`
+  instead of `crypto-rust`): `aes`, `cbc`, `hkdf` and their helpers are gone
+  from `Cargo.lock` and banned in `deny.toml`, `notices.rs` and
+  `tools/check_notices.py`. Checked on Ubuntu 24.04: a key stored in GNOME
+  Keyring reads back and deletes. LEGAL.md has a new "Export" section: open
+  source, standard cryptography, mostly the system's.
+- **LEGAL.md has a "Trademarks" section** (legal review of 2026-10-22) for the
+  products RapidR works with: Git, GitHub, GitLab, Bitbucket, SQLite, MySQL,
+  MariaDB and PostgreSQL, each with its owner's own attribution wording
+  (taken from the owner's trademark page), the symbols the owners ask for,
+  and the line that RapidR is not affiliated with or endorsed by them. Names
+  appear as plain text, never as logos and never inside a RapidR name.
+- **An open licence question and a rule for Versions' diff and merge code**
+  (legal review of 2026-10-22, docs/licensing.md §8, item 6): the blob diff
+  in `gix-imara-diff` (Apache-2.0) has comments that name Git's xdiff
+  internals and slider-heuristic constants that match Git's, so where it
+  comes from is recorded as open; nothing of it ships yet. RapidR's own diff
+  and merge code (Versions lane G2) is to be written from Myers' 1986 paper,
+  never from xdiff or any other implementation.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which
@@ -687,7 +730,7 @@ walked on the real screen.
   linked components (CSV, JSON, Excel, Parquet, Arrow, Avro, Delta Lake, SQLite, MySQL, PostgreSQL /
   Redshift, SQL Server, S3 / Azure), data-aware components, the BASIC API, the web's limits, the licence
   of every crate, performance budgets and a benchmark suite against pandas and Polars, the registry for
-  IntelliSense / MCP, phases with sizes.
+  code completion / MCP, phases with sizes.
 - **RCSV** (new): a CSV file as a data source — `FileName`, `Delimiter` (`,` `;` tab `|` …),
   `HasHeader`, `Text`; `RowCount`, `ColCount`, `Columns`, `Error`; `Load`, `Save [file]`, `Clear`;
   `OnLoad`, `OnError(Message)`. Read once, when its table is first needed; a relative file is found in
@@ -711,7 +754,7 @@ walked on the real screen.
   labels show the real data while you design; RCSV is in the toolbox's Data group, with the data
   file's icon.
 - One model for every runtime (`rapidr_value::datascience::link`): native builds, the interpreter, the
-  web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
+  web and the designer. Registry entries for every member (code completion, the manual, MCP).
 - Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
   Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
 - The inspector's **DataField** drops the bound data set's columns.
@@ -1141,7 +1184,7 @@ walked on the real screen.
   RapidR's names in mixed case (`EXTENDS RPanel`, `AS REdit`) are now read exactly as RapidQ's
   (the same bytecode as `QPANEL`).
 ### RapidR Studio: the code editor works
-- **IntelliSense in Studio** (desktop and web alike): completion after `.` (members by type, ranked
+- **Code completion and code help in Studio** (desktop and web alike): completion after `.` (members by type, ranked
   fuzzily, docs beside the list), signature help, hover, F12 (into another file too), Shift+F12
   (uses selected and listed in Output), F2 rename, squiggles with the Problems panel, Ctrl+. quick
   fixes, keywords in upper case as you type (`dim` → `DIM`), snippets.
@@ -2429,7 +2472,7 @@ walked on the real screen.
   `.github/FUNDING.yml`.
 - **The IDE plan** (`docs/ide-plan.md`, ROADMAP Phase 3 as stages I0–I9):
   RapidR Studio on the UI kernel, desktop and web — the designer,
-  IntelliSense, Delphi-style linked data and data-science components, a
+  code completion, Delphi-style linked data and data-science components, a
   debugger, AI through an MCP server in the IDE; every IDE block a public
   component (`docs/ide-components.md`, `docs/ide-ai.md`,
   `docs/q-and-r-components.md`).

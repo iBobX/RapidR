@@ -39,7 +39,11 @@ For each kind it runs `cargo tree -e normal --target <triple>` (normal
 dependencies: what is compiled into the output; build scripts and dev
 dependencies are not) and `cargo metadata`, reads each crate's licence files
 (`LICENSE*`, `COPYING*`, `COPYRIGHT*`, `NOTICE*`, and those of code bundled
-in subfolders, e.g. SDL_GameControllerDB's in `gilrs`), picks among
+in subfolders, e.g. SDL_GameControllerDB's in `gilrs`; **every file inside a
+licence-named folder** — `LICENSE-THIRD-PARTY/`, `licenses/`, `LICENSES/` —
+whatever its name, e.g. the two MIT notices `faster-hex` keeps in
+`LICENSE-THIRD-PARTY/fast-hex` and `LICENSE-THIRD-PARTY/Rust Project
+Developers`), picks among
 `A OR B` alternatives the one whose text the crate ships with the fewest
 obligations (MIT first), and keeps every `NOTICE` file (Apache-2.0 §4(d);
 none of today's crates has one). A crate that ships no file for its licence
@@ -97,8 +101,9 @@ same and one file covers both.
 | Not crates | Rust std (MIT); Liberation fonts (OFL-1.1); SQLite (public domain); the Adobe Glyph List (BSD-3-Clause, in `read-fonts`) | + the toolchain's start-up code (§3.3) | + Cantarell (OFL-1.1, Wayland title bars); the Wayland protocol descriptions (MIT, HPND-sell-variant) and xcb-proto's (X11), from which crates' code is generated |
 | System, not shipped | libSystem, AppKit, Metal, Core Audio, Security (HTTPS), … | kernel32, user32, UCRT, SChannel (HTTPS), … | glibc, libgcc_s, OpenSSL 3 (`libssl.so.3`, HTTPS), libasound, fontconfig, X11, Wayland, xkbcommon |
 
-Nothing copyleft (GPL, LGPL, MPL, …), no cryptographic code and no data
-under a data licence is compiled in: HTTPS (RHTTP, QDOWNLOAD) uses the
+Nothing copyleft (GPL, LGPL, MPL, …), no TLS library and no data under a
+data licence is compiled in, and the standard cryptography that is compiled
+in is listed in §2.5: HTTPS (RHTTP, QDOWNLOAD) uses the
 operating system's TLS and certificates through `native-tls`, MP3 is decoded
 by `nanomp3`, charts draw their text with the built-in Liberation Sans
 (`ab_glyph`), and winit's KDE blur bindings are RapidR's own stand-in (§3.2).
@@ -147,6 +152,37 @@ desktop launcher. The SDK also ships the runners and web runtime (with their
 notices, §1), the runtime's Rust sources and its crates.io dependencies'
  sources (`vendor/`: each crate with its own licence files; crates only other
 platforms compile are cut down to their `Cargo.toml` and licence files).
+
+### 2.5 Cryptography in a program
+
+What cryptographic code is compiled into a program, from `cargo tree -e
+normal` for the runners (`rapidr-runner-stub`) of each desktop target and the
+web runtime (checked 2026-10-22). The earlier text of this document said no
+program contained any; that was wrong, and the legal review of 2026-10-22
+found it.
+
+| Where | What is compiled in | From | What it is for |
+|---|---|---|---|
+| Every desktop target (interpreted and native programs, and RapidR's own tools) | RSA public-key encryption with OAEP padding (`crypto/rsa.rs`, over `num-bigint`); SHA-1 and SHA-256 (`sha1` 0.10, `sha2` 0.10) | `mysql_common` 0.37, through `mysql` 28: `rapidr-db`'s MySQL support (RMYSQL), in `rapidr-runtime-core`'s default `database` feature | MySQL's `caching_sha2_password` login: when the server asks for the full login and the connection has neither TLS nor a local socket, the password (XOR-ed with the server's nonce) is encrypted with the server's RSA public key |
+| Linux and the BSDs | A Diffie-Hellman key exchange (the 1024-bit group of the Secret Service's protocol; modular exponentiation over `num-bigint`) | `secret-service` 5.2, through `zbus-secret-service-keyring-store` 1: `rapidr-ai`, the AI component's API-key storage | the Secret Service session that carries a key to GNOME Keyring or KWallet |
+| Linux and the BSDs | **Not compiled in:** AES-128-CBC and HKDF-SHA256 | the system's OpenSSL 3, through the `openssl` crate's bindings (the ones HTTPS already loads), because `rapidr-ai` asks for `crypto-openssl` | the same session |
+| macOS | **Not compiled in:** Security.framework | the system | HTTPS; the Keychain that holds the AI keys |
+| Windows | **Not compiled in:** SChannel; Credential Manager | the system | HTTPS; the AI keys |
+| Web | nothing (the browser does HTTPS; `crc32fast` is a checksum) | | |
+
+Hash functions (SHA-1, SHA-256, CRC-32) only fingerprint data; they hide
+nothing. SQLite is built without SQLCipher, so it encrypts nothing.
+
+Until 2026-10-22 the Linux and BSD builds also compiled in the keyring
+session's AES-CBC, HKDF and SHA-256 (`aes`, `cbc`, `hkdf`, `hmac` and a second
+`sha2`, through `secret-service`'s `crypto-rust` feature). `rapidr-ai` now
+uses `crypto-openssl`, and `aes`, `cbc` and `hkdf` are banned in `deny.toml`,
+`notices.rs` (BANNED) and `tools/check_notices.py`, so they cannot come back
+unseen. Checked on Ubuntu 24.04 (ARM64): the key exchange, a stored secret
+read back and its deletion work against GNOME Keyring with the OpenSSL
+session.
+
+Export: see LEGAL.md, "Export", and §8 below.
 
 ## 3. Components that aren't crates
 
@@ -211,7 +247,7 @@ platforms compile are cut down to their `Cargo.toml` and licence files).
 | macOS | libSystem and system frameworks | part of macOS | nothing: not shipped |
 | Linux | glibc (`libc.so.6`, `libm`), `libgcc_s` (dynamic) | LGPL-2.1-or-later; GPL-3.0 with the GCC Runtime Library Exception | nothing: dynamically linked system libraries, not shipped |
 | Linux | glibc's `crt1.o`/`crti.o`, GCC's `crtbegin.o` (static start-up files) | LGPL with glibc's linking exception; GCC Runtime Library Exception | nothing (the exceptions are for exactly this) |
-| Linux | OpenSSL 3 (`libssl.so.3`, `libcrypto.so.3`: HTTPS) | Apache-2.0 | nothing: dynamically linked from the system, not shipped (a program needs the system's `libssl3`) |
+| Linux | OpenSSL 3 (`libssl.so.3`, `libcrypto.so.3`: HTTPS, and the AES and key derivation of the keyring session, §2.5) | Apache-2.0 | nothing: dynamically linked from the system, not shipped (a program needs the system's `libssl3`) |
 | Linux | `libasound` (ALSA), fontconfig, X11, Wayland, xkbcommon | LGPL-2.1 (alsa-lib); MIT-style; MIT | nothing: dynamically linked or loaded from the system, not shipped |
 | macOS, Windows | Security.framework; SChannel (HTTPS) | part of the system | nothing |
 
@@ -413,13 +449,21 @@ Resolved by removing what raised them (October 2026):
   KDE's blur protocol, generated from LGPL-2.1-or-later protocol files, are
   no longer compiled into anything: RapidR's own stand-in replaces the crate
   (§3.2), and the guards fail if crates.io's comes back (§7).
-- **Cryptography in programs** (was question 4, export rules). No program
-  contains a cryptographic library any more: HTTPS is the operating
+- **Cryptography in programs** (was question 4, export rules). No TLS
+  library is compiled into a program any more: HTTPS is the operating
   system's (Security.framework, SChannel, the system's OpenSSL 3), and
   `ring`, `rustls`, `rustls-webpki` and `webpki-roots` (CDLA data) are gone.
-  A program that calls the system's TLS is generally outside encryption
-  export controls' "contains encryption" cases, but that remains a question
-  of law, not of licences, and of the user's own jurisdiction.
+  **Some standard cryptography is compiled in, though** (§2.5): RSA-OAEP and
+  SHA-1/SHA-256 in the MySQL client (`mysql_common`), and on Linux and the
+  BSDs the keyring client's Diffie-Hellman key exchange (its AES and HKDF
+  were compiled in until 2026-10-22 and are now the system's OpenSSL). This
+  entry used to say that no program contained a cryptographic library; the
+  legal review of 2026-10-22 found that wrong, and LEGAL.md, LICENSES.md and
+  this file now say what is there. The project's reading: RapidR is
+  published open source, so its source code is not subject to the Export
+  Administration Regulations (15 CFR 734.3(b)(3)); it has made no filing
+  (LEGAL.md, "Export"). What a program someone builds with RapidR means in
+  the user's own jurisdiction remains a question of law, not of licences.
 - **MPL-2.0** (`symphonia*`, `dwrote`, `option-ext`): removed; MP3 is
   `nanomp3`'s, charts no longer use font-kit, the CLI no longer uses `dirs`.
   With them went FreeType (its FTL asks for credit in the documentation) and
@@ -466,3 +510,20 @@ Still open:
    interface, the use of RC.EXE for testing, and the residual risks: reviewed
    on 2026-10-06 in [legal/rapidq-review.md](legal/rapidq-review.md), with
    the decisions left to the owner in its §13.
+6. **Where `gix-imara-diff` comes from** (raised by the legal review of
+   2026-10-22). Versions (`crates/rapidr-vcs`, on gitoxide) gets its blob
+   diff from `gix-imara-diff` 0.3.1, declared Apache-2.0 and described as "a
+   modified copy of upstream imara-diff for gitoxide". Its comments name
+   Git's xdiff internals (`xdl_bogosqrt`, `xdl_clean_mmatch`, `XDL_K_HEUR`,
+   `XDL_SIMSCAN_WINDOW`), and the constants of its slider heuristic
+   (`MAX_BLANKS` 20, `START_OF_FILE_PENALTY` 1, `INDENT_WEIGHT` 60) match the
+   ones in Git's `xdiffi.c`; Git's xdiff is LGPL-2.1-or-later (both from the
+   reviewer's memory: the two sources were not compared line by line). If
+   part of the crate was written from xdiff, its Apache-2.0 declaration may
+   not be the whole story. **Open.** Nothing of it ships today (Versions is
+   not in a release), and it must be settled before it does: ask the crate's
+   maintainers, compare the files, or replace it. **The rule, whatever the
+   answer:** RapidR's own diff and merge code (Versions lane G2) is written
+   from Myers' 1986 paper ("An O(ND) Difference Algorithm and Its
+   Variations"), never from Git's xdiff, `gix-imara-diff` or any other
+   implementation, and no code or comment is copied from them.

@@ -27,9 +27,27 @@ copyleft (no GPL, LGPL, MPL or similar), nothing asks you to publish source
 code, to credit anyone in your documentation or advertising, or to do
 anything else, and RapidR's checks fail if that ever changes.
 
-Your program contains no encryption code of its own: HTTPS (`RHttp`,
-`QDownload`) uses the operating system's (macOS, Windows, and on Linux the
-system's OpenSSL 3, which every current distribution installs).
+**Encryption.** HTTPS (`RHttp`, `QDownload`) uses the operating system's
+own TLS (macOS, Windows, and on Linux the system's OpenSSL 3, which every
+current distribution installs): no TLS library and no AES code is compiled
+into your program. A desktop program does contain a little standard
+cryptography, from open-source libraries named in its notices, and nothing
+else:
+
+- **RSA public-key encryption** (OAEP padding) and **SHA-1 and SHA-256
+  hashing**, in the MySQL client (`RMySQL`; the `mysql_common` crate). They
+  are used only to send a password to a MySQL server that asks for it, over a
+  connection that has neither TLS nor a local socket.
+- **A Diffie-Hellman key exchange**, on Linux and the BSDs only, in the
+  keyring client (the `secret-service` crate) that keeps the AI component's
+  API keys in the system's Secret Service (GNOME Keyring, KWallet). The AES
+  encryption and the key derivation that follow it are the system's OpenSSL
+  3, not compiled-in code. On macOS and Windows the keys go to the system's
+  Keychain and Credential Manager, and no code of RapidR's is involved.
+- **Hashing** (SHA-1, SHA-256, CRC-32), which is not encryption.
+
+A web build contains none of these: the browser does the HTTPS.
+[docs/licensing.md](docs/licensing.md) §2.5 says where each one comes from.
 
 ## What to ship, for each kind of output
 
@@ -72,9 +90,10 @@ system's OpenSSL 3, which every current distribution installs).
   commercial included. Don't extract them to sell on their own, and if you
   change them, give your version another name.
 - **On Linux**, your program uses the system's OpenSSL 3 library
-  (`libssl3`, present on every current distribution) for HTTPS; if you
-  package it (e.g. as a `.deb`), list it as a dependency. Nothing of
-  OpenSSL is inside your program.
+  (`libssl3`, present on every current distribution) for HTTPS and for the
+  AES and key derivation of the keyring session that protects the AI
+  component's keys; if you package it (e.g. as a `.deb`), list it as a
+  dependency. Nothing of OpenSSL is inside your program.
 - **Your toolchain on Windows.** With the `gnullvm` toolchain (LLVM-MinGW,
   open source) nothing is needed. With Microsoft's `msvc` toolchain, the
   Visual Studio Build Tools licence applies to you as the developer (it is
@@ -82,8 +101,10 @@ system's OpenSSL 3, which every current distribution installs).
   larger organisations need a Visual Studio licence). `rapidr setup` says
   which you have.
 - **Laws that apply to software in general** (privacy, consumer law, export
-  rules — your program uses the operating system's encryption for HTTPS —
-  and so on) are outside what licences cover.
+  rules — your program uses the operating system's encryption for HTTPS and
+  the few standard pieces listed under "Encryption" above — and so on) are
+  outside what licences cover. RapidR's own export position is under
+  "Export" below.
 
 ## RapidQ, and the names RapidR mentions
 
@@ -133,6 +154,46 @@ never to suggest endorsement.
 If you hold rights in something RapidR names and have a concern, please
 open an issue (below) or write to the maintainer; it will be looked at
 promptly.
+
+## Trademarks
+
+RapidR works with some other products and services, and names them so that
+you can tell what it works with: Git™ repositories, the sites that host them,
+and several databases. It writes their names in plain text, never uses their
+logos, and never puts them inside a name of its own (RapidR's version control
+is called Versions, and it is built on Git). Their owners' notices:
+
+- Git and the Git logo are either registered trademarks or trademarks of
+  Software Freedom Conservancy, Inc., corporate home of the Git Project, in
+  the United States and/or other countries.
+- GitHub® is a trademark of GitHub, Inc., registered in the United States
+  and other countries.
+- GitLab™: GITLAB is a trademark of GitLab Inc. in the United States and
+  other countries and regions.
+- Bitbucket is a trademark of Atlassian.
+- SQLite is a trademark of Hipp, Wyrick & Company, Inc. (Hwaci).
+- MySQL is a registered trademark of Oracle and/or its affiliates.
+- The MariaDB® mark is a trademark of MariaDB Corporation Ab.
+- Postgres, PostgreSQL and the Slonik Logo are trademarks or registered
+  trademarks of the PostgreSQL Community Association of Canada, and used with
+  their permission.
+
+RapidR is not affiliated with or endorsed by these owners. Names are used
+only to say what RapidR works with.
+
+## Export
+
+RapidR is published open-source software: its complete source code is public,
+under the MIT licence. It uses only standard cryptography, and mostly the
+operating system's own (TLS for HTTPS, the system's keychain); the few
+pieces compiled into a program are listed under "Encryption" above. The
+project's reading of the United States export rules is that publicly
+available source code like this is not subject to the Export Administration
+Regulations (15 CFR 734.3(b)(3)), and it has made no export filing. That is
+a description of what RapidR contains and of how the project reads that
+rule, not legal advice. If you ship a program built with RapidR where other
+export or import rules apply, or add encryption of your own to it, checking
+those rules is up to you.
 
 ## No warranty
 
