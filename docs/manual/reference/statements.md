@@ -30,7 +30,7 @@
 | Statement | |
 |---|---|
 | `TYPE name [EXTENDS type] … END TYPE (also STRUCT … END STRUCT)` | Defines a record type: fields, and optionally methods, a CONSTRUCTOR, events and a parent type to inherit from (`EXTENDS`). `STRUCT` is another name for it. |
-| `TYPE name EXTENDS QOBJECT \| component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`). |
+| `TYPE name EXTENDS QOBJECT\|component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`). |
 | `PROPERTY SET name(value AS type) … END PROPERTY` | In a TYPE: the routine that runs when a program assigns to the property `name`, given the value assigned. |
 | `EVENT(member) … END EVENT` | In a TYPE that extends a component: the code run when the component's event happens (`EVENT OnClick … END EVENT`). |
 | `CONSTRUCTOR … END CONSTRUCTOR` | In a TYPE: code that runs when a variable of the type is created, to set its fields' first values. |
@@ -96,7 +96,7 @@
 | `SWAP a, b` | Exchanges the values of two variables or array elements. |
 | `INC variable [, amount]` | Adds `amount` (1 when not given) to a variable. |
 | `DEC variable [, amount]` | Subtracts `amount` (1 when not given) from a variable. |
-| `QUICKSORT(array(first), array(last), ascending [, …])` | Sorts an array's elements from `first` to `last` in place, numbers by value and strings by their characters; ascending when the last argument is 0. |
+| `QUICKSORT(array(first), array(last), ASCEND\|DESCEND)` | Sorts an array's elements from `first` to `last` in place, numbers by value and strings by their characters; ASCEND (0) sorts upward, DESCEND (1) downward. |
 
 ## Other
 

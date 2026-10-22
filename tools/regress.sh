@@ -59,6 +59,12 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (the language registry's reverse check: every name the runtimes'
   # dispatch answers is in it; what it generates is current: cargo test)
   python3 tools/lang_dispatch.py --check
+  # (the language reference tells the truth, K7: every syntax line of a
+  # statement, directive and builtin compiles, every example compiles, and
+  # every example with an `expect` is run and prints what it says — a wrong
+  # signature teaches every model a wrong call; the same check is a cargo
+  # test in rapidr-cli, tests/lang_truth.rs)
+  out=$(cargo run -q -p rapidr-cli -- lang truth 2>&1) || { echo "rapidr lang truth: FAILED"; echo "$out" | grep -E "^FAIL|^    " | head -30; }
   # (the manual's, the README's and the examples' links and heading anchors)
   python3 tools/check_doc_links.py
   # (RapidR's own words: no other products as models or comparisons in the

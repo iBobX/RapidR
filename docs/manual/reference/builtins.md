@@ -86,7 +86,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 
 | Builtin | |
 |---|---|
-| `CONVBASEX(Str$, FromBase, ToBase)` *(not yet)* | A variant of `CONVBASE$` for converting a string of digits from one number base to another. |
+| `CONVBASEX(Text$, FromBase, ToBase)` *(not yet)* | A variant of `CONVBASE$` for converting a string of digits from one number base to another. |
 | `Execute function` *(not yet)* | Runs a routine named by a string at run time. |
 | `GETCAPTURE` *(not yet)* | The handle of the window that has captured the mouse, 0 if none. |
 | `GETFOCUS` *(not yet)* | The handle of the window that has the keyboard focus. |
@@ -160,37 +160,37 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `ASC(char$)` | The character code of a string's first character, 0 for an empty string; the inverse of `CHR$`. It counts characters, not UTF-8 bytes: `ASC("é")` is 233. |
 | `BIN$(Integer)` | The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. |
 | `CHR$(byte)` | The one-character string whose code is the number's low byte (`CHR$(65)` is `A`); a real number is rounded half to even first. |
-| `CONVBASE$(Str$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
+| `CONVBASE$(Text$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
 | `DELETE$(String$, Index, Count)` | The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$("Hello", 2, 3)` is `Ho`. |
-| `FIELD$(StringExpresion, Deliminator, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
+| `FIELD$(Source$, Delimiter$, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
 | `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. |
 | `HEX$(Number)` | The hexadecimal digits of a number's 32 bits, always 8 of them: `HEX$(255)` is `000000FF`. A real number is rounded half to even first. |
 | `HEXTODEC(Hex$)` | The number a string of hexadecimal digits stands for (`&H` or `0x` in front allowed): `HEXTODEC("FF")` is 255; 0 when it isn't hexadecimal. |
-| `INSERT$(Source$,Dest$,Index)` | `Dest$` with `Source$` inserted before character `Index` (1 the first): `INSERT$("hi", "Hello", 3)` is `Hehillo`. |
+| `INSERT$(Part$, Source$, Index)` | `Source$` with `Part$` inserted before character `Index` (1 the first): `INSERT$("hi", "Hello", 3)` is `Hehillo`. The text to insert comes first. |
 | `INSTR([Start,] Search$,Find$)` | The position (1 the first) where `Find$` first occurs in `Search$`, from character `Start` when given; 0 when it doesn't (an empty `Find$` is never found). |
 | `ISNUMERIC(Expression)` *(RapidR)* | True (-1) when the value is a number or a text that is exactly a number (`"3.5"`, `"-2E3"`), else 0. |
-| `LCASE$(String)` | The string in lower case. |
-| `LEFT$(String,Num)` | The first `Num` characters of a string (all of it when it is shorter). |
-| `LEN(String)` | The number of characters in a string (characters, not bytes). |
-| `LTRIM$(String)` | The string without its leading spaces. |
-| `MID$(String, Position, Num)` | `Num` characters of a string from `Position` (1 the first); without `Num`, the rest of the string. |
+| `LCASE$(Text$)` | The string in lower case. |
+| `LEFT$(Text$, Num)` | The first `Num` characters of a string (all of it when it is shorter). |
+| `LEN(Text$)` | The number of characters in a string (characters, not bytes). |
+| `LTRIM$(Text$)` | The string without its leading spaces. |
+| `MID$(Text$, Position, Num)` | `Num` characters of a string from `Position` (1 the first); without `Num`, the rest of the string. |
 | `OCT(Number)` *(RapidR)* | The octal digits of a whole number, as text: `OCT(8)` is `10`. |
-| `REPLACE$(Source$, Replace$, Index)` | `Replace$` written over `Source$` from character `Index` (1 the first): `REPLACE$("Hello", "J", 1)` is `Jello`. To find and replace, `REPLACESUBSTR$`. |
+| `REPLACE$(Source$, Overwrite$, Index)` | `Overwrite$` written over `Source$` from character `Index` (1 the first): `REPLACE$("Hello", "J", 1)` is `Jello`. To find and replace, `REPLACESUBSTR$`. |
 | `REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)` | `Source$` with every occurrence of `ReplaceStr$` replaced by `Withstr$`. |
 | `REVERSE$(S$)` | The string with its characters in reverse order. |
-| `RIGHT$(String,Num)` | The last `Num` characters of a string (all of it when it is shorter). |
+| `RIGHT$(Text$, Num)` | The last `Num` characters of a string (all of it when it is shorter). |
 | `RINSTR([Start,] SearchString, FindString)` | The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none. |
-| `RTRIM$(String)` | The string without its trailing spaces. |
+| `RTRIM$(Text$)` | The string without its trailing spaces. |
 | `SPACE$(Num)` | A string of `Num` spaces. |
 | `STR$(Number)` | A number as text, with up to 9 significant digits as RapidQ writes it: `STR$(1 / 3)` is `0.333333333`. |
 | `STRF$(Number, Format%, Precision%, Digits%)` | A number as text in a float format (`ffGeneral`, `ffExponent`, `ffFixed`, `ffNumber`) with `Precision%` significant digits and `Digits%` decimals. |
 | `STRING$(Num, Char) or STRING$(Num, Char$)` | A string of `Num` copies of a character, given by its code or as the first character of a string: `STRING$(3, 65)` is `AAA`. |
 | `TALLY(Search$, Match$)` | The number of times `Match$` occurs in `Search$` (occurrences don't overlap); 0 for an empty `Match$`. |
-| `TRIM(String)` *(RapidR)* | The string without its leading and trailing spaces. |
+| `TRIM(Text$)` *(RapidR)* | The string without its leading and trailing spaces. |
 | `TR$(Text$ [, Context$] [, Name$, Value ...])` *(RapidR)* | The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$("Open", "menu")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error. |
 | `TRN$(Singular$, Plural$, Count [, Context$] [, Name$, Value ...])` *(RapidR)* | The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them. |
-| `UCASE$(String)` | The string in upper case. |
-| `VAL(String)` | The number at the start of a text, ignoring spaces and what follows it: `VAL("12abc")` is 12; 0 when there is none. |
+| `UCASE$(Text$)` | The string in upper case. |
+| `VAL(Text$)` | The number at the start of a text, ignoring spaces and what follows it: `VAL("12abc")` is 12; 0 when there is none. |
 
 ## System
 

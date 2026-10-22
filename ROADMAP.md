@@ -748,7 +748,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ K4 The mistake ledger (`FOR i AS INTEGER` as an extension)
 - [ ] K5 Project notes for RAI
 - [ ] K6 Evals and the "Which model?" report
-- [ ] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`)
+- [x] ★ K7 The reference tells the truth: every `syntax` and `example` in the registry is compiled (and run where it can be) by a generated check, so the language card never teaches a wrong signature (found by Database Studio: `RDataFrame.Cell`, `CONST`) *(K7, 2026-10-22: `rapidr lang truth` — syntax lines and examples compile, the new `expect` facet is run, in `regress.sh unit`; it found and fixed `Iloc`, `Select`, `GroupBy`, `Nlargest`, `Nsmallest`, `FromList`, `QUICKSORT` and more; docs/ai-architecture.md §2.)*
 
 **Helpers** ([docs/code-helpers-plan.md](docs/code-helpers-plan.md))
 - [ ] ★ E0 The framework: `kind` in the registry, sites from the language service, marks, chips, line notes, popovers, Ctrl+., accessibility
