@@ -23,12 +23,13 @@ mysql = { version = "28", optional = true, default-features = false, features = 
 # tells which table a result column came from (the web's bound widgets
 # write their edits back); `modern_sqlite` (which `bundled` implies) words
 # errors the same on the web: `no such function: f in SELECT f(1) at
-# offset 7`.
+# offset 7`. `column_decltype` (rusqlite's own Rust, no C option): a result
+# column's declared type, ColType(i).
 [target.'cfg(all(target_family = "wasm", target_os = "unknown"))'.dependencies]
-rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "modern_sqlite", "serialize", "backup", "column_metadata"] }
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["ffi-sqlite-wasm-rs", "modern_sqlite", "serialize", "backup", "column_metadata", "column_decltype"] }
 
 [target.'cfg(not(all(target_family = "wasm", target_os = "unknown")))'.dependencies]
-rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata"] }
+rusqlite = { version = "0.40", optional = true, default-features = false, features = ["bundled", "serialize", "backup", "column_metadata", "column_decltype"] }
 
 [features]
 default = ["sqlite"]

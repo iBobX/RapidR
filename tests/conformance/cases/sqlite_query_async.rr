@@ -50,6 +50,7 @@ Ended = 0
 WaitForIt
 PRINT "OnRows told, counting up: "; Told > 0; " "; Rising; " last "; LastCount
 PRINT "RowCount: "; DB.RowCount; " ColCount: "; DB.ColCount; " busy: "; DB.Busy
+PRINT "columns: "; DB.ColName(0); " "; DB.ColName(1); " "; DB.ColName(2); " types: "; DB.ColType(0); " "; DB.ColType(1); " "; DB.ColType(2)
 DB.FetchRow
 PRINT "first row: "; DB.Row(0); " "; DB.Row(1); " "; DB.Row(2)
 DB.RowSeek 49989

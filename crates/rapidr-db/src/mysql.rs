@@ -30,7 +30,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use mysql::consts::{CapabilityFlags, ColumnType};
+use mysql::consts::{CapabilityFlags, ColumnFlags, ColumnType};
 use mysql::prelude::{Protocol, Queryable};
 use mysql::{Column, QueryResult, Value as MyValue};
 use rapidr_value::objects::codec::bytes_to_string;
@@ -413,8 +413,8 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
                 collect(&mut result, binary_cell)?
             }
         };
-        Ok::<_, String>(table.map(|(columns, rows, raw)| {
-            db.results = ResultSet::with_raw(columns, rows, raw);
+        Ok::<_, String>(table.map(|(columns, types, rows, raw)| {
+            db.results = ResultSet::with_raw(columns, rows, raw).typed(types);
             db.lengths.clear();
             (db.results.rows.len(), db.results.columns.len())
         }))
@@ -438,9 +438,71 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     v_int(ok as i64)
 }
 
-/// A result set: its columns' names, its rows' text, and the bytes of the
-/// cells that aren't text ([`ResultSet::raw`]).
-type Rows = (Vec<String>, Vec<Vec<String>>, Vec<Vec<Option<Vec<u8>>>>);
+/// A result set: its columns' names and types (the server's metadata),
+/// its rows' text, and the bytes of the cells that aren't text
+/// ([`ResultSet::raw`]).
+type Rows = (Vec<String>, Vec<String>, Vec<Vec<String>>, Vec<Vec<Option<Vec<u8>>>>);
+
+/// A result column's type as MySQL names it in a table's definition (the
+/// result's metadata: the server sends it with every result set, a
+/// read-only connection's too): `INT`, `BIGINT UNSIGNED`, `DECIMAL`,
+/// `VARCHAR`, `VARBINARY`, `TEXT`, `BLOB`, `DATETIME`, `ENUM`, `JSON` …
+pub fn type_name(t: ColumnType, flags: ColumnFlags, charset: u16) -> String {
+    use ColumnType::*;
+    // (character set 63 is `binary`: BLOB rather than TEXT, VARBINARY …)
+    let binary = charset == 63;
+    let numeric = matches!(t, MYSQL_TYPE_TINY | MYSQL_TYPE_SHORT | MYSQL_TYPE_INT24 | MYSQL_TYPE_LONG | MYSQL_TYPE_LONGLONG | MYSQL_TYPE_DECIMAL | MYSQL_TYPE_NEWDECIMAL | MYSQL_TYPE_FLOAT | MYSQL_TYPE_DOUBLE);
+    let name = if flags.contains(ColumnFlags::ENUM_FLAG) {
+        "ENUM"
+    } else if flags.contains(ColumnFlags::SET_FLAG) {
+        "SET"
+    } else {
+        match t {
+            MYSQL_TYPE_DECIMAL | MYSQL_TYPE_NEWDECIMAL => "DECIMAL",
+            MYSQL_TYPE_TINY => "TINYINT",
+            MYSQL_TYPE_SHORT => "SMALLINT",
+            MYSQL_TYPE_INT24 => "MEDIUMINT",
+            MYSQL_TYPE_LONG => "INT",
+            MYSQL_TYPE_LONGLONG => "BIGINT",
+            MYSQL_TYPE_FLOAT => "FLOAT",
+            MYSQL_TYPE_DOUBLE => "DOUBLE",
+            MYSQL_TYPE_NULL => "NULL",
+            MYSQL_TYPE_TIMESTAMP | MYSQL_TYPE_TIMESTAMP2 => "TIMESTAMP",
+            MYSQL_TYPE_DATE | MYSQL_TYPE_NEWDATE => "DATE",
+            MYSQL_TYPE_TIME | MYSQL_TYPE_TIME2 => "TIME",
+            MYSQL_TYPE_DATETIME | MYSQL_TYPE_DATETIME2 => "DATETIME",
+            MYSQL_TYPE_YEAR => "YEAR",
+            MYSQL_TYPE_BIT => "BIT",
+            MYSQL_TYPE_JSON => "JSON",
+            MYSQL_TYPE_ENUM => "ENUM",
+            MYSQL_TYPE_SET => "SET",
+            MYSQL_TYPE_GEOMETRY => "GEOMETRY",
+            MYSQL_TYPE_VARCHAR | MYSQL_TYPE_VAR_STRING if binary => "VARBINARY",
+            MYSQL_TYPE_VARCHAR | MYSQL_TYPE_VAR_STRING => "VARCHAR",
+            MYSQL_TYPE_STRING if binary => "BINARY",
+            MYSQL_TYPE_STRING => "CHAR",
+            MYSQL_TYPE_TINY_BLOB if binary => "TINYBLOB",
+            MYSQL_TYPE_TINY_BLOB => "TINYTEXT",
+            MYSQL_TYPE_MEDIUM_BLOB if binary => "MEDIUMBLOB",
+            MYSQL_TYPE_MEDIUM_BLOB => "MEDIUMTEXT",
+            MYSQL_TYPE_LONG_BLOB if binary => "LONGBLOB",
+            MYSQL_TYPE_LONG_BLOB => "LONGTEXT",
+            MYSQL_TYPE_BLOB if binary => "BLOB",
+            MYSQL_TYPE_BLOB => "TEXT",
+            _ => "",
+        }
+    };
+    if numeric && flags.contains(ColumnFlags::UNSIGNED_FLAG) {
+        format!("{name} UNSIGNED")
+    } else {
+        name.to_string()
+    }
+}
+
+/// The result columns' names and types.
+fn names_and_types(columns: &[Column]) -> (Vec<String>, Vec<String>) {
+    columns.iter().map(|c| (c.name_str().into_owned(), type_name(c.column_type(), c.flags(), c.character_set()))).unzip()
+}
 
 /// Every result set of a query read to its end: the last that had columns.
 fn collect<T: Protocol>(result: &mut QueryResult<'_, '_, '_, T>, cell: fn(&MyValue, &Column) -> String) -> Result<Option<Rows>, String> {
@@ -461,7 +523,8 @@ fn collect<T: Protocol>(result: &mut QueryResult<'_, '_, '_, T>, cell: fn(&MyVal
             if raw.iter().all(Vec::is_empty) {
                 raw.clear();
             }
-            last = Some((columns.iter().map(|c| c.name_str().into_owned()).collect(), rows, raw));
+            let (names, types) = names_and_types(&columns);
+            last = Some((names, types, rows, raw));
         }
     }
     Ok(last)
@@ -640,8 +703,8 @@ fn stream_sets<T: Protocol>(result: &mut QueryResult<'_, '_, '_, T>, cell: fn(&M
         if columns.is_empty() {
             continue;
         }
-        let names: Vec<String> = columns.iter().map(|c| c.name_str().into_owned()).collect();
-        let mut chunk = Chunker::new(shared, names, background::slice());
+        let (names, types) = names_and_types(&columns);
+        let mut chunk = Chunker::new(shared, names, types, background::slice());
         for row in set {
             let row = match row {
                 Ok(row) => row,
@@ -837,5 +900,121 @@ mod tests {
         for (x, text) in floats {
             assert_eq!(number_text(x as f64, true), text, "{x:e}");
         }
+    }
+
+    /// A column's type from the metadata every result set carries (a
+    /// read-only connection's too: no table made to learn it).
+    #[test]
+    fn column_types_from_the_metadata() {
+        use ColumnType::*;
+        let none = ColumnFlags::empty();
+        let unsigned = ColumnFlags::UNSIGNED_FLAG;
+        let utf8 = 255;
+        let cases = [
+            (MYSQL_TYPE_LONG, none, 63, "INT"),
+            (MYSQL_TYPE_LONG, unsigned, 63, "INT UNSIGNED"),
+            (MYSQL_TYPE_LONGLONG, unsigned, 63, "BIGINT UNSIGNED"),
+            (MYSQL_TYPE_TINY, none, 63, "TINYINT"),
+            (MYSQL_TYPE_NEWDECIMAL, none, 63, "DECIMAL"),
+            (MYSQL_TYPE_DOUBLE, none, 63, "DOUBLE"),
+            (MYSQL_TYPE_VAR_STRING, none, utf8, "VARCHAR"),
+            (MYSQL_TYPE_VAR_STRING, none, 63, "VARBINARY"),
+            (MYSQL_TYPE_STRING, none, utf8, "CHAR"),
+            (MYSQL_TYPE_STRING, ColumnFlags::ENUM_FLAG, utf8, "ENUM"),
+            (MYSQL_TYPE_STRING, ColumnFlags::SET_FLAG, utf8, "SET"),
+            (MYSQL_TYPE_BLOB, none, utf8, "TEXT"),
+            (MYSQL_TYPE_BLOB, none, 63, "BLOB"),
+            (MYSQL_TYPE_LONG_BLOB, none, utf8, "LONGTEXT"),
+            (MYSQL_TYPE_DATETIME, none, 63, "DATETIME"),
+            (MYSQL_TYPE_DATE, none, 63, "DATE"),
+            (MYSQL_TYPE_TIMESTAMP, none, 63, "TIMESTAMP"),
+            (MYSQL_TYPE_JSON, none, 63, "JSON"),
+            (MYSQL_TYPE_NULL, none, 63, "NULL"),
+        ];
+        for (t, flags, charset, name) in cases {
+            assert_eq!(type_name(t, flags, charset), name, "{t:?}");
+        }
+    }
+
+    /// A host that records what the component did (the live tests').
+    #[derive(Default)]
+    struct Log(std::cell::RefCell<Vec<String>>);
+    impl Host for Log {
+        fn set(&self, _: &str, _: &str, _: Value) {}
+        fn get(&self, _: &str, prop: &str) -> Value {
+            v_str(if prop == "port" { "0" } else { "" })
+        }
+        fn fire(&self, _: &str, event: &str, args: &[Value]) {
+            let args: Vec<String> = args.iter().map(|a| a.to_string_val()).collect();
+            self.0.borrow_mut().push(format!("{event}({})", args.join(",")));
+        }
+        fn report(&self, _: &str) {}
+    }
+
+    /// The tests' own MySQL server, when there is one: RAPIDR_TEST_MYSQL =
+    /// `host:port/database/user` (no password; a server on this computer
+    /// only). The tests make nothing that lasts: a TEMPORARY table, gone
+    /// when the connection closes.
+    fn test_server() -> Option<(String, i64, String, String)> {
+        let spec = std::env::var("RAPIDR_TEST_MYSQL").ok()?;
+        let (hostport, rest) = spec.split_once('/')?;
+        let (db, user) = rest.split_once('/')?;
+        let (host, port) = hostport.split_once(':').unwrap_or((hostport, "3306"));
+        assert!(matches!(host, "127.0.0.1" | "localhost" | "::1"), "RAPIDR_TEST_MYSQL: a server on this computer only");
+        Some((host.to_string(), port.parse().ok()?, db.to_string(), user.to_string()))
+    }
+
+    /// Names and types come from the server's metadata, for Query and for
+    /// QueryAsync; a background query streams, Cancel kills it.
+    #[test]
+    fn live_names_types_and_background_queries() {
+        let Some((host, port, db, user)) = test_server() else {
+            eprintln!("(no RAPIDR_TEST_MYSQL: the live MySQL test is skipped)");
+            return;
+        };
+        let h = Log::default();
+        let call = |m: &str, args: &[Value]| method(&h, "My", m, args).to_string_val();
+        call("realconnect", &[v_str(&host), v_str(&user), v_str(""), v_str(&db), v_int(port), v_str(""), v_int(0)]);
+        assert!(connected("my"), "{:?}", h.0.borrow());
+        assert_eq!(call("query", &[v_str("CREATE TEMPORARY TABLE rr_types (id INT UNSIGNED PRIMARY KEY, name VARCHAR(40), price DECIMAL(8,2), made DATETIME, note TEXT, data BLOB, kind ENUM('a','b'))")]), "1");
+        assert_eq!(call("query", &[v_str("INSERT INTO rr_types VALUES (1, 'Ann', 2.50, '2026-10-22 12:00:00', NULL, NULL, 'a')")]), "1");
+        // Query: the names and types of the result's columns
+        call("query", &[v_str("SELECT id, name AS who, price, made, note, data, kind, 1 + 1 AS two FROM rr_types")]);
+        let cols = |what: &str| (0..8).map(|i| call(what, &[v_int(i)])).collect::<Vec<_>>();
+        assert_eq!(cols("colname"), ["id", "who", "price", "made", "note", "data", "kind", "two"]);
+        assert_eq!(cols("coltype"), ["INT UNSIGNED", "VARCHAR", "DECIMAL", "DATETIME", "TEXT", "BLOB", "ENUM", "BIGINT"]);
+        assert_eq!((call("colname", &[v_int(8)]), call("colname", &[v_int(-1)])), (String::new(), String::new()));
+        // QueryAsync: the same names, rows streamed, OnDone
+        call("query", &[v_str("SET SESSION cte_max_recursion_depth = 1000000")]);
+        h.0.borrow_mut().clear();
+        assert_eq!(call("queryasync", &[v_str("WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < ?) SELECT i AS n, CONCAT('row ', i) AS label, t.id AS id, t.id AS id FROM c, rr_types t"), v_int(50000)]), "1");
+        let settle = || {
+            let start = std::time::Instant::now();
+            while background::poll(&h) {
+                assert!(start.elapsed().as_secs() < 30, "a background query never ended");
+                std::thread::sleep(std::time::Duration::from_millis(2));
+            }
+        };
+        settle();
+        let log = h.0.borrow().join("\n");
+        assert!(log.contains("ondone(50000,"), "{log}");
+        assert_eq!(cols("colname")[..4], ["n", "label", "id", "id"]);
+        assert_eq!(cols("coltype")[..4], ["BIGINT", "VARCHAR", "INT UNSIGNED", "INT UNSIGNED"]);
+        call("rowseek", &[v_int(49999)]);
+        call("fetchrow", &[]);
+        assert_eq!((call("row", &[v_int(0)]), call("row", &[v_int(1)])), ("50000".into(), "row 50000".into()));
+        // Cancel: the server stops the statement (KILL QUERY)
+        h.0.borrow_mut().clear();
+        call("queryasync", &[v_str("SELECT SLEEP(20) AS z")]);
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let start = std::time::Instant::now();
+        assert_eq!(call("cancel", &[]), "1");
+        settle();
+        assert!(start.elapsed().as_secs() < 10, "Cancel took {:?}", start.elapsed());
+        assert!(h.0.borrow().iter().any(|e| e == "onerror(cancelled)"), "{:?}", h.0.borrow());
+        // and the connection still answers
+        assert_eq!(call("query", &[v_str("SELECT 41 + 1 AS answer")]), "1");
+        assert_eq!(call("colname", &[v_int(0)]), "answer");
+        call("close", &[]);
     }
 }

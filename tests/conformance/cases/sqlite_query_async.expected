@@ -5,6 +5,7 @@ second: 0
 OnDone: 49990 rows, ms >= 0: -1
 OnRows told, counting up: -1 1 last 49990
 RowCount: 49990 ColCount: 3 busy: 0
+columns: id name score types: INTEGER TEXT REAL
 first row: 11 p11 4.5
 last row: 50000 p50000
 a query again: 50000

@@ -17,7 +17,9 @@
 //!   runtimes never call into the VM: [`poll`] fires them through the
 //!   host, which queues them): `OnRows(Count)` as rows arrive (the rows so
 //!   far), then `OnDone(Rows, Ms)` (the rows and the milliseconds the
-//!   query took) or `OnError(Message)`. `Cancel` stops it: OnError
+//!   query took) or `OnError(Message)`. The columns' names and types —
+//!   the result's own metadata, never guessed — are ColName(i) / ColType(i)
+//!   ([`meta`]). `Cancel` stops it: OnError
 //!   "cancelled" — SQLite's interrupt and a check between rows; MySQL's
 //!   `KILL QUERY` from a second connection.
 //! - **One at a time** per component: QueryAsync, Query and QueryScalar
@@ -60,9 +62,10 @@ pub struct Shared {
 
 #[derive(Default)]
 struct Progress {
-    /// The current statement's columns, new since the program's thread
-    /// last looked (a statement with result columns starts the rows again).
-    columns: Option<Vec<String>>,
+    /// The current statement's columns (names, declared types), new since
+    /// the program's thread last looked (a statement with result columns
+    /// starts the rows again).
+    columns: Option<(Vec<String>, Vec<String>)>,
     /// Chunks of rows not yet taken.
     chunks: Vec<Frame>,
     /// How it ended, and the milliseconds it took.
@@ -88,10 +91,11 @@ impl Shared {
         self.cancel.store(true, Ordering::Relaxed);
     }
 
-    /// A statement's rows start (its columns): rows of one before dropped.
-    pub fn start_rows(&self, columns: Vec<String>) {
+    /// A statement's rows start (its columns' names and declared types):
+    /// rows of one before dropped.
+    pub fn start_rows(&self, columns: Vec<String>, types: Vec<String>) {
         let mut p = self.lock();
-        p.columns = Some(columns);
+        p.columns = Some((columns, types));
         p.chunks.clear();
     }
 
@@ -104,7 +108,7 @@ impl Shared {
     }
 
     /// What came since the last look: new columns, chunks, the end.
-    fn take(&self) -> (Option<Vec<String>>, Vec<Frame>, Option<(End, u64)>) {
+    fn take(&self) -> (Option<(Vec<String>, Vec<String>)>, Vec<Frame>, Option<(End, u64)>) {
         let mut p = self.lock();
         (p.columns.take(), std::mem::take(&mut p.chunks), p.end.take())
     }
@@ -126,10 +130,11 @@ pub struct Chunker<'a> {
 }
 
 impl<'a> Chunker<'a> {
-    /// The statement's columns (the rows start again).
-    pub fn new(shared: &'a Shared, columns: Vec<String>, slice: Duration) -> Chunker<'a> {
+    /// The statement's columns, their names and declared types (the rows
+    /// start again).
+    pub fn new(shared: &'a Shared, columns: Vec<String>, types: Vec<String>, slice: Duration) -> Chunker<'a> {
         let builder = FrameBuilder::new(&columns, FIRST_CHUNK);
-        shared.start_rows(columns);
+        shared.start_rows(columns, types);
         Chunker { shared, builder, target: FIRST_CHUNK, since: Instant::now(), slice }
     }
 
@@ -227,6 +232,15 @@ struct Active {
 
 thread_local! {
     static ACTIVE: RefCell<Vec<Active>> = const { RefCell::new(Vec::new()) };
+    /// Each component's background result's columns, as the database named
+    /// and typed them (the frame's names make a repeated one unique: `id_2`).
+    static META: RefCell<std::collections::HashMap<String, (Vec<String>, Vec<String>)>> = RefCell::new(std::collections::HashMap::new());
+}
+
+/// Component `key`'s background result's columns: their names and
+/// declared types ("" where the database has none).
+pub fn meta(key: &str) -> Option<(Vec<String>, Vec<String>)> {
+    META.with(|m| m.borrow().get(key).cloned())
 }
 
 /// Whether component `key` has a background query running.
@@ -243,6 +257,7 @@ pub fn running() -> bool {
 /// bound to it) are emptied, Busy is 1.
 pub fn begin(host: &dyn Host, name: &str, key: &str, shared: Arc<Shared>, kill: Option<Box<dyn Fn()>>) {
     frame::set_frame(key, Frame::default());
+    META.with(|m| m.borrow_mut().remove(key));
     ACTIVE.with(|a| a.borrow_mut().push(Active { name: name.to_string(), key: key.to_string(), shared, rows: 0, told: 0, kill }));
     host.set(name, "busy", v_int(1));
     host.set(name, "rowcount", v_int(0));
@@ -286,9 +301,10 @@ pub fn poll(host: &dyn Host) -> bool {
         while i < a.len() {
             let q = &mut a[i];
             let (columns, chunks, end) = q.shared.take();
-            if let Some(columns) = columns {
+            if let Some((columns, types)) = columns {
                 let width = columns.len();
                 frame::set_frame(&q.key, Frame::with_columns(&columns));
+                META.with(|m| m.borrow_mut().insert(q.key.clone(), (columns, types)));
                 q.rows = 0;
                 heard.push(Heard::Columns(q.name.clone(), width));
             }

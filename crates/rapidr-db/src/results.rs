@@ -21,6 +21,10 @@ use rapidr_value::datascience::frame;
 #[derive(Debug, Default)]
 pub struct ResultSet {
     pub columns: Vec<String>,
+    /// Each column's declared type, as the database says it (SQLite's
+    /// declared type, "" for an expression; MySQL's column type: INT,
+    /// VARCHAR, DECIMAL …): ColType(i).
+    pub types: Vec<String>,
     pub rows: Vec<Vec<String>>,
     /// The frame that holds the rows instead (a background query's: the
     /// component's key), `columns` and `rows` then empty.
@@ -35,7 +39,13 @@ pub struct ResultSet {
 
 impl ResultSet {
     pub fn new(columns: Vec<String>, rows: Vec<Vec<String>>) -> Self {
-        ResultSet { columns, rows, raw: Vec::new(), frame: None, row: -1, field: 0 }
+        ResultSet { columns, types: Vec::new(), rows, raw: Vec::new(), frame: None, row: -1, field: 0 }
+    }
+
+    /// The same, the columns' declared types given.
+    pub fn typed(mut self, types: Vec<String>) -> Self {
+        self.types = types;
+        self
     }
 
     /// The same, with each cell's bytes (as [`ResultSet::raw`]).
@@ -61,11 +71,19 @@ impl ResultSet {
         self.len() == 0
     }
 
-    /// The columns' names.
+    /// The columns' names, as the database gave them (ColName(i)).
     pub fn column_names(&self) -> Vec<String> {
         match &self.frame {
-            Some(f) => frame::with_frame(f, |f| f.columns.clone()),
+            Some(f) => crate::background::meta(f).map(|(names, _)| names).unwrap_or_else(|| frame::with_frame(f, |f| f.columns.clone())),
             None => self.columns.clone(),
+        }
+    }
+
+    /// The columns' declared types (ColType(i); "" where there is none).
+    pub fn column_types(&self) -> Vec<String> {
+        match &self.frame {
+            Some(f) => crate::background::meta(f).map(|(_, types)| types).unwrap_or_default(),
+            None => self.types.clone(),
         }
     }
 

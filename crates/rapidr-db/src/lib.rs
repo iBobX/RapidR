@@ -96,7 +96,8 @@ fn publish(host: &dyn Host, name: &str, (rows, columns): (usize, usize)) {
 }
 
 /// The methods that walk a result set, the same for every database:
-/// FetchRow, FetchField, FieldSeek, RowSeek, Row(i). `None` for any other.
+/// FetchRow, FetchField, FieldSeek, RowSeek, Row(i), ColName(i), ColType(i).
+/// `None` for any other.
 fn cursor_method(results: Option<&mut ResultSet>, method: &str, args: &[Value]) -> Option<Value> {
     let n = || args.first().map(|v| v.to_i64()).unwrap_or(0);
     Some(match (method, results) {
@@ -111,6 +112,10 @@ fn cursor_method(results: Option<&mut ResultSet>, method: &str, args: &[Value]) 
             v_null()
         }
         ("row", Some(r)) => v_str(&r.cell(n())),
+        // (the last query's columns, from its metadata: from 0)
+        ("colname", Some(r)) => v_str(&usize::try_from(n()).ok().and_then(|i| r.column_names().into_iter().nth(i)).unwrap_or_default()),
+        ("coltype", Some(r)) => v_str(&usize::try_from(n()).ok().and_then(|i| r.column_types().into_iter().nth(i)).unwrap_or_default()),
+        ("colname" | "coltype", None) => v_str(""),
         ("fetchrow" | "fetchfield", None) => v_int(0),
         ("fieldseek" | "rowseek", None) => v_null(),
         ("row", None) => v_str(""),

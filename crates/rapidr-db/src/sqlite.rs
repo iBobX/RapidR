@@ -84,6 +84,8 @@ thread_local! {
 /// A statement's rows.
 struct Table {
     columns: Vec<String>,
+    /// Their declared types ("" for an expression).
+    types: Vec<String>,
     rows: Vec<Vec<String>>,
     origins: Vec<Option<(String, String)>>,
 }
@@ -210,7 +212,7 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
         }
         let table = run(&*db.conn()?, &sql, &values)?;
         Ok::<_, String>(table.map(|t| {
-            db.results = ResultSet::new(t.columns, t.rows);
+            db.results = ResultSet::new(t.columns, t.rows).typed(t.types);
             db.origins = t.origins;
             (db.results.rows.len(), db.results.columns.len())
         }))
@@ -305,6 +307,7 @@ fn step(stmt: &mut Statement, values: &[Value], used: &mut usize) -> Result<Opti
         return Ok(None);
     }
     let columns = stmt.column_names().into_iter().map(String::from).collect();
+    let types = decl_types(stmt);
     let origins = stmt
         .columns_with_metadata()
         .iter()
@@ -315,7 +318,12 @@ fn step(stmt: &mut Statement, values: &[Value], used: &mut usize) -> Result<Opti
     while let Some(row) = found.next().map_err(text)? {
         rows.push((0..n).map(|i| row.get_ref(i).map(cell_text).unwrap_or_default()).collect());
     }
-    Ok(Some(Table { columns, rows, origins }))
+    Ok(Some(Table { columns, types, rows, origins }))
+}
+
+/// A statement's result columns' declared types ("" for an expression).
+fn decl_types(stmt: &Statement) -> Vec<String> {
+    stmt.columns().iter().map(|c| c.decl_type().unwrap_or("").to_string()).collect()
 }
 
 /// A BASIC value as SQLite's: an integer INTEGER, a number REAL, a string
@@ -417,7 +425,8 @@ where
             continue;
         }
         let columns: Vec<String> = stmt.column_names().into_iter().map(String::from).collect();
-        let mut chunk = Chunker::new(shared, columns, background::slice());
+        let types = decl_types(&stmt);
+        let mut chunk = Chunker::new(shared, columns, types, background::slice());
         let mut rows = stmt.raw_query();
         loop {
             let row = match rows.next() {
@@ -792,5 +801,43 @@ mod tests {
         call(&h, "query", &[v_str("SELECT a FROM t WHERE a > 2")]);
         assert_eq!(rows(&h), ["3"]);
         assert_eq!(rapidr_value::datascience::frame::with_frame("db", |f| (f.height(), f.columns.join(","))), (1, "a".to_string()));
+    }
+}
+
+#[cfg(test)]
+mod column_tests {
+    use super::*;
+
+    struct Quiet;
+    impl Host for Quiet {
+        fn set(&self, _: &str, _: &str, _: Value) {}
+        fn fire(&self, _: &str, _: &str, _: &[Value]) {}
+        fn report(&self, _: &str) {}
+    }
+
+    /// ColName(i) and ColType(i): the result's own columns — names as the
+    /// statement gives them (a repeated one too), the declared types (""
+    /// for an expression) — for Query and for QueryAsync.
+    #[test]
+    fn column_names_and_types() {
+        let h = Quiet;
+        let call = |m: &str, args: &[Value]| method(&h, "Cols", m, args).to_string_val();
+        call("connect", &[v_str(":memory:")]);
+        call("query", &[v_str("CREATE TABLE people (id INTEGER PRIMARY KEY, name VARCHAR(40), born DATE, score REAL); INSERT INTO people (name) VALUES ('Ann')")]);
+        let cols = |what: &str| (0..5).map(|i| call(what, &[v_int(i)])).collect::<Vec<_>>();
+        assert_eq!(call("query", &[v_str("SELECT p.id, q.id, p.name AS who, p.born, p.score * 2 FROM people p, people q")]), "1");
+        assert_eq!(cols("colname"), ["id", "id", "who", "born", "p.score * 2"]);
+        assert_eq!(cols("coltype"), ["INTEGER", "INTEGER", "VARCHAR(40)", "DATE", ""]);
+        assert_eq!((call("colname", &[v_int(5)]), call("coltype", &[v_int(-1)])), (String::new(), String::new()));
+        call("queryasync", &[v_str("SELECT name, id AS n, id FROM people")]);
+        let start = std::time::Instant::now();
+        while background::poll(&h) {
+            assert!(start.elapsed().as_secs() < 10);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(cols("colname")[..3], ["name", "n", "id"]);
+        assert_eq!(cols("coltype")[..3], ["VARCHAR(40)", "INTEGER", "INTEGER"]);
+        // (not connected: nothing)
+        assert_eq!(method(&h, "Other", "colname", &[v_int(0)]).to_string_val(), "");
     }
 }
