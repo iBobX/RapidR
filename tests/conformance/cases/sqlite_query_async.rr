@@ -24,12 +24,13 @@ SUB Failed(Message AS STRING)
     Ended = 1
 END SUB
 
+' (the events come while the program waits in DOEVENTS: at most a minute)
 SUB WaitForIt
-    DIM n AS LONG
+    DIM t0 AS DOUBLE
+    t0 = TIMER
     DO
         DOEVENTS
-        n = n + 1
-    LOOP UNTIL Ended OR n > 2000000
+    LOOP UNTIL Ended OR TIMER - t0 > 60
     Ended = 0
 END SUB
 
