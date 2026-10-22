@@ -24,7 +24,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const filters = process.argv.slice(2);
 const norm = (s) => s.replace(/\r\n/g, "\n").split("\n").map((l) => l.trimEnd()).join("\n").trimEnd();
 
-const names = readdirSync(CASES).filter((f) => f.endsWith(".bas")).map((f) => f.slice(0, -4)).sort()
+// (each case's file: name.bas, a RapidQ program, or name.rr, a RapidR one)
+const caseFile = new Map(readdirSync(CASES).filter((f) => f.endsWith(".bas") || f.endsWith(".rr")).map((f) => [f.slice(0, f.lastIndexOf(".")), f]));
+const names = [...caseFile.keys()].sort()
   // (not the ones with stdin or a command line: tests/web_bundle_console.mjs
   // runs a page with a query string, the web's command line)
   .filter((n) => existsSync(join(CASES, n + ".expected")) && !existsSync(join(CASES, n + ".input")) && !existsSync(join(CASES, n + ".args")))
@@ -45,10 +47,11 @@ for (const name of names) {
   // (a case whose file isn't UTF-8 — RapidQ's, Windows-1252 — reaches the
   // page as the desktop preprocesses it: its text decoded so, and the
   // `$OPTION CONSOLE CP437` line it gets; the page is handed text)
-  const bytes = readFileSync(join(CASES, name + ".bas"));
+  const file = caseFile.get(name);
+  const bytes = readFileSync(join(CASES, file));
   let source = bytes.toString("utf8");
   if (source.includes("\uFFFD")) {
-    source = execFileSync(join(ROOT, "rapidr"), ["preprocess", join(CASES, name + ".bas")], { encoding: "utf8" });
+    source = execFileSync(join(ROOT, "rapidr"), ["preprocess", join(CASES, file)], { encoding: "utf8" });
   }
   const marker = /^'\s*xfail:\s*([^—\-\n]*)/i.exec(source.split("\n")[0]);
   const expectedFail = !!marker && /\bweb\b/i.test(marker[1]);
@@ -62,7 +65,8 @@ for (const name of names) {
   // (the closing marker on a line of its own, even after a program whose
   // last PRINT stays on its line; a program that ENDs itself never prints it)
   const tag = `@@${name}@@`;
-  await r.run(`${source}\nPRINT\nPRINT "${tag}E"\n`, { assets, name: "program" });
+  // (a .rr case is compiled as a RapidR program, as Studio names its file)
+  await r.run(`${source}\nPRINT\nPRINT "${tag}E"\n`, { assets, name: file.endsWith(".rr") ? "program.rr" : "program" });
   const ended = () => r.lines.includes(`${tag}E`) || r.ended();
   for (let waited = 0; waited < 20000; waited += 100) {
     if (runtimeError ? hasError() : ended()) break;

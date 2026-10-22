@@ -70,12 +70,19 @@ constants:
 
 ### RAPIDQ.INC's constants
 
-Constants such as `mbYes`, `mtWarning`, `clRed` or `fmOpenRead` come from
-the include file RAPIDQ.INC. The list offers them even before your program
-includes it, and choosing one also adds the line `$INCLUDE "RAPIDQ.INC"`
-at the top of the file (after its first comments). Ctrl+Z takes both back.
+Constants such as `mbYes`, `mtWarning`, `clRed` or `fmOpenRead` are built
+into a RapidR program (`.rr`): the list offers them as they are, and you
+need no include line
+([Constants](language.md#constants-clred-mbyes-vk_escape)).
 
-![Typing mby lists mbYes, MB_YESNO and other RAPIDQ.INC constants; the description says that choosing one adds $INCLUDE "RAPIDQ.INC" at the top of the file](images/studio-editor/completion-include.png)
+![Typing mby in hello_form.rr lists mbYes, MB_YESNO and other constants, each a built-in constant with its number](images/studio-editor/completion-builtin.png)
+
+In a RapidQ program (`.bas`) they come from the include file RAPIDQ.INC, as
+in RapidQ. The list offers them even before your program includes it, and
+choosing one also adds the line `$INCLUDE "RAPIDQ.INC"` at the top of the
+file (after its first comments). Ctrl+Z takes both back.
+
+![Typing mby in hello_form.bas lists mbYes, MB_YESNO and other RAPIDQ.INC constants; the description says that choosing one adds $INCLUDE "RAPIDQ.INC" at the top of the file](images/studio-editor/completion-include.png)
 
 ## Parameter info
 
@@ -136,10 +143,11 @@ you build.
 
 ### The RAPIDQ.INC warning
 
-RapidR, to run old programs the same way, reads a name it
-doesn't know as a new variable that is 0. So if a program uses `mbYes`
-without including RAPIDQ.INC, `mbYes` is 0, and a question like this one
-shows only an OK button:
+In a RapidQ program (`.bas`), RapidR, to run old programs the same way,
+reads a name it doesn't know as a new variable that is 0. So if such a
+program uses `mbYes` without including RAPIDQ.INC, `mbYes` is 0, and a
+question like this one shows only an OK button (a `.rr` program has the
+constants built in: no warning there):
 
 ```basic
 IF MessageDlg("Save changes?", mtWarning, mbYes OR mbNo, 0) = mrYes THEN

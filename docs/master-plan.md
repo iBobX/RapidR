@@ -59,7 +59,7 @@ Each milestone ends with a **Preview release** and a WOW post: a video or GIF, i
 Plans: preview2-fix-queue (memory), ROADMAP.
 | Item | Model, size |
 |---|---|
-| Constants built into `.rr` programs (no `$INCLUDE "RAPIDQ.INC"`); recipes, hints and instructions updated | Opus M |
+| Constants built into `.rr` programs (no `$INCLUDE "RAPIDQ.INC"`); recipes, hints and instructions updated — done (M0-CONST) | Opus M |
 | `OnMessage` accepted on RForm (same as WndProc) | Sonnet S |
 | Playing sound must never ask for the microphone (macOS) | Opus S |
 | RapidR-first leftovers: generated reference headers, Studio hint strings, internal docs, two install screenshots | Sonnet S |

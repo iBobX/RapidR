@@ -241,10 +241,11 @@ needs:
 | font | Font ▸ Name `Arial`, Size `12`, Bold ☑, Color `clBlue` | `Font.Name = "Arial"`, `Font.Size = 12`, `Font.Bold = 1`, `Font.Color = …` |
 | number | Width `120` | `Width = 120` |
 
-The classic named constants — `clYellow`, `taCenter`, `alClient` … — come
-from `RAPIDQ.INC`. In a program that doesn't `$INCLUDE "RAPIDQ.INC"` (or
-define them), a name would read as nothing when it runs, so the designer
-writes the number instead.
+The classic named constants — `clYellow`, `taCenter`, `alClient` … — are
+built into a RapidR program (`.rr`), so the designer writes their names. A
+RapidQ program (`.bas`) gets them from `RAPIDQ.INC`: in one that doesn't
+`$INCLUDE "RAPIDQ.INC"` (or define them), a name would read as nothing when
+it runs, so the designer writes the number instead.
 
 The **Events** page lists the component's events (the form's when nothing
 is selected: OnShow, OnClose, OnResize, OnPaint, OnKeyDown …).

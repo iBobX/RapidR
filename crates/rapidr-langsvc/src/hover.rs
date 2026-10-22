@@ -82,7 +82,14 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
         return lang(st.syntax, st.doc, st.origin);
     }
     if let Some((value, group)) = rapidr_lang::constant(word) {
-        let from = if group.origin == Origin::RapidR { "RapidR's own, always there".to_string() } else { format!("from {}", group.source) };
+        let from = if group.origin == Origin::RapidR {
+            "RapidR's own, always there".to_string()
+        } else if s.rapidr_program() && rapidr_ast::builtin_constants::constant(word).is_some() {
+            // (RAPIDQ.INC's, built into a RapidR program)
+            "built in".to_string()
+        } else {
+            format!("from {}", group.source)
+        };
         return hover(format!("```rapidr\nCONST {word} = {value}\n```\n*{}: {from}*\n\n{}", group.name, group.doc));
     }
     None

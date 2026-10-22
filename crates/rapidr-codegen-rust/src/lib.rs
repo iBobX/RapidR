@@ -46,9 +46,11 @@ pub fn generate_for_target(program: &Program, target: AppTarget) -> String {
 /// (name, file) in order, built into the program with `include_bytes!` and
 /// registered at startup (`rapidr_value::resources`).
 pub fn generate_with_resources(program: &Program, target: AppTarget, resources: &[(String, String)]) -> String {
-    // (RapidQ's library objects RapidR implements, ENVIRON statements:
-    // rapidr_ast::library — the bytecode compiler runs it first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(program));
+    // (a RapidR program's built-in constants first: rapidr_ast::
+    // builtin_constants; RapidQ's library objects RapidR implements,
+    // ENVIRON statements: rapidr_ast::library — the bytecode compiler runs
+    // them first too)
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode

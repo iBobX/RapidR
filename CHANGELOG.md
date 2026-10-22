@@ -190,6 +190,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   reference, the manual's reference pages and the assistant's language card
   now say what the code does.
 
+### Changed
+- **RapidQ's standard constants are built into RapidR programs** (master
+  plan M0, lane M0-CONST): a `.rr` program uses `mbYes`, `clRed`,
+  `crHandPoint`, `alClient`, `VK_ESCAPE` … and the `QBColor` array (an
+  assignable INTEGER array, 0 TO 15) with no `$INCLUDE "RAPIDQ.INC"`, the
+  same numbers the include gives. A name the program declares or stores
+  into itself wins where it does (`DIM mbYes AS INTEGER = 5` prints 5, a
+  SUB's parameter or local is the SUB's); only the constants used are
+  compiled and the debugger lists none of them; `True` stays -1. Resolved
+  once in the front end both backends share (interpreter, native builds and
+  the web alike); the line in a `.rr` stays harmless. RapidQ programs
+  (`.bas`, `.rqw` …) are unchanged: the constants come with the include,
+  without it the names are RapidQ's undeclared 0s and Studio's warning and
+  quick fix stay. In a `.rr` program Studio's completion offers them as
+  built-in constants (no include added), hover says so, the designer writes
+  their names, and RAI's instructions and recipes no longer include
+  RAPIDQ.INC. Conformance cases rr_builtin_constants, rr_shadow_constant and
+  bas_implicit_constant; the manual's [Constants](docs/manual/language.md#constants-clred-mbyes-vk_escape).
+
 ## [2.120.0] — 2026-10-19 (Preview 3: RAI)
 
 ### Added

@@ -215,7 +215,8 @@ Each time the assistant checks its code, Studio adds **friendly hints**
 under the compiler's messages: the exact fix for habits from other languages
 (`!=` is `<>` in BASIC; there is no `BOOLEAN`, use `INTEGER`; one `AS` per
 name; no `[ ]` lists), a name that is never given a value (with the closest
-one the program has), a classic constant used without `$INCLUDE "RAPIDQ.INC"`,
+one the program has), a classic constant used without `$INCLUDE "RAPIDQ.INC"`
+in a `.bas` program (a `.rr` program has them built in),
 a window that is never shown (`Form.ShowModal` missing), and a handler that
 does nothing yet or only says what "a real implementation would" do. Once
 it compiles, Studio also looks at the window as you would: a control cut off

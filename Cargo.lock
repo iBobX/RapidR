@@ -5047,6 +5047,7 @@ version = "2.120.0"
 dependencies = [
  "rapidr-diagnostics",
  "rapidr-lang",
+ "rapidr-preprocessor",
 ]
 
 [[package]]
@@ -5058,6 +5059,7 @@ dependencies = [
  "rapidr-diagnostics",
  "rapidr-lexer",
  "rapidr-parser",
+ "rapidr-preprocessor",
  "rapidr-value",
  "rapidr-vm",
 ]

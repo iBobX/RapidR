@@ -382,8 +382,10 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] Constants, the modern way (decided 2026-10-16 — Robert left it to the lead; after Preview 2):
   - `.bas` programs keep RapidQ's rule: `$INCLUDE "RAPIDQ.INC"` turns its constants on. They stay built in, no RapidQ file is shipped, and nothing changes for old programs.
   - `.rr` programs get every library constant built in, no include needed. Only the constants used are compiled, and a program's own name wins.
+  - [x] `.bas` programs keep RapidQ's rule: `$INCLUDE "RAPIDQ.INC"` turns its constants on. They stay built in, no RapidQ file is shipped, and nothing changes for old programs.
+  - [x] `.rr` programs get RAPIDQ.INC's constants and `QBColor` built in, no include needed, as in VB and Delphi. Only the constants used are compiled, and a program's own name wins (M0-CONST, rapidr_ast::builtin_constants; `True` stays -1). Left: the library includes' constants (`qmidi.inc`'s MD_PLAY …) still come with their include
   - Optional topic names such as `Color.Red` and `MsgBox.YesNo` for autocomplete; the old names keep working.
-  - The debugger never lists library constants as globals.
+  - [x] The debugger never lists library constants as globals (a `.rr` program's built-in ones are no variables; an include's stay grouped under it)
 - [ ] A stack container (RStackPanel: children one under the other or side by side, gap and padding) where a hidden child takes no space — forms that hide rows (Studio's Settings > AI hides Workspace ID / Address per provider) close up by themselves, no hand-placed `y = y + row` code; easy enough for a school kid, live in the designer, in the registry (Robert, 2026-10-16; after Preview 2)
 
 **One UI kernel (principle 7)**
@@ -449,7 +451,7 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [x] Phase 1: RapidR's names (`RButton`) the default in the registry's exports, the manual, the language service (completion, hovers, "RapidQ name: QBUTTON"), the examples (but `examples/rapidq/`), the docs and the template; the compilers always accept both names; the importer and `upgrade-names` (crates/rapidr-import) with the corpus proof; `.rqw` / `.rqb` / `.rq` sources everywhere; a RapidQ-compatible project warns on RapidR's names of RapidQ's components
 - [x] Phase 2 (2026-10-08): RapidR Studio's toolbox (groups by purpose, no "RapidQ" / "RapidR" groups; RapidR's names; the card gives RapidQ's name), inspector header ("RButton (RapidQ name: QBUTTON)"), the designer's announcements, F1 Help and completion under RapidR's names; the designer and completion write new code in each file's style (`rapidr_lang::NameStyle`, never mixed); the templates (but "RapidQ program"), Add Form, Studio's own strings and `ide/` code under RapidR's names (proved: the same bytecode); File ▸ "Import RapidQ Project or File…" on desktop and web; `.rqw` / `.rqb` / `.rq` open, run and are read by the language service in Studio
 - [ ] Phase 2, the rest: "Upgrade this file to RapidR names" (Code menu, the palette, a code action: the diff, then one undoable edit)
-- [ ] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files (today the line stays, as in RapidQ)
+- [x] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files — decided 2026-10-16 (Constants, the modern way), done in M0-CONST: built into `.rr`, `.bas` as in RapidQ
 
 **I0 — Foundations** (L, 12–16 sessions)
 - [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")

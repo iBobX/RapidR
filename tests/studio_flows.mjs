@@ -1046,17 +1046,17 @@ const CASES = [
   },
   // (S-DESIGN-2) Each kind of the inspector's editors writes the code a
   // program needs: a font by its parts (Font.Name quoted, Size, Color,
-  // Bold as 1), an enum, a colour and a Boolean — the RapidQ constants a
-  // program without RAPIDQ.INC doesn't define as their numbers (they'd
-  // read as nothing), a caption with its & — and the inspector reads them
-  // back.
+  // Bold as 1), an enum, a colour and a Boolean — the RapidQ constants by
+  // their names, built into a RapidR program (M0-CONST; a RapidQ program
+  // without RAPIDQ.INC gets their numbers: they'd read as nothing there), a
+  // caption with its & — and the inspector reads them back.
   {
     name: "inspector-kinds",
     open: "examples/gui/hello_form.rr",
     do: "wait,view.designer,pick:Answer,prop:Font.Bold=True,prop:Font.Size=12,prop:Font.Color=clBlue,prop:Font.Name=Arial,prop:Alignment=taCenter,prop:Color=clYellow,prop:Caption=Say hi && bye,prop:WordWrap=True,wait",
     delay: 6,
     dump: {
-      "codedoc(0).text": /    CREATE Answer AS RLabel\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = &HFF0000\n        Font\.Name = "Arial"\n        Alignment = 2\n        Color = &H00FFFF\n        WordWrap = 1\n    END CREATE/,
+      "codedoc(0).text": /    CREATE Answer AS RLabel\n        Caption = "Say hi && bye"\n        Left = 16: Top = 96: Width = 300\n        Font\.Bold = 1\n        Font\.Size = 12\n        Font\.Color = clBlue\n        Font\.Name = "Arial"\n        Alignment = taCenter\n        Color = clYellow\n        WordWrap = 1\n    END CREATE/,
       "inspector.rows": /^Alignment=taCenter$[\s\S]*^Caption=Say hi && bye$[\s\S]*^Color=(clYellow|&H00FFFF)$[\s\S]*^WordWrap=True$[\s\S]*^Font=Arial, 12 pt, Bold$/m,
     },
   },
@@ -1789,11 +1789,12 @@ const CASES = [
     dump: { "codedoc(0).caretline": /^42$/, "dock.layout": /^view codedoc\(0\) 1 \d+$/m },
   },
   {
-    // (Robert's mbYes = 0) a RAPIDQ.INC constant without the include: a
-    // warning in the code and in Problems; Ctrl+. adds the include after
-    // the file's header comments
+    // (Robert's mbYes = 0) in a RapidQ program (.bas: hello_form as one), a
+    // RAPIDQ.INC constant without the include: a warning in the code and in
+    // Problems; Ctrl+. adds the include after the file's header comments
     name: "editor-needs-include",
-    open: "examples/gui/hello_form.rr",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,key:Left,key:Ctrl+.,wait,key:Enter,wait",
     delay: 8,
     dump: { "codedoc(0).text": /\n\n\$INCLUDE "RAPIDQ\.INC"\nDECLARE SUB Greet\n[\s\S]*\nx = mbYes\n?$/ },
@@ -1801,7 +1802,8 @@ const CASES = [
   {
     // …the warning listed in Problems while it is there
     name: "editor-needs-include-problems",
-    open: "examples/gui/hello_form.rr",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes,key:Escape,wait,wait,wait,wait",
     delay: 8,
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
@@ -1809,10 +1811,29 @@ const CASES = [
   {
     // completing a RAPIDQ.INC constant brings its include along (one step)
     name: "editor-complete-with-include",
-    open: "examples/gui/hello_form.rr",
+    open: "tests/fixtures/hello_form.bas",
+    webFiles: ["tests/fixtures/hello_form.bas"],
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbye,wait,key:Tab",
     delay: 6,
     dump: { "codedoc(0).text": /\n\n\$INCLUDE "RAPIDQ\.INC"\nDECLARE SUB Greet\n[\s\S]*\nx = mbYes\n?$/ },
+  },
+  {
+    // (M0-CONST) a RapidR program (.rr) has RAPIDQ.INC's constants built
+    // in: mbYes, mtInformation, mbOK, clRed typed with no include are no
+    // problem — nothing in the code, nothing in Problems
+    name: "editor-builtin-constants",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbYes + mtInformation + mbOK + clRed,key:Escape,wait,wait,wait,wait",
+    delay: 8,
+    dump: { "codedoc(0).text": /\nx = mbYes \+ mtInformation \+ mbOK \+ clRed\n?$/, "codedoc(0).diagnosticcount": /^0$/, "outputbox.problemcount": /^0$/ },
+  },
+  {
+    // …and completing one adds no include (one step: the name)
+    name: "editor-complete-builtin",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:x = mbye,wait,key:Tab",
+    delay: 6,
+    dump: { "codedoc(0).text": /^' hello_form\.rr(?![\s\S]*RAPIDQ\.INC)[\s\S]*\nx = mbYes\n?$/ },
   },
   {
     // (S-DESIGN ↔ S-EDITOR) the designer's two additions came to the code as

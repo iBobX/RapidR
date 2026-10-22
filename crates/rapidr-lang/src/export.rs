@@ -458,7 +458,7 @@ fn statements_page() -> String {
 
 fn constants_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Constants\n\nRapidR's own, and the ones programs written for RapidQ use, built in: RAPIDQ.INC (`$INCLUDE \"RAPIDQ.INC\"` needs no file) and its library includes'. Colours are `&HBBGGRR`, as RapidQ stores them.\n\n");
+    out.push_str("# Constants\n\nRapidR's own, and the ones programs written for RapidQ use. A RapidR program (`.rr`) has RAPIDQ.INC's constants and its `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a RapidQ program (`.bas`) gets them with `$INCLUDE \"RAPIDQ.INC\"`, which needs no file. Colours are `&HBBGGRR`, as RapidQ stores them.\n\n");
     for g in CONSTANT_GROUPS {
         let _ = write!(out, "## {}\n\n{}{}\n\n", g.name, md(g.doc), if g.source == "RAPIDQ.INC" { String::new() } else { format!(" (`{}`)", g.source) });
         let items = g.constants.iter().map(|(n, v)| format!("`{n}` = {v}")).collect::<Vec<_>>().join(", ");

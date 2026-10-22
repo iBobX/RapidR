@@ -683,7 +683,9 @@ async function runWeb(c) {
         window.__rapidr_assets = assets;
         window.RAPIDR_TEST_MIDI = ""; window.RAPIDR_TEST_WAVE_IN = "tone:440";
         if (env.RAPIDR_TEST_COMPORT) window.RAPIDR_TEST_COMPORT = env.RAPIDR_TEST_COMPORT;
-        const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, "example", assets);
+        // (named as its file: a .rr is a RapidR program — RAPIDQ.INC's
+        // constants built in —, a .bas a RapidQ one, as on the desktop)
+        const bc = files ? window.rr.compile_files(main, files, assets) : window.rr.compile(source, main, assets);
         if (gui) window.rr.rapidr_set_test_env(env);
         window.rr.rapidr_run_bc(bc);
       }, { source: readFileSync(join(EXAMPLES, c.file), "utf8"), assets, env, gui: isGui(c), main: basename(c.file), files: c.includes ? sourcesUnder(dir) : null });

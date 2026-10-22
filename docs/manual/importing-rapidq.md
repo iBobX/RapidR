@@ -24,7 +24,9 @@ never changed.
   name it changed (file, line, column), every include file and where it
   was found, and anything it left alone, and why.
 - `$INCLUDE "RAPIDQ.INC"` stays: RapidR supplies RapidQ's constants (`clRed`,
-  `MB_OK` …) through that line, without the file.
+  `MB_OK` …) through that line, without the file. (The copy keeps its
+  `.bas` name: a RapidQ program, whose constants come with the line; a
+  `.rr` program has them built in.)
 
 Before and after, for a small program:
 

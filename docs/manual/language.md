@@ -74,22 +74,39 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
 Constants are names for fixed numbers, such as colours, message box buttons and
 key codes. The full list is in [the constants reference](reference/constants.md).
 
-**Today:** the classic constants come with one line at the top of
-the program:
+**In a RapidR program (`.rr`)** they are built in. Just use them, no
+include line:
+
+```basic
+Form.Color = clRed
+IF MESSAGEDLG("Save?", mtConfirmation, mbYes OR mbNo, 0) = mrYes THEN SaveIt
+PRINT QBColor(12)          ' QBasic's 16 colours, QBColor(0) … QBColor(15)
+```
+
+A name of your own wins: `DIM mbYes AS INTEGER = 5`, `CONST clRed = &HFF`,
+a variable you store into or a SUB's parameter is yours where you declare
+it, and the built-in constant is still there everywhere else. Only the
+constants your program uses are compiled, and the debugger doesn't list them
+as variables. `True` stays -1, as a comparison gives it (a check box's
+`Checked` is 1: test `IF CheckBox1.Checked THEN`, not `= True`).
+
+**In a RapidQ program (`.bas`)** nothing changes: the constants come with
+one line at the top, as in RapidQ:
 
 ```basic
 $INCLUDE "RAPIDQ.INC"
-
-Form.Color = clRed
-IF MESSAGEDLG("Save?", mtConfirmation, mbYes OR mbNo, 0) = mrYes THEN SaveIt
 ```
 
-RapidR has these constants built in, so the line needs no file: RapidR ships
-no copy of that include file. Without the line, `clRed` is an undeclared name
-and reads as 0. Old programs behave the same.
+RapidR has that include built in, so the line needs no file: RapidR ships no
+copy of it. Without the line, `clRed` is an undeclared name and reads as 0,
+as in RapidQ, and the code editor warns you
+([the RAPIDQ.INC warning](studio-editor.md#the-rapidqinc-warning)). Old
+programs behave the same. The line in a `.rr` program is harmless: the
+constants are then the include's.
 
 RapidR's own constants, such as `akLeft` … `akBottom` for anchors, need no
-include. A variable or `CONST` of your own with the same name always wins.
+include in any program. A variable or `CONST` of your own with the same name
+always wins.
 
 Your own constants:
 

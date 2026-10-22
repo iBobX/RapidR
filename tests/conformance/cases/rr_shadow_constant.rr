@@ -1,0 +1,18 @@
+' A RapidR program's own names win over its built-in constants (the
+' lowest priority): a DIM, a CONST, a variable it stores into, a SUB's
+' parameter or local — each in its own place, with no "already used"
+' error — and the built-in number everywhere else.
+DIM mbYes AS INTEGER = 5
+CONST clRed = 7
+PRINT mbYes; " "; clRed
+mrOk = 42
+PRINT mrOk
+SUB Paint(clBlue AS INTEGER)
+  DIM crArrow AS INTEGER
+  crArrow = 9
+  PRINT clBlue; " "; crArrow; " "; clGreen; " "; mbYes
+END SUB
+Paint 3
+PRINT clBlue; " "; crArrow
+DIM QBColor(2) AS INTEGER
+PRINT UBOUND(QBColor); " "; QBColor(1)

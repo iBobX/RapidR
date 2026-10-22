@@ -91,9 +91,11 @@ fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder
 }
 
 fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, Vec<Diagnostic>>, Option<semantic::Recorder>) {
-    // (RapidQ's library objects RapidR implements, ENVIRON statements:
-    // rapidr_ast::library — native builds run it first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(program));
+    // (a RapidR program's built-in constants first: rapidr_ast::
+    // builtin_constants; RapidQ's library objects RapidR implements,
+    // ENVIRON statements: rapidr_ast::library — native builds run them
+    // first too)
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // (the system tray: Shell_NotifyIcon and a form's WndProc —
@@ -3129,6 +3131,43 @@ mod tests {
         let compiled = compile_program_with_source(&parse(src), Some(src)).expect("compiles");
         let consts: Vec<String> = compiled.module.consts.iter().filter_map(|c| match c { Const::Str(s) => Some(s.clone()), _ => None }).collect();
         assert!(consts.iter().any(|s| s.starts_with(rapidr_value::dll::CALLBACK_MARKER) && s.to_ascii_lowercase().ends_with("enumproc")), "{consts:?}");
+    }
+
+    /// A RapidR program's built-in constants and QBColor (the preprocessor's
+    /// mark, no include) print what `$INCLUDE "RAPIDQ.INC"` gives — every
+    /// one of them, the array's bounds and a store truncated as an
+    /// INTEGER's — and a RapidQ program without the include reads them as
+    /// undeclared variables (empty), as before.
+    #[test]
+    fn built_in_constants_are_the_includes() {
+        let names: Vec<&str> = rapidr_ast::builtin_constants::constants().map(|(n, _)| n).collect();
+        let mut body = String::new();
+        for n in &names {
+            body.push_str(&format!("PRINT {n}\n"));
+        }
+        body.push_str("FOR i = 0 TO 15: PRINT QBColor(i): NEXT i\nPRINT LBOUND(QBColor); UBOUND(QBColor)\nQBColor(3) = 300000.6: PRINT QBColor(3)\n");
+        let mark = rapidr_preprocessor::RAPIDR_PROGRAM;
+        let built_in = run(&format!("{body}{mark}\n")).output;
+        let included = run(&format!("{}\n{body}", rapidr_preprocessor::rapidq_inc_text())).output;
+        assert_eq!(built_in, included);
+        assert_eq!(built_in.lines().count(), names.len() + 18);
+        // (the RapidQ program without the include: undeclared names, 0)
+        assert_eq!(run("PRINT mbYes; clRed\n").output, "00\n");
+        // (True stays RapidR's -1 in a RapidR program; RAPIDQ.INC's is 1)
+        assert_eq!(run(&format!("PRINT True\n{mark}\n")).output, "-1\n");
+        assert_eq!(run(&format!("{}\nPRINT True\n", rapidr_preprocessor::rapidq_inc_text())).output, "1\n");
+    }
+
+    /// The preprocessor's mark of a RapidR program (a line after the
+    /// file's last) and the QBColor array it gets are on no line after the
+    /// program's code: a breakpoint after the last line never moves there.
+    #[test]
+    fn built_in_constants_add_no_line_after_the_programs() {
+        let src = format!("' a comment\nPRINT QBColor(1)\nPRINT mbYes\n{}\n", rapidr_preprocessor::RAPIDR_PROGRAM);
+        let compiled = compile_program_with_source(&parse(&src), Some(&src)).expect("compiles");
+        let main = &compiled.module.functions[compiled.module.entry as usize];
+        let lines: Vec<u32> = main.line_info.iter().map(|(_, line)| *line).collect();
+        assert!(!lines.is_empty() && lines.iter().all(|l| (2..=3).contains(l)), "{lines:?}");
     }
 
     #[test]

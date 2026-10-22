@@ -6,7 +6,6 @@
 '
 '   rapidr run drawing_pad.rr
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
 
 CONST MAXLINES = 5000
 

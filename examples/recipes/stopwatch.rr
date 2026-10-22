@@ -5,7 +5,6 @@
 '
 '   rapidr run stopwatch.rr
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"        ' the constants: alTop, alClient …
 
 DECLARE SUB StartStop
 DECLARE SUB ResetClick

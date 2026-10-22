@@ -22,7 +22,9 @@ fn includes_are_read_through_the_hosts_reader() {
     assert!(!source_exists(Path::new("examples/multi/Form3.rr")));
     let main = read_source(Path::new("examples/multi/main.rr")).unwrap();
     let out = preprocess_source(&main, "examples/multi", Some("examples/multi/main.rr".into()), PreprocessOptions::default()).unwrap();
-    assert!(out.source.starts_with("CREATE Form2 AS RForm\nEND CREATE\n") && out.source.ends_with("Form2.Show\n"), "{:?}", out.source);
+    // (a .rr program: RapidR's mark after its last line)
+    let body = out.source.strip_suffix(rapidr_preprocessor::RAPIDR_PROGRAM).unwrap_or(&out.source);
+    assert!(out.source.starts_with("CREATE Form2 AS RForm\nEND CREATE\n") && body.ends_with("Form2.Show\n\n"), "{:?}", out.source);
     // a file the page doesn't have is missing, as on a disk
     let missing = preprocess_source("$INCLUDE \"Form3.rr\"\n", "examples/multi", Some("examples/multi/main.rr".into()), PreprocessOptions::default());
     assert!(missing.is_err());

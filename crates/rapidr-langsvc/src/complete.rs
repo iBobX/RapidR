@@ -127,8 +127,9 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     sort: "4".into(),
                 });
             }
-            // (RapidR's own constants, always there; RapidQ's come with
-            // the program's $INCLUDE "RAPIDQ.INC": its own names)
+            // (RapidR's own constants, always there; RAPIDQ.INC's are
+            // built into a RapidR program, and come with a RapidQ
+            // program's $INCLUDE "RAPIDQ.INC": its own names)
             for g in rapidr_lang::CONSTANT_GROUPS.iter().filter(|g| g.origin == Origin::RapidR) {
                 for (name, value) in g.constants {
                     let label = pretty_constant(name);
@@ -225,12 +226,36 @@ fn types(s: &Snapshot, out: &mut Out, q_style: bool, other_typed: bool) {
     }
 }
 
-/// RAPIDQ.INC's constants (`mbYes`, `clRed` …) for a program that doesn't
-/// include it yet: choosing one adds `$INCLUDE "RAPIDQ.INC"` at the file's
-/// top too (without it, RapidQ reads the name as a variable that is 0).
+/// RAPIDQ.INC's constants (`mbYes`, `clRed` …): built into a RapidR program
+/// (`.rr`), offered as they are (but the names the program has itself);
+/// for a RapidQ program that doesn't include it yet, choosing one adds
+/// `$INCLUDE "RAPIDQ.INC"` at the file's top too (without it, RapidQ reads
+/// the name as a variable that is 0).
 fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
-    let have: HashSet<String> = s.model.symbols.iter().filter(|x| x.kind == SymbolKind::Constant).map(|x| name_key(&x.name)).collect();
     let groups = || rapidr_lang::CONSTANT_GROUPS.iter().filter(|g| g.origin == Origin::RapidQ && g.source.eq_ignore_ascii_case(crate::hints::RAPIDQ_INC));
+    if s.rapidr_program() {
+        let own: HashSet<String> = s.model.symbols.iter().map(|x| name_key(&x.name)).collect();
+        for g in groups() {
+            for (name, value) in g.constants {
+                // (True / False stay RapidR's own: rapidr_ast::builtin_constants)
+                if own.contains(&name.to_ascii_lowercase()) || rapidr_ast::builtin_constants::constant(name).is_none() {
+                    continue;
+                }
+                out.push(Completion {
+                    label: name.to_string(),
+                    kind: CompletionKind::Constant,
+                    detail: Some(format!("built-in constant = {value}")),
+                    doc: Some(g.doc.to_string()),
+                    insert: None,
+                    snippet: false,
+                    edits: Vec::new(),
+                    sort: "3".into(),
+                });
+            }
+        }
+        return;
+    }
+    let have: HashSet<String> = s.model.symbols.iter().filter(|x| x.kind == SymbolKind::Constant).map(|x| name_key(&x.name)).collect();
     if groups().flat_map(|g| g.constants.iter()).any(|(n, _)| have.contains(&n.to_ascii_lowercase())) {
         return;
     }
@@ -367,9 +392,10 @@ fn names(s: &Snapshot, pre: usize, out: &mut Out) {
     let in_routine = !matches!(s.model.scopes[scope].kind, ScopeKind::Program);
     for id in s.model.visible(scope) {
         let sym = &s.model.symbols[id];
-        // (RAPIDQ.INC's `mbYes` used without the include: offered as the
-        // constant, with the include — rapidq_inc_constants)
-        if sym.implicit && rapidr_lang::constant(rapidr_ast::strip_type_suffix(&sym.name)).is_some_and(|(_, g)| g.origin == Origin::RapidQ) {
+        // (RAPIDQ.INC's `mbYes` used without the include in a RapidQ
+        // program: offered as the constant, with the include —
+        // rapidq_inc_constants)
+        if sym.implicit && !s.rapidr_program() && rapidr_lang::constant(rapidr_ast::strip_type_suffix(&sym.name)).is_some_and(|(_, g)| g.origin == Origin::RapidQ) {
             continue;
         }
         let (kind, sort) = match sym.kind {

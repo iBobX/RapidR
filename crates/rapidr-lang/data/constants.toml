@@ -1,4 +1,5 @@
-# The constants: RapidQ's RAPIDQ.INC (what `$INCLUDE "RAPIDQ.INC"` gives, built in), its
+# The constants: RapidQ's RAPIDQ.INC (what `$INCLUDE "RAPIDQ.INC"` gives, built in; a
+# RapidR program, .rr, has them without the include — rapidr_ast::builtin_constants), its
 # library includes' and RapidR's own. Values as RapidQ's (colours are BGR).
 # RAPIDQ.INC's numbers are in RapidR's own order: grouped by where each is
 # publicly defined, as crates/rapidr-preprocessor's RAPIDQ_INC_CONSTANTS
@@ -198,7 +199,7 @@ constants = [
 [[group]]
 name = "Colours"
 source = "RAPIDQ.INC"
-doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red)."
+doc = "Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC (and every .rr program, built in) also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red)."
 constants = [
   ["clAqua", 16776960],
   ["clBlack", 0],
@@ -1098,7 +1099,7 @@ constants = [
 [[group]]
 name = "Truth values"
 source = "RAPIDQ.INC"
-doc = "The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1)."
+doc = "The value of true as RAPIDQ.INC defines it: 1 (a comparison itself gives -1). Only with the include: a .rr program's own True is -1, as a comparison's."
 constants = [
   ["True", 1],
 ]

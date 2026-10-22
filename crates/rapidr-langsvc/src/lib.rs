@@ -277,6 +277,13 @@ impl Snapshot {
         Snapshot { parsed: Arc::new(parsed), model: Arc::new(model), edits: Vec::new() }
     }
 
+    /// Whether the program is a RapidR program (its main file a `.rr`):
+    /// RAPIDQ.INC's constants are built into it, no `$INCLUDE` needed
+    /// (rapidr_ast::builtin_constants).
+    pub fn rapidr_program(&self) -> bool {
+        rapidr_preprocessor::is_rapidr_program_path(&self.parsed.root)
+    }
+
     /// The preprocessed offset of byte `offset` of `file`.
     pub fn pre_offset(&self, file: &Path, offset: usize) -> Option<usize> {
         let offset = self.edits.iter().rev().filter(|e| e.file == file).fold(offset, |o, e| e.to_old(o));
