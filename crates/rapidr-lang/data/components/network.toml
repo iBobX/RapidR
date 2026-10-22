@@ -222,8 +222,8 @@ doc = "Downloads a file over HTTP(S) into a variable or a file, with progress (Q
 properties = [
   { name = "Server", type = "string" },
   { name = "Port", type = "int", default = 80 },
-  { name = "File", type = "string" },
-  { name = "Outfile", type = "string" },
+  { name = "File", type = "string", kind = "file:any" },
+  { name = "Outfile", type = "string", kind = "file:any" },
   { name = "Outvar", type = "string", access = "read", design = false },
   { name = "Outdevice", type = "int", default = 1 },
   { name = "Statedevice", type = "int", default = 1 },

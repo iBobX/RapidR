@@ -25,7 +25,7 @@ properties = [
 ]
 methods = [
   { name = "Close", value = true },
-  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true, arg_kinds = { FileName = "file:sound" } },
   { name = "Play" },
   { name = "Stop" },
   { name = "Pause" },
@@ -62,13 +62,13 @@ properties = [
 ]
 methods = [
   { name = "Close", value = true },
-  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true, arg_kinds = { FileName = "file:sound" } },
   { name = "Play" },
   { name = "Stop" },
   { name = "Pause" },
   { name = "New" },
   { name = "Record" },
-  { name = "Save", params = "FileName AS STRING", returns = "VARIANT" },
+  { name = "Save", params = "FileName AS STRING", returns = "VARIANT", arg_kinds = { FileName = "file:sound" } },
   { name = "Delete", params = "Pos1 AS LONG, Pos2 AS LONG" },
 ]
 events = [
@@ -113,7 +113,7 @@ properties = [
 ]
 methods = [
   { name = "Close", value = true },
-  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true },
+  { name = "Open", params = "FileName AS STRING", returns = "VARIANT", value = true, arg_kinds = { FileName = "file:any" } },
   { name = "Show", value = true },
   { name = "Play" },
   { name = "Stop" },

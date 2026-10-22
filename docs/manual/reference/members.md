@@ -1469,8 +1469,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `CopyToClipboard` | Copies the selected text to the clipboard. |
 | `CutToClipboard` | Moves the selected text to the clipboard. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `LoadFromFile` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
-| `SaveToFile` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
+| `LoadFromFile(FileName AS STRING)` | Loads a file: its line breaks and encoding are remembered, its language taken from its name unless Language was set. |
+| `SaveToFile([FileName AS STRING])` | Saves the text (to its FileName when none is given) with the file's own line breaks and encoding; clears Modified. |
 | `AddStrings` | Appends the strings given, each as a new line. |
 | `GotoSub` | Moves the caret to the SUB or FUNCTION of the name given. |
 | `GotoLine` | Moves the caret to the line given and scrolls it into view. |
@@ -1862,11 +1862,11 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
-| `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
+| `SaveToFile(FileName AS STRING)` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
 | `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
-| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
+| `Load(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
 | `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
 
 | Event | |

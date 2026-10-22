@@ -200,7 +200,7 @@ methods = [
   { name = "WriteLine", params = "Text AS STRING", doc = "Write, then a new line." },
   { name = "Clear", params = "[Page AS STRING]", value = true, doc = "Empties a page (the shown one when Page is left out)." },
   { name = "AddBuildLine", params = "Text AS STRING", doc = "Adds a line to the Build page." },
-  { name = "AddProblem", params = "File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING", doc = "Adds a problem (Severity \"error\", \"warning\" or \"info\") to the Problems page." },
+  { name = "AddProblem", params = "File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING", doc = "Adds a problem (Severity \"error\", \"warning\" or \"info\") to the Problems page.", arg_kinds = { File = "file:any" } },
   { name = "ClearProblems", value = true, doc = "Empties the Problems page." },
   { name = "Line", params = "Index AS INTEGER", returns = "STRING", doc = "The shown page's line Index (from 0), without colours." },
   { name = "Find", params = "Text AS STRING", value = true, returns = "INTEGER", doc = "Searches the shown page (as the search box does): how many matches; the first is shown." },
@@ -266,7 +266,7 @@ doc = "A Markdown text shown formatted, as a reader sees it: headings, paragraph
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Text", type = "string", default = "", editor = "multiline", doc = "The Markdown text shown (CommonMark, with GitHub's tables and ~~strikethrough~~)." },
-  { name = "FileName", type = "string", access = "read", design = false, doc = "The file LoadFromFile read (\"\" when Text was set)." },
+  { name = "FileName", type = "string", access = "read", design = false, doc = "The file LoadFromFile read (\"\" when Text was set).", kind = "file:any" },
   { name = "OpenLinks", type = "bool", default = true, doc = "A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way." },
   { name = "EmptyText", type = "string", default = "", doc = "What it says while it has no text." },
   { name = "FollowEnd", type = "bool", default = false, doc = "True: a view scrolled to its end stays at the end as Text grows (a chat, a log), while one the user scrolled up stays where they put it. False: the scroll stays where it is." },
@@ -285,7 +285,7 @@ properties = [
   { name = "Font", type = "font", doc = "The text's font (the headings are larger, code is monospaced); RapidR's own when the program sets none." },
 ]
 methods = [
-  { name = "LoadFromFile", params = "FileName AS STRING", returns = "INTEGER", doc = "Shows a Markdown file: True when it was read. Relative links in it are relative to its folder." },
+  { name = "LoadFromFile", params = "FileName AS STRING", returns = "INTEGER", doc = "Shows a Markdown file: True when it was read. Relative links in it are relative to its folder.", arg_kinds = { FileName = "file:any" } },
   { name = "Clear", value = true, doc = "Shows nothing." },
   { name = "SelectAll", value = true, doc = "Selects the whole text." },
   { name = "OpenLink", params = "Url AS STRING", returns = "INTEGER", test = "skip: opens the browser", doc = "Opens a web link (http, https, mailto) in the browser, as a click on one in the text does: for a link label beside the view. True when it was a web link." },

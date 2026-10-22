@@ -334,6 +334,7 @@ doc = "e raised to the power of a number; the inverse of `LOG`."
 [[builtin]]
 name = "EXTRACTRESOURCE"
 syntax = "EXTRACTRESOURCE ResourceNumber%, FileName$"
+arg_kinds = { FileName = "file:any" }
 group = "Files and folders"
 doc = "Writes a resource built into the program (`$RESOURCE`, its handle from `RESOURCE(n)`) to a file."
 
@@ -348,12 +349,14 @@ expect = "b"
 [[builtin]]
 name = "FILEEXISTS"
 syntax = "FILEEXISTS(FileName$)"
+arg_kinds = { FileName = "file:any" }
 group = "Files and folders"
 doc = "True (1) when a file of that name exists, else 0 (a folder doesn't count)."
 
 [[builtin]]
 name = "FILELEN"
 syntax = "FILELEN(FileName$)"
+arg_kinds = { FileName = "file:any" }
 group = "Files and folders"
 origin = "rapidr"
 doc = "The size of a file in bytes, 0 when it doesn't exist."
@@ -507,6 +510,7 @@ doc = "True (-1) when the value is a number or a text that is exactly a number (
 [[builtin]]
 name = "KILL"
 syntax = "KILL Filename$"
+arg_kinds = { Filename = "file:any" }
 params = "Filename AS STRING"
 group = "Files and folders"
 doc = "Deletes a file."
@@ -608,12 +612,14 @@ doc = "Sets `count` bytes from an address to one byte value."
 [[builtin]]
 name = "MESSAGEBOX"
 syntax = "MESSAGEBOX(Msg$, Title$, MsgButtons%)"
+arg_kinds = { MsgButtons = "choice:messagebox-flags" }
 group = "Dialogs and sound"
 doc = "Shows a message box with the buttons and icon the `MB_` flags ask for; returns the `ID` constant (`IDOK`, `IDYES`, …) of the button chosen."
 
 [[builtin]]
 name = "MESSAGEDLG"
 syntax = "MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext)"
+arg_kinds = { MsgType = "choice:msgdlg-type", MsgButtons = "choice:msgdlg-buttons" }
 group = "Dialogs and sound"
 doc = "Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen."
 
@@ -679,6 +685,7 @@ doc = "The octal digits of a whole number, as text: `OCT(8)` is `10`."
 [[builtin]]
 name = "OPEN"
 syntax = "OPEN FileName$ FOR mode AS #FileNum"
+arg_kinds = { FileName = "file:any" }
 group = "Files and folders"
 origin = "rapidr"
 doc = "Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access under a file number (see `FREEFILE`)."
@@ -742,6 +749,7 @@ doc = "The number π, 3.14159265358979…"
 [[builtin]]
 name = "PLAYSOUND"
 syntax = "PLAYSOUND(FileName$)"
+arg_kinds = { FileName = "file:sound" }
 group = "Dialogs and sound"
 origin = "rapidr"
 doc = "Plays a sound file in the background."
@@ -749,6 +757,7 @@ doc = "Plays a sound file in the background."
 [[builtin]]
 name = "PLAYWAV"
 syntax = "PLAYWAV FileName$|Resource_Handle, SndOption"
+arg_kinds = { FileName = "file:sound", SndOption = "choice:playwav-options" }
 group = "Dialogs and sound"
 doc = "Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting for its end (`SND_SYNC`) or repeating (`SND_LOOP`); `PLAYWAV \"\"` stops it."
 
@@ -786,6 +795,7 @@ doc = "Releases the mouse capture a window holds."
 [[builtin]]
 name = "RENAME"
 syntax = "RENAME File1$, File2$"
+arg_kinds = { File1 = "file:any", File2 = "file:any" }
 group = "Files and folders"
 doc = "Renames (or moves) a file from the first name to the second."
 
@@ -827,6 +837,7 @@ doc = "The string with its characters in reverse order."
 [[builtin]]
 name = "RGB"
 syntax = "RGB(Red%, Green%, Blue%)"
+kind = "color"
 group = "Colours"
 doc = "The colour value for red, green and blue parts of 0 to 255 each, as RapidQ stores colours (blue in the high byte)."
 
