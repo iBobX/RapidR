@@ -163,6 +163,25 @@ fn a_rapidq_inc_constant_without_the_include_is_a_warning_with_its_fix() {
     assert!(after.iter().all(|d| d.code.as_deref() != Some("needs-include")), "{after:?}");
 }
 
+/// `True` in a RapidQ program without RAPIDQ.INC is the include's name read
+/// as RapidQ's implicit variable, 0 (RC.EXE): the same warning as mbYes.
+/// With the include, or in a RapidR program (built in, -1), nothing.
+#[test]
+fn true_without_the_include_is_a_warning_in_a_rapidq_program() {
+    let text = "Done = 0\nIF Done = True THEN PRINT \"done\"\n";
+    let (_, _, d) = hints(text);
+    let w: Vec<&FileDiagnostic> = d.iter().filter(|d| d.code.as_deref() == Some("needs-include")).collect();
+    assert_eq!(w.len(), 1, "{d:?}");
+    assert_eq!(&text[w[0].start..w[0].end], "True");
+    assert_eq!(w[0].message, "True is a RAPIDQ.INC constant — add $INCLUDE \"RAPIDQ.INC\"");
+    let (_, _, with) = hints(&format!("$INCLUDE \"RAPIDQ.INC\"\n{text}"));
+    assert!(with.iter().all(|d| d.code.as_deref() != Some("needs-include")), "{with:?}");
+    let mut a = Analysis::default();
+    let p = PathBuf::from("/nowhere/prog.rr");
+    a.update(&p, text);
+    assert!(a.diagnostics(&p).iter().all(|d| d.code.as_deref() != Some("needs-include")));
+}
+
 #[test]
 fn only_an_include_constant_never_stored_is_flagged() {
     // a name the program stores in is its own variable (INPUT, SWAP, READ,

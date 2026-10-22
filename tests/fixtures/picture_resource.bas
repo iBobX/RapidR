@@ -2,6 +2,7 @@
 ' (AutoSize, Transparent), drawing on it and on an image without a picture,
 ' Pixel, RESOURCECOUNT and OnClick. Checked natively and interpreted by
 ' tests/native_gui_events.mjs.
+$INCLUDE "RAPIDQ.INC"
 $RESOURCE PIC_BMP AS "picture_res.bmp"
 DECLARE SUB Clicked
 CREATE Form AS QFORM

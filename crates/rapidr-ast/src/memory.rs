@@ -584,6 +584,21 @@ fn uses_memory(program: &Program) -> bool {
     found.get()
 }
 
+/// What a parameter [`varptr_skips_parameters`] renamed is renamed to:
+/// `MyMsg` → `MyMsg__param`.
+pub const RENAMED_PARAMETER: &str = "__param";
+
+/// A name as the program's source writes it: a parameter renamed for
+/// VARPTR (`MyMsg__param`, `MyMsg__param$`) is `MyMsg` (`MyMsg$`) — what the
+/// debugger shows and its expressions use.
+pub fn source_name(name: &str) -> String {
+    let base = crate::strip_type_suffix(name);
+    match base.strip_suffix(RENAMED_PARAMETER).filter(|b| !b.is_empty()) {
+        Some(b) => format!("{b}{}", &name[base.len()..]),
+        None => name.to_string(),
+    }
+}
+
 /// The name in `VARPTR(name)` / `UDTPTR(name)`, if `e` is one.
 fn varptr_name(e: &mut Expression) -> Option<&mut Identifier> {
     let Expression::FunctionCall(fc) = e else { return None };
@@ -624,7 +639,7 @@ fn varptr_skips_parameters(statements: &mut [Statement], globals: &Decls) {
         });
         for k in names {
             let Some(p) = params.iter_mut().find(|p| key(&p.name) == k) else { continue };
-            let base = format!("{}__param", crate::strip_type_suffix(&p.name));
+            let base = format!("{}{RENAMED_PARAMETER}", crate::strip_type_suffix(&p.name));
             let original = p.name.clone();
             p.name = format!("{base}{}", &original[crate::strip_type_suffix(&original).len()..]);
             crate::implicit_scope::rename(body, &k, &base);

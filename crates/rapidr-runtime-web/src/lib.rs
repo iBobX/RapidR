@@ -67,6 +67,8 @@ pub mod prelude {
     // DATA / READ / RESTORE
     pub use crate::value::data;
     pub use crate::value::numeric;
+    // (an event handler's start: rapidr_ast::event_params)
+    pub use crate::value::events as rr_events;
     pub use crate::value::tray;
     pub use crate::value::memory;
     // TR$ / TRN$ (RapidR's): the program's text in its language

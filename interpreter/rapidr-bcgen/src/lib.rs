@@ -99,7 +99,7 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — native builds run them
     // first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(program))));
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
     // (the system tray: Shell_NotifyIcon and a form's WndProc —
@@ -362,7 +362,8 @@ impl Scope {
         let s = self.next_slot;
         self.next_slot += 1;
         self.locals.insert(name.to_string(), s);
-        self.display.push(name.to_string());
+        // (as the source writes it: rapidr_ast::memory::source_name)
+        self.display.push(rapidr_ast::memory::source_name(name));
         s
     }
     fn get(&self, name: &str) -> Option<u16> {
@@ -707,7 +708,7 @@ impl Bcgen {
     fn reserve_function(&mut self, name: &str, params: &[Parameter], _is_func: bool) -> u32 {
         let mut f = Function::default();
         f.name = name.to_string();
-        f.params = params.iter().map(|p| Param { name: p.name.clone(), by_ref: p.by_ref }).collect();
+        f.params = params.iter().map(|p| Param { name: rapidr_ast::memory::source_name(&p.name), by_ref: p.by_ref }).collect();
         self.module.add_function(f)
     }
 
@@ -2433,7 +2434,11 @@ impl Bcgen {
                     is_local: self.scope.get(&id.name).is_some(),
                     is_known_global: self.is_known_global(&id.name),
                     is_bare_builtin: builtins::BARE_BUILTINS.contains(&builtins::builtin_key(&id.name).as_str()),
-                    is_bool_name: matches!(name_lower.as_str(), "true" | "false" | "vttrue" | "vtfalse"),
+                    // (RapidR's True / False: a RapidR program's are vtTrue /
+                    // vtFalse by now, rapidr_ast::builtin_constants; a RapidQ
+                    // program's are names like mbYes — but in the debugger's
+                    // expressions, which have no program around them)
+                    is_bool_name: matches!(name_lower.as_str(), "vttrue" | "vtfalse") || (self.snippet && matches!(name_lower.as_str(), "true" | "false")),
                     is_rapidr_constant: rapidr_ast::rapidr_constant(&id.name).is_some(),
                     is_function: self.fn_indices.contains_key(&id.name) && self.fn_is_func.get(&id.name).copied() == Some(true),
                 };
@@ -3094,6 +3099,37 @@ mod tests {
         }
     }
 
+    /// rapidr_ast::event_params: a SUB bound to an event starts by giving
+    /// its STRING / number parameters "" / 0 in the Sender's place (and
+    /// taking the event's mark); an object, untyped, BYREF parameter keeps
+    /// what it gets; a SUB no event names is left alone.
+    #[test]
+    fn event_handlers_get_the_sender_prologue() {
+        let p = rapidr_ast::event_params::lower(&parse(
+            "SUB H(T AS STRING, N AS INTEGER, O AS QBUTTON, V, BYREF R AS STRING, S$)\nEND SUB\nSUB G\nEND SUB\nSUB NotBound(T AS STRING)\nEND SUB\nCREATE F AS QFORM\n  CREATE B AS QBUTTON\n    OnClick = H\n  END CREATE\nEND CREATE\nF.OnShow = G\n",
+        ));
+        let prologue = |n: &str| -> Vec<String> {
+            let Some(Statement::Subroutine(r)) = p.statements.iter().find(|s| matches!(s, Statement::Subroutine(r) if r.name == n)) else { panic!("{n}") };
+            r.body
+                .iter()
+                .filter_map(|s| match s {
+                    Statement::Assignment(a) => match &a.value {
+                        Expression::FunctionCall(c) => match &c.args[..] {
+                            [Expression::Literal(Literal { value: LiteralValue::Integer(i), .. }), _, Expression::Literal(Literal { value: LiteralValue::String(k), .. })] => Some(format!("{i}{k}")),
+                            _ => None,
+                        },
+                        _ => None,
+                    },
+                    Statement::Call(_) => Some("done".into()),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert_eq!(prologue("H"), ["0S", "1N", "5S", "done"]);
+        assert_eq!(prologue("G"), ["done"]);
+        assert!(prologue("NotBound").is_empty());
+    }
+
     /// A RUSTSTART block, in the main program or a SUB: the native-only
     /// message at its line, not a parse error.
     #[test]
@@ -3271,6 +3307,29 @@ mod tests {
         vm.resume(&m).unwrap();
         drop(vm);
         assert_eq!(h.output, "1007\nx=7\n");
+    }
+
+    /// A parameter renamed so VARPTR reaches the global of its name
+    /// (rapidr_ast::memory, `MyMsg__param`) is `MyMsg` in the debugger: the
+    /// frame's names, and an expression typed there reads the parameter.
+    #[test]
+    fn a_parameter_renamed_for_varptr_keeps_its_name_in_the_debugger() {
+        let src = "DEFSTR MyMsg = \"global\"\nSUB S(MyMsg AS STRING)\n  p = VARPTR(MyMsg)\n  PRINT MyMsg\nEND SUB\nS \"param\"\n";
+        let m = compile_with_source(src);
+        let f = m.functions.iter().find(|f| f.name.eq_ignore_ascii_case("S")).expect("S");
+        assert_eq!(f.params[0].name, "MyMsg");
+        assert!(f.local_names.iter().any(|n| n == "MyMsg") && !f.local_names.iter().any(|n| n.contains("__param")), "{:?}", f.local_names);
+        let mut h = StubHost::default();
+        let mut vm = Vm::new(&mut h);
+        vm.debug_mode = true;
+        vm.add_breakpoint(4);
+        assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+        let top = vm.frames.len() - 1;
+        let s = snippet(&m, &vm, Some(top), &format!("{SNIPPET_RESULT} = MyMsg"));
+        assert_eq!(vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).unwrap().to_string_val(), "param");
+        vm.resume(&m).unwrap();
+        drop(vm);
+        assert_eq!(h.output, "param\n");
     }
 
     #[test]

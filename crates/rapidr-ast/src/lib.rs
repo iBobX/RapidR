@@ -14,6 +14,7 @@ pub mod method_equals;
 pub mod tray_calls;
 pub mod end_codes;
 pub mod builtin_constants;
+pub mod event_params;
 
 /// A name without its type suffix (`n%` → `n`, `w??` → `w`).
 pub fn strip_type_suffix(name: &str) -> &str {
@@ -932,7 +933,7 @@ pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Progr
             top.contains(k)
                 || is_builtin(k)
                 || rapidr_constant(k).is_some()
-                || matches!(k, "true" | "false" | "vttrue" | "vtfalse" | "result" | "me" | "this" | "sender" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
+                || matches!(k, "vttrue" | "vtfalse" | "result" | "me" | "this" | "sender" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
                 || is_component_type_name(&canonical_type_name(k))
         })
     };
@@ -1096,7 +1097,7 @@ pub fn option_dim(program: &Program, is_builtin: &dyn Fn(&str) -> bool) -> Progr
                 && !is_builtin(&k)
                 // (RapidR's own constants, `akLeft` …)
                 && rapidr_constant(&k).is_none()
-                && !matches!(k.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "result" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
+                && !matches!(k.as_str(), "vttrue" | "vtfalse" | "result" | "byte" | "word" | "dword" | "short" | "integer" | "long" | "single" | "double" | "string" | "variant" | "currency" | "int64")
                 && !is_component_type_name(&canonical_type_name(&k))
         })
         .collect();
@@ -1359,7 +1360,7 @@ pub fn typecheck_errors(program: &Program, is_builtin: &dyn Fn(&str) -> bool) ->
                 || shared.globals.contains(k)
                 || (shared.is_builtin)(k)
                 || rapidr_constant(k).is_some()
-                || matches!(k, "true" | "false" | "vttrue" | "vtfalse")
+                || matches!(k, "vttrue" | "vtfalse")
         }
         fn skipped(name: &str) -> bool {
             name.starts_with("__") || name.contains('.') || name.eq_ignore_ascii_case("_with_")

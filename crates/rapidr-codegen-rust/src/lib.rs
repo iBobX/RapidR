@@ -53,7 +53,7 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     // rapidr_ast::for_as — its errors are the bytecode compiler's, which
     // every native build runs first)
     let declared = rapidr_ast::for_as::lower(program);
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(&declared)));
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(&declared))));
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode
@@ -403,7 +403,7 @@ impl RustCodegen {
                     && !self.defined_functions.contains(n)
                     && !self.component_vars.contains_key(n)
                     // (`RESULT` is a FUNCTION's own return value)
-                    && !matches!(n, "true" | "false" | "vttrue" | "vtfalse" | "_with_" | "result")
+                    && !matches!(n, "vttrue" | "vtfalse" | "_with_" | "result")
                     && (n != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(n, &[]).is_none() || assigned.contains(n))
                     // (RapidR's own constants, unless the program assigns them)
@@ -746,7 +746,7 @@ impl RustCodegen {
                 !self.top_level_vars.contains(name.as_str())
                     && !self.defined_functions.contains(name.as_str())
                     && !self.component_vars.contains_key(name.as_str())
-                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    && !matches!(name.as_str(), "vttrue" | "vtfalse" | "_with_")
                     // (`pi` is the constant unless the program assigns it)
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
@@ -2025,7 +2025,7 @@ impl RustCodegen {
                     && !self.component_vars.contains_key(name.as_str())
                     && !self.is_global_scalar(name)
                     && !self.is_global_array(name)
-                    && !matches!(name.as_str(), "true" | "false" | "vttrue" | "vtfalse" | "_with_")
+                    && !matches!(name.as_str(), "vttrue" | "vtfalse" | "_with_")
                     && (name.as_str() != "pi" || assigned.contains("pi"))
                     && (builtin_function_call(name, &[]).is_none() || assigned.contains(name.as_str()))
                     && (rapidr_ast::rapidr_constant(name).is_none() || assigned.contains(name.as_str()))
@@ -2578,10 +2578,12 @@ impl RustCodegen {
                     return format!("v_int({n})");
                 }
                 match name_lower.as_str() {
-                    // (unless the program has its own: RAPIDQ.INC's `CONST
-                    // True = 1`, as the VM reads it)
-                    "true" | "vttrue" if !variable => "v_bool(true)".to_string(),
-                    "false" | "vtfalse" if !variable => "v_bool(false)".to_string(),
+                    // RapidR's True / False (a RapidR program's, made
+                    // vtTrue / vtFalse by rapidr_ast::builtin_constants; a
+                    // RapidQ program's True is a variable or the include's
+                    // `CONST True = 1`), as the VM reads them.
+                    "vttrue" if !variable => "v_bool(true)".to_string(),
+                    "vtfalse" if !variable => "v_bool(false)".to_string(),
                     // An omitted argument (`COLOR , 1`, `INSTR(, a, b)`)
                     "__omitted" => "v_null()".to_string(),
                     _ => {
@@ -3184,6 +3186,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "__to_double" => Some(format!("numeric::to_double(&{a0})")),
         "__to_single" => Some(format!("numeric::to_single(&{a0})")),
         "__arg_round" => Some(format!("numeric::arg_round(&{a0})")),
+        // An event handler's start (rapidr_ast::event_params).
+        "__sender_param" => Some(format!("rr_events::sender_param(&{a0}, &{a1}, &{a2})")),
+        "__event_done" => Some("{ rr_events::event_done(); v_null() }".to_string()),
         "__to_fixed" => Some(format!("rp_fixed_string(&{a0}, ({a1}).to_i64().max(0) as usize)")),
         "__newobject" => Some(format!("rp_new_object(&{a0}, &{a1}, &{a2})")),
         "__getfield" => Some(format!("obj_field(&{a0}, ({a1}).to_i64() as usize)")),
@@ -3233,9 +3238,9 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // RINSTR([start,] s, find): the start is optional, as INSTR's.
         "rinstr" => {
             if args.len() >= 3 {
-                Some(format!("rp_rinstr(&{a0}, &{a1}, &{a2})"))
+                Some(format!("rp_rinstr_from(&{a0}, &{a1}, &{a2})"))
             } else {
-                Some(format!("rp_rinstr(&v_null(), &{a0}, &{a1})"))
+                Some(format!("rp_rinstr(&{a0}, &{a1})"))
             }
         }
         "format" => Some(format!("rp_format(&{a0}, &[{}])", args.get(1..).unwrap_or(&[]).iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),

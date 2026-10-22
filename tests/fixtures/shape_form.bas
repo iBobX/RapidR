@@ -5,6 +5,7 @@
 ' is cut away; Width, Height, ClientWidth and BorderStyle don't change
 ' (RC.EXE's probe read them back, and the window's region). The same
 ' bitmap shows on the form as its skin; a click on it moves nothing.
+$INCLUDE "RAPIDQ.INC"
 $RESOURCE SHAPE_BMP AS "shape_form.bmp"
 DECLARE SUB Shape
 DIM Log AS STRING

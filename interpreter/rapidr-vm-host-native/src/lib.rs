@@ -294,9 +294,9 @@ fn call_builtin_key(lower: &str, args: &[Value]) -> Value {
         "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
         "rinstr" => {
             if args.len() >= 3 {
-                rp_rinstr(&a0, &a1, &a2)
+                rp_rinstr_from(&a0, &a1, &a2)
             } else {
-                rp_rinstr(&v_null(), &a0, &a1)
+                rp_rinstr(&a0, &a1)
             }
         }
         "format" => rp_format(&a0, args.get(1..).unwrap_or(&[])),
@@ -478,7 +478,7 @@ fn install_event_queue() -> Option<obj::IndirectDispatcher> {
     obj::rp_set_cooperative_waits(true);
     obj::rp_set_event_dispatcher(Box::new(|fn_index, args| {
         // (with the continuation of an event fired with rp_fire_event_then)
-        let event = QueuedEvent { then: rapidr_value::events::take_armed(), ..QueuedEvent::new(fn_index, args.to_vec()) };
+        let event = QueuedEvent::fired(fn_index, args);
         EVENTS.with(|q| q.borrow_mut().push_back(event));
     }))
 }

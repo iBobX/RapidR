@@ -252,6 +252,34 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   never from xdiff or any other implementation.
 
 ### Fixed
+- **The debugger names a parameter by its source name** in a SUB that takes
+  VARPTR of a global with the same name: `MyMsg` in Variables and in the
+  expressions typed there, not the internal `MyMsg__param`.
+- **INSTR with a start that isn't whole** gives RapidQ's real place (RC.EXE):
+  the search begins where the start rounds half to even and the place counts
+  from the start as given, `INSTR(2.5, "abcabc", "c")` = 3.5
+  (`rapidq_instr_real_start`).
+- **FILEEXISTS with wildcards** (RC.EXE): `FILEEXISTS("*.bas")` is 1 when the
+  first name the folder lists for the pattern is a file, as in RapidQ (`*` and
+  `*.*` meet the folder's own `.` first and are 0, a pattern only a folder
+  matches is 0), on the desktop and, among the program's files, on the web. A
+  `?` at the end of a name or before its dot may match nothing, as Windows reads
+  it — for DIR$ and QFILELISTBOX's masks too.
+- **`RINSTR(text, find)` compiles natively again with any generation of the
+  compiler** (found by RapidR Database Studio): the two-argument form keeps its
+  runtime function `rp_rinstr(text, find)`, the form with a start has its own
+  (`rp_rinstr_from`); both agree with RC.EXE on the VM, native builds and the web
+  (`rapidq_rinstr_two_args`).
+- **An event handler's STRING or number parameter gets "" / 0, not the Sender**
+  (RC.EXE): `OnClick = H` with `SUB H(T AS STRING)` reads "" in T when the event
+  fires (a number parameter 0), as RapidQ's first call does; an object parameter
+  is still the Sender. The same on the VM, native builds and the web — they gave
+  the Sender's name ("CK" interpreted, "ck" native).
+- **`True` in a RapidQ program (`.bas`) is RapidQ's** (RC.EXE): without
+  `$INCLUDE "RAPIDQ.INC"` it is an undeclared name that reads 0 (`IF True THEN`
+  doesn't run), with the code editor's "True is a RAPIDQ.INC constant" warning as
+  for mbYes; with the include it is 1. A RapidR program (`.rr`) keeps `True` = -1
+  built in. Four test fixtures that meant RapidR's True now include RAPIDQ.INC.
 - **RapidQ-exact against RapidQ's own compiler (lane COMPAT, docs/rapidq-ground-truth.md)**:
   `RINSTR(start, s, find)` uses its start on every runtime, as RapidQ does (only an
   occurrence that ends by character `start` counts: `RINSTR(4, "hehe they", "he")` is 3; an

@@ -345,8 +345,15 @@ pub fn rp_direxists(path: &Value) -> Value {
     v_int(if crate::value::paths::host(&path.to_string_val()).is_dir() { 1 } else { 0 })
 }
 
+/// FILEEXISTS: 1 for a file, 0 otherwise; with `*` / `?` in the name, 1
+/// when the first name the folder lists for the pattern is a file, as
+/// RapidQ's (crate::file_io::wildcard_file_exists).
 pub fn rp_fileexists(path: &Value) -> Value {
-    v_int(if crate::value::paths::host(&path.to_string_val()).is_file() { 1 } else { 0 })
+    let p = path.to_string_val();
+    if p.contains(['*', '?']) {
+        return v_int(crate::file_io::wildcard_file_exists(&p) as i64);
+    }
+    v_int(if crate::value::paths::host(&p).is_file() { 1 } else { 0 })
 }
 
 // Default value for types
@@ -644,9 +651,9 @@ mod tests {
 
     #[test]
     fn test_rinstr() {
-        assert_eq!(rp_rinstr(&v_null(), &v_str("hello world hello"), &v_str("hello")), v_int(13));
-        assert_eq!(rp_rinstr(&v_null(), &v_str("hello"), &v_str("xyz")), v_int(0));
-        assert_eq!(rp_rinstr(&v_int(4), &v_str("hehe they"), &v_str("he")), v_int(3));
+        assert_eq!(rp_rinstr(&v_str("hello world hello"), &v_str("hello")), v_int(13));
+        assert_eq!(rp_rinstr(&v_str("hello"), &v_str("xyz")), v_int(0));
+        assert_eq!(rp_rinstr_from(&v_int(4), &v_str("hehe they"), &v_str("he")), v_int(3));
     }
 
     #[test]

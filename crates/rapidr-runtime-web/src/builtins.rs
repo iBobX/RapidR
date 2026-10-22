@@ -622,7 +622,13 @@ pub fn rp_direxists(path: &Value) -> Value {
 /// project's files (object_web::web_file_exists).
 pub fn rp_fileexists(path: &Value) -> Value {
     crate::object_web::install_file_hooks();
-    v_int(if crate::object_web::web_file_exists(&path.to_string_val()) { 1 } else { 0 })
+    let p = path.to_string_val();
+    // (with `*` / `?`: the first of the program's files that matches, as the
+    // desktop's and RapidQ's)
+    if p.contains(['*', '?']) {
+        return v_int(crate::object_web::web_wildcard_exists(&p) as i64);
+    }
+    v_int(if crate::object_web::web_file_exists(&p) { 1 } else { 0 })
 }
 
 

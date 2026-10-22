@@ -4,6 +4,7 @@
 ' TabIndex doesn't fire OnChange, the user's clicks and arrow keys do;
 ' ClientWidth / ClientHeight are the whole control, an aligned component
 ' fills the area under the tabs.
+$INCLUDE "RAPIDQ.INC"
 DECLARE SUB TabChange
 DECLARE SUB Report
 CONST alBottom = 2

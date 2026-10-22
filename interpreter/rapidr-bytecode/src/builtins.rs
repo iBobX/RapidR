@@ -32,6 +32,8 @@ pub const BUILTINS: &[&str] = &[
     "peek", "poke", "pcopy", "inp", "out", "inpw", "outw", "__dll_call",
     // Stores into declared numeric types (rapidr_ast::numeric; shared in rapidr_value)
     "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_single", "__to_fixed", "__arg_round",
+    // An event handler's start: the Sender only for an object parameter (rapidr_ast::event_params; rapidr_value::events)
+    "__sender_param", "__event_done",
     // Components reached through objects (rapidr_ast::objects; hosts)
     "__objget", "__objset", "__objcall", "__objcreate", "__bind_event_this",
     "abs", "acos", "asc", "asin", "atn",
@@ -62,7 +64,7 @@ pub const BUILTINS: &[&str] = &[
 
 /// Builtins every host hands to `rapidr_value::shared_builtin` before its own
 /// dispatch table (DATA / READ / RESTORE and REDIM share one implementation).
-pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__decimal", "__inkey_trapall", "__console_cp437", "__quicksort", "__lprint", "lflush", "__environ_set", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null", "__lastoftype", "__lone_equals", "__shell_notifyicon", "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_single", "__to_fixed", "__arg_round", "__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "peek", "inp", "out", "inpw", "outw", "memcpy", "memset", "memcmp", "tr", "trn"];
+pub const SHARED_DATA_BUILTINS: &[&str] = &["__data_add", "__data_label", "__data_reset", "__read", "__restore", "__redim", "__input_value", "__decimal", "__inkey_trapall", "__console_cp437", "__quicksort", "__lprint", "lflush", "__environ_set", "__newobject", "__getfield", "__setfield", "__objectarray", "__newarray", "__aget", "__aset", "__null", "__lastoftype", "__lone_equals", "__shell_notifyicon", "__to_byte", "__to_word", "__to_short", "__to_long", "__to_dword", "__to_double", "__to_single", "__to_fixed", "__arg_round", "__sender_param", "__event_done", "__varptr_var", "__varptr_elem", "__mem_refresh", "__mem_sync", "__sizeof", "__sizeof_type", "__cstring", "peek", "inp", "out", "inpw", "outw", "memcpy", "memset", "memcmp", "tr", "trn"];
 
 /// Builtins that may be written without parentheses (`x = TIMER`): a bare
 /// name that isn't a variable calls them with no arguments.

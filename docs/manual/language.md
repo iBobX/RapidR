@@ -67,7 +67,10 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
   between calls. An undeclared variable a SUB uses before the main program
   does is the SUB's own (kept between calls) — the one-pass rule.
 - `TRUE` and `FALSE`: a comparison gives -1 or 0 (`PRINT 1 = 1` prints
-  -1). With `$INCLUDE "RAPIDQ.INC"`, `True` is 1, as that file defines it.
+  -1). In a RapidR program (`.rr`) `True` is -1 and `False` 0. In a RapidQ
+  program (`.bas`) they come from `$INCLUDE "RAPIDQ.INC"`, where `True` is 1;
+  without the include they are undeclared names that read 0, as in RapidQ
+  (so `IF True THEN` doesn't run), and the code editor warns.
 
 ## Constants: `clRed`, `mbYes`, `VK_ESCAPE`…
 
@@ -98,8 +101,8 @@ $INCLUDE "RAPIDQ.INC"
 ```
 
 RapidR has that include built in, so the line needs no file: RapidR ships no
-copy of it. Without the line, `clRed` is an undeclared name and reads as 0,
-as in RapidQ, and the code editor warns you
+copy of it. Without the line, `clRed` — and `True` and `False` too — is an undeclared
+name and reads as 0, as in RapidQ, and the code editor warns you
 ([the RAPIDQ.INC warning](studio-editor.md#the-rapidqinc-warning)). Old
 programs behave the same. The line in a `.rr` program is harmless: the
 constants are then the include's.

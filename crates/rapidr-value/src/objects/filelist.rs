@@ -55,7 +55,10 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
         match (p.first(), n.first()) {
             (None, None) => true,
             (Some('*'), _) => go(&p[1..], n) || (!n.is_empty() && go(p, &n[1..])),
-            (Some('?'), Some(_)) => go(&p[1..], &n[1..]),
+            // (a `?` at the end of the name or before its dot may match
+            // nothing, as FindFirstFile's: `hello??.txt` finds hello.txt —
+            // RC.EXE's FILEEXISTS, 2026-10-22)
+            (Some('?'), _) => (!n.is_empty() && go(&p[1..], &n[1..])) || (n.first().is_none_or(|c| *c == '.') && go(&p[1..], n)),
             (Some(a), Some(b)) => a == b && go(&p[1..], &n[1..]),
             _ => false,
         }
@@ -63,6 +66,21 @@ pub fn wildcard_match(pattern: &str, name: &str) -> bool {
     let p: Vec<char> = pattern.to_lowercase().chars().collect();
     let n: Vec<char> = name.to_lowercase().chars().collect();
     go(&p, &n)
+}
+
+/// FILEEXISTS of a pattern with `*` / `?` (`glob`, the name part) in a
+/// folder whose entries are `(name, is a folder)`: as RapidQ's (RC.EXE,
+/// 2026-10-22: FindFirstFile's FIRST match must be a file) — the folder's
+/// own `.` and `..` are listed first and match `*` and `*.*`, so those are
+/// 0, as is a pattern only a folder matches; `*.bas` among programs is 1.
+/// Names are in Windows' order (any case). Desktop and web runtimes alike.
+pub fn wildcard_file_exists(glob: &str, entries: impl IntoIterator<Item = (String, bool)>) -> bool {
+    let own = [(".".to_string(), true), ("..".to_string(), true)];
+    own.into_iter()
+        .chain(entries)
+        .filter(|(name, _)| wildcard_match(glob, name))
+        .min_by(|a, b| a.0.to_uppercase().cmp(&b.0.to_uppercase()))
+        .is_some_and(|(_, folder)| !folder)
 }
 
 /// Whether a directory entry is hidden, and whether it is a system file:
@@ -158,10 +176,26 @@ mod tests {
         assert!(wildcard_match("*.*", "README"));
         assert!(wildcard_match("a?c.*", "ABC.bas"));
         assert!(!wildcard_match("a?c", "ac"));
+        // (a ? at the name's end or before its dot may match nothing)
+        assert!(wildcard_match("hello??.txt", "hello.txt") && wildcard_match("a?", "a") && wildcard_match("f_wild??.bas", "f_wild1.bas"));
+        assert!(!wildcard_match("h??o.txt", "ho.txt"));
         // (a trailing dot: no extension, Windows' `*.`)
         assert!(wildcard_match("*.", "Sub") && wildcard_match("*.", "..") && wildcard_match("*.", "."));
         assert!(!wildcard_match("*.", "a.txt") && !wildcard_match("*.", "pagefile.sys"));
         assert!(wildcard_match("s?b.", "SUB") && !wildcard_match("s?b.", "sub.d"));
+    }
+
+    /// RC.EXE's FILEEXISTS("*.bas") 1, ("*") and ("*.*") 0 (the folder's
+    /// own "." first), a pattern only a folder matches 0.
+    #[test]
+    fn wildcard_file_exists_takes_the_first_match() {
+        let entries = || vec![("wdir".to_string(), true), ("f_wild1.bas".to_string(), false), ("a.txt".to_string(), false)];
+        assert!(wildcard_file_exists("*.bas", entries()));
+        assert!(wildcard_file_exists("F_WILD?.BAS", entries()));
+        assert!(!wildcard_file_exists("*", entries()));
+        assert!(!wildcard_file_exists("*.*", entries()));
+        assert!(!wildcard_file_exists("wdi*", entries()));
+        assert!(!wildcard_file_exists("*.xyz", entries()));
     }
 
     #[test]

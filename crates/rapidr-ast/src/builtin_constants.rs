@@ -21,7 +21,10 @@
 //!   program uses it and doesn't declare its own.
 //! - **`True` and `False` stay RapidR's** (-1 and 0, what a comparison
 //!   gives): RAPIDQ.INC's `True` is 1, which a RapidR program gets only
-//!   with the include, as before.
+//!   with the include, as before. They become the backends' built-in
+//!   `vtTrue` / `vtFalse` here. In a RapidQ program they are RAPIDQ.INC's
+//!   names like the others (RC.EXE, 2026-10-22): `True` is 1 with the
+//!   include and an undeclared variable, 0, without it.
 //!
 //! `$INCLUDE "RAPIDQ.INC"` in a RapidR program still works: its constants
 //! and array are then the program's own, and nothing here applies.
@@ -336,6 +339,11 @@ fn subst(e: &mut Expression, own: &HashSet<String>, qbcolor: &mut bool) {
                 *qbcolor = true;
             } else if let Some(&value) = table().get(&k) {
                 *e = Expression::Literal(Literal { span: id.span, value: LiteralValue::Integer(value) });
+            } else if k == "true" || k == "false" {
+                // RapidR's own True / False (-1 / 0, what a comparison
+                // gives): the backends' built-in vtTrue / vtFalse. In a
+                // RapidQ program they are names like mbYes (module docs).
+                id.name = if k == "true" { "vtTrue" } else { "vtFalse" }.into();
             }
         }
         Expression::Literal(_) => {}
@@ -422,8 +430,11 @@ mod tests {
         assert_eq!(int(printed(&out.statements[0])), Some(1));
         assert_eq!(int(printed(&out.statements[1])), Some(-21));
         assert_eq!(int(printed(&out.statements[2])), Some(0));
-        // (True stays RapidR's)
-        assert!(matches!(printed(&out.statements[3]), Expression::Identifier(_)));
+        // (True stays RapidR's: the backends' vtTrue, -1; a RapidQ
+        // program's True is left to be its implicit variable or the include's)
+        assert!(matches!(printed(&out.statements[3]), Expression::Identifier(i) if i.name == "vtTrue"));
+        let bas_true = Program { span: TextSpan::default(), statements: vec![print(id("True"))] };
+        assert_eq!(lower(&bas_true), bas_true);
         assert!(is_rapidr_program(&rr) && !is_rapidr_program(&bas));
     }
 
