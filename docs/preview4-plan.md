@@ -167,7 +167,8 @@ It is scheduled at the end of Preview 4, after the language-service features mer
    - the manual with screenshots;
    - the regression run and web parity;
    - the video (EN/ES/PT): "Find anything. Never lose anything. RAI runs and fixes its own work.";
-   - the release.
+   - the release;
+   - fresh screenshots and video frames of the new look for the README, the manual and **rutainternet.company** (refresh its RapidR images; its agent keeps them in one list).
 
 **Budget, roughly:**
 
