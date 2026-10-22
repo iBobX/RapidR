@@ -723,6 +723,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes
 - [ ] ★ S10 A debugger that looks as good as it works: value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
+- [ ] ★ S11 Change values while paused: edit numbers, text, true/false, constants, array elements, record fields and writable component properties in Variables/Watch (F2, double-click), with value editors, validation and undo; the web Studio and DAP setVariable too
 - [ ] S7 Responsive and beautiful pass, measured on a 4,500-line project
 
 **RAI**

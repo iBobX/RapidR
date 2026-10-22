@@ -62,6 +62,16 @@ The model was capable. Studio made it work blind:
 - section icons, a highlight on values that changed since the last step, and breakpoint states (on, off, condition, hit count).
 
 All icons are SVG in RapidR's icon system, and the value drawing is a shared kernel module that the helpers (E0/E1) and the Properties panel reuse. The audit found no bitmap icons in Studio; it is re-checked, including the web Studio | Opus M (visual; after the dock lane) |
+| S11 ★ | **Change values while paused** (Robert, 2026-10-22). Pro debuggers let you edit a value in place while the program is paused, and RapidR will too.
+- **How:** in Variables and Watch, double-click, F2 or "Set Value" edits a number, text, true/false, a constant from its set (a dropdown), an array element, a record field, or a component's writable property (through its normal setter, so the form updates).
+- **The editors:** the value editors from the helpers (E1): colour, font, choices.
+- **Validation:** typed input with plain-words errors ("Width needs a whole number"); read-only properties say so.
+- **After a change:** the value shows the changed mark, and one undo restores it while still paused.
+- **Immediate:** an assignment (`x = 5`) works the same way.
+- **Everywhere:** the VM on the desktop, the web Studio, and `rapidr dap`'s setVariable/setExpression for editor extensions.
+- **Accessible:** fully by keyboard, and announced to screen readers.
+
+It comes after S10 phase 2, in the same panes | Opus M |
 | S7 | **Responsive and beautiful pass**, measured on the 4,500-line project: typing latency, open, search, scroll. The docked diff and streamlined buttons (ai-ux §6, shared with Versions G2) | Opus M (visual, one lane at a time) |
 
 ### R: RAI, the assistant that runs and fixes its own work
