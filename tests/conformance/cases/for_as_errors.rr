@@ -1,0 +1,5 @@
+' FOR … AS with a counter declared with another type, or a type that
+' isn't a number: errors that say the fix.
+DIM name AS STRING
+FOR name AS INTEGER = 1 TO 3: PRINT name: NEXT
+FOR s AS STRING = 1 TO 3: PRINT s: NEXT

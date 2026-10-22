@@ -295,19 +295,20 @@ fn a_local_models_window_caps_the_reply_and_its_usage_is_counted() {
     let _one = one_at_a_time();
     let dir = project_dir("window");
     std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
-    // (the server's list says the model's window: 8,000 tokens)
-    let (url, server) = mock_with(r#"{"object":"list","data":[{"id":"mock-1","loaded":true,"state":"ready","context_length":8000}]}"#, vec![text_answer("Hello.")]);
+    // (the server's list says the model's window: 12,000 tokens — the
+    // instructions with the language card and the tools take about 8,000)
+    let (url, server) = mock_with(r#"{"object":"list","data":[{"id":"mock-1","loaded":true,"state":"ready","context_length":12000}]}"#, vec![text_answer("Hello.")]);
     let n = "rai-window";
     setup(n, "tools-window", &dir, &url);
     assert_eq!(rai_call(n, "ask", &[s("What does main.rr do?")]).to_i64(), -1, "{}", rai_get(n, "error"));
     wait(n);
     let sent: Json = serde_json::from_str(&server.join().unwrap()[0]).unwrap();
     // (MaxTokens 65535 asked: a quarter of the window sent)
-    assert_eq!(sent["max_tokens"], 2000);
+    assert_eq!(sent["max_tokens"], 3000);
     assert_eq!(sent["stream_options"]["include_usage"], true);
     assert_eq!(rai_get(n, "inputtokens"), "3210", "the usage a compatible server reports is counted");
     let audit = std::fs::read_to_string(dir.join("audit.jsonl")).unwrap();
-    assert!(audit.contains("\"op\":\"request\"") && audit.contains("\"maxTokens\":2000") && audit.contains("\"window\":8000"), "{audit}");
+    assert!(audit.contains("\"op\":\"request\"") && audit.contains("\"maxTokens\":3000") && audit.contains("\"window\":12000"), "{audit}");
     assert!(audit.contains("\"op\":\"reply\"") && audit.contains("\"inputTokens\":3210"), "{audit}");
     // (a server that doesn't say the window: a modest cap)
     let (url2, server2) = mock_with(r#"{"data":[{"id":"mock-1"}]}"#, vec![text_answer("Hi again.")]);
@@ -428,10 +429,36 @@ fn the_instructions() {
     let p = instructions(false);
     assert!(p.contains("The user allowed reading only") && !p.contains("propose_edit shows"));
     assert!(p.contains("NameEdit.SetFocus") && p.contains("# The RapidR language"));
-    // (the whole of what is sent every turn, the language guide in it: small)
-    assert!(p.len() < 16_000, "{}", p.len());
-    assert_eq!(ai_tools::tools(false).len(), 7);
-    assert_eq!(ai_tools::tools(true).len(), 11);
+    // (the language card, whole: K1)
+    assert!(p.contains(&rapidr_lang::card::card()));
+    // (the whole of what is sent every turn — the card, the example and the
+    // language's names in it: small, about 6,000 tokens)
+    assert!(p.len() < 24_000, "{}", p.len());
+    assert_eq!(ai_tools::tools(false).len(), 9);
+    assert_eq!(ai_tools::tools(true).len(), 13);
+}
+
+/// K1 and K3 (docs/preview4-plan.md): what RAI sends a provider carries the
+/// language card in its instructions and offers project_outline and
+/// search_manual, every chat.
+#[test]
+fn every_request_carries_the_card_and_the_knowledge_tools() {
+    let _one = one_at_a_time();
+    let dir = project_dir("card");
+    std::fs::write(dir.join("main.rr"), "PRINT 1\n").unwrap();
+    let (url, server) = mock(vec![text_answer("Hello.")]);
+    setup("raicard", "toolscard", &dir, &url);
+    assert_eq!(rai_call("raicard", "ask", &[s("hello")]).to_i64(), -1, "{}", rai_get("raicard", "error"));
+    wait("raicard");
+    let seen = server.join().unwrap();
+    let system = system_of(&seen, 0);
+    assert!(system.contains(&rapidr_lang::card::card()), "the card isn't in the instructions:\n{}", &system[..2000.min(system.len())]);
+    let req: Json = serde_json::from_str(&seen[0]).unwrap();
+    let names: Vec<&str> = req["tools"].as_array().unwrap().iter().filter_map(|t| t["function"]["name"].as_str()).collect();
+    assert!(names.contains(&"project_outline") && names.contains(&"search_manual"), "{names:?}");
+    let outline = req["tools"].as_array().unwrap().iter().find(|t| t["function"]["name"] == "project_outline").unwrap();
+    assert!(outline["function"]["description"].as_str().unwrap().contains("Call it before writing changes to a project of several files"));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// A tool call as a compatible server streams it.

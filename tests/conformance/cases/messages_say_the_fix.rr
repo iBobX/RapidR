@@ -1,0 +1,8 @@
+' Compiler messages that say the fix (docs/rai-mistake-ledger.md): a name
+' declared twice says where the first one is; an unknown SUB the nearest.
+DIM siteCount AS INTEGER
+DIM siteCount AS INTEGER
+SUB ShowNumber(n AS INTEGER)
+    PRINT n
+END SUB
+ShowNumbr 5

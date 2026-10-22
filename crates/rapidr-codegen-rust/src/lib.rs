@@ -49,8 +49,11 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
     // (a RapidR program's built-in constants first: rapidr_ast::
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — the bytecode compiler runs
-    // them first too)
-    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(program)));
+    // them first too; before them, `FOR i AS INTEGER`'s counter declared:
+    // rapidr_ast::for_as — its errors are the bytecode compiler's, which
+    // every native build runs first)
+    let declared = rapidr_ast::for_as::lower(program);
+    let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::builtin_constants::lower(&declared)));
     let mut gen = RustCodegen::new(target);
     gen.resources = resources.to_vec();
     // Objects → plain routines and builtins, the same pass the bytecode

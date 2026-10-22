@@ -31,6 +31,7 @@ pub mod friendly;
 pub mod help;
 pub mod import;
 pub mod langsvc;
+pub mod manual_search;
 pub mod project;
 pub mod recipes;
 pub mod session;

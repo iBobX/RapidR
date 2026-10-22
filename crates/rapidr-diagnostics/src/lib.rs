@@ -97,3 +97,50 @@ impl fmt::Display for Diagnostic {
         )
     }
 }
+
+/// A mark in a compiler message for another place of the program — byte
+/// `offset` of the preprocessed source (an earlier declaration) — which
+/// whoever shows the message writes as `file:line` with the preprocessor's
+/// line map (`rapidr_preprocessor::PreprocessResult::resolve_places`, the
+/// language service): `Identifier a already used … — already declared in
+/// globals.rr:12`. The compiler knows bytes, not files.
+pub fn place_mark(offset: usize) -> String {
+    format!("{PLACE_OPEN}{offset}{PLACE_CLOSE}")
+}
+
+const PLACE_OPEN: &str = "{{at:";
+const PLACE_CLOSE: &str = "}}";
+
+/// `text` with every [`place_mark`] replaced by what `place` says of its
+/// offset (`None`: "an earlier line").
+pub fn resolve_place_marks(text: &str, mut place: impl FnMut(usize) -> Option<String>) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(i) = rest.find(PLACE_OPEN) {
+        let after = &rest[i + PLACE_OPEN.len()..];
+        let Some(j) = after.find(PLACE_CLOSE) else { break };
+        let Ok(offset) = after[..j].parse::<usize>() else {
+            out.push_str(&rest[..i + PLACE_OPEN.len()]);
+            rest = after;
+            continue;
+        };
+        out.push_str(&rest[..i]);
+        out.push_str(&place(offset).unwrap_or_else(|| "an earlier line".to_string()));
+        rest = &after[j + PLACE_CLOSE.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+#[cfg(test)]
+mod place_tests {
+    use super::*;
+
+    #[test]
+    fn marks_are_replaced() {
+        let m = format!("Identifier a already used — already declared in {}", place_mark(42));
+        assert_eq!(resolve_place_marks(&m, |o| Some(format!("g.rr:{o}"))), "Identifier a already used — already declared in g.rr:42");
+        assert_eq!(resolve_place_marks(&m, |_| None), "Identifier a already used — already declared in an earlier line");
+        assert_eq!(resolve_place_marks("no marks {{at:x}} here", |_| None), "no marks {{at:x}} here");
+    }
+}

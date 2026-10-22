@@ -1,0 +1,4 @@
+4:5
+Identifier siteCount already used, try another name — it is declared in messages_say_the_fix.rr:3 already
+8:1
+Unknown SUB or FUNCTION 'ShowNumbr' — did you mean ShowNumber?

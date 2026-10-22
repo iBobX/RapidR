@@ -18,6 +18,9 @@ rapidr-lang.workspace = true
 rapidr-editor.workspace = true
 rapidr-designer.workspace = true
 rapidr-preprocessor.workspace = true
+# RAI's project_outline: the program's statements as parsed, and their spans
+rapidr-ast.workspace = true
+rapidr-diagnostics.workspace = true
 # RPROJECT.IconPreview: the project's icon drawn as rapidr build draws it
 rapidr-package.workspace = true
 # File > Import RapidQ Project or File: the engine of `rapidr import-rapidq`

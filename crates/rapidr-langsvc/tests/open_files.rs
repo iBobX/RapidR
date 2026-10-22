@@ -50,7 +50,7 @@ fn an_unsaved_include_is_what_the_program_sees() {
     let diags = a.diagnostics(&main);
     assert_eq!(diags.len(), 1, "{diags:?}");
     assert_eq!(diags[0].file, util);
-    assert_eq!(diags[0].message, "Unknown SUB or FUNCTION 'Nope'");
+    assert!(diags[0].message.starts_with("Unknown SUB or FUNCTION 'Nope'"), "{}", diags[0].message);
     let _ = fs::remove_dir_all(&dir);
 }
 

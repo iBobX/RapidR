@@ -7,6 +7,9 @@
 //! semantic model: its implicit symbols and how each use reads or writes
 //! them (a name the program stores in is its own variable). A RapidR
 //! program (`.rr`) has RAPIDQ.INC's constants built in: never this hint.
+//!
+//! Also `NOT FILEEXISTS(x)` ([`not_one`]): FILEEXISTS gives 1, NOT 1 is -2,
+//! so the test is always true — a warning, its fix `FILEEXISTS(x) = 0`.
 
 use std::path::Path;
 
@@ -19,6 +22,47 @@ use crate::{CodeAction, FileDiagnostic, Snapshot, TextEdit};
 pub(crate) const RAPIDQ_INC: &str = "RAPIDQ.INC";
 /// A RapidQ include's constant used without the include.
 pub(crate) const NEEDS_INCLUDE: &str = "needs-include";
+/// `NOT FILEEXISTS(x)`: always true (docs/rai-mistake-ledger.md).
+pub(crate) const NOT_ONE: &str = "not-one-is-yes";
+
+/// `NOT` before a builtin that gives 1 for yes — FILEEXISTS, DIREXISTS (the
+/// registry's: their docs say "True (1)") —: RapidQ-exact, they give 1,
+/// and NOT 1 is -2, true as well, so the test is always true. A warning,
+/// its fix `FILEEXISTS(x) = 0` ([`not_one_fix`]). A model wrote it on
+/// Robert's evening with DeepSeek (2026-10-20), and so do people.
+fn not_one(s: &Snapshot) -> Vec<FileDiagnostic> {
+    use rapidr_ast::{Expression, UnaryOperator};
+    let mut found: Vec<(rapidr_diagnostics::TextSpan, rapidr_diagnostics::TextSpan, &'static str)> = Vec::new();
+    rapidr_ast::walk(&s.parsed.program.statements, &mut |_| {}, &mut |e| {
+        let Expression::Unary(u) = e else { return };
+        if u.operator != UnaryOperator::Not {
+            return;
+        }
+        let Expression::FunctionCall(c) = u.operand.as_ref() else { return };
+        let Expression::Identifier(name) = c.callee.as_ref() else { return };
+        if let Some(b) = rapidr_lang::builtin(&name.name).filter(|b| b.doc.starts_with("True (1)")) {
+            found.push((u.span, c.span, b.name));
+        }
+    });
+    let mut out = Vec::new();
+    for (span, call, name) in found {
+        let (Some(at), Some(c)) = (s.locate_range(span), s.locate_range(call)) else { continue };
+        if c.file != at.file {
+            continue;
+        }
+        let written = s.parsed.file_text(&c.file).and_then(|t| t.get(c.start..c.end)).unwrap_or(name).to_string();
+        let shown = if written.chars().count() > 40 || written.contains('\n') { format!("{name}(…)") } else { written };
+        out.push(FileDiagnostic {
+            file: at.file,
+            start: at.start,
+            end: at.end.max(at.start + 1),
+            severity: Severity::Warning,
+            message: format!("{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"),
+            code: Some(NOT_ONE.into()),
+        });
+    }
+    out
+}
 
 /// The hints for the program of `s` (every file of it).
 pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
@@ -58,6 +102,7 @@ pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
             }
         }
     }
+    out.extend(not_one(s));
     out.sort_by(|a, b| (&a.file, a.start).cmp(&(&b.file, b.start)));
     out
 }
@@ -101,10 +146,34 @@ pub(crate) fn actions(diags: &[FileDiagnostic], root: &Path, text_of: impl Fn(&P
                 }
                 out.push(CodeAction { title, edit: vec![(file, vec![include_edit(&text, &inc)])], fixes: Some(d.clone()), preferred: true });
             }
+            Some(NOT_ONE) => {
+                let Some(text) = text_of(&d.file) else { continue };
+                let Some(fix) = not_one_fix(&text, d.start, d.end) else { continue };
+                out.push(CodeAction { title: format!("Write {}", fix.text), edit: vec![(d.file.clone(), vec![fix])], fixes: Some(d.clone()), preferred: true });
+            }
             _ => {}
         }
     }
     out
+}
+
+/// `NOT FILEEXISTS(x)` (bytes `start..end` of `text`) as `FILEEXISTS(x) =
+/// 0` — in brackets unless it is a whole condition (`IF … THEN`, `WHILE …`,
+/// `UNTIL …`), where `=` can't join with what is around it.
+fn not_one_fix(text: &str, start: usize, end: usize) -> Option<TextEdit> {
+    let written = text.get(start..end)?;
+    let call = written.trim_start().get(3..)?.trim_start();
+    if !written.trim_start().get(..3)?.eq_ignore_ascii_case("NOT") || call.is_empty() {
+        return None;
+    }
+    let line_start = text[..start].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = text[end..].find('\n').map_or(text.len(), |i| end + i);
+    let before = text[line_start..start].trim_end().to_ascii_uppercase();
+    let after = text[end..line_end].trim_start().to_ascii_uppercase();
+    let opens = ["IF", "ELSEIF", "WHILE", "UNTIL"].iter().any(|k| before == *k || before.ends_with(&format!(" {k}")) || before.ends_with(&format!(":{k}")));
+    let closes = after.is_empty() || after.starts_with("THEN") || after.starts_with('\'') || after.starts_with(':');
+    let fixed = if opens && closes { format!("{call} = 0") } else { format!("({call} = 0)") };
+    Some(TextEdit { start, end, text: fixed })
 }
 
 #[cfg(test)]

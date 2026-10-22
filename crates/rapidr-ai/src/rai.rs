@@ -846,7 +846,7 @@ impl Ai {
             if need + 512 > w {
                 // (asked again next time: the server may have more memory then)
                 self.windows.remove(&self.model);
-                return Err(format!("This model takes {} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {}). Choose a model or a server setting with a larger window: 8,192 tokens or more.", thousands(w), thousands(need)));
+                return Err(format!("This model takes {} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {}). Choose a model or a server setting with a larger window: 16,384 tokens or more.", thousands(w), thousands(need)));
             }
         }
         let (before, after, cut) = self.compact(fixed);

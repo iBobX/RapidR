@@ -221,6 +221,32 @@ END
 
 `DATA`, `READ` and `RESTORE [label]` work as in other BASICs.
 
+### `FOR i AS INTEGER`: a counter declared in its loop
+
+Many BASICs (and the AI models that learned them) write the counter's type
+in the loop itself. RapidR takes that too:
+
+```basic
+FOR i AS INTEGER = 1 TO 3 : PRINT i : NEXT      ' prints 1, 2, 3
+
+SUB CountDown
+    FOR k AS LONG = 10 TO 0 STEP -5             ' k is the SUB's own
+        PRINT k
+    NEXT
+END SUB
+```
+
+- The counter is declared where it isn't yet, as a `DIM` would: in a SUB or
+  FUNCTION it is a local of its own; in the main program, a global.
+- A counter already declared with the **same type** is that variable (two
+  loops on `i`, or `DIM i AS INTEGER` first). One declared with **another
+  type** is an error that says so:
+  `FOR name AS INTEGER: name is already declared AS STRING (in main.rr:3)`.
+- The type is a number type: `INTEGER`, `LONG`, `DOUBLE`, `SINGLE`, `BYTE` …
+- It is RapidR's own (RapidQ's compiler refuses `AS` there); `FOR i = 1 TO 3`
+  is unchanged. It works the same in the interpreter, native builds and on
+  the web.
+
 ### `END` and the exit code
 
 `END` ends the program at once; the files it wrote are kept. RapidR's
@@ -490,6 +516,16 @@ An error in included code points at the include file and line.
 - Compile errors name the file, line and column, and every bad line is
   reported, not just the first: `syn.bas:3:1: error: Syntax error in FOR
   statement`.
+- Some say the fix too. A name declared again — in a program of several
+  files, often in another file — says where the first one is:
+  `Identifier siteCount already used, try another name — it is declared in
+  globals.rr:12 already`. A SUB or FUNCTION that no file has names the
+  nearest ones: `Unknown SUB or FUNCTION 'ShowNumbr' — did you mean
+  ShowNumber?`.
+- The editor also warns about code that compiles but can't be right:
+  `IF NOT FILEEXISTS(f) THEN` is always true, because FILEEXISTS gives 1
+  for yes and `NOT 1` is -2. The warning's quick fix (Ctrl+.) writes
+  `IF FILEEXISTS(f) = 0 THEN`.
 - A run-time error stops the program with its message and line: `run-time
   error: Division by zero (at err.bas line 4)`.
 - `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB's) are accepted

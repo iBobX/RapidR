@@ -65,6 +65,9 @@ pub struct Case {
     /// compiles.
     pub forms: Vec<String>,
     pub run: Run,
+    /// A RapidR program (`.rr`: RAPIDQ.INC's constants built in, `True` -1)
+    /// rather than a RapidQ one (`.bas`): the language card's rules.
+    pub rapidr: bool,
 }
 
 /// What the check will do.
@@ -548,13 +551,13 @@ fn statement_cases(plan: &mut Plan) {
         if let Some((_, why, programs)) = FIXED.iter().find(|(n, _, _)| *n == s.name) {
             plan.skipped.push((entry.clone(), if programs.is_empty() { format!("not compiled: {why}") } else { format!("syntax line not derived: {why}; a fixed program is compiled instead") }));
             for p in *programs {
-                plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, text: p.trim().to_string(), forms: vec![format!("{PRELUDE}{p}")], run: Run::Compile });
+                plan.cases.push(Case { rapidr: false, entry: entry.clone(), what: What::Syntax, text: p.trim().to_string(), forms: vec![format!("{PRELUDE}{p}")], run: Run::Compile });
             }
             continue;
         }
         for text in syntax_programs(s.name, s.syntax, &entry, plan) {
             let forms = vec![wrap_statement(s.name, &text)];
-            plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, text, forms, run: Run::Compile });
+            plan.cases.push(Case { rapidr: false, entry: entry.clone(), what: What::Syntax, text, forms, run: Run::Compile });
         }
     }
 }
@@ -625,7 +628,7 @@ fn directive_cases(plan: &mut Plan) {
                 plan.skipped.push((entry.clone(), "`ICON \"file\"` names a file the compiler opens: checked in the examples suite".into()));
                 continue;
             }
-            plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, forms: vec![format!("{text}{closing}\nPRINT 1\n")], text, run: Run::Compile });
+            plan.cases.push(Case { rapidr: false, entry: entry.clone(), what: What::Syntax, forms: vec![format!("{text}{closing}\nPRINT 1\n")], text, run: Run::Compile });
         }
     }
 }
@@ -811,7 +814,7 @@ fn builtin_cases(plan: &mut Plan) {
                 forms.push(around(format!("PRINT {text}")));
                 forms.push(around(format!("v = {text}")));
             }
-            plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, text, forms, run: Run::Compile });
+            plan.cases.push(Case { rapidr: false, entry: entry.clone(), what: What::Syntax, text, forms, run: Run::Compile });
         }
     }
 }
@@ -830,7 +833,22 @@ fn example_case(plan: &mut Plan, entry: String, example: &str, expect: &str, eff
     } else {
         Run::Execute(expect.to_string())
     };
-    plan.cases.push(Case { entry, what: What::Example, text: example.trim().to_string(), forms, run });
+    plan.cases.push(Case { rapidr: false, entry, what: What::Example, text: example.trim().to_string(), forms, run });
+}
+
+/// The language card's rules ([`crate::card`]): each `right` program compiled
+/// as a RapidR program, and run when it has an `expect`.
+fn rule_cases(plan: &mut Plan) {
+    for r in RULES.iter().filter(|r| !r.right.trim().is_empty()) {
+        let entry = format!("rule {}", r.name);
+        let run = if r.expect.is_empty() {
+            plan.skipped.push((entry.clone(), "compiled, not run: no `expect` says what it prints".into()));
+            Run::Compile
+        } else {
+            Run::Execute(r.expect.to_string())
+        };
+        plan.cases.push(Case { rapidr: true, entry, what: What::Example, text: r.right.trim().to_string(), forms: vec![r.right.trim_end().to_string() + "\n"], run });
+    }
 }
 
 fn example_cases(plan: &mut Plan) {
@@ -839,7 +857,7 @@ fn example_cases(plan: &mut Plan) {
             let entry = c.name.to_string();
             let source = c.example.trim_end().to_string() + "\n";
             plan.skipped.push((entry.clone(), "a component's example opens windows: compiled, not run".into()));
-            plan.cases.push(Case { entry, what: What::Example, text: c.example.trim().to_string(), forms: vec![source], run: Run::Compile });
+            plan.cases.push(Case { rapidr: false, entry, what: What::Example, text: c.example.trim().to_string(), forms: vec![source], run: Run::Compile });
         }
         for m in c.methods.iter().filter(|m| !m.example.trim().is_empty()) {
             example_case(plan, format!("{}.{}", c.name, m.name), m.example, m.expect, m.effects, true);
@@ -921,6 +939,7 @@ pub fn plan() -> Plan {
     directive_cases(&mut plan);
     builtin_cases(&mut plan);
     example_cases(&mut plan);
+    rule_cases(&mut plan);
     trap_rule(&mut plan);
     names_rule(&mut plan);
     plan

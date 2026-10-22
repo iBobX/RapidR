@@ -722,6 +722,7 @@ fn build(dir: &Path) -> Res<String> {
     let mut directives = Vec::new();
     let mut keywords = Vec::new();
     let mut types = Vec::new();
+    let mut rules = Vec::new();
     for path in &paths {
         let file = path.strip_prefix(dir).unwrap().display().to_string();
         let t = load(path)?;
@@ -782,7 +783,7 @@ fn build(dir: &Path) -> Res<String> {
             }
             internal = strs(&t, "internal", &file)?;
         } else if file == "language.toml" {
-            keys_allowed(&t, &["statement", "directive", "keyword", "type"], &file)?;
+            keys_allowed(&t, &["statement", "directive", "keyword", "type", "rule"], &file)?;
             for x in tables(&t, "statement", &file)? {
                 keys_allowed(x, &["name", "syntax", "group", "origin", "doc", "effects"], &file)?;
                 let name = req(x, "name", &file)?;
@@ -830,6 +831,23 @@ fn build(dir: &Path) -> Res<String> {
                 let at = format!("{file}: {name}");
                 types.push(format!("TypeName {{ name: {}, origin: {}, doc: {} }}", lit(name), origin(x, "rapidq", &at)?, lit(s(x, "doc").unwrap_or(""))));
             }
+            for x in tables(&t, "rule", &file)? {
+                keys_allowed(x, &["name", "text", "statement", "right", "expect", "wrong"], &file)?;
+                let name = req(x, "name", &file)?;
+                let at = format!("{file}: rule {name}");
+                if s(x, "expect").is_some() && s(x, "right").is_none() {
+                    return Err(format!("{at}: `expect` says what `right` prints: it needs a `right`"));
+                }
+                rules.push(format!(
+                    "Rule {{ name: {}, text: {}, statement: {}, right: {}, expect: {}, wrong: {} }}",
+                    lit(name),
+                    lit(req(x, "text", &at)?),
+                    lit(s(x, "statement").unwrap_or("")),
+                    lit(s(x, "right").unwrap_or("")),
+                    lit(s(x, "expect").unwrap_or("")),
+                    lit(s(x, "wrong").unwrap_or(""))
+                ));
+            }
         } else if !["constants.toml", "sets.toml"].contains(&file.as_str()) && !file.starts_with("glossary") {
             return Err(format!("{file}: not a registry file (components/*.toml, globals, builtins, language, constants, glossary, sets)"));
         }
@@ -856,6 +874,7 @@ fn build(dir: &Path) -> Res<String> {
     writeln!(out, "pub static DIRECTIVES: &[Directive] = &[\n    {},\n];\n", directives.join(",\n    ")).unwrap();
     writeln!(out, "pub static KEYWORDS: &[Keyword] = &[\n    {},\n];\n", keywords.join(",\n    ")).unwrap();
     writeln!(out, "pub static TYPE_NAMES: &[TypeName] = &[\n    {},\n];\n", types.join(",\n    ")).unwrap();
+    writeln!(out, "pub static RULES: &[Rule] = &[\n    {},\n];\n", rules.join(",\n    ")).unwrap();
     writeln!(out, "pub static CONSTANT_GROUPS: &[ConstantGroup] = &[\n    {},\n];\n", groups_code.join(",\n    ")).unwrap();
     Ok(out)
 }

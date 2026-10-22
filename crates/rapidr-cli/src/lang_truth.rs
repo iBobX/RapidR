@@ -107,7 +107,7 @@ fn check_case(c: &Case, scratch: &Path, n: usize, me: Option<&Path>) -> Result<b
     let mut first_error = String::new();
     let mut compiled: Option<PathBuf> = None;
     for (k, form) in c.forms.iter().enumerate() {
-        let src = scratch.join(format!("c{n}_{k}.bas"));
+        let src = scratch.join(format!("c{n}_{k}.{}", if c.rapidr { "rr" } else { "bas" }));
         fs::write(&src, form).map_err(|e| format!("{}: {e}", src.display()))?;
         match compile(&src) {
             Ok(bytes) => {
@@ -213,7 +213,7 @@ fn emit_cases(cases: &[&Case], dir: &Path) -> ExitCode {
         let Run::Execute(expect) = &c.run else { continue };
         let base: String = c.entry.chars().map(|ch| if ch.is_ascii_alphanumeric() { ch.to_ascii_lowercase() } else { '_' }).collect();
         let path = dir.join(format!("{base}_{n}"));
-        if fs::write(path.with_extension("bas"), &c.forms[0]).and_then(|_| fs::write(path.with_extension("expected"), format!("{expect}\n"))).is_err() {
+        if fs::write(path.with_extension(if c.rapidr { "rr" } else { "bas" }), &c.forms[0]).and_then(|_| fs::write(path.with_extension("expected"), format!("{expect}\n"))).is_err() {
             eprintln!("{}: can't write", path.display());
             return ExitCode::from(1);
         }

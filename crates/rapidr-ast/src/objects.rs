@@ -850,7 +850,7 @@ impl Lowering<'_> {
         let mut body = vec![call_stmt_at(span, init, vec![element])];
         for (d, v) in vars.iter().enumerate().rev() {
             let bound = |f: &str| call_at(span, f, vec![ident_at(span, array), int_at(span, d as i64 + 1)]);
-            body = vec![Statement::For(ForStatement { span, variable: v.clone(), start: bound("LBOUND"), end: bound("UBOUND"), step: None, body })];
+            body = vec![Statement::For(ForStatement { span, variable: v.clone(), declared_type: None, start: bound("LBOUND"), end: bound("UBOUND"), step: None, body })];
         }
         body
     }

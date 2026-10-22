@@ -91,6 +91,10 @@ fn record_program(program: &Program, source: Option<&str>) -> semantic::Recorder
 }
 
 fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[bool], recorder: Option<semantic::Recorder>) -> (Result<Compiled, Vec<Diagnostic>>, Option<semantic::Recorder>) {
+    // (`FOR i AS INTEGER`: the counter declared — rapidr_ast::for_as, the
+    // first pass, native builds run it first too — or what is wrong with it)
+    let (declared, for_as_errors) = rapidr_ast::for_as::lower_with_errors(program);
+    let program = &declared;
     // (a RapidR program's built-in constants first: rapidr_ast::
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — native builds run them
@@ -124,6 +128,7 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     }
     // (RapidQ's compile-time type check; its errors also stop native builds)
     let mut checks = typecheck;
+    checks.extend(for_as_errors);
     checks.extend(rapidr_ast::type_mismatches(&hoisted));
     for (span, message) in checks {
         bcgen.error_at(span, message);
@@ -664,7 +669,7 @@ impl Bcgen {
     /// A call to `name` that is not a user SUB/FUNCTION compiles to
     /// `CallBuiltin`; make sure the builtin exists instead of letting the
     /// call silently do nothing at run time.
-    fn check_builtin_call(&mut self, name: &str, argc: usize, span: TextSpan) {
+    fn check_builtin_call(&mut self, name: &str, _argc: usize, span: TextSpan) {
         if builtins::is_builtin(name) {
             return;
         }
@@ -673,10 +678,11 @@ impl Bcgen {
             format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
         } else if RAPIDQ_BUILTINS.contains(&key.as_str()) {
             format!("{} (a RapidQ built-in){UNSUPPORTED_MARKER}", name.to_uppercase())
-        } else if argc == 0 {
-            format!("Unknown SUB or FUNCTION '{name}'")
         } else {
-            format!("Unknown SUB or FUNCTION '{name}'")
+            // (RapidQ's words, then the fix: the nearest SUB, FUNCTION or
+            // builtin, or that none is near)
+            let routines: Vec<&str> = self.module.functions.iter().map(|f| f.name.as_str()).filter(|n| !n.is_empty() && !n.starts_with("__") && !n.starts_with('<')).collect();
+            format!("Unknown SUB or FUNCTION '{name}'{}", rapidr_ast::unknown_routine_fix(name, &routines))
         };
         self.error_at(span, message);
     }

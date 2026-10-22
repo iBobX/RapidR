@@ -126,6 +126,16 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
             "A short working RapidR program close to what you describe (a calculator, a timer, a to-do list, a quiz, a drawing pad, a CSV grid, a list with Start/Stop …), from RapidR's recipes: start from it and adapt it.",
             schema(json!({"query": {"type": "string", "description": "what the program does, in a few words"}}), &["query"]),
         ),
+        t(
+            "project_outline",
+            "The open project as the compiler reads it: its files in include order (which file $INCLUDEs which), and for each file its forms and their components, its SUBs and FUNCTIONs with their parameters, its globals (DIM) with their types, its CONSTs and TYPEs, each with its line. Call it before writing changes to a project of several files, and before adding a DIM, SUB or FUNCTION: a name is declared once in the whole program, and only SUBs and FUNCTIONs listed here (or builtins) can be called.",
+            schema(json!({}), &[]),
+        ),
+        t(
+            "search_manual",
+            "RapidR's user manual (its guide pages), searched: the three sections that best answer a question (\"how do I add a menu\", \"read a CSV file\", \"breakpoints\", \"serial port\"), each trimmed, with its page and heading.",
+            schema(json!({"query": {"type": "string", "description": "the question, or a few words of it"}}), &["query"]),
+        ),
     ];
     if proposals {
         out.push(t(
@@ -286,6 +296,8 @@ pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Prop
         "rapidr_list" | "rapidr_get" => design(name, input, project),
         "check_code" => check(input, project),
         "find_example" => find_example(input),
+        "project_outline" => project_outline(project),
+        "search_manual" => search_manual(input),
         "layout" => layout(input),
         "propose_edit" | "write_file" | "create_project" if !may_propose => err("the user allowed reading only (Tools > Settings > AI > Permission): describe the change in words instead", format!("{name}: not allowed (read-only)"), ""),
         // (a proposing tool's risk is a proposal's, whether it fitted or not:
@@ -330,7 +342,7 @@ pub fn pending(proposals: &[Proposal]) -> Option<(String, String)> {
 /// fixes its new program's errors with read_file and write_file before the
 /// user presses Create; "no project open" there lost it.
 fn on_pending(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Proposal>, may_propose: bool) -> Option<Outcome> {
-    if !matches!(name, "list_files" | "read_file" | "check_code" | "propose_edit" | "write_file" | "rapidr_list" | "rapidr_get") {
+    if !matches!(name, "list_files" | "read_file" | "check_code" | "propose_edit" | "write_file" | "rapidr_list" | "rapidr_get" | "project_outline") {
         return None;
     }
     // (write_file with create_project's arguments: a new project again)
@@ -619,6 +631,189 @@ fn find_example(input: &Json) -> Outcome {
     let others: Vec<&str> = found.iter().skip(1).take(2).map(|(_, r)| r.title.as_str()).collect();
     let more = if others.is_empty() { String::new() } else { format!("\nAlso close: {}.", others.join("; ")) };
     ok(format!("Recipe \"{}\", a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.code()), format!("Found an example: {}", best.title), "read", query)
+}
+
+/// `search_manual`: the manual's three sections that answer the question
+/// best (crate::manual_search). The manual is RapidR's own text.
+fn search_manual(input: &Json) -> Outcome {
+    let query = s(input, "query").trim();
+    if query.is_empty() {
+        return err("give `query`: the question, or a few words of it", "search_manual: no question".into(), "");
+    }
+    let found = crate::manual_search::search(query, 3);
+    if found.is_empty() {
+        return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
+    }
+    let text = found.iter().map(|s| crate::manual_search::excerpt(s)).collect::<Vec<_>>().join("\n\n---\n\n");
+    let where_ = found.iter().map(|s| s.page).collect::<Vec<_>>().join(", ");
+    ok(text, format!("Searched the manual for {query}: {where_}"), "read", query)
+}
+
+/// One line of the outline: where it is (a file's line) and what.
+struct Mark {
+    line: usize,
+    what: String,
+}
+
+/// `project_outline`: the program as the compiler reads it — its files in
+/// include order, and what each declares (forms and their components,
+/// SUBs and FUNCTIONs with their parameters, globals with their types,
+/// CONSTs, TYPEs), from the language service's parse of the whole program
+/// (every file the main file includes, waiting proposals applied). A file
+/// the main file doesn't include is said, with its own names.
+fn project_outline(p: &Project) -> Outcome {
+    let files = p.all();
+    if files.is_empty() {
+        return ok("No project is open. To make a new program, use create_project.".into(), "Outlined the project: none is open".into(), "read", "");
+    }
+    let root = "/project";
+    let full = |rel: &str| PathBuf::from(format!("{root}/{rel}"));
+    let rel_of = |path: &std::path::Path| {
+        let f = path.to_string_lossy().replace('\\', "/");
+        f.strip_prefix(&format!("{root}/")).unwrap_or(&f).to_string()
+    };
+    let mut a = Analysis::new(Options { rapidq_compatible: p.compat.eq_ignore_ascii_case("rapidq"), roots: Some(Vec::new()), ..Options::default() });
+    for (rel, text) in &files {
+        a.update(full(rel), text.clone());
+    }
+    let main = if p.main.is_empty() { files[0].0.clone() } else { p.main.to_string() };
+    let mut out = String::new();
+    let mut outlined: Vec<String> = Vec::new();
+    let program = |a: &mut Analysis, main: &str, out: &mut String, outlined: &mut Vec<String>| {
+        let Some(snap) = a.snapshot(&full(main)) else { return };
+        let pre = &snap.parsed.tools.preprocessed;
+        // (the files in the order the compiler reads them; RapidR's own
+        // libraries aren't the project's)
+        let order: Vec<String> = pre.origins.files.iter().filter_map(|f| f.path.as_deref()).filter(|p| !p.to_string_lossy().starts_with("<RapidR>")).map(rel_of).collect();
+        let mut included_by: HashMap<String, String> = HashMap::new();
+        let mut notes: HashMap<String, Vec<String>> = HashMap::new();
+        for u in &pre.includes {
+            let from = pre.origins.files.get(u.file).and_then(|f| f.path.as_deref()).map(rel_of).unwrap_or_else(|| main.to_string());
+            match &u.found {
+                rapidr_preprocessor::IncludeFound::File(path) => {
+                    included_by.entry(rel_of(path)).or_insert_with(|| format!("{from}:{}", u.line));
+                }
+                rapidr_preprocessor::IncludeFound::BuiltIn => notes.entry(from).or_default().push(format!("$INCLUDE \"{}\" (line {}): built into RapidR", u.written, u.line)),
+                rapidr_preprocessor::IncludeFound::Missing => notes.entry(from).or_default().push(format!("$INCLUDE \"{}\" (line {}): NOT FOUND — the program doesn't compile", u.written, u.line)),
+            }
+        }
+        let mut marks: HashMap<String, Vec<Mark>> = HashMap::new();
+        let mut place = |span: rapidr_diagnostics::TextSpan, what: String, a: &Analysis| {
+            let Some(l) = snap.locate(span) else { return };
+            let text = a.text(&l.file).unwrap_or_default();
+            let (line, _) = crate::langsvc::line_col(&text, l.start);
+            marks.entry(rel_of(&l.file)).or_default().push(Mark { line, what });
+        };
+        let source = |span: rapidr_diagnostics::TextSpan| -> String {
+            let s = pre.source.get(span.start..span.end.min(pre.source.len())).unwrap_or("");
+            s.lines().next().unwrap_or("").split('\'').next().unwrap_or("").trim().to_string()
+        };
+        let params = |ps: &[rapidr_ast::Parameter]| -> String {
+            if ps.is_empty() {
+                return String::new();
+            }
+            let list: Vec<String> = ps.iter().map(|x| format!("{}{}{} AS {}", if x.by_ref { "BYREF " } else { "" }, x.name, if x.is_array { "()" } else { "" }, rapidr_lang::resolve_component(&x.type_name).map_or(x.type_name.clone(), |k| k.spelling()))).collect();
+            format!(" ({})", list.join(", "))
+        };
+        fn globals(stmts: &[rapidr_ast::Statement], f: &mut dyn FnMut(&rapidr_ast::Statement)) {
+            use rapidr_ast::Statement as S;
+            for st in stmts {
+                f(st);
+                match st {
+                    S::If(i) => {
+                        globals(&i.then_body, f);
+                        for b in &i.elseif_branches {
+                            globals(&b.body, f);
+                        }
+                        globals(&i.else_body, f);
+                    }
+                    S::For(x) => globals(&x.body, f),
+                    S::While(x) => globals(&x.body, f),
+                    S::DoLoop(x) => globals(&x.body, f),
+                    S::SelectCase(c) => {
+                        for b in &c.cases {
+                            globals(&b.body, f);
+                        }
+                        globals(&c.case_else, f);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        fn components(stmts: &[rapidr_ast::Statement], into: &mut Vec<String>) {
+            for st in stmts {
+                if let rapidr_ast::Statement::Create(c) = st {
+                    into.push(format!("{} AS {}", c.name, rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |k| k.spelling())));
+                    components(&c.body, into);
+                }
+            }
+        }
+        globals(&snap.parsed.program.statements, &mut |st| {
+            use rapidr_ast::Statement as S;
+            match st {
+                S::Dim(d) if !d.is_redim => {
+                    for v in &d.declarators {
+                        let written = source(v.span);
+                        let what = if written.to_ascii_uppercase().starts_with(&v.name.to_ascii_uppercase()) && !written.is_empty() { written } else { format!("{} AS {}", v.name, d.type_name) };
+                        place(v.span, format!("DIM {what}"), a);
+                    }
+                }
+                S::Const(c) => place(c.span, source(c.span), a),
+                S::Create(c) => {
+                    let ty = rapidr_lang::resolve_component(&c.type_name).map_or(c.type_name.clone(), |k| k.spelling());
+                    let mut inner = Vec::new();
+                    components(&c.body, &mut inner);
+                    let shown = inner.len().min(40);
+                    let more = if inner.len() > shown { format!(", … {} more", inner.len() - shown) } else { String::new() };
+                    let kind = if ty.eq_ignore_ascii_case("RForm") { "form" } else { "component" };
+                    let list = if inner.is_empty() { String::new() } else { format!(": {}{more}", inner[..shown].join(", ")) };
+                    place(c.span, format!("{kind} {} AS {ty}{list}", c.name), a);
+                }
+                S::Subroutine(r) => place(r.span, format!("SUB {}{}", r.name, params(&r.params)), a),
+                S::Function(f) => place(f.span, format!("FUNCTION {}{}{}", f.name, params(&f.params), f.return_type.as_deref().map(|t| format!(" AS {t}")).unwrap_or_default()), a),
+                S::Declare(d) if d.lib.is_some() => place(d.span, format!("DECLARE {} {}{} (in {})", if d.is_function { "FUNCTION" } else { "SUB" }, d.name, params(&d.params), d.lib.as_deref().unwrap_or("")), a),
+                S::Type(t) => {
+                    let fields: Vec<String> = t.fields.iter().map(|f| format!("{} AS {}", f.name, f.type_name)).collect();
+                    place(t.span, format!("TYPE {}: {}", t.name, fields.join(", ")), a);
+                }
+                _ => {}
+            }
+        });
+        out.push_str(&format!("The program {main}, as the compiler reads it — files in include order:\n"));
+        for f in &order {
+            outlined.push(f.clone());
+            let by = included_by.get(f).map(|b| format!(" (included by {b})")).unwrap_or_default();
+            out.push_str(&format!("\n{f}{by}\n"));
+            for n in notes.get(f).into_iter().flatten() {
+                out.push_str(&format!("  {n}\n"));
+            }
+            let mut ms = marks.remove(f).unwrap_or_default();
+            ms.sort_by_key(|m| m.line);
+            if ms.is_empty() && notes.get(f).is_none() {
+                out.push_str("  (nothing declared: code only)\n");
+            }
+            for m in ms {
+                out.push_str(&format!("  {}: {}\n", m.line, m.what));
+            }
+        }
+    };
+    program(&mut a, &main, &mut out, &mut outlined);
+    // (a source file the main file doesn't include: not part of the
+    // program — said, with its own names)
+    let loose: Vec<String> = files.iter().map(|(r, _)| r.clone()).filter(|r| is_source(r) && !outlined.contains(r)).collect();
+    for f in &loose {
+        out.push_str(&format!("\n{f} is NOT included by {main}: its names aren't part of the program (add $INCLUDE \"{f}\" to {main} to use them). On its own:\n"));
+        let mut o = String::new();
+        let mut seen = Vec::new();
+        program(&mut a, f, &mut o, &mut seen);
+        out.push_str(o.split_once('\n').map_or("", |(_, rest)| rest));
+    }
+    let (text, cut) = clip(&out);
+    let mut content = untrusted("project:outline", json!(text));
+    if cut {
+        content.push_str(&format!("\n(only its first {MAX_TEXT} characters)"));
+    }
+    Outcome { content, is_error: false, note: format!("Outlined the project ({} files)", outlined.len() + loose.len()), read: Some("project:outline".into()), risk: "read", target: main }
 }
 
 fn design(name: &str, input: &Json, p: &Project) -> Outcome {
@@ -1654,6 +1849,60 @@ mod tests {
 
     fn project<'a>(files: &'a [String], buffers: &'a HashMap<String, String>) -> Project<'a> {
         Project { folder: "/nowhere-on-disk", files, main: "main.rr", compat: "", buffers }
+    }
+
+    #[test]
+    fn the_outline_is_the_program_as_compiled() {
+        // (Robert's DeepSeek evening, 2026-10-20, in miniature: globals in
+        // one file, the forms in another, the routines in a third)
+        let files: Vec<String> = ["main.rr", "globals.rr", "ui.rr", "server.rr", "old.rr"].iter().map(|s| s.to_string()).collect();
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "' the server\n$INCLUDE \"globals.rr\"\n$INCLUDE \"ui.rr\"\n$INCLUDE \"server.rr\"\nStartServer 8080\nForm.ShowModal\n".to_string());
+        buffers.insert("globals.rr".to_string(), "CONST MAX_SITES = 10\nDIM siteCount AS INTEGER\nDIM siteName(MAX_SITES) AS STRING ' the names\nTYPE Site\n    Name AS STRING\n    Port AS INTEGER\nEND TYPE\n".to_string());
+        buffers.insert("ui.rr".to_string(), "DECLARE SUB GoClick (Sender AS RButton)\nCREATE Form AS RForm\n    CREATE Go AS RButton\n        OnClick = GoClick\n    END CREATE\n    CREATE Sites AS QLISTBOX\n    END CREATE\nEND CREATE\nSUB GoClick (Sender AS RButton)\n    PRINT Sender.Caption\nEND SUB\n".to_string());
+        buffers.insert("server.rr".to_string(), "SUB StartServer (port AS INTEGER)\n    siteCount = 0\nEND SUB\nFUNCTION SiteURL (i AS INTEGER, BYREF host AS STRING) AS STRING\n    Result = host\nEND FUNCTION\n".to_string());
+        buffers.insert("old.rr".to_string(), "SUB Leftover\nEND SUB\n".to_string());
+        let p = project(&files, &buffers);
+        let o = run("project_outline", &json!({}), &p, &mut Vec::new(), true);
+        assert!(!o.is_error && o.content.starts_with("{\"untrusted\":true,\"source\":\"project:outline\""), "{}", o.content);
+        let v: Json = serde_json::from_str(&o.content).unwrap();
+        let text = v["content"].as_str().unwrap();
+        let order: Vec<usize> = ["\nmain.rr\n", "\nglobals.rr (included by main.rr:2)", "\nui.rr (included by main.rr:3)", "\nserver.rr (included by main.rr:4)"].iter().map(|h| text.find(h).unwrap_or_else(|| panic!("{h} not in\n{text}"))).collect();
+        assert!(order.windows(2).all(|w| w[0] < w[1]), "{text}");
+        for want in [
+            "  1: CONST MAX_SITES = 10",
+            "  2: DIM siteCount AS INTEGER",
+            "  3: DIM siteName(MAX_SITES) AS STRING\n",
+            "  4: TYPE Site: Name AS STRING, Port AS INTEGER",
+            "  2: form Form AS RForm: Go AS RButton, Sites AS RListBox",
+            "  9: SUB GoClick (Sender AS RButton)",
+            "  1: SUB StartServer (port AS INTEGER)",
+            "  4: FUNCTION SiteURL (i AS INTEGER, BYREF host AS STRING) AS STRING",
+            "old.rr is NOT included by main.rr",
+            "  1: SUB Leftover",
+        ] {
+            assert!(text.contains(want), "{want:?} not in\n{text}");
+        }
+        assert_eq!(o.note, "Outlined the project (5 files)");
+        // (no project: said)
+        let none = Project { folder: "", files: &[], main: "", compat: "", buffers: &HashMap::new() };
+        assert!(run("project_outline", &json!({}), &none, &mut Vec::new(), true).content.starts_with("No project is open"));
+    }
+
+    #[test]
+    fn the_manual_is_searched() {
+        let empty = HashMap::new();
+        let p = project(&[], &empty);
+        let r = run("search_manual", &json!({"query": "how do I set a breakpoint"}), &p, &mut Vec::new(), true);
+        assert!(!r.is_error && r.content.contains("docs/manual/debugging.md — "), "{}", r.content);
+        assert!(r.content.matches("docs/manual/").count() <= 3);
+        assert!(run("search_manual", &json!({"query": "qqzzx"}), &p, &mut Vec::new(), true).content.contains("nothing on"));
+        assert!(run("search_manual", &json!({}), &p, &mut Vec::new(), true).is_error);
+        // (both tools are offered, the outline's description says when to call it)
+        let tools = tools(false);
+        let outline = tools.iter().find(|t| t.name == "project_outline").expect("project_outline");
+        assert!(outline.description.contains("before writing changes to a project of several files"));
+        assert!(tools.iter().any(|t| t.name == "search_manual"));
     }
 
     #[test]

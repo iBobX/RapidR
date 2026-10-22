@@ -293,6 +293,35 @@ the arithmetic itself. The compiler itself is unchanged: your own programs
 compile exactly as before.
 These two help small local models most — see below.
 
+### The language card, the outline and the manual
+
+Every model, even a small one, gets RapidR's **language card** with each
+question: about 1,300 tokens of the rules models actually get wrong — DIM a
+variable before its first use, declare a global once in the whole program,
+call only SUBs that exist, `FOR i AS INTEGER`, `True` is -1 while `Checked`
+and `FILEEXISTS` give 1, arrays, event SUBs and their parameters, RapidR's
+names. It isn't written by hand: it comes from the language registry and
+the compiler's rules, and every example on it is compiled and run by a
+check, so it can't teach a wrong signature. See it with
+`rapidr lang export --card`.
+
+Two more things the assistant can ask Studio for:
+
+- **The project's outline** — its files in the order the compiler reads
+  them (which file `$INCLUDE`s which), and in each file its forms and their
+  components, its SUBs and FUNCTIONs with their parameters, its globals with
+  their types, its CONSTs and TYPEs, each with its line. The assistant looks
+  at it before changing a project of several files, so it doesn't declare a
+  name twice or call a helper no file has.
+- **The manual** — the three sections of this manual that answer a
+  question best ("how do I set a breakpoint", "serial port"), searched on
+  your computer.
+
+The mistakes these answer, and what RapidR does about each (a clearer
+compiler message, a line on the card, or a small extension like
+`FOR i AS INTEGER`), are listed in the
+[mistake ledger](../rai-mistake-ledger.md).
+
 ## What was sent, and the audit log
 
 **Tools > What Was Sent to the AI…** shows the last request exactly as it

@@ -103,6 +103,17 @@ fn missing_icons(parsed: &Parsed) -> Vec<FileDiagnostic> {
 
 /// A diagnostic whose span counts bytes of the preprocessed text.
 fn at_pre(parsed: &Parsed, d: &Diagnostic) -> Option<FileDiagnostic> {
+    // (a message naming another place of the program — `already declared
+    // in globals.rr:12` —: its file and line, rapidr_diagnostics::place_mark)
+    let resolved;
+    let d = if d.message.contains("{{at:") {
+        let main = parsed.root.display().to_string();
+        let own = Some(d.location.line).filter(|l| *l > 0);
+        resolved = Diagnostic { message: parsed.tools.preprocessed.resolve_places(&main, own, &d.message), ..d.clone() };
+        &resolved
+    } else {
+        d
+    };
     // (generated text — a $DEFINE's value — maps to the source it replaced)
     let Some(l) = parsed.tools.locate(d.span) else {
         return place(parsed, &parsed.root, 0, None, d);

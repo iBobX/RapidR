@@ -209,9 +209,9 @@ doc = "Runs the first CASE whose values match the expression: single values, `a 
 
 [[statement]]
 name = "FOR"
-syntax = "FOR variable = start TO end [STEP step] … NEXT [variable]"
+syntax = "FOR variable [AS type] = start TO end [STEP step] … NEXT [variable]"
 group = "Flow"
-doc = "Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time."
+doc = "Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` (a RapidR extension: RapidQ's compiler refuses `AS` here) also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error."
 
 [[statement]]
 name = "WHILE"
@@ -680,3 +680,74 @@ doc = "A number for amounts of money; RapidR keeps it as a 64-bit floating-point
 name = "ROBJECT"
 origin = "rapidr"
 doc = "RapidR's name for QOBJECT, the base type of objects: `TYPE name EXTENDS ROBJECT`."
+
+# ---------------------------------------------------------------------------
+# The language card's rules (crates/rapidr-lang/src/card.rs, docs/preview4-plan.md
+# K1): what AI models get wrong when they write RapidR, one rule each, from
+# the mistake ledger (docs/rai-mistake-ledger.md). `text` is the card's line
+# (its facts are the compiler's: a test and `rapidr lang truth` hold them to
+# it); `right` a RapidR program (.rr) that shows it, which `rapidr lang
+# truth` compiles — and runs, when `expect` says what it prints; `wrong` the
+# habit, shown only.
+
+[[rule]]
+name = "declare"
+text = "DIM every variable, with its type, before its first use. An undeclared name is a new DOUBLE: `reply = \"ok\"` with no `DIM reply AS STRING` fails with \"Type mismatch, expecting type DOUBLE, but got STRING\"."
+right = "DIM reply AS STRING\nreply = \"ok\"\nPRINT reply"
+expect = "ok"
+
+[[rule]]
+name = "one-program"
+text = "The main file and every file it $INCLUDEs are one program. A global is DIMmed once, in one file, never again in another (\"Identifier … already used\"); a SUB's own DIMs are its locals. The main file $INCLUDEs each module once, above the code that uses it; a module holds DIMs, CONSTs, SUBs, FUNCTIONs and forms, and never $INCLUDEs the main file."
+
+[[rule]]
+name = "known-names"
+text = "Call only the SUBs and FUNCTIONs a file of the program has, and RapidR's builtins — no helpers from other languages. Text from a number: STR$(n); a number from text: VAL(s); also LEN, MID$(s, start, count), INSTR(s, find), UCASE$, LCASE$, TRIM$."
+right = "PRINT STR$(5) + \"|\" + MID$(\"abcdef\", 2, 3) + \"|\"; INSTR(\"abc\", \"c\"); \"|\"; VAL(\"12\") + 1"
+expect = "5|bcd|3|13"
+wrong = "PRINT NStr(5)"
+
+[[rule]]
+name = "for"
+statement = "FOR"
+text = "A counting loop: RapidQ's `FOR i = 1 TO n … NEXT`, or RapidR's `FOR i AS INTEGER = 1 TO n`, which also declares the counter where it isn't declared yet."
+right = "FOR i AS INTEGER = 1 TO 3: PRINT i: NEXT"
+expect = "1\n2\n3"
+
+[[rule]]
+name = "routines"
+text = "A FUNCTION gives its value with `Result = …`; a SUB gives none. In an expression the arguments go in brackets, in a statement without: `PRINT Twice(4)`, `ShowTotal 4`."
+right = "FUNCTION Twice(n AS INTEGER) AS INTEGER\n    Result = n * 2\nEND FUNCTION\nSUB ShowTotal(n AS INTEGER)\n    PRINT \"Total\"; n\nEND SUB\nPRINT Twice(4)\nShowTotal 4"
+expect = "8\nTotal4"
+
+[[rule]]
+name = "no-boolean"
+text = "There is no BOOLEAN: a yes/no is an INTEGER. True is -1 and False is 0, what a comparison gives; `IF x THEN` is true for any number but 0."
+right = "DIM done AS INTEGER\ndone = (2 > 1)\nIF done THEN PRINT done"
+expect = "-1"
+wrong = "DIM done AS BOOLEAN"
+
+[[rule]]
+name = "one-is-yes"
+text = "Checked, Enabled, Visible (every yes/no property), FILEEXISTS and DIREXISTS give 1 for yes, not True (-1). Test them with `IF x THEN` or `IF x = 0 THEN`: never `x = True`, never `NOT x` (NOT 1 is -2, true as well)."
+right = "IF FILEEXISTS(\"no-such-file.txt\") = 0 THEN PRINT \"missing\""
+expect = "missing"
+wrong = "IF NOT FILEEXISTS(f) THEN"
+
+[[rule]]
+name = "arrays"
+text = "An array is `DIM a(10) AS STRING` (items 0 to 10), set one item at a time; `REDIM a(20) AS STRING` makes it longer and keeps its items. No `[ … ]` lists, no `.Add` on an array (an RListBox is filled with AddItems, emptied with Clear)."
+right = "DIM a(2) AS STRING\na(1) = \"one\"\nREDIM a(5) AS STRING\nPRINT UBOUND(a); a(1)"
+expect = "5one"
+
+[[rule]]
+name = "operators"
+text = "Compare with = and <>, combine with AND, OR, NOT; join text with +; MOD gives a remainder. A TYPE … END TYPE is a record (`s.Name`; its fields have no `= default`)."
+right = "DIM n AS INTEGER, t AS STRING\nn = 7\nt = \"n is \" + STR$(n)\nPRINT t; \" \"; n MOD 4; \" \"; (n <> 7) OR (n = 7)"
+expect = "n is 7 3 -1"
+
+[[rule]]
+name = "create"
+statement = "CREATE"
+text = "A window is `CREATE Form AS RForm … END CREATE` with its controls' CREATE blocks inside: a property per `Name = value` line, an event per `OnClick = SubName` line, its SUB declared above with DECLARE SUB. The program ends with `Form.ShowModal`."
+right = "DECLARE SUB GoClick\nCREATE Form AS RForm\n    Caption = \"Demo\"\n    CREATE Go AS RButton\n        Caption = \"Go\"\n        OnClick = GoClick\n    END CREATE\nEND CREATE\nSUB GoClick\n    ShowMessage \"Hello\"\nEND SUB\nForm.ShowModal"

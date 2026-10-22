@@ -57,7 +57,7 @@
 | `EXIT FOR \| DO \| WHILE \| SUB \| FUNCTION` | Leaves the innermost FOR, DO or WHILE loop, or the SUB or FUNCTION, at once. |
 | `IF condition THEN … [ELSEIF condition THEN …] [ELSE …] END IF` | Runs statements when a condition is true (non-zero), others with ELSEIF or ELSE; on one line, `IF c THEN … ELSE …` needs no END IF. |
 | `SELECT CASE expression … CASE values … CASE ELSE … END SELECT` | Runs the first CASE whose values match the expression: single values, `a TO b` ranges, `IS > n` comparisons, lists of them; CASE ELSE when none does. |
-| `FOR variable = start TO end [STEP step] … NEXT [variable]` | Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. |
+| `FOR variable [AS type] = start TO end [STEP step] … NEXT [variable]` | Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` (a RapidR extension: RapidQ's compiler refuses `AS` here) also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error. |
 | `WHILE condition … WEND` | Runs the body as long as the condition is true, testing it before each pass. |
 | `DO [WHILE\|UNTIL condition] … LOOP [WHILE\|UNTIL condition]` | A loop: tested at the top (`DO WHILE` / `DO UNTIL`), at the bottom (`LOOP WHILE` / `LOOP UNTIL`), or not at all (left with `EXIT DO`). |
 | `GOTO label` | Continues the program at a label or line number. |
