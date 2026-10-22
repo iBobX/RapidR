@@ -375,6 +375,7 @@ Planned 2026-10-03 with the user: RapidQ was made for 96-dpi screens; today's ar
 - [ ] Shared models describe themselves: role, name (Caption / Text / Hint), value, state, actions — one accessibility tree per form
 - [x] Desktop: AccessKit (MIT / Apache) from that tree; web: ARIA roles and live regions from the same tree (v2.113.0); keyboard: TabOrder, visible focus, mnemonics (`&File`), Escape / Enter on dialogs
 - [x] New, additive: `AccessibleName`, `AccessibleDescription`; a high-contrast theme (v2.116.0: `$THEME highcontrast`)
+- [x] A11Y lane (2026-10-22), the gaps found by hand: menus drawn in the window are in the tree (an open menu as a `menu` with `menuitem` / `menuitemcheckbox` / `menuitemradio` items, states, keys, the chosen item focused); labels as links (`TabStop` on an RLabel: Tab, a focus ring, Enter / Space) — Studio's Welcome Recent links were mouse-only; the Output, Build and Problems pages wrap long lines (`WordWrap`, View > Wrap Long Output Lines); dock tabs keep their names whole (padding first, then the widest trimmed). Left: a real-screen-reader pass (VoiceOver / Narrator / NVDA / Orca) over all of it — release quality gate 4; an unchecked item of a menu whose other items are checked is a plain `menuitem` (RapidQ has no "checkable" flag)
 - [ ] No toolkit widgets are left on the desktop (FLTK removed): every component is the kernel's and gains accessibility through its model's description — track the ones whose description is still generic
 
 **Responsive layout (additive to Align)**
