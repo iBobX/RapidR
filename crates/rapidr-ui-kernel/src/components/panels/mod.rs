@@ -8,6 +8,7 @@
 
 pub mod common;
 pub mod console;
+pub mod console_flow;
 pub mod inspector;
 pub mod markdown;
 pub mod palette;

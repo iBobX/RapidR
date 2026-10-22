@@ -300,6 +300,8 @@ SUB LoadSettings
     SettingsRead = 1
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
+    ' (the Output and Problems pages wrap long lines unless turned off: View menu)
+    IF Reg.ValueExists("OutputWrap") THEN OutputNoWrap = Flag(Reg.ReadString("OutputWrap") = "0")
     ' (a layout saved by an older Studio — before documents were tabs, or
     ' without a panel added since — isn't restored: Studio starts with its
     ' default layout; LAYOUT_VERSION goes up when the layout changes)
@@ -330,6 +332,7 @@ SUB SaveSettings
   Reg.OpenKey(STUDIO_KEY, 1)
   Reg.WriteString("Theme", ThemeChoice)
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
+  Reg.WriteString("OutputWrap", LTRIM$(STR$(Flag(OutputNoWrap = 0))))
   Reg.WriteString("Layout", Dock.SaveLayout)
   Reg.WriteString("LayoutVersion", LTRIM$(STR$(LAYOUT_VERSION)))
   ' (S9: the layout shown's sizes first)

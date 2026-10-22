@@ -141,9 +141,11 @@ the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
 messages are the compiler's own words, so they read the same as when
 you build. While you edit, the bottom panel spans the whole width under
-your code, so a long message has room; one still too long for its row ends
-in "…", and resting the mouse on it shows all of it in a tooltip
-([Debugging: two layouts](debugging.md#two-layouts-editing-and-debugging)).
+your code, so a long message has room, and one still too long wraps onto more
+rows so it reads whole ([Debugging: long lines in Output and
+Problems](debugging.md#long-lines-in-output-and-problems)). With View > Wrap
+Long Output Lines off, it ends in "…" instead, and resting the mouse on it
+shows all of it in a tooltip.
 
 ### The RAPIDQ.INC warning
 

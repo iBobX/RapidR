@@ -10,7 +10,70 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ### Legal
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
+### Fixed
+- **Tab names are no longer cut short while there is room for them** (found
+  in high contrast, where the debugging layout's "Breakpoints (2)" showed as
+  "Breakpoints…"; light and dark did the same). When a dock group or the
+  documents' strip is too narrow for all its tabs, the tabs now give up their
+  padding first — every tab alike, the names whole — and only then are the
+  widest trimmed to one width, so a short name is never cut for a long one's
+  sake (before, every tab shrank in proportion and the widest lost its end).
+  The geometry says where each title is drawn (`Tab.text`) and the painters
+  use it. A name that still can't fit keeps its full tooltip and its full
+  accessible name. Flow `tabs-fit-names` (the three looks, contrast judged),
+  unit tests for the squeeze and for a crowded group; the Studio goldens
+  `debug-variables`, `debug-callstack`, `debug-breakpoints`, `debug-watch`,
+  `debug-datatip` (tab strip), `debug-error` (the Output's long line wraps)
+  and `palette` (one more command, a shorter scroll thumb) approved in all
+  three looks.
+
 ### Added
+- **The Output, Build and Problems pages wrap long lines** (ROutputConsole's
+  new `WordWrap`, RapidR's own, True unless a program sets it). A line longer
+  than the pane breaks onto more rows at a space near the edge (else at the
+  edge), so a long message reads whole instead of running off. It stays one
+  line to the mouse (a click on any of its rows selects it, `file:line` links
+  work on every row), the selection, Copy and a screen reader, and the wheel
+  and the bar move by rows. On the Problems page a row grows to hold its whole
+  message, the place after its last row (or under it). Off, a line is cut at
+  the edge as before — a problem's message ends in "…" — and resting the mouse
+  on it shows the whole text (an Output line's too: new). In RapidR Studio:
+  **View > Wrap Long Output Lines** (a check item, kept in the settings) and
+  **Wrap Long Lines** in the pane's right-click menu; flows `problems-wrap`,
+  `output-wrap-long-line`, `output-wrap-menu`, `output-wrap-off`,
+  `output-wrap-remembered` (the text contrast judged in every look), kernel
+  tests for the flow, the click, the copy, the wheel and the tooltips, the
+  manual's "Long lines in Output and Problems".
+- **Labels as links: `TabStop` on an RLabel** (RapidR's own; RapidQ's QLABEL
+  never takes the focus, and a label without it doesn't). A label given
+  `TabStop = 1` is a link: Tab reaches it (in `TabOrder`), the theme's focus
+  ring shows round its text, Enter or Space clicks it (`OnClick`), `OnEnter`,
+  `OnExit` and `SetFocus` work, and a screen reader announces a link named by
+  its `Caption` (or `AccessibleName`), with the `Hint` as its description.
+  RapidR Studio's Welcome page Recent links were the mouse-only ones left —
+  Tab skipped them; now Shift+Tab from the offer to reopen reaches the link
+  and Enter opens the project (flows `welcome-recent-link-keyboard` and
+  `welcome-recent-link-enter`). The registry's RLABEL has the property, the
+  method and the events; the example `examples/gui/links.rr`; the manual's
+  Accessibility section.
+- **Menus drawn in the window are in the accessibility tree** (Windows,
+  Linux and the web; macOS uses the system's own menu bar). An open menu —
+  a bar's drop-down, a submenu, a pop-up menu or an edit's context menu —
+  is a `menu` node with its items inside it: `menuitem`, `menuitemcheckbox`
+  and `menuitemradio` with their checked state, disabled items disabled, a
+  submenu's item collapsed or expanded (with a "has a menu" mark) and holding
+  its submenu, the item's ShortCut as its keyboard shortcut (AccessKit's
+  `keyboard_shortcut`, ARIA's `aria-keyshortcuts`) and its Hint as its
+  description. The item the arrow keys (or the mouse) chose has the screen
+  reader's focus — and no component has it meanwhile — so VoiceOver,
+  Narrator, NVDA, Orca and a browser's screen reader read each item as the
+  keys move; the bar selected with F10 or Alt focuses its item the same way.
+  A screen reader can press an item, expand or collapse a submenu and move to
+  an item. `RAPIDR_TEST_A11Y`'s JSON carries `accelerator`. Kernel tests walk
+  the keys and read the tree, Studio's `open-recent` flow reads the File menu
+  and its Open Recent submenu on both hosts, and `tests/web_a11y.mjs`
+  compares the kernel's menu nodes with Chrome's on the new `menus_open`
+  fixture.
 - **Versions, the engine (lane G1, docs/versions-plan.md).** `rapidr-vcs`
   speaks plain words over gitoxide: save a version (every changed file or
   some), the timeline, what changed, go back (a new version with the old
