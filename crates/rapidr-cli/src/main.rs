@@ -14,6 +14,7 @@ mod examples;
 mod home;
 mod import;
 mod lang;
+mod lang_truth;
 // (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
 #[cfg(feature = "ai-introspect")]
 mod introspect;
@@ -335,6 +336,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr ai providers | models --provider P | ask --provider P [--model M] \"question\"  RapidR's AI providers: keys, models, a question");
             eprintln!("  rapidr lang conformance <dir> [--target desktop|web]  The registry's conformance programs");
             eprintln!("  rapidr lang ai-check [--summary|--json] [--strict] [NAME…]  Registry entries lacking an AI facet");
+            eprintln!("  rapidr lang truth [--verbose] [--list] [--emit DIR] [NAME…]  The reference tells the truth: syntax lines and examples compile, expects print");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");

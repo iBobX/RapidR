@@ -192,6 +192,21 @@ fn range_refs(r: &str, at: &str) -> Res<Vec<String>> {
     Ok(refs)
 }
 
+/// `expect = "…"`: what the entry's `example` prints (`rapidr lang truth`
+/// runs the example and compares). It needs an `example`; the example's
+/// output lines are its lines (`\n` between them).
+fn expect_facet(t: &Table, at: &str) -> Res<String> {
+    let Some(v) = t.get("expect") else { return Ok(String::new()) };
+    let e = v.as_str().ok_or_else(|| format!("{at}: `expect` is text (the lines the example prints)"))?;
+    if e.is_empty() {
+        return Err(format!("{at}: `expect` is empty (leave it out for an example that prints nothing)"));
+    }
+    if s(t, "example").is_none_or(str::is_empty) {
+        return Err(format!("{at}: `expect` needs an `example` (the program it is the output of)"));
+    }
+    Ok(e.to_string())
+}
+
 fn unit(u: &str, at: &str) -> Res<()> {
     if UNITS.contains(&u) {
         Ok(())
@@ -423,9 +438,10 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
 const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression", "secret"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
-    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example"], at)?;
+    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example", "expect"], at)?;
     let name = req(m, "name", at)?;
     let at = &format!("{at}, method {name}");
+    let expect = expect_facet(m, at)?;
     let (effects_code, effects_risk) = effects(m, at)?;
     let risk_code = risk(m, effects_risk, at)?;
     let test = match s(m, "test") {
@@ -437,7 +453,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
     let (gdoc, _) = ctx.glossary.doc("method", name);
     let doc = s(m, "doc").map(str::to_string).filter(|d| !d.is_empty()).unwrap_or(gdoc);
     Ok(format!(
-        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {} }}",
+        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {} }}",
         lit(name),
         params(s(m, "params").unwrap_or(""), at)?,
         opt(s(m, "returns")),
@@ -449,6 +465,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
         opt(set),
         lit(&doc),
         lit(s(m, "example").unwrap_or("")),
+        lit(&expect),
     ))
 }
 
@@ -736,7 +753,7 @@ fn build(dir: &Path) -> Res<String> {
             keys_allowed(&t, &["builtin", "internal"], &file)?;
             let mut keys = HashSet::new();
             for x in tables(&t, "builtin", &file)? {
-                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc", "effects", "risk", "example"], &file)?;
+                keys_allowed(x, &["name", "syntax", "params", "returns", "group", "bare", "origin", "only", "missing", "doc", "effects", "risk", "example", "expect"], &file)?;
                 let name = req(x, "name", &file)?;
                 let at = format!("{file}: {name}");
                 let key = builtin_key(name);
@@ -746,7 +763,7 @@ fn build(dir: &Path) -> Res<String> {
                 let (effects_code, effects_risk) = effects(x, &at)?;
                 let risk_code = risk(x, effects_risk, &at)?;
                 builtins.push(format!(
-                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {} }}",
+                    "Builtin {{ name: {}, key: {}, syntax: {}, params: {}, returns: {}, group: {}, bare: {}, origin: {}, runtimes: {}, missing: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {} }}",
                     lit(name),
                     lit(&key),
                     lit(s(x, "syntax").unwrap_or("")),
@@ -759,6 +776,7 @@ fn build(dir: &Path) -> Res<String> {
                     b(x, "missing").unwrap_or(false),
                     lit(s(x, "doc").unwrap_or("")),
                     lit(s(x, "example").unwrap_or("")),
+                    lit(&expect_facet(x, &at)?),
                 ));
             }
             internal = strs(&t, "internal", &file)?;

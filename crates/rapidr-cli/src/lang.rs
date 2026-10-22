@@ -9,6 +9,8 @@
 //!                                         one program per component and the output it must print
 //! rapidr lang ai-check [--summary|--json] [--strict] [NAME…]
 //!                                         which entries lack an AI facet (docs/ai-architecture.md §2.6)
+//! rapidr lang truth [--verbose] [--list] [--emit DIR] [NAME…]
+//!                                         the reference tells the truth: syntax lines and examples compile, `expect`s print (lang_truth.rs)
 //! ```
 //!
 //! `--check`: write nothing, exit 1 naming the files that are out of date.
@@ -32,10 +34,12 @@ pub fn command(args: &[String]) -> ExitCode {
         Some("export") => export_cmd(&args[1..]),
         Some("conformance") => conformance_cmd(&args[1..]),
         Some("ai-check") => ai_check_cmd(&args[1..]),
+        Some("truth") => crate::lang_truth::command(&args[1..]),
         _ => {
             eprintln!("usage: rapidr lang export --json|--prompt [-o FILE] | --manual [DIR] | --all [--check]");
             eprintln!("       rapidr lang conformance DIR [--target desktop|web] [--gaps FILE]");
             eprintln!("       rapidr lang ai-check [--summary|--json] [--strict] [NAME…]");
+            eprintln!("       rapidr lang truth [--verbose] [--list] [--emit DIR] [NAME…]");
             ExitCode::from(2)
         }
     }

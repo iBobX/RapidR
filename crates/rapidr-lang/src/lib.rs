@@ -82,6 +82,7 @@
 pub mod ai;
 pub mod conformance;
 pub mod export;
+pub mod truth;
 
 pub use ai::{Effect, Risk};
 
@@ -238,6 +239,9 @@ pub struct Method {
     pub risk: Option<Risk>,
     /// A hand-written example; else one is made from its signature.
     pub example: &'static str,
+    /// What `example` prints, when it is a whole program that does
+    /// (`rapidr lang truth` runs it: an argument-order trap's proof).
+    pub expect: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -314,6 +318,8 @@ pub struct Builtin {
     pub risk: Option<Risk>,
     /// A call and what it gives.
     pub example: &'static str,
+    /// What `example` prints, when it is a whole program that does.
+    pub expect: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
