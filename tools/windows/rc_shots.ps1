@@ -108,7 +108,7 @@ function Png64($bmp) {
 # (the windows of process $p, top-level and visible, in creation order)
 function Windows-Of($p) {
   $all = [W]::Of([uint32]$p.Id)
-  # (Delphi's hidden application window is 0 × 0; EnumWindows lists the
+  # (RapidQ's hidden application window is 0 × 0; EnumWindows lists the
   # top of the z-order first: the newest window — reversed, the form first)
   [array]::Reverse($all)
   $all | Where-Object { [W]::Class($_) -ne "TApplication" }

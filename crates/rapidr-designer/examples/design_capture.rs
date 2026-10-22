@@ -76,7 +76,7 @@ fn capture(designer: Designer, scale: f64, chrome: bool) -> (Pixels, Pixels, Str
 /// blocks as the designer reads them — the assignments and statements it
 /// replays, nothing it can't (an event handler's name, `Width = Screen.Width
 /// / 2`, `Visible = False`: the designer shows a hidden component, as
-/// Delphi's does) — then `Name.ShowModal`.
+/// RapidQ's does) — then `Name.ShowModal`.
 fn create_only(source: &str, designer: &Designer) -> String {
     use rapidr_value::designer::{SubItem, Subtree};
     fn keep(design: &rapidr_value::designer::FormDesign, t: &Subtree) -> Subtree {

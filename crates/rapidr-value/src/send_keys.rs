@@ -1,4 +1,4 @@
-//! `Application.SendKeys` (RapidR's; Visual Basic's notation): keystrokes
+//! `Application.SendKeys` (RapidR's; the classic SendKeys notation): keystrokes
 //! a program sends to its own windows, queued here and delivered by the
 //! host one per turn of its loop to the frontmost window that takes input,
 //! through the UI kernel's keyboard path — exactly as the user's keys go

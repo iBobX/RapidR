@@ -1,6 +1,6 @@
 //! The program's names as the compiler resolves them: a public semantic
 //! model (docs/ide-plan.md, I0 "semantic model export"; I3 builds
-//! IntelliSense on it).
+//! completion and hovers on it).
 //!
 //! [`analyze`] compiles the program with the bytecode compiler and records,
 //! as it goes, every declaration it makes (globals, locals, parameters,

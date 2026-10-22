@@ -12,7 +12,7 @@
 //! - a press: the model (a track bar's page, a tab picked; the focus), then
 //!   OnMouseDown; a release: OnClick for a button let go on, then
 //!   OnMouseUp; a double click's second press: OnDblClick, then
-//!   OnMouseDown, and its release only OnMouseUp (the VCL's order).
+//!   OnMouseDown, and its release only OnMouseUp (RapidQ's order).
 //!
 //! Nothing here calls program code: runtime-core dispatches the events
 //! after the host's pump returns (`KeyPreview` through
@@ -77,7 +77,7 @@ pub enum KernelEvent {
     Click(String),
     /// OnDblClick: a double click's second press on a panel, a label, a
     /// group box, a scroll box, an image or the form's open area (before
-    /// that press's OnMouseDown, as the VCL's WM_LBUTTONDBLCLK).
+    /// that press's OnMouseDown, as RapidQ's WM_LBUTTONDBLCLK).
     DblClick(String),
     /// OnChange: a track bar's position, a tab control's tab, an edit's
     /// text changed by the user.
@@ -410,7 +410,7 @@ impl FormUi {
         let id = node.map_or(self.form.as_str(), |i| self.nodes[i].id.as_str());
         let code = crate::store::int(store, id, "cursor", 0);
         // (a QSPLITTER's crHSplit / crVSplit, its Cursor at creation: the
-        // splitter's direction decides, as Delphi's TSplitter swaps them when
+        // splitter's direction decides, as RapidQ's own Splitter swaps them when
         // its Align changes)
         let split = node.is_some_and(|i| self.nodes[i].type_name == "RSPLITTER") && matches!(code, CR_HSPLIT | CR_VSPLIT);
         if code != 0 && !split {

@@ -643,7 +643,7 @@ pub fn caption_of(type_name: &str, get: Props) -> String {
 
 /// The QSTATUSBAR's texts: a panel's each, or its SimpleText alone with
 /// SimplePanel; no panels and SimplePanel False (the default) is one empty
-/// box — VCL's TStatusBar shows SimpleText only with SimplePanel (RC.EXE:
+/// box — RapidQ's TStatusBar shows SimpleText only with SimplePanel (RC.EXE:
 /// `SimpleText = "Ready"` leaves SimplePanel 0, and the bar shows nothing).
 pub fn status_texts(get: Props) -> Vec<String> {
     let count = int(get, "panelcount", 0).clamp(0, 256);

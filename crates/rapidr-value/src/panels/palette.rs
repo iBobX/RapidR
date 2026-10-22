@@ -1,5 +1,5 @@
-//! RCOMMANDPALETTE's model (docs/ide-components.md §3.8): VS Code's quick
-//! open, Xcode's Open Quickly — a box of commands found by typing. Show
+//! RCOMMANDPALETTE's model (docs/ide-components.md §3.8): a quick-open
+//! box of commands found by typing. Show
 //! opens it at the top of its form, over everything, empty, with the
 //! commands used last first; the user types a few letters of a command
 //! ("category: title" is searched, [`super::fuzzy`]), moves with the

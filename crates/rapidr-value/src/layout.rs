@@ -1,7 +1,7 @@
 //! `Align` (RapidQ manual, Appendix A: "Align determines how the control
-//! aligns within its parent control"): RapidQ's components are Delphi VCL
-//! controls, so aligned children are laid out as Delphi's
-//! `TWinControl.AlignControls` does. Both runtimes call [`align_controls`]
+//! aligns within its parent control"): RapidQ's components are built on
+//! Windows controls, so aligned children are laid out as RapidQ's own
+//! `AlignControls` does. Both runtimes call [`align_controls`]
 //! with a container's client rectangle and its children, and move the
 //! children to the rectangles it returns.
 //!
@@ -12,7 +12,7 @@
 //! * Controls with the same align are ordered by position (for alTop, the
 //!   one nearer the top first; for alBottom, the one nearer the bottom
 //!   first; likewise left / right). Among equal positions, creation order
-//!   for alTop / alLeft and the reverse for alBottom / alRight (Delphi
+//!   for alTop / alLeft and the reverse for alBottom / alRight (RapidQ
 //!   compares with `<` and `>=`). The control whose Align, size or
 //!   visibility just changed comes first.
 //! * Before its form is first shown, a control has no window and RapidQ
@@ -25,7 +25,7 @@
 //!   RapidR keeps a form's layout current all along, in that order.
 //! * Invisible controls and those with alNone are left alone.
 //!
-//! RapidR adds Delphi's `Anchors` and `Constraints` (RapidQ had Align
+//! RapidR adds `Anchors` and `Constraints` (RapidQ had Align
 //! only; with their defaults nothing changes): [`AnchorRules`] keeps an
 //! unaligned control at its distances from its parent's edges when the
 //! parent's client area resizes, and [`Constraints`] bound every size a
@@ -63,7 +63,7 @@ impl Align {
 
 /// A component's geometry, as stored: its Left / Top / Width / Height
 /// (and a form's ClientWidth / ClientHeight) are integers, as in RapidQ
-/// (Delphi's Integer properties), so `Height = ClientHeight / 2 + 20` keeps
+/// (RapidQ's Integer properties), so `Height = ClientHeight / 2 + 20` keeps
 /// an integer — rounded half to even, as the FPU stores it (304.5 → 304).
 /// A check box's Checked is true or false whatever number is stored (RC.EXE:
 /// `Checked = 5` reads 1).
@@ -81,8 +81,8 @@ pub fn property_value(prop: &str, val: crate::Value) -> crate::Value {
 /// bottom-right (Windows' SM_CXVSCROLL).
 pub const STATUS_GRIP: i64 = 16;
 
-/// (the input lane's) Whether a QSTATUSBAR shows its size grip, as Delphi's
-/// TStatusBar.SizeGrip (RapidQ's SizeGrip, True by default): on a form
+/// (the input lane's) Whether a QSTATUSBAR shows its size grip, as
+/// RapidQ's SizeGrip (True by default): on a form
 /// (`on_form`: the form is its parent) that is sizeable (BorderStyle
 /// bsSizeable 2 or bsSizeToolWin 5), docked at its bottom.
 pub fn status_grip(size_grip: bool, on_form: bool, border_style: i64, align: Align) -> bool {
@@ -90,7 +90,7 @@ pub fn status_grip(size_grip: bool, on_form: bool, border_style: i64, align: Ali
 }
 
 /// The Align a component type starts with (QSTATUSBAR docks at the bottom,
-/// QHEADER at the top — Delphi's THeaderControl; RC.EXE reads `Align` 1 and
+/// QHEADER at the top — RapidQ's own HeaderControl; RC.EXE reads `Align` 1 and
 /// a header created at Left 10, Top 10, Width 300 shows across the whole
 /// top of the form — QSPLITTER at the left, as in RapidQ), for RapidR's
 /// type names: the language registry's default Align (a new component
@@ -106,7 +106,7 @@ pub fn default_align(type_name: &str) -> Align {
 
 /// The Width × Height a component starts with, the same on every runtime
 /// (RapidR's type names). RapidQ's components get RapidQ's sizes, as RC.EXE
-/// reads them on a component created without one (Delphi's defaults; a
+/// reads them on a component created without one (RapidQ's defaults; a
 /// QCOMBOBOX is the height of its edit box, its list not counted; a QLABEL
 /// then sizes itself to its caption — AutoSize); RapidR's own components,
 /// theirs.
@@ -169,7 +169,7 @@ pub fn default_size(type_name: &str) -> Option<(i64, i64)> {
     })
 }
 
-/// A form's frame, the same in both runtimes. As in RapidQ (Delphi),
+/// A form's frame, the same in both runtimes. As in RapidQ,
 /// `Width` / `Height` are the whole window — caption and borders included —
 /// and `ClientWidth` / `ClientHeight` the area inside, below the main menu:
 /// a 29px caption, a 1px border on every side, and no frame at all with
@@ -295,7 +295,7 @@ pub struct Control {
     pub rect: Rect,
     /// Its MinWidth … MaxHeight: an aligned control never takes a size
     /// outside them (the strip it takes off the client area is the size it
-    /// got, as in Delphi's AlignControls).
+    /// got, as in RapidQ's AlignControls).
     pub constraints: Constraints,
 }
 
@@ -310,7 +310,7 @@ pub fn align_controls(client: Rect, controls: &[Control], changed: Option<usize>
 /// [`align_controls`] for a form not shown yet: no control first, and each
 /// one where the program placed it — Left / Top 0 — so equal places keep
 /// creation order, and an alBottom / alRight control goes nearer the edge
-/// only when its far side is further (Delphi's comparison of the controls'
+/// only when its far side is further (RapidQ's comparison of the controls'
 /// own bounds, RC.EXE's builds at their first Show).
 pub fn align_controls_unshown(client: Rect, controls: &[Control]) -> Vec<(usize, Rect)> {
     align_with(client, controls, None, true)
@@ -385,7 +385,7 @@ fn align_with(client: Rect, controls: &[Control], changed: Option<usize>, unshow
     out
 }
 
-/// `Anchors` (Delphi's TAnchors) as RapidR's integer bit set: akLeft = 1,
+/// `Anchors` as RapidR's integer bit set: akLeft = 1,
 /// akTop = 2, akRight = 4, akBottom = 8 (the constants are RapidR's own,
 /// `rapidr_ast::rapidr_constant`). A component starts anchored left and
 /// top: it stays where it is when its parent resizes, as in RapidQ.
@@ -395,8 +395,8 @@ pub const AK_RIGHT: i64 = 4;
 pub const AK_BOTTOM: i64 = 8;
 pub const DEFAULT_ANCHORS: i64 = AK_LEFT | AK_TOP;
 
-/// What an anchored control remembers of its place (Delphi's FAnchorRules
-/// and FOriginalParentSize), taken when its Anchors are set and whenever
+/// What an anchored control remembers of its place (its anchor rules
+/// and original parent size), taken when its Anchors are set and whenever
 /// the program places it (Left / Top / Width / Height, Parent) — not when
 /// anchoring itself moves it. Per axis: anchored to both edges, its size
 /// (it stretches); to the far edge only, its position (it moves); to
@@ -413,7 +413,7 @@ impl AnchorRules {
     /// The rules of a control at `rect` with `anchors` in a parent whose
     /// client area is `parent` (width, height); `None` with the default
     /// anchors, or in a parent of no size yet (nothing to follow, as in
-    /// Delphi).
+    /// the usual toolkits).
     pub fn new(anchors: i64, rect: Rect, parent: (i64, i64)) -> Option<AnchorRules> {
         if anchors & 15 == DEFAULT_ANCHORS || parent.0 == 0 || parent.1 == 0 {
             return None;
@@ -439,7 +439,7 @@ impl AnchorRules {
     }
 
     /// Where the control (now at `rect`) goes when its parent's client area
-    /// is `parent`: Delphi's AlignControls for an unaligned control.
+    /// is `parent`: RapidQ's AlignControls for an unaligned control.
     pub fn place(&self, rect: Rect, parent: (i64, i64)) -> Rect {
         let a = self.anchors;
         let (left, width) = place_axis(a & AK_LEFT != 0, a & AK_RIGHT != 0, self.x, self.parent.0, parent.0, rect.left, rect.width);
@@ -505,7 +505,7 @@ pub fn anchor_rules(name: &str) -> Option<AnchorRules> {
 
 /// Lays out the anchored children of a container whose client area is now
 /// `parent` (width, height): each `(rules, rect, align, constraints)`; the
-/// aligned ones are Align's (Delphi: Align wins). Returns the new rectangle
+/// aligned ones are Align's (Align wins). Returns the new rectangle
 /// of each child that moves or resizes, as `(index, rect)`.
 pub fn anchor_controls(parent: (i64, i64), children: &[(Option<AnchorRules>, Rect, Align, Constraints)]) -> Vec<(usize, Rect)> {
     children
@@ -520,7 +520,7 @@ pub fn anchor_controls(parent: (i64, i64), children: &[(Option<AnchorRules>, Rec
         .collect()
 }
 
-/// `Constraints` (Delphi's TSizeConstraints): MinWidth, MinHeight,
+/// `Constraints`: MinWidth, MinHeight,
 /// MaxWidth, MaxHeight; 0 is no limit. RapidR keeps them as flat
 /// properties (`MinWidth`), `Constraints.MinWidth` being the same one.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -544,7 +544,7 @@ impl Constraints {
         *self == Constraints::default()
     }
 
-    /// A width within them (Delphi: the minimum first, then the maximum —
+    /// A width within them (the minimum first, then the maximum —
     /// with both set the minimum wins, which the setters keep below the
     /// maximum anyway).
     pub fn width(&self, w: i64) -> i64 {
@@ -560,7 +560,7 @@ impl Constraints {
     }
 
     /// The constraints once `prop` (flat, lowercase) is set to `value`, as
-    /// Delphi's setters do: a minimum above the maximum raises the maximum,
+    /// the setters do: a minimum above the maximum raises the maximum,
     /// a maximum below the minimum lowers the minimum; negative is 0.
     /// `None` when `prop` isn't one of them.
     pub fn with(mut self, prop: &str, value: i64) -> Option<Constraints> {
@@ -628,7 +628,7 @@ pub fn default_property(type_name: &str, prop: &str) -> Option<i64> {
     }
 }
 
-/// Dragging a QSPLITTER (Delphi's TSplitter, which RapidQ wraps): the
+/// Dragging a QSPLITTER (RapidQ's own Splitter, which RapidQ wraps): the
 /// control just outside the splitter's anchored edge — left of an alLeft
 /// splitter, above an alTop one, … — gets wider / taller as the splitter
 /// moves away from that edge, never below `MinSize` nor leaving less than
@@ -1082,7 +1082,7 @@ mod tests {
         assert_eq!(k.size(500, 10), (300, 10));
         assert!(Constraints::default().is_none());
         assert_eq!(Constraints::default().size(-5, 7), (-5, 7), "no limits: unchanged");
-        // Delphi's setters keep the minimum at most the maximum.
+        // The setters keep the minimum at most the maximum.
         let k = Constraints::default().with("maxwidth", 200).unwrap().with("minwidth", 250).unwrap();
         assert_eq!((k.min_width, k.max_width), (250, 250));
         let k = k.with("maxwidth", 120).unwrap();

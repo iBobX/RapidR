@@ -863,7 +863,7 @@ const CASES = [
     same: { "codedoc(0).text": "examples/rapidq/notepad.bas" },
   },
   // ---- the code editor (S-EDITOR; docs/studio-wow.md ED-1 … ED-8): typed
-  // through the kernel's keyboard path (Application.SendKeys), IntelliSense
+  // through the kernel's keyboard path (Application.SendKeys), completion
   // from RapidR's language service ----
   {
     // `form.` lists QFORM's members: properties, then methods, then events,
@@ -1396,7 +1396,7 @@ const CASES = [
   },
   // (S-SHELL-2) Documents are tabs, never windows: a form's file is one
   // tab with the Design | Code switch (no MDI window, no "[Design]"
-  // document); F12 toggles to the code (Delphi), then both side by side —
+  // document); F12 toggles to the code, then both side by side —
   // the dock's layout says each view.
   {
     name: "tabs-design-code",
@@ -1767,7 +1767,7 @@ const CASES = [
     dump: { "codedoc(0).completionitems": /^Greet$[\s\S]*^NameEdit$[\s\S]*^ShowMessage$/im },
   },
   {
-    // F12 in a form's code is Go to Definition (VS Code's, Xcode's): the
+    // F12 in a form's code is Go to Definition: the
     // caret on the SUB, the code still shown — F7 / Shift+F7 switch views
     name: "editor-f12-in-a-form",
     open: "examples/gui/hello_form.rr",
@@ -2001,7 +2001,7 @@ const CASES = [
     },
   },
   {
-    // a value set in place, as Xcode's and VS Code's variables are: F2 on
+    // a value set in place, as debuggers' variables are: F2 on
     // Globals' total, 100 typed, Enter — the paused program has it (the
     // values and a watch fetched again), and it runs on with it
     name: "debug-set-value",
@@ -2279,7 +2279,7 @@ const CASES = [
     },
   },
   {
-    // (DEBUG-2) the focus (RapidR's OnEnter / OnExit, as Delphi's): Tab from
+    // (DEBUG-2) the focus (RapidR's OnEnter / OnExit): Tab from
     // the name to Greet stops in the name's OnExit (41), then, F5, in
     // Greet's OnEnter (45) — three rounds, Shift+Tab back between them (its
     // own OnExit / OnEnter have no breakpoint): each stops every time, in
@@ -4675,7 +4675,7 @@ async function webFocusOrder() {
     await going();
     record(name, a === "paused@41" && b === "paused@45", `a click on Greet: OnExit (41) then OnEnter (45) (${a}, ${b})`);
     // (the button let go while the program was stopped: dropped, as all its
-    // input then — Delphi's too: no OnClick. Clicked again, focused already:
+    // input then — RapidQ's too: no OnClick. Clicked again, focused already:
     // no OnExit / OnEnter, its OnClick runs)
     await page.waitForTimeout(400);
     await page.mouse.click(greet.x, greet.y);

@@ -269,7 +269,7 @@ fn comp_set(name: &str, prop: &str, val: Value) {
     // (a font style keeps 1 or 0, RapidQ's: rapidr_value::objects::font)
     let val = rapidr_value::objects::font::component_style(prop, &val).map_or(val, |(_, _, v)| v);
     // (the program's first font change of a component: the font it had from
-    // its parents becomes its own — Delphi's ParentFont ends)
+    // its parents becomes its own — RapidQ's ParentFont ends)
     let t = rp_comp_type(name);
     if !t.is_empty() && !rapidr_value::objects::TYPES.contains(&t.as_str()) {
         for (p, v) in rapidr_value::objects::own_font_from_parents(name, prop, &|i, p| rp_comp_get(i, p)) {
@@ -424,7 +424,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         }
     }
     // A modal form's ModalResult set: the form closes (ShowModal returns it;
-    // in its ShowModal's OnShow it is kept and then lost, as VCL's).
+    // in its ShowModal's OnShow it is kept and then lost, as RapidQ's).
     if prop.eq_ignore_ascii_case("modalresult") && val.to_i64() != 0 && rp_comp_type(name) == "RFORM" {
         #[cfg(feature = "gui")]
         if crate::ui::modal_result_closes(name) {
@@ -527,7 +527,7 @@ fn set_property(name: &str, prop: &str, val: Value) {
         };
         return rp_comp_set(name, prop, v_int(v));
     }
-    // Constraints (RapidR, from Delphi; rapidr_value::layout): MinWidth …
+    // Constraints (RapidR; rapidr_value::layout): MinWidth …
     // MaxHeight — `Constraints.MinWidth` is MinWidth — bound every size the
     // component takes; setting one brings its size within them.
     if let Some(flat) = rapidr_value::layout::constraint_alias(&prop_lower) {
@@ -1633,7 +1633,7 @@ pub fn form_of(name: &str) -> Option<String> {
 }
 
 /// A button with a ModalResult (or Kind bkClose) clicked: its form gets that
-/// result, which closes it when it's shown modally (RapidQ / Delphi).
+/// result, which closes it when it's shown modally (RapidQ).
 fn button_modal_result(name: &str) {
     if rp_comp_type(name) == "RFORM" {
         return;

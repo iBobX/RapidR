@@ -1,5 +1,5 @@
 //! `FORMAT$` and `STRF$` as the RapidQ manual describes them: RapidQ passes
-//! them to Delphi's `Format` and `FloatToStrF`, so these follow those rules
+//! them to its own `Format` and `FloatToStrF`, so these follow those rules
 //! (US settings: `.` decimal point, `,` thousands, `$` currency). One
 //! implementation for native builds, the interpreter and the web.
 
@@ -145,7 +145,7 @@ impl Decimal {
         }
     }
 
-    /// Keeps `n` digits, rounding half away from zero (as Delphi does).
+    /// Keeps `n` digits, rounding half away from zero (as RapidQ's runtime does).
     fn round_to(&mut self, n: i64) {
         if n < 0 {
             self.digits.clear();
@@ -234,7 +234,7 @@ fn general(v: f64, precision: usize, exp_digits: usize) -> String {
         return "0".into();
     }
     let rounded: f64 = format!("{}0.{}e{}", d.sign(), d.digits.iter().map(|b| (b'0' + b) as char).collect::<String>(), d.exp).parse().unwrap_or(v);
-    // (Delphi's FloatToText: scientific when the exponent is above the
+    // (RapidQ's FloatToText: scientific when the exponent is above the
     // precision or below -3 — 0.0001 stays, 0.00001 is `1E-5`, as RC.EXE's
     // STR$ shows)
     if d.exp < -3 || d.exp > precision as i32 {
@@ -310,8 +310,8 @@ pub fn int32_of(n: i64) -> i64 {
 /// docs/rapidq-ground-truth.md): a whole number as a 32-bit integer
 /// ([`int32`]: `PRINT 1E10` shows -2147483648, so do NaN and the
 /// infinities); any other with 9 decimals (`3.500000000`, `0.333333333`,
-/// `-0.000000000` for a tiny negative one). The digits are Delphi's
-/// `FloatToDecimal` ones as RapidQ's runtime gets them ([`delphi_digits`]):
+/// `-0.000000000` for a tiny negative one). The digits are RapidQ's
+/// `FloatToDecimal` ones as its runtime gets them ([`delphi_digits`]):
 /// 18 of them, from double-precision arithmetic, so `123456789.1` shows
 /// `123456789.100000000` and `1234567890.1` `1234567890.099999840`, as
 /// RC.EXE's programs do (a few values ≥ 1E7 still differ in their last
@@ -334,7 +334,7 @@ pub fn print_double(v: f64) -> String {
     out
 }
 
-/// The 18 digits Delphi's `FloatToDecimal` takes from `x` (> 0), with the
+/// The 18 digits RapidQ's `FloatToDecimal` takes from `x` (> 0), with the
 /// FPU in double precision as RapidQ's runtime has it: the decimal exponent
 /// estimated from the binary one (`(e2 * 19728) >> 16 + 1`), `x` scaled by
 /// 10^(18 - E) (the product rounded to a double), rounded to an integer, a
@@ -377,7 +377,7 @@ pub fn print_text(v: &Value) -> String {
     }
 }
 
-/// `STR$` of a number as RapidQ's RC.EXE shows it: Delphi's
+/// `STR$` of a number as RapidQ's RC.EXE shows it: its
 /// `FloatToStrF(v, ffGeneral, 9, 0)` — 9 significant digits, the shorter
 /// of fixed and scientific (`0.333333333`, `2.5`, `1.23456789E9` — even
 /// for an INTEGER, `1E-5`, `INF`), no leading space.
@@ -391,7 +391,7 @@ pub fn str_number(v: f64) -> String {
     general(v, 9, 0)
 }
 
-/// A number as RapidR's own text conversions show it: Delphi's `FloatToStr`
+/// A number as RapidR's own text conversions show it: RapidQ's `FloatToStr`
 /// (15 significant digits, the shorter of fixed and scientific), so
 /// `0.1 + 0.2` is `0.3` and `1E20` stays short.
 pub fn float_to_str(v: f64) -> String {

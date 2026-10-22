@@ -403,7 +403,7 @@ fn arrange_icons(m: &mut Mdi, cw: i64, ch: i64) {
 }
 
 /// QFORM's own MDI members — RapidQ's "undocumented" Cascade, Tile,
-/// ArrangeIcons, Next and Previous (Delphi's TForm ones) — as the
+/// ArrangeIcons, Next and Previous (RapidQ's own Form ones) — as the
 /// QFORMMDI method each one is: Tile by `tile_mode` (TileMode: 0
 /// tbHorizontal, one above another; 1 tbVertical, side by side). A QFORM
 /// has no MDI children (RapidQ supports FormStyle fsNormal only: RC.EXE's

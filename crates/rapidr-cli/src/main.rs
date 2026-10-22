@@ -328,7 +328,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
             eprintln!("  rapidr notices [<os>-<arch>|web|tools-<os>] [-o FILE]  The third-party notices builds carry");
-            eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' IntelliSense");
+            eprintln!("  rapidr lsp                                       The language server (LSP, stdio): editors' completion and hover help");
             eprintln!("  rapidr dap                                       The debug adapter (DAP, stdio): editors' debugger");
             eprintln!("  rapidr serve <file> [--open]                     Its web build served on this machine (127.0.0.1), opened in the browser");
             eprintln!("  rapidr lang export --json|--prompt|--manual|--all  What the language registry generates");

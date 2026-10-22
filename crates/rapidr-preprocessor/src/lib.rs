@@ -1115,7 +1115,7 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("IPPROTO_IDP", 22), ("IPPROTO_IGMP", 2), ("IPPROTO_IP", 0), ("IPPROTO_PUP", 12),
     ("IPPROTO_RAW", 255), ("IPPROTO_TCP", 6), ("IPPROTO_UDP", 17), ("SOCK_DGRAM", 2),
     ("SOCK_RAW", 3), ("SOCK_RDM", 4), ("SOCK_SEQPACKET", 5), ("SOCK_STREAM", 1),
-    // raster-operation codes (wingdi.h: BLACKNESS, SRCCOPY, …), under the cm… names of Delphi's TCopyMode
+    // raster-operation codes (wingdi.h: BLACKNESS, SRCCOPY, …), under the cm… names of RapidQ's CopyMode constants
     ("cmBlackness", 0x000042), ("cmDstInvert", 0x550009), ("cmMergeCopy", 0xC000CA),
     ("cmMergePaint", 0xBB0226), ("cmNotSrcCopy", 0x330008), ("cmNotSrcErase", 0x1100A6),
     ("cmPatCopy", 0xF00021), ("cmPatInvert", 0x5A0049), ("cmPatPaint", 0xFB0A09),
@@ -1129,7 +1129,7 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("clLtGray", 0xC0C0C0), ("clMaroon", 0x000080), ("clNavy", 0x800000), ("clOlive", 0x008080),
     ("clPurple", 0xFF00FF), ("clRed", 0x0000FF), ("clSilver", 0xC0C0C0), ("clTeal", 0x808000),
     ("clWhite", 0xFFFFFF), ("clYellow", 0x00FFFF),
-    // system colours: &H80000000 + the GetSysColor index (winuser.h COLOR_…), the encoding Delphi uses for TColor
+    // system colours: &H80000000 + the GetSysColor index (winuser.h COLOR_…), the encoding RapidQ uses for its colour values
     // (clInfoBk3DDkShadow is index 24, COLOR_INFOBK, under the name RapidQ
     // programs use.)
     ("cl3DDkShadow", -2147483627), ("cl3DLight", -2147483626), ("clActiveBorder", -2147483638),
@@ -1142,12 +1142,12 @@ pub const RAPIDQ_INC_CONSTANTS: &[(&str, i64)] = &[
     ("clInfoBk3DDkShadow", -2147483624), ("clInfoText", -2147483625), ("clMenu", -2147483644),
     ("clMenuText", -2147483641), ("clScrollBar", -2147483648), ("clWindow", -2147483643),
     ("clWindowFrame", -2147483642), ("clWindowText", -2147483640),
-    // ── Names of the VCL types (Delphi's component library) that RapidQ's
+    // ── Names of the types of RapidQ's component library that its
     // components expose, with the numbers RapidQ programs see: an
     // enumeration's ordinal, i.e. its position in the type's declaration as
     // Embarcadero documents it (docwiki.embarcadero.com, under the type's
     // name), or a constant's value. Where RapidQ's number differs from
-    // today's Delphi (crSize), RapidQ's is kept: programs depend on it. ──
+    // the vendor's current documentation (crSize), RapidQ's is kept: programs depend on it. ──
     // file attributes (SysUtils fa…)
     ("faAnyFile", 63), ("faArchive", 32), ("faDirectory", 16), ("faHidden", 2), ("faReadOnly", 1),
     ("faSysFile", 4), ("faVolumeID", 8),
@@ -1322,7 +1322,7 @@ fn builtin_include(include_file: &str) -> Option<String> {
 /// &HBBGGRR numbers — black, blue, green, cyan, red, magenta, brown (dark
 /// yellow), light grey, dark grey, then the bright blue, green, cyan, red,
 /// magenta, yellow and white. The palette is QBasic's (the same RGB values
-/// Visual Basic's documented QBColor function returns); RC.EXE's
+/// the documented QBColor function returns); RC.EXE's
 /// `QBColor(i)` reads these numbers (probe qbcolor.bas, 2026-10-15).
 pub const RAPIDQ_INC_QBCOLOR: [i64; 16] = [
     0x000000, 0x800000, 0x008000, 0x808000, 0x000080, 0x800080, 0x008080, 0xC0C0C0, //
@@ -1899,7 +1899,7 @@ mod tests {
     #[test]
     fn rapidq_inc_has_the_option_constants() {
         // RapidQ's own values (its RAPIDQ.INC): styles, grid options,
-        // alignment, cursors; clGreen and clPurple are RapidQ's, not Delphi's.
+        // alignment, cursors; clGreen and clPurple are RapidQ's own values.
         let names = [
             ("lbOwnerDrawVariable", 2), ("csOwnerDrawFixed", 3), ("gcsList", 0), ("goRangeSelect", 4), ("goColSizing", 7),
             ("taCenter", 2), ("taRightJustify", 1), ("crHandPoint", -21), ("ssShift", 256), ("vsReport", 3), ("clGreen", 0x00FF00),

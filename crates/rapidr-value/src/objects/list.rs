@@ -551,7 +551,7 @@ impl ItemList {
     }
 
     /// The user changed a MultiSelect list box's selection: the items
-    /// selected now, and the one clicked (ItemIndex, as Delphi's focused
+    /// selected now, and the one clicked (ItemIndex, as RapidQ's focused
     /// item).
     pub fn set_selection(&mut self, focus: i64, selected: &[bool]) {
         for (i, s) in self.selected.iter_mut().enumerate() {
@@ -794,7 +794,7 @@ impl ItemList {
                 if args.len() >= 2 {
                     let on = args[1].to_bool();
                     if self.multi_select {
-                        // ItemIndex (the focused item) stays, as in Delphi.
+                        // ItemIndex (the focused item) stays, as in RapidQ.
                         self.selected[i] = on;
                     } else if on {
                         self.select(i as i64);

@@ -1,15 +1,14 @@
 //! The menu editor (docs/studio-wow.md DES-13): the designed form's main
-//! menu edited where it shows — on its own menu bar, as VB6's and Delphi's
-//! menu designers and Visual Studio's "Type Here" do it, but in the form's
-//! real look.
+//! menu edited where it shows — on its own menu bar, with "Type Here"
+//! slots, in the form's real look.
 //!
 //! - A click on a bar item selects it (the inspector shows its Caption,
 //!   ShortCut, Checked, Enabled, OnClick …) and drops its menu down; a
 //!   click on an item of an open menu selects it and opens its submenu.
 //! - The last slot of the bar and of every open menu is **Type Here**: a
 //!   click (or typing on it) edits a new item's caption in place; Enter adds
-//!   it — a `CREATE … AS RMenuItem` block (QMENUITEM in a RapidQ-style file) in the right place, named as
-//!   Delphi names them (`&Open…` → `Open1`, a separator `N1`) — and goes on
+//!   it — a `CREATE … AS RMenuItem` block (QMENUITEM in a RapidQ-style file) in the right place, named by
+//!   type and number (`&Open…` → `Open1`, a separator `N1`) — and goes on
 //!   to the next slot. A selected item without items shows a Type Here to
 //!   its right: its submenu.
 //! - `-` as a caption is a separator; `&` marks the mnemonic; Tab in the

@@ -812,8 +812,8 @@ impl Theme {
         }
     }
 
-    /// Windows' system colour `index` (GetSysColor's COLOR_…, a Delphi
-    /// TColor `&H80000000 + index` such as clBtnFace) in this theme, as
+    /// Windows' system colour `index` (GetSysColor's COLOR_…, a RapidQ
+    /// colour value `&H80000000 + index` such as clBtnFace) in this theme, as
     /// 0xRRGGBB — what a program's `Color = clBtnFace` is drawn in and what
     /// Pixel then reads (RC.EXE on Windows 11: clBtnFace F0F0F0, clWindow
     /// FFFFFF). Colours the theme has no token for: Windows 10 / 11's.

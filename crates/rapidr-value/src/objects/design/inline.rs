@@ -1,6 +1,6 @@
 //! Editing a caption in place: F2 on the selected component (or a slow
 //! click — a second click on the component already selected, as Explorer
-//! renames), the menu editor's items and its "Type Here" slots. Delphi's
+//! renames), the menu editor's items and its "Type Here" slots. The usual
 //! convention holds: a double click makes the event handler, so it isn't
 //! the way in (docs/studio-wow.md DES-17).
 //!
@@ -134,7 +134,7 @@ impl InlineEdit {
 }
 
 /// The name a new menu item gets: its caption's letters and digits (`&Open…`
-/// → `Open1`), `N1` for a separator, as Delphi's menu designer names them.
+/// → `Open1`), `N1` for a separator, as menu designers name them.
 pub fn item_name(design: &crate::designer::FormDesign, taken: &dyn Fn(&str) -> bool, caption: &str) -> String {
     let mut base: String = caption.chars().filter(|c| c.is_ascii_alphanumeric()).collect();
     if base.is_empty() || caption.trim() == "-" {

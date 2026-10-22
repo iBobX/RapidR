@@ -497,7 +497,7 @@ mod tests {
                 check(format!("{}: {name} on a run-time error's line", s.name), st.color, s.exception_line, 4.5);
             }
             check(format!("{}: text", s.name), s.text, s.background, min);
-            // (line numbers are text: AA, the classic look's VB6 grey aside)
+            // (line numbers are text: AA, the classic look's grey aside)
             check(format!("{}: line numbers", s.name), s.line_number, s.gutter, if s.name == "classic" { 3.0 } else { 4.5 });
             check(format!("{}: popups", s.name), s.popup_text, s.popup, min);
             check(format!("{}: popup details", s.name), s.popup_detail, s.popup, 4.5);

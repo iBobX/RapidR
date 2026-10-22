@@ -3,7 +3,7 @@
 //! (500 ms), for HintHidePause (2.5 s), the next one after HintShortPause,
 //! gone as the mouse moves off, a button goes down or a key is pressed —
 //! when it shows hints (its `ShowHint`, else its parent's: hint.rs's
-//! [`FormUi::hint_tip`]), as in RapidQ (and Delphi). The
+//! [`FormUi::hint_tip`]), as in RapidQ. The
 //! keyboard brings them too: a component Tab reaches shows its hint under
 //! it. A component can give a tip of its own where it has no Hint
 //! ([`ComponentKind::tip_at`](crate::components::ComponentKind::tip_at): a
@@ -27,7 +27,7 @@ use crate::tick::{now, Instant};
 use crate::tree::FormUi;
 
 /// One of Application's hint times (HintPause, HintHidePause,
-/// HintShortPause: milliseconds), as the program set it or the VCL's.
+/// HintShortPause: milliseconds), as the program set it or RapidQ's default.
 fn millis(prop: &str) -> Duration {
     Duration::from_millis(rapidr_value::globals::hint_setting(prop).to_i64().clamp(0, 600_000) as u64)
 }
@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn deadlines() {
-        // (the VCL's defaults: HintPause 500, HintHidePause 2500)
+        // (RapidQ's defaults: HintPause 500, HintHidePause 2500)
         assert_eq!(millis("hintpause"), Duration::from_millis(500));
         assert_eq!(millis("hinthidepause"), Duration::from_millis(2500));
         let t0 = now();

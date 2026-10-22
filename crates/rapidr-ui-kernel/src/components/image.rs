@@ -3,7 +3,7 @@
 //! as the web shows it: at the top left, in
 //! the middle (Center) or scaled to the control (Stretch); with
 //! Transparent (or an image with soft edges) what's behind shows through
-//! — like Delphi's TImage, a graphic control, it paints no background of
+//! — like RapidQ's own Image, a graphic control, it paints no background of
 //! its own. The picture is what the bitmap shows on screen (its high-DPI
 //! layer: an SVG drawn again at the screen's scale), converted only when
 //! its drawing revision changes (`canvas::Shown`).
@@ -56,7 +56,7 @@ impl ComponentKind for Image {
     }
 
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
-        // (the input lane's: OnClick, OnDblClick in the VCL's order)
+        // (the input lane's: OnClick, OnDblClick in RapidQ's order)
         super::canvas::click_or_double(cx, m)
     }
 
@@ -71,7 +71,7 @@ impl ComponentKind for Image {
 /// bitmap appears when the button is up, the second when disabled, the
 /// third when clicked, the fourth when it stays down"), for a strip of
 /// `count` (NumBMPs): down without a fourth shows the clicked one (as
-/// Delphi's TSpeedButton), a state without its own image the up one.
+/// RapidQ's own SpeedButton), a state without its own image the up one.
 pub fn glyph_frame(count: i64, enabled: bool, pressed: bool, down: bool) -> i64 {
     let frame = if !enabled {
         1

@@ -475,7 +475,7 @@ fn a_drag_below_a_memo_scrolls_it_down_a_line_at_a_time() {
     set_test_now(None);
 }
 
-/// VCL's TEdit.AutoSelect, as RC.EXE reads it: the edit focused as the
+/// RapidQ's TEdit.AutoSelect, as RC.EXE reads it: the edit focused as the
 /// form shows selects its text (SelStart 0, SelLength 7), so does one Tab
 /// or SetFocus enters wherever the program left the selection; a click
 /// puts the caret where it clicks; a rich edit doesn't select.

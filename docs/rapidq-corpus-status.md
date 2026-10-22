@@ -1,4 +1,4 @@
-# RapidQ's example programs: where each one stands
+# Compatibility with RapidQ's example programs: where each one stands
 
 RapidQ's distribution ships 428 example programs (`examples/`: `.bas`, and
 the `.rqw` / `.rqb` / `.rq` its IDE saves). This page says, program by

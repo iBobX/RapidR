@@ -65,8 +65,8 @@ const GRAB: i64 = 5;
 const MIN_SIZE: i64 = 16;
 /// A handle's size, drawn.
 const HANDLE: i64 = 7;
-/// The backdrop shown around a designed form that has a frame (Xcode's and
-/// Delphi's canvas: the form sits on it, never in a window of its own).
+/// The backdrop shown around a designed form that has a frame (a canvas:
+/// the form sits on it, never in a window of its own).
 pub const MARGIN: i64 = 24;
 /// The surface's own scroll bars' thickness.
 pub const SCROLL_BAR: i64 = 8;
@@ -83,8 +83,8 @@ const EDGE_IN: i64 = 3;
 const EDGE_OUT: i64 = 5;
 /// The smallest a dragged form gets.
 const MIN_FORM: i64 = 80;
-/// Zoom's range and the steps Ctrl / ⌘ + and − go through (Xcode's and
-/// Office's).
+/// Zoom's range and the steps Ctrl / ⌘ + and − go through (the usual
+/// zoom steps).
 pub const MIN_ZOOM: f64 = 0.25;
 pub const MAX_ZOOM: f64 = 4.0;
 pub const ZOOM_STEPS: [f64; 15] = [0.25, 0.33, 0.5, 0.67, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0];
@@ -1235,7 +1235,7 @@ impl DesignSurface {
 
     /// The surface's scroll bars (surface pixels), when what it shows is
     /// larger than it: for each of across (0) and down (1), the track and
-    /// its thumb — thin bars over the backdrop's edge, as Xcode's canvas
+    /// its thumb — thin bars over the backdrop's edge, as a modern canvas
     /// has.
     pub fn scroll_bars(&self) -> [Option<(Rect, Rect)>; 2] {
         let (cw, ch) = self.content_size();
@@ -1572,7 +1572,7 @@ impl DesignSurface {
 
     /// Adds a new component of `type_name` (any of its names) at `rect`
     /// (client coordinates; `None`: its default size at `at`), into the
-    /// container there: its CREATE block written (Delphi's names, RapidQ's
+    /// container there: its CREATE block written (numbered names, the file's
     /// type names), selected, announced. Returns its index; `None` when it
     /// can't go there (a form on a form, a menu item without a menu, no
     /// form to put it on).
@@ -1634,7 +1634,7 @@ impl DesignSurface {
         self.selection_changed();
         let what = self.describe_comp(id);
         self.say(format!("Added {what}"));
-        // (typing now writes its Caption / Text, as Delphi's designer does)
+        // (typing now writes its Caption / Text, as designers do)
         let prop = rapidr_lang::component(&canonical).and_then(|c| ["Caption", "Text"].into_iter().find(|p| c.property(p).is_some()));
         self.typing = prop.map(|p| (id, p, String::new()));
         self.index_of(id)
@@ -1823,7 +1823,7 @@ impl DesignSurface {
     }
 
     /// The same, saying whether Shift is held (`shift`: the placing tool
-    /// stays armed for another, as in Delphi's designer; Ctrl / ⌘ don't).
+    /// stays armed for another, as in designers; Ctrl / ⌘ don't).
     pub fn mouse_down_keys(&mut self, x: i64, y: i64, double: bool, add: bool, shift: bool) -> Option<DesignEvent> {
         self.guides.clear();
         self.typing = None;
@@ -2553,7 +2553,7 @@ impl DesignSurface {
                     typed.push_str(text);
                 }
                 let _ = self.designer.execute(Command::SetProp { node: id, name: prop.to_string(), value: Some(value::write_str(&typed)) });
-                // (one undo step with the add: Delphi's)
+                // (one undo step with the add)
                 self.continues = true;
                 self.commit();
                 self.say(format!("{prop}: {typed}"));

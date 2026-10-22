@@ -3,7 +3,7 @@
 //! kernel routes the mouse into the shared models (the scroll bars,
 //! `rapidr_value::scrollbars`; a QFORMMDI's children, `rapidr_value::mdi`;
 //! a QSPLITTER's drag) and runtime-core moves the components after the
-//! pump — scrolling moves them (their Left / Top, as Delphi's ScrollBy), a
+//! pump — scrolling moves them (their Left / Top, as RapidQ's ScrollBy), a
 //! splitter resizes its neighbour (`layout::splitter_*`), an MDI child's
 //! frame is moved, raised or closed (`mdi::Runtime`), with the program's
 //! events (OnMoved, OnChildActive …) where the web runtime fires them.

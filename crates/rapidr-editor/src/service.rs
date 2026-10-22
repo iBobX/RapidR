@@ -7,7 +7,7 @@
 //! Code from) implements [`LanguageService`] for RapidQ / RapidR BASIC; a
 //! runtime that carries it ([`install`]s it at start: `rapidr run`, RapidR
 //! Studio on the desktop and in the browser) gives every RCODEEDITOR its
-//! IntelliSense. Offsets are bytes of the file's text as the editor holds
+//! completion and hover help. Offsets are bytes of the file's text as the editor holds
 //! it; files are named by the editor (a path, or a name of its own).
 
 use std::cell::RefCell;

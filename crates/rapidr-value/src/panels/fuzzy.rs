@@ -1,5 +1,5 @@
-//! The panels' search: what the user typed found in a name, the way VS
-//! Code's quick open and Xcode's library find things — the letters in
+//! The panels' search: what the user typed found in a name, the way
+//! quick-open boxes find things — the letters in
 //! order, any case, others skipped between them — scored so that the
 //! closest matches come first (a whole word, a word's start, letters side
 //! by side, an early start), with the matched letters' places for drawing

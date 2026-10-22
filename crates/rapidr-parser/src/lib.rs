@@ -3213,7 +3213,7 @@ impl<'a> Parser<'a> {
             let span = self.peek().map(|t| t.span).unwrap_or_default();
             return Some(Expression::Identifier(Identifier { span, name: OMITTED_ARGUMENT.to_string() }));
         }
-        // `ByVal 0&` in a call (Visual Basic's way to pass a value to an
+        // `ByVal 0&` in a call (the classic BASIC way to pass a value to an
         // API function): the value.
         if matches!(self.peek_kind(), Some(TokenType::ByVal | TokenType::ByRef)) && !matches!(self.peek_kind_at(1), Some(TokenType::Comma | TokenType::RParen)) {
             self.advance();

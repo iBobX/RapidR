@@ -11,7 +11,7 @@
 //! program, or by the user resizing a form), and when a form gets its main
 //! menu (which takes the top of its client area).
 //!
-//! Anchors (a RapidR extension, from Delphi): a child whose Anchors aren't
+//! Anchors (a RapidR extension): a child whose Anchors aren't
 //! the default records where it is ([`rapidr_value::layout::AnchorRules`])
 //! when its Anchors are set and whenever the program places it, and follows
 //! its parent's client area each time that changes — the same moments that
@@ -130,7 +130,7 @@ fn client_rect(parent: &str) -> Rect {
             return Rect::new(x, y, w, h);
         }
     }
-    // A form's / scroll box's: Delphi's (AdjustClientRect) — the scrolled
+    // A form's / scroll box's: the scrolled
     // area, as large as the ranges.
     if crate::scroll::scrolls(parent) {
         let (cw, ch) = crate::scroll::client(parent);

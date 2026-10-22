@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes tests/fixtures/dx_sprites.dxg: a DelphiX image library (.DXG) for
 tests/fixtures/dx_screen.bas, made the way DelphiX's TDXImageList saves one
-(a resource header, then a TPictureCollectionComponent streamed as a Delphi
+(a resource header, then a TPictureCollectionComponent streamed as a
 binary form, TPF0, each picture an 8-bit TDIB). RapidR's own drawing, so the
 test needs none of RapidQ's example files.
 

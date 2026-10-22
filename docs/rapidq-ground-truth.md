@@ -1,6 +1,6 @@
 # RapidQ's own compiler as the ground truth
 
-When the manual, the phatcode mirror and the corpus leave a question open — how RapidQ parses something, what a built-in returns, how PRINT formats a number — the answer is what RapidQ itself does. RapidQ's compiler (`RC.EXE`, Rapid-Q 2006, William Yu) still runs: compile a small program with it, run the program, read what it prints. RapidR's behaviour is then made to match, and the program becomes a conformance case whose `.expected` is RapidQ's output (`tests/conformance/cases/juxtaposed_operands.bas` was made this way, and the `rapidq_*` cases listed below).
+RapidR is its own language, and for the programs it shares with RapidQ it does what RapidQ does. When the manual, the phatcode mirror and the corpus leave a question open — how RapidQ parses something, what a built-in returns, how PRINT formats a number — the answer is what RapidQ itself does. RapidQ's compiler (`RC.EXE`, Rapid-Q 2006, William Yu) still runs: compile a small program with it, run the program, read what it prints. RapidR's behaviour is then made to match, and the program becomes a conformance case whose `.expected` is RapidQ's output (`tests/conformance/cases/juxtaposed_operands.bas` was made this way, and the `rapidq_*` cases listed below).
 
 **The boundaries** (docs/legal/clean-room.md, docs/legal/rapidq-review.md):
 

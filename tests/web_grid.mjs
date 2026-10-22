@@ -200,7 +200,7 @@ const editor = await frame.evaluate(() => {
 });
 ok(editor.tag === "INPUT" && editor.value === "P3", `double-click edits the cell in place, a focused text field in the mirror (${JSON.stringify(editor)})`);
 // (the cell's text replaced with real keys: the editor starts with it all
-// selected, as Delphi's in-place editor)
+// selected, as RapidQ's in-place editor)
 await page.keyboard.type("Ana", { delay: 20 });
 await page.keyboard.press("Enter");
 await page.waitForTimeout(400);

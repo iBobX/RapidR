@@ -152,7 +152,7 @@ impl Dialog {
 
     /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `icon` (if any) at the top
     /// left, `text` right of it, `labels`' buttons centred under both (the
-    /// first the default: Enter), titled `title` — Delphi's MessageDlg
+    /// first the default: Enter), titled `title` — RapidQ's MessageDlg
     /// layout (`rapidr_value::dialogs::message_layout`), as every runtime
     /// lays it out.
     pub fn message(n: u64, title: &str, text: &str, labels: &[&str], icon: Option<MsgIcon>) -> Dialog {
@@ -839,7 +839,7 @@ mod tests {
         let mut ts = TextSystem::new();
         let d = Dialog::message(6, "Warning", "Disk full", &["OK"], Some(MsgIcon::Warning));
         let int = |id: &str, p: &str| store::int(&d.store, id, p, -1);
-        // the icon at Delphi's margins, the text 15 right of it, the button
+        // the icon at RapidQ's margins, the text 15 right of it, the button
         // under the icon (the text is shorter than it)
         assert_eq!((int("rapidr:dlg6:icon", "left"), int("rapidr:dlg6:icon", "top"), int("rapidr:dlg6:icon", "width")), (12, 13, 32));
         assert_eq!(int("rapidr:dlg6:t0", "left"), 12 + 32 + 15);
