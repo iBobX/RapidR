@@ -317,8 +317,9 @@ pub const BUTTON: (i64, i64) = (75, 23);
 pub const BUTTON_GAP: i64 = 6;
 
 /// The layout for a text `text_w` × `text_h`, `buttons` buttons and an
-/// icon or not.
-pub fn message_layout(text_w: i64, text_h: i64, buttons: usize, icon: bool) -> MessageLayout {
+/// icon or not, in a window at least `min_w` wide inside (what its title
+/// needs: a short text with one button is narrower than "Information").
+pub fn message_layout(text_w: i64, text_h: i64, buttons: usize, icon: bool, min_w: i64) -> MessageLayout {
     let (mx, my) = MARGIN;
     let (mut block_w, mut block_h) = (text_w, text_h);
     if icon {
@@ -327,7 +328,7 @@ pub fn message_layout(text_w: i64, text_h: i64, buttons: usize, icon: bool) -> M
     }
     let n = buttons.max(1) as i64;
     let group = n * BUTTON.0 + (n - 1) * BUTTON_GAP;
-    let w = block_w.max(group) + 2 * mx;
+    let w = (block_w.max(group) + 2 * mx).max(min_w);
     let top = my + block_h + SPACING.1;
     let mut x = (w - group) / 2;
     let buttons = (0..buttons)
@@ -418,7 +419,7 @@ mod tests {
     fn layout_puts_the_text_right_of_the_icon() {
         // RapidQ's metrics: margins 12 × 13, the icon's 32 + 15, buttons
         // 75 × 23 six apart, 16 under the text
-        let l = message_layout(200, 26, 3, true);
+        let l = message_layout(200, 26, 3, true, 0);
         assert_eq!(l.icon, Some((12, 13, 32, 32)));
         assert_eq!(l.text, (12 + 32 + 15, 13, 200, 26));
         assert_eq!(l.size.0, 12 + 32 + 15 + 200 + 12);
@@ -429,11 +430,20 @@ mod tests {
         assert_eq!(l.buttons[0].0, (l.size.0 - group) / 2);
         // without an icon the text starts at the margin; a short text is as
         // wide as the buttons need
-        let l = message_layout(20, 13, 2, false);
+        let l = message_layout(20, 13, 2, false, 0);
         assert_eq!((l.icon, l.text.0), (None, 12));
         assert_eq!(l.size.0, 2 * 75 + 6 + 24);
         // a tall text: the buttons under it
-        let l = message_layout(100, 80, 1, true);
+        let l = message_layout(100, 80, 1, true, 0);
         assert_eq!(l.buttons[0].1, 13 + 80 + 16);
+        // a window that must be wider (its title): wider, the button
+        // centred, the icon and text where they were
+        let narrow = message_layout(20, 13, 1, true, 0);
+        let wide = message_layout(20, 13, 1, true, 300);
+        assert_eq!((narrow.size.0 < 300, wide.size.0), (true, 300));
+        assert_eq!((wide.icon, wide.text), (narrow.icon, narrow.text));
+        assert_eq!(wide.buttons[0].0, (300 - 75) / 2);
+        // (never narrower than the content)
+        assert_eq!(message_layout(200, 26, 3, true, 10).size, message_layout(200, 26, 3, true, 0).size);
     }
 }

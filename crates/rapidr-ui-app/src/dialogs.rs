@@ -214,6 +214,11 @@ fn show<R: Program + Windows>(rt: R, make: impl FnOnce() -> Dialog, hooked: Opti
         (Some(a), None) => return Pending::Done(then(a)),
         (hooked, _) => hooked,
     };
+    // (before the dialog is made: its window must be as wide as its title
+    // needs in the system's title bar, which only the host knows)
+    if let Some((left, right)) = rt.title_reserve() {
+        rapidr_ui_kernel::frame::set_system_title_reserve(left, right);
+    }
     let id = open(rt, make());
     if let Some(a) = hooked {
         hold_answer(rt, Hook::Dialog(id.clone(), a));

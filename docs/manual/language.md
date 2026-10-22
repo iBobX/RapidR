@@ -432,6 +432,29 @@ CLOSE #f
 PRINT FILEEXISTS("notes.txt"), FILELEN("notes.txt")
 ```
 
+### Reading what is typed or piped in, line by line
+
+A console program's own input is read as it arrives. `INPUT s$` takes a line
+from the console, and `OPEN "/dev/stdin" FOR INPUT AS #f` makes it a file:
+`LINE INPUT #f, s$` returns each line **as soon as it has come**, not when
+all the input has, and `EOF(f)` waits for the next byte or the end of the
+input. A program that answers one line with one line (a server that speaks
+JSON lines on its input and output, such as an MCP stdio server) can
+therefore be written with a plain loop:
+
+```basic
+$APPTYPE CONSOLE
+OPEN "/dev/stdin" FOR INPUT AS #1
+WHILE NOT EOF(1)
+    LINE INPUT #1, request$
+    PRINT "got "; request$       ' written before the next line is read
+WEND
+```
+
+It works the same with `rapidr run`, in an interpreted build and in a native
+one. A web page has no standard input: there `/dev/stdin` is a file that is
+not there (the page's files are its own, see [The web](web.md)).
+
 The stream objects do the same with methods: `RFileStream` (older name
 `QFILESTREAM`: `Open`,
 `ReadLine`, `WriteLine`, `ReadNum`, `WriteNum`, `Read`, `Write`, `Seek`,

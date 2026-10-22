@@ -6,7 +6,6 @@
 ' A dialog's Execute shows it and is true when the user pressed OK; its
 ' properties then hold the answer (FileName, Color, Name / Size …).
 ' MESSAGEDLG asks a question and returns the button pressed.
-$INCLUDE "RAPIDQ.INC"
 
 DECLARE SUB OpenFile
 DECLARE SUB PickColour

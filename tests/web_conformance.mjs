@@ -42,6 +42,24 @@ const assets = ["resource_files", "picture_files", "video_files"].map((d) => joi
   name: f, mime: "application/octet-stream", dataUrl: "data:application/octet-stream;base64," + readFileSync(join(RES, f)).toString("base64"),
 })));
 
+// A translated program's catalogs (cases/lang/*.po, the desktop runner's
+// `lang` folder beside the program) travel with it as its project's files,
+// `lang/<name>.po` — as a web build carries them (rapidr_project::ship: the
+// program's `lang/` folder when it translates) and RapidR Studio's run hands
+// them to the page. A program that doesn't translate gets none, as in a build.
+const LANG = join(CASES, "lang");
+const langAssets = existsSync(LANG) ? readdirSync(LANG).filter((f) => /^[^./\\][^/\\]*\.po$/i.test(f)).sort().map((f) => ({
+  name: `lang/${f}`, mime: "text/plain", dataUrl: "data:text/plain;base64," + readFileSync(join(LANG, f)).toString("base64"),
+})) : [];
+// (rapidr_project::ship::uses_translations: TR$, TRN$ or `.Language` in the
+// code — outside comments and strings)
+const translates = (source) => source.split("\n").some((line) => {
+  const t = line.trimStart();
+  if (t.startsWith("'") || /^rem(\s|$)/i.test(t)) return false;
+  const code = t.replace(/"[^"]*"/g, '""').replace(/'.*$/, "");
+  return /(^|[^A-Za-z0-9_$.])(tr|trn)\$/i.test(code) || /\.\s*language\b/i.test(code);
+});
+
 let passed = 0, failed = 0, xfail = 0, xpass = 0;
 for (const name of names) {
   // (a case whose file isn't UTF-8 — RapidQ's, Windows-1252 — reaches the
@@ -66,7 +84,7 @@ for (const name of names) {
   // last PRINT stays on its line; a program that ENDs itself never prints it)
   const tag = `@@${name}@@`;
   // (a .rr case is compiled as a RapidR program, as Studio names its file)
-  await r.run(`${source}\nPRINT\nPRINT "${tag}E"\n`, { assets, name: file.endsWith(".rr") ? "program.rr" : "program" });
+  await r.run(`${source}\nPRINT\nPRINT "${tag}E"\n`, { assets: translates(source) ? [...assets, ...langAssets] : assets, name: file.endsWith(".rr") ? "program.rr" : "program" });
   const ended = () => r.lines.includes(`${tag}E`) || r.ended();
   for (let waited = 0; waited < 20000; waited += 100) {
     if (runtimeError ? hasError() : ended()) break;

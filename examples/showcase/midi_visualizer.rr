@@ -23,7 +23,6 @@
 ' turning, softer pulses. (RapidR doesn't tell programs the system's
 ' reduce-motion setting yet, so Calm is the user's to switch.)
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"
 $INCLUDE "QMidi.inc"
 $RESOURCE SONG AS "song.mid"
 

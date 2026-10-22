@@ -10,7 +10,6 @@
 ' tool bar what the selection looks like. Paragraph (RapidR's) aligns and
 ' bullets the paragraphs the selection is in. LoadFromFile / SaveToFile
 ' read and write RTF, which WordPad, Word and TextEdit open too.
-$INCLUDE "RAPIDQ.INC"
 
 DECLARE SUB OpenDoc
 DECLARE SUB SaveDoc

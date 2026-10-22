@@ -93,6 +93,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     is -2, so the editor warns — `FILEEXISTS gives 1, and NOT 1 is -2 (true):
     write FILEEXISTS(x) = 0` — and its quick fix (Ctrl+.) writes it; also
     DIREXISTS (every builtin whose reference says "True (1)").
+- **`ctText`, `ctImage`, `ctState` (0, 1, 2) in `.rr` programs**: the `Change`
+  kinds an RListView's OnChange hears are RapidR's own, in none of RapidQ's
+  includes, so they are built in the way RAPIDQ.INC's constants are (the same
+  pass, `rapidr_ast::builtin_constants`, both backends; a name the program
+  declares wins) for a RapidR program only — a RapidQ program reads them as
+  undeclared variables, 0, as RapidQ does. In the language registry as RapidR's
+  (origin `rapidr`), completion and hover; `docs/manual/reference/constants.md`
+  lists them. Conformance: `rr_builtin_constants` (the numbers) and
+  `rr_only_constants_not_in_bas` (nothing in a `.bas`), on both backends.
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong
@@ -199,6 +208,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
 ### Changed
+- **The `.rr` examples no longer include RAPIDQ.INC**: a RapidR program has
+  RapidQ's constants built in, so the 18 examples that still had
+  `$INCLUDE "RAPIDQ.INC"` (and the RMarkdownView snippet in the manual) lose the
+  line and run the same on every runtime; `.bas` programs and `examples/rapidq/`
+  keep it, as RapidQ needs it.
 - **RapidR's own words** (Robert, 2026-10-21): the code comments, docs,
   manual, plans, examples and Studio's help text describe RapidR in RapidR's
   own words, with no other IDEs or products as models or comparisons;
@@ -294,6 +308,100 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `rapidq_rinstr_start`, `rapidq_varptr_parameter`, `rapidq_handler_wrong_params`,
   `rapidq_fileexists`, `rapidq_shapes`; the reference documents Rectangle, RoundRect and
   Circle as RapidQ draws them.
+- **A project's executable is named after the project**: RapidR Database
+  Studio's build made `Contents/MacOS/main`, after `src/main.rr`. A build of a
+  project now names the executable after the `.rrproj`'s `name` (letters,
+  digits, `-`, `_` and `.` kept, any other run one `-`, Windows device names
+  made `-app`, 64 characters at most: `rapidr_package::exe_name_for`) — the
+  Mac app's `Contents/MacOS/<exe>` and `CFBundleExecutable`, the Windows
+  `.exe`, a Linux AppDir's `usr/bin/<exe>` and desktop entry, native and
+  `--interp` alike — and a single file keeps the file's name. `--name` and
+  `app_name` still change only what people see. The project is found beside the
+  source or one or two folders above it when its `main` is exactly that file
+  (`src/main.rr`); `--project` says it outright. There is no `$OPTION EXENAME`
+  in RapidR's options, so none was added. Tests:
+  `the_executable_is_named_after_the_project` (all three systems, the plist and
+  the desktop entry), `a_projects_executable_name`,
+  `a_project_above_its_main_file_is_found`; checked by building a project
+  interpreted (`Database Studio.app/Contents/MacOS/Database-Studio`).
+- **A program's standard input is read line by line as it arrives**:
+  `OPEN "/dev/stdin" FOR INPUT AS #f` read the whole input before the first
+  `LINE INPUT #f` returned, so a program that answers one line with one line
+  (an MCP stdio server) never answered until its client closed the pipe. The
+  file is now read as it comes: `LINE INPUT #f, s` returns once its line has
+  arrived, `EOF(f)` waits for the next byte or the end, and what is behind the
+  position is dropped, so a server that runs for days does not grow
+  (`rapidr_value::basic_files`, the one implementation of the VM, the native
+  builds and the web runtime). The console's `INPUT s` already did. The web has
+  no standard input: there the name is a file that is not there (the manual's
+  Files page says so). Tests: `a_stream_gives_each_line_as_soon_as_it_has_come`
+  and `tests/stdin_lines.mjs`, which pipes two lines with a pause and checks
+  that the first is answered before the second is written, on the VM, in an
+  interpreted build and (with `--runtimes native`) in a native one.
+- **RPlot bar names are tested at every scale** (Database Studio reported
+  every other name dropped at `RAPIDR_SCALE=2` where scale 1 showed all 8):
+  not reproduced with an 8-bar chart in a fixed rectangle, aligned to the
+  client area, bound to a data frame (`examples/data/dataframe.rr`) or after a
+  scripted resize — the chart's labels are fitted in logical units (its ops
+  are made at the component's logical size, the CPU renderer only scales them)
+  and the same names show at 1x, 1.5x, 2x and 3x. Two guards keep it so: the
+  kernel test `the_names_shown_are_the_same_at_every_scale` (the display list
+  at four scales over widths 150 to 500) and the renderer's
+  `a_charts_names_are_drawn_at_every_scale` (each name's place holds ink at
+  1x, 1.5x and 2x). If the program that showed it is sent, it is the next
+  thing to try.
+- **A scripted `lv.__item_N` picks a list view's item**: `RAPIDR_TEST_EVENTS`
+  picked an item of an RListBox, an RComboBox and a tree but did nothing for an
+  RListView, so a test could not select a report row. The list view answers
+  `__item_N` like the others: a click on the item's caption (any view; an item
+  below the fold is brought into view first), then OnClick
+  (`ListView::click_point`). Test `a_scripted_item_pick_selects_a_list_view_item_in_every_view`
+  and the parity fixture `listview_item_pick`.
+- **A message box is as wide as its title needs**: `MessageDlg` (mtInformation,
+  one OK button, a short text) made a window 99 pixels wide, narrower than the
+  title bar needs for "Information" with its icon and close box, so the title
+  was cut off. The width now also fits the title (`frame::inside_for_title`:
+  the icon, the title in the frame's own font, the buttons; `message_layout`
+  takes it as `min_w`), in RapidR's light, dark and high-contrast looks and in
+  the classic one; a wider text or more buttons keep their own width, and the
+  input box too. A real macOS window has the system's title bar, which keeps
+  room for the traffic lights and a margin and cut the title to "Infor…" even
+  so: the desktop tells the dialogs what it keeps (`Windows::title_reserve`,
+  `rapidr_ui_host_winit::platform::title_reserve`: 84 and 20 pixels on macOS,
+  none under a test, so the captures are the same everywhere). Checked on the
+  real screen: "Information" in full. Tests:
+  `a_dialog_is_as_wide_as_its_title_needs`, `a_system_title_bar_keeps_room_around_the_title`.
+- **A file opens with its squiggles**: a `.bas` with warnings listed them in
+  Problems but the editor underlined nothing until the first edit, because
+  diagnostics were only asked for after typing. A text set from outside
+  (`LoadFromFile`, `Text =`) is now diagnosed at the editor's next tick, before
+  it is even drawn (`Model::diagnose_wanted`). Flow `editor-squiggles-on-open`.
+  The same pass gives the file's semantic colours at once (a SUB's name, a
+  component's, a constant's), so the Studio goldens of the scenes that open a
+  file (`debug-variables`, `-callstack`, `-breakpoints`, `-watch`, `-datatip`,
+  `-error`, `import-report`; light, dark and high contrast, 1x and 2x: 24
+  images) were approved: only the code area differs, in those colours.
+- **The Assistant's token meter is never cut off**: with cached tokens and
+  prices the line (`2,000 tokens sent (200 from the cache), 40 received · about
+  $0.0040`) is longer than the pane is wide, and the label, one line high
+  above 360 pixels, hid "· about $…" under the note. The meter's height now
+  follows its text wrapped at spaces (`AIMeterHigh`, `AIShowUsage` in
+  `ide/ai.inc`: one line is 18 pixels as before, each more adds a line).
+  Flow `ai-meter-long`, in the three looks.
+- **The web conformance run has the translations**: `i18n_tr`, `i18n_trn` and
+  `i18n_broken_po` failed on the web because the page was handed no `lang/`
+  catalogs. The runner now gives a program that translates the case folder's
+  `lang/*.po` as its project files, as a web build carries them
+  (`rapidr_project::ship`).
+- **The debugger's Immediate and Watch see a `.rr` program's built-in
+  constants**: `? mrYes` printed nothing while the program itself read 6. What
+  the debugger compiles (Immediate, Watch, data tips, a changed value) now goes
+  through the same built-in constants pass as the program
+  (`rapidr_ast::builtin_constants::lower_snippet`, called by the debugger's
+  `compile_snippet`), the program's own names (locals, globals, routines, a
+  `DIM mbYes`) winning. The compiled module says it came from a `.rr` (bit 2 of
+  the `.rrbc` flags; an older runtime ignores it). RapidQ's value of `mbYes`
+  is 1 (`mrYes` is 6); a `.bas` program has none, as before.
 - **Reference entries that taught a wrong call** (found by the new check,
   `rapidr lang truth`; the language reference, its manual pages and the
   assistant's language card say what the runtimes do now): `RDataFrame.Iloc` is

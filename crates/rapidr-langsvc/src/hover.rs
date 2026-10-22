@@ -82,7 +82,10 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
         return lang(st.syntax, st.doc, st.origin);
     }
     if let Some((value, group)) = rapidr_lang::constant(word) {
-        let from = if group.origin == Origin::RapidR {
+        let from = if group.origin == Origin::RapidR && rapidr_ast::builtin_constants::is_rapidr_only(word) {
+            // (ctText …: built into a .rr program, nothing in a .bas)
+            if s.rapidr_program() { "built in".to_string() } else { "RapidR's own: built into a .rr program only".to_string() }
+        } else if group.origin == Origin::RapidR {
             "RapidR's own, always there".to_string()
         } else if s.rapidr_program() && rapidr_ast::builtin_constants::constant(word).is_some() {
             // (RAPIDQ.INC's, built into a RapidR program)

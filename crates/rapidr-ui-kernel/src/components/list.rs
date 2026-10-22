@@ -1262,6 +1262,37 @@ mod tests {
         crate::tick::set_test_now(None);
     }
 
+    /// `lv.__item_N` picks a list view's item as the other lists' do — in
+    /// every view (report, list, icons), a row not shown first brought into
+    /// view — and OnClick follows (a script can't select a report row
+    /// otherwise: tests/gui_parity_cases.mjs, the examples' events).
+    #[test]
+    fn a_scripted_item_pick_selects_a_list_view_item_in_every_view() {
+        for view in 0..4 {
+            let (s, mut f, mut ts) = form(|s| {
+                s.add("lv", "RLISTVIEW", Some("f")).set("lv", "width", v_int(200)).set("lv", "height", v_int(90)).set("lv", "viewstyle", v_int(view));
+                // (a report view's rows are under its columns)
+                s.call("lv", "addcolumns", &[v_str("Name"), v_str("Size")]);
+                s.call("lv", "column.width=", &[v_int(0), v_int(120)]);
+                let items: Vec<_> = (0..12).map(|i| v_str(&format!("item {i}"))).collect();
+                s.call("lv", "additems", &items);
+            });
+            drop(f.paint(&s, &mut ts, 1.0));
+            let index = |_: &MemStore| rapidr_value::objects::with_listview("lv", |lv| lv.item_index).unwrap_or(-9);
+            // (the first, then one below the control's fold)
+            for n in [1usize, 9, 0] {
+                assert!(f.test_action(&s, &mut ts, "lv", &format!("__item_{n}")), "view {view}");
+                assert_eq!(index(&s), n as i64, "view {view}: item {n} picked");
+            }
+            // (a click's event, for the program)
+            let events = f.take_events();
+            assert!(events.contains(&KernelEvent::Click("lv".into())), "view {view}: {events:?}");
+            // (an item that isn't there: nothing)
+            assert!(f.test_action(&s, &mut ts, "lv", "__item_99"));
+            assert_eq!(index(&s), 0);
+        }
+    }
+
     // ------------------------------- held bars and the wheel --
     // (the input lane's)
 

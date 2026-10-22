@@ -99,6 +99,7 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     // builtin_constants; RapidQ's library objects RapidR implements,
     // ENVIRON statements: rapidr_ast::library — native builds run them
     // first too)
+    let rapidr_program = rapidr_ast::builtin_constants::is_rapidr_program(program);
     let program = &rapidr_ast::object_name_types(&rapidr_ast::library::lower(&rapidr_ast::event_params::lower(&rapidr_ast::builtin_constants::lower(program))));
     // Objects → plain routines and builtins, the same pass native builds
     // run (rapidr_ast::objects), so both backends treat objects alike.
@@ -136,7 +137,13 @@ fn compile_recording(program: &Program, source: Option<&str>, library_lines: &[b
     let result = bcgen.compile_program(program);
     let recorder = bcgen.sem.take();
     let result = match result {
-        Ok(()) => Ok(Compiled { module: bcgen.module, warnings: bcgen.warnings }),
+        Ok(()) => {
+            // (the debugger's snippets give a RapidR program's built-in
+            // constants too: compile_snippet)
+            let mut module = bcgen.module;
+            module.rapidr_program = rapidr_program;
+            Ok(Compiled { module, warnings: bcgen.warnings })
+        }
         // (an error that escaped without a place: kept, at no place)
         Err(text) if bcgen.errors.is_empty() => Err(vec![Diagnostic::error(text, TextSpan::default(), SourceLocation::new(0, 0), None)]),
         Err(_) => Err(std::mem::take(&mut bcgen.errors)),
@@ -215,6 +222,13 @@ pub fn compile_snippet(module: &Module, fn_index: Option<u32>, statements: &[Sta
     // what its names mean in its frame, as in its code: its STATICs and its
     // undeclared ones (RapidQ's implicit scope, rapidr_ast::implicit_scope).
     let mut statements = statements.to_vec();
+    // A RapidR program's built-in constants (`mbYes` …) are no variables of
+    // the module: what is typed gets them as the program's own code does
+    // (rapidr_ast::builtin_constants), unless the program has the name.
+    if module.rapidr_program {
+        let known = |name: &str| b.scope.locals.contains_key(name) || b.globals.contains(&name_key(name)) || b.fn_indices.contains_key(name);
+        statements = rapidr_ast::builtin_constants::lower_snippet(&statements, &known);
+    }
     if let Some((fi, _)) = target.filter(|_| !b.in_main) {
         for (i, s) in module.strings.iter().enumerate() {
             let GlobalSlot::Routine { function, name: var, kind } = global_slot(module, s) else { continue };
@@ -3196,7 +3210,8 @@ mod tests {
     /// undeclared variables (empty), as before.
     #[test]
     fn built_in_constants_are_the_includes() {
-        let names: Vec<&str> = rapidr_ast::builtin_constants::constants().map(|(n, _)| n).collect();
+        // (RAPIDQ.INC's: RapidR's own, `ctText` …, are in no include)
+        let names: Vec<&str> = rapidr_ast::builtin_constants::constants().map(|(n, _)| n).filter(|n| !rapidr_ast::builtin_constants::is_rapidr_only(n)).collect();
         let mut body = String::new();
         for n in &names {
             body.push_str(&format!("PRINT {n}\n"));
@@ -3209,6 +3224,9 @@ mod tests {
         assert_eq!(built_in.lines().count(), names.len() + 18);
         // (the RapidQ program without the include: undeclared names, 0)
         assert_eq!(run("PRINT mbYes; clRed\n").output, "00\n");
+        // (RapidR's own, for a .rr only: 0 1 2 there, undeclared in a RapidQ program)
+        assert_eq!(run(&format!("PRINT ctText; ctImage; ctState\n{mark}\n")).output, "012\n");
+        assert_eq!(run("PRINT ctImage; ctState\n").output, "00\n");
         // (True stays RapidR's -1 in a RapidR program; RAPIDQ.INC's is 1)
         assert_eq!(run(&format!("PRINT True\n{mark}\n")).output, "-1\n");
         assert_eq!(run(&format!("{}\nPRINT True\n", rapidr_preprocessor::rapidq_inc_text())).output, "1\n");
@@ -3330,6 +3348,42 @@ mod tests {
         vm.resume(&m).unwrap();
         drop(vm);
         assert_eq!(h.output, "param\n");
+    }
+
+    /// What the debugger evaluates in a RapidR program (the preprocessor's
+    /// mark ends it) has its built-in constants as the program's own code
+    /// has them, the program's own names winning; the same text of a
+    /// RapidQ program (no mark) reads them as nothing.
+    #[test]
+    fn snippets_of_a_rapidr_program_have_its_built_in_constants() {
+        let body = "DIM mbNo AS INTEGER\nmbNo = 77\nSUB Foo(clRed)\n  PRINT clRed\nEND SUB\nFoo 5\n";
+        let run_to_foo = |src: &str, exprs: &[&str]| -> Vec<i64> {
+            let m = compile_with_source(src);
+            let mut h = StubHost::default();
+            let mut vm = Vm::new(&mut h);
+            vm.debug_mode = true;
+            vm.add_breakpoint(4);
+            assert!(matches!(vm.run(&m), Err(rapidr_vm::VmError::Paused)));
+            let top = vm.frames.len() - 1;
+            let mut value = |expr: &str| {
+                let s = snippet(&m, &vm, Some(top), &format!("{SNIPPET_RESULT} = ({expr})"));
+                vm.evaluate(&s.module, s.function, Some(top), false, rapidr_vm::EVAL_FUEL).unwrap().to_i64()
+            };
+            exprs.iter().map(|e| value(e)).collect()
+        };
+        let rr_src = format!("{body}{}\n", rapidr_preprocessor::RAPIDR_PROGRAM);
+        // (a constant, the frame's own clRed, the main program's own mbNo, a
+        // sum, the QBColor array, and True, which stays what a comparison
+        // gives in a RapidR program: not RAPIDQ.INC's 1)
+        let rr = run_to_foo(&rr_src, &["mbYes", "clRed", "mbNo", "mrYes + mbYes", "QBColor(12)", "True"]);
+        assert_eq!(rr, [1, 5, 77, 7, 255, -1]);
+        // (RapidQ: an undeclared name is 0; the frame's own clRed and the program's mbNo still are)
+        let bas = run_to_foo(body, &["mbYes", "clRed", "mbNo", "mrYes + mbYes"]);
+        assert_eq!(bas, [0, 5, 77, 0]);
+        // (the module says which it is, a .rrbc keeps it)
+        assert!(compile_with_source(&rr_src).rapidr_program);
+        assert!(!compile_with_source(body).rapidr_program);
+        assert!(Module::from_bytes(&compile_with_source(&rr_src).to_bytes()).unwrap().rapidr_program);
     }
 
     #[test]

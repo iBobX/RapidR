@@ -22,7 +22,7 @@ pub mod picture;
 pub mod windows;
 
 pub use icon::{Icon, Look, FORMATS};
-pub use info::{default_bundle_id, AppInfo};
+pub use info::{default_bundle_id, exe_name_for, AppInfo};
 
 /// The system a build is for, from a target `<os>-<arch>`
 /// (`macos-arm64`, `windows-x86_64`, `linux-aarch64`, or just `macos`).

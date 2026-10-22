@@ -502,7 +502,9 @@ impl ComponentKind for CodeEditor {
     }
 
     fn pending(&self, id: &str) -> bool {
-        with_code(id, |c| !c.requests.is_empty()).unwrap_or(false)
+        // (the program's requests, and a text set from outside waiting for
+        // its diagnosis: lang::tick)
+        with_code(id, |c| !c.requests.is_empty() || c.diagnose_wanted).unwrap_or(false)
     }
 
     fn context_menu(&self, cx: &mut Cx) -> Option<MenuState> {

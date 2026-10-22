@@ -702,7 +702,7 @@ const CASES = [
     do: "run.build",
     // (cargo checks the runner first: a minute on a busy machine)
     delay: 90,
-    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|main\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
+    dump: { "proj.builtpath": /(Notes\.app|Notes\.AppDir|Notes\.exe)$/, "outputbox.text": /icon: .*note\.svg[\s\S]*Built .* \(interpreted\) in \d+ s/, "proj.building": /^0$/ },
     webDump: { "outputbox.text": /Can't build: Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop/, "proj.builtpath": /^$/ },
   },
   // Run > Build Web App: the program as a web app, <project>-web.zip (the
@@ -1664,7 +1664,7 @@ const CASES = [
     open: "examples/gui/pantry.rr",
     do: "wait,palette:stock",
     delay: 4,
-    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:21:Stock$/ },
+    dump: { "projecttree.filecount": /^1$/, "palette.selected": /^line:20:Stock$/ },
   },
   // (SHOWCASE) the showcase programs are in Open an Example (the palette),
   // not cards on the Welcome page: "visualizer" typed finds one, Enter opens
@@ -1828,6 +1828,17 @@ const CASES = [
     dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/ },
   },
   {
+    // a file that opens with a warning shows its squiggle as it opens — no
+    // edit, no key: the code's problem count is Problems', from the start
+    name: "editor-squiggles-on-open",
+    open: "tests/fixtures/studio_open_warnings.bas",
+    webFiles: ["tests/fixtures/studio_open_warnings.bas"],
+    do: "wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: { "codedoc(0).diagnosticcount": /^[1-9]$/, "outputbox.problemcount": /^[1-9]$/, "codedoc(0).text": /^' RapidR Studio's squiggles on open/ },
+  },
+  {
     // completing a RAPIDQ.INC constant brings its include along (one step)
     name: "editor-complete-with-include",
     open: "tests/fixtures/hello_form.bas",
@@ -1950,6 +1961,21 @@ const CASES = [
       "session.state": /^stopped$/,
       "session.exitcode": /^0$/,
       "outputbox.text": /total12[\s\S]*ended, exit code 0/,
+    },
+  },
+  {
+    // a .rr program has RapidQ's constants built in, and so does Immediate
+    // while it is stopped: "? mbYes" says 1 and "? mrYes" 6 (RapidQ's own
+    // values), the program's own i still 1 (counter.rr has no include of
+    // RAPIDQ.INC)
+    name: "debug-immediate-built-in-constants",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,focus:immediatebox,type:? mbYes,key:Enter,wait,wait,type:? mrYes + mbYes * 10,key:Enter,wait,wait,type:? i,key:Enter,wait,wait",
+    delay: 9,
+    dump: {
+      "session.state": /^paused$/,
+      "immediatebox.text": /\? mbYes\s*\n\s*1\s*\n[\s\S]*\? mrYes \+ mbYes \* 10\s*\n\s*16\s*\n[\s\S]*\? i\s*\n\s*1\s*$/,
     },
   },
   {
@@ -2373,9 +2399,9 @@ const CASES = [
       RAPIDR_TEST_PROGRAM_MESSAGE_DIALOG: "Yes;Yes;Yes;",
       RAPIDR_TEST_PROGRAM_DIALOG_HOLD: "800",
     },
-    do: `line:85,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
+    do: `line:84,key:F9,key:F5,${"wait,".repeat(8)}${`key:F10,${"wait,".repeat(6)}key:F5,${"wait,".repeat(12)}`.repeat(3)}stops:report`,
     delay: 34,
-    dump: { "outputbox.text": /\[stops\] 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step 85:breakpoint 8[67]:step/ },
+    dump: { "outputbox.text": /\[stops\] 84:breakpoint 8[56]:step 84:breakpoint 8[56]:step 84:breakpoint 8[56]:step/ },
   },
   // ---- DEBUG-2: Robert's scenarios 7, 9, 10, 11, 13 (stepping, loops,
   // recursion, breakpoints while running, a breakpoint in an included file;
@@ -2740,7 +2766,26 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:prices=2/10,ai:ask=hello there,wait,wait,wait",
     delay: 5,
-    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/ },
+    capture: true,
+    // (one line: 18 pixels, as it always was)
+    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^18$/ },
+  },
+  {
+    // The meter with cached tokens and prices is longer than a line of the
+    // pane: it wraps, and its label is as tall as its lines — "· about $…"
+    // is never cut off at the end of a line that is too short for it
+    name: "ai-meter-long",
+    open: "examples/gui/hello_form.rr",
+    do: "ai:on,ai:provider=anthropic,ai:key=sk-ant-test-FAKE-0000-wxyz,ai:model=claude-mock-haiku-1,ai:prices=2/10,ai:ask=describe the form,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    dump: {
+      "aimeter.caption": /^2,000 tokens sent \(200 from the cache\), 40 received · about \$0\.0040$/,
+      // (two lines of the dim font: 18 + a line's 17, not the one line of a short text)
+      "aimeter.height": /^35$/,
+    },
   },
   {
     // Off by default: no pane, no provider, nothing sent
@@ -4748,7 +4793,7 @@ async function webDialogStep() {
   const page = await ctx.newPage();
   const { until, where, status, keysBack } = webDebug(page);
   try {
-    await openStudioOn(page, src, [src], 85);
+    await openStudioOn(page, src, [src], 84);
     await page.keyboard.press("F9");
     await page.keyboard.press("F5");
     await page.waitForFunction(() => (window.RAPIDR_STUDIO_RUN_RECTS || []).length > 0, null, { timeout: 30000 });
@@ -4757,9 +4802,9 @@ async function webDialogStep() {
     for (let k = 1; k <= 3; k++) {
       const ask = await frameBox(frame, "button", "Ask...");
       await page.mouse.click(ask.x, ask.y);
-      let w = await until(where, (v) => v === "paused@85");
+      let w = await until(where, (v) => v === "paused@84");
       await keysBack();
-      record(name, w === "paused@85", `Ask ${k}: stops on the dialog's line, 85 (${w})`);
+      record(name, w === "paused@84", `Ask ${k}: stops on the dialog's line, 84 (${w})`);
       await page.keyboard.press("F10");
       // (the step runs the dialog: it shows in the program's window)
       const yes = await until(async () => (await frame.getByRole("button", { name: "Yes", exact: true }).count()) > 0, (v) => v, 6000);
@@ -4768,8 +4813,8 @@ async function webDialogStep() {
       if (!yes) break;
       const at = await frameBox(frame, "button", "Yes");
       await page.mouse.click(at.x, at.y);
-      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@85");
-      record(name, /^paused@8[67]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
+      w = await until(where, (v) => v.startsWith("paused") && v !== "paused@84");
+      record(name, /^paused@8[56]$/.test(w), `Ask ${k}: answered Yes, it stops on the line after the dialog (${w})`);
       await keysBack();
       await page.keyboard.press("F5");
       await until(status, (v) => v.startsWith("Running"), 3000);

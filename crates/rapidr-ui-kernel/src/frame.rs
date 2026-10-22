@@ -91,6 +91,55 @@ pub fn outer(inside: (i64, i64), border: bool, caption: bool) -> (i64, i64) {
     (inside.0 + fw, inside.1 + fh)
 }
 
+thread_local! {
+    /// What the window system's own title bar keeps from the title (the
+    /// left, the right: macOS' traffic lights and margin), where the windows
+    /// are the system's; `None` where the kernel draws the frame.
+    static SYSTEM_TITLE_RESERVE: std::cell::Cell<Option<(i64, i64)>> = const { std::cell::Cell::new(None) };
+}
+
+/// The windows are the system's, whose title bar keeps `left` and `right`
+/// pixels from the title ([`inside_for_title`] allows for them).
+pub fn set_system_title_reserve(left: i64, right: i64) {
+    SYSTEM_TITLE_RESERVE.with(|r| r.set(Some((left, right))));
+}
+
+/// The narrowest inside a window with `frame` can have for its whole
+/// `title` to show in its title bar, in the current theme (logical pixels):
+/// in the frame the kernel draws, the icon, the title in the frame's own
+/// font, a gap and the title bar's buttons ([`paint_into`] lays them out the
+/// same way); in the system's, the title in the same font (a tenth more, as
+/// the system's own face is not ours) and the room its title bar keeps
+/// ([`set_system_title_reserve`]). A dialog whose text and buttons are
+/// narrower than its title takes this width, so "Information" isn't cut off.
+pub fn inside_for_title(title: &str, frame: Frame) -> i64 {
+    let t = rapidr_value::theme::current();
+    let base = if t.fluent() { rapidr_value::ide_theme::chrome_font(t) } else { Font::default() };
+    let font = Font { styles: base.styles | 1, ..base };
+    let m = Metrics::window(t, false);
+    let shown: Vec<Button> = buttons(frame).into_iter().map(|(b, _)| b).collect();
+    // (how far from the window's right edge the leftmost button reaches;
+    // without buttons, the title ends at the border)
+    let reach = m.buttons(1000, &shown).iter().map(|(_, r)| 1000 - r.0).max().unwrap_or(m.border);
+    // (the icon is assumed: the application's is on a window's title bar
+    // on the desktop and on the web)
+    let text_x = m.border + if t.fluent() { 8 + 20 } else { 2 + 17 };
+    let title_w = rapidr_value::objects::text::text_size(title, &font).0;
+    // (the title is clipped 4 pixels before the buttons; 2 more for
+    // rounding and the glyphs' overhang)
+    let kernel = text_x + title_w + 4 + 2 + reach - m.around().0;
+    match SYSTEM_TITLE_RESERVE.with(std::cell::Cell::get) {
+        Some((left, right)) => {
+            // (the system's title is in its own face whatever the look: the
+            // chrome font stands for it, bold, a tenth wider)
+            let own = rapidr_value::ide_theme::chrome_font(&rapidr_value::theme::RAPIDR);
+            let native = rapidr_value::objects::text::text_size(title, &Font { styles: own.styles | 1, ..own }).0;
+            kernel.max(left + native + native / 10 + right)
+        }
+        None => kernel,
+    }
+}
+
 /// What's at (x, y) of a window's frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Part {
@@ -233,6 +282,31 @@ mod tests {
         assert_eq!(hit(&l, (320, 240), 290.0, 15.0), Part::Maximize);
         assert_eq!(hit(&l, (320, 240), 274.0, 15.0), Part::Minimize);
         assert_eq!(hit(&l, (320, 240), 250.0, 15.0), Part::Title);
+    }
+
+    #[test]
+    fn a_system_title_bar_keeps_room_around_the_title() {
+        let close_only = Frame { resizable: false, close: true, minimize: false, maximize: false };
+        for theme in [&rapidr_value::theme::RAPIDR, &rapidr_value::theme::CLASSIC] {
+            rapidr_value::theme::set(theme);
+            let own = inside_for_title("Information", close_only);
+            // (macOS' title bar: the traffic lights at the left, a margin at
+            // the right — "Infor…" in a 147 pixel window, "I…" in 113)
+            set_system_title_reserve(84, 20);
+            let system = inside_for_title("Information", close_only);
+            assert!(system > 147 && system > own, "{}: {system} vs {own}", theme.name);
+            // (the system's face, whatever the look: the same width in both)
+            if theme.name == "classic" {
+                assert!(system >= 84 + 72 + 20, "classic: {system}");
+            }
+            // (a longer title needs more, a shorter less)
+            assert!(inside_for_title("Information and more", close_only) > system);
+            assert!(inside_for_title("OK", close_only) < system);
+            // (never narrower than the frame the kernel draws would need)
+            assert!(system >= own);
+            SYSTEM_TITLE_RESERVE.with(|r| r.set(None));
+            assert_eq!(inside_for_title("Information", close_only), own);
+        }
     }
 
     #[test]

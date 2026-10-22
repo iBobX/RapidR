@@ -8,7 +8,6 @@
 ' the window it plays in; Left, Top, Width and Height place the picture.
 ' clip.avi (a bouncing ball, 24 frames) was made by
 ' tools/make_example_media.py.
-$INCLUDE "RAPIDQ.INC"
 $INCLUDE "QVideo.inc"
 $RESOURCE CLIP AS "clip.avi"
 

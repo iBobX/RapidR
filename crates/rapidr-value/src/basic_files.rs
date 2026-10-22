@@ -9,6 +9,14 @@
 //! closed, its length is asked for, or the program ends ([`close_all`]).
 //! A file that can't be opened (missing, for INPUT) simply isn't open: reads
 //! from it give "" and `EOF` is true, as RapidQ programs check.
+//!
+//! The one exception is the program's own input, `/dev/stdin` opened FOR
+//! INPUT: it is read as it arrives, never to its end first, so `LINE INPUT
+//! #n, s` returns each line as soon as it has come (a line-by-line protocol,
+//! an MCP stdio server, answers before the next line is sent) and `EOF(n)`
+//! waits for the next byte or the end. The desktop and the native builds
+//! are the same; a page has no stdin (there the name is just a file that
+//! isn't there).
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -34,9 +42,48 @@ struct Handle {
     data: Vec<u8>,
     pos: usize,
     dirty: bool,
+    /// What the rest of the file is read from as it comes (the program's own
+    /// input): `None` once it has ended, or for a file that was read whole.
+    stream: Option<Box<dyn std::io::Read>>,
+}
+
+/// The program's own input as a stream, for the names that mean it.
+#[cfg(not(target_arch = "wasm32"))]
+fn stream_of(path: &str) -> Option<Box<dyn std::io::Read>> {
+    let name = path.replace('\\', "/");
+    matches!(name.as_str(), "/dev/stdin" | "/dev/fd/0" | "/proc/self/fd/0").then(|| Box::new(std::io::stdin()) as Box<dyn std::io::Read>)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn stream_of(_path: &str) -> Option<Box<dyn std::io::Read>> {
+    None
 }
 
 impl Handle {
+    /// Reads more of a stream until `enough` holds for what is unread, or it
+    /// ends (a stream: what's read is gone from memory once it's behind
+    /// the position, so a server that runs for days doesn't grow).
+    fn fill(&mut self, enough: impl Fn(&[u8]) -> bool) {
+        const KEEP: usize = 1 << 16;
+        if self.stream.is_none() {
+            return;
+        }
+        if self.pos > KEEP {
+            self.data.drain(..self.pos);
+            self.pos = 0;
+        }
+        let mut chunk = [0u8; 4096];
+        while self.stream.is_some() && !enough(&self.data[self.pos.min(self.data.len())..]) {
+            let read = self.stream.as_mut().map(|s| s.read(&mut chunk));
+            match read {
+                Some(Ok(n)) if n > 0 && self.data.len() + n <= MAX_FILE => self.data.extend_from_slice(&chunk[..n]),
+                Some(Err(e)) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                // (the end, an error, or more than a file may hold)
+                _ => self.stream = None,
+            }
+        }
+    }
+
     fn flush(&mut self) {
         if self.dirty && self.mode != Mode::Input {
             let _ = write_file(&self.path, &self.data);
@@ -94,6 +141,13 @@ pub fn open(filename: &Value, mode: &Value, file_num: &Value) {
     }
     // A number that's open already is closed first.
     close(file_num);
+    // (the program's own input: read as it comes, not to its end first)
+    if mode == Mode::Input {
+        if let Some(stream) = stream_of(&path) {
+            HANDLES.with(|h| h.borrow_mut().insert(num, Handle { path, mode, data: Vec::new(), pos: 0, dirty: false, stream: Some(stream) }));
+            return;
+        }
+    }
     // (OUTPUT starts empty: what's there isn't read.)
     let existing = if mode == Mode::Output { None } else { read_file(&path).ok().filter(|d| d.len() <= MAX_FILE) };
     let (data, pos, dirty) = match (mode, existing) {
@@ -113,7 +167,7 @@ pub fn open(filename: &Value, mode: &Value, file_num: &Value) {
         }
         (Mode::Binary, d) => (d.unwrap_or_default(), 0, false),
     };
-    HANDLES.with(|h| h.borrow_mut().insert(num, Handle { path, mode, data, pos, dirty }));
+    HANDLES.with(|h| h.borrow_mut().insert(num, Handle { path, mode, data, pos, dirty, stream: None }));
 }
 
 /// `CLOSE #n`.
@@ -141,6 +195,8 @@ pub fn close_all() {
 /// `LINE INPUT #n, s`: the rest of the line, without its line break.
 pub fn line_input(file_num: &Value) -> Value {
     with(file_num.to_i64(), |h| {
+        // (a stream: until a whole line has come, or it ends)
+        h.fill(|rest| rest.contains(&b'\n'));
         if h.pos >= h.data.len() {
             return v_str("");
         }
@@ -160,6 +216,8 @@ pub fn line_input(file_num: &Value) -> Value {
 /// next comma or line break, with the spaces around it left out.
 pub fn input_field(file_num: &Value) -> Value {
     with(file_num.to_i64(), |h| {
+        // (a stream: the line the field is in has come, or it ended)
+        h.fill(|rest| rest.contains(&b'\n'));
         let d = &h.data;
         let mut i = h.pos;
         while i < d.len() && matches!(d[i], b' ' | b'\t' | b'\r' | b'\n') {
@@ -222,7 +280,18 @@ pub fn write_hash(file_num: &Value, items: &[Value]) {
 
 /// `EOF(n)`: -1 when nothing is left to read (or the file isn't open).
 pub fn eof(file_num: &Value) -> Value {
-    v_int(with(file_num.to_i64(), |h| if h.mode == Mode::Input || h.mode == Mode::Binary { h.pos >= h.data.len() } else { true }).map_or(-1, |e| if e { -1 } else { 0 }))
+    v_int(
+        with(file_num.to_i64(), |h| {
+            if h.mode == Mode::Input || h.mode == Mode::Binary {
+                // (a stream: waits for the next byte, or the end)
+                h.fill(|rest| !rest.is_empty());
+                h.pos >= h.data.len()
+            } else {
+                true
+            }
+        })
+        .map_or(-1, |e| if e { -1 } else { 0 }),
+    )
 }
 
 /// `LOF(n)`: the file's length in bytes.
@@ -248,6 +317,48 @@ mod tests {
         let d = std::env::temp_dir().join(format!("rapidr_basic_files_{}_{test}", std::process::id()));
         let _ = std::fs::create_dir_all(&d);
         d.to_string_lossy().into_owned()
+    }
+
+    /// A stream that hands out what it has in the pieces it was given and
+    /// counts them: what a pipe does as its writer writes.
+    struct Pieces {
+        parts: Vec<&'static [u8]>,
+        served: std::rc::Rc<std::cell::Cell<usize>>,
+    }
+
+    impl std::io::Read for Pieces {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let n = self.served.get();
+            let Some(part) = self.parts.get(n) else { return Ok(0) };
+            self.served.set(n + 1);
+            buf[..part.len()].copy_from_slice(part);
+            Ok(part.len())
+        }
+    }
+
+    /// The program's own input is read as it comes: a line is returned once
+    /// its end has arrived — not after the whole input — and EOF waits for
+    /// the next byte or the end.
+    #[test]
+    fn a_stream_gives_each_line_as_soon_as_it_has_come() {
+        let served = std::rc::Rc::new(std::cell::Cell::new(0));
+        let stream = Pieces { parts: vec![b"on", b"e\ntw", b"o\n", b"last"], served: served.clone() };
+        let n = v_int(7);
+        HANDLES.with(|h| h.borrow_mut().insert(7, Handle { path: "/dev/stdin".into(), mode: Mode::Input, data: Vec::new(), pos: 0, dirty: false, stream: Some(Box::new(stream)) }));
+        // (nothing read at OPEN)
+        assert_eq!(served.get(), 0);
+        // (the first line: two pieces were enough, the rest not asked for)
+        assert_eq!(line_input(&n).to_string_val(), "one");
+        assert_eq!(served.get(), 2);
+        // (the second is in what was read already: no more is read for it)
+        assert_eq!(line_input(&n).to_string_val(), "two");
+        assert_eq!(served.get(), 3);
+        // (EOF: more is coming — not at the end — and the last line, without
+        // its line break, once the stream ends)
+        assert_eq!(eof(&n).to_i64(), 0);
+        assert_eq!(line_input(&n).to_string_val(), "last");
+        assert_eq!(eof(&n).to_i64(), -1);
+        close(&n);
     }
 
     #[test]

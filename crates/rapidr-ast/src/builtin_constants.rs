@@ -25,9 +25,18 @@
 //!   `vtTrue` / `vtFalse` here. In a RapidQ program they are RAPIDQ.INC's
 //!   names like the others (RC.EXE, 2026-10-22): `True` is 1 with the
 //!   include and an undeclared variable, 0, without it.
+//! - **RapidR's own, for `.rr` only** ([`RAPIDR_ONLY`]): names RapidQ has in
+//!   none of its includes — `ctText`, `ctImage`, `ctState`, an RListView's
+//!   OnChange kinds — are built in the same way; a RapidQ program has none
+//!   of them (they are RapidR's extension: in a `.bas` they read as
+//!   undeclared variables, 0).
 //!
 //! `$INCLUDE "RAPIDQ.INC"` in a RapidR program still works: its constants
 //! and array are then the program's own, and nothing here applies.
+//!
+//! What the debugger evaluates (Immediate, Watch, data tips) goes through
+//! the same pass ([`lower_snippet`]), so `?mbYes` there is what it is in
+//! the program.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
@@ -53,10 +62,23 @@ fn table() -> &'static HashMap<String, i64> {
     TABLE.get_or_init(|| constants().map(|(n, v)| (n.to_ascii_lowercase(), v)).collect())
 }
 
-/// The constants a RapidR program has built in (RAPIDQ.INC's, in its
-/// order, but `True` and `False`), with RAPIDQ.INC's spelling.
+/// RapidR's own constants that only a `.rr` program has (RapidQ has them in
+/// none of its includes, so a `.bas` program never does): an RListView's
+/// OnChange `Change` kinds — the caption edited, an image, the check box or
+/// state image (`rapidr_value::objects::listview::CT_TEXT` …). In the
+/// language registry as RapidR's (`constants.toml`).
+pub const RAPIDR_ONLY: &[(&str, i64)] = &[("ctText", 0), ("ctImage", 1), ("ctState", 2)];
+
+/// Whether `name` is one of [`RAPIDR_ONLY`] (any case).
+pub fn is_rapidr_only(name: &str) -> bool {
+    RAPIDR_ONLY.iter().any(|(n, _)| n.eq_ignore_ascii_case(name))
+}
+
+/// The constants a RapidR program has built in: RAPIDQ.INC's (in its order,
+/// but `True` and `False`, with RAPIDQ.INC's spelling), then
+/// [`RAPIDR_ONLY`].
 pub fn constants() -> impl Iterator<Item = (&'static str, i64)> {
-    rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.iter().filter(|(n, _)| !rapidq_only(n)).map(|&(n, v)| (n, v))
+    rapidr_preprocessor::RAPIDQ_INC_CONSTANTS.iter().filter(|(n, _)| !rapidq_only(n)).map(|&(n, v)| (n, v)).chain(RAPIDR_ONLY.iter().copied())
 }
 
 /// The value of built-in constant `name` (any case, a type suffix ignored),
@@ -121,6 +143,31 @@ pub fn lower(program: &Program) -> Program {
         program.statements = init;
     }
     program
+}
+
+/// [`lower`] for what the debugger compiles against a running RapidR
+/// program (a Watch, the Immediate window, a data tip): `statements` have no
+/// mark and no program around them, and `known(name)` says whether the
+/// running program has `name` as its own at that place (a local of the
+/// frame, a global, a routine: a DIM mbYes in it, so `?mbYes` shows that).
+/// `QBColor`, when the snippet uses it and the program has no such array
+/// yet, is declared and filled at the snippet's start.
+pub fn lower_snippet(statements: &[Statement], known: &dyn Fn(&str) -> bool) -> Vec<Statement> {
+    let mut statements = statements.to_vec();
+    let mut own = HashSet::new();
+    own_names(&statements, &mut own, false);
+    own.extend(constants().map(|(n, _)| key(n)).filter(|k| known(k)));
+    if known(QBCOLOR) {
+        own.insert(key(QBCOLOR));
+    }
+    let mut qbcolor = false;
+    rewrite_block(&mut statements, &own, &mut qbcolor);
+    if qbcolor && !own.contains("qbcolor") {
+        let mut init = qbcolor_statements(TextSpan::default());
+        init.append(&mut statements);
+        statements = init;
+    }
+    statements
 }
 
 /// Where a statement of the main program's code starts: `None` for what
@@ -439,6 +486,18 @@ mod tests {
     }
 
     #[test]
+    fn ct_kinds_are_a_rapidr_programs_only() {
+        let bas = Program { span: TextSpan::default(), statements: vec![print(id("ctState")), print(id("ctImage"))] };
+        // (a RapidQ program: untouched — they read as variables)
+        assert_eq!(lower(&bas), bas);
+        let rr = Program { span: TextSpan::default(), statements: vec![print(id("ctText")), print(id("ctImage")), print(id("ctState")), print(id("CTSTATE")), mark_stmt()] };
+        let out = lower(&rr);
+        assert_eq!([0, 1, 2, 2], [0, 1, 2, 3].map(|i| int(printed(&out.statements[i])).unwrap()));
+        assert!(is_rapidr_only("ctstate") && !is_rapidr_only("mbYes"));
+        assert!(is_builtin_name("ctImage"));
+    }
+
+    #[test]
     fn qbcolor_is_declared_when_used() {
         let call = Expression::FunctionCall(FunctionCallExpression { span: TextSpan::default(), callee: Box::new(id("qbcolor")), args: vec![Expression::Literal(Literal { span: TextSpan::default(), value: LiteralValue::Integer(12) })] });
         let rr = Program { span: TextSpan::default(), statements: vec![print(call), mark_stmt()] };
@@ -452,6 +511,25 @@ mod tests {
         // (not used: nothing added)
         let rr = Program { span: TextSpan::default(), statements: vec![print(id("clRed")), mark_stmt()] };
         assert_eq!(lower(&rr).statements.len(), 1);
+    }
+
+    #[test]
+    fn what_the_debugger_evaluates_has_them_too() {
+        // (no mark, no program: the snippet alone; `known`: what the
+        // running program has as its own)
+        let known = |n: &str| n.eq_ignore_ascii_case("mbNo");
+        let out = lower_snippet(&[print(id("mbYes")), print(id("mbNo")), print(id("True"))], &known);
+        assert_eq!(int(printed(&out[0])), Some(1));
+        assert!(matches!(printed(&out[1]), Expression::Identifier(_)));
+        assert!(matches!(printed(&out[2]), Expression::Identifier(_)));
+        // (a snippet's own store: its own name)
+        let set = Statement::Assignment(AssignmentStatement { span: TextSpan::default(), target: id("mbYes"), value: Expression::Literal(Literal { span: TextSpan::default(), value: LiteralValue::Integer(5) }) });
+        let out = lower_snippet(&[set, print(id("mbYes"))], &|_| false);
+        assert!(matches!(printed(&out[1]), Expression::Identifier(_)));
+        // (QBColor: declared and filled in front when the program has none)
+        let call = Expression::FunctionCall(FunctionCallExpression { span: TextSpan::default(), callee: Box::new(id("QBColor")), args: vec![Expression::Literal(Literal { span: TextSpan::default(), value: LiteralValue::Integer(12) })] });
+        assert_eq!(lower_snippet(&[print(call.clone())], &|_| false).len(), 17 + 1);
+        assert_eq!(lower_snippet(&[print(call)], &|n| n.eq_ignore_ascii_case("QBColor")).len(), 1);
     }
 
     #[test]

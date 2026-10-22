@@ -536,6 +536,13 @@ if (!filters.length) {
   for (const c of cases) ok(readme.includes(`(${c.file})`), `${c.file}: in examples/README.md`);
 }
 
+// (a RapidR program, a `.rr`, has RapidQ's constants built in: its examples
+// don't include RAPIDQ.INC — `.bas` programs, examples/rapidq/ among them, do)
+{
+  const including = programs(EXAMPLES).filter((p) => p.endsWith(".rr") && /^\s*\$INCLUDE\s+"RAPIDQ\.INC"/im.test(readFileSync(join(EXAMPLES, p), "utf8")));
+  ok(!including.length, "no .rr example includes RAPIDQ.INC (its constants are built in)", including.join(", "));
+}
+
 // 2. Running them.
 const http = await startHttpServer();
 // (a process of its own: the desktop runs block this one's event loop)

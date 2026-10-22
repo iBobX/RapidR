@@ -11,7 +11,6 @@
 ' Ctrl+O open, Ctrl+S save, Ctrl+Shift+S save as; Ctrl+B, Ctrl+I and Ctrl+E
 ' make the selected text bold, italic or code (on a Mac: Cmd instead of Ctrl).
 $THEME rapidr
-$INCLUDE "RAPIDQ.INC"            ' alTop, alLeft, alClient, mtConfirmation, mrYes …
 
 DECLARE SUB Edited
 DECLARE SUB NewNote

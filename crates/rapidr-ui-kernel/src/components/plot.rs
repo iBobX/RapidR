@@ -179,6 +179,34 @@ mod tests {
         assert!(texts(&list).contains(&"trend".to_string()));
     }
 
+    /// A bar chart's category names are fitted in logical units: the same
+    /// 8 bars in the same rectangle show the same names (and the same
+    /// everything else) whatever the screen's scale — 1×, 1.5×, 2×, 3×.
+    #[test]
+    fn the_names_shown_are_the_same_at_every_scale() {
+        plot_method("sw1", "bar", &[v_str("Alpha,Bravo,Charlie,Delta,Echo,Foxtrot,Golf,Hotel"), v_str("10,13,16,19,22,25,28,31"), v_str("v"), Value::Null], &Quiet);
+        let mut ts = TextSystem::new();
+        let mut shown = Vec::new();
+        for w in (150..=500).step_by(10) {
+            let mut s = form_with_plot("sw1");
+            s.set("sw1", "width", v_int(w));
+            let mut at_1 = Vec::new();
+            for scale in [1.0, 1.5, 2.0, 3.0] {
+                let mut f = FormUi::build(&s, "f", true);
+                let t = texts(&f.paint(&s, &mut ts, scale));
+                if at_1.is_empty() {
+                    at_1 = t;
+                } else {
+                    assert_eq!(at_1, t, "width {w}: scale {scale}");
+                }
+            }
+            shown.push((w, at_1.iter().filter(|t| t.len() > 3 && t.chars().all(char::is_alphabetic)).count()));
+        }
+        // (and it is not nothing: all eight when there is room, fewer in a narrow one)
+        assert_eq!(shown.last().map(|s| s.1), Some(8), "{shown:?}");
+        assert!(shown.first().is_some_and(|s| s.1 < 8), "{shown:?}");
+    }
+
     #[test]
     fn sample_data_while_designed() {
         // (on a design surface — `surface:name` — a chart without data

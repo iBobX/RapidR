@@ -436,6 +436,11 @@ Type a line and press **Enter**:
 - anything else runs as a statement where the program is paused:
   `total = 0` changes `total`.
 
+In a `.rr` program the constants RapidQ's programs use (`mbYes`, `clRed`,
+`mrYes` …) are built in, in Immediate and in Watch too: `? mrYes` → `6`. A name
+your program makes its own (`DIM mbYes AS INTEGER`) is yours there, as it is in
+the program.
+
 Up and Down bring back the lines you typed before.
 
 ![Immediate: ? total * 10 answered 60, total = 0, ? total answered 0](images/debugging/immediate.png)

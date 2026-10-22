@@ -81,7 +81,10 @@ if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 
 if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"
   # (a built program started in another folder: its translations and the
   # pictures it came with, a picture in the current folder still first)
-  echo "== built programs started elsewhere"; node tests/built_elsewhere.mjs --native 2>&1 | grep -E "✗|Built elsewhere"; fi
+  echo "== built programs started elsewhere"; node tests/built_elsewhere.mjs --native 2>&1 | grep -E "✗|Built elsewhere"
+  # (a console program's input is read line by line as it arrives: two
+  # lines piped with a pause, the first answered before the second is sent)
+  echo "== stdin, line by line"; node tests/stdin_lines.mjs --runtimes run,interp,native 2>&1 | grep -E "✗|Stdin lines"; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 # (the visual gallery: every case and GUI example captured at 1× and 2× in

@@ -7,7 +7,6 @@
 ' picture (shown, uncovered, resized, Repaint), so what is drawn there
 ' always comes back. Colours are &HBBGGRR, as in RapidQ (RGB(r, g, b)
 ' makes one).
-$INCLUDE "RAPIDQ.INC"
 
 DECLARE SUB PaintChart
 DECLARE SUB AddDot (Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)

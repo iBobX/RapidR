@@ -9,7 +9,6 @@
 ' calls OnChange with the position in milliseconds. tune.mid is an original
 ' tune made by tools/make_example_media.py; $RESOURCE builds it into the
 ' program, so the program runs from anywhere, a browser too.
-$INCLUDE "RAPIDQ.INC"
 $INCLUDE "QMidi.inc"
 $RESOURCE TUNE AS "tune.mid"
 

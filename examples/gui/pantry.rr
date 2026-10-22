@@ -6,7 +6,6 @@
 '
 ' The data lives in arrays; the grid is only a view of the chosen shelf.
 ' Grid.Cell(column, row) reads and writes a cell (row 0 is the header).
-$INCLUDE "RAPIDQ.INC"
 
 DECLARE SUB ShowShelf
 DECLARE SUB AddItem

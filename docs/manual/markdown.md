@@ -68,7 +68,7 @@ and on the web, in the program's theme (light, dark, high contrast). Screen
 readers hear its headings (with their level), lists, tables and links.
 
 ```basic
-$INCLUDE "RAPIDQ.INC"   ' alClient, alBottom
+' alClient and alBottom are built in: no include needed in a .rr program
 
 SUB LinkClicked (Url AS STRING)
   Status.Caption = "You clicked " + Url
