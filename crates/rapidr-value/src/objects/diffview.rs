@@ -5,14 +5,22 @@
 //! draws it (split: the two texts side by side; inline: one column,
 //! removed lines then added ones) and passes it the mouse and the keys.
 //!
-//! - **The diff** is a line diff by Myers' algorithm ([`myers`]): the
-//!   fewest lines removed and added. A **hunk** is a run of changed lines
+//! - **The diff** is RapidR's own (`rapidr-diff`, shared with Versions and
+//!   RAI: Myers' algorithm, written from the paper): the fewest lines
+//!   removed and added, a run of only added or only removed lines slid
+//!   down to sit with its block. A **hunk** is a run of changed lines
 //!   (lines removed from the left text, lines added from the right one)
 //!   between unchanged lines — no context lines, so two changes with no
 //!   unchanged line between them are one hunk. Within a hunk, the k-th
 //!   removed line is paired with the k-th added one and their changed
-//!   characters are found by the same algorithm (a character diff, shown
-//!   darker); two lines with too little in common get no character marks.
+//!   **words** are marked (shown darker); two lines with too little in
+//!   common get no marks.
+//! - **Kinds** (`Kind`): "text" is the above; "form" compares the two
+//!   texts' CREATE blocks as components and properties ([`forms`]: the
+//!   form before and after, the list of changes in words); "table"
+//!   compares them as CSV tables ([`tables`]: rows and cells). Only text
+//!   has hunks to accept or reject; every kind has ChangeCount and
+//!   Summary (the changes in words, for a screen reader and the AI).
 //! - **Line breaks** are '\n': CR LF and a lone CR become '\n' when a text
 //!   is set (as RCODEEDITOR does). A text ending in a line break ends with
 //!   an empty line, so ResultText gives the line breaks back exactly.
@@ -24,7 +32,12 @@
 //!   count from 1. The program's own changes fire no OnHunkChange; the
 //!   user's clicks and keys do (the kernel fires it).
 
-pub mod myers;
+pub mod forms;
+pub mod tables;
+
+/// How a form's component or a table's row changed (the engine's words).
+pub use rapidr_diff::form::Kind as ChangeKind;
+pub use rapidr_diff::table::State as TableState;
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -66,6 +79,17 @@ pub fn code_advance() -> f64 {
 pub enum Mode {
     Split,
     Inline,
+}
+
+/// What the two texts are compared as.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// Lines, with hunks to accept or reject.
+    Text,
+    /// A program's forms: components and properties.
+    Form,
+    /// CSV tables: columns, rows and cells.
+    Table,
 }
 
 /// A run of changed lines: `left` removed (0-based line indexes of the
@@ -191,6 +215,13 @@ pub struct DiffView {
     pub right: Side,
     pub lang: Arc<Language>,
     pub mode: Mode,
+    pub kind: Kind,
+    /// Kind = "form": the forms compared ([`forms`]).
+    pub form: Option<Box<forms::FormCompare>>,
+    /// Kind = "table": the tables compared ([`tables`]); `header`: their
+    /// first row names the columns (HasHeader).
+    pub table: Option<Box<tables::TableCompare>>,
+    pub header: bool,
     pub hunks: Vec<Hunk>,
     /// Each hunk's state: 1 accepted, -1 rejected, 0 undecided.
     pub states: Vec<i8>,
@@ -231,6 +262,10 @@ impl Default for DiffView {
             right: Side::new("", lang.clone()),
             lang,
             mode: Mode::Split,
+            kind: Kind::Text,
+            form: None,
+            table: None,
+            header: true,
             hunks: Vec::new(),
             states: Vec::new(),
             current: -1,
@@ -268,94 +303,27 @@ fn normalize(s: &str) -> String {
 /// The hunks of two line lists: runs of changed lines between unchanged
 /// ones.
 pub fn line_hunks(a: &[String], b: &[String]) -> Vec<Hunk> {
-    let mut ids: HashMap<&str, u32> = HashMap::with_capacity(a.len() + b.len());
-    let mut ia = Vec::with_capacity(a.len());
-    for l in a {
-        let n = ids.len() as u32;
-        ia.push(*ids.entry(l.as_str()).or_insert(n));
-    }
-    let mut ib = Vec::with_capacity(b.len());
-    for l in b {
-        let n = ids.len() as u32;
-        ib.push(*ids.entry(l.as_str()).or_insert(n));
-    }
-    let c = myers::diff(&ia, &ib, ids.len());
-    let mut hunks = Vec::new();
-    let (n, m) = (a.len(), b.len());
-    let (mut i, mut j) = (0, 0);
-    while i < n || j < m {
-        if i < n && j < m && !c.a[i] && !c.b[j] {
-            i += 1;
-            j += 1;
-            continue;
-        }
-        let (i0, j0) = (i, j);
-        loop {
-            if i < n && c.a[i] {
-                i += 1;
-            } else if j < m && c.b[j] {
-                j += 1;
-            } else {
-                break;
-            }
-        }
-        if (i, j) == (i0, j0) {
-            // (can't happen: the kept lines pair up; never loop forever)
-            break;
-        }
-        hunks.push(Hunk { left: i0..i, right: j0..j });
-    }
-    hunks
+    rapidr_diff::text::changes(a, b).into_iter().map(|c| Hunk { left: c.old, right: c.new }).collect()
 }
 
-/// The changed characters of two paired lines (display-column ranges), or
-/// none when they have too little in common (the whole line's tint says
-/// enough).
-pub fn char_marks(a: &str, b: &str) -> (Marks, Marks) {
-    let ca: Vec<char> = a.chars().collect();
-    let cb: Vec<char> = b.chars().collect();
-    if ca.len() > MAX_INLINE_CHARS || cb.len() > MAX_INLINE_CHARS || ca == cb {
+/// The changed words of two paired lines (display-column ranges), or none
+/// when they have too little in common (the whole line's tint says
+/// enough): `rapidr_diff::text::word_marks`.
+pub fn word_marks(a: &str, b: &str) -> (Marks, Marks) {
+    if a.chars().count() > MAX_INLINE_CHARS || b.chars().count() > MAX_INLINE_CHARS {
         return (Vec::new(), Vec::new());
     }
-    let mut ids: HashMap<char, u32> = HashMap::new();
-    let mut id = |c: char| {
-        let n = ids.len() as u32;
-        *ids.entry(c).or_insert(n)
-    };
-    let ia: Vec<u32> = ca.iter().map(|&c| id(c)).collect();
-    let ib: Vec<u32> = cb.iter().map(|&c| id(c)).collect();
-    let c = myers::diff(&ia, &ib, ids.len());
-    // (too little in common: no marks — a line rewritten isn't confetti)
-    let kept = c.a.iter().filter(|&&x| !x).count();
-    let non_space = |v: &[char]| v.iter().filter(|c| !c.is_whitespace()).count().max(1);
-    if kept * 10 < ca.len().max(cb.len()) * 4 || kept * 2 < non_space(&ca).min(non_space(&cb)) {
-        return (Vec::new(), Vec::new());
+    match rapidr_diff::text::word_marks(a, b) {
+        Some((ma, mb)) => (columns(a, &ma), columns(b, &mb)),
+        None => (Vec::new(), Vec::new()),
     }
-    (ranges(a, &c.a), ranges(b, &c.b))
 }
 
-/// The display columns of the changed characters, runs a character apart
-/// joined.
-fn ranges(line: &str, changed: &[bool]) -> Marks {
+/// Byte ranges of `line` as display-column ranges (tabs expanded).
+fn columns(line: &str, ranges: &[Range<usize>]) -> Marks {
     let (_, cols) = expand(line);
-    let mut out: Marks = Vec::new();
-    let mut i = 0;
-    while i < changed.len() {
-        if !changed[i] {
-            i += 1;
-            continue;
-        }
-        let s = i;
-        while i < changed.len() && changed[i] {
-            i += 1;
-        }
-        let r = cols[s]..cols[i];
-        match out.last_mut() {
-            Some(last) if r.start <= last.end + 1 => last.end = r.end,
-            _ => out.push(r),
-        }
-    }
-    out
+    let col = |byte: usize| line.char_indices().position(|(b, _)| b >= byte).map_or(cols[cols.len() - 1], |i| cols[i]);
+    ranges.iter().map(|r| col(r.start)..col(r.end)).filter(|r| r.end > r.start).collect()
 }
 
 impl DiffView {
@@ -394,21 +362,73 @@ impl DiffView {
         self.recompute();
     }
 
-    /// The diff made again (every hunk undecided, the view at the top).
+    /// The diff made again for the kind (every hunk undecided, the view at
+    /// the top).
     fn recompute(&mut self) {
-        self.hunks = line_hunks(&self.left.lines, &self.right.lines);
+        self.form = None;
+        self.table = None;
+        self.hunks = Vec::new();
+        match self.kind {
+            Kind::Text => self.hunks = line_hunks(&self.left.lines, &self.right.lines),
+            Kind::Form => self.form = Some(Box::new(forms::FormCompare::new(&self.left_text(), &self.right_text()))),
+            Kind::Table => self.table = Some(Box::new(tables::TableCompare::new(&self.left_text(), &self.right_text(), self.header, code_advance()))),
+        }
         self.states = vec![0; self.hunks.len()];
         self.current = if self.hunks.is_empty() { -1 } else { 0 };
         self.marks.clear();
         self.bars.vert.position = 0;
+        self.bars.horz.position = 0;
+        self.bars.horz.visible = self.kind == Kind::Table;
         self.reveal = None;
         self.hover = Hit::Nothing;
         self.pressed = Hit::Nothing;
         self.build_rows();
+        // (the form view's height depends on its width: laid out again)
+        self.view = (0, 0);
     }
 
-    /// The rows for the mode and the hunks' states.
+    /// Compares the texts as `kind` from now on.
+    pub fn set_kind(&mut self, kind: Kind) {
+        if self.kind != kind {
+            self.kind = kind;
+            self.recompute();
+        }
+    }
+
+    /// How many changes there are: hunks, changed components, or changed
+    /// rows and columns.
+    pub fn change_count(&self) -> usize {
+        match self.kind {
+            Kind::Text => self.hunks.len(),
+            Kind::Form => self.form.as_ref().map_or(0, |f| f.changes.len()),
+            Kind::Table => self.table.as_ref().map_or(0, |t| t.change_count()),
+        }
+    }
+
+    /// The changes in words, one per line (what a screen reader and the
+    /// AI read): "Lines 40–45 changed", "GreetButton: Caption …", "Row 3
+    /// (Id 17): Score 10 → 12".
+    pub fn summary(&self) -> Vec<String> {
+        match self.kind {
+            Kind::Text => (0..self.hunks.len()).map(|h| self.hunk_words(h)).collect(),
+            Kind::Form => self.form.as_ref().map_or_else(Vec::new, |f| f.summary()),
+            Kind::Table => self.table.as_ref().map_or_else(Vec::new, |t| t.diff.summary()),
+        }
+    }
+
+    /// The rows for the mode and the hunks' states (the text kind's: the
+    /// other kinds lay out their own, at [`DiffView::layout`]).
     pub fn build_rows(&mut self) {
+        if self.kind != Kind::Text {
+            self.rows.clear();
+            self.header_rows.clear();
+            self.height = match (&self.form, &self.table) {
+                (_, Some(t)) => t.size().1,
+                _ => self.height,
+            };
+            self.revision += 1;
+            return;
+        }
         let mut rows = Vec::with_capacity(self.left.lines.len().max(self.right.lines.len()) + 2 * self.hunks.len());
         let mut headers = Vec::with_capacity(self.hunks.len());
         let mut y = 0;
@@ -468,7 +488,7 @@ impl DiffView {
         }
         let (l, r) = (hk.left.start + k, hk.right.start + k);
         let (left, right) = (&self.left.lines, &self.right.lines);
-        self.marks.entry((h, k)).or_insert_with(|| char_marks(&left[l], &right[r])).clone()
+        self.marks.entry((h, k)).or_insert_with(|| word_marks(&left[l], &right[r])).clone()
     }
 
     /// The pair index of a row's line within its hunk.
@@ -576,6 +596,18 @@ impl DiffView {
             self.ui_font = ui_font.clone();
             let label = |s: &str| super::text::text_size(s, ui_font).0;
             self.button_w = (label("Accept") + 34, label("Reject") + 34);
+            // (the form view's pictures fit the width: with a scroll bar,
+            // the width left beside it)
+            if let Some(f) = self.form.as_mut() {
+                self.height = f.layout(w);
+                self.update_bars();
+                let cw = self.bars.client(w, h).0;
+                if cw != w {
+                    if let Some(f) = self.form.as_mut() {
+                        self.height = f.layout(cw);
+                    }
+                }
+            }
             self.revision += 1;
         }
         self.update_bars();
@@ -584,9 +616,21 @@ impl DiffView {
 
     fn update_bars(&mut self) {
         let (w, h) = self.view;
-        let pos = self.bars.vert.position;
-        let content = Child { left: 0, top: -pos, width: 0, height: self.height + ROW_H / 2, align: crate::layout::Align::None, visible: true };
+        let (x, y) = (self.bars.horz.position, self.bars.vert.position);
+        let width = self.table.as_ref().map_or(0, |t| t.size().0);
+        let content = Child { left: -x, top: -y, width, height: self.height + ROW_H / 2, align: crate::layout::Align::None, visible: true };
         self.bars.update(w, h, &[content]);
+    }
+
+    /// The horizontal scroll (the table view's).
+    pub fn left_edge(&self) -> i64 {
+        self.bars.horz.position
+    }
+
+    pub fn scroll_x_by(&mut self, dx: i64) {
+        self.bars.horz.position = (self.bars.horz.position + dx).max(0);
+        self.update_bars();
+        self.revision += 1;
     }
 
     fn apply_reveal(&mut self) {
@@ -693,22 +737,40 @@ impl DiffView {
     /// Hunk `h` for a screen reader: "Hunk 3 of 7: lines 40–45 changed,
     /// accepted".
     pub fn hunk_summary(&self, h: usize) -> String {
-        let Some(hk) = self.hunks.get(h) else { return String::new() };
-        let span = |r: &Range<usize>| if r.len() == 1 { format!("line {}", r.start + 1) } else { format!("lines {}\u{2013}{}", r.start + 1, r.end) };
-        let what = match (hk.left.is_empty(), hk.right.is_empty()) {
-            (false, false) => format!("{} changed", span(&hk.left)),
-            (true, _) => {
-                let n = hk.right.len();
-                format!("{n} line{} added after line {}", if n == 1 { "" } else { "s" }, hk.left.start)
-            }
-            (_, true) => format!("{} removed", span(&hk.left)),
-        };
+        if h >= self.hunks.len() {
+            return String::new();
+        }
+        let what = self.hunk_what(h);
         let state = match self.state(h) {
             1 => "accepted",
             -1 => "rejected",
             _ => "undecided",
         };
         format!("Hunk {} of {}: {what}, {state}", h + 1, self.hunks.len())
+    }
+
+    /// What hunk `h` changes: "lines 40–45 changed", "2 lines added after
+    /// line 12", "line 7 removed".
+    fn hunk_what(&self, h: usize) -> String {
+        let Some(hk) = self.hunks.get(h) else { return String::new() };
+        let span = |r: &Range<usize>| if r.len() == 1 { format!("line {}", r.start + 1) } else { format!("lines {}\u{2013}{}", r.start + 1, r.end) };
+        match (hk.left.is_empty(), hk.right.is_empty()) {
+            (false, false) => format!("{} changed", span(&hk.left)),
+            (true, _) => {
+                let n = hk.right.len();
+                format!("{n} line{} added after line {}", if n == 1 { "" } else { "s" }, hk.left.start)
+            }
+            (_, true) => format!("{} removed", span(&hk.left)),
+        }
+    }
+
+    /// Hunk `h` in words, capitalized (Summary's lines).
+    fn hunk_words(&self, h: usize) -> String {
+        let mut s = self.hunk_what(h);
+        if let Some(first) = s.get_mut(0..1) {
+            first.make_ascii_uppercase();
+        }
+        s
     }
 
     /// A header's text: `@@ -40,6 +40,7 @@` (unified diff's ranges).
@@ -734,12 +796,36 @@ impl DiffView {
             "currenthunk" => v_int(self.current),
             "acceptedcount" => v_int(self.states.iter().filter(|&&s| s == 1).count() as i64),
             "rejectedcount" => v_int(self.states.iter().filter(|&&s| s == -1).count() as i64),
+            "kind" => v_str(match self.kind {
+                Kind::Text => "text",
+                Kind::Form => "form",
+                Kind::Table => "table",
+            }),
+            "changecount" => v_int(self.change_count() as i64),
+            "summary" => v_str(&self.summary().join("\n")),
+            "hasheader" => Value::Boolean(self.header),
             _ => return None,
         })
     }
 
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
+            "kind" => {
+                let k = match val.to_string_val().trim().to_ascii_lowercase().as_str() {
+                    "form" => Kind::Form,
+                    "table" | "csv" => Kind::Table,
+                    _ => Kind::Text,
+                };
+                self.set_kind(k);
+            }
+            "hasheader" => {
+                if self.header != val.to_bool() {
+                    self.header = val.to_bool();
+                    if self.kind == Kind::Table {
+                        self.recompute();
+                    }
+                }
+            }
             "lefttext" => self.set_texts(Some(&val.to_string_val()), None),
             "righttext" => self.set_texts(None, Some(&val.to_string_val())),
             "language" => self.set_language(&val.to_string_val()),
@@ -904,18 +990,60 @@ mod tests {
     }
 
     #[test]
-    fn the_changed_characters() {
-        let (a, b) = char_marks("  PRINT \"Hello\", x", "  PRINT \"Hello, World\", x");
+    fn the_changed_words() {
+        let (a, b) = word_marks("  PRINT \"Hello\", x", "  PRINT \"Hello, World\", x");
         assert!(a.is_empty(), "{a:?}");
         assert_eq!(b, [14..21]);
         // (tabs: display columns)
-        let (a, b) = char_marks("\tx = 1", "\tx = 2");
+        let (a, b) = word_marks("\tx = 1", "\tx = 2");
         assert_eq!((a, b), (vec![8..9], vec![8..9]));
+        // (words, not letters)
+        let (a, b) = word_marks("Caption = \"OK\"", "Caption = \"Okay\"");
+        assert_eq!((a, b), (vec![11..13], vec![11..15]));
         // (nothing alike: no marks)
-        assert_eq!(char_marks("abcdef", "uvwxyz"), (vec![], vec![]));
+        assert_eq!(word_marks("abcdef", "uvwxyz"), (vec![], vec![]));
         let mut d = view("x = 1\ny", "x = 2\ny");
         assert_eq!(d.marks(0, 0), (vec![4..5], vec![4..5]));
         assert_eq!(d.marks(0, 1), (vec![], vec![]));
+        // (non-ASCII: columns are characters)
+        let (_, b) = word_marks("t\u{ed}tulo = 1", "t\u{ed}tulo = 22");
+        assert_eq!(b, [9..11]);
+    }
+
+    #[test]
+    fn tables_and_their_words() {
+        let mut d = view("Id,Name,Score\n1,Ana,10\n2,Ben,7\n", "Id,Name,Score\n1,Ana,12\n3,Cy,5\n");
+        assert_eq!(s(d.get("changecount")), "1");
+        d.set("kind", &v_str("Table"));
+        assert_eq!(s(d.get("kind")), "table");
+        assert_eq!(s(d.get("hunkcount")), "0");
+        assert_eq!(s(d.get("changecount")), "3");
+        assert_eq!(s(d.get("summary")), "Row 1 (Id 1): Score 10 \u{2192} 12\nRemoved row 2 (Id 2)\nAdded row 2 (Id 3)");
+        let t = d.table.as_ref().unwrap();
+        // (a changed row is two: old over new)
+        assert_eq!(t.rows.len(), 4);
+        assert_eq!((t.value(0, 2), t.value(1, 2)), (Some("10"), Some("12")));
+        assert_eq!((t.number(2), t.number(3)), (Some(2), Some(2)));
+        d.layout(300, 200, &Font::default());
+        assert!(d.bars.horz.visible);
+        // no header: the first row is data
+        d.set("hasheader", &Value::Boolean(false));
+        assert_eq!(d.table.as_ref().unwrap().diff.columns[0].name, "Column 1");
+        // back to text
+        d.set("kind", &v_str("text"));
+        assert_eq!(s(d.get("summary")), "Lines 2\u{2013}3 changed");
+    }
+
+    #[test]
+    fn forms_need_the_designer() {
+        // (no source reader in this crate's tests: the view says so; the
+        // form view itself is tested where the designer is, with captures:
+        // rapidr-designer/tests/diff_capture.rs)
+        let mut d = view("CREATE F AS RForm\nEND CREATE", "CREATE F AS RForm\n  Caption = \"x\"\nEND CREATE");
+        d.set("kind", &v_str("form"));
+        assert_eq!(s(d.get("kind")), "form");
+        assert_eq!(s(d.get("changecount")), "0");
+        assert!(d.form.as_ref().unwrap().note.contains("form designer"));
     }
 
     #[test]

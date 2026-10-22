@@ -387,7 +387,7 @@ pub fn set_source_reader(reader: SourceReader) {
     READER.with(|r| r.set(Some(reader)));
 }
 
-fn reader() -> Option<SourceReader> {
+pub(crate) fn source_reader() -> Option<SourceReader> {
     READER.with(|r| r.get())
 }
 
@@ -696,7 +696,7 @@ impl DesignSurface {
                 false
             }
             None => {
-                let Some(read) = reader() else { return false };
+                let Some(read) = source_reader() else { return false };
                 let doc = read(text, &self.source_file);
                 self.source = Some(Attached { doc: Rc::new(RefCell::new(doc)), form: None });
                 self.designer.selection.clear();

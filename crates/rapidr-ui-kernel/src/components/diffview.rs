@@ -34,12 +34,16 @@ use rapidr_editor::Token;
 use rapidr_value::code_scheme::{self, Scheme};
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM};
-use rapidr_value::objects::diffview::{code_advance, code_font, expand, DiffView, Hit, Marks, Mode, Row, RowKind, Side, HEADER_H, ROW_H};
-use rapidr_value::objects::ops::Place;
+use rapidr_value::objects::diffview::forms::{self, FormCompare, Line, DETAIL_H};
+use rapidr_value::objects::diffview::tables::{self, Side as TableSide};
+use rapidr_value::objects::diffview::{code_advance, code_font, expand, ChangeKind, DiffView, Hit, Kind, Marks, Mode, Row, RowKind, Side, TableState, HEADER_H, ROW_H};
+use rapidr_value::objects::font::Font;
+use rapidr_value::objects::ops::{Op, Place};
 use rapidr_value::objects::with_diff;
 use rapidr_value::theme::Theme;
 use rapidr_value::v_int;
 
+use super::design::Picture;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::a11y::AccessValue;
 use crate::input::{Clipboard, KernelEvent, Mods};
@@ -343,6 +347,222 @@ fn paint_view(p: &mut Painter, d: &mut DiffView, look: &Look) {
     }
 }
 
+/// How a change of the form or table view is tinted: its colour and sign.
+fn change_look(look: &Look, kind: ChangeKind) -> (u32, &'static str) {
+    match kind {
+        ChangeKind::Added => (look.s.mark_added, "+"),
+        ChangeKind::Removed => (look.s.mark_removed, "\u{2212}"),
+        ChangeKind::Changed => (look.s.mark_changed, "\u{2022}"),
+    }
+}
+
+/// A value of the form view's list in a tinted box (old or new); its
+/// width.
+fn value_box(p: &mut Painter, look: &Look, text: &str, x: i64, y: i64, tint: Tint) -> i64 {
+    let shown: String = text.chars().take(60).collect();
+    let w = (shown.chars().count() as f64 * look.adv).ceil() as i64 + 8;
+    p.round((x, y + 2, w, DETAIL_H - 4), 3.0, Some(look.line_bg(tint, false)), None, 0.0);
+    p.text((x + 4, y, w, DETAIL_H), &shown, &code_font(0), look.s.text, Place::Left);
+    w
+}
+
+/// The form view (Kind = "form"): the form before and after, the changed
+/// components outlined, then the changes in words.
+/// (Drawn from the view's form model taken out of the shared models, with
+/// the view's client size, scroll and font: drawing the pictures fills
+/// their own stores, which make shared models of their own.)
+#[allow(clippy::too_many_arguments)]
+fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mut [Picture; 2], id: &str, f: &FormCompare, (cw, ch): (i64, i64), top: i64, font: &Font, look: &Look) {
+    p.fill((0, 0, cw, ch), look.s.background);
+    let font = font.clone();
+    let ((bx, by), (ax, ay)) = f.picture_origins(cw);
+    let half = (cw - 3 * forms::PAD) / 2;
+    if f.pictures_h > 0 && f.pictures_h - top > 0 {
+        let sides = [(&f.before, bx, by, false, "Before"), (&f.after, ax, ay, true, "After")];
+        for (k, (surface, x, y, after, label)) in sides.into_iter().enumerate() {
+            p.text((x, -top, half, forms::LABEL_H), label, &font, look.s.line_number, Place::Left);
+            let Some(s) = surface else {
+                let what = if after { "(the form isn't there any more)" } else { "(a new form)" };
+                p.text((x, y - top, half, ROW_H), what, &font, look.s.line_number, Place::Left);
+                continue;
+            };
+            let at = (x, y - top);
+            pictures[k].paint(p, text, &format!("{id}~{}", if after { "after" } else { "before" }), s, at, f.zoom);
+            // the changed components outlined, washed in their colour
+            let (ix, iy) = s.client_inset();
+            for ((cx0, cy0, w, h), kind) in f.marked(after) {
+                let z = |v: i64| (v as f64 * f.zoom).round() as i64;
+                // (3 pixels out: the form's face shows between the outline
+                // and a component of the outline's own colour)
+                let r = (at.0 + z(ix + cx0) - 3, at.1 + z(iy + cy0) - 3, z(w) + 6, z(h) + 6);
+                let (color, _) = change_look(look, kind);
+                p.op(Op::Fade { alpha: 36 });
+                p.fill(r, color);
+                p.op(Op::FadePop);
+                p.round(r, 3.0, None, Some(color), 2.0);
+            }
+        }
+    }
+    let mut y0 = f.pictures_h;
+    if !f.note.is_empty() {
+        p.text((forms::PAD, y0 - top, cw - 2 * forms::PAD, DETAIL_H), &f.note, &font, look.s.line_number, Place::Left);
+        y0 += DETAIL_H + 4;
+    }
+    if f.changes.is_empty() && f.note.is_empty() {
+        p.text((forms::PAD, y0 - top, cw - 2 * forms::PAD, ROW_H), "The forms are the same.", &font, look.s.line_number, Place::Left);
+    }
+    let bold = Font { styles: 1, ..font.clone() };
+    let first = f.lines.partition_point(|(y, _)| *y + forms::ITEM_H <= top);
+    for &(y, line) in &f.lines[first..] {
+        let y = y - top;
+        if y >= ch {
+            break;
+        }
+        match line {
+            Line::Change(c) => {
+                let change = &f.changes[c];
+                let (color, sign) = change_look(look, change.kind);
+                p.fill((0, y, cw, forms::ITEM_H), blend(look.s.background, color, if look.s.dark { 0.09 } else { 0.04 }));
+                p.fill((0, y, 3, forms::ITEM_H), color);
+                p.text((10, y, 16, forms::ITEM_H), sign, &code_font(1), look.s.text, Place::Center);
+                let title = format!("{} ({})", change.name, change.type_name);
+                let tw = rapidr_value::objects::text::text_size(&title, &bold).0 + 4;
+                p.text((30, y, tw, forms::ITEM_H), &title, &bold, look.s.text, Place::Left);
+                let what = match change.kind {
+                    ChangeKind::Added => "added".to_string(),
+                    ChangeKind::Removed => "removed".to_string(),
+                    ChangeKind::Changed => {
+                        let n = change.props.len();
+                        if n == 0 { "changed".into() } else { format!("{n} propert{} changed", if n == 1 { "y" } else { "ies" }) }
+                    }
+                };
+                p.text((30 + tw + 8, y, (cw - tw - 46).max(0), forms::ITEM_H), &what, &font, look.s.line_number, Place::Left);
+            }
+            Line::Prop(c, k) => {
+                let pc = &f.changes[c].props[k];
+                p.text((44, y, 120, DETAIL_H), &pc.name, &font, look.s.text, Place::Left);
+                let mut x = 170;
+                match &pc.old {
+                    Some(o) => x += value_box(p, look, o, x, y, Tint::Removed) + 6,
+                    None => {
+                        p.text((x, y, 80, DETAIL_H), "(not set)", &font, look.s.line_number, Place::Left);
+                        x += 72;
+                    }
+                }
+                p.text((x, y, 20, DETAIL_H), "\u{2192}", &font, look.s.line_number, Place::Center);
+                x += 26;
+                match &pc.new {
+                    Some(n) => {
+                        value_box(p, look, n, x, y, Tint::Added);
+                    }
+                    None => p.text((x, y, 90, DETAIL_H), "(removed)", &font, look.s.line_number, Place::Left),
+                }
+            }
+            Line::Detail(c, k) => {
+                let text = forms::details(&f.changes[c]).get(k).cloned().unwrap_or_default();
+                p.text((44, y, cw - 52, DETAIL_H), &text, &font, look.s.text, Place::Left);
+            }
+        }
+    }
+}
+
+/// The table view (Kind = "table"): a header row that stays at the top, a
+/// gutter of row numbers and signs that stays at the left, the cells.
+fn paint_table(p: &mut Painter, d: &DiffView, look: &Look) {
+    let (cw, ch) = d.client();
+    p.fill((0, 0, cw, ch), look.s.background);
+    let Some(t) = d.table.as_deref() else { return };
+    let (top, left) = (d.top(), d.left_edge());
+    let col_tint = |c: usize| match t.diff.columns[c].state {
+        TableState::Added => Tint::Added,
+        TableState::Removed => Tint::Removed,
+        _ => Tint::None,
+    };
+    let mut xs = Vec::with_capacity(t.widths.len());
+    let mut x = t.gutter - left;
+    for w in &t.widths {
+        xs.push(x);
+        x += w;
+    }
+    let right = x;
+    let cell_text = |p: &mut Painter, s: &str, x: i64, y: i64, w: i64, color: u32| {
+        let shown: String = s.chars().take(200).collect();
+        p.clipped((x, y, w, ROW_H), |p| p.text((x + tables::CELL_PAD, y, w - tables::CELL_PAD, ROW_H), &shown, &code_font(0), color, Place::Left));
+    };
+    // the rows in view
+    let first = (top / ROW_H).max(0) as usize;
+    let mut r = first;
+    loop {
+        let y = tables::HEAD_H + r as i64 * ROW_H - top;
+        if r >= t.rows.len() || y >= ch {
+            break;
+        }
+        let (i, side) = t.rows[r];
+        let row = &t.diff.rows[i];
+        let tint = match side {
+            TableSide::Old => Tint::Removed,
+            TableSide::New => Tint::Added,
+            TableSide::Same => Tint::None,
+        };
+        p.fill((0, y, cw, ROW_H), look.line_bg(tint, false));
+        for (c, &cx0) in xs.iter().enumerate() {
+            let w = t.widths[c];
+            if cx0 + w <= t.gutter || cx0 >= cw {
+                continue;
+            }
+            let cell = &row.cells[c];
+            // (a new or removed column's cells, tinted; a changed cell, darker)
+            if tint == Tint::None && col_tint(c) != Tint::None {
+                p.fill((cx0, y, w, ROW_H), look.line_bg(col_tint(c), true));
+            }
+            if row.state == TableState::Changed && cell.changed() {
+                p.round((cx0 + 2, y + 1, w - 4, ROW_H - 2), 2.0, Some(look.mark_bg(tint, false)), None, 0.0);
+            }
+            if let Some(v) = t.value(r, c) {
+                cell_text(p, v, cx0, y, w, look.s.text);
+            }
+            p.fill((cx0 + w - 1, y, 1, ROW_H), look.rule());
+        }
+        p.fill((0, y + ROW_H - 1, right.min(cw), 1), blend(look.s.background, look.s.text, 0.06));
+        // the gutter: the row's number and its sign
+        p.fill((0, y, t.gutter, ROW_H), look.gutter_bg(tint, false));
+        if tint != Tint::None {
+            p.fill((0, y, 3, ROW_H), look.accent(tint));
+            let sign = if tint == Tint::Removed { "\u{2212}" } else { "+" };
+            p.text((t.gutter - 18, y, 14, ROW_H), sign, &code_font(0), look.s.line_number_active, Place::Center);
+        }
+        if let Some(n) = t.number(r) {
+            draw_number(p, look, n - 1, 0, y, t.gutter - 18, if tint == Tint::None { look.s.line_number } else { look.s.line_number_active });
+        }
+        r += 1;
+    }
+    // the header, over the rows
+    let head = look.header_bg(false);
+    p.fill((0, 0, cw, tables::HEAD_H), head);
+    for (c, &cx0) in xs.iter().enumerate() {
+        let w = t.widths[c];
+        if cx0 + w <= t.gutter || cx0 >= cw {
+            continue;
+        }
+        let col = &t.diff.columns[c];
+        let tint = col_tint(c);
+        if tint != Tint::None {
+            p.fill((cx0, 0, w, tables::HEAD_H), look.line_bg(tint, false));
+        }
+        let name = match tint {
+            Tint::Added => format!("+ {}", col.name),
+            Tint::Removed => format!("\u{2212} {}", col.name),
+            Tint::None => col.name.clone(),
+        };
+        let bold = Font { styles: 1, ..d.ui_font.clone() };
+        p.clipped((cx0, 0, w, tables::HEAD_H), |p| p.text((cx0 + tables::CELL_PAD, 0, w - tables::CELL_PAD, tables::HEAD_H), &name, &bold, look.s.text, Place::Left));
+        p.fill((cx0 + w - 1, 0, 1, tables::HEAD_H), look.rule());
+    }
+    p.fill((0, 0, t.gutter, tables::HEAD_H), head);
+    p.fill((0, tables::HEAD_H - 1, cw, 1), look.rule());
+    p.fill((t.gutter - 1, 0, 1, ch), look.rule());
+}
+
 /// An inline row: the old and the new line numbers, the sign, the line.
 #[allow(clippy::too_many_arguments)]
 fn inline_line(p: &mut Painter, look: &Look, d: &mut DiffView, row: &Row, y: i64, cw: i64, tint: Tint, dim: bool, marks: &Marks) {
@@ -469,14 +689,36 @@ impl ComponentKind for DiffViewBox {
         }
         let focused = cx.state.focused;
         let id = cx.id.to_string();
+        // the form view: its model taken out while its two pictures (kept
+        // between frames; the other kinds drop them) are drawn
+        let form = with_diff(&id, |d| d.form.take()).flatten();
+        if let Some(fc) = form {
+            let mut pictures = cx.ui.pictures.take().unwrap_or_default();
+            let (client, top, font, bars) = with_diff(&id, |d| (d.client(), d.top(), d.ui_font.clone(), crate::paint::bar_ops(&d.bars, d.view.0, d.view.1))).unwrap_or_default();
+            let look = Look { s, t, adv: code_advance(), nw: 0, focused };
+            let text = &mut *cx.text;
+            p.at((b, b), |p| {
+                p.clipped((0, 0, client.0, client.1), |p| paint_form(p, text, &mut pictures, &id, &fc, client, top, &font, &look));
+                p.ops(bars);
+            });
+            cx.ui.pictures = Some(pictures);
+            with_diff(&id, |d| d.form = Some(fc));
+            return;
+        }
+        cx.ui.pictures = None;
         p.at((b, b), |p| {
             with_diff(&id, |d| {
                 let look = Look { s, t, adv: code_advance(), nw: d.number_width(), focused };
                 let (iw, ih) = d.view;
                 let (cw, ch) = d.client();
-                p.clipped((0, 0, cw, ch), |p| paint_view(p, d, &look));
+                p.clipped((0, 0, cw, ch), |p| match d.kind {
+                    Kind::Table => paint_table(p, d, &look),
+                    _ => paint_view(p, d, &look),
+                });
                 p.ops(crate::paint::bar_ops(&d.bars, iw, ih));
-                overview(p, d, &look);
+                if d.kind == Kind::Text {
+                    overview(p, d, &look);
+                }
             });
         });
     }
@@ -566,6 +808,10 @@ impl ComponentKind for DiffViewBox {
             38 | 40 if !ctrl => {
                 with_diff(cx.id, |d| d.scroll_by(if k.vk == 38 { -ROW_H } else { ROW_H }));
             }
+            // (the table view: Left / Right scroll across its columns)
+            37 | 39 if !ctrl && !alt && with_diff(cx.id, |d| d.kind == Kind::Table) == Some(true) => {
+                with_diff(cx.id, |d| d.scroll_x_by(if k.vk == 37 { -48 } else { 48 }));
+            }
             33 | 34 => {
                 with_diff(cx.id, |d| {
                     let page = (d.client().1 - ROW_H).max(ROW_H);
@@ -601,16 +847,20 @@ impl ComponentKind for DiffViewBox {
         true
     }
 
-    fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: Mods) -> bool {
+    fn wheel(&self, cx: &mut Cx, dx: f64, dy: f64, mods: Mods) -> bool {
         Self::laid_out(cx);
-        let notches = super::list::whole_notches(cx.id, dy);
+        // (sideways — a trackpad's, or Shift with the wheel — scrolls the
+        // table view's columns)
+        let sideways = dx.abs() > dy.abs() || (mods.shift && dx == 0.0);
+        let notches = super::list::whole_notches(cx.id, if sideways && dx != 0.0 { dx } else { dy });
         with_diff(cx.id, |d| {
             let (w, h) = d.view;
-            if !d.bars.vert.shown {
+            let horizontal = sideways && d.bars.horz.shown;
+            if !horizontal && !d.bars.vert.shown {
                 return false;
             }
             if notches != 0 {
-                d.bars.wheel(notches, false, w, h);
+                d.bars.wheel(notches, horizontal, w, h);
                 d.revision += 1;
             }
             true
@@ -635,6 +885,19 @@ impl ComponentKind for DiffViewBox {
         n.bounds = cx.rect;
         let (x0, y0) = (cx.rect.0 + b, cx.rect.1 + b);
         let id = cx.id.to_string();
+        // (the form and table views: their changes, one item each, in words)
+        let other = with_diff(&id, |d| (d.kind != Kind::Text).then(|| (d.kind, d.summary(), d.form.as_ref().map(|f| f.note.clone()).unwrap_or_default())))
+            .flatten();
+        if let Some((kind, lines, note)) = other {
+            n.name = if kind == Kind::Form { "Form changes".into() } else { "Table changes".into() };
+            n.value = Some(if lines.is_empty() && !note.is_empty() { note } else { format!("{} change{}", lines.len(), if lines.len() == 1 { "" } else { "s" }) });
+            for (k, line) in lines.into_iter().enumerate() {
+                let mut item = AccessNode::new(part_id(&id, PART_ITEM, k), Role::ListItem);
+                item.name = line;
+                n.children.push(item);
+            }
+            return n;
+        }
         with_diff(&id, |d| {
             let count = d.hunks.len();
             let (acc, rej) = (d.states.iter().filter(|&&s| s == 1).count(), d.states.iter().filter(|&&s| s == -1).count());

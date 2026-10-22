@@ -296,6 +296,7 @@ impl Versions {
         if dir.join(".git").exists() {
             return Versions::open(dir, person);
         }
+        std::fs::create_dir_all(dir).ctx("Could not create the project's folder (is the drive read-only?).")?;
         if !owned_by_me(dir) {
             return fail(ErrorKind::NotYours, "This folder belongs to another user account on this computer, so RapidR won't start versioning it. Copy the project into one of your own folders first.");
         }

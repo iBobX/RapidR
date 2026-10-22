@@ -290,11 +290,21 @@ fn experiments_rewrite_only_what_differs() {
     // a bad name, an unknown experiment: plain words
     assert_eq!(v.start_experiment("my idea").err().unwrap().kind, ErrorKind::InvalidName);
     assert_eq!(v.switch_to("nope").err().unwrap().kind, ErrorKind::NotFound);
-    // undo the switch, then undo starting the experiment
+    // undo the switch, the save on the experiment, then starting it
     v.undo().unwrap();
     assert_eq!(v.current_experiment().unwrap(), "idea");
     if git(&dir, &["status", "--porcelain"]).is_some() {
         assert_eq!(git(&dir, &["status", "--porcelain"]).unwrap(), "");
+        fsck(&dir);
+    }
+    assert_eq!(v.undo().unwrap(), "Saved the version \u{201C}Idea\u{201D}");
+    assert_eq!(v.changes().unwrap().len(), 3, "Idea's changes, unsaved again");
+    assert_eq!(v.undo().unwrap(), "Started the experiment \u{201C}idea\u{201D}");
+    assert_eq!(v.current_experiment().unwrap(), "main");
+    assert_eq!(v.experiments().unwrap(), ["main"]);
+    assert_eq!(read(&dir, "main.rr"), "PRINT \"idea\"\n", "the unsaved work came along");
+    if git(&dir, &["status"]).is_some() {
+        assert_eq!(git(&dir, &["branch", "--format=%(refname:short)"]).unwrap(), "main\n");
         fsck(&dir);
     }
 }

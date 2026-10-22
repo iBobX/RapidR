@@ -8,6 +8,43 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **Versions, the engine (lane G1, docs/versions-plan.md).** `rapidr-vcs`
+  speaks plain words over gitoxide: save a version (every changed file or
+  some), the timeline, what changed, go back (a new version with the old
+  files, never a destructive reset), restore one file, experiments whose
+  switch rewrites only the files that differ, shared folders (Get latest /
+  Share, in-process). **Nothing is ever lost**: a safety point
+  (`refs/rapidr/safety/<n>`, the whole working folder, unsaved changes
+  included) before every risky action; a history of actions
+  (`.git/rapidr/history.jsonl`) whose Undo takes the last one back and
+  refuses, changing nothing, when it would overwrite newer work; RAI's
+  checkpoints (`refs/rapidr/checkpoints/<n>`) and going back to them.
+  **The secret check** stops a save whose added lines look like a private
+  key, an API key, an access token or a password in the code, with the file,
+  the line and the secret masked (RapidR's own patterns), until the person
+  saves anyway. A project owned by another user account is refused for
+  changes with the reason, and opens read-only on request. Errors in plain
+  words, the technical cause kept apart. Measured (release): 1,000 versions'
+  timeline 49 ms, status 0.6 ms. Not in Studio yet (the panels are G3).
+- **RapidR's own diff engine, `rapidr-diff`** (lane G2): Myers' O(ND)
+  algorithm in linear space, written from the 1986 paper
+  (docs/licensing.md §8 item 6), line hunks with unified numbering, word
+  marks, CSV table diffs, form diffs in words; no dependencies, builds for
+  the web. A 4,500-line file diffs in 0.25–16 ms (release; the worst case is
+  the file reversed). RDiffView, Versions and RAI share it.
+- **RDiffView's form and table views** (lane G2). `Kind = "form"` compares
+  two versions of a program's CREATE blocks: the form before and after,
+  drawn as the designer draws it, the changed components outlined in the
+  theme's added / removed / changed colours, then the changes listed
+  ("GreetButton: Caption "&Greet" → "&Say hello"; Width 90 → 110", "Added
+  Hint (RLabel)"). `Kind = "table"` compares two CSV files as one table:
+  rows matched by a unique first column (else by content), a changed row as
+  its old values over its new ones with the changed cells marked, added
+  and removed columns tinted, a sticky header and gutter, Left / Right and
+  Shift+wheel across wide tables. New `ChangeCount`, `Summary` (the changes
+  in words, one per line; also the screen reader's list) and `HasHeader`.
+  The example `examples/studio/diff_views.rr`, the manual's
+  [Versions](docs/manual/versions.md).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS
@@ -284,6 +321,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
 ### Changed
+- **RDiffView marks changed words, not characters**, and its diff is the
+  shared engine's (`rapidr-diff`): a run of only added or only removed lines
+  now sits with its block (a new SUB with its trailing blank line). The old
+  Myers module in `rapidr-value`, which followed GNU diff's structure, is
+  gone (docs/licensing.md §8 item 6).
 - **The `.rr` examples no longer include RAPIDQ.INC**: a RapidR program has
   RapidQ's constants built in, so the 18 examples that still had
   `$INCLUDE "RAPIDQ.INC"` (and the RMarkdownView snippet in the manual) lose the

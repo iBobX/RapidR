@@ -5524,6 +5524,7 @@ dependencies = [
  "jpeg-decoder",
  "proptest",
  "pulldown-cmark",
+ "rapidr-diff",
  "rapidr-editor",
  "rapidr-icons",
  "rapidr-lang",

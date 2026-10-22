@@ -41,6 +41,7 @@ pub const PAGES: &[(&str, &str)] = &[
     ("svg-icons.md", include_str!("../../../docs/manual/svg-icons.md")),
     ("translations.md", include_str!("../../../docs/manual/translations.md")),
     ("troubleshooting.md", include_str!("../../../docs/manual/troubleshooting.md")),
+    ("versions.md", include_str!("../../../docs/manual/versions.md")),
     ("web.md", include_str!("../../../docs/manual/web.md")),
     ("why-rapidr.md", include_str!("../../../docs/manual/why-rapidr.md")),
 ];
