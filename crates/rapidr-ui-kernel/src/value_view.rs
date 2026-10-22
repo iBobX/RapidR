@@ -701,8 +701,9 @@ fn changed_mark() -> Option<&'static rapidr_icons::Icon> {
 }
 
 /// A colour's swatch: the colour in a frame that shows on any ground
-/// (3:1, the theme's strong border), rounded in RapidR's look.
-fn swatch(p: &mut Painter, rect: Rect, fill: u32, enabled: bool) {
+/// (3:1, the theme's strong border), rounded in RapidR's look (the code
+/// editor's colour marks draw theirs with it too).
+pub fn swatch(p: &mut Painter, rect: Rect, fill: u32, enabled: bool) {
     let t = p.theme();
     let edge = if t.fluent() { t.border_strong } else { t.text };
     let edge = if enabled { edge } else { t.gray_text };

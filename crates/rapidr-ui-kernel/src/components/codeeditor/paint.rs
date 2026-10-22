@@ -37,6 +37,8 @@ pub struct Shown {
     pub text: RowText,
     /// The line's first byte in the document.
     pub line_start: usize,
+    /// The line's helper decorations (`text.decos` index them).
+    pub decos: Vec<rapidr_value::objects::codehelp::Deco>,
 }
 
 /// A row's text as drawn: tabs as spaces to their stops, an input
@@ -52,19 +54,43 @@ pub struct RowText {
     shifts: Vec<(usize, usize, bool)>,
     /// The composition's display bytes.
     pub preedit: Option<Range<usize>>,
+    /// The helpers' decorations in it: (display byte, columns, chip, the
+    /// decoration's index in the line's).
+    pub decos: Vec<(usize, usize, bool, usize)>,
 }
 
 impl RowText {
     /// `line`'s bytes `range` (its display columns starting at
     /// `start_col`), tabs `tab` wide, a composition at byte `pre.0`.
     pub fn new(line: &str, range: Range<usize>, tab: usize, start_col: usize, pre: Option<(usize, &str)>) -> RowText {
+        RowText::with_decos(line, range, tab, start_col, pre, &[], true)
+    }
+
+    /// [`RowText::new`] with the helpers' decorations (`ins`: (byte of the
+    /// line, columns, chip)) as blank columns the view draws them on: a
+    /// chip before its byte (the caret there drawn after it, by the text),
+    /// a mark after the text ending at its byte (the caret there drawn
+    /// before it). `last`: the line's last row (a mark at its end is its).
+    pub fn with_decos(line: &str, range: Range<usize>, tab: usize, start_col: usize, pre: Option<(usize, &str)>, ins: &[(usize, usize, bool)], last: bool) -> RowText {
         let piece = &line[range.clone()];
         let mut text = String::with_capacity(piece.len());
         let mut shifts = Vec::new();
         let mut col = start_col;
         let mut preedit = None;
+        let mut decos = Vec::new();
+        let mut put = |at: usize, text: &mut String, shifts: &mut Vec<(usize, usize, bool)>, col: &mut usize| {
+            for (k, &(b, n, chip)) in ins.iter().enumerate() {
+                if b == at && n > 0 {
+                    decos.push((text.len(), n, chip, k));
+                    text.extend(std::iter::repeat_n(' ', n));
+                    shifts.push((at, n, chip));
+                    *col += n;
+                }
+            }
+        };
         for (i, c) in piece.char_indices() {
             let at = range.start + i;
+            put(at, &mut text, &mut shifts, &mut col);
             if let Some((p, s)) = pre {
                 if p == at && !s.is_empty() {
                     preedit = Some(text.len()..text.len() + s.len());
@@ -90,7 +116,10 @@ impl RowText {
                 shifts.push((p, s.len(), true));
             }
         }
-        RowText { text, start: range.start, end: range.end, shifts, preedit }
+        if last {
+            put(range.end, &mut text, &mut shifts, &mut col);
+        }
+        RowText { text, start: range.start, end: range.end, shifts, preedit, decos }
     }
 
     /// Byte `b` of the line as a display byte of the row.
@@ -259,7 +288,11 @@ pub fn layout_rows(x: &mut Ctx, origin: (i64, i64)) {
             let (r, piece) = x.ui.rows.row_at(x.c, head);
             r == index && piece.line == row.line
         });
-        let rt = RowText::new(&line, row.range.clone(), tab, start_col, pre_here.map(|(t, _)| (head - line_start, t.as_str())));
+        // (the helpers' marks and chips: blank columns the view draws on)
+        let decos = if x.c.helpers.sites.is_empty() { Vec::new() } else { x.c.helpers.decos(line_start, line_start + line.len()) };
+        let ins: Vec<(usize, usize, bool)> = decos.iter().map(|d| (d.at - line_start, d.cols, d.chip)).collect();
+        let last = row.range.end >= line.len();
+        let rt = RowText::with_decos(&line, row.range.clone(), tab, start_col, pre_here.map(|(t, _)| (head - line_start, t.as_str())), &ins, last);
         drop(line);
         let highlighted = row.line <= valid + COLOUR_AHEAD;
         behind |= !highlighted;
@@ -270,7 +303,7 @@ pub fn layout_rows(x: &mut Ctx, origin: (i64, i64)) {
         let dev_top = ((origin.1 as f64 + top) * s).round();
         let oy = dev_top + ((lh * s - lay_h) / 2.0).round();
         let ox = ((origin.0 + g.text.0) as f64 * s).round() - (x.ui.scroll.0 * s).round();
-        shown.push(Shown { index, row, slot, origin: (ox, oy), top, text: rt, line_start });
+        shown.push(Shown { index, row, slot, origin: (ox, oy), top, text: rt, line_start, decos });
     }
     if behind {
         x.ui.idle_at.get_or_insert_with(crate::tick::now);
@@ -436,6 +469,10 @@ fn paint_text(x: &mut Ctx, p: &mut Painter, caret_on: bool) {
         }
         p.editor(item);
     }
+    // the helpers: marks after values, chips before arguments, the caret
+    // line's note and a paused program's values at the lines' ends
+    super::helpers::paint_decos(x, p, &shown);
+    super::helpers::paint_line_ends(x, p, &shown, head_line);
     // whitespace
     if x.c.opts.show_whitespace {
         for sh in &shown {

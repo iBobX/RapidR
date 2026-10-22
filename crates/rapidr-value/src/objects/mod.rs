@@ -15,6 +15,7 @@ pub mod bitmap;
 pub mod cgi;
 pub mod code;
 pub mod codeedit;
+pub mod codehelp;
 pub mod comport;
 pub mod codec;
 pub mod d3d;

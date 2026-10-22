@@ -52,9 +52,18 @@ pub struct Row {
 /// each row's byte range of the line, at a space where it can (the space
 /// ending the row before), else anywhere.
 pub fn wrap_line(text: &str, cols: usize, tab: usize) -> Vec<Range<usize>> {
+    wrap_line_with(text, cols, tab, &[])
+}
+
+/// [`wrap_line`] with the helpers' decorations counted (`ins`: (byte of the
+/// line, columns) before that byte): a mark or a chip takes its columns of
+/// the row, so a wrapped line never runs past the edge.
+pub fn wrap_line_with(text: &str, cols: usize, tab: usize, ins: &[(usize, usize)]) -> Vec<Range<usize>> {
     if cols == 0 || text.is_empty() {
         return std::iter::once(0..text.len()).collect();
     }
+    let extra_at = |i: usize| ins.iter().filter(|(a, _)| *a == i).map(|(_, n)| *n).sum::<usize>();
+    let extra_in = |a: usize, b: usize| ins.iter().filter(|(x, _)| a <= *x && *x < b).map(|(_, n)| *n).sum::<usize>();
     let mut out = Vec::new();
     let mut start = 0;
     let mut col = 0usize;
@@ -67,7 +76,7 @@ pub fn wrap_line(text: &str, cols: usize, tab: usize) -> Vec<Range<usize>> {
             '\t' => tab - col % tab,
             c if is_wide(c) => 2,
             _ => 1,
-        };
+        } + extra_at(i);
         if col + w > cols && i > start {
             let at = match last_space {
                 Some(s) if s > start => s,
@@ -76,7 +85,7 @@ pub fn wrap_line(text: &str, cols: usize, tab: usize) -> Vec<Range<usize>> {
             out.push(start..at);
             start = at;
             // (the columns of what moved to the new row)
-            col = display_cols(&text[start..i], tab);
+            col = display_cols(&text[start..i], tab) + extra_in(start, i);
             last_space = None;
             continue;
         }
@@ -110,8 +119,9 @@ pub fn display_cols(s: &str, tab: usize) -> usize {
 }
 
 /// What a row table was built for: the document's generation and version,
-/// the wrap columns, the tab width, the hidden lines.
-type RowsKey = (u64, u64, usize, usize, Vec<Range<usize>>);
+/// the wrap columns, the tab width, the hidden lines, the helpers' version
+/// (their decorations take columns of a wrapped row).
+type RowsKey = (u64, u64, usize, usize, Vec<Range<usize>>, u64);
 
 /// The rows the lines make: none stored without wrap or folds.
 #[derive(Debug, Default)]
@@ -140,7 +150,9 @@ impl RowMap {
         let edits = std::mem::take(&mut c.line_edits);
         let gen = c.generation;
         let version = c.doc.version();
-        let same_shape = self.key.as_ref().is_some_and(|k| k.0 == gen && k.2 == cols && k.3 == tab && k.4 == hidden);
+        // (the helpers change a wrapped line's rows; without wrap, nothing)
+        let helpers = if cols > 0 { c.helpers.version } else { 0 };
+        let same_shape = self.key.as_ref().is_some_and(|k| k.0 == gen && k.2 == cols && k.3 == tab && k.4 == hidden && k.5 == helpers);
         if same_shape && self.key.as_ref().is_some_and(|k| k.1 == version) {
             return;
         }
@@ -170,7 +182,7 @@ impl RowMap {
         } else {
             self.rebuild(c);
         }
-        self.key = Some((gen, version, cols, tab, hidden));
+        self.key = Some((gen, version, cols, tab, hidden, helpers));
     }
 
     fn count_of(&self, c: &CodeEditor, line: usize) -> u32 {
@@ -178,10 +190,12 @@ impl RowMap {
             return 1;
         }
         let text = c.doc.line(line);
-        if text.len() <= self.cols && !text.contains('\t') && text.is_ascii() {
+        let ins = line_inserts(c, line);
+        let extra: usize = ins.iter().map(|(_, n)| n).sum();
+        if text.len() + extra <= self.cols && !text.contains('\t') && text.is_ascii() {
             return 1;
         }
-        wrap_line(&text, self.cols, self.tab).len() as u32
+        wrap_line_with(&text, self.cols, self.tab, &ins).len() as u32
     }
 
     fn rebuild(&mut self, c: &CodeEditor) {
@@ -270,7 +284,7 @@ impl RowMap {
         while out.len() < n && row < total {
             let (line, k) = self.line_of_row(row);
             let text = c.doc.line(line);
-            let pieces = if self.cols > 0 { wrap_line(&text, self.cols, self.tab) } else { std::iter::once(0..text.len()).collect() };
+            let pieces = if self.cols > 0 { wrap_line_with(&text, self.cols, self.tab, &line_inserts(c, line)) } else { std::iter::once(0..text.len()).collect() };
             for (i, r) in pieces.into_iter().enumerate().skip(k) {
                 if out.len() >= n {
                     break;
@@ -298,7 +312,7 @@ impl RowMap {
             return (first, Row { line, range: 0..len, wrap_index: 0 });
         }
         let text = buf.line_text(line);
-        let pieces = wrap_line(&text, self.cols, self.tab);
+        let pieces = wrap_line_with(&text, self.cols, self.tab, &line_inserts(c, line));
         let n = pieces.len();
         for (i, r) in pieces.into_iter().enumerate() {
             // (a byte at a break shows at the start of the next row, but the
@@ -309,6 +323,16 @@ impl RowMap {
         }
         (first, Row { line, range: 0..text.len(), wrap_index: 0 })
     }
+}
+
+/// Line `line`'s helper decorations as (byte of the line, columns).
+pub fn line_inserts(c: &CodeEditor, line: usize) -> Vec<(usize, usize)> {
+    if c.helpers.sites.is_empty() {
+        return Vec::new();
+    }
+    let buf = c.doc.buffer();
+    let (a, b) = (buf.line_start(line), buf.line_end(line));
+    c.helpers.inserts(a, b).into_iter().map(|(at, n, _)| (at, n)).collect()
 }
 
 /// A row's text drawn: its layout, keyed by what it shows.

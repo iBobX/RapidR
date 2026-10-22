@@ -1,0 +1,310 @@
+//! The code's helpers in the editor (docs/code-helpers-plan.md): marks and
+//! chips take fixed columns and never move what's before them or the rows;
+//! the caret stops beside the text; word wrap counts them; Quiet hides the
+//! chips and the note; a value editor writes back as one undo step in the
+//! code's own form; the line note; the values while paused; Ctrl held.
+
+use rapidr_editor::service::{HelperKind, HelperSite};
+use rapidr_value::objects::codehelp::MARK_COLS;
+use rapidr_value::objects::{with_code, with_code_mut};
+use rapidr_value::{v_int, v_str};
+
+use crate::display::Item;
+use crate::{FormUi, MemClipboard, MemStore, Mods, TextSystem};
+
+fn form(id: &str, text: &str) -> (MemStore, FormUi, TextSystem) {
+    let mut s = MemStore::new();
+    let form = format!("{id}f");
+    s.add(&form, "RFORM", None).set(&form, "clientwidth", v_int(900)).set(&form, "clientheight", v_int(600));
+    s.add(id, "RCODEEDITOR", Some(&form)).set(id, "left", v_int(8)).set(id, "top", v_int(8)).set(id, "width", v_int(860)).set(id, "height", v_int(400));
+    s.set(id, "text", v_str(text));
+    let f = FormUi::build(&s, &form, false);
+    (s, f, TextSystem::new())
+}
+
+fn key(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, vk: i64, text: &str, mods: Mods) {
+    let mut clip = MemClipboard::default();
+    f.key_down(s, ts, vk, text, mods, &mut clip);
+}
+
+const CMD: Mods = Mods { command: true, ctrl: true, shift: false, alt: false, word: false };
+
+/// A site over the first `what` in `text`.
+fn site(text: &str, what: &str, kind: HelperKind, value: &str, form: &str) -> HelperSite {
+    let start = text.find(what).unwrap();
+    let mut h = HelperSite::new(kind, start, start + what.len());
+    h.value = value.into();
+    h.form = form.into();
+    h
+}
+
+fn set_sites(id: &str, sites: Vec<HelperSite>) {
+    with_code_mut(id, |c| c.helpers.set_sites(sites, None));
+}
+
+/// Where byte `at` is drawn: (x, the row's top), logical pixels.
+fn caret_at(f: &FormUi, id: &str, at: usize) -> (f64, f64) {
+    let n = f.nodes.iter().find(|n| n.id == id).unwrap();
+    let ui = n.ui.code.as_ref().unwrap();
+    with_code(id, |c| {
+        let sh = super::paint::shown_at(ui, c, at).unwrap();
+        (super::paint::caret_x(ui, sh, at) / f.scale, sh.top)
+    })
+    .unwrap()
+}
+
+fn ch(f: &FormUi, id: &str) -> f64 {
+    f.nodes.iter().find(|n| n.id == id).unwrap().ui.code.as_ref().unwrap().metrics.ch
+}
+
+const CODE: &str = "Button1.Color = RGB(255, 130, 20) ' orange\nButton1.Caption = \"Hi\"\nDrawDot 40, 12\n";
+
+#[test]
+fn a_mark_never_moves_what_is_before_it_or_the_rows() {
+    let (s, mut f, mut ts) = form("hl1", CODE);
+    f.paint(&s, &mut ts, 1.0);
+    let value_end = CODE.find(" ' orange").unwrap();
+    let before: Vec<(f64, f64)> = [0, CODE.find('=').unwrap(), value_end, CODE.find("Caption").unwrap()].iter().map(|&b| caret_at(&f, "hl1", b)).collect();
+    let after_end = caret_at(&f, "hl1", value_end + 1);
+    set_sites("hl1", vec![site(CODE, "RGB(255, 130, 20)", HelperKind::Color, &0x1482FF.to_string(), "rgb")]);
+    f.paint(&s, &mut ts, 1.0);
+    let now: Vec<(f64, f64)> = [0, CODE.find('=').unwrap(), value_end, CODE.find("Caption").unwrap()].iter().map(|&b| caret_at(&f, "hl1", b)).collect();
+    assert_eq!(before, now, "the text up to the value's end, and the next line, stay where they were");
+    // (after the value: exactly the mark's columns further on)
+    let moved = caret_at(&f, "hl1", value_end + 1).0 - after_end.0;
+    assert!((moved - MARK_COLS as f64 * ch(&f, "hl1")).abs() < 1.0, "moved {moved}");
+    // (another colour: the same width — nothing flickers)
+    set_sites("hl1", vec![site(CODE, "RGB(255, 130, 20)", HelperKind::Color, "255", "rgb")]);
+    f.paint(&s, &mut ts, 1.0);
+    assert_eq!(caret_at(&f, "hl1", value_end + 1), (after_end.0 + moved, after_end.1));
+    // (the swatch is drawn, in the theme's own frame)
+    let list = f.paint(&s, &mut ts, 1.0);
+    assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Round { fill: Some(0xFF0000), .. }, .. })), "a red swatch");
+}
+
+#[test]
+fn the_caret_stops_beside_the_text_never_inside_a_decoration() {
+    let (s, mut f, mut ts) = form("hl2", CODE);
+    f.focus_id(&s, "hl2");
+    let arg = CODE.find("40").unwrap();
+    let mut chip = HelperSite::new(HelperKind::ArgName, arg, arg + 2);
+    chip.label = "y".into();
+    chip.flag = true;
+    let value_end = CODE.find(" ' orange").unwrap();
+    set_sites("hl2", vec![site(CODE, "RGB(255, 130, 20)", HelperKind::Color, "255", "rgb"), chip]);
+    f.paint(&s, &mut ts, 1.0);
+    // (the value's end: the caret before the mark, by the `)`)
+    let close = caret_at(&f, "hl2", value_end - 1).0;
+    let end = caret_at(&f, "hl2", value_end).0;
+    assert!((end - close - ch(&f, "hl2")).abs() < 1.0, "right after the `)`");
+    // (an argument's start: the caret after its chip, by the `4`)
+    let four = caret_at(&f, "hl2", arg).0;
+    let comma = caret_at(&f, "hl2", arg - 1).0;
+    assert!(four - comma > 3.0 * ch(&f, "hl2"), "the chip is between the space and the 4");
+    let next = caret_at(&f, "hl2", arg + 1).0;
+    assert!((next - four - ch(&f, "hl2")).abs() < 1.0, "the 4 right after the caret");
+    // (Right from the value's end goes one character: past the mark and the space)
+    with_code_mut("hl2", |c| c.doc.set_selections(rapidr_editor::Selections::caret(value_end)));
+    key(&mut f, &s, &mut ts, 39, "", Mods::NONE);
+    assert_eq!(with_code("hl2", |c| c.doc.selections().primary().head).unwrap(), value_end + 1);
+}
+
+#[test]
+fn word_wrap_counts_the_marks_and_chips() {
+    let line = "x = RGB(1, 2, 3) + RGB(4, 5, 6) + RGB(7, 8, 9) + 1 + 2 + 3 + 4 + 5 + 6";
+    let (mut s, mut f, mut ts) = form("hl3", line);
+    s.set("hl3", "wordwrap", v_int(-1));
+    s.set("hl3", "width", v_int(560));
+    let mut f2 = FormUi::build(&s, "hl3f", false);
+    f2.paint(&s, &mut ts, 1.0);
+    let rows = |f: &FormUi| f.nodes.iter().find(|n| n.id == "hl3").unwrap().ui.code.as_ref().unwrap().rows.total();
+    let without = rows(&f2);
+    let sites: Vec<HelperSite> = ["RGB(1, 2, 3)", "RGB(4, 5, 6)", "RGB(7, 8, 9)"].iter().map(|w| site(line, w, HelperKind::Color, "255", "rgb")).collect();
+    set_sites("hl3", sites);
+    // (a mark takes room on its row: a line that just fitted wraps sooner)
+    let cols = with_code("hl3", |c| super::view::line_inserts(c, 0)).unwrap();
+    assert_eq!(cols.len(), 3);
+    f2.paint(&s, &mut ts, 1.0);
+    assert!(rows(&f2) >= without, "{} rows, {without} before", rows(&f2));
+    let pieces = super::view::wrap_line_with(line, 40, 4, &cols);
+    let plain = super::view::wrap_line(line, 40, 4);
+    assert!(pieces.len() >= plain.len());
+    assert!(pieces[0].end <= plain[0].end, "the first row ends sooner: {pieces:?} / {plain:?}");
+    let _ = f.paint(&s, &mut ts, 1.0);
+}
+
+#[test]
+fn quiet_hides_the_chips_and_the_note() {
+    let (mut s, mut f, mut ts) = form("hl4", CODE);
+    f.focus_id(&s, "hl4");
+    let arg = CODE.find("40").unwrap();
+    let mut chip = HelperSite::new(HelperKind::ArgName, arg, arg + 2);
+    chip.label = "y".into();
+    chip.flag = true;
+    let mut note = HelperSite::new(HelperKind::Note, 0, CODE.find('\n').unwrap());
+    note.label = "The colour behind the button".into();
+    set_sites("hl4", vec![note, site(CODE, "RGB(255, 130, 20)", HelperKind::Color, "255", "rgb"), chip]);
+    let texts = |list: &crate::display::DisplayList| -> Vec<String> {
+        list.items.iter().filter_map(|i| match i {
+            Item::Op { op: rapidr_value::objects::ops::Op::Text { text, .. }, .. } => Some(text.clone()),
+            _ => None,
+        }).collect()
+    };
+    let list = f.paint(&s, &mut ts, 1.0);
+    let t = texts(&list);
+    assert!(t.iter().any(|x| x == "The colour behind the button"), "the caret line's note: {t:?}");
+    assert!(t.iter().any(|x| x == "y:"), "the chip: {t:?}");
+    s.set("hl4", "helpers", v_str("quiet"));
+    with_code_mut("hl4", |c| {
+        c.set("helpers", &v_str("quiet"));
+    });
+    let list = f.paint(&s, &mut ts, 1.0);
+    let t = texts(&list);
+    assert!(!t.iter().any(|x| x == "y:" || x.starts_with("The colour")), "quiet: marks only: {t:?}");
+    assert_eq!(with_code("hl4", |c| c.helpers.decos(0, CODE.len()).len()).unwrap(), 1, "the colour's mark stays");
+    // (Ctrl held a moment shows every name, even at Quiet; let go, they go)
+    let t0 = std::time::Instant::now();
+    crate::tick::set_test_now(Some(t0));
+    key(&mut f, &s, &mut ts, 17, "", Mods { ctrl: true, ..Mods::NONE });
+    crate::tick::set_test_now(Some(t0 + super::helpers::HOLD + std::time::Duration::from_millis(10)));
+    f.tick(&s, &mut ts, t0 + super::helpers::HOLD + std::time::Duration::from_millis(10));
+    assert!(with_code("hl4", |c| c.helpers.held).unwrap());
+    f.key_up(17, Mods::NONE);
+    assert!(!with_code("hl4", |c| c.helpers.held).unwrap());
+    crate::tick::set_test_now(None);
+}
+
+#[test]
+fn the_colour_editor_writes_back_in_the_codes_own_form_one_undo_step() {
+    let (s, mut f, mut ts) = form("hl5", CODE);
+    f.focus_id(&s, "hl5");
+    set_sites("hl5", vec![site(CODE, "RGB(255, 130, 20)", HelperKind::Color, &0x1482FF.to_string(), "rgb")]);
+    f.paint(&s, &mut ts, 1.0);
+    // (the caret on the value; Ctrl+. opens its editor)
+    with_code_mut("hl5", |c| c.doc.set_selections(rapidr_editor::Selections::caret(CODE.find("130").unwrap())));
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    assert!(crate::value_edit::is_open("hl5"));
+    assert!(with_code("hl5", |c| c.get("helpereditortext").unwrap().to_string_val()).unwrap().starts_with("orange, 255 130 20"));
+    let list = f.paint(&s, &mut ts, 1.0);
+    assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: rapidr_value::objects::ops::Op::Text { text, .. }, .. } if text == "Colour")), "the editor shows");
+    // (Tab to Hex: the wheel, the square, Red, Green, Blue, then Hex)
+    for _ in 0..5 {
+        key(&mut f, &s, &mut ts, 9, "", Mods::NONE);
+    }
+    for c in "#0000FF".chars() {
+        key(&mut f, &s, &mut ts, 0, &c.to_string(), Mods::NONE);
+    }
+    key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
+    assert!(!crate::value_edit::is_open("hl5"));
+    let text = with_code("hl5", |c| c.text()).unwrap();
+    assert!(text.starts_with("Button1.Color = RGB(0, 0, 255) ' orange\n"), "{text:?}");
+    // (one undo step back)
+    key(&mut f, &s, &mut ts, 90, "", CMD);
+    assert_eq!(with_code("hl5", |c| c.text()).unwrap(), CODE);
+}
+
+#[test]
+fn esc_drops_and_hex_stays_hex() {
+    let code = "Form1.Color = &H0000FF\n";
+    let (s, mut f, mut ts) = form("hl6", code);
+    f.focus_id(&s, "hl6");
+    set_sites("hl6", vec![site(code, "&H0000FF", HelperKind::Color, "255", "hex")]);
+    f.paint(&s, &mut ts, 1.0);
+    with_code_mut("hl6", |c| c.doc.set_selections(rapidr_editor::Selections::caret(code.find("&H").unwrap())));
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    key(&mut f, &s, &mut ts, 39, "", Mods::SHIFT);
+    key(&mut f, &s, &mut ts, 27, "", Mods::NONE);
+    assert_eq!(with_code("hl6", |c| c.text()).unwrap(), code, "Esc: nothing written");
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    // (the square: darker; Enter)
+    key(&mut f, &s, &mut ts, 9, "", Mods::NONE);
+    key(&mut f, &s, &mut ts, 40, "", Mods::SHIFT);
+    key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
+    let text = with_code("hl6", |c| c.text()).unwrap();
+    assert!(text.starts_with("Form1.Color = &H0000E6"), "{text:?}");
+}
+
+#[test]
+fn choices_and_handlers() {
+    let code = "SUB SaveClick\nEND SUB\nCREATE Form1 AS RForm\n  Align = alClient\n  CREATE Ok AS RButton\n    OnClick = \n  END CREATE\nEND CREATE\n";
+    let (s, mut f, mut ts) = form("hl7", code);
+    f.focus_id(&s, "hl7");
+    let mut choice = site(code, "alClient", HelperKind::Choice, "alClient", "const");
+    choice.choices = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"].iter().map(|c| c.to_string()).collect();
+    let at = code.find("OnClick = ").unwrap() + "OnClick =".len();
+    let mut handler = HelperSite::new(HelperKind::Handler, at, at);
+    handler.form = "name".into();
+    handler.hint = "OkClick".into();
+    handler.choices = vec!["SaveClick".into()];
+    handler.at = code.find("CREATE Form1").unwrap();
+    set_sites("hl7", vec![choice, handler]);
+    f.paint(&s, &mut ts, 1.0);
+    // (Align: Ctrl+. drops the constants; Up picks alRight)
+    with_code_mut("hl7", |c| c.doc.set_selections(rapidr_editor::Selections::caret(code.find("alClient").unwrap() + 2)));
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    key(&mut f, &s, &mut ts, 38, "", Mods::NONE);
+    key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
+    let text = with_code("hl7", |c| c.text()).unwrap();
+    assert!(text.contains("  Align = alRight\n"), "{text:?}");
+    // (OnClick =: Create handler, the first item)
+    let caret = text.find("OnClick = ").unwrap() + "OnClick = ".len();
+    let at = text.find("OnClick = ").unwrap() + "OnClick =".len();
+    let mut handler = HelperSite::new(HelperKind::Handler, at, at);
+    handler.form = "name".into();
+    handler.hint = "OkClick".into();
+    handler.choices = vec!["SaveClick".into()];
+    handler.at = text.find("CREATE Form1").unwrap();
+    set_sites("hl7", vec![handler]);
+    with_code_mut("hl7", |c| c.doc.set_selections(rapidr_editor::Selections::caret(caret)));
+    key(&mut f, &s, &mut ts, 190, ".", CMD);
+    assert!(with_code("hl7", |c| c.helpers.editor_text.clone()).unwrap().contains("Create handler OkClick"));
+    key(&mut f, &s, &mut ts, 13, "\r", Mods::NONE);
+    let text = with_code("hl7", |c| c.text()).unwrap();
+    assert!(text.contains("SUB OkClick\n    \nEND SUB\n\nCREATE Form1"), "{text:?}");
+    assert!(text.contains("OnClick = OkClick\n"), "{text:?}");
+    // (the caret is in the new SUB, ready to type)
+    let head = with_code("hl7", |c| c.doc.selections().primary().head).unwrap();
+    assert_eq!(&text[head - 4..head + 1], "    \n");
+    key(&mut f, &s, &mut ts, 90, "", CMD);
+    assert!(with_code("hl7", |c| c.text()).unwrap().contains("OnClick = \n"), "one undo step");
+}
+
+#[test]
+fn values_while_paused_show_at_the_line_ends() {
+    let code = "Score = 40\nScore = Score + 2\nPRINT Name$\n";
+    let (mut s, mut f, mut ts) = form("hl8", code);
+    s.call("hl8", "showlinevalues", &[v_str("Score\t42\tInteger\nName$\t\"Bob\"\tString"), v_int(1), v_int(2)]);
+    let list = f.paint(&s, &mut ts, 1.0);
+    let t: Vec<String> = list.items.iter().filter_map(|i| match i {
+        Item::Op { op: rapidr_value::objects::ops::Op::Text { text, .. }, .. } => Some(text.clone()),
+        _ => None,
+    }).collect();
+    assert!(t.iter().filter(|x| *x == "42").count() >= 2, "Score's value at lines 1 and 2: {t:?}");
+    assert!(!t.iter().any(|x| x == "\"Bob\""), "line 3 is past the paused line: {t:?}");
+    with_code_mut("hl8", |c| c.doc.set_selections(rapidr_editor::Selections::caret(12)));
+    assert_eq!(with_code("hl8", |c| c.get("linevaluestext").unwrap().to_string_val()).unwrap(), "Score = 42");
+    s.call("hl8", "hidelinevalues", &[]);
+    assert_eq!(with_code("hl8", |c| c.get("linevaluestext").unwrap().to_string_val()).unwrap(), "");
+    let _ = f;
+}
+
+#[test]
+fn a_missing_picture_is_marked_and_files_stay_in_the_project() {
+    let dir = std::env::temp_dir().join(format!("rapidr-helpers-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    // (a 2 × 1 BMP: one red, one blue pixel)
+    let bmp: Vec<u8> = {
+        let mut b = vec![0x42, 0x4D, 62, 0, 0, 0, 0, 0, 0, 0, 54, 0, 0, 0, 40, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 1, 0, 24, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        b.extend_from_slice(&[0, 0, 255, 255, 0, 0, 0, 0]);
+        b
+    };
+    std::fs::write(dir.join("logo.bmp"), &bmp).unwrap();
+    let folder = dir.to_string_lossy().into_owned();
+    assert!(super::helpers::thumbnail(&folder, "logo.bmp").is_some(), "a picture in the project");
+    assert!(super::helpers::thumbnail(&folder, "../logo.bmp").is_none(), "never outside it");
+    let h = rapidr_value::objects::codehelp::Helpers::default();
+    assert_eq!(super::helpers::file_there(&h, &folder, "logo.bmp"), Some(true));
+    assert_eq!(super::helpers::file_there(&h, &folder, "gone.png"), Some(false));
+    assert_eq!(super::helpers::file_there(&h, &folder, "/etc/hosts"), None, "outside the project: not even looked at");
+    let _ = std::fs::remove_dir_all(&dir);
+}

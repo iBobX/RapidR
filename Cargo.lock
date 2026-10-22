@@ -5495,6 +5495,7 @@ dependencies = [
  "parley",
  "rapidr-editor",
  "rapidr-icons",
+ "rapidr-lang",
  "rapidr-value",
  "web-time",
 ]

@@ -330,7 +330,87 @@ fn cycle(cx: &mut Cx, v: &V, r: &Row, step: i64) -> bool {
     true
 }
 
-/// Row `i`'s list dropped (or its picker opened, or the program asked for
+/// Row `i`'s value's place in the form (absolute): where a value editor
+/// hangs from.
+fn anchor(cx: &Cx, v: &V, i: usize) -> Rect {
+    let r = &v.rows[i];
+    let rr = v.row_rect(i);
+    let parts = geo::parts(&v.m, r, rr, v.nw);
+    let (vx, y, vw, h) = parts.value;
+    (cx.rect.0 + vx, cx.rect.1 + y, vw, h)
+}
+
+/// The shared value editors (docs/code-helpers-plan.md E1: the code's
+/// helpers open the same ones): a colour row's colour editor, a font row's
+/// font editor. Whether row `i` has one.
+fn open_editor(cx: &mut Cx, v: &V, i: usize) -> bool {
+    use crate::value_edit::{self, list::Item, ListKind, Owner, Popover};
+    let r = &v.rows[i];
+    if r.kind != RowKind::Prop || v.m.read_only {
+        return false;
+    }
+    let Some(p) = v.m.snap.props.get(r.prop) else { return false };
+    let anchor = anchor(cx, v, i);
+    let owner = Owner::Inspector(r.key.clone());
+    let pop = match p.kind {
+        Kind::Color => {
+            let value = p.value.as_ref().map_or(0, |x| x.to_i64());
+            // (the colours the inspected components use: the palette's first)
+            let mut project: Vec<i64> = v.m.snap.props.iter().filter(|q| q.kind == Kind::Color).filter_map(|q| q.value.as_ref().map(|x| x.to_i64())).collect();
+            project.dedup();
+            Popover::color(owner, value, &project, anchor)
+        }
+        Kind::Font => {
+            let part = |n: &str| p.parts.iter().find(|q| q.name.eq_ignore_ascii_case(n)).and_then(|q| q.value.clone());
+            let name = part("Name").map(|x| x.to_string_val()).unwrap_or_default();
+            let size = part("Size").map_or(8, |x| x.to_i64());
+            let bold = part("Bold").is_some_and(|x| x.to_bool());
+            let italic = part("Italic").is_some_and(|x| x.to_bool());
+            let names = cx.text.family_names();
+            let mut items: Vec<Item> = names.iter().map(|n| {
+                let mut it = Item::new(n.clone());
+                it.face = Some(n.clone());
+                it
+            }).collect();
+            if !name.is_empty() && !names.iter().any(|n| n.eq_ignore_ascii_case(&name)) {
+                let mut it = Item::new(name.clone());
+                it.detail = "not on this computer".into();
+                items.insert(0, it);
+            }
+            let sel = items.iter().position(|it| it.label.eq_ignore_ascii_case(&name));
+            let mut pop = Popover::list(owner, ListKind::Font, items, sel, anchor);
+            if let value_edit::Editor::List { size: s, style, .. } = &mut pop.editor {
+                *s = Some(value_edit::size_field(size));
+                *style = Some((bold, italic));
+            }
+            pop
+        }
+        _ => return false,
+    };
+    value_edit::open(cx.id, pop, (i64::MAX / 4, i64::MAX / 4));
+    true
+}
+
+/// What a value editor picked for row `key` (crate::value_edit): set as
+/// typed into the row (checked, then OnPropertyChange).
+pub fn apply_picked(cx: &mut Cx, key: &str, picked: &crate::value_edit::Picked) {
+    use crate::value_edit::Picked;
+    match picked {
+        Picked::Color(c) => {
+            let text = values::color_name(*c).map_or_else(|| values::color_hex(*c), str::to_string);
+            commit(cx, key, &text);
+        }
+        Picked::Font { name, size, bold, italic } => {
+            commit(cx, &format!("{key}.name"), name);
+            commit(cx, &format!("{key}.size"), &size.to_string());
+            commit(cx, &format!("{key}.bold"), if *bold { "True" } else { "False" });
+            commit(cx, &format!("{key}.italic"), if *italic { "True" } else { "False" });
+        }
+        _ => {}
+    }
+}
+
+/// Row `i`'s list dropped (or its editor opened, or the program asked for
 /// its editor).
 fn drop(cx: &mut Cx, v: &V, i: usize) {
     let r = &v.rows[i];
@@ -338,9 +418,7 @@ fn drop(cx: &mut Cx, v: &V, i: usize) {
     if v.m.read_only {
         return;
     }
-    if matches!(kind, Kind::Color) && r.kind == RowKind::Prop {
-        let (key, open) = (r.key.clone(), !r.expanded);
-        ui(cx, |m| m.set_open(&key, open));
+    if open_editor(cx, v, i) {
         return;
     }
     if r.kind == RowKind::Event || kind.drops() {
@@ -1018,6 +1096,10 @@ impl ComponentKind for Inspector {
             };
         }
         n.children.clear();
+        // (an open value editor: a dialog inside the panel)
+        if let Some(dialog) = crate::value_edit::access(cx.id) {
+            n.children.push(dialog);
+        }
         let (ax, ay) = (cx.rect.0, cx.rect.1);
         let at = |r: Rect| (ax + r.0, ay + r.1, r.2, r.3);
         let editing = editing_key(cx.id);
