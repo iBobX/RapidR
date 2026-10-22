@@ -142,6 +142,12 @@ impl Clipboard for RtClipboard {
     }
 }
 
+/// Whether the host is headless: under a GUI test (`RAPIDR_CAPTURE`
+/// without `RAPIDR_CAPTURE_WINDOWS`).
+fn headless_requested() -> bool {
+    Capture::from_env().is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
+}
+
 /// The host, started the first time a window is needed: headless under a
 /// GUI test (`RAPIDR_CAPTURE` without `RAPIDR_CAPTURE_WINDOWS`), else winit.
 fn ensure_host() {
@@ -149,7 +155,7 @@ fn ensure_host() {
         return;
     }
     let capture = Capture::from_env();
-    let headless = capture.is_some() && std::env::var_os("RAPIDR_CAPTURE_WINDOWS").is_none();
+    let headless = headless_requested();
     let mut host = rapidr_ui_host_winit::new_host(headless, forced_scale());
     // (what wakes the loop from another thread: rp_wake)
     crate::object::rp_set_waker(host.waker());
@@ -1380,6 +1386,14 @@ fn capture_and_end(prefix: &str) -> ! {
 /// The desktop host as `rapidr_ui_app` asks it (the program is
 /// `program.rs`'s).
 impl Windows for Rt {
+    fn title_reserve(self) -> Option<(i64, i64)> {
+        // (real windows only: a test's captures are the same on every system)
+        if headless_requested() {
+            None
+        } else {
+            rapidr_ui_host_winit::platform::title_reserve()
+        }
+    }
     fn start(self) {
         ensure_host();
     }

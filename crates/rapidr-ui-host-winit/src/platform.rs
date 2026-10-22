@@ -107,6 +107,17 @@ pub fn activate_process(pid: u32) -> bool {
     pid != 0 && pid != std::process::id() && imp::activate_process(pid)
 }
 
+/// What the window system's title bar keeps from the title, in logical
+/// pixels: (the left, the right) — macOS: the traffic lights at the left and
+/// a margin at the right, so a title is cut ("Infor…") in a window narrower
+/// than it and those. `None` where the system's frame is close to the one
+/// the kernel draws (Windows, X11), or the host draws its own (the web).
+/// A dialog's window is made wide enough for its title with it
+/// (`rapidr_ui_kernel::frame::set_system_title_reserve`).
+pub fn title_reserve() -> Option<(i64, i64)> {
+    cfg!(target_os = "macos").then_some((84, 20))
+}
+
 // (the dialogs lane's)
 /// A message box's sound, as Windows' MessageBeep plays it for its icon
 /// (`None`: the default beep): Windows' system sounds, macOS' alert sound

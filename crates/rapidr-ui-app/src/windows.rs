@@ -176,6 +176,14 @@ pub trait Windows: Copy + 'static {
     fn close_dialog(self, id: &str);
     /// Dialog `id` grew (a colour dialog's editor opened): its window too.
     fn dialog_resized(self, _id: &str, _size: (i64, i64)) {}
+    /// What the system's title bar keeps from a title — (the left, the
+    /// right), logical pixels —, where the windows are the system's and its
+    /// title bar cuts a title short in a narrow window (macOS'): a dialog is
+    /// made wide enough for its title with it (`rapidr_ui_kernel::frame`).
+    /// `None` where the kernel draws the frame, or the system's is close to it.
+    fn title_reserve(self) -> Option<(i64, i64)> {
+        None
+    }
     /// A message box's sound as it shows (Windows' MessageBox beeps its
     /// icon's); never under a test (`crate::testhooks::under_test`).
     fn beep(self, _icon: Option<rapidr_value::dialogs::MsgIcon>) {}

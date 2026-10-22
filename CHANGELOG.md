@@ -179,7 +179,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the icon, the title in the frame's own font, the buttons; `message_layout`
   takes it as `min_w`), in RapidR's light, dark and high-contrast looks and in
   the classic one; a wider text or more buttons keep their own width, and the
-  input box too. Test: `a_dialog_is_as_wide_as_its_title_needs`.
+  input box too. A real macOS window has the system's title bar, which keeps
+  room for the traffic lights and a margin and cut the title to "Infor…" even
+  so: the desktop tells the dialogs what it keeps (`Windows::title_reserve`,
+  `rapidr_ui_host_winit::platform::title_reserve`: 84 and 20 pixels on macOS,
+  none under a test, so the captures are the same everywhere). Checked on the
+  real screen: "Information" in full. Tests:
+  `a_dialog_is_as_wide_as_its_title_needs`, `a_system_title_bar_keeps_room_around_the_title`.
 - **A file opens with its squiggles**: a `.bas` with warnings listed them in
   Problems but the editor underlined nothing until the first edit, because
   diagnostics were only asked for after typing. A text set from outside
