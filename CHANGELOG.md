@@ -50,6 +50,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   list of its translations, and asks only for those: a language without a
   file costs no request (before, up to five failed requests).
   [Building apps](docs/manual/building-apps.md#the-programs-data-files-go-with-it).
+- **Pictures a built app came with, wherever it's started**: started by a
+  terminal or a script in another folder, a program whose picture file
+  (`RImage.Load "art/logo.svg"`, a `BMP`, an `Icon`, an `RImageList`'s
+  files, a toolbar's or DirectX picture) isn't in that folder reads the one
+  it came with — the rule `RCSV` and `RJson` already follow, now one helper
+  for both (`command_line::read_or_programs_own`). A file in the current
+  folder still comes first, as in RapidQ; `FILEEXISTS` and `OPEN` are
+  unchanged. Native and interpreted builds; the web reads the page's files
+  as before. tests/built_elsewhere.mjs.
 - **Versions, the engine proved** (lane G0, not in Studio yet;
   [docs/versions-g0.md](docs/versions-g0.md)): a new crate, `rapidr-vcs`,
   built on gitoxide 0.89 (pure Rust, MIT OR Apache-2.0). It can start

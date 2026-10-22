@@ -69,7 +69,10 @@ if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,
 # interpreted and native executables, the web — GUI ones by the test hooks)
-if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"; fi
+if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | grep -E "✗|^    |Examples:"
+  # (a built program started in another folder: its translations and the
+  # pictures it came with, a picture in the current folder still first)
+  echo "== built programs started elsewhere"; node tests/built_elsewhere.mjs --native 2>&1 | grep -E "✗|Built elsewhere"; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 # (the visual gallery: every case and GUI example captured at 1× and 2× in

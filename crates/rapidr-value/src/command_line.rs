@@ -56,6 +56,34 @@ pub fn files_folder() -> Option<std::path::PathBuf> {
     program.parent().filter(|p| !p.as_os_str().is_empty()).map(std::path::Path::to_path_buf)
 }
 
+/// The program's own copy of relative file `file`: the same name in the
+/// folder its files are in ([`files_folder`]: a built app's
+/// Contents/Resources, an executable's or a program file's folder). None
+/// for an absolute name or a URL, and on the web (its files are the page's).
+pub fn programs_own(file: &str) -> Option<String> {
+    let f = file.trim().replace('\\', "/");
+    let relative = !(f.is_empty() || f.starts_with('/') || f.as_bytes().get(1) == Some(&b':') || f.contains("://"));
+    let dir = files_folder()?.to_string_lossy().replace('\\', "/");
+    (relative && !dir.is_empty()).then(|| format!("{}/{f}", dir.trim_end_matches('/')))
+}
+
+/// `read(file)` as RapidQ reads it — the current folder's file — and, when
+/// there is no such file there, `read` of the program's own copy
+/// ([`programs_own`]): a built app started from a terminal or a script in
+/// another folder still finds the files it came with. Additive: a file in
+/// the current folder always wins. The error is the first read's. One rule
+/// for the data links (`RCSV`, `RJson`: `datascience::link::read_beside`) and
+/// the pictures (`objects::read_picture`).
+pub fn read_or_programs_own<T>(file: &str, read: impl Fn(&str) -> Result<T, String>) -> Result<T, String> {
+    match read(file) {
+        Ok(t) => Ok(t),
+        Err(e) => match programs_own(file) {
+            Some(own) => read(&own).map_err(|_| e),
+            None => Err(e),
+        },
+    }
+}
+
 /// `Name.app/Contents/Resources` when `exe` is `Name.app/Contents/MacOS/<exe>`.
 fn app_resources(exe: &std::path::Path) -> Option<std::path::PathBuf> {
     let macos = exe.parent()?;
@@ -229,5 +257,23 @@ mod tests {
         assert_eq!(query_args(""), Vec::<String>::new());
         assert_eq!(query_args("x%2"), vec!["x%2"]);
         assert_eq!(query_args("%C3%A9"), vec!["é"]);
+    }
+
+    /// The current folder's file first, then the program's own copy (this
+    /// test executable's folder: no program file is set in tests).
+    #[test]
+    fn the_programs_own_copy_when_the_current_folder_has_none() {
+        let dir = files_folder().unwrap().to_string_lossy().replace('\\', "/");
+        let own = format!("{}/art/logo.svg", dir.trim_end_matches('/'));
+        assert_eq!(programs_own("art\\logo.svg").as_deref(), Some(own.as_str()));
+        for not in ["/etc/hosts", "C:\\x\\y.png", "https://x/y.png", ""] {
+            assert_eq!(programs_own(not), None, "{not}");
+        }
+        let only_own = |f: &str| if f == own { Ok("own") } else { Err(format!("no {f}")) };
+        assert_eq!(read_or_programs_own("art/logo.svg", only_own), Ok("own"));
+        let both = |f: &str| Ok::<_, String>(if f == own { "own" } else { "here" });
+        assert_eq!(read_or_programs_own("art/logo.svg", both), Ok("here"), "the current folder's file wins");
+        assert_eq!(read_or_programs_own("/abs/logo.svg", only_own), Err("no /abs/logo.svg".to_string()), "the first read's error");
+        assert_eq!(read_or_programs_own("gone.png", only_own), Err("no gone.png".to_string()));
     }
 }

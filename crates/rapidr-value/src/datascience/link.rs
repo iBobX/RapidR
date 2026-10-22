@@ -831,19 +831,7 @@ fn ensure_at(id: &str, depth: u8) {
 /// for "people.csv", as the designer does; a built app the one it came
 /// with: `command_line::files_folder`, a macOS app's Contents/Resources).
 pub fn read_beside(file: &str) -> Result<String, String> {
-    match frame::read_text(file) {
-        Ok(t) => Ok(t),
-        Err(e) => {
-            let f = file.replace('\\', "/");
-            let relative = !(f.starts_with('/') || f.as_bytes().get(1) == Some(&b':') || f.contains("://"));
-            let dir = crate::command_line::files_folder().map(|d| d.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-            if relative && !dir.is_empty() {
-                frame::read_text(&format!("{}/{f}", dir.trim_end_matches('/'))).map_err(|_| e)
-            } else {
-                Err(e)
-            }
-        }
-    }
+    crate::command_line::read_or_programs_own(file, frame::read_text)
 }
 
 /// Why file `file` couldn't be read, in plain words (`e`: the system's

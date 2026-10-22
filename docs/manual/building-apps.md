@@ -78,11 +78,19 @@ listing them.
 | Windows | beside the `.exe` | the `.exe`'s folder (Explorer starts it there) |
 | Linux | `Name.AppDir/usr/bin`, beside the program | `usr/bin` (a launcher starts it in your home folder: the app moves to its own files) |
 
-Started from a terminal, a program keeps the terminal's folder — as a
+Started from a terminal or a script, a program keeps that folder — as a
 console program always does — so `"staff.csv"` and `"art/logo.svg"` are
-the ones in the folder you're in; an `RCSV` or `RJson` that finds no such
-file there reads the one the app came with, and translations are always
-read from the app's own `lang` folder. `$RESOURCE` files are built into the program and
+first looked for in the folder you're in, as RapidQ does. When that folder
+has no such file, these read the one the app came with:
+
+- an `RCSV` or `RJson`'s file;
+- pictures: `RImage.Load` / `LoadFromFile`, a `BMP` (an image's, a
+  button's), an `Icon`, an `RImageList`'s `AddBMPFile` / `AddICOFile`, a
+  toolbar's pictures, a DirectX image list's or texture's file.
+
+A file in the current folder always wins. `FILEEXISTS` and the file
+commands (`OPEN`, `KILL` …) still look only where RapidQ looks.
+Translations are always read from the app's own `lang` folder. `$RESOURCE` files are built into the program and
 don't need any of this.
 
 The app's own folder may be read-only — an app in `/Applications`, an
