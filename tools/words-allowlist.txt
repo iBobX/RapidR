@@ -12,6 +12,10 @@
 # KEEP means: nominative and necessary (a font's name, a platform's build
 # tool, a file format's name, legal and history text, test fixture data).
 
+# ---- the check itself (its word list and this file are made of the words) ----
+tools/check_words.py ::
+tools/words-allowlist.txt ::
+
 # ---- legal analysis and history (the words are the subject) ----
 # The RapidQ review, the clean-room record and the trademark analysis name the
 # rights holders and products RapidQ used.

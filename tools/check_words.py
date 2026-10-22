@@ -3,8 +3,8 @@
 RapidR!!!"): no other IDEs or products as models or comparisons in the code
 comments, docs, manual, UI strings or plans.
 
-This check fails when one of those product words turns up in a tracked text
-file outside tools/words-allowlist.txt. Run it from anywhere:
+This check fails when one of those product words turns up in a text file
+(tracked, or new and not ignored) outside tools/words-allowlist.txt. Run it from anywhere:
 
     python3 tools/check_words.py          the check (exit 1 on a new hit)
     python3 tools/check_words.py --list   every allowed hit, with its reason
@@ -45,7 +45,7 @@ MAX_BYTES = 6 * 1024 * 1024
 
 def tracked_files():
     try:
-        out = subprocess.run(["git", "ls-files", "-z", "--"] + SCAN_DIRS + SCAN_FILES,
+        out = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"] + SCAN_DIRS + SCAN_FILES,
                              cwd=ROOT, capture_output=True, check=True).stdout
         return [p for p in out.decode("utf-8", "replace").split("\0") if p]
     except (OSError, subprocess.CalledProcessError):
