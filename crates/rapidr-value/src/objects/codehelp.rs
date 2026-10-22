@@ -337,6 +337,41 @@ impl Helpers {
         confined(folder, value)
     }
 
+    /// The folder files are read from: ProjectFolder, else `file`'s (the
+    /// code file's) folder.
+    pub fn folder(&self, file: &str) -> String {
+        if !self.project_folder.is_empty() {
+            return self.project_folder.clone();
+        }
+        std::path::Path::new(file).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+    }
+
+    /// Whether the file `value` names is there, inside `folder` (`None`:
+    /// it can't be told — a URL, a name reaching outside the project, which
+    /// is never looked at). Remembered a while.
+    pub fn file_there(&self, folder: &str, value: &str) -> Option<bool> {
+        if self.listed(value) == Some(true) {
+            return Some(true);
+        }
+        let path = confined(folder, value)?;
+        let key = (folder.to_string(), value.to_string());
+        if let Some(v) = THERE.with(|t| t.borrow().get(&key).copied()) {
+            return Some(v);
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        let there = std::path::Path::new(&path).is_file() || crate::objects::read_file(&path).is_ok();
+        #[cfg(target_arch = "wasm32")]
+        let there = crate::objects::read_file(&path).is_ok();
+        THERE.with(|t| {
+            let mut t = t.borrow_mut();
+            if t.len() > 512 {
+                t.clear();
+            }
+            t.insert(key, there);
+        });
+        Some(there)
+    }
+
     /// Whether the project's list (when there is one) has `value`.
     pub fn listed(&self, value: &str) -> Option<bool> {
         if self.project_files.is_empty() {
@@ -392,6 +427,16 @@ impl Helpers {
         }
         out
     }
+}
+
+thread_local! {
+    /// (folder, a file's name) → whether it is there (Helpers::file_there).
+    static THERE: std::cell::RefCell<std::collections::HashMap<(String, String), bool>> = std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+/// Forgets which files were there (a file saved, added or removed).
+pub fn forget_files() {
+    THERE.with(|t| t.borrow_mut().clear());
 }
 
 /// The names a line of code uses (outside strings and `'` comments).

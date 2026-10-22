@@ -1,7 +1,9 @@
 //! The colour editor (docs/code-helpers-plan.md H1): a hue wheel around a
 //! saturation-and-brightness square, the Red, Green, Blue and Hex fields,
 //! the colour's name in words (and its constant's), the old colour beside
-//! the new, the project's own colours and the standard ones as a palette.
+//! the new, the project's own colours, the standard ones and the system's
+//! (they follow the theme) as a palette — the Properties panel's colour
+//! editor too.
 //! Colour is never the only cue: the numbers and the name are always there.
 //!
 //! Keys: Tab / Shift+Tab through the wheel, the square, the fields, the
@@ -19,7 +21,7 @@ use rapidr_value::objects::codehelp::{color_said, color_words};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
-use rapidr_value::panels::inspector::values::{color_hex, color_name, color_value, is_system_color, STANDARD_COLORS};
+use rapidr_value::panels::inspector::values::{color_hex, color_name, color_value, is_system_color, STANDARD_COLORS, SYSTEM_COLORS};
 
 use super::field::{Accept, Field};
 use super::{button, Look, Picked};
@@ -119,6 +121,7 @@ impl ColorEd {
         }
         let n_project = palette.len();
         palette.extend(STANDARD_COLORS.iter().filter_map(|n| color_value(n)));
+        palette.extend(SYSTEM_COLORS.iter().filter_map(|n| color_value(n)));
         let shown = Self::shown_of(value);
         let (h, s, v) = rgb_to_hsv(shown);
         let mut e = ColorEd {
@@ -214,7 +217,7 @@ impl ColorEd {
     }
 
     pub fn height(&self) -> i64 {
-        let rows = 2 + i64::from(self.project > 0);
+        let rows = 2 + 3 + i64::from(self.project > 0);
         46 + WHEEL + 14 + rows * CELL + 12 + 30 + 12
     }
 
@@ -238,11 +241,15 @@ impl ColorEd {
     /// Swatch `i`'s cell.
     fn cell(&self, i: usize) -> Rect {
         let top = 46 + WHEEL + 14;
+        let p = usize::from(self.project > 0);
         let (row, col) = if i < self.project {
             (0, i)
-        } else {
+        } else if i < self.project + STANDARD_COLORS.len() {
             let k = i - self.project;
-            (i64::from(self.project > 0) as usize + k / 8, k % 8)
+            (p + k / 8, k % 8)
+        } else {
+            let k = i - self.project - STANDARD_COLORS.len();
+            (p + 2 + k / 8, k % 8)
         };
         (12 + 70 + col as i64 * CELL, top + row as i64 * CELL, CELL, CELL)
     }
@@ -423,7 +430,9 @@ impl ColorEd {
         if self.project > 0 {
             p.text((ox + 12, top + (CELL - th) / 2, 68, th), "Project", font, look.dim, Place::TopLeft);
         }
-        p.text((ox + 12, top + CELL * i64::from(self.project > 0) + (CELL - th) / 2, 68, th), "Standard", font, look.dim, Place::TopLeft);
+        let pr = i64::from(self.project > 0);
+        p.text((ox + 12, top + CELL * pr + (CELL - th) / 2, 68, th), "Standard", font, look.dim, Place::TopLeft);
+        p.text((ox + 12, top + CELL * (pr + 2) + (CELL - th) / 2, 68, th), "System", font, look.dim, Place::TopLeft);
         for (i, &c) in self.palette.iter().enumerate() {
             let r = at(self.cell(i));
             p.round((r.0 + 2, r.1 + 2, r.2 - 4, r.3 - 4), 3.0, Some(Self::shown_of(c)), Some(look.border_strong), 1.0);

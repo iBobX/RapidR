@@ -108,9 +108,9 @@ impl Kind {
     }
 
     /// A row of this kind opens into parts (a set's flags, a font's parts,
-    /// a list's lines, a colour's picker).
+    /// a list's lines).
     pub fn has_parts(&self) -> bool {
-        matches!(self, Kind::Set(_) | Kind::Font | Kind::Strings | Kind::Columns | Kind::Color)
+        matches!(self, Kind::Set(_) | Kind::Font | Kind::Strings | Kind::Columns)
     }
 
     /// Its value is picked from a dropped list.
@@ -118,9 +118,10 @@ impl Kind {
         matches!(self, Kind::Enum(_) | Kind::Component(_) | Kind::Bool | Kind::Field | Kind::Choices(_))
     }
 
-    /// It has a "…" button (OnEditorRequest).
+    /// It has a "…" button: the shared value editor (a colour's, a
+    /// font's: the kernel's value_edit), else OnEditorRequest.
     pub fn ellipsis(&self) -> bool {
-        matches!(self, Kind::File { .. } | Kind::Editor(_) | Kind::Font | Kind::Strings | Kind::Columns)
+        matches!(self, Kind::File { .. } | Kind::Editor(_) | Kind::Font | Kind::Strings | Kind::Columns | Kind::Color)
     }
 
     /// Its value is typed in place (else only picked or toggled).

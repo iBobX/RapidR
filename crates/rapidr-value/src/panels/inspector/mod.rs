@@ -112,8 +112,6 @@ pub enum Hover {
     ViewButton,
     /// An anchor's pin (0 left, 1 top, 2 right, 3 bottom).
     Pin(usize),
-    /// A colour picker's swatch.
-    Swatch(usize),
 }
 
 /// The user's state of an inspector (the kernel changes it directly).
@@ -128,8 +126,6 @@ pub struct Ui {
     pub hover: Option<Hover>,
     /// The anchors editor's focused pin (0 left, 1 top, 2 right, 3 bottom).
     pub pin: usize,
-    /// The colour picker's focused swatch.
-    pub swatch: usize,
     /// The divider dragged: where it was pressed, NameWidth then.
     pub drag: Option<(i64, i64)>,
     /// A value refused: its row's key and why.
@@ -309,7 +305,7 @@ impl Inspector {
             let mut lines = values::lines(&current.to_string_val());
             match line {
                 "+" => lines.push(text.to_string()),
-                "pins" | "picker" => return Ok(whole(values::parse(&p.kind, text)?)),
+                "pins" => return Ok(whole(values::parse(&p.kind, text)?)),
                 n => {
                     let n: usize = n.parse().map_err(|_| "No such line")?;
                     *lines.get_mut(n).ok_or("No such line")? = text.to_string();

@@ -1413,7 +1413,8 @@ impl CodeEditor {
                 let line = buf.line_of(p.head);
                 let (a, b) = (buf.line_start(line), buf.line_end(line));
                 let text = buf.line_text(line).into_owned();
-                v_str(&self.helpers.describe_line(a, b, &text, &|h| self.helpers.listed(&h.value)))
+                let folder = self.helpers.folder(&self.file_name);
+                v_str(&self.helpers.describe_line(a, b, &text, &|h| self.helpers.file_there(&folder, &h.value)))
             }
             "helpereditortext" => v_str(&self.helpers.editor_text),
             "linevaluestext" => {

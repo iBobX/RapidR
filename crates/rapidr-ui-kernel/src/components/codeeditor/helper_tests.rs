@@ -308,3 +308,88 @@ fn a_missing_picture_is_marked_and_files_stay_in_the_project() {
     assert_eq!(super::helpers::file_there(&h, &folder, "/etc/hosts"), None, "outside the project: not even looked at");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// Typing latency on a 4,500-line file (docs/preview4-plan.md S7, the
+/// helpers' budget: within 5% of the editor without them): a key typed in
+/// the middle of the file and the frame painted, 300 times, with the
+/// helpers off and with a helper on every line (a colour mark and the
+/// argument names, about what RapidRWebServer's code has). The text is the
+/// files of the folder RAPIDR_BENCH_DIR (its .rr files joined: the 4,500
+/// lines of Preview 4's project), else 4,500 made-up lines.
+///
+///   cargo test --release -p rapidr-ui-kernel typing_latency -- --ignored --nocapture
+#[test]
+#[ignore]
+fn typing_latency() {
+    let text = std::env::var("RAPIDR_BENCH_DIR")
+        .ok()
+        .and_then(|d| {
+            let mut files: Vec<_> = std::fs::read_dir(d).ok()?.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|e| e == "rr")).collect();
+            files.sort();
+            Some(files.iter().filter_map(|p| std::fs::read_to_string(p).ok()).collect::<Vec<_>>().join("\n"))
+        })
+        .unwrap_or_else(|| (0..4500).map(|i| format!("    Canvas.FillRect {i}, 10, 200, 40, RGB({}, 130, 20) ' row {i}", i % 255)).collect::<Vec<_>>().join("\n"));
+    let lines = text.lines().count();
+    // (a helper or more on every line: a colour mark after the line's
+    // first `(…)` group or its end, an argument name before its first number)
+    let sites = |text: &str| -> Vec<HelperSite> {
+        let mut out = Vec::new();
+        let mut at = 0;
+        for line in text.split_inclusive('\n') {
+            let body = line.trim_end_matches('\n');
+            if let Some(k) = body.find(|c: char| c.is_ascii_digit()) {
+                let mut h = HelperSite::new(HelperKind::ArgName, at + k, at + k + 1);
+                h.label = "x1".into();
+                h.flag = true;
+                out.push(h);
+            }
+            if !body.trim().is_empty() {
+                let end = body.find(')').map_or(body.len(), |k| k + 1);
+                let mut h = HelperSite::new(HelperKind::Color, at + end.saturating_sub(1).min(body.len()), at + end);
+                h.value = "1344255".into();
+                h.form = "rgb".into();
+                out.push(h);
+            }
+            at += line.len();
+        }
+        out
+    };
+    let mut report = Vec::new();
+    for level in ["off", "helpful"] {
+        let id = format!("bench{level}");
+        let (mut s, mut f, mut ts) = form(&id, &text);
+        f.focus_id(&s, &id);
+        with_code_mut(&id, |c| {
+            c.set("helpers", &v_str(level));
+            if level != "off" {
+                let all = sites(&c.text());
+                c.helpers.set_sites(all, None);
+            }
+        });
+        f.paint(&s, &mut ts, 2.0);
+        s.call(&id, "gotoline", &[v_int((lines / 2) as i64)]);
+        f.paint(&s, &mut ts, 2.0);
+        key(&mut f, &s, &mut ts, 35, "", Mods::NONE);
+        f.paint(&s, &mut ts, 2.0);
+        let mut times = Vec::new();
+        for k in 0..300 {
+            let t = std::time::Instant::now();
+            if k % 2 == 0 {
+                key(&mut f, &s, &mut ts, 65, "a", Mods::NONE);
+            } else {
+                key(&mut f, &s, &mut ts, 8, "", Mods::NONE);
+            }
+            f.paint(&s, &mut ts, 2.0);
+            times.push(t.elapsed().as_secs_f64() * 1000.0);
+        }
+        times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let (median, p95) = (times[times.len() / 2], times[times.len() * 95 / 100]);
+        let n = with_code(&id, |c| c.helpers.sites.len()).unwrap();
+        report.push((level, median, p95, n));
+    }
+    for (level, median, p95, n) in &report {
+        println!("[typing] {lines} lines, helpers {level} ({n} sites): median {median:.3} ms, p95 {p95:.3} ms per key and frame");
+    }
+    let (off, on) = (report[0].1, report[1].1);
+    println!("[typing] helpers on / off: {:.1}%", (on / off - 1.0) * 100.0);
+}

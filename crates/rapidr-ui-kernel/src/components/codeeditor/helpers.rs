@@ -54,6 +54,8 @@ pub fn fetch(x: &mut Ctx) {
     }
     let file = x.file();
     let sites = service::with(|s| s.helpers(&file)).unwrap_or_default();
+    // (files come and go: looked for again, the next time they show)
+    codehelp::forget_files();
     // (the line being typed on keeps its decorations while the caret is there)
     let head = x.c.doc.selections().primary().head;
     let buf = x.c.doc.buffer();
@@ -75,43 +77,17 @@ fn line_span(x: &Ctx, line: usize) -> (usize, usize) {
 thread_local! {
     /// (folder, value) → the thumbnail (`None`: not a picture, or not there).
     static THUMBS: RefCell<HashMap<(String, String), Option<Arc<Picture>>>> = RefCell::new(HashMap::new());
-    /// (folder, value) → whether the file is there.
-    static THERE: RefCell<HashMap<(String, String), bool>> = RefCell::new(HashMap::new());
 }
 
 /// The folder files are read from: ProjectFolder, else the code file's.
 pub fn folder_of(x: &Ctx) -> String {
-    if !x.c.helpers.project_folder.is_empty() {
-        return x.c.helpers.project_folder.clone();
-    }
-    std::path::Path::new(&x.c.file_name).parent().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+    x.c.helpers.folder(&x.c.file_name)
 }
 
 /// Whether the file a site names is there (`None`: it can't be told — a
-/// URL, outside the project).
+/// URL, outside the project): the model's, remembered.
 pub fn file_there(h: &Helpers, folder: &str, value: &str) -> Option<bool> {
-    if let Some(listed) = h.listed(value) {
-        if listed {
-            return Some(true);
-        }
-    }
-    let path = codehelp::confined(folder, value)?;
-    let key = (folder.to_string(), value.to_string());
-    if let Some(v) = THERE.with(|t| t.borrow().get(&key).copied()) {
-        return Some(v);
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    let there = std::path::Path::new(&path).is_file();
-    #[cfg(target_arch = "wasm32")]
-    let there = rapidr_value::objects::read_file(&path).is_ok();
-    THERE.with(|t| {
-        let mut t = t.borrow_mut();
-        if t.len() > 512 {
-            t.clear();
-        }
-        t.insert(key, there);
-    });
-    Some(there)
+    h.file_there(folder, value)
 }
 
 /// A picture file's thumbnail (its longest side [`THUMB`] pixels), read
