@@ -268,7 +268,8 @@ components of your program that fit.
 The line the caret is on shows a short help at its end, in grey: what the
 call or the property does. Calls with several numbers or texts show each
 argument's name before it, as a small grey label (`x1:`, `c:`), so
-`FillRect 0, 0, 107, 60, …` reads as what it means. Hold **Ctrl** a moment
+`FillRect 0, 0, 107, 60, …` reads as what it means (a name that says
+nothing, like `FORMAT$`'s `S$`, gets no label). Hold **Ctrl** a moment
 to see every argument's name; let go and they go.
 
 ![x1:, y1:, x2:, y2: before FillRect's numbers and a swatch after each colour; a sample after the font's name "Inter" and the picture's thumbnail after "logo.svg"; the caret's line ends with "Fills a rectangle from (x1,y1) to (x2,y2)."](images/studio-editor/helpers-names.png)

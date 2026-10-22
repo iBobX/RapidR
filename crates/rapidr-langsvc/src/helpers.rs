@@ -453,6 +453,9 @@ impl Walk<'_> {
         let b = rapidr_lang::builtin(name)?;
         let names = b.param_names();
         let kinds = names.iter().map(|n| b.arg_kind(n)).collect();
+        // (a built-in's one-letter names stand for a type — `S$` a text,
+        // `n` a number — and say nothing a chip could add)
+        let names = names.into_iter().map(|n| if n.trim_end_matches(['$', '%', '&', '#', '!']).chars().count() > 1 { n } else { String::new() }).collect();
         Some(Params { names, kinds, doc: b.doc })
     }
 
@@ -477,8 +480,9 @@ impl Walk<'_> {
             if let Some(k) = params.kinds.get(i).copied().flatten().and_then(ValueKind::parse) {
                 self.value(k, arg, None);
             }
-            // (a variable named as the parameter needs no chip: `x` for x)
-            if matches!(arg, Expression::Identifier(id) if name_key(&id.name) == name_key(name)) {
+            // (a variable named as the parameter needs no chip: `x` for x;
+            // nor does a name that says nothing — `S`, `arg1`)
+            if !tells(name) || matches!(arg, Expression::Identifier(id) if name_key(&id.name) == name_key(name)) {
                 continue;
             }
             let Some((start, end)) = self.here(rapidr_parser::expression_span(arg)) else { continue };
@@ -560,6 +564,15 @@ fn whole(e: &Expression) -> Option<i64> {
         Expression::Unary(u) if u.operator == UnaryOperator::Positive => whole(&u.operand),
         _ => None,
     }
+}
+
+/// Whether a parameter's name tells the reader something: not a
+/// placeholder (`arg1`, `arg2`; a built-in's one-letter `S$` or `n` is
+/// blanked where its names are read).
+fn tells(name: &str) -> bool {
+    let n = name.trim_end_matches(['$', '%', '&', '#', '!']);
+    let rest = n.strip_prefix("arg").or_else(|| n.strip_prefix("Arg")).or_else(|| n.strip_prefix("ARG"));
+    !n.is_empty() && !rest.is_some_and(|r| r.chars().all(|c| c.is_ascii_digit()))
 }
 
 /// A literal argument: a number, a text, True / False.
@@ -700,6 +713,10 @@ mod tests {
         assert!(chips.contains(&("Position", "2", true)), "{chips:?}");
         // (the canvas colour argument is a colour too)
         assert!(of(&all, HelperKind::Color).iter().any(|h| h.value == (1 | 2 << 8 | 3 << 16).to_string()));
+
+        // (names that say nothing get no chip: FORMAT$'s `S$`, `arg1`)
+        let (_, all) = sites("PRINT FORMAT$(\"%d-%d\", 1, 2)\n");
+        assert!(of(&all, HelperKind::ArgName).is_empty(), "{all:#?}");
     }
 
     #[test]
