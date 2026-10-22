@@ -261,6 +261,9 @@ function runDesktop(scene, theme, scale) {
       RAPIDR_TEST_CONTRAST: join(dir, "contrast.json"),
       RAPIDR_PRINT_TO: join(scratch, "prints"),
       RAPIDR_REGISTRY: join(scratch, "registry.reg"),
+      // (never the user's real Keychain: Studio's AI settings read keys)
+      RAPIDR_AI_KEYSTORE: "memory",
+      RAPIDR_KEYSTORE: "memory",
     },
   });
   const file = join(dir, `window-${scene.window || 1}.bmp`);

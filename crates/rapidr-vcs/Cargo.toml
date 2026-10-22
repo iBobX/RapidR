@@ -1,6 +1,6 @@
 [package]
 name = "rapidr-vcs"
-description = "Versions (Git) for RapidR Studio on gitoxide — lane G0's spike (docs/versions-g0.md): start/open, save a version, what changed (hunks), who wrote, experiments, bring into, share with a local bare repository. Pure Rust; never runs hooks, filter/diff/merge drivers or the git command."
+description = "Versions (Git) for RapidR Studio on gitoxide, in plain words (docs/versions-plan.md, lane G1): save a version, the timeline, go back, restore a file, experiments, safety points before every risky action, the history with Undo, RAI checkpoints, the secret scan, shared folders in-process. Pure Rust; never runs hooks, filter/diff/merge drivers or the git command."
 edition.workspace = true
 version.workspace = true
 publish = false
@@ -27,13 +27,23 @@ gix = { version = "0.89", default-features = false, features = [
     "blame",
     "merge",
 ] }
+# RapidR's own diff (Myers' paper): the hunks of What changed?, the added
+# lines the secret scan reads. gitoxide's blob diff (gix-imara-diff) is
+# only used inside gitoxide (merges, blame): docs/licensing.md §8 item 6.
+rapidr-diff = { workspace = true }
+# The secret scan's patterns (MIT OR Apache-2.0; already in the tree).
+regex = "1.12"
+# The history of actions, one JSON object per line (MIT OR Apache-2.0;
+# already in the tree).
+serde_json = "1"
 
 [features]
 default = []
 # Remotes over the network (lane G6): HTTPS with the operating system's TLS
 # (reqwest + native-tls, as deny.toml requires: no rustls/ring), SSH through
-# the system's `ssh`. Not used by the spike's tests (no network in tests);
-# here so `cargo deny` and the size measurement see what G6 will add.
+# the system's `ssh`. Not used by the tests (no network in tests); here so
+# `cargo deny` and the size measurement see what G6 will add (G6 replaces
+# reqwest with ureq, decided 2026-10-22).
 network = ["gix/blocking-network-client", "gix/blocking-http-transport-reqwest-native-tls"]
 
 [dev-dependencies]

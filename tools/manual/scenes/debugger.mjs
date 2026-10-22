@@ -25,6 +25,7 @@ const BOTTOM = [0, 568, 1036, 202];
 const WORKBENCH = [0, 64, 1036, 706];
 const BP = "line:11,debug.toggleBreakpoint";
 const HIT = `${BP},run.start,wait,wait,wait`;
+const BP_STATES = "line:14,debug.toggleBreakpoint,line:6,debug.toggleBreakpoint,bpcond:n = 2,line:7,debug.toggleBreakpoint,bphit:3,line:10,debug.toggleBreakpoint,bplog:i is {i},line:12,debug.toggleBreakpoint,bpoff:x,line:11,debug.toggleBreakpoint,run.start,wait,wait,wait,wait";
 
 export const scenes = [
   // (S9: the editing layout — the bottom panel the whole width — and the
@@ -34,6 +35,11 @@ export const scenes = [
   { topic: "debugging", name: "breakpoint-set", open: COUNTER, do: `${BP},wait`, delay: 4, crop: EDITOR },
   { topic: "debugging", name: "breakpoint-hit", open: COUNTER, do: HIT, delay: 6, crop: [0, 0, 1036, 770] },
   { topic: "debugging", name: "breakpoint-condition", open: COUNTER, do: `${BP},debug.editBreakpoint,bpcond:i = 2,wait`, delay: 4, crop: WORKBENCH },
+  // (S10: a breakpoint of each kind — not bound (the empty line 3), a
+  // condition, a hit count, a log message, plain, off — in the margin and
+  // the Breakpoints pane)
+  { topic: "debugging", name: "breakpoint-states", open: COUNTER, do: BP_STATES, delay: 16, crop: [244, 70, 420, 330] },
+  { topic: "debugging", name: "breakpoint-states-pane", open: COUNTER, do: `${BP_STATES},view.breakpoints,wait`, delay: 16, crop: BOTTOM },
   { topic: "debugging", name: "logpoint", open: COUNTER, do: `${BP},bplog:adding {i}: total is {total},run.start,wait,wait,wait,wait`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "step-into", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "watch", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,watch:total + k,watch:n * 100,view.watch,wait`, delay: 7, crop: BOTTOM },
@@ -53,6 +59,9 @@ export const scenes = [
   // constants under one closed item after them)
   { topic: "debugging", name: "variables-include", open: COLOURS, do: "line:7,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables", delay: 6, crop: VARS },
   { topic: "debugging", name: "variables-components", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,expand:C/Form/Components,wait,wait`, delay: 10, crop: VARS },
+  // (S10: a form's properties — its colours with their swatches and names,
+  // its constants by name)
+  { topic: "debugging", name: "variables-colours", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,varpick:C/Form/Cursor,wait`, delay: 10, crop: VARS },
   { topic: "debugging", name: "text-viewer", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,hover:142:3,wait,wait,wait,tipaction:0:view,wait,wait", delay: 8, window: 2 },
   { topic: "debugging", name: "step-into-specific", open: SHOP, do: `${LOOP},into:LineTotal,wait,wait,wait,view.variables`, delay: 8, crop: WORKBENCH },
   // (DARK-FIX: the debugger in the other themes — every pane readable)

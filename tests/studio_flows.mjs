@@ -3068,6 +3068,46 @@ const CASES = [
     contrast: true,
     dump: { "session.stopreason": /^exception$/ },
   },
+  {
+    // (S10) a breakpoint of each kind — not bound to code (the empty line
+    // 3), a condition, a hit count, a log message, plain, off —: each its
+    // own mark in the margin and in the Breakpoints pane, and its name read
+    name: "debug-look-breakpoint-states",
+    open: "tests/fixtures/studio_debug/states.rr",
+    webFiles: ["tests/fixtures/studio_debug/states.rr"],
+    do: "line:14,debug.toggleBreakpoint,line:6,debug.toggleBreakpoint,bpcond:n = 2,line:7,debug.toggleBreakpoint,bphit:3,line:10,debug.toggleBreakpoint,bplog:i is {i},line:12,debug.toggleBreakpoint,bpoff:x,line:11,debug.toggleBreakpoint,run.start,wait,wait,wait,wait,view.breakpoints,wait",
+    delay: 16,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "session.currentline": /^11$/, "bptree.text": /^states\.rr:14  \(no code here: never stops\)\nstates\.rr:6  when n = 2\nstates\.rr:7  hit 3\nstates\.rr:10  log "i is \{i\}"\nstates\.rr:12  \(off\)\nstates\.rr:11$/ },
+    a11y: [
+      [/^states\.rr:14 .*, breakpoint, not bound to code yet$/, "treeitem"],
+      [/^states\.rr:6 .*, conditional breakpoint$/, "treeitem"],
+      [/^states\.rr:7 .*, breakpoint with a hit count$/, "treeitem"],
+      [/^states\.rr:10 .*, log point$/, "treeitem"],
+      [/^states\.rr:12 .*, breakpoint, off$/, "treeitem"],
+      ["states.rr:11, breakpoint", "treeitem"],
+    ],
+  },
+  {
+    // (S10) values read as sentences — their kind, a colour by its name,
+    // an array's count — and the call the program is in
+    name: "debug-values-read",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,expand:C,wait,wait,expand:C/Form,wait,wait",
+    delay: 9,
+    dump: { "varstree.text": /\tColor = -2147483633\n/ },
+    a11y: [
+      ["Locals", "treeitem"],
+      ["count, whole number 3", "treeitem"],
+      [/^notes, text Opening hours/, "treeitem"],
+      ["orders, array 1 to 10, 10 items", "treeitem"],
+      ["Color, colour clBtnFace", "treeitem"],
+      ["Caption, text Shop", "treeitem"],
+    ],
+  },
   // (DARK-FIX, Robert) The designer's anchor pins on a component clicked —
   // filled where it's anchored (Left, Top), hollow where it isn't — in
   // every look; and dataframe.rr's linked data live in the designer: the

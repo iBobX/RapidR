@@ -276,9 +276,25 @@ adding PRINTs to it:
 
 ![Output: adding 1: total is 0, adding 2: total is 2, adding 3: total is 6, then total = 12](images/debugging/logpoint.png)
 
-Each kind has its own mark in the margin: a red dot; a dot with a bar for a
-condition or a hit count; a diamond for a log message; a ring when it's
-off or can't stop.
+Each kind has its own mark, the same in the margin and in the Breakpoints
+pane:
+
+| Mark | Breakpoint |
+|---|---|
+| ![](icons/light/actions/breakpoint.svg) | Stops here. |
+| ![](icons/light/actions/breakpoint-conditional.svg) | Stops when its condition (*When*) is true: an equals sign. |
+| ![](icons/light/actions/breakpoint-hit-count.svg) | Stops on its hit count (*Hit*): a number sign. |
+| ![](icons/light/actions/logpoint.svg) | Prints its log message and goes on: a diamond. |
+| ![](icons/light/actions/breakpoint-disabled.svg) | Off: a ring. |
+| ![](icons/light/actions/breakpoint-unverified.svg) | No code on its line, so it never stops: a dashed ring. |
+
+The shapes say it, not only the colours, so they read the same in high
+contrast. A screen reader names each one in the Breakpoints pane
+("counter.rr:6 when n = 2, conditional breakpoint").
+
+![The margin of counter.rr with a breakpoint of each kind: a dashed ring on the empty line 3, = on line 6, # on line 7, a diamond on line 10, a dot on line 11 with the arrow on it, a ring on line 12](images/debugging/breakpoint-states.png)
+
+![The Breakpoints pane listing them, each with its mark](images/debugging/breakpoint-states-pane.png)
 
 ## Stepping
 
@@ -384,12 +400,14 @@ array and its elements; open `(1)` to see the order's fields, then its
 
 ![The data tip of orders, opened down to orders(1).Buyer.Home: Street = "10 Market Street", City = "London"](images/debugging/datatip-tree.png)
 
-- Each row shows a name, `=`, the value — strings in red, numbers in green,
-  TYPEs and components in their own colour — and its type at the right.
-- A value that **changed** since the program last stopped is in **blue**
-  (bold in the tip), in Variables and Watch alike — step through a loop and
-  see which variables the last line ran changed. (The blue is the theme's:
-  a lighter one on the dark theme, cyan in high contrast.)
+- Each row shows what kind of value it is as a small icon, its name, `=`,
+  the value in its kind's colour (the code editor's: numbers, text, True and
+  False, constants) and its type at the right. [How values look](#how-values-look)
+  shows them all.
+- A value that **changed** since the program last stopped is
+  **highlighted** and marked with a small triangle, in Variables and Watch
+  alike — step through a loop and see which variables the last line ran
+  changed. (In high contrast the value is framed instead.)
 - Rest the mouse on a part of a longer name and the tip shows that part:
   `orders(i).Qty`, `Buyer.Name`, `Edit1.Text`. A data tip never runs your
   code: a name that would call a SUB, FUNCTION or method shows nothing.
@@ -422,7 +440,7 @@ program's **Components**: its forms, data frames, timers… each opening to
 the components it holds and its properties. Arrays, TYPEs, components and
 tables open the same way as in a data tip. In an event handler, open
 `Sender` to see the component's properties as they are now. What you open
-stays open from one stop to the next, and changed values are in blue.
+stays open from one stop to the next, and changed values are highlighted.
 
 **Globals** lists your program's own variables first. The constants an
 `$INCLUDE` brings — `RAPIDQ.INC` has nearly five hundred: colours,
@@ -432,13 +450,42 @@ program aren't variables: they aren't listed):
 
 ![Variables > Globals: picked = 255 and warning = "Low on paper", then the closed item $INCLUDE RAPIDQ.INC (484 names)](images/debugging/variables-include.png)
 
-![Variables at the loop's second pass: i = 2 in blue, changed since the first stop (total, further down, too)](images/debugging/variables-changed.png)
+![Variables at the loop's second pass: i = 2 highlighted and marked with a small triangle, changed since the first stop (total, further down, too)](images/debugging/variables-changed.png)
 
 Open **Components** to see the program's forms and other components as
 they are now — here the Shop form, its components and then its
 properties:
 
-![Variables: Components open to Form, its Components group with OrderList, AddBtn, TotalBtn …, then the form's properties](images/debugging/variables-components.png)
+![Variables: Components open to Form, its Components group with OrderList, AddBtn, TotalBtn …, then the form's properties, its colours with swatches](images/debugging/variables-components.png)
+
+### How values look
+
+Variables, Watch and the data tips draw each value the same way: an icon
+for its kind, its name, `=`, then the value in its kind's colour.
+
+| Icon | Kind | Shown as |
+|---|---|---|
+| ![](icons/light/debug/integer.svg) | A whole number (INTEGER, LONG, BYTE …) | `Score = 42` |
+| ![](icons/light/debug/decimal.svg) | A decimal number (SINGLE, DOUBLE) | `Ratio = 0.75` |
+| ![](icons/light/debug/text.svg) | Text (STRING) | `Title = "Hello"`; an empty text as a quiet `""` |
+| ![](icons/light/debug/boolean.svg) | True or False | `Done = True` |
+| ![](icons/light/debug/array.svg) | An array | `ColName = Array(0 TO 64) · 65 items` |
+| ![](icons/light/symbols/type.svg) | A TYPE's value | `p = Point · 2 fields` |
+| ![](icons/light/components/button.svg) | A component (each its own icon, as in the toolbox) | `Sender = Button1 · RButton` |
+| ![](icons/light/symbols/constant.svg) | One of a property's constants | `WindowState = wsMaximized (2)` |
+| ![](icons/light/debug/integer.svg) | A colour | `FontColor = ■ clWindowText`: a swatch, then its name, or `&HBBGGRR` |
+| ![](icons/light/debug/handle.svg) | A handle (a window's, a file's) | `Handle = 133082` |
+| ![](icons/light/debug/empty.svg) | No value yet | `Pending = Empty` |
+| ![](icons/light/debug/locals.svg) ![](icons/light/debug/globals.svg) ![](icons/light/symbols/component.svg) | Locals, Globals, Components | the headings |
+
+A colour's swatch is the colour as the program draws it: `clWindowText` is
+dark in a light theme and light in a dark one.
+
+![Variables: the Shop form's properties — BrushColor and Color with their swatches and clBtnFace, Cursor = crDefault as a constant](images/debugging/variables-colours.png)
+
+ Screen readers read each row
+as a sentence: "FontColor, colour clWindowText", "Title, empty text",
+"ColName, array 0 to 64, 65 items", "Score, whole number 42, changed".
 
 **Changing a value.** Select a value and press **F2** (or click it once
 more after selecting it). Type the new value and press **Enter**; Escape
@@ -464,7 +511,7 @@ stop. Type one in the *Add a watch* box and press Enter — `total + k`,
 the code (or select an expression) and choose Debug ▸ Add Watch; a data
 tip's *watch* button and the Variables' *Add Watch* add one too. F2 on a
 watch changes its expression; Delete removes it. A watch that changed since
-the last stop is in blue.
+the last stop is highlighted.
 
 ![The Watch pane: total + k = 0 (k has no value yet) and n * 100 = 100](images/debugging/watch.png)
 
@@ -485,8 +532,10 @@ of the debug panes beside Output (see
 [Two layouts](#two-layouts-editing-and-debugging)); View ▸ Call Stack
 shows it at any time.
 
-Click a line of the Call Stack to look at that caller: the editor shows its
-line with a grey arrow, and Variables shows its locals.
+The call the program is in has the yellow arrow, as its line in the
+editor does; the calls under it have a call's icon. Click a line of the
+Call Stack to look at that caller: the editor shows its line with a grey
+arrow, and Variables shows its locals.
 
 ![The Call Stack's second line picked: a grey arrow at line 11, where AddUp was called](images/debugging/call-stack-frame.png)
 

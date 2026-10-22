@@ -40,6 +40,10 @@ pub struct TipUi {
     pub text: String,
     /// Where the box goes: its top left (client pixels).
     pub at: (i64, i64),
+    /// The strip it speaks for (client rows: top, bottom), when it does
+    /// (`ComponentKind::tip_strip`: a pane's header): it goes above it, or
+    /// in it beside the mouse.
+    pub strip: Option<(i64, i64)>,
     /// When it shows; when it goes.
     pub due: Option<Instant>,
     pub until: Option<Instant>,
@@ -81,7 +85,13 @@ impl FormUi {
         // (moving from one tip to the next shows it at once, as Windows'
         // "reshow" delay does)
         let wait = millis(if was_shown { "hintshortpause" } else { "hintpause" });
-        self.tip = TipUi { node: hit, text, at: (x.round() as i64 + 2, y.round() as i64 + 22), due: Some(now() + wait), until: None, shown: false };
+        let strip = hit.and_then(|i| {
+            let (ax, ay, _, _) = self.nodes[i].abs;
+            let kind = self.nodes[i].kind?;
+            let (top, bottom) = kind.tip_strip(store, &self.nodes[i].id, x - ax as f64, y - ay as f64)?;
+            Some((ay + top, ay + bottom))
+        });
+        self.tip = TipUi { node: hit, text, at: (x.round() as i64 + 2, y.round() as i64 + 22), strip, due: Some(now() + wait), until: None, shown: false };
     }
 
     /// The focus moved by the keyboard to the focused node: its hint shows
@@ -92,7 +102,7 @@ impl FormUi {
         let (x, y, w, h) = self.nodes[i].abs;
         let text = tip_of(self, store, i, (x + w / 2) as f64, (y + h / 2) as f64);
         if !text.is_empty() {
-            self.tip = TipUi { node: Some(i), text, at: (x, y + h + 4), due: Some(now() + millis("hintpause")), until: None, shown: false };
+            self.tip = TipUi { node: Some(i), text, at: (x, y + h + 4), strip: None, due: Some(now() + millis("hintpause")), until: None, shown: false };
         }
     }
 
@@ -134,11 +144,7 @@ impl FormUi {
         let (w, h) = (tw + 2 * pad_x, th + 2 * pad_y);
         // (inside the window: moved left and up where it would leave it)
         let (cw, ch) = (self.client.0, self.client.1 + self.menu_offset);
-        let x = self.tip.at.0.min(cw - w - 2).max(0);
-        let mut y = self.tip.at.1;
-        if y + h > ch {
-            y = (self.tip.at.1 - h - 28).max(0);
-        }
+        let (x, y) = tip_place(self.tip.at, self.tip.strip, (w, h), (cw, ch));
         let ink = if t.fluent() {
             if t.contrast {
                 p.fill((x, y, w, h), 0x000000);
@@ -160,9 +166,45 @@ impl FormUi {
     }
 }
 
+/// Where a tip `size` big goes in a client area `client` big: under the
+/// mouse (`at`: 22 below it, Windows'), inside the window; a tip that
+/// speaks for a strip (`strip`: its top and bottom) above the strip, or —
+/// no room above — in it, left of the mouse (right, no room there), so it
+/// never covers what's under the strip.
+fn tip_place(at: (i64, i64), strip: Option<(i64, i64)>, (w, h): (i64, i64), (cw, ch): (i64, i64)) -> (i64, i64) {
+    let x = at.0.min(cw - w - 2).max(0);
+    let Some((top, bottom)) = strip else {
+        let y = if at.1 + h > ch { (at.1 - h - 28).max(0) } else { at.1 };
+        return (x, y);
+    };
+    if top - h - 2 >= 0 {
+        return (x, top - h - 2);
+    }
+    let mouse = at.0 - 2;
+    let y = (top + (bottom - top - h) / 2).max(0);
+    let left = mouse - w - 6;
+    (if left >= 0 { left } else { (mouse + 18).min(cw - w - 2).max(0) }, y)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A pane's header tip (Close) never covers the pane's first row: above
+    /// the header, or beside the mouse in it at the window's top.
+    #[test]
+    fn strip_tips_stay_off_the_content() {
+        // (a header from 200 to 224, the mouse on Close at (380, 212))
+        let (x, y) = tip_place((382, 234), Some((200, 224)), (40, 20), (800, 600));
+        assert!(y + 20 <= 200, "above the header: {y}");
+        assert_eq!(x, 382);
+        // (the header at the window's top: in it, left of the mouse)
+        let (x, y) = tip_place((382, 34), Some((0, 24)), (40, 20), (800, 600));
+        assert!(y >= 0 && y + 20 <= 24 && x + 40 <= 380, "({x}, {y})");
+        // (no strip: under the mouse, as before)
+        assert_eq!(tip_place((100, 122), None, (40, 20), (800, 600)), (100, 122));
+        assert_eq!(tip_place((100, 590), None, (40, 20), (800, 600)), (100, 590 - 20 - 28));
+    }
 
     #[test]
     fn deadlines() {

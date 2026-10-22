@@ -527,3 +527,30 @@ Still open:
    from Myers' 1986 paper ("An O(ND) Difference Algorithm and Its
    Variations"), never from Git's xdiff, `gix-imara-diff` or any other
    implementation, and no code or comment is copied from them.
+   *Since 2026-10-22 (lane VERSIONS-1):* that code is `crates/rapidr-diff`,
+   written from the paper (§2's greedy search, §4b's linear-space middle
+   snake), and Versions' own diffs (What changed?, the secret check) and
+   RDiffView use it. Two things remain: (a) `gix-imara-diff` is still
+   compiled into Versions, inside gitoxide, because gix's `blob-diff`
+   (status's rename tracking), `blame` and `merge` features use it — the
+   question stays open until it is answered or those features are replaced
+   (G4 merges, G5 blame); (b) RDiffView's previous Myers module
+   (`rapidr-value/src/objects/diffview/myers.rs`, 2026-10-06) said it
+   followed GNU diff's `compareseq` / `diag` (GPL) and used their variable
+   names and their "too expensive" rule: it was deleted and replaced by
+   `rapidr-diff`, so it ships in nothing built from now on.
+   **The lawyer agent's verdict (2026-10-22): derivative.** It is a
+   line-by-line translation of gnulib's `diffseq.h` / diffutils'
+   `analyze.c`, both GPL-3.0-or-later, Copyright FSF. Its identifiers and
+   GNU-only details match. So **that file, in the commits from 4865e459
+   until its deletion in f00d825a (tags v2.118.0, v2.119.0, v2.120.0), is
+   under GPL-3.0-or-later, not MIT.** It reached the CLI and Studio, the
+   interpreted runners, the web runtime, and native programs built with those
+   versions. Steps:
+   - remove the affected release binaries (Robert);
+   - a CHANGELOG note telling users to rebuild;
+   - no history rewrite: the source stays public and is labelled here;
+   - no relicensing of binaries, and no contact with the FSF unless someone
+     writes, in which case fix within 30 days.
+
+   The record is [legal/review-2026-10-22-gpl-diff.md](legal/review-2026-10-22-gpl-diff.md).

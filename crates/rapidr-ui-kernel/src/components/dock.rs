@@ -405,6 +405,20 @@ impl ComponentKind for DockGroup {
         }
     }
 
+    /// (tooltip.rs) A header's tips sit above the header, never over the
+    /// pane's first row.
+    fn tip_strip(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<(i64, i64)> {
+        let (dock, slot) = slot_of(store, id)?;
+        let font = store.font(&dock);
+        let (w, h) = (store::int(store, id, "width", 0), store::int(store, id, "height", 0));
+        let gr = group_geo(&dock, slot, w, h, &font)?;
+        // (the group's own coordinates, as `hit`'s: its header from 0)
+        match gr.hit(x.floor() as i64, y.floor() as i64)? {
+            GroupHit::Content => None,
+            _ => Some((0, rapidr_value::dock::geometry::HEADER)),
+        }
+    }
+
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
         let theme = p.theme();
         let Some((dock, slot)) = slot_of(cx.store, cx.id) else {
@@ -575,6 +589,19 @@ impl ComponentKind for DockDocs {
             DocHit::View(g, k) => d.groups[g].switch.get(k).map(|(_, c, _)| c.clone()),
             _ => None,
         }
+    }
+
+    /// (tooltip.rs) A tab's tips sit above the tab strip, never over the
+    /// document.
+    fn tip_strip(&self, store: &dyn Store, id: &str, x: f64, y: f64) -> Option<(i64, i64)> {
+        let dock = docs_dock(store, id)?;
+        let d = manager::with_mut(&dock, |m| m.geometry().documents.clone())?;
+        let g = match d.hit(x.floor() as i64, y.floor() as i64)? {
+            DocHit::Tab(g, _) | DocHit::Close(g, _) | DocHit::View(g, _) => g,
+            _ => return None,
+        };
+        let dg = d.groups.get(g)?;
+        Some((dg.rect.1, dg.rect.1 + rapidr_value::dock::geometry::DOC_TABS))
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {

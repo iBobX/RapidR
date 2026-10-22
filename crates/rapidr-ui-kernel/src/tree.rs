@@ -37,6 +37,9 @@ pub struct NodeUi {
     pub design: Option<Box<crate::components::design::View>>,
     /// An RMARKDOWNVIEW's text laid out (components/panels/markdown.rs).
     pub markdown: Option<Box<crate::components::panels::markdown::Laid>>,
+    /// An RDIFFVIEW's form view: the form before and after, drawn as the
+    /// designer draws it (components/design.rs's `Picture`).
+    pub pictures: Option<Box<[crate::components::design::Picture; 2]>>,
 }
 
 pub struct Node {
@@ -361,8 +364,14 @@ impl FormUi {
                     (None, None) => None,
                 }
             }
-            // (a component of a form shown in a designer on this one)
-            None => self.nodes.iter().filter_map(|n| n.ui.design.as_ref()).find_map(|v| v.editor_layout_at(id, para)),
+            // (a component of a form shown in a designer on this one, or in
+            // a diff view's pictures of a form)
+            None => self
+                .nodes
+                .iter()
+                .filter_map(|n| n.ui.design.as_ref())
+                .find_map(|v| v.editor_layout_at(id, para))
+                .or_else(|| self.nodes.iter().filter_map(|n| n.ui.pictures.as_ref()).flat_map(|p| p.iter()).find_map(|p| p.editor_layout_at(id, para))),
         }
     }
 }

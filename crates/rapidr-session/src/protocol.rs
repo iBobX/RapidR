@@ -253,6 +253,13 @@ pub struct Variable {
     /// A table's row: its cells, as text.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cells: Vec<String>,
+    /// What the language registry knows about a component's property
+    /// beyond its value, comma-separated: `color` (RapidQ's BGR, a system
+    /// colour), `handle`, `const:alClient` (the property's constant with
+    /// this value), `readonly`. How the debugger shows it (a swatch, a
+    /// constant's name) and whether it can be set.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub hint: String,
 }
 
 /// A call Step Into Specific can go into.

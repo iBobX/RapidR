@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Legal
+- **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
+
 ### Fixed
 - **Tab names are no longer cut short while there is room for them** (found
   in high contrast, where the debugging layout's "Breakpoints (2)" showed as
@@ -71,6 +74,61 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and its Open Recent submenu on both hosts, and `tests/web_a11y.mjs`
   compares the kernel's menu nodes with Chrome's on the new `menus_open`
   fixture.
+- **Versions, the engine (lane G1, docs/versions-plan.md).** `rapidr-vcs`
+  speaks plain words over gitoxide: save a version (every changed file or
+  some), the timeline, what changed, go back (a new version with the old
+  files, never a destructive reset), restore one file, experiments whose
+  switch rewrites only the files that differ, shared folders (Get latest /
+  Share, in-process). **Nothing is ever lost**: a safety point
+  (`refs/rapidr/safety/<n>`, the whole working folder, unsaved changes
+  included) before every risky action; a history of actions
+  (`.git/rapidr/history.jsonl`) whose Undo takes the last one back and
+  refuses, changing nothing, when it would overwrite newer work; RAI's
+  checkpoints (`refs/rapidr/checkpoints/<n>`) and going back to them.
+  **The secret check** stops a save whose added lines look like a private
+  key, an API key, an access token or a password in the code, with the file,
+  the line and the secret masked (RapidR's own patterns), until the person
+  saves anyway. A project owned by another user account is refused for
+  changes with the reason, and opens read-only on request. Errors in plain
+  words, the technical cause kept apart. Measured (release): 1,000 versions'
+  timeline 49 ms, status 0.6 ms. Not in Studio yet (the panels are G3).
+- **RapidR's own diff engine, `rapidr-diff`** (lane G2): Myers' O(ND)
+  algorithm in linear space, written from the 1986 paper
+  (docs/licensing.md §8 item 6), line hunks with unified numbering, word
+  marks, CSV table diffs, form diffs in words; no dependencies, builds for
+  the web. A 4,500-line file diffs in 0.25–16 ms (release; the worst case is
+  the file reversed). RDiffView, Versions and RAI share it.
+- **RDiffView's form and table views** (lane G2). `Kind = "form"` compares
+  two versions of a program's CREATE blocks: the form before and after,
+  drawn as the designer draws it, the changed components outlined in the
+  theme's added / removed / changed colours, then the changes listed
+  ("GreetButton: Caption "&Greet" → "&Say hello"; Width 90 → 110", "Added
+  Hint (RLabel)"). `Kind = "table"` compares two CSV files as one table:
+  rows matched by a unique first column (else by content), a changed row as
+  its old values over its new ones with the changed cells marked, added
+  and removed columns tinted, a sticky header and gutter, Left / Right and
+  Shift+wheel across wide tables. New `ChangeCount`, `Summary` (the changes
+  in words, one per line; also the screen reader's list) and `HasHeader`.
+  The example `examples/studio/diff_views.rr`, the manual's
+  [Versions](docs/manual/versions.md).
+- **A debugger that looks as good as it works** (Preview 4 S10). In
+  RapidR Studio, Variables, Watch, the Call Stack, the Breakpoints pane and
+  the data tips draw each value with its kind's icon, the value in its
+  kind's colour (the code editor's), an empty text as a quiet `""`, a colour
+  as a swatch and its name (`FontColor = ■ clWindowText`), an array with its
+  count (`ColName = Array(0 TO 64) · 65 items`), a property's constant by
+  name (`WindowState = wsMaximized (2)`); a value that changed since the
+  last stop is highlighted and marked. Screen readers hear each row as a
+  sentence ("FontColor, colour clWindowText"). The margin and the
+  Breakpoints pane mark each breakpoint by its kind: a condition `=`, a hit
+  count `#` (no longer the same as a condition), a log point's diamond,
+  off a ring, not bound to code a dashed ring — the shapes tell them apart
+  in high contrast too. A pane header's tooltip (Close, Auto Hide) shows
+  above the header instead of over the pane's first row. For your own
+  programs: `TreeView.SetItemValue i, Name, Kind, Value [, Count [, Hint]]`
+  shows a tree node as a value, and `Item(i).Changed` marks it; the
+  debugger session gives each property's hint (`color`, `handle`,
+  `const:…`, `readonly`). See [the manual](docs/manual/debugging.md#how-values-look).
 - **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
   RapidR Database Studio and every program). `Save(Service, Name, Value)`,
   `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS
@@ -261,7 +319,7 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (`crates/rapidr-cli/tests/lang_truth.rs`); `--verbose` lists what is not run
   and why, `--emit DIR` writes the `expect` programs for the other runtimes.
 - **The debugger's own icons and a value row that draws a value as what it
-  is** (Preview 4 S10, phase 1; Studio's panes take them up in phase 2). A
+  is** (Preview 4 S10, phase 1: the icons and the UI kernel's `value_view`). A
   new two-tone icon category, `debug/`, our own drawings hinted at 16, 24
   and 32 px in every look: whole and decimal numbers, text, True/False,
   arrays, handles, empty, a FUNCTION's result, and the sections Locals,
@@ -375,6 +433,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `git fsck`, and agrees with `git status`, `git diff` and `git blame`.
 
 ### Changed
+- **RDiffView marks changed words, not characters**, and its diff is the
+  shared engine's (`rapidr-diff`): a run of only added or only removed lines
+  now sits with its block (a new SUB with its trailing blank line). The old
+  Myers module in `rapidr-value`, which followed GNU diff's structure, is
+  gone (docs/licensing.md §8 item 6).
 - **The `.rr` examples no longer include RAPIDQ.INC**: a RapidR program has
   RapidQ's constants built in, so the 18 examples that still had
   `$INCLUDE "RAPIDQ.INC"` (and the RMarkdownView snippet in the manual) lose the

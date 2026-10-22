@@ -1,0 +1,13 @@
+[package]
+name = "rapidr-diff"
+description = "RapidR's own diff engine (Versions lane G2, shared with RAI's review): Myers' O(ND) algorithm written from the 1986 paper, line hunks with context, word-level highlights, CSV table diffs and form (CREATE block) diffs. No dependencies; builds for the web."
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# No dependencies on purpose: the diff is RapidR's own (docs/licensing.md
+# §8, item 6: written from Myers' paper, never from another
+# implementation), GUI-free and wasm-safe, so RDIFFVIEW (every runtime),
+# Versions (rapidr-vcs) and RAI share one engine.
+[dependencies]

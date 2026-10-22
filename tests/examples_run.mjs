@@ -112,6 +112,9 @@ export const cases = [
     expect: ["answer.caption=Opened pantry.rr"] },
   { file: "gui/links.rr", runtimes: ["run", "interp", "native", "web"], events: "link3.__key_32", dump: "answer.caption",
     expect: ["answer.caption=Opened stopwatch.rr"] },
+  // (Add a point twice: the score 2, marked changed; the values' plain text)
+  { file: "gui/value_tree.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick,addbtn.onclick", dump: "said.caption,values.text",
+    expect: ["said.caption=Score = 2 (changed)", "\tBackground = -2147483633", "\tScores = Array(1 TO 10)"] },
   { file: "gui/menus.rr", runtimes: ["run", "interp", "native", "web"], events: "wrapitem.onclick,smallitem.onclick,upperitem.onclick", dump: "status.simpletext,text.text,wrapitem.checked,largeitem.checked",
     expect: ["status.simpletext=Text size 9", "text.text=RIGHT-CLICK ME FOR THE POP-UP MENU.", "wrapitem.checked=0", "largeitem.checked=0"] },
   { file: "gui/dialogs.rr", runtimes: ["run", "interp", "native", "web"], events: "colourbtn.onclick,askbtn.onclick", dump: "answer.caption,sample.color",
@@ -207,6 +210,15 @@ export const cases = [
   // preview switched on by its button)
   { file: "studio/form_designer.rr", runtimes: ["run", "interp", "native", "web"], events: "bpreview.onclick", dump: "ds.compcount,ds.previewwidth,ds.previewheight",
     expect: ["ds.compcount=6", "ds.previewwidth=440", "ds.previewheight=300"] },
+  // (RDiffView's views, Versions G2: the text view at the start, then the
+  // table; the form view where the designer reads forms — `rapidr run`
+  // and the web; a built executable has no designer and says so)
+  { file: "studio/diff_views.rr", runtimes: ["run", "interp", "native", "web"], dump: "diff.kind,diff.hunkcount,info.caption",
+    expect: ["diff.kind=text", "diff.hunkcount=1", "info.caption=1 change(s): Line 2 changed"] },
+  { file: "studio/diff_views.rr", runtimes: ["run", "interp", "native", "web"], events: "btable.onclick", dump: "diff.kind,diff.changecount,info.caption",
+    expect: ["diff.kind=table", "diff.changecount=4", "info.caption=4 change(s): Added column: City ..."] },
+  { file: "studio/diff_views.rr", runtimes: ["run", "web"], events: "bform.onclick", dump: "diff.kind,diff.changecount,info.caption",
+    expect: ["diff.kind=form", "diff.changecount=2", "info.caption=2 change(s): Go: Caption \"OK\" → \"Say hello\"; Width = 110 (new) ..."] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },

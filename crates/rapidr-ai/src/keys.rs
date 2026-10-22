@@ -72,15 +72,50 @@ impl Source {
 
 /// Whether keys and programs' secrets are kept in this process's memory
 /// only: `RAPIDR_AI_KEYSTORE=memory` (or `RAPIDR_KEYSTORE=memory`), the
-/// test keystore — the user's keychain is never touched.
+/// test keystore — the user's keychain is never touched. A run whose
+/// registry is redirected (`RAPIDR_REGISTRY`: tests, captures, sandboxes)
+/// gets the memory keystore too unless it says `RAPIDR_AI_KEYSTORE=system`,
+/// so no test harness can reach the user's real Keychain by forgetting the
+/// variable (2026-10-22: a capture of Studio's AI settings asked Robert for
+/// his keychain password again and again).
 pub(crate) fn memory_only() -> bool {
     #[cfg(not(target_arch = "wasm32"))]
     {
-        ["RAPIDR_AI_KEYSTORE", "RAPIDR_KEYSTORE"].iter().any(|k| std::env::var(k).is_ok_and(|v| v.trim().eq_ignore_ascii_case("memory")))
+        let var = |k: &str| std::env::var(k).ok();
+        memory_only_from(var("RAPIDR_AI_KEYSTORE"), var("RAPIDR_KEYSTORE"), var("RAPIDR_REGISTRY"))
     }
     #[cfg(target_arch = "wasm32")]
     {
         false
+    }
+}
+
+/// [`memory_only`]'s rule, from the variables' values.
+pub(crate) fn memory_only_from(ai: Option<String>, ks: Option<String>, registry: Option<String>) -> bool {
+    let is = |v: &Option<String>, want: &str| v.as_deref().is_some_and(|v| v.trim().eq_ignore_ascii_case(want));
+    if is(&ai, "memory") || is(&ks, "memory") {
+        return true;
+    }
+    if is(&ai, "system") || is(&ks, "system") {
+        return false;
+    }
+    registry.as_deref().is_some_and(|r| !r.trim().is_empty())
+}
+
+#[cfg(test)]
+mod memory_rule_tests {
+    use super::memory_only_from as m;
+    fn s(v: &str) -> Option<String> {
+        Some(v.to_string())
+    }
+    #[test]
+    fn a_redirected_registry_never_reaches_the_real_keychain() {
+        assert!(m(s("memory"), None, None));
+        assert!(m(None, s("memory"), None));
+        assert!(m(None, None, s("/tmp/test.reg")));
+        assert!(!m(s("system"), None, s("/tmp/test.reg")));
+        assert!(!m(None, None, None));
+        assert!(!m(None, None, s("  ")));
     }
 }
 

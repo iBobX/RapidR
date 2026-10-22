@@ -62,6 +62,7 @@ claims, headless).
 | [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
 | [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
+| [value_tree.rr](gui/value_tree.rr) | A tree that shows values as RapidR Studio's debugger does (`SetItemValue`, `Item(i).Changed`): each with its kind's icon, numbers, text and True/False in their colours, a colour as a swatch and its name, an array with its count, a changed value marked ([the manual](../docs/manual/debugging.md#how-values-look)) | run · interp · native · web | `rapidr run gui/value_tree.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
 ### translations/ — one program in every language
@@ -228,6 +229,7 @@ has a picture of each and explains its best lines.
 |---------|---------------|---------|-----|
 | [panels.rr](studio/panels.rr) | The IDE's public components docked together: toolbar, toolbox, project tree, designer with the inspector, output console, command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
 | [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): select and drag components, smart guides, anchor pins, undo, the resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
+| [diff_views.rr](studio/diff_views.rr) | What changed? `RDiffView`'s three views: two versions of a program (the changed words marked), of a form (the form before and after, the changed components outlined, the changes in words), of a CSV file (rows and cells); `Summary` says them in words (the form view: `rapidr run` and the web) | run · interp · native · web | `rapidr run studio/diff_views.rr` |
 | [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 
 ## Making the data files again

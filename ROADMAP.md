@@ -732,7 +732,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ S10 A debugger that looks as good as it works: value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
 - [ ] ★ S11 Change values while paused: edit numbers, text, true/false, constants, array elements, record fields and writable component properties in Variables/Watch (F2, double-click), with value editors, validation and undo; the web Studio and DAP setVariable too
   - [x] Phase 1: the icons (design/icons `debug/`, the hit-count breakpoint, add watch, copy and edit value, the changed mark; review sheets `debugger-new`, `debugger-family`) and the UI kernel's `value_view` (a value and its kind in, a drawn, accessible row out; `debug.*` theme tokens, contrast-tested); no raster icon in Studio's UI
-  - [ ] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (after the DOCK lane), walked in every look
+  - [x] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (TreeView.SetItemValue, the session's property hints), the gutter's breakpoint marks from the icon set (hit count apart from a condition; not bound a dashed ring), Add Watch's icon, a pane header's tooltip above the header; walked in every look
 - [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line`
 - [x] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row) — the dock lays out every pane it gives a new size (and fires its OnResize), desktop and web
 - [x] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes — plus View ▸ Debug Panes (Ctrl+Shift+D, pinned), Settings' Debug panes (Automatic / Always / Never), a Problems row's tooltip; splitters you see (line and grip, 3:1), grab (8 px), reset (double click) and move by keyboard (Window ▸ Resize Panes, Ctrl+F6)
@@ -791,8 +791,17 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - +5.1 MiB stripped for Studio, +3.3 MiB more with reqwest for the network;
   - `gix` doesn't build for wasm, but its plumbing does;
   - **no push in gitoxide**: building our own send-pack in G6 is Robert's decision.
-- [ ] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests
-- [ ] G2 The docked Diff tab (shared with RAI), visual form diffs, CSV table diffs
+- [x] G1 `rapidr-vcs`: the plain-words API on gitoxide, safety points, undo of any action, RAI checkpoints, the secret scan; `git fsck`-checked tests. Done 2026-10-22 (lane VERSIONS-1):
+  - save (all or some files), timeline, what changed, go back (a new version), restore a file, experiments rewriting only what differs, get latest from / share with a shared folder in-process;
+  - safety points `refs/rapidr/safety/<n>` before every risky action, the history `.git/rapidr/history.jsonl` with Undo (refuses when it would overwrite newer work), RAI checkpoints `refs/rapidr/checkpoints/<n>`;
+  - the secret check before a save (our own patterns, the line masked); another account's project refused with the reason, opened read-only on request; errors in plain words;
+  - 17 tests, every repository `git fsck --strict`-checked; 1,000 versions: timeline 49 ms, status 0.6 ms (release).
+  - Left for later lanes: Undo this version (revert) and cherry-pick (G7), the action history's pruning, packs instead of loose objects when sharing many.
+- [x] G2 The diff model and its kernel views (the docking into Studio is G3). Done 2026-10-22 (lane VERSIONS-1):
+  - `rapidr-diff`: RapidR's own Myers (from the paper), hunks, word marks, CSV tables, forms in words; a 4,500-line file in 0.25–16 ms;
+  - RDiffView `Kind` = text (word marks) / form (the form before and after as the designer draws it, changed components outlined, changes listed) / table (rows, cells, columns); `ChangeCount`, `Summary`, `HasHeader`; headless captures in light, dark, high contrast (rapidr-designer/tests/diff_capture.rs);
+  - the old GNU-diff-shaped Myers module in rapidr-value replaced.
+  - Left: the docked Diff tab (G3), side-by-side image diffs and onion skin, folding unchanged table rows, F7 through form and table changes.
 - [ ] G3 The Versions panel, Timeline, Save a version, gutter marks, Project badges, status bar
 - [ ] G4 Experiments (branches), Bring into main, the three-way form-aware Merge tab
 - [ ] G5 Blame on hover, line history

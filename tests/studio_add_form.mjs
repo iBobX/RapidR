@@ -77,7 +77,7 @@ function checkCode(host, d) {
   ok(d["lang.errorcount"] === "0", `${host}: no errors (${d["lang.errorcount"]})`);
 }
 
-const env = (extra) => ({ ...process.env, RAPIDR_PRINT_TO: join(OUT, "print"), RAPIDR_REGISTRY: join(OUT, "registry"), ...extra });
+const env = (extra) => ({ ...process.env, RAPIDR_PRINT_TO: join(OUT, "print"), RAPIDR_REGISTRY: join(OUT, "registry"), RAPIDR_AI_KEYSTORE: "memory", RAPIDR_KEYSTORE: "memory", ...extra });
 
 // ---- the desktop ----------------------------------------------------------
 rmSync(OUT, { recursive: true, force: true });

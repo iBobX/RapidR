@@ -159,6 +159,7 @@ SUB FillExamples
   AddMoreExample "showcase/signal_lab.rr", "A signal generator, an oscilloscope and an FFT spectrum"
   AddMoreExample "showcase/midi_visualizer.rr", "A 3D scene that dances to a song (reads the MIDI file itself)"
   AddMoreExample "showcase/make_song.rr", "Composes the visualizer's song and writes a .mid file"
+  AddMoreExample "gui/value_tree.rr", "Values as the debugger shows them: icons, swatches, changes"
   AddMoreExample "data/million_rows_async.rr", "A million rows from SQLite in the background, an SQL editor"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
   ' (the recipes: short programs to start from — the assistant starts from them too)
