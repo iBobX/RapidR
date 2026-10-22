@@ -82,7 +82,7 @@ Professional tools expose Git's vocabulary (stage, HEAD, detached, rebase) and l
 |---|---|---|---|
 | Git itself | **gitoxide (`gix`)** | MIT OR Apache-2.0 | Pure Rust, fast, maintained; no C to build |
 | Diff algorithms | **imara-diff** (gitoxide uses it) | Apache-2.0 | Myers and histogram diffs, fast |
-| HTTPS transport | `gix`'s reqwest transport with **rustls** | MIT/Apache/ISC | No OpenSSL |
+| HTTPS transport | the **system's TLS** (native-tls), as everywhere in RapidR: `deny.toml` bans rustls/ring. G0 recommends gix's `Http` trait over the ureq client Studio already has, instead of reqwest ([versions-g0.md](versions-g0.md) §4) | MIT/Apache | No OpenSSL or rustls compiled in |
 | SSH | the system's `ssh` (gix spawns it) | — | We ship no SSH code |
 | Credentials | **keyring-core** (already used for RAI) | MIT/Apache | The OS keychain |
 | Not used | ~~libgit2 / git2-rs~~ | GPL-2.0 with linking exception | It's copyleft, which our `deny.toml` rejects ("no copyleft of any strength"), and it's C |
@@ -92,6 +92,7 @@ Professional tools expose Git's vocabulary (stage, HEAD, detached, rebase) and l
 - **Capability check first.** gitoxide's coverage grows release by release. G0 verifies, on the current version, clone, fetch, **push**, status, commit, merge (trees and blobs), blame, revert and cherry-pick (as a three-way merge), stash, and tags.
   - Anything missing is built *by us* on gix's lower-level crates (merge, protocol, transport), or postponed.
   - It is never filled in by calling the `git` command, because RapidR's rule is one implementation, no fallbacks.
+  - **Done (2026-10-22): [versions-g0.md](versions-g0.md).** gix 0.89 has everything local. It has **no push**, which needs Robert's decision (§6 there). It runs filter, diff and merge drivers and credential helpers from a repository's configuration unless Versions removes them, which the spike does and tests. Its local transport spawns `git`, so folders are shared in-process.
 - **A new crate, `rapidr-vcs`:** the plain-words API Studio uses:
   - `open`, `start`, `status`, `save_version`, `timeline`, `go_back`, `undo_version`;
   - experiments, `bring_into`, `copy_change`, `put_aside`, `mark`, `who_wrote`, `share`, `get_latest`, `sync`, `clone`;
