@@ -62,7 +62,7 @@ PERMISSIVE = {"MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clau
 
 # Crates that must never be in a program's graph again (what was replaced:
 # docs/licensing.md).
-BANNED = {"ring", "rustls", "aws-lc-rs", "aws-lc-sys", "openssl-src", "webpki-roots", "symphonia", "symphonia-core",
+BANNED = {"ring", "rustls", "aws-lc-rs", "aws-lc-sys", "openssl-src", "aes", "cbc", "hkdf", "webpki-roots", "symphonia", "symphonia-core",
           "symphonia-bundle-mp3", "font-kit", "dwrote", "option-ext", "freetype-sys"}
 
 failures = []

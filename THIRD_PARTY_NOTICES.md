@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**682 libraries** under 23 license expressions.
+**666 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (423)
+## Apache-2.0 OR MIT (407)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -32,7 +32,6 @@ their `OFL.txt`.
 | accesskit_macos | 0.27.1 | <https://github.com/AccessKit/accesskit> |
 | accesskit_unix | 0.24.0 | <https://github.com/AccessKit/accesskit> |
 | accesskit_windows | 0.35.1 | <https://github.com/AccessKit/accesskit> |
-| aes | 0.9.3 | <https://github.com/RustCrypto/block-ciphers> |
 | ahash | 0.8.12 | <https://github.com/tkaitchuck/ahash> |
 | allocator-api2 | 0.2.21 | <https://github.com/zakarumych/allocator-api2> |
 | alsa | 0.9.1 | <https://github.com/diwic/alsa-rs> |
@@ -66,31 +65,23 @@ their `OFL.txt`.
 | bitflags | 1.3.2 | <https://github.com/bitflags/bitflags> |
 | bitflags | 2.11.0 | <https://github.com/bitflags/bitflags> |
 | block-buffer | 0.10.4 | <https://github.com/RustCrypto/utils> |
-| block-buffer | 0.12.1 | <https://github.com/RustCrypto/utils> |
-| block-padding | 0.4.2 | <https://github.com/RustCrypto/utils> |
 | blocking | 1.7.0 | <https://github.com/smol-rs/blocking> |
 | bstr | 1.13.1 | <https://github.com/BurntSushi/bstr> |
 | btoi | 0.5.0 | <https://github.com/niklasf/rust-btoi> |
 | bufstream | 0.1.4 | <https://github.com/alexcrichton/bufstream> |
 | bumpalo | 3.20.2 | <https://github.com/fitzgen/bumpalo> |
-| cbc | 0.2.1 | <https://github.com/RustCrypto/block-modes> |
 | cesu8 | 1.1.0 | <https://github.com/emk/cesu8-rs> |
 | cfg-if | 1.0.4 | <https://github.com/rust-lang/cfg-if> |
 | chrono | 0.4.44 | <https://github.com/chronotope/chrono> |
-| cipher | 0.5.2 | <https://github.com/RustCrypto/traits> |
-| cmov | 0.5.4 | <https://github.com/RustCrypto/utils> |
 | color | 0.3.3 | <https://github.com/linebender/color> |
 | concurrent-queue | 2.5.0 | <https://github.com/smol-rs/concurrent-queue> |
-| const-oid | 0.10.2 | <https://github.com/RustCrypto/formats> |
 | core-foundation | 0.10.1 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics | 0.23.2 | <https://github.com/servo/core-foundation-rs> |
 | core-graphics-types | 0.1.3 | <https://github.com/servo/core-foundation-rs> |
 | coreaudio-rs | 0.11.3 | <https://github.com/RustAudio/coreaudio-rs.git> |
-| cpubits | 0.1.1 | <https://github.com/RustCrypto/utils> |
 | cpufeatures | 0.2.17 | <https://github.com/RustCrypto/utils> |
-| cpufeatures | 0.3.1 | <https://github.com/RustCrypto/utils> |
 | crc32fast | 1.5.0 | <https://github.com/srijs/rust-crc32fast> |
 | crossbeam | 0.8.5 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-channel | 0.5.15 | <https://github.com/crossbeam-rs/crossbeam> |
@@ -99,9 +90,7 @@ their `OFL.txt`.
 | crossbeam-queue | 0.3.12 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
-| crypto-common | 0.2.2 | <https://github.com/RustCrypto/traits> |
 | ctor | 0.10.1 | <https://github.com/mmastrac/rust-ctor> |
-| ctutils | 0.4.3 | <https://github.com/RustCrypto/utils> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
 | debug-ignore | 1.0.5 | <https://github.com/sunshowers-code/debug-ignore> |
@@ -111,7 +100,6 @@ their `OFL.txt`.
 | defmt-parser | 1.1.0 | <https://github.com/knurling-rs/defmt> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
-| digest | 0.11.3 | <https://github.com/RustCrypto/traits> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
 | document-features | 0.2.12 | <https://github.com/slint-ui/document-features> |
 | downcast-rs | 1.2.1 | <https://github.com/marcianx/downcast-rs> |
@@ -220,8 +208,6 @@ their `OFL.txt`.
 | heck | 0.5.0 | <https://github.com/withoutboats/heck> |
 | hermit-abi | 0.5.3 | <https://github.com/hermit-os/hermit-rs> |
 | hex | 0.4.3 | <https://github.com/KokaKiwi/rust-hex> |
-| hkdf | 0.13.0 | <https://github.com/RustCrypto/KDFs/> |
-| hmac | 0.13.0 | <https://github.com/RustCrypto/MACs> |
 | http | 1.4.0 | <https://github.com/hyperium/http> |
 | httparse | 1.10.1 | <https://github.com/seanmonstar/httparse> |
 | httpdate | 1.0.3 | <https://github.com/pyfisch/httpdate> |
@@ -232,7 +218,6 @@ their `OFL.txt`.
 | idna | 1.1.0 | <https://github.com/servo/rust-url/> |
 | idna_adapter | 1.2.1 | <https://github.com/hsivonen/idna_adapter> |
 | indexmap | 2.13.0 | <https://github.com/indexmap-rs/indexmap> |
-| inout | 0.2.3 | <https://github.com/RustCrypto/utils> |
 | io-close | 0.3.7 | <https://gitlab.com/wufz/io-close> |
 | io-enum | 1.2.1 | <https://github.com/taiki-e/io-enum> |
 | itoa | 1.0.18 | <https://github.com/dtolnay/itoa> |
@@ -341,7 +326,6 @@ their `OFL.txt`.
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha1dc | 0.1.5 | <https://github.com/srijs/sha1dc> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
-| sha2 | 0.11.1 | <https://github.com/RustCrypto/hashes> |
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
 | simd_cesu8 | 1.2.0 | <https://github.com/seancroach/simd_cesu8> |
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |

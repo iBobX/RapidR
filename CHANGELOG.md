@@ -73,6 +73,22 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `LICENSES` or the like now gives every file inside it. Across the 711
   packages of the workspace's graph this adds exactly those two files; a unit
   test with a folder shaped like `faster-hex`'s keeps it so.
+- **Cryptography: the legal texts say what is really there, and the Linux
+  keyring uses the system's OpenSSL** (legal review of 2026-10-22). LEGAL.md,
+  LICENSES.md and docs/licensing.md said no encryption code was compiled into
+  a program. That was wrong: the MySQL client (`mysql_common`) has its own
+  RSA-OAEP and SHA-1/SHA-256, and on Linux and the BSDs the keyring client
+  (`secret-service`) had AES-CBC, HKDF and a Diffie-Hellman key exchange
+  compiled in. They now list exactly what remains (docs/licensing.md §2.5),
+  and README, the announcement, the manual and the release templates say "no
+  TLS library" instead of "no encryption code". On Linux and the BSDs the AI
+  keys' keyring session now takes its AES and key derivation from the system's
+  OpenSSL 3, which HTTPS loads anyway (`rapidr-ai` asks for `crypto-openssl`
+  instead of `crypto-rust`): `aes`, `cbc`, `hkdf` and their helpers are gone
+  from `Cargo.lock` and banned in `deny.toml`, `notices.rs` and
+  `tools/check_notices.py`. Checked on Ubuntu 24.04: a key stored in GNOME
+  Keyring reads back and deletes. LEGAL.md has a new "Export" section: open
+  source, standard cryptography, mostly the system's.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which

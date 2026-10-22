@@ -58,7 +58,7 @@ choose More info > Run anyway. Screenshots of each step: the manual's
 RapidR is MIT-licensed, and everything it ships is under similarly
 permissive open-source licences (Apache-2.0, BSD, ISC, zlib, BSL, Unicode,
 OFL for the built-in fonts): nothing copyleft (GPL, LGPL, MPL, …) and no
-encryption library is compiled into a program (HTTPS uses the operating
+TLS library is compiled into a program (HTTPS uses the operating
 system's). **The programs you build with RapidR are
 yours**, to ship as open source or commercially: every build writes a
 `THIRD-PARTY-NOTICES.txt` beside the executable (or into the web build) with

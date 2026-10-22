@@ -63,7 +63,9 @@ own computer; off until you turn it on.
   web-only components.
 - **Your programs are yours**: MIT-licensed, and every build ships the
   `THIRD-PARTY-NOTICES.txt` its components ask for. Nothing copyleft and no
-  encryption code is compiled into your program.
+  TLS library is compiled into your program (HTTPS is the operating
+  system's); the little standard cryptography it does contain is listed in
+  [LEGAL.md](LEGAL.md).
 
 ## Why RapidR
 

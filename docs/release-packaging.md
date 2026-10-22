@@ -230,7 +230,7 @@ needs no runtime, for programs shipped without it.
 ## Licences
 
 Everything shipped is open source and allows commercial use; nothing
-copyleft (GPL, LGPL, AGPL, MPL, …), no cryptographic library and no data
+copyleft (GPL, LGPL, AGPL, MPL, …), no TLS library and no data
 under a data licence is in any artifact; programs built with RapidR are
 their authors', to ship as they like.
 

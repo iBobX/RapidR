@@ -228,7 +228,7 @@ cannot see, so it is credited here.
 | SQLite | `libsqlite3-sys` (desktop), `sqlite-wasm-rs` (web wasm) | Public Domain (section 5) | <https://sqlite.org> |
 | musl libc (the few C library functions SQLite needs in wasm) | `sqlite-wasm-rs` | MIT | <https://musl.libc.org> |
 | printf (Marco Paland, Eyal Rozenberg) | `sqlite-wasm-rs` | MIT | <https://github.com/eyalroz/printf> |
-| The operating system's TLS: Security.framework (macOS), SChannel (Windows), OpenSSL 3 (Linux: `libssl.so.3` / `libcrypto.so.3`) | `native-tls` (with `security-framework`, `schannel`, `openssl`; HTTPS for RHTTP and QDOWNLOAD) | system components; OpenSSL 3 is Apache-2.0 — linked dynamically, never shipped | <https://www.openssl.org> |
+| The operating system's TLS: Security.framework (macOS), SChannel (Windows), OpenSSL 3 (Linux: `libssl.so.3` / `libcrypto.so.3`) | `native-tls` (with `security-framework`, `schannel`, `openssl`; HTTPS for RHTTP and QDOWNLOAD) | system components; OpenSSL 3 is Apache-2.0 — linked dynamically, never shipped; on Linux and the BSDs its AES and HKDF also serve the keyring session of `secret-service` | <https://www.openssl.org> |
 | Fontconfig (Linux) | `yeslogic-fontconfig-sys` (linked from the system; the desktop UI's system fonts) | Fontconfig license (MIT-style) | <https://www.freedesktop.org/wiki/Software/fontconfig/> |
 | X11, Wayland, xkbcommon (Linux) | `x11-dl`, `wayland-sys`, `xkbcommon-dl` (the desktop UI's windows and keys: loaded from the system when a window opens) | MIT / MIT-style | <https://www.x.org>, <https://wayland.freedesktop.org>, <https://xkbcommon.org> |
 | ALSA (Linux), Core Audio (macOS) | `alsa-sys`, `coreaudio-sys` (system audio, linked) | LGPL-2.1 (alsa-lib, dynamically linked) / Apple system framework | — |
@@ -245,12 +245,22 @@ every generated `THIRD-PARTY-NOTICES.txt` that needs them):
 | Adobe Glyph List | `read-fonts` (through `parley`): its table of glyph names | BSD-3-Clause, © Adobe |
 | KDE's Wayland blur protocol | **not used**: crates.io's `wayland-protocols-plasma` (generated from KDE's protocol files, some LGPL-2.1-or-later) is replaced by RapidR's own stand-in, `crates/patches/wayland-protocols-plasma` (MIT, its own protocol file) | — |
 
-No cryptographic library is compiled into anything RapidR builds: HTTPS
-uses the operating system's TLS (above). Zstandard, LZ4, zlib and OpenSSL's
-sources appear in `Cargo.lock` only as optional or other-platform
-dependencies of crates RapidR uses and are compiled into nothing RapidR
-ships: the generated `THIRD-PARTY-NOTICES.txt` files, made from the real
-graphs, list what is.
+No TLS library and no AES code is compiled into anything RapidR builds:
+HTTPS uses the operating system's TLS (above), and on Linux and the BSDs the
+keyring client's AES and key derivation are that same system OpenSSL 3. Some
+standard cryptography is compiled in, all of it in the MIT or Apache-2.0
+crates listed in `THIRD_PARTY_NOTICES.md` (docs/licensing.md §2.5 has the
+detail):
+
+| What | Via | Where |
+|---|---|---|
+| RSA public-key encryption (OAEP), SHA-1 and SHA-256 hashing | `mysql_common` (the `mysql` crate: RMYSQL), `sha1`, `sha2`, `num-bigint` | every desktop program and RapidR's own tools; not the web |
+| The Secret Service's Diffie-Hellman key exchange (a 1024-bit group; modular exponentiation over `num-bigint`) | `secret-service` (through `zbus-secret-service-keyring-store`: the AI component's key storage) | Linux and the BSDs only; its AES-128-CBC and HKDF are the system's OpenSSL 3, reached through the `openssl` bindings that HTTPS uses anyway |
+
+Zstandard, LZ4, zlib and OpenSSL's sources appear in `Cargo.lock` only as
+optional or other-platform dependencies of crates RapidR uses and are
+compiled into nothing RapidR ships: the generated `THIRD-PARTY-NOTICES.txt`
+files, made from the real graphs, list what is.
 
 ### 7.1 Windows: LLVM-MinGW, shipped with the RapidR SDK
 

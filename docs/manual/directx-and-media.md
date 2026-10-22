@@ -71,7 +71,7 @@ own texts), `Volume`, their `Timer` and `OnChange`. A program that
 
 HTTPS uses the operating system's TLS (macOS' Security framework,
 Windows' SChannel, Linux's OpenSSL 3) and its certificates: RapidR compiles
-no encryption code into your program.
+no TLS library into your program.
 
 ## The system tray
 

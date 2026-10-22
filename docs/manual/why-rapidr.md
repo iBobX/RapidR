@@ -148,8 +148,10 @@ the same way ([Components and objects](components.md#accessibility)).
   hostile values stop the program with a message and a line.
 - **SQL parameters** are bound, never pasted: text from a user can't change a
   statement ([Databases](databases.md)).
-- **No encryption code is compiled into your program**: HTTPS uses the
-  operating system's own TLS and certificates.
+- **No TLS library is compiled into your program**: HTTPS uses the
+  operating system's own TLS and certificates. (The little standard
+  cryptography a program does contain is listed in
+  [LEGAL.md](../../LEGAL.md).)
 - **A downloaded program asks before it runs**, once per file.
 - The web is audited as hard as the desktop: [the security audit](../security-audit.md)
   and [the policy for reporting a problem](../../SECURITY.md).

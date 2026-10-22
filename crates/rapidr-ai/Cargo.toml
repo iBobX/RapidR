@@ -35,9 +35,14 @@ apple-native-keyring-store = { version = "1", features = ["keychain"] }
 windows-native-keyring-store = { version = "1", default-features = false }
 
 # (Linux and the BSDs: the Secret Service — GNOME Keyring, KWallet — over
-# D-Bus in pure Rust, its session encrypted with pure-Rust crypto)
+# D-Bus in pure Rust. Its session is encrypted with the system's OpenSSL 3,
+# which HTTPS (native-tls) loads on these systems anyway: AES and HKDF are
+# OpenSSL's, so no AES, CBC or HKDF code is compiled into the program. Not
+# `crypto-rust`: it would compile the `aes`, `cbc` and `hkdf` crates in
+# (docs/licensing.md §2.1, LEGAL.md "Export"). What stays in the crate itself
+# is the Diffie-Hellman key exchange of the Secret Service's own protocol.)
 [target.'cfg(all(unix, not(target_os = "macos")))'.dependencies]
-zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-crypto-rust"] }
+zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-crypto-openssl"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = "0.2.129"
