@@ -155,6 +155,32 @@ If you hold rights in something RapidR names and have a concern, please
 open an issue (below) or write to the maintainer; it will be looked at
 promptly.
 
+## Trademarks
+
+RapidR works with some other products and services, and names them so that
+you can tell what it works with: Git™ repositories, the sites that host them,
+and several databases. It writes their names in plain text, never uses their
+logos, and never puts them inside a name of its own (RapidR's version control
+is called Versions, and it is built on Git). Their owners' notices:
+
+- Git and the Git logo are either registered trademarks or trademarks of
+  Software Freedom Conservancy, Inc., corporate home of the Git Project, in
+  the United States and/or other countries.
+- GitHub® is a trademark of GitHub, Inc., registered in the United States
+  and other countries.
+- GitLab™: GITLAB is a trademark of GitLab Inc. in the United States and
+  other countries and regions.
+- Bitbucket is a trademark of Atlassian.
+- SQLite is a trademark of Hipp, Wyrick & Company, Inc. (Hwaci).
+- MySQL is a registered trademark of Oracle and/or its affiliates.
+- The MariaDB® mark is a trademark of MariaDB Corporation Ab.
+- Postgres, PostgreSQL and the Slonik Logo are trademarks or registered
+  trademarks of the PostgreSQL Community Association of Canada, and used with
+  their permission.
+
+RapidR is not affiliated with or endorsed by these owners. Names are used
+only to say what RapidR works with.
+
 ## Export
 
 RapidR is published open-source software: its complete source code is public,

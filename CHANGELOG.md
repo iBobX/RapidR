@@ -89,6 +89,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `tools/check_notices.py`. Checked on Ubuntu 24.04: a key stored in GNOME
   Keyring reads back and deletes. LEGAL.md has a new "Export" section: open
   source, standard cryptography, mostly the system's.
+- **LEGAL.md has a "Trademarks" section** (legal review of 2026-10-22) for the
+  products RapidR works with: Git, GitHub, GitLab, Bitbucket, SQLite, MySQL,
+  MariaDB and PostgreSQL, each with its owner's own attribution wording
+  (taken from the owner's trademark page), the symbols the owners ask for,
+  and the line that RapidR is not affiliated with or endorsed by them. Names
+  appear as plain text, never as logos and never inside a RapidR name.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which
