@@ -510,3 +510,20 @@ Still open:
    interface, the use of RC.EXE for testing, and the residual risks: reviewed
    on 2026-10-06 in [legal/rapidq-review.md](legal/rapidq-review.md), with
    the decisions left to the owner in its §13.
+6. **Where `gix-imara-diff` comes from** (raised by the legal review of
+   2026-10-22). Versions (`crates/rapidr-vcs`, on gitoxide) gets its blob
+   diff from `gix-imara-diff` 0.3.1, declared Apache-2.0 and described as "a
+   modified copy of upstream imara-diff for gitoxide". Its comments name
+   Git's xdiff internals (`xdl_bogosqrt`, `xdl_clean_mmatch`, `XDL_K_HEUR`,
+   `XDL_SIMSCAN_WINDOW`), and the constants of its slider heuristic
+   (`MAX_BLANKS` 20, `START_OF_FILE_PENALTY` 1, `INDENT_WEIGHT` 60) match the
+   ones in Git's `xdiffi.c`; Git's xdiff is LGPL-2.1-or-later (both from the
+   reviewer's memory: the two sources were not compared line by line). If
+   part of the crate was written from xdiff, its Apache-2.0 declaration may
+   not be the whole story. **Open.** Nothing of it ships today (Versions is
+   not in a release), and it must be settled before it does: ask the crate's
+   maintainers, compare the files, or replace it. **The rule, whatever the
+   answer:** RapidR's own diff and merge code (Versions lane G2) is written
+   from Myers' 1986 paper ("An O(ND) Difference Algorithm and Its
+   Variations"), never from Git's xdiff, `gix-imara-diff` or any other
+   implementation, and no code or comment is copied from them.

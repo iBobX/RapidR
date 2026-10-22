@@ -95,6 +95,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   (taken from the owner's trademark page), the symbols the owners ask for,
   and the line that RapidR is not affiliated with or endorsed by them. Names
   appear as plain text, never as logos and never inside a RapidR name.
+- **An open licence question and a rule for Versions' diff and merge code**
+  (legal review of 2026-10-22, docs/licensing.md §8, item 6): the blob diff
+  in `gix-imara-diff` (Apache-2.0) has comments that name Git's xdiff
+  internals and slider-heuristic constants that match Git's, so where it
+  comes from is recorded as open; nothing of it ships yet. RapidR's own diff
+  and merge code (Versions lane G2) is to be written from Myers' 1986 paper,
+  never from xdiff or any other implementation.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which
