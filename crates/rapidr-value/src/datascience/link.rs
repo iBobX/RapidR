@@ -581,7 +581,30 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
             });
             Some(Ok(()))
         }
-        ("RDBGRID", "rowcount" | "colcount" | "columns" | "sortcolumn" | "sortdescending") => Some(Err(format!("{prop} can only be read"))),
+        // (RapidR's: the program says how the view is sorted — a database's
+        // rows it sorted itself with ORDER BY, -1 for none: the arrow
+        // follows; another data set's view is sorted by it)
+        ("RDBGRID", "sortcolumn") => {
+            let c = val.to_i64();
+            with(|s| {
+                if let Some(g) = s.grids.get_mut(&id) {
+                    g.sort = usize::try_from(c).ok().map(|c| (c, g.sort.is_some_and(|(_, d)| d)));
+                }
+            });
+            mark();
+            Some(Ok(()))
+        }
+        ("RDBGRID", "sortdescending") => {
+            let d = truthy(val);
+            with(|s| {
+                if let Some(g) = s.grids.get_mut(&id) {
+                    g.sort = g.sort.map(|(c, _)| (c, d));
+                }
+            });
+            mark();
+            Some(Ok(()))
+        }
+        ("RDBGRID", "rowcount" | "colcount" | "columns") => Some(Err(format!("{prop} can only be read"))),
         ("RPLOT", "datasource" | "kind" | "x" | "y") => {
             let kind = text.trim().to_ascii_lowercase();
             if prop == "kind" && !CHART_KINDS.contains(&kind.as_str()) {
@@ -1080,6 +1103,29 @@ fn move_to(owner: &str, m: Move) {
             Move::To(r) => (r.clamp(0, last), rows == 0, rows == 0),
         };
         *c = Cursor { row: row as usize, eof, bof };
+    });
+    mark();
+}
+
+/// Data set `id`'s rows were replaced by new ones (a database component's
+/// next query): the cursors over it — its own, an RDataSource's — back on
+/// the first row, and the grids that show it scrolled to the top (a
+/// current row left at the old rows' last would scroll the new ones there).
+pub fn rows_replaced(id: &str) {
+    let id = key(id);
+    let first = Cursor { row: 0, eof: false, bof: true };
+    with(|s| {
+        let dsrcs: Vec<String> = s.dsrc.iter().filter(|(k, d)| !d.dataset.is_empty() && resolve(k, &d.dataset) == id).map(|(k, _)| k.clone()).collect();
+        s.cursors.insert(id.clone(), first);
+        for d in &dsrcs {
+            s.cursors.insert(d.clone(), first);
+        }
+        for (k, g) in s.grids.iter_mut() {
+            let src = resolve(k, &g.source);
+            if !g.source.is_empty() && (src == id || dsrcs.contains(&src)) {
+                g.top = 0;
+            }
+        }
     });
     mark();
 }

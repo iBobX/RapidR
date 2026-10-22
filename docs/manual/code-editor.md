@@ -65,9 +65,11 @@ END SUB
   (BASIC strings have no `""` escape: build the quotes with `CHR$(34)`, or
   use `RJson`.) `SetSchema ""` clears it.
 - **Run.** Ctrl+Enter (Cmd+Enter on a Mac) fires `OnRunStatement (SQL)` with
-  the selection, or the statement the caret is in, up to its `;` (a `;` in a
-  string or a comment doesn't count). `CurrentStatement` is the same text,
-  for a Run button: `DB.QueryAsync Editor.CurrentStatement`.
+  the selection, or the statement the caret is in: up to its `;`, or to a
+  blank line, so statements written without `;` run one at a time when a
+  blank line separates them (a `;` or a blank line in a string or a comment
+  doesn't count). `CurrentStatement` is the same text, for a Run button:
+  `DB.QueryAsync Editor.CurrentStatement`.
 - **Folding.** A statement over several lines folds, from its first line
   to its `;`, and so does a bracketed list over several lines (a
   `CREATE TABLE`'s columns, a subquery).

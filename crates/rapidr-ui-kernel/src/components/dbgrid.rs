@@ -692,5 +692,22 @@ mod tests {
         }
         let t = texts(&f.paint(&s, &mut ts, 2.0));
         assert!(t.contains(&"n0".to_string()), "{t:?}");
+        // End, then the next query's rows: shown from the top again, the
+        // current row their first (not the old last, clamped)
+        assert!(f.test_action(&s, &mut ts, "kg_dbgrid2", "__end"));
+        f.paint(&s, &mut ts, 2.0);
+        frame::set_frame("kg_db2", frame::Frame::with_columns(&names));
+        link::rows_replaced("kg_db2");
+        let mut b = frame::FrameBuilder::new(&names, 4032);
+        for i in 0..4032 {
+            b.push(0, Some(&i.to_string()));
+            b.push(1, Some(&format!("m{i}")));
+            b.end_row();
+        }
+        frame::with_frame_mut("kg_db2", |fr| fr.append(&b.finish(0)));
+        let t = texts(&f.paint(&s, &mut ts, 2.0));
+        let d = link::grid("kg_dbgrid2").unwrap();
+        assert_eq!((d.top, d.row), (0, 0));
+        assert!(t.contains(&"m0".to_string()), "{t:?}");
     }
 }

@@ -117,6 +117,7 @@ fn publish_frame(key: &str, rows: impl FnOnce() -> Option<(Vec<String>, Vec<Vec<
         b.end_row();
     }
     frame::set_frame(key, b.finish(0));
+    link::rows_replaced(key);
 }
 
 /// A component's new result set (`rows` × `columns`) after a query that

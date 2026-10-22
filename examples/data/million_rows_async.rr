@@ -29,6 +29,7 @@ DECLARE SUB QueryDone(Rows AS INTEGER, Ms AS INTEGER)
 DECLARE SUB QueryFailed(Message AS STRING)
 DECLARE SUB SortBy(Col AS INTEGER)
 DECLARE SUB Idle(Text AS STRING)
+DECLARE SUB Fresh(SQL AS STRING)
 
 DIM Mode AS STRING, LastSQL AS STRING
 DIM Started AS DOUBLE, FirstMs AS INTEGER, Pings AS INTEGER
@@ -112,7 +113,8 @@ SUB MakeData
     MakeBtn.Enabled = 0: RunBtn.Enabled = 0: CancelBtn.Enabled = 1
     Status.Caption = "Making " + STR$(n) + " rows..."
     Started = TIMER
-    DB.QueryAsync "DROP TABLE IF EXISTS big; CREATE TABLE big (id INTEGER PRIMARY KEY, customer TEXT, city TEXT, amount REAL, day TEXT); WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < ?) INSERT INTO big SELECT i, 'customer ' || (i * 37 % 9973), CASE i % 7 WHEN 0 THEN 'Lima' WHEN 1 THEN 'Madrid' WHEN 2 THEN 'Porto' WHEN 3 THEN 'Quito' WHEN 4 THEN 'Rosario' WHEN 5 THEN 'Sevilla' ELSE 'Valencia' END, ROUND((i * 7919 % 100000) / 100.0, 2), date('2026-01-01', '+' || (i % 365) || ' days') FROM c", n
+    ' (one transaction: cancelled, the table is as it was)
+    DB.QueryAsync "BEGIN; DROP TABLE IF EXISTS big; CREATE TABLE big (id INTEGER PRIMARY KEY, customer TEXT, city TEXT, amount REAL, day TEXT); WITH RECURSIVE c(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM c WHERE i < ?) INSERT INTO big SELECT i, 'customer ' || (i * 37 % 9973), CASE i % 7 WHEN 0 THEN 'Lima' WHEN 1 THEN 'Madrid' WHEN 2 THEN 'Porto' WHEN 3 THEN 'Quito' WHEN 4 THEN 'Rosario' WHEN 5 THEN 'Sevilla' ELSE 'Valencia' END, ROUND((i * 7919 % 100000) / 100.0, 2), date('2026-01-01', '+' || (i % 365) || ' days') FROM c; COMMIT", n
 END SUB
 
 ' A query in the background: its rows stream into the grid.
@@ -131,13 +133,23 @@ SUB RunQuery(SQL AS STRING)
     DB.QueryAsync SQL
 END SUB
 
+' A query of the user's own: unsorted (the grid's arrow goes).
+SUB Fresh(SQL AS STRING)
+    IF DB.Busy THEN
+        Status.Caption = "A query is still running: Cancel it, or wait."
+        EXIT SUB
+    END IF
+    Grid.SortColumn = -1
+    RunQuery SQL
+END SUB
+
 SUB RunClicked
-    RunQuery Editor.CurrentStatement
+    Fresh Editor.CurrentStatement
 END SUB
 
 ' Ctrl+Enter in the editor: the statement at the caret, or the selection.
 SUB RunStatement(SQL AS STRING)
-    RunQuery SQL
+    Fresh SQL
 END SUB
 
 SUB CancelClicked
@@ -166,17 +178,26 @@ SUB QueryDone(Rows AS INTEGER, Ms AS INTEGER)
         Editor.SetSchema DB.Schema
         Status.Caption = "Made the table in " + STR$(Ms) + " ms."
         Mode = ""
-        RunQuery "SELECT * FROM big"
+        Fresh "SELECT * FROM big"
         EXIT SUB
     END IF
     Idle STR$(Rows) + " rows in " + STR$(Ms) + " ms; the first showed after " + STR$(FirstMs) + " ms."
 END SUB
 
 SUB QueryFailed(Message AS STRING)
+    DIM Text AS STRING
     IF Message = "cancelled" THEN
-        Idle "Cancelled after " + STR$(DB.RowCount) + " rows."
+        IF Mode = "make" THEN
+            ' (BEGIN … COMMIT: nothing of it was kept)
+            Idle "Cancelled: the table is as it was."
+        ELSE
+            Idle "Cancelled after " + STR$(DB.RowCount) + " rows."
+        END IF
     ELSE
-        Idle "SQLite says: " + Message
+        ' (one line: SQLite's message can quote the SQL, line breaks and all)
+        Text = REPLACESUBSTR$(Message, CHR$(10), " ")
+        IF LEN(Text) > 110 THEN Text = LEFT$(Text, 107) + "..."
+        Idle "SQLite says: " + Text
     END IF
 END SUB
 

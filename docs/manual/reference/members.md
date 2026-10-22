@@ -1414,7 +1414,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `WantTabs` | bool |  | Tab types (indents) in the editor rather than moving the focus on (True by default). |
 | `Language` | string |  | The language its colours, brackets, indentation and folding follow: an id ("rapidr-basic", "sql", "json", "html", "css", "javascript", "markdown", "toml", "rust", "csv", "plaintext"), a file name whose extension says, or a language definition file (.toml). SQL completes its words and the program's tables (SetSchema), folds each statement, and Ctrl+Enter runs one (OnRunStatement). |
 | `SqlDialect` | string |  | Whose SQL the editor knows when Language is "sql": "sqlite" (RSQLite's: PRAGMA, GLOB, JULIANDAY …), "mysql" (RMySQL's, MariaDB's: SHOW, AUTO_INCREMENT, DATE_FORMAT …) or "" for both. Its colours and completion follow it. |
-| `CurrentStatement` (read-only) | string |  | What Ctrl+Enter runs: the selection, or else the SQL statement the caret is in (up to its ;) — another language's: the caret's line. Read it for a Run button: `DB.QueryAsync Editor.CurrentStatement`. |
+| `CurrentStatement` (read-only) | string |  | What Ctrl+Enter runs: the selection, or else the SQL statement the caret is in (up to its ; or a blank line) — another language's: the caret's line. Read it for a Run button: `DB.QueryAsync Editor.CurrentStatement`. |
 | `ColorScheme` | string |  | "auto" (the theme's) or a scheme's name: "classic", "modern", "dark", "highcontrast". |
 | `TabSize` | int |  | Columns per tab stop (4). |
 | `InsertSpaces` | bool |  | Tab inserts spaces (True) or a tab character. |
@@ -4575,8 +4575,8 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | `RowCount` (read-only) | int | 0 | How many rows the data has. |
 | `ColCount` (read-only) | int | 0 | How many columns the data has. |
 | `Columns` (read-only) | string | `""` | The columns' names: "name,age,city". |
-| `SortColumn` (read-only) | int | -1 | The column its view is sorted by (-1: none, the data's own order). Bound to a database component: the column the user asked for — the program sorts, asking again with ORDER BY. |
-| `SortDescending` (read-only) | bool | False | True: sorted highest first. |
+| `SortColumn` | int | -1 | The column its view is sorted by (-1: none, the data's own order); a heading's click sets it. Bound to a database component: the column the user asked for — the program sorts, asking again with ORDER BY, and sets it to -1 for a query of its own (the arrow goes). Setting it sorts another data set's view. |
+| `SortDescending` | bool | False | True: sorted highest first (set it with SortColumn). |
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |

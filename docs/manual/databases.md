@@ -167,7 +167,9 @@ A click on a heading doesn't sort a database's rows in the grid: your
 program sorts them by running the query again with `ORDER BY`. The grid
 shows the arrow and says what was clicked, in `SortColumn` (from 0; -1:
 none) and `SortDescending`. A second click asks for the other way, a third
-for no order.
+for no order. When your program runs a query of its own, set
+`Grid.SortColumn = -1` so the arrow goes. A new query's rows show from the
+top, its first row the current one.
 
 ```basic
 SUB SortBy (Col AS INTEGER)

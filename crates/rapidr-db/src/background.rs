@@ -33,6 +33,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use rapidr_value::datascience::frame::{self, Frame, FrameBuilder};
+use rapidr_value::datascience::link;
 use rapidr_value::{v_int, v_str};
 use web_time::Instant;
 
@@ -260,6 +261,7 @@ pub fn running() -> bool {
 /// bound to it) are emptied, Busy is 1.
 pub fn begin(host: &dyn Host, name: &str, key: &str, shared: Arc<Shared>, kill: Option<Box<dyn Fn()>>) {
     frame::set_frame(key, Frame::default());
+    link::rows_replaced(key);
     META.with(|m| m.borrow_mut().remove(key));
     ACTIVE.with(|a| a.borrow_mut().push(Active { name: name.to_string(), key: key.to_string(), shared, rows: 0, told: 0, kill }));
     host.set(name, "busy", v_int(1));
@@ -307,6 +309,7 @@ pub fn poll(host: &dyn Host) -> bool {
             if let Some((columns, types)) = columns {
                 let width = columns.len();
                 frame::set_frame(&q.key, Frame::with_columns(&columns));
+                link::rows_replaced(&q.key);
                 META.with(|m| m.borrow_mut().insert(q.key.clone(), (columns, types)));
                 q.rows = 0;
                 heard.push(Heard::Columns(q.name.clone(), width));

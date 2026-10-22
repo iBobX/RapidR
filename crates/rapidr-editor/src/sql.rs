@@ -129,13 +129,33 @@ pub fn dialect_source(base: &str, d: Dialect) -> String {
 /// Where `text`'s statements end: each `;` outside strings ('…'), quoted
 /// names ("…", `…`, […]) and comments (-- …, /* … */).
 pub fn terminators(text: &str) -> Vec<usize> {
+    separators(text).into_iter().filter(|(_, semicolon)| *semicolon).map(|(r, _)| r.start).collect()
+}
+
+/// What separates `text`'s statements: each `;` (true) and each blank line
+/// (false: its bytes, the line break before the next one left out) outside
+/// strings, quoted names and comments.
+fn separators(text: &str) -> Vec<(Range<usize>, bool)> {
     let b = text.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
+    // (where the line started, and whether outside any literal there)
+    let mut line = Some(0);
     while i < b.len() {
+        if b[i] == b'\n' {
+            if let Some(start) = line {
+                if start < i && text[start..i].trim().is_empty() || start == i && start > 0 {
+                    out.push((start..i, false));
+                }
+            }
+            line = Some(i + 1);
+            i += 1;
+            continue;
+        }
         match b[i] {
             b'\'' | b'"' | b'`' => {
                 let q = b[i];
+                let opened = i;
                 i += 1;
                 while i < b.len() {
                     if b[i] == q {
@@ -148,20 +168,30 @@ pub fn terminators(text: &str) -> Vec<usize> {
                     }
                     i += 1;
                 }
-            }
-            b'-' if b.get(i + 1) == Some(&b'-') => {
-                while i < b.len() && b[i] != b'\n' {
-                    i += 1;
+                // (a literal over several lines: its lines aren't blank ones)
+                if text[opened..i.min(b.len())].contains('\n') {
+                    line = None;
                 }
             }
+            b'-' if b.get(i + 1) == Some(&b'-') => {
+                while i + 1 < b.len() && b[i + 1] != b'\n' {
+                    i += 1;
+                }
+                line = None;
+            }
             b'/' if b.get(i + 1) == Some(&b'*') => {
+                let opened = i;
                 i += 2;
                 while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') {
                     i += 1;
                 }
                 i += 1;
+                if text[opened..i.min(b.len())].contains('\n') {
+                    line = None;
+                }
             }
-            b';' => out.push(i),
+            b';' => out.push((i..i + 1, true)),
+            c if !c.is_ascii_whitespace() => {}
             _ => {}
         }
         i += 1;
@@ -169,22 +199,29 @@ pub fn terminators(text: &str) -> Vec<usize> {
     out
 }
 
-/// The statement byte `at` is in: from after the `;` before it to its own
-/// `;` (included), blanks trimmed. Between statements (only blanks after a
-/// `;`), the statement just ended.
+/// The statement byte `at` is in: from after the `;` (or the blank line)
+/// before it to its own `;` (included) or the next blank line, blanks
+/// trimmed. Between statements (only blanks after one), the statement just
+/// ended.
 pub fn statement_at(text: &str, at: usize) -> Range<usize> {
-    let ends = terminators(text);
     let at = at.min(text.len());
-    let piece = |k: usize| -> Range<usize> {
-        let start = if k == 0 { 0 } else { ends[k - 1] + 1 };
-        let end = ends.get(k).map_or(text.len(), |e| e + 1);
-        trim(text, start..end)
-    };
-    // (the piece the caret is in: its `;` at or after it)
-    let k = ends.iter().position(|&e| e >= at).unwrap_or(ends.len());
-    let r = piece(k);
-    if r.is_empty() && k > 0 && text[ends[k - 1] + 1..at].trim().is_empty() {
-        return piece(k - 1);
+    // (the pieces between the separators, each `;` its piece's)
+    let mut pieces = Vec::new();
+    let mut start = 0;
+    for (r, semicolon) in separators(text) {
+        pieces.push(start..if semicolon { r.end } else { r.start });
+        start = r.end;
+    }
+    pieces.push(start..text.len());
+    let k = pieces.iter().position(|p| at < p.end || (at == p.end && !text[..p.end].ends_with(';'))).unwrap_or(pieces.len() - 1);
+    let r = trim(text, pieces[k].clone());
+    if r.is_empty() || at < r.start && text[pieces[k].start..at].trim().is_empty() {
+        // (blanks only before the caret here: the statement before)
+        if let Some(prev) = pieces[..k].iter().rev().map(|p| trim(text, p.clone())).find(|p| !p.is_empty()) {
+            if text[prev.end..at].trim().is_empty() {
+                return prev;
+            }
+        }
     }
     r
 }
@@ -458,6 +495,14 @@ mod tests {
         // (a statement without its `;` yet)
         let t = "SELECT 1;\nSELECT name FROM people WHERE";
         assert_eq!(&t[statement_at(t, t.len())], "SELECT name FROM people WHERE");
+        // a blank line ends a statement too (statements without `;`), but
+        // not one inside a string or a comment
+        let t = "SELECT 1\n\nSELECT a,\n  b FROM t\n   \nSELECT 'x\n\ny' /* \n\n */ FROM u";
+        assert_eq!(&t[statement_at(t, 3)], "SELECT 1");
+        assert_eq!(&t[statement_at(t, 9)], "SELECT 1");
+        assert_eq!(&t[statement_at(t, 14)], "SELECT a,\n  b FROM t");
+        assert_eq!(&t[statement_at(t, t.len())], "SELECT 'x\n\ny' /* \n\n */ FROM u");
+        assert_eq!(terminators(t).len(), 0);
     }
 
     #[test]

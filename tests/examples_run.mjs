@@ -285,7 +285,12 @@ export const cases = [
     expect: ["status.caption=SQLite says: no such table: big"] },
   { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "native"], args: ["3000000"],
     events: "makebtn.onclick,cancelbtn.onclick,db.__until_busy_0", dump: "status.caption,db.busy,makebtn.enabled",
-    expect: ["status.caption=Cancelled after", "db.busy=0", "makebtn.enabled=1"] },
+    expect: ["status.caption=Cancelled: the table is as it was.", "db.busy=0", "makebtn.enabled=1"] },
+  // (a query of the user's own after a sorted one: unsorted, shown from the top)
+  { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "web"], args: ["5000"],
+    events: "makebtn.onclick,db.__until_busy_0,grid.__do_end,grid.__cell_1_-1,db.__until_busy_0,runbtn.onclick,db.__until_busy_0",
+    dump: "grid.sortcolumn,grid.row,grid.toprow,grid.rowcount",
+    expect: ["grid.sortcolumn=-1", "grid.row=0", "grid.toprow=0", "grid.rowcount=5000"] },
   // (EXAMPLES-DATA: where the example's folder can't be written — RapidR's
   // examples where it's installed — the window says why, nothing pretends;
   // a data file missing, the same; letters typed into a number field are
