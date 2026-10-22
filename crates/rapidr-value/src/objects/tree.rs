@@ -131,6 +131,9 @@ pub struct TreeView {
     deleted: Vec<usize>,
     /// Bumped by every change of the nodes (the runtime rebuilds its widget).
     pub version: u64,
+    /// (RapidR's) `EditItem i, Text`: the program asked for node i's
+    /// in-place editor, with this text (the UI kernel opens it).
+    pub pending_edit: Option<(usize, String)>,
 }
 
 impl Default for TreeView {
@@ -149,6 +152,7 @@ impl Default for TreeView {
             sort_type: 0,
             deleted: Vec::new(),
             version: 0,
+            pending_edit: None,
         }
     }
 }
@@ -210,6 +214,16 @@ impl TreeView {
             i = if self.nodes[i].expanded { i + 1 } else { self.subtree_end(i) };
         }
         rows
+    }
+
+    /// (RapidR's) `Item(i).Top`: where node `i`'s row starts, from the
+    /// tree's top edge (its 2-pixel frame included) — negative above the
+    /// rows shown (TopIndex); -1 when it can't be seen (a closed node's).
+    pub fn row_top(&self, i: usize) -> i64 {
+        let rows = self.visible_rows();
+        let Some(at) = rows.iter().position(|&r| r == i) else { return -1 };
+        let first = rows.iter().position(|&r| r as i64 >= self.top_index).unwrap_or(0);
+        2 + (at as i64 - first as i64) * self.row_height()
     }
 
     /// `GetItemAt(x, y)`: the node in the row at `y` (rows `row_height`
@@ -462,6 +476,17 @@ impl TreeView {
                 self.changed();
             }
             "sort" | "alphasort" => self.sort(),
+            // (RapidR's) node i's editor opened with Text (a debugger's value
+            // fetched whole first): EditItem i [, Text] — its text by default
+            "edititem" => {
+                let Some(i) = index(args.first()).filter(|&i| i < self.nodes.len()) else { return Some(Value::Null) };
+                let text = match args.get(1) {
+                    Some(t) => t.to_string_val(),
+                    None => self.nodes[i].text.clone(),
+                };
+                self.pending_edit = Some((i, text));
+                self.changed();
+            }
             // (RapidR's) the node a value: SetItemValue i, Name, Kind, Value [, Count [, Hint]]
             "setitemvalue" => {
                 let Some(i) = index(args.first()).filter(|&i| i < self.nodes.len()) else { return Some(Value::Null) };
@@ -587,6 +612,7 @@ impl TreeView {
             "valuekind" => v_str(node.and_then(|n| n.value.as_ref()).map_or("", |v| &v.kind)),
             "selected" => flag(i.is_some_and(|i| self.item_index == i as i64)),
             "isvisible" => flag(i.is_some_and(|i| self.is_visible(i))),
+            "top" => v_int(i.map_or(-1, |i| self.row_top(i))),
             "index" | "absoluteindex" => v_int(i.map_or(-1, |i| i as i64)),
             "parent" => v_int(i.and_then(|i| self.parent(i)).map_or(-1, |p| p as i64)),
             // A stable number for the node while the tree doesn't change.
@@ -756,7 +782,13 @@ mod tests {
         assert_eq!(t.call("item.haschildren", &[v_int(8)]).unwrap().to_i64(), 0);
         // Nothing expanded: the top-level nodes have rows.
         assert_eq!(t.visible_rows(), [0, 4, 8]);
+        // (Item(i).Top: a row's place — South the second row; Port inside
+        // a closed node: -1)
+        let h = t.row_height();
+        assert_eq!(t.call("item.top", &[v_int(4)]).unwrap().to_i64(), 2 + h);
+        assert_eq!(t.call("item.top", &[v_int(5)]).unwrap().to_i64(), -1);
         t.call("fullexpand", &[]);
+        assert_eq!(t.call("item.top", &[v_int(5)]).unwrap().to_i64(), 2 + 5 * h);
         assert_eq!(t.visible_rows().len(), 9);
         assert_eq!(t.item_at(5, 3 * 18 + 2, 18), 3);
         t.call("item.text=", &[v_int(2), s("two")]);

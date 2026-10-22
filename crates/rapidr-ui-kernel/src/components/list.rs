@@ -1114,6 +1114,61 @@ mod tests {
         assert_eq!(names, ["Locals", "Score, whole number 42, changed", "FontColor, colour clWindowText", "plain"]);
     }
 
+    /// (RapidR's) EditItem: the program opens a node's editor with a text of
+    /// its own (a debugger's value fetched whole) — no OnEditing asked; on a
+    /// value it sits over the value, the name still showing; Enter asks
+    /// OnEdited with what was typed.
+    #[test]
+    fn edit_item_opens_the_editor_over_the_value() {
+        let (s, mut f, mut ts) = form(|s| {
+            s.add("tv", "RTREEVIEW", Some("f")).set("tv", "width", v_int(300)).set("tv", "height", v_int(200));
+            s.call("tv", "additems", &[v_str("x"), v_str("y")]);
+            s.call("tv", "setitemvalue", &[v_int(0), v_str("Score"), v_str("Integer"), v_str("42")]);
+        });
+        f.focus_id(&s, "tv");
+        with_tree("tv", |t| {
+            t.call("edititem", &[v_int(0), v_str("42")]);
+        });
+        let list = f.paint(&s, &mut ts, 1.0);
+        let ed = super::editing("tv").expect("the editor opened");
+        assert_eq!((ed.target.0, ed.text.as_str()), (0, "42"));
+        // (no OnEditing: the program asked)
+        assert!(f.take_events().iter().all(|e| !matches!(e, KernelEvent::List(_, ListAction::TreeEdit(_)))));
+        // (it starts right of "Score = ", the value's place)
+        let eq_end = list.items.iter().find_map(|i| match i {
+            Item::Op { origin, op: Op::Text { text, rect, .. } } if text == " = " => Some(origin.0 + rect.0 + rect.2 - 2),
+            _ => None,
+        });
+        let editor_x = list.items.iter().find_map(|i| match i {
+            Item::Text(t) => Some(t.origin.0),
+            _ => None,
+        });
+        let (eq_end, editor_x) = (eq_end.expect("the row's ' = '"), editor_x.expect("the editor drawn"));
+        assert!(editor_x >= (eq_end - 6) as f64, "editor at {editor_x}, the value after {eq_end}");
+        // (typed over the value, all selected: Enter keeps what was typed)
+        let mut clip = crate::MemClipboard::default();
+        type_text(&mut f, &s, &mut ts, "100", &mut clip);
+        key(&mut f, &s, &mut ts, 13, Mods::NONE, &mut clip);
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("tv".into(), ListAction::TreeEdited(0, "100".into()))]);
+        // (keys typed right after EditItem, before the tree paints: the
+        // editor's all the same)
+        with_tree("tv", |t| {
+            t.call("edititem", &[v_int(0), v_str("100")]);
+        });
+        type_text(&mut f, &s, &mut ts, "7", &mut clip);
+        key(&mut f, &s, &mut ts, 13, Mods::NONE, &mut clip);
+        assert_eq!(lists(f.take_events()), vec![KernelEvent::List("tv".into(), ListAction::TreeEdited(0, "7".into()))]);
+        // (F2's own edit — OnEditing allowed: the node's whole text — has its
+        // box over the whole row, the name included)
+        super::super::tree::open_editor("tv", 0, "Score = 42");
+        let list = f.paint(&s, &mut ts, 1.0);
+        let whole_x = list.items.iter().find_map(|i| match i {
+            Item::Text(t) => Some(t.origin.0),
+            _ => None,
+        });
+        assert!(whole_x.expect("the editor drawn") < editor_x - 20.0, "the whole row's editor at {whole_x:?}, the value's at {editor_x}");
+    }
+
     #[test]
     fn grid_cells_and_owner_drawing() {
         let (s, mut f, mut ts) = form(|s| {
@@ -1158,6 +1213,20 @@ mod tests {
         });
         f.focus_id(&s, "tv");
         (s, f, ts)
+    }
+
+    /// (RapidR's OnUndo) Ctrl+Z — ⌘Z on a Mac, the shortcut key — on a
+    /// tree that isn't editing: the program's; while a node is edited, the
+    /// editor's own.
+    #[test]
+    fn ctrl_z_on_a_tree_is_its_programs_undo() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        key(&mut f, &s, &mut ts, 90, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert!(lists(f.take_events()).contains(&KernelEvent::List("tv".into(), ListAction::Fire("onundo".into(), Vec::new()))));
+        super::super::tree::open_editor("tv", 0, "one");
+        key(&mut f, &s, &mut ts, 90, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert!(!lists(f.take_events()).iter().any(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "onundo")));
     }
 
     #[test]

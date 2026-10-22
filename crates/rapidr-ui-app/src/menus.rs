@@ -55,6 +55,26 @@ pub fn popup<R: Program + Windows>(rt: R, name: &str, x: i32, y: i32) {
     rt.open_popup(&form, &name, i64::from(x) - left - fw / 2, i64::from(y) - top - (fh - fw / 2), true);
 }
 
+/// (RapidR's) `PopupMenu.PopupAt(Control, X, Y)`: as Popup, at (X, Y) of
+/// `control` — wherever it sits in its window, docked or not (a menu
+/// under a list's item, beside a button). A control not shown: (X, Y) of
+/// the window in front.
+pub fn popup_at<R: Program + Windows>(rt: R, name: &str, control: &str, x: i64, y: i64) {
+    let name = name.to_lowercase();
+    let (form, (ox, oy)) = match rt.place_of(&control.to_lowercase()) {
+        Some(at) => at,
+        None => match popup_form(rt, &name) {
+            Some(form) => (form, (0, 0)),
+            None => return,
+        },
+    };
+    rt.fire(&name, "onpopup");
+    if rt.form_of(&name).is_none() {
+        LOOSE.with(|l| l.borrow_mut().insert(name.clone()));
+    }
+    rt.open_popup(&form, &name, ox + x, oy + y, true);
+}
+
 /// A right press on `comp` at (x, y) in it: the pop-up menu its PopupMenu
 /// names, when that menu's AutoPopup is on — instead of OnMouseDown.
 pub fn auto_popup<R: Program + Windows>(rt: R, comp: &str, x: i64, y: i64) -> bool {

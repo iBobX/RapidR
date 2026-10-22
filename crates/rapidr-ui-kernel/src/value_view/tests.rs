@@ -313,6 +313,13 @@ fn rows_from_tree_nodes() {
     assert_eq!((fc.text(), fc.swatch()), ("FontColor = clWindowText", Some(Swatch::System(8))));
     let ws = ValueRow::from_item(&item("WindowState", "Integer", "2", "const:wsMaximized"), true);
     assert_eq!((ws.text(), ws.accessible_name()), ("WindowState = wsMaximized (2)", "WindowState, constant wsMaximized, changed"));
+    // (a True / False property: its number as the program reads it, on / off after it)
+    let vis = ValueRow::from_item(&item("Visible", "Integer", "1", "bool"), false);
+    assert_eq!((vis.text(), vis.accessible_name()), ("Visible = 1 · on", "Visible, 1, on"));
+    let off = ValueRow::from_item(&item("KeyPreview", "Integer", "0", "bool"), false);
+    assert_eq!(off.text(), "KeyPreview = 0 · off");
+    let ws_all = ValueRow::from_item(&item("WindowState", "Integer", "2", "const:wsMaximized,choices:wsNormal|wsMinimized|wsMaximized"), false);
+    assert_eq!(ws_all.text(), "WindowState = wsMaximized (2)");
     let h = ValueRow::from_item(&item("Handle", "Integer", "4242", "handle,readonly"), false);
     assert_eq!(h.kind(), ValueKind::Handle);
     let g = ValueRow::from_item(&item("Globals", "Globals", "", ""), false);

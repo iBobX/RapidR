@@ -1526,6 +1526,12 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         crate::kernel_web::popup(name, args.first().map_or(0, Value::to_i64), args.get(1).map_or(0, Value::to_i64));
         return v_null();
     }
+    // (RapidR's) `PopupMenu.PopupAt(Control, X, Y)`.
+    if lmethod == "popupat" && rapidr_value::objects::menu::kind(name) == Some(rapidr_value::objects::menu::Kind::Popup) {
+        let control = args.first().map(Value::to_string_val).unwrap_or_default();
+        crate::kernel_web::popup_at(name, &control, args.get(1).map_or(0, Value::to_i64), args.get(2).map_or(0, Value::to_i64));
+        return v_null();
+    }
     if rapidr_value::objects::menu::is_menu(name) {
         crate::kernel_web::redraw();
     }

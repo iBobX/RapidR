@@ -44,6 +44,12 @@ export const scenes = [
   { topic: "debugging", name: "step-into", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.variables`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "watch", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,watch:total + k,watch:n * 100,view.watch,wait`, delay: 7, crop: BOTTOM },
   { topic: "debugging", name: "set-value", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100`, delay: 7, crop: BOTTOM },
+  // (S11: a value set — refused in plain words, set and marked changed, a
+  // long text in its own window, a property's constants as a menu)
+  { topic: "debugging", name: "set-value-refused", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:abc,key:Enter,wait,wait,wait`, delay: 8, crop: BOTTOM },
+  { topic: "debugging", name: "set-value-done", open: COUNTER, do: `${HIT},view.variables,varpick:G/total,key:F2,type:100,key:Enter,wait,wait,wait`, delay: 8, crop: BOTTOM },
+  { topic: "debugging", name: "set-value-text", open: SHOP, do: "line:147,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,varpick:G/notes,key:F2,wait,wait,wait", delay: 8, window: 2 },
+  { topic: "debugging", name: "set-value-choices", open: SHOP, do: `${LOOP},view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait,varpick:C/Form/Cursor,key:F2,wait,wait`, delay: 10, crop: [540, 300, 500, 470] },
   { topic: "debugging", name: "call-stack-frame", open: COUNTER, do: `${HIT},debug.stepInto,wait,debug.stepOver,wait,view.callStack,frame:1,wait`, delay: 7, crop: WORKBENCH },
   { topic: "debugging", name: "immediate", open: COUNTER, do: `${BP},bpcond:i = 3,run.start,wait,wait,wait,view.immediate,focus:immediatebox,type:? total * 10,key:Enter,wait,wait,wait,type:total = 0,key:Enter,wait,wait,wait,type:? total,key:Enter,wait,wait`, delay: 12, crop: BOTTOM },
   // (DEBUG-RUN: paused, ▶ is Continue — the Debug menu opened by a click on it)

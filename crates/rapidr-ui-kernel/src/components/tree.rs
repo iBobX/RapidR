@@ -50,6 +50,10 @@ thread_local! {
     /// unless a press or a key comes first — Windows' tree view, the web's
     /// 0.5 s timer.
     static EDIT_SOON: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+    /// The trees whose edit is a value's (EditItem on a value node): its
+    /// box over the value only — the name and " = " still showing. F2's own
+    /// edit (OnEditing) is the node's whole text, its box the whole row.
+    static OVER_VALUE: RefCell<std::collections::HashSet<String>> = RefCell::new(std::collections::HashSet::new());
 }
 
 /// (the input lane's) A pending edit-after-a-pause forgotten.
@@ -159,6 +163,16 @@ pub fn expander(p: &mut Painter, c: i64, mid: i64, side: i64, expanded: bool) {
 }
 
 impl Tree {
+    /// The program asked for a node's editor (EditItem — no OnEditing
+    /// asked, the program wants it): open, before the tree paints or takes
+    /// a key, so what's typed right after goes into it.
+    fn open_asked(cx: &mut Cx) {
+        if let Some((n, text)) = with_tree(cx.id, |t| t.pending_edit.take()).flatten() {
+            OVER_VALUE.with(|s| s.borrow_mut().insert(cx.id.to_string()));
+            begin_edit(cx.id, InPlace { target: (n, 0), text, rect: None });
+        }
+    }
+
     /// The node's row in the component (its rect), if shown.
     fn row_rect(cx: &Cx, n: usize) -> Option<(Row, Rect)> {
         let row = rows(cx).into_iter().find(|r| r.node == n)?;
@@ -193,7 +207,13 @@ impl Tree {
     fn edit_rect(cx: &Cx) -> Option<Rect> {
         let ed = editing(cx.id)?;
         let (row, (_, y, _, rh)) = Self::row_rect(cx, ed.target.0)?;
-        let x = text_left(cx, &row);
+        // (a value's edit — EditItem —: over the value, its name and " = "
+        // still showing)
+        let over_value = OVER_VALUE.with(|s| s.borrow().contains(cx.id));
+        let x = match value_row(cx.id, ed.target.0).filter(|_| over_value) {
+            Some(vr) => 2 + row.left + vr.value_x(&cx.font, (row.height - 2).clamp(8, 16)),
+            None => text_left(cx, &row),
+        };
         let (_, bar, _) = vscroll_state(cx.id);
         let cw = cx.width() - 4 - if bar { rapidr_value::scrollbars::BAR } else { 0 };
         Some((x, y, (cw - (x - 2) - 3).max(40), rh))
@@ -232,6 +252,7 @@ impl ComponentKind for Tree {
     }
 
     fn paint(&self, cx: &mut Cx, p: &mut Painter) {
+        Self::open_asked(cx);
         drop_editor(cx);
         let (w, h) = (cx.width(), cx.height());
         let back = background(cx);
@@ -406,6 +427,8 @@ impl ComponentKind for Tree {
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
+        // (a key typed right after EditItem: the editor's, as one already open)
+        Self::open_asked(cx);
         // (while editing, the keys are the editor's — its row scrolled away
         // or not)
         if editing(cx.id).is_some() {
@@ -419,6 +442,12 @@ impl ComponentKind for Tree {
         }
         // (the input lane's: a key forgets a pending edit)
         cancel_edit_soon(cx);
+        // (RapidR's OnUndo: Ctrl+Z — ⌘Z on a Mac — on the tree, for the
+        // program to take back what it last did there)
+        if k.vk == 90 && k.mods.command && !k.mods.shift && !k.mods.alt {
+            fire(cx, "onundo", Vec::new());
+            return true;
+        }
         if k.mods.alt || k.mods.command {
             return false;
         }
@@ -518,6 +547,7 @@ impl ComponentKind for Tree {
 
     // (the input lane's: the edit's input methods and context menu)
     fn ime(&self, cx: &mut Cx, ime: &Ime) -> bool {
+        Self::open_asked(cx);
         Self::edit_rect(cx).is_some_and(|r| editor_ime(cx, ime, r))
     }
 
@@ -584,5 +614,7 @@ impl ComponentKind for Tree {
 /// Opens node `n`'s editor with `text` (runtime-core, once OnEditing
 /// allowed it).
 pub fn open_editor(id: &str, n: usize, text: &str) {
+    // (the node's whole text: the box the whole row)
+    OVER_VALUE.with(|s| s.borrow_mut().remove(&id.to_lowercase()));
     begin_edit(id, InPlace { target: (n, 0), text: text.to_string(), rect: None });
 }

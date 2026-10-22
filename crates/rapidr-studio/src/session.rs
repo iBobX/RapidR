@@ -95,6 +95,9 @@ struct Model {
     /// scope and the expression naming them.
     seen_before: std::collections::HashMap<String, String>,
     seen_now: std::collections::HashMap<String, String>,
+    /// (S11) What this stop showed first, by the same keys: a value set
+    /// while paused (Variables' F2, Immediate's `x = 5`) differs from it.
+    first_now: std::collections::HashMap<String, String>,
     /// Requests in flight.
     pending: BTreeMap<u64, Want>,
     /// A stop whose snapshot is still arriving: OnStopped waits for it.
@@ -139,14 +142,17 @@ impl Model {
         // (what this stop showed is what the next one compares with)
         let now = std::mem::take(&mut self.seen_now);
         self.seen_before.extend(now);
+        self.first_now.clear();
     }
 
     /// Whether `value` (named `key` in its scope) differs from what an
-    /// earlier stop showed; remembered for the next.
+    /// earlier stop showed — or from what this one first showed: a value
+    /// set while paused —; remembered for the next.
     fn changed(&mut self, key: String, value: &str) -> bool {
-        let changed = self.seen_before.get(&key).is_some_and(|old| old != value);
+        let before = self.seen_before.get(&key).is_some_and(|old| old != value);
+        let set_here = self.first_now.entry(key.clone()).or_insert_with(|| value.to_string()) != value;
         self.seen_now.insert(key, value.to_string());
-        changed
+        before || set_here
     }
 
     /// The scope reference `r`'s values are compared under.
@@ -779,6 +785,23 @@ mod browser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A value is changed when it differs from the stop before — or, set
+    /// while paused, from what this stop first showed; set back, it isn't.
+    #[test]
+    fn a_value_set_while_paused_shows_changed() {
+        let mut m = Model::default();
+        // (the first stop: nothing to compare with)
+        assert!(!m.changed("G:total".into(), "0"));
+        // (set to 7 at this stop: changed; set back to 0: not)
+        assert!(m.changed("G:total".into(), "7"));
+        assert!(!m.changed("G:total".into(), "0"));
+        assert!(m.changed("G:total".into(), "7"));
+        // (the next stop compares with the 7 it went on with)
+        m.forget();
+        assert!(!m.changed("G:total".into(), "7"));
+        assert!(m.changed("G:total".into(), "8"));
+    }
 
     #[test]
     fn arguments() {

@@ -65,6 +65,12 @@ DIM VarItemPath(MAXVARITEMS) AS STRING
 DIM VarItemExpr(MAXVARITEMS) AS STRING
 DIM VarItemKind(MAXVARITEMS) AS STRING
 DIM VarItemMore(MAXVARITEMS) AS INTEGER
+' (S11: what the registry knows of it — color, bool, const:…, choices:…,
+' readonly — and its value as the debugger wrote it)
+DIM VarItemHint(MAXVARITEMS) AS STRING
+DIM VarItemValue(MAXVARITEMS) AS STRING
+DIM WatchItemHint(MAXVARITEMS) AS STRING
+DIM WatchItemValue(MAXVARITEMS) AS STRING
 DIM WatchItemRef(MAXVARITEMS) AS INTEGER
 DIM WatchItemPath(MAXVARITEMS) AS STRING
 DIM WatchItemExpr(MAXVARITEMS) AS STRING
@@ -122,8 +128,8 @@ DIM TargetWanted AS STRING
 ' (the Variables and Watch panes' right-click menus)
 DIM VarsMenu AS RPopupMenu
 DIM WatchMenu AS RPopupMenu
-DIM VarsMenuItem(3) AS RMenuItem
-DIM WatchMenuItem(3) AS RMenuItem
+DIM VarsMenuItem(4) AS RMenuItem
+DIM WatchMenuItem(4) AS RMenuItem
 
 ' ---- the text viewer: a string's whole text -------------------------------------------
 CREATE TextViewer AS RForm
@@ -170,6 +176,59 @@ DIM HoverEvalId AS INTEGER
 ' (a value set from Variables or Watch: its expression, for the answer)
 DIM SetVarId AS INTEGER
 DIM SetVarExpr AS STRING
+' ---- values set while paused (S11) --------------------------------------------------------------
+' The item being set (tree w: 0 Variables, 1 Watch; its index), its value
+' before (as an expression: what Undo sets back), the whole text asked for
+' first (a STRING's: never the shortened one shown), a set that is an
+' Undo's (not remembered again), one typed in Immediate (its answer there).
+DIM EditW AS INTEGER, EditI AS INTEGER
+DIM EditFullId AS INTEGER
+DIM EditOld AS STRING
+DIM EditFull AS STRING
+' (the in-place edit open is a value's — EditItem —, not F2's own)
+DIM EditingValue AS INTEGER
+DIM SetVarOld AS STRING
+' (a value set by a constant's name: said by it, not its number)
+DIM SetVarShown AS STRING
+DIM SetVarUndo AS INTEGER
+DIM SetVarImm AS INTEGER
+' (Immediate's `x = 5`: its place, the value typed, the old value asked for)
+DIM ImmSetTarget AS STRING, ImmSetValue AS STRING
+DIM ImmOldId AS INTEGER
+' (what was set since the program paused, newest last: Ctrl+Z sets it back)
+CONST MAXUNDO = 50
+DIM UndoExpr(MAXUNDO) AS STRING
+DIM UndoOld(MAXUNDO) AS STRING
+DIM UndoCount AS INTEGER
+' (a STRING's whole text, in its own window: long or of several lines)
+CREATE ValueEditor AS RForm
+  Caption = "Set Value"
+  Width = 560: Height = 400
+  BorderStyle = 2
+  CREATE ValueEditorBox AS RMemo
+    Left = 10: Top = 10: Width = 524: Height = 300
+    WordWrap = 1
+    ScrollBars = 2
+    AccessibleName = "The new text"
+  END CREATE
+  CREATE ValueEditorInfo AS RLabel
+    Left = 10: Top = 322: Width = 300: Caption = ""
+  END CREATE
+  CREATE ValueEditorSet AS RButton
+    Left = 342: Top = 318: Width = 90: Caption = "&Set"
+  END CREATE
+  CREATE ValueEditorCancel AS RButton
+    Left = 444: Top = 318: Width = 90: Caption = "Cancel"
+    Cancel = 1
+    ModalResult = 2
+  END CREATE
+END CREATE
+' (a property's constants to pick from: a menu at the item)
+CONST MAXCHOICES = 40
+DIM ChoiceMenu AS RPopupMenu
+DIM ChoiceItem(MAXCHOICES) AS RMenuItem
+DIM ChoiceValue(MAXCHOICES) AS STRING
+DIM ChoiceWanted AS STRING
 DIM HoverDoc AS INTEGER
 DIM HoverExpr AS STRING
 ' (the Immediate window's lines typed, for Up / Down)
@@ -1043,6 +1102,7 @@ SUB ProgramFormShown(Id AS STRING)
 END SUB
 
 SUB ProgramContinued
+  ForgetSetValues
   SetState "running", "Running " + FileTitle(ProjectMain)
   ClearPausedMarks
 END SUB
@@ -1083,6 +1143,13 @@ END SUB
 ' — and read as a sentence; Hint is what the registry knows of a property:
 ' color, handle, const:alClient, readonly. A row with no kind stays text.)
 SUB TreeSetValue(w AS INTEGER, i AS INTEGER, Nm AS STRING, Kind AS STRING, Value AS STRING, Count AS INTEGER, Hint AS STRING)
+  IF i >= 0 AND i <= MAXVARITEMS THEN
+    IF w = 0 THEN
+      VarItemHint(i) = Hint: VarItemValue(i) = Value
+    ELSE
+      WatchItemHint(i) = Hint: WatchItemValue(i) = Value
+    END IF
+  END IF
   IF Kind = "" THEN EXIT SUB
   IF w = 0 THEN VarsTree.SetItemValue i, Nm, Kind, Value, Count, Hint ELSE WatchTree.SetItemValue i, Nm, Kind, Value, Count, Hint
 END SUB
@@ -1096,10 +1163,12 @@ SUB TreeItemData(w AS INTEGER, i AS INTEGER, Ref AS INTEGER, Path AS STRING)
   IF w = 0 THEN
     VarItemRef(i) = Ref: VarItemPath(i) = Path
     VarItemExpr(i) = "": VarItemKind(i) = "": VarItemMore(i) = -1
+    VarItemHint(i) = "": VarItemValue(i) = ""
     IF Ref > 0 THEN VarsTree.Item(i).HasChildren = 1
   ELSE
     WatchItemRef(i) = Ref: WatchItemPath(i) = Path
     WatchItemExpr(i) = "": WatchItemKind(i) = "": WatchItemMore(i) = -1
+    WatchItemHint(i) = "": WatchItemValue(i) = ""
     IF Ref > 0 THEN WatchTree.Item(i).HasChildren = 1
   END IF
 END SUB
@@ -1398,27 +1467,458 @@ FUNCTION WatchExpr(k AS INTEGER) AS STRING
   Result = FIELD$(Session.Watches, CHR$(10), k)
 END FUNCTION
 
-SUB SetValue(Expr AS STRING, Value AS STRING)
+SUB SetValue(Expr AS STRING, Value AS STRING, Shown AS STRING)
   IF Expr = "" OR Value = "" OR RunState <> "paused" THEN EXIT SUB
   SetVarExpr = Expr
+  SetVarOld = EditOld
+  SetVarUndo = 0
+  SetVarImm = 0
+  SetVarShown = Shown
   SetVarId = Session.SetVariable(Expr, Value)
 END SUB
 
-' (a value without children, in a paused program, that has a name to set
-' it by: Locals' and Globals' headers, "(none)", arrays, TYPEs, objects, a
-' frame's rows and "… more" aren't)
-SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
-  AllowEdit = 0
-  IF RunState <> "paused" OR Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
-  IF VarItemRef(Index) = 0 AND VarItemMore(Index) < 0 AND VarItemExpr(Index) <> "" THEN AllowEdit = 1
+' (tree w's item i: its expression, its kind, its hint, its name, its value)
+FUNCTION ItemExpr(w AS INTEGER, i AS INTEGER) AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN Result = VarItemExpr(i) ELSE Result = WatchItemExpr(i)
+END FUNCTION
+
+FUNCTION ItemKind(w AS INTEGER, i AS INTEGER) AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN Result = VarItemKind(i) ELSE Result = WatchItemKind(i)
+END FUNCTION
+
+FUNCTION ItemHint(w AS INTEGER, i AS INTEGER) AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN Result = VarItemHint(i) ELSE Result = WatchItemHint(i)
+END FUNCTION
+
+FUNCTION ItemValue(w AS INTEGER, i AS INTEGER) AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN Result = VarItemValue(i) ELSE Result = WatchItemValue(i)
+END FUNCTION
+
+FUNCTION ItemName(w AS INTEGER, i AS INTEGER) AS STRING
+  DIM p AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN p = VarItemPath(i) ELSE p = WatchItemPath(i)
+  ' (a watch's own line: its expression)
+  IF w = 1 AND INSTR(p, "/") = 0 THEN Result = WatchItemExpr(i) ELSE Result = PathName(p)
+END FUNCTION
+
+FUNCTION ItemRef(w AS INTEGER, i AS INTEGER) AS INTEGER
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT FUNCTION
+  IF w = 0 THEN Result = VarItemRef(i) ELSE Result = WatchItemRef(i)
+END FUNCTION
+
+' (one of a hint's parts: "readonly", "choices:…"'s list after its colon)
+FUNCTION HintHas(Hint AS STRING, Part AS STRING) AS INTEGER
+  Result = Flag(INSTR("," + Hint + ",", "," + Part + ",") > 0)
+END FUNCTION
+
+FUNCTION HintAfter(Hint AS STRING, Prefix AS STRING) AS STRING
+  DIM n AS INTEGER, k AS INTEGER, part AS STRING
+  n = TALLY(Hint, ",") + 1
+  FOR k = 1 TO n
+    part = FIELD$(Hint, ",", k)
+    IF LEFT$(part, LEN(Prefix)) = Prefix THEN Result = MID$(part, LEN(Prefix) + 1): EXIT FUNCTION
+  NEXT
+END FUNCTION
+
+' (a kind that holds text, numbers, True / False)
+FUNCTION TextKind(Kind AS STRING) AS INTEGER
+  Result = Flag(LCASE$(Kind) = "string" OR LCASE$(Kind) = "str")
+END FUNCTION
+
+FUNCTION NumberKind(Kind AS STRING) AS INTEGER
+  DIM k AS STRING
+  k = "|" + LCASE$(Kind) + "|"
+  Result = Flag(INSTR("|integer|long|byte|word|dword|short|double|single|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|", k) > 0)
+END FUNCTION
+
+' (what was typed reads as a number: 42, -3.5, 1E3, &HFF)
+FUNCTION LooksNumber(T AS STRING) AS INTEGER
+  DIM i AS INTEGER, c AS STRING, digits AS INTEGER
+  T = LTRIM$(RTRIM$(T))
+  IF T = "" THEN EXIT FUNCTION
+  IF UCASE$(LEFT$(T, 2)) = "&H" THEN
+    FOR i = 3 TO LEN(T)
+      IF INSTR("0123456789ABCDEFabcdef", MID$(T, i, 1)) = 0 THEN EXIT FUNCTION
+    NEXT
+    Result = Flag(LEN(T) > 2)
+    EXIT FUNCTION
+  END IF
+  FOR i = 1 TO LEN(T)
+    c = MID$(T, i, 1)
+    IF INSTR("0123456789", c) > 0 THEN digits = digits + 1
+    IF INSTR("0123456789.+-eE", c) = 0 THEN EXIT FUNCTION
+  NEXT
+  Result = Flag(digits > 0)
+END FUNCTION
+
+' (text as BASIC writes it: in quotes, a quote doubled, its line breaks
+' and tabs as CHR$(n) between its parts)
+FUNCTION TextLiteral(T AS STRING) AS STRING
+  DIM i AS INTEGER, c AS STRING, run AS STRING, out AS STRING
+  FOR i = 1 TO LEN(T)
+    c = MID$(T, i, 1)
+    IF ASC(c) < 32 THEN
+      IF run <> "" THEN
+        IF out <> "" THEN out = out + " + "
+        out = out + CHR$(34) + run + CHR$(34)
+        run = ""
+      END IF
+      IF out <> "" THEN out = out + " + "
+      out = out + "CHR$(" + Num(ASC(c)) + ")"
+    ELSEIF c = CHR$(34) THEN
+      run = run + CHR$(34) + CHR$(34)
+    ELSE
+      run = run + c
+    END IF
+  NEXT
+  IF run <> "" OR out = "" THEN
+    IF out <> "" THEN out = out + " + "
+    out = out + CHR$(34) + run + CHR$(34)
+  END IF
+  Result = out
+END FUNCTION
+
+' (a colour typed as the web writes it, #RRGGBB: RapidQ's &HBBGGRR number)
+FUNCTION WebColour(T AS STRING) AS STRING
+  DIM h AS STRING
+  h = MID$(LTRIM$(RTRIM$(T)), 2)
+  IF LEN(h) <> 6 OR LooksNumber("&H" + h) = 0 THEN EXIT FUNCTION
+  Result = "&H" + MID$(h, 5, 2) + MID$(h, 3, 2) + MID$(h, 1, 2)
+END FUNCTION
+
+' What was typed for a value of this kind, as the expression that sets it,
+' or Problem in plain words. "=" first: an expression as it is (total * 2).
+' Text is text (quotes are added); numbers are numbers (or a constant's
+' name: clRed); True / False take yes / no, on / off too; a property's
+' constants by name.
+FUNCTION TypedToExpr(Nm AS STRING, Kind AS STRING, Hint AS STRING, Typed AS STRING, BYREF Problem AS STRING) AS STRING
+  DIM t AS STRING, low AS STRING, choices AS STRING, n AS INTEGER, k AS INTEGER
+  Problem = ""
+  t = Typed
+  IF LEFT$(LTRIM$(t), 1) = "=" THEN
+    Result = MID$(LTRIM$(t), 2)
+    IF LTRIM$(Result) = "" THEN Problem = "Type an expression after the =, such as =" + Nm + " * 2."
+    EXIT FUNCTION
+  END IF
+  IF TextKind(Kind) THEN
+    Result = TextLiteral(t)
+    EXIT FUNCTION
+  END IF
+  t = LTRIM$(RTRIM$(t))
+  low = LCASE$(t)
+  IF t = "" THEN Problem = "Type the new value of " + Nm + ".": EXIT FUNCTION
+  choices = HintAfter(Hint, "choices:")
+  IF choices <> "" THEN
+    n = TALLY(choices, "|") + 1
+    FOR k = 1 TO n
+      IF LCASE$(FIELD$(choices, "|", k)) = low THEN Result = FIELD$(choices, "|", k): EXIT FUNCTION
+    NEXT
+    IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
+    Problem = Nm + " takes one of: " + REPLACESUBSTR$(choices, "|", ", ") + "."
+    EXIT FUNCTION
+  END IF
+  IF HintHas(Hint, "bool") THEN
+    IF low = "on" OR low = "yes" OR low = "true" THEN Result = "1": EXIT FUNCTION
+    IF low = "off" OR low = "no" OR low = "false" THEN Result = "0": EXIT FUNCTION
+    IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
+    Problem = Nm + " is on or off: type on, off, 1 or 0."
+    EXIT FUNCTION
+  END IF
+  IF LCASE$(Kind) = "boolean" OR LCASE$(Kind) = "bool" THEN
+    IF low = "true" OR low = "yes" OR low = "on" OR low = "-1" OR low = "1" THEN Result = "True": EXIT FUNCTION
+    IF low = "false" OR low = "no" OR low = "off" OR low = "0" THEN Result = "False": EXIT FUNCTION
+    Problem = Nm + " is True or False: type True or False."
+    EXIT FUNCTION
+  END IF
+  IF NumberKind(Kind) OR HintHas(Hint, "color") OR HintHas(Hint, "handle") THEN
+    IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
+    IF HintHas(Hint, "color") AND LEFT$(t, 1) = "#" THEN
+      Result = WebColour(t)
+      IF Result = "" THEN Problem = "A colour as the web writes it has six hex digits, such as #FF8000."
+      EXIT FUNCTION
+    END IF
+    ' (a constant's name — clRed, MAXORDERS —: the program says whether it is one)
+    IF INSTR("ABCDEFGHIJKLMNOPQRSTUVWXYZ_", UCASE$(LEFT$(t, 1))) > 0 AND INSTR(t, " ") = 0 THEN Result = t: EXIT FUNCTION
+    IF HintHas(Hint, "color") THEN
+      Problem = Nm + " is a colour: type a number, a colour's name such as clRed, or #RRGGBB."
+    ELSE
+      Problem = Nm + " holds a number: type one, such as 42."
+    END IF
+    EXIT FUNCTION
+  END IF
+  ' (anything else — a variant not set yet —: as typed)
+  Result = t
+END FUNCTION
+
+' Which editor sets a value of this kind (S11). The code's helpers bring
+' their own value editors (docs/code-helpers-plan.md E1: a colour's wheel,
+' a font's list, a choice's): one that takes this kind answers its name
+' here, and OpenValueEditor opens it. Today: "choice" (a property's
+' constants, a menu), "text" (a STRING: its whole text fetched first, in
+' place or — long, of several lines — in its own window), "inline" (typed
+' in place, checked before it's set).
+FUNCTION ValueEditorFor(Kind AS STRING, Hint AS STRING) AS STRING
+  IF HintAfter(Hint, "choices:") <> "" THEN
+    Result = "choice"
+  ELSEIF TextKind(Kind) THEN
+    Result = "text"
+  ELSE
+    Result = "inline"
+  END IF
+END FUNCTION
+
+' F2, a double click or Set Value on tree w's item i: its value set, as
+' its kind wants — or why it can't be, in plain words.
+SUB BeginSetValue(w AS INTEGER, i AS INTEGER)
+  DIM expr AS STRING, kind AS STRING, hint AS STRING, nm AS STRING, editor AS STRING
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
+  expr = ItemExpr(w, i): kind = ItemKind(w, i): hint = ItemHint(w, i): nm = ItemName(w, i)
+  IF RunState <> "paused" THEN
+    SetRefused nm, "Values can be changed while the program is paused (F9 sets a breakpoint)."
+    EXIT SUB
+  END IF
+  IF expr = "" THEN
+    IF nm <> "" THEN SetRefused nm, nm + " isn't a value that can be set."
+    EXIT SUB
+  END IF
+  IF HintHas(hint, "readonly") THEN
+    SetRefused nm, nm + " can't be changed: it's read-only."
+    EXIT SUB
+  END IF
+  IF ItemRef(w, i) > 0 THEN
+    IF LCASE$(kind) = "array" THEN
+      SetRefused nm, nm + " is an array: open it and set its elements one at a time."
+    ELSEIF LEFT$(ItemValue(w, i), 1) = CHR$(34) THEN
+      SetRefused nm, nm + " is a component: open it and set its properties."
+    ELSE
+      SetRefused nm, nm + " is a record (a TYPE): open it and set its fields one at a time."
+    END IF
+    EXIT SUB
+  END IF
+  EditW = w: EditI = i
+  EditOld = ItemValue(w, i)
+  editor = ValueEditorFor(kind, hint)
+  OpenValueEditor editor
 END SUB
 
+SUB OpenValueEditor(Editor AS STRING)
+  DIM v AS STRING
+  SELECT CASE Editor
+    CASE "choice"
+      ShowChoices
+    CASE "text"
+      ' (never the shortened text shown: the whole of it, asked for first)
+      EditFullId = Session.Evaluate(ItemExpr(EditW, EditI), "clipboard")
+    CASE ELSE
+      v = ItemValue(EditW, EditI)
+      ' (a constant's number shown after its name: the number)
+      IF LooksNumber(v) = 0 AND HintAfter(ItemHint(EditW, EditI), "const:") <> "" THEN v = HintAfter(ItemHint(EditW, EditI), "const:")
+      OpenInline v
+  END SELECT
+END SUB
+
+SUB OpenInline(Text AS STRING)
+  ' (what the keys do, short enough for the bar)
+  SetState RunState, "Enter sets it, Esc leaves it"
+  ' (the edit that ends is a value's, not a watch's expression)
+  EditingValue = 1
+  ' (the tree keeps the focus it has: F2, a double click and its menu are
+  ' all the tree's own)
+  IF EditW = 0 THEN
+    VarsTree.EditItem EditI, Text
+  ELSE
+    WatchTree.EditItem EditI, Text
+  END IF
+END SUB
+
+' (a STRING's whole text in: in place when short, in its own window when
+' long or of several lines; its old value remembered for Undo)
+SUB EditFullText(Full AS STRING)
+  ' (a credential the program holds comes as •••• and stays unseen: never
+  ' edited from its mask)
+  IF Full = "••••" THEN
+    SetRefused ItemName(EditW, EditI), ItemName(EditW, EditI) + " holds a secret: it isn't shown, so it can't be edited here."
+    EXIT SUB
+  END IF
+  EditOld = TextLiteral(Full)
+  EditFull = Full
+  IF LEN(Full) > 80 OR INSTR(Full, CHR$(10)) > 0 OR INSTR(Full, CHR$(13)) > 0 THEN
+    ValueEditor.Caption = "Set " + ItemName(EditW, EditI)
+    ValueEditorBox.Text = Full
+    ValueEditorInfo.Caption = Num(LEN(Full)) + " characters, " + Num(TALLY(Full, CHR$(10)) + 1) + " lines"
+    ' (Set's click sets it — ValueEditorSetClick —; Cancel, Esc and the
+    ' window's close leave it)
+    ValueEditor.ShowModal
+  ELSE
+    OpenInline Full
+  END IF
+END SUB
+
+' (the long text's window: Set — what it holds now set, the window closed)
+SUB ValueEditorSetClick
+  DIM t AS STRING
+  ValueEditor.Close
+  ' (the box's line breaks are CR LF: the text's own kept — LF alone when
+  ' it had no CR)
+  t = ValueEditorBox.Text
+  IF INSTR(EditFull, CHR$(13)) = 0 THEN t = REPLACESUBSTR$(t, CHR$(13) + CHR$(10), CHR$(10))
+  SetTyped EditW, EditI, t
+END SUB
+
+' (a value not set, and why in plain words: the reason in Output, beside
+' Variables in the debugging layout — whole, where the status bar would
+' shorten it —, the status bar pointing there)
+SUB SetRefused(Nm AS STRING, Why AS STRING)
+  SetState RunState, "Can't set " + Nm + ": see Output"
+  OutputAfterProgram Why
+END SUB
+
+' (what was typed for tree w's item i: checked, then set)
+SUB SetTyped(w AS INTEGER, i AS INTEGER, Typed AS STRING)
+  DIM problem AS STRING, e AS STRING
+  e = TypedToExpr(ItemName(w, i), ItemKind(w, i), ItemHint(w, i), Typed, problem)
+  IF problem <> "" THEN
+    SetRefused ItemName(w, i), problem
+    EXIT SUB
+  END IF
+  ' (left as it was: nothing to set, nothing to undo)
+  IF w = EditW AND i = EditI AND e = EditOld THEN
+    SetState RunState, ItemName(w, i) + " is unchanged."
+    EXIT SUB
+  END IF
+  SetValue ItemExpr(w, i), e, ""
+END SUB
+
+' (a property's constants: a menu at the item, the one it has now checked)
+SUB ShowChoices
+  DIM choices AS STRING, n AS INTEGER, k AS INTEGER, now AS STRING, y AS INTEGER
+  choices = HintAfter(ItemHint(EditW, EditI), "choices:")
+  now = HintAfter(ItemHint(EditW, EditI), "const:")
+  n = TALLY(choices, "|") + 1
+  IF n > MAXCHOICES THEN n = MAXCHOICES
+  FOR k = 0 TO MAXCHOICES - 1
+    IF k < n THEN
+      ChoiceValue(k) = FIELD$(choices, "|", k + 1)
+      ChoiceItem(k).Caption = ChoiceValue(k)
+      ChoiceItem(k).Checked = Flag(LCASE$(ChoiceValue(k)) = LCASE$(now))
+      ChoiceItem(k).Visible = 1
+    ELSE
+      ChoiceItem(k).Visible = 0
+    END IF
+  NEXT
+  ' (a flow's choice:<name>, said before: that one, without the menu — a
+  ' popup menu holds the program until it's closed)
+  IF ChoiceWanted <> "" THEN
+    FOR k = 0 TO n - 1
+      IF LCASE$(ChoiceValue(k)) = LCASE$(ChoiceWanted) THEN
+        ChoiceWanted = ""
+        ChoicePicked ChoiceItem(k)
+        EXIT SUB
+      END IF
+    NEXT
+    ChoiceWanted = ""
+  END IF
+  ' (under the item's row, right of its name and value: both still showing)
+  IF EditW = 0 THEN
+    y = VarsTree.Item(EditI).Top + VarsTree.ItemHeight
+    IF y < VarsTree.ItemHeight THEN y = VarsTree.ItemHeight
+    ChoiceMenu.PopupAt VarsTree, 220, y
+  ELSE
+    y = WatchTree.Item(EditI).Top + WatchTree.ItemHeight
+    IF y < WatchTree.ItemHeight THEN y = WatchTree.ItemHeight
+    ChoiceMenu.PopupAt WatchTree, 220, y
+  END IF
+END SUB
+
+SUB ChoicePicked(Sender AS RMenuItem)
+  DIM k AS INTEGER
+  k = Sender.Tag
+  IF k < 0 OR k >= MAXCHOICES THEN EXIT SUB
+  ' (said by its name, as the menu had it)
+  SetValue ItemExpr(EditW, EditI), ChoiceValue(k), ChoiceValue(k)
+END SUB
+
+' (Ctrl+Z — ⌘Z — in Variables or Watch: the trees' OnUndo)
+SUB TreeUndo
+  IF RunState = "paused" THEN UndoSetValue
+END SUB
+
+' Ctrl+Z in Variables or Watch while paused: the last value set goes back.
+SUB UndoSetValue
+  IF UndoCount < 1 THEN
+    SetState RunState, "Nothing to undo"
+    EXIT SUB
+  END IF
+  IF RunState <> "paused" THEN EXIT SUB
+  UndoCount = UndoCount - 1
+  SetVarExpr = UndoExpr(UndoCount)
+  SetVarOld = ""
+  SetVarUndo = 1
+  SetVarImm = 0
+  SetVarId = Session.SetVariable(UndoExpr(UndoCount), UndoOld(UndoCount))
+END SUB
+
+' (the program went on: what was set stays, its undo goes)
+SUB ForgetSetValues
+  UndoCount = 0
+END SUB
+
+' (Immediate: `name = value`, a place set — not `PRINT x = 5`, not `a == b`)
+FUNCTION ImmAssignment(Typed AS STRING, BYREF Target AS STRING, BYREF Value AS STRING) AS INTEGER
+  DIM t AS STRING, i AS INTEGER, c AS STRING, depth AS INTEGER, quoted AS INTEGER, at AS INTEGER
+  t = LTRIM$(RTRIM$(Typed))
+  IF t = "" OR LEFT$(t, 1) = "?" THEN EXIT FUNCTION
+  FOR i = 1 TO LEN(t)
+    c = MID$(t, i, 1)
+    IF c = CHR$(34) THEN quoted = 1 - quoted
+    IF quoted = 0 THEN
+      IF c = "(" THEN depth = depth + 1
+      IF c = ")" THEN depth = depth - 1
+      IF c = "=" AND depth = 0 THEN at = i: EXIT FOR
+      ' (a place's name: letters, digits, _ $ . and what's in brackets)
+      IF depth = 0 AND INSTR("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_$%&!#.() ", c) = 0 THEN EXIT FUNCTION
+    END IF
+  NEXT
+  IF at < 2 OR at >= LEN(t) THEN EXIT FUNCTION
+  IF MID$(t, at + 1, 1) = "=" OR INSTR("<>", MID$(t, at - 1, 1)) > 0 THEN EXIT FUNCTION
+  Target = RTRIM$(LEFT$(t, at - 1))
+  Value = LTRIM$(MID$(t, at + 1))
+  ' (one word, or a path: never "PRINT x")
+  IF INSTR(Target, " ") > 0 AND INSTR(Target, "(") = 0 THEN EXIT FUNCTION
+  IF UCASE$(LEFT$(Target, 4)) = "LET " THEN EXIT FUNCTION
+  Result = Flag(Target <> "" AND Value <> "")
+END FUNCTION
+
+' (a value with no children, in a paused program, that has a name to set
+' it by: F2 sets it as its kind wants — the editor the kernel would open
+' isn't the one wanted)
+SUB VarsEditing(Index AS INTEGER, AllowEdit AS INTEGER)
+  AllowEdit = 0
+  IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
+  BeginSetValue 0, Index
+END SUB
+
+' (the editor held the value only: what was typed is checked and set; the
+' row keeps its text until the program answers with the value it now has)
 SUB VarsEdited(Index AS INTEGER, S AS STRING)
   DIM v AS STRING
   IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
-  v = TypedValue(S)
-  S = ValueText(PathName(VarItemPath(Index)), v)
-  SetValue VarItemExpr(Index), v
+  v = S
+  S = VarsTree.Item(Index).Text
+  SetTyped 0, Index, v
+END SUB
+
+' (a double click on a value: set it)
+SUB VarsDblClick
+  DIM i AS INTEGER
+  i = VarsTree.ItemIndex
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
+  IF VarItemRef(i) = 0 AND VarItemMore(i) < 0 AND VarItemExpr(i) <> "" THEN BeginSetValue 0, i
 END SUB
 
 SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
@@ -1430,9 +1930,17 @@ SUB WatchEditing(Index AS INTEGER, AllowEdit AS INTEGER)
   IF INSTR(p, "/") = 0 THEN
     ' (a watch's expression: always)
     AllowEdit = 1
+    EditingValue = 0
   ELSEIF RunState = "paused" AND WatchItemRef(Index) = 0 AND WatchItemMore(Index) < 0 AND WatchItemExpr(Index) <> "" THEN
-    AllowEdit = PlainWatch(WatchItemExpr(Index))
+    IF PlainWatch(WatchItemExpr(Index)) THEN BeginSetValue 1, Index
   END IF
+END SUB
+
+SUB WatchDblClick
+  DIM i AS INTEGER
+  i = WatchTree.ItemIndex
+  IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
+  IF INSTR(WatchItemPath(i), "/") > 0 AND WatchItemRef(i) = 0 AND WatchItemMore(i) < 0 AND PlainWatch(WatchItemExpr(i)) THEN BeginSetValue 1, i
 END SUB
 
 SUB WatchEdited(Index AS INTEGER, S AS STRING)
@@ -1440,6 +1948,14 @@ SUB WatchEdited(Index AS INTEGER, S AS STRING)
   IF Index < 0 OR Index > MAXVARITEMS THEN EXIT SUB
   p = WatchItemPath(Index)
   k = VAL(MID$(p, 2))
+  ' (Set Value… on a watch's own line: its value, not its expression)
+  IF EditingValue AND EditW = 1 AND EditI = Index THEN
+    EditingValue = 0
+    v = S
+    S = WatchTree.Item(Index).Text
+    SetTyped 1, Index, v
+    EXIT SUB
+  END IF
   IF INSTR(p, "/") = 0 THEN
     ' (its expression: what's before its value's " = ", or all of it)
     e = S
@@ -1459,9 +1975,9 @@ SUB WatchEdited(Index AS INTEGER, S AS STRING)
     S = WatchTree.Item(Index).Text
     DebugStateChanged
   ELSE
-    v = TypedValue(S)
-    S = ValueText(PathName(p), v)
-    SetValue WatchItemExpr(Index), v
+    v = S
+    S = WatchTree.Item(Index).Text
+    SetTyped 1, Index, v
   END IF
 END SUB
 
@@ -1623,6 +2139,12 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
   END IF
   ImmAt = ImmCount
   IF RunState = "paused" THEN
+    IF ImmAssignment(typed, ImmSetTarget, ImmSetValue) THEN
+      ' (a place set — checked, marked changed, Ctrl+Z in Variables puts it
+      ' back: its old value asked for first)
+      ImmOldId = Session.Evaluate(ImmSetTarget, "clipboard")
+      EXIT SUB
+    END IF
     ImmEvalId = Session.Evaluate(typed, "repl")
     ImmPending = ImmPending + "|" + Num(ImmEvalId) + "|"
   ELSE
@@ -1645,16 +2167,67 @@ END SUB
 ' set, copied or viewed, Set Next Statement's; Kind its type, Ref its
 ' children and Count how many)
 SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INTEGER, Count AS INTEGER, Columns AS STRING)
-  DIM failed AS INTEGER
+  DIM failed AS INTEGER, k AS INTEGER, msg AS STRING
   failed = Flag(LEFT$(Answer, 6) = "error:")
   IF Id = SetVarId THEN
     SetVarId = -1
     IF failed THEN
-      SetState RunState, "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
-      OutputAfterProgram "Can't set " + SetVarExpr + ": " + LTRIM$(MID$(Answer, 7))
+      ' (the program's own words, plain: "count holds a whole number, …")
+      IF SetVarImm THEN
+        SetState RunState, "Can't set " + SetVarExpr
+        ImmAnswer LTRIM$(MID$(Answer, 7))
+      ELSE
+        SetRefused SetVarExpr, LTRIM$(MID$(Answer, 7))
+      END IF
     ELSE
-      SetState RunState, SetVarExpr + " = " + Answer
+      IF SetVarUndo THEN
+        SetState RunState, SetVarExpr + " is back to " + Answer
+      ELSE
+        ' (remembered for Ctrl+Z while the program stays paused)
+        IF SetVarOld <> "" THEN
+          IF UndoCount >= MAXUNDO THEN
+            FOR k = 1 TO MAXUNDO - 1
+              UndoExpr(k - 1) = UndoExpr(k): UndoOld(k - 1) = UndoOld(k)
+            NEXT
+            UndoCount = MAXUNDO - 1
+          END IF
+          UndoExpr(UndoCount) = SetVarExpr: UndoOld(UndoCount) = SetVarOld
+          UndoCount = UndoCount + 1
+        END IF
+        ' (what it is now; "Ctrl+Z undoes" after it when the bar has the
+        ' room — the value itself is never shortened for it)
+        msg = SetVarExpr + " = " + IIF(SetVarShown <> "", SetVarShown, Answer)
+        IF SetVarOld <> "" THEN
+          IF FitMiddle(msg + "  (Ctrl+Z undoes)", Status.Panel(0).Width - 14) = msg + "  (Ctrl+Z undoes)" THEN msg = msg + "  (Ctrl+Z undoes)"
+        END IF
+        SetState RunState, msg
+      END IF
+      ' (Immediate: what it holds now only when that isn't what was typed —
+      ' 7.9 into a whole number is 7; the line typed says the rest)
+      IF SetVarImm AND Answer <> LTRIM$(RTRIM$(ImmSetValue)) THEN ImmAnswer SetVarExpr + " = " + Answer
     END IF
+    SetVarUndo = 0: SetVarImm = 0: SetVarShown = ""
+  ELSEIF Id = EditFullId THEN
+    ' (a STRING's whole text, to edit: never the shortened one shown)
+    EditFullId = -1
+    IF failed THEN
+      SetRefused ItemName(EditW, EditI), LTRIM$(MID$(Answer, 7))
+    ELSE
+      EditFullText Answer
+    END IF
+  ELSEIF Id = ImmOldId THEN
+    ' (Immediate's `x = 5`: its old value in, now the set — remembered for Ctrl+Z)
+    ImmOldId = -1
+    SetVarExpr = ImmSetTarget
+    SetVarOld = ""
+    IF failed = 0 THEN
+      IF LCASE$(Kind) = "string" THEN SetVarOld = TextLiteral(Answer) ELSE SetVarOld = Answer
+      ' (a secret's mask is never put back as its value)
+      IF Answer = "••••" THEN SetVarOld = ""
+    END IF
+    SetVarUndo = 0
+    SetVarImm = 1
+    SetVarId = Session.SetVariable(ImmSetTarget, ImmSetValue)
   ELSEIF INSTR(ImmPending, "|" + Num(Id) + "|") > 0 THEN
     ' (every line's answer, however fast they were typed)
     ImmPending = REPLACESUBSTR$(ImmPending, "|" + Num(Id) + "|", "")
@@ -2011,7 +2584,7 @@ SUB ValueMenuOpening(w AS INTEGER)
   DIM e AS STRING, k AS INTEGER, paused AS INTEGER
   e = PickedExpr(w)
   paused = Flag(RunState = "paused")
-  FOR k = 0 TO 3
+  FOR k = 0 TO 4
     IF w = 0 THEN
       VarsMenuItem(k).Enabled = Flag(paused <> 0 AND (k = 0 OR e <> ""))
     ELSE
@@ -2037,14 +2610,16 @@ SUB ValueMenuPicked(Sender AS RMenuItem)
     CASE 1: ValueAction "copyexpr", PickedExpr(w), PickedShown(w)
     CASE 2: ValueAction "watch", PickedExpr(w), PickedShown(w)
     CASE 3: ValueAction "view", PickedExpr(w), PickedShown(w)
+    CASE 4
+      IF w = 0 THEN BeginSetValue 0, VarsTree.ItemIndex ELSE BeginSetValue 1, WatchTree.ItemIndex
   END SELECT
 END SUB
 
 ' (the menus made: four items each)
 SUB SetUpValueMenus
   DIM k AS INTEGER, captions AS STRING
-  captions = "&Copy Value" + CHR$(9) + "Ctrl+C|Copy &Expression|Add &Watch|&View Text..."
-  FOR k = 0 TO 3
+  captions = "&Copy Value" + CHR$(9) + "Ctrl+C|Copy &Expression|Add &Watch|&View Text...|&Set Value..." + CHR$(9) + "F2"
+  FOR k = 0 TO 4
     VarsMenuItem(k).Caption = FIELD$(captions, "|", k + 1)
     VarsMenuItem(k).Tag = k
     VarsMenuItem(k).OnClick = ValueMenuPicked
@@ -2058,6 +2633,14 @@ SUB SetUpValueMenus
   WatchMenu.OnPopup = WatchMenuOpening
   VarsTree.PopupMenu = VarsMenu
   WatchTree.PopupMenu = WatchMenu
+  ' (a property's constants to pick from: Set Value's menu, items made
+  ' visible as needed)
+  FOR k = 0 TO MAXCHOICES - 1
+    ChoiceItem(k).Tag = k
+    ChoiceItem(k).OnClick = ChoicePicked
+    ChoiceItem(k).Visible = 0
+    ChoiceMenu.AddItems ChoiceItem(k)
+  NEXT
   ' (Step Into Specific's menu: an item for each call, made visible as needed)
   FOR k = 0 TO MAXTARGETS - 1
     TargetItem(k).Tag = k
@@ -2069,14 +2652,15 @@ END SUB
 
 ' (Ctrl+C in Variables or Watch: the value copied — true when it was)
 FUNCTION CopyKey(w AS INTEGER, Key AS INTEGER, Shift AS INTEGER) AS INTEGER
-  IF Key = 67 AND (Shift AND 2) <> 0 THEN
+  ' (Ctrl+C: ssCtrl is 16)
+  IF Key = 67 AND (Shift AND 16) <> 0 THEN
     ValueAction "copy", PickedExpr(w), PickedShown(w)
     Result = 1
   END IF
 END FUNCTION
 
 SUB VarsTreeKey(Key AS INTEGER, Shift AS INTEGER)
-  IF CopyKey(0, Key, Shift) THEN Key = 0
+  IF CopyKey(0, Key, Shift) THEN Key = 0: EXIT SUB
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -2091,6 +2675,14 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
     ' turn: its windows come forward after half a second)
     StepRaise.Enabled = 0
     StepRaise.Enabled = 1
+  END IF
+  ' (S11) Edit > Undo — Ctrl+Z — in Variables or Watch while paused: the
+  ' last value set goes back (the code's own undo elsewhere)
+  IF Id = "edit.undo" AND RunState = "paused" THEN
+    IF INSTR("|varstree|watchpanel|", "|" + LCASE$(Dock.ActivePane) + "|") > 0 THEN
+      UndoSetValue
+      EXIT FUNCTION
+    END IF
   END IF
   SELECT CASE Id
     CASE "run.start"
@@ -2167,6 +2759,11 @@ END SUB
 '                     rules, as typed in the Breakpoints pane (and Enter)
 '   hover:<L>:<C>     a resting mouse's data tip at line L, column C of the active code
 '   frame:<N>         a frame picked in the Call Stack
+'   varmenu:set       Set Value… on the picked Variables item (S11)
+'   watchpick:<path>  Watch's item at that path picked (W1: the first watch); watchmenu:set its Set Value…
+'   choice:<name>     (before F2) one of Set Value's constants picked from its menu
+'   valueset:<text>   the long text's window: its text (\n a line break), then Set
+'   valuecancel:      the long text's window: Cancel
 ' True when Stp was one of these.
 FUNCTION DebugStep(Stp AS STRING) AS INTEGER
   DIM k AS INTEGER, verb AS STRING, arg AS STRING, d AS INTEGER
@@ -2237,8 +2834,34 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       TargetWanted = arg
       StepIntoSpecific
     CASE "varmenu"
-      ' (varmenu:<copy|copyexpr|watch|view> — the Variables' menu on the picked item)
-      ValueAction arg, PickedExpr(0), PickedShown(0)
+      ' (varmenu:<copy|copyexpr|watch|view|set> — the Variables' menu on the picked item)
+      IF arg = "set" THEN BeginSetValue 0, VarsTree.ItemIndex ELSE ValueAction arg, PickedExpr(0), PickedShown(0)
+    CASE "watchpick"
+      ' (watchpick:<path> — Watch's item at that path selected, the tree
+      ' focused: W1 is the first watch)
+      Dock.ShowPane("watchpanel")
+      FOR k = 0 TO WatchTree.ItemCount - 1
+        IF k <= MAXVARITEMS THEN
+          IF LCASE$(WatchItemPath(k)) = LCASE$(arg) THEN WatchTree.ItemIndex = k
+        END IF
+      NEXT
+      WatchTree.SetFocus
+    CASE "watchmenu"
+      ' (watchmenu:set — Set Value… on the picked Watch item)
+      IF arg = "set" THEN BeginSetValue 1, WatchTree.ItemIndex
+    CASE "choice"
+      ' (choice:<constant>, before F2 — Set Value's menu of a property's
+      ' constants: that one picked, as its click)
+      ChoiceWanted = arg
+    CASE "valueset", "valuecancel"
+      ' (valueset:<text> — the long text's window: its text, then Set;
+      ' valuecancel: Cancel)
+      IF verb = "valueset" THEN
+        ValueEditorBox.Text = REPLACESUBSTR$(arg, "\n", CHR$(10))
+        ValueEditorSetClick
+      ELSE
+        ValueEditor.Close
+      END IF
     CASE "collapse"
       ' (collapse:<path> — a value in Variables closed, as a click on its - does)
       VarsOpen = REPLACESUBSTR$(VarsOpen, "|" + arg + "|", "")
@@ -2346,6 +2969,7 @@ SUB SetUpDebug
   ImmEvalId = -1
   HoverEvalId = -1
   SetVarId = -1
+  EditFullId = -1: ImmOldId = -1
   Session.OnOutput = ProgramOutput
   Session.OnStopped = ProgramStopped
   Session.OnContinue = ProgramContinued
@@ -2360,6 +2984,7 @@ SUB SetUpDebug
   GotoEvalId = -1
   HoverDoc = -1
   TextViewerCopy.OnClick = TextViewerCopyClick
+  ValueEditorSet.OnClick = ValueEditorSetClick
   PerfForm = -1
   PerfStep = -1
   ' (RAPIDR_STUDIO_PERF: the moment Studio is up and waiting, printed for
@@ -2374,6 +2999,8 @@ SUB SetUpDebug
   VarsTree.OnEditing = VarsEditing
   VarsTree.OnEdited = VarsEdited
   VarsTree.OnKeyDown = VarsTreeKey
+  VarsTree.OnDblClick = VarsDblClick
+  VarsTree.OnUndo = TreeUndo
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -2398,6 +3025,8 @@ SUB SetUpDebug
   WatchTree.OnExpanding = WatchExpanding
   WatchTree.OnCollapsed = WatchCollapsed
   WatchTree.OnKeyDown = WatchTreeKey
+  WatchTree.OnDblClick = WatchDblClick
+  WatchTree.OnUndo = TreeUndo
   WatchTree.ReadOnly = 0
   WatchTree.OnEditing = WatchEditing
   WatchTree.OnEdited = WatchEdited
