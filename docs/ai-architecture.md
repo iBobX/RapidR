@@ -80,6 +80,8 @@ All optional for the build; the checker (§2.6) says which are missing. `build.r
 
 **`unit`** — `px` (logical pixels), `pt` (font points), `ms`, `s`, `deg`, `percent`, `bgr` (a RapidQ colour number), `chars`, `bytes`, `index` (0-based), `count`, `hz`, `bps`. The build refuses other units.
 
+**`expect`** (K7, 2026-10-22) — on a method or builtin whose `example` is a whole program: the lines it prints. `rapidr lang truth` runs the example and compares; this is the proof of a signature, because the runtimes accept any number of arguments and ignore the extra ones. An example with an `expect` passes variables named like the documented parameters, in order (`row = 1`, `col = 0`, `PRINT d.Cell(row, col)`), so a signature written back to front fails the check. The coverage rule: in the covered families (RDataFrame, RNum, RCanvas, RBitmap, the string builtins) a method with two neighbouring parameters of one kind has one. The same check compiles every `syntax` line and every `example`.
+
 **`example`** — a few lines of RapidR (RapidR's names, `$INCLUDE "RAPIDQ.INC"` where constants are used) that compile; on components a CREATE block with the default event wired and the line that shows the form; on builtins a call and what it gives in a comment. A test compiles every example on both backends (phase 1; §7).
 
 **`secret = true`** — on properties holding credentials (RMYSQL's `Password`): introspection never returns their value, at design time or run time (§5.6).

@@ -22,7 +22,7 @@
 //!   `Iloc(start, end)`, `MID$(text, start, count)`): swapped, the program
 //!   still compiles and prints something else.
 //! - **The coverage rule** for the families where that trap lives: a method
-//!   (or builtin) with two parameters of one kind has an `expect`
+//!   (or builtin) with two neighbouring parameters of one kind has an `expect`
 //!   ([`COVERED`]).
 //!
 //! The runtimes accept any number of arguments to a builtin or a component's
@@ -241,7 +241,6 @@ impl Parser {
 /// One choice point: how many choices it has, and what it needs set above it.
 struct Choice {
     id: usize,
-    optional: bool,
     count: usize,
     /// (parent group id, the choice of the parent this one is inside).
     parent: Option<(usize, usize)>,
@@ -250,7 +249,7 @@ struct Choice {
 fn collect(nodes: &[Node], parent: Option<(usize, usize)>, out: &mut Vec<Choice>) {
     for n in nodes {
         if let Node::Group(g) = n {
-            out.push(Choice { id: g.id, optional: g.optional, count: g.alts.len() + usize::from(g.optional), parent });
+            out.push(Choice { id: g.id, count: g.alts.len() + usize::from(g.optional), parent });
             for (k, alt) in g.alts.iter().enumerate() {
                 collect(alt, Some((g.id, k + usize::from(g.optional))), out);
             }
@@ -280,17 +279,16 @@ fn render(nodes: &[Node], sel: &BTreeMap<usize, usize>, out: &mut Vec<Tk>) {
     }
 }
 
-/// The variants of a syntax line: every optional part absent, every optional
-/// part present, and each choice (an optional part, an alternative) taken
-/// alone.
+/// The variants of a syntax line: every optional part absent, and each choice
+/// (an optional part, an alternative) taken alone. (Not every optional part at
+/// once: parts that exclude each other, a single value for an array, would fail
+/// for what the program means, not for what the line says.)
 fn variants(root: &[Vec<Node>]) -> Vec<Vec<Tk>> {
     // (the top level's own ` | `: a group nobody wrote brackets for)
     let top = if root.len() > 1 { vec![Node::Group(Group { id: usize::MAX, optional: false, tight: false, alts: root.to_vec() })] } else { root[0].clone() };
     let mut choices = Vec::new();
     collect(&top, None, &mut choices);
     let mut sels: Vec<BTreeMap<usize, usize>> = vec![BTreeMap::new()];
-    // (all optional parts present)
-    sels.push(choices.iter().filter(|c| c.optional).map(|c| (c.id, 1)).collect());
     for c in &choices {
         for k in 1..c.count {
             let mut sel = BTreeMap::new();
@@ -326,8 +324,6 @@ struct Ctx {
     head: String,
     /// Fresh names handed out (`n1`, `n2` …).
     fresh: usize,
-    /// The last metavariable's stem: what `, …` repeats.
-    last: String,
 }
 
 /// Statements whose `name` is one they declare.
@@ -361,7 +357,6 @@ const TEXT: &[&str] = &[
 fn stand_in(word: &str, ctx: &mut Ctx) -> String {
     let (stem, suffix) = split_suffix(word);
     let l = stem.to_ascii_lowercase();
-    ctx.last = l.clone();
     let head = ctx.head.as_str();
     match l.as_str() {
         // a name the statement declares, or one it uses
@@ -379,7 +374,9 @@ fn stand_in(word: &str, ctx: &mut Ctx) -> String {
         "array" | "arrayname" => "arr".into(),
         "routine" => "mysub".into(),
         "type" if head == "CREATE" => "QFORM".into(),
-        "type" if head == "EXTENDS" => "QOBJECT".into(),
+        "type" if head == "EXTENDS" || head == "TYPE" => "QOBJECT".into(),
+        "component" => "QBUTTON".into(),
+        "args" => String::new(),
         "type" => "INTEGER".into(),
         "object" => "f".into(),
         "member" => "OnClick".into(),
@@ -406,58 +403,98 @@ fn body_for(head: &str) -> &'static str {
 
 const CLOSERS: &[&str] = &["END", "NEXT", "WEND", "LOOP", "RUSTEND", "RETURN"];
 
+/// One written piece of a variant: its text, and whether it is a word or a
+/// string (two of them side by side need a space between).
+struct Piece {
+    text: String,
+    wordy: bool,
+}
+
+/// The last element of the list a `, …` goes on with: what stands between the
+/// list's previous `,` (or its start: after the head, or an opening
+/// parenthesis) and the separator that was just written.
+fn last_element(pieces: &[Piece]) -> Vec<String> {
+    let end = pieces.len().saturating_sub(1);
+    let mut depth = 0i32;
+    let mut start = 1.min(end);
+    for i in (0..end).rev() {
+        match pieces[i].text.as_str() {
+            ")" => depth += 1,
+            "(" if depth == 0 => {
+                start = i + 1;
+                break;
+            }
+            "(" => depth -= 1,
+            "," if depth == 0 => {
+                start = i + 1;
+                break;
+            }
+            _ => {}
+        }
+    }
+    pieces[start..end].iter().map(|p| p.text.clone()).collect()
+}
+
+fn is_fresh(w: &str) -> bool {
+    w.strip_prefix('n').is_some_and(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit()))
+}
+
 /// Writes a variant as source text.
 fn finish(toks: &[Tk], ctx: &mut Ctx) -> String {
     let block = toks.iter().any(|t| matches!(&t.t, T::Word(w) if CLOSERS.contains(&w.as_str())));
-    let mut out = String::new();
+    let mut pieces: Vec<Piece> = Vec::new();
     let mut prev: Option<&T> = None;
     for (i, tk) in toks.iter().enumerate() {
-        let sp = if tk.sp && !out.is_empty() && !out.ends_with('\n') { " " } else { "" };
         match &tk.t {
             T::Word(w) => {
                 let text = if is_keyword(w) { w.clone() } else { stand_in(w, ctx) };
-                out.push_str(sp);
-                out.push_str(&text);
+                if !text.is_empty() {
+                    pieces.push(Piece { text, wordy: true });
+                }
             }
-            T::Punct(c) => {
-                out.push_str(sp);
-                out.push(*c);
-            }
-            T::Str(s) => {
-                out.push_str(sp);
-                out.push_str(s);
-            }
+            T::Punct(c) => pieces.push(Piece { text: c.to_string(), wordy: *c == '#' }),
+            T::Str(s) => pieces.push(Piece { text: s.clone(), wordy: true }),
             T::Dots => {
                 let after_sep = matches!(prev, Some(T::Punct(',' | ';')));
                 if block {
                     let next_is_case = matches!(toks.get(i + 1).map(|t| &t.t), Some(T::Word(w)) if w == "CASE");
-                    let after_meta = matches!(prev, Some(T::Word(w)) if !is_keyword(w));
+                    // (the body before a SELECT CASE's first CASE is none)
+                    let after_meta = matches!(prev, Some(T::Word(w)) if w.eq_ignore_ascii_case("expression"));
                     if matches!(prev, Some(T::Punct('('))) {
                         // (an empty parameter list)
                     } else if next_is_case && after_meta {
-                        out.push('\n');
+                        pieces.push(Piece { text: "\n".into(), wordy: false });
                     } else {
-                        out.push('\n');
-                        out.push_str(body_for(&ctx.head));
-                        out.push('\n');
+                        pieces.push(Piece { text: format!("\n{}\n", body_for(&ctx.head)), wordy: false });
                     }
                 } else if after_sep {
-                    // (more of the last list)
-                    let more = match ctx.last.as_str() {
-                        "name" => {
+                    // (more of the list: another element like the last)
+                    for w in last_element(&pieces) {
+                        let w = if is_fresh(&w) {
                             ctx.fresh += 1;
                             format!("n{}", ctx.fresh)
-                        }
-                        "variable" | "var" => "v".into(),
-                        _ => "2".into(),
-                    };
-                    out.push(' ');
-                    out.push_str(&more);
+                        } else {
+                            w
+                        };
+                        pieces.push(Piece { text: w, wordy: true });
+                    }
                 }
             }
             T::Open | T::Close | T::Bar => {}
         }
         prev = Some(&tk.t);
+    }
+    // (words and strings side by side are apart; `=` has a space each side)
+    let mut out = String::new();
+    let mut last: Option<&Piece> = None;
+    for p in &pieces {
+        let newline = p.text.starts_with('\n') || out.ends_with('\n');
+        let apart = last.is_some_and(|l| (l.wordy && p.wordy) || p.text == "=" || l.text == "=" || (l.text == "," && p.wordy));
+        if !newline && apart {
+            out.push(' ');
+        }
+        out.push_str(&p.text);
+        last = Some(p);
     }
     out
 }
@@ -472,6 +509,8 @@ const POSTLUDE: &str = "\nlbl:\nPRINT 0\n";
 /// The statement's text inside the program it needs (EXIT FOR in a FOR …).
 fn wrap_statement(head: &str, text: &str) -> String {
     let inner = match head {
+        // (a clause of TYPE: a TYPE to put it in)
+        "EXTENDS" => format!("{text}\nf1 AS INTEGER\nEND TYPE"),
         "EXIT" => {
             let what = text.split_whitespace().nth(1).unwrap_or("");
             match what {
@@ -498,7 +537,7 @@ const FIXED: &[(&str, &str, &[&str])] = &[
     ("PROPERTY SET", "only inside a TYPE", &["TYPE t1 EXTENDS QBUTTON\n  PROPERTY SET Tag2(value AS INTEGER)\n    PRINT value\n  END PROPERTY\nEND TYPE\n"]),
     ("EVENT", "only inside a TYPE that extends a component", &["TYPE t1 EXTENDS QBUTTON\n  EVENT OnClick\n    PRINT 1\n  END EVENT\nEND TYPE\n"]),
     ("CONSTRUCTOR", "only inside a TYPE", &["TYPE t1\n  f1 AS INTEGER\n  CONSTRUCTOR\n    f1 = 1\n  END CONSTRUCTOR\nEND TYPE\n"]),
-    ("RUSTSTART", "its body is Rust, for native builds", &["RUSTSTART\nlet x = 1;\nRUSTEND\n"]),
+    ("RUSTSTART", "its body is Rust: native builds only, and the interpreter this check compiles with refuses it by design", &[]),
 ];
 
 // --- planning --------------------------------------------------------------------------------------
@@ -507,7 +546,7 @@ fn statement_cases(plan: &mut Plan) {
     for s in STATEMENTS {
         let entry = format!("statement {}", s.name);
         if let Some((_, why, programs)) = FIXED.iter().find(|(n, _, _)| *n == s.name) {
-            plan.skipped.push((entry.clone(), format!("syntax line not derived: {why}; a fixed program is compiled instead")));
+            plan.skipped.push((entry.clone(), if programs.is_empty() { format!("not compiled: {why}") } else { format!("syntax line not derived: {why}; a fixed program is compiled instead") }));
             for p in *programs {
                 plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, text: p.trim().to_string(), forms: vec![format!("{PRELUDE}{p}")], run: Run::Compile });
             }
@@ -533,16 +572,30 @@ fn strip_note(syntax: &str) -> &str {
 /// Each variant of a syntax line, as source (the statements' body or the
 /// builtins' call).
 fn syntax_programs(head: &str, syntax: &str, entry: &str, plan: &mut Plan) -> Vec<String> {
-    let line = strip_note(syntax);
-    let mut p = Parser { toks: tokenize(line), pos: 0, next_id: 0 };
-    let root = p.seq(false);
+    // (two forms of one call: `STRING$(Num, Char) or STRING$(Num, Char$)`)
+    let line = strip_note(syntax).replace(") or ", ") | ");
+    let mut p = Parser { toks: tokenize(&line), pos: 0, next_id: 0 };
+    let mut root = p.seq(false);
     if p.pos < p.toks.len() || root.iter().all(Vec::is_empty) {
         plan.problems.push((entry.to_string(), format!("the syntax line `{syntax}` can't be read (an unbalanced `[`?)")));
         return Vec::new();
     }
+    // (` | ` between whole alternatives: the ones after the first may leave
+    // out the head they share, as in `EXIT FOR | DO | WHILE`)
+    if root.len() > 1 {
+        let head_toks = tokenize(head);
+        for alt in root.iter_mut().skip(1) {
+            let starts_with_head = matches!((alt.first(), head_toks.first()), (Some(Node::Tok(Tk { t: T::Word(a), .. })), Some(Tk { t: T::Word(h), .. })) if a.eq_ignore_ascii_case(h));
+            if !starts_with_head {
+                for (k, h) in head_toks.iter().enumerate() {
+                    alt.insert(k, Node::Tok(h.clone()));
+                }
+            }
+        }
+    }
     let mut out = Vec::new();
     for v in variants(&root) {
-        let mut ctx = Ctx { head: head.to_string(), fresh: 0, last: String::new() };
+        let mut ctx = Ctx { head: head.to_string(), fresh: 0 };
         let text = finish(&v, &mut ctx);
         if !out.contains(&text) {
             out.push(text);
@@ -568,28 +621,173 @@ fn directive_cases(plan: &mut Plan) {
             _ => "",
         };
         for text in syntax_programs(d.name, d.syntax, &entry, plan) {
+            if text.contains("ICON \"") {
+                plan.skipped.push((entry.clone(), "`ICON \"file\"` names a file the compiler opens: checked in the examples suite".into()));
+                continue;
+            }
             plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, forms: vec![format!("{text}{closing}\nPRINT 1\n")], text, run: Run::Compile });
         }
     }
 }
 
-/// How a builtin's arguments read, for the coverage rule: a metavariable that
-/// stands for text, or a number.
-fn arg_kinds(syntax: &str) -> Vec<bool> {
-    // (the arguments of `NAME(a, b [, c])` or `NAME a, b`: its words that
-    // aren't keywords, in the order written, optional ones included)
-    let toks = tokenize(strip_note(syntax));
-    let mut ctx = Ctx { head: String::new(), fresh: 0, last: String::new() };
-    let mut out = Vec::new();
-    for (i, t) in toks.iter().enumerate() {
-        if let T::Word(w) = &t.t {
-            if i == 0 || is_keyword(w) {
-                continue;
+/// A parameter as an example must name it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Slot {
+    name: String,
+    optional: bool,
+    /// Any number more of these (`v1, v2 ...`).
+    variadic: bool,
+}
+
+impl Slot {
+    fn of(p: &Param) -> Slot {
+        Slot { name: p.name.to_string(), optional: p.optional, variadic: p.variadic }
+    }
+}
+
+/// A builtin's arguments as its syntax line names them, one list per form (`A or B` gives two):
+/// each metavariable, in the order written, with whether it is optional (in `[ ]`).
+fn arg_names(syntax: &str) -> Vec<Vec<Slot>> {
+    syntax
+        .split(" or ")
+        .map(|form| {
+            let toks = tokenize(strip_note(form));
+            let mut depth = 0usize;
+            let mut out: Vec<Slot> = Vec::new();
+            for (i, t) in toks.iter().enumerate() {
+                match &t.t {
+                    T::Open => depth += 1,
+                    T::Close => depth = depth.saturating_sub(1),
+                    T::Word(w) if i > 0 && !is_keyword(w) => out.push(Slot { name: w.clone(), optional: depth > 0, variadic: false }),
+                    T::Dots => {
+                        if let Some(last) = out.last_mut() {
+                            last.variadic = true;
+                        }
+                    }
+                    _ => {}
+                }
             }
-            out.push(stand_in(w, &mut ctx).starts_with('"'));
+            out
+        })
+        .collect()
+}
+
+/// How a builtin's arguments read, for the coverage rule: whether each
+/// stands for text (or a number).
+fn arg_kinds(syntax: &str) -> Vec<bool> {
+    let mut ctx = Ctx { head: String::new(), fresh: 0 };
+    arg_names(syntax).concat().iter().map(|s| stand_in(&s.name, &mut ctx).starts_with('"')).collect()
+}
+
+/// The arguments of each call of `name` in `source`, as texts: after a `.`
+/// for a method, not for a builtin; in parentheses, or (as a statement) the
+/// rest of the line up to a `:`.
+fn calls(source: &str, name: &str, method: bool) -> Vec<Vec<String>> {
+    let chars: Vec<char> = source.chars().collect();
+    let lname: Vec<char> = name.to_ascii_lowercase().chars().collect();
+    let word = |c: char| c.is_alphanumeric() || c == '_';
+    let mut out = Vec::new();
+    let mut i = 0;
+    let mut quoted = false;
+    while i < chars.len() {
+        if chars[i] == '"' {
+            quoted = !quoted;
         }
+        let at_name = !quoted
+            && i + lname.len() <= chars.len()
+            && chars[i..i + lname.len()].iter().map(|c| c.to_ascii_lowercase()).eq(lname.iter().copied())
+            && !chars.get(i + lname.len()).is_some_and(|c| word(*c))
+            && match i.checked_sub(1).map(|j| chars[j]) {
+                Some('.') => method,
+                Some(c) if word(c) || c == '$' => false,
+                _ => !method,
+            };
+        if !at_name {
+            i += 1;
+            continue;
+        }
+        let mut j = i + lname.len();
+        while chars.get(j) == Some(&' ') {
+            j += 1;
+        }
+        let (start, end) = if chars.get(j) == Some(&'(') {
+            let (mut depth, mut k, mut q) = (0, j, false);
+            while k < chars.len() {
+                match chars[k] {
+                    '"' => q = !q,
+                    '(' if !q => depth += 1,
+                    ')' if !q => {
+                        depth -= 1;
+                        if depth == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                k += 1;
+            }
+            (j + 1, k.min(chars.len()))
+        } else {
+            let (mut k, mut q) = (j, false);
+            while k < chars.len() && chars[k] != '\n' && !(chars[k] == ':' && !q) {
+                if chars[k] == '"' {
+                    q = !q;
+                }
+                k += 1;
+            }
+            (j, k)
+        };
+        let text: String = chars[start..end.max(start)].iter().collect();
+        out.push(split_args(&text));
+        i = end.max(i + 1);
     }
     out
+}
+
+/// A call's argument texts: split at the commas outside quotes and parentheses.
+fn split_args(text: &str) -> Vec<String> {
+    let (mut out, mut cur, mut depth, mut q) = (Vec::new(), String::new(), 0i32, false);
+    for c in text.chars() {
+        match c {
+            '"' => q = !q,
+            '(' | '[' if !q => depth += 1,
+            ')' | ']' if !q => depth -= 1,
+            _ => {}
+        }
+        if c == ',' && !q && depth == 0 {
+            out.push(cur.trim().to_string());
+            cur.clear();
+        } else {
+            cur.push(c);
+        }
+    }
+    if !cur.trim().is_empty() {
+        out.push(cur.trim().to_string());
+    }
+    out
+}
+
+fn is_identifier(s: &str) -> bool {
+    let (stem, _) = split_suffix(s);
+    stem.starts_with(|c: char| c.is_alphabetic() || c == '_') && stem.chars().all(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// Whether the arguments are the parameters' names, in order, leaving out only optional
+/// ones; after a `...` parameter any more arguments are fine.
+fn names_match(call: &[String], params: &[Slot]) -> bool {
+    match (call.split_first(), params.split_first()) {
+        (None, _) => params.iter().all(|s| s.optional || s.variadic),
+        (Some(_), None) => false,
+        (Some(_), Some((s, _))) if s.variadic => true,
+        (Some((a, rest)), Some((s, more))) => (a.eq_ignore_ascii_case(&s.name) && names_match(rest, more)) || (s.optional && names_match(call, more)),
+    }
+}
+
+/// Whether the example calls `name` with arguments that are variables named like the
+/// documented parameters, in their order — so that what `expect` proves (that those
+/// values, in that order, give that output) is about the documented signature.
+fn calls_with_the_names(example: &str, name: &str, method: bool, forms: &[Vec<Slot>]) -> bool {
+    calls(example, name, method).iter().any(|call| !call.is_empty() && call.iter().all(|a| is_identifier(a)) && forms.iter().any(|f| names_match(call, f)))
 }
 
 fn builtin_cases(plan: &mut Plan) {
@@ -598,12 +796,20 @@ fn builtin_cases(plan: &mut Plan) {
         // (written with parentheses it is a function: `PRINT MID$(…)`; else
         // a statement; either may be right for a name that is both)
         let name = b.name;
+        // (the PARAM… functions read a SUBI's or FUNCTIONI's arguments)
+        let around = |body: String| {
+            if name.starts_with("PARAM") {
+                format!("{PRELUDE}FUNCTIONI fi() AS INTEGER\n{body}\nEND FUNCTIONI{POSTLUDE}")
+            } else {
+                format!("{PRELUDE}{body}{POSTLUDE}")
+            }
+        };
         for text in syntax_programs(name, b.syntax, &entry, plan) {
-            let mut forms = vec![format!("{PRELUDE}{text}{POSTLUDE}")];
+            let mut forms = vec![around(text.clone())];
             let value = text.trim_start().starts_with(&format!("{name}(")) || b.bare || b.returns.is_some() || name.ends_with('$') || text.trim() == name;
             if value {
-                forms.push(format!("{PRELUDE}PRINT {text}{POSTLUDE}"));
-                forms.push(format!("{PRELUDE}v = {text}{POSTLUDE}"));
+                forms.push(around(format!("PRINT {text}")));
+                forms.push(around(format!("v = {text}")));
             }
             plan.cases.push(Case { entry: entry.clone(), what: What::Syntax, text, forms, run: Run::Compile });
         }
@@ -644,6 +850,17 @@ fn example_cases(plan: &mut Plan) {
     }
 }
 
+/// What a trap's example must do, for the messages.
+fn named_problem(names: &[Slot], example: &str, name: &str, method: bool) -> String {
+    let list = names.iter().map(|s| if s.optional { format!("[{}]", s.name) } else { s.name.clone() }).collect::<Vec<_>>().join(", ");
+    // (what the example passes, when it passes variables)
+    let passes = calls(example, name, method).into_iter().find(|c| !c.is_empty() && c.iter().all(|a| is_identifier(a))).map(|c| format!("it passes ({})", c.join(", ")));
+    format!(
+        "the documented parameters are ({list}), but its `example` {}: write the call with variables named like the parameters, in their order, set just above it, so what `expect` proves is about this signature",
+        passes.unwrap_or_else(|| "never calls it with variables".into())
+    )
+}
+
 /// One trap found: counted, and a problem when it is in a covered family and has no `expect`.
 fn trap(plan: &mut Plan, entry: String, covered_family: bool, has_expect: bool) {
     if covered_family {
@@ -664,21 +881,35 @@ fn trap_rule(plan: &mut Plan) {
         }
         let covered = COVERED_COMPONENTS.contains(&c.name);
         for m in c.methods.iter().filter(|m| !m.missing && !m.params.is_empty() && !matches!(m.test, Test::Skip(_))) {
-            // (parameters of one kind: the same type, an untyped one counting as its own kind)
-            let mut kinds: BTreeMap<String, usize> = BTreeMap::new();
-            for p in m.params.iter().filter(|p| !p.variadic) {
-                *kinds.entry(p.ty.to_string()).or_default() += 1;
-            }
-            if kinds.values().any(|n| *n >= 2) {
+            // (two neighbours of one kind: the same type, an untyped one counting as its own kind)
+            if m.params.windows(2).any(|w| !w[0].variadic && !w[1].variadic && w[0].ty == w[1].ty) {
                 trap(plan, format!("{}.{}", c.name, m.name), covered, !m.expect.is_empty());
             }
         }
     }
     for b in BUILTINS.iter().filter(|b| !b.missing && !b.name.starts_with("__") && !b.syntax.is_empty()) {
-        let kinds = arg_kinds(b.syntax);
-        let texts = kinds.iter().filter(|t| **t).count();
-        if texts >= 2 || kinds.len() - texts >= 2 {
+        if arg_kinds(b.syntax).windows(2).any(|w| w[0] == w[1]) {
             trap(plan, format!("builtin {}", b.name), COVERED_BUILTIN_GROUPS.contains(&b.group), !b.expect.is_empty());
+        }
+    }
+}
+
+/// An example with an `expect` calls its method (or builtin) with variables named like the
+/// documented parameters: that ties the signature the reference shows to what the example
+/// proves, so a signature written back to front fails here.
+fn names_rule(plan: &mut Plan) {
+    for c in COMPONENTS.iter().chain(GLOBALS) {
+        for m in c.methods.iter().filter(|m| !m.expect.is_empty() && !m.params.is_empty()) {
+            let slots: Vec<Slot> = m.params.iter().map(Slot::of).collect();
+            if !calls_with_the_names(m.example, m.name, true, std::slice::from_ref(&slots)) {
+                plan.problems.push((format!("{}.{}", c.name, m.name), named_problem(&slots, m.example, m.name, true)));
+            }
+        }
+    }
+    for b in BUILTINS.iter().filter(|b| !b.expect.is_empty()) {
+        let forms = arg_names(b.syntax);
+        if forms.iter().any(|f| !f.is_empty()) && !calls_with_the_names(b.example, b.name, false, &forms) {
+            plan.problems.push((format!("builtin {}", b.name), named_problem(forms.first().map_or(&[][..], Vec::as_slice), b.example, b.name, false)));
         }
     }
 }
@@ -691,6 +922,7 @@ pub fn plan() -> Plan {
     builtin_cases(&mut plan);
     example_cases(&mut plan);
     trap_rule(&mut plan);
+    names_rule(&mut plan);
     plan
 }
 
@@ -710,21 +942,20 @@ mod tests {
 
     #[test]
     fn optional_parts_and_choices() {
+        // (each optional part alone, never all at once: an array has no single first value)
         let v = lines("DIM", "DIM name[(bounds)] [AS type] [= value] [, …]");
-        assert!(v.contains(&"DIM n1".to_string()), "{v:?}");
-        assert!(v.contains(&"DIM n1(3) AS INTEGER = 1, n2".to_string()) || v.iter().any(|l| l.contains("(3)") && l.contains(", n2")), "{v:?}");
+        assert_eq!(v, ["DIM n1", "DIM n1(3)", "DIM n1 AS INTEGER", "DIM n1 = 1", "DIM n1, n2"]);
         let v = lines("EXIT", "EXIT FOR|DO|WHILE|SUB|FUNCTION");
         assert_eq!(v, ["EXIT FOR", "EXIT DO", "EXIT WHILE", "EXIT SUB", "EXIT FUNCTION"]);
         let v = lines("INSTR", "INSTR([Start,] Search$,Find$)");
-        assert!(v.contains(&"INSTR(\"x\",\"x\")".to_string()) || v.iter().any(|l| l.starts_with("INSTR(")), "{v:?}");
-        assert!(v.iter().any(|l| l.contains("1, \"x\"") || l.contains("1,")), "{v:?}");
+        assert_eq!(v, ["INSTR(\"x\", \"x\")", "INSTR(1, \"x\", \"x\")"]);
     }
 
     #[test]
     fn const_lists_repeat() {
         let v = lines("CONST", "CONST name = expression [, …]");
         assert!(v.contains(&"CONST n1 = 1".to_string()), "{v:?}");
-        assert!(v.contains(&"CONST n1 = 1, n2".to_string()) || v.iter().any(|l| l.contains(", n2")), "{v:?}");
+        assert!(v.contains(&"CONST n1 = 1, n2 = 1".to_string()), "{v:?}");
     }
 
     #[test]
@@ -733,7 +964,7 @@ mod tests {
         assert!(v.iter().any(|l| l.starts_with("FOR v = 1 TO 1") && l.contains("\nPRINT 1\nNEXT")), "{v:?}");
         let v = lines("SELECT CASE", "SELECT CASE expression … CASE values … CASE ELSE … END SELECT");
         assert_eq!(v.len(), 1);
-        assert!(v[0].starts_with("SELECT CASE 1\n\nCASE 1\nPRINT 1\nCASE ELSE\nPRINT 1\nEND SELECT"), "{:?}", v[0]);
+        assert_eq!(v[0], "SELECT CASE 1\nCASE 1\nPRINT 1\nCASE ELSE\nPRINT 1\nEND SELECT");
     }
 
     #[test]
@@ -746,6 +977,46 @@ mod tests {
     fn wide_alternatives_split_whole_sequences() {
         let v = lines("ON ERROR", "ON ERROR RESUME NEXT | GOTO label");
         assert_eq!(v, ["ON ERROR RESUME NEXT", "ON ERROR GOTO lbl"]);
+    }
+
+    fn names(list: &[(&str, bool)]) -> Vec<Slot> {
+        list.iter().map(|(n, o)| Slot { name: n.to_string(), optional: *o, variadic: false }).collect()
+    }
+
+    #[test]
+    fn an_example_must_call_with_the_documented_names() {
+        let example = "row = 1\ncol = 0\nPRINT d.Cell(row, col); \"|\"; d.Cell(2, \"city\")";
+        let documented = names(&[("row", false), ("col", false)]);
+        let swapped = names(&[("col", false), ("row", false)]);
+        assert!(calls_with_the_names(example, "Cell", true, &[documented]));
+        // (the documentation said `col, row` once: the example, which prints what `expect` says, doesn't)
+        assert!(!calls_with_the_names(example, "Cell", true, &[swapped]));
+        // (literals prove nothing about the names)
+        assert!(!calls_with_the_names("PRINT d.Cell(1, 0)", "Cell", true, &[names(&[("row", false), ("col", false)])]));
+        // (a statement call; an optional parameter left out)
+        assert!(calls_with_the_names("start = 1\nend = 3\nd.Iloc start, end : PRINT d.Nrows", "Iloc", true, &[names(&[("start", false), ("end", true)])]));
+        assert!(calls_with_the_names("d.Select columns", "Select", true, &[names(&[("columns", false)])]));
+        assert!(!calls_with_the_names("d.Select columns", "Select", true, &[names(&[("col1", false), ("col2", true)])]), "the documentation said col1, col2 ... once");
+        // (a `...` parameter: any more variables)
+        let mut row = names(&[("v1", false), ("v2", false)]);
+        row[1].variadic = true;
+        assert!(calls_with_the_names("d.AddRow v1, v2, v3", "AddRow", true, &[row]));
+        // (a builtin: the optional `Start` may be left out anywhere)
+        let instr = arg_names("INSTR([Start,] Search$,Find$)");
+        assert!(calls_with_the_names("PRINT INSTR(Search$, Find$)", "INSTR", false, &instr));
+        assert!(calls_with_the_names("PRINT INSTR(Start, Search$, Find$)", "INSTR", false, &instr));
+        assert!(!calls_with_the_names("PRINT INSTR(Find$, Search$)", "INSTR", false, &instr));
+        // (a name inside a text isn't a call)
+        assert!(calls("PRINT \"d.Cell(a, b)\"", "Cell", true).is_empty());
+    }
+
+    #[test]
+    fn calls_are_read_with_their_arguments() {
+        assert_eq!(calls("x = a.Clip(low, high) + 1", "Clip", true), [vec!["low", "high"]]);
+        assert_eq!(calls("a.Clip low, high: PRINT 1", "Clip", true), [vec!["low", "high"]]);
+        assert_eq!(calls("PRINT MID$(f(1, 2), n)", "MID$", false), [vec!["f(1, 2)", "n"]]);
+        assert!(calls("PRINT XMID$(a, b)", "MID$", false).is_empty());
+        assert_eq!(arg_names("STRING$(Num, Char) or STRING$(Num, Char$)").len(), 2);
     }
 
     #[test]

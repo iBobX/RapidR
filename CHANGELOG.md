@@ -8,6 +8,25 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
+  language registry, which is where RAI's language card and every model's
+  knowledge come from, so a wrong signature there taught every model a wrong
+  call. It makes every `syntax` line of a statement, directive and builtin into
+  programs (a metavariable such as `name` or `expression` gets a valid stand-in,
+  each `[optional]` part and each `A|B` choice is tried alone) and compiles them;
+  it compiles every `example`; and it **runs** every example that has the new
+  **`expect`** facet (the lines it prints) in a scratch folder and compares. The
+  runtimes accept any number of arguments and ignore the extra ones, so nothing
+  but a program whose output depends on every argument can prove a signature:
+  an example with an `expect` calls the method with variables named like its
+  parameters, in order (`row = 1`, `col = 0`, `PRINT d.Cell(row, col)`), which
+  ties the documented order to what it prints, so swapping `Cell`'s documented
+  parameters back fails the check. In the families where two neighbouring
+  parameters of one kind make a swapped call still compile (RDataFrame, RNum,
+  RCanvas, RBitmap, the string builtins) every such method has an `expect`: 87
+  examples run today. In `tools/regress.sh`'s unit stage, and a cargo test
+  (`crates/rapidr-cli/tests/lang_truth.rs`); `--verbose` lists what is not run
+  and why, `--emit DIR` writes the `expect` programs for the other runtimes.
 - **`END n` ends the program with exit code `n`** (RapidR's; RapidQ's `END`
   takes no number), so a console tool can fail a build:
   `IF failures > 0 THEN END 1`, then `echo $?` (or `%ERRORLEVEL%`) says 1.
@@ -61,6 +80,20 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   legal and history texts, fixture data).
 
 ### Fixed
+- **Reference entries that taught a wrong call** (found by the new check,
+  `rapidr lang truth`; the language reference, its manual pages and the
+  assistant's language card say what the runtimes do now): `RDataFrame.Iloc` is
+  `Iloc(start, [end])` (`Iloc 1, 3` keeps two rows), `Select` takes ONE text,
+  `Select "name,city"`, `GroupBy` is `GroupBy(column, [aggFunc])` (there is no
+  `aggColumn`), `Nlargest` and `Nsmallest` are `(column, [n])`, `Apply` takes a
+  `[decimals]` for `round`, `Sort` names its columns in one text; `RNum.FromList`
+  takes one comma-separated text, `FromList "5,6,7"`, `Randn` has `[mean]` and
+  `[stddev]`; `QUICKSORT`'s last argument is `ASCEND|DESCEND` (0 or 1); `INSERT$`
+  takes the text to insert first (`INSERT$(Part$, Source$, Index)`); the parameters
+  of the aliases (`Group_by`, `Join`, `SetItem`, `Clamp` …) are shown, optional
+  ones are in brackets, a `TYPE … EXTENDS QOBJECT|component` clause reads as one,
+  and parameter names no program can use as a variable (`String`, `Replace$`,
+  `Insert$`, `Str$`, `function`) are renamed (`Text$`, `Overwrite$`, `Part$`).
 - **Two wrong reference entries** (found by RapidR Database Studio, which
   followed them): a data frame's `Cell` and `SetCell` take the **row first**,
   `Cell(row, col)` and `SetCell(row, col, value)`, as the code always did —

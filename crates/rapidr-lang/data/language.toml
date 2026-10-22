@@ -107,7 +107,7 @@ doc = "Defines a record type: fields, and optionally methods, a CONSTRUCTOR, eve
 
 [[statement]]
 name = "EXTENDS"
-syntax = "TYPE name EXTENDS QOBJECT | component"
+syntax = "TYPE name EXTENDS QOBJECT|component"
 group = "Types and objects"
 doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`)."
 
@@ -361,9 +361,9 @@ doc = "Subtracts `amount` (1 when not given) from a variable."
 
 [[statement]]
 name = "QUICKSORT"
-syntax = "QUICKSORT(array(first), array(last), ascending [, …])"
+syntax = "QUICKSORT(array(first), array(last), ASCEND|DESCEND)"
 group = "Data"
-doc = "Sorts an array's elements from `first` to `last` in place, numbers by value and strings by their characters; ascending when the last argument is 0."
+doc = "Sorts an array's elements from `first` to `last` in place, numbers by value and strings by their characters; ASCEND (0) sorts upward, DESCEND (1) downward."
 
 [[statement]]
 name = "REM"

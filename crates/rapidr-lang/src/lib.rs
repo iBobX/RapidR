@@ -41,7 +41,8 @@
 //!   - method: `name`, `params`, `returns`, `value` (read without
 //!     parentheses calls it: `IF Dlg.Execute THEN`), `origin`, `from`,
 //!     `only`, `missing`, `test` (`skip: reason` or `args: …` for the
-//!     conformance programs), `doc`;
+//!     conformance programs), `doc`, and the AI facets below (`example`,
+//!     and `expect`: what a whole-program example prints);
 //!   - event: `name`, `params`, `origin`, `from`, `only`, `missing`, `doc`.
 //!
 //!   The AI facets (docs/ai-architecture.md §2; [`ai`] checks them): a
@@ -52,6 +53,17 @@
 //!   method's `effects` (what calling it does: `none`, `ui`, `state`,
 //!   `file-write` …), `risk` (only to raise the effects' risk) and `example`.
 //!   Builtins take `effects`, `risk` and `example` too, statements `effects`.
+//!   A method's or builtin's **`expect`** is the output its `example` (then a
+//!   whole program) prints, line by line: `rapidr lang truth` ([`truth`]) runs
+//!   it and compares. That is how a signature is proven — the runtimes take
+//!   any number of arguments and no compiler checks them — so an example that
+//!   has one calls the method with variables named like its parameters, in
+//!   their order (`row = 1`, `col = 0`, `PRINT d.Cell(row, col)`), and a
+//!   method or builtin of the covered families that has two neighbouring
+//!   parameters of one kind (`Cell(row, col)`, `MID$(Text$, Position, Num)`)
+//!   must have one: swapped, it still compiles.
+//!   The same check compiles every `syntax` line of a statement, directive and
+//!   builtin (the grammar it reads is in [`truth`]) and every `example`.
 //!
 //!   `params`: `[BYREF] Name [AS Type]`, comma-separated, optional ones in
 //!   `[ ]`, a last `...` for any number more (SUBI).

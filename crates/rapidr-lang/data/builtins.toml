@@ -229,13 +229,15 @@ doc = "The number of arguments on the program's command line (not counting the p
 
 [[builtin]]
 name = "CONVBASE$"
-syntax = "CONVBASE$(Str$, FromBase, ToBase)"
+syntax = "CONVBASE$(Text$, FromBase, ToBase)"
 group = "Strings"
 doc = "A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$(\"FF\", 16, 10)` is `255`. A negative number converts as its 32 bits; \"\" for a bad base or digit."
+example = "Text$ = \"FF\"\nFromBase = 16\nToBase = 10\nPRINT CONVBASE$(Text$, FromBase, ToBase); \"|\"; CONVBASE$(\"255\", 10, 2)"
+expect = "255|11111111"
 
 [[builtin]]
 name = "CONVBASEX"
-syntax = "CONVBASEX(Str$, FromBase, ToBase)"
+syntax = "CONVBASEX(Text$, FromBase, ToBase)"
 group = "Library functions"
 missing = true
 doc = "A variant of `CONVBASE$` for converting a string of digits from one number base to another."
@@ -279,6 +281,8 @@ name = "DELETE$"
 syntax = "DELETE$(String$, Index, Count)"
 group = "Strings"
 doc = "The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$(\"Hello\", 2, 3)` is `Ho`."
+example = "String$ = \"Hello world\"\nIndex = 2\nCount = 3\nPRINT DELETE$(String$, Index, Count)"
+expect = "Ho world"
 
 [[builtin]]
 name = "DIR$"
@@ -333,9 +337,11 @@ doc = "Writes a resource built into the program (`$RESOURCE`, its handle from `R
 
 [[builtin]]
 name = "FIELD$"
-syntax = "FIELD$(StringExpresion, Deliminator, FieldNumber)"
+syntax = "FIELD$(Source$, Delimiter$, FieldNumber)"
 group = "Strings"
 doc = "The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$(\"a,b,c\", \",\", 2)` is `b`; \"\" out of range."
+example = "Source$ = \"a,b,c\"\nDelimiter$ = \",\"\nFieldNumber = 2\nPRINT FIELD$(Source$, Delimiter$, FieldNumber)"
+expect = "b"
 
 [[builtin]]
 name = "FILEEXISTS"
@@ -367,6 +373,8 @@ name = "FORMAT$"
 syntax = "FORMAT$(S$, arg1, arg2, ...)"
 group = "Strings"
 doc = "Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$(\"%5.2f\", 3.14159)` is ` 3.14`."
+example = "S$ = \"%s=%d\"\nDIM arg1 AS STRING = \"n\"\narg2 = 5\nPRINT FORMAT$(S$, arg1, arg2)"
+expect = "n=5"
 
 [[builtin]]
 name = "FRAC"
@@ -454,15 +462,19 @@ doc = "Reads a 16-bit word from a hardware I/O port. Windows doesn't let program
 
 [[builtin]]
 name = "INSERT$"
-syntax = "INSERT$(Source$,Dest$,Index)"
+syntax = "INSERT$(Part$, Source$, Index)"
 group = "Strings"
-doc = "`Dest$` with `Source$` inserted before character `Index` (1 the first): `INSERT$(\"hi\", \"Hello\", 3)` is `Hehillo`."
+doc = "`Source$` with `Part$` inserted before character `Index` (1 the first): `INSERT$(\"hi\", \"Hello\", 3)` is `Hehillo`. The text to insert comes first."
+example = "Part$ = \"hi\"\nSource$ = \"Hello\"\nIndex = 3\nPRINT INSERT$(Part$, Source$, Index)"
+expect = "Hehillo"
 
 [[builtin]]
 name = "INSTR"
 syntax = "INSTR([Start,] Search$,Find$)"
 group = "Strings"
 doc = "The position (1 the first) where `Find$` first occurs in `Search$`, from character `Start` when given; 0 when it doesn't (an empty `Find$` is never found)."
+example = "Search$ = \"Hello\"\nFind$ = \"ll\"\nPRINT INSTR(Search$, Find$); \"|\"; INSTR(4, \"hehe they\", \"he\")"
+expect = "3|7"
 
 [[builtin]]
 name = "INT"
@@ -513,19 +525,19 @@ doc = "The lowest index of an array, in its first dimension or the one given (1 
 
 [[builtin]]
 name = "LCASE$"
-syntax = "LCASE$(String)"
+syntax = "LCASE$(Text$)"
 group = "Strings"
 doc = "The string in lower case."
 
 [[builtin]]
 name = "LEFT$"
-syntax = "LEFT$(String,Num)"
+syntax = "LEFT$(Text$, Num)"
 group = "Strings"
 doc = "The first `Num` characters of a string (all of it when it is shorter)."
 
 [[builtin]]
 name = "LEN"
-syntax = "LEN(String)"
+syntax = "LEN(Text$)"
 group = "Strings"
 doc = "The number of characters in a string (characters, not bytes)."
 
@@ -569,7 +581,7 @@ doc = "Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends th
 
 [[builtin]]
 name = "LTRIM$"
-syntax = "LTRIM$(String)"
+syntax = "LTRIM$(Text$)"
 group = "Strings"
 doc = "The string without its leading spaces."
 
@@ -612,13 +624,14 @@ doc = "A high-resolution timer reading, for timing short intervals more finely t
 
 [[builtin]]
 name = "MID$"
-syntax = "MID$(String, Position, Num)"
+syntax = "MID$(Text$, Position, Num)"
 params = "Text AS STRING, Position AS INTEGER, [Num AS INTEGER]"
 returns = "STRING"
 group = "Strings"
 doc = "`Num` characters of a string from `Position` (1 the first); without `Num`, the rest of the string."
 effects = ["none"]
-example = "PRINT MID$(\"RapidR\", 2, 3)   ' api"
+example = "Text$ = \"RapidR\"\nPosition = 2\nNum = 3\nPRINT MID$(Text$, Position, Num)"
+expect = "api"
 
 [[builtin]]
 name = "MKDIR"
@@ -776,15 +789,19 @@ doc = "Renames (or moves) a file from the first name to the second."
 
 [[builtin]]
 name = "REPLACE$"
-syntax = "REPLACE$(Source$, Replace$, Index)"
+syntax = "REPLACE$(Source$, Overwrite$, Index)"
 group = "Strings"
-doc = "`Replace$` written over `Source$` from character `Index` (1 the first): `REPLACE$(\"Hello\", \"J\", 1)` is `Jello`. To find and replace, `REPLACESUBSTR$`."
+doc = "`Overwrite$` written over `Source$` from character `Index` (1 the first): `REPLACE$(\"Hello\", \"J\", 1)` is `Jello`. To find and replace, `REPLACESUBSTR$`."
+example = "Source$ = \"Hello\"\nOverwrite$ = \"ipp\"\nIndex = 2\nPRINT REPLACE$(Source$, Overwrite$, Index)"
+expect = "Hippo"
 
 [[builtin]]
 name = "REPLACESUBSTR$"
 syntax = "REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)"
 group = "Strings"
 doc = "`Source$` with every occurrence of `ReplaceStr$` replaced by `Withstr$`."
+example = "Source$ = \"a-b-c\"\nReplaceStr$ = \"-\"\nWithstr$ = \"+\"\nPRINT REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)"
+expect = "a+b+c"
 
 [[builtin]]
 name = "RESOURCE"
@@ -813,7 +830,7 @@ doc = "The colour value for red, green and blue parts of 0 to 255 each, as Rapid
 
 [[builtin]]
 name = "RIGHT$"
-syntax = "RIGHT$(String,Num)"
+syntax = "RIGHT$(Text$, Num)"
 group = "Strings"
 doc = "The last `Num` characters of a string (all of it when it is shorter)."
 
@@ -822,6 +839,8 @@ name = "RINSTR"
 syntax = "RINSTR([Start,] SearchString, FindString)"
 group = "Strings"
 doc = "The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none."
+example = "DIM SearchString AS STRING = \"Hello World\"\nDIM FindString AS STRING = \"l\"\nPRINT RINSTR(SearchString, FindString)"
+expect = "10"
 
 [[builtin]]
 name = "RMDIR"
@@ -851,7 +870,7 @@ doc = "Copies a block of memory from one address to another (Windows' routine of
 
 [[builtin]]
 name = "RTRIM$"
-syntax = "RTRIM$(String)"
+syntax = "RTRIM$(Text$)"
 group = "Strings"
 doc = "The string without its trailing spaces."
 
@@ -982,12 +1001,16 @@ name = "STRF$"
 syntax = "STRF$(Number, Format%, Precision%, Digits%)"
 group = "Strings"
 doc = "A number as text in a float format (`ffGeneral`, `ffExponent`, `ffFixed`, `ffNumber`) with `Precision%` significant digits and `Digits%` decimals."
+example = "Number = 3.14159\nFormat% = 2\nPrecision% = 8\nDigits% = 4\nPRINT STRF$(Number, Format%, Precision%, Digits%); \"|\"; STRF$(1234.5678, 3, 8, 2)"
+expect = "3.1416|1,234.57"
 
 [[builtin]]
 name = "STRING$"
 syntax = "STRING$(Num, Char) or STRING$(Num, Char$)"
 group = "Strings"
 doc = "A string of `Num` copies of a character, given by its code or as the first character of a string: `STRING$(3, 65)` is `AAA`."
+example = "Num = 3\nChar = 65\nPRINT STRING$(Num, Char); STRING$(2, \"xy\")"
+expect = "AAAxx"
 
 [[builtin]]
 name = "TAB"
@@ -1000,6 +1023,8 @@ name = "TALLY"
 syntax = "TALLY(Search$, Match$)"
 group = "Strings"
 doc = "The number of times `Match$` occurs in `Search$` (occurrences don't overlap); 0 for an empty `Match$`."
+example = "Search$ = \"abcabc\"\nMatch$ = \"bc\"\nPRINT TALLY(Search$, Match$)"
+expect = "2"
 
 [[builtin]]
 name = "TAN"
@@ -1023,7 +1048,7 @@ doc = "The seconds since midnight (local time), with fractions, for timing parts
 
 [[builtin]]
 name = "TRIM"
-syntax = "TRIM(String)"
+syntax = "TRIM(Text$)"
 group = "Strings"
 origin = "rapidr"
 doc = "The string without its leading and trailing spaces."
@@ -1037,7 +1062,8 @@ group = "Strings"
 origin = "rapidr"
 doc = "The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$(\"Open\", \"menu\")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error."
 effects = ["file-read"]
-example = "PRINT TR$(\"Hello, {name}!\", \"name\", \"Ana\")   ' Hola, Ana! with lang/es.po and Application.Language = \"es\""
+example = "Text$ = \"Open {what}\"\nContext$ = \"menu\"\nName$ = \"what\"\nDIM Value AS STRING = \"file\"\nPRINT TR$(Text$, Context$, Name$, Value)\nPRINT TR$(\"Hello, {name}!\", \"name\", \"Ana\")"
+expect = "Open file\nHello, Ana!"
 
 [[builtin]]
 name = "TRN$"
@@ -1048,7 +1074,8 @@ group = "Strings"
 origin = "rapidr"
 doc = "The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them."
 effects = ["file-read"]
-example = "PRINT TRN$(\"{n} file\", \"{n} files\", 5)   ' 5 files (5 archivos in Spanish)"
+example = "Singular$ = \"{n} file\"\nPlural$ = \"{n} files\"\nCount = 5\nPRINT TRN$(Singular$, Plural$, Count); \"|\"; TRN$(\"{n} file\", \"{n} files\", 1)"
+expect = "5 files|1 file"
 
 [[builtin]]
 name = "UBOUND"
@@ -1058,7 +1085,7 @@ doc = "The highest index of an array, in its first dimension or the one given (1
 
 [[builtin]]
 name = "UCASE$"
-syntax = "UCASE$(String)"
+syntax = "UCASE$(Text$)"
 group = "Strings"
 doc = "The string in upper case."
 
@@ -1079,7 +1106,7 @@ example = "UNLOADLIBRARY(\"USER32\")   ' after DECLARE … LIB \"USER32\": the D
 
 [[builtin]]
 name = "VAL"
-syntax = "VAL(String)"
+syntax = "VAL(Text$)"
 group = "Strings"
 doc = "The number at the start of a text, ignoring spaces and what follows it: `VAL(\"12abc\")` is 12; 0 when there is none."
 

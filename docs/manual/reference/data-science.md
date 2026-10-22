@@ -27,20 +27,20 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 | `Create([n])` | ✓ | ✓ | Makes the array n zeros (empty without n). |
 | `New` | ✓ | ✓ | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
 | `Init` | ✓ | ✓ | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `Arange(start, stop, [step])` | ✓ | ✓ | Evenly spaced values in [start, stop) with the given step (default 1; may be negative). |
+| `Arange(start, stop, [stepSize])` | ✓ | ✓ | Evenly spaced values from `start` up to, not including, `stop`, `stepSize` apart (default 1; may be negative). |
 | `LinSpace(start, stop, [num])` | ✓ | ✓ | num evenly spaced values from start to stop, both included (default 50). |
-| `Zeros(n)` | ✓ | ✓ | n zeros. |
-| `Ones(n)` | ✓ | ✓ | n ones. |
+| `Zeros([n])` | ✓ | ✓ | n zeros. |
+| `Ones([n])` | ✓ | ✓ | n ones. |
 | `Full(n, fillValue)` | ✓ | ✓ | n elements of fillValue. |
-| `FromList(v1, v2, v3, …)` | ✓ | ✓ | The numbers of a comma-separated list. |
-| `From_list` | ✓ | ✓ | Fills the array from text of comma-separated numbers. Same as `FromList`. |
+| `FromList(list)` | ✓ | ✓ | The numbers of a comma-separated list, given as ONE text: `a.FromList "5,6,7"`. |
+| `From_list(list)` | ✓ | ✓ | Fills the array from text of comma-separated numbers. Same as `FromList`. |
 | `Set(index, value)` | ✓ | ✓ | Sets element index (from 0); past the end the array grows with zeros. |
-| `SetValue` | ✓ | ✓ | Sets the element at an index. Same as `Set`. |
-| `SetItem` | ✓ | ✓ | Sets the element at an index. Same as `Set`. |
+| `SetValue(index, value)` | ✓ | ✓ | Sets the element at an index. Same as `Set`. |
+| `SetItem(index, value)` | ✓ | ✓ | Sets the element at an index. Same as `Set`. |
 | `Get(index)` | ✓ | ✓ | Element index (from 0); 0 past the end. |
-| `GetValue` | ✓ | ✓ | Returns the element at the index given. Same as `Get`. |
-| `GetItem` | ✓ | ✓ | Returns the element at the index given. Same as `Get`. |
-| `At` | ✓ | ✓ | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `GetValue(index)` | ✓ | ✓ | Returns the element at the index given. Same as `Get`. |
+| `GetItem(index)` | ✓ | ✓ | Returns the element at the index given. Same as `Get`. |
+| `At(index)` | ✓ | ✓ | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
 | `Push(value)` | ✓ | ✓ | Adds value at the end. |
 | `Sum` | ✓ | ✓ | The sum of the elements. |
 | `Mean` | ✓ | ✓ | The arithmetic mean. |
@@ -82,25 +82,25 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 | `Neg` | ✓ | ✓ | Changes the sign of each element (in place). Same as `Negative`. |
 | `Add(value)` | ✓ | ✓ | Adds a number, or another array element by element (arrays of the same length). |
 | `Subtract(value)` | ✓ | ✓ | Subtracts a number or another array, element by element. |
-| `Sub` | ✓ | ✓ | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
+| `Sub(value)` | ✓ | ✓ | Subtracts a number or another array's matching element from each element (in place). Same as `Subtract`. |
 | `Multiply(value)` | ✓ | ✓ | Multiplies by a number or another array, element by element. |
-| `Mul` | ✓ | ✓ | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
+| `Mul(value)` | ✓ | ✓ | Multiplies each element by a number or by another array's matching element (in place). Same as `Multiply`. |
 | `Divide(value)` | ✓ | ✓ | Divides by a number or another array, element by element (by 0: NAN). |
-| `Div` | ✓ | ✓ | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
-| `Power(exp)` | ✓ | ✓ | Raises every element to a power (default 2). |
-| `Pow` | ✓ | ✓ | Raises each element to a power (in place). Same as `Power`. |
+| `Div(value)` | ✓ | ✓ | Divides each element by a number or by another array's matching element (in place). Same as `Divide`. |
+| `Power([exp])` | ✓ | ✓ | Raises every element to a power (default 2). |
+| `Pow([exp])` | ✓ | ✓ | Raises each element to a power (in place). Same as `Power`. |
 | `Mod(divisor)` | ✓ | ✓ | The remainder of each element. |
-| `Fmod` | ✓ | ✓ | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
+| `Fmod(divisor)` | ✓ | ✓ | Replaces each element with its remainder after division by a number (in place). Same as `Mod`. |
 | `Clip(low, high)` | ✓ | ✓ | Limits every element to [low, high]. |
-| `Clamp` | ✓ | ✓ | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
+| `Clamp(low, high)` | ✓ | ✓ | Limits each element to the range from a low to a high value (in place). Same as `Clip`. |
 | `Sort` | ✓ | ✓ | Sorts the items, nodes or elements in ascending order. |
 | `Reverse` | ✓ | ✓ | Reverses the order of the elements (in place). Same as `Flip`. |
 | `Flip` | ✓ | ✓ | On a DirectX screen, shows what was drawn on the back buffer; on an array, reverses the elements (same as `Reverse`). |
 | `Unique` | ✓ | ✓ | Replaces the array with its distinct values, sorted. |
 | `Shuffle` | ✓ | ✓ | Puts the elements in random order (in place). |
-| `Append(v1, v2, …)` | ✓ | ✓ | Adds another array, a list or a number at the end. |
-| `Concatenate` | ✓ | ✓ | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
-| `Slice(start, end)` | ✓ | ✓ | Keeps the elements from start to end (not included). |
+| `Append(values)` | ✓ | ✓ | Adds at the end another array, a comma-separated list in one text, or a number. |
+| `Concatenate(values)` | ✓ | ✓ | Appends the elements of another array, named by its variable, to this one. Same as `Append`. |
+| `Slice(start, stop)` | ✓ | ✓ | Keeps the elements from index `start` up to, not including, `stop` (from 0). |
 | `Reshape` | ✓ | ✓ | Changes the array's shape; RapidR's arrays are one-dimensional, so it leaves it as it is. |
 | `CumSum` | ✓ | ✓ | Replaces each element with the running total up to it (in place). |
 | `CumProd` | ✓ | ✓ | Replaces each element with the product of it and all those before it (in place). |
@@ -113,15 +113,15 @@ A numeric array in NumPy's style: make ranges, zeros or lists, then sum, average
 | `Where` | ✓ | ✓ | Replaces the array with the indexes of its non-zero elements. Same as `Nonzero`. |
 | `Nonzero` | ✓ | ✓ | Replaces the array with the indexes of its non-zero elements. Same as `Where`. |
 | `SearchSorted(value)` | ✓ | ✓ | Where value would go in the sorted array. |
-| `Rand(n)` | ✓ | ✓ | n random values in [0, 1) (default 1). |
-| `Random` | ✓ | ✓ | Fills the array with `n` random values from 0 up to 1. Same as `Rand`. |
-| `Randn(n)` | ✓ | ✓ | n normally distributed values. |
-| `Random_normal` | ✓ | ✓ | Fills the array with `n` random values from a normal distribution. Same as `RandN`. |
-| `Normal` | ✓ | ✓ | Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`. |
+| `Rand([n])` | ✓ | ✓ | n random values in [0, 1) (default 1). |
+| `Random([n])` | ✓ | ✓ | Fills the array with `n` random values from 0 up to 1. Same as `Rand`. |
+| `Randn(n, [mean], [stddev])` | ✓ | ✓ | n normally distributed random values, with the given `mean` (default 0) and standard deviation `stddev` (default 1). |
+| `Random_normal(n, [mean], [stddev])` | ✓ | ✓ | Fills the array with `n` random values from a normal distribution. Same as `RandN`. |
+| `Normal(n, [mean], [stddev])` | ✓ | ✓ | Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`. |
 | `Uniform(low, high, n)` | ✓ | ✓ | n random values in [low, high). |
-| `Random_uniform` | ✓ | ✓ | Fills the array with `n` random values between a low and a high value. Same as `Uniform`. |
+| `Random_uniform(low, high, n)` | ✓ | ✓ | Fills the array with `n` random values between a low and a high value. Same as `Uniform`. |
 | `Randint(low, high, n)` | ✓ | ✓ | n random whole numbers from low to high, both included. |
-| `Choice(n)` | ✓ | ✓ | One element at random (returned), or the array becomes n of them. |
+| `Choice([n])` | ✓ | ✓ | One element at random (returned), or the array becomes n of them. |
 | `ToList` | ✓ | ✓ | The elements as "1,2,3". |
 | `ToString` | ✓ | ✓ | Returns the contents as text. |
 | `Print` | ✓ | ✓ | Prints the array as [1, 2, 3]. |
@@ -152,63 +152,63 @@ A table of named columns in pandas' style: read CSV or JSON, select, filter, sor
 | `Create` | ✓ | ✓ | Makes the frame empty. |
 | `New` | ✓ | ✓ | Starts anew, empty: a blank recording for a wave; on the web, a data-science object. |
 | `Init` | ✓ | ✓ | Prepares the object: a DirectX screen makes its drawing surface `Width` × `Height`; on the web a data-science object starts empty. |
-| `AddRow(v1, v2, …, v2, …)` | ✓ | ✓ | Adds a row (columns column_1, ... if the frame has fewer). |
-| `Add_row` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
-| `AppendRow` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
-| `Push_row` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
+| `AddRow(v1, v2, …)` | ✓ | ✓ | Adds a row (columns column_1, ... if the frame has fewer). |
+| `Add_row(v1, v2, …)` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
+| `AppendRow(v1, v2, …)` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
+| `Push_row(v1, v2, …)` | ✓ | ✓ | Appends a row made of the values given. Same as `AddRow`. |
 | `LoadFromCSV(filename)` | ✓ | ✓ | Reads CSV (the first line the header) from a file, or the CSV text itself. |
 | `ReadCSV(filename)` | ✓ | ✓ | The same as loadfromcsv. |
 | `Read_csv(filename)` | ✓ | ✓ | Loads a CSV file into the DataFrame. Same as `ReadCSV`. |
-| `SaveToCSV(filename)` | ✓ | ✓ | Writes the frame as CSV (default output.csv). |
-| `To_csv(filename)` | ✓ | ✓ | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
-| `WriteCSV(filename)` | ✓ | ✓ | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `SaveToCSV([filename])` | ✓ | ✓ | Writes the frame as CSV (default output.csv). |
+| `To_csv([filename])` | ✓ | ✓ | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
+| `WriteCSV([filename])` | ✓ | ✓ | Saves the DataFrame to a CSV file. Same as `SaveToCSV`. |
 | `LoadFromJSON(filename)` | ✓ | ✓ | Reads JSON records ([{...}, ...]), JSON Lines or columns ({"a": [...]}). |
 | `Read_json(filename)` | ✓ | ✓ | Loads a JSON file into the DataFrame. Same as `LoadFromJSON`. |
-| `SaveToJSON(filename)` | ✓ | ✓ | Writes the frame as an array of JSON records (default output.json). |
-| `To_json(filename)` | ✓ | ✓ | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
+| `SaveToJSON([filename])` | ✓ | ✓ | Writes the frame as an array of JSON records (default output.json). |
+| `To_json([filename])` | ✓ | ✓ | Saves the DataFrame to a JSON file. Same as `SaveToJSON`. |
 | `Head([n])` | ✓ | ✓ | Keeps the first n rows (default 5). |
 | `Tail([n])` | ✓ | ✓ | Keeps the last n rows (default 5). |
 | `Cell(row, col)` | ✓ | ✓ | The text of a cell (row: from 0, the first data row; col: an index from 0, or a column name); "" for a missing value. The row comes first: `Frame.Cell(2, 0)` is the third row's first column. |
 | `CellByName(row, columnName)` | ✓ | ✓ | The text of a cell by its column name. |
-| `At` | ✓ | ✓ | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
+| `At(row, columnName)` | ✓ | ✓ | Reads one value: an array's element at an index, or a DataFrame's cell by row and column name. |
 | `SetCell(row, col, value)` | ✓ | ✓ | Sets a cell (row from 0; col: an index or a name); past the end the frame grows. The row comes first, as in Cell. |
-| `Iloc(row)` | ✓ | ✓ | Keeps rows start to end (not included). |
-| `Select(col1, col2, …)` | ✓ | ✓ | Keeps those columns, in that order. |
-| `Sort(column, [ascending])` | ✓ | ✓ | Sorts by columns: 1 ascending (default), 0 descending; numbers as numbers, missing values last. |
-| `Sort_values(column, [ascending])` | ✓ | ✓ | The same as sort. |
+| `Iloc(start, [stop])` | ✓ | ✓ | Keeps the rows from index `start` up to, not including, `stop` (rows count from 0; without `stop`, through the last row): `Iloc 1, 3` keeps the second and third rows, two rows. |
+| `Select(columns)` | ✓ | ✓ | Keeps those columns, in that order. The names are ONE text, separated by commas: `Select "name,city"`, not one argument each. |
+| `Sort(columns, [ascending])` | ✓ | ✓ | Sorts by one column, or several (their names in one text, separated by commas); `ascending` is 1 (the default) or 0 for descending. Numbers sort as numbers, missing values last. |
+| `Sort_values(columns, [ascending])` | ✓ | ✓ | The same as sort. |
 | `Filter(column, operator, value)` | ✓ | ✓ | Keeps the rows that pass: =, ==, <>, !=, >, <, >=, <=, contains, startswith, endswith. |
 | `Query(expression)` | ✓ | ✓ | Filters with one condition: query "age > 30". |
-| `GroupBy(column, aggColumn, aggFunc)` | ✓ | ✓ | A row a group: the column, then mean (default), sum, count, min, max, first, last, median or std of every other column. |
-| `Group_by` | ✓ | ✓ | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
+| `GroupBy(column, [aggFunc])` | ✓ | ✓ | A row a group: groups by `column` and gives, for every other column, the aggregate `aggFunc`: mean (the default), sum, count, min, max, first, last, median or std. The groups come in order of their value. |
+| `Group_by(column, [aggFunc])` | ✓ | ✓ | Groups the rows by a column and aggregates the other columns. Same as `GroupBy`. |
 | `Drop(column)` | ✓ | ✓ | Removes a column. |
-| `Drop_column` | ✓ | ✓ | Removes a column by name. Same as `Drop`. |
+| `Drop_column(column)` | ✓ | ✓ | Removes a column by name. Same as `Drop`. |
 | `Rename(oldName, newName)` | ✓ | ✓ | Renames a column. |
-| `Rename_column` | ✓ | ✓ | Renames a column. Same as `Rename`. |
-| `AddColumn(name, values)` | ✓ | ✓ | Adds (or replaces) a column; a frame without rows gets one a value. |
-| `Add_column` | ✓ | ✓ | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
-| `Set_column` | ✓ | ✓ | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
-| `Fillna(value)` | ✓ | ✓ | Missing values become value (default "0"). |
-| `Fill_null` | ✓ | ✓ | Replaces the missing values with the value given. Same as `FillNA`. |
+| `Rename_column(oldName, newName)` | ✓ | ✓ | Renames a column. Same as `Rename`. |
+| `AddColumn(name, values)` | ✓ | ✓ | Adds (or replaces) a column: its values are ONE text, separated by commas, one per row; a frame without rows gets one row with the value. |
+| `Add_column(name, values)` | ✓ | ✓ | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
+| `Set_column(name, values)` | ✓ | ✓ | Adds a column of values under a name, replacing a column of that name. Same as `AddColumn`. |
+| `Fillna([value])` | ✓ | ✓ | Missing values become value (default "0"). |
+| `Fill_null([value])` | ✓ | ✓ | Replaces the missing values with the value given. Same as `FillNA`. |
 | `Dropna` | ✓ | ✓ | Removes the rows with a missing value. |
 | `Drop_nulls` | ✓ | ✓ | Removes the rows that have a missing value. Same as `DropNA`. |
 | `Describe` | ✓ | ✓ | The frame becomes the summary of its numeric columns: count, mean, std, min, 25%, 50%, 75%, max. |
 | `Value_counts(column)` | ✓ | ✓ | The frame becomes each value of the column and its count, most first. |
 | `Nunique(column)` | ✓ | ✓ | How many different values the column has. |
 | `Corr(col1, col2)` | ✓ | ✓ | Pearson's correlation of two columns. |
-| `Correlation` | ✓ | ✓ | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
-| `Sample(n)` | ✓ | ✓ | Keeps n rows at random (default 5). |
-| `Nlargest(n, column)` | ✓ | ✓ | Keeps the n rows with the largest values (default 5). |
-| `Nsmallest(n, column)` | ✓ | ✓ | Keeps the n rows with the smallest values (default 5). |
+| `Correlation(col1, col2)` | ✓ | ✓ | Returns the correlation matrix of the numeric columns. Same as `Corr`. |
+| `Sample([n])` | ✓ | ✓ | Keeps n rows at random (default 5). |
+| `Nlargest(column, [n])` | ✓ | ✓ | Keeps the `n` rows with the largest values in `column` (default 5), largest first. |
+| `Nsmallest(column, [n])` | ✓ | ✓ | Keeps the `n` rows with the smallest values in `column` (default 5), smallest first. |
 | `Info` | ✓ | ✓ | Prints the size and each column's type and non-null count. |
 | `Dtypes` | ✓ | ✓ | The columns' types: "name: str,age: i64". |
 | `Shape` | ✓ | ✓ | The array's or frame's dimensions as text: an array's length, a frame's rows and columns. |
 | `Merge(otherDf, onColumn, [how])` | ✓ | ✓ | Joins another frame on a column: inner (default), left, right, outer, cross. |
-| `Join` | ✓ | ✓ | Joins another DataFrame on a common column. Same as `Merge`. |
+| `Join(otherDf, onColumn, [how])` | ✓ | ✓ | Joins another DataFrame on a common column. Same as `Merge`. |
 | `Concat(otherDf)` | ✓ | ✓ | Adds another frame's rows (columns matched by name). |
-| `Append` | ✓ | ✓ | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
+| `Append(otherDf)` | ✓ | ✓ | Appends another's contents: the rows of another DataFrame (as `Concat`), or the elements of another array. |
 | `Transpose` | ✓ | ✓ | Columns become rows. |
 | `T` | ✓ | ✓ | Swaps rows and columns. Same as `Transpose`. |
-| `Apply(column, function)` | ✓ | ✓ | Transforms a column: upper, lower, trim, abs, round, sqrt, log, exp. |
+| `Apply(column, operation, [decimals])` | ✓ | ✓ | Transforms a column with an `operation`: upper, lower, trim, abs, round, sqrt, log or exp. `round` takes the number of `decimals` (default 2). |
 | `Replace(column, oldValue, newValue)` | ✓ | ✓ | Cells that are oldValue become newValue. |
 | `Clear` | ✓ | ✓ | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `Columns` | ✓ | ✓ | The frame's column names, comma-separated. |
