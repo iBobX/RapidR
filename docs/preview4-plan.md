@@ -106,7 +106,7 @@ The model was capable. Studio made it work blind:
 | # | Item | Model, size |
 |---|---|---|
 | X1 ★ | Threat model update for the new surfaces: RAI runs code, stored chats, Git credentials and remotes, regex, project-wide search, MCP | Opus S |
-| X2 ★ | Automated: `cargo deny` / `cargo audit`; fuzzing of the lexer and parser, `.rrproj`, regex patterns and Git objects; a secret scan of the tree | Sonnet M |
+| X2 ★ | Found by G0 (2026-10-22): `cargo deny check advisories` already fails on `zip` 0.6.6 (RUSTSEC-2026-0367/0368/0369, in `extract()`, which RapidR never calls; upgrade anyway), the unmaintained `zbus_names`/`zvariant`, and a yanked `inout`. Automated: `cargo deny` / `cargo audit`; fuzzing of the lexer and parser, `.rrproj`, regex patterns and Git objects; a secret scan of the tree | Sonnet M |
 | X3 ★ | **The audit**: on Fable with Robert's OK (or Opus); Opus fixes; a public report in `docs/security/` | Fable or Opus L |
 | X4 ★ | **The six legal traps** (Robert's rule, one Sonnet each): Versions adds a GitHub sign-in and chats keep personal data locally. Most are expected to be N/A; the check proves it | 6 × Sonnet S |
 
