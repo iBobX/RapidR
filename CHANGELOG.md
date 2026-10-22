@@ -59,6 +59,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   the `words` stage) fails when such a word comes back outside
   `tools/words-allowlist.txt` (fonts' names, build tools a platform needs,
   legal and history texts, fixture data).
+- **Another company's trademark for code completion is gone from this
+  changelog and the v2.117 and v2.118 release notes** (legal review of
+  2026-10-22): they say "code completion" and "code help" in plain words. The
+  words check now scans `CHANGELOG.md` and `docs/release-notes/` too, so the
+  trademark cannot come back.
 
 ### Fixed
 - **Two wrong reference entries** (found by RapidR Database Studio, which
@@ -676,7 +681,7 @@ walked on the real screen.
   linked components (CSV, JSON, Excel, Parquet, Arrow, Avro, Delta Lake, SQLite, MySQL, PostgreSQL /
   Redshift, SQL Server, S3 / Azure), data-aware components, the BASIC API, the web's limits, the licence
   of every crate, performance budgets and a benchmark suite against pandas and Polars, the registry for
-  IntelliSense / MCP, phases with sizes.
+  code completion / MCP, phases with sizes.
 - **RCSV** (new): a CSV file as a data source — `FileName`, `Delimiter` (`,` `;` tab `|` …),
   `HasHeader`, `Text`; `RowCount`, `ColCount`, `Columns`, `Error`; `Load`, `Save [file]`, `Clear`;
   `OnLoad`, `OnError(Message)`. Read once, when its table is first needed; a relative file is found in
@@ -700,7 +705,7 @@ walked on the real screen.
   labels show the real data while you design; RCSV is in the toolbox's Data group, with the data
   file's icon.
 - One model for every runtime (`rapidr_value::datascience::link`): native builds, the interpreter, the
-  web and the designer. Registry entries for every member (IntelliSense, the manual, MCP).
+  web and the designer. Registry entries for every member (code completion, the manual, MCP).
 - Examples: `data/linked_data.rr`, `data/million_rows.rr`, `data/json_source.rr` (on Studio's
   Welcome page); the manual's new chapter **Data science with RapidR**, with screenshots.
 - The inspector's **DataField** drops the bound data set's columns.
@@ -1130,7 +1135,7 @@ walked on the real screen.
   RapidR's names in mixed case (`EXTENDS RPanel`, `AS REdit`) are now read exactly as RapidQ's
   (the same bytecode as `QPANEL`).
 ### RapidR Studio: the code editor works
-- **IntelliSense in Studio** (desktop and web alike): completion after `.` (members by type, ranked
+- **Code completion and code help in Studio** (desktop and web alike): completion after `.` (members by type, ranked
   fuzzily, docs beside the list), signature help, hover, F12 (into another file too), Shift+F12
   (uses selected and listed in Output), F2 rename, squiggles with the Problems panel, Ctrl+. quick
   fixes, keywords in upper case as you type (`dim` → `DIM`), snippets.
@@ -2418,7 +2423,7 @@ walked on the real screen.
   `.github/FUNDING.yml`.
 - **The IDE plan** (`docs/ide-plan.md`, ROADMAP Phase 3 as stages I0–I9):
   RapidR Studio on the UI kernel, desktop and web — the designer,
-  IntelliSense, Delphi-style linked data and data-science components, a
+  code completion, Delphi-style linked data and data-science components, a
   debugger, AI through an MCP server in the IDE; every IDE block a public
   component (`docs/ide-components.md`, `docs/ide-ai.md`,
   `docs/q-and-r-components.md`).

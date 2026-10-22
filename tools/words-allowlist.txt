@@ -20,8 +20,18 @@ tools/words-allowlist.txt ::
 # The RapidQ review, the clean-room record and the trademark analysis name the
 # rights holders and products RapidQ used.
 docs/legal/ ::
-# Release notes of versions already published are history, like CHANGELOG.md.
-docs/release-notes/ ::
+# The release notes (docs/release-notes/) are scanned like any other text.
+# CHANGELOG.md is scanned too, so a trademark such as "IntelliSense" (replaced
+# by "code completion" on 2026-10-22, legal review) cannot come back. Its
+# published entries record how RapidQ's behaviour matched the products it
+# imitated (Delphi's grid, VCL's order, Xcode's save prompt): history, named
+# nominatively. New entries use RapidR's own words; only these words may stay.
+CHANGELOG.md :: Delphi
+CHANGELOG.md :: VCL
+CHANGELOG.md :: Xojo
+CHANGELOG.md :: Xcode
+CHANGELOG.md :: VB6
+CHANGELOG.md :: Visual Basic
 
 # ---- fonts (the typeface is used by name; SIL OFL licence texts) ----
 * :: JetBrains Mono

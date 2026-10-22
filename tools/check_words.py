@@ -11,10 +11,11 @@ This check fails when one of those product words turns up in a text file
 
 What is scanned: docs/ ide/ crates/ examples/ interpreter/ tools/ tests/ and
 the top-level guides (README, ROADMAP, CONTRIBUTING, ANNOUNCEMENT,
-COMPILER_MANUAL, SECURITY, VSCODE_EXTENSION). Not scanned, by design: the
-legal and history texts (CHANGELOG, LEGAL, LICENSE*, NOTICE,
-THIRD_PARTY_NOTICES), the VS Code extension's own folder (utilities/), and
-.reference/. Words are matched whole (so `delphi_digits`, a code symbol, is
+COMPILER_MANUAL, SECURITY, VSCODE_EXTENSION) and CHANGELOG.md (docs/release-notes/
+is under docs/): a product's trademark, "IntelliSense" among them, must not
+come back through the history either. Not scanned, by design: LEGAL, LICENSE*,
+NOTICE, THIRD_PARTY_NOTICES, the VS Code extension's own folder (utilities/),
+and .reference/. Words are matched whole (so `delphi_digits`, a code symbol, is
 not a hit); the allowlist lists every place a word stays, and why.
 
 Allowlist lines are `path :: text` (see the file's header). An entry that no
@@ -39,7 +40,7 @@ RX = re.compile(r"\b(" + "|".join(WORDS) + r")\b", re.I)
 
 SCAN_DIRS = ["docs", "ide", "crates", "examples", "interpreter", "tools", "tests"]
 SCAN_FILES = ["README.md", "ROADMAP.md", "CONTRIBUTING.md", "ANNOUNCEMENT.md",
-              "COMPILER_MANUAL.md", "SECURITY.md", "VSCODE_EXTENSION.md"]
+              "COMPILER_MANUAL.md", "SECURITY.md", "VSCODE_EXTENSION.md", "CHANGELOG.md"]
 MAX_BYTES = 6 * 1024 * 1024
 
 
