@@ -72,14 +72,27 @@ pub fn instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
     }
 }
 
-/// RINSTR(haystack, needle): 1-based position of the last occurrence.
-pub fn rinstr(haystack: &Value, needle: &Value) -> Value {
+/// RINSTR([start,] haystack, needle): 1-based position of the last
+/// occurrence, 0 if absent — as RapidQ computes it (RC.EXE, 2026-10-22):
+/// with a `start` (a 32-bit integer, a real one rounded half to even) the
+/// needle must END at or before character `start`, i.e. the search is in
+/// `LEFT$(haystack, start)` (`RINSTR(4, "hehe they", "he")` is 3,
+/// `RINSTR(3, …)` 1); a start of 0 or less finds nothing, one past the end
+/// searches all of it. `start` is `Value::Null` for the two-argument form.
+/// An empty needle is never found (RapidQ stops with an access violation
+/// there; INSTR never finds one either).
+pub fn rinstr(start: &Value, haystack: &Value, needle: &Value) -> Value {
     let hay = chars(haystack);
     let nee = chars(needle);
-    if nee.len() > hay.len() {
+    let end = match start {
+        Value::Null => hay.len(),
+        Value::Double(d) => crate::format::int32(*d).clamp(0, hay.len() as i64) as usize,
+        s => crate::format::int32_of(s.to_i64()).clamp(0, hay.len() as i64) as usize,
+    };
+    if nee.is_empty() || nee.len() > end {
         return v_int(0);
     }
-    match (0..=hay.len() - nee.len()).rev().find(|&i| hay[i..].starts_with(&nee)) {
+    match (0..=end - nee.len()).rev().find(|&i| hay[i..end].starts_with(&nee)) {
         Some(i) => v_int(i as i64 + 1),
         None => v_int(0),
     }
@@ -171,7 +184,7 @@ mod tests {
         assert_eq!(right(&s("ñandú"), &v_int(2)).to_string_val(), "dú");
         assert_eq!(len(&s("ñandú")).to_i64(), 5);
         assert_eq!(instr(&v_int(1), &s("añb"), &s("b")).to_i64(), 3);
-        assert_eq!(rinstr(&s("ñañ"), &s("ñ")).to_i64(), 3);
+        assert_eq!(rinstr(&Value::Null, &s("ñañ"), &s("ñ")).to_i64(), 3);
         assert_eq!(delete(&s("héllo"), &v_int(2), &v_int(2)).to_string_val(), "hlo");
         assert_eq!(insert(&s("hllo"), &v_int(2), &s("é")).to_string_val(), "héllo");
         assert_eq!(asc(&s("é")).to_i64(), 233);
@@ -186,6 +199,30 @@ mod tests {
         assert_eq!(right(&s("abc"), &v_int(99)).to_string_val(), "abc");
         assert_eq!(instr(&v_int(9), &s("abc"), &s("c")).to_i64(), 0);
         assert_eq!(delete(&s("abc"), &v_int(3), &v_int(99)).to_string_val(), "ab");
+    }
+
+    /// RC.EXE's answers (2026-10-22): the needle ends at or before `start`.
+    #[test]
+    fn rinstr_with_a_start_as_rapidq() {
+        let r = |start: Value, h: &str, n: &str| rinstr(&start, &s(h), &s(n)).to_i64();
+        assert_eq!(r(Value::Null, "Hello World", "l"), 10);
+        assert_eq!(r(v_int(4), "hehe they", "he"), 3);
+        assert_eq!(r(v_int(3), "hehe they", "he"), 1);
+        assert_eq!(r(v_int(1), "hehe they", "he"), 0);
+        assert_eq!(r(v_int(0), "hehe they", "he"), 0);
+        assert_eq!(r(v_int(-5), "hehe they", "he"), 0);
+        assert_eq!(r(v_int(7), "hehe they", "he"), 3);
+        assert_eq!(r(v_int(8), "hehe they", "he"), 7);
+        assert_eq!(r(v_int(100), "hehe they", "he"), 7);
+        assert_eq!(r(v_int(3), "aaaa", "aa"), 2);
+        assert_eq!(r(v_int(5), "abcabc", "bc"), 2);
+        assert_eq!(r(Value::Double(2.5), "abcabc", "c"), 0);
+        assert_eq!(r(Value::Double(2.7), "abcabc", "c"), 3);
+        assert_eq!(r(Value::Double(3e9), "abcabc", "c"), 0);
+        assert_eq!(r(Value::Null, "", "a"), 0);
+        // (RapidQ stops with an access violation on an empty needle)
+        assert_eq!(r(Value::Null, "abc", ""), 0);
+        assert_eq!(r(v_int(2), "abc", ""), 0);
     }
 
     #[test]

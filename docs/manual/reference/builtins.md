@@ -179,7 +179,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)` | `Source$` with every occurrence of `ReplaceStr$` replaced by `Withstr$`. |
 | `REVERSE$(S$)` | The string with its characters in reverse order. |
 | `RIGHT$(Text$, Num)` | The last `Num` characters of a string (all of it when it is shorter). |
-| `RINSTR([Start,] SearchString, FindString)` | The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none. |
+| `RINSTR([Start,] SearchString, FindString)` | The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none. With `Start`, only an occurrence that ends at or before character `Start` counts (the search is in `LEFT$(SearchString, Start)`): `RINSTR(4, "hehe they", "he")` is 3; a `Start` of 0 or less finds nothing. An empty `FindString` is never found. |
 | `RTRIM$(Text$)` | The string without its trailing spaces. |
 | `SPACE$(Num)` | A string of `Num` spaces. |
 | `STR$(Number)` | A number as text, with up to 9 significant digits as RapidQ writes it: `STR$(1 / 3)` is `0.333333333`. |

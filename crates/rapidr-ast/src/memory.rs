@@ -584,6 +584,62 @@ fn uses_memory(program: &Program) -> bool {
     found.get()
 }
 
+/// The name in `VARPTR(name)` / `UDTPTR(name)`, if `e` is one.
+fn varptr_name(e: &mut Expression) -> Option<&mut Identifier> {
+    let Expression::FunctionCall(fc) = e else { return None };
+    if !callee_name(&fc.callee).is_some_and(|n| matches!(key(&n).as_str(), "varptr" | "udtptr")) || fc.args.len() != 1 {
+        return None;
+    }
+    match &mut fc.args[0] {
+        Expression::Identifier(id) => Some(id),
+        _ => None,
+    }
+}
+
+/// RapidQ's VARPTR doesn't see a SUB's or FUNCTION's parameters (RC.EXE,
+/// 2026-10-22: `VARPTR(X)` of a parameter X is "Unknown identifier X"): where
+/// a parameter has the name of a global, `VARPTR(name)` inside the routine is
+/// the global's address — after `DEFSTR MyMsg = "global"`, in `SUB S(MyMsg AS
+/// STRING)` `VARPTR$(VARPTR(MyMsg))` is "global". Such a parameter is renamed
+/// (`MyMsg__param`) in its routine, so the name inside VARPTR reaches the
+/// global. A parameter no global shares its name with keeps RapidR's own
+/// meaning, its own address (an addition: RapidQ refuses it).
+fn varptr_skips_parameters(statements: &mut [Statement], globals: &Decls) {
+    for s in statements {
+        let (params, body) = match s {
+            Statement::Subroutine(r) => (&mut r.params, &mut r.body),
+            Statement::Function(f) => (&mut f.params, &mut f.body),
+            _ => continue,
+        };
+        let mut dimmed = Decls::new();
+        declare(body, &mut dimmed);
+        let mut names: Vec<String> = Vec::new();
+        walk_expressions_mut(body, true, &mut |e| {
+            if let Some(id) = varptr_name(e) {
+                let k = key(&id.name);
+                if globals.get(&k).is_some_and(|g| !g.is_array) && !dimmed.contains_key(&k) && params.iter().any(|p| key(&p.name) == k) && !names.contains(&k) {
+                    names.push(k);
+                }
+            }
+        });
+        for k in names {
+            let Some(p) = params.iter_mut().find(|p| key(&p.name) == k) else { continue };
+            let base = format!("{}__param", crate::strip_type_suffix(&p.name));
+            let original = p.name.clone();
+            p.name = format!("{base}{}", &original[crate::strip_type_suffix(&original).len()..]);
+            crate::implicit_scope::rename(body, &k, &base);
+            let renamed = key(&base);
+            walk_expressions_mut(body, true, &mut |e| {
+                if let Some(id) = varptr_name(e) {
+                    if key(&id.name) == renamed {
+                        id.name = format!("{}{}", crate::strip_type_suffix(&original), &id.name[crate::strip_type_suffix(&id.name).len()..]);
+                    }
+                }
+            });
+        }
+    }
+}
+
 /// A body of code with its own locals: a SUB / FUNCTION, a TYPE's method,
 /// CONSTRUCTOR or EVENT. Calls `f(routine name, parameters, body)`.
 fn for_each_routine(stmts: &mut [Statement], f: &mut dyn FnMut(&str, &[Parameter], &mut Vec<Statement>)) {
@@ -716,6 +772,9 @@ pub fn lower(program: &Program) -> Program {
     let types = Types(types);
     let mut globals = Decls::new();
     declare(&main, &mut globals);
+    if !routines.contains("varptr") {
+        varptr_skips_parameters(&mut program.statements, &globals);
+    }
     let locals_of = |params: &[Parameter], body: &[Statement]| {
         let mut locals = Decls::new();
         for p in params {

@@ -302,6 +302,21 @@ PRINT Square(1.5)             ' 2.250000000
   memory through `VARPTR`, on every system. Any other address is a
   run-time error, never a read of the process. `INP` / `OUT` (hardware
   ports) are a run-time error, as on every Windows since 2000.
+- `VARPTR` doesn't see a SUB's parameters, as in RapidQ: when a parameter
+  has the name of a global variable, `VARPTR(name)` inside the SUB is the
+  global's address.
+
+  ```basic
+  DIM Msg AS STRING = "global"
+  SUB Greet(Msg AS STRING)
+    PRINT Msg                       ' the parameter: hello
+    PRINT VARPTR$(VARPTR(Msg))      ' the global: global
+  END SUB
+  Greet "hello"
+  ```
+
+  RapidQ refuses `VARPTR` of a parameter that no global shares its name
+  with; RapidR gives that parameter's own address.
 
 ## TYPEs and objects
 
@@ -484,4 +499,13 @@ An error in included code points at the include file and line.
 ## Native code: `RUSTSTART`
 
 In native builds only, `RUSTSTART … RUSTEND` puts Rust code in the
-program. The interpreter and the web refuse it with a clear message.
+program — in the main program or in a SUB, with more BASIC after it. The
+interpreter and the web refuse it with a clear message at its line.
+
+```basic
+PRINT "before"
+RUSTSTART
+println!("from Rust");
+RUSTEND
+PRINT "after"
+```

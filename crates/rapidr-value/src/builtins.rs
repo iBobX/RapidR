@@ -598,14 +598,15 @@ pub fn rp_tally(s: &Value, substr: &Value) -> Value {
     v_int(s.matches(&sub).count() as i64)
 }
 
-/// RINSTR — find last occurrence of substring (1-based, 0 if not found)
 /// REPLACESUBSTR$ — replace every occurrence of a substring
 pub fn rp_replacesubstr(s: &Value, find: &Value, replacement: &Value) -> Value {
     crate::strings::replace_all(s, find, replacement)
 }
 
-pub fn rp_rinstr(s: &Value, substr: &Value) -> Value {
-    crate::strings::rinstr(s, substr)
+/// RINSTR([start,] s, find) — the last occurrence (1-based, 0 if not
+/// found); `start` is `Value::Null` without one (`crate::strings::rinstr`).
+pub fn rp_rinstr(start: &Value, s: &Value, substr: &Value) -> Value {
+    crate::strings::rinstr(start, s, substr)
 }
 
 /// `FORMAT$(fmt, arg0, arg1, …)` (Pascal `Format`, see `crate::format`).

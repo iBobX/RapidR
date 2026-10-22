@@ -254,7 +254,13 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
         "__paramval" => rapidr_value::variadic::param_val(&a0, &a1),
         "__paramstrcount" => rapidr_value::variadic::param_str_count(&a0),
         "__paramvalcount" => rapidr_value::variadic::param_val_count(&a0),
-        "rinstr" => rp_rinstr(&a0, &a1),
+        "rinstr" => {
+            if args.len() >= 3 {
+                rp_rinstr(&a0, &a1, &a2)
+            } else {
+                rp_rinstr(&v_null(), &a0, &a1)
+            }
+        }
         "format" => rp_format(&a0, args.get(1..).unwrap_or(&[])),
         "strf" => rp_strf(&a0, &a1, &a2, &args.get(3).cloned().unwrap_or_else(v_null)),
 

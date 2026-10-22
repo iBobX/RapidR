@@ -1,0 +1,11 @@
+exists 1
+missing 0
+not exists -2
+not missing -1
+IF NOT (exists): then
+IF NOT (missing): then
+= 1
+= 0 (missing)
+empty 0
+folder 0
+stored 1 str 1
