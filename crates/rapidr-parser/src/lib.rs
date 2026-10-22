@@ -106,6 +106,18 @@ fn retag_structs(tokens: &[Token]) -> Option<Vec<Token>> {
     Some(out)
 }
 
+/// Whether token `t` is a word as the program wrote it: a name or a
+/// keyword. A string literal's token carries its text without the quotes
+/// (and DATA's, an embedded Rust block's, an unreadable one's carry raw
+/// text), so `"Open"` only looks like one: it's data, never a name — a
+/// parameter or variable a keyword names (`SUB Show(Open AS STRING)`,
+/// `Step = 2`) never turns the literal `"Open"` or `"Step"` into it.
+fn is_word(t: &Token) -> bool {
+    !matches!(t.kind, TokenType::StringLit | TokenType::Data | TokenType::RustStart | TokenType::Error)
+        && t.lexeme.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && t.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// Statement keywords of QBasic-style file I/O that RapidQ doesn't reserve
 /// (it uses QFileStream), so programs name their own SUBs `Open`, `Close`, …
 const SOFT_KEYWORDS: &[TokenType] = &[
@@ -279,8 +291,8 @@ impl<'a> Parser<'a> {
         // `DIM step AS ...`: a keyword where a name is expected.
         if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
             if let Some(next) = self.tokens.get(start + 1) {
-                let is_word = next.lexeme.chars().all(|c| c.is_ascii_alphabetic());
-                if next.kind != TokenType::Identifier && is_word {
+                let reserved = is_word(next) && next.lexeme.chars().all(|c| c.is_ascii_alphabetic());
+                if next.kind != TokenType::Identifier && reserved {
                     return format!(
                         "'{}' is a reserved word and can't be used as a name",
                         next.lexeme.to_uppercase()
@@ -293,7 +305,7 @@ impl<'a> Parser<'a> {
             TokenType::Identifier | TokenType::Number | TokenType::StringLit => {
                 format!("Syntax error near '{}'", tok.lexeme)
             }
-            _ if tok.lexeme.chars().all(|c| c.is_ascii_alphabetic()) => {
+            _ if is_word(tok) && tok.lexeme.chars().all(|c| c.is_ascii_alphabetic()) => {
                 format!("Syntax error in {word} statement")
             }
             _ => format!("Syntax error: unexpected '{}'", tok.lexeme),
@@ -422,8 +434,10 @@ impl<'a> Parser<'a> {
 
     // --- identifiers (case-insensitive keyword check) ---
 
+    /// Whether the next token is the word `value` (a name or a keyword; a
+    /// string literal with that text is not: `5 "SHL" 2` is no shift).
     fn peek_identifier_eq(&self, value: &str) -> bool {
-        matches!(self.peek(), Some(t) if t.lexeme.eq_ignore_ascii_case(value))
+        matches!(self.peek(), Some(t) if is_word(t) && t.lexeme.eq_ignore_ascii_case(value))
     }
 
     /// RapidQ's "Syntax error in END statement" for each `END word` whose
@@ -575,7 +589,7 @@ impl<'a> Parser<'a> {
         for term in terminators {
             match term {
                 Terminator::Keyword(kw) => {
-                    if self.peek().map_or(false, |t| t.lexeme.eq_ignore_ascii_case(kw)) {
+                    if self.peek_identifier_eq(kw) {
                         return true;
                     }
                 }
@@ -656,7 +670,7 @@ impl<'a> Parser<'a> {
         match self.peek_kind()? {
             // (only before `=` or `.`: `CASE 1` stays a CASE in a routine
             // with a parameter named case)
-            _ if self.peek().is_some_and(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme))
+            _ if self.peek().is_some_and(|t| self.is_keyword_name(t))
                 && matches!(self.peek_kind_at(1), Some(TokenType::Eq | TokenType::Dot)) =>
             {
                 self.parse_assignment_or_call()
@@ -2099,10 +2113,14 @@ impl<'a> Parser<'a> {
         Some(name)
     }
 
-    /// Whether keyword `word` names a parameter of this routine or a
-    /// variable of the program here.
-    fn is_keyword_name(&self, word: &str) -> bool {
-        let w = word.to_ascii_lowercase();
+    /// Whether token `t` is a keyword that names a parameter of this
+    /// routine or a variable of the program here (never a string literal
+    /// with the same text: is_word).
+    fn is_keyword_name(&self, t: &Token) -> bool {
+        if t.kind == TokenType::Identifier || !is_word(t) {
+            return false;
+        }
+        let w = t.lexeme.to_ascii_lowercase();
         self.keyword_params.contains(&w) || self.keyword_vars.contains(&w)
     }
 
@@ -2134,7 +2152,7 @@ impl<'a> Parser<'a> {
 
     /// Whether the token `n` ahead is a word (an identifier or a keyword).
     fn peek_is_word_at(&self, n: usize) -> bool {
-        self.tokens.get(self.pos + n).is_some_and(|t| t.lexeme.chars().next().is_some_and(|c| c.is_ascii_alphabetic() || c == '_') && t.lexeme.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'))
+        self.tokens.get(self.pos + n).is_some_and(is_word)
     }
 
     fn parse_sub(&mut self) -> Option<SubroutineStatement> {
@@ -2609,7 +2627,7 @@ impl<'a> Parser<'a> {
             // in RAPIDQ2.INC's API declarations).
             let pname = match self.peek() {
                 Some(t) if t.kind == TokenType::Identifier => self.advance()?.lexeme.clone(),
-                Some(t) if t.lexeme.chars().all(|c| c.is_ascii_alphabetic())
+                Some(t) if is_word(t) && t.lexeme.chars().all(|c| c.is_ascii_alphabetic())
                     && self.peek_kind_at(1) == Some(TokenType::As) =>
                 {
                     let name = self.advance()?.lexeme.clone();
@@ -2825,7 +2843,7 @@ impl<'a> Parser<'a> {
             let starts_operand = match kind {
                 Some(TokenType::Number | TokenType::StringLit | TokenType::Dot) => true,
                 Some(TokenType::Identifier) => want_operand || self.operand_follows(),
-                _ => want_operand && self.peek().is_some_and(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme)),
+                _ => want_operand && self.peek().is_some_and(|t| self.is_keyword_name(t)),
             };
             if !starts_operand {
                 break;
@@ -3292,7 +3310,7 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Option<Expression> {
         // A parameter a keyword names, read in its routine.
-        if let Some(t) = self.peek().filter(|t| t.kind != TokenType::Identifier && self.is_keyword_name(&t.lexeme)) {
+        if let Some(t) = self.peek().filter(|t| self.is_keyword_name(t)) {
             let tok = t.clone();
             self.advance();
             return Some(Expression::Identifier(Identifier { span: tok.span, name: tok.lexeme.clone() }));
@@ -4093,6 +4111,94 @@ mod tests {
         let errs = errors("DIM step AS DOUBLE\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert!(errs[0].2.contains("'STEP' is a reserved word"), "{errs:?}");
+    }
+
+    /// Every string literal's text and every name read in `e`, in order
+    /// (`"S:..."`, `"N:..."`).
+    fn operands(e: &Expression, out: &mut Vec<String>) {
+        match e {
+            Expression::Literal(Literal { value: LiteralValue::String(s), .. }) => out.push(format!("S:{s}")),
+            Expression::Literal(_) => {}
+            Expression::Identifier(id) => out.push(format!("N:{}", id.name.to_ascii_lowercase())),
+            Expression::Binary(b) => {
+                operands(&b.left, out);
+                operands(&b.right, out);
+            }
+            Expression::Unary(u) => operands(&u.operand, out),
+            Expression::FunctionCall(c) => {
+                operands(&c.callee, out);
+                c.args.iter().for_each(|a| operands(a, out));
+            }
+            Expression::ArrayAccess(a) => {
+                operands(&a.array, out);
+                a.indices.iter().for_each(|i| operands(i, out));
+            }
+            Expression::MemberAccess(m) => operands(&m.object, out),
+            Expression::MethodCall(m) => {
+                operands(&m.object, out);
+                m.args.iter().for_each(|a| operands(a, out));
+            }
+        }
+    }
+
+    /// The operands of every PRINT and assignment, routines' bodies too.
+    fn printed_operands(stmts: &[Statement]) -> Vec<String> {
+        let mut out = Vec::new();
+        for s in stmts {
+            match s {
+                Statement::Print(p) => p.items.iter().for_each(|e| operands(e, &mut out)),
+                Statement::Assignment(a) => operands(&a.value, &mut out),
+                Statement::Subroutine(r) => out.extend(printed_operands(&r.body)),
+                Statement::Function(f) => out.extend(printed_operands(&f.body)),
+                _ => {}
+            }
+        }
+        out
+    }
+
+    /// A parameter or variable a keyword names (`SUB Show(Open AS STRING)`,
+    /// `Step = 2`) is that name where the program reads a name — never in
+    /// a string literal with the same text: `"Open"` stays the text "Open"
+    /// (Database Studio's Open button went blank: the literal was read as
+    /// the parameter, empty outside its SUB).
+    #[test]
+    fn string_literals_are_never_a_keyword_named_parameter_or_variable() {
+        for kw in ["Open", "Close", "Input", "Print", "Kill", "Seek", "Write", "Step", "Type", "Case"] {
+            let lower = kw.to_ascii_lowercase();
+            let code = format!(
+                "SUB Show({kw} AS STRING)\n  PRINT \"[\" + {kw} + \"]\", \"{kw}\"\nEND SUB\n\
+                 PRINT \"{kw}\"\nPRINT \"4:\" + \"{kw}\"\ns$ = \"{kw}\"\nPRINT \"{lower}\"; \"x {kw} y\"\n\
+                 FUNCTION F({kw} AS STRING) AS STRING\n  F = \"{kw}\" + {kw}\nEND FUNCTION\nPRINT \"{kw}\"\n"
+            );
+            let got = printed_operands(&parse(&code));
+            let want: Vec<String> = [
+                "S:[", &format!("N:{lower}"), "S:]", &format!("S:{kw}"),
+                &format!("S:{kw}"), "S:4:", &format!("S:{kw}"), &format!("S:{kw}"),
+                &format!("S:{lower}"), &format!("S:x {kw} y"),
+                &format!("S:{kw}"), &format!("N:{lower}"), &format!("S:{kw}"),
+            ]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+            assert_eq!(got, want, "{kw}:\n{code}");
+        }
+        // A keyword-named variable (`Step = 2`, `DEFSTR return`) is global
+        // from there on; its text in quotes is still text.
+        let got = printed_operands(&parse("Step = 2\nPRINT \"Step\"; Step; \"step\"\nDEFSTR return\nreturn = \"return\"\nPRINT return + \"RETURN\"\n"));
+        assert_eq!(got, ["S:Step", "N:step", "S:step", "S:return", "N:return", "S:RETURN"].map(String::from).to_vec());
+    }
+
+    /// A string literal with an operator's or a keyword's text is no word:
+    /// `5 "SHL" 2` is no shift but operands side by side (RapidQ's stacked
+    /// expression: the first), and a literal can't name a parameter.
+    #[test]
+    fn string_literals_are_never_words() {
+        for (code, first) in [("x = 5 \"SHL\" 2\n", 5), ("x = 7 \"INV\" 3\n", 7)] {
+            let stmts = parse(code);
+            let Some(Statement::Assignment(a)) = stmts.first() else { panic!("{stmts:?}") };
+            assert!(matches!(a.value, Expression::Literal(Literal { value: LiteralValue::Integer(n), .. }) if n == first), "{code}: {stmts:?}");
+        }
+        assert!(!errors("SUB S(\"Open\" AS STRING)\nEND SUB\n").is_empty());
     }
 
     #[test]

@@ -1,0 +1,47 @@
+Open
+Open it, Open! open OPEN
+Open
+OpenOpen
+Open xOpenx
+Open: sub [a] Open Open
+Open=b
+Close
+Close it, Close! close CLOSE
+Close
+CloseClose
+Close xClosex
+Close: sub [a] Close Close
+Close=b
+Input
+Input it, Input! input INPUT
+Input
+InputInput
+Input xInputx
+Input: sub [a] Input Input
+Input=b
+Kill
+Kill it, Kill! kill KILL
+Kill
+KillKill
+Kill xKillx
+Kill: sub [a] Kill Kill
+Kill=b
+Seek
+Seek it, Seek! seek SEEK
+Seek
+SeekSeek
+Seek xSeekx
+Seek: sub [a] Seek Seek
+Seek=b
+Write
+Write it, Write! write WRITE
+Write
+WriteWrite
+Write xWritex
+Write: sub [a] Write Write
+Write=b
+ociksw Open Close Input Kill Seek Write
+1 Open Open1
+2 Close Close2
+3 Seek Seek3
+4 Write Write4

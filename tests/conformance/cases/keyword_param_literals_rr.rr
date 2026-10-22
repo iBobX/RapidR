@@ -1,0 +1,135 @@
+' A parameter or a variable a keyword names (Print, Step, Type, Case,
+' Bind, Open…) never changes a string literal with its text, and a
+' button's Caption "Open" set after a SUB with a parameter Open stays
+' "Open" (Database Studio's case). (RC.EXE refuses a parameter named Print
+' where the SUB reads it; RapidR reads it: an extension.)
+SUB ShowPrint(Print AS STRING)
+  PRINT "Print: sub [" + Print + "] Print " + "Print"
+END SUB
+PRINT "Print"
+PRINT "Print it, " + "Print" + "!"; " "; "print"; " "; "PRINT"
+FUNCTION GetPrint(Print AS STRING) AS STRING
+  GetPrint = "Print" + "=" + Print
+END FUNCTION
+PRINT "Print"
+SUB UnusedPrint(Print AS STRING)
+  PRINT Print
+END SUB
+PRINT "Print" + "Print"
+FUNCTION UnusedFPrint(Print AS STRING) AS STRING
+  UnusedFPrint = Print
+END FUNCTION
+s$ = "Print": PRINT s$; " "; "xPrintx"
+ShowPrint "a"
+PRINT GetPrint("b")
+SUB ShowStep(Step AS STRING)
+  PRINT "Step: sub [" + Step + "] Step " + "Step"
+END SUB
+PRINT "Step"
+PRINT "Step it, " + "Step" + "!"; " "; "step"; " "; "STEP"
+FUNCTION GetStep(Step AS STRING) AS STRING
+  GetStep = "Step" + "=" + Step
+END FUNCTION
+PRINT "Step"
+SUB UnusedStep(Step AS STRING)
+  PRINT Step
+END SUB
+PRINT "Step" + "Step"
+FUNCTION UnusedFStep(Step AS STRING) AS STRING
+  UnusedFStep = Step
+END FUNCTION
+s$ = "Step": PRINT s$; " "; "xStepx"
+ShowStep "a"
+PRINT GetStep("b")
+SUB ShowType(Type AS STRING)
+  PRINT "Type: sub [" + Type + "] Type " + "Type"
+END SUB
+PRINT "Type"
+PRINT "Type it, " + "Type" + "!"; " "; "type"; " "; "TYPE"
+FUNCTION GetType(Type AS STRING) AS STRING
+  GetType = "Type" + "=" + Type
+END FUNCTION
+PRINT "Type"
+SUB UnusedType(Type AS STRING)
+  PRINT Type
+END SUB
+PRINT "Type" + "Type"
+FUNCTION UnusedFType(Type AS STRING) AS STRING
+  UnusedFType = Type
+END FUNCTION
+s$ = "Type": PRINT s$; " "; "xTypex"
+ShowType "a"
+PRINT GetType("b")
+SUB ShowCase(Case AS STRING)
+  PRINT "Case: sub [" + Case + "] Case " + "Case"
+END SUB
+PRINT "Case"
+PRINT "Case it, " + "Case" + "!"; " "; "case"; " "; "CASE"
+FUNCTION GetCase(Case AS STRING) AS STRING
+  GetCase = "Case" + "=" + Case
+END FUNCTION
+PRINT "Case"
+SUB UnusedCase(Case AS STRING)
+  PRINT Case
+END SUB
+PRINT "Case" + "Case"
+FUNCTION UnusedFCase(Case AS STRING) AS STRING
+  UnusedFCase = Case
+END FUNCTION
+s$ = "Case": PRINT s$; " "; "xCasex"
+ShowCase "a"
+PRINT GetCase("b")
+SUB ShowBind(Bind AS STRING)
+  PRINT "Bind: sub [" + Bind + "] Bind " + "Bind"
+END SUB
+PRINT "Bind"
+PRINT "Bind it, " + "Bind" + "!"; " "; "bind"; " "; "BIND"
+FUNCTION GetBind(Bind AS STRING) AS STRING
+  GetBind = "Bind" + "=" + Bind
+END FUNCTION
+PRINT "Bind"
+SUB UnusedBind(Bind AS STRING)
+  PRINT Bind
+END SUB
+PRINT "Bind" + "Bind"
+FUNCTION UnusedFBind(Bind AS STRING) AS STRING
+  UnusedFBind = Bind
+END FUNCTION
+s$ = "Bind": PRINT s$; " "; "xBindx"
+ShowBind "a"
+PRINT GetBind("b")
+SUB ShowOpen(Open AS STRING)
+  PRINT "Open: sub [" + Open + "] Open " + "Open"
+END SUB
+PRINT "Open"
+PRINT "Open it, " + "Open" + "!"; " "; "open"; " "; "OPEN"
+FUNCTION GetOpen(Open AS STRING) AS STRING
+  GetOpen = "Open" + "=" + Open
+END FUNCTION
+PRINT "Open"
+SUB UnusedOpen(Open AS STRING)
+  PRINT Open
+END SUB
+PRINT "Open" + "Open"
+FUNCTION UnusedFOpen(Open AS STRING) AS STRING
+  UnusedFOpen = Open
+END FUNCTION
+s$ = "Open": PRINT s$; " "; "xOpenx"
+ShowOpen "a"
+PRINT GetOpen("b")
+Step = 2
+PRINT "Step"; " "; Step; " "; "step"
+DEFSTR return
+return = "r"
+PRINT return + "return" + "RETURN"
+SUB OpenFile(Open AS STRING)
+  PRINT "opening " + Open
+END SUB
+CREATE Win AS RForm
+  CREATE OpenButton AS RButton
+    Caption = "Open"
+  END CREATE
+END CREATE
+OpenButton.Caption = "Open"
+PRINT OpenButton.Caption
+OpenFile "a.db"
