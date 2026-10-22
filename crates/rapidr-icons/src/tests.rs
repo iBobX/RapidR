@@ -191,3 +191,41 @@ fn themed_svgs() {
     let off = themed_svg(run, 16, &Style { disabled: true, ..Style::new("modern") });
     assert!(off.contains("#8d93a0") && !off.contains("#08805E"));
 }
+
+/// A program's own SVGs (RImage.Load, a button's BMP, AddSVGFile): tokens
+/// and currentColor follow the theme; an illustration's own colours don't.
+#[test]
+fn programs_svgs_follow_the_theme() {
+    // (Database Studio's icons: tokens spelled as their light values)
+    let user = r##"<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="5" r="3" fill="#E3E9FF" stroke="#2F5BFF"/><path d="M3 13A5 4 0 0 1 13 13" fill="#e3e9ff" stroke='#2f5bff'/></svg>"##;
+    let dark = theme_svg(user, &Style::new("dark")).unwrap();
+    assert!(dark.contains("\"#24315c\"") && dark.contains("\"#7398ff\"") && dark.contains("'#7398ff'"), "{dark}");
+    assert!(!dark.to_ascii_lowercase().contains("#2f5bff"), "{dark}");
+    // (light: the same colours, as the sources spell them)
+    let light = theme_svg(user, &Style::new("modern")).unwrap();
+    assert!(light.contains("#2f5bff") && light.contains("#e3e9ff"));
+    // (currentColor: the theme's ink, set on the root; a mask's white and black stay)
+    let mono = "<?xml version=\"1.0\"?>\n<svg\n  xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><defs><mask id=\"m1\"><rect width=\"16\" height=\"16\" fill=\"white\"/></mask></defs><g mask=\"url(#m1)\"><path d=\"M2 2H14\" stroke=\"currentColor\"/></g></svg>";
+    let hc = theme_svg(mono, &Style::new("highcontrast")).unwrap();
+    assert!(hc.contains("<svg color=\"#FFFFFF\"\n"), "{hc}");
+    assert!(hc.contains("fill=\"white\"") && hc.contains("url(#m1)"));
+    let d = theme_svg(mono, &Style::new("dark")).unwrap();
+    assert!(d.contains("color=\"#C9D1E3\""), "{d}");
+    // (a root that says its own color keeps it)
+    let own = r##"<svg xmlns="http://www.w3.org/2000/svg" color="#123456" width="8" height="8"><rect width="8" height="8" fill="currentColor"/></svg>"##;
+    assert!(!theme_svg(own, &Style::new("dark")).unwrap().contains("#C9D1E3"));
+    // (an illustration: its colours its own; with currentColor, only that follows)
+    let art = r##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="#3A7BD5"/><rect width="4" height="4" fill="#FFFFFF"/></svg>"##;
+    assert_eq!(theme_svg(art, &Style::new("dark")), None);
+    let art_mono = art.replace("<rect width=\"4\"", "<rect stroke=\"currentColor\" width=\"4\"");
+    let t = theme_svg(&art_mono, &Style::new("dark")).unwrap();
+    assert!(t.contains("#3A7BD5") && t.contains("#FFFFFF") && t.contains("color=\"#C9D1E3\""), "{t}");
+    // (references aren't colours: url(#abc), href="#abc"; short #RGB tokens are)
+    let refs = r##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><use href="#abc"/><rect fill="url(#fed)" stroke="#fff"/></svg>"##;
+    assert!(theme_svg(refs, &Style::new("dark")).unwrap().contains("stroke=\"#373a42\""));
+    // (every theme's drawing renders)
+    for p in palettes() {
+        let svg = theme_svg(user, &Style::new(p.theme)).unwrap();
+        assert!(render_svg(&svg, 16, 1.0).is_some(), "{}", p.theme);
+    }
+}

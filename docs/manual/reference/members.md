@@ -1857,11 +1857,11 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
-| `LoadFromFile` *(RapidR)* | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
+| `LoadFromFile` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
 | `SaveToFile` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `LoadFromPlot` *(RapidR)* | Shows an RPlot's chart as the image. |
 | `Cls` *(RapidR)* | Removes the picture: nothing shows. Same as `Clear`. |
-| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG). Same as `LoadFromFile`. |
+| `Load` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a picture built into the program by `$RESOURCE` (its name: `Image.Load MY_ICON`). An SVG drawn with RapidR's icon colour tokens or `currentColor` takes the theme's colours, and follows the theme when it changes. Same as `LoadFromFile`. |
 | `Clear` *(RapidR)* | Removes the picture: nothing shows. Same as `Cls`. |
 
 | Event | |
@@ -3241,6 +3241,25 @@ Reads and writes settings as keys and values: Windows' registry on Windows, a pe
 | `WriteFloat` | Writes a floating-point value under a name in the open key. |
 | `WriteBinary` | Writes a binary value under a name in the open key. |
 
+<a id="rsecrets"></a>
+## RSecrets
+
+Keeps passwords, tokens and keys in the operating system's keychain (the macOS Keychain, Windows Credential Manager, the Secret Service on Linux), by a service and a name: never in the program, a file or the settings. Each program has its own items (kept as rapidr-app:<program>:<service>, the program's file name in lower case), so no program reaches another's or RapidR Studio's. What it reads and saves is never shown: the debugger shows ••••, an AI is never given it, and Error never says it. A browser has no keychain: on the web Available is False and every call fails (Error says so); nothing is kept in the page's storage. For tests, RAPIDR_AI_KEYSTORE=memory keeps everything in the program's memory. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Available` (read-only) | bool |  | True where secrets can be kept: a keychain RapidR can use (or the test keystore). False in a browser, and on a Linux without the Secret Service. |
+| `Error` (read-only) | string |  | Why the last call failed ("" when it worked): no keychain here, the keychain refused, an empty service or name, a value longer than 1,024 characters. Never the value. |
+| `Store` (read-only) | string |  | Where secrets are kept here, in words: "the macOS Keychain", "Windows Credential Manager", "the Secret Service (GNOME Keyring or KWallet)"; with the test keystore, memory. |
+| `Program` (read-only) | string |  | The name this program's items are kept under: its file's name in lower case (dbstudio.rr, DBStudio.exe and DBStudio.app are all dbstudio). |
+
+| Method | |
+|---|---|
+| `Save(Service AS STRING, Name AS STRING, Value AS STRING) AS INTEGER` | Keeps `Value` in the keychain as `Name` of `Service` (both your own words: "MySQL", "office"), replacing what was kept there. True when it was kept; False when not (Error says why). `Value` is a credential: never shown. |
+| `Read(Service AS STRING, Name AS STRING) AS STRING` | What is kept as `Name` of `Service`: "" when nothing is (Exists tells them apart) or the keychain can't be read (Error says why). The value is a credential: the debugger shows ••••. |
+| `Delete(Service AS STRING, Name AS STRING) AS INTEGER` | Removes `Name` of `Service` from the keychain. True when there was one; False when there wasn't or it couldn't (Error says why). |
+| `Exists(Service AS STRING, Name AS STRING) AS INTEGER` | True when something is kept as `Name` of `Service`. |
+
 <a id="rjson"></a>
 ## RJson
 
@@ -3421,6 +3440,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `InsertBMPHandle(Index AS INTEGER, BMP_Resource, Mask AS INTEGER)` | Inserts a bitmap resource's image at position `Index`, with `Mask` as its transparent color. |
 | `InsertICOHandle(Index AS INTEGER, ICO_Resource)` | Inserts an icon resource at position `Index`. |
 | `AddIcon(Name AS STRING, [Theme AS STRING])` *(RapidR)* | Adds one of RapidR's own icons (an icon name, a component type or a command id) at the list's Width × Height, in the current theme's colours or Theme's. |
+| `AddSVGFile(FileName AS STRING, [Theme AS STRING]) AS INTEGER` *(RapidR)* | Adds your own SVG icon — a file, or one built into the program by `$RESOURCE` (its name) — drawn at the list's Width × Height and at the screen's scale, so it stays sharp at 2×. Drawn with RapidR's icon colour tokens (ink #5B6478, blue #2F5BFF … as their light values) or `currentColor`, it takes the theme's colours (light, dark, high contrast) and follows the theme when it changes; Theme ("dark", "highcontrast" …) fixes them. An SVG with colours of its own keeps them. Returns the new image's index. |
 
 <a id="rnotifyicondata"></a>
 ## RNotifyIconData <small>(RapidQ name: QNOTIFYICONDATA)</small>
@@ -3494,6 +3514,9 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `Password` *(RapidR)* | string |  | The password the database connection logs in with. |
 | `Database` *(RapidR)* | string |  | The database in use: an SQLite file, or a MySQL database's name. |
 | `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
+| `SSLMode` *(RapidR)* | string | `"Preferred"` | How the connection is encrypted (TLS, the operating system's), as MySQL's own client says it. Preferred (the default): encrypted when the server can, else plain; the certificate isn't checked. Disabled: never. Required: encrypted or no connection; the certificate isn't checked. VerifyCA: also the server's certificate signed by SSLCA (or an authority the system trusts). VerifyFull: also the certificate names Host. A Unix socket or named pipe carries no TLS: Required and stricter refuse it. Read before Connect / RealConnect; Encrypted says what this connection is. |
+| `SSLCA` *(RapidR)* | string |  | The certificate authority VerifyCA and VerifyFull trust: a .pem (one or more certificates) or .der file, such as the server's ca.pem. "": the authorities the system trusts. |
+| `Encrypted` *(RapidR)* (read-only) | int |  | 1 while the connection is encrypted (TLS), 0 when it is plain or there is none. |
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `NumFields` | int |  | The number of fields in the last query's result. |
 | `NumRows` | int |  | The number of rows in the last query's result. |
@@ -3501,7 +3524,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | Method | |
 |---|---|
 | `Close` | Closes what the component has open: a form, file, port, device, connection or database. |
-| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Connects to the MySQL server on `Host` ("": this machine; the Port property, else 3306) as `User` with password `Passwd`. Returns 1 if it did, else 0 (OnError gets the message); then Connected, DB(i) and DBCount, and OnConnect. |
+| `Connect(Host AS STRING, User AS STRING, Passwd AS STRING) AS INTEGER` | Connects to the MySQL server on `Host` ("": this machine; the Port property, else 3306) as `User` with password `Passwd`, encrypted as SSLMode says (by default when the server can). Returns 1 if it did, else 0 (OnError gets the message); then Connected, Encrypted, DB(i) and DBCount, and OnConnect. |
 | `CreateDB(DB AS STRING) AS INTEGER` | Makes a new database named `DB` on the server. Returns 1 if it did, 0 if not (not connected, or the server refused: OnError gets its message); DB(i) and DBCount then list it. |
 | `DropDB(DB AS STRING) AS INTEGER` | Deletes database `DB` and its tables from the server. Returns 1 if it did, 0 if not (OnError gets the server's message); DB(i) and DBCount follow. |
 | `EscapeString(S AS STRING, Length AS INTEGER) AS STRING` | The first `Length` characters of `S` made safe between quotes in SQL: NUL, line feed, carriage return, backslash, both quotes and Ctrl+Z each become a backslash pair (\0 \n \r \\ \' \" \Z). Binary data (one character per byte) passes too. RapidR also takes it without `Length` (the whole text); binding values with ? is safer. |
@@ -3510,7 +3533,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `FetchRow AS VARIANT` | Moves to the next row of the query's result; returns false when no rows are left. |
 | `FieldSeek(Position AS INTEGER) AS VARIANT` | Moves the field cursor to column `Position`, the next one `FetchField` reads. |
 | `Query(Query AS STRING) AS INTEGER` | Runs the SQL. Values after it are bound to its ? placeholders (sent apart from the SQL: no SQL injection); an array gives its elements. Returns 1, or 0 on an error (OnError gets the message). |
-| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL is ignored: no TLS). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
+| `RealConnect(Host AS STRING, User AS STRING, Passwd AS STRING, DB AS STRING, Port AS INTEGER, UnixSock AS STRING, Flags AS INTEGER)` | Connects like Connect, with more say: `DB` is the database to use ("" none), `Port` the server's TCP port (0: 3306), `UnixSock` a Unix socket's path or a Windows named pipe's name to connect through instead of TCP ("" none), `Flags` the C client's CLIENT_* flags (CLIENT_COMPRESS = 32 compresses the traffic; CLIENT_SSL = 2048 asks for an encrypted connection: SSLMode Required, unless SSLMode asks for more). An empty `Host` is this machine. A SUB: read Connected (OnConnect / OnError also tell). |
 | `Refresh(RefreshFlags AS INTEGER) AS INTEGER` | Asks the server to reload or clear what the flags name (MYSQL.INC): Refresh_Grant (1) the privilege tables, Refresh_Log (2) the logs, Refresh_Table (4) the open tables, Refresh_Hosts (8) the host cache, Refresh_Status (16) the status counters — added together for several. The user needs MySQL's RELOAD privilege. Returns 1 if all of it was done, 0 if not (OnError gets the server's message). |
 | `RowBlob(Row AS INTEGER, Bytes AS LONG) AS STRING` | Binary data from the current row: the first `Bytes` bytes of its field number `Row` (from 0; despite the name, a column), one character per byte, NUL and all. `Bytes` is usually Length(Row) after FetchLengths. "" without a current row or such a field. |
 | `RowSeek(Row AS INTEGER) AS VARIANT` | Moves to row `Row` of the query's result, the next one `FetchRow` reads. |

@@ -59,6 +59,7 @@ claims, headless).
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
 | [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
@@ -100,6 +101,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [sqlite.rr](data/sqlite.rr) | `RSQLite`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
+| [secrets.rr](data/secrets.rr) | `RSecrets`: a password kept in the OS keychain (Save, Read, Delete), never in the program or a file; on the web the buttons say there's no keychain ([the manual](../docs/manual/secrets.md)) | run · interp · native · web | `rapidr run data/secrets.rr` |
 | [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save and load | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV on the window ([shop.csv](data/shop.csv) is the sample): a sortable table, a filter, each column's statistics, a live `RPlot` chart ([the tutorial](../docs/manual/data-science.md#tutorial-the-csv-explorer)) | run · interp · native · web | `rapidr run data/csv_explorer.rr` |

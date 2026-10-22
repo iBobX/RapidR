@@ -438,7 +438,7 @@ fn property(ctx: &Ctx, p: &Table, family: &str, set: Option<&str>, at: &str) -> 
 const EDITORS: &[&str] = &["strings", "columns", "file", "picture", "multiline", "sql", "expression", "secret"];
 
 fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Res<String> {
-    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example", "expect"], at)?;
+    keys_allowed(m, &["name", "params", "returns", "value", "origin", "from", "only", "missing", "test", "doc", "effects", "risk", "example", "expect", "secret"], at)?;
     let name = req(m, "name", at)?;
     let at = &format!("{at}, method {name}");
     let expect = expect_facet(m, at)?;
@@ -453,7 +453,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
     let (gdoc, _) = ctx.glossary.doc("method", name);
     let doc = s(m, "doc").map(str::to_string).filter(|d| !d.is_empty()).unwrap_or(gdoc);
     Ok(format!(
-        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {} }}",
+        "Method {{ name: {}, params: {}, returns: {}, value: {}, origin: {}, from: {}, runtimes: {}, missing: {}, test: {test}, set: {}, doc: {}, effects: {effects_code}, risk: {risk_code}, example: {}, expect: {}, secret: {} }}",
         lit(name),
         params(s(m, "params").unwrap_or(""), at)?,
         opt(s(m, "returns")),
@@ -466,6 +466,7 @@ fn method(ctx: &Ctx, m: &Table, family: &str, set: Option<&str>, at: &str) -> Re
         lit(&doc),
         lit(s(m, "example").unwrap_or("")),
         lit(&expect),
+        b(m, "secret").unwrap_or(false),
     ))
 }
 

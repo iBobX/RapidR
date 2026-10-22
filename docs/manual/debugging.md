@@ -405,6 +405,15 @@ the last stop is in blue.
 
 ![The Watch pane: total + k = 0 (k has no value yet) and n * 100 = 100](images/debugging/watch.png)
 
+### Passwords show as ••••
+
+A value that is a credential never shows. That is what `RSecrets.Read`
+returns, what `RSecrets.Save` is given ([Keeping secrets](secrets.md)), and
+a secret property such as `RMySQL.Password` or `RAI.APIKey`. Variables,
+Watch, data tips, a component's properties and log messages show `••••`
+in its place, also inside a longer text that holds it (`"pw=" + pw$`).
+Your program still has the value.
+
 ### The Call Stack
 
 The **Call Stack** shows how the program got where it is: the SUB it is in

@@ -90,6 +90,53 @@ pub fn is_svg(b: &[u8]) -> bool {
     t.starts_with("<svg") || ((t.starts_with("<?xml") || t.starts_with("<!--") || t.starts_with("<!doctype")) && head.contains("<svg"))
 }
 
+/// `svg` drawn `w` × `h` pixels (an image list's size: AddSVGFile): its
+/// root's width and height replaced, with a viewBox of its old size when it
+/// had none, so the drawing scales to fill it. `None`: no `<svg` root.
+pub fn svg_sized(svg: &str, w: u32, h: u32) -> Option<String> {
+    let lower = svg.to_ascii_lowercase();
+    let mut from = 0;
+    let start = loop {
+        let i = from + lower[from..].find("<svg")?;
+        if lower[i + 4..].starts_with(|c: char| c.is_whitespace() || c == '>' || c == '/') {
+            break i;
+        }
+        from = i + 4;
+    };
+    let end = start + svg[start..].find('>')?;
+    let body = svg[start + 4..end].trim_end_matches('/');
+    let self_closing = svg[start + 4..end].ends_with('/');
+    // (name="value" / name='value' pairs, in order)
+    let mut attrs: Vec<(String, String)> = Vec::new();
+    let mut rest = body;
+    while let Some(eq) = rest.find('=') {
+        let name = rest[..eq].trim().to_string();
+        let after = rest[eq + 1..].trim_start();
+        let Some(q) = after.chars().next().filter(|c| *c == '"' || *c == '\'') else { break };
+        let Some(close) = after[1..].find(q) else { break };
+        attrs.push((name, after[1..1 + close].to_string()));
+        rest = &after[close + 2..];
+    }
+    let get = |n: &str| attrs.iter().find(|(k, _)| k.eq_ignore_ascii_case(n)).map(|(_, v)| v.clone());
+    let number = |v: Option<String>| -> f64 {
+        v.filter(|v| !v.trim_end().ends_with('%'))
+            .and_then(|v| v.trim().trim_end_matches("px").trim().parse::<f64>().ok())
+            .filter(|n| *n > 0.0)
+            .unwrap_or(100.0)
+    };
+    let mut tag = String::from("<svg");
+    for (k, v) in &attrs {
+        if !k.eq_ignore_ascii_case("width") && !k.eq_ignore_ascii_case("height") {
+            tag.push_str(&format!(" {k}=\"{}\"", v.replace('"', "&quot;")));
+        }
+    }
+    if get("viewBox").is_none() {
+        tag.push_str(&format!(" viewBox=\"0 0 {} {}\"", number(get("width")), number(get("height"))));
+    }
+    tag.push_str(&format!(" width=\"{w}\" height=\"{h}\"{}>", if self_closing { "/" } else { "" }));
+    Some(format!("{}{tag}{}", &svg[..start], &svg[end + 1..]))
+}
+
 /// Draws an SVG image at `scale` times its size (resvg): its pixels, and
 /// each one's opacity (0..255) — SVGs have soft edges RapidQ's color-key
 /// transparency can't hold.

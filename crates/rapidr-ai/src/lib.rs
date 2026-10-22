@@ -31,6 +31,9 @@
 //!   Windows Credential Manager, the Secret Service), the tab's session on
 //!   the web (remembered on the device only when the user asks); the
 //!   providers' environment variables are read, never written.
+//! * [`secrets`] — RSecrets: the same keychain for programs' own secrets,
+//!   each program under its own services (`rapidr-app:<program>:…`); none
+//!   on the web.
 //!
 //! No vendor SDKs (plain HTTPS and JSON), permissive dependencies only.
 //! Nothing here sends anything by itself: every request is one the caller
@@ -46,6 +49,7 @@ pub mod lang;
 pub mod provider;
 #[cfg(feature = "component")]
 pub mod rai;
+pub mod secrets;
 pub mod sse;
 pub mod stream;
 pub mod wire;

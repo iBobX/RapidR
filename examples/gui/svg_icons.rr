@@ -1,0 +1,101 @@
+' svg_icons.rr: your own SVG icons, sharp at every screen scale and in every
+' theme. The tree's pictures are SVGs in an RImageList (AddSVGFile, RapidR's):
+' each is drawn at the list's size and again at the screen's scale, so it is
+' crisp on a 2x screen. Drawn with currentColor and RapidR's colour tokens,
+' they take the theme's ink and hues: the system's look to begin with;
+' pick Light, Dark or High contrast and they are drawn again. The big
+' picture is an RImage loaded from a $RESOURCE by its name
+' (Picture.Load DATABASE_SVG).
+'
+'   rapidr run gui/svg_icons.rr
+'
+' The icons are built into the program with $RESOURCE (icons/*.svg beside
+' it), so a built app finds them wherever it is started from.
+' Draw yours with currentColor (the theme's ink) or with RapidR's tokens
+' written as their light values: #5B6478 ink, #2F5BFF blue, #08805E teal,
+' #D6F2E8 teal tint … (the manual's "Your own SVG icons"). An SVG with
+' colours of its own keeps them.
+
+$RESOURCE TABLE_SVG AS "icons/table.svg"
+$RESOURCE VIEW_SVG AS "icons/view.svg"
+$RESOURCE KEY_SVG AS "icons/key.svg"
+$RESOURCE DATABASE_SVG AS "icons/database.svg"
+
+DECLARE SUB Switch
+
+' (each AddSVGFile gives the picture's index: 0 table, 1 view, 2 key, 3 database)
+DIM Icons AS RImageList
+Icons.Width = 16: Icons.Height = 16
+Icons.AddSVGFile TABLE_SVG
+Icons.AddSVGFile VIEW_SVG
+Icons.AddSVGFile KEY_SVG
+Icons.AddSVGFile DATABASE_SVG
+
+CREATE Form AS RForm
+    Caption = "SVG icons"
+    Width = 400: Height = 260
+    Center
+    CREATE Tree AS RTreeView
+        Left = 12: Top = 12: Width = 190: Height = 200
+    END CREATE
+    CREATE PickSystem AS RRadioButton
+        Caption = "&System": Left = 220: Top = 12: Width = 150: Checked = 1
+        OnClick = Switch
+    END CREATE
+    CREATE PickLight AS RRadioButton
+        Caption = "&Light": Left = 220: Top = 36: Width = 150
+        OnClick = Switch
+    END CREATE
+    CREATE PickDark AS RRadioButton
+        Caption = "&Dark": Left = 220: Top = 60: Width = 150
+        OnClick = Switch
+    END CREATE
+    CREATE PickContrast AS RRadioButton
+        Caption = "&High contrast": Left = 220: Top = 84: Width = 150
+        OnClick = Switch
+    END CREATE
+    CREATE Picture AS RImage
+        Left = 220: Top = 116: Width = 48: Height = 48
+    END CREATE
+    CREATE Now AS RLabel
+        Left = 220: Top = 176: Width = 170
+    END CREATE
+END CREATE
+
+' The tree: a database, its tables and a view; a key under a table.
+Tree.Images = Icons
+Tree.AddItems "shop"
+Tree.AddChild 0, "orders"
+Tree.AddChild 1, "id"
+Tree.AddChild 0, "customers"
+Tree.AddChild 0, "totals"
+DIM Pictures(4) AS INTEGER
+Pictures(0) = 3: Pictures(1) = 0: Pictures(2) = 2: Pictures(3) = 0: Pictures(4) = 1
+DIM i AS INTEGER
+FOR i = 0 TO 4
+    Tree.Item(i).ImageIndex = Pictures(i)
+    Tree.Item(i).SelectedIndex = Pictures(i)
+NEXT
+Tree.Item(0).Expanded = 1
+Tree.Item(1).Expanded = 1
+
+' A $RESOURCE by its name, where a picture file goes.
+Picture.Load DATABASE_SVG
+Now.Caption = "Theme: " + Application.Theme
+
+' (the icons are drawn again in the new theme's colours by themselves)
+SUB Switch (Sender AS RRadioButton)
+    SELECT CASE Sender.Caption
+        CASE "&Dark"
+            Application.Theme = "rapidr dark"
+        CASE "&High contrast"
+            Application.Theme = "rapidr high contrast"
+        CASE "&Light"
+            Application.Theme = "rapidr light"
+        CASE ELSE
+            Application.Theme = "rapidr"
+    END SELECT
+    Now.Caption = "Theme: " + Application.Theme
+END SUB
+
+Form.ShowModal

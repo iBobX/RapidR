@@ -254,6 +254,10 @@ pub struct Method {
     /// What `example` prints, when it is a whole program that does
     /// (`rapidr lang truth` runs it: an argument-order trap's proof).
     pub expect: &'static str,
+    /// What it returns, or the value it is given, is a credential
+    /// (RSecrets' Read and Save): never shown to an AI, `••••` in the
+    /// debugger (rapidr_value::secrets).
+    pub secret: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

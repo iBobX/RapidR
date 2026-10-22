@@ -8,6 +8,53 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ## [Unreleased]
 
 ### Added
+- **RSecrets: the OS keychain for programs** (REQUEST-001 item 4, for
+  RapidR Database Studio and every program). `Save(Service, Name, Value)`,
+  `Read`, `Delete` and `Exists` keep passwords, tokens and keys in the macOS
+  Keychain, Windows Credential Manager or the Secret Service, through the
+  same code RapidR Studio keeps its AI keys with (`rapidr_ai::keys`' store,
+  now shared, and `rapidr_ai::secrets`); `Error`, `Available`, `Store` and
+  `Program` say how it went. Each program has its own items
+  (`rapidr-app:<program>:<service>`, the program's file name in lower
+  case), so no program reaches another's or Studio's. What is read and saved
+  is a credential (`rapidr_value::secrets`): the debugger shows `••••` for a
+  variable, watch, data tip or logpoint that holds one, and for a secret
+  property (RMySQL's Password, RAI's APIKey); the registry's new method
+  facet `secret` marks Read and Save for AI tools; errors never carry the
+  value. On the web every call fails with "RSecrets isn't available in the
+  browser" (no fallback to the page's storage). `RAPIDR_AI_KEYSTORE=memory`
+  (or the new `RAPIDR_KEYSTORE=memory`) is the test keystore for programs
+  too, and the conformance, examples and manual-shot runners and
+  `tools/regress.sh` now always set it. Its own component icon (a padlock),
+  the example `examples/data/secrets.rr`, the manual's
+  [Keeping secrets](docs/manual/secrets.md).
+- **Encrypted MySQL and MariaDB connections** (REQUEST-001 item 7). RMySQL's
+  `SSLMode` (`Preferred`, the default; `Disabled`, `Required`, `VerifyCA`,
+  `VerifyFull`: MySQL's own client's modes), `SSLCA` (a CA's .pem or .der
+  file) and `Encrypted` (what the server says this connection is), on the
+  operating system's TLS through the `mysql` crate's `native-tls` feature
+  (native-tls is already HTTPS's: no new crate, `cargo deny check licenses
+  bans` passes). `Preferred` falls back to a plain connection where the server
+  has no TLS, so every program that connected before still does.
+  `RealConnect`'s `CLIENT_SSL` flag now asks for `Required`. Errors in plain
+  words: a server without TLS, a refused certificate, macOS's 825-day limit
+  for server certificates. Checked live against a local MySQL 8.0.33
+  (`Required`: encrypted, ECDHE-RSA-AES256-GCM-SHA384) and against a mock
+  server without TLS.
+- **Programs' own SVG icons** (REQUEST-001 item 10).
+  `RImageList.AddSVGFile(FileName [, Theme])` draws an SVG at the list's size
+  and again at the screen's scale (sharp at 2×) and returns its index.
+  Every SVG a program loads (RImage, RBitmap, a button's BMP, image lists)
+  now takes the theme's colours when it is drawn with `currentColor`
+  (before, black: invisible on dark) or with RapidR's icon colour tokens
+  written as their light values (`rapidr_icons::theme_svg`: only when every
+  colour is a token, so an illustration keeps its own), and is drawn again
+  when the theme changes; `Theme` fixes the colours. A `$RESOURCE`'s name
+  now goes wherever a picture file goes (`RImage.Load RES` said "could not
+  load '65536'"), so a built app started from another folder still has its
+  pictures. Desktop, native and web alike. The example
+  `examples/gui/svg_icons.rr`, the manual's
+  [Your own SVG icons](docs/manual/svg-icons.md).
 - **The reference tells the truth** (ROADMAP K7): `rapidr lang truth` checks the
   language registry, which is where RAI's language card and every model's
   knowledge come from, so a wrong signature there taught every model a wrong

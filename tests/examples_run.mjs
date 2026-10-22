@@ -123,6 +123,11 @@ export const cases = [
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  // (your own SVG icons: four in the tree's image list and one in an RImage,
+  // all $RESOURCEs — `elsewhere`: a built app started from another folder
+  // still has them; the theme switched to dark, they're drawn again)
+  { file: "gui/svg_icons.rr", runtimes: ["run", "interp", "native", "web"], includes: true, elsewhere: true, events: "pickdark.onclick", dump: "now.caption,tree.itemcount,icons.count,picture.width",
+    expect: ["now.caption=Theme: rapidr dark", "tree.itemcount=5", "icons.count=4", "picture.width=48"] },
   // (THEME-LIVE) the system switches to dark while it runs (the test step
   // __look_dark): its OnThemeChange takes the card's colours again
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__look_dark", dump: "now.caption,card.color",
@@ -219,6 +224,17 @@ export const cases = [
   { file: "media/video.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 50)}`, dump: "info.caption",
     expect: ["info.caption=Played to the end: 24 frames"] },
   // data/
+  // (RSecrets in the test keystore — the runner's RAPIDR_AI_KEYSTORE=memory,
+  // never the keychain: a password typed, saved, read back; an empty one
+  // refused; deleted twice; in a browser every button says there's no keychain)
+  { file: "data/secrets.rr", runtimes: ["run", "interp", "native"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick,readbtn.onclick`, dump: "status.caption,keptin.caption,valueedit.text",
+    expect: ["status.caption=Read back: 3 characters.", "keptin.caption=Kept in memory, for this run only (the test keystore)", "valueedit.text=s3c"] },
+  { file: "data/secrets.rr", runtimes: ["run", "interp", "native"], events: "savebtn.onclick", dump: "status.caption",
+    expect: ["status.caption=Not saved: the value is empty (Delete removes a secret)"] },
+  { file: "data/secrets.rr", runtimes: ["run", "interp", "native"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick,deletebtn.onclick,deletebtn.onclick`, dump: "status.caption,valueedit.text",
+    expect: ["status.caption=There was nothing to delete.", "valueedit.text="] },
+  { file: "data/secrets.rr", runtimes: ["web"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick`, dump: "status.caption,keptin.caption",
+    expect: ["status.caption=Not saved: RSecrets isn't available in the browser: a web page has no keychain", "keptin.caption=Nowhere to keep it: no keychain (a web page has none)"] },
   { file: "data/sqlite.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["  1968 | A Wizard of Earthsea", "  Ursula K. Le Guin | 2 | 4.35", "Best rated: The Hitch-Hiker's Guide to the Galaxy", "Neuromancer is now rated 4.8", "finds 0 books", "Done."] },
   { file: "data/json.rr", runtimes: ["run", "interp", "native", "web"],
@@ -674,6 +690,15 @@ async function runWeb(c) {
     // bundle serves them beside the program)
     if (existsSync(join(dir, "lang"))) {
       for (const f of readdirSync(join(dir, "lang"))) assets[`lang/${f}`] = "data:application/octet-stream;base64," + readFileSync(join(dir, "lang", f)).toString("base64");
+    }
+    // (`includes`: its subfolders' data files too — icons/table.svg … — by
+    // their path, as a bundle serves them and $RESOURCE names them)
+    if (c.includes) {
+      for (const sub of readdirSync(dir).filter((f) => f !== "lang" && statSync(join(dir, f)).isDirectory())) {
+        for (const f of readdirSync(join(dir, sub)).filter((f) => statSync(join(dir, sub, f)).isFile() && ![".rr", ".bas", ".inc", ".md"].includes(extname(f).toLowerCase()))) {
+          assets[`${sub}/${f}`] = "data:application/octet-stream;base64," + readFileSync(join(dir, sub, f)).toString("base64");
+        }
+      }
     }
     const env = { ...hooks(c, "web"), ...(isGui(c) ? { RAPIDR_CAPTURE: "web" } : {}), RAPIDR_AI_TEST_SERVER: AI_MOCK.replace(/\/v1$/, ""), ...(c.env || {}) };
     // (the program run once; `reload`: the page opened again — the browser's

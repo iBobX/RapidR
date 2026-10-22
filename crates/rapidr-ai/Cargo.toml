@@ -48,4 +48,4 @@ zbus-secret-service-keyring-store = { version = "1", features = ["rt-async-io-cr
 wasm-bindgen = "0.2.129"
 wasm-bindgen-futures = "0.4.79"
 js-sys = "0.3.106"
-web-sys = { version = "0.3.106", features = ["Window", "Storage", "Headers", "Request", "RequestInit", "RequestMode", "Response", "ReadableStream", "ReadableStreamDefaultReader", "AbortController", "AbortSignal"] }
+web-sys = { version = "0.3.106", features = ["Window", "console", "Storage", "Headers", "Request", "RequestInit", "RequestMode", "Response", "ReadableStream", "ReadableStreamDefaultReader", "AbortController", "AbortSignal"] }

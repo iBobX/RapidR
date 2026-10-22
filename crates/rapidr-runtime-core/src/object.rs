@@ -987,6 +987,13 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
+    // RSecrets, the OS keychain for programs (rapidr_ai::secrets).
+    #[cfg(feature = "network")]
+    if rapidr_ai::secrets::component::is_secrets(&rp_comp_type(name)) {
+        if let Some(v) = rapidr_ai::secrets::component::get(name, &prop_lower) {
+            return v;
+        }
+    }
     // A QFORM's / QSCROLLBOX's AutoScroll, HorzPosition, … (scroll.rs).
     if let Some(v) = crate::scroll::get(name, &prop_lower) {
         return v;
@@ -1290,6 +1297,13 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     #[cfg(feature = "network")]
     if rapidr_ai::rai::is_rai(&comp_type) {
         if let Some(v) = crate::ai::call(name, &method_lower, args) {
+            return v;
+        }
+    }
+    // RSecrets: Save, Read, Delete, Exists (rapidr_ai::secrets).
+    #[cfg(feature = "network")]
+    if rapidr_ai::secrets::component::is_secrets(&comp_type) {
+        if let Some(v) = rapidr_ai::secrets::component::call(name, &method_lower, args) {
             return v;
         }
     }

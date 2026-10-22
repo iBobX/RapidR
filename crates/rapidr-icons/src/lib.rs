@@ -251,6 +251,105 @@ pub fn themed_svg(icon: &Icon, variant: u32, style: &Style) -> String {
     s.replacen("<svg ", &format!("<svg color=\"{}\" ", hex(fg)), 1)
 }
 
+/// A program's own SVG in `style`'s colours, as RapidR's icons are drawn
+/// (programs' SVGs: `RImage.Load`, a button's `BMP`, `RImageList.AddSVGFile`):
+///
+/// - `currentColor` is the palette's ink (`style.color` when set), unless
+///   the SVG's root says its own `color`;
+/// - the colour tokens, spelled as RapidR's icons spell them (their
+///   light-theme values: `#5B6478` ink, `#2F5BFF` blue …, any case, `#RGB`
+///   too), are swapped for the theme's — when *every* colour the SVG spells
+///   is a token. An illustration with colours of its own is left as drawn
+///   (only its `currentColor` follows).
+///
+/// `None` when nothing in it follows a theme (no `currentColor`, colours of
+/// its own).
+pub fn theme_svg(svg: &str, style: &Style) -> Option<String> {
+    let colours = hex_colours(svg);
+    let tokens = !colours.is_empty() && colours.iter().all(|&(_, _, c)| token_index(c).is_some());
+    let current = svg.to_ascii_lowercase().contains("currentcolor");
+    if !tokens && !current {
+        return None;
+    }
+    let p = &style.palette;
+    let mut out = String::with_capacity(svg.len() + 32);
+    let mut at = 0;
+    if tokens {
+        for &(start, end, c) in &colours {
+            out.push_str(&svg[at..start]);
+            let i = token_index(c).unwrap_or(0);
+            // (lower case, as themed_svg writes a swapped value)
+            out.push_str(&hex(p.values[i]).to_ascii_lowercase());
+            at = end;
+        }
+    }
+    out.push_str(&svg[at..]);
+    if current {
+        let fg = style.color.unwrap_or(p.fg);
+        if let Some(i) = root_tag(&out) {
+            let tag_end = out[i..].find('>').map_or(out.len(), |e| i + e);
+            let has_color = attr_names(&out[i + 4..tag_end]).any(|n| n.eq_ignore_ascii_case("color"));
+            if !has_color {
+                out.insert_str(i + 4, &format!(" color=\"{}\"", hex(fg)));
+            }
+        }
+    }
+    Some(out)
+}
+
+/// Where the root `<svg` tag starts.
+fn root_tag(svg: &str) -> Option<usize> {
+    let lower = svg.to_ascii_lowercase();
+    let mut from = 0;
+    while let Some(i) = lower[from..].find("<svg") {
+        let i = from + i;
+        // (`<svg` itself, not `<svgfoo`)
+        if lower[i + 4..].starts_with(|c: char| c.is_whitespace() || c == '>' || c == '/') {
+            return Some(i);
+        }
+        from = i + 4;
+    }
+    None
+}
+
+/// The attribute names in a tag's text (`width="16" color="red"`).
+fn attr_names(tag: &str) -> impl Iterator<Item = &str> {
+    tag.split('=').filter_map(|part| part.rsplit(|c: char| c.is_whitespace() || c == '"' || c == '\'').next()).filter(|n| !n.is_empty())
+}
+
+/// The token a colour (0xRRGGBB) is, by its source spelling.
+fn token_index(c: u32) -> Option<usize> {
+    generated::KEYS.iter().position(|k| u32::from_str_radix(&k[1..], 16).ok() == Some(c))
+}
+
+/// Every `#RRGGBB` / `#RGB` colour an SVG spells — attribute values and
+/// styles, not references (`url(#a)`, `href="#a"`): (start, end, 0xRRGGBB).
+fn hex_colours(svg: &str) -> Vec<(usize, usize, u32)> {
+    let b = svg.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] != b'#' {
+            i += 1;
+            continue;
+        }
+        let digits = b[i + 1..].iter().take_while(|c| c.is_ascii_hexdigit()).count();
+        let after = b.get(i + 1 + digits).copied().unwrap_or(b'"');
+        let before = if i > 0 { b[i - 1] } else { b' ' };
+        let tail = &b[i.saturating_sub(6)..i];
+        let reference = before == b'(' || tail.eq_ignore_ascii_case(b"href=\"") || tail.eq_ignore_ascii_case(b"href='");
+        if (digits == 6 || digits == 3) && !after.is_ascii_alphanumeric() && after != b'_' && after != b'-' && !reference {
+            let h = &svg[i + 1..i + 1 + digits];
+            let full = if digits == 3 { h.chars().flat_map(|c| [c, c]).collect::<String>() } else { h.to_string() };
+            if let Ok(c) = u32::from_str_radix(&full, 16) {
+                out.push((i, i + 1 + digits, c));
+            }
+        }
+        i += 1 + digits;
+    }
+    out
+}
+
 // ---- pixels -------------------------------------------------------------------------
 
 /// Which hinted drawing to draw `device` pixels big, and its scale: the

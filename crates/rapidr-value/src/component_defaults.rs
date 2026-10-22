@@ -180,6 +180,9 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("colcount", v_int(0));
             put("fieldcount", v_int(0));
             put("dbcount", v_int(0));
+            // (SSLMode's default, Preferred, is the registry's)
+            put("sslca", v_str(""));
+            put("encrypted", v_int(0));
         }
         // Network components — properties managed by network.rs
         "RSOCKET" => {

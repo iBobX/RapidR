@@ -1438,6 +1438,8 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             }
             "apikey" => {
                 let key = keys::clean(&t).unwrap_or_default();
+                // (a credential: the debugger and RapidR's messages mask it)
+                rapidr_value::secrets::note(&key);
                 if key != a.key {
                     a.stale_models();
                 }

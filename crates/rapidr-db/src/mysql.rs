@@ -18,6 +18,25 @@
 //! As in RapidQ, the calls that change the server — CreateDB, DropDB,
 //! Refresh, SelectDB — return 1 when they worked and 0 when they didn't
 //! (the C client's functions return the other way round).
+//!
+//! Encrypted connections (RapidR's; REQUEST-001 item 7): `SSLMode` says
+//! how — MySQL's own client's modes —, on the operating system's TLS
+//! (native-tls: Security.framework, SChannel, OpenSSL 3), and `Encrypted`
+//! says whether this connection is:
+//!
+//! | SSLMode | The connection |
+//! |---|---|
+//! | `Preferred` (the default) | encrypted when the server can, else plain, as before; the server's certificate isn't checked |
+//! | `Disabled` | never encrypted |
+//! | `Required` | encrypted, or no connection; the certificate isn't checked |
+//! | `VerifyCA` | encrypted, the certificate signed by `SSLCA` (a .pem or .der file) or the system's trusted authorities |
+//! | `VerifyFull` | as VerifyCA, and the certificate names the host connected to |
+//!
+//! A Unix socket or a named pipe never carries TLS (the server's own
+//! machine): Required and stricter modes refuse them, and Preferred to
+//! 127.0.0.1 may end on the server's socket (the crate's `prefer_socket`;
+//! Encrypted says so — the server is asked). RealConnect's CLIENT_SSL flag
+//! (2048), which RapidQ's client took, asks for Required.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -55,7 +74,7 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
     match method {
         "connect" => return connect(host, name, &key, args),
         "realconnect" => {
-            let server = Server {
+            let mut server = Server {
                 host: text(0),
                 user: text(1),
                 password: text(2),
@@ -63,7 +82,16 @@ pub fn method(host: &dyn Host, name: &str, method: &str, args: &[Value]) -> Valu
                 port: int(4),
                 socket: text(5),
                 flags: int(6),
+                ssl: SslMode::Preferred,
+                ssl_ca: String::new(),
             };
+            if !server.tls_from(host, name) {
+                return v_null();
+            }
+            // (RapidQ's CLIENT_SSL: encrypted or nothing)
+            if server.flags & CLIENT_SSL != 0 && server.ssl == SslMode::Preferred {
+                server.ssl = SslMode::Required;
+            }
             open(host, name, &key, server);
             return v_null();
         }
@@ -149,6 +177,7 @@ fn connected(key: &str) -> bool {
 }
 
 /// Where Connect and RealConnect go.
+#[derive(Clone)]
 struct Server {
     host: String,
     user: String,
@@ -161,13 +190,86 @@ struct Server {
     socket: String,
     /// The C client's CLIENT_* flags.
     flags: i64,
+    /// How the connection is encrypted (SSLMode).
+    ssl: SslMode,
+    /// The certificate authority VerifyCA and VerifyFull trust (SSLCA: a
+    /// .pem or .der file; "" the system's).
+    ssl_ca: String,
+}
+
+impl Server {
+    /// Takes the component's SSLMode and SSLCA; false (and OnError, with
+    /// what's wrong) when SSLMode is none of the modes or SSLCA isn't a
+    /// file.
+    fn tls_from(&mut self, host: &dyn Host, name: &str) -> bool {
+        let fail = |e: String| {
+            host.report(&format!("[MySQL] Connection error: {e}"));
+            host.set(name, "connected", v_int(0));
+            host.set(name, "encrypted", v_int(0));
+            host.fire(name, "onerror", &[v_str(&e)]);
+            false
+        };
+        self.ssl = match SslMode::parse(&host.get(name, "sslmode").to_string_val()) {
+            Ok(m) => m,
+            Err(e) => return fail(e),
+        };
+        // (the authority only the verifying modes use)
+        self.ssl_ca = host.get(name, "sslca").to_string_val().trim().to_string();
+        if !matches!(self.ssl, SslMode::VerifyCa | SslMode::VerifyFull) {
+            self.ssl_ca.clear();
+        }
+        if !self.ssl_ca.is_empty() && !std::path::Path::new(&self.ssl_ca).is_file() {
+            return fail(format!("SSLCA: no such file: {}", self.ssl_ca));
+        }
+        true
+    }
+}
+
+/// How a connection is encrypted: RMySQL's SSLMode, MySQL's own client's
+/// modes (module docs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SslMode {
+    Disabled,
+    Preferred,
+    Required,
+    VerifyCa,
+    VerifyFull,
+}
+
+impl SslMode {
+    /// The mode SSLMode names (case, spaces, `-` and `_` ignored; MySQL's
+    /// VERIFY_IDENTITY is VerifyFull; "" the default, Preferred).
+    fn parse(text: &str) -> Result<SslMode, String> {
+        let t: String = text.chars().filter(|c| !matches!(c, ' ' | '-' | '_')).flat_map(char::to_lowercase).collect();
+        Ok(match t.as_str() {
+            "" | "preferred" | "prefer" => SslMode::Preferred,
+            "disabled" | "disable" | "off" | "none" => SslMode::Disabled,
+            "required" | "require" => SslMode::Required,
+            "verifyca" => SslMode::VerifyCa,
+            "verifyfull" | "verifyidentity" => SslMode::VerifyFull,
+            _ => return Err(format!("SSLMode `{}` isn't one of Disabled, Preferred, Required, VerifyCA, VerifyFull", text.trim())),
+        })
+    }
+
+    /// The `mysql` crate's TLS options for this mode (`None`: plain).
+    fn opts(self, ca: &str) -> Option<mysql::SslOpts> {
+        let ca = (!ca.is_empty()).then(|| std::path::PathBuf::from(ca));
+        Some(match self {
+            SslMode::Disabled => return None,
+            // (encrypted, the certificate not checked: as MySQL's client)
+            SslMode::Preferred | SslMode::Required => mysql::SslOpts::default().with_danger_accept_invalid_certs(true).with_danger_skip_domain_validation(true),
+            SslMode::VerifyCa => mysql::SslOpts::default().with_root_cert_path(ca).with_danger_skip_domain_validation(true),
+            SslMode::VerifyFull => mysql::SslOpts::default().with_root_cert_path(ca),
+        })
+    }
 }
 
 /// `Connect(host, user, password [, database])`, each missing one from
-/// the component's property (Host, User, Password, DB; Port).
+/// the component's property (Host, User, Password, DB; Port; SSLMode,
+/// SSLCA).
 fn connect(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
     let arg = |i: usize, prop: &str| args.get(i).map(|v| v.to_string_val()).unwrap_or_else(|| host.get(name, prop).to_string_val());
-    let server = Server {
+    let mut server = Server {
         host: arg(0, "host"),
         user: arg(1, "user"),
         password: arg(2, "password"),
@@ -175,20 +277,27 @@ fn connect(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
         port: 0,
         socket: String::new(),
         flags: 0,
+        ssl: SslMode::Preferred,
+        ssl_ca: String::new(),
     };
+    if !server.tls_from(host, name) {
+        return v_int(0);
+    }
     v_int(open(host, name, key, server) as i64)
 }
 
 /// The C client's flags RealConnect passes on: FOUND_ROWS (2), LONG_FLAG
 /// (4), NO_SCHEMA (16), ODBC (64), IGNORE_SPACE (256), INTERACTIVE (1024).
-/// COMPRESS (32) turns compression on; the rest are the connection's own
-/// business (the `mysql` crate sets them) or need TLS, which RapidR's
-/// client doesn't have (SSL, 2048).
+/// COMPRESS (32) turns compression on; SSL (2048) asks for an encrypted
+/// connection (SSLMode Required, unless SSLMode says more); the rest are
+/// the connection's own business (the `mysql` crate sets them).
 const PASSED_FLAGS: u32 = 2 | 4 | 16 | 64 | 256 | 1024;
 const CLIENT_COMPRESS: i64 = 32;
+const CLIENT_SSL: i64 = 2048;
 
 /// The connection options for `server`: "" is this machine (as the C
-/// client's NULL host), port 0 the component's Port or MySQL's 3306.
+/// client's NULL host), port 0 the component's Port or MySQL's 3306;
+/// encrypted as its SSLMode says (Preferred: tried encrypted first).
 fn options(server: &Server, port_property: i64) -> mysql::OptsBuilder {
     let host = if server.host.is_empty() { "localhost" } else { server.host.as_str() };
     let port = [server.port, port_property].into_iter().find(|p| (1..=65535).contains(p)).unwrap_or(3306) as u16;
@@ -207,16 +316,76 @@ fn options(server: &Server, port_property: i64) -> mysql::OptsBuilder {
     if server.flags & CLIENT_COMPRESS != 0 {
         opts = opts.compress(Some(mysql::Compression::default()));
     }
-    opts
+    // (a socket or a pipe is the server's own machine: no TLS there, and
+    // Preferred connects plain — `open` refuses the stricter modes)
+    let mode = if server.socket.is_empty() { server.ssl } else { SslMode::Disabled };
+    // (the crate moves a connection to 127.0.0.1 onto the server's socket,
+    // where TLS goes: never for a mode that must be encrypted)
+    if matches!(mode, SslMode::Required | SslMode::VerifyCa | SslMode::VerifyFull) {
+        opts = opts.prefer_socket(false);
+    }
+    opts.ssl_opts(mode.opts(&server.ssl_ca))
 }
 
-/// Connects (Connect, RealConnect): whether it did. Connected, DB(i),
-/// DBCount and OnConnect follow, or OnError with the message.
+/// Whether `conn` is encrypted, as the server says (its session's cipher):
+/// `None` when it won't say.
+fn server_says_encrypted(conn: &mut mysql::PooledConn) -> Option<bool> {
+    let row: Option<(String, String)> = conn.query_first("SHOW SESSION STATUS LIKE 'Ssl_cipher'").ok()?;
+    Some(row.is_some_and(|(_, cipher)| !cipher.trim().is_empty()))
+}
+
+/// Why a connection in `mode` can't be made at all (a stricter mode
+/// through a socket), before trying.
+fn refused(server: &Server) -> Option<String> {
+    (!server.socket.is_empty() && !matches!(server.ssl, SslMode::Disabled | SslMode::Preferred))
+        .then(|| "an encrypted connection (SSLMode Required, VerifyCA or VerifyFull) needs TCP: a Unix socket or a named pipe carries no TLS".to_string())
+}
+
+/// A connection error in plain words: the server without TLS for a mode
+/// that needs it, a certificate refused.
+fn explain(e: &mysql::Error, server: &Server) -> String {
+    match e {
+        mysql::Error::DriverError(mysql::DriverError::TlsNotSupported) => {
+            "the server doesn't offer encrypted connections (TLS), and SSLMode asks for one: turn TLS on in the server, or set SSLMode = \"Preferred\"".into()
+        }
+        mysql::Error::TlsError(t) => match server.ssl {
+            // (macOS takes no server certificate valid for more than 825
+            // days: MySQL's own self-made ones are valid for ten years)
+            SslMode::VerifyCa | SslMode::VerifyFull if t.to_string().contains("validity period") => {
+                format!("the server's certificate wasn't accepted ({t}): this system takes only certificates valid for at most 825 days, and a server's self-made one usually is valid longer; give the server a shorter one, or use SSLMode = \"Required\"")
+            }
+            SslMode::VerifyCa | SslMode::VerifyFull => format!("the server's certificate wasn't accepted ({t}): check SSLCA{}", if server.ssl == SslMode::VerifyFull { " and that Host is a name the certificate has" } else { "" }),
+            _ => format!("the encrypted connection failed ({t})"),
+        },
+        e => e.to_string(),
+    }
+}
+
+/// Connects (Connect, RealConnect): whether it did. Connected, Encrypted,
+/// DB(i), DBCount and OnConnect follow, or OnError with the message.
 fn open(host: &dyn Host, name: &str, key: &str, server: Server) -> bool {
-    let opts = options(&server, host.get(name, "port").to_i64());
-    let opened = mysql::Pool::new(opts).and_then(|pool| Ok((pool.get_conn()?, pool)));
+    // (a credential: the debugger and RapidR's messages mask it)
+    rapidr_value::secrets::note(&server.password);
+    let port = host.get(name, "port").to_i64();
+    let attempt = |server: &Server| mysql::Pool::new(options(server, port)).and_then(|pool| Ok((pool.get_conn()?, pool)));
+    let mut encrypted = server.socket.is_empty() && server.ssl != SslMode::Disabled;
+    let opened = match refused(&server) {
+        Some(e) => Err(e),
+        None => match attempt(&server) {
+            // (Preferred: the server without TLS, or a TLS it and the
+            // system don't share — plain, as before SSLMode)
+            Err(mysql::Error::DriverError(mysql::DriverError::TlsNotSupported) | mysql::Error::TlsError(_)) if encrypted && server.ssl == SslMode::Preferred => {
+                encrypted = false;
+                attempt(&Server { ssl: SslMode::Disabled, ..server.clone() }).map_err(|e| explain(&e, &server))
+            }
+            r => r.map_err(|e| explain(&e, &server)),
+        },
+    };
     match opened {
         Ok((mut conn, pool)) => {
+            // (what the server says, when it says: Preferred on this
+            // machine may have gone onto its socket)
+            let encrypted = server_says_encrypted(&mut conn).unwrap_or(encrypted);
             // (the databases the server has: DB(i), DBCount)
             let databases: Vec<String> = conn.query("SHOW DATABASES").unwrap_or_default();
             let count = databases.len() as i64;
@@ -224,15 +393,19 @@ fn open(host: &dyn Host, name: &str, key: &str, server: Server) -> bool {
             DBS.with(|d| d.borrow_mut().insert(key.to_string(), db));
             POOLS.with(|p| p.borrow_mut().insert(key.to_string(), pool));
             host.set(name, "connected", v_int(1));
+            host.set(name, "encrypted", v_int(encrypted as i64));
             host.set(name, "dbcount", v_int(count));
             host.row_changed(name);
             host.fire(name, "onconnect", &[]);
             true
         }
         Err(e) => {
+            // (never the password, should the server's message hold it)
+            let e = rapidr_value::secrets::mask(&e).into_owned();
             host.report(&format!("[MySQL] Connection error: {e}"));
             host.set(name, "connected", v_int(0));
-            host.fire(name, "onerror", &[v_str(&e.to_string())]);
+            host.set(name, "encrypted", v_int(0));
+            host.fire(name, "onerror", &[v_str(&e)]);
             false
         }
     }
@@ -340,6 +513,7 @@ fn close(host: &dyn Host, name: &str, key: &str) -> Value {
     let closed = DBS.with(|d| d.borrow_mut().remove(key));
     POOLS.with(|p| p.borrow_mut().remove(key));
     host.set(name, "connected", v_int(0));
+    host.set(name, "encrypted", v_int(0));
     if closed.is_some() {
         drop(closed);
         host.fire(name, "ondisconnect", &[]);
@@ -595,6 +769,8 @@ mod tests {
             port,
             socket: socket.into(),
             flags,
+            ssl: SslMode::Disabled,
+            ssl_ca: String::new(),
         };
         let opts: mysql::Opts = options(&server("db.example", 12345, "", 0), 0).into();
         assert_eq!((opts.get_ip_or_hostname().to_string(), opts.get_tcp_port()), ("db.example".to_string(), 12345));
@@ -606,10 +782,135 @@ mod tests {
         assert_eq!(opts.get_socket(), Some("/tmp/mysql.sock"));
         let opts: mysql::Opts = options(&server("h", 0, "", 0), 3307).into();
         assert_eq!(opts.get_tcp_port(), 3307);
-        // CLIENT_COMPRESS | CLIENT_FOUND_ROWS | CLIENT_SSL (no TLS: dropped)
+        // CLIENT_COMPRESS | CLIENT_FOUND_ROWS | CLIENT_SSL (SSL: not a
+        // capability passed on — RealConnect turns it into SSLMode Required)
         let opts: mysql::Opts = options(&server("h", 0, "", 32 | 2 | 2048), 0).into();
         assert!(opts.get_compress().is_some());
         assert_eq!(opts.get_additional_capabilities(), CapabilityFlags::CLIENT_FOUND_ROWS);
+        assert!(opts.get_ssl_opts().is_none(), "Disabled: plain");
+    }
+
+    /// SSLMode's words, each mode's TLS options, the default, and what
+    /// can't be (a stricter mode through a socket). Live servers:
+    /// `connects_encrypted_to_a_local_server` (ignored).
+    #[test]
+    fn ssl_modes() {
+        assert_eq!(SslMode::parse(""), Ok(SslMode::Preferred), "the default");
+        assert_eq!(SslMode::parse("preferred"), Ok(SslMode::Preferred));
+        assert_eq!(SslMode::parse("DISABLED"), Ok(SslMode::Disabled));
+        assert_eq!(SslMode::parse(" Required "), Ok(SslMode::Required));
+        assert_eq!(SslMode::parse("VERIFY_CA"), Ok(SslMode::VerifyCa));
+        assert_eq!(SslMode::parse("verify-full"), Ok(SslMode::VerifyFull));
+        assert_eq!(SslMode::parse("VERIFY_IDENTITY"), Ok(SslMode::VerifyFull), "MySQL's name for it");
+        assert!(SslMode::parse("maybe").unwrap_err().contains("Disabled, Preferred, Required, VerifyCA, VerifyFull"));
+        let mut s = Server { host: "db.example".into(), user: "u".into(), password: "p".into(), db: String::new(), port: 0, socket: String::new(), flags: 0, ssl: SslMode::Preferred, ssl_ca: String::new() };
+        let tls = |s: &Server| -> Option<mysql::SslOpts> { mysql::Opts::from(options(s, 0)).get_ssl_opts().cloned() };
+        // (Preferred and Required: encrypted, the certificate not checked)
+        let t = tls(&s).expect("Preferred tries TLS first");
+        assert!(t.accept_invalid_certs() && t.skip_domain_validation());
+        s.ssl = SslMode::Required;
+        assert!(tls(&s).is_some_and(|t| t.accept_invalid_certs()));
+        // (VerifyCA: the chain checked, against SSLCA when given; VerifyFull: the name too)
+        s.ssl = SslMode::VerifyCa;
+        s.ssl_ca = "/certs/ca.pem".into();
+        let t = tls(&s).unwrap();
+        assert!(!t.accept_invalid_certs() && t.skip_domain_validation());
+        assert_eq!(t.root_cert_path(), Some(std::path::Path::new("/certs/ca.pem")));
+        s.ssl = SslMode::VerifyFull;
+        let t = tls(&s).unwrap();
+        assert!(!t.accept_invalid_certs() && !t.skip_domain_validation());
+        s.ssl_ca.clear();
+        assert_eq!(tls(&s).unwrap().root_cert_path(), None, "the system's authorities");
+        s.ssl = SslMode::Disabled;
+        assert!(tls(&s).is_none());
+        // (a socket: no TLS; the stricter modes refuse it with the reason)
+        s.socket = "/tmp/mysql.sock".into();
+        s.ssl = SslMode::Preferred;
+        assert!(tls(&s).is_none() && refused(&s).is_none());
+        s.ssl = SslMode::Required;
+        assert!(refused(&s).unwrap().contains("needs TCP"));
+        // (the server without TLS, in plain words)
+        let e = explain(&mysql::Error::DriverError(mysql::DriverError::TlsNotSupported), &s);
+        assert!(e.contains("doesn't offer encrypted connections") && e.contains("Preferred"), "{e}");
+    }
+
+    /// A server without TLS (a mock on 127.0.0.1 that greets as MySQL 5.5
+    /// does, without the SSL capability): Required gives the plain-words
+    /// error, Preferred connects on (here: to the mock's next step, which
+    /// isn't there — anything but the TLS error).
+    #[test]
+    fn a_server_without_tls() {
+        use std::io::{Read, Write};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for stream in listener.incoming().take(2) {
+                let Ok(mut s) = stream else { return };
+                // (protocol 10; CLIENT_PROTOCOL_41 | SECURE_CONNECTION |
+                // PLUGIN_AUTH and LONG_PASSWORD, no CLIENT_SSL)
+                let caps: u32 = 0x0001 | 0x0200 | 0x8000 | 0x0008_0000;
+                let mut p = vec![10u8];
+                p.extend_from_slice(b"5.5.0-mock\0");
+                p.extend_from_slice(&7u32.to_le_bytes());
+                p.extend_from_slice(b"abcdefgh\0");
+                p.extend_from_slice(&(caps as u16).to_le_bytes());
+                p.push(33);
+                p.extend_from_slice(&2u16.to_le_bytes());
+                p.extend_from_slice(&((caps >> 16) as u16).to_le_bytes());
+                p.push(21);
+                p.extend_from_slice(&[0u8; 10]);
+                p.extend_from_slice(b"ijklmnopqrst\0");
+                p.extend_from_slice(b"mysql_native_password\0");
+                let mut packet = (p.len() as u32).to_le_bytes()[..3].to_vec();
+                packet.push(0);
+                packet.extend_from_slice(&p);
+                let _ = s.write_all(&packet);
+                let mut buf = [0u8; 256];
+                let _ = s.read(&mut buf);
+            }
+        });
+        let server = |ssl| Server { host: "127.0.0.1".into(), user: "u".into(), password: String::new(), db: String::new(), port: i64::from(port), socket: String::new(), flags: 0, ssl, ssl_ca: String::new() };
+        let required = server(SslMode::Required);
+        let e = mysql::Pool::new(options(&required, 0)).and_then(|p| p.get_conn().map(drop)).map(|_| String::new()).unwrap_or_else(|e| explain(&e, &required));
+        assert!(e.contains("doesn't offer encrypted connections (TLS)"), "{e}");
+        let plain = server(SslMode::Disabled);
+        let e = mysql::Pool::new(options(&plain, 0)).and_then(|p| p.get_conn().map(drop)).map(|_| String::new()).unwrap_or_else(|e| explain(&e, &plain));
+        assert!(!e.contains("TLS"), "Disabled never asks for TLS: {e}");
+    }
+
+    /// A live check against a MySQL or MariaDB server on this machine
+    /// (RAPIDR_TEST_MYSQL=user@host:port, a user without a password, e.g.
+    /// `rds_test@127.0.0.1:3306`): Required connects encrypted when the
+    /// server has TLS, else says the server lacks it; Disabled is plain.
+    /// `cargo test -p rapidr-db --features mysql -- --ignored encrypted`.
+    #[test]
+    #[ignore]
+    fn connects_encrypted_to_a_local_server() {
+        let Ok(spec) = std::env::var("RAPIDR_TEST_MYSQL") else { return };
+        let (user, at) = spec.split_once('@').expect("user@host:port");
+        let (h, port) = at.split_once(':').expect("host:port");
+        let base = Server { host: h.into(), user: user.into(), password: String::new(), db: String::new(), port: port.parse().unwrap(), socket: String::new(), flags: 0, ssl: SslMode::Required, ssl_ca: String::new() };
+        let cipher = |s: &Server| -> Result<String, String> {
+            let pool = mysql::Pool::new(options(s, 0)).map_err(|e| explain(&e, s))?;
+            let mut c = pool.get_conn().map_err(|e| explain(&e, s))?;
+            let row: Option<(String, String)> = c.query_first("SHOW SESSION STATUS LIKE 'Ssl_cipher'").map_err(|e| e.to_string())?;
+            assert_eq!(server_says_encrypted(&mut c), Some(row.as_ref().is_some_and(|r| !r.1.is_empty())));
+            Ok(row.map(|r| r.1).unwrap_or_default())
+        };
+        match cipher(&base) {
+            Ok(c) => {
+                assert!(!c.is_empty(), "Required: a cipher in use");
+                eprintln!("Required: encrypted ({c})");
+                let full = cipher(&Server { ssl: SslMode::VerifyFull, ..base.clone() });
+                eprintln!("VerifyFull, the system's authorities: {full:?}");
+                assert!(full.is_err(), "a local server's own certificate isn't one the system trusts");
+                assert_eq!(cipher(&Server { ssl: SslMode::Disabled, ..base.clone() }).unwrap(), "", "Disabled: plain");
+            }
+            Err(e) => {
+                assert!(e.contains("doesn't offer encrypted connections"), "{e}");
+                eprintln!("Required: {e}");
+            }
+        }
     }
 
     /// What MySQL 8's text protocol writes for these (checked on a server).

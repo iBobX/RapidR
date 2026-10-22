@@ -507,6 +507,16 @@ def registry(g):
     g.line(19, 20, 21, 18, c="amber") if g.size != 16 else None
 
 
+@icon("secrets", C, "Secrets (the OS keychain)")
+def secrets(g):
+    # a padlock: the shackle neutral, the body and its keyhole the registry's
+    # amber (keys and settings kept by the system)
+    g.path("M8 10.5 V7.5 A4 4 0 0 1 16 7.5 V10.5", c="ink")
+    g.rect(5, 10.5, 14, 10.5, r=2, c="amber", fill="amber-tint")
+    # (the keyhole a solid bar: its edges on whole pixels, centred at every size)
+    g.frect(11, 13.5, 2, 4.5, fill="amber")
+
+
 @icon("printer", C, "Printer")
 def printer(g):
     g.path("M7 8 V3 H17 V8", c="ink", fill="paper")

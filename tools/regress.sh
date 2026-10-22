@@ -34,6 +34,9 @@ mkdir -p "$W/prints"
 export RAPIDR_PRINT_TO="$PWD/$W/prints"
 # …nor the user's QREGISTRY store: a scratch one.
 export RAPIDR_REGISTRY="$PWD/$W/registry.reg"
+# …nor the user's keychain: AI keys and programs' RSecrets in the test
+# keystore (memory).
+export RAPIDR_AI_KEYSTORE=memory
 # …nor the user's build cache (`rapidr build`'s generated Rust and cargo's
 # target folder): one in here, gone with the rest.
 export RAPIDR_BUILD_CACHE="$PWD/$W/build-cache"
