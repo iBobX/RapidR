@@ -45,6 +45,14 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   Tokens, Stripe, npm, Hugging Face, SendGrid, Twilio, Slack webhooks,
   passwords in URLs), and prints the file, line and kind only, never the
   value. Nothing found.
+- **Security audit of Preview 4's new surfaces** (RAI chats and tools, the
+  keystore and RSecrets, RHttpServer and the socket modes, MySQL TLS, Studio's
+  Search/Replace/Problems and the set-value editors, the test hooks, the web
+  bundle and native codegen). Threat model updated for the new surfaces
+  (docs/security/threat-model.md); findings written up with severity, place
+  and fix (docs/security/audit-preview4.md). No Critical or High finding; the
+  keychain-scoping items (SEC-21, SEC-22) are flagged to fix before release.
+  The fix pass follows.
 
 ### Fixed
 - **Studio: Search's and Problems' file icons, and Search's Forms and
