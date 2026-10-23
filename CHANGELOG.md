@@ -60,7 +60,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   - **The form designer** shows a colour written as `RGB(…)` (it showed
     clBtnFace) and an RImage's picture named by its file — `BMP = "…"`,
     `Load "…"`, or a `Logo.Load "…"` line after the form — read from the
-    program's folder only.
+    program's folder only. Properties shows the `RGB(…)` colour's swatch
+    too.
   - **While the program runs on after a pause**, Call Stack and Variables
     say *Running…* (Watch: *(running)*) a moment later instead of showing
     the last pause's values as current; they fill again at the next pause,
