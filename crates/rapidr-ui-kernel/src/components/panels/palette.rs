@@ -23,7 +23,7 @@ use super::common::{self, inside, look, Look};
 use crate::a11y::AccessValue;
 use crate::components::edit::{self, Source};
 use crate::components::form::Container;
-use crate::components::list::{self, begin_edit, editing, end_edit, set_edit_text, InPlace};
+use crate::components::list::{self, begin_edit_typed, editing, end_edit, set_edit_text, InPlace};
 use crate::components::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
 use crate::input::{Clipboard, KernelEvent};
 use crate::paint::Painter;
@@ -97,7 +97,8 @@ fn row_at(m: &Model, w: i64, x: i64, y: i64, count: usize) -> Option<usize> {
 }
 
 /// The search box's editor for this showing (a new one at each Show, with
-/// the filter as it is).
+/// the filter as it is). A filter the program gave it (Go to Line's ":")
+/// is where typing goes on: the caret after it, nothing selected.
 fn ensure_editor(id: &str) {
     let (shown, shows, filter) = model(id, |m| (m.shown, m.shows as usize, m.filter.clone()));
     if !shown {
@@ -106,7 +107,7 @@ fn ensure_editor(id: &str) {
     if editing(id).is_some_and(|e| e.target.0 == shows) {
         return;
     }
-    begin_edit(id, InPlace { target: (shows, 0), text: filter, rect: None });
+    begin_edit_typed(id, InPlace { target: (shows, 0), text: filter, rect: None });
 }
 
 /// Closes it from the kernel: the editor goes, then the runtime is told.
@@ -597,5 +598,21 @@ mod tests {
         model::with_mut("pal_z", |m| m.shown = false);
         assert_eq!(stacked("f", kids())[0].0, "pal_z");
         end_edit("pal_z");
+    }
+
+    /// (POLISH-2) Shown with a filter the program gave it (Go to Line's
+    /// ":"), typing goes on after it: the caret at its end, nothing
+    /// selected (a digit typed no longer replaced the ":").
+    #[test]
+    fn a_given_filter_is_typed_on() {
+        model::with_mut("pal_gl", |m| {
+            m.open();
+            m.set_filter(":");
+        });
+        ensure_editor("pal_gl");
+        assert_eq!(editing("pal_gl").map(|e| e.text), Some(":".to_string()));
+        assert_eq!(list::edit_shown("pal_gl").1, (1, 0), "the caret after the \":\", nothing selected");
+        model::with_mut("pal_gl", |m| m.shown = false);
+        end_edit("pal_gl");
     }
 }

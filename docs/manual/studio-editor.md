@@ -416,10 +416,10 @@ each part is named, Tab moves through them, the focus never jumps.
 | Ctrl+F, Ctrl+H | Find, Replace | Edit > Find…, Replace… |
 | F3 / Shift+F3 | Find next / previous | Edit > Find Next / Previous |
 | Ctrl+Shift+F | The Search tab: find in the project's files | Edit > Find in Files… |
-| Ctrl+G | Go to a line | Edit > Go to Line… |
+| Ctrl+G | Go to a line: type its number after the `:` and press Enter (the status bar shows the new line) | Edit > Go to Line… |
 | Ctrl+D | Select the next occurrence (several carets) | Edit > Advanced |
 | Alt+Z | Word wrap on / off | Edit > Advanced > Word Wrap |
-| Ctrl+Z / Ctrl+Y | Undo / redo | Edit > Undo / Redo |
+| Ctrl+Z / Ctrl+Y | Undo / redo (undone back to the text you saved, the file is no longer marked changed: its tab's dot goes) | Edit > Undo / Redo |
 
 ## Settings
 

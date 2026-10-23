@@ -237,3 +237,35 @@ pub(crate) fn byte_of(s: &str, n: usize) -> usize {
 pub(crate) fn chars_to(s: &str, b: usize) -> usize {
     s[..b.min(s.len())].chars().count()
 }
+
+#[cfg(test)]
+mod cjk_tests {
+    use super::*;
+
+    /// (POLISH-2) A Chinese caption is measured (`text_size`: tab widths,
+    /// AutoSize, every component sized to its text) as wide as it's drawn —
+    /// by the system's CJK font, at 1× and 2× — within a pixel; it was half
+    /// that (each ideograph measured as RapidR's `?`), so "查询 1" and
+    /// "查询 2" ran into each other. (A machine with no CJK font draws
+    /// boxes: nothing to compare there.)
+    #[test]
+    fn chinese_text_is_measured_as_drawn() {
+        let mut ts = TextSystem::new();
+        for (name, size) in [("Inter", 8), ("MS Sans Serif", 8), ("Arial", 12)] {
+            let font = Font { name: name.into(), size, color: 0, styles: 0 };
+            let em = font.pixel_size() as f32;
+            let one = ts.layout("查", &font, 0, 1.0).width();
+            if !(0.9 * em..=1.1 * em).contains(&one) {
+                eprintln!("no CJK font here ({name}: 查 drawn {one} wide): not compared");
+                continue;
+            }
+            for caption in ["查询 1", "查询 2", "数据库连接", "表格：订单"] {
+                let measured = rapidr_value::objects::text::text_size(caption, &font).0 as f32;
+                for scale in [1.0f32, 2.0] {
+                    let drawn = ts.layout(caption, &font, 0, scale).width() / scale;
+                    assert!((drawn - measured).abs() <= 1.0, "{name} {size} at {scale}×: {caption:?} drawn {drawn}, measured {measured}");
+                }
+            }
+        }
+    }
+}

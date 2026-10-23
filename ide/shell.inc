@@ -54,6 +54,9 @@ END SUB
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
   d = ActiveCode
+  ' (Edit's in Variables or Watch, when they have the focus — the selected
+  ' value copied, the last value set undone: debug.inc)
+  IF DebugPaneCommand(Id) THEN EXIT SUB
   ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
   IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
@@ -267,6 +270,7 @@ SUB OutlineOpen
   IF MarkdownOutlineOpen(d, i) THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   CodeDoc(d).GotoLine OutlineLine(i)
+  EditorFacts d
 END SUB
 
 ' ---- start-up ----------------------------------------------------------------------

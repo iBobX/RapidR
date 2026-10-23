@@ -149,6 +149,8 @@ SUB PaletteCommand(Id AS STRING)
     IF d >= 0 THEN
       Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
       CodeDoc(d).GotoLine VAL(MID$(Id, 6)) - 1
+      ' (the status bar's line follows the program's move too: editor.inc)
+      EditorFacts d
     END IF
   ELSEIF LEFT$(Id, 5) = "comp:" THEN
     d = ActiveDesign
@@ -161,6 +163,7 @@ SUB PaletteCommand(Id AS STRING)
     IF d >= 0 AND VAL(MID$(Id, 2)) > 0 THEN
       Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
       CodeDoc(d).GotoLine VAL(MID$(Id, 2)) - 1
+      EditorFacts d
     END IF
   ELSE
     RunCommand Id
@@ -535,6 +538,7 @@ END SUB
 SUB CaretAtHandler(d AS INTEGER, L AS INTEGER)
   CodeDoc(d).GotoLine L
   CodeDoc(d).GotoLineColumn L + 1, LEN(CodeDoc(d).Line(L)) + 1
+  EditorFacts d
 END SUB
 
 ' ---- the output console --------------------------------------------------------------
@@ -597,6 +601,7 @@ SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   IF LineNo > 0 THEN CodeDoc(d).GotoLine LineNo - 1
+  EditorFacts d
 END SUB
 
 ' ---- the look ----------------------------------------------------------------------------

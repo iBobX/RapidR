@@ -1,0 +1,13 @@
+' runs_on.rr: a program that runs on for several seconds after a pause —
+' Call Stack and Variables say it's running, then fill again at the next
+' pause (tests/studio_flows.mjs debug-running-stale)
+DIM n AS LONG
+SUB Busy(Times AS LONG)
+  DIM k AS LONG
+  FOR k = 1 TO Times
+    n = n + 1
+  NEXT
+END SUB
+PRINT "start"
+Busy 150000000
+PRINT "done"; n

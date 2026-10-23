@@ -52,7 +52,9 @@ and **Ctrl+I** before the assistant is set up) asks one thing at a time:
    ![Set up RAI with a cloud key: the key tested, the models listed, what it costs and what is sent](images/ai/setup-cloud.png)
 
 **Finish** turns the assistant on, keeps a key you typed in your system's
-keychain (never in a project), and shows the Assistant pane. **Cancel**
+keychain (never in a project), and shows the Assistant pane with the
+provider's models already listed — and what it says of them, such as each
+model's context window, without pressing ↻. **Cancel**
 changes nothing. Everything can be changed later in Settings.
 
 ### Every setting: Tools > AI Settings

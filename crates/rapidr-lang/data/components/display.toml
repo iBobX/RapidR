@@ -372,7 +372,7 @@ properties = [
   { name = "Left", type = "int" },
   { name = "Top", type = "int" },
   { name = "CompCount", type = "int" },
-  { name = "Visible", type = "int" },
+  { name = "Visible", type = "bool" },
   { name = "FormCaption", type = "string" },
   { name = "Theme", type = "string", design = false, doc = "The look the designed form is drawn in (any name `$THEME` takes; \"\": the surface's own): `classic` shows it as RapidQ drew it." },
   { name = "FormType", type = "string", access = "read", design = false, doc = "The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); \"\" when there is no form." },

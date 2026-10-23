@@ -40,6 +40,8 @@ pub struct NodeUi {
     /// An RDIFFVIEW's form view: the form before and after, drawn as the
     /// designer draws it (components/design.rs's `Picture`).
     pub pictures: Option<Box<[crate::components::design::Picture; 2]>>,
+    /// (POLISH-2) A WordWrap label's lines as wrapped last (components/label.rs).
+    pub wrapped: Option<Box<crate::components::label::Wrapped>>,
 }
 
 pub struct Node {

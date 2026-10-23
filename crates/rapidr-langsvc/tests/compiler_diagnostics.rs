@@ -12,12 +12,13 @@ use rapidr_langsvc::{Analysis, LineIndex, Options};
 fn every_conformance_error_case() {
     let cases = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/cases");
     let mut checked = 0;
+    let mut checked_rr = 0;
     let mut failures = Vec::new();
     let mut entries: Vec<_> = fs::read_dir(&cases).unwrap().map(|e| e.unwrap().path()).collect();
     entries.sort();
     for expected in entries.iter().filter(|p| p.extension().is_some_and(|e| e == "expected-error")) {
-        // (a case is a .bas, or a .rr for RapidR's own language)
-        let source = Some(expected.with_extension("bas")).filter(|p| p.exists()).unwrap_or_else(|| expected.with_extension("rr"));
+        // A case is a .bas (RapidQ style) or a .rr (RapidR); whichever exists.
+        let source = ["bas", "rr"].iter().map(|ext| expected.with_extension(ext)).find(|p| p.exists()).unwrap_or_else(|| panic!("no .bas or .rr beside {}", expected.display()));
         let text = rapidr_preprocessor::read_source(&source).unwrap();
         let mut analysis = Analysis::new(Options::default());
         analysis.update(source.clone(), text.clone());
@@ -46,7 +47,9 @@ fn every_conformance_error_case() {
             position = None;
         }
         checked += 1;
+        checked_rr += usize::from(source.extension().is_some_and(|e| e == "rr"));
     }
     assert!(checked >= 10, "only {checked} cases");
+    assert!(checked_rr >= 1, "the .rr error cases are checked too");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

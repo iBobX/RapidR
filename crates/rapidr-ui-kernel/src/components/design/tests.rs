@@ -293,3 +293,50 @@ fn linked_data_shows_at_design_time() {
     assert!(!rapidr_value::datascience::frame::has_frame("team"));
     assert!(rapidr_value::datascience::frame::has_frame("ds:team"));
 }
+
+/// (POLISH-2) What a saved program's form shows in the designer as it will
+/// run: a colour written as RGB(…) (not clBtnFace), an RImage's picture
+/// named by file — its BMP, or its `Load "…"` — read from the program's
+/// folder; a file outside it isn't read. (A `Logo.Load "…"` after the form:
+/// rapidr_value::objects::design::picture_loads, the same store path.)
+#[test]
+fn rgb_colours_and_pictures_by_file_show_at_design_time() {
+    let dir = std::env::temp_dir().join(format!("rapidr-design-pictures-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("app")).unwrap();
+    let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><rect width=\"8\" height=\"8\" fill=\"#ff0000\"/></svg>";
+    std::fs::write(dir.join("app/pic.svg"), svg).unwrap();
+    std::fs::write(dir.join("outside.svg"), svg).unwrap();
+    let image = |name: &str, left: &str, more: SubItem| comp(name, "RIMAGE", vec![p("Left", left), p("Top", "8"), p("Width", "16"), p("Height", "16"), more]);
+    let form = Subtree {
+        id: 0,
+        name: "Main".into(),
+        type_written: "RFORM".into(),
+        body: vec![
+            p("Width", "300"),
+            p("Height", "200"),
+            p("Color", "RGB(250, 246, 238)"),
+            image("Logo", "8", p("BMP", "\"pic.svg\"")),
+            image("Logo2", "40", SubItem::Code("Load \"pic.svg\"".into())),
+            image("Outside", "80", p("BMP", "\"../outside.svg\"")),
+        ],
+    };
+    let mut s = MemStore::new();
+    s.add("df", "RFORM", None).set("df", "clientwidth", v_int(420)).set("df", "clientheight", v_int(340));
+    s.add("ds", "RDESIGNSURFACE", Some("df")).set("ds", "left", v_int(10)).set("ds", "top", v_int(10)).set("ds", "width", v_int(400)).set("ds", "height", v_int(320));
+    let design = Designer::new(FormDesign::from_subtree(form));
+    let main = dir.join("app/main.rr").to_string_lossy().into_owned();
+    rapidr_value::objects::with_design_mut("ds", |d| {
+        *d = DesignSurface::with_designer(design);
+        d.source_file = main;
+    });
+    let mut ts = TextSystem::new();
+    let mut f = FormUi::build(&s, "df", false);
+    let list = f.paint(&s, &mut ts, 1.0);
+    let has_picture = |id: &str| rapidr_value::objects::with_picture(id, |b| !b.img.pixels.is_empty()).unwrap_or(false);
+    assert!(has_picture("ds:logo"), "BMP = \"pic.svg\" read beside the program");
+    assert!(has_picture("ds:logo2"), "Load \"pic.svg\"");
+    assert!(!has_picture("ds:outside"), "a file outside the program's folder isn't read");
+    // (the form's face in the colour written: &HEEF6FA, drawn as #FAF6EE)
+    assert!(list.items.iter().any(|i| matches!(i, Item::Op { op: Op::Fill { color, .. }, .. } if *color == 0xFAF6EE)), "{}", list.dump());
+    let _ = std::fs::remove_dir_all(&dir);
+}

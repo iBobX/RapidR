@@ -442,6 +442,12 @@ tables open the same way as in a data tip. In an event handler, open
 `Sender` to see the component's properties as they are now. What you open
 stays open from one stop to the next, and changed values are highlighted.
 
+When the program goes on (Continue, or a step that takes a while), the
+values in Variables and the Call Stack are no longer the program's: a
+moment later both say **Running…**, and Watch shows *(running)* beside
+each expression. At the next pause they fill again, Variables scrolled to
+where it was and the value you had selected still selected.
+
 **Globals** lists your program's own variables first. The constants an
 `$INCLUDE` brings — `RAPIDQ.INC` has nearly five hundred: colours,
 keys, message box buttons — come after them, each file's under one item
@@ -493,7 +499,7 @@ An *on* or *off* property shows the number your program reads — `1` or
 or *off* after it.
 
 **More.** Right-click a value (in Variables or Watch) for *Copy Value*
-(Ctrl+C: the whole value), *Copy Expression* (the name that reaches it,
+(Ctrl+C, ⌘C on a Mac, or Edit ▸ Copy: the whole value), *Copy Expression* (the name that reaches it,
 such as `orders(1).Buyer.Name`), *Add Watch*, *View Text…* and *Set
 Value…* (F2).
 

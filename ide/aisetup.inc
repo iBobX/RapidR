@@ -613,6 +613,15 @@ SUB AISuFinish
   AIShowOrHide
   IF AIReady THEN
     ShowAIPanel
+    ' (POLISH-2) the provider's models asked for at once, as ↻ does: the
+    ' model's context window and its kind of thinking come with them
+    IF AI.Busy = 0 THEN
+      IF AI.RefreshModels THEN
+        AIRefreshBtn.Enabled = 0
+        ' (their arrival keeps saying it's ready: ai.inc's AIModelsIn)
+        AISuReady = 1
+      END IF
+    END IF
     AIStatus.SimpleText = "RAI is ready: " + AI.Model + "."
   ELSE
     SHOWMESSAGE "RAI isn't ready yet: " + AIEmptyText

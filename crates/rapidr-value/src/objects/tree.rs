@@ -157,6 +157,10 @@ pub struct TreeView {
     /// (RapidR's) `EditItem i, Text`: the program asked for node i's
     /// in-place editor, with this text (the UI kernel opens it).
     pub pending_edit: Option<(usize, String)>,
+    /// (POLISH-2) A node was selected (the keys, the program's ItemIndex):
+    /// the next paint scrolls its row into view, as Windows' TreeView
+    /// does — unless TopIndex is set after it.
+    pub reveal: bool,
 }
 
 impl Default for TreeView {
@@ -176,6 +180,7 @@ impl Default for TreeView {
             deleted: Vec::new(),
             version: 0,
             pending_edit: None,
+            reveal: false,
         }
     }
 }
@@ -271,6 +276,7 @@ impl TreeView {
             }
         }
         self.item_index = i;
+        self.reveal = i >= 0;
         self.changed();
     }
 
@@ -424,7 +430,10 @@ impl TreeView {
     pub fn set(&mut self, prop: &str, val: &Value) -> bool {
         match prop {
             "itemindex" | "row" => self.select(val.to_i64()),
-            "topindex" => self.top_index = val.to_i64().clamp(0, self.nodes.len().saturating_sub(1) as i64),
+            "topindex" => {
+                self.top_index = val.to_i64().clamp(0, self.nodes.len().saturating_sub(1) as i64);
+                self.reveal = false;
+            }
             "showbuttons" => self.show_buttons = val.to_bool(),
             "showlines" => self.show_lines = val.to_bool(),
             "showroot" => self.show_root = val.to_bool(),

@@ -127,6 +127,7 @@ enum Tok {
     Word(&'static str),
     Open,
     Close,
+    Comma,
 }
 
 fn tokenize(t: &str) -> Option<Vec<Tok>> {
@@ -182,6 +183,7 @@ fn tokenize(t: &str) -> Option<Vec<Tok>> {
                 '\\' => Tok::Word("\\"),
                 '(' => Tok::Open,
                 ')' => Tok::Close,
+                ',' => Tok::Comma,
                 _ => return None,
             });
             i += 1;
@@ -281,6 +283,25 @@ impl Parser<'_> {
                 (self.peek() == Some(&Tok::Close)).then(|| self.at += 1)?;
                 Some(v)
             }
+            // (POLISH-2: `RGB(r, g, b)` of values it reads — a colour as
+            // the program makes it, RapidQ's &HBBGGRR)
+            Tok::Name(n) if n.eq_ignore_ascii_case("RGB") && self.tokens.get(self.at + 1) == Some(&Tok::Open) => {
+                self.at += 2;
+                let mut args = Vec::new();
+                loop {
+                    args.push(self.expr()?);
+                    match self.peek()? {
+                        Tok::Comma => self.at += 1,
+                        Tok::Close => {
+                            self.at += 1;
+                            break;
+                        }
+                        _ => return None,
+                    }
+                }
+                let [r, g, b] = args[..] else { return None };
+                Some(crate::builtins::rp_rgb(&crate::Value::Double(r), &crate::Value::Double(g), &crate::Value::Double(b)).to_i64() as f64)
+            }
             Tok::Name(n) => {
                 let v = match n.to_ascii_uppercase().as_str() {
                     "TRUE" => 1.0,
@@ -322,5 +343,21 @@ mod tests {
         assert_eq!(write_anchors(0), "0");
         assert_eq!(int(&write_anchors(15)), Some(15));
         assert_eq!(write_align(crate::layout::Align::Client), "alClient");
+    }
+
+    /// (POLISH-2) A colour written as RGB(…) of values it reads is the
+    /// colour the program makes (&HBBGGRR, each part as RGB takes it);
+    /// another function, or RGB of what it can't read, is set in code.
+    #[test]
+    fn rgb_of_values_is_a_colour() {
+        assert_eq!(int("RGB(250, 246, 238)"), Some(0xEEF6FA));
+        assert_eq!(int("rgb(255,0,0)"), Some(0x0000FF));
+        assert_eq!(int("RGB(0, 128 + 2, &H10) OR 0"), Some(0x108200));
+        assert_eq!(int("RGB(256, 0, 0)"), Some(0), "a part is its low byte, as RGB keeps it");
+        assert_eq!(read("RGB(r, 0, 0)"), PropValue::Code);
+        assert_eq!(read("RGB(1, 2)"), PropValue::Code);
+        assert_eq!(read("BGR(1, 2, 3)"), PropValue::Code);
+        assert_eq!(read("RGB(1, 2, 3"), PropValue::Code);
+        assert_eq!(read("1, 2"), PropValue::Code);
     }
 }

@@ -90,6 +90,68 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   nothing and listens on every interface unless `Host = "127.0.0.1"`.
 
 ### Fixed
+- **Studio, small things made solid (POLISH-2).**
+  - **Go to Line** (Ctrl+G, ⌘G on a Mac) keeps its `:` — the number you
+    type goes after it, where it once replaced it — and the status bar's
+    `Ln` follows every jump the program makes (Go to Line, the Outline, a
+    symbol, Find in Files, a problem, F12 into another file).
+  - **Undo back to the text you saved** clears the document's changed
+    mark (its tab's dot, the project tree's, the window's); redo away from
+    it marks it again. The text is compared with what was saved, so typing a
+    character and deleting it isn't a change either, and typing on right
+    after a save is.
+  - **The form designer** shows a colour written as `RGB(…)` (it showed
+    clBtnFace) and an RImage's picture named by its file — `BMP = "…"`,
+    `Load "…"`, or a `Logo.Load "…"` line after the form — read from the
+    program's folder only. Properties shows the `RGB(…)` colour's swatch
+    too.
+  - **While the program runs on after a pause**, Call Stack and Variables
+    say *Running…* (Watch: *(running)*) a moment later instead of showing
+    the last pause's values as current; they fill again at the next pause,
+    Variables where it was.
+  - **Variables and Watch: ⌘C copies the selected value on a Mac** (and
+    Edit ▸ Copy does, with them focused). RTreeView has a new RapidR event,
+    `OnCopy` (Ctrl+C / ⌘C, which OnKeyDown's Shift state can't say), as
+    `OnUndo` is for Ctrl+Z; RapidQ's OnKeyDown values are unchanged.
+  - **A form's Enabled** (and Visible, ShowHint on the few components that
+    had them as numbers: RToolBar, RGlassFrame, RMemo's, RUpDown's,
+    RDateTimePicker's, RCodeEditor's, the media players') is on / off in the
+    registry, so the debugger shows `Enabled = 1 · on` for a form too and an
+    AI writes True / False; what programs read is unchanged.
+  - **The status bar's state** takes the room its words need (at least the
+    230 pixels it had), from the project's name, never from the file's
+    facts; only a message longer than the whole bar is shortened, the whole
+    of it in the tooltip and for screen readers.
+  - **Set Up RAI's Finish** asks the provider for its models at once, as ↻
+    does: the model's context window and kind of thinking are known without
+    pressing it.
+  - **Wrapped labels** (WordWrap) are broken where the text, as drawn, fits
+    — measured with the drawing's own metrics at the screen's scale — so a
+    modern theme at 2× no longer cuts a word's last letter.
+  - **Chinese, Japanese and Korean text is measured as wide as it is
+    drawn**: a character RapidR's faces don't have is drawn by the system's
+    CJK font, an em wide, and is now measured so (it counted as a `?`, half
+    that) — tab names such as "查询 1" and "查询 2" no longer run into each
+    other, and every component that sizes to its text (AutoSize, tabs,
+    lists) gets it right.
+  - **A tree view scrolls to its last row whole** (Database Studio's: a
+    root of 47 tables, then a CSV, the CSV half hidden at the end of the
+    wheel or the bar, the thumb with room below it): its bar's range now
+    ends where the last row shows whole, and a row the keys select (End,
+    PageDown, Down) — or the program's ItemIndex — scrolls into view, as
+    Windows' TreeView.
+  - **A status bar's text is 10 pixels in** in RapidR's light, dark and high
+    contrast looks (a SimpleText sat 4 from the edge), as Studio's own; the
+    classic look keeps RapidQ's.
+  - Tests: the language service's and the LSP's compiler-diagnostics checks
+    take the `.rr` error cases too; Studio goldens' AI mock takes a free
+    port when another run has 18695 (its two scenes then run but aren't
+    compared). Studio flows: `editor-go-to-line`, `editor-undo-to-saved`,
+    `editor-redo-from-saved`, `debug-running-stale`, `debug-copy-value`,
+    `debug-form-on-off`, `debug-status-long-name-room`,
+    `ai-r6-setup-local-window` (and checks added to `debug-status-long-name`,
+    `ai-r6-setup-local`, `ai-r6-setup-cloud`); `RAPIDR_TEST_DUMP` reads a
+    sub-object's member (`status.panel(2).caption`).
 - **Studio: Search's and Problems' file icons, and Search's Forms and
   Modules scopes, go by the code**, as the Project pane does: a file that
   makes a form has a form's icon and is searched under Forms even when the

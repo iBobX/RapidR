@@ -340,5 +340,10 @@ without a change gives the same bytes; moving a button changes its `Left`
 line and nothing else; your comments, blank lines and formatting stay.
 Code you write inside a CREATE block that the designer can't edit (an
 expression such as `Width = Screen.Width / 4`) stays as you wrote it.
+A colour written as `RGB(250, 246, 238)` shows in that colour. A picture
+named by its file — an RImage's `BMP = "logo.png"` or `Load "logo.svg"`,
+or a `Logo.Load "logo.svg"` line right after the form — shows on the
+form as it will when the program runs, read from your program's folder
+(a file outside it isn't read at design time).
 While the code has an error, the designer shows the form as it last
 compiled and changes nothing until you fix it.

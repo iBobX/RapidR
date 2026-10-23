@@ -126,6 +126,9 @@ DIM AIRevSeen(AIMAXPROPS) AS INTEGER
 DIM AIRevAt AS INTEGER
 ' (the panel's lists being filled: their OnChange isn't the user's)
 DIM AIFilling AS INTEGER
+' (Set Up RAI's Finish asked for the models: when they come, the status
+' still says it's ready — aisetup.inc)
+DIM AISuReady AS INTEGER
 
 ' ---- the panel ---------------------------------------------------------------------
 DIM AIPanel AS RPanel
@@ -1661,7 +1664,12 @@ SUB AIModelsIn(Count AS INTEGER)
   AIFillEffort
   AIFilling = 0
   AIStatus.SimpleText = AI.Status
-  IF AIModelBox.ItemCount > 0 AND AI.Model = "" THEN AIStatus.SimpleText = AI.Status + " Choose one in the list."
+  IF AIModelBox.ItemCount > 0 AND AI.Model = "" THEN
+    AIStatus.SimpleText = AI.Status + " Choose one in the list."
+  ELSEIF AISuReady AND AI.Model <> "" THEN
+    AIStatus.SimpleText = "RAI is ready: " + AI.Model + "."
+  END IF
+  AISuReady = 0
   AIEnableSend
   ' (a message sent while the list came: it goes now)
   AISendQueued "ok"

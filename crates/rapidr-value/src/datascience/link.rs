@@ -878,7 +878,7 @@ fn unreadable(file: &str, e: &str) -> String {
 }
 
 /// A design-time path: inside the designed program's folder only.
-fn design_path(base: &str, file: &str) -> Result<String, String> {
+pub fn design_path(base: &str, file: &str) -> Result<String, String> {
     let f = file.replace('\\', "/");
     if f.contains("://") {
         return Err(format!("\"{file}\" is not read at design time (only files in the project)"));

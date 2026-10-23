@@ -300,13 +300,16 @@ impl DumpItem {
     }
 }
 
-/// `RAPIDR_TEST_DUMP`'s list; items without a `.` are dropped.
+/// `RAPIDR_TEST_DUMP`'s list; items without a `.` are dropped. The
+/// component is up to the first `.` (no name has one): the rest is the
+/// property as the program reads it, a sub-object's member too
+/// (`status.panel(2).caption`, `lbl.font.color`).
 pub fn parse_dump(list: &str) -> Vec<DumpItem> {
     list.split(',')
         .map(str::trim)
         .filter(|p| !p.is_empty())
         .filter_map(|p| {
-            let (comp, prop) = p.rsplit_once('.')?;
+            let (comp, prop) = p.split_once('.')?;
             Some(DumpItem { label: p.to_string(), comp: comp.to_string(), prop: prop.to_string() })
         })
         .collect()
@@ -594,6 +597,9 @@ mod tests {
         assert_eq!(lines, ["lbl.caption=lbl:caption", "frm.__shown=1", "t.enabled=t:enabled"]);
         let lines = dump_lines(&parse_dump("x.__shown"), |_| false, |_, _| unreachable!());
         assert_eq!(lines, ["x.__shown=0"]);
+        // (a sub-object's member: the component is up to the first dot)
+        let lines = dump_lines(&parse_dump("status.panel(2).caption"), |_| false, |c, p| format!("{c}|{p}"));
+        assert_eq!(lines, ["status.panel(2).caption=status|panel(2).caption"]);
     }
 
     #[test]

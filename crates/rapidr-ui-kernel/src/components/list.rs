@@ -1229,6 +1229,94 @@ mod tests {
         assert!(!lists(f.take_events()).iter().any(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "onundo")));
     }
 
+    /// (POLISH-2: RapidR's OnCopy) Ctrl+C — ⌘C on a Mac, the shortcut key
+    /// OnKeyDown's Shift state can't say — on a tree that isn't editing: the
+    /// program's (RapidR Studio's Variables copy the value); the Ctrl key
+    /// alone on a Mac, or C with Alt, isn't it; while a node is edited, the
+    /// editor's own copy.
+    #[test]
+    fn cmd_c_on_a_tree_is_its_programs_copy() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        let copies = |events: Vec<KernelEvent>| lists(events).iter().filter(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "oncopy")).count();
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 1, "⌘C");
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 1, "Ctrl+C elsewhere (the shortcut key)");
+        key(&mut f, &s, &mut ts, 67, Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, alt: true, ..Mods::NONE }, &mut clip);
+        key(&mut f, &s, &mut ts, 67, Mods::NONE, &mut clip);
+        assert_eq!(copies(f.take_events()), 0);
+        super::super::tree::open_editor("tv", 0, "one");
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 0, "the node's editor copies its own text");
+    }
+
+    /// (POLISH-2, Database Studio's tree) A tree whose rows don't fit:
+    /// the wheel (or the bar dragged to its end) scrolls until the last row
+    /// shows whole, and the bar's thumb is at the bottom just then — the
+    /// view isn't a whole number of rows tall, and rows scroll a whole row
+    /// at a time; End selects the last row and scrolls to it, Home back up;
+    /// at 1× and 2×.
+    #[test]
+    fn a_trees_last_row_scrolls_into_view_whole() {
+        for scale in [1.0, 2.0] {
+            let (s, mut f, mut ts) = form(|s| {
+                // (a view of 196 pixels: 12¼ rows of 16)
+                s.add("tv", "RTREEVIEW", Some("f")).set("tv", "width", v_int(200)).set("tv", "height", v_int(200));
+                s.call("tv", "additems", &[v_str("bookshop.db")]);
+                for k in 1..=47 {
+                    s.call("tv", "addchilditems", &[v_int(0), v_str(&format!("table_{k}"))]);
+                }
+                s.call("tv", "additems", &[v_str("shop.csv (CSV)")]);
+            });
+            rapidr_value::objects::with_tree("tv", |t| t.nodes[0].expanded = true);
+            f.focus_id(&s, "tv");
+            drop(f.paint(&s, &mut ts, scale));
+            let last = 48;
+            // (where the last row is, from the tree's top edge, and where its rows end)
+            let shown = || rapidr_value::objects::with_tree("tv", |t| (t.row_top(last), t.top_index)).unwrap();
+            for _ in 0..20 {
+                f.mouse_wheel(&s, &mut ts, (100.0, 100.0), (0.0, 5.0), Mods::NONE);
+                drop(f.paint(&s, &mut ts, scale));
+            }
+            let (top, first) = shown();
+            assert!(top >= 2 && top + 16 <= 198, "at {scale}×: the last row whole in the view (its top at {top}, TopIndex {first})");
+            assert_eq!(first, 37, "at {scale}×: scrolled by 37 rows: 49 rows of 16 in 196 (36¾ would cut the last)");
+            let (pos, _, _) = super::vscroll_state("tv");
+            assert_eq!(pos, 37 * 16, "at {scale}×: the bar at its end just then");
+            // (the wheel further: nothing more)
+            f.mouse_wheel(&s, &mut ts, (100.0, 100.0), (0.0, 5.0), Mods::NONE);
+            drop(f.paint(&s, &mut ts, scale));
+            assert_eq!(shown().1, 37);
+            // Home, then End: the selection there, its row in view (the
+            // runtime selects what the keys ask: ListAction::TreeSelect)
+            let mut clip = crate::MemClipboard::default();
+            for (vk, want) in [(36, 0), (35, last)] {
+                key(&mut f, &s, &mut ts, vk, Mods::NONE, &mut clip);
+                let asked = lists(f.take_events()).into_iter().find_map(|e| match e {
+                    KernelEvent::List(_, ListAction::TreeSelect(n)) => Some(n),
+                    _ => None,
+                });
+                assert_eq!(asked, Some(want));
+                rapidr_value::objects::with_tree("tv", |t| t.select(want as i64));
+                drop(f.paint(&s, &mut ts, scale));
+                let top = rapidr_value::objects::with_tree("tv", |t| t.row_top(want)).unwrap();
+                assert!(top >= 2 && top + 16 <= 198, "at {scale}×: key {vk}: row {want} in view (its top at {top})");
+            }
+            // (the program's TopIndex after a selection: the program's)
+            rapidr_value::objects::with_tree("tv", |t| {
+                t.select(0);
+                t.set("topindex", &v_int(10));
+            });
+            drop(f.paint(&s, &mut ts, scale));
+            assert_eq!(shown().1, 10);
+            assert_eq!(super::super::tree::scroll_rows(49, 16, 196), 37);
+            assert_eq!(super::super::tree::scroll_rows(49, 16, 420), 23);
+            assert_eq!(super::super::tree::scroll_rows(12, 16, 196), 0);
+        }
+    }
+
     #[test]
     fn a_tree_nodes_editor_is_the_text_editor() {
         let (s, mut f, mut ts) = tree_form();

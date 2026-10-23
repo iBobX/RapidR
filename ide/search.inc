@@ -575,6 +575,7 @@ SUB OpenResult(i AS INTEGER, Focus AS INTEGER)
     ' the lines before)
     CodeDoc(d).GotoLineColumn HitLine(i), HitCol(i)
     CodeDoc(d).SelLength = HitLen(i)
+    EditorFacts d
   END IF
   ' (a click keeps the keys in the results: the next one with the arrows)
   IF Focus = 0 THEN SearchTree.SetFocus
@@ -790,6 +791,8 @@ SUB NavGo(f AS STRING, L AS INTEGER, C AS INTEGER)
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane(DocPane(d))
   CodeDoc(d).GotoLineColumn L, C
+  ' (the status bar's Ln follows the jump: a program's caret move has no OnChange)
+  EditorFacts d
 END SUB
 
 ' Go to Definition (F12, Edit, the code's context menu): where the name at

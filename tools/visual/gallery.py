@@ -342,18 +342,39 @@ def studio_jobs(scenes, looks, scales):
 
 
 # (the AI scenes' provider has an address on the screen — Settings, the panel's
-# footer, the steps' echo in Output —: the same one every run)
+# footer, the steps' echo in Output —: the approved images show this port)
 STUDIO_MOCK_PORT = 18695
 
 
 def start_mock():
-    """The AI mock provider (tests/ai_mock_server.mjs) in a process of its own: it and its URL."""
-    proc = subprocess.Popen(["node", os.path.join(ROOT, "tests", "ai_mock_server.mjs"), str(STUDIO_MOCK_PORT)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
-    url = proc.stdout.readline().strip()
-    if not url.startswith("http"):
+    """The AI mock provider (tests/ai_mock_server.mjs) in a process of its own: it and its URL.
+
+    Each run has its own: on the approved images' port when it's free, else
+    on a free port the system picks (another run — another lane's — has it),
+    the scenes' Base URL following it ({mock})."""
+    for port in (STUDIO_MOCK_PORT, 0):
+        proc = subprocess.Popen(["node", os.path.join(ROOT, "tests", "ai_mock_server.mjs"), str(port)], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        url = proc.stdout.readline().strip()
+        if url.startswith("http"):
+            return proc, url
         proc.kill()
-        sys.exit(f"tests/ai_mock_server.mjs didn't start: node is needed for the AI scenes, and port {STUDIO_MOCK_PORT} free")
-    return proc, url
+        proc.wait()
+    sys.exit("tests/ai_mock_server.mjs didn't start: node is needed for the AI scenes")
+
+
+def mock_port(url):
+    """The port in the mock's URL (http://127.0.0.1:PORT/v1)."""
+    m = re.match(r"https?://[^/:]+:(\d+)", url or "")
+    return int(m.group(1)) if m else None
+
+
+def mock_elsewhere(scene, mock_url):
+    """Why `scene` can't be compared with its approved images this run (its
+    mock's address shows on it, and isn't theirs), or None."""
+    port = mock_port(mock_url)
+    if scene.get("mock") and port is not None and port != STUDIO_MOCK_PORT:
+        return f"not compared: the AI mock is on port {port} this run (another run has {STUDIO_MOCK_PORT}, the approved images' address); run it again when that one is done"
+    return None
 
 
 def studio_capture_one(scene, look, scale, mock_url, work_root):
@@ -385,6 +406,8 @@ def studio_capture_one(scene, look, scale, mock_url, work_root):
         "RAPIDR_REGISTRY": os.path.join(tmp, "registry.reg"),
         # (the AI assistant: keys in memory only, none from this shell, its log the run's)
         "RAPIDR_AI_KEYSTORE": "memory",
+        # (RSecrets too: nothing reaches the system's keychain)
+        "RAPIDR_KEYSTORE": "memory",
         "RAPIDR_AI_AUDIT": os.path.join(tmp, "ai-audit.jsonl"),
         "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "", "DEEPSEEK_API_KEY": "", "ANTHROPIC_WORKSPACE_ID": "",
     })
@@ -469,10 +492,25 @@ def studio_write_compare(img, golden_path, mask, look, scene, scale):
     return base + "-compare.png", zoom, (base + "-diff.png" if changed else None)
 
 
+def studio_capture_elsewhere(job, mock_url, work_root, why):
+    """A scene whose mock moved to another port: run and captured all the same
+    (its Base URL follows the mock), kept beside the others as
+    <scene>@<s>x-other-port.png — never where `approve` takes images from."""
+    scene, look, scale = job
+    img = studio_capture_one(scene, look, scale, mock_url, work_root)
+    if img is None:
+        return dict(job=job, ok=False, why="no capture (Studio didn't start, or that window isn't there)", retakes=0)
+    studio_save_png(img, studio_out_path(look, scene["name"], scale)[: -len(".png")] + "-other-port.png")
+    return dict(job=job, ok=True, skipped=why, retakes=0)
+
+
 def studio_run_job(job, mock_url, work_root):
     """One scene in one look at one scale: captured (taken again if it differs), compared with its approved image."""
     scene, look, scale = job
     name = scene["name"]
+    elsewhere = mock_elsewhere(scene, mock_url)
+    if elsewhere:
+        return studio_capture_elsewhere(job, mock_url, work_root, elsewhere)
     golden = studio_golden_path(look, name, scale)
     shown = None  # the last capture that was made, and why it isn't the approved image
     for attempt in range(STUDIO_RETAKES + 1):
@@ -482,7 +520,7 @@ def studio_run_job(job, mock_url, work_root):
         why = studio_compare(img, golden)
         if why is None:
             studio_save_png(img, studio_out_path(look, name, scale))
-            for stale in ("-compare.png", "-zoom.png", "-diff.png"):
+            for stale in ("-compare.png", "-zoom.png", "-diff.png", "-other-port.png"):
                 f = os.path.join(STUDIO_OUT, look, f"{name}@{scale}x{stale}")
                 if os.path.exists(f):
                     os.remove(f)
@@ -515,6 +553,9 @@ def studio_run(scenes, looks, scales, jobs, capture_only=False):
 
     def capture(job):
         scene, look, scale = job
+        elsewhere = mock_elsewhere(scene, mock_url)
+        if elsewhere:
+            return studio_capture_elsewhere(job, mock_url, work_root, elsewhere)
         img = studio_capture_one(scene, look, scale, mock_url, work_root)
         if img is not None:
             studio_save_png(img, studio_out_path(look, scene["name"], scale))
@@ -651,6 +692,10 @@ def studio_main(rest):
         print(f"sheet: {sheet_path}")
         return 0
     failed = [r for r in results if not r["ok"]]
+    skipped = [r for r in results if r.get("skipped")]
+    for r in skipped:
+        sc, look, s = r["job"]
+        print(f"  - {look}/{sc['name']}@{s}x: {r['skipped']}")
     for r in results:
         sc, look, s = r["job"]
         if r["ok"] and r["retakes"]:
@@ -670,7 +715,8 @@ def studio_main(rest):
     if bad:
         print(f"studio goldens: {bad} differences (a deliberate change: look at the images, then `tools/visual/gallery.py studio approve <scene>`)")
     else:
-        print(f"studio goldens: {len(results)} captures match their approved images")
+        note = f" ({len(skipped)} not compared: the AI mock's port)" if skipped else ""
+        print(f"studio goldens: {len(results) - len(skipped)} captures match their approved images{note}")
     return 1 if bad else 0
 
 

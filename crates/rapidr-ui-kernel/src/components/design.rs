@@ -98,11 +98,29 @@ pub struct DesignStore {
     mem: MemStore,
     /// What each component starts with (the runtimes' creation defaults).
     defaults: HashMap<String, HashMap<String, Value>>,
+    /// (POLISH-2) The designed program's folder, where the pictures it
+    /// names by file are read (`BMP = "logo.png"`, `Load "logo.svg"`) —
+    /// nothing outside it; None: no file is read (a [`Picture`]'s preview,
+    /// a program not saved yet).
+    folder: Option<String>,
 }
 
 impl DesignStore {
     fn new() -> Self {
-        DesignStore { mem: MemStore::new(), defaults: HashMap::new() }
+        DesignStore { mem: MemStore::new(), defaults: HashMap::new(), folder: None }
+    }
+
+    /// A picture property's or Load's file as the store reads it: the
+    /// path in the designed program's folder (`Some(None)`: not one — a
+    /// data URL, a handle, a component's picture —, as it is); `None` when
+    /// it isn't read at design time (outside the folder, or no folder).
+    fn picture_file(&self, val: &Value) -> Option<Option<String>> {
+        let Value::String(s) = val else { return Some(None) };
+        if s.is_empty() || s.starts_with("data:") || rapidr_value::objects::exists(s) {
+            return Some(None);
+        }
+        let base = self.folder.as_deref()?;
+        rapidr_value::datascience::link::design_path(base, s).ok().map(Some)
     }
 
     /// A component made, as the runtimes make one.
@@ -157,6 +175,18 @@ impl DesignStore {
         if matches!(prop.as_str(), "font.color" | "fontcolor") {
             self.mem.set(id, "__fontcolorset", Value::Boolean(true));
         }
+        // (POLISH-2: a picture named by its file — an RImage's BMP — read
+        // from the designed program's folder, where the program finds it
+        // beside itself; one that isn't read stays text)
+        let picture = rapidr_lang::component(type_name).and_then(|c| c.property(&prop)).is_some_and(|p| p.ty == rapidr_lang::Type::Picture);
+        let val = match (picture, self.picture_file(&val)) {
+            (false, _) | (true, Some(None)) => val,
+            (true, Some(Some(path))) => v_str(&path),
+            (true, None) => {
+                self.mem.set(id, &prop, val);
+                return;
+            }
+        };
         if rapidr_value::objects::exists(id) && rapidr_value::objects::set(id, &prop, &val).is_some_and(|r| r.is_ok()) {
             return;
         }
@@ -183,7 +213,17 @@ impl DesignStore {
     fn call(&mut self, id: &str, type_name: &str, method: &str, args: &[Value]) {
         let method = method.to_ascii_lowercase();
         let reader = |_: &str, _: &str| Value::Null;
-        if rapidr_value::objects::call(id, &method, args, &reader).is_some() {
+        // (POLISH-2: an RImage's `Load "logo.svg"` — the file in the
+        // designed program's folder, or not read)
+        let mut args = args.to_vec();
+        if type_name == "RIMAGE" && method == "load" {
+            match args.first().map(|a| self.picture_file(a)) {
+                Some(Some(Some(path))) => args[0] = v_str(&path),
+                Some(Some(None)) => {}
+                _ => return,
+            }
+        }
+        if rapidr_value::objects::call(id, &method, &args, &reader).is_some() {
             return;
         }
         if let Some((sub, member)) = method.split_once('.') {
@@ -197,14 +237,14 @@ impl DesignStore {
         match (type_name, method.as_str()) {
             ("RSTATUSBAR", "addpanels") => {
                 let mut n = self.raw(id, "panelcount").to_i64().max(0);
-                for a in args {
+                for a in &args {
                     self.set(id, type_name, &format!("panel({n}).caption"), v_str(&a.to_string_val()));
                     n += 1;
                 }
                 self.set(id, type_name, "panelcount", v_int(n));
             }
             ("RFORM", "addbordericons" | "delbordericons") => {
-                let bits = rapidr_value::builtins::border_icons(&self.raw(id, "bordericons"), args, method == "addbordericons");
+                let bits = rapidr_value::builtins::border_icons(&self.raw(id, "bordericons"), &args, method == "addbordericons");
                 self.set(id, type_name, "bordericons", bits);
             }
             _ => {}
@@ -464,6 +504,9 @@ impl View {
             link::design_resources(surface, &resources);
             link::design_build(surface, &folder, design);
         }
+        // (POLISH-2: its pictures named by file, from that folder too — a
+        // saved program's, a live surface's)
+        self.store.folder = (live && !folder.is_empty()).then(|| folder.clone());
         let root = design.root();
         for id in design.ids() {
             let Some(n) = design.node(id) else { continue };
@@ -507,6 +550,24 @@ impl View {
             let ty = self.store.mem.type_of(&id);
             if !ty.is_empty() {
                 self.store.set(&id, &ty, &prop, v);
+            }
+        }
+        // (POLISH-2: a picture the program loads right after its form —
+        // `Logo.Load "logo.svg"`, `Logo.BMP = "logo.png"` at the top level,
+        // a file named in quotes — shows as it will)
+        if self.store.folder.is_some() {
+            let source = with_design(surface, |d| d.get("source").map(|v| v.to_string_val()).unwrap_or_default()).unwrap_or_default();
+            for (name, member, file) in rapidr_value::objects::design::picture_loads(&source) {
+                let k = key(surface, &name);
+                let ty = self.store.mem.type_of(&k);
+                if ty.is_empty() {
+                    continue;
+                }
+                if member == "load" {
+                    self.store.call(&k, &ty, "load", &[v_str(&file)]);
+                } else {
+                    self.store.set(&k, &ty, &member, v_str(&file));
+                }
             }
         }
         self.form = key(surface, &design.node(root).map(|n| n.name.clone()).unwrap_or_default());

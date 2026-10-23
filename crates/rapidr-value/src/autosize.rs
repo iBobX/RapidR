@@ -163,18 +163,24 @@ fn average_char_width(font: &Font) -> i64 {
 /// line at Width 200); a word wider than `width` is a line of its own, not
 /// cut. Spaces starting the next line are skipped.
 fn wrap_line(line: &str, font: &Font, width: i64) -> Vec<String> {
+    wrap_line_by(line, width as f64, &mut |s| line_width(s, font) as f64)
+}
+
+/// [`wrap_line`] with the widths `width_of` gives (in pixels): a host's
+/// own measure of the text as it draws it.
+fn wrap_line_by(line: &str, width: f64, width_of: &mut dyn FnMut(&str) -> f64) -> Vec<String> {
     let chars: Vec<char> = line.chars().collect();
     let mut out = Vec::new();
     let mut start = 0;
     loop {
         let rest: String = chars[start..].iter().collect();
-        if line_width(&rest, font) <= width || start >= chars.len() {
+        if start >= chars.len() || width_of(&rest) <= width {
             out.push(rest);
             return out;
         }
         // (how many characters fit)
         let mut n = 0;
-        while start + n < chars.len() && line_width(&chars[start..start + n + 1].iter().collect::<String>(), font) <= width {
+        while start + n < chars.len() && width_of(&chars[start..start + n + 1].iter().collect::<String>()) <= width {
             n += 1;
         }
         let end = if chars[start + n] == ' ' {
@@ -204,11 +210,19 @@ fn wrap_line(line: &str, font: &Font, width: i64) -> Vec<String> {
 /// broken at CR LF / CR / LF, and wrapped to `wrap` pixels with WordWrap —
 /// what `text_extent` measures, for drawing.
 pub fn lines(caption: &str, font: &Font, wrap: Option<i64>) -> Vec<String> {
+    lines_by(caption, wrap.map(|w| w as f64), &mut |s| line_width(s, font) as f64)
+}
+
+/// (POLISH-2) [`lines`] wrapped by the widths `width_of` gives, in
+/// logical pixels: the text measured as the host draws it (its face, at
+/// the screen's scale — a modern theme's Inter at 2× rounds each glyph to
+/// the device's pixels), so no line is drawn wider than the label.
+pub fn lines_by(caption: &str, wrap: Option<f64>, width_of: &mut dyn FnMut(&str) -> f64) -> Vec<String> {
     let text = shown(caption);
     let mut lines = Vec::new();
     for para in text.replace("\r\n", "\n").replace('\r', "\n").split('\n') {
         match wrap {
-            Some(w) => lines.extend(wrap_line(para, font, w)),
+            Some(w) => lines.extend(wrap_line_by(para, w, width_of)),
             None => lines.push(para.to_string()),
         }
     }

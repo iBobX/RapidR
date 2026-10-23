@@ -64,6 +64,10 @@ pub struct Document {
     pub auto_indent: bool,
     version: u64,
     saved: Option<usize>,
+    /// The saved text's length and hash: an edit that puts back what was
+    /// saved (an undo across a branch, a character typed and deleted)
+    /// leaves the document not modified.
+    saved_print: (usize, u64),
     text_cache: OnceLock<Arc<str>>,
     last_typed: Option<CharClass>,
     /// Every change set applied since the last [`Document::take_applied`]
@@ -73,6 +77,14 @@ pub struct Document {
     /// The lines each applied change replaced, in order: (first line, lines
     /// before, lines after) — what a view's per-line caches splice.
     applied_lines: Vec<(usize, usize, usize)>,
+}
+
+/// A text's length and hash (what [`Document::is_modified`] compares).
+fn fingerprint(text: &str) -> (usize, u64) {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    text.hash(&mut h);
+    (text.len(), h.finish())
 }
 
 impl Clone for Document {
@@ -90,6 +102,7 @@ impl Clone for Document {
             auto_indent: self.auto_indent,
             version: self.version,
             saved: self.saved,
+            saved_print: self.saved_print,
             text_cache: OnceLock::new(),
             last_typed: self.last_typed,
             applied: self.applied.as_ref().map(|_| Vec::new()),
@@ -108,8 +121,10 @@ impl Document {
     /// A document holding `text` (its line ending detected), coloured as
     /// `lang`.
     pub fn new(text: &str, lang: Arc<Language>) -> Self {
+        let buffer = RopeBuffer::new(text);
+        let saved_print = fingerprint(&buffer.text());
         Document {
-            buffer: RopeBuffer::new(text),
+            buffer,
             line_ending: LineEnding::detect(text),
             selections: Selections::default(),
             history: History::new(),
@@ -121,6 +136,7 @@ impl Document {
             auto_indent: true,
             version: 0,
             saved: Some(0),
+            saved_print,
             text_cache: OnceLock::new(),
             last_typed: None,
             applied: None,
@@ -220,14 +236,22 @@ impl Document {
         self.history.can_redo()
     }
 
-    /// Whether the text differs from the last save (or load).
+    /// Whether the text differs from the last save (or load): not at the
+    /// revision saved, and not the same text either.
     pub fn is_modified(&self) -> bool {
-        self.saved != Some(self.history.current())
+        if self.saved == Some(self.history.current()) {
+            return false;
+        }
+        // (the length first: the text is hashed only when it could match)
+        self.len_bytes() != self.saved_print.0 || fingerprint(&self.text()) != self.saved_print
     }
 
-    /// The text was saved as it is now.
+    /// The text was saved as it is now (the next edit is an undo step of
+    /// its own: typing on right after a save is a change).
     pub fn mark_saved(&mut self) {
+        self.history.seal();
         self.saved = Some(self.history.current());
+        self.saved_print = fingerprint(&self.text());
     }
 
     /// Heap bytes the document takes, approximately (rope, colouring states,
