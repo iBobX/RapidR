@@ -448,6 +448,12 @@ impl ComponentKind for Tree {
             fire(cx, "onundo", Vec::new());
             return true;
         }
+        // (POLISH-2: RapidR's OnCopy — Ctrl+C, ⌘C on a Mac, which OnKeyDown's
+        // Shift state can't say — for the program to copy what it shows)
+        if k.vk == 67 && k.mods.command && !k.mods.shift && !k.mods.alt {
+            fire(cx, "oncopy", Vec::new());
+            return true;
+        }
         if k.mods.alt || k.mods.command {
             return false;
         }

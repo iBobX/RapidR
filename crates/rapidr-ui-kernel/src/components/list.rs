@@ -1229,6 +1229,29 @@ mod tests {
         assert!(!lists(f.take_events()).iter().any(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "onundo")));
     }
 
+    /// (POLISH-2: RapidR's OnCopy) Ctrl+C — ⌘C on a Mac, the shortcut key
+    /// OnKeyDown's Shift state can't say — on a tree that isn't editing: the
+    /// program's (RapidR Studio's Variables copy the value); the Ctrl key
+    /// alone on a Mac, or C with Alt, isn't it; while a node is edited, the
+    /// editor's own copy.
+    #[test]
+    fn cmd_c_on_a_tree_is_its_programs_copy() {
+        let (s, mut f, mut ts) = tree_form();
+        let mut clip = crate::MemClipboard::default();
+        let copies = |events: Vec<KernelEvent>| lists(events).iter().filter(|e| matches!(e, KernelEvent::List(_, ListAction::Fire(n, _)) if n == "oncopy")).count();
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 1, "⌘C");
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 1, "Ctrl+C elsewhere (the shortcut key)");
+        key(&mut f, &s, &mut ts, 67, Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, alt: true, ..Mods::NONE }, &mut clip);
+        key(&mut f, &s, &mut ts, 67, Mods::NONE, &mut clip);
+        assert_eq!(copies(f.take_events()), 0);
+        super::super::tree::open_editor("tv", 0, "one");
+        key(&mut f, &s, &mut ts, 67, Mods { command: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copies(f.take_events()), 0, "the node's editor copies its own text");
+    }
+
     #[test]
     fn a_tree_nodes_editor_is_the_text_editor() {
         let (s, mut f, mut ts) = tree_form();
