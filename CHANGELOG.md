@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Windows 7 / 8 (development: not in a release yet)
+- `tools/win7/`: `rapidr.exe` builds from the Mac for the Windows 7 targets (`i686-win7-windows-gnu`, `x86_64-win7-windows-gnu`; nightly Rust + LLVM-MinGW, msvcrt flavour): `build.sh`, `imports.py` (what the .exe needs at start-up; flags what Windows 7 lacks), `stage.sh` (the test drop and its disc image), `serve.sh` (host-only, read-only), `tests/` (console and window smoke tests). The 32-bit system-tray code compiles (`NOTIFYICONDATAW` is packed there). The few functions only Windows 8 and later has (`RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix`, `CoIncrementMTAUsage`, `combase.dll`) are loaded on first use on those builds, so Windows 7 starts the program.
+
 ## [2.121.0] — 2026-10-23 (Preview 4: Studio, solid)
 
 ### Legal

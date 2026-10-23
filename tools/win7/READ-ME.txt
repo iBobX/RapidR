@@ -1,0 +1,41 @@
+RapidR for Windows 7 (32-bit): first test drop
+==============================================
+
+What this is: rapidr.exe built for Windows 7 / 8 / 8.1 (32-bit), RapidR
+Studio's files, and a few test programs. Nothing here installs anything.
+
+1. Put the files on the PC
+   - From the disc: copy the folder  D:\rapidr  to  C:\   (so C:\rapidr\rapidr.exe exists).
+     The disc is read-only, which is why it is copied.
+   - From the browser (host-only network): download  rapidr-win7.zip , right-click it,
+     Extract All, into C:\  (so C:\rapidr\rapidr.exe exists).
+   - Same, typed in a Command Prompt (PowerShell 2.0 is part of Windows 7; ADDR is
+     the address tools/win7/serve.sh prints, 192.168.128.1 so far):
+       powershell -NoProfile -Command "(New-Object Net.WebClient).DownloadFile('http://ADDR:8099/rapidr-win7.zip','C:\rapidr-win7.zip')"
+       powershell -NoProfile -Command "$s=New-Object -ComObject Shell.Application; $s.NameSpace('C:\').CopyHere($s.NameSpace('C:\rapidr-win7.zip').Items(),16)"
+     Then  C:\rapidr\tests\run-tests.bat
+
+2. The smoke tests (about 1 minute)
+   Double-click  C:\rapidr\tests\run-tests.bat
+   It runs: rapidr version; a console program; the language tour; a window
+   (twice: default renderer, and the CPU renderer). Each window closes by
+   itself after 20 seconds; click "Greet" while it is open. Everything is
+   written to  C:\rapidr\tests\results.txt  and shown at the end.
+
+3. RapidR Studio
+   Double-click  C:\rapidr\tests\run-studio.bat
+
+If rapidr.exe does not start at all, Windows names the missing DLL or
+"procedure entry point": a photo or the exact words are the whole report.
+
+QEMU guest agent (lets the Mac run commands in this PC; optional)
+-----------------------------------------------------------------
+Files on the disc, folder  guest\ :  virtio-win 0.1.173 (the last build with
+Windows 7 drivers), from the official virtio-win archive.
+  a. Device Manager: look for "PCI Simple Communications Controller" (yellow
+     mark). Right-click, Update Driver Software, Browse my computer,
+     D:\guest\vioserial\w7\x86  . (None? Then the VM has no virtio-serial
+     port and the agent cannot work: tell Claude.)
+  b. Run  D:\guest\guest-agent\qemu-ga-i386.msi  (Next, Next, Finish). It adds
+     the service "QEMU Guest Agent", started automatically.
+  c. On the Mac:  utmctl exec "Windows 7 x86" --cmd "cmd.exe /c ver"

@@ -356,9 +356,14 @@ mod win {
                 data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
                 data.uCallbackMessage = CALLBACK;
                 data.hIcon = item.hicon;
-                for (d, s) in data.szTip.iter_mut().zip(item.shown.0.encode_utf16().take(127)) {
+                // (On 32-bit Windows NOTIFYICONDATAW is `packed`: no reference
+                // into a field, so fill a local array and copy it in. Same
+                // result on every target.)
+                let mut tip = [0u16; 128];
+                for (d, s) in tip.iter_mut().zip(item.shown.0.encode_utf16().take(127)) {
                     *d = s;
                 }
+                data.szTip = tip;
                 Shell_NotifyIconW(message, &data);
             }
         }

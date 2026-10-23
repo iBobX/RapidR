@@ -888,6 +888,7 @@ Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Prev
 ## RapidR for old PCs — Windows 7, 8 and 8.1, 32-bit and 64-bit (Robert, 2026-10-23; first after the Preview 4 launch)
 Asked on the RapidQ group by someone learning on a Windows 8.1 32-bit PC. Students and people on older PCs are who RapidR is for.
 - [ ] Spike: RapidR Studio and the interpreted runtime for `i686-win7-windows-msvc` / `x86_64-win7-windows-msvc` (Rust's Windows 7+ targets: tier 3, nightly + build-std; the standard targets need Windows 10 since Rust 1.78) — what builds, what each dependency needs (winit, AccessKit, the keychain, TLS through SChannel), a CPU-only drawing path for old graphics (as the web's)
+- WIN7-1 (2026-10-23): `rapidr.exe` for `i686-win7-windows-gnu` builds on the Mac (`tools/win7/`, LLVM-MinGW msvcrt); its start-up imports are all Windows 7 functions (the five Windows 8+ ones are delay-loaded, `crates/rapidr-cli/src/win7.rs`). Not yet run in the VM.
 - [ ] Test machine: Windows 7 32-bit in UTM on the external SSD (Robert's own licence; the VM offline, files through a shared folder) — correctness there, speed on a real old PC
 - [ ] Ship it: an SDK for Windows 7/8.1 (Studio + interpreted builds, nothing else to install), in the release process beside the others
 - [ ] Native apps for those PCs through Export anywhere (M7): a ready-made 32-bit runner, no Rust on the old PC
