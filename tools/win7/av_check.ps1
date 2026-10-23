@@ -18,8 +18,9 @@ $ErrorActionPreference = 'Continue'
 $bd = 'C:\ProgramData\Bitdefender\Desktop\Quarantine'
 
 if ($Dir -ne 'C:\rapidr-win7-av') { throw "refusing: -Dir must be C:\rapidr-win7-av (only that folder is ever emptied)" }
-$busy = Get-Process -Name cargo, rustc, rapidr-release -ErrorAction SilentlyContinue
-if ($busy) { "A release job is running in the VM (" + (($busy | Select-Object -Expand Name -Unique) -join ', ') + "): not now."; exit 3 }
+# (a release build or smoke test: tools/release/windows-vm.sh starts them as scripts\job.ps1; or a build is running)
+$busy = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -in 'cargo.exe', 'rustc.exe' -or $_.CommandLine -like '*rapidr-release\scripts\job.ps1*' })
+if ($busy.Count) { "A release job is running in the VM ($(($busy | Select-Object -Expand Name -Unique) -join ', ')): not now."; exit 3 }
 
 function Snapshot {
     $items = Get-ChildItem $bd -File -ErrorAction SilentlyContinue | ForEach-Object { "{0}|{1}|{2}" -f $_.Name, $_.Length, $_.LastWriteTimeUtc.Ticks }
