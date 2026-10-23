@@ -25,6 +25,9 @@ mod notices;
 mod package;
 mod serve;
 mod setup;
+// (Windows 7 builds: the few functions only Windows 8 and later has)
+#[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
+mod win7;
 
 use home::Home;
 
@@ -118,6 +121,8 @@ fn take_include_dirs(args: &mut Vec<String>) {
 }
 
 fn main() -> ExitCode {
+    #[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
+    win7::install();
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
     take_include_dirs(&mut args);
