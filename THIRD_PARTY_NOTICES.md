@@ -536,8 +536,8 @@ their `OFL.txt`.
 | sqlite-wasm-rs | 0.5.5 | <https://github.com/Spxg/sqlite-wasm-rs> |
 | strict-num | 0.1.1 | <https://github.com/RazrFalcon/strict-num> |
 | synstructure | 0.13.2 | <https://github.com/mystor/synstructure> |
-| tokio | 1.50.0 | <https://github.com/tokio-rs/tokio> |
-| tokio-macros | 2.6.1 | <https://github.com/tokio-rs/tokio> |
+| tokio | 1.54.1 | <https://github.com/tokio-rs/tokio> |
+| tokio-macros | 2.7.2 | <https://github.com/tokio-rs/tokio> |
 | tokio-util | 0.7.18 | <https://github.com/tokio-rs/tokio> |
 | tower | 0.5.3 | <https://github.com/tower-rs/tower> |
 | tower-http | 0.5.2 | <https://github.com/tower-rs/tower-http> |
