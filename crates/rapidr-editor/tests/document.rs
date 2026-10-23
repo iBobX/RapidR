@@ -19,6 +19,44 @@ fn at(doc: &mut Document, pos: usize) {
     doc.set_selections(Selections::caret(pos));
 }
 
+/// (POLISH-2) Modified follows the text against what was saved: undo back
+/// to it clears it, redo away marks it again; the same text reached
+/// another way (a character typed and deleted) isn't a change; typing on
+/// right after a save (within one typing step) is one.
+#[test]
+fn modified_is_the_text_against_the_saved_one() {
+    let mut d = basic("PRINT 1\n");
+    assert!(!d.is_modified());
+    d.set_selections(Selections::caret(7));
+    d.type_text("2", 0).unwrap();
+    d.type_text("3", 50).unwrap();
+    d.mark_saved();
+    assert!(!d.is_modified());
+    d.type_text("4", 100).unwrap();
+    assert!(d.is_modified(), "typed on within the step after the save");
+    assert!(d.undo());
+    assert_eq!(&*d.text(), "PRINT 123\n");
+    assert!(!d.is_modified(), "undone back to the saved text");
+    assert!(d.redo());
+    assert!(d.is_modified(), "redone away from it");
+    assert!(d.undo());
+    assert!(d.undo());
+    assert_eq!(&*d.text(), "PRINT 1\n");
+    assert!(d.is_modified(), "undone past the save");
+    // (the saved text again, another way: typed back, not redone)
+    d.set_selections(Selections::caret(7));
+    d.type_text("23", 1000).unwrap();
+    assert_eq!(&*d.text(), "PRINT 123\n");
+    assert!(!d.is_modified(), "the same text as saved");
+    d.type_text("x", 2000).unwrap();
+    assert!(d.is_modified());
+    d.backspace(3000).unwrap();
+    assert!(!d.is_modified(), "a character typed and deleted");
+    // (a document made from CRLF text compares as it holds it)
+    let crlf = basic("A\r\nB\r\n");
+    assert!(!crlf.is_modified());
+}
+
 #[test]
 fn typing_and_undo_groups() {
     let mut d = basic("");
