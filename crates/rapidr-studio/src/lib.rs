@@ -229,3 +229,9 @@ mod tests {
         assert!(is_studio_type("rproject") && !is_studio_type("RFORM"));
     }
 }
+
+/// The security regressions (tests/security/, `tools/regress.sh security`):
+/// the assistant's tools never follow a link out of the project (SEC-23).
+#[cfg(test)]
+#[path = "../../../tests/security/ai_tools_symlinks.rs"]
+mod security_regressions;
