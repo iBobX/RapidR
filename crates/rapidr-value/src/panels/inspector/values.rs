@@ -264,7 +264,9 @@ pub fn parse_color(s: &str) -> Option<i64> {
         let rgb = u32::from_str_radix(h, 16).ok().filter(|_| h.len() == 6)?;
         return Some(i64::from(((rgb & 0xFF) << 16) | (rgb & 0xFF00) | (rgb >> 16)));
     }
-    parse_int(t)
+    // (POLISH-2: RGB(250, 246, 238) as the code writes it — the designer's
+    // reader, the colour the program makes)
+    parse_int(t).or_else(|| crate::designer::value::int(t))
 }
 
 /// A runtime's value (or a designer's text) as the value of `kind`, the

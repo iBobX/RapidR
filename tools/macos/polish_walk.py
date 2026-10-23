@@ -196,7 +196,8 @@ def walk(n):
 def ax_find(pid, text, exact=False):
     for w in ax(pid):
         for n in walk(w):
-            for f in ("title", "desc", "value"):
+            # (AccessKit's description is the element's AXHelp)
+            for f in ("title", "desc", "value", "help"):
                 v = str(n.get(f) or "")
                 if (v == text) if exact else (text in v):
                     return n
@@ -326,6 +327,8 @@ def editor_walk():
     check("[editor] Enter: the status bar says Ln 12, Col 1", ax_find(studio, "Ln 12, Col 1", exact=True) is not None)
     # d: a change, undone back to the saved text, redone
     key(studio, KEY["x"])
+    # (the completion list that comes up, closed)
+    key(studio, ESC)
     time.sleep(0.6)
     check("[editor] x typed: the tab says Not saved", until(lambda: ax_find(studio, "Not saved", exact=True), 3) is not None)
     shot_window(studio, "d1-changed")
@@ -354,7 +357,8 @@ def designer_walk(look):
     time.sleep(1.0)
     path = shot_window(studio, f"c-designer-{look}")
     # (the form's face: RGB(250, 246, 238) — a pixel of it, right of the logo)
-    logo = node_with(studio, "Logo")
+    # (the designer's own item for it: "Logo (RImage), 16, 16, 48 × 48")
+    logo = node_with(studio, "Logo (RImage)")
     ok_face = ok_logo = False
     detail = ""
     if path and logo:
@@ -366,6 +370,8 @@ def designer_walk(look):
 
         def px(x, y):
             c = bmp.colorAtX_y_(int((x - w["x"]) * scale), int((y - w["y"]) * scale))
+            if c is None:
+                return (0, 0, 0)
             return tuple(round(v * 255) for v in (c.redComponent(), c.greenComponent(), c.blueComponent()))
         face = px(logo["x"] + logo["w"] + 30, logo["y"] + 4)
         colours = {px(logo["x"] + logo["w"] * i / 8, logo["y"] + logo["h"] * j / 8) for i in range(1, 8) for j in range(1, 8)}
@@ -388,7 +394,7 @@ def debug_walk(look):
     check(f"[debug {look}] Studio in front", wait_front(studio))
     key(studio, F9)
     key(studio, F5)
-    ok = until(lambda: ax_find(studio, "Locals", exact=True), 10)
+    ok = until(lambda: node_with(studio, "Locals"), 10)
     activate(studio)
     shot_window(studio, f"e1-paused-{look}")
     check(f"[debug {look}] F5: paused at 12, Variables shows Locals", ok is not None)
@@ -399,7 +405,7 @@ def debug_walk(look):
     check(f"[debug {look}] F5, it runs on: Call Stack says Running…", ax_find(studio, "Running…", exact=True) is not None)
     check(f"[debug {look}] … and Variables: Running… the values show when it pauses", ax_find(studio, "Running… the values show when it pauses") is not None)
     menu_click(studio, "Debug", "Pause")
-    ok = until(lambda: ax_find(studio, "Locals", exact=True), 8)
+    ok = until(lambda: node_with(studio, "Locals"), 8)
     activate(studio)
     shot_window(studio, f"e3-paused-again-{look}")
     check(f"[debug {look}] Debug ▸ Pause: filled again (Locals), no Running…", ok is not None and ax_find(studio, "Running…", exact=True) is None)

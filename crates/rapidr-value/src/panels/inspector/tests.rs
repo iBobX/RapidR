@@ -60,6 +60,16 @@ fn inspect(host: &Fake, id: &str, target: &str) {
     refresh(host, id);
 }
 
+/// (POLISH-2) A colour the code writes as RGB(…) is that colour in the
+/// Properties panel (it showed the default, clBtnFace).
+#[test]
+fn an_rgb_colour_is_its_colour() {
+    assert_eq!(values::parse_color("RGB(250, 246, 238)"), Some(0xEEF6FA));
+    assert_eq!(values::normalize(&Kind::Color, &Value::String("RGB(250, 246, 238)".into())), Some(Value::Integer(0xEEF6FA)));
+    assert_eq!(values::parse_color("clRed"), Some(0x0000FF));
+    assert_eq!(values::parse_color("RGB(r, 0, 0)"), None);
+}
+
 #[test]
 fn values_are_spelled_three_ways() {
     let align = Kind::Enum(["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"].map(String::from).to_vec());
