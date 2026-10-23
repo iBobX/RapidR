@@ -842,3 +842,40 @@ too.
   until winit's `sctk-adwaita` does.
 - `cargo deny check`: advisories, bans, licences and sources ok.
   `cargo audit`: no warnings. `THIRD_PARTY_NOTICES.md` regenerated.
+
+## 10. The automated checks (X2, Preview 4, 2026-10-22)
+
+**Advisories** (`cargo deny check`, `cargo audit`, both clean again; the
+advisory database of that day had 1,349 entries).
+
+| Advisory | Crate | Reaches a program? | Handled |
+|---|---|---|---|
+| RUSTSEC-2026-0367/0368/0369 | `zip` 0.6.6 | No: `extract()` only, which RapidR never calls (it writes zips: the web bundle, the build server) | Upgraded to 9.0.5 (MIT). Call sites moved to `SimpleFileOptions`; `ZipFile::name()` now returns a `Result` (the security test reads it). Bundles still reproducible, `unzip -t` clean |
+| RUSTSEC-2026-0346 to 0349, 0382 | `rustls` 0.23.45, `rustls-webpki` 0.103.15 | No: in `Cargo.lock` only, through `reqwest`'s optional rustls that no feature enables; `deny.toml` bans `rustls`, `ring` and friends | `Cargo.lock` moved to 0.23.46 / 0.103.16 |
+| RUSTSEC-2026-0370/0371/0372 | `zvariant`, `zbus_names`, `zvariant_derive` | Linux only (`cargo tree --target` macOS or Windows finds nothing): the AT-SPI bridge, the tray, the Secret Service keyring, on the user's own session bus. Unmaintained since zbus 6 absorbed them; no vulnerability | Justified `ignore` entries in `deny.toml` and `.cargo/audit.toml` (kept equal by `tests/security/supply_chain.mjs`). Revisit when `accesskit_unix`, `atspi` or `secret-service` move to zbus 6 (`cargo update --dry-run` says "available: zbus v6") |
+
+The yanked `inout` reported by G0 is not in this `Cargo.lock` (it came with a
+lane's own lock); `cargo deny` reports no yanked crate.
+
+**Fuzzing** (a seeded xorshift generator in each test, no new dependency;
+"never panics, never hangs", 20 s watchdog per input, `RAPIDR_FUZZ_ITERS` and
+`RAPIDR_FUZZ_SEED`; 200,000 inputs of each ran clean):
+
+| Test | Feeds |
+|---|---|
+| `crates/rapidr-parser/tests/fuzz_edits.rs` | edited programs (examples, conformance cases), random soup of the language's words, random bytes, through the preprocessor, lossless lexer, recovering lexer and parser, origin map |
+| `crates/rapidr-project/tests/fuzz_inputs.rs` | `.rrproj` (TOML), web IDE v1 JSON, workspace file, with syntax-keeping edits (paths that climb out, huge numbers, odd names) and byte edits; the strings a project hands on (data URLs, base64, file names, `$INCLUDE` lines). A v1 import must never name a file outside the project folder |
+| `crates/rapidr-editor/tests/fuzz_search.rs` | Find in Files' patterns (compile, find, replace with `$1` templates) over the repository's programs; a list of expensive patterns with a 10 s budget each (the worst, `\pL` repeated, compiles in about 0.35 s in a debug build) |
+
+*Found by fuzzing:* one panic, in `rapidr-preprocessor`
+(`parse_macro_definition`): `$MACRO a) b(c = 1` sliced the parameter list
+backwards. Fixed at the root (a `)` before the `(` is no parameter list), with
+a unit test. Not yet fuzzed: Git objects (Versions G3), the language
+definition files of the editor (`rapidr-editor` `lang/`, shipped files only),
+the translation catalogues.
+
+**Secret scan:** `python3 tools/check_secrets.py` (and
+`tools/check_key_shapes.py`) over every tracked file: private keys,
+certificates, minisign secret keys, key files by name, tokens. Nothing in the
+tree, and nothing in the history for private-key blocks and minisign secret
+keys. Run by `tools/regress.sh` (the `legal`, `words` and `unit` stages).

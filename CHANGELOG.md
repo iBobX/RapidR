@@ -10,7 +10,47 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ### Legal
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
+### Security
+- **`cargo deny check` (advisories, licenses, bans, sources) and `cargo audit`
+  pass again.** `zip` 0.6.6 → 9.0.5 (MIT; the web bundle's and the build
+  server's zip writers, which only write zips: RUSTSEC-2026-0367/0368/0369 are
+  in `extract()`, which RapidR never calls, but 0.6 is gone), with deflate
+  from zlib-rs (already in the tree); the one new crate is `typed-path`
+  0.12.4 (MIT OR Apache-2.0, zip's path type). A bundle is still
+  byte-for-byte reproducible (two builds, one hash) and opens with `unzip -t`. `rustls` 0.23.45 → 0.23.46 and `rustls-webpki`
+  0.103.15 → 0.103.16 in `Cargo.lock` (RUSTSEC-2026-0346 to 0349 and 0382:
+  they are listed there only through an optional feature of `reqwest` that no
+  build turns on, and `deny.toml` bans them, so no program ever carried
+  them). `zbus_names`, `zvariant` and `zvariant_derive` (RUSTSEC-2026-0370 to
+  0372: unmaintained since zbus 6 absorbed them, no vulnerability, Linux
+  D-Bus only: the screen-reader bridge, the tray and the keyring) are
+  justified exceptions in `deny.toml` and `.cargo/audit.toml`, with when to
+  revisit. `tests/security/supply_chain.mjs` pins the new versions;
+  `tools/regress.sh legal` runs all four deny checks, `cargo audit` and the
+  secret scan (`RAPIDR_OFFLINE=1` reads the advisory database already on
+  disk).
+- **Fuzz tests for what reads files and patterns from other people.** A
+  seeded generator (no new dependency) feeds the lexer, parser and
+  preprocessor with edited programs, random soup of the language's words and
+  random bytes; the `.rrproj` reader, the web IDE v1 JSON import and the
+  workspace file with edited and random text (and every imported file name is
+  checked to stay inside the project's folder); and Find's regular
+  expressions with random and expensive patterns (a time budget each).
+  They run in the normal test run (each under 10 s);
+  `RAPIDR_FUZZ_ITERS=200000` (best with `--release`) is the long run, and
+  `RAPIDR_FUZZ_SEED` replays a failure. 200,000 inputs of each ran clean.
+- **A secret scan of the tree:** `tools/check_secrets.py` looks in every
+  tracked file for private keys and certificates (PEM blocks with a body),
+  minisign secret keys, key and keystore files by name, and tokens (JSON Web
+  Tokens, Stripe, npm, Hugging Face, SendGrid, Twilio, Slack webhooks,
+  passwords in URLs), and prints the file, line and kind only, never the
+  value. Nothing found.
+
 ### Fixed
+- **A `$MACRO` line with a `)` before its `(` no longer crashes the compiler
+  and the editor.** `$MACRO a) b(c = 1` made the parameter list's range run
+  backwards ("byte range starts at 30 but ends at 27"); it now defines
+  nothing, like a missing `)` (found by the new fuzz tests).
 - **Studio: each pane keeps its thin edge all the way down, and in dark the
   gaps between panes show without hovering.** A docked pane's component (and
   each group of documents) now sits inside its group's 1-pixel frame instead

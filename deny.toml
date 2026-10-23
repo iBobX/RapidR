@@ -24,6 +24,25 @@ ignore = [
     # the tree through parley and vello, is the way off; revisit when
     # sctk-adwaita moves.
     { id = "RUSTSEC-2026-0192", reason = "unmaintained, no known vulnerability; rapidr-value's font reader (objects/text.rs)" },
+    # zbus_names / zvariant / zvariant_derive (2026-10-16): the zbus project
+    # folded them into `zbus` 6 and stopped publishing them on their own
+    # (informational, no vulnerability, "no safe upgrade is available": the
+    # last releases are 4.3.5 / 5.15.1). They are the D-Bus client of Linux
+    # and the BSDs only (`cargo tree --target <macOS or Windows> -i zvariant`
+    # finds nothing): the accessibility bridge (rapidr-ui-host-winit →
+    # accesskit_winit → accesskit_unix → atspi), the system tray
+    # (rapidr-ui-host-winit → zbus) and the Secret Service keyring (rapidr-ai
+    # → zbus-secret-service-keyring-store → secret-service). What they parse
+    # is the user's own session bus (messages from the desktop's own
+    # services: the screen reader, the tray host, the keyring), never a
+    # file, a program or the network. The way off is zbus 6, which every crate above must move
+    # to first (accesskit_unix 0.24, atspi 0.29, secret-service 5.2 and
+    # zbus-secret-service-keyring-store 1.0.1 still use zbus 5); revisit
+    # when any of them releases for zbus 6 (`cargo update --dry-run` shows
+    # "available: zbus v6"), and at every release.
+    { id = "RUSTSEC-2026-0370", reason = "zvariant: unmaintained (moved into zbus 6), no known vulnerability; Linux D-Bus only (AT-SPI bridge, Secret Service), local session bus" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names: unmaintained (moved into zbus 6), no known vulnerability; Linux D-Bus only (AT-SPI bridge, Secret Service), local session bus" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive: unmaintained (moved into zbus 6), no known vulnerability; Linux D-Bus only (AT-SPI bridge, Secret Service), local session bus" },
 ]
 
 [licenses]

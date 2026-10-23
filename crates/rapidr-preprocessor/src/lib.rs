@@ -1433,7 +1433,9 @@ fn parse_macro_definition(line: &str) -> Option<(String, MacroDefinition)> {
     let head = head.trim();
 
     if let Some(paren_index) = head.find('(') {
-        let close_index = head.rfind(')')?;
+        // (a `)` before the `(`, `$MACRO a) b(c = 1`, is no parameter list:
+        // like a missing `)`, the line defines nothing; found by fuzzing)
+        let close_index = head.rfind(')').filter(|&close| close > paren_index)?;
         let name = head[..paren_index].trim().to_string();
         let params_text = &head[paren_index + 1..close_index];
         let params = params_text
@@ -1924,6 +1926,19 @@ mod tests {
     fn parameterized_macro_expands() {
         let result = preprocess("$MACRO MAX(a,b) = IIF(a > b, a, b)\nx = MAX(10, 20)");
         assert!(result.contains("x = IIF(10 > 20, 10, 20)"));
+    }
+
+    #[test]
+    fn a_macro_with_a_misplaced_parenthesis_defines_nothing_and_does_not_panic() {
+        // (fuzzing, X2: `)` before `(` made the parameter list's range
+        // backwards: "byte range starts at 30 but ends at 27")
+        for line in ["$MACRO a) b(c = 1", "$MACRO )( = 1", "$MACRO M(a = 1", "$MACRO M) = 1", "$MACRO (", "$MACRO )(", "$MACRO = x"] {
+            let result = preprocess(&format!("{line}\nx = M(1)"));
+            assert!(result.contains("x = M(1)"), "{line:?} defined a macro: {result:?}");
+        }
+        // (a good one next to them still works)
+        let result = preprocess("$MACRO a) b(c = 1\n$MACRO TWO(a) = (a * 2)\nx = TWO(4)");
+        assert!(result.contains("x = (4 * 2)"), "{result:?}");
     }
 
     #[test]

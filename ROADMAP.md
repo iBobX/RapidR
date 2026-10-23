@@ -784,7 +784,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 **Security and legal**
 - [ ] ★ X1 Threat model update
-- [ ] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan
+- [x] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan (2026-10-22, lane X2: all four `cargo deny` checks and `cargo audit` pass, `zip` 9.0.5; fuzz tests for the lexer and parser, `.rrproj`, Find's patterns, `tools/check_secrets.py`; fuzzing Git objects comes with Versions G3, Preview 5)
 - [ ] ★ X3 The audit (Fable with Robert's OK, or Opus), with a public report
 - [ ] ★ X4 The six legal traps
 

@@ -7,5 +7,13 @@ ignore = [
     # objects/text.rs) and, on Linux Wayland, the system's fonts for winit's
     # title bars — never untrusted data. See deny.toml.
     "RUSTSEC-2026-0192",
+    # zvariant, zbus_names and zvariant_derive: unmaintained (folded into
+    # zbus 6), informational, Linux D-Bus only (the AT-SPI bridge and the
+    # Secret Service keyring talk to the user's own session bus). Waiting for
+    # accesskit_unix, atspi and secret-service to move to zbus 6; see
+    # deny.toml for the full reason and when to revisit.
+    "RUSTSEC-2026-0370",
+    "RUSTSEC-2026-0371",
+    "RUSTSEC-2026-0372",
 ]
 informational_warnings = ["unmaintained", "unsound", "notice"]

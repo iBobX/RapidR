@@ -33,7 +33,7 @@ fn unzip(bytes: &[u8]) -> HashMap<String, Vec<u8>> {
         let mut f = zip.by_index(i).unwrap();
         let mut data = Vec::new();
         f.read_to_end(&mut data).unwrap();
-        out.insert(f.name().to_string(), data);
+        out.insert(f.name().expect("a name").to_string(), data);
     }
     out
 }
