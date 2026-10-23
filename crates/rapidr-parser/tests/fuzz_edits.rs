@@ -3,9 +3,18 @@
 //! state of a file, so nothing may panic or hang, and the lossless view
 //! must still print each edited text back.
 //!
-//! `RAPIDR_FUZZ_CASES` sets the number of edited texts (default 400, a
-//! couple of seconds; regress runs the default), `RAPIDR_FUZZ_SEED` the
-//! first seed. A failure names its seed: rerun with that seed and 1 case.
+//! Three generators feed the same entry points: real programs with random
+//! edits (`random_edits_never_panic_or_hang`), random soup of RapidR's own
+//! words and symbols (`random_token_soup_…`), and random bytes
+//! (`random_bytes_…`). The property is "never panics, never hangs" (an
+//! input taking 20 s is a hang).
+//!
+//! `RAPIDR_FUZZ_ITERS` sets the number of inputs each test tries (default
+//! 2000 edited programs, 20,000 soups and 20,000 byte strings: under 10 s
+//! each; regress runs the default; a long run: `RAPIDR_FUZZ_ITERS=200000`,
+//! best with `--release`; `RAPIDR_FUZZ_CASES` is the older name),
+//! `RAPIDR_FUZZ_SEED` the first seed. A failure names its seed: rerun with
+//! that seed and 1 iteration.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -122,25 +131,36 @@ fn corpus() -> Vec<String> {
     texts
 }
 
+
 enum Event {
     Started(u64),
     Panicked(u64, String),
     Finished,
 }
 
-#[test]
-fn random_edits_never_panic_or_hang() {
-    let cases: u64 = std::env::var("RAPIDR_FUZZ_CASES").ok().and_then(|v| v.parse().ok()).unwrap_or(400);
+/// How many inputs a test tries: `RAPIDR_FUZZ_ITERS` (or the older
+/// `RAPIDR_FUZZ_CASES`), `default` otherwise.
+fn iterations(default: u64) -> u64 {
+    ["RAPIDR_FUZZ_ITERS", "RAPIDR_FUZZ_CASES"]
+        .iter()
+        .find_map(|name| std::env::var(name).ok().and_then(|v| v.parse().ok()))
+        .unwrap_or(default)
+}
+
+/// Runs `one(rng)` for every seed on a thread of its own; a panic or an
+/// input that takes 20 s fails the test with its seed.
+fn run_guarded<F>(what: &'static str, default_iters: u64, one: F)
+where
+    F: Fn(&mut Rng) + Send + std::panic::RefUnwindSafe + 'static,
+{
+    let cases = iterations(default_iters);
     let first: u64 = std::env::var("RAPIDR_FUZZ_SEED").ok().and_then(|v| v.parse().ok()).unwrap_or(1);
-    let texts = corpus();
-    assert!(!texts.is_empty());
     let (tx, rx) = mpsc::channel::<Event>();
     std::thread::spawn(move || {
         for seed in first..first + cases {
             let _ = tx.send(Event::Started(seed));
             let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
-            let text = mutate(&texts[rng.below(texts.len())], &mut rng);
-            if let Err(e) = std::panic::catch_unwind(|| exercise(&text)) {
+            if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| one(&mut rng))) {
                 let message = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
                 let _ = tx.send(Event::Panicked(seed, message));
                 return;
@@ -150,13 +170,67 @@ fn random_edits_never_panic_or_hang() {
     });
     let mut current = first;
     loop {
-        // (one edited text taking this long is a hang)
+        // (one input taking this long is a hang)
         match rx.recv_timeout(Duration::from_secs(20)) {
             Ok(Event::Started(seed)) => current = seed,
             Ok(Event::Finished) => break,
-            Ok(Event::Panicked(seed, message)) => panic!("seed {seed} panicked: {message} (RAPIDR_FUZZ_SEED={seed} RAPIDR_FUZZ_CASES=1)"),
-            Err(mpsc::RecvTimeoutError::Timeout) => panic!("seed {current} hangs (RAPIDR_FUZZ_SEED={current} RAPIDR_FUZZ_CASES=1)"),
-            Err(mpsc::RecvTimeoutError::Disconnected) => panic!("the fuzzing thread stopped at seed {current}"),
+            Ok(Event::Panicked(seed, message)) => panic!("{what}: seed {seed} panicked: {message} (RAPIDR_FUZZ_SEED={seed} RAPIDR_FUZZ_ITERS=1)"),
+            Err(mpsc::RecvTimeoutError::Timeout) => panic!("{what}: seed {current} hangs (RAPIDR_FUZZ_SEED={current} RAPIDR_FUZZ_ITERS=1)"),
+            Err(mpsc::RecvTimeoutError::Disconnected) => panic!("{what}: the fuzzing thread stopped at seed {current}"),
         }
     }
+}
+
+#[test]
+fn random_edits_never_panic_or_hang() {
+    let texts = corpus();
+    assert!(!texts.is_empty());
+    run_guarded("random edits", 2000, move |rng| {
+        let text = mutate(&texts[rng.below(texts.len())], rng);
+        exercise(&text);
+    });
+}
+
+/// Words and symbols of the language in random order: far from any real
+/// program, so the parser's error paths (and its recovery) run all the time.
+const WORDS: &[&str] = &[
+    "SUB", "END", "FUNCTION", "IF", "THEN", "ELSE", "ELSEIF", "FOR", "TO", "STEP", "NEXT", "WHILE", "WEND", "DO", "LOOP", "UNTIL", "SELECT", "CASE", "IS",
+    "DIM", "AS", "INTEGER", "STRING", "BYTE", "DOUBLE", "TYPE", "RECORD", "CREATE", "QFORM", "RFORM", "RBUTTON", "WITH", "CALL", "DECLARE", "LIB", "ALIAS",
+    "CONST", "DEFINT", "DEFSTR", "SET", "EXIT", "GOTO", "GOSUB", "RETURN", "ON", "ERROR", "RESUME", "PRINT", "INPUT", "OPEN", "CLOSE", "REDIM", "PRESERVE",
+    "ANDALSO", "AND", "OR", "XOR", "NOT", "MOD", "SHL", "SHR", "EVENT", "PROPERTY", "GET", "LET", "$INCLUDE", "$IFDEF", "$ENDIF", "$DEFINE", "$MACRO",
+    "$TYPECHECK", "$ESCAPECHARS", "$OPTIMIZE", "$APPTYPE", "RUSTSTART", "RUSTEND", "REM", "x", "y", "i", "name$", "n%", "d#", "f!", "Form1", "Caption",
+    "Click", "Form1.Caption", "a.b.c", "0", "1", "42", "3.14", "1E5", "&HFF", "&O17", "&B101", "\"text\"", "\"\"", "\"a\\nb\"", "'comment", "(", ")", "[",
+    "]", ",", ":", ".", "=", "<>", "<=", ">=", "<", ">", "+", "-", "*", "/", "\\", "^", "&", "?", "@", "#", ";", "_", "\n", "\n", "\n", "\r\n", " ", " ",
+    " ", "\t",
+];
+
+#[test]
+fn random_token_soup_never_panics_or_hangs() {
+    run_guarded("token soup", 20_000, |rng| {
+        let mut text = String::new();
+        for _ in 0..1 + rng.below(120) {
+            text.push_str(WORDS[rng.below(WORDS.len())]);
+            if rng.below(3) != 0 {
+                text.push(' ');
+            }
+        }
+        exercise(&text);
+    });
+}
+
+#[test]
+fn random_bytes_never_panic_or_hang() {
+    run_guarded("random bytes", 20_000, |rng| {
+        const PUNCTUATION: &[u8] = b"\r\n\t\"'_:(),.$&#?@ ";
+        let len = rng.below(300);
+        let bytes: Vec<u8> = (0..len)
+            .map(|_| match rng.below(4) {
+                // mostly text, with every kind of byte among it
+                0 => rng.below(256) as u8,
+                1 => PUNCTUATION[rng.below(PUNCTUATION.len())],
+                _ => b' ' + rng.below(95) as u8,
+            })
+            .collect();
+        exercise(&rapidr_preprocessor::decode_source(&bytes).0);
+    });
 }
