@@ -151,14 +151,16 @@ fi
 # Security regressions (docs/security-audit.md; tests/security/): the
 # browser-free scripts, and the Rust ones each crate compiles from there
 # (its `security_regressions` module) — the web bundle's policy and
-# escaping, the language server's and the debug adapter's confinement. The
+# escaping, the language server's and the debug adapter's confinement, whose
+# keys and secrets a program reaches, RAI's redirects and kept files, the
+# assistant's tools and links (the memory keystore only). The
 # browser's side is in the web stage (tests/web_bundle_csp.mjs,
 # tests/web_overlays.mjs).
 if want security; then echo "== security"
   for t in tests/security/*.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "FAIL|Error"; }
   done
-  out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
+  out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" RAPIDR_AI_KEYSTORE=memory RAPIDR_KEYSTORE=memory cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap -p rapidr-ai -p rapidr-studio --features rapidr-ai/component security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
   echo "(security done)"
 fi
 # Licences, advisories and notices (LEGAL.md, docs/licensing.md): a licence

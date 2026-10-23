@@ -53,6 +53,41 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   and fix (docs/security/audit-preview4.md). No Critical or High finding; the
   keychain-scoping items (SEC-21, SEC-22) are flagged to fix before release.
   The fix pass follows.
+- **A program can no longer read RapidR Studio's AI keys (SEC-21).** Each
+  program's RAI keys are its own, under its own keychain service
+  (`rapidr-app:<program>:RAI`); Studio keeps its own where they always were
+  (`dev.rapidr.keys`, nothing moved or rewritten), and only Studio's own
+  process reads them. A program that names Studio's key
+  (`keychain:RapidR Studio/…`) finds none, and `Error` says, in plain words,
+  to give the program its own key. Studio's designer keeps a key typed for
+  a program in that program's service (RAI.KeyOwner, Studio's only). Keys a
+  program kept before are asked for once again.
+- **RSecrets are kept by the program's identity, not its file name alone
+  (SEC-22):** its name and a digest of its file's full path (a built macOS
+  app: its bundle identifier), so two programs called `main.rr` in two
+  folders never share a secret. Items kept under the name alone (only on
+  development builds: RSecrets wasn't in a release) are never read: nothing
+  in them says which program saved them.
+- **The assistant's tools never follow a link out of the project (SEC-23):**
+  `read_file`, the file list and every proposed change resolve links and
+  refuse a path that leads outside the project's folder (or through a link
+  to nowhere), in plain words.
+- **A model's answer can't carry Studio's own action links (SEC-26):** an
+  `ai:` or `rai:` link the model writes — plainly, as an autolink, a
+  reference, with entities, or across answers — shows as words, not a link;
+  Studio's own (Review, Open, Undo, Edit, Retry, the thinking) still work.
+- **RAI never follows a redirect (SEC-27):** a provider's address that
+  answers 3xx gets an error in plain words, and the key's header never
+  reaches the address it points to.
+- **The assistant's kept chats and the audit log are only the user's
+  (SEC-28):** files 0600, folders 0700 on Unix (older ones are made so when
+  written again).
+- **The debugger's setVariable checks that the program is stopped (SEC-29)**,
+  outright, as setExpression does.
+- **The registry says what the manual says (SEC-25, SEC-30):** only
+  `VerifyCA`/`VerifyFull` check a MySQL server's certificate (the manual's
+  example now uses `VerifyFull`); RServerSocket's `Mode = "http"` checks
+  nothing and listens on every interface unless `Host = "127.0.0.1"`.
 
 ### Fixed
 - **Studio: Search's and Problems' file icons, and Search's Forms and

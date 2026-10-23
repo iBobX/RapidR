@@ -61,6 +61,21 @@ service (as RSecrets does), separate from `dev.rapidr.keys`, so
 name must stay for compatibility, require an explicit opt-in prompt the
 first time a program reads a key it did not write.
 
+**Fixed in** `6e91d999` (lane SEC-FIX, 2026-10-23). `keys.rs`: a `Scope` — Studio's keys
+under `dev.rapidr.keys` (unchanged: nothing moved or rewritten), a
+program's under its own service `rapidr-app:<program>:RAI`
+(`Scope::service`); only the process Studio runs in is Studio
+(`keys::set_studio`, Rust only: `rapidr ide`, `rapidr ai`, and `rapidr run`
+of the executable's own `ide/studio.rr` — never by `RAPIDR_HOME` or the
+current folder, `rapidr-cli/src/home.rs` `is_own_ide`). A program naming
+`keychain:RapidR Studio/…` finds nothing and its `Error` says to give the
+program its own key (`studio_key_note`). The designer keeps a key typed for
+a program in that program's service (`RAI.KeyOwner`, honoured in Studio
+only; `ide/ai.inc` `DesignAITake`). Test: `tests/security/keychain_scopes.rs`
+(`sec21_*`, memory keystore). Residual: a program that runs commands
+(`SHELL`) can still start `rapidr ai … --base-url` (Studio's CLI) — SHELL is
+by design (threat model §5).
+
 ### SEC-22 — Medium — RSecrets are keyed by the program's file name
 
 **Where.** `crates/rapidr-ai/src/secrets.rs:52-65` (`program_name`,
@@ -83,6 +98,17 @@ a victim program's name, and the keychain itself still gates by OS user.
 name (as the chats' `project_key` does with a path digest,
 `chats.rs:195`), or document plainly that RSecrets isolation is by file
 name only and is not a trust boundary between programs.
+
+**Fixed in** `6e91d999` (lane SEC-FIX, 2026-10-23). `secrets.rs` `program_id`: a built
+macOS app's bundle identifier, else the file's name and a 64-bit digest of
+its canonical path (`dbstudio~1a2b3c4d5e6f7081`), used by RSecrets and by
+programs' RAI keys. Items kept under the name alone are **not** read: they
+carry nothing that says which program saved them, so a one-time move could
+hand them to whichever program of that name ran first; RSecrets was never
+in a release, so only development machines have such items. The manual
+(`docs/manual/secrets.md`) says that this keeps programs apart within one
+account and is not a wall against a program that rewrites another's file.
+Test: `tests/security/keychain_scopes.rs` (`sec22_*`).
 
 ### SEC-23 — Low — RAI tools follow symlinks inside the project
 
@@ -107,6 +133,13 @@ notice. Reads go to the model; redaction (`keys::redact`,
 is still inside the project folder (reject when it is not), on both
 `read_file` and the proposal path. The symlink check belongs next to the
 textual `..` check, not instead of it.
+
+**Fixed in** `2ce6d8a8` (lane SEC-FIX, 2026-10-23). `ai_tools.rs` `project_path` (the
+gate of `read_file`, the file list, `propose_edit`, `write_file` and
+`setfile`) now also resolves the path on disk (`inside_for_real`): the
+deepest existing part, canonicalised, must be inside the canonical project
+folder, and a link to nowhere is refused. Test:
+`tests/security/ai_tools_symlinks.rs`.
 
 ### SEC-24 — Low — Test hooks ship in release binaries and trust the environment
 
@@ -138,6 +171,13 @@ released Studio), or behind a single `RAPIDR_TEST_OK` guard the release
 build leaves unset. Confirm `file:PATH` in `RAPIDR_TEST_SYSTEM_LOOK` reads
 only under test.
 
+**Accepted for Preview 4** (Robert's lead, 2026-10-23). We test the binary
+we ship, so the hooks stay in it for this release. Whoever can set a
+process's environment already controls that process (it can run the program
+itself, read what it shows, and read the user's files), so the hooks add no
+reach across users or the network. Revisit in Preview 5 with a signed
+test-mode design (ROADMAP, Preview 5).
+
 ### SEC-25 — Low — MySQL Preferred/Required do not verify the certificate
 
 **Where.** `crates/rapidr-db/src/mysql.rs:444-453` (`SslMode::opts`):
@@ -161,6 +201,12 @@ even with TLS "on".
 manual and the registry `SSLMode` doc state in one line that only VerifyCA
 / VerifyFull authenticate the server, and consider surfacing `Encrypted`
 alongside a "verified" flag so a program can tell the difference.
+
+**Fixed in** `77948a74` (lane SEC-FIX, 2026-10-23), documentation: the registry's
+`SSLMode` (`databases.toml`) and the manual (`docs/manual/databases.md`)
+say that only VerifyCA / VerifyFull check the server, and the manual's
+example for a remote host uses `VerifyFull`. No example or Studio code sets a
+weaker mode for a remote host. Behaviour unchanged (MySQL's client's).
 
 ### SEC-26 — Low — Model markdown can carry Studio's own action links
 
@@ -188,6 +234,17 @@ Studio-internal: ignore them when they appear in model-authored markdown
 (only Studio's own cards use them), or confirm before an `ai:undo` that
 came from the transcript body rather than a card.
 
+**Fixed in** `97ef5e23` (lane SEC-FIX, 2026-10-23). Studio's and RAI's own action links
+carry a mark only the process knows while the transcript is put together
+(`rai.rs` `own_link`; the cards in `rapidr-studio/src/ai.rs`); the whole
+transcript is then read as the view reads it (pulldown-cmark,
+`rapidr_value::panels::markdown::unlink`) and every other `ai:`/`rai:` link
+or reference definition becomes plain words — written plainly, as an
+autolink, a reference, with entities, or across answers (a code fence left
+open in an earlier one). The marks are taken off before anyone sees the
+transcript and never kept in a saved chat. Test:
+`tests/security/keychain_scopes.rs` (`sec26_*`).
+
 ### SEC-27 — Info — `x-api-key` kept across redirects
 
 **Where.** `crates/rapidr-ai/src/http.rs` uses `ureq` 2.12.1. ureq strips
@@ -202,6 +259,11 @@ redirects. ureq follows up to its redirect limit by default.
 
 **Recommended fix.** Set ureq to not follow redirects for provider calls
 (the APIs do not need them), or strip `x-api-key` before following one.
+
+**Fixed in** `b0546c98` (lane SEC-FIX, 2026-10-23). `http.rs`: provider calls follow no
+redirect (`redirects(0)`); a 3xx is an error in plain words
+(`wire::explain_error`). Test: `tests/security/ai_transport.rs` (`sec27_*`,
+two servers on 127.0.0.1).
 
 ### SEC-28 — Info — Chats and the audit log: permissions and web storage
 
@@ -224,6 +286,11 @@ the target, `rai.rs:1961`).
 **Recommended fix.** None required. Optionally restrict the settings
 files to the user (0600) and keep confirming the web CSP in
 `tests/security/web_shipping.mjs`.
+
+**Fixed in** `b0546c98` (lane SEC-FIX, 2026-10-23). `private_files.rs`: the chats'
+files 0600 and folders 0700 (the chats' own folders made so even when they
+were there), the audit log 0600 (an older one made so when written), on
+Unix. Test: `tests/security/ai_transport.rs` (`sec28_*`).
 
 ### SEC-29 — Info — Set-value runs the typed text (by design); `setVariable`'s stopped-guard is indirect
 
@@ -251,6 +318,10 @@ explicit check, so it is easy to break in a refactor.
 `setVariable`, matching `setExpression`, for defence in depth. No change
 to the evaluate-by-design behaviour.
 
+**Fixed in** `130cbbb3` (lane SEC-FIX, 2026-10-23). `adapter.rs` `setVariable`: "the
+program isn't stopped" before the reference is looked up. Test:
+`tests/security/dap_set_variable_stopped.rs`.
+
 ### SEC-30 — Info — `Mode = "http"` and `BindAddress` defaults
 
 **Where.** `crates/rapidr-runtime-core/src/netframe.rs:27-33`
@@ -270,6 +341,10 @@ registry alone does not see it.
 **Recommended fix.** Add the manual's "checks nothing" sentence to the
 registry `Mode` doc, and keep `BindAddress`'s own doc (which already warns,
 `network.toml:22`).
+
+**Fixed in** `77948a74` (lane SEC-FIX, 2026-10-23): RServerSocket's `Mode` doc
+(`network.toml`) says that "http" checks nothing and that the socket listens
+on every interface unless `Host = "127.0.0.1"`; the reference regenerated.
 
 ---
 
@@ -409,3 +484,7 @@ Preview 4's UI. Fine for this release; audit its surface when the UI lands.
 - SEC-23, SEC-24, SEC-25, SEC-26 are good follow-ups; SEC-27, SEC-29 are
   one-liners. SEC-28, SEC-30 are documentation/permission touch-ups.
 - No secret value appears in this document.
+- **Fix pass done** (lane SEC-FIX, 2026-10-23): SEC-21, SEC-22, SEC-23,
+  SEC-25, SEC-26, SEC-27, SEC-28, SEC-29 and SEC-30 fixed, each with a
+  "Fixed in" line above and a test in `tests/security/`; SEC-24 accepted for
+  Preview 4 and moved to Preview 5.
