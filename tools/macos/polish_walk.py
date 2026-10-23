@@ -24,6 +24,11 @@ captures read back with OCR, the clipboard.
                     Assistant's own model list filled at once, ready — the
                     wizard's wrapped notes at the screen's scale (2× here)
                     whole — light and dark
+         tree       Database Studio's tree (a root of 47 tables, then a CSV)
+                    in a program of its own: the wheel to the end, the bar's
+                    thumb dragged to the bottom, End — the last row whole
+                    each time; its status bar's text about 10 pixels in —
+                    light, dark, high contrast
 
   python3 tools/macos/polish_walk.py [paths…]   (all by default)
 
@@ -468,8 +473,122 @@ def ai_walk(look):
     close_all()
 
 
+TREE_PROGRAM = '''$THEME rapidr
+DIM i AS INTEGER
+CREATE Form AS RForm
+    Caption = "Tree scroll": Width = 420: Height = 520
+    CREATE Bottom AS RPanel
+        Align = alBottom: Height = 26: BevelOuter = 0
+        CREATE Status AS RStatusBar
+            Align = alClient: SimplePanel = 1
+        END CREATE
+    END CREATE
+    CREATE LeftPane AS RPanel
+        Align = alLeft: Width = 270: BevelOuter = 0
+        CREATE Head AS RPanel
+            Align = alTop: Height = 36: BevelOuter = 0
+        END CREATE
+        CREATE Tree AS RTreeView
+            Align = alClient
+            ReadOnly = 1
+        END CREATE
+    END CREATE
+END CREATE
+Tree.AddItems "bookshop.db"
+FOR i = 1 TO 47
+    Tree.AddChildItems 0, "table_" + STR$(i)
+NEXT
+Tree.AddItems "shop.csv (CSV)"
+Tree.Item(0).Expanded = 1
+Status.SimpleText = "Opened BPAnalytics DB: 47 tables. Press Run (F5) to run the query."
+Form.ShowModal
+'''
+
+
+def tree_walk(look):
+    """n, o: Database Studio's tree (a root of 47, then a CSV) — the wheel,
+    the bar's thumb dragged to its end, End: the last row whole; the status
+    bar's text 10 pixels in."""
+    src = f"{WORK}/tree.rr"
+    open(src, "w").write(TREE_PROGRAM)
+    env = dict(ENV, RAPIDR_THEME={"light": "rapidr light", "dark": "rapidr dark", "contrast": "rapidr high contrast"}[look])
+    p = subprocess.Popen([f"{W}/rapidr", "run", src], cwd=WORK, env=env, stdout=open(f"{OUT}/tree-{look}.log", "w"), stderr=subprocess.STDOUT)
+    started.append(p)
+    for _ in range(60):
+        if wins(p.pid):
+            break
+        time.sleep(0.25)
+    time.sleep(1.0)
+    activate(p.pid)
+    prog = p.pid
+    check(f"[tree {look}] the program in front", wait_front(prog))
+    tree = until(lambda: node_with(prog, "Tree") or next((n for w in ax(prog) for n in walk(w) if n.get("role") == "AXOutline" and "x" in n), None), 4)
+    last = lambda: node_with(prog, "shop.csv (CSV)")
+
+    def whole():
+        t, r = tree, last()
+        return bool(t and r and r.get("h", 0) > 4 and r["y"] >= t["y"] and r["y"] + r["h"] <= t["y"] + t["h"] - 1)
+    if not check(f"[tree {look}] the tree found (VoiceOver)", tree is not None):
+        close_all()
+        return
+    # the wheel, to the end
+    x, y = tree["x"] + tree["w"] / 2, tree["y"] + tree["h"] / 2
+    if mine_under(prog, x, y):
+        for _ in range(12):
+            e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, -5)
+            Quartz.CGEventSetLocation(e, (x, y))
+            Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+            time.sleep(0.05)
+    time.sleep(0.6)
+    shot_window(prog, f"n1-tree-wheel-{look}")
+    check(f"[tree {look}] the wheel to the end: shop.csv (CSV) whole in the tree", whole(), str(last())[:160])
+    # back to the top by the wheel, then the thumb dragged to the bottom
+    for _ in range(12):
+        e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, 5)
+        Quartz.CGEventSetLocation(e, (x, y))
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
+        time.sleep(0.05)
+    time.sleep(0.5)
+    bx = tree["x"] + tree["w"] - 8
+    if mine_under(prog, bx, tree["y"] + 40):
+        mouse(Quartz.kCGEventMouseMoved, bx, tree["y"] + 40)
+        time.sleep(0.1)
+        mouse(Quartz.kCGEventLeftMouseDown, bx, tree["y"] + 40)
+        for k in range(1, 13):
+            mouse(Quartz.kCGEventLeftMouseDragged, bx, tree["y"] + 40 + (tree["h"] + 60) * k / 12)
+            time.sleep(0.03)
+        mouse(Quartz.kCGEventLeftMouseUp, bx, tree["y"] + tree["h"] + 100)
+        time.sleep(0.6)
+    shot_window(prog, f"n2-tree-thumb-{look}")
+    check(f"[tree {look}] the thumb dragged to the bottom: shop.csv (CSV) whole", whole(), str(last())[:160])
+    # Home, End: the selection and its row in view
+    click_at(prog, tree["x"] + 60, tree["y"] + 10)
+    key(prog, 115)  # Home
+    key(prog, 119)  # End
+    time.sleep(0.6)
+    path = shot_window(prog, f"n3-tree-end-{look}")
+    check(f"[tree {look}] End: shop.csv (CSV) selected and whole in the tree", whole() and "shop.csv" in (ocr(path) if path else ""))
+    # o: the status bar's text 10 pixels in (the window's capture: Retina's 2 a point)
+    status = node_with(prog, "Opened BPAnalytics DB")
+    boxes = []
+    if path:
+        r = subprocess.run([PROBE, "ocr", path], capture_output=True, text=True)
+        try:
+            boxes = json.loads(r.stdout or "[]")
+        except json.JSONDecodeError:
+            boxes = []
+    line = next((b for b in boxes if b["text"].startswith("Opened")), None)
+    ws = wins(prog)
+    left = None
+    if line and ws:
+        scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / ws[0]["w"]
+        left = line["x"] / scale
+    check(f"[status {look}] the status bar's text about 10 pixels in (OCR: {left})", left is not None and 8 <= left <= 14, str(status)[:100])
+    close_all()
+
+
 try:
-    paths = sys.argv[1:] or ["editor", "designer", "debug", "status", "ai"]
+    paths = sys.argv[1:] or ["editor", "designer", "debug", "status", "ai", "tree"]
     t0 = time.time()
     if "editor" in paths:
         editor_walk()
@@ -480,6 +599,8 @@ try:
             debug_walk(look)
         if "status" in paths or f"status-{look}" in paths:
             status_walk(look)
+        if "tree" in paths or f"tree-{look}" in paths:
+            tree_walk(look)
     for look in ("light", "dark"):
         if "ai" in paths or f"ai-{look}" in paths:
             ai_walk(look)
