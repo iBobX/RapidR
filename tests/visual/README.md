@@ -110,8 +110,11 @@ scene runner: the fonts are the ones RapidR carries; the window's size and
 the menu (in the window, `RAPIDR_MENU=window`) are the same everywhere; every
 run starts with `--fresh` (the default layout and settings) and its own
 registry file; the AI keys are made up and kept in memory, and the AI scenes'
-mock provider listens on a fixed port (18695) so its address is the same on
-the screen; scenes that write beside what they open work on a copy in a
+mock provider listens on port 18695 so its address is the same on the
+screen — each run starts its own; when another run (another lane's) has
+that port, this one's mock takes a free port, the scenes' Base URL follows
+it, and the two AI scenes are run and kept as `…-other-port.png` but not
+compared (their screen shows the other address), said in the output; scenes that write beside what they open work on a copy in a
 folder of their own; no machine's own path may be on a scene's screen (a
 scene that would show one — an import's report — doesn't: its Output is
 covered and the report is not the document open); the Project Options
