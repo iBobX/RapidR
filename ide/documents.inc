@@ -104,22 +104,81 @@ SUB FillProblems(d AS INTEGER)
     ClearProblems
     EXIT SUB
   END IF
-  FillProblemsOf DocFile(d)
+  ' (a file of the open project: the whole project's problems — S5)
+  IF InProject(DocFile(d)) THEN FillProblemsOf ProjectMain ELSE FillProblemsOf DocFile(d)
 END SUB
 
-' (a file's problems — the main file's: the whole program's)
+' (whether Path is a file of the open project: its main file, or one the
+' project lists)
+FUNCTION InProject(Path AS STRING) AS INTEGER
+  DIM i AS INTEGER, p AS STRING
+  IF ProjectOpen = 0 OR ProjectMain = "" THEN EXIT FUNCTION
+  p = LCASE$(REPLACESUBSTR$(Path, "\", "/"))
+  IF p = LCASE$(REPLACESUBSTR$(ProjectMain, "\", "/")) THEN Result = 1: EXIT FUNCTION
+  FOR i = 0 TO Proj.FileCount - 1
+    IF p = LCASE$(REPLACESUBSTR$(Proj.FullPath(i), "\", "/")) THEN Result = 1: EXIT FUNCTION
+  NEXT
+END FUNCTION
+
+' (the problems of Path, a line each: the project's — every file of the
+' program checked together, errors first, grouped by file — when Path is
+' its main file, else the file's own)
+FUNCTION ProblemsText(Path AS STRING) AS STRING
+  IF ProjectOpen AND LCASE$(Path) = LCASE$(ProjectMain) AND Lang.Project <> "" THEN
+    Result = Lang.ProjectDiagnostics
+  ELSE
+    Result = Lang.Diagnostics(Path)
+  END IF
+END FUNCTION
+
+' (how many of each kind, in words: "2 errors, 1 warning, 3 notes")
+FUNCTION ProblemCounts(errs AS INTEGER, warns AS INTEGER, notes AS INTEGER) AS STRING
+  DIM t AS STRING
+  IF errs = 1 THEN t = "1 error, "
+  IF errs > 1 THEN t = LTRIM$(STR$(errs)) + " errors, "
+  IF warns = 1 THEN t = t + "1 warning, "
+  IF warns > 1 THEN t = t + LTRIM$(STR$(warns)) + " warnings, "
+  IF notes = 1 THEN t = t + "1 note, "
+  IF notes > 1 THEN t = t + LTRIM$(STR$(notes)) + " notes, "
+  IF t <> "" THEN t = LEFT$(t, LEN(t) - 2)
+  Result = t
+END FUNCTION
+
+' A file's problems — the main file's: the whole program's —, as the
+' language service sorts them (errors first, grouped by file): each file's
+' heading with how many of each kind, its problems under it.
 SUB FillProblemsOf(Path AS STRING)
-  DIM text AS STRING, n AS INTEGER, i AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER, errs AS INTEGER, warns AS INTEGER
+  DIM text AS STRING, n AS INTEGER, i AS INTEGER, j AS INTEGER, row AS STRING, sev AS STRING, k AS INTEGER
+  DIM f AS STRING, errs AS INTEGER, warns AS INTEGER, notes AS INTEGER
   ClearProblems
-  text = Lang.Diagnostics(Path)
+  text = ProblemsText(Path)
   n = TALLY(text, CHR$(10))
   FOR i = 1 TO n
     row = FIELD$(text, CHR$(10), i)
+    ' (a new file: its heading, its counts first)
+    IF i = 1 OR FIELD$(row, CHR$(9), 5) <> f THEN
+      f = FIELD$(row, CHR$(9), 5)
+      errs = 0: warns = 0: notes = 0
+      FOR j = i TO n
+        IF FIELD$(FIELD$(text, CHR$(10), j), CHR$(9), 5) <> f THEN EXIT FOR
+        sev = FIELD$(FIELD$(text, CHR$(10), j), CHR$(9), 1)
+        IF sev = "error" THEN
+          errs = errs + 1
+        ELSEIF sev = "warning" THEN
+          warns = warns + 1
+        ELSE
+          notes = notes + 1
+        END IF
+      NEXT
+      ' (its heading: the Project pane's icon, the path from the project's
+      ' folder, how many — a pill —, and the counts in words)
+      AddFileHeading f, ProblemCounts(errs, warns, notes), errs + warns + notes
+    END IF
     sev = FIELD$(row, CHR$(9), 1)
     k = 2
-    IF sev = "error" THEN k = 0: errs = errs + 1
-    IF sev = "warning" THEN k = 1: warns = warns + 1
-    AddProblem k, FIELD$(row, CHR$(9), 4), FIELD$(row, CHR$(9), 5), VAL(FIELD$(row, CHR$(9), 2)), VAL(FIELD$(row, CHR$(9), 3))
+    IF sev = "error" THEN k = 0
+    IF sev = "warning" THEN k = 1
+    AddProblem k, FIELD$(row, CHR$(9), 4), ProjectRel(f), VAL(FIELD$(row, CHR$(9), 2)), VAL(FIELD$(row, CHR$(9), 3))
   NEXT
 END SUB
 
@@ -200,6 +259,9 @@ SUB OpenDocument(Path AS STRING)
   IF d < 0 THEN EXIT SUB
   Loading = 1
   CodeDoc(d).Font = MonoFont
+  ' (a document closed before left its text here: a file that can't be
+  ' read opens empty, never with another file's code under its name)
+  CodeDoc(d).Text = ""
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged
@@ -207,6 +269,8 @@ SUB OpenDocument(Path AS STRING)
   CodeDoc(d).OnNavigate = CodeNavigate
   CodeDoc(d).OnReferences = CodeReferences
   CodeDoc(d).OnFileEdits = CodeFileEdits
+  ' (its context menu: Go to Definition, Find References … — search.inc)
+  CodeMenuFor d
   EditorSettings d
   Loading = 0
   DocFile(d) = Path

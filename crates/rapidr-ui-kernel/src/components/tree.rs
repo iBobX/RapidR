@@ -77,6 +77,70 @@ fn cancel_edit_soon(cx: &mut Cx) {
     }
 }
 
+thread_local! {
+    /// (RapidR's look) The row under the mouse, by tree: its node.
+    static HOVER: RefCell<HashMap<String, usize>> = RefCell::new(HashMap::new());
+}
+
+/// (RapidR's) Node `n`'s results-list extras (`Item(i).Icon`, `Column`,
+/// `Detail`, `Badge`, `Bold`).
+fn rich_of(id: &str, n: usize) -> Option<rapidr_value::objects::tree::Rich> {
+    with_tree(id, |t| t.nodes.get(n).and_then(|node| node.rich.as_deref().cloned())).flatten()
+}
+
+/// An `Item(i).Icon` name as RapidR's icon set knows it: `file:<path>` the
+/// icon the Project pane gives that file (rapidr_icons' one lookup).
+fn icon_id(name: &str) -> String {
+    if let Some(path) = name.strip_prefix("file:") {
+        return rapidr_icons::file(path).id.to_string();
+    }
+    if let Some(kind) = name.strip_prefix("kind:") {
+        return rapidr_icons::project_kind(kind).map_or("files/file", |i| i.id).to_string();
+    }
+    name.to_string()
+}
+
+/// `text` as it fits in `room` pixels, with its mark (`(start, len)` in
+/// characters, 0 len none) in view: a line whose mark would be past the
+/// edge is shown from a little before it, "…" first; one too long anyway is
+/// cut at the end with "…". The mark's place in what is shown.
+fn fit_marked(text: &str, mark: (usize, usize), font: &rapidr_value::objects::font::Font, room: i64) -> (String, (usize, usize)) {
+    let width = |s: &str| rapidr_value::objects::text::text_size(s, font).0;
+    if width(text) <= room {
+        return (text.to_string(), mark);
+    }
+    let chars: Vec<char> = text.chars().collect();
+    let mut start = 0;
+    let mut mark = mark;
+    if mark.1 > 0 && mark.0 < chars.len() {
+        let end = (mark.0 + mark.1).min(chars.len());
+        let upto: String = chars[..end].iter().collect();
+        if width(&upto) > room {
+            // (a few characters of what comes before the match, then the match)
+            let lead = 8.min(mark.0);
+            start = mark.0 - lead;
+            let mut shown: String = std::iter::once('…').chain(chars[start..end].iter().copied()).collect();
+            while start < mark.0 && width(&shown) > room {
+                start += 1;
+                shown = std::iter::once('…').chain(chars[start..end].iter().copied()).collect();
+            }
+            mark = (mark.0 - start + 1, mark.1);
+        }
+    }
+    let head: String = if start > 0 { std::iter::once('…').chain(chars[start..].iter().copied()).collect() } else { text.to_string() };
+    if width(&head) <= room {
+        return (head, mark);
+    }
+    // (cut at the end, "…" after what fits — the mark kept whole when it can be)
+    let hc: Vec<char> = head.chars().collect();
+    let mut n = hc.len();
+    let keep = if mark.1 > 0 { (mark.0 + mark.1).min(hc.len()) } else { 1 };
+    while n > keep && width(&(hc[..n].iter().collect::<String>() + "…")) > room {
+        n -= 1;
+    }
+    (hc[..n].iter().collect::<String>() + "…", mark)
+}
+
 pub struct Tree;
 
 /// A node's icon (its state image beside its image), as the screen shows
@@ -309,6 +373,14 @@ impl ComponentKind for Tree {
         let focused = cx.state.focused;
         let enabled = cx.state.enabled;
         let (show_lines, rows_all) = (with_tree(cx.id, |t| t.show_lines).unwrap_or(true), rows.clone());
+        let hover = HOVER.with(|h| h.borrow().get(cx.id).copied());
+        // (RapidR's Item(i).Column: a column as wide as the widest shown)
+        let col_w = rows_all
+            .iter()
+            .filter_map(|r| rich_of(cx.id, r.node))
+            .map(|r| if r.column.is_empty() { 0 } else { rapidr_value::objects::text::text_size(&r.column, &font).0 })
+            .max()
+            .unwrap_or(0);
         p.at((2, 2), |p| {
             p.clipped((0, 0, cw, h - 4), |p| {
                 for row in &rows_all {
@@ -317,6 +389,10 @@ impl ComponentKind for Tree {
                     // its lines, icon and text)
                     if p.fluent() && row.selected && (focused || !hide) && enabled {
                         super::list::selected_row(p, (0, row.top, cw, row.height), focused);
+                    } else if p.fluent() && enabled && hover == Some(row.node) && !p.theme().contrast {
+                        // (the row under the mouse: the theme's list hover)
+                        let t = p.theme();
+                        p.round((1, row.top, cw - 2, row.height), 4.0, Some(super::panels::common::look(t).hover), None, 1.0);
                     }
                     if show_lines {
                         for &x in &row.through {
@@ -358,15 +434,19 @@ impl ComponentKind for Tree {
                         vr.paint(p, (x + 2, row.top, (cw - x - 2).max(0), row.height), &style);
                         continue;
                     }
-                    if let Some((pic, iw, ih)) = icon(cx, row.node, row.selected) {
+                    let rich = rich_of(cx.id, row.node);
+                    if let Some(name) = rich.as_ref().map(|r| &r.icon).filter(|i| !i.is_empty()) {
+                        // (RapidR's Item(i).Icon: an icon of RapidR's set, themed)
+                        let side = (row.height - 2).clamp(8, 16);
+                        let on_sel = row.selected && focused && (focused || !hide);
+                        let ink = on_sel.then(|| p.theme().highlight_text).filter(|_| !p.fluent() || p.theme().contrast);
+                        p.icon(&icon_id(name), (x, row.top + (row.height - side) / 2, side, side), ink, !enabled);
+                        x += side + 4;
+                    } else if let Some((pic, iw, ih)) = icon(cx, row.node, row.selected) {
                         p.picture(&format!("{}#icon{}", cx.id, row.node), 0, pic, (x, row.top + (row.height - ih) / 2, iw, ih));
                         x += iw + 2;
                     }
-                    let (text, own) = with_tree(cx.id, |t| t.nodes.get(row.node).map(|n| (n.text.clone(), n.text_color))).flatten().unwrap_or((String::new(), -1));
-                    let (tw, _) = rapidr_value::objects::text::text_size(&text, &font);
-                    let tr = (x, row.top + 1, tw + 4, row.height - 2);
-                    // (the selection: blue with the focus, grey without; none
-                    // without the focus and with HideSelection)
+                    let (text, own, mark) = with_tree(cx.id, |t| t.nodes.get(row.node).map(|n| (n.text.clone(), n.text_color, n.mark))).flatten().unwrap_or((String::new(), -1, (0, 0)));
                     let shown = row.selected && (focused || !hide);
                     let t = p.theme();
                     let color = if !enabled {
@@ -381,10 +461,92 @@ impl ComponentKind for Tree {
                     } else {
                         ink(cx.store, cx.id, &font, true, if shown { t.unfocused } else { back })
                     };
+                    let lk = super::panels::common::look(t);
+                    // (dimmed text: the theme's, the text's own on a selection
+                    // or in high contrast)
+                    let dim = if (shown && focused) || t.contrast || !enabled { color } else { lk.dim };
+                    let bold = rich.as_ref().is_some_and(|r| r.bold);
+                    let tfont = if bold { rapidr_value::objects::font::Font { styles: font.styles | 1, ..font.clone() } } else { font.clone() };
+                    // (RapidR's Item(i).Column: muted, in its column)
+                    if col_w > 0 {
+                        if let Some(c) = rich.as_ref().map(|r| &r.column).filter(|c| !c.is_empty()) {
+                            p.text((x + 2, row.top, col_w + 2, row.height), c, &font, dim, Place::Left);
+                        }
+                        if rich.as_ref().is_some_and(|r| !r.column.is_empty()) {
+                            x += col_w + 12;
+                        }
+                    }
+                    // (RapidR's Item(i).Badge: a pill at the right end)
+                    let mut right = cw - 6;
+                    if let Some(b) = rich.as_ref().map(|r| &r.badge).filter(|b| !b.is_empty()) {
+                        let small = rapidr_value::objects::font::Font { size: (font.size - 1).max(6), ..font.clone() };
+                        let (bw, _) = rapidr_value::objects::text::text_size(b, &small);
+                        let pw = (bw + 12).max(22);
+                        let mid = row.top + row.height / 2;
+                        let pill = (right - pw, mid - 8, pw, 16);
+                        if t.fluent() {
+                            let radius = if t.contrast { 4.0 } else { 8.0 };
+                            let fill = if shown && focused { super::panels::common::mix(color, if t.contrast { t.highlight } else { t.highlight }, 0.8) } else { lk.section };
+                            p.round(pill, radius, Some(fill), if t.contrast { Some(lk.border) } else { None }, 1.0);
+                        }
+                        p.text(pill, b, &small, dim, Place::Center);
+                        right = pill.0 - 6;
+                    }
+                    let room = (right - x - 4).max(8);
+                    // (the text as it fits: a mark — a search's match — kept in
+                    // view, the line shown from a little before it with "…"; cut
+                    // at the end with "…")
+                    let (shown_text, mark) = fit_marked(&text, mark, &tfont, room);
+                    let text = shown_text;
+                    let (tw, _) = rapidr_value::objects::text::text_size(&text, &tfont);
+                    // (RapidR's MarkStart / MarkLength: a search's match, on
+                    // the theme's match colour, under the text)
+                    if mark.1 > 0 && enabled {
+                        let before: String = text.chars().take(mark.0).collect();
+                        let part: String = text.chars().skip(mark.0).take(mark.1).collect();
+                        if !part.is_empty() {
+                            let (bx, _) = rapidr_value::objects::text::text_size(&before, &tfont);
+                            let (mw, _) = rapidr_value::objects::text::text_size(&part, &tfont);
+                            p.round((x + 2 + bx - 1, row.top + 2, mw + 2, row.height - 4), 2.0, Some(lk.found), None, 1.0);
+                        }
+                    }
+                    let tr = (x, row.top + 1, tw + 4, row.height - 2);
+                    // (the selection: blue with the focus, grey without; none
+                    // without the focus and with HideSelection)
                     if shown && !t.fluent() {
                         p.fill(tr, if focused { t.highlight } else { t.unfocused });
                     }
-                    p.text((x + 2, row.top, tw + 2, row.height), &text, &font, color, Place::Left);
+                    // (a mark: the text in three runs — before it, the marked
+                    // part, after it — so no run of text is over two
+                    // backgrounds; in high contrast the match colour is the
+                    // selection's, its text the selection's text)
+                    let marked = mark.1 > 0 && enabled && text.chars().count() > mark.0;
+                    if marked {
+                        let before: String = text.chars().take(mark.0).collect();
+                        let part: String = text.chars().skip(mark.0).take(mark.1).collect();
+                        let after: String = text.chars().skip(mark.0 + mark.1).collect();
+                        let (bx, _) = rapidr_value::objects::text::text_size(&before, &tfont);
+                        let (mw, _) = rapidr_value::objects::text::text_size(&part, &tfont);
+                        let (aw, _) = rapidr_value::objects::text::text_size(&after, &tfont);
+                        let part_ink = if t.contrast && !(shown && focused) { t.highlight_text } else { color };
+                        if !before.is_empty() {
+                            p.text((x + 2, row.top, bx + 2, row.height), &before, &tfont, color, Place::Left);
+                        }
+                        p.text((x + 2 + bx, row.top, mw + 2, row.height), &part, &tfont, part_ink, Place::Left);
+                        if !after.is_empty() {
+                            p.text((x + 2 + bx + mw, row.top, aw + 2, row.height), &after, &tfont, color, Place::Left);
+                        }
+                    } else {
+                        p.text((x + 2, row.top, tw + 2, row.height), &text, &tfont, color, Place::Left);
+                    }
+                    // (RapidR's Item(i).Detail: dimmed, after the text, while it fits)
+                    if let Some(d) = rich.as_ref().map(|r| &r.detail).filter(|d| !d.is_empty()) {
+                        let dx = x + 2 + tw + 8;
+                        if dx + 24 < right {
+                            let shown_d = super::panels::common::elide(d, &font, right - dx);
+                            p.text((dx, row.top, right - dx, row.height), &shown_d, &font, dim, Place::Left);
+                        }
+                    }
                     if shown && focused && !t.fluent() {
                         p.focus(tr);
                     }
@@ -433,6 +595,29 @@ impl ComponentKind for Tree {
             if editor_mouse(cx, m, r) {
                 return MouseOut::default();
             }
+        }
+        // (RapidR's look: the row under the mouse)
+        if matches!(m.kind, MouseKind::Move | MouseKind::Leave) {
+            let at = if m.kind == MouseKind::Move && m.inside {
+                let (x, y) = (m.x.floor() as i64 - 2, m.y.floor() as i64 - 2);
+                match with_tree(cx.id, |t| t.hit(x, y, t.row_height())).flatten() {
+                    Some(Hit::Row(n)) | Some(Hit::Button(n)) => Some(n),
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            HOVER.with(|h| {
+                let mut h = h.borrow_mut();
+                match at {
+                    Some(n) => {
+                        h.insert(cx.id.to_string(), n);
+                    }
+                    None => {
+                        h.remove(cx.id);
+                    }
+                }
+            });
         }
         if m.kind != MouseKind::Down {
             return MouseOut::default();

@@ -1,0 +1,25 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Counter"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "globals.rr"
+kind = "module"
+
+[[files]]
+path = "server.rr"
+kind = "module"
+
+[[files]]
+path = "ui.rr"
+kind = "form"
+
+[[files]]
+path = "notes.txt"
+kind = "data"

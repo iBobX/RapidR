@@ -109,6 +109,27 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     `ai-r6-setup-local-window` (and checks added to `debug-status-long-name`,
     `ai-r6-setup-local`, `ai-r6-setup-cloud`); `RAPIDR_TEST_DUMP` reads a
     sub-object's member (`status.panel(2).caption`).
+- **Studio: Search's and Problems' file icons, and Search's Forms and
+  Modules scopes, go by the code**, as the Project pane does: a file that
+  makes a form has a form's icon and is searched under Forms even when the
+  project file still lists it as a module (and the other way round). Seen in
+  the real walk on a project whose `.rrproj` was stale. Flows
+  `search-stale-kinds`, `search-stale-forms`, `search-stale-modules`
+  (tests/fixtures/studio_stale).
+- **Studio: Problems opens at its top**, errors first in view: it no longer
+  follows new rows to its end as Output does (27 problems showed the last
+  file's). Filled again while you read, it stays where you scrolled.
+  ROUTPUTCONSOLE's new `TopLine` says the first line (row) in view. Flow
+  `problems-top` (27 problems, tests/fixtures/studio_problems).
+- **RapidR Studio on the web opens a project picked as its `.rrproj` file.**
+  File > Open (and the Welcome page's Open Project or File...) gives a page
+  the one file picked, so Studio opened the project with empty files: main.rr
+  blank, no forms in the tree, or a closed document's code under main.rr's
+  name. Now Studio asks to open the project's folder (Open Folder...), the
+  folder picker starts where the `.rrproj` is, and the project opens with all
+  its files and forms; Cancel leaves Studio as it was and the Output says how
+  to open it. A document whose file can't be read now opens empty, never with
+  another file's code. The desktop is unchanged.
 - **A `$MACRO` line with a `)` before its `(` no longer crashes the compiler
   and the editor.** `$MACRO a) b(c = 1` made the parameter list's range run
   backwards ("byte range starts at 30 but ends at 27"); it now defines
@@ -230,6 +251,67 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   `__wait_ms_N`) lets the program run on its own for N ms — its timers, its
   servers — before the next event; `__hold_ms` now also waits its ms on a
   host that can't hold the pump (real windows, the web).
+- **Studio: Search you can see** (Preview 4 S3). Find in Files is now the
+  **Search** tab beside Project, a magnifier on it, always there (Ctrl+Shift+F
+  brings it to the front, the selection in its box). **In** chooses where to
+  look: this file, the open files, the project's modules, its forms, its
+  resources, the whole project (the default) or a folder (picked; its text
+  files, at most 2,000). The results come by file: the file's icon (the
+  Project pane's, one lookup), its name in bold, its folder dimmed, how many
+  in a pill; under it each result's line:col in a muted column and the line,
+  leading spaces trimmed, the match marked on the theme's match colour and
+  always in view (a long line shown around it, "…" where it's cut). Chevrons
+  and indents, no dotted lines (the classic look keeps them); the theme's
+  hover and selection. RTreeView's new item properties, RapidR's: `Icon`
+  (RapidR's icon set by name, or `file:<path>` for a file's type icon),
+  `Column`, `Detail`, `Badge`, `Bold`, `MarkStart` and `MarkLength`. A click
+  on a result shows the place and keeps the keys in the results; Enter or a
+  double click opens it with the match selected; a click or Enter on a file
+  shows or hides its results, Left and Right too.
+  Replace All works as before, one undo step a file. "1 result in 1 file",
+  said to screen readers.
+- **Studio: Find References and Go to Definition across the project's files**
+  (S3). Shift+F12 lists every use of the name at the caret — a variable, a
+  SUB or FUNCTION, a component — in the Search tab, by file: "References to
+  osName: 19 in 4 files" (the language service's symbols, the includes in
+  their order: a comment or a string with the same word isn't a use). F12
+  jumps to the declaration in any file; **Navigate Back** (Alt+Left) and
+  **Forward** (Alt+Right; on a Mac Cmd+Option+Left and Right, since
+  Option+arrows move by words there — RPROJECT's new `MacKeys` tells), in the
+  Edit menu, go back and forth over the last 40 places a definition, a result
+  or a reference took you from. The code's
+  right-click menu has Go to Definition, Find References and Rename Symbol at
+  the top, then Cut, Copy, Paste, Select All and Find in Files; a right click
+  on a word puts the caret there first.
+- **Studio: Problems that tell the truth** (S5). A module — any file the main
+  file includes, at any depth — is checked as part of its project, open or
+  not, never alone: no false errors in a module of a program that compiles
+  (RLanguageService's new `Project`; the code editors follow it too). The
+  Problems page lists the whole project's problems, errors first, then
+  warnings, then notes, grouped by file: a heading with the file's icon (the
+  Project pane's), its folder and its count in a pill, and under it each
+  problem's line:col in a column and its message (ROUTPUTCONSOLE's
+  AddProblem: severity `file` or `file:<icon>` makes a heading, Line its
+  count). On a web server of 7 files and 4,500 lines that compiles:
+  26 problems (the `NOT FILEEXISTS` warnings) instead of 167, no errors in its
+  modules.
+- **Project Options: Targets** (S5): Desktop (the default), Web, or Desktop
+  and web, kept in the project file (`[build] runs_on`; a project that builds
+  a web app too starts as Desktop and web). What works on one runtime only is
+  noted only when the project runs on the other, once per component or
+  builtin, at its first use, with how many uses: "RServerSocket works on the
+  desktop only: the web runtime doesn't have it (45 uses)" — was a note per
+  call. RPROJECT's `Targets` and `FilesIn(Folder)`, RLanguageService's
+  `Targets` and `ProjectDiagnostics`, in the registry. Manual: The code
+  editor (Search, Find References, Back and Forward, Problems) and Projects
+  (Targets), with new pictures. Tests: the language service's
+  `tests/project.rs` (a module with its project, references and definitions
+  across files, notes per component, the order); Studio flows `search-tab`
+  (light, dark, high contrast, text judged), `search-scope-modules`,
+  `search-scope-forms`, `find-references`, `go-to-definition`,
+  `navigate-back`, `problems-project`, `problems-targets-web`,
+  `problems-web-note` (three looks, judged) and `problems-errors-first`, on
+  the desktop and the web.
 - **Servers that only this computer reaches** (REQUEST-003, for RapidR
   Database Studio). RSocket's `Open(Port, Address)` and its new
   `BindAddress` property (RapidR's) choose where a QSOCKET server listens:

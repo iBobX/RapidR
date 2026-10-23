@@ -1,0 +1,12 @@
+' The server's SUBs: main.rr starts it, the form stops it.
+SUB StartServer
+    Srv.Host = "127.0.0.1"
+    Srv.Port = 0
+    Counter = Counter + 1
+END SUB
+
+SUB StopServer
+    Srv.Broadcast "bye"
+    Srv.Stop
+    Counter = 0
+END SUB

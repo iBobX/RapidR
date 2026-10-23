@@ -17,7 +17,7 @@ FUNCTION EditorCommand(Id AS STRING) AS INTEGER
     CASE "edit.replace": IF d >= 0 THEN CodeDoc(d).OpenFind "replace"
     CASE "edit.toggleComment": IF d >= 0 THEN CodeDoc(d).ToggleComment
     CASE "edit.format": IF d >= 0 THEN CodeDoc(d).FormatDocument
-    CASE "edit.goToDefinition": IF d >= 0 THEN CodeDoc(d).GotoDefinition
+    CASE "edit.goToDefinition": GoToDefinition d
     CASE "edit.findReferences": IF d >= 0 THEN CodeDoc(d).FindReferences
     CASE "edit.rename": IF d >= 0 THEN CodeDoc(d).OpenFind "rename"
     CASE "edit.triggerCompletion": IF d >= 0 THEN CodeDoc(d).TriggerCompletion
@@ -84,6 +84,8 @@ END SUB
 ' ---- the status bar: the caret, the file's encoding and line breaks ---------------------
 SUB CodeCaretMoved(Line AS INTEGER, Column AS INTEGER)
   Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(Line)) + ", Col " + LTRIM$(STR$(Column))
+  ' (Go to Definition's jump in the same file, kept for Back: search.inc)
+  NavCaretMoved Line, Column
 END SUB
 
 ' (document d's facts in the status bar: when it opens or comes to the front)
@@ -140,7 +142,9 @@ FUNCTION CodeDocOf(Path AS STRING) AS INTEGER
   DIM p AS STRING
   p = Path
   Result = DocOf(p)
-  IF Result < 0 THEN
+  ' (a path as the language service gives it — the project's own, relative
+  ' when the project was opened so — is a file there; else the project's)
+  IF Result < 0 AND FILEEXISTS(p) = 0 THEN
     p = ProjectPath(Path)
     Result = DocOf(p)
   END IF
@@ -152,12 +156,8 @@ END FUNCTION
 
 ' F12 found the definition in another file (an $INCLUDE's): there.
 SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
-  DIM d AS INTEGER
-  d = CodeDocOf(File)
-  IF d < 0 THEN EXIT SUB
-  Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
-  CodeDoc(d).GotoLineColumn LineNo, ColNo
-  EditorFacts d
+  ' (the place it was asked from kept for Navigate Back: search.inc)
+  NavigateTo File, LineNo, ColNo, Sender
 END SUB
 
 ' (a JSON string's value after Key in Item: "" when it isn't there)
@@ -193,27 +193,8 @@ END FUNCTION
 ' Shift+F12: every use, listed in Output as places to click (this file's
 ' are also selected in the editor, as carets).
 SUB CodeReferences(Json AS STRING, Sender AS RCodeEditor)
-  DIM rest AS STRING, item AS STRING, k AS INTEGER, n AS INTEGER, f AS STRING, l AS INTEGER, d AS INTEGER, t AS STRING
-  rest = Json
-  OutputLine "References:"
-  DO
-    k = INSTR(rest, "{")
-    IF k = 0 THEN EXIT DO
-    rest = MID$(rest, k)
-    k = INSTR(rest, "}")
-    IF k = 0 THEN EXIT DO
-    item = LEFT$(rest, k)
-    rest = MID$(rest, k + 1)
-    f = JsonField(item, "file")
-    l = VAL(JsonField(item, "line"))
-    t = ""
-    d = DocOf(f)
-    IF d >= 0 AND l > 0 THEN t = "  " + LTRIM$(CodeDoc(d).Line(l - 1))
-    OutputLine "  " + f + ":" + LTRIM$(STR$(l)) + ":" + JsonField(item, "column") + t
-    n = n + 1
-  LOOP
-  IF n = 1 THEN OutputLine "  1 reference" ELSE OutputLine "  " + LTRIM$(STR$(n)) + " references"
-  Dock.ShowPane("outputbox")
+  ' (in the Search tab, by file: search.inc)
+  ShowReferences Json, Sender.WordAt(Sender.CaretLine, Sender.CaretColumn)
 END SUB
 
 ' F2 renamed names another file uses: its edits, applied there (opened).

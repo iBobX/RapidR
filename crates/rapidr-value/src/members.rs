@@ -102,7 +102,10 @@ const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save",
 const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys"];
+
+/// (S5) RLANGUAGESERVICE's: `T$ = Lang.ProjectDiagnostics`.
+const LANGSVC: &[&str] = &["projectdiagnostics"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
 const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey", "compact"];
@@ -144,6 +147,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RDESIGNSURFACE" => &[DESIGN],
         "RPROGRAMSESSION" => &[SESSION],
         "RPROJECT" => &[PROJECT],
+        "RLANGUAGESERVICE" => &[LANGSVC],
         "RAI" => &[AI],
         "RAIPROJECTTOOLS" => &[AI_TOOLS],
         "RSTRINGGRID" => &[GRID],
@@ -162,7 +166,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, HTTP_SERVER, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
         .iter()
         .any(|list| list.contains(&member))
 }

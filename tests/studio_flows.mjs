@@ -36,7 +36,16 @@ const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 // (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
+// (Preview 4 S3/S5: four files, a global in each, a desktop-only component)
+const SEARCH_FILES = ["Counter.rrproj", "main.rr", "globals.rr", "server.rr", "ui.rr", "notes.txt"].map((f) => `tests/fixtures/studio_search/${f}`);
+// (S3: a project file gone stale — tools.rr listed as a form, window.rr as a
+// module; the code says the opposite)
+const STALE_FILES = ["Stale.rrproj", "main.rr", "tools.rr", "window.rr"].map((f) => `tests/fixtures/studio_stale/${f}`);
+// (S5: 26 warnings and, on the web, a note: 27 problems)
+const PROBLEM_FILES = ["Problems.rrproj", "main.rr", "a.rr", "b.rr", "net.rr"].map((f) => `tests/fixtures/studio_problems/${f}`);
 const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
+// (WEB-OPEN: a project of three files, three forms in ui.rr, a desktop-only component)
+const WEB_OPEN_FILES = ["Kiosk.rrproj", "main.rr", "globals.rr", "ui.rr"];
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
 // key, no network, no cost): {mock} in a case's steps is its base URL,
@@ -622,6 +631,56 @@ const CASES = [
     do: "file.openFolder,wait,wait",
     delay: 4,
     dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
+  },
+  // (WEB-OPEN) File > Open in a browser gives Studio the one file picked:
+  // a project file (.rrproj) alone, not the files it lists. Studio no
+  // longer opens the project with empty files (2026-10-22: main.rr empty,
+  // or a closed document's code under its name, no forms); it offers the
+  // project's folder. Cancel (Escape): nothing opened, the Output says how.
+  {
+    name: "web-open-project-alone",
+    webOnly: true,
+    open: "",
+    folder: "Kiosk.rrproj",
+    webFiles: ["tests/fixtures/studio_web_open/Kiosk.rrproj=>Kiosk.rrproj"],
+    do: "file.open,wait",
+    events: "promptsave.__key_27",
+    delay: 4,
+    dump: {
+      "prompttitle.caption": /^Open the folder Kiosk\.rrproj is in\?$/,
+      "promptsave.caption": /^&Open Folder\.\.\.$/,
+      "promptdont.visible": /^0$/,
+      "saveprompt.visible": /^0$/,
+      "proj.kind": /^$/,
+      "outputbox.text": /Kiosk\.rrproj: the browser gave RapidR Studio this file only, not the project's files in its folder\n {2}File > Open Folder\.\.\. opens the project with its files$/,
+      "studio.caption": /^RapidR Studio$/,
+    },
+  },
+  // (WEB-OPEN) …the folder (as showDirectoryPicker leaves it in the page's
+  // store): the project with its files — main.rr in the editor, ui.rr's
+  // three forms in the tree — and, with Targets = Web, one note for the
+  // desktop-only component.
+  {
+    name: "web-open-project-folder",
+    webOnly: true,
+    open: "",
+    folder: "kiosk",
+    webFiles: WEB_OPEN_FILES.map((f) => `tests/fixtures/studio_web_open/${f}=>kiosk/${f}`),
+    do: "file.openFolder,wait,wait,targets:web,view.problems,wait",
+    delay: 5,
+    a11y: [
+      ["ui.rr", "treeitem", null, (n) => /3 forms/.test(n.description || "")],
+      ["MainForm, RForm", "treeitem"],
+      ["NewForm, RForm", "treeitem"],
+      ["CfgForm, RForm", "treeitem"],
+    ],
+    dump: {
+      "proj.filename": /^kiosk\/Kiosk\.rrproj$/,
+      "projecttree.filecount": /^3$/,
+      "codedoc(0).text": /^' The web Studio's "project file picked alone" fixture/,
+      "outputbox.problemcount": /^1$/,
+      "outputbox.text": /globals\.rr:3:\d+: info: RServerSocket works on the desktop only: the web runtime doesn't have it/,
+    },
   },
   // (the program's windows over the whole page: floatingWindows, at 1x and
   // 2x; on the desktop they are windows of their own — the program's
@@ -1852,6 +1911,212 @@ const CASES = [
     do: "wait,find:SayGreeting",
     delay: 4,
     dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchtree.itemcount": /^5$/ },
+  },
+  // (Preview 4 S3) Search you can see: the Search tab beside Project —
+  // Ctrl+Shift+F, the word typed, Enter — the whole project's files (a
+  // data file too), each result file:line:col with the match marked; a
+  // result picked with the keyboard (Down to it, Enter) opens its file
+  // with the match selected
+  {
+    name: "search-tab",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchtree.__node_6,searchtree.__key_13",
+    delay: 4,
+    dump: {
+      "searchinfo.caption": /^9 results in 5 files$/,
+      "searchtree.itemcount": /^14$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).filename": /server\.rr$/,
+      "codedoc(1).seltext": /^Counter$/,
+    },
+  },
+  // (S3) The scope: the modules only (main.rr, globals.rr, server.rr —
+  // not the form's file, not the notes), then the forms only
+  {
+    name: "search-scope-modules",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchscope.__item_2",
+    delay: 4,
+    dump: { "searchinfo.caption": /^6 results in 3 files$/, "searchscope.itemindex": /^2$/ },
+  },
+  {
+    name: "search-scope-forms",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchscope.__item_3",
+    delay: 4,
+    dump: { "searchinfo.caption": /^2 results in 1 file$/, "searchtree.itemcount": /^3$/ },
+  },
+  // (S3) "A folder...": the folder picked (the test's file dialog answers
+  // tests/fixtures/studio_split), its text files searched — another
+  // project's
+  {
+    name: "search-scope-folder",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    folder: "tests/fixtures/studio_split",
+    do: "wait,key:Ctrl+Shift+F,type:SayGreeting,key:Enter,wait",
+    events: "searchscope.__item_6",
+    delay: 4,
+    dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchscope.itemindex": /^6$/ },
+  },
+  // (S3) A stale project file: the results' icons are the Project pane's,
+  // by the code (window.rr makes the form: a form's icon; tools.rr makes
+  // none), and the Forms and Modules scopes go by the code too
+  {
+    name: "search-stale-kinds",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait,icons:",
+    delay: 4,
+    dump: {
+      "searchinfo.caption": /^10 results in 3 files$/,
+      "outputbox.text": /icon main\.rr=file:[^\n]*\nicon tools\.rr=file:[^\n]*\nicon window\.rr=kind:form/,
+    },
+  },
+  {
+    name: "search-stale-forms",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait",
+    events: "searchscope.__item_3",
+    delay: 4,
+    dump: { "searchinfo.caption": /^5 results in 1 file$/, "searchtree.itemcount": /^6$/ },
+  },
+  {
+    name: "search-stale-modules",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait",
+    events: "searchscope.__item_2",
+    delay: 4,
+    dump: { "searchinfo.caption": /^5 results in 2 files$/, "searchtree.itemcount": /^7$/ },
+  },
+  // (S3) Find References (Shift+F12) on a global in a module: every use in
+  // every file of the program — the language service's, not a text search
+  // (the comment and the form's caption that say "Counter" aren't uses) —
+  // in the Search tab, by file
+  {
+    name: "find-references",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:Shift+F12,wait",
+    delay: 4,
+    dump: { "searchinfo.caption": /^References to Counter: 6 in 4 files$/, "searchtree.itemcount": /^10$/ },
+  },
+  // (S3) Go to Definition (F12) from a module jumps to the DIM in another
+  // file; Navigate Back returns to where it was asked. (Back and Forward
+  // are Alt+Left / Alt+Right, on a Mac — these tests' — Cmd+Option+Left /
+  // Right: `key:Ctrl+…` is Cmd there)
+  {
+    name: "go-to-definition",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:F12,wait",
+    delay: 4,
+    dump: { "dock.activedocument": /^codedoc\(2\)$/, "codedoc(2).filename": /globals\.rr$/, "codedoc(2).caretline": /^2$/ },
+  },
+  {
+    name: "navigate-back",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:F12,wait,key:Ctrl+Alt+Left,wait",
+    delay: 4,
+    dump: { "dock.activedocument": /^codedoc\(1\)$/, "codedoc(1).filename": /ui\.rr$/, "codedoc(1).caretline": /^18$/ },
+  },
+  // (S3) …and in the same file: F12 on the handler's name in its CREATE
+  // goes to its SUB (line 16); Alt+Left comes back to the CREATE's line
+  // (12), Alt+Right goes to the SUB again
+  {
+    name: "navigate-back-in-file",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,focus:codedoc(1),caret:OnClick = ShowCo,key:F12,wait,key:Ctrl+Alt+Left,wait,key:Ctrl+Alt+Right,wait",
+    delay: 7,
+    dump: { "dock.activedocument": /^codedoc\(1\)$/, "codedoc(1).caretline": /^16$/ },
+  },
+  // (S3) On a Mac, Option+Left still moves the caret by words in the code
+  // (Back isn't on it there): after F12 to the SUB (line 16), the caret
+  // stays on line 16
+  {
+    name: "option-left-moves-by-words",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,focus:codedoc(1),caret:OnClick = ShowCo,key:F12,wait,key:Alt+Left,wait",
+    delay: 6,
+    dump: { "codedoc(1).caretline": /^16$/ },
+  },
+  // (S5) Problems that tell the truth: a module open in the editor is
+  // checked as part of its project (no errors where the program compiles),
+  // and a desktop project hears nothing about what works on the desktop only
+  {
+    name: "problems-project",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:server.rr,wait,view.problems,wait",
+    delay: 4,
+    dump: { "lang.errorcount": /^0$/, "outputbox.problemcount": /^0$/, "lang.targets": /^desktop$/ },
+  },
+  // (S5) Targets = Web (Project Options, picked and OK'd with the keys):
+  // one note for RServerSocket with how many uses, not one per call
+  {
+    name: "problems-targets-web",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    copyDir: true,
+    webFiles: SEARCH_FILES,
+    do: "wait,project.options",
+    events: "apptargets.__item_1,appdialog.__key_13",
+    delay: 5,
+    dump: { "proj.targets": /^web$/, "lang.targets": /^web$/, "outputbox.problemcount": /^1$/ },
+    files: { "Counter.rrproj": /\nruns_on = "web"\n/ },
+  },
+  // (S5) …and what that one note says, on the Problems page: under its
+  // file's heading, at the first use, with how many uses
+  {
+    name: "problems-web-note",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,targets:web,view.problems,wait",
+    delay: 4,
+    dump: {
+      "outputbox.problemcount": /^1$/,
+      "outputbox.text": /^\S*globals\.rr: 1 note\n\S*globals\.rr:3:\d+: info: RServerSocket works on the desktop only: the web runtime doesn't have it \(3 uses\)$/,
+    },
+  },
+  // (S5) Problems opens at its top: 27 problems, more than the page shows —
+  // the first row (the first file's heading) in view, not the last
+  {
+    name: "problems-top",
+    open: "tests/fixtures/studio_problems/Problems.rrproj",
+    webFiles: PROBLEM_FILES,
+    do: "wait,targets:web,view.problems,wait",
+    delay: 5,
+    dump: { "outputbox.problemcount": /^27$/, "outputbox.topline": /^0$/, "outputbox.text": /^\S*a\.rr: 13 warnings\n/ },
+  },
+  // (S5) Errors first, grouped by file: an error typed into the form's
+  // module comes before the notes of the project's other files
+  {
+    name: "problems-errors-first",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    copyDir: true,
+    webFiles: SEARCH_FILES,
+    do: "wait,targets:web,open:ui.rr,view:Code,wait,code:StopServer=>StopServr,wait,view.problems,wait",
+    delay: 5,
+    dump: {
+      "lang.errorcount": /^1$/,
+      "outputbox.text": /^\S*ui\.rr: 1 error\n\S*ui\.rr:\d+:\d+: error: [^\n]*StopServr[^\n]*\n\S*globals\.rr: 1 note\n/,
+    },
   },
   // (S-SHELL-2, HLP-1) F1: the registry's entry in the Help pane — for a
   // statement, and for the word at the caret in the code (a member of the
@@ -6388,6 +6653,83 @@ async function webToolboxEnterThenClick() {
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "toolbox-enter-then-click".includes(f) || f === "toolbox"))) {
   await webToolboxEnterThenClick();
+}
+// (WEB-OPEN, the web) A project opened as a person opens it (2026-10-22:
+// RapidRWebServer opened "empty" — main.rr blank, no forms): the Welcome
+// page's Open Project or File... clicked, the browser's file picker answers
+// Kiosk.rrproj alone (Chromium's pickers replaced by ones over the
+// fixture's files: headless Chromium can't show the system's sheet);
+// Studio asks instead of opening the project with empty files; Open
+// Folder... clicked — the folder picker, asked to start where the project
+// file is, answers its folder; the project opens with its files and forms.
+// Nothing on the page's console is an error.
+async function webOpenPickedProject() {
+  const name = "web-open-project-picked (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(e.message));
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 15000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(100);
+    }
+    return v;
+  };
+  // (a real click where the control is: its accessibility element's box)
+  const click = async (sel) => {
+    const b = await page.locator(sel).first().boundingBox();
+    if (!b) throw new Error(`nothing at ${sel}`);
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  };
+  try {
+    const files = Object.fromEntries(WEB_OPEN_FILES.map((f) => [f, readFileSync(join(ROOT, "tests/fixtures/studio_web_open", f), "utf8")]));
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; window.RAPIDR_FILE_SINK = () => {}; });
+    await page.addInitScript((files) => {
+      const file = (name) => ({ kind: "file", name, async getFile() { return new File([files[name]], name); } });
+      window.__rrPicked = [];
+      window.showOpenFilePicker = async (opts) => { window.__rrPicked.push({ open: !!opts.multiple }); return [file("Kiosk.rrproj")]; };
+      window.showDirectoryPicker = async (opts) => {
+        window.__rrPicked.push({ folder: opts.startIn ? opts.startIn.name : "" });
+        return { kind: "directory", name: "kiosk", async *values() { for (const n of Object.keys(files)) yield file(n); } };
+      };
+    }, files);
+    await page.goto(`${URL_BASE}/index.html?${new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "" })}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && /^RapidR Studio$/.test(String(window.rr.rapidr_get_prop("studio", "caption"))), null, { timeout: 90000, polling: 200 });
+    await page.waitForTimeout(1500);
+    const t0 = Date.now();
+    await click("#rr-startrow\\(1\\)");
+    const shown = await until(() => prop("saveprompt", "visible"), (v) => /^(1|-1|true)$/i.test(v));
+    const title = await prop("prompttitle", "caption");
+    record(name, /^(1|-1|true)$/i.test(shown) && /^Open the folder Kiosk\.rrproj is in\?$/.test(title), `Open Project or File..., Kiosk.rrproj picked alone: Studio asks to open its folder ("${title}")`);
+    record(name, (await prop("proj", "kind")) === "", "no project opened with empty files meanwhile");
+    await page.screenshot({ path: join(WORK, "web-open-project-picked-ask.png") });
+    await click("#rr-promptsave");
+    const file = await until(() => prop("proj", "filename"), (v) => v === "kiosk/Kiosk.rrproj");
+    const ms = Date.now() - t0;
+    const picked = await page.evaluate(() => window.__rrPicked);
+    record(name, picked.length === 2 && picked[1].folder === "Kiosk.rrproj", `Open Folder...: the folder picker starts where Kiosk.rrproj is (${JSON.stringify(picked)})`);
+    const text = await until(() => prop("codedoc(0)", "text"), (v) => v.startsWith("' The web Studio's"));
+    record(name, file === "kiosk/Kiosk.rrproj" && text.startsWith("' The web Studio's"), `the project opens from its folder with main.rr's code (${file || "none"}, ${ms} ms)`);
+    record(name, (await prop("projecttree", "filecount")) === "3", "the tree lists its 3 files");
+    const forms = await page.getByRole("treeitem", { name: /^(MainForm|NewForm|CfgForm), RForm$/ }).count();
+    record(name, forms === 3, `ui.rr's three forms in the tree (${forms})`);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(WORK, "web-open-project-picked.png") });
+    record(name, errors.length === 0, `no errors on the page's console (${errors.length ? errors.join("; ") : "none"})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "web-open-project-picked".includes(f)))) {
+  await webOpenPickedProject();
 }
 async function webColorScheme() {
   const name = "theme-web-color-scheme (web)";

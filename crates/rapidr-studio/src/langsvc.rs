@@ -11,7 +11,10 @@
 //! | `Close(File)` | the file is read from its store again |
 //! | `Outline(File)` → text | `depth, kind, name, detail, line` — kind: `sub`, `function`, `type`, `field`, `method`, `event`, `component`, `constant`, `variable`, `label`; line from 1 |
 //! | `Diagnostics(File)` → text | `severity, line, column, message, file` — severity: `error`, `warning`, `note`; line and column from 1; the compiler's own messages |
-//! | `ErrorCount` | errors in the last Diagnostics |
+//! | `ProjectDiagnostics` → text | the open project's problems (`Project`: its main file), as Problems lists them: the program compiled whole (a module is never checked alone), grouped by file — the files with errors first — and in a file errors, warnings, notes; what works on one runtime only once per component, with how many uses (S5). The same fields as `Diagnostics` |
+//! | `Project` | the open project's main file ("" none): a file it includes is analysed as part of it, here and in the code editors |
+//! | `Targets` | where the project runs: `desktop` (the default), `web` or `both`; what one runtime only has is noted when it runs on the other |
+//! | `ErrorCount` | errors in the last Diagnostics or ProjectDiagnostics |
 //! | `CompatMode` | `"rapidq"`: RapidR's extensions reported (a RapidQ-compatible project) |
 //!
 //! The language service grows here (completion, hover, rename … for the
@@ -21,7 +24,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use rapidr_langsvc::{Analysis, OutlineItem, OutlineKind, Options};
+use rapidr_langsvc::{Analysis, OutlineItem, OutlineKind, Options, Targets};
 use rapidr_value::Value;
 
 use crate::{slashes, text_arg};
@@ -31,12 +34,33 @@ struct Service {
     analysis: Option<Analysis>,
     rapidq: bool,
     errors: i64,
+    /// The open project's main file ("" none).
+    project: String,
+    targets: Targets,
 }
 
 impl Service {
+    fn options(&self) -> Options {
+        Options { rapidq_compatible: self.rapidq, project: (!self.project.is_empty()).then(|| PathBuf::from(&self.project)), targets: self.targets, ..Options::default() }
+    }
+
     fn analysis(&mut self) -> &mut Analysis {
-        let rapidq = self.rapidq;
-        self.analysis.get_or_insert_with(|| Analysis::new(Options { rapidq_compatible: rapidq, ..Options::default() }))
+        let options = self.options();
+        self.analysis.get_or_insert_with(|| Analysis::new(options))
+    }
+
+    /// The project and its targets told to the analysis and to the code
+    /// editors' service (the same answers in both).
+    fn project_changed(&mut self) {
+        let options = self.options();
+        if let Some(a) = self.analysis.as_mut() {
+            let mut o = a.options().clone();
+            o.project = options.project.clone();
+            o.targets = options.targets;
+            a.set_options(o);
+        }
+        let (main, targets) = (self.project.clone(), self.targets.name());
+        rapidr_editor::service::with(|s| s.set_project(&main, targets));
     }
 }
 
@@ -53,6 +77,8 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
         Some(match prop {
             "compatmode" => Value::String(if s.rapidq { "rapidq".into() } else { String::new() }),
             "errorcount" => Value::Integer(s.errors),
+            "project" => Value::String(s.project.clone()),
+            "targets" => Value::String(s.targets.name().into()),
             _ => return None,
         })
     })
@@ -70,6 +96,22 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             true
         }
         "errorcount" => true,
+        "project" => {
+            let p = slashes(&v.to_string_val());
+            if p != s.project {
+                s.project = p;
+                s.project_changed();
+            }
+            true
+        }
+        "targets" => {
+            let t = Targets::parse(&v.to_string_val());
+            if t != s.targets {
+                s.targets = t;
+                s.project_changed();
+            }
+            true
+        }
         _ => false,
     })
 }
@@ -142,12 +184,23 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             outline_lines(&a.outline(&file), &text, 0, &mut out);
             out
         })),
-        "diagnostics" => Value::String(with(name, |s| {
+        "diagnostics" | "projectdiagnostics" => Value::String(with(name, |s| {
+            let project = (method == "projectdiagnostics").then(|| PathBuf::from(&s.project)).filter(|p| !p.as_os_str().is_empty());
             let a = s.analysis();
             let mut out = String::new();
             let mut texts: HashMap<PathBuf, String> = HashMap::new();
             let mut errors = 0;
-            for d in a.diagnostics(&file) {
+            let found = match &project {
+                Some(main) => a.project_diagnostics(main),
+                None if method == "projectdiagnostics" => Vec::new(),
+                None => {
+                    // (as the project's are: errors first, grouped by file)
+                    let mut d = a.diagnostics(&file);
+                    rapidr_langsvc::sort_problems(&mut d, &file);
+                    d
+                }
+            };
+            for d in found {
                 let text = texts.entry(d.file.clone()).or_insert_with(|| a.text(&d.file).unwrap_or_default());
                 let (line, col) = line_col(text, d.start);
                 let severity = format!("{:?}", d.severity).to_ascii_lowercase();

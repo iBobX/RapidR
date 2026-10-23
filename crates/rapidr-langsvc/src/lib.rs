@@ -65,6 +65,57 @@ pub struct Options {
     /// document asked about, not as an `$INCLUDE`. `None`: no confinement
     /// (RapidR Studio, which opens a project's own files).
     pub roots: Option<Vec<PathBuf>>,
+    /// The project's main file (RapidR Studio's open project): a file it
+    /// `$INCLUDE`s — a module, a form file, at any depth — is analysed as
+    /// part of that program, open or not, never alone (S5).
+    pub project: Option<PathBuf>,
+    /// Where the program runs (the project's Targets): what works on one
+    /// runtime only is noted when the program runs on the other.
+    pub targets: Targets,
+}
+
+/// Where a program runs (RapidR Studio's project setting Targets): the
+/// portability notes ("works on the desktop only") are about the runtimes
+/// it doesn't run on, none else.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Targets {
+    /// The desktop only (native builds and the interpreter): RapidR Studio's
+    /// default for a project.
+    Desktop,
+    /// The web only (the browser's runtime).
+    Web,
+    /// Both (the default with no project: the language server's).
+    #[default]
+    Both,
+}
+
+impl Targets {
+    /// `desktop`, `web`, `both` (any case; anything else: both).
+    pub fn parse(s: &str) -> Targets {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "desktop" => Targets::Desktop,
+            "web" => Targets::Web,
+            _ => Targets::Both,
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Targets::Desktop => "desktop",
+            Targets::Web => "web",
+            Targets::Both => "both",
+        }
+    }
+
+    /// Whether something that works on `runtimes` only is worth a note: it
+    /// is when the program also runs where it doesn't work.
+    pub fn notes(self, runtimes: rapidr_lang::Runtimes) -> bool {
+        match runtimes {
+            rapidr_lang::Runtimes::All => false,
+            rapidr_lang::Runtimes::Desktop => self != Targets::Desktop,
+            rapidr_lang::Runtimes::Web => self != Targets::Web,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -332,6 +383,9 @@ pub struct Analysis {
     /// only when asked for what must be exact (diagnostics, definitions,
     /// references, rename, the outline) or with [`Analysis::refresh`].
     stale: HashMap<PathBuf, (Arc<Snapshot>, Vec<Shift>)>,
+    /// The project's problems ([`Analysis::project_diagnostics`]), until a
+    /// file changes.
+    project_diags: Option<(PathBuf, Vec<FileDiagnostic>)>,
 }
 
 impl Analysis {
@@ -347,6 +401,7 @@ impl Analysis {
         self.options = options;
         self.snapshots.clear();
         self.diagnostics.clear();
+        self.project_diags = None;
         self.stale.clear();
     }
 
@@ -376,6 +431,7 @@ impl Analysis {
         // (files include each other: every analysis is redone on demand)
         self.snapshots.clear();
         self.diagnostics.clear();
+        self.project_diags = None;
     }
 
     /// The analysis typing's questions are answered from: the current one
@@ -402,6 +458,7 @@ impl Analysis {
         self.docs.remove(file);
         self.snapshots.clear();
         self.diagnostics.clear();
+        self.project_diags = None;
         self.stale.remove(file);
     }
 
@@ -423,6 +480,7 @@ impl Analysis {
             self.options.roots = Some(roots);
             self.snapshots.clear();
             self.diagnostics.clear();
+        self.project_diags = None;
         }
     }
 
@@ -458,6 +516,15 @@ impl Analysis {
     /// main file's SUBs) are the program's there. Only programs whose text
     /// names the file are analysed for it.
     fn includer(&mut self, file: &Path) -> Option<(PathBuf, Arc<Snapshot>)> {
+        // (the project's program first, open or not: a module of it is never
+        // analysed alone, nor as part of another module that names it)
+        if let Some(main) = self.options.project.clone().filter(|m| m.as_path() != file) {
+            if let Some(s) = self.root_snapshot(&main) {
+                if s.parsed.file_key(file).is_some() {
+                    return Some((main, s));
+                }
+            }
+        }
         let name = file.file_name()?.to_string_lossy().to_ascii_lowercase();
         let mut roots: Vec<PathBuf> = self
             .docs
@@ -514,7 +581,7 @@ impl Analysis {
         }
         let compiler = out.clone();
         // (where the compiler speaks, it's said)
-        out.extend(compat::check(&s, file, self.options.rapidq_compatible).into_iter().filter(|c| {
+        out.extend(compat::check(&s, file, self.options.rapidq_compatible, self.options.targets).diags.into_iter().filter(|c| {
             !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
         }));
         // (what RapidQ compiles without a word but is likely a mistake:
@@ -525,6 +592,47 @@ impl Analysis {
             out.extend(hints::check(&s).into_iter().filter(|h| !said.iter().any(|d| d.file == h.file && d.start < h.end && h.start < d.end)));
         }
         self.diagnostics.insert(file.to_path_buf(), out.clone());
+        out
+    }
+
+    /// The whole project's problems, as RapidR Studio's Problems pane lists
+    /// them (S5): the program `main` compiled as a build compiles it (every
+    /// file it `$INCLUDE`s, in its order, together — a module is never
+    /// checked alone), the registry's word on each of the project's own
+    /// files (those in `main`'s folder: an include library's are its
+    /// own business), the likely mistakes when it compiles, and what works
+    /// on one runtime only — when the project's [`Targets`] reach the other
+    /// — as one note per component or builtin with how many uses
+    /// ("RServerSocket works on the desktop only … (12 uses)"), at its
+    /// first use. Sorted as they are shown: grouped by file, the files with
+    /// errors first; in a file errors, then warnings, then notes, in order.
+    pub fn project_diagnostics(&mut self, main: &Path) -> Vec<FileDiagnostic> {
+        if let Some((m, d)) = &self.project_diags {
+            if m == main {
+                return d.clone();
+            }
+        }
+        let Some(s) = self.root_snapshot(main) else { return Vec::new() };
+        let compiler = diagnostics::compile(&s.parsed);
+        let mut out = compiler.clone();
+        let folder = main.parent().map(Path::to_path_buf);
+        let own = |f: &Path| folder.as_ref().is_none_or(|d| d.as_os_str().is_empty() || f.starts_with(d));
+        let files: Vec<PathBuf> = s.parsed.files().into_iter().filter(|f| own(f)).collect();
+        let mut uses: Vec<compat::RuntimeUse> = Vec::new();
+        for f in &files {
+            let checked = compat::check_all(&s, f, self.options.rapidq_compatible, self.options.targets, true);
+            out.extend(checked.diags.into_iter().filter(|c| {
+                !compiler.iter().any(|d| d.file == c.file && d.start < c.end.max(c.start + 1) && c.start < d.end.max(d.start + 1))
+            }));
+            uses.extend(checked.uses);
+        }
+        if !compiler.iter().any(|d| d.severity == Severity::Error) {
+            let said: Vec<FileDiagnostic> = out.clone();
+            out.extend(hints::check(&s).into_iter().filter(|h| own(&h.file) && !said.iter().any(|d| d.file == h.file && d.start < h.end && h.start < d.end)));
+        }
+        out.extend(compat::runtime_notes(&uses));
+        sort_problems(&mut out, main);
+        self.project_diags = Some((main.to_path_buf(), out.clone()));
         out
     }
 
@@ -657,6 +765,31 @@ impl Analysis {
 
 /// Edits answered from an older analysis before it is made again anyway.
 const MAX_STALE_EDITS: usize = 4096;
+
+/// How bad a problem is, for the order: errors, warnings, notes.
+fn rank(s: Severity) -> u8 {
+    match s {
+        Severity::Error => 0,
+        Severity::Warning => 1,
+        Severity::Note => 2,
+    }
+}
+
+/// Problems in the order they are listed (S5): grouped by file — the files
+/// with errors first, then those with warnings, then notes (the main file
+/// first among equals, then by name) — and in a file errors, warnings,
+/// notes, each in the file's order.
+pub fn sort_problems(out: &mut [FileDiagnostic], main: &Path) {
+    let mut worst: HashMap<PathBuf, u8> = HashMap::new();
+    for d in out.iter() {
+        let w = worst.entry(d.file.clone()).or_insert(2);
+        *w = (*w).min(rank(d.severity));
+    }
+    out.sort_by(|a, b| {
+        let key = |d: &FileDiagnostic| (worst[&d.file], d.file != main, d.file.to_string_lossy().to_ascii_lowercase());
+        key(a).cmp(&key(b)).then_with(|| a.file.cmp(&b.file)).then_with(|| rank(a.severity).cmp(&rank(b.severity))).then_with(|| a.start.cmp(&b.start))
+    });
+}
 
 fn is_inc(p: &Path) -> bool {
     p.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("inc"))

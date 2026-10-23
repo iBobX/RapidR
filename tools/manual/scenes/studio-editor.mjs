@@ -3,7 +3,7 @@
 // keyboard the way a user types (S-EDITOR). The RAPIDQ.INC shots are of a
 // RapidQ program: the same code as hello_form.bas (a .rr program has
 // RAPIDQ.INC's constants built in).
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const topic = "studio-editor";
@@ -23,6 +23,16 @@ const START = "focus:codedoc(0),key:Ctrl+End,key:Enter";
 const MID = ["focus:codedoc(0)", "key:Ctrl+Home", ...Array(9).fill("key:Down")].join(",");
 // (the editor from line 1 to line 22)
 const EDITOR = [244, 90, 792, 440];
+// (S3) a RapidQ program in several files: its library and its window
+// brought in with $INCLUDE
+const SHAPES = "examples/rapidq/shapes/shapes.bas";
+// (S5) Studio's Search and Problems test project (tests/fixtures/studio_search,
+// RapidR's own): copied to the scene's folder, Studio started there — a short
+// path on screen
+const counter = (work, root, steps) => {
+  cpSync(join(root, "tests/fixtures/studio_search"), join(work, "counter"), { recursive: true });
+  return { open: "counter/Counter.rrproj", cwd: work, do: steps };
+};
 // (E0–E2) the helpers' example, the helpers come when typing pauses
 const HELPERS = "examples/studio/helpers.rr";
 const HELPERS_READY = "focus:codedoc(0),wait,wait,wait,wait";
@@ -42,6 +52,14 @@ export const scenes = [
   { name: "hover", open: OPEN, do: `${MID},type:ShowMessage "Hi",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait`, delay: 7, crop: [244, 90, 792, 260] },
   // F12 on a call: the caret on its SUB
   { name: "go-to-definition", open: OPEN, do: `view.code,${START},type:greet,key:Escape,key:Left,key:F12,wait`, delay: 6, crop: [244, 68, 792, 498] },
+  // (S3) the Search tab beside Project: "Area" in the whole project, each
+  // result file:line:col with the match marked
+  { name: "search-tab", open: SHAPES, do: "wait,key:Ctrl+Shift+F,type:Area,key:Enter,wait", delay: 7, crop: [0, 68, 640, 440] },
+  // (S3) Shift+F12 on AreaText in the window's file: its uses, by file
+  { name: "find-references", open: SHAPES, do: "wait,open:forms/shapesform.inc,wait,focus:codedoc(1),caret:AreaTe,key:Shift+F12,wait", delay: 7, crop: [0, 68, 900, 440] },
+  // (S5) Problems grouped by file, errors first: Targets Web, an error typed
+  // into ui.rr
+  { name: "problems-grouped", setup: (work, root) => counter(work, root, "wait,targets:web,open:ui.rr,view:Code,wait,code:StopServer=>StopServr,wait,view.problems,wait"), delay: 8, crop: [244, 560, 792, 190] },
   // mbYes without RAPIDQ.INC in a RapidQ program: squiggled, in Problems
   { name: "problems", setup: (work, root) => asBas(work, root, `${START},type:x = mbYes,key:Escape,wait,wait,wait,view.problems`), delay: 8, crop: [244, 480, 792, 225] },
   // Ctrl+. on it: the fix

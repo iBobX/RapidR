@@ -118,6 +118,20 @@ impl Parsed {
         self.file_id(file).map(|id| self.tools.name_counts(id)).unwrap_or_default()
     }
 
+    /// The program's files, in the order the preprocessor met them (the
+    /// main file first; not RapidR's own libraries).
+    pub fn files(&self) -> Vec<PathBuf> {
+        let mut out: Vec<PathBuf> = Vec::new();
+        for f in &self.tools.preprocessed.origins.files {
+            if let Some(p) = &f.path {
+                if !p.starts_with("<RapidR>") && !out.contains(p) {
+                    out.push(p.clone());
+                }
+            }
+        }
+        out
+    }
+
     /// The name this parse knows `file` by.
     pub fn file_key(&self, file: &Path) -> Option<&Path> {
         let id = self.file_id(file)?;

@@ -37,6 +37,8 @@ SUB OpenProject(Path AS STRING)
     SetState "error", "Can't open " + FileTitle(p)
     EXIT SUB
   END IF
+  ' (a browser gave Studio the project file alone: its folder has the files)
+  IF ProjectFilesElsewhere(p) THEN EXIT SUB
   CloseAllDocuments
   ' (S2: the start-up's offer to reopen is done with)
   HideReopen
@@ -47,6 +49,10 @@ SUB OpenProject(Path AS STRING)
   ProjectMain = ProjectMain + Proj.MainFile
   ProjectFile = p
   Lang.CompatMode = Proj.CompatMode
+  ' (S5: a module is checked as part of its project, never alone; what
+  ' works on one runtime only is noted when the project runs on the other)
+  Lang.Project = ProjectMain
+  Lang.Targets = Proj.Targets
   ' (the project's include files read for the language service: on the web
   ' they are in the page's store, not on a disk it could read)
   FOR i = 0 TO Proj.FileCount - 1
@@ -127,6 +133,7 @@ SUB CloseProject
   StopProgram
   CloseAllDocuments
   Proj.Close
+  Lang.Project = ""
   ProjectOpen = 0
   ProjectName = ""
   ExampleOriginal = ""
@@ -162,6 +169,31 @@ SUB AskOpenFolder
   END IF
   OpenDlg.PickFolder = 0
 END SUB
+
+' (the web) A project file (.rrproj) the browser gave Studio on its own —
+' File > Open picks one file, and a page may read only the files it is
+' given — so its main file isn't there to read: rather than the project
+' with empty files, the project that was open stays, and Studio offers its
+' folder (Open Folder...: the picker opens where the project file is, and
+' the folder's files come in with it). True when it said so. The desktop
+' reads a project's files from its folder: never.
+FUNCTION ProjectFilesElsewhere(Path AS STRING) AS INTEGER
+  DIM main AS STRING, back AS INTEGER
+  IF Proj.FileManager <> "" OR Proj.Kind <> "project" THEN EXIT FUNCTION
+  main = Proj.MainFile
+  IF Proj.Folder <> "" THEN main = Proj.Folder + "/" + main
+  IF main = "" OR FILEEXISTS(main) THEN EXIT FUNCTION
+  Result = 1
+  ' (the project that was open before, as it was)
+  IF ProjectOpen THEN back = Proj.Open(ProjectFile) ELSE Proj.Close
+  OutputLine FileTitle(Path) + ": the browser gave RapidR Studio this file only, not the project's files in its folder"
+  IF AskOpenItsFolder("Open the folder " + FileTitle(Path) + " is in?", "The browser let RapidR Studio read only the file you picked. The project's files are in its folder.") THEN
+    AskOpenFolder
+  ELSE
+    OutputLine "  File > Open Folder... opens the project with its files"
+    SetState "error", "Open the folder " + FileTitle(Path) + " is in to open the project"
+  END IF
+END FUNCTION
 
 ' File > Import RapidQ Project or File / Folder (R-NAMES): a COPY of a
 ' RapidQ program (a .bas, .rqw, .rqb, .rq or .inc file and what it
@@ -289,8 +321,9 @@ END SUB
 
 CONST STUDIO_KEY = "Software\RapidR\Studio"
 ' The saved layout's format (Studio 2026-10: documents as tabs, the debugger's
-' and the toolbox's panes): an older one isn't restored
-CONST LAYOUT_VERSION = 3
+' and the toolbox's panes; 4: the Search tab beside Project, shown): an older
+' one isn't restored
+CONST LAYOUT_VERSION = 4
 CONST HKCU = &H80000001
 
 SUB LoadSettings

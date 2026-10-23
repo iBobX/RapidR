@@ -1,0 +1,6 @@
+' The program's SUBs: no form here.
+DIM Total AS INTEGER
+
+SUB AddOne
+    Total = Total + 1
+END SUB

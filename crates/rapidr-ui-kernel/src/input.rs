@@ -232,6 +232,10 @@ impl FormUi {
                     let entered: Vec<KernelEvent> = self.events.drain(before..).collect();
                     self.events.splice(mark..mark, entered);
                 }
+            } else if button == Button::Right && self.nodes[i].type_name == "RCODEEDITOR" {
+                // (a code editor's right press: the caret where it is, for
+                // the context menu — components/codeeditor/input.rs)
+                self.mouse_to(store, ts, i, MouseIn { kind: MouseKind::Down, x, y, button, mods, inside: true, captured: true, clicks });
             }
         } else if button == Button::Left && clicks >= 2 && clicks.is_multiple_of(2) {
             // (the input lane's: the form's open area double-clicked)

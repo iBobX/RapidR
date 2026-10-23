@@ -1,0 +1,21 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Problems"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "a.rr"
+kind = "module"
+
+[[files]]
+path = "b.rr"
+kind = "module"
+
+[[files]]
+path = "net.rr"
+kind = "module"

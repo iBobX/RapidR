@@ -1,0 +1,10 @@
+' The web Studio's "project file picked alone" fixture (WEB-OPEN): a
+' project of three files, three forms in ui.rr, a desktop-only component
+' in globals.rr. File > Open in a browser gives Studio Kiosk.rrproj only;
+' Studio offers the project's folder. Opened by the flows, never run.
+$APPTYPE GUI
+$INCLUDE "globals.rr"
+$INCLUDE "ui.rr"
+
+Port = 8080
+MainForm.ShowModal

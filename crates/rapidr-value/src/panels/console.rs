@@ -99,6 +99,16 @@ pub struct Problem {
     pub col: i64,
     pub severity: Severity,
     pub message: String,
+    /// A file's heading over its problems (AddProblem's severity `file`, or
+    /// `file:<icon>` naming its icon): the file (its folder shown dimmed),
+    /// `line` how many problems it has (a pill), and in `message` how many
+    /// of each kind in words ("2 errors, 1 warning": what a screen reader
+    /// hears). Not a problem: the counts leave it out. Under headings the
+    /// problems show their line and column in a column of their own, not
+    /// their file again.
+    pub heading: bool,
+    /// A heading's icon (RapidR's set; "": the file's, by its type).
+    pub icon: String,
 }
 
 impl Problem {
@@ -111,8 +121,12 @@ impl Problem {
         }
     }
 
-    /// Its line of text: `Main.rr:12:5: error: message`.
+    /// Its line of text: `Main.rr:12:5: error: message` (a heading's:
+    /// `Main.rr: 2 errors`).
     pub fn text(&self) -> String {
+        if self.heading {
+            return format!("{}: {}", self.file, self.message);
+        }
         if self.file.is_empty() {
             format!("{}: {}", self.severity.name(), self.message)
         } else {
@@ -122,6 +136,9 @@ impl Problem {
 
     /// What a screen reader is told: "Error: message, Main.rr line 12".
     pub fn spoken(&self) -> String {
+        if self.heading {
+            return format!("{}, {}", self.file, self.message);
+        }
         let mut s = format!("{}: {}", self.severity.title(), self.message);
         if !self.file.is_empty() {
             s.push_str(&format!(", {}", self.file));
@@ -218,7 +235,9 @@ impl Default for Console {
             word_wrap: true,
             max_lines: 5000,
             filter: String::new(),
-            views: [View::default(); 3],
+            // (the Problems page reads from its top — errors first —, never
+            // following new rows to the end as Output does)
+            views: [View::default(), View::default(), View { follow: false, ..View::default() }],
             current: None,
             hover_link: None,
             hover_tab: None,
@@ -308,7 +327,9 @@ impl Console {
         }
     }
 
-    /// Empties page `p`; its view starts over.
+    /// Empties page `p`; its view starts over. (The Problems page is filled
+    /// again as the code is checked: it stays where the reader scrolled it —
+    /// at its top until they scroll —, never following to the end.)
     pub fn clear(&mut self, p: Page) {
         match self.screen_mut(p) {
             Some(s) => s.clear(),
@@ -318,7 +339,12 @@ impl Console {
             }
         }
         let first = self.first(p);
-        self.views[p.index()] = View { top: first, ..View::default() };
+        if p == Page::Problems {
+            let was = self.views[p.index()];
+            self.views[p.index()] = View { follow: false, top: was.top, sub: was.sub, ..View::default() };
+        } else {
+            self.views[p.index()] = View { top: first, ..View::default() };
+        }
         if p == self.page {
             self.hover_link = None;
             self.hover_row = None;
@@ -337,8 +363,8 @@ impl Console {
 
     pub fn set_auto_scroll(&mut self, on: bool) {
         self.auto_scroll = on;
-        for v in &mut self.views {
-            v.follow = on;
+        for (k, v) in self.views.iter_mut().enumerate() {
+            v.follow = on && k != Page::Problems.index();
         }
     }
 
@@ -545,7 +571,11 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
             Value::Null
         }
         "addproblem" => {
-            let p = Problem { file: s(0), line: n(1), col: n(2), severity: Severity::parse(&s(3)), message: s(4) };
+            let sev = s(3);
+            let kind = sev.trim();
+            let heading = kind.eq_ignore_ascii_case("file") || kind.get(..5).is_some_and(|k| k.eq_ignore_ascii_case("file:"));
+            let icon = if heading { kind.get(5..).unwrap_or("").trim().to_string() } else { String::new() };
+            let p = Problem { file: s(0), line: n(1), col: n(2), severity: if heading { Severity::Info } else { Severity::parse(&sev) }, message: s(4), heading, icon };
             with_mut(name, |c| c.add_problem(p));
             Value::Null
         }
@@ -571,7 +601,9 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "autoscroll" => basic_bool(c.auto_scroll),
             "wordwrap" => basic_bool(c.word_wrap),
             "linecount" => Value::Integer(c.count(c.page) as i64),
-            "problemcount" => Value::Integer(c.problems.len() as i64),
+            "problemcount" => Value::Integer(c.problems.iter().filter(|p| !p.heading).count() as i64),
+            // (the first line — the Problems page's row — the page shows, from 0)
+            "topline" => Value::Integer(c.view().top.saturating_sub(c.first(c.page)) as i64),
             "text" => Value::String(c.text(c.page)),
             _ => return None,
         })
@@ -628,7 +660,7 @@ mod tests {
         c.write("Hello\n\x1b[31mred\x1b[0m");
         c.add_build_line("Compiling Main.rr");
         c.add_build_line("Main.rr:3:5: error: x");
-        c.add_problem(Problem { file: "Main.rr".into(), line: 12, col: 5, severity: Severity::Error, message: "Undefined variable X".into() });
+        c.add_problem(Problem { file: "Main.rr".into(), line: 12, col: 5, severity: Severity::Error, message: "Undefined variable X".into(), heading: false, icon: String::new() });
         assert_eq!(c.count(Page::Output), 2);
         assert_eq!(c.text(Page::Output), "Hello\nred");
         assert_eq!(c.line_text(Page::Build, 1).as_deref(), Some("Main.rr:3:5: error: x"));

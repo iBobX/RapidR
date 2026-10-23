@@ -805,7 +805,8 @@ SUB GoToFirstProblem
   DIM d AS INTEGER, text AS STRING, row AS STRING, i AS INTEGER, n AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  text = Lang.Diagnostics(DocFile(d))
+  ' (the project's: its errors come first, whichever file has them)
+  IF InProject(DocFile(d)) THEN text = ProblemsText(ProjectMain) ELSE text = Lang.Diagnostics(DocFile(d))
   n = TALLY(text, CHR$(10))
   FOR i = 1 TO n
     row = FIELD$(text, CHR$(10), i)

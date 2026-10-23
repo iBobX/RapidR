@@ -56,11 +56,34 @@ pub struct Node {
     /// (RapidR's) `Item(i).Changed`: its value changed since the program
     /// last stopped (highlighted and marked).
     pub changed: bool,
+    /// (RapidR's) `Item(i).MarkStart` / `MarkLength`: a part of the text
+    /// shown marked (a search's match in its line): its first character
+    /// (from 0) and how many; 0 none.
+    pub mark: (usize, usize),
+    /// (RapidR's) A results list's row (Studio's Search, its references):
+    /// `Item(i).Icon` — an icon of RapidR's set by name (`files/rr`), or
+    /// `file:<path>` for the icon the Project pane gives that file —,
+    /// `Item(i).Column` (muted text in a column of its own before the text:
+    /// a result's line:col), `Item(i).Detail` (dimmed text after it: a
+    /// file's folder), `Item(i).Badge` (a small count pill at the row's
+    /// right) and `Item(i).Bold`.
+    pub rich: Option<Box<Rich>>,
+}
+
+/// (RapidR's) A node's extras as a results list shows them (see
+/// [`Node::rich`]).
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct Rich {
+    pub icon: String,
+    pub column: String,
+    pub detail: String,
+    pub badge: String,
+    pub bold: bool,
 }
 
 impl Node {
     fn new(text: String, level: usize) -> Node {
-        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false, text_color: -1, value: None, changed: false }
+        Node { text, level, image_index: 0, selected_index: 0, state_index: -1, expanded: false, has_children: false, text_color: -1, value: None, changed: false, mark: (0, 0), rich: None }
     }
 }
 
@@ -584,7 +607,7 @@ impl TreeView {
         if setter {
             let val = args.get(1).cloned().unwrap_or(Value::Null);
             let Some(i) = i else {
-                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded" | "textcolor" | "changed").then_some(Value::Null);
+                return matches!(member, "text" | "imageindex" | "selectedindex" | "stateindex" | "haschildren" | "selected" | "expanded" | "textcolor" | "changed" | "markstart" | "marklength" | "icon" | "column" | "detail" | "badge" | "bold").then_some(Value::Null);
             };
             match member {
                 "text" => self.nodes[i].text = val.to_string_val(),
@@ -594,6 +617,18 @@ impl TreeView {
                 "haschildren" => self.nodes[i].has_children = val.to_bool(),
                 "textcolor" => self.nodes[i].text_color = val.to_i64(),
                 "changed" => self.nodes[i].changed = val.to_bool(),
+                "markstart" => self.nodes[i].mark.0 = val.to_i64().max(0) as usize,
+                "marklength" => self.nodes[i].mark.1 = val.to_i64().max(0) as usize,
+                "icon" | "column" | "detail" | "badge" | "bold" => {
+                    let r = self.nodes[i].rich.get_or_insert_with(Box::default);
+                    match member {
+                        "icon" => r.icon = val.to_string_val(),
+                        "column" => r.column = val.to_string_val(),
+                        "detail" => r.detail = val.to_string_val(),
+                        "badge" => r.badge = val.to_string_val(),
+                        _ => r.bold = val.to_bool(),
+                    }
+                }
                 "selected" if val.to_bool() => self.select(i as i64),
                 "selected" => {
                     if self.item_index == i as i64 {
@@ -618,6 +653,13 @@ impl TreeView {
             "haschildren" => flag(i.is_some_and(|i| self.has_children(i))),
             "textcolor" => v_int(node.map_or(-1, |n| n.text_color)),
             "changed" => flag(node.is_some_and(|n| n.changed)),
+            "markstart" => v_int(node.map_or(0, |n| n.mark.0 as i64)),
+            "marklength" => v_int(node.map_or(0, |n| n.mark.1 as i64)),
+            "icon" => v_str(node.and_then(|n| n.rich.as_ref()).map_or("", |r| &r.icon)),
+            "column" => v_str(node.and_then(|n| n.rich.as_ref()).map_or("", |r| &r.column)),
+            "detail" => v_str(node.and_then(|n| n.rich.as_ref()).map_or("", |r| &r.detail)),
+            "badge" => v_str(node.and_then(|n| n.rich.as_ref()).map_or("", |r| &r.badge)),
+            "bold" => flag(node.and_then(|n| n.rich.as_ref()).is_some_and(|r| r.bold)),
             "valuekind" => v_str(node.and_then(|n| n.value.as_ref()).map_or("", |v| &v.kind)),
             "selected" => flag(i.is_some_and(|i| self.item_index == i as i64)),
             "isvisible" => flag(i.is_some_and(|i| self.is_visible(i))),

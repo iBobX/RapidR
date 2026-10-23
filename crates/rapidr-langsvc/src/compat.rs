@@ -24,7 +24,7 @@ use rapidr_preprocessor::LineKind;
 use crate::context::{self, chain_before, pretty_component, Ty};
 use crate::model::SymbolKind;
 use crate::text::{is_name_char, LineIndex};
-use crate::{CodeAction, FileDiagnostic, Snapshot, TextEdit};
+use crate::{CodeAction, FileDiagnostic, Snapshot, Targets, TextEdit};
 
 pub(crate) const RAPIDR_ONLY: &str = "rapidr-only";
 pub(crate) const NOT_RAPIDQ_NAME: &str = "not-a-rapidq-name";
@@ -58,10 +58,66 @@ pub(crate) fn notes(origin: Origin, owner: Origin, missing: bool, runtimes: Runt
     out.join("\n\n")
 }
 
-/// The registry's diagnostics for `file` of the program `s`.
-pub(crate) fn check(s: &Snapshot, file: &Path, rapidq_compatible: bool) -> Vec<FileDiagnostic> {
-    let Some(lf) = s.parsed.lossless(file) else { return Vec::new() };
-    let mut c = Checker { s, file, text: &lf.text, index: LineIndex::new(&lf.text), compat: rapidq_compatible, out: Vec::new() };
+/// A use of something that works on one runtime only (a component, a
+/// member of one, a builtin): what it is (`key`: the component's name, the
+/// builtin's), where.
+#[derive(Debug, Clone)]
+pub(crate) struct RuntimeUse {
+    pub key: String,
+    pub runtimes: Runtimes,
+    pub file: std::path::PathBuf,
+    pub start: usize,
+    pub end: usize,
+}
+
+/// What [`check_all`] found: the diagnostics, and the one-runtime uses
+/// (kept apart when they are to be noted once per thing).
+pub(crate) struct Checked {
+    pub diags: Vec<FileDiagnostic>,
+    pub uses: Vec<RuntimeUse>,
+}
+
+/// The registry's diagnostics for `file` of the program `s`: a note at
+/// each use of what works on one runtime only, when `targets` reach the
+/// other.
+pub(crate) fn check(s: &Snapshot, file: &Path, rapidq_compatible: bool, targets: Targets) -> Checked {
+    check_all(s, file, rapidq_compatible, targets, false)
+}
+
+/// One note per thing that works on one runtime only, for every use of it
+/// (`uses`, all the program's): at its first use, with how many there are
+/// ("RServerSocket works on the desktop only: the web runtime doesn't have
+/// it (12 uses)"). The Problems pane's (S5): 167 notes for one component
+/// told nothing more than one.
+pub(crate) fn runtime_notes(uses: &[RuntimeUse]) -> Vec<FileDiagnostic> {
+    let mut order: Vec<(&str, Runtimes)> = Vec::new();
+    for u in uses {
+        if !order.iter().any(|(k, r)| k.eq_ignore_ascii_case(&u.key) && *r == u.runtimes) {
+            order.push((&u.key, u.runtimes));
+        }
+    }
+    order
+        .into_iter()
+        .filter_map(|(key, runtimes)| {
+            let all: Vec<&RuntimeUse> = uses.iter().filter(|u| u.key.eq_ignore_ascii_case(key) && u.runtimes == runtimes).collect();
+            let first = all.first()?;
+            let n = all.len();
+            let count = if n == 1 { "1 use".to_string() } else { format!("{n} uses") };
+            let message = match runtimes {
+                Runtimes::All => return None,
+                Runtimes::Desktop => format!("{key} works on the desktop only: the web runtime doesn't have it ({count})"),
+                Runtimes::Web => format!("{key} works in the web runtime only: the desktop doesn't have it ({count})"),
+            };
+            Some(FileDiagnostic { file: first.file.clone(), start: first.start, end: first.end, severity: Severity::Note, message, code: Some(ONE_RUNTIME.into()) })
+        })
+        .collect()
+}
+
+/// [`check`], the one-runtime uses kept apart (`apart`: no note at each,
+/// [`runtime_notes`] says them once) or noted where they are.
+pub(crate) fn check_all(s: &Snapshot, file: &Path, rapidq_compatible: bool, targets: Targets, apart: bool) -> Checked {
+    let Some(lf) = s.parsed.lossless(file) else { return Checked { diags: Vec::new(), uses: Vec::new() } };
+    let mut c = Checker { s, file, text: &lf.text, index: LineIndex::new(&lf.text), compat: rapidq_compatible, targets, apart, out: Vec::new(), uses: Vec::new() };
     c.directives(&lf.line_kinds);
     let toks: Vec<&Token> = lf.tokens.iter().filter(|t| t.kind != TokenType::Eof).collect();
     let mut statement_start = true;
@@ -95,7 +151,7 @@ pub(crate) fn check(s: &Snapshot, file: &Path, rapidq_compatible: bool) -> Vec<F
             c.name(t, next);
         }
     }
-    c.out
+    Checked { diags: c.out, uses: c.uses }
 }
 
 struct Checker<'a> {
@@ -104,7 +160,10 @@ struct Checker<'a> {
     text: &'a str,
     index: LineIndex,
     compat: bool,
+    targets: Targets,
+    apart: bool,
     out: Vec<FileDiagnostic>,
+    uses: Vec<RuntimeUse>,
 }
 
 impl Checker<'_> {
@@ -122,7 +181,16 @@ impl Checker<'_> {
         self.push(start, end, Severity::Warning, NOT_IMPLEMENTED, format!("RapidQ's {what} is not implemented in RapidR yet"));
     }
 
-    fn one_runtime(&mut self, start: usize, end: usize, what: String, runtimes: Runtimes) {
+    /// A use of `what` (of `key`: its component, the builtin) that works
+    /// on `runtimes` only: a note there, or kept for one note per key.
+    fn one_runtime(&mut self, start: usize, end: usize, key: &str, what: String, runtimes: Runtimes) {
+        if !self.targets.notes(runtimes) {
+            return;
+        }
+        if self.apart {
+            self.uses.push(RuntimeUse { key: key.to_string(), runtimes, file: self.file.to_path_buf(), start, end });
+            return;
+        }
         let message = match runtimes {
             Runtimes::All => return,
             Runtimes::Desktop => format!("{what} works on the desktop only: the web runtime doesn't have it"),
@@ -220,7 +288,7 @@ impl Checker<'_> {
                 format!("{} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)", c.spelling()),
             );
         }
-        self.one_runtime(start, end, shown, c.runtimes);
+        self.one_runtime(start, end, &c.spelling(), shown, c.runtimes);
     }
 
     /// `Obj.Member`: the member, when the object's type is a component's.
@@ -277,7 +345,7 @@ impl Checker<'_> {
         } else if origin == Origin::RapidR && c.origin == Origin::RapidQ {
             self.extension(start, end, what.clone());
         }
-        self.one_runtime(start, end, what, runtimes);
+        self.one_runtime(start, end, &c.spelling(), what, runtimes);
     }
 
     /// A name that isn't the program's: a builtin, RapidR's constant.
@@ -297,7 +365,7 @@ impl Checker<'_> {
             } else if b.origin == Origin::RapidR {
                 self.extension(start, end, what.clone());
             }
-            self.one_runtime(start, end, what, b.runtimes);
+            self.one_runtime(start, end, b.name, what, b.runtimes);
             return;
         }
         if let Some((_, group)) = rapidr_lang::constant(&t.lexeme) {

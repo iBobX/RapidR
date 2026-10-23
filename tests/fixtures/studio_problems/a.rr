@@ -1,0 +1,17 @@
+' Files the program looks for (first half): each line a warning —
+' NOT FILEEXISTS(f) is always true, FILEEXISTS gives 1.
+SUB CheckA
+    IF NOT FILEEXISTS("file1.txt") THEN PRINT "missing 1"
+    IF NOT FILEEXISTS("file2.txt") THEN PRINT "missing 2"
+    IF NOT FILEEXISTS("file3.txt") THEN PRINT "missing 3"
+    IF NOT FILEEXISTS("file4.txt") THEN PRINT "missing 4"
+    IF NOT FILEEXISTS("file5.txt") THEN PRINT "missing 5"
+    IF NOT FILEEXISTS("file6.txt") THEN PRINT "missing 6"
+    IF NOT FILEEXISTS("file7.txt") THEN PRINT "missing 7"
+    IF NOT FILEEXISTS("file8.txt") THEN PRINT "missing 8"
+    IF NOT FILEEXISTS("file9.txt") THEN PRINT "missing 9"
+    IF NOT FILEEXISTS("file10.txt") THEN PRINT "missing 10"
+    IF NOT FILEEXISTS("file11.txt") THEN PRINT "missing 11"
+    IF NOT FILEEXISTS("file12.txt") THEN PRINT "missing 12"
+    IF NOT FILEEXISTS("file13.txt") THEN PRINT "missing 13"
+END SUB

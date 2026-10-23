@@ -551,13 +551,25 @@ SUB ClearProblems
   OutputBox.ClearProblems
 END SUB
 
-' (Kind: 0 error, 1 warning, 2 information)
+' (Kind: 0 error, 1 warning, 2 information, 3 a file's heading — Message
+' how many of each kind it has)
 SUB AddProblem(Kind AS INTEGER, Message AS STRING, InFile AS STRING, LineNo AS INTEGER, ColNo AS INTEGER)
   DIM sev AS STRING
   sev = "info"
   IF Kind = 0 THEN sev = "error"
   IF Kind = 1 THEN sev = "warning"
+  IF Kind = 3 THEN sev = "file"
   OutputBox.AddProblem InFile, LineNo, ColNo, sev, Message
+END SUB
+
+' A file's heading on the Problems page: its icon (the Project pane's),
+' its path from the project's folder, how many problems (a pill), the
+' counts in words (what a screen reader hears).
+SUB AddFileHeading(InFile AS STRING, Counts AS STRING, Total AS INTEGER)
+  DIM icon AS STRING
+  icon = FileIconName(InFile)
+  IF LEFT$(icon, 5) = "file:" THEN icon = ""
+  OutputBox.AddProblem ProjectRel(InFile), Total, 0, "file:" + icon, Counts
 END SUB
 
 ' A `file:line` place or a problem clicked: that line of that file. (The

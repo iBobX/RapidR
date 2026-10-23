@@ -94,6 +94,36 @@ To start somewhere else, use the other items on the page as usual.
 You can turn the offer off in **Tools > Settings > General**: clear
 **Offer to reopen the last project and its files at start-up**.
 
+## Targets: where your program runs
+
+**Project > Project Options** has a **Targets** choice: **Desktop** (the
+default), **Web**, or **Desktop and web**. It says where your program is
+meant to run, and Studio keeps it in the project file:
+
+```toml
+[build]
+runs_on = "web"
+```
+
+Some components and functions work on one runtime only. `RServerSocket`, for
+example, listens on a port, which a browser page can't do. The Problems tab
+tells you about them only when your project runs where they don't work:
+
+- **Desktop**: nothing about what works on the desktop only (that's where it
+  runs); a note for anything that works in the browser only.
+- **Web**: a note for each component or function that works on the desktop
+  only.
+- **Desktop and web**: notes for both.
+
+Each note comes once, at the first use, with how many uses there are:
+"RServerSocket works on the desktop only: the web runtime doesn't have it
+(12 uses)".
+
+![Project Options: Targets set to Web, with the note "In a browser. Problems notes what works on the desktop only."](images/studio-projects/targets.png)
+
+A project that builds a web app too (`targets` in `[build]` includes `web`)
+starts as **Desktop and web**; any other starts as **Desktop**.
+
 ## The PATH your programs get
 
 On macOS and Linux, an app started from the Dock, Finder or a desktop

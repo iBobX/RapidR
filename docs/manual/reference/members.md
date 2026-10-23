@@ -5255,6 +5255,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `WordWrap` | bool | True | True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip). |
 | `LineCount` (read-only) | int |  | How many lines the shown page has. |
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
+| `TopLine` (read-only) | int |  | The first line the page shows now, from 0 (on the Problems page, its first row in view: a heading counts as a row). The Problems page shows its top when it is filled — errors come first — and keeps the place the reader scrolled to when it is filled again. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
@@ -5279,7 +5280,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `WriteLine(Text AS STRING)` | Write, then a new line. |
 | `Clear([Page AS STRING])` | Empties a page (the shown one when Page is left out). |
 | `AddBuildLine(Text AS STRING)` | Adds a line to the Build page. |
-| `AddProblem(File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING)` | Adds a problem (Severity "error", "warning" or "info") to the Problems page. |
+| `AddProblem(File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING)` | Adds a problem (Severity "error", "warning" or "info") to the Problems page. Severity "file" (or "file:" and an icon of RapidR's set, `kind:form` a project kind's) adds a file's heading instead: File's name in bold, its folder dimmed, Line in a pill (how many problems it has), Message what a screen reader hears ("1 error, 2 warnings"); under headings, problems show their line and column in a column of their own, not their file. |
 | `ClearProblems` | Empties the Problems page. |
 | `Line(Index AS INTEGER) AS STRING` | The shown page's line Index (from 0), without colours. |
 | `Find(Text AS STRING) AS INTEGER` | Searches the shown page (as the search box does): how many matches; the first is shown. |
@@ -5485,6 +5486,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+| `Targets` | string |  | Where the program runs: "desktop" (native builds and the interpreter), "web" (the browser) or "both" — Project Options' Targets, kept in the project file (`[build] runs_on`). Unset, it is "both" for a project that builds a web app too, else "desktop". The Problems pane notes what works on one runtime only when the program runs on the other. Set it, then Save. |
 | `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
 | `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
 | `BundleID` | string |  | The app's reverse-DNS identifier (com.example.notepad); "" for dev.rapidr.app.<name>. |
@@ -5528,6 +5530,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `IconPreview([Size AS INTEGER]) AS STRING` | Draws the app's icon (Icon, else RapidR's) as a Size-pixel PNG (128 by default) in the project's .rapidr folder and gives its path, for an RImage to show; "" when the icon can't be read (Error says why). |
 | `Find(Pattern AS STRING, Options AS STRING, Text AS STRING) AS STRING` | Find in Files: every match of Pattern in Text, a line each: line, column (both from 1), length, the line's text, separated by tabs. Options: any of "case" (match case), "word" (whole words), "regex" (Pattern is a regular expression), separated by commas. "" with Error set when the pattern is not a valid regular expression. |
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
+| `MacKeys AS INTEGER` | True when the keyboard is a Mac's: Cmd is the shortcut key and Option with an arrow moves by words in text (RapidR Studio on macOS, or Studio's page in a browser on a Mac). Studio's Navigate Back and Forward are Cmd+Option+Left and Right there, so Option+Left still moves by words; elsewhere Alt+Left and Alt+Right. |
+| `FilesIn(Folder AS STRING) AS STRING` | The text files under Folder, at any depth, a line each (full paths, sorted): hidden folders, build and target folders, and pictures, sounds, videos, fonts, archives and programs left out; at most 2,000. Search's "A folder" scope reads them (the disk on the desktop, the page's store on the web). |
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
 | `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`; "formmdi": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
 | `IncludeRenameEdit(MainText AS STRING, OldPath AS STRING, NewPath AS STRING) AS STRING` | The main program's `$INCLUDE` of project file OldPath changed to name NewPath (the file renamed or moved), as one RCODEEDITOR.ApplyPatches line: only the path is replaced; "" when MainText doesn't include it. |
@@ -5548,7 +5552,9 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | Property | Type | Default | |
 |---|---|---|---|
 | `CompatMode` | string |  | "rapidq": RapidR's extensions are reported, as in a RapidQ-compatible project. |
-| `ErrorCount` (read-only) | int |  | How many errors the last Diagnostics found. |
+| `ErrorCount` (read-only) | int |  | How many errors the last Diagnostics or ProjectDiagnostics found. |
+| `Project` | string |  | The open project's main file ("" for none). A file it includes — a module, a form's file, at any depth — is then analysed as part of its program, open or not, never alone: no errors in a module that compiles with its project. The code editors' help follows it too. |
+| `Targets` | string |  | Where the program runs: "desktop", "web" or "both" (the default without a project). What works on one runtime only is noted when the program runs on the other — in Diagnostics at each use, in ProjectDiagnostics once per component with how many uses. |
 
 | Method | |
 |---|---|
@@ -5557,6 +5563,7 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
 | `Help(Word AS STRING, [OfType AS STRING]) AS STRING` | The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. "" when the word isn't known. |
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
+| `ProjectDiagnostics AS STRING` | The open project's problems (Project: its main file), as RapidR Studio's Problems pane lists them: the program compiled whole, as a build compiles it (a module is never checked alone), the registry's word on the project's own files, and what works on one runtime only — when Targets reach the other — once per component or builtin with how many uses. Grouped by file, the files with errors first; in a file errors, then warnings, then notes. The same fields as Diagnostics, a line each; "" with no project. |
 
 <a id="rprogramsession"></a>
 ## RProgramSession
@@ -5811,6 +5818,13 @@ One node of an RTreeView (`Tree.Item(i)`, counted from 0 in display order): its 
 | `HasChildren` | bool |  | Whether the node shows an expand button, even before it has children. |
 | `TextColor` *(RapidR)* | color |  | The node's text colour; -1 (the default) for the tree's own. |
 | `Changed` *(RapidR)* | bool |  | The node's value changed since the program last stopped: a value node (SetItemValue) is highlighted and marked with a small triangle, and screen readers hear "changed". |
+| `MarkStart` *(RapidR)* | int |  | Where a marked part of the node's text starts — a search's match in its line, say — counted in characters from 0; MarkLength says how long it is. The part is drawn on the theme's match colour, the text over it unchanged. |
+| `Icon` *(RapidR)* | string |  | An icon of RapidR's own set beside the node, by name (`files/rr`, `kinds/form`), or `file:` and a file's path for the icon RapidR Studio's Project pane gives that file (by its type); "" (the default) for none — the Images list's picture then, if any. |
+| `Column` *(RapidR)* | string |  | Muted text in a column of its own before the node's text, as wide as the widest one shown (a search result's line and column: `12:5`); "" for none. |
+| `Detail` *(RapidR)* | string |  | Dimmed text after the node's text (a file's folder, say); cut first when the row is too narrow. |
+| `Badge` *(RapidR)* | string |  | A small pill at the right end of the node's row, holding this text (how many results a file has); "" for none. |
+| `Bold` *(RapidR)* | bool |  | The node's text in bold (a group's heading). |
+| `MarkLength` *(RapidR)* | int |  | How many characters of the node's text are marked, from MarkStart; 0 (the default) marks none. `Tree.Item(i).MarkStart = 4: Tree.Item(i).MarkLength = 5` marks the fifth to the ninth. |
 | `ValueKind` *(RapidR)* (read-only) | string |  | The kind SetItemValue gave the node (`Integer`, `String`, `Locals` …); empty for a plain node. |
 | `Selected` | bool |  | Whether the node is the selected one; setting it selects it. |
 | `Level` (read-only) | int |  | How deep the node is: 0 for a root node. |
