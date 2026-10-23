@@ -208,7 +208,16 @@ fn link_mark() -> &'static str {
         let word = |n: u64| {
             let mut h = std::collections::hash_map::RandomState::new().build_hasher();
             h.write_u64(n);
+            // (the browser has no std clock — SystemTime::now panics there —:
+            // its own random numbers and time instead)
+            #[cfg(not(target_arch = "wasm32"))]
             h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
+            #[cfg(target_arch = "wasm32")]
+            {
+                h.write_u64((js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+                h.write_u64((js_sys::Math::random() * 9_007_199_254_740_992.0) as u64);
+                h.write_u64(js_sys::Date::now() as u64);
+            }
             h.finish()
         };
         format!("#rapidr-own-{:016x}{:016x}", word(1), word(2))

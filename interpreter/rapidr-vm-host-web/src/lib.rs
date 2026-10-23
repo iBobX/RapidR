@@ -897,6 +897,15 @@ fn install_resume_handler() {
 
 // ---------- wasm-bindgen entry point ----------
 
+/// When the module loads: a panic's message goes to the browser's console
+/// (a release build otherwise shows only "RuntimeError: unreachable").
+#[wasm_bindgen(start)]
+pub fn rapidr_start() {
+    std::panic::set_hook(Box::new(|info| {
+        web_sys::console::error_1(&JsValue::from_str(&format!("RapidR panicked: {info}")));
+    }));
+}
+
 /// Decode and execute a `.rrbc` module from a byte slice.
 ///
 /// Runs `__main` (it may stop for a dialog; the forms appear when it
