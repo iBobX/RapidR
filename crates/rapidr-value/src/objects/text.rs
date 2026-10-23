@@ -271,8 +271,48 @@ impl Scaled {
     }
 
     fn advance(&self, c: char) -> f32 {
+        // (POLISH-2: a wide character — Chinese, Japanese, Korean, a
+        // full-width form — RapidR's faces don't have is drawn by the
+        // system's CJK font, an em wide: measured as that, not as the `?`
+        // drawn in its place here, which is half as wide — a tab named
+        // "查询 1" ran into the next)
+        if wide(c) && !self.has(c) {
+            return self.scale * f32::from(self.face.units_per_em());
+        }
         self.glyph(c).and_then(|g| g.face.glyph_hor_advance(g.id).map(|a| f32::from(a) * g.scale)).unwrap_or(0.0)
     }
+
+    /// Whether the face (or its Regular) has a glyph for `c`.
+    fn has(&self, c: char) -> bool {
+        self.face.glyph_index(c).is_some() || self.regular.as_ref().is_some_and(|r| r.glyph_index(c).is_some())
+    }
+}
+
+/// Whether `c` is a wide (East Asian Wide or Fullwidth) character — an em
+/// wide in the fonts that draw it: CJK ideographs, kana, Hangul, CJK
+/// punctuation, full-width forms, emoji.
+pub fn wide(c: char) -> bool {
+    matches!(c as u32,
+        0x1100..=0x115F
+        | 0x2E80..=0x303E
+        | 0x3041..=0x33FF
+        | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF
+        | 0xA000..=0xA4CF
+        | 0xA960..=0xA97F
+        | 0xAC00..=0xD7A3
+        | 0xF900..=0xFAFF
+        | 0xFE10..=0xFE19
+        | 0xFE30..=0xFE6F
+        | 0xFF00..=0xFF60
+        | 0xFFE0..=0xFFE6
+        | 0x1B000..=0x1B2FF
+        | 0x1F200..=0x1F251
+        | 0x1F300..=0x1F64F
+        | 0x1F680..=0x1F6FF
+        | 0x1F900..=0x1F9FF
+        | 0x1FA70..=0x1FAFF
+        | 0x20000..=0x3FFFD)
 }
 
 /// The distance from a line's top to its text's baseline, and the line's
@@ -563,6 +603,30 @@ fn clipped_text(bmp: &mut Bitmap, clip: (i64, i64, i64, i64), x: i64, y: i64, te
 
 #[cfg(test)]
 mod tests {
+    /// (POLISH-2) A Chinese caption is as wide as the system's CJK font
+    /// draws it: each ideograph an em (the font's pixel size), not the `?`
+    /// RapidR's faces would put there; Latin beside it as before.
+    #[test]
+    fn cjk_characters_are_an_em_wide() {
+        use super::{text_size, wide};
+        use crate::objects::font::Font;
+        for (name, size) in [("Inter", 8), ("MS Sans Serif", 8), ("Arial", 10), ("Courier New", 12)] {
+            let font = Font { name: name.into(), size, color: 0, styles: 0 };
+            let em = font.pixel_size();
+            assert_eq!(text_size("查", &font).0, em, "{name} {size}");
+            assert_eq!(text_size("查询 1", &font).0, 2 * em + text_size(" 1", &font).0, "{name} {size}");
+            assert_eq!(text_size("データ", &font).0, 3 * em);
+            assert_eq!(text_size("한국어", &font).0, 3 * em);
+            // (a full-width digit too; a narrow character the face lacks is
+            // still its `?`)
+            assert_eq!(text_size("１", &font).0, em);
+            assert!(text_size("查询", &font).0 > text_size("??", &font).0);
+            let bold = Font { styles: 1, ..font.clone() };
+            assert!(text_size("查询", &bold).0 >= 2 * em);
+        }
+        assert!(wide('查') && wide('ア') && wide('한') && wide('，') && !wide('a') && !wide('é') && !wide('Ж'));
+    }
+
     #[test]
     fn sans_serif_names_are_sans() {
         crate::theme::set(&crate::theme::CLASSIC);
