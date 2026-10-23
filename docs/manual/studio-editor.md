@@ -213,7 +213,8 @@ The list shows **errors first**, then warnings, then notes. It is grouped by
 file: each file has a heading, with the file's icon (as in the Project pane),
 its folder and how many problems it has; under it, each problem shows its
 line and column, then the message. A screen reader hears the heading as
-"ui.rr, 1 error".
+"ui.rr, 1 error". The list opens at its top; when Studio checks the code
+again while you read, it stays where you scrolled.
 
 ![Problems: ui.rr with a form's icon and 1 in a pill, its error at 17:5 under it; then globals.rr with 1, its note at 3:12: RServerSocket works on the desktop only: the web runtime doesn't have it (3 uses)](images/studio-editor/problems-grouped.png)
 

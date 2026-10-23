@@ -38,6 +38,11 @@ const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio
 // (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
 // (Preview 4 S3/S5: four files, a global in each, a desktop-only component)
 const SEARCH_FILES = ["Counter.rrproj", "main.rr", "globals.rr", "server.rr", "ui.rr", "notes.txt"].map((f) => `tests/fixtures/studio_search/${f}`);
+// (S3: a project file gone stale — tools.rr listed as a form, window.rr as a
+// module; the code says the opposite)
+const STALE_FILES = ["Stale.rrproj", "main.rr", "tools.rr", "window.rr"].map((f) => `tests/fixtures/studio_stale/${f}`);
+// (S5: 26 warnings and, on the web, a note: 27 problems)
+const PROBLEM_FILES = ["Problems.rrproj", "main.rr", "a.rr", "b.rr", "net.rr"].map((f) => `tests/fixtures/studio_problems/${f}`);
 const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
@@ -1881,6 +1886,38 @@ const CASES = [
     delay: 4,
     dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchscope.itemindex": /^6$/ },
   },
+  // (S3) A stale project file: the results' icons are the Project pane's,
+  // by the code (window.rr makes the form: a form's icon; tools.rr makes
+  // none), and the Forms and Modules scopes go by the code too
+  {
+    name: "search-stale-kinds",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait,icons:",
+    delay: 4,
+    dump: {
+      "searchinfo.caption": /^10 results in 3 files$/,
+      "outputbox.text": /icon main\.rr=file:[^\n]*\nicon tools\.rr=file:[^\n]*\nicon window\.rr=kind:form/,
+    },
+  },
+  {
+    name: "search-stale-forms",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait",
+    events: "searchscope.__item_3",
+    delay: 4,
+    dump: { "searchinfo.caption": /^5 results in 1 file$/, "searchtree.itemcount": /^6$/ },
+  },
+  {
+    name: "search-stale-modules",
+    open: "tests/fixtures/studio_stale/Stale.rrproj",
+    webFiles: STALE_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Total,key:Enter,wait",
+    events: "searchscope.__item_2",
+    delay: 4,
+    dump: { "searchinfo.caption": /^5 results in 2 files$/, "searchtree.itemcount": /^7$/ },
+  },
   // (S3) Find References (Shift+F12) on a global in a module: every use in
   // every file of the program — the language service's, not a text search
   // (the comment and the form's caption that say "Counter" aren't uses) —
@@ -1974,6 +2011,16 @@ const CASES = [
       "outputbox.problemcount": /^1$/,
       "outputbox.text": /^\S*globals\.rr: 1 note\n\S*globals\.rr:3:\d+: info: RServerSocket works on the desktop only: the web runtime doesn't have it \(3 uses\)$/,
     },
+  },
+  // (S5) Problems opens at its top: 27 problems, more than the page shows —
+  // the first row (the first file's heading) in view, not the last
+  {
+    name: "problems-top",
+    open: "tests/fixtures/studio_problems/Problems.rrproj",
+    webFiles: PROBLEM_FILES,
+    do: "wait,targets:web,view.problems,wait",
+    delay: 5,
+    dump: { "outputbox.problemcount": /^27$/, "outputbox.topline": /^0$/, "outputbox.text": /^\S*a\.rr: 13 warnings\n/ },
   },
   // (S5) Errors first, grouped by file: an error typed into the form's
   // module comes before the notes of the project's other files

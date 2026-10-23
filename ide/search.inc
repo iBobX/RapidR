@@ -359,7 +359,7 @@ FUNCTION SearchFiles AS STRING
       IF SearchFolder <> "" THEN t = Proj.FilesIn(SearchFolder)
     CASE ELSE
       FOR i = 0 TO Proj.FileCount - 1
-        k = Proj.FileKind(i)
+        k = FileKindNow(Proj.FullPath(i), Proj.FileKind(i))
         IF SearchableFile(Proj.File(i)) THEN
           IF scope = SCOPE_PROJECT THEN t = AddSearchFile(t, Proj.FullPath(i))
           IF scope = SCOPE_MODULES AND (k = "module" OR k = "include") THEN t = AddSearchFile(t, Proj.FullPath(i))
@@ -427,16 +427,25 @@ END FUNCTION
 ' (the icon the Project pane gives a file: a form's file its kind's, any
 ' other its type's — Item(i).Icon's and AddProblem's names)
 FUNCTION FileIconName(Path AS STRING) AS STRING
-  DIM i AS INTEGER, p AS STRING
+  DIM i AS INTEGER, p AS STRING, k AS STRING
   p = LCASE$(REPLACESUBSTR$(Path, "\", "/"))
   Result = "file:" + Path
   IF ProjectOpen = 0 THEN EXIT FUNCTION
   FOR i = 0 TO Proj.FileCount - 1
     IF LCASE$(REPLACESUBSTR$(Proj.FullPath(i), "\", "/")) = p THEN
-      IF Proj.FileKind(i) = "form" THEN Result = "kind:form"
+      k = FileKindNow(Proj.FullPath(i), Proj.FileKind(i))
+      IF k = "form" THEN Result = "kind:form"
       EXIT FUNCTION
     END IF
   NEXT
+END FUNCTION
+
+' (a project file's kind as its code says now — the Project pane's: a file
+' that makes a form is a form file whatever the .rrproj still lists —, the
+' project file's when the pane doesn't know it)
+FUNCTION FileKindNow(Path AS STRING, Listed AS STRING) AS STRING
+  Result = ProjectTree.FileKind(ProjectRel(Path))
+  IF Result = "" THEN Result = Listed
 END FUNCTION
 
 ' A file's group in the results: its icon, its name in bold, its folder
@@ -999,6 +1008,7 @@ END SUB
 
 ' The search and help commands; True when Id was one.
 FUNCTION SearchCommand(Id AS STRING) AS INTEGER
+  DIM k AS INTEGER
   Result = 1
   SELECT CASE Id
     CASE "edit.findInFiles": ShowSearch
@@ -1031,6 +1041,12 @@ FUNCTION SearchCommand(Id AS STRING) AS INTEGER
             CodeDoc(ActiveCode).SelLength = 0
           END IF
         END IF
+      ELSEIF Id = "icons:" THEN
+        ' (a test step: icons: — each file's node in the results and its
+        ' Item(i).Icon, in the Output)
+        FOR k = 0 TO SearchTree.ItemCount - 1
+          IF HitFile(k) <> "" AND HitLine(k) = 0 THEN OutputLine "icon " + SearchTree.Item(k).Text + "=" + LEFT$(SearchTree.Item(k).Icon, 9)
+        NEXT
       ELSEIF LEFT$(Id, 8) = "targets:" THEN
         ' (a test step: targets:<desktop|web|both> — Project Options' Targets, as its OK sets it)
         Proj.Targets = MID$(Id, 9)

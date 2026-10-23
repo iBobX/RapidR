@@ -185,6 +185,7 @@ properties = [
   { name = "WordWrap", type = "bool", default = true, origin = "rapidr", doc = "True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip)." },
   { name = "LineCount", type = "int", access = "read", design = false, doc = "How many lines the shown page has." },
   { name = "ProblemCount", type = "int", access = "read", design = false, doc = "How many problems the Problems page lists." },
+  { name = "TopLine", type = "int", access = "read", design = false, origin = "rapidr", doc = "The first line the page shows now, from 0 (on the Problems page, its first row in view: a heading counts as a row). The Problems page shows its top when it is filled — errors come first — and keeps the place the reader scrolled to when it is filled again." },
   { name = "Text", type = "string", access = "read", design = false, doc = "The shown page's text, without colours." },
   { name = "Height", type = "int" },
   { name = "Hint", type = "string" },

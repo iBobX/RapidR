@@ -235,7 +235,9 @@ impl Default for Console {
             word_wrap: true,
             max_lines: 5000,
             filter: String::new(),
-            views: [View::default(); 3],
+            // (the Problems page reads from its top — errors first —, never
+            // following new rows to the end as Output does)
+            views: [View::default(), View::default(), View { follow: false, ..View::default() }],
             current: None,
             hover_link: None,
             hover_tab: None,
@@ -325,7 +327,9 @@ impl Console {
         }
     }
 
-    /// Empties page `p`; its view starts over.
+    /// Empties page `p`; its view starts over. (The Problems page is filled
+    /// again as the code is checked: it stays where the reader scrolled it —
+    /// at its top until they scroll —, never following to the end.)
     pub fn clear(&mut self, p: Page) {
         match self.screen_mut(p) {
             Some(s) => s.clear(),
@@ -335,7 +339,12 @@ impl Console {
             }
         }
         let first = self.first(p);
-        self.views[p.index()] = View { top: first, ..View::default() };
+        if p == Page::Problems {
+            let was = self.views[p.index()];
+            self.views[p.index()] = View { follow: false, top: was.top, sub: was.sub, ..View::default() };
+        } else {
+            self.views[p.index()] = View { top: first, ..View::default() };
+        }
         if p == self.page {
             self.hover_link = None;
             self.hover_row = None;
@@ -354,8 +363,8 @@ impl Console {
 
     pub fn set_auto_scroll(&mut self, on: bool) {
         self.auto_scroll = on;
-        for v in &mut self.views {
-            v.follow = on;
+        for (k, v) in self.views.iter_mut().enumerate() {
+            v.follow = on && k != Page::Problems.index();
         }
     }
 
@@ -593,6 +602,8 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "wordwrap" => basic_bool(c.word_wrap),
             "linecount" => Value::Integer(c.count(c.page) as i64),
             "problemcount" => Value::Integer(c.problems.iter().filter(|p| !p.heading).count() as i64),
+            // (the first line — the Problems page's row — the page shows, from 0)
+            "topline" => Value::Integer(c.view().top.saturating_sub(c.first(c.page)) as i64),
             "text" => Value::String(c.text(c.page)),
             _ => return None,
         })

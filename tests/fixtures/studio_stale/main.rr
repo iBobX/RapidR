@@ -1,0 +1,12 @@
+' Studio's stale project fixture (Preview 4 S3): the project file lists
+' tools.rr as a form and window.rr as a module — the code says the
+' opposite (window.rr makes the form). Search's icons and its Forms and
+' Modules scopes go by the code, as the Project pane does. Opened in
+' Studio by the flows, never run.
+$APPTYPE GUI
+$INCLUDE "tools.rr"
+$INCLUDE "window.rr"
+
+Total = 0
+AddOne
+TotalForm.ShowModal

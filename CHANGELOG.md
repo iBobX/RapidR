@@ -47,6 +47,18 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   value. Nothing found.
 
 ### Fixed
+- **Studio: Search's and Problems' file icons, and Search's Forms and
+  Modules scopes, go by the code**, as the Project pane does: a file that
+  makes a form has a form's icon and is searched under Forms even when the
+  project file still lists it as a module (and the other way round). Seen in
+  the real walk on a project whose `.rrproj` was stale. Flows
+  `search-stale-kinds`, `search-stale-forms`, `search-stale-modules`
+  (tests/fixtures/studio_stale).
+- **Studio: Problems opens at its top**, errors first in view: it no longer
+  follows new rows to its end as Output does (27 problems showed the last
+  file's). Filled again while you read, it stays where you scrolled.
+  ROUTPUTCONSOLE's new `TopLine` says the first line (row) in view. Flow
+  `problems-top` (27 problems, tests/fixtures/studio_problems).
 - **A `$MACRO` line with a `)` before its `(` no longer crashes the compiler
   and the editor.** `$MACRO a) b(c = 1` made the parameter list's range run
   backwards ("byte range starts at 30 but ends at 27"); it now defines
