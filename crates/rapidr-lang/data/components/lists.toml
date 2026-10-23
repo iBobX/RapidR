@@ -453,6 +453,7 @@ events = [
   { name = "OnKeyPress", params = "Key AS BYTE" },
   { name = "OnKeyUp", params = "Key AS WORD, Shift AS INTEGER" },
   { name = "OnUndo", origin = "rapidr", doc = "Ctrl+Z (⌘Z on a Mac) while the tree has the focus and isn't editing a node: the program takes back what it last did there — RapidR Studio's Variables put back the last value set." },
+  { name = "OnCopy", origin = "rapidr", doc = "Ctrl+C (⌘C on a Mac, which OnKeyDown's Shift can't say) while the tree has the focus and isn't editing a node: the program copies what it shows there — RapidR Studio's Variables copy the selected value." },
   { name = "OnMouseDown", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseMove", params = "X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },
   { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER" },

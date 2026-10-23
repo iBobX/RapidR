@@ -38,7 +38,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `AutoSize` *(RapidR)* | int |  | Makes the control fit its content: a label its text, an image its picture, an edit its font's height; a DirectX screen's buffer follows the control's size. |
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
-| `Enabled` | int | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `HelpFile` *(RapidR)* | string |  | The help file the program opens for F1. |
 | `Modified` *(RapidR)* | bool | False | True while what the window shows has changes not saved: macOS draws a dot in its close button, and in a browser leaving the page (closing the tab, reloading) asks first, with the browser's own question. Set it when a document changes, False again once it is saved. |
 | `PenColor` *(RapidR)* | color |  | The line colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the pen). |
@@ -320,11 +320,11 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int |  | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool |  | Whether the control or form is shown. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
@@ -632,8 +632,8 @@ A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its
 | `Transparency` | int | 60 | How see-through the frame is, in percent (60). |
 | `TransparentColor` | color | 0 | The colour drawn see-through, as &HBBGGRR. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
-| `Enabled` | int | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
-| `Visible` | int | True | Whether the control or form is shown. |
+| `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
 
 | Event | |
 |---|---|
@@ -1153,8 +1153,8 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int | True | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool | True | Whether the control or form is shown. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `ReadOnly` | int | False | Stops the user changing the text or items; they can still select and copy. |
 | `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
@@ -1163,7 +1163,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `WordWrap` | int |  | Wraps long lines at the control's edge. |
 | `ScrollBars` | enum |  | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1271,10 +1271,10 @@ Two arrow buttons that step Position up or down between Min and Max, often besid
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int |  | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool |  | Whether the control or form is shown. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1305,14 +1305,14 @@ A field for a date and a time (Date, Time), with OnChange when the user changes 
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int |  | Whether the control or form is shown. |
-| `Enabled` | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Visible` | bool |  | Whether the control or form is shown. |
+| `Enabled` | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1395,7 +1395,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
-| `Visible` | int | True | Whether the control or form is shown. |
+| `Visible` | bool | True | Whether the control or form is shown. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `FontSize` | int |  | The code's size in points (10 = 13 pixels); Ctrl+= / Ctrl+- and Ctrl+wheel change it. |
@@ -1458,7 +1458,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `HelperEditorText` (read-only) | string |  | What the open value editor shows, in words ("orange, 255 130 20 (was blue, 0 0 255)", "Choose a value: alClient"); "" when none is open. |
 | `LineValuesText` (read-only) | string |  | The values ShowLineValues gave that the caret's line shows at its end: "Score = 42, Name$ = "Bob"". |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
-| `ShowHint` | int |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
+| `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `BorderStyle` | enum |  | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
@@ -2149,7 +2149,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Left` | int |  | The distance from the parent's left edge (a form's: the screen's), in pixels. |
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `CompCount` | int |  | The number of components on the design surface. |
-| `Visible` | int |  | Whether the control or form is shown. |
+| `Visible` | bool |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
 | `FormType` (read-only) | string |  | The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); "" when there is no form. |
@@ -2776,6 +2776,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnUndo` *(RapidR)* | Ctrl+Z (⌘Z on a Mac) while the tree has the focus and isn't editing a node: the program takes back what it last did there — RapidR Studio's Variables put back the last value set. |
+| `OnCopy` *(RapidR)* | Ctrl+C (⌘C on a Mac, which OnKeyDown's Shift can't say) while the tree has the focus and isn't editing a node: the program copies what it shows there — RapidR Studio's Variables copy the selected value. |
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
@@ -3888,7 +3889,7 @@ Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
 | `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
 | `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
 | `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
@@ -3924,7 +3925,7 @@ Plays, records and saves WAV sound (QWave.inc).
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
 | `DeviceType` | string |  | The device type the wave opens with (`waveaudio`). |
 | `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
 | `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
 | `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
@@ -3973,7 +3974,7 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 | `WindowState` | enum | `wsNormal` | `wsNormal`, `wsMinimized` or `wsMaximized`. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
 | `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `Length` *(RapidR)* | int |  | On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values. |
 | `LengthTime` *(RapidR)* | int |  | RapidR's spelling of `LenghtTime`: the length as time. |
 | `Position` *(RapidR)* | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
@@ -4009,7 +4010,7 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 | `CurrentTrack` | int |  | The CD track playing or selected, from 1; setting it moves there. |
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Interval` *(RapidR)* | int |  | The milliseconds between a timer's ticks; on a media object, between its position updates. |
-| `Enabled` *(RapidR)* | int |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
+| `Enabled` *(RapidR)* | bool |  | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `LengthTime` *(RapidR)* | string |  | RapidR's spelling of `LenghtTime`: the length as time. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 

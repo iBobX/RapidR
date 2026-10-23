@@ -2091,6 +2091,10 @@ mod tests {
         assert_eq!(hint("Color"), "color");
         assert_eq!(hint("WindowState"), "const:wsMaximized,choices:wsNormal|wsMinimized|wsMaximized");
         assert_eq!(hint("KeyPreview"), "bool");
+        // (POLISH-2: a form's Enabled and Visible are on / off too, as every
+        // other component's — the debugger's "1 · on")
+        assert_eq!(hint("Enabled"), "bool");
+        assert_eq!(hint("Visible"), "bool");
         assert_eq!(hint("Handle"), "handle,readonly");
         assert_eq!(hint("Caption"), "");
         // the RNum paged

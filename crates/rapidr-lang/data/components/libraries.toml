@@ -102,7 +102,7 @@ properties = [
   { name = "UndockedWidth", type = "int" },
   { name = "UndockStyle", type = "int" },
   { name = "Width", type = "int" },
-  { name = "Visible", type = "int" },
+  { name = "Visible", type = "bool" },
 ]
 methods = [
   { name = "Close" },

@@ -148,6 +148,26 @@ fn kinds_name_real_things() {
     }
 }
 
+/// (POLISH-2) Enabled, Visible and ShowHint are on / off on every component
+/// that has them (a form's too): the boolean kind the debugger's "1 · on"
+/// and the helpers' choices read. (QTRANSIMAGE's, typed `any`, are what
+/// RapidQ's include declares.)
+#[test]
+fn on_off_properties_are_boolean_everywhere() {
+    let mut wrong = Vec::new();
+    for c in all_components() {
+        for p in c.properties {
+            if ["Enabled", "Visible", "ShowHint"].iter().any(|n| p.name.eq_ignore_ascii_case(n)) && !matches!(p.ty, Type::Bool | Type::Any) {
+                wrong.push(format!("{}.{}: {:?}", c.name, p.name, p.ty));
+            }
+        }
+    }
+    assert!(wrong.is_empty(), "not on / off: {wrong:?}");
+    let form = rapidr_lang::component("RFORM").unwrap();
+    assert_eq!(form.property("Enabled").unwrap().kind, Some("choice:bool"));
+    assert_eq!(form.property("Visible").unwrap().kind, Some("choice:bool"));
+}
+
 #[test]
 fn the_kinds_the_helpers_rely_on() {
     let button = rapidr_lang::component("RBUTTON").unwrap();
