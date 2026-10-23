@@ -365,6 +365,11 @@ impl<W: Write> Adapter<W> {
                 let Ok(a) = serde_json::from_value::<dap::SetVariableArguments>(args) else {
                     return self.fail(seq, command, "setVariable: bad arguments");
                 };
+                // (only while stopped, said outright as setExpression does —
+                // not left to the references being gone, SEC-29)
+                if !self.stopped {
+                    return self.fail(seq, command, "the program isn't stopped");
+                }
                 let Some((frame, parent)) = self.refs.get(&(a.variables_reference as u32)).cloned() else {
                     return self.fail(seq, command, "that variable is gone (the program went on)");
                 };
@@ -824,3 +829,9 @@ mod tests {
         assert_eq!(st["body"]["totalFrames"], 0);
     }
 }
+
+/// The security regressions (tests/security/, `tools/regress.sh security`):
+/// setVariable only while stopped (SEC-29).
+#[cfg(test)]
+#[path = "../../../tests/security/dap_set_variable_stopped.rs"]
+mod security_regressions;

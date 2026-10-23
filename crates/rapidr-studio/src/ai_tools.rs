@@ -269,7 +269,42 @@ pub fn project_path(folder: &str, path: &str) -> Result<String, String> {
     if parts.is_empty() {
         return Err("give a file's path, relative to the project's folder".into());
     }
-    Ok(parts.join("/"))
+    let rel = parts.join("/");
+    // (and as the disk has it: a link inside the project to a place outside
+    // it is refused too, SEC-23)
+    if !folder.is_empty() && !inside_for_real(&folder, &rel) {
+        return Err(format!("{path}: outside the project, through a link (only the project's own files can be read or changed)"));
+    }
+    Ok(rel)
+}
+
+/// Whether `rel` under `folder` stays inside the folder once links are
+/// followed: the deepest part of it that exists, resolved, is in the
+/// folder resolved, and no part is a link to nowhere (a write would follow
+/// it). A folder that isn't on this disk (the web's store) has no links.
+fn inside_for_real(folder: &str, rel: &str) -> bool {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = (folder, rel);
+        true
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Ok(root) = std::fs::canonicalize(folder) else { return true };
+        let mut at = std::path::PathBuf::from(crate::join(folder, rel));
+        loop {
+            match std::fs::canonicalize(&at) {
+                Ok(real) => return real.starts_with(&root),
+                // (a link whose target isn't there)
+                Err(_) if std::fs::symlink_metadata(&at).is_ok() => return false,
+                Err(_) => {
+                    if !at.pop() {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Project<'_> {

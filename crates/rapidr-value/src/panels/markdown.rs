@@ -600,6 +600,53 @@ pub fn folder_of(path: &str) -> String {
     }
 }
 
+/// `text` with each link whose target `bad` picks — read as the view reads
+/// it (entities and escapes decoded, a reference resolved) — made plain
+/// words: its text stays, escaped so that none of it is read as Markdown
+/// again; and each reference definition `bad` picks taken out. Whether
+/// anything was (what is left may form another such link: ask again).
+pub fn unlink(text: &str, bad: &dyn Fn(&str) -> bool) -> (String, bool) {
+    let opts = Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
+    let parser = Parser::new_ext(text, opts).into_offset_iter();
+    let mut cuts: Vec<(std::ops::Range<usize>, String)> = parser.reference_definitions().iter().filter(|(_, d)| bad(&d.dest)).map(|(_, d)| (d.span.clone(), String::new())).collect();
+    let mut open: Option<(std::ops::Range<usize>, String)> = None;
+    for (ev, range) in parser {
+        match ev {
+            Event::Start(Tag::Link { dest_url, .. }) if open.is_none() && bad(&dest_url) => open = Some((range, String::new())),
+            Event::Text(t) | Event::Code(t) => {
+                if let Some(o) = open.as_mut() {
+                    o.1.push_str(&t);
+                }
+            }
+            Event::SoftBreak | Event::HardBreak => {
+                if let Some(o) = open.as_mut() {
+                    o.1.push(' ');
+                }
+            }
+            Event::End(TagEnd::Link) => {
+                if let Some((r, words)) = open.take() {
+                    let plain: String = words.chars().flat_map(|c| (c.is_ascii_punctuation().then_some('\\')).into_iter().chain([c])).collect();
+                    cuts.push((r, plain));
+                }
+            }
+            _ => {}
+        }
+    }
+    if cuts.is_empty() {
+        return (text.to_string(), false);
+    }
+    cuts.sort_by_key(|c| std::cmp::Reverse(c.0.start));
+    let mut out = text.to_string();
+    let mut before = usize::MAX;
+    for (r, plain) in cuts {
+        if r.end <= before && out.is_char_boundary(r.start) && out.is_char_boundary(r.end) {
+            out.replace_range(r.clone(), &plain);
+            before = r.start;
+        }
+    }
+    (out, true)
+}
+
 /// Whether a link goes to the web (opened in the browser): http, https,
 /// mailto.
 pub fn is_web_link(url: &str) -> bool {

@@ -574,6 +574,8 @@ pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<
     } else if status == 429 {
         let wait = retry_after.map_or("a minute".to_string(), |s| format!("{s} seconds"));
         (ErrorKind::RateLimit, format!("{name} is limiting how often this key asks (429): wait {wait} and try again."))
+    } else if (300..400).contains(&status) {
+        (ErrorKind::Request, format!("{name} sent the request on to another address ({status}): RapidR doesn't follow it with your key. If you trust that address, set the base URL to it."))
     } else if status >= 500 {
         (ErrorKind::Server, format!("{name} is overloaded or having trouble ({status}){quoted}. Try again in a minute."))
     } else {

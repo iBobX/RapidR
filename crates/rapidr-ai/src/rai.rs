@@ -196,6 +196,65 @@ struct Thought {
 
 /// "Thought for 12 s · show" (a link that opens it), or the reasoning under
 /// "Thought for 12 s · hide"; while it thinks, "Thinking…".
+/// A mark only this process knows, on Studio's and RAI's own action links
+/// (`ai:…`, `rai:…`) while the transcript is put together: a link of those
+/// schemes without it — one a model wrote in its answer, or in a name it
+/// chose — is shown as plain words (SEC-26). Taken off before the
+/// transcript is given out; never sent to a model.
+fn link_mark() -> &'static str {
+    static MARK: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    MARK.get_or_init(|| {
+        use std::hash::{BuildHasher, Hasher};
+        let word = |n: u64| {
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+            h.write_u64(n);
+            h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos()));
+            h.finish()
+        };
+        format!("#rapidr-own-{:016x}{:016x}", word(1), word(2))
+    })
+}
+
+/// `url`, one of Studio's or RAI's own action links (`ai:review`,
+/// `rai:retry` …), marked as such for the transcript ([`link_mark`]). One
+/// that could break out of a link's brackets isn't marked (it then shows
+/// as plain words).
+pub fn own_link(url: &str) -> String {
+    if url.chars().any(|c| c.is_whitespace() || c.is_control() || "()<>[]\\`&#\"'".contains(c)) {
+        return url.to_string();
+    }
+    format!("{url}{}", link_mark())
+}
+
+/// Whether a link's target is one of Studio's or RAI's actions.
+fn is_action_link(url: &str) -> bool {
+    let u = url.trim_start().to_ascii_lowercase();
+    u.starts_with("ai:") || u.starts_with("rai:")
+}
+
+/// `markdown` with only the marked action links ([`own_link`]) left as
+/// links, the marks taken off: any other `ai:`/`rai:` link — written by a
+/// model, in its answer or its thinking — is plain words.
+fn only_own_links(markdown: &str) -> String {
+    let mark = link_mark();
+    let foreign = |url: &str| is_action_link(url) && !url.ends_with(mark);
+    let mut text = markdown.to_string();
+    let mut clean = false;
+    for _ in 0..8 {
+        let (next, cut) = rapidr_value::panels::markdown::unlink(&text, &foreign);
+        text = next;
+        if !cut {
+            clean = true;
+            break;
+        }
+    }
+    if !clean {
+        // (still more, after all that: no link of any kind is left)
+        text = text.replace('[', "&#91;").replace('<', "&lt;");
+    }
+    text.replace(mark, "")
+}
+
 fn thought_line(k: usize, th: &Thought, live: bool) -> String {
     if live {
         return "*Thinking…*".into();
@@ -206,10 +265,10 @@ fn thought_line(k: usize, th: &Thought, live: bool) -> String {
         return format!("*{head}*");
     }
     if !th.open {
-        return format!("[{head} · show](rai:thought/{})", k + 1);
+        return format!("[{head} · show]({})", own_link(&format!("rai:thought/{}", k + 1)));
     }
     let quoted = th.text.trim().lines().map(|l| if l.trim().is_empty() { ">".to_string() } else { format!("> {l}") }).collect::<Vec<_>>().join("\n");
-    format!("[{head} · hide](rai:thought/{})\n\n{quoted}", k + 1)
+    format!("[{head} · hide]({})\n\n{quoted}", own_link(&format!("rai:thought/{}", k + 1)))
 }
 
 /// A message as ChatState keeps it (a provider's own blocks — thinking,
@@ -539,6 +598,10 @@ struct Ai {
     /// A key the program set (APIKey): memory only.
     key: String,
     key_source: String,
+    /// (RapidR Studio only: KeyOwner) the program file whose keys this
+    /// RAI reads and keeps, and those keys' scope; "" — its own process's.
+    key_owner: String,
+    owner_scope: Option<keys::Scope>,
     max_tokens: i64,
     summary_at: i64,
     system: String,
@@ -897,11 +960,17 @@ impl Ai {
         (before, tokens(&self.messages), n)
     }
 
+    /// Whose keys it reads and keeps: its process's (Studio's, or the
+    /// program's own), or — in RapidR Studio only — KeyOwner's program's.
+    fn scope(&self) -> keys::Scope {
+        self.owner_scope.clone().unwrap_or_else(keys::own_scope)
+    }
+
     fn key(&self) -> (Option<String>, keys::Source) {
         if !self.key.is_empty() {
             return (Some(self.key.clone()), keys::Source::Program);
         }
-        keys::resolve(&self.key_source)
+        keys::resolve_in(&self.scope(), &self.key_source)
     }
 
     /// Where requests go, with the key; why not when they can't.
@@ -915,6 +984,10 @@ impl Ai {
             None if p.needs_key => {
                 // (the program asks its user: OnKeyNeeded, then APIKey)
                 self.events.push(("onkeyneeded", Vec::new()));
+                // (a program naming Studio's own key: why it finds none)
+                if let Some(note) = keys::studio_key_note(&self.scope(), &self.key_source) {
+                    return Err(note);
+                }
                 return Err(format!("There is no {} API key yet: give one (APIKey), or say where it is kept (APIKeySource).", wire::short_name(p)));
             }
             None => {}
@@ -1097,7 +1170,8 @@ impl Ai {
         let mut v = json!({
             "version": 1,
             "messages": self.messages.iter().map(message_json).collect::<Vec<_>>(),
-            "log": self.log.iter().map(|(w, t)| json!([w, t])).collect::<Vec<_>>(),
+            // (Studio's links' marks are this run's only: kept without them)
+            "log": self.log.iter().map(|(w, t)| json!([w, t.replace(link_mark(), "")])).collect::<Vec<_>>(),
             "marks": self.marks.iter().map(|m| json!({"log": m.log, "msg": m.msg, "blocks": m.blocks})).collect::<Vec<_>>(),
             "thoughts": self.thoughts.iter().map(|t| json!({"log": t.log, "secs": t.secs, "text": t.text, "open": t.open})).collect::<Vec<_>>(),
             "language": self.language_seen,
@@ -1269,7 +1343,7 @@ impl Ai {
                     out.push_str("**You**");
                     if self.editable && !busy {
                         if let Some(q) = self.marks.iter().position(|m| m.log == i && m.msg.is_some()) {
-                            out.push_str(&format!(" · [Edit](rai:edit/{})", q + 1));
+                            out.push_str(&format!(" · [Edit]({})", own_link(&format!("rai:edit/{}", q + 1))));
                         }
                     }
                     out.push_str(&format!("\n\n{}", text.trim_end()));
@@ -1278,7 +1352,7 @@ impl Ai {
                     let t = text.trim_end();
                     out.push_str("**Assistant**");
                     if self.editable && !busy && Some(i) == last_answer && self.marks.last().is_some_and(|m| m.msg.is_some() && m.log < i) {
-                        out.push_str(" · [Retry](rai:retry)");
+                        out.push_str(&format!(" · [Retry]({})", own_link("rai:retry")));
                     }
                     out.push_str("\n\n");
                     if let Some((k, th)) = self.thoughts.iter().enumerate().find(|(_, th)| th.log == i) {
@@ -1290,7 +1364,8 @@ impl Ai {
                 _ => out.push_str(&format!("*{}*", text.trim_end())),
             }
         }
-        out
+        // (a model's answer can't carry Studio's own action links: SEC-26)
+        only_own_links(&out)
     }
 
     /// The instructions: the tools' stable ones and the program's own
@@ -2025,6 +2100,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             // (never read back: KeyHint shows its end)
             "apikey" => s(""),
             "apikeysource" => s(a.key_source.clone()),
+            "keyowner" => s(a.key_owner.clone()),
             "maxtokens" => Value::Integer(if a.max_tokens <= 0 { DEFAULT_MAX_TOKENS } else { a.max_tokens }),
             "summaryat" => Value::Integer(if a.summary_at <= 0 { DEFAULT_SUMMARY_AT } else { a.summary_at }),
             "system" => s(a.system.clone()),
@@ -2122,6 +2198,17 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                     a.stale_models();
                 }
                 a.key_source = t.trim().to_string();
+            }
+            "keyowner" => {
+                // (RapidR Studio's designer, keeping a key for the program
+                // it designs; a program's keys are always its own, SEC-21)
+                if !keys::is_studio() {
+                    a.error = "KeyOwner is RapidR Studio's own: a program's keys are always its own.".into();
+                } else if t.trim() != a.key_owner {
+                    a.stale_models();
+                    a.key_owner = t.trim().to_string();
+                    a.owner_scope = (!a.key_owner.is_empty()).then(|| keys::Scope::of_program(&a.key_owner));
+                }
             }
             "maxtokens" => a.max_tokens = v.to_i64(),
             "summaryat" => a.summary_at = v.to_i64(),
@@ -2246,7 +2333,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                     a.error = "There is no key to keep: set APIKey first.".into();
                     return false;
                 }
-                match keys::set_named(&target, &a.key, remember) {
+                match keys::set_named_in(&a.scope(), &target, &a.key, remember) {
                     Ok(place) => {
                         a.status = format!("The key is kept in {place}.");
                         a.error.clear();
@@ -2264,7 +2351,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
             with(name, |a| {
                 let target = keys::keychain_name(&a.key_source);
                 if !target.is_empty() {
-                    keys::delete_named(&target);
+                    keys::delete_named_in(&a.scope(), &target);
                 }
                 a.key.clear();
                 a.status = "The key is forgotten.".into();
@@ -2394,6 +2481,13 @@ pub fn is_rai(type_name: &str) -> bool {
 #[doc(hidden)]
 pub fn peek(name: &str) -> (String, String) {
     with(name, |a| (a.transcript(), a.status.clone()))
+}
+
+/// (tests) The transcript of a conversation whose log is `log` (who, text).
+#[cfg(test)]
+pub(crate) fn transcript_of(log: &[(&str, &str)]) -> String {
+    let a = Ai { log: log.iter().map(|(w, t)| (w.to_string(), t.to_string())).collect(), ..Ai::default() };
+    a.transcript()
 }
 
 /// (tools) Changes to an RAI from the program's side: the system prompt it
@@ -2601,9 +2695,9 @@ mod chat_tests {
         assert_eq!(t.matches("[Retry](rai:retry)").count(), 1);
         assert!(t.contains("**Assistant** · [Retry](rai:retry)\n\nIt's blue now."), "{t}");
         let th = Thought { log: 1, secs: 12.4, text: "First the form.\n\nThen the timer.".into(), open: false };
-        assert_eq!(thought_line(0, &th, false), "[Thought for 12 s · show](rai:thought/1)");
+        assert_eq!(only_own_links(&thought_line(0, &th, false)), "[Thought for 12 s · show](rai:thought/1)");
         let open = Thought { open: true, ..th.clone() };
-        assert_eq!(thought_line(0, &open, false), "[Thought for 12 s · hide](rai:thought/1)\n\n> First the form.\n>\n> Then the timer.");
+        assert_eq!(only_own_links(&thought_line(0, &open, false)), "[Thought for 12 s · hide](rai:thought/1)\n\n> First the form.\n>\n> Then the timer.");
         assert_eq!(thought_line(0, &Thought { text: String::new(), ..th }, false), "*Thought for 12 s*");
         assert_eq!(thought_line(0, &open, true), "*Thinking…*");
     }

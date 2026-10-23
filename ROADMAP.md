@@ -718,7 +718,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Preview 4 — Studio, solid: find anything, never lose anything, RAI runs and fixes its own work (the next release; Robert, 2026-10-20; plan: [docs/preview4-plan.md](docs/preview4-plan.md))
 
-**Scope narrowed (Robert, 2026-10-22 evening; the train rule, budget):** Preview 4 ships what is merged plus S3, S5, the POLISH-2 and DB-D lanes and X1–X4. R7–R9, Versions G3–G10, S4, S7, K2, K5, K6, E3–E5 and EXT1–EXT6 move to **Preview 5: "Never lose anything. RAI fixes its own work."** ([docs/preview4-plan.md](docs/preview4-plan.md) §5)
+**Scope narrowed (Robert, 2026-10-22 evening; the train rule, budget):** Preview 4 ships what is merged plus S3, S5, the POLISH-2 and DB-D lanes and X1–X4. R7–R9, Versions G3–G10, S4, S7, K2, K5, K6, E3–E5, EXT1–EXT6 and SEC-24 (the test hooks behind a signed test mode) move to **Preview 5: "Never lose anything. RAI fixes its own work."** ([docs/preview4-plan.md](docs/preview4-plan.md) §5)
 
 ★ = must-have; the rest boards the release only if it is ready (the train rule).
 
@@ -786,6 +786,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ X1 Threat model update
 - [x] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan (2026-10-22, lane X2: all four `cargo deny` checks and `cargo audit` pass, `zip` 9.0.5; fuzz tests for the lexer and parser, `.rrproj`, Find's patterns, `tools/check_secrets.py`; fuzzing Git objects comes with Versions G3, Preview 5)
 - [ ] ★ X3 The audit (Fable with Robert's OK, or Opus), with a public report
+  - [x] The fix pass (2026-10-23, lane SEC-FIX): SEC-21 (programs' RAI keys under their own keychain service, never Studio's), SEC-22 (RSecrets by the program's path or bundle id), SEC-23 (no link out of the project for RAI's tools), SEC-25/SEC-30 (registry and manual), SEC-26 (no `ai:`/`rai:` links in a model's text), SEC-27 (no redirects with the key), SEC-28 (chats and the audit log 0600/0700), SEC-29 (setVariable only while stopped); each with a test in tests/security/. SEC-24 accepted for Preview 4 (docs/security/audit-preview4.md)
+  - [ ] (Preview 5) SEC-24: the GUI test hooks behind a signed test mode (no environment variable turns them on in a released runtime or Studio)
 - [ ] ★ X4 The six legal traps
 
 ### Versions — Git in RapidR Studio, reinvented (part of Preview 4; Robert, 2026-10-19; plan: [docs/versions-plan.md](docs/versions-plan.md))

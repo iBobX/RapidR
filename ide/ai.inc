@@ -2532,8 +2532,10 @@ FUNCTION KeychainNameOf(Source AS STRING) AS STRING
   NEXT
 END FUNCTION
 
-' The designed RAI's provider, base URL and key source into DesignAI.
+' The designed RAI's provider, base URL and key source into DesignAI — and
+' whose keys they are: the program's (KeyOwner), never Studio's own.
 SUB DesignAITake
+  DesignAI.KeyOwner = ProjectMain
   DesignAI.Provider = InspectedText("Provider")
   DesignAI.BaseURL = InspectedText("BaseURL")
   DesignAI.WorkspaceID = InspectedText("WorkspaceID")

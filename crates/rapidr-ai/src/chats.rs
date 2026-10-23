@@ -387,12 +387,16 @@ mod store {
 
     pub fn write(key: &str, id: &str, text: &str) -> Result<(), String> {
         let path = file(key, id).ok_or("there is no folder for Studio's data")?;
+        // (the chats' folders and files only the user's: SEC-28)
+        if let Some(root) = root() {
+            crate::private_files::make_dir(&root, true).map_err(|e| format!("can't make {}: {e}", root.display()))?;
+        }
         if let Some(dir) = path.parent() {
-            std::fs::create_dir_all(dir).map_err(|e| format!("can't make {}: {e}", dir.display()))?;
+            crate::private_files::make_dir(dir, true).map_err(|e| format!("can't make {}: {e}", dir.display()))?;
         }
         // (written whole, then put in place: never half a chat)
         let tmp = path.with_extension("json.tmp");
-        std::fs::write(&tmp, text).map_err(|e| format!("can't write {}: {e}", tmp.display()))?;
+        crate::private_files::write(&tmp, text).map_err(|e| format!("can't write {}: {e}", tmp.display()))?;
         std::fs::rename(&tmp, &path).map_err(|e| format!("can't write {}: {e}", path.display()))
     }
 

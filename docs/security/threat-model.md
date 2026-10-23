@@ -48,11 +48,11 @@ surfaces is `docs/security/audit-preview4.md`.
 | Boundary | Where it is enforced | Notes |
 |---|---|---|
 | Studio ⇄ the model | `crates/rapidr-studio/src/ai_tools.rs` (`project_path`, `run`), `crates/rapidr-ai/src/rai.rs` | Tools read only inside the project (lexically); every change is a proposal the user applies; tool results are marked untrusted; file text is key-redacted before it goes to the model |
-| Studio ⇄ the project's files | the same, plus `crates/rapidr-studio/src/lib.rs` (`read_text`, `write_text`) | Paths are checked as text; symlinks are followed (finding SEC-23) |
-| A program ⇄ the developer's keychain | `crates/rapidr-ai/src/keys.rs` (`resolve`, `get_named`), `crates/rapidr-ai/src/secrets.rs` | One keychain service for Studio and programs' RAI; RSecrets namespaced by the program's file name (findings SEC-21, SEC-22) |
+| Studio ⇄ the project's files | the same, plus `crates/rapidr-studio/src/lib.rs` (`read_text`, `write_text`) | Paths are checked as text and on disk: a link out of the project is refused (SEC-23, fixed) |
+| A program ⇄ the developer's keychain | `crates/rapidr-ai/src/keys.rs` (`resolve`, `get_named`), `crates/rapidr-ai/src/secrets.rs` | Studio's keys under `dev.rapidr.keys`, read only by Studio's process; each program's RAI keys and RSecrets under its own service, `rapidr-app:<program>:…`, the program its path's identity or a built app's bundle id (SEC-21, SEC-22, fixed) |
 | A program ⇄ the network it serves | `crates/rapidr-runtime-core/src/httpserver.rs`, `netframe.rs` | Host / Origin / Sec-Fetch-Site / token checks, limits, 127.0.0.1 by default; RServerSocket's `Mode = "http"` has none (by design, documented) |
-| A program ⇄ its database server | `crates/rapidr-db/src/mysql.rs` | TLS as MySQL's client: the certificate is checked only by VerifyCA / VerifyFull (SEC-25) |
-| A RapidR process ⇄ its environment | `crates/rapidr-ui-app/src/testhooks.rs` and the hooks' readers | The test hooks are part of shipped binaries and trust the environment (SEC-24) |
+| A program ⇄ its database server | `crates/rapidr-db/src/mysql.rs` | TLS as MySQL's client: the certificate is checked only by VerifyCA / VerifyFull, as the registry and manual say (SEC-25) |
+| A RapidR process ⇄ its environment | `crates/rapidr-ui-app/src/testhooks.rs` and the hooks' readers | The test hooks are part of shipped binaries and trust the environment (SEC-24, accepted for Preview 4; a signed test mode in Preview 5) |
 | Studio (web) ⇄ the page's storage | `chats.rs`, `keys.rs`, `audit.rs` (wasm) | Chats, the audit log and a remembered key live in `localStorage` of Studio's origin: the strict CSP is what protects them |
 | The debugger ⇄ the program | `crates/rapidr-session/src/program.rs` (`set_value`, `run`), `crates/rapidr-dap/src/adapter.rs` | The debugger runs statements by design (Immediate); the DAP is stdio, spawned by the editor |
 | Versions (rapidr-vcs) | not linked by any shipped crate | Nothing of it is reachable from Preview 4's UI |
