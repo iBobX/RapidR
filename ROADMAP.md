@@ -718,6 +718,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Preview 4 — Studio, solid: find anything, never lose anything, RAI runs and fixes its own work (the next release; Robert, 2026-10-20; plan: [docs/preview4-plan.md](docs/preview4-plan.md))
 
+**Scope narrowed (Robert, 2026-10-22 evening; the train rule, budget):** Preview 4 ships what is merged plus S3, S5, the POLISH-2 and DB-D lanes and X1–X4. R7–R9, Versions G3–G10, S4, S7, K2, K5, K6, E3–E5 and EXT1–EXT6 move to **Preview 5: "Never lose anything. RAI fixes its own work."** ([docs/preview4-plan.md](docs/preview4-plan.md) §5)
+
 ★ = must-have; the rest boards the release only if it is ready (the train rule).
 
 **Studio essentials**
@@ -729,7 +731,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line` — the PATH done 2026-10-22 (the login shell read once, 3 s, a fallback; Run, Build, Run in Browser; Settings shows it with Refresh); the `file:line` links still open
 - [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes
-- [ ] ★ S10 A debugger that looks as good as it works: value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
+- [x] ★ S10 A debugger that looks as good as it works (2026-10-22: lanes S10 phase 1 and 2 merged): value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
 - [x] ★ S11 Change values while paused: edit numbers, text, true/false, constants, array elements, record fields and writable component properties in Variables/Watch (F2, double-click), with value editors, validation and undo; the web Studio and DAP setVariable too (typed input checked by kind, constants as a menu, long text in its own window, Ctrl+Z, Immediate `x = 5`, DAP setExpression; the colour and font editors plug in from the code helpers lane: `ValueEditorFor` in ide/debug.inc)
   - [x] Phase 1: the icons (design/icons `debug/`, the hit-count breakpoint, add watch, copy and edit value, the changed mark; review sheets `debugger-new`, `debugger-family`) and the UI kernel's `value_view` (a value and its kind in, a drawn, accessible row out; `debug.*` theme tokens, contrast-tested); no raster icon in Studio's UI
   - [x] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (TreeView.SetItemValue, the session's property hints), the gutter's breakpoint marks from the icon set (hit count apart from a condition; not bound a dashed ring), Add Watch's icon, a pane header's tooltip above the header; walked in every look
