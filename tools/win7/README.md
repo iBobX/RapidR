@@ -7,9 +7,11 @@ nightly Rust and the `*-win7-windows-gnu` targets, which run on Windows 7 and la
 | File | What it does |
 |---|---|
 | `build.sh [i686\|x86_64] [cargo args]` | builds `rapidr.exe` (default `-p rapidr-cli`) |
-| `imports.py rapidr.exe` | lists the DLL functions the .exe needs at start, flags what Windows 7 lacks |
+| `imports.py rapidr.exe [--against older.exe]` | lists the DLL functions the .exe needs at start, flags what Windows 7 lacks; `--against` lists what is new since an .exe known to start there |
 | `stage.sh [i686\|x86_64]` | the test drop: stripped exe, Studio's files, tests, READ-ME, a `.zip`, and the disc image (ISO) |
 | `serve.sh` | serves the drop to the VM over the **host-only** network only (HTTP, read-only) |
+| `alpha.sh [N]` | the **alpha download**: `RapidR-<version>-win7-x86-alpha<N>.zip` + `.sha256` in `dist/<version>-win7-alpha<N>/` (`alpha/` holds its README-ALPHA.txt and launcher, `licenses/` the toolchain's licence texts) |
+| `link_audit.sh <mingw-w64 source>` | relinks with a map and traces every toolchain object in the .exe to its source and licence (review: `docs/legal/review-2026-10-23-win7-alpha.md`) |
 | `tests/` | `run-tests.bat` (console + window smoke tests), `run-studio.bat`, `form_auto.rr` |
 
 ## One-time setup (nothing system-wide, no sudo)

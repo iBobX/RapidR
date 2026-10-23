@@ -29,6 +29,9 @@ mod winres;
 // (Windows 7 builds: the few functions only Windows 8 and later has)
 #[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
 mod win7;
+// (Windows 7 builds: a cube root of our own; the library's is Cephes-derived)
+#[cfg(any(test, all(windows, target_vendor = "win7", target_env = "gnu")))]
+mod cbrt;
 
 use home::Home;
 

@@ -17,6 +17,12 @@ NOTICED = {"public domain", "ZPL-2.1", "HPND (gdtoa)", "Apache-2.0 WITH LLVM-exc
 STARTUP = {"crt2.o": "crtexe", "crtbegin.o": "crtbegin", "crtend.o": "crtend"}
 LIBUNWIND = re.compile(r"^(libunwind|Unwind[\w-]*)\.(c|cpp|S)\.obj$")
 
+# members worth a second look that were read and decided (not flagged; printed)
+NOTES = {
+    "delayimp": "NOTE: derived from Microsoft's delayhlp.cpp, which Microsoft says is free to modify and derive (docs/legal/review-2026-10-23-win7-alpha.md)",
+}
+for _stem in ("acosf", "asinf", "atan2f", "atanf", "fmodf"):
+    NOTES[_stem] = "NOTE: written by J.T. Conklin (NetBSD); the file says public domain"
 sources = {}
 for base, dirs, files in os.walk(crt):
     if "testcases" in base:
@@ -31,6 +37,8 @@ flags = re.compile(r"cephes|moshier|\bwine\b|lesser general|gnu general|\bl?gpl\
 def licence(head):
     if re.search(r"public domain|without restriction of copyright", head, re.I):
         return "public domain"
+    if "Zope Public License" in head:
+        return "ZPL-2.1"   # (the project's own full header)
     if "David M. Gay" in head:
         return "HPND (gdtoa)"
     if re.search(r"copyright|license|licence|permission", head, re.I):
@@ -62,11 +70,13 @@ for line in open(list_file):
         continue
     text = open(src, errors="replace").read()
     kind = licence(text[:3000])
+    # (the ZPL header says it is "GPL compatible": that is not GPL code)
+    text = re.sub(r"designated[\s*]+as[\s*]+GPL[\s*]+compatible[\s*]+by[\s*]+the[\s*]+Free[\s*]+Software[\s*]+Foundation", "", text)
     hit = sorted(set(h.lower() for h in flags.findall(text))) + (["cephes_mconf.h"] if "cephes_mconf.h" in text else [])
     if kind not in NOTICED:
         hit.append(f"licence not in the notices ({kind})")
     if hit:
         bad += 1
-    print(f"{lib}: {stem}: {os.path.relpath(src, crt)}: {kind}{'  FLAG: ' + ', '.join(hit) if hit else ''}")
+    print(f"{lib}: {stem}: {os.path.relpath(src, crt)}: {kind}{'  FLAG: ' + ', '.join(hit) if hit else ''}{'  ' + NOTES[stem] if stem in NOTES else ''}")
 print(f"{bad} flagged")
 sys.exit(1 if bad else 0)

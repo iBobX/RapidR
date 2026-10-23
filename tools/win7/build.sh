@@ -18,6 +18,8 @@
 #   LLVM_MINGW         the toolchain (default /Volumes/RapidRBuild/tools/llvm-mingw-msvcrt)
 #   CARGO_TARGET_DIR   where to build (default ./target)
 #   CARGO_BUILD_JOBS   default 3
+#   WIN7_CARGO         the cargo subcommand (default build; `rustc` with `-- -C link-arg=-Wl,-Map=…`
+#                      gives the linker map tools/win7/link_audit.sh reads)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -67,4 +69,4 @@ export PATH="$PATH:$LLVM_MINGW/bin"
 
 cd "$ROOT"
 if [ "$#" -eq 0 ]; then set -- -p rapidr-cli; fi
-exec cargo +nightly build --release -Z build-std=std,panic_abort --target "$TARGET" "$@"
+exec cargo +nightly "${WIN7_CARGO:-build}" --release -Z build-std=std,panic_abort --target "$TARGET" "$@"
