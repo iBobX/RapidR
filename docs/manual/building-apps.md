@@ -268,8 +268,13 @@ RapidR takes any of the formats above.
 
 The icon and version information are written into the `.exe` after it is
 built (pure Rust: no resource compiler, no Visual Studio), so Explorer, the
-taskbar and Properties > Details show them. Code signing with a certificate
-is up to you (`signtool`).
+taskbar and Properties > Details show them. A native program is also linked
+with plain version information and a manifest to begin with (the SDK's
+`llvm-windres` makes them), which is what keeps some antivirus programs from
+taking a bare new program for a threat; the stamp then writes your details
+and the icon over them. Code signing with a certificate is up to you
+(`signtool`). If an antivirus still blocks a new program:
+[Troubleshooting > Antivirus](troubleshooting.md#antivirus).
 
 ## Linux
 
