@@ -102,6 +102,12 @@ pub struct Build {
     pub theme: String,
     /// What to build: `native`, `bytecode`, `web`, ...
     pub targets: Vec<String>,
+    /// Where the program runs — RapidR Studio's Targets: `desktop`, `web`
+    /// or `both`; empty = [`Build::runs_on_or_default`]. The Problems pane
+    /// notes what works on one runtime only when the program runs on the
+    /// other.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub runs_on: String,
     /// Where the app goes (a project path); empty = [`DEFAULT_OUTPUT`].
     /// (`rapidr build` and Studio's Build make release builds: optimized,
     /// what is shipped. Run in Studio is the one for debugging.)
@@ -121,6 +127,19 @@ fn is_false(b: &bool) -> bool {
 }
 
 impl Build {
+    /// Where the program runs: `runs_on` when it says (`desktop`, `web`,
+    /// `both`), else `both` for a project that builds a web app too, else
+    /// `desktop`.
+    pub fn runs_on_or_default(&self) -> &'static str {
+        match self.runs_on.trim().to_ascii_lowercase().as_str() {
+            "desktop" => "desktop",
+            "web" => "web",
+            "both" => "both",
+            _ if self.targets.iter().any(|t| t.eq_ignore_ascii_case("web")) => "both",
+            _ => "desktop",
+        }
+    }
+
     /// The output folder (a project path): its own, else `build`.
     pub fn output_folder(&self) -> &str {
         if self.output.trim().is_empty() { DEFAULT_OUTPUT } else { self.output.trim() }

@@ -36,6 +36,8 @@ const HOSTS = (process.env.STUDIO_FLOWS_HOSTS || "desktop,web").split(",");
 // (the save prompts' project: a file and the one it includes)
 const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio_save/other.inc"];
 // (Preview 4 S1/S2: the seven-file project, three forms in ui.rr)
+// (Preview 4 S3/S5: four files, a global in each, a desktop-only component)
+const SEARCH_FILES = ["Counter.rrproj", "main.rr", "globals.rr", "server.rr", "ui.rr", "notes.txt"].map((f) => `tests/fixtures/studio_search/${f}`);
 const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
@@ -1822,6 +1824,170 @@ const CASES = [
     do: "wait,find:SayGreeting",
     delay: 4,
     dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchtree.itemcount": /^5$/ },
+  },
+  // (Preview 4 S3) Search you can see: the Search tab beside Project —
+  // Ctrl+Shift+F, the word typed, Enter — the whole project's files (a
+  // data file too), each result file:line:col with the match marked; a
+  // result picked with the keyboard (Down to it, Enter) opens its file
+  // with the match selected
+  {
+    name: "search-tab",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchtree.__node_6,searchtree.__key_13",
+    delay: 4,
+    dump: {
+      "searchinfo.caption": /^9 results in 5 files$/,
+      "searchtree.itemcount": /^14$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).filename": /server\.rr$/,
+      "codedoc(1).seltext": /^Counter$/,
+    },
+  },
+  // (S3) The scope: the modules only (main.rr, globals.rr, server.rr —
+  // not the form's file, not the notes), then the forms only
+  {
+    name: "search-scope-modules",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchscope.__item_2",
+    delay: 4,
+    dump: { "searchinfo.caption": /^6 results in 3 files$/, "searchscope.itemindex": /^2$/ },
+  },
+  {
+    name: "search-scope-forms",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,key:Ctrl+Shift+F,type:Counter,key:Enter,wait",
+    events: "searchscope.__item_3",
+    delay: 4,
+    dump: { "searchinfo.caption": /^2 results in 1 file$/, "searchtree.itemcount": /^3$/ },
+  },
+  // (S3) "A folder...": the folder picked (the test's file dialog answers
+  // tests/fixtures/studio_split), its text files searched — another
+  // project's
+  {
+    name: "search-scope-folder",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    desktopOnly: true,
+    folder: "tests/fixtures/studio_split",
+    do: "wait,key:Ctrl+Shift+F,type:SayGreeting,key:Enter,wait",
+    events: "searchscope.__item_6",
+    delay: 4,
+    dump: { "searchinfo.caption": /^3 results in 2 files$/, "searchscope.itemindex": /^6$/ },
+  },
+  // (S3) Find References (Shift+F12) on a global in a module: every use in
+  // every file of the program — the language service's, not a text search
+  // (the comment and the form's caption that say "Counter" aren't uses) —
+  // in the Search tab, by file
+  {
+    name: "find-references",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:Shift+F12,wait",
+    delay: 4,
+    dump: { "searchinfo.caption": /^References to Counter: 6 in 4 files$/, "searchtree.itemcount": /^10$/ },
+  },
+  // (S3) Go to Definition (F12) from a module jumps to the DIM in another
+  // file; Navigate Back returns to where it was asked. (Back and Forward
+  // are Alt+Left / Alt+Right, on a Mac — these tests' — Cmd+Option+Left /
+  // Right: `key:Ctrl+…` is Cmd there)
+  {
+    name: "go-to-definition",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:F12,wait",
+    delay: 4,
+    dump: { "dock.activedocument": /^codedoc\(2\)$/, "codedoc(2).filename": /globals\.rr$/, "codedoc(2).caretline": /^2$/ },
+  },
+  {
+    name: "navigate-back",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,caret:STR$(Coun,key:F12,wait,key:Ctrl+Alt+Left,wait",
+    delay: 4,
+    dump: { "dock.activedocument": /^codedoc\(1\)$/, "codedoc(1).filename": /ui\.rr$/, "codedoc(1).caretline": /^18$/ },
+  },
+  // (S3) …and in the same file: F12 on the handler's name in its CREATE
+  // goes to its SUB (line 16); Alt+Left comes back to the CREATE's line
+  // (12), Alt+Right goes to the SUB again
+  {
+    name: "navigate-back-in-file",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,focus:codedoc(1),caret:OnClick = ShowCo,key:F12,wait,key:Ctrl+Alt+Left,wait,key:Ctrl+Alt+Right,wait",
+    delay: 7,
+    dump: { "dock.activedocument": /^codedoc\(1\)$/, "codedoc(1).caretline": /^16$/ },
+  },
+  // (S3) On a Mac, Option+Left still moves the caret by words in the code
+  // (Back isn't on it there): after F12 to the SUB (line 16), the caret
+  // stays on line 16
+  {
+    name: "option-left-moves-by-words",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:ui.rr,view:Code,wait,focus:codedoc(1),caret:OnClick = ShowCo,key:F12,wait,key:Alt+Left,wait",
+    delay: 6,
+    dump: { "codedoc(1).caretline": /^16$/ },
+  },
+  // (S5) Problems that tell the truth: a module open in the editor is
+  // checked as part of its project (no errors where the program compiles),
+  // and a desktop project hears nothing about what works on the desktop only
+  {
+    name: "problems-project",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    do: "wait,open:server.rr,wait,view.problems,wait",
+    delay: 4,
+    dump: { "lang.errorcount": /^0$/, "outputbox.problemcount": /^0$/, "lang.targets": /^desktop$/ },
+  },
+  // (S5) Targets = Web (Project Options, picked and OK'd with the keys):
+  // one note for RServerSocket with how many uses, not one per call
+  {
+    name: "problems-targets-web",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    copyDir: true,
+    webFiles: SEARCH_FILES,
+    do: "wait,project.options",
+    events: "apptargets.__item_1,appdialog.__key_13",
+    delay: 5,
+    dump: { "proj.targets": /^web$/, "lang.targets": /^web$/, "outputbox.problemcount": /^1$/ },
+    files: { "Counter.rrproj": /\nruns_on = "web"\n/ },
+  },
+  // (S5) …and what that one note says, on the Problems page: under its
+  // file's heading, at the first use, with how many uses
+  {
+    name: "problems-web-note",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    webFiles: SEARCH_FILES,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,targets:web,view.problems,wait",
+    delay: 4,
+    dump: {
+      "outputbox.problemcount": /^1$/,
+      "outputbox.text": /^\S*globals\.rr: 1 note\n\S*globals\.rr:3:\d+: info: RServerSocket works on the desktop only: the web runtime doesn't have it \(3 uses\)$/,
+    },
+  },
+  // (S5) Errors first, grouped by file: an error typed into the form's
+  // module comes before the notes of the project's other files
+  {
+    name: "problems-errors-first",
+    open: "tests/fixtures/studio_search/Counter.rrproj",
+    copyDir: true,
+    webFiles: SEARCH_FILES,
+    do: "wait,targets:web,open:ui.rr,view:Code,wait,code:StopServer=>StopServr,wait,view.problems,wait",
+    delay: 5,
+    dump: {
+      "lang.errorcount": /^1$/,
+      "outputbox.text": /^\S*ui\.rr: 1 error\n\S*ui\.rr:\d+:\d+: error: [^\n]*StopServr[^\n]*\n\S*globals\.rr: 1 note\n/,
+    },
   },
   // (S-SHELL-2, HLP-1) F1: the registry's entry in the Help pane — for a
   // statement, and for the word at the caret in the code (a member of the

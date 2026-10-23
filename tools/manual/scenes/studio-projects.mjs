@@ -64,4 +64,16 @@ export const scenes = [
     delay: 5,
     window: 2,
   },
+  // (S5) Project > Project Options: Targets, Web picked (what it means under it)
+  {
+    name: "targets",
+    setup: (work, root) => {
+      cpSync(join(root, "tests/fixtures/studio_search"), join(work, "counter"), { recursive: true });
+      return { open: "counter/Counter.rrproj", cwd: work, env: { HOME: work } };
+    },
+    do: "wait,project.options",
+    env: { RAPIDR_TEST_EVENTS: "apptargets.__item_1" },
+    delay: 5,
+    window: 2,
+  },
 ];

@@ -381,6 +381,13 @@ pub trait LanguageService {
         let _ = file;
         Vec::new()
     }
+    /// The project the files belong to (RapidR Studio's open one): its main
+    /// file (`""`: none) — a file it includes is answered as part of its
+    /// program, never alone — and where it runs (`desktop`, `web`, `both`:
+    /// what one runtime only has is noted when it runs on the other).
+    fn set_project(&mut self, main: &str, targets: &str) {
+        let _ = (main, targets);
+    }
     /// The characters that open completion by themselves (`.`).
     fn completion_triggers(&self) -> &'static [char] {
         &['.']

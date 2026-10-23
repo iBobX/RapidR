@@ -161,6 +161,18 @@ impl ed::LanguageService for EditorService {
         self.analysis.close(&path(file));
     }
 
+    fn set_project(&mut self, main: &str, targets: &str) {
+        let project = (!main.is_empty()).then(|| path(main));
+        let targets = crate::Targets::parse(targets);
+        let now = self.analysis.options();
+        if now.project != project || now.targets != targets {
+            let mut options = now.clone();
+            options.project = project;
+            options.targets = targets;
+            self.analysis.set_options(options);
+        }
+    }
+
     fn completions(&mut self, file: &str, offset: usize) -> ed::Completions {
         let got = self.analysis.completions(&path(file), offset);
         ed::Completions {

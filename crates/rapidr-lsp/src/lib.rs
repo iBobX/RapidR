@@ -125,7 +125,7 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
     connection.initialize_finish(id, serde_json::to_value(result).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
 
     let mut server = Server {
-        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs, case, roots: Some(Vec::new()) }),
+        analysis: Analysis::new(rapidr_langsvc::Options { rapidq_compatible, include_dirs, case, roots: Some(Vec::new()), ..rapidr_langsvc::Options::default() }),
         open: HashSet::new(),
         dirty: false,
         published: HashMap::new(),

@@ -725,9 +725,9 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 **Studio essentials**
 - [x] ★ S1 Forms in any file (from the code; several per file) — 2026-10-22: the Project pane takes the kinds from the code (an `.inc` too), a file of several forms shows each, each opens in the designer (`SelectName` / `FormNames`); the `.rrproj` follows on Save (`RProject.FollowCode`); a file RAI writes is added by its code
 - [x] ★ S2 File ▸ Open Recent; reopen the last project and its tabs — 2026-10-22: ten projects and files, Clear Recent, gone ones taken off with a note, the palette's "Open Recent"; the Welcome page's offer (focused, Enter), a setting to turn it off
-- [ ] ★ S3 Search you can see (a tab, scopes, `file:line:col`); Find References, Go to Definition
+- [x] ★ S3 Search you can see (a tab, scopes, `file:line:col`); Find References, Go to Definition
 - [ ] S4 RRegex for programs (Rust `regex`, linear time)
-- [ ] ★ S5 Problems that tell the truth (project-aware; a Targets setting)
+- [x] ★ S5 Problems that tell the truth (project-aware; a Targets setting)
 - [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line` — the PATH done 2026-10-22 (the login shell read once, 3 s, a fallback; Run, Build, Run in Browser; Settings shows it with Refresh); the `file:line` links still open
 - [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes

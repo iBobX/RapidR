@@ -135,7 +135,7 @@ SUB ToggleDesign
   IF d < 0 THEN EXIT SUB
   IF DocKind(d) = "code" AND DocViewNow(d) <> "Design" THEN
     IF CodeDoc(d).WordAt(CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn) <> "" OR DocHasForm(d) = 0 THEN
-      CodeDoc(d).GotoDefinition
+      GoToDefinition d
       EXIT SUB
     END IF
   END IF

@@ -129,8 +129,70 @@ in the designer), F12 switches between the form's designer and its code;
 **F7** (code), **Shift+F7** (designer) and the **Design | Code**
 switch at the right of the tab do too.
 
-Related: **Shift+F12** (Find References) selects every use of the name and
-lists them in Output; **F2** renames a name everywhere it is used.
+Related: **Shift+F12** (Find References) lists every use of the name in
+the Search tab ([below](#find-references-where-is-this-used)); **F2** renames
+a name everywhere it is used.
+
+### Back and Forward
+
+After F12 (or a search result, or a reference) takes you somewhere, **Alt+Left**
+(Edit > Navigate Back) takes you back to where you were, and **Alt+Right**
+(Edit > Navigate Forward) goes there again. Studio remembers the last 40
+places. On a Mac they are **⌘ Cmd+⌥ Option+←** and **→**, because Option+← and
+Option+→ move the caret by words there.
+
+## Search: the Search tab
+
+The **Search** tab sits next to **Project** on the left, with a magnifier on
+it. Click it, or press **Ctrl+Shift+F** (Edit > Find in Files…): the
+selected text, if any, is already in the box. Type what to find and press
+**Enter**.
+
+![The Search tab next to Project: "Area" typed, In: Whole project, 22 results in 4 files; under each file its results, line:column and the line, with Area marked](images/studio-editor/search-tab.png)
+
+- **Case**, **Word** and **Regex** match the case, whole words only, or a
+  regular expression, as the editor's own Find does.
+- **In** chooses where to look: **This file**, **Open files**, **Modules**
+  (the project's code files that aren't forms), **Forms**, **Resources** (the
+  project's data and text files), **Whole project** (the default), or **A
+  folder...**, which asks for a folder and searches its text files.
+- The results come grouped by file. Each file shows the same icon as in the
+  Project pane, its name, its folder and, at the right, how many results it
+  has. Under it, each result shows its line and column (`12:5`: line 12,
+  column 5) and the line itself, with the match marked; a long line is shown
+  around the match. Click a file, or press **Enter** or **Left** and
+  **Right** on it, to hide or show its results.
+- **Enter** or a double click opens the file at the match, the match
+  selected. A single click shows it and leaves the keys in the results, so
+  you can go down the list with the arrow keys.
+- **Replace All** puts the text of the second box in place of every match,
+  in every file of the scope. Each file changes as one step: **Ctrl+Z** in
+  that file puts it back.
+
+A file you have open is searched as the editor has it, saved or not.
+
+## Find References: where is this used?
+
+Put the caret on a name (a variable, a SUB or FUNCTION, a component) and
+press **Shift+F12** (Edit > Find References, or right-click > Find
+References). The Search tab lists every place the program uses it, in every
+file, grouped by file: "References to AreaText: 5 in 2 files".
+
+![Shift+F12 on AreaText in shapesform.inc: the Search tab says References to AreaText: 5 in 2 files — in units.inc the FUNCTION and its Result, in shapesform.inc the three calls](images/studio-editor/find-references.png)
+
+The pictures of the Search tab were made with `examples/rapidq/shapes/shapes.bas`
+open: a program in four files.
+
+This isn't a text search. Studio reads the program as the compiler does,
+with its `$INCLUDE` files in their order, so a comment or a string that
+happens to say the same word isn't listed, and a local variable with the same
+name in another SUB isn't either. Inside a FUNCTION, `Result =` (or the
+function's own name) gives it its value, so it is listed as a use too. Open
+one with **Enter** or a double click; **Alt+Left** brings you back.
+
+The right-click menu of the code has **Go to Definition**, **Find
+References** and **Rename Symbol...** at the top, then Cut, Copy, Paste and
+Select All. A right click on a word puts the caret there first.
 
 ## Problems while you type
 
@@ -140,7 +202,25 @@ amber for warnings. A sign in
 the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
 messages are the compiler's own words, so they read the same as when
-you build. While you edit, the bottom panel spans the whole width under
+you build.
+
+Studio checks the whole project together, the way a build compiles it: a
+module or a form's file that the main file includes is checked as part of
+the program, never on its own. A module that uses the program's globals and
+the SUBs of other modules shows no errors when the program compiles.
+
+The list shows **errors first**, then warnings, then notes. It is grouped by
+file: each file has a heading, with the file's icon (as in the Project pane),
+its folder and how many problems it has; under it, each problem shows its
+line and column, then the message. A screen reader hears the heading as
+"ui.rr, 1 error".
+
+![Problems: ui.rr with a form's icon and 1 in a pill, its error at 17:5 under it; then globals.rr with 1, its note at 3:12: RServerSocket works on the desktop only: the web runtime doesn't have it (3 uses)](images/studio-editor/problems-grouped.png)
+
+Notes about what works on one runtime only (the desktop, or the web) appear
+only when your project runs there too: see [Targets](studio-projects.md#targets-where-your-program-runs).
+Then there is one note per component, with how many times the program uses
+it, not one per line. While you edit, the bottom panel spans the whole width under
 your code, so a long message has room, and one still too long wraps onto more
 rows so it reads whole ([Debugging: long lines in Output and
 Problems](debugging.md#long-lines-in-output-and-problems)). With View > Wrap
@@ -321,7 +401,8 @@ each part is named, Tab moves through them, the focus never jumps.
 | Escape | Close the list or box | |
 | Ctrl+Shift+Space | Parameter info | Edit > Advanced > Parameter Info |
 | F12 | Go to Definition | Edit > Go to Definition |
-| Shift+F12 | Find References | Edit > Find References |
+| Shift+F12 | Find References (in the Search tab) | Edit > Find References |
+| Alt+Left / Alt+Right (Mac: ⌘⌥← / ⌘⌥→) | Back to where you were / forward again | Edit > Navigate Back / Forward |
 | F2 | Rename everywhere | Edit > Rename Symbol… |
 | Ctrl+. | On a value: its editor (colour, picture, font, choice, handler); elsewhere a quick fix | Edit > Quick Fix… |
 | Ctrl+K, H | Read the line with its helpers (screen readers) | |
@@ -333,7 +414,7 @@ each part is named, Tab moves through them, the focus never jumps.
 | Shift+Alt+F | Format the file | Edit > Format Document |
 | Ctrl+F, Ctrl+H | Find, Replace | Edit > Find…, Replace… |
 | F3 / Shift+F3 | Find next / previous | Edit > Find Next / Previous |
-| Ctrl+Shift+F | Find in all the project's files | Edit > Find in Files… |
+| Ctrl+Shift+F | The Search tab: find in the project's files | Edit > Find in Files… |
 | Ctrl+G | Go to a line | Edit > Go to Line… |
 | Ctrl+D | Select the next occurrence (several carets) | Edit > Advanced |
 | Alt+Z | Word wrap on / off | Edit > Advanced > Word Wrap |

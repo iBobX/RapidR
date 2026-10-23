@@ -71,6 +71,12 @@ pub trait Host: Copy + 'static {
     fn build_web(self, _name: &str, _program: &str, _stem: &str) -> Result<(), String> {
         Err("Build Web App is RapidR Studio's (on the web, and on the desktop with `rapidr`)".into())
     }
+    /// Whether the keyboard is a Mac's (Cmd the shortcut key, Option
+    /// moving by words in text): the desktop's on macOS, a page's on a Mac
+    /// (RPROJECT.MacKeys: Studio's keys that would take Option+arrows).
+    fn mac_keys(self) -> bool {
+        cfg!(target_os = "macos")
+    }
     /// Shows `path` selected in the system's file manager (Finder,
     /// Explorer, the Linux one): RPROJECT.Reveal.
     fn reveal(self, _path: &str) -> Result<(), String> {
