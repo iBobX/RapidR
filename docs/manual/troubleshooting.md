@@ -62,12 +62,8 @@ name](building-apps.md#the-apps-name)).
 **The first native build takes minutes** — it compiles RapidR's runtime
 once; later builds reuse it (keep `CARGO_TARGET_DIR` if you set one).
 
-**Windows: `Access is denied. (os error 5)` on the new program, or `Windows is
-still checking the new program (antivirus)`** — Windows Defender (or another
-antivirus) scans every new `.exe`, and for a moment nothing else can open it.
-`rapidr build` waits for that and tries again for up to 10 seconds, so you
-normally never see it. If you do, run the build again: the scan has finished
-by then.
+**Windows: `Access is denied. (os error 5)` on the new program, or `Your
+antivirus blocked the new program`** — see [Antivirus](#antivirus).
 
 **`run-time error: 'GetTickCount' is a Windows function (kernel32): this
 program calls Windows itself, so it runs on Windows only. For every system,
@@ -98,6 +94,58 @@ stream's Pointer) and the console's pages.
 **`--web` fails with "Failed to run wasm-bindgen"** — native web builds need
 `rustup target add wasm32-unknown-unknown` and `cargo install
 wasm-bindgen-cli --version 0.2.129`. `rapidr bundle-bc` needs neither.
+
+## Antivirus
+
+A Windows antivirus looks at every new `.exe` the moment it is written. A
+program it has never seen — and every program you build is new — can't be on
+its list of known programs, so it is judged by guesswork, and the guess is
+sometimes wrong: a **false alarm** (a *false positive*). Nothing is wrong with
+your program or with RapidR.
+
+**What you see**
+
+- A native build stops with `…\release\<program>.exe: Access is denied. (os
+  error 5)`, and then `Your antivirus blocked the new program`. The
+  antivirus holds the file: RapidR can't read it.
+- Or `The new program disappeared right after it was built`: the antivirus
+  moved it to its quarantine.
+- Or the antivirus' own notice ("threat blocked", a name like
+  `Gen:Variant…`).
+
+**What RapidR does**
+
+- It waits up to 10 seconds, in case the antivirus is only scanning (it
+  usually lets go), and then builds on.
+- A native program is linked with version information and a manifest (it
+  asks for no more rights than you have), so it looks like an ordinary
+  program. In RapidR's own tests an antivirus that refused small native
+  programs without them let the same programs through with them. The icon
+  and your app's details are written over them afterwards.
+- It can't overrule the antivirus. If it still blocks the program, the
+  message names the folders to deal with: RapidR's build folder (by default
+  `%LOCALAPPDATA%\RapidR\Cache`, or your `RAPIDR_BUILD_CACHE`) and the folder
+  the app goes to.
+
+**What you do**
+
+1. Open the antivirus' notices or quarantine, restore the program and choose
+   *allow* (or *trust*).
+2. Or add the two folders to the antivirus' exceptions, and build again. Do
+   it only for folders that hold your own programs.
+3. **Tell the antivirus maker.** False alarms are corrected when they are
+   reported: every maker has a page for it (search for the product's name and
+   "report a false positive"). Send the file from the quarantine and the
+   threat name from the notice. The fix usually arrives within days, in an
+   update, for everyone.
+
+**Signing.** A program signed with a code-signing certificate is trusted far
+more by antivirus programs and by SmartScreen. When you give an app to other
+people, signing it with your own certificate (`signtool sign …`) is the real
+cure for warnings and false alarms; RapidR's own downloads aren't signed yet
+([Building apps](building-apps.md#windows)). A standalone interpreted app
+(`rapidr build prog.bas --interp`) is made from RapidR's ready-made runner;
+it was not refused in RapidR's tests.
 
 ## The program's output
 

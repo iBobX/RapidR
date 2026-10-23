@@ -25,6 +25,7 @@ mod notices;
 mod package;
 mod serve;
 mod setup;
+mod winres;
 
 use home::Home;
 
@@ -778,7 +779,9 @@ fn web_carried(path: &Path, assets: &mut std::collections::HashMap<String, Strin
 /// the cache's: what it prints passed on (the "Compiling" lines, the
 /// errors), its JSON messages read for what it made. `None` when it
 /// couldn't run or failed (said already).
-fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[(&str, &str)]) -> Option<cache::Artifacts> {
+/// `cargo <args> --message-format=… <after>`: what it made, from its JSON messages. `after` is
+/// for `cargo rustc`: `-- -C link-arg=…`, which reaches the program's own executable only.
+fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[(&str, &str)], after: &[String]) -> Option<cache::Artifacts> {
     use std::io::BufRead;
     let mut cargo = match cargo_for_programs() {
         Ok(c) => c,
@@ -791,6 +794,7 @@ fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[
     cargo
         .args(args)
         .arg("--message-format=json-render-diagnostics")
+        .args(after)
         .current_dir(project_dir)
         .env("CARGO_TARGET_DIR", &cache.target)
         .stdout(process::Stdio::piped());
@@ -840,7 +844,10 @@ fn cargo_build(project_dir: &Path, cache: &cache::Cache, args: &[&str], envs: &[
 
 fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: bool, plan: &package::Plan, dest_dir: &Path) -> ExitCode {
     let profile = if release { "release" } else { "debug" };
-    let mut cargo_args = vec!["build"];
+    // Windows: the program is linked with its version information and manifest (winres.rs;
+    // `cargo rustc` hands the object to the linker for the program's own executable only)
+    let resource = if plan.system == rapidr_package::System::Windows { winres::make(&plan.info, &cache.dir) } else { None };
+    let mut cargo_args = vec![if resource.is_some() { "rustc" } else { "build" }];
     if release {
         cargo_args.push("--release");
     }
@@ -863,7 +870,12 @@ fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: 
         }
     }
     println!("Compiling with cargo ({profile})...");
-    let Some(made) = cargo_build(project_dir, cache, &cargo_args, &envs) else { return ExitCode::from(1) };
+    let after = resource.as_ref().map(winres::LinkResource::rustc_args).unwrap_or_default();
+    let made = cargo_build(project_dir, cache, &cargo_args, &envs, &after);
+    if let Some(r) = &resource {
+        r.remove();
+    }
+    let Some(made) = made else { return ExitCode::from(1) };
 
     let finished = (|| -> Result<(), String> {
         let binary = if universal {
@@ -884,8 +896,9 @@ fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: 
             bytes?
         } else {
             let exe = made.executables.first().ok_or("cargo didn't say where it put the executable")?;
-            // (Windows: the antivirus may hold the new program for a moment: waited for, locked.rs)
-            locked::while_locked(locked::PATIENCE, || fs::read(exe)).map_err(|e| format!("{}: {e}", exe.display()))?
+            // (Windows: the antivirus may hold the new program for a moment — waited for — or
+            // refuse it for good, which the person is told how to get out of: locked.rs)
+            locked::while_locked(locked::PATIENCE, || fs::read(exe)).map_err(|e| locked::explain(exe, &e, &[&cache.target, dest_dir]))?
         };
         // The program made into its app, with the open-source notices it
         // ships with (package.rs, notices.rs)
@@ -990,7 +1003,7 @@ fn build_web(path: &str, project_dir: &Path, cache: &cache::Cache, stem: &str, r
     }
     let args: Vec<&str> = cargo_args.iter().map(String::as_str).collect();
     let envs: Vec<(&str, &str)> = envs.iter().map(|(k, v)| (*k, v.as_str())).collect();
-    let Some(made) = cargo_build(project_dir, cache, &args, &envs) else { return ExitCode::from(1) };
+    let Some(made) = cargo_build(project_dir, cache, &args, &envs, &[]) else { return ExitCode::from(1) };
     let result = web_site(source_path, &made, stem, &needs, dest_dir);
     made.remove();
     match result {

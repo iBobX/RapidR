@@ -92,16 +92,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   nothing and listens on every interface unless `Host = "127.0.0.1"`.
 
 ### Fixed
-- **Native builds on Windows no longer fail when the antivirus briefly holds
-  the new program.** Windows Defender's real-time scan sometimes keeps a
-  freshly linked `.exe` open for a moment, and the build then stopped with
-  `…\release\<program>.exe: Access is denied. (os error 5)` although cargo had
-  finished (the 2.121.0 release smoke test hit it, intermittently, on Windows
-  x64). `rapidr build` now waits and tries again (100 ms, doubling, up to 10
-  seconds in all) when Windows says the file is in use (error 5, 32 or 33);
-  if it is still held it says so in plain words: "Windows is still checking the
-  new program (antivirus); try again". Only on Windows; macOS and Linux are
-  unchanged (`crates/rapidr-cli/src/locked.rs`).
+- **Native builds on Windows: an antivirus no longer takes a new small
+  program for a threat, and when one still does, you are told how to get out
+  of it.** A native build stopped with `…\release\<program>.exe: Access is
+  denied. (os error 5)` although cargo had finished: some antivirus programs
+  judge a program they have never seen by guesswork, and refused a bare,
+  stripped native `.exe` with no resources at all (the 2.121.0 release test on
+  Windows x64: all six small native test programs, refused for good within a
+  second of being linked; the same programs built for arm64 were left alone).
+  - A native program is now **linked with version information and a manifest**
+    (the manifest only says it runs as the person who starts it: nothing
+    else about how it runs changes). The SDK's `llvm-windres` makes them and
+    cargo hands them to the linker for the program's own executable only —
+    the runtime stays built. Afterwards the icon and your app's details are
+    written over them as before. In the release test's VM the same six
+    programs, three times over, were all accepted (18 of 18).
+  - An antivirus that is only *scanning* the new `.exe` is **waited for**:
+    `rapidr build` tries again (100 ms, doubling, up to 10 seconds in all)
+    when Windows says the file is in use (error 5, 32 or 33).
+  - One that still **blocks** it never lets go, and waiting can't help, so
+    the build now says so in plain words: "Your antivirus most likely blocked
+    the new program … often a false alarm for a brand-new program", names the
+    two folders to add to its exceptions (RapidR's build folder and the folder
+    the app goes to), and points to the manual's new **Troubleshooting >
+    Antivirus** (how to restore the program, how to report a false alarm to the
+    antivirus maker, signing). A program that vanished into the quarantine is
+    explained the same way.
+  - The Windows release test names the antivirus installed and says when it
+    was the cause.
+  Only on Windows; macOS and Linux are unchanged (`crates/rapidr-cli/src/
+  locked.rs`, `winres.rs`, `rapidr-package` `windows.rs`).
 - **Studio, small things made solid (POLISH-2).**
   - **Go to Line** (Ctrl+G, ⌘G on a Mac) keeps its `:` — the number you
     type goes after it, where it once replaced it — and the status bar's

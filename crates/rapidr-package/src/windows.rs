@@ -53,6 +53,64 @@ pub fn stamp(exe: &[u8], info: &AppInfo, icon: &Icon) -> Result<Vec<u8>, String>
     Ok(image.data().to_vec())
 }
 
+/// The application manifest a native program is linked with: it runs as the
+/// person who starts it (`asInvoker`) — never taken for an installer that
+/// wants administrator rights because of a name like "setup" or "update" —
+/// and says nothing else: no Windows version list, no DPI setting, no code
+/// page, so the program behaves exactly as one without a manifest.
+pub const LINK_MANIFEST: &str = concat!(
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n",
+    "<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\">\n",
+    "  <trustInfo xmlns=\"urn:schemas-microsoft-com:asm.v3\">\n",
+    "    <security><requestedPrivileges><requestedExecutionLevel level=\"asInvoker\" uiAccess=\"false\"/></requestedPrivileges></security>\n",
+    "  </trustInfo>\n",
+    "</assembly>\n",
+);
+
+/// The resource script (`.rc`) a native program is *linked* with: its
+/// version information and [`LINK_MANIFEST`] (the file `manifest_file`,
+/// beside the script). A program with no resources at all is a thing an
+/// antivirus' guesswork dislikes: the 2.121.0 release test on Windows x64
+/// saw one refuse every native test program (a tiny program with no
+/// resources, stripped), and accept the same program once it carried any
+/// resource. [`stamp`] writes the real details (and the icon) into the
+/// linked executable afterwards; these are the same details, in plain ASCII
+/// (anything else is a `?` for the moment).
+pub fn link_script(info: &AppInfo, manifest_file: &str) -> Result<String, String> {
+    info.check()?;
+    let v = info.version_numbers()?;
+    let ascii = |s: &str| -> String {
+        s.trim()
+            .chars()
+            .map(|c| if c.is_ascii_graphic() || c == ' ' { c } else { '?' })
+            .collect::<String>()
+            .replace('\\', "\\\\")
+            .replace('"', "\"\"")
+    };
+    let version = format!("{}.{}.{}.{}", v[0], v[1], v[2], v[3]);
+    let description = if info.description.trim().is_empty() { &info.name } else { &info.description };
+    let mut s = String::new();
+    s.push_str(&format!("1 24 \"{}\"\n", ascii(manifest_file)));
+    s.push_str("1 VERSIONINFO\n");
+    s.push_str(&format!("FILEVERSION {},{},{},{}\nPRODUCTVERSION {},{},{},{}\n", v[0], v[1], v[2], v[3], v[0], v[1], v[2], v[3]));
+    // (VOS_NT_WINDOWS32, VFT_APP: as stamp() has them)
+    s.push_str("FILEOS 0x40004\nFILETYPE 0x1\n{\n  BLOCK \"StringFileInfo\"\n  {\n    BLOCK \"040904B0\"\n    {\n");
+    let mut put = |k: &str, val: &str| {
+        if !val.trim().is_empty() {
+            s.push_str(&format!("      VALUE \"{k}\", \"{}\"\n", ascii(val)));
+        }
+    };
+    put("CompanyName", &info.company);
+    put("FileDescription", description);
+    put("FileVersion", &version);
+    put("InternalName", &info.exe);
+    put("OriginalFilename", &format!("{}.exe", info.exe));
+    put("ProductName", &info.name);
+    put("ProductVersion", &info.version);
+    s.push_str("    }\n  }\n  BLOCK \"VarFileInfo\"\n  {\n    VALUE \"Translation\", 0x409, 1200\n  }\n}\n");
+    Ok(s)
+}
+
 /// The executable's main icon (its first picture's bytes) and version, as a
 /// check: (has an icon, ProductName, FileVersion).
 pub fn inspect(exe: &[u8]) -> Result<(bool, String, String), String> {
@@ -134,5 +192,79 @@ mod tests {
         let again = stamp(&stamped, &info, &Icon::rapidr_default()).unwrap();
         assert_eq!(inspect(&again).unwrap().1, "Other");
         assert!(stamp(b"MZ not really", &info, &Icon::rapidr_default()).is_err());
+    }
+
+    #[test]
+    fn the_link_script_carries_the_version_and_the_manifest() {
+        let mut info = AppInfo::new("Notepad", "notepad");
+        info.version = "2.3.1".into();
+        info.company = "Ruta Internet SRL".into();
+        info.description = "A small editor".into();
+        let rc = link_script(&info, "notepad.manifest").unwrap();
+        assert!(rc.starts_with("1 24 \"notepad.manifest\"\n"), "{rc}");
+        for want in [
+            "FILEVERSION 2,3,1,0",
+            "PRODUCTVERSION 2,3,1,0",
+            "VALUE \"CompanyName\", \"Ruta Internet SRL\"",
+            "VALUE \"FileDescription\", \"A small editor\"",
+            "VALUE \"FileVersion\", \"2.3.1.0\"",
+            "VALUE \"InternalName\", \"notepad\"",
+            "VALUE \"OriginalFilename\", \"notepad.exe\"",
+            "VALUE \"ProductName\", \"Notepad\"",
+            "VALUE \"ProductVersion\", \"2.3.1\"",
+            "VALUE \"Translation\", 0x409, 1200",
+        ] {
+            assert!(rc.contains(want), "{want} in\n{rc}");
+        }
+        // (no company, no description: no empty values; the description is the name)
+        let plain = link_script(&AppInfo::new("Notepad", "notepad"), "m.manifest").unwrap();
+        assert!(!plain.contains("CompanyName"), "{plain}");
+        assert!(plain.contains("VALUE \"FileDescription\", \"Notepad\""), "{plain}");
+    }
+
+    #[test]
+    fn the_link_script_is_safe_for_any_name() {
+        // (quotes and backslashes are doubled; anything not plain ASCII is a ? for now)
+        let mut info = AppInfo::new("Say \"hi\" é", "say");
+        info.description = "C:\\temp\nnext line".into();
+        let rc = link_script(&info, "m.manifest").unwrap();
+        assert!(rc.contains("VALUE \"ProductName\", \"Say \"\"hi\"\" ?\""), "{rc}");
+        assert!(rc.contains("VALUE \"FileDescription\", \"C:\\\\temp?next line\""), "{rc}");
+        assert!(!rc.contains('é'));
+        // (a version or name the app can't have: an error, no script)
+        let mut bad = AppInfo::new("X", "x");
+        bad.version = "one".into();
+        assert!(link_script(&bad, "m.manifest").is_err());
+        assert!(link_script(&AppInfo::new("", "x"), "m.manifest").is_err());
+    }
+
+    /// The manifest changes nothing about how the program runs: it only
+    /// says who it runs as. (No Windows version list: GetVersionEx answers
+    /// as for a program with no manifest; no DPI setting; no UTF-8 code page.)
+    #[test]
+    fn the_link_manifest_says_only_who_it_runs_as() {
+        assert!(LINK_MANIFEST.contains("requestedExecutionLevel level=\"asInvoker\""));
+        for not_here in ["supportedOS", "dpiAware", "activeCodePage", "longPathAware", "requireAdministrator", "highestAvailable"] {
+            assert!(!LINK_MANIFEST.contains(not_here), "{not_here}");
+        }
+        assert!(LINK_MANIFEST.starts_with("<?xml") && LINK_MANIFEST.trim_end().ends_with("</assembly>"));
+    }
+
+    /// What is linked in survives the stamp: the manifest stays, the details
+    /// and the icon are the stamp's.
+    #[test]
+    fn stamping_keeps_the_manifest_the_program_was_linked_with() {
+        let exe = tiny_exe();
+        let mut image = Image::parse(&exe[..]).unwrap();
+        let mut res = ResourceDirectory::default();
+        res.set_manifest(LINK_MANIFEST).unwrap();
+        image.set_resource_directory(res).unwrap();
+        let linked = image.data().to_vec();
+        let mut info = AppInfo::new("Notepad", "notepad");
+        info.version = "2.3.1".into();
+        let stamped = stamp(&linked, &info, &Icon::rapidr_default()).unwrap();
+        assert_eq!(inspect(&stamped).unwrap(), (true, "Notepad".into(), "2.3.1.0".into()));
+        let image = Image::parse(&stamped[..]).unwrap();
+        assert_eq!(image.resource_directory().unwrap().get_manifest().unwrap().as_deref(), Some(LINK_MANIFEST));
     }
 }

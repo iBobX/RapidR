@@ -154,6 +154,11 @@ if ($kind -eq "sdk") {
         if (-not $rustup) { $rustup = "$env:USERPROFILE\.cargo\bin\rustup.exe" }
         function Users-Rust { (& $rustup default 2>&1 | Out-String) + (& $rustup show active-toolchain 2>&1 | Out-String) }
         $usersBefore = Users-Rust
+        # (an antivirus may refuse the new x64 programs for good — 2.121.0's release test: Bitdefender's
+        # Gen:Variant.Lazy.742656 on every natively built x64 test program, "Access is denied (os error 5)"
+        # after cargo said Finished —: the products installed are named, so the failure reads as what it is)
+        $av = try { (Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntiVirusProduct -ErrorAction Stop | ForEach-Object { $_.displayName }) -join ", " } catch { "unknown" }
+        Write-Host "  antivirus on this machine: $av"
         $env:RUSTUP_HOME = "$T\rustup-home"; $env:CARGO_HOME = "$T\cargo-home"
         New-Item -ItemType Directory -Force $env:RUSTUP_HOME, $env:CARGO_HOME | Out-Null
         # (not $native: PowerShell's names ignore case, and that would be the -Native switch)
@@ -176,6 +181,9 @@ if ($kind -eq "sdk") {
             $lines = { param($x) ($x -split "`n" | ForEach-Object { $_.TrimEnd() }) -join "`n" }
             Check "native $case`: output as expected" { (& $lines $got) -eq (& $lines $want) }
             if (-not (Test-Path "$T\work\$case.exe")) { Write-Host (($log -split "`n" | Select-Object -Last 25) -join "`n") }
+            if ($log -match "Access is denied|disappeared right after") {
+                Write-Host "  NOTE  not a RapidR failure: the antivirus here ($av) refused the new program. Look in its quarantine, allow $T (or pause it for the run), and run the smoke test again."
+            }
         }
         if (Test-Path $readobj) {
             $dlls = & $readobj --coff-imports "$T\work\arithmetic.exe" | Select-String "Name: (.*\.dll)" | ForEach-Object { $_.Matches[0].Groups[1].Value.ToLower() } | Sort-Object -Unique
