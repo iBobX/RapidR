@@ -63,3 +63,52 @@ on an offline, never-updated Windows 7. Nothing that needs the network is part o
   available" for the others). On Windows 8 and later nothing changes.
 - LLVM-MinGW has no `libgcc`: `build.sh` makes empty/alias `libgcc.a`, `libgcc_eh.a`, `libgcc_s.a` (compiler-rt
   and libunwind do the work) in the target folder.
+
+## Automating the Windows 7 VM (UTM, no clicks)
+
+The test VM is a UTM virtual machine named **Windows 7 x86** (`utmctl list`): i386 `pc`, 3 GB, 2 cores, an IDE disk
+and an empty IDE CD drive, an Intel e1000 network card in **Host Only** mode (no internet), `virtio-vga-gl` display.
+Windows 7 RTM, no updates. Keep it offline.
+
+What works from the Mac (checked 2026-10-23):
+
+| What | How |
+|---|---|
+| state | `utmctl status "Windows 7 x86"` (or `tools/win7/vm.sh status`) |
+| its settings, read-only | `osascript -e 'tell application "UTM" to get configuration of virtual machine "Windows 7 x86"'` |
+| files to the guest, 1: the host-only share | `tools/win7/serve.sh` (in a second terminal), then in the guest Internet Explorer or `powershell -Command "(New-Object Net.WebClient).DownloadFile('http://192.168.128.1:8099/<file>','C:\<file>')"` |
+| files to the guest, 2: a disc | `tools/win7/alpha.sh` with `WIN7_ISO_DIR` makes `RAPIDR-ALPHA1.iso`; attach it with UTM's *Drives* button |
+
+What needs the **QEMU guest agent** (`utmctl exec`, `utmctl file push/pull`, `utmctl ip-address`) is **not set up yet**:
+`utmctl exec "Windows 7 x86" --cmd "cmd.exe /c ver"` answers *"The QEMU guest agent is not running or not installed on the guest."*
+Installing it needs the guest's keyboard once, because nothing can type into the VM's display from the Mac
+(UTM's AppleScript has no keystroke command; the display is a canvas that background automation cannot click).
+
+### One-time install of the guest agent (about 3 minutes)
+
+The files are virtio-win 0.1.173 (the last release with Windows 7 drivers; `/Volumes/RapidRBuild/tools/virtio-win-0.1.173-9/virtio-win-0.1.173.iso`,
+unpacked pieces in `/Volumes/RapidRBuild/win7-share/guest/`): the *VirtIO serial* driver (`vioserial\w7\x86`) and `guest-agent\qemu-ga-i386.msi`.
+
+1. Mac: `tools/win7/vm.sh stage` (puts `install-agent.ps1` on the share), then `tools/win7/serve.sh` (leave it running).
+2. Windows 7 (VM running): Start, type `cmd`, press **Ctrl+Shift+Enter** (Administrator; answer **Yes**), and type
+   ```
+   powershell -NoProfile -ExecutionPolicy Bypass -Command "iex (New-Object Net.WebClient).DownloadString('http://192.168.128.1:8099/install-agent.ps1')"
+   ```
+   It downloads the four driver files and the MSI to `C:\agent`, runs `pnputil -i -a vioser.inf` (Windows asks *"Windows can't verify
+   the publisher"*: choose **Install this driver software anyway**), installs the agent service and writes `C:\agent\install.log`.
+3. If Device Manager shows "PCI Simple Communications Controller" without a driver afterwards, restart the VM once.
+   If there is **no** such device at all, the VM has no virtio-serial port: UTM adds one for the guest agent on QEMU
+   machines; if it did not, stop the VM and add it in UTM, *Edit, QEMU, Arguments*: `-device virtio-serial-pci`.
+4. Mac: `tools/win7/vm.sh exec ver` must print `Microsoft Windows [Version 6.1.7600]`. Stop `serve.sh`.
+
+### After that (written before the agent existed: untested, check each line the first time)
+
+```sh
+tools/win7/vm.sh push dist/2.121.0-win7-alpha1/RapidR-2.121.0-win7-x86-alpha1.zip 'C:\alpha.zip'    # CAP=300 for big files
+tools/win7/vm.sh exec 'powershell -NoProfile -Command "$s=New-Object -ComObject Shell.Application; $s.NameSpace(\"C:\\\").CopyHere($s.NameSpace(\"C:\alpha.zip\").Items(),16)"'
+tools/win7/vm.sh exec 'cd /d C:\RapidR-2.121.0-win7-x86-alpha1\tests && run-tests.bat < nul'          # the tests pause at the end: `pause` needs input
+tools/win7/vm.sh pull 'C:\RapidR-2.121.0-win7-x86-alpha1\tests\results.txt' results.txt
+```
+The agent runs as SYSTEM (session 0, no desktop): console programs work, windows and Studio need the logged-in user's
+desktop (start them through a scheduled task, `schtasks /create /ru <user> ... /it`, or look at them by hand). `utmctl` returns exit
+status 0 even when the guest agent is missing: read its text.
