@@ -155,7 +155,7 @@ END SUB
 ' a shortened panel says in full)
 SUB ShowStatusHint
   DIM h AS STRING
-  IF Status.Panel(0).Caption <> "  " + StateText THEN h = StateText
+  IF Status.Panel(0).Caption <> StateText THEN h = StateText
   IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName THEN
     IF h <> "" THEN h = h + " - "
     h = h + ProjectName
@@ -218,7 +218,7 @@ SUB LayOutStatus
   w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160
   IF w < 40 THEN w = 40
   Status.Panel(0).Width = w0
-  Status.Panel(0).Caption = "  " + FitMiddle(StateText, w0 - 14)
+  Status.Panel(0).Caption = FitMiddle(StateText, w0 - 14)
   Status.Panel(1).Width = w
   Status.Panel(2).Width = 110
   Status.Panel(3).Width = 70

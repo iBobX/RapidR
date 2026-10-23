@@ -3044,13 +3044,17 @@ const CASES = [
     do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
     delay: 6,
     capture: true,
+    // (POLISH-2: a narrow Studio, where even the whole bar is too short —
+    // the desktop's window resized; the page's Studio is 1280 wide, where
+    // the state says it all: debug-status-long-name-room)
     env: { RAPIDR_TEST_RESIZE: "800,700" },
+    desktopOnly: true,
     dump: {
       "session.currentline": /^6$/,
       // (the hint is set only when a panel is shortened; the bar itself in
       // the capture)
       "status.hint": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
-      "status.panel(0).caption": /^ {2}Breakpoint: a_prog[^…]*…[^…]*_bar\.rr:6$/,
+      "status.panel(0).caption": /^Breakpoint: a_prog[^…]*…[^…]*_bar\.rr:6$/,
       "status.accessibledescription": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
     },
   },
@@ -3064,7 +3068,7 @@ const CASES = [
     delay: 6,
     dump: {
       "session.currentline": /^6$/,
-      "status.panel(0).caption": /^ {2}Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6$/,
+      "status.panel(0).caption": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6$/,
       "status.panel(2).width": /^110$/,
     },
   },

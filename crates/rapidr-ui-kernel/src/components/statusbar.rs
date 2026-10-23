@@ -40,6 +40,17 @@ use crate::tree::FormUi;
 
 pub struct StatusBar;
 
+/// (POLISH-2) Where a panel's text starts in its box: 3 pixels in, as
+/// RapidQ's TStatusBar, in the classic look; 9 in a flat (fluent) bar —
+/// 10 from the bar's edge, as RapidR Studio's own.
+pub fn text_inset(flat: bool) -> i64 {
+    if flat {
+        9
+    } else {
+        3
+    }
+}
+
 /// (the input lane's) Whether status bar `id` shows its size grip: SizeGrip
 /// (True unless set), the form its parent, sizeable, the bar at its bottom.
 pub fn has_grip(store: &dyn Store, id: &str) -> bool {
@@ -187,9 +198,13 @@ impl ComponentKind for StatusBar {
                 // (a line between this panel and the next)
                 p.fill((x + bw, y + 2, 1, (bh - 4).max(0)), line);
             }
-            // (the caption 3 pixels in, cut at the box's inside)
+            // (the caption 3 pixels in — RapidQ's, in the classic look —,
+            // cut at the box's inside; POLISH-2: a fluent look's text has
+            // the room RapidR Studio's own bar gives it, 10 pixels from the
+            // bar's edge or the line before it)
+            let inset = text_inset(t.fluent() || custom.is_some());
             let inside = (x + 1, y + 1, (bw - 2).max(0), (bh - 2).max(0));
-            p.clipped(inside, |p| p.text((x + 3, y, (bw - 6).max(0), bh), &text, &cx.font, color, Place::Left));
+            p.clipped(inside, |p| p.text((x + inset, y, (bw - inset - 3).max(0), bh), &text, &cx.font, color, Place::Left));
         }
         // (a grip's bar is docked at the form's bottom: its corner is the
         // window's. Not drawn where that's the system's — macOS rounds it
@@ -300,5 +315,26 @@ mod tests {
             assert!(events.iter().any(|e| matches!(e, KernelEvent::Mouse { kind: Mouse::Down, .. })), "{change}: the bar's own press");
             assert!(!events.iter().any(|e| matches!(e, KernelEvent::Container(_))), "{change}: no resize");
         }
+    }
+
+    /// (POLISH-2) A SimpleText (and a panel's caption) sits 10 pixels from
+    /// the bar's edge in RapidR's looks — as RapidR Studio's own bar —, 4
+    /// in the classic look, as RapidQ's TStatusBar.
+    #[test]
+    fn the_text_has_room_in_rapidrs_looks() {
+        for (theme, want) in [(&rapidr_value::theme::RAPIDR, 10), (&rapidr_value::theme::RAPIDR_DARK, 10), (&rapidr_value::theme::RAPIDR_HIGH_CONTRAST, 10), (&rapidr_value::theme::CLASSIC, 4)] {
+            rapidr_value::theme::set(theme);
+            let mut s = form("pad");
+            s.set("padb", "simplepanel", v_int(1));
+            let mut ts = TextSystem::new();
+            let mut f = FormUi::build(&s, "padf", false);
+            let list = f.paint(&s, &mut ts, 1.0);
+            let x = list.items.iter().find_map(|i| match i {
+                crate::Item::Op { origin, op: Op::Text { text, rect, .. } } if text == "ready" => Some(origin.0 + rect.0),
+                _ => None,
+            });
+            assert_eq!(x, Some(want), "{}", theme.name);
+        }
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
     }
 }
