@@ -1,0 +1,37 @@
+RapidR 2.121.0 Windows 7 alpha 1: the final run in the Windows 7 VM
+===================================================================
+
+Robert's checklist (the zip is the file a tester will get).
+
+On the Mac (the zip is already on the host-only share and on the disc image):
+  - the zip:  dist/2.121.0-win7-alpha1/RapidR-2.121.0-win7-x86-alpha1.zip  (+ .sha256)
+  - start the Windows 7 VM in UTM (network card: Host Only)
+  - tools/win7/serve.sh          (prints the address, 192.168.128.1:8099 so far; Ctrl+C when done)
+  - or, with no network: attach /Volumes/RapidRBuild/win7-share-iso/RAPIDR-ALPHA1.iso as the VM's CD
+
+In the VM:
+ 1. Get the zip.
+    - Internet Explorer: http://ADDRESS:8099/ , right-click RapidR-2.121.0-win7-x86-alpha1.zip,
+      "Save target as" (to the Desktop). Or copy it from the CD (D:\).
+    - Typed instead (Command Prompt; ADDRESS from serve.sh):
+      powershell -NoProfile -Command "(New-Object Net.WebClient).DownloadFile('http://ADDRESS:8099/RapidR-2.121.0-win7-x86-alpha1.zip','C:\alpha.zip')"
+ 2. Check it (optional):  certutil -hashfile C:\alpha.zip SHA256
+    and compare with the number in RapidR-2.121.0-win7-x86-alpha1.zip.sha256 (same folder).
+ 3. Unzip: right-click the zip, "Extract All...", to  C:\  (so C:\RapidR-2.121.0-win7-x86-alpha1\rapidr.exe exists).
+    Typed instead:
+      powershell -NoProfile -Command "$s=New-Object -ComObject Shell.Application; $s.NameSpace('C:\').CopyHere($s.NameSpace('C:\alpha.zip').Items(),16)"
+ 4. Read README-ALPHA.txt in that folder (Notepad; it is what a tester reads).
+ 5. Double-click  C:\RapidR-2.121.0-win7-x86-alpha1\tests\run-tests.bat
+    (a minute: version, hello, the language tour, then a window twice; each window closes by itself
+    after 20 s, click "Greet" while it is open). Everything is also written to tests\results.txt.
+    An "Open File - Security Warning" may appear first: click Run (the program is unsigned).
+ 6. Double-click  C:\RapidR-2.121.0-win7-x86-alpha1\RapidR-Studio.bat  (the launcher a tester uses).
+    Studio opens (the first start is slow); open an example, press Run; close Studio.
+    Also  tests\run-studio.bat  (it logs Studio's output to tests\studio-out.txt).
+ 7. Look at  rapidr.exe  in Explorer: right-click, Properties, Details: Company "Ruta Internet S.R.L.",
+    Product "RapidR", version 2.121.0.0, description "RapidR (Windows 7 alpha)".
+
+What to tell Claude: pass or fail for each step, a photo of anything odd, and tests\results.txt if a test failed.
+If rapidr.exe does not start at all, Windows names the missing DLL or "procedure entry point": the exact words.
+
+Clean up: delete C:\alpha.zip and the folder. Stop serve.sh (Ctrl+C).

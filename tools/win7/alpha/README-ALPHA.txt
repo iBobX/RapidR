@@ -41,8 +41,8 @@ What works
  - RapidR Studio: the editor, the examples, the debugger and its panels.
  - Running programs (console programs and windows), including programs
    written for RapidQ.
- - It runs without a graphics card that is new: the drawing is done by the
-   processor (the CPU).
+ - It does not need a modern graphics card: the processor (the CPU) does
+   the drawing.
 It has run on Windows 7 (32-bit, no updates) in a virtual machine. We have
 NOT yet tried it on real old PCs: that is what this test is for.
 
@@ -56,13 +56,14 @@ Known limits of this alpha
    8 and 8.1 (their console does not understand the codes RapidR sends).
    The text still appears.
  - Online things (the AI helper, downloads) need Windows 7 Service Pack 1
-   with the TLS 1.2 update (KB3140245) and up-to-date root certificates. On
-   a PC that never got its updates they will probably fail. Everything else
-   works offline.
+   with TLS 1.2 switched on (Microsoft's update KB3140245 does it) and
+   up-to-date root certificates. On a PC that never got its updates they
+   will probably fail. Everything else works offline.
  - Keys you type for the AI helper are not kept after you close Studio.
  - Slow first start, and slower drawing than on a new PC.
- - It is NOT signed. Windows (SmartScreen) may warn you: click "More info",
-   then "Run anyway". Some antivirus programs distrust any new, unsigned
+ - It is NOT signed. Windows may warn you: on Windows 8 and 8.1 (SmartScreen)
+   click "More info", then "Run anyway"; on Windows 7 ("Open File - Security
+   Warning") click "Run". Some antivirus programs distrust any new, unsigned
    program: if yours blocks it, that is a false alarm we want to hear about.
 
 
@@ -140,7 +141,8 @@ Qué funciona
  - RapidR Studio: el editor, los ejemplos, el depurador y sus paneles.
  - Ejecutar programas (de consola y con ventanas), también los escritos para
    RapidQ.
- - No hace falta una tarjeta gráfica moderna: dibuja el procesador (la CPU).
+ - No necesita una tarjeta gráfica moderna: el procesador (la CPU) hace el
+   dibujo.
 Ha funcionado en Windows 7 (32 bits, sin actualizaciones) dentro de una
 máquina virtual. TODAVÍA no lo hemos probado en PCs antiguas reales: para
 eso es esta prueba.
@@ -155,16 +157,17 @@ Límites conocidos de esta alfa
    funcionar en Windows 7, 8 y 8.1 (su consola no entiende los códigos que
    envía RapidR). El texto sí aparece.
  - Lo que usa internet (el asistente de IA, las descargas) necesita Windows 7
-   con el Service Pack 1, la actualización de TLS 1.2 (KB3140245) y los
-   certificados raíz al día. En un PC que nunca se actualizó probablemente
-   fallará. Todo lo demás funciona sin conexión.
+   con el Service Pack 1, TLS 1.2 activado (la actualización KB3140245 de
+   Microsoft lo hace) y los certificados raíz al día. En un PC que nunca se
+   actualizó probablemente fallará. Todo lo demás funciona sin conexión.
  - Las claves que escriba para el asistente de IA no se guardan al cerrar
    Studio.
  - Primer arranque lento y dibujo más lento que en un PC nuevo.
- - NO está firmado. Windows (SmartScreen) puede avisarle: pulse "Más
-   información" y luego "Ejecutar de todas formas". Algunos antivirus
-   desconfían de cualquier programa nuevo sin firmar: si el suyo lo bloquea,
-   es una falsa alarma y queremos saberlo.
+ - NO está firmado. Windows puede avisarle: en Windows 8 y 8.1 (SmartScreen)
+   pulse "Más información" y luego "Ejecutar de todas formas"; en Windows 7
+   ("Abrir archivo - Advertencia de seguridad") pulse "Ejecutar". Algunos
+   antivirus desconfían de cualquier programa nuevo sin firmar: si el suyo lo
+   bloquea, es una falsa alarma y queremos saberlo.
 
 
 Cómo contarnos lo que pasó
