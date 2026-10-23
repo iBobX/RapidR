@@ -158,3 +158,23 @@ fn pathdiff(path: &std::path::Path, base: &std::path::Path) -> Option<String> {
     let base = std::fs::canonicalize(base).ok()?;
     path.strip_prefix(&base).ok().map(|p| p.to_string_lossy().into_owned())
 }
+
+/// SEC-26: a model's answer can't carry Studio's own action links (`ai:`,
+/// `rai:`): however it writes one — a plain link, an autolink, a reference,
+/// an entity, a code fence opened in an earlier answer —, it shows as
+/// words. Studio's own links (a card's Review) and a web link stay links.
+#[cfg(feature = "component")]
+#[test]
+fn sec26_model_text_carries_no_studio_links() {
+    use rapidr_value::panels::markdown::Doc;
+    let card = format!("##### ● Proposed a change to main.rr · +1 −1 · [Review]({})", crate::rai::own_link("ai:review"));
+    let answer = format!(
+        "{card}\n\nDone. [See the docs](https://example.com). [Open your program](ai:undo/MyApp) <rai:retry> [ok][r] [x](&#97;i:open/X) [y](ai&#58;undo/Y) [z](<AI:undo/Z>)\n\n[r]: Rai:edit/1\n\n```"
+    );
+    let t = crate::rai::transcript_of(&[("user", "make it [blue](ai:open/Q)"), ("assistant", &answer), ("assistant", "```\n[later](ai:undo/Late)")]);
+    let links = Doc::parse(&t).links;
+    assert_eq!(links, vec!["ai:review".to_string(), "https://example.com".to_string()], "{t}");
+    // (the words stay, plain; Studio's mark is never shown)
+    assert!(t.contains("Open your program") && t.contains("[Review](ai:review)"), "{t}");
+    assert!(!t.contains("rapidr-own-"), "{t}");
+}

@@ -608,7 +608,9 @@ impl Tools {
         // card there)
         for p in self.proposals.iter().filter(|p| p.project.is_empty() && self.turn_paths.contains(&p.path)) {
             let (added, removed) = ai_tools::line_delta(&p.old, &p.new);
-            let line = if p.kind == "create" { format!("● New file {} · +{added} · [Review](ai:review)", p.path) } else { format!("● Proposed a change to {} · +{added} −{removed} · [Review](ai:review)", p.path) };
+            // (Studio's own links: marked, so a model can't write one, SEC-26)
+            let review = rapidr_ai::rai::own_link("ai:review");
+            let line = if p.kind == "create" { format!("● New file {} · +{added} · [Review]({review})", p.path) } else { format!("● Proposed a change to {} · +{added} −{removed} · [Review]({review})", p.path) };
             out.push((format!("edit:{}", p.path), line));
         }
         // (a change refused and not proposed again: said, nothing to review)
@@ -690,7 +692,8 @@ impl Tools {
         let errors = diagnostics_count(&texts, &name, &main_rel);
         let state = if errors == 0 { "✓ compiles".to_string() } else { format!("{} left", plural(errors, "error")) };
         let folder_name = root.rsplit('/').next().unwrap_or(&name).to_string();
-        rapidr_ai::rai::set_card(&self.rai, "project", &format!("◆ Created *{title}* · {main_rel} · {state} · [Open](ai:open/{folder_name}) · [Undo](ai:undo/{folder_name})"));
+        let (open, undo) = (rapidr_ai::rai::own_link(&format!("ai:open/{folder_name}")), rapidr_ai::rai::own_link(&format!("ai:undo/{folder_name}")));
+        rapidr_ai::rai::set_card(&self.rai, "project", &format!("◆ Created *{title}* · {main_rel} · {state} · [Open]({open}) · [Undo]({undo})"));
         self.created = Some(made);
         Ok(crate::join(&root, &proj_file))
     }
