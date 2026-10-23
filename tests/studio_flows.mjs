@@ -2413,7 +2413,8 @@ const CASES = [
     open: "examples/gui/hello_form.rr",
     do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:greet,key:Escape,key:Left,key:Shift+F12,wait",
     delay: 6,
-    dump: { "codedoc(0).cursorcount": /^4$/, "outputbox.text": /References:[\s\S]*:42:5[\s\S]*4 references/ },
+    // (the references are in the Search tab since S3: one file's row and its 4)
+    dump: { "codedoc(0).cursorcount": /^4$/, "searchinfo.caption": /^References to greet: 4 in 1 file$/, "searchtree.itemcount": /^5$/ },
   },
   {
     // Edit > Advanced > Fold All: the CREATE blocks and SUBs folded
