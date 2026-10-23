@@ -755,6 +755,9 @@ impl CodeEditor {
         let r = f(&mut self.doc);
         self.doc.read_only = ro;
         self.edited();
+        // (POLISH-2: Modified as for the user's edits — the text against
+        // the one saved: a designer's patches, a rename's edits)
+        self.modified = self.doc.is_modified();
         self.changed();
         r
     }
@@ -2176,6 +2179,7 @@ mod tests {
         assert_eq!(patches(&mut c, "1\t12\t1\t15\t360\n2\t15\t2\t16\tü\n1\t15\t1\t15\t\\n    Left = 8", 0), -1);
         assert_eq!(s(c.get("text")), "CREATE Form AS QFORM\n    Width = 360\n    Left = 8\n    Caption = \"ü\"\nEND CREATE");
         assert!(std::mem::take(&mut c.program_change), "OnChange is fired after it");
+        assert_eq!(n(c.get("modified")), -1, "the designer's change is a change (POLISH-2)");
         assert_eq!(n(c.get("caretline")), 5, "the caret stays on END CREATE");
         assert_eq!(n(c.get("selstart")), caret + 13);
         // the next action: its own step; a caption typed after it: joined
@@ -2187,7 +2191,9 @@ mod tests {
         assert!(s(c.get("text")).contains("Left = 8\n    Caption = \"ü\""), "the joined step undone whole");
         c.call("undo", &[]);
         assert_eq!(s(c.get("text")), first, "the first action undone whole");
+        assert_eq!(n(c.get("modified")), 0, "undone back to the text set: not modified");
         c.call("redo", &[]);
+        assert_eq!(n(c.get("modified")), -1);
         assert!(s(c.get("text")).contains("Width = 360\n    Left = 8"));
         // (ends given the wrong way round are put in order)
         assert_eq!(patches(&mut c, "0\t1\t0\t0\tc", 0), -1);

@@ -868,6 +868,9 @@ const CASES = [
       "designdoc(0).formname": /^Form$/,
       "designdoc(0).statustext": /^Button1 \(RButton\), 128, 88, 75 × 25$/,
       "codedoc(0).text": /Width = 540\n    Height = 340[\s\S]*    CREATE Button1 AS QBUTTON\n        Caption = "Button1"\n        Left = 128\n        Top = 88\n        Width = 75\n        Height = 25\n    END CREATE\nEND CREATE/,
+      // (POLISH-2: the designer's changes mark the document changed)
+      "studio.modified": /^(1|-1|True)$/i,
+      "codedoc(0).modified": /^(1|-1|True)$/i,
     },
   },
   // (I4) Enter on a toolbox item: AddComponent through the program (a
