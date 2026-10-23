@@ -643,7 +643,9 @@ key in the **APIKey** row: it is kept **in your keychain**, under the name
 `RapidR/<project>/<component>`, and the code gets only where it is —
 `APIKeySource = "keychain:RapidR/<project>/AI|ask"` — never the key. Then
 the **Model** row lists the provider's own models, fetched in the
-background (*↻ Refresh the list* fetches them again):
+background (*↻ Refresh the list* fetches them again). The key is kept for
+**that program**: run from Studio, the program finds it; a built app is
+another program and asks its user once (`|ask`, then **RememberKey**):
 
 ![An RAI in the designer: the code names where the key is, never the key; the Model row offers the provider's models](images/ai/designer-rai.png)
 
@@ -657,6 +659,17 @@ background (*↻ Refresh the list* fetches them again):
   program keeps a key there with **RememberKey**), `env:NAME` (an
   environment variable), `ask` (**OnKeyNeeded** fires: ask the user, set
   **APIKey**, ask again). Join them with `|`: `"env:OPENAI_API_KEY|ask"`.
+- **Each program has its own keys.** What a program keeps with
+  `keychain:NAME` is kept for that program only (in the keychain, under
+  the program's own name: `rapidr-app:<program>:RAI`). A program never
+  reads RapidR Studio's own keys (`RapidR Studio/anthropic` …) or another
+  program's, so a program you download can't take your key and send it
+  somewhere. A program that names Studio's key finds none, and **Error**
+  says so: *"… is RapidR Studio's own key, and a program can't read
+  Studio's keys"*. Give the program its own key instead: type it in the
+  designer's **APIKey** row, or let the program ask (`"keychain:MyApp/Key|ask"`,
+  **OnKeyNeeded**, then **RememberKey**). Keys a program kept before Preview
+  4 are asked for once again.
 - **APIKey** is write-only: reading it gives `""`; the inspector, the
   debugger's Variables and every log show it masked or not at all.
 - **On a web page** there is no keychain and no environment: the page asks

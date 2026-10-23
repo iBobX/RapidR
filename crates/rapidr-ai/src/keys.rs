@@ -18,28 +18,106 @@
 //!
 //! `RAPIDR_AI_KEYSTORE=memory` keeps keys in the process's memory only
 //! (tests: the user's keychain is never touched).
+//!
+//! **Whose keys** ([`Scope`], SEC-21). RapidR Studio's keys are under
+//! [`SERVICE`]; a program's are under its own service, beside its RSecrets
+//! (`rapidr-app:<program>:RAI`, crate::secrets::program_id). Only the
+//! process RapidR Studio runs in reads and keeps Studio's ([`set_studio`]:
+//! `rapidr ide`, Rust only), so a program's `keychain:RapidR
+//! Studio/anthropic` finds nothing — [`studio_key_note`] says why — and no
+//! program reads another's keys. Studio's designer keeps a key typed for a
+//! program in that program's service (RAI.KeyOwner, Studio's only).
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 
-/// The keychain's service: every key RapidR keeps is under it, by name.
+/// The keychain's service RapidR Studio's own keys are under, by name
+/// (`RapidR Studio/anthropic`). A program's are under its own ([`Scope`]).
 pub const SERVICE: &str = "dev.rapidr.keys";
 
-static SESSION: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+/// The names RapidR Studio keeps its assistant's keys under start so.
+pub const STUDIO_NAMES: &str = "RapidR Studio/";
 
-fn session_get(name: &str) -> Option<String> {
-    SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(name).cloned())
+/// Whose keys are read and kept: RapidR Studio's, or a program's (its
+/// identity, crate::secrets::program_id).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Scope {
+    Studio,
+    Program(String),
 }
 
-fn session_set(name: &str, key: Option<&str>) {
+impl Scope {
+    /// The program whose file (a built app's executable) is `path`.
+    pub fn of_program(path: &str) -> Scope {
+        Scope::Program(crate::secrets::program_id(path))
+    }
+
+    /// The keychain service its keys are under.
+    pub fn service(&self) -> String {
+        match self {
+            Scope::Studio => SERVICE.to_string(),
+            Scope::Program(id) => crate::secrets::keychain_service(id, "RAI"),
+        }
+    }
+}
+
+static STUDIO: AtomicBool = AtomicBool::new(false);
+
+/// This process is RapidR Studio: its keys are Studio's ([`SERVICE`]).
+/// Rust only — said by `rapidr ide` (and `rapidr ai`, Studio's AI from the
+/// terminal) before Studio runs; nothing a program can call.
+pub fn set_studio() {
+    STUDIO.store(true, Ordering::SeqCst);
+}
+
+/// Whether this process is RapidR Studio (on the web, always: a program
+/// Studio runs is in a frame of its own, with no storage).
+pub fn is_studio() -> bool {
+    cfg!(target_arch = "wasm32") || STUDIO.load(Ordering::SeqCst)
+}
+
+/// Whose keys this process reads and keeps: Studio's, or the running
+/// program's own.
+pub fn own_scope() -> Scope {
+    if is_studio() {
+        return Scope::Studio;
+    }
+    static OWN: OnceLock<Scope> = OnceLock::new();
+    OWN.get_or_init(|| Scope::of_program(&running_program())).clone()
+}
+
+/// The running program's file (a built app's executable).
+fn running_program() -> String {
+    #[cfg(feature = "component")]
+    {
+        rapidr_value::command_line::path()
+    }
+    #[cfg(not(feature = "component"))]
+    {
+        std::env::current_exe().map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()
+    }
+}
+
+/// (memory) (service, name) → key.
+type Kept = HashMap<(String, String), String>;
+
+static SESSION: Mutex<Option<Kept>> = Mutex::new(None);
+
+fn session_get(service: &str, name: &str) -> Option<String> {
+    SESSION.lock().unwrap_or_else(|e| e.into_inner()).as_ref().and_then(|m| m.get(&(service.to_string(), name.to_string())).cloned())
+}
+
+fn session_set(service: &str, name: &str, key: Option<&str>) {
     let mut s = SESSION.lock().unwrap_or_else(|e| e.into_inner());
     let m = s.get_or_insert_with(HashMap::new);
+    let at = (service.to_string(), name.to_string());
     match key {
         Some(k) => {
-            m.insert(name.to_string(), k.to_string());
+            m.insert(at, k.to_string());
         }
         None => {
-            m.remove(name);
+            m.remove(&at);
         }
     }
 }
@@ -154,12 +232,18 @@ pub fn asks(spec: &str) -> bool {
     parts(spec).iter().any(|(k, _)| k == "ask")
 }
 
-/// The key a source gives now, and where it came from.
+/// The key a source gives now, and where it came from (this process's
+/// keys: [`own_scope`]).
 pub fn resolve(spec: &str) -> (Option<String>, Source) {
+    resolve_in(&own_scope(), spec)
+}
+
+/// [`resolve`], with `scope`'s keys.
+pub fn resolve_in(scope: &Scope, spec: &str) -> (Option<String>, Source) {
     for (kind, arg) in parts(spec) {
         match kind.as_str() {
             "keychain" => {
-                let (k, s) = get_named(&arg);
+                let (k, s) = get_named_in(scope, &arg);
                 if k.is_some() {
                     return (k, s);
                 }
@@ -178,17 +262,37 @@ pub fn resolve(spec: &str) -> (Option<String>, Source) {
     (None, Source::None)
 }
 
+/// Why a program finds no key where `spec` says, when the reason is that
+/// it names one of RapidR Studio's keys (a program never reads those,
+/// SEC-21): what to do instead, in plain words. `None` in Studio, or when
+/// `spec` names none of Studio's.
+pub fn studio_key_note(scope: &Scope, spec: &str) -> Option<String> {
+    if *scope == Scope::Studio {
+        return None;
+    }
+    let name = parts(spec).into_iter().find(|(k, v)| k == "keychain" && v.get(..STUDIO_NAMES.len()).is_some_and(|p| p.eq_ignore_ascii_case(STUDIO_NAMES)))?.1;
+    Some(format!(
+        "\"{name}\" is RapidR Studio's own key, and a program can't read Studio's keys (each program has its own). Give this program its own key: type it in the APIKey row of the RAI in Studio's designer (kept in the keychain for this program), let the program ask its user (APIKeySource = \"keychain:MyApp/Key|ask\", OnKeyNeeded, then RememberKey), or set APIKey from what the user types."
+    ))
+}
+
 /// The key kept under `name`: the session's, else the keychain's (the
-/// device's on the web).
+/// device's on the web) — this process's keys ([`own_scope`]).
 pub fn get_named(name: &str) -> (Option<String>, Source) {
+    get_named_in(&own_scope(), name)
+}
+
+/// [`get_named`], with `scope`'s keys.
+pub fn get_named_in(scope: &Scope, name: &str) -> (Option<String>, Source) {
     if name.trim().is_empty() {
         return (None, Source::None);
     }
-    if let Some(k) = session_get(name) {
+    let service = scope.service();
+    if let Some(k) = session_get(&service, name) {
         return (Some(k), Source::Session);
     }
     if !memory_only() {
-        if let Some(k) = store::get(name) {
+        if let Some(k) = store::get(&service, name) {
             return (Some(k), Source::Stored);
         }
     }
@@ -209,32 +313,44 @@ pub fn clean(key: &str) -> Result<String, String> {
 
 /// Keeps `key` under `name`: in the keychain (the desktop); on the web for
 /// this session, and on this device too when `remember`. Gives where it
-/// went, in words.
+/// went, in words. This process's keys ([`own_scope`]).
 pub fn set_named(name: &str, key: &str, remember: bool) -> Result<String, String> {
+    set_named_in(&own_scope(), name, key, remember)
+}
+
+/// [`set_named`], with `scope`'s keys.
+pub fn set_named_in(scope: &Scope, name: &str, key: &str, remember: bool) -> Result<String, String> {
     let key = clean(key)?;
     if name.trim().is_empty() {
         return Err("give the key a name (keychain:NAME)".into());
     }
+    let service = scope.service();
     if memory_only() || !store::available() {
-        session_set(name, Some(&key));
+        session_set(&service, name, Some(&key));
         return Ok(session_words().into());
     }
     if cfg!(target_arch = "wasm32") && !remember {
-        store::delete(name);
-        session_set(name, Some(&key));
+        store::delete(&service, name);
+        session_set(&service, name, Some(&key));
         return Ok(session_words().into());
     }
-    store::set(name, &key)?;
-    session_set(name, None);
+    store::set(&service, name, &key)?;
+    session_set(&service, name, None);
     Ok(store_name())
 }
 
 /// Forgets the key kept under `name` (the keychain's, the session's, the
-/// device's).
+/// device's) — this process's keys ([`own_scope`]).
 pub fn delete_named(name: &str) {
-    session_set(name, None);
+    delete_named_in(&own_scope(), name)
+}
+
+/// [`delete_named`], with `scope`'s keys.
+pub fn delete_named_in(scope: &Scope, name: &str) {
+    let service = scope.service();
+    session_set(&service, name, None);
     if !memory_only() {
-        store::delete(name);
+        store::delete(&service, name);
     }
 }
 
@@ -279,9 +395,10 @@ pub fn store_name() -> String {
 }
 
 /// Whether the key under `name` is kept on this device (the web's
-/// "remember"; on the desktop, whether it is in the keychain).
+/// "remember"; on the desktop, whether it is in the keychain) — this
+/// process's keys.
 pub fn remembered(name: &str) -> bool {
-    !memory_only() && store::get(name).is_some()
+    !memory_only() && store::get(&own_scope().service(), name).is_some()
 }
 
 /// (Anthropic) The workspace a key that isn't scoped to one works in, from
@@ -465,16 +582,16 @@ pub(crate) mod store {
         }
     }
 
-    pub fn get(account: &str) -> Option<String> {
-        get_in(super::SERVICE, account).ok().flatten()
+    pub fn get(service: &str, account: &str) -> Option<String> {
+        get_in(service, account).ok().flatten()
     }
 
-    pub fn set(account: &str, key: &str) -> Result<(), String> {
-        set_in(super::SERVICE, account, key)
+    pub fn set(service: &str, account: &str, key: &str) -> Result<(), String> {
+        set_in(service, account, key)
     }
 
-    pub fn delete(account: &str) {
-        let _ = delete_in(super::SERVICE, account);
+    pub fn delete(service: &str, account: &str) {
+        let _ = delete_in(service, account);
     }
 
     /// The item `account` of keychain service `service` (`None`: there is
@@ -534,8 +651,9 @@ mod store {
         web_sys::window()?.local_storage().ok().flatten()
     }
 
-    fn item(name: &str) -> String {
-        format!("{}.{name}", super::SERVICE)
+    /// (Studio's keep their names of before: `dev.rapidr.keys.NAME`)
+    fn item(service: &str, name: &str) -> String {
+        format!("{service}.{name}")
     }
 
     pub fn available() -> bool {
@@ -546,17 +664,17 @@ mod store {
         "this browser, on this device".into()
     }
 
-    pub fn get(name: &str) -> Option<String> {
-        storage()?.get_item(&item(name)).ok().flatten().filter(|k| !k.is_empty())
+    pub fn get(service: &str, name: &str) -> Option<String> {
+        storage()?.get_item(&item(service, name)).ok().flatten().filter(|k| !k.is_empty())
     }
 
-    pub fn set(name: &str, key: &str) -> Result<(), String> {
-        storage().ok_or("this browser keeps nothing for the page")?.set_item(&item(name), key).map_err(|_| "the browser refused to keep it".to_string())
+    pub fn set(service: &str, name: &str, key: &str) -> Result<(), String> {
+        storage().ok_or("this browser keeps nothing for the page")?.set_item(&item(service, name), key).map_err(|_| "the browser refused to keep it".to_string())
     }
 
-    pub fn delete(name: &str) {
+    pub fn delete(service: &str, name: &str) {
         if let Some(s) = storage() {
-            let _ = s.remove_item(&item(name));
+            let _ = s.remove_item(&item(service, name));
         }
     }
 }

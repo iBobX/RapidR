@@ -6,10 +6,15 @@
 //! the Secret Service on Linux.
 //!
 //! - **Each program has its own items.** A program's service `S` is kept
-//!   as `rapidr-app:<program>:S`, `<program>` its file's name in lower case
-//!   (`dbstudio.rr`, `DBStudio.exe` and `DBStudio.app` are `dbstudio`), so
-//!   no program reaches RapidR Studio's keys ([`crate::keys::SERVICE`]) or
-//!   another program's items through RSecrets.
+//!   as `rapidr-app:<program>:S`, `<program>` the program's identity
+//!   ([`program_id`]): a built macOS app's bundle identifier, else its
+//!   file's name and a digest of where the file is
+//!   (`dbstudio~1a2b3c4d5e6f7081`), so two programs called `main.rr` in two
+//!   folders are two programs (SEC-22), and no program reaches RapidR
+//!   Studio's keys ([`crate::keys::SERVICE`]) or another program's items
+//!   through RSecrets. Items kept before Preview 4 under the file's name
+//!   alone (`rapidr-app:dbstudio:S`) are never read: nothing in them says
+//!   which program saved them.
 //! - **Never shown.** What is read and what is saved is noted as a
 //!   credential (`rapidr_value::secrets`): the debugger shows `••••`, and
 //!   the registry marks Read and Save `secret`, so an AI is never given it.
@@ -57,6 +62,84 @@ pub fn program_name(path: &str) -> String {
     };
     let name: String = stem.chars().map(|c| if c.is_alphanumeric() || matches!(c, '.' | '-' | '_') { c } else { '_' }).flat_map(char::to_lowercase).collect();
     if name.trim_matches(['.', '_']).is_empty() { "program".into() } else { name }
+}
+
+/// A program's identity, as its items are kept under (`<program>` in
+/// `rapidr-app:<program>:<service>`, and its RAI keys', crate::keys):
+///
+/// - a built macOS app (`X.app/Contents/MacOS/X`): its bundle identifier
+///   (`com.example.dbstudio`), whatever folder the app is moved to;
+/// - anything else (a program file the runtime runs, a built `.exe` or
+///   Linux program): its name ([`program_name`]) and a digest of the full
+///   path of its file (`dbstudio~1a2b3c4d5e6f7081`) — the same file however
+///   the path is written (relative, through a link; any case where the disk
+///   ignores case), and two files of the same name in two folders are two
+///   programs.
+///
+/// Within one user account this keeps programs apart; it is not a wall
+/// against a program the user runs that rewrites another program's file.
+pub fn program_id(path: &str) -> String {
+    if let Some(id) = bundle_id(path) {
+        return id;
+    }
+    let name: String = program_name(path).chars().take(40).collect();
+    format!("{name}~{}", digest(&where_it_is(path)))
+}
+
+/// `path` as one spelling for one file: made absolute, links resolved,
+/// `/`-separated; in lower case where the disk ignores case (macOS,
+/// Windows).
+fn where_it_is(path: &str) -> String {
+    #[cfg(not(target_arch = "wasm32"))]
+    let full = std::fs::canonicalize(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| {
+        let p = std::path::Path::new(path);
+        if p.is_relative() {
+            std::env::current_dir().map(|d| d.join(p).to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string())
+        } else {
+            path.to_string()
+        }
+    });
+    #[cfg(target_arch = "wasm32")]
+    let full = path.to_string();
+    let full = full.replace('\\', "/");
+    if cfg!(any(windows, target_os = "macos")) {
+        full.to_lowercase()
+    } else {
+        full
+    }
+}
+
+/// FNV-1a, 64 bits, as 16 hex digits.
+fn digest(text: &str) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in text.bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("{h:016x}")
+}
+
+/// A built macOS app's bundle identifier, in lower case (`path` its
+/// executable, `X.app/Contents/MacOS/X`; letters, digits, `.` and `-`).
+fn bundle_id(path: &str) -> Option<String> {
+    let p = std::path::Path::new(path);
+    let macos = p.parent()?;
+    let contents = macos.parent()?;
+    let app = contents.parent()?;
+    let is = |d: &std::path::Path, n: &str| d.file_name().is_some_and(|f| f.to_string_lossy().eq_ignore_ascii_case(n));
+    if !is(macos, "MacOS") || !is(contents, "Contents") || !app.extension().is_some_and(|e| e.eq_ignore_ascii_case("app")) {
+        return None;
+    }
+    let plist = std::fs::read_to_string(contents.join("Info.plist")).ok()?;
+    let after = &plist[plist.find("<key>CFBundleIdentifier</key>")? + "<key>CFBundleIdentifier</key>".len()..];
+    let open = after.find("<string>")?;
+    if !after[..open].trim().is_empty() {
+        return None;
+    }
+    let value = &after[open + "<string>".len()..];
+    let value = &value[..value.find("</string>")?];
+    let id: String = value.trim().chars().map(|c| if c.is_ascii_alphanumeric() || matches!(c, '.' | '-') { c.to_ascii_lowercase() } else { '-' }).take(155).collect();
+    (!id.trim_matches(['.', '-']).is_empty()).then_some(id)
 }
 
 /// The keychain service a program's service is kept under.
@@ -216,9 +299,11 @@ pub mod component {
         ERRORS.with(|e| e.borrow_mut().insert(name.to_ascii_lowercase(), error.to_string()));
     }
 
-    /// The running program's name, as its items are kept under.
+    /// The running program's identity, as its items are kept under
+    /// ([`super::program_id`]; worked out once).
     pub fn program() -> String {
-        super::program_name(&rapidr_value::command_line::path())
+        static ID: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+        ID.get_or_init(|| super::program_id(&rapidr_value::command_line::path())).clone()
     }
 
     /// A property of RSecrets `name` (`None`: not one of its own).

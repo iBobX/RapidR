@@ -75,6 +75,10 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
         return open_in_terminal(path, &args);
     }
     let program = crate::home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    // (RapidR Studio itself: its own keys; any other program, its own)
+    if crate::home::is_own_ide(Path::new(&program)) {
+        rapidr_ai::keys::set_studio();
+    }
     rapidr_vm_host_native::set_program(&program, args);
     // (the runtime running it and the system's temporary folder, for a
     // program that runs others: the IDE)
@@ -139,6 +143,8 @@ pub fn ide(args: Vec<String>) -> ExitCode {
         eprintln!("{}: not found — the IDE comes with the RapidR SDK, not the Runtime", ide.display());
         return ExitCode::from(1);
     }
+    // (Studio's keys are Studio's: SEC-21)
+    rapidr_ai::keys::set_studio();
     // (a file named on the command line: as the user's shell sees it)
     let cwd = std::env::current_dir().unwrap_or_default();
     let mut studio_args = vec!["--home".to_string(), home.root.to_string_lossy().into_owned()];

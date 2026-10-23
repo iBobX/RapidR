@@ -51,6 +51,8 @@ fn studio_source(p: &rapidr_ai::Provider) -> String {
 }
 
 pub fn command(args: &[String]) -> ExitCode {
+    // (RapidR Studio's AI from the terminal: Studio's keys)
+    keys::set_studio();
     let run = || -> Result<(), String> {
         match args.first().map(String::as_str) {
             Some("providers") => {

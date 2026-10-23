@@ -39,18 +39,35 @@ IF Secrets.Exists("MySQL", "office") THEN Secrets.Delete "MySQL", "office"
 | `Error` | Why the last call failed, `""` when it worked. It never contains the value. |
 | `Available` | True where secrets can be kept. |
 | `Store` | Where they are kept, in words: "the macOS Keychain" … |
-| `Program` | The name this program's secrets are kept under. |
+| `Program` | The identity this program's secrets are kept under. |
 
 A value is at most 1,024 characters, and an empty one is refused (use
 `Delete`). A service or a name can't be empty or hold a line break.
 
 ## Each program has its own
 
-A program's secrets are kept under its own name: service `MySQL` of
-`dbstudio.rr` is the keychain item `rapidr-app:dbstudio:MySQL`. The name
-is the program's file name in lower case, so `dbstudio.rr`, `DBStudio.exe`
-and `DBStudio.app` share theirs. No program reaches another program's
-secrets, or RapidR Studio's keys, through RSecrets.
+A program's secrets are kept under its own identity, which `Program` gives:
+
+- **a program file** (`main.rr`, `dbstudio.rr`, a built `.exe` or Linux
+  program): its name and a digest of where the file is, so service `MySQL`
+  of `/Users/me/apps/dbstudio.rr` is the keychain item
+  `rapidr-app:dbstudio~1a2b3c4d5e6f7081:MySQL`. Two programs called
+  `main.rr` in two folders are two programs and never share a secret. A
+  program moved to another folder starts without its secrets: save them
+  again;
+- **a built macOS app**: its bundle identifier (`com.example.dbstudio`,
+  the project's *Bundle ID*), wherever the app is moved.
+
+No program reaches another program's secrets, or RapidR Studio's keys,
+through RSecrets. Secrets kept before Preview 4 were kept under the file's
+name alone (`rapidr-app:dbstudio:MySQL`): nothing in them says which
+program saved them, so no program reads them any more. Save them again
+(Keychain Access, or Windows' Credential Manager, can delete the old
+items).
+
+Within your user account this keeps programs apart; it isn't a wall
+against a program you run that rewrites another program's file. Run only
+programs you trust.
 
 The operating system may ask the user once whether a program can use the
 keychain, for example the first time a newly built app reads an item that

@@ -539,6 +539,10 @@ struct Ai {
     /// A key the program set (APIKey): memory only.
     key: String,
     key_source: String,
+    /// (RapidR Studio only: KeyOwner) the program file whose keys this
+    /// RAI reads and keeps, and those keys' scope; "" — its own process's.
+    key_owner: String,
+    owner_scope: Option<keys::Scope>,
     max_tokens: i64,
     summary_at: i64,
     system: String,
@@ -897,11 +901,17 @@ impl Ai {
         (before, tokens(&self.messages), n)
     }
 
+    /// Whose keys it reads and keeps: its process's (Studio's, or the
+    /// program's own), or — in RapidR Studio only — KeyOwner's program's.
+    fn scope(&self) -> keys::Scope {
+        self.owner_scope.clone().unwrap_or_else(keys::own_scope)
+    }
+
     fn key(&self) -> (Option<String>, keys::Source) {
         if !self.key.is_empty() {
             return (Some(self.key.clone()), keys::Source::Program);
         }
-        keys::resolve(&self.key_source)
+        keys::resolve_in(&self.scope(), &self.key_source)
     }
 
     /// Where requests go, with the key; why not when they can't.
@@ -915,6 +925,10 @@ impl Ai {
             None if p.needs_key => {
                 // (the program asks its user: OnKeyNeeded, then APIKey)
                 self.events.push(("onkeyneeded", Vec::new()));
+                // (a program naming Studio's own key: why it finds none)
+                if let Some(note) = keys::studio_key_note(&self.scope(), &self.key_source) {
+                    return Err(note);
+                }
                 return Err(format!("There is no {} API key yet: give one (APIKey), or say where it is kept (APIKeySource).", wire::short_name(p)));
             }
             None => {}
@@ -2025,6 +2039,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             // (never read back: KeyHint shows its end)
             "apikey" => s(""),
             "apikeysource" => s(a.key_source.clone()),
+            "keyowner" => s(a.key_owner.clone()),
             "maxtokens" => Value::Integer(if a.max_tokens <= 0 { DEFAULT_MAX_TOKENS } else { a.max_tokens }),
             "summaryat" => Value::Integer(if a.summary_at <= 0 { DEFAULT_SUMMARY_AT } else { a.summary_at }),
             "system" => s(a.system.clone()),
@@ -2122,6 +2137,17 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                     a.stale_models();
                 }
                 a.key_source = t.trim().to_string();
+            }
+            "keyowner" => {
+                // (RapidR Studio's designer, keeping a key for the program
+                // it designs; a program's keys are always its own, SEC-21)
+                if !keys::is_studio() {
+                    a.error = "KeyOwner is RapidR Studio's own: a program's keys are always its own.".into();
+                } else if t.trim() != a.key_owner {
+                    a.stale_models();
+                    a.key_owner = t.trim().to_string();
+                    a.owner_scope = (!a.key_owner.is_empty()).then(|| keys::Scope::of_program(&a.key_owner));
+                }
             }
             "maxtokens" => a.max_tokens = v.to_i64(),
             "summaryat" => a.summary_at = v.to_i64(),
@@ -2246,7 +2272,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                     a.error = "There is no key to keep: set APIKey first.".into();
                     return false;
                 }
-                match keys::set_named(&target, &a.key, remember) {
+                match keys::set_named_in(&a.scope(), &target, &a.key, remember) {
                     Ok(place) => {
                         a.status = format!("The key is kept in {place}.");
                         a.error.clear();
@@ -2264,7 +2290,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
             with(name, |a| {
                 let target = keys::keychain_name(&a.key_source);
                 if !target.is_empty() {
-                    keys::delete_named(&target);
+                    keys::delete_named_in(&a.scope(), &target);
                 }
                 a.key.clear();
                 a.status = "The key is forgotten.".into();

@@ -198,6 +198,19 @@ pub fn exe_suffix(target: &str) -> &'static str {
 }
 
 /// `<exe folder>/../lib/rapidr` when it is an install's home.
+/// Whether `program` (a canonical path) is RapidR Studio itself — the
+/// `ide/studio.rr` or `ide/rapidr-ide.rrbc` of this executable's own home:
+/// its install, or the checkout it is in or was built from. Never by
+/// `RAPIDR_HOME` or the current folder, so a program laid out like a
+/// checkout isn't Studio (Studio's keys are Studio's, SEC-21).
+pub fn is_own_ide(program: &Path) -> bool {
+    let is_root = |dir: &Path| dir.join("crates/rapidr-runtime-core").is_dir() && fs::read_to_string(dir.join("Cargo.toml")).is_ok_and(|c| c.contains("[workspace]"));
+    let above = |start: PathBuf| start.ancestors().find(|d| is_root(d)).map(Path::to_path_buf);
+    let exe = env::current_exe().ok().and_then(|e| e.canonicalize().ok()).map(plain);
+    let roots = [installed_root(), exe.and_then(above), above(PathBuf::from(env!("CARGO_MANIFEST_DIR")))];
+    roots.into_iter().flatten().any(|root| ["studio.rr", "rapidr-ide.rrbc"].iter().any(|f| canonical(root.join("ide").join(f)).is_ok_and(|p| p == program)))
+}
+
 fn installed_root() -> Option<PathBuf> {
     let exe = plain(env::current_exe().ok()?.canonicalize().ok()?);
     let home = exe.parent()?.parent()?.join("lib").join("rapidr");
