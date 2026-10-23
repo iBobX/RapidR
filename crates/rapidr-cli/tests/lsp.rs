@@ -315,10 +315,12 @@ fn diagnostics_are_the_compilers() {
         .unwrap()
         .map(|e| e.unwrap().path())
         .filter(|p| p.extension().is_some_and(|e| e == "expected-error"))
-        .map(|p| p.with_extension("bas"))
+        // A case is a .bas (RapidQ style) or a .rr (RapidR); whichever exists.
+        .map(|p| ["bas", "rr"].iter().map(|ext| p.with_extension(ext)).find(|s| s.exists()).unwrap_or_else(|| panic!("no .bas or .rr beside {}", p.display())))
         .collect();
     files.sort();
     assert!(files.len() >= 10);
+    assert!(files.iter().any(|f| f.extension().is_some_and(|e| e == "rr")), "the .rr error cases are checked too");
     let dir = scratch("compiler");
     let mut c = Client::start(json!({}));
     for f in &files {
