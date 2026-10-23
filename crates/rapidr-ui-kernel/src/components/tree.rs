@@ -33,6 +33,20 @@ use rapidr_value::objects::tree::{Hit, Row, BUTTON, ROW_HEIGHT};
 fn row_h(id: &str) -> i64 {
     with_tree(id, |t| t.row_height()).unwrap_or(ROW_HEIGHT)
 }
+
+/// (POLISH-2) How many rows `count` rows of `rh` pixels scroll by in a
+/// view `view` pixels tall: as many as it takes to show the last one whole
+/// (a row partly in view at the bottom is scrolled past too), 0 when they
+/// all fit.
+pub fn scroll_rows(count: i64, rh: i64, view: i64) -> i64 {
+    let rh = rh.max(1);
+    let over = count * rh - view.max(0);
+    if over <= 0 {
+        0
+    } else {
+        (over + rh - 1) / rh
+    }
+}
 use rapidr_value::objects::with_tree;
 
 use super::list::{act, background, bar_mouse, bar_tick, begin_edit, drop_editor, edit_key, editing, editor_ime, editor_ime_area, editor_menu, editor_mouse, end_edit, fire, paint_editor, picture_of, set_edit_text, sunken, vscroll_at, vscroll_state, InPlace, ListAction};
@@ -257,15 +271,39 @@ impl ComponentKind for Tree {
         let (w, h) = (cx.width(), cx.height());
         let back = background(cx);
         sunken(p, w, h, back);
+        let rh = row_h(cx.id);
+        let view = h - 4;
         let Some((count, top_row, hide)) = with_tree(cx.id, |t| {
             let rows = t.visible_rows();
-            let top = rows.iter().position(|&r| r as i64 >= t.top_index).unwrap_or(0) as i64;
-            (rows.len() as i64, top, t.hide_selection)
+            let mut top = rows.iter().position(|&r| r as i64 >= t.top_index).unwrap_or(0);
+            // (POLISH-2: the rows scroll a whole row at a time — TopIndex —,
+            // so the last one shows whole only from the row after the one a
+            // pixel scroll would stop at: as far as that, and no further)
+            let last_top = scroll_rows(rows.len() as i64, rh, view) as usize;
+            // (a node selected by the keys or the program: its row in view,
+            // as Windows' TreeView scrolls to it)
+            if std::mem::take(&mut t.reveal) {
+                if let Some(at) = rows.iter().position(|&r| r as i64 == t.item_index) {
+                    let page = (view / rh).max(1) as usize;
+                    if at < top {
+                        top = at;
+                    } else if at >= top + page {
+                        top = at + 1 - page;
+                    }
+                }
+            }
+            top = top.min(last_top);
+            if let Some(&r) = rows.get(top) {
+                t.top_index = r as i64;
+            }
+            (rows.len() as i64, top as i64, t.hide_selection)
         }) else {
             return;
         };
-        // (the bar follows TopIndex)
-        let (_, cw, bar) = vscroll_at(cx.id, w - 4, h - 4, count * row_h(cx.id), row_h(cx.id), Some(top_row * row_h(cx.id)));
+        // (the bar follows TopIndex; its range ends where the last row shows
+        // whole, so its thumb is at the bottom just then)
+        let content = scroll_rows(count, rh, view) * rh + view.min(count * rh);
+        let (_, cw, bar) = vscroll_at(cx.id, w - 4, view, content, rh, Some(top_row * rh));
         let rows = rows(cx);
         let font = cx.font.clone();
         let focused = cx.state.focused;
