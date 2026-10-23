@@ -280,7 +280,8 @@ impl Console {
             let first = c.first(page);
             let auto = c.auto_scroll;
             let v = c.view_mut();
-            v.follow = auto && (!shown || pos >= range - g.body.3);
+            // (Problems never follows to its end: it reads from its top)
+            v.follow = auto && page != Page::Problems && (!shown || pos >= range - g.body.3);
             let (i, sub) = f.locate(pos);
             v.top = first + i as u64;
             v.sub = sub;

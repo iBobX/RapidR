@@ -1,0 +1,12 @@
+' Studio's Problems fixture (Preview 4 S5): 26 warnings in two modules
+' and, when the project runs on the web, a note in a third: 27 problems,
+' more than the page shows. Problems opens at its top. Opened in Studio by
+' the flows, never run.
+$APPTYPE CONSOLE
+$INCLUDE "a.rr"
+$INCLUDE "b.rr"
+$INCLUDE "net.rr"
+
+CheckA
+CheckB
+StopAll

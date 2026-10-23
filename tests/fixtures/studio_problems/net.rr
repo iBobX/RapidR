@@ -1,0 +1,7 @@
+' A server: RServerSocket works on the desktop only (a note when the
+' project runs on the web).
+DIM Srv AS RServerSocket
+
+SUB StopAll
+    Srv.Stop
+END SUB

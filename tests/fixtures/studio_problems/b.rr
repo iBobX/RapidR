@@ -1,0 +1,16 @@
+' Files the program looks for (second half), the same warning each.
+SUB CheckB
+    IF NOT FILEEXISTS("file14.txt") THEN PRINT "missing 14"
+    IF NOT FILEEXISTS("file15.txt") THEN PRINT "missing 15"
+    IF NOT FILEEXISTS("file16.txt") THEN PRINT "missing 16"
+    IF NOT FILEEXISTS("file17.txt") THEN PRINT "missing 17"
+    IF NOT FILEEXISTS("file18.txt") THEN PRINT "missing 18"
+    IF NOT FILEEXISTS("file19.txt") THEN PRINT "missing 19"
+    IF NOT FILEEXISTS("file20.txt") THEN PRINT "missing 20"
+    IF NOT FILEEXISTS("file21.txt") THEN PRINT "missing 21"
+    IF NOT FILEEXISTS("file22.txt") THEN PRINT "missing 22"
+    IF NOT FILEEXISTS("file23.txt") THEN PRINT "missing 23"
+    IF NOT FILEEXISTS("file24.txt") THEN PRINT "missing 24"
+    IF NOT FILEEXISTS("file25.txt") THEN PRINT "missing 25"
+    IF NOT FILEEXISTS("file26.txt") THEN PRINT "missing 26"
+END SUB

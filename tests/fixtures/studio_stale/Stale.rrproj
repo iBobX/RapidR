@@ -1,0 +1,17 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Stale"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "tools.rr"
+kind = "form"
+
+[[files]]
+path = "window.rr"
+kind = "module"

@@ -5254,6 +5254,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `WordWrap` | bool | True | True (the default) wraps a line longer than the page is wide onto more rows — at spaces where it can, so a long message reads whole — on every page; the Problems page's rows grow to hold their message. False cuts a long line at the edge (a problem's message ends in an ellipsis, its whole text is the row's tooltip). |
 | `LineCount` (read-only) | int |  | How many lines the shown page has. |
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
+| `TopLine` (read-only) | int |  | The first line the page shows now, from 0 (on the Problems page, its first row in view: a heading counts as a row). The Problems page shows its top when it is filled — errors come first — and keeps the place the reader scrolled to when it is filled again. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
