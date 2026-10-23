@@ -3507,6 +3507,7 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 | `TableCount` | int |  | The number of tables in the database. |
 | `DBCount` | int |  | The number of databases the server lists. |
 | `Busy` (read-only) | int |  | 1 while a background query (QueryAsync) runs, else 0. |
+| `InTransaction` (read-only) | int |  | 1 while a transaction is open on the connection — from BEGIN (or a SAVEPOINT outside one) until COMMIT, END or ROLLBACK —, else 0; as SQLite itself says it after each statement (Query, QueryScalar, a background query's before OnDone), so reading it runs no query and the rows stay. Closing rolls an open transaction back: warn before Close loses changes, `IF DB.InTransaction THEN …`. |
 
 | Method | |
 |---|---|
@@ -3559,6 +3560,8 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `SSLMode` *(RapidR)* | string | `"Preferred"` | How the connection is encrypted (TLS, the operating system's), as MySQL's own client says it. Preferred (the default): encrypted when the server can, else plain; the certificate isn't checked. Disabled: never. Required: encrypted or no connection; the certificate isn't checked. VerifyCA: also the server's certificate signed by SSLCA (or an authority the system trusts). VerifyFull: also the certificate names Host. A Unix socket or named pipe carries no TLS: Required and stricter refuse it. Read before Connect / RealConnect; Encrypted says what this connection is. |
 | `SSLCA` *(RapidR)* | string |  | The certificate authority VerifyCA and VerifyFull trust: a .pem (one or more certificates) or .der file, such as the server's ca.pem. "": the authorities the system trusts. |
 | `Encrypted` *(RapidR)* (read-only) | int |  | 1 while the connection is encrypted (TLS), 0 when it is plain or there is none. |
+| `InTransaction` *(RapidR)* (read-only) | int |  | 1 while a transaction is open on the session, 0 when none, -1 when the server's answers didn't say: as the server reports it (MySQL 5.7+ and MariaDB 10.3+ track it) in its answer to each statement that changes it — BEGIN / START TRANSACTION, COMMIT, ROLLBACK, a change with Autocommit off, the implicit commit after CREATE, ALTER or DROP, SET autocommit = 1 —, so reading it runs no query and the rows stay. -1 (true in an IF: treat it as open) after a query of several statements whose last gives rows (`BEGIN; SELECT …`), after a read with Autocommit off (it may have begun one), and on an older server; the next statement's answer says it again. Closing rolls an open transaction back: `IF My.InTransaction THEN` ask first. |
+| `Autocommit` *(RapidR)* (read-only) | int |  | 1 while the session commits each statement by itself (MySQL's autocommit, on by default), 0 after `SET autocommit = 0` (each change then waits for COMMIT), -1 before Connect or when the server didn't say. Followed from the server's answers, as InTransaction is. |
 | `Item` | string |  | An item, `Item(i)` from 0: a list's string, a database result's field, or a tree or list view node with its own properties. |
 | `NumFields` | int |  | The number of fields in the last query's result. |
 | `NumRows` | int |  | The number of rows in the last query's result. |

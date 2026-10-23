@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**666 libraries** under 23 license expressions.
+**667 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (407)
+## Apache-2.0 OR MIT (408)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -356,6 +356,7 @@ their `OFL.txt`.
 | toml_parser | 1.1.3+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | toml_writer | 1.1.2+spec-1.1.0 | <https://github.com/toml-rs/toml> |
 | ttf-parser | 0.25.1 | <https://github.com/harfbuzz/ttf-parser> |
+| typed-path | 0.12.4 | <https://github.com/chipsenkbeil/typed-path> |
 | typenum | 1.19.0 | <https://github.com/paholg/typenum> |
 | unicase | 2.9.0 | <https://github.com/seanmonstar/unicase> |
 | unicode-segmentation | 1.13.2 | <https://github.com/unicode-rs/unicode-segmentation> |
@@ -568,7 +569,7 @@ their `OFL.txt`.
 | zbus_names | 4.3.4 | <https://github.com/z-galaxy/zbus/> |
 | zbus_xml | 5.2.1 | <https://github.com/z-galaxy/zbus/> |
 | zcheapstr | 1.1.0 | <https://github.com/z-galaxy/zcheapstr/> |
-| zip | 0.6.6 | <https://github.com/zip-rs/zip.git> |
+| zip | 9.0.5 | <https://github.com/zip-rs/zip2> |
 | zmij | 1.0.21 | <https://github.com/dtolnay/zmij> |
 | zvariant | 5.15.0 | <https://github.com/z-galaxy/zbus/> |
 | zvariant_derive | 5.15.0 | <https://github.com/z-galaxy/zbus/> |

@@ -10,6 +10,42 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 ### Legal
 - **2.118.0–2.120.0 contained a diff routine derived from GNU diff (GPL-3.0-or-later)**, contrary to LEGAL.md's promise that programs contain no copyleft code. It is removed: RDiffView now uses RapidR's own diff, written from Myers' 1986 paper. **If you shipped a program built with 2.118.0, 2.119.0 or 2.120.0, rebuild it with this version at your next update.** Details: docs/legal/review-2026-10-22-gpl-diff.md.
 
+### Security
+- **`cargo deny check` (advisories, licenses, bans, sources) and `cargo audit`
+  pass again.** `zip` 0.6.6 → 9.0.5 (MIT; the web bundle's and the build
+  server's zip writers, which only write zips: RUSTSEC-2026-0367/0368/0369 are
+  in `extract()`, which RapidR never calls, but 0.6 is gone), with deflate
+  from zlib-rs (already in the tree); the one new crate is `typed-path`
+  0.12.4 (MIT OR Apache-2.0, zip's path type). A bundle is still
+  byte-for-byte reproducible (two builds, one hash) and opens with `unzip -t`. `rustls` 0.23.45 → 0.23.46 and `rustls-webpki`
+  0.103.15 → 0.103.16 in `Cargo.lock` (RUSTSEC-2026-0346 to 0349 and 0382:
+  they are listed there only through an optional feature of `reqwest` that no
+  build turns on, and `deny.toml` bans them, so no program ever carried
+  them). `zbus_names`, `zvariant` and `zvariant_derive` (RUSTSEC-2026-0370 to
+  0372: unmaintained since zbus 6 absorbed them, no vulnerability, Linux
+  D-Bus only: the screen-reader bridge, the tray and the keyring) are
+  justified exceptions in `deny.toml` and `.cargo/audit.toml`, with when to
+  revisit. `tests/security/supply_chain.mjs` pins the new versions;
+  `tools/regress.sh legal` runs all four deny checks, `cargo audit` and the
+  secret scan (`RAPIDR_OFFLINE=1` reads the advisory database already on
+  disk).
+- **Fuzz tests for what reads files and patterns from other people.** A
+  seeded generator (no new dependency) feeds the lexer, parser and
+  preprocessor with edited programs, random soup of the language's words and
+  random bytes; the `.rrproj` reader, the web IDE v1 JSON import and the
+  workspace file with edited and random text (and every imported file name is
+  checked to stay inside the project's folder); and Find's regular
+  expressions with random and expensive patterns (a time budget each).
+  They run in the normal test run (each under 10 s);
+  `RAPIDR_FUZZ_ITERS=200000` (best with `--release`) is the long run, and
+  `RAPIDR_FUZZ_SEED` replays a failure. 200,000 inputs of each ran clean.
+- **A secret scan of the tree:** `tools/check_secrets.py` looks in every
+  tracked file for private keys and certificates (PEM blocks with a body),
+  minisign secret keys, key and keystore files by name, and tokens (JSON Web
+  Tokens, Stripe, npm, Hugging Face, SendGrid, Twilio, Slack webhooks,
+  passwords in URLs), and prints the file, line and kind only, never the
+  value. Nothing found.
+
 ### Fixed
 - **Studio, small things made solid (POLISH-2).**
   - **Go to Line** (Ctrl+G, ⌘G on a Mac) keeps its `:` — the number you
@@ -54,6 +90,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     that) — tab names such as "查询 1" and "查询 2" no longer run into each
     other, and every component that sizes to its text (AutoSize, tabs,
     lists) gets it right.
+  - **A tree view scrolls to its last row whole** (Database Studio's: a
+    root of 47 tables, then a CSV, the CSV half hidden at the end of the
+    wheel or the bar, the thumb with room below it): its bar's range now
+    ends where the last row shows whole, and a row the keys select (End,
+    PageDown, Down) — or the program's ItemIndex — scrolls into view, as
+    Windows' TreeView.
+  - **A status bar's text is 10 pixels in** in RapidR's light, dark and high
+    contrast looks (a SimpleText sat 4 from the edge), as Studio's own; the
+    classic look keeps RapidQ's.
   - Tests: the language service's and the LSP's compiler-diagnostics checks
     take the `.rr` error cases too; Studio goldens' AI mock takes a free
     port when another run has 18695 (its two scenes then run but aren't
@@ -63,6 +108,30 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
     `ai-r6-setup-local-window` (and checks added to `debug-status-long-name`,
     `ai-r6-setup-local`, `ai-r6-setup-cloud`); `RAPIDR_TEST_DUMP` reads a
     sub-object's member (`status.panel(2).caption`).
+- **A `$MACRO` line with a `)` before its `(` no longer crashes the compiler
+  and the editor.** `$MACRO a) b(c = 1` made the parameter list's range run
+  backwards ("byte range starts at 30 but ends at 27"); it now defines
+  nothing, like a missing `)` (found by the new fuzz tests).
+- **Test hooks reach a dialog a handler opened, in native builds.** A form
+  shown with ShowModal (or a message box, INPUT$, a file dialog) from inside
+  an event handler — a menu item's OnClick, a form's OnClose — waits inside
+  the handler in a native build, and the test's next events never came:
+  the run waited forever, and RAPIDR_CAPTURE never captured the dialog. The
+  script now goes on while a handler waits for the user, as the
+  interpreter's always did: its events reach the dialog, and a test that
+  ends with it open dumps and captures it. GUI case `handler_modal_events`
+  (native and interpreted agree).
+- **`__until_PROP_VALUE` compares VALUE as written.** It was lowercased with
+  the rest of the event, so a caption with capitals never matched and the
+  run waited its two minutes; its value may also hold dots now
+  (`lbl.__until_Caption_v1.2 Ready.`).
+- **A grid's heading cycle goes on across a query's new rows.** Setting an
+  RDBGrid's `DataSource` again to the component it already shows (a program
+  binding before each query) cleared its sort, so the next click on the
+  same heading started over at ascending. It now keeps the sort: ascending,
+  descending, none, whatever rows arrive; another `DataSource` starts
+  unsorted, and rows added to a grid's own data are sorted in. Test
+  `a_grids_sort_stays_as_rows_come_and_its_source_is_set_again`.
 - **Studio: each pane keeps its thin edge all the way down, and in dark the
   gaps between panes show without hovering.** A docked pane's component (and
   each group of documents) now sits inside its group's 1-pixel frame instead
@@ -118,6 +187,48 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   three looks.
 
 ### Added
+- **A message box's safe answer on Enter** (for RapidR Database Studio's
+  delete and consent questions). `MESSAGEDLG(Msg, Type, Buttons,
+  HelpContext, DefaultButton)`: the fifth argument (RapidR's; RapidQ's
+  MESSAGEDLG has four) names the button Enter presses by its answer —
+  `mrNo` — or its `mb` flag (`mbNo`) when no button answers that number.
+  That button has the focus as the box opens, and Tab still walks left to
+  right from it; Escape and the close box answer as they always did (Cancel,
+  else No). Without it, the first button, as before. `MESSAGEBOX` now
+  honours Windows' `MB_DEFBUTTON2` / `MB_DEFBUTTON3` flags (`&H100`,
+  `&H200`), as RapidQ's MESSAGEBOX (Windows' MessageBox) did. The same on the
+  desktop (interpreted and native) and the web, every theme; a native web
+  build's browser confirm makes OK the default. Test hook:
+  `RAPIDR_TEST_MESSAGE_DIALOG=__enter` answers with the default button. The
+  registry's constant set `modal-result` (the `mr` answers) offers them.
+  Tests: `default_buttons` (rapidr-value), `a_default_button_takes_enter_and_the_focus_tab_goes_round`
+  (the kernel: Enter, Tab round, Escape), the GUI case `message_default`
+  (SendKeys Enter and Escape through the kernel's keyboard, native and
+  interpreted); manual components.md "Message boxes: the safe answer on Enter".
+- **InTransaction on RSQLite and RMySQL, Autocommit on RMySQL** (REQUEST-003
+  backlog). Whether a transaction is open, read without running a query (the
+  grid's rows stay): SQLite's own word (autocommit off) after every
+  statement — Query, QueryScalar, a background query's before OnDone, a
+  failed one too —; MySQL's and MariaDB's session tracker
+  (`session_track_transaction_info`, MySQL 5.7+, MariaDB 10.3+), which puts
+  the transaction's state in the server's answer to each statement that
+  changes it: BEGIN / START TRANSACTION, COMMIT, ROLLBACK, the first change
+  with autocommit off, the implicit commit after DDL, `SET autocommit = 1`.
+  With MySQL it is -1 (can't tell, true in an IF) after a query of several
+  statements whose last gives rows, after a read with autocommit off, and
+  on older servers. Close sets it to 0 (the server rolls back). Tests:
+  `in_transaction_follows_sqlite` (BEGIN, COMMIT, END, ROLLBACK, SAVEPOINT /
+  RELEASE, errors, several statements, QueryScalar, QueryAsync, Close),
+  `what_an_answer_leaves_unsaid`, and against a local MySQL 8.0.33
+  `in_transaction_on_a_local_server` (savepoints, SET autocommit = 0, the
+  implicit commit after CREATE TABLE, background queries). Example
+  `examples/data/transactions.rr` (run, interp, native, web): its close
+  question asks with No as Enter's answer. Manual databases.md "Is a
+  transaction open?".
+- **Test hooks** (Database Studio's findings): `any.__wait_N` (or
+  `__wait_ms_N`) lets the program run on its own for N ms — its timers, its
+  servers — before the next event; `__hold_ms` now also waits its ms on a
+  host that can't hold the pump (real windows, the web).
 - **Servers that only this computer reaches** (REQUEST-003, for RapidR
   Database Studio). RSocket's `Open(Port, Address)` and its new
   `BindAddress` property (RapidR's) choose where a QSOCKET server listens:

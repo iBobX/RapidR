@@ -247,6 +247,37 @@ What to know:
 The examples in [examples/windows/](../../examples/windows/) list a form's
 messages as they come, post `WM_USER + 1`, and read a MIDI keyboard.
 
+## Message boxes: the safe answer on Enter
+
+Enter presses a message box's first button, as in RapidQ. For a question
+whose first answer can't be undone, name the safe one with `MESSAGEDLG`'s
+fifth argument (RapidR's; RapidQ's MESSAGEDLG has four), the answer of the
+button Enter presses:
+
+```basic
+IF MESSAGEDLG("This deletes 1,204 rows.", mtWarning, mbYes OR mbNo, 0, mrNo) = mrYes THEN
+    DeleteRows
+END IF
+```
+
+- That button has the focus as the box opens, and Tab still goes left to
+  right from it. The same on the desktop and on the web, in every theme.
+- Escape and the close box answer as they always did: Cancel if there is
+  one, else No.
+- Its `mb` flag works too (`mbNo`), when no button answers that number.
+  Without the argument, or naming a button the box hasn't, the first
+  button is the default.
+- `MESSAGEBOX` takes Windows' own flags for it, as RapidQ's did:
+  `MB_DEFBUTTON2` (`&H100`) or `MB_DEFBUTTON3` (`&H200`), added to the
+  buttons: `MESSAGEBOX("Delete it?", "Notes", MB_YESNO OR &H100)`.
+
+![A warning whose No button is the default: No has the focus ring and the accent colour, Yes is plain](images/components/message-default-no.png)
+
+The example is [transactions.rr](../../examples/data/transactions.rr)'s close question.
+
+In a test, `RAPIDR_TEST_MESSAGE_DIALOG=__enter` answers a box with its
+default button, as Enter would.
+
 ## Lists scroll to what you pick
 
 A list box shows the item your program picks, as Windows' list boxes do:

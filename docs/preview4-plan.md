@@ -190,3 +190,11 @@ The train rule keeps the date honest.
 - Chats are stored in Studio's data folder, never in the project.
 - RAI's test runs are safe by default (R9). Studio never runs AI-written code with administrator rights, shell access or system changes unless you allow each one.
 - Model mistakes are fixed in the language (additive), in the messages, or in the card, never by changing RapidQ behaviour.
+
+## 5. The scope, narrowed (Robert, 2026-10-22 evening; the train rule)
+At 60% of the week's budget, with the rest of the plan worth about a week more, Robert chose to ship what is done and move the rest:
+- **Preview 4 = what is merged** (S1, S2, S6's PATH, S8–S11, R1–R6, R10, R11, K1, K3, K4, K7, K8's lite set, E0–E2, E6, T1, G0–G2 as the engine and the diff views, constants built in, END n, OnMessage, FOR … AS, RSecrets, MySQL TLS, themed SVG, QueryAsync and the virtual grid, RHttpServer, Application.Announce, the splitters and pane edges, the "Open" parser fix), **plus S3, S5, the POLISH-2 and DB-D lanes, and X1–X4** (the audit on Fable, fixes on Opus; X4's six legal traps on Sonnet).
+- **Preview 5: "Never lose anything. RAI fixes its own work."** R7–R9 (with the Fable design review first), the Versions panel and the rest of Versions (G3–G10), S6's `file:line` links, S4, S7, K2, K5, K6, E3–E5, EXT1–EXT6 (the extension stays at its current release until then).
+- **The budget:** weekly use stays under 80% (Robert keeps 20%); no extra usage. Fewer lanes at once, Sonnet where it is enough.
+- **At release:** the downloads of v2.118, v2.119 and v2.120 (they carry the old GPL-derived diff; docs/legal/review-2026-10-22-gpl-diff.md) are deleted from GitHub once Preview 4's are live; their release notes stay.
+- **Then the launch:** an overview video and one short per WOW in EN/ES/PT/ZH (Studio only, captions, no system voices), posts dripped over days, Database Studio 0.1 alongside if its release walk passes.

@@ -485,7 +485,7 @@ pub fn rp_showmessage(msg: &Value) {
             return;
         }
         let title = app_title();
-        if crate::kernel_web::choice(&title, &text, &["OK"], None, false, |_| v_null()).is_some() {
+        if crate::kernel_web::choice(&title, &text, &["OK"], None, None, false, |_| v_null()).is_some() {
             return;
         }
     }
@@ -497,7 +497,7 @@ pub fn rp_showmessage(msg: &Value) {
 
 pub fn rp_msgbox(msg: &Value) -> Value {
     // (the kernel's box with OK, as the desktop's MSGBOX; 0)
-    if let Some(v) = crate::kernel_web::choice(&app_title(), &msg.to_string_val(), &["OK"], None, false, |_| v_int(0)) {
+    if let Some(v) = crate::kernel_web::choice(&app_title(), &msg.to_string_val(), &["OK"], None, None, false, |_| v_int(0)) {
         return v;
     }
     rp_showmessage(msg);
@@ -711,17 +711,20 @@ pub const IDNO: i64 = 7;
 pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
     use crate::value::dialogs as d;
     let buttons = d::message_box_buttons(flags.to_i64());
-    show_choice_beep(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
+    show_choice_beep(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_default(flags.to_i64()), d::message_box_icon(flags.to_i64()), true)
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): the
-/// message dialog — the type's caption ("Warning" …; mtCustom's is
-/// Application.Title) and icon; returns mr*.
-pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext [, defaultButton])`
+/// (RapidQ's four; the fifth RapidR's): the message dialog — the type's
+/// caption ("Warning" …; mtCustom's is Application.Title) and icon, Enter
+/// on the button answering `defaultButton` (mrNo; the first without it);
+/// returns mr*.
+pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value, default: &Value) -> Value {
     use crate::value::dialogs as d;
     let title = d::message_dlg_caption(msg_type.to_i64(), &app_title());
     let buttons = d::message_dlg_buttons(buttons.to_i64());
-    show_choice(&text.to_string_val(), &title, &buttons, d::message_dlg_icon(msg_type.to_i64()))
+    let default = d::message_dlg_default(&buttons, default.to_i64());
+    show_choice(&text.to_string_val(), &title, &buttons, default, d::message_dlg_icon(msg_type.to_i64()))
 }
 
 /// Application.Title (a SHOWMESSAGE's caption, mtCustom's).
@@ -732,13 +735,13 @@ fn app_title() -> String {
 /// Browser dialogs block, which the interpreter needs; they offer OK (alert)
 /// or OK/Cancel (confirm), so a third button (Yes/No/Cancel's Cancel,
 /// Abort/Retry/Ignore's Ignore) can't be offered on the web.
-fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>) -> Value {
-    show_choice_beep(text, title, buttons, icon, false)
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], default: Option<usize>, icon: Option<crate::value::dialogs::MsgIcon>) -> Value {
+    show_choice_beep(text, title, buttons, default, icon, false)
 }
 
 /// [`show_choice`], with the icon's sound as it shows (MESSAGEBOX's, as
 /// Windows' MessageBox) where the UI kernel draws the box.
-fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
+fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], default: Option<usize>, icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
     // (the kernel's box — the desktop's — a wait the VM serves, the button
     // chosen mapped to the builtin's result as the desktop maps it)
     let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
@@ -749,7 +752,7 @@ fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::B
             None => crate::value::dialogs::dismissed(&owned),
         })
     };
-    if let Some(v) = crate::kernel_web::choice(title, text, &labels, icon, beep, then) {
+    if let Some(v) = crate::kernel_web::choice(title, text, &labels, default, icon, beep, then) {
         return v;
     }
     // (a native web build can't wait for it: the browser's own)
@@ -760,7 +763,10 @@ fn show_choice_beep(text: &str, title: &str, buttons: &[crate::value::dialogs::B
             let _ = window.alert_with_message(&message);
             v_int(only.result)
         }
-        [yes, no, ..] => {
+        [first, second, ..] => {
+            // (Enter presses the browser's OK: OK is the default button —
+            // the second when the program made it so)
+            let (yes, no) = if default == Some(1) { (second, first) } else { (first, second) };
             let note = if yes.label == "OK" && no.label == "Cancel" {
                 String::new()
             } else {

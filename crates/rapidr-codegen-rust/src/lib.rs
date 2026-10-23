@@ -3117,7 +3117,7 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         "showmessage" => Some(format!("rp_showmessage(&{a0})")),
         "msgbox" => Some(format!("rp_msgbox(&{a0})")),
         "messagebox" => Some(format!("rp_messagebox(&{a0}, &{a1}, &{a2})")),
-        "messagedlg" => Some(format!("rp_messagedlg(&{a0}, &{a1}, &{a2}, &v_null())")),
+        "messagedlg" => Some(format!("rp_messagedlg(&{a0}, &{a1}, &{a2}, &v_null(), &{})", args.get(4).map(|s| s.as_str()).unwrap_or("v_null()"))),
         "direxists" => Some(format!("rp_direxists(&{a0})")),
         "fileexists" => Some(format!("rp_fileexists(&{a0})")),
         "resource" => Some(format!("rp_resource(&{a0})")),

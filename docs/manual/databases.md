@@ -235,6 +235,55 @@ END SUB
 
 Filtering works the same way: run the query again with a `WHERE`.
 
+The grid keeps its sort while your query's rows come in, and when you set
+`DataSource` again to the component it already shows (binding before each
+query is fine): the next click on the same heading goes on from where it
+was, ascending, then descending, then none. Setting another `DataSource`
+starts unsorted. A grid bound to data of its own (an `RDataFrame`, an
+`RCSV`) sorts its view itself, and rows added to that data are sorted in.
+
+## Is a transaction open?
+
+`InTransaction` says whether a transaction is open on the connection: 1
+from `BEGIN` until `COMMIT` or `ROLLBACK`, else 0. It is the database's own
+word, set after every statement the component runs, so reading it runs no
+query and the grid's rows stay. Closing the connection rolls an open
+transaction back: ask first.
+
+```basic
+SUB FormClose (Action AS INTEGER)
+    IF DB.InTransaction = 0 THEN EXIT SUB
+    IF MESSAGEDLG("A transaction is open: closing drops its rows." + CHR$(10) + "Close anyway?", mtWarning, mbYes OR mbNo, 0, mrNo) = mrYes THEN
+        DB.Query "ROLLBACK"
+    ELSE
+        Action = caNone
+    END IF
+END SUB
+```
+
+- SQLite: `BEGIN` (or a `SAVEPOINT` outside a transaction) opens one;
+  `COMMIT`, `END` and `ROLLBACK` end it. `Query`, `QueryScalar` and a
+  background query (before its `OnDone`) all set it, a statement that
+  failed too.
+- MySQL and MariaDB: the server says it in its answer to each statement
+  that changes it (MySQL 5.7 and later, MariaDB 10.3 and later): `BEGIN` /
+  `START TRANSACTION`, `COMMIT`, `ROLLBACK`, the first change while
+  `Autocommit` is 0, the commit MySQL makes after `CREATE`, `ALTER` or
+  `DROP`, and `SET autocommit = 1`. `Autocommit` (1 or 0) is MySQL's
+  setting, followed the same way.
+- With MySQL `InTransaction` is -1 when the server's answers couldn't say:
+  after a query of several statements whose last gives rows (`BEGIN;
+  SELECT …`), after a read while `Autocommit` is 0 (it may have begun one),
+  and with an older server. -1 counts as true in an `IF`, so a close
+  question still asks. The next statement's answer says it again.
+
+![The transactions example: a transaction begun and two rows added, the status line says one is open](images/databases/transactions.png)
+
+[transactions.rr](../../examples/data/transactions.rr) shows it: Begin,
+Add a row, Commit and Rollback, the status from `InTransaction`, and a
+close question whose default answer is No (see
+[message boxes](components.md#message-boxes-the-safe-answer-on-enter)).
+
 ## Column names and types
 
 `ColName(i)` and `ColType(i)` describe the last query's column `i`, from 0,

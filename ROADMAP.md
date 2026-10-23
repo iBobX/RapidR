@@ -718,6 +718,8 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Preview 4 — Studio, solid: find anything, never lose anything, RAI runs and fixes its own work (the next release; Robert, 2026-10-20; plan: [docs/preview4-plan.md](docs/preview4-plan.md))
 
+**Scope narrowed (Robert, 2026-10-22 evening; the train rule, budget):** Preview 4 ships what is merged plus S3, S5, the POLISH-2 and DB-D lanes and X1–X4. R7–R9, Versions G3–G10, S4, S7, K2, K5, K6, E3–E5 and EXT1–EXT6 move to **Preview 5: "Never lose anything. RAI fixes its own work."** ([docs/preview4-plan.md](docs/preview4-plan.md) §5)
+
 ★ = must-have; the rest boards the release only if it is ready (the train rule).
 
 **Studio essentials**
@@ -729,7 +731,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ S6 Run gets your Terminal's PATH; runtime errors link to `file:line` — the PATH done 2026-10-22 (the login shell read once, 3 s, a fallback; Run, Build, Run in Browser; Settings shows it with Refresh); the `file:line` links still open
 - [ ] ★ S8 Layout at start-up: panes' contents stay narrow until a resize (Breakpoints list, the Assistant's input row)
 - [ ] ★ S9 An editing layout and a debugging layout: a full-width bottom panel while editing; the debug panes appear when a run starts and leave when it ends; each layout keeps its own sizes
-- [ ] ★ S10 A debugger that looks as good as it works: value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
+- [x] ★ S10 A debugger that looks as good as it works (2026-10-22: lanes S10 phase 1 and 2 merged): value-kind icons, styled values with colour swatches, a changed-value highlight, section and breakpoint-state icons (SVG; a shared value-drawing module for the helpers and Properties)
 - [x] ★ S11 Change values while paused: edit numbers, text, true/false, constants, array elements, record fields and writable component properties in Variables/Watch (F2, double-click), with value editors, validation and undo; the web Studio and DAP setVariable too (typed input checked by kind, constants as a menu, long text in its own window, Ctrl+Z, Immediate `x = 5`, DAP setExpression; the colour and font editors plug in from the code helpers lane: `ValueEditorFor` in ide/debug.inc)
   - [x] Phase 1: the icons (design/icons `debug/`, the hit-count breakpoint, add watch, copy and edit value, the changed mark; review sheets `debugger-new`, `debugger-family`) and the UI kernel's `value_view` (a value and its kind in, a drawn, accessible row out; `debug.*` theme tokens, contrast-tested); no raster icon in Studio's UI
   - [x] Phase 2: Variables, Watch, Breakpoints, Call Stack and the data tips draw their rows with `value_view` (TreeView.SetItemValue, the session's property hints), the gutter's breakpoint marks from the icon set (hit count apart from a condition; not bound a dashed ring), Add Watch's icon, a pane header's tooltip above the header; walked in every look
@@ -783,7 +785,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 **Security and legal**
 - [ ] ★ X1 Threat model update
-- [ ] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan
+- [x] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan (2026-10-22, lane X2: all four `cargo deny` checks and `cargo audit` pass, `zip` 9.0.5; fuzz tests for the lexer and parser, `.rrproj`, Find's patterns, `tools/check_secrets.py`; fuzzing Git objects comes with Versions G3, Preview 5)
 - [ ] ★ X3 The audit (Fable with Robert's OK, or Opus), with a public report
 - [ ] ★ X4 The six legal traps
 
@@ -862,6 +864,12 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [x] REQUEST-003: RHttpServer, a local HTTP server *(DBC, 2026-10-22: 127.0.0.1 by default, OnRequest on the program's thread, Respond now or later, Server-Sent Events, Token / AllowedOrigins / AllowedHosts / MaxRequestSize / Timeout / MaxConnections refusals by the server itself; std only; example network/local_api.rr in the examples suite with a client. Left: RMcpServer on it)*
   - [x] REQUEST-003: polite screen-reader announcements *(DBC, 2026-10-22: `Application.Announce(Text [, Assertive])`, AccessKit live regions on the desktop — status nodes are live there now —, the page's aria-live regions on the web)*
   - [x] REQUEST-003: SQL colours in RMarkdownView *(DBC, 2026-10-22: a code block coloured by its fence's language — sql, sqlite, mysql, json, html … — with the code editor's definitions; example gui/markdown_code.rr)*
+  - [x] REQUEST-003 item 4: the list view's test hook `lv.__item_N` *(ad4aab8c, 2026-10-22: any view, a row below the fold brought into view, OnClick; parity case listview_item_pick)*
+  - [x] REQUEST-003 backlog: MESSAGEDLG's default button (a release blocker for the app) *(DB-D, 2026-10-22: the fifth argument `DefaultButton` (mrNo; mbNo when no button answers 2), focused as the box opens, Tab round from it, Escape unchanged; MESSAGEBOX's MB_DEFBUTTON2/3 as Windows has them; desktop and web; `RAPIDR_TEST_MESSAGE_DIALOG=__enter`; GUI case message_default)*
+  - [x] REQUEST-003 backlog: "Is a transaction open?" *(DB-D, 2026-10-22: `InTransaction` on RSQLite (SQLite's autocommit flag after every statement) and RMySQL (the server's session tracker, -1 when its answers couldn't say), `Autocommit` on RMySQL; live-tested on MySQL 8.0.33; example data/transactions.rr. Exact MySQL flag (SERVER_STATUS_IN_TRANS) needs the mysql crate to expose it: lead's call)*
+  - [x] REQUEST-003 backlog: the grid's sort cycle across new rows *(DB-D, 2026-10-22: DataSource set again to the same source keeps the sort; a grid's own data sorts new rows in)*
+  - [x] REQUEST-003 backlog: test hooks *(DB-D, 2026-10-22: a handler's modal dialog gets the next events and the captures in native builds; `__until_` compares its value as written; `__wait_N`; `__hold_ms` waits where a host can't hold)*
+  - [ ] REQUEST-003 backlog: the server's certificate and pinning it (`ServerFingerprint`, `ServerCertificate`, `SSLFingerprint`) *(DB-D investigated 2026-10-22: needs the mysql crate to check the pin on the real connection — a small patch or an upstream change; lead and lawyer decide)*
   - [ ] RNodeGraph (shared with Visualmusicator X W4)
   - [x] Translation for programs, first step (TR$, TRN$, Application.Language; merged 2026-10-21, 0905af73)
   - [x] `RImageList.AddSVGFile`: an app's own SVG icons, themed and sharp at every scale (like RapidR's own icon set) *(DBA, 2026-10-22: drawn at the list's size and the screen's scale; example gui/svg_icons.rr, manual svg-icons.md)*

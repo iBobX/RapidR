@@ -35,7 +35,7 @@ use std::collections::HashMap;
 use std::io::{Cursor, Write};
 
 #[cfg(feature = "zip")]
-use zip::{write::FileOptions, CompressionMethod, ZipWriter};
+use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
 
 pub use csp::{content_security_policy, header_policy, WebNeeds};
 
@@ -213,8 +213,8 @@ pub fn build_bundle(inputs: &BundleInputs<'_>) -> Result<Vec<u8>, String> {
     let mut buf = Cursor::new(Vec::<u8>::new());
     {
         let mut zw = ZipWriter::new(&mut buf);
-        let stored = FileOptions::default().compression_method(CompressionMethod::Stored);
-        let deflated = FileOptions::default().compression_method(CompressionMethod::Deflated);
+        let stored = SimpleFileOptions::default().compression_method(CompressionMethod::Stored);
+        let deflated = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
         for (name, data) in &files {
             let binary = name.ends_with(".wasm") || name.ends_with(".rrbc") || name.starts_with("fonts/");
             write_file(&mut zw, name, data, if binary { stored } else { deflated })?;
@@ -229,7 +229,7 @@ fn write_file<W: Write + std::io::Seek>(
     zw: &mut ZipWriter<W>,
     name: &str,
     data: &[u8],
-    options: FileOptions,
+    options: SimpleFileOptions,
 ) -> Result<(), String> {
     zw.start_file(name, options)
         .map_err(|e| format!("zip start_file {name}: {e}"))?;

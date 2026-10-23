@@ -48,6 +48,10 @@ pub const CANCELLED: &str = "cancelled";
 /// A result's columns: their names and declared types.
 pub type Columns = (Vec<String>, Vec<String>);
 
+/// What a query left on its connection: InTransaction (1 open, 0 none, -1
+/// can't tell) and RMySQL's Autocommit when known.
+pub type TxNews = (i64, Option<i64>);
+
 /// How a background query ended.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum End {
@@ -74,6 +78,10 @@ struct Progress {
     chunks: Vec<Frame>,
     /// How it ended, and the milliseconds it took.
     end: Option<(End, u64)>,
+    /// The connection's transaction once it ended (InTransaction: 1 open,
+    /// 0 none, -1 can't tell) and RMySQL's Autocommit, when the producer
+    /// said them.
+    transaction: Option<TxNews>,
 }
 
 impl Shared {
@@ -111,10 +119,20 @@ impl Shared {
         self.lock().end = Some((end, ms));
     }
 
-    /// What came since the last look: new columns, chunks, the end.
-    fn take(&self) -> (Option<Columns>, Vec<Frame>, Option<(End, u64)>) {
+    /// What the query left on its connection: a transaction open (1), none
+    /// (0) or can't tell (-1) — InTransaction —, and whether autocommit is
+    /// on (RMySQL's Autocommit, when known). Said before [`Shared::end`].
+    pub fn transaction(&self, open: i64, autocommit: Option<i64>) {
+        self.lock().transaction = Some((open, autocommit));
+    }
+
+    /// What came since the last look: new columns, chunks, the end (and
+    /// with it the transaction's state).
+    #[allow(clippy::type_complexity)]
+    fn take(&self) -> (Option<Columns>, Vec<Frame>, Option<(End, u64, Option<TxNews>)>) {
         let mut p = self.lock();
-        (p.columns.take(), std::mem::take(&mut p.chunks), p.end.take())
+        let end = p.end.take().map(|(e, ms)| (e, ms, p.transaction.take()));
+        (p.columns.take(), std::mem::take(&mut p.chunks), end)
     }
 }
 
@@ -287,7 +305,7 @@ pub fn cancel(key: &str) -> bool {
 enum Heard {
     Columns(String, usize),
     Rows(String, usize),
-    End(String, End, usize, u64),
+    End(String, End, usize, u64, Option<TxNews>),
 }
 
 /// The background queries' news, on the program's thread: new rows
@@ -327,9 +345,9 @@ pub fn poll(host: &dyn Host) -> bool {
                 heard.push(Heard::Rows(q.name.clone(), q.rows));
             }
             match end {
-                Some((end, ms)) => {
+                Some((end, ms, transaction)) => {
                     let q = a.remove(i);
-                    heard.push(Heard::End(q.name, end, q.rows, ms));
+                    heard.push(Heard::End(q.name, end, q.rows, ms, transaction));
                 }
                 None => i += 1,
             }
@@ -346,8 +364,16 @@ pub fn poll(host: &dyn Host) -> bool {
                 host.row_changed(&name);
                 host.fire(&name, "onrows", &[v_int(rows as i64)]);
             }
-            Heard::End(name, end, rows, ms) => {
+            Heard::End(name, end, rows, ms, transaction) => {
                 host.set(&name, "busy", v_int(0));
+                // (InTransaction as the query left it: before OnDone, whose
+                // handler may read it)
+                if let Some((open, autocommit)) = transaction {
+                    host.set(&name, "intransaction", v_int(open));
+                    if let Some(on) = autocommit {
+                        host.set(&name, "autocommit", v_int(on));
+                    }
+                }
                 match end {
                     End::Done => host.fire(&name, "ondone", &[v_int(rows as i64), v_int(ms as i64)]),
                     // (asked for: nothing to report)

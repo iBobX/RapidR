@@ -136,6 +136,7 @@ pub(super) fn choice(
     title: &str,
     text: &str,
     labels: &[&str],
+    default: Option<usize>,
     icon: Option<rapidr_value::dialogs::MsgIcon>,
     beep: bool,
     then: impl FnOnce(Option<usize>) -> Value + 'static,
@@ -159,7 +160,7 @@ pub(super) fn choice(
         }));
         return then(answer);
     }
-    wait(dialogs::message(Rt, title, text, labels, icon, beep, then))
+    wait(dialogs::message_with_default(Rt, title, text, labels, default, icon, beep, then))
 }
 
 /// `Dialog.Execute` for the file, colour and font dialogs.

@@ -13,4 +13,4 @@ default = ["zip"]
 zip = ["dep:zip"]
 
 [dependencies]
-zip = { version = "0.6", default-features = false, features = ["deflate"], optional = true }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"], optional = true }

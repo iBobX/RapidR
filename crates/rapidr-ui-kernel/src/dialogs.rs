@@ -194,6 +194,27 @@ impl Dialog {
         d
     }
 
+    /// A message box whose button `i` is the default (RapidR's MESSAGEDLG
+    /// DefaultButton, MESSAGEBOX's MB_DEFBUTTONn): Enter presses it, and it
+    /// has the focus as the box opens, as Windows' message boxes give it.
+    /// Tab still walks the buttons left to right, round from it. Escape
+    /// and the close box are as they were. A button that isn't there: the
+    /// first stays the default.
+    pub fn with_default(mut self, i: usize) -> Dialog {
+        let buttons: Vec<String> = (0..).map(|j| self.child(&format!("b{j}"))).take_while(|id| self.store.ids().contains(id)).collect();
+        let n = buttons.len();
+        if i >= n || !matches!(self.kind, Kind::Message) {
+            return self;
+        }
+        for (j, id) in buttons.iter().enumerate() {
+            self.set(id, "default", Value::Integer(if j == i { -1 } else { 0 }));
+            // (the focus starts at the default: the Tab order starts there
+            // and goes round, the cycle Windows' left-to-right one)
+            self.set(id, "taborder", Value::Integer(((j + n - i) % n) as i64));
+        }
+        self
+    }
+
     /// An input box: `text` (the prompt) over a text field holding
     /// `initial`, an OK button under them (the default: Enter in the field
     /// answers), titled `title` — a message box's layout with the field
@@ -821,6 +842,37 @@ mod tests {
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    #[test]
+    fn a_default_button_takes_enter_and_the_focus_tab_goes_round() {
+        let mut ts = TextSystem::new();
+        // (MESSAGEDLG's DefaultButton mrNo: "No" of Yes / No / Cancel)
+        let mut d = Dialog::message(31, "Warning", "This deletes 1,204 rows.", &["Yes", "No", "Cancel"], None).with_default(1);
+        assert!(!store::flag(&d.store, "rapidr:dlg31:b0", "default", false));
+        assert!(store::flag(&d.store, "rapidr:dlg31:b1", "default", false));
+        // Enter as the box opens: No
+        let mut f = ui(&d);
+        assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("rapidr:dlg31:b1"));
+        assert_eq!(key(&mut d, &mut f, &mut ts, 13), Some(Answer::Button(Some(1))));
+        // Tab: Cancel, then Yes (left to right, round), Enter presses the
+        // focused one
+        let mut f = ui(&d);
+        assert_eq!(key(&mut d, &mut f, &mut ts, 9), None);
+        assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("rapidr:dlg31:b2"));
+        assert_eq!(key(&mut d, &mut f, &mut ts, 9), None);
+        assert_eq!(f.focus.map(|i| f.nodes[i].id.clone()).as_deref(), Some("rapidr:dlg31:b0"));
+        assert_eq!(key(&mut d, &mut f, &mut ts, 13), Some(Answer::Button(Some(0))));
+        // Escape: as always (the runtime maps None to Cancel / No)
+        let mut f = ui(&d);
+        assert_eq!(key(&mut d, &mut f, &mut ts, 27), Some(Answer::Button(None)));
+        // (Yes / No: No; a button that isn't there leaves the first)
+        let mut d2 = Dialog::message(32, "Confirm", "Let AI apps read the rows?", &["Yes", "No"], None).with_default(1);
+        let mut f2 = ui(&d2);
+        assert_eq!(key(&mut d2, &mut f2, &mut ts, 13), Some(Answer::Button(Some(1))));
+        let mut d3 = Dialog::message(33, "Confirm", "?", &["Yes", "No"], None).with_default(5);
+        let mut f3 = ui(&d3);
+        assert_eq!(key(&mut d3, &mut f3, &mut ts, 13), Some(Answer::Button(Some(0))));
     }
 
     #[test]
