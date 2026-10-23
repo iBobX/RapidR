@@ -6,9 +6,13 @@
 //!   shown window as `<prefix>-<n>.bmp` and exits. User input is ignored.
 //! - `RAPIDR_TEST_EVENTS=b1.onclick,edit.__key_65,…`: the events, one per
 //!   turn of the loop ([`Action`] lists the synthetic ones). `db.__until_busy_0`
-//!   waits until a property reads a value (work in the background done:
-//!   a background query, at most 2 minutes); `grid.__do_end` is a
-//!   component's own test step (`__end`).
+//!   waits until a property reads a value, as written (`lbl.__until_Caption_AI
+//!   connected: x`; work in the background done: a background query, at
+//!   most 2 minutes); `any.__wait_N` lets the program run N ms (its timers,
+//!   its servers) before the next event; `grid.__do_end` is a component's
+//!   own test step (`__end`). A handler that waits for the user (ShowModal,
+//!   a message box, INPUT$ …) gets the next events meanwhile, in native
+//!   builds as in the interpreter: they reach the dialog it opened.
 //! - `RAPIDR_TEST_DUMP=lbl.caption,frm.__shown`: `component.property`s to
 //!   print as `lbl.caption=…` (`__shown`: 1 when the component is visible
 //!   up to its window, else 0); `comp.__cursor_X_Y` the mouse pointer's CSS
@@ -177,7 +181,13 @@ pub enum Action {
     /// by the system for ms milliseconds, as a native menu the user keeps
     /// open holds it — the kernel's headless host pretends, ticking the
     /// program's timers through its tracking tick (any component names it).
+    /// The next event comes ms later on every host (one that can't hold —
+    /// real windows, the web — just waits).
     Hold(i64),
+    /// `__wait_N` (or `__wait_ms_N`): the program runs on its own for N ms
+    /// — its timers tick, its servers answer, its background work goes on
+    /// — before the next event (any component names it).
+    Wait(i64),
     /// `__tray_N`: mouse message N (513 WM_LBUTTONDOWN …) from the form's
     /// first system tray icon (`crate::tray`).
     Tray(i64),
@@ -187,7 +197,9 @@ pub enum Action {
     /// component names it; [`system_look`]).
     Look(bool, bool),
     /// `__until_PROP_VALUE`: the next steps wait until the component's PROP
-    /// reads VALUE (a background query's Busy 0), at most 2 minutes.
+    /// reads VALUE (a background query's Busy 0), at most 2 minutes. VALUE
+    /// is compared as written (its case, its dots and spaces kept; the
+    /// event list's commas still part events).
     Until(String, String),
     /// `__do_NAME`: the component's own test step `__NAME` (an RDBGrid's
     /// `__end`: the End key), as `__cell_c_r` is a grid's.
@@ -203,8 +215,16 @@ pub fn parse_events(list: &str) -> Vec<TestEvent> {
     list.split(',').map(str::trim).filter(|e| !e.is_empty()).filter_map(parse_event).collect()
 }
 
-/// `component.event` (split at the last `.`).
+/// `component.event` (split at the last `.`; an `__until_`'s at its own
+/// `.`, so its value may have dots).
 pub fn parse_event(item: &str) -> Option<TestEvent> {
+    // (`__until_PROP_VALUE`: VALUE as written — `lbl.__until_Caption_v1.2 ok`)
+    if let Some(at) = item.to_ascii_lowercase().find(".__until_") {
+        let (comp, rest) = (&item[..at], &item[at + ".__until_".len()..]);
+        if let Some((prop, value)) = rest.split_once('_').filter(|(p, _)| !p.is_empty()) {
+            return Some(TestEvent { comp: comp.to_string(), action: Action::Until(prop.to_ascii_lowercase(), value.to_string()) });
+        }
+    }
     let (comp, event) = item.rsplit_once('.')?;
     let event = event.to_ascii_lowercase();
     // The numbers after a prefix, `_`-separated; what isn't one is skipped.
@@ -237,6 +257,8 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::DblClick(x, y)
     } else if let Some(ms) = one("__hold_") {
         Action::Hold(ms)
+    } else if let Some(ms) = one("__wait_") {
+        Action::Wait(ms)
     } else if let Some(m) = one("__tray_") {
         Action::Tray(m)
     } else if let Some(look) = event.strip_prefix("__look_").and_then(parse_look) {
@@ -245,7 +267,7 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Until(prop.to_string(), value.to_string())
     } else if let Some(step) = event.strip_prefix("__do_").filter(|s| !s.is_empty()) {
         Action::Step(format!("__{step}"))
-    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
+    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__wait", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
@@ -469,6 +491,17 @@ mod tests {
         assert_eq!(act("p.__dblclick_3_4"), Action::DblClick(3, 4));
         assert_eq!(act("form.__hold_600"), Action::Hold(600));
         assert_eq!(act("form.__hold_"), Action::Ignored);
+        // a plain wait: the program runs on its own meanwhile
+        assert_eq!(act("form.__wait_1500"), Action::Wait(1500));
+        assert_eq!(act("srv.__WAIT_ms_250"), Action::Wait(250));
+        assert_eq!(act("form.__wait_"), Action::Ignored);
+        // `__until_`: the property any case, its value as written —
+        // capitals, spaces, a colon, dots
+        assert_eq!(act("AiState.__until_Caption_AI connected: x"), Action::Until("caption".into(), "AI connected: x".into()));
+        assert_eq!(act("lbl.__UNTIL_caption_v1.2 Ready."), Action::Until("caption".into(), "v1.2 Ready.".into()));
+        assert_eq!(parse_event("Form.Lbl.__until_Caption_Done").map(|e| e.comp), Some("Form.Lbl".to_string()));
+        assert_eq!(act("db.__until_busy_0"), Action::Until("busy".into(), "0".into()));
+        assert_eq!(act("db.__until_busy_"), Action::Until("busy".into(), String::new()));
         assert_eq!(act("l.__item_2"), Action::Item(2));
         assert_eq!(act("t.__node_0"), Action::Node(0));
         assert_eq!(act("t.__toggle_1"), Action::Toggle(1));
