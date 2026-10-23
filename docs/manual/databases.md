@@ -103,9 +103,15 @@ Set it before `Connect`:
 | `VerifyCA` | Encrypted, and the server's certificate is signed by `SSLCA`, or by an authority the system trusts. |
 | `VerifyFull` | As `VerifyCA`, and the certificate names `Host`. |
 
+**Only `VerifyCA` and `VerifyFull` check that it is your server.**
+`Preferred` and `Required` encrypt, but don't check who answers: on a
+network you don't trust (a café's Wi-Fi), someone in between can pose as
+the server and read the password and the data. For a server on another
+computer, use `VerifyFull`.
+
 ```basic
 DIM my AS RMySQL
-my.SSLMode = "Required"
+my.SSLMode = "VerifyFull"
 IF my.Connect("db.example.com", "shop", Secrets.Read("MySQL", "shop")) THEN
     PRINT "Encrypted: "; my.Encrypted
 ELSE
