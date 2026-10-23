@@ -75,6 +75,8 @@ DIM ProjectFile AS STRING
 DIM ExampleOriginal AS STRING
 DIM ExampleJustCopied AS STRING
 DECLARE FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
+DECLARE FUNCTION AskOpenItsFolder(Question AS STRING, Detail AS STRING) AS INTEGER
+DECLARE FUNCTION ProjectFilesElsewhere(Path AS STRING) AS INTEGER
 DIM RecentList AS STRING
 ' (S2) at start-up, offer to reopen the last project and its files (a
 ' setting, on unless turned off: Tools > Settings > General)

@@ -1,0 +1,8 @@
+' The values every file shares; Srv works on the desktop only.
+DIM Port AS INTEGER
+DIM Srv AS RServerSocket
+
+SUB StartServer
+  Srv.Port = Port
+  Srv.Open
+END SUB
