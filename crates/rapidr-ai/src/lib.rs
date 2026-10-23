@@ -49,6 +49,8 @@ pub mod claims;
 pub mod http;
 pub mod keys;
 pub mod lang;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod private_files;
 pub mod provider;
 #[cfg(feature = "component")]
 pub mod rai;
@@ -67,3 +69,9 @@ pub use wire::{ApiError, Endpoint, HttpRequest, ModelInfo};
 #[cfg(test)]
 #[path = "../../../tests/security/keychain_scopes.rs"]
 mod security_regressions;
+
+/// The security regressions (tests/security/): what RAI sends and keeps —
+/// no redirect with the key (SEC-27), files only the user's (SEC-28).
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "../../../tests/security/ai_transport.rs"]
+mod security_regressions_transport;

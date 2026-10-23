@@ -94,8 +94,9 @@ pub fn append(line: &str) {
     {
         use std::io::Write;
         let Some(p) = path() else { return };
-        if let Some(dir) = p.parent() {
-            let _ = std::fs::create_dir_all(dir);
+        // (only the user's: SEC-28)
+        if let Some(dir) = p.parent().filter(|d| !d.as_os_str().is_empty()) {
+            let _ = crate::private_files::make_dir(dir, false);
         }
         // (trimmed now and then: when it is a tenth over)
         if std::fs::metadata(&p).is_ok_and(|m| m.len() > 4_000_000) {
@@ -106,7 +107,7 @@ pub fn append(line: &str) {
                 }
             }
         }
-        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&p) {
+        if let Ok(mut f) = crate::private_files::append(&p) {
             let _ = writeln!(f, "{line}");
         }
     }

@@ -163,7 +163,11 @@ mod native {
     static DNS_FAILED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
     fn agent(opts: Options) -> ureq::Agent {
-        let mut builder = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(opts.connect_timeout)).timeout_read(Duration::from_secs(opts.read_timeout)).user_agent(concat!("RapidR/", env!("CARGO_PKG_VERSION")));
+        // (no redirects: a provider's API never needs one, and a redirect
+        // would take the key's header — x-api-key, which ureq keeps across
+        // hosts — to wherever it points, SEC-27; a 3xx is an answer, said
+        // in plain words, wire::explain_error)
+        let mut builder = ureq::AgentBuilder::new().timeout_connect(Duration::from_secs(opts.connect_timeout)).timeout_read(Duration::from_secs(opts.read_timeout)).redirects(0).user_agent(concat!("RapidR/", env!("CARGO_PKG_VERSION")));
         if std::env::var_os("RAPIDR_AI_TEST_DNS_FAIL_ONCE").is_some() && !DNS_FAILED.load(std::sync::atomic::Ordering::SeqCst) {
             builder = builder.resolver(|netloc: &str| {
                 if !DNS_FAILED.swap(true, std::sync::atomic::Ordering::SeqCst) {
