@@ -885,6 +885,13 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.
 
+## RapidR for old PCs — Windows 7, 8 and 8.1, 32-bit and 64-bit (Robert, 2026-10-23; first after the Preview 4 launch)
+Asked on the RapidQ group by someone learning on a Windows 8.1 32-bit PC. Students and people on older PCs are who RapidR is for.
+- [ ] Spike: RapidR Studio and the interpreted runtime for `i686-win7-windows-msvc` / `x86_64-win7-windows-msvc` (Rust's Windows 7+ targets: tier 3, nightly + build-std; the standard targets need Windows 10 since Rust 1.78) — what builds, what each dependency needs (winit, AccessKit, the keychain, TLS through SChannel), a CPU-only drawing path for old graphics (as the web's)
+- [ ] Test machine: Windows 7 32-bit in UTM on the external SSD (Robert's own licence; the VM offline, files through a shared folder) — correctness there, speed on a real old PC
+- [ ] Ship it: an SDK for Windows 7/8.1 (Studio + interpreted builds, nothing else to install), in the release process beside the others
+- [ ] Native apps for those PCs through Export anywhere (M7): a ready-made 32-bit runner, no Rust on the old PC
+
 ## After Preview 4 — RStage, audio, synth, app MCP and studio components, for Visualmusicator X and everyone (Robert, 2026-10-21; plan: [docs/vmx-components-plan.md](docs/vmx-components-plan.md))
 
 - [ ] W1 RStage core (RStageView, WGSL shader passes, HDR targets, post stack, async Capture; WebGPU with WebGL2 fallback) + RAudioAnalyzer (bands, onsets, BPM, drops, low-latency and loopback input)
