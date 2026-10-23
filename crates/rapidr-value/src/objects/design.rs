@@ -52,6 +52,54 @@ pub fn shown_type(written: &str) -> String {
     rapidr_lang::component(written).map_or_else(|| written.to_string(), |c| c.spelling())
 }
 
+/// (POLISH-2) The pictures a program loads by file at its top level, not
+/// in a SUB or FUNCTION — `Logo.Load "logo.svg"`, `Logo.Load("a.png")`,
+/// `Logo.BMP = "logo.png"`, `Logo.Icon = "app.ico"`, a file named in
+/// quotes —: (component, `load` / `bmp` / `icon`, file), in order. What the
+/// designer shows on those components, as the program will.
+pub fn picture_loads(source: &str) -> Vec<(String, String, String)> {
+    let mut out = Vec::new();
+    let mut in_routine = false;
+    for line in source.lines() {
+        let t = line.trim();
+        let upper = t.to_ascii_uppercase();
+        if in_routine {
+            if upper.starts_with("END SUB") || upper.starts_with("END FUNCTION") {
+                in_routine = false;
+            }
+            continue;
+        }
+        if upper.starts_with("SUB ") || upper.starts_with("FUNCTION ") {
+            in_routine = true;
+            continue;
+        }
+        let Some((name, rest)) = t.split_once('.') else { continue };
+        if name.is_empty() || !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') || !name.starts_with(|c: char| c.is_ascii_alphabetic()) {
+            continue;
+        }
+        let word_end = rest.find(|c: char| !c.is_ascii_alphanumeric()).unwrap_or(rest.len());
+        let (member, after) = (rest[..word_end].to_ascii_lowercase(), rest[word_end..].trim_start());
+        let quoted = match member.as_str() {
+            "load" => after.strip_prefix('(').map(str::trim_start).unwrap_or(after),
+            "bmp" | "icon" => match after.strip_prefix('=') {
+                Some(a) => a.trim_start(),
+                None => continue,
+            },
+            _ => continue,
+        };
+        let Some(inner) = quoted.strip_prefix('"') else { continue };
+        let Some((file, tail)) = inner.split_once('"') else { continue };
+        let tail = tail.trim_start();
+        let tail = if member == "load" && quoted.len() != after.len() { tail.strip_prefix(')').map(str::trim_start) } else { Some(tail) };
+        // (the line ends there, or a comment does)
+        if file.is_empty() || !tail.is_some_and(|t| t.is_empty() || t.starts_with('\'')) {
+            continue;
+        }
+        out.push((name.to_string(), member, file.to_string()));
+    }
+    out
+}
+
 pub mod inline;
 pub mod menus;
 mod outside;
@@ -3133,6 +3181,19 @@ impl Draw {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// (POLISH-2) The pictures loaded by file at the top level, the ways a
+    /// program writes it; not in a SUB, not a file it works out.
+    #[test]
+    fn pictures_loaded_at_the_top_level() {
+        let src = "CREATE Form AS RForm\n  CREATE Logo AS RImage\n  END CREATE\nEND CREATE\n\
+                   Logo.Load \"logo.svg\"\n  Pic.Load(\"a b.png\")  ' the photo\nLogo.BMP = \"x.bmp\"\nForm.Icon=\"app.ico\"\n\
+                   Logo.Load name$\nLogo.Load \"a\" + \"b\"\nLogo.Caption = \"no\"\n' Logo.Load \"commented.png\"\n\
+                   SUB Later\n  Logo.Load \"later.png\"\nEND SUB\nFUNCTION F AS INTEGER\n  Logo.BMP = \"f.png\"\nEND FUNCTION\nLogo.Load \"last.png\"\n";
+        let got = picture_loads(src);
+        let want = [("Logo", "load", "logo.svg"), ("Pic", "load", "a b.png"), ("Logo", "bmp", "x.bmp"), ("Form", "icon", "app.ico"), ("Logo", "load", "last.png")];
+        assert_eq!(got, want.iter().map(|(a, b, c)| (a.to_string(), b.to_string(), c.to_string())).collect::<Vec<_>>());
+    }
 
     /// A frameless form filling the surface, as the API made them before
     /// (client coordinates = the surface's).
