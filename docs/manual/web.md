@@ -183,3 +183,27 @@ source, as the project tree lists them under Resources, Assets and Data.
 So every example runs in the web IDE as on the desktop. Apps for a computer
 (`.app`, `.exe`, native builds) are made on the desktop (Studio's Build,
 `rapidr build`).
+
+### Opening your project in the browser
+
+A browser lets a page read only the files you give it. To work on a project
+of several files, give Studio its folder: **File > Open Folder...** and pick
+the folder the `.rrproj` is in. Studio reads every file in it (and in its
+folders). In Chrome, Edge and Opera it saves your changes back to them (after
+the browser asks once); in Firefox and Safari they stay in the browser.
+
+If you pick only the project file (**File > Open Project or File...**, or
+the Welcome page's link), Studio doesn't open the project with empty files.
+It asks to open its folder instead:
+
+![Open the folder Kiosk.rrproj is in? The browser let RapidR Studio read only the file you picked. The project's files are in its folder. Cancel, Open Folder...](images/web/open-its-folder.png)
+
+**Open Folder...** shows the browser's folder picker, already where the
+project file is: choose that folder and the project opens with its files and
+forms. **Cancel** leaves Studio as it was.
+
+A project made for the desktop opens too, even if it uses things a browser
+can't do (a server socket, `SHELL`, the computer's files). To see what
+won't work in a browser, set **Targets** in **Project > Project Options** to
+**Web**: the Problems tab notes each such component (see
+[Projects](studio-projects.md#targets-where-your-program-runs)).

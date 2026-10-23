@@ -72,6 +72,9 @@ thread_local! {
     static OUT: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new());
     /// The file keys being written now.
     static BUSY: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
+    /// The handle of the file Open picked last: a folder picker opens where
+    /// it is (`startIn`) — a project file picked alone, then its folder.
+    static LAST_PICKED: RefCell<Option<JsValue>> = const { RefCell::new(None) };
 }
 
 /// How long a download waits for more writes to the same name (a program
@@ -257,6 +260,7 @@ pub fn open(req: &Request, gestured: bool, done: impl FnOnce(Picked) + 'static) 
                         match read.await {
                             Ok((name, bytes)) => {
                                 keep(&name, bytes, Some(Target::Handle(h.clone())));
+                                LAST_PICKED.with(|l| *l.borrow_mut() = Some(h.clone()));
                                 names.push(name);
                             }
                             Err(e) => warn(&format!("can't read the file picked: {}", error_name(&e))),
@@ -277,7 +281,9 @@ pub fn open(req: &Request, gestured: bool, done: impl FnOnce(Picked) + 'static) 
 /// hidden ones, at most 4,000 files of up to 32 MB) read into the page's
 /// store as `<folder>/<path>`, each written back through its own handle —,
 /// else `<input webkitdirectory>` (read only: writes stay in the browser).
-/// The answer is the folder's name.
+/// The answer is the folder's name. The picker starts where the file Open
+/// picked last is (a project file the browser gave alone: its folder is
+/// one click away).
 pub fn open_folder(gestured: bool, done: impl FnOnce(Picked) + 'static) {
     if !gestured && !gesture_active() {
         done(Picked::NeedsGesture);
@@ -286,6 +292,9 @@ pub fn open_folder(gestured: bool, done: impl FnOnce(Picked) + 'static) {
     if let Some(f) = direct("showDirectoryPicker") {
         let opts = Object::new();
         set(&opts, "mode", &JsValue::from_str("readwrite"));
+        if let Some(h) = LAST_PICKED.with(|l| l.borrow().clone()) {
+            set(&opts, "startIn", &h);
+        }
         let p = match f.call1(&JsValue::UNDEFINED, &opts) {
             Ok(v) => v.dyn_into::<Promise>().unwrap_or_else(|v| Promise::resolve(&v)),
             Err(e) => Promise::reject(&e),

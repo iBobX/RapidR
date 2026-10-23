@@ -16,6 +16,7 @@ CONST PROMPT_REVIEW = 3
 DIM PromptAnswer AS INTEGER
 DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
 DIM PromptAgain AS INTEGER  ' 1: File > Copy Example Again's question (Copy Again, Cancel)
+DIM PromptFolder AS INTEGER ' 1: a project file a browser gave alone (Open Folder..., Cancel)
 DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
 DIM PromptMany AS INTEGER   ' (the question laid out last: again when the look changes)
@@ -80,6 +81,7 @@ SUB LayOutPrompt(Many AS INTEGER)
     ws = ws + 110: wd = wd + 10
   END IF
   IF PromptAgain THEN ws = ws + 14
+  IF PromptFolder THEN ws = ws + 30
   SavePrompt.Font.Name = UIFont.Name: SavePrompt.Font.Size = UIFont.Size
   PromptTitle.Font = SubFont
   PromptText.Font.Color = TC("page.dim")
@@ -101,9 +103,12 @@ SUB LayOutPrompt(Many AS INTEGER)
   y = pad + th + 6 + tx + pad
   IF y < pad + ic + pad THEN y = pad + ic + pad
   PromptReview.Visible = Many
-  ' (Copy Example Again: Copy Again or Cancel, nothing between)
-  PromptDont.Visible = Flag(PromptAgain = 0)
-  IF PromptAgain THEN
+  ' (Copy Example Again: Copy Again or Cancel, nothing between; a project
+  ' file without its files: Open Folder... or Cancel)
+  PromptDont.Visible = Flag(PromptAgain = 0 AND PromptFolder = 0)
+  IF PromptFolder THEN
+    PromptSave.Caption = "&Open Folder..."
+  ELSEIF PromptAgain THEN
     PromptSave.Caption = "&Copy Again"
   ELSEIF PromptRust THEN
     PromptSave.Caption = "&Build Interpreted Instead"
@@ -192,6 +197,21 @@ FUNCTION AskCopyAgain(Question AS STRING, Detail AS STRING) AS INTEGER
   SavePrompt.Center
   SavePrompt.ShowModal
   PromptAgain = 0
+  Result = Flag(PromptAnswer = PROMPT_SAVE)
+END FUNCTION
+
+' (the web) A project file the browser gave Studio without the files it
+' lists (File > Open picks one file): Question (Detail under it) with
+' Open Folder... (Enter) and Cancel (Escape); 1 for Open Folder.
+FUNCTION AskOpenItsFolder(Question AS STRING, Detail AS STRING) AS INTEGER
+  PromptFolder = 1
+  LayOutPrompt 0
+  PromptTitle.Caption = Question
+  PromptText.Caption = Detail
+  PromptAnswer = PROMPT_CANCEL
+  SavePrompt.Center
+  SavePrompt.ShowModal
+  PromptFolder = 0
   Result = Flag(PromptAnswer = PROMPT_SAVE)
 END FUNCTION
 

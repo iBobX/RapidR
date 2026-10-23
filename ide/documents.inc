@@ -259,6 +259,9 @@ SUB OpenDocument(Path AS STRING)
   IF d < 0 THEN EXIT SUB
   Loading = 1
   CodeDoc(d).Font = MonoFont
+  ' (a document closed before left its text here: a file that can't be
+  ' read opens empty, never with another file's code under its name)
+  CodeDoc(d).Text = ""
   CodeDoc(d).LoadFromFile Path
   CodeDoc(d).Tag = d
   CodeDoc(d).OnChange = CodeChanged

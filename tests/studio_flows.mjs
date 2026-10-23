@@ -39,6 +39,8 @@ const SAVE_FILES = ["tests/fixtures/studio_save/main.rr", "tests/fixtures/studio
 // (Preview 4 S3/S5: four files, a global in each, a desktop-only component)
 const SEARCH_FILES = ["Counter.rrproj", "main.rr", "globals.rr", "server.rr", "ui.rr", "notes.txt"].map((f) => `tests/fixtures/studio_search/${f}`);
 const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
+// (WEB-OPEN: a project of three files, three forms in ui.rr, a desktop-only component)
+const WEB_OPEN_FILES = ["Kiosk.rrproj", "main.rr", "globals.rr", "ui.rr"];
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
 // key, no network, no cost): {mock} in a case's steps is its base URL,
@@ -624,6 +626,56 @@ const CASES = [
     do: "file.openFolder,wait,wait",
     delay: 4,
     dump: { "proj.mainfile": /^dialogs\.rr$/, "studio.caption": /^dialogs - RapidR Studio$/ },
+  },
+  // (WEB-OPEN) File > Open in a browser gives Studio the one file picked:
+  // a project file (.rrproj) alone, not the files it lists. Studio no
+  // longer opens the project with empty files (2026-10-22: main.rr empty,
+  // or a closed document's code under its name, no forms); it offers the
+  // project's folder. Cancel (Escape): nothing opened, the Output says how.
+  {
+    name: "web-open-project-alone",
+    webOnly: true,
+    open: "",
+    folder: "Kiosk.rrproj",
+    webFiles: ["tests/fixtures/studio_web_open/Kiosk.rrproj=>Kiosk.rrproj"],
+    do: "file.open,wait",
+    events: "promptsave.__key_27",
+    delay: 4,
+    dump: {
+      "prompttitle.caption": /^Open the folder Kiosk\.rrproj is in\?$/,
+      "promptsave.caption": /^&Open Folder\.\.\.$/,
+      "promptdont.visible": /^0$/,
+      "saveprompt.visible": /^0$/,
+      "proj.kind": /^$/,
+      "outputbox.text": /Kiosk\.rrproj: the browser gave RapidR Studio this file only, not the project's files in its folder\n {2}File > Open Folder\.\.\. opens the project with its files$/,
+      "studio.caption": /^RapidR Studio$/,
+    },
+  },
+  // (WEB-OPEN) …the folder (as showDirectoryPicker leaves it in the page's
+  // store): the project with its files — main.rr in the editor, ui.rr's
+  // three forms in the tree — and, with Targets = Web, one note for the
+  // desktop-only component.
+  {
+    name: "web-open-project-folder",
+    webOnly: true,
+    open: "",
+    folder: "kiosk",
+    webFiles: WEB_OPEN_FILES.map((f) => `tests/fixtures/studio_web_open/${f}=>kiosk/${f}`),
+    do: "file.openFolder,wait,wait,targets:web,view.problems,wait",
+    delay: 5,
+    a11y: [
+      ["ui.rr", "treeitem", null, (n) => /3 forms/.test(n.description || "")],
+      ["MainForm, RForm", "treeitem"],
+      ["NewForm, RForm", "treeitem"],
+      ["CfgForm, RForm", "treeitem"],
+    ],
+    dump: {
+      "proj.filename": /^kiosk\/Kiosk\.rrproj$/,
+      "projecttree.filecount": /^3$/,
+      "codedoc(0).text": /^' The web Studio's "project file picked alone" fixture/,
+      "outputbox.problemcount": /^1$/,
+      "outputbox.text": /globals\.rr:3:\d+: info: RServerSocket works on the desktop only: the web runtime doesn't have it/,
+    },
   },
   // (the program's windows over the whole page: floatingWindows, at 1x and
   // 2x; on the desktop they are windows of their own — the program's
@@ -6444,6 +6496,83 @@ async function webToolboxEnterThenClick() {
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "toolbox-enter-then-click".includes(f) || f === "toolbox"))) {
   await webToolboxEnterThenClick();
+}
+// (WEB-OPEN, the web) A project opened as a person opens it (2026-10-22:
+// RapidRWebServer opened "empty" — main.rr blank, no forms): the Welcome
+// page's Open Project or File... clicked, the browser's file picker answers
+// Kiosk.rrproj alone (Chromium's pickers replaced by ones over the
+// fixture's files: headless Chromium can't show the system's sheet);
+// Studio asks instead of opening the project with empty files; Open
+// Folder... clicked — the folder picker, asked to start where the project
+// file is, answers its folder; the project opens with its files and forms.
+// Nothing on the page's console is an error.
+async function webOpenPickedProject() {
+  const name = "web-open-project-picked (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  page.on("pageerror", (e) => errors.push(e.message));
+  const prop = (c, p) => page.evaluate(([c, p]) => String(window.rr.rapidr_get_prop(c, p)), [c, p]);
+  const until = async (what, test, ms = 15000) => {
+    const t0 = Date.now();
+    let v = "";
+    while (Date.now() - t0 < ms) {
+      v = await what();
+      if (test(v)) return v;
+      await page.waitForTimeout(100);
+    }
+    return v;
+  };
+  // (a real click where the control is: its accessibility element's box)
+  const click = async (sel) => {
+    const b = await page.locator(sel).first().boundingBox();
+    if (!b) throw new Error(`nothing at ${sel}`);
+    await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+  };
+  try {
+    const files = Object.fromEntries(WEB_OPEN_FILES.map((f) => [f, readFileSync(join(ROOT, "tests/fixtures/studio_web_open", f), "utf8")]));
+    await page.addInitScript(() => { window.RAPIDR_STUDIO_TEST = {}; window.RAPIDR_FILE_SINK = () => {}; });
+    await page.addInitScript((files) => {
+      const file = (name) => ({ kind: "file", name, async getFile() { return new File([files[name]], name); } });
+      window.__rrPicked = [];
+      window.showOpenFilePicker = async (opts) => { window.__rrPicked.push({ open: !!opts.multiple }); return [file("Kiosk.rrproj")]; };
+      window.showDirectoryPicker = async (opts) => {
+        window.__rrPicked.push({ folder: opts.startIn ? opts.startIn.name : "" });
+        return { kind: "directory", name: "kiosk", async *values() { for (const n of Object.keys(files)) yield file(n); } };
+      };
+    }, files);
+    await page.goto(`${URL_BASE}/index.html?${new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "" })}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && /^RapidR Studio$/.test(String(window.rr.rapidr_get_prop("studio", "caption"))), null, { timeout: 90000, polling: 200 });
+    await page.waitForTimeout(1500);
+    const t0 = Date.now();
+    await click("#rr-startrow\\(1\\)");
+    const shown = await until(() => prop("saveprompt", "visible"), (v) => /^(1|-1|true)$/i.test(v));
+    const title = await prop("prompttitle", "caption");
+    record(name, /^(1|-1|true)$/i.test(shown) && /^Open the folder Kiosk\.rrproj is in\?$/.test(title), `Open Project or File..., Kiosk.rrproj picked alone: Studio asks to open its folder ("${title}")`);
+    record(name, (await prop("proj", "kind")) === "", "no project opened with empty files meanwhile");
+    await page.screenshot({ path: join(WORK, "web-open-project-picked-ask.png") });
+    await click("#rr-promptsave");
+    const file = await until(() => prop("proj", "filename"), (v) => v === "kiosk/Kiosk.rrproj");
+    const ms = Date.now() - t0;
+    const picked = await page.evaluate(() => window.__rrPicked);
+    record(name, picked.length === 2 && picked[1].folder === "Kiosk.rrproj", `Open Folder...: the folder picker starts where Kiosk.rrproj is (${JSON.stringify(picked)})`);
+    const text = await until(() => prop("codedoc(0)", "text"), (v) => v.startsWith("' The web Studio's"));
+    record(name, file === "kiosk/Kiosk.rrproj" && text.startsWith("' The web Studio's"), `the project opens from its folder with main.rr's code (${file || "none"}, ${ms} ms)`);
+    record(name, (await prop("projecttree", "filecount")) === "3", "the tree lists its 3 files");
+    const forms = await page.getByRole("treeitem", { name: /^(MainForm|NewForm|CfgForm), RForm$/ }).count();
+    record(name, forms === 3, `ui.rr's three forms in the tree (${forms})`);
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: join(WORK, "web-open-project-picked.png") });
+    record(name, errors.length === 0, `no errors on the page's console (${errors.length ? errors.join("; ") : "none"})`);
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "web-open-project-picked".includes(f)))) {
+  await webOpenPickedProject();
 }
 async function webColorScheme() {
   const name = "theme-web-color-scheme (web)";

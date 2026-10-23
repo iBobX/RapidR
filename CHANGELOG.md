@@ -47,6 +47,15 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   value. Nothing found.
 
 ### Fixed
+- **RapidR Studio on the web opens a project picked as its `.rrproj` file.**
+  File > Open (and the Welcome page's Open Project or File...) gives a page
+  the one file picked, so Studio opened the project with empty files: main.rr
+  blank, no forms in the tree, or a closed document's code under main.rr's
+  name. Now Studio asks to open the project's folder (Open Folder...), the
+  folder picker starts where the `.rrproj` is, and the project opens with all
+  its files and forms; Cancel leaves Studio as it was and the Output says how
+  to open it. A document whose file can't be read now opens empty, never with
+  another file's code. The desktop is unchanged.
 - **A `$MACRO` line with a `)` before its `(` no longer crashes the compiler
   and the editor.** `$MACRO a) b(c = 1` made the parameter list's range run
   backwards ("byte range starts at 30 but ends at 27"); it now defines
