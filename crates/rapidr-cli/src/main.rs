@@ -20,6 +20,7 @@ mod lang_truth;
 mod introspect;
 mod macos;
 mod launch;
+mod locked;
 mod notices;
 mod package;
 mod serve;
@@ -883,7 +884,8 @@ fn build_desktop(project_dir: &Path, cache: &cache::Cache, stem: &str, release: 
             bytes?
         } else {
             let exe = made.executables.first().ok_or("cargo didn't say where it put the executable")?;
-            fs::read(exe).map_err(|e| format!("{}: {e}", exe.display()))?
+            // (Windows: the antivirus may hold the new program for a moment: waited for, locked.rs)
+            locked::while_locked(locked::PATIENCE, || fs::read(exe)).map_err(|e| format!("{}: {e}", exe.display()))?
         };
         // The program made into its app, with the open-source notices it
         // ships with (package.rs, notices.rs)

@@ -62,6 +62,13 @@ name](building-apps.md#the-apps-name)).
 **The first native build takes minutes** — it compiles RapidR's runtime
 once; later builds reuse it (keep `CARGO_TARGET_DIR` if you set one).
 
+**Windows: `Access is denied. (os error 5)` on the new program, or `Windows is
+still checking the new program (antivirus)`** — Windows Defender (or another
+antivirus) scans every new `.exe`, and for a moment nothing else can open it.
+`rapidr build` waits for that and tries again for up to 10 seconds, so you
+normally never see it. If you do, run the build again: the scan has finished
+by then.
+
 **`run-time error: 'GetTickCount' is a Windows function (kernel32): this
 program calls Windows itself, so it runs on Windows only. For every system,
 use TIMER`** — the program calls Windows' DLLs, which only exist on
