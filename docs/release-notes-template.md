@@ -78,4 +78,6 @@ RapidR is compatible with (`LEGAL.md`, `docs/legal/rapidq-review.md`).
 Every package carries `LICENSE`, `NOTICE`, `LEGAL.md`, `LICENSES.md`,
 `THIRD_PARTY_NOTICES.md` and RapidR's own `THIRD-PARTY-NOTICES.txt`.
 
+**Support RapidR.** RapidR is free and open source (MIT). If it's useful to you, you can support it on [GitHub Sponsors](https://github.com/sponsors/iBobX) or [Buy Me a Coffee](https://www.buymeacoffee.com/roanbema). Support is voluntary, received by Ruta Internet S.R.L., and comes with nothing in return; monthly support renews every month and is cancelled any time in your GitHub Sponsors or Buy Me a Coffee settings, which handle the payment. A star, a share or a bug report helps just as much.
+
 Built from commit @COMMIT@.

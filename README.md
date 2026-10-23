@@ -9,6 +9,8 @@
 [![Sponsor](https://img.shields.io/badge/Sponsor-iBobX-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/iBobX)
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20RapidR-5F7FFF?logo=buymeacoffee&logoColor=white)](https://www.buymeacoffee.com/roanbema)
 
+<sub>Support is voluntary; monthly support renews monthly and is cancelled any time in your GitHub Sponsors or Buy Me a Coffee settings.</sub>
+
 **BASIC is powerful again.** RapidR is a modern BASIC with its own IDE,
 RapidR Studio: draw a window, write a few readable lines, press Run. The same
 program becomes a native app for Windows, macOS or Linux, a standalone app
@@ -311,6 +313,8 @@ If it's useful to you, you can support its development:
 
 [![Sponsor on GitHub](https://img.shields.io/badge/Sponsor%20on%20GitHub-iBobX-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge)](https://github.com/sponsors/iBobX)
 [![Buy me a coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-roanbema-5F7FFF?logo=buymeacoffee&logoColor=white&style=for-the-badge)](https://www.buymeacoffee.com/roanbema)
+
+Support is voluntary, received by Ruta Internet S.R.L., and comes with nothing in return: RapidR stays free for everyone. You can give once or monthly; monthly support renews every month until you cancel, any time, in your GitHub Sponsors or Buy Me a Coffee settings. Payment is handled by GitHub or Buy Me a Coffee, never by RapidR.
 
 Every coffee helps pay for the tools and compute that build RapidR. Thank
 you! A ⭐ and a share help just as much, and so does testing: try your

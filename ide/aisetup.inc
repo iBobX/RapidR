@@ -505,7 +505,7 @@ SUB AISuProvPicked
     CASE ELSE
       AISuCostText.Caption = "You pay the provider for what you use. What you send goes to it, under its privacy terms."
   END SELECT
-  AISuCostText.Caption = AISuCostText.Caption + " Your key stays in this computer's keychain, never in a project."
+  AISuCostText.Caption = AISuCostText.Caption + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
   AISuCostText.AccessibleDescription = AISuCostText.Caption
 END SUB
 

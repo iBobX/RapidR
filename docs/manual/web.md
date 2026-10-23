@@ -6,7 +6,10 @@ behave as they do on the desktop — windows you can move, resize, minimize
 and maximize, the same fonts and pixels, high-DPI screens, keyboard and
 screen-reader support (an ARIA mirror of the kernel's accessibility tree).
 The page needs nothing but static web hosting: no server-side code, and
-nothing contacts a third party unless the program does.
+nothing contacts a third party unless the program does. A program that loads
+other sites' content on purpose (RWEBVIEW, RDOM, RHTTP, or sources added with
+`--csp`) makes its author responsible for that content's privacy rules, such
+as asking EU visitors' consent before loading third-party fonts or embeds.
 
 ## Two ways to build for the web
 

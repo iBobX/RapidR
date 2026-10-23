@@ -457,10 +457,16 @@ what you decided is written to an **audit log** on your computer, one JSON
 object a line (its last 10,000 lines): `~/Library/Application
 Support/RapidR/ai-audit.jsonl` on a Mac, `%APPDATA%\RapidR\ai-audit.jsonl` on
 Windows, `~/.config/rapidr/ai-audit.jsonl` on Linux; on the web, the
-browser's storage for the page (its last 500). It never holds your key.
+browser's storage for the page (its last 500). It never holds your key:
+keys and tokens are taken out of every line before it is written. To clear
+it, delete that file (on the web, clear the site's data in the browser);
+RapidR starts a new one with the next request.
 
 ## Privacy and safety
 
+- **Cloud services are for adults.** If you're under 18, ask a parent or
+  teacher to make the key. RapidR needs no account, and a model on this
+  computer is free.
 - **Send shares** your message, the chat so far, RapidR's instructions (the
   same for every project) and what the assistant reads of the open project —
   nothing outside it, nothing before you press Send.

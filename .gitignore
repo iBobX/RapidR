@@ -66,3 +66,6 @@ private/
 # Claude handoff notes (local)
 .remember/
 design/brand/3D/intro3/
+
+# (Chrome headless stderr from local test runs)
+chrome_run*.log

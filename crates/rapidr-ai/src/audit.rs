@@ -89,7 +89,9 @@ pub fn path() -> Option<std::path::PathBuf> {
 
 /// Adds a line (a JSON object), the oldest dropped past [`KEEP`].
 pub fn append(line: &str) {
-    let line = line.replace(['\n', '\r'], " ");
+    // (a provider's error text is written as it came: keys and tokens out,
+    // as in the chats)
+    let line = crate::chats::redact(&line.replace(['\n', '\r'], " "), &[]);
     #[cfg(not(target_arch = "wasm32"))]
     {
         use std::io::Write;
@@ -147,5 +149,18 @@ mod tests {
         assert_eq!(iso_of(1_792_090_712), "2026-10-15T18:58:32Z");
         assert_eq!(iso_of(951_825_600), "2000-02-29T12:00:00Z");
         assert!(now_iso().starts_with("20"));
+    }
+}
+
+#[cfg(test)]
+mod redaction_tests {
+    #[test]
+    fn a_line_never_keeps_a_key() {
+        // (a made-up key, built from two pieces: tools/check_key_shapes.py)
+        let key = concat!("sk", "-ant-api03-", "abcdefghijklmnopqrstuvwxyz0123456789");
+        let line = format!("{{\"error\":\"401 from the provider: invalid x-api-key {key}\"}}");
+        let kept = crate::chats::redact(&line.replace(['\n', '\r'], " "), &[]);
+        assert!(!kept.contains(key), "{kept}");
+        assert!(kept.contains("[key removed]"), "{kept}");
     }
 }

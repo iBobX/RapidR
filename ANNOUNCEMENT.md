@@ -56,6 +56,9 @@ original implementation, written from the ground up in pure Rust.
 > "behaves as RapidQ" for everyone's code. RapidR is MIT-licensed and
 > built by one developer; if it's useful to you, you can
 > [buy me a coffee](https://www.buymeacoffee.com/roanbema).
+> Support is voluntary and comes with nothing in return; monthly support
+> renews every month and is cancelled any time in your Buy Me a Coffee or
+> GitHub Sponsors settings.
 
 ---
 
