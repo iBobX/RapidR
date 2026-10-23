@@ -3253,7 +3253,7 @@ const CASES = [
     open: "tests/fixtures/studio_debug/counter.rr",
     webFiles: DEBUG_FILES,
     env: { RAPIDR_TEST_CLIPBOARD: "1" },
-    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/i,key:Ctrl+C,wait,wait,wait",
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,focus:codedoc(0),wait,varpick:G/i,key:Ctrl+C,wait,wait,wait",
     delay: 8,
     dump: { "clipboard.text": /^1$/, "status.panel(0).caption": /Copied the value \(1 character\)/ },
   },

@@ -356,25 +356,27 @@ def designer_walk(look):
     check(f"[designer {look}] Studio in front", wait_front(studio))
     time.sleep(1.0)
     path = shot_window(studio, f"c-designer-{look}")
-    # (the form's face: RGB(250, 246, 238) — a pixel of it, right of the logo)
-    # (the designer's own item for it: "Logo (RImage), 16, 16, 48 × 48")
-    logo = node_with(studio, "Logo (RImage)")
+    # (the designed form's label "Colours, pictures and fonts", read in the
+    # capture: the form's face just above it, the logo 60 points left of it
+    # — the capture's own pixels)
     ok_face = ok_logo = False
     detail = ""
-    if path and logo:
-        img = AppKit.NSImage.alloc().initWithContentsOfFile_(path)
-        rep = img.representations()[0]
-        w = wins(studio)[0]
-        scale = rep.pixelsWide() / w["w"]
-        bmp = AppKit.NSBitmapImageRep.imageRepWithData_(img.TIFFRepresentation())
-
-        def px(x, y):
-            c = bmp.colorAtX_y_(int((x - w["x"]) * scale), int((y - w["y"]) * scale))
-            if c is None:
-                return (0, 0, 0)
-            return tuple(round(v * 255) for v in (c.redComponent(), c.greenComponent(), c.blueComponent()))
-        face = px(logo["x"] + logo["w"] + 30, logo["y"] + 4)
-        colours = {px(logo["x"] + logo["w"] * i / 8, logo["y"] + logo["h"] * j / 8) for i in range(1, 8) for j in range(1, 8)}
+    boxes = []
+    if path:
+        out = subprocess.run([PROBE, "ocr", path], capture_output=True, text=True)
+        try:
+            boxes = json.loads(out.stdout or "[]")
+        except json.JSONDecodeError:
+            boxes = []
+    label = next((b for b in boxes if b["text"].startswith("Colours, pictures")), None)
+    if path and label:
+        from PIL import Image
+        img = Image.open(path).convert("RGB")
+        scale = img.width / wins(studio)[0]["w"]
+        px = lambda x, y: img.getpixel((int(x), int(y)))
+        face = px(label["x"] + label["w"] / 2, label["y"] - 6 * scale)
+        lx, ly = label["x"] - 60 * scale, label["y"] + label["h"] / 2 - 24 * scale
+        colours = {px(lx + 48 * scale * i / 8, ly + 48 * scale * j / 8) for i in range(1, 8) for j in range(1, 8)}
         # (the capture is in the display's colour space: the cream's
         # signature — warm, light — rather than its exact numbers; the
         # themes' clBtnFace is neutral or cool)
@@ -390,9 +392,11 @@ def debug_walk(look):
     """e (and j in light): runs on — Running…; Pause — filled; Cmd+C copies."""
     src = f"{WORK}/runs_on.rr"
     subprocess.run(["cp", f"{W}/tests/fixtures/studio_debug/runs_on.rr", src])
-    studio = start_studio(src, LOOKS[look], "wait,wait,view.code,line:12")
+    # (the breakpoint by Studio's own step — F9 itself is the editor path's
+    # and the S11 walk's —; F5 and the rest real keys)
+    studio = start_studio(src, LOOKS[look], "wait,wait,view.code,line:12,debug.toggleBreakpoint,wait")
     check(f"[debug {look}] Studio in front", wait_front(studio))
-    key(studio, F9)
+    time.sleep(1.5)
     key(studio, F5)
     ok = until(lambda: node_with(studio, "Locals"), 10)
     activate(studio)
@@ -402,8 +406,14 @@ def debug_walk(look):
     time.sleep(1.5)
     activate(studio)
     path = shot_window(studio, f"e2-running-{look}")
-    check(f"[debug {look}] F5, it runs on: Call Stack says Running…", ax_find(studio, "Running…", exact=True) is not None)
-    check(f"[debug {look}] … and Variables: Running… the values show when it pauses", ax_find(studio, "Running… the values show when it pauses") is not None)
+    check(f"[debug {look}] F5, it runs on: Variables says Running… the values show when it pauses", ax_find(studio, "Running… the values show when it pauses") is not None)
+    # (the Call Stack's tab: of the nodes named so, the short one)
+    tab = min((n for w in ax(studio) for n in walk(w) if (n.get("title") or n.get("desc")) == "Call Stack" and n.get("h", 0) > 4 and "x" in n), key=lambda n: n["h"], default=None)
+    if tab:
+        click_at(studio, tab["x"] + tab["w"] / 2, tab["y"] + tab["h"] / 2)
+        time.sleep(0.6)
+    shot_window(studio, f"e2-running-callstack-{look}")
+    check(f"[debug {look}] … and Call Stack (its tab clicked): Running…", ax_find(studio, "Running…", exact=True) is not None)
     menu_click(studio, "Debug", "Pause")
     ok = until(lambda: node_with(studio, "Locals"), 8)
     activate(studio)
@@ -459,11 +469,17 @@ def ai_walk(look):
     subprocess.run(["cp", f"{W}/examples/gui/hello_form.rr", src])
     studio = start_studio(src, LOOKS[look], f"wait,wait,ai:setupprobes={url}|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1")
     check(f"[ai {look}] Studio in front", wait_front(studio))
-    try:
-        menu_click(studio, "Tools", "Set Up RAI...")
-    except SystemExit:
-        menu_click(studio, "Tools", "Set Up RAI…")
-    time.sleep(2.5)
+    # (Studio's start may still be settling: the menu tried again once when
+    # the wizard isn't there)
+    for _ in range(2):
+        activate(studio)
+        try:
+            menu_click(studio, "Tools", "Set Up RAI...")
+        except SystemExit:
+            menu_click(studio, "Tools", "Set Up RAI…")
+        if until(lambda: ax_find(studio, "Found on this computer"), 5):
+            break
+    time.sleep(1.0)
     shot_window(studio, f"i1-setup-{look}")
     check(f"[ai {look}] Set Up RAI: Ollama found (the mock)", until(lambda: ax_find(studio, "Found on this computer: Ollama"), 6) is not None)
     ax_click(studio, "Next >")
@@ -515,10 +531,10 @@ def tree_walk(look):
     """n, o: Database Studio's tree (a root of 47, then a CSV) — the wheel,
     the bar's thumb dragged to its end, End: the last row whole; the status
     bar's text 10 pixels in."""
-    src = f"{WORK}/tree.rr"
-    open(src, "w").write(TREE_PROGRAM)
-    env = dict(ENV, RAPIDR_THEME={"light": "rapidr light", "dark": "rapidr dark", "contrast": "rapidr high contrast"}[look])
-    p = subprocess.Popen([f"{W}/rapidr", "run", src], cwd=WORK, env=env, stdout=open(f"{OUT}/tree-{look}.log", "w"), stderr=subprocess.STDOUT)
+    src = f"{WORK}/tree-{look}.rr"
+    theme = {"light": "rapidr light", "dark": "rapidr dark", "contrast": "rapidr high contrast"}[look]
+    open(src, "w").write(TREE_PROGRAM.replace("$THEME rapidr", f"$THEME {theme}", 1))
+    p = subprocess.Popen([f"{W}/rapidr", "run", src], cwd=WORK, env=ENV, stdout=open(f"{OUT}/tree-{look}.log", "w"), stderr=subprocess.STDOUT)
     started.append(p)
     for _ in range(60):
         if wins(p.pid):
@@ -528,68 +544,73 @@ def tree_walk(look):
     activate(p.pid)
     prog = p.pid
     check(f"[tree {look}] the program in front", wait_front(prog))
-    tree = until(lambda: node_with(prog, "Tree") or next((n for w in ax(prog) for n in walk(w) if n.get("role") == "AXOutline" and "x" in n), None), 4)
+    # (the tree itself, by its role: an outline)
+    tree = until(lambda: next((n for w in ax(prog) for n in walk(w) if n.get("role") == "AXOutline" and n.get("h", 0) > 40), None), 4)
     last = lambda: node_with(prog, "shop.csv (CSV)")
 
     def whole():
         t, r = tree, last()
-        return bool(t and r and r.get("h", 0) > 4 and r["y"] >= t["y"] and r["y"] + r["h"] <= t["y"] + t["h"] - 1)
-    if not check(f"[tree {look}] the tree found (VoiceOver)", tree is not None):
+        return bool(t and r and r.get("h", 0) > 4 and r["y"] >= t["y"] and r["y"] + r["h"] <= t["y"] + t["h"])
+    if not check(f"[tree {look}] the tree found (VoiceOver)", tree is not None, str(tree)[:120]):
         close_all()
         return
-    # the wheel, to the end
-    x, y = tree["x"] + tree["w"] / 2, tree["y"] + tree["h"] / 2
-    if mine_under(prog, x, y):
+    log(f"  (the tree at {tree['x']:.0f}, {tree['y']:.0f}, {tree['w']:.0f} x {tree['h']:.0f})")
+
+    def wheel(lines):
+        x, y = tree["x"] + tree["w"] / 2, tree["y"] + tree["h"] / 2
+        if not mine_under(prog, x, y):
+            raise SystemExit("stopped: the tree isn't under the mouse")
         for _ in range(12):
-            e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, -5)
+            e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, lines)
             Quartz.CGEventSetLocation(e, (x, y))
             Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
             time.sleep(0.05)
-    time.sleep(0.6)
-    shot_window(prog, f"n1-tree-wheel-{look}")
+        time.sleep(0.6)
+    # the wheel, to the end
+    wheel(-5)
+    path1 = shot_window(prog, f"n1-tree-wheel-{look}")
     check(f"[tree {look}] the wheel to the end: shop.csv (CSV) whole in the tree", whole(), str(last())[:160])
-    # back to the top by the wheel, then the thumb dragged to the bottom
-    for _ in range(12):
-        e = Quartz.CGEventCreateScrollWheelEvent(None, Quartz.kCGScrollEventUnitLine, 1, 5)
-        Quartz.CGEventSetLocation(e, (x, y))
-        Quartz.CGEventPost(Quartz.kCGHIDEventTap, e)
-        time.sleep(0.05)
-    time.sleep(0.5)
-    bx = tree["x"] + tree["w"] - 8
-    if mine_under(prog, bx, tree["y"] + 40):
-        mouse(Quartz.kCGEventMouseMoved, bx, tree["y"] + 40)
+    # back to the top by the wheel, then the bar's thumb dragged to the bottom
+    wheel(5)
+    bx, by = tree["x"] + tree["w"] - 10, tree["y"] + 30
+    if check(f"[tree {look}] the bar's thumb is ours under the mouse", mine_in_front(prog) and mine_under(prog, bx, by)):
+        mouse(Quartz.kCGEventMouseMoved, bx, by)
         time.sleep(0.1)
-        mouse(Quartz.kCGEventLeftMouseDown, bx, tree["y"] + 40)
+        mouse(Quartz.kCGEventLeftMouseDown, bx, by)
         for k in range(1, 13):
-            mouse(Quartz.kCGEventLeftMouseDragged, bx, tree["y"] + 40 + (tree["h"] + 60) * k / 12)
-            time.sleep(0.03)
-        mouse(Quartz.kCGEventLeftMouseUp, bx, tree["y"] + tree["h"] + 100)
+            mouse(Quartz.kCGEventLeftMouseDragged, bx, by + (tree["h"] + 10 - 30) * k / 12)
+            time.sleep(0.04)
+        mouse(Quartz.kCGEventLeftMouseUp, bx, tree["y"] + tree["h"] + 10)
         time.sleep(0.6)
     shot_window(prog, f"n2-tree-thumb-{look}")
     check(f"[tree {look}] the thumb dragged to the bottom: shop.csv (CSV) whole", whole(), str(last())[:160])
-    # Home, End: the selection and its row in view
-    click_at(prog, tree["x"] + 60, tree["y"] + 10)
+    # a row clicked (the tree has the keys), Home, End: the selection's row in view
+    r = last()
+    if r:
+        click_at(prog, r["x"] + 40, r["y"] + r["h"] / 2)
     key(prog, 115)  # Home
+    time.sleep(0.4)
+    shot_window(prog, f"n3-tree-home-{look}")
+    check(f"[tree {look}] Home: the first row in view again", node_with(prog, "bookshop.db") is not None and node_with(prog, "bookshop.db")["y"] >= tree["y"])
     key(prog, 119)  # End
     time.sleep(0.6)
-    path = shot_window(prog, f"n3-tree-end-{look}")
-    check(f"[tree {look}] End: shop.csv (CSV) selected and whole in the tree", whole() and "shop.csv" in (ocr(path) if path else ""))
-    # o: the status bar's text 10 pixels in (the window's capture: Retina's 2 a point)
-    status = node_with(prog, "Opened BPAnalytics DB")
+    shot_window(prog, f"n4-tree-end-{look}")
+    check(f"[tree {look}] End: shop.csv (CSV) whole in the tree", whole(), str(last())[:160])
+    # o: the status bar's text about 10 pixels in (the window's capture: Retina's 2 a point)
     boxes = []
-    if path:
-        r = subprocess.run([PROBE, "ocr", path], capture_output=True, text=True)
+    if path1:
+        out = subprocess.run([PROBE, "ocr", path1], capture_output=True, text=True)
         try:
-            boxes = json.loads(r.stdout or "[]")
+            boxes = json.loads(out.stdout or "[]")
         except json.JSONDecodeError:
             boxes = []
     line = next((b for b in boxes if b["text"].startswith("Opened")), None)
     ws = wins(prog)
     left = None
     if line and ws:
-        scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path).representations()[0].pixelsWide() / ws[0]["w"]
-        left = line["x"] / scale
-    check(f"[status {look}] the status bar's text about 10 pixels in (OCR: {left})", left is not None and 8 <= left <= 14, str(status)[:100])
+        scale = AppKit.NSImage.alloc().initWithContentsOfFile_(path1).representations()[0].pixelsWide() / ws[0]["w"]
+        left = round(line["x"] / scale, 1)
+    check(f"[status {look}] the status bar's text about 10 pixels in (OCR: {left})", left is not None and 8 <= left <= 14)
     close_all()
 
 

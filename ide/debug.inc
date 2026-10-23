@@ -1946,12 +1946,6 @@ SUB TreeUndo
   IF RunState = "paused" THEN UndoSetValue
 END SUB
 
-' (POLISH-2) Ctrl+C — ⌘C on a Mac — in Variables or Watch (the tree's
-' OnCopy): Edit > Copy, which copies the selected value there
-' (DebugPaneCommand).
-SUB TreeCopy
-  RunCommand "edit.copy"
-END SUB
 
 ' Ctrl+Z in Variables or Watch while paused: the last value set goes back.
 SUB UndoSetValue
@@ -2756,7 +2750,7 @@ END SUB
 
 ' (Edit's commands while Variables or Watch has the focus, before the
 ' document's — shell.inc's RunCommand: Copy the selected value — Ctrl+C,
-' ⌘C on a Mac, comes as the tree's OnCopy: TreeCopy —, Undo the last value
+' ⌘C on a Mac, comes as the tree's OnCopy: VarsCopy, WatchCopy —, Undo the last value
 ' set while paused — Ctrl+Z, the tree's OnUndo; True when Id was one)
 FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
   DIM w AS INTEGER
@@ -2776,6 +2770,17 @@ FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
       END IF
   END SELECT
 END FUNCTION
+
+' (POLISH-2) Ctrl+C — ⌘C on a Mac — in Variables or Watch (the tree's
+' OnCopy, which comes from the tree that has the keyboard, whichever pane
+' the dock says is active): the selected value copied, as Edit > Copy
+SUB VarsCopy
+  ValueAction "copy", PickedExpr(0), PickedShown(0)
+END SUB
+
+SUB WatchCopy
+  ValueAction "copy", PickedExpr(1), PickedShown(1)
+END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
 ' True when Id was one of Run's or Debug's (and it ran).
@@ -3118,7 +3123,7 @@ SUB SetUpDebug
   VarsTree.OnEdited = VarsEdited
   VarsTree.OnDblClick = VarsDblClick
   VarsTree.OnUndo = TreeUndo
-  VarsTree.OnCopy = TreeCopy
+  VarsTree.OnCopy = VarsCopy
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -3145,7 +3150,7 @@ SUB SetUpDebug
   WatchTree.OnKeyDown = WatchTreeKey
   WatchTree.OnDblClick = WatchDblClick
   WatchTree.OnUndo = TreeUndo
-  WatchTree.OnCopy = TreeCopy
+  WatchTree.OnCopy = WatchCopy
   WatchTree.ReadOnly = 0
   WatchTree.OnEditing = WatchEditing
   WatchTree.OnEdited = WatchEdited
