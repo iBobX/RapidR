@@ -1217,14 +1217,15 @@ pub fn dialogs_here() -> bool {
 /// box (`rapidr_ui_app::dialogs::message`), the desktop's: `then` maps the
 /// button chosen (`None`: Escape, the close box) to the builtin's result —
 /// given at once by a test's hook, else the end of a wait the VM serves
-/// (its placeholder result `Null` here). `None`: not here (a native web
-/// build: the page's dialog).
-pub fn choice(title: &str, text: &str, labels: &[&str], icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool, then: impl FnOnce(Option<usize>) -> Value + 'static) -> Option<Value> {
+/// (its placeholder result `Null` here); Enter presses button `default`
+/// (the first when `None`). `None`: not here (a native web build: the
+/// page's dialog).
+pub fn choice(title: &str, text: &str, labels: &[&str], default: Option<usize>, icon: Option<rapidr_value::dialogs::MsgIcon>, beep: bool, then: impl FnOnce(Option<usize>) -> Value + 'static) -> Option<Value> {
     if !dialogs_here() {
         return None;
     }
     ensure();
-    match rapidr_ui_app::dialogs::message(Web, title, text, labels, icon, beep, then) {
+    match rapidr_ui_app::dialogs::message_with_default(Web, title, text, labels, default, icon, beep, then) {
         rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),
         rapidr_ui_app::dialogs::Pending::Open(id) => {
             begin_wait(rapidr_ui_app::waits::Wait::Dialog(id));

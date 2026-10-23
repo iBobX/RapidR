@@ -1113,18 +1113,20 @@ pub fn gui_pump_wait() -> Option<Value> {
 
 /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: a kernel-drawn modal dialog
 /// (`rapidr_ui_app::dialogs`, dialogs.rs) with its icon, beeping when
-/// asked; `then` maps the button chosen (`None` for Escape or the close
-/// box) to the builtin's result — returned here in a native build, the end
-/// of the wait the interpreter serves in its.
+/// asked, Enter on button `default` (the first when `None`); `then` maps
+/// the button chosen (`None` for Escape or the close box) to the builtin's
+/// result — returned here in a native build, the end of the wait the
+/// interpreter serves in its.
 pub fn gui_choice(
     title: &str,
     text: &str,
     labels: &[&str],
+    default: Option<usize>,
     icon: Option<rapidr_value::dialogs::MsgIcon>,
     beep: bool,
     then: impl FnOnce(Option<usize>) -> Value + 'static,
 ) -> Value {
-    dialogs::choice(title, text, labels, icon, beep, then)
+    dialogs::choice(title, text, labels, default, icon, beep, then)
 }
 
 /// Open / Save (rfd, async), colour and font (kernel-drawn) dialogs.
@@ -1332,7 +1334,7 @@ pub fn message_box(text: &str) -> Value {
     // (the dialogs lane's: SHOWMESSAGE's box, titled Application.Title, as
     // the web's)
     let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-    gui_choice(&title, text, &["OK"], None, false, |_| v_int(0))
+    gui_choice(&title, text, &["OK"], None, None, false, |_| v_int(0))
 }
 
 /// The program ends: the windows' pending commands run (closed forms'

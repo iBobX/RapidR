@@ -47,8 +47,8 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | Builtin | |
 |---|---|
 | `BEEP` *(RapidR)* | Plays a short beep on the system's sound output (without sound, the terminal's bell). |
-| `MESSAGEBOX(Msg$, Title$, MsgButtons%)` | Shows a message box with the buttons and icon the `MB_` flags ask for; returns the `ID` constant (`IDOK`, `IDYES`, …) of the button chosen. |
-| `MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext)` | Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. |
+| `MESSAGEBOX(Msg$, Title$, MsgButtons%)` | Shows a message box with the buttons and icon the `MB_` flags ask for; returns the `ID` constant (`IDOK`, `IDYES`, …) of the button chosen. Enter presses the first button, or the one Windows' `MB_DEFBUTTON2` (`&H100`) or `MB_DEFBUTTON3` (`&H200`) flag names (windows.inc's constants). |
+| `MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext [, DefaultButton])` | Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (RapidR's; RapidQ's MESSAGEDLG has four arguments) names another by its answer, so Enter can give the safe one: `MESSAGEDLG("This deletes 1,204 rows.", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number. |
 | `MSGBOX(Msg$)` *(RapidR)* | Shows a message box with an OK button and returns 0 when it is closed. |
 | `PLAYSOUND(FileName$)` *(RapidR)* | Plays a sound file in the background. |
 | `PLAYWAV FileName$\|Resource_Handle, SndOption` | Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting for its end (`SND_SYNC`) or repeating (`SND_LOOP`); `PLAYWAV ""` stops it. |

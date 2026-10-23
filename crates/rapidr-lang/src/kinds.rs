@@ -102,12 +102,17 @@ pub fn choice_set(id: &str) -> Option<&'static ConstantGroup> {
 
 /// A choice's constants and whether they are flags: a property's own
 /// `values` (`choice:values`: flags for a `set` property), True / False
-/// (`choice:bool`), or a constant group's set.
+/// (`choice:bool`), or a constant set — every group's that has it (a
+/// set whose constants RAPIDQ.INC's order puts in several groups:
+/// `modal-result`).
 pub fn choices(set: &str, property: Option<&Property>) -> (Vec<&'static str>, bool) {
     match set {
         "values" => property.map_or((Vec::new(), false), |p| (p.values.to_vec(), p.ty == crate::Type::Set)),
         "bool" => (vec!["True", "False"], false),
-        id => choice_set(id).map_or((Vec::new(), false), |g| (g.constants.iter().map(|(n, _)| *n).collect(), g.flags)),
+        id => choice_set(id).map_or((Vec::new(), false), |first| {
+            let names = CONSTANT_GROUPS.iter().filter(|g| g.set == Some(id)).flat_map(|g| g.constants.iter().map(|(n, _)| *n)).collect();
+            (names, first.flags)
+        }),
     }
 }
 
@@ -128,6 +133,9 @@ mod tests {
         assert_eq!(ValueKind::parse("component:QFORM|QPANEL").unwrap().component_types(), ["QFORM", "QPANEL"]);
         assert_eq!(ValueKind::parse("choice:bool"), Some(ValueKind::Choice("bool")));
         assert_eq!(ValueKind::parse("nonsense"), None);
+        // (a set in several groups: all of them — MESSAGEDLG's DefaultButton)
+        let (answers, flags) = choices("modal-result", None);
+        assert!(!flags && ["mrNo", "mrYes", "mrCancel", "mrOk"].iter().all(|n| answers.contains(n)), "{answers:?}");
         assert!(FileKind::Image.matches("Logo.PNG") && !FileKind::Image.matches("a.wav") && FileKind::Any.matches("x"));
     }
 }

@@ -26,7 +26,8 @@
 //!   each colour / font dialog answers in turn (empty: Cancel).
 //! - `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box
 //!   (MESSAGEBOX, MESSAGEDLG, SHOWMESSAGE, MSGBOX) answers in turn — a
-//!   button's caption (empty: Escape).
+//!   button's caption, `__enter` the default button (what Enter presses:
+//!   MESSAGEDLG's DefaultButton), empty: Escape.
 //! - `RAPIDR_TEST_DIALOG_HOLD=ms`: a dialog one of those hooks answers is
 //!   shown and waited for as the user's would be (the windows paint, timers
 //!   tick and their handlers run — interpreted builds too), and the hook
@@ -365,19 +366,23 @@ pub fn message_hook() -> bool {
 
 /// `RAPIDR_TEST_MESSAGE_DIALOG=No;Retry;`: what each message box with
 /// buttons `labels` answers in turn — the button whose caption it names
-/// (any case, `&` left out), `None` for an empty answer or one naming no
-/// button (Escape: `rapidr_value::dialogs::dismissed`). `None`: the hook
-/// isn't set (the box waits for the user).
-pub fn message_dialog_answer(labels: &[&str]) -> Option<Option<usize>> {
-    next_answer("RAPIDR_TEST_MESSAGE_DIALOG").map(|a| message_button(&a, labels))
+/// (any case, `&` left out), `__enter` the default button (Enter's:
+/// `default`, the first when `None`), `None` for an empty answer or one
+/// naming no button (Escape: `rapidr_value::dialogs::dismissed`). `None`:
+/// the hook isn't set (the box waits for the user).
+pub fn message_dialog_answer(labels: &[&str], default: Option<usize>) -> Option<Option<usize>> {
+    next_answer("RAPIDR_TEST_MESSAGE_DIALOG").map(|a| message_button(&a, labels, default))
 }
 
 /// The button of `labels` that `answer` names (see [`message_dialog_answer`]).
-pub fn message_button(answer: &str, labels: &[&str]) -> Option<usize> {
+pub fn message_button(answer: &str, labels: &[&str], default: Option<usize>) -> Option<usize> {
     let plain = |s: &str| s.replace('&', "").trim().to_lowercase();
     let answer = plain(answer);
     if answer.is_empty() {
         return None;
+    }
+    if answer == "__enter" {
+        return (!labels.is_empty()).then(|| default.filter(|&i| i < labels.len()).unwrap_or(0));
     }
     labels.iter().position(|l| plain(l) == answer)
 }
@@ -568,10 +573,15 @@ mod tests {
     #[test]
     fn a_message_answer_names_a_button() {
         let labels = ["Yes", "No", "Cancel"];
-        assert_eq!(message_button("no", &labels), Some(1));
-        assert_eq!(message_button(" &Cancel ", &labels), Some(2));
-        assert_eq!(message_button("Retry", &labels), None);
-        assert_eq!(message_button("", &labels), None);
-        assert_eq!(message_button("OK", &["&OK"]), Some(0));
+        assert_eq!(message_button("no", &labels, None), Some(1));
+        assert_eq!(message_button(" &Cancel ", &labels, None), Some(2));
+        assert_eq!(message_button("Retry", &labels, None), None);
+        assert_eq!(message_button("", &labels, None), None);
+        assert_eq!(message_button("OK", &["&OK"], None), Some(0));
+        // `__enter`: what Enter answers — the default button (MESSAGEDLG's
+        // DefaultButton), else the first
+        assert_eq!(message_button("__enter", &labels, Some(1)), Some(1));
+        assert_eq!(message_button("__ENTER", &labels, None), Some(0));
+        assert_eq!(message_button("__enter", &labels, Some(7)), Some(0));
     }
 }

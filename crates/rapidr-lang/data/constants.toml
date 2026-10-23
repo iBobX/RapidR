@@ -670,7 +670,8 @@ constants = [
 [[group]]
 name = "Modal results"
 source = "RAPIDQ.INC"
-doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
+set = "modal-result"
+doc = "Results of a form shown with ShowModal, a button's ModalResult that closes the form with it, and the answer `MESSAGEDLG` gives (its `DefaultButton` names one)."
 constants = [
   ["mrAbort", 3],
   ["mrAll", 8],
@@ -691,7 +692,8 @@ constants = [
 [[group]]
 name = "Modal results"
 source = "RAPIDQ.INC"
-doc = "Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it."
+set = "modal-result"
+doc = "Results of a form shown with ShowModal, a button's ModalResult that closes the form with it, and the answer `MESSAGEDLG` gives (its `DefaultButton` names one)."
 constants = [
   ["mrOk", 1],
   ["mrRetry", 4],

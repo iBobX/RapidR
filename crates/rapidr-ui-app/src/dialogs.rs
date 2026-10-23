@@ -302,9 +302,29 @@ pub fn message<R: Program + Windows>(
     beep: bool,
     then: impl FnOnce(Option<usize>) -> Value + 'static,
 ) -> Pending {
-    let hooked = testhooks::message_dialog_answer(labels).map(Answer::Button);
+    message_with_default(rt, title, text, labels, None, icon, beep, then)
+}
+
+/// [`message`] whose button `default` is the one Enter presses, focused as
+/// the box opens (RapidR's MESSAGEDLG DefaultButton, MESSAGEBOX's
+/// MB_DEFBUTTONn; `None`: the first, RapidQ's). Escape answers as before.
+#[allow(clippy::too_many_arguments)]
+pub fn message_with_default<R: Program + Windows>(
+    rt: R,
+    title: &str,
+    text: &str,
+    labels: &[&str],
+    default: Option<usize>,
+    icon: Option<MsgIcon>,
+    beep: bool,
+    then: impl FnOnce(Option<usize>) -> Value + 'static,
+) -> Pending {
+    let hooked = testhooks::message_dialog_answer(labels, default).map(Answer::Button);
     let make = || {
-        let d = Dialog::message(next_id(), title, text, labels, icon);
+        let mut d = Dialog::message(next_id(), title, text, labels, icon);
+        if let Some(i) = default {
+            d = d.with_default(i);
+        }
         rt.start();
         if beep && !testhooks::under_test() {
             rt.beep(icon);
