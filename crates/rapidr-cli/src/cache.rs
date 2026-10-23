@@ -184,7 +184,8 @@ impl Artifacts {
             if p.is_dir() {
                 let _ = fs::remove_dir_all(&p);
             } else {
-                let _ = fs::remove_file(&p);
+                // (Windows: the antivirus may still hold the new program; a moment's wait, not a long one)
+                let _ = crate::locked::while_locked(crate::locked::BRIEFLY, || fs::remove_file(&p));
             }
         }
     }

@@ -92,6 +92,16 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   nothing and listens on every interface unless `Host = "127.0.0.1"`.
 
 ### Fixed
+- **Native builds on Windows no longer fail when the antivirus briefly holds
+  the new program.** Windows Defender's real-time scan sometimes keeps a
+  freshly linked `.exe` open for a moment, and the build then stopped with
+  `…\release\<program>.exe: Access is denied. (os error 5)` although cargo had
+  finished (the 2.121.0 release smoke test hit it, intermittently, on Windows
+  x64). `rapidr build` now waits and tries again (100 ms, doubling, up to 10
+  seconds in all) when Windows says the file is in use (error 5, 32 or 33);
+  if it is still held it says so in plain words: "Windows is still checking the
+  new program (antivirus); try again". Only on Windows; macOS and Linux are
+  unchanged (`crates/rapidr-cli/src/locked.rs`).
 - **Studio, small things made solid (POLISH-2).**
   - **Go to Line** (Ctrl+G, ⌘G on a Mac) keeps its `:` — the number you
     type goes after it, where it once replaced it — and the status bar's
