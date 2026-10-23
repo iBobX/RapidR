@@ -47,6 +47,10 @@ SUB OpenProject(Path AS STRING)
   ProjectMain = ProjectMain + Proj.MainFile
   ProjectFile = p
   Lang.CompatMode = Proj.CompatMode
+  ' (S5: a module is checked as part of its project, never alone; what
+  ' works on one runtime only is noted when the project runs on the other)
+  Lang.Project = ProjectMain
+  Lang.Targets = Proj.Targets
   ' (the project's include files read for the language service: on the web
   ' they are in the page's store, not on a disk it could read)
   FOR i = 0 TO Proj.FileCount - 1
@@ -127,6 +131,7 @@ SUB CloseProject
   StopProgram
   CloseAllDocuments
   Proj.Close
+  Lang.Project = ""
   ProjectOpen = 0
   ProjectName = ""
   ExampleOriginal = ""
@@ -289,8 +294,9 @@ END SUB
 
 CONST STUDIO_KEY = "Software\RapidR\Studio"
 ' The saved layout's format (Studio 2026-10: documents as tabs, the debugger's
-' and the toolbox's panes): an older one isn't restored
-CONST LAYOUT_VERSION = 3
+' and the toolbox's panes; 4: the Search tab beside Project, shown): an older
+' one isn't restored
+CONST LAYOUT_VERSION = 4
 CONST HKCU = &H80000001
 
 SUB LoadSettings

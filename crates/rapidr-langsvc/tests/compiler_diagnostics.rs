@@ -16,7 +16,8 @@ fn every_conformance_error_case() {
     let mut entries: Vec<_> = fs::read_dir(&cases).unwrap().map(|e| e.unwrap().path()).collect();
     entries.sort();
     for expected in entries.iter().filter(|p| p.extension().is_some_and(|e| e == "expected-error")) {
-        let source = expected.with_extension("bas");
+        // (a case is a .bas, or a .rr for RapidR's own language)
+        let source = Some(expected.with_extension("bas")).filter(|p| p.exists()).unwrap_or_else(|| expected.with_extension("rr"));
         let text = rapidr_preprocessor::read_source(&source).unwrap();
         let mut analysis = Analysis::new(Options::default());
         analysis.update(source.clone(), text.clone());

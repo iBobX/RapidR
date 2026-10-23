@@ -1,0 +1,3 @@
+' The values every file shares.
+DIM Counter AS INTEGER
+DIM Srv AS RServerSocket

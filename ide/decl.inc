@@ -143,6 +143,11 @@ DECLARE SUB AddFormOfType(TypeName AS STRING, Hint AS STRING)
 DECLARE SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
 DECLARE SUB IncludeLeaves(Path AS STRING)
 DECLARE SUB FillProblemsOf(Path AS STRING)
+DECLARE FUNCTION InProject(Path AS STRING) AS INTEGER
+DECLARE FUNCTION ProblemsText(Path AS STRING) AS STRING
+DECLARE FUNCTION ProjectRel(Path AS STRING) AS STRING
+DECLARE FUNCTION FileIconName(Path AS STRING) AS STRING
+DECLARE SUB AddFileHeading(InFile AS STRING, Counts AS STRING, Total AS INTEGER)
 DECLARE FUNCTION ProgramErrors AS INTEGER
 DECLARE SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
 DECLARE SUB DesignStep(Continues AS INTEGER, Sender AS RDesignSurface)
@@ -222,6 +227,13 @@ DECLARE SUB CodeTyped(d AS INTEGER)
 DECLARE SUB SetUpDocuments
 DECLARE SUB SetUpSearch
 DECLARE SUB ApplySearchChrome
+' (search.inc: Go to Definition and Back, Find References in the Search tab,
+' the code editors' context menu)
+DECLARE SUB GoToDefinition(d AS INTEGER)
+DECLARE SUB NavCaretMoved(L AS INTEGER, C AS INTEGER)
+DECLARE SUB NavigateTo(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS RCodeEditor)
+DECLARE SUB ShowReferences(Json AS STRING, Name AS STRING)
+DECLARE SUB CodeMenuFor(d AS INTEGER)
 DECLARE SUB ShowWelcome
 ' (markdown.inc)
 DECLARE FUNCTION IsMarkdownFile(Path AS STRING) AS INTEGER

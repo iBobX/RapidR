@@ -125,6 +125,11 @@ impl Host for Web {
         crate::object_web::stored_names_in(folder)
     }
 
+    // (a Mac's keyboard: the page's, as the UI host reads it)
+    fn mac_keys(self) -> bool {
+        web_sys::window().and_then(|w| w.navigator().platform().ok()).is_some_and(|p| p.contains("Mac") || p.contains("iP"))
+    }
+
     fn list_tree(self, folder: &str) -> Vec<String> {
         crate::object_web::stored_names_under(folder)
     }

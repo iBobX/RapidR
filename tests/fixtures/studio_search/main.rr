@@ -1,0 +1,13 @@
+' Studio's Search and Problems fixture (Preview 4 S3, S5): a project of
+' four files. main.rr includes the modules in order; Counter, a global,
+' is used in every file; StartServer, a SUB of server.rr, is called here;
+' Srv is an RServerSocket, which works on the desktop only. Opened in
+' Studio by the flows, never run.
+$APPTYPE GUI
+$INCLUDE "globals.rr"
+$INCLUDE "server.rr"
+$INCLUDE "ui.rr"
+
+Counter = 0
+StartServer
+MainForm.ShowModal

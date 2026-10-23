@@ -32,6 +32,12 @@ pub const PROBLEM_LEFT: i64 = 30;
 const PROBLEM_RIGHT: i64 = 8;
 /// The gap between a problem's message and its place.
 pub const PLACE_GAP: i64 = 12;
+
+/// (grouped problems: under their file's heading) The line:col column's
+/// width in `font`, and the gap after it.
+pub fn place_column(font: &Font) -> i64 {
+    text_size("0000:000", font).0 + 10
+}
 /// A wrapped problem's room above and below its text rows together.
 const PROBLEM_PAD: i64 = 8;
 
@@ -237,11 +243,16 @@ fn make(p: &Params, memo: &mut HashMap<u64, Rc<Broken>>) -> Flow {
         page => (0..c.count(page)).map(|i| (c.line_text(page, i).unwrap_or_default(), None)).collect(),
     })
     .unwrap_or_default();
+    // (problems under their files' headings: each its line:col in a column,
+    // its message beside it — no place after it)
+    let grouped = problems && rows_of_page.iter().any(|(_, pr)| pr.as_ref().is_some_and(|pr| pr.heading));
+    let groom = if grouped { (room - place_column(p.chrome)).max(1) } else { room };
     for (i, (text, problem)) in rows_of_page.iter().enumerate() {
         let mut h = one;
-        if p.wrap {
-            let place = problem.as_ref().map(Problem::place).unwrap_or_default();
-            let b = memo.entry(hash_of(&[text, &place])).or_insert_with(|| Rc::new(break_line(text, &place, room, if problems { p.chrome } else { p.mono }))).clone();
+        // (a file's heading: one row)
+        if p.wrap && !problem.as_ref().is_some_and(|pr| pr.heading) {
+            let place = if grouped { String::new() } else { problem.as_ref().map(Problem::place).unwrap_or_default() };
+            let b = memo.entry(hash_of(&[text, &place, if grouped { "g" } else { "" }])).or_insert_with(|| Rc::new(break_line(text, &place, groom, if problems { p.chrome } else { p.mono }))).clone();
             let n = b.starts.len() as i64 + 1 + i64::from(b.place_below);
             if n > 1 {
                 h = if problems { n * text_h + PROBLEM_PAD } else { n * p.lh };
@@ -368,8 +379,8 @@ mod tests {
         let adv = text_size("0", &f).0;
         model::remove("flow2");
         model::with_mut("flow2", |c| {
-            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Error, message: "short".into() });
-            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Warning, message: "aaaa bbbb cccc dddd eeee ffff".into() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Error, message: "short".into(), heading: false, icon: String::new() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Warning, message: "aaaa bbbb cccc dddd eeee ffff".into(), heading: false, icon: String::new() });
         });
         // (twenty characters to a row: the short one and its place fit)
         let width = adv * 20 + PROBLEM_LEFT + PROBLEM_RIGHT;

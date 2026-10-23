@@ -35,7 +35,7 @@ use rapidr_value::panels::User;
 use std::rc::Rc;
 
 use super::common::{self, look, Look};
-use super::console_flow::{self as flow, Flow, MARGIN, PLACE_GAP, PROBLEM_LEFT};
+use super::console_flow::{self as flow, place_column, Flow, MARGIN, PLACE_GAP, PROBLEM_LEFT};
 use crate::a11y::AccessValue;
 use crate::components::list::{self, bar_mouse, bar_tick, begin_edit, editing, end_edit, vscroll_at, vscroll_state, InPlace};
 use crate::components::{ComponentKind, Cx, Ime, KeyIn, MouseIn, MouseKind, MouseOut};
@@ -169,6 +169,8 @@ struct Snapshot {
     found: String,
     badge: Option<(usize, Severity)>,
     pos: i64,
+    /// The problems are under their files' headings.
+    grouped: bool,
 }
 
 /// The least contrast a line's text keeps: terminals' 4.5 : 1, less what
@@ -191,7 +193,7 @@ fn readable(ink: u32, behind: u32, l: &Look) -> u32 {
 /// Problems tab's badge.
 fn badge_of(problems: &[Problem]) -> Option<(usize, Severity)> {
     [Severity::Error, Severity::Warning, Severity::Info].into_iter().find_map(|s| {
-        let n = problems.iter().filter(|p| p.severity == s).count();
+        let n = problems.iter().filter(|p| !p.heading && p.severity == s).count();
         (n > 0).then_some((n, s))
     })
 }
@@ -322,6 +324,7 @@ impl Console {
                 found,
                 badge: badge_of(&c.problems),
                 pos,
+                grouped: c.problems.iter().any(|p| p.heading),
             }
         })
     }
@@ -493,11 +496,70 @@ impl Console {
                 let row = (bx, y, cw, f.height(*i));
                 let selected = s.view.caret == Some(*i as u64);
                 let ink = common::row(p, row, l, selected, focused, s.hover_row == Some(*i));
+                // (a file's heading: its icon — the Project pane's for it —, its
+                // name in bold, its folder dimmed, how many problems in a pill;
+                // its problems under it)
+                if pr.heading {
+                    // (`kind:form`: a project kind's, as the Project pane shows a form's file)
+                    let icon = match pr.icon.strip_prefix("kind:") {
+                        _ if pr.icon.is_empty() => rapidr_icons::file(&pr.file).id.to_string(),
+                        Some(k) => rapidr_icons::project_kind(k).map_or("files/file", |i| i.id).to_string(),
+                        None => pr.icon.clone(),
+                    };
+                    common::icon(p, &icon, bx + 8, y + (rows::ROW - 16) / 2, 16, (selected && focused && (l.classic || l.contrast)).then_some(ink), false);
+                    let bold = Font { styles: font.styles | 1, ..font.clone() };
+                    let path = pr.file.replace('\\', "/");
+                    let (folder, name) = match path.rfind('/') {
+                        Some(k) => (path[..=k].to_string(), path[k + 1..].to_string()),
+                        None => (String::new(), path.clone()),
+                    };
+                    let tx = bx + PROBLEM_LEFT;
+                    let mut right = bx + cw - 8;
+                    let dim = if selected && focused { ink } else if l.contrast { l.text } else { l.dim };
+                    if pr.line > 0 {
+                        let small = Font { size: (font.size - 1).max(6), ..font.clone() };
+                        let s = pr.line.to_string();
+                        let (sw, _) = text_size(&s, &small);
+                        let pw = (sw + 12).max(22);
+                        let pill = (right - pw, y + (rows::ROW - 16) / 2, pw, 16);
+                        if !l.classic {
+                            let radius = if l.contrast { 4.0 } else { 8.0 };
+                            p.round(pill, radius, Some(if selected && focused { common::mix(ink, l.selected, 0.85) } else { l.section }), if l.contrast { Some(l.border) } else { None }, 1.0);
+                        }
+                        p.text(pill, &s, &small, dim, Place::Center);
+                        right = pill.0 - 6;
+                    }
+                    let room = (right - tx).max(1);
+                    let shown = common::elide(&name, &bold, room);
+                    let (nw, _) = text_size(&shown, &bold);
+                    p.text((tx, y, room, rows::ROW), &shown, &bold, ink, Place::Left);
+                    let fx = tx + nw + 8;
+                    if !folder.is_empty() && fx + 24 < right {
+                        let f = common::elide(&folder, font, right - fx);
+                        p.text((fx, y, right - fx, rows::ROW), &f, font, dim, Place::Left);
+                    }
+                    if selected && focused && l.classic {
+                        common::row_focus(p, row, l);
+                    }
+                    continue;
+                }
                 let marker = rapidr_icons::marker(pr.severity.name()).map_or(pr.severity.name(), |m| m.id);
                 common::icon(p, marker, bx + 8, y + (rows::ROW - 16) / 2, 16, None, false);
-                let place = pr.place();
+                // (under a heading: its line:col, muted, in a column; no place
+                // after the message)
+                let place = if s.grouped { String::new() } else { pr.place() };
                 let (pw, _) = text_size(&place, font);
-                let tx = bx + PROBLEM_LEFT;
+                let mut tx = bx + PROBLEM_LEFT;
+                if s.grouped {
+                    let lc = match (pr.line, pr.col) {
+                        (l2, c2) if l2 > 0 && c2 > 0 => format!("{l2}:{c2}"),
+                        (l2, _) if l2 > 0 => l2.to_string(),
+                        _ => String::new(),
+                    };
+                    let dimc = if selected && focused && !l.classic { ink } else if selected && focused { l.selected_text } else if l.contrast { l.text } else { l.dim };
+                    p.text((tx, y, place_column(font), rows::ROW), &lc, font, dimc, Place::Left);
+                    tx += place_column(font);
+                }
                 let room = cw - (tx - bx) - 8;
                 let dim = if selected && focused && !l.classic { ink } else if selected && focused { l.selected_text } else { l.dim };
                 if g.wrap {
@@ -600,7 +662,7 @@ impl Console {
         let link = model::with(cx.id, |c| {
             let page = c.page;
             if page == Page::Problems {
-                return c.problems.get(at as usize).map(|p| (p.file.clone(), p.line));
+                return c.problems.get(at as usize).map(|p| (p.file.clone(), if p.heading { 0 } else { p.line }));
             }
             let i = at.checked_sub(c.first(page))? as usize;
             c.links_of(page, i).into_iter().next().map(|k| (k.file, k.line))
@@ -1076,7 +1138,7 @@ impl Console {
     /// The link pressed and let go on (line `line`, its start `start`; a
     /// problem's row): OnLinkClick.
     fn open_at(cx: &mut Cx, line: u64, start: usize) {
-        let link = model::with(cx.id, |c| if c.page == Page::Problems { c.problems.get(line as usize).map(|p| (p.file.clone(), p.line)) } else { c.link_at(line, start).map(|(k, _)| (k.file, k.line)) }).flatten();
+        let link = model::with(cx.id, |c| if c.page == Page::Problems { c.problems.get(line as usize).map(|p| (p.file.clone(), if p.heading { 0 } else { p.line })) } else { c.link_at(line, start).map(|(k, _)| (k.file, k.line)) }).flatten();
         if let Some((file, line)) = link {
             super::send(cx, User::Console(model::User::Link(file, line)));
         }
@@ -1158,7 +1220,7 @@ mod tests {
         model::remove("con1");
         model::with_mut("con1", |c| {
             c.write("first\nsee Main.rr:12 here\nthird\n");
-            c.add_problem(Problem { file: "a.bas".into(), line: 3, col: 1, severity: Severity::Warning, message: "w".into() });
+            c.add_problem(Problem { file: "a.bas".into(), line: 3, col: 1, severity: Severity::Warning, message: "w".into(), heading: false, icon: String::new() });
         });
         let mut f = FormUi::build(&s, "cform", false);
         f.paint(&s, &mut ts, 1.0);
@@ -1301,8 +1363,8 @@ mod tests {
         model::remove("con_pwrap");
         let long = "mtInformation is a RAPIDQ.INC constant, and without the include it is 0: add $INCLUDE \"RAPIDQ.INC\" at the top of the program so the constant has its value again";
         model::with_mut("con_pwrap", |c| {
-            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into() });
-            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into(), heading: false, icon: String::new() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into(), heading: false, icon: String::new() });
             c.show(Page::Problems);
         });
         let mut f = FormUi::build(&s, "cform", false);
@@ -1344,8 +1406,8 @@ mod tests {
         model::remove("con_tip");
         let long = "mtInformation is a RAPIDQ.INC constant, and without the include it is 0: add $INCLUDE \"RAPIDQ.INC\" at the top of the program";
         model::with_mut("con_tip", |c| {
-            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into() });
-            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 3, col: 7, severity: Severity::Warning, message: long.into(), heading: false, icon: String::new() });
+            c.add_problem(Problem { file: "a.rr".into(), line: 9, col: 1, severity: Severity::Error, message: "short".into(), heading: false, icon: String::new() });
             c.show(Page::Problems);
             // (wrapped — the default — the row shows it whole: no tooltip)
             assert_eq!(c.word_wrap, true);

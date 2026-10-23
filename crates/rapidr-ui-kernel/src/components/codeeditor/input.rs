@@ -784,6 +784,19 @@ fn inside(r: Rect, x: f64, y: f64) -> bool {
 fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
     let g = x.ui.geo;
     let (mx, my) = (m.x, m.y);
+    // (a right press in the text, outside the selection: the caret there
+    // first, so a context menu's Go to Definition or Find References is
+    // about the word clicked — as editors do)
+    if m.button == Button::Right {
+        if m.kind == MouseKind::Down && inside(g.text, mx, my) {
+            let at = byte_at(x, abs, mx, my);
+            if !x.c.doc.selections().iter().any(|s| s.start() <= at && at <= s.end() && !s.is_empty()) {
+                x.c.doc.set_selections(Selections::caret(at));
+                report_moves(x);
+            }
+        }
+        return MouseOut { press: false, focus: Some(true) };
+    }
     // the find box
     if m.kind == MouseKind::Down && find::mouse_down(x, mx, my) {
         return MouseOut::default();

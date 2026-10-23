@@ -201,7 +201,7 @@ methods = [
   { name = "WriteLine", params = "Text AS STRING", doc = "Write, then a new line." },
   { name = "Clear", params = "[Page AS STRING]", value = true, doc = "Empties a page (the shown one when Page is left out)." },
   { name = "AddBuildLine", params = "Text AS STRING", doc = "Adds a line to the Build page." },
-  { name = "AddProblem", params = "File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING", doc = "Adds a problem (Severity \"error\", \"warning\" or \"info\") to the Problems page.", arg_kinds = { File = "file:any" } },
+  { name = "AddProblem", params = "File AS STRING, Line AS INTEGER, Column AS INTEGER, Severity AS STRING, Message AS STRING", doc = "Adds a problem (Severity \"error\", \"warning\" or \"info\") to the Problems page. Severity \"file\" (or \"file:\" and an icon of RapidR's set, `kind:form` a project kind's) adds a file's heading instead: File's name in bold, its folder dimmed, Line in a pill (how many problems it has), Message what a screen reader hears (\"1 error, 2 warnings\"); under headings, problems show their line and column in a column of their own, not their file.", arg_kinds = { File = "file:any" } },
   { name = "ClearProblems", value = true, doc = "Empties the Problems page." },
   { name = "Line", params = "Index AS INTEGER", returns = "STRING", doc = "The shown page's line Index (from 0), without colours." },
   { name = "Find", params = "Text AS STRING", value = true, returns = "INTEGER", doc = "Searches the shown page (as the search box does): how many matches; the first is shown." },

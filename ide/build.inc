@@ -13,6 +13,7 @@ DECLARE SUB AppIconBrowse
 DECLARE SUB AppIconDefault
 DECLARE SUB AppOutputBrowse
 DECLARE SUB AppBuildChanged
+DECLARE SUB AppTargetsChanged
 DECLARE SUB AppSettingsOk
 DECLARE SUB AppSettingsCancel
 DECLARE FUNCTION AskRust AS STRING
@@ -81,6 +82,20 @@ CREATE AppDialog AS RForm
     Left = 410: Top = 215: Width = 30: Caption = "x"
     AccessibleName = "Use RapidR's icon"
     OnClick = AppIconDefault
+  END CREATE
+  CREATE AppTargetsLabel AS RLabel
+    Left = 16: Top = 250: Width = 90: Caption = "&Targets:"
+  END CREATE
+  CREATE AppTargets AS RComboBox
+    Left = 120: Top = 246: Width = 320
+    AddItems "Desktop", "Web", "Desktop and web"
+    AccessibleName = "Targets: where the program runs"
+    OnChange = AppTargetsChanged
+  END CREATE
+  CREATE AppTargetsNote AS RLabel
+    Left = 120: Top = 276: Width = 320: Height = 32
+    WordWrap = 1: AutoSize = 0
+    Caption = ""
   END CREATE
   CREATE AppKindLabel AS RLabel
     Left = 16: Top = 250: Width = 90: Caption = "B&uild:"
@@ -162,8 +177,13 @@ SUB LayOutAppDialog
   AppIconEdit.Left = x: AppIconEdit.Top = y: AppIconEdit.Width = w - 2 * (fh + 6): AppIconEdit.Height = fh
   AppIconBtn.Left = x + w - 2 * fh - 6: AppIconBtn.Top = y: AppIconBtn.Width = fh: AppIconBtn.Height = fh
   AppIconReset.Left = x + w - fh: AppIconReset.Top = y: AppIconReset.Width = fh: AppIconReset.Height = fh
-  ' (the build's settings below the app's, a little apart)
+  ' (where it runs, then the build's settings, each a little apart)
   y = y + row + pad / 2
+  AppTargetsLabel.Left = pad: AppTargetsLabel.Top = y + (fh - 16) / 2
+  AppTargets.Left = x: AppTargets.Top = y: AppTargets.Width = w
+  y = y + fh + 4
+  AppTargetsNote.Left = x: AppTargetsNote.Top = y: AppTargetsNote.Width = w: AppTargetsNote.Height = nh
+  y = y + nh + pad / 2
   AppKindLabel.Left = pad: AppKindLabel.Top = y + (fh - 16) / 2
   AppKind.Left = x: AppKind.Top = y: AppKind.Width = w
   y = y + fh + 4
@@ -184,6 +204,16 @@ SUB LayOutAppDialog
   ' (the notes in the theme's dim text)
   AppKindNote.Font.Color = TC("page.dim")
   AppKeepNote.Font.Color = TC("page.dim")
+  AppTargetsNote.Font.Color = TC("page.dim")
+END SUB
+
+' (what the Targets choice means, under it)
+SUB AppTargetsChanged
+  SELECT CASE AppTargets.ItemIndex
+    CASE 1: AppTargetsNote.Caption = "In a browser. Problems notes what works on the desktop only."
+    CASE 2: AppTargetsNote.Caption = "On the desktop and in a browser. Problems notes what works on one of them only."
+    CASE ELSE: AppTargetsNote.Caption = "Native builds and the interpreter. What works on the desktop only isn't noted."
+  END SELECT
 END SUB
 
 ' The icon's preview: the file in the Icon field (the project's own), else
@@ -250,6 +280,12 @@ SUB ShowAppSettings
     AppKind.AddItems "Compiled (Rust not installed)", "Interpreted (no Rust needed)"
   END IF
   IF Proj.BuildKind = "interpreted" THEN AppKind.ItemIndex = 1 ELSE AppKind.ItemIndex = 0
+  SELECT CASE Proj.Targets
+    CASE "web": AppTargets.ItemIndex = 1
+    CASE "both": AppTargets.ItemIndex = 2
+    CASE ELSE: AppTargets.ItemIndex = 0
+  END SELECT
+  AppTargetsChanged
   AppOutputEdit.Text = Proj.OutputFolder
   IF AppOutputEdit.Text = "" THEN AppOutputEdit.Text = "build"
   AppKeepRust.Checked = Proj.KeepRust
@@ -290,8 +326,16 @@ SUB AppSettingsOk
   ' (the default, build, isn't written in the project file)
   IF OutputShown = "build" THEN Proj.OutputFolder = "" ELSE Proj.OutputFolder = AppOutputEdit.Text
   Proj.KeepRust = AppKeepRust.Checked
+  ' (S5: the Problems pane's portability notes follow where it runs)
+  SELECT CASE AppTargets.ItemIndex
+    CASE 1: Proj.Targets = "web"
+    CASE 2: Proj.Targets = "both"
+    CASE ELSE: Proj.Targets = "desktop"
+  END SELECT
+  Lang.Targets = Proj.Targets
   AppDialog.Close
   SaveProjectFile
+  AnalyzeActive
 END SUB
 
 SUB AppSettingsCancel

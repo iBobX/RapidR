@@ -120,6 +120,15 @@ SUB DefineCommands
   AddCmd "edit.quickFix", "&Quick Fix...", "Edit", "", "Ctrl+.", "code", "-"
   AddCmd "edit.goToDefinition", "Go to &Definition", "Edit", "", "F12", "code", "-"
   AddCmd "edit.findReferences", "Find Re&ferences", "Edit", "", "Shift+F12", "code", "-"
+  ' (Back and Forward: Alt+Left and Alt+Right; on a Mac, where Option+Left
+  ' moves by words in text, Cmd+Option+Left and Right)
+  IF Proj.MacKeys THEN
+    AddCmd "nav.back", "Navigate &Back", "Edit", "Ctrl+Alt+Left", "", "", "nav.back"
+    AddCmd "nav.forward", "Navigate For&ward", "Edit", "Ctrl+Alt+Right", "", "", "nav.forward"
+  ELSE
+    AddCmd "nav.back", "Navigate &Back", "Edit", "Alt+Left", "", "", "nav.back"
+    AddCmd "nav.forward", "Navigate For&ward", "Edit", "Alt+Right", "", "", "nav.forward"
+  END IF
   AddCmd "edit.rename", "Re&name Symbol...", "Edit", "", "F2", "code", "-"
   AddCmd "edit.toggleComment", "Toggle &Comment", "Edit", "", "Ctrl+/", "code", "-"
   AddCmd "edit.format", "F&ormat Document", "Edit", "", "Shift+Alt+F", "code", "-"

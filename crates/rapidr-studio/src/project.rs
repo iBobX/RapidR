@@ -18,6 +18,9 @@
 //! | `IncludeFolders` | Studio's include folders, a line each: where `$INCLUDE` looks after the program's folder, for everything compiled here (and the programs it runs) |
 //! | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, "" none), `Error` | read-only |
 //! | `Name`, `MainFile`, `CompatMode` (`"rapidq"` or "") | read / write |
+//! | `Targets` | where the program runs: `desktop`, `web` or `both` (`[build] runs_on`; unset: `both` when it builds a web app too, else `desktop`) — the Problems pane's portability notes follow it |
+//! | `MacKeys` → True / False | the keyboard is a Mac's: Cmd is the shortcut key, Option+arrows move by words (the desktop on macOS, a page on a Mac) |
+//! | `FilesIn(Folder)` → text | the text files under Folder, a line each (full paths; hidden folders, `build`, `target` and pictures, sounds, archives left out; at most 2,000): Search's "A folder" scope |
 //! | `FileCount` | read-only |
 //! | `OnChange` | the project opened, closed, saved, or its files changed |
 
@@ -91,6 +94,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "version" => Value::String(m.project.build.version.clone()),
             "company" => Value::String(m.project.build.company.clone()),
             "buildkind" => Value::String(build_kind(&m.project).to_string()),
+            "targets" => Value::String(m.project.build.runs_on_or_default().to_string()),
             "outputfolder" => Value::String(m.project.build.output.clone()),
             "keeprust" => flag(m.project.build.keep_rust),
             "building" => flag(crate::build::building(name)),
@@ -137,6 +141,10 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
             "buildkind" => set_build_kind(&mut m.project, v.to_string_val().trim().eq_ignore_ascii_case("interpreted")),
+            "targets" => {
+                let t = v.to_string_val().trim().to_ascii_lowercase();
+                m.project.build.runs_on = if matches!(t.as_str(), "desktop" | "web" | "both") { t } else { "desktop".into() };
+            }
             "includefolders" => set_include_folders(&v.to_string_val()),
             "filename" | "folder" | "kind" | "error" | "filecount" | "building" | "builtpath" | "filemanager" | "importsummary" | "importreport" | "importmissing" | "examplecopy" => {}
             _ => return false,
@@ -740,6 +748,10 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 Err(_) => Value::String(String::new()),
             }
         }
+        // (Studio's keys) MacKeys: a Mac's keyboard (Option moves by words)
+        "mackeys" => flag(host.mac_keys()),
+        // (Search's "A folder" scope) FilesIn(Folder): its text files
+        "filesin" => Value::String(files_in(host, &s(0)).iter().map(|p| format!("{p}\n")).collect()),
         // (Find in Files) Find(Pattern, Options, Text): the matches of one
         // text, a line each; Replace(Pattern, Options, Text, With): the text
         // replaced; FileText(Path): a file's text (the disk's, the web's store)
@@ -834,6 +846,69 @@ fn include_rename_edit(m: &Model, main_text: &str, old: &str, new: &str) -> Stri
 /// escaped.
 fn patch_escaped(text: &str) -> String {
     text.replace('\\', "\\\\").replace('\n', "\\n").replace('\r', "\\r").replace('\t', "\\t")
+}
+
+/// The most files Search's "A folder" scope reads.
+const FOLDER_FILES: usize = 2000;
+
+/// Whether a file under a folder is one Search reads: not in a hidden
+/// folder or a build's output, not a picture, sound, video, font, archive
+/// or program.
+fn searchable(rel: &str) -> bool {
+    let parts: Vec<&str> = rel.split('/').collect();
+    if parts.iter().any(|p| p.starts_with('.')) || parts[..parts.len().saturating_sub(1)].iter().any(|p| matches!(p.to_ascii_lowercase().as_str(), "build" | "target" | "node_modules")) {
+        return false;
+    }
+    let ext = rel.rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default();
+    !matches!(
+        ext.as_str(),
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "icns" | "webp" | "tif" | "tiff" | "wav" | "mp3" | "ogg" | "flac" | "mid" | "midi" | "mp4" | "mov" | "avi" | "mkv" | "webm"
+            | "ttf" | "otf" | "woff" | "woff2" | "zip" | "gz" | "tar" | "7z" | "rar" | "exe" | "dll" | "dylib" | "so" | "app" | "bin" | "pdf" | "db" | "sqlite" | "parquet" | "arrow" | "xlsx" | "rrb" | "class" | "o" | "a"
+    )
+}
+
+/// Search's "A folder" scope: the text files under `folder` (full paths,
+/// sorted; at most [`FOLDER_FILES`]) — the disk's on the desktop, the
+/// page's store on the web.
+fn files_in<H: Host>(host: H, folder: &str) -> Vec<String> {
+    let folder = slashes(folder).trim_end_matches('/').to_string();
+    if folder.is_empty() {
+        return Vec::new();
+    }
+    let mut rels: Vec<String> = Vec::new();
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let _ = host;
+        let mut todo = vec![std::path::PathBuf::from(&folder)];
+        while let Some(dir) = todo.pop() {
+            let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+            for e in rd.flatten() {
+                let p = e.path();
+                let name = e.file_name().to_string_lossy().to_string();
+                if name.starts_with('.') {
+                    continue;
+                }
+                if p.is_dir() {
+                    if !matches!(name.to_ascii_lowercase().as_str(), "build" | "target" | "node_modules") {
+                        todo.push(p);
+                    }
+                } else if let Some(rel) = slashes(&p.to_string_lossy()).strip_prefix(&format!("{folder}/")) {
+                    rels.push(rel.to_string());
+                }
+            }
+            if rels.len() > FOLDER_FILES * 4 {
+                break;
+            }
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        rels = host.list_tree(&folder);
+    }
+    rels.retain(|r| searchable(r));
+    rels.sort_by_key(|r| r.to_ascii_lowercase());
+    rels.truncate(FOLDER_FILES);
+    rels.into_iter().map(|r| format!("{folder}/{r}")).collect()
 }
 
 #[cfg(test)]
