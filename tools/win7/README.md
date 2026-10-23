@@ -40,6 +40,16 @@ tools/win7/stage.sh i686                      # -> /Volumes/RapidRBuild/win7-sha
 tools/win7/serve.sh                           # with the VM running; Ctrl+C when done
 ```
 
+## Windows 7 without Service Pack 1 (the test VM is build 7600, RTM)
+
+By name, every function the .exe imports at start-up is in Windows 7 RTM (UI Automation 3.0,
+DirectWrite, DXGI 1.1, the touch API, the `K32*` process functions, SChannel); none is SP1-only. That is
+a reading of Microsoft's "minimum supported client", not a proof: the proof is starting it there.
+What a PC without updates may still lack (to watch, not yet seen): TLS 1.2 through SChannel is there but
+off by default (a program must ask for it), RSA-certificate servers get CBC suites only (no GCM), and
+the root certificates are as old as the PC's last update: AI providers and downloads can fail to verify
+on an offline, never-updated Windows 7. Nothing that needs the network is part of the smoke tests.
+
 ## What had to be done for Windows 7
 
 - `tray.rs`: the 32-bit `NOTIFYICONDATAW` is a packed struct (the spike's 3-line fix).

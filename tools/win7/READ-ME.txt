@@ -9,6 +9,11 @@ Studio's files, and a few test programs. Nothing here installs anything.
      The disc is read-only, which is why it is copied.
    - From the browser (host-only network): download  rapidr-win7.zip , right-click it,
      Extract All, into C:\  (so C:\rapidr\rapidr.exe exists).
+   - Same, typed in a Command Prompt (PowerShell 2.0 is part of Windows 7; ADDR is
+     the address tools/win7/serve.sh prints, 192.168.128.1 so far):
+       powershell -NoProfile -Command "(New-Object Net.WebClient).DownloadFile('http://ADDR:8099/rapidr-win7.zip','C:\rapidr-win7.zip')"
+       powershell -NoProfile -Command "$s=New-Object -ComObject Shell.Application; $s.NameSpace('C:\').CopyHere($s.NameSpace('C:\rapidr-win7.zip').Items(),16)"
+     Then  C:\rapidr\tests\run-tests.bat
 
 2. The smoke tests (about 1 minute)
    Double-click  C:\rapidr\tests\run-tests.bat
