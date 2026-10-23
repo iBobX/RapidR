@@ -417,7 +417,7 @@ fn build_zip(entries: &[(String, Vec<u8>)]) -> Result<Vec<u8>, String> {
     let mut buf = Cursor::new(Vec::new());
     {
         let mut zw = zip::ZipWriter::new(&mut buf);
-        let opts = zip::write::FileOptions::default()
+        let opts = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
         for (name, data) in entries {
             zw.start_file(name, opts).map_err(|e| e.to_string())?;

@@ -5,6 +5,12 @@
 //    in 0.9.10, shipped through fontique / parley and winit on Linux), and
 //    cargo-deny told to fail on unsound crates (it didn't report it at all).
 //  - anyhow ≥ 1.0.103 (RUSTSEC-2026-0190; in the lockfile only).
+//  - zip ≥ 9.0.0 (RUSTSEC-2026-0367/0368/0369, `extract()`; RapidR only
+//    writes zips, but 0.6 is gone), rustls ≥ 0.23.46 and rustls-webpki ≥
+//    0.103.16 (RUSTSEC-2026-0346..0349, 0382; in the lockfile only: reqwest's
+//    optional rustls, which no feature turns on and deny.toml bans).
+//  - The zbus family's "unmaintained" ignores (RUSTSEC-2026-0370..0372) are
+//    cargo-audit's too (checked below).
 //  - No stale ignore (RUSTSEC-2026-0173, proc-macro-error2, left the graph).
 //  - ttf-parser (RUSTSEC-2026-0192, unmaintained) is ignored on one ground:
 //    it only parses fonts built into RapidR — pinned here.
@@ -30,7 +36,7 @@ const atLeast = (v, min) => {
   for (let i = 0; i < b.length; i++) { if ((a[i] || 0) !== b[i]) return (a[i] || 0) > b[i]; }
   return true;
 };
-for (const [name, min] of [["memmap2", "0.9.11"], ["anyhow", "1.0.103"]]) {
+for (const [name, min] of [["memmap2", "0.9.11"], ["anyhow", "1.0.103"], ["zip", "9.0.0"], ["rustls", "0.23.46"], ["rustls-webpki", "0.103.16"]]) {
   const vs = versions(name);
   check(`${name} ≥ ${min} in Cargo.lock (${vs.join(", ") || "absent"})`, vs.every((v) => atLeast(v, min)));
 }
