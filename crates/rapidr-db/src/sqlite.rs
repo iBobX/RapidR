@@ -139,6 +139,7 @@ fn connect(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
             drop(old);
             host.set(name, "connected", v_int(1));
             host.set(name, "db", v_str(&path));
+            host.set(name, "intransaction", v_int(0));
             host.row_changed(name);
             host.fire(name, "onconnect", &[]);
             v_int(existed as i64)
@@ -194,6 +195,8 @@ fn close(host: &dyn Host, name: &str, key: &str) -> Value {
     let closed = DBS.with(|d| d.borrow_mut().remove(key));
     host.set(name, "connected", v_int(0));
     host.set(name, "busy", v_int(0));
+    // (closing rolls an open transaction back)
+    host.set(name, "intransaction", v_int(0));
     if closed.is_some() {
         drop(closed);
         host.fire(name, "ondisconnect", &[]);
@@ -229,12 +232,28 @@ fn query(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value {
         }
         Err(e) => {
             host.report(&format!("[SQLite] Query error: {e}"));
+            note_transaction(host, name, key);
             host.fire(name, "onerror", &[v_str(&e)]);
             false
         }
     };
+    if ok {
+        note_transaction(host, name, key);
+    }
     host.fire(name, "onquerydone", &[]);
     v_int(ok as i64)
+}
+
+/// `InTransaction` (RapidR's): 1 while a transaction is open on the
+/// connection — BEGIN (or a SAVEPOINT outside one) until COMMIT, END or
+/// ROLLBACK — as SQLite itself says (`sqlite3_get_autocommit` is 0), so a
+/// program reads it without running a query. Set after every statement the
+/// component runs, a failed one too (an error may have rolled it back).
+fn note_transaction(host: &dyn Host, name: &str, key: &str) {
+    let open = DBS.with(|d| d.borrow().get(key).and_then(|db| db.conn.try_lock().ok().map(|c| !c.is_autocommit())));
+    if let Some(open) = open {
+        host.set(name, "intransaction", v_int(open as i64));
+    }
 }
 
 /// `QueryScalar(sql [, values …])`: the first column of the first row the
@@ -250,6 +269,7 @@ fn query_scalar(host: &dyn Host, name: &str, key: &str, args: &[Value]) -> Value
         let found = run(&*db.conn()?, &sql, &values);
         found
     });
+    note_transaction(host, name, key);
     match outcome {
         Ok(table) => v_str(table.and_then(|t| t.rows.into_iter().next()?.into_iter().next()).as_deref().unwrap_or("")),
         Err(e) => {
@@ -409,7 +429,13 @@ impl Job {
     {
         let start = background::now();
         let end = match self.conn.try_lock() {
-            Ok(conn) => stream(&conn, &self.sql, &self.values, &self.shared, pause).await,
+            Ok(conn) => {
+                let end = stream(&conn, &self.sql, &self.values, &self.shared, pause).await;
+                // (InTransaction as the query left it — BEGIN in it, or a
+                // statement's error that rolled one back)
+                self.shared.transaction((!conn.is_autocommit()) as i64, None);
+                end
+            }
             // (never: the component refuses a second query while one runs)
             Err(_) => End::Failed(background::BUSY.to_string()),
         };
@@ -884,5 +910,78 @@ mod column_tests {
             r#"{"tables":[{"name":"grown","kind":"view","columns":[{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"}]},{"name":"odd \"name\"","kind":"table","columns":[{"name":"x","type":""}]},{"name":"people","kind":"table","columns":[{"name":"id","type":"INTEGER"},{"name":"name","type":"VARCHAR(40)"},{"name":"born","type":"DATE"},{"name":"score","type":"REAL"}]}]}"#
         );
         assert_eq!(method(&h, "Other", "schema", &[]).to_string_val(), "");
+    }
+}
+
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+    use std::cell::RefCell;
+
+    /// A host that keeps the properties the component sets.
+    #[derive(Default)]
+    struct Props(RefCell<HashMap<String, String>>);
+    impl Host for Props {
+        fn set(&self, _: &str, prop: &str, value: Value) {
+            self.0.borrow_mut().insert(prop.to_string(), value.to_string_val());
+        }
+        fn fire(&self, _: &str, _: &str, _: &[Value]) {}
+        fn report(&self, _: &str) {}
+    }
+
+    /// InTransaction (Database Studio's REQUEST-003 backlog): SQLite's own
+    /// word (autocommit off) after every statement — BEGIN, COMMIT, END,
+    /// ROLLBACK, SAVEPOINT / RELEASE outside and inside a transaction, a
+    /// failed statement, several in one Query, QueryScalar, a background
+    /// query (set before OnDone), Close — never a query of its own.
+    #[test]
+    fn in_transaction_follows_sqlite() {
+        let h = Props::default();
+        let call = |m: &str, sql: &str| method(&h, "Tx", m, &[v_str(sql)]).to_string_val();
+        let open = || h.0.borrow().get("intransaction").cloned().unwrap_or_default();
+        call("connect", ":memory:");
+        assert_eq!(open(), "0");
+        call("query", "CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)");
+        assert_eq!(open(), "0");
+        call("query", "BEGIN");
+        assert_eq!(open(), "1");
+        call("query", "INSERT INTO t (v) VALUES ('a')");
+        call("query", "SELECT * FROM t");
+        assert_eq!(open(), "1", "rows read inside it");
+        call("query", "COMMIT");
+        assert_eq!(open(), "0");
+        // (several statements in one Query: the state after the last)
+        call("query", "BEGIN IMMEDIATE; INSERT INTO t (v) VALUES ('b'); SELECT COUNT(*) FROM t");
+        assert_eq!(open(), "1");
+        call("query", "ROLLBACK; SELECT COUNT(*) FROM t");
+        assert_eq!(open(), "0");
+        // SAVEPOINT outside a transaction starts one; RELEASE of it ends it
+        call("query", "SAVEPOINT s1");
+        assert_eq!(open(), "1");
+        call("query", "RELEASE s1");
+        assert_eq!(open(), "0");
+        // … inside one, the transaction stays until COMMIT / END
+        call("query", "BEGIN; SAVEPOINT s2; INSERT INTO t (v) VALUES ('c'); ROLLBACK TO s2; RELEASE s2");
+        assert_eq!(open(), "1");
+        call("query", "END");
+        assert_eq!(open(), "0");
+        // a failed statement inside it: still open (SQLite keeps it)
+        call("query", "BEGIN");
+        assert_eq!(call("query", "INSERT INTO nowhere VALUES (1)"), "0");
+        assert_eq!(open(), "1");
+        // QueryScalar and a background query say it too
+        assert_eq!(call("queryscalar", "SELECT COUNT(*) FROM t"), "1");
+        call("queryscalar", "COMMIT");
+        assert_eq!(open(), "0");
+        call("queryasync", "BEGIN; SELECT v FROM t");
+        let start = std::time::Instant::now();
+        while background::poll(&h) {
+            assert!(start.elapsed().as_secs() < 10);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert_eq!(open(), "1", "after a background BEGIN");
+        // Close rolls it back: none open
+        call("close", "");
+        assert_eq!(open(), "0");
     }
 }

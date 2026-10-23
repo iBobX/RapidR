@@ -747,8 +747,11 @@ fn build(dir: &Path) -> Res<String> {
             if !id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') || matches!(id, "values" | "bool") {
                 return Err(format!("{at}: set `{id}` (lower-case words and dashes; not `values` or `bool`)"));
             }
-            if choice_sets.insert(id.to_string(), b(g, "flags").unwrap_or(false)).is_some() {
-                return Err(format!("{at}: set `{id}` twice"));
+            // (a set may span groups — RAPIDQ.INC's order splits the modal
+            // results — when they agree on being flags)
+            let flags = b(g, "flags").unwrap_or(false);
+            if choice_sets.insert(id.to_string(), flags).is_some_and(|before| before != flags) {
+                return Err(format!("{at}: set `{id}` in groups that disagree on `flags`"));
             }
         } else if g.contains_key("flags") {
             return Err(format!("{at}: `flags` says a `set` is a flag set: name the set"));

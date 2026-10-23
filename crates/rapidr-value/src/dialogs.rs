@@ -27,8 +27,9 @@ const IDNO: i64 = 7;
 
 /// `MESSAGEBOX(text, title, flags)`: the buttons for `flags` (MB_OK = 0,
 /// MB_OKCANCEL = 1, MB_ABORTRETRYIGNORE = 2, MB_YESNOCANCEL = 3, MB_YESNO =
-/// 4, MB_RETRYCANCEL = 5; icon and default-button bits are ignored), the
-/// affirmative choice first and the negative/cancelling one second.
+/// 4, MB_RETRYCANCEL = 5; the icon's bits are [`message_box_icon`]'s, the
+/// default button's [`message_box_default`]'s), the affirmative choice
+/// first and the negative/cancelling one second.
 pub fn message_box_buttons(flags: i64) -> Vec<Button> {
     match flags & 0xF {
         1 => vec![b("OK", IDOK), b("Cancel", IDCANCEL)],
@@ -63,6 +64,56 @@ pub fn message_dlg_buttons(flags: i64) -> Vec<Button> {
     } else {
         buttons
     }
+}
+
+/// `MESSAGEBOX`'s default button (Enter's): its flags' MB_DEFBUTTON2
+/// (&H100), MB_DEFBUTTON3 (&H200) or MB_DEFBUTTON4 (&H300) bits — the
+/// second, third or fourth button in Windows' order (Abort, Retry, Ignore;
+/// Yes, No, Cancel …), as Windows' MessageBox, which RapidQ's MESSAGEBOX
+/// is, honours them. `None`: the first (MB_DEFBUTTON1, or a number past
+/// the buttons). An index into [`message_box_buttons`]' list.
+pub fn message_box_default(flags: i64) -> Option<usize> {
+    let n = ((flags >> 8) & 0xF) as usize;
+    if n == 0 {
+        return None;
+    }
+    let windows_order: &[&str] = match flags & 0xF {
+        1 => &["OK", "Cancel"],
+        2 => &["Abort", "Retry", "Ignore"],
+        3 => &["Yes", "No", "Cancel"],
+        4 => &["Yes", "No"],
+        5 => &["Retry", "Cancel"],
+        _ => &["OK"],
+    };
+    let label = windows_order.get(n)?;
+    message_box_buttons(flags).iter().position(|b| b.label == *label)
+}
+
+/// `MESSAGEDLG`'s fifth argument (RapidR's; RapidQ's MESSAGEDLG has four):
+/// which of `buttons` ([`message_dlg_buttons`]) Enter presses — the one
+/// whose answer is `default` (an `mr` value: `mrNo`), or else the one of
+/// that `mb` flag (`mbNo`), when no button answers that number. `None`
+/// (0, or no such button): the first, as RapidQ has it. Escape and the
+/// close box answer as they always do ([`dismissed`]).
+pub fn message_dlg_default(buttons: &[Button], default: i64) -> Option<usize> {
+    if default == 0 {
+        return None;
+    }
+    if let Some(i) = buttons.iter().position(|b| b.result == default) {
+        return Some(i);
+    }
+    let by_flag = match default {
+        1 => "Yes",
+        2 => "No",
+        4 => "OK",
+        8 => "Cancel",
+        32 => "Abort",
+        64 => "Retry",
+        128 => "Ignore",
+        256 => "All",
+        _ => return None,
+    };
+    buttons.iter().position(|b| b.label == by_flag)
 }
 
 /// Title of a MESSAGEDLG box for its `mt*` type (mtWarning = 0, mtError = 1,
@@ -371,6 +422,37 @@ mod tests {
         assert_eq!(dismissed(&message_box_buttons(4)), 7); // Yes/No: closing = No
         assert_eq!(message_dlg_buttons(0), vec![b("OK", 1)]);
         assert_eq!(message_dlg_title(1), "Error");
+    }
+
+    #[test]
+    fn default_buttons() {
+        // MESSAGEDLG's fifth argument: the mr answer of the button Enter
+        // presses (mrNo = 7) …
+        let yes_no = message_dlg_buttons(1 | 2);
+        assert_eq!(message_dlg_default(&yes_no, 7), Some(1));
+        assert_eq!(message_dlg_default(&yes_no, 6), Some(0));
+        // … or its mb flag when no button answers that number (mbNo = 2,
+        // mrCancel's number, without a Cancel button)
+        assert_eq!(message_dlg_default(&yes_no, 2), Some(1));
+        let ync = message_dlg_buttons(1 | 2 | 8);
+        assert_eq!(message_dlg_default(&ync, 2), Some(2), "mrCancel first");
+        assert_eq!(message_dlg_default(&ync, 7), Some(1));
+        // (none, or a button that isn't there: the first, RapidQ's)
+        assert_eq!(message_dlg_default(&ync, 0), None);
+        assert_eq!(message_dlg_default(&yes_no, 1), Some(0), "mbYes (no OK button)");
+        assert_eq!(message_dlg_default(&yes_no, 3), None, "mrAbort: no Abort button");
+        assert_eq!(message_dlg_default(&yes_no, 99), None);
+        // Escape still answers as RapidQ's: Cancel, else No
+        assert_eq!(dismissed(&ync), 2);
+        // MESSAGEBOX's MB_DEFBUTTON2 / 3 bits, in Windows' button order
+        assert_eq!(message_box_default(4 | 0x100), Some(1), "Yes/No: No");
+        assert_eq!(message_box_default(3 | 0x200), Some(2), "Yes/No/Cancel: Cancel");
+        assert_eq!(message_box_default(1 | 0x100 | 0x20), Some(1), "OK/Cancel: Cancel, an icon bit around");
+        // (Abort, Retry, Ignore in Windows' order: the second is Retry)
+        let ari = message_box_buttons(2);
+        assert_eq!(message_box_default(2 | 0x100).map(|i| ari[i].label), Some("Retry"));
+        assert_eq!(message_box_default(4), None);
+        assert_eq!(message_box_default(4 | 0x200), None, "past the buttons: the first");
     }
 
     #[test]

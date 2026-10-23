@@ -325,7 +325,7 @@ pub fn rp_showmessage(msg: &Value) {
     #[cfg(feature = "gui")]
     if !crate::ui::testhooks::under_test() || crate::ui::testhooks::message_hook() {
         let title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
-        crate::ui::gui_choice(&title, &text, &["OK"], None, false, |_| v_null());
+        crate::ui::gui_choice(&title, &text, &["OK"], None, None, false, |_| v_null());
         return;
     }
     println!("[SHOWMESSAGE] {text}");
@@ -701,32 +701,36 @@ mod tests {
 
 /// `MESSAGEBOX(text, title, flags)` (RapidQ): a dialog with the buttons the
 /// MB_* flags ask for and their MB_ICONxxx icon, which beeps as Windows'
-/// MessageBox does; returns IDOK/IDYES/… for the one chosen.
+/// MessageBox does, Enter on the MB_DEFBUTTONn button; returns
+/// IDOK/IDYES/… for the one chosen.
 pub fn rp_messagebox(text: &Value, title: &Value, flags: &Value) -> Value {
     use crate::value::dialogs as d;
     let buttons = d::message_box_buttons(flags.to_i64());
-    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_icon(flags.to_i64()), true)
+    show_choice(&text.to_string_val(), &title.to_string_val(), &buttons, d::message_box_default(flags.to_i64()), d::message_box_icon(flags.to_i64()), true)
 }
 
-/// `MESSAGEDLG(text, mtType, mbButtons, helpContext)` (RapidQ): the
-/// message dialog — the type's caption ("Warning" …; mtCustom's is
-/// Application.Title) and icon; returns mr*.
-pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value) -> Value {
+/// `MESSAGEDLG(text, mtType, mbButtons, helpContext [, defaultButton])`
+/// (RapidQ's four; the fifth RapidR's): the message dialog — the type's
+/// caption ("Warning" …; mtCustom's is Application.Title) and icon, Enter
+/// on the button answering `defaultButton` (mrNo; the first without it);
+/// returns mr*.
+pub fn rp_messagedlg(text: &Value, msg_type: &Value, buttons: &Value, _help: &Value, default: &Value) -> Value {
     use crate::value::dialogs as d;
     let app_title = crate::globals::get("application", "title").map(|t| t.to_string_val()).unwrap_or_default();
     let title = d::message_dlg_caption(msg_type.to_i64(), &app_title);
     let buttons = d::message_dlg_buttons(buttons.to_i64());
-    show_choice(&text.to_string_val(), &title, &buttons, d::message_dlg_icon(msg_type.to_i64()), false)
+    let default = d::message_dlg_default(&buttons, default.to_i64());
+    show_choice(&text.to_string_val(), &title, &buttons, default, d::message_dlg_icon(msg_type.to_i64()), false)
 }
 
-fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
+fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button], default: Option<usize>, icon: Option<crate::value::dialogs::MsgIcon>, beep: bool) -> Value {
     #[cfg(feature = "gui")]
     {
         let labels: Vec<&'static str> = buttons.iter().map(|b| b.label).collect();
         let buttons = buttons.to_vec();
         // (the button chosen → its result; mapped when the box closes — in
         // the interpreter that's when the wait it serves ends)
-        crate::ui::gui_choice(title, text, &labels, icon, beep, move |choice| {
+        crate::ui::gui_choice(title, text, &labels, default, icon, beep, move |choice| {
             v_int(match choice.and_then(|i| buttons.get(i)) {
                 Some(b) => b.result,
                 None => crate::value::dialogs::dismissed(&buttons),
@@ -736,9 +740,10 @@ fn show_choice(text: &str, title: &str, buttons: &[crate::value::dialogs::Button
     #[cfg(not(feature = "gui"))]
     {
         let _ = (icon, beep);
-        // No GUI: show the message and take the first (affirmative) button.
+        // No GUI: show the message and take the default button (Enter's:
+        // the first unless the program named another).
         println!("[{title}] {text}");
-        v_int(buttons.first().map_or(1, |b| b.result))
+        v_int(buttons.get(default.unwrap_or(0)).or(buttons.first()).map_or(1, |b| b.result))
     }
 }
 

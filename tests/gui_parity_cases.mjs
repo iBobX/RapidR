@@ -328,6 +328,20 @@ export const cases = [
   // (a message box: its caption, the icon left of the text, the buttons
   // with their mnemonics)
   { name: "message_icons", events: "", dump: "lbl.caption", expect: ["lbl.caption=asked"] },
+  // (DB-D) A message box's default button: MESSAGEDLG's DefaultButton
+  // (mrNo; mbNo when no button answers 2) and MESSAGEBOX's MB_DEFBUTTON2 —
+  // the program's own SendKeys Enter answers No, Escape as always. The boxes
+  // open in a button's handler: the next event (lbl2's click) reaches the
+  // program while one waits, natively too; `__until_` waits for the caption
+  // as written (capitals)
+  { name: "message_default", events: "btn.onclick,lbl2.onclick,lbl.__until_Caption_Dlg7;Ync2;First6;Box7;Esc7;", dump: "lbl.caption,lbl2.caption",
+    expect: ["lbl.caption=Dlg7;Ync2;First6;Box7;Esc7;", "lbl2.caption=heard while a box waits"] },
+  // (DB-D, Database Studio's finding) A form shown modally from a menu
+  // item's handler gets the test's next events — its Cancel answered — and
+  // the second time the test ends with it open: dumped and captured then
+  // (a native build used to wait forever there)
+  { name: "handler_modal_events", events: "closeitem.onclick,txcancel.onclick,closeitem.onclick", dump: "lbl.caption,txform.__shown",
+    expect: ["lbl.caption=cancel;asked2;", "txform.__shown=1"] },
   // (an open menu in the accessibility tree: Alt+F, Down x4 to Recent, Right
   // opens its submenu — the kernel's menu / menuitem / radio / check nodes
   // and Chrome's, compared by tests/web_a11y.mjs)

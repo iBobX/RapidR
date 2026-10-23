@@ -33,6 +33,11 @@ struct Script {
     /// handlers the change queued run between them, and may change it back).
     waiting: Option<Instant>,
     seen: bool,
+    /// An event's handlers are running (the next waits for them). A step
+    /// that comes meanwhile comes from inside them: a native build's
+    /// handler waiting for the user (ShowModal, a message box, INPUT$ …),
+    /// whose loop steps — the next events go on then, to what it opened.
+    running: bool,
 }
 
 thread_local! {
@@ -46,14 +51,17 @@ fn sc<R>(f: impl FnOnce(&mut Option<Script>) -> R) -> R {
 /// The test's run starts (the host started under `RAPIDR_CAPTURE`): its
 /// first step at `next`.
 pub fn start(capture: Capture, next: Instant) {
-    sc(|s| *s = Some(Script { events: capture.events.clone().into(), capture, next, started: false, finished: false, waiting: None, seen: false }));
+    sc(|s| *s = Some(Script { events: capture.events.clone().into(), capture, next, started: false, finished: false, waiting: None, seen: false, running: false }));
 }
 
 /// When the test's next step may run, or the next keystroke SendKeys
-/// queued is delivered (`None`: neither).
+/// queued is delivered (`None`: neither). Asked while an event's handlers
+/// run — a native build's handler waiting for the user, its loop turning —:
+/// now, so that turn comes to [`step`], which lets the next events go on.
 pub fn next_step() -> Option<Instant> {
     let keys = (rapidr_value::send_keys::pending() > 0).then(rapidr_ui_kernel::tick::now);
-    [sc(|s| s.as_ref().map(|s| s.next)), keys].into_iter().flatten().min()
+    let next = sc(|s| s.as_ref().map(|s| if s.running { rapidr_ui_kernel::tick::now() } else { s.next }));
+    [next, keys].into_iter().flatten().min()
 }
 
 /// SendKeys' next keystroke delivered (one per turn, each after the
@@ -118,8 +126,10 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),
         Action::Ignored => {}
         // (timers during native menu tracking: the next pump held, as a menu
-        // the user keeps open would hold it)
+        // the user keeps open would hold it; the next event ms later: `step`)
         Action::Hold(ms) => rt.script_input(ScriptInput::Hold(ms)),
+        // (waited for in `step`)
+        Action::Wait(_) => {}
         // (the system tray: the form's icon clicked)
         Action::Tray(m) => crate::tray::test_message(rt, &e.comp, m),
         // (RapidR's OnThemeChange: the user switched the system to dark …
@@ -162,6 +172,16 @@ pub fn step<R: Program + Windows>(rt: R) {
         return;
     }
     let now = rt.now();
+    // (a step from inside an event's handlers: a native build's handler
+    // waits for the user — its ShowModal, message box, INPUT$ — and its loop
+    // steps. The user would answer it now: the next events come, to it,
+    // as the interpreter's do once its handler has left the wait to the VM)
+    sc(|s| {
+        if let Some(sc) = s.as_mut().filter(|sc| sc.running) {
+            sc.running = false;
+            sc.next = now + Duration::from_millis(50);
+        }
+    });
     let due = sc(|s| s.as_ref().is_some_and(|sc| sc.next <= now));
     // (nor while the program waits for work in the background — a
     // QDOWNLOAD's transfer, waited for as the interpreter waits for a
@@ -227,22 +247,45 @@ pub fn step<R: Program + Windows>(rt: R) {
         });
         return;
     }
+    // (`__wait_N`: the program runs on its own for N ms — its timers, its
+    // servers —, then the next event)
+    if let Some(TestEvent { action: Action::Wait(ms), .. }) = &next {
+        let at = now + Duration::from_millis(ms.max(&0).unsigned_abs());
+        sc(|s| {
+            if let Some(sc) = s.as_mut() {
+                sc.next = at;
+            }
+        });
+        return;
+    }
+    // (`__hold_ms`: the next event ms later, whether the host held its pump
+    // — the headless one does — or can't: real windows, the web)
+    let after = match &next {
+        Some(TestEvent { action: Action::Hold(ms), .. }) => Duration::from_millis(ms.max(&0).unsigned_abs()).max(Duration::from_millis(50)),
+        _ => Duration::from_millis(50),
+    };
     match next {
         Some(e) => {
             // (the next step soon after, however this one's handlers end — a
             // native build's run-time error unwinds them: rapidr_value::catching)
-            struct Next<R: Program>(R);
+            struct Next<R: Program>(R, Instant, Duration);
             impl<R: Program> Drop for Next<R> {
                 fn drop(&mut self) {
-                    let next = self.0.now() + Duration::from_millis(50);
+                    let next = (self.0.now() + Duration::from_millis(50)).max(self.1 + self.2);
                     sc(|s| {
                         if let Some(sc) = s.as_mut() {
                             sc.next = next;
+                            sc.running = false;
                         }
                     });
                 }
             }
-            let _next = Next(rt);
+            sc(|s| {
+                if let Some(sc) = s.as_mut() {
+                    sc.running = true;
+                }
+            });
+            let _next = Next(rt, now, after);
             run_event(rt, e);
             rt.dispatch_pending();
         }

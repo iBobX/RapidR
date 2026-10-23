@@ -282,7 +282,7 @@ A list box's Style: standard, or drawn by the program with fixed or variable ite
 
 ## Modal results
 
-Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it.
+Results of a form shown with ShowModal, a button's ModalResult that closes the form with it, and the answer `MESSAGEDLG` gives (its `DefaultButton` names one).
 
 `mrAbort` = 3, `mrAll` = 8, `mrCancel` = 2, `mrIgnore` = 5, `mrNo` = 7, `mrNone` = 0
 
@@ -294,7 +294,7 @@ More modal results: "No to all" and "Yes to all".
 
 ## Modal results
 
-Results of a form shown with ShowModal, and a button's ModalResult that closes the form with it.
+Results of a form shown with ShowModal, a button's ModalResult that closes the form with it, and the answer `MESSAGEDLG` gives (its `DefaultButton` names one).
 
 `mrOk` = 1, `mrRetry` = 4, `mrYes` = 6
 

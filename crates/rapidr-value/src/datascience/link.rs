@@ -550,8 +550,16 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
         ("RDBGRID", "datasource") => {
             with(|s| {
                 if let Some(g) = s.grids.get_mut(&id) {
-                    g.source = text.trim().to_string();
-                    g.sort = None;
+                    let source = text.trim().to_string();
+                    // (bound again to what it shows — a program that binds
+                    // before each query, its ORDER BY's rows streaming in —:
+                    // the sort stays, so a heading's next click goes on from
+                    // it, ascending → descending → none; another source
+                    // starts unsorted)
+                    if !source.eq_ignore_ascii_case(&g.source) {
+                        g.sort = None;
+                    }
+                    g.source = source;
                     g.top = 0;
                     g.seen = None;
                 }
@@ -1772,6 +1780,53 @@ mod tests {
         assert_eq!(*grid_order("t2grid", &d).unwrap().0, vec![2, 0, 1]);
         grid_title_click("t2grid", 1);
         assert!(grid("t2grid").unwrap().sort.is_none());
+    }
+
+    /// (Database Studio's finding) A grid's sort stays as rows come: rows
+    /// appended to its data set are sorted in; bound again to the same
+    /// source (a program binding before each query) it keeps its sort, so
+    /// a heading's next click goes on from it — ascending, descending,
+    /// none; another source starts unsorted.
+    #[test]
+    fn a_grids_sort_stays_as_rows_come_and_its_source_is_set_again() {
+        setup(&[("t9df", "RDATAFRAME"), ("t9other", "RDATAFRAME"), ("t9grid", "RDBGRID")]);
+        frame::set_frame("t9df", frame::parse_csv(PEOPLE));
+        frame::set_frame("t9other", frame::parse_csv(PEOPLE));
+        set_s("t9grid", "datasource", "t9df");
+        grid_title_click("t9grid", 1);
+        // rows appended (a stream's next chunk): sorted in by age
+        let mut b = frame::FrameBuilder::new(&["name", "age", "city"], 2);
+        for (n, a, c) in [("zoe", "1", "NY"), ("max", "99", "SF")] {
+            b.push(0, Some(n));
+            b.push(1, Some(a));
+            b.push(2, Some(c));
+            b.end_row();
+        }
+        frame::with_frame_mut("t9df", |f| f.append(&b.finish(0)));
+        let d = grid("t9grid").unwrap();
+        assert_eq!((d.rows, d.sort), (5, Some((1, false))));
+        let (order, _) = grid_order("t9grid", &d).unwrap();
+        assert_eq!(order.first(), Some(&3), "zoe (1) first: {order:?}");
+        assert_eq!(order.last(), Some(&4), "max (99) last: {order:?}");
+        // bound again to the same source (any case): the sort stays, the
+        // next click descends
+        set_s("t9grid", "datasource", "T9DF");
+        assert_eq!(get("t9grid", "sortcolumn"), Some(v_int(1)));
+        grid_title_click("t9grid", 1);
+        assert_eq!(grid("t9grid").unwrap().sort, Some((1, true)));
+        assert_eq!(get("t9grid", "sortdescending"), Some(v_int(1)));
+        // a sort the program set (its ORDER BY) is where the cycle goes on
+        set("t9grid", "sortcolumn", &v_int(2));
+        set("t9grid", "sortdescending", &v_int(0));
+        set_s("t9grid", "datasource", "t9df");
+        grid_title_click("t9grid", 2);
+        assert_eq!(grid("t9grid").unwrap().sort, Some((2, true)));
+        grid_title_click("t9grid", 2);
+        assert_eq!(grid("t9grid").unwrap().sort, None);
+        // another source: unsorted
+        grid_title_click("t9grid", 0);
+        set_s("t9grid", "datasource", "t9other");
+        assert_eq!(get("t9grid", "sortcolumn"), Some(v_int(-1)));
     }
 
     #[test]
