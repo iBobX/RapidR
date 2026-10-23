@@ -74,9 +74,12 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # code, docs or UI text; tools/words-allowlist.txt lists what stays)
   python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
   # (no API key's shape anywhere, real or made up: tests build theirs from two pieces)
-  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"; echo "(unit done)"; fi
+  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
+  # (no private key, certificate, signing key or token in a tracked file)
+  python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; echo "(unit done)"; fi
 if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
-  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"; fi
+  python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
+  python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
   echo "== the language registry against the desktop runtimes"; node tests/lang_conformance.mjs --backend vm,native 2>&1 | grep -E "^FAIL|passed"; fi
 # (every example in examples/ on every runtime it claims — rapidr run,
@@ -158,9 +161,10 @@ if want security; then echo "== security"
   out=$(CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-3}" cargo test -q -p rapidr-webbundle -p rapidr-lsp -p rapidr-dap security_ 2>&1) || { echo "cargo security tests: FAILED"; echo "$out" | grep -E "panicked|FAILED|^error" | head -5; }
   echo "(security done)"
 fi
-# Licences and notices (LEGAL.md, docs/licensing.md): a licence outside
-# deny.toml's allowlist (permissive only) or a replaced crate (its [bans])
-# anywhere in the workspace fails; THIRD_PARTY_NOTICES.md is current; every
+# Licences, advisories and notices (LEGAL.md, docs/licensing.md): a licence
+# outside deny.toml's allowlist (permissive only), a replaced crate (its
+# [bans]), a known vulnerability or an unjustified unmaintained crate
+# (cargo deny's advisories, cargo audit) anywhere in the workspace fails; THIRD_PARTY_NOTICES.md is current; every
 # kind of output keeps to the permissive list and carries a
 # THIRD-PARTY-NOTICES.txt listing every crate in it. Any of these failing
 # fails the run (exit 1).
@@ -186,8 +190,20 @@ if want perf; then echo "== perf"
   echo "$out" | grep -E "✗|Studio perf"; fi
 LEGAL_FAILED=0
 if want legal; then echo "== legal"
-  out=$(cargo deny check licenses bans 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^error" -A8 | head -40; }
+  # all four checks: advisories (a known vulnerability, or an unmaintained or
+  # unsound crate not justified in deny.toml's ignore list), licenses, bans
+  # and sources. RAPIDR_OFFLINE=1 reads the advisory database already on
+  # disk instead of fetching it.
+  out=$(cargo deny ${RAPIDR_OFFLINE:+--offline} check 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^error" -A8 | head -40; }
   echo "$out" | tail -1
+  # (the same advisories read from Cargo.lock by cargo-audit, if installed:
+  # .cargo/audit.toml keeps its ignore list in step with deny.toml's)
+  if command -v cargo-audit >/dev/null 2>&1; then
+    out=$(cargo audit ${RAPIDR_OFFLINE:+--no-fetch} 2>&1) || { LEGAL_FAILED=1; echo "$out" | grep -E "^(Crate|Version|Title|ID|Solution)" | head -40; }
+    echo "$out" | grep -E "vulnerabilities found|Scanning" | tail -1
+  else echo "(cargo-audit not installed: cargo install --locked cargo-audit)"; fi
+  # (no private key, certificate, signing key or token in a tracked file)
+  python3 tools/check_secrets.py || LEGAL_FAILED=1
   python3 tools/third_party_notices.py --check || LEGAL_FAILED=1
   out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
   echo "$out" | grep -E "FAIL|notices: all ok"; fi
