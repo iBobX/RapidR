@@ -979,6 +979,33 @@ const CASES = [
     delay: 6,
     dump: { "codedoc(0).caretline": /^42$/ },
   },
+  {
+    // (POLISH-2) Go to Line (Ctrl+G; Cmd+G on a Mac): the box keeps its
+    // ":" and the number is typed after it; the caret goes there and the
+    // status bar's line with it
+    name: "editor-go-to-line",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+G,wait,type:12,key:Enter,wait,wait",
+    delay: 5,
+    dump: { "codedoc(0).caretline": /^12$/, "status.panel(2).caption": /^Ln 12, Col 1$/ },
+  },
+  {
+    // (POLISH-2) Undone back to the text on disk, the document isn't
+    // marked changed any more (its tab's dot, the window's)
+    name: "editor-undo-to-saved",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,type:x,wait,key:Ctrl+Z,wait,wait",
+    delay: 5,
+    dump: { "studio.modified": /^(0|False)$/i, "codedoc(0).modified": /^(0|False)$/i },
+  },
+  {
+    // …and redone away from it, marked again
+    name: "editor-redo-from-saved",
+    open: "examples/gui/hello_form.rr",
+    do: "focus:codedoc(0),key:Ctrl+End,type:x,wait,key:Ctrl+Z,wait,key:Ctrl+Y,wait,wait",
+    delay: 5,
+    dump: { "studio.modified": /^(1|-1|True)$/i, "codedoc(0).modified": /^(1|-1|True)$/i },
+  },
   // (E0–E2, docs/code-helpers-plan.md) The code's helpers on
   // examples/studio/helpers.rr, by the keys a user presses: Ctrl+. on a
   // value opens its editor, what it picks is written back in the code's own
@@ -3014,11 +3041,28 @@ const CASES = [
     do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
     delay: 6,
     capture: true,
+    env: { RAPIDR_TEST_RESIZE: "800,700" },
     dump: {
       "session.currentline": /^6$/,
       // (the hint is set only when a panel is shortened; the bar itself in
       // the capture)
       "status.hint": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
+      "status.panel(0).caption": /^ {2}Breakpoint: a_prog[^…]*…[^…]*_bar\.rr:6$/,
+      "status.accessibledescription": /^Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6( - .*)?$/,
+    },
+  },
+  {
+    // (POLISH-2) …where the bar has the room — Studio's own size —, the
+    // state takes it and says it all; the project's name gives way
+    name: "debug-status-long-name-room",
+    open: "tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr",
+    webFiles: ["tests/fixtures/studio_debug/a_program_whose_name_is_far_too_long_for_the_status_bar.rr"],
+    do: "line:6,key:F9,key:F5,wait,wait,wait,wait",
+    delay: 6,
+    dump: {
+      "session.currentline": /^6$/,
+      "status.panel(0).caption": /^ {2}Breakpoint: a_program_whose_name_is_far_too_long_for_the_status_bar\.rr:6$/,
+      "status.panel(2).width": /^110$/,
     },
   },
   // ---- DEBUG-RUN, scenario 15: Variables > Globals — the program's own
@@ -3194,6 +3238,43 @@ const CASES = [
     delay: 12,
     dump: { "outputbox.text": /^Handle can't be changed: it's read-only\.$/m },
     a11y: [[/^Cursor, constant crHandPoint, changed$/, "treeitem"], [/Can't set Handle: see Output/, "label"]],
+  },
+  {
+    // (POLISH-2) Ctrl+C — ⌘C on a Mac, the tree's OnCopy — in Variables:
+    // Edit > Copy, the selected value copied (the tests' own clipboard)
+    name: "debug-copy-value",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,varpick:G/i,key:Ctrl+C,wait,wait,wait",
+    delay: 8,
+    dump: { "clipboard.text": /^1$/, "status.panel(0).caption": /Copied the value \(1 character\)/ },
+  },
+  {
+    // (POLISH-2) F5 after a pause, the program running on (a line that
+    // takes seconds): a moment later Call Stack and Variables say it's
+    // running — the last pause's values aren't the program's any more —;
+    // at the next pause (Pause) they're filled again
+    name: "debug-running-stale",
+    open: "tests/fixtures/studio_debug/runs_on.rr",
+    webFiles: ["tests/fixtures/studio_debug/runs_on.rr"],
+    do: "line:12,key:F9,key:F5,wait,wait,wait,wait,panes:report,key:F5,wait,wait,panes:report,run.pause,wait,wait,wait,panes:report",
+    delay: 12,
+    dump: {
+      "outputbox.text": /\[panes\] \(the program\)[^\n]* \| Locals\n[\s\S]*\[panes\] Running… \| Running… the values show when it pauses[^\n]*\n[\s\S]*\[panes\] (?!Running)[^\n]* \| Locals/,
+    },
+  },
+  {
+    // (POLISH-2) a form's Enabled and Visible are on / off as every other
+    // component's (the registry's boolean kind): "1 · on"
+    name: "debug-form-on-off",
+    open: "examples/debugging/shop.rr",
+    webFiles: ["examples/debugging/shop.rr"],
+    do: "line:76,debug.toggleBreakpoint,run.start,wait,wait,wait,view.variables,collapse:L,collapse:G,expand:C,wait,wait,expand:C/Form,wait,wait",
+    delay: 10,
+    dump: { "session.state": /^paused$/ },
+    // (not shown yet at line 76: Visible is 0, off)
+    a11y: [[/^Enabled, -?1, on$/, "treeitem"], [/^Visible, 0, off$/, "treeitem"]],
   },
   {
     // …the status bar names the constant picked
@@ -4109,6 +4190,26 @@ const CASES = [
       "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/v1$/,
       "aistatus.simpletext": /^RAI is ready: mock-small\.$/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      // (POLISH-2: the models asked for at Finish, as ↻: the panel's own
+      // list, not only the wizard's)
+      "ai.modelcount": /^[1-9]\d*$/,
+    },
+  },
+  {
+    // (POLISH-2) …a server whose list says each model's window (the mock's
+    // `tiny`: 8,192 tokens): known at Finish, without ↻ — the context
+    // meter's limit is the model's
+    name: "ai-r6-setup-local-window",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupprobes={mockroot}/s/tiny/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup,wait",
+    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    dump: {
+      "aisetup.visible": /^(0|False)$/i,
+      "aistatus.simpletext": /^RAI is ready: mock-small\.$/,
+      "ai.modelcount": /^[1-9]\d*$/,
+      "ai.contextwindow": /^8192$/,
     },
   },
   {
@@ -4126,6 +4227,8 @@ const CASES = [
       "ai.model": /^claude-mock-haiku-1$/,
       "ai.haskey": /^(-1|1|True)$/i,
       "aisetup.visible": /^(0|False)$/i,
+      // (POLISH-2: the models asked for at Finish, as ↻)
+      "ai.modelcount": /^[1-9]\d*$/,
     },
   },
   {

@@ -258,6 +258,7 @@ SUB SearchOpen
     ' the lines before)
     CodeDoc(d).GotoLineColumn HitLine(i), HitCol(i)
     CodeDoc(d).SelLength = HitLen(i)
+    EditorFacts d
   END IF
 END SUB
 

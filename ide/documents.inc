@@ -296,14 +296,25 @@ SUB CloseDocument(d AS INTEGER)
   UpdateCommands
 END SUB
 
+' (POLISH-2) Document d is marked changed while its text differs from what
+' was saved: undone back to it, the dot and the title's mark go; redone
+' away, they come back (the code editor's Modified compares the text).
+SUB DirtyFollows(d AS INTEGER)
+  DIM now AS INTEGER
+  IF d < 0 OR d >= DocCount THEN EXIT SUB
+  IF DocOpen(d) = 0 THEN EXIT SUB
+  now = Flag(CodeDoc(d).Modified)
+  IF now <> DocDirty(d) THEN
+    DocDirty(d) = now
+    DocTitles d
+  END IF
+END SUB
+
 SUB CodeChanged(Sender AS RCodeEditor)
   DIM d AS INTEGER
   IF Loading THEN EXIT SUB
   d = Sender.Tag
-  IF DocDirty(d) = 0 THEN
-    DocDirty(d) = 1
-    DocTitles d
-  END IF
+  DirtyFollows d
   CodeTyped d
   ' (the problems and the outline follow once typing stops)
   Analyzer.Enabled = 0

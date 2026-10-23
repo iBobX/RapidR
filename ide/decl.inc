@@ -99,6 +99,7 @@ DIM StateText AS STRING
 ' (the status bar's text measured: a long file name shortened in its middle)
 DIM StatusMeasure AS RBitmap
 DECLARE FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE FUNCTION StateRoom AS INTEGER
 DECLARE SUB ShowStatusHint
 
 DECLARE SUB RunCommand(Id AS STRING)
@@ -166,6 +167,7 @@ DECLARE SUB ApplyDebugColors
 DECLARE SUB ApplyDebugFonts(Rows AS INTEGER)
 DECLARE SUB PerfReadyTick
 DECLARE SUB StepRaiseTick
+DECLARE SUB StaleTick
 DECLARE SUB RaiseRetryTick
 DECLARE SUB ProgramFormShown(Id AS STRING)
 DECLARE SUB StopProgram

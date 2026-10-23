@@ -147,13 +147,12 @@ SUB ApplyState
       Status.Color = TC("statusbar")
       Status.Font.Color = TC("statusbar.text")
   END SELECT
-  ' (a long file name shortened in its middle — the line number at the end
-  ' stays —, the whole of it the bar's tooltip)
-  Status.Panel(0).Caption = "  " + FitMiddle(StateText, Status.Panel(0).Width - 14)
-  ShowStatusHint
+  ' (the state takes the room it needs: LayOutStatus)
+  LayOutStatus
 END SUB
 
-' (the bar's tooltip: what a shortened panel says in full)
+' (the bar's tooltip and what a screen reader says beside its panels: what
+' a shortened panel says in full)
 SUB ShowStatusHint
   DIM h AS STRING
   IF Status.Panel(0).Caption <> "  " + StateText THEN h = StateText
@@ -163,7 +162,17 @@ SUB ShowStatusHint
   END IF
   Status.Hint = h
   Status.ShowHint = (h <> "")
+  Status.AccessibleDescription = h
 END SUB
+
+' (POLISH-2) The room the state can have, in pixels of text: the bar's
+' width but the file's facts (theirs kept) and a little of the project's
+' name — at least the 230 pixels it always had.
+FUNCTION StateRoom AS INTEGER
+  Result = Studio.ClientWidth - 110 - 70 - 60 - 160 - 40
+  IF Result < 230 THEN Result = 230
+  Result = Result - 14
+END FUNCTION
 
 ' Text as it fits in Room pixels of the status bar's font: whole, or with
 ' its middle taken out for "…" — its start and its end (a line number, a
@@ -195,17 +204,29 @@ SUB SetUpStatus
   LayOutStatus
 END SUB
 
-' (the state at the left, the file's facts at the right; the project between)
+' (the state at the left, the file's facts at the right; the project between.
+' POLISH-2: the state is as wide as its words need — 230 pixels at least —,
+' taking from the project's name, never from the facts; only words longer
+' than the whole room are shortened, in their middle (a file's line number
+' at the end stays), the whole of them the bar's tooltip)
 SUB LayOutStatus
-  DIM w AS INTEGER
-  w = Studio.ClientWidth - 230 - 110 - 70 - 60 - 160
+  DIM w AS INTEGER, w0 AS INTEGER
+  StatusMeasure.Font.Name = StatusFont.Name: StatusMeasure.Font.Size = StatusFont.Size
+  w0 = StatusMeasure.TextWidth(StateText) + 14
+  IF w0 < 230 THEN w0 = 230
+  IF w0 > StateRoom + 14 THEN w0 = StateRoom + 14
+  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160
   IF w < 40 THEN w = 40
-  Status.Panel(0).Width = 230
+  Status.Panel(0).Width = w0
+  Status.Panel(0).Caption = "  " + FitMiddle(StateText, w0 - 14)
   Status.Panel(1).Width = w
   Status.Panel(2).Width = 110
   Status.Panel(3).Width = 70
   Status.Panel(4).Width = 60
-  IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName, w - 12) ELSE Status.Panel(1).Caption = ""
+  ' (a layout's note there stays its four seconds: debug.inc's LayoutNote)
+  IF LayoutNoteTimer.Enabled = 0 THEN
+    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName, w - 12) ELSE Status.Panel(1).Caption = ""
+  END IF
   ShowStatusHint
 END SUB
 

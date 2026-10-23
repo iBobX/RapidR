@@ -38,6 +38,8 @@ SUB FileUndo(d AS INTEGER, Redo AS INTEGER)
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   IF DocOpen(d) = 0 THEN EXIT SUB
   IF Redo THEN CodeDoc(d).Redo ELSE CodeDoc(d).Undo
+  ' (back to the saved text: no longer marked changed — documents.inc)
+  DirtyFollows d
   IF DocHasForm(d) THEN DesignRead d
   ' (the inspector shows the values undone)
   InspectActive

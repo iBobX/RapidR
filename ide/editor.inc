@@ -157,6 +157,7 @@ SUB CodeNavigate(File AS STRING, LineNo AS INTEGER, ColNo AS INTEGER, Sender AS 
   IF d < 0 THEN EXIT SUB
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
   CodeDoc(d).GotoLineColumn LineNo, ColNo
+  EditorFacts d
 END SUB
 
 ' (a JSON string's value after Key in Item: "" when it isn't there)

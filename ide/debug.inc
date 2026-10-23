@@ -255,6 +255,17 @@ DIM StepRaise AS RTimer
 StepRaise.Interval = 500
 StepRaise.Enabled = 0
 StepRaise.OnTimer = StepRaiseTick
+' (POLISH-2) After a pause the program runs on: once it has run a moment —
+' a step that stops again at once doesn't flicker —, Call Stack, Variables
+' and Watch say it's running (the last pause's values are no longer the
+' program's) and fill again at the next pause, Variables where it was.
+DIM StaleTimer AS RTimer
+StaleTimer.Interval = 300
+StaleTimer.Enabled = 0
+StaleTimer.OnTimer = StaleTick
+DIM DebugStale AS INTEGER
+DIM StaleVarsTop AS INTEGER
+DIM StaleVarsPicked AS STRING
 ' (this run's first window has been brought to the front)
 DIM RunRaised AS INTEGER
 ' (the first window's raise, tried again until the system knows the new
@@ -268,6 +279,28 @@ DIM RaiseTries AS INTEGER
 SUB StepRaiseTick
   StepRaise.Enabled = 0
   IF RunState = "running" THEN ShowProgram 0
+END SUB
+
+SUB StaleTick
+  StaleTimer.Enabled = 0
+  IF RunState = "running" THEN ShowRunningPanes
+END SUB
+
+' (the program runs: the panes say so — Variables' place kept for the next
+' pause)
+SUB ShowRunningPanes
+  IF DebugStale THEN EXIT SUB
+  StaleVarsTop = VarsTree.TopIndex
+  StaleVarsPicked = ""
+  IF VarsTree.ItemIndex >= 0 AND VarsTree.ItemIndex <= MAXVARITEMS THEN StaleVarsPicked = VarItemPath(VarsTree.ItemIndex)
+  DebugStale = 1
+  TreeFilling = 1
+  StackTree.Clear
+  FrameCount = 0
+  StackTree.AddItems "Running…"
+  TreeFilling = 0
+  FillVariables
+  FillWatches
 END SUB
 
 SUB RaiseRetryTick
@@ -781,6 +814,7 @@ SUB GoToFirstProblem
       IF FIELD$(row, CHR$(9), 5) = "" THEN
         Dock.FocusPane(DocPane(d))
         CodeDoc(d).GotoLine VAL(FIELD$(row, CHR$(9), 2)) - 1
+        EditorFacts d
       END IF
       EXIT SUB
     END IF
@@ -1050,6 +1084,7 @@ END SUB
 SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   DIM what AS STRING, kind AS STRING
   StepRaise.Enabled = 0
+  StaleTimer.Enabled = 0
   ' (the run's stops, for the flows' stops:report)
   StopLog = StopLog + " " + Num(LineNo) + ":" + Reason
   PausedFile = DebugPath(InFile)
@@ -1078,6 +1113,7 @@ SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
   FillCallStack
   FillVariables
   FillWatches
+  DebugStale = 0
   ShowPausedValues
   ' (the debugging layout, Variables in front — S9)
   DebugLayoutPaused
@@ -1149,10 +1185,15 @@ SUB ProgramContinued
   ForgetSetValues
   SetState "running", "Running " + FileTitle(ProjectMain)
   ClearPausedMarks
+  ' (still running in a moment: the panes say so — ShowRunningPanes)
+  StaleTimer.Enabled = 0
+  StaleTimer.Enabled = 1
 END SUB
 
 SUB ProgramExited(Code AS INTEGER)
   StepRaise.Enabled = 0
+  StaleTimer.Enabled = 0
+  DebugStale = 0
   OutputAfterProgram "[" + FileTitle(ProjectMain) + " ended, exit code " + Num(Code) + "]"
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
@@ -1323,9 +1364,18 @@ SUB FillVariables
   TreeFilling = 1
   top = VarsTree.TopIndex
   IF VarsTree.ItemIndex >= 0 AND VarsTree.ItemIndex <= MAXVARITEMS THEN picked = VarItemPath(VarsTree.ItemIndex)
+  ' (after a run on: where it was at the last pause — ShowRunningPanes)
+  IF DebugStale THEN
+    top = StaleVarsTop
+    picked = StaleVarsPicked
+  END IF
   VarsTree.Clear
   IF RunState <> "paused" THEN
-    VarsTree.AddItems "Not paused: F9 sets a breakpoint, F5 runs."
+    IF RunState = "running" THEN
+      VarsTree.AddItems "Running… the values show when it pauses (F9 sets a breakpoint)."
+    ELSE
+      VarsTree.AddItems "Not paused: F9 sets a breakpoint, F5 runs."
+    END IF
     TreeItemData 0, 0, 0, ""
     TreeFilling = 0
     EXIT SUB
@@ -1384,7 +1434,11 @@ SUB FillWatches
     expr = FIELD$(row, CHR$(9), 1)
     value = FIELD$(row, CHR$(9), 2)
     wref = VAL(FIELD$(row, CHR$(9), 4))
-    IF RunState <> "paused" THEN value = "(not paused)"
+    IF RunState = "running" THEN
+      value = "(running)"
+    ELSEIF RunState <> "paused" THEN
+      value = "(not paused)"
+    END IF
     WatchTree.AddItems ValueText(expr, value)
     item = WatchTree.ItemCount - 1
     TreeItemData 1, item, wref, "W" + Num(k)
@@ -1892,6 +1946,13 @@ SUB TreeUndo
   IF RunState = "paused" THEN UndoSetValue
 END SUB
 
+' (POLISH-2) Ctrl+C — ⌘C on a Mac — in Variables or Watch (the tree's
+' OnCopy): Edit > Copy, which copies the selected value there
+' (DebugPaneCommand).
+SUB TreeCopy
+  RunCommand "edit.copy"
+END SUB
+
 ' Ctrl+Z in Variables or Watch while paused: the last value set goes back.
 SUB UndoSetValue
   IF UndoCount < 1 THEN
@@ -2048,7 +2109,6 @@ END SUB
 ' (Delete on a watch: gone)
 SUB WatchTreeKey(Key AS INTEGER, Shift AS INTEGER)
   DIM i AS INTEGER, w AS STRING, n AS INTEGER, k AS INTEGER, acc AS STRING, at AS INTEGER
-  IF CopyKey(1, Key, Shift) THEN Key = 0: EXIT SUB
   IF Key <> 46 AND Key <> 8 THEN EXIT SUB
   i = WatchTree.ItemIndex
   IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
@@ -2242,7 +2302,7 @@ SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INT
         ' room — the value itself is never shortened for it)
         msg = SetVarExpr + " = " + IIF(SetVarShown <> "", SetVarShown, Answer)
         IF SetVarOld <> "" THEN
-          IF FitMiddle(msg + "  (Ctrl+Z undoes)", Status.Panel(0).Width - 14) = msg + "  (Ctrl+Z undoes)" THEN msg = msg + "  (Ctrl+Z undoes)"
+          IF FitMiddle(msg + "  (Ctrl+Z undoes)", StateRoom) = msg + "  (Ctrl+Z undoes)" THEN msg = msg + "  (Ctrl+Z undoes)"
         END IF
         SetState RunState, msg
       END IF
@@ -2294,7 +2354,7 @@ SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INT
       SetState RunState, "Can't copy: " + LTRIM$(MID$(Answer, 7))
     ELSE
       Clipboard.Text = Answer
-      SetState RunState, "Copied the value (" + Num(LEN(Answer)) + " characters)"
+      SetState RunState, "Copied the value (" + Num(LEN(Answer)) + IIF(LEN(Answer) = 1, " character)", " characters)")
     END IF
   ELSEIF Id = ViewEvalId THEN
     ViewEvalId = -1
@@ -2694,18 +2754,28 @@ SUB SetUpValueMenus
   NEXT
 END SUB
 
-' (Ctrl+C in Variables or Watch: the value copied — true when it was)
-FUNCTION CopyKey(w AS INTEGER, Key AS INTEGER, Shift AS INTEGER) AS INTEGER
-  ' (Ctrl+C: ssCtrl is 16)
-  IF Key = 67 AND (Shift AND 16) <> 0 THEN
-    ValueAction "copy", PickedExpr(w), PickedShown(w)
-    Result = 1
-  END IF
+' (Edit's commands while Variables or Watch has the focus, before the
+' document's — shell.inc's RunCommand: Copy the selected value — Ctrl+C,
+' ⌘C on a Mac, comes as the tree's OnCopy: TreeCopy —, Undo the last value
+' set while paused — Ctrl+Z, the tree's OnUndo; True when Id was one)
+FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
+  DIM w AS INTEGER
+  SELECT CASE LCASE$(Dock.ActivePane)
+    CASE "varstree": w = 0
+    CASE "watchpanel": w = 1
+    CASE ELSE: EXIT FUNCTION
+  END SELECT
+  SELECT CASE Id
+    CASE "edit.copy"
+      ValueAction "copy", PickedExpr(w), PickedShown(w)
+      Result = 1
+    CASE "edit.undo"
+      IF RunState = "paused" THEN
+        UndoSetValue
+        Result = 1
+      END IF
+  END SELECT
 END FUNCTION
-
-SUB VarsTreeKey(Key AS INTEGER, Shift AS INTEGER)
-  IF CopyKey(0, Key, Shift) THEN Key = 0: EXIT SUB
-END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
 ' True when Id was one of Run's or Debug's (and it ran).
@@ -2720,14 +2790,8 @@ FUNCTION DebugCommand(Id AS STRING) AS INTEGER
     StepRaise.Enabled = 0
     StepRaise.Enabled = 1
   END IF
-  ' (S11) Edit > Undo — Ctrl+Z — in Variables or Watch while paused: the
-  ' last value set goes back (the code's own undo elsewhere)
-  IF Id = "edit.undo" AND RunState = "paused" THEN
-    IF INSTR("|varstree|watchpanel|", "|" + LCASE$(Dock.ActivePane) + "|") > 0 THEN
-      UndoSetValue
-      EXIT FUNCTION
-    END IF
-  END IF
+  ' ((S11) Edit > Undo in Variables or Watch while paused: DebugPaneCommand,
+  ' before the documents' commands)
   SELECT CASE Id
     CASE "run.start"
       IF RunState = "paused" THEN ContinueProgram ELSE StartProgram 1
@@ -2822,6 +2886,7 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       IF d >= 0 THEN
         Dock.FocusPane(DocPane(d))
         CodeDoc(d).GotoLine VAL(arg) - 1
+        EditorFacts d
       END IF
     CASE "watch"
       WatchEdit.Text = arg
@@ -2939,6 +3004,15 @@ FUNCTION DebugStep(Stp AS STRING) AS INTEGER
       ' (stops:report — every stop of this run: "[stops] 58:breakpoint
       ' 58:breakpoint 59:step …", line and reason)
       OutputLine "[stops]" + StopLog
+    CASE "panes"
+      ' (panes:report — the first rows Call Stack and Variables show now:
+      ' "[panes] Running… | Running… the values …" while it runs on —
+      ' POLISH-2)
+      arg = "[panes] "
+      IF StackTree.ItemCount > 0 THEN arg = arg + StackTree.Item(0).Text
+      arg = arg + " | "
+      IF VarsTree.ItemCount > 0 THEN arg = arg + VarsTree.Item(0).Text
+      OutputLine arg
     CASE "extent"
       ' (extent:<pane>:<width|height>:<pixels> — a splitter dragged so the
       ' pane's part is that size, as the user drags it — S9's sizes)
@@ -3042,9 +3116,9 @@ SUB SetUpDebug
   VarsTree.ReadOnly = 0
   VarsTree.OnEditing = VarsEditing
   VarsTree.OnEdited = VarsEdited
-  VarsTree.OnKeyDown = VarsTreeKey
   VarsTree.OnDblClick = VarsDblClick
   VarsTree.OnUndo = TreeUndo
+  VarsTree.OnCopy = TreeCopy
 
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
@@ -3071,6 +3145,7 @@ SUB SetUpDebug
   WatchTree.OnKeyDown = WatchTreeKey
   WatchTree.OnDblClick = WatchDblClick
   WatchTree.OnUndo = TreeUndo
+  WatchTree.OnCopy = TreeCopy
   WatchTree.ReadOnly = 0
   WatchTree.OnEditing = WatchEditing
   WatchTree.OnEdited = WatchEdited
