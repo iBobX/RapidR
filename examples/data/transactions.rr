@@ -1,0 +1,108 @@
+' transactions.rr: a transaction you can see, and a close question whose
+' safe answer is the one Enter gives. Begin starts a transaction, Add puts
+' a row in it, Commit keeps the rows, Rollback drops them. The status line
+' says what SQLite says (InTransaction, RapidR's): reading it runs no query
+' of its own, so the grid's rows stay. Closing the window while a
+' transaction is open asks first, and Enter answers No (MESSAGEDLG's fifth
+' argument, mrNo): a stray Enter never loses the rows.
+'
+'   rapidr run data/transactions.rr
+'
+' RMySQL has InTransaction too, and Autocommit (the server says them).
+
+$THEME rapidr
+
+DECLARE SUB BeginClick
+DECLARE SUB AddClick
+DECLARE SUB CommitClick
+DECLARE SUB RollbackClick
+DECLARE SUB FormClose (Action AS INTEGER)
+DECLARE SUB Failed (Message AS STRING)
+
+DIM DB AS RSQLite
+DIM Added AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Transactions"
+    Width = 460: Height = 330
+    Center
+    OnClose = FormClose
+    CREATE BeginBtn AS RButton
+        Caption = "&Begin": Left = 12: Top = 12: Width = 96
+        OnClick = BeginClick
+    END CREATE
+    CREATE AddBtn AS RButton
+        Caption = "&Add a row": Left = 118: Top = 12: Width = 96
+        OnClick = AddClick
+    END CREATE
+    CREATE CommitBtn AS RButton
+        Caption = "&Commit": Left = 224: Top = 12: Width = 96
+        OnClick = CommitClick
+    END CREATE
+    CREATE RollbackBtn AS RButton
+        Caption = "&Rollback": Left = 330: Top = 12: Width = 96
+        OnClick = RollbackClick
+    END CREATE
+    CREATE Grid AS RDBGrid
+        Left = 12: Top = 48: Width = 414: Height = 180
+    END CREATE
+    CREATE Status AS RLabel
+        Left = 12: Top = 240: Width = 414: Height = 40: AutoSize = 0: WordWrap = 1
+    END CREATE
+END CREATE
+
+' The rows, and what the buttons can do now.
+SUB ShowState
+    DB.Query "SELECT id, note FROM notes ORDER BY id"
+    IF DB.InTransaction THEN
+        Status.Caption = "A transaction is open: Commit keeps its rows, Rollback drops them."
+    ELSE
+        Status.Caption = "No transaction: each row is kept as it's added."
+    END IF
+    BeginBtn.Enabled = (DB.InTransaction = 0)
+    CommitBtn.Enabled = (DB.InTransaction <> 0)
+    RollbackBtn.Enabled = (DB.InTransaction <> 0)
+END SUB
+
+SUB BeginClick
+    DB.Query "BEGIN"
+    ShowState
+END SUB
+
+SUB AddClick
+    Added = Added + 1
+    DB.Query "INSERT INTO notes (note) VALUES (?)", "note " + LTRIM$(STR$(Added))
+    ShowState
+END SUB
+
+SUB CommitClick
+    DB.Query "COMMIT"
+    ShowState
+END SUB
+
+SUB RollbackClick
+    DB.Query "ROLLBACK"
+    ShowState
+END SUB
+
+' Closing with a transaction open: ask, No the answer Enter gives.
+SUB FormClose (Action AS INTEGER)
+    IF DB.InTransaction = 0 THEN EXIT SUB
+    IF MESSAGEDLG("A transaction is open: closing drops its rows." + CHR$(10) + "Close anyway?", mtWarning, mbYes OR mbNo, 0, mrNo) = mrYes THEN
+        DB.Query "ROLLBACK"
+    ELSE
+        Action = caNone
+        Status.Caption = "Still open: Commit keeps the rows."
+    END IF
+END SUB
+
+SUB Failed (Message AS STRING)
+    Status.Caption = "Error: " + Message
+END SUB
+
+DB.OnError = Failed
+DB.Connect ":memory:"
+DB.Query "CREATE TABLE notes (id INTEGER PRIMARY KEY, note TEXT)"
+Grid.DataSource = DB
+ShowState
+Form.ShowModal

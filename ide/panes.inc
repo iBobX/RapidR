@@ -162,6 +162,7 @@ SUB FillExamples
   AddMoreExample "showcase/make_song.rr", "Composes the visualizer's song and writes a .mid file"
   AddMoreExample "gui/value_tree.rr", "Values as the debugger shows them: icons, swatches, changes"
   AddMoreExample "data/million_rows_async.rr", "A million rows from SQLite in the background, an SQL editor"
+  AddMoreExample "data/transactions.rr", "A transaction you can see; closing asks, Enter answers No"
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"

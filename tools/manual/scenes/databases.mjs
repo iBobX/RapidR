@@ -2,7 +2,8 @@
 // editor in your programs" (docs/manual/code-editor.md): the background
 // queries example (examples/data/million_rows_async.rr) — a million rows
 // streamed into an RDBGrid, a Ping answered meanwhile — and its SQL
-// editor completing the table's columns (REQUEST-001 items 1-3).
+// editor completing the table's columns (REQUEST-001 items 1-3); the
+// transactions example and its close question (DB-D).
 
 export const topic = "databases";
 
@@ -19,4 +20,12 @@ export const scenes = [
   // (SetSchema), the table, then SQLite's words
   { name: "sql-completion", program: EXAMPLE, args: ["20000"], delay: 2, crop: [0, 0, 780, 330],
     env: { RAPIDR_TEST_EVENTS: `makebtn.onclick,db.__until_busy_0,${TYPE_SELECT_C}` } },
+  // (DB-D) the transactions example (examples/data/transactions.rr): a
+  // transaction begun, two rows added — the status says what InTransaction
+  // says; then closed: the question whose default is No (MESSAGEDLG's
+  // fifth argument), its own window (components.md)
+  { name: "transactions", program: "examples/data/transactions.rr", delay: 2,
+    env: { RAPIDR_TEST_SYSTEM_LOOK: "light", RAPIDR_TEST_EVENTS: "beginbtn.onclick,addbtn.onclick,addbtn.onclick" } },
+  { topic: "components", name: "message-default-no", program: "examples/data/transactions.rr", delay: 2, window: 2,
+    env: { RAPIDR_TEST_SYSTEM_LOOK: "light", RAPIDR_TEST_EVENTS: "beginbtn.onclick,addbtn.onclick,form.__close" } },
 ];

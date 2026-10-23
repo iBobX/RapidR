@@ -323,6 +323,14 @@ export const cases = [
   { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "native"], args: ["3000000"],
     events: "makebtn.onclick,cancelbtn.onclick,db.__until_busy_0", dump: "status.caption,db.busy,makebtn.enabled",
     expect: ["status.caption=Cancelled: the table is as it was.", "db.busy=0", "makebtn.enabled=1"] },
+  // (DB-D: InTransaction follows BEGIN, a row, ROLLBACK; closing with a
+  // transaction open asks — Enter's answer, No, keeps the window)
+  { file: "data/transactions.rr", runtimes: ["run", "interp", "native", "web"], messageDialog: "__enter",
+    events: "beginbtn.onclick,addbtn.onclick,addbtn.onclick,form.__close", dump: "status.caption,form.__shown,db.intransaction,grid.rowcount,commitbtn.enabled,beginbtn.enabled",
+    expect: ["status.caption=Still open: Commit keeps the rows.", "form.__shown=1", "db.intransaction=1", "grid.rowcount=2", "commitbtn.enabled=-1", "beginbtn.enabled=0"] },
+  { file: "data/transactions.rr", runtimes: ["run", "interp", "native", "web"],
+    events: "addbtn.onclick,beginbtn.onclick,addbtn.onclick,rollbackbtn.onclick", dump: "status.caption,db.intransaction,grid.rowcount,commitbtn.enabled",
+    expect: ["status.caption=No transaction: each row is kept as it's added.", "db.intransaction=0", "grid.rowcount=1", "commitbtn.enabled=0"] },
   // (a query of the user's own after a sorted one: unsorted, shown from the top)
   { file: "data/million_rows_async.rr", runtimes: ["run", "interp", "web"], args: ["5000"],
     events: "makebtn.onclick,db.__until_busy_0,grid.__do_end,grid.__cell_1_-1,db.__until_busy_0,runbtn.onclick,db.__until_busy_0",
