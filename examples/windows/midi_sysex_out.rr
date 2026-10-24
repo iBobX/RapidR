@@ -22,7 +22,12 @@
 '   midiOutUnprepareHeader   the bytes are ours again
 '   midiOutClose
 '
-' The header on 64-bit Windows. RapidR programs are 64-bit, and winmm's
+' The header on 32-bit Windows (the Windows 7 / 8 build of RapidR is a 32-bit
+' program) is 16 LONGs, 64 bytes, every pointer one LONG: MIDIHDR32 below. The
+' program asks Windows which one it is (PROCESSOR_ARCHITECTURE is "x86" in a
+' 32-bit program) and uses that header.
+'
+' The header on 64-bit Windows. RapidR's normal builds are 64-bit, and winmm's
 ' MIDIHDR has pointers (lpData, dwUser, lpNext, reserved, dwReserved), so
 ' Windows reads 120 bytes where a 32-bit program's header (RapidQ's) is 16
 ' LONGs, 64 bytes. The pointers are 8 bytes wide and start on a multiple of
@@ -87,12 +92,29 @@ TYPE MIDIHDR
     dwReserved(15) AS LONG      ' DWORD_PTR dwReserved[8] offset 56 (8 x 8 bytes)
 END TYPE
 
+' MIDIHDR as 32-bit Windows lays it out (64 bytes): every pointer is one LONG.
+TYPE MIDIHDR32
+    lpData AS LONG              ' LPSTR lpData            offset 0
+    dwBufferLength AS LONG      ' DWORD                   offset 4
+    dwBytesRecorded AS LONG     ' DWORD                   offset 8
+    dwUser AS LONG              ' DWORD_PTR dwUser        offset 12
+    dwFlags AS LONG             ' DWORD                   offset 16
+    lpNext AS LONG              ' struct *lpNext          offset 20
+    reserved AS LONG            ' DWORD_PTR reserved      offset 24
+    dwOffset AS LONG            ' DWORD                   offset 28
+    dwReserved(7) AS LONG       ' DWORD_PTR dwReserved[8] offset 32 (8 x 4 bytes)
+END TYPE
+
 DECLARE FUNCTION midiOutGetNumDevs LIB "winmm" ALIAS "midiOutGetNumDevs" () AS LONG
 DECLARE FUNCTION midiOutGetDevCapsA LIB "winmm" ALIAS "midiOutGetDevCapsA" (uDeviceID AS LONG, caps AS MIDIOUTCAPS, cbCaps AS LONG) AS LONG
 DECLARE FUNCTION midiOutOpen LIB "winmm" ALIAS "midiOutOpen" (BYREF hMidiOut AS LONG, uDeviceID AS LONG, dwCallback AS LONG, dwInstance AS LONG, fdwOpen AS LONG) AS LONG
 DECLARE FUNCTION midiOutPrepareHeader LIB "winmm" ALIAS "midiOutPrepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
 DECLARE FUNCTION midiOutLongMsg LIB "winmm" ALIAS "midiOutLongMsg" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
 DECLARE FUNCTION midiOutUnprepareHeader LIB "winmm" ALIAS "midiOutUnprepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
+' (the same three calls with the 32-bit header)
+DECLARE FUNCTION midiOutPrepareHeader32 LIB "winmm" ALIAS "midiOutPrepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR32, cbMidiHdr AS LONG) AS LONG
+DECLARE FUNCTION midiOutLongMsg32 LIB "winmm" ALIAS "midiOutLongMsg" (hMidiOut AS LONG, midiHdr AS MIDIHDR32, cbMidiHdr AS LONG) AS LONG
+DECLARE FUNCTION midiOutUnprepareHeader32 LIB "winmm" ALIAS "midiOutUnprepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR32, cbMidiHdr AS LONG) AS LONG
 DECLARE FUNCTION midiOutReset LIB "winmm" ALIAS "midiOutReset" (hMidiOut AS LONG) AS LONG
 DECLARE FUNCTION midiOutClose LIB "winmm" ALIAS "midiOutClose" (hMidiOut AS LONG) AS LONG
 DECLARE FUNCTION midiOutGetErrorTextA LIB "winmm" ALIAS "midiOutGetErrorTextA" (mmrError AS LONG, text AS STRING, cchText AS LONG) AS LONG
@@ -260,7 +282,7 @@ FUNCTION ParseHex (text AS STRING) AS STRING
 END FUNCTION
 
 SUB SendClick
-    DIM hdr AS MIDIHDR
+    DIM hdr AS MIDIHDR, hdr32 AS MIDIHDR32, is32 AS INTEGER, flags AS LONG
     DIM r AS LONG, i AS INTEGER, waited AS INTEGER
     DIM opened AS INTEGER, prepared AS INTEGER, sentOk AS INTEGER, finished AS INTEGER
     DIM dev AS STRING, summary AS STRING
@@ -294,32 +316,54 @@ SUB SendClick
     opened = (cOpen = 0)
     IF opened THEN
         ' (2) the header: the message's address and length, nothing else
-        hdr.lpDataLo = VARPTR(sysex)
-        hdr.lpDataHi = 0
-        hdr.dwBufferLength = LEN(sysex)
-        cPrepare = Report("midiOutPrepareHeader", midiOutPrepareHeader(hOut, hdr, SIZEOF(hdr)))
+        ' (a 32-bit program uses the 32-bit header: see the top of the file)
+        is32 = (UCASE$(ENVIRON$("PROCESSOR_ARCHITECTURE")) = "X86")
+        IF is32 THEN
+            Steps.AddItems "header: 32-bit Windows program, MIDIHDR of " + Num(SIZEOF(hdr32)) + " bytes"
+            hdr32.lpData = VARPTR(sysex)
+            hdr32.dwBufferLength = LEN(sysex)
+            cPrepare = Report("midiOutPrepareHeader", midiOutPrepareHeader32(hOut, hdr32, SIZEOF(hdr32)))
+        ELSE
+            Steps.AddItems "header: 64-bit Windows program, MIDIHDR of " + Num(SIZEOF(hdr)) + " bytes"
+            hdr.lpDataLo = VARPTR(sysex)
+            hdr.lpDataHi = 0
+            hdr.dwBufferLength = LEN(sysex)
+            cPrepare = Report("midiOutPrepareHeader", midiOutPrepareHeader(hOut, hdr, SIZEOF(hdr)))
+        END IF
         prepared = (cPrepare = 0)
     END IF
     IF prepared THEN
         ' (3) hand it to the driver
-        cSend = Report("midiOutLongMsg", midiOutLongMsg(hOut, hdr, SIZEOF(hdr)))
+        IF is32 THEN
+            cSend = Report("midiOutLongMsg", midiOutLongMsg32(hOut, hdr32, SIZEOF(hdr32)))
+            flags = hdr32.dwFlags
+        ELSE
+            cSend = Report("midiOutLongMsg", midiOutLongMsg(hOut, hdr, SIZEOF(hdr)))
+            flags = hdr.dwFlags
+        END IF
         sentOk = (cSend = 0)
         ' (4) wait for the driver to set MHDR_DONE, up to the timeout
+        ' (each WinSleep is a DLL call, so the header's dwFlags is read back after it)
         IF sentOk THEN
-            DO WHILE (hdr.dwFlags AND MHDR_DONE) = 0 AND waited < TIMEOUT_MS
+            DO WHILE (flags AND MHDR_DONE) = 0 AND waited < TIMEOUT_MS
                 WinSleep STEP_MS
                 waited = waited + STEP_MS
+                IF is32 THEN flags = hdr32.dwFlags ELSE flags = hdr.dwFlags
             LOOP
-            finished = ((hdr.dwFlags AND MHDR_DONE) <> 0)
+            finished = ((flags AND MHDR_DONE) <> 0)
             IF finished THEN
-                Steps.AddItems "wait: the driver set MHDR_DONE after about " + Num(waited) + " ms (" + FlagNames(hdr.dwFlags) + ")"
+                Steps.AddItems "wait: the driver set MHDR_DONE after about " + Num(waited) + " ms (" + FlagNames(flags) + ")"
             ELSE
-                Steps.AddItems "wait: no MHDR_DONE in " + Num(TIMEOUT_MS) + " ms (" + FlagNames(hdr.dwFlags) + "): midiOutReset takes the message back"
+                Steps.AddItems "wait: no MHDR_DONE in " + Num(TIMEOUT_MS) + " ms (" + FlagNames(flags) + "): midiOutReset takes the message back"
                 r = Report("midiOutReset", midiOutReset(hOut))
             END IF
         END IF
         ' (5) the bytes are ours again (the header must not be in the driver's queue)
-        cUnprepare = Report("midiOutUnprepareHeader", midiOutUnprepareHeader(hOut, hdr, SIZEOF(hdr)))
+        IF is32 THEN
+            cUnprepare = Report("midiOutUnprepareHeader", midiOutUnprepareHeader32(hOut, hdr32, SIZEOF(hdr32)))
+        ELSE
+            cUnprepare = Report("midiOutUnprepareHeader", midiOutUnprepareHeader(hOut, hdr, SIZEOF(hdr)))
+        END IF
     END IF
     IF opened THEN cClose = Report("midiOutClose", midiOutClose(hOut))
     ' (the story, in one line)
