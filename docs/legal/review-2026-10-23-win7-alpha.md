@@ -55,3 +55,7 @@ tools/win7/link_audit.sh <folder holding mingw-w64-crt/> [work folder]
 ```
 
 It relinks with a map, lists the toolchain's objects and exits 1 on a flag; then it builds the program the usual way again.
+
+## Antivirus check (2026-10-23, 21:26)
+
+`tools/win7/av_check.ps1`, in the Windows 11 ARM VM with Bitdefender real-time on (Defender off), from `C:\rapidr-win7-av` (outside Temp, which has an exception), after the release jobs there had finished: the zip matched its `.sha256`; all 149 files unzipped; `rapidr.exe` showed Company "Ruta Internet S.R.L.", Product "RapidR", version 2.121.0, "RapidR (Windows 7 alpha)"; `rapidr.exe version`, `hello.rr` and `language.rr` ran (exit code 0, 32-bit program under x86 emulation); Bitdefender's quarantine folder and `pending_actions.json` were unchanged afterwards. Bitdefender's settings were not touched; the folder was removed. Not covered: Studio and window programs (a session-0 script has no desktop), and other antivirus products.
