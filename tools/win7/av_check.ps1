@@ -88,6 +88,7 @@ function Run([string]$what, [string[]]$arguments, [int]$seconds = 60) {
 }
 if (Test-Path $exe) {
     Run 'rapidr.exe version' @('version')
+    Run 'the six newer-Windows functions (rapidr.exe __win7_check)' @('__win7_check')
     Run 'console program: hello.rr' @('run', 'tests\hello.rr')
     Run 'language tour: language.rr (first lines)' @('run', 'tests\language.rr')
 }

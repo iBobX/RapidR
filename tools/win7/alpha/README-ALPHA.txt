@@ -7,6 +7,8 @@ English first. Español más abajo (after the line of equal signs).
 THIS IS AN ALPHA TEST BUILD.
 It is made for trying RapidR on old PCs and telling us what breaks. It is
 not the finished download. Please do not trust it with work you cannot lose.
+This test build is provided as is, without warranty of any kind (see LICENSE).
+Use it at your own risk and keep a copy of anything you care about.
 
 
 What it is
@@ -15,6 +17,9 @@ RapidR is a free (MIT licence) programming language and editor, compatible
 with RapidQ. This folder is RapidR 2.121.0 built for Windows 7, 8 and 8.1,
 32-bit, so that older PCs can use it. (On Windows 10 and 11 please use the
 normal download from https://github.com/iBobX/RapidR instead.)
+Windows 7, 8 and 8.1 no longer receive security updates from Microsoft. Use
+this build on such a PC at your own risk, and preferably offline for anything
+sensitive.
 
 
 How to start
@@ -85,16 +90,24 @@ as much as a bug.
 Licences
 --------
 RapidR is MIT-licensed: LICENSE, NOTICE, LEGAL.md. The libraries inside it
-are credited in THIRD_PARTY_NOTICES.md and LICENSES.md (open these .md files
-with Notepad or WordPad). The few pieces of the C/C++ toolchain that the
+are credited, with their full licence texts and copyright lines, in
+THIRD-PARTY-NOTICES.txt (all the libraries, and Rust's standard library), and
+also in THIRD_PARTY_NOTICES.md and LICENSES.md (open these files with Notepad
+or WordPad). The few pieces of the C/C++ toolchain that the
 program contains (the mingw-w64 runtime and LLVM's libunwind) have their
 licence texts in the  licenses  folder. No part of this download is GPL or
 LGPL.
 
+Windows is a trademark of the Microsoft group of companies. RapidR is not
+affiliated with or endorsed by Microsoft.
 
-RapidR is free. If it is useful to you, you can support it (voluntary, with
-nothing in return): https://github.com/sponsors/iBobX or
+
+Support RapidR
+--------------
+RapidR is free and open source (MIT). If it is useful to you, you can support
+its development: https://github.com/sponsors/iBobX or
 https://www.buymeacoffee.com/roanbema
+Support is voluntary, received by Ruta Internet S.R.L., and comes with nothing in return: RapidR stays free for everyone. You can give once or monthly; monthly support renews every month until you cancel, any time, in your GitHub Sponsors or Buy Me a Coffee settings. Payment is handled by GitHub or Buy Me a Coffee, never by RapidR.
 
 
 =============================================================================
@@ -105,6 +118,9 @@ RapidR 2.121.0 para Windows 7, 8 y 8.1 (32 bits) - ALFA 1
 ESTA ES UNA VERSIÓN ALFA DE PRUEBA.
 Sirve para probar RapidR en PCs antiguas y decirnos qué falla. No es la
 descarga definitiva. Por favor, no le confíe trabajo que no pueda perder.
+Esta versión de prueba se ofrece tal cual, sin garantía de ningún tipo (vea
+LICENSE). Úsela bajo su propia responsabilidad y guarde una copia de todo lo
+que le importe.
 
 
 Qué es
@@ -114,6 +130,9 @@ compatible con RapidQ. Esta carpeta es RapidR 2.121.0 compilado para
 Windows 7, 8 y 8.1 de 32 bits, para que lo usen los PCs más viejos. (En
 Windows 10 y 11 use mejor la descarga normal de
 https://github.com/iBobX/RapidR.)
+Windows 7, 8 y 8.1 ya no reciben actualizaciones de seguridad de Microsoft.
+Use esta versión en un PC así bajo su propia responsabilidad y, para todo lo
+delicado, mejor sin conexión.
 
 
 Cómo empezar
@@ -189,13 +208,21 @@ Windows, ayuda tanto como un fallo.
 Licencias
 ---------
 RapidR tiene licencia MIT: LICENSE, NOTICE, LEGAL.md. Las bibliotecas que
-lleva dentro se reconocen en THIRD_PARTY_NOTICES.md y LICENSES.md (abra esos
-.md con el Bloc de notas o WordPad). Las pocas piezas de la cadena de
+lleva dentro se reconocen, con sus textos de licencia completos y sus líneas de
+copyright, en THIRD-PARTY-NOTICES.txt (todas las bibliotecas y la biblioteca
+estándar de Rust), y también en THIRD_PARTY_NOTICES.md y LICENSES.md (abra
+esos archivos con el Bloc de notas o WordPad). Las pocas piezas de la cadena de
 herramientas C/C++ que contiene el programa (el runtime de mingw-w64 y la
 libunwind de LLVM) tienen sus textos de licencia en la carpeta  licenses .
 Nada de esta descarga es GPL ni LGPL.
 
+Windows es una marca comercial del grupo de empresas Microsoft. RapidR no
+está afiliado a Microsoft ni cuenta con su respaldo.
 
-RapidR es gratis. Si le sirve, puede apoyarlo (voluntario, sin nada a
-cambio): https://github.com/sponsors/iBobX o
+
+Apoye RapidR
+------------
+RapidR es gratis y de código abierto (MIT). Si le sirve, puede apoyar su
+desarrollo: https://github.com/sponsors/iBobX o
 https://www.buymeacoffee.com/roanbema
+El apoyo es voluntario, lo recibe Ruta Internet S.R.L. y no da nada a cambio: RapidR sigue siendo gratis para todos. Puede dar una vez o cada mes; el apoyo mensual se renueva cada mes hasta que lo cancele, en cualquier momento, en los ajustes de GitHub Sponsors o de Buy Me a Coffee. El pago lo gestiona GitHub o Buy Me a Coffee, nunca RapidR.

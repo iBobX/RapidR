@@ -19,6 +19,9 @@ echo [1/5] rapidr version
 echo --- 1. rapidr version >> "%OUT%"
 "%RR%" version >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
+echo --- 1b. the six functions only newer Windows has: found, or answered by RapidR >> "%OUT%"
+"%RR%" __win7_check >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
 
 echo [2/5] console program: hello.rr
 echo --- 2. console program: hello.rr >> "%OUT%"

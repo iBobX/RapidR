@@ -37,7 +37,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -125,8 +125,6 @@ fn take_include_dirs(args: &mut Vec<String>) {
 }
 
 fn main() -> ExitCode {
-    #[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
-    win7::install();
     let mut args: Vec<String> = env::args().collect();
     args.remove(0); // program name
     take_include_dirs(&mut args);
@@ -179,6 +177,12 @@ fn main() -> ExitCode {
     match (first, second) {
         (Some("version"), _) => {
             println!("RapidR {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
+        // (the Windows 7 builds: where the six newer-Windows functions were found)
+        #[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
+        (Some("__win7_check"), _) => {
+            println!("{}", win7::report());
             ExitCode::SUCCESS
         }
         (Some("run"), Some(flag)) if flag == "--session" => match rest.split_first() {

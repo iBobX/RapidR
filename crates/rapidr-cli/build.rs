@@ -1,8 +1,8 @@
 // The Windows 7 builds (`*-win7-windows-gnu`, tools/win7/build.sh):
 //
-// 1. load the DLLs that only Windows 8 and later have on first use instead
-//    of at start-up, so that Windows 7 starts the program (src/win7.rs
-//    answers when they are missing);
+// 1. (nothing to link: src/win7.rs answers for the six functions only
+//    Windows 8 and later have, so that Windows 7 starts the program. No
+//    delay-loading, no helper from any toolchain);
 // 2. link the program with its version information and a manifest. A
 //    program with no resources at all is what a heuristic antivirus likes
 //    least (the same finding as native programs on Windows x64:
@@ -29,10 +29,6 @@ fn main() {
     println!("cargo:rerun-if-env-changed=RAPIDR_WIN7_DESCRIPTION");
     let var = |k: &str| std::env::var(k).unwrap_or_default();
     if var("CARGO_CFG_TARGET_OS") == "windows" && var("CARGO_CFG_TARGET_VENDOR") == "win7" && var("CARGO_CFG_TARGET_ENV") == "gnu" {
-        // ole32.dll: Windows 7 has it, but not CoIncrementMTAUsage
-        for dll in ["api-ms-win-core-winrt-l1-1-0.dll", "api-ms-win-core-winrt-error-l1-1-0.dll", "api-ms-win-core-path-l1-1-0.dll", "combase.dll", "ole32.dll"] {
-            println!("cargo:rustc-link-arg-bins=-Wl,--delayload={dll}");
-        }
         let arch = if var("CARGO_CFG_TARGET_ARCH") == "x86" { "i686" } else { "x86_64" };
         match version_resource(arch, &var("CARGO_PKG_VERSION"), &var("OUT_DIR")) {
             Ok(object) => println!("cargo:rustc-link-arg-bins={}", object.display()),
