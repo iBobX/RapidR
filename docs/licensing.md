@@ -317,6 +317,14 @@ It exits 1 when an object is flagged: Cephes, Wine, (L)GPL, or a licence the
 notices don't carry. Then remove what pulls it in, or update the notices and
 `member_licences.py`'s list together.
 
+The **Windows 7 / 8 / 8.1 builds** (`i686-win7-windows-gnu`, `tools/win7/`) link
+LLVM-MinGW's *msvcrt* flavour instead, which pulls in more of mingw-w64 (the
+math wrappers around `msvcrt.dll`, the delay-load helper): audited the same way
+by `tools/win7/link_audit.sh`, recorded in
+[legal/review-2026-10-23-win7-alpha.md](legal/review-2026-10-23-win7-alpha.md).
+Cephes' `cbrt`/`cbrtf` would come in there (msvcrt has no cube root), so the
+program defines its own (`crates/rapidr-cli/src/cbrt.rs`).
+
 ## 4. What each licence asks of someone who ships a program
 
 | Licence | Binary or web distribution must… | Done by the notices file? |

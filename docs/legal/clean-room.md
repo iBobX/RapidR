@@ -62,6 +62,8 @@ other people's programs' output.
 | 2026-10-06 | Git history rewrite | every earlier version of those files was replaced by the clean version in every commit (`git filter-repo`); copies cloned before that date and GitHub's cache of old commit hashes may still hold them |
 | 2026-10-06 | Review of RapidQ's terms, rights and trademarks, and of everything RapidR takes from RapidQ ([rapidq-review.md](rapidq-review.md)) | the built-in `RAPIDQ.INC` constants were regrouped by public origin in RapidR's own arrangement (same names and numbers, pinned by a test); the corpus programs' outputs moved out of the repository; public wording tightened (LEGAL.md, README, release notes); this record and CONTRIBUTING.md added |
 
+| 2026-10-23 | Lawyer review of the Windows 7 alpha: mingw-w64's delay-load helper says it derives from Microsoft's `delayhlp.cpp` | the Windows 7 build no longer delay-loads: RapidR's own `crates/rapidr-cli/src/win7.rs` provides the six Windows 8-only functions (lazy `GetProcAddress`, stand-ins on Windows 7), written without reading any delay-load helper's source; record in [tools/win7/clean-room.md](../../tools/win7/clean-room.md); the three helper objects are gone from the link (`tools/win7/link_audit.sh`) |
+
 Add a row whenever material is found and corrected, or the process changes.
 
 ## 5. Checking it again
