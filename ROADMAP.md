@@ -785,6 +785,10 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [ ] ★ EXT5 Notices, the trademark line, the sponsor link, a lawyer-agent review before publishing
 - [ ] ★ EXT6 The real walk in VS Code; publishing on Robert's go
 
+**Hotfix 2.121.1 (2026-10-24; what Robert found using 2.121.0)**
+- [x] The F1 Help pane is a page: a search box (suggestions, Enter / arrows / click), one scrolling Markdown page (what it is, the syntax with Insert, members as links under Properties / Methods / Events), the program's own names (declaration, a jump link, Find References, the type's help), a start page and "No entry for X" with the closest names; the Help body as Markdown (RMarkdownView) is the item the Markdown work left
+- [x] The Search tab's result rows have room (24 px, the chrome's font); every pane tab has its icon (Assistant, Help); `Font.Color` (any dotted path in a CREATE body) has its swatch and editor; Help > About reads the build's version (`RLanguageService.Version`); `REdit.Placeholder`
+
 **Security and legal**
 - [x] ★ X1 Threat model update (2026-10-23: docs/security/threat-model.md)
 - [x] ★ X2 `cargo deny` / `cargo audit`, fuzzing, secret scan (2026-10-22, lane X2: all four `cargo deny` checks and `cargo audit` pass, `zip` 9.0.5; fuzz tests for the lexer and parser, `.rrproj`, Find's patterns, `tools/check_secrets.py`; fuzzing Git objects comes with Versions G3, Preview 5)

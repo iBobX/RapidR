@@ -9,8 +9,16 @@ FUNCTION ActiveCode AS INTEGER
   END IF
 END FUNCTION
 
+' What Help > About says: the version is the build's own (the language
+' service has it from the workspace's), not a number written here.
+FUNCTION AboutText AS STRING
+  DIM nl AS STRING
+  nl = CHR$(13) + CHR$(10)
+  Result = "RapidR Studio (RapidR " + Lang.Version + ")" + nl + "BASIC is powerful again: desktop and web apps from one source." + nl + nl + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+END FUNCTION
+
 SUB ShowAbout
-  SHOWMESSAGE "RapidR Studio (RapidR 2.117.0)" + CHR$(13) + CHR$(10) + "BASIC is powerful again: desktop and web apps from one source." + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10) + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  SHOWMESSAGE AboutText
 END SUB
 
 SUB ShowShortcuts
@@ -163,6 +171,9 @@ SUB RunCommand(Id AS STRING)
         IF ActiveDoc >= 0 THEN
           IF DocIsMd(ActiveDoc) THEN MdDoc(ActiveDoc).ScrollTo MID$(Id, 8)
         END IF
+      ELSEIF Id = "about:text" THEN
+        ' (a test step: about:text — what Help > About says, in the Output)
+        OutputLine AboutText
       ELSEIF EditorCommand(Id) = 0 THEN
         OutputLine "(" + Id + ": not there yet)"
       END IF

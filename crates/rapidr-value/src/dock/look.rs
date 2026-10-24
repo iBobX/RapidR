@@ -404,6 +404,20 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
         "breakpoint" | "breakpointlist" => {
             ops.push(Op::Polygon { points: [(2.0, 4.0), (11.0, 4.0), (14.5, 8.0), (11.0, 12.0), (2.0, 12.0)].iter().map(|(a, b)| (fx + a, fy + b)).collect(), color });
         }
+        // (Help: a question mark in a circle; the Assistant: a spark and a
+        // small one beside it — the ink alone, the small one in the accent)
+        "help" | "question" | "manual" => {
+            ops.push(Op::Round { rect: (x + 1, y + 1, 14, 14), radius: 7.0, fill: None, stroke: Some(color), width: 1.2 });
+            line(ops, &[(5.8, 6.4), (6.1, 5.1), (7.2, 4.4), (8.5, 4.5), (9.6, 5.2), (9.9, 6.3), (9.4, 7.3), (8.0, 8.2), (8.0, 9.4)], 1.2);
+            ops.push(Op::Round { rect: (x + 7, y + 10, 2, 2), radius: 1.0, fill: Some(accent), stroke: None, width: 0.0 });
+        }
+        "ai" | "assistant" | "chat" | "sparkle" => {
+            let star = |cx: f64, cy: f64, r: f64, k: f64| -> Vec<(f64, f64)> {
+                vec![(cx, cy - r), (cx + k, cy - k), (cx + r, cy), (cx + k, cy + k), (cx, cy + r), (cx - k, cy + k), (cx - r, cy), (cx - k, cy - k)]
+            };
+            ops.push(Op::Polygon { points: star(6.5, 9.0, 6.0, 1.7).iter().map(|(a, b)| (fx + a, fy + b)).collect(), color });
+            ops.push(Op::Polygon { points: star(12.6, 3.4, 2.8, 0.8).iter().map(|(a, b)| (fx + a, fy + b)).collect(), color: accent });
+        }
         "immediate" | "repl" | "evaluate" => {
             line(ops, &[(2.5, 4.5), (6.0, 8.0), (2.5, 11.5)], 1.3);
             fill(ops, (x + 8, y + 6, 6, 1), color);

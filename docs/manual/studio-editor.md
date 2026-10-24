@@ -112,7 +112,47 @@ Advanced > Show Hover does the same for the word at the caret.
 
 ![Hovering ShowMessage shows SHOWMESSAGE text$ and that it shows a message in a modal box with an OK button](images/studio-editor/hover.png)
 
-F1 opens the full entry in the Help pane.
+F1 opens the full entry in the Help pane ([next section](#f1-the-help-pane)).
+
+## F1: the Help pane
+
+Put the caret on a word and press **F1** (or Help > RapidR Help). The Help
+pane opens beside Properties and shows one page for that word. It works the
+same on the web. The pane has two parts:
+
+- On top, a **search box**, with the word you asked in it. Type another
+  word there: a moment after the last key the page follows, and the names it
+  may mean show under the box (the program's own names too: *your variable*,
+  *your SUB*). **Up** and **Down** choose one, **Enter** opens it, **Escape**
+  closes the list and, once more, takes you back to the code.
+- Under it, **one page that scrolls**: the word as a title, what it is (a
+  statement, a function, a property of RButton, a keyword; RapidQ's or
+  RapidR's; where it runs), the syntax as code with **Insert into the code**
+  under it (it types the syntax at the caret; it is only there when a code
+  editor is open), and what it does. For a component the page lists its
+  **Properties**, **Methods** and **Events**, and every name is a link to its
+  own page. **Tab** steps from link to link, **Enter** follows one.
+
+![F1 on RButton in the code: the Help pane shows RButton, what it is, its default event OnClick as a link, the syntax with Insert into the code, and below it the properties, methods and events](images/studio-editor/help-component.png)
+
+**Your own names.** F1 on a variable, a constant, a SUB, a FUNCTION or a
+component of your program says what it is in your program: its declaration,
+where it is declared (a link that jumps there), how often it is used, and
+**Find References**. For a name with a type, the help of the type is below:
+`TitleFont` is an RFont, so RFont's page follows.
+
+![F1 on TitleFont in helpers.rr: the page says it is a variable in this program, DIM TitleFont AS RFont, declared in helpers.rr, line 40, used 3 times, then the help of RFont](images/studio-editor/help-own-name.png)
+
+F1 on a property after a dot (`Hello.Font.Color`) is the page of the thing
+before the dot: RFont's Color.
+
+**Nothing at the caret.** With no word, or a word nothing knows, Help shows
+a **start page** (how to use it, and a few places to start: RForm, RButton,
+RLabel, PRINT, IF, FOR) or, for a word it doesn't know, "No entry for" and
+the closest names.
+
+![The Help pane with rbut typed in its search box: the list under the box offers RButton, and its page is below](images/studio-editor/help-search.png)
+![The Help pane's start page: how to use Help, and links to RForm, RButton, RLabel, PRINT, IF and FOR](images/studio-editor/help-start.png)
 
 ## F12: Go to Definition
 
@@ -293,7 +333,12 @@ Open Example…, "The code shows its own values").
 ### Colours
 
 A colour written as `RGB(255, 130, 20)`, as `&H1482FF` or as a constant
-(`clTeal`) shows its swatch. Its editor has a colour wheel with a square for
+(`clTeal`) shows its swatch. So does the colour of a part of a component,
+written with a dot: `Font.Color = &H800000` in a `CREATE` block,
+`Hello.Font.Color = clRed` anywhere, or in a `WITH`.
+
+![Font.Color = &H800000 in a CREATE block has a dark blue swatch after it, as Color = &HE0FFFF has a light yellow one](images/studio-editor/font-colour-swatch.png)
+ Its editor has a colour wheel with a square for
 how strong and how bright, the Red, Green, Blue and Hex numbers, the
 colour's name in words, the old colour beside the new one, and a palette:
 the colours your program already uses first, then the standard and the

@@ -1,0 +1,32 @@
+' main.rr: names of my own to ask the Help pane about (tests/studio_flows.mjs).
+DECLARE SUB Greet(Who AS STRING)
+
+CONST Limit = 10
+DIM PickedFont AS RFont
+DIM Count AS INTEGER
+
+CREATE Form AS RForm
+    Caption = "Help demo"
+    Width = 320: Height = 200
+    Color = &HE0FFFF
+    Font.Color = &H800000
+    CREATE Hello AS RButton
+        Caption = "Hello"
+        Left = 20: Top = 20
+        OnClick = HelloClick
+    END CREATE
+END CREATE
+
+SUB HelloClick
+    PickedFont.Name = "Inter"
+    Hello.Font.Color = &H0000FF
+    Greet "world"
+    Count = Count + 1
+    PRINT Count
+END SUB
+
+SUB Greet(Who AS STRING)
+    ShowMessage "Hello, " + Who
+END SUB
+
+Form.ShowModal

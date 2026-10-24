@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 use rapidr_langsvc::{Analysis, OutlineItem, OutlineKind, Options, Targets};
 use rapidr_value::Value;
 
-use crate::{slashes, text_arg};
+use crate::{int_arg, slashes, text_arg};
 
 #[derive(Default)]
 struct Service {
@@ -79,6 +79,8 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "errorcount" => Value::Integer(s.errors),
             "project" => Value::String(s.project.clone()),
             "targets" => Value::String(s.targets.name().into()),
+            // (the build's own: the workspace's version, as Help > About says it)
+            "version" => Value::String(env!("CARGO_PKG_VERSION").into()),
             _ => return None,
         })
     })
@@ -95,7 +97,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             }
             true
         }
-        "errorcount" => true,
+        "errorcount" | "version" => true,
         "project" => {
             let p = slashes(&v.to_string_val());
             if p != s.project {
@@ -129,6 +131,23 @@ fn kind_name(k: OutlineKind) -> &'static str {
         OutlineKind::Variable => "variable",
         OutlineKind::Label => "label",
     }
+}
+
+/// The byte offset of (`line`, `column`), both from 1 (columns in
+/// characters; past the line's end: its end).
+fn line_col_offset(text: &str, line: i64, column: i64) -> Option<usize> {
+    if line < 1 {
+        return None;
+    }
+    let mut start = 0;
+    for (i, l) in text.split('\n').enumerate() {
+        if i as i64 + 1 == line {
+            let col = (column.max(1) - 1) as usize;
+            return Some(start + l.char_indices().nth(col).map_or(l.trim_end_matches('\r').len(), |(b, _)| b));
+        }
+        start += l.len() + 1;
+    }
+    None
 }
 
 /// (line, column) from 1 of byte `offset` in `text`, columns in characters.
@@ -177,6 +196,50 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         }
         // (the Help pane: Help(Word, [OfType]) — crate::help)
         "help" => Value::String(crate::help::text(&text_arg(args, 0), &text_arg(args, 1))),
+        // (HelpPage(Word, [OfType], [File], [Line], [Column], [CanInsert]):
+        // the pane's page — the program's own name at the caret first)
+        "helppage" => {
+            let (word, of) = (text_arg(args, 0), text_arg(args, 1));
+            let file = PathBuf::from(slashes(&text_arg(args, 2)));
+            let (line, col) = (int_arg(args, 3, 0), int_arg(args, 4, 0));
+            let mut ask = crate::help::Ask { word, of, can_insert: int_arg(args, 5, 0) != 0, ..Default::default() };
+            if !file.as_os_str().is_empty() {
+                with(name, |s| {
+                    let a = s.analysis();
+                    ask.program = a.program_names(&file);
+                    let text = a.text(&file).unwrap_or_default();
+                    match line_col_offset(&text, line, col) {
+                        Some(at) if line > 0 => {
+                            // (a member of something: the component it is of)
+                            if let Some(owner) = a.member_owner(&file, at) {
+                                ask.of = owner;
+                            }
+                            if ask.of.is_empty() {
+                                ask.mine = a.symbol_help(&file, at).filter(|m| ask.word.is_empty() || m.name.eq_ignore_ascii_case(ask.word.trim()));
+                            }
+                        }
+                        _ => {
+                            // (typed in the search box: the program's name of that name)
+                            if !ask.word.trim().is_empty() && ask.of.is_empty() {
+                                ask.mine = a.symbol_help_named(&file, ask.word.trim());
+                            }
+                        }
+                    }
+                });
+            }
+            Value::String(crate::help::page(&ask))
+        }
+        // (HelpFind(Query, [File]): what Query may mean, a line each: name,
+        // what it is — the program's own names too)
+        "helpfind" => {
+            let file = PathBuf::from(slashes(&text_arg(args, 1)));
+            let program = if file.as_os_str().is_empty() { Vec::new() } else { with(name, |s| s.analysis().program_names(&file)) };
+            let mut out = String::new();
+            for (n, what) in crate::help::suggest(&text_arg(args, 0), &program, 12) {
+                out.push_str(&format!("{n}\t{what}\n"));
+            }
+            Value::String(out)
+        }
         "outline" => Value::String(with(name, |s| {
             let a = s.analysis();
             let text = a.text(&file).unwrap_or_default();
@@ -272,5 +335,57 @@ mod tests {
         call("update", &[Value::String("/w/b.rr".into()), Value::String("PRINT 1\n".into())]);
         assert_eq!(call("diagnostics", &[Value::String("/w/b.rr".into())]).to_string_val(), "");
         assert_eq!(line_col("ab\ncé d", 7), (2, 4));
+    }
+
+    /// The Help pane's page: the caret on one of the program's own names,
+    /// on a member after a dot, on a word of the language, and a typed name.
+    #[test]
+    fn the_help_page_knows_the_programs_own_names() {
+        let src = "DECLARE SUB Greet(Who AS STRING)\nDIM PickedFont AS RFont\nCREATE Form AS RForm\n  CREATE Hello AS RButton\n  END CREATE\nEND CREATE\nSUB Go\n  PickedFont.Name = \"Inter\"\n  Hello.Font.Color = &H800000\n  Greet \"x\"\n  PRINT 1\nEND SUB\nSUB Greet(Who AS STRING)\nEND SUB\n";
+        let f = Value::String("/w/helpdemo.rr".into());
+        let call = |m: &str, args: &[Value]| call("ls-help", m, args).unwrap().to_string_val();
+        call("update", &[f.clone(), Value::String(src.into())]);
+        let ask = |word: &str, line: i64, col: i64| call("helppage", &[Value::String(word.into()), Value::String(String::new()), f.clone(), Value::Integer(line), Value::Integer(col), Value::Integer(1)]);
+        // (the caret just after PickedFont, on its use: line 8)
+        let t = ask("PickedFont", 8, 13);
+        let (meta, md) = t.split_once('\n').unwrap();
+        assert_eq!(meta, "mine\t\t/w/helpdemo.rr\t2\t5", "{t}");
+        assert!(md.starts_with("## PickedFont\n\nA variable in this program"), "{t}");
+        assert!(md.contains("DIM PickedFont AS RFont") && md.contains("Declared in [helpdemo.rr, line 2](help-goto:)"), "{t}");
+        assert!(md.contains("Its type is [RFont](help:RFont).") && md.contains("#### Properties ("), "{t}");
+        // (a component of the form: its type's help below)
+        let t = ask("Hello", 9, 8);
+        assert!(t.starts_with("mine\t\t/w/helpdemo.rr\t4\t10\n## Hello\n") && t.contains("Its type is [RButton](help:RButton)."), "{t}");
+        // (a SUB: its signature; the references link)
+        let t = ask("Greet", 10, 8);
+        assert!(t.contains("## Greet\n\nA SUB in this program") && t.contains("SUB Greet(Who AS STRING)") && t.contains("help-refs:"), "{t}");
+        // (Color after Font.: RFont's property, not "nothing called Color")
+        let t = ask("Color", 9, 17);
+        assert!(t.starts_with("entry\t") && t.contains("## RFont.Color"), "{t}");
+        assert!(t.contains("A member of [RFont](help:RFont)."), "{t}");
+        // (a word of the language at the caret: the registry's entry, Insert offered)
+        let t = ask("PRINT", 11, 8);
+        assert!(t.starts_with("entry\tPRINT") && t.contains("[Insert into the code](help-insert:)"), "{t}");
+        // (typed, no caret: the program's name of that name, else the language's)
+        let t = ask("picked", 0, 0);
+        assert!(t.starts_with("none\t"), "{t}");
+        let t = ask("PickedFont", 0, 0);
+        assert!(t.starts_with("mine\t"), "{t}");
+        let t = ask("RLabel", 0, 0);
+        assert!(t.starts_with("entry\t"), "{t}");
+        // (the suggestions: the program's names among the language's)
+        let found = call("helpfind", &[Value::String("pick".into()), f.clone()]);
+        assert!(found.starts_with("PickedFont\tyour variable\n"), "{found}");
+        // (the build's version: the workspace's)
+        assert_eq!(get("ls-help", "version").unwrap().to_string_val(), env!("CARGO_PKG_VERSION"));
+        assert_eq!(line_col_offset("ab\ncé d", 2, 3), Some(6));
+    }
+
+    /// Help > About says the version of the build: the workspace's.
+    #[test]
+    fn the_version_is_the_workspaces() {
+        let manifest = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Cargo.toml")).unwrap();
+        let version = manifest.lines().skip_while(|l| l.trim() != "[workspace.package]").find_map(|l| l.trim().strip_prefix("version = ")).unwrap().trim_matches('"').to_string();
+        assert_eq!(get("ls-version", "version").unwrap().to_string_val(), version);
     }
 }

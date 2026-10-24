@@ -336,6 +336,7 @@ compiler doesn't know it).
 | `TabStop` on a label | the label is a link: Tab reaches it, Enter or Space clicks it ([Accessibility](#accessibility)) |
 | `Application.Announce Text [, Assertive]` | a screen reader says Text without the focus moving ([below](#telling-screen-readers-about-news-applicationannounce)) |
 | `AutoComplete` on an edit | the browser's autofill hint, on the web |
+| `Placeholder = "Search the help"` on an edit | the grey line shown while the box is empty, saying what to type; never read back as the text, gone when the user types (RapidR Studio's Help box uses it) |
 | `Form.OnDropFiles (Files AS STRING)` | files dragged from the computer and dropped on the window (below) |
 
 ### Files dropped on a form

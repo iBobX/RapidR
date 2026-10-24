@@ -11,6 +11,51 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Windows 7 / 8 / 8.1 (32-bit) alpha download** (`tools/win7/alpha.sh`, not part of 2.121.0's release): one zip a person unzips and runs, `RapidR-2.121.0-win7-x86-alpha1.zip` (+ `.sha256`): `rapidr.exe`, `RapidR-Studio.bat`, Studio's files, the examples, the smoke tests, `README-ALPHA.txt` (English and Spanish: what it is, what works, the known limits, how to report) and every licence text. `rapidr.exe` is linked with version information (Ruta Internet S.R.L., RapidR, 2.121.0, "RapidR (Windows 7 alpha)") and a manifest (`crates/rapidr-cli/build.rs`, `llvm-windres`), as native Windows x64 programs are, so an antivirus no longer takes the resource-less program for a threat. The cube root (`cbrt`, `cbrtf`) is the program's own (`crates/rapidr-cli/src/cbrt.rs`): the msvcrt build would otherwise link mingw-w64's Cephes-derived one. `tools/win7/link_audit.sh` traces every toolchain object in the program to its source and licence (0 flagged; nothing GPL or LGPL, no winpthreads, no libgcc); the review is `docs/legal/review-2026-10-23-win7-alpha.md`, the mingw-w64 and LLVM licence texts are in `tools/win7/licenses/`. `imports.py --against older.exe` lists the imports new since an .exe known to start on Windows 7.
 - `tools/win7/`: `rapidr.exe` builds from the Mac for the Windows 7 targets (`i686-win7-windows-gnu`, `x86_64-win7-windows-gnu`; nightly Rust + LLVM-MinGW, msvcrt flavour): `build.sh`, `imports.py` (what the .exe needs at start-up; flags what Windows 7 lacks), `stage.sh` (the test drop and its disc image), `serve.sh` (host-only, read-only), `tests/` (console and window smoke tests). The 32-bit system-tray code compiles (`NOTIFYICONDATAW` is packed there). The six functions only Windows 8 and later has (`RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix`, `CoIncrementMTAUsage`, `CoCreateFreeThreadedMarshaler`, `CoTaskMemFree`) are RapidR's own small functions on those builds (`crates/rapidr-cli/src/win7.rs`: the real one is found on first use, or a stand-in answers "not available"), so Windows 7 starts the program; nothing is delay-loaded and no delay-load helper from mingw-w64 is linked (`tools/win7/clean-room.md`). The alpha zip now also carries the full `THIRD-PARTY-NOTICES.txt` (made by `rapidr notices`), mingw-w64's `AUTHORS`, and a README-ALPHA.txt with the as-is, out-of-support, trademark and support sentences.
 
+## [2.121.1] — 2026-10-24 (hotfix)
+
+What Robert found using 2.121.0, fixed.
+
+### Fixed
+- **The Help pane (F1) is a page you can use.** It used to be a box that looked like an input
+  (focused, empty, nothing typed) over a text that its own box covered. Now a real **search box**
+  ("Search the help", focus goes there when you press F1) looks up the word as you type, after a short
+  pause, with the names it may mean under it (Up and Down choose, Enter opens, Escape goes back to the
+  code); below it **one page that scrolls**: the title, what it is (wrapping, never cut off), the syntax as
+  code with **Insert into the code** under it (only when there is a code editor to take it), what it does,
+  and for a component its **Properties, Methods and Events**, each name a link to its own entry. F1 on
+  **your own names** says what they are: `PickedFont` — a variable in this program, its declaration line,
+  where it is declared (a link that jumps there), how often it is used, **Find References**, and the help
+  of its type (RFont) below; a SUB or FUNCTION shows its signature. F1 on a property after a dot
+  (`Hello.Font.Color`) is the entry of the thing before the dot (RFont's Color). With no word, or a word
+  nothing knows, the page is a **start page** (how to use Help and a few places to start) or "No entry
+  for X" with the closest names. Light, dark and high contrast; keyboard and screen reader.
+- **The Search tab's results have room**: rows 24 px high in RapidR's look (16 in the classic one), in the
+  chrome's font, as the other trees.
+- **A colour of a sub-object gets its swatch and its colour editor** (Ctrl+.): `Font.Color = &H800000` in a
+  CREATE body, as `Color = …` and `Hello.Font.Color = …` already had; any path of dots there works.
+- **Every pane tab has its icon**: the Assistant (a spark) and Help (a question mark) had none.
+- **Help > About says the version of the build**, not a number written in Studio's source
+  (`RLanguageService.Version`, new, read-only); a test keeps it equal to the workspace's.
+
+### Added
+- `REdit.Placeholder` (RapidR's own, additive): the grey line in an empty text box ("Search the help").
+- `RLanguageService.HelpPage` and `HelpFind` (the Help pane's page and suggestions, Markdown) and `Version`.
+- **`examples/windows/midi_sysex_out.rr`: a MIDI SysEx message sent with
+  winmm** (Windows; on other systems and the web it says so and Send stays
+  off). Pick the MIDI output, write the bytes in hex (the GS Reset is
+  there), Send: `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, a
+  wait for `MHDR_DONE` with a timeout, `midiOutUnprepareHeader`,
+  `midiOutClose`, each result code listed in Windows' words. The `MIDIHDR`
+  is laid out for 64-bit Windows by hand — 120 bytes: each pointer two
+  LONGs, the padding as fields, `dwReserved` an inline array field — and
+  the calls say `SIZEOF(hdr)`: 64 for a 32-bit header's 16 LONGs, 120 for
+  this one, on the interpreter and native, in a DLL call's argument list
+  too (conformance case `sizeof_type_argument`, expected output RC.EXE's).
+  Run on Windows 11 ARM64 and x64: every code 0 and `MHDR_DONE` set.
+  RC.EXE counts a TYPE's array field as one 4-byte slot (its `SIZEOF` of a
+  32-bit MIDIHDR with `dwReserved(7) AS LONG` is 36; RapidR's is 64):
+  docs/rapidq-ground-truth.md, ROADMAP.
+
 ## [2.121.0] — 2026-10-23 (Preview 4: Studio, solid)
 
 ### Legal
@@ -288,21 +333,6 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   three looks.
 
 ### Added
-- **`examples/windows/midi_sysex_out.rr`: a MIDI SysEx message sent with
-  winmm** (Windows; on other systems and the web it says so and Send stays
-  off). Pick the MIDI output, write the bytes in hex (the GS Reset is
-  there), Send: `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, a
-  wait for `MHDR_DONE` with a timeout, `midiOutUnprepareHeader`,
-  `midiOutClose`, each result code listed in Windows' words. The `MIDIHDR`
-  is laid out for 64-bit Windows by hand — 120 bytes: each pointer two
-  LONGs, the padding as fields, `dwReserved` an inline array field — and
-  the calls say `SIZEOF(hdr)`: 64 for a 32-bit header's 16 LONGs, 120 for
-  this one, on the interpreter and native, in a DLL call's argument list
-  too (conformance case `sizeof_type_argument`, expected output RC.EXE's).
-  Run on Windows 11 ARM64 and x64: every code 0 and `MHDR_DONE` set.
-  RC.EXE counts a TYPE's array field as one 4-byte slot (its `SIZEOF` of a
-  32-bit MIDIHDR with `dwReserved(7) AS LONG` is 36; RapidR's is 64):
-  docs/rapidq-ground-truth.md, ROADMAP.
 - **A message box's safe answer on Enter** (for RapidR Database Studio's
   delete and consent questions). `MESSAGEDLG(Msg, Type, Buttons,
   HelpContext, DefaultButton)`: the fifth argument (RapidR's; RapidQ's
