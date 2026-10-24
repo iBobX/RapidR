@@ -110,7 +110,24 @@ within 32 bits for exactly this: `GetDC`, `LoadCursorFromFile`,
   LONG (`TCITEM.pszText`, `SECURITY_ATTRIBUTES.lpSecurityDescriptor`,
   `NOTIFYICONDATA.hWnd`) — don't match what the API reads; the call fails
   or crashes, named. Structures of numbers only (`RECT`, `POINT`,
-  `SYSTEMTIME`, `LOGFONT`) work.
+  `SYSTEMTIME`, `LOGFONT`) work. A program can write such a structure's
+  64-bit layout out itself, because a TYPE's fields are packed and its array
+  fields are inline: each 8-byte pointer is two LONGs (low half, high half —
+  RapidR's own addresses are below 2 GB, so the high half is 0), the
+  padding Windows' compiler adds is a LONG field of its own, and
+  `SIZEOF(h)` is then the 64-bit structure's size. `examples/windows/
+  midi_sysex_out.rr` does it for winmm's `MIDIHDR` (120 bytes where a 32-bit
+  program's is 64: `SIZEOF` says 64 and 120 on the interpreter and native,
+  in a DLL call's argument list too — `tests/conformance/cases/
+  sizeof_type_argument.bas`, whose expected output is RC.EXE's), and
+  `midiOutPrepareHeader`, `midiOutLongMsg` and `midiOutUnprepareHeader` run
+  with it on Windows 11 ARM64 and x64. (RapidQ counts a TYPE's array field
+  as one 4-byte slot: its `SIZEOF` of that header is 36,
+  [rapidq-ground-truth.md](rapidq-ground-truth.md).) A structure the DLL
+  changes *after* the call has returned (`MIDIHDR.dwFlags`, `OVERLAPPED`)
+  is the program's TYPE copied over the DLL's memory when the next DLL call
+  starts: wait inside one call that blocks (`Sleep`), not by calling the DLL
+  in a loop.
 - `RAPIDR_SANDBOX` set (to anything but empty or 0): no library is loaded
   and every DLL call is a run-time error — the gate a run RapidR starts on
   someone else's behalf (an assistant's, an extension's) sets

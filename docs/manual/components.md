@@ -245,7 +245,10 @@ What to know:
   A control's `WndProc` is never called, on any system.
 
 The examples in [examples/windows/](../../examples/windows/) list a form's
-messages as they come, post `WM_USER + 1`, and read a MIDI keyboard.
+messages as they come, post `WM_USER + 1`, read a MIDI keyboard, and send a
+MIDI SysEx message (`midi_sysex_out.rr`: it also shows how a TYPE is laid
+out for a 64-bit Windows structure, `MIDIHDR`; see
+[Windows DLL calls](../windows-dll-calls.md)).
 
 ## Message boxes: the safe answer on Enter
 

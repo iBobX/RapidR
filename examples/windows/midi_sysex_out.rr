@@ -31,16 +31,22 @@
 ' LONGs: each pointer is two (the low half, then the high half), the gaps
 ' are fields of their own, and dwReserved's 8 pointers are an array of 16
 ' LONGs inside the TYPE (array fields are laid out inline). SIZEOF(hdr) is
-' 120, the size midiOutPrepareHeader wants. lpData is VARPTR of a string
-' that holds the message: a RapidR address is a real address on Windows and
-' fits the low half; the high half stays 0.
+' 120, the size midiOutPrepareHeader wants: the calls say SIZEOF(hdr), not a
+' number, so the size follows the TYPE (a 32-bit program's header of 16 LONGs
+' gives 64; RapidQ itself counts an array field as one 4-byte pointer outside
+' the record, so its SIZEOF of that header is 36 and a program there types
+' 64). lpData is VARPTR of a string that holds the message: a
+' RapidR address is a real address on Windows and fits the low half; the high
+' half stays 0.
 '
-' Waiting. The driver writes MHDR_DONE into the header after midiOutLongMsg
-' has returned, and RapidR copies its own TYPE over the header's memory at
-' every DLL call (and reads it back at the end). So the wait is one call
-' that blocks, kernel32's Sleep: the driver finishes meanwhile, and what it
-' wrote is read back into hdr when Sleep returns. The wait stops at the
-' timeout (2 seconds), and then midiOutReset takes the message back.
+' Waiting. A driver may write MHDR_DONE into the header after midiOutLongMsg
+' has returned (Windows' GS Wavetable Synth is done before it returns). RapidR
+' copies its own TYPE over the header's memory when a DLL call starts and
+' reads it back when the call ends, so a flag the driver sets between two
+' calls could be written over. The wait is therefore calls that block,
+' kernel32's Sleep: the driver finishes meanwhile, and what it wrote is read
+' back into hdr when Sleep returns. It stops at the timeout (2 seconds), and
+' then midiOutReset takes the message back.
 
 CONST MHDR_DONE = &H1
 CONST MHDR_PREPARED = &H2
