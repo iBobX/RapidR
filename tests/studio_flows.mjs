@@ -2167,8 +2167,12 @@ const CASES = [
     name: "help-start",
     open: HELP_OPEN,
     webFiles: HELP_FILES,
-    do: "wait,help:",
-    delay: 4,
+    // (the search box's grey "Search the help" too: in each look, AA)
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,view.code,wait,help:",
+    delay: 5,
     dump: {
       "helppage.plaintext": /^Help\nPut the caret on a word in your code and press F1, or type a word in the box above\.[^\n]*\nStart with\n• RForm: a window\n• RButton[^\n]*\n[\s\S]*• IF: choose what to do\n[\s\S]*The whole manual is at the RapidR manual\.$/,
       "helpsearch.text": /^$/,
@@ -2259,6 +2263,16 @@ const CASES = [
     do: "wait,helpfocus:search,type:rbut,wait,wait,key:Enter,wait",
     delay: 8,
     dump: { "helpsearch.text": /^RButton$/, "helpsuggest.visible": NO, "helppage.plaintext": /^RButton\nComponent/ },
+  },
+  {
+    // …a click on one of the names (pri: PRINT first, the shortest; then Printer)
+    name: "help-type-click",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,helpfocus:search,type:pri,wait,wait",
+    events: "helpsuggest.__item_1",
+    delay: 9,
+    dump: { "helpsearch.text": /^Printer$/, "helpsuggest.visible": NO, "helppage.plaintext": /^Printer\nObject · / },
   },
   {
     // the names of the program come with the language's

@@ -463,10 +463,11 @@ pub fn suggest(query: &str, program: &[(String, &'static str)], limit: usize) ->
         }
         best
     };
-    let mut hits: Vec<(u8, usize, usize)> = all.iter().enumerate().filter_map(|(i, (n, keys, _))| rank(n, keys).map(|r| (r, i, n.len()))).collect();
+    // (the rank, then the shorter name — what was typed is closer to PRINT than to Printer —, then the order the sources have)
+    let mut hits: Vec<(u8, usize, usize)> = all.iter().enumerate().filter_map(|(i, (n, keys, _))| rank(n, keys).map(|r| (r, n.len(), i))).collect();
     hits.sort();
     let mut out: Vec<(String, String)> = Vec::new();
-    for (_, i, _) in hits {
+    for (_, _, i) in hits {
         let (n, _, what) = &all[i];
         if !out.iter().any(|(o, _)| o.eq_ignore_ascii_case(n)) {
             out.push((n.clone(), what.clone()));
@@ -631,6 +632,9 @@ mod tests {
         // (an entry's own name first, the longer ones after)
         let s = suggest("print", &[], 8);
         assert!(s[0].0.eq_ignore_ascii_case("print"), "{s:?}");
+        // (a prefix: the shortest name first)
+        let s = suggest("pri", &[], 8);
+        assert_eq!(s[0].0, "PRINT", "{s:?}");
         assert!(suggest("", &[], 8).is_empty());
         assert!(suggest("zzqqxx", &[], 8).is_empty());
         assert!(suggest("clre", &[], 8).iter().any(|(n, k)| n == "clRed" && k == "constant"));
