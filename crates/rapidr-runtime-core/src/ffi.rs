@@ -301,7 +301,10 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
         // materialised blocks (kept for the process's life) or this call's
         // `temps` (alive until after the call). A crash inside is reported
         // by the crash filter, naming the call.
+        #[cfg(not(target_arch = "x86"))]
         let r = unsafe { call_table(ptr, &slots, spec.returns_float()) };
+        #[cfg(target_arch = "x86")]
+        let r = unsafe { call_x86(ptr, &slots, &spec.params, spec.returns_float(), spec.return_type == "SINGLE") };
         // (a SINGLE result is the low 32 bits of the float register)
         let r = r.map(|raw| match raw {
             Raw::Float(d) if spec.return_type == "SINGLE" => Raw::Float(f32::from_bits(d.to_bits() as u32) as f64),
@@ -687,11 +690,130 @@ macro_rules! long_mixed {
     }};
 }
 
+/// 32-bit Windows (x86): every argument goes on the stack at its own size,
+/// LONGs and pointers 4 bytes, a SINGLE 4, a DOUBLE 8 (low half first), and
+/// the function (stdcall, as Windows' own are) removes them. The 64-bit
+/// tables above pass 8 bytes for each, which a 32-bit function reads wrong
+/// and removes by the wrong amount. So the call is made with the arguments
+/// as 32-bit words: the stack holds exactly what the function expects.
+#[cfg(target_arch = "x86")]
+const MAX_X86_WORDS: usize = 32;
+
+#[cfg(target_arch = "x86")]
+fn x86_words(slots: &[Slot], params: &[dll::Param]) -> Result<Vec<u32>, String> {
+    let mut w = Vec::with_capacity(slots.len() * 2);
+    for (slot, p) in slots.iter().zip(params) {
+        match *slot {
+            Slot::Int(n) => w.push(n as u32),
+            // (a SINGLE's 32 bits are the low half of its slot, see `call`)
+            Slot::Float(f) if p.type_name == "SINGLE" => w.push(f.to_bits() as u32),
+            Slot::Float(f) => {
+                let b = f.to_bits();
+                w.push(b as u32);
+                w.push((b >> 32) as u32);
+            }
+        }
+    }
+    if w.len() > MAX_X86_WORDS {
+        return Err(format!("RapidR calls DLL functions of up to {MAX_X86_WORDS} 32-bit argument words here (a DOUBLE is two); this one has {}", w.len()));
+    }
+    Ok(w)
+}
+
+/// Calls `ptr` (a 32-bit stdcall function) with `w` as its stack arguments.
+///
+/// # Safety
+/// As [`call_table`]: `ptr` is the exported function the DECLARE describes.
+#[cfg(target_arch = "x86")]
+unsafe fn call_x86(ptr: *const (), slots: &[Slot], params: &[dll::Param], float_result: bool, single_result: bool) -> Result<Raw, String> {
+    let w = x86_words(slots, params)?;
+    if float_result {
+        // (ST0: a SINGLE result comes back widened; it is handed on as its
+        // 32 bits in the low half, as on the other targets)
+        let v: f64 = match w.len() {
+            0 => { let f: unsafe extern "system" fn() -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f() } }
+            1 => { let f: unsafe extern "system" fn(u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0]) } }
+            2 => { let f: unsafe extern "system" fn(u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1]) } }
+            3 => { let f: unsafe extern "system" fn(u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2]) } }
+            4 => { let f: unsafe extern "system" fn(u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3]) } }
+            5 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4]) } }
+            6 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5]) } }
+            7 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6]) } }
+            8 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7]) } }
+            9 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8]) } }
+            10 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9]) } }
+            11 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10]) } }
+            12 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11]) } }
+            13 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12]) } }
+            14 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13]) } }
+            15 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14]) } }
+            16 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15]) } }
+            17 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16]) } }
+            18 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17]) } }
+            19 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18]) } }
+            20 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19]) } }
+            21 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20]) } }
+            22 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21]) } }
+            23 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22]) } }
+            24 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23]) } }
+            25 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24]) } }
+            26 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25]) } }
+            27 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26]) } }
+            28 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27]) } }
+            29 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28]) } }
+            30 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29]) } }
+            31 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29], w[30]) } }
+            32 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> f64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29], w[30], w[31]) } }
+            _ => unreachable!(),
+        };
+        return Ok(Raw::Float(if single_result { f64::from_bits((v as f32).to_bits() as u64) } else { v }));
+    }
+    // (EAX, and EDX for a 64-bit result: a LONG is EAX, sign-extended)
+    let v: u64 = match w.len() {
+            0 => { let f: unsafe extern "system" fn() -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f() } }
+            1 => { let f: unsafe extern "system" fn(u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0]) } }
+            2 => { let f: unsafe extern "system" fn(u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1]) } }
+            3 => { let f: unsafe extern "system" fn(u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2]) } }
+            4 => { let f: unsafe extern "system" fn(u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3]) } }
+            5 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4]) } }
+            6 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5]) } }
+            7 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6]) } }
+            8 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7]) } }
+            9 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8]) } }
+            10 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9]) } }
+            11 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10]) } }
+            12 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11]) } }
+            13 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12]) } }
+            14 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13]) } }
+            15 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14]) } }
+            16 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15]) } }
+            17 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16]) } }
+            18 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17]) } }
+            19 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18]) } }
+            20 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19]) } }
+            21 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20]) } }
+            22 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21]) } }
+            23 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22]) } }
+            24 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23]) } }
+            25 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24]) } }
+            26 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25]) } }
+            27 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26]) } }
+            28 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27]) } }
+            29 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28]) } }
+            30 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29]) } }
+            31 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29], w[30]) } }
+            32 => { let f: unsafe extern "system" fn(u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32, u32) -> u64 = unsafe { std::mem::transmute(ptr) }; unsafe { f(w[0], w[1], w[2], w[3], w[4], w[5], w[6], w[7], w[8], w[9], w[10], w[11], w[12], w[13], w[14], w[15], w[16], w[17], w[18], w[19], w[20], w[21], w[22], w[23], w[24], w[25], w[26], w[27], w[28], w[29], w[30], w[31]) } }
+        _ => unreachable!(),
+    };
+    Ok(Raw::Int(v as u32 as i32 as i64))
+}
+
 /// Calls `ptr` with `slots` and reads the result from the integer or the
 /// float register.
 ///
 /// # Safety
 /// `ptr` must be a function of the convention and arity `slots` describes.
+#[cfg_attr(target_arch = "x86", allow(dead_code))]
 unsafe fn call_table(ptr: *const (), slots: &[Slot], float_result: bool) -> Result<Raw, String> {
     let mixed = slots.iter().any(|s| matches!(s, Slot::Float(_)));
     Ok(match (mixed, float_result) {

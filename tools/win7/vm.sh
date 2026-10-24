@@ -35,7 +35,20 @@ case "${1:-}" in
         sed "s/@ADDR@/$ADDR/g; s/\$/\r/" "$ROOT/tools/win7/vm/install-agent.ps1" > "$SHARE/install-agent.ps1"
         echo "staged $SHARE/install-agent.ps1 (address $ADDR). Serve it: tools/win7/serve.sh"
         ;;
-    exec) shift; capped "$UTMCTL" exec "$VM" --cmd "cmd.exe /c $*" ;;
+    # (the guest agent runs a program with its arguments, and hands back no
+    # output: cmd.exe writes the command's output to a file, pulled after)
+    # The agent starts the program and returns at once: a marker file of this
+    # run's own is written when the command has finished, and waited for
+    # (CAP seconds at most).
+    exec) shift
+          id="$$-$RANDOM"
+          capped "$UTMCTL" exec "$VM" --cmd cmd.exe /c "($*) > C:\\vmout-$id.txt 2>&1 & echo done> C:\\vmdone-$id.txt" || exit $?
+          n=0
+          # (a pull's exit status says nothing; the marker's text does)
+          until "$UTMCTL" file pull "$VM" "C:\\vmdone-$id.txt" 2>/dev/null | grep -q done || [ $n -ge "$CAP" ]; do sleep 1; n=$((n + 1)); done
+          [ $n -ge "$CAP" ] && echo "(still running after $CAP s)" >&2
+          capped "$UTMCTL" file pull "$VM" "C:\\vmout-$id.txt" | tr -d '\r'
+          "$UTMCTL" exec "$VM" --cmd cmd.exe /c "del C:\\vmout-$id.txt C:\\vmdone-$id.txt" >/dev/null 2>&1 ;;
     push) capped "$UTMCTL" file push "$VM" "$3" < "$2" ;;
     pull) capped "$UTMCTL" file pull "$VM" "$2" > "$3" ;;
     *) sed -n '2,13p' "$0" >&2; exit 2 ;;

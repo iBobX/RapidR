@@ -15,7 +15,7 @@ time /t >> "%OUT%"
 ver >> "%OUT%"
 echo. >> "%OUT%"
 
-echo [1/5] rapidr version
+echo [1/6] rapidr version
 echo --- 1. rapidr version >> "%OUT%"
 "%RR%" version >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
@@ -23,22 +23,27 @@ echo --- 1b. the six functions only newer Windows has: found, or answered by Rap
 "%RR%" __win7_check >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
 
-echo [2/5] console program: hello.rr
+echo [2/6] console program: hello.rr
 echo --- 2. console program: hello.rr >> "%OUT%"
 "%RR%" run hello.rr >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
 
-echo [3/5] language tour: language.rr
+echo [3/6] language tour: language.rr
 echo --- 3. language tour: language.rr >> "%OUT%"
 "%RR%" run language.rr >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
 
-echo [4/5] window, the renderer chosen by RapidR (closes by itself after 20 s)
+echo [3b/6] DLL calls: numbers, text, BYREF, DOUBLE, SINGLE
+echo --- 3b. DLL calls: dll_calls.rr (each value should match the one in brackets) >> "%OUT%"
+"%RR%" run dll_calls.rr >> "%OUT%" 2>&1
+echo exit=%errorlevel% >> "%OUT%"
+
+echo [4/6] window, the renderer chosen by RapidR (closes by itself after 20 s)
 echo --- 4. window, default renderer: form_auto.rr >> "%OUT%"
 "%RR%" run form_auto.rr >> "%OUT%" 2>&1
 echo exit=%errorlevel% >> "%OUT%"
 
-echo [5/5] window, CPU renderer forced (closes by itself after 20 s)
+echo [5/6] window, CPU renderer forced (closes by itself after 20 s)
 echo --- 5. window, RAPIDR_RENDERER=cpu: form_auto.rr >> "%OUT%"
 set RAPIDR_RENDERER=cpu
 "%RR%" run form_auto.rr >> "%OUT%" 2>&1

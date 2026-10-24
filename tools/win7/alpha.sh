@@ -56,7 +56,7 @@ done
 # the launcher, the readme and the smoke tests
 text tools/win7/alpha/README-ALPHA.txt "$DIR/README-ALPHA.txt"
 crlf tools/win7/alpha/RapidR-Studio.bat "$DIR/RapidR-Studio.bat"
-cp examples/basics/hello.rr examples/basics/language.rr tools/win7/tests/form_auto.rr "$DIR/tests/"
+cp examples/basics/hello.rr examples/basics/language.rr tools/win7/tests/form_auto.rr tools/win7/tests/dll_calls.rr "$DIR/tests/"
 for b in run-tests.bat run-studio.bat; do crlf "tools/win7/tests/$b" "$DIR/tests/$b"; done
 
 # RapidR's own licence texts, and what the toolchain links into the .exe

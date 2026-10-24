@@ -1,0 +1,25 @@
+' dll_calls.rr: DLL calls the way 32-bit Windows wants them (each argument at
+' its own size: LONG and pointers 4 bytes, SINGLE 4, DOUBLE 8). Each line says
+' what it should print in brackets; the last checks the stack after 2000 calls.
+'
+'   rapidr run dll_calls.rr      (Windows)
+
+DECLARE FUNCTION MulDiv LIB "kernel32" ALIAS "MulDiv" (a AS LONG, b AS LONG, c AS LONG) AS LONG
+DECLARE FUNCTION lstrlenA LIB "kernel32" ALIAS "lstrlenA" (s AS STRING) AS LONG
+DECLARE FUNCTION GetComputerNameA LIB "kernel32" ALIAS "GetComputerNameA" (buf AS STRING, BYREF size AS LONG) AS LONG
+DECLARE FUNCTION GetTickCount LIB "kernel32" ALIAS "GetTickCount" () AS LONG
+DECLARE FUNCTION VarR8FromI4 LIB "oleaut32" ALIAS "VarR8FromI4" (lIn AS LONG, BYREF pdblOut AS DOUBLE) AS LONG
+DECLARE FUNCTION VarI4FromR8 LIB "oleaut32" ALIAS "VarI4FromR8" (dblIn AS DOUBLE, BYREF plOut AS LONG) AS LONG
+DECLARE FUNCTION VarI4FromR4 LIB "oleaut32" ALIAS "VarI4FromR4" (fltIn AS SINGLE, BYREF plOut AS LONG) AS LONG
+DIM n AS LONG, buf AS STRING, d AS DOUBLE, k AS LONG, i AS INTEGER
+PRINT "MulDiv(7,6,3) = "; MulDiv(7, 6, 3); "  (14)"
+PRINT "lstrlenA = "; lstrlenA("RapidR on Windows 7"); "  (19)"
+buf = SPACE$(64): n = 64
+k = GetComputerNameA(buf, n)
+PRINT "GetComputerNameA: "; k; " size="; n; " name="; LEFT$(buf, n)
+PRINT "GetTickCount > 0: "; GetTickCount() <> 0
+k = VarR8FromI4(42, d): PRINT "VarR8FromI4(42) -> "; d; " rc="; k; "  (42)"
+k = VarI4FromR8(1234.4, n): PRINT "VarI4FromR8(1234.4) -> "; n; " rc="; k; "  (1234)"
+k = VarI4FromR4(99.6, n): PRINT "VarI4FromR4(99.6) -> "; n; " rc="; k; "  (100)"
+FOR i = 1 TO 2000: k = MulDiv(i, 2, 1): NEXT
+PRINT "2000 calls: last="; k; "  (4000) - stack still balanced"
