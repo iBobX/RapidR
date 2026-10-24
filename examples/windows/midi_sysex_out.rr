@@ -1,0 +1,349 @@
+' midi_sysex_out.rr: a MIDI System Exclusive (SysEx) message sent to a MIDI
+' output with Windows' winmm.
+'
+'   rapidr run midi_sysex_out.rr
+'
+' Windows only: on other systems the form says so and Send stays off.
+'
+' Pick the MIDI output, write the message's bytes in hex (it starts with F0
+' and ends with F7) and click Send. The first message is the GS Reset,
+' F0 41 10 42 12 40 00 7F 00 41 F7, which Windows' own "Microsoft GS
+' Wavetable Synth" accepts (it silences the notes and puts the synth back to
+' its start-up settings); a loopback driver, or a real synthesiser on a MIDI
+' interface, shows what arrives. The list under the box shows each winmm
+' call with the result code it gave, in words.
+'
+' A long message goes through a MIDIHDR, the header Windows keeps while the
+' driver sends it:
+'   midiOutOpen              the output (the one picked in the list)
+'   midiOutPrepareHeader     Windows locks the header and its bytes in memory
+'   midiOutLongMsg           the driver is given them, and the call returns
+'   (wait)                   the driver sets MHDR_DONE in the header's dwFlags
+'   midiOutUnprepareHeader   the bytes are ours again
+'   midiOutClose
+'
+' The header on 64-bit Windows. RapidR programs are 64-bit, and winmm's
+' MIDIHDR has pointers (lpData, dwUser, lpNext, reserved, dwReserved), so
+' Windows reads 120 bytes where a 32-bit program's header (RapidQ's) is 16
+' LONGs, 64 bytes. The pointers are 8 bytes wide and start on a multiple of
+' 8, which leaves a gap of 4 bytes after dwFlags and after dwOffset. A TYPE
+' is laid out packed, in 4-byte LONGs, so the header is written out in
+' LONGs: each pointer is two (the low half, then the high half), the gaps
+' are fields of their own, and dwReserved's 8 pointers are an array of 16
+' LONGs inside the TYPE (array fields are laid out inline). SIZEOF(hdr) is
+' 120, the size midiOutPrepareHeader wants: the calls say SIZEOF(hdr), not a
+' number, so the size follows the TYPE (a 32-bit program's header of 16 LONGs
+' gives 64; RapidQ itself counts an array field as one 4-byte pointer outside
+' the record, so its SIZEOF of that header is 36 and a program there types
+' 64). lpData is VARPTR of a string that holds the message: a
+' RapidR address is a real address on Windows and fits the low half; the high
+' half stays 0.
+'
+' Waiting. A driver may write MHDR_DONE into the header after midiOutLongMsg
+' has returned (Windows' GS Wavetable Synth is done before it returns). RapidR
+' copies its own TYPE over the header's memory when a DLL call starts and
+' reads it back when the call ends, so a flag the driver sets between two
+' calls could be written over. The wait is therefore calls that block,
+' kernel32's Sleep: the driver finishes meanwhile, and what it wrote is read
+' back into hdr when Sleep returns. It stops at the timeout (2 seconds), and
+' then midiOutReset takes the message back.
+
+CONST MHDR_DONE = &H1
+CONST MHDR_PREPARED = &H2
+CONST MHDR_INQUEUE = &H4
+CONST TIMEOUT_MS = 2000
+CONST STEP_MS = 20
+
+' MIDIOUTCAPS has no pointers: it is the same on 32 and 64 bits (52 bytes).
+TYPE MIDIOUTCAPS
+    wMid AS WORD
+    wPid AS WORD
+    vDriverVersion AS LONG
+    szPname AS STRING * 32
+    wTechnology AS WORD
+    wVoices AS WORD
+    wNotes AS WORD
+    wChannelMask AS WORD
+    dwSupport AS LONG
+END TYPE
+
+' MIDIHDR as 64-bit Windows lays it out (120 bytes); the 32-bit one is
+' 16 LONGs in a row.
+TYPE MIDIHDR
+    lpDataLo AS LONG            ' LPSTR lpData            offset 0
+    lpDataHi AS LONG
+    dwBufferLength AS LONG      ' DWORD                   offset 8
+    dwBytesRecorded AS LONG     ' DWORD                   offset 12
+    dwUserLo AS LONG            ' DWORD_PTR dwUser        offset 16
+    dwUserHi AS LONG
+    dwFlags AS LONG             ' DWORD                   offset 24
+    gap1 AS LONG                ' (padding to 8)
+    lpNextLo AS LONG            ' struct *lpNext          offset 32
+    lpNextHi AS LONG
+    reservedLo AS LONG          ' DWORD_PTR reserved      offset 40
+    reservedHi AS LONG
+    dwOffset AS LONG            ' DWORD                   offset 48
+    gap2 AS LONG                ' (padding to 8)
+    dwReserved(15) AS LONG      ' DWORD_PTR dwReserved[8] offset 56 (8 x 8 bytes)
+END TYPE
+
+DECLARE FUNCTION midiOutGetNumDevs LIB "winmm" ALIAS "midiOutGetNumDevs" () AS LONG
+DECLARE FUNCTION midiOutGetDevCapsA LIB "winmm" ALIAS "midiOutGetDevCapsA" (uDeviceID AS LONG, caps AS MIDIOUTCAPS, cbCaps AS LONG) AS LONG
+DECLARE FUNCTION midiOutOpen LIB "winmm" ALIAS "midiOutOpen" (BYREF hMidiOut AS LONG, uDeviceID AS LONG, dwCallback AS LONG, dwInstance AS LONG, fdwOpen AS LONG) AS LONG
+DECLARE FUNCTION midiOutPrepareHeader LIB "winmm" ALIAS "midiOutPrepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
+DECLARE FUNCTION midiOutLongMsg LIB "winmm" ALIAS "midiOutLongMsg" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
+DECLARE FUNCTION midiOutUnprepareHeader LIB "winmm" ALIAS "midiOutUnprepareHeader" (hMidiOut AS LONG, midiHdr AS MIDIHDR, cbMidiHdr AS LONG) AS LONG
+DECLARE FUNCTION midiOutReset LIB "winmm" ALIAS "midiOutReset" (hMidiOut AS LONG) AS LONG
+DECLARE FUNCTION midiOutClose LIB "winmm" ALIAS "midiOutClose" (hMidiOut AS LONG) AS LONG
+DECLARE FUNCTION midiOutGetErrorTextA LIB "winmm" ALIAS "midiOutGetErrorTextA" (mmrError AS LONG, text AS STRING, cchText AS LONG) AS LONG
+' (RapidR's own SLEEP is not a DLL call, so it would not read the header back)
+DECLARE SUB WinSleep LIB "kernel32" ALIAS "Sleep" (dwMilliseconds AS LONG)
+
+DECLARE SUB RefreshClick
+DECLARE SUB SendClick
+DECLARE SUB ListDevices
+DECLARE FUNCTION ParseHex (text AS STRING) AS STRING
+DECLARE FUNCTION HexValue (s AS STRING) AS LONG
+DECLARE FUNCTION Report (what AS STRING, code AS LONG) AS LONG
+DECLARE FUNCTION FlagNames (flags AS LONG) AS STRING
+DECLARE FUNCTION Num (x AS LONG) AS STRING
+
+DIM hOut AS LONG
+DIM sysex AS STRING        ' the message's bytes: kept alive while Windows may read them
+DIM problem AS STRING
+DIM onWindows AS INTEGER
+onWindows = (ENVIRON$("OS") = "Windows_NT")
+
+CREATE Form AS RForm
+    Caption = "MIDI SysEx out"
+    Width = 540
+    Height = 420
+    Center
+    CREATE DeviceLbl AS RLabel
+        Caption = "MIDI output": Left = 12: Top = 16: Width = 80
+    END CREATE
+    CREATE Devices AS RComboBox
+        Left = 96: Top = 12: Width = 330
+    END CREATE
+    CREATE RefreshBtn AS RButton
+        Caption = "&Refresh"
+        Left = 434: Top = 11: Width = 90
+        OnClick = RefreshClick
+    END CREATE
+    CREATE BytesLbl AS RLabel
+        Caption = "SysEx (hex)": Left = 12: Top = 52: Width = 80
+    END CREATE
+    CREATE BytesEdit AS REdit
+        Text = "F0 41 10 42 12 40 00 7F 00 41 F7"
+        Left = 96: Top = 48: Width = 330
+    END CREATE
+    CREATE SendBtn AS RButton
+        Caption = "&Send"
+        Left = 434: Top = 47: Width = 90
+        OnClick = SendClick
+    END CREATE
+    CREATE Hint AS RLabel
+        Caption = "Starts with F0, ends with F7; the bytes between are 00 to 7F."
+        Left = 96: Top = 80: Width = 428
+    END CREATE
+    CREATE Status AS RLabel
+        Caption = "Pick a MIDI output and click Send."
+        Left = 12: Top = 108: Width = 512: Height = 34: AutoSize = 0: WordWrap = 1
+    END CREATE
+    CREATE Steps AS RListBox
+        Left = 12: Top = 148: Width = 512: Height = 232
+    END CREATE
+END CREATE
+
+' The MIDI outputs, in the list (the device number winmm uses is the item's
+' position). The Microsoft GS Wavetable Synth is picked when it is there.
+SUB ListDevices
+    DIM i AS INTEGER, n AS INTEGER, r AS LONG, pick AS INTEGER, nm AS STRING
+    DIM caps AS MIDIOUTCAPS
+    Devices.Clear
+    n = midiOutGetNumDevs()
+    FOR i = 0 TO n - 1
+        r = midiOutGetDevCapsA(i, caps, SIZEOF(caps))
+        IF r = 0 THEN nm = RTRIM$(caps.szPname) ELSE nm = "MIDI output " + Num(i)
+        Devices.AddItems nm
+        IF INSTR(UCASE$(nm), "GS WAVETABLE") > 0 THEN pick = i
+    NEXT
+    IF n = 0 THEN
+        Status.Caption = "No MIDI output found: connect a MIDI interface or synth, then click Refresh."
+        SendBtn.Enabled = 0
+    ELSE
+        Devices.ItemIndex = pick
+        SendBtn.Enabled = 1
+        Status.Caption = Num(n) + " MIDI output(s). Pick one and click Send."
+    END IF
+END SUB
+
+SUB RefreshClick
+    IF onWindows THEN ListDevices
+END SUB
+
+' One line in the list: the call and its result code, in Windows' words
+' (midiOutGetErrorText); returns the code.
+FUNCTION Report (what AS STRING, code AS LONG) AS LONG
+    DIM text AS STRING
+    IF code = 0 THEN
+        Steps.AddItems what + ": 0 - ok"
+    ELSE
+        text = SPACE$(200)
+        midiOutGetErrorTextA(code, text, 200)
+        Steps.AddItems what + ": " + Num(code) + " - " + LEFT$(text, INSTR(text + CHR$(0), CHR$(0)) - 1)
+    END IF
+    Result = code
+END FUNCTION
+
+' A number as text, without STR$'s space in front.
+FUNCTION Num (x AS LONG) AS STRING
+    Result = LTRIM$(STR$(x))
+END FUNCTION
+
+' dwFlags in words.
+FUNCTION FlagNames (flags AS LONG) AS STRING
+    DIM s AS STRING
+    IF flags AND MHDR_PREPARED THEN s = s + " PREPARED"
+    IF flags AND MHDR_INQUEUE THEN s = s + " INQUEUE"
+    IF flags AND MHDR_DONE THEN s = s + " DONE"
+    IF s = "" THEN s = " none"
+    Result = "MHDR" + s
+END FUNCTION
+
+' The value of hex digits ("7F" is 127), -1 when something else is there
+' (VAL doesn't read hex).
+FUNCTION HexValue (s AS STRING) AS LONG
+    DIM i AS INTEGER, d AS INTEGER, v AS LONG
+    FOR i = 1 TO LEN(s)
+        d = INSTR("0123456789ABCDEF", UCASE$(MID$(s, i, 1)))
+        IF d = 0 THEN
+            Result = -1
+            EXIT FUNCTION
+        END IF
+        v = v * 16 + d - 1
+    NEXT
+    Result = v
+END FUNCTION
+
+' The bytes a hex text names (one or two digits each, spaces or commas
+' between), as a string with a character for each byte. "" when the text
+' isn't bytes, with `problem` saying why.
+FUNCTION ParseHex (text AS STRING) AS STRING
+    DIM i AS INTEGER, c AS STRING, tok AS STRING, bytes AS STRING, t AS STRING, v AS LONG
+    problem = ""
+    t = text + " "
+    FOR i = 1 TO LEN(t)
+        c = MID$(t, i, 1)
+        IF c = " " OR c = "," OR c = CHR$(9) OR c = CHR$(10) OR c = CHR$(13) THEN
+            IF tok <> "" THEN
+                IF LEN(tok) > 2 THEN
+                    problem = tok + " is not a byte: write each byte as two hex digits, like F0 or 7F."
+                    Result = ""
+                    EXIT FUNCTION
+                END IF
+                v = HexValue(tok)
+                IF v < 0 THEN
+                    problem = tok + " is not hex: the digits are 0 to 9 and A to F."
+                    Result = ""
+                    EXIT FUNCTION
+                END IF
+                bytes = bytes + CHR$(v)
+                tok = ""
+            END IF
+        ELSE
+            tok = tok + c
+        END IF
+    NEXT
+    IF bytes = "" THEN problem = "Write the message's bytes in hex, like F0 41 10 ... F7."
+    Result = bytes
+END FUNCTION
+
+SUB SendClick
+    DIM hdr AS MIDIHDR
+    DIM r AS LONG, i AS INTEGER, waited AS INTEGER
+    DIM opened AS INTEGER, prepared AS INTEGER, sentOk AS INTEGER, finished AS INTEGER
+    DIM dev AS STRING, summary AS STRING
+    DIM cOpen AS LONG, cPrepare AS LONG, cSend AS LONG, cUnprepare AS LONG, cClose AS LONG
+    IF onWindows = 0 THEN EXIT SUB
+    Steps.Clear
+    ' (the message)
+    sysex = ParseHex(BytesEdit.Text)
+    IF sysex = "" THEN
+        Status.Caption = problem
+        EXIT SUB
+    END IF
+    IF ASC(LEFT$(sysex, 1)) <> &HF0 OR ASC(RIGHT$(sysex, 1)) <> &HF7 THEN
+        Status.Caption = "A SysEx message starts with F0 and ends with F7."
+        EXIT SUB
+    END IF
+    FOR i = 2 TO LEN(sysex) - 1
+        IF ASC(MID$(sysex, i, 1)) > &H7F THEN
+            Status.Caption = "Byte " + Num(i) + " is above 7F: inside a SysEx message every byte is 00 to 7F."
+            EXIT SUB
+        END IF
+    NEXT
+    IF Devices.ItemIndex < 0 THEN
+        Status.Caption = "No MIDI output picked: click Refresh."
+        EXIT SUB
+    END IF
+    dev = Devices.Item(Devices.ItemIndex)
+    SendBtn.Enabled = 0
+    ' (1) open the output
+    cOpen = Report("midiOutOpen", midiOutOpen(hOut, Devices.ItemIndex, 0, 0, 0))
+    opened = (cOpen = 0)
+    IF opened THEN
+        ' (2) the header: the message's address and length, nothing else
+        hdr.lpDataLo = VARPTR(sysex)
+        hdr.lpDataHi = 0
+        hdr.dwBufferLength = LEN(sysex)
+        cPrepare = Report("midiOutPrepareHeader", midiOutPrepareHeader(hOut, hdr, SIZEOF(hdr)))
+        prepared = (cPrepare = 0)
+    END IF
+    IF prepared THEN
+        ' (3) hand it to the driver
+        cSend = Report("midiOutLongMsg", midiOutLongMsg(hOut, hdr, SIZEOF(hdr)))
+        sentOk = (cSend = 0)
+        ' (4) wait for the driver to set MHDR_DONE, up to the timeout
+        IF sentOk THEN
+            DO WHILE (hdr.dwFlags AND MHDR_DONE) = 0 AND waited < TIMEOUT_MS
+                WinSleep STEP_MS
+                waited = waited + STEP_MS
+            LOOP
+            finished = ((hdr.dwFlags AND MHDR_DONE) <> 0)
+            IF finished THEN
+                Steps.AddItems "wait: the driver set MHDR_DONE after about " + Num(waited) + " ms (" + FlagNames(hdr.dwFlags) + ")"
+            ELSE
+                Steps.AddItems "wait: no MHDR_DONE in " + Num(TIMEOUT_MS) + " ms (" + FlagNames(hdr.dwFlags) + "): midiOutReset takes the message back"
+                r = Report("midiOutReset", midiOutReset(hOut))
+            END IF
+        END IF
+        ' (5) the bytes are ours again (the header must not be in the driver's queue)
+        cUnprepare = Report("midiOutUnprepareHeader", midiOutUnprepareHeader(hOut, hdr, SIZEOF(hdr)))
+    END IF
+    IF opened THEN cClose = Report("midiOutClose", midiOutClose(hOut))
+    ' (the story, in one line)
+    IF NOT opened THEN
+        summary = "Could not open " + dev + " (error " + Num(cOpen) + "): is another program using it?"
+    ELSEIF NOT prepared THEN
+        summary = "Could not prepare the header (error " + Num(cPrepare) + ")."
+    ELSEIF NOT sentOk THEN
+        summary = "Windows refused the message (error " + Num(cSend) + ")."
+    ELSEIF NOT finished THEN
+        summary = "Sent " + Num(LEN(sysex)) + " bytes to " + dev + ", but the driver had not finished in " + Num(TIMEOUT_MS) + " ms."
+    ELSE
+        summary = "Sent " + Num(LEN(sysex)) + " bytes to " + dev + ": open " + Num(cOpen) + ", prepare " + Num(cPrepare) + ", send " + Num(cSend) + ", MHDR_DONE yes, unprepare " + Num(cUnprepare) + ", close " + Num(cClose) + "."
+    END IF
+    Status.Caption = summary
+    SendBtn.Enabled = 1
+END SUB
+
+IF onWindows THEN
+    ListDevices
+ELSE
+    SendBtn.Enabled = 0
+    RefreshBtn.Enabled = 0
+    Devices.Enabled = 0
+    Status.Caption = "Windows only: MIDI output through winmm is Windows-only."
+END IF
+Form.ShowModal

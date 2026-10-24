@@ -288,6 +288,21 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
   three looks.
 
 ### Added
+- **`examples/windows/midi_sysex_out.rr`: a MIDI SysEx message sent with
+  winmm** (Windows; on other systems and the web it says so and Send stays
+  off). Pick the MIDI output, write the bytes in hex (the GS Reset is
+  there), Send: `midiOutOpen`, `midiOutPrepareHeader`, `midiOutLongMsg`, a
+  wait for `MHDR_DONE` with a timeout, `midiOutUnprepareHeader`,
+  `midiOutClose`, each result code listed in Windows' words. The `MIDIHDR`
+  is laid out for 64-bit Windows by hand — 120 bytes: each pointer two
+  LONGs, the padding as fields, `dwReserved` an inline array field — and
+  the calls say `SIZEOF(hdr)`: 64 for a 32-bit header's 16 LONGs, 120 for
+  this one, on the interpreter and native, in a DLL call's argument list
+  too (conformance case `sizeof_type_argument`, expected output RC.EXE's).
+  Run on Windows 11 ARM64 and x64: every code 0 and `MHDR_DONE` set.
+  RC.EXE counts a TYPE's array field as one 4-byte slot (its `SIZEOF` of a
+  32-bit MIDIHDR with `dwReserved(7) AS LONG` is 36; RapidR's is 64):
+  docs/rapidq-ground-truth.md, ROADMAP.
 - **A message box's safe answer on Enter** (for RapidR Database Studio's
   delete and consent questions). `MESSAGEDLG(Msg, Type, Buttons,
   HelpContext, DefaultButton)`: the fifth argument (RapidR's; RapidQ's
