@@ -107,7 +107,11 @@ Support RapidR
 RapidR is free and open source (MIT). If it is useful to you, you can support
 its development: https://github.com/sponsors/iBobX or
 https://www.buymeacoffee.com/roanbema
-Support is voluntary, received by Ruta Internet S.R.L., and comes with nothing in return: RapidR stays free for everyone. You can give once or monthly; monthly support renews every month until you cancel, any time, in your GitHub Sponsors or Buy Me a Coffee settings. Payment is handled by GitHub or Buy Me a Coffee, never by RapidR.
+Support is voluntary, received by Ruta Internet S.R.L., and comes with
+nothing in return: RapidR stays free for everyone. You can give once or
+monthly; monthly support renews every month until you cancel, any time, in
+your GitHub Sponsors or Buy Me a Coffee settings. Payment is handled by
+GitHub or Buy Me a Coffee, never by RapidR.
 
 
 =============================================================================
@@ -225,4 +229,8 @@ Apoye RapidR
 RapidR es gratis y de código abierto (MIT). Si le sirve, puede apoyar su
 desarrollo: https://github.com/sponsors/iBobX o
 https://www.buymeacoffee.com/roanbema
-El apoyo es voluntario, lo recibe Ruta Internet S.R.L. y no da nada a cambio: RapidR sigue siendo gratis para todos. Puede dar una vez o cada mes; el apoyo mensual se renueva cada mes hasta que lo cancele, en cualquier momento, en los ajustes de GitHub Sponsors o de Buy Me a Coffee. El pago lo gestiona GitHub o Buy Me a Coffee, nunca RapidR.
+El apoyo es voluntario, lo recibe Ruta Internet S.R.L. y no da nada a
+cambio: RapidR sigue siendo gratis para todos. Puede dar una vez o cada mes;
+el apoyo mensual se renueva cada mes hasta que lo cancele, en cualquier
+momento, en los ajustes de GitHub Sponsors o de Buy Me a Coffee. El pago lo
+gestiona GitHub o Buy Me a Coffee, nunca RapidR.

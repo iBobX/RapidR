@@ -7,10 +7,10 @@ nightly Rust and the `*-win7-windows-gnu` targets, which run on Windows 7 and la
 | File | What it does |
 |---|---|
 | `build.sh [i686\|x86_64] [cargo args]` | builds `rapidr.exe` (default `-p rapidr-cli`) |
-| `imports.py rapidr.exe [--against older.exe]` | lists the DLL functions the .exe needs at start, flags what Windows 7 lacks; `--against` lists what is new since an .exe known to start there |
+| `imports.py rapidr.exe [--against older.exe]` | lists the DLL functions the .exe needs at start, flags what Windows 7 lacks; `--against` lists what is new since an .exe known to start there. The Windows 7 .exe has no delay-loaded section any more |
 | `stage.sh [i686\|x86_64]` | the test drop: stripped exe, Studio's files, tests, READ-ME, a `.zip`, and the disc image (ISO) |
 | `serve.sh` | serves the drop to the VM over the **host-only** network only (HTTP, read-only) |
-| `alpha.sh [N]` | the **alpha download**: `RapidR-<version>-win7-x86-alpha<N>.zip` + `.sha256` in `dist/<version>-win7-alpha<N>/` (`alpha/` holds its README-ALPHA.txt and launcher, `licenses/` the toolchain's licence texts) |
+| `alpha.sh [N]` | the **alpha download**: `RapidR-<version>-win7-x86-alpha<N>.zip` + `.sha256` in `dist/<version>-win7-alpha<N>/` (`alpha/` holds its README-ALPHA.txt and launcher, `licenses/` the toolchain's licence texts; `THIRD-PARTY-NOTICES.txt` is made by `rapidr notices tools-windows` from any rapidr built for the Mac: `HOST_RAPIDR`, default `/Volumes/RapidRBuild/main/target/release/rapidr`) |
 | `link_audit.sh <mingw-w64 source>` | relinks with a map and traces every toolchain object in the .exe to its source and licence (review: `docs/legal/review-2026-10-23-win7-alpha.md`) |
 | `tests/` | `run-tests.bat` (console + window smoke tests), `run-studio.bat`, `form_auto.rr` |
 
@@ -55,12 +55,15 @@ on an offline, never-updated Windows 7. Nothing that needs the network is part o
 ## What had to be done for Windows 7
 
 - `tray.rs`: the 32-bit `NOTIFYICONDATAW` is a packed struct (the spike's 3-line fix).
-- The `windows` / `windows-sys` crates import five functions Windows 7 lacks
+- The `windows` / `windows-sys` crates use six functions Windows 7 lacks
   (`RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix`, `CoIncrementMTAUsage`, and
-  `combase.dll` as a whole). `build.sh` builds with `--cfg windows_raw_dylib`;
-  `crates/rapidr-cli/build.rs` asks the linker to delay-load those DLLs on Windows 7 builds;
-  `crates/rapidr-cli/src/win7.rs` answers for them if they are missing (ole32 instead of combase; "not
-  available" for the others). On Windows 8 and later nothing changes.
+  `CoCreateFreeThreadedMarshaler` / `CoTaskMemFree`, which Windows 7 has in `ole32.dll` but the crates take from
+  `combase.dll`). `build.sh` builds with `--cfg windows_raw_dylib`, which makes every call go through an
+  `__imp_<Function>` pointer; `crates/rapidr-cli/src/win7.rs` defines those six pointers itself, each aimed at a
+  small function of RapidR's that finds the real function on first use (`GetProcAddress`) or answers "not
+  available". Nothing is delay-loaded and no delay-load helper is linked (the one in mingw-w64 is said to derive from
+  Microsoft's: `tools/win7/clean-room.md`). On Windows 8 and later the real functions are found and nothing changes.
+  `rapidr.exe __win7_check` shows where each of the six was found.
 - LLVM-MinGW has no `libgcc`: `build.sh` makes empty/alias `libgcc.a`, `libgcc_eh.a`, `libgcc_s.a` (compiler-rt
   and libunwind do the work) in the target folder.
 

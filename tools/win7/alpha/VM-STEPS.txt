@@ -24,6 +24,8 @@ In the VM:
  5. Double-click  C:\RapidR-2.121.0-win7-x86-alpha1\tests\run-tests.bat
     (a minute: version, hello, the language tour, then a window twice; each window closes by itself
     after 20 s, click "Greet" while it is open). Everything is also written to tests\results.txt.
+    Test "1b" lists the six functions Windows 7 lacks and where rapidr.exe found each (on Windows 7:
+    "not on this Windows (the stand-in answers)", and the stand-ins' answers); the same via  rapidr.exe __win7_check .
     An "Open File - Security Warning" may appear first: click Run (the program is unsigned).
  6. Double-click  C:\RapidR-2.121.0-win7-x86-alpha1\RapidR-Studio.bat  (the launcher a tester uses).
     Studio opens (the first start is slow); open an example, press Run; close Studio.

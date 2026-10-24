@@ -1,7 +1,8 @@
 #!/bin/bash
 # Builds the Windows 7 / 8 / 8.1 ALPHA download: one zip a person unzips and
 # runs (rapidr.exe, the Studio launcher, Studio's files, the examples, the
-# smoke tests, README-ALPHA.txt, every licence text), plus its SHA-256.
+# smoke tests, README-ALPHA.txt, every licence text and THIRD-PARTY-NOTICES.txt),
+# plus its SHA-256.
 #
 #   tools/win7/alpha.sh [ALPHA_NUMBER]            (default 1)
 #
@@ -64,6 +65,41 @@ text tools/win7/licenses/README.txt "$DIR/licenses/README.txt"
 mkdir -p "$DIR/licenses/mingw-w64" "$DIR/licenses/llvm"
 for f in tools/win7/licenses/mingw-w64/*; do text "$f" "$DIR/licenses/mingw-w64/$(basename "$f")"; done
 text tools/win7/licenses/llvm/LICENSE.TXT "$DIR/licenses/llvm/LICENSE.TXT"
+
+# THIRD-PARTY-NOTICES.txt: the full licence texts and copyright lines of every
+# library and of Rust's standard library, made by the project's own notices tool
+# (`rapidr notices tools-windows`: the Windows set of RapidR's programs, a
+# superset of this build's crates) from this checkout's Cargo.lock. Any
+# rapidr built for the Mac will do (HOST_RAPIDR); it reads the checkout.
+HOST_RAPIDR="${HOST_RAPIDR:-/Volumes/RapidRBuild/main/target/release/rapidr}"
+[ -x "$HOST_RAPIDR" ] || { echo "need a rapidr for this Mac to make THIRD-PARTY-NOTICES.txt (HOST_RAPIDR=…; cargo build --release -p rapidr-cli)" >&2; exit 1; }
+mkdir -p "$WORK/notices-env"
+RAPIDR_HOME="$ROOT" RAPIDR_REGISTRY="$WORK/notices-env/registry" RAPIDR_PRINT_TO="$WORK/notices-env/print" RAPIDR_AI_KEYSTORE=memory \
+    "$HOST_RAPIDR" notices tools-windows -o "$WORK/THIRD-PARTY-NOTICES.txt"
+# every crate of THIS build's graph must be in it (the i686 graph has windows_i686_gnu,
+# which the tool's x86_64/aarch64 sets don't; it is windows-rs's, same text as its siblings)
+cargo +nightly tree --target i686-win7-windows-gnu -e normal --prefix none --offline -p rapidr-cli 2>/dev/null \
+    | python3 -I -c '
+import re, sys
+notes = open(sys.argv[1], encoding="utf-8").read()
+have = set(re.findall(r"^(\S+) \d[\w.+-]*$", notes, re.M))
+extra = []
+for line in sys.stdin:
+    p = line.split()
+    if len(p) < 2 or p[0].startswith("rapidr-") or p[0] in have:
+        continue
+    if p[0].startswith("windows_"):
+        extra.append((p[0], p[1].lstrip("v")))
+    else:
+        sys.exit("not in THIRD-PARTY-NOTICES.txt: " + p[0] + " " + p[1])
+if extra:
+    with open(sys.argv[1], "a", encoding="utf-8") as f:
+        f.write("\n\nADDED FOR THE 32-BIT WINDOWS 7 BUILD\n" + "-" * 78 + "\n")
+        for name, version in sorted(set(extra)):
+            f.write(f"{name} {version}\n    Licence: MIT OR Apache-2.0 (used under MIT): the same text and copyright line\n    as the windows_* crates listed in PART 1 (Microsoft Corporation, windows-rs).\n    https://github.com/microsoft/windows-rs\n")
+        print("added to the notices:", ", ".join(n for n, _ in sorted(set(extra))))
+' "$WORK/THIRD-PARTY-NOTICES.txt"
+text "$WORK/THIRD-PARTY-NOTICES.txt" "$DIR/THIRD-PARTY-NOTICES.txt"
 
 # the zip (a folder inside, so unzipping makes one folder), and its checksum
 ( cd "$WORK" && zip -qr -X -9 "$NAME.zip" "$NAME" )
