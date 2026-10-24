@@ -205,7 +205,17 @@ impl Walk<'_> {
                 (*c, id.name.as_str(), name.clone())
             }
             Expression::MemberAccess(m) => {
-                let comp = match context::expr_type(self.s, &m.object, m.span.start) {
+                let ty = match context::expr_type(self.s, &m.object, m.span.start) {
+                    Some(ty) => Some(ty),
+                    // (in a CREATE body a path starts at a property of the
+                    // component made — `Font.Color = …` —, as a name alone does)
+                    None if parent_create.is_some_and(|d| d == self.creates.len()) => {
+                        let made = self.creates.last().map(|(c, _)| *c);
+                        made.and_then(|c| context::chain_in(self.s, Ty::Component(c), &m.object))
+                    }
+                    None => None,
+                };
+                let comp = match ty {
                     Some(Ty::Component(c)) => c,
                     Some(Ty::User(t)) => match context::base_component(self.s, &t) {
                         Some(c) => c,
@@ -662,6 +672,30 @@ mod tests {
         assert_eq!((&t[c[0].start..c[0].end], c[0].value.as_str(), c[0].form.as_str()), ("RGB(255, 130, 20)", "1344255", "rgb"));
         assert_eq!((&t[c[1].start..c[1].end], c[1].value.as_str(), c[1].form.as_str()), ("&H0000FF", "255", "hex"));
         assert_eq!((&t[c[2].start..c[2].end], c[2].value.as_str(), c[2].form.as_str()), ("clRed", "255", "const"));
+    }
+
+    /// A colour of a sub-object — `Font.Color`, a path of dots — has its swatch
+    /// and its editor like `Color` has: set in a CREATE body (`Font.Color = …`),
+    /// from outside (`Hello.Font.Color = …`), in a WITH, on a font of its own.
+    #[test]
+    fn a_colour_of_a_sub_object_has_its_swatch() {
+        let code = "DIM PickedFont AS RFont\nCREATE Form1 AS RForm\n  Color = &HE0FFFF\n  Font.Color = &H800000\n  CREATE Hello AS RButton\n    Font.Color = RGB(1, 2, 3)\n  END CREATE\nEND CREATE\nHello.Font.Color = &H0000FF\nForm1.Font.Color = clRed\nPickedFont.Color = &H00FF00\nWITH Hello\n  .Font.Color = clBlue\nEND WITH\n";
+        let (t, all) = sites(code);
+        let c = of(&all, HelperKind::Color);
+        let shown: Vec<(&str, &str, &str)> = c.iter().map(|h| (&t[h.start..h.end], h.value.as_str(), h.form.as_str())).collect();
+        assert_eq!(
+            shown,
+            [
+                ("&HE0FFFF", "14745599", "hex"),
+                ("&H800000", "8388608", "hex"),
+                ("RGB(1, 2, 3)", "197121", "rgb"),
+                ("&H0000FF", "255", "hex"),
+                ("clRed", "255", "const"),
+                ("&H00FF00", "65280", "hex"),
+                ("clBlue", "16711680", "const"),
+            ],
+            "{all:#?}"
+        );
     }
 
     #[test]

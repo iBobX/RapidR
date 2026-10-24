@@ -188,8 +188,10 @@ pub struct SymbolHelp {
     pub ty: Option<String>,
     /// Where it is declared (`None`: it isn't, in the files).
     pub file: Option<std::path::PathBuf>,
-    /// …its line, from 1 (0: none).
+    /// …its line, from 1 (0: none), and the column of its name there (from 1,
+    /// in characters).
     pub line: usize,
+    pub column: usize,
     /// Uses besides the declaration.
     pub uses: usize,
 }
@@ -223,7 +225,17 @@ fn symbol_help_of(s: &Snapshot, sym: &Symbol) -> SymbolHelp {
         Some((_, file, line)) => (Some(file), line + 1),
         None => (None, 0),
     };
-    SymbolHelp { name: rapidr_ast::strip_type_suffix(&sym.name).to_string(), kind, what, code, ty: sym.ty.clone(), file, line, uses }
+    let column = sym
+        .decl
+        .and_then(|d| s.locate(d))
+        .and_then(|loc| {
+            let text = s.parsed.file_text(&loc.file)?;
+            let index = LineIndex::new(text);
+            let (line, _) = index.line_col(loc.start);
+            Some(text.get(index.line_start(line)?..loc.start)?.chars().count() + 1)
+        })
+        .unwrap_or(1);
+    SymbolHelp { name: rapidr_ast::strip_type_suffix(&sym.name).to_string(), kind, what, code, ty: sym.ty.clone(), file, line, column, uses }
 }
 
 /// The program's own name at byte `offset` of `file`'s `text` (the caret

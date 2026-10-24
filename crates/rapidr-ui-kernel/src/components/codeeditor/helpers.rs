@@ -321,7 +321,10 @@ pub fn paint_line_ends(x: &mut Ctx, p: &mut Painter, shown: &[Shown], caret_line
         if sh.row.line == caret_line {
             let (a, b) = line_span(x, sh.row.line);
             if let Some(note) = x.c.helpers.note(a, b) {
-                let ink = legible(blend(sc.text, sc.background, 0.55), sc.background, sc.text);
+                // (the note is on the caret's line: legible on the tint that
+                // line has, not on the page's background — dark: 4.3:1 on it)
+                let under = if x.c.opts.highlight_current_line && !sc.current_line_frame { sc.current_line } else { sc.background };
+                let ink = legible(blend(sc.text, under, 0.55), under, sc.text);
                 // (as wide as the rest of the row: nothing measured a frame)
                 let room = (x.ui.geo.text.0 + x.ui.geo.text.2 - lx).max(0) + (x.ui.scroll.0 as i64);
                 p.text((lx, top, room.max(1), lh), note, &note_font, ink, Place::Left);

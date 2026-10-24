@@ -1271,6 +1271,12 @@ impl ComponentKind for Edit {
             p.sunken_edge((0, 0, w, h));
         }
         paint_line(cx, p, inner(w, h), Source::Text);
+        // (RapidR's Placeholder: the grey line in an empty box saying what it is for)
+        let placeholder = store::string(cx.store, cx.id, "placeholder");
+        if !placeholder.is_empty() && with_textedit(cx.id, |t| t.chars().is_empty()).unwrap_or(false) {
+            let (x, y, iw, ih) = inner(w, h);
+            p.text((x + 1, y, (iw - 2).max(0), ih), &placeholder, &cx.font, rapidr_value::theme::current().secondary_text(), rapidr_value::objects::ops::Place::Left);
+        }
     }
 
     /// A text box (read-only too, as Windows') shows the I-beam.

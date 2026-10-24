@@ -194,6 +194,10 @@ pub struct Ask {
     pub program: Vec<(String, &'static str)>,
 }
 
+/// The page's own heading level: a title a pane this narrow can hold (the
+/// first level is the view's largest).
+const TOP: usize = 2;
+
 /// Text as Markdown shows it as written.
 fn plain(t: &str) -> String {
     let mut out = String::with_capacity(t.len() + 4);
@@ -276,9 +280,9 @@ fn entry_page(parts: &[String], found: Found, level: usize, syntax: bool, can_in
 /// Where Help starts, when nothing is asked: how to use it, and a few
 /// words to begin with.
 fn start_page() -> String {
-    let mut md = heading(1, "Help");
+    let mut md = heading(TOP, "Help");
     md.push_str("Put the caret on a word in your code and press **F1**, or type a word in the box above. Click a name here to open its page.\n\n");
-    md.push_str(&heading(2, "Start with"));
+    md.push_str(&heading(TOP + 1, "Start with"));
     for (w, what) in [
         ("RForm", "a window"),
         ("RButton", "a button to click"),
@@ -295,7 +299,7 @@ fn start_page() -> String {
 
 /// The page for a word nothing knows: the closest names.
 fn unknown_page(word: &str, program: &[(String, &'static str)]) -> String {
-    let mut md = heading(1, &format!("No entry for {word}"));
+    let mut md = heading(TOP, &format!("No entry for {word}"));
     md.push_str(&format!("Nothing in the language, and nothing in this program, is called **{}**.\n\n", plain(word)));
     let near = suggest(word, program, 8);
     if near.is_empty() {
@@ -320,7 +324,7 @@ fn mine_page(m: &SymbolHelp, can_insert: bool) -> String {
         "type" => "TYPE",
         k => k,
     };
-    let mut md = heading(1, &m.name);
+    let mut md = heading(TOP, &m.name);
     let article = if kind.starts_with(['a', 'e', 'i', 'o', 'u']) { "An" } else { "A" };
     md.push_str(&format!("{article} {} in this program", plain(kind)));
     if m.what != kind && !m.what.eq_ignore_ascii_case(kind) {
@@ -342,7 +346,7 @@ fn mine_page(m: &SymbolHelp, can_insert: bool) -> String {
         let shown = rapidr_lang::resolve_component(t).map_or_else(|| t.clone(), |c| c.spelling());
         md.push_str(&format!("Its type is {}.\n\n", link(&shown, &shown, "")));
         if let Some((parts, found)) = lookup(t, "") {
-            md.push_str(&entry_page(&parts, found, 2, false, can_insert).0);
+            md.push_str(&entry_page(&parts, found, TOP + 1, false, can_insert).0);
         }
     }
     md
@@ -358,23 +362,23 @@ fn uses(n: usize) -> String {
 
 /// The page for `ask`: a first line of what the pane needs besides the page
 /// — `kind`, the syntax Insert types (its line breaks as `\r`), the file the
-/// name is declared in and its line, tab-separated; `kind` is `start`,
+/// name is declared in and its line and column, tab-separated; `kind` is `start`,
 /// `none`, `entry` or `mine` — then the page's Markdown.
 pub fn page(ask: &Ask) -> String {
     let word = ask.word.trim().trim_end_matches(['(', '.', ' ']);
-    let (kind, insert, file, line, md) = if let Some(m) = &ask.mine {
+    let (kind, insert, file, line, column, md) = if let Some(m) = &ask.mine {
         let file = m.file.as_ref().map(|f| f.to_string_lossy().replace('\\', "/")).unwrap_or_default();
-        ("mine", String::new(), file, m.line, mine_page(m, ask.can_insert))
+        ("mine", String::new(), file, m.line, m.column, mine_page(m, ask.can_insert))
     } else if word.is_empty() {
-        ("start", String::new(), String::new(), 0, start_page())
+        ("start", String::new(), String::new(), 0, 0, start_page())
     } else if let Some((parts, found)) = lookup(word, &ask.of).or_else(|| lookup(word, "")) {
-        let (md, insert) = entry_page(&parts, found, 1, true, ask.can_insert);
-        ("entry", insert, String::new(), 0, md)
+        let (md, insert) = entry_page(&parts, found, TOP, true, ask.can_insert);
+        ("entry", insert, String::new(), 0, 0, md)
     } else {
-        ("none", String::new(), String::new(), 0, unknown_page(word, &ask.program))
+        ("none", String::new(), String::new(), 0, 0, unknown_page(word, &ask.program))
     };
     let insert = if ask.can_insert { insert } else { String::new() };
-    format!("{kind}\t{insert}\t{file}\t{line}\n{md}")
+    format!("{kind}\t{insert}\t{file}\t{line}\t{column}\n{md}")
 }
 
 // ---------------------------------------------------------------- search --
@@ -536,13 +540,13 @@ mod tests {
         let (meta, md) = parts(&ask("RButton", ""));
         assert_eq!(meta[0], "entry");
         assert!(meta[1].starts_with("CREATE Button1 AS RButton"), "{meta:?}");
-        assert!(md.starts_with("# RButton\n\nComponent · RapidQ name: QBUTTON · desktop and web\n\n"), "{md}");
+        assert!(md.starts_with("## RButton\n\nComponent · RapidQ name: QBUTTON · desktop and web\n\n"), "{md}");
         // (its default event is a link, not a tail the line cuts off)
         assert!(md.contains("Its default event is [OnClick](help:OnClick@RButton)."), "{md}");
         assert!(!md.contains("its default event OnClick"), "{md}");
         assert!(md.contains("```basic\nCREATE Button1 AS RButton"), "{md}");
         assert!(md.contains("[Insert into the code](help-insert:)"), "{md}");
-        for h in ["## Properties (", "## Methods (", "## Events ("] {
+        for h in ["### Properties (", "### Methods (", "### Events ("] {
             assert!(md.contains(h), "{h}: {md}");
         }
         assert!(md.contains("[Caption](help:Caption@RButton)"), "{md}");
@@ -563,7 +567,7 @@ mod tests {
     fn a_member_page_says_whose_member_it_is() {
         let (meta, md) = parts(&ask("Caption", "RButton"));
         assert_eq!(meta[0], "entry");
-        assert!(md.starts_with("# RButton\\.Caption") || md.starts_with("# RButton.Caption"), "{md}");
+        assert!(md.starts_with("## RButton.Caption"), "{md}");
         assert!(md.contains("A member of [RButton](help:RButton)."), "{md}");
         assert!(md.contains("Property of RButton"), "{md}");
     }
@@ -579,7 +583,7 @@ mod tests {
         }
         let (meta, md) = parts(&ask("RapidR", ""));
         assert_eq!(meta[0], "none");
-        assert!(md.starts_with("# No entry for RapidR"), "{md}");
+        assert!(md.starts_with("## No entry for RapidR"), "{md}");
         assert!(!md.contains("Nothing in the language is called"), "{md}");
         // (a word near one: its names to click)
         let (_, md) = parts(&ask("RButon", ""));
@@ -596,21 +600,22 @@ mod tests {
             ty: Some("RFONT".into()),
             file: Some("/work/main.rr".into()),
             line: 5,
+            column: 12,
             uses: 3,
         };
         let (meta, md) = parts(&Ask { word: "PickedFont".into(), mine: Some(mine.clone()), can_insert: true, ..Ask::default() });
-        assert_eq!(meta, ["mine", "", "/work/main.rr", "5"]);
-        assert!(md.starts_with("# PickedFont\n\nA variable in this program · global variable\n\n```basic\nDIM PickedFont AS RFont\n```\n\n"), "{md}");
+        assert_eq!(meta, ["mine", "", "/work/main.rr", "5", "12"]);
+        assert!(md.starts_with("## PickedFont\n\nA variable in this program · global variable\n\n```basic\nDIM PickedFont AS RFont\n```\n\n"), "{md}");
         assert!(md.contains("Declared in [main.rr, line 5](help-goto:) · used 3 times"), "{md}");
         assert!(md.contains("[Find References](help-refs:)"), "{md}");
         // (the type's help under it: its members, no syntax to insert)
         assert!(md.contains("Its type is [RFont](help:RFont)."), "{md}");
-        assert!(md.contains("## RFont\n\n") && md.contains("### Properties ("), "{md}");
+        assert!(md.contains("### RFont\n\n") && md.contains("#### Properties ("), "{md}");
         assert!(!md.contains("help-insert") && !md.contains("CREATE Font1"), "{md}");
         // (a SUB: its signature and the references, no type section)
         let sub = SymbolHelp { name: "Greet".into(), kind: "sub", what: "SUB".into(), code: "SUB Greet(Who AS STRING)".into(), ty: None, line: 22, uses: 1, ..mine };
         let (_, md) = parts(&Ask { word: "Greet".into(), mine: Some(sub), ..Ask::default() });
-        assert!(md.starts_with("# Greet\n\nA SUB in this program\n\n```basic\nSUB Greet(Who AS STRING)\n```\n\n"), "{md}");
+        assert!(md.starts_with("## Greet\n\nA SUB in this program\n\n```basic\nSUB Greet(Who AS STRING)\n```\n\n"), "{md}");
         assert!(md.contains("[Find References](help-refs:)") && !md.contains("Its type is"), "{md}");
     }
 

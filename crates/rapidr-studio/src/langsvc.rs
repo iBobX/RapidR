@@ -220,7 +220,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                         }
                         _ => {
                             // (typed in the search box: the program's name of that name)
-                            if !ask.word.trim().is_empty() {
+                            if !ask.word.trim().is_empty() && ask.of.is_empty() {
                                 ask.mine = a.symbol_help_named(&file, ask.word.trim());
                             }
                         }
@@ -349,19 +349,19 @@ mod tests {
         // (the caret just after PickedFont, on its use: line 8)
         let t = ask("PickedFont", 8, 13);
         let (meta, md) = t.split_once('\n').unwrap();
-        assert_eq!(meta, "mine\t\t/w/helpdemo.rr\t2", "{t}");
-        assert!(md.starts_with("# PickedFont\n\nA variable in this program"), "{t}");
+        assert_eq!(meta, "mine\t\t/w/helpdemo.rr\t2\t5", "{t}");
+        assert!(md.starts_with("## PickedFont\n\nA variable in this program"), "{t}");
         assert!(md.contains("DIM PickedFont AS RFont") && md.contains("Declared in [helpdemo.rr, line 2](help-goto:)"), "{t}");
-        assert!(md.contains("Its type is [RFont](help:RFont).") && md.contains("### Properties ("), "{t}");
+        assert!(md.contains("Its type is [RFont](help:RFont).") && md.contains("#### Properties ("), "{t}");
         // (a component of the form: its type's help below)
         let t = ask("Hello", 9, 8);
-        assert!(t.starts_with("mine\t\t/w/helpdemo.rr\t4\n# Hello\n") && t.contains("Its type is [RButton](help:RButton)."), "{t}");
+        assert!(t.starts_with("mine\t\t/w/helpdemo.rr\t4\t10\n## Hello\n") && t.contains("Its type is [RButton](help:RButton)."), "{t}");
         // (a SUB: its signature; the references link)
         let t = ask("Greet", 10, 8);
-        assert!(t.contains("# Greet\n\nA SUB in this program") && t.contains("SUB Greet(Who AS STRING)") && t.contains("help-refs:"), "{t}");
+        assert!(t.contains("## Greet\n\nA SUB in this program") && t.contains("SUB Greet(Who AS STRING)") && t.contains("help-refs:"), "{t}");
         // (Color after Font.: RFont's property, not "nothing called Color")
         let t = ask("Color", 9, 17);
-        assert!(t.starts_with("entry\t") && t.contains("# RFont\\.Color") || t.contains("# RFont.Color"), "{t}");
+        assert!(t.starts_with("entry\t") && t.contains("## RFont.Color"), "{t}");
         assert!(t.contains("A member of [RFont](help:RFont)."), "{t}");
         // (a word of the language at the caret: the registry's entry, Insert offered)
         let t = ask("PRINT", 11, 8);

@@ -1192,3 +1192,34 @@ fn a_crowded_group_keeps_its_names_whole() {
     let t = &wide.tabs[0];
     assert_eq!((t.text.0 - t.rect.0, t.rect.0 + t.rect.2 - t.text.1), (10 + 22, 8));
 }
+
+/// Every pane of RapidR Studio has its icon on its tab (Preview 4's hotfix:
+/// the Assistant and Help had none): each name `ide/*.inc` gives a pane
+/// draws something, in the ink and in the accent.
+#[test]
+fn every_studio_pane_has_an_icon() {
+    let ide = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../ide");
+    let mut names: Vec<String> = Vec::new();
+    for f in std::fs::read_dir(&ide).unwrap() {
+        let path = f.unwrap().path();
+        if path.extension().is_some_and(|e| e == "inc") {
+            for line in std::fs::read_to_string(&path).unwrap().lines() {
+                // (Dock.AddPane(Pane, "Title", "where", "icon"))
+                if let Some(rest) = line.trim().strip_prefix("Dock.AddPane(").or_else(|| line.split("THEN Dock.AddPane(").nth(1)) {
+                    let args: Vec<&str> = rest.trim_end_matches(')').split(',').map(str::trim).collect();
+                    if args.len() == 4 && args[3].starts_with('"') {
+                        names.push(args[3].trim_matches('"').to_string());
+                    }
+                }
+            }
+        }
+    }
+    names.sort();
+    names.dedup();
+    assert!(names.len() >= 14 && names.contains(&"ai".to_string()) && names.contains(&"help".to_string()), "{names:?}");
+    for n in names {
+        let mut ops = Vec::new();
+        super::look::icon(&mut ops, &n, 0, 0, 0x202020, 0x2060d0);
+        assert!(!ops.is_empty(), "the pane icon \"{n}\" draws nothing");
+    }
+}

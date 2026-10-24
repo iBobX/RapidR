@@ -337,6 +337,15 @@ pub(crate) fn expr_type(s: &Snapshot, e: &Expression, pre: usize) -> Option<Ty> 
     resolve_chain(s, pre, &chain)
 }
 
+/// The type of a path of members (`Font`, `Font.Name`) from `ty`: what a
+/// CREATE body's `Font.Color = …` names before its last dot.
+pub(crate) fn chain_in(s: &Snapshot, mut ty: Ty, path: &Expression) -> Option<Ty> {
+    for name in expr_chain(path)? {
+        ty = member_type(s, &ty, &name)?;
+    }
+    Some(ty)
+}
+
 /// `a.b(i).c` → [a, b, c].
 fn expr_chain(e: &Expression) -> Option<Vec<String>> {
     match e {
