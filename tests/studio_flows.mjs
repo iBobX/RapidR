@@ -293,6 +293,14 @@ const DEBUG_FILES = ["tests/fixtures/studio_debug/counter.rr", "tests/fixtures/s
 // wait for them first.
 const HELPERS_FILES = ["examples/studio/helpers.rr", "examples/studio/logo.svg"];
 const HELPERS_READY = "focus:codedoc(0),wait,wait,wait,wait";
+// (2.121.1, HLP-1) The Help pane's program: a variable of its own, a SUB, a
+// component, a colour set on a font; and the workspace's version, which
+// Help > About says
+const HELP_FILES = ["tests/fixtures/studio_help/main.rr"];
+const HELP_OPEN = "tests/fixtures/studio_help/main.rr";
+const WORKSPACE_VERSION = readFileSync(join(ROOT, "Cargo.toml"), "utf8").match(/\[workspace\.package\][^[]*?version = "([^"]+)"/)[1];
+const NO = /^(0|False)$/i;
+const YES = /^(1|True|-1)$/i;
 // (a long question: the chat's cards come well below the first screenful)
 const LONG_ASK = Array(14).fill("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa").join(" ") + ".";
 // (an a11y check's test) The node is inside the assistant's chat as it shows
@@ -1930,6 +1938,8 @@ const CASES = [
     dump: {
       "searchinfo.caption": /^9 results in 5 files$/,
       "searchtree.itemcount": /^14$/,
+      // (2.121.1: rows with room, as the other trees)
+      "searchtree.itemheight": /^24$/,
       "dock.activedocument": /^codedoc\(1\)$/,
       "codedoc(1).filename": /server\.rr$/,
       "codedoc(1).seltext": /^Counter$/,
@@ -2118,22 +2128,191 @@ const CASES = [
       "outputbox.text": /^\S*ui\.rr: 1 error\n\S*ui\.rr:\d+:\d+: error: [^\n]*StopServr[^\n]*\n\S*globals\.rr: 1 note\n/,
     },
   },
-  // (S-SHELL-2, HLP-1) F1: the registry's entry in the Help pane — for a
-  // statement, and for the word at the caret in the code (a member of the
-  // component before the dot).
+  // (S-SHELL-2, HLP-1; 2.121.1) F1: the registry's entry in the Help pane — a
+  // search box on top (the word asked in it), one page below: the title,
+  // what it is, the syntax with Insert under it, what it does, a
+  // component's members as links. For a statement, and for the word at the
+  // caret in the code (a member of the component before the dot).
   {
     name: "help",
     open: "examples/gui/hello_form.rr",
     do: "wait,help:SHOWMESSAGE",
     delay: 4,
-    dump: { "helptitle.caption": /^SHOWMESSAGE$/, "helpsyntax.text": /^SHOWMESSAGE/, "helpwhat.caption": /^Statement · RapidQ/ },
+    dump: {
+      "helppage.plaintext": /^SHOWMESSAGE\nStatement · RapidQ-compatible[^\n]*\n[^\n]*\nInsert into the code\n/,
+      "helpsearch.text": /^SHOWMESSAGE$/,
+      "helpsuggest.visible": NO,
+    },
   },
   {
     name: "help-f1",
     open: "examples/gui/hello_form.rr",
     do: 'wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents',
     delay: 4,
-    dump: { "helptitle.caption": /^RLabel\.Caption$/, "helpwhat.caption": /^Property of RLabel/ },
+    dump: { "helppage.plaintext": /^RLabel\.Caption\nA member of RLabel\.\nProperty of RLabel/, "helpsearch.text": /^Caption$/ },
+  },
+  {
+    // a component: its members under headings, each name a link
+    name: "help-component",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,help:RButton",
+    delay: 4,
+    dump: {
+      "helppage.plaintext": /^RButton\nComponent · RapidQ name: QBUTTON · desktop and web\nIts default event is OnClick\.\nCREATE Button1 AS RButton\n[\s\S]*\nInsert into the code\nA push button[^\n]*\nProperties \(\d+\)\nAlign · [^\n]*Caption · [^\n]*\nMethods \(\d+\)\n[^\n]*\nEvents \(\d+\)\nOnClick · /,
+    },
+  },
+  {
+    // nothing at the caret, nothing asked: how to use Help, and where to start
+    name: "help-start",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,help:",
+    delay: 4,
+    dump: {
+      "helppage.plaintext": /^Help\nPut the caret on a word in your code and press F1, or type a word in the box above\.[^\n]*\nStart with\n• RForm: a window\n• RButton[^\n]*\n[\s\S]*• IF: choose what to do\n[\s\S]*The whole manual is at the RapidR manual\.$/,
+      "helpsearch.text": /^$/,
+    },
+  },
+  {
+    // a word nothing knows: said plainly, not "Nothing in the language is called"
+    name: "help-unknown",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,help:RapidR",
+    delay: 4,
+    dump: { "helppage.plaintext": /^No entry for RapidR\nNothing in the language, and nothing in this program, is called RapidR\./ },
+  },
+  {
+    // F1 on a variable of the program: what it is, how it was declared,
+    // where, then its type's help; looks: light, dark, high contrast
+    name: "help-own-variable",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    themes: LOOKS,
+    contrast: true,
+    capture: true,
+    do: "wait,view.code,wait,caret:    PickedFont,help.contents,wait",
+    delay: 6,
+    dump: {
+      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · RapidQ name: QFONT[^\n]*\n[^\n]*\nProperties \(\d+\)\n/,
+      "helpsearch.text": /^PickedFont$/,
+    },
+  },
+  {
+    // …its declaration is a link: Tab to it in the page, Enter, the caret is there
+    name: "help-own-variable-goto",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,caret:    PickedFont,help.contents,wait,helpfocus:page,key:Tab,key:Enter,wait",
+    delay: 7,
+    dump: { "codedoc(0).caretline": /^5$/, "dock.activedocument": /^codedoc\(0\)$/ },
+  },
+  {
+    // a SUB: its signature, its declaration, Find References
+    name: "help-own-sub",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,caret:    Greet,help.contents,wait",
+    delay: 6,
+    dump: { "helppage.plaintext": /^Greet\nA SUB in this program\nSUB Greet\(Who AS STRING\)\nDeclared in main\.rr, line 28 · used once\nFind References$/ },
+  },
+  {
+    // a component of the form: the form's own name, its type below
+    name: "help-own-component",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,caret:    Hello,help.contents,wait",
+    delay: 6,
+    dump: { "helppage.plaintext": /^Hello\nA component in this program\nCREATE Hello AS RButton\nDeclared in main\.rr, line 13 · used once\nFind References\nIts type is RButton\.\nRButton\n/ },
+  },
+  {
+    // a property after a dot of a dot: RFont's Color, not "no entry"
+    name: "help-chain",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,caret:Hello.Font.Color,help.contents,wait",
+    delay: 6,
+    dump: { "helppage.plaintext": /^RFont\.Color\nA member of RFont\.\nProperty of RFont · color/, "helpsearch.text": /^Color$/ },
+  },
+  {
+    // typing in the box (real keys): after a pause the names it may mean show
+    // under it, the first one's page below
+    name: "help-type",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,helpfocus:search,type:rbut,wait,wait",
+    delay: 8,
+    dump: {
+      "helpsearch.text": /^rbut$/,
+      "helpsuggest.visible": YES,
+      "helpsuggest.itemcount": /^1$/,
+      "helpsuggest.text": /^RButton {2}· {2}component\s*$/,
+      "helppage.plaintext": /^RButton\nComponent/,
+    },
+  },
+  {
+    // …Enter opens the one chosen: the box says its name, the list is gone
+    name: "help-type-enter",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,helpfocus:search,type:rbut,wait,wait,key:Enter,wait",
+    delay: 8,
+    dump: { "helpsearch.text": /^RButton$/, "helpsuggest.visible": NO, "helppage.plaintext": /^RButton\nComponent/ },
+  },
+  {
+    // the names of the program come with the language's
+    name: "help-type-own",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,helpfocus:search,type:pick,wait,wait",
+    delay: 8,
+    dump: { "helpsuggest.text": /^PickedFont {2}· {2}your variable/, "helppage.plaintext": /^PickedFont\nA variable in this program/ },
+  },
+  {
+    // a link in the page (Tab to it, Enter) opens that entry: the default event
+    name: "help-link",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,help:RButton,helpfocus:page,key:Tab,key:Enter,wait",
+    delay: 7,
+    dump: { "helppage.plaintext": /^RButton\.OnClick\nA member of RButton\.\nEvent of RButton/, "helpsearch.text": /^OnClick$/ },
+  },
+  {
+    // Insert (a link under the syntax) types the syntax into the code at the caret
+    name: "help-insert",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,view.code,wait,caret:    PRINT,help.contents,wait,helpfocus:page,key:Tab,key:Enter,wait",
+    delay: 7,
+    dump: { "codedoc(0).text": /\n {4}PRINTPRINT[^\n]* Count\n/, "dock.activedocument": /^codedoc\(0\)$/ },
+  },
+  {
+    // Help > About: the version of the build — the workspace's
+    name: "about-version",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,about:text",
+    delay: 4,
+    dump: { "outputbox.text": new RegExp(`RapidR Studio \\(RapidR ${WORKSPACE_VERSION.replaceAll(".", "\\.")}\\)\\r?\\nBASIC is powerful again`) },
+  },
+  {
+    // the code helpers: a colour of a sub-object, Font.Color in a CREATE body,
+    // has its swatch and its editor (Ctrl+.), written back as it was (&H)
+    name: "helpers-subobject-colour",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: `${HELPERS_READY},line:12,key:End,key:Ctrl+.,wait,key:Tab,key:Tab,key:Tab,key:Tab,key:Tab,type:#102030,key:Enter,wait`,
+    delay: 9,
+    dump: { "codedoc(0).text": /\n {4}Font\.Color = &H302010\n/, "codedoc(0).helpereditortext": /^$/ },
+  },
+  {
+    name: "helpers-subobject-colour-swatch",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: `${HELPERS_READY},line:12,key:End,wait`,
+    delay: 7,
+    dump: { "codedoc(0).helpertext": /^Font\.Color = &H800000; / },
   },
   // (S-BUILD) The questions before changes would be lost (prompts.inc),
   // each button: one document changed and Studio quit — Save (Enter)

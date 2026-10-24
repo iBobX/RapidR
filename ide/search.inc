@@ -98,12 +98,23 @@ DIM RefFile(400) AS STRING
 DIM RefLine(400) AS INTEGER
 DIM RefCol(400) AS INTEGER
 
+' (Help: a search box on top, the names it may mean under it while it is
+' typed in, and the page — Markdown: its links open other entries, Insert
+' types the syntax into the code, a name of the program's declaration jumps)
 DIM HelpPane AS RPanel
-DIM HelpTitle AS RLabel
-DIM HelpWhat AS RLabel
-DIM HelpSyntax AS RMemo
-DIM HelpInsert AS RButton
-DIM HelpBody AS RMemo
+DIM HelpSearch AS REdit
+DIM HelpSuggest AS RListBox
+DIM HelpPage AS RMarkdownView
+' (a pause after the last key, then the search: the page follows the typing)
+DIM HelpTimer AS RTimer
+HelpTimer.Interval = 300
+HelpTimer.Enabled = 0
+DIM HelpNames(12) AS STRING
+DIM HelpBoxSet AS STRING
+DIM HelpKind AS STRING
+DIM HelpDeclFile AS STRING
+DIM HelpDeclLine AS INTEGER
+DIM HelpDeclCol AS INTEGER
 
 DECLARE SUB SearchKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB SearchTreeKey(Key AS INTEGER, Shift AS INTEGER)
@@ -115,12 +126,23 @@ DECLARE SUB SearchScopeChanged
 DECLARE SUB LayOutSearch
 DECLARE SUB LayOutHelp
 DECLARE SUB HelpInsertClicked
+DECLARE SUB HelpTyped
+DECLARE SUB HelpSearchChanged
+DECLARE SUB HelpSearchKey(Key AS INTEGER, Shift AS INTEGER)
+DECLARE SUB HelpSuggestPicked
+DECLARE SUB HelpLink(Url AS STRING)
+DECLARE SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+DECLARE SUB HelpFocusSearch
+DECLARE FUNCTION HelpFile AS STRING
 DECLARE SUB CodeMenuPicked(Sender AS RMenuItem)
 DECLARE SUB CodeMenuOpening
 DECLARE SUB NavPush(f AS STRING, L AS INTEGER, C AS INTEGER)
 DECLARE SUB NavPushHere
 DECLARE FUNCTION SearchLine(Path AS STRING, L AS INTEGER) AS STRING
 DECLARE FUNCTION WordChar(c AS STRING) AS INTEGER
+DECLARE SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+
+HelpTimer.OnTimer = HelpTyped
 
 SUB SetUpSearch
   SearchPane.Parent = Studio
@@ -205,25 +227,20 @@ SUB SetUpSearch
   HelpPane.BevelOuter = 0
   HelpPane.AccessibleName = "Help"
   HelpPane.OnResize = LayOutHelp
-  HelpTitle.Parent = HelpPane
-  HelpTitle.Caption = "Help"
-  HelpWhat.Parent = HelpPane
-  HelpWhat.WordWrap = 1
-  HelpWhat.Caption = "Press F1 on a word in the code, a property, a toolbox item or a component on the form."
-  HelpSyntax.Parent = HelpPane
-  HelpSyntax.ReadOnly = 1
-  HelpSyntax.WordWrap = 1
-  HelpSyntax.AccessibleName = "Syntax"
-  HelpInsert.Parent = HelpPane
-  HelpInsert.Caption = "Insert"
-  HelpInsert.Hint = "Type the syntax into the code at the caret"
-  HelpInsert.OnClick = HelpInsertClicked
-  HelpInsert.Enabled = 0
-  HelpBody.Parent = HelpPane
-  HelpBody.ReadOnly = 1
-  HelpBody.WordWrap = 1
-  HelpBody.ScrollBars = 2
-  HelpBody.AccessibleName = "Help text"
+  HelpSearch.Parent = HelpPane
+  HelpSearch.AccessibleName = "Search the help"
+  HelpSearch.Placeholder = "Search the help"
+  HelpSearch.Hint = "Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code."
+  HelpSearch.OnChange = HelpSearchChanged
+  HelpSearch.OnKeyDown = HelpSearchKey
+  HelpSuggest.Parent = HelpPane
+  HelpSuggest.AccessibleName = "Names that match: Up and Down choose, Enter opens"
+  HelpSuggest.Visible = 0
+  HelpSuggest.OnClick = HelpSuggestPicked
+  HelpPage.Parent = HelpPane
+  HelpPage.AccessibleName = "Help page"
+  HelpPage.OnLinkClick = HelpLink
+  HelpPage.Text = Lang.HelpPage("", "", "", 0, 0, 0)
   ' (Search: a tab beside Project, always there — Ctrl+Shift+F brings it
   ' to the front; Help docked hidden with the properties, F1 shows it)
   Dock.AddPane(SearchPane, "Search", "tab:projecttree", "search")
@@ -234,10 +251,12 @@ SUB SetUpSearch
 END SUB
 
 SUB ApplySearchChrome
-  HelpTitle.Font = SubFont
-  HelpTitle.Font.Color = TC("page.heading")
-  HelpWhat.Font.Color = TC("page.dim")
-  HelpSyntax.Font = MonoFont
+  HelpSearch.Font = UIFont
+  HelpPage.Font = UIFont
+  HelpSuggest.Font = UIFont
+  IF ThemeName = "classic" THEN HelpSuggest.ItemHeight = 16 ELSE HelpSuggest.ItemHeight = 24
+  SearchTree.Font = UIFont
+  IF ThemeName = "classic" THEN SearchTree.ItemHeight = 16 ELSE SearchTree.ItemHeight = 24
   SearchInfo.Font.Color = TC("page.dim")
   SearchScopeLabel.Font.Color = TC("page.text")
   SearchCase.Font.Color = TC("page.text")
@@ -281,18 +300,24 @@ SUB LayOutSearch
 END SUB
 
 SUB LayOutHelp
-  DIM w AS INTEGER, y AS INTEGER, bw AS INTEGER
-  w = HelpPane.Width - 24
+  DIM w AS INTEGER, y AS INTEGER, fh AS INTEGER, n AS INTEGER
+  w = HelpPane.Width - 16
   IF w < 60 THEN EXIT SUB
-  bw = 76
-  HelpTitle.Left = 12: HelpTitle.Top = 10: HelpTitle.Width = w: HelpTitle.Height = 24
-  HelpWhat.Left = 12: HelpWhat.Top = 38: HelpWhat.Width = w: HelpWhat.Height = 36
-  y = 80
-  HelpSyntax.Left = 12: HelpSyntax.Top = y: HelpSyntax.Width = w - bw - 8: HelpSyntax.Height = 52
-  HelpInsert.Left = 12 + w - bw: HelpInsert.Top = y: HelpInsert.Width = bw: HelpInsert.Height = 28
-  y = y + 60
-  HelpBody.Left = 12: HelpBody.Top = y: HelpBody.Width = w
-  HelpBody.Height = HelpPane.Height - y - 12
+  fh = 26
+  IF ThemeName = "classic" THEN fh = 21
+  HelpSearch.Left = 8: HelpSearch.Top = 8: HelpSearch.Width = w: HelpSearch.Height = fh
+  y = 8 + fh + 4
+  ' (the names the typing may mean, under the box: as many rows as there
+  ' are, up to six)
+  IF HelpSuggest.Visible THEN
+    n = HelpSuggest.ItemCount
+    IF n > 6 THEN n = 6
+    HelpSuggest.Left = 8: HelpSuggest.Top = y: HelpSuggest.Width = w
+    HelpSuggest.Height = n * HelpSuggest.ItemHeight + 4
+    y = y + HelpSuggest.Height + 4
+  END IF
+  HelpPage.Left = 0: HelpPage.Top = y: HelpPage.Width = HelpPane.Width
+  HelpPage.Height = HelpPane.Height - y
 END SUB
 
 ' ---- Search ------------------------------------------------------------------------
@@ -939,35 +964,171 @@ FUNCTION CaretWord(d AS INTEGER) AS STRING
   END IF
 END FUNCTION
 
-' Shows the language's entry for Word (a member of OfType when given).
-SUB ShowHelp(Word AS STRING, OfType AS STRING)
-  DIM t AS STRING, n AS INTEGER, i AS INTEGER, body AS STRING
-  Dock.ShowPane("helppane")
-  LayOutHelp
-  t = Lang.Help(Word, OfType)
-  IF t = "" AND OfType <> "" THEN t = Lang.Help(Word, "")
-  IF t = "" THEN
-    HelpTitle.Caption = Word
-    HelpWhat.Caption = "Nothing in the language is called " + CHR$(34) + Word + CHR$(34) + "."
-    HelpSyntax.Text = ""
-    HelpBody.Text = ""
-    HelpSyntaxText = ""
-    HelpInsert.Enabled = 0
-    EXIT SUB
+' The file the program's own names are asked of: the active code's (a
+' Markdown file isn't a program).
+FUNCTION HelpFile AS STRING
+  DIM d AS INTEGER
+  d = ActiveCode
+  IF d >= 0 THEN
+    IF DocIsMd(d) = 0 THEN Result = DocFile(d)
   END IF
-  HelpTitle.Caption = FIELD$(t, CHR$(10), 1)
-  HelpSyntaxText = REPLACESUBSTR$(FIELD$(t, CHR$(10), 2), CHR$(13), CHR$(10))
-  HelpSyntax.Text = HelpSyntaxText
-  HelpWhat.Caption = FIELD$(t, CHR$(10), 3)
-  n = TALLY(t, CHR$(10)) + 1
-  FOR i = 4 TO n
-    body = body + FIELD$(t, CHR$(10), i) + CHR$(13) + CHR$(10) + CHR$(13) + CHR$(10)
-  NEXT
-  HelpBody.Text = body
-  HelpInsert.Enabled = Flag(ActiveCode >= 0)
+END FUNCTION
+
+' The page for Word, shown (a member of OfType when given; File, L and C
+' the caret's place when it is the caret's word: a name of the program is
+' told from the language's by where it is) — the box and the list left as
+' they are.
+SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+  DIM t AS STRING, nl AS INTEGER, meta AS STRING
+  t = Lang.HelpPage(Word, OfType, File, L, C, Flag(ActiveCode >= 0))
+  nl = INSTR(t, CHR$(10))
+  meta = LEFT$(t, nl - 1)
+  HelpKind = FIELD$(meta, CHR$(9), 1)
+  HelpSyntaxText = REPLACESUBSTR$(FIELD$(meta, CHR$(9), 2), CHR$(13), CHR$(10))
+  HelpDeclFile = FIELD$(meta, CHR$(9), 3)
+  HelpDeclLine = VAL(FIELD$(meta, CHR$(9), 4))
+  HelpDeclCol = VAL(FIELD$(meta, CHR$(9), 5))
+  HelpPage.Text = MID$(t, nl + 1)
 END SUB
 
-' F1: help for what is under the caret or selected where the focus is.
+' Shows the language's entry for Word (a member of OfType when given) in the
+' Help pane, its search box saying the word.
+SUB ShowHelp(Word AS STRING, OfType AS STRING)
+  ShowHelpFor Word, OfType, HelpFile, 0, 0
+END SUB
+
+SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
+  Dock.ShowPane("helppane")
+  HelpTimer.Enabled = 0
+  HelpSuggest.Visible = 0
+  LayOutHelp
+  HelpShowPage Word, OfType, File, L, C
+  HelpBoxSet = TRIM$(Word)
+  HelpSearch.Text = HelpBoxSet
+  IF HelpKind = "start" THEN
+    Application.Announce "Help: how to use it"
+  ELSE
+    Application.Announce "Help: " + HelpBoxSet
+  END IF
+END SUB
+
+' The search box changed: the page follows the typing a moment after the
+' last key (not for a word the pane put there itself).
+SUB HelpSearchChanged
+  IF HelpSearch.Text = HelpBoxSet THEN EXIT SUB
+  HelpTimer.Enabled = 0
+  HelpTimer.Enabled = 1
+END SUB
+
+' (the names the box's text may mean, in the list: the first chosen and its
+' page shown; the list is only there while there is something to choose)
+SUB HelpTyped
+  DIM q AS STRING, f AS STRING, n AS INTEGER, i AS INTEGER, line AS STRING, was AS INTEGER, hide AS INTEGER
+  HelpTimer.Enabled = 0
+  q = TRIM$(HelpSearch.Text)
+  was = HelpSuggest.Visible
+  IF q = "" THEN
+    HelpSuggest.Visible = 0
+    HelpShowPage "", "", "", 0, 0
+    LayOutHelp
+    EXIT SUB
+  END IF
+  f = Lang.HelpFind(q, HelpFile)
+  n = TALLY(f, CHR$(10))
+  IF n > 12 THEN n = 12
+  HelpSuggest.Clear
+  FOR i = 1 TO n
+    line = FIELD$(f, CHR$(10), i)
+    HelpNames(i - 1) = FIELD$(line, CHR$(9), 1)
+    HelpSuggest.AddItems HelpNames(i - 1) + "  ·  " + FIELD$(line, CHR$(9), 2)
+  NEXT
+  ' (typed whole, and nothing else to choose: the page, no list)
+  hide = Flag(n = 0)
+  IF n = 1 THEN
+    IF LCASE$(HelpNames(0)) = LCASE$(q) THEN hide = 1
+  END IF
+  IF hide THEN
+    HelpSuggest.Visible = 0
+  ELSE
+    HelpSuggest.Visible = 1
+    HelpSuggest.ItemIndex = 0
+  END IF
+  IF n > 0 THEN
+    HelpShowPage HelpNames(0), "", HelpFile, 0, 0
+  ELSE
+    HelpShowPage q, "", HelpFile, 0, 0
+  END IF
+  LayOutHelp
+  IF HelpSuggest.Visible THEN Application.Announce Counted(n, "name") + " match. " + HelpNames(0)
+END SUB
+
+' (Up and Down choose a name from the list — its page shown —, Enter opens
+' it, Escape closes the list, then goes back to the code)
+SUB HelpSearchKey(Key AS INTEGER, Shift AS INTEGER)
+  DIM i AS INTEGER, d AS INTEGER
+  IF Key = 38 OR Key = 40 THEN
+    IF HelpSuggest.Visible = 0 THEN EXIT SUB
+    i = HelpSuggest.ItemIndex
+    IF Key = 38 AND i > 0 THEN i = i - 1
+    IF Key = 40 AND i < HelpSuggest.ItemCount - 1 THEN i = i + 1
+    HelpSuggest.ItemIndex = i
+    HelpShowPage HelpNames(i), "", HelpFile, 0, 0
+    Key = 0
+  ELSEIF Key = 13 THEN
+    Key = 0
+    HelpTimer.Enabled = 0
+    IF HelpSuggest.Visible AND HelpSuggest.ItemIndex >= 0 THEN
+      ShowHelpFor HelpNames(HelpSuggest.ItemIndex), "", HelpFile, 0, 0
+    ELSEIF TRIM$(HelpSearch.Text) <> "" THEN
+      ShowHelpFor TRIM$(HelpSearch.Text), "", HelpFile, 0, 0
+    END IF
+    HelpSearch.SetFocus
+  ELSEIF Key = 27 THEN
+    Key = 0
+    HelpTimer.Enabled = 0
+    IF HelpSuggest.Visible THEN
+      HelpSuggest.Visible = 0
+      LayOutHelp
+    ELSE
+      d = ActiveCode
+      IF d >= 0 THEN Dock.FocusPane(DocPane(d))
+    END IF
+  END IF
+END SUB
+
+SUB HelpSuggestPicked
+  DIM i AS INTEGER
+  i = HelpSuggest.ItemIndex
+  IF i < 0 OR i >= HelpSuggest.ItemCount THEN EXIT SUB
+  ShowHelpFor HelpNames(i), "", HelpFile, 0, 0
+END SUB
+
+' A link of the page: another entry (help:Word or help:Word@Type), Insert,
+' where a name of the program is declared, its references.
+SUB HelpLink(Url AS STRING)
+  DIM w AS STRING, of AS STRING, k AS INTEGER, d AS INTEGER
+  IF LEFT$(Url, 5) = "help:" THEN
+    w = REPLACESUBSTR$(MID$(Url, 6), "%20", " ")
+    k = INSTR(w, "@")
+    IF k > 0 THEN
+      of = MID$(w, k + 1)
+      w = LEFT$(w, k - 1)
+    END IF
+    ShowHelpFor w, of, HelpFile, 0, 0
+  ELSEIF Url = "help-insert:" THEN
+    HelpInsertClicked
+  ELSEIF Url = "help-goto:" OR Url = "help-refs:" THEN
+    IF HelpDeclFile = "" THEN EXIT SUB
+    IF CodeDocOf(HelpDeclFile) < 0 THEN OpenDocument HelpDeclFile
+    NavPushHere
+    NavGo HelpDeclFile, HelpDeclLine, HelpDeclCol
+    d = ActiveCode
+    IF Url = "help-refs:" AND d >= 0 THEN CodeDoc(d).FindReferences
+  END IF
+END SUB
+
+' F1: help for what is under the caret or selected where the focus is; the
+' search box takes it (typing there looks something else up).
 SUB HelpForFocus
   DIM pane AS STRING, d AS INTEGER, w AS STRING, of AS STRING, sel AS INTEGER
   pane = LCASE$(Dock.ActivePane)
@@ -992,12 +1153,29 @@ SUB HelpForFocus
     END IF
     w = CaretWord(d)
     of = CaretOfType
-    IF w <> "" THEN
+    IF w <> "" AND DocIsMd(d) = 0 THEN
+      ' (the editor's text, as the service has it, so the caret's word is told
+      ' from where it is)
+      Lang.Update DocFile(d), CodeDoc(d).Text
+      ShowHelpFor w, of, DocFile(d), CodeDoc(d).CaretLine, CodeDoc(d).CaretColumn
+      HelpFocusSearch
+      EXIT SUB
+    ELSEIF w <> "" THEN
       ShowHelp w, of
+      HelpFocusSearch
       EXIT SUB
     END IF
   END IF
-  ShowHelp "RapidR", ""
+  ShowHelpFor "", "", "", 0, 0
+  HelpFocusSearch
+END SUB
+
+' (the search box has the focus, its word selected: typing replaces it)
+SUB HelpFocusSearch
+  Dock.FocusPane("helppane")
+  HelpSearch.SetFocus
+  HelpSearch.SelStart = 0
+  HelpSearch.SelLength = LEN(HelpSearch.Text)
 END SUB
 
 SUB HelpInsertClicked
@@ -1059,6 +1237,13 @@ FUNCTION SearchCommand(Id AS STRING) AS INTEGER
         ' (a test step: result:<n> — Enter on the results' node n)
         SearchTree.ItemIndex = VAL(MID$(Id, 8))
         SearchOpen
+      ELSEIF LEFT$(Id, 10) = "helpfocus:" THEN
+        ' (a test step: helpfocus:<search|page> — the Help pane's box or page
+        ' has the keyboard, as a click or Tab gives it)
+        Dock.ShowPane("helppane")
+        LayOutHelp
+        Dock.FocusPane("helppane")
+        IF MID$(Id, 11) = "page" THEN HelpPage.SetFocus ELSE HelpSearch.SetFocus
       ELSEIF LEFT$(Id, 5) = "help:" THEN
         ' (help:<word>[@<type>])
         IF INSTR(Id, "@") > 0 THEN

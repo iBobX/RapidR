@@ -7,6 +7,36 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.121.1] — 2026-10-24 (hotfix)
+
+What Robert found using 2.121.0, fixed.
+
+### Fixed
+- **The Help pane (F1) is a page you can use.** It used to be a box that looked like an input
+  (focused, empty, nothing typed) over a text that its own box covered. Now a real **search box**
+  ("Search the help", focus goes there when you press F1) looks up the word as you type, after a short
+  pause, with the names it may mean under it (Up and Down choose, Enter opens, Escape goes back to the
+  code); below it **one page that scrolls**: the title, what it is (wrapping, never cut off), the syntax as
+  code with **Insert into the code** under it (only when there is a code editor to take it), what it does,
+  and for a component its **Properties, Methods and Events**, each name a link to its own entry. F1 on
+  **your own names** says what they are: `PickedFont` — a variable in this program, its declaration line,
+  where it is declared (a link that jumps there), how often it is used, **Find References**, and the help
+  of its type (RFont) below; a SUB or FUNCTION shows its signature. F1 on a property after a dot
+  (`Hello.Font.Color`) is the entry of the thing before the dot (RFont's Color). With no word, or a word
+  nothing knows, the page is a **start page** (how to use Help and a few places to start) or "No entry
+  for X" with the closest names. Light, dark and high contrast; keyboard and screen reader.
+- **The Search tab's results have room**: rows 24 px high in RapidR's look (16 in the classic one), in the
+  chrome's font, as the other trees.
+- **A colour of a sub-object gets its swatch and its colour editor** (Ctrl+.): `Font.Color = &H800000` in a
+  CREATE body, as `Color = …` and `Hello.Font.Color = …` already had; any path of dots there works.
+- **Every pane tab has its icon**: the Assistant (a spark) and Help (a question mark) had none.
+- **Help > About says the version of the build**, not a number written in Studio's source
+  (`RLanguageService.Version`, new, read-only); a test keeps it equal to the workspace's.
+
+### Added
+- `REdit.Placeholder` (RapidR's own, additive): the grey line in an empty text box ("Search the help").
+- `RLanguageService.HelpPage` and `HelpFind` (the Help pane's page and suggestions, Markdown) and `Version`.
+
 ## [2.121.0] — 2026-10-23 (Preview 4: Studio, solid)
 
 ### Legal
