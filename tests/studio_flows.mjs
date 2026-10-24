@@ -2179,6 +2179,15 @@ const CASES = [
     },
   },
   {
+    // the pane reached by its tab before any F1 has the start page, not a stray line
+    name: "help-pane-first",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    do: "wait,focus:helppane",
+    delay: 4,
+    dump: { "helppage.plaintext": /^Help\nPut the caret on a word in your code/ },
+  },
+  {
     // a word nothing knows: said plainly, not "Nothing in the language is called"
     name: "help-unknown",
     open: HELP_OPEN,

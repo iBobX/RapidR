@@ -240,7 +240,8 @@ SUB SetUpSearch
   HelpPage.Parent = HelpPane
   HelpPage.AccessibleName = "Help page"
   HelpPage.OnLinkClick = HelpLink
-  HelpPage.Text = Lang.HelpPage("", "", "", 0, 0, 0)
+  ' (the pane may be shown by its tab before any F1: the start page is there)
+  HelpShowPage "", "", "", 0, 0
   ' (Search: a tab beside Project, always there — Ctrl+Shift+F brings it
   ' to the front; Help docked hidden with the properties, F1 shows it)
   Dock.AddPane(SearchPane, "Search", "tab:projecttree", "search")
