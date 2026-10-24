@@ -980,7 +980,7 @@ END FUNCTION
 ' told from the language's by where it is) — the box and the list left as
 ' they are.
 SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
-  DIM t AS STRING, nl AS INTEGER, meta AS STRING
+  DIM t AS STRING, nl AS INTEGER, meta AS STRING, head AS STRING
   t = Lang.HelpPage(Word, OfType, File, L, C, Flag(ActiveCode >= 0))
   nl = INSTR(t, CHR$(10))
   meta = LEFT$(t, nl - 1)
@@ -990,6 +990,10 @@ SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER,
   HelpDeclLine = VAL(FIELD$(meta, CHR$(9), 4))
   HelpDeclCol = VAL(FIELD$(meta, CHR$(9), 5))
   HelpPage.Text = MID$(t, nl + 1)
+  ' (the view keeps where it was scrolled to as its text changes: a new page
+  ' starts at its title)
+  head = FIELD$(HelpPage.Headings, CHR$(10), 1)
+  IF head <> "" THEN HelpPage.ScrollTo "#" + FIELD$(head, CHR$(9), 3)
 END SUB
 
 ' Shows the language's entry for Word (a member of OfType when given) in the

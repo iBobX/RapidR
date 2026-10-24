@@ -309,6 +309,12 @@ const SHOWN_IN_CHAT = (n, nodes) => {
   const chat = nodes.find((x) => x.role === "document" && x.name === "Conversation with the assistant");
   return !!chat && n.bounds[1] >= chat.bounds[1] && n.bounds[1] + n.bounds[3] <= chat.bounds[1] + chat.bounds[3];
 };
+// (2.121.1) The node is inside the Help page's view as it shows now: its top
+// and bottom within the view's own
+const SHOWN_IN_HELP = (n, nodes) => {
+  const page = nodes.find((x) => x.role === "document" && x.name === "Help page");
+  return !!page && n.bounds[1] >= page.bounds[1] && n.bounds[1] + n.bounds[3] <= page.bounds[1] + page.bounds[3];
+};
 // (DARK-FIX) RapidR's three looks, for the cases that run in each
 const LOOKS = ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"];
 // (IMPORT-INC) A RapidQ program in several files: its includes in lib/ and forms/
@@ -2300,6 +2306,17 @@ const CASES = [
     do: "wait,help:RButton,helpfocus:page,key:Tab,key:Enter,wait",
     delay: 7,
     dump: { "helppage.plaintext": /^RButton\.OnClick\nA member of RButton\.\nEvent of RButton/, "helpsearch.text": /^OnClick$/ },
+  },
+  {
+    // a page opened from one scrolled to its end starts at its title (the view
+    // keeps its scroll as its text changes: the pane puts it back)
+    name: "help-new-page-at-top",
+    open: HELP_OPEN,
+    webFiles: HELP_FILES,
+    a11y: [["Help page", "document", ""], [/^RForm$/, "heading", "", SHOWN_IN_HELP]],
+    do: "wait,help:RButton,helpfocus:page,key:End,wait,help:RForm,wait",
+    delay: 7,
+    dump: { "helppage.plaintext": /^RForm\n/ },
   },
   {
     // Insert (a link under the syntax) types the syntax into the code at the caret
