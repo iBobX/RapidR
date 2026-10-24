@@ -6,6 +6,26 @@ How we get from Preview 3 (2.120, the RAI release) to RapidR 1.0, and what comes
 - **This file** is the *sequence*: what comes first, why, who does it, and what "done" means.
 - **The plans in docs/** are the designs, linked from each milestone.
 
+## 0. The WOW waves, in order (Robert and the coordinator, 2026-10-24)
+
+After Preview 4 and the Windows 7 alpha, Robert asked for one clear order across everything that's planned or new: IoT, the web server, networking, the interpreters, the data-science stack, AI pairing and teaching. The order follows one rule: **each wave makes the next ones faster or possible.** RAI comes first because it then helps build everything else (RAI builds apps with Robert's API credits, which are separate from the weekly plan), and the web server comes before remote board control because remote control needs it.
+
+| Wave | Release | The WOW in one line | Milestones |
+|---|---|---|---|
+| 0 | 2.121.x, now | Finish what's out: hotfix 2.121.1 (Help, Search rows, swatches, icons), readable components, Database Studio 0.1, Windows 7 alpha feedback, code signing as Ruta | MV leftovers |
+| 1 | **Preview 5: "Pair with AI"** | Learn to program *with* an AI, free, on your own computer: the redesigned chat, RAI that runs and tests, the teaching modes, `RSystemInfo`, the local model manager with its fit check (no server), Studio in four languages (the plumbing, then translations) | M1 + M4 (part) + M5 (plumbing) |
+| 2 | **Preview 6: "Connected"** | Control a robot from a phone's browser: `RWebServer` (security first), the board link over USB, Bluetooth and Wi-Fi, dashboard components (knob, switch, gauge, display, oscilloscope), remote control through `RWebServer`. Then RAI builds the RapidR Web Server app on it | M3 (link mode) + new networking |
+| 3 | **Preview 7: "On the board"** | RapidR running *on* the ESP32, micro:bit and M5Stack: the on-board VM and native target, a secure bootloader and flashing, debugging on the board, live pins | M3 (on-board) |
+| 4 | **Preview 8: "Science"** | A complete data-science stack of our own (data frames, arrays, plots, statistics, machine learning) at full speed, and an importer that turns Python data-science scripts into RapidR. `RInterpreter` (RapidR as an embeddable, sandboxed script engine, also for server-side pages) | M6 + interpreters |
+| 5 | Preview 9 | Networking clients (`RSSHClient`, `RSFTPClient`), then servers; embedded PHP and Python components (after the lawyer's review; never "PHP" in a name); layout, binding and the native look | M2 + networking |
+| 6 | **1.0** | Hardening: security, accessibility and use audits on every system, Export anywhere, signed installers | M7 |
+
+**Products along the way, each built on RapidR's own components:** RapidR Database Studio (wave 0), the RapidR Web Server app (wave 2, built by RAI), an IoT lab app for classrooms (wave 2–3), a data lab (wave 4).
+
+**Every wave keeps the standards:** fast, secure (a threat model and fuzzing for anything facing a network), easy, AI first (every component in the registry, operable by RAI and over MCP), accessible, legal (a lawyer review before new dependencies, formats, protocols or names), responsible, and a WOW with a video and posts in four languages.
+
+**Budget:** about one wave per one to two weekly windows, always under 80% of the week. Work RAI does inside Studio runs on the API credits.
+
 ## 1. Principles (unchanged, and they decide every trade-off)
 
 - **Test like a user:** done means used end to end, with real clicks, on screen, on every OS and on the web. A green suite alone isn't done.
