@@ -44,6 +44,7 @@ use std::sync::Arc;
 pub use case::{CaseOptions, CaseScope, IdentifierCase, KeywordCase};
 pub use diagnostics::FileDiagnostic;
 pub use front::{Location, Parsed};
+pub use hover::SymbolHelp;
 pub use model::SemanticModel;
 pub use rapidr_diagnostics::Severity;
 pub use text::LineIndex;
@@ -662,6 +663,40 @@ impl Analysis {
         let text = self.text(file)?;
         let s = self.quick_snapshot(file)?;
         hover::hover(&s, file, &text, offset)
+    }
+
+    /// The Help pane's word: the program's own name at byte `offset` of
+    /// `file` (a variable, a constant, a SUB, a component …), if the word
+    /// there is one.
+    pub fn symbol_help(&mut self, file: &Path, offset: usize) -> Option<SymbolHelp> {
+        let text = self.text(file)?;
+        let s = self.quick_snapshot(file)?;
+        hover::help_at(&s, file, &text, offset)
+    }
+
+    /// The component the word at byte `offset` of `file` is a member of
+    /// (`Hello.Font.Color`: `RFONT`), when it follows a dot and the names
+    /// before it can be followed; the registry's name of it.
+    pub fn member_owner(&mut self, file: &Path, offset: usize) -> Option<String> {
+        let text = self.text(file)?;
+        let s = self.quick_snapshot(file)?;
+        hover::owner_at(&s, file, &text, offset)
+    }
+
+    /// The program's own name `name` (its main scope's), as Help's search
+    /// finds it.
+    pub fn symbol_help_named(&mut self, file: &Path, name: &str) -> Option<SymbolHelp> {
+        let s = self.quick_snapshot(file)?;
+        hover::help_named(&s, name)
+    }
+
+    /// The names of the program's main scope with their kinds (`variable`,
+    /// `sub` …): what Help's search suggests besides the language's.
+    pub fn program_names(&mut self, file: &Path) -> Vec<(String, &'static str)> {
+        match self.quick_snapshot(file) {
+            Some(s) => hover::program_names(&s),
+            None => Vec::new(),
+        }
     }
 
     pub fn signature(&mut self, file: &Path, offset: usize) -> Option<SignatureHelp> {

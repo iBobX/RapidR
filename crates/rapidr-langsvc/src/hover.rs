@@ -98,8 +98,19 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     None
 }
 
-/// Markdown for one of the program's names.
-pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
+/// What the hover and the Help pane both say of one of the program's names.
+pub(crate) struct Facts {
+    /// Its declaration line (trimmed), the file it is in and the line (from 0).
+    pub decl: Option<(String, std::path::PathBuf, usize)>,
+    /// In words: "global variable", "SUB", "field of TYPE `T`" …
+    pub what: String,
+    /// What shows it: its declaration line; a SUB's or FUNCTION's signature.
+    pub code: String,
+    /// Uses besides the declaration.
+    pub uses: usize,
+}
+
+pub(crate) fn symbol_facts(s: &Snapshot, sym: &Symbol) -> Facts {
     let decl = sym.decl.and_then(|d| s.locate(d)).and_then(|loc| {
         let text = s.parsed.file_text(&loc.file)?;
         let index = LineIndex::new(text);
@@ -151,6 +162,136 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             None => sym.name.clone(),
         },
     };
+    let uses = s
+        .model
+        .symbols
+        .iter()
+        .position(|x| std::ptr::eq(x, sym))
+        .map_or(0, |id| s.model.references_to(id).filter(|r| r.access != crate::model::Access::Declare).count());
+    Facts { decl, what, code, uses }
+}
+
+/// What RapidR Studio's Help pane (F1) says of one of the program's own
+/// names: what it is, how it was declared, where, and its type (whose own
+/// help the pane shows below).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SymbolHelp {
+    pub name: String,
+    /// `variable`, `constant`, `parameter`, `sub`, `function`, `dll`, `type`,
+    /// `field`, `component` or `label`.
+    pub kind: &'static str,
+    /// In words: "global variable", "local variable in `Go`" …
+    pub what: String,
+    /// Its declaration line; a SUB's or FUNCTION's signature.
+    pub code: String,
+    /// Its type's name (`RFONT`, `INTEGER`, a TYPE's), when it has one.
+    pub ty: Option<String>,
+    /// Where it is declared (`None`: it isn't, in the files).
+    pub file: Option<std::path::PathBuf>,
+    /// …its line, from 1 (0: none).
+    pub line: usize,
+    /// Uses besides the declaration.
+    pub uses: usize,
+}
+
+fn symbol_help_of(s: &Snapshot, sym: &Symbol) -> SymbolHelp {
+    let Facts { decl, mut what, code, uses } = symbol_facts(s, sym);
+    // (`DIM PickedFont AS RFont`: a variable that holds a component, made by
+    // a DIM; a component of the form is made by CREATE)
+    let dimmed = sym.kind == SymbolKind::Component && decl.as_ref().is_some_and(|(line, _, _)| declares(line));
+    if dimmed {
+        what = match &s.model.scopes[sym.scope].kind {
+            ScopeKind::Program => "global variable".to_string(),
+            ScopeKind::Routine(r) => format!("local variable in `{r}`"),
+            ScopeKind::Type(t) => format!("field of TYPE `{t}`"),
+        };
+    }
+    let kind = match sym.kind {
+        SymbolKind::Global | SymbolKind::Local | SymbolKind::Static => "variable",
+        SymbolKind::Param => "parameter",
+        SymbolKind::Constant => "constant",
+        SymbolKind::Component if dimmed => "variable",
+        SymbolKind::Component => "component",
+        SymbolKind::Sub => "sub",
+        SymbolKind::Function => "function",
+        SymbolKind::External => "dll",
+        SymbolKind::Type => "type",
+        SymbolKind::Field => "field",
+        SymbolKind::Label => "label",
+    };
+    let (file, line) = match decl {
+        Some((_, file, line)) => (Some(file), line + 1),
+        None => (None, 0),
+    };
+    SymbolHelp { name: rapidr_ast::strip_type_suffix(&sym.name).to_string(), kind, what, code, ty: sym.ty.clone(), file, line, uses }
+}
+
+/// The program's own name at byte `offset` of `file`'s `text` (the caret
+/// in it, or just after it), if the word there is one.
+pub(crate) fn help_at(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Option<SymbolHelp> {
+    let (start, end) = word_at(text, offset)?;
+    // (a member of something: the registry's, not the program's)
+    if start > 0 && text.as_bytes()[start - 1] == b'.' {
+        return None;
+    }
+    let word = &text[start..end];
+    let index = LineIndex::new(text);
+    let (line, _) = index.line_col(start);
+    let before = &text[index.line_start(line)?..start];
+    if before.matches('"').count() % 2 == 1 || before.split('"').step_by(2).any(|part| part.contains('\'')) {
+        return None;
+    }
+    let pre = s.pre_offset(file, start)?;
+    let id = s.model.symbol_at(pre).or_else(|| s.model.lookup(word, s.model.scope_at(pre)))?;
+    let sym = &s.model.symbols[id];
+    if sym.kind == SymbolKind::Label && name_key(&sym.name) != name_key(word) {
+        return None;
+    }
+    Some(symbol_help_of(s, sym))
+}
+
+/// The component the word at byte `offset` of `file`'s `text` is a member
+/// of (`Hello.Font.Color`: the font's: `RFONT`), when it follows a dot and
+/// the chain before it can be told; its registry name.
+pub(crate) fn owner_at(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Option<String> {
+    let (start, _) = word_at(text, offset)?;
+    if start == 0 || text.as_bytes()[start - 1] != b'.' {
+        return None;
+    }
+    let index = LineIndex::new(text);
+    let (line, _) = index.line_col(start);
+    let line_start = index.line_start(line)?;
+    let chain = chain_before(text, line_start, start - 1);
+    let pre = s.pre_offset(file, start).unwrap_or(0);
+    match context::resolve_chain(s, pre, &chain)? {
+        Ty::Component(c) => Some(c.name.to_string()),
+        Ty::User(t) => context::base_component(s, &t).map(|c| c.name.to_string()),
+    }
+}
+
+/// The program's own name `name` (its main scope's: globals, constants,
+/// components, SUBs, FUNCTIONs, TYPEs), as the Help pane's search finds it.
+pub(crate) fn help_named(s: &Snapshot, name: &str) -> Option<SymbolHelp> {
+    let id = s.model.lookup(name, 0)?;
+    let sym = &s.model.symbols[id];
+    (sym.kind != SymbolKind::Label).then(|| symbol_help_of(s, sym))
+}
+
+/// The names of the program's main scope, with their kinds.
+pub(crate) fn program_names(s: &Snapshot) -> Vec<(String, &'static str)> {
+    let mut out: Vec<(String, &'static str)> = Vec::new();
+    for sym in s.model.symbols.iter().filter(|x| x.scope == 0 && x.kind != SymbolKind::Label) {
+        let h = symbol_help_of(s, sym);
+        if !out.iter().any(|(n, _)| n.eq_ignore_ascii_case(&h.name)) {
+            out.push((h.name, h.kind));
+        }
+    }
+    out
+}
+
+/// Markdown for one of the program's names.
+pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
+    let Facts { decl, what, code, uses } = symbol_facts(s, sym);
     // (a top-level SUB / FUNCTION: its signature says what it is)
     let mut md = if what == "SUB" || what == "FUNCTION" { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
     if let Some(t) = &sym.ty {
@@ -165,12 +306,6 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
             md.push_str(&format!(" — `{t}`"));
         }
     }
-    let uses = s
-        .model
-        .symbols
-        .iter()
-        .position(|x| std::ptr::eq(x, sym))
-        .map_or(0, |id| s.model.references_to(id).filter(|r| r.access != crate::model::Access::Declare).count());
     let used = match uses {
         0 => "not used yet".to_string(),
         1 => "used once".to_string(),
