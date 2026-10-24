@@ -59,3 +59,99 @@ It relinks with a map, lists the toolchain's objects and exits 1 on a flag; then
 ## Antivirus check (2026-10-23, 21:26)
 
 `tools/win7/av_check.ps1`, in the Windows 11 ARM VM with Bitdefender real-time on (Defender off), from `C:\rapidr-win7-av` (outside Temp, which has an exception), after the release jobs there had finished: the zip matched its `.sha256`; all 149 files unzipped; `rapidr.exe` showed Company "Ruta Internet S.R.L.", Product "RapidR", version 2.121.0, "RapidR (Windows 7 alpha)"; `rapidr.exe version`, `hello.rr` and `language.rr` ran (exit code 0, 32-bit program under x86 emulation); Bitdefender's quarantine folder and `pending_actions.json` were unchanged afterwards. Bitdefender's settings were not touched; the folder was removed. Not covered: Studio and window programs (a session-0 script has no desktop), and other antivirus products.
+
+## Addendum (lawyer agent, 2026-10-23 night)
+
+Scope: (1) the zip `RapidR-2.121.0-win7-x86-alpha1.zip` (sha256 `1e5e162b…7ec6`, listed and read: README-ALPHA.txt, `licenses\`, LICENSES.md, THIRD_PARTY_NOTICES.md), and the open delay-load point; (2) the music of `rapidr-2.121.0-launch-intro-music.mp4`. Primary sources: mingw-w64 at commit `0d6dfbc3…` (headers of the linked files), Microsoft Learn ("Understand the delay load helper function"), the Visual Studio licence terms (Distributable Code clause, as quoted by Microsoft's own pages), and the Logic Pro licence PDF installed on this Mac (`/Applications/Logic Pro.app/Contents/Resources/Logic Pro License Agreement.pdf`, English part, document EA1924 dated 08/20/2024). US/EU/Uruguay common practice, not legal advice.
+
+### Verdicts, ranked
+
+| # | Risk | Item | Verdict | Action before publishing |
+|---|---|---|---|---|
+| 1 | Medium | mingw-w64 delay-load helper (`delayimp.o`, `delay-f.o`, `delay-n.o`) derived from Microsoft's `delayhlp.cpp` | **Replace** | Write our own `__delayLoadHelper2` (below), rebuild, re-test on Windows 7, re-run `link_audit.sh` (must show those three objects gone). |
+| 2 | Medium | The zip lacks the full licence texts and copyright lines of the 283 crates and of Rust's standard library | **Change before publishing** | Put the generated `THIRD-PARTY-NOTICES.txt` into the zip (below). |
+| 3 | Medium | Our Windows 7 test VM: unactivated Windows 7 from an archive.org ISO | **Change how we test** | Stop after the current round, delete the VM, move to community testers or a real PC with its COA (below). |
+| 4 | Low | README-ALPHA.txt wording: no "as is / no warranty" sentence, no note that Windows 7 is out of support, no Microsoft trademark line, support line without the company name | **Change X** (4 sentences, below) | Edit README-ALPHA.txt (both languages). |
+| 5 | Low | mingw-w64 `AUTHORS` file not in `licenses\mingw-w64\` | **Change X** | Add it (2.4 KB, same commit). The ZPL notice in `COPYING` points to it. |
+| 6 | Low | Apple Loops in the launch video | **OK as is**, with conditions | Conditions in the music section. |
+| 7 | Low | YouTube Content ID claim on Apple Loops | **OK**, handle as below | Upload unlisted first; dispute with the licence if claimed. |
+| 8 | None | Rust nightly `-Z build-std` | **OK as is** | Nothing beyond item 2. |
+| 9 | None | Names "win7" / "Windows 7" | **OK as is** | Only the trademark line of item 4. |
+| 10 | None | Rest of the linked mingw-w64 objects and the licence files | **OK as is** | Only item 5. |
+
+Nothing is High. Items 1 to 3 are Medium because the rule here is "not clearly safe, replace", not because anyone has ever complained.
+
+### 1. Delay-load helper: replace
+
+What I found.
+- `delayimp.c` (278 lines, mingw-w64 `misc/`) says "no copyright assigned … Public Domain" and "derived from Microsoft implementation file delayhlp.cpp, which is free for users to modify and derive". `delay-f.c` and `delay-n.c` (13 lines each) only define the two hook pointers (`__pfnDliFailureHook2`, `__pfnDliNotifyHook2`), public domain, no Microsoft text. No other linked mingw-w64 file mentions Microsoft code (grepped the start-up, `libmingw32`, `libmingwex` sources; `mingw_pformat`/`mingw_fprintf` only mention Microsoft's *behaviour*).
+- Microsoft's side. `delayhlp.cpp` ships in the MSVC `include` directory. Microsoft Learn says you "can modify the helper function", should "write your own function", and that the default helper "is a good template to use as an example" and "you can use the existing code as a guide". That is permission to *write* a helper, not a licence to copy the file, and it says nothing about redistributing a derivative or relicensing it as public domain. The Visual Studio licence terms grant source-level rights only to files "marked as sample/template" and bind "Distributable Code" (object code from the REDIST list) with conditions, including no "Excluded License" (a licence that forces disclosure or open modification). I found no text that puts `delayhlp.cpp` on either list, and I could not read its header offline. So the "free to modify and derive" sentence is the mingw-w64 project's claim, not a Microsoft licence we can point to.
+- Practical risk is small (every MinGW program that delay-loads has carried this file for about 15 years, and nobody has complained), but the cost of removal is small too (about 100 lines), and Robert's rule is to replace what is not clearly safe. "Ship as is for the alpha" is therefore not recommended. If the replacement cannot be built and re-tested on Windows 7 in time, the alpha slips; it does not ship with this file.
+
+How to replace it (clean-room, from public specifications only).
+1. Write the replacement with an agent that has **not** read `delayimp.c` or `delayhlp.cpp`. Sources allowed: Microsoft's PE format specification, section "Delay-Load Import Tables" (the delay-load directory layout: attributes, name RVA, module-handle RVA, delay IAT RVA, delay name table RVA, and the import name table entries), and the Learn page above for the helper's *calling contract* (`FARPROC WINAPI __delayLoadHelper2(PCImgDelayDescr pidd, FARPROC *ppfnIATEntry)`: resolve the function, store it in the IAT slot, return it). The thunks that call it are generated by LLVM's lld (Apache-2.0 with LLVM exception), not by mingw-w64.
+2. Put it in `crates/rapidr-cli/src/win7.rs` as `#[no_mangle] extern "system" fn _delayLoadHelper2@8` (`__delayLoadHelper2` on i686 with stdcall decoration), and fold the existing hook logic (already ours: combase.dll read from ole32.dll, stand-ins for the functions Windows 7 lacks) straight into it, so `__pfnDliFailureHook2` is no longer needed. An object's own definition beats an archive member, the same trick that removed Cephes' `cbrt`.
+3. Simpler alternative with no PE parsing at all: give up `--delayload` and define the six functions yourself (`RoGetActivationFactory`, `RoOriginateErrorW`, `PathCchStripPrefix`, `CoIncrementMTAUsage`, and the two `combase.dll` ones, `CoCreateFreeThreadedMarshaler`, `CoTaskMemFree`) as small shims that call `GetProcAddress` on first use and fall back to the stand-ins. Either is fine; the first keeps today's linking.
+4. Add one paragraph to `docs/legal/clean-room.md` (who wrote it, from which sources, that `delayimp.c`/`delayhlp.cpp` were not consulted). Update item 6 of the licence table above and `licenses\README.txt` ("the delay-loading helper" disappears from the mingw-w64 list). Re-run `tools/win7/link_audit.sh`.
+
+### 2. Notices for the 283 crates and Rust's standard library
+
+The zip carries `THIRD_PARTY_NOTICES.md` (names, versions, links) and `LICENSES.md` (one MIT text, fonts, the fdlibm/Sun, NetBSD and similar notices) but not the full licence text with each crate's copyright line. MIT, BSD, ISC, Zlib and Apache-2.0 all ask for the notice to travel with *binary* copies, and the standard library (MIT OR Apache-2.0, plus the crates it is built from) is in the same position. The normal downloads solve this with the `THIRD-PARTY-NOTICES.txt` that `rapidr notices` generates from the real dependency graph (`crates/rapidr-cli/src/notices.rs`); the alpha folder is not an install, so finding 5 above ("harmless") is **not** right for a public download.
+- Action: generate that file for the win7 graph (or, if the generator cannot take the win7 target, use the Windows x64 one, whose crate set is a superset: extra notices are harmless) and put it in the zip as `THIRD-PARTY-NOTICES.txt`; mention it in README-ALPHA.txt's Licences paragraph. Check that it contains the "Rust standard library" component and the mingw-w64 / gdtoa text.
+- The small mingw-w64 files (item 10) are complete otherwise: `COPYING` (ZPL-2.1), `COPYING.MinGW-w64.txt`, `COPYING.MinGW-w64-runtime.txt` (contains the Lucent/David M. Gay gdtoa permission notice, the NetBSD notice and the others), `DISCLAIMER`, `DISCLAIMER.PD`; LLVM's `LICENSE.TXT` for libunwind. Missing only `AUTHORS` (item 5).
+
+### 8. Nightly Rust with `-Z build-std`
+
+The standard library is the same source and the same licences on nightly as on stable: MIT OR Apache-2.0, with the third-party parts that `library/` lists (fdlibm/Sun, NetBSD, compiler-rt under Apache-2.0 WITH LLVM-exception, `memchr` Unlicense OR MIT, `miniz_oxide`, `adler2`, `hashbrown`, `gimli`, `rustc-demangle`, `windows-sys`). `-Z build-std` compiles those sources from the `rust-src` component into our program; it does not add a licence. Notice duty = item 2. We do not distribute the nightly compiler, so nothing of it has to be offered. Nothing GPL/LGPL/AGPL (checked in the linker map earlier). OK as is.
+
+### 9. Names: "win7", "Windows 7"
+
+Nominative use (naming the product your software runs on, in plain text, with no logo and no suggestion of endorsement) is fine under EU and US law and within Microsoft's own trademark guidelines, which allow descriptive reference such as "for Windows". File name `…-win7-x86-alpha1.zip`, the folder name and the release title "RapidR 2.121.0 for Windows 7, 8 and 8.1 (32-bit), alpha 1" are fine. Keep: no Windows logo or flag, no "Windows 7 Edition" as a product name, "Windows 7" never inside the program's name or domain. `LEGAL.md` (in the zip) already carries the Microsoft trademark sentence; README-ALPHA.txt is what people read, so put the sentence there too (item 4). Mark the GitHub release "pre-release" (then it is never "latest", so the normal download page and any update check keep pointing at the normal release).
+
+### 4. README-ALPHA.txt wording (add, English and Spanish)
+
+- After the alpha paragraph: "This test build is provided as is, without warranty of any kind (see LICENSE). Use it at your own risk and keep a copy of anything you care about." (The MIT text says so, but this readme is what people read.)
+- In "What it is": "Windows 7 and 8 no longer receive security updates from Microsoft; use this build on such a PC at your own risk, and preferably offline for anything sensitive." This is true, helps users, and removes any impression that we promise safety on an unsupported system. (Windows 8.1 is also past support, since January 2023.)
+- Licences paragraph: "Windows is a trademark of the Microsoft group of companies. RapidR is not affiliated with or endorsed by Microsoft."
+- Support line: today it reads "you can support it (voluntary, with nothing in return)". Use the agreed wording from `review-2026-10-22.md` 7c: "Support RapidR (Ruta Internet SRL)", still "voluntary, with nothing in return" (so a donation never reads as a purchase or as a promise of support or of fixes). The sentence "No part of this download is GPL or LGPL" is true by the audit; keep it, and keep the audit in the repository.
+- Already good: "ALPHA TEST BUILD", "do not trust it with work you cannot lose", "NOT signed" with the safe way past the warning (never switch protection off), "compatible with RapidQ" only, no "clone".
+
+### 3. The Windows 7 test VM
+
+Facts. An unactivated Windows 7 runs in a built-in 30-day trial; Microsoft's licence terms still require a licence for use, and Windows 7 media is no longer sold. An ISO from archive.org is a copy somebody else uploaded: Microsoft did not authorise that copy, and an unofficial ISO may have been altered. Nothing from the VM is distributed (we only run our own program in it), so RapidR's own licensing is untouched; the exposure is Robert's/Ruta's own use of an unlicensed Windows copy for company work. Real-world enforcement against a few short test runs is very unlikely, but it is not "zero risk", and it is the kind of thing that costs credibility if it ever came up next to a public project. The old-pcs plan already says the same (no grey-market key, no VM licence).
+- Do now: finish the current test round and then **delete the VM and the ISO**. Do not use `slmgr /rearm`, activators, or keys from key shops. While it exists: no network (or host-only), no personal data in it, no company credentials. If it is kept for a few days more, treat the 30-day trial as the hard limit.
+- Check that the ISO matches the SHA-1 of Microsoft's original image if a reference list is at hand; if it does not match, delete it at once.
+- Keep testing legitimately: (a) community testers on real PCs, as planned (Evgeny on 8.1 32-bit and the RapidQ group) with the `results.txt` the alpha already produces; (b) later, a cheap used PC that still carries its **original Windows 7 COA sticker** (genuine licence, real old hardware, and it also covers the CPU-only-drawing question that a VM cannot); (c) Windows 8.1 can be tried from Microsoft's own evaluation downloads if they are still offered (I did not verify availability), but it does not exercise the Windows 7 fallbacks of item 1, so it is not a substitute for (a) and (b).
+- Wording: the alpha says "It has run on Windows 7 (32-bit, no updates) in a virtual machine". That is true and fine to keep; do not say which image or where it came from.
+
+### Q2. Launch video music (Apple Loops)
+
+What the licence says. The installed Logic Pro 12.4 ships "Logic Pro Software License Agreement", English part, document EA1924 (08/20/2024). I could not fetch Apple's web copy for the Mac app (404 on the guessed URLs), so this is the copy on Robert's own machine; it is the iPad-titled text of the same family, and the sample-content clause is the one Apple uses in the Mac versions too. Its Section 2.C ("Sample Content", which includes "audio loops") says, in substance:
+- the Sample Content is Apple's and its licensors'; "all Sample Content included in the Apple Software may be used on a royalty-free basis to create your own original soundtracks for your audio and video projects";
+- "You may broadcast, publish, display, and/or distribute your own soundtracks that were created using the Sample Content";
+- but "individual Sample Content assets may not be commercially or otherwise distributed on a standalone basis, nor may they be repackaged in whole or in part as audio samples, clipart, music beds, sound effects, sound files, sound libraries, stock animation, or similar assets";
+- new: you "may not use the Sample Content for training, testing, or evaluating any machine learning or artificial intelligence models, tools, algorithms, sound generators, or other software programs".
+
+Reading for our case.
+- A 2-minute product video with a layered, looped, faded soundtrack under it is exactly "your own original soundtrack for your video project", published on YouTube and GitHub. Apple's loops are made to be layered; choosing four loops from one pack, their entry points, loops and fades is the arrangement. The text does not ask for a minimum amount of transformation. The prohibition is about passing the *loops* on (as files, packs, "music beds" for others), not about audio that is part of a finished video. Company use is fine when the Mac and the Logic licence are Ruta's or Robert's with the company as the "commercial enterprise" (Section 2.A); if the licence was bought on a personal Apple ID and the video is posted by the company, keep the video on Robert's own channel or accept this as a Low risk.
+- **Verdict: OK as is** for the video, with these conditions:
+  1. Never publish the soundtrack on its own: no audio-only file, no mp3/wav of the mix, no music-service upload, no "music bed" download, not even as a bonus. The mix stays in the video only.
+  2. Do not release the video under an open licence (CC-BY, MIT, public domain) and do not commit the mp4 or the mix to the git repository (the repo is MIT: anyone could lift the music). Attach the mp4 as a release asset or upload it, and write under it: "Music: Apple Loops (Apple Inc.), used under the Logic Pro licence; not covered by RapidR's MIT licence."
+  3. Do not feed the raw loops or the mix to AI tools for analysis, testing or training (new AI clause); ffmpeg is not an AI model, so the mixing was fine.
+  4. Keep proof: the list of the four file names and pack ("07 Chillwave"), the ffmpeg command, and a copy of the licence PDF, in `dist/2.121.0/launch/` next to the video (not in git).
+- More margin if wanted (optional, not required): add one short part of our own, played with Logic's own instruments from a MIDI file (RapidR's `make_song.rr` can write one), so the track is no longer only Apple loops. That is better art direction and slightly stronger as "original", but it is not needed for the licence.
+
+YouTube Content ID. Loop libraries are a known source of false claims: some other uploader's track that uses the same Apple loop gets registered in Content ID, and the claim then lands on every video that uses that loop. It is a claim, not a strike, and it is disputable.
+- Upload as **unlisted** first, wait for YouTube Studio's copyright check to finish (it shows "Copyright: no issues" or lists the claim), then make it public.
+- If a claim appears: dispute it in YouTube Studio ("Content" → "Copyright" → "Select action" → "Dispute") with the reason "licensed: Apple Loops from Apple Logic Pro, royalty-free for soundtracks under Section 2.C of the Logic Pro licence", naming the loops. Disputes are decided by the claimant, so be polite and factual; do not file a counter-notification (that one carries legal statements and exposes the account to a strike process) unless the dispute is rejected and the claim blocks the video; then ask for advice first.
+- A claim that only turns on ads (no block) can be left alone; we run no ads.
+- Same for the other platforms: no registration of the music with any distributor.
+- If a claim ever becomes a nuisance, the fallback is a re-mix with our own MIDI part and fewer loops, or a different source; nothing needs changing now.
+
+### Open items for the lane that fixes these
+
+1. Replace the delay-load helper, rebuild, re-test, re-audit, update the docs (item 1).
+2. Add `THIRD-PARTY-NOTICES.txt` (item 2) and `AUTHORS` (item 5) to `tools/win7/alpha.sh`'s list.
+3. Edit README-ALPHA.txt (item 4), then rebuild the zip and its `.sha256`, and re-run `tools/win7/av_check.ps1`.
+4. Delete the VM after the last test round (item 3).
+5. Post the video as unlisted first, with the music line under it (Q2).
