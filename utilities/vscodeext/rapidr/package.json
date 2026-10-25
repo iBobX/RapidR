@@ -2,7 +2,7 @@
   "name": "rapidr",
   "displayName": "RapidR",
   "description": "RapidR BASIC (RapidQ-compatible): code completion, diagnostics, go to definition, rename, formatting and debugging, through RapidR's own language server and debug adapter.",
-  "version": "2.121.1",
+  "version": "2.121.2",
   "publisher": "rapidr",
   "license": "MIT",
   "author": "Ruta Internet SRL",
