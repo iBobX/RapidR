@@ -7,6 +7,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.121.3] — 2026-10-25 (hotfix)
+
+### Fixed
+- **Applying RAI's new files in a new folder no longer closes Studio** (`icons/folder.svg` with no `icons` folder yet: a run-time error "Cannot create file" ended Studio). The folder is made first; flow `ai-apply-new-folder`.
+- **Long chats are summarised at 70% of the model's window** (RAI.SummaryAt now defaults to 0, automatic): the old default of 40,000 was set on every RAI, so the chat was still summarised at 40,000 tokens even on a 1,000,000-token model.
+
 ### Changed
 - Help, Studio, the examples and the manual describe RapidR on its own; classic compatibility is on one page.
 ### Added

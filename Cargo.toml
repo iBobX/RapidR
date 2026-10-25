@@ -54,7 +54,7 @@ exclude = ["crates/rapidr-ui-proto"]
 
 [workspace.package]
 edition = "2021"
-version = "2.121.2"
+version = "2.121.3"
 license = "MIT"
 
 [workspace.dependencies]
