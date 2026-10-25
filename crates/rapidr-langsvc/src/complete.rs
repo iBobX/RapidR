@@ -201,10 +201,10 @@ fn types(s: &Snapshot, out: &mut Out, q_style: bool, other_typed: bool) {
     for c in rapidr_lang::COMPONENTS.iter().filter(|c| c.kind != Kind::Planned) {
         let from = c.from.map(|inc| format!(" (from {inc})")).unwrap_or_default();
         let (label, detail, alternate) = match c.rapidq_spelling() {
-            Some(q) if c.kind != Kind::Component => (q, format!("RapidQ's, from {}", c.from.unwrap_or("RapidQ")), None),
+            Some(q) if c.kind != Kind::Component => (q, format!("from {}", c.from.unwrap_or("the library")), None),
             Some(q) if q_style => (q.clone(), format!("RapidR name: {}", c.spelling()), Some((c.spelling(), format!("RapidR's name for {q}")))),
-            Some(q) => (c.spelling(), format!("RapidQ name: {}{from}", c.written_name()), Some((q, format!("RapidQ's name for {}", c.spelling())))),
-            None => (c.spelling(), "RapidR's own component".to_string(), None),
+            Some(q) => (c.spelling(), format!("component{from}"), Some((q, format!("classic name for {}", c.spelling())))),
+            None => (c.spelling(), format!("component{from}"), None),
         };
         out.push(Completion {
             label,
@@ -270,8 +270,8 @@ fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
             out.push(Completion {
                 label: name.to_string(),
                 kind: CompletionKind::Constant,
-                detail: Some(format!("RAPIDQ.INC constant = {value}")),
-                doc: Some(with_notes(g.doc, "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: without it, RapidQ reads the name as a variable that is always 0.*")),
+                detail: Some(format!("constant = {value}")),
+                doc: Some(with_notes(g.doc, "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: a .bas file reads the name as a variable that is always 0 without it.*")),
                 insert: None,
                 snippet: false,
                 edits: vec![edit.clone()],
@@ -289,20 +289,16 @@ pub(crate) fn component_doc(c: &Component) -> Option<String> {
         doc.push_str(c.doc);
         doc.push_str("\n\n");
     }
-    match c.rapidq {
-        Some(q) if c.kind == Kind::Component => doc.push_str(&format!("**{}** — RapidQ name: {q} (one component under two names).", c.spelling())),
-        Some(q) => doc.push_str(&format!("**{}**: RapidQ's {q}, under its RapidQ name.", c.spelling())),
-        None => doc.push_str(&format!("**{}** is RapidR's own.", c.spelling())),
-    }
+    doc.push_str(&format!("**{}**", c.spelling()));
     let notes = compat::notes(Origin::RapidQ, Origin::RapidQ, c.kind == Kind::Planned, c.runtimes, c.from);
     if !notes.is_empty() {
         doc.push_str("\n\n");
         doc.push_str(&notes);
     }
     if c.kind == Kind::Library {
-        doc.push_str("\n\n*A RapidQ library written in BASIC, which RapidR supplies.*");
+        doc.push_str("\n\n*A library written in BASIC, which RapidR supplies.*");
     }
-    doc.push_str(&format!("\n\n{} properties, {} methods, {} events", c.properties.len(), c.methods.len(), c.events.len()));
+    doc.push_str(&format!(": {} properties, {} methods, {} events", c.properties.len(), c.methods.len(), c.events.len()));
     if let Some(e) = c.default_event {
         doc.push_str(&format!("; its default event is {e}"));
     }
@@ -312,8 +308,8 @@ pub(crate) fn component_doc(c: &Component) -> Option<String> {
 
 fn origin_label(o: Origin) -> &'static str {
     match o {
-        Origin::RapidQ => "RapidQ",
-        Origin::RapidR => "RapidR",
+        Origin::RapidQ => "type",
+        Origin::RapidR => "RapidR type",
     }
 }
 

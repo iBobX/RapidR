@@ -14,4 +14,4 @@ DIM d AS QFo|rm
 '! 2 completion has Caption OnClick Left
 '! 3 completion has Caption OnClick Left
 '! 4 completion has Position Max
-'! 5 hover has "RForm" "**RForm** — RapidQ name: QFORM"
+'! 5 hover has "RForm" "**RForm**: "

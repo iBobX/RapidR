@@ -42,10 +42,10 @@ const COMPAT: &str = "RapidQ's compiler refuses it (this project is RapidQ-compa
 pub(crate) fn notes(origin: Origin, owner: Origin, missing: bool, runtimes: Runtimes, from: Option<&str>) -> String {
     let mut out: Vec<String> = Vec::new();
     if missing {
-        out.push("*RapidQ has it; RapidR doesn't yet (not implemented).*".into());
+        out.push("*Not implemented in RapidR yet.*".into());
     }
     if origin == Origin::RapidR && owner == Origin::RapidQ {
-        out.push("*A RapidR extension: RapidQ's compiler refuses it.*".into());
+        out.push("*A RapidR extension.*".into());
     }
     match runtimes {
         Runtimes::All => {}
@@ -53,7 +53,7 @@ pub(crate) fn notes(origin: Origin, owner: Origin, missing: bool, runtimes: Runt
         Runtimes::Web => out.push("*Web only: the desktop doesn't have it.*".into()),
     }
     if let Some(inc) = from {
-        out.push(format!("*RapidQ's, from `{inc}`.*"));
+        out.push(format!("*From `{inc}`.*"));
     }
     out.join("\n\n")
 }

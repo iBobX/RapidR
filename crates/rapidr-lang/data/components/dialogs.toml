@@ -48,7 +48,7 @@ display = "FileDialog"
 rapidq = "QFILEDIALOG"
 from = "RAPIDQ2.INC"
 visual = false
-doc = "RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning."
+doc = "A file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning."
 properties = [
   { name = "Caption", type = "string", default = "Open" },
   { name = "DefaultExt", type = "string", default = "" },
@@ -77,7 +77,7 @@ display = "ColorDialog"
 rapidq = "QCOLORDIALOG"
 from = "RAPIDQ2.INC"
 visual = false
-doc = "A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours."
+doc = "A colour picker: Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours."
 properties = [
   { name = "Caption", type = "string" },
   { name = "Colors", type = "int", design = false, indexed = 1 },
@@ -115,8 +115,8 @@ methods = [
   { name = "AddOptions", params = "Items ..." },
   { name = "DelOptions", params = "Items ..." },
   { name = "Execute", returns = "VARIANT", value = true, test = "skip: shows the dialog and waits for the user (tests/fixtures/file_dialogs.bas and the colour / font dialog fixtures answer it)", doc = "Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result." },
-  { name = "GetFont", params = "F AS RFont", doc = "Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to an RFont. RapidR also takes a component's own font here (`GetFont(Label.Font)`), which RapidQ's compiler refuses." },
-  { name = "SetFont", params = "F AS RFont", doc = "Gives font `F` the dialog's name, size, colour and styles (after Execute). RapidR also takes a component's own font (`SetFont(Label.Font)` changes the label), which RapidQ's compiler refuses." },
+  { name = "GetFont", params = "F AS RFont", doc = "Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to an RFont. A component's own font works here too (`GetFont(Label.Font)`)." },
+  { name = "SetFont", params = "F AS RFont", doc = "Gives font `F` the dialog's name, size, colour and styles (after Execute). A component's own font works here too (`SetFont(Label.Font)` changes the label)." },
 ]
 events = [
   { name = "OnApply" },

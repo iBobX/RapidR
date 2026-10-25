@@ -1,5 +1,5 @@
-# Components that aren't built into the runtimes: RapidQ's community libraries RapidR
-# supplies in BASIC (rapidr_preprocessor::RAPIDR_LIBRARIES), and RapidQ's objects RapidR
+# Components that aren't built into the runtimes: the community libraries RapidR
+# supplies in BASIC (rapidr_preprocessor::RAPIDR_LIBRARIES), and the objects RapidR
 # doesn't have yet (rapidr_ast::RAPIDQ_OBJECTS_NOT_YET_IMPLEMENTED).
 group = "Libraries"
 
@@ -75,7 +75,7 @@ rapidq = "QDOCKFORM"
 from = "QDockForm.inc"
 kind = "library"
 visual = true
-doc = "A panel docked at an edge of its form that the user can tear off into a window of its own and dock back. RapidR's own BASIC implementation of the RapidQ library."
+doc = "A panel docked at an edge of its form that the user can tear off into a window of its own and dock back. RapidR's own implementation, written in BASIC."
 properties = [
   { name = "Align", type = "int" },
   { name = "AltAlign", type = "int" },
@@ -121,7 +121,7 @@ rapidq = "QDIRLISTVIEW"
 from = "QDirListView.inc"
 kind = "library"
 visual = true
-doc = "A list view showing a folder's subfolders and files with their size, type and date, which the user browses. RapidR's own BASIC implementation of the RapidQ library."
+doc = "A list view showing a folder's subfolders and files with their size, type and date, which the user browses. RapidR's own implementation, written in BASIC."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"] },
   { name = "BorderStyle", type = "enum", values = ["bsNone", "bsSingle", "bsSizeable", "bsDialog", "bsToolWindow", "bsSizeToolWin"] },

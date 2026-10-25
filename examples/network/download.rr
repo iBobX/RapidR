@@ -1,5 +1,5 @@
 ' download.rr: downloading a file with RDownload, a gauge following it.
-' RDownload (RapidQ's QDOWNLOAD, from its Qdownload.inc) is built into RapidR.
+' RDownload is built into RapidR.
 '
 '   python3 -m http.server 8000        (in this folder)
 '   rapidr run download.rr

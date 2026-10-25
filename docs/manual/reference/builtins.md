@@ -2,7 +2,7 @@
 
 # Built-in functions and procedures
 
-The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(RapidR)*: RapidQ doesn't have it; *not yet*: RapidQ's, not in RapidR yet. Statements are in [statements.md](statements.md).
+The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(RapidR)*: RapidR's own addition to the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).
 
 ## Arrays and memory
 
@@ -15,7 +15,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 | `MEMSET(ptr, byte, count)` | Sets `count` bytes from an address to one byte value. |
 | `PEEK([#PageNum,] address)` | Reads one byte: of a console page (addresses 0 to 3999 of page 0 are the screen, an even address a cell's character, the odd one after it its colour attribute), or of the program's own memory at an address from VARPTR and the like. Any other address is a run-time error. |
 | `POKE [#PageNum,] address, byte` | Writes one byte: into a console page (on page 0 it shows at once), or into the program's own memory at an address from VARPTR and the like. Any other address is a run-time error. |
-| `SIZEOF (Var(Index))` | The size in bytes of a variable, array element, array, type or TYPE, as RapidQ lays it out in memory. |
+| `SIZEOF (Var(Index))` | The size in bytes of a variable, array element, array, type or TYPE, as it is laid out in memory. |
 | `UBOUND(ArrayName[, Dimension])` | The highest index of an array, in its first dimension or the one given (1 the first). |
 | `UDTPTR(Variable)` | The address of a TYPE variable's fields, for `MEMCPY` and the other memory builtins. |
 | `VARPTR(VarName)` | The address of a variable or array element, for the memory builtins; in RapidR a safe view of the program's own data. |
@@ -24,7 +24,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 
 | Builtin | |
 |---|---|
-| `RGB(Red%, Green%, Blue%)` | The colour value for red, green and blue parts of 0 to 255 each, as RapidQ stores colours (blue in the high byte). |
+| `RGB(Red%, Green%, Blue%)` | The colour value for red, green and blue parts of 0 to 255 each (blue in the high byte). |
 
 ## Console
 
@@ -48,7 +48,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 |---|---|
 | `BEEP` *(RapidR)* | Plays a short beep on the system's sound output (without sound, the terminal's bell). |
 | `MESSAGEBOX(Msg$, Title$, MsgButtons%)` | Shows a message box with the buttons and icon the `MB_` flags ask for; returns the `ID` constant (`IDOK`, `IDYES`, …) of the button chosen. Enter presses the first button, or the one Windows' `MB_DEFBUTTON2` (`&H100`) or `MB_DEFBUTTON3` (`&H200`) flag names (windows.inc's constants). |
-| `MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext [, DefaultButton])` | Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (RapidR's; RapidQ's MESSAGEDLG has four arguments) names another by its answer, so Enter can give the safe one: `MESSAGEDLG("This deletes 1,204 rows.", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number. |
+| `MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext [, DefaultButton])` | Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (the optional fifth argument) names another by its answer, so Enter can give the safe one: `MESSAGEDLG("This deletes 1,204 rows.", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number. |
 | `MSGBOX(Msg$)` *(RapidR)* | Shows a message box with an OK button and returns 0 when it is closed. |
 | `PLAYSOUND(FileName$)` *(RapidR)* | Plays a sound file in the background. |
 | `PLAYWAV FileName$\|Resource_Handle, SndOption` | Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting for its end (`SND_SYNC`) or repeating (`SND_LOOP`); `PLAYWAV ""` stops it. |
@@ -82,7 +82,7 @@ The builtins every runtime implements (native builds, the interpreter and the we
 
 ## Library functions
 
-RapidQ programs get these from include files or DECLAREs (RapidQ's compiler doesn't know them itself); RapidR doesn't have them yet.
+Classic programs get these from include files or DECLAREs; RapidR doesn't have them yet.
 
 | Builtin | |
 |---|---|
@@ -116,11 +116,11 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `COS(Number)` | The cosine of an angle in radians. |
 | `CSNG(Expression)` *(RapidR)* | A value as a SINGLE (a text is read as `VAL` reads it). |
 | `EXP(Number)` | e raised to the power of a number; the inverse of `LOG`. |
-| `FIX(Number)` | A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT` in RapidQ. |
+| `FIX(Number)` | A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT`. |
 | `FLOOR(Number)` | The largest whole number not greater than a number (`FLOOR(-2.1)` is -3), as a 32-bit integer. |
 | `FRAC(Number)` | A number's fractional part, with its sign: `FRAC(-2.75)` is -0.75. |
 | `IIF(Condition, TrueValue, FalseValue)` | `TrueValue` when the condition is true, else `FalseValue`. Both are evaluated before the choice. |
-| `INT(Number)` | A number's whole part, truncated toward zero as RapidQ does (`INT(-2.5)` is -2), kept as large as the number. |
+| `INT(Number)` | A number's whole part, truncated toward zero (`INT(-2.5)` is -2), kept as large as the number. |
 | `INV(Number, Modulus)` | The modular inverse of a number (`INV(3, 26)` is 9), or -1 when there is none; also an operator, `a INV m`. |
 | `LOG(Number)` | The natural logarithm (base e) of a positive number. |
 | `PI` *(RapidR)* *bare* | The number π, 3.14159265358979… |
@@ -182,7 +182,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `RINSTR([Start,] SearchString, FindString)` | The position (1 the first) of the last occurrence of `FindString` in `SearchString`, 0 when there is none. With `Start`, only an occurrence that ends at or before character `Start` counts (the search is in `LEFT$(SearchString, Start)`): `RINSTR(4, "hehe they", "he")` is 3; a `Start` of 0 or less finds nothing. An empty `FindString` is never found. |
 | `RTRIM$(Text$)` | The string without its trailing spaces. |
 | `SPACE$(Num)` | A string of `Num` spaces. |
-| `STR$(Number)` | A number as text, with up to 9 significant digits as RapidQ writes it: `STR$(1 / 3)` is `0.333333333`. |
+| `STR$(Number)` | A number as text, with up to 9 significant digits: `STR$(1 / 3)` is `0.333333333`. |
 | `STRF$(Number, Format%, Precision%, Digits%)` | A number as text in a float format (`ffGeneral`, `ffExponent`, `ffFixed`, `ffNumber`) with `Precision%` significant digits and `Digits%` decimals. |
 | `STRING$(Num, Char) or STRING$(Num, Char$)` | A string of `Num` copies of a character, given by its code or as the first character of a string: `STRING$(3, 65)` is `AAA`. |
 | `TALLY(Search$, Match$)` | The number of times `Match$` occurs in `Search$` (occurrences don't overlap); 0 for an empty `Match$`. |
@@ -201,7 +201,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `DATE$` *bare* | Today's local date as text, `MM-DD-YYYY`. |
 | `DOEVENTS` | Lets pending window events, timers and repaints run, so a long loop keeps the program's windows responsive. |
 | `ENVIRON StringExpression` | `ENVIRON "NAME=value"` sets a variable in the program's environment; `ENVIRON$("NAME")` reads one ("" when unset). |
-| `INP(Address)` | Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
+| `INP(Address)` | Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `INPW(Address)` | Reads a 16-bit word from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `KILLMESSAGE hWnd, Message` | Removes pending messages of one kind from a window's message queue (Windows' PeekMessage with PM_REMOVE). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so nothing happens there. |
 | `LFLUSH` | Sends what `LPRINT` has printed so far to the printer as one job; what is left at the program's end is printed then. |
@@ -209,7 +209,7 @@ RapidQ programs get these from include files or DECLAREs (RapidQ's compiler does
 | `LPRINT [Expression][;\|,][...]` | Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends the job. RapidR makes each job a PDF for the system's printer. |
 | `MOUSEX` *bare* | The mouse pointer's horizontal position, relative to the active form's client area. |
 | `MOUSEY` *bare* | The mouse pointer's vertical position, relative to the active form's client area. |
-| `OUT(Address, bytevalue)` | Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows. |
+| `OUT(Address, bytevalue)` | Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `OUTW(Address, wordvalue)` | Writes a 16-bit word to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error. |
 | `POSTMESSAGE(Handle, uMsg, wParam, lParam)` | Puts a Windows message in a window's queue and returns without waiting for it to be handled (Windows' PostMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere. |
 | `RUN command$` | Starts a program (a command line) without waiting for it; returns its process ID, 0 when it couldn't start. |

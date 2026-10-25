@@ -194,7 +194,7 @@ runs it in a frame beside your code.
   (next section).
 
 The designer writes each file in its own names: RapidR's (RButton) in a file
-written with them, the older Q names (QBUTTON) in a program written for RapidQ — a file that
+written with them, the older Q names (QBUTTON) in a classic program — a file that
 creates `QFORM`s, or a `.bas` file — never a mix. Both names mean the same
 component.
 
@@ -243,7 +243,7 @@ needs:
 
 The classic named constants — `clYellow`, `taCenter`, `alClient` … — are
 built into a RapidR program (`.rr`), so the designer writes their names. A
-RapidQ program (`.bas`) gets them from `RAPIDQ.INC`: in one that doesn't
+`.bas` program gets them from `RAPIDQ.INC`: in one that doesn't
 `$INCLUDE "RAPIDQ.INC"` (or define them), a name would read as nothing when
 it runs, so the designer writes the number instead.
 

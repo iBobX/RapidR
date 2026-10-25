@@ -2,8 +2,8 @@
 
 The DirectX, media and device objects run on every platform and in the
 browser. They are RapidR's own implementations of what programs do
-with Windows' DirectX, MCI, WinINet and serial APIs, with the same members and
-behaviour that programs written for RapidQ rely on. Each has a Q name too
+with Windows' DirectX, MCI, WinINet and serial APIs, with the members and
+behaviour that older programs rely on. Each has an older Q name too
 (`QDXSCREEN` for `RDXScreen`, and so on), accepted everywhere.
 
 ## DirectX 2D
@@ -63,7 +63,7 @@ own texts), `Volume`, their `Timer` and `OnChange`. A program that
 
 | Object | |
 |---|---|
-| `RComPort` | a serial port (older name `COMPORT`, from RAPIDQ2.INC): `Port`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Open`, `Close`, `ReadString`, `WriteString`, `OnRxChar`, `OnComError`, … — serial2 on the desktop (nothing to install on Linux), Web Serial in the browser; RapidR's extras for IoT boards (ListPorts, DTR / RTS, ReadLine, OnLine, OnPortsChanged) in [Serial ports and IoT boards](serial-ports.md) |
+| `RComPort` | a serial port (older name `COMPORT`): `Port`, `BaudRate`, `DataBits`, `Parity`, `StopBits`, `Open`, `Close`, `ReadString`, `WriteString`, `OnRxChar`, `OnComError`, … — serial2 on the desktop (nothing to install on Linux), Web Serial in the browser; RapidR's extras for IoT boards (ListPorts, DTR / RTS, ReadLine, OnLine, OnPortsChanged) in [Serial ports and IoT boards](serial-ports.md) |
 | `RSocket` (older name `QSOCKET`), `RServerSocket` | TCP client and server (the browser: WebSocket client only); servers in [Networking](network.md): this computer only (`127.0.0.1`), by lines, bytes or whole HTTP requests |
 | `RHttpServer` | a web server in your program, on `127.0.0.1`: a local API, a dashboard, an MCP server ([Networking](network.md)) |
 | `RHttp` | HTTP(S) `Get` and `Post` |

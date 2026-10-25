@@ -3,7 +3,7 @@
 '
 '   rapidr run video.rr
 '
-' RVideo (RapidQ's QVIDEO, from its QVideo.inc) is built into RapidR, with its own
+' RVideo is built into RapidR, with its own
 ' decoders: uncompressed, RLE, Video 1, Cinepak, Motion JPEG. Its Parent is
 ' the window it plays in; Left, Top, Width and Height place the picture.
 ' clip.avi (a bouncing ball, 24 frames) was made by

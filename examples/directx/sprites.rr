@@ -1,4 +1,4 @@
-' sprites.rr: DirectX 2D, RapidQ-compatible — an RDXScreen, sprites from an
+' sprites.rr: DirectX 2D — an RDXScreen, sprites from an
 ' RDXImageList and an RDXTimer moving them, a frame at a time.
 '
 '   rapidr run sprites.rr
@@ -60,7 +60,7 @@ SUB Frame
     DIM i AS INTEGER, k AS INTEGER
     frames = frames + 1
     ' the sky, the ground, and stars that twinkle (Fill takes DirectDraw's
-    ' &HRRGGBB; the other drawing RapidQ's &HBBGGRR)
+    ' &HRRGGBB; the other drawing methods take &HBBGGRR)
     Screen.Fill(&H101830)
     Screen.FillRect(0, H - 20, W, H, &H306020)
     FOR k = 0 TO 5

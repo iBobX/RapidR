@@ -176,7 +176,7 @@ name = "RD3DANIMATION"
 display = "D3DAnimation"
 rapidq = "QD3DANIMATION"
 visual = false
-doc = "Direct3D's keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."
+doc = "Direct3D's keyframe animation: a handle with a Parent and no other member. Nothing makes or plays one yet."
 properties = [
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
 ]
@@ -188,7 +188,7 @@ name = "RD3DANIMATIONSET"
 display = "D3DAnimationSet"
 rapidq = "QD3DANIMATIONSET"
 visual = false
-doc = "Direct3D's set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one."
+doc = "Direct3D's set of animations: a handle with a Parent and no other member. Nothing makes or plays one yet."
 properties = [
   { name = "Parent", type = "component", kinds = ["QFORM"], design = false },
 ]

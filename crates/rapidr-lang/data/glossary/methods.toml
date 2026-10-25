@@ -64,7 +64,7 @@ ApplyRelative = { doc = "Applies the texture wrap to mesh `M`, measured relative
 ArcCos = { doc = "Replaces each element with its arc cosine, in radians (in place). Same as `Acos`." }
 ArcSin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `Asin`." }
 ArcTan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `Atan`." }
-ArrangeIcons = { doc = "Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
+ArrangeIcons = { doc = "Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there." }
 Asin = { doc = "Replaces each element with its arc sine, in radians (in place). Same as `ArcSin`." }
 At = { doc = "Reads one value: an array's element at an index, or a DataFrame's cell by row and column name." }
 Atan = { doc = "Replaces each element with its arc tangent, in radians (in place). Same as `ArcTan`." }
@@ -79,7 +79,7 @@ Build = { doc = "Returns the strings from `Start` to `End` joined into one, sepa
 Button = { doc = "Tells whether a joystick button is pressed." }
 Call = { doc = "Calls a global JavaScript function by name with the other arguments, and returns its result." }
 CameraLookAt = { doc = "Turns the camera to face frame `F`; `Constraint` limits the axes it may turn on." }
-Cascade = { doc = "Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
+Cascade = { doc = "Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there." }
 CascadeChild = { doc = "Arranges the MDI child windows in an overlapping cascade." }
 Ceil = { doc = "Rounds each element up to a whole number (in place)." }
 Center = { doc = "Moves the form to the middle of the screen." }
@@ -235,7 +235,7 @@ HelpCommand = { doc = "Sends command `Command` with `Data` to the help system fo
 HelpContext = { doc = "Opens the program's help file at the topic with context number `Context`." }
 HelpJump = { doc = "Opens the program's help file at the topic `JumpID`." }
 Hide = { doc = "Makes the component or form invisible; it stays loaded." }
-HideTitleBar = { doc = "Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height), as in RapidQ. ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide." }
+HideTitleBar = { doc = "Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height). ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide." }
 Histogram = { doc = "Draws a histogram of the values. Same as `Hist`." }
 IconArrangeChild = { doc = "Lines up the icons of the minimized MDI child windows." }
 IndexOf = { doc = "Returns the index of the first string equal to `String`, or -1." }
@@ -296,7 +296,7 @@ Neg = { doc = "Changes the sign of each element (in place). Same as `Negative`."
 Negative = { doc = "Changes the sign of each element (in place). Same as `Neg`." }
 New = { doc = "Starts anew, empty: a blank recording for a wave; on the web, a data-science object." }
 NewPage = { doc = "Ends the current page and starts a new one." }
-Next = { doc = "Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
+Next = { doc = "Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there." }
 Nonzero = { doc = "Replaces the array with the indexes of its non-zero elements. Same as `Where`." }
 Norm = { doc = "Returns the array's length as a vector (its L2 norm)." }
 Normal = { doc = "Fills the array with `n` random values from a normal distribution (mean and standard deviation optional). Same as `RandN`." }
@@ -315,7 +315,7 @@ Poll = { doc = "Handles what is waiting on the server: new clients, messages and
 Popup = { doc = "Shows the popup menu at screen point (`X`, `Y`)." }
 Post = { doc = "Sends form data to a URL in an HTTP POST and returns the response body." }
 Pow = { doc = "Raises each element to a power (in place). Same as `Power`." }
-Previous = { doc = "Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
+Previous = { doc = "Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there." }
 Print = { doc = "Prints the contents to the console and returns them as text. Same as `Show`." }
 Pset = { doc = "Sets the pixel at (`x`, `y`) to color `c`." }
 PurgeIn = { doc = "Discards the data waiting in the serial port's receive buffer." }
@@ -451,7 +451,7 @@ Speed = { doc = "Returns a transfer's speed in bytes a second, from two `TIME$` 
 Sqrt = { doc = "Replaces each element with its square root (in place)." }
 Square = { doc = "Replaces each element with its square (in place)." }
 Start = { doc = "Starts the server listening on its `Host` and `Port`; returns false when the port can't be opened." }
-StartDrag = { doc = "Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens." }
+StartDrag = { doc = "Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens." }
 Std = { doc = "Returns the standard deviation of the values." }
 Stop = { doc = "Stops what is running: playback (back to the start), recording, or the server." }
 StretchDraw = { doc = "Draws a bitmap scaled to fill rectangle `Rect`." }
@@ -470,7 +470,7 @@ TextHeight = { doc = "Returns the height in pixels of the text in the current fo
 TextOut = { doc = "Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font." }
 TextRect = { doc = "Writes text `S` at (`x`, `y`), clipped to rectangle `Rect`, in color `fc` on background `bc`." }
 TextWidth = { doc = "Returns the width in pixels of the text in the current font." }
-Tile = { doc = "Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there." }
+Tile = { doc = "Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there." }
 To_csv = { doc = "Saves the DataFrame to a CSV file. Same as `SaveToCSV`." }
 To_grid = { doc = "Fills an RStringGrid with the DataFrame's column names and rows. Same as `ToGrid`." }
 To_json = { doc = "Saves the DataFrame to a JSON file. Same as `SaveToJSON`." }

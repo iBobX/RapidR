@@ -5,8 +5,8 @@
 '
 '   rapidr run links.rr
 '
-' TabStop = 1 on an RLabel is RapidR's own: a label without it is RapidQ's
-' (it never takes the focus). The hand cursor (Cursor = -21) is the
+' TabStop = 1 on an RLabel makes it take the keyboard focus (a label without
+' it never does). The hand cursor (Cursor = -21) is the
 ' program's choice.
 $THEME rapidr
 

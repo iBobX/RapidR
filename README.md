@@ -51,8 +51,8 @@ own computer; off until you turn it on.
   tree views, MDI, the tray icon, `RRegistry`, the printer, sockets, MySQL,
   CGI, serial ports, downloads, `RMIDI` / `RWave` / `RVideo`, and the DirectX
   2D and Direct3D objects (reimplemented by RapidR on its own renderer).
-- **Runs RapidQ programs too**: existing programs run unchanged, and the
-  importer brings old projects over with their include files.
+- **Programs written for RapidQ run too**, unchanged, and the importer brings
+  old projects over with their include files.
 - **RapidR's own UI kernel** draws every window, the same on every system:
   RapidR Studio's look by default (light, dark or high contrast, as the
   system is set), a classic Windows look with `$THEME Classic`,
@@ -87,9 +87,6 @@ them are in [`tools/bench/`](tools/bench/README.md):
 - **One program, every system.** Windows, macOS, Linux and the web from one
   source, and the desktop's and the browser's windows are checked pixel for
   pixel against each other.
-- **Existing programs, unchanged**: all 428 programs of the compatibility
-  suite pass ([Windows](docs/rapidq-corpus-status.md),
-  [macOS, Linux and the web](docs/rapidq-corpus-status-unix.md)).
 - **Accessible and secure by default**, and **AI that never holds your keys**:
   Studio's assistant stays off until you turn it on, proposes changes as diffs,
   and an API key is never written into a project or a program.

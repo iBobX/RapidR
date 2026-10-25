@@ -148,8 +148,8 @@ Application.OnLanguageChange = LanguageChanged
   works. Save the files as UTF-8.
 - A console program prints translations as they are when its file is a
   `.rr` file (or any file with a non-English letter in it). A `.bas` file
-  of plain English letters is taken as a RapidQ program, whose console
-  shows RapidQ's old code page: `¡` and `ó` would show as other signs
+  of plain English letters is taken as a classic program, whose console
+  shows the old code page: `¡` and `ó` would show as other signs
   there. Windows and their captions are not affected.
 
 ## Not yet

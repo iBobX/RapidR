@@ -309,11 +309,6 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
     if let Some(t) = &sym.ty {
         if let Some(c) = rapidr_lang::resolve_component(t) {
             md.push_str(&format!(" — {}", c.spelling()));
-            if let Some(q) = c.rapidq {
-                if !q.eq_ignore_ascii_case(c.name) {
-                    md.push_str(&format!(" (RapidQ name: {q})"));
-                }
-            }
         } else if !matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) && !code.to_ascii_uppercase().contains(&t.to_ascii_uppercase()) {
             md.push_str(&format!(" — `{t}`"));
         }

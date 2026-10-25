@@ -141,8 +141,7 @@ END IF
   may go through the server's own local socket, which never leaves the
   computer, and `Encrypted` then says 0. `Required` and stricter always
   use TLS.
-- `RealConnect`'s `CLIENT_SSL` flag (2048), as RapidQ programs pass it,
-  asks for `Required`.
+- `RealConnect`'s `CLIENT_SSL` flag (2048) asks for `Required`.
 
 Before, the connection was never encrypted. With `Preferred`, a program
 that worked before still connects to the same servers. It is now

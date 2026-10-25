@@ -19,7 +19,7 @@ properties = [
   { name = "Transferred", type = "int", access = "read", design = false },
   { name = "WMessage", type = "int", default = 0 },
   { name = "Host", type = "string", origin = "rapidr" },
-  { name = "BindAddress", type = "string", default = "0.0.0.0", origin = "rapidr", only = "desktop", values = ["0.0.0.0", "127.0.0.1"], doc = "The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (RapidQ's way, the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections)." },
+  { name = "BindAddress", type = "string", default = "0.0.0.0", origin = "rapidr", only = "desktop", values = ["0.0.0.0", "127.0.0.1"], doc = "The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections)." },
   { name = "Port", type = "int", origin = "rapidr" },
   { name = "Connected", type = "int", origin = "rapidr" },
   { name = "Timeout", type = "int", origin = "rapidr" },
@@ -35,7 +35,7 @@ methods = [
   { name = "GetPeerName", params = "Socket AS INTEGER", returns = "VARIANT" },
   { name = "IsClientReady", params = "Sock AS INTEGER, ClientSock AS INTEGER", returns = "VARIANT" },
   { name = "IsServerReady", params = "Sock AS INTEGER", returns = "VARIANT" },
-  { name = "Open", params = "PortNum AS INTEGER, [Address AS STRING]", returns = "VARIANT", effects = ["network"], test = "args: 0, \"127.0.0.1\"", doc = "Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: \"127.0.0.1\" this computer only; without it, BindAddress (0.0.0.0, every network interface, as RapidQ). A browser can't listen: -1 on the web." },
+  { name = "Open", params = "PortNum AS INTEGER, [Address AS STRING]", returns = "VARIANT", effects = ["network"], test = "args: 0, \"127.0.0.1\"", doc = "Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: \"127.0.0.1\" this computer only; without it, BindAddress (0.0.0.0, every network interface). A browser can't listen: -1 on the web." },
   { name = "Peek", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT" },
   { name = "Read", params = "Socket AS INTEGER, NumBytes AS INTEGER", returns = "VARIANT", value = true },
   { name = "ReadByte", params = "Socket AS INTEGER", returns = "BYTE" },
@@ -211,7 +211,7 @@ aliases = ["COMPORT"]
 visual = false
 where = "desktop (serial2); web (Web Serial)"
 default_event = "OnRxChar"
-doc = "A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out."
+doc = "A serial port: set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out."
 properties = [
   { name = "BytesNotRead", type = "int", access = "read", design = false },
   { name = "BytesNotWritten", type = "int", access = "read", design = false },

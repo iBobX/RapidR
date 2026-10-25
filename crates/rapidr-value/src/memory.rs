@@ -933,7 +933,7 @@ pub fn poke_args(args: &[Value]) -> Result<String, String> {
 /// no modern system lets a program touch (RapidQ's own fail on every
 /// Windows since 2000).
 pub fn port_io_error(name: &str) -> String {
-    format!("{name} reads or writes a hardware port, which a program can't do on a modern system (RapidQ's {name} fails on every Windows since 2000 too)")
+    format!("{name} reads or writes a hardware port, which a program can't do on a modern system")
 }
 
 // ---------------------------------------------------------------------------

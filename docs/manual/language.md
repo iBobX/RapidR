@@ -1,6 +1,6 @@
 # The language
 
-RapidR's language is a modern BASIC, and programs written for RapidQ run as
+RapidR's language is a modern BASIC, and older programs run as
 they are. This chapter is a working summary, with the rules where RapidR
 differs from other BASICs — those are the ones that surprise
 people. Native builds, the
@@ -67,9 +67,9 @@ DEFINT k(1 TO 3) = {7, 8, 9}  ' DEFINT, DEFSTR, DEFLNG, DEFDBL, …
   between calls. An undeclared variable a SUB uses before the main program
   does is the SUB's own (kept between calls) — the one-pass rule.
 - `TRUE` and `FALSE`: a comparison gives -1 or 0 (`PRINT 1 = 1` prints
-  -1). In a RapidR program (`.rr`) `True` is -1 and `False` 0. In a RapidQ
-  program (`.bas`) they come from `$INCLUDE "RAPIDQ.INC"`, where `True` is 1;
-  without the include they are undeclared names that read 0, as in RapidQ
+  -1). In a RapidR program (`.rr`) `True` is -1 and `False` 0. In a `.bas`
+  program they come from `$INCLUDE "RAPIDQ.INC"`, where `True` is 1;
+  without the include they are undeclared names that read 0
   (so `IF True THEN` doesn't run), and the code editor warns.
 
 ## Constants: `clRed`, `mbYes`, `VK_ESCAPE`…
@@ -93,8 +93,8 @@ constants your program uses are compiled, and the debugger doesn't list them
 as variables. `True` stays -1, as a comparison gives it (a check box's
 `Checked` is 1: test `IF CheckBox1.Checked THEN`, not `= True`).
 
-**In a RapidQ program (`.bas`)** nothing changes: the constants come with
-one line at the top, as in RapidQ:
+**In a `.bas` program** nothing changes: the constants come with
+one line at the top:
 
 ```basic
 $INCLUDE "RAPIDQ.INC"
@@ -102,7 +102,7 @@ $INCLUDE "RAPIDQ.INC"
 
 RapidR has that include built in, so the line needs no file: RapidR ships no
 copy of it. Without the line, `clRed` — and `True` and `False` too — is an undeclared
-name and reads as 0, as in RapidQ, and the code editor warns you
+name and reads as 0, and the code editor warns you
 ([the RAPIDQ.INC warning](studio-editor.md#the-rapidqinc-warning)). Old
 programs behave the same. The line in a `.rr` program is harmless: the
 constants are then the include's.
@@ -246,8 +246,7 @@ END SUB
   type** is an error that says so:
   `FOR name AS INTEGER: name is already declared AS STRING (in main.rr:3)`.
 - The type is a number type: `INTEGER`, `LONG`, `DOUBLE`, `SINGLE`, `BYTE` …
-- It is RapidR's own (RapidQ's compiler refuses `AS` there); `FOR i = 1 TO 3`
-  is unchanged. It works the same in the interpreter, native builds and on
+- `FOR i = 1 TO 3` is unchanged. It works the same in the interpreter, native builds and on
   the web.
 
 ### `END` and the exit code
@@ -270,8 +269,7 @@ PRINT "ok"                        ' running off the end is exit code 0 too
 LONG is, so `END 2.9` ends with 2. A bare name has to be one you declared
 (`DIM code AS INTEGER = 5` then `END code`; a `CONST`, a parameter or a
 local does too): a typo in a block's ending, `END SUBB` or `END FUNCTON`,
-and a name that was never declared stay the syntax error they are in
-RapidQ, with a "did you mean END SUB?" hint when the word is close to one,
+and a name that was never declared stay a syntax error, with a "did you mean END SUB?" hint when the word is close to one,
 rather than quietly ending the program there. A plain `END` ends with 0, as
 it always did, and `END IF`, `END SUB` and the other block endings are what
 they were. After a run, read the code in the shell: `echo $?` on macOS and Linux,
@@ -279,8 +277,7 @@ they were. After a run, read the code in the shell: `echo $?` on macOS and Linux
 `rapidr run`, for an app built with `rapidr build` (native or `--interp`)
 and for a program with windows. macOS and Linux keep the low 8 bits of the
 number (0 to 255); Windows keeps all 32. A program running in a web page has
-no exit code: it just ends, and the number is ignored. (RapidQ's `END` takes
-no number, so a program that uses `END n` doesn't compile there.)
+no exit code: it just ends, and the number is ignored.
 
 ## SUBs and FUNCTIONs
 
@@ -331,7 +328,7 @@ PRINT Square(1.5)             ' 2.250000000
   memory through `VARPTR`, on every system. Any other address is a
   run-time error, never a read of the process. `INP` / `OUT` (hardware
   ports) are a run-time error, as on every Windows since 2000.
-- `VARPTR` doesn't see a SUB's parameters, as in RapidQ: when a parameter
+- `VARPTR` doesn't see a SUB's parameters: when a parameter
   has the name of a global variable, `VARPTR(name)` inside the SUB is the
   global's address.
 
@@ -344,8 +341,8 @@ PRINT Square(1.5)             ' 2.250000000
   Greet "hello"
   ```
 
-  RapidQ refuses `VARPTR` of a parameter that no global shares its name
-  with; RapidR gives that parameter's own address.
+  `VARPTR` of a parameter that no global shares its name with gives that
+  parameter's own address.
 
 ## TYPEs and objects
 

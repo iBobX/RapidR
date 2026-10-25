@@ -389,7 +389,7 @@ impl Introspect for DesignModel {
                         continue;
                     }
                     if comp.and_then(|c| c.property(name)).is_some_and(|p| p.missing) {
-                        return Err(Error::new(ErrorCode::NotFound, format!("{type_name}.{name} is RapidQ's; RapidR doesn't have it yet")));
+                        return Err(Error::new(ErrorCode::NotFound, format!("{type_name}.{name} isn't in RapidR yet")));
                     }
                     match self.value_entry(l, name) {
                         Some(v) => values.push(v),

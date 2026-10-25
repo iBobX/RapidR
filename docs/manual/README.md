@@ -3,7 +3,7 @@
 RapidR is a modern BASIC with its own IDE, RapidR Studio: an original
 implementation written from the ground up in pure Rust, on three runtimes —
 native executables, the interpreter (the RapidR Runtime) and the web browser.
-It also runs RapidQ programs, unchanged.
+Programs written for RapidQ run too.
 
 This manual describes RapidR **2.119.0** (Preview 2). It states what the code
 does today; where something isn't done yet, it says so.
@@ -25,7 +25,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 
 | Chapter | What's in it |
 |---|---|
-| [The code editor](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes (RAPIDQ.INC), the keyboard shortcuts |
+| [The code editor](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes, the keyboard shortcuts |
 | [Projects](studio-projects.md) | The Project pane: forms come from your code (several in one file), File > Open Recent, reopening the last project, the PATH your programs get (macOS, Linux) |
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
@@ -77,7 +77,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 
 Generated from RapidR's language registry (`rapidr lang export --manual`):
 
-- [Components and their older Q names](reference/components.md)
+- [Components](reference/components.md), and [their older Q names](reference/classic-names.md)
 - [Every component's properties, methods and events](reference/members.md)
 - [Built-in functions](reference/builtins.md)
 - [Statements, directives, keywords and types](reference/statements.md)

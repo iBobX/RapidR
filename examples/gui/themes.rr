@@ -13,7 +13,7 @@
 ' sizes or fonts; colours a program sets as numbers (Color, Font.Color)
 ' stay as written. (RAPIDR_THEME=dark in the environment sets the theme of
 ' programs that don't name one.)
-' (no $THEME: the same as $THEME rapidr; $THEME classic is RapidQ's look)
+' (no $THEME: the same as $THEME rapidr; $THEME classic is the classic Windows look)
 
 DECLARE SUB Switch
 

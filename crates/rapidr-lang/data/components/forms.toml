@@ -73,7 +73,7 @@ methods = [
   { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.)", arg_kinds = { fc = "color", bc = "color" } },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there.", arg_kinds = { fc = "color", bc = "color" } },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER", arg_kinds = { fc = "color", bc = "color" } },
   { name = "Refresh", value = true, origin = "rapidr" },
   { name = "Hide", value = true, origin = "rapidr" },
@@ -104,7 +104,7 @@ events = [
   { name = "OnPaint" },
   { name = "OnResize" },
   { name = "OnShow" },
-  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", doc = "Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window, as RapidQ hands them over: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored, as in RapidQ. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks." },
+  { name = "WndProc", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", doc = "Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), so a program hears its icon's clicks." },
   { name = "OnMessage", params = "Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG", origin = "rapidr", doc = "Another name for WndProc (RapidR's): `OnMessage = MySub` in its CREATE (or `Form.OnMessage = MySub`). It is the same event, with the same four parameters, delivered the same way and in the same places: on Windows every message Windows sends or posts to the form's window; on macOS, Linux and the web only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon). With both bound, the one bound last hears the messages." },
   { name = "OnDblClick", origin = "rapidr" },
   { name = "OnTimer", origin = "rapidr" },
@@ -120,7 +120,7 @@ from = "RAPIDQ2.INC"
 visual = true
 container = true
 default_event = "OnChildClose"
-doc = "An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …)."
+doc = "An MDI parent window: a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …)."
 properties = [
   { name = "ChildCaption", type = "string" },
   { name = "ChildHandle", type = "int", access = "read", design = false },
@@ -210,7 +210,7 @@ properties = [
   { name = "FontSize", type = "int", origin = "rapidr" },
   { name = "FontColor", type = "color", origin = "rapidr" },
   { name = "PopupMenu", type = "component", kinds = ["QPOPUPMENU"] },
-  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default, and RapidQ's QPANEL) leaves it out of the keyboard's way." },
+  { name = "TabStop", type = "bool", default = false, origin = "rapidr", doc = "True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way." },
 ]
 methods = [
   { name = "Repaint" },

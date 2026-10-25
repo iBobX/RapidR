@@ -73,7 +73,7 @@ fn rapidr_names_come_first_after_as_and_rapidq_names_still_complete() {
     assert!(position(&l, "RButton") < position(&l, "QButton"), "R first: {l:?}");
     assert!(position(&l, "RForm") < position(&l, "QForm"), "{l:?}");
     let detail = complete("DIM x AS Q|").into_iter().find(|(l, _, _)| l == "QButton").unwrap().1;
-    assert_eq!(detail, "RapidQ's name for RButton");
+    assert_eq!(detail, "classic name for RButton");
     // a file written with RapidQ's names keeps to them
     let l = labels("DIM f AS QFORM\nDIM b AS QBUTTON\nDIM x AS |");
     position(&l, "QButton");
@@ -86,7 +86,7 @@ fn rapidr_names_come_first_after_as_and_rapidq_names_still_complete() {
 fn rapidq_inc_constants_come_with_their_include() {
     let items = complete("PRINT 1\nr = MessageDlg(\"Save?\", 0, mbY|, 0)\n");
     let (_, detail, edits) = items.iter().find(|(l, _, _)| l == "mbYes").expect("mbYes offered");
-    assert!(detail.starts_with("RAPIDQ.INC constant = "), "{detail}");
+    assert!(detail.starts_with("constant = "), "{detail}");
     assert_eq!(edits, &["$INCLUDE \"RAPIDQ.INC\"\n"]);
     // with the include, they are the program's constants: no import
     let items = complete("$INCLUDE \"RAPIDQ.INC\"\nr = MessageDlg(\"Save?\", 0, mbY|, 0)\n");

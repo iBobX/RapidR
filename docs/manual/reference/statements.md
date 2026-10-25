@@ -2,7 +2,7 @@
 
 # Statements, directives, keywords and types
 
-*(RapidR)* marks what RapidQ's compiler doesn't accept.
+*(RapidR)* marks what RapidR adds to the classic language.
 
 ## Declarations
 
@@ -11,7 +11,7 @@
 | `DIM name[(bounds)] [AS type] [= value] [, …]` | Declares variables or arrays, with a type and optionally a first value; inside a SUB or FUNCTION, locals. `DIM m` with no type is a DOUBLE. |
 | `REDIM [PRESERVE] name(bounds) [AS type]` | Resizes an array that exists (or creates it); the elements whose indexes are still inside the new bounds keep their values. |
 | `STATIC name[(bounds)] AS type` | Inside a SUB or FUNCTION, declares a local variable that keeps its value from one call to the next. |
-| `CONST name [AS type] = expression` | Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST, as in RapidQ: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each. |
+| `CONST name [AS type] = expression` | Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each. |
 | `DEFINT name [= value] [, …]` | Declares INTEGER (32-bit) variables or arrays, optionally with first values (`DEFINT k(1 TO 3) = {7, 8, 9}`). |
 | `DEFSTR name [= value] [, …]` | Declares STRING variables or arrays, optionally with first values. |
 | `DEFBYTE name [= value] [, …]` | Declares BYTE variables or arrays, optionally with first values. |
@@ -30,7 +30,7 @@
 | Statement | |
 |---|---|
 | `TYPE name [EXTENDS type] … END TYPE (also STRUCT … END STRUCT)` | Defines a record type: fields, and optionally methods, a CONSTRUCTOR, events and a parent type to inherit from (`EXTENDS`). `STRUCT` is another name for it. |
-| `TYPE name EXTENDS QOBJECT\|component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`). |
+| `TYPE name EXTENDS QOBJECT\|component` | Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a component (`EXTENDS RButton`). |
 | `PROPERTY SET name(value AS type) … END PROPERTY` | In a TYPE: the routine that runs when a program assigns to the property `name`, given the value assigned. |
 | `EVENT(member) … END EVENT` | In a TYPE that extends a component: the code run when the component's event happens (`EVENT OnClick … END EVENT`). |
 | `CONSTRUCTOR … END CONSTRUCTOR` | In a TYPE: code that runs when a variable of the type is created, to set its fields' first values. |
@@ -57,20 +57,20 @@
 | `EXIT FOR \| DO \| WHILE \| SUB \| FUNCTION` | Leaves the innermost FOR, DO or WHILE loop, or the SUB or FUNCTION, at once. |
 | `IF condition THEN … [ELSEIF condition THEN …] [ELSE …] END IF` | Runs statements when a condition is true (non-zero), others with ELSEIF or ELSE; on one line, `IF c THEN … ELSE …` needs no END IF. |
 | `SELECT CASE expression … CASE values … CASE ELSE … END SELECT` | Runs the first CASE whose values match the expression: single values, `a TO b` ranges, `IS > n` comparisons, lists of them; CASE ELSE when none does. |
-| `FOR variable [AS type] = start TO end [STEP step] … NEXT [variable]` | Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` (a RapidR extension: RapidQ's compiler refuses `AS` here) also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error. |
+| `FOR variable [AS type] = start TO end [STEP step] … NEXT [variable]` | Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error. |
 | `WHILE condition … WEND` | Runs the body as long as the condition is true, testing it before each pass. |
 | `DO [WHILE\|UNTIL condition] … LOOP [WHILE\|UNTIL condition]` | A loop: tested at the top (`DO WHILE` / `DO UNTIL`), at the bottom (`LOOP WHILE` / `LOOP UNTIL`), or not at all (left with `EXIT DO`). |
 | `GOTO label` | Continues the program at a label or line number. |
 | `GOSUB label … RETURN` | Jumps to a label; the `RETURN` there comes back to the statement after the GOSUB. |
 | `RETURN` | Goes back to the statement after the last `GOSUB`. |
-| `END [exit code]` | Ends the program at once; files it wrote are kept. `END n` (RapidR's; RapidQ's END takes no number) ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are the syntax error they are in RapidQ. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks. |
+| `END [exit code]` | Ends the program at once; files it wrote are kept. `END n` ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are syntax errors. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks. |
 | `ON ERROR RESUME NEXT \| GOTO label` *(RapidR)* | VB's error trapping, accepted so such programs compile and ignored: a run-time error still ends the program. |
 
 ## Console
 
 | Statement | |
 |---|---|
-| `PRINT [expression][; \| ,] …` | Writes values to the console and ends the line, unless the last is followed by `;` or `,` (the same in RapidQ: no print zones). `?` is short for PRINT. |
+| `PRINT [expression][; \| ,] …` | Writes values to the console and ends the line, unless the last is followed by `;` or `,` (no print zones). `?` is short for PRINT. |
 | `LPRINT [expression][; \| ,] …` | Prints to the printer as `PRINT` prints to the console; `LFLUSH` sends the job. |
 | `INPUT ["prompt";] variable` | Shows the prompt, reads a line typed at the console and stores it in the variable (as a number for a numeric one). |
 
@@ -110,7 +110,7 @@
 
 | Directive | |
 |---|---|
-| `$INCLUDE "file"` | Includes another source file at this point. RapidQ's include folders and `\` paths work; `RAPIDQ.INC` is built in. |
+| `$INCLUDE "file"` | Includes another source file at this point. The include folders and `\` paths work; `RAPIDQ.INC` is built in. |
 | `$RESOURCE name AS "file"` | Builds a file into the program as a resource, for `RESOURCE(n)`, `EXTRACTRESOURCE`, `PLAYWAV` and pictures. |
 | `$DEFINE name [text]` | Defines a name for `$IFDEF` and, with text, replaces the name by the text in the lines that follow. |
 | `$UNDEF name` | Removes a name defined with `$DEFINE`. |
@@ -121,10 +121,10 @@
 | `$MACRO name(params) = text` | Defines a macro with parameters: each use is replaced by the text, its parameters by the arguments. |
 | `$APPTYPE GUI \| CONSOLE \| CGI` | The program's kind: `CONSOLE`, `GUI` or `CGI` (and RapidR's `WEB`). Without it, a program that creates components is a GUI program. |
 | `$TYPECHECK ON \| OFF` | `ON`: from here, storing into a variable never declared (DIM, CONST, a parameter) is a compile error; `OFF` turns the check off. |
-| `$OPTIMIZE ON \| OFF` | RapidQ's optimizer switch; accepted, with nothing for RapidR to change. |
+| `$OPTIMIZE ON \| OFF` | The optimizer switch; accepted, with nothing for RapidR to change. |
 | `$ESCAPECHARS ON \| OFF` | `ON`: strings in this file understand escapes (`\n`, `\t`, `\"`, `\\`, `\x41`); `OFF` (the default) reads them as written. |
-| `$OPTION ICON "file" \| DECIMAL \| BYREF \| INKEY$ TRAPALL \| EXPLICIT …` | Program options: `ICON "file"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; RapidQ takes a 766-byte 32 × 32 .ico, RapidR also any .ico, .icns, .png or .svg), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`. |
-| `$THEME name` *(RapidR)* | The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: RapidQ's Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's. |
+| `$OPTION ICON "file" \| DECIMAL \| BYREF \| INKEY$ TRAPALL \| EXPLICIT …` | Program options: `ICON "file"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; an .ico, .icns, .png or .svg file), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`. |
+| `$THEME name` *(RapidR)* | The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: the classic Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's. |
 
 ## Keywords and operators
 
@@ -171,7 +171,7 @@
 | `SHORT` | 16-bit signed integer, -32,768 to 32,767; a store wraps. Suffix `%`. |
 | `WORD` | 16-bit unsigned integer, 0 to 65,535; a store wraps. Suffix `??`. |
 | `INTEGER` | 32-bit signed integer, -2,147,483,648 to 2,147,483,647, the same as LONG; a store truncates a fraction. |
-| `DWORD` | 32-bit integer, signed as RapidQ has it (-2,147,483,648 to 2,147,483,647). Suffix `???`. |
+| `DWORD` | 32-bit integer, signed (-2,147,483,648 to 2,147,483,647). Suffix `???`. |
 | `LONG` | 32-bit signed integer, -2,147,483,648 to 2,147,483,647; a store truncates a fraction. Suffix `&`. |
 | `SINGLE` | 32-bit floating-point number, about 7 significant digits. Suffix `!`. |
 | `DOUBLE` | 64-bit floating-point number, about 15 significant digits. Suffix `#`. |

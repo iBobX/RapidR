@@ -54,7 +54,7 @@ SUB Fill
   AddValue "Scores", "Array", "Array(1 TO 10)", 10, ""
   ' (clBtnFace, -2147483633: a system colour, drawn as the theme has it)
   AddValue "Background", "Integer", "-2147483633", 0, "color"
-  ' (&H0080FF: orange — RapidQ's colours are blue, green, red)
+  ' (&H0080FF: orange — colours are &HBBGGRR: blue, green, red)
   AddValue "Pen", "Integer", "33023", 0, "color"
   AddValue "Align", "Integer", "5", 0, "const:alClient"
   Values.Expand 0, 0

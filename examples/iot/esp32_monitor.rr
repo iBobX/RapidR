@@ -4,7 +4,7 @@
 '
 '   rapidr run iot/esp32_monitor.rr
 '
-' RComPort (RapidQ's QCOMPORT) with RapidR's extras for IoT boards:
+' RComPort, with extras for IoT boards:
 '   - FillList puts the serial ports in the combo box, each with what the
 '     system says of its USB adapter (CP2102N, CH340, FTDI, USB JTAG/serial);
 '   - OnPortsChanged fires when an adapter is plugged in or out;

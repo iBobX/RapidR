@@ -11,12 +11,12 @@ The full list, with both names and where each runs:
 ## The older Q names
 
 RapidR's components are written `RButton`, `RForm`, `RStringGrid`, ….
-Programs written for RapidQ use `QBUTTON`, `QFORM`, `QSTRINGGRID`, …: the
-same components, accepted everywhere. **Both names are one
+Older programs use `QBUTTON`, `QFORM`, `QSTRINGGRID`, …: the
+same components, accepted everywhere ([the full list](reference/classic-names.md)). **Both names are one
 component**: the same properties, methods, events, defaults, look and
 behaviour, on every runtime. A few Q names map to another R name:
 `QGAUGE` is `RProgressBar`, `QOUTLINE` (Windows 3.1's tree) is `RTreeView`,
-and RAPIDQ2.INC's `COMPORT` is `RComPort`.
+and `COMPORT` is `RComPort`.
 
 - Mix them freely: an `RForm` can hold a `QBUTTON`, a `QFORM` an `RPlot`;
   `DIM`, `CREATE`, `EXTENDS`, parameters (`Sender AS RButton`) and arrays
@@ -252,9 +252,9 @@ out for a 64-bit Windows structure, `MIDIHDR`; see
 
 ## Message boxes: the safe answer on Enter
 
-Enter presses a message box's first button, as in RapidQ. For a question
+Enter presses a message box's first button. For a question
 whose first answer can't be undone, name the safe one with `MESSAGEDLG`'s
-fifth argument (RapidR's; RapidQ's MESSAGEDLG has four), the answer of the
+fifth argument, the answer of the
 button Enter presses:
 
 ```basic
@@ -270,7 +270,7 @@ END IF
 - Its `mb` flag works too (`mbNo`), when no button answers that number.
   Without the argument, or naming a button the box hasn't, the first
   button is the default.
-- `MESSAGEBOX` takes Windows' own flags for it, as RapidQ's did:
+- `MESSAGEBOX` takes Windows' own flags for it:
   `MB_DEFBUTTON2` (`&H100`) or `MB_DEFBUTTON3` (`&H200`), added to the
   buttons: `MESSAGEBOX("Delete it?", "Notes", MB_YESNO OR &H100)`.
 
@@ -399,7 +399,7 @@ look the same, without the line: the panes' own edges already show where
 they meet (each pane of an `RDockManager` has a thin edge down both sides and
 along the bottom, and what you put in a pane draws no border of its own
 there). Your program's splitters keep the place and size you gave them;
-only the drawing is new. The classic look draws RapidQ's raised bar, as
+only the drawing is new. The classic look draws the raised bar, as
 before.
 On the desktop this is the system's cursor, on the web the page's cursor; they
 agree.
@@ -536,7 +536,7 @@ the author doing anything:
   `Caption` (or `AccessibleName`). RapidR Studio's Recent list is made of
   them. The link's text sits 4 pixels inside the label's rectangle, so the
   ring has room round the letters. A label without `TabStop` never takes the
-  focus, as in RapidQ.
+  focus.
   `examples/gui/links.rr` shows it.
 
 ### Telling screen readers about news: Application.Announce

@@ -3,7 +3,7 @@
 '
 '   rapidr run d3d_cube.rr
 '
-' The 3D objects (compatible with RapidQ's) are Direct3D Retained Mode: frames (positions and
+' The 3D objects are Direct3D Retained Mode: frames (positions and
 ' rotations), mesh builders (the shapes), lights and a camera. The screen
 ' renders the scene into its back buffer (DX.Render), then Flip shows it.
 ' cube.x was written by tools/make_example_media.py.

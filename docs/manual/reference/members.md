@@ -2,10 +2,10 @@
 
 # Components' members
 
-Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a RapidR extension of a component RapidQ has too (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A component's RapidQ name, when it has one, has the same members.
+Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a member RapidR adds to a classic component; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.
 
 <a id="rform"></a>
-## RForm <small>(RapidQ name: QFORM)</small>
+## RForm
 
 A window: the top-level container of a program's components, with its caption, border, menu and events. Show shows it; ShowModal shows it and waits until it closes.
 
@@ -45,7 +45,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `BrushColor` *(RapidR)* | color |  | The fill colour the drawing methods use, as &HBBGGRR (RapidR's shortcut for the brush). |
 | `FontName` *(RapidR)* | string |  | On a font dialog or RFont, an installed font's name, `FontName(i)` from 0; elsewhere RapidR's shortcut for `Font.Name`. |
 | `CopyMode` | enum |  | How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies). |
-| `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (RapidQ's forms are fsNormal only). |
+| `MdiChildCount` | int | 0 | The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only). |
 | `Pixel` | int |  | A pixel's colour, `Pixel(x, y)`, as &HBBGGRR. |
 | `TileMode` | int | 0 | How Tile lays out an RFormMDI's child windows: 0 (tbHorizontal) one above another, 1 (tbVertical) side by side. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
@@ -67,7 +67,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `DelBorderIcons(Items, …)` | Removes the given border icons from the form's title bar. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills the rectangle (`x1`, `y1`)–(`x2`, `y2`) with color `c`. |
-| `HideTitleBar` | Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height), as in RapidQ. ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide. |
+| `HideTitleBar` | Takes away the form's title bar, leaving its border: the client area keeps its size and the form gets shorter by the title bar (Height). ShowTitleBar, or a new BorderStyle, puts it back. A form without a frame (bsNone) has none to hide. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line from (`x1`, `y1`) to (`x2`, `y2`) in color `c`. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
@@ -81,7 +81,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
@@ -93,17 +93,17 @@ A window: the top-level container of a program's components, with its caption, b
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
 | `Cls` *(RapidR)* | Clears the drawing area to its background color. |
 | `DrawText` *(RapidR)* | Draws text at a point in the current font: `DrawText(text, x, y [, color [, size]])`, the size in pixels. |
-| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
-| `Cascade` | Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
-| `Next` | Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
-| `Previous` | Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
-| `Tile` | Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Cascade` | Arranges an RFormMDI's child windows in an overlapping cascade (CascadeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Next` | Activates an RFormMDI's next child window (ActiveNextChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Previous` | Activates an RFormMDI's previous child window (ActivePreviousChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
+| `Tile` | Tiles an RFormMDI's child windows by TileMode: one above another (SetHorzChild), or side by side (SetVertChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnClose(BYREF Action AS INTEGER)` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
-| `OnHint(Hint AS STRING)` | The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `\|` of its Hint (all of it without one), else its parent's, up to the form's; "" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last, as RapidQ's Application.OnHint. |
+| `OnHint(Hint AS STRING)` | The program's hint changed: the mouse came onto a component whose hint isn't the last one — Hint is the part after `\|` of its Hint (all of it without one), else its parent's, up to the form's; "" over none or outside the windows. It fires whatever ShowHint says, the tooltip shows as usual. One handler hears the hints of every form: the one bound last. |
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
@@ -113,7 +113,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 | `OnShow` | Fires when the form is shown, by Show, ShowModal or `Visible = True`. |
-| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window, as RapidQ hands them over: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored, as in RapidQ. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), as RapidQ's programs hear their icon's clicks. |
+| `WndProc(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` | Windows' messages to the form (Hwnd, Msg, wParam, lParam): `WndProc = MySub` in its CREATE (or `Form.WndProc = MySub`). On Windows, every message Windows sends or posts to the form's window: the system's (WM_SIZE, WM_ACTIVATE, the mouse and the keys …) and the ones a program or a driver sends (`PostMessageA(Form.Handle, WM_USER + 1, …)`, winmm's MM_MIM_DATA from a MIDI input opened with CALLBACK_WINDOW), from the moment its window shows. Hwnd is the form's Handle; Msg, wParam and lParam are 32-bit numbers. The handler runs just after Windows has handled the message, in the order the messages came; what it returns is ignored. On macOS, Linux and the web there are no Windows messages: it hears only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon), so a program hears its icon's clicks. |
 | `OnMessage(Hwnd AS LONG, Msg AS LONG, wParam AS LONG, lParam AS LONG)` *(RapidR)* | Another name for WndProc (RapidR's): `OnMessage = MySub` in its CREATE (or `Form.OnMessage = MySub`). It is the same event, with the same four parameters, delivered the same way and in the same places: on Windows every message Windows sends or posts to the form's window; on macOS, Linux and the web only the form's system tray icon (RNotifyIconData and Shell_NotifyIcon). With both bound, the one bound last hears the messages. |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnTimer` *(RapidR)* | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
@@ -121,9 +121,9 @@ A window: the top-level container of a program's components, with its caption, b
 | `OnDropFiles(Files AS STRING)` *(RapidR)* | Files were dragged from the computer (Finder, File Explorer, a file manager) and dropped on the window. Files holds their paths, one a line (CHR$(10) between them); open each as any file. In a browser a dropped file is read into the program's own files under its name, so Files holds names ("sales.csv") the program opens the same way. A form without this handler ignores them. |
 
 <a id="rformmdi"></a>
-## RFormMDI <small>(RapidQ name: QFORMMDI)</small>
+## RFormMDI
 
-An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …).
+An MDI parent window: a form whose child windows open, tile, cascade and minimize inside it (AddChild, CascadeChild …).
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -179,7 +179,7 @@ An MDI parent window (RAPIDQ2.INC's): a form whose child windows open, tile, cas
 | `OnChildResize(handleChild AS LONG, index AS LONG, titleChild AS STRING)` | Fires when an MDI child window is resized, maximized or restored (handleChild: its handle, index: its number, titleChild: its caption). |
 
 <a id="rpanel"></a>
-## RPanel <small>(RapidQ name: QPANEL)</small>
+## RPanel
 
 A container with raised or lowered bevels and an optional caption, to group components and, with Align, build toolbars and side areas.
 
@@ -212,7 +212,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `PopupMenu` | component |  | The popup menu shown when the user right-clicks the control. |
-| `TabStop` *(RapidR)* | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default, and RapidQ's QPANEL) leaves it out of the keyboard's way. |
+| `TabStop` *(RapidR)* | bool | False | True makes the panel take the keyboard focus, as a clickable card: Tab reaches it (in TabOrder), the theme's focus ring shows around it, Enter or Space clicks it (OnClick), and a screen reader announces it as a button named by its AccessibleName or Caption. Inside a scroll box, Tab scrolls it into view. False (the default) leaves it out of the keyboard's way. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
 | `MinWidth` *(RapidR)* | int | 0 | The narrowest the control gets, in pixels, whoever sizes it (the program, Align, Anchors, the user); 0 for no limit. Also `Constraints.MinWidth`. |
 | `MinHeight` *(RapidR)* | int | 0 | The shortest the control gets, in pixels; 0 for no limit. Also `Constraints.MinHeight`. |
@@ -236,12 +236,12 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnResize` *(RapidR)* | Fires when the control's size changes, by the user, the program or its alignment. |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` *(RapidR)* | Fires when the panel gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
 | `OnExit` *(RapidR)* | Fires when the panel, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rtabcontrol"></a>
-## RTabControl <small>(RapidQ name: QTABCONTROL)</small>
+## RTabControl
 
 A row of tabs: the user picks one (TabIndex) and the program shows what belongs to it, usually in OnChange.
 
@@ -255,7 +255,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `Cursor` | enum | `crDefault` | The mouse pointer shown over the control: one of the `crXXX` constants. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
 | `FlatButtons` | bool | False | With `ButtonStyle`, draws the tab buttons flat. |
-| `FlatSeperators` | bool | False | With flat tab buttons, draws separators between them (RapidQ's spelling). |
+| `FlatSeperators` | bool | False | With flat tab buttons, draws separators between them (spelled this way). |
 | `FocusButtons` | bool | False | Lets the tab buttons take the keyboard focus. |
 | `Font` (write-only) | font |  | The font of the text, an RFont; assigning one copies it. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -308,8 +308,8 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rtoolbar"></a>
 ## RToolBar
@@ -367,7 +367,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `OnButtonClick(Name AS STRING, Command AS STRING)` | A button was clicked (or a toggle turned, ButtonDown already the new state; or picked from the menu of the buttons that don't fit): its name and command. |
 
 <a id="rstatusbar"></a>
-## RStatusBar <small>(RapidQ name: QSTATUSBAR)</small>
+## RStatusBar
 
 The bar at the bottom of a window that shows status text, as one simple text or as several panels.
 
@@ -419,7 +419,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rsplitter"></a>
-## RSplitter <small>(RapidQ name: QSPLITTER)</small>
+## RSplitter
 
 A bar the user drags to resize the aligned component beside it, between the panes of a window.
 
@@ -457,7 +457,7 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `OnMoved` | Fires when the user finishes dragging the splitter. |
 
 <a id="rscrollbox"></a>
-## RScrollBox <small>(RapidQ name: QSCROLLBOX)</small>
+## RScrollBox
 
 A container that scrolls: components beyond its edges are reached with its scroll bars.
 
@@ -518,7 +518,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `OnResize` | Fires when the control's size changes, by the user, the program or its alignment. |
 
 <a id="rgroupbox"></a>
-## RGroupBox <small>(RapidQ name: QGROUPBOX)</small>
+## RGroupBox
 
 A captioned frame around related components; the radio buttons in it form one choice.
 
@@ -567,7 +567,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rbevel"></a>
-## RBevel <small>(RapidQ name: QBEVEL)</small>
+## RBevel
 
 A box with raised or lowered 3D edges (QBevel.inc), to frame or group components.
 
@@ -618,7 +618,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rglassframe"></a>
-## RGlassFrame <small>(RapidQ name: QGLASSFRAME)</small>
+## RGlassFrame
 
 A tinted glass area (UtilMind's Glassy Form): it shades what's under it with its colour at Transparency, and drags its form when Moveable.
 
@@ -715,7 +715,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `Cascade` | Cascades the documents' windows. |
 | `TileHorizontal` | Tiles the documents' windows one above the other. |
 | `TileVertical` | Tiles the documents' windows side by side. |
-| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children — RapidQ's forms are fsNormal only — so nothing happens there. |
+| `ArrangeIcons` | Lines up an RFormMDI's minimized child windows along its bottom (IconArrangeChild). An RForm has no MDI children (it is fsNormal only), so nothing happens there. |
 
 | Event | |
 |---|---|
@@ -726,7 +726,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `OnDocumentView(Name AS STRING, View AS STRING)` | Tabbed documents: a document now shows another view (its caption, or "Split" for side by side). |
 
 <a id="rbutton"></a>
-## RButton <small>(RapidQ name: QBUTTON)</small>
+## RButton
 
 A push button: the user clicks it to run its OnClick handler. It can show a picture and be the form's Default or Cancel button.
 
@@ -772,7 +772,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 
 | Method | |
 |---|---|
-| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
@@ -787,13 +787,13 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnEndDrag` | Fires when the drag OnStartDrag began ends: the mouse let go (instead of OnMouseUp and OnClick) or Escape pressed. No arguments. |
-| `OnStartDrag` | Binding it makes the button a drag source, as in RapidQ: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnStartDrag` | Binding it makes the button a drag source: a left press on it starts a drag — this fires instead of OnMouseDown, and the mouse shows the no-drop pointer (nothing takes a drop) — until the release or Escape, which fire OnEndDrag. No arguments. |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="redit"></a>
-## REdit <small>(RapidQ name: QEDIT)</small>
+## REdit
 
 A one-line text box to type and edit text in, with an optional input mask, password character and length limit.
 
@@ -820,7 +820,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ReadOnly` | bool | False | Stops the user changing the text or items; they can still select and copy. |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -864,14 +864,14 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcheckbox"></a>
-## RCheckBox <small>(RapidQ name: QCHECKBOX)</small>
+## RCheckBox
 
 A box with a caption that the user ticks on or off (Checked).
 
@@ -917,12 +917,12 @@ A box with a caption that the user ticks on or off (Checked).
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rradiobutton"></a>
-## RRadioButton <small>(RapidQ name: QRADIOBUTTON)</small>
+## RRadioButton
 
 One choice of several: checking it unchecks the other radio buttons in the same container.
 
@@ -967,12 +967,12 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | Event | |
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcombobox"></a>
-## RComboBox <small>(RapidQ name: QCOMBOBOX)</small>
+## RComboBox
 
 A drop-down list, with or without a box to type in; the user picks one item (ItemIndex, Text).
 
@@ -1027,14 +1027,14 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
-| `Clear` | Removes every item, and the text too — the chosen item's or what was typed (ItemIndex -1, Text ""), as RapidQ does. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Clear` | Removes every item, and the text too — the chosen item's or what was typed (ItemIndex -1, Text ""). |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
 | `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle (`x1`, `y1`)–(`x2`, `y2`) in color `c`. |
@@ -1043,7 +1043,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
@@ -1061,19 +1061,19 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rrichedit"></a>
-## RRichEdit <small>(RapidQ name: QRICHEDIT)</small>
+## RRichEdit
 
 A multi-line text editor whose text is formatted: font, size, colour, bold, italic, underline and strike-out per character (SelAttributes), alignment, indents and bullets per paragraph; it loads and saves rich text (RTF), or plain text with PlainText. What the user types takes the format of the text around it, and Ctrl+Z gives back the text and its formats.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
-| `Alignment` | enum | `taLeftJustify` | How paragraphs without an alignment of their own line up (set after the text, it aligns it all as shown; paragraphs set by Text afterwards get it as their own); setting it moves the caret to the start, as RapidQ's. |
+| `Alignment` | enum | `taLeftJustify` | How paragraphs without an alignment of their own line up (set after the text, it aligns it all as shown; paragraphs set by Text afterwards get it as their own); setting it moves the caret to the start. |
 | `BorderStyle` | enum | `bsSingle` | The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar. |
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `Enabled` | bool | True | Whether the control answers the mouse and keyboard (a disabled one is greyed); on a timer, whether it ticks. |
@@ -1094,7 +1094,7 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `ScrollBars` | enum | `ssNone` | Which scroll bars show: `ssNone`, `ssHorizontal`, `ssVertical` or `ssBoth`. |
 | `SelAttributes` (write-only) | font |  | The format of the selected text — at a caret, of what is typed or added there next: set it to a QFONT (all its settings), or set its members (Color, Name, Size, Bold, Italic, Underline, StrikeOut, Charset; AddStyles / DelStyles). Reading a member gives the selection's last character's (the caret's format at a caret); an automatic colour reads clWindowText (&H80000008). |
 | `SelLength` | int |  | The number of characters selected. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
@@ -1110,7 +1110,7 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `FontSize` *(RapidR)* | int |  | RapidR's shortcut for `Font.Size`, in points. |
 | `FontColor` *(RapidR)* | color |  | RapidR's shortcut for `Font.Color`: the text colour, as &HBBGGRR. |
 | `Cursor` *(RapidR)* | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
-| `SelFont` (write-only) | font |  | SelAttributes = Font's other name: the QFONT's settings on the selection (RapidQ's; write-only). |
+| `SelFont` (write-only) | font |  | SelAttributes = Font's other name: the font's settings on the selection (write-only). |
 | `Paragraph` *(RapidR)* | item |  | The format of the paragraphs the selection is in (at a caret, its paragraph's): Alignment, LeftIndent, FirstIndent, RightIndent (pixels) and Numbering (bullets). Reading gives the first one's. |
 | `TextRTF` *(RapidR)* | string |  | The text with its formats as RTF — what SaveToFile writes while PlainText is False; setting it loads RTF (or plain text) as LoadFromFile does. |
 | `Anchors` *(RapidR)* | set | `akLeft + akTop` | Which edges of its parent the control keeps its distance to as the parent resizes: akLeft + akTop (the default) stays put; add akRight / akBottom to stretch. |
@@ -1131,7 +1131,7 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `LoadFromFile(FileName AS STRING)` | Replaces the text with a file's: rich text (RTF) with its formats, or the file's text when it isn't RTF or PlainText is True. |
 | `LoadFromStream(Stream AS RFILESTREAM)` | Replaces the text with the stream's bytes from its position to its end (as LoadFromFile reads a file); the stream is left at its end. |
 | `PasteFromClipboard` | Inserts the clipboard's text at the caret, replacing the selection. |
-| `SaveToFile(FileName AS STRING)` | Writes the text with its formats as RTF (as RapidQ's: ending with a NUL byte), or with PlainText True the text, lines ending CR LF. |
+| `SaveToFile(FileName AS STRING)` | Writes the text with its formats as RTF (ending with a NUL byte), or with PlainText True the text, lines ending CR LF. |
 | `SaveToStream(Stream AS RFILESTREAM)` | Writes the text at the stream's position (the same bytes SaveToFile writes), moving the position past it. |
 | `SelectAll` | Selects all the text. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
@@ -1155,8 +1155,8 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rmemo"></a>
 ## RMemo
@@ -1220,11 +1220,11 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rscrollbar"></a>
-## RScrollBar <small>(RapidQ name: QSCROLLBAR)</small>
+## RScrollBar
 
 A horizontal or vertical scroll bar the user moves to pick a Position between Min and Max.
 
@@ -1273,8 +1273,8 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnScroll(ScrollCode AS BYTE, ScrollPos AS LONG)` | Fires when the user scrolls: a scroll bar (ScrollCode: the kind of move; ScrollPos: the new position), or a web element's content. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rupdown"></a>
 ## RUpDown
@@ -1308,8 +1308,8 @@ Two arrow buttons that step Position up or down between Min and Max, often besid
 |---|---|
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rdatetimepicker"></a>
 ## RDateTimePicker
@@ -1348,7 +1348,7 @@ A field for a date and a time (Date, Time), with OnChange when the user changes 
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rtrackbar"></a>
-## RTrackBar <small>(RapidQ name: QTRACKBAR)</small>
+## RTrackBar
 
 A slider: the user drags its thumb to pick a Position between Min and Max, along tick marks.
 
@@ -1371,7 +1371,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `SelEnd` | int |  | The end of the track bar's highlighted range. |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `TabOrder` | int |  | The control's place in the Tab key's order among its parent's controls, from 0. |
 | `TickMarks` | enum | `tmBottomRight` | Where the track bar's ticks go: `tmBottomRight`, `tmTopLeft` or `tmBoth`. |
@@ -1400,8 +1400,8 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcodeeditor"></a>
 ## RCodeEditor
@@ -1424,7 +1424,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `Color` | color |  | The background colour, as &HBBGGRR or a `clXXX` system colour; on a colour or font dialog, the colour picked. |
 | `ReadOnly` | int |  | Stops the user changing the text or items; they can still select and copy. |
 | `WordWrap` | int |  | Long lines break at the view's width (Alt+Z turns it on and off). |
-| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
+| `SelStart` | int |  | Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range. |
 | `SelLength` | int |  | The number of characters selected. |
 | `SelText` | string |  | The selected text; setting it replaces the selection. |
 | `Line` | string |  | A line of the text, `Line(i)` from 0. |
@@ -1458,7 +1458,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `LanguageService` | bool |  | RapidR's language service answers completion, hovers, signatures and problems (where the runtime carries it: rapidr run, RapidR Studio); off, the program answers the request events. |
 | `DebugHover` | bool |  | While True (a debugger paused), a mouse resting on a word asks the program first: OnHoverRequest, answered with ShowHover — before the language service. |
 | `KeywordCase` | string |  | The language's words' case as you type: "upper" (DIM x AS INTEGER), "lower", "proper" or "preserve". |
-| `IdentifierCase` | string |  | The program's own names as you type: "preserve" (as typed) or "declaration" (as declared — form.caption becomes Form.Caption — and components' members as RapidQ spells them). |
+| `IdentifierCase` | string |  | The program's own names as you type: "preserve" (as typed) or "declaration" (as declared — form.caption becomes Form.Caption — and components' members as they are spelled in the registry). |
 | `FileName` | string |  | The file it was loaded from or saved to (the language service knows it by this name). |
 | `LineEnding` | string |  | The file's line breaks SaveToFile writes: "CRLF", "LF" or "CR" (LoadFromFile keeps the file's). |
 | `Encoding` (read-only) | string |  | How the file was stored: "UTF-8", "UTF-8 BOM" or "Latin-1" (SaveToFile writes it back the same). |
@@ -1550,7 +1550,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
 | `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
 | `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
-| `QuickFix` | Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a RapidR name RapidQ doesn't know. Enter or Tab applies the one picked, as one undo step. |
+| `QuickFix` | Lists the language service's fixes for the problem at the caret (or on its line), as Ctrl+. (Cmd+. on a Mac) does: a misspelt member's nearest names, a name spelled the other way. Enter or Tab applies the one picked, as one undo step. |
 | `OpenHelper` | Opens the value editor of the helper at the caret, as Ctrl+. (Cmd+.) does on a value: a colour's, a picture's, a font's, a choice's, a link's or a handler's ("Create handler"); elsewhere the quick fixes. |
 | `ReadLineWithHelpers` | Has a screen reader say the caret's line with its helpers (Ctrl+K H): HelperText. |
 | `ShowLineValues(Rows AS STRING, FromLine AS INTEGER, [ToLine AS INTEGER])` | A paused program's values at the ends of the lines FromLine to ToLine (from 1; the paused routine's, up to the paused line) that use them: Rows a line each, name, value and kind tab-separated, as the debugger writes them ("Score\t42\tInteger"). Drawn as Variables draws them (a colour's swatch, "" for an empty text). |
@@ -1590,8 +1590,8 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `OnNavigate(File AS STRING, Line AS INTEGER, Column AS INTEGER)` | Go to definition found it in another file: open it there. |
 | `OnReferences(Json AS STRING)` | Find references' places: a JSON list of {"file", "line", "column"}. |
 | `OnFileEdits(File AS STRING, Json AS STRING)` | A rename's edits to another file (ApplyEdits' JSON with "start" / "end" byte offsets). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rdiffview"></a>
 ## RDiffView
@@ -1654,11 +1654,11 @@ Two texts compared, the way a code review shows them: line by line, side by side
 | `OnKeyDown` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcoolbtn"></a>
-## RCoolBtn <small>(RapidQ name: QCOOLBTN)</small>
+## RCoolBtn
 
 A flat toolbar button with a caption and a picture; with GroupIndex it stays down, as a toggle or one of a group.
 
@@ -1705,7 +1705,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` *(RapidR)* | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
 |---|---|
@@ -1715,7 +1715,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rovalbtn"></a>
-## ROvalBtn <small>(RapidQ name: QOVALBTN)</small>
+## ROvalBtn
 
 A round button with its own colours, highlight and shadow; like a cool button, it can stay down as a toggle.
 
@@ -1767,7 +1767,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Repaint` | Redraws the component. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
-| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window, which RapidQ's is). Escape puts it back; with no button held nothing happens. |
+| `StartDrag` | Moves the control with the mouse while a button is held — call it from OnMouseDown: it returns when the button is let go, Left and Top where the user put it, and no OnMouseUp or OnClick follows (Windows' own move of a window). Escape puts it back; with no button held nothing happens. |
 
 | Event | |
 |---|---|
@@ -1775,10 +1775,10 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `OnMouseDown` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `WndProc` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 
 <a id="rlabel"></a>
-## RLabel <small>(RapidQ name: QLABEL)</small>
+## RLabel
 
 Text on a form that the user reads but doesn't edit, with alignment, word wrap, an angle and 3D styles.
 
@@ -1803,7 +1803,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `PopupMenu` (write-only) | component |  | The popup menu shown when the user right-clicks the control. |
 | `ShowHint` | bool | False | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Tag` | int |  | A number for the program's own use; RapidR never reads it. |
-| `TabStop` *(RapidR)* | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default, and RapidQ's QLABEL) leaves it out of the keyboard's way. |
+| `TabStop` *(RapidR)* | bool | False | True makes the label a link that takes the keyboard focus: Tab reaches it (in TabOrder), the theme's focus ring shows around its text, Enter or Space clicks it (OnClick), and a screen reader announces it as a link named by its Caption or AccessibleName. False (the default) leaves it out of the keyboard's way. |
 | `Top` | int | 0 | The distance from the parent's top edge (a form's: the screen's), in pixels. |
 | `Transparent` | bool | False | Lets what's behind show through the background (on a picture, its `TransparentColor` pixels). |
 | `UpperColor` | color | -2147483628 | The highlight colour of a raised or lowered label, as &HBBGGRR. |
@@ -1840,12 +1840,12 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnEnter` *(RapidR)* | Fires when the label gets the keyboard focus itself (it takes it only with TabStop = True): Tab, a click, SetFocus. (RapidR's.) |
 | `OnExit` *(RapidR)* | Fires when the label, focused itself (TabStop = True), loses the keyboard focus to another component of its form. (RapidR's.) |
 
 <a id="rimage"></a>
-## RImage <small>(RapidQ name: QIMAGE)</small>
+## RImage
 
 Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the program can also draw on it like a canvas.
 
@@ -1907,7 +1907,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `LoadFromFile(FileName AS STRING)` *(RapidR)* | Loads a picture file (BMP, PNG, JPEG, ICO, SVG), or a `$RESOURCE` by its name; an SVG in RapidR's colour tokens or `currentColor` follows the theme (see Load). |
 | `SaveToFile(FileName AS STRING)` *(RapidR)* | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
@@ -1925,7 +1925,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rcanvas"></a>
-## RCanvas <small>(RapidQ name: QCANVAS)</small>
+## RCanvas
 
 A surface to draw on: lines, shapes, text and pictures, usually redrawn in its OnPaint handler.
 
@@ -1968,21 +1968,21 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 
 | Method | |
 |---|---|
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws the ellipse that fits the box from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out: its outline in colour `c`, its inside in colour `fill` (RapidQ's, RC.EXE). RapidR's own `Circle(cx, cy, r [, c])` (three or four arguments) draws a circle's outline around a centre. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws the ellipse that fits the box from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out: its outline in colour `c`, its inside in colour `fill`. `Circle(cx, cy, r [, c])` (three or four arguments) draws a circle's outline around a centre. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
 | `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Fills a rectangle from (x1,y1) to (x2,y2). Optional fill color. |
 | `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws a line. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with color `c` up to the border color `borderc`. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was (RapidQ's, RC.EXE). `FillRect` fills one. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was. `FillRect` fills one. |
 | `Repaint` | Redraws the component. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c` (RapidQ's, RC.EXE). |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c`. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Cls` *(RapidR)* | Clears the canvas using the current Color. |
 | `FillCircle(x, y, radius, [color])` *(RapidR)* | Draws a filled circle. |
@@ -1995,8 +1995,8 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `Show` *(RapidR)* | Shows the component or form; a data-science object prints its contents. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `Ellipse` *(RapidR)* | Draws an ellipse in the box (`x1`, `y1`)–(`x2`, `y2`) in a color, filled when a fill color follows. |
-| `Get AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws and keeps nothing, and gives 0 — a Put after it doesn't bring the pixels back. |
-| `Put AS INTEGER` | RapidQ's (in its compiler's member table, not its manual): takes nothing, draws nothing and gives 0. |
+| `Get AS INTEGER` | Takes nothing, draws and keeps nothing, and gives 0 — a Put after it doesn't bring the pixels back. |
+| `Put AS INTEGER` | Takes nothing, draws nothing and gives 0. |
 
 | Event | |
 |---|---|
@@ -2008,7 +2008,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 
 <a id="rheader"></a>
-## RHeader <small>(RapidQ name: QHEADER)</small>
+## RHeader
 
 A row of headings (sections) the user can click and resize, as above a list's columns.
 
@@ -2068,7 +2068,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -2097,7 +2097,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 <a id="rprogress"></a>
 ## RProgress
 
-Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RapidR's own; RPROGRESSBAR is RapidQ's gauge.
+Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at Position. RProgressBar is the gauge that shows a bar, a pie, a needle or the percentage.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -2125,9 +2125,9 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 <a id="rprogressbar"></a>
-## RProgressBar <small>(RapidQ name: QGAUGE)</small>
+## RProgressBar
 
-RapidQ's gauge (RProgressBar): shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
+The gauge: shows progress from Min to Max at Position as a bar, a pie, a needle or the percentage.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -2181,9 +2181,9 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `CompCount` | int |  | The number of components on the design surface. |
 | `Visible` | bool |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
-| `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
+| `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it in the classic look. |
 | `FormType` (read-only) | string |  | The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); "" when there is no form. |
-| `ReservedNames` | string |  | Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a RapidQ program's component names are global — Form1's Button1 and Form2's would clash). |
+| `ReservedNames` | string |  | Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a classic program's component names are global — Form1's Button1 and Form2's would clash). |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 | `Count` | int |  | How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components. |
 | `SelCount` (read-only) | int |  | How many components are selected (Shift / Ctrl+click, a rubber band). |
@@ -2222,7 +2222,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | Method | |
 |---|---|
 | `SetFocus` | Gives the surface the keyboard focus (its keys: arrows, Delete, Ctrl+Z …). |
-| `AddMdiChild AS STRING` | A child window for the designed RFormMDI, RapidQ's way (QFORMMDI's children are components it shows in child windows): a panel on the MDI form named as a form (Form2), and `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written after the form, one undo step. Its name; "" when the form isn't an MDI main window. |
+| `AddMdiChild AS STRING` | A child window for the designed RFormMDI (its children are components it shows in child windows): a panel on the MDI form named as a form (Form2), and `Main.AddChild(Form2.Handle, "Form2", 0, 0, 0, 0, 0, 1)` written after the form, one undo step. Its name; "" when the form isn't an MDI main window. |
 | `AddComponent(Type AS STRING, X AS INTEGER, Y AS INTEGER)` | Adds a new component of Type at (X, Y) of the form's inside, into the panel, group box or scroll box there, at its default size, named by type and number (Button1, Button2 …) and written into Source as a CREATE block. X and Y of -1 put it at a free spot in the selected container (Enter on a toolbox item). Returns its index, or -1 when it can't go there. (AddComponent(Type, Name, X, Y, W, H), the older form, adds to a designer without a source.) |
 | `DragComponent(Type AS STRING)` | Starts dragging a new component of Type in from elsewhere, from a toolbox's mouse-down: while the button stays down, any design surface the mouse moves over shows where it would go, and letting go there adds it (as AddComponent). Letting go anywhere else does nothing. |
 | `SelectName(Name AS STRING) AS INTEGER` | Selects the component called Name; True if there is one. In a file that creates several forms, a name of another form (the form itself or one of its components) designs that form first; a form's own name selects the form itself. |
@@ -2238,7 +2238,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `ZoomToFit AS INTEGER` | Zooms so the whole form shows in the designer (never above 100 %). |
 | `EditMenu AS INTEGER` | The menu editor: selects the form's main menu — adding a QMAINMENU when it has none — so its bar shows Type Here, where a click (or typing) adds an item in place. |
 | `EditCaption AS INTEGER` | Edits the selected component's Caption (or Text) in place, over the component — F2 or a second, slower click on it does the same (a double click makes its event handler). Enter writes it into the code (one undo step), Escape leaves it. On a menu item the editor has a second field, its ShortCut (Tab goes there; the keys pressed there are the shortcut). True if the selection has a caption to edit. |
-| `AddForm(Name AS STRING) AS STRING` | Adds a form to a file that has none (or another one): CREATE Name AS QFORM with a Caption and RapidQ's starting size, and the line that shows it (Name.ShowModal), written at the end of the code as one undo step; the designer then designs it. Name "" takes Form1, Form2 … whichever the file doesn't use. Returns the form's name ("": it couldn't be added). |
+| `AddForm(Name AS STRING) AS STRING` | Adds a form to a file that has none (or another one): CREATE Name AS QFORM with a Caption and the usual starting size, and the line that shows it (Name.ShowModal), written at the end of the code as one undo step; the designer then designs it. Name "" takes Form1, Form2 … whichever the file doesn't use. Returns the form's name ("": it couldn't be added). |
 | `CreateHandler(Name AS STRING, Event AS STRING) AS STRING` | The SUB handling component Name's Event ("": its default event): the one its CREATE block names, else a new one written with the event's parameters and wired (one undo step). Returns the SUB's name; HandlerLine says where it is. |
 | `RemoveComponent` | Removes the component at the index given from the design surface. |
 | `ClearAll` | Removes every component from the design surface. |
@@ -2272,7 +2272,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `OnUndo(Redo AS INTEGER)` | With SharedUndo, Undo (Redo False) or Redo (True) was asked on the designer: undo it in the editor that keeps the file's history, then set Source again. |
 
 <a id="rdigdisplay"></a>
-## RDigDisplay <small>(RapidQ name: QDIGDISPLAY)</small>
+## RDigDisplay
 
 A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of its Display text, as on a clock or a counter.
 
@@ -2332,7 +2332,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `OnPaint` | Fires when the control must be drawn again; drawing done here survives covering, resizing and theme changes. |
 
 <a id="rlistbox"></a>
-## RListBox <small>(RapidQ name: QLISTBOX)</small>
+## RListBox
 
 A list of text items the user picks one or several of; it can be sorted, in columns or drawn by the program.
 
@@ -2393,14 +2393,14 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | Method | |
 |---|---|
 | `AddItems(Items, …)` | Appends one or more strings (items, lines or nodes) to the component, in the order given. |
-| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Circle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `Clear` | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 | `CopyRect(D, Image, S)` | Copies rectangle `S` of another image or canvas into rectangle `D` of this one, scaled to fit. |
 | `DelItems(Items, …)` | Removes the items at the indexes given. |
 | `Draw(x AS INTEGER, y AS INTEGER, BMP)` | Draws a bitmap with its top-left corner at (`x`, `y`); a DirectX image list draws its image `Item` there. |
-| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `FillRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `InsertItem(Index AS INTEGER, String AS STRING)` | Inserts an item with text `String` before position `Index`. |
-| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
+| `Line(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows. |
 | `LoadFromFile(FileName AS STRING)` | Loads the component's contents from a file: text, items, grid cells, tree nodes or a picture. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest). |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
@@ -2411,7 +2411,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddItem` *(RapidR)* | Appends one item (a list entry, line, node or menu item) to the component. |
 | `DeleteItem` *(RapidR)* | Removes the item at the index given. |
@@ -2427,14 +2427,14 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnDrawItem(Index AS INTEGER, State AS INTEGER, R AS RRECT)` | Fires for each item of an owner-drawn list or combo box (Index: the item, State: selected or focused, R: the rectangle to draw it in). |
-| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.) |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
 | `OnMeasureItem(Index AS INTEGER, Height AS INTEGER)` | Fires for each item of a variable-height owner-drawn list or combo box (Index); set Height to the item's height in pixels. |
-| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called — as in RapidQ, whose runtime never calls a control's WndProc (RC.EXE: an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
+| `WndProc(Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER)` | A Windows message handler (Hwnd, Msg, wParam, lParam). A form's gets its window's messages on Windows, its system tray icon's on other systems; a control's is accepted and never called (an RButton's, REdit's, RPanel's, RLabel's, RComboBox's, RListBox's get no message; binding an RCheckBox's, RRadioButton's or ROvalBtn's stops the program). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rfilelistbox"></a>
-## RFileListBox <small>(RapidQ name: QFILELISTBOX)</small>
+## RFileListBox
 
 A list of the files in a folder that match Mask, for picking a file.
 
@@ -2501,11 +2501,11 @@ A list of the files in a folder that match Mask, for picking a file.
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
-| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rdirtree"></a>
-## RDirTree <small>(RapidQ name: QDIRTREE)</small>
+## RDirTree
 
 A tree of drives and folders for picking a folder (Directory).
 
@@ -2558,11 +2558,11 @@ A tree of drives and folders for picking a folder (Directory).
 | Event | |
 |---|---|
 | `OnChange` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rstringgrid"></a>
-## RStringGrid <small>(RapidQ name: QSTRINGGRID)</small>
+## RStringGrid
 
 A grid of text cells in rows and columns, with fixed heading rows and columns, in-place editing and per-column styles.
 
@@ -2660,7 +2660,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `AddRow` *(RapidR)* | Appends a row made of the values given; a grid widens to fit them. |
 | `SetCell` *(RapidR)* | Sets the text of the cell at a column and row. |
@@ -2674,7 +2674,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `MoveColumn` *(RapidR)* | Moves a column to another position; those between shift over. Same as `MoveCol`. |
 | `MoveRow` *(RapidR)* | Moves a row to another position; those between shift over. |
 | `SetSuggestions` *(RapidR)* | Sets the suggestions offered while a cell is edited, one per line. |
-| `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (RC.EXE knows both names). |
+| `DeleteColumn(Column AS INTEGER)` | Removes column `Column`, as DeleteCol does (both names work). |
 
 | Event | |
 |---|---|
@@ -2689,11 +2689,11 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `OnClick` *(RapidR)* | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 | `OnDblClick` *(RapidR)* | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnChange` *(RapidR)* | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rtreeview"></a>
-## RTreeView <small>(RapidQ name: QTREEVIEW)</small>
+## RTreeView
 
 A tree of nodes the user expands, collapses and selects, with a picture per node and in-place editing.
 
@@ -2817,11 +2817,11 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `OnMouseDown(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is pressed over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 | `OnMouseMove(X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when the mouse moves over the control (X, Y: inside the control; Shift: the buttons and keys held). |
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rlistview"></a>
-## RListView <small>(RapidQ name: QLISTVIEW)</small>
+## RListView
 
 A list of items with columns of sub-items, shown as icons, a list or a report with headings; checkboxes and sorting.
 
@@ -2905,11 +2905,11 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `OnColumnClick(Column AS INTEGER)` | Fires when the user clicks a column header of the list view (Column: its index); the usual place to sort by that column. |
 | `OnDblClick` | Fires when the user double-clicks the control (on a design surface: the designed component Index). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` *(RapidR)* | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` *(RapidR)* | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rmainmenu"></a>
-## RMainMenu <small>(RapidQ name: QMAINMENU)</small>
+## RMainMenu
 
 A form's menu bar; its menus and commands are QMENUITEMs.
 
@@ -2929,7 +2929,7 @@ A form's menu bar; its menus and commands are QMENUITEMs.
 | `Clear` *(RapidR)* | Empties the component: removes its items, lines, text or data, or erases its drawing. |
 
 <a id="rmenuitem"></a>
-## RMenuItem <small>(RapidQ name: QMENUITEM)</small>
+## RMenuItem
 
 One menu entry: a command (OnClick), a checkable option, a separator ("-") or a submenu holding more items.
 
@@ -2963,7 +2963,7 @@ One menu entry: a command (OnClick), a checkable option, a separator ("-") or a 
 | `OnClick` | Fires when the user clicks the control (or presses its shortcut, or Space or Enter on a focused button). |
 
 <a id="rpopupmenu"></a>
-## RPopupMenu <small>(RapidQ name: QPOPUPMENU)</small>
+## RPopupMenu
 
 A context menu, shown when the user right-clicks a component whose PopupMenu it is, or by Popup.
 
@@ -2992,7 +2992,7 @@ A context menu, shown when the user right-clicks a component whose PopupMenu it 
 | `OnPopup` | Fires just before the popup menu opens; the place to enable, check or change its items. |
 
 <a id="ropendialog"></a>
-## ROpenDialog <small>(RapidQ name: QOPENDIALOG)</small>
+## ROpenDialog
 
 The system's Open dialog: Execute shows it and returns whether the user chose a file, then named by FileName. Filter limits the files listed.
 
@@ -3012,7 +3012,7 @@ The system's Open dialog: Execute shows it and returns whether the user chose a 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rsavedialog"></a>
-## RSaveDialog <small>(RapidQ name: QSAVEDIALOG)</small>
+## RSaveDialog
 
 The system's Save dialog: Execute shows it and returns whether the user chose a name, then in FileName.
 
@@ -3031,9 +3031,9 @@ The system's Save dialog: Execute shows it and returns whether the user chose a 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rfiledialog"></a>
-## RFileDialog <small>(RapidQ name: QFILEDIALOG)</small>
+## RFileDialog
 
-RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.
+A file dialog: one component for Open and Save (Mode), with several files at once (Files, SelCount) and an overwrite warning.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3058,9 +3058,9 @@ RAPIDQ2.INC's file dialog: one component for Open and Save (Mode), with several 
 | `Execute AS VARIANT` | Runs the component's action: a dialog shows itself, waits, and returns true when the user confirms. |
 
 <a id="rcolordialog"></a>
-## RColorDialog <small>(RapidQ name: QCOLORDIALOG)</small>
+## RColorDialog
 
-A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.
+A colour picker: Execute shows it and returns 1 when the user picks a colour, then in Color; Colors holds the 16 custom colours.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3076,7 +3076,7 @@ A colour picker (RAPIDQ2.INC's): Execute shows it and returns 1 when the user pi
 | `Execute AS VARIANT` | Opens the colour picker. Returns 1 if a colour was selected, 0 if cancelled. Selected value is in .Color. |
 
 <a id="rfontdialog"></a>
-## RFontDialog <small>(RapidQ name: QFONTDIALOG)</small>
+## RFontDialog
 
 A font picker: Execute shows it and returns 1 when the user chooses a font, then in Name, Size, Color and the styles; GetFont and SetFont trade it with an RFont.
 
@@ -3099,15 +3099,15 @@ A font picker: Execute shows it and returns 1 when the user chooses a font, then
 | `AddOptions(Items, …)` | Turns on the option flags given. |
 | `DelOptions(Items, …)` | Turns off the option flags given. |
 | `Execute AS VARIANT` | Opens the font dialog. Returns 1 if a font was chosen, 0 if cancelled. Read .FontName / .FontSize / .FontColor / .FontStyle for the result. |
-| `GetFont(F AS RFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to an RFont. RapidR also takes a component's own font here (`GetFont(Label.Font)`), which RapidQ's compiler refuses. |
-| `SetFont(F AS RFONT)` | Gives font `F` the dialog's name, size, colour and styles (after Execute). RapidR also takes a component's own font (`SetFont(Label.Font)` changes the label), which RapidQ's compiler refuses. |
+| `GetFont(F AS RFONT)` | Takes font `F`'s name, size, colour and styles into the dialog (what it shows first when Execute opens it); SetFont gives the dialog's back to an RFont. A component's own font works here too (`GetFont(Label.Font)`). |
+| `SetFont(F AS RFONT)` | Gives font `F` the dialog's name, size, colour and styles (after Execute). A component's own font works here too (`SetFont(Label.Font)` changes the label). |
 
 | Event | |
 |---|---|
 | `OnApply` | Fires when the user presses the font dialog's Apply button; the dialog's font properties already hold the font shown. |
 
 <a id="rtimer"></a>
-## RTimer <small>(RapidQ name: QTIMER)</small>
+## RTimer
 
 Runs its OnTimer handler every Interval milliseconds while Enabled.
 
@@ -3122,7 +3122,7 @@ Runs its OnTimer handler every Interval milliseconds while Enabled.
 | `OnTimer(Sender AS RTIMER)` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 
 <a id="rrect"></a>
-## RRect <small>(RapidQ name: QRECT)</small>
+## RRect
 
 A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pass one.
 
@@ -3134,7 +3134,7 @@ A rectangle (Left, Top, Right, Bottom), as drawing methods and event handlers pa
 | `Bottom` | int | 0 | The rectangle's bottom edge, in pixels. |
 
 <a id="rfilestream"></a>
-## RFileStream <small>(RapidQ name: QFILESTREAM)</small>
+## RFileStream
 
 A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a Position that Seek moves.
 
@@ -3175,13 +3175,13 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
-| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all. |
+| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
 | `ReadByte AS BYTE` | Reads one byte at Position (26, DOS's end-of-file mark, past the end). |
-| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does. |
+| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
 | `WriteByte(Byte AS BYTE)` | Writes one byte (the value's low 8 bits) at Position. |
 
 <a id="rstringlist"></a>
-## RStringList <small>(RapidQ name: QSTRINGLIST)</small>
+## RStringList
 
 A list of strings in memory: add, insert, delete, sort and find them, load and save them as text.
 
@@ -3211,7 +3211,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `LoadFromStream(File AS QSTREAM)` | Replaces the items with the stream's text from its position to its end, a line per item (lines end at CR LF, LF or CR); the stream is left at its end. |
 | `Parse(Source AS STRING, Delim AS STRING) AS LONG` | Splits text into parts: a string list splits `Source` at `Delim` into its items and returns how many; a CGI reads the request's variables. |
 | `SaveToFile(File AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
-| `SaveToStream(File AS QSTREAM)` | In RapidQ (RC.EXE) this reads the list from the stream, exactly as LoadFromStream does, and writes nothing (its manual warns that it erases the list); RapidR keeps that. To write the items to a stream, use `Stream.WriteStr(List.Text, LEN(List.Text))`. |
+| `SaveToStream(File AS QSTREAM)` | This reads the list from the stream, exactly as LoadFromStream does, and writes nothing (it erases the list). To write the items to a stream, use `Stream.WriteStr(List.Text, LEN(List.Text))`. |
 | `Sort` | Sorts the items, nodes or elements in ascending order. |
 | `Add` *(RapidR)* | Appends one entry: a line of text to an editor or string list, or an item to a menu. |
 | `Delete` *(RapidR)* | Removes part of the contents: a list's string or image at an index, or a recording's samples from `Pos1` to `Pos2`. |
@@ -3229,7 +3229,7 @@ A list of strings in memory: add, insert, delete, sort and find them, load and s
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
 
 <a id="rprinter"></a>
-## RPrinter <small>(RapidQ name: QPRINTER)</small>
+## RPrinter
 
 A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc. The `Printer` global object is one.
 
@@ -3270,11 +3270,11 @@ A printer: BeginDoc, draw pages with the canvas methods and NewPage, then EndDoc
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 
 <a id="rregistry"></a>
-## RRegistry <small>(RapidQ name: QREGISTRY)</small>
+## RRegistry
 
 Reads and writes settings as keys and values: Windows' registry on Windows, a per-user store on other systems and the web.
 
@@ -3358,7 +3358,7 @@ Parses and builds JSON: get and set values by dotted path, list keys, pretty-pri
 | `Clear` | Clears the stored JSON data. |
 
 <a id="rfont"></a>
-## RFont <small>(RapidQ name: QFONT)</small>
+## RFont
 
 A font (name, size, colour, bold, italic …) to give to components and drawing.
 
@@ -3383,7 +3383,7 @@ A font (name, size, colour, bold, italic …) to give to components and drawing.
 | `DelStyles(Items, …)` | Turns off the font styles given. |
 
 <a id="rmemorystream"></a>
-## RMemoryStream <small>(RapidQ name: QMEMORYSTREAM)</small>
+## RMemoryStream
 
 A stream in memory: write and read text, numbers and binary data as in a file, with no file.
 
@@ -3393,7 +3393,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Pointer` (read-only) | int |  | The address of the stream's memory; read-only. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
 | `Size` | int |  | A size: of a font, in points; of a file, stream, sound or download, in bytes; of an array, its number of values. |
-| `SetSize` (write-only) | int |  | Size's other name in RapidQ (`Mem.SetSize = 0`), only written. |
+| `SetSize` (write-only) | int |  | Size's other name (`Mem.SetSize = 0`), only written. |
 | `FileName` *(RapidR)* | string |  | The file chosen in a dialog (with its folder), or the file the object reads or writes. |
 | `Text` *(RapidR)* | string |  | The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents. |
 
@@ -3423,11 +3423,11 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
-| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as RapidQ does; the stream must hold them all. |
-| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as RapidQ does. |
+| `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
+| `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
 
 <a id="rbitmap"></a>
-## RBitmap <small>(RapidQ name: QBITMAP)</small>
+## RBitmap
 
 A picture in memory to draw on and draw from: load and save images, draw with the canvas methods.
 
@@ -3465,20 +3465,20 @@ A picture in memory to draw on and draw from: load and save images, draw with th
 | `LoadFromStream(Stream)` | Loads the component's contents from an open stream. |
 | `Paint(x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER)` | Fills the area around (`x`, `y`) with colour `c`, up to the colour `borderc` that bounds it. |
 | `Pset(x AS INTEGER, y AS INTEGER, c AS INTEGER)` | Sets the pixel at (`x`, `y`) to color `c`. |
-| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was (RapidQ's, RC.EXE). `FillRect` fills one. |
+| `Rectangle(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER)` | Draws the outline of the rectangle from (`x1`, `y1`) to (`x2`, `y2`) in colour `c`, the right and bottom edges left out (the last pixels drawn are `x2 - 1`, `y2 - 1`); its inside stays as it was. `FillRect` fills one. |
 | `Rotate(xOrigin AS INTEGER, yOrigin AS INTEGER, Angle AS INTEGER)` | Turns the whole picture `Angle` degrees anticlockwise about pixel (`xOrigin`, `yOrigin`), keeping its size: each pixel takes the nearest one that turns onto it, and pixels nothing turns onto take the colour the top-left pixel had before. |
-| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c` (RapidQ's, RC.EXE). |
+| `RoundRect(x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, x3 AS INTEGER, y3 AS INTEGER, c AS INTEGER)` | Draws the rectangle from (`x1`, `y1`) to (`x2`, `y2`), the right and bottom edges left out, with corners rounded by an ellipse `x3` wide and `y3` high, filled in colour `c`. |
 | `SaveToFile(FileName AS STRING)` | Saves the component's contents to a file: text, items, grid cells, tree nodes or a picture. |
 | `SaveToStream(Stream)` | Writes the component's contents to an open stream. |
 | `StretchDraw(Rect AS RRECT, BMP)` | Draws a bitmap scaled to fill rectangle `Rect`. |
 | `TextHeight(Text AS STRING) AS WORD` | Returns the height in pixels of the text in the current font. |
 | `TextWidth(Text AS STRING) AS WORD` | Returns the width in pixels of the text in the current font. |
-| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) |
+| `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` with its top-left corner at (`x`, `y`), in colour `fc` on a background of colour `bc`. |
 | `LoadIcon(Name AS STRING, [Size AS INTEGER], [Theme AS STRING])` *(RapidR)* | Loads one of RapidR's own icons (an icon name such as "run", a component type, a command id), Size pixels square (16 if left out), in the current theme's colours or Theme's; crisp at every screen scale. |
 
 <a id="rimagelist"></a>
-## RImageList <small>(RapidQ name: QIMAGELIST)</small>
+## RImageList
 
 A list of same-size pictures (bitmaps or icons), drawn by index; list views and trees take their pictures from one.
 
@@ -3514,7 +3514,7 @@ A list of same-size pictures (bitmaps or icons), drawn by index; list views and 
 | `AddSVGFile(FileName AS STRING, [Theme AS STRING]) AS INTEGER` *(RapidR)* | Adds your own SVG icon — a file, or one built into the program by `$RESOURCE` (its name) — drawn at the list's Width × Height and at the screen's scale, so it stays sharp at 2×. Drawn with RapidR's icon colour tokens (ink #5B6478, blue #2F5BFF … as their light values) or `currentColor`, it takes the theme's colours (light, dark, high contrast) and follows the theme when it changes; Theme ("dark", "highcontrast" …) fixes them. An SVG with colours of its own keeps them. Returns the new image's index. |
 
 <a id="rnotifyicondata"></a>
-## RNotifyIconData <small>(RapidQ name: QNOTIFYICONDATA)</small>
+## RNotifyIconData
 
 Describes a system tray icon (its icon, tip and messages) for `Shell_NotifyIcon`, which RapidR keeps working on every system.
 
@@ -3573,7 +3573,7 @@ A SQLite database: Connect opens a file (or `:memory:`), Query runs SQL with `?`
 | `OnDone(Rows AS INTEGER, Ms AS INTEGER)` | A background query finished: its rows, and the milliseconds it took. |
 
 <a id="rmysql"></a>
-## RMySQL <small>(RapidQ name: QMYSQL)</small>
+## RMySQL
 
 A client for a MySQL or MariaDB server: connect, run queries and walk the rows they return. Desktop only (a browser has no raw TCP).
 
@@ -3639,7 +3639,7 @@ A client for a MySQL or MariaDB server: connect, run queries and walk the rows t
 | `OnDone(Rows AS INTEGER, Ms AS INTEGER)` *(RapidR)* | A background query finished: its rows, and the milliseconds it took. |
 
 <a id="rsocket"></a>
-## RSocket <small>(RapidQ name: QSOCKET)</small>
+## RSocket
 
 A TCP client socket: connect to a host and port, then read and write text or bytes. In the browser it connects over WebSocket.
 
@@ -3654,7 +3654,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `Transferred` (read-only) | int |  | Bytes sent or received by the last transfer; read-only. |
 | `WMessage` | int | 0 | The window message the socket posts on its events (0: none). |
 | `Host` *(RapidR)* | string |  | The server's host name or address. |
-| `BindAddress` *(RapidR)* *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (RapidQ's way, the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
+| `BindAddress` *(RapidR)* *(desktop)* | string | `"0.0.0.0"` | The address Open(Port) listens on when it isn't given one: 0.0.0.0, every network interface (the default), or 127.0.0.1, this computer only — what a server only this computer's programs talk to must use (nothing on the network can reach it, and the system doesn't ask about incoming connections). |
 | `Port` *(RapidR)* | int |  | The network port; on a serial port, its name (`COM1`) or number. |
 | `Connected` *(RapidR)* | int |  | Non-zero while the connection (database, serial port, socket) is open, or while the joystick is plugged in. |
 | `Timeout` *(RapidR)* | int |  | How long to wait for the network, in milliseconds. |
@@ -3671,7 +3671,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `GetPeerName(Socket AS INTEGER) AS VARIANT` | Returns the address of the other end of socket `Socket`. |
 | `IsClientReady(Sock AS INTEGER, ClientSock AS INTEGER) AS VARIANT` | Returns true when client socket `ClientSock` of server socket `Sock` has data to read. |
 | `IsServerReady(Sock AS INTEGER) AS VARIANT` | Returns true when socket `Sock` has data from the server to read. |
-| `Open(PortNum AS INTEGER, [Address AS STRING]) AS VARIANT` | Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: "127.0.0.1" this computer only; without it, BindAddress (0.0.0.0, every network interface, as RapidQ). A browser can't listen: -1 on the web. |
+| `Open(PortNum AS INTEGER, [Address AS STRING]) AS VARIANT` | Listens on port PortNum: the server socket's number (-1 when it can't). Address (RapidR's) is where: "127.0.0.1" this computer only; without it, BindAddress (0.0.0.0, every network interface). A browser can't listen: -1 on the web. |
 | `Peek(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Returns up to `NumBytes` bytes waiting on socket `Socket`, leaving them to be read. |
 | `Read(Socket AS INTEGER, NumBytes AS INTEGER) AS VARIANT` | Reads data: up to `NumBytes` from a socket (returned), `Count` bytes from a serial port into a stream, or a variable's worth from a stream into it. |
 | `ReadByte(Socket AS INTEGER) AS BYTE` | Reads one byte from the socket or stream. |
@@ -3782,7 +3782,7 @@ An HTTP(S) client: Get or Post a URL, then read StatusCode, ResponseText and Res
 | `Post` | Sends form data to a URL in an HTTP POST and returns the response body. |
 
 <a id="rcgi"></a>
-## RCGI <small>(RapidQ name: QCGI)</small>
+## RCGI
 
 For CGI programs behind a web server (qcgi.inc): the request's CGI variables as properties, and Parse / Get for its form fields.
 
@@ -3817,9 +3817,9 @@ For CGI programs behind a web server (qcgi.inc): the request's CGI variables as 
 | `Get(Name AS STRING, BYREF Value AS STRING) AS INTEGER` | Reads by key or index: an array element, a list's string, a stored value or a CGI variable; an HTTP client fetches a URL and returns the response body. |
 
 <a id="rcomport"></a>
-## RComPort <small>(RapidQ name: QCOMPORT)</small>
+## RComPort
 
-A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out.
+A serial port: set the port and its speed, Open it, then read and write strings. Web Serial in the browser. RapidR adds what IoT boards (ESP32, Arduino) need: the ports listed with their USB IDs, the DTR / RTS lines (a board's reset), whole lines in and an event when an adapter is plugged in or out.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -3875,21 +3875,21 @@ A serial port (RAPIDQ2.INC's COMPORT): set the port and its speed, Open it, then
 
 | Event | |
 |---|---|
-| `OnBreak` | A break condition arrived on the serial line (the other end held it low). Looked for while the program runs, as OnRxChar: on Unix the terminal marks a break in what is read, on Windows the port's error state says so, in a browser Web Serial's BreakError. (RapidQ's manual lists it as no longer supported.) |
+| `OnBreak` | A break condition arrived on the serial line (the other end held it low). Looked for while the program runs, as OnRxChar: on Unix the terminal marks a break in what is read, on Windows the port's error state says so, in a browser Web Serial's BreakError. |
 | `OnClose` | Fires when the form, port or dock form closes. A form's handler can set its BYREF Action to `caNone` (0) to keep the form open. |
 | `OnComError(ErrorMessage AS STRING)` | Fires when opening, reading, writing or closing the serial port fails; ErrorMessage says what went wrong. |
 | `OnOpen` | Fires when Open has opened the serial port. |
 | `OnReadString` | Fires after ReadString has read from the serial port and waited its Wait milliseconds. |
 | `OnWriteString` | Fires after WriteString has sent its text and waited its Wait milliseconds. |
-| `OnRing` | The ring indicator came on (a modem's incoming call): looked for while the program runs, as OnRxChar — the port's RI line; in a browser, Web Serial's signals. (RapidQ's manual lists it as no longer supported.) |
+| `OnRing` | The ring indicator came on (a modem's incoming call): looked for while the program runs, as OnRxChar — the port's RI line; in a browser, Web Serial's signals. |
 | `OnRxChar(InQue AS INTEGER)` | Fires when bytes arrive at the serial port (InQue: how many are waiting to be read). |
-| `OnTxEmpty` | The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. (RapidQ's manual lists it as no longer supported.) |
+| `OnTxEmpty` | The output buffer is empty: everything a Write or WriteString sent has gone out — fired after its OnWriteString. |
 | `OnError(Message AS STRING)` | Fires when an operation fails (a connection, a query, a socket or port operation); the handler gets the error message. |
 | `OnLine(Received AS STRING)` *(RapidR)* | Fires for each whole line that arrives, without its LineEnd (the line is read: ReadString and ReadLine don't see it). The runtime looks every 50 ms. |
 | `OnPortsChanged(Added AS STRING, Removed AS STRING)` *(RapidR)* | Fires when serial ports come or go, a USB adapter plugged in or out: the names added and removed, a CR LF between two. The runtime looks about once a second (the browser says at once). |
 
 <a id="rdownload"></a>
-## RDownload <small>(RapidQ name: QDOWNLOAD)</small>
+## RDownload
 
 Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownload.inc).
 
@@ -3916,14 +3916,14 @@ Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownloa
 | `Speed` | Returns a transfer's speed in bytes a second, from two `TIME$` values and the bytes moved. |
 
 <a id="rmidi"></a>
-## RMIDI <small>(RapidQ name: QMIDI)</small>
+## RMIDI
 
 Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (spelled this way); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
 | `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
 | `CurrentFrame` | int |  | The frame (video) or position (MIDI) playing now; setting it seeks there. |
@@ -3948,19 +3948,19 @@ Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR
 | `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rwave"></a>
-## RWave <small>(RapidQ name: QWAVE)</small>
+## RWave
 
 Plays, records and saves WAV sound (QWave.inc).
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (spelled this way); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
 | `FileOpen` (read-only) | bool | False | True while a file is open on the device; read-only. |
 | `CurrentPos` | int |  | The position in the wave, in milliseconds; setting it seeks there. |
 | `Bits` | int |  | Bits per sample of a new recording (8 or 16). |
-| `Frequence` | int |  | Samples per second of a new recording (11025, 22050, 44100 …); RapidQ's spelling. |
+| `Frequence` | int |  | Samples per second of a new recording (11025, 22050, 44100 …); spelled this way. |
 | `Mode` | int |  | On a file dialog, 0 to open or 1 to save; on a wave, the channels of a new recording (1 mono, 2 stereo). |
 | `Error` (read-only) | string |  | The device's error text after an `Open` that failed; empty otherwise; read-only. |
 | `Volume` | int | 0 | The loudness: 0 to 100 on media objects and DirectX sounds; 0 to 1 on web audio and video. |
@@ -3988,15 +3988,15 @@ Plays, records and saves WAV sound (QWave.inc).
 | `OnChange(position AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rvideo"></a>
-## RVideo <small>(RapidQ name: QVIDEO)</small>
+## RVideo
 
 Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Timer` | component |  | The media object's own RTimer, which reads its position and fires `OnChange` while it plays. |
-| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only. |
-| `LenghtTime` (read-only) | int |  | The video's length in milliseconds (RapidQ's spelling); read-only. |
+| `Lenght` (read-only) | int |  | The length: milliseconds for MIDI and wave, frames for video (spelled this way); read-only. |
+| `LenghtTime` (read-only) | int |  | The video's length in milliseconds (spelled this way); read-only. |
 | `State` (read-only) | int | 0 | What it's doing: a media object's 0 closed, 1 playing, 2 paused, 3 stopped, 4 recording; a download's percent done; a check box's 0, 1 or 2 (greyed); an OLE object's `osXXX`. |
 | `Handle` (read-only) | int |  | The window (or other system object's) handle, for API calls and for components that take one. |
 | `Parent` | int |  | The component it sits in (a form, panel, tab control …) or belongs to. |
@@ -4034,7 +4034,7 @@ Plays an AVI video with its sound (QVideo.inc), on a form or in a window of its 
 | `OnChange(position AS LONG, timePos AS LONG)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rcdaudio"></a>
-## RCDAudio <small>(RapidQ name: QCDAUDIO)</small>
+## RCDAudio
 
 Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 
@@ -4069,7 +4069,7 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 | `OnChange(track AS INTEGER, time AS STRING)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
 <a id="rdxscreen"></a>
-## RDXScreen <small>(RapidQ name: QDXSCREEN)</small>
+## RDXScreen
 
 A DirectX drawing surface on a form, for games and animation: draw the next frame off screen, then Flip to show it. It also holds the Direct3D scene and camera.
 
@@ -4149,8 +4149,8 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `SetVelocity(X AS DOUBLE, Y AS DOUBLE, Z AS DOUBLE, R AS INTEGER)` | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 | `SetTextureQuality(Quality AS INTEGER)` | Sets how textures are filtered when drawn. |
 | `Render` | Draws the scene: a DirectX screen draws its 3D view; on the web a chart is drawn (as `SaveFig`). |
-| `CreateAnimation(Ani AS RD3DANIMATION)` | Takes a Direct3D animation object. RapidQ gives such an object nothing to do (no keys, nothing that plays it), so this does nothing. |
-| `CreateAnimationSet(AniSet AS RD3DANIMATIONSET)` | Takes a Direct3D animation set. RapidQ gives such an object nothing to do (no animations to add, nothing that plays it), so this does nothing. |
+| `CreateAnimation(Ani AS RD3DANIMATION)` | Takes a Direct3D animation object. Such an object has nothing to do yet (no keys, nothing that plays it), so this does nothing. |
+| `CreateAnimationSet(AniSet AS RD3DANIMATIONSET)` | Takes a Direct3D animation set. Such an object has nothing to do yet (no animations to add, nothing that plays it), so this does nothing. |
 
 | Event | |
 |---|---|
@@ -4165,7 +4165,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `OnMouseUp(Button AS INTEGER, X AS INTEGER, Y AS INTEGER)` | Fires when a mouse button is released over the control (Button: `mbLeft`, `mbRight` or `mbMiddle`; X, Y: inside the control; Shift: the key state). |
 
 <a id="rdximagelist"></a>
-## RDXImageList <small>(RapidQ name: QDXIMAGELIST)</small>
+## RDXImageList
 
 A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lists and drawn with their transparency.
 
@@ -4181,7 +4181,7 @@ A library of pictures for a DirectX screen, loaded from DelphiX `.DXG` image lis
 | `LoadFromStream(Stream AS RFILESTREAM)` | Loads the component's contents from an open stream. |
 
 <a id="rdxtimer"></a>
-## RDXTimer <small>(RapidQ name: QDXTIMER)</small>
+## RDXTimer
 
 A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: once a frame), optionally only while the program is active.
 
@@ -4197,7 +4197,7 @@ A frame timer for DirectX animation: OnTimer fires at FrameRate (Interval 0: onc
 | `OnTimer` | Fires each time Interval milliseconds have passed while the timer is Enabled (Sender: the timer). Timers tick while the program waits. |
 
 <a id="rdxsound"></a>
-## RDXSound <small>(RapidQ name: QDXSOUND)</small>
+## RDXSound
 
 A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or looped.
 
@@ -4225,7 +4225,7 @@ A WAV sound played DirectSound's way: at its Frequency, Volume and Pan, once or 
 | `RecreateBuf` | Makes the sound's buffer again after DirectSound lost it. RapidR's sound never loses its buffer, so this does nothing. |
 
 <a id="rdxjoystick"></a>
-## RDXJoystick <small>(RapidQ name: QDXJOYSTICK)</small>
+## RDXJoystick
 
 A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …; RapidR adds the axes, the POV hat and which pad (Index).
 
@@ -4259,7 +4259,7 @@ A joystick or gamepad: Update reads its state into IsLeft, IsUp, `Button(n)` …
 | `OnMove` *(RapidR)* | Fires when the joystick's position changes (X, Y and the other axes read the new values). |
 
 <a id="rd3dframe"></a>
-## RD3DFrame <small>(RapidQ name: QD3DFRAME)</small>
+## RD3DFrame
 
 A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer.
 
@@ -4293,7 +4293,7 @@ A node of a Direct3D retained-mode scene: it has a position, orientation and mot
 | `SetVelocity` *(RapidR)* | Sets the velocity (`X`, `Y`, `Z`) a frame moves by each time step of `Move`; a DirectX screen sets its camera's. |
 
 <a id="rd3dmeshbuilder"></a>
-## RD3DMeshBuilder <small>(RapidQ name: QD3DMESHBUILDER)</small>
+## RD3DMeshBuilder
 
 Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colour and texture it before adding it to a frame.
 
@@ -4321,7 +4321,7 @@ Builds a 3D mesh: load a `.X` model or add vertices and faces, then scale, colou
 | `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dmesh"></a>
-## RD3DMesh <small>(RapidQ name: QD3DMESH)</small>
+## RD3DMesh
 
 A finished 3D mesh, made by a mesh builder, ready to add to frames.
 
@@ -4336,7 +4336,7 @@ A finished 3D mesh, made by a mesh builder, ready to add to frames.
 | `SetColorRGB` *(RapidR)* | Sets the color from `R`, `G`, `B` (0 to 1). |
 
 <a id="rd3dface"></a>
-## RD3DFace <small>(RapidQ name: QD3DFACE)</small>
+## RD3DFace
 
 One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 
@@ -4354,7 +4354,7 @@ One polygon of a 3D mesh: its vertices and colour, added to a mesh builder.
 | `SetRGBA` *(RapidR)* | Sets the mesh's color from `R`, `G`, `B` and its opacity `A` (0 to 1). |
 
 <a id="rd3dlight"></a>
-## RD3DLight <small>(RapidQ name: QD3DLIGHT)</small>
+## RD3DLight
 
 A light in the 3D scene (ambient, directional, point or spot), with its colour, range and cone.
 
@@ -4370,7 +4370,7 @@ A light in the 3D scene (ambient, directional, point or spot), with its colour, 
 | `SetUmbra(Angle AS DOUBLE)` | Sets the angle of the spotlight's cone of full brightness. |
 
 <a id="rd3dtexture"></a>
-## RD3DTexture <small>(RapidQ name: QD3DTEXTURE)</small>
+## RD3DTexture
 
 A picture laid onto 3D meshes as their surface.
 
@@ -4379,7 +4379,7 @@ A picture laid onto 3D meshes as their surface.
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rd3dvisual"></a>
-## RD3DVisual <small>(RapidQ name: QD3DVISUAL)</small>
+## RD3DVisual
 
 Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
 
@@ -4388,7 +4388,7 @@ Something a 3D frame can show (a mesh or a mesh builder), as Direct3D's visual.
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rd3dwrap"></a>
-## RD3DWrap <small>(RapidQ name: QD3DWRAP)</small>
+## RD3DWrap
 
 How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to it with Apply or ApplyRelative.
 
@@ -4398,7 +4398,7 @@ How a texture is laid over a mesh (flat, cylinder, sphere or chrome), applied to
 | `ApplyRelative(F AS RD3DFRAME, M AS RD3DMESH)` | Applies the texture wrap to mesh `M`, measured relative to frame `F`. |
 
 <a id="rd3dvector"></a>
-## RD3DVector <small>(RapidQ name: QD3DVECTOR)</small>
+## RD3DVector
 
 A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
 
@@ -4412,18 +4412,18 @@ A 3D vector (X, Y, Z), for positions and directions in the 3D scene.
 | `Z` | float |  | A Z: the vector's component, or the joystick's third axis (0 to 65535, 32767 at rest). |
 
 <a id="rd3danimation"></a>
-## RD3DAnimation <small>(RapidQ name: QD3DANIMATION)</small>
+## RD3DAnimation
 
-Direct3D's keyframe animation, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.
+Direct3D's keyframe animation: a handle with a Parent and no other member. Nothing makes or plays one yet.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
 
 <a id="rd3danimationset"></a>
-## RD3DAnimationSet <small>(RapidQ name: QD3DANIMATIONSET)</small>
+## RD3DAnimationSet
 
-Direct3D's set of animations, as RapidQ declares it: a handle with a Parent and no other member. Nothing in RapidQ makes or plays one.
+Direct3D's set of animations: a handle with a Parent and no other member. Nothing makes or plays one yet.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -4752,8 +4752,8 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | `OnKeyDown(Key AS WORD, Shift AS INTEGER)` | Fires when a key is pressed while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyUp(Key AS WORD, Shift AS INTEGER)` | Fires when a key is released while the control has the focus (Key: the virtual key code; Shift: the Shift, Ctrl and Alt state). |
 | `OnKeyPress(Key AS BYTE)` | Fires when a key press types a character while the control has the focus (Key: the character's code). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rplot"></a>
 ## RPlot
@@ -5104,7 +5104,7 @@ Hash routes for single-page web apps: Navigate, Back, Forward and OnRouteChange.
 <a id="rpropertyinspector"></a>
 ## RPropertyInspector
 
-An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under "RapidR extensions". An Events page lists the component's events and the SUB each one runs.
+An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; the members RapidR adds to a classic component are grouped under "RapidR extensions". An Events page lists the component's events and the SUB each one runs.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5115,7 +5115,7 @@ An object inspector: the properties of a component (or of every component a desi
 | `Page` | string | `"properties"` | The page shown: "properties" or "events". |
 | `Filter` | string | `""` | The search box's text: only the rows whose name matches it are shown. |
 | `ShowEvents` | bool | True | Whether the Events page can be shown (its tab is there). |
-| `ShowRapidRExtensions` | bool | True | Whether RapidR's own members of a RapidQ component are shown (under "RapidR extensions", with a badge). |
+| `ShowRapidRExtensions` | bool | True | Whether the members RapidR adds to a classic component are shown (under "RapidR extensions", with a badge). |
 | `ReadOnly` | bool | False | Values are shown but can't be changed. |
 | `Handlers` | string | `""` | The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event. |
 | `EmptyText` | string | `""` | What the description under the rows says while nothing is inspected ("Select a component on the form"). |
@@ -5167,19 +5167,19 @@ An object inspector: the properties of a component (or of every component a desi
 | `OnEventDblClick(Event AS STRING)` | The user double-clicked an event's row: the program creates (or shows) its handler. |
 | `OnEditorRequest(Prop AS STRING)` | The user asked for a property's own editor (its "…" button) where the inspector has none: the program shows one. |
 | `OnSelect(Prop AS STRING)` | The selected row changed. |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rtoolbox"></a>
 ## RToolbox
 
-The palette of components a form designer places, under RapidR's names (RButton; an item's card gives RapidQ's name where RapidQ has one), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own.
+The palette of components a form designer places, under RapidR's names (RButton), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Align` | enum | `alNone` | Where the control docks in its parent: one of the `alXXX` constants. `alNone` keeps its own place; `alClient` fills what the other docked controls leave. |
 | `Filter` | string | `""` | The search box's text: only the components whose names match it are shown. |
-| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "rapidq" (as a file written with RapidQ's names writes them: QBUTTON for RapidQ's components, RapidR's names for the others) or "titles" (in words: "Button"). |
+| `ShowNames` | string | `"rapidr"` | How components are named: "rapidr" (RapidR's names: RButton), "rapidq" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or "titles" (in words: "Button"). |
 | `Selected` | string | `""` | The selected component's type under RapidR's name (RButton), or a template's name. |
 | `Count` (read-only) | int |  | How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones). |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
@@ -5217,8 +5217,8 @@ The palette of components a form designer places, under RapidR's names (RButton;
 | `OnSelect(Type AS STRING)` | The selected component changed. |
 | `OnDragStart(Type AS STRING)` | The user started dragging a component out of the toolbox. |
 | `OnDragDrop(Type AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)` | A dragged component was let go over component Target, the deepest one shown there on the toolbox's form (its name in lower case), at (X, Y) in Target's own pixels; over the bare form Target is "" and (X, Y) is in the form's client area. Let go over the toolbox itself, nothing is dropped. |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rprojecttree"></a>
 ## RProjectTree
@@ -5260,7 +5260,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `Refresh` | Reads the project's files again (forms' components included). |
 | `LoadText(Text AS STRING, Path AS STRING) AS INTEGER` | Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read. |
 | `SetFileText(Path AS STRING, Text AS STRING)` | Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it. |
-| `ComponentNames(ExceptPath AS STRING) AS STRING` | The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global. |
+| `ComponentNames(ExceptPath AS STRING) AS STRING` | The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a classic program's component names are global. |
 | `File(Index AS INTEGER) AS STRING` | File Index's path (from 0), in the project's order. |
 | `FileKind(Path AS STRING) AS STRING` | A file's kind: "module", "form", "include", "resource", "asset" or "data". |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
@@ -5283,8 +5283,8 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `OnDelete(Path AS STRING, BYREF Cancel AS INTEGER)` | The user confirmed taking a file out of the project: set Cancel to keep it. The program deletes it from the disk if it wants to. |
 | `OnMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)` | The user dragged a file: to another place in the order (Index, from 0) or into another folder (NewPath). |
 | `OnNewFile(Path AS STRING, Kind AS STRING)` | NewFile added a file and the user named it. |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="routputconsole"></a>
 ## ROutputConsole
@@ -5339,8 +5339,8 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 |---|---|
 | `OnLinkClick(File AS STRING, Line AS INTEGER)` | The user clicked a `file:line` place or a problem (or pressed Enter on it). |
 | `OnPageChange(Page AS STRING)` | The user showed another page. |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rcommandpalette"></a>
 ## RCommandPalette
@@ -5383,8 +5383,8 @@ A box of commands found by typing: Show opens it over the form, the user types a
 |---|---|
 | `OnCommand(Id AS STRING)` | The user picked a command (Enter or a click): the palette has closed. |
 | `OnCancel` | The user closed the palette without picking (Escape). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rmarkdownview"></a>
 ## RMarkdownView
@@ -5435,8 +5435,8 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 |---|---|
 | `OnLinkClick(Url AS STRING)` | The user clicked a link: its target as the text writes it ("https://…", "other.md", "#heading"). |
 | `OnCodeClick(Word AS STRING, OfType AS STRING)` | The user clicked a word of code (CodeLanguage is set, the language service knows the word): the word as written ("PRINT", "AddItems") and, for a member after a dot, the component type it belongs to ("RListBox"; "" for any other word). |
-| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
-| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
+| `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. |
+| `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. |
 
 <a id="rai"></a>
 ## RAI
@@ -5535,7 +5535,7 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 <a id="rproject"></a>
 ## RProject
 
-A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, or RapidQ's .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs, RapidQ's way. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
+A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a source file (.rr, .bas, .rqw, .rqb, .rq) with the files it $INCLUDEs. Lists the project's files and their kinds, adds and removes files, saves the project file, and makes new projects from templates. RapidR Studio is built on it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5546,7 +5546,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Name` | string |  | The project's name. |
 | `MainFile` | string |  | The file the program starts from (relative to the folder). |
 | `FileCount` (read-only) | int |  | How many files the project has. |
-| `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project (RapidR's extensions reported), else "". |
+| `CompatMode` | string |  | "rapidq" for a project kept classic-compatible (RapidR's extensions are reported), else "". |
 | `Targets` | string |  | Where the program runs: "desktop" (native builds and the interpreter), "web" (the browser) or "both" — Project Options' Targets, kept in the project file (`[build] runs_on`). Unset, it is "both" for a project that builds a web app too, else "desktop". The Problems pane notes what works on one runtime only when the program runs on the other. Set it, then Save. |
 | `Icon` | string |  | The app's icon file (.icns, .ico, .png or .svg), relative to the folder; "" for the main file's $OPTION ICON, else RapidR's icon for programs. |
 | `AppName` | string |  | The app's name, as Finder, Explorer and the applications menu show it; "" for the project's Name. |
@@ -5563,7 +5563,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `ImportReport` (read-only) | string |  | The last ImportRapidQ's report (rapidr-import-report.md in the copy): every name changed by file, line and column, each include file and where it was found, what was left and why, each program's proof. |
 | `ImportMissing` (read-only) | string |  | The include files the last ImportRapidQ found nowhere, a line each: the file and line of the $INCLUDE, the name as written and what to do, separated by tabs ("" when every include was found). |
 | `ExampleCopy` (read-only) | string |  | What the last ExampleToOpen did: "made" (it copied the example now), "kept" (it gave the copy that was there, as the user left it) or "" (the example itself). |
-| `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder (as RapidQ's include folder), for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
+| `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
 
 | Method | |
 |---|---|
@@ -5571,7 +5571,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `OpenFolder(Folder AS STRING) AS INTEGER` | Opens the project of a folder: its .rrproj, else its main source (main.rr / main.bas, the one named as the folder, the one with a form). True when it opened. |
 | `Save([Path AS STRING]) AS INTEGER` | Writes the project file (a source file's project becomes <Folder>/<Name>.rrproj, or Path), each source file's kind as its code says (FollowCode). True when it was written. |
 | `FollowCode AS STRING` | The files' kinds as their code says now (forms come from the code: a source or include that creates a form at its top level is a form file, one that no longer does a module or include again), read from the files as saved; not written until Save. The files whose kind changed, a line each: the path and its new kind, tab-separated ("" when none did). |
-| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns RapidQ compatibility on) and <Name>.rrproj written in Folder. On a computer without Rust (see RustReady) the new project's BuildKind is "interpreted", the build that works there. |
+| `New(Template AS STRING, Name AS STRING, Folder AS STRING) AS INTEGER` | A new project from a template ("console", "gui", "rapidq", "data" or "mdi"): the main file (main.rr, or main.bas for "rapidq", which also turns the classic-compatibility checks on) and <Name>.rrproj written in Folder. On a computer without Rust (see RustReady) the new project's BuildKind is "interpreted", the build that works there. |
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file (its kind from its name and code — a file that creates a form is a form file —, or Kind: module, form, include, resource, asset, data). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the file itself stays). True when it was in it. |
 | `Close` | No project is open any more. |
@@ -5593,8 +5593,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `Replace(Pattern AS STRING, Options AS STRING, Text AS STRING, With AS STRING) AS STRING` | Text with every match of Pattern (Find's Options) replaced by With; in a regular expression's replacement $1 or ${name} stand for its groups. |
 | `MacKeys AS INTEGER` | True when the keyboard is a Mac's: Cmd is the shortcut key and Option with an arrow moves by words in text (RapidR Studio on macOS, or Studio's page in a browser on a Mac). Studio's Navigate Back and Forward are Cmd+Option+Left and Right there, so Option+Left still moves by words; elsewhere Alt+Left and Alt+Right. |
 | `FilesIn(Folder AS STRING) AS STRING` | The text files under Folder, at any depth, a line each (full paths, sorted): hidden folders, build and target folders, and pictures, sounds, videos, fonts, archives and programs left out; at most 2,000. Search's "A folder" scope reads them (the disk on the desktop, the page's store on the web). |
-| `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
-| `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`; "formmdi": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
+| `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as older programs wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
+| `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`; "formmdi": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with the classic names or the project is classic-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
 | `IncludeRenameEdit(MainText AS STRING, OldPath AS STRING, NewPath AS STRING) AS STRING` | The main program's `$INCLUDE` of project file OldPath changed to name NewPath (the file renamed or moved), as one RCODEEDITOR.ApplyPatches line: only the path is replaced; "" when MainText doesn't include it. |
 | `IncludeRemoveEdit(MainText AS STRING, Path AS STRING) AS STRING` | The main program's `$INCLUDE` line of project file Path taken out (the file taken out of the project), as one RCODEEDITOR.ApplyPatches line; "" when MainText doesn't include it. |
 | `IncludeEdit(MainText AS STRING, Path AS STRING) AS STRING` | The `$INCLUDE` the main program (its text: MainText) needs for project file Path, as one RCODEEDITOR.ApplyPatches line (after its last $INCLUDE, else after its opening directives, else before its first statement; the path relative to the main file's folder); "" when it includes it already. |
@@ -5612,7 +5612,7 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 
 | Property | Type | Default | |
 |---|---|---|---|
-| `CompatMode` | string |  | "rapidq": RapidR's extensions are reported, as in a RapidQ-compatible project. |
+| `CompatMode` | string |  | "rapidq": RapidR's extensions are reported, as in a project kept classic-compatible. |
 | `ErrorCount` (read-only) | int |  | How many errors the last Diagnostics or ProjectDiagnostics found. |
 | `Project` | string |  | The open project's main file ("" for none). A file it includes — a module, a form's file, at any depth — is then analysed as part of its program, open or not, never alone: no errors in a module that compiles with its project. The code editors' help follows it too. |
 | `Targets` | string |  | Where the program runs: "desktop", "web" or "both" (the default without a project). What works on one runtime only is noted when the program runs on the other — in Diagnostics at each use, in ProjectDiagnostics once per component with how many uses. |
@@ -5623,9 +5623,9 @@ RapidR's language service, the one rapidr lsp and the VS Code extension use: a B
 | `Update(File AS STRING, Text AS STRING)` | A file's text as the editor has it (saved or not). |
 | `Close(File AS STRING)` | Forgets the editor's text of a file: it is read from its file again. |
 | `Outline(File AS STRING) AS STRING` | The file's outline, a line per item: depth, kind (sub, function, type, field, method, event, component, constant, variable, label), name, detail, line (from 1), separated by tabs. |
-| `Help(Word AS STRING, [OfType AS STRING]) AS STRING` | The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, RapidQ's default, RapidQ's or RapidR's, where it runs), what it does, then a component's members. "" when the word isn't known. |
+| `Help(Word AS STRING, [OfType AS STRING]) AS STRING` | The language's entry for a word (a component, a function, a statement, a keyword, a constant, a global object; with OfType, a member of that component type), a part a line: its title, its syntax, what it is (kind, type, default, where it runs), what it does, then a component's members. "" when the word isn't known. |
 | `HelpPage(Word AS STRING, [OfType AS STRING], [File AS STRING], [Line AS INTEGER], [Column AS INTEGER], [CanInsert AS INTEGER]) AS STRING` | The Help pane's page for a word, as Markdown (what RMARKDOWNVIEW shows): a first line of what the pane needs besides the page — the kind of page (start, entry, mine, none), the syntax Insert types (its line breaks as CHR$(13)), the file a name of the program is declared in, its line and the column of its name there (both from 1) — tab-separated, then the page: the title, what it is, the syntax, what it does, a component's properties, methods and events each name a link (help:Word@Type). With File and the caret's Line and Column (from 1) the program's own names are answered too: a variable, a constant, a SUB, a component of the form — its declaration, where it is, its uses, then the help of its type — and a member after a dot is the one of what is before it (Hello.Font.Color: RFont's Color). Word alone with File: the program's name of that name. Without a word: the start page. CanInsert (1): the page offers Insert (the syntax typed into the code). |
-| `HelpFind(Query AS STRING, [File AS STRING]) AS STRING` | The names Query may mean, best first, a line each — the name, what it is, separated by tabs: the program's own names (File's program: your variable, your SUB …) and the language's (components under RapidR's names, RapidQ's finding them too; functions, statements, keywords, types, directives, global objects and, from two letters on, constants). A name that starts with Query comes before one that has it inside; when none does, the names it is close to. At most 12. |
+| `HelpFind(Query AS STRING, [File AS STRING]) AS STRING` | The names Query may mean, best first, a line each — the name, what it is, separated by tabs: the program's own names (File's program: your variable, your SUB …) and the language's (components under RapidR's names, the classic names finding them too; functions, statements, keywords, types, directives, global objects and, from two letters on, constants). A name that starts with Query comes before one that has it inside; when none does, the names it is close to. At most 12. |
 | `Diagnostics(File AS STRING) AS STRING` | The file's errors and warnings, a line each: severity (error, warning, note), line, column (from 1), message, file, separated by tabs. |
 | `ProjectDiagnostics AS STRING` | The open project's problems (Project: its main file), as RapidR Studio's Problems pane lists them: the program compiled whole, as a build compiles it (a module is never checked alone), the registry's word on the project's own files, and what works on one runtime only — when Targets reach the other — once per component or builtin with how many uses. Grouped by file, the files with errors first; in a file errors, then warnings, then notes. The same fields as Diagnostics, a line each; "" with no project. |
 
@@ -5641,7 +5641,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `Debug` | bool | True | Run under the debugger: breakpoints stop it, stepping works. |
 | `BreakOnError` | bool | False | Stop at the statement of a run-time error (StopReason "exception", StopMessage the error). |
 | `StopOnEntry` | bool | False | Stop at the program's first statement when it starts. |
-| `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it as RapidQ drew it. |
+| `Theme` | string |  | The look the program is drawn in when it names none (any name `$THEME` takes; "" its default, RapidR's look): `classic` previews it in the classic look. |
 | `State` (read-only) | string |  | "stopped", "running" or "paused". |
 | `CurrentFile` (read-only) | string |  | Where the program is paused: its file. |
 | `CurrentLine` (read-only) | int |  | Where the program is paused: its line (from 1; 0 when not paused). |
@@ -5711,7 +5711,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ProjectFiles` | string |  | The project's files, a line each, relative to ProjectFolder (what list_files gives the model). |
 | `MainFile` | string |  | The project's main file, relative to ProjectFolder. |
 | `ProjectName` | string |  | The project's name, as the model is told it. |
-| `CompatMode` | string |  | "rapidq" for a RapidQ-compatible project: the model is told to write only what RapidQ's own compiler takes. |
+| `CompatMode` | string |  | "rapidq" for a project kept classic-compatible: the model is told to write only the classic language. |
 | `Permission` | string | `"propose"` | What the model may do: "propose" (read the project and propose changes, shown as diffs the user decides on) or "read-only" (read and answer; the proposing tools aren't offered). |
 | `ProposalCount` (read-only) | int |  | How many proposals there are: the changes to files that wait for the user's decision (proposed in the last answer or an earlier one; one whose file the user changed meanwhile is set aside at the next question, said), or a new project's files. |
 | `ReviewFirst` | bool | False | True: a new program waits to be previewed and created (RapidR Studio's "Ask before the assistant creates or changes files"); False: the program creates it as the answer ends, and the model is told so. |
@@ -5806,7 +5806,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `HelpJump(JumpID AS STRING)` *(not yet)* | Opens the program's help file at the topic `JumpID`. |
 | `Minimize` | Minimizes the program's windows. |
 | `Terminate` | Ends it: stops the thread, or ends the program. |
-| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a RapidQ colour (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
+| `ThemeColor(Name AS STRING) AS LONG` *(RapidR)* | A colour of the current theme by name, as a colour value (&HBBGGRR): the theme's own ("face", "window", "accent" …) and an IDE's ("toolbar", "statusbar", "statusbar.running", "page.link", "editor.keyword", the debugger's "debug.number", "debug.string", "debug.changed" …); -1 for a name no theme has. The colour of the look now: read it again in OnThemeChange, when the look changes. |
 | `SendKeys(Keys AS STRING) AS INTEGER` *(RapidR)* | Sends keystrokes to the program's own frontmost window, as if typed: one per turn of the event loop, through the same keyboard path as the user's keys (focus, shortcuts, OnKeyDown / OnKeyPress). The classic SendKeys notation: + Shift, ^ Ctrl, % Alt (for the next key or a group in parentheses), ~ Enter, {TAB}, {ENTER}, {BS}, {DEL}, {ESC}, {UP}, {DOWN}, {LEFT}, {RIGHT}, {HOME}, {END}, {PGUP}, {PGDN}, {INS}, {F1} to {F16}, {+} {^} {%} {~} {(} {)} {{} {}} for those characters, {KEY n} for n presses. False, and nothing sent, when Keys is malformed. |
 | `Announce(Text AS STRING, [Assertive AS INTEGER])` *(RapidR)* | Has the system's screen reader say Text without moving the focus: politely, when they have finished what they are saying — or at once, interrupting, when Assertive is True (keep that for what can't wait: an error, a lost connection). For news the person didn't ask for: a search's result, a new card in a feed, a finished download. The same text said again is said again. On the desktop through the focused window's live regions (AccessKit), on the web through the page's aria-live region; with no screen reader on, nothing happens. |
 | `GetPriority` *(not yet)* | Returns the program's process priority. |

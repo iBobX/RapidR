@@ -72,7 +72,7 @@ CREATE SettingsDialog AS RForm
     END CREATE
     CREATE IncFoldersNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Where $INCLUDE looks after the program's own folder, in this order (as RapidQ's include folder): add the folder that holds your RapidQ includes (WINDOWS.INC, RAPIDQ2.INC, your libraries). RAPIDQ.INC needs none: RapidR has it built in."
+      Caption = "Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in."
     END CREATE
     CREATE IncFolders AS RListBox
       AccessibleName = "Include folders"

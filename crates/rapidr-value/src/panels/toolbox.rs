@@ -244,18 +244,13 @@ pub fn doc_match(filter: &str, type_name: &str) -> bool {
     q.iter().all(|w| words.iter().any(|x| x.starts_with(w.as_str())))
 }
 
-/// An item's card (its tooltip): what it is in a sentence, its RapidQ
-/// name (or that it is RapidR's own), where it runs.
+/// An item's card (its tooltip): what it is in a sentence, where it runs.
 pub fn card(key: &Key) -> String {
     let Key::Component(t) = key else { return String::new() };
     let Some(c) = rapidr_lang::component(t) else { return String::new() };
-    let from = match c.rapidq {
-        Some(q) => format!("RapidQ name: {q}"),
-        None => "RapidR's own".to_string(),
-    };
     let runs = match c.runtimes {
-        rapidr_lang::Runtimes::Desktop => ", desktop only",
-        rapidr_lang::Runtimes::Web => ", web only",
+        rapidr_lang::Runtimes::Desktop => " (desktop only)",
+        rapidr_lang::Runtimes::Web => " (web only)",
         _ => "",
     };
     // (a form is a document: the toolbox adds a form file for it)
@@ -264,7 +259,7 @@ pub fn card(key: &Key) -> String {
         "RFORMMDI" => " Click or double-click: a new MDI main window file of the program.",
         _ => "",
     };
-    format!("{} - {} ({from}{runs}){does}", c.spelling(), description(t))
+    format!("{} - {}{runs}{does}", c.spelling(), description(t))
 }
 
 impl Toolbox {
@@ -779,8 +774,8 @@ mod tests {
         // writes it in its file's own style)
         assert_eq!(Toolbox::written(&Key::Component("RBUTTON".into())), "RButton");
         assert!(card(&Key::Component("RBUTTON".into())).starts_with("RButton - "));
-        assert!(card(&Key::Component("RBUTTON".into())).contains("(RapidQ name: QBUTTON)"));
-        assert!(card(&Key::Component("RPLOT".into())).contains("(RapidR's own"));
+        assert!(!card(&Key::Component("RBUTTON".into())).contains("RapidQ"));
+        assert!(!card(&Key::Component("RPLOT".into())).contains("RapidQ"));
         assert_eq!(t.key_of("qbutton"), Some(Key::Component("RBUTTON".into())));
         assert_eq!(t.key_of("RBUTTON"), Some(Key::Component("RBUTTON".into())));
     }
