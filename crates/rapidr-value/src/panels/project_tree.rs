@@ -238,6 +238,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
         "showforms" => m(&|t| basic_bool(t.show_forms)),
         "showcomponents" => m(&|t| basic_bool(t.show_components)),
         "selected" => m(&|t| Value::String(ProjectTree::public(&t.selected))),
+        "selectedkind" => m(&|t| Value::String(ProjectTree::kind_of_key(&t.selected).into())),
         "filecount" => m(&|t| int(t.project.file_count() as i64)),
         "modified" => m(&|t| basic_bool(t.modified)),
         _ => return None,

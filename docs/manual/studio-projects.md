@@ -94,9 +94,43 @@ To start somewhere else, use the other items on the page as usual.
 You can turn the offer off in **Tools > Settings > General**: clear
 **Offer to reopen the last project and its files at start-up**.
 
+## Project properties
+
+Select the project's name, the top row of the **Project** pane, and the
+**Properties** pane shows the project: "RenMany  Project" in its header,
+then its settings in groups, with what each one does under the rows (select
+a row to read it). Select a form or a component again and it shows that
+instead.
+
+![The Project pane with the project's name selected, and the Properties pane showing the project: Theme set to RapidR Dark, the form in the designer drawn dark while Studio is light](images/studio-projects/project-properties.png)
+
+- **Theme** (Appearance) is the look your program's windows are drawn in:
+  **RapidR** follows the system (light, dark or high contrast), **RapidR
+  Light**, **RapidR Dark** and **RapidR High Contrast** choose one, and
+  **Classic** is the Windows look. The program keeps it in one line at the
+  top of its main file, `$THEME RapidR Dark` (none for **RapidR**), so the
+  choice travels with the code: the row puts the line in, changes it or
+  takes it out as one step you can undo in that file's editor, and the file
+  shows as changed until you save it. The form designer draws your form in
+  a look you choose at once, whatever look Studio itself has (**View >
+  Theme**), the way the program will look when it runs; with **RapidR** it
+  shows the form in Studio's own look. Edit the `$THEME` line by hand and
+  the designer and the row follow.
+- **Name**, **MainFile** and **Targets** (General): the project's name (its
+  files keep theirs), the file the program starts from, and where it runs
+  (see below).
+- **Arguments** (Run): the command-line arguments **Run** gives the program,
+  what `COMMAND$` reads. A "quoted" one keeps its spaces.
+- **Grid**, **Snap** and **Guides** (Designer): the form designer's grid in
+  pixels, snapping to it, and the alignment guides.
+
+Each change but Theme is saved to the project file (`.rrproj`) at once; the
+Output says so.
+
 ## Targets: where your program runs
 
-**Project > Project Options** has a **Targets** choice: **Desktop** (the
+**Project > Project Options** has a **Targets** choice (the project's
+properties have it too, as **Targets**): **Desktop** (the
 default), **Web**, or **Desktop and web**. It says where your program is
 meant to run, and Studio keeps it in the project file:
 

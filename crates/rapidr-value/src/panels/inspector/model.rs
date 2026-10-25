@@ -97,6 +97,8 @@ pub struct Custom {
     /// What it was given (its default: dimmed while it has it).
     pub default: Value,
     pub category: String,
+    /// What it is, in words: the footer's text while its row is selected.
+    pub doc: String,
 }
 
 /// What a row is.

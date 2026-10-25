@@ -54,6 +54,13 @@ SCENES = [
         "why": "the designer on live data (a grid and a chart read from a CSV), a component selected, its anchor pins (filled where anchored)",
     },
     {
+        "name": "project-properties",
+        "open": "tests/fixtures/studio_projprops/RenMany.rrproj",
+        "do": "wait,view.designer,project:select,prop:Theme=RapidR Dark,row:Theme,wait",
+        "delay": 7,
+        "why": "the project's name selected in the Project pane: the project's properties (Theme with its description, name, main file, targets, arguments, the designer's grid), and the form in the designer drawn in the look the Theme row chose — dark — whatever look Studio has",
+    },
+    {
         "name": "designer-handles",
         "open": "examples/rapidq/notepad.bas",
         "do": "view.designer,designer.place.QBUTTON",

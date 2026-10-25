@@ -51,7 +51,10 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
     let l = c.l;
     p.fill(g.header, l.chrome);
     let objects = &m.snap.objects;
+    // (the program's own properties with a heading of their own: a project's)
+    let head = (objects.is_empty() && !m.heading.0.is_empty()).then_some(&m.heading);
     let (title, kind) = match objects.len() {
+        0 if head.is_some() => (m.heading.0.clone(), m.heading.1.clone()),
         0 if m.snap.props.is_empty() => ("No selection".to_string(), String::new()),
         0 => ("Properties".to_string(), String::new()),
         1 => (objects[0].0.clone(), objects[0].1.clone()),
@@ -69,15 +72,19 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
         p.text((r.0 + 6, r.1, r.2 - 8, r.3), &common::elide(&text, &b, r.2 - 8), &b, l.text, Place::Left);
         return;
     }
-    let icon = if objects.len() == 1 { kind.clone() } else { "select-all".to_string() };
+    let icon = match head {
+        Some(h) => h.2.clone(),
+        None if objects.len() == 1 => kind.clone(),
+        None => "select-all".to_string(),
+    };
     let mut tx = x + 10;
-    if !objects.is_empty() && common::icon(p, &icon, x + 10, y + (h - 16) / 2, 16, None, !c.enabled) {
+    if (head.is_some() || !objects.is_empty()) && !icon.is_empty() && common::icon(p, &icon, x + 10, y + (h - 16) / 2, 16, None, !c.enabled) {
         tx = x + 32;
     }
     let b = bold(c.font);
     let (tw, _) = text_size(&title, &b);
     let room = w - (tx - x) - 8;
-    p.text((tx, y, room, h), &common::elide(&title, &b, room), &b, if objects.is_empty() { l.dim } else { l.text }, Place::Left);
+    p.text((tx, y, room, h), &common::elide(&title, &b, room), &b, if objects.is_empty() && head.is_none() { l.dim } else { l.text }, Place::Left);
     if !kind.is_empty() && tw + 8 < room {
         let kx = tx + tw + 8;
         let space = x + w - kx - 6;

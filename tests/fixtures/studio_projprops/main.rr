@@ -1,0 +1,39 @@
+' main.rr: the project-properties test of RapidR Studio (tests/studio_flows.mjs):
+' a small form and a module, no look named yet.
+$APPTYPE GUI
+$INCLUDE "helpers.rr"
+
+CREATE Form1 AS RForm
+    Caption = "RenMany"
+    Width = 360
+    Height = 200
+    Center
+    CREATE Greeting AS RLabel
+        Caption = "Rename many files at once"
+        Left = 16: Top = 16
+    END CREATE
+    CREATE NameEdit AS REdit
+        Text = "holiday-*.jpg"
+        Left = 16: Top = 44: Width = 200
+    END CREATE
+    CREATE GoBtn AS RButton
+        Caption = "&Rename"
+        Left = 228: Top = 42: Width = 96
+        OnClick = GoClicked
+    END CREATE
+    CREATE KeepBox AS RCheckBox
+        Caption = "Keep a copy"
+        Left = 16: Top = 80: Width = 160
+        Checked = 1
+    END CREATE
+    CREATE Result AS RLabel
+        Caption = "Nothing renamed yet."
+        Left = 16: Top = 116: Width = 308
+    END CREATE
+END CREATE
+
+SUB GoClicked
+    Result.Caption = Describe(NameEdit.Text)
+END SUB
+
+Form1.ShowModal

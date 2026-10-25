@@ -19,6 +19,9 @@
 //! | `FileName`, `Folder`, `Kind` (`project`, `file`, `v1`, "" none), `Error` | read-only |
 //! | `Name`, `MainFile`, `CompatMode` (`"rapidq"` or "") | read / write |
 //! | `Targets` | where the program runs: `desktop`, `web` or `both` (`[build] runs_on`; unset: `both` when it builds a web app too, else `desktop`) — the Problems pane's portability notes follow it |
+//! | `RunArgs` | the arguments Run gives the program, one string (`[run] args`) |
+//! | `DesignerGrid`, `DesignerSnap`, `DesignerGuides` | the form designer's grid step, snapping to it, alignment guides (`[designer]`; 8, True, True unless the project says) |
+//! | `ThemeOf(MainText)` → look, `ThemeEdit(MainText, Look)` → patch | the look the main program names with `$THEME` (RapidR, RapidR Light, RapidR Dark, RapidR High Contrast, Classic), and the one-line edit that makes it name another: Studio's project properties keep the look in the program, not the project file |
 //! | `MacKeys` → True / False | the keyboard is a Mac's: Cmd is the shortcut key, Option+arrows move by words (the desktop on macOS, a page on a Mac) |
 //! | `FilesIn(Folder)` → text | the text files under Folder, a line each (full paths; hidden folders, `build`, `target` and pictures, sounds, archives left out; at most 2,000): Search's "A folder" scope |
 //! | `FileCount` | read-only |
@@ -97,6 +100,10 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "targets" => Value::String(m.project.build.runs_on_or_default().to_string()),
             "outputfolder" => Value::String(m.project.build.output.clone()),
             "keeprust" => flag(m.project.build.keep_rust),
+            "runargs" => Value::String(join_args(&m.project.run.args)),
+            "designergrid" => Value::Integer(i64::from(m.project.designer.grid)),
+            "designersnap" => flag(m.project.designer.snap),
+            "designerguides" => flag(m.project.designer.guides),
             "building" => flag(crate::build::building(name)),
             "builtpath" => Value::String(m.built.clone()),
             "importsummary" => Value::String(imported(name).0),
@@ -109,6 +116,31 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             _ => return None,
         })
     })
+}
+
+/// A True / False however a program writes it.
+fn truth(v: &Value) -> bool {
+    v.to_i64() != 0 || matches!(v.to_string_val().trim().to_ascii_lowercase().as_str(), "true" | "yes" | "on")
+}
+
+/// The arguments as one string: spaces between them, "quoted" when one has
+/// a space (what [`crate::session::split_args`] reads back).
+fn join_args(args: &[String]) -> String {
+    args.iter().map(|a| if a.is_empty() || a.contains(' ') { format!("\"{a}\"") } else { a.clone() }).collect::<Vec<_>>().join(" ")
+}
+
+/// The look a `$THEME` name asks for, as RapidR Studio names the looks.
+fn look_label(name: &str) -> &'static str {
+    use rapidr_value::theme::{choose, Choice};
+    match choose(name) {
+        Choice::Theme(t) => match t.name {
+            "rapidr light" => "RapidR Light",
+            "rapidr dark" => "RapidR Dark",
+            "rapidr high contrast" => "RapidR High Contrast",
+            _ => "Classic",
+        },
+        _ => "RapidR",
+    }
 }
 
 /// `native` (compiled with Rust) or `interpreted` (the runner and the
@@ -140,6 +172,10 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "company" => m.project.build.company = v.to_string_val().trim().to_string(),
             "outputfolder" => m.project.build.output = project_path(&m.folder, v.to_string_val().trim()),
             "keeprust" => m.project.build.keep_rust = v.to_i64() != 0 || v.to_string_val().eq_ignore_ascii_case("true"),
+            "runargs" => m.project.run.args = crate::session::split_args(&v.to_string_val()),
+            "designergrid" => m.project.designer.grid = v.to_i64().clamp(1, 64) as u32,
+            "designersnap" => m.project.designer.snap = truth(v),
+            "designerguides" => m.project.designer.guides = truth(v),
             "buildkind" => set_build_kind(&mut m.project, v.to_string_val().trim().eq_ignore_ascii_case("interpreted")),
             "targets" => {
                 let t = v.to_string_val().trim().to_ascii_lowercase();
@@ -776,6 +812,21 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         // IncludeRenameEdit(MainText, OldPath, NewPath): the main program's
         // $INCLUDE of a file renamed or moved, following it ("" none)
         "includerenameedit" => Value::String(with(name, |m| include_rename_edit(m, &s(0), &s(1), &s(2)))),
+        // ThemeOf(MainText): the look the main program names; ThemeEdit(
+        // MainText, Look): the edit that makes it name Look ("" none)
+        "themeof" => Value::String(look_label(&rapidr_project::forms::theme_of(&s(0))).to_string()),
+        "themeedit" => {
+            let (text, want) = (s(0), look_label(&s(1)));
+            // (the line says the look as RapidR spells it; RapidR's default is no line)
+            if look_label(&rapidr_project::forms::theme_of(&text)) == want {
+                return Some(Value::String(String::new()));
+            }
+            let named = if want == "RapidR" { "" } else { want };
+            Value::String(match rapidr_project::forms::theme_edit(&text, named) {
+                Some((a, b, c, d, t)) => format!("{a}	{b}	{c}	{d}	{}", patch_escaped(&t)),
+                None => String::new(),
+            })
+        }
         // IncludeRemoveEdit(MainText, Path): its $INCLUDE line taken out ("" none)
         "includeremoveedit" => Value::String(with(name, |m| match rapidr_project::forms::include_line(&s(0), &from_main(m, &s(1))) {
             Some(line) => format!("{line}\t0\t{}\t0\t", line + 1),
@@ -914,6 +965,16 @@ fn files_in<H: Host>(host: H, folder: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The looks `$THEME` names, as Studio's project properties name them.
+    #[test]
+    fn the_looks_are_named_as_studio_names_them() {
+        for (written, label) in [("", "RapidR"), ("rapidr", "RapidR"), ("RapidR Light", "RapidR Light"), ("modern", "RapidR Light"), ("Dark", "RapidR Dark"), ("rapidr high contrast", "RapidR High Contrast"), ("Win98", "Classic"), ("nonsense", "RapidR")] {
+            assert_eq!(look_label(written), label, "{written:?}");
+        }
+        assert_eq!(join_args(&["--dry".into(), "a b".into()]), "--dry \"a b\"");
+        assert_eq!(crate::session::split_args(&join_args(&["--dry".into(), "a b".into()])), ["--dry", "a b"]);
+    }
 
     /// New Project's default folder is never inside an installed RapidR
     /// (the final audit: it was the app bundle's, /usr/lib/rapidr's).

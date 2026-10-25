@@ -833,10 +833,7 @@ impl ComponentKind for Design {
         };
         // (in the look the surface's Theme names — Studio's "Preview in
         // classic" — else the surface's own)
-        let preview = with_design(cx.id, |d| d.theme.clone()).filter(|n| !n.trim().is_empty()).and_then(|n| match rapidr_value::theme::choose(&n) {
-            rapidr_value::theme::Choice::Theme(t) => Some(t),
-            _ => None,
-        });
+        let preview = with_design(cx.id, |d| d.preview_theme()).flatten();
         let (ix, iy) = crate::frame::inset(shown.border, true);
         let (cix, ciy) = shown.inset;
         let surface = cx.id.to_string();

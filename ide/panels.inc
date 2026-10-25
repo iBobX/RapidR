@@ -217,6 +217,12 @@ END SUB
 ' (the file's other form designed when it's one of its: S1).
 SUB ProjectNodeSelect(Path AS STRING)
   DIM d AS INTEGER
+  ' (the project's name: the Properties pane shows the project)
+  IF ProjectTree.SelectedKind = "project" THEN
+    ShowProjectInspector
+    EXIT SUB
+  END IF
+  IF ProjectInspecting THEN LeaveProjectInspector
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   d = DocOf(ProjectPath(Path))
   IF d < 0 THEN EXIT SUB
@@ -496,6 +502,12 @@ END SUB
 SUB InspectActive
   DIM d AS INTEGER
   RefreshQuickOpen
+  ' (the project's properties stay while the project's name is selected;
+  ' they follow what changed)
+  IF ProjectInspecting THEN
+    FillProjectInspector
+    EXIT SUB
+  END IF
   d = ActiveDesign
   IF d >= 0 THEN
     Inspector.Designer = DesignDoc(d)
@@ -509,11 +521,252 @@ END SUB
 
 SUB InspectorChanged(Prop AS STRING, Value AS STRING)
   DIM d AS INTEGER
+  ' (the project's: panels.inc below)
+  IF ProjectInspecting THEN
+    ProjectPropChanged Prop, Value
+    EXIT SUB
+  END IF
   d = ActiveDesign
   IF d < 0 THEN EXIT SUB
   ' (an RAI's key, its provider: ai.inc — a key is never shown)
   IF DesignAIChanged(Prop, Value) THEN EXIT SUB
   SetState RunState, Inspector.Target + "." + Prop + " = " + Value
+END SUB
+
+' ---- the project's properties ----------------------------------------------------
+' The project's name at the top of the Project pane, selected, shows the
+' project in the Properties pane: its look (Theme: the main program's
+' $THEME line, which the designer draws the program in whatever look Studio
+' has), its name, main file and targets, how Run starts it, and the form
+' designer's grid. A change is saved to the project file (as Project
+' Options does); the look is an edit of the main file, one undo step in its
+' editor.
+
+' (the looks $THEME names, as Studio names them)
+CONST LOOKS = "RapidR|RapidR Light|RapidR Dark|RapidR High Contrast|Classic"
+
+SUB ShowProjectInspector
+  IF ProjectOpen = 0 THEN EXIT SUB
+  ProjectInspecting = 1
+  ProjectInspSig = ""
+  ProjectKeepDoc = 0
+  Inspector.Designer = ""
+  Inspector.Target = ""
+  Inspector.Page = "properties"
+  Inspector.ShowEvents = 0
+  FillProjectInspector
+  Dock.PaneTitle("inspector", "Properties")
+END SUB
+
+' The component inspector again (a form, a component or a file selected).
+SUB LeaveProjectInspector
+  IF ProjectInspecting = 0 THEN EXIT SUB
+  ProjectInspecting = 0
+  ProjectInspSig = ""
+  ProjectKeepDoc = 0
+  Inspector.ClearProperties
+  Inspector.SetHeading "", ""
+  Inspector.ShowEvents = 1
+  InspectActive
+END SUB
+
+' (what each row says: the description under the rows)
+FUNCTION TargetsMask(Where AS STRING) AS STRING
+  SELECT CASE Where
+    CASE "web": Result = "web"
+    CASE "both": Result = "desktop, web"
+    CASE ELSE: Result = "desktop"
+  END SELECT
+END FUNCTION
+
+' The rows, read from the project (and the look from the main file) again;
+' nothing is done when nothing they show changed.
+SUB FillProjectInspector
+  DIM i AS INTEGER, files AS STRING, kind AS STRING, sig AS STRING, look AS STRING
+  IF ProjectOpen = 0 THEN EXIT SUB
+  look = ProgramLook
+  IF look = "" THEN look = "RapidR"
+  FOR i = 0 TO Proj.FileCount - 1
+    kind = Proj.FileKind(i)
+    IF kind = "module" OR kind = "form" OR kind = "include" THEN files = files + Proj.File(i) + CHR$(10)
+  NEXT
+  sig = Proj.Name + "|" + look + "|" + Proj.MainFile + "|" + Proj.Targets + "|" + Proj.RunArgs + "|" + Num(Proj.DesignerGrid) + "|" + Num(Proj.DesignerSnap) + "|" + Num(Proj.DesignerGuides) + "|" + files
+  IF sig = ProjectInspSig THEN EXIT SUB
+  ProjectInspSig = sig
+  Inspector.ClearProperties
+  Inspector.SetHeading Proj.Name, "Project", "project"
+  Inspector.AddProperty "Theme", LOOKS, look, "Appearance", "The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too).", "RapidR"
+  Inspector.AddProperty "Name", "string", Proj.Name, "General", "The project's name, as the Project pane and the window's title show it. Its files keep their names.", ""
+  Inspector.AddProperty "MainFile", "string", Proj.MainFile, "General", "The file the program starts from: Run, Build and the checks begin there.", ""
+  Inspector.SetChoices "MainFile", files
+  Inspector.AddProperty "Targets", "set:desktop|web", TargetsMask(Proj.Targets), "General", "Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other.", "desktop"
+  Inspector.AddProperty "Arguments", "string", Proj.RunArgs, "Run", "The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a " + CHR$(34) + "quoted" + CHR$(34) + " one keeps its spaces.", ""
+  Inspector.AddProperty "Grid", "int", Num(Proj.DesignerGrid), "Designer", "The form designer's grid, in pixels: what Snap snaps to.", "8"
+  Inspector.AddProperty "Snap", "bool", IIF(Proj.DesignerSnap, "True", "False"), "Designer", "The form designer snaps what you move or size to the grid.", "True"
+  Inspector.AddProperty "Guides", "bool", IIF(Proj.DesignerGuides, "True", "False"), "Designer", "The form designer shows alignment guides and snaps to them.", "True"
+END SUB
+
+' A row of the project's changed (the user's, or a test step's).
+SUB ProjectPropChanged(Prop AS STRING, Value AS STRING)
+  DIM v AS STRING, k AS STRING, ok AS INTEGER, g AS INTEGER, where AS STRING
+  v = TRIM$(Unquote(Value))
+  k = LCASE$(Prop)
+  ok = 1
+  SELECT CASE k
+    CASE "theme"
+      SetProgramLook v
+    CASE "name"
+      IF v = "" THEN
+        SetState "error", "A project needs a name"
+        ok = 0
+      ELSE
+        Proj.Name = v
+        ProjectName = v
+        SaveProjectFile
+        ' (the Project pane's top row says it; its selection stays)
+        FillProjectTree
+        ProjectTree.Selected = "@project"
+        UpdateTitle
+        AIProjectChanged
+      END IF
+    CASE "mainfile"
+      IF InStrList(v, Proj.MainFile) = 0 AND FileInProject(v) = 0 THEN
+        SetState "error", v + " is not one of the project's source files"
+        ok = 0
+      ELSE
+        Proj.MainFile = v
+        ProjectMain = Proj.Folder
+        IF ProjectMain <> "" THEN ProjectMain = ProjectMain + "/"
+        ProjectMain = ProjectMain + Proj.MainFile
+        Lang.Project = ProjectMain
+        SaveProjectFile
+        FillProjectTree
+        ProjectTree.Selected = "@project"
+        ' (the new main file names its own look)
+        RefreshProgramLook 1
+        AnalyzeActive
+      END IF
+    CASE "targets"
+      v = LCASE$(v)
+      IF INSTR(v, "web") > 0 AND INSTR(v, "desktop") > 0 THEN
+        where = "both"
+      ELSEIF INSTR(v, "web") > 0 THEN
+        where = "web"
+      ELSE
+        where = "desktop"
+      END IF
+      Proj.Targets = where
+      Lang.Targets = where
+      SaveProjectFile
+      AnalyzeActive
+    CASE "arguments"
+      Proj.RunArgs = v
+      Session.Args = Proj.RunArgs
+      SaveProjectFile
+    CASE "grid"
+      g = VAL(v)
+      IF g < 1 OR g > 64 THEN
+        SetState "error", "The grid is 1 to 64 pixels"
+        ok = 0
+      ELSE
+        Proj.DesignerGrid = g
+        ApplyDesignerSettings
+        SaveProjectFile
+      END IF
+    CASE "snap"
+      Proj.DesignerSnap = Flag(LCASE$(v) = "true" OR v = "-1" OR v = "1")
+      ApplyDesignerSettings
+      SaveProjectFile
+    CASE "guides"
+      Proj.DesignerGuides = Flag(LCASE$(v) = "true" OR v = "-1" OR v = "1")
+      ApplyDesignerSettings
+      SaveProjectFile
+    CASE ELSE
+      ok = 0
+  END SELECT
+  ' (the rows say what the project has now: a refused value is put back)
+  ProjectInspSig = ""
+  FillProjectInspector
+END SUB
+
+' (the grid, snapping and guides of every form designer)
+SUB ApplyDesignerSettings
+  DIM d AS INTEGER
+  FOR d = 0 TO MAXDOCS
+    DesignDoc(d).GridSize = Proj.DesignerGrid
+    DesignDoc(d).SnapToGrid = Proj.DesignerSnap
+    DesignDoc(d).ShowGuides = Proj.DesignerGuides
+  NEXT
+END SUB
+
+' (Item is one of the lines of List, a line each)
+FUNCTION InStrList(Item AS STRING, Current AS STRING) AS INTEGER
+  Result = Flag(LCASE$(Item) = LCASE$(Current))
+END FUNCTION
+
+' (a source file of the project: the main file's choices)
+FUNCTION FileInProject(Path AS STRING) AS INTEGER
+  DIM i AS INTEGER, kind AS STRING
+  FOR i = 0 TO Proj.FileCount - 1
+    kind = Proj.FileKind(i)
+    IF (kind = "module" OR kind = "form" OR kind = "include") AND LCASE$(Proj.File(i)) = LCASE$(Path) THEN
+      Result = 1
+      EXIT FUNCTION
+    END IF
+  NEXT
+END FUNCTION
+
+' The program's look, as its main file names it ($THEME): the designers
+' draw in it. ReadDisk: read the file when its editor isn't open (a new
+' project, another main file); else only an open editor is looked at.
+SUB RefreshProgramLook(ReadDisk AS INTEGER)
+  DIM dm AS INTEGER, look AS STRING, t AS STRING
+  IF ProjectOpen = 0 THEN
+    look = ""
+  ELSE
+    dm = DocOf(ProjectMain)
+    IF dm >= 0 THEN
+      t = CodeDoc(dm).Text
+    ELSEIF ReadDisk THEN
+      t = Proj.FileText(ProjectMain)
+    ELSE
+      EXIT SUB
+    END IF
+    look = Proj.ThemeOf(t)
+  END IF
+  IF look = ProgramLook THEN EXIT SUB
+  ProgramLook = look
+  DesignPreviewTheme DesignTheme
+END SUB
+
+' Theme chosen in the project's properties: the main program names the
+' look ($THEME at the top of the main file, none for RapidR's own — one
+' undo step in its editor, opened if it isn't), and the designers draw it.
+SUB SetProgramLook(Look AS STRING)
+  DIM dm AS INTEGER, mainText AS STRING, patch AS STRING
+  IF ProjectOpen = 0 THEN EXIT SUB
+  dm = DocOf(ProjectMain)
+  IF dm >= 0 THEN mainText = CodeDoc(dm).Text ELSE mainText = Proj.FileText(ProjectMain)
+  patch = Proj.ThemeEdit(mainText, Look)
+  IF patch <> "" THEN
+    IF dm < 0 THEN
+      ' (its editor opens; the project's properties stay)
+      ProjectOpening = 1
+      OpenDocument ProjectMain
+      ProjectOpening = 0
+      dm = DocOf(ProjectMain)
+      ProjectKeepDoc = dm + 1
+    END IF
+    IF dm < 0 THEN EXIT SUB
+    CodeDoc(dm).ApplyPatches patch, 0
+    ProjectFileChanged dm
+    IF Look = "RapidR" THEN
+      OutputLine "Theme: the $THEME line is out of " + FileTitle(ProjectMain) + ": the program follows the system"
+    ELSE
+      OutputLine "Theme: " + FileTitle(ProjectMain) + " says $THEME " + Look
+    END IF
+  END IF
+  RefreshProgramLook 1
 END SUB
 
 ' An event's row double-clicked: its SUB — found, or written with the
@@ -666,6 +919,7 @@ END SUB
 '   page:<properties|events>, filter:<text>  the inspector's page, its search
 '   reset:<Prop>         the inspector's row put back to its default
 '   row:<Prop>           the inspector's row selected, as clicked
+'   project:select       the project's name selected in the Project pane, as clicked
 '   event:<OnX>          an event's row double-clicked
 '   focus:<pane>         Dock.FocusPane
 '   search:<text>        the toolbox's search box
@@ -693,6 +947,10 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       IF k > 1 THEN
         IF Inspector.SetValue(LEFT$(arg, k - 1), MID$(arg, k + 1)) = 0 THEN OutputLine "(" + Stp + ": refused)"
       END IF
+    CASE "project"
+      ' (project:select: the project's name selected, as a click on it)
+      ProjectTree.Selected = "@project"
+      ProjectNodeSelect ""
     CASE "page": Inspector.Page = arg
     CASE "reset": Inspector.ResetValue arg
     CASE "row"

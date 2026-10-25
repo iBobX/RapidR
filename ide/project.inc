@@ -29,6 +29,7 @@ SUB OpenProject(Path AS STRING)
   END IF
   ' (the project open now keeps its breakpoints and watches: debug.inc)
   IF ProjectOpen THEN SaveSettings
+  LeaveProjectInspector
   IF Proj.Open(p) = 0 THEN
     ' (a Markdown file — a README, a report — opens on its own, in Preview:
     ' markdown.inc)
@@ -53,6 +54,10 @@ SUB OpenProject(Path AS STRING)
   ' works on one runtime only is noted when the project runs on the other)
   Lang.Project = ProjectMain
   Lang.Targets = Proj.Targets
+  Session.Args = Proj.RunArgs
+  ' (the look the main program names: the designers draw in it)
+  RefreshProgramLook 1
+  ApplyDesignerSettings
   ' (the project's include files read for the language service: on the web
   ' they are in the page's store, not on a disk it could read)
   FOR i = 0 TO Proj.FileCount - 1
@@ -132,9 +137,11 @@ END SUB
 SUB CloseProject
   StopProgram
   CloseAllDocuments
+  LeaveProjectInspector
   Proj.Close
   Lang.Project = ""
   ProjectOpen = 0
+  RefreshProgramLook 0
   ProjectName = ""
   ExampleOriginal = ""
   FillProjectTree

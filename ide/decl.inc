@@ -128,6 +128,20 @@ DECLARE SUB ToolboxSelect(TypeName AS STRING)
 DECLARE SUB ToolboxDragStart(TypeName AS STRING)
 DECLARE SUB ToolboxDrop(TypeName AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER)
 DECLARE SUB InspectorChanged(Prop AS STRING, Value AS STRING)
+' (the project's properties in the Properties pane: panels.inc)
+DIM ProjectInspecting AS INTEGER
+DIM ProjectInspSig AS STRING
+' (the main file's document the look was just written into, plus one:
+' opened for it, it is the active tab but the project's properties stay)
+DIM ProjectKeepDoc AS INTEGER
+' (while that document opens: its tab and its designer say nothing yet)
+DIM ProjectOpening AS INTEGER
+DECLARE SUB ShowProjectInspector
+DECLARE SUB LeaveProjectInspector
+DECLARE SUB FillProjectInspector
+DECLARE SUB ProjectPropChanged(Prop AS STRING, Value AS STRING)
+DECLARE SUB RefreshProgramLook(ReadDisk AS INTEGER)
+DECLARE SUB ApplyDesignerSettings
 DECLARE SUB InspectorEvent(EventName AS STRING)
 DECLARE SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB DesignSelected(Index AS INTEGER)

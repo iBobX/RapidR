@@ -106,7 +106,7 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
             default: values::normalize(&c.kind, &c.default),
             is_default: false,
             custom: true,
-            doc: String::new(),
+            doc: c.doc.clone(),
             parts: Vec::new(),
         };
         if c.kind == Kind::Font {

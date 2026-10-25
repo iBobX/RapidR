@@ -1,0 +1,13 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "RenMany"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "helpers.rr"
+kind = "module"
