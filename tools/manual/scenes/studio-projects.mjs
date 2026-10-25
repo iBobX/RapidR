@@ -64,6 +64,19 @@ export const scenes = [
     delay: 5,
     window: 2,
   },
+  // The project's name selected at the top of the Project pane: the project's
+  // properties in the Properties pane, Theme set to RapidR Dark (the main
+  // file says so, and the form in the designer is dark; Studio stays light)
+  {
+    name: "project-properties",
+    setup: (work, root) => {
+      cpSync(join(root, "tests/fixtures/studio_projprops"), join(work, "Projects/RenMany"), { recursive: true });
+      return { open: "Projects/RenMany/RenMany.rrproj", cwd: work, env: { HOME: work } };
+    },
+    do: "wait,view.designer,project:select,prop:Theme=RapidR Dark,row:Theme,wait",
+    delay: 6,
+    crop: [0, 68, 1280, 502],
+  },
   // (S5) Project > Project Options: Targets, Web picked (what it means under it)
   {
     name: "targets",

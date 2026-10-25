@@ -56,6 +56,9 @@ pub struct Inspector {
     pub name_width: i64,
     /// AddProperty's.
     pub custom: Vec<Custom>,
+    /// SetHeading's: what the header says while no components are inspected
+    /// (the program's own properties): (title, what it is, its icon).
+    pub heading: (String, String, String),
     /// SetChoices': a property's choices from the program (lower-case
     /// name, the choices), over the registry's.
     pub choices: Vec<(String, Vec<String>)>,
@@ -85,6 +88,7 @@ impl Default for Inspector {
             handlers: String::new(),
             name_width: 120,
             custom: Vec::new(),
+            heading: Default::default(),
             choices: Vec::new(),
             notes: Vec::new(),
             notes_for: Vec::new(),
@@ -614,15 +618,22 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         "addproperty" => {
             let kind = Kind::named(&text(1));
             let value = values::parse(&kind, &text(2)).unwrap_or_else(|_| v_str(&text(2)));
+            // (a sixth argument: the default it is dimmed at, else its value now)
+            let default = if args.len() > 5 { values::parse(&kind, &text(5)).unwrap_or_else(|_| v_str(&text(5))) } else { value.clone() };
             with_mut(name, |m| {
                 m.custom.retain(|c| !c.name.eq_ignore_ascii_case(&text(0)));
-                m.custom.push(Custom { name: text(0), kind, default: value.clone(), value, category: text(3) });
+                m.custom.push(Custom { name: text(0), kind, default, value, category: text(3), doc: text(4) });
             });
             refresh(&rt, name);
             Value::Null
         }
         "clearproperties" => {
             with_mut(name, |m| m.custom.clear());
+            refresh(&rt, name);
+            Value::Null
+        }
+        "setheading" => {
+            with_mut(name, |m| m.heading = (text(0), text(1), text(2)));
             refresh(&rt, name);
             Value::Null
         }

@@ -2182,6 +2182,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `Visible` | bool |  | Whether the control or form is shown. |
 | `FormCaption` | string |  | The caption of the form being designed. |
 | `Theme` | string |  | The look the designed form is drawn in (any name `$THEME` takes; "": the surface's own): `classic` shows it as RapidQ drew it. |
+| `ShownTheme` (read-only) | string |  | The look the form is drawn in now, by name (`rapidr`, `rapidr dark`, `rapidr high contrast`, `classic`): what Theme asks for, else the surface's own. |
 | `FormType` (read-only) | string |  | The designed form's type as its CREATE writes it (`RForm`, `QFORMMDI` …); "" when there is no form. |
 | `ReservedNames` | string |  | Names the program's other files give their components, separated by commas: a component or form added here is never named one of them (a RapidQ program's component names are global — Form1's Button1 and Form2's would clash). |
 | `Parent` | component |  | The component it sits in (a form, panel, tab control …) or belongs to. |
@@ -5155,7 +5156,8 @@ An object inspector: the properties of a component (or of every component a desi
 | `ResetValue(Prop AS STRING)` | Puts a property back to its default value. |
 | `IsDefault(Prop AS STRING) AS INTEGER` | True when a property has its default value. |
 | `EditValue(Prop AS STRING)` | Selects a property's row and starts its editor, as a double click would. |
-| `AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING])` | Shows a property of the program's own (an object the registry doesn't know): Type is "int", "float", "string", "bool", "color", "file", "picture", "strings" (a line per row), "columns", "component", a list of constants separated by "\|" (one of them) or "set:" and flags separated by "\|" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it ("Misc" when left out). Its changes come to OnPropertyChange only. |
+| `AddProperty(Name AS STRING, Type AS STRING, Value AS STRING, [Category AS STRING], [Doc AS STRING], [Default AS STRING])` | Shows a property of the program's own (an object the registry doesn't know): Type is "int", "float", "string", "bool", "color", "file", "picture", "strings" (a line per row), "columns", "component", a list of constants separated by "\|" (one of them) or "set:" and flags separated by "\|" (any of them). Value is its value now, and its default (shown dimmed while it has it); Category groups it ("Misc" when left out). Doc is what the description under the rows says while its row is selected; Default, when given, is the value it is shown dimmed at (else Value, the value now). Its changes come to OnPropertyChange only. |
+| `SetHeading(Title AS STRING, Kind AS STRING, [Icon AS STRING])` | What the header says while the inspector shows only the program's own properties (AddProperty) and no component: Title in bold, Kind after it, and the icon named Icon before them (RapidR Studio's project properties: the project's name, "Project"). "" as Title takes it away. |
 | `ClearProperties` | Removes the properties AddProperty gave. |
 | `SetChoices(Prop AS STRING, Choices AS STRING)` | Offers a text property's values from a dropped list (a line each; any text can still be typed): RapidR Studio gives an RAI's Model the provider's models. A choice starting with "↻ " is an action: picking it fires OnEditorRequest(Prop) instead of setting the value. Choices "" goes back to the registry's. |
 | `SetNote(Prop AS STRING, Note AS STRING)` | A line shown above a property's description while its row is selected ("Loading the models…", why a key was refused); "" removes it. |
@@ -5233,7 +5235,8 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `ShowFiles` | bool | True | Whether the files are shown (grouped by kind). |
 | `ShowForms` | bool | True | Whether forms are shown with the components their CREATE blocks make. |
 | `ShowComponents` | bool | True | Whether a form's components are listed under it. |
-| `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group. |
+| `Selected` | string | `""` | The selected node: a file's path, `path#Component` for a form's component, a folder's path ending in `/`, "" for the project or a group (SelectedKind says which). Setting it to `@project` selects the project's own row. |
+| `SelectedKind` (read-only) | string |  | What the selected node is: "project" (the project's name at the top), "group", "folder", "file", "component" or "" for none. |
 | `FileCount` (read-only) | int |  | How many files the project has. |
 | `EmptyText` | string | `""` | What it says while no project is shown ("No project" when empty): what to do, such as "Open a project or a file". |
 | `Modified` | bool |  | The project changed since it was read or saved. |
@@ -5564,6 +5567,10 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `ImportMissing` (read-only) | string |  | The include files the last ImportRapidQ found nowhere, a line each: the file and line of the $INCLUDE, the name as written and what to do, separated by tabs ("" when every include was found). |
 | `ExampleCopy` (read-only) | string |  | What the last ExampleToOpen did: "made" (it copied the example now), "kept" (it gave the copy that was there, as the user left it) or "" (the example itself). |
 | `IncludeFolders` | string |  | The include folders, a line each: where $INCLUDE looks after the program's own folder (as RapidQ's include folder), for every program Open, Run, Build and ImportRapidQ compile — RapidR Studio's Settings > Include folders. Programs run from here get them too. |
+| `RunArgs` | string |  | The arguments Run gives the program (what COMMAND$ reads), one string: spaces separate them, a "quoted" one keeps its spaces (`[run] args` in the project file). Set it, then Save. |
+| `DesignerGrid` | int |  | The form designer's grid step in pixels (`[designer] grid`, 8 unless the project says): what Snap snaps to. Set it, then Save. |
+| `DesignerSnap` | int |  | True (the default): the form designer snaps what is moved or sized to the grid (`[designer] snap`). Set it, then Save. |
+| `DesignerGuides` | int |  | True (the default): the form designer shows alignment guides and snaps to them (`[designer] guides`). Set it, then Save. |
 
 | Method | |
 |---|---|
@@ -5596,6 +5603,8 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `FileText(Path AS STRING) AS STRING` | A file's text (UTF-8, or a byte a character as RapidQ wrote it), from the disk on the desktop and the page's store on the web; Error says why when it can't be read. |
 | `NewFileText(Path AS STRING, Kind AS STRING, MainText AS STRING) AS STRING` | The text a new project file starts with (Project > Add Form / Add Module): for Kind "form" a form named as the file (`CREATE Form2 AS RForm`; "formmdi": an MDI main window, `RFormMDI`; or QFORM when MainText — the main program — is written with RapidQ's names or the project is RapidQ-compatible) with its Caption and size; for "module" a comment naming it; "" for other kinds. Line ends as MainText's. |
 | `IncludeRenameEdit(MainText AS STRING, OldPath AS STRING, NewPath AS STRING) AS STRING` | The main program's `$INCLUDE` of project file OldPath changed to name NewPath (the file renamed or moved), as one RCODEEDITOR.ApplyPatches line: only the path is replaced; "" when MainText doesn't include it. |
+| `ThemeOf(MainText AS STRING) AS STRING` | The look the main program (its text: MainText) names with `$THEME`, as RapidR names the looks: "RapidR" (no `$THEME`: as the system is), "RapidR Light", "RapidR Dark", "RapidR High Contrast" or "Classic" (the older names too: `Dark`, `Win98` …). |
+| `ThemeEdit(MainText AS STRING, Look AS STRING) AS STRING` | The edit that makes the main program (its text: MainText) name look Look ("RapidR", "RapidR Light", "RapidR Dark", "RapidR High Contrast", "Classic") with `$THEME`, as one RCODEEDITOR.ApplyPatches line: its `$THEME` line changed, taken out for "RapidR" (the default says nothing), or put in after the opening directives, before its `$INCLUDE`s; "" when it names that look already. |
 | `IncludeRemoveEdit(MainText AS STRING, Path AS STRING) AS STRING` | The main program's `$INCLUDE` line of project file Path taken out (the file taken out of the project), as one RCODEEDITOR.ApplyPatches line; "" when MainText doesn't include it. |
 | `IncludeEdit(MainText AS STRING, Path AS STRING) AS STRING` | The `$INCLUDE` the main program (its text: MainText) needs for project file Path, as one RCODEEDITOR.ApplyPatches line (after its last $INCLUDE, else after its opening directives, else before its first statement; the path relative to the main file's folder); "" when it includes it already. |
 

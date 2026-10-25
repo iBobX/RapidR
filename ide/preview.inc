@@ -7,6 +7,11 @@
 ' other settings.
 
 DIM PreviewClassic AS INTEGER
+' The look the main program names with $THEME, as the designer draws it
+' ("" while no project is open; "RapidR" follows the system): the designer
+' previews the program, so a look the program names it keeps whatever look
+' Studio has.
+DIM ProgramLook AS STRING
 
 ' (the command, beside the themes in the View menu; DefineCommands)
 SUB DefinePreviewCommands
@@ -29,12 +34,20 @@ FUNCTION PreviewTheme AS STRING
   IF PreviewClassic THEN Result = "classic" ELSE Result = ""
 END FUNCTION
 
+' The look the form designer draws in: RapidQ's while the preview is on,
+' else the look the main program names ($THEME) — whatever look Studio has
+' itself —, and when it names none (RapidR: as the system is) Studio's own,
+' which follows the system unless View > Theme chose another.
+FUNCTION DesignTheme AS STRING
+  IF PreviewClassic THEN Result = "classic" ELSE Result = ProgramLook
+END FUNCTION
+
 ' The setting applied: the next Run's look, the designer's, the menu's
 ' check mark and the tool bar button's state.
 SUB ApplyPreview
   DIM i AS INTEGER
   Session.Theme = PreviewTheme
-  DesignPreviewTheme PreviewTheme
+  DesignPreviewTheme DesignTheme
   CheckCmd "view.previewClassic", PreviewClassic
   i = CmdIndex("view.previewClassic")
   IF i >= 0 THEN

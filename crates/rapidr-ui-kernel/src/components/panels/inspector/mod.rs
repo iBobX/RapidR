@@ -1065,6 +1065,7 @@ impl ComponentKind for Inspector {
         let v = view(cx, classic());
         if n.name.is_empty() {
             n.name = match v.m.snap.objects.as_slice() {
+                [] if !v.m.heading.0.is_empty() => format!("Properties of {} ({})", v.m.heading.0, v.m.heading.1),
                 [] => "Properties".into(),
                 [(name, ty)] => format!("Properties of {name} ({})", rapidr_value::panels::inspector::type_label(ty, false)),
                 more => format!("Properties of {} components", more.len()),

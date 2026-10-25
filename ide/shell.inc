@@ -225,6 +225,15 @@ SUB DocumentActivated(Name AS STRING)
   d = DocOfPane(Name)
   IF d >= 0 THEN ActiveDoc = d
   IF ActiveDoc <> was THEN
+    ' (another tab: its form's properties — but not the main file the project's
+    ' look was just written into)
+    IF ProjectInspecting AND ProjectOpening = 0 THEN
+      IF ProjectKeepDoc > 0 AND ActiveDoc = ProjectKeepDoc - 1 THEN
+        ProjectKeepDoc = 0
+      ELSE
+        LeaveProjectInspector
+      END IF
+    END IF
     AnalyzeActive
     DesignNames ActiveDoc
   END IF

@@ -196,6 +196,8 @@ SUB AnalyzeActive
   END IF
   FillOutline d
   FillProblems d
+  ' ($THEME edited by hand in the main file: the designer follows)
+  RefreshProgramLook 0
   ' (S-PANELS: the inspector follows the active form's designer)
   InspectActive
   ' (a Markdown file's outline: its headings — markdown.inc)
@@ -285,7 +287,11 @@ SUB OpenDocument(Path AS STRING)
   DesignDoc(d).OnDblClick = DesignDblClick
   DesignRead d
   DocHasForm(d) = Flag(DesignDoc(d).FormName <> "")
-  DesignDoc(d).Theme = PreviewTheme
+  DesignDoc(d).Theme = DesignTheme
+  ' (the project's designer settings)
+  DesignDoc(d).GridSize = Proj.DesignerGrid
+  DesignDoc(d).SnapToGrid = Proj.DesignerSnap
+  DesignDoc(d).ShowGuides = Proj.DesignerGuides
   ' (a Markdown file: shown formatted too — markdown.inc)
   DocIsMd(d) = IsMarkdownFile(Path)
   OpenMarkdown d

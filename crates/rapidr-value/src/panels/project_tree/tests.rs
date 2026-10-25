@@ -99,6 +99,11 @@ fn reveal_opens_what_is_above() {
     let folder = t.key_of("data/").unwrap();
     assert_eq!(ProjectTree::public(&folder), "data/");
     assert_eq!(ProjectTree::public(KEY_PROJECT), "");
+    // (what a selected node is: the project's own row shows the project's properties)
+    assert_eq!(t.key_of("@project").as_deref(), Some(KEY_PROJECT));
+    for (k, want) in [(KEY_PROJECT, "project"), (key.as_str(), "component"), (folder.as_str(), "folder"), ("@group/form", "group"), ("main.rr", "file"), ("", "")] {
+        assert_eq!(ProjectTree::kind_of_key(k), want, "{k}");
+    }
     t.open_all(true);
     assert!(shown(&t).iter().all(|r| !r.ends_with('+')));
 }

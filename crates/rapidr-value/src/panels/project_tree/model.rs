@@ -812,6 +812,10 @@ impl ProjectTree {
     /// folder's `path/`): its key.
     pub fn key_of(&self, public: &str) -> Option<String> {
         let p = public.trim().replace('\\', "/");
+        // (the project's own row)
+        if p == KEY_PROJECT && self.loaded {
+            return Some(KEY_PROJECT.to_string());
+        }
         if let Some((file, name)) = p.split_once('#') {
             let f = self.file(file)?;
             let cs = self.comps.get(&f.path.to_lowercase())?;
@@ -823,6 +827,19 @@ impl ProjectTree {
             return Some(folder_key(f.kind, &f.path[..p.len()]));
         }
         self.file(&p).map(|f| f.path.clone())
+    }
+
+    /// What node `key` is: `project`, `group`, `folder`, `component`, `file`
+    /// ("" for none).
+    pub fn kind_of_key(key: &str) -> &'static str {
+        match key {
+            "" => "",
+            KEY_PROJECT => "project",
+            k if k.starts_with("@group/") => "group",
+            k if k.starts_with("@folder/") => "folder",
+            k if k.contains('#') => "component",
+            _ => "file",
+        }
     }
 
     /// Node `key` as the program sees it.

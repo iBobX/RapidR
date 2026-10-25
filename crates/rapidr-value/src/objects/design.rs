@@ -2293,12 +2293,24 @@ impl DesignSurface {
         self.drag.as_ref().is_some_and(|g| g.moved)
     }
 
+    /// The look the designed form is drawn in when its Theme names one (a
+    /// theme by name: whatever look the tool showing the surface has);
+    /// `None`: the surface's own — Theme "", `rapidr` (RapidR's look as the
+    /// system is, which the tool's own follows) or a name no theme has.
+    pub fn preview_theme(&self) -> Option<&'static crate::theme::Theme> {
+        match crate::theme::choose(&self.theme) {
+            crate::theme::Choice::Theme(t) if !self.theme.trim().is_empty() => Some(t),
+            _ => None,
+        }
+    }
+
     /// A property (`None`: not the surface's; the runtime keeps it).
     pub fn get(&self, prop: &str) -> Option<Value> {
         Some(match prop {
             "compcount" | "count" => v_int(self.ids().len() as i64),
             "formcaption" => v_str(&self.form_caption),
             "theme" => v_str(&self.theme),
+            "showntheme" => v_str(self.preview_theme().unwrap_or_else(crate::theme::current).name),
             "reservednames" => v_str(&self.reserved.join(",")),
             "selcount" => v_int(self.designer.selection.len() as i64),
             "selindex" => v_int(self.selection().map_or(-1, |i| i as i64)),

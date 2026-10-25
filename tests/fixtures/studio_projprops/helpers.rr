@@ -1,0 +1,5 @@
+' helpers.rr: what main.rr shares.
+
+FUNCTION Describe(Pattern AS STRING) AS STRING
+    Result = "Would rename the files named " + Pattern
+END FUNCTION

@@ -99,6 +99,10 @@ SUB DesignPicked(Index AS INTEGER, Sender AS RDesignSurface)
   DIM d AS INTEGER
   d = Sender.Tag
   IF d < 0 OR d >= DocCount THEN EXIT SUB
+  ' (a component picked in a designer: its properties, not the project's)
+  IF ProjectInspecting AND ProjectOpening = 0 THEN
+    IF ProjectKeepDoc = 0 OR d <> ProjectKeepDoc - 1 THEN LeaveProjectInspector
+  END IF
   IF DocKind(d) <> "design" THEN
     DocKind(d) = "design"
     UpdateCommands

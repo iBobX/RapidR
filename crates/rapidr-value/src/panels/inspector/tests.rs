@@ -245,7 +245,7 @@ fn the_programs_own_properties() {
             "addproperty" => {
                 let kind = Kind::named(&args[1].to_string_val());
                 let value = values::parse(&kind, &args[2].to_string_val()).unwrap();
-                with_mut("own", |x| x.custom.push(Custom { name: args[0].to_string_val(), kind, default: value.clone(), value, category: args.get(3).map(|v| v.to_string_val()).unwrap_or_default() }));
+                with_mut("own", |x| x.custom.push(Custom { name: args[0].to_string_val(), kind, default: value.clone(), value, category: args.get(3).map(|v| v.to_string_val()).unwrap_or_default(), doc: String::new() }));
                 refresh(&host, "own");
             }
             _ => unreachable!(),

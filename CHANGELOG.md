@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Project properties in Studio:** select the project's name at the top of the Project pane and the Properties pane shows the project (Theme, Name, MainFile, Targets, Arguments, the designer's Grid, Snap and Guides). Theme is the `$THEME` line of the main file, changed as one undo step in its editor, and the form designer draws the program in that look at once, whatever look Studio itself has (RPROJECT: RunArgs, DesignerGrid, DesignerSnap, DesignerGuides, ThemeOf, ThemeEdit; RPROJECTTREE.SelectedKind; RPROPERTYINSPECTOR.SetHeading; RDESIGNSURFACE.ShownTheme).
+
 ## [2.121.2] — 2026-10-25 (RAI finishes the job, and shows its work)
 
 ### RAI finishes the job

@@ -162,6 +162,92 @@ pub fn include_line(main: &str, file: &str) -> Option<usize> {
     main.lines().position(|line| include_targets(line).iter().any(|t| norm(t) == want))
 }
 
+/// Whether `line` is a `$THEME` directive (`$THEME name`, any case); the
+/// text after it, inline comment and quotes taken off.
+fn theme_directive(line: &str) -> Option<String> {
+    let t = line.trim_start();
+    t.get(..6).filter(|h| h.eq_ignore_ascii_case("$THEME"))?;
+    let after = &t[6..];
+    // ($THEMES, $THEMEX … are other words)
+    if after.chars().next().is_some_and(|c| !c.is_whitespace() && c != '\'') {
+        return None;
+    }
+    let name = after.split('\'').next().unwrap_or("").trim().trim_matches('"').trim();
+    Some(name.to_string())
+}
+
+/// The line (from 0) of the `$THEME` the program ends up with — the last
+/// one, which is the one that runs last — and the name it gives (as
+/// written, "" when it names none).
+pub fn theme_line(main: &str) -> Option<(usize, String)> {
+    main.lines().enumerate().filter_map(|(i, l)| theme_directive(l).map(|n| (i, n))).last()
+}
+
+/// The look the main program names: its `$THEME` line's name as written
+/// ("" when it has none: RapidR's look as the system is).
+pub fn theme_of(main: &str) -> String {
+    theme_line(main).map(|(_, n)| n).unwrap_or_default()
+}
+
+/// One edit of a text: from (line, column) to (line, column), both from 0
+/// in characters, replaced by `text`.
+pub type Edit = (usize, usize, usize, usize, String);
+
+/// The edit that makes the main program's look `name` ("" for RapidR's
+/// default, which a program says by saying nothing): its `$THEME` line
+/// changed in place, taken out for the default, or — when it has none —
+/// inserted where the program's header ends (after `$APPTYPE` and the
+/// directives like it, before the `$INCLUDE`s that make its forms; else
+/// before its first statement). `None` when the text is that already.
+pub fn theme_edit(main: &str, name: &str) -> Option<Edit> {
+    let name = name.trim();
+    let eol = line_end(main);
+    match theme_line(main) {
+        Some((i, written)) => {
+            if written == name {
+                return None;
+            }
+            if name.is_empty() {
+                return Some((i, 0, i + 1, 0, String::new()));
+            }
+            let line = main.lines().nth(i).unwrap_or("");
+            let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+            Some((i, indent, i, line.chars().count(), format!("$THEME {name}")))
+        }
+        None if name.is_empty() => None,
+        None => {
+            let lines: Vec<&str> = main.lines().collect();
+            let comment = |l: &str| {
+                let t = l.trim_start();
+                t.starts_with('\'') || t.get(..4).is_some_and(|h| h.eq_ignore_ascii_case("REM ")) || t.eq_ignore_ascii_case("REM")
+            };
+            let word = |l: &str| l.trim_start().split_whitespace().next().unwrap_or("").to_ascii_uppercase();
+            let (mut after_directive, mut first_include, mut first_statement) = (None, None, lines.len());
+            for (i, l) in lines.iter().enumerate() {
+                if l.trim().is_empty() || comment(l) {
+                    continue;
+                }
+                let w = word(l);
+                if w == "$INCLUDE" {
+                    first_include.get_or_insert(i);
+                    continue;
+                }
+                if w.starts_with('$') && !matches!(w.as_str(), "$IF" | "$IFDEF" | "$IFNDEF" | "$ELSE" | "$ELSEIF" | "$ENDIF" | "$END") && first_include.is_none() {
+                    after_directive = Some(i + 1);
+                    continue;
+                }
+                first_statement = i;
+                break;
+            }
+            let at = after_directive.or(first_include).unwrap_or(first_statement);
+            // (nothing after the last line's end: a line of its own)
+            let text = if at >= lines.len() && !(main.is_empty() || main.ends_with('\n')) { format!("{eol}$THEME {name}{eol}") } else { format!("$THEME {name}{eol}") };
+            let at = at.min(lines.len());
+            Some((at, 0, at, 0, text))
+        }
+    }
+}
+
 /// `main` with `$INCLUDE "file"` inserted ([`include_insertion`]).
 pub fn with_include(main: &str, file: &str) -> String {
     let Some((at, text)) = include_insertion(main, file) else { return main.to_string() };
@@ -208,6 +294,50 @@ mod tests {
         // empty, or only comments
         assert_eq!(with_include("", "F.rr"), "$INCLUDE \"F.rr\"\n");
         assert_eq!(with_include("' nothing yet", "F.rr"), "' nothing yet\n$INCLUDE \"F.rr\"\n");
+    }
+
+    /// Applies an [`Edit`] to a text (lines and columns in characters).
+    fn applied(text: &str, e: Option<Edit>) -> String {
+        let Some((sl, sc, el, ec, t)) = e else { return text.to_string() };
+        let lines: Vec<&str> = text.split_inclusive('\n').collect();
+        let offset = |l: usize, c: usize| -> usize {
+            if l >= lines.len() {
+                return text.len();
+            }
+            let before: usize = lines[..l].iter().map(|x| x.len()).sum();
+            before + lines[l].char_indices().nth(c).map_or(lines[l].len(), |(b, _)| b)
+        };
+        let (a, b) = (offset(sl, sc), offset(el, ec));
+        format!("{}{}{}", &text[..a], t, &text[b..])
+    }
+
+    #[test]
+    fn the_program_names_its_look_in_one_line() {
+        let gui = "' my app\n$APPTYPE GUI\n$INCLUDE \"Form2.rr\"\n\nCREATE Form1 AS RForm\nEND CREATE\n";
+        assert_eq!(theme_of(gui), "");
+        // inserted after the header's directives, before the includes
+        let dark = applied(gui, theme_edit(gui, "RapidR Dark"));
+        assert_eq!(dark, "' my app\n$APPTYPE GUI\n$THEME RapidR Dark\n$INCLUDE \"Form2.rr\"\n\nCREATE Form1 AS RForm\nEND CREATE\n");
+        assert_eq!(theme_of(&dark), "RapidR Dark");
+        // changed in place, the same twice is nothing
+        let light = applied(&dark, theme_edit(&dark, "RapidR Light"));
+        assert_eq!(light, dark.replace("Dark", "Light"));
+        assert_eq!(theme_edit(&light, "RapidR Light"), None);
+        // the default is no line: back to exactly the first text
+        assert_eq!(applied(&dark, theme_edit(&dark, "")), gui);
+        assert_eq!(theme_edit(gui, ""), None);
+        // without a directive: before the first statement; the line ends the file uses
+        let plain = "' hi\r\nCREATE F AS RForm\r\nEND CREATE\r\n";
+        let t = applied(plain, theme_edit(plain, "Classic"));
+        assert_eq!(t, "' hi\r\n$THEME Classic\r\nCREATE F AS RForm\r\nEND CREATE\r\n");
+        assert_eq!(applied(&t, theme_edit(&t, "")), plain);
+        // nothing, or comments with no end of line
+        assert_eq!(applied("", theme_edit("", "Classic")), "$THEME Classic\n");
+        assert_eq!(applied("' x", theme_edit("' x", "Classic")), "' x\n$THEME Classic\n");
+        // as written: quotes, a comment, any case, indentation; the last one wins
+        assert_eq!(theme_of("  $theme \"Dark\" ' night\n"), "Dark");
+        assert_eq!(theme_of("$THEMES x\n$THEME a\n$THEME b\n"), "b");
+        assert_eq!(applied("  $theme dark ' night\n", theme_edit("  $theme dark ' night\n", "Classic")), "  $THEME Classic\n");
     }
 
     #[test]

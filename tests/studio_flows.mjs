@@ -46,6 +46,8 @@ const PROBLEM_FILES = ["Problems.rrproj", "main.rr", "a.rr", "b.rr", "net.rr"].m
 const SHELF_FILES = ["Shelf.rrproj", "main.rr", "globals.rr", "store.rr", "ui.rr", "lists.rr", "prices.rr", "report.rr"].map((f) => `tests/fixtures/studio_forms/${f}`);
 // (WEB-OPEN: a project of three files, three forms in ui.rr, a desktop-only component)
 const WEB_OPEN_FILES = ["Kiosk.rrproj", "main.rr", "globals.rr", "ui.rr"];
+// (PROJECT-PROPS: two files, a form and a module; the main file names no look)
+const PROJPROPS_FILES = ["RenMany.rrproj", "main.rr", "helpers.rr"].map((f) => `tests/fixtures/studio_projprops/${f}`);
 // (I8) The AI assistant's cases talk to a mock provider in a process of its
 // own (tests/ai_mock_server.mjs: both wire formats, scripted answers, no
 // key, no network, no cost): {mock} in a case's steps is its base URL,
@@ -1340,6 +1342,186 @@ const CASES = [
       "codedoc(0).text": /    CREATE AddBtn AS RButton\n        Caption = "&Add to shelf": Left = 314: Top = 252\n        OnClick = AddItem\n        Default = 1\n        Color = clRed\n/,
       "inspector.rows": /^Default=True$[\s\S]*^Width=75$/m,
     },
+  },
+  // (PROJECT-PROPS) The project's name at the top of the Project pane,
+  // selected: the Properties pane shows the project — "RenMany  Project" in
+  // its header, its look (Theme), name, main file and targets, how Run
+  // starts it, the form designer's grid —, in every look of Studio.
+  {
+    name: "project-props",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^$/,
+      "inspector.rows": /^\[Appearance\]\nTheme=RapidR\n\[Designer\]\nGrid=8\nGuides=True\nSnap=True\n\[General\]\nMainFile=main\.rr\nName=RenMany\nTargets=desktop\n\[Run\]\nArguments=$/,
+      "projecttree.selectedkind": /^project$/,
+    },
+    // (a screen reader: "RenMany, project" selected in the Project pane; the
+    // inspector's rows are rows like a component's, each with its value)
+    a11y: [
+      [/^RenMany$/, "treeitem", "selected", (n) => n.description === "project"],
+      ["Theme", "row", null, (n) => n.value === "RapidR"],
+      ["MainFile", "row", null, (n) => n.value === "main.rr"],
+    ],
+  },
+  // …a row selected shows what it does under the rows
+  {
+    name: "project-props-doc",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,row:Theme,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "inspector.selected": /^Theme$/,
+      "inspector.doc": /^The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic\. It is the \$THEME line at the top of the main file/,
+    },
+  },
+  // Theme set to RapidR Dark with Studio light: the main file says it — one
+  // line after $APPTYPE, before the includes, its tab marked changed — and
+  // the designer draws the form dark; Studio stays light. The search finds
+  // the row.
+  {
+    name: "project-theme-dark",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,prop:Theme=RapidR Dark,wait,wait",
+    delay: 7,
+    capture: true,
+    dump: {
+      "application.theme": /^rapidr light$/,
+      "designdoc(0).showntheme": /^rapidr dark$/,
+      "codedoc(0).text": /\$APPTYPE GUI\n\$THEME RapidR Dark\n\$INCLUDE "helpers\.rr"\n/,
+      "codedoc(0).modified": /^(1|True|-1)$/i,
+      "inspector.rows": /^\[Appearance\]\nTheme=RapidR Dark\n/,
+      "inspector.target": /^$/,
+    },
+  },
+  // …and with Studio dark: a look the project names is the designer's whatever
+  // Studio has (RapidR Light on a dark Studio); naming none (RapidR), the
+  // designer shows Studio's own look
+  {
+    name: "project-theme-light-while-studio-dark",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    theme: "rapidr-dark",
+    do: "wait,view.designer,wait,project:select,prop:Theme=RapidR Light,wait,wait",
+    delay: 7,
+    capture: true,
+    dump: { "application.theme": /^rapidr dark$/, "designdoc(0).showntheme": /^rapidr light$/, "inspector.rows": /^\[Appearance\]\nTheme=RapidR Light\n/ },
+  },
+  {
+    name: "project-theme-rapidr-in-studio-dark",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    theme: "rapidr-dark",
+    do: "wait,view.designer,wait",
+    delay: 6,
+    dump: { "application.theme": /^rapidr dark$/, "designdoc(0).showntheme": /^rapidr dark$/ },
+  },
+  // Theme back to RapidR: the line is gone, the text exactly the first
+  // (one Undo each way too); Studio's own look untouched
+  {
+    name: "project-theme-back",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,prop:Theme=RapidR Dark,wait,prop:Theme=RapidR,wait,wait",
+    delay: 7,
+    dump: {
+      "application.theme": /^rapidr light$/,
+      "designdoc(0).showntheme": /^rapidr light$/,
+      "codedoc(0).text": /^[^$]*\$APPTYPE GUI\n\$INCLUDE "helpers\.rr"\n/,
+      "inspector.rows": /^\[Appearance\]\nTheme=RapidR\n/,
+    },
+    same: { "codedoc(0).text": "tests/fixtures/studio_projprops/main.rr" },
+  },
+  // …Undo takes the line out again, as one step: the designer, the project's
+  // Theme row and the main file's mark follow it back
+  {
+    name: "project-theme-undo",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,prop:Theme=RapidR Dark,wait,edit.undo,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "designdoc(0).showntheme": /^rapidr light$/,
+      "inspector.rows": /^\[Appearance\]\nTheme=RapidR\n/,
+      "codedoc(0).modified": /^(0|False)$/i,
+      "codedoc(0).text": /^' main\.rr: [^$]*\$APPTYPE GUI\n\$INCLUDE "helpers\.rr"\n/,
+    },
+    same: { "codedoc(0).text": "tests/fixtures/studio_projprops/main.rr" },
+  },
+  // …with the main file's tab closed it opens for the line, and the project's
+  // properties stay (the tab that opens doesn't take them away)
+  {
+    name: "project-theme-main-closed",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,file.close,project:select,prop:Theme=RapidR High Contrast,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "codedoc(0).text": /\$APPTYPE GUI\n\$THEME RapidR High Contrast\n\$INCLUDE "helpers\.rr"\n/,
+      "designdoc(0).showntheme": /^rapidr high contrast$/,
+      "inspector.rows": /^\[Appearance\]\nTheme=RapidR High Contrast\n/,
+    },
+  },
+  // …the line edited by hand: the designer follows, the project's Theme row too
+  {
+    name: "project-theme-by-hand",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: 'wait,view.designer,code:$INCLUDE "helpers.rr"=>$THEME Classic,wait,wait,wait,project:select,wait',
+    delay: 8,
+    dump: {
+      "designdoc(0).showntheme": /^classic$/,
+      "inspector.rows": /^\[Appearance\]\nTheme=Classic\n/,
+    },
+  },
+  // Name, main file, targets, arguments, the designer's grid: each saved to
+  // the project file; the Project pane's top row says the new name
+  {
+    name: "project-props-saved",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: 'wait,view.designer,project:select,prop:Name=Renamer,prop:MainFile=helpers.rr,prop:MainFile=main.rr,prop:Targets=web,prop:Arguments=--dry "a b",prop:Grid=16,prop:Snap=False,prop:Guides=False,wait',
+    delay: 8,
+    capture: true,
+    dump: {
+      "projecttree.projectname": /^Renamer$/,
+      "projecttree.selectedkind": /^project$/,
+      "inspector.rows": /Name=Renamer\nTargets=web\n[\s\S]*Arguments=--dry "a b"/,
+      "designdoc(0).gridsize": /^16$/,
+      "designdoc(0).snaptogrid": /^(0|False)$/i,
+      "designdoc(0).showguides": /^(0|False)$/i,
+    },
+    files: { "RenMany.rrproj": /name = "Renamer"\nmain = "main\.rr"[\s\S]*runs_on = "web"[\s\S]*args = \[\s*"--dry",\s*"a b",?\s*\][\s\S]*\[designer\]\ngrid = 16\nsnap = false\nguides = false/ },
+  },
+  // A file chosen as the main file that isn't one of the project's: refused,
+  // the row put back; selecting a form's component returns to the component
+  // inspector, and the project's name selected again brings the project back.
+  {
+    name: "project-props-leave",
+    open: "tests/fixtures/studio_projprops/RenMany.rrproj",
+    copyDir: true,
+    webFiles: PROJPROPS_FILES,
+    do: "wait,view.designer,project:select,prop:MainFile=nothere.rr,wait,pick:GoBtn,wait",
+    delay: 7,
+    dump: { "inspector.target": /^GoBtn$/, "inspector.rows": /^\[Appearance\]|^Caption=/m },
   },
   // (S-DESIGN-2) Each kind of the inspector's editors writes the code a
   // program needs: a font by its parts (Font.Name quoted, Size, Color,
