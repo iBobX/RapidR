@@ -39,7 +39,21 @@ fn studio_host() -> Option<JsValue> {
     js_sys::Reflect::get(&w, &"RAPIDR_STUDIO_HOST".into()).ok().filter(|h| h.is_object())
 }
 
+/// Whether the runtime is in the middle of something a message from the
+/// program's frame must not enter: a call out to the page's script (made,
+/// stopped, shown the program's frame: [`host_call`]), a callback of the
+/// windows' host, or a call on a session (its table in use: Stop reaches
+/// the frame, the page answers). The page's calls into the runtime
+/// (`studio_session_incoming` …) wait their turn then — the interpreter's
+/// entry queues them and goes on when the runtime is back and free.
+pub fn busy() -> bool {
+    rapidr_ui_host_web::host::busy() || rapidr_studio::session::in_use()
+}
+
 fn host_call(name: &str, args: &[JsValue]) -> Result<JsValue, String> {
+    // (the script may reach back into the wasm — a removed frame's focus
+    // moving, an event, a call at once — while this is on the stack)
+    let _held = rapidr_ui_host_web::host::Hold::new();
     let host = studio_host().ok_or("this page can't run programs (no RAPIDR_STUDIO_HOST)")?;
     let f = js_sys::Reflect::get(&host, &name.into()).ok().and_then(|f| f.dyn_into::<js_sys::Function>().ok()).ok_or_else(|| format!("RAPIDR_STUDIO_HOST.{name} is missing"))?;
     let list = js_sys::Array::new();

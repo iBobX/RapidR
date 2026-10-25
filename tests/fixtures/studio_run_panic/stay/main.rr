@@ -1,0 +1,20 @@
+$APPTYPE GUI
+
+' A form program that stays up: tests/studio_run_panic.mjs restarts and stops it
+' while the page calls straight back into the runtime from every call it makes.
+
+CREATE Form1 AS RForm
+    Caption = "Stay"
+    Width = 360
+    Height = 160
+    CREATE edName AS REdit
+        Left = 12: Top = 10: Width = 200
+    END CREATE
+    CREATE chkOn AS RCheckBox
+        Caption = "On"
+        Left = 12: Top = 42: Width = 100
+    END CREATE
+END CREATE
+
+PRINT "up"
+Form1.ShowModal
