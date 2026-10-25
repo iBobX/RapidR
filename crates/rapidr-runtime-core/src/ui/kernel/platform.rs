@@ -82,6 +82,17 @@ pub(crate) fn system_look() -> (bool, bool) {
 /// then twice a second ([`system_theme`]).
 pub(crate) fn start() {
     rapidr_value::theme::set_system_probe(system_look);
+    rapidr_value::theme::set_motion_probe(reduced_motion);
+}
+
+/// Whether the user asked the system for reduced motion (a GUI test's
+/// headless host says no, so captures don't depend on the machine, unless
+/// `RAPIDR_REDUCED_MOTION` says it).
+fn reduced_motion() -> bool {
+    if super::headless_look() && !rapidr_ui_app::testhooks::real_system_look() {
+        return matches!(std::env::var("RAPIDR_REDUCED_MOTION").as_deref(), Ok("1"));
+    }
+    rapidr_ui_host_winit::platform::reduced_motion()
 }
 
 /// A program that names no theme (or `$THEME rapidr`): RapidR's look as

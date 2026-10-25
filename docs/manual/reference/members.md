@@ -55,6 +55,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -219,6 +220,7 @@ A container with raised or lowered bevels and an optional caption, to group comp
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -288,6 +290,7 @@ A row of tabs: the user picks one (TabIndex) and the program shows what belongs 
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -341,6 +344,7 @@ A strip of tool buttons, usually along the top of a form: icon buttons (RapidR's
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -400,6 +404,7 @@ The bar at the bottom of a window that shows status text, as one simple text or 
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -445,6 +450,7 @@ A bar the user drags to resize the aligned component beside it, between the pane
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Event | |
 |---|---|
@@ -495,6 +501,7 @@ A container that scrolls: components beyond its edges are reached with its scrol
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -544,6 +551,7 @@ A captioned frame around related components; the radio buttons in it form one ch
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -595,6 +603,7 @@ A box with raised or lowered 3D edges (QBevel.inc), to frame or group components
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -673,6 +682,7 @@ RapidR's docking area (RapidR Studio is built on it): panes docked at its edges,
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -758,6 +768,7 @@ A push button: the user clicks it to run its OnClick handler. It can show a pict
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -833,6 +844,7 @@ A one-line text box to type and edit text in, with an optional input mask, passw
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -894,6 +906,7 @@ A box with a caption that the user ticks on or off (Checked).
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -943,6 +956,7 @@ One choice of several: checking it unchecks the other radio buttons in the same 
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1008,6 +1022,7 @@ A drop-down list, with or without a box to type in; the user picks one item (Ite
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1105,6 +1120,7 @@ A multi-line text editor whose text is formatted: font, size, colour, bold, ital
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1177,6 +1193,7 @@ A multi-line plain-text editor with word wrap and scroll bars. RapidR's own.
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1242,6 +1259,7 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1368,6 +1386,7 @@ A slider: the user drags its thumb to pick a Position between Min and Max, along
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1470,6 +1489,7 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1613,6 +1633,7 @@ Two texts compared, the way a code review shows them: line by line, side by side
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1677,6 +1698,7 @@ A flat toolbar button with a caption and a picture; with GroupIndex it stays dow
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1738,6 +1760,7 @@ A round button with its own colours, highlight and shadow; like a cool button, i
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1802,6 +1825,7 @@ Text on a form that the user reads but doesn't edit, with alignment, word wrap, 
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1865,6 +1889,7 @@ Shows a picture (BMP, PNG, JPEG, GIF, SVG …), stretched or centred; the progra
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -1939,6 +1964,7 @@ A surface to draw on: lines, shapes, text and pictures, usually redrawn in its O
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2023,6 +2049,7 @@ A row of headings (sections) the user can click and resize, as above a list's co
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2095,6 +2122,7 @@ Windows' classic progress bar: a sunken bar filled in blocks from Min to Max at 
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 <a id="rprogressbar"></a>
 ## RProgressBar <small>(RapidQ name: QGAUGE)</small>
@@ -2132,6 +2160,7 @@ RapidQ's gauge (RProgressBar): shows progress from Min to Max at Position as a b
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2188,6 +2217,7 @@ RapidR's form designer: places components on a grid, lets the user select, move 
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2280,6 +2310,7 @@ A seven-segment LED display (QDigDisplay.inc) showing the digits and signs of it
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2357,6 +2388,7 @@ A list of text items the user picks one or several of; it can be sorted, in colu
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2449,6 +2481,7 @@ A list of the files in a folder that match Mask, for picking a file.
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2508,6 +2541,7 @@ A tree of drives and folders for picking a folder (Directory).
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2597,6 +2631,7 @@ A grid of text cells in rows and columns, with fixed heading rows and columns, i
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2725,6 +2760,7 @@ A tree of nodes the user expands, collapses and selects, with a picture per node
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -2844,6 +2880,7 @@ A list of items with columns of sub-items, shown as icons, a list or a report wi
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4070,6 +4107,7 @@ A DirectX drawing surface on a form, for games and animation: draw the next fram
 | `MaxHeight` *(RapidR)* | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` *(RapidR)* | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` *(RapidR)* | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` *(RapidR)* | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4698,6 +4736,7 @@ A grid that shows a data set straight from its table — an RDataSource, an RDat
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4743,6 +4782,7 @@ A chart in Matplotlib's style: line, bar, scatter, area, histogram and pie plots
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4812,6 +4852,7 @@ An embedded web page or HTML (an iframe): URL, HTML, Sandbox. Web only.
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4854,6 +4895,7 @@ An HTML element of the program's own: its HTML, CSS classes, style and attribute
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4939,6 +4981,7 @@ An HTML5 audio player: Src, Volume, Loop, Play, Pause, Seek. Web only.
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -4987,6 +5030,7 @@ An HTML5 video player on the form: Src, Volume, Play, Pause, Seek, FullScreen. W
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5097,6 +5141,7 @@ An object inspector: the properties of a component (or of every component a desi
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5153,6 +5198,7 @@ The palette of components a form designer places, under RapidR's names (RButton;
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5207,6 +5253,7 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5274,6 +5321,7 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5318,6 +5366,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 | `Font` | font |  | The font of the text, an RFont; assigning one copies it. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5340,7 +5389,7 @@ A box of commands found by typing: Show opens it over the form, the user types a
 <a id="rmarkdownview"></a>
 ## RMarkdownView
 
-A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out and a picture shows its description. RapidR Studio shows `.md` files with it.
+A Markdown text shown formatted, as a reader sees it: headings, paragraphs with bold, italic, struck-out and `code` words, bulleted and numbered lists (nested), tables, block quotes, code blocks (coloured as the code editor colours them, by the fence's language: ```basic, ```sql — ```sqlite and ```mysql with that dialect's words —, ```json, ```html, ```css, ```javascript, ```toml, ```csv, ```rust, ```markdown; any other plain), rules and links. The text scrolls; the user selects it with the mouse and copies it (Ctrl+C). A click on a link fires OnLinkClick; a web link (http, https, mailto) opens in the browser, a `#heading` link scrolls to that heading. HTML in the text is left out — but `<br>`, and `<ins>` / `<del>` for a diff's counts (the text between them shown as added or removed, in the theme's green or red and the code font; a `title` says it in words for a screen reader) — and a picture shows its description. RapidR Studio shows `.md` files with it.
 
 | Property | Type | Default | |
 |---|---|---|---|
@@ -5349,6 +5398,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `FileName` (read-only) | string |  | The file LoadFromFile read ("" when Text was set). |
 | `OpenLinks` | bool | True | A click on a web link (http, https, mailto) opens it in the browser. Every link clicked fires OnLinkClick either way. |
 | `EmptyText` | string | `""` | What it says while it has no text. |
+| `CodeLanguage` | string | `""` | The language of the text's inline `code` ("rapidr", or any language a code block's fence names): coloured as the code editor colours it; "" (the default) leaves it plain. With a language, a word of inline code or of a RapidR code block that the program's language service knows (RapidR Studio's registry) shows its one-line help as a tooltip when the mouse rests on it, the pointer is a hand, and a click fires OnCodeClick. RapidR Studio's assistant chat uses it: hover a keyword, a component or a member in an answer for its help, click to open it in the Help pane. |
 | `FollowEnd` | bool | False | True: a view scrolled to its end stays at the end as Text grows (a chat, a log), while one the user scrolled up stays where they put it. False: the scroll stays where it is. |
 | `PlainText` (read-only) | string |  | The text as shown, without the Markdown marks: a line per paragraph, list item or heading; a table's cells separated by tabs. |
 | `SelText` (read-only) | string |  | The text the user selected, as PlainText has it. |
@@ -5370,6 +5420,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | `MaxHeight` | int | 0 | The tallest the control gets, in pixels; 0 for no limit. Also `Constraints.MaxHeight`. |
 | `AccessibleName` | string | `""` | What a screen reader calls the control, when its caption or text isn't enough (an image button, an unlabelled edit). |
 | `AccessibleDescription` | string | `""` | A longer description a screen reader gives after the name (what the control does, a shortcut). |
+| `AccessibleHidden` | bool | False | True: the control is decoration — a pulsing dot, a flourish — and a screen reader skips it (it stays in the window, for the eyes). Never set it on anything a person can use or needs to read. |
 
 | Method | |
 |---|---|
@@ -5383,6 +5434,7 @@ A Markdown text shown formatted, as a reader sees it: headings, paragraphs with 
 | Event | |
 |---|---|
 | `OnLinkClick(Url AS STRING)` | The user clicked a link: its target as the text writes it ("https://…", "other.md", "#heading"). |
+| `OnCodeClick(Word AS STRING, OfType AS STRING)` | The user clicked a word of code (CodeLanguage is set, the language service knows the word): the word as written ("PRINT", "AddItems") and, for a member after a dot, the component type it belongs to ("RListBox"; "" for any other word). |
 | `OnEnter` | Fires when the component gets the keyboard focus: Tab or Shift+Tab, a click, SetFocus, its label's shortcut, and for the first one as its form shows. It comes after the OnExit of the component that had the focus and before what a click on it does (its OnMouseDown, OnClick). Switching to another window or app and back doesn't fire it. (RapidR's own; RapidQ has it only on its lists, where it never fires.) |
 | `OnExit` | Fires when the component loses the keyboard focus to another component of its form (Tab, a click, SetFocus), before that one's OnEnter: the place to check what was typed. Switching to another window or app doesn't fire it, nor hiding or disabling the component. (RapidR's own; RapidQ has no OnExit.) |
 
@@ -5417,15 +5469,20 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `ChatState` | string |  | The conversation as JSON — its messages, its transcript, its questions, the answers' reasoning, the user's language — to keep (a file, a database) and set back later, in this run or the next: setting it replaces the conversation (an answer being written stops). API keys and tokens in it are removed ("[key removed]"), as are the program's secrets. RapidR Studio keeps its chats this way. |
 | `Editable` | bool | False | True: Transcript has an Edit link under each question (rai:edit/N) and Retry under the last answer (rai:retry), for an RMarkdownView's OnLinkClick: the program calls Rewind and asks again. RapidR Studio's chat. |
 | `QuestionCount` (read-only) | int |  | How many questions the conversation has (QuestionText and Rewind number them from 1). |
-| `Activity` (read-only) | string |  | What it is doing now, in words, while Busy: "Thinking", "Writing the answer", what an attached tool does ("Reading main.rr", "Searching the manual", "Writing server.rr"), "Compacting the conversation"; "" when idle. OnUpdate fires when it changes. |
+| `Activity` (read-only) | string |  | What it is doing now, in words, while Busy: "Thinking", "Writing the answer", what an attached tool does ("Reading main.rr", "Reading the help of RListBox", "Writing server.rr (+318 lines)", "Checking (compiling)", "Searching the manual"), "Fixing 2 problems" after a check found them, "Continuing (part 2)" after an answer reached its length limit, "Compacting the conversation" or "Summarising the chat to keep it short"; "" when idle. OnUpdate fires when it changes. |
 | `Elapsed` (read-only) | int |  | Seconds since the answer (or Compact) began; 0 when idle. A timer shows it ticking. |
 | `Quiet` (read-only) | int |  | Seconds since the provider last sent anything while an answer runs (0 when idle): past 30, say "No answer from the model for 30 s: wait, or Stop". |
 | `ContextTokens` (read-only) | int |  | The conversation's size in tokens as the next question would send it (the instructions, tools, messages and the last reply): the last request's as the provider counted it, else estimated. With ContextLimit, a context meter. |
 | `ContextLimit` (read-only) | int |  | Where the conversation is compacted by itself: SummaryAt, or 70% of the model's context window when that is less. |
 | `ContextWindow` (read-only) | int |  | The model's context window in tokens, when the provider's models list says it (0 when not). |
 | `Lite` (read-only) | bool |  | True when the last request went to a model of a small window (under 16,384 tokens): the attached tools sent their lite instructions and tools, so a small local model can start. |
-| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it. |
+| `Transcript` (read-only) | string |  | The conversation as Markdown, for an RMarkdownView: the questions, the answers as they stream, the facts the attached tools report as cards (a small heading each: a program created, a change proposed), a muted line in place of a reply that claimed a change before any tool made it, a muted "Answer was long: continuing (part 2 of up to 5)" where an answer reached its length limit and RAI went on by itself (a "Continue in smaller steps" link, rai:continue, if it finally stopped), a "✓ 6 steps · show" link under a finished answer (rai:steps/N), and under each closed code block "Copy · Insert" links (rai:copy/N, rai:insert/N; Insert for RapidR code, which is coloured as the code editor colours it, a block with no language that looks like RapidR's included). |
 | `Steps` (read-only) | string |  | What the attached tools did in the current (or last) answer, a line each ("Read main.rr (40 lines)"): a progress checklist while it works. |
+| `TurnInputTokens` (read-only) | int |  | The tokens sent so far in the current (or last) answer, all its requests: the provider's count, updated while the answer streams in. |
+| `TurnCachedTokens` (read-only) | int |  | Of TurnInputTokens, those the provider read from its cache (charged far less), so far in the current (or last) answer. |
+| `TurnOutputTokens` (read-only) | int |  | The tokens received so far in the current (or last) answer: the provider's count, or — while it reports few, before the end — an estimate from the characters that came, so a counter beside the answer moves as it is written. |
+| `Part` (read-only) | int |  | Which part of its answer RAI is on: 1, then 2 … when an answer reached its length limit and RAI went on by itself (at most MaxParts). |
+| `MaxParts` (read-only) | int |  | How many parts an answer may come in (5): the first and four continuations. Past them RAI stops and says so, with a way to go on in smaller steps. |
 | `Models` (read-only) | string |  | The models RefreshModels found, a line each — the id, its name, and a hint from the words of its name ("fast · low cost" for the small ones, "costs more" for the largest), separated by tabs —, the fast, low-cost ones first. |
 | `ModelCount` (read-only) | int |  | How many models Models lists. |
 | `HasKey` (read-only) | bool |  | True when there is a key: APIKey's, or one APIKeySource finds. |
@@ -5458,6 +5515,8 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `Compact AS INTEGER` | Summarises the conversation now, in one short request; the next questions start from the summary (a long chat costs less). Status then says how much smaller it is; the questions before it can't be edited any more. False when it can't (answering, a short chat: Error says why). |
 | `Rewind(Question AS INTEGER) AS STRING` | Takes question Question (from 1) and everything after it out of the conversation and the transcript, and returns its text — to edit it and ask again, or to Retry the last. "" when it can't (answering; a question from before the conversation was compacted): Error says why. Keep ChatState first to keep what is taken out. |
 | `QuestionText(Question AS INTEGER) AS STRING` | Question Question's text (from 1), as the user asked it. |
+| `ToggleSteps(Index AS INTEGER)` | Lists or hides the steps of answer Index in Transcript (rai:steps/Index, the "✓ 6 steps" link under a finished answer). |
+| `CodeBlock(Index AS INTEGER) AS STRING` | The text of code block Index (from 1) of the answers, in the order Transcript numbers them (its Copy and Insert links, rai:copy/Index and rai:insert/Index): a program asks for it to copy or insert. "" when there is no such block. |
 | `ToggleThought(Index AS INTEGER)` | Shows or hides answer Index's reasoning in Transcript (rai:thought/Index, the "Thought for N s" link). |
 | `AttachComponent(Component AS RAIPROJECTTOOLS, Kind AS STRING) AS INTEGER` | Gives the model a component's tools of Kind (an RAIProjectTools' "project": RapidR Studio's assistant). True when attached; Error says why not. |
 | `ModelName(Index AS INTEGER) AS STRING` | Model Index's id in Models (from 0), for a list's choice. |
@@ -5737,6 +5796,7 @@ The running program: its file and folder, title, icon, hint settings, RapidR's T
 | `Path` (read-only) | string |  | The folder the program's executable is in; read-only. |
 | `Theme` *(RapidR)* | string |  | The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is). |
 | `Language` *(RapidR)* | string |  | The language the program speaks, as a language tag (`es`, `es-AR`, `pt-BR`, `zh-Hans`): the system's until the program sets it. `TR$` and `TRN$` translate into it from the program's `lang` folder (`es-AR`: `lang/es-AR.po`, then `lang/es.po`, then the program's own text). Setting it reads the catalogs again; "" goes back to the system's language. Any spelling is taken (`es_ar` reads back as `es-AR`). |
+| `ReducedMotion` *(RapidR)* (read-only) | bool |  | True when the user asked the system for reduced motion (macOS' Reduce Motion, Windows' animations turned off, the browser's prefers-reduced-motion): a program's own animations — a pulse, a slide — then stay still or end at once, as RapidR's own do. Read it each time an animation starts. |
 | `KeysPending` *(RapidR)* (read-only) | int |  | How many keystrokes sent with SendKeys are still waiting to reach the program's windows. |
 
 | Method | |

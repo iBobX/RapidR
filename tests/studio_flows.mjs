@@ -4107,7 +4107,7 @@ const CASES = [
     dump: {
       // (AI-UX: the change as a card Studio writes; what the tools did is
       // the turn's steps — the progress checklist —, not chat lines)
-      "ai.transcript": /##### ● Proposed a change to hello_form\.rr · \+1 −1 · \[Review\]\(ai:review\)[\s\S]*\*You applied the change to hello_form\.rr\.\*/,
+      "ai.transcript": /##### ✓ Proposed a change to hello_form\.rr  <ins title="1 line added">\+1<\/ins> <del title="1 line removed">−1<\/del>  \[Review\]\(ai:review\)[\s\S]*\*You applied the change to hello_form\.rr\.\*/,
       "ai.steps": /^Read hello_form\.rr\nProposed a change to hello_form\.rr$/,
       "codedoc(0).text": /CREATE Form AS RForm\n    Caption = "AI Notes"\n/,
       "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
@@ -4133,14 +4133,14 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:reviewfirst=1,ai:ask=build me a hello-form program,wait,wait,wait,ai:create={dir}/made,wait,wait,run.start,wait,wait,wait,wait",
     delay: 10,
     dump: {
-      "ai.transcript": /##### ◆ Created \*hello-form\* · main\.rr · ✓ compiles · \[Open\]\(ai:open\/hello-form\) · \[Undo\]\(ai:undo\/hello-form\)/,
+      "ai.transcript": /##### ✓ Created \*hello-form\*  main\.rr · compiles  \[Open\]\(ai:open\/hello-form\) · \[Undo\]\(ai:undo\/hello-form\)/,
       "proj.folder": /made\/hello-form$/,
       "proj.mainfile": /^main\.rr$/,
       "outputbox.text": /^(?![\s\S]*Can't run)/,
       "session.exitcode": /^0?$/,
     },
     webDump: {
-      "ai.transcript": /##### ◆ Created \*hello-form\* · main\.rr · ✓ compiles/,
+      "ai.transcript": /##### ✓ Created \*hello-form\*  main\.rr · compiles/,
       "proj.folder": /made\/hello-form$/,
       "proj.mainfile": /^main\.rr$/,
       "session.state": /^running$/,
@@ -4277,7 +4277,7 @@ const CASES = [
     delay: 8,
     dump: {
       "ai.steps": /^Proposed a change to main\.rr$/,
-      "ai.transcript": /##### ● Proposed a change to server\.rr · \+5 −0[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nnow add a Stop button to main\.rr\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n##### ● Proposed a change to main\.rr · \+10 −0 · \[Review\]\(ai:review\)\n\nPress \*\*Stop\*\*(?![\s\S]*server\.rr ·)[\s\S]*\*You applied the change to server\.rr\.\*\n\n\*You applied the change to main\.rr\.\*$/,
+      "ai.transcript": /##### ✓ Proposed a change to server\.rr  <ins title="5 lines added">\+5<\/ins> <del title="0 lines removed">−0<\/del>[\s\S]*\*\*You\*\*(?: · \[Edit\]\(rai:edit\/\d+\))?\n\nnow add a Stop button to main\.rr\n\n\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n(?:\[✓ \d+ steps? · show\]\(rai:steps\/\d+\)\n\n)?##### ✓ Proposed a change to main\.rr  <ins title="10 lines added">\+10<\/ins> <del title="0 lines removed">−0<\/del>  \[Review\]\(ai:review\)\n\nPress \*\*Stop\*\*(?![\s\S]*server\.rr ·)[\s\S]*\*You applied the change to server\.rr\.\*\n\n\*You applied the change to main\.rr\.\*$/,
       "aitools.proposalcount": /^0$/,
       // (both files changed in their editors: main.rr open, server.rr opened)
       "codedoc(0).text": /StopServer/,
@@ -4312,7 +4312,7 @@ const CASES = [
     delay: 6,
     dump: {
       "ai.steps": /^Read sites\.rr\nRefused a whole-file rewrite of sites\.rr: only a few lines change\nProposed a change to sites\.rr$/,
-      "ai.transcript": /##### ● Proposed a change to sites\.rr · \+2 −2 · \[Review\]\(ai:review\)\n\nSites 7 and 8 are called seven and eight now\.$/,
+      "ai.transcript": /##### ✓ Proposed a change to sites\.rr  <ins title="2 lines added">\+2<\/ins> <del title="2 lines removed">−2<\/del>  \[Review\]\(ai:review\)\n\nSites 7 and 8 are called seven and eight now\.$/,
       "aitools.proposalcount": /^1$/,
       "aistatus.simpletext": /^Waiting for you — The assistant proposed a change: review it\.$/,
     },
@@ -4544,6 +4544,274 @@ const CASES = [
       "aistatus.simpletext": /^(Reading hello_form\.rr|Writing hello_form\.rr|Thinking|Writing the answer)…( · ✓ |$)/,
       "aielapsed.caption": /^\d+ s$/,
       "ai.busy": /^(-1|True)$/i,
+    },
+  },
+  {
+    // RAI shows its work (2.121.2): the strip under the conversation while
+    // a long turn goes (paced: a piece every 250 ms) — three dots, what it
+    // does now in words, its seconds, the tokens so far, the newest steps
+    // ✓ — and a capture of it
+    name: "ai-live-status",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:reviewfirst=1,ai:motion=1,ai:ask=trickle build a long list app,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait`,
+    delay: 9,
+    webDelay: 12,
+    capture: true,
+    // (the strip judged in every look and at both scales: its text and the dots' ground)
+    themes: LOOKS,
+    scales: [1, 2],
+    contrast: true,
+    // (what a screen reader is told: the strip's text, and no node for the
+    // decoration — the dots — beside it)
+    a11y: [[/^What the assistant is doing now$/, "", "", (n, nodes) => !nodes.some((x) => x.role === "canvas" && x.bounds && n.bounds && Math.abs(x.bounds[1] - n.bounds[1]) < 14 && x.bounds[0] < n.bounds[0])]],
+    dump: {
+      "ailive.__shown": /^(1|-1|True)$/i,
+      "ailivetext.caption": /^(Thinking|Reading the help of RListBox|Looking at the form|Writing the answer|Continuing \(part 2\)|Writing Time List( \(\+\d+ lines\))?|Checking \(compiling\)|Fixing 1 problem|Fixing the errors)…$/,
+      // (each thing said once: the tokens in the meter's line, the seconds in
+      // the strip, the status line hidden while the strip shows, nothing beside Stop)
+      "aimeter.caption": /^This answer: [\d,]+ in( \([\d,]+ cached\))? · [\d,]+ out( · part 2 of 5)?$/,
+      "ailivetime.caption": /^\d+ s$/,
+      "aistatus.__shown": /^(0|False)$/i,
+      "aielapsed.__shown": /^(0|False)$/i,
+      "ailivesteps.caption": /^((\d+ earlier steps\n)?(✓ [^\n]+\n?)*)$/,
+      "ai.busy": /^(-1|True)$/i,
+    },
+  },
+  {
+    // RAI shows its work: the whole long turn — help read, the form looked
+    // at, an answer cut at its length limit that goes on by itself (one
+    // muted line, in order with the replies, the open code block closed),
+    // a program with an error fixed — leaves the answer with its steps
+    // counted ("✓ N steps · show"), its RapidR code coloured (a block with no
+    // language that looks like RapidR's is labelled so) and Copy · Insert
+    // under each block; the strip is gone
+    name: "ai-live-long-turn",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:reviewfirst=1,ai:ask=build a long list app,ai:wait,wait,wait`,
+    delay: 6,
+    capture: true,
+    // (RapidR code in the chat judged in every look: the editor's colours)
+    themes: LOOKS,
+    contrast: true,
+    dump: {
+      "ai.transcript": /\[✓ \d+ steps · show\]\(rai:steps\/1\)[\s\S]*Answer was long: continuing \(part 2 of up to 5\)\*[\s\S]*```rapidr\nDIM Shown AS INTEGER[\s\S]*\[Copy\]\(rai:copy\/3\) · \[Insert\]\(rai:insert\/3\)/,
+      "ai.part": /^2$/,
+      "ai.busy": /^(0|False)$/i,
+      "ailive.__shown": /^(0|False)$/i,
+      // (the status line is back, the meter has the session's totals again)
+      "aistatus.__shown": /^(1|-1|True)$/i,
+      "aimeter.caption": /^[\d,]+ tokens sent, [\d,]+ received/,
+      "aichat.codelanguage": /^rapidr$/,
+    },
+  },
+  {
+    // RAI shows its work: an answer that keeps reaching its length limit —
+    // RAI goes on by itself four times, one muted line each, then says
+    // plainly why it stopped and offers "Continue in smaller steps", which
+    // the keyboard follows (Tab through the links to the last, Enter) and which
+    // sends that request
+    name: "ai-live-endless",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=write an endless answer,ai:wait,wait,ai.assistant`,
+    events: [...Array(14).fill("aichat.__key_9"), "aichat.__key_13", "ai.__until_busy_0", idle(4)].join(","),
+    delay: 8,
+    capture: true,
+    dump: {
+      "ai.transcript": /part 2 of up to 5[\s\S]*part 3 of up to 5[\s\S]*part 4 of up to 5[\s\S]*part 5 of up to 5[\s\S]*RAI stopped here: the answer kept reaching its length limit \(4,096 tokens\), 5 parts in a row[\s\S]*\[Continue in smaller steps\]\(rai:continue\)[\s\S]*\*\*You\*\*[^\n]*\n\nContinue where you stopped, in smaller steps[\s\S]*Done in smaller steps\./,
+      "ai.busy": /^(0|False)$/i,
+    },
+  },
+  {
+    // RAI shows its work: a tool call cut off at the length limit (its
+    // arguments not whole) is never carried out — the model is told to write
+    // it again in smaller parts, the chat says the answer was long, and only
+    // the small file that follows is proposed
+    name: "ai-live-cut-call",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=write a cut file,ai:wait,wait,wait`,
+    delay: 5,
+    dump: {
+      "ai.transcript": /Answer was long: continuing \(part 2 of up to 5\)\*[\s\S]*Done: a small `notes\.rr`\./,
+      "ai.steps": /write_file: cut off, to be written again in smaller parts[\s\S]*notes\.rr/i,
+      "aitools.proposalcount": /^1$/,
+    },
+  },
+  {
+    // RAI shows its work: the system asks for reduced motion
+    // (RAPIDR_REDUCED_MOTION on the desktop, prefers-reduced-motion on the
+    // page): the dots stand still — the pulse's timer never runs — and
+    // Application.ReducedMotion says so; with the pulse (the case before) it runs
+    name: "ai-live-reduced-motion",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    reducedMotion: true,
+    do: `${AI_READY},ai:ask=trickle build a long list app,wait,wait,wait,wait,wait`,
+    delay: 5,
+    webDelay: 7,
+    capture: true,
+    dump: {
+      "ailive.__shown": /^(1|-1|True)$/i,
+      "aibeat.enabled": /^(0|False)$/i,
+      "ai.busy": /^(-1|True)$/i,
+    },
+  },
+  {
+    // RAI shows its work: with the pulse (no reduced motion) its timer runs while it works
+    name: "ai-live-pulse",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=trickle build a long list app,wait,wait,wait,wait,wait`,
+    delay: 5,
+    webDelay: 7,
+    dump: {
+      "ailive.__shown": /^(1|-1|True)$/i,
+      "aibeat.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // RAI shows its work: the card of a proposed change reads as one design —
+    // the step icon, the file, the counts as a group of their own (+ in the
+    // diff's green, − in its red, in the code font, the signs kept), Review
+    // — judged in every look; a screen reader hears "Proposed a change to
+    // hello_form.rr, 1 line added, 1 line removed, Review"
+    name: "ai-card-proposed",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=rename the window,ai:wait,wait,wait`,
+    delay: 5,
+    capture: true,
+    themes: LOOKS,
+    scales: [1, 2],
+    contrast: true,
+    a11y: [[/^Proposed a change to hello_form\.rr, 1 line added, 1 line removed, Review$/, "heading"]],
+    dump: {
+      "ai.transcript": /##### ✓ Proposed a change to hello_form\.rr\u2003\u2003<ins title="1 line added">\+1<\/ins> <del title="1 line removed">−1<\/del>\u2003\u2003\[Review\]\(ai:review\)/,
+    },
+  },
+  {
+    // RAI shows its work: Stop (the mouse) while it works — the strip goes,
+    // the status line is back saying so, the token meter has the session's
+    // totals again (not "This answer"), nothing keeps ticking
+    name: "ai-live-stop",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:motion=0,ai:ask=trickle build a long list app,wait,wait,wait,wait,wait`,
+    events: [CLICK("aistopbtn", 20, 12), idle(3)].join(","),
+    delay: 6,
+    webDelay: 9,
+    capture: true,
+    dump: {
+      "ailive.__shown": /^(0|False)$/i,
+      "aistatus.__shown": /^(1|-1|True)$/i,
+      "aistatus.simpletext": /^Stopped\.$/,
+      "aimeter.caption": /^[\d,]+ tokens sent|^$/,
+      "ai.busy": /^(0|False)$/i,
+    },
+  },
+  {
+    // RAI shows its work: a provider that fails after its tools (the mock's
+    // "then fail"): the strip goes with the turn, the error is said where the
+    // status line is, and the next question works
+    name: "ai-live-error",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=then fail rename the window,ai:wait,wait,wait`,
+    delay: 5,
+    capture: true,
+    dump: {
+      "ailive.__shown": /^(0|False)$/i,
+      "aistatus.__shown": /^(1|-1|True)$/i,
+      "aistatus.simpletext": /ran out of memory|interrupted/i,
+      "ai.busy": /^(0|False)$/i,
+    },
+  },
+  {
+    // RAI shows its work: the smart chat — RapidR words in an answer, inline
+    // and in a code block, coloured as the editor colours them
+    name: "ai-smart-chat",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=show me the words,ai:wait,wait,ai.assistant`,
+    delay: 5,
+    capture: true,
+    dump: {
+      "ai.transcript": /Use a `RListBox` and `PRINT` it:\n\n```basic\nSHOWMESSAGE "Hi"/,
+    },
+  },
+  {
+    // RAI shows its work: the mouse over a word of RapidR code in an answer
+    // (inline `RListBox`) rests there: its one-line help is the tooltip
+    name: "ai-smart-hover",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=show me the words,ai:wait,wait,ai.assistant`,
+    events: ["aichat.__mousemove_40_14", "aichat.__mousemove_69_14", idle(3)].join(","),
+    delay: 5,
+    capture: true,
+    dump: {
+      "aichat.__tip": /^RListBox — Component: .+/,
+    },
+  },
+  {
+    // RAI shows its work: a click on that word opens its entry in the Help
+    // pane (its search box says the word, the page is the component's)
+    name: "ai-smart-click",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=show me the words,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichat", 69, 14), idle(4)].join(","),
+    delay: 5,
+    capture: true,
+    dump: {
+      "helpsearch.text": /^RListBox$/,
+      "helppage.text": /RListBox/,
+    },
+  },
+  {
+    // RAI shows its work: a click on a keyword in a code block (SHOWMESSAGE)
+    // opens its entry too
+    name: "ai-smart-click-block",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=show me the words,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichat", 61, 51), idle(4)].join(","),
+    delay: 5,
+    capture: true,
+    dump: {
+      "helpsearch.text": /^SHOWMESSAGE$/,
+    },
+  },
+  {
+    // RAI shows its work: never a silent wait — the provider says nothing
+    // (the mock's `slow`), and the strip says what it waits for, with the
+    // seconds (here after 2 s: the tests' threshold; 10 s as the user has it)
+    name: "ai-live-waiting",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:on,ai:provider=compatible,ai:base={mockroot}/s/slow/v1,ai:model=mock-small,ai:waitafter=2,ai:motion=1,ai:ask=hello there,wait,wait,wait,wait,wait,wait,wait",
+    delay: 6,
+    capture: true,
+    dump: {
+      "ailivetext.caption": /^Waiting for the server's answer… \d+ s$/,
+      "ailive.__shown": /^(1|-1|True)$/i,
     },
   },
   {
@@ -4782,7 +5050,7 @@ const CASES = [
       "aibannerrun.caption": /^▶  Run It$/,
       "aibannerfix.__shown": /^0$/,
       "aistatus.simpletext": /^Made Scientific Calculator: Run It is at the top\.$/,
-      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n##### ○ Started from the recipe \*Calculator \(basic and scientific\)\*\n\n##### ◆ Created \*Scientific Calculator\* · main\.rr · ✓ compiles · \[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)\n\nPress \*\*Run\*\*/,
+      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n(?:\[✓ \d+ steps? · show\]\(rai:steps\/\d+\)\n\n)?##### ✓ Started from the recipe \*Calculator \(basic and scientific\)\*\n\n##### ✓ Created \*Scientific Calculator\*  main\.rr · compiles  \[Open\]\(ai:open\/ScientificCalculator\) · \[Undo\]\(ai:undo\/ScientificCalculator\)\n\nPress \*\*Run\*\*/,
       "aireviewbar.__shown": /^0$/,
     },
     desktopFiles: ["docs/RapidR/Projects/ScientificCalculator/main.rr", "docs/RapidR/Projects/ScientificCalculator/ScientificCalculator.rrproj"],
@@ -4791,7 +5059,7 @@ const CASES = [
       "proj.name": /^Scientific Calculator$/,
       "aibanner.__shown": /^1$/,
       "aibannerrun.caption": /^▶  Run It$/,
-      "ai.transcript": /##### ◆ Created \*Scientific Calculator\* · main\.rr · ✓ compiles/,
+      "ai.transcript": /##### ✓ Created \*Scientific Calculator\*  main\.rr · compiles/,
     },
   },
   {
@@ -4934,7 +5202,7 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=Build a scientific calculator with graphics please. " + LONG_ASK + ",wait,ai:wait,wait,wait,wait,ai.assistant,key:Shift+Tab,key:Home,wait",
     events: "aibannerwhat.onclick",
     delay: 9,
-    a11y: [["Conversation with the assistant", "document", "focused"], [/^○ Started from the recipe/, "heading", "", SHOWN_IN_CHAT]],
+    a11y: [["Conversation with the assistant", "document", "focused"], [/^Started from the recipe/, "heading", "", SHOWN_IN_CHAT]],
     dump: { "aibanner.__shown": /^1$/ },
     webDump: { "aibanner.__shown": /^1$/ },
   },
@@ -5028,7 +5296,7 @@ const CASES = [
       "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/,
       "aibannerrun.caption": /^▶  Run Anyway$/,
       "aibannerfix.__shown": /^1$/,
-      "ai.transcript": /##### ◆ Created \*Broken Tool\* · main\.rr · 1 error left · \[Open\]/,
+      "ai.transcript": /##### ✓ Created \*Broken Tool\*  main\.rr · 1 error left  \[Open\]/,
     },
     webDump: { "aibannertext.caption": /^The assistant made this program — it still has 1 error\.$/, "aibannerfix.__shown": /^1$/ },
   },
@@ -5045,7 +5313,7 @@ const CASES = [
     dump: {
       "proj.folder": /ScientificCalculator$/,
       "aibanner.__shown": /^1$/,
-      "ai.transcript": /##### ◆ Created \*Scientific Calculator\*[\s\S]*> \*Error: /,
+      "ai.transcript": /##### ✓ Created \*Scientific Calculator\*[\s\S]*> \*Error: /,
     },
   },
   {
@@ -5075,11 +5343,11 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=pretend you made a hello program,wait,ai:wait,wait,wait,wait",
     delay: 8,
     dump: {
-      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n> \*An earlier draft said this was done before it was — Studio asked it to actually do it\.\*\n\n##### ◆ Created \*hello-form\* · main\.rr · ✓ compiles[^\n]*\n\nType a name, then press \*\*Greet\*\*\.$/,
+      "ai.transcript": /\*\*Assistant\*\*(?: · \[Retry\]\(rai:retry\))?\n\n(?:\[✓ \d+ steps? · show\]\(rai:steps\/\d+\)\n\n)?> \*An earlier draft said this was done before it was — Studio asked it to actually do it\.\*\n\n##### ✓ Created \*hello-form\*  main\.rr · compiles[^\n]*\n\nType a name, then press \*\*Greet\*\*\.$/,
       "aichat.plaintext": /^(?![\s\S]*I have created)/,
       "aibanner.__shown": /^1$/,
     },
-    webDump: { "ai.transcript": /> \*An earlier draft said this was done before it was[\s\S]*##### ◆ Created \*hello-form\*/, "aichat.plaintext": /^(?![\s\S]*I have created)/ },
+    webDump: { "ai.transcript": /> \*An earlier draft said this was done before it was[\s\S]*##### ✓ Created \*hello-form\*/, "aichat.plaintext": /^(?![\s\S]*I have created)/ },
   },
   {
     // While it works (a slow model: the mock holds its next answer 6 s):
@@ -5096,7 +5364,7 @@ const CASES = [
       "ai.busy": /^(-1|1|True)$/i,
       "ai.steps": /^Wrote the program$/,
       "aistatus.simpletext": /^Thinking… · ✓ Wrote the program$/,
-      "ai.transcript": /##### ◆ New program \*Scientific Calculator\* · main\.rr · ✓ compiles/,
+      "ai.transcript": /##### ✓ New program \*Scientific Calculator\*  main\.rr · compiles/,
       "aibanner.__shown": /^0$/,
     },
   },
@@ -5595,6 +5863,8 @@ function runDesktop(c, scale = 1) {
       ...(events ? { RAPIDR_TEST_EVENTS: events } : {}),
       // (THEME-LIVE: how the system looks to the test)
       ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
+      // (the user asked the system for reduced motion)
+      ...(c.reducedMotion ? { RAPIDR_REDUCED_MOTION: "1" } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       ...(c.a11y ? { RAPIDR_TEST_A11Y: join(dir, "a11y.json") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
@@ -5756,6 +6026,7 @@ async function runWebPage(ctx, c, last, scale, record) {
       ...(c.events ? { RAPIDR_TEST_EVENTS: c.events } : {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: c.folder } : {}),
       ...(c.look ? { RAPIDR_TEST_SYSTEM_LOOK: c.look } : {}),
+      ...(c.reducedMotion ? { RAPIDR_REDUCED_MOTION: "1" } : {}),
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");

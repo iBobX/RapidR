@@ -87,6 +87,21 @@ DECLARE SUB AIRefreshClick
 DECLARE SUB AIEffortPicked
 DECLARE SUB AICompactClick
 DECLARE SUB AIClockTick(Sender AS RTimer)
+DECLARE SUB AIBeatTick(Sender AS RTimer)
+DECLARE SUB AIDotsPaint
+DECLARE SUB AILiveRefresh
+DECLARE SUB AILiveShow
+DECLARE SUB AILiveHide
+DECLARE SUB LayOutAILive
+DECLARE FUNCTION AIStepsHigh(W AS INTEGER) AS INTEGER
+DECLARE SUB AIAnnounceStep(Text AS STRING)
+DECLARE FUNCTION AIDoing AS STRING
+DECLARE FUNCTION AIWaitName AS STRING
+DECLARE FUNCTION AISecondsText(S AS INTEGER) AS STRING
+DECLARE FUNCTION AIBlend(A AS LONG, B AS LONG, Part AS INTEGER, Of AS INTEGER) AS LONG
+DECLARE SUB AICodeClick(Word AS STRING, OfType AS STRING)
+DECLARE SUB AIInsertCode(N AS INTEGER)
+DECLARE SUB AIContinueSmaller
 DECLARE SUB AIInputChanged
 DECLARE SUB AISlashPicked
 DECLARE SUB AIShowSlash
@@ -96,7 +111,6 @@ DECLARE SUB AIUndoLast
 DECLARE SUB AIEditCancelClick
 DECLARE SUB AIFillEffort
 DECLARE SUB AISetEffort(E AS STRING)
-DECLARE FUNCTION AIThousands(N AS INTEGER) AS STRING
 DECLARE SUB AISlashComplete
 DECLARE FUNCTION AIMatches(A AS STRING, B AS STRING) AS INTEGER
 ' (aichats.inc: the chats kept, edit and retry)
@@ -170,6 +184,29 @@ DIM AIChatTitle AS RLabel
 ' once when the model has been silent for 30)
 DIM AIElapsed AS RLabel
 DIM AIClock AS RTimer
+' (RAI shows its work: the strip right under the conversation while an
+' answer works — the steps done so far, ✓ each, above one row: three small
+' dots that pulse, what it does now in words, its seconds at the right;
+' past 10 s of nothing new it says what it is waiting for. Each thing is
+' said once: the status line hides while the strip shows — the screen
+' reader hears the strip's step, once a step —, the tokens of this answer
+' so far are the token meter's line, the seconds are the strip's)
+DIM AILive AS RPanel
+DIM AIDots AS RCanvas
+DIM AILiveText AS RLabel
+DIM AILiveTime AS RLabel
+DIM AILiveSteps AS RLabel
+DIM AIBeat AS RTimer
+' (the pulse's phase, 0 to 19 — a cycle of 1.2 s —; whether the dots stand
+' still — the system's reduced motion —; a test's say on it: -1 none, 0
+' pulse, 1 still; the step last announced to a screen reader)
+DIM AIBeatAt AS INTEGER
+DIM AIAnnounced AS STRING
+DIM AIStill AS INTEGER
+DIM AIMotionTest AS INTEGER
+' (seconds of silence before the strip says what it waits for: 10; the
+' tests', less)
+DIM AIWaitAfter AS INTEGER
 DIM AIQuietSaid AS INTEGER
 ' (seconds of silence before it is said: 30; the tests', less)
 DIM AIQuietAfter AS INTEGER
@@ -520,6 +557,8 @@ SUB SetUpAI
   AIElapsed.AutoSize = 0: AIElapsed.WordWrap = 0
   AIElapsed.Alignment = 1
   AIElapsed.AccessibleName = "Time the answer has taken"
+  ' (the strip says the seconds: said once)
+  AIElapsed.Visible = 0
   AIClock.Interval = 1000
   AIQuietAfter = 30
   AIClock.Enabled = 0
@@ -595,12 +634,43 @@ SUB SetUpAI
   AIReviewBtn.AccessibleName = "Review the proposed changes"
   AIReviewBtn.OnClick = AIReviewClick
 
-  ' (the conversation; a card's links — Open, Undo, Review — come here)
+  ' (RAI shows its work: the strip under the conversation, only while an
+  ' answer works)
+  AILive.Parent = AIPanel
+  AILive.Align = 2
+  AILive.Height = 48
+  AILive.BevelOuter = 0
+  AILive.Visible = 0
+  AILive.AccessibleName = "What the assistant is doing"
+  ' (the dots are decoration: no name, nothing for a screen reader to say)
+  AIDots.Parent = AILive
+  AIDots.AccessibleHidden = 1
+  AIDots.OnPaint = AIDotsPaint
+  AILiveText.Parent = AILive
+  AILiveText.AutoSize = 0: AILiveText.WordWrap = 0
+  AILiveText.AccessibleName = "What the assistant is doing now"
+  AILiveTime.Parent = AILive
+  AILiveTime.AutoSize = 0: AILiveTime.WordWrap = 0
+  AILiveTime.Alignment = 1
+  AILiveTime.AccessibleName = "Time this answer has taken"
+  AILiveSteps.Parent = AILive
+  AILiveSteps.AutoSize = 0: AILiveSteps.WordWrap = 1
+  AILiveSteps.AccessibleName = "Steps done in this answer"
+  AIBeat.Interval = 60
+  AIBeat.Enabled = 0
+  AIBeat.OnTimer = AIBeatTick
+  AIMotionTest = -1
+  AIWaitAfter = 10
+
+  ' (the conversation; a card's links — Open, Undo, Review — come here; a
+  ' word of code in an answer shows its help, a click opens it)
   AIChat.Parent = AIPanel
   AIChat.Align = 5
   AIChat.FollowEnd = 1
   AIChat.AccessibleName = "Conversation with the assistant"
   AIChat.OnLinkClick = AIChatLink
+  AIChat.CodeLanguage = "rapidr"
+  AIChat.OnCodeClick = AICodeClick
 
   ' (the new program's banner, across Studio under the tool bar: hidden
   ' until the assistant makes one)
@@ -736,6 +806,7 @@ SUB LayOutAIPanel
   AIEditText.Left = 8: AIEditText.Top = 6: AIEditText.Width = w - 16 - 84: AIEditText.Height = 60
   AIEditCancel.Left = w - 6 - 76: AIEditCancel.Top = (72 - bh) \ 2: AIEditCancel.Width = 76: AIEditCancel.Height = bh
   IF ThemeName = "classic" THEN AISlashList.ItemHeight = 16 ELSE AISlashList.ItemHeight = 22
+  LayOutAILive
   LayOutAIChats
   AIShowChatTitle
   AINote.Left = 8: AINote.Top = y: AINote.Width = w - 16: AINote.Height = 64
@@ -787,6 +858,16 @@ SUB AIPanelFonts
   AIEffortBox.Font = UIFont
   AIElapsed.Font = DimFont
   AIElapsed.Font.Color = TC("page.dim")
+  ' (the strip is the conversation's own ground: it reads as its end)
+  AILive.Color = TC("page")
+  AILiveText.Font = UIFont
+  AILiveText.Font.Color = TC("page.text")
+  AILiveTime.Font = DimFont
+  AILiveTime.Font.Color = TC("page.dim")
+  AILiveSteps.Font = DimFont
+  AILiveSteps.Font.Color = TC("page.dim")
+  ' (what Send shares: small and quiet, a step under the other small texts)
+  IF ThemeName <> "classic" THEN AINote.Font.Size = DimFont.Size - 1
   AIContextText.Font = DimFont
   AIContextText.Font.Color = TC("page.dim")
   AICompactBtn.Font = UIFont
@@ -1019,9 +1100,11 @@ SUB AIClockTick(Sender AS RTimer)
   IF AI.Busy = 0 THEN
     AIClock.Enabled = 0
     AIElapsed.Caption = ""
+    AILiveHide
     EXIT SUB
   END IF
   e = AI.Elapsed
+  AILiveRefresh
   ' (an answer's seconds; nothing while only the model list is asked for)
   IF AI.Activity = "" AND e = 0 THEN AIElapsed.Caption = "" ELSE AIElapsed.Caption = LTRIM$(STR$(e)) + " s"
   q = AI.Quiet
@@ -1030,6 +1113,7 @@ SUB AIClockTick(Sender AS RTimer)
       AIQuietSaid = 1
       AIStatus.SimpleText = "No answer from the model for " + LTRIM$(STR$(q)) + " s: wait, or Stop."
       AIProgressSaid = AIStatus.SimpleText
+      IF AILive.Visible THEN Application.Announce AIStatus.SimpleText
     END IF
   ELSEIF AIQuietSaid THEN
     ' (it speaks again: the status says what it does)
@@ -1544,6 +1628,7 @@ SUB AIUpdate
   AIChat.Text = AI.Transcript
   AIEnableSend
   AIProgressShow
+  AILiveRefresh
 END SUB
 
 ' The progress checklist while an answer runs, in the one status line (a
@@ -1559,15 +1644,7 @@ SUB AIProgressShow
   ' (what it does now, as RAI says it — Thinking, Reading sites.rr,
   ' Searching the manual, Writing server.rr, Checking the code —; between
   ' requests, what the last step left)
-  IF AI.Activity <> "" THEN
-    doing = AI.Activity + "…"
-  ELSEIF INSTR(newest, " to fix") > 0 THEN
-    doing = "Fixing the errors…"
-  ELSEIF n = 0 THEN
-    doing = "Thinking…"
-  ELSE
-    doing = "Working…"
-  END IF
+  doing = AIDoing
   ' (what it does now first — the line is one line, a screen reader reads
   ' it from the start —, then the newest steps done, ✓ each)
   txt = doing
@@ -1587,6 +1664,7 @@ END SUB
 SUB AIDone(Status AS STRING)
   DIM n AS INTEGER
   AIChat.Text = AI.Transcript
+  AILiveHide
   ' (one sentence, announced: what happened, and what to do now)
   AIStatus.SimpleText = AI.Status
   AIProgressShow
@@ -2330,6 +2408,19 @@ SUB AIChatLink(Url AS STRING)
       AIChat.Text = AI.Transcript
       ' (the link at the top, as much of the thought under it as fits)
       IF AI.Busy = 0 THEN AIChat.ScrollTo Url
+    CASE "rai:steps"
+      ' (what the answer did, listed or counted: like the thought, the link
+      ' stays at the top, the list opening below it)
+      IF AI.Busy = 0 THEN AIChat.FollowEnd = 0
+      AI.ToggleSteps VAL(which)
+      AIChat.Text = AI.Transcript
+      IF AI.Busy = 0 THEN AIChat.ScrollTo Url
+    CASE "rai:copy"
+      Clipboard.Text = AI.CodeBlock(VAL(which))
+      AIStatus.SimpleText = "Copied the code."
+      Application.Announce "Copied the code"
+    CASE "rai:insert": AIInsertCode VAL(which)
+    CASE "rai:continue": AIContinueSmaller
     CASE "ai:review"
       IF AITools.ProposalCount > 0 THEN
         AIReviewClick
@@ -2349,6 +2440,261 @@ END SUB
 
 SUB AINewCancel
   AINew.Close
+END SUB
+
+' ---- RAI shows its work: the strip under the conversation ----------------------------
+' (see the variables) Shown while an answer works, hidden when it ends.
+
+' What the assistant does now, as one line: its activity — Thinking,
+' Reading the help of RListBox, Writing main.rr (+318 lines), Checking
+' (compiling), Fixing 2 problems, Continuing (part 2) —, else what the last
+' step left.
+FUNCTION AIDoing AS STRING
+  DIM steps AS STRING, n AS INTEGER, newest AS STRING
+  steps = AI.Steps
+  IF steps = "" THEN n = 0 ELSE n = TALLY(steps, CHR$(10)) + 1
+  IF n > 0 THEN newest = FIELD$(steps, CHR$(10), n)
+  IF AI.Activity <> "" THEN
+    Result = AI.Activity + "…"
+  ELSEIF INSTR(newest, " to fix") > 0 THEN
+    Result = "Fixing the errors…"
+  ELSEIF n = 0 THEN
+    Result = "Thinking…"
+  ELSE
+    Result = "Working…"
+  END IF
+END FUNCTION
+
+' (whose answer it waits for: "Claude's", the provider's, the server's)
+FUNCTION AIWaitName AS STRING
+  IF AI.Provider = "anthropic" THEN
+    Result = "Claude"
+  ELSEIF AI.Provider = "compatible" THEN
+    Result = "the server"
+  ELSE
+    Result = AIProviderName
+  END IF
+END FUNCTION
+
+' (42 s, 1 min 12 s)
+FUNCTION AISecondsText(S AS INTEGER) AS STRING
+  IF S < 60 THEN
+    Result = LTRIM$(STR$(S)) + " s"
+  ELSE
+    Result = LTRIM$(STR$(S \ 60)) + " min " + LTRIM$(STR$(S MOD 60)) + " s"
+  END IF
+END FUNCTION
+
+' (colour A to colour B, Part of Of the way)
+FUNCTION AIBlend(A AS LONG, B AS LONG, Part AS INTEGER, Of AS INTEGER) AS LONG
+  DIM ar AS INTEGER, ag AS INTEGER, ab AS INTEGER, br AS INTEGER, bg AS INTEGER, bb AS INTEGER
+  ar = A AND 255: ag = (A \ 256) AND 255: ab = (A \ 65536) AND 255
+  br = B AND 255: bg = (B \ 256) AND 255: bb = (B \ 65536) AND 255
+  Result = (ar + (br - ar) * Part \ Of) + (ag + (bg - ag) * Part \ Of) * 256 + (ab + (bb - ab) * Part \ Of) * 65536
+END FUNCTION
+
+' The three dots: small (5 px, 3 apart), the theme's accent at reduced
+' strength, each a little behind the one before in a slow wave — a cosine,
+' so it eases in and out, 1.2 s a cycle, never a jump. Standing still (the
+' system's reduced motion): the three, level, at the wave's middle.
+SUB AIDotsPaint
+  DIM i AS INTEGER, k AS INTEGER, lv AS INTEGER, c AS LONG
+  AIDots.FillRect 0, 0, AIDots.Width, AIDots.Height, TC("page")
+  FOR i = 0 TO 2
+    IF AIStill THEN
+      lv = 50
+    ELSE
+      ' (0 to 100: (1 - cos) / 2 of this dot's place in the cycle)
+      k = (AIBeatAt + 20 - i * 3) MOD 20
+      lv = INT((1 - COS(k * 6.283185 / 20)) * 50 + 0.5)
+    END IF
+    c = AIBlend(TC("page"), TC("accent"), 22 + lv * 48 \ 100, 100)
+    AIDots.Circle i * 8, 3, i * 8 + 5, 8, c, c
+  NEXT
+END SUB
+
+SUB AIBeatTick(Sender AS RTimer)
+  IF AI.Busy = 0 THEN
+    AIBeat.Enabled = 0
+    EXIT SUB
+  END IF
+  AIBeatAt = (AIBeatAt + 1) MOD 20
+  AIDots.Repaint
+END SUB
+
+' How tall the steps' list is when its lines wrap at W pixels in the small
+' font: a line each, more where one is longer than the width.
+FUNCTION AIStepsHigh(W AS INTEGER) AS INTEGER
+  DIM lines AS INTEGER, i AS INTEGER, j AS INTEGER, n AS INTEGER, m AS INTEGER, cur AS STRING, wd AS STRING, t AS STRING, ln AS STRING
+  AIMeterMeasure.Font.Name = DimFont.Name: AIMeterMeasure.Font.Size = DimFont.Size
+  t = AILiveSteps.Caption
+  IF t = "" THEN
+    Result = 0
+    EXIT FUNCTION
+  END IF
+  FOR i = 1 TO TALLY(t, CHR$(10)) + 1
+    ln = FIELD$(t, CHR$(10), i)
+    cur = ""
+    lines = lines + 1
+    m = TALLY(ln, " ") + 1
+    FOR j = 1 TO m
+      wd = FIELD$(ln, " ", j)
+      IF cur = "" THEN
+        cur = wd
+      ELSEIF AIMeterMeasure.TextWidth(cur + " " + wd) > W - 2 THEN
+        lines = lines + 1
+        cur = wd
+      ELSE
+        cur = cur + " " + wd
+      END IF
+    NEXT
+  NEXT
+  Result = lines * (AIMeterMeasure.TextHeight(" ") + 4)
+END FUNCTION
+
+' The strip's parts placed for its width: the steps above (wrapped, never
+' cut), the one row below them — dots, what it does now, the seconds —, all
+' on the conversation's own margin.
+SUB LayOutAILive
+  DIM w AS INTEGER, y AS INTEGER, sh AS INTEGER, x0 AS INTEGER
+  w = AILive.ClientWidth
+  IF w < 200 THEN w = 200
+  x0 = 18
+  y = 8
+  sh = AIStepsHigh(w - x0 - 12)
+  IF sh > 0 THEN
+    AILiveSteps.Left = x0: AILiveSteps.Top = y: AILiveSteps.Width = w - x0 - 12: AILiveSteps.Height = sh
+    AILiveSteps.Visible = 1
+    y = y + sh + 4
+  ELSE
+    AILiveSteps.Visible = 0
+  END IF
+  AIDots.Left = x0: AIDots.Top = y + 4: AIDots.Width = 21: AIDots.Height = 11
+  AILiveText.Left = x0 + 21 + 8: AILiveText.Top = y: AILiveText.Width = w - x0 - 21 - 8 - 12 - 72: AILiveText.Height = 20
+  AILiveTime.Left = w - 12 - 72: AILiveTime.Top = y + 1: AILiveTime.Width = 72: AILiveTime.Height = 18
+  y = y + 20 + 8
+  IF AILive.Height <> y THEN AILive.Height = y
+END SUB
+
+SUB AILiveShow
+  IF AILive.Visible THEN EXIT SUB
+  ' (the system's reduced motion, or a test's say: the dots stand still)
+  AIStill = Flag(Application.ReducedMotion <> 0)
+  IF AIMotionTest >= 0 THEN AIStill = AIMotionTest
+  AIBeatAt = 0
+  AIAnnounced = ""
+  LayOutAILive
+  AILive.Visible = 1
+  ' (the status line says nothing the strip doesn't: it makes room for it)
+  AIStatus.Visible = 0
+  AIBeat.Enabled = Flag(AIStill = 0)
+  AIDots.Repaint
+END SUB
+
+SUB AILiveHide
+  AIBeat.Enabled = 0
+  IF AILive.Visible THEN
+    AILive.Visible = 0
+    AIStatus.Visible = 1
+  END IF
+END SUB
+
+' A step said to a screen reader, politely, once: the step's words without
+' its counts ("Writing main.rr", not each line it grows by) — the seconds
+' never.
+SUB AIAnnounceStep(Text AS STRING)
+  DIM k AS INTEGER, key AS STRING
+  key = Text
+  k = INSTR(key, " (+")
+  IF k > 0 THEN key = LEFT$(key, k - 1)
+  IF LEFT$(key, 11) = "Waiting for" THEN key = "Waiting for the provider…"
+  IF key = AIAnnounced THEN EXIT SUB
+  AIAnnounced = key
+  Application.Announce key
+END SUB
+
+' The strip follows the answer: each change of it, and each second.
+SUB AILiveRefresh
+  DIM steps AS STRING, n AS INTEGER, i AS INTEGER, rows AS INTEGER, txt AS STRING, q AS INTEGER, cnt AS STRING, room AS INTEGER, first AS INTEGER, relay AS INTEGER
+  IF AI.Busy = 0 THEN EXIT SUB
+  ' (only the model list is asked for: no strip)
+  IF AI.Activity = "" AND AI.Elapsed = 0 THEN EXIT SUB
+  steps = AI.Steps
+  IF steps = "" THEN n = 0 ELSE n = TALLY(steps, CHR$(10)) + 1
+  ' (never a silent wait: past 10 s with nothing new, what it waits for)
+  q = AI.Quiet
+  IF q >= AIWaitAfter THEN
+    txt = "Waiting for " + AIWaitName + "'s answer… " + LTRIM$(STR$(q)) + " s"
+  ELSE
+    txt = AIDoing
+  END IF
+  IF AILiveText.Caption <> txt THEN AILiveText.Caption = txt
+  AIAnnounceStep txt
+  txt = AISecondsText(AI.Elapsed)
+  IF AILiveTime.Caption <> txt THEN AILiveTime.Caption = txt
+  ' (the steps done, ✓ each — the newest four, the rest counted — a small
+  ' pane keeps its room for the conversation: fewer then)
+  room = (AIPanel.ClientHeight - AITop.Height - AIBottom.Height - 150 - 36) \ 18
+  IF room > 4 THEN room = 4
+  IF room < 0 THEN room = 0
+  rows = n
+  IF rows > room THEN rows = room
+  txt = ""
+  IF n > rows AND rows > 0 THEN txt = LTRIM$(STR$(n - rows)) + " earlier steps" + CHR$(10)
+  first = n - rows + 1
+  FOR i = first TO n
+    IF i > first THEN txt = txt + CHR$(10)
+    txt = txt + "✓ " + FIELD$(steps, CHR$(10), i)
+  NEXT
+  IF AILiveSteps.Caption <> txt THEN
+    AILiveSteps.Caption = txt
+    relay = 1
+  END IF
+  IF relay OR AILive.Visible = 0 THEN LayOutAILive
+  ' (the tokens of this answer so far: the token meter's line while it works
+  ' — the session's totals again when it is done —, one place; never the
+  ' same numbers twice)
+  cnt = "This answer: " + AIThousands(AI.TurnInputTokens) + " in"
+  IF AI.TurnCachedTokens > 0 THEN cnt = cnt + " (" + AIThousands(AI.TurnCachedTokens) + " cached)"
+  cnt = cnt + " · " + AIThousands(AI.TurnOutputTokens) + " out"
+  IF AI.Part > 1 THEN cnt = cnt + " · part " + LTRIM$(STR$(AI.Part)) + " of " + LTRIM$(STR$(AI.MaxParts))
+  IF AIMeter.Caption <> cnt THEN
+    AIMeter.Caption = cnt
+    IF AIMeter.Width > 0 THEN
+      IF AIMeterHigh(AIMeter.Width) <> AIMeter.Height THEN LayOutAIPanel
+    END IF
+  END IF
+  AILiveShow
+END SUB
+
+' A word of code in an answer clicked: its entry in the Help pane.
+SUB AICodeClick(Word AS STRING, OfType AS STRING)
+  ShowHelp Word, OfType
+END SUB
+
+' Insert under a code block: the code typed into the open editor at the
+' caret (what is selected replaced), as one change the editor can undo.
+SUB AIInsertCode(N AS INTEGER)
+  DIM d AS INTEGER, t AS STRING
+  t = AI.CodeBlock(N)
+  IF t = "" THEN EXIT SUB
+  d = ActiveCode
+  IF d < 0 THEN
+    AIStatus.SimpleText = "Open a file in the editor first: Insert types the code at its caret."
+    EXIT SUB
+  END IF
+  Dock.FocusPane(DocPane(d))
+  CodeDoc(d).SelText = t
+  CodeChanged CodeDoc(d)
+  AIStatus.SimpleText = "Inserted the code at the caret in " + BaseName(DocFile(d)) + " (Ctrl+Z takes it back)."
+  Application.Announce "Inserted the code"
+END SUB
+
+' "Continue in smaller steps", under an answer that kept reaching its
+' length limit: that request, sent.
+SUB AIContinueSmaller
+  IF AI.Busy THEN EXIT SUB
+  AISendNow "Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short.", 0
 END SUB
 
 ' ---- commands and test steps ---------------------------------------------------------
@@ -2397,6 +2743,21 @@ SUB AIStep(Stp AS STRING)
   SELECT CASE verb
     CASE "effort": AISetEffort arg
     CASE "quietafter": AIQuietAfter = VAL(arg)
+    ' (tests: the pulse made to move or stand still, as the system's setting)
+    CASE "motion": AIMotionTest = VAL(arg)
+    CASE "waitafter": AIWaitAfter = VAL(arg)
+    ' (the manual's pictures: a pane closed, so the assistant's has the
+    ' column's whole height)
+    CASE "hidepane": Dock.HidePane(arg)
+    ' (tests and live walks: a short answer length, so a long answer
+    ' reaches it and goes on by itself)
+    CASE "maxtokens"
+      AIMaxTokens = VAL(arg)
+      AIApplySettings
+    CASE "copyblock": AIChatLink "rai:copy/" + arg
+    CASE "insertblock": AIChatLink "rai:insert/" + arg
+    CASE "stepslink": AIChatLink "rai:steps/" + arg
+    CASE "word": AICodeClick FIELD$(arg, "@", 1), FIELD$(arg, "@", 2)
     CASE "compact": AICompactClick
     CASE "refresh": AIRefreshClick
     CASE "slash"

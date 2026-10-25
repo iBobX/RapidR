@@ -589,6 +589,10 @@ fn accessibility_ids_names_values_and_actions() {
     assert_eq!(tree.find(node_id("tblevel")).unwrap().name, "Level");
     let ok = tree.find(node_id("btnok")).unwrap();
     assert_eq!((ok.name.as_str(), ok.description.as_str()), ("Confirm", "Saves the name"));
+    // decoration (AccessibleHidden): a screen reader skips it, the window keeps it
+    s.set("btnOK", "accessiblehidden", v_int(1));
+    assert!(f.access_tree(&s, &mut ts).find(node_id("btnok")).is_none());
+    s.set("btnOK", "accessiblehidden", v_int(0));
     // disabled; the window a dialog while modal
     s.set("btnOK", "enabled", v_int(0));
     f.modal = true;

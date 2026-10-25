@@ -92,6 +92,18 @@ pub fn system_look() -> (bool, bool) {
     imp::system_look()
 }
 
+/// Whether the user asked the system for reduced motion: macOS' Reduce
+/// Motion, Windows' client-area animations turned off; elsewhere
+/// `GTK_ENABLE_ANIMATIONS=0`. `RAPIDR_REDUCED_MOTION` (1 or 0) says it
+/// whatever the system says.
+pub fn reduced_motion() -> bool {
+    match std::env::var("RAPIDR_REDUCED_MOTION").as_deref() {
+        Ok("1") => true,
+        Ok("0") => false,
+        _ => imp::reduced_motion(),
+    }
+}
+
 /// (RapidR Studio's debugger) Process `pid`'s windows to the front and its
 /// app active, handed over by this one — the active app — as the window
 /// systems allow it: macOS (cooperative activation, macOS 14 and later:
@@ -142,6 +154,10 @@ mod imp {
         let dark = style.is_some_and(|s| s.to_string().eq_ignore_ascii_case("dark"));
         let contrast = objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldIncreaseContrast();
         (dark, contrast)
+    }
+
+    pub fn reduced_motion() -> bool {
+        objc2_app_kit::NSWorkspace::sharedWorkspace().accessibilityDisplayShouldReduceMotion()
     }
 
     /// The primary screen (the menu bar's: the origin of screen coordinates).
@@ -232,6 +248,14 @@ mod imp {
             )
         };
         (read == 0 && light == 0, contrast)
+    }
+
+    pub fn reduced_motion() -> bool {
+        use windows_sys::Win32::UI::WindowsAndMessaging::SPI_GETCLIENTAREAANIMATION;
+        let mut on: i32 = 1;
+        // SAFETY: SPI_GETCLIENTAREAANIMATION fills the BOOL `on` points to.
+        let ok = unsafe { SystemParametersInfoW(SPI_GETCLIENTAREAANIMATION, 0, (&mut on as *mut i32).cast(), 0) } != 0;
+        ok && on == 0
     }
 
     pub fn global_mouse() -> Option<(f64, f64)> {
@@ -402,6 +426,10 @@ mod imp {
         super::gtk_look(&std::env::var("GTK_THEME").unwrap_or_default())
     }
 
+    pub fn reduced_motion() -> bool {
+        std::env::var("GTK_ENABLE_ANIMATIONS").is_ok_and(|v| v == "0")
+    }
+
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {
         if std::env::var_os("WAYLAND_DISPLAY").is_some() {
             return;
@@ -430,6 +458,9 @@ mod imp {
     pub fn beep(_icon: Option<rapidr_value::dialogs::MsgIcon>) {}
     pub fn system_look() -> (bool, bool) {
         (false, false)
+    }
+    pub fn reduced_motion() -> bool {
+        false
     }
 }
 

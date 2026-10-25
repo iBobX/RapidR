@@ -69,6 +69,10 @@ impl FormUi {
         if !self.nodes[i].shown {
             return None;
         }
+        // (decoration: AccessibleHidden — a screen reader skips it)
+        if store::flag(store, &self.nodes[i].id, "accessiblehidden", false) {
+            return None;
+        }
         let mut n = self.with_cx(store, ts, i, |k, cx| k.describe(cx)).unwrap_or_else(|| {
             // (a container the kernel only places: a pane)
             let mut n = AccessNode::new(node_id(&self.nodes[i].id), Role::Pane);

@@ -215,6 +215,39 @@ export const scenes = [
     crop: [640, 30, 640, 720],
   },
   {
+    // (RAI shows its work) The strip under the conversation while a long
+    // turn goes: the steps done above, the one row — the dots, what it does
+    // now, the seconds — and the token meter's line (the Outline closed, so
+    // the pane has the column's whole height)
+    name: "live-strip",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:hidepane=outlinetree,ai:motion=1,ai:ask=trickle build a long list app,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait,wait`,
+    delay: 14,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (RAI shows its work) An answer that keeps reaching its length limit:
+    // the muted line between the parts, then why it stopped, and Continue
+    // in smaller steps
+    name: "live-continue",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:hidepane=outlinetree,ai:ask=write an endless answer,ai:wait,wait,wait`,
+    delay: 8,
+    env: ENV,
+    crop: [640, 30, 640, 720],
+  },
+  {
+    // (RAI shows its work) The smart chat: RapidR words coloured inline and
+    // in a block, the mouse resting on one — its one-line help
+    name: "smart-chat",
+    open: "examples/gui/hello_form.rr",
+    do: `${READY},ai:hidepane=outlinetree,ai:ask=show me the words,ai:wait,wait,wait,ai.assistant`,
+    delay: 8,
+    env: { ...ENV, RAPIDR_TEST_EVENTS: "aichat.__mousemove_86_142,aichat.__mousemove_87_143,aionnote.onclick,aionnote.onclick" },
+    crop: [640, 30, 640, 720],
+  },
+  {
     // (R5) Effort High: "Thought for N s", opened to show the reasoning
     name: "thought",
     open: "examples/gui/hello_form.rr",

@@ -34,6 +34,16 @@
 //   "trickle …"        any of these, each answer streamed slowly (a piece every
 //                      250 ms): the status line's activity is seen as it
 //                      changes — Reading main.rr, Writing main.rr (R4)
+//   "build a long list app …"  RAI shows its work (2.121.2): reads the help of
+//                      RListBox and the form, writes part of the program and is
+//                      cut at its length limit (stop max_tokens, a code block
+//                      left open), goes on with a program that has an error,
+//                      fixes it, and answers with RapidR code in the text
+//   "show me the words …"  a short answer with RapidR words in `inline code` and
+//                      in a code block (the smart chat: hover, click)
+//   "write an endless …"  every answer cut at its length limit (RAI goes on by
+//                      itself four times, then stops with "Continue in smaller
+//                      steps"); that request gets a short answer
 //
 // A request that asks the model to think (Anthropic's `thinking`, an
 // OpenAI-compatible `reasoning_effort` other than "none") gets a short
@@ -128,6 +138,33 @@ END CREATE
 Form.ShowModal
 `;
 
+// (RAI shows its work: a list and a button that adds the time to it — with
+// a compile error, and fixed)
+const LIST_OK = `' time_list: a list and a button that adds the time to it.
+DECLARE SUB AddTime
+
+CREATE Form AS RForm
+    Caption = "Time List"
+    Width = 320: Height = 260
+    Center
+    CREATE TimeList AS RListBox
+        Left = 16: Top = 16: Width = 280: Height = 150
+    END CREATE
+    CREATE AddButton AS RButton
+        Caption = "&Add time"
+        Left = 16: Top = 180: Width = 120
+        OnClick = AddTime
+    END CREATE
+END CREATE
+
+SUB AddTime
+    TimeList.AddItems TIME$
+END SUB
+
+Form.ShowModal
+`;
+const LIST_BROKEN = "DIM added AS BOOLEAN\n" + LIST_OK;
+
 // (a user message's text: its text blocks)
 function userText(m) {
   if (typeof m.content === "string") return m.content;
@@ -143,7 +180,7 @@ function latestQuestion(messages) {
   messages.forEach((m, i) => {
     if (m.role !== "user") return;
     const t = userText(m).trim();
-    if (!t || /^\((RapidR Studio, not the user|A summary of our conversation)/.test(t)) return;
+    if (!t || /^\((RapidR Studio, not the user|A summary of our conversation)/.test(t) || /^Your last answer reached its length limit/.test(t)) return;
     at = i;
     text = t;
   });
@@ -253,6 +290,31 @@ function script(first, results, system, messages = []) {
     }
     return { text: "I added a flag before the form: review it and apply it if you like it." };
   }
+  // (RAI shows its work: a long turn — tools, a cut answer, a broken
+  // program fixed, RapidR code in the answer)
+  if (q.startsWith("build a long list app")) {
+    const cont = messages.slice(latestQuestion(messages).at).filter((m) => m.role === "user" && /^Your last answer reached its length limit/.test(userText(m))).length;
+    if (step === 0) return { text: "I'll read the help of the list first.", tools: [{ name: "rapidr_describe", input: { type: "RListBox" } }, { name: "rapidr_list", input: {} }] };
+    if (step === 2 && cont === 0) return { text: "Here is the program, in one piece:\n\n```basic\nDECLARE SUB AddTime\n\nCREATE Form AS RForm\n    Caption = \"Times\"\n    CREATE TimeList AS RListBox\n        Left = 16: Top = 16: Width = 240: Height = 160\n    END CREATE\n" + "    ' (the rest of the form, cut here)\n".repeat(3), stop: "max_tokens" };
+    if (step === 2) return { text: "I'll write it in smaller parts.", tools: [{ name: "create_project", input: { name: "Time List", main: "main.rr", summary: "A list and a button that adds the time", files: [{ path: "main.rr", text: LIST_BROKEN }] } }] };
+    if (step === 3) return { text: "One error: RapidR has no BOOLEAN. I'll fix it.", tools: [{ name: "create_project", input: { name: "Time List", main: "main.rr", summary: "A list and a button that adds the time", files: [{ path: "main.rr", text: LIST_OK }] } }] };
+    return { text: "The form has a list (`RListBox`) and an **Add time** button. Pressing it calls `TimeList.AddItems` with `TIME$`, which `PRINT` could also show:\n\n```basic\nSUB AddTime\n    TimeList.AddItems TIME$\nEND SUB\n```\n\nAnd with no language named:\n\n```\nDIM Shown AS INTEGER\nShown = TimeList.ItemCount\n```\n\nPress **Run** to try it." };
+  }
+  // (a tool call cut off at the length limit: its arguments are not whole —
+  // never carried out, written again in smaller parts)
+  if (q.startsWith("write a cut file")) {
+    if (step === 0) return { text: "Writing the file.", tools: [{ name: "write_file", input: { path: "notes.rr", summary: "Notes", text: "DIM Notes AS STRING\n".repeat(30) }, cut: true }], stop: "max_tokens" };
+    if (step === 1) return { text: "That was too long: here it is in smaller parts.", tools: [{ name: "write_file", input: { path: "notes.rr", summary: "Notes", text: "DIM Notes AS STRING\n" } }] };
+    return { text: "Done: a small `notes.rr`." };
+  }
+  // (every answer cut at its length limit, until the user asks for smaller steps)
+  if (q.startsWith("write an endless")) {
+    const cuts = messages.slice(latestQuestion(messages).at).filter((m) => m.role === "user" && /^Your last answer reached its length limit/.test(userText(m))).length;
+    return { text: `Part ${cuts + 1} of a very long answer:\n\n\`\`\`basic\n` + "PRINT \"more and more\"\n".repeat(4), stop: "max_tokens" };
+  }
+  // (the smart chat: RapidR words, inline and in a block)
+  if (q.startsWith("show me the words")) return { text: "Use a `RListBox` and `PRINT` it:\n\n```basic\nSHOWMESSAGE \"Hi\"\nList1.AddItems \"x\"\n```" };
+  if (q.startsWith("continue where you stopped, in smaller steps")) return { text: "Here is the next small step: `SHOWMESSAGE` shows a message box. Done in smaller steps." };
   if (q.startsWith("build me")) {
     if (step === 0) return { text: "Here is a small program with a form.", tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets the name typed in it", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
     return { text: "The project **hello-form** is ready to preview: a form with a name box and a Greet button." };
@@ -345,11 +407,11 @@ function sseOpenAI(out, answer, model, think) {
   if (think) for (const piece of THOUGHT.match(/.{1,24}/gs)) send({ ...base, choices: [{ index: 0, delta: { reasoning_content: piece } }] });
   if (answer.text) for (const piece of answer.text.match(/.{1,12}/gs)) send({ ...base, choices: [{ index: 0, delta: { content: piece } }] });
   (answer.tools || []).forEach((t, i) => {
-    const args = JSON.stringify(t.input);
+    const args = t.cut ? JSON.stringify(t.input).slice(0, Math.floor(JSON.stringify(t.input).length * 0.6)) : JSON.stringify(t.input);
     send({ ...base, choices: [{ index: 0, delta: { tool_calls: [{ index: i, id: `call_${Date.now()}_${i}`, type: "function", function: { name: t.name, arguments: "" } }] } }] });
     for (const piece of args.match(/.{1,40}/gs)) send({ ...base, choices: [{ index: 0, delta: { tool_calls: [{ index: i, function: { arguments: piece } }] } }] });
   });
-  send({ ...base, choices: [{ index: 0, delta: {}, finish_reason: answer.tools ? "tool_calls" : "stop" }] });
+  send({ ...base, choices: [{ index: 0, delta: {}, finish_reason: answer.stop === "max_tokens" ? "length" : answer.tools ? "tool_calls" : "stop" }] });
   send({ ...base, choices: [], usage: { prompt_tokens: 1000, completion_tokens: 20 } });
   res.write("data: [DONE]\n\n");
   res.end();
@@ -375,11 +437,12 @@ function sseAnthropic(out, answer, model, think) {
   }
   for (const t of answer.tools || []) {
     send("content_block_start", { index: i, content_block: { type: "tool_use", id: `toolu_${Date.now()}_${i}`, name: t.name, input: {} } });
-    for (const piece of JSON.stringify(t.input).match(/.{1,40}/gs)) send("content_block_delta", { index: i, delta: { type: "input_json_delta", partial_json: piece } });
+    const args = JSON.stringify(t.input);
+    for (const piece of (t.cut ? args.slice(0, Math.floor(args.length * 0.6)) : args).match(/.{1,40}/gs)) send("content_block_delta", { index: i, delta: { type: "input_json_delta", partial_json: piece } });
     send("content_block_stop", { index: i });
     i++;
   }
-  send("message_delta", { delta: { stop_reason: answer.tools ? "tool_use" : "end_turn" }, usage: { output_tokens: 20 } });
+  send("message_delta", { delta: { stop_reason: answer.stop === "max_tokens" ? "max_tokens" : answer.tools ? "tool_use" : "end_turn" }, usage: { output_tokens: 20 } });
   send("message_stop", {});
   res.end();
 }

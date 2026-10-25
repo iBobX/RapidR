@@ -27,6 +27,10 @@ pub struct Style {
     pub code: bool,
     /// A link: its index in [`Doc::links`].
     pub link: Option<usize>,
+    /// Text between `<ins>` (1: added) or `<del>` (2: removed): shown in the
+    /// theme's added / removed colour and the code font (a diff's counts:
+    /// "+11" "−0"), never struck out — the sign says it too.
+    pub diff: u8,
 }
 
 /// What a paragraph is.
@@ -65,6 +69,34 @@ pub struct Para {
     pub tight: bool,
     /// The source line it starts on (from 0).
     pub line: usize,
+    /// What a screen reader says for a run (an `<ins title="11 lines added">`
+    /// tag's title): the run's byte range and the words.
+    pub titles: Vec<(Range<usize>, String)>,
+}
+
+impl Para {
+    /// What a screen reader reads: the text, a run with a title read as
+    /// its title ("+11" as "11 lines added"), the groups a card keeps
+    /// apart (em spaces) as commas, a leading mark of the step icons
+    /// ("✓") left out.
+    pub fn speech(&self) -> String {
+        if self.titles.is_empty() && !self.text.starts_with("✓ ") && !self.text.contains('\u{2003}') {
+            return self.text.clone();
+        }
+        let mut out = String::new();
+        let mut at = 0;
+        for (r, title) in &self.titles {
+            out.push_str(self.text.get(at..r.start).unwrap_or(""));
+            out.push_str(&format!(", {title}, "));
+            at = r.end;
+        }
+        out.push_str(self.text.get(at..).unwrap_or(""));
+        let mut s = out.replace(['\u{2003}', '\u{a0}'], " ").split_whitespace().collect::<Vec<_>>().join(" ").replace(" ,", ",");
+        while s.contains(", ,") || s.contains(",,") {
+            s = s.replace(", ,", ",").replace(",,", ",");
+        }
+        s.trim_start_matches("✓ ").trim_matches([',', ' ']).to_string()
+    }
 }
 
 /// A table: its columns' alignment and how many rows it has (the header
@@ -218,6 +250,9 @@ struct Builder {
     heading: Option<u8>,
     /// The source line the event being read starts on.
     line: usize,
+    /// Between `<ins>` (1) or `<del>` (2) tags, and the title the opening one gave.
+    diff: u8,
+    title: Option<String>,
 }
 
 impl Builder {
@@ -252,11 +287,12 @@ impl Builder {
             marker: if in_list { self.marker.take() } else { None },
             tight: self.lists.last().is_some_and(|l| l.1),
             line: self.line,
+            titles: Vec::new(),
         });
     }
 
     fn current_style(&self) -> Style {
-        Style { bold: self.bold > 0, italic: self.italic > 0, strike: self.strike > 0, code: false, link: self.links.last().copied() }
+        Style { bold: self.bold > 0, italic: self.italic > 0, strike: self.strike > 0, code: false, link: self.links.last().copied(), diff: self.diff }
     }
 
     fn push_text(&mut self, t: &str, code: bool) {
@@ -265,10 +301,17 @@ impl Builder {
         }
         let mut st = self.current_style();
         st.code = code;
+        let title = self.title.clone().filter(|_| self.diff != 0);
         let p = self.para();
         let start = p.text.len();
         p.text.push_str(t);
         let end = p.text.len();
+        if let Some(title) = title {
+            match p.titles.last_mut() {
+                Some((r, tt)) if *tt == title && r.end == start => r.end = end,
+                _ => p.titles.push((start..end, title)),
+            }
+        }
         if st != Style::default() {
             match p.runs.last_mut() {
                 Some((r, s)) if *s == st && r.end == start => r.end = end,
@@ -297,10 +340,26 @@ impl Builder {
                 self.flush();
             }
             Event::InlineHtml(h) => {
-                // (a line break written as HTML; other tags are left out)
-                let h = h.trim().to_ascii_lowercase();
+                // (a line break written as HTML; `<ins>` and `<del>` — a
+                // diff's added and removed counts, each with a `title` for a
+                // screen reader; other tags are left out)
+                let original = h.trim().to_string();
+                let h = original.to_ascii_lowercase();
                 if h == "<br>" || h == "<br/>" || h == "<br />" {
                     self.push_text("\n", false);
+                } else if h == "</ins>" || h == "</del>" {
+                    self.diff = 0;
+                    self.title = None;
+                } else if h.starts_with("<ins") || h.starts_with("<del") {
+                    let tag = if h.starts_with("<ins") { 1 } else { 2 };
+                    // (only the tag itself: `<ins>` or `<ins title="…">`, not `<insert …>`)
+                    if h.as_bytes().get(4).is_some_and(|c| *c == b'>' || *c == b' ') && h.ends_with('>') {
+                        self.diff = tag;
+                        self.title = h.find("title=\"").and_then(|i| {
+                            let rest = &original[i + 7..];
+                            rest.find('"').map(|e| rest[..e].to_string())
+                        });
+                    }
                 }
             }
             Event::FootnoteReference(r) => self.push_text(&format!("[{r}]"), false),
@@ -507,11 +566,22 @@ pub struct Markdown {
     /// The keyboard just moved to a link: the view shows it at its next
     /// paint (taken there).
     pub reveal_link: bool,
+    /// (CodeLanguage) The language of the text's inline `code` ("rapidr":
+    /// coloured as the code editor colours it; its words answer the mouse):
+    /// "" — plain.
+    pub code_language: String,
+    /// The body's height at the last layout (FollowEnd: a view that was at
+    /// its end stays so when it is made shorter — a strip appearing under
+    /// it — and the text grows after).
+    pub last_body_h: i64,
+    /// The tooltip the last word of code under the mouse gave ("" none): what
+    /// a test reads (`__tip`) to see the hover.
+    pub last_tip: String,
 }
 
 impl Default for Markdown {
     fn default() -> Self {
-        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false, link_focus: None, reveal_link: false }
+        Markdown { text: String::new(), rev: 1, doc: None, file_name: String::new(), open_links: true, selection: None, scroll_to: None, empty_text: String::new(), follow_end: false, link_focus: None, reveal_link: false, code_language: String::new(), last_body_h: 0, last_tip: String::new() }
     }
 }
 
@@ -654,9 +724,41 @@ pub fn is_web_link(url: &str) -> bool {
     u.starts_with("http://") || u.starts_with("https://") || u.starts_with("mailto:")
 }
 
+/// What a program's language service says of a word of code the mouse is
+/// on (a view with a CodeLanguage): the one-line help it shows as a
+/// tooltip, and the component type the word is a member of, when known
+/// (what OnCodeClick passes on).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WordHelp {
+    pub tip: String,
+    pub of: String,
+}
+
+/// Looks a word of code up: (the word, whether a dot comes before it) — its
+/// help, or `None` when the language doesn't know it.
+pub type WordHelper = fn(&str, bool) -> Option<WordHelp>;
+
+thread_local! {
+    static WORD_HELP: std::cell::Cell<Option<WordHelper>> = const { std::cell::Cell::new(None) };
+}
+
+/// Installs the language service the views' code words ask (RapidR
+/// Studio's registry; a program without one has no help to show).
+pub fn set_word_help(f: WordHelper) {
+    WORD_HELP.with(|c| c.set(Some(f)));
+}
+
+/// The help for a word of code (member: a dot comes before it).
+pub fn word_help(word: &str, member: bool) -> Option<WordHelp> {
+    WORD_HELP.with(|c| c.get()).and_then(|f| f(word, member))
+}
+
 /// What the user did to it (from the kernel).
 #[derive(Clone, Debug, PartialEq)]
 pub enum User {
+    /// A word of code clicked (a view with a CodeLanguage, the language
+    /// service knowing it): OnCodeClick (Word, OfType).
+    Word { word: String, of: String },
     /// A link clicked (or Enter / a screen reader's click on it): its
     /// target as written. OnLinkClick (Url); a web link opens in the
     /// browser (OpenLinks), a `#heading` scrolls to it.
@@ -726,6 +828,8 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "openlinks" => basic_bool(m.open_links),
             "emptytext" => Value::String(m.empty_text.clone()),
             "followend" => basic_bool(m.follow_end),
+            "codelanguage" => Value::String(m.code_language.clone()),
+            "__tip" => Value::String(m.last_tip.clone()),
             "plaintext" => Value::String(m.doc().plain_text()),
             "seltext" => Value::String(m.selected_text()),
             "linkcount" => Value::Integer(m.doc().links.len() as i64),
@@ -742,6 +846,14 @@ pub fn rt_set<R: Runtime>(_rt: R, name: &str, prop: &str, v: &Value) -> bool {
         "openlinks" => with_mut(name, |m| m.open_links = truth(v)),
         "emptytext" => with_mut(name, |m| m.empty_text = v.to_string_val()),
         "followend" => with_mut(name, |m| m.follow_end = truth(v)),
+        "codelanguage" => with_mut(name, |m| {
+            let l = v.to_string_val().trim().to_ascii_lowercase();
+            if m.code_language != l {
+                m.code_language = l;
+                // (shaped again: the inline code's colours change)
+                m.rev += 1;
+            }
+        }),
         _ => return false,
     }
     true
@@ -750,6 +862,7 @@ pub fn rt_set<R: Runtime>(_rt: R, name: &str, prop: &str, v: &Value) -> bool {
 /// What the user did.
 pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
     match action {
+        User::Word { word, of } => rt.fire(name, "oncodeclick", &[Value::String(word), Value::String(of)]),
         User::Link(url) => {
             if url.starts_with('#') {
                 with_mut(name, |m| {
@@ -865,5 +978,20 @@ mod tests {
         assert!(!m.step_link_focus(false) && !m.step_link_focus(true));
         m.enter_link_focus(true);
         assert_eq!(m.link_focus, None);
+    }
+
+    /// A diff's counts: `<ins>` and `<del>` runs (added 1, removed 2), their
+    /// titles what a screen reader says, other tags left out.
+    #[test]
+    fn a_diffs_counts_have_their_own_style_and_a_spoken_title() {
+        let d = Doc::parse("##### ✓ Proposed a change to main.rr\u{2003}\u{2003}<ins title=\"11 lines added\">+11</ins> <del title=\"0 lines removed\">−0</del>\u{2003}\u{2003}[Review](ai:review) <b>no</b>\n");
+        let p = &d.paras[0];
+        assert_eq!(p.text, "✓ Proposed a change to main.rr\u{2003}\u{2003}+11 −0\u{2003}\u{2003}Review no");
+        let diff_of = |w: &str| p.runs.iter().find(|(r, _)| &p.text[r.clone()] == w).map(|(_, s)| s.diff);
+        assert_eq!((diff_of("+11"), diff_of("−0")), (Some(1), Some(2)));
+        assert_eq!(p.speech(), "Proposed a change to main.rr, 11 lines added, 0 lines removed, Review no");
+        // (a text without them reads as it is)
+        let plain = Doc::parse("Hello <ins>x</ins>");
+        assert_eq!(plain.paras[0].speech(), plain.paras[0].text);
     }
 }

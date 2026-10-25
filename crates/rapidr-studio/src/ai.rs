@@ -123,6 +123,8 @@ fn s(v: impl Into<String>) -> Value {
 /// RAIPROJECTTOOLS is used).
 pub fn install() {
     rapidr_ai::rai::set_tool_factory(factory);
+    // (the assistant's chat: a word of code in an answer shows its help)
+    rapidr_value::panels::markdown::set_word_help(crate::help::quick);
 }
 
 fn factory(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvider>, String> {
@@ -602,7 +604,7 @@ impl Tools {
     fn cards(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
         if !self.recipe.is_empty() {
-            out.push(("recipe".to_string(), format!("○ Started from the recipe *{}*", self.recipe)));
+            out.push(("recipe".to_string(), format!("✓ Started from the recipe *{}*", self.recipe)));
         }
         // (this turn's changes: one waiting from an earlier answer has its
         // card there)
@@ -610,7 +612,17 @@ impl Tools {
             let (added, removed) = ai_tools::line_delta(&p.old, &p.new);
             // (Studio's own links: marked, so a model can't write one, SEC-26)
             let review = rapidr_ai::rai::own_link("ai:review");
-            let line = if p.kind == "create" { format!("● New file {} · +{added} · [Review]({review})", p.path) } else { format!("● Proposed a change to {} · +{added} −{removed} · [Review]({review})", p.path) };
+            // (the step icon of the status list; the file, then the counts
+            // as a group of their own — added and removed in the diff's
+            // colours, a title a screen reader says in words —, then Review:
+            // the groups kept apart by em spaces)
+            let counts = |n: usize, what: &str| format!("{n} {} {what}", if n == 1 { "line" } else { "lines" });
+            let gap = "\u{2003}\u{2003}";
+            let line = if p.kind == "create" {
+                format!("✓ New file {}{gap}<ins title=\"{}\">+{added}</ins>{gap}[Review]({review})", p.path, counts(added, "added"))
+            } else {
+                format!("✓ Proposed a change to {}{gap}<ins title=\"{}\">+{added}</ins> <del title=\"{}\">−{removed}</del>{gap}[Review]({review})", p.path, counts(added, "added"), counts(removed, "removed"))
+            };
             out.push((format!("edit:{}", p.path), line));
         }
         // (a change refused and not proposed again: said, nothing to review)
@@ -620,11 +632,11 @@ impl Tools {
         if let Some((_, main)) = ai_tools::pending(&self.proposals) {
             let title = self.proposals.iter().find(|p| p.kind == "project").map(|p| p.title.clone()).unwrap_or_default();
             let errors = ai_tools::project_errors(&self.proposals);
-            let state = if errors == 0 { "✓ compiles".to_string() } else { format!("{} to fix", plural(errors, "error")) };
-            out.push(("project".to_string(), format!("◆ New program *{title}* · {main} · {state}")));
+            let state = if errors == 0 { "compiles".to_string() } else { format!("{} to fix", plural(errors, "error")) };
+            out.push(("project".to_string(), format!("✓ New program *{title}*\u{2003}\u{2003}{main} · {state}")));
         }
         if self.first_errors > 0 && self.touched && !self.broken {
-            out.push(("fixed".to_string(), format!("▲ Fixed {}", plural(self.first_errors, "error"))));
+            out.push(("fixed".to_string(), format!("✓ Fixed {}", plural(self.first_errors, "error"))));
         }
         out
     }
@@ -690,10 +702,10 @@ impl Tools {
         }
         rapidr_ai::rai::record(&self.rai, "", json!({"target": root, "decision": "created", "files": made.files.len()}));
         let errors = diagnostics_count(&texts, &name, &main_rel);
-        let state = if errors == 0 { "✓ compiles".to_string() } else { format!("{} left", plural(errors, "error")) };
+        let state = if errors == 0 { "compiles".to_string() } else { format!("{} left", plural(errors, "error")) };
         let folder_name = root.rsplit('/').next().unwrap_or(&name).to_string();
         let (open, undo) = (rapidr_ai::rai::own_link(&format!("ai:open/{folder_name}")), rapidr_ai::rai::own_link(&format!("ai:undo/{folder_name}")));
-        rapidr_ai::rai::set_card(&self.rai, "project", &format!("◆ Created *{title}* · {main_rel} · {state} · [Open]({open}) · [Undo]({undo})"));
+        rapidr_ai::rai::set_card(&self.rai, "project", &format!("✓ Created *{title}*\u{2003}\u{2003}{main_rel} · {state}\u{2003}\u{2003}[Open]({open}) · [Undo]({undo})"));
         self.created = Some(made);
         Ok(crate::join(&root, &proj_file))
     }

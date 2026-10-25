@@ -33,6 +33,17 @@ fn page_look() -> (bool, bool) {
     (media("(prefers-color-scheme: dark)"), media("(forced-colors: active)") || media("(prefers-contrast: more)"))
 }
 
+/// Whether the visitor asked for reduced motion, as the page sees it
+/// (`prefers-reduced-motion`). A GUI test's page says no unless the test
+/// says otherwise (`RAPIDR_REDUCED_MOTION=1`).
+fn page_motion() -> bool {
+    use rapidr_ui_app::testhooks;
+    if testhooks::under_test() && !testhooks::real_system_look() {
+        return testhooks::var("RAPIDR_REDUCED_MOTION").as_deref() == Some("1");
+    }
+    web_sys::window().and_then(|w| w.match_media("(prefers-reduced-motion: reduce)").ok().flatten()).is_some_and(|m| m.matches())
+}
+
 /// `$THEME name` / `Application.Theme = name`: the kernel draws in that
 /// theme from now on; `rapidr` (and a name no theme has) RapidR's look as
 /// the page is — light, dark or high contrast — and as it becomes.
@@ -53,6 +64,7 @@ pub fn name_theme(name: &str) {
 /// look as the page is (a test page's `RAPIDR_THEME` names one), and
 /// follows the page when the visitor switches to dark or high contrast.
 pub fn start_theme() {
+    rapidr_value::theme::set_motion_probe(page_motion);
     rapidr_value::theme::set_user_choice(rapidr_ui_app::testhooks::var("RAPIDR_THEME"));
     if rapidr_value::theme::wants_system() {
         let (dark, contrast) = page_look();

@@ -136,7 +136,7 @@ fn an_rai_with_the_project_tools() {
     assert!(t.starts_with("**You**\n\nRename the window to Notes"), "{t}");
     // (the chat: the replies, the change as a card Studio writes, the last
     // reply after it; what each tool did is the progress checklist's)
-    assert!(t.contains("Let me look.\n\n##### ● Proposed a change to main.rr · +1 −1 · [Review](ai:review)\n\nI proposed a new title."), "{t}");
+    assert!(t.contains("Let me look.\n\n##### ✓ Proposed a change to main.rr\u{2003}\u{2003}<ins title=\"1 line added\">+1</ins> <del title=\"1 line removed\">−1</del>\u{2003}\u{2003}[Review](ai:review)\n\nI proposed a new title."), "{t}");
     assert!(!t.contains("Read main.rr"), "{t}");
     assert_eq!(rai_get(n, "steps"), "Read main.rr\nProposed a change to main.rr");
     // (each step in a few words: the status line holds the newest three)
@@ -521,7 +521,7 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     assert!(!t.contains("no project open") && !t.contains("Couldn't read"), "{t}");
     assert_eq!(status, "The assistant made a new program: preview it, then create it.");
     // (the cards: the recipe, the program as it is now, the errors fixed)
-    assert!(t.contains("##### ○ Started from the recipe *Calculator (basic and scientific)*\n\n##### ◆ New program *Calc* · main.rr · ✓ compiles\n\n##### ▲ Fixed 1 error\n\nFixed: it compiles now."), "{t}");
+    assert!(t.contains("##### ✓ Started from the recipe *Calculator (basic and scientific)*\n\n##### ✓ New program *Calc*\u{2003}\u{2003}main.rr · compiles\n\n##### ✓ Fixed 1 error\n\nFixed: it compiles now."), "{t}");
     // (one proposal, the fixed text: what the Preview shows)
     assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
     assert!(call(tools, "proposalinfo", &[Value::Integer(0)]).unwrap().to_string_val().starts_with("project\tmain.rr\t"));
@@ -547,7 +547,7 @@ fn a_new_project_not_created_yet_can_still_be_fixed() {
     assert!(proj.ends_with("/Calc/Calc.rrproj"), "{proj}");
     let made = std::fs::read_to_string(dir.join("Calc/main.rr")).unwrap();
     // (the last answer's card: created, with Open and Undo)
-    assert!(rapidr_ai::rai::peek(n).0.contains("##### ◆ Created *Calc* · main.rr · ✓ compiles · [Open](ai:open/Calc) · [Undo](ai:undo/Calc)"), "{}", rapidr_ai::rai::peek(n).0);
+    assert!(rapidr_ai::rai::peek(n).0.contains("##### ✓ Created *Calc*\u{2003}\u{2003}main.rr · compiles\u{2003}\u{2003}[Open](ai:open/Calc) · [Undo](ai:undo/Calc)"), "{}", rapidr_ai::rai::peek(n).0);
     assert!(made.contains("DIM ready AS INTEGER") && made.contains("Calculator"), "{made}");
     let (url4, server4) = mock(vec![text_answer("Sure.")]);
     rai_set(n, "baseurl", &url4);
@@ -595,7 +595,7 @@ fn a_request_for_a_new_program_comes_with_the_closest_recipe() {
     let (t, _) = rapidr_ai::rai::peek(n);
     assert!(!t.contains("A working RapidR program close to"), "the transcript shows the user's words only: {t}");
     // (the chat says which recipe it started from: a card Studio writes)
-    assert!(t.contains("##### ○ Started from the recipe *Stopwatch (timer)*"), "{t}");
+    assert!(t.contains("##### ✓ Started from the recipe *Stopwatch (timer)*"), "{t}");
     assert!(std::fs::read_to_string(dir.join("audit.jsonl")).unwrap().contains("\"op\":\"context\""));
     // (read-only: no change can be made, no recipe sent)
     let (url2, server2) = mock(vec![text_answer("I can describe one.")]);
@@ -668,7 +668,7 @@ fn waiting_changes_are_checked_together_and_each_decision_said_once() {
     assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 2);
     let (t, status) = rapidr_ai::rai::peek(n);
     let second = t.rsplit("**You**").next().unwrap();
-    assert!(second.contains("##### ● Proposed a change to main.rr · +1 −0") && !second.contains("server.rr ·"), "{second}");
+    assert!(second.contains("##### ✓ Proposed a change to main.rr\u{2003}\u{2003}<ins title=\"1 line added\">+1</ins> <del title=\"0 lines removed\">−0</del>") && !second.contains("to server.rr"), "{second}");
     assert!(status.starts_with("The assistant proposed changes to 2 files"), "{status}");
     // (applied, both: said once each — a review opened again and applied
     // or rejected says nothing more)
@@ -767,7 +767,7 @@ fn a_cut_off_file_or_a_needless_rewrite_is_refused() {
     // (a new module cut off: refused too)
     assert!(last_result(&seen, 4).contains("is cut off"), "{}", last_result(&seen, 4));
     let (t, _) = rapidr_ai::rai::peek(n);
-    assert!(t.contains("##### ● Proposed a change to sites.rr · +2 −2 · [Review](ai:review)"), "{t}");
+    assert!(t.contains("##### ✓ Proposed a change to sites.rr\u{2003}\u{2003}<ins title=\"2 lines added\">+2</ins> <del title=\"2 lines removed\">−2</del>\u{2003}\u{2003}[Review](ai:review)"), "{t}");
     assert!(t.contains("##### × Refused stop.rr: it is cut off at the end"), "{t}");
     assert!(!t.contains("× Refused sites.rr") && !t.contains("× Refused a whole-file"), "a refusal then proposed is no card: {t}");
     assert_eq!(get(tools, "proposalcount").unwrap().to_i64(), 1);
@@ -905,8 +905,12 @@ fn the_status_line_says_what_each_tool_does() {
     assert_eq!(a("search_manual", json!({"query": "menus"})), "Searching the manual");
     assert_eq!(a("propose_edit", json!({"path": "server.rr"})), "Writing server.rr");
     assert_eq!(a("create_project", json!({"name": "Stopwatch"})), "Writing Stopwatch");
-    assert_eq!(a("check_code", json!({})), "Checking the code");
-    assert_eq!(a("rapidr_describe", json!({"type": "RButton"})), "Looking up RButton");
+    assert_eq!(a("check_code", json!({})), "Checking (compiling)");
+    assert_eq!(a("rapidr_describe", json!({"type": "RButton"})), "Reading the help of RButton");
+    // (a file written: its lines counted as they stream in)
+    assert_eq!(a("write_file", json!({"path": "main.rr", "lines": 318})), "Writing main.rr (+318 lines)");
+    assert_eq!(a("create_project", json!({"name": "Stopwatch", "lines": 1})), "Writing Stopwatch (+1 line)");
+    assert_eq!(a("propose_edit", json!({"path": "server.rr", "lines": 9})), "Writing server.rr");
     assert!(ai_tools::activity("no_such_tool", &json!({})).is_none());
 }
 

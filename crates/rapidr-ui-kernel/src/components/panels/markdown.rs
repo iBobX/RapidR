@@ -125,6 +125,34 @@ struct Faces {
     mono: Font,
     l: Look,
     theme: &'static Theme,
+    /// (CodeLanguage) The editor's language for the inline `code`.
+    code_lang: Option<&'static str>,
+    /// The ink of added and removed counts (`<ins>`, `<del>`): the editor's
+    /// diff colours of the theme, made readable on the view's ground.
+    added: u32,
+    removed: u32,
+}
+
+/// `fg` made readable on `bg` (WCAG `need`:1): darker on a light ground,
+/// lighter on a dark one, as little as it takes.
+fn ink_for(fg: u32, bg: u32, need: f64) -> u32 {
+    use rapidr_value::theme::{contrast, luminance};
+    if contrast(fg, bg) >= need {
+        return fg;
+    }
+    let target = if luminance(bg) > 0.4 { 0x000000 } else { 0xFFFFFF };
+    for k in 1..=20 {
+        let t = f64::from(k) * 0.05;
+        let mixed = (0..3).fold(0u32, |acc, i| {
+            let sh = 16 - 8 * i;
+            let (a, b) = (f64::from((fg >> sh) & 0xFF), f64::from((target >> sh) & 0xFF));
+            acc | (((a + (b - a) * t).round() as u32) << sh)
+        });
+        if contrast(mixed, bg) >= need {
+            return mixed;
+        }
+    }
+    target
 }
 
 fn faces(cx: &Cx, theme: &'static Theme) -> Faces {
@@ -132,7 +160,11 @@ fn faces(cx: &Cx, theme: &'static Theme) -> Faces {
     let body = if program_font { Font { color: 0, styles: 0, ..cx.font.clone() } } else { Font { name: String::new(), size: -BODY_PX, color: 0, styles: 0 } };
     let px = body.pixel_size().max(6);
     let mono = Font { name: "JetBrains Mono".into(), size: -((px as f64 * 0.92).round() as i64).max(6), color: 0, styles: 0 };
-    Faces { body, mono, l: look(theme), theme }
+    let code_lang = model::with(cx.id, |m| m.code_language.clone()).and_then(|l| code_language(&l));
+    let l = look(theme);
+    let scheme = rapidr_value::code_scheme::for_theme(theme);
+    let need = if theme.contrast { 7.0 } else { 4.5 };
+    Faces { body, mono, l, theme, code_lang, added: ink_for(scheme.mark_added, l.body, need), removed: ink_for(scheme.mark_removed, l.body, need) }
 }
 
 /// A font `ratio` times the body's, bold or not.
@@ -195,6 +227,13 @@ fn run_props(st: &Style, f: &Faces, base: &Font) -> Vec<StyleProperty<'static, I
         out.push(StyleProperty::Brush(Ink(f.l.link)));
         out.push(StyleProperty::Underline(true));
     }
+    // (a diff's counts: the diff colours, the code font — monospaced, so the
+    // digits line up —, the signs say it without the colour)
+    if st.diff != 0 {
+        out.push(StyleProperty::Brush(Ink(if st.diff == 1 { f.added } else { f.removed })));
+        let mono = Font { size: -((base.pixel_size() as f64 * 0.92).round() as i64).max(6), ..f.mono.clone() };
+        out.extend(styles(&mono, 0).into_iter().filter(|p| matches!(p, StyleProperty::FontFamily(_) | StyleProperty::FontSize(_) | StyleProperty::FontFeatures(_))));
+    }
     out
 }
 
@@ -247,6 +286,32 @@ fn shape(ts: &mut TextSystem, p: &Para, f: &Faces, scale: f32) -> Layout<Ink> {
                 if r.end <= text.len() && text.is_char_boundary(r.start) && text.is_char_boundary(r.end) {
                     for prop in run_props(st, f, &font) {
                         b.push(prop, r.clone());
+                    }
+                    // (inline code of a CodeLanguage: coloured as the code
+                    // editor colours it — the same highlighter and scheme as
+                    // a code block's)
+                    if let (true, Some(id)) = (st.code, f.code_lang) {
+                        let languages = rapidr_editor::lang::Languages::builtin();
+                        let mut hl = rapidr_editor::Highlighter::new(languages.get(id).unwrap_or_else(|| languages.plain_text()));
+                        let scheme = rapidr_value::code_scheme::for_theme(f.theme);
+                        let mut state = rapidr_editor::ROOT;
+                        let mut at = r.start;
+                        for line in text[r.clone()].split('\n') {
+                            let (tokens, next) = hl.line_spans(line, state);
+                            state = next;
+                            for t in tokens {
+                                let ts = scheme.token(t.kind.fallbacks());
+                                let range = at + t.start as usize..at + t.end as usize;
+                                b.push(StyleProperty::Brush(Ink(ts.color)), range.clone());
+                                if ts.bold {
+                                    b.push(StyleProperty::FontWeight(FontWeight::BOLD), range.clone());
+                                }
+                                if ts.italic {
+                                    b.push(StyleProperty::FontStyle(FontStyle::Italic), range);
+                                }
+                            }
+                            at += line.len() + 1;
+                        }
                     }
                 }
             }
@@ -523,6 +588,66 @@ impl Laid {
         Some(((k, c.index().min(self.doc.paras[k].text.len())), d == 0.0))
     }
 
+    /// The scale it was shaped at.
+    fn scale(&self) -> f64 {
+        f64::from_bits(self.shaped_for.1)
+    }
+
+    /// The word of code under (x, y) (logical, from the text's top left),
+    /// in inline `code` or a code block of RapidR's language: the word, and
+    /// whether a dot comes before it (a member). `None` for anything else.
+    fn code_word(&self, x: f64, y: f64, scale: f64) -> Option<(String, bool)> {
+        let ((k, at), on) = self.hit(x, y, scale)?;
+        if !on {
+            return None;
+        }
+        let p = self.doc.paras.get(k)?;
+        let t = p.text.as_str();
+        let span = match &p.kind {
+            Kind::Code(lang) => (code_language(lang) == Some("rapidr-basic")).then_some(0..t.len())?,
+            Kind::Text | Kind::Cell { .. } => p.runs.iter().find(|(r, st)| st.code && r.start <= at && at <= r.end).map(|(r, _)| r.clone())?,
+            _ => return None,
+        };
+        let is_word = |c: char| c.is_alphanumeric() || c == '_';
+        let at = at.clamp(span.start, span.end);
+        // (the word the point is on: the character at it, else the one
+        // before — the cursor sits between characters)
+        let after = t[at..span.end].chars().next();
+        let before = t[span.start..at].chars().next_back();
+        let mut from = at;
+        let mut to = at;
+        if after.is_some_and(is_word) {
+            to = at + after.map_or(0, char::len_utf8);
+        } else if before.is_some_and(is_word) {
+            from = at - before.map_or(0, char::len_utf8);
+        } else {
+            return None;
+        }
+        while let Some(c) = t[span.start..from].chars().next_back().filter(|c| is_word(*c)) {
+            from -= c.len_utf8();
+        }
+        while let Some(c) = t[to..span.end].chars().next().filter(|c| is_word(*c)) {
+            to += c.len_utf8();
+        }
+        // (LEFT$, $THEME: a directive's $ before, a string function's after)
+        if t[span.start..from].ends_with('$') {
+            from -= 1;
+        }
+        if t[to..span.end].starts_with('$') {
+            to += 1;
+        }
+        let word = &t[from..to];
+        if word.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        // (the point must be on the word itself, not beside it)
+        let (s, l) = (&self.spots[k], &self.boxes[k].layout);
+        let (px, py) = ((x - s.x) * scale, (y - s.y) * scale);
+        let sel = Selection::new(Cursor::from_byte_index(l, from, Affinity::Downstream), Cursor::from_byte_index(l, to, Affinity::Upstream));
+        let inside = sel.geometry(l).iter().any(|(b, _)| px >= b.x0 && px < b.x1 && py >= b.y0 && py < b.y1);
+        inside.then(|| (word.to_string(), t[span.start..from].ends_with('.')))
+    }
+
     /// Link `li`'s boxes (logical, from the text's top left), one for each
     /// line it runs over.
     fn link_rects(&self, li: usize, scale: f64) -> Vec<(f64, f64, f64, f64)> {
@@ -569,9 +694,12 @@ fn lay_out(cx: &mut Cx, theme: &'static Theme) -> (i64, Vec<Op>) {
     let f = faces(cx, theme);
     let (_, _, bw, bh) = body(cx, &f.l);
     // (FollowEnd: a view at its end before the text grew stays at its end)
+    // (at its end as it was at the last layout too: a view made shorter — a
+    // status strip appearing under a chat — was at its end all the same)
+    let last_bh = model::with_mut(cx.id, |md| std::mem::replace(&mut md.last_body_h, bh));
     let at_end = model::with_mut(cx.id, |md| md.follow_end) && {
         let (pos, _, range) = vscroll_state(cx.id);
-        range <= bh || pos + bh >= range - 4
+        range <= bh || pos + bh >= range - 4 || pos + last_bh >= range - 4
     };
     Laid::shape(cx, theme);
     let scale = cx.scale;
@@ -748,11 +876,51 @@ impl ComponentKind for MarkdownView {
                         let url = laid.doc.links.get(link).cloned().unwrap_or_default();
                         super::send(cx, User::Markdown(model::User::Link(url)));
                     }
+                } else if m.inside && m.button == rapidr_value::input::Button::Left && !model::with(cx.id, |md| md.code_language.is_empty()).unwrap_or(true) {
+                    // (a word of code clicked — not the end of a selection
+                    // being dragged — that the language service knows)
+                    let collapsed = model::with(cx.id, |md| md.selection.is_none_or(|(a, b)| a == b)).unwrap_or(true);
+                    if let (true, Some((word, member))) = (collapsed, laid.code_word(x, y, scale)) {
+                        if let Some(h) = model::word_help(&word, member) {
+                            super::send(cx, User::Markdown(model::User::Word { word, of: h.of }));
+                        }
+                    }
                 }
             }
             _ => {}
         }
         MouseOut::default()
+    }
+
+    /// A hand over a link, and over a word of code the language service
+    /// knows (a click opens its help).
+    fn pointer(&self, cx: &mut Cx, x: i64, y: i64) -> rapidr_value::input::Cursor {
+        let l = look(rapidr_value::theme::current());
+        let (bx, by, _, bh) = body(cx, &l);
+        let pos = vscroll_state(cx.id).0 as f64;
+        let words = !model::with(cx.id, |md| md.code_language.is_empty()).unwrap_or(true);
+        let scale = cx.scale;
+        let Some(laid) = cx.ui.markdown.as_ref() else { return rapidr_value::input::Cursor::Default };
+        let (px, py) = ((x - bx) as f64, ((y - by) as f64).clamp(0.0, (bh - 1).max(0) as f64) + pos);
+        let on_link = laid.link_at(px, py, scale).is_some();
+        let on_word = words && laid.code_word(px, py, scale).is_some_and(|(w, member)| model::word_help(&w, member).is_some());
+        if on_link || on_word {
+            rapidr_value::input::Cursor::Hand
+        } else {
+            rapidr_value::input::Cursor::Default
+        }
+    }
+
+    /// The word of code under the mouse, in one line (a tooltip).
+    fn tip_laid(&self, ui: &crate::tree::NodeUi, _store: &dyn crate::store::Store, id: &str, x: f64, y: f64) -> Option<String> {
+        if model::with(id, |md| md.code_language.is_empty()).unwrap_or(true) {
+            return None;
+        }
+        let laid = ui.markdown.as_ref()?;
+        let inset = common::inset(&look(rapidr_value::theme::current())) as f64;
+        let tip = laid.code_word(x - inset, y - inset + vscroll_state(id).0 as f64, laid.scale()).and_then(|(word, member)| model::word_help(&word, member)).map(|h| h.tip);
+        model::with_mut(id, |m| m.last_tip = tip.clone().unwrap_or_default());
+        tip
     }
 
     fn wheel(&self, cx: &mut Cx, _dx: f64, dy: f64, _mods: crate::input::Mods) -> bool {
@@ -883,7 +1051,7 @@ impl ComponentKind for MarkdownView {
                             row = Some((r, AccessNode::new(part_id(cx.id, PART_ROW, k), Role::Row)));
                         }
                         let mut c = AccessNode::new(part_id(cx.id, PART_CELL, k + (1 << 23)), Role::Cell);
-                        c.name = m.doc.paras[k].text.clone();
+                        c.name = m.doc.paras[k].speech();
                         c.bounds = at(&m.spots[k]);
                         link_nodes(k, &mut c);
                         if let Some((_, rn)) = row.as_mut() {
@@ -901,7 +1069,7 @@ impl ComponentKind for MarkdownView {
                 }
                 kind => {
                     let mut node = AccessNode::new(part_id(cx.id, PART_ROW, k), Role::Label);
-                    node.name = p.text.clone();
+                    node.name = p.speech();
                     node.bounds = at(&m.spots[k]);
                     match kind {
                         Kind::Heading(lv) => {
@@ -1062,6 +1230,9 @@ mod tests {
             mono: rapidr_value::objects::font::Font { name: "JetBrains Mono".into(), size: -13, color: 0, styles: 0 },
             l: super::look(theme),
             theme,
+            code_lang: None,
+            added: 0,
+            removed: 0,
         };
         let doc = model::Doc::parse(&format!("```{fence}\n{code}\n```\n"));
         let mut ts = TextSystem::new();
@@ -1274,5 +1445,163 @@ mod tests {
         f.paint(&s, &mut ts, 1.0);
         assert!(super::vscroll_state("mds").0 > 0, "Shift+Tab into the view shows its last link");
         model::remove("mds");
+    }
+
+    /// The window point of the bytes `from..to` of paragraph `k` (its middle).
+    fn word_point(f: &FormUi, id: &str, k: usize, from: usize, to: usize) -> (f64, f64) {
+        use parley::{Affinity, Cursor, Selection};
+        let n = f.node(id).expect("node");
+        let m = n.ui.markdown.as_ref().expect("laid out");
+        let l = m.layout(k).expect("layout");
+        let sel = Selection::new(Cursor::from_byte_index(l, from, Affinity::Downstream), Cursor::from_byte_index(l, to, Affinity::Upstream));
+        let geo = sel.geometry(l);
+        let b = geo.first().expect("a box").0;
+        let inset = super::common::inset(&super::look(rapidr_value::theme::current())) as f64;
+        let (s, (ax, ay, _, _)) = (m.spots[k], n.abs);
+        (ax as f64 + inset + s.x + (b.x0 + b.x1) / 2.0, ay as f64 + inset + s.y + (b.y0 + b.y1) / 2.0)
+    }
+
+    fn word_events(f: &mut FormUi) -> Vec<User> {
+        f.take_events()
+            .into_iter()
+            .filter_map(|e| match e {
+                KernelEvent::Container(Container::Panel { action, .. }) => Some(action),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// A view with a CodeLanguage (the chat of RapidR Studio's assistant):
+    /// its inline `code` is coloured as the code editor colours it, and a
+    /// word of inline code or of a RapidR code block answers the mouse with
+    /// the language service's one line (a tooltip), a hand, and a click.
+    #[test]
+    fn code_words_answer_the_mouse_when_the_view_has_a_code_language() {
+        use rapidr_value::panels::markdown::WordHelp;
+        model::set_word_help(|w, member| match (w.to_ascii_uppercase().as_str(), member) {
+            ("PRINT", false) => Some(WordHelp { tip: "PRINT: writes text".into(), of: String::new() }),
+            ("ADDITEMS", true) => Some(WordHelp { tip: "AddItems: adds lines".into(), of: "RListBox".into() }),
+            ("SHOWMESSAGE", false) => Some(WordHelp { tip: "SHOWMESSAGE: a message box".into(), of: String::new() }),
+            _ => None,
+        });
+        let (s, mut f, mut ts) = setup("md3");
+        let text = "Use `PRINT` or `List1.AddItems` here.\n\n```rapidr\nSHOWMESSAGE \"hi\"\n```\n";
+        model::with_mut("md3", |m| m.set_text(text));
+        f.paint(&s, &mut ts, 1.0);
+        let at = |w: &str| text.find(w).map(|i| i - text.find("Use").unwrap()).unwrap();
+        let (print, add) = (at("PRINT"), at("AddItems"));
+        // (no CodeLanguage: no tooltip, no click)
+        let (x, y) = word_point(&f, "md3", 0, print, print + 5);
+        f.mouse_move(&s, &mut ts, x, y, Mods::NONE);
+        assert_eq!(f.tip.text, "");
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        assert!(word_events(&mut f).is_empty());
+        // (with one)
+        model::with_mut("md3", |m| {
+            m.code_language = "rapidr".into();
+            m.rev += 1;
+        });
+        f.paint(&s, &mut ts, 1.0);
+        let (x, y) = word_point(&f, "md3", 0, print, print + 5);
+        f.mouse_move(&s, &mut ts, x, y, Mods::NONE);
+        assert_eq!(f.tip.text, "PRINT: writes text");
+        assert_eq!(f.pointer_at(&s, &mut ts, x, y), rapidr_value::input::Cursor::Hand);
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        assert_eq!(word_events(&mut f), vec![User::Markdown(model::User::Word { word: "PRINT".into(), of: String::new() })]);
+        // (a member after a dot: its component type goes with the click)
+        let (x, y) = word_point(&f, "md3", 0, add, add + 8);
+        f.mouse_move(&s, &mut ts, x, y, Mods::NONE);
+        assert_eq!(f.tip.text, "AddItems: adds lines");
+        f.mouse_down(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        f.mouse_up(&s, &mut ts, x, y, Button::Left, Mods::NONE);
+        assert_eq!(word_events(&mut f), vec![User::Markdown(model::User::Word { word: "AddItems".into(), of: "RListBox".into() })]);
+        // (a word of a RapidR code block)
+        let (x, y) = word_point(&f, "md3", 1, 0, 11);
+        f.mouse_move(&s, &mut ts, x, y, Mods::NONE);
+        assert_eq!(f.tip.text, "SHOWMESSAGE: a message box");
+        // (plain text beside the code: nothing)
+        let (x, y) = word_point(&f, "md3", 0, 0, 3);
+        f.mouse_move(&s, &mut ts, x, y, Mods::NONE);
+        assert_eq!(f.tip.text, "");
+        assert_eq!(f.pointer_at(&s, &mut ts, x, y), rapidr_value::input::Cursor::Default);
+        // (the inline code coloured as the editor colours its words)
+        let theme = rapidr_value::theme::current();
+        let faces = super::Faces {
+            body: rapidr_value::objects::font::Font { name: String::new(), size: -14, color: 0, styles: 0 },
+            mono: rapidr_value::objects::font::Font { name: "JetBrains Mono".into(), size: -13, color: 0, styles: 0 },
+            l: super::look(theme),
+            theme,
+            code_lang: Some("rapidr-basic"),
+            added: 0,
+            removed: 0,
+        };
+        let doc = model::Doc::parse(text);
+        let mut layout = super::shape(&mut ts, &doc.paras[0], &faces, 1.0);
+        layout.break_all_lines(None);
+        let ink_of = |from: usize| {
+            for line in layout.lines() {
+                for run in line.runs() {
+                    for c in run.clusters() {
+                        if c.text_range().start == from {
+                            return c.glyphs().next().map(|g| layout.styles()[g.style_index()].brush.0).unwrap_or(0);
+                        }
+                    }
+                }
+            }
+            0
+        };
+        assert_ne!(ink_of(print), faces.l.text, "PRINT is a keyword: coloured");
+        assert_eq!(ink_of(0), faces.l.text, "the text around it is not");
+        model::remove("md3");
+    }
+
+    /// FollowEnd: a chat at its end stays there while its text grows — also
+    /// when the view is made shorter first (a strip appearing under it).
+    #[test]
+    fn a_view_at_its_end_follows_the_text_after_it_was_made_shorter() {
+        let (mut s, mut f, mut ts) = setup("md4");
+        let text = |n: usize| (0..n).map(|k| format!("line {k}\n\n")).collect::<String>();
+        // (a chat that starts short: at its end, as one is)
+        model::with_mut("md4", |m| {
+            m.follow_end = true;
+            m.set_text("hi");
+        });
+        f.paint(&s, &mut ts, 1.0);
+        model::with_mut("md4", |m| m.set_text(&text(60)));
+        f.paint(&s, &mut ts, 1.0);
+        f.paint(&s, &mut ts, 1.0);
+        let at_end = |id: &str| {
+            let (pos, _, range) = crate::components::list::vscroll_state(id);
+            (range - (pos + 300 - 38)).abs() < 80
+        };
+        assert!(at_end("md4"), "{:?}", crate::components::list::vscroll_state("md4"));
+        // (shorter by 60: the strip; then the text grows, a screenful at once)
+        s.set("md4", "height", v_int(240));
+        f.paint(&s, &mut ts, 1.0);
+        model::with_mut("md4", |m| m.set_text(&text(90)));
+        f.paint(&s, &mut ts, 1.0);
+        f.paint(&s, &mut ts, 1.0);
+        let (pos, _, range) = crate::components::list::vscroll_state("md4");
+        assert!(pos + 240 - 28 >= range - 60, "followed to the end: pos {pos} of {range}");
+        model::remove("md4");
+    }
+
+    /// The counts' ink: the diff's green and red, readable (4.5:1, 7:1 in high
+    /// contrast) on the view's ground in every look, the signs kept.
+    #[test]
+    fn added_and_removed_counts_are_readable_in_every_look() {
+        for theme in rapidr_value::theme::ALL {
+            let l = super::look(theme);
+            let need = if theme.contrast { 7.0 } else { 4.5 };
+            let scheme = rapidr_value::code_scheme::for_theme(theme);
+            for (what, fg) in [("added", scheme.mark_added), ("removed", scheme.mark_removed)] {
+                let ink = super::ink_for(fg, l.body, need);
+                assert!(rapidr_value::theme::contrast(ink, l.body) >= need, "{} {what}: {ink:06X} on {:06X}", theme.name, l.body);
+            }
+            let (a, r) = (super::ink_for(scheme.mark_added, l.body, need), super::ink_for(scheme.mark_removed, l.body, need));
+            assert_ne!(a, r, "{}: green and red differ", theme.name);
+        }
     }
 }

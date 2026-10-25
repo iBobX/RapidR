@@ -47,6 +47,7 @@ properties = [
   { name = "Path", type = "string", access = "read" },
   { name = "Theme", type = "string", origin = "rapidr", doc = "The look the program is drawn in now, by name: `rapidr light`, `rapidr dark`, `rapidr high contrast` or `classic`. Setting it takes any name `$THEME` takes (`rapidr`: RapidR's look as the system is)." },
   { name = "Language", type = "string", origin = "rapidr", doc = "The language the program speaks, as a language tag (`es`, `es-AR`, `pt-BR`, `zh-Hans`): the system's until the program sets it. `TR$` and `TRN$` translate into it from the program's `lang` folder (`es-AR`: `lang/es-AR.po`, then `lang/es.po`, then the program's own text). Setting it reads the catalogs again; \"\" goes back to the system's language. Any spelling is taken (`es_ar` reads back as `es-AR`)." },
+  { name = "ReducedMotion", type = "bool", access = "read", origin = "rapidr", doc = "True when the user asked the system for reduced motion (macOS' Reduce Motion, Windows' animations turned off, the browser's prefers-reduced-motion): a program's own animations — a pulse, a slide — then stay still or end at once, as RapidR's own do. Read it each time an animation starts." },
   { name = "KeysPending", type = "int", access = "read", origin = "rapidr", doc = "How many keystrokes sent with SendKeys are still waiting to reach the program's windows." },
 ]
 methods = [

@@ -98,6 +98,7 @@ Form.ShowModal
 | `LoadFromFile(File)` | shows a file; True when it was read |
 | `OnLinkClick(Url)` | a link was clicked; `Url` is its target as written |
 | `OpenLinks` | True (the default): a web link opens in the browser by itself |
+| `CodeLanguage`, `OnCodeClick(Word, OfType)` | the language of the text's `inline code`, and a click on one of its words: see below |
 | `ScrollTo(Heading)` | scrolls a heading to the top, by its text or its anchor (`"#running-it"`) |
 | `Headings` | the headings, a line each: level, text, anchor, line, separated by tabs |
 | `PlainText`, `SelText` | the text as shown (without the marks), and the selected part |
@@ -137,5 +138,29 @@ AI's queries — shows it as the editor would:
 The example is [examples/gui/markdown_code.rr](../../examples/gui/markdown_code.rr)
 (the **Theme** button switches the look). It works the same on the desktop
 and on the web.
+
+### Added and removed counts: `<ins>` and `<del>`
+
+A diff's counts — **+11** **−0** — can be shown in the diff's colours:
+`<ins>+11</ins> <del>−0</del>`. Text between `<ins>` is added (the theme's
+green), between `<del>` removed (its red; not struck out: the signs say it
+too), both in the code font so the digits line up, and each made readable
+(4.5:1, 7:1 in high contrast) on the view's ground in every look. A `title`
+is what a screen reader says instead of the sign:
+`<ins title="11 lines added">+11</ins>`. Any other HTML is left out.
+
+### Inline code and its words: `CodeLanguage`
+
+`` `Inline code` `` is monospaced on a tinted ground and otherwise plain.
+Set **`CodeLanguage = "rapidr"`** and it is coloured as the editor colours
+RapidR's code too — `PRINT`, `RListBox`, `Items.AddItems` — and the words of
+RapidR code in the view, inline or in a code block, answer the mouse: where
+the program has a language service (RapidR Studio's own assistant chat has
+one), the pointer over a word it knows is a hand, resting on it shows its
+one-line help as a tooltip, and a click fires **`OnCodeClick(Word,
+OfType)`**: the word as written and, for a member after a dot, the component
+type it belongs to (`"RListBox"`; `""` for any other word). Studio's chat
+opens the word in the Help pane there. A view without a `CodeLanguage`, or
+a program without a language service, behaves as before.
 
 `RMarkdownView` is RapidR's own.

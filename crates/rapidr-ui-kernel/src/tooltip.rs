@@ -57,7 +57,7 @@ fn tip_of(f: &mut FormUi, store: &dyn Store, i: usize, x: f64, y: f64) -> String
     let (ax, ay, _, _) = f.nodes[i].abs;
     let id = f.nodes[i].id.clone();
     if let Some(kind) = f.nodes[i].kind {
-        if let Some(t) = kind.tip_at(store, &id, x - ax as f64, y - ay as f64) {
+        if let Some(t) = kind.tip_at(store, &id, x - ax as f64, y - ay as f64).or_else(|| kind.tip_laid(&f.nodes[i].ui, store, &id, x - ax as f64, y - ay as f64)) {
             return t;
         }
     }

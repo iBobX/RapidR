@@ -418,6 +418,13 @@ pub trait ComponentKind: Sync {
         None
     }
 
+    /// [`tip_at`](ComponentKind::tip_at) for a component whose tips depend
+    /// on how it is laid out (a Markdown view's words of code): its UI state
+    /// is given; (x, y) are of the component.
+    fn tip_laid(&self, _ui: &crate::tree::NodeUi, _store: &dyn crate::store::Store, _id: &str, _x: f64, _y: f64) -> Option<String> {
+        None
+    }
+
     /// The strip (top, bottom: rows of it) the tip at (x, y) speaks for —
     /// a pane's header, a tab strip: the tip shows above it, or in it beside
     /// the mouse, never over what's under it (a pane's first row);

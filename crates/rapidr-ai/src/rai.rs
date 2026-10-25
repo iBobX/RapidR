@@ -69,6 +69,8 @@ pub const DEFAULT_MAX_TOKENS: i64 = 1024;
 /// How many times one turn goes on by itself after an answer reached its
 /// length limit.
 pub const MAX_CONTINUES: u32 = 4;
+/// The parts one answer may come in: the first and each continuation.
+pub const MAX_PARTS: u32 = MAX_CONTINUES + 1;
 /// Where a summarised chat keeps the user's request, word for word.
 const REQUEST_MARK: &str = "\n\nMy request, word for word (keep to every part of it):\n\n";
 /// The longest request kept word for word through a summary (characters).
@@ -203,6 +205,28 @@ struct Thought {
     open: bool,
 }
 
+/// A tool call the model is writing: its name, its arguments so far, the
+/// fields of them whole (once the status names the file), the lines
+/// written so far and how far the arguments were counted.
+#[derive(Debug, Default)]
+struct Writing {
+    name: String,
+    args: String,
+    named: Option<serde_json::Map<String, Json>>,
+    lines: usize,
+    counted: usize,
+}
+
+/// What a finished answer did, kept with its transcript entry: the steps
+/// (what the tools did, a line each), and whether the transcript lists
+/// them (open) or only counts them ("✓ 6 steps · show").
+#[derive(Clone, Debug, Default, PartialEq)]
+struct Steps {
+    log: usize,
+    steps: Vec<String>,
+    open: bool,
+}
+
 /// "Thought for 12 s · show" (a link that opens it), or the reasoning under
 /// "Thought for 12 s · hide"; while it thinks, "Thinking…".
 /// A mark only this process knows, on Studio's and RAI's own action links
@@ -273,9 +297,110 @@ fn only_own_links(markdown: &str) -> String {
     text.replace(mark, "")
 }
 
+/// A text cut in a code block: the block closed, so what comes after it
+/// in the chat isn't read as code.
+fn close_fence(t: &mut String) {
+    if t.matches("```").count() % 2 == 1 {
+        if !t.ends_with('\n') {
+            t.push('\n');
+        }
+        t.push_str("```");
+    }
+}
+
+/// "✓ 6 steps · show" (a link that lists them), or the list under
+/// "✓ 6 steps · hide".
+fn steps_line(k: usize, st: &Steps) -> String {
+    let n = st.steps.len();
+    let head = format!("✓ {n} {}", if n == 1 { "step" } else { "steps" });
+    if !st.open {
+        return format!("[{head} · show]({})", own_link(&format!("rai:steps/{}", k + 1)));
+    }
+    let list: Vec<String> = st.steps.iter().map(|x| format!("- ✓ {}", x.replace(['\n', '\r'], " "))).collect();
+    format!("[{head} · hide]({})\n\n{}", own_link(&format!("rai:steps/{}", k + 1)), list.join("\n"))
+}
+
+/// Whether a code block without a language looks like RapidR's (BASIC):
+/// a line starts with one of its statements, none ends like C's or Python's.
+fn looks_like_rapidr(code: &str) -> bool {
+    const STARTS: [&str; 22] = ["DIM", "SUB", "FUNCTION", "CREATE", "DECLARE", "CONST", "TYPE", "PRINT", "SHOWMESSAGE", "$TYPECHECK", "$THEME", "$APPTYPE", "$INCLUDE", "$OPTION", "IF", "FOR", "DO", "WHILE", "SELECT", "END", "CALL", "WITH"];
+    let mut hit = false;
+    for line in code.lines() {
+        let l = line.trim();
+        if l.is_empty() || l.starts_with('\'') {
+            continue;
+        }
+        if l.ends_with(';') || l.ends_with('{') || l.starts_with("def ") || l.starts_with("import ") || l.starts_with("#include") {
+            return false;
+        }
+        let first = l.split(|c: char| c.is_whitespace() || c == '(').next().unwrap_or("").to_ascii_uppercase();
+        if STARTS.contains(&first.as_str()) {
+            hit = true;
+        }
+    }
+    hit
+}
+
+/// The answer's text with a line of "Copy · Insert" links under each
+/// closed code block (RapidR's get Insert too; one without a language that
+/// looks like RapidR's is labelled so, and coloured as the editor does),
+/// and the blocks' texts. `n` counts the blocks over the whole chat.
+fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
+    let mut out = String::with_capacity(text.len() + 64);
+    let mut blocks = Vec::new();
+    // (the fence being read: its marker, length, language, the lines, and
+    // where its opening line starts in the output)
+    let mut open: Option<(char, usize, String, Vec<&str>, usize)> = None;
+    for line in text.split_inclusive('\n') {
+        let bare = line.trim_end_matches(['\n', '\r']);
+        let indent = bare.len() - bare.trim_start_matches(' ').len();
+        let t = bare.trim_start_matches(' ');
+        let fence = t.chars().next().filter(|c| *c == '`' || *c == '~').map(|c| (c, t.chars().take_while(|x| *x == c).count()));
+        match (&mut open, fence) {
+            (None, Some((c, len))) if len >= 3 && indent < 4 && !(c == '`' && t[len..].contains('`')) => {
+                open = Some((c, len, t[len..].trim().to_ascii_lowercase(), Vec::new(), out.len()));
+                out.push_str(line);
+            }
+            (Some((c, len, _, _, _)), Some((fc, flen))) if fc == *c && flen >= *len && t[flen..].trim().is_empty() => {
+                let (_, _, lang, lines, at) = open.take().expect("open");
+                let code = lines.concat();
+                let word = lang.split_whitespace().next().unwrap_or("").to_string();
+                let rapidr = is_rapidr_fence(&word) || (word.is_empty() && looks_like_rapidr(&code));
+                if word.is_empty() && rapidr {
+                    // (the opening line, labelled: the view colours it)
+                    let head_end = out[at..].find('\n').map_or(out.len(), |i| at + i);
+                    let head = out[at..head_end].trim_end_matches('\r').to_string();
+                    out.replace_range(at..head_end, &format!("{head}rapidr"));
+                }
+                out.push_str(line);
+                if !line.ends_with('\n') {
+                    out.push('\n');
+                }
+                *n += 1;
+                blocks.push(code.trim_end_matches(['\n', '\r']).to_string());
+                let copy = format!("[Copy]({})", own_link(&format!("rai:copy/{n}")));
+                let insert = if rapidr { format!(" · [Insert]({})", own_link(&format!("rai:insert/{n}"))) } else { String::new() };
+                out.push_str(&format!("\n{copy}{insert}\n"));
+            }
+            (Some((_, _, _, lines, _)), _) => {
+                lines.push(line);
+                out.push_str(line);
+            }
+            _ => out.push_str(line),
+        }
+    }
+    (out, blocks)
+}
+
+/// Whether a code fence's language word is RapidR's (BASIC's).
+pub fn is_rapidr_fence(word: &str) -> bool {
+    matches!(word, "basic" | "bas" | "rapidq" | "rapidr" | "rr" | "rq" | "rqw" | "rqb" | "inc" | "qbasic" | "vb" | "vbnet" | "vb6")
+}
+
 fn thought_line(k: usize, th: &Thought, live: bool) -> String {
+    // (while it thinks the strip says so, once: nothing in the chat)
     if live {
-        return "*Thinking…*".into();
+        return String::new();
     }
     let secs = th.secs.round().max(1.0) as u64;
     let head = format!("Thought for {secs} s");
@@ -543,6 +668,10 @@ struct Turn {
     notes: Vec<String>,
     /// What the tools did, one line a call (the progress checklist's).
     steps: Vec<String>,
+    /// Actions the chat offers under the answer: (label, RAI's own link).
+    buttons: Vec<(String, String)>,
+    /// The steps are kept with the entry ([`Ai::keep_steps`]).
+    kept: bool,
 }
 
 impl Turn {
@@ -576,6 +705,10 @@ impl Turn {
         }
         for n in &self.notes {
             parts.push(format!("> *{}*", n.replace('*', "\\*")));
+        }
+        // (what can be done next: a link of RAI's own, a line of its own)
+        for (label, url) in &self.buttons {
+            parts.push(format!("[{label}]({})", own_link(url)));
         }
         parts.join("\n\n")
     }
@@ -713,6 +846,20 @@ struct Ai {
     marks: Vec<Mark>,
     /// The answers' reasoning.
     thoughts: Vec<Thought>,
+    /// What the finished answers did.
+    steps_done: Vec<Steps>,
+    /// The request being answered, as the provider reports it so far
+    /// (input, output tokens), and the characters streamed in it: the live
+    /// counters of TurnInputTokens / TurnOutputTokens.
+    live_in: u64,
+    live_cached: u64,
+    live_out: u64,
+    live_chars: usize,
+    /// The last check left this many problems (0: some, not counted);
+    /// `None`: none that we know of — the activity says "Fixing …".
+    fixing: Option<u32>,
+    /// The request being answered goes on from one cut at its length limit.
+    continuing: bool,
     /// What it does now, in words (the live status line).
     activity: String,
     /// When the answer (or Compact) began, when the provider last sent
@@ -720,9 +867,8 @@ struct Ai {
     turn_started: f64,
     last_data: f64,
     thinking_since: f64,
-    /// The tool calls being written: by index, the tool's name, its
-    /// arguments so far, and whether the status names their file yet.
-    tool_args: HashMap<usize, (String, String, bool)>,
+    /// The tool calls being written, by index.
+    tool_args: HashMap<usize, Writing>,
     /// The instructions' and tools' size in characters (0: not known yet).
     last_fixed: usize,
     /// The last reply's output tokens.
@@ -1065,8 +1211,24 @@ impl Ai {
         }
     }
 
+    /// What it does while it thinks or writes its answer (`plain`), said as
+    /// the turn is: going on from an answer cut at its length limit,
+    /// fixing the problems a check found, else `plain`.
+    fn base_activity(&self, plain: &str) -> String {
+        if self.continuing {
+            return format!("Continuing (part {})", self.continued + 1);
+        }
+        match self.fixing {
+            Some(0) => "Fixing the errors".into(),
+            Some(1) => "Fixing 1 problem".into(),
+            Some(n) => format!("Fixing {n} problems"),
+            None => plain.into(),
+        }
+    }
+
     /// Nothing runs any more: the status line's clock stops.
     fn idle(&mut self) {
+        self.keep_steps();
         self.thinking_done();
         self.tool_args.clear();
         self.turn_started = 0.0;
@@ -1100,7 +1262,8 @@ impl Ai {
         if starting {
             self.show_turn();
         }
-        self.set_activity("Thinking");
+        let what = self.base_activity("Thinking");
+        self.set_activity(&what);
     }
 
     /// The thinking ended (the answer or a tool call began): its seconds
@@ -1223,6 +1386,7 @@ impl Ai {
             "log": self.log.iter().map(|(w, t)| json!([w, t.replace(link_mark(), "")])).collect::<Vec<_>>(),
             "marks": self.marks.iter().map(|m| json!({"log": m.log, "msg": m.msg, "blocks": m.blocks})).collect::<Vec<_>>(),
             "thoughts": self.thoughts.iter().map(|t| json!({"log": t.log, "secs": t.secs, "text": t.text, "open": t.open})).collect::<Vec<_>>(),
+            "steps": self.steps_done.iter().map(|t| json!({"log": t.log, "steps": t.steps, "open": t.open})).collect::<Vec<_>>(),
             "language": self.language_seen,
         });
         let known: Vec<String> = [Some(self.key.clone()), self.key().0].into_iter().flatten().filter(|k| !k.is_empty()).collect();
@@ -1255,10 +1419,12 @@ impl Ai {
             })
             .unwrap_or_default();
         let thoughts: Vec<Thought> = v["thoughts"].as_array().map(|a| a.iter().filter_map(|t| Some(Thought { log: t["log"].as_u64()? as usize, secs: t["secs"].as_f64().unwrap_or(0.0), text: t["text"].as_str().unwrap_or("").to_string(), open: t["open"].as_bool().unwrap_or(false) })).filter(|t| t.log < log.len()).collect()).unwrap_or_default();
+        let steps_done: Vec<Steps> = v["steps"].as_array().map(|a| a.iter().filter_map(|t| Some(Steps { log: t["log"].as_u64()? as usize, steps: t["steps"].as_array()?.iter().filter_map(|x| x.as_str().map(str::to_string)).collect(), open: t["open"].as_bool().unwrap_or(false) })).filter(|t| t.log < log.len()).collect()).unwrap_or_default();
         self.messages = messages;
         self.log = log;
         self.marks = marks;
         self.thoughts = thoughts;
+        self.steps_done = steps_done;
         self.language_seen = v["language"].as_str().unwrap_or("").to_string();
         self.turn = Turn::default();
         self.answer.clear();
@@ -1296,6 +1462,7 @@ impl Ai {
         }
         self.marks.truncate(q - 1);
         self.thoughts.retain(|t| t.log < mark.log);
+        self.steps_done.retain(|t| t.log < mark.log);
         self.turn = Turn::default();
         self.answer.clear();
         self.error.clear();
@@ -1383,6 +1550,9 @@ impl Ai {
         let busy = self.running.is_some();
         let last_answer = self.log.iter().rposition(|(w, _)| w == "assistant");
         let mut out = String::new();
+        // (the code blocks of the answers, counted in order: Copy and
+        // Insert name them)
+        let mut blocks = 0usize;
         for (i, (who, text)) in self.log.iter().enumerate() {
             if !out.is_empty() {
                 out.push_str("\n\n");
@@ -1405,16 +1575,40 @@ impl Ai {
                     }
                     out.push_str("\n\n");
                     if let Some((k, th)) = self.thoughts.iter().enumerate().find(|(_, th)| th.log == i) {
-                        out.push_str(&thought_line(k, th, busy && self.turn.entry == Some(i) && self.thinking_since > 0.0));
-                        out.push_str("\n\n");
+                        let line = thought_line(k, th, busy && self.turn.entry == Some(i) && self.thinking_since > 0.0);
+                        if !line.is_empty() {
+                            out.push_str(&line);
+                            out.push_str("\n\n");
+                        }
                     }
-                    out.push_str(if t.is_empty() { "…" } else { t });
+                    // (what the answer did, once it is done: counted, opened
+                    // with a click; while it works the panel's strip lists them)
+                    if let Some((k, st)) = self.steps_done.iter().enumerate().find(|(_, st)| st.log == i) {
+                        if !(busy && self.turn.entry == Some(i)) {
+                            out.push_str(&steps_line(k, st));
+                            out.push_str("\n\n");
+                        }
+                    }
+                    let (text, _) = decorate_code(t, &mut blocks);
+                    out.push_str(if t.is_empty() { "…" } else { &text });
                 }
                 _ => out.push_str(&format!("*{}*", text.trim_end())),
             }
         }
         // (a model's answer can't carry Studio's own action links: SEC-26)
         only_own_links(&out)
+    }
+
+    /// The code blocks of the answers, in the order Copy / Insert name them.
+    fn code_blocks(&self) -> Vec<String> {
+        let mut n = 0usize;
+        let mut all = Vec::new();
+        for (who, text) in &self.log {
+            if who == "assistant" {
+                all.extend(decorate_code(text.trim_end(), &mut n).1);
+            }
+        }
+        all
     }
 
     /// The instructions: the tools' stable ones and the program's own
@@ -1467,8 +1661,17 @@ impl Ai {
         }
         match job {
             Job::Probe => self.set_activity("Asking the server about the model"),
-            Job::Summary => self.set_activity("Compacting the conversation"),
-            Job::Chat => self.set_activity("Thinking"),
+            Job::Summary if self.compacting => self.set_activity("Compacting the conversation"),
+            Job::Summary => self.set_activity("Summarising the chat to keep it short"),
+            Job::Chat => {
+                // (a new request: its own counters start)
+                self.live_in = 0;
+                self.live_cached = 0;
+                self.live_out = 0;
+                self.live_chars = 0;
+                let what = self.base_activity("Thinking");
+                self.set_activity(&what);
+            }
             Job::Models => {}
         }
         Ok(())
@@ -1556,6 +1759,12 @@ impl Ai {
         self.chats = 0;
         self.nudged = false;
         self.continued = 0;
+        self.continuing = false;
+        self.fixing = None;
+        self.live_in = 0;
+                self.live_cached = 0;
+        self.live_out = 0;
+        self.live_chars = 0;
         self.claim_left = false;
         self.too_long_retried = false;
         self.cap_retried = false;
@@ -1707,41 +1916,68 @@ impl Ai {
     }
 
     /// What a streamed event says of the answer, live: its text, its
-    /// thinking, the tool it calls (the status line's activity).
+    /// thinking, the tool it calls (the activity), and the counters of the
+    /// request (the tokens the provider reports, the characters that came).
     fn live(&mut self, e: Event) {
         match e {
             Event::Text(t) => {
                 self.thinking_done();
+                self.live_chars += t.len();
                 if !t.is_empty() {
-                    self.set_activity("Writing the answer");
+                    let what = self.base_activity("Writing the answer");
+                    self.set_activity(&what);
                 }
                 self.add_text(&t);
             }
-            Event::Thinking(t) => self.thinking(&t),
+            Event::Thinking(t) => {
+                self.live_chars += t.len();
+                self.thinking(&t)
+            }
+            Event::Usage(u) => {
+                self.live_in = self.live_in.max(u.input);
+                self.live_cached = self.live_cached.max(u.cached);
+                self.live_out = self.live_out.max(u.output);
+                self.changed = true;
+            }
             Event::ToolStart { index, name, .. } => {
                 self.thinking_done();
                 let what = self.tool_activity(&name, &json!({}));
-                self.tool_args.insert(index, (name, String::new(), false));
+                self.tool_args.insert(index, Writing { name, ..Writing::default() });
                 self.set_activity(&what);
             }
             Event::ToolArgs { index, json } => {
-                let Some((name, args, named)) = self.tool_args.get_mut(&index) else { return };
-                args.push_str(&json);
-                if *named {
-                    return;
-                }
-                // (its file, once the arguments name it whole: "Writing server.rr")
-                let mut input = serde_json::Map::new();
-                for f in ["path", "name", "query", "title", "type", "builtin"] {
-                    if let Some(v) = partial_field(args, f) {
-                        input.insert(f.into(), json!(v));
+                self.live_chars += json.len();
+                let Some(w) = self.tool_args.get_mut(&index) else { return };
+                w.args.push_str(&json);
+                // (the lines written so far: the newlines inside the JSON —
+                // counted over the bytes, from one before where the last
+                // piece ended: a `\` at the end of one piece and the `n`
+                // at the start of the next; a text with accents or a …
+                // isn't cut in the middle of a letter)
+                let from = w.counted.saturating_sub(1);
+                let more = w.args.as_bytes()[from..].windows(2).filter(|p| p == b"\\n").count();
+                w.counted = w.args.len();
+                let counted = more > 0;
+                w.lines += more;
+                if w.named.is_none() {
+                    // (its file, once the arguments name it whole: "Writing server.rr")
+                    let mut input = serde_json::Map::new();
+                    for f in ["path", "name", "query", "title", "type", "builtin"] {
+                        if let Some(v) = partial_field(&w.args, f) {
+                            input.insert(f.into(), json!(v));
+                        }
                     }
-                }
-                if input.is_empty() {
+                    if input.is_empty() {
+                        return;
+                    }
+                    w.named = Some(input);
+                } else if !counted {
                     return;
                 }
-                *named = true;
-                let name = name.clone();
+                let (name, mut input, lines) = (w.name.clone(), w.named.clone().unwrap_or_default(), w.lines);
+                if lines > 0 {
+                    input.insert("lines".into(), json!(lines));
+                }
                 let what = self.tool_activity(&name, &Json::Object(input));
                 self.set_activity(&what);
             }
@@ -1935,9 +2171,14 @@ impl Ai {
                 }
                 self.thinking_done();
                 self.tool_args.clear();
+                self.continuing = false;
                 run.reply.finish();
                 self.usage.add(run.reply.usage);
                 self.turn_usage.add(run.reply.usage);
+                self.live_in = 0;
+                self.live_cached = 0;
+                self.live_out = 0;
+                self.live_chars = 0;
                 self.last_input = run.reply.usage.input;
                 self.last_output = run.reply.usage.output;
                 let calls = run.reply.tool_calls();
@@ -1973,7 +2214,14 @@ impl Ai {
                 }
                 if !calls.is_empty() {
                     self.reply_done(true, false);
-                    self.run_tools(calls);
+                    // (a tool call cut off at the length limit is never
+                    // carried out — its arguments aren't whole: the tool
+                    // refuses it, the model writes it again in smaller
+                    // parts —, and the chat says the answer was long)
+                    if run.reply.stop == "max_tokens" && self.continued < MAX_CONTINUES {
+                        self.cut_at_limit();
+                    }
+                    self.run_tools(calls, run.reply.stop == "max_tokens");
                     return;
                 }
                 // (an answer that says it changed something, and nothing
@@ -2001,23 +2249,69 @@ impl Ai {
                 // model goes on by itself, asked to write in smaller parts,
                 // a few times at most, instead of the turn simply ending)
                 if run.reply.stop == "max_tokens" && self.continued < MAX_CONTINUES {
-                    self.continued += 1;
                     self.messages.push(Message::user(CONTINUE_PROMPT));
                     self.reply_done(true, false);
-                    self.turn.steps.push(format!("Continued after the length limit ({} of {MAX_CONTINUES})", self.continued));
-                    self.status = format!("Continuing (part {})…", self.continued + 1);
-                    self.audit_log("continue", json!({"part": self.continued + 1}));
+                    self.cut_at_limit();
                     self.go_on();
                     return;
                 }
                 self.reply_done(false, false);
                 match run.reply.stop.as_str() {
-                    "max_tokens" => self.note(&format!("The answer reached its length limit ({} tokens) {MAX_CONTINUES} more times, so RAI stopped here. Ask it to go on in smaller steps.", self.max_tokens())),
+                    "max_tokens" => {
+                        // (said plainly, with the way on: never a dead end — and
+                        // the code block the cut left open closed, or the
+                        // lines below would be code)
+                        close_fence(&mut self.turn.last);
+                        self.turn.buttons.push(("Continue in smaller steps".into(), "rai:continue".into()));
+                        self.note(&format!("RAI stopped here: the answer kept reaching its length limit ({} tokens), {MAX_PARTS} parts in a row. What it finished is above.", thousands(u64::from(self.max_tokens()))));
+                    }
                     "refusal" => self.note("The model declined to answer this."),
                     _ => {}
                 }
                 self.end_turn();
             }
+        }
+    }
+
+    /// An answer was cut at its length limit and goes on: the chat says so
+    /// in one muted line, in order with the replies, and the next request
+    /// is the next part.
+    fn cut_at_limit(&mut self) {
+        self.continued += 1;
+        self.continuing = true;
+        // (a code block the cut left open is closed: what follows isn't code)
+        if let Some((t, _)) = self.turn.drafts.last_mut() {
+            close_fence(t);
+        }
+        self.turn.drafts.push((format!("> *Answer was long: continuing (part {} of up to {MAX_PARTS})*", self.continued + 1), false));
+        self.show_turn();
+        self.turn.steps.push(format!("Continued after the length limit ({} of {MAX_CONTINUES})", self.continued));
+        self.status = format!("Continuing (part {})…", self.continued + 1);
+        self.audit_log("continue", json!({"part": self.continued + 1}));
+    }
+
+    /// The answer's steps, kept with its entry in the chat ("✓ 6 steps ·
+    /// show"): once, when it ends.
+    fn keep_steps(&mut self) {
+        if self.turn.kept || self.turn.steps.is_empty() {
+            return;
+        }
+        let Some(log) = self.turn.entry else { return };
+        self.turn.kept = true;
+        self.steps_done.retain(|s| s.log != log);
+        self.steps_done.push(Steps { log, steps: self.turn.steps.clone(), open: false });
+        self.changed = true;
+    }
+
+    /// What the last tool call left to fix, from its note ("Checked
+    /// main.rr: 2 errors to fix"): the activity says "Fixing 2 problems"
+    /// until a check finds none.
+    fn note_fixing(&mut self, note: &str) {
+        let tail = note.rsplit_once(": ").map_or(note, |(_, t)| t);
+        if tail.ends_with(" to fix") || note.ends_with("(errors to fix)") {
+            self.fixing = Some(tail.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0));
+        } else if ["Checked", "Wrote the new", "Changed", "Proposed"].iter().any(|s| note.starts_with(s)) {
+            self.fixing = None;
         }
     }
 
@@ -2100,12 +2394,18 @@ impl Ai {
         Ok(())
     }
 
-    fn run_tools(&mut self, calls: Vec<(String, String, Json)>) {
+    /// Carries out the answer's tool calls and asks the model again.
+    /// `cut`: the answer reached its length limit — a call whose arguments
+    /// aren't whole was cut off, is never carried out, and the model is
+    /// told to write it again in smaller parts.
+    fn run_tools(&mut self, calls: Vec<(String, String, Json)>, cut: bool) {
         let mut results = Vec::new();
         for (id, name, input) in calls {
             self.tool_calls += 1;
             let out = if self.tool_calls > MAX_TOOL_CALLS {
                 ToolOutcome { content: "the turn's limit of tool calls was reached: answer with what you have".into(), is_error: true, note: String::new(), read: None, risk: "read", target: String::new() }
+            } else if cut && input.get("_invalid_json").is_some() {
+                ToolOutcome { content: format!("your answer reached its length limit while writing this {name} call: its arguments were cut off, so nothing was done. Write it again in smaller parts (a smaller change, at most about 150 lines), and keep your explanation short."), is_error: true, note: format!("{name}: cut off, to be written again in smaller parts"), read: None, risk: "read", target: String::new() }
             } else if let Some(k) = self.tools.iter().position(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).or_else(|| (self.tools.len() == 1).then_some(0)) {
                 let what = self.tool_activity(&name, &input);
                 self.set_activity(&what);
@@ -2116,6 +2416,7 @@ impl Ai {
             // (what the call did: a step of the progress checklist — the
             // chat shows the tools' cards instead, the facts that matter)
             if !out.note.is_empty() {
+                self.note_fixing(&out.note);
                 let label = self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).map_or_else(|| out.note.clone(), |(_, _, t)| t.step_label(&name, &out.note));
                 self.turn.steps.push(label);
                 self.changed = true;
@@ -2207,6 +2508,12 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "answer" => s(a.answer.clone()),
             "transcript" => s(a.transcript()),
             "steps" => s(a.turn.steps.join("\n")),
+            // (the request's size estimated only until the provider says it)
+            "turninputtokens" => Value::Integer((a.turn_usage.input + if a.live_in > 0 || !a.running.as_ref().is_some_and(|r| r.job == Job::Chat) { a.live_in } else { (a.last_chars as f64 / a.chars_per_token()) as u64 }) as i64),
+            "turncachedtokens" => Value::Integer((a.turn_usage.cached + a.live_cached) as i64),
+            "turnoutputtokens" => Value::Integer((a.turn_usage.output + a.live_out.max((a.live_chars as f64 / a.chars_per_token()) as u64)) as i64),
+            "part" => Value::Integer(i64::from(a.continued) + 1),
+            "maxparts" => Value::Integer(i64::from(MAX_PARTS)),
             "models" => s(a.models.iter().map(|m| format!("{}\t{}\t{}", m.id, m.name, wire::model_hint(&format!("{} {}", m.id, m.name)))).collect::<Vec<_>>().join("\n")),
             "modelcount" => Value::Integer(a.models.len() as i64),
             "haskey" => flag(a.key().0.is_some()),
@@ -2358,6 +2665,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 a.log.clear();
                 a.marks.clear();
                 a.thoughts.clear();
+                a.steps_done.clear();
                 a.last_input = 0;
                 a.last_output = 0;
                 a.turn = Turn::default();
@@ -2394,6 +2702,20 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
         "questiontext" => {
             let q = args.first().map_or(0, Value::to_i64);
             s(with(name, |a| usize::try_from(q).ok().and_then(|q| q.checked_sub(1)).and_then(|i| a.marks.get(i)).and_then(|m| a.log.get(m.log)).map(|(_, t)| t.clone()).unwrap_or_default()))
+        }
+        "togglesteps" => {
+            let k = args.first().map_or(0, Value::to_i64);
+            with(name, |a| {
+                if let Some(t) = usize::try_from(k).ok().and_then(|k| k.checked_sub(1)).and_then(|i| a.steps_done.get_mut(i)) {
+                    t.open = !t.open;
+                    a.changed = true;
+                }
+            });
+            Value::Null
+        }
+        "codeblock" => {
+            let k = args.first().map_or(0, Value::to_i64);
+            s(with(name, |a| usize::try_from(k).ok().and_then(|k| k.checked_sub(1)).and_then(|i| a.code_blocks().into_iter().nth(i)).unwrap_or_default()))
         }
         "togglethought" => {
             let k = args.first().map_or(0, Value::to_i64);
@@ -2798,7 +3120,7 @@ mod chat_tests {
         let open = Thought { open: true, ..th.clone() };
         assert_eq!(only_own_links(&thought_line(0, &open, false)), "[Thought for 12 s · hide](rai:thought/1)\n\n> First the form.\n>\n> Then the timer.");
         assert_eq!(thought_line(0, &Thought { text: String::new(), ..th }, false), "*Thought for 12 s*");
-        assert_eq!(thought_line(0, &open, true), "*Thinking…*");
+        assert_eq!(thought_line(0, &open, true), "", "while it thinks the strip says so: nothing in the chat");
     }
 
     #[test]
@@ -2834,5 +3156,105 @@ mod chat_tests {
         assert_eq!(a.context_limit(), DEFAULT_SUMMARY_AT as u64);
         a.windows.insert("claude-x".into(), (20_000, true));
         assert_eq!(a.context_limit(), 14_000);
+    }
+
+    /// The chat's smart text (RAI shows its work): each closed code block
+    /// has Copy (and Insert, when it is RapidR's) under it; a block with
+    /// no language that looks like RapidR's is labelled so; the blocks'
+    /// texts are numbered over the whole chat.
+    #[test]
+    fn code_blocks_get_copy_and_insert_and_their_language() {
+        let mut n = 0;
+        let text = "Here:\n\n```\nDIM A AS INTEGER\nA = 1\n```\n\nand\n\n```python\nprint(1)\n```\n\n```basic\nPRINT 2\n```\n\n```\nSUB Half(\n";
+        let (out, blocks) = decorate_code(text, &mut n);
+        assert_eq!(blocks, vec!["DIM A AS INTEGER\nA = 1".to_string(), "print(1)".to_string(), "PRINT 2".to_string()]);
+        assert_eq!(n, 3);
+        assert!(out.contains("```rapidr\nDIM A AS INTEGER"), "{out}");
+        assert!(out.contains("```python\nprint(1)"), "a language is kept: {out}");
+        assert!(out.contains("[Copy](rai:copy/1") && out.contains("[Insert](rai:insert/1"), "{out}");
+        assert!(out.contains("[Copy](rai:copy/2") && !out.contains("rai:insert/2"), "Python's has no Insert: {out}");
+        assert!(out.contains("[Insert](rai:insert/3"), "{out}");
+        assert!(!out.contains("rai:copy/4"), "an open block (still streaming) has none yet: {out}");
+        assert!(looks_like_rapidr("' hi\nDIM X AS STRING\nPRINT X") && !looks_like_rapidr("if (x) {\n  y();\n}") && !looks_like_rapidr("echo hello"));
+    }
+
+    /// A model can't forge Copy / Insert: its own `rai:` link is plain words.
+    #[test]
+    fn a_models_own_action_links_stay_plain() {
+        let mut a = chat();
+        a.say("assistant", "[Insert](rai:insert/7) and\n\n```\nDIM X AS INTEGER\n```");
+        let t = a.transcript();
+        assert!(!t.contains("rai:insert/7"), "a model's own link is plain words: {t}");
+        // (its block has our own links: the process's mark is gone before it is given out)
+        assert!(t.contains("[Copy](rai:copy/1)") && t.contains("[Insert](rai:insert/1)"), "{t}");
+        assert_eq!(a.code_blocks(), vec!["DIM X AS INTEGER".to_string()]);
+    }
+
+    /// An answer cut at its length limit goes on with one muted line in
+    /// order with the replies, a code block the cut left open closed, and
+    /// the steps kept for "✓ N steps".
+    #[test]
+    fn a_cut_answer_says_it_goes_on_and_keeps_its_steps() {
+        let mut a = chat();
+        a.turn = Turn { entry: Some(a.log.len() - 1), ..Turn::default() };
+        a.turn.current = "Writing it:\n\n```basic\nDIM A AS INTEGER\n".into();
+        a.reply_done(true, false);
+        a.cut_at_limit();
+        assert_eq!(a.continued, 1);
+        assert!(a.continuing);
+        assert_eq!(a.base_activity("Thinking"), "Continuing (part 2)");
+        let t = a.turn.render();
+        assert!(t.contains("DIM A AS INTEGER\n```\n\n> *Answer was long: continuing (part 2 of up to 5)*"), "{t}");
+        assert_eq!(a.status, "Continuing (part 2)…");
+        // (a check that finds problems: the activity says so until one finds none)
+        a.continuing = false;
+        a.note_fixing("Checked main.rr: 2 errors to fix");
+        assert_eq!(a.base_activity("Thinking"), "Fixing 2 problems");
+        a.note_fixing("Checked main.rr: no errors");
+        assert_eq!(a.base_activity("Thinking"), "Thinking");
+        // (the steps, kept once: counted, listed when opened)
+        a.turn.steps = vec!["Read main.rr".into(), "Wrote the program".into()];
+        a.keep_steps();
+        a.keep_steps();
+        assert_eq!(a.steps_done.len(), 1);
+        let last = a.log.len() - 1;
+        assert!(a.transcript().contains("[✓ 2 steps · show](rai:steps/1)"));
+        a.steps_done[0].open = true;
+        let t = a.transcript();
+        assert!(t.contains("[✓ 2 steps · hide]") && t.contains("- ✓ Read main.rr\n- ✓ Wrote the program"), "{t}");
+        // (and with the chat when it is kept and loaded again)
+        let state = a.chat_state();
+        let mut b = Ai::default();
+        b.set_chat_state(&state).unwrap();
+        assert_eq!(b.steps_done, vec![Steps { log: last, steps: vec!["Read main.rr".into(), "Wrote the program".into()], open: true }]);
+    }
+
+    /// The live counters: the provider's tokens so far, or an estimate from
+    /// what streamed in while it reports few; the lines a file has so far.
+    #[test]
+    fn the_turns_tokens_and_lines_count_live() {
+        let mut a = chat();
+        a.turn_usage = Usage { input: 1000, output: 200, cached: 0 };
+        a.live(Event::Usage(Usage { input: 3000, output: 1, cached: 0 }));
+        a.live(Event::Text("x".repeat(3500)));
+        let get = |a: &Ai, p: &str| {
+            let n = "live-count".to_string();
+            AIS.with(|m| m.borrow_mut().insert(n.clone(), Ai { turn_usage: a.turn_usage, live_in: a.live_in, live_out: a.live_out, live_chars: a.live_chars, ..Ai::default() }));
+            get(&n, p).unwrap().to_i64()
+        };
+        assert_eq!(get(&a, "turninputtokens"), 4000);
+        assert!(get(&a, "turnoutputtokens") > 1000, "estimated from the characters: more than the 1 reported");
+        a.live(Event::ToolStart { index: 0, id: "t".into(), name: "write_file".into() });
+        a.live(Event::ToolArgs { index: 0, json: r#"{"path": "main.rr", "text": "A\nB\n"#.into() });
+        a.live(Event::ToolArgs { index: 0, json: "C\\".into() });
+        a.live(Event::ToolArgs { index: 0, json: "nD".into() });
+        assert_eq!(a.tool_args[&0].lines, 3);
+        // (accents and a … in the text: never cut in the middle of a letter — a
+        // live run of 2026-10-25 panicked on one)
+        a.live(Event::ToolStart { index: 1, id: "u".into(), name: "write_file".into() });
+        for piece in ["{\"path\": \"a.rr\", \"text\": \"' caf\u{e9} \u{2026} ", "\\", "n\u{2026}\u{2026}\\n\u{e9}\u{e9}", "\u{2026}"] {
+            a.live(Event::ToolArgs { index: 1, json: piece.into() });
+        }
+        assert_eq!(a.tool_args[&1].lines, 2);
     }
 }

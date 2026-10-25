@@ -44,6 +44,7 @@ crates/rapidr-value/fonts/ ::
 # Markdown fences: the language tags a code block may carry, all shown as BASIC.
 crates/rapidr-ui-kernel/src/components/panels/markdown.rs :: "freebasic"
 crates/rapidr-ui-kernel/src/components/panels/markdown.rs :: "vb6"
+crates/rapidr-ai/src/rai.rs :: "vb6"
 
 # ---- platform build tools a build has to name (KEEP) ----
 README.md :: xcode-select --install

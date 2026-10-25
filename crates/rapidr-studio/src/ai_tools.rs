@@ -228,14 +228,26 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         "project_outline" => "Reading the project's outline".into(),
         "search_manual" => "Searching the manual".into(),
         "find_example" => "Finding an example".into(),
-        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| "Looking up RapidR's reference".to_string(), |t| format!("Looking up {t}")),
+        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| "Reading RapidR's reference".to_string(), |t| format!("Reading the help of {t}")),
         "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
-        "check_code" => "Checking the code".into(),
+        "check_code" => "Checking (compiling)".into(),
         "layout" => "Laying out the buttons".into(),
-        "propose_edit" | "write_file" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
-        "create_project" => field("name").map_or_else(|| "Writing the new program".to_string(), |n| format!("Writing {n}")),
+        // ("lines": how many the model has written so far, counted as they
+        // stream in — a file's or a program's, not an edit's)
+        "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
+        "write_file" => field("path").map_or_else(|| "Writing a file".to_string(), |p| format!("Writing {p}{}", lines(input))),
+        "create_project" => field("name").map_or_else(|| "Writing the new program".to_string(), |n| format!("Writing {n}{}", lines(input))),
         _ => return None,
     })
+}
+
+/// " (+318 lines)" for the lines written so far, else nothing.
+fn lines(input: &Json) -> String {
+    match input.get("lines").and_then(Json::as_u64) {
+        Some(1) => " (+1 line)".into(),
+        Some(n) if n > 1 => format!(" (+{n} lines)"),
+        _ => String::new(),
+    }
 }
 
 /// A path the model gave, as a project's relative path: inside the

@@ -100,8 +100,14 @@ changes nothing. Everything can be changed later in Settings.
 
    ![A key the provider refused: what it said, under the Model list; Fetch Models ready to press again](images/ai/settings-refused-key.png)
 
-7. **Longest reply**: the most tokens one answer may take (4096 unless you
-   change it) — a limit on what one answer can cost.
+7. **Longest answer**: the most tokens one *part* of an answer may take —
+   32,000 unless you change it, and never more than the model allows (a model
+   that allows less says so, and Studio asks again within its limit). An
+   answer that reaches it doesn't stop: it goes on by itself, in up to 5
+   parts (see [A long answer goes on by itself](#a-long-answer-goes-on-by-itself)).
+   Under the box Settings says, in words, when the *chat* is summarised too:
+   your request kept word for word, when the chat holds 70% of the model's
+   window.
 8. **Prices** (optional): what your provider charges, in dollars for a
    million tokens sent and for a million received, from its price page. The
    token meter then shows an estimate of the cost; when the line is longer
@@ -157,18 +163,88 @@ name not found, no connection for a moment —, Studio tries once more, two
 seconds later, by itself; you only see an error if that fails too. A
 refusal (a wrong key, no credit left) is never tried again.
 
-**What it is doing now.** While it works, the status line under the chat
-says what it does at this moment, then the steps it has done:
-*Thinking…*, *Reading sites.rr…*, *Searching the manual…*, *Writing
-server.rr…*, *Checking the code…* — *Writing server.rr… · ✓ Read sites.rr*.
-The seconds the answer has taken show beside **Stop**. If the model sends
-nothing for 30 seconds, the status line says so: *No answer from the model
-for 30 s: wait, or Stop.* (a model on your own computer can be that slow
-while it writes a long change). When the answer leaves something for you —
-a change to review —, it says *Waiting for you*. A screen reader reads
-each new step aloud, once; the seconds are read only when you ask for them.
+**What it is doing now.** While an answer works, a strip right under the
+conversation — where the answer will appear — shows its work, calmly, each
+thing once:
+
+- **what it does now**, in words, on one row: *Thinking…*, *Reading the help
+  of RListBox…*, *Looking at the form…*, *Writing main.rr (+318 lines)…*
+  (the lines counted as the model writes them), *Checking (compiling)…*,
+  *Fixing 2 problems…*, *Continuing (part 2)…*, *Summarising the chat to
+  keep it short…* — with three small **dots** before it, the theme's
+  accent at a gentle strength, swelling one after the other in a slow wave
+  (1.2 s a cycle; they stand still when your system asks for reduced
+  motion) — and the **seconds** the answer has taken at the right, muted;
+- above that row, the **steps done**, ✓ each, one a line and wrapped (never
+  cut off): the newest four, the older ones counted (*3 earlier steps*); a
+  small pane keeps its room for the conversation and shows fewer;
+- the **tokens** of this answer so far, in the token meter's line under the
+  buttons — *This answer: 12,340 in (11,900 cached) · 1,204 out* — moving as
+  they stream in; when the answer is done the line goes back to the
+  session's totals. (The status line at the bottom is hidden while the strip
+  shows: it said the same.)
+
+**There is never a silent wait.** If the provider has sent nothing new for 10
+seconds, the strip says what it is waiting for: *Waiting for Claude's answer…
+24 s*. (A model on your own computer can be slow while it writes a long
+change: wait, or **Stop**.)
+
+![The strip under the conversation while the assistant works: the steps done above, then the dots, what it does now and its seconds; the tokens so far in the meter's line](images/ai/live-strip.png)
+
+**For a screen reader** the strip is a polite announcement: each new step is
+said once ("Writing main.rr", not each line it grows by; "Waiting for the
+provider" once), never the seconds — they are read only when you ask for them
+— and the dots are decoration, skipped. When the answer is done the status
+line is back and says what it left (*Answered.*, *Waiting for you — a change
+to review*), and if the model sends nothing for 30 seconds it says *No answer
+from the model for 30 s: wait, or Stop.*
 
 ![The status line while the assistant works: what it does now (Reading hello_form.rr), the seconds beside Stop](images/ai/status.png)
+
+When the answer is done, the strip goes, and the steps it took are one line
+under its name — **✓ 6 steps · show** — that opens the list (and **hide**
+closes it); the chat keeps them.
+
+### A long answer goes on by itself
+
+A model writes a long program in parts. When an answer reaches its length
+limit, RAI doesn't stop: it asks the model to go on in smaller parts, and the
+chat says so in one small muted line, in its place between the parts:
+
+> *Answer was long: continuing (part 2 of up to 5)*
+
+(A code block the cut left open is closed, so what follows is never shown as
+code, and a change that was cut off in the middle is never applied: the model
+writes it again in smaller pieces.) After the fifth part RAI stops, says why
+in plain words — *the answer kept reaching its length limit (32,000 tokens),
+5 parts in a row* — and offers **Continue in smaller steps**: a link that,
+clicked (or followed with the keyboard, **Enter**), sends that request:
+several changes of at most about 100 lines each, with short explanations.
+
+![A long answer going on by itself: the muted line between its parts, then the link that asks for smaller steps](images/ai/live-continue.png)
+
+### A smart chat: RapidR words answer
+
+RapidR code in an answer looks like it does in the editor — the same
+colours in every look. That holds for **code blocks** (a block with no
+language that looks like RapidR's is coloured too) and for `inline code`.
+And the words are alive:
+
+- **Hover** a keyword, a component, a builtin or a member — `PRINT`,
+  `RListBox`, `AddItems` — and a tooltip gives its one-line help:
+  *PRINT — Statement: Writes text to the console.*; the pointer is a hand.
+- **Click** it to open its entry in the **Help pane**.
+- Every code block has **Copy** under it, and RapidR's code has **Insert**:
+  the code is typed into the open editor at the caret, as one change you can
+  undo with **Ctrl+Z**. With no editor open, the status line asks you to
+  open a file first.
+
+![An answer with RapidR words: coloured inline and in a block, the tooltip of a word under the mouse](images/ai/smart-chat.png)
+
+Your own variables and SUBs have no entry in the language's help, so they
+show none; the words the registry knows — every component, builtin,
+statement, keyword and member — do. (The same help is one **F1** away in the
+editor; the chat's words are a mouse feature, as a tooltip is.)
 
 **The model, and ↻.** The list at the top of the pane is the provider's
 models; pick another for the next question. **↻** asks the provider for its
@@ -182,10 +258,12 @@ provider itself is chosen in Settings, or with Set up RAI.
 What the assistant *did* is written by Studio, never by the model, as small
 bold **cards** in the chat:
 
-- ◆ **Created** *Scientific Calculator* · main.rr · ✓ compiles · Open · Undo
-- ● **Proposed a change to** main.rr · +12 −3 · Review
-- ○ **Started from the recipe** *Calculator*
-- ▲ **Fixed** 2 errors
+- ✓ **Created** *Scientific Calculator*  main.rr · compiles  Open · Undo
+- ✓ **Proposed a change to** main.rr  **+12** **−3**  Review (the counts in the
+  diff's green and red, the signs saying it too; a screen reader hears
+  "Proposed a change to main.rr, 12 lines added, 3 lines removed, Review")
+- ✓ **Started from the recipe** *Calculator*
+- ✓ **Fixed** 2 errors
 - × **Refused** sites.rr: it is cut off at the end (a change Studio didn't
   pass on to you — see [Small, exact changes](#small-exact-changes))
 
@@ -500,7 +578,7 @@ Studio keeps each question small:
 - The project isn't sent whole: the assistant reads the parts it needs.
 - What the assistant read for an earlier question is shortened when you
   ask the next one; a long chat is summarized past a size.
-- **Longest reply** limits each answer.
+- **Longest answer** limits each part of an answer.
 
 Measured on 2026-10-15 with each provider's fast, low-cost model, *"Build me
 a hello-form program"* (a working form program, made and checked) took from

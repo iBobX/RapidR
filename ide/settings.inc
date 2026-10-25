@@ -225,13 +225,19 @@ CREATE SettingsDialog AS RForm
       AccessibleName = "Fetch Models' result"
     END CREATE
     CREATE AIMaxLabel AS RLabel
-      Caption = "Longest &reply:"
+      Caption = "Longest &answer:"
     END CREATE
     CREATE AIMaxEdit AS REdit
-      AccessibleName = "Longest reply, in tokens"
+      AccessibleName = "Longest answer, in tokens a part"
     END CREATE
     CREATE AIMaxUnit AS RLabel
-      Caption = "tokens (a cost limit for each answer)"
+      Caption = "tokens a part, up to the model's limit"
+    END CREATE
+    ' (in plain words: what happens past that length, and when the chat is
+    ' summarised)
+    CREATE AIMaxNote AS RLabel
+      WordWrap = 1: AutoSize = 0
+      AccessibleName = "About the answer's length and the chat's size"
     END CREATE
     CREATE AIPriceLabel AS RLabel
       Caption = "&Prices:"
@@ -394,7 +400,10 @@ SUB LayOutSettingsDialog
   AIMaxEdit.Left = fx: AIMaxEdit.Top = y: AIMaxEdit.Width = 80: AIMaxEdit.Height = fh
   AIMaxUnit.Left = fx + 90: AIMaxUnit.Top = y + 5: AIMaxUnit.Width = fw - 90
   AIMaxUnit.Font.Color = TC("page.dim")
-  y = y + row
+  y = y + fh + 4
+  AIMaxNote.Left = fx: AIMaxNote.Top = y: AIMaxNote.Width = fw: AIMaxNote.Height = 52
+  AIMaxNote.Font.Color = TC("page.dim")
+  y = y + 52 + 4
   AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = 108
   AIPriceInEdit.Left = fx: AIPriceInEdit.Top = y: AIPriceInEdit.Width = 60: AIPriceInEdit.Height = fh
   AIPriceOutEdit.Left = fx + 68: AIPriceOutEdit.Top = y: AIPriceOutEdit.Width = 60: AIPriceOutEdit.Height = fh
@@ -622,6 +631,22 @@ SUB AISetNote(Text AS STRING)
 END SUB
 
 ' The AI tab from the settings.
+' (the answer's length and the chat's size, in plain words: an answer that
+' reaches the length goes on by itself, in up to MaxParts parts; the chat is
+' summarised — your request kept word for word — when it fills the model's
+' window to where RAI compacts it)
+SUB AIMaxNoteFill
+  DIM at AS INTEGER, txt AS STRING
+  txt = "An answer that reaches this length goes on by itself, in up to " + LTRIM$(STR$(AI.MaxParts)) + " parts. "
+  at = AI.ContextLimit
+  IF at > 0 THEN
+    txt = txt + "The chat is summarised, keeping your request word for word, when it holds about " + AIThousands(at) + " tokens (70% of this model's window)."
+  ELSE
+    txt = txt + "The chat is summarised, keeping your request word for word, when it fills 70% of the model's window."
+  END IF
+  AIMaxNote.Caption = txt
+END SUB
+
 SUB AISettingsFill
   DIM k AS INTEGER, all AS STRING, i AS INTEGER, line AS STRING
   AIOnBox.Checked = AIOn
@@ -652,6 +677,7 @@ SUB AISettingsFill
   NEXT
   AISetFilling = 0
   IF AIMaxTokens > 0 THEN AIMaxEdit.Text = LTRIM$(STR$(AIMaxTokens)) ELSE AIMaxEdit.Text = "32000"
+  AIMaxNoteFill
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0

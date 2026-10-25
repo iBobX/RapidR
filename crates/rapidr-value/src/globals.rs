@@ -185,6 +185,8 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         // (RapidR's) the language the program speaks: what it set, else
         // the system's (crate::i18n)
         ("application", "language") => v_str(&crate::i18n::language()),
+        // (RapidR's) The user asked the system for reduced motion
+        ("application", "reducedmotion") => v_bool(crate::theme::reduced_motion()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
         ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,

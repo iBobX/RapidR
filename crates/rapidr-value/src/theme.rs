@@ -1274,17 +1274,28 @@ mod tests {
 }
 
 thread_local! {
-    static REDUCED_MOTION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static REDUCED_MOTION: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+    static MOTION_PROBE: std::cell::Cell<Option<fn() -> bool>> = const { std::cell::Cell::new(None) };
 }
 
-/// Whether the user asked the system for reduced motion (the host says so:
+/// Whether the user asked the system for reduced motion (the host's probe
+/// asks the system: [`set_motion_probe`]; a test or a program can say it:
 /// [`set_reduced_motion`]): RapidR's own animations — the designer's drop,
-/// the dock's flyout — then don't run (docs/studio-wow.md §4).
+/// the dock's flyout, the assistant's pulsing dots — then don't run
+/// (docs/studio-wow.md §4). `Application.ReducedMotion` says it to a program.
 pub fn reduced_motion() -> bool {
-    REDUCED_MOTION.with(|r| r.get())
+    REDUCED_MOTION.with(|r| r.get()).unwrap_or_else(|| MOTION_PROBE.with(|p| p.get()).is_some_and(|probe| probe()))
 }
 
-/// The host tells the system's reduced-motion setting.
+/// Says the system's reduced-motion setting, whatever the system says
+/// (tests).
 pub fn set_reduced_motion(on: bool) {
-    REDUCED_MOTION.with(|r| r.set(on));
+    REDUCED_MOTION.with(|r| r.set(Some(on)));
+}
+
+/// The host's way of asking the system whether the user wants reduced
+/// motion (macOS' Reduce Motion, Windows' client-area animations off, the
+/// page's `prefers-reduced-motion`).
+pub fn set_motion_probe(probe: fn() -> bool) {
+    MOTION_PROBE.with(|p| p.set(Some(probe)));
 }
