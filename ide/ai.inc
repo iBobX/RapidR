@@ -836,7 +836,7 @@ SUB AIApplySettings
   IF AIProvider = "anthropic" THEN AI.WorkspaceID = AIWorkspace ELSE AI.WorkspaceID = ""
   ' (Studio's assistant writes whole programs: 4096 a reply unless the
   ' user set another limit — RAI's own default is smaller)
-  IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 4096
+  IF AIMaxTokens > 0 THEN AI.MaxTokens = AIMaxTokens ELSE AI.MaxTokens = 32000
   AI.PriceIn = AIPriceIn
   AI.PriceOut = AIPriceOut
   AITools.Permission = AIPermission

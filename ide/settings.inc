@@ -651,7 +651,7 @@ SUB AISettingsFill
     IF AIProvIds(k) = AISetProv THEN AIProvBox.ItemIndex = k
   NEXT
   AISetFilling = 0
-  IF AIMaxTokens > 0 THEN AIMaxEdit.Text = LTRIM$(STR$(AIMaxTokens)) ELSE AIMaxEdit.Text = "4096"
+  IF AIMaxTokens > 0 THEN AIMaxEdit.Text = LTRIM$(STR$(AIMaxTokens)) ELSE AIMaxEdit.Text = "32000"
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0

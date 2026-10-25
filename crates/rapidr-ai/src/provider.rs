@@ -42,6 +42,10 @@ pub struct Provider {
     /// Whether a streamed answer is asked for its usage
     /// (`stream_options.include_usage`).
     pub usage_in_stream: bool,
+    /// The longest answer RAI asks this provider's models for (tokens,
+    /// thinking aside): writing a whole program needs room, and a model
+    /// that allows less says so and is asked again with its own limit.
+    pub max_reply: u32,
 }
 
 /// The providers RapidR Studio offers, in the order it lists them.
@@ -58,6 +62,7 @@ pub const PROVIDERS: &[Provider] = &[
         env_key: "ANTHROPIC_API_KEY",
         max_tokens_field: "max_tokens",
         usage_in_stream: true,
+        max_reply: 32_000,
     },
     Provider {
         id: "openai",
@@ -71,6 +76,7 @@ pub const PROVIDERS: &[Provider] = &[
         env_key: "OPENAI_API_KEY",
         max_tokens_field: "max_completion_tokens",
         usage_in_stream: true,
+        max_reply: 32_000,
     },
     Provider {
         id: "deepseek",
@@ -84,6 +90,7 @@ pub const PROVIDERS: &[Provider] = &[
         env_key: "DEEPSEEK_API_KEY",
         max_tokens_field: "max_tokens",
         usage_in_stream: true,
+        max_reply: 8_192,
     },
     Provider {
         id: "compatible",
@@ -100,6 +107,7 @@ pub const PROVIDERS: &[Provider] = &[
         // server report it; one that refuses the field is asked again
         // without it — wire::stream_usage_refusal)
         usage_in_stream: true,
+        max_reply: 8_192,
     },
 ];
 
