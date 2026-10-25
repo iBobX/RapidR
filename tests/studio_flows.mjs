@@ -4115,6 +4115,19 @@ const CASES = [
     files: { "hello_form.rr": /Caption = "Hello, RapidR"/ },
   },
   {
+    // a new file in a folder the project doesn't have yet (icons/folder.svg):
+    // applying it makes the folder and Studio stays open (it closed:
+    // "Cannot create file", Robert 2026-10-25)
+    name: "ai-apply-new-folder",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add an icon,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
+    files: { "icons/folder.svg": /^<svg / },
+  },
+  {
     name: "ai-apply-undo",
     open: "examples/gui/hello_form.rr",
     copy: true,

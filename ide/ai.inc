@@ -1927,6 +1927,10 @@ SUB AIApplyProposals
     IF newText = AITools.ProposalOld(i) THEN
       AITools.Decide i, "rejected"
     ELSEIF kind = "create" AND FILEEXISTS(full) = 0 THEN
+      ' (a new file in a new folder, icons/folder.svg: the folder first —
+      ' opening a file in a missing folder is a run-time error that closed
+      ' Studio, Robert 2026-10-25)
+      IF FolderOf(full) <> "" AND DIREXISTS(FolderOf(full)) = 0 THEN MKDIR FolderOf(full)
       f.Open(full, 65535)
       f.WriteStr(newText, LEN(newText))
       f.Close

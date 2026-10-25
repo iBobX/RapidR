@@ -8,6 +8,7 @@
 //
 //   "hello …"          a short answer
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
+//   "add an icon"      write_file icons/folder.svg (a new file in a new folder)
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
 //                      (a type RapidR doesn't have) before its form: a change that leaves an error
@@ -267,6 +268,12 @@ function script(first, results, system, messages = []) {
     if (!nudged(messages)) return { text: "I have created the hello-form project for you. It is ready to run!" };
     if (step === 0) return { tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
     return { text: "Type a name, then press **Greet**." };
+  }
+  // (a new file in a folder the project doesn't have yet: applying it must
+  // make the folder — it closed Studio, Robert 2026-10-25)
+  if (q.startsWith("add an icon")) {
+    if (step === 0) return { tools: [{ name: "write_file", input: { path: "icons/folder.svg", summary: "A folder icon", text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l2 2h7v8H1z"/></svg>\n' } }] };
+    return { text: "I proposed a folder icon in a new **icons** folder: review it and apply it." };
   }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
