@@ -187,7 +187,7 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
     if matches!(name.to_ascii_lowercase().as_str(), "callwindowproca" | "callwindowprocw") {
         if let Some(a) = args.first() {
             if matches!(a, Value::String(_)) || memory::bytes_from(a.to_i64()).is_ok() {
-                return Err(format!("'{name}' is given the program's own memory to run: machine code for 32-bit x86 processors (RapidQ's way to run assembler), which a 64-bit program can't run"));
+                return Err(format!("'{name}' is given the program's own memory to run: machine code for 32-bit x86 processors, which a 64-bit program can't run"));
             }
         }
     }

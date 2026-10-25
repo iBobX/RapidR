@@ -182,7 +182,7 @@ FixedRows = { category = "Layout", doc = "How many rows at the grid's top stay f
 Flat = { category = "Appearance", doc = "Draws the button without a border until the mouse is over it." }
 FlatButtons = { category = "Appearance", doc = "With `ButtonStyle`, draws the tab buttons flat." }
 Flatseparators = { category = "Appearance", doc = "RapidR's spelling of `FlatSeperators`." }
-FlatSeperators = { category = "Appearance", doc = "With flat tab buttons, draws separators between them (RapidQ's spelling)." }
+FlatSeperators = { category = "Appearance", doc = "With flat tab buttons, draws separators between them (spelled this way)." }
 FocusButtons = { category = "Behavior", doc = "Lets the tab buttons take the keyboard focus." }
 FogColor = { category = "Drawing", doc = "The colour of the frame's fog." }
 FogMode = { category = "Drawing", doc = "How the fog thickens with distance: linear, exponential or exponential squared." }
@@ -199,7 +199,7 @@ FormatCount = { category = "Data", doc = "The number of formats the clipboard ho
 FormCaption = { category = "Data", doc = "The caption of the form being designed." }
 FormStyle = { category = "Window", doc = "`fsNormal`, `fsStayOnTop` (above other windows), or an MDI parent or child (`fsMDIForm`, `fsMDIChild`)." }
 FrameRate = { category = "Drawing", doc = "How many times the timer fired in the last whole second; read-only." }
-Frequence = { category = "Media", doc = "Samples per second of a new recording (11025, 22050, 44100 …); RapidQ's spelling." }
+Frequence = { category = "Media", doc = "Samples per second of a new recording (11025, 22050, 44100 …); spelled this way." }
 Frequency = { category = "Media", doc = "On a DirectX sound, the playback rate in samples per second; on a track bar, the step between tick marks." }
 FullScreen = { category = "Drawing", doc = "Takes the whole screen in the display mode `BitCount` and the size give." }
 GatewayInterface = { category = "Network", doc = "The CGI version the web server speaks (`GATEWAY_INTERFACE`, `CGI/1.1`); read-only." }
@@ -279,8 +279,8 @@ Layout = { category = "Appearance", doc = "Where the picture sits next to the ca
 Left = { category = "Layout", doc = "The distance from the parent's left edge (a form's: the screen's), in pixels.", range = "any", unit = "px" }
 LeftCol = { category = "Layout", doc = "The first scrollable column shown at the grid's left." }
 Len = { category = "Data", doc = "The number of values in the array." }
-Lenght = { category = "Media", doc = "The length: milliseconds for MIDI and wave, frames for video (RapidQ's spelling); read-only." }
-LenghtTime = { category = "Media", doc = "The video's length in milliseconds (RapidQ's spelling); read-only." }
+Lenght = { category = "Media", doc = "The length: milliseconds for MIDI and wave, frames for video (spelled this way); read-only." }
+LenghtTime = { category = "Media", doc = "The video's length in milliseconds (spelled this way); read-only." }
 Length = { category = "Data", doc = "On a media object, RapidR's spelling of `Lenght`; on a MySQL result, a field's width, `Length(i)`; on an array, its number of values." }
 LengthTime = { category = "Media", doc = "RapidR's spelling of `LenghtTime`: the length as time." }
 Level = { category = "Data", doc = "On a tree node (`Item(i).Level`), its depth: 0 for a top-level node." }
@@ -302,7 +302,7 @@ MaxFontSize = { category = "Font", doc = "The largest size the font dialog offer
 MaxInput = { category = "Network", doc = "The most characters `Parse` reads from the request (32767)." }
 MaxLength = { category = "Behavior", doc = "The most characters the user can type (0: no limit).", range = "0..", unit = "chars" }
 MaxY = { category = "Drawing", doc = "The highest Y of the mesh's vertices; read-only." }
-MdiChildCount = { category = "Window", doc = "The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (RapidQ's forms are fsNormal only)." }
+MdiChildCount = { category = "Window", doc = "The number of MDI child windows: an RFormMDI's ChildCount; 0 for an RForm (it is fsNormal only)." }
 MDIMenu = { category = "Window", doc = "The menu that lists the MDI child windows." }
 MenuIndex = { category = "Data", doc = "The item's position in its parent menu, from 0." }
 Min = { category = "Behavior", doc = "The lowest value of the progress bar, scroll bar, up-down or track bar." }
@@ -414,7 +414,7 @@ SelectedRow = { category = "Data", doc = "RapidR's name for a grid's `Row`." }
 SelEnd = { category = "Data", doc = "The end of the track bar's highlighted range." }
 SelFont = { category = "Font", doc = "The font of the selected text (SelAttributes = Font; write-only)." }
 SelLength = { category = "Data", doc = "The number of characters selected." }
-SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo, as RapidQ counts them; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range." }
+SelStart = { category = "Data", doc = "Where the selection starts: a character offset from 0 in Text (a line break counts as the characters Text has for it: two, CR LF, in a rich edit or memo; so a position INSTR finds in Text selects that text), the start of a track bar's highlighted range." }
 SelText = { category = "Data", doc = "The selected text; setting it replaces the selection." }
 Separator = { category = "Data", doc = "The text between cells when the grid saves or loads rows (`,`)." }
 Server = { category = "Network", doc = "The host name of the server to download from." }

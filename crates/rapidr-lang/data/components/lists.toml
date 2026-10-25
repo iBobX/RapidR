@@ -57,14 +57,14 @@ properties = [
 ]
 methods = [
   { name = "AddItems", params = "Items ...", value = true },
-  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color", fill = "color" } },
+  { name = "Circle", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER, fill AS INTEGER", doc = "Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color", fill = "color" } },
   { name = "Clear", value = true },
   { name = "CopyRect", params = "D, Image, S" },
   { name = "DelItems", params = "Items ..." },
   { name = "Draw", params = "x AS INTEGER, y AS INTEGER, BMP" },
-  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color" } },
+  { name = "FillRect", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color" } },
   { name = "InsertItem", params = "Index AS INTEGER, String AS STRING" },
-  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list (RC.EXE-built programs, seen in Windows): in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color" } },
+  { name = "Line", params = "x1 AS INTEGER, y1 AS INTEGER, x2 AS INTEGER, y2 AS INTEGER, c AS INTEGER", doc = "Draws on the list: in an owner-drawn list's OnDrawItem on the item, kept with it; on a list box that isn't owner-drawn on the list itself, until the list paints those rows again; on a combo box that isn't owner-drawn nothing shows.", arg_kinds = { c = "color" } },
   { name = "LoadFromFile", params = "FileName AS STRING", arg_kinds = { FileName = "file:any" } },
   { name = "Paint", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER, borderc AS INTEGER", doc = "Flood-fills from (`x`, `y`) with `c` up to the border colour `borderc`, on the pixels drawn so far: in an owner-drawn list's OnDrawItem the item, on a list box that isn't owner-drawn the list (as `Line` and the rest).", arg_kinds = { c = "color", borderc = "color" } },
   { name = "Pset", params = "x AS INTEGER, y AS INTEGER, c AS INTEGER", arg_kinds = { c = "color" } },
@@ -75,7 +75,7 @@ methods = [
   { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left.", arg_kinds = { fc = "color", bc = "color" } },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left.", arg_kinds = { fc = "color", bc = "color" } },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", arg_kinds = { fc = "color", bc = "color" } },
   { name = "AddItem", value = true, origin = "rapidr" },
   { name = "DeleteItem", value = true, origin = "rapidr" },
@@ -90,7 +90,7 @@ events = [
   { name = "OnClick" },
   { name = "OnDblClick" },
   { name = "OnDrawItem", params = "Index AS INTEGER, State AS INTEGER, R AS RRect" },
-  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.)" },
+  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it." },
   { name = "OnMeasureItem", params = "Index AS INTEGER, Height AS INTEGER" },
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnChange", origin = "rapidr" },
@@ -158,7 +158,7 @@ events = [
   { name = "OnChange" },
   { name = "OnClick" },
   { name = "OnDblClick" },
-  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it. (RapidQ's manual says the Enter key; RC.EXE never fires it: a QFILELISTBOX's OnEnter compiles and never runs, a QLISTBOX's stops the program where it is bound. RapidR fires it as every component's OnEnter.)" },
+  { name = "OnEnter", doc = "Fires when the list gets the keyboard focus (a click, Tab, SetFocus; the first component as its form shows), after the OnExit of the one that had it, before what the click does to it." },
   { name = "OnExit", origin = "rapidr" },
 ]
 
@@ -306,7 +306,7 @@ methods = [
   { name = "StretchDraw", params = "Rect AS RRect, BMP" },
   { name = "TextHeight", params = "Text AS STRING", returns = "WORD" },
   { name = "TextWidth", params = "Text AS STRING", returns = "WORD" },
-  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. (RapidQ's own TextRect stops the program; this is the drawing its Windows call makes.) In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left.", arg_kinds = { fc = "color", bc = "color" } },
+  { name = "TextRect", params = "Rect AS RRect, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", test = "args: 0, 0, 0, \"x\", 0, -1", doc = "Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. In OnDrawItem / OnDrawCell it is kept with the item or cell under `Rect`'s top left.", arg_kinds = { fc = "color", bc = "color" } },
   { name = "TextOut", params = "x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER", arg_kinds = { fc = "color", bc = "color" } },
   { name = "AddRow", value = true, origin = "rapidr" },
   { name = "SetCell", value = true, origin = "rapidr" },
@@ -320,7 +320,7 @@ methods = [
   { name = "MoveColumn", origin = "rapidr" },
   { name = "MoveRow", origin = "rapidr" },
   { name = "SetSuggestions", value = true, origin = "rapidr" },
-  { name = "DeleteColumn", params = "Column AS INTEGER", doc = "Removes column `Column`, as DeleteCol does (RC.EXE knows both names)." },
+  { name = "DeleteColumn", params = "Column AS INTEGER", doc = "Removes column `Column`, as DeleteCol does (both names work)." },
 ]
 events = [
   { name = "OnDrawCell", params = "Col AS INTEGER, Row AS INTEGER, State AS INTEGER, R AS RRect" },

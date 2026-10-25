@@ -18,7 +18,7 @@ use crate::protocol::{Error, ErrorCode, PROTOCOL_VERSION};
 pub fn find_type(name: &str) -> Result<&'static Component, Error> {
     let c = rapidr_lang::resolve_component(name).or_else(|| rapidr_lang::global(name)).or_else(|| rapidr_lang::item(name));
     match c {
-        Some(c) if c.kind == Kind::Planned => Err(Error::new(ErrorCode::UnknownType, format!("{} is RapidQ's; RapidR doesn't have it yet", c.spelling()))),
+        Some(c) if c.kind == Kind::Planned => Err(Error::new(ErrorCode::UnknownType, format!("{} isn't in RapidR yet", c.spelling()))),
         Some(c) => Ok(c),
         None => Err(Error::new(ErrorCode::UnknownType, format!("no component type `{name}` (describe {{\"what\":\"types\"}} lists them)"))),
     }
@@ -306,7 +306,7 @@ pub fn describe(type_name: Option<&str>, builtin: Option<&str>, what: Option<&st
         (Some(t), None, None) => find_type(t).map(describe_type),
         (None, Some(b), None) => match rapidr_lang::builtin(b) {
             Some(b) if !b.missing => Ok(describe_builtin(b)),
-            Some(b) => Err(Error::new(ErrorCode::UnknownType, format!("{} is RapidQ's; RapidR doesn't have it yet", b.name))),
+            Some(b) => Err(Error::new(ErrorCode::UnknownType, format!("{} isn't in RapidR yet", b.name))),
             None => Err(Error::new(ErrorCode::UnknownType, format!("no builtin `{b}` (describe {{\"what\":\"builtins\"}} lists them)"))),
         },
         (None, None, Some("types")) => Ok(list_types()),

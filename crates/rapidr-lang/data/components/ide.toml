@@ -9,7 +9,7 @@ visual = true
 size = [280, 400]
 default_event = "OnPropertyChange"
 sets = ["layout", "a11y"]
-doc = "An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; RapidR's own members of a RapidQ component are grouped under \"RapidR extensions\". An Events page lists the component's events and the SUB each one runs."
+doc = "An object inspector: the properties of a component (or of every component a designer has selected) as a two-column grid of names and values, by category or A to Z, with a search box and an editor for each kind of value — numbers, text, True / False, a list of constants, a set of flags, colours with a picker, fonts, pictures and files, lists of strings, a component reference, and a visual editor for the four Anchors. A value left at its default is shown dimmed and can be reset; the members RapidR adds to a classic component are grouped under \"RapidR extensions\". An Events page lists the component's events and the SUB each one runs."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Target", type = "string", default = "", design = false, doc = "The component inspected: its name (or Handle). Several names separated by commas inspect them together: only the properties they all have are shown, and a change goes to every one of them. While the inspector follows a Designer, it reads the names of the components selected there." },
@@ -18,7 +18,7 @@ properties = [
   { name = "Page", type = "string", default = "properties", doc = "The page shown: \"properties\" or \"events\"." },
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the rows whose name matches it are shown." },
   { name = "ShowEvents", type = "bool", default = true, doc = "Whether the Events page can be shown (its tab is there)." },
-  { name = "ShowRapidRExtensions", type = "bool", default = true, doc = "Whether RapidR's own members of a RapidQ component are shown (under \"RapidR extensions\", with a badge)." },
+  { name = "ShowRapidRExtensions", type = "bool", default = true, doc = "Whether the members RapidR adds to a classic component are shown (under \"RapidR extensions\", with a badge)." },
   { name = "ReadOnly", type = "bool", default = false, doc = "Values are shown but can't be changed." },
   { name = "Handlers", type = "string", default = "", design = false, editor = "strings", doc = "The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event." },
   { name = "EmptyText", type = "string", default = "", doc = "What the description under the rows says while nothing is inspected (\"Select a component on the form\")." },
@@ -71,11 +71,11 @@ visual = true
 size = [220, 400]
 default_event = "OnPick"
 sets = ["layout", "a11y"]
-doc = "The palette of components a form designer places, under RapidR's names (RButton; an item's card gives RapidQ's name where RapidQ has one), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own."
+doc = "The palette of components a form designer places, under RapidR's names (RButton), grouped by purpose (Standard, Additional, Dialogs, System, Network, Data …), each with its icon. The user searches it (by any of a component's names, or words of what it does), double-clicks a component (or presses Enter) to add it, or drags it onto a designer, which writes it in its file's own style. Templates — a component with preset properties — have a group of their own."
 properties = [
   { name = "Align", type = "enum", values = ["alNone", "alTop", "alBottom", "alLeft", "alRight", "alClient"], default = "alNone" },
   { name = "Filter", type = "string", default = "", design = false, doc = "The search box's text: only the components whose names match it are shown." },
-  { name = "ShowNames", type = "string", default = "rapidr", doc = "How components are named: \"rapidr\" (RapidR's names: RButton), \"rapidq\" (as a file written with RapidQ's names writes them: QBUTTON for RapidQ's components, RapidR's names for the others) or \"titles\" (in words: \"Button\")." },
+  { name = "ShowNames", type = "string", default = "rapidr", doc = "How components are named: \"rapidr\" (RapidR's names: RButton), \"rapidq\" (the classic spelling: QBUTTON for the classic components, RapidR's names for the others) or \"titles\" (in words: \"Button\")." },
   { name = "Selected", type = "string", default = "", design = false, doc = "The selected component's type under RapidR's name (RButton), or a template's name." },
   { name = "Count", type = "int", access = "read", design = false, doc = "How many components are shown now: the filter applied, a closed group's left out (Item counts the same ones)." },
   { name = "Height", type = "int" },
@@ -140,7 +140,7 @@ methods = [
   { name = "Refresh", value = true, doc = "Reads the project's files again (forms' components included)." },
   { name = "LoadText", params = "Text AS STRING, Path AS STRING", returns = "INTEGER", doc = "Shows a project from its file's text (where there are no files to read: the web). Path is its file's name. True when it was read." },
   { name = "SetFileText", params = "Path AS STRING, Text AS STRING", doc = "Gives a file's text (what the editor has, or a file the web can't read), so a form's components are listed from it." },
-  { name = "ComponentNames", params = "ExceptPath AS STRING", returns = "STRING", doc = "The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a RapidQ program's component names are global." },
+  { name = "ComponentNames", params = "ExceptPath AS STRING", returns = "STRING", doc = "The names the CREATE blocks of the project's other files make (at any depth), separated by commas: what a designer of ExceptPath must not name a new component (RDESIGNSURFACE.ReservedNames) — a classic program's component names are global." },
   { name = "File", params = "Index AS INTEGER", returns = "STRING", doc = "File Index's path (from 0), in the project's order." },
   { name = "FileKind", params = "Path AS STRING", returns = "STRING", doc = "A file's kind: \"module\", \"form\", \"include\", \"resource\", \"asset\" or \"data\"." },
   { name = "AddFile", params = "Path AS STRING, [Kind AS STRING]", returns = "INTEGER", doc = "Adds a file to the project (its kind from its extension when Kind is left out). True when it was added." },

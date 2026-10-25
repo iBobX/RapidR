@@ -4,7 +4,7 @@
 '
 '   rapidr run midi.rr
 '
-' RMIDI (RapidQ's QMIDI, from its QMidi.inc) is built into RapidR: the $INCLUDE only
+' RMIDI is built into RapidR: the $INCLUDE only
 ' names its constants, MD_PLAY …. Its Timer ticks while it plays and
 ' calls OnChange with the position in milliseconds. tune.mid is an original
 ' tune made by tools/make_example_media.py; $RESOURCE builds it into the

@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- Help, Studio, the examples and the manual describe RapidR on its own; classic compatibility is on one page.
+
 ## [2.121.2] — 2026-10-25 (RAI finishes the job, and shows its work)
 
 ### RAI finishes the job

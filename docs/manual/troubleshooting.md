@@ -227,7 +227,7 @@ Studio) must allow the page's address ([Providers](ai-assistant.md#providers)).
 
 ## Reporting a problem
 
-Open an issue on GitHub (there are forms for bugs, RapidQ compatibility and
+Open an issue on GitHub (there are forms for bugs, compatibility and
 test reports): <https://github.com/iBobX/RapidR/issues>. An older program
 that behaves differently under RapidR is a bug — please include it. Report
 security problems privately, as [SECURITY.md](../../SECURITY.md) explains.

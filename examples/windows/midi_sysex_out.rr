@@ -29,7 +29,7 @@
 '
 ' The header on 64-bit Windows. RapidR's normal builds are 64-bit, and winmm's
 ' MIDIHDR has pointers (lpData, dwUser, lpNext, reserved, dwReserved), so
-' Windows reads 120 bytes where a 32-bit program's header (RapidQ's) is 16
+' Windows reads 120 bytes where a 32-bit program's header is 16
 ' LONGs, 64 bytes. The pointers are 8 bytes wide and start on a multiple of
 ' 8, which leaves a gap of 4 bytes after dwFlags and after dwOffset. A TYPE
 ' is laid out packed, in 4-byte LONGs, so the header is written out in
@@ -38,9 +38,7 @@
 ' LONGs inside the TYPE (array fields are laid out inline). SIZEOF(hdr) is
 ' 120, the size midiOutPrepareHeader wants: the calls say SIZEOF(hdr), not a
 ' number, so the size follows the TYPE (a 32-bit program's header of 16 LONGs
-' gives 64; RapidQ itself counts an array field as one 4-byte pointer outside
-' the record, so its SIZEOF of that header is 36 and a program there types
-' 64). lpData is VARPTR of a string that holds the message: a
+' gives 64). lpData is VARPTR of a string that holds the message: a
 ' RapidR address is a real address on Windows and fits the low half; the high
 ' half stays 0.
 '

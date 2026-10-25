@@ -22,7 +22,7 @@ doc = "Inside a SUB or FUNCTION, declares a local variable that keeps its value 
 name = "CONST"
 syntax = "CONST name [AS type] = expression"
 group = "Declarations"
-doc = "Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST, as in RapidQ: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each."
+doc = "Names a value fixed for the whole program: `CONST MaxItems = 3`, `CONST Limit AS LONG = 100`. One constant to a CONST: a list (`CONST a = 1, b = 2`) is an error, so write a CONST for each."
 
 [[statement]]
 name = "DEFINT"
@@ -109,7 +109,7 @@ doc = "Defines a record type: fields, and optionally methods, a CONSTRUCTOR, eve
 name = "EXTENDS"
 syntax = "TYPE name EXTENDS QOBJECT|component"
 group = "Types and objects"
-doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a RapidQ component (`EXTENDS RButton`)."
+doc = "Makes a TYPE inherit another TYPE's members, or makes it a component of your own built on a component (`EXTENDS RButton`)."
 
 [[statement]]
 name = "PROPERTY SET"
@@ -211,7 +211,7 @@ doc = "Runs the first CASE whose values match the expression: single values, `a 
 name = "FOR"
 syntax = "FOR variable [AS type] = start TO end [STEP step] … NEXT [variable]"
 group = "Flow"
-doc = "Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` (a RapidR extension: RapidQ's compiler refuses `AS` here) also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error."
+doc = "Runs the body for each value of a counter from `start` to `end`, adding `step` (1 when not given) each time. `FOR i AS INTEGER = 1 TO n` also declares the counter where it isn't declared yet — a local in a SUB or FUNCTION; a counter already declared with the same type is that variable, one of another type is an error."
 
 [[statement]]
 name = "WHILE"
@@ -247,7 +247,7 @@ doc = "Goes back to the statement after the last `GOSUB`."
 name = "END"
 syntax = "END [exit code]"
 group = "Flow"
-doc = "Ends the program at once; files it wrote are kept. `END n` (RapidR's; RapidQ's END takes no number) ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are the syntax error they are in RapidQ. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks."
+doc = "Ends the program at once; files it wrote are kept. `END n` ends it with exit code n, a number or numeric expression stored as a LONG is, so a console tool can fail a build: `IF failures > 0 THEN END 1`. A bare name must be one the program declared (`END code` after `DIM code AS INTEGER = 5`); `END SUBB`, a typo of a block's ending, and an undeclared name are syntax errors. 0 means success, and a plain `END` ends with 0. The shell reads it with `echo $?` (macOS, Linux) or `echo %ERRORLEVEL%` (Windows); macOS and Linux keep the low 8 bits. In a web page there is no exit code: the program ends and the number is ignored. `END IF`, `END SUB` and the like close blocks."
 
 [[statement]]
 name = "ON ERROR"
@@ -260,7 +260,7 @@ doc = "VB's error trapping, accepted so such programs compile and ignored: a run
 name = "PRINT"
 syntax = "PRINT [expression][; | ,] …"
 group = "Console"
-doc = "Writes values to the console and ends the line, unless the last is followed by `;` or `,` (the same in RapidQ: no print zones). `?` is short for PRINT."
+doc = "Writes values to the console and ends the line, unless the last is followed by `;` or `,` (no print zones). `?` is short for PRINT."
 
 [[statement]]
 name = "LPRINT"
@@ -388,7 +388,7 @@ doc = "Puts Rust code in the program, up to `RUSTEND`; only in native builds (th
 [[directive]]
 name = "$INCLUDE"
 syntax = "$INCLUDE \"file\""
-doc = "Includes another source file at this point. RapidQ's include folders and `\\` paths work; `RAPIDQ.INC` is built in."
+doc = "Includes another source file at this point. The include folders and `\\` paths work; `RAPIDQ.INC` is built in."
 
 [[directive]]
 name = "$RESOURCE"
@@ -443,7 +443,7 @@ doc = "`ON`: from here, storing into a variable never declared (DIM, CONST, a pa
 [[directive]]
 name = "$OPTIMIZE"
 syntax = "$OPTIMIZE ON | OFF"
-doc = "RapidQ's optimizer switch; accepted, with nothing for RapidR to change."
+doc = "The optimizer switch; accepted, with nothing for RapidR to change."
 
 [[directive]]
 name = "$ESCAPECHARS"
@@ -453,13 +453,13 @@ doc = "`ON`: strings in this file understand escapes (`\\n`, `\\t`, `\\\"`, `\\\
 [[directive]]
 name = "$OPTION"
 syntax = "$OPTION ICON \"file\" | DECIMAL | BYREF | INKEY$ TRAPALL | EXPLICIT …"
-doc = "Program options: `ICON \"file\"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; RapidQ takes a 766-byte 32 × 32 .ico, RapidR also any .ico, .icns, .png or .svg), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
+doc = "Program options: `ICON \"file\"` the program's icon (the executable's, and its windows'; a file that isn't there is a compile error; the last `ICON` wins; an .ico, .icns, .png or .svg file), `DECIMAL` VAL's decimal character, `BYREF` parameters by reference, `EXPLICIT` as `$TYPECHECK ON`, `INKEY$ TRAPALL`, `DIM type`."
 
 [[directive]]
 name = "$THEME"
 syntax = "$THEME name"
 origin = "rapidr"
-doc = "The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: RapidQ's Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's."
+doc = "The look the program's windows are drawn in. `RapidR` (the default, also with no `$THEME`): RapidR's own look, as RapidR Studio has it — light, dark or high contrast as the system is set, Inter for the default font; `RapidR Light`, `RapidR Dark`, `RapidR High Contrast` choose one. `Classic`: the classic Windows look, exactly. The older names stay: `Modern`, `Dark` and `HighContrast` are RapidR's light, dark and high-contrast looks; `System`, `Light`, `Windows`, `Win95`, `Win98` and `Win2K` the classic one. A theme changes how things are drawn, never a size or a place; the colours a program sets are drawn as it set them, the system colours (`clBtnFace` …) are the theme's."
 
 [[keyword]]
 name = "AND"
@@ -640,7 +640,7 @@ doc = "32-bit signed integer, -2,147,483,648 to 2,147,483,647, the same as LONG;
 
 [[type]]
 name = "DWORD"
-doc = "32-bit integer, signed as RapidQ has it (-2,147,483,648 to 2,147,483,647). Suffix `???`."
+doc = "32-bit integer, signed (-2,147,483,648 to 2,147,483,647). Suffix `???`."
 
 [[type]]
 name = "LONG"
@@ -710,7 +710,7 @@ wrong = "PRINT NStr(5)"
 [[rule]]
 name = "for"
 statement = "FOR"
-text = "A counting loop: RapidQ's `FOR i = 1 TO n … NEXT`, or RapidR's `FOR i AS INTEGER = 1 TO n`, which also declares the counter where it isn't declared yet."
+text = "A counting loop: `FOR i = 1 TO n … NEXT`, or `FOR i AS INTEGER = 1 TO n`, which also declares the counter where it isn't declared yet."
 right = "FOR i AS INTEGER = 1 TO 3: PRINT i: NEXT"
 expect = "1\n2\n3"
 

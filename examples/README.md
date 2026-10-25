@@ -33,7 +33,7 @@ example's CSV or JSON file sits beside it.
 ## The examples
 
 In the order to read them: the language first, then windows, drawing, data,
-the debugger, media and DirectX, the network, AI, boards, RapidQ programs,
+the debugger, media and DirectX, the network, AI, boards, classic programs,
 Windows messages, the web, and last the IDE's own parts. The **Runs on** column lists the ways each
 example is tested on (by `tests/examples_run.mjs`: every example, every way it
 claims, headless).
@@ -64,7 +64,7 @@ claims, headless).
 | [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
 | [value_tree.rr](gui/value_tree.rr) | A tree that shows values as RapidR Studio's debugger does (`SetItemValue`, `Item(i).Changed`): each with its kind's icon, numbers, text and True/False in their colours, a colour as a swatch and its name, an array with its count, a changed value marked ([the manual](../docs/manual/debugging.md#how-values-look)) | run · interp · native · web | `rapidr run gui/value_tree.rr` |
-| [tray.rr](gui/tray.rr) | A system tray icon, as RapidQ programs make one (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
+| [tray.rr](gui/tray.rr) | A system tray icon (`RNotifyIconData`, `Shell_NotifyIcon`, `WndProc`) | run · interp · native · web | `rapidr run gui/tray.rr` |
 
 ### translations/ — one program in every language
 
@@ -144,7 +144,7 @@ The servers listen on 127.0.0.1 (this computer only): try them with `curl`.
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [http_json.rr](network/http_json.rr) | `RHttp.Get` fetching a JSON document ([forecast.json](network/forecast.json)), read with `RJson` | run · interp · native · web | `rapidr run network/http_json.rr http://127.0.0.1:8000/forecast.json` |
-| [download.rr](network/download.rr) | `RDownload` (RapidQ's `QDOWNLOAD`): a file into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
+| [download.rr](network/download.rr) | `RDownload`: a file into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
 | [local_api.rr](network/local_api.rr) | A web API in a program (`RHttpServer`) on 127.0.0.1: `/hello`, `/echo` and three Server-Sent Events from `/events`, a token every request needs, the requests the server refuses by itself (another site's page, another host name, too large), each answer announced to screen readers ([the manual](../docs/manual/network.md)) | run · interp · native | `rapidr run network/local_api.rr`, then the `curl` line it shows |
 | [echo_server.rr](network/echo_server.rr) | `RServerSocket` with `Mode = "http"`: each request arrives whole, a body of any size (by its length or in chunks), and is sent back with `Send` and `Disconnect`; this computer only (`Host = "127.0.0.1"`) | run · interp · native | `rapidr run network/echo_server.rr`, then `curl -d hello http://127.0.0.1:47120/echo` |
 
@@ -177,21 +177,19 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [notepad.bas](rapidq/notepad.bas) | A text editor in plain RapidQ style: `$TYPECHECK ON`, `DECLARE SUB`, Q components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, Q components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
 | [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
-RapidR runs RapidQ programs unchanged. The other examples use RapidR's own
-names: `RButton`, `RForm`, `RStringGrid` … (RapidQ's names, `QBUTTON`,
-`QFORM` …, are the same components and work everywhere). The `rapidq/`
-examples are kept in RapidQ's own style on purpose, to show that they run as
-they are. To bring a RapidQ program of your own over to RapidR's names, use
-`rapidr import-rapidq` (it writes a converted copy and a report, and leaves
-the original alone).
+Programs written for RapidQ run unchanged. The other examples use RapidR's own
+names: `RButton`, `RForm`, `RStringGrid` …. To bring a RapidQ program of your
+own over to RapidR's names, use `rapidr import-rapidq` (it writes a converted
+copy and a report, and leaves the original alone; see
+[Importing a RapidQ program](../docs/manual/importing-rapidq.md)).
 
 ### windows/ — Windows only: a form's Windows messages, winmm's MIDI
 
-A form's `WndProc` hears every message Windows sends or posts to its window,
-as in RapidQ ([Windows messages](../docs/manual/components.md#windows-messages-a-forms-wndproc)).
+A form's `WndProc` hears every message Windows sends or posts to its window
+([Windows messages](../docs/manual/components.md#windows-messages-a-forms-wndproc)).
 Windows only: on other systems WndProc receives only the tray icon's
 messages, and these examples say so instead of doing anything (the tests
 run them there for that).

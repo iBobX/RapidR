@@ -163,7 +163,7 @@ control's description tells the format at the caret ("At the caret: Arial
 
 ## Compatibility
 
-The `QRICHEDIT` members of programs written for RapidQ behave as they always
+The `QRICHEDIT` members of older programs behave as they always
 did (the compatibility suite covers them): `SelAttributes` and its members, `SelFont` (`SelAttributes =
 Font`'s other name), `Font`, `Alignment`, `PlainText`, `SelText`,
 `AddStrings`, `Line`, `Clear`, `LoadFromFile` / `SaveToFile` and the

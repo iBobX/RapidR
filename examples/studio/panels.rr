@@ -111,7 +111,7 @@ Cons.AddBuildLine "Compiling Greeter.rr …"
 Cons.AddBuildLine "Form1.rr:12:5: warning: Answer is never read"
 Cons.AddBuildLine "Built in 0.21 s"
 Cons.AddProblem "Form1.rr", 12, 5, "warning", "Answer is never read"
-Cons.AddProblem "Greeter.rr", 3, 1, "info", "RapidQ-compatible project: RPlot is RapidR's own component"
+Cons.AddProblem "Greeter.rr", 3, 1, "info", "Classic-compatible project: RPlot is RapidR's own component"
 
 ' The layout: the toolbox and the project left, the inspector right, the
 ' console under the designer.

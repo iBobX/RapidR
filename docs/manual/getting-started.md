@@ -287,7 +287,7 @@ Form.ShowModal
 
 RapidR writes its components `RForm`, `RButton`, `RLabel`, `REdit`,
 `RStringGrid` …, and RapidR Studio, the examples and this manual use these
-names. Programs written for RapidQ use `QFORM`, `QBUTTON`, `QLABEL` …: **RapidR
+names. Older programs use `QFORM`, `QBUTTON`, `QLABEL` …: **RapidR
 accepts those too, silently, with no setting** — `QFORM` and `RForm` are the
 same component, and you can mix them:
 
@@ -300,7 +300,7 @@ The rule is simply Q → R (`QBUTTON` is `RButton`); a few differ: `QGAUGE` is
 `RProgressBar`, `QOUTLINE` is `RTreeView`, `COMPORT` is `RComPort`. The full
 list: [reference/components.md](reference/components.md). To turn such a
 program into one with RapidR's names, see
-[Importing older programs](importing-rapidq.md). A RapidQ program (`.bas`) that uses the classic
+[Importing older programs](importing-rapidq.md). A `.bas` program that uses the classic
 constants (`clRed`, `MB_OK` …) keeps the line `$INCLUDE "RAPIDQ.INC"`:
 RapidR supplies them through that line without needing the file. A RapidR
 program (`.rr`) has them built in, with no line.

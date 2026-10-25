@@ -2,7 +2,7 @@
 
 ESP32, Arduino, Raspberry Pi Pico and most other microcontroller boards talk
 to a computer through a USB serial adapter. A RapidR program reaches them with
-**RComPort** (older names `QCOMPORT` and RAPIDQ2.INC's `COMPORT`), plus a few
+**RComPort** (older names `QCOMPORT` and `COMPORT`), plus a few
 RapidR extras made for these boards: the ports
 listed with their USB IDs, the DTR / RTS lines that reset a board, whole lines
 in, and an event when a board is plugged in or out.

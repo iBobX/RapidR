@@ -1,5 +1,4 @@
-' tray.rr: an icon in the system tray. RapidQ programs add one this way
-' (and RapidR runs them as they are): an RNotifyIconData given to
+' tray.rr: an icon in the system tray: an RNotifyIconData given to
 ' Shell_NotifyIcon, the icon's clicks heard in the form's WndProc.
 '
 '   rapidr run tray.rr

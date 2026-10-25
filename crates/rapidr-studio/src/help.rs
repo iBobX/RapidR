@@ -20,8 +20,8 @@ use rapidr_langsvc::SymbolHelp;
 /// Who a name belongs to, in words.
 fn origin(o: Origin) -> &'static str {
     match o {
-        Origin::RapidQ => "RapidQ-compatible",
-        Origin::RapidR => "RapidR's own (not in RapidQ)",
+        Origin::RapidQ => "classic",
+        Origin::RapidR => "RapidR's own",
     }
 }
 
@@ -77,15 +77,11 @@ fn member_names(c: &Component) -> [(&'static str, Vec<&'static str>); 3] {
     ]
 }
 
-/// A component's entry under RapidR's name (`RButton`, RapidQ's as a
-/// note): what it is and its members by kind.
+/// A component's entry under RapidR's name (`RButton`): what it is and its
+/// members by kind.
 fn component(c: &Component) -> Vec<String> {
     let name = c.spelling();
-    let from = match c.rapidq {
-        Some(q) if c.kind == rapidr_lang::Kind::Component => format!("RapidQ name: {q}"),
-        _ => origin(c.origin).to_string(),
-    };
-    let mut what = format!("Component · {from} · {}", runs(c.runtimes));
+    let mut what = format!("Component · {}", runs(c.runtimes));
     if let Some(e) = c.default_event {
         what.push_str(&format!(" · its default event {e}"));
     }
@@ -561,20 +557,20 @@ mod tests {
         let e = entry("showmessage", "").unwrap();
         assert_eq!(e[0], "SHOWMESSAGE");
         assert!(e[1].to_ascii_uppercase().starts_with("SHOWMESSAGE"), "{e:?}");
-        assert!(e[2].contains("RapidQ"), "{e:?}");
+        assert!(e[2].contains("classic") && !e[2].contains("RapidQ"), "{e:?}");
         assert!(!e[3].is_empty());
         // (RapidR's names, whichever name was asked: R-NAMES)
         let b = entry("QBUTTON", "").unwrap();
         assert_eq!(b[0], "RButton");
         assert!(b[1].starts_with("CREATE Button1 AS RButton"), "{b:?}");
-        assert!(b[2].starts_with("Component · RapidQ name: QBUTTON"), "{b:?}");
+        assert!(b[2].starts_with("Component · desktop and web"), "{b:?}");
         assert!(b.iter().any(|l| l.starts_with("Properties: ") && l.contains("Caption")), "{b:?}");
         let p = entry("Caption", "QBUTTON").unwrap();
         assert_eq!(p[0], "RButton.Caption");
         assert!(p[2].starts_with("Property of RButton · string"), "{p:?}");
         let ev = entry("OnClick", "qbutton").unwrap();
         assert!(ev[2].starts_with("Event of RButton"), "{ev:?}");
-        assert!(entry("RPLOT", "").unwrap()[2].contains("RapidR's own (not in RapidQ)"));
+        assert!(entry("RPLOT", "").unwrap()[2].starts_with("Component · "));
         assert_eq!(entry("RPLOT", "").unwrap()[0], "RPlot");
         assert!(entry("clRed", "").unwrap()[2].starts_with("Constant = "));
         assert!(entry("FOR", "").is_some());
@@ -599,7 +595,7 @@ mod tests {
         let (meta, md) = parts(&ask("RButton", ""));
         assert_eq!(meta[0], "entry");
         assert!(meta[1].starts_with("CREATE Button1 AS RButton"), "{meta:?}");
-        assert!(md.starts_with("## RButton\n\nComponent · RapidQ name: QBUTTON · desktop and web\n\n"), "{md}");
+        assert!(md.starts_with("## RButton\n\nComponent · desktop and web\n\n"), "{md}");
         // (its default event is a link, not a tail the line cuts off)
         assert!(md.contains("Its default event is [OnClick](help:OnClick@RButton)."), "{md}");
         assert!(!md.contains("its default event OnClick"), "{md}");

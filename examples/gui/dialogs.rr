@@ -69,7 +69,7 @@ SUB PickColour
 END SUB
 
 SUB PickFont
-    ' (RapidQ's way: GetFont starts the dialog from a font, SetFont copies
+    ' (GetFont starts the dialog from a font, SetFont copies
     ' everything chosen into one: face, size, style, colour)
     ChosenFont = Sample.Font
     FontDlg.GetFont(ChosenFont)

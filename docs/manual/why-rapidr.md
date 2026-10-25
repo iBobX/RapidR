@@ -103,29 +103,13 @@ the same**:
 
 ## Older programs run unchanged
 
-RapidR also runs programs written for RapidQ. The rule: what those programs
-do, they keep doing, and RapidR's extras are additive. A compatibility suite of
-428 older example programs keeps watch, program by program, and the results
-are published whole:
-
-- **On Windows** (2026-10-15): every program of the suite is run, interpreted
-  and native, and its windows and output compared with the suite's reference
-  results. Of the 428, **140 come out the same**, 51 differ in some way
-  the notes describe, 32 fail (mostly what a 64-bit program can't do: 32-bit
-  DLLs, x86 machine code), 13 aren't comparable, 64 aren't run (they would
-  print, write the registry, start programs …), and **128 are programs
-  the original compiler doesn't build or run**.
-  [Every program and what was seen](../rapidq-corpus-status.md).
-- **On macOS, Linux and the web**: of the portable programs (the API the older
-  Windows and Linux versions shared), 114 ran unattended on each of macOS and
-  Linux, interpreted and native, with **no problem found**, and the web matches
-  the desktop. [Every program](../rapidq-corpus-status-unix.md).
-- 358 of the 428 compile; the rest mostly call Windows' own libraries, which
-  RapidR calls only on Windows, or use OLE, which it doesn't
-  ([Differences](differences.md#what-rapidr-doesnt-do)).
-
-To move a program to RapidR's own component names, [import it](importing-rapidq.md):
-a copy, proved to compile to the same bytecode, with a report.
+Older programs keep doing what they did, and RapidR's extras are additive. A
+compatibility suite of 428 older example programs keeps watch, program by
+program, and the results are published whole; what runs, what differs and what
+RapidR doesn't do (32-bit DLLs, OLE) is on one page:
+[Differences](differences.md). To move an older program to RapidR's own
+component names, [import it](importing-rapidq.md): a copy, proved to compile to
+the same bytecode, with a report.
 
 ## Accessible without trying
 

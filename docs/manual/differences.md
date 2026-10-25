@@ -14,7 +14,7 @@ RapidR's components have their own names — `RForm`, `RButton`,
 always**: an old program runs unchanged, and both names can be mixed in one
 program. Each RapidQ name is its R name (`QBUTTON` = `RButton`), except
 `QGAUGE` = `RProgressBar`, `QOUTLINE` = `RTreeView` and `COMPORT` =
-`RComPort` ([the full list](reference/components.md)). RapidR's own
+`RComPort` ([the full list](reference/classic-names.md)). RapidR's own
 components (`RPlot`, `RSQLite`, `RJson` …) have only an R name. RapidQ's
 other source extensions, `.rqw`, `.rqb` and `.rq`, are read like `.bas`.
 To move a program to RapidR's names, [import it](importing-rapidq.md): a

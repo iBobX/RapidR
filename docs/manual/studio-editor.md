@@ -77,8 +77,7 @@ need no include line
 
 ![Typing mby in hello_form.rr lists mbYes, MB_YESNO and other constants, each a built-in constant with its number](images/studio-editor/completion-builtin.png)
 
-In a RapidQ program (`.bas`) they come from the include file RAPIDQ.INC, as
-in RapidQ. The list offers them even before your program includes it, and
+In a `.bas` program they come from the include file RAPIDQ.INC. The list offers them even before your program includes it, and
 choosing one also adds the line `$INCLUDE "RAPIDQ.INC"` at the top of the
 file (after its first comments). Ctrl+Z takes both back.
 
@@ -126,8 +125,7 @@ same on the web. The pane has two parts:
   *your SUB*). **Up** and **Down** choose one, **Enter** opens it, **Escape**
   closes the list and, once more, takes you back to the code.
 - Under it, **one page that scrolls**: the word as a title, what it is (a
-  statement, a function, a property of RButton, a keyword; RapidQ's or
-  RapidR's; where it runs), the syntax as code with **Insert into the code**
+  statement, a function, a property of RButton, a keyword; where it runs), the syntax as code with **Insert into the code**
   under it (it types the syntax at the caret; it is only there when a code
   editor is open), and what it does. For a component the page lists its
   **Properties**, **Methods** and **Events**, and every name is a link to its
@@ -270,7 +268,7 @@ shows all of it in a tooltip.
 
 ### The RAPIDQ.INC warning
 
-In a RapidQ program (`.bas`), RapidR, to run old programs the same way,
+In a `.bas` program, RapidR, to run old programs the same way,
 reads a name it doesn't know as a new variable that is 0. So if such a
 program uses `mbYes` without including RAPIDQ.INC, `mbYes` is 0, and a
 question like this one shows only an OK button (a `.rr` program has the
@@ -293,7 +291,7 @@ warning above, the fix adds `$INCLUDE "RAPIDQ.INC"` to the top of the file:
 ![Ctrl+. on mbYes shows the fix Add $INCLUDE "RAPIDQ.INC"](images/studio-editor/quick-fix.png)
 
 Other fixes: a misspelt property (`NameEdit.Txet`) offers the nearest real
-ones ("Change to Text"); in a RapidQ-compatible project, a Q name that
+ones ("Change to Text"); in a project kept classic-compatible, a Q name that
 doesn't exist (`QPLOT`) offers RapidR's (`RPLOT`).
 
 `IF NOT FILEEXISTS(f) THEN` looks right but is always true: FILEEXISTS

@@ -146,7 +146,7 @@ SUB FillExamples
   AddExample "data/dataframe.rr", "A data frame and a chart"
   AddExample "debugging/shop.rr", "Debug it: values as trees"
   AddExample "ai/rai_models.rr", "Ask an AI: models, an answer"
-  AddExample "rapidq/notepad.bas", "A program in RapidQ's style"
+  AddExample "rapidq/notepad.bas", "A program in the classic style"
   AddExample "basics/hello.rr", "PRINT, FOR, SUB, FUNCTION"
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0

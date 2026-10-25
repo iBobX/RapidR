@@ -282,8 +282,8 @@ pub const TEMPLATES: &[&str] = &["console", "gui", "rapidq", "data", "mdi"];
 /// string literal.
 ///
 /// RapidQ-compatible form app: RapidQ's names and syntax only.
-const TEMPLATE_RAPIDQ: &str = r#"' A RapidQ-compatible form: only RapidQ's own language and components,
-' so the program also runs in the original RapidQ.
+const TEMPLATE_RAPIDQ: &str = r#"' A classic-style form: only the classic language and components,
+' so the program also runs in the original compiler.
 $APPTYPE GUI
 
 ' Event handlers are declared before the CREATE blocks that use them.

@@ -291,7 +291,7 @@ END SUB
 SUB SetUpTemplates
   AddTemplate 0, "gui", "RFORM", "Form app", "A window to design, with its code beside it."
   AddTemplate 1, "console", "view.terminal", "Console", "PRINT and INPUT in a text window."
-  AddTemplate 2, "rapidq", "files/bas", "RapidQ form app", "A .bas with RapidQ's names only, checked as RapidQ."
+  AddTemplate 2, "rapidq", "files/bas", "Classic form app", "A .bas with the classic names only, checked as classic."
   AddTemplate 3, "data", "RPLOT", "Data dashboard", "A table in a grid and a chart of it."
   AddTemplate 4, "mdi", "RFORMMDI", "MDI app", "Child windows, File and Window menus."
 END SUB

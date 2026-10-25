@@ -17,7 +17,7 @@ CREATE Form1 AS RForm
     Width = 420: Height = 300
     CREATE Question AS REdit
         Left = 10: Top = 10: Width = 300
-        Text = "What is RapidQ?"
+        Text = "What is RapidR?"
     END CREATE
     CREATE AskButton AS RButton
         Caption = "Ask"

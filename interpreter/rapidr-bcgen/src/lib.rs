@@ -695,7 +695,7 @@ impl Bcgen {
         let message = if key == "inc" || key == "dec" {
             format!("{} needs a variable: `{} x` or `{} x, amount`", name.to_uppercase(), name.to_uppercase(), name.to_uppercase())
         } else if RAPIDQ_BUILTINS.contains(&key.as_str()) {
-            format!("{} (a RapidQ built-in){UNSUPPORTED_MARKER}", name.to_uppercase())
+            format!("{} (a classic built-in, not implemented){UNSUPPORTED_MARKER}", name.to_uppercase())
         } else {
             // (RapidQ's words, then the fix: the nearest SUB, FUNCTION or
             // builtin, or that none is near)

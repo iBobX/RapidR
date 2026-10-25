@@ -25,6 +25,6 @@ DIM r AS RBUTTON
 '! diagnostic main.bas:16:10 "RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON"
 '! 1 hover has "Screen.Width" "read only"
 '! 2 completion has Width Height MouseX
-'! 3 hover has "not implemented"
+'! 3 hover has "Not implemented in RapidR yet"
 '! 3 completion lacks HelpJump
 '! 4 signature "LOCATE [Y%][, X%][, cursor]" active 1

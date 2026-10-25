@@ -80,7 +80,7 @@ listing them.
 
 Started from a terminal or a script, a program keeps that folder — as a
 console program always does — so `"staff.csv"` and `"art/logo.svg"` are
-first looked for in the folder you're in, as RapidQ does. When that folder
+first looked for in the folder you're in. When that folder
 has no such file, these read the one the app came with:
 
 - an `RCSV` or `RJson`'s file;
@@ -94,8 +94,8 @@ has no such file, these read the one the app came with:
   `RTreeView`'s `LoadFromFile`.
 
 A file in the current folder always wins. `FILEEXISTS` and the file
-commands (`OPEN`, `KILL` …) and streams still look only where RapidQ
-looks.
+commands (`OPEN`, `KILL` …) and streams still look only in the current
+folder.
 Translations are always read from the app's own `lang` folder. `$RESOURCE` files are built into the program and
 don't need any of this.
 
@@ -239,7 +239,7 @@ and the amber Run triangle (`design/brand/icons`: `RapidR-App.icns`,
 
 ### `$OPTION ICON`
 
-`$OPTION ICON "path\file.ico"` works as in RapidQ's compiler: the name may
+`$OPTION ICON "path\file.ico"`: the name may
 be quoted or not; a file that isn't there is a compile error
 (`ICON file nowhere.ico does not exist.`); with several, the last one wins.
 The original looks for the file in the current folder; RapidR also looks beside

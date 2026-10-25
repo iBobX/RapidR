@@ -5,7 +5,7 @@
 '
 ' Draw in the canvas's OnPaint: it runs whenever the canvas needs its
 ' picture (shown, uncovered, resized, Repaint), so what is drawn there
-' always comes back. Colours are &HBBGGRR, as in RapidQ (RGB(r, g, b)
+' always comes back. Colours are &HBBGGRR (RGB(r, g, b)
 ' makes one).
 
 DECLARE SUB PaintChart

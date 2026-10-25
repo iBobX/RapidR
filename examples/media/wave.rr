@@ -3,7 +3,7 @@
 '
 '   rapidr run wave.rr
 '
-' RWave (RapidQ's QWAVE, from its QWave.inc) is built into RapidR. Open / Play /
+' RWave is built into RapidR. Open / Play /
 ' Stop play a file; New, Lenght (the library's spelling) and Record record
 ' one, Save writes it. The first recording asks the system for the
 ' microphone. chime.wav was made by tools/make_example_media.py.

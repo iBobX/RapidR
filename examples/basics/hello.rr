@@ -2,15 +2,15 @@
 '
 '   rapidr run hello.rr
 '
-' PRINT writes a line; variables are declared with DIM (or used directly,
-' as RapidQ allows); SUBs and FUNCTIONs are declared where they are used.
+' PRINT writes a line; variables are declared with DIM (or used directly);
+' SUBs and FUNCTIONs are declared where they are used.
 $APPTYPE CONSOLE
 
 DIM who AS STRING
 who = "RapidR"
 PRINT "Hello from " + who + "!"
 
-' Numbers: STR$ turns one into text (as RapidQ's, without a leading space)
+' Numbers: STR$ turns one into text (without a leading space)
 DIM a AS INTEGER, b AS INTEGER
 a = 3
 b = 7

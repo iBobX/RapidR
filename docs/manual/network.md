@@ -28,7 +28,7 @@ should always listen on `127.0.0.1`.
 |---|---|
 | `RHttpServer` | `Host`: `127.0.0.1` unless you set another |
 | `RServerSocket` | `Host`: `0.0.0.0` unless you set another (as before) |
-| `RSocket`'s `Open(Port)` (RapidQ's `QSOCKET`) | `0.0.0.0`, as in RapidQ; `Open(Port, "127.0.0.1")` or `BindAddress = "127.0.0.1"` (RapidR's) for this computer only |
+| `RSocket`'s `Open(Port)` | `0.0.0.0`; `Open(Port, "127.0.0.1")` or `BindAddress = "127.0.0.1"` for this computer only |
 
 ```basic
 DIM Sock AS RSocket

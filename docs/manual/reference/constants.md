@@ -2,7 +2,7 @@
 
 # Constants
 
-RapidR's own, and the ones programs written for RapidQ use. A RapidR program (`.rr`) has RAPIDQ.INC's constants and its `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a RapidQ program (`.bas`) gets them with `$INCLUDE "RAPIDQ.INC"`, which needs no file. Colours are `&HBBGGRR`, as RapidQ stores them.
+RapidR's own, and the classic ones. A RapidR program (`.rr`) has them and the `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a `.bas` program gets them with `$INCLUDE "RAPIDQ.INC"`, which needs no file. Colours are `&HBBGGRR`: blue in the high byte.
 
 ## Message box buttons and icons
 
@@ -60,7 +60,7 @@ Raster operations for CopyMode: how drawing a picture combines its pixels with t
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods. RAPIDQ.INC (and every .rr program, built in) also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red).
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods. RAPIDQ.INC (and every .rr program, built in) also gives `QBColor(0 TO 15)`, an INTEGER array of QBasic's 16 colours in the same form (`QBColor(12)` is bright red).
 
 `clAqua` = 16776960, `clBlack` = 0, `clBlue` = 16711680, `clDkGray` = 8421504, `clFuchsia` = 16711935, `clGray` = 8421504, `clGreen` = 65280, `clLime` = 65280, `clLtGray` = 12632256, `clMaroon` = 128, `clNavy` = 8388608, `clOlive` = 32896, `clPurple` = 16711935, `clRed` = 255, `clSilver` = 12632256, `clTeal` = 8421376, `clWhite` = 16777215, `clYellow` = 65535
 
@@ -72,7 +72,7 @@ The system's colours for parts of the user interface; a control using one follow
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods.
 
 `clBtnFace` = -2147483633
 
@@ -84,7 +84,7 @@ The system's colours for parts of the user interface; a control using one follow
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods.
 
 `clBtnShadow` = -2147483632, `clBtnText` = -2147483630
 
@@ -96,7 +96,7 @@ The system's colours for parts of the user interface; a control using one follow
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods.
 
 `clGrayText` = -2147483631, `clHighlight` = -2147483635, `clHighlightText` = -2147483634
 
@@ -108,7 +108,7 @@ The system's colours for parts of the user interface; a control using one follow
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods.
 
 `clWindow` = -2147483643
 
@@ -120,7 +120,7 @@ The system's colours for parts of the user interface; a control using one follow
 
 ## Colours
 
-Colour values (blue in the high byte, as RapidQ stores colours) for Color, Font.Color and drawing methods.
+Colour values (blue in the high byte) for Color, Font.Color and drawing methods.
 
 `clWindowText` = -2147483640
 
@@ -570,7 +570,7 @@ RapidR's Anchors flags, combined: the sides of its parent a control keeps its di
 
 ## List view change kinds
 
-What changed in an item, the `Change` an RListView's OnChange hears: its caption edited (ctText), an image (ctImage), its check box or state image (ctState). Built into a RapidR program (`.rr`) only: RapidQ's includes don't have them, so a RapidQ program (`.bas`) reads the names as variables that are 0. (`RapidR`)
+What changed in an item, the `Change` an RListView's OnChange hears: its caption edited (ctText), an image (ctImage), its check box or state image (ctState). Built into a RapidR program (`.rr`) only: a `.bas` program reads the names as variables that are 0. (`RapidR`)
 
 `ctText` = 0, `ctImage` = 1, `ctState` = 2
 

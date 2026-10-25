@@ -305,33 +305,45 @@ fn components_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Components\n\n");
     out.push_str(
-        "Every component RapidR creates, by what it is for, under RapidR's name (`RButton`), the way RapidR writes it. Names are not case-sensitive (`RBUTTON` is `RButton`). RapidR also runs RapidQ programs: a component RapidQ has is also known by its RapidQ name (the *RapidQ name* column), and a program may use either name and mix them; both are the same component (same properties, methods, events and behaviour). A component with no RapidQ name is RapidR's own. Unless the last column says otherwise, a component works in native builds, interpreted programs and the browser. Each component's members: [members.md](members.md). The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the [icon catalog](../icons/index.html). `rapidr import-rapidq` converts a copy of a RapidQ program to RapidR's names.\n\n",
+        "Every component RapidR creates, by what it is for, under RapidR's name (`RButton`), the way RapidR writes it. Names are not case-sensitive (`RBUTTON` is `RButton`). Unless the last column says otherwise, a component works in native builds, interpreted programs and the browser. Each component's members: [members.md](members.md). The icons are RapidR's own (the IDE's toolbox shows the same ones); every icon is in the [icon catalog](../icons/index.html).\n\n",
     );
     let mut total = 0;
-    let mut rq = 0;
     for g in groups() {
-        let _ = write!(out, "## {g}\n\n| | Component | RapidQ name | From | Where |\n|---|---|---|---|---|\n");
+        let _ = write!(out, "## {g}\n\n| | Component | Where |\n|---|---|---|\n");
         for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component && c.group == g) {
             total += 1;
-            let mut names: Vec<String> = c.rapidq.iter().chain(c.aliases.iter()).map(|n| format!("`{n}`")).collect();
-            names.dedup();
-            if c.rapidq.is_some() {
-                rq += 1;
-            }
-            let from = if c.rapidq.is_some() { c.from.unwrap_or("RapidQ") } else { "RapidR" };
-            let _ = writeln!(out, "| {} | [`{}`](members.md#{}) | {} | {from} | {} |", component_icon(c.name), c.spelling(), c.name.to_ascii_lowercase(), if names.is_empty() { "—".into() } else { names.join(", ") }, where_text(c));
+            let _ = writeln!(out, "| {} | [`{}`](members.md#{}) | {} |", component_icon(c.name), c.spelling(), c.name.to_ascii_lowercase(), where_text(c));
         }
         out.push('\n');
     }
-    out.push_str("## RapidQ's include libraries built in\n\nA program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime. They keep the names RapidQ's include libraries gave them:\n\n");
+    out.push_str("## Libraries built in\n\nA program that names these (or includes the library) gets RapidR's own implementation, written in BASIC on RapidR's components, on every runtime:\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Library) {
-        let _ = writeln!(out, "- `{}` (RapidQ's `{}`)", c.spelling(), c.from.unwrap_or(""));
+        let _ = writeln!(out, "- `{}`", c.spelling());
     }
-    out.push_str("\n## Not implemented\n\nRapidQ has these objects (RC.EXE knows them); RapidR doesn't yet. Variables of the OLE types compile as generic objects whose methods print a warning:\n\n");
+    out.push_str("\n## Not implemented\n\nThese objects aren't in RapidR yet. Variables of the OLE types compile as generic objects whose methods print a warning:\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Planned) {
         let _ = writeln!(out, "- `{}`: {}", c.spelling(), md(c.doc));
     }
-    let _ = write!(out, "\n{total} components; {rq} of them have a RapidQ name.\n");
+    let _ = write!(out, "\n{total} components.\n");
+    out
+}
+
+/// The older Q names of the components (`QBUTTON` is `RButton`): the
+/// appendix of the compatibility page.
+fn classic_names_page() -> String {
+    let mut out = String::from(MD_HEADER);
+    out.push_str("# Classic component names\n\n");
+    out.push_str(
+        "Programs written for RapidQ name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads each of these names as the component it stands for (same properties, methods, events and behaviour), and a program may use either name and mix them. `rapidr import-rapidq` converts a copy of such a program to RapidR's names; see [Differences](../differences.md) and [Importing a RapidQ program](../importing-rapidq.md).\n\n",
+    );
+    out.push_str("| Classic name | Component |\n|---|---|\n");
+    for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
+        let mut names: Vec<String> = c.rapidq.iter().chain(c.aliases.iter()).map(|n| format!("`{n}`")).collect();
+        names.dedup();
+        if c.rapidq.is_some() {
+            let _ = writeln!(out, "| {} | [`{}`](members.md#{}) |", names.join(", "), c.spelling(), c.name.to_ascii_lowercase());
+        }
+    }
     out
 }
 
@@ -339,13 +351,10 @@ fn members_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Components' members\n\n");
     out.push_str(
-        "Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a RapidR extension of a component RapidQ has too (RapidQ's compiler doesn't know it); *not yet* marks a RapidQ member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has. A component's RapidQ name, when it has one, has the same members.\n\n",
+        "Every property, method and event of every component, from the language registry, under RapidR's names. *(RapidR)* marks a member RapidR adds to a classic component; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.\n\n",
     );
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component).chain(GLOBALS.iter()).chain(ITEMS.iter()) {
-        let title = match c.rapidq {
-            Some(q) if q != c.name => format!("{} <small>(RapidQ name: {q})</small>", c.spelling()),
-            _ => c.spelling(),
-        };
+        let title = c.spelling();
         let _ = write!(out, "<a id=\"{}\"></a>\n## {title}\n\n{}\n\n", c.name.to_ascii_lowercase(), md(c.doc));
         let flags = |origin: Origin, missing: bool, rt: Runtimes| -> String {
             let mut f = origin_mark(origin).to_string();
@@ -404,7 +413,7 @@ fn builtins_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Built-in functions and procedures\n\n");
     out.push_str(
-        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(RapidR)*: RapidQ doesn't have it; *not yet*: RapidQ's, not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
+        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(RapidR)*: RapidR's own addition to the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
     );
     let mut gs: Vec<&str> = BUILTINS.iter().map(|b| b.group).collect();
     gs.sort();
@@ -412,7 +421,7 @@ fn builtins_page() -> String {
     for g in gs {
         let _ = write!(out, "## {g}\n\n");
         if g == "Library functions" {
-            out.push_str("RapidQ programs get these from include files or DECLAREs (RapidQ's compiler doesn't know them itself); RapidR doesn't have them yet.\n\n");
+            out.push_str("Classic programs get these from include files or DECLAREs; RapidR doesn't have them yet.\n\n");
         }
         out.push_str("| Builtin | |\n|---|---|\n");
         for b in BUILTINS.iter().filter(|b| b.group == g) {
@@ -437,7 +446,7 @@ fn builtins_page() -> String {
 
 fn statements_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Statements, directives, keywords and types\n\n*(RapidR)* marks what RapidQ's compiler doesn't accept.\n\n");
+    out.push_str("# Statements, directives, keywords and types\n\n*(RapidR)* marks what RapidR adds to the classic language.\n\n");
     let mut gs: Vec<&str> = STATEMENTS.iter().map(|s| s.group).collect();
     gs.dedup();
     let mut seen = Vec::new();
@@ -469,7 +478,7 @@ fn statements_page() -> String {
 
 fn constants_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Constants\n\nRapidR's own, and the ones programs written for RapidQ use. A RapidR program (`.rr`) has RAPIDQ.INC's constants and its `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a RapidQ program (`.bas`) gets them with `$INCLUDE \"RAPIDQ.INC\"`, which needs no file. Colours are `&HBBGGRR`, as RapidQ stores them.\n\n");
+    out.push_str("# Constants\n\nRapidR's own, and the classic ones. A RapidR program (`.rr`) has them and the `QBColor` array built in, with no include (a name the program declares itself wins; `True` stays -1 there); a `.bas` program gets them with `$INCLUDE \"RAPIDQ.INC\"`, which needs no file. Colours are `&HBBGGRR`: blue in the high byte.\n\n");
     for g in CONSTANT_GROUPS {
         let _ = write!(out, "## {}\n\n{}{}\n\n", g.name, md(g.doc), if g.source == "RAPIDQ.INC" { String::new() } else { format!(" (`{}`)", g.source) });
         let items = g.constants.iter().map(|(n, v)| format!("`{n}` = {v}")).collect::<Vec<_>>().join(", ");
@@ -522,6 +531,7 @@ pub fn manual() -> Vec<(&'static str, String)> {
         ("statements.md", statements_page()),
         ("constants.md", constants_page()),
         ("data-science.md", data_science_page()),
+        ("classic-names.md", classic_names_page()),
     ]
 }
 
@@ -650,8 +660,9 @@ mod tests {
         let j = json();
         assert!(j.starts_with("{\"registry\":1"));
         assert!(j.contains("\"name\":\"RBUTTON\""));
-        assert!(manual().iter().any(|(n, t)| *n == "components.md" && t.contains("[`RForm`](members.md#rform) | `QFORM`")));
-        assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton <small>(RapidQ name: QBUTTON)</small>")));
+        assert!(manual().iter().any(|(n, t)| *n == "classic-names.md" && t.contains("`QFORM` | [`RForm`](members.md#rform)")));
+        assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton\n")));
+        assert!(manual().iter().filter(|(n, _)| *n != "classic-names.md").all(|(n, t)| !t.contains("RapidQ name")), "the reference pages don't name RapidQ's components");
         assert!(prompt().contains("### RButton (RapidQ name: QBUTTON)"));
         assert!(j.contains("\"spelling\":\"RButton\""));
     }

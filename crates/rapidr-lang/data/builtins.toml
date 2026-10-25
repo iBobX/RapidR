@@ -365,7 +365,7 @@ doc = "The size of a file in bytes, 0 when it doesn't exist."
 name = "FIX"
 syntax = "FIX(Number)"
 group = "Numbers"
-doc = "A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT` in RapidQ."
+doc = "A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT`."
 
 [[builtin]]
 name = "FLOOR"
@@ -451,7 +451,7 @@ doc = "The next key pressed, or \"\" when none is waiting; it doesn't wait. Spec
 name = "INP"
 syntax = "INP(Address)"
 group = "System"
-doc = "Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
+doc = "Reads a byte from a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "INPUT$"
@@ -485,7 +485,7 @@ expect = "3|7"
 name = "INT"
 syntax = "INT(Number)"
 group = "Numbers"
-doc = "A number's whole part, truncated toward zero as RapidQ does (`INT(-2.5)` is -2), kept as large as the number."
+doc = "A number's whole part, truncated toward zero (`INT(-2.5)` is -2), kept as large as the number."
 
 [[builtin]]
 name = "INV"
@@ -621,7 +621,7 @@ name = "MESSAGEDLG"
 syntax = "MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext [, DefaultButton])"
 arg_kinds = { MsgType = "choice:msgdlg-type", MsgButtons = "choice:msgdlg-buttons", DefaultButton = "choice:modal-result" }
 group = "Dialogs and sound"
-doc = "Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (RapidR's; RapidQ's MESSAGEDLG has four arguments) names another by its answer, so Enter can give the safe one: `MESSAGEDLG(\"This deletes 1,204 rows.\", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number."
+doc = "Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (the optional fifth argument) names another by its answer, so Enter can give the safe one: `MESSAGEDLG(\"This deletes 1,204 rows.\", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number."
 example = "IF MESSAGEDLG(\"Delete the 3 rows?\", mtWarning, mbYes OR mbNo, 0, mrNo) = mrYes THEN PRINT \"deleted\""
 
 [[builtin]]
@@ -695,7 +695,7 @@ doc = "Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access
 name = "OUT"
 syntax = "OUT(Address, bytevalue)"
 group = "System"
-doc = "Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error, as it did under RapidQ on Windows."
+doc = "Writes a byte to a hardware I/O port. Windows doesn't let programs reach the ports, so the call stops the program with a run-time error."
 
 [[builtin]]
 name = "OUTW"
@@ -840,7 +840,7 @@ name = "RGB"
 syntax = "RGB(Red%, Green%, Blue%)"
 kind = "color"
 group = "Colours"
-doc = "The colour value for red, green and blue parts of 0 to 255 each, as RapidQ stores colours (blue in the high byte)."
+doc = "The colour value for red, green and blue parts of 0 to 255 each (blue in the high byte)."
 
 [[builtin]]
 name = "RIGHT$"
@@ -978,7 +978,7 @@ doc = "The sine of an angle in radians."
 name = "SIZEOF"
 syntax = "SIZEOF (Var(Index))"
 group = "Arrays and memory"
-doc = "The size in bytes of a variable, array element, array, type or TYPE, as RapidQ lays it out in memory."
+doc = "The size in bytes of a variable, array element, array, type or TYPE, as it is laid out in memory."
 
 [[builtin]]
 name = "SLEEP"
@@ -1008,7 +1008,7 @@ doc = "The square root of a number."
 name = "STR$"
 syntax = "STR$(Number)"
 group = "Strings"
-doc = "A number as text, with up to 9 significant digits as RapidQ writes it: `STR$(1 / 3)` is `0.333333333`."
+doc = "A number as text, with up to 9 significant digits: `STR$(1 / 3)` is `0.333333333`."
 
 [[builtin]]
 name = "STRF$"
