@@ -143,7 +143,7 @@ if want studio || want studio-goldens; then echo "== studio goldens"
 # Studio started in that look), and Run in Browser (the web build served on
 # 127.0.0.1).
 if want studio; then echo "== studio"
-  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/run_in_browser.mjs; do
+  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/studio_run_panic.mjs tests/run_in_browser.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m8 -E "✗|≠|Error"; }
     echo "$out" | tail -1
   done

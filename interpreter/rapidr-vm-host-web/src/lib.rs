@@ -1092,31 +1092,114 @@ pub fn rapidr_store_file(path: &str, bytes: &[u8], handle: JsValue) {
     rapidr_runtime_web::file_picker_web::keep_file(path, bytes.to_vec(), Some(handle));
 }
 
+// What Studio's page tells the runtime (the program's frame's messages, its
+// end, a build's log) is taken in when the runtime is free. A call into the
+// wasm can arrive while it is in the middle of something else — Studio's
+// Stop calls out to the page, which answered by calling straight back, with
+// the session's table borrowed; a listener of the windows' host holding the
+// host — and a RefCell borrowed twice is a panic, which leaves every borrow
+// of its call held for good: the page is poisoned (Robert, 2026-10-24: the
+// console's "RapidR panicked … RefCell already (mutably) borrowed", a
+// frozen Studio). So the runtime's turn on the news waits: queued in the
+// order the page told it, run once nothing of the runtime's is on the stack
+// (a microtask, when the wasm has returned to the page; then a moment later
+// while it is still in use). Not in use — the usual — it runs at once.
+
+thread_local! {
+    static STUDIO_QUEUE: RefCell<VecDeque<Box<dyn FnOnce()>>> = const { RefCell::new(VecDeque::new()) };
+    /// A piece of news is being taken in (what it fires can call the page, which can call back).
+    static STUDIO_RUNNING: Cell<bool> = const { Cell::new(false) };
+    /// A later turn on the queue is asked for.
+    static STUDIO_WAITING: Cell<bool> = const { Cell::new(false) };
+    /// How often a later turn found the runtime still in use.
+    static STUDIO_TRIES: Cell<u32> = const { Cell::new(0) };
+}
+
+/// `news` taken in: now when the runtime is free, else queued behind what
+/// waits (in order).
+fn studio_news(news: impl FnOnce() + 'static) {
+    STUDIO_QUEUE.with(|q| q.borrow_mut().push_back(Box::new(news)));
+    studio_drain();
+}
+
+fn studio_drain() {
+    loop {
+        if STUDIO_RUNNING.with(Cell::get) || rapidr_runtime_web::studio_web::busy() {
+            studio_later();
+            return;
+        }
+        let Some(next) = STUDIO_QUEUE.with(|q| q.borrow_mut().pop_front()) else {
+            STUDIO_TRIES.with(|t| t.set(0));
+            return;
+        };
+        STUDIO_RUNNING.with(|r| r.set(true));
+        next();
+        STUDIO_RUNNING.with(|r| r.set(false));
+    }
+}
+
+/// Another turn on the queue once the wasm has returned to the page (a
+/// microtask); if the runtime is still in use then, a few milliseconds on.
+fn studio_later() {
+    if STUDIO_WAITING.with(|w| w.replace(true)) {
+        return;
+    }
+    let tries = STUDIO_TRIES.with(|t| {
+        t.set(t.get().saturating_add(1));
+        t.get()
+    });
+    if tries <= 1 {
+        let cb = Closure::once(move |_: JsValue| {
+            STUDIO_WAITING.with(|w| w.set(false));
+            studio_drain();
+        });
+        let _ = js_sys::Promise::resolve(&JsValue::UNDEFINED).then(&cb);
+        cb.forget();
+    } else if let Some(w) = web_sys::window() {
+        let cb = Closure::once_into_js(move || {
+            STUDIO_WAITING.with(|w| w.set(false));
+            studio_drain();
+        });
+        let _ = w.set_timeout_with_callback_and_timeout_and_arguments_0(cb.unchecked_ref(), 10);
+    }
+}
+
+/// What taking news in does: the sessions' and the builds' events, then
+/// the handlers of Studio's own that they queued.
+fn studio_poll() {
+    rapidr_runtime_web::studio_web::poll();
+    run_idle_events();
+}
+
 /// (RapidR Studio's page) The program under development's frame sent an
 /// event (session protocol JSON): the session's events fire.
 #[wasm_bindgen]
 pub fn studio_session_incoming(json: &str) {
+    // (queued for the session at once: a new run drops what an old one sent)
     rapidr_runtime_web::rapidr_studio::channel::incoming(json);
-    rapidr_runtime_web::studio_web::poll();
-    run_idle_events();
+    studio_news(studio_poll);
 }
 
 /// (RapidR Studio's page) A line of Build Web App's log, for component
 /// `name` (its `OnBuildOutput`).
 #[wasm_bindgen]
 pub fn studio_build_output(name: &str, line: &str) {
-    rapidr_runtime_web::rapidr_studio::build::web_output(name, line);
-    rapidr_runtime_web::studio_web::poll();
-    run_idle_events();
+    let (name, line) = (name.to_string(), line.to_string());
+    studio_news(move || {
+        rapidr_runtime_web::rapidr_studio::build::web_output(&name, &line);
+        studio_poll();
+    });
 }
 
 /// (RapidR Studio's page) Build Web App ended: `code` 0 is made (`made`: the
 /// file; its `OnBuildDone`).
 #[wasm_bindgen]
 pub fn studio_build_done(name: &str, code: i32, made: &str) {
-    rapidr_runtime_web::rapidr_studio::build::web_done(name, code, made);
-    rapidr_runtime_web::studio_web::poll();
-    run_idle_events();
+    let (name, made) = (name.to_string(), made.to_string());
+    studio_news(move || {
+        rapidr_runtime_web::rapidr_studio::build::web_done(&name, code, &made);
+        studio_poll();
+    });
 }
 
 /// (RapidR Studio's page) The program's frame ended (closed, or it failed
@@ -1124,8 +1207,7 @@ pub fn studio_build_done(name: &str, code: i32, made: &str) {
 #[wasm_bindgen]
 pub fn studio_session_ended(code: i32) {
     rapidr_runtime_web::rapidr_studio::channel::ended(code);
-    rapidr_runtime_web::studio_web::poll();
-    run_idle_events();
+    studio_news(studio_poll);
 }
 
 /// `resource`: a `$RESOURCE`'s file's bytes; `hint`: what to do when it

@@ -145,6 +145,9 @@ pub struct WebHost {
 
 thread_local! {
     static HOST: RefCell<Option<WebHost>> = const { RefCell::new(None) };
+    /// How many calls out of the wasm to the page's own script are on the
+    /// stack ([`Hold`]).
+    static HELD: Cell<u32> = const { Cell::new(0) };
     static STORE: Cell<Option<&'static dyn Store>> = const { Cell::new(None) };
     static WAKE: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
     /// (RapidR's OnDropFiles) Whether a form takes files dropped on it (it
@@ -244,7 +247,8 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
     STORE.with(|s| s.set(Some(store)));
     WAKE.with(|w| *w.borrow_mut() = Some(wake));
     HOST.with(|h| {
-        let mut h = h.borrow_mut();
+        // (in use: a callback of the host's is on the stack — it's made)
+        let Ok(mut h) = h.try_borrow_mut() else { return };
         if h.is_some() {
             return;
         }
@@ -269,8 +273,13 @@ pub fn install(store: &'static dyn Store, wake: Rc<dyn Fn()>) {
     watch_scale();
 }
 
+/// Whether the host is made. Never panics: while a callback of the host's
+/// own is on the stack (it holds the host) it is, of course, there — a
+/// `borrow()` here once took the page down with "RefCell already mutably
+/// borrowed" (a message from the program's frame reached the runtime while
+/// the host was in use).
 pub fn installed() -> bool {
-    HOST.with(|h| h.borrow().is_some())
+    HOST.with(|h| h.try_borrow().map_or(true, |h| h.is_some()))
 }
 
 /// The page's live regions for the program's announcements
@@ -390,10 +399,38 @@ fn input(f: impl FnOnce(&mut WebHost, &'static dyn Store)) {
     }
 }
 
-/// Whether the host is busy (a callback of its own on the stack): the
+/// Whether the host is busy (a callback of its own on the stack, or the
+/// runtime calling out of the wasm to the page's script: [`Hold`]): the
 /// runtime's turn waits.
 pub fn busy() -> bool {
-    HOST.with(|h| h.try_borrow_mut().is_err())
+    HELD.with(Cell::get) > 0 || HOST.with(|h| h.try_borrow_mut().is_err())
+}
+
+/// The runtime is calling out of the wasm to the page's own script (Studio's
+/// run frame: made, stopped, shown) for as long as this lives. Whatever the
+/// script does — a removed frame's focus moving, a DOM event, a call
+/// straight back into the wasm — can reach a listener of ours while the
+/// runtime is in the middle of something (a session's table borrowed): a
+/// turn of the runtime's own waits until it's back ([`busy`], then `later`).
+pub struct Hold(());
+
+impl Hold {
+    pub fn new() -> Hold {
+        HELD.with(|h| h.set(h.get() + 1));
+        Hold(())
+    }
+}
+
+impl Default for Hold {
+    fn default() -> Self {
+        Hold::new()
+    }
+}
+
+impl Drop for Hold {
+    fn drop(&mut self) {
+        HELD.with(|h| h.set(h.get().saturating_sub(1)));
+    }
 }
 
 /// The screen: the page's viewport (logical = CSS pixels).

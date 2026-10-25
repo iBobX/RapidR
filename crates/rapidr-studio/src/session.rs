@@ -35,7 +35,7 @@
 //! | `Input(Text)` | a line for the program's INPUT |
 //! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)`, `OnBreakpointPlaced(File, Line, NewLine)` | |
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
@@ -225,6 +225,17 @@ impl Model {
 
 thread_local! {
     static SESSIONS: RefCell<BTreeMap<String, Model>> = RefCell::new(BTreeMap::new());
+    /// A [`poll`] was asked for while the table was in use: the poll that
+    /// has it goes round again once it's free.
+    static SKIPPED: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether a call on a session is in progress (the table is borrowed for
+/// it): a transport's `kill` or `send` can reach the page's own script
+/// (the web's Stop), which may call straight back — a message from the
+/// program's frame is then not for now ([`poll`] waits its turn).
+pub fn in_use() -> bool {
+    SESSIONS.with(|s| s.try_borrow_mut().is_err())
 }
 
 fn with<R>(name: &str, f: impl FnOnce(&mut Model) -> R) -> R {
@@ -504,6 +515,21 @@ fn table(rows: impl Iterator<Item = Vec<String>>) -> Value {
 
 /// Every session's news as its events; whether one is running.
 pub fn poll<H: Host>(host: H) -> bool {
+    // (asked for from inside a call on a session — Stop answered through
+    // the page, which calls back at once —: the news waits for the poll
+    // that is running, which goes round again when it's done)
+    if in_use() {
+        SKIPPED.with(|k| k.set(true));
+        return true;
+    }
+    let mut running = poll_once(host);
+    while SKIPPED.with(|k| k.replace(false)) {
+        running |= poll_once(host);
+    }
+    running
+}
+
+fn poll_once<H: Host>(host: H) -> bool {
     let names: Vec<String> = SESSIONS.with(|s| s.borrow().keys().cloned().collect());
     let mut running = browser::poll(host);
     for name in names {
@@ -664,7 +690,8 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
 /// Whether a session is running (the desktop's loop then looks at it now
 /// and then; its transport wakes it when the program says something).
 pub fn any_running() -> bool {
-    SESSIONS.with(|s| s.borrow().values().any(|m| m.session.state() != State::Stopped)) || browser::starting()
+    // (in use: a session's call is on the stack — one is running)
+    SESSIONS.with(|s| s.try_borrow().map_or(true, |s| s.values().any(|m| m.session.state() != State::Stopped))) || browser::starting()
 }
 
 /// Whether Run in Browser's server is still starting (its lines are
@@ -801,6 +828,60 @@ mod tests {
         m.forget();
         assert!(!m.changed("G:total".into(), "7"));
         assert!(m.changed("G:total".into(), "8"));
+    }
+
+    /// The web's Stop (and the program's own end) kills the frame from inside
+    /// a call on the session, and the page's script answers by calling
+    /// straight back into the wasm (`studio_session_ended`, which polls):
+    /// the table is in use, and that poll used to panic ("RefCell already
+    /// mutably borrowed": Robert, 2026-10-24, running a form project in the
+    /// web Studio). It waits instead: the news is delivered, once.
+    #[test]
+    fn a_poll_from_inside_the_stop_waits_its_turn() {
+        use crate::channel::{self, ChannelTransport};
+        use crate::Transport;
+
+        thread_local! {
+            static FIRED: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
+            static ANSWERED: Cell<u32> = const { Cell::new(0) };
+        }
+        #[derive(Clone, Copy)]
+        struct Page;
+        impl Host for Page {
+            fn fire(self, name: &str, event: &str, _args: &[Value]) {
+                FIRED.with(|f| f.borrow_mut().push(format!("{name}.{event}")));
+            }
+            fn launch(self, _program: &str, _args: &[String], _theme: &str) -> Result<Box<dyn Transport>, String> {
+                // (the frame's stop: the page's script calls back at once)
+                Ok(Box::new(ChannelTransport::new(
+                    |_json| Ok(()),
+                    || {
+                        ANSWERED.with(|a| a.set(a.get() + 1));
+                        assert!(in_use(), "the session's table is in use while the frame stops");
+                        poll(Page);
+                    },
+                )))
+            }
+            fn list_files(self, _folder: &str) -> Vec<String> {
+                Vec::new()
+            }
+        }
+        let start = || call(Page, "Run", "start", &[]).is_some_and(|v| v.to_bool());
+
+        set(Page, "Run", "program", &Value::String("x.rr".into()));
+        assert!(start(), "the program starts");
+        // (the program ends by itself: its `exited` is the frame's last message)
+        channel::incoming(r#"{"type":"exited","code":0}"#);
+        poll(Page);
+        assert_eq!(ANSWERED.with(Cell::get), 1, "the frame was stopped once, the page answered");
+        assert_eq!(FIRED.with(|f| f.borrow().clone()), ["run.onexit"], "OnExit once");
+        assert!(!any_running(), "nothing runs after it");
+        // (and the user's Stop of a running program: the same call back)
+        assert!(start());
+        call(Page, "Run", "stop", &[]);
+        assert_eq!(ANSWERED.with(Cell::get), 2);
+        assert_eq!(FIRED.with(|f| f.borrow().len()), 2, "Stop's OnExit once more");
+        assert!(!any_running());
     }
 
     #[test]

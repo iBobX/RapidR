@@ -1,0 +1,62 @@
+$APPTYPE GUI
+
+' A small form app of the RenMany kind (a text box, a combo, a check box, buttons) that
+' writes to Output and ends by itself a moment after it shows: tests/studio_run_panic.mjs
+' runs it from the web Studio over and over and fails on any "RapidR panicked".
+
+DECLARE SUB OnShowIt
+DECLARE SUB Hello
+DECLARE SUB Bye
+
+CREATE Form1 AS RForm
+    Caption = "RunPanic"
+    Width = 520
+    Height = 260
+    OnShow = OnShowIt
+    CREATE lblFolder AS RLabel
+        Caption = "Folder:"
+        Left = 12: Top = 14: Width = 60
+    END CREATE
+    CREATE edFolder AS REdit
+        Left = 80: Top = 10: Width = 300
+    END CREATE
+    CREATE btnHello AS RButton
+        Caption = "Hello"
+        Left = 392: Top = 9: Width = 100
+        OnClick = Hello
+    END CREATE
+    CREATE chkSub AS RCheckBox
+        Caption = "Include subfolders"
+        Checked = 1
+        Left = 80: Top = 42: Width = 200
+    END CREATE
+    CREATE cmbCase AS RComboBox
+        Style = csDropDownList
+        Left = 80: Top = 72: Width = 160
+    END CREATE
+    CREATE tmrBye AS RTimer
+        Interval = 600
+        Enabled = 0
+        OnTimer = Bye
+    END CREATE
+END CREATE
+
+SUB OnShowIt
+  cmbCase.AddItems "Keep as is", "lower case", "UPPER CASE"
+  cmbCase.ItemIndex = 0
+  PRINT "shown"
+  tmrBye.Enabled = 1
+END SUB
+
+SUB Hello
+  PRINT "hello " + edFolder.Text
+END SUB
+
+SUB Bye
+  tmrBye.Enabled = 0
+  PRINT "bye"
+  END
+END SUB
+
+PRINT "start"
+Form1.ShowModal

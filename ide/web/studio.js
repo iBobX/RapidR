@@ -384,7 +384,19 @@ window.RAPIDR_STUDIO_HOST = {
   stop() {
     const had = !!run.box;
     closeFrame();
-    if (had && window.rr) window.rr.studio_session_ended(0);
+    // The runtime is calling (a session's Stop, or the program's end taken
+    // in): its end goes back to it once it has returned from this call,
+    // never inside it — the wasm still holds its session's table, the page
+    // would be calling straight back into a borrow ("RapidR panicked …
+    // RefCell already mutably borrowed", and a page poisoned for good). Not
+    // when a new run has begun meanwhile (closeFrame counted a generation):
+    // that program isn't the one that ended.
+    if (had) {
+      const generation = run.generation;
+      queueMicrotask(() => {
+        if (generation === run.generation && window.rr) window.rr.studio_session_ended(0);
+      });
+    }
   },
   // Show Program Window (and Continue): the program's windows over Studio's
   // — out from under a menu of Studio's — and its frame given the keyboard,
