@@ -7,6 +7,8 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+## [2.121.2] — 2026-10-25 (RAI finishes the job, and shows its work)
+
 ### RAI finishes the job
 - **Longer answers:** for cloud models RAI asks for up to 32,000 tokens per answer (a quarter of the model's window, up to the provider's limit), not a fixed 8,192; Studio's default MaxTokens is 32,000. A model that allows less says so, and RAI asks again once with that model's own limit (`reply_limit_from_error`).
 - **It goes on by itself:** an answer cut at its length limit no longer ends the turn. RAI continues the same task up to 4 times, asked to write in smaller parts, and the status says "Continuing (part 2)…".
