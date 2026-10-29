@@ -586,6 +586,23 @@ pub struct ToolOutcome {
     pub target: String,
 }
 
+/// A tool call's outcome that comes later ([`ToolOutcome::later`]): its
+/// `risk`.
+pub const LATER: &str = "later";
+
+impl ToolOutcome {
+    /// The call goes on outside the turn (RapidR Studio's program clicks
+    /// what the model asked): the turn waits, asking the provider's
+    /// [`ToolProvider::finish_call`] with `ticket` at each poll, until it
+    /// has the outcome (or [`LATER_LIMIT_MS`] went by).
+    pub fn later(ticket: impl Into<String>) -> ToolOutcome {
+        ToolOutcome { content: String::new(), is_error: false, note: String::new(), read: None, risk: LATER, target: ticket.into() }
+    }
+}
+
+/// How long a turn waits for a call that comes later.
+pub const LATER_LIMIT_MS: f64 = 90_000.0;
+
 /// A component's tools for an RAI (docs/ai-architecture.md §3.7: a tool
 /// provider): what the model may call, and the instructions that go with
 /// them.
@@ -645,6 +662,26 @@ pub trait ToolProvider {
     fn take_records(&mut self) -> Vec<(String, Json)> {
         Vec::new()
     }
+    /// A call that answered [`ToolOutcome::later`] with `ticket`: its
+    /// outcome once it has one (`None`: not yet).
+    fn finish_call(&mut self, _name: &str, _ticket: &str) -> Option<ToolOutcome> {
+        None
+    }
+}
+
+/// A tool call the turn waits for ([`ToolOutcome::later`]): its provider,
+/// id, name, input and ticket; the calls after it, the results before it,
+/// whether the answer was cut; since when.
+struct Waiting {
+    k: usize,
+    id: String,
+    name: String,
+    input: Json,
+    ticket: String,
+    rest: Vec<(String, String, Json)>,
+    results: Vec<Block>,
+    cut: bool,
+    since: f64,
 }
 
 /// The answer being given, as the chat shows it (docs/ai-ux-plan.md §3):
@@ -785,6 +822,8 @@ struct Ai {
     /// What a chat view shows: (who, Markdown).
     log: Vec<(String, String)>,
     running: Option<Run>,
+    /// A tool call that comes later, which the turn waits for.
+    waiting: Option<Waiting>,
     error: String,
     status: String,
     answer: String,
@@ -936,7 +975,7 @@ fn digest(v: &Json) -> String {
 
 /// Whether any RAI waits for an answer (a runtime's loop then polls often).
 pub fn busy() -> bool {
-    http::active() > 0 || AIS.with(|s| s.borrow().values().any(|a| a.running.is_some()))
+    http::active() > 0 || AIS.with(|s| s.borrow().values().any(|a| a.running.is_some() || a.waiting.is_some()))
 }
 
 impl Ai {
@@ -1847,7 +1886,42 @@ impl Ai {
         }
     }
 
+    /// A turn waiting for a call that comes later: its outcome asked for —
+    /// in, the turn goes on; not after [`LATER_LIMIT_MS`], given up.
+    fn poll_waiting(&mut self) {
+        let Some(w) = self.waiting.as_ref() else { return };
+        let (k, name, ticket) = (w.k, w.name.clone(), w.ticket.clone());
+        let late = now_ms() - w.since > LATER_LIMIT_MS;
+        let out = match self.tools.get_mut(k).and_then(|t| t.2.finish_call(&name, &ticket)) {
+            Some(out) => out,
+            None if late => ToolOutcome { content: format!("{name} got no answer in {} seconds: say so to the user, and don't try it again now", (LATER_LIMIT_MS / 1000.0) as u32), is_error: true, note: format!("{name}: no answer"), read: None, risk: "read", target: String::new() },
+            None => return,
+        };
+        let Some(w) = self.waiting.take() else { return };
+        let mut results = w.results;
+        self.tool_done(w.id, &w.name, &w.input, out, &mut results);
+        self.go_on_with_tools(w.rest, results, w.cut);
+    }
+
     fn cancel(&mut self) {
+        // (a turn waiting for a tool: its calls answered as stopped — every
+        // tool use needs its result —, the turn over)
+        if let Some(w) = self.waiting.take() {
+            let mut results = w.results;
+            results.push(Block::ToolResult { id: w.id, content: "the user stopped the answer before this was done".into(), is_error: true });
+            for (id, ..) in w.rest {
+                results.push(Block::ToolResult { id, content: "not done: the user stopped the answer".into(), is_error: true });
+            }
+            self.messages.push(Message { role: Role::User, content: results });
+            self.thinking_done();
+            self.note("Stopped.");
+            self.flush_records();
+            self.status = "Stopped.".into();
+            self.audit_log("cancel", json!({}));
+            self.idle();
+            self.events.push(("ondone", vec![s("cancelled")]));
+            return;
+        }
         if let Some(r) = self.running.take() {
             http::cancel(r.id);
             if r.job == Job::Chat {
@@ -2406,9 +2480,17 @@ impl Ai {
     /// aren't whole was cut off, is never carried out, and the model is
     /// told to write it again in smaller parts.
     fn run_tools(&mut self, calls: Vec<(String, String, Json)>, cut: bool) {
-        let mut results = Vec::new();
-        for (id, name, input) in calls {
+        self.go_on_with_tools(calls, Vec::new(), cut);
+    }
+
+    /// The calls `calls`, after `results` (a turn that waited for a call
+    /// goes on here), then the model asked again — unless a call comes
+    /// later: the turn waits for it ([`Self::poll_waiting`]).
+    fn go_on_with_tools(&mut self, calls: Vec<(String, String, Json)>, mut results: Vec<Block>, cut: bool) {
+        let mut calls = calls.into_iter();
+        while let Some((id, name, input)) = calls.next() {
             self.tool_calls += 1;
+            let mut provider = None;
             let out = if self.tool_calls > MAX_TOOL_CALLS {
                 ToolOutcome { content: "the turn's limit of tool calls was reached: answer with what you have".into(), is_error: true, note: String::new(), read: None, risk: "read", target: String::new() }
             } else if cut && input.get("_invalid_json").is_some() {
@@ -2416,15 +2498,34 @@ impl Ai {
             } else if let Some(k) = self.tools.iter().position(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).or_else(|| (self.tools.len() == 1).then_some(0)) {
                 let what = self.tool_activity(&name, &input);
                 self.set_activity(&what);
+                provider = Some(k);
                 self.tools[k].2.call(&name, &input)
             } else {
                 ToolOutcome { content: format!("there is no tool `{name}`"), is_error: true, note: format!("{name}: no such tool"), read: None, risk: "read", target: String::new() }
             };
+            // (a call that comes later: the turn waits for it, the calls
+            // after it after it)
+            if out.risk == LATER {
+                if let Some(k) = provider {
+                    self.waiting = Some(Waiting { k, id, name, input, ticket: out.target, rest: calls.collect(), results, cut, since: now_ms() });
+                    self.changed = true;
+                    return;
+                }
+            }
+            self.tool_done(id, &name, &input, out, &mut results);
+        }
+        self.ask_after_tools(results);
+    }
+
+    /// A call's outcome into the turn: its step, what it read, the audit
+    /// log, its result for the model.
+    fn tool_done(&mut self, id: String, name: &str, input: &Json, out: ToolOutcome, results: &mut Vec<Block>) {
+        {
             // (what the call did: a step of the progress checklist — the
             // chat shows the tools' cards instead, the facts that matter)
             if !out.note.is_empty() {
                 self.note_fixing(&out.note);
-                let label = self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).map_or_else(|| out.note.clone(), |(_, _, t)| t.step_label(&name, &out.note));
+                let label = self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).map_or_else(|| out.note.clone(), |(_, _, t)| t.step_label(name, &out.note));
                 self.turn.steps.push(label);
                 self.changed = true;
             }
@@ -2433,9 +2534,13 @@ impl Ai {
                     self.read.push(r.clone());
                 }
             }
-            self.audit_log("tool", json!({"tool": name, "target": out.target, "digest": digest(&input), "risk": out.risk, "decision": if out.risk == "read" { "allowed" } else { "proposed" }, "result": if out.is_error { "error" } else { "ok" }}));
+            self.audit_log("tool", json!({"tool": name, "target": out.target, "digest": digest(input), "risk": out.risk, "decision": if out.risk == "read" { "allowed" } else { "proposed" }, "result": if out.is_error { "error" } else { "ok" }}));
             results.push(Block::ToolResult { id, content: out.content, is_error: out.is_error });
         }
+    }
+
+    /// The tools' results to the model, and the next request.
+    fn ask_after_tools(&mut self, results: Vec<Block>) {
         self.messages.push(Message { role: Role::User, content: results });
         self.refresh_cards();
         if self.tool_calls > MAX_TOOL_CALLS {
@@ -2511,7 +2616,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "audit" => flag(a.audit),
             "pricein" => Value::Double(a.price_in),
             "priceout" => Value::Double(a.price_out),
-            "busy" => flag(a.running.is_some()),
+            "busy" => flag(a.running.is_some() || a.waiting.is_some()),
             "error" => s(a.error.clone()),
             "status" => s(a.status.clone()),
             "answer" => s(a.answer.clone()),
@@ -2861,6 +2966,12 @@ pub fn set_card(name: &str, key: &str, line: &str) {
 /// The answers that came, given to their RAIs; the events fired. Whether
 /// one still waits.
 pub fn poll<F: Fire>(host: F) -> bool {
+    // (turns waiting for a tool call that comes later: asked)
+    AIS.with(|all| {
+        for a in all.borrow_mut().values_mut() {
+            a.poll_waiting();
+        }
+    });
     for (id, what) in http::take() {
         AIS.with(|all| {
             let mut all = all.borrow_mut();

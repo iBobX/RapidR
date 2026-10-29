@@ -19,8 +19,12 @@
 //   Allow edits       app_click asks (denied here)
 //   Read only         the user runs it; app_layout and app_screenshot
 //                     work, app_click is refused
+//   RAI               RAI, Studio's own assistant (the tests' mock
+//                     provider), asked to click 7: it reads the program's
+//                     layout and clicks with the same eyes and hands, its
+//                     turn waiting for the program's answer
 //
-//   node tests/app_eyes.mjs [all|ask|edits|read …]   (RAPIDR: the rapidr)
+//   node tests/app_eyes.mjs [all|ask|edits|read|rai …]   (RAPIDR: the rapidr)
 //
 // Never the user's keychain, registry, printer or AI keys: everything in
 // tests/results/app-eyes. Ports 47905-47909.
@@ -44,6 +48,13 @@ const only = process.argv.slice(2);
 rmSync(WORK, { recursive: true, force: true });
 mkdirSync(WORK, { recursive: true });
 const children = [];
+// (RAI's provider: the tests' mock, on this machine)
+let MOCK_URL = "";
+if (only.length === 0 || only.includes("rai")) {
+  const mockProc = spawn(process.execPath, [join(HERE, "ai_mock_server.mjs"), "0"], { stdio: ["ignore", "pipe", "inherit"] });
+  children.push(mockProc);
+  MOCK_URL = await new Promise((resolve) => mockProc.stdout.once("data", (d) => resolve(String(d).trim())));
+}
 process.on("exit", () => children.forEach((c) => c.kill()));
 
 function env(name, extra = {}) {
@@ -303,6 +314,26 @@ if (want("read")) {
   r = await tool("get_problems");
   const end = await run.ended();
   check("Read only: the menu says it", end.lines["mcpmodebox.text"] === "Read only", JSON.stringify(end.lines));
+}
+
+// ---- RAI: the same eyes and hands ------------------------------------------------------
+if (want("rai")) {
+  const PORT = BASE_PORT + 4;
+  const AI_READY = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small`;
+  const run = studio("rai", [AI_READY, "mcp:mode=all", `mcp:on=${PORT}`].join(","), until("get_problems"), "", { RAPIDR_AI_TEST_SERVER: MOCK_URL.replace(/\/v1$/, "") });
+  check("RAI: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  let r = await tool("run_program", { Action: "start", Wait: 2 });
+  check("RAI: the program runs", !r.error, r.text);
+  await layoutWhenUp(tool);
+  r = await tool("ask_rai", { Prompt: "click 7 in the program" });
+  check("RAI read the layout and clicked 7 (its turn waited for the program)", !r.error && r.text.includes('The program: Clicked b7 (RButton "7") in form1 ("Calculator")'), r.text);
+  check("RAI's steps name what it did", r.text.includes("Reading the running program's layout") || r.text.includes("Clicking"), r.text);
+  r = await tool("app_layout");
+  check("the program shows 7", r.text.includes('display (RLabel) "7"'), r.text);
+  r = await tool("get_problems");
+  const end = await run.ended();
+  check("RAI: Studio ended", end.ok);
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

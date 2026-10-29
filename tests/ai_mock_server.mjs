@@ -26,6 +26,8 @@
 //   "slowly …"         any of these, each answer after a tool's held 6 s
 //   "then fail …"      any of these, each answer after a tool's refused (400)
 //   "check …"          check_code, then say what it found
+//   "click 7 in the program"  app_layout, then app_click on "7" (the program
+//                      Studio runs: tests/app_eyes.mjs' rai mode), then say it
 //   "describe …"       rapidr_describe RButton, rapidr_list, then answer
 //   "inject …"         try write_file outside its permission (read-only tests)
 //   "and add a clear button"  a short answer (the message queued while the
@@ -354,6 +356,12 @@ function script(first, results, system, messages = []) {
   if (q.startsWith("build me")) {
     if (step === 0) return { text: "Here is a small program with a form.", tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets the name typed in it", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
     return { text: "The project **hello-form** is ready to preview: a form with a name box and a Greet button." };
+  }
+  // (the running program's eyes and hands: tests/app_eyes.mjs' rai mode)
+  if (q.startsWith("click 7 in the program")) {
+    if (step === 0) return { tools: [{ name: "app_layout", input: {} }] };
+    if (step === 1) return { tools: [{ name: "app_click", input: { caption: "7" } }] };
+    return { text: `The program: ${results[1].content}` };
   }
   if (q.startsWith("check")) {
     if (step === 0) return { tools: [{ name: "check_code", input: {} }] };

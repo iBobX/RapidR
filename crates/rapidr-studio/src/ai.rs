@@ -322,7 +322,18 @@ struct Handle {
 
 impl ToolProvider for Handle {
     fn tools(&self) -> Vec<Tool> {
-        with(&self.name, |t| if t.lite { ai_tools::tools_lite(t.may_propose()) } else { ai_tools::tools(t.may_propose()) })
+        with(&self.name, |t| {
+            if t.lite {
+                return ai_tools::tools_lite(t.may_propose());
+            }
+            let mut tools = ai_tools::tools(t.may_propose());
+            // (while the user's program runs: its eyes and hands — offered
+            // only then, so the request stays small the rest of the time)
+            if crate::session::any_running() {
+                tools.extend(ai_tools::app_tools(t.may_propose()));
+            }
+            tools
+        })
     }
 
     fn instructions(&self) -> String {
@@ -339,6 +350,11 @@ impl ToolProvider for Handle {
 
     fn facts(&self) -> String {
         with(&self.name, |t| facts(t))
+    }
+
+    fn finish_call(&mut self, name: &str, ticket: &str) -> Option<ToolOutcome> {
+        let (ok, text) = crate::session::app_take(ticket)?;
+        Some(ai_tools::app_done(name, ok, text))
     }
 
     fn begin_turn(&mut self) {
@@ -389,6 +405,12 @@ impl ToolProvider for Handle {
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        // (the running program's eyes and hands: answered later, by the
+        // program — finish_call)
+        if name.starts_with("app_") {
+            let may = with(&self.name, |t| t.may_propose());
+            return ai_tools::app_call(name, input, may);
+        }
         with(&self.name, |t| {
             let may = t.may_propose();
             // (the same file read again in the same answer, unchanged: not

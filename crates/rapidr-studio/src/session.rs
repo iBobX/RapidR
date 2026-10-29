@@ -70,6 +70,8 @@ enum Want {
     /// `App`'s answer: OnApp(Id, …); `until`: when it stops waiting for it
     /// (`rapidr_ai::rai::now_ms`).
     App { id: i64, until: f64 },
+    /// RAI's app tool ([`app_send`]): its answer kept for [`app_take`].
+    RaiApp { ticket: String, until: f64 },
 }
 
 /// How long `App` waits for the program: a look 10 s, input 20 s more
@@ -81,6 +83,47 @@ fn app_timeout(request: &serde_json::Value) -> f64 {
         "screenshot" | "capture" | "picture" | "layout" | "windows" | "cursor" => 10_000.0,
         _ => 20_000.0 + waits,
     }
+}
+
+thread_local! {
+    /// RAI's app tools' answers by ticket (`None`: still waiting).
+    static RAI_APPS: RefCell<std::collections::HashMap<String, Option<(bool, String)>>> = RefCell::new(std::collections::HashMap::new());
+}
+
+/// (RAI's app tools: the running program's eyes and hands) A request to
+/// the program Studio runs now: its ticket for [`app_take`], or why it
+/// can't be sent (nothing runs).
+pub fn app_send(request: serde_json::Value) -> Result<String, String> {
+    let running: Option<String> = SESSIONS.with(|s| s.try_borrow().ok().and_then(|s| s.iter().find(|(_, m)| m.session.state() != State::Stopped).map(|(n, _)| n.clone())));
+    let Some(name) = running else {
+        return Err("The program isn't running: ask the user to run it (Run, F5), then try again.".into());
+    };
+    let until = rapidr_ai::rai::now_ms() + app_timeout(&request);
+    let ticket = with(&name, |m| {
+        m.next_app += 1;
+        let ticket = format!("{name}:{}", m.next_app);
+        m.ask(Command::App { request }, Want::RaiApp { ticket: ticket.clone(), until }).then_some(ticket)
+    });
+    let ticket = ticket.ok_or("The program couldn't be reached (it is ending?): try again.")?;
+    RAI_APPS.with(|r| r.borrow_mut().insert(ticket.clone(), None));
+    Ok(ticket)
+}
+
+/// (RAI's app tools) Request `ticket`'s answer once it came: (done, what
+/// was seen or done, in a sentence).
+pub fn app_take(ticket: &str) -> Option<(bool, String)> {
+    RAI_APPS.with(|r| {
+        let mut r = r.borrow_mut();
+        let done = r.get(ticket)?.clone()?;
+        r.remove(ticket);
+        Some(done)
+    })
+}
+
+fn rai_answered(ticket: String, ok: bool, text: String) {
+    RAI_APPS.with(|r| {
+        r.borrow_mut().insert(ticket, Some((ok, text)));
+    });
 }
 
 /// A screenshot's PNG (base64) where the caller can take it: a file in the
@@ -179,7 +222,7 @@ impl Model {
         self.watch_values.clear();
         // (the eyes and hands' requests are answered whether it stops or
         // goes on: kept)
-        self.pending.retain(|_, w| matches!(w, Want::App { .. }));
+        self.pending.retain(|_, w| matches!(w, Want::App { .. } | Want::RaiApp { .. }));
         self.held = None;
         self.refreshing = false;
         self.scope.clear();
@@ -665,6 +708,16 @@ fn take_apps(m: &mut Model, now: f64) -> Vec<i64> {
     for (seq, _) in &late {
         m.pending.remove(seq);
     }
+    // (RAI's: answered the same way)
+    let rai: Vec<(u64, String)> = m.pending.iter().filter_map(|(seq, w)| match w {
+        Want::RaiApp { ticket, until } if *until <= now => Some((*seq, ticket.clone())),
+        _ => None,
+    }).collect();
+    for (seq, ticket) in rai {
+        m.pending.remove(&seq);
+        let why = if now.is_infinite() { "The program ended before it answered." } else { "The program didn't answer in time: it may be busy running its own code. Wait and try again." };
+        rai_answered(ticket, false, why.to_string());
+    }
     late.into_iter().map(|(_, id)| id).collect()
 }
 
@@ -738,6 +791,13 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                 let shown = m.mark(r, list);
                 m.vars.entry(r).or_default().extend(shown);
                 fire.push(("onvariables", vec![Value::Integer(i64::from(r))]));
+            }
+            Want::RaiApp { ticket, .. } => {
+                let (ok, text) = match &body {
+                    EventBody::App { result } => (result.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false), result.get("text").and_then(serde_json::Value::as_str).unwrap_or("").to_string()),
+                    _ => (false, error.clone().unwrap_or_else(|| "the program gave no answer".into())),
+                };
+                rai_answered(ticket, ok, text);
             }
             Want::App { id, .. } => {
                 let (ok, text, picture) = match &body {

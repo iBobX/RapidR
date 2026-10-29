@@ -188,6 +188,73 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// The running program's eyes and hands for RAI (RapidR Studio's AI apps
+/// have the same through ide/mcpapp.inc): its layout in words and a wait
+/// always; clicks, typing, keys, drags and the wheel when `input` (the
+/// user allows changes). A picture isn't one of RAI's: its models get the
+/// layout in words.
+pub fn app_tools(input: bool) -> Vec<Tool> {
+    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
+    let target = || json!({
+        "caption": {"type": "string", "description": "the text on it (a button's caption)"},
+        "name": {"type": "string", "description": "its name (app_layout lists them)"},
+        "label": {"type": "string", "description": "the label beside it (an edit's)"},
+        "window": {"type": "string", "description": "the window (a form's name or title)"},
+        "x": {"type": "integer"}, "y": {"type": "integer"}
+    });
+    let with = |extra: Json| {
+        let mut p = target();
+        if let (Some(p), Some(e)) = (p.as_object_mut(), extra.as_object()) {
+            p.extend(e.clone());
+        }
+        p
+    };
+    let mut out = vec![
+        t("app_layout", "What the program the user runs shows now, in words: its windows, each control's name, type, caption or text and place (x,y size w×h), and what looks wrong (text cut off, controls on top of each other). Example: {}.", schema(json!({"window": {"type": "string"}}), &[])),
+        t("app_wait", "Lets the running program work on its own for ms milliseconds (its timers). Example: {\"ms\": 500}.", schema(json!({"ms": {"type": "integer"}, "idle": {"type": "boolean", "description": "until it has nothing left to run (at most ms)"}}), &[])),
+    ];
+    if input {
+        out.push(t("app_click", "Clicks in the program the user runs, as a person would (a pointer shows it). Example: {\"caption\": \"7\"}; or {\"name\": \"btnSave\"}, {\"label\": \"Name\"}, {\"window\": \"Form1\", \"x\": 30, \"y\": 55}. Says what it clicked, or what is there.", schema(with(json!({"double": {"type": "boolean"}, "button": {"type": "string", "enum": ["left", "right"]}})), &[])));
+        out.push(t("app_type", "Types text into the running program (clicks the control first). Example: {\"label\": \"Name\", \"text\": \"Ada\"}.", schema(with(json!({"text": {"type": "string"}})), &["text"])));
+        out.push(t("app_key", "Presses keys in the running program: Enter, Tab, Escape, Ctrl+S, Shift+Tab … separated by spaces. Example: {\"keys\": \"Ctrl+A Backspace\", \"name\": \"txtName\"}.", schema(with(json!({"keys": {"type": "string"}})), &["keys"])));
+        out.push(t("app_drag", "Drags in the running program from a control to (to_x, to_y) of its window. Example: {\"name\": \"Slider1\", \"to_x\": 180, \"to_y\": 20}.", schema(with(json!({"to_x": {"type": "integer"}, "to_y": {"type": "integer"}})), &["to_x", "to_y"])));
+        out.push(t("app_scroll", "Turns the mouse wheel over a control of the running program (notches down; negative: up). Example: {\"name\": \"List1\", \"notches\": 5}.", schema(with(json!({"notches": {"type": "integer"}})), &[])));
+    }
+    out
+}
+
+/// An app tool's call (RAI's): the request sent to the program Studio
+/// runs ([`crate::session::app_send`]), answered later; refused when it
+/// uses the program and the user allows reading only.
+pub fn app_call(name: &str, input: &Json, may_use: bool) -> Outcome {
+    let looks = matches!(name, "app_layout" | "app_wait");
+    if !looks && !may_use {
+        return err("the user allowed reading only (Tools > Settings > AI > Permission): say what you would click or type instead", format!("{name}: not allowed (read-only)"), "");
+    }
+    let mut req = serde_json::Map::new();
+    req.insert("do".into(), json!(name.trim_start_matches("app_")));
+    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("to_y", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy")] {
+        if let Some(v) = input.get(from).filter(|v| !v.is_null()) {
+            req.insert(to.into(), v.clone());
+        }
+    }
+    match crate::session::app_send(Json::Object(req)) {
+        Ok(ticket) => Outcome::later(ticket),
+        Err(e) => err(e, format!("{name}: the program isn't running"), ""),
+    }
+}
+
+/// An app tool's answer (RAI's), as the turn takes it.
+pub fn app_done(name: &str, ok: bool, text: String) -> Outcome {
+    let note = activity(name, &Json::Null).unwrap_or_else(|| name.to_string());
+    let risk = if matches!(name, "app_layout" | "app_wait") { "read" } else { "ui" };
+    if ok {
+        Outcome { content: text, is_error: false, note, read: None, risk, target: String::new() }
+    } else {
+        Outcome { content: text, is_error: true, note: format!("{note}: not done"), read: None, risk, target: String::new() }
+    }
+}
+
 /// The lite set for a small context window (under 16K tokens; K8): the
 /// tools a small model needs to read, check and change a program, each
 /// said in a line — no form introspection, examples, outline or layout.
