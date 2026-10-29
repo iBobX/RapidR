@@ -292,6 +292,16 @@ pub fn problems(desk: &mut Desktop, store: &dyn Store, form: &str) -> Vec<String
                 out.push(format!("{}'s caption \"{caption}\" is cut off: it needs about {need} pixels, {} is {w} wide — make it wider or the caption shorter.", n.id, n.id));
             }
         }
+        // (a word-wrapped label that isn't sized by its text: its lines must
+        // fit its height)
+        if n.type_name == "RLABEL" && !caption.is_empty() && rapidr_ui_kernel::store::flag(store, &n.id, "wordwrap", false) && !rapidr_value::autosize::autosize_on(&store.get(&n.id, "autosize")) {
+            let font = store.font(&n.id);
+            let lines = rapidr_value::autosize::lines(&caption, &font, Some(w)).len() as i64;
+            let need = rapidr_value::objects::text::text_size(" ", &font).1 * lines;
+            if need > h + 1 {
+                out.push(format!("{}'s text is cut off: wrapped it takes {lines} lines, about {need} pixels, {} is {h} high — make it taller or the text shorter.", n.id, n.id));
+            }
+        }
     }
     // (on top of each other: two solid controls of the same parent)
     let solid: Vec<usize> = ui.nodes.iter().enumerate().filter(|(_, n)| n.shown && n.abs.2 > 0 && n.abs.3 > 0 && !see_through(&n.type_name)).map(|(i, _)| i).collect();

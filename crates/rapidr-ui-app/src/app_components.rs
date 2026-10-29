@@ -128,10 +128,13 @@ pub fn capture_picture<R: Program + Windows>(rt: R, name: &str, window: &str) ->
     out.unwrap_or_else(|| Err("nothing drawn".into()))
 }
 
+/// How a runtime writes a picture's file (its name, its bytes).
+pub type SaveFile<'a> = &'a dyn Fn(&str, &[u8]) -> Result<(), String>;
+
 /// RAppCapture's methods: SaveToFile, LayoutReport, LayoutJson, Problems
 /// (`save`: how the runtime writes a file — the desktop's file system, the
 /// web's download / file bridge).
-pub fn capture_method<R: Program + Windows>(rt: R, name: &str, method: &str, args: &[Value], save: &dyn Fn(&str, &[u8]) -> Result<(), String>) -> Option<Value> {
+pub fn capture_method<R: Program + Windows>(rt: R, name: &str, method: &str, args: &[Value], save: SaveFile) -> Option<Value> {
     Some(match method {
         "savetofile" => {
             let file = text_arg(args, 0);

@@ -1184,9 +1184,11 @@ pub fn save_form_image(name: &str, path: &str) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("no file name".into());
     }
+    // (the eyes' picture, RAppCapture's: the form's inside at its scale,
+    // never the virtual pointer of a driven program)
     let px = with_kern(|k| {
         sync_desk(&mut k.desk);
-        rapidr_ui_host_winit::capture_checked(&mut k.desk, &RtStore, name).map(|(px, _)| px)
+        rapidr_ui_app::eyes::capture(&mut k.desk, &RtStore, name, rapidr_ui_app::eyes::Scale::Screen, false, false).ok()
     })
     .flatten()
     .ok_or_else(|| format!("{name} isn't shown"))?;

@@ -109,6 +109,16 @@ export const cases = [
     expect: ["answer.caption=Hello, World! (2)"] },
   // (Tab out of each box: its OnExit checks it, the next one's OnEnter
   // shows its help)
+  // snapshot.rr: RAppCapture — a picture of its own window saved beside it
+  // (1x, framed: 360 × 236 inside), its own layout checked (a caption cut
+  // off once the button is narrowed); a read-only folder said
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "savebutton.onclick", dump: "status.caption", expect: ["status.caption=Saved snapshot.png (362 x 267 pixels)."] },
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "checkbutton.onclick,sizebutton.onclick", dump: "status.caption", expect: ["status.caption=The layout looks right: nothing cut off, nothing on top of another."] },
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "sizebutton.onclick,checkbutton.onclick", dump: "status.caption", expect: ['status.caption=savebutton\'s caption "Save as picture" is cut off: it needs about'] },
+  { file: "gui/snapshot.rr", runtimes: ["run"], readOnly: true, events: "savebutton.onclick", dump: "status.caption", expect: ["status.caption=Couldn't save the picture: can't write snapshot.png"] },
+  // guided_tour.rr: RAppDriver — "Show me" types two tasks and adds them,
+  // each step said in the list as it is done
+  { file: "gui/guided_tour.rr", runtimes: ["run", "interp", "native", "web"], events: "tourbutton.onclick,form.__wait_7000", dump: "tasks.itemcount,steps.itemcount,taskedit.text", expect: ["tasks.itemcount=2", "steps.itemcount=5", "taskedit.text="] },
   { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
     expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
   // (a label given TabStop is a link: Enter on the second, Space on the

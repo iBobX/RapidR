@@ -777,9 +777,11 @@ impl Windows for Web {
 // RAppDriver: `rapidr_ui_app::{eyes, hands, link, app_components}`, the
 // desktop's own.
 
+/// How RapidR Studio is answered: the session's reply, by its number.
+pub type AppSink = Rc<dyn Fn(u64, serde_json::Value)>;
+
 thread_local! {
-    /// How RapidR Studio is answered (the session's reply, by its number).
-    static APP_SINK: RefCell<Option<Rc<dyn Fn(u64, serde_json::Value)>>> = const { RefCell::new(None) };
+    static APP_SINK: RefCell<Option<AppSink>> = const { RefCell::new(None) };
     /// Where the debugger holds the program, in words ("at line 12 of
     /// calc.rr"), while it does.
     static APP_PAUSED: RefCell<Option<String>> = const { RefCell::new(None) };
@@ -792,7 +794,7 @@ fn app_answer(seq: u64, reply: &serde_json::Value) {
 }
 
 /// RapidR Studio's link is up: its replies go to `sink`.
-pub fn app_link(sink: Rc<dyn Fn(u64, serde_json::Value)>) {
+pub fn app_link(sink: AppSink) {
     APP_SINK.with(|s| *s.borrow_mut() = Some(sink));
 }
 
