@@ -25,9 +25,9 @@
 //
 // and a waiting change and Settings > AI Apps are captured; the
 // first-time question (turning the switch on) answered both ways; the
-// activity's Copy.
+// activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|badge|consent|settings …]
+//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|badge|consent|capture|settings …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -183,6 +183,11 @@ if (want("all")) {
   for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "get_problems", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit"]) {
     check(`tools/list has ${t}`, names.includes(t), names.join(","));
   }
+  // (every description whole: BASIC strings take no backslash escapes — a
+  // \" once cut set_property's at "(\")
+  const cut = list.filter((t) => !/[.!?)]$/.test((t.description || "").trim()) || (t.description || "").includes("\\"));
+  check("every tool's description is whole (no stray backslash, ends a sentence)", list.length > 0 && cut.length === 0, cut.map((t) => `${t.name}: …${(t.description || "").slice(-60)}`).join(" | "));
+  check("set_property's description names a text value in quotes", /\("OK" for text, 120, &HFF0000, True\)\. One undo step in its file\.$/.test(list.find((t) => t.name === "set_property")?.description || ""), list.find((t) => t.name === "set_property")?.description);
   check("read_file is marked read-only, propose_edit isn't", list.find((t) => t.name === "read_file")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "propose_edit")?.annotations?.readOnlyHint === false);
 
   let r = await tool("studio_status");
@@ -381,6 +386,30 @@ if (want("consent")) {
   const all = studio("all-yes", `mcp:on=${BASE_PORT + 8},mcp:pane`, "mcpmodebox.__item_3,consentyes.onclick", "mcpmodebox.text,mcpbadge.visible");
   end = await all.ended(90000);
   check("Allow Everything: the mode and its chip", end.lines["mcpmodebox.text"] === "Allow everything" && shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+}
+
+// ---- capture refused while a dialog is open (docs/legal/review-2026-10-29-mcp.md,
+// addendum B): Settings open, the token shown, an AI app asks for a picture ----
+if (want("capture")) {
+  const PORT = BASE_PORT + 9;
+  const run = studio("capture", `mcp:on=${PORT},wait,mcp:settings`, `mcpaddredit.__until_Text_http://127.0.0.1:${PORT}/mcp,mcpshowtokenbtn.onclick,mcpheaderedit.__until_PasswordChar_,${until("A picture of Studio")}`, "mcpheaderedit.passwordchar,mcpheaderedit.text");
+  check("capture guard: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  // (until Studio says Settings is open: studio_status names an open dialog)
+  let status = "";
+  for (let i = 0; i < 60 && !/Open in Studio: Settings/.test(status); i++) {
+    status = (await tool("studio_status")).text;
+    if (!/Open in Studio: Settings/.test(status)) await new Promise((res) => setTimeout(res, 500));
+  }
+  check("studio_status names the open dialog", /Open in Studio: Settings \(no picture of Studio until it closes\)/.test(status), status);
+  // (a moment for the user's Show: the token on screen when the AI app asks)
+  await new Promise((res) => setTimeout(res, 2000));
+  const r = await tool("capture");
+  const raw = JSON.stringify(r.raw.json || {});
+  check("capture refused while Settings is open, said plainly", r.error && /Settings is open/.test(r.text) && !r.content.some((c) => c.type === "image"), r.text);
+  check("capture: the token appears nowhere in the answer", !raw.includes(TOKEN), raw.slice(0, 300));
+  const end = await run.ended(90000);
+  check("capture guard: the token was on screen (Show pressed)", end.lines["mcpheaderedit.passwordchar"] === "" && (end.lines["mcpheaderedit.text"] || "").includes(TOKEN), JSON.stringify(end.lines));
 }
 
 // ---- Settings > AI Apps ---------------------------------------------------------------

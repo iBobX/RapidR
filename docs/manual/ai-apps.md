@@ -80,7 +80,7 @@ project, and a project starts with **Ask before changes**.
 | **Read only** | Look: read the project, check code, look things up in RapidR's help, see the program's output, the layout of its forms and a picture of Studio. A change or a run is refused, and the AI app is told why in plain words. |
 | **Ask before changes** | Look freely. Each change, run or question to RAI waits for you in the pane: **Allow Once**, **Allow for This Session** (that kind of call until Studio closes, the server stops or another project opens) or **Deny**; **Review…** shows a change as a diff first. |
 | **Allow edits** | Changes to files are made at once — each is one **Edit > Undo** step, listed in the pane, in the activity log. Running the program and asking RAI still wait for you. |
-| **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows a soft amber **No questions asked** chip, with a warning sign, in the pane's header and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
+| **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows a soft amber **No questions asked** chip, with a warning sign, in the pane's header and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, Studio's own tools still never hand over keys or files outside the project — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
 
 In every mode a project outside your Projects folder, RapidR's examples and
 your recent list is asked about before it opens, and nothing is ever
@@ -124,7 +124,7 @@ The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
 | `rapidr_describe`, `search_manual`, `find_example` | RapidR's help: a component or builtin, the manual, a working example | look |
 | `check_code`, `get_problems` | The compiler's errors and warnings, and the forms' layout problems | look |
 | `layout_report` | Each form's components with their places and sizes, and what looks wrong (cut off, on top of each other, a caption too long) | look |
-| `capture` | A picture (PNG) of Studio's window as you see it | look |
+| `capture` | A picture (PNG) of Studio's window as you see it — Studio's own window only, and never while a dialog is open (Settings and Set Up RAI can show your token or a key): the AI app is told to ask again later | look |
 | `list_documents` | The documents open, the active one, unsaved changes | look |
 | `read_output` | What the program printed since the last read | look |
 | `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | RAI's work: its steps, its chat, its audit log | look |
@@ -146,11 +146,13 @@ With this on, an AI app that has your token can, through Studio:
 - list and read the files in your open project (your code, forms and data
   files), and nothing outside the project or hidden in it (a file or folder
   whose name starts with a dot);
-- look at and change forms and code, and build, run and debug your program,
-  as the permission menu allows — Studio asks you first under **Ask before
-  changes**;
+- get a picture of Studio's window, as you see it;
+- look at and change forms and code, open other projects, and build, run and
+  debug your program, as the permission menu allows — Studio asks you first
+  under **Ask before changes**;
 - read what your program prints and Studio's error messages;
-- read and ask RAI's chat.
+- read RAI's chat, and ask RAI (which may cost money: it uses your AI
+  provider).
 
 It cannot see your AI provider keys or passwords (they stay in your
 system's keychain), or files outside the project. RapidR sends none of this

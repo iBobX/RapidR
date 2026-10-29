@@ -125,6 +125,8 @@ DECLARE FUNCTION McpRaiAudit(Count AS INTEGER) AS STRING
 DECLARE SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE FUNCTION McpDebugState AS STRING
 DECLARE SUB McpCapture(CallId AS INTEGER, Client AS STRING)
+DECLARE FUNCTION McpDialogOpen AS STRING
+DECLARE SUB McpLogEnd
 DECLARE FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
 
 CONST MCP_DEFAULT_PORT = 47330
@@ -276,8 +278,8 @@ CREATE McpPanel AS RPanel
       OnClick = McpReviewClick
     END CREATE
   END CREATE
+  ' (placed by McpLayOutPane: a whole number of rows tall)
   CREATE McpLog AS RListBox
-    Align = 5
     AccessibleName = "What AI apps did"
   END CREATE
 END CREATE
@@ -348,11 +350,8 @@ CREATE McpPage AS RPanel
     WordWrap = 1: AutoSize = 0
     AccessibleName = "What the choice means"
   END CREATE
-  ' (what AI apps can see and do: a heading, the rows McpRow… — the
-  ' consent's own, SetUpMcp makes them —, a footer, Learn more)
-  CREATE McpSeeNote AS RLabel
-    Caption = "What AI apps can see and do"
-  END CREATE
+  ' (what AI apps can see and do: the rows McpRow… — the consent's own,
+  ' SetUpMcp makes them —, a footer, Learn more)
   CREATE McpSeeFoot AS RLabel
     WordWrap = 1: AutoSize = 0
   END CREATE
@@ -452,7 +451,7 @@ FUNCTION McpModeNote(Mode AS STRING) AS STRING
   SELECT CASE Mode
     CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change or run anything."
     CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program and asking RAI still wait for you."
-    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and AI apps never reach keys or files outside the project themselves."
+    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
     CASE ELSE: Result = "AI apps can look freely; each change, run or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
   END SELECT
 END FUNCTION
@@ -518,7 +517,7 @@ SUB McpSetMode(Mode AS STRING)
   McpSaveSettings
   McpShowMode
   McpLog.AddItems LEFT$(TIME$, 8) + "  AI apps may now: " + McpModeName(Mode)
-  McpLog.ItemIndex = McpLog.ItemCount - 1
+  McpLogEnd
   McpTools.AuditCall "Studio", "mode", "", McpModeName(Mode)
   Application.Announce "AI apps: " + McpModeName(Mode)
 END SUB
@@ -526,10 +525,10 @@ END SUB
 ' (Allow everything chosen: what it means said in rows — consent.inc —,
 ' Cancel the default)
 FUNCTION McpConfirmAll AS INTEGER
-  ConsentBegin "Allow everything for AI apps in this project?", "Nothing waits for you: AI apps change files, run the program and ask RAI on their own."
+  ConsentBegin "Allow everything for AI apps in this project?", "Nothing waits for you: AI apps change files, run the program and ask RAI (which may cost money) on their own."
   ConsentRow "warning", "Keep in mind", "A program they run can do anything you can on this computer. Choose this only while you watch an AI app you trust."
   ConsentRow "visible", "You still see", "Everything they do, listed in the AI Apps pane; Stop ends it."
-  ConsentRow "lock", "Never", "AI apps themselves never reach your keys, or files outside the project."
+  ConsentRow "lock", "Never", "Studio's own tools never hand over your keys, or files outside the project."
   ConsentYes.AccessibleDescription = "AI apps change and run anything in this project without asking"
   ConsentNo.AccessibleDescription = "The permission stays as it was"
   Result = ConsentAsk("", McpManualUrl, "&Allow Everything", "Cancel")
@@ -690,15 +689,15 @@ END FUNCTION
 
 FUNCTION McpRowBody(K AS INTEGER) AS STRING
   SELECT CASE K
-    CASE 0: Result = "The files of your open project — your code, forms and data files — and nothing outside the project or hidden in it."
-    CASE 1: Result = "Check code, look things up in RapidR's help, run your program and read what it prints, read and ask RAI's chat, and propose changes, applied only as your permission mode allows."
+    CASE 0: Result = "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets a picture of Studio's window, as you see it."
+    CASE 1: Result = "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run and debug your program and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
     CASE 2: Result = "Your AI provider keys or passwords: your keychain keeps them."
     CASE ELSE: Result = "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
   END SELECT
 END FUNCTION
 
 FUNCTION McpFootText AS STRING
-  Result = "Turn this off, or Reset Token, to disconnect every AI app."
+  Result = "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app."
 END FUNCTION
 
 ' (the manual's page, in the browser)
@@ -790,7 +789,7 @@ SUB McpSyncTools
   Mcp.AddTool "layout_report", "The program's forms as the source makes them: each form's client area, each component's place and size (Left, Top, Width, Height, or aligned), then what looks wrong — a control cut off by its form, two on top of each other, a caption too long for its button.", "", "read"
   Mcp.AddTool "capture", "A picture (PNG) of RapidR Studio's window as the user sees it now: the code, the form designer, the panes. Use it to see a form you changed in the designer.", "", "read"
   Mcp.AddTool "open_project", "Opens a project (.rrproj) or a program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes.", "Path AS STRING", "change"
-  Mcp.AddTool "set_property", "Sets a component's property in the form designer, as the user would in the Properties pane: Component (its name, rapidr_list gives them), Property (Caption, Left, Width, Color …) and Value as the code writes it (\"OK\" for text, 120, &HFF0000, True). One undo step in its file.", "Component AS STRING, Property AS STRING, Value AS STRING", "change"
+  Mcp.AddTool "set_property", "Sets a component's property in the form designer, as the user would in the Properties pane: Component (its name, rapidr_list gives them), Property (Caption, Left, Width, Color …) and Value as the code writes it (" + CHR$(34) + "OK" + CHR$(34) + " for text, 120, &HFF0000, True). One undo step in its file.", "Component AS STRING, Property AS STRING, Value AS STRING", "change"
   Mcp.AddTool "debug", "The debugger, on the program run_program started with Debug = true: Action breakpoint (File and Line: set one; Remove = true takes it away), continue, step_over, step_into, step_out, pause, or state. Waits up to Wait seconds (5 by default) for the program to stop, then says where it is, the call stack and the variables.", "Action AS STRING, [File AS STRING], [Line AS INTEGER], [Remove AS BOOLEAN], [Wait AS INTEGER]", "change"
   Mcp.AddTool "run_program", "Runs the open project's program in Studio (saving its files first, as Run does) and waits up to Wait seconds (3 by default, 60 at most) or until it ends; says how it went and what it printed. Action: start (default), stop, restart or status. Debug = true runs it with the debugger (it stops at the user's breakpoints).", "[Action AS STRING], [Wait AS INTEGER], [Debug AS BOOLEAN]", "change"
   Mcp.AddTool "ask_rai", "Asks RAI, RapidR Studio's own assistant, as the user would in its panel (the user sees it), and waits for its answer (Wait = false: at once; then get_rai_steps). RAI may propose changes the user reviews. It uses the user's AI provider, which may cost money.", "Prompt AS STRING, [Wait AS BOOLEAN]", "network"
@@ -905,6 +904,16 @@ SUB McpLayOutPane
   ah = y + ch + 12
   IF McpAsk.Height <> ah THEN McpAsk.Height = ah
   McpAskMark.Height = ah
+  ' (the activity under the header and the question: a whole number of
+  ' rows tall — a list box scrolled to its end shows no half row at its
+  ' top then; what's left under it is the pane's)
+  y = McpTop.Height
+  IF McpAsk.Visible THEN y = y + McpAsk.Height
+  th = McpPanel.ClientHeight - y - 4
+  IF th < McpLog.ItemHeight THEN th = McpLog.ItemHeight
+  McpLog.Left = 0: McpLog.Top = y: McpLog.Width = w
+  McpLog.Height = (th \ McpLog.ItemHeight) * McpLog.ItemHeight + 4
+  IF McpLog.ItemCount > 0 AND McpLog.ItemIndex = McpLog.ItemCount - 1 THEN McpLogEnd
 END SUB
 
 ' (the first line of the pane and the status bar's panel: on or off, who is in)
@@ -969,7 +978,7 @@ SUB McpLogLine(Client AS STRING, Tool AS STRING, What AS STRING, Target AS STRIN
   IF Outcome <> "" THEN line = line + "  — " + Outcome
   McpLog.AddItems line
   IF McpLog.ItemCount > 500 THEN McpLog.DelItems 0
-  McpLog.ItemIndex = McpLog.ItemCount - 1
+  McpLogEnd
   McpTools.AuditCall Client, Tool, Target, Outcome
   McpLastWhat = Client + ": " + What
   McpShowState
@@ -980,6 +989,13 @@ END SUB
 SUB McpPaneShow
   IF Dock.PaneState("mcppanel") = "hidden" THEN Dock.ShowPane("mcppanel")
   McpLayOutPane
+END SUB
+
+' (the activity's newest line picked and in view: the list is a whole
+' number of rows tall — McpLayOutPane —, so no half row shows at its top)
+SUB McpLogEnd
+  IF McpLog.ItemCount = 0 THEN EXIT SUB
+  McpLog.ItemIndex = McpLog.ItemCount - 1
 END SUB
 
 SUB McpClientIn(Client AS STRING)
@@ -1077,7 +1093,7 @@ SUB McpWait(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS ST
   McpWaitCount = n + 1
   Mcp.Progress CallId, "Waiting for the user to allow it in RapidR Studio."
   McpLog.AddItems LEFT$(TIME$, 8) + "  " + Client + "  " + What + "  — waiting for you"
-  McpLog.ItemIndex = McpLog.ItemCount - 1
+  McpLogEnd
   McpLastWhat = Client + ": " + What + " (waiting for you)"
   McpShowAsk
   ' (in front, where the user sees it — the keyboard stays where it is)
@@ -1090,6 +1106,7 @@ SUB McpShowAsk
   DIM t AS STRING, k AS INTEGER, files AS STRING, info AS STRING
   IF McpWaitCount = 0 THEN
     McpAsk.Visible = 0
+    McpLayOutPane
     McpShowState
     EXIT SUB
   END IF
@@ -1390,6 +1407,8 @@ FUNCTION McpStatusText AS STRING
     IF FIELD$(info, CHR$(9), 6) = "" THEN n = n + 1
   NEXT
   IF n > 0 THEN t = t + "Your changes waiting for the user: " + Num(n) + nl
+  ' (why capture says no for now)
+  IF McpDialogOpen <> "" THEN t = t + "Open in Studio: " + McpDialogOpen + " (no picture of Studio until it closes)" + nl
   t = t + "Permission: " + McpModeName(McpMode) + " — " + McpModeNote(McpMode)
   IF McpGrants <> "" AND McpMode = "ask" THEN t = t + " Allowed for this session: " + REPLACESUBSTR$(MID$(McpGrants, 2, LEN(McpGrants) - 2), "||", ", ") + "."
   Result = t
@@ -1647,9 +1666,31 @@ END FUNCTION
 
 ' ---- capture and set_property ------------------------------------------------------------
 
+' (the name of a Studio dialog that is open, "" when none is: Settings —
+' its token and keys —, Set Up RAI — its key —, the questions, the review
+' windows, the value editors)
+FUNCTION McpDialogOpen AS STRING
+  Result = ""
+  IF SettingsDialog.Visible THEN Result = "Settings": EXIT FUNCTION
+  IF AISetup.Visible THEN Result = "Set Up RAI": EXIT FUNCTION
+  IF ConsentDialog.Visible OR SavePrompt.Visible OR FailNote.Visible THEN Result = "a question": EXIT FUNCTION
+  IF McpReview.Visible OR AIReview.Visible OR AINew.Visible OR AISent.Visible THEN Result = "a review window": EXIT FUNCTION
+  IF AppDialog.Visible OR NewDialog.Visible THEN Result = "a dialog": EXIT FUNCTION
+  IF TextViewer.Visible OR ValueEditor.Visible THEN Result = "a value's window": EXIT FUNCTION
+END FUNCTION
+
 ' A picture of Studio's window, as the user sees it now.
 SUB McpCapture(CallId AS INTEGER, Client AS STRING)
   DIM f AS STRING
+  ' (never while a dialog is open — Settings, a question, a review, Set Up
+  ' RAI: one may show the token or a key — docs/legal/review-2026-10-29-mcp.md,
+  ' addendum B; the picture is Studio's own window, drawn by Studio, never
+  ' the screen around it)
+  IF McpDialogOpen <> "" THEN
+    Mcp.Reply CallId, "No picture now: " + McpDialogOpen + " is open in Studio, and it may show a key or the token. Ask again after the user closes it.", 1
+    McpLogLine Client, "capture", "A picture of Studio", "", "refused (" + McpDialogOpen + " open)"
+    EXIT SUB
+  END IF
   f = ENVIRON$("TMPDIR")
   IF f = "" THEN f = ENVIRON$("TEMP")
   IF f = "" THEN f = "/tmp"
@@ -1853,23 +1894,20 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpModeNoteLabel.Left = lx: McpModeNoteLabel.Top = y: McpModeNoteLabel.Width = W: McpModeNoteLabel.Height = nh
   McpModeNoteColour
   y = y + nh + 10
-  ' (what AI apps can see: the heading, the rows, the footer and Learn more)
-  McpSeeNote.Left = lx: McpSeeNote.Top = y: McpSeeNote.Width = W: McpSeeNote.Height = 18
-  McpSeeNote.Font.Bold = 1
-  McpSeeNote.Font.Color = TC("page.text")
-  y = y + 24
+  ' (what AI apps can see and do: the rows — each says its own head —, the
+  ' footer and Learn more)
   FOR k = 0 TO 3
     McpRowHeadL(k).Font.Bold = 1
     McpRowHeadL(k).Font.Color = TC("page.text")
     McpRowBodyL(k).Font.Color = TC("page.dim")
     McpRowBmp(k).LoadIcon McpRowIcon(k), 16
     McpRowImg(k).BMPHandle = McpRowBmp(k)
-    y = y + InfoRowLayOut(McpRowImg(k), McpRowHeadL(k), McpRowBodyL(k), lx, y, 104, W) + 6
+    y = y + InfoRowLayOut(McpRowImg(k), McpRowHeadL(k), McpRowBodyL(k), lx, y, 104, W) + 4
   NEXT
   nh = AISetLinesHigh(McpSeeFoot.Caption, W)
   McpSeeFoot.Left = lx: McpSeeFoot.Top = y: McpSeeFoot.Width = W: McpSeeFoot.Height = nh
   McpSeeFoot.Font.Color = TC("page.dim")
-  y = y + nh + 10
+  y = y + nh + 8
   ' (Clear Activity...; Learn more at the right of its row — a link's
   ' text sits 4 inside its rectangle)
   McpClearBtn.Left = lx: McpClearBtn.Top = y: McpClearBtn.Width = 160: McpClearBtn.Height = Bh
@@ -1886,17 +1924,17 @@ FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
   Result = 26 + AISetLinesHigh(McpOnNote.Caption, W) + 10 + 3 * Row + Bh + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
 END FUNCTION
 
-' (what AI apps can see, as the page lays it out: the heading, the rows,
-' the footer, Learn more)
+' (what AI apps can see and do, as the page lays it out: the rows, the
+' footer)
 FUNCTION McpRowsHigh(W AS INTEGER) AS INTEGER
   DIM k AS INTEGER, h AS INTEGER, bh AS INTEGER
-  h = 24
+  h = 0
   FOR k = 0 TO 3
     bh = AISetLinesHigh(McpRowBody(k), W - 24 - 104)
     IF bh < 18 THEN bh = 18
-    h = h + bh + 6
+    h = h + bh + 4
   NEXT
-  Result = h + AISetLinesHigh(McpFootText, W) + 10
+  Result = h + AISetLinesHigh(McpFootText, W) + 8
 END FUNCTION
 
 ' (the mode note's height: its longest mode's, wrapped at W)

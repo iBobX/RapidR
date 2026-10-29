@@ -22,4 +22,4 @@ ide/prompts.inc	height	pad = 14: ic = 32: bh = 23: gap = 6: th = 32: tx = 30
 ide/safety.inc	height	pad = 14: ic = 32: bh = 23: gap = 6
 ide/search.inc	height	fh = 26
 ide/search.inc	height	fh = 26: bw = 92
-ide/settings.inc	height	pad = 20: w = 540: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
+ide/settings.inc	height	pad = 20: w = 620: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
