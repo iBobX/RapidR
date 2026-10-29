@@ -258,6 +258,12 @@ impl<W: Write> Adapter<W> {
                     "supportsSetExpression": true,
                     "supportsStepInTargetsRequest": true,
                     "supportsGotoTargetsRequest": true,
+                    // (the session has them — a condition, a hit count, a
+                    // logpoint's message: setBreakpoints passes them on —;
+                    // without these an editor greys such a breakpoint out)
+                    "supportsConditionalBreakpoints": true,
+                    "supportsHitConditionalBreakpoints": true,
+                    "supportsLogPoints": true,
                     "exceptionBreakpointFilters": [
                         { "filter": "error", "label": "Run-time errors", "default": false }
                     ],
@@ -822,6 +828,10 @@ mod tests {
         let init = dap::read_message(&mut reader).unwrap().unwrap();
         assert_eq!(init["success"], true);
         assert_eq!(init["body"]["supportsConfigurationDoneRequest"], true);
+        // (conditional breakpoints, hit counts and logpoints: the editor offers them)
+        for k in ["supportsConditionalBreakpoints", "supportsHitConditionalBreakpoints", "supportsLogPoints"] {
+            assert_eq!(init["body"][k], true, "{k}");
+        }
         assert_eq!(init["body"]["exceptionBreakpointFilters"][0]["filter"], "error");
         let fly = dap::read_message(&mut reader).unwrap().unwrap();
         assert_eq!((fly["request_seq"].as_i64(), fly["success"].as_bool()), (Some(2), Some(false)));

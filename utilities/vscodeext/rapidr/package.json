@@ -470,6 +470,8 @@
     "build": "node scripts/build.js",
     "watch": "node scripts/build.js --watch",
     "notices": "node scripts/notices.js",
+    "grammar": "node scripts/grammar.js",
+    "grammar:check": "node scripts/grammar.js --check",
     "vscode:prepublish": "node scripts/build.js --production && node scripts/notices.js",
     "package": "node scripts/sync-version.js && node scripts/package.js",
     "ls": "vsce ls --no-dependencies",
