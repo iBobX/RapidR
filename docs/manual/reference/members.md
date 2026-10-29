@@ -5374,6 +5374,9 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 | `ProblemCount` (read-only) | int |  | How many problems the Problems page lists. |
 | `TopLine` (read-only) | int |  | The first line the page shows now, from 0 (on the Problems page, its first row in view: a heading counts as a row). The Problems page shows its top when it is filled — errors come first — and keeps the place the reader scrolled to when it is filled again. |
 | `Text` (read-only) | string |  | The shown page's text, without colours. |
+| `SelText` (read-only) | string |  | What the user selected on the shown page, as plain text (no colours): the characters dragged over or double-clicked, else the whole lines clicked (Shift extends), a line to a line — a wrapped line is one line; on the Problems page each selected row as `file:line:col: severity: message`. Empty when nothing is selected. |
+| `HasSelection` (read-only) | bool |  | True when something is selected on the shown page (SelText isn't empty): a context menu's Copy is enabled by it. |
+| `ClickedLine` (read-only) | int |  | The line (from 0, on the shown page) the mouse last pressed on — either button, so a context menu knows the line it was opened on; -1 when the press wasn't on a line or the page changed since. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `Left` | int | 0 | The distance from the parent's left edge (a form's: the screen's), in pixels. |
@@ -5394,6 +5397,10 @@ A program's output as a console shows it — colours, CLS, LOCATE, COLOR as ANSI
 
 | Method | |
 |---|---|
+| `SelectAll` | Selects every line of the shown page (every problem on the Problems page), as Ctrl+A (⌘A on a Mac) does. |
+| `CopySelection AS INTEGER` | Puts SelText on the clipboard, as Ctrl+C (⌘C) does: True when something was selected (else the clipboard is left as it was). |
+| `CopyAll AS INTEGER` | Puts the shown page's whole text on the clipboard (Text: no colours; on the Problems page a row to a line): True unless the page is empty. |
+| `CopyLine([Index AS INTEGER]) AS INTEGER` | Puts line Index (from 0) of the shown page on the clipboard — without Index, the line the mouse last pressed on (ClickedLine: a context menu's Copy Line), else the selected one: True when there was such a line. |
 | `Write(Text AS STRING)` | Adds output to the Output page, ANSI sequences understood (colours, CLS, LOCATE). |
 | `WriteLine(Text AS STRING)` | Write, then a new line. |
 | `Clear([Page AS STRING])` | Empties a page (the shown one when Page is left out). |

@@ -42,6 +42,30 @@ pub fn is_dialog(id: &str) -> bool {
     id.len() >= PREFIX.len() && id[..PREFIX.len()].eq_ignore_ascii_case(PREFIX)
 }
 
+/// A message box's form property holding what Ctrl+C copies.
+const COPY_PROP: &str = "__copytext";
+
+/// What a message box copies on Ctrl+C (⌘C on a Mac, Ctrl+Insert), as
+/// Windows' own message boxes give it: the title, the text and the
+/// buttons between dashed lines.
+pub fn message_copy(title: &str, text: &str, labels: &[&str]) -> String {
+    let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+    let rule = "---------------------------";
+    let text = text.split('\0').next().unwrap_or("").replace("\r\n", "\n").replace('\r', "\n").replace('\n', nl);
+    let buttons: String = labels.iter().map(|l| format!("{}   ", l.replace('&', ""))).collect();
+    [rule, title, rule, &text, rule, &buttons, rule].join(nl) + nl
+}
+
+/// What a dialog form (`form`) copies on Ctrl+C: a message box's text
+/// (`None`: another dialog, or not one of the kernel's).
+pub fn copy_text(store: &dyn Store, form: &str) -> Option<String> {
+    if !is_dialog(form) {
+        return None;
+    }
+    let t = store::string(store, form, COPY_PROP);
+    (!t.is_empty()).then_some(t)
+}
+
 /// What a dialog answered when it closed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Answer {
@@ -190,6 +214,10 @@ impl Dialog {
                 d.set(&id, "default", Value::Integer(-1));
             }
         }
+        // (Ctrl+C — ⌘C — copies the box as Windows' message boxes do:
+        // `copy_text`)
+        let id = d.id.clone();
+        d.set(&id, COPY_PROP, Value::String(message_copy(title, text, labels)));
         d.finish(layout.size.0, layout.size.1);
         d
     }
@@ -842,6 +870,40 @@ mod tests {
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    /// (COPY-ANYWHERE) Ctrl+C (⌘C, Ctrl+Insert) on a message box copies
+    /// it as Windows' message boxes do — the title, the whole text (not as
+    /// it wraps), the buttons — and leaves the box open; an input box's
+    /// field copies its own selection instead.
+    #[test]
+    fn ctrl_c_copies_a_message_box_as_windows_does() {
+        let mut ts = TextSystem::new();
+        let long = "Can't open data.csv: the file is in use by another program. Close it and try again.";
+        let mut d = Dialog::message(41, "Error", long, &["OK", "Cancel"], None);
+        let mut f = ui(&d);
+        let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+        let want = ["---------------------------", "Error", "---------------------------", long, "---------------------------", "OK   Cancel   ", "---------------------------", ""].join(nl);
+        for mods in [Mods { ctrl: true, ..Mods::NONE }, Mods { command: true, ..Mods::NONE }] {
+            let mut clip = MemClipboard::default();
+            f.key_down(&d.store, &mut ts, 67, "", mods, &mut clip);
+            f.key_up(67, mods);
+            assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+            assert_eq!(answer(&mut d, &mut f), None, "the box stays open");
+        }
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 45, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+        // (a plain C: nothing copied)
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 67, "c", Mods::NONE, &mut clip);
+        assert_eq!(clip.0, None);
+        // (a mnemonic's & isn't copied; Yes / No's are RapidR's)
+        let d2 = Dialog::message(42, "Question", "Save?", &["Yes", "No"], None);
+        assert!(copy_text(&d2.store, &d2.id).unwrap().contains("Yes   No   "));
+        // (an input box isn't copied whole: its field copies its own text)
+        let d3 = Dialog::input(43, "Name", "Your name:", "Robert");
+        assert_eq!(copy_text(&d3.store, &d3.id), None);
     }
 
     #[test]

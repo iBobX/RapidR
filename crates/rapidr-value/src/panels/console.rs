@@ -167,11 +167,16 @@ pub struct View {
     /// caret). A Problems page's focused row is `caret`.
     pub anchor: Option<u64>,
     pub caret: Option<u64>,
+    /// (RapidR's) A text selection's columns, in characters from 0: the
+    /// anchor's on its line and the caret's on its (a drag, a double
+    /// click). `None`: the lines from the anchor's to the caret's are
+    /// selected whole (a click, the keys, a match found).
+    pub cols: Option<(usize, usize)>,
 }
 
 impl Default for View {
     fn default() -> Self {
-        View { follow: true, top: 0, sub: 0, anchor: None, caret: None }
+        View { follow: true, top: 0, sub: 0, anchor: None, caret: None, cols: None }
     }
 }
 
@@ -180,6 +185,31 @@ impl View {
     pub fn selection(&self) -> Option<(u64, u64)> {
         let (a, c) = (self.anchor?, self.caret?);
         Some((a.min(c), a.max(c)))
+    }
+
+    /// A text selection's ends, first to last: (line, character) each
+    /// (`None`: no text selection — whole lines or nothing).
+    pub fn text_range(&self) -> Option<((u64, usize), (u64, usize))> {
+        let (ac, cc) = self.cols?;
+        let (a, c) = ((self.anchor?, ac), (self.caret?, cc));
+        Some(if a <= c { (a, c) } else { (c, a) })
+    }
+
+    /// The characters of absolute line `line` the selection covers, as
+    /// `(from, to)` (`to` `None`: to its end, its line break with it) —
+    /// `None`: none of it.
+    pub fn cols_on(&self, line: u64) -> Option<(usize, Option<usize>)> {
+        match self.text_range() {
+            Some(((la, ca), (lb, cb))) => {
+                if line < la || line > lb || (la == lb && ca == cb) {
+                    return None;
+                }
+                let from = if line == la { ca } else { 0 };
+                let to = if line == lb { Some(cb) } else { None };
+                Some((from, to))
+            }
+            None => self.selection().filter(|(a, b)| (*a..=*b).contains(&line)).map(|_| (0, None)),
+        }
     }
 }
 
@@ -215,6 +245,9 @@ pub struct Console {
     /// (the kernel's) The tab, the problem row under the mouse.
     pub hover_tab: Option<usize>,
     pub hover_row: Option<usize>,
+    /// (the kernel's) The line (absolute; a problem's row) the mouse last
+    /// pressed on, either button: what a context menu's Copy Line copies.
+    pub pressed_line: Option<u64>,
     /// The matches as last found, and for what (page, text revision,
     /// filter).
     found: Vec<Match>,
@@ -242,6 +275,7 @@ impl Default for Console {
             hover_link: None,
             hover_tab: None,
             hover_row: None,
+            pressed_line: None,
             found: Vec::new(),
             found_for: None,
             problems_rev: 0,
@@ -348,6 +382,7 @@ impl Console {
         if p == self.page {
             self.hover_link = None;
             self.hover_row = None;
+            self.pressed_line = None;
         }
     }
 
@@ -376,6 +411,7 @@ impl Console {
             self.hover_link = None;
             self.hover_row = None;
             self.hover_tab = None;
+            self.pressed_line = None;
             if !self.filter.is_empty() {
                 self.find_first();
             }
@@ -459,6 +495,7 @@ impl Console {
         v.follow = false;
         v.anchor = Some(m.line);
         v.caret = Some(m.line);
+        v.cols = None;
     }
 
     /// "3 of 12" (the strip's), "No results", or "" without a filter.
@@ -480,12 +517,84 @@ impl Console {
         self.current = None;
     }
 
-    /// The selected lines' text (Ctrl+C), one to a line.
+    /// What's selected as plain text (Ctrl+C; no colours, no escape
+    /// sequences), a line to a line — a wrapped line is one: the
+    /// characters a drag or a double click selected, else the whole lines a
+    /// click or the keys selected (a problem's row as `file:line:col:
+    /// severity: message`). `None`: nothing (an empty text selection).
     pub fn selected_text(&self) -> Option<String> {
-        let (a, b) = self.view().selection()?;
+        let v = self.view();
+        let (a, b) = v.selection()?;
         let first = self.first(self.page);
-        let lines: Vec<String> = (a..=b).filter_map(|l| l.checked_sub(first)).filter_map(|i| self.line_text(self.page, i as usize)).collect();
+        let text_of = |l: u64| l.checked_sub(first).and_then(|i| self.line_text(self.page, i as usize));
+        if let Some(((la, ca), (lb, cb))) = v.text_range() {
+            if (la, ca) == (lb, cb) {
+                return None;
+            }
+            let mut out = Vec::new();
+            for l in la..=lb {
+                // (a line gone past MaxLines: nothing of it)
+                let Some(text) = text_of(l) else { continue };
+                let chars: Vec<char> = text.chars().collect();
+                let to = if l == lb { cb.min(chars.len()) } else { chars.len() };
+                let from = if l == la { ca.min(to) } else { 0 };
+                out.push(chars[from..to].iter().collect::<String>());
+            }
+            return (!out.is_empty()).then(|| out.join("\n"));
+        }
+        let lines: Vec<String> = (a..=b).filter_map(text_of).collect();
         (!lines.is_empty()).then(|| lines.join("\n"))
+    }
+
+    /// Whether something is selected (Copy has something to copy).
+    pub fn has_selection(&self) -> bool {
+        let v = self.view();
+        match v.text_range() {
+            Some((a, b)) => a != b && self.count(self.page) > 0,
+            None => v.selection().is_some() && self.count(self.page) > 0,
+        }
+    }
+
+    /// Every line (every problem) of the shown page selected (Ctrl+A).
+    pub fn select_all(&mut self) {
+        let (first, count) = (self.first(self.page), self.count(self.page));
+        let v = self.view_mut();
+        v.cols = None;
+        if count == 0 {
+            v.anchor = None;
+            v.caret = None;
+        } else {
+            v.anchor = Some(first);
+            v.caret = Some(first + count as u64 - 1);
+        }
+    }
+
+    /// The word at character `at` of absolute line `line` selected (a
+    /// double click): [`word_at`].
+    pub fn select_word(&mut self, line: u64, at: usize) {
+        let Some(i) = line.checked_sub(self.first(self.page)) else { return };
+        let chars: Vec<char> = self.line_text(self.page, i as usize).unwrap_or_default().chars().collect();
+        let (a, b) = word_at(&chars, at);
+        let v = self.view_mut();
+        v.anchor = Some(line);
+        v.caret = Some(line);
+        v.cols = Some((a, b));
+        v.follow = false;
+    }
+
+    /// What Copy Line copies: line `index` of the shown page (from 0), or
+    /// without one the line the mouse last pressed on, else the caret's.
+    pub fn copy_line_text(&self, index: Option<usize>) -> Option<String> {
+        let i = match index {
+            Some(i) => i,
+            None => self.pressed_line.or(self.view().caret)?.checked_sub(self.first(self.page))? as usize,
+        };
+        self.line_text(self.page, i)
+    }
+
+    /// The line the mouse last pressed on, from 0 on the shown page.
+    pub fn pressed_index(&self) -> Option<usize> {
+        self.pressed_line?.checked_sub(self.first(self.page)).map(|i| i as usize).filter(|&i| i < self.count(self.page))
     }
 
     /// The links on page `p`'s line `i` (from 0): its hyperlinks and the
@@ -502,6 +611,38 @@ impl Console {
             (l, m)
         })
     }
+}
+
+/// The word around character `at` of `chars`, as (start, end): letters,
+/// digits and `_` together, else the run of spaces there, else the one
+/// other character (`at` past the end: the last character's).
+pub fn word_at(chars: &[char], at: usize) -> (usize, usize) {
+    if chars.is_empty() {
+        return (0, 0);
+    }
+    let at = at.min(chars.len() - 1);
+    let class = |c: char| {
+        if c.is_alphanumeric() || c == '_' {
+            0
+        } else if c.is_whitespace() {
+            1
+        } else {
+            2
+        }
+    };
+    let k = class(chars[at]);
+    if k == 2 {
+        return (at, at + 1);
+    }
+    let mut a = at;
+    while a > 0 && class(chars[a - 1]) == k {
+        a -= 1;
+    }
+    let mut b = at + 1;
+    while b < chars.len() && class(chars[b]) == k {
+        b += 1;
+    }
+    (a, b)
 }
 
 /// A character's lower case (its first, when it has more).
@@ -544,7 +685,7 @@ fn page_arg(args: &[Value], k: usize, shown: Page) -> Page {
 }
 
 /// Its methods; `None`: not one of its own.
-pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -> Option<Value> {
+pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let s = |k: usize| args.get(k).map(Value::to_string_val).unwrap_or_default();
     let n = |k: usize| args.get(k).map_or(0, Value::to_i64);
     Some(match method {
@@ -586,8 +727,35 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
         "line" => Value::String(with(name, |c| c.line_text(c.page, usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().unwrap_or_default()),
         "find" => Value::Integer(with_mut(name, |c| c.find(&s(0))) as i64),
         "findnext" => Value::Integer(with_mut(name, |c| c.find_next(false)).map_or(-1, |l| l as i64)),
+        // (RapidR's: the selection and the clipboard — what the user's
+        // Ctrl+C, a context menu's Copy, Copy Line, Copy All do)
+        "selectall" => {
+            with_mut(name, |c| c.select_all());
+            rt.invalidate();
+            Value::Null
+        }
+        "copyselection" => copied(rt, with(name, |c| c.selected_text()).flatten()),
+        "copyall" => copied(rt, with(name, |c| Some(c.text(c.page)).filter(|t| c.count(c.page) > 0 && !t.is_empty())).flatten()),
+        "copyline" => {
+            let index = match args.first() {
+                None | Some(Value::Null) => None,
+                Some(v) => Some(usize::try_from(v.to_i64()).unwrap_or(usize::MAX)),
+            };
+            copied(rt, with(name, |c| c.copy_line_text(index)).flatten())
+        }
         _ => return None,
     })
+}
+
+/// `text` put on the clipboard: True when there was some.
+fn copied<R: Runtime>(rt: R, text: Option<String>) -> Value {
+    match text {
+        Some(t) => {
+            rt.set_clipboard(&t);
+            basic_bool(true)
+        }
+        None => basic_bool(false),
+    }
 }
 
 /// Its properties its model answers.
@@ -605,6 +773,9 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             // (the first line — the Problems page's row — the page shows, from 0)
             "topline" => Value::Integer(c.view().top.saturating_sub(c.first(c.page)) as i64),
             "text" => Value::String(c.text(c.page)),
+            "seltext" => Value::String(c.selected_text().unwrap_or_default()),
+            "hasselection" => basic_bool(c.has_selection()),
+            "clickedline" => Value::Integer(c.pressed_index().map_or(-1, |i| i as i64)),
             _ => return None,
         })
     })
@@ -704,6 +875,146 @@ mod tests {
         v.anchor = Some(2);
         v.caret = Some(1);
         assert_eq!(c.selected_text().as_deref(), Some("two\nthree"));
+    }
+
+    /// (COPY-ANYWHERE) A text selection's characters, across lines, either
+    /// way; the colours' escape sequences never in it; an empty one is
+    /// nothing to copy.
+    #[test]
+    fn a_text_selection_copies_its_characters() {
+        let mut c = Console::default();
+        c.write("one two\n\x1b[32mthree\x1b[0m four\nfive\n");
+        let v = c.view_mut();
+        v.anchor = Some(0);
+        v.caret = Some(0);
+        v.cols = Some((4, 7));
+        assert_eq!(c.selected_text().as_deref(), Some("two"));
+        let v = c.view_mut();
+        v.anchor = Some(2);
+        v.caret = Some(0);
+        v.cols = Some((2, 4));
+        assert_eq!(c.selected_text().as_deref(), Some("two\nthree four\nfi"), "backwards, the middle line whole, no escapes");
+        assert!(c.has_selection());
+        let v = c.view_mut();
+        v.cols = Some((3, 3));
+        v.anchor = Some(1);
+        v.caret = Some(1);
+        assert_eq!(c.selected_text(), None);
+        assert!(!c.has_selection());
+        // (from a line's end to the next's start: its line break)
+        let v = c.view_mut();
+        v.anchor = Some(0);
+        v.caret = Some(1);
+        v.cols = Some((7, 0));
+        assert_eq!(c.selected_text().as_deref(), Some("\n"));
+        // the whole lines (a click), Select All
+        let v = c.view_mut();
+        v.cols = None;
+        v.anchor = Some(1);
+        v.caret = Some(1);
+        assert_eq!(c.selected_text().as_deref(), Some("three four"));
+        c.select_all();
+        assert_eq!(c.selected_text().as_deref(), Some("one two\nthree four\nfive"));
+        // a double click's word
+        c.select_word(1, 7);
+        assert_eq!(c.selected_text().as_deref(), Some("four"));
+        assert_eq!(word_at(&"a.rr:12 x".chars().collect::<Vec<_>>(), 1), (1, 2), "punctuation: itself");
+        assert_eq!(word_at(&"my_var  = 1".chars().collect::<Vec<_>>(), 3), (0, 6));
+        assert_eq!(word_at(&"my_var  = 1".chars().collect::<Vec<_>>(), 6), (6, 8), "spaces: their run");
+        assert_eq!(word_at(&"abc".chars().collect::<Vec<_>>(), 99), (0, 3), "past the end: the last word");
+    }
+
+    /// The Problems page copies its rows as `file:line:col: severity:
+    /// message`; Copy Line copies the row pressed on.
+    #[test]
+    fn problems_copy_as_lines_and_copy_line_takes_the_pressed_one() {
+        let mut c = Console::default();
+        c.add_problem(Problem { file: "main.rr".into(), line: 4, col: 7, severity: Severity::Error, message: "Undefined variable X".into(), heading: false, icon: String::new() });
+        c.add_problem(Problem { file: "main.rr".into(), line: 0, col: 0, severity: Severity::Warning, message: "w".into(), heading: false, icon: String::new() });
+        c.show(Page::Problems);
+        c.select_all();
+        assert_eq!(c.selected_text().as_deref(), Some("main.rr:4:7: error: Undefined variable X\nmain.rr: warning: w"));
+        c.pressed_line = Some(1);
+        assert_eq!(c.copy_line_text(None).as_deref(), Some("main.rr: warning: w"));
+        assert_eq!(c.copy_line_text(Some(0)).as_deref(), Some("main.rr:4:7: error: Undefined variable X"));
+        assert_eq!(c.pressed_index(), Some(1));
+        c.show(Page::Output);
+        assert_eq!(c.pressed_index(), None, "another page: no line pressed there");
+    }
+
+    /// The members through a runtime: SelText, HasSelection, ClickedLine,
+    /// SelectAll, CopySelection, CopyAll and CopyLine (the clipboard the
+    /// runtime's).
+    #[test]
+    fn copy_members_put_text_on_the_runtimes_clipboard() {
+        thread_local! { static CLIP: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) }; }
+        #[derive(Clone, Copy)]
+        struct Fake;
+        impl Runtime for Fake {
+            fn get(self, _: &str, _: &str) -> Value {
+                Value::Null
+            }
+            fn set(self, _: &str, _: &str, _: Value) {}
+            fn call(self, _: &str, _: &str, _: &[Value]) -> Value {
+                Value::Null
+            }
+            fn exists(self, _: &str) -> bool {
+                true
+            }
+            fn type_of(self, _: &str) -> String {
+                "ROUTPUTCONSOLE".into()
+            }
+            fn components(self) -> Vec<(String, String)> {
+                Vec::new()
+            }
+            fn children(self, _: &str) -> Vec<(String, String)> {
+                Vec::new()
+            }
+            fn form_of(self, _: &str) -> Option<String> {
+                None
+            }
+            fn fire(self, _: &str, _: &str, _: &[Value]) {}
+            fn fire_then(self, _: &str, _: &str, _: &[Value], _: super::super::runtime::Then) {}
+            fn focus(self, _: &str) {}
+            fn invalidate(self) {}
+            fn restructure(self) {}
+            fn drop_list(self, _: &str, _: &str, _: Vec<String>, _: crate::objects::ops::Rect) {}
+            fn set_clipboard(self, text: &str) {
+                CLIP.with(|c| *c.borrow_mut() = Some(text.to_string()));
+            }
+        }
+        let name = "con_members_test";
+        remove(name);
+        with_mut(name, |c| c.write("first\nsecond line\nthird\n"));
+        let get = |p: &str| rt_get(Fake, name, p).unwrap();
+        let call = |m: &str, a: &[Value]| rt_method(Fake, name, m, a).unwrap();
+        let clip = || CLIP.with(|c| c.borrow().clone());
+        assert_eq!((get("seltext").to_string_val(), get("hasselection").to_i64(), get("clickedline").to_i64()), (String::new(), 0, -1));
+        assert_eq!(call("copyselection", &[]).to_i64(), 0, "nothing selected: nothing copied");
+        assert_eq!(clip(), None);
+        with_mut(name, |c| {
+            let v = c.view_mut();
+            v.anchor = Some(1);
+            v.caret = Some(1);
+            v.cols = Some((0, 6));
+            c.pressed_line = Some(2);
+        });
+        assert_eq!((get("seltext").to_string_val(), get("hasselection").to_i64(), get("clickedline").to_i64()), ("second".into(), 1, 2));
+        assert_eq!(call("copyselection", &[]).to_i64(), 1);
+        assert_eq!(clip().as_deref(), Some("second"));
+        assert_eq!(call("copyline", &[]).to_i64(), 1);
+        assert_eq!(clip().as_deref(), Some("third"));
+        assert_eq!(call("copyline", &[Value::Integer(0)]).to_i64(), 1);
+        assert_eq!(clip().as_deref(), Some("first"));
+        assert_eq!(call("copyline", &[Value::Integer(9)]).to_i64(), 0, "no such line");
+        assert_eq!(call("copyall", &[]).to_i64(), 1);
+        assert_eq!(clip().as_deref(), Some("first\nsecond line\nthird"));
+        call("selectall", &[]);
+        assert_eq!(get("seltext").to_string_val(), "first\nsecond line\nthird");
+        // (an empty page: nothing to copy)
+        rt_method(Fake, name, "clear", &[]);
+        assert_eq!(call("copyall", &[]).to_i64(), 0);
+        remove(name);
     }
 
     #[test]

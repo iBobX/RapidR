@@ -910,8 +910,15 @@ END SUB
 ' the settings: OutputNoWrap is 1 once it was turned off)
 
 DIM OutputMenu AS RPopupMenu
+DIM OutputMenuCopy AS RMenuItem
+DIM OutputMenuCopyLine AS RMenuItem
+DIM OutputMenuCopyAll AS RMenuItem
+DIM OutputMenuSelAll AS RMenuItem
+DIM OutputMenuSep AS RMenuItem
 DIM OutputMenuWrap AS RMenuItem
 DIM OutputMenuClear AS RMenuItem
+' (the Output pane has the keyboard: Edit > Copy and Select All are its)
+DIM OutputFocused AS INTEGER
 
 SUB ToggleOutputWrap
   OutputNoWrap = Flag(OutputNoWrap = 0)
@@ -920,7 +927,19 @@ SUB ToggleOutputWrap
   CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
 END SUB
 
+' (the right-click menu as it opens: Copy for a selection, Copy Line for the
+' line right-clicked, the Problems page's own Copy All)
 SUB OutputMenuOpening
+  DIM probs AS INTEGER, has AS INTEGER
+  probs = Flag(OutputBox.Page = "problems")
+  has = Flag(OutputBox.LineCount > 0)
+  OutputMenuCopy.Enabled = Flag(OutputBox.HasSelection)
+  OutputMenuCopyLine.Visible = Flag(probs = 0)
+  OutputMenuCopyLine.Enabled = Flag(OutputBox.ClickedLine >= 0)
+  IF probs THEN OutputMenuCopyAll.Caption = "Copy &All Problems" ELSE OutputMenuCopyAll.Caption = "Copy &All"
+  OutputMenuCopyAll.Enabled = has
+  OutputMenuSelAll.Enabled = has
+  OutputMenuClear.Enabled = has
   OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
 END SUB
 
@@ -928,21 +947,101 @@ SUB ClearOutputPage
   OutputBox.Clear
 END SUB
 
+' (what was copied, said on the status bar: "Copied 2 lines", "Copied 7
+' characters", "Copied 3 problems")
+SUB OutputCopied(T AS STRING)
+  DIM n AS INTEGER, k AS INTEGER, what AS STRING
+  n = 1
+  k = INSTR(T, CHR$(10))
+  DO WHILE k > 0
+    n = n + 1
+    k = INSTR(k + 1, T, CHR$(10))
+  LOOP
+  IF OutputBox.Page = "problems" THEN
+    what = IIF(n = 1, "1 problem", Num(n) + " problems")
+  ELSEIF n > 1 THEN
+    what = Num(n) + " lines"
+  ELSE
+    what = IIF(LEN(T) = 1, "1 character", Num(LEN(T)) + " characters")
+  END IF
+  SetState RunState, "Copied " + what
+END SUB
+
+' Copy: what's selected (Ctrl+C in the pane does the same)
+SUB OutputCopy
+  IF OutputBox.CopySelection THEN OutputCopied OutputBox.SelText ELSE SetState RunState, "Nothing selected to copy"
+END SUB
+
+' Copy Line: the line right-clicked
+SUB OutputCopyLine
+  IF OutputBox.CopyLine THEN OutputCopied OutputBox.Line(OutputBox.ClickedLine)
+END SUB
+
+' Copy All (Copy All Problems): the page shown
+SUB OutputCopyAll
+  IF OutputBox.CopyAll THEN OutputCopied OutputBox.Text
+END SUB
+
+SUB OutputSelectAll
+  OutputBox.SelectAll
+END SUB
+
+SUB OutputEntered
+  OutputFocused = 1
+  UpdateCommands
+END SUB
+
+SUB OutputLeft
+  OutputFocused = 0
+  UpdateCommands
+END SUB
+
+' True when the Output pane has the keyboard (Edit's Copy and Select All are its)
+FUNCTION OutputHasKeys AS INTEGER
+  Result = Flag(OutputFocused <> 0 OR LCASE$(Dock.ActivePane) = "outputbox")
+END FUNCTION
+
+' (Edit's Copy and Select All while the Output pane has the keyboard —
+' shell.inc's RunCommand; True when Id was one)
+FUNCTION OutputCommand(Id AS STRING) AS INTEGER
+  IF OutputHasKeys = 0 THEN EXIT FUNCTION
+  SELECT CASE Id
+    CASE "edit.copy": OutputCopy: Result = 1
+    CASE "edit.selectAll": OutputSelectAll: Result = 1
+  END SELECT
+END FUNCTION
+
 ' (what each panel says while it has nothing to show)
 SUB SetUpPanels
   ProjectTree.EmptyText = "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
   Inspector.EmptyText = "Select a component on a form to see its properties."
   OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
   OutputBox.WordWrap = Flag(OutputNoWrap = 0)
+  OutputMenuCopy.Caption = "&Copy": OutputMenuCopy.ShortCut = "Ctrl+C"
+  OutputMenuCopy.OnClick = OutputCopy
+  OutputMenuCopyLine.Caption = "Copy &Line"
+  OutputMenuCopyLine.OnClick = OutputCopyLine
+  OutputMenuCopyAll.Caption = "Copy &All"
+  OutputMenuCopyAll.OnClick = OutputCopyAll
+  OutputMenuSelAll.Caption = "&Select All": OutputMenuSelAll.ShortCut = "Ctrl+A"
+  OutputMenuSelAll.OnClick = OutputSelectAll
+  OutputMenuSep.Caption = "-"
   OutputMenuWrap.Caption = "&Wrap Long Lines"
   OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
   OutputMenuWrap.OnClick = ToggleOutputWrap
-  OutputMenuClear.Caption = "&Clear"
+  OutputMenuClear.Caption = "Cl&ear"
   OutputMenuClear.OnClick = ClearOutputPage
+  OutputMenu.AddItems OutputMenuCopy
+  OutputMenu.AddItems OutputMenuCopyLine
+  OutputMenu.AddItems OutputMenuCopyAll
+  OutputMenu.AddItems OutputMenuSelAll
+  OutputMenu.AddItems OutputMenuSep
   OutputMenu.AddItems OutputMenuWrap
   OutputMenu.AddItems OutputMenuClear
   OutputMenu.OnPopup = OutputMenuOpening
   OutputBox.PopupMenu = OutputMenu
+  OutputBox.OnEnter = OutputEntered
+  OutputBox.OnExit = OutputLeft
   Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
   ' (RapidR's names: RButton, RLabel …; the designer writes each file in
   ' its own — a form written with RapidQ's names gets QBUTTON)

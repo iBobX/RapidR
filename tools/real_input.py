@@ -37,6 +37,12 @@ for a in sys.argv[2:]:
         x,y=[float(v) for v in arg.split(",")]
         if kind=="c": x+=b['X']; y+=b['Y']
         mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1); mouse(Quartz.kCGEventLeftMouseDown,x,y); time.sleep(0.05); mouse(Quartz.kCGEventLeftMouseUp,x,y)
+    elif kind=="rc":
+        # right click: rc:x,y (in the window) — a context menu
+        x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
+        mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1)
+        for t in (Quartz.kCGEventRightMouseDown,Quartz.kCGEventRightMouseUp):
+            e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonRight); Quartz.CGEventSetFlags(e,0); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
     elif kind=="dc":
         # double click: dc:x,y (in the window), the second press counted 2
         x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
@@ -60,13 +66,6 @@ for a in sys.argv[2:]:
         for k in range(1,11):
             mouse(Quartz.kCGEventLeftMouseDragged,x1+(x2-x1)*k/10,y1+(y2-y1)*k/10); time.sleep(0.03)
         mouse(Quartz.kCGEventLeftMouseUp,x2,y2)
-    elif kind=="rc":
-        # rc:x,y — a right click in the window (a context menu opens there;
-        # s: after w: shows it, the screen's region of the window)
-        x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
-        mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1)
-        for t in (Quartz.kCGEventRightMouseDown,Quartz.kCGEventRightMouseUp):
-            e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonRight); Quartz.CGEventSetFlags(e,0); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
     elif kind=="m":
         x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
         mouse(Quartz.kCGEventMouseMoved,x,y)
