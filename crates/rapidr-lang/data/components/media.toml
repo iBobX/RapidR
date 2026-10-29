@@ -8,7 +8,17 @@ rapidq = "QMIDI"
 from = "QMidi.inc"
 visual = false
 default_event = "OnChange"
-doc = "Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none."
+doc = "Plays a standard MIDI file (QMidi.inc) on a system MIDI output that makes sound (Windows' GS Wavetable Synth, FluidSynth, TiMidity, an output named in the RAPIDR_MIDI_OUT environment variable), or on RapidR's own synthesizer where there is none: a Mac's MIDI outputs and Linux's Midi Through only pass messages on to other programs, so a song is never sent to one by itself. RAPIDR_MIDI_OUT=builtin always uses RapidR's synthesizer."
+example = """
+DIM Midi AS RMIDI
+Midi.Timer.Interval = 200
+IF Midi.Open("tune.mid") THEN
+    Midi.Volume = 80
+    Midi.Play
+ELSE
+    PRINT "Can't open it: "; Midi.Error
+END IF
+"""
 properties = [
   { name = "Timer", type = "component", kinds = ["QTIMER"] },
   { name = "Lenght", type = "int", access = "read", design = false },

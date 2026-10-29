@@ -1279,13 +1279,16 @@ A horizontal or vertical scroll bar the user moves to pick a Position between Mi
 <a id="rupdown"></a>
 ## RUpDown
 
-Two arrow buttons that step Position up or down between Min and Max, often beside an edit. RapidR's own.
+Two arrow buttons that step Position up or down between Min and Max, often beside an edit. Set Associate to that edit (or a label) and it shows the number and follows it; OnChange fires when an arrow changes Position. RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|
 | `Min` | int |  | The lowest value of the progress bar, scroll bar, up-down or track bar. |
 | `Max` | int |  | The highest value of the progress bar, scroll bar, up-down or track bar. |
 | `Position` | int |  | Where it is now: a progress, scroll or track bar's value, a stream's offset in bytes, a sound's or media object's play position. |
+| `Associate` | component |  | The edit (or label) beside the arrows that shows their number: it takes Position whenever the arrows or the program change it, and the arrows count from the whole number it shows, so a value typed there is stepped from. `Spin.Associate = DoseEdit`. Empty: the arrows only change Position (use OnChange to show it). |
+| `Increment` | int | 1 | How much one click on an arrow changes Position (at least 1). |
+| `Wrap` | bool | False | Whether stepping past Max goes round to Min, and past Min to Max, instead of stopping at the end. |
 | `Width` | int |  | The width, in pixels; on `Screen`, the screen's. |
 | `Height` | int |  | The height, in pixels; on `Screen`, the screen's. |
 | `Top` | int |  | The distance from the parent's top edge (a form's: the screen's), in pixels. |
@@ -3919,7 +3922,7 @@ Downloads a file over HTTP(S) into a variable or a file, with progress (Qdownloa
 <a id="rmidi"></a>
 ## RMIDI
 
-Plays a standard MIDI file (QMidi.inc) on the system's MIDI output, or on RapidR's own synthesizer where there is none.
+Plays a standard MIDI file (QMidi.inc) on a system MIDI output that makes sound (Windows' GS Wavetable Synth, FluidSynth, TiMidity, an output named in the RAPIDR_MIDI_OUT environment variable), or on RapidR's own synthesizer where there is none: a Mac's MIDI outputs and Linux's Midi Through only pass messages on to other programs, so a song is never sent to one by itself. RAPIDR_MIDI_OUT=builtin always uses RapidR's synthesizer.
 
 | Property | Type | Default | |
 |---|---|---|---|

@@ -129,6 +129,16 @@ export const cases = [
   { file: "gui/richtext.rr", runtimes: ["run", "interp", "native", "web"], events: "doc.__key_35_16,boldbtn.onclick,doc.__key_88,centrebtn.onclick,bulletbtn.onclick",
     dump: "status.simpletext,boldbtn.down,centrebtn.down,leftbtn.down,bulletbtn.down",
     expect: ["status.simpletext=Line 5, column 36   MS Sans Serif 8 pt", "boldbtn.down=-1", "centrebtn.down=-1", "leftbtn.down=0", "bulletbtn.down=-1"] },
+  // (RUpDown, Associate: the edit shows the arrows' number — two clicks up
+  // 2 → 4, one down by 15 from 60 — and OnChange fired for the plan)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "dosespin.__mousedown_9_4,dosespin.__mouseup_9_4,dosespin.__mousedown_9_4,dosespin.__mouseup_9_4,everyspin.__mousedown_9_18,everyspin.__mouseup_9_18", dump: "dose.text,dosespin.position,every.text,plan.caption",
+    expect: ["dose.text=4", "dosespin.position=4", "every.text=45", "plan.caption=4 tablets a day, a reminder every 45 minutes"] },
+  // (a 7 typed after the 2: the next step counts from 27 — past Max, so 8)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "dose.__key_55,dosespin.__mousedown_9_4,dosespin.__mouseup_9_4", dump: "dose.text,dosespin.position",
+    expect: ["dose.text=8", "dosespin.position=8"] },
+  // (no Associate: the program's OnChange writes the label; Wrap goes round from 1 to 5)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "pagespin.__mousedown_9_18,pagespin.__mouseup_9_18", dump: "pageno.caption,pagespin.position",
+    expect: ["pageno.caption=5", "pagespin.position=5"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
@@ -236,6 +246,14 @@ export const cases = [
     expect: ["info.caption=playing, 1 of 8 s"] },
   { file: "media/midi.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 4)},pausebtn.onclick`, dump: "info.caption",
     expect: ["info.caption=paused"] },
+  // (a song written by the program, opened and played: no sound under the
+  // tests — tests/midi_output.mjs checks where it goes and how it sounds)
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: "", dump: "info.caption",
+    expect: ["info.caption=composed: 407 bytes, 7994 ms"] },
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 24)}`, dump: "info.caption",
+    expect: ["info.caption=playing, 1 of 8 s"] },
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 4)},stopbtn.onclick`, dump: "info.caption",
+    expect: ["info.caption=stopped"] },
   { file: "media/wave.rr", runtimes: ["run", "interp", "native", "web"], events: "chimebtn.onclick", dump: "info.caption",
     expect: ["info.caption=Chime: 1200 ms, 16-bit, 11025 Hz"] },
   { file: "media/wave.rr", runtimes: ["run", "interp", "native", "web"], events: `recordbtn.onclick,${wait("info", 30)},minebtn.onclick`, dump: "info.caption",

@@ -301,6 +301,42 @@ Messages.ItemIndex = Messages.ItemCount - 1
 (`TopIndex` reads the list as it was last drawn: set it, and it reads what
 the list shows once the window has drawn it, a moment later.)
 
+## RUpDown: arrows that step a number
+
+An `RUpDown` is two small arrow buttons that step `Position` between `Min` and
+`Max` (`Increment` at a time; `Wrap = -1` goes round from one end to the
+other). Click an arrow, or press the Up and Down keys while it has the focus.
+Each step that changes `Position` fires `OnChange`, then `OnClick`; a click at
+the end of the range (nothing changes) fires `OnClick` only. Setting `Position`
+in code fires no event.
+
+Most of the time the arrows sit beside an edit that shows the number. Say so
+with `Associate` and there is nothing to write:
+
+```basic
+CREATE Dose AS REdit
+    Left = 130: Top = 12: Width = 56: Text = "2"
+END CREATE
+CREATE DoseSpin AS RUpDown
+    Left = 188: Top = 12: Width = 18: Height = 24
+    Min = 0: Max = 8: Position = 2
+    Associate = Dose
+END CREATE
+```
+
+The edit (or an `RLabel`, which shows it as its `Caption`) takes `Position`
+whenever the arrows or your program change it, and the edit's own `OnChange`
+fires as it does for any `Text` you set. The arrows count on from the whole
+number the edit shows, so a number typed there is stepped from, and one past
+`Max` is brought back to `Max`; text that isn't a whole number is ignored and
+the step is from `Position`. Create the edit before the arrows, so it exists
+when `Associate` names it. Without `Associate` the arrows only change
+`Position`: show it yourself in `OnChange`.
+
+The example [`examples/gui/updown.rr`](../../examples/gui/updown.rr) has one
+pair of arrows with an edit, one that steps by 15, and one with no `Associate`
+that a label follows through `OnChange`.
+
 ## The global objects
 
 | Object | What it has |

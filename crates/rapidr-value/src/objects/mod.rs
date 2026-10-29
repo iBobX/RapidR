@@ -39,6 +39,8 @@ pub mod listview;
 pub mod media;
 pub mod memstream;
 pub mod midifile;
+pub mod midiout;
+pub mod updown;
 pub mod menu;
 pub mod ops;
 pub mod printer;
