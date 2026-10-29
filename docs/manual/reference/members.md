@@ -84,6 +84,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SaveImage(FileName AS STRING) AS INTEGER` *(RapidR)* *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -5817,6 +5818,7 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `ToolNames AS STRING` | The tools an AI app may call through a program's MCP server (RMcpServer) — the ones an attached RAI gets, a name a line: with Permission "read-only" the reading ones only. |
 | `ToolDescription(Name AS STRING) AS STRING` | A tool's description, as the model reads it (RMcpServer.AddTool's Description). |
 | `ToolSchema(Name AS STRING) AS STRING` | The JSON Schema of a tool's arguments (RMcpServer.AddTool's Schema). |
+| `LayoutReport AS STRING` | The project's forms as its source makes them, in words: each form's client area, each component's place and size (or that Align places it), then what looks wrong — a control cut off by its form, two on top of each other, a caption longer than its button. |
 | `ToolKind(Name AS STRING) AS STRING` | How a tool acts: "read", or "change" for the ones that propose changes (RMcpServer.AddTool's Kind). |
 | `ToolActivity(Name AS STRING, Arguments AS STRING) AS STRING` | A call in words, for an activity log: "Reading main.rr", "Checking (compiling)", "Writing a change" (Arguments: the call's, as JSON). |
 | `CallTool(Name AS STRING, Arguments AS STRING) AS STRING` | Runs a tool for an AI app — an outside one, through a program's RMcpServer — on the project and the changes waiting for the user (no conversation around it): its text, for the AI app. What the proposing tools propose waits for the user like the assistant's (ProposalCount …): nothing is written. A path is never a hidden file or folder, and in a project whose folder is a home folder or a disk's root only the project's listed files are reached. CallFailed, CallNote, CallTarget and CallRisk say how it went. |

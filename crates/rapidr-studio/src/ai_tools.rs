@@ -339,6 +339,12 @@ impl Project<'_> {
         self.buffers.contains_key(rel) || self.files.iter().any(|f| f == rel) || (!self.folder.is_empty() && rapidr_value::objects::read_file(&self.full(rel)).is_ok())
     }
 
+    /// Every project source's text (relative path, text), the main file
+    /// first: what the compiler and the designer read.
+    pub fn sources(&self) -> Vec<(String, String)> {
+        self.all()
+    }
+
     /// Every project file's text (relative path, text), the main file first.
     fn all(&self) -> Vec<(String, String)> {
         let mut names: Vec<String> = Vec::new();
@@ -1218,26 +1224,61 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
 /// control laid out by Align, and labels (which size to their text), aren't
 /// judged.
 pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
+    let boxes = design_boxes(files);
+    let mut out = Vec::new();
+    let judged = |b: &DesignBox| b.visual && !b.aligned && !b.ty.ends_with("FORM") && b.w > 0 && b.h > 0;
+    for f in boxes.iter().filter(|b| b.ty.ends_with("FORM")) {
+        let Some((cw, ch)) = f.client else { continue };
+        for b in boxes.iter().filter(|b| b.parent == f.id && judged(b)) {
+            if b.x + b.w > cw + 2 || b.y + b.h > ch + 2 {
+                out.push(format!("warning layout: {} (Left {} + Width {}, Top {} + Height {}) reaches past {}'s client area ({cw} × {ch}): it's cut off — make the form bigger (ClientWidth / ClientHeight) or move it", b.id, b.x, b.w, b.y, b.h, f.id));
+            }
+        }
+    }
+    let solid = |b: &DesignBox| judged(b) && !b.ty.ends_with("LABEL") && !b.ty.ends_with("PANEL") && !b.ty.ends_with("GROUPBOX") && !b.ty.ends_with("TIMER");
+    let all: Vec<&DesignBox> = boxes.iter().filter(|b| solid(b)).collect();
+    for (i, a) in all.iter().enumerate() {
+        for b in &all[i + 1..] {
+            if a.parent == b.parent && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h {
+                out.push(format!("warning layout: {} ({},{} {}×{}) and {} ({},{} {}×{}) overlap: move one", a.id, a.x, a.y, a.w, a.h, b.id, b.x, b.y, b.w, b.h));
+            }
+        }
+    }
+    for b in boxes.iter().filter(|b| judged(b) && b.ty.ends_with("BUTTON") && !b.caption.is_empty()) {
+        let need = b.caption.chars().count() as i64 * 7 + 12;
+        if need > b.w + 4 {
+            out.push(format!("warning layout: {}'s caption \"{}\" needs about {need} pixels, its Width is {}: make it wider or the caption shorter", b.id, b.caption, b.w));
+        }
+    }
+    out
+}
+
+/// The forms the source makes, as boxes: each component's place and size
+/// (its own, else its type's default), parent, caption, Align, a form's
+/// client area — what [`layout_problems`] judges and [`layout_report`]
+/// lists.
+struct DesignBox {
+    id: String,
+    ty: String,
+    parent: String,
+    x: i64,
+    y: i64,
+    w: i64,
+    h: i64,
+    aligned: bool,
+    caption: String,
+    client: Option<(i64, i64)>,
+    visual: bool,
+}
+
+fn design_boxes(files: &[(String, String)]) -> Vec<DesignBox> {
     let srcs: Vec<(&str, &str)> = files.iter().filter(|(p, _)| is_source(p)).map(|(a, b)| (a.as_str(), b.as_str())).collect();
     if srcs.is_empty() {
         return Vec::new();
     }
     let model = rapidr_introspect::design::DesignModel::in_memory(&srcs);
     let Reply::Ok(list) = rapidr_introspect::handle(Some(&model), &Request::List { scope: None, type_name: None, limit: Some(1000), cursor: None }) else { return Vec::new() };
-    struct Box_ {
-        id: String,
-        ty: String,
-        parent: String,
-        x: i64,
-        y: i64,
-        w: i64,
-        h: i64,
-        aligned: bool,
-        caption: String,
-        client: Option<(i64, i64)>,
-        visual: bool,
-    }
-    let mut boxes: Vec<Box_> = Vec::new();
+    let mut boxes: Vec<DesignBox> = Vec::new();
     for o in list["objects"].as_array().into_iter().flatten() {
         let id = o["id"].as_str().unwrap_or("").to_string();
         let ty = o["type"].as_str().unwrap_or("").to_string();
@@ -1257,7 +1298,7 @@ pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
             (_, _, Some(w), Some(h)) => Some((w - 16, h - 39)),
             _ => None,
         };
-        boxes.push(Box_ {
+        boxes.push(DesignBox {
             id,
             ty: ty.to_ascii_uppercase(),
             parent: o["parent"].as_str().unwrap_or("").to_string(),
@@ -1271,30 +1312,39 @@ pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
             visual: comp.is_some_and(|c| c.visual),
         });
     }
-    let mut out = Vec::new();
-    let judged = |b: &Box_| b.visual && !b.aligned && !b.ty.ends_with("FORM") && b.w > 0 && b.h > 0;
+    boxes
+}
+
+/// The forms the source makes, in words, for an AI app (Studio's
+/// layout_report): each form's client area, each visual component's place
+/// and size (Align instead, when it has one), then what
+/// [`layout_problems`] finds.
+pub fn layout_report(files: &[(String, String)]) -> String {
+    let boxes = design_boxes(files);
+    let mut out = String::new();
     for f in boxes.iter().filter(|b| b.ty.ends_with("FORM")) {
-        let Some((cw, ch)) = f.client else { continue };
-        for b in boxes.iter().filter(|b| b.parent == f.id && judged(b)) {
-            if b.x + b.w > cw + 2 || b.y + b.h > ch + 2 {
-                out.push(format!("warning layout: {} (Left {} + Width {}, Top {} + Height {}) reaches past {}'s client area ({cw} × {ch}): it's cut off — make the form bigger (ClientWidth / ClientHeight) or move it", b.id, b.x, b.w, b.y, b.h, f.id));
+        match f.client {
+            Some((w, h)) => out.push_str(&format!("{} ({}): client area {w} × {h}\n", f.id, f.ty)),
+            None => out.push_str(&format!("{} ({})\n", f.id, f.ty)),
+        }
+        let mut kids = vec![(f.id.clone(), 1usize)];
+        while let Some((parent, depth)) = kids.pop() {
+            for b in boxes.iter().filter(|b| b.parent == parent && b.visual).rev() {
+                let place = if b.aligned { "aligned".to_string() } else { format!("Left {} Top {} Width {} Height {}", b.x, b.y, b.w, b.h) };
+                let cap = if b.caption.is_empty() { String::new() } else { format!(" \"{}\"", b.caption) };
+                out.push_str(&format!("{}{} ({}){cap}: {place}\n", "  ".repeat(depth), b.id, b.ty));
+                kids.push((b.id.clone(), depth + 1));
             }
         }
     }
-    let solid = |b: &Box_| judged(b) && !b.ty.ends_with("LABEL") && !b.ty.ends_with("PANEL") && !b.ty.ends_with("GROUPBOX") && !b.ty.ends_with("TIMER");
-    let all: Vec<&Box_> = boxes.iter().filter(|b| solid(b)).collect();
-    for (i, a) in all.iter().enumerate() {
-        for b in &all[i + 1..] {
-            if a.parent == b.parent && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h {
-                out.push(format!("warning layout: {} ({},{} {}×{}) and {} ({},{} {}×{}) overlap: move one", a.id, a.x, a.y, a.w, a.h, b.id, b.x, b.y, b.w, b.h));
-            }
-        }
+    if out.is_empty() {
+        return "The program makes no form (no CREATE … AS RFORM in its files).".into();
     }
-    for b in boxes.iter().filter(|b| judged(b) && b.ty.ends_with("BUTTON") && !b.caption.is_empty()) {
-        let need = b.caption.chars().count() as i64 * 7 + 12;
-        if need > b.w + 4 {
-            out.push(format!("warning layout: {}'s caption \"{}\" needs about {need} pixels, its Width is {}: make it wider or the caption shorter", b.id, b.caption, b.w));
-        }
+    let problems = layout_problems(files);
+    if problems.is_empty() {
+        out.push_str("No layout problems found (nothing cut off, nothing on top of another, captions fit).");
+    } else {
+        out.push_str(&problems.join("\n"));
     }
     out
 }

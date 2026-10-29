@@ -1153,6 +1153,23 @@ pub fn form_scale(name: &str) -> f64 {
     forms::form_scale(Rt, name)
 }
 
+/// Form.SaveImage: what form `name` shows now — drawn by the CPU renderer at
+/// its scale, as the tests' captures are — saved as a PNG (a BMP when the
+/// file's name ends in .bmp). Only the program's own forms.
+pub fn save_form_image(name: &str, path: &str) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("no file name".into());
+    }
+    let px = with_kern(|k| {
+        sync_desk(&mut k.desk);
+        rapidr_ui_host_winit::capture_checked(&mut k.desk, &RtStore, name).map(|(px, _)| px)
+    })
+    .flatten()
+    .ok_or_else(|| format!("{name} isn't shown"))?;
+    let bytes = if path.to_ascii_lowercase().ends_with(".bmp") { rapidr_value::objects::codec::encode_bmp(&px) } else { rapidr_value::objects::codec::encode_png(&px)? };
+    std::fs::write(path, bytes).map_err(|e| format!("can't write {path}: {e}"))
+}
+
 /// MOUSEX / MOUSEY: the mouse in the topmost form's client area.
 pub fn mouse_in_form() -> (i64, i64) {
     let (mx, my) = mouse();

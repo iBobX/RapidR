@@ -1037,6 +1037,11 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             }))
         }
         "toolkind" => s(tool_kind(&arg(0))),
+        "layoutreport" => s(with(name, |t| {
+            let (files, buffers) = t.with_waiting();
+            let project = Project { folder: &t.folder, files: &files, main: &t.main, compat: &t.compat, buffers: &buffers };
+            ai_tools::layout_report(&project.sources())
+        })),
         "toolactivity" => {
             let input: Json = serde_json::from_str(&arg(1)).unwrap_or(Json::Null);
             s(ai_tools::activity(&arg(0), &input).unwrap_or_else(|| arg(0)))

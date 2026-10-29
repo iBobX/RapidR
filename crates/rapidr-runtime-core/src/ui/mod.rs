@@ -33,6 +33,8 @@ pub use kernel::{
     gui_apply_icons, gui_set_window_state, gui_menu_popup, gui_menu_popup_at, gui_set_modified,
     // (form members: HideTitleBar / ShowTitleBar, ShapeForm, StartDrag)
     gui_title_bar, gui_shape_changed, gui_start_drag,
+    // (Form.SaveImage: the form as drawn, to a file)
+    save_form_image,
     // Text between the store and the host's editors.
     text_push, gui_set_text, gui_set_input_value, text_pull, gui_get_text, gui_get_input_value,
     // Waits (DOEVENTS and the VM's pump: [`gui_doevents`], [`gui_pump_wait`]).

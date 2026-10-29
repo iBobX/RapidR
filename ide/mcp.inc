@@ -5,22 +5,30 @@
 ' Off by default: Tools > Settings > AI Apps turns it on (a first-time
 ' confirmation says what AI apps can see; Cancel is the default), on
 ' 127.0.0.1 only, with a token kept in the system's keychain (Reset Token
-' makes a new one). Every call shows in the AI Apps pane (View > AI Apps
+' makes a new one). Every call shows in the AI Apps pane (Tools > AI Apps
 ' Activity) and the status bar as it happens, goes to the audit log the
-' assistant uses, and is checked against the user's choice for its kind:
+' assistant uses, and is checked against the permission mode — one choice,
+' in the pane's header and in Settings, remembered per project:
 '
-'   read     the project's files, RapidR's help, the compiler's check, the
-'            program's output, RAI's chat          Allowed / Ask each time
-'   change   changes to files (the assistant's propose_edit, write_file,
-'            create_project: applied once allowed), opening a project
-'                                                  Ask each time / Allowed / Not allowed
-'   run      running the program, stopping it      Ask each time / Allowed / Not allowed
-'   rai      asking RAI (it may cost money)        Ask each time / Allowed / Not allowed
+'   Read only            the AI app looks (reads, checks, describes,
+'                        searches, the outline, problems, the output, a
+'                        picture of Studio, the layout); a change or a run
+'                        is refused, said in plain words
+'   Ask before changes   (the default) looking is free; each change, run or
+'                        question to RAI waits in the pane: Allow Once,
+'                        Allow for This Session, Deny (Review for a change)
+'   Allow edits          changes to files are made at once (each one undo
+'                        step, listed, in the audit log); a run or RAI asks
+'   Allow everything     nothing asks: a warning badge in the pane and the
+'                        status bar, a confirmation when chosen; still
+'                        listed and logged, Stop still there
 '
-' "Ask each time" shows the call in the pane: Allow Once, Allow for This
-' Session, Deny (and Review for a change). Stop turns the server off: every
-' AI app is disconnected. A project opened from outside the Projects
+' In every mode: never a key or a secret, never a file outside the open
+' project or hidden in it, and a project opened from outside the Projects
 ' folder, RapidR's examples and the recent list is always asked first.
+' Stop turns the server off: every AI app is disconnected. (RAI's own
+' permissions — Settings > AI — should take the same four words: a
+' follow-up, docs/manual/ai-apps.md.)
 '
 ' The tools are the assistant's (RAIProjectTools: one implementation —
 ' McpTools is Studio's second one, its own proposals) plus Studio's:
@@ -29,8 +37,8 @@
 '
 ' Test steps (only with RAPIDR_TEST_MCP_TOKEN, which stands in for the
 ' keychain's token): mcp:on[=port], mcp:off, mcp:allow=change|run|rai,
-' mcp:perm=<kind>:<allow|ask|never>, mcp:decide=<once|session|deny>,
-' mcp:settings, mcp:pane.
+' mcp:mode=<read|ask|edits|all> (no confirmation),
+' mcp:decide=<once|session|deny>, mcp:settings, mcp:pane.
 
 DECLARE SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
 DECLARE SUB McpClientIn(Client AS STRING)
@@ -51,8 +59,18 @@ DECLARE SUB McpRevApply
 DECLARE SUB McpRevReject
 DECLARE SUB McpRevPicked
 DECLARE FUNCTION McpKindOf(Tool AS STRING) AS STRING
-DECLARE FUNCTION McpPerm(Kind AS STRING) AS STRING
-DECLARE SUB McpSetPerm(Kind AS STRING, Choice AS STRING)
+DECLARE FUNCTION McpModeName(Mode AS STRING) AS STRING
+DECLARE FUNCTION McpModeIndex(Mode AS STRING) AS INTEGER
+DECLARE FUNCTION McpModeAt(Index AS INTEGER) AS STRING
+DECLARE FUNCTION McpModeNote(Mode AS STRING) AS STRING
+DECLARE FUNCTION McpDecision(Kind AS STRING) AS STRING
+DECLARE SUB McpModeFollow
+DECLARE FUNCTION McpModeKept(Key AS STRING) AS STRING
+DECLARE SUB McpSetMode(Mode AS STRING)
+DECLARE FUNCTION McpConfirmAll AS INTEGER
+DECLARE SUB McpShowMode
+DECLARE SUB McpModePicked
+DECLARE SUB McpPageModePicked
 DECLARE SUB McpLoadSettings
 DECLARE SUB McpSaveSettings
 DECLARE FUNCTION McpTokenNow AS STRING
@@ -75,7 +93,6 @@ DECLARE FUNCTION McpApply(Said AS STRING) AS STRING
 DECLARE SUB McpRejectAll
 DECLARE SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE FUNCTION McpShownPath(Path AS STRING) AS STRING
-DECLARE FUNCTION McpPermWords(Kind AS STRING) AS STRING
 DECLARE FUNCTION McpStatusText AS STRING
 DECLARE FUNCTION McpRel(Path AS STRING) AS STRING
 DECLARE FUNCTION McpDocumentsText AS STRING
@@ -92,8 +109,10 @@ DECLARE SUB McpAskRai(CallId AS INTEGER, Client AS STRING, What AS STRING)
 DECLARE FUNCTION McpRaiStepsText AS STRING
 DECLARE FUNCTION McpRaiTranscript(Chars AS INTEGER) AS STRING
 DECLARE FUNCTION McpRaiAudit(Count AS INTEGER) AS STRING
-DECLARE FUNCTION McpPermIndex(Choice AS STRING, IsRead AS INTEGER) AS INTEGER
-DECLARE FUNCTION McpPermOfIndex(Index AS INTEGER, IsRead AS INTEGER) AS STRING
+DECLARE SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
+DECLARE FUNCTION McpDebugState AS STRING
+DECLARE SUB McpCapture(CallId AS INTEGER, Client AS STRING)
+DECLARE FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
 
 CONST MCP_DEFAULT_PORT = 47330
 CONST MCPWAITS = 16
@@ -102,12 +121,19 @@ CONST MCP_OUTPUT_KEPT = 65536
 
 DIM Mcp AS RMcpServer
 DIM McpTools AS RAIProjectTools
+DIM McpJ AS RJson
 DIM McpSecrets AS RSecrets
 DIM McpTimer AS RTimer
 ' (the settings: on, the port, each kind's choice — "allow", "ask", "never")
 DIM McpOn AS INTEGER
 DIM McpPort AS INTEGER
-DIM McpPermRead AS STRING, McpPermChange AS STRING, McpPermRun AS STRING, McpPermRai AS STRING
+' (the permission mode: "read", "ask" (the default), "edits", "all"; the
+' project it is for — its file, "" none —; each project's, kept as
+' "file<TAB>mode" lines; the menus being filled: not the user's change)
+DIM McpMode AS STRING
+DIM McpModeOf AS STRING
+DIM McpModes AS STRING
+DIM McpModeFilling AS INTEGER
 DIM McpConfirmed AS INTEGER
 ' (the kinds allowed for this session from the pane: "|change|run|")
 DIM McpGrants AS STRING
@@ -126,6 +152,9 @@ DIM McpWaitCount AS INTEGER
 ' asked; ask_rai waiting for RAI)
 DIM McpRunCall AS INTEGER, McpRunUntil AS DOUBLE, McpRunFrom AS LONG, McpRunAction AS STRING
 DIM McpRaiCall AS INTEGER, McpRaiUntil AS DOUBLE, McpRaiSaid AS STRING
+' (debug waiting for the program to stop: its call, until when, the stops
+' seen before it, then a moment for the variables to arrive)
+DIM McpDebugCall AS INTEGER, McpDebugUntil AS DOUBLE, McpDebugStops AS LONG, McpDebugSettle AS DOUBLE
 ' (the program's output, and where read_output read up to)
 DIM McpOutput AS STRING
 DIM McpOutputDropped AS LONG
@@ -154,6 +183,18 @@ CREATE McpPanel AS RPanel
     CREATE McpSub AS RLabel
       Left = 12: Top = 30: Width = 300
       AccessibleName = "What the AI app does now"
+    END CREATE
+    CREATE McpModeBox AS RComboBox
+      Style = 2
+      AccessibleName = "What AI apps may do"
+      AccessibleDescription = "Read only, Ask before changes, Allow edits or Allow everything: for this project"
+      OnChange = McpModePicked
+    END CREATE
+    CREATE McpBadge AS RLabel
+      Caption = "No questions asked"
+      Alignment = 2
+      Visible = 0
+      AccessibleName = "Warning: AI apps may change and run anything in this project without asking"
     END CREATE
     CREATE McpStopBtn AS RButton
       Caption = "&Stop"
@@ -211,7 +252,7 @@ CREATE McpPage AS RPanel
   END CREATE
   CREATE McpOnNote AS RLabel
     WordWrap = 1: AutoSize = 0
-    Caption = "When on, an AI app on this computer that has the address and token below can work with your open project, and you see everything it does in the AI Apps pane (View > AI Apps Activity). Paste both into your AI app's MCP settings: the manual shows an example."
+    Caption = "When on, an AI app on this computer that has the address and token below can work with your open project, and you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into your AI app's MCP settings: the manual shows an example."
   END CREATE
   CREATE McpPortLabel AS RLabel
     Caption = "P&ort:"
@@ -254,35 +295,16 @@ CREATE McpPage AS RPanel
     OnClick = McpResetTokenClick
   END CREATE
   CREATE McpPermHead AS RLabel
-    Caption = "What AI apps may do"
+    Caption = "What AI apps may &do:"
   END CREATE
-  CREATE McpReadLabel AS RLabel
-    Caption = "Read the &project:"
-  END CREATE
-  CREATE McpReadBox AS RComboBox
+  CREATE McpPageModeBox AS RComboBox
     Style = 2
-    AccessibleName = "Read the project, RapidR's help, the program's output and RAI's chat"
+    AccessibleName = "What AI apps may do in this project"
+    OnChange = McpPageModePicked
   END CREATE
-  CREATE McpChangeLabel AS RLabel
-    Caption = "&Change files:"
-  END CREATE
-  CREATE McpChangeBox AS RComboBox
-    Style = 2
-    AccessibleName = "Change files and open projects"
-  END CREATE
-  CREATE McpRunLabel AS RLabel
-    Caption = "R&un programs:"
-  END CREATE
-  CREATE McpRunBox AS RComboBox
-    Style = 2
-    AccessibleName = "Run and stop the program"
-  END CREATE
-  CREATE McpRaiLabel AS RLabel
-    Caption = "Ask RA&I:"
-  END CREATE
-  CREATE McpRaiBox AS RComboBox
-    Style = 2
-    AccessibleName = "Ask RAI, Studio's assistant (it may cost money)"
+  CREATE McpModeNoteLabel AS RLabel
+    WordWrap = 1: AutoSize = 0
+    AccessibleName = "What the choice means"
   END CREATE
   CREATE McpSeeNote AS RLabel
     WordWrap = 1: AutoSize = 0
@@ -336,39 +358,152 @@ END CREATE
 
 FUNCTION McpKindOf(Tool AS STRING) AS STRING
   SELECT CASE Tool
-    CASE "propose_edit", "write_file", "create_project", "open_project": Result = "change"
-    CASE "run_program": Result = "run"
+    CASE "propose_edit", "write_file", "create_project", "open_project", "set_property": Result = "change"
+    CASE "run_program", "debug": Result = "run"
     CASE "ask_rai": Result = "rai"
     CASE ELSE: Result = "read"
   END SELECT
 END FUNCTION
 
-FUNCTION McpPerm(Kind AS STRING) AS STRING
-  SELECT CASE Kind
-    CASE "change": Result = McpPermChange
-    CASE "run": Result = McpPermRun
-    CASE "rai": Result = McpPermRai
-    CASE ELSE: Result = McpPermRead
+' ---- the permission mode -------------------------------------------------------
+
+' A mode as the menus say it.
+FUNCTION McpModeName(Mode AS STRING) AS STRING
+  SELECT CASE Mode
+    CASE "read": Result = "Read only"
+    CASE "edits": Result = "Allow edits"
+    CASE "all": Result = "Allow everything"
+    CASE ELSE: Result = "Ask before changes"
   END SELECT
 END FUNCTION
 
-SUB McpSetPerm(Kind AS STRING, Choice AS STRING)
-  DIM c AS STRING
-  c = LCASE$(Choice)
-  IF c <> "allow" AND c <> "ask" AND c <> "never" THEN EXIT SUB
-  ' (reading is allowed or asked, never off: an AI app that can't read can't help)
-  IF Kind = "read" AND c = "never" THEN c = "ask"
-  SELECT CASE Kind
-    CASE "read": McpPermRead = c
-    CASE "change": McpPermChange = c
-    CASE "run": McpPermRun = c
-    CASE "rai": McpPermRai = c
+FUNCTION McpModeIndex(Mode AS STRING) AS INTEGER
+  SELECT CASE Mode
+    CASE "read": Result = 0
+    CASE "edits": Result = 2
+    CASE "all": Result = 3
+    CASE ELSE: Result = 1
   END SELECT
+END FUNCTION
+
+FUNCTION McpModeAt(Index AS INTEGER) AS STRING
+  SELECT CASE Index
+    CASE 0: Result = "read"
+    CASE 2: Result = "edits"
+    CASE 3: Result = "all"
+    CASE ELSE: Result = "ask"
+  END SELECT
+END FUNCTION
+
+' What a mode means, in a sentence or two (Settings shows it under the menu).
+FUNCTION McpModeNote(Mode AS STRING) AS STRING
+  SELECT CASE Mode
+    CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change or run anything."
+    CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program and asking RAI still wait for you."
+    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own. Everything is still listed, Stop ends it, and they never reach keys or anything outside the project."
+    CASE ELSE: Result = "AI apps can look freely; each change, run or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
+  END SELECT
+END FUNCTION
+
+' What a call of Kind gets in the mode: "allow", "ask" or "refuse".
+FUNCTION McpDecision(Kind AS STRING) AS STRING
+  IF Kind = "read" THEN
+    Result = "allow"
+    EXIT FUNCTION
+  END IF
+  SELECT CASE McpMode
+    CASE "read": Result = "refuse"
+    CASE "all": Result = "allow"
+    CASE "edits"
+      IF Kind = "change" THEN Result = "allow" ELSE Result = "ask"
+    CASE ELSE: Result = "ask"
+  END SELECT
+  ' (Allow for This Session: that kind until Studio closes, the server
+  ' stops or another project opens)
+  IF Result = "ask" AND INSTR(McpGrants, "|" + Kind + "|") > 0 THEN Result = "allow"
+END FUNCTION
+
+' (the mode of the project open now: its own, kept, else Ask before changes)
+SUB McpModeFollow
+  DIM key AS STRING
+  IF ProjectOpen THEN key = ProjectFile ELSE key = ""
+  IF key = McpModeOf AND McpMode <> "" THEN EXIT SUB
+  McpModeOf = key
+  McpMode = McpModeKept(key)
+  McpGrants = ""
+  McpShowMode
+END SUB
+
+FUNCTION McpModeKept(Key AS STRING) AS STRING
+  DIM k AS INTEGER, line AS STRING
+  Result = "ask"
+  FOR k = 1 TO TALLY(McpModes, CHR$(10)) + 1
+    line = FIELD$(McpModes, CHR$(10), k)
+    IF line <> "" AND FIELD$(line, CHR$(9), 1) = Key THEN Result = FIELD$(line, CHR$(9), 2)
+  NEXT
+  IF Result <> "read" AND Result <> "edits" AND Result <> "all" THEN Result = "ask"
+END FUNCTION
+
+' The project's mode from now on: kept, said, in the audit log.
+SUB McpSetMode(Mode AS STRING)
+  DIM k AS INTEGER, line AS STRING, kept AS STRING
+  IF Mode = McpMode THEN
+    McpShowMode
+    EXIT SUB
+  END IF
+  McpMode = Mode
+  FOR k = 1 TO TALLY(McpModes, CHR$(10)) + 1
+    line = FIELD$(McpModes, CHR$(10), k)
+    IF line <> "" AND FIELD$(line, CHR$(9), 1) <> McpModeOf THEN kept = kept + line + CHR$(10)
+  NEXT
+  ' (the newest last; the 50 last projects' kept)
+  kept = kept + McpModeOf + CHR$(9) + Mode
+  WHILE TALLY(kept, CHR$(10)) >= 50
+    kept = MID$(kept, INSTR(kept, CHR$(10)) + 1)
+  WEND
+  McpModes = kept
+  McpGrants = ""
+  McpSaveSettings
+  McpShowMode
+  McpLog.AddItems LEFT$(TIME$, 8) + "  AI apps may now: " + McpModeName(Mode)
+  McpLog.ItemIndex = McpLog.ItemCount - 1
+  McpTools.AuditCall "Studio", "mode", "", McpModeName(Mode)
+  Application.Announce "AI apps: " + McpModeName(Mode)
+END SUB
+
+' (Allow everything chosen: what it means said, Cancel the default)
+FUNCTION McpConfirmAll AS INTEGER
+  Result = Flag(MESSAGEDLG("Allow everything for AI apps in this project?" + CHR$(10) + CHR$(10) + McpModeNote("all") + " Choose it only while you watch an AI app you trust.", mtWarning, mbOK OR mbCancel, 0, mrCancel) = mrOk)
+END FUNCTION
+
+' The pane's menu: the user's choice (Allow everything confirmed first).
+SUB McpModePicked
+  DIM m AS STRING
+  IF McpModeFilling THEN EXIT SUB
+  m = McpModeAt(McpModeBox.ItemIndex)
+  IF m = "all" AND McpMode <> "all" THEN
+    IF McpConfirmAll = 0 THEN
+      McpShowMode
+      EXIT SUB
+    END IF
+  END IF
+  McpSetMode m
+END SUB
+
+' (the menu, the badge and the status bar as the mode is)
+SUB McpShowMode
+  McpModeFilling = 1
+  IF McpModeBox.ItemCount = 0 THEN McpModeBox.AddItems "Read only", "Ask before changes", "Allow edits", "Allow everything"
+  McpModeBox.ItemIndex = McpModeIndex(McpMode)
+  McpModeFilling = 0
+  McpBadge.Visible = Flag(McpMode = "all")
+  McpLayOutPane
+  McpStatusShow
 END SUB
 
 SUB McpLoadSettings
   McpPort = MCP_DEFAULT_PORT
-  McpPermRead = "allow": McpPermChange = "ask": McpPermRun = "ask": McpPermRai = "ask"
+  McpMode = "ask"
   McpOn = 0
   IF SettingsRead = 0 THEN EXIT SUB
   Reg.RootKey = HKCU
@@ -378,12 +513,7 @@ SUB McpLoadSettings
   IF Reg.ValueExists("McpPort") THEN McpPort = VAL(Reg.ReadString("McpPort"))
   IF McpPort < 1024 OR McpPort > 65535 THEN McpPort = MCP_DEFAULT_PORT
   IF Reg.ValueExists("McpConfirmed") THEN McpConfirmed = Flag(Reg.ReadString("McpConfirmed") = "1")
-  IF Reg.ValueExists("McpPerms") THEN
-    McpSetPerm "read", FIELD$(Reg.ReadString("McpPerms"), ",", 1)
-    McpSetPerm "change", FIELD$(Reg.ReadString("McpPerms"), ",", 2)
-    McpSetPerm "run", FIELD$(Reg.ReadString("McpPerms"), ",", 3)
-    McpSetPerm "rai", FIELD$(Reg.ReadString("McpPerms"), ",", 4)
-  END IF
+  IF Reg.ValueExists("McpModes") THEN McpModes = REPLACESUBSTR$(REPLACESUBSTR$(Reg.ReadString("McpModes"), "|", CHR$(10)), "?", CHR$(9))
 END SUB
 
 SUB McpSaveSettings
@@ -393,7 +523,8 @@ SUB McpSaveSettings
   Reg.WriteString("McpOn", Num(McpOn))
   Reg.WriteString("McpPort", Num(McpPort))
   Reg.WriteString("McpConfirmed", Num(McpConfirmed))
-  Reg.WriteString("McpPerms", McpPermRead + "," + McpPermChange + "," + McpPermRun + "," + McpPermRai)
+  ' (a project's file and its mode, a line each: | and ? stand for them)
+  Reg.WriteString("McpModes", REPLACESUBSTR$(REPLACESUBSTR$(McpModes, CHR$(10), "|"), CHR$(9), "?"))
 END SUB
 
 ' The token AI apps send: the system's keychain keeps it (made the first
@@ -432,14 +563,18 @@ SUB SetUpMcp
   McpTimer.Interval = 250
   McpTimer.Enabled = 0
   McpTimer.OnTimer = McpTickTimer
+  ' (the desktop's only: a web page can't listen for AI apps — WebMCP,
+  ' later, is the browser's way)
+  IF Proj.FileManager = "" THEN
+    McpOn = 0
+    EXIT SUB
+  END IF
   Dock.AddPane(McpPanel, "AI Apps", "tab:outputbox", "plug")
   Dock.HidePane("mcppanel")
   McpPage.Parent = SettingsDialog
   SettingsTabs.AddTabs "AI Apps"
-  McpReadBox.AddItems "Allowed", "Ask each time"
-  McpChangeBox.AddItems "Ask each time", "Allowed", "Not allowed"
-  McpRunBox.AddItems "Ask each time", "Allowed", "Not allowed"
-  McpRaiBox.AddItems "Ask each time", "Allowed", "Not allowed"
+  McpPageModeBox.AddItems "Read only", "Ask before changes", "Allow edits", "Allow everything"
+  McpModeFollow
   McpSeeNote.Caption = McpSeeText
   McpShowState
   IF McpOn THEN McpStart
@@ -512,7 +647,9 @@ END SUB
 SUB McpSyncTools
   DIM names AS STRING, n AS INTEGER, k AS INTEGER, t AS STRING
   Mcp.ClearTools
-  IF McpPermChange = "never" THEN McpTools.Permission = "read-only" ELSE McpTools.Permission = "propose"
+  ' (the same tools in every mode — a call the mode refuses is said so, in
+  ' plain words)
+  McpTools.Permission = "propose"
   Mcp.AddTool "studio_status", "What RapidR Studio has open now: the project and its files, the documents open (unsaved ones marked), whether the program runs, its errors, RAI, and what you may do. Call it first.", "", "read"
   names = McpTools.ToolNames
   n = TALLY(names, CHR$(10)) + 1
@@ -526,15 +663,13 @@ SUB McpSyncTools
   Mcp.AddTool "get_rai_steps", "What RAI, Studio's own assistant, is doing or did in its last answer: busy or not, its status, and its steps (each tool it used).", "", "read"
   Mcp.AddTool "get_rai_transcript", "RAI's chat as the user sees it, as Markdown: its last Chars characters (8000 by default).", "[Chars AS INTEGER]", "read"
   Mcp.AddTool "get_rai_audit", "RAI's audit log: its last Count lines (30 by default) — each request to its provider, each tool, each change it proposed and what the user decided.", "[Count AS INTEGER]", "read"
-  IF McpPermChange <> "never" THEN
-    Mcp.AddTool "open_project", "Opens a project (.rrproj) or a program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes.", "Path AS STRING", "change"
-  END IF
-  IF McpPermRun <> "never" THEN
-    Mcp.AddTool "run_program", "Runs the open project's program in Studio (saving its files first, as Run does) and waits up to Wait seconds (3 by default, 60 at most) or until it ends; says how it went and what it printed. Action: start (default), stop, restart or status. Debug = true runs it with the debugger (it stops at the user's breakpoints).", "[Action AS STRING], [Wait AS INTEGER], [Debug AS BOOLEAN]", "change"
-  END IF
-  IF McpPermRai <> "never" THEN
-    Mcp.AddTool "ask_rai", "Asks RAI, RapidR Studio's own assistant, as the user would in its panel (the user sees it), and waits for its answer (Wait = false: at once; then get_rai_steps). RAI may propose changes the user reviews. It uses the user's AI provider, which may cost money.", "Prompt AS STRING, [Wait AS BOOLEAN]", "network"
-  END IF
+  Mcp.AddTool "layout_report", "The program's forms as the source makes them: each form's client area, each component's place and size (Left, Top, Width, Height, or aligned), then what looks wrong — a control cut off by its form, two on top of each other, a caption too long for its button.", "", "read"
+  Mcp.AddTool "capture", "A picture (PNG) of RapidR Studio's window as the user sees it now: the code, the form designer, the panes. Use it to see a form you changed in the designer.", "", "read"
+  Mcp.AddTool "open_project", "Opens a project (.rrproj) or a program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes.", "Path AS STRING", "change"
+  Mcp.AddTool "set_property", "Sets a component's property in the form designer, as the user would in the Properties pane: Component (its name, rapidr_list gives them), Property (Caption, Left, Width, Color …) and Value as the code writes it (\"OK\" for text, 120, &HFF0000, True). One undo step in its file.", "Component AS STRING, Property AS STRING, Value AS STRING", "change"
+  Mcp.AddTool "debug", "The debugger, on the program run_program started with Debug = true: Action breakpoint (File and Line: set one; Remove = true takes it away), continue, step_over, step_into, step_out, pause, or state. Waits up to Wait seconds (5 by default) for the program to stop, then says where it is, the call stack and the variables.", "Action AS STRING, [File AS STRING], [Line AS INTEGER], [Remove AS BOOLEAN], [Wait AS INTEGER]", "change"
+  Mcp.AddTool "run_program", "Runs the open project's program in Studio (saving its files first, as Run does) and waits up to Wait seconds (3 by default, 60 at most) or until it ends; says how it went and what it printed. Action: start (default), stop, restart or status. Debug = true runs it with the debugger (it stops at the user's breakpoints).", "[Action AS STRING], [Wait AS INTEGER], [Debug AS BOOLEAN]", "change"
+  Mcp.AddTool "ask_rai", "Asks RAI, RapidR Studio's own assistant, as the user would in its panel (the user sees it), and waits for its answer (Wait = false: at once; then get_rai_steps). RAI may propose changes the user reviews. It uses the user's AI provider, which may cost money.", "Prompt AS STRING, [Wait AS BOOLEAN]", "network"
 END SUB
 
 ' The open project, as McpTools sees it: its files, the editors' texts.
@@ -575,7 +710,14 @@ SUB McpFonts
   McpAsk.Color = TC("card")
   McpAskMark.Color = TC("accent")
   McpLog.Font = UIFont
+  IF ThemeName = "classic" THEN McpLog.ItemHeight = 16 ELSE McpLog.ItemHeight = 22
   McpStopBtn.Font = UIFont
+  McpModeBox.Font = UIFont
+  ' (a warning's colours: the paused state's amber, its white text)
+  McpBadge.Font = UIFont
+  McpBadge.Font.Bold = 1
+  McpBadge.Color = TC("statusbar.debugging")
+  McpBadge.Font.Color = TC("statusbar.statetext")
   McpOnceBtn.Font = UIFont
   McpSessionBtn.Font = UIFont
   McpDenyBtn.Font = UIFont
@@ -590,7 +732,14 @@ SUB McpLayOutPane
   IF w < 200 THEN w = 600
   McpStopBtn.Width = 96: McpStopBtn.Height = bh
   McpStopBtn.Left = w - 108: McpStopBtn.Top = (58 - bh) \ 2
-  McpHead.Width = w - 132: McpSub.Width = w - 132
+  ' (the mode's menu beside Stop; Allow everything's badge before it)
+  McpModeBox.Width = 190: McpModeBox.Left = w - 108 - 198: McpModeBox.Top = (58 - bh) \ 2 + 1
+  McpBadge.Width = 150: McpBadge.Height = 24: McpBadge.Left = McpModeBox.Left - 158: McpBadge.Top = McpModeBox.Top + 1
+  IF McpBadge.Visible THEN
+    McpHead.Width = McpBadge.Left - 20: McpSub.Width = McpBadge.Left - 20
+  ELSE
+    McpHead.Width = McpModeBox.Left - 20: McpSub.Width = McpModeBox.Left - 20
+  END IF
   McpAskText.Width = w - 28
   McpOnceBtn.Left = 16: McpOnceBtn.Top = 58: McpOnceBtn.Width = 110: McpOnceBtn.Height = bh
   McpSessionBtn.Left = 132: McpSessionBtn.Top = 58: McpSessionBtn.Width = 190: McpSessionBtn.Height = bh
@@ -635,6 +784,8 @@ SUB McpStatusShow
   END IF
   IF Mcp.Listening = 0 THEN
     t = "AI apps: off"
+  ELSEIF McpMode = "all" THEN
+    t = "AI apps: allow everything"
   ELSEIF McpWaitCount > 0 THEN
     t = "AI apps: waiting for you"
   ELSEIF Mcp.ClientCount = 0 THEN
@@ -694,17 +845,20 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   McpCalls = McpCalls + 1
   McpPaneShow
   kind = McpKindOf(Tool)
-  perm = McpPerm(kind)
+  ' (the open project's mode)
+  McpModeFollow
+  perm = McpDecision(kind)
   McpSyncProject
   what = McpTools.ToolActivity(Tool, Arguments)
-  IF perm = "never" THEN
-    Mcp.Reply CallId, "Not allowed: the user turned this off for AI apps (Tools > Settings > AI Apps in RapidR Studio).", 1
-    McpLogLine client, Tool, what, "", "not allowed"
+  IF perm = "refuse" THEN
+    Mcp.Reply CallId, "Not allowed: RapidR Studio lets AI apps only look at this project now (its user chose Read only in the AI Apps pane), so nothing can be changed or run. Tell the user what you would do instead; they can choose another mode there.", 1
+    McpLogLine client, Tool, what, "", "refused: Read only"
     EXIT SUB
   END IF
-  ' (a change is made first — nothing is written — so the user decides on
-  ' what it really is; a run, RAI and a project to open are asked first)
-  IF kind = "change" AND Tool <> "open_project" THEN
+  ' (a change to files is made first — nothing is written — so the user
+  ' decides on what it really is; a run, RAI, a property and a project to
+  ' open are asked first)
+  IF kind = "change" AND Tool <> "open_project" AND Tool <> "set_property" THEN
     McpProposeThen Tool, Arguments, CallId, client, what, perm
     EXIT SUB
   END IF
@@ -717,9 +871,11 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
       EXIT SUB
     END IF
     what = "Opening " + McpShownPath(McpFullPath(Mcp.Argument("Path")))
-    IF McpOpenAllowed(Mcp.Argument("Path")) = 0 THEN perm = "always-ask"
+    ' (outside the Projects folder, the examples and the recent list: asked
+    ' in every mode)
+    IF McpOpenAllowed(Mcp.Argument("Path")) = 0 THEN perm = "ask"
   END IF
-  IF perm = "allow" OR (perm = "ask" AND INSTR(McpGrants, "|" + kind + "|") > 0) THEN
+  IF perm = "allow" THEN
     McpRun Tool, Arguments, CallId, client, what
   ELSE
     McpWait Tool, Arguments, CallId, client, kind, what
@@ -736,7 +892,7 @@ SUB McpProposeThen(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Clien
     McpLogLine Client, Tool, What, McpTools.CallTarget, "refused: " + McpTools.CallNote
     EXIT SUB
   END IF
-  IF Perm = "allow" OR INSTR(McpGrants, "|change|") > 0 THEN
+  IF Perm = "allow" THEN
     Mcp.Reply CallId, McpApply(answer), 0
     McpLogLine Client, Tool, What, McpTools.CallTarget, "applied"
   ELSE
@@ -1006,6 +1162,18 @@ SUB McpRun(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER, Client AS STR
     CASE "run_program"
       McpRunProgram CallId, Client, What
       EXIT SUB
+    CASE "debug"
+      McpDebug CallId, Client, What
+      EXIT SUB
+    CASE "layout_report"
+      McpSyncProject
+      answer = McpTools.LayoutReport
+    CASE "capture"
+      McpCapture CallId, Client
+      EXIT SUB
+    CASE "set_property"
+      answer = McpSetProperty(Mcp.Argument("Component", CallId), Mcp.Argument("Property", CallId), Mcp.Argument("Value", CallId))
+      failed = Flag(LEFT$(answer, 4) = "Can'")
     CASE "ask_rai"
       McpAskRai CallId, Client, What
       EXIT SUB
@@ -1030,16 +1198,6 @@ FUNCTION McpShownPath(Path AS STRING) AS STRING
   IF home <> "" AND LEFT$(REPLACESUBSTR$(Path, "\", "/"), LEN(home)) = home THEN Result = "~" + MID$(REPLACESUBSTR$(Path, "\", "/"), LEN(home) + 1) ELSE Result = Path
 END FUNCTION
 
-FUNCTION McpPermWords(Kind AS STRING) AS STRING
-  DIM p AS STRING
-  p = McpPerm(Kind)
-  IF p = "ask" AND INSTR(McpGrants, "|" + Kind + "|") > 0 THEN p = "allow"
-  SELECT CASE p
-    CASE "allow": Result = "allowed"
-    CASE "never": Result = "not allowed"
-    CASE ELSE: Result = "the user is asked each time"
-  END SELECT
-END FUNCTION
 
 FUNCTION McpStatusText AS STRING
   DIM t AS STRING, nl AS STRING, i AS INTEGER, f AS STRING, d AS INTEGER, docs AS STRING, n AS INTEGER, info AS STRING
@@ -1072,7 +1230,8 @@ FUNCTION McpStatusText AS STRING
     IF FIELD$(info, CHR$(9), 6) = "" THEN n = n + 1
   NEXT
   IF n > 0 THEN t = t + "Your changes waiting for the user: " + Num(n) + nl
-  t = t + "You may: read — " + McpPermWords("read") + "; change files — " + McpPermWords("change") + "; run programs — " + McpPermWords("run") + "; ask RAI — " + McpPermWords("rai") + "."
+  t = t + "Permission: " + McpModeName(McpMode) + " — " + McpModeNote(McpMode)
+  IF McpGrants <> "" AND McpMode = "ask" THEN t = t + " Allowed for this session: " + REPLACESUBSTR$(MID$(McpGrants, 2, LEN(McpGrants) - 2), "||", ", ") + "."
   Result = t
 END FUNCTION
 
@@ -1248,6 +1407,147 @@ SUB McpRunProgram(CallId AS INTEGER, Client AS STRING, What AS STRING)
   END SELECT
 END SUB
 
+' ---- debug -----------------------------------------------------------------------------
+
+SUB McpDebug(CallId AS INTEGER, Client AS STRING, What AS STRING)
+  DIM action AS STRING, f AS STRING, full AS STRING, d AS INTEGER, ln AS INTEGER, i AS INTEGER, w AS DOUBLE
+  action = LCASE$(Mcp.Argument("Action", CallId))
+  w = VAL(Mcp.Argument("Wait", CallId))
+  IF Mcp.Argument("Wait", CallId) = "" THEN w = 5
+  IF w < 0 THEN w = 0
+  IF w > 60 THEN w = 60
+  SELECT CASE action
+    CASE "breakpoint"
+      f = Mcp.Argument("File", CallId)
+      IF f = "" THEN f = Proj.MainFile
+      ln = VAL(Mcp.Argument("Line", CallId))
+      full = ProjectPath(f)
+      IF ProjectOpen = 0 OR InProject(full) = 0 OR ln < 1 THEN
+        Mcp.Reply CallId, "Can't: give File (one of the project's files) and Line (from 1).", 1
+        EXIT SUB
+      END IF
+      d = DocOf(full)
+      IF d < 0 THEN
+        OpenDocument full
+        d = DocOf(full)
+      END IF
+      IF d < 0 THEN
+        Mcp.Reply CallId, "Can't open " + f + ".", 1
+        EXIT SUB
+      END IF
+      i = FindBreakpoint(DocFile(d), ln)
+      IF (LCASE$(Mcp.Argument("Remove", CallId)) = "true") = (i >= 0) THEN ToggleBreakpointAt d, ln
+      Mcp.Reply CallId, StateText + ". " + McpDebugState
+      McpLogLine Client, "debug", StateText, McpRel(full), "ok"
+      EXIT SUB
+    CASE "state"
+      Mcp.Reply CallId, McpDebugState
+      McpLogLine Client, "debug", "Debugger state", "", "ok"
+      EXIT SUB
+    CASE "continue": IF RunState = "paused" THEN RunCommand "run.continue"
+    CASE "step_over": RunCommand "debug.stepOver"
+    CASE "step_into": RunCommand "debug.stepInto"
+    CASE "step_out": RunCommand "debug.stepOut"
+    CASE "pause": RunCommand "run.pause"
+    CASE ELSE
+      Mcp.Reply CallId, "Action is breakpoint, continue, step_over, step_into, step_out, pause or state.", 1
+      EXIT SUB
+  END SELECT
+  McpLogLine Client, "debug", "Debugger: " + action, "", "ok"
+  McpDebugCall = CallId
+  McpDebugUntil = TIMER + w
+  McpDebugStops = LEN(StopLog)
+  McpDebugSettle = 0
+END SUB
+
+' Where the program is, its call stack and its variables, in words.
+FUNCTION McpDebugState AS STRING
+  DIM t AS STRING, nl AS STRING, k AS INTEGER, bps AS STRING
+  nl = CHR$(10)
+  t = McpRunWords
+  IF RunState = "paused" THEN
+    t = t + nl + "Call stack:"
+    FOR k = 0 TO FrameCount - 1
+      t = t + nl + "  " + FrameName(k) + "  " + FileTitle(FrameFile(k)) + ":" + Num(FrameLine(k))
+    NEXT
+    t = t + nl + "Variables:"
+    FOR k = 0 TO VarsTree.ItemCount - 1
+      IF k > 60 THEN EXIT FOR
+      t = t + nl + "  " + VarsTree.Item(k).Text
+    NEXT
+  END IF
+  FOR k = 0 TO BpCount - 1
+    IF bps <> "" THEN bps = bps + ", "
+    bps = bps + McpRel(BpFile(k)) + ":" + Num(BpLine(k))
+  NEXT
+  IF bps = "" THEN bps = "none"
+  t = t + nl + "Breakpoints: " + bps
+  Result = t
+END FUNCTION
+
+' ---- capture and set_property ------------------------------------------------------------
+
+' A picture of Studio's window, as the user sees it now.
+SUB McpCapture(CallId AS INTEGER, Client AS STRING)
+  DIM f AS STRING
+  f = ENVIRON$("TMPDIR")
+  IF f = "" THEN f = ENVIRON$("TEMP")
+  IF f = "" THEN f = "/tmp"
+  IF RIGHT$(f, 1) = "/" OR RIGHT$(f, 1) = "\" THEN f = LEFT$(f, LEN(f) - 1)
+  f = f + "/rapidr-studio-capture-" + Num(CallId) + ".png"
+  IF Studio.SaveImage(f) = 0 THEN
+    Mcp.Reply CallId, "Studio's window couldn't be captured.", 1
+    McpLogLine Client, "capture", "A picture of Studio", "", "error"
+    EXIT SUB
+  END IF
+  Mcp.ReplyImage CallId, f, "RapidR Studio now (" + StateText + ")."
+  KILL f
+  McpLogLine Client, "capture", "A picture of Studio", "", "ok"
+END SUB
+
+' A component's property set in its form's designer (opened when it isn't),
+' as the Properties pane would: one undo step in its file.
+FUNCTION McpSetProperty(Component AS STRING, Prop AS STRING, Value AS STRING) AS STRING
+  DIM d AS INTEGER, i AS INTEGER, found AS INTEGER, listing AS STRING, file AS STRING, k AS INTEGER
+  found = -1
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocHasForm(d) AND found < 0 THEN
+      FOR i = 0 TO DesignDoc(d).Count - 1
+        IF LCASE$(DesignDoc(d).GetName(i)) = LCASE$(Component) THEN found = d: k = i
+      NEXT
+    END IF
+  NEXT
+  IF found < 0 THEN
+    ' (its file, from the source: opened, then looked for again)
+    McpSyncProject
+    listing = McpTools.CallTool("rapidr_list", "{}")
+    IF McpTools.CallFailed = 0 THEN
+      McpJ.Parse listing
+      i = 0
+      WHILE McpJ.Has("content.objects." + Num(i) + ".id") AND file = ""
+        IF LCASE$(McpJ.Get("content.objects." + Num(i) + ".id")) = LCASE$(Component) THEN file = McpJ.Get("content.objects." + Num(i) + ".file")
+        i = i + 1
+      WEND
+      IF file <> "" THEN
+        OpenDocument ProjectPath(file)
+        d = DocOf(ProjectPath(file))
+        IF d >= 0 THEN
+          FOR i = 0 TO DesignDoc(d).Count - 1
+            IF LCASE$(DesignDoc(d).GetName(i)) = LCASE$(Component) THEN found = d: k = i
+          NEXT
+        END IF
+      END IF
+    END IF
+  END IF
+  IF found < 0 THEN
+    Result = "Can't find a component named " + Component + " in the project's forms (rapidr_list lists them)."
+    EXIT FUNCTION
+  END IF
+  DesignDoc(found).SetProp k, Prop, Value
+  ProjectFileChanged found
+  Result = Component + "." + Prop + " is now " + DesignDoc(found).GetProp(k, Prop) + " (in " + McpRel(DocFile(found)) + ": Edit > Undo takes it back; Run saves it)."
+END FUNCTION
+
 ' ---- ask_rai and RAI's state ------------------------------------------------------------
 
 SUB McpAskRai(CallId AS INTEGER, Client AS STRING, What AS STRING)
@@ -1316,12 +1616,24 @@ END FUNCTION
 
 SUB McpTickTimer(Sender AS RTimer)
   DIM t AS STRING
+  ' (another project open: its own mode)
+  McpModeFollow
   IF McpRunCall > 0 THEN
     IF RunState <> "running" OR TIMER >= McpRunUntil OR TIMER < McpRunUntil - 120 THEN
       t = McpReadOutput(1)
       IF RunState = "running" THEN t = t + CHR$(10) + "(It still runs: read_output for more, run_program Action stop to end it.)"
+      IF RunState = "paused" THEN t = t + CHR$(10) + McpDebugState
       Mcp.Reply McpRunCall, t, Flag(RunState = "error")
       McpRunCall = 0
+    END IF
+  END IF
+  IF McpDebugCall > 0 THEN
+    ' (stopped again — a breakpoint, a step's end — or ended: a moment for
+    ' the variables, then said)
+    IF McpDebugSettle = 0 AND (LEN(StopLog) <> McpDebugStops OR (RunState <> "running" AND RunState <> "paused") OR TIMER >= McpDebugUntil) THEN McpDebugSettle = TIMER + 0.6
+    IF McpDebugSettle > 0 AND TIMER >= McpDebugSettle THEN
+      Mcp.Reply McpDebugCall, McpDebugState
+      McpDebugCall = 0
     END IF
   END IF
   IF McpRaiCall > 0 THEN
@@ -1370,20 +1682,14 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpShowTokenBtn.Left = fx: McpShowTokenBtn.Top = y: McpShowTokenBtn.Width = 80: McpShowTokenBtn.Height = Bh
   McpResetBtn.Left = fx + 88: McpResetBtn.Top = y: McpResetBtn.Width = 132: McpResetBtn.Height = Bh
   y = y + Bh + 16
-  McpPermHead.Left = lx: McpPermHead.Top = y: McpPermHead.Width = W
+  ' (the permission mode: a label, its menu beside it, what it means under)
+  McpPermHead.Left = lx: McpPermHead.Top = y + 5: McpPermHead.Width = 160
   McpPermHead.Font.Bold = 1
-  y = y + 26
-  ' (two choices a row: a label, its choice beside it)
-  McpReadLabel.Left = lx: McpReadLabel.Top = y + 5: McpReadLabel.Width = 124
-  McpReadBox.Left = lx + 126: McpReadBox.Top = y: McpReadBox.Width = W \ 2 - 134
-  McpChangeLabel.Left = lx + W \ 2 + 4: McpChangeLabel.Top = y + 5: McpChangeLabel.Width = 104
-  McpChangeBox.Left = lx + W \ 2 + 110: McpChangeBox.Top = y: McpChangeBox.Width = W \ 2 - 110
+  McpPageModeBox.Left = lx + 168: McpPageModeBox.Top = y: McpPageModeBox.Width = 220
   y = y + Row
-  McpRunLabel.Left = lx: McpRunLabel.Top = y + 5: McpRunLabel.Width = 124
-  McpRunBox.Left = lx + 126: McpRunBox.Top = y: McpRunBox.Width = W \ 2 - 134
-  McpRaiLabel.Left = lx + W \ 2 + 4: McpRaiLabel.Top = y + 5: McpRaiLabel.Width = 104
-  McpRaiBox.Left = lx + W \ 2 + 110: McpRaiBox.Top = y: McpRaiBox.Width = W \ 2 - 110
-  y = y + Row + 6
+  McpModeNoteLabel.Left = lx: McpModeNoteLabel.Top = y: McpModeNoteLabel.Width = W: McpModeNoteLabel.Height = 2 * 18 + 4
+  McpModeNoteLabel.Font.Color = TC("page.dim")
+  y = y + 2 * 18 + 14
   nh = AISetLinesHigh(McpSeeNote.Caption, W)
   McpSeeNote.Left = lx: McpSeeNote.Top = y: McpSeeNote.Width = W: McpSeeNote.Height = nh
   McpSeeNote.Font.Color = TC("page.dim")
@@ -1393,32 +1699,9 @@ END SUB
 
 ' (how tall the page needs to be, for the dialog: settings.inc)
 FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
-  Result = 26 + AISetLinesHigh(McpOnNote.Caption, W) + 10 + 3 * Row + Bh + 16 + 26 + 2 * Row + 6 + AISetLinesHigh(McpSeeNote.Caption, W) + 10 + Bh + 20
+  Result = 26 + AISetLinesHigh(McpOnNote.Caption, W) + 10 + 3 * Row + Bh + 16 + Row + 2 * 18 + 14 + AISetLinesHigh(McpSeeNote.Caption, W) + 10 + Bh + 20
 END FUNCTION
 
-FUNCTION McpPermIndex(Choice AS STRING, IsRead AS INTEGER) AS INTEGER
-  IF IsRead THEN
-    IF Choice = "ask" THEN Result = 1 ELSE Result = 0
-  ELSE
-    SELECT CASE Choice
-      CASE "allow": Result = 1
-      CASE "never": Result = 2
-      CASE ELSE: Result = 0
-    END SELECT
-  END IF
-END FUNCTION
-
-FUNCTION McpPermOfIndex(Index AS INTEGER, IsRead AS INTEGER) AS STRING
-  IF IsRead THEN
-    IF Index = 1 THEN Result = "ask" ELSE Result = "allow"
-  ELSE
-    SELECT CASE Index
-      CASE 1: Result = "allow"
-      CASE 2: Result = "never"
-      CASE ELSE: Result = "ask"
-    END SELECT
-  END IF
-END FUNCTION
 
 ' (ShowSettingsPage: the page as the settings are)
 SUB McpSettingsFill
@@ -1429,10 +1712,16 @@ SUB McpSettingsFill
   McpShowTokenBtn.Caption = "Sho&w"
   IF McpToken = "" AND (McpOn OR McpTestToken <> "") THEN McpToken = McpTokenNow
   IF McpToken <> "" THEN McpHeaderEdit.Text = "Authorization: Bearer " + McpToken ELSE McpHeaderEdit.Text = "(turn AI apps on: a token is made)"
-  McpReadBox.ItemIndex = McpPermIndex(McpPermRead, 1)
-  McpChangeBox.ItemIndex = McpPermIndex(McpPermChange, 0)
-  McpRunBox.ItemIndex = McpPermIndex(McpPermRun, 0)
-  McpRaiBox.ItemIndex = McpPermIndex(McpPermRai, 0)
+  ' (the open project's mode)
+  McpModeFollow
+  McpPageModeBox.ItemIndex = McpModeIndex(McpMode)
+  IF ProjectOpen THEN McpPermHead.Caption = "In " + ProjectName + ", AI apps may &do:" ELSE McpPermHead.Caption = "What AI apps may &do:"
+  McpModeNoteLabel.Caption = McpModeNote(McpMode)
+END SUB
+
+' (Settings' menu: what the mode chosen means, shown at once)
+SUB McpPageModePicked
+  McpModeNoteLabel.Caption = McpModeNote(McpModeAt(McpPageModeBox.ItemIndex))
 END SUB
 
 ' (settings.inc's SettingsTabChanged)
@@ -1458,10 +1747,12 @@ SUB McpSettingsTake
   port = VAL(McpPortEdit.Text)
   IF port < 1024 OR port > 65535 THEN port = MCP_DEFAULT_PORT
   was = McpOn
-  McpPermRead = McpPermOfIndex(McpReadBox.ItemIndex, 1)
-  McpPermChange = McpPermOfIndex(McpChangeBox.ItemIndex, 0)
-  McpPermRun = McpPermOfIndex(McpRunBox.ItemIndex, 0)
-  McpPermRai = McpPermOfIndex(McpRaiBox.ItemIndex, 0)
+  ' (the project's mode: Allow everything confirmed when newly chosen)
+  IF McpModeAt(McpPageModeBox.ItemIndex) = "all" AND McpMode <> "all" THEN
+    IF McpConfirmAll THEN McpSetMode "all"
+  ELSE
+    McpSetMode McpModeAt(McpPageModeBox.ItemIndex)
+  END IF
   McpOn = Flag(McpOnBox.Checked)
   IF McpOn AND McpConfirmed = 0 THEN McpOn = 0
   IF port <> McpPort AND Mcp.Listening THEN McpStopServer
@@ -1556,9 +1847,9 @@ SUB McpStep(Stp AS STRING)
       FOR k = 1 TO TALLY(arg, "|") + 1
         IF INSTR(McpGrants, "|" + FIELD$(arg, "|", k) + "|") = 0 THEN McpGrants = McpGrants + "|" + FIELD$(arg, "|", k) + "|"
       NEXT
-    CASE "perm"
-      McpSetPerm FIELD$(arg, ":", 1), FIELD$(arg, ":", 2)
-      IF Mcp.Listening THEN McpSyncTools
+    CASE "mode"
+      McpModeFollow
+      McpSetMode McpModeAt(McpModeIndex(arg))
     CASE "decide"
       IF arg = "deny" THEN McpDecide 0
       IF arg = "once" THEN McpDecide 1
