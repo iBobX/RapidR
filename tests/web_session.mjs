@@ -8,6 +8,11 @@
 //   2. Pause on demand stops a busy loop (between two time slices).
 //   3. Break on a run-time error stops at the faulting statement; going
 //      on, the error unwinds and the program exits with 1.
+//   4. The eyes and hands (`app`): a calculator's layout, a click by
+//      caption the program hears, a picture of its window, a window it
+//      hasn't got refused; paused, a picture still and a click refused
+//      with where; going on, input again (the desktop's:
+//      crates/rapidr-cli/tests/app_eyes.rs).
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo
 // served): RAPIDR_URL=http://localhost:8765 node tests/web_session.mjs
@@ -24,6 +29,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 const pageErrors = [];
 page.on("pageerror", (e) => pageErrors.push(e.message));
+// (a fresh page — a run frame of its own, as RapidR Studio gives each run)
+async function freshPage() {
 await page.goto(`${URL_BASE}/tests/web_kernel.html`, { waitUntil: "load" });
 await page.waitForFunction(() => window.rrReady === true, null, { timeout: 30000 });
 
@@ -50,6 +57,8 @@ await page.evaluate(() => {
     window.rr.session_open(bytes, main, (json) => window.events.push(JSON.parse(json)));
   };
 });
+}
+await freshPage();
 
 const events = () => page.evaluate(() => window.events);
 const req = (command) => page.evaluate((c) => window.req(c), command);
@@ -124,6 +133,75 @@ ok(failedExit?.code === 1, `exited 1 (${JSON.stringify(failedExit)})`);
 await page.waitForTimeout(300);
 const out3 = await output();
 ok(out3.includes("before") && !out3.includes("after") && out3.includes("oops.bas line 3"), `the error unwound (${JSON.stringify(out3)})`);
+
+// ---- 4. the eyes and hands (in a page of its own: one where a program was
+// stopped keeps it ended — each run of RapidR Studio has its own frame)
+await freshPage();
+const CALC = [
+  "DECLARE SUB Digit(Sender AS RButton)",
+  "DECLARE SUB Clear",
+  "CREATE Form1 AS RForm",
+  '    Caption = "Calculator"',
+  "    ClientWidth = 200: ClientHeight = 120",
+  "    CREATE Display AS RLabel",
+  '        Caption = "0"',
+  "        Left = 10: Top = 10: Width = 180",
+  "    END CREATE",
+  "    CREATE B7 AS RButton",
+  '        Caption = "7"',
+  "        Left = 10: Top = 40: Width = 40: Height = 30",
+  "        OnClick = Digit",
+  "    END CREATE",
+  "    CREATE BC AS RButton",
+  '        Caption = "C"',
+  "        Left = 110: Top = 40: Width = 40: Height = 30",
+  "        OnClick = Clear",
+  "    END CREATE",
+  "END CREATE",
+  "SUB Digit(Sender AS RButton)",
+  '    IF Display.Caption = "0" THEN Display.Caption = Sender.Caption ELSE Display.Caption = Display.Caption + Sender.Caption',
+  '    PRINT "display "; Display.Caption',
+  "END SUB",
+  "SUB Clear",
+  '    Display.Caption = "0"',
+  "END SUB",
+  "Form1.ShowModal",
+  "",
+].join("\n");
+await page.evaluate((src) => window.open_("calc.rr", { "calc.rr": src }), CALC);
+await waitEvent((e) => e.type === "ready", "ready");
+await call({ type: "start", debug: true });
+const app = async (request) => (await call({ type: "app", request }))?.result || {};
+let look = {};
+for (let waited = 0; waited < 10000; waited += 100) {
+  look = await app({ do: "layout" });
+  if ((look.text || "").includes("b7 (RButton)")) break;
+  await page.waitForTimeout(100);
+}
+ok(look.ok && look.text.includes('Window form1 "Calculator" (RForm), inside 200 × 120, in front') && look.text.includes('b7 (RButton) "7" at 10,40 size 40×30'), `the layout lists the window and its buttons (${JSON.stringify(look.text)})`);
+const clicked = await app({ do: "click", caption: "7" });
+ok(clicked.ok && clicked.text.startsWith('Clicked b7 (RButton "7") in form1 ("Calculator") at 30,55.'), `a click by caption (${JSON.stringify(clicked)})`);
+for (let waited = 0; !(await output()).includes("display 7") && waited < 5000; waited += 100) await page.waitForTimeout(100);
+ok((await output()).includes("display 7"), `the program heard it (${JSON.stringify(await output())})`);
+const shot = await app({ do: "screenshot", window: "form1", scale: "1x", frame: false });
+ok(shot.ok && shot.width === 200 && shot.height === 120 && atob(shot.png || "").startsWith("\x89PNG"), `a picture of its window at 1× (${shot.text})`);
+const framed = await app({ do: "screenshot" });
+ok(framed.ok && framed.width > 200 && framed.height > 120, `a framed picture at the page's scale (${framed.text})`);
+const other = await app({ do: "screenshot", window: "RapidR Studio" });
+ok(!other.ok && other.text.includes('No window named "RapidR Studio" in this program. Its windows now: form1 ("Calculator").'), `another window can't be asked for (${other.text})`);
+ok((await call({ type: "pause" }))?.type === "ok", "pause");
+await waitEvent((e) => e.type === "stopped", "the pause");
+const refused = await app({ do: "click", caption: "C" });
+ok(!refused.ok && /^The program is paused in the debugger at line \d+ of calc.rr: continue it first/.test(refused.text), `paused: a click refused with where (${refused.text})`);
+const still = await app({ do: "layout" });
+ok(still.ok && still.text.includes('display (RLabel) "7"'), "paused: the layout still answers");
+await call({ type: "continue" });
+await waitEvent((e) => e.type === "continued", "continued");
+const cleared = await app({ do: "click", caption: "C" });
+ok(cleared.ok, `going on: input again (${cleared.text})`);
+const after = await app({ do: "layout" });
+ok(after.text.includes('display (RLabel) "0"'), `C cleared the display (${JSON.stringify(after.text)})`);
+await call({ type: "stop" });
 
 ok(pageErrors.length === 0, `no page errors (${pageErrors.join("; ")})`);
 await browser.close();

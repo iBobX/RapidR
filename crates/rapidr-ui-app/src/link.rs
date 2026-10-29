@@ -29,8 +29,20 @@ use crate::eyes::{self, Scale};
 use crate::hands::{self, Act, Owner, Target};
 use crate::{Program, Windows};
 
-fn s<'a>(j: &'a Json, k: &str) -> Option<&'a str> {
-    j.get(k).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty())
+/// A field as text, as written: a number or true / false too (a caption
+/// "7" a tool's JSON builder made a number).
+fn raw(j: &Json, k: &str) -> Option<String> {
+    match j.get(k)? {
+        Json::String(t) => Some(t.clone()),
+        Json::Number(n) => Some(n.to_string()),
+        Json::Bool(b) => Some(b.to_string()),
+        _ => None,
+    }
+}
+
+/// [`raw`], trimmed, `None` when empty.
+fn s(j: &Json, k: &str) -> Option<String> {
+    raw(j, k).map(|t| t.trim().to_string()).filter(|v| !v.is_empty())
 }
 
 fn n(j: &Json, k: &str) -> Option<f64> {
@@ -54,7 +66,7 @@ pub fn target_of(j: &Json, prefix: &str) -> Target {
         (Some(x), Some(y)) => Some((x, y)),
         _ => None,
     };
-    Target { name: s(j, &k("name")).map(str::to_string), caption: s(j, &k("caption")).map(str::to_string), label: s(j, &k("label")).map(str::to_string), window: s(j, &k("window")).or_else(|| s(j, "window")).map(str::to_string), at }
+    Target { name: s(j, &k("name")), caption: s(j, &k("caption")), label: s(j, &k("label")), window: s(j, &k("window")).or_else(|| s(j, "window")), at }
 }
 
 fn fail(text: impl Into<String>) -> Json {
@@ -65,8 +77,8 @@ fn fail(text: impl Into<String>) -> Json {
 /// one side by side), its `scale`, `frame`d or not, the virtual `cursor`
 /// in it or not. The reply's `png` is base64.
 pub fn screenshot<R: Windows>(rt: R, j: &Json) -> Json {
-    let which = s(j, "window").unwrap_or("all").to_string();
-    let scale = Scale::parse(s(j, "scale").unwrap_or("screen"));
+    let which = s(j, "window").unwrap_or_else(|| "all".into());
+    let scale = Scale::parse(&s(j, "scale").unwrap_or_else(|| "screen".into()));
     let (frame, cursor) = (b(j, "frame", true), b(j, "cursor", false));
     let mut out = None;
     let ok = rt.with_desk(&mut |desk, store| {
@@ -97,7 +109,7 @@ pub fn screenshot<R: Windows>(rt: R, j: &Json) -> Json {
 
 /// The layout report: `text` in words, `layout` as JSON.
 pub fn layout<R: Windows>(rt: R, j: &Json) -> Json {
-    let which = s(j, "window").map(str::to_string);
+    let which = s(j, "window");
     let mut out = None;
     let ok = rt.with_desk(&mut |desk, store| {
         let only = match which.as_deref() {
@@ -121,9 +133,9 @@ pub fn layout<R: Windows>(rt: R, j: &Json) -> Json {
 
 /// The input job a request asks for, or why it can't be one.
 pub fn act_of(j: &Json) -> Result<Act, String> {
-    let what = s(j, "do").unwrap_or("").to_ascii_lowercase();
+    let what = s(j, "do").unwrap_or_default().to_ascii_lowercase();
     let target = target_of(j, "");
-    let button = match s(j, "button").map(str::to_ascii_lowercase).as_deref() {
+    let button = match s(j, "button").map(|b| b.to_ascii_lowercase()).as_deref() {
         Some("right") => rapidr_value::input::Button::Right,
         Some("middle") => rapidr_value::input::Button::Middle,
         _ => rapidr_value::input::Button::Left,
@@ -133,8 +145,8 @@ pub fn act_of(j: &Json) -> Result<Act, String> {
         "double_click" | "doubleclick" | "dblclick" => Act::Click { target, button, double: true },
         "right_click" | "rightclick" => Act::Click { target, button: rapidr_value::input::Button::Right, double: false },
         "hover" | "move" => Act::Hover { target },
-        "type" => Act::Type { target, text: j.get("text").and_then(Json::as_str).unwrap_or("").to_string() },
-        "key" | "keys" => Act::Key { target, keys: s(j, "keys").or_else(|| s(j, "key")).unwrap_or("").to_string() },
+        "type" => Act::Type { target, text: raw(j, "text").unwrap_or_default() },
+        "key" | "keys" => Act::Key { target, keys: s(j, "keys").or_else(|| s(j, "key")).unwrap_or_default() },
         "drag" => {
             let mut to = target_of(j, "to_");
             if to.window.as_deref() == target.window.as_deref() && to.at.is_none() && to.name.is_none() && to.caption.is_none() && to.label.is_none() {
@@ -158,7 +170,7 @@ pub fn act_of(j: &Json) -> Result<Act, String> {
 /// debugger holds the program, in words: "at line 12 of calc.rr") nothing
 /// of the program may run.
 pub fn request<R: Program + Windows>(rt: R, seq: u64, j: &Json, paused: Option<&str>) -> Option<Json> {
-    let what = s(j, "do").unwrap_or("").to_ascii_lowercase();
+    let what = s(j, "do").unwrap_or_default().to_ascii_lowercase();
     match what.as_str() {
         "screenshot" | "capture" | "picture" => return Some(screenshot(rt, j)),
         "layout" => return Some(layout(rt, j)),
@@ -212,6 +224,10 @@ mod tests {
     fn requests_become_jobs_or_say_what_is_wrong() {
         let j = |t: &str| serde_json::from_str::<Json>(t).unwrap();
         assert!(matches!(act_of(&j(r#"{"do":"click","caption":"7"}"#)), Ok(Act::Click { double: false, .. })));
+        // (a caption a JSON builder made a number, text typed as one)
+        let Ok(Act::Click { target, .. }) = act_of(&j(r#"{"do":"click","caption":7}"#)) else { panic!() };
+        assert_eq!(target.caption.as_deref(), Some("7"));
+        assert!(matches!(act_of(&j(r#"{"do":"type","text":42}"#)), Ok(Act::Type { text, .. }) if text == "42"));
         assert!(matches!(act_of(&j(r#"{"do":"double_click","name":"list"}"#)), Ok(Act::Click { double: true, .. })));
         let Ok(Act::Click { target, .. }) = act_of(&j(r#"{"do":"click","window":"calc","x":"30","y":55}"#)) else { panic!() };
         assert_eq!((target.window.as_deref(), target.at), (Some("calc"), Some((30.0, 55.0))));

@@ -5395,6 +5395,7 @@ dependencies = [
  "rapidr-ui-render",
  "rapidr-value",
  "rapidr-webbundle",
+ "serde_json",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
@@ -5588,6 +5589,7 @@ dependencies = [
  "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
+ "serde_json",
  "wasm-bindgen",
  "web-sys",
 ]

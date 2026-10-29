@@ -1579,13 +1579,3 @@ impl Windows for Rt {
     }
 }
 
-/// (the eyes and hands, `drive.rs`) Runs `f` on the program's forms now,
-/// the program's changes into them first; `None` before the window system
-/// is up, or while it pumps.
-pub(super) fn with_desk_now<R>(f: &mut dyn FnMut(&mut Desktop) -> R) -> Option<R> {
-    ensure_host();
-    with_kern(|k| {
-        sync_desk(&mut k.desk);
-        f(&mut k.desk)
-    })
-}

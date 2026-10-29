@@ -60,6 +60,7 @@ pub mod testhooks;
 pub mod eyes;
 pub mod hands;
 pub mod link;
+pub mod app_components;
 // (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
 pub mod choose_dialogs;
 pub mod dialogs;

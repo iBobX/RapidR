@@ -232,6 +232,22 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
         "check_code" => "Checking (compiling)".into(),
         "layout" => "Laying out the buttons".into(),
+        // (the running program's eyes and hands: an AI app's arguments are
+        // capitalised, RAI's not)
+        "app_layout" => "Reading the running program's layout".into(),
+        "app_screenshot" => "Looking at the running program".into(),
+        "app_wait" => "Letting the running program work".into(),
+        "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
+            let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));
+            let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
+            match name {
+                "app_click" => format!("Clicking{on} in the running program"),
+                "app_type" => format!("Typing \"{}\"{} in the running program", any("Text").unwrap_or_default().chars().take(40).collect::<String>(), if on.is_empty() { String::new() } else { format!(" into{on}") }),
+                "app_key" => format!("Pressing {} in the running program", any("Keys").unwrap_or_else(|| "keys".into())),
+                "app_drag" => format!("Dragging{on} in the running program"),
+                _ => format!("Scrolling{on} in the running program"),
+            }
+        }
         // ("lines": how many the model has written so far, counted as they
         // stream in — a file's or a program's, not an edit's)
         "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),

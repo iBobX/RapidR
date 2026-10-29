@@ -1251,6 +1251,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             }
         }
     }
+    // RAppCapture and RAppDriver: the program's own eyes and hands
+    // (kernel_web.rs, rapidr_ui_app::app_components).
+    match rp_comp_type(name).as_str() {
+        "RAPPCAPTURE" => {
+            if let Some(v) = crate::kernel_web::app_capture_get(name, &lprop) {
+                return v;
+            }
+        }
+        "RAPPDRIVER" => {
+            if let Some(v) = rapidr_ui_app::app_components::driver_get(name, &lprop) {
+                return v;
+            }
+        }
+        _ => {}
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1668,6 +1683,13 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     }
     if comp_type == "RMCPSERVER" {
         return mcp_server_web_method(&uname, &lmethod);
+    }
+    // (the program's own eyes and hands: kernel_web.rs)
+    if comp_type == "RAPPCAPTURE" {
+        return crate::kernel_web::app_capture_method(&uname, &lmethod, args);
+    }
+    if comp_type == "RAPPDRIVER" {
+        return crate::kernel_web::app_driver_method(&uname, &lmethod, args);
     }
 
     // WebSocket special handling
