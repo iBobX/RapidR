@@ -73,6 +73,8 @@ DECLARE FUNCTION McpModeKept(Key AS STRING) AS STRING
 DECLARE SUB McpSetMode(Mode AS STRING)
 DECLARE FUNCTION McpConfirmAll AS INTEGER
 DECLARE FUNCTION McpConsentOk AS INTEGER
+DECLARE FUNCTION McpModeIsKept(Key AS STRING) AS INTEGER
+DECLARE SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
 DECLARE SUB McpKeepConsent
 DECLARE SUB McpReaskTick
 DECLARE SUB McpShowMode
@@ -168,6 +170,9 @@ DIM McpConfirmed AS INTEGER
 DIM McpConsentVersion AS INTEGER
 DIM McpUpgrade AS INTEGER
 DIM McpReaskTimer AS RTimer
+' (a project an AI app created or opened took the mode of the one open
+' before: said after that call's line — the pane, the status bar)
+DIM McpCarrySaid AS STRING
 ' (the kinds allowed for this session from the pane: "|change|run|")
 DIM McpGrants AS STRING
 DIM McpToken AS STRING
@@ -522,6 +527,32 @@ FUNCTION McpModeKept(Key AS STRING) AS STRING
   NEXT
   IF Result <> "read" AND Result <> "edits" AND Result <> "all" THEN Result = "ask"
 END FUNCTION
+
+' Whether project Key has a mode of its own, kept.
+FUNCTION McpModeIsKept(Key AS STRING) AS INTEGER
+  DIM k AS INTEGER, line AS STRING
+  FOR k = 1 TO TALLY(McpModes, CHR$(10)) + 1
+    line = FIELD$(McpModes, CHR$(10), k)
+    IF line <> "" AND FIELD$(line, CHR$(9), 1) = Key THEN Result = 1
+  NEXT
+END FUNCTION
+
+' A project an AI app created or opened (create_project, open_project)
+' takes Before, the mode of the project open before it, as if the user had
+' picked it — an AI app working alone isn't stopped by a question the
+' other project didn't ask (Robert, 2026-10-29) —; said in the pane and the
+' status bar. Nothing open before: the default (Ask before changes). A
+' project with a mode of its own keeps it.
+SUB McpCarryMode(Before AS STRING, BeforeKey AS STRING)
+  DIM key AS STRING
+  IF Before = "" OR ProjectOpen = 0 THEN EXIT SUB
+  key = ProjectFile
+  IF key = BeforeKey OR McpModeIsKept(key) THEN EXIT SUB
+  McpModeOf = key
+  McpMode = ""
+  McpSetMode Before
+  McpCarrySaid = "New project: same permission as before (" + McpModeName(Before) + ")"
+END SUB
 
 ' The project's mode from now on: kept, said, in the audit log.
 SUB McpSetMode(Mode AS STRING)
@@ -1082,6 +1113,15 @@ SUB McpLogLine(Client AS STRING, Tool AS STRING, What AS STRING, Target AS STRIN
   McpLogEnd
   McpTools.AuditCall Client, Tool, Target, Outcome
   McpLastWhat = Client + ": " + What
+  ' (a new project took the mode of the one before: said now, after the
+  ' call that opened it — the pane's line and the status bar)
+  IF McpCarrySaid <> "" THEN
+    McpLog.AddItems LEFT$(TIME$, 8) + "  " + McpCarrySaid
+    McpLogEnd
+    McpLastWhat = McpCarrySaid
+    Application.Announce McpCarrySaid
+    McpCarrySaid = ""
+  END IF
   McpShowState
 END SUB
 
@@ -1291,7 +1331,7 @@ END SUB
 ' new program created and opened. What the AI app is told.
 FUNCTION McpApply(Said AS STRING) AS STRING
   DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING, d AS INTEGER
-  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING, dirty AS STRING
+  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING, dirty AS STRING, before AS STRING, beforeKey AS STRING
   FOR i = 0 TO McpTools.ProposalCount - 1
     info = McpTools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
@@ -1358,7 +1398,10 @@ FUNCTION McpApply(Said AS STRING) AS STRING
   McpTools.ClearDecided
   IF made <> "" AND made <> "!" THEN
     McpTools.ClearProposals
+    IF ProjectOpen THEN before = McpMode ELSE before = ""
+    beforeKey = ProjectFile
     OpenProject made
+    McpCarryMode before, beforeKey
     Result = "Created and opened the new program " + McpTools.CreatedTitle + " (" + FileTitle(made) + "). " + Said
     EXIT FUNCTION
   END IF
@@ -1616,7 +1659,7 @@ FUNCTION McpDirtyFiles AS STRING
 END FUNCTION
 
 FUNCTION McpOpenProject(Path AS STRING) AS STRING
-  DIM p AS STRING, dirty AS STRING
+  DIM p AS STRING, dirty AS STRING, before AS STRING, beforeKey AS STRING
   p = McpFullPath(Path)
   Result = McpOpenCheck(Path)
   IF Result <> "" THEN EXIT FUNCTION
@@ -1625,11 +1668,14 @@ FUNCTION McpOpenProject(Path AS STRING) AS STRING
     Result = "Can't open " + Path + ": Studio has unsaved changes (" + dirty + "). Ask the user to save or close them first: open_project never discards them."
     EXIT FUNCTION
   END IF
+  IF ProjectOpen THEN before = McpMode ELSE before = ""
+  beforeKey = ProjectFile
   OpenProject p
   IF ProjectOpen = 0 THEN
     Result = "Can't open " + Path + ": " + StateText
     EXIT FUNCTION
   END IF
+  McpCarryMode before, beforeKey
   McpSyncProject
   Result = "Opened. " + McpStatusText
 END FUNCTION

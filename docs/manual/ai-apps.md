@@ -90,6 +90,12 @@ In every mode a project outside your Projects folder, RapidR's examples and
 your recent list is asked about before it opens, and nothing is ever
 opened over unsaved changes.
 
+A project an AI app creates or opens (`create_project`, `open_project`)
+keeps the permission of the project that was open before — the pane and
+the status bar say "New project: same permission as before (Allow edits)"
+— unless it has a permission of its own; with no project open before, it
+starts with **Ask before changes**.
+
 ![A change waiting in the AI Apps pane: what the AI app wants to change and why, Allow Once, Allow for This Session, Deny and Review](images/ai-apps/ask.png)
 
 ## Watch it work: the AI Apps pane
