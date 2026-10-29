@@ -516,7 +516,7 @@ their `OFL.txt`.
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
 | prodash | 31.0.1 | <https://github.com/GitoxideLabs/prodash> |
-| pulldown-cmark | 0.13.4 | <https://github.com/raphlinus/pulldown-cmark> |
+| pulldown-cmark | 0.13.5 | <https://github.com/raphlinus/pulldown-cmark> |
 | quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
