@@ -3252,6 +3252,10 @@ fn builtin_function_call(name: &str, args: &[String]) -> Option<String> {
         // (RapidR's) the program's text in its language (rapidr_value::i18n)
         "tr" => Some(format!("i18n::rp_tr(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
         "trn" => Some(format!("i18n::rp_trn(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        // (RapidR's) COMPRESS$ / DECOMPRESS$ (rapidr_value::objects::archive;
+        // a native build gets the runtime's `archive` feature for them)
+        "compress" => Some(format!("rr_archive::rp_compress(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
+        "decompress" => Some(format!("rr_archive::rp_decompress(&[{}])", args.iter().map(|a| format!("({a}).clone()")).collect::<Vec<_>>().join(", "))),
         "strf" => Some(format!("rp_strf(&{a0}, &{a1}, &{a2}, &{})", args.get(3).map(|s| s.as_str()).unwrap_or("v_null()"))),
 
         // File I/O (function forms)

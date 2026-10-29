@@ -107,7 +107,7 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         // Nothing more (and not the generic place and size below): what the
         // registry and the shared models give them.
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
+        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "RARCHIVE" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
         // (QDXSCREEN's Direct3D: Render draws on the browser's WebGL 2,
@@ -191,6 +191,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     }
     if rapidr_value::objects::create(name, type_name) {
         install_file_hooks();
+        // (RARCHIVE: the clock and the local time zone a zip's times are in)
+        if rapidr_value::objects::archive::is_type(type_name) {
+            // (the browser's Date: its offset is minutes west, so negated)
+            rapidr_value::objects::archive::set_clock(
+                || (js_sys::Date::now() / 1000.0) as i64,
+                |t| -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(t as f64 * 1000.0)).get_timezone_offset() * 60.0) as i64,
+            );
+        }
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);

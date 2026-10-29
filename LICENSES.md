@@ -208,9 +208,9 @@ web runtime's wasm (the IDE's and every web bundle's) compiles it in via
 
 ---
 
-## 6. (removed) PKZIP exporter
+## 6. (removed) Zip exporter
 
-The old HTML in-browser IDE had its own PKZIP "stored" writer (an original
+The old HTML in-browser IDE had its own zip "stored" writer (an original
 implementation, MIT); it was deleted with that IDE on 2026-10-08. (The
 section keeps its number so that references to the others stay right.)
 
@@ -254,13 +254,17 @@ detail):
 
 | What | Via | Where |
 |---|---|---|
-| RSA public-key encryption (OAEP), SHA-1 and SHA-256 hashing | `mysql_common` (the `mysql` crate: RMYSQL), `sha1`, `sha2`, `num-bigint` | every desktop program and RapidR's own tools; not the web |
+| RSA public-key encryption (OAEP), SHA-1 and SHA-256 hashing | `mysql_common` (the `mysql` crate: RMYSQL), `sha1`, `sha2` 0.10, `num-bigint` | every desktop program and RapidR's own tools; not the web |
+| SHA-256 hashing (the integrity check of .xz files) | `lzma-rust2` (RArchive), `sha2` 0.11 with `digest` 0.11, `block-buffer`, `crypto-common`, `const-oid`, `cpufeatures` | wherever RArchive is: interpreted programs, a native build of a program that uses it, the web runtime |
+| The legacy ZipCrypto stream cipher, never called | the `zip` crate (RArchive), which compiles it in whatever its features | the same places; RArchive refuses encrypted entries and never decrypts. Its AES (`aes-crypto`, and `sevenz-rust2`'s `aes256`) is off and `aes` banned |
 | The Secret Service's Diffie-Hellman key exchange (a 1024-bit group; modular exponentiation over `num-bigint`) | `secret-service` (through `zbus-secret-service-keyring-store`: the AI component's key storage) | Linux and the BSDs only; its AES-128-CBC and HKDF are the system's OpenSSL 3, reached through the `openssl` bindings that HTTPS uses anyway |
 
 Zstandard, LZ4, zlib and OpenSSL's sources appear in `Cargo.lock` only as
 optional or other-platform dependencies of crates RapidR uses and are
 compiled into nothing RapidR ships: the generated `THIRD-PARTY-NOTICES.txt`
-files, made from the real graphs, list what is.
+files, made from the real graphs, list what is. (RArchive reads Zstandard
+with `ruzstd` and Deflate with `zlib-rs`, both pure Rust: no C source of
+either.)
 
 ### 7.1 Windows: LLVM-MinGW, shipped with the RapidR SDK
 

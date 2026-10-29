@@ -851,7 +851,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Lean builds and Export anywhere (for 1.0; Robert, 2026-10-21; plan: [docs/lean-builds-and-export-plan.md](docs/lean-builds-and-export-plan.md))
 
-- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set
+- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set *(a first one, RZIP 2026-10-29: runtime-core's `archive` feature — RArchive, COMPRESS$, DECOMPRESS$ — is in a native build only when the program names them, as `studio` is (`uses_archive` in the CLI); a web build without them drops it too. A console "hello" native build has no archive code: 3.5 MB vs 5.0 MB debug.)*
 - [ ] L2 Native builds with only the features a program uses + the size profile; a size report in Studio
 - [ ] L3 Runner flavours (console, gui, gui+data, full) for desktop and wasm, built and signed with each release
 - [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
@@ -897,6 +897,9 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [x] Reference fixes, verified 2026-10-21 *(LANG-SMALL, 2026-10-22: the registry and the generated pages say `Cell(row, col)`, `SetCell(row, col, value)` (the same slip) and `CONST name [AS type] = expression`; a registry test keeps them right until K7)*:
     - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
     - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7
+- **A Z80 emulator for students** (Robert, 2026-10-29; an agent builds it in its own repo): it loads `.z80` snapshots, also zipped, as emulators do.
+  - [x] Archives in programs *(RZIP, 2026-10-29: `RArchive` — Open / OpenStream / OpenData / a `$RESOURCE`, the format from the first bytes; zip, tar, tar.gz, .gz read and made; 7z, xz / tar.xz, zstd / tar.zst read; Name / Size / CompressedSize / IsFolder / IsEncrypted / DateTime, Find, Extract / ExtractText / ExtractToStream / ExtractToFile / ExtractAll, Create / CreateStream / AddFile / AddText / AddData / AddStream / AddFolder / Close, FormatOf; MaxSize (1 GB, 256 MB on the web) and MaxRatio (1000) against zip bombs, zip-slip names / links / devices never written, encrypted entries refused, RAR refused in plain words; `COMPRESS$` / `DECOMPRESS$` (gzip, zlib, deflate; xz, zstd read). Engine: crate rapidr-archive (zip 9, flate2 + zlib-rs, lzma-rust2, ruzstd, sevenz-rust2; tar RapidR's own), fuzzed (tests/robustness.rs); conformance archive_read / archive_guard / archive_write on VM, native and web; example data/archives.rr; manual archives.md. Native builds carry it only when a program uses it.)*
+  - [ ] Archives, phase 2: bzip2 / tar.bz2 (the only pure-Rust reader, libbz2-rs-sys, is under the bzip2-1.0.6 licence: a lawyer check first); making 7z, xz and zstd; a `Comment`; extracting while unpacking (no whole-archive-in-memory) for archives past a few hundred MB; one format feature per program in native builds (needs L1).
 - **Visualmusicator X**: see the next section.
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.

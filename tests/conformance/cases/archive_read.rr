@@ -1,0 +1,75 @@
+' RArchive (RapidR's) reads archives other tools made — zip (zip), 7z
+' (7zz), tar.gz (gzip), tar.xz (xz), tar.zst (zstd), one file gzipped —
+' built into the program as $RESOURCEs: the format from the first bytes,
+' the entries, a .z80 found and its bytes, a text, a zip's local time, an
+' old zip's code page 437 name. The same on every runtime.
+$RESOURCE ZIP_FILE AS "resource_files/archive-games.zip"
+$RESOURCE SEVENZ_FILE AS "resource_files/archive-games.7z"
+$RESOURCE TGZ_FILE AS "resource_files/archive-games.tar.gz"
+$RESOURCE TXZ_FILE AS "resource_files/archive-games.tar.xz"
+$RESOURCE TZST_FILE AS "resource_files/archive-games.tar.zst"
+$RESOURCE GZ_FILE AS "resource_files/archive-hello.z80.gz"
+$RESOURCE CP437_FILE AS "resource_files/archive-cp437.zip"
+
+DIM A AS RArchive
+
+FUNCTION HexStart (Data AS STRING, N AS INTEGER) AS STRING
+    DIM i AS INTEGER, s AS STRING
+    FOR i = 1 TO N
+        s = s + RIGHT$("0" + HEX$(ASC(MID$(Data, i, 1))), 2) + " "
+    NEXT
+    HexStart = RTRIM$(s)
+END FUNCTION
+
+SUB Show (Res AS LONG, Label AS STRING)
+    DIM i AS INTEGER, z AS STRING
+    PRINT Label; ": FormatOf="; A.FormatOf(Res);
+    IF A.Open(Res) = 0 THEN
+        PRINT " — can't open: "; A.Error
+        EXIT SUB
+    END IF
+    PRINT " Format="; A.Format; " Count="; A.Count
+    FOR i = 0 TO A.Count - 1
+        PRINT "  "; A.Name(i); " size="; A.Size(i); " folder="; A.IsFolder(i)
+    NEXT
+    i = A.Find("ROMS/HELLO.Z80")
+    IF i < 0 THEN i = A.Find("hello.z80")
+    z = A.Extract(i)
+    PRINT "  z80 at "; i; ": "; LEN(z); " bytes: "; HexStart(z, 8); " ["; A.Error; "]"
+    IF A.Find("readme.txt") >= 0 THEN PRINT "  readme: "; LEFT$(A.ExtractText("readme.txt"), 18)
+    A.Close
+END SUB
+
+Show ZIP_FILE, "zip"
+Show SEVENZ_FILE, "7z"
+Show TGZ_FILE, "tar.gz"
+Show TXZ_FILE, "tar.xz"
+Show TZST_FILE, "tar.zst"
+Show GZ_FILE, "gz"
+
+' (a zip keeps local times as written; Find by any case unless CaseSensitive)
+A.Open ZIP_FILE
+PRINT A.DateTime("roms/hello.z80"); " "; A.CompressedSize("readme.txt") > 0
+A.CaseSensitive = True
+PRINT A.Find("ROMS/HELLO.Z80"); " "; A.Find("roms/hello.z80"); " "; A.CaseSensitive
+A.CaseSensitive = False
+
+' (an entry into a stream, at its Position)
+DIM M AS RMemoryStream
+M.WriteStr "AB", 2
+PRINT A.ExtractToStream("roms/hello.z80", M); " "; M.Size; " "; M.Position
+
+' (out of range: nothing, no error raised)
+PRINT "["; A.Name(99); "] "; A.Size(-1); " ["; A.Extract(99); "] "; LEN(A.Error) > 0
+
+' (an old zip's name in code page 437: é is byte 130)
+A.Open CP437_FILE
+PRINT A.Name(0); " "; A.ExtractText(0);
+
+' (the same archive opened from a stream and from a string of bytes)
+DIM S AS RMemoryStream
+S.ExtractRes ZIP_FILE
+PRINT A.OpenStream(S); " "; A.Count; " "; A.Format
+DIM Bytes AS STRING
+Bytes = A.Extract("readme.txt")
+PRINT A.OpenData(Bytes); " "; A.Error
