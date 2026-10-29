@@ -869,7 +869,7 @@ fn outside_path_ok(folder: &str, files: &[String], path: &str) -> Result<(), Str
     let f = crate::slashes(folder.trim_end_matches(['/', '\\']));
     let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).map(|h| crate::slashes(h.trim_end_matches(['/', '\\']))).unwrap_or_default();
     let shallow = f.matches('/').count() <= 1 || f.ends_with(':') || (!home.is_empty() && f.eq_ignore_ascii_case(&home));
-    if shallow && !files.iter().any(|x| *x == rel) {
+    if shallow && !files.contains(&rel) {
         return Err(format!("{path}: not one of the project's files (the project's folder is {f}: AI apps reach only its listed files there)"));
     }
     Ok(())
