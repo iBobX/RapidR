@@ -260,7 +260,7 @@ impl ProgramEnd {
         }
         if let Some(message) = b.log.as_deref().filter(|m| !m.is_empty()) {
             let text = interpolate(message, |expr| match self.evaluate(vm, module, Some(top), expr) {
-                Ok(Value::String(s)) => s,
+                Ok(Value::String(s)) => s.into_string(),
                 Ok(v) => rapidr_value::format::print_text(&v),
                 Err(e) => format!("<{e}>"),
             });
@@ -510,7 +510,7 @@ impl ProgramEnd {
         // component, though no variable holds it)
         let name = expr.trim();
         if matches!(v, Value::Null) && !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') && vm.host.component_type(name).is_some() {
-            return Ok(Value::String(name.to_string()));
+            return Ok(Value::String(name.to_string().into()));
         }
         Ok(v)
     }
@@ -642,7 +642,7 @@ impl ProgramEnd {
             // (the components no other holds, in the order they were made:
             // each shown as itself)
             for id in vm.host.component_children("") {
-                let v = Value::String(id.clone());
+                let v = Value::String(id.clone().into());
                 named.push((id.clone(), v, id, false));
             }
         } else if (LOCALS_REF..CHILDREN_REF).contains(&reference) {
@@ -700,7 +700,7 @@ impl ProgramEnd {
                 }
                 Node::Parts(id) => {
                     for part in vm.host.component_children(&id) {
-                        let v = Value::String(part.clone());
+                        let v = Value::String(part.clone().into());
                         named.push((part.clone(), v, part, false));
                     }
                 }
@@ -893,7 +893,7 @@ fn fit_value(now: &Value, new: Value, target: &str, typed: &str) -> Result<Value
         }
         Value::String(_) => match new {
             Value::String(_) => new,
-            Value::Integer(_) | Value::Double(_) => Value::String(rapidr_value::format::print_text(&new).trim().to_string()),
+            Value::Integer(_) | Value::Double(_) => Value::String(rapidr_value::format::print_text(&new).trim().to_string().into()),
             Value::Boolean(b) => Value::String((if b { "True" } else { "False" }).into()),
             _ => return Err(format!("{target} holds text: type it in quotes, such as \"hello\".")),
         },

@@ -139,7 +139,7 @@ impl Layout {
         let value = match read {
             super::value::PropValue::Number(f) if f.fract() == 0.0 => Value::Integer(f as i64),
             super::value::PropValue::Number(f) => Value::Double(f),
-            super::value::PropValue::Str(s) => Value::String(s),
+            super::value::PropValue::Str(s) => Value::String(s.into()),
             _ => return,
         };
         let flat = crate::autosize::font_property(prop).map_or_else(|| prop.to_string(), str::to_string);
@@ -160,7 +160,7 @@ impl Layout {
             "top" => Value::Integer(c.rect.top),
             "width" => Value::Integer(c.rect.width),
             "height" => Value::Integer(c.rect.height),
-            "parent" => Value::String(c.parent.clone()),
+            "parent" => Value::String(c.parent.clone().into()),
             "align" => Value::Integer(c.align.value()),
             _ => c.props.get(prop).cloned().unwrap_or(Value::Null),
         }

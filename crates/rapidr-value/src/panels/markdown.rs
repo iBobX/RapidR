@@ -823,15 +823,15 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     with_mut(name, |m| {
         Some(match prop {
-            "text" => Value::String(m.text.clone()),
-            "filename" => Value::String(m.file_name.clone()),
+            "text" => Value::String(m.text.clone().into()),
+            "filename" => Value::String(m.file_name.clone().into()),
             "openlinks" => basic_bool(m.open_links),
-            "emptytext" => Value::String(m.empty_text.clone()),
+            "emptytext" => Value::String(m.empty_text.clone().into()),
             "followend" => basic_bool(m.follow_end),
-            "codelanguage" => Value::String(m.code_language.clone()),
-            "__tip" => Value::String(m.last_tip.clone()),
-            "plaintext" => Value::String(m.doc().plain_text()),
-            "seltext" => Value::String(m.selected_text()),
+            "codelanguage" => Value::String(m.code_language.clone().into()),
+            "__tip" => Value::String(m.last_tip.clone().into()),
+            "plaintext" => Value::String(m.doc().plain_text().into()),
+            "seltext" => Value::String(m.selected_text().into()),
             "linkcount" => Value::Integer(m.doc().links.len() as i64),
             "headings" => Value::String(m.doc().headings().iter().map(|(l, t, a, n)| format!("{l}\t{t}\t{a}\t{}\n", n + 1)).collect()),
             _ => return None,
@@ -862,7 +862,7 @@ pub fn rt_set<R: Runtime>(_rt: R, name: &str, prop: &str, v: &Value) -> bool {
 /// What the user did.
 pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
     match action {
-        User::Word { word, of } => rt.fire(name, "oncodeclick", &[Value::String(word), Value::String(of)]),
+        User::Word { word, of } => rt.fire(name, "oncodeclick", &[Value::String(word.into()), Value::String(of.into())]),
         User::Link(url) => {
             if url.starts_with('#') {
                 with_mut(name, |m| {
@@ -874,7 +874,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
             } else if is_web_link(&url) && with(name, |m| m.open_links).unwrap_or(true) {
                 rt.open_url(url.trim());
             }
-            rt.fire(name, "onlinkclick", &[Value::String(url)]);
+            rt.fire(name, "onlinkclick", &[Value::String(url.into())]);
         }
     }
 }

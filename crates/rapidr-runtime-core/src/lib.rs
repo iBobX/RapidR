@@ -97,7 +97,7 @@ pub mod prelude {
     pub use crate::value::i18n;
     // COMPRESS$ / DECOMPRESS$ (RapidR's; RArchive's engine)
     pub use crate::value::objects::archive as rr_archive;
-    pub use crate::value::{input_value, obj_field, rp_inv, rp_last_of_type, rp_lone_equals, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};
+    pub use crate::value::{input_value, obj_field, rp_inv, rp_last_of_type, rp_lone_equals, rp_new_object, rp_new_object_array, rp_redim, rp_append_assign, rp_shl, rp_shr, set_obj_field};
 
     #[cfg(feature = "gui")]
     pub use crate::ui::{set_theme, gui_register_timer};

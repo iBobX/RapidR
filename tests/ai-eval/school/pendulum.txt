@@ -1,0 +1,6 @@
+# School app: an animated pendulum (a timer).
+Build me a pendulum simulation: an animated pendulum swinging back and forth, with Start and Stop buttons
+#! test swing
+#! click? /start|swing|run|play|go|release/
+#! wait 30
+#! expect-picture-changed

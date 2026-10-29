@@ -188,6 +188,9 @@ if (want("all")) {
   const cut = list.filter((t) => !/[.!?)]$/.test((t.description || "").trim()) || (t.description || "").includes("\\"));
   check("every tool's description is whole (no stray backslash, ends a sentence)", list.length > 0 && cut.length === 0, cut.map((t) => `${t.name}: …${(t.description || "").slice(-60)}`).join(" | "));
   check("set_property's description names a text value in quotes", /\("OK" for text, 120, &HFF0000, True\)\. One undo step in its file\.$/.test(list.find((t) => t.name === "set_property")?.description || ""), list.find((t) => t.name === "set_property")?.description);
+  // (a tool without arguments is listed with "properties": {} — a model server that builds a grammar from
+  // the schema, Ollama for some models, answers HTTP 500 "properties must be an object" to a list without)
+  check("every tool's inputSchema is an object with its properties (even none)", list.every((t) => t.inputSchema?.type === "object" && t.inputSchema.properties && typeof t.inputSchema.properties === "object"), list.filter((t) => !t.inputSchema?.properties).map((t) => t.name).join(","));
   check("read_file is marked read-only, propose_edit isn't", list.find((t) => t.name === "read_file")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "propose_edit")?.annotations?.readOnlyHint === false);
 
   let r = await tool("studio_status");
@@ -204,6 +207,14 @@ if (want("all")) {
   check("read_file without its path: told what it needs", r.error && r.text.includes("Call read_file again: it needs `path`"), r.text);
   r = await tool("check_code");
   check("check_code: no errors", !r.error && /no (errors|problems)/i.test(r.text), r.text);
+  // (a small model's tool-call layer sends a list as JSON text and a flag as "true": the schema says
+  // what is wanted, so the value is taken — found by tools/ai_eval's outside-AI-app runs)
+  r = await tool("read_output", { All: "true" });
+  check("a flag sent as the string \"true\" is the flag", !r.error && r.text.includes("(no new output)"), r.text);
+  r = await tool("propose_edit", { path: "main.rr", edits: JSON.stringify([{ old_text: "this text is not in the file", new_text: "x" }]), summary: "Nothing." });
+  check("a list sent as JSON text is the list (the edit is looked at: its text isn't there)", r.error && r.text.includes("isn't in main.rr") && !r.text.includes("must be a list"), r.text);
+  r = await tool("propose_edit", { path: "main.rr", edits: '[{"old_text": "a"}]\n}', summary: "Nothing." });
+  check("JSON text that isn't a list is still refused, in words", r.error && r.text.includes("`edits` must be a list"), r.text);
 
   r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello from an AI app"' }], summary: "Greets from the AI app." });
   check("propose_edit: applied at once (Allow everything)", !r.error && r.text.includes("Applied") && r.raw.progress.length === 0, r.text);
@@ -211,6 +222,12 @@ if (want("all")) {
   check("write_file: a new file made at once", !r.error && r.text.includes("notes.txt") && existsSync(join(WORK, "all", "notes.txt")), r.text);
   r = await tool("list_documents");
   check("list_documents: main.rr changed, not saved", r.text.includes("main.rr") && r.text.includes("unsaved changes"), r.text);
+  // (a new program would open over unsaved changes: Studio would ask its user to save them and answer
+  // nothing, to any call, until they did — found by tools/ai_eval's runs: now said at once, as open_project does)
+  r = await tool("create_project", { name: "Second", main: "main.rr", files: [{ path: "main.rr", text: 'PRINT "second"\n' }], summary: "A second program." });
+  check("create_project over unsaved changes: told at once, nothing opened", r.text.includes("unsaved changes") && !r.text.includes("Created and opened"), r.text);
+  r = await tool("studio_status");
+  check("Studio still answers, with the same project", r.text.includes("Project: Hello"), r.text);
 
   r = await tool("run_program", { Action: "start", Wait: 20 });
   check("run_program: run at once, the changed program's output back", !r.error && r.text.includes("Hello from an AI app") && r.text.includes("Line 2"), r.text);

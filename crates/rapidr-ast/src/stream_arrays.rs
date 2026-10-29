@@ -14,6 +14,14 @@
 //! An array of strings, or of an undeclared type, uses the generic
 //! `Write` / `Read(var)`.
 //!
+//! When the array is a variable of a declared numeric type and its indices
+//! are plain (numbers and declared variables, which the loop would read
+//! the same each time round), the loop is one call that does the same work
+//! at once — `Stream.__ArrayIO(A, load, kind, n, i…)`
+//! (`rapidr_value::objects::stream_ops`): the same bytes, the same stop at
+//! the array's last element, the same Position, without a method call per
+//! element.
+//!
 //! `Stream.Read(x)` / `Stream.Write(x)` of a declared numeric `x` likewise
 //! read and write that type's bytes (a SHORT: 2). `Stream.SaveUDTArray(t.f)`
 //! / `LoadUDTArray(t.f)` get the array field's declared type as a second
@@ -79,9 +87,32 @@ struct Pass {
     /// two TYPEs both have.
     typed_fields: Scope,
     counter: usize,
+    /// The program's SUBs and FUNCTIONs (lowercase): a name that calls one
+    /// isn't a plain index.
+    routines: std::collections::HashSet<String>,
 }
 
 impl Pass {
+    /// An index the loop would work out the same each time round: numbers,
+    /// declared variables (or ones with a type suffix) and arithmetic on
+    /// them — no call, which might give another value or do something.
+    fn plain(&self, scope: &Scope, e: &Expression) -> bool {
+        match e {
+            Expression::Literal(l) => matches!(l.value, LiteralValue::Integer(_) | LiteralValue::Float(_)),
+            Expression::Identifier(id) => {
+                let k = id.name.to_ascii_lowercase();
+                !self.routines.contains(&k) && (scope.contains_key(&k) || self.globals.contains_key(&k) || kind_of_suffix(&id.name).is_some())
+            }
+            Expression::Binary(b) => {
+                matches!(b.operator, BinaryOperator::Add | BinaryOperator::Subtract | BinaryOperator::Multiply)
+                    && self.plain(scope, &b.left)
+                    && self.plain(scope, &b.right)
+            }
+            Expression::Unary(u) => u.operator == UnaryOperator::Negate && self.plain(scope, &u.operand),
+            _ => false,
+        }
+    }
+
     fn kind(&self, local: &Scope, name: &str) -> Option<i64> {
         let k = name.to_ascii_lowercase();
         let t = local.get(&k).or_else(|| self.globals.get(&k)).or_else(|| self.fields.get(&k));
@@ -205,6 +236,16 @@ impl Pass {
         };
         let kind = self.kind(scope, name);
         let span = c.span;
+        // (a numeric array variable, plain indices: one call — module docs)
+        if let (Some(k), Expression::Identifier(_)) = (kind, array) {
+            if indices.iter().all(|i| self.plain(scope, i)) {
+                let int = |n: i64| Expression::Literal(Literal { span, value: LiteralValue::Integer(n) });
+                let mut args = vec![array.clone(), int(load as i64), int(k), count.clone()];
+                args.extend(indices.iter().cloned());
+                let callee = Expression::MemberAccess(MemberAccessExpression { span, object: m.object.clone(), member: "__ArrayIO".into() });
+                return Some(Statement::Call(CallStatement { span, callee, args }));
+            }
+        }
         self.counter += 1;
         let var = format!("__sa{}", self.counter);
         let ident = |n: &str| Expression::Identifier(Identifier { span, name: n.into() });
@@ -277,10 +318,16 @@ pub fn lower(program: &Program) -> Program {
     let mut globals = Scope::new();
     let mut fields = Scope::new();
     let mut typed_fields = Scope::new();
+    let mut routines = std::collections::HashSet::new();
     let mut main = Vec::new();
     for s in &program.statements {
         match s {
-            Statement::Subroutine(_) | Statement::Function(_) => {}
+            Statement::Subroutine(r) => {
+                routines.insert(r.name.to_ascii_lowercase());
+            }
+            Statement::Function(f) => {
+                routines.insert(f.name.to_ascii_lowercase());
+            }
             Statement::Type(t) => {
                 for f in &t.fields {
                     fields.insert(f.name.to_ascii_lowercase(), with_len(&f.type_name, f.fixed_len));
@@ -291,7 +338,7 @@ pub fn lower(program: &Program) -> Program {
         }
     }
     declare(&mut globals, &main);
-    let mut pass = Pass { globals, fields, typed_fields, counter: 0 };
+    let mut pass = Pass { globals, fields, typed_fields, counter: 0, routines };
     let mut program = program.clone();
     pass.block(&mut program.statements, &Scope::new());
     program

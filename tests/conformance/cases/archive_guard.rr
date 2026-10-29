@@ -4,13 +4,13 @@
 ' stops at MaxRatio and at MaxSize with a clear error; encrypted entries
 ' and an encrypted 7z are refused; a RAR is refused in plain words; a
 ' damaged archive is an error, never a crash.
-$RESOURCE SLIP_FILE AS "resource_files/archive-evil-slip.zip"
-$RESOURCE LINK_FILE AS "resource_files/archive-evil-link.tar"
-$RESOURCE BOMB_FILE AS "resource_files/archive-bomb.zip"
-$RESOURCE LOCKED_ZIP AS "resource_files/archive-encrypted.zip"
-$RESOURCE LOCKED_7Z AS "resource_files/archive-encrypted-list.7z"
-$RESOURCE RAR_FILE AS "resource_files/archive-not-open.rar"
-$RESOURCE ZIP_FILE AS "resource_files/archive-games.zip"
+$RESOURCE SLIP_FILE AS "archive_files/archive-evil-slip.zip"
+$RESOURCE LINK_FILE AS "archive_files/archive-evil-link.tar"
+$RESOURCE BOMB_FILE AS "archive_files/archive-bomb.zip"
+$RESOURCE LOCKED_ZIP AS "archive_files/archive-encrypted.zip"
+$RESOURCE LOCKED_7Z AS "archive_files/archive-encrypted-list.7z"
+$RESOURCE RAR_FILE AS "archive_files/archive-not-open.rar"
+$RESOURCE ZIP_FILE AS "archive_files/archive-games.zip"
 
 DIM A AS RArchive
 DIM i AS INTEGER

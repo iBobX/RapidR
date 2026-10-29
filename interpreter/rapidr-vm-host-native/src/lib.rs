@@ -235,6 +235,8 @@ impl Host for NativeHost {
     }
 
     fn input(&mut self) -> Result<String, String> {
+        // (waiting for the user: the file streams' writes in their files)
+        rapidr_value::objects::flush_streams();
         if let Some(source) = self.input_source.as_mut() {
             return source().ok_or_else(|| "INPUT: no more input".to_string());
         }

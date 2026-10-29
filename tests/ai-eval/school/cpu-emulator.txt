@@ -1,0 +1,10 @@
+# School app: a tiny 8-bit CPU emulator.
+Build me a tiny 8-bit CPU emulator: registers A and B, a small program in memory with LOAD, ADD, STORE, JUMP and HALT, Step and Run buttons, and the registers and the memory shown
+#! test step
+#! click /step|next/
+#! click /step|next/
+#! expect-changed /\d/
+#! test run
+#! click /run|go|start/
+#! wait 10
+#! expect-changed /\d/

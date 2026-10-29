@@ -5633,7 +5633,11 @@ dependencies = [
 name = "rapidr-vm-host-native"
 version = "2.121.3"
 dependencies = [
+ "libc",
+ "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-lexer",
+ "rapidr-parser",
  "rapidr-runtime-core",
  "rapidr-session",
  "rapidr-value",

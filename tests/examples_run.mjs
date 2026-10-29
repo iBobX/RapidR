@@ -98,6 +98,10 @@ export const cases = [
     expect: ["shopping.txt has", "1. bread", "4. coffee", "First line again: bread", "Removed: yes"] },
   { file: "basics/unicode.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Text: Hola, café · 日期 · 😀", "Characters: 19", "Bytes in the file: 29", "ReadAllText: Hola, café · 日期 · 😀", "Same text: yes", "LINE INPUT, same text: yes", "Binary: 5 bytes for 5 characters", "The second byte: 200", "Removed: yes"] },
+  { file: "basics/bytes.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["bytes_demo.bin: 65536 bytes", "Signature: RR, version 2", "Sum of the bytes: 8355528, zero bytes: 256",
+      "0000: 52 52 02 95 F1 D9 9C D3 F3 5F 01 80 AD EE EC 2C", "0010: 20 A2 98 D0 2A 52 35 CE 79 A7 03 12 6C A8 78 3B",
+      "In the array: mem(0) = R, mem(2) = 2, the last = 78 (the string's last: 78)"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)

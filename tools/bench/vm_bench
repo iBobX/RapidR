@@ -12,6 +12,16 @@ tools/bench/vm/ with the `rapidr` given (./rapidr, or RAPIDR=…).
   strings      1,000,000 rounds of MID$ / UCASE$ / + / LEN / =
   calls        the recursive Fibonacci of 27 (~630,000 calls)
   arrays       2,000,000 array elements written, read and summed
+  mid_scan     a 64 KB binary string read a byte at a time: ASC(MID$(b, i, 1))
+  concat_build s = s + CHR$(x), 262,144 times (four 64 KB strings)
+  byte_array   a 64 KB BYTE array decoded with AND / SHR / SHL, 16 passes
+  stream_read  a 64 KB stream: ReadNum(1) 65,536 times, then MemCopyTo
+  stream_write a 64 KB file written with WriteNum(x, 1), then WriteByte
+               (65,536 calls each), then SaveArray / LoadArray (it writes
+               tests/results/bench/write.bin)
+  binary_read  the program that found the slow MID$: a 64 KB file read
+               with ReadNum(1), then with ReadStr + ASC(MID$()) (it writes
+               tests/results/bench/blob.bin)
   idle         a form waiting in ShowModal with a 1-second timer: CPU used
                over 3 seconds (a real window: skipped with --no-windows)
 
@@ -228,6 +238,21 @@ def main():
         results["calls"] = {"ms": bench("calls", [exe, "run", prog("calls.rr")], env, runs, expect="196418")["ms"]}
     if want("arrays"):
         results["arrays"] = {"ms": bench("arrays", [exe, "run", prog("arrays.rr")], env, runs, expect="999000000")["ms"]}
+    # (binary data: what an emulator or a file parser does — STRING-SPEED)
+    if want("mid_scan"):
+        results["mid_scan"] = {"ms": bench("mid_scan", [exe, "run", prog("mid_scan.rr")], env, runs, expect="mid_scan 65536 8355840")["ms"]}
+    if want("concat_build"):
+        results["concat_build"] = {"ms": bench("concat_build", [exe, "run", prog("concat_build.rr")], env, runs, expect="concat_build 262144")["ms"]}
+    if want("byte_array"):
+        results["byte_array"] = {"ms": bench("byte_array", [exe, "run", prog("byte_array.rr")], env, runs, expect="byte_array 11010048")["ms"]}
+    if want("stream_read"):
+        results["stream_read"] = {"ms": bench("stream_read", [exe, "run", prog("stream_read.rr")], env, runs, expect="stream_read 8355840 8355840")["ms"]}
+    if want("stream_write"):
+        os.makedirs(os.path.join(ROOT, "tests", "results", "bench"), exist_ok=True)
+        results["stream_write"] = {"ms": bench("stream_write", [exe, "run", prog("stream_write.rr")], env, runs, expect="stream_write 65536 8355840 8355840")["ms"]}
+    if want("binary_read"):
+        os.makedirs(os.path.join(ROOT, "tests", "results", "bench"), exist_ok=True)
+        results["binary_read"] = {"ms": bench("binary_read", [exe, "run", prog("binary_read.rr")], env, runs, expect="ReadStr + ASC(MID$) x 65536: sum 8355840")["ms"]}
     if want("idle") and windows:
         results["idle"] = {"cpu_pct": idle_cpu([exe, "run", prog("idle_form.rr")], env)}
     if want("idle_debug") and windows:
@@ -264,6 +289,12 @@ def main():
         "strings": "strings, 1 M rounds",
         "calls": "calls, Fib(27)",
         "arrays": "arrays, 2 M elements",
+        "mid_scan": "MID$ scan, 64 KB",
+        "concat_build": "s = s + CHR$(x), 4 x 64 KB",
+        "byte_array": "BYTE array decode, 1 M reads",
+        "stream_read": "stream ReadNum + MemCopyTo, 64 KB",
+        "stream_write": "file writes, a byte at a time, 64 KB",
+        "binary_read": "the 64 KB file repro",
         "idle": "idle form (ShowModal + timer)",
         "idle_debug": "idle form, under the debugger",
         "studio_idle": "Studio, idle",

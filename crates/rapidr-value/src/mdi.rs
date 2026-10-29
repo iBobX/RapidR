@@ -123,7 +123,7 @@ impl Event {
 
     /// The arguments the handler gets: (handleChild&, index&, titleChild$).
     pub fn args(&self) -> Vec<Value> {
-        vec![Value::Integer(self.handle), Value::Integer(self.index), Value::String(self.title.clone())]
+        vec![Value::Integer(self.handle), Value::Integer(self.index), Value::String(self.title.clone().into())]
     }
 }
 
@@ -435,7 +435,7 @@ pub fn get(form: &str, prop: &str) -> Option<Value> {
             "childmax" => Value::Integer(m.child_max),
             "childresult" => Value::Integer(m.result as i64),
             "mdimenu" => Value::Integer(m.menu),
-            "childcaption" => s(&|c| Value::String(c.title.clone())),
+            "childcaption" => s(&|c| Value::String(c.title.clone().into())),
             "childhandle" => s(&|c| Value::Integer(c.handle)),
             "componentindex" => s(&|c| Value::Integer(c.index)),
             "childleft" => s(&|c| Value::Integer(c.rect.left)),
@@ -644,7 +644,7 @@ fn close_next<R: Runtime>(rt: R, form: String, mut rest: Vec<String>) {
     let component = rest.remove(0);
     let Some(frame) = frames(&form).into_iter().find(|f| f.component == component) else { return close_next(rt, form, rest) };
     set(&form, "childresult", &Value::Integer(-1), rt.client(&form));
-    let args = [Value::Integer(crate::handles::handle_of(&component)), Value::Integer(child_index(&form, &component).unwrap_or(0)), Value::String(frame.title)];
+    let args = [Value::Integer(crate::handles::handle_of(&component)), Value::Integer(child_index(&form, &component).unwrap_or(0)), Value::String(frame.title.into())];
     let f = form.clone();
     rt.fire_then(
         &form,
@@ -677,17 +677,17 @@ pub fn render<R: Runtime>(rt: R, form: &str) {
         if new {
             rt.create(&name, "RMDICHILD");
         }
-        rt.set(&name, "caption", Value::String(f.title.clone()));
+        rt.set(&name, "caption", Value::String(f.title.clone().into()));
         rt.set(&name, "active", int(if f.active { -1 } else { 0 }));
         rt.set(&name, "childstate", int(f.state as i64));
-        rt.set(&name, "__form", Value::String(form.clone()));
-        rt.set(&name, "__component", Value::String(f.component.clone()));
+        rt.set(&name, "__form", Value::String(form.clone().into()));
+        rt.set(&name, "__component", Value::String(f.component.clone().into()));
         rt.set(&name, "left", int(f.rect.left));
         rt.set(&name, "top", int(f.rect.top));
         rt.set(&name, "width", int(f.rect.width));
         rt.set(&name, "height", int(f.rect.height));
         if new {
-            rt.set(&name, "parent", Value::String(form.clone()));
+            rt.set(&name, "parent", Value::String(form.clone().into()));
         }
         rt.set(&name, "visible", int(-1));
         match f.body {

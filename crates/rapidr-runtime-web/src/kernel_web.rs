@@ -903,7 +903,7 @@ fn gesture_box(req: Request) -> FileWait {
 /// out as a download.
 fn name_box(req: &Request) -> FileWait {
     let initial = rapidr_value::file_dialog::with_default_ext(req.file_name.as_deref().unwrap_or(""), &req.default_ext);
-    let pending = rapidr_ui_app::dialogs::prompt(Web, &files_title(req), "File name:", &initial, "&Save", Some("Cancel"), |t| t.map_or(Value::Null, Value::String));
+    let pending = rapidr_ui_app::dialogs::prompt(Web, &files_title(req), "File name:", &initial, "&Save", Some("Cancel"), |t| t.map_or(Value::Null, Value::from));
     match pending {
         rapidr_ui_app::dialogs::Pending::Open(wait) => FileWait::Name { wait },
         rapidr_ui_app::dialogs::Pending::Done(_) => FileWait::Done(Vec::new()),
@@ -1332,7 +1332,7 @@ pub fn input_box(title: &str, prompt: &str, echo: bool) -> Option<Value> {
         if echo {
             crate::dialog_web::echo_next(text.clone());
         }
-        Value::String(text)
+        Value::String(text.into())
     };
     match rapidr_ui_app::dialogs::input(Web, title, prompt, "", then) {
         rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),

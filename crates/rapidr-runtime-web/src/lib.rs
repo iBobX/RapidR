@@ -76,7 +76,7 @@ pub mod prelude {
     // COMPRESS$ / DECOMPRESS$ (RapidR's; RArchive's engine)
     pub use crate::value::objects::archive as rr_archive;
     pub use crate::value::console;
-    pub use crate::value::{input_value, obj_field, rp_inv, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};
+    pub use crate::value::{input_value, obj_field, rp_inv, rp_new_object, rp_new_object_array, rp_redim, rp_append_assign, rp_shl, rp_shr, set_obj_field};
 
     // BASIC builtins (string / math / date / conversion / etc.)
     pub use crate::builtins::*;

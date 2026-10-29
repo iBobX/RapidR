@@ -1,0 +1,37 @@
+' vm_bench: the program that found the slow MID$ (STRING-SPEED,
+' 2026-10-29) — a 64 KB binary file read a byte at a time with
+' RFileStream.ReadNum(1), then all at once with ReadStr and walked with
+' ASC(MID$(b, i, 1)). Writes its file to tests/results/bench/blob.bin
+' (git-ignored): run it from the repository's folder.
+$APPTYPE CONSOLE
+CONST blob = "tests/results/bench/blob.bin"
+DIM fs AS RFileStream
+DIM b AS STRING, i AS INTEGER, s AS INTEGER, x AS INTEGER, t AS DOUBLE, t1 AS DOUBLE
+' (65,536 pseudo-random bytes, the same every time)
+fs.Open blob, fmCreate
+x = 1
+FOR i = 1 TO 65536
+  x = (x * 75 + 74) MOD 65537
+  fs.WriteNum x AND 255, 1
+NEXT
+fs.Close
+
+t = TIMER
+fs.Open blob, fmOpenRead
+s = 0
+FOR i = 1 TO 65536
+  s = s + fs.ReadNum(1)
+NEXT
+fs.Close
+PRINT "ReadNum(1) x 65536: sum "; s
+t1 = TIMER
+
+fs.Open blob, fmOpenRead
+b = fs.ReadStr(65536)
+fs.Close
+s = 0
+FOR i = 1 TO 65536
+  s = s + ASC(MID$(b, i, 1))
+NEXT
+PRINT "ReadStr + ASC(MID$) x 65536: sum "; s
+PRINT "ms "; INT((TIMER - t) * 1000); " (ReadNum "; INT((t1 - t) * 1000); ", ReadStr + MID$ "; INT((TIMER - t1) * 1000); ")"

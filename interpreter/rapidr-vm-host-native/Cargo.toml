@@ -30,3 +30,14 @@ rapidr-runtime-core = { workspace = true, features = ["archive"] }
 rapidr-session = { workspace = true, features = ["program"], optional = true }
 # (the eyes and hands' replies, JSON: session.rs)
 serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+# (tests/string_speed.rs: BASIC source compiled and run on this host)
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-bcgen = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+# (the test's CPU-time clock: steady on a machine busy with other work;
+# MIT OR Apache-2.0, already in the tree through rapidr-runtime-core)
+libc = "0.2"

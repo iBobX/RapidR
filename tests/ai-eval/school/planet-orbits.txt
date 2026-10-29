@@ -1,0 +1,6 @@
+# School app: planets orbiting the sun (animated).
+Build me a solar system simulation: planets orbiting the sun, animated, with a speed setting
+#! test orbit
+#! click? /start|run|play|go/
+#! wait 30
+#! expect-picture-changed

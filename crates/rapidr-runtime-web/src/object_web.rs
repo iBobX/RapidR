@@ -344,6 +344,10 @@ thread_local! {
 /// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
 /// leading `./`, any case.
 pub(crate) fn file_key(path: &str) -> String {
+    // (every use of a file by its name goes through here: what file streams
+    // still keep is in the page's files first, as on the desktop's
+    // paths::host — rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     let p = path.trim().replace('\\', "/");
     p.trim_start_matches("./").to_lowercase()
 }

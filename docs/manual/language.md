@@ -413,6 +413,32 @@ characters, not bytes.
   side by side). Use `CHR$(34)`, or turn on `$ESCAPECHARS ON` for `\"`,
   `\n`, `\t`, `\\`, `\x41`.
 
+### Long strings and binary data
+
+A string can hold a whole file: `ReadBinStr` (or `ReadStr`) on an
+`RFileStream` gives one character per byte, `CHR$(0)` … `CHR$(255)`, and
+`ASC(MID$(data, i, 1))` — or `ASC(data[i])` — is the byte at `i`. Reading
+every byte of a 64 KB file this way took 13 ms with `rapidr run`, 7 ms
+built native and 23 ms in a browser on an Apple M4 Max
+([tools/bench](../../tools/bench/README.md)), the same per byte however
+long the string: `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `INSTR` and `data[i]`
+cost what they return, not the string's length. Strings are
+shared, not copied — passing one to a SUB or putting it in another
+variable costs nothing — and a string built a piece at a time,
+`s = s + x` or `s = s & x`, grows in place. (Write `s = s + (a + b)`
+rather than `s = s + a + b` when `s` is long: the second makes a new
+`s + a` first.) To get the bytes into an array in one call, copy them with
+`MemCopyTo`:
+
+```basic
+DIM mem(65535) AS BYTE
+fs.Open("game.rom", fmOpenRead)
+fs.MemCopyTo(VARPTR(mem(0)), fs.Size)     ' its bytes, mem(0) the first (no more than the array holds)
+fs.Close
+```
+
+[bytes.rr](../../examples/basics/bytes.rr) does both with a 64 KB file.
+
 ## Files
 
 ```basic
@@ -497,6 +523,15 @@ draw in `OnPaint`, which runs again when such a font arrives.
 
 ![The translations example in Chinese and in Spanish](images/translations/languages-chinese.png)
 ![The same in Spanish](images/translations/languages-spanish.png)
+An `RFileStream` writes a file a byte at a time as fast as all at once:
+it keeps what it's given and writes it together — at `Close`, when the
+program waits (for its events, `SLEEP`, `INPUT`) or ends (`END`, a
+run-time error), every 64 KB, and before anything else uses the file by
+its name (`OPEN`, another stream's `Open`, `FILELEN`, `KILL` …), so
+whatever reads the file sees every byte, as if each write had gone
+straight to it. Only a program stopped from outside (killed, the power
+gone) can lose what it wrote last, at most 64 KB. `SaveArray` and
+`LoadArray` of a numeric array move all its elements in one go.
 
 File names work as they do on Windows, on every system: `\` and `/` both
 separate folders, and a name finds its file in any case. A program

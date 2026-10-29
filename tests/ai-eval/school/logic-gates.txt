@@ -1,0 +1,12 @@
+# School app: a logic gate simulator (0/1 typed in, a gate button, an output).
+Build me a logic gate simulator: two inputs A and B where I type 0 or 1, buttons for AND, OR, XOR and NAND, and the output shown
+#! test and
+#! type #1 1
+#! type #2 1
+#! click /^&?and$/
+#! expect-changed /\b1\b|true|high/
+#! test xor
+#! type #1 1
+#! type #2 0
+#! click /^&?xor$/
+#! expect-changed /\b1\b|true|high/

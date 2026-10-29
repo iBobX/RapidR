@@ -71,7 +71,7 @@ impl Runtime for Web {
     /// The program's clipboard, and the system's through the browser's
     /// clipboard API (a menu click is the user's gesture it asks for).
     fn set_clipboard(self, text: &str) {
-        crate::globals_web::set("clipboard", "text", &Value::String(text.to_string()));
+        crate::globals_web::set("clipboard", "text", &Value::String(text.to_string().into()));
     }
 }
 

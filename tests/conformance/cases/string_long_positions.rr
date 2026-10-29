@@ -1,0 +1,115 @@
+' Long strings (thousands of characters: bytes CHR$(0)..CHR$(255) and
+' wider characters, é, €, emoji): MID$, LEFT$, RIGHT$, LEN, INSTR, RINSTR,
+' ASC, DELETE$, INSERT$ and s[i] count characters, read through the
+' string's index (BasicString) - the answers the character-by-character
+' walk gave. Strings built a piece at a time (x = x + y, x = x & y) are
+' appended in place; a string another variable shares keeps its text.
+$APPTYPE CONSOLE
+
+DIM g AS STRING
+
+FUNCTION Grow() AS STRING
+  g = "changed"
+  Grow = "!"
+END FUNCTION
+
+FUNCTION Grow2() AS STRING
+  g = g + "q"
+  Grow2 = "?"
+END FUNCTION
+
+FUNCTION Hash(t AS STRING) AS INTEGER
+  DIM h AS INTEGER, j AS INTEGER
+  h = 0
+  FOR j = 1 TO LEN(t)
+    h = (h * 31 + ASC(MID$(t, j, 1)) + j) MOD 1000003
+  NEXT
+  Hash = h
+END FUNCTION
+
+FUNCTION Build(n AS INTEGER) AS STRING
+  ' (a SUB's own variable built in place)
+  DIM t AS STRING, j AS INTEGER
+  FOR j = 0 TO n - 1
+    IF j MOD 7 = 3 THEN
+      t = t + "é"
+    ELSEIF j MOD 11 = 5 THEN
+      t = t & "€"
+    ELSEIF j MOD 13 = 6 THEN
+      t = t + "😀"
+    ELSE
+      t = t + CHR$((j * 37) MOD 256)
+    END IF
+  NEXT
+  Build = t
+END FUNCTION
+
+DIM b AS STRING, c AS STRING, i AS INTEGER, s AS INTEGER, k AS INTEGER
+' (the same text built at the top level: a module variable in place)
+FOR i = 0 TO 2999
+  IF i MOD 7 = 3 THEN
+    b = b + "é"
+  ELSEIF i MOD 11 = 5 THEN
+    b = b & "€"
+  ELSEIF i MOD 13 = 6 THEN
+    b = b + "😀"
+  ELSE
+    b = b + CHR$((i * 37) MOD 256)
+  END IF
+NEXT
+c = Build(3000)
+PRINT "len "; LEN(b); " "; LEN(c); " same "; (b = c)
+PRINT "hash "; Hash(b)
+
+' every position, one character at a time, and past the end
+s = 0
+FOR i = 1 TO LEN(b) + 2
+  s = (s * 7 + ASC(MID$(b, i, 1)) + ASC(b[i])) MOD 1000003
+NEXT
+PRINT "scan "; s
+
+' backwards, and pieces of every length from many places
+s = 0
+FOR i = LEN(b) TO 1 STEP -1
+  s = (s * 7 + ASC(MID$(b, i, 1))) MOD 1000003
+NEXT
+PRINT "back "; s
+s = 0
+FOR i = 0 TO 3100 STEP 97
+  FOR k = 0 TO 70 STEP 7
+    s = (s + Hash(MID$(b, i, k)) + LEN(MID$(b, i, k))) MOD 1000003
+  NEXT
+  s = (s + LEN(MID$(b, i)) + Hash(LEFT$(b, i)) + Hash(RIGHT$(b, i))) MOD 1000003
+NEXT
+PRINT "pieces "; s
+PRINT "edges "; LEN(LEFT$(b, 0)); " "; LEN(LEFT$(b, 5000)); " "; LEN(RIGHT$(b, 0)); " "; LEN(RIGHT$(b, 5000)); " "; LEN(MID$(b, 0, 3)); " "; LEN(MID$(b, 2999, 9)); " "; LEN(MID$(b, 3001, 1))
+PRINT "asc "; ASC(MID$(b, 4, 1)); " "; ASC(MID$(b, 6, 1)); " "; ASC(MID$(b, 7, 1)); " "; ASC(MID$(b, 2, 1)); " "; ASC(MID$(b, 3000, 1))
+
+' INSTR / RINSTR from many starts
+s = 0
+FOR i = -3 TO 3010 STEP 13
+  s = (s + INSTR(i, b, "€") + INSTR(i, b, "😀" + CHR$(0)) + RINSTR(i, b, "é") + RINSTR(i, b, CHR$(37))) MOD 1000003
+NEXT
+PRINT "instr "; s; " "; INSTR(b, "zz"); " "; RINSTR(b, "€"); " "; INSTR(2999, b, MID$(b, 2999, 2)); " "; RINSTR(3000, b, RIGHT$(b, 1))
+
+' DELETE$ / INSERT$ / REPLACESUBSTR$ far into it
+PRINT "edit "; Hash(DELETE$(b, 1500, 40)); " "; Hash(INSERT$(b, 2500, "ñ")); " "; LEN(REPLACESUBSTR$(b, "€", "EUR"))
+
+' shared text: a copy keeps its own when the other grows
+DIM a AS STRING, keep AS STRING
+a = STRING$(300, "x")
+keep = a
+a = a + "y"
+a = a & "z"
+PRINT "shared "; LEN(a); " "; LEN(keep); " "; RIGHT$(a, 3); " "; RIGHT$(keep, 2)
+a = a + a
+PRINT "doubled "; LEN(a); " "; MID$(a, 301, 4)
+
+' the right side changes the variable: the left side is the text it had
+' when the expression read it
+g = "abc"
+g = g + Grow()
+PRINT "order "; g
+g = "abc"
+g = g & Grow2()
+PRINT "order "; g

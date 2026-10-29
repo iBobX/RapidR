@@ -1,0 +1,16 @@
+' vm_bench: strings built a character at a time — s = s + CHR$(x),
+' 65,536 times, four times over (262,144 appends). Before STRING-SPEED
+' (2026-10-29) each append copied all of s; now it costs what it adds.
+$APPTYPE CONSOLE
+DIM s AS STRING, i AS INTEGER, r AS INTEGER, n AS INTEGER, t AS DOUBLE
+t = TIMER
+n = 0
+FOR r = 1 TO 4
+  s = ""
+  FOR i = 1 TO 65536
+    s = s + CHR$(i AND 255)
+  NEXT
+  n = n + LEN(s)
+NEXT
+PRINT "concat_build "; n
+PRINT "ms "; INT((TIMER - t) * 1000)

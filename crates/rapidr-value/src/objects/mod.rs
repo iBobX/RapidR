@@ -241,6 +241,8 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     if let Some(bytes) = crate::resources::read_path(path) {
         return bytes;
     }
+    // (a file stream's writes it still keeps: in the file first)
+    flush_streams();
     let reader = FILE_IO.with(|io| io.borrow().0);
     reader(path)
 }
@@ -271,6 +273,7 @@ pub fn picture_bytes(v: &Value) -> Result<Vec<u8>, String> {
 }
 
 pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+    flush_streams();
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
 }
@@ -1217,6 +1220,28 @@ fn with<R>(id: &str, f: impl FnOnce(&mut Object) -> R) -> Option<R> {
     OBJECTS.with(|o| o.borrow_mut().get_mut(&id.to_lowercase()).map(f))
 }
 
+/// Every file stream (RFileStream) writes what it hasn't written to its
+/// file yet (`memstream::FileSink` keeps a stream's writes, up to 64 KB,
+/// to write them together): before anything else uses a file by its name
+/// (`paths::host`, `read_file`, `write_file`), at Close and when the
+/// program ends (`basic_files::close_all`, a run-time error). One look when
+/// nothing is pending; nothing done while a stream's own method runs (it
+/// writes its own at the end of it, or the next time).
+pub fn flush_streams() {
+    if !memstream::pending() {
+        return;
+    }
+    OBJECTS.with(|o| {
+        let Ok(mut objects) = o.try_borrow_mut() else { return };
+        for object in objects.values_mut() {
+            if let Object::Stream(m) = object {
+                m.flush();
+            }
+        }
+        memstream::none_pending();
+    });
+}
+
 /// A property of object `id`; `None` if `id` isn't an object or the
 /// property isn't one it implements (the runtime then keeps it as a plain
 /// stored property).
@@ -1604,7 +1629,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         .flatten() else {
             return with(id, |o| matches!(o, Object::List(_))).filter(|&l| l).map(|_| Ok(Value::Null));
         };
-        let args: Vec<Value> = other.into_iter().map(Value::String).collect();
+        let args: Vec<Value> = other.into_iter().map(Value::from).collect();
         return with(id, |o| match o {
             Object::List(l) => l.call("additems", &args).map(Ok),
             _ => None,
@@ -1719,7 +1744,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         // QMEMORYSTREAM's MemCopyFrom / MemCopyTo (address, bytes) and the
         // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
-        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
+        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray" | "__arrayio") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
         // (a `$RESOURCE`'s handle too: `Image.Load RES`)
         ("bitmap", "loadfromfile" | "load") => Some(picture_bytes(&arg(0)).and_then(|bytes| {
@@ -2180,12 +2205,12 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
     if create && !native {
         write_file(path, &[]).map_err(|_| crate::exception(&format!("Cannot create file {path}.")))?;
     }
-    let sink = memstream::FileSink {
-        path: path.to_string(),
+    let sink = memstream::FileSink::new(
+        path,
         writable,
         #[cfg(not(target_arch = "wasm32"))]
         handle,
-    };
+    );
     with(id, |o| {
         if let Object::Stream(m) = o {
             *m = MemStream { data, pos: 0, file: Some(sink) };

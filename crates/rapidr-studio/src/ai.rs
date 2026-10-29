@@ -141,7 +141,7 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Tools) -> R) -> R {
 }
 
 fn s(v: impl Into<String>) -> Value {
-    Value::String(v.into())
+    Value::String(v.into().into())
 }
 
 /// The key a kept chat's state holds its waiting changes under.

@@ -858,10 +858,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Add => {
                     let b = self.pop()?;
                     let a = self.top_mut()?;
-                    *a = match (&*a, &b) {
-                        (Value::Integer(x), Value::Integer(y)) => Value::Integer(x.wrapping_add(*y)),
-                        _ => &*a + &b,
-                    };
+                    if let (Value::Integer(x), Value::Integer(y)) = (&*a, &b) {
+                        *a = Value::Integer(x.wrapping_add(*y));
+                        continue;
+                    }
+                    // (two strings: `x = x + y` appended in place)
+                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
+                        && (a.append_in_place_if_unique(&b, true) || self.append_to_variable(code, &mut ip, &b, true))
+                    {
+                        continue;
+                    }
+                    let a = self.top_mut()?;
+                    *a = &*a + &b;
                 }
                 Op::Sub => {
                     let b = self.pop()?;
@@ -884,7 +892,17 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 Op::Mod => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.checked_mod(&b).map_err(|e| VmError::Runtime(e.into()))?); }
                 Op::Pow => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.power(&b)); }
                 Op::Neg => { let a = self.pop()?; self.stack.push(-&a); }
-                Op::Concat => { let b = self.pop()?; let a = self.pop()?; self.stack.push(a.concat(&b)); }
+                Op::Concat => {
+                    let b = self.pop()?;
+                    let a = self.top_mut()?;
+                    if matches!((&*a, &b), (Value::String(_), Value::String(_)))
+                        && (a.append_in_place_if_unique(&b, false) || self.append_to_variable(code, &mut ip, &b, false))
+                    {
+                        continue;
+                    }
+                    let a = self.top_mut()?;
+                    *a = a.concat(&b);
+                }
 
                 // ----- comparison -----
                 Op::Eq => self.compare(|o| o.is_eq(), Value::rp_eq)?,
@@ -1394,7 +1412,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// Pops an object reference (a component or TYPE instance id).
     fn pop_object_id(&mut self) -> Result<String, VmError> {
         match self.pop()? {
-            Value::String(id) if !id.is_empty() => Ok(id),
+            Value::String(id) if !id.is_empty() => Ok(id.into_string()),
             _ => Err(VmError::Runtime(
                 "this variable does not refer to an object (component or TYPE instance)".into(),
             )),
@@ -1414,6 +1432,51 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             *i = self.pop()?.to_i64();
         }
         Ok((indices, n))
+    }
+
+    /// `x = x + y` / `x = x & y` for a string variable `x` (a global or a
+    /// local): the Add / Concat being run has popped `right` (y, a string)
+    /// and has `x`'s value on top of the stack, and the next instruction
+    /// stores into `x`. When `x` still holds the very text the left operand
+    /// was read from, `right` is appended to it there, in place, and the
+    /// store is done with it — the same result, but a string built a piece
+    /// at a time costs what each piece adds, not a copy of all of it (a
+    /// 64 KB string built a character at a time was 65,536 copies).
+    /// `false`, and nothing done, for anything else.
+    fn append_to_variable(&mut self, code: &[u8], ip: &mut usize, right: &Value, plus: bool) -> bool {
+        let Some(Value::String(left)) = self.stack.last() else { return false };
+        let at = *ip;
+        let (slot, store_len) = match code.get(at).copied().and_then(Op::from_u8) {
+            Some(Op::StoreGlobal) if at + 5 <= code.len() => {
+                let i = u32::from_le_bytes([code[at + 1], code[at + 2], code[at + 3], code[at + 4]]) as usize;
+                match self.globals.get_mut(i) {
+                    Some(Some(v)) => (v, 5),
+                    _ => return false,
+                }
+            }
+            Some(Op::StoreLocal) if at + 3 <= code.len() => {
+                let s = u16::from_le_bytes([code[at + 1], code[at + 2]]) as usize;
+                match self.frames.last_mut().and_then(|f| f.locals.get_mut(s)) {
+                    Some(v) => (v, 3),
+                    None => return false,
+                }
+            }
+            _ => return false,
+        };
+        let Value::String(held) = &*slot else { return false };
+        // (`+` past the longest string: the general path stops the program
+        // with its message)
+        let Value::String(r) = right else { return false };
+        if !rapidr_value::BasicString::ptr_eq(held, left) || (plus && held.len() + r.len() > rapidr_value::strings::MAX_STRING_LEN * 4) {
+            return false;
+        }
+        // (the left operand dropped first: then the variable is the text's
+        // only holder, unless something else shares it — then it is copied,
+        // as `x + y` would)
+        self.stack.pop();
+        slot.append_in_place(right, plus);
+        *ip = at + store_len;
+        true
     }
 
     /// The value on the stack's top, to replace in place.
