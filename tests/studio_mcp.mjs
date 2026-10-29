@@ -196,6 +196,14 @@ if (want("all")) {
   check("read_file without its path: told what it needs", r.error && r.text.includes("Call read_file again: it needs `path`"), r.text);
   r = await tool("check_code");
   check("check_code: no errors", !r.error && /no (errors|problems)/i.test(r.text), r.text);
+  // (a small model's tool-call layer sends a list as JSON text and a flag as "true": the schema says
+  // what is wanted, so the value is taken — found by tools/ai_eval's outside-AI-app runs)
+  r = await tool("read_output", { All: "true" });
+  check("a flag sent as the string \"true\" is the flag", !r.error && r.text.includes("(no new output)"), r.text);
+  r = await tool("propose_edit", { path: "main.rr", edits: JSON.stringify([{ old_text: "this text is not in the file", new_text: "x" }]), summary: "Nothing." });
+  check("a list sent as JSON text is the list (the edit is looked at: its text isn't there)", r.error && r.text.includes("isn't in main.rr") && !r.text.includes("must be a list"), r.text);
+  r = await tool("propose_edit", { path: "main.rr", edits: '[{"old_text": "a"}]\n}', summary: "Nothing." });
+  check("JSON text that isn't a list is still refused, in words", r.error && r.text.includes("`edits` must be a list"), r.text);
 
   r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello from an AI app"' }], summary: "Greets from the AI app." });
   check("propose_edit: applied at once (Allow everything)", !r.error && r.text.includes("Applied") && r.raw.progress.length === 0, r.text);

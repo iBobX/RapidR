@@ -52,7 +52,8 @@ const MODELS = {
 if (opt("--models", "")) Object.assign(MODELS, JSON.parse(readFileSync(resolve(opt("--models")), "utf8")));
 function modelOf(key) {
   if (MODELS[key]) return MODELS[key];
-  if (key.startsWith("ollama/")) return { id: key.slice(7), url: opt("--ollama-url", "http://localhost:11434/v1"), openai: true, paid: false };
+  // (Ollama's own API for driver A — num_ctx and thinking off, which /v1 can't say; its /v1 for driver B, RAI's compatible provider)
+  if (key.startsWith("ollama/")) return { id: key.slice(7), url: opt("--ollama-url", "http://localhost:11434"), ollama: true, local: true, paid: false };
   return null;
 }
 // (a folder name: no "/" or ":")
@@ -120,15 +121,16 @@ for (const cell of cells) {
       const args = [join(HERE, "studio_mcp_agent.mjs"), "--app", app.file, "--out", dir, "--steps", steps, "--minutes", minutes, "--port", String(port)];
       if (model.mock) args.push("--dry");
       else if (model.anthropic) args.push("--driver", "anthropic", "--model", model.id, "--ledger", ledger, "--cost-cap", String(costCap));
+      else if (model.ollama) args.push("--driver", "ollama", "--model", model.id, "--base-url", model.url, "--num-ctx", opt("--num-ctx", "32768"), "--think", opt("--think", "off"));
       else args.push("--driver", "openai", "--model", model.id, "--base-url", model.url);
       const r = await run(process.execPath, args, { env: childEnv, minutes: Number(minutes) + 20 });
       writeFileSync(join(dir, "agent.log"), redact(r.text));
       let s = {};
       try { s = JSON.parse(readFileSync(join(dir, "summary.json"), "utf8")); } catch { s = { stopped: "harness_error", detail: redact(r.text.split("\n").slice(-4).join(" | ")) }; }
-      row = { ...row, score: s.score ?? null, compiles: s.compiles ?? null, stopped: s.stopped, detail: s.detail, requests: s.steps, toolCalls: s.toolCalls, toolErrors: s.toolErrors, inTok: s.inTokens, outTok: s.outTokens, usd: model.paid ? s.usd : 0, seconds: s.seconds, clickTest: s.clickTest };
+      row = { ...row, score: s.score ?? null, compiles: s.compiles ?? null, stopped: s.stopped, detail: s.detail, requests: s.steps, toolCalls: s.toolCalls, toolErrors: s.toolErrors, inTok: s.inTokens, outTok: s.outTokens, usd: model.paid ? s.usd : 0, seconds: s.seconds, clickTest: s.clickTest, nativeCalls: s.nativeCallRequests, textCalls: s.textFallbacks, emptyReplies: s.emptyReplies, badArgs: s.badArgs, unknownTools: s.unknownTools };
     } else {
       // (B: Studio's own RAI: ai_eval clears its --out first, so its log lives beside it)
-      const aiEnv = { ...childEnv, RAPIDR_AI_EVAL_MODEL: model.id, RAPIDR_AI_EVAL_PROVIDER: model.anthropic ? "anthropic" : "compatible", RAPIDR_AI_EVAL_URL: model.url || "" };
+      const aiEnv = { ...childEnv, RAPIDR_AI_EVAL_MODEL: model.id, RAPIDR_AI_EVAL_PROVIDER: model.anthropic ? "anthropic" : "compatible", RAPIDR_AI_EVAL_URL: model.ollama ? `${model.url.replace(/\/v1\/?$/, "")}/v1` : model.url || "" };
       if (model.mock) { row = { ...row, stopped: "skipped", note: "B has no mock cell: tests/studio_flows.mjs ai-* cases cover it" }; writeFileSync(join(dir, "result.json"), JSON.stringify(row, null, 1)); continue; }
       const r = await run(evalBin, [app.file, "--out", join(dir, "ai")], { env: aiEnv, minutes: 30 });
       writeFileSync(join(dir, "ai_eval.log"), redact(r.text));
@@ -142,12 +144,16 @@ for (const cell of cells) {
       const usd = model.paid ? price(inTok, outTok) : 0;
       if (model.paid) ledgerAdd(usd, inTok, outTok, `B:${model.id}:${app.name}`);
       const toolList = turns.flatMap((t) => t.tools || []);
-      row = { ...row, score: score ? Number(score[1]) : null, compiles: /compiles yes/.test(line) ? true : /compiles no/.test(line) ? false : null, stopped: turns.some((t) => t.aborted) ? "aborted" : turns.length ? "answered" : "no_summary", requests: turns.reduce((a, t) => a + (t.requests || []).length, 0), toolCalls: toolList.length, toolErrors: toolList.filter((t) => /\(error\)/.test(t)).length, inTok, outTok, usd, seconds: Math.round((Date.now() - started) / 1000), clickTest: line.replace(/^== click test: /, ""), falseClaims: s.falseClaims, errors: turns.flatMap((t) => t.errors || []).slice(0, 3) };
+      row = { ...row, score: score ? Number(score[1]) : null, compiles: /compiles yes/.test(line) ? true : /compiles no/.test(line) ? false : null, stopped: turns.some((t) => t.aborted) ? "aborted" : turns.length ? "answered" : "no_summary", requests: turns.reduce((a, t) => a + (t.requests || []).length, 0), toolCalls: toolList.length, toolErrors: toolList.filter((t) => /\(error\)/.test(t)).length, inTok, outTok, usd, seconds: Math.round((Date.now() - started) / 1000), clickTest: line.replace(/^== click test: /, ""), falseClaims: s.falseClaims, nudges: turns.reduce((a, t) => a + (t.nudges || 0), 0), errors: turns.flatMap((t) => t.errors || []).slice(0, 3) };
     }
     row.seconds = row.seconds ?? Math.round((Date.now() - started) / 1000);
     writeFileSync(join(dir, "result.json"), JSON.stringify(row, null, 1));
     appendFileSync(join(out, "results.jsonl"), redact(JSON.stringify(row)) + "\n");
     console.log(`${row.cell} ${app.name} r${rep}: score ${row.score} (${row.stopped}) ${row.requests ?? "?"} req ${row.toolCalls ?? "?"} calls ${row.seconds}s${row.usd ? ` US$${row.usd.toFixed(4)}` : ""}`);
   }
+  // (a local model is put away when its cells are done: one at a time in memory — only
+  // models this matrix loaded, and only when the next cell is another model's)
+  const next = cells[cells.indexOf(cell) + 1];
+  if (argv.includes("--unload") && (model.local || model.openai) && next && modelOf(next.slice(2))?.id !== model.id) spawnSync("ollama", ["stop", model.id], { stdio: "ignore" });
 }
 console.log(`ledger: US$${ledgerRead().total.toFixed(4)}`);

@@ -16,7 +16,8 @@
 //   click_fail    it compiles; the click test fails (a button or box not found, a wrong answer)
 //   no_run        it compiles; the program didn't run to the end
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const dir = process.argv[2];
 if (!dir) { console.error("usage: analyse.mjs RUNS_DIR [--json FILE]"); process.exit(2); }
@@ -24,15 +25,34 @@ const jsonOut = process.argv.includes("--json") ? process.argv[process.argv.inde
 const readJson = (p) => { try { return JSON.parse(readFileSync(p, "utf8")); } catch { return null; } };
 
 // ---- load every cell's runs ----------------------------------------------------------------
+const evalRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "tests", "ai-eval");
+const setNames = {};
+for (const d of ["apps", "held-out", "school"]) for (const f of existsSync(join(evalRoot, d)) ? readdirSync(join(evalRoot, d)) : []) if (f.endsWith(".txt")) setNames[f.replace(/\.txt$/, "")] = d;
+const setOf = (app) => setNames[app] || "apps";
 const runs = [];
 for (const cell of readdirSync(dir).filter((d) => /^[AB]-/.test(d))) {
   for (const sub of readdirSync(join(dir, cell))) {
     const r = readJson(join(dir, cell, sub, "result.json"));
     if (!r) continue;
-    const run = { ...r, dir: join(dir, cell, sub), name: sub };
+    const run = { ...r, dir: join(dir, cell, sub), name: sub, set: r.set || setOf(r.app) };
     if (r.driver === "A") {
       run.summary = readJson(join(run.dir, "summary.json")) || {};
       run.events = existsSync(join(run.dir, "transcript.jsonl")) ? readFileSync(join(run.dir, "transcript.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
+      // (how the model's calls arrived, from the transcript: in the API's tool_calls, as text a
+      // parser had to find, or lost — a reply that ended with no finish, no text and no call:
+      // Ollama's parser for a model's own call syntax drops a malformed call without a word)
+      const models = run.events.filter((e) => e.type === "model");
+      const withCalls = models.filter((e) => e.calls.length);
+      run.fmt = {
+        requests: models.length,
+        native: withCalls.filter((e) => e.format === "native").length,
+        text: withCalls.filter((e) => e.format === "text-fallback").length,
+        empty: models.filter((e) => !e.text && !e.calls.length).length,
+        lost: models.filter((e) => !e.text && !e.calls.length && e.stop === "").length,
+        badArgs: withCalls.reduce((a, e) => a + e.calls.filter((c) => c.badArgs).length, 0),
+        calls: models.reduce((a, e) => a + e.calls.length, 0),
+        unknown: run.events.filter((e) => e.type === "tool" && /^Unknown tool/.test(e.error || "")).length,
+      };
     } else {
       run.summary = readJson(join(run.dir, "ai", "summary.json")) || {};
       run.log = existsSync(join(run.dir, "ai_eval.log")) ? readFileSync(join(run.dir, "ai_eval.log"), "utf8") : "";
@@ -62,7 +82,7 @@ function categorise(run) {
     if (run.stopped === "step_cap" || run.stopped === "time_cap") {
       return run.compiles === false ? { cat: "loop", why: `step cap, never compiled: ${compileKind(click)}`, sub: compileKind(click) } : { cat: "loop", why: "step cap, compiles but fails the click test" };
     }
-    if (last && !last.text && !last.calls.length) return { cat: "empty", why: "the last reply had no text and no call" };
+    if (last && !last.text && !last.calls.length) return { cat: "empty", why: last.stop === "" ? "the reply ended with no finish, no text and no call (the server's parser dropped a malformed tool call)" : "the last reply had no text and no call" };
     if (!built && run.compiles !== false) return { cat: "gave_up", why: (s.finalAnswer || "").slice(0, 120) };
     if (run.compiles === false) return { cat: "no_compile", why: click.replace(/^compile FAIL /, ""), sub: compileKind(click) };
     if (/didn't run to the end/.test(click)) return { cat: "no_run", why: click };
@@ -84,9 +104,28 @@ const held = new Set(runs.filter((r) => r.heldOut).map((r) => r.app));
 const lines = [];
 const out = (t = "") => lines.push(t);
 const rate = (rs) => (rs.length ? `${rs.filter((r) => r.score === 1).length}/${rs.length}` : "–");
+// (per cell, one line: pass rates by set, the seconds an app takes, how the calls arrive)
+out("Per model and driver (A = an outside AI app through Studio's MCP tools, B = Studio's own RAI; pass = the click test passed, p/n runs):");
+out();
+out("| cell | all | apps | held-out | school | s per app | requests per app | calls via tool_calls | calls as text | replies lost (no finish) | bad-args calls | unknown tools | US$ |");
+out("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+for (const c of cells) {
+  const rs = runs.filter((r) => r.cell === c);
+  const sum = (f) => rs.reduce((a, r) => a + (f(r) || 0), 0);
+  const of = (set) => rate(rs.filter((r) => r.set === set));
+  const f = rs.filter((r) => r.fmt);
+  const calls = f.reduce((a, r) => a + r.fmt.native + r.fmt.text, 0);
+  const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : "–");
+  const fsum = (k) => f.reduce((a, r) => a + r.fmt[k], 0);
+  const p = rs.filter((r) => r.score === 1).length;
+  out(`| ${c} | **${p}/${rs.length}** (${rs.length ? Math.round((100 * p) / rs.length) : 0}%) | ${of("apps")} | ${of("held-out")} | ${of("school")} | ${(sum((r) => r.seconds) / rs.length).toFixed(0)} | ${(sum((r) => r.requests) / rs.length).toFixed(1)} | ${f.length ? pct(fsum("native"), calls) : "n/a (RAI)"} | ${f.length ? pct(fsum("text"), calls) : "n/a"} | ${f.length ? `${fsum("lost")}/${fsum("requests")}` : "n/a"} | ${f.length ? `${fsum("badArgs")}/${fsum("calls")}` : "n/a"} | ${f.length ? fsum("unknown") : "n/a"} | ${sum((r) => r.usd).toFixed(3)} |`);
+}
+out();
+out("Per app (p/n runs per cell):");
+out();
 out("| app | " + cells.join(" | ") + " |");
 out("|---|" + cells.map(() => "---").join("|") + "|");
-for (const app of apps) out(`| ${app}${held.has(app) ? " (held out)" : ""} | ` + cells.map((c) => rate(runs.filter((r) => r.cell === c && r.app === app))).join(" | ") + " |");
+for (const app of apps) out(`| ${app}${setNames[app] && setNames[app] !== "apps" ? ` (${setNames[app]})` : ""} | ` + cells.map((c) => rate(runs.filter((r) => r.cell === c && r.app === app))).join(" | ") + " |");
 out("| **all** | " + cells.map((c) => { const rs = runs.filter((r) => r.cell === c); const p = rs.filter((r) => r.score === 1).length; return `**${p}/${rs.length}** (${rs.length ? Math.round((100 * p) / rs.length) : 0}%)`; }).join(" | ") + " |");
 out();
 

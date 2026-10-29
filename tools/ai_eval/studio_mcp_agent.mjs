@@ -78,6 +78,8 @@ function parseArgs(argv) {
       case "--port": a.port = Number(val()); break;
       case "--rapidr": a.rapidr = val(); break;
       case "--max-tokens": a.maxTokens = Number(val()); break;
+      case "--num-ctx": a.numCtx = Number(val()); break;     // --driver ollama: the context window asked for (default 32768)
+      case "--think": a.think = val() === "on"; break;       // --driver ollama: thinking on or off (default off)
       case "--dry": case "--list-tools": case "--keep-studio": case "--no-score": case "--keychain": a.flags.add(k.slice(2)); break;
       default: console.error(`unknown option ${k}`); process.exit(2);
     }
@@ -333,14 +335,20 @@ async function openaiTurn(model, system, messages, tools, known) {
   const calls = new Map();
   const decoder = new TextDecoder();
   let buf = "";
-  for await (const chunk of r.body) {
-    buf += decoder.decode(chunk, { stream: true });
-    let at;
-    while ((at = buf.indexOf("\n")) >= 0) {
-      const line = buf.slice(0, at).trim();
-      buf = buf.slice(at + 1);
+  const tail = [];   // (the stream's last data lines: what ended it, when nothing says)
+  const allLines = async function* () {
+    for await (const chunk of r.body) {
+      buf += decoder.decode(chunk, { stream: true });
+      let at;
+      while ((at = buf.indexOf("\n")) >= 0) { const l = buf.slice(0, at).trim(); buf = buf.slice(at + 1); yield l; }
+    }
+    if (buf.trim()) yield buf.trim();   // (a last line with no newline after it)
+  };
+  for await (const line of allLines()) {
+    {
       if (!line.startsWith("data:")) continue;
       const data = line.slice(5).trim();
+      tail.push(data.slice(0, 300)); if (tail.length > 4) tail.shift();
       if (data === "[DONE]") continue;
       let j;
       try { j = JSON.parse(data); } catch { continue; }
@@ -375,7 +383,75 @@ async function openaiTurn(model, system, messages, tools, known) {
     if (t.length) { list = t; format = "text-fallback"; }
   }
   return {
-    text, thinking, calls: list, stop, inTok, outTok, format,
+    text, thinking, calls: list, stop, inTok, outTok, format, rawTail: stop ? undefined : tail,
+    assistant: { role: "assistant", content: text || null, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
+  };
+}
+
+/// Ollama's own chat API (/api/chat), streamed: what /v1 can't say — the context window
+/// (options.num_ctx) and thinking on or off (think) — and where a call arrived: in
+/// message.tool_calls ("native") or as text in message.content ("text-fallback": the parser
+/// of that model's template didn't make it a call).
+async function ollamaTurn(model, system, messages, tools, known) {
+  const base = (args.baseUrl || process.env.RAPIDR_AI_EVAL_URL || "http://localhost:11434").replace(/\/v1\/?$/, "").replace(/\/$/, "");
+  const names = new Map();   // (a call's id → its tool, for the results that name it)
+  const wire = messages.map((m) => {
+    if (m.role === "assistant" && m.tool_calls) {
+      for (const c of m.tool_calls) names.set(c.id, c.function.name);
+      return { role: "assistant", content: m.content || "", tool_calls: m.tool_calls.map((c) => ({ function: { name: c.function.name, arguments: JSON.parse(c.function.arguments || "{}") } })) };
+    }
+    if (m.role === "tool") return { role: "tool", tool_name: names.get(m.tool_call_id) || "", content: m.content };
+    return m;
+  });
+  const body = { model, stream: true, messages: [{ role: "system", content: system }, ...wire], tools: toolFormats.openai(tools), options: { num_ctx: args.numCtx || 32768, num_predict: args.maxTokens || 8192 } };
+  if (args.think !== undefined) body.think = args.think;
+  else body.think = false;
+  let r = await fetch(`${base}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(900000) });
+  if (r.status === 400) {
+    const said = await r.text();
+    if (/does not support thinking|think/i.test(said)) {
+      delete body.think;   // (a model without a thinking switch)
+      r = await fetch(`${base}/api/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(900000) });
+    } else throw new Error(`HTTP 400: ${redact(said.slice(0, 400))}`);
+  }
+  if (!r.ok) throw new Error(`HTTP ${r.status}: ${redact((await r.text()).slice(0, 400))}`);
+  let text = "", thinking = "", stop = "", inTok = 0, outTok = 0;
+  const found = [];
+  const tail = [];
+  const decoder = new TextDecoder();
+  let buf = "";
+  const handle = (line) => {
+    if (!line.trim()) return;
+    tail.push(line.slice(0, 300)); if (tail.length > 4) tail.shift();
+    let j;
+    try { j = JSON.parse(line); } catch { return; }
+    if (j.error) throw new Error(`server: ${redact(String(j.error)).slice(0, 300)}`);
+    const m = j.message || {};
+    if (m.content) text += m.content;
+    if (m.thinking) thinking += m.thinking;
+    for (const tc of m.tool_calls || []) {
+      const f = tc.function || {};
+      let input = f.arguments ?? {};
+      let bad = "";
+      if (typeof input === "string") { try { input = JSON.parse(input); } catch { bad = input; input = {}; } }
+      found.push({ id: `call_${found.length}_${Date.now()}`, name: f.name || "", input, badArgs: bad });
+    }
+    if (j.done) { stop = j.done_reason || "stop"; inTok = j.prompt_eval_count || inTok; outTok = j.eval_count || outTok; }
+  };
+  for await (const chunk of r.body) {
+    buf += decoder.decode(chunk, { stream: true });
+    let at;
+    while ((at = buf.indexOf("\n")) >= 0) { handle(buf.slice(0, at)); buf = buf.slice(at + 1); }
+  }
+  handle(buf);
+  let list = found;
+  let format = "native";
+  if (!list.length && text) {
+    const t = textToolCalls(text, known);
+    if (t.length) { list = t.map((c) => ({ ...c, badArgs: "" })); format = "text-fallback"; }
+  }
+  return {
+    text, thinking, calls: list, stop, inTok, outTok, format, rawTail: stop ? undefined : tail,
     assistant: { role: "assistant", content: text || null, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
   };
 }
@@ -436,13 +512,13 @@ async function main() {
 
   const messages = [];
   const ledgerKey = `${run.driver}:${run.model}:${run.app}`;
-  let steps = 0, inTotal = 0, outTotal = 0, cost = 0, toolCalls = 0, toolErrors = 0, protocolErrors = 0, textFallbacks = 0, badArgs = 0, unknownTools = 0, maxPrompt = 0;
+  let steps = 0, inTotal = 0, outTotal = 0, cost = 0, toolCalls = 0, toolErrors = 0, protocolErrors = 0, textFallbacks = 0, nativeCallRequests = 0, emptyReplies = 0, badArgs = 0, unknownTools = 0, maxPrompt = 0;
   let stopped = "", detail = "";
   const toolHist = new Map();
   const sig = [];
   const deadline = Date.now() + args.minutes * 60000;
   let nextTurn = 0;
-  const callModel = args.driver === "anthropic" ? anthropicTurn : (m, s, ms, t) => openaiTurn(m, s, ms, t, known);
+  const callModel = args.driver === "anthropic" ? anthropicTurn : args.driver === "ollama" ? (m, s, ms, t) => ollamaTurn(m, s, ms, t, known) : (m, s, ms, t) => openaiTurn(m, s, ms, t, known);
   turnLoop: while (nextTurn < turns.length) {
     const userText = turns[nextTurn++];
     messages.push({ role: "user", content: userText });
@@ -466,7 +542,9 @@ async function main() {
       cost += usd; inTotal += ans.inTok; outTotal += ans.outTok; maxPrompt = Math.max(maxPrompt, ans.inTok);
       ledgerAdd(usd, ans.inTok, ans.outTok, ledgerKey);
       if (ans.format === "text-fallback") textFallbacks++;
-      log({ type: "model", step: steps, secs: Math.round((Date.now() - t0) / 100) / 10, inTok: ans.inTok, outTok: ans.outTok, usd: Number(usd.toFixed(6)), stop: ans.stop, format: ans.format, thinkingChars: ans.thinking.length, text: short(ans.text, 1500), calls: ans.calls.map((c) => ({ name: c.name, argBytes: JSON.stringify(c.input).length, badArgs: c.badArgs ? short(c.badArgs, 200) : undefined })) });
+      else if (ans.calls.length) nativeCallRequests++;
+      if (!ans.calls.length && !ans.text) emptyReplies++;
+      log({ type: "model", step: steps, secs: Math.round((Date.now() - t0) / 100) / 10, inTok: ans.inTok, outTok: ans.outTok, usd: Number(usd.toFixed(6)), stop: ans.stop, format: ans.format, thinkingChars: ans.thinking.length, rawTail: ans.rawTail, text: short(ans.text, 1500), calls: ans.calls.map((c) => ({ name: c.name, argBytes: JSON.stringify(c.input).length, badArgs: c.badArgs ? short(c.badArgs, 200) : undefined })) });
       messages.push(ans.assistant);
       if (!ans.calls.length) {
         if (ans.stop === "length" || ans.stop === "max_tokens") { stopped = "max_tokens"; detail = "the reply hit its length limit"; break turnLoop; }
@@ -579,7 +657,7 @@ async function main() {
     compiles = /compiles yes/.test(scoreLine) ? true : /compiles no/.test(scoreLine) ? false : null;
   }
   const summary = {
-    ...run, stopped, detail, steps, toolCalls, toolErrors, protocolErrors, unknownTools, badArgs, textFallbacks, maxPromptTokens: maxPrompt,
+    ...run, stopped, detail, steps, toolCalls, toolErrors, protocolErrors, unknownTools, badArgs, textFallbacks, nativeCallRequests, emptyReplies, maxPromptTokens: maxPrompt,
     inTokens: inTotal, outTokens: outTotal, usd: Number(cost.toFixed(5)), seconds: Math.round((Date.now() - T0) / 1000),
     tools: Object.fromEntries(toolHist), project: folder === studio.project ? "MyApp (the copy of the empty project)" : basename(folder), main, files: files.length, unsavedFiles: unsaved,
     compiles, score, clickTest: scoreLine.replace(/^== click test: /, ""), finalAnswer: short(finalAnswer, 1500), mainSourceLines: mainSource.split("\n").length,

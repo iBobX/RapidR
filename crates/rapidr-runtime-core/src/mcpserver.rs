@@ -1029,7 +1029,8 @@ fn call(name: &str, a: Arrived, body: &Json, id: Json, client: String, modern: b
             return send_json(&a, 200, &[], &error_message(&id, INVALID_PARAMS, &format!("Unknown tool: {tool}. The tools are: {known}.")));
         };
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
-        let args = if args.is_null() { json!({}) } else { args };
+        let mut args = if args.is_null() { json!({}) } else { args };
+        coerce_args(&def, &mut args);
         // (a wrong call: told at once what the tool needs, as a tool's
         // error the AI reads and acts on)
         if let Err(why) = check_args(&def, &args) {
@@ -1135,6 +1136,29 @@ fn property_words(key: &str, p: &Json) -> String {
     format!("`{key}` ({t}{choices}{what})")
 }
 
+/// What a small model sends for a list or an object is often that value as a JSON *string*
+/// (`"edits": "[{\"old_text\": …}]"`), a whole number as `"20"`, a flag as `"true"`: the AI
+/// app's own tool-call layer didn't parse it. The tool's schema says what it wants, so a
+/// string that is exactly that value is that value (found by the outside-AI-app eval,
+/// tests/ai-eval/README.md: a small model repeated the refused call to the step limit). A
+/// string that isn't is left for `check_args` to refuse in words.
+fn coerce_args(def: &ToolDef, args: &mut Json) {
+    let empty = Map::new();
+    let props = def.schema.get("properties").and_then(Json::as_object).unwrap_or(&empty);
+    let Some(obj) = args.as_object_mut() else { return };
+    for (key, v) in obj.iter_mut() {
+        let Some(want) = props.get(key).and_then(|p| p.get("type")).and_then(Json::as_str) else { continue };
+        let Some(text) = v.as_str().map(str::trim) else { continue };
+        let parsed = match want {
+            "array" | "object" | "integer" | "number" | "boolean" => serde_json::from_str::<Json>(text).ok(),
+            _ => None,
+        };
+        if let Some(p) = parsed.filter(|p| type_ok(want, p)) {
+            *v = p;
+        }
+    }
+}
+
 /// A tool's arguments checked against its schema (the top level, and a
 /// list's items' type): Err with a sentence an AI can act on.
 fn check_args(def: &ToolDef, args: &Json) -> Result<(), String> {
@@ -1208,6 +1232,30 @@ mod tests {
         assert!(check_args(&d, &json!({"path": "x", "edits": [{}, 3]})).unwrap_err().contains("`edits`[1] must be an object"));
         assert!(check_args(&d, &json!([1])).is_err());
         assert!(check_args(&def(json!({"type": "object"})), &json!({"anything": 1})).is_ok(), "no schema to keep to: anything");
+    }
+
+    #[test]
+    fn a_list_sent_as_json_text_is_the_list() {
+        // (a small model's tool call layer: "edits" as a string of JSON, "20" for a number)
+        let d = def(json!({"type": "object", "properties": {"path": {"type": "string"}, "edits": {"type": "array", "items": {"type": "object"}}, "wait": {"type": "integer"}, "debug": {"type": "boolean"}, "meta": {"type": "object"}}, "required": ["path"], "additionalProperties": false}));
+        let mut a = json!({"path": "main.rr", "edits": "[{\"old_text\": \"a\", \"new_text\": \"b\"}]", "wait": " 20 ", "debug": "true", "meta": "{\"k\": 1}"});
+        coerce_args(&d, &mut a);
+        assert_eq!(a["edits"], json!([{"old_text": "a", "new_text": "b"}]));
+        assert_eq!(a["wait"], json!(20));
+        assert_eq!(a["debug"], json!(true));
+        assert_eq!(a["meta"], json!({"k": 1}));
+        assert!(check_args(&d, &a).is_ok());
+        // (a string that isn't the value stays, and is refused in words; a string argument is never parsed)
+        let mut b = json!({"path": "[1, 2]", "edits": "[{\"old_text\": \"a\"}]\n}", "wait": "soon"});
+        coerce_args(&d, &mut b);
+        assert_eq!(b["path"], json!("[1, 2]"));
+        assert_eq!(b["edits"], json!("[{\"old_text\": \"a\"}]\n}"));
+        let e = check_args(&d, &b).unwrap_err();
+        assert!(e.contains("`edits` must be a list") && e.contains("`wait` must be a whole number"), "{e}");
+        // (an object where a list is wanted is not made a list)
+        let mut c = json!({"path": "x", "edits": "{\"old_text\": \"a\"}"});
+        coerce_args(&d, &mut c);
+        assert!(c["edits"].is_string());
     }
 
     #[test]
