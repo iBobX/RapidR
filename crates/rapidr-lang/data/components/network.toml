@@ -146,6 +146,78 @@ events = [
 ]
 
 [[component]]
+name = "RMCPSERVER"
+display = "McpServer"
+visual = false
+only = "desktop"
+default_event = "OnToolCall"
+doc = "Serves the program's own tools to AI apps that support MCP, the protocol AI apps use for tools: an AI app on this computer that has the address and the token can call them, and the program sees each call in OnToolCall, on its own thread, one at a time, and answers it then or later with Reply (text), ReplyImage (a picture) or ReplyJson. Add each tool with AddTool: its name, what it does in a sentence the AI reads, the JSON Schema of its arguments and how it acts (\"read\", \"change\" …). The component speaks the protocol itself — the current revision (2026-07-28, no session) and the earlier initialize-based ones — and checks each call's arguments against the tool's schema before the program sees them: a wrong call is answered at once with a sentence saying what the tool needs. It listens on 127.0.0.1 (this computer only) and refuses to start without a Token (NewToken makes one): every request must carry it as `Authorization: Bearer <token>`. It also refuses a request for another host name and any request from a web page. Clients shows who is connected; Disconnect keeps an AI app out until the next Start. What the program exposes, and the privacy of its users' data, are the program's author's responsibility: offer only what an AI app may see, and describe the program as working with MCP clients rather than putting MCP in its name. RapidR's own; desktop only (a web page can't listen for connections)."
+example = """
+DIM Mcp AS RMcpServer
+SUB ToolCalled (Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
+    IF Tool = "add" THEN
+        Mcp.Reply CallId, STR$(VAL(Mcp.Argument("A")) + VAL(Mcp.Argument("B")))
+    END IF
+END SUB
+Mcp.OnToolCall = ToolCalled
+Mcp.AddTool "add", "Adds two numbers.", "A AS DOUBLE, B AS DOUBLE", "read"
+Mcp.Port = 47120
+Mcp.NewToken
+IF Mcp.Start THEN PRINT "AI apps connect to "; Mcp.Url
+Mcp.Stop
+"""
+properties = [
+  { name = "Host", type = "string", default = "127.0.0.1", values = ["127.0.0.1"], doc = "The address it listens on: 127.0.0.1, this computer only (the default and the safe choice). Another address opens the program's tools to the network: don't, unless you know every computer that can reach it. Set it before Start." },
+  { name = "Port", type = "int", default = 0, range = "0..65535", doc = "The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. AI apps keep the address, so a program that is started again should keep its port. Set it before Start." },
+  { name = "Path", type = "string", default = "/mcp", doc = "The address's path AI apps send their messages to. Set it before Start." },
+  { name = "Token", type = "string", default = "", design = false, secret = true, doc = "What every request must carry as `Authorization: Bearer <token>` (else 401). Start refuses to run without one. Make it with NewToken, keep it with RSecrets, and show it only to the person who sets up the AI app. Set it before Start." },
+  { name = "ServerName", type = "string", default = "", doc = "The program's name as AI apps see it (a short id: my-notes); \"\" says rapidr-app. Set it before Start." },
+  { name = "ServerTitle", type = "string", default = "", doc = "The program's name as AI apps show it to their user (My Notes). Set it before Start." },
+  { name = "ServerVersion", type = "string", default = "1.0", doc = "The program's version, as AI apps see it. Set it before Start." },
+  { name = "Instructions", type = "string", default = "", doc = "A few sentences for the AI: what the tools are for and how to use them well. Set it before Start." },
+  { name = "AllowedOrigins", type = "string", default = "", doc = "Web pages that may call the server, by origin, separated by commas: leave it empty — AI apps aren't web pages, and a page's request is refused. Set it before Start." },
+  { name = "AllowedHosts", type = "string", default = "", doc = "More host names the server answers to, separated by commas; 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start." },
+  { name = "MaxRequestSize", type = "int", default = 4194304, range = "1..", unit = "bytes", doc = "The largest message an AI app may send; a larger one is refused with 413. Set it before Start." },
+  { name = "MaxConnections", type = "int", default = 32, range = "1..", doc = "How many connections may be open at once. Set it before Start." },
+  { name = "Timeout", type = "int", default = 30000, range = "1..", unit = "ms", doc = "How long a message may take to arrive whole, and how long an idle connection stays open. Set it before Start." },
+  { name = "IdleSeconds", type = "int", default = 900, range = "1..", unit = "s", doc = "An AI app silent this long (15 minutes by default) counts as gone: OnDisconnect. Set it before Start." },
+  { name = "Listening", type = "bool", access = "read", design = false, doc = "True while it listens." },
+  { name = "Url", type = "string", access = "read", design = false, doc = "Its address once started, what AI apps connect to: `http://127.0.0.1:47120/mcp`." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last Start, AddTool or ReplyJson failed; \"\" when it worked." },
+  { name = "Call", type = "int", access = "read", design = false, doc = "The number of the call OnToolCall is handling: keep it to answer later (Reply's first argument)." },
+  { name = "Tool", type = "string", access = "read", design = false, doc = "The tool of the call OnToolCall is handling." },
+  { name = "ClientName", type = "string", access = "read", design = false, doc = "The AI app making the call OnToolCall is handling, as it names itself (its title, else its name)." },
+  { name = "Arguments", type = "string", access = "read", design = false, doc = "The call's arguments, as JSON (OnToolCall's Arguments)." },
+  { name = "Clients", type = "string", access = "read", design = false, doc = "The AI apps connected, one a line: name, version, seconds since its last message and how many tools it called, a TAB between." },
+  { name = "ClientCount", type = "int", access = "read", design = false, doc = "How many AI apps are connected." },
+  { name = "PendingCount", type = "int", access = "read", design = false, doc = "How many calls wait for an answer." },
+]
+methods = [
+  { name = "Start", returns = "INTEGER", value = true, effects = ["network"], test = "skip: listens on a port (the examples suite starts one on 127.0.0.1)", doc = "Starts listening on Host:Port: True when it does, False when it can't — no Token, the port taken — and Error says why." },
+  { name = "Stop", effects = ["network"], doc = "Stops listening: the calls still waiting are told the server stopped, the connections close." },
+  { name = "NewToken", returns = "STRING", value = true, effects = ["state"], secret = true, doc = "Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it. A new token keeps out every AI app that had the old one (after the next Start)." },
+  { name = "AddTool", params = "Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]", returns = "INTEGER", effects = ["state"], doc = "Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments — as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`, the optional ones in [ ]; STRING, INTEGER, DOUBLE, BOOLEAN, LIST, OBJECT) or as a JSON Schema ({\"type\": \"object\", \"properties\": {…}}); \"\" for none — and how it acts: \"read\" (it only reads), \"change\", \"delete\", \"network\", or the annotations as JSON. Added again: replaced. False when the name or the schema is wrong (Error says why)." },
+  { name = "RemoveTool", params = "Name AS STRING", returns = "INTEGER", effects = ["state"], doc = "Takes a tool away: True when there was one by that name." },
+  { name = "ClearTools", effects = ["state"], doc = "Takes every tool away." },
+  { name = "ToolCount", returns = "INTEGER", value = true, effects = ["none"], doc = "How many tools it offers." },
+  { name = "AddResource", params = "Uri AS STRING, Name AS STRING, [Description AS STRING], [MimeType AS STRING]", returns = "INTEGER", effects = ["state"], doc = "Offers something AI apps can read (app://notes/today): OnReadResource asks the program for it, and Reply gives its text." },
+  { name = "ClearResources", effects = ["state"], doc = "Takes every resource away." },
+  { name = "Reply", params = "CallId AS INTEGER, Text AS STRING, [IsError AS INTEGER]", returns = "INTEGER", effects = ["network"], doc = "Answers a call with text — what the AI reads — marked as a failure when IsError is True (say what went wrong and what to do instead: the AI acts on it). False when that call was answered already or its AI app left." },
+  { name = "ReplyImage", params = "CallId AS INTEGER, File AS STRING, [Text AS STRING]", returns = "INTEGER", effects = ["network", "file-read"], doc = "Answers a call with a picture — a PNG, JPEG, GIF or WebP file (a BMP goes as PNG) — and, when given, a text before it." },
+  { name = "ReplyJson", params = "CallId AS INTEGER, Result AS STRING", returns = "INTEGER", effects = ["network"], doc = "Answers a call with a whole result object as JSON, for what Reply can't say ({\"content\": […], \"structuredContent\": {…}})." },
+  { name = "Progress", params = "CallId AS INTEGER, Message AS STRING, [Done AS DOUBLE], [Total AS DOUBLE]", returns = "INTEGER", effects = ["network"], doc = "Says how a call that waits is going (\"Asking the user…\", 3 of 10), to an AI app that listens for it. False when it doesn't." },
+  { name = "Argument", params = "Name AS STRING, [CallId AS INTEGER]", returns = "STRING", effects = ["none"], doc = "One of the call's arguments as text: a string as it is, a number or true / false as written, a list or an object as JSON; \"\" when it wasn't given. `options.size` reaches inside an object." },
+  { name = "IsOpen", params = "CallId AS INTEGER", returns = "INTEGER", effects = ["none"], doc = "True while the call waits for an answer." },
+  { name = "Disconnect", params = "[Client AS STRING]", returns = "INTEGER", effects = ["network"], doc = "Keeps an AI app out — the one named, every one when none is — until the next Start: its calls waiting are told, its requests refused. Only a new token keeps out an AI app that names itself again: NewToken, then Start." },
+]
+events = [
+  { name = "OnToolCall", params = "Tool AS STRING, Arguments AS STRING, CallId AS INTEGER", doc = "An AI app calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time: the next waits until this handler is over. Answer with Reply now, or later with the number (after asking the user, say) — Progress meanwhile." },
+  { name = "OnReadResource", params = "Uri AS STRING, CallId AS INTEGER", doc = "An AI app reads a resource AddResource offers: answer with Reply (its text)." },
+  { name = "OnConnect", params = "Client AS STRING", doc = "An AI app is heard from the first time." },
+  { name = "OnDisconnect", params = "Client AS STRING", doc = "An AI app ended its session, was disconnected, or has been silent for IdleSeconds." },
+]
+
+[[component]]
 name = "RHTTP"
 display = "Http"
 visual = false

@@ -475,6 +475,9 @@ pub fn step(max_wait: Option<Duration>) {
     // program's OnRequest)
     #[cfg(feature = "network")]
     crate::httpserver::poll();
+    // (RMcpServer: an AI app's messages answered, its calls to OnToolCall)
+    #[cfg(feature = "network")]
+    crate::mcpserver::poll();
     #[cfg(feature = "database")]
     crate::database::poll();
     crate::object::rp_run_deferred();

@@ -10,6 +10,12 @@
 //   node tests/http_client_probe.mjs api <port> <outfile> <token>
 //       (network/local_api.rr: the refusals, /hello, /echo, /events, a body
 //       over MaxRequestSize)
+//   node tests/http_client_probe.mjs mcp <port> <outfile> <token>
+//       (network/mcp_tools.rr, RMcpServer: the refusals; an earlier
+//       revision's session — initialize, tools/list, tools/call, a wrong
+//       call, DELETE —; the current revision — server/discover, calls
+//       with their headers, a header that doesn't match, a version it
+//       doesn't speak, a method it doesn't have)
 
 import http from "node:http";
 import net from "node:net";
@@ -85,5 +91,45 @@ if (!(await listening())) {
   const t = await request({ method: "POST", path: "/echo", headers: { ...auth, "Content-Length": 5 * 1024 * 1024, Expect: "100-continue" }, body: "a".repeat(5 * 1024 * 1024) });
   say(`too large ${t.status}`);
   say(`not found ${(await request({ path: "/nothing", headers: auth })).status}`);
+} else if (mode === "mcp") {
+  const MODERN = "2026-07-28";
+  const post = (msg, headers = {}) => request({ method: "POST", path: "/mcp", headers: { ...auth, "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...headers }, body: JSON.stringify(msg) });
+  const parse = (r) => { try { return JSON.parse(r.body); } catch { return {}; } };
+  const meta = { "io.modelcontextprotocol/protocolVersion": MODERN, "io.modelcontextprotocol/clientInfo": { name: "probe", version: "1.0" }, "io.modelcontextprotocol/clientCapabilities": {} };
+  const modern = (id, method, params = {}, extra = {}) => {
+    const name = params.name || params.uri;
+    return post({ jsonrpc: "2.0", id, method, params: { ...params, _meta: meta } }, { "MCP-Protocol-Version": MODERN, "Mcp-Method": method, ...(name ? { "Mcp-Name": name } : {}), ...extra });
+  };
+  const text = (r) => (parse(r).result?.content || []).map((c) => c.text).join("|").trim().replaceAll("\n", " / ");
+  say(`no token ${(await request({ method: "POST", path: "/mcp", body: "{}" })).status}`);
+  say(`foreign origin ${(await post({ jsonrpc: "2.0", id: 1, method: "ping" }, { Origin: "https://evil.example" })).status}`);
+  say(`get ${(await request({ path: "/mcp", headers: auth })).status}`);
+  // (an earlier revision: a session)
+  const init = await post({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "probe-legacy", version: "0.9" } } });
+  const sid = init.headers["mcp-session-id"] || "";
+  const ir = parse(init).result || {};
+  say(`initialize ${init.status} ${ir.protocolVersion} ${ir.serverInfo?.name} session ${sid.length}`);
+  const inSession = (msg) => post(msg, { "Mcp-Session-Id": sid, "MCP-Protocol-Version": "2025-06-18" });
+  say(`initialized ${(await inSession({ jsonrpc: "2.0", method: "notifications/initialized" })).status}`);
+  const list = parse(await inSession({ jsonrpc: "2.0", id: 2, method: "tools/list" })).result?.tools || [];
+  say(`tools ${list.map((t) => t.name).join(",")} read-only ${list.filter((t) => t.annotations?.readOnlyHint).length}`);
+  say(`add ${text(await inSession({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "add_note", arguments: { Text: "Water the plants" } } }))}`);
+  const wrong = parse(await inSession({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "add_note", arguments: {} } })).result || {};
+  say(`wrong call error ${wrong.isError} ${(wrong.content || [])[0]?.text}`);
+  say(`unknown tool ${parse(await inSession({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "nope" } })).error?.code}`);
+  say(`end session ${(await request({ method: "DELETE", path: "/mcp", headers: { ...auth, "Mcp-Session-Id": sid } })).status}`);
+  say(`ended session ${(await inSession({ jsonrpc: "2.0", id: 6, method: "tools/list" })).status}`);
+  // (the current revision: no session, each request says who and what)
+  const d = parse(await modern(10, "server/discover")).result || {};
+  say(`discover ${d.supportedVersions?.join(",")} ${d._meta?.["io.modelcontextprotocol/serverInfo"]?.name} ${d.resultType}`);
+  say(`list ${text(await modern(11, "tools/call", { name: "list_notes", arguments: {} }))}`);
+  say(`find ${text(await modern(12, "tools/call", { name: "find_notes", arguments: { Word: "PLANTS" } }))}`);
+  const mm = await modern(13, "tools/call", { name: "list_notes", arguments: {} }, { "Mcp-Name": "find_notes" });
+  say(`header mismatch ${mm.status} ${parse(mm).error?.code}`);
+  const old = await post({ jsonrpc: "2.0", id: 14, method: "tools/list", params: { _meta: { ...meta, "io.modelcontextprotocol/protocolVersion": "1900-01-01" } } }, { "MCP-Protocol-Version": "1900-01-01", "Mcp-Method": "tools/list" });
+  say(`unsupported ${old.status} ${parse(old).error?.code} ${parse(old).error?.data?.supported?.[0]}`);
+  const nm = await modern(15, "nothing/here");
+  say(`no method ${nm.status} ${parse(nm).error?.code}`);
+  say(`no session ${(await post({ jsonrpc: "2.0", id: 16, method: "tools/list" })).status}`);
 }
 writeFileSync(`${outfile}.done`, "");

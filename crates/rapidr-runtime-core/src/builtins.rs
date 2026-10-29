@@ -259,6 +259,7 @@ pub fn rp_doevents() {
         crate::ai::poll();
         // (RHttpServer's requests, also in a console program)
         crate::httpserver::poll();
+        crate::mcpserver::poll();
         crate::object::rp_run_deferred();
     }
     // (a background query's rows and events, also in a console program)
