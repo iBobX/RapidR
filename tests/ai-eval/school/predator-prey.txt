@@ -1,0 +1,6 @@
+# School app: predator-prey (Lotka-Volterra) with a chart.
+Build me a predator-prey simulation (Lotka-Volterra): rabbits and foxes over time, drawn as a chart, with a Start button
+#! test chart
+#! click? /start|run|simulate|go|play/
+#! wait 40
+#! expect-picture-changed

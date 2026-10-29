@@ -1,0 +1,6 @@
+# School app: a chemical equation balancer.
+Build me a chemical equation balancer: I type an equation like H2 + O2 -> H2O and it shows the balanced equation
+#! test water
+#! type /equation|reaction|input|formula|text/ H2 + O2 -> H2O
+#! click? /balance|calc|solve|^=$|^go$/
+#! expect /2\s*H2\s*\+\s*O2\s*(->|→|=|=>)\s*2\s*H2O/
