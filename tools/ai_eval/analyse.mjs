@@ -9,6 +9,7 @@
 //   server        our server: a protocol error or a connection failure
 //   model_api     the model's server failed or refused (context too long, HTTP error)
 //   cut_off       a reply hit its length limit
+//   context       the conversation filled the context window (a model that rewrites a whole file after every error)
 //   loop          the same call, answer and all, five times; or the step cap while still erring
 //   empty         the model stopped with nothing: no text, no call
 //   gave_up       it said it was done (or asked a question) with nothing built
@@ -52,6 +53,7 @@ for (const cell of readdirSync(dir).filter((d) => /^[AB]-/.test(d))) {
         badArgs: withCalls.reduce((a, e) => a + e.calls.filter((c) => c.badArgs).length, 0),
         calls: models.reduce((a, e) => a + e.calls.length, 0),
         unknown: run.events.filter((e) => e.type === "tool" && /^Unknown tool/.test(e.error || "")).length,
+        retries: run.events.filter((e) => e.type === "format_retry").length,
       };
     } else {
       run.summary = readJson(join(run.dir, "ai", "summary.json")) || {};
@@ -75,7 +77,7 @@ function categorise(run) {
   if (run.driver === "A") {
     if (s.protocolErrors > 0 || run.stopped === "server_error") return { cat: "server", why: s.detail || "protocol errors" };
     if (run.stopped === "model_error") return { cat: "model_api", why: s.detail };
-    if (run.stopped === "max_tokens") return { cat: "cut_off", why: "" };
+    if (run.stopped === "max_tokens") { const lastReq = [...run.events].reverse().find((e) => e.type === "model"); return lastReq && lastReq.inTok >= 30000 ? { cat: "context", why: `the conversation filled the ${lastReq.inTok}-token context window (num_ctx 32768) after ${run.requests} requests: every failed whole-file write stays in it` } : { cat: "cut_off", why: "" }; }
     if (run.stopped === "stuck_loop") return { cat: "loop", why: s.detail };
     const last = [...run.events].reverse().find((e) => e.type === "model");
     const built = (s.mainSourceLines || 0) > 3 || (s.tools?.create_project > 0);
@@ -107,8 +109,8 @@ const rate = (rs) => (rs.length ? `${rs.filter((r) => r.score === 1).length}/${r
 // (per cell, one line: pass rates by set, the seconds an app takes, how the calls arrive)
 out("Per model and driver (A = an outside AI app through Studio's MCP tools, B = Studio's own RAI; pass = the click test passed, p/n runs):");
 out();
-out("| cell | all | apps | held-out | school | s per app | requests per app | calls via tool_calls | calls as text | replies lost (no finish) | bad-args calls | unknown tools | US$ |");
-out("|---|---|---|---|---|---|---|---|---|---|---|---|---|");
+out("| cell | all | apps | held-out | school | s per app | requests per app | calls via tool_calls | calls as text | replies lost (no finish) | format retries | bad-args calls | unknown tools | US$ |");
+out("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
 for (const c of cells) {
   const rs = runs.filter((r) => r.cell === c);
   const sum = (f) => rs.reduce((a, r) => a + (f(r) || 0), 0);
@@ -118,7 +120,7 @@ for (const c of cells) {
   const pct = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : "–");
   const fsum = (k) => f.reduce((a, r) => a + r.fmt[k], 0);
   const p = rs.filter((r) => r.score === 1).length;
-  out(`| ${c} | **${p}/${rs.length}** (${rs.length ? Math.round((100 * p) / rs.length) : 0}%) | ${of("apps")} | ${of("held-out")} | ${of("school")} | ${(sum((r) => r.seconds) / rs.length).toFixed(0)} | ${(sum((r) => r.requests) / rs.length).toFixed(1)} | ${f.length ? pct(fsum("native"), calls) : "n/a (RAI)"} | ${f.length ? pct(fsum("text"), calls) : "n/a"} | ${f.length ? `${fsum("lost")}/${fsum("requests")}` : "n/a"} | ${f.length ? `${fsum("badArgs")}/${fsum("calls")}` : "n/a"} | ${f.length ? fsum("unknown") : "n/a"} | ${sum((r) => r.usd).toFixed(3)} |`);
+  out(`| ${c} | **${p}/${rs.length}** (${rs.length ? Math.round((100 * p) / rs.length) : 0}%) | ${of("apps")} | ${of("held-out")} | ${of("school")} | ${(sum((r) => r.seconds) / rs.length).toFixed(0)} | ${(sum((r) => r.requests) / rs.length).toFixed(1)} | ${f.length ? pct(fsum("native"), calls) : "n/a (RAI)"} | ${f.length ? pct(fsum("text"), calls) : "n/a"} | ${f.length ? `${fsum("lost")}/${fsum("requests")}` : "n/a"} | ${f.length ? fsum("retries") : "n/a"} | ${f.length ? `${fsum("badArgs")}/${fsum("calls")}` : "n/a"} | ${f.length ? fsum("unknown") : "n/a"} | ${sum((r) => r.usd).toFixed(3)} |`);
 }
 out();
 out("Per app (p/n runs per cell):");
@@ -142,7 +144,7 @@ out();
 // ---- failure categories ----------------------------------------------------------------------------------
 const cats = {};
 for (const r of runs) if (r.failure) (cats[`${r.cell}|${r.failure.cat}`] ||= []).push(r);
-const catNames = ["server", "model_api", "cut_off", "loop", "empty", "gave_up", "no_compile", "click_fail", "no_run"];
+const catNames = ["server", "model_api", "cut_off", "context", "loop", "empty", "gave_up", "no_compile", "click_fail", "no_run"];
 out("Failed runs by primary category:");
 out();
 out("| category | " + cells.join(" | ") + " |");
@@ -218,6 +220,50 @@ const errCount = {};
 for (const r of aRuns) for (const e of errorsOf(r)) { const k = `${e.name}: ${norm(e.error)}`; (errCount[k] ||= { n: 0, cells: new Set(), runs: new Set(), example: e.error }).n++; errCount[k].cells.add(r.cell); errCount[k].runs.add(r.dir); }
 for (const [k, v] of Object.entries(errCount).sort((a, b) => b[1].n - a[1].n).slice(0, 25)) out(`- ${v.n}× in ${v.runs.size} runs (${[...v.cells].join(", ")}): ${k}`);
 out();
+
+// ---- causes: a failed run can have several; the fix that removes a cause can remove that run's failure ------------
+{
+  const causeOf = (r) => {
+    const tags = [];
+    if (r.driver === "A") {
+      const tools = r.events.filter((e) => e.type === "tool");
+      const firstWrite = tools.findIndex((e) => writers.has(e.name));
+      const lookedFirst = tools.slice(0, firstWrite < 0 ? tools.length : firstWrite).some((e) => looked.has(e.name));
+      if (!lookedFirst) tags.push("never asked find_example / search_manual / rapidr_describe before writing");
+      if (tools.some((e) => !e.ok && /must be (a list|an object|a whole number|true or false), not "/.test(e.error || ""))) tags.push("sent a list or flag as JSON text (the server now accepts it)");
+      let run = 0, prev = "", stuck = false;
+      for (const e of tools) { const k = e.ok ? "" : `${e.name}${norm(e.error)}`; if (k && k === prev) { run++; if (run >= 2) stuck = true; } else run = 0; prev = k; }
+      if (stuck) tags.push("the same error three times in a row, no change of approach");
+      if (r.fmt?.lost) tags.push("a reply lost: a malformed tool call dropped by the model server");
+      if (tools.some((e) => !e.ok && errKind(e) === "a path that isn't a file of the project")) tags.push("a path that isn't a file of the project");
+      if (tools.some((e) => e.name === "create_project") && tools.some((e) => e.name === "write_file" || e.name === "propose_edit")) tags.push("both create_project and edits (two projects, files in the wrong one)");
+      if ((r.summary.protocolErrors || 0) > 0 || r.stopped === "server_error") tags.push("Studio's server stopped answering (create_project over unsaved changes: fixed)");
+      if (r.failure?.cat === "gave_up") tags.push("stopped with nothing built");
+      if (r.failure?.cat === "context") tags.push("the conversation filled the context window (whole-file rewrites after every error)");
+      if (r.failure?.cat === "no_compile" || r.compiles === false) tags.push("ended with a program that doesn't compile");
+      if (lookedFirst && r.compiles !== false && !stuck) tags.push("looked first, compiled, but the program is wrong (capability)");
+    } else {
+      if (r.failure?.cat === "gave_up") tags.push("no program made: the answer was text, or every tool call failed");
+      if ((r.falseClaims || 0) > 0) tags.push("said it made a change no tool made");
+      if (r.failure?.cat === "no_compile" || r.compiles === false) tags.push("the program doesn't compile");
+      if (r.failure?.cat === "click_fail") tags.push("compiles, the click test fails (capability, or the test)");
+      if (r.failure?.cat === "model_api") tags.push("the model server failed");
+    }
+    return tags;
+  };
+  const failed = runs.filter((r) => r.score === 0);
+  const tagRows = {};
+  for (const r of failed) for (const t of causeOf(r)) { (tagRows[t] ||= {})[r.cell] = (tagRows[t][r.cell] || 0) + 1; }
+  out("Causes found in the failed runs (a run can have several; counts are failed runs):");
+  out();
+  const nonHaiku = cells.filter((c) => !c.includes("haiku"));
+  out("| cause | " + nonHaiku.join(" | ") + " | all |");
+  out("|---|" + nonHaiku.map(() => "---").join("|") + "|---|");
+  for (const [t, v] of Object.entries(tagRows).sort((a, b) => Object.values(b[1]).reduce((x, y) => x + y, 0) - Object.values(a[1]).reduce((x, y) => x + y, 0))) out(`| ${t} | ` + nonHaiku.map((c) => v[c] || "").join(" | ") + ` | ${Object.entries(v).filter(([c]) => nonHaiku.includes(c)).reduce((x, [, y]) => x + y, 0)} |`);
+  out();
+  out(`(${failed.filter((r) => !r.cell.includes("haiku")).length} failed runs of ${runs.filter((r) => !r.cell.includes("haiku")).length} small-model runs)`);
+  out();
+}
 
 // ---- B: what RAI's runs show ---------------------------------------------------------------------------------
 const bRuns = runs.filter((r) => r.driver === "B");

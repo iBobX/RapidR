@@ -527,7 +527,7 @@ async function main() {
 
   const messages = [];
   const ledgerKey = `${run.driver}:${run.model}:${run.app}`;
-  let steps = 0, inTotal = 0, outTotal = 0, cost = 0, toolCalls = 0, toolErrors = 0, protocolErrors = 0, textFallbacks = 0, nativeCallRequests = 0, emptyReplies = 0, badArgs = 0, unknownTools = 0, maxPrompt = 0;
+  let steps = 0, inTotal = 0, outTotal = 0, cost = 0, toolCalls = 0, toolErrors = 0, protocolErrors = 0, textFallbacks = 0, formatRetries = 0, nativeCallRequests = 0, emptyReplies = 0, badArgs = 0, unknownTools = 0, maxPrompt = 0;
   let stopped = "", detail = "";
   const toolHist = new Map();
   const sig = [];
@@ -545,13 +545,30 @@ async function main() {
       steps++;
       const t0 = Date.now();
       let ans;
-      try {
-        ans = await callModel(args.model, system, messages, tools);
-      } catch (e) {
-        stopped = e.fatal ? "setup_error" : "model_error";
-        detail = redact(e.message);
-        log({ type: "model_error", step: steps, error: detail });
-        break turnLoop;
+      // (Ollama: a model's own tool-call syntax that its template's parser can't read comes back as
+      // an error ("XML syntax error …"), or as a reply with nothing in it; a client asks again —
+      // up to three times in a run, each said in the transcript and counted as the model's format
+      // failures, not hidden)
+      for (;;) {
+        try {
+          ans = await callModel(args.model, system, messages, tools);
+        } catch (e) {
+          if (args.driver === "ollama" && formatRetries < 3 && /XML syntax error|parsing failed|invalid character|unexpected EOF|tool call/i.test(e.message)) {
+            formatRetries++;
+            log({ type: "format_retry", step: steps, error: redact(e.message).slice(0, 200) });
+            continue;
+          }
+          stopped = e.fatal ? "setup_error" : "model_error";
+          detail = redact(e.message);
+          log({ type: "model_error", step: steps, error: detail });
+          break turnLoop;
+        }
+        if (args.driver === "ollama" && formatRetries < 3 && !ans.calls.length && !ans.text) {
+          formatRetries++;
+          log({ type: "format_retry", step: steps, error: "an empty reply (no text, no call)" });
+          continue;
+        }
+        break;
       }
       const usd = args.driver === "anthropic" ? costOf(ans.inTok, ans.outTok) : 0;
       cost += usd; inTotal += ans.inTok; outTotal += ans.outTok; maxPrompt = Math.max(maxPrompt, ans.inTok);
@@ -672,7 +689,7 @@ async function main() {
     compiles = /compiles yes/.test(scoreLine) ? true : /compiles no/.test(scoreLine) ? false : null;
   }
   const summary = {
-    ...run, stopped, detail, steps, toolCalls, toolErrors, protocolErrors, unknownTools, badArgs, textFallbacks, nativeCallRequests, emptyReplies, maxPromptTokens: maxPrompt,
+    ...run, stopped, detail, steps, toolCalls, toolErrors, protocolErrors, unknownTools, badArgs, textFallbacks, formatRetries, nativeCallRequests, emptyReplies, maxPromptTokens: maxPrompt,
     inTokens: inTotal, outTokens: outTotal, usd: Number(cost.toFixed(5)), seconds: Math.round((Date.now() - T0) / 1000),
     tools: Object.fromEntries(toolHist), project: folder === studio.project ? "MyApp (the copy of the empty project)" : basename(folder), main, files: files.length, unsavedFiles: unsaved,
     compiles, score, clickTest: scoreLine.replace(/^== click test: /, ""), finalAnswer: short(finalAnswer, 1500), mainSourceLines: mainSource.split("\n").length,
