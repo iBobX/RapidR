@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Microphone</title>
+  <path d="M6.5 1.5H9.5A1 1 0 0 1 10.5 2.5V8.5A1 1 0 0 1 9.5 9.5H6.5A1 1 0 0 1 5.5 8.5V2.5A1 1 0 0 1 6.5 1.5Z" stroke="currentColor"/>
+  <path d="M3.5 7.5V8.5A4.5 4.5 0 0 0 12.5 8.5V7.5" stroke="currentColor"/>
+  <path d="M8.5 12.5L8.5 14.5" stroke="currentColor"/>
+  <path d="M5.5 14.5L10.5 14.5" stroke="currentColor"/>
+</svg>

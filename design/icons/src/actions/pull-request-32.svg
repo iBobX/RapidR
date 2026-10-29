@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Pull request</title>
+  <circle cx="8" cy="7" r="3" stroke="currentColor"/>
+  <circle cx="8" cy="25" r="3" stroke="currentColor"/>
+  <circle cx="24" cy="25" r="3" stroke="currentColor"/>
+  <path d="M8 10L8 22" stroke="currentColor"/>
+  <path d="M24 22V12A4 4 0 0 0 20 8H15" stroke="currentColor"/>
+  <path d="M17 12L14 8L17 5" stroke="currentColor"/>
+</svg>

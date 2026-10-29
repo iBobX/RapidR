@@ -1,0 +1,10 @@
+# Bookshop: the template the translations start from.
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Bookshop"
+msgstr ""
+
+msgid "Welcome to the bookshop"
+msgstr ""

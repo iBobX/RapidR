@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Line history (who changed it)</title>
+  <defs><mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32"><rect width="32" height="32" fill="white"/><circle cx="22.5" cy="22.5" r="6.5" fill="black" stroke="black" stroke-width="4.1"/></mask></defs>
+  <g mask="url(#m1)"><path d="M4 7L28 7" stroke="currentColor"/><path d="M4 14L28 14" stroke="currentColor"/><path d="M4 22L12 22" stroke="currentColor"/></g>
+  <circle cx="22.5" cy="22.5" r="6.5" stroke="currentColor"/>
+  <path d="M22 19V22L25 24" stroke="currentColor"/>
+</svg>
