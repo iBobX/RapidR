@@ -55,6 +55,7 @@
   },
   "activationEvents": [
     "onLanguage:rapidr",
+    "workspaceContains:**/*.rrproj",
     "onDebugResolve:rapidr",
     "onDebugDynamicConfigurations:rapidr",
     "onDebugInitialConfigurations"
@@ -63,6 +64,7 @@
   "contributes": {
     "configurationDefaults": {
       "[rapidr]": {
+        "editor.defaultFormatter": "rapidr.rapidr",
         "editor.formatOnType": true
       }
     },
@@ -86,9 +88,24 @@
           "light": "./images/file-rr.svg",
           "dark": "./images/file-rr.svg"
         }
+      },
+      {
+        "id": "rapidr-project",
+        "aliases": [
+          "RapidR Project"
+        ],
+        "extensions": [
+          ".rrproj"
+        ],
+        "configuration": "./project-configuration.json"
       }
     ],
     "grammars": [
+      {
+        "language": "rapidr-project",
+        "scopeName": "source.rapidr-project",
+        "path": "./syntaxes/rrproj.tmLanguage.json"
+      },
       {
         "language": "rapidr",
         "scopeName": "source.rapidr",
@@ -251,6 +268,44 @@
         "command": "rapidr.showCommands",
         "title": "Show Commands",
         "category": "RapidR"
+      },
+      {
+        "command": "rapidr.help",
+        "title": "Help for the Word at the Cursor",
+        "category": "RapidR",
+        "icon": "$(book)"
+      },
+      {
+        "command": "rapidr.runProject",
+        "title": "Run Project",
+        "category": "RapidR",
+        "icon": "$(play)",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.debugProject",
+        "title": "Debug Project",
+        "category": "RapidR",
+        "icon": "$(debug-alt)",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.buildProject",
+        "title": "Build Project",
+        "category": "RapidR",
+        "enablement": "!rapidr.missing"
+      },
+      {
+        "command": "rapidr.openProjectMain",
+        "title": "Open the Project's Main File",
+        "category": "RapidR"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "rapidr.help",
+        "key": "shift+f1",
+        "when": "editorTextFocus && editorLangId == rapidr"
       }
     ],
     "menus": {
@@ -264,9 +319,41 @@
           "command": "rapidr.debug",
           "when": "resourceLangId == rapidr",
           "group": "navigation@2"
+        },
+        {
+          "command": "rapidr.runProject",
+          "when": "resourceLangId == rapidr-project",
+          "group": "navigation@1"
+        },
+        {
+          "command": "rapidr.debugProject",
+          "when": "resourceLangId == rapidr-project",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "rapidr.help",
+          "when": "editorLangId == rapidr",
+          "group": "navigation@9"
         }
       ],
       "explorer/context": [
+        {
+          "command": "rapidr.runProject",
+          "when": "resourceLangId == rapidr-project",
+          "group": "rapidr@1"
+        },
+        {
+          "command": "rapidr.debugProject",
+          "when": "resourceLangId == rapidr-project",
+          "group": "rapidr@2"
+        },
+        {
+          "command": "rapidr.buildProject",
+          "when": "resourceLangId == rapidr-project",
+          "group": "rapidr@3"
+        },
         {
           "command": "rapidr.run",
           "when": "resourceLangId == rapidr",
@@ -298,6 +385,26 @@
         {
           "command": "rapidr.bundleWeb",
           "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.help",
+          "when": "editorLangId == rapidr"
+        },
+        {
+          "command": "rapidr.runProject",
+          "when": "rapidr.hasProject"
+        },
+        {
+          "command": "rapidr.debugProject",
+          "when": "rapidr.hasProject"
+        },
+        {
+          "command": "rapidr.buildProject",
+          "when": "rapidr.hasProject"
+        },
+        {
+          "command": "rapidr.openProjectMain",
+          "when": "rapidr.hasProject"
         }
       ]
     },

@@ -9,6 +9,11 @@
 //                                     (an installed VS Code; still a throwaway profile)
 //   RAPIDR_TEST_GREP=diagnostics npm test
 //
+// Two VS Code runs: the suite (the extension finds rapidr through
+// RAPIDR_PATH), then test/suite/path.test.js in a VS Code whose PATH has an
+// ancient rapidr 0.1.0 first and the real one after it (the extension must
+// skip the old one: the finding-rapidr bug of 2.121.3).
+//
 // Needs a rapidr with `rapidr lsp`: RAPIDR_PATH, else this checkout's
 // target/debug/rapidr (cargo build -p rapidr-cli). On Linux without a display:
 // xvfb-run -a npm test.
@@ -32,16 +37,44 @@ async function main() {
     const prints = fs.mkdtempSync(path.join(os.tmpdir(), 'rapidr-vscode-prints-'));
     // A fresh profile each run, with a short path: VS Code's IPC socket lives
     // in it, and a socket's path can't pass 103 characters on macOS.
-    const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'rvsc-'));
+    const userData = () => fs.mkdtempSync(path.join(os.tmpdir(), 'rvsc-'));
+    const profiles = [];
     try {
-        await run(ext, rapidr, prints, userData);
+        const first = userData();
+        profiles.push(first);
+        await run(ext, prints, first, { RAPIDR_PATH: rapidr, RAPIDR_TEST_GREP: process.env.RAPIDR_TEST_GREP || '' });
+        if (process.platform !== 'win32' && !process.env.RAPIDR_TEST_GREP) {
+            const second = userData();
+            profiles.push(second);
+            await run(ext, prints, second, pathEnvironment(rapidr, prints));
+        }
     } finally {
-        fs.rmSync(userData, { recursive: true, force: true });
+        for (const p of profiles) fs.rmSync(p, { recursive: true, force: true });
         fs.rmSync(prints, { recursive: true, force: true });
     }
 }
 
-async function run(ext, rapidr, prints, userData) {
+/**
+ * The second run's environment: RAPIDR_PATH is off, and PATH has a "rapidr"
+ * that is version 0.1.0 (it knows nothing of `lsp`), then the real one.
+ */
+function pathEnvironment(rapidr, scratch) {
+    const old = path.join(scratch, 'old-bin');
+    const real = path.join(scratch, 'real-bin');
+    fs.mkdirSync(old, { recursive: true });
+    fs.mkdirSync(real, { recursive: true });
+    fs.writeFileSync(path.join(old, 'rapidr'), '#!/bin/sh\nif [ "$1" = "version" ]; then echo "RapidR 0.1.0"; else echo "error: unknown command $1" >&2; exit 2; fi\n', { mode: 0o755 });
+    fs.symlinkSync(rapidr, path.join(real, 'rapidr'));
+    return {
+        RAPIDR_PATH: '',
+        RAPIDR_TEST_SUITE: 'path',
+        RAPIDR_TEST_REAL: rapidr,
+        RAPIDR_TEST_OLD: path.join(old, 'rapidr'),
+        PATH: [old, real, process.env.PATH || ''].join(path.delimiter),
+    };
+}
+
+async function run(ext, prints, userData, env) {
     await runTests({
         ...vscodeToUse(),
         extensionDevelopmentPath: ext,
@@ -57,11 +90,11 @@ async function run(ext, rapidr, prints, userData) {
             '--extensions-dir', path.join(ext, '.vscode-test', 'extensions'),
         ],
         extensionTestsEnv: {
-            RAPIDR_PATH: rapidr,
             RAPIDR_PRINT_TO: prints,
             // (and nothing touches the real registry / preferences store)
             RAPIDR_REGISTRY: path.join(prints, 'registry.reg'),
-            RAPIDR_TEST_GREP: process.env.RAPIDR_TEST_GREP || '',
+            RAPIDR_TEST_GREP: '',
+            ...env,
         },
     });
 }
