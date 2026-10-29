@@ -271,7 +271,8 @@ function ledgerAdd(usd, inTok, outTok, what) {
 /// A model's answer: { text, thinking, calls: [{ id, name, input }], stop, inTok, outTok, raw (the assistant message to keep), format }
 const toolFormats = {
   anthropic: (tools) => tools.map((t) => ({ name: t.name, description: t.description || "", input_schema: t.inputSchema || { type: "object", properties: {} } })),
-  openai: (tools) => tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description || "", parameters: t.inputSchema || { type: "object", properties: {} } } })),
+  // ({"type": "object"} with no "properties", as six of Studio's tools are listed, is valid MCP but Ollama's grammar for some models' tool-call templates answers HTTP 500 "properties must be an object": an OpenAI-format client says it)
+  openai: (tools) => tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description || "", parameters: t.inputSchema && t.inputSchema.type === "object" && !t.inputSchema.properties ? { ...t.inputSchema, properties: {} } : t.inputSchema || { type: "object", properties: {} } } })),
 };
 
 /// Text tool calls (a small model that writes the call instead of making it):

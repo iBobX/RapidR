@@ -262,7 +262,10 @@ fn add_tool(name: &str, tool: &str, description: &str, schema: &str, how: &str) 
         return fail(format!("AddTool: \"{tool}\" isn't a tool name (1 to 128 letters, digits, _ - .)"));
     }
     let schema = if schema.trim().is_empty() {
-        json!({"type": "object", "additionalProperties": false})
+        // ("properties": {} said: valid MCP without it, but a model server that builds a grammar from the
+        // tool's schema — Ollama, for some models — refuses a list with `properties must be an object`:
+        // found by tools/ai_eval, where one of eight local models couldn't use any of the 26 tools)
+        json!({"type": "object", "properties": {}, "additionalProperties": false})
     } else if !schema.trim_start().starts_with('{') {
         // (a SUB's parameter list: `Text AS STRING, [Count AS INTEGER]`)
         match params_schema(schema) {

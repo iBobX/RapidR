@@ -180,6 +180,9 @@ if (want("all")) {
   for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "get_problems", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit"]) {
     check(`tools/list has ${t}`, names.includes(t), names.join(","));
   }
+  // (a tool without arguments is listed with "properties": {} — a model server that builds a grammar from
+  // the schema, Ollama for some models, answers HTTP 500 "properties must be an object" to a list without)
+  check("every tool's inputSchema is an object with its properties (even none)", list.every((t) => t.inputSchema?.type === "object" && t.inputSchema.properties && typeof t.inputSchema.properties === "object"), list.filter((t) => !t.inputSchema?.properties).map((t) => t.name).join(","));
   check("read_file is marked read-only, propose_edit isn't", list.find((t) => t.name === "read_file")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "propose_edit")?.annotations?.readOnlyHint === false);
 
   let r = await tool("studio_status");
