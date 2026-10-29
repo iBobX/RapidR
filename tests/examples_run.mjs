@@ -94,6 +94,8 @@ export const cases = [
     expect: ["Hello, Ada.", "Total with a 15% tip: 92.00", "Each of 4 pays: 23.00"] },
   { file: "basics/files.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["shopping.txt has", "1. bread", "4. coffee", "First line again: bread", "Removed: yes"] },
+  { file: "basics/unicode.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["Text: Hola, café · 日期 · 😀", "Characters: 19", "Bytes in the file: 29", "ReadAllText: Hola, café · 日期 · 😀", "Same text: yes", "LINE INPUT, same text: yes", "Binary: 5 bytes for 5 characters", "The second byte: 200", "Removed: yes"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)

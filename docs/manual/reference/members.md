@@ -3168,15 +3168,17 @@ A file opened to read and write: lines, numbers, strings, arrays and UDTs, at a 
 | `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteLine(S AS STRING)` | Writes text followed by a line end. |
+| `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `Download` *(RapidR)* *(web)* | Saves the stream's text to the user's computer as a browser download, named by `FileName`. |
 | `PickFile` *(RapidR)* *(web)* | Opens the browser's file picker and reads the chosen file into the stream; an optional filter such as `.txt` limits the choice. |
 | `LoadFromUrl` *(RapidR)* *(web)* | Fetches a URL's text into the stream; an event fires when it has arrived. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
@@ -3418,12 +3420,14 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `SaveArray(Array, NumElements AS LONG)` | Writes an array's elements to the stream. |
 | `Seek(Position AS INTEGER, From AS INTEGER)` | Moves the current position: a stream's to `Position` from its start, current place or end; a player's to a time in seconds. |
 | `Write(variable)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
-| `WriteLine(S AS STRING)` | Writes text followed by a line end. |
+| `WriteLine(S AS STRING)` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `WriteNum(number, bytes AS INTEGER)` | Writes a number in binary, `bytes` bytes long. |
 | `WriteBinStr(string, bytes AS INTEGER)` | Writes `bytes` bytes of the string to the stream. |
-| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream. |
+| `WriteStr(string, bytes AS INTEGER)` | Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds. |
 | `WriteUDT(MyType)` | Writes a user-defined type variable to the stream, field by field. |
 | `ReadAll` *(RapidR)* | Returns the rest of the stream as text. |
+| `ReadAllText` *(RapidR)* | Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do. |
+| `WriteText(S AS STRING)` *(RapidR)* | Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8. |
 | `Writeln` *(RapidR)* | Writes text followed by a line end. Same as `WriteLine`. |
 | `Readln` *(RapidR)* | Reads one line of text, without its line end. Same as `ReadLine`. |
 | `Clear` | Empties the stream: `Size` and `Position` 0. |
@@ -3682,7 +3686,7 @@ A TCP client socket: connect to a host and port, then read and write text or byt
 | `ReadLine(Socket AS INTEGER) AS VARIANT` | Reads one line of text, without its line end. |
 | `Write(Socket AS INTEGER, Message AS STRING, NumBytes AS INTEGER)` | Writes data: `NumBytes` of a message to a socket, `Count` bytes of a stream to a serial port, or a variable to a stream. |
 | `WriteByte(Socket AS INTEGER, B AS BYTE)` | Writes one byte to the socket or stream. |
-| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. |
+| `WriteLine(Socket AS INTEGER, Message AS STRING) AS VARIANT` | Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255. |
 | `Disconnect` *(RapidR)* | Closes the connection. Same as `Close`. |
 | `Send` *(RapidR)* *(web)* | Sends text over the WebSocket. Same as `Write`. |
 | `Receive` *(RapidR)* *(web)* | Returns the next message received on the WebSocket. Same as `Read`. |

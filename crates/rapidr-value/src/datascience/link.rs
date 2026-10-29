@@ -896,7 +896,7 @@ pub fn design_path(base: &str, file: &str) -> Result<String, String> {
 
 /// A file's text at design time (no other folders tried).
 fn design_text(path: &str) -> Result<String, String> {
-    crate::objects::read_file(path).map(|b| String::from_utf8(b).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned()))
+    crate::objects::read_file(path).map(|b| crate::objects::codec::decode_text(&b))
 }
 
 /// A quick fingerprint of a file's text (the design-time cache's).

@@ -25,6 +25,7 @@
 //! a line break, or before one when the text doesn't end with one — and
 //! the caret is left after what was added or changed.
 
+use super::codeedit::Encoding;
 use super::richtext::{CharFmt, ParaFmt, Rich, StyledPara, TWIPS_PER_PIXEL};
 use crate::{v_int, v_str, Value};
 
@@ -51,6 +52,12 @@ pub struct TextEdit {
     /// A rich edit's WordWrap as last set (`None`: never; RapidQ's default
     /// is True).
     wraps: Option<bool>,
+    /// How the last plain text file loaded was stored, which SaveToFile
+    /// writes back: UTF-8 (with or without a BOM) when that file was
+    /// UTF-8 text; `None` otherwise — Windows-1252, RapidQ's text files.
+    /// Text with a character Windows-1252 lacks is saved as UTF-8 either way
+    /// (never a `?` in its place).
+    file_encoding: Option<Encoding>,
 }
 
 impl TextEdit {
@@ -372,7 +379,7 @@ impl TextEdit {
             }
             "textrtf" => {
                 let s = val.to_string_val();
-                let bytes: Vec<u8> = s.chars().map(|c| cp_byte(c)).collect();
+                let bytes: Vec<u8> = s.chars().map(|c| cp_byte(c).unwrap_or(b'?')).collect();
                 self.load_bytes(&bytes, false);
             }
             _ => return false,
@@ -449,7 +456,7 @@ impl TextEdit {
             return false;
         }
         let Some(r) = self.rich.as_mut() else { return false };
-        let bytes: Vec<u8> = rtf.chars().map(cp_byte).collect();
+        let bytes: Vec<u8> = rtf.chars().map(|c| cp_byte(c).unwrap_or(b'?')).collect();
         let Some(doc) = super::rtf::read(&bytes, r.font()) else { return false };
         let (a, b) = (self.sel_start.min(self.chars.len()), (self.sel_start + self.sel_len).min(self.chars.len()));
         r.replace_formatted(&self.chars, a, b, &doc.text, &doc.runs, &doc.paras);
@@ -479,7 +486,8 @@ impl TextEdit {
         // (a NUL ends a text control's text: a rich edit's own RTF file
         // ends with one, read as plain text — RC.EXE)
         let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-        let text: String = bytes[..end].iter().map(|&b| char::from(b)).collect();
+        let (text, encoding) = decode_plain(&bytes[..end]);
+        self.file_encoding = encoding;
         if self.rich.is_some() {
             let new = self.normalize(&text);
             if let Some(r) = self.rich.as_mut() {
@@ -505,7 +513,7 @@ impl TextEdit {
                 b.push(0);
                 b
             }
-            None => self.text().chars().map(cp_byte).collect(),
+            None => encode_plain(&self.text(), self.file_encoding),
         }
     }
 
@@ -626,10 +634,34 @@ pub fn rich_clip_for(clip: &str) -> Option<String> {
     RICH_CLIP.with(|c| c.borrow().as_ref().filter(|(p, _)| *p == clip).map(|(_, r)| r.clone()))
 }
 
-/// Character `c` as the byte a file gets (Windows-1252; a Latin-1 byte
-/// read in kept as it was; `?` past them).
-fn cp_byte(c: char) -> u8 {
-    super::rtf::cp1252_byte(c).unwrap_or(if (c as u32) < 256 { c as u32 as u8 } else { b'?' })
+/// Character `c` as the byte a Windows-1252 file gets (a Latin-1 byte read
+/// in is kept as it was); `None` past them.
+fn cp_byte(c: char) -> Option<u8> {
+    super::rtf::cp1252_byte(c).or(if (c as u32) < 256 { Some(c as u32 as u8) } else { None })
+}
+
+/// A plain text file's text, and how it was stored (`None`: Windows-1252,
+/// as RapidQ's text files are): UTF-8 when the bytes are UTF-8 with
+/// anything beyond ASCII in them (or start with a BOM), else Windows-1252.
+fn decode_plain(bytes: &[u8]) -> (String, Option<Encoding>) {
+    if bytes.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        return (super::codec::decode_text(bytes), Some(Encoding::Utf8Bom));
+    }
+    if super::codec::is_utf8_text(bytes) {
+        return (super::codec::decode_text(bytes), Some(Encoding::Utf8));
+    }
+    (bytes.iter().map(|&b| super::rtf::cp1252_char(b)).collect(), None)
+}
+
+/// A plain text file's bytes: as stored when it was loaded, Windows-1252
+/// otherwise — and as UTF-8 when the text has a character Windows-1252
+/// lacks (Chinese, `€`'s cousins, emoji), never with a `?` in its place.
+fn encode_plain(text: &str, encoding: Option<Encoding>) -> Vec<u8> {
+    match encoding {
+        Some(Encoding::Utf8Bom) => [&[0xEF, 0xBB, 0xBF][..], text.as_bytes()].concat(),
+        Some(_) => text.as_bytes().to_vec(),
+        None => text.chars().map(cp_byte).collect::<Option<Vec<u8>>>().unwrap_or_else(|| text.as_bytes().to_vec()),
+    }
 }
 
 /// The edit that made `new` of `old` (characters `a .. b` of `old`
@@ -667,6 +699,38 @@ fn edit_between(old: &[char], new: &[char], sel: (usize, usize)) -> (usize, usiz
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A text box's SaveToFile wrote `?` for every character Windows-1252
+    /// lacks. It keeps how the file it loaded was stored (UTF-8, or the
+    /// ANSI of RapidQ's files), and what that can't hold goes to UTF-8.
+    #[test]
+    fn plain_text_files_lose_no_character() {
+        // (a UTF-8 file: read as text, saved as it was)
+        let utf8 = "太阳系 · café\r\n中文";
+        let mut t = TextEdit::new(true);
+        t.load_bytes(utf8.as_bytes(), true);
+        assert_eq!(t.get("text").unwrap().to_string_val(), utf8);
+        assert_eq!(t.save_bytes(true), utf8.as_bytes());
+        // (with a BOM: kept)
+        t.load_bytes(b"\xEF\xBB\xBFna\xC3\xAFve", true);
+        assert_eq!(t.get("text").unwrap().to_string_val(), "naïve");
+        assert_eq!(t.save_bytes(true), b"\xEF\xBB\xBFna\xC3\xAFve");
+        // (an ANSI file, RapidQ's: read as Windows-1252, saved as it was)
+        t.load_bytes(b"caf\xE9 \x80 \x93x\x94", true);
+        assert_eq!(t.get("text").unwrap().to_string_val(), "café € “x”");
+        assert_eq!(t.save_bytes(true), b"caf\xE9 \x80 \x93x\x94");
+        // (Chinese typed into it: the file becomes UTF-8, nothing a `?`)
+        t.set("text", &v_str("café 中文"));
+        let saved = t.save_bytes(true);
+        assert_eq!(saved, "café 中文".as_bytes());
+        assert!(!saved.contains(&b'?'));
+        // (a text never loaded: ANSI as RapidQ writes it while it fits)
+        let mut n = TextEdit::new(true);
+        n.set("text", &v_str("Español"));
+        assert_eq!(n.save_bytes(true), b"Espa\xF1ol");
+        n.set("text", &v_str("日本語 Español 😀"));
+        assert_eq!(n.save_bytes(true), "日本語 Español 😀".as_bytes());
+    }
 
     #[test]
     fn lines_selection_and_crlf() {

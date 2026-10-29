@@ -460,6 +460,44 @@ The stream objects do the same with methods: `RFileStream` (older name
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
 
+### Text and bytes: accents, Chinese, emoji
+
+A string is made of characters and a file of bytes. RapidR keeps them
+apart, so text is never lost and binary data is never changed:
+
+| You use | The file holds |
+|---|---|
+| `PRINT #`, `LINE INPUT #`, `RStringList.SaveToFile` / `LoadFromFile`, translation (`.po`) files | Text as **UTF-8**. Reading also takes the Windows-1252 text that older programs and editors wrote (an `é` as one byte): a character is never turned into `?` or `�` on the way in. |
+| `RFileStream` and `RMemoryStream`: `WriteStr`, `WriteLine`, `Write`, `ReadStr`, `Read`, `ReadLine` | **Bytes.** A string whose characters are all up to 255 is written one byte a character (`CHR$(200)` is the byte 200), so pictures, sounds and packets built or copied with strings come back exact. A string with any character above 255 (Chinese, emoji, `€`) is text: it is written whole as UTF-8, accents included. |
+| `WriteText` and `ReadAllText` (RapidR's, on both streams) | Text as UTF-8 whatever the string holds, even only accents. `ReadAllText` reads the rest of the stream as UTF-8 (a byte-order mark dropped) or, when it isn't UTF-8, as Windows-1252. |
+| `RMemo`, `REdit` and `RRichEdit` (plain text), `RCodeEdit` | The encoding the file had when it was loaded: UTF-8 (with or without a byte-order mark) or Windows-1252. A text never loaded in a text box is written as Windows-1252 while it fits. |
+
+`WriteStr(S, n)` counts **characters**, so `WriteStr(S, LEN(S))` writes all
+of `S` in any language. A file is **never saved with a `?` in place of a
+character** its encoding lacks: a Windows-1252 file that gets Chinese typed
+into it (or a text box's text that has an emoji) is saved as UTF-8, and
+`RCodeEdit.Encoding` says "UTF-8" afterwards.
+
+```basic
+DIM f AS RFileStream, s AS STRING
+s = "Fecha: 日期 · café · 😀"
+f.Open("note.txt", fmCreate)
+f.WriteStr(s, LEN(s))              ' UTF-8: the Chinese and the emoji need it
+f.Position = 0
+PRINT IIF(f.ReadAllText = s, "same", "different")    ' same: all of it came back
+f.Close
+```
+
+The picture below is the translations example: the same greeting in a label
+(above) and drawn on a canvas with `TextOut` (below), from a Chinese and a
+Spanish catalog. A canvas draws the characters RapidR's own fonts lack
+(Chinese, Japanese, Korean) with the system's CJK font on the desktop and
+with the Noto fonts of the page on the web, as its labels do; on the web
+draw in `OnPaint`, which runs again when such a font arrives.
+
+![The translations example in Chinese and in Spanish](images/translations/languages-chinese.png)
+![The same in Spanish](images/translations/languages-spanish.png)
+
 File names work as they do on Windows, on every system: `\` and `/` both
 separate folders, and a name finds its file in any case. A program
 written on Windows finds its files on macOS and Linux unchanged:

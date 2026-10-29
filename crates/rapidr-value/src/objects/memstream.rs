@@ -12,7 +12,7 @@
 //! old end. Where the two kinds differ (RC.EXE, filestream_reads.bas): a
 //! QFILESTREAM's ReadStr(n) and Read(S$) give one more character, a space.
 
-use super::codec::{bytes_to_string, string_to_bytes};
+use super::codec::{bytes_to_string, decode_text, fit_characters, string_to_bytes};
 use crate::{v_dbl, v_int, v_str, Value};
 
 #[derive(Debug, Default)]
@@ -54,7 +54,7 @@ impl FileSink {
 
 /// Methods that change a stream (refused on a file opened for reading).
 pub const WRITE_METHODS: &[&str] =
-    &["writestr", "writebinstr", "writeline", "writenum", "write", "writebyte", "copyfrom", "extractres", "memcopyfrom", "saveudtarray", "writeudt"];
+    &["writestr", "writebinstr", "writetext", "writeline", "writenum", "write", "writebyte", "copyfrom", "extractres", "memcopyfrom", "saveudtarray", "writeudt"];
 
 /// Largest stream allowed, so `Mem.Size = 1E12` fails cleanly.
 const MAX_SIZE: usize = 1 << 31;
@@ -226,14 +226,28 @@ impl MemStream {
                 Value::Double(_) => read_number(&self.read(8), 8),
                 _ => read_number(&self.read(4), 4),
             },
+            // (the count is of characters: see `codec::fit_characters` —
+            // `WriteStr(S, LEN(S))` must write every character of S)
             "writestr" | "writebinstr" => {
-                let mut bytes = string_to_bytes(&arg(0).to_string_val());
-                if args.len() > 1 {
-                    bytes.resize(arg(1).to_i64().max(0) as usize, 0);
-                }
+                let text = arg(0).to_string_val();
+                let bytes = if args.len() > 1 {
+                    string_to_bytes(&fit_characters(&text, arg(1).to_i64().max(0) as usize))
+                } else {
+                    string_to_bytes(&text)
+                };
                 self.write(&bytes);
                 Value::Null
             }
+            // RapidR extensions, for text on purpose: `WriteText(S)` writes
+            // S as UTF-8 whatever it holds (WriteStr writes a string of
+            // characters up to U+00FF as bytes, as RapidQ does);
+            // `ReadAllText` reads the rest of the stream as text — UTF-8 (a
+            // BOM dropped), else Windows-1252.
+            "writetext" => {
+                self.write(arg(0).to_string_val().as_bytes());
+                Value::Null
+            }
+            "readalltext" => v_str(&decode_text(&self.read(usize::MAX))),
             "writeline" | "writeln" => {
                 let mut bytes = string_to_bytes(&arg(0).to_string_val());
                 bytes.extend_from_slice(b"\r\n");
@@ -342,6 +356,83 @@ mod tests {
 
     fn call(m: &mut MemStream, method: &str, args: &[Value]) -> Value {
         m.call(method, args).unwrap()
+    }
+
+    /// Robert's Solar System 3D (2.121.3): Studio's Apply wrote a new
+    /// translation file with `f.WriteStr(text, LEN(text))`. A text with
+    /// Chinese came out cut short (the count was characters, applied to the
+    /// UTF-8 bytes) and an `é` or `·` beside it as one Latin-1 byte, so the
+    /// file wasn't UTF-8 and the editor later opened it as Latin-1.
+    #[test]
+    fn writestr_of_len_writes_all_of_a_unicode_text_as_utf8() {
+        let text = "msgstr \"太阳系 3D · Español café\"\nmsgstr \"语言\"\n";
+        let mut m = MemStream::default();
+        call(&mut m, "writestr", &[v_str(text), v_int(text.chars().count() as i64)]);
+        assert_eq!(m.data, text.as_bytes(), "every character, as UTF-8, none lost or cut");
+        assert!(std::str::from_utf8(&m.data).is_ok());
+        // (with no count, and WriteLine: the same text, the same bytes)
+        let mut n = MemStream::default();
+        call(&mut n, "writestr", &[v_str(text)]);
+        assert_eq!(n.data, text.as_bytes());
+        let mut l = MemStream::default();
+        call(&mut l, "writeline", &[v_str("中文 é")]);
+        assert_eq!(l.data, "中文 é\r\n".as_bytes());
+        let mut w = MemStream::default();
+        call(&mut w, "write", &[v_str("中文 é")]);
+        assert_eq!(w.data, "中文 é".as_bytes());
+    }
+
+    /// RapidQ's strings are bytes: characters up to 255 are written as the
+    /// bytes they are (CHR$ and ReadStr's), so binary data built or copied
+    /// with strings is exact. WriteStr's count pads with NULs and cuts.
+    #[test]
+    fn writestr_of_byte_strings_stays_bytes() {
+        let mut m = MemStream::default();
+        call(&mut m, "writestr", &[v_str("Espa\u{f1}ol \u{e9}\u{ff}\u{0}\u{80}")]);
+        assert_eq!(m.data, [b'E', b's', b'p', b'a', 0xF1, b'o', b'l', b' ', 0xE9, 0xFF, 0, 0x80]);
+        let mut p = MemStream::default();
+        call(&mut p, "writestr", &[v_str("ab"), v_int(4)]);
+        call(&mut p, "writestr", &[v_str("abcdef"), v_int(3)]);
+        assert_eq!(p.data, b"ab\0\0abc");
+        // (read back as RapidQ reads: a character a byte)
+        p.set("position", &v_int(0));
+        assert_eq!(call(&mut p, "readstr", &[v_int(2)]).to_string_val(), "ab");
+        // (the count is of characters in a Unicode text too)
+        let mut u = MemStream::default();
+        call(&mut u, "writestr", &[v_str("中文字"), v_int(2)]);
+        assert_eq!(u.data, "中文".as_bytes());
+        call(&mut u, "writestr", &[v_str("é中"), v_int(3)]);
+        assert_eq!(&u.data[6..], "é中\0".as_bytes());
+    }
+
+    /// WriteText always writes UTF-8; ReadAllText reads UTF-8 (a BOM
+    /// dropped), else Windows-1252 — what an older program's text file is.
+    #[test]
+    fn write_and_read_text_round_trip() {
+        let text = "Español, 中文(简体), emoji 😀, € and ·";
+        let mut m = MemStream::default();
+        call(&mut m, "writetext", &[v_str(text)]);
+        assert_eq!(m.data, text.as_bytes());
+        m.set("position", &v_int(0));
+        assert_eq!(call(&mut m, "readalltext", &[]).to_string_val(), text);
+        // (an accent-only text too: UTF-8, where WriteStr would write bytes)
+        let mut a = MemStream::default();
+        call(&mut a, "writetext", &[v_str("café")]);
+        assert_eq!(a.data, "café".as_bytes());
+        // (a BOM, then an ANSI file)
+        let mut b = MemStream::default();
+        b.write(b"\xEF\xBB\xBFna\xC3\xAFve");
+        b.set("position", &v_int(0));
+        assert_eq!(call(&mut b, "readalltext", &[]).to_string_val(), "naïve");
+        let mut c = MemStream::default();
+        c.write(b"caf\xE9 \x80 \x96 \xB7");
+        c.set("position", &v_int(0));
+        assert_eq!(call(&mut c, "readalltext", &[]).to_string_val(), "café € – ·");
+        // (ReadAll and ReadStr stay bytes, a character a byte)
+        let mut d = MemStream::default();
+        call(&mut d, "writetext", &[v_str("é")]);
+        d.set("position", &v_int(0));
+        assert_eq!(call(&mut d, "readall", &[]).to_string_val(), "\u{c3}\u{a9}");
     }
 
     #[test]

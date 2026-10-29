@@ -61,6 +61,10 @@ thread_local! {
     /// Told each character no loaded font has (the web host then fetches
     /// the fallback font that has it); none on the desktop.
     static MISSING: RefCell<Option<MissingHook>> = const { RefCell::new(None) };
+    /// The fallback fonts every text system was given ([`TextSystem::add_font`]),
+    /// for the one a canvas's text asks (`canvas_fallback`), which is a text
+    /// system of its own.
+    static ADDED: RefCell<Vec<Blob<u8>>> = const { RefCell::new(Vec::new()) };
 }
 
 /// The fallback families, in the order they're tried.
@@ -102,14 +106,21 @@ impl TextSystem {
     pub fn new() -> Self {
         let mut font_cx = FontContext::new();
         register_builtin_fonts(&mut font_cx.collection);
+        // (a canvas's text asks this engine for the characters its built-in
+        // faces lack: `install_canvas_fallback`)
+        install_canvas_fallback();
         TextSystem { font_cx, layout_cx: LayoutContext::new(), generation: 0 }
     }
 
     /// Font file `data` (OpenType) added to what text is drawn with: a
     /// fallback font's chunk the host loaded.
     pub fn add_font(&mut self, data: Vec<u8>) {
-        self.font_cx.collection.register_fonts(Blob::new(Arc::new(data)), None);
+        let blob = Blob::new(Arc::new(data));
+        ADDED.with(|a| a.borrow_mut().push(blob.clone()));
+        self.font_cx.collection.register_fonts(blob, None);
         self.generation += 1;
+        // (the canvas looks again for the characters no font had)
+        rapidr_value::objects::text::fallbacks_changed();
     }
 
     /// `text` (its lines) in `font`, laid out at `scale` device pixels per
@@ -141,6 +152,56 @@ impl TextSystem {
         let layout = self.layout(text, font, 0, 1.0);
         (layout.full_width(), layout.height())
     }
+}
+
+/// Lets a canvas's text (`rapidr_value::objects::text`: drawn from the
+/// built-in faces, which have the Latin, Greek and Cyrillic scripts) use the
+/// font this engine picks for a character they lack — Chinese, Japanese,
+/// Korean, symbols — so `Canvas.TextOut` shows what a label shows, on the
+/// desktop the system's own CJK font and on the web the loaded Noto set,
+/// instead of a `?`. Once; no font is bundled for it.
+pub fn install_canvas_fallback() {
+    rapidr_value::objects::text::set_fallback_resolver(canvas_fallback);
+}
+
+/// The font file (and index in it) that draws `c` in this engine: the font
+/// of the glyph run a one-character layout makes, if it has the glyph.
+fn canvas_fallback(c: char) -> Option<rapidr_value::objects::text::FallbackFont> {
+    use std::collections::HashMap;
+    thread_local! {
+        /// The engine the canvas asks (its own: the hosts' are theirs to
+        /// borrow while a program draws).
+        static ENGINE: RefCell<Option<TextSystem>> = const { RefCell::new(None) };
+        /// How many of the fonts added to the hosts' text systems this one has.
+        static SEEN: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+        /// Each font file's bytes kept for good, once (they are the
+        /// engine's, memory-mapped or loaded: not copied).
+        static KEPT: RefCell<HashMap<u64, &'static Blob<u8>>> = RefCell::new(HashMap::new());
+    }
+    ENGINE.with(|e| {
+        let mut e = e.borrow_mut();
+        let engine = e.get_or_insert_with(TextSystem::new);
+        // (the fallback fonts a host loaded since: the web's Noto chunks)
+        ADDED.with(|a| {
+            let a = a.borrow();
+            for blob in a.iter().skip(SEEN.with(std::cell::Cell::get)) {
+                engine.font_cx.collection.register_fonts(blob.clone(), None);
+            }
+            SEEN.with(|s| s.set(a.len()));
+        });
+        let layout = engine.layout(&c.to_string(), &Font::default(), 0, 1.0);
+        for line in layout.lines() {
+            for item in line.items() {
+                let parley::PositionedLayoutItem::GlyphRun(run) = item else { continue };
+                if run.glyphs().any(|g| g.id != 0) {
+                    let font = run.run().font();
+                    let blob: &'static Blob<u8> = KEPT.with(|k| *k.borrow_mut().entry(font.data.id()).or_insert_with(|| Box::leak(Box::new(font.data.clone()))));
+                    return Some(rapidr_value::objects::text::FallbackFont { data: blob.data(), index: font.index });
+                }
+            }
+        }
+        None
+    })
 }
 
 /// Registers RapidR's built-in faces (`rapidr_value::objects::text::BUILTIN_FACES`):
@@ -267,5 +328,38 @@ mod cjk_tests {
                 }
             }
         }
+    }
+
+    /// Robert's Solar System 3D (2.121.3): its labels (a canvas's TextOut)
+    /// showed `??` for Chinese while a label showed it right — the canvas
+    /// draws from RapidR's built-in faces, which have no ideographs, and put
+    /// a `?` for each. It now draws what the engine's labels draw: the
+    /// system's CJK font. (A machine with no CJK font: nothing to compare.)
+    #[test]
+    fn a_canvas_draws_chinese_with_the_fonts_a_label_uses() {
+        use rapidr_value::objects::bitmap::Bitmap;
+        let mut ts = TextSystem::new();
+        let font = Font { name: "Arial".into(), size: 14, color: 0, styles: 0 };
+        if ts.layout("查", &font, 0, 1.0).width() < 0.9 * font.pixel_size() as f32 {
+            eprintln!("no CJK font here: not compared");
+            return;
+        }
+        let ink = |text: &str| {
+            let mut b = Bitmap::new_canvas();
+            b.resize(120, 40);
+            b.fill_rect(0, 0, 119, 39, 0xFFFFFF);
+            rapidr_value::objects::text::text_out(&mut b, 4, 4, text, &font, 0, None);
+            (0..40).flat_map(|y| (0..120).map(move |x| (x, y))).filter(|&(x, y)| b.pixel(x, y) != Some(0xFFFFFF)).collect::<Vec<_>>()
+        };
+        let (question_marks, chinese) = (ink("???"), ink("查询库"));
+        assert!(!chinese.is_empty(), "something is drawn");
+        assert_ne!(chinese, question_marks, "not three `?`");
+        // (three ideographs an em wide each, as a label's: not a `?`'s width)
+        let (lo, hi) = (chinese.iter().map(|p| p.0).min().unwrap(), chinese.iter().map(|p| p.0).max().unwrap());
+        assert!(hi - lo + 1 >= 2 * font.pixel_size() as i64, "ink spans {lo}..{hi}");
+        // (and each ideograph differs from the next: real glyphs)
+        assert_ne!(ink("查"), ink("询"));
+        // (what no font has is still a `?`)
+        assert_eq!(ink("\u{10FFFE}"), ink("?"));
     }
 }

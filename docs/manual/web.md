@@ -150,7 +150,9 @@ a 1200 × 800 window to try it with
   aren't available in the interpreter. PEEK / POKE work as on the desktop.
 - Text RapidR's built-in fonts can't draw (symbols, Chinese, Japanese,
   Korean, emoji) uses Noto fonts shipped with the build, loaded as the page
-  needs them.
+  needs them. A canvas's `TextOut` uses them too: draw in `OnPaint`, which
+  runs again when a font arrives (text drawn once, before it has, stays a
+  `?` until the canvas is drawn again).
 
 ## Web-only components
 
