@@ -16,6 +16,11 @@
 //       call, DELETE —; the current revision — server/discover, calls
 //       with their headers, a header that doesn't match, a version it
 //       doesn't speak, a method it doesn't have)
+//   node tests/http_client_probe.mjs studio-all <port> <outfile> <token>
+//   node tests/http_client_probe.mjs studio-ask <port> <outfile> <token>
+//       (RapidR Studio's AI apps, for the manual's pictures — tools/manual/
+//       scenes/ai-apps.mjs: a few calls that fill the AI Apps pane; -ask
+//       ends with a change that waits for the user)
 
 import http from "node:http";
 import net from "node:net";
@@ -131,5 +136,16 @@ if (!(await listening())) {
   const nm = await modern(15, "nothing/here");
   say(`no method ${nm.status} ${parse(nm).error?.code}`);
   say(`no session ${(await post({ jsonrpc: "2.0", id: 16, method: "tools/list" })).status}`);
+} else if (mode === "studio-all" || mode === "studio-ask") {
+  const MODERN = "2026-07-28";
+  const meta = { "io.modelcontextprotocol/protocolVersion": MODERN, "io.modelcontextprotocol/clientInfo": { name: "an-ai-app", version: "1.0" }, "io.modelcontextprotocol/clientCapabilities": {} };
+  let id = 1;
+  const callTool = (name, args) => request({ method: "POST", path: "/mcp", headers: { ...auth, "Content-Type": "application/json", Accept: "application/json, text/event-stream", "MCP-Protocol-Version": MODERN, "Mcp-Method": "tools/call", "Mcp-Name": name }, body: JSON.stringify({ jsonrpc: "2.0", id: id++, method: "tools/call", params: { name, arguments: args, _meta: meta } }) });
+  say(`status ${(await callTool("studio_status", {})).status}`);
+  await callTool("list_files", {});
+  await callTool("read_file", { path: "main.rr" });
+  await callTool("check_code", {});
+  await callTool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello, world"' }], summary: "Says hello to the world." });
+  if (mode === "studio-all") await callTool("rapidr_describe", { type: "RButton" });
 }
 writeFileSync(`${outfile}.done`, "");

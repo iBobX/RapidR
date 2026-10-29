@@ -1,5 +1,5 @@
-' main.rr: the project AI apps work on in tests/studio_mcp.mjs (RapidR
-' Studio's MCP server): it prints three lines and ends.
+' Hello: a greeting, then two numbered lines (RapidR Studio's tests of
+' AI apps and the manual's pictures of them use it).
 DIM n AS INTEGER
 PRINT "Hello from Studio"
 FOR n = 1 TO 2

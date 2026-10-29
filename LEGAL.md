@@ -181,6 +181,11 @@ is called Versions, and it is built on Git). Their owners' notices:
 - Postgres, PostgreSQL and the Slonik Logo are trademarks or registered
   trademarks of the PostgreSQL Community Association of Canada, and used with
   their permission.
+- Model Context Protocol® and MCP™ are marks of LF Projects, LLC
+  (https://www.lfprojects.org/policies/). RapidR uses them only to say which
+  protocol it speaks (RapidR Studio's AI apps feature, the `RMcpServer`
+  component). Claude Code is a product of Anthropic, PBC; the manual names
+  it once, as an example of an AI app that connects.
 
 RapidR is not affiliated with or endorsed by these owners. Names are used
 only to say what RapidR works with.

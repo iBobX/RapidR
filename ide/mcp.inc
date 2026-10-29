@@ -400,7 +400,7 @@ FUNCTION McpModeNote(Mode AS STRING) AS STRING
   SELECT CASE Mode
     CASE "read": Result = "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change or run anything."
     CASE "edits": Result = "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program and asking RAI still wait for you."
-    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own. Everything is still listed, Stop ends it, and they never reach keys or anything outside the project."
+    CASE "all": Result = "Nothing waits for you: AI apps change files, run the program and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and AI apps never reach keys or files outside the project themselves."
     CASE ELSE: Result = "AI apps can look freely; each change, run or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
   END SELECT
 END FUNCTION
