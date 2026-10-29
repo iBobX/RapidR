@@ -27,7 +27,11 @@ planned.
    can see, what it can do, what it never sees and what to keep in mind
    (the same rows are on the Settings page); **Learn more** opens this
    page. **Turn On** turns it on; **Cancel**, the default (Enter and Esc
-   both), leaves it off.
+   both), leaves it off. When what AI apps can do grows — since they can
+   look at and use your running program — Studio asks once more as it
+   starts, even if you turned it on before (Cancel turns it off), and a
+   project you had left in **Allow everything** is back in **Ask before
+   changes**: choose it again if you want it.
 3. Press **OK**. Studio listens at the **Address** shown —
    `http://127.0.0.1:47330/mcp` unless you change the **Port**.
 4. Give your AI app the **Address** and the **Header**

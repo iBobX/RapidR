@@ -22,6 +22,16 @@
 //                     look asks again
 //   Read only         the user runs it; every app_* tool that looks at or
 //                     uses it is refused, app_wait (time passing) works
+//   Session           Allow for This Session: the running program isn't
+//                     asked about again in the next run — until another
+//                     project opens: then the run and the look ask again
+//   Upgrade           a user who confirmed AI apps before they could look
+//                     at and use the running program (McpConfirmed, no
+//                     McpConsentVersion), a project in Allow everything:
+//                     the question once more at the start — Cancel: AI apps
+//                     off, the server never started; Turn On: the server
+//                     with the app_* tools —, the project set back to Ask
+//                     before changes, and not asked again at the next start
 //   RAI               RAI, Studio's own assistant (the tests' mock
 //                     provider): asked to click 8, it asks the user first
 //                     (its chat's card) and is told they didn't allow it;
@@ -37,10 +47,10 @@
 // what was typed, what the program shows or a picture, and no picture may
 // be left in the temporary folder.
 //
-//   node tests/app_eyes.mjs [all|ask|edits|read|rai …]   (RAPIDR: the rapidr)
+//   node tests/app_eyes.mjs [all|ask|edits|read|session|upgrade|rai …]   (RAPIDR: the rapidr)
 //
 // Never the user's keychain, registry, printer or AI keys: everything in
-// tests/results/app-eyes. Ports 47905-47909.
+// tests/results/app-eyes. Ports 47905-47911.
 
 import { spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
@@ -93,9 +103,13 @@ function env(name, extra = {}) {
   };
 }
 
-function studio(name, steps, events, dump, extra) {
-  cpSync(join(ROOT, "tests", "fixtures", "app_eyes"), join(WORK, name), { recursive: true });
-  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light", "--do", steps, join(WORK, name, "Calc.rrproj")];
+// (opts.project: the project's folder, else a copy of the fixture named
+// after the run; opts.fresh false: Studio reads its settings — the run's
+// registry — as a user's Studio does)
+function studio(name, steps, events, dump, extra, opts = {}) {
+  const project = opts.project || join(WORK, name);
+  if (!existsSync(join(project, "Calc.rrproj"))) cpSync(join(ROOT, "tests", "fixtures", "app_eyes"), project, { recursive: true });
+  const args = ["run", "ide/studio.rr", "--home", ".", ...(opts.fresh === false ? [] : ["--fresh"]), "--theme", "rapidr-light", ...(steps ? ["--do", steps] : []), join(project, "Calc.rrproj")];
   const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name, extra), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump }, stdio: ["ignore", "pipe", "pipe"] });
   children.push(child);
   let out = "";
@@ -410,6 +424,104 @@ if (want("read")) {
   const end = await run.ended();
   check("Read only: the menu says it", end.lines["mcpmodebox.text"] === "Read only", JSON.stringify(end.lines));
   checkTrail("read", end, run.child.pid);
+}
+
+// ---- Allow for This Session: kept across runs, cleared by another project ------------------
+if (want("session")) {
+  const PORT = BASE_PORT + 5;
+  // (the run and the first look: Allow for This Session; then, in another
+  // project, opening it, its run and its first look: Allow Once each)
+  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const run = studio("session", `mcp:on=${PORT}`, events, "mcpask.visible");
+  check("Session: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  let r = await tool("run_program", { Action: "start", Wait: 2 });
+  check("Session: the run allowed for this session", !r.error && asked(r), r.text);
+  r = await layoutWhenUp(tool);
+  check("Session: the first look asked (allowed for this session)", r.asked && r.text.includes("b7 (RButton)"), r.text);
+  r = await tool("run_program", { Action: "restart", Wait: 2 });
+  r = await layoutWhenUp(tool);
+  check("Session: the next run isn't asked about (Allow for This Session)", !r.asked && r.text.includes("b7 (RButton)"), r.text);
+  r = await tool("run_program", { Action: "stop", Wait: 2 });
+  check("Session: the program stopped (not asked: Allow for This Session)", !r.error && !asked(r), r.text);
+  r = await tool("open_project", { Path: join(ROOT, "examples", "gui", "hello_form.rr") });
+  check("Session: another project opened (asked: Allow Once)", !r.error && asked(r), r.text);
+  r = await tool("run_program", { Action: "start", Wait: 2 });
+  check("Session: …its run is asked again (the session's grants went with the project)", !r.error && asked(r), r.text);
+  let wasAsked = false;
+  for (let i = 0; i < 40; i++) {
+    r = await tool("app_layout");
+    wasAsked ||= asked(r);
+    if (r.text.includes("greetbutton (RButton)")) break;
+    await sleep(250);
+  }
+  check("Session: …and so is looking at it", wasAsked && r.text.includes("greetbutton (RButton)"), r.text);
+  r = await tool("get_problems");
+  const end = await run.ended();
+  check("Session: nothing left waiting", end.lines["mcpask.visible"] === "0", JSON.stringify(end.lines));
+}
+
+// ---- Upgrade: confirmed before the running program could be used — asked once more ------
+if (want("upgrade")) {
+  const PORT = BASE_PORT + 6;
+  const project = join(WORK, "upgrade");
+  cpSync(join(ROOT, "tests", "fixtures", "app_eyes"), project, { recursive: true });
+  // (a user's settings as an earlier Studio kept them: AI apps on and
+  // confirmed, this project in Allow everything, no consent version)
+  const seed = (file) => writeFileSync(file, [
+    "Windows Registry Editor Version 5.00", "",
+    "[HKEY_CURRENT_USER]", "", "[HKEY_CURRENT_USER\\Software]", "", "[HKEY_CURRENT_USER\\Software\\RapidR]", "",
+    "[HKEY_CURRENT_USER\\Software\\RapidR\\Studio]",
+    `"McpOn"="1"`, `"McpPort"="${PORT}"`, `"McpConfirmed"="1"`, `"McpModes"="${join(project, "Calc.rrproj")}?all"`, "",
+  ].join("\r\n"));
+  const reg = (file) => (existsSync(file) ? readFileSync(file, "utf8") : "");
+  const value = (text, name) => (text.match(new RegExp(`"${name}"="([^"]*)"`)) || [])[1];
+  const wasListening = async (child) => {
+    // (polled while that Studio runs)
+    let seen = false;
+    while (child.exitCode === null && !seen) {
+      seen = await new Promise((resolve) => {
+        const so = net.connect({ host: "127.0.0.1", port: PORT }, () => { so.end(); resolve(true); });
+        so.on("error", () => resolve(false));
+      });
+      await sleep(200);
+    }
+    return seen;
+  };
+
+  // Cancel: AI apps off, the server never started
+  const regNo = join(WORK, "upgrade-no.reg");
+  seed(regNo);
+  let run = studio("upgrade-no", "", ["consentdialog.__until_Visible_-1", "consentno.onclick", "form.__wait_1500"].join(","), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regNo }, { project, fresh: false });
+  const listenedNo = await wasListening(run.child);
+  let end = await run.ended();
+  check("Upgrade: the question once more at the start", end.lines["consenttitle.caption"] === "Let AI apps use RapidR Studio?", JSON.stringify(end.lines) + end.out.slice(-800));
+  check("Upgrade, Cancel: the server never started", !listenedNo);
+  check("Upgrade, Cancel: AI apps off, kept so", value(reg(regNo), "McpOn") === "0", reg(regNo).slice(-600));
+  check("Upgrade: the project's Allow everything set back to Ask before changes", /Calc\.rrproj\?ask/.test(value(reg(regNo), "McpModes") || "") && !/\?all/.test(value(reg(regNo), "McpModes") || ""), value(reg(regNo), "McpModes"));
+
+  // Turn On: the server, with the running program's tools
+  const regYes = join(WORK, "upgrade-yes.reg");
+  seed(regYes);
+  run = studio("upgrade-yes", "", ["consentdialog.__until_Visible_-1", "consentyes.onclick", until("get_problems")].join(","), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
+  check("Upgrade, Turn On: Studio listens", await listening(PORT));
+  let { call, tool } = client(PORT);
+  let names = ((await call("tools/list")).json.result?.tools || []).map((t) => t.name);
+  check("Upgrade, Turn On: the app_* tools are there", ["app_layout", "app_screenshot", "app_click", "app_type", "app_wait"].every((t) => names.includes(t)), names.join(","));
+  await tool("get_problems");
+  end = await run.ended();
+  check("Upgrade, Turn On: the project asks before changes now", end.lines["mcpmodebox.text"] === "Ask before changes" && /Calc\.rrproj\?ask/.test(value(reg(regYes), "McpModes") || ""), JSON.stringify(end.lines));
+  check("Upgrade, Turn On: the confirmation kept (version 2)", value(reg(regYes), "McpConsentVersion") === "2" && value(reg(regYes), "McpConfirmed") === "1", reg(regYes).slice(-600));
+
+  // The next start: not asked again
+  run = studio("upgrade-again", "", until("get_problems"), "consenttitle.caption,mcpmodebox.text", { RAPIDR_REGISTRY: regYes }, { project, fresh: false });
+  check("Upgrade, the next start: Studio listens at once", await listening(PORT));
+  ({ call, tool } = client(PORT));
+  names = ((await call("tools/list")).json.result?.tools || []).map((t) => t.name);
+  check("Upgrade, the next start: the app_* tools there", names.includes("app_click"), names.join(","));
+  await tool("get_problems");
+  end = await run.ended();
+  check("Upgrade, the next start: not asked again", !end.lines["consenttitle.caption"], JSON.stringify(end.lines));
 }
 
 // ---- RAI: the same eyes and hands, asked once a run ---------------------------------------

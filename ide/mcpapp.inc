@@ -17,8 +17,9 @@
 ' Paused in the debugger, the program can be looked at but not used: the
 ' program's runtime says where it is paused and to continue it first.
 '
-' Included by mcp.inc after its globals (mcp.inc lists its tools,
-' decides, asks and runs them: the lines marked "mcpapp.inc" there).
+' Included by mcp.inc after its globals (mcp.inc lists its tools — once
+' the user confirmed the first-time question's version 2, which names them
+' —, decides, asks and runs them: the lines marked "mcpapp.inc" there).
 
 DECLARE SUB McpAppTools
 DECLARE SUB McpAppSetUp
@@ -42,6 +43,8 @@ DIM McpAppSending AS INTEGER
 ' (the run in which the user allowed an AI app to use the program — its
 ' RunStarted: Allow Once lasts the run)
 DIM McpAppRunAllowed AS DOUBLE
+' (the request being made)
+DIM McpAppJ AS RJson
 
 ' A description with ` for each double quote (a BASIC string can't hold one).
 FUNCTION McpAppQ(Text AS STRING) AS STRING
@@ -64,11 +67,11 @@ SUB McpAppSetUp
   Session.OnApp = McpAppReplied
 END SUB
 
-' An argument of the AI app's call, when given, into the request (McpJ).
+' An argument of the AI app's call, when given, into the request (McpAppJ).
 SUB McpAppArg(CallId AS INTEGER, Arg AS STRING, Key AS STRING)
   DIM v AS STRING
   v = Mcp.Argument(Arg, CallId)
-  IF v <> "" THEN McpJ.Set Key, v
+  IF v <> "" THEN McpAppJ.Set Key, v
 END SUB
 
 ' A call allowed: the request to the program; its answer comes as
@@ -79,8 +82,8 @@ SUB McpAppRun(Tool AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRIN
     Mcp.Reply CallId, "Too many calls to the program are waiting for its answer: wait for them first.", 1
     EXIT SUB
   END IF
-  McpJ.Parse "{}"
-  McpJ.Set "do", MID$(Tool, 5)
+  McpAppJ.Parse "{}"
+  McpAppJ.Set "do", MID$(Tool, 5)
   McpAppArg CallId, "Window", "window"
   McpAppArg CallId, "Name", "name"
   McpAppArg CallId, "Caption", "caption"
@@ -109,7 +112,7 @@ SUB McpAppRun(Tool AS STRING, CallId AS INTEGER, Client AS STRING, What AS STRIN
   ' (an answer at once — the program isn't running — comes before App
   ' returns: McpAppReplied knows it by McpAppSending)
   McpAppSending = CallId
-  id = Session.App(McpJ.Stringify)
+  id = Session.App(McpAppJ.Stringify)
   McpAppSending = 0
   FOR k = 0 TO McpAppCount - 1
     IF McpAppCall(k) = CallId AND McpAppId(k) = 0 THEN
