@@ -571,6 +571,8 @@ SUB SetUpMcp
   END IF
   Dock.AddPane(McpPanel, "AI Apps", "tab:outputbox", "plug")
   Dock.HidePane("mcppanel")
+  ' (Output stays the group's front tab, as SetUpDock left it)
+  Dock.ShowPane("outputbox")
   McpPage.Parent = SettingsDialog
   SettingsTabs.AddTabs "AI Apps"
   McpPageModeBox.AddItems "Read only", "Ask before changes", "Allow edits", "Allow everything"
