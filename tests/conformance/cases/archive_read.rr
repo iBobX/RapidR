@@ -3,13 +3,13 @@
 ' built into the program as $RESOURCEs: the format from the first bytes,
 ' the entries, a .z80 found and its bytes, a text, a zip's local time, an
 ' old zip's code page 437 name. The same on every runtime.
-$RESOURCE ZIP_FILE AS "resource_files/archive-games.zip"
-$RESOURCE SEVENZ_FILE AS "resource_files/archive-games.7z"
-$RESOURCE TGZ_FILE AS "resource_files/archive-games.tar.gz"
-$RESOURCE TXZ_FILE AS "resource_files/archive-games.tar.xz"
-$RESOURCE TZST_FILE AS "resource_files/archive-games.tar.zst"
-$RESOURCE GZ_FILE AS "resource_files/archive-hello.z80.gz"
-$RESOURCE CP437_FILE AS "resource_files/archive-cp437.zip"
+$RESOURCE ZIP_FILE AS "archive_files/archive-games.zip"
+$RESOURCE SEVENZ_FILE AS "archive_files/archive-games.7z"
+$RESOURCE TGZ_FILE AS "archive_files/archive-games.tar.gz"
+$RESOURCE TXZ_FILE AS "archive_files/archive-games.tar.xz"
+$RESOURCE TZST_FILE AS "archive_files/archive-games.tar.zst"
+$RESOURCE GZ_FILE AS "archive_files/archive-hello.z80.gz"
+$RESOURCE CP437_FILE AS "archive_files/archive-cp437.zip"
 
 DIM A AS RArchive
 

@@ -46,7 +46,7 @@ const AI: &str = "evalai";
 const TOOLS: &str = "evaltools";
 
 fn s(v: impl Into<String>) -> Value {
-    Value::String(v.into())
+    Value::String(v.into().into())
 }
 
 fn ai_set(p: &str, v: &str) {

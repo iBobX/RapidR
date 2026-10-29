@@ -1,5 +1,5 @@
 {
-  "about": "The VM's budgets (tools/bench/vm_bench --check; tools/regress.sh perf). Times: the fastest of the runs' CPU time (start-up: wall time); a budget missed fails. \"budgets\" were measured on an Apple-silicon Mac (busy with other builds), \"systems\" holds a system's own (by platform.system()). Measured 2026-10-15 (DEBUG-VM) — the Mac before: start-up 10.5 ms, the 10 M loop 1088 ms (1624 ms under the debugger), strings 1284 ms, Fib(27) 94 ms, arrays 552 ms, Studio running an idle program 10.2 % CPU; after: 8 ms, 607 ms (717 ms), 566 ms, 59 ms, 338 ms, 0.25 %. Ubuntu 24.04 (ARM, in a VM) on one core and 2 GB: 2.4 ms, 1285 ms (1332 ms), 481 ms, 93 ms, 759 ms, idle 0 %, Studio running it 0.25 %, Studio's start 261 ms.",
+  "about": "The VM's budgets (tools/bench/vm_bench --check; tools/regress.sh perf). Times: the fastest of the runs' CPU time (start-up: wall time); a budget missed fails. \"budgets\" were measured on an Apple-silicon Mac (busy with other builds), \"systems\" holds a system's own (by platform.system()). Measured 2026-10-15 (DEBUG-VM) — the Mac before: start-up 10.5 ms, the 10 M loop 1088 ms (1624 ms under the debugger), strings 1284 ms, Fib(27) 94 ms, arrays 552 ms, Studio running an idle program 10.2 % CPU; after: 8 ms, 607 ms (717 ms), 566 ms, 59 ms, 338 ms, 0.25 %. Ubuntu 24.04 (ARM, in a VM) on one core and 2 GB: 2.4 ms, 1285 ms (1332 ms), 481 ms, 93 ms, 759 ms, idle 0 %, Studio running it 0.25 %, Studio's start 261 ms. Binary data (STRING-SPEED, 2026-10-29, an M4 Max busy with other lanes): mid_scan 3268 ms before, 19 ms after; concat_build 1029 → 79 ms; byte_array 297 → 284 ms; stream_read 148 → 154 ms; stream_write 1640 → 177 ms; binary_read 9195 → 174 ms (tools/bench/README.md). Their budgets leave room for a busy machine and keep a quadratic MID$ or s = s + x, or a system call per written byte, from coming back unseen.",
   "budgets": {
     "startup": { "ms": 150 },
     "memory_hello": { "rss_mb": 40 },
@@ -10,6 +10,12 @@
     "strings": { "ms": 800 },
     "calls": { "ms": 100 },
     "arrays": { "ms": 450 },
+    "mid_scan": { "ms": 150 },
+    "concat_build": { "ms": 300 },
+    "byte_array": { "ms": 500 },
+    "stream_read": { "ms": 350 },
+    "stream_write": { "ms": 500 },
+    "binary_read": { "ms": 600 },
     "idle": { "cpu_pct": 1.0 },
     "idle_debug": { "cpu_pct": 1.0 },
     "studio_idle": { "cpu_pct": 1.0 },
@@ -20,7 +26,13 @@
       "loop10m": { "ms": 2000 },
       "loop10m_sub": { "ms": 2000 },
       "debugger": { "ms": 2200 },
-      "arrays": { "ms": 1200 }
+      "arrays": { "ms": 1200 },
+      "mid_scan": { "ms": 400 },
+      "concat_build": { "ms": 800 },
+      "byte_array": { "ms": 1300 },
+      "stream_read": { "ms": 900 },
+      "stream_write": { "ms": 1300 },
+      "binary_read": { "ms": 1500 }
     }
   }
 }

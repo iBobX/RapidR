@@ -231,11 +231,11 @@ pub fn decode(bytes: &[u8], kind: &Kind, old: &Value) -> (Value, usize) {
         Kind::Fixed(n) => {
             let b = &bytes[..(*n).min(bytes.len())];
             let text = b.split(|&c| c == 0).next().unwrap_or_default();
-            (Value::String(bytes_to_string(text)), *n)
+            (Value::String(bytes_to_string(text).into()), *n)
         }
         Kind::Str => {
             let addr = u32::from_le_bytes(take(4)[..4].try_into().unwrap()) as i64;
-            (Value::String(if addr == 0 { String::new() } else { c_string(addr).unwrap_or_default() }), 4)
+            (Value::String(if addr == 0 { String::new().into() } else { c_string(addr).unwrap_or_default().into() }), 4)
         }
         Kind::Udt(_) => match old {
             Value::Object(o) => {
@@ -662,7 +662,7 @@ pub fn sync(key: &str, v: &Value, type_name: &str) -> Value {
         // A string keeps its length (its buffer was written in place).
         (Kind::Str, _) | (Kind::Variant, Value::String(_)) => {
             let n = m.bytes.len().saturating_sub(1);
-            Value::String(bytes_to_string(&m.bytes[..n]))
+            Value::String(bytes_to_string(&m.bytes[..n]).into())
         }
         _ => decode(&m.bytes, &kind, v).0,
     }
@@ -967,7 +967,7 @@ pub fn shared(key: &str, args: &[Value]) -> Option<Result<Value, String>> {
         "__mem_sync" => Ok(sync(&s(0), &arg(1), &s(2))),
         "__sizeof" => Ok(Value::Integer(sizeof_value(&arg(0), &s(1)))),
         "__sizeof_type" => Ok(Value::Integer(size_of_type(&s(0)).unwrap_or(0) as i64)),
-        "__cstring" => address_of(&arg(0)).and_then(c_string).map(Value::String),
+        "__cstring" => address_of(&arg(0)).and_then(c_string).map(Value::from),
         "peek" => peek_args(args),
         "inp" | "out" | "inpw" | "outw" => Err(port_io_error(&key.to_ascii_uppercase())),
         "memcpy" => memcpy(&arg(0), &arg(1), &arg(2)).map(|_| Value::Null),
@@ -1010,7 +1010,7 @@ pub fn rp_sizeof_type(type_name: &Value) -> Value {
 }
 
 pub fn rp_cstring(addr: &Value) -> Value {
-    Value::String(or_fail(address_of(addr).and_then(c_string)))
+    Value::String(or_fail(address_of(addr).and_then(c_string)).into())
 }
 
 pub fn rp_memcpy(dest: &Value, src: &Value, n: &Value) -> Value {

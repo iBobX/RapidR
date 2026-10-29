@@ -1,0 +1,19 @@
+' vm_bench: a 64 KB machine's memory as a BYTE array, decoded as an
+' emulator decodes opcodes — each byte read and split with AND / SHR / SHL,
+' 16 passes (1,048,576 reads).
+$APPTYPE CONSOLE
+DIM mem(65535) AS BYTE
+DIM i AS INTEGER, r AS INTEGER, op AS INTEGER, s AS INTEGER, t AS DOUBLE
+t = TIMER
+FOR i = 0 TO 65535
+  mem(i) = (i * 167 + 13) AND 255
+NEXT
+s = 0
+FOR r = 1 TO 16
+  FOR i = 0 TO 65535
+    op = mem(i)
+    s = s + ((op SHR 3) AND 7) + ((op AND 7) SHL 1)
+  NEXT
+NEXT
+PRINT "byte_array "; s
+PRINT "ms "; INT((TIMER - t) * 1000)

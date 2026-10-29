@@ -67,6 +67,51 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
             memory::write(addr, &bytes)?;
             with_stream_mut(id, |m| m.pos = m.pos.saturating_add(n as i64));
         }
+        // `Stream.SaveArray(A(i…), n)` / `LoadArray` of a numeric array
+        // variable in one call (rapidr_ast::stream_arrays): what the loop
+        // `FOR k = 0 TO n - 1 : IF i + k > UBOUND(A, d) THEN EXIT FOR :
+        // Stream.WriteNum(A(…, i + k), kind)` (or `A(…, i + k) =
+        // Stream.ReadNum(kind)`) does, element by element.
+        "__arrayio" => {
+            let Value::Array(array) = arg(0) else { return Err("SaveArray / LoadArray: not an array".into()) };
+            let load = arg(1).to_i64() != 0;
+            let kind = arg(2).to_i64();
+            let end = &arg(3) - &Value::Integer(1);
+            let mut indices: Vec<Value> = args.get(4..).unwrap_or_default().to_vec();
+            let Some(first) = indices.pop() else { return Ok(Value::Null) };
+            let dims = indices.len() + 1;
+            let mut at: Vec<i64> = indices.iter().map(Value::to_i64).collect();
+            at.push(0);
+            let convert = memstream_kind(kind);
+            return with_stream_mut(id, |m| -> Result<(), String> {
+                let mut k = 0i64;
+                while Value::Integer(k).rp_le(&end).to_bool() {
+                    let index = &first + &Value::Integer(k);
+                    let Some((_, upper)) = array.borrow().dim_bounds(dims) else {
+                        return Err(format!("UBOUND: argument is not an array, or it has no dimension {dims}"));
+                    };
+                    if index.rp_gt(&Value::Integer(upper)).to_bool() {
+                        break;
+                    }
+                    at[dims - 1] = index.to_i64();
+                    if load {
+                        let v = super::memstream::read_number(&m.read(super::memstream::number_size(kind)), kind);
+                        let v = convert.map_or(v.clone(), |c| crate::numeric::convert(&v, c));
+                        array.borrow_mut().set(&at, v)?;
+                    } else {
+                        if m.file.as_ref().is_some_and(|f| !f.writable) {
+                            return Err("writenum: the file was opened for reading (fmOpenRead)".into());
+                        }
+                        let v = array.borrow().get(&at)?;
+                        m.write(&super::memstream::number_bytes(&v, kind));
+                    }
+                    k += 1;
+                }
+                Ok(())
+            })
+            .unwrap_or(Ok(()))
+            .map(|()| Value::Null);
+        }
         "saveudtarray" => {
             let v = arg(0);
             if !matches!(v, Value::Array(_)) {
@@ -99,6 +144,22 @@ pub fn call(id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
         }
     }
     Ok(Value::Null)
+}
+
+/// The declared type a `Num_*` storage kind stands for (`LoadArray` stores
+/// as an assignment to the element does).
+fn memstream_kind(kind: i64) -> Option<crate::numeric::NumKind> {
+    use crate::numeric::NumKind;
+    Some(match kind {
+        1 => NumKind::Byte,
+        2 => NumKind::Short,
+        3 => NumKind::Word,
+        4 => NumKind::Long,
+        5 => NumKind::Dword,
+        6 => NumKind::Single,
+        8 => NumKind::Double,
+        _ => return None,
+    })
 }
 
 /// A byte count within a stream's limit.

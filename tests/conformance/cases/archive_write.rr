@@ -3,7 +3,7 @@
 ' reads them back; ExtractAll and ExtractToFile write below their folder;
 ' COMPRESS$ / DECOMPRESS$ pack and unpack strings of bytes. The same on
 ' every runtime (the web's files are the page's).
-$RESOURCE ZIP_FILE AS "resource_files/archive-games.zip"
+$RESOURCE ZIP_FILE AS "archive_files/archive-games.zip"
 
 DIM A AS RArchive
 DIM M AS RMemoryStream

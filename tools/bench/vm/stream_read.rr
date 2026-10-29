@@ -1,0 +1,30 @@
+' vm_bench: a 64 KB stream read two ways — a byte at a time with
+' ReadNum(1) (65,536 method calls), and all at once into a BYTE array with
+' MemCopyTo(VARPTR(a(0)), n) — then summed.
+$APPTYPE CONSOLE
+DIM ms AS RMemoryStream
+DIM a(65535) AS BYTE
+DIM b AS STRING, i AS INTEGER, s AS INTEGER, u AS INTEGER, t AS DOUBLE, t1 AS DOUBLE
+' (every byte value, shuffled, 256 times over)
+FOR i = 0 TO 255
+  b = b + CHR$((i * 167) MOD 256)
+NEXT
+FOR i = 1 TO 8
+  b = b + b
+NEXT
+ms.WriteStr(b)
+t = TIMER
+ms.Position = 0
+s = 0
+FOR i = 1 TO 65536
+  s = s + ms.ReadNum(1)
+NEXT
+t1 = TIMER
+ms.Position = 0
+ms.MemCopyTo(VARPTR(a(0)), 65536)
+u = 0
+FOR i = 0 TO 65535
+  u = u + a(i)
+NEXT
+PRINT "stream_read "; s; " "; u
+PRINT "ms "; INT((TIMER - t) * 1000); " (ReadNum "; INT((t1 - t) * 1000); ", MemCopyTo + sum "; INT((TIMER - t1) * 1000); ")"

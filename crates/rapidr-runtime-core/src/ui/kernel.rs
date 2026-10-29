@@ -226,6 +226,9 @@ fn sync_desk(desk: &mut Desktop) {
 /// The host's turn: up to `timeout` (`None`: until something happens).
 /// Program code fired meanwhile waits ([`crate::object::rp_in_host_callback`]).
 fn pump(timeout: Option<Duration>) {
+    // (the program waits for its events: what its file streams were given
+    // is written, so other programs see it — rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     // (a tracking tick's handler: the host pumps already, held by the system)
     if held() {
         return;

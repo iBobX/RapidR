@@ -209,7 +209,7 @@ pub struct Event {
 
 impl Event {
     fn pane(name: &'static str, pane: &str) -> Event {
-        Event { name, args: vec![Value::String(pane.to_string())] }
+        Event { name, args: vec![Value::String(pane.to_string().into())] }
     }
 }
 
@@ -867,7 +867,7 @@ impl Manager {
             if info.view.index() != v.index() {
                 info.view = v;
                 let caption = info.view_caption();
-                events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone()), Value::String(caption)] });
+                events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone().into()), Value::String(caption.into())] });
             }
         }
         // (documents it doesn't list stay open, after the ones it lists)
@@ -1071,7 +1071,7 @@ impl Manager {
         let focus = info.shown_components().last().cloned();
         self.touch();
         if !same {
-            out.events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone()), Value::String(caption)] });
+            out.events.push(Event { name: "ondocumentview", args: vec![Value::String(doc.clone().into()), Value::String(caption.into())] });
             out.changed = true;
         }
         // (its document shown and active too)

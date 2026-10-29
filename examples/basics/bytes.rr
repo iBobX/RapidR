@@ -1,0 +1,75 @@
+' bytes.rr: a binary file's bytes — written, read back and looked at, the
+' way a file viewer, a game's level loader or an emulator's ROM loader does.
+'
+'   rapidr run bytes.rr
+'
+' A file read with ReadBinStr is a string of one character per byte
+' (CHR$(0) … CHR$(255)): ASC(MID$(data, i, 1)) — or ASC(data[i]) — is the
+' byte at i, and reading every byte this way is fast however long the file
+' (each MID$ costs what it returns). MemCopyTo copies the bytes straight
+' into a BYTE array instead. Strings built a piece at a time (s = s + x)
+' are fast too.
+$APPTYPE CONSOLE
+
+CONST BLOBFILE = "bytes_demo.bin"
+CONST SIZE = 65536
+
+' Write SIZE bytes: a little header ("RR", a version byte), then a
+' pattern that runs through every value 0 … 255
+DIM fs AS RFileStream
+DIM i AS INTEGER, x AS INTEGER
+fs.Open(BLOBFILE, fmCreate)
+fs.WriteStr("RR")
+fs.WriteNum(2, 1)
+x = 1
+FOR i = 4 TO SIZE
+    x = (x * 75 + 74) MOD 65537
+    fs.WriteNum(x AND 255, 1)
+NEXT
+fs.Close
+' (written? A folder that can't be written leaves no file: say so, stop)
+IF FILEEXISTS(BLOBFILE) = 0 THEN
+    PRINT "Couldn't write " + BLOBFILE + ": this folder (" + CURDIR$ + ") can't be written. Run it from a folder of yours."
+    END
+END IF
+
+' Read it all at once: one character per byte
+DIM data AS STRING
+fs.Open(BLOBFILE, fmOpenRead)
+data = fs.ReadBinStr(fs.Size)
+fs.Close
+PRINT BLOBFILE + ": " + STR$(LEN(data)) + " bytes"
+
+' The header, byte by byte
+PRINT "Signature: " + LEFT$(data, 2) + ", version " + STR$(ASC(MID$(data, 3, 1)))
+
+' Every byte: a sum and how many are zero (ASC of each character)
+DIM total AS INTEGER, zeros AS INTEGER, b AS INTEGER
+DIM started AS DOUBLE
+started = TIMER
+FOR i = 1 TO LEN(data)
+    b = ASC(data[i])
+    total = total + b
+    IF b = 0 THEN zeros = zeros + 1
+NEXT
+PRINT "Sum of the bytes: " + STR$(total) + ", zero bytes: " + STR$(zeros)
+PRINT "(" + STR$(LEN(data)) + " bytes read one at a time in " + STR$(INT((TIMER - started) * 1000)) + " ms)"
+
+' A hex dump of the first 32 bytes, built a piece at a time
+DIM line AS STRING
+FOR i = 1 TO 32
+    line = line + RIGHT$("0" + HEX$(ASC(MID$(data, i, 1))), 2) + " "
+    IF i MOD 16 = 0 THEN
+        PRINT RIGHT$("000" + HEX$(i - 16), 4) + ": " + line
+        line = ""
+    END IF
+NEXT
+
+' The same bytes in a BYTE array, copied in one go
+DIM mem(SIZE - 1) AS BYTE
+fs.Open(BLOBFILE, fmOpenRead)
+fs.MemCopyTo(VARPTR(mem(0)), SIZE)
+fs.Close
+PRINT "In the array: mem(0) = " + CHR$(mem(0)) + ", mem(2) = " + STR$(mem(2)) + ", the last = " + STR$(mem(SIZE - 1)) + " (the string's last: " + STR$(ASC(RIGHT$(data, 1))) + ")"
+
+KILL BLOBFILE

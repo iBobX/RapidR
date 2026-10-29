@@ -405,7 +405,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
         }
         "button" => {
             let i = args.first().map_or(-1, Value::to_i64);
-            Value::String(with(name, |t| usize::try_from(i).ok().and_then(|i| t.items.get(i)).map(|it| if it.is_separator() { "-".to_string() } else { it.name.clone() })).flatten().unwrap_or_default())
+            Value::String(with(name, |t| usize::try_from(i).ok().and_then(|i| t.items.get(i)).map(|it| if it.is_separator() { "-".to_string() } else { it.name.clone() })).flatten().unwrap_or_default().into())
         }
         "buttonenabled" => flag(|i| i.enabled, |i, on| i.enabled = on),
         "buttondown" => flag(|i| i.down, |i, on| i.down = on),
@@ -420,7 +420,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
                     t.items[i].hint.clone()
                 }
                 None => String::new(),
-            }))
+            }).into())
         }
         _ => return None,
     })
@@ -434,8 +434,8 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
         "showcaptions" => basic_bool(t.show_captions),
         "customizable" => basic_bool(t.customizable),
         "buttoncount" => Value::Integer(t.items.len() as i64),
-        "layout" => Value::String(t.layout_text()),
-        "clickedbutton" => Value::String(t.clicked.clone()),
+        "layout" => Value::String(t.layout_text().into()),
+        "clickedbutton" => Value::String(t.clicked.clone().into()),
         _ => return None,
     })
 }
@@ -470,7 +470,7 @@ fn click<R: Runtime>(rt: R, name: &str, i: Option<usize>) {
     });
     match hit {
         Some(Some((n, c))) => {
-            rt.fire(name, "onbuttonclick", &[Value::String(n), Value::String(c)]);
+            rt.fire(name, "onbuttonclick", &[Value::String(n.into()), Value::String(c.into())]);
             rt.fire(name, "onclick", &[]);
         }
         Some(None) => rt.fire(name, "onclick", &[]),

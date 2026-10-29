@@ -56,7 +56,7 @@ impl Const {
             Const::Bool(b) => Value::Boolean(*b),
             Const::Int(n) => Value::Integer(*n),
             Const::Double(n) => Value::Double(*n),
-            Const::Str(s) => Value::String(s.clone()),
+            Const::Str(s) => Value::String(s.clone().into()),
         }
     }
 }

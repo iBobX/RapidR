@@ -46,6 +46,7 @@ claims, headless).
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
 | [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |
+| [bytes.rr](basics/bytes.rr) | A binary file's bytes: `WriteNum`, `ReadBinStr`, every byte with `ASC(MID$(…))` / `data[i]` (fast at any length), a hex dump built with `s = s + …`, `MemCopyTo` into a `BYTE` array | run · interp · native · web | `rapidr run basics/bytes.rr` |
 | [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events
