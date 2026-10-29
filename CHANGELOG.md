@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Ten "systems" recipes for the assistant and for you** (`examples/recipes/`, [Recipes for systems programs](docs/manual/recipes-systems.md)): memory as a `BYTE` array (words, wrapping addresses), bits and flags (an 8-bit ALU with Carry, Zero, Sign, Overflow, Half-carry), a tiny CPU (fetch, decode, execute; Step / Run), the stack (`PUSH`, `POP`, `CALL`, `RET`), a hex dump, a disassembler (an opcode table from `DATA`), a binary file into memory with its header parsed, video memory drawn on an `RCanvas` (bitmap and colour attributes, only the changed cells redrawn), a keyboard matrix with an `IN` port, and a CPU run in cycles per timer frame. One tiny 8-bit computer of our own ties them together. Each is click-tested on every runtime, and Studio's recipe search finds them in English, Spanish and Portuguese ("emulador cpu registros" finds the CPU). They are in Studio's Open an Example list and the assistant's manual search; `tools/bench/systems_loops.rr` times their main loops (a CPU step loop runs about 4 million emulated cycles a second in the RapidR Runtime, about 40 million native).
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

@@ -475,7 +475,11 @@ When you ask for a new program, Studio first looks for the closest of its
 **recipes** — short, working programs of the shapes people ask for most: a
 calculator, a tip calculator, a stopwatch, a to-do list, a unit converter, a
 quiz, a drawing pad, a password generator, a CSV viewer, a list with Start /
-Stop buttons ([examples/recipes](../../examples/recipes/)). It sends that
+Stop buttons ([examples/recipes](../../examples/recipes/)) — and, for programs
+that handle a machine's insides, ten systems recipes: memory, bits and flags,
+a tiny CPU, the stack, a hex dump, a disassembler, a binary file, video
+memory, a keyboard, cycles per frame ([Recipes for systems
+programs](recipes-systems.md)). It sends that
 recipe with your request, so the assistant adapts a program that already
 works instead of inventing one. The search runs on your computer, in
 English, Spanish and Portuguese; *What was sent* shows the recipe that went.

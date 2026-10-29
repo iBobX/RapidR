@@ -1,0 +1,110 @@
+' Recipe: Hex dump (a memory viewer)
+' Keywords: hex dump, memory viewer, hex editor, hexadecimal, address, bytes, ASCII column, monospace, 16 bytes per row, page, RListBox, volcado hexadecimal, visor de memoria, direccion, columna ASCII, fuente monoespaciada, despejo hexadecimal, visualizador de memória, endereço, coluna ASCII, fonte monoespaçada
+' A row of the dump is the address, 16 bytes in hex and the same 16 as
+' text (a dot for what isn't printable). Two things keep it fast: the hex
+' of every byte value is looked up in a table made once, and a row is built
+' by itself and added to the list (never one string for the whole memory
+' grown byte by byte). Show page builds 16 rows; Show all builds all 4096
+' (64 KB) in a fraction of a second and the list scrolls them.
+'
+'   rapidr run hex_dump.rr
+$THEME rapidr
+
+DECLARE SUB PageClick
+DECLARE SUB PrevClick
+DECLARE SUB NextClick
+DECLARE SUB AllClick
+
+DIM mem(0 TO 65535) AS BYTE
+DIM hexTab(255) AS STRING          ' "00" to "FF", looked up instead of made
+DIM page AS INTEGER                ' the address of the first row shown
+
+CREATE Form AS RForm
+    Caption = "Hex Dump"
+    ClientWidth = 640: ClientHeight = 356
+    Center
+    CREATE AddrLabel AS RLabel: Caption = "&Address (hex):": Left = 16: Top = 20: Width = 100: END CREATE
+    CREATE AddrEdit AS REdit: Text = "0000": Left = 120: Top = 16: Width = 80: END CREATE
+    CREATE PageBtn AS RButton: Caption = "Show &page": Left = 212: Top = 14: Width = 96: Height = 30: OnClick = PageClick: END CREATE
+    CREATE PrevBtn AS RButton: Caption = "&Previous": Left = 316: Top = 14: Width = 80: Height = 30: OnClick = PrevClick: END CREATE
+    CREATE NextBtn AS RButton: Caption = "&Next": Left = 404: Top = 14: Width = 80: Height = 30: OnClick = NextClick: END CREATE
+    CREATE AllBtn AS RButton: Caption = "Show &all 64 KB": Left = 492: Top = 14: Width = 132: Height = 30: OnClick = AllClick: END CREATE
+    CREATE Dump AS RListBox: Left = 16: Top = 56: Width = 608: Height = 252: Font.Name = "Courier New": END CREATE
+    CREATE Status AS RLabel: Caption = "": Left = 16: Top = 322: Width = 608: END CREATE
+END CREATE
+
+FUNCTION Hex4 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v AND &HFFFF), 4)
+END FUNCTION
+
+FUNCTION HexVal (s AS STRING) AS INTEGER
+    Result = VAL(CONVBASE$(UCASE$(TRIM$(s)), 16, 10))
+END FUNCTION
+
+' Something to look at: a text, the tiny CPU's program at 0020, then 00 to FF at 0100
+SUB FillMemory
+    DIM i AS INTEGER, msg AS STRING, prog AS STRING
+    msg = "Hello, tiny machine!"
+    FOR i = 1 TO LEN(msg)
+        mem(i - 1) = ASC(MID$(msg, i, 1))
+    NEXT
+    prog = "01 05 02 03 05 04 00 02 02 01 06 0A 0A 00 FF"
+    FOR i = 1 TO 15
+        mem(&H1F + i) = VAL(CONVBASE$(FIELD$(prog, " ", i), 16, 10))
+    NEXT
+    FOR i = 0 TO 255
+        mem(&H100 + i) = i
+        hexTab(i) = RIGHT$(HEX$(i), 2)
+    NEXT
+END SUB
+
+' One row: address, 16 bytes in two groups of 8, then the same as text
+FUNCTION DumpRow (addr AS INTEGER) AS STRING
+    DIM c AS INTEGER, b AS INTEGER, hexPart AS STRING, chars AS STRING
+    FOR c = 0 TO 15
+        b = mem((addr + c) AND &HFFFF)
+        hexPart = hexPart + hexTab(b) + " "
+        IF c = 7 THEN hexPart = hexPart + " "
+        chars = chars + IIF(b >= 32 AND b < 127, CHR$(b), ".")
+    NEXT
+    Result = Hex4(addr) + "  " + hexPart + " " + chars
+END FUNCTION
+
+' 16 rows (256 bytes) from the row that holds addr
+SUB ShowPage (addr AS INTEGER)
+    DIM r AS INTEGER
+    page = addr AND &HFFF0
+    Dump.Clear
+    FOR r = 0 TO 15
+        Dump.AddItems DumpRow(page + r * 16)
+    NEXT
+    AddrEdit.Text = Hex4(page)
+    Status.Caption = "Showing " + Hex4(page) + " to " + Hex4(page + 255)
+END SUB
+
+SUB PageClick
+    ShowPage HexVal(AddrEdit.Text)
+END SUB
+
+SUB PrevClick
+    ShowPage page - 256
+END SUB
+
+SUB NextClick
+    ShowPage page + 256
+END SUB
+
+' All 4096 rows, and how long that took
+SUB AllClick
+    DIM r AS INTEGER, t AS DOUBLE
+    t = TIMER
+    Dump.Clear
+    FOR r = 0 TO 4095
+        Dump.AddItems DumpRow(r * 16)
+    NEXT
+    Status.Caption = "All " + STR$(Dump.ItemCount) + " rows (64 KB) in " + STR$(INT((TIMER - t) * 1000)) + " ms"
+END SUB
+
+FillMemory
+ShowPage 0
+Form.ShowModal

@@ -69,3 +69,5 @@ design/brand/3D/intro3/
 
 # (Chrome headless stderr from local test runs)
 chrome_run*.log
+# (the snapshot examples/recipes/load_binary.rr writes when it runs)
+examples/recipes/sample.tsn

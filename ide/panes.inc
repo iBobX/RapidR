@@ -177,6 +177,17 @@ SUB FillExamples
   AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
   AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
   AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
+  ' (the systems recipes: one tiny computer in ten programs — docs/manual/recipes-systems.md)
+  AddMoreExample "recipes/memory_bytes.rr", "Systems recipe: memory as a byte array, words, wrapping addresses"
+  AddMoreExample "recipes/flags_bits.rr", "Systems recipe: bits and flags, an 8-bit ALU"
+  AddMoreExample "recipes/cpu_step.rr", "Systems recipe: a tiny CPU, fetch, decode, execute"
+  AddMoreExample "recipes/cpu_stack.rr", "Systems recipe: the stack, PUSH, POP, CALL, RET"
+  AddMoreExample "recipes/hex_dump.rr", "Systems recipe: a hex dump, a memory viewer"
+  AddMoreExample "recipes/disassembler.rr", "Systems recipe: a disassembler, an opcode table"
+  AddMoreExample "recipes/load_binary.rr", "Systems recipe: a binary file into memory, its header"
+  AddMoreExample "recipes/video_memory.rr", "Systems recipe: video memory drawn on a canvas"
+  AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
+  AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
   LayOutWelcome
 END SUB
 

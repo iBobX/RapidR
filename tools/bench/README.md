@@ -36,6 +36,7 @@ each time is the median of 3 runs (`--runs N` to change it).
 | `bench_pandas.py` | the same steps in pandas: `python3 tools/bench/bench_pandas.py [rows]`. |
 | `bench_polars.py` | the same steps in Polars: `python3 tools/bench/bench_polars.py [rows]`. |
 | `compare.sh` | all of the above that this machine has, then one table: `tools/bench/compare.sh [rows]`. |
+| `systems_loops.rr` | the main loops of the systems recipes (memory helpers, a hex dump's rows, a file read and written, the tiny CPU's step loop), no window: `./rapidr run tools/bench/systems_loops.rr [memory\|hexdump\|filewrite\|fileread\|cpu\|cpu2]`, or built native; the numbers are on [the manual page](../../docs/manual/recipes-systems.md#how-fast). |
 
 pandas and Polars are never dependencies of RapidR and nothing here
 installs them: their scripts say so and stop cleanly when the library

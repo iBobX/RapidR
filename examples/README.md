@@ -91,6 +91,26 @@ assistant starts from the closest one when you ask it for a new program
 | [csv_viewer.rr](recipes/csv_viewer.rr) | Open a CSV file (`ROpenDialog`) and show it in an `RStringGrid` (people.csv beside it) | run · interp · native · web | `rapidr run recipes/csv_viewer.rr` |
 | [server_manager.rr](recipes/server_manager.rr) | A list of sites with their status and Start / Stop / Restart buttons | run · interp · native · web | `rapidr run recipes/server_manager.rr` |
 
+#### Systems recipes: one tiny computer, ten small programs
+
+For programs that handle a machine's insides: memory, addresses, bits, a CPU,
+a screen, a keyboard. Each is one technique in one runnable file, with a
+small window that shows the result; they share one tiny 8-bit instruction set
+of our own, so they read as one story ([the manual page](../docs/manual/recipes-systems.md)).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [memory_bytes.rr](recipes/memory_bytes.rr) | Memory as a `BYTE` array of 64 KB: peek and poke a byte, a 16-bit word (low byte first), addresses that wrap with `AND &HFFFF` | run · interp · native · web | `rapidr run recipes/memory_bytes.rr` |
+| [flags_bits.rr](recipes/flags_bits.rr) | An 8-bit ALU: flags as bits (set with `OR`, clear with `AND (NOT mask)`), Carry / Zero / Sign / Overflow / Half-carry after an add or subtract, rotate through the carry, signed and unsigned | run · interp · native · web | `rapidr run recipes/flags_bits.rr` |
+| [cpu_step.rr](recipes/cpu_step.rr) | A tiny CPU: registers, `PC`, three flags, a `SELECT CASE` decoder, a cycle count, Step / Run / Reset | run · interp · native · web | `rapidr run recipes/cpu_step.rr` |
+| [cpu_stack.rr](recipes/cpu_stack.rr) | The stack on the memory array: `PUSH`, `POP`, `CALL` and `RET` with an `SP` that counts down, the stack shown as it grows | run · interp · native · web | `rapidr run recipes/cpu_stack.rr` |
+| [hex_dump.rr](recipes/hex_dump.rr) | A memory viewer: address, 16 bytes, an ASCII column in a monospace list; a page of 16 rows, or all 4,096 in about a tenth of a second | run · interp · native · web | `rapidr run recipes/hex_dump.rr` |
+| [disassembler.rr](recipes/disassembler.rr) | Bytes back to text with an opcode table read from `DATA` (no `SELECT CASE`): mnemonics, operands, unknown bytes as `DB` | run · interp · native · web | `rapidr run recipes/disassembler.rr` |
+| [load_binary.rr](recipes/load_binary.rr) | A binary snapshot file into memory with `RFileStream` (`ReadNum`), its header parsed at fixed offsets; the sample file is written by the program | run · interp · native · web | `rapidr run recipes/load_binary.rr` |
+| [video_memory.rr](recipes/video_memory.rr) | Video memory drawn on an `RCanvas`: a 1-bit bitmap and colour attributes, only the changed cells redrawn, a moving ball drawn with `XOR`, a 50 Hz `RTimer` | run · interp · native · web | `rapidr run recipes/video_memory.rr` |
+| [keyboard_matrix.rr](recipes/keyboard_matrix.rr) | The keyboard as a matrix of 8 rows of 5 bits: `OnKeyDown` / `OnKeyUp` set the bits, an `IN` function reads rows by a port mask | run · interp · native · web | `rapidr run recipes/keyboard_matrix.rr` |
+| [cpu_timing.rr](recipes/cpu_timing.rr) | A CPU run a budget of cycles per timer frame (50 Hz), the overspent cycles carried over, Pause / Frame / Slower / Faster without freezing the window | run · interp · native · web | `rapidr run recipes/cpu_timing.rr` |
+
 ### graphics/ — drawing
 
 | Example | What it shows | Runs on | Try |
