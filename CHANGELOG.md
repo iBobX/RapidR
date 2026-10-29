@@ -7,6 +7,13 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **The VS Code extension finds a `rapidr` new enough** (the 2.121.3 walk: an ancient `rapidr` 0.1.0 first on `PATH` was used and nothing worked, silently): every candidate is asked its version, one too old for the language server is skipped and said so, an older one that has it is used with a warning, and the notification offers *Use the installed RapidR* / *Choose…* / *Download*. RapidR is the default formatter for RapidR files. New in the extension: RapidR Help beside the code (Shift+F1), parameter names, colour swatches and picker, the list of types after `AS `, project commands for `.rrproj`, `$INCLUDE` links; the grammar's word lists are generated from the registry and a test checks them, and so are the snippets (docs/manual/other-editors.md, `utilities/vscodeext/rapidr/CHANGELOG.md`).
+- **`rapidr lsp`:** `textDocument/inlayHint` (the parameter's name before a literal argument, Studio's chips), `documentColor` / `colorPresentation`, `documentHighlight`, and RapidR's own `rapidr/helpPage` and `rapidr/helpSuggest` (the pages Studio's Help pane shows: `rapidr_langsvc::help`, moved out of the Studio crate and shared). **`rapidr dap`** advertises conditional breakpoints, hit counts and logpoints, which the session already had.
+
+### Fixed
+- Hover on a type after `AS` says the type (`AS STRING` said `STRING$`); the Help for a property set in a CREATE body (`Caption = "Hi"`) is its component's.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

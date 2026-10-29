@@ -10,7 +10,7 @@ const path = require('path');
 const vscode = require('vscode');
 
 const FIXTURES = path.resolve(__dirname, '..', 'fixtures', 'workspace');
-const EXTENSION_ID = 'rapidr.rapidr';
+const { EXTENSION_ID } = require('./util');
 
 let api;
 

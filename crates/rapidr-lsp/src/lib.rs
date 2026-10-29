@@ -569,6 +569,7 @@ impl Server {
             word: p.word.clone().unwrap_or_default(),
             of: p.of.clone().unwrap_or_default(),
             can_insert: p.can_insert,
+            key: p.key.clone().unwrap_or_default(),
             ..Default::default()
         };
         if let Some(doc) = &p.text_document {
@@ -762,6 +763,8 @@ struct HelpParams {
     /// The editor can take the syntax: the page offers to insert it.
     #[serde(default)]
     can_insert: bool,
+    /// The key that asks for Help in this editor, as the start page names it (default F1).
+    key: Option<String>,
 }
 
 /// [`HELP_PAGE`]'s answer: the page as Markdown (`help:Word[@Type]` links open

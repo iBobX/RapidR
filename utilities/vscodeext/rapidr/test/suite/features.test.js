@@ -288,6 +288,12 @@ describe('RapidR for VS Code, around the server', () => {
             assert.strictEqual(help().state.title, 'RButton.Caption');
         });
 
+        it('starts with a page that names the key to ask for Help with (VS Code\'s own F1 is the Command Palette)', async () => {
+            await help().show({ word: '' });
+            assert.strictEqual(help().state.kind, 'start');
+            assert.match(help().state.html, /press <strong>Shift\+F1<\/strong>/);
+        });
+
         it('searches by a typed word', async () => {
             await help().message({ type: 'search', query: 'rbutton' });
             assert.strictEqual(help().state.title, 'RButton');

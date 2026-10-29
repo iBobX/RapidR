@@ -191,6 +191,8 @@ pub struct Ask {
     pub mine: Option<SymbolHelp>,
     /// The program's own names (the suggestions' too).
     pub program: Vec<(String, &'static str)>,
+    /// The key that asks for Help in this editor, as the start page names it (empty: F1).
+    pub key: String,
 }
 
 /// The page's own heading level: a title a pane this narrow can hold (the
@@ -278,9 +280,10 @@ fn entry_page(parts: &[String], found: Found, level: usize, syntax: bool, can_in
 
 /// Where Help starts, when nothing is asked: how to use it, and a few
 /// words to begin with.
-fn start_page() -> String {
+fn start_page(key: &str) -> String {
     let mut md = heading(TOP, "Help");
-    md.push_str("Put the caret on a word in your code and press **F1**, or type a word in the box above. Click a name here to open its page.\n\n");
+    let key = if key.trim().is_empty() { "F1" } else { key.trim() };
+    md.push_str(&format!("Put the caret on a word in your code and press **{key}**, or type a word in the box above. Click a name here to open its page.\n\n"));
     md.push_str(&heading(TOP + 1, "Start with"));
     for (w, what) in [
         ("RForm", "a window"),
@@ -369,7 +372,7 @@ pub fn page(ask: &Ask) -> String {
         let file = m.file.as_ref().map(|f| f.to_string_lossy().replace('\\', "/")).unwrap_or_default();
         ("mine", String::new(), file, m.line, m.column, mine_page(m, ask.can_insert))
     } else if word.is_empty() {
-        ("start", String::new(), String::new(), 0, 0, start_page())
+        ("start", String::new(), String::new(), 0, 0, start_page(&ask.key))
     } else if let Some((parts, found)) = lookup(word, &ask.of).or_else(|| lookup(word, "")) {
         let (md, insert) = entry_page(&parts, found, TOP, true, ask.can_insert);
         ("entry", insert, String::new(), 0, 0, md)

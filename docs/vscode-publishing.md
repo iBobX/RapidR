@@ -11,7 +11,7 @@ The `.vsix` is built by the release (`tools/release/vscode.sh` writes `dist/<ver
 `package.json` says `"publisher": "rapidr"`. That is a **placeholder** until you register a publisher. An extension's ID is `<publisher>.<name>`, here `rapidr.rapidr`, and it can't change after the first publish without becoming a different extension.
 
 1. Pick a publisher ID that is free on **both** stores. On the Marketplace, `https://marketplace.visualstudio.com/publishers/<id>` should be 404. On Open VSX, `https://open-vsx.org/namespace/<id>` should be 404. `rapidr` is the natural choice. If it's taken, use something like `ibobx`.
-2. If it isn't `rapidr`, change `"publisher"` in `utilities/vscodeext/rapidr/package.json`, and `EXTENSION_ID` in `test/suite/extension.test.js`. Then commit, and rebuild the `.vsix`. The ID is inside the `.vsix`, so the file must be built after the change.
+2. If it isn't `rapidr`, change `"publisher"` in `utilities/vscodeext/rapidr/package.json`, the same ID in its `configurationDefaults` (`"editor.defaultFormatter": "<publisher>.rapidr"`, which makes RapidR the default formatter; a test fails if the two disagree), `EXTENSION_ID` in `test/suite/util.js`, and the `getExtension('rapidr.rapidr')` in `test/screenshots/driver.js`. Then commit, and rebuild the `.vsix`. The ID is inside the `.vsix`, so the file must be built after the change.
 
 ## Visual Studio Marketplace
 

@@ -80,7 +80,8 @@ class HelpPanel {
     async ask(request) {
         const client = this.getClient();
         if (!client) throw new Error('the language server is not running');
-        const params = { canInsert: !!this.editor };
+        // (F1 is VS Code's own, the Command Palette: Help here is Shift+F1)
+        const params = { canInsert: !!this.editor, key: 'Shift+F1' };
         if (request.uri) {
             params.textDocument = { uri: request.uri };
             params.position = request.position;

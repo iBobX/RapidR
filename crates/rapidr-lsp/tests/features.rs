@@ -175,6 +175,13 @@ fn the_help_page_of_a_word_a_member_and_the_programs_own_names() {
     assert!(page["uri"].as_str().unwrap().ends_with("features.bas"), "{page}");
     assert!(page["markdown"].as_str().unwrap().contains("DIM total AS INTEGER"), "{page}");
 
+    // the start page names the key the editor asks for Help with (F1 unless told)
+    let start = c.request("rapidr/helpPage", json!({}));
+    assert_eq!(start["kind"], "start");
+    assert!(start["markdown"].as_str().unwrap().contains("press **F1**"), "{start}");
+    let start = c.request("rapidr/helpPage", json!({ "key": "Shift+F1" }));
+    assert!(start["markdown"].as_str().unwrap().contains("press **Shift+F1**"), "{start}");
+
     // a word nothing knows: the closest names
     let page = c.request("rapidr/helpPage", json!({ "word": "RButon" }));
     assert_eq!(page["kind"], "none");

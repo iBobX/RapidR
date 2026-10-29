@@ -778,10 +778,10 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 - [x] ★ E6 `kind` across the registry (2026-10-22: properties by their type unless they say, method/builtin `arg_kinds`, builtins' `kind`, constant groups' `kind`/`set`/`flags`; tests/kinds.rs: every colour, file and font value has one)
 
 **The VS Code extension, current with Preview 4**
-- [ ] ★ EXT1 Grammar and snippets for the new language
-- [ ] ★ EXT2 The language service's new features through the language server (references, inlay hints, document colours, code actions)
-- [ ] ★ EXT3 Debugging: set values, value kinds, exit codes
-- [ ] ★ EXT4 Commands (translations, Open in RapidR Studio, examples, builds)
+- [x] ★ EXT1 Grammar and snippets for the new language (2026-10-29, lane VSCODE: the grammar's word lists generated from the registry by `scripts/grammar.js` — 108 names behind — and a test that fails on drift; every snippet checked against the language server)
+- [x] ★ EXT2 The language service's new features through the language server (2026-10-29: references and code actions were there; inlay hints, document colours and the picker, document highlights, and RapidR's Help pages `rapidr/helpPage` / `rapidr/helpSuggest`, shown beside the editor; the list of types after `AS `)
+- [ ] ★ EXT3 Debugging: set values, value kinds, exit codes (2026-10-29: conditional breakpoints, hit counts and logpoints advertised and tested end to end, stepping and launch arguments tested; open: `stopOnEntry` reports a line past the end of a `.bas` file, the debug console's completion, exception info)
+- [ ] ★ EXT4 Commands (translations, Open in RapidR Studio, examples, builds) (2026-10-29: Run / Debug / Build Project and Open the Project's Main File for `.rrproj`, Help; open: translations, Open in Studio, examples)
 - [ ] ★ EXT5 Notices, the trademark line, the sponsor link, a lawyer-agent review before publishing
 - [ ] ★ EXT6 The real walk in VS Code; publishing on Robert's go
 

@@ -8,6 +8,7 @@
 //   VSCODE_PATH=".../Visual Studio Code.app/Contents/MacOS/Code" npm test
 //                                     (an installed VS Code; still a throwaway profile)
 //   RAPIDR_TEST_GREP=diagnostics npm test
+//   RAPIDR_EXTENSION_PATH=/tmp/unzipped/extension npm test   (the packaged extension, an unzipped .vsix)
 //
 // Two VS Code runs: the suite (the extension finds rapidr through
 // RAPIDR_PATH), then test/suite/path.test.js in a VS Code whose PATH has an
@@ -77,7 +78,9 @@ function pathEnvironment(rapidr, scratch) {
 async function run(ext, prints, userData, env) {
     await runTests({
         ...vscodeToUse(),
-        extensionDevelopmentPath: ext,
+        // (RAPIDR_EXTENSION_PATH: the `extension/` folder of an unzipped .vsix — what is
+        // installed, not the source: a file the package leaves out shows up here)
+        extensionDevelopmentPath: process.env.RAPIDR_EXTENSION_PATH ? path.resolve(process.env.RAPIDR_EXTENSION_PATH) : ext,
         extensionTestsPath: path.join(__dirname, 'suite', 'index.js'),
         launchArgs: [
             path.join(__dirname, 'fixtures', 'workspace'),
