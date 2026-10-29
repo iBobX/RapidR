@@ -52,7 +52,49 @@ impl ToolProvider for Later {
     }
 }
 
-fn factory(_rai: &str, _component: &str, _kind: &str) -> Result<Box<dyn ToolProvider>, String> {
+thread_local! {
+    /// The user's answer to the card Asker shows (None: not yet).
+    static USER: RefCell<Option<bool>> = const { RefCell::new(None) };
+}
+
+/// A provider whose call waits for the user first (RapidR Studio's card
+/// before RAI uses the running program), then answers.
+struct Asker;
+
+impl ToolProvider for Asker {
+    fn tools(&self) -> Vec<Tool> {
+        vec![Tool { name: "app_click".into(), description: "clicks".into(), input_schema: json!({"type": "object", "properties": {"caption": {"type": "string"}}}) }]
+    }
+    fn instructions(&self) -> String {
+        String::new()
+    }
+    fn facts(&self) -> String {
+        String::new()
+    }
+    fn begin_turn(&mut self) {}
+    fn call(&mut self, _name: &str, _input: &Json) -> ToolOutcome {
+        ToolOutcome::later("ask:1")
+    }
+    fn turn_status(&self) -> Option<String> {
+        None
+    }
+    fn finish_call(&mut self, _name: &str, _ticket: &str) -> Option<ToolOutcome> {
+        let allowed = USER.with(|u| *u.borrow())?;
+        Some(ToolOutcome { content: if allowed { "Clicked b7".into() } else { "not allowed".into() }, is_error: !allowed, note: "Clicked 7".into(), read: None, risk: "ui", target: String::new() })
+    }
+    fn waits_for_user(&self, _ticket: &str) -> bool {
+        USER.with(|u| u.borrow().is_none())
+    }
+    fn turn_cards(&self) -> Vec<(String, String)> {
+        let line = if USER.with(|u| u.borrow().is_none()) { "RAI wants to click: Allow for this run" } else { "You allowed it" };
+        vec![("app".into(), line.into())]
+    }
+}
+
+fn factory(_rai: &str, component: &str, _kind: &str) -> Result<Box<dyn ToolProvider>, String> {
+    if component.eq_ignore_ascii_case("asker") {
+        return Ok(Box::new(Asker));
+    }
     Ok(Box::new(Later))
 }
 
@@ -118,10 +160,19 @@ fn ask(n: &str, q: &str) {
     assert_eq!(ok, -1, "{}", rai::get(n, "error").unwrap().to_string_val());
 }
 
+// (one test: RAIs are polled together — rai::poll — so two turns at once
+// on two test threads would answer each other's calls)
 #[test]
+fn calls_that_come_later() {
+    a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it();
+    a_call_that_waits_for_the_user_shows_its_card_and_says_so_then_goes_on();
+}
+
 fn a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it() {
     std::env::set_var("RAPIDR_AI_KEYSTORE", "memory");
-    std::env::set_var("RAPIDR_AI_AUDIT", std::env::temp_dir().join(format!("rapidr-later-{}.jsonl", std::process::id())));
+    let audit = std::env::temp_dir().join(format!("rapidr-later-{}.jsonl", std::process::id()));
+    let _ = std::fs::remove_file(&audit);
+    std::env::set_var("RAPIDR_AI_AUDIT", &audit);
     rai::set_tool_factory(factory);
     let click = sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "c1", "function": {"name": "app_click", "arguments": "{\"caption\":\"7\"}"}}]}, "finish_reason": "tool_calls"}]})]);
     let done = sse(&[json!({"choices": [{"delta": {"content": "It shows 7 now."}, "finish_reason": "stop"}]})]);
@@ -130,6 +181,7 @@ fn a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it() {
     set(n, "provider", "compatible");
     set(n, "baseurl", &url);
     set(n, "model", "mock-1");
+    set(n, "audit", "1");
     let attached = rai::call(n, "attachcomponent", &[Value::String("Tools".into()), Value::String("project".into())], |v| v.to_string_val()).unwrap().to_i64();
     assert_eq!(attached, -1, "{}", rai::get(n, "error").unwrap().to_string_val());
     ask(n, "click 7");
@@ -160,6 +212,13 @@ fn a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it() {
     assert!(!busy(n));
     assert_eq!(rai::get(n, "answer").unwrap().to_string_val(), "It shows 7 now.");
     assert_eq!(rai::get(n, "steps").unwrap().to_string_val(), "Clicked 7");
+    // (the audit says it ran in the program, with no digest of what the
+    // model asked: a text typed, a PIN, can't be found again from it)
+    let lines = std::fs::read_to_string(&audit).unwrap_or_default();
+    let tool: Json = lines.lines().filter_map(|l| serde_json::from_str::<Json>(l).ok()).find(|l| l["op"] == "tool").unwrap_or_else(|| panic!("no tool line in {lines}"));
+    assert_eq!(tool["tool"], "app_click");
+    assert_eq!(tool["decision"], "ran in your program", "{tool}");
+    assert_eq!(tool["digest"], "", "{tool}");
     // (again, and Stop while it waits: every call answered as stopped)
     ask(n, "click 7 again");
     for _ in 0..400 {
@@ -178,4 +237,46 @@ fn a_call_that_comes_later_holds_the_turn_then_goes_on_and_stop_answers_it() {
     let second: Json = serde_json::from_str(&seen[1]).unwrap();
     let tool = second["messages"].as_array().unwrap().iter().find(|m| m["role"] == "tool").unwrap();
     assert!(tool["content"].as_str().unwrap().contains("Clicked b7"), "{tool}");
+    let _ = std::fs::remove_file(&audit);
+}
+
+fn a_call_that_waits_for_the_user_shows_its_card_and_says_so_then_goes_on() {
+    std::env::set_var("RAPIDR_AI_KEYSTORE", "memory");
+    rai::set_tool_factory(factory);
+    let click = sse(&[json!({"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "c1", "function": {"name": "app_click", "arguments": "{\"caption\":\"7\"}"}}]}, "finish_reason": "tool_calls"}]})]);
+    let done = sse(&[json!({"choices": [{"delta": {"content": "It shows 7 now."}, "finish_reason": "stop"}]})]);
+    let (url, server) = mock(vec![click, done]);
+    let n = "asker1";
+    set(n, "provider", "compatible");
+    set(n, "baseurl", &url);
+    set(n, "model", "mock-1");
+    let attached = rai::call(n, "attachcomponent", &[Value::String("Asker".into()), Value::String("project".into())], |v| v.to_string_val()).unwrap().to_i64();
+    assert_eq!(attached, -1, "{}", rai::get(n, "error").unwrap().to_string_val());
+    ask(n, "click 7");
+    // (the call waits for the user: busy, the card in the chat, the status
+    // line saying what it waits for)
+    for _ in 0..400 {
+        rai::poll(Quiet);
+        if rai::get(n, "activity").unwrap().to_string_val() == "Waiting for your answer in the chat" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(busy(n));
+    assert_eq!(rai::get(n, "activity").unwrap().to_string_val(), "Waiting for your answer in the chat");
+    assert!(rai::get(n, "transcript").unwrap().to_string_val().contains("RAI wants to click: Allow for this run"));
+    // (the user allows it: the card says so, the turn goes on)
+    USER.with(|u| *u.borrow_mut() = Some(true));
+    for _ in 0..1000 {
+        rai::poll(Quiet);
+        if !busy(n) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(!busy(n));
+    assert_eq!(rai::get(n, "answer").unwrap().to_string_val(), "It shows 7 now.");
+    let transcript = rai::get(n, "transcript").unwrap().to_string_val();
+    assert!(transcript.contains("You allowed it") && !transcript.contains("Allow for this run"), "{transcript}");
+    server.join().unwrap();
 }

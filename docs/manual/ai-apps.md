@@ -72,9 +72,9 @@ project, and a project starts with **Ask before changes**.
 
 | Choice | What AI apps may do |
 |---|---|
-| **Read only** | Look: read the project, check code, look things up in RapidR's help, see the program's output, the layout of its forms and a picture of Studio. A change or a run is refused, and the AI app is told why in plain words. |
-| **Ask before changes** | Look freely. Each change, run or question to RAI waits for you in the pane: **Allow Once**, **Allow for This Session** (that kind of call until Studio closes, the server stops or another project opens) or **Deny**; **Review…** shows a change as a diff first. |
-| **Allow edits** | Changes to files are made at once — each is one **Edit > Undo** step, listed in the pane, in the activity log. Running the program and asking RAI still wait for you. |
+| **Read only** | Look: read the project, check code, look things up in RapidR's help, see the program's output, the layout of its forms and a picture of Studio. A change, a run, or looking at or using your running program is refused, and the AI app is told why in plain words. |
+| **Ask before changes** | Look freely at the project. Each change, run, look at your running program or question to RAI waits for you in the pane: **Allow Once**, **Allow for This Session** (that kind of call until Studio closes, the server stops or another project opens) or **Deny**; **Review…** shows a change as a diff first. |
+| **Allow edits** | Changes to files are made at once — each is one **Edit > Undo** step, listed in the pane, in the activity log. Running the program, looking at or using it, and asking RAI still wait for you. |
 | **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows an amber **No questions asked** badge in the pane and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
 
 In every mode a project outside your Projects folder, RapidR's examples and
@@ -125,6 +125,9 @@ The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
 | `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused) | run |
 | `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |
 | `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps | run (it may cost money: it uses your AI provider) |
+| `app_layout`, `app_screenshot` | The running program's windows and controls in words (and what looks wrong), a picture of its windows | run (looking at or using the running program) |
+| `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks, types, presses keys, drags and scrolls in the running program, with a pointer you see | run (looking at or using the running program) |
+| `app_wait` | Lets the running program work on its own a moment, or until it is idle | look |
 
 A call with a missing or wrong argument is answered at once with what the
 tool needs ("Call read_file again: it needs `path` (a string)…"), so even a
@@ -141,12 +144,19 @@ With this on, an AI app that has your token can, through Studio:
   as the permission menu allows — Studio asks you first under **Ask before
   changes**;
 - read what your program prints and Studio's error messages;
-- read and ask RAI's chat.
+- read and ask RAI's chat;
+- get pictures of Studio's window and of your running program's windows,
+  and a written list of what they show, as you see them;
+- look at, click and type in your running program, each only as the
+  permission menu allows (the default asks you first): see
+  [A program's eyes and hands](app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program).
 
 It cannot see your AI provider keys or passwords (they stay in your
 system's keychain), or files outside the project. RapidR sends none of this
 anywhere. The AI app may pass what it reads to the company that makes it,
-under that company's terms and privacy rules. Many AI apps are for adults
+under that company's terms and privacy rules. A program can show private
+data, yours or other people's, and clicking in it acts as you: a real
+Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults
 only; if you are under 18, set this up with a parent or teacher. Connect
 only AI apps you trust, and share only what you are allowed to share
 (schoolwork, an employer's code or someone else's licensed code may not be
@@ -158,7 +168,8 @@ Every call is written to the audit log RAI uses, on this computer only:
 `~/Library/Application Support/RapidR/ai-audit.jsonl` on macOS,
 `%APPDATA%\RapidR\ai-audit.jsonl` on Windows, `~/.config/rapidr/` on
 Linux — never in your project. It keeps when, which AI app, which tool, the
-project's file it touched (never the file's text) and how it went; never a
+project's file it touched (never the file's text, or a picture, the text an
+AI app typed, or anything your program showed) and how it went; never a
 key, the token or your code. **Clear Activity…** in Settings > AI Apps
 removes the AI apps' lines (after asking).
 
@@ -176,5 +187,3 @@ same protocol and the same protections: see
   behaviour is checked by `node tests/studio_mcp.mjs`.
 - RAI's own permission choices (Settings > AI) are still their own; using
   these four words for RAI too is planned.
-- A picture of the running program's own windows (rather than Studio's)
-  isn't there yet.

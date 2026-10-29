@@ -202,18 +202,18 @@ pub fn request<R: Program + Windows>(rt: R, seq: u64, j: &Json, paused: Option<&
 }
 
 /// The jobs that ended since the last call: the link's, as (its
-/// request's number, the reply), and the program's RAppDrivers' (theirs to
+/// request's number, the reply), and the program's RAppHands' (theirs to
 /// fire OnDone for). The runtime takes them once a turn.
 pub fn ends() -> (Vec<(u64, Json)>, Vec<hands::Done>) {
     let mut links = Vec::new();
-    let mut drivers = Vec::new();
+    let mut theirs = Vec::new();
     for d in hands::take_done() {
         match d.owner {
             Owner::Link(seq) => links.push((seq, json!({"ok": d.ok, "text": d.text}))),
-            Owner::Driver(..) => drivers.push(d),
+            Owner::Hands(..) => theirs.push(d),
         }
     }
-    (links, drivers)
+    (links, theirs)
 }
 
 #[cfg(test)]

@@ -1012,17 +1012,17 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             return v;
         }
     }
-    // RAppCapture and RAppDriver: the program's own eyes and hands
+    // RWindowCapture and RAppHands: the program's own eyes and hands
     // (ui/drive.rs, rapidr_ui_app::{eyes, hands}).
     #[cfg(feature = "gui")]
     match rp_comp_type(name).as_str() {
-        "RAPPCAPTURE" => {
+        "RWINDOWCAPTURE" => {
             if let Some(v) = crate::ui::drive::capture_get(name, &prop_lower) {
                 return v;
             }
         }
-        "RAPPDRIVER" => {
-            if let Some(v) = crate::ui::drive::driver_get(name, &prop_lower) {
+        "RAPPHANDS" => {
+            if let Some(v) = crate::ui::drive::hands_get(name, &prop_lower) {
                 return v;
             }
         }
@@ -1567,10 +1567,10 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             }
         }
         // (the program's own eyes and hands: ui/drive.rs)
-        "RAPPCAPTURE" | "RAPPDRIVER" => {
+        "RWINDOWCAPTURE" | "RAPPHANDS" => {
             #[cfg(feature = "gui")]
             {
-                let v = if comp_type == "RAPPCAPTURE" { crate::ui::drive::capture_method(name, &method_lower, args) } else { crate::ui::drive::driver_method(name, &method_lower, args) };
+                let v = if comp_type == "RWINDOWCAPTURE" { crate::ui::drive::capture_method(name, &method_lower, args) } else { crate::ui::drive::hands_method(name, &method_lower, args) };
                 v.unwrap_or_else(|| {
                     eprintln!("[WARN] {comp_type}.{method}() isn't one of its methods");
                     v_null()

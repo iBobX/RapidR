@@ -1,10 +1,10 @@
 ' snapshot.rr: a program that takes pictures of its own window and checks
-' its own layout, with RAppCapture — a "Save as picture" button, and a
+' its own layout, with RWindowCapture — a "Save as picture" button, and a
 ' "Check layout" button that lists what a person would see wrong.
 '
 '   rapidr run gui/snapshot.rr
 '
-' RAppCapture sees only the program's own windows (never the screen or
+' RWindowCapture sees only the program's own windows (never the screen or
 ' another program): SaveToFile saves a PNG of one window, or of all of
 ' them side by side; LayoutReport and Problems say where everything is
 ' and what looks wrong (text cut off, controls on top of each other, a
@@ -16,7 +16,7 @@ DECLARE SUB SaveClick
 DECLARE SUB CheckClick
 DECLARE SUB SizeClick
 
-DIM Eyes AS RAppCapture
+DIM Eyes AS RWindowCapture
 
 CREATE Form AS RForm
     Caption = "Snapshot"

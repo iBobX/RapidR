@@ -1,8 +1,8 @@
-//! RAppCapture and RAppDriver — the program's own eyes and hands as
+//! RWindowCapture and RAppHands — the program's own eyes and hands as
 //! components — for every runtime (runtime-core's and the web's call
 //! these): what they answer and do, over [`crate::eyes`] and
 //! [`crate::hands`]; and the turn's end every runtime runs ([`deliver`]):
-//! RapidR Studio's link answered, the drivers' OnDone fired.
+//! RapidR Studio's link answered, each RAppHands' OnDone fired.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ use crate::hands::{self, Act, Owner, Target};
 use crate::{link, Program, Windows};
 
 #[derive(Default)]
-struct DriverState {
+struct HandsState {
     last: String,
     error: String,
     next: i64,
@@ -28,7 +28,7 @@ struct CaptureState {
 }
 
 thread_local! {
-    static DRIVERS: RefCell<HashMap<String, DriverState>> = RefCell::new(HashMap::new());
+    static HANDS: RefCell<HashMap<String, HandsState>> = RefCell::new(HashMap::new());
     static CAPTURES: RefCell<HashMap<String, CaptureState>> = RefCell::new(HashMap::new());
 }
 
@@ -45,15 +45,15 @@ fn num<P: Program>(p: P, name: &str, prop: &str, default: f64) -> f64 {
 
 /// What ended in the hands since the last turn: RapidR Studio's link
 /// answered with `reply` (the request's number, the JSON), the program's
-/// drivers' OnDone(Id, Ok, Text) fired.
+/// RAppHands' OnDone(Id, Ok, Text) fired.
 pub fn deliver<P: Program>(p: P, reply: &dyn Fn(u64, &Json)) {
-    let (links, drivers) = link::ends();
+    let (links, theirs) = link::ends();
     for (seq, r) in links {
         reply(seq, &r);
     }
-    for d in drivers {
-        if let Owner::Driver(name, id) = &d.owner {
-            DRIVERS.with(|m| {
+    for d in theirs {
+        if let Owner::Hands(name, id) = &d.owner {
+            HANDS.with(|m| {
                 let mut m = m.borrow_mut();
                 let s = m.entry(name.to_lowercase()).or_default();
                 s.last = d.text.clone();
@@ -66,9 +66,9 @@ pub fn deliver<P: Program>(p: P, reply: &dyn Fn(u64, &Json)) {
     }
 }
 
-// ------------------------------------------------------------ RAppCapture --
+// ------------------------------------------------------------ RWindowCapture --
 
-/// RAppCapture's properties the runtime answers.
+/// RWindowCapture's properties the runtime answers.
 pub fn capture_get<R: Windows>(rt: R, name: &str, prop: &str) -> Option<Value> {
     let key = name.to_lowercase();
     let state = |f: &dyn Fn(&CaptureState) -> Value| CAPTURES.with(|c| c.borrow().get(&key).map_or(Value::Null, f));
@@ -104,7 +104,7 @@ fn said(name: &str, error: String, size: (usize, usize)) {
 }
 
 /// A picture of `window` (`""` / `"all"`: every one side by side) as
-/// RAppCapture `name` takes it (its Scale and Frame).
+/// RWindowCapture `name` takes it (its Scale and Frame).
 pub fn capture_picture<R: Program + Windows>(rt: R, name: &str, window: &str) -> Result<rapidr_value::objects::codec::Pixels, String> {
     let scale = match num(rt, name, "scale", 0.0) {
         s if s > 0.0 => Scale::Times(s),
@@ -131,7 +131,7 @@ pub fn capture_picture<R: Program + Windows>(rt: R, name: &str, window: &str) ->
 /// How a runtime writes a picture's file (its name, its bytes).
 pub type SaveFile<'a> = &'a dyn Fn(&str, &[u8]) -> Result<(), String>;
 
-/// RAppCapture's methods: SaveToFile, LayoutReport, LayoutJson, Problems
+/// RWindowCapture's methods: SaveToFile, LayoutReport, LayoutJson, Problems
 /// (`save`: how the runtime writes a file — the desktop's file system, the
 /// web's download / file bridge).
 pub fn capture_method<R: Program + Windows>(rt: R, name: &str, method: &str, args: &[Value], save: SaveFile) -> Option<Value> {
@@ -187,12 +187,12 @@ pub fn capture_method<R: Program + Windows>(rt: R, name: &str, method: &str, arg
     })
 }
 
-// ------------------------------------------------------------- RAppDriver --
+// ------------------------------------------------------------- RAppHands --
 
-/// RAppDriver's properties the runtime answers.
-pub fn driver_get(name: &str, prop: &str) -> Option<Value> {
+/// RAppHands's properties the runtime answers.
+pub fn hands_get(name: &str, prop: &str) -> Option<Value> {
     let key = name.to_lowercase();
-    let text = |f: &dyn Fn(&DriverState) -> String| DRIVERS.with(|m| m.borrow().get(&key).map(f).unwrap_or_default());
+    let text = |f: &dyn Fn(&HandsState) -> String| HANDS.with(|m| m.borrow().get(&key).map(f).unwrap_or_default());
     Some(match prop {
         "busy" => v_int(if hands::pending_of(&key) > 0 { -1 } else { 0 }),
         "pending" => v_int(hands::pending_of(&key) as i64),
@@ -202,9 +202,9 @@ pub fn driver_get(name: &str, prop: &str) -> Option<Value> {
     })
 }
 
-/// RAppDriver's methods: each queues a job and returns its number (OnDone
+/// RAppHands's methods: each queues a job and returns its number (OnDone
 /// when it ended); Cancel drops the ones waiting.
-pub fn driver_method<P: Program>(p: P, name: &str, method: &str, args: &[Value]) -> Option<Value> {
+pub fn hands_method<P: Program>(p: P, name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let key = name.to_lowercase();
     let button = rapidr_value::input::Button::Left;
     let t = |i: usize| Target::parse(&text_arg(args, i));
@@ -220,7 +220,7 @@ pub fn driver_method<P: Program>(p: P, name: &str, method: &str, args: &[Value])
         "drag" => Act::Drag { from: t(0), to: Target { at: Some((n(1), n(2))), ..Target::default() } },
         "scroll" => Act::Scroll { target: t(0), dx: 0.0, dy: if args.len() > 1 { n(1) } else { 3.0 } },
         "wait" => Act::Wait { ms: n(0).max(0.0) as u64, idle: false },
-        "cancel" => return Some(v_int(hands::cancel_driver(&key) as i64)),
+        "cancel" => return Some(v_int(hands::cancel_of(&key) as i64)),
         _ => return None,
     };
     // (its settings, as the program set them, for its jobs)
@@ -229,13 +229,13 @@ pub fn driver_method<P: Program>(p: P, name: &str, method: &str, args: &[Value])
         v => v.to_bool(),
     });
     hands::set_speed(num(p, name, "speed", 1.0));
-    let id = DRIVERS.with(|m| {
+    let id = HANDS.with(|m| {
         let mut m = m.borrow_mut();
         let s = m.entry(key.clone()).or_default();
         s.next += 1;
         s.error.clear();
         s.next
     });
-    hands::submit(Owner::Driver(key, id), act);
+    hands::submit(Owner::Hands(key, id), act);
     Some(v_int(id))
 }

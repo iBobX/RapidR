@@ -1,5 +1,5 @@
 //! The eyes: what the program shows, for an AI (RapidR Studio's AI apps,
-//! RAI) or the program itself (RAppCapture) — a picture of each of its
+//! RAI) or the program itself (RWindowCapture) — a picture of each of its
 //! windows and one of them all, at the screen's scale or at 1×, and a
 //! layout report of its forms as the kernel has laid them out now (each
 //! component's name, type, caption and text, place and size, visible and

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <title>App driver (the program's own hands)</title>
+  <title>App hands (clicks and keys played into the program's own windows)</title>
   <path d="M4.75 2.75H16.75A2 2 0 0 1 18.75 4.75V13.75A2 2 0 0 1 16.75 15.75H4.75A2 2 0 0 1 2.75 13.75V4.75A2 2 0 0 1 4.75 2.75Z" fill="#FFFFFF" stroke="#5B6478"/>
   <path d="M2.75 6.75L18.75 6.75" stroke="#5B6478"/>
   <circle cx="12.25" cy="12.25" r="3.5" stroke="#2F5BFF"/>

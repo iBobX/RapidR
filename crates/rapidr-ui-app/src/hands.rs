@@ -1,5 +1,5 @@
 //! The hands: input for the program's own windows from an AI (RapidR
-//! Studio's AI apps, RAI) or from the program itself (RAppDriver) —
+//! Studio's AI apps, RAI) or from the program itself (RAppHands) —
 //! clicks, double clicks, typing, keys with modifiers, drags, the wheel,
 //! waits — found by a component's name, by what it shows (a button's
 //! caption, the label beside an edit, as a person finds them) or at a
@@ -136,8 +136,8 @@ impl Act {
 pub enum Owner {
     /// RapidR Studio's link (the session's request number).
     Link(u64),
-    /// A program's RAppDriver (its name, its job's number).
-    Driver(String, i64),
+    /// A program's RAppHands (its name, its job's number).
+    Hands(String, i64),
 }
 
 /// A job's end: what it did, in a sentence, or why it couldn't.
@@ -244,18 +244,18 @@ pub fn busy() -> bool {
     hands(|h| h.running.is_some() || !h.queue.is_empty())
 }
 
-/// How many jobs of `driver` (a RAppDriver) wait or run.
-pub fn pending_of(driver: &str) -> usize {
-    let mine = |o: &Owner| matches!(o, Owner::Driver(d, _) if d.eq_ignore_ascii_case(driver));
+/// How many jobs of `who` (a RAppHands) wait or run.
+pub fn pending_of(who: &str) -> usize {
+    let mine = |o: &Owner| matches!(o, Owner::Hands(d, _) if d.eq_ignore_ascii_case(who));
     hands(|h| h.queue.iter().filter(|(o, _)| mine(o)).count() + usize::from(h.running.as_ref().is_some_and(|r| mine(&r.owner))))
 }
 
 /// Drops the jobs waiting (not the one running) of `owner`'s kind: a
-/// driver's (by name) or every link's.
-pub fn cancel_driver(driver: &str) -> usize {
+/// RAppHands' (by name) or every link's.
+pub fn cancel_of(who: &str) -> usize {
     hands(|h| {
         let before = h.queue.len();
-        h.queue.retain(|(o, _)| !matches!(o, Owner::Driver(d, _) if d.eq_ignore_ascii_case(driver)));
+        h.queue.retain(|(o, _)| !matches!(o, Owner::Hands(d, _) if d.eq_ignore_ascii_case(who)));
         before - h.queue.len()
     })
 }

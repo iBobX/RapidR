@@ -202,13 +202,13 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
         // registry's defaults)
         // (the program's own eyes and hands: what they read back before
         // they did anything — the runtimes answer them after)
-        "RAPPCAPTURE" => {
+        "RWINDOWCAPTURE" => {
             put("width", v_int(0));
             put("height", v_int(0));
             put("windows", v_str(""));
             put("error", v_str(""));
         }
-        "RAPPDRIVER" => {
+        "RAPPHANDS" => {
             put("busy", v_int(0));
             put("pending", v_int(0));
             put("lastresult", v_str(""));

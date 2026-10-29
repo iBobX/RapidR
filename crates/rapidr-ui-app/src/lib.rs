@@ -56,7 +56,7 @@ pub mod tray;
 pub mod script;
 pub mod testhooks;
 // (what an AI or the program itself sees of its windows, and the input it
-// plays into them: RapidR Studio's app_* tools, RAppCapture, RAppDriver)
+// plays into them: RapidR Studio's app_* tools, RWindowCapture, RAppHands)
 pub mod eyes;
 pub mod hands;
 pub mod link;

@@ -167,3 +167,66 @@ fn studio_sees_and_drives_the_running_program_and_a_paused_one_only_looks() {
     s.stop();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// A program's output when it runs outside Studio's run — no `--session` —
+/// with Studio's `app` requests written to its standard input meanwhile
+/// (a picture, a click on "7"): the GUI test's host ends it after a few
+/// seconds and prints Display's caption.
+fn outside_studio(exe: &std::path::Path, args: &[&str], dir: &std::path::Path) -> String {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let mut child = Command::new(exe)
+        .args(args)
+        .current_dir(dir)
+        .env("RAPIDR_PRINT_TO", dir.join("prints"))
+        .env("RAPIDR_REGISTRY", dir.join("registry.reg"))
+        .env("RAPIDR_AI_KEYSTORE", "memory")
+        .env("RAPIDR_CAPTURE", dir.join("cap"))
+        .env("RAPIDR_CAPTURE_DELAY", "3")
+        .env("RAPIDR_TEST_DUMP", "display.caption")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    {
+        let mut stdin = child.stdin.take().unwrap();
+        let _ = stdin.write_all(b"{\"seq\":1,\"type\":\"app\",\"request\":{\"do\":\"screenshot\"}}\n{\"seq\":2,\"type\":\"app\",\"request\":{\"do\":\"click\",\"caption\":\"7\"}}\n{\"seq\":3,\"type\":\"app\",\"request\":{\"do\":\"layout\"}}\n");
+        // (kept open while it runs: a program that read it would have it all)
+        std::thread::sleep(Duration::from_millis(1500));
+    }
+    let deadline = Instant::now() + Duration::from_secs(60);
+    while child.try_wait().unwrap().is_none() {
+        assert!(Instant::now() < deadline, "the program didn't end");
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let out = child.wait_with_output().unwrap();
+    format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr))
+}
+
+/// Only a program Studio started — `--session`, the protocol on its
+/// standard input — answers `app` requests: the same lines given to a
+/// program run on its own, interpreted or built, are ignored (no reply, no
+/// picture, no click): nothing outside Studio's run can look or click.
+#[test]
+fn a_program_run_outside_studio_ignores_app_requests() {
+    let dir = std::env::temp_dir().join(format!("rapidr-app-eyes-outside-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("calc.rr"), CALC).unwrap();
+    let said = |out: &str, how: &str| {
+        assert!(out.contains("display.caption=0"), "{how}: the program ran and its display still shows 0:\n{out}");
+        for no in ["display 7", "\"re\":", "\"png\"", "iVBOR", "Clicked", "Window form1"] {
+            assert!(!out.contains(no), "{how}: {no:?} in its output:\n{out}");
+        }
+    };
+    let out = outside_studio(&runtime(), &["run", "calc.rr"], &dir);
+    said(&out, "rapidr run");
+    // (built: the interpreted executable, beside it)
+    let built = std::process::Command::new(runtime()).args(["build", "calc.rr", "out", "--interp", "--no-bundle"]).current_dir(&dir).output().unwrap();
+    assert!(built.status.success(), "rapidr build --interp:\n{}{}", String::from_utf8_lossy(&built.stdout), String::from_utf8_lossy(&built.stderr));
+    let exe = dir.join("out").join(if cfg!(windows) { "calc.exe" } else { "calc" });
+    let out = outside_studio(&exe, &[], &dir);
+    said(&out, "built");
+    let _ = std::fs::remove_dir_all(&dir);
+}

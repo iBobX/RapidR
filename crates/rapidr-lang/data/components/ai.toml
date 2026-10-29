@@ -140,10 +140,10 @@ events = [
 ]
 
 [[component]]
-name = "RAPPCAPTURE"
-display = "AppCapture"
+name = "RWINDOWCAPTURE"
+display = "WindowCapture"
 visual = false
-doc = "The program's own eyes: a picture of its windows as they show now — one window, or all of them side by side — saved as a PNG (a BMP when the name ends in .bmp), with each window's title bar drawn or without, at the screen's scale (sharp on a high-DPI screen) or at 1× (one picture pixel per program pixel); and a layout report of its forms as they are laid out now — each component's name, type, caption, text, place and size, whether it shows, is enabled and has the keyboard — with what a person would see wrong: a caption cut off, two controls on top of each other, a control past its window's edge. Only the program's own windows, ever: never the screen, the desktop or another program, so it needs no Screen Recording permission. Use it for a \"save as picture\" command, a bug report with a picture, help pages made from the program itself, or a self-check (Problems) after a layout change. RapidR Studio's AI tools look at a running program the same way (app_screenshot, app_layout). Recording a video of the windows comes later. RapidR's own."
+doc = "The program's own eyes: a picture of its windows as they show now — one window, or all of them side by side — saved as a PNG (a BMP when the name ends in .bmp), with each window's title bar drawn or without, at the screen's scale (sharp on a high-DPI screen) or at 1× (one picture pixel per program pixel); and a layout report of its forms as they are laid out now — each component's name, type, caption, text, place and size, whether it shows, is enabled and has the keyboard — with what a person would see wrong: a caption cut off, two controls on top of each other, a control past its window's edge. Only the program's own windows, ever: never the screen, the desktop or another program, so it needs no Screen Recording permission. Use it for a \"save as picture\" command, a bug report with a picture, help pages made from the program itself, or a self-check (Problems) after a layout change. RapidR Studio's AI tools look at a running program the same way (app_screenshot, app_layout). Recording a video of the windows comes later. Pictures and clicks of a program show and do what its users' data and buttons are: tell users what is captured, and never record or automate without their knowledge. RapidR's own."
 example = """
 CREATE Form1 AS RForm
     Caption = "Snapshot"
@@ -153,7 +153,7 @@ CREATE Form1 AS RForm
         Left = 20: Top = 20
     END CREATE
 END CREATE
-DIM Eyes AS RAppCapture
+DIM Eyes AS RWindowCapture
 Eyes.Scale = 1
 Form1.Show
 IF Eyes.SaveToFile("snapshot.png", "Form1") THEN PRINT "saved"; Eyes.Width; " x"; Eyes.Height ELSE PRINT Eyes.Error
@@ -176,11 +176,11 @@ methods = [
 events = []
 
 [[component]]
-name = "RAPPDRIVER"
-display = "AppDriver"
+name = "RAPPHANDS"
+display = "AppHands"
 visual = false
 default_event = "OnDone"
-doc = "The program's own hands: clicks, typing, keys, drags and the wheel played into its own windows as a person's would be — through the same routing, so its handlers run as for the user — with a visible pointer that glides to what it clicks (a ring shows each click; with the system's reduced motion it jumps). Components are named as a person finds them: their name, what they show (\"OK\", \"7\": a button's caption), or the label beside an edit (\"label:Name\"); force one with `name:`, `caption:` or `label:`. Each call queues the action and returns its number at once; OnDone(Id, Ok, Text) says how it went in a sentence — or what is there instead (\"No button shows \\\"Go\\\". Buttons now: Start, Reset.\"). Only the program's own windows: the system's mouse and keyboard are never touched, nothing outside the program can be, and no Accessibility permission is needed. Use it for guided tours and demos, a \"show me\" button in help, self-tests, or macros. A program that drives itself acts as its user: everything its buttons do can happen. RapidR's own."
+doc = "The program's own hands: clicks, typing, keys, drags and the wheel played into its own windows as a person's would be — through the same routing, so its handlers run as for the user — with a visible pointer that glides to what it clicks (a ring shows each click; with the system's reduced motion it jumps). Components are named as a person finds them: their name, what they show (\"OK\", \"7\": a button's caption), or the label beside an edit (\"label:Name\"); force one with `name:`, `caption:` or `label:`. Each call queues the action and returns its number at once; OnDone(Id, Ok, Text) says how it went in a sentence — or what is there instead (\"No button shows \\\"Go\\\". Buttons now: Start, Reset.\"). Only the program's own windows: the system's mouse and keyboard are never touched, nothing outside the program can be, and no Accessibility permission is needed. Use it for guided tours and demos, a \"show me\" button in help, self-tests, or macros. A program that drives itself acts as its user: everything its buttons do can happen. Pictures and clicks of a program show and do what its users' data and buttons are: tell users what is captured, and never record or automate without their knowledge. RapidR's own."
 example = """
 DECLARE SUB Done(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)
 DECLARE SUB AddOne
@@ -198,7 +198,7 @@ CREATE Form1 AS RForm
         OnClick = AddOne
     END CREATE
 END CREATE
-CREATE Hands AS RAppDriver
+CREATE Hands AS RAppHands
     OnDone = Done
 END CREATE
 SUB AddOne

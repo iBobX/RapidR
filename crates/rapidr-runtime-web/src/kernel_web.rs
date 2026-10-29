@@ -519,7 +519,7 @@ pub fn turn() {
     serve_waits();
     script::step(Web);
     // (the eyes and hands: RapidR Studio's link and the program's
-    // RAppDriver — the jobs played, what ended answered)
+    // RAppHands — the jobs played, what ended answered)
     if !crate::object_web::debug_stopped() {
         rapidr_ui_app::hands::step(Web);
     }
@@ -773,8 +773,8 @@ impl Windows for Web {
 // ----------------------------------------------------- the eyes and hands --
 //
 // RapidR Studio's link to the program it runs in its frame (the session's
-// `app` requests, `rapidr-vm-host-web`) and the program's RAppCapture and
-// RAppDriver: `rapidr_ui_app::{eyes, hands, link, app_components}`, the
+// `app` requests, `rapidr-vm-host-web`) and the program's RWindowCapture and
+// RAppHands: `rapidr_ui_app::{eyes, hands, link, app_components}`, the
 // desktop's own.
 
 /// How RapidR Studio is answered: the session's reply, by its number.
@@ -815,28 +815,28 @@ pub fn app_request(seq: u64, request: &serde_json::Value) {
     later();
 }
 
-/// RAppCapture's properties the runtime answers.
+/// RWindowCapture's properties the runtime answers.
 pub fn app_capture_get(name: &str, prop: &str) -> Option<Value> {
     sync();
     rapidr_ui_app::app_components::capture_get(Web, name, prop)
 }
 
-/// RAppCapture's methods (SaveToFile into the page's files — RapidR
+/// RWindowCapture's methods (SaveToFile into the page's files — RapidR
 /// Studio keeps them in the project's folder).
 pub fn app_capture_method(name: &str, method: &str, args: &[Value]) -> Value {
     sync();
     rapidr_ui_app::app_components::capture_method(Web, name, method, args, &|file, bytes| crate::object_web::web_write_file(file, bytes)).unwrap_or_else(|| {
-        web_sys::console::warn_1(&JsValue::from_str(&format!("RAppCapture.{method}() isn't one of its methods")));
+        web_sys::console::warn_1(&JsValue::from_str(&format!("RWindowCapture.{method}() isn't one of its methods")));
         Value::Null
     })
 }
 
-/// RAppDriver's methods: a turn soon for the job.
-pub fn app_driver_method(name: &str, method: &str, args: &[Value]) -> Value {
-    let v = rapidr_ui_app::app_components::driver_method(Web, name, method, args);
+/// RAppHands's methods: a turn soon for the job.
+pub fn app_hands_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let v = rapidr_ui_app::app_components::hands_method(Web, name, method, args);
     later();
     v.unwrap_or_else(|| {
-        web_sys::console::warn_1(&JsValue::from_str(&format!("RAppDriver.{method}() isn't one of its methods")));
+        web_sys::console::warn_1(&JsValue::from_str(&format!("RAppHands.{method}() isn't one of its methods")));
         Value::Null
     })
 }

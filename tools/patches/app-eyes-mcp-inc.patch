@@ -35,8 +35,8 @@ index d4ec9580..616abec6 100644
    SELECT CASE Tool
      CASE "propose_edit", "write_file", "create_project", "open_project", "set_property": Result = "change"
      CASE "run_program", "debug": Result = "run"
-+    ' (mcpapp.inc: using the running program — asked once per run)
-+    CASE "app_click", "app_type", "app_key", "app_drag", "app_scroll": Result = "drive"
++    ' (mcpapp.inc: looking at or using the running program — asked once per run)
++    CASE "app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll": Result = "drive"
      CASE "ask_rai": Result = "rai"
      CASE ELSE: Result = "read"
    END SELECT
@@ -86,7 +86,7 @@ index d4ec9580..616abec6 100644
        END IF
      CASE "run": t = McpWaitClient(0) + " wants to run your program (" + McpWaitWhat(0) + ")."
 +    ' (mcpapp.inc)
-+    CASE "drive": t = McpWaitClient(0) + " wants to use your running program: " + McpWaitWhat(0) + ". Allow Once lets it use the program until this run ends."
++    CASE "drive": t = McpWaitClient(0) + " wants to look at or use your running program: " + McpWaitWhat(0) + ". Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
      CASE "rai": t = McpWaitClient(0) + " wants to ask RAI: " + LEFT$(Mcp.Argument("Prompt", McpWaitCall(0)), 160)
      CASE ELSE: t = McpWaitClient(0) + ": " + McpWaitWhat(0)
    END SELECT

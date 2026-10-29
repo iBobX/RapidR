@@ -1,11 +1,11 @@
-# A program's eyes and hands: RAppCapture and RAppDriver
+# A program's eyes and hands: RWindowCapture and RAppHands
 
 A RapidR program can see its own windows and use them as a person would:
 
-- **RAppCapture**, its eyes: a picture of its windows, and a report of
+- **RWindowCapture**, its eyes: a picture of its windows, and a report of
   where every control is and what looks wrong (text cut off, controls on
   top of each other, a control past the window's edge);
-- **RAppDriver**, its hands: clicks, typing, keys, drags and the mouse
+- **RAppHands**, its hands: clicks, typing, keys, drags and the mouse
   wheel, played into its own windows with a pointer you can see.
 
 RapidR Studio uses the same eyes and hands when an AI looks at your
@@ -16,7 +16,13 @@ never move your real mouse or press your real keys, and can't see or touch
 another program, the desktop or RapidR Studio. That is why they need no
 Screen Recording or Accessibility permission from the system.
 
-## RAppCapture: pictures and the layout report
+## RWindowCapture: pictures and the layout report
+
+> **Use it responsibly.**
+> - **Your windows can show other people's private data.** A picture or a layout report holds all of it: names, addresses, grades, messages. Keep them on the user's own computer. Before one goes anywhere else (a server, an email, an AI service, an analytics tool) the person must know and agree, and you must only collect what you need. Tell people, in plain words, what is captured and where it goes.
+> - **No hidden recording.** Never capture or record a person's windows without telling them before it starts and showing that it is on. Sending pictures or recordings of users' screens to a server is processing personal data: in the EU and UK it needs a legal basis (usually consent) and your privacy notice; some US states treat secretly recording what people do on a page or app as wiretapping, and fines are counted per person. Keep it off by default, mask password and personal fields, and do not do it in programs for children without a parent's or school's permission.
+> - **It acts only inside your own program, and must not be used to get around anything.** It plays input into your program's own windows and nothing else: not the system, not other programs. Do not use it to click "I agree", "Pay" or "Delete" for someone who has not chosen to, to answer a security question, a password or a permission prompt, to imitate people (fake votes, likes, game bots), or to automate another service against its terms.
+> - **What it clicks happens for real.** Tours, demos and self-tests can send real emails, charge real cards and delete real data. Run them on test data.
 
 ![snapshot.rr after its Save button was narrowed and Check layout was pressed](images/app-eyes/snapshot-check.png)
 
@@ -25,7 +31,7 @@ The example is [examples/gui/snapshot.rr](../../examples/gui/snapshot.rr):
 then **Check layout**: the program finds its own cut-off caption.
 
 ```basic
-DIM Eyes AS RAppCapture
+DIM Eyes AS RWindowCapture
 
 Eyes.Scale = 1                         ' 1: one picture pixel per program pixel
 IF Eyes.SaveToFile("snapshot.png", "Form") THEN
@@ -65,7 +71,16 @@ A password box's text shows as dots in the report, never what was typed.
 Recording a video of the windows comes later (in formats that are free to
 use: WebM, animated WebP or GIF).
 
-## RAppDriver: clicks, typing and keys, with a pointer
+## RAppHands: clicks, typing and keys, with a pointer
+
+> **Use it responsibly.** It acts only inside your own program and must not
+> be used to get around anything: never click "I agree", "Pay" or "Delete"
+> for someone who has not chosen to, answer a security question, a password
+> or a permission prompt, imitate people (fake votes, likes, game bots) or
+> automate another service against its terms. What it clicks happens for
+> real — tours, demos and self-tests can send real emails, charge real cards
+> and delete real data: run them on test data. (The whole box is under
+> [RWindowCapture](#rwindowcapture-pictures-and-the-layout-report).)
 
 ![guided_tour.rr while its tour types into the Task box: the pointer and the ring of its click](images/app-eyes/tour-pointer.png)
 
@@ -73,7 +88,7 @@ The example is [examples/gui/guided_tour.rr](../../examples/gui/guided_tour.rr):
 a to-do list whose **Show me** button adds two tasks for you.
 
 ```basic
-CREATE Tour AS RAppDriver
+CREATE Tour AS RAppHands
     OnDone = StepDone
 END CREATE
 
@@ -128,10 +143,6 @@ the system's **reduced motion** turned on (macOS: Accessibility > Display;
 Windows: Animation effects off) the pointer jumps instead of gliding and the
 ring doesn't grow. Your real mouse keeps working all along.
 
-**Be careful what you drive.** A program that drives itself acts as its
-user: everything its buttons do can happen. Keep tours and self-tests on
-harmless controls.
-
 ## In RapidR Studio: AI apps and RAI look at your running program
 
 When an AI works with RapidR Studio — an AI app connected to Studio
@@ -141,17 +152,25 @@ and use it, through these same eyes and hands:
 
 | Tool | What it does | Permission |
 |---|---|---|
-| `app_layout` | The running program's windows and controls in words, and what looks wrong | always |
-| `app_screenshot` | A picture of its windows (AI apps; RAI gets the layout instead) | always |
+| `app_layout` | The running program's windows and controls in words, and what looks wrong | counts as running it (asks like using it) |
+| `app_screenshot` | A picture of its windows (AI apps; RAI gets the layout instead) | counts as running it (asks like using it) |
 | `app_click`, `app_type`, `app_key`, `app_drag`, `app_scroll` | Clicks and types in it — you see the pointer do it | counts as running it |
 | `app_wait` | Lets it work on its own a moment | always |
 
-For AI apps the permission menu decides: **Read only** lets them look but
-not use the program; **Ask before changes** and **Allow edits** ask you once
-for each run of the program (Allow Once lets the AI app use it until that
-run ends; Allow for This Session, every run); **Allow everything** doesn't
-ask. RAI looks always and uses the program unless its permission is
-reading only; it gets these tools only while your program runs.
+For AI apps the permission menu decides: **Read only** lets them neither
+look at nor use the program; **Ask before changes** and **Allow edits** ask
+you once for each run of the program (Allow Once covers pictures, clicks and
+typing until that run ends; Allow for This Session, every run until you
+close the project or turn AI apps off); **Allow everything** doesn't ask.
+RAI asks the same way, once for each run, with a card in its chat: **Allow
+for this run** lets it look, click and type until the run ends; **Don't
+allow** answers it no for that answer (it asks again in a later one). With
+its permission set to reading only it can't look at or use the program at
+all. It gets these tools only while your program runs.
+
+![RAI's card in its chat: RAI wants to click and type in your running program, Allow for this run or Don't allow; the status line waits for your answer](images/app-eyes/rai-asks.png)
+
+**What the AI sees.** A picture or the layout report shows whatever your program shows: your data, or other people's. With an AI app it goes to that app and, under its maker's terms, maybe to the company behind it; with RAI it goes to the AI provider you chose. RapidR sends nothing itself, keeps no picture (it is deleted as soon as it is handed over) and writes only that a picture was asked for into the activity list, never the picture, never what was typed. Use test data, and close what you don't want seen. A program under test may send real email, make real purchases or delete real data when it is clicked: test with test data.
 
 While the program is **paused in the debugger**, an AI can still look at
 it (the picture and the layout are of the windows as they are), but not
@@ -163,6 +182,6 @@ They work the same in the web Studio, where your program runs in the page.
 
 | | Desktop (interpreted and native) | Web |
 |---|---|---|
-| `RAppCapture` | yes | yes (`SaveToFile` writes into the page's files: RapidR Studio keeps them in your project) |
-| `RAppDriver` | yes | yes |
+| `RWindowCapture` | yes | yes (`SaveToFile` writes into the page's files: RapidR Studio keeps them in your project) |
+| `RAppHands` | yes | yes |
 | Studio's `app_*` tools | yes (AI apps and RAI) | RAI's (AI apps reach only the desktop Studio: a web page can't listen for them) |

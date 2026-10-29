@@ -1,12 +1,12 @@
 //! The program's eyes and hands on the desktop (`rapidr_ui_app::{eyes,
 //! hands, link, app_components}`, shared with the web runtime): RapidR
 //! Studio's link — the session's `app` requests, which its reader thread
-//! hands over ([`push`]) — and the program's own RAppCapture and
-//! RAppDriver.
+//! hands over ([`push`]) — and the program's own RWindowCapture and
+//! RAppHands.
 //!
 //! Everything runs on the program's thread, in the window loop's turn
 //! ([`turn`], from `kernel::step`): requests looked at, the hands' jobs
-//! played, what ended answered (the link's reply, a driver's OnDone).
+//! played, what ended answered (the link's reply, a RAppHands' OnDone).
 //! While the debugger holds the program ([`turn_paused`], from its paused
 //! wait) only looking is served: input is refused with where it is
 //! paused. A program busy in its own code (a long loop with no DOEVENTS)
@@ -108,26 +108,26 @@ pub fn turn_paused() {
     }
 }
 
-// ------------------------------------------------- RAppCapture, RAppDriver --
+// ------------------------------------------------- RWindowCapture, RAppHands --
 
-/// RAppCapture's properties the runtime answers.
+/// RWindowCapture's properties the runtime answers.
 pub fn capture_get(name: &str, prop: &str) -> Option<Value> {
     app_components::capture_get(Rt, name, prop)
 }
 
-/// RAppCapture's methods (SaveToFile writes the file system).
+/// RWindowCapture's methods (SaveToFile writes the file system).
 pub fn capture_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     app_components::capture_method(Rt, name, method, args, &|file, bytes| std::fs::write(file, bytes).map_err(|e| format!("can't write {file}: {e}")))
 }
 
-/// RAppDriver's properties the runtime answers.
-pub fn driver_get(name: &str, prop: &str) -> Option<Value> {
-    app_components::driver_get(name, prop)
+/// RAppHands's properties the runtime answers.
+pub fn hands_get(name: &str, prop: &str) -> Option<Value> {
+    app_components::hands_get(name, prop)
 }
 
-/// RAppDriver's methods: the window loop is woken for the job.
-pub fn driver_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
-    let v = app_components::driver_method(Rt, name, method, args);
+/// RAppHands's methods: the window loop is woken for the job.
+pub fn hands_method(name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    let v = app_components::hands_method(Rt, name, method, args);
     crate::object::rp_wake();
     v
 }

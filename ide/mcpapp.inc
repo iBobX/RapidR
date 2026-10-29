@@ -7,11 +7,13 @@
 ' the system's mouse, keyboard or screen, so nothing else on the computer
 ' can be seen or touched.
 '
-' Permission (the AI Apps pane's mode): looking is "read", allowed in
-' every mode; using the program is "drive", which counts as running it —
-' Read only refuses it, Ask before changes and Allow edits ask once per
-' run of the program (Allow Once lets the AI app use the rest of this run,
-' Allow for This Session every run), Allow everything doesn't ask.
+' Permission (the AI Apps pane's mode): looking at the program (its
+' layout, a picture: it can show private data) and using it are "drive",
+' which counts as running it — Read only refuses it, Ask before changes
+' and Allow edits ask once per run of the program (Allow Once covers
+' pictures, clicks and typing until this run ends; Allow for This Session
+' every run), Allow everything doesn't ask. app_wait only lets time pass:
+' "read".
 ' Paused in the debugger, the program can be looked at but not used: the
 ' program's runtime says where it is paused and to continue it first.
 '
@@ -48,8 +50,8 @@ END FUNCTION
 
 ' The tools, said for small models: what each does, an example call.
 SUB McpAppTools
-  Mcp.AddTool "app_layout", McpAppQ("What the running program shows now, in words: each of its windows, then each control's name, type, caption or text, and place (at x,y size w×h, inside the window), and what a person would see wrong (text cut off, controls on top of each other). Call it before app_click. Example: {} for every window, or {`Window`: `Form1`}."), "[Window AS STRING]", "read"
-  Mcp.AddTool "app_screenshot", McpAppQ("A picture (PNG) of the running program's windows — only the program's own, never the screen or other apps. Example: {} for all its windows side by side; {`Window`: `Form1`, `Scale`: `1x`} for one window at its own pixel size; Frame: false without its title bar; Cursor: true with the pointer an AI app moves."), "[Window AS STRING], [Scale AS STRING], [Frame AS BOOLEAN], [Cursor AS BOOLEAN]", "read"
+  Mcp.AddTool "app_layout", McpAppQ("What the running program shows now, in words: each of its windows, then each control's name, type, caption or text, and place (at x,y size w×h, inside the window), and what a person would see wrong (text cut off, controls on top of each other). Call it before app_click. Example: {} for every window, or {`Window`: `Form1`}."), "[Window AS STRING]", "change"
+  Mcp.AddTool "app_screenshot", McpAppQ("A picture (PNG) of the running program's windows — only the program's own, never the screen or other apps. Example: {} for all its windows side by side; {`Window`: `Form1`, `Scale`: `1x`} for one window at its own pixel size; Frame: false without its title bar; Cursor: true with the pointer an AI app moves."), "[Window AS STRING], [Scale AS STRING], [Frame AS BOOLEAN], [Cursor AS BOOLEAN]", "change"
   Mcp.AddTool "app_click", McpAppQ("Clicks in the running program as a person would (the user sees a pointer do it). Name the control by Caption (the text on it), by Name, by the Label beside it, or give a point (x, y from app_layout). Example: {`Caption`: `7`}; also {`Name`: `btnSave`}, {`Label`: `Name`}, {`Window`: `Form1`, `X`: 30, `Y`: 55}. Double: true double-clicks; Button: `right` right-clicks. Says what it clicked — or, when nothing matches, what there is."), "[Caption AS STRING], [Name AS STRING], [Label AS STRING], [Window AS STRING], [X AS INTEGER], [Y AS INTEGER], [Double AS BOOLEAN], [Button AS STRING]", "change"
   Mcp.AddTool "app_type", McpAppQ("Types text into the running program: clicks the control first, then types it key by key. Example: {`Label`: `Name`, `Text`: `Ada`} or {`Name`: `txtSearch`, `Text`: `cats`}; without a control, into what has the keyboard."), "Text AS STRING, [Label AS STRING], [Name AS STRING], [Caption AS STRING], [Window AS STRING]", "change"
   Mcp.AddTool "app_key", McpAppQ("Presses keys in the running program: Enter, Tab, Escape, Backspace, Up, Down, F5, Ctrl+S, Shift+Tab … several separated by spaces. Example: {`Keys`: `Ctrl+A Backspace`}. Name, Caption or Label gives that control the keyboard first."), "Keys AS STRING, [Name AS STRING], [Caption AS STRING], [Label AS STRING]", "change"
@@ -119,7 +121,9 @@ END SUB
 
 ' The program answered request Id (or didn't in time, or ended): the AI
 ' app's call answered — a picture as an image (its temporary file then
-' removed) —, listed in the pane and the audit log.
+' removed) —, listed in the pane and the audit log: the action and "ok"
+' or "error" only, never the program's sentence (it quotes what the
+' program shows), the picture or what was typed.
 SUB McpAppReplied(Id AS INTEGER, Ok AS INTEGER, Text AS STRING, Picture AS STRING)
   DIM k AS INTEGER, found AS INTEGER, callId AS INTEGER, tool AS STRING, client AS STRING, what AS STRING
   found = -1
@@ -147,5 +151,5 @@ SUB McpAppReplied(Id AS INTEGER, Ok AS INTEGER, Text AS STRING, Picture AS STRIN
   ELSE
     IF Ok <> 0 THEN Mcp.Reply callId, Text, 0 ELSE Mcp.Reply callId, Text, 1
   END IF
-  IF Ok <> 0 THEN McpLogLine client, tool, what, "", "ok" ELSE McpLogLine client, tool, what, "", "error: " + LEFT$(Text, 80)
+  IF Ok <> 0 THEN McpLogLine client, tool, what, "", "ok" ELSE McpLogLine client, tool, what, "", "error"
 END SUB

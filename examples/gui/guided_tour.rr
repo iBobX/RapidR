@@ -1,11 +1,11 @@
 ' guided_tour.rr: a "Show me" button that uses the program for you, with
-' RAppDriver — a pointer glides to each control, types and clicks, and a
+' RAppHands — a pointer glides to each control, types and clicks, and a
 ' list says each step as it is done. Good for help pages, demos, lessons
 ' and self-tests.
 '
 '   rapidr run gui/guided_tour.rr
 '
-' RAppDriver plays clicks and keys into the program's own windows as a
+' RAppHands plays clicks and keys into the program's own windows as a
 ' person's would be (its handlers run as for you), found by what they show:
 ' a button's caption ("Add"), the label beside a box ("Task"), or a name.
 ' Each call returns at once and queues its step; OnDone says how it went.
@@ -54,7 +54,7 @@ CREATE Form AS RForm
     END CREATE
 END CREATE
 
-CREATE Tour AS RAppDriver
+CREATE Tour AS RAppHands
     OnDone = StepDone
 END CREATE
 

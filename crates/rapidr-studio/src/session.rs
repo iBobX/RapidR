@@ -126,6 +126,29 @@ fn rai_answered(ticket: String, ok: bool, text: String) {
     });
 }
 
+/// The pictures a Studio left in the temporary folder (`rapidr-app-*.png`:
+/// each is removed as soon as it is handed over, but a crash or a killed
+/// Studio leaves it) older than `age`: removed. How many.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn sweep_pictures(dir: &std::path::Path, age: std::time::Duration) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+    let now = std::time::SystemTime::now();
+    let mut n = 0;
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if !name.starts_with("rapidr-app-") || !name.ends_with(".png") {
+            continue;
+        }
+        // (a file of its own, never a link to something else)
+        let Ok(meta) = std::fs::symlink_metadata(e.path()) else { continue };
+        let old = meta.modified().ok().and_then(|m| now.duration_since(m).ok()).is_some_and(|d| d >= age);
+        if meta.is_file() && old && std::fs::remove_file(e.path()).is_ok() {
+            n += 1;
+        }
+    }
+    n
+}
+
 /// A screenshot's PNG (base64) where the caller can take it: a file in the
 /// temporary folder, readable by this user only, on the desktop; a `data:`
 /// URL on the web.
@@ -315,6 +338,10 @@ thread_local! {
     /// A [`poll`] was asked for while the table was in use: the poll that
     /// has it goes round again once it's free.
     static SKIPPED: Cell<bool> = const { Cell::new(false) };
+    /// The temporary folder's leftover pictures were removed.
+    static SWEPT: Cell<bool> = const { Cell::new(false) };
+    /// The programs started so far ([`run_number`]).
+    static RUNS: Cell<u64> = const { Cell::new(0) };
 }
 
 /// Whether a call on a session is in progress (the table is borrowed for
@@ -326,6 +353,14 @@ pub fn in_use() -> bool {
 }
 
 fn with<R>(name: &str, f: impl FnOnce(&mut Model) -> R) -> R {
+    // (Studio's start — its session set up —: the pictures an earlier
+    // Studio left, older than a minute, go)
+    #[cfg(not(target_arch = "wasm32"))]
+    SWEPT.with(|swept| {
+        if !swept.replace(true) {
+            sweep_pictures(&std::env::temp_dir(), std::time::Duration::from_secs(60));
+        }
+    });
     SESSIONS.with(|s| f(s.borrow_mut().entry(name.to_ascii_lowercase()).or_default()))
 }
 
@@ -456,6 +491,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let ok = started.is_ok();
             let v = r(started);
             if ok {
+                RUNS.with(|n| n.set(n.get() + 1));
                 poll(host);
             }
             v
@@ -852,6 +888,14 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
     }
 }
 
+/// The run of the user's program going on now: its number (each start a
+/// new one), `None` when nothing runs. RAI's leave to use the program
+/// lasts a run (the chat's "Allow for this run").
+pub fn run_number() -> Option<u64> {
+    let running = SESSIONS.with(|s| s.try_borrow().ok().is_some_and(|s| s.values().any(|m| m.session.state() != State::Stopped)));
+    running.then(|| RUNS.with(Cell::get))
+}
+
 /// Whether a session is running (the desktop's loop then looks at it now
 /// and then; its transport wakes it when the program says something).
 pub fn any_running() -> bool {
@@ -977,6 +1021,28 @@ mod browser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A picture a Studio left behind (a crash, a kill) goes at the next
+    /// start once it is a minute old; anything else in the folder stays.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn leftover_pictures_are_swept() {
+        let dir = std::env::temp_dir().join(format!("rapidr-sweep-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = std::time::SystemTime::now() - std::time::Duration::from_secs(120);
+        for (name, aged) in [("rapidr-app-1-1.png", true), ("rapidr-app-1-2.png", false), ("holiday.png", true), ("rapidr-app-1-3.txt", true)] {
+            let f = std::fs::File::create(dir.join(name)).unwrap();
+            if aged {
+                f.set_modified(old).unwrap();
+            }
+        }
+        assert_eq!(sweep_pictures(&dir, std::time::Duration::from_secs(60)), 1);
+        let mut left: Vec<String> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["holiday.png", "rapidr-app-1-2.png", "rapidr-app-1-3.txt"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     /// A value is changed when it differs from the stop before — or, set
     /// while paused, from what this stop first showed; set back, it isn't.

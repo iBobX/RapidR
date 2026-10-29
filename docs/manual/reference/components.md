@@ -201,8 +201,8 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | | Component | Where |
 |---|---|---|
 | <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAI`](members.md#rai) | everywhere |
-| <img src="../icons/light/components/appcapture.svg" width="20" height="20" alt=""> | [`RAppCapture`](members.md#rappcapture) | everywhere |
-| <img src="../icons/light/components/appdriver.svg" width="20" height="20" alt=""> | [`RAppDriver`](members.md#rappdriver) | everywhere |
+| <img src="../icons/light/components/windowcapture.svg" width="20" height="20" alt=""> | [`RWindowCapture`](members.md#rwindowcapture) | everywhere |
+| <img src="../icons/light/components/apphands.svg" width="20" height="20" alt=""> | [`RAppHands`](members.md#rapphands) | everywhere |
 
 ## Libraries built in
 

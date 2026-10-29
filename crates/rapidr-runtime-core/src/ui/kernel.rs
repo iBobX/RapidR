@@ -522,7 +522,7 @@ pub fn step(max_wait: Option<Duration>) {
         // (a timer's handler queued for the VM runs before anything else)
         return;
     }
-    // (RapidR Studio's link and the program's RAppCapture / RAppDriver:
+    // (RapidR Studio's link and the program's RWindowCapture / RAppHands:
     // requests served, the hands' jobs played, what ended answered)
     super::drive::turn();
     script::step(Rt);
@@ -1184,7 +1184,7 @@ pub fn save_form_image(name: &str, path: &str) -> Result<(), String> {
     if path.trim().is_empty() {
         return Err("no file name".into());
     }
-    // (the eyes' picture, RAppCapture's: the form's inside at its scale,
+    // (the eyes' picture, RWindowCapture's: the form's inside at its scale,
     // never the virtual pointer of a driven program)
     let px = with_kern(|k| {
         sync_desk(&mut k.desk);

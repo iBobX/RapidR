@@ -12,7 +12,7 @@ model server on your own computer (Ollama, LM Studio), which needs no key
 and sends nothing out.
 
 **Off by default.** Nothing is sent anywhere until you turn the assistant
-on, set it up and press Send. RapidR has no telemetry.
+on, set it up and press Send. RapidR has no telemetry. While your program runs, RAI can read what its windows show and click and type in them; that goes to your provider like the rest of the chat.
 
 **What it costs.** RapidR charges nothing. A cloud provider charges your
 account for each request, by the *tokens* (pieces of words) sent and
@@ -561,8 +561,10 @@ RapidR starts a new one with the next request.
   teacher to make the key. RapidR needs no account, and a model on this
   computer is free.
 - **Send shares** your message, the chat so far, RapidR's instructions (the
-  same for every project) and what the assistant reads of the open project —
-  nothing outside it, nothing before you press Send.
+  same for every project), what the assistant reads of the open project and,
+  while your program runs and you allowed it (a card in the chat asks once a
+  run), what the program's windows show — nothing outside it, nothing before
+  you press Send. See [A program's eyes and hands](app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program).
 - **Text in your files is data.** A comment or a data file that says
   "ignore your instructions and …" is something the assistant reports, not
   something it obeys; and whatever it is persuaded of, it can only propose

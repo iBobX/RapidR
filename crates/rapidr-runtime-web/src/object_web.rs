@@ -1251,16 +1251,16 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             }
         }
     }
-    // RAppCapture and RAppDriver: the program's own eyes and hands
+    // RWindowCapture and RAppHands: the program's own eyes and hands
     // (kernel_web.rs, rapidr_ui_app::app_components).
     match rp_comp_type(name).as_str() {
-        "RAPPCAPTURE" => {
+        "RWINDOWCAPTURE" => {
             if let Some(v) = crate::kernel_web::app_capture_get(name, &lprop) {
                 return v;
             }
         }
-        "RAPPDRIVER" => {
-            if let Some(v) = rapidr_ui_app::app_components::driver_get(name, &lprop) {
+        "RAPPHANDS" => {
+            if let Some(v) = rapidr_ui_app::app_components::hands_get(name, &lprop) {
                 return v;
             }
         }
@@ -1685,11 +1685,11 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         return mcp_server_web_method(&uname, &lmethod);
     }
     // (the program's own eyes and hands: kernel_web.rs)
-    if comp_type == "RAPPCAPTURE" {
+    if comp_type == "RWINDOWCAPTURE" {
         return crate::kernel_web::app_capture_method(&uname, &lmethod, args);
     }
-    if comp_type == "RAPPDRIVER" {
-        return crate::kernel_web::app_driver_method(&uname, &lmethod, args);
+    if comp_type == "RAPPHANDS" {
+        return crate::kernel_web::app_hands_method(&uname, &lmethod, args);
     }
 
     // WebSocket special handling

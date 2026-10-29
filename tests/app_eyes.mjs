@@ -6,23 +6,36 @@
 // (RAPIDR_TEST_PROGRAM_EVENTS: its own GUI test waits), and this script is
 // the AI app, in each permission mode:
 //
-//   Allow everything  app_layout lists the buttons and captions; app_click
-//                     by caption and by name (7 + 8 = 15), app_type into
-//                     the box beside a label, Hello greets, app_key; a
-//                     picture of the window (and one with the pointer
-//                     gliding); what isn't there said with what is; another
-//                     window can't be asked for; paused in the debugger a
-//                     picture still, a click refused with where; going on,
-//                     input again; app_wait
-//   Ask before changes  the first app_click asks (Allow Once), the next in
-//                     the same run doesn't
-//   Allow edits       app_click asks (denied here)
-//   Read only         the user runs it; app_layout and app_screenshot
-//                     work, app_click is refused
+//   Allow everything  nothing asked: app_layout lists the buttons and
+//                     captions; app_click by caption and by name (7 + 8 =
+//                     15), app_type into the box beside a label, Hello
+//                     greets, app_key; a picture of the window (and one with
+//                     the pointer gliding); what isn't there said with what
+//                     is; another window can't be asked for; paused in the
+//                     debugger a picture still, a click refused with where;
+//                     going on, input again; app_wait
+//   Ask before changes  looking at the program asks like using it: the first
+//                     look of a run asks (Allow Once), then pictures, clicks
+//                     and typing aren't asked until the run ends; a new run
+//                     (restart) asks again
+//   Allow edits       asks too: a Deny (of typing) grants nothing — the next
+//                     look asks again
+//   Read only         the user runs it; every app_* tool that looks at or
+//                     uses it is refused, app_wait (time passing) works
 //   RAI               RAI, Studio's own assistant (the tests' mock
-//                     provider), asked to click 7: it reads the program's
-//                     layout and clicks with the same eyes and hands, its
-//                     turn waiting for the program's answer
+//                     provider): asked to click 8, it asks the user first
+//                     (its chat's card) and is told they didn't allow it;
+//                     asked to click 7, it asks again, is allowed for this
+//                     run, reads the layout and clicks with the same eyes
+//                     and hands, its turn waiting for the program's answer;
+//                     its audit: what ran, no digest of what it typed
+//
+// In the four AI-app modes a canary: CANARY-TYPED-7f3a typed into the name
+// box, a click on a caption that isn't there (CANARY-NOCAPTION: the answer
+// lists the program's captions, CANARY-BUTTON among them), a picture and
+// the layout — then neither the audit log nor the AI Apps pane may hold
+// what was typed, what the program shows or a picture, and no picture may
+// be left in the temporary folder.
 //
 //   node tests/app_eyes.mjs [all|ask|edits|read|rai …]   (RAPIDR: the rapidr)
 //
@@ -30,8 +43,9 @@
 // tests/results/app-eyes. Ports 47905-47909.
 
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -166,27 +180,84 @@ const isPng = (img) => !!img && img.mimeType === "image/png" && Buffer.from(img.
 const save = (img, file) => img && writeFileSync(join(WORK, file), Buffer.from(img.data, "base64"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/// app_layout until the program's window is there (it starts in a moment).
+const asked = (r) => r.raw.progress.some((p) => JSON.stringify(p).includes("Waiting for the user"));
+
+/// app_layout until the program's window is there (it starts in a moment);
+/// `asked`: one of the calls waited for the user.
 async function layoutWhenUp(tool) {
   let r = { text: "" };
+  let wasAsked = false;
   for (let i = 0; i < 40; i++) {
     r = await tool("app_layout");
-    if (r.text.includes("b7 (RButton)")) return r;
+    wasAsked ||= asked(r);
+    if (r.text.includes("b7 (RButton)")) return { ...r, asked: wasAsked };
     await sleep(250);
   }
-  return r;
+  return { ...r, asked: wasAsked };
+}
+
+// ---- the canary: what the program shows and what was typed stay out of the log --------
+const CANARY_TYPED = "CANARY-TYPED-7f3a";
+const CANARY_ASKED = "CANARY-NOCAPTION";
+const CANARY_SHOWN = "CANARY-BUTTON";
+
+/// Typing the canary, a click on a caption that isn't there (its answer
+/// lists the captions there), a picture and the layout.
+async function canaryCalls(mode, tool, allowed) {
+  const typed = await tool("app_type", { Label: "Name", Text: CANARY_TYPED });
+  const missing = await tool("app_click", { Caption: CANARY_ASKED });
+  const shot = await tool("app_screenshot");
+  const layout = await tool("app_layout");
+  if (allowed) {
+    check(`${mode}: the canary typed`, !typed.error, typed.text);
+    check(`${mode}: the click on what isn't there lists the canary caption (to the AI app)`, missing.error && missing.text.includes(CANARY_SHOWN), missing.text);
+    check(`${mode}: the picture and the layout (with the canary) go to the AI app`, isPng(png(shot)) && layout.text.includes(CANARY_TYPED), layout.text);
+  } else {
+    check(`${mode}: the canary calls refused`, [typed, missing, shot, layout].every((r) => r.error && !png(r)), [typed, missing, shot, layout].map((r) => r.text).join(" | "));
+  }
+}
+
+/// The AI Apps pane's lines (the dump's mcplog.items, a line each).
+function paneText(out) {
+  const at = out.indexOf("mcplog.items=");
+  if (at < 0) return "";
+  const lines = out.slice(at + "mcplog.items=".length).split("\n");
+  const end = lines.findIndex((l, i) => i > 0 && /^[a-z0-9]+\.[a-z_]+=/.test(l));
+  return (end < 0 ? lines : lines.slice(0, end)).join("\n");
+}
+
+/// Neither the audit log nor the pane holds what was typed, what the
+/// program showed or a picture; an error is logged as "error" only; no
+/// picture is left in the temporary folder.
+function checkTrail(mode, end, pid) {
+  const file = join(WORK, `${mode}-audit.jsonl`);
+  const audit = existsSync(file) ? readFileSync(file, "utf8") : "";
+  const pane = paneText(end.out);
+  check(`${mode}: the audit log lists the AI app's app_* calls`, audit.includes('"tool":"app_'), audit.slice(-400));
+  check(`${mode}: the pane was read`, pane.includes(CLIENT), end.out.slice(-600));
+  for (const c of [CANARY_TYPED, CANARY_SHOWN]) {
+    check(`${mode}: ${c} is in neither the audit log nor the pane`, !audit.includes(c) && !pane.includes(c), (audit.includes(c) ? "audit: " : "pane: ") + (audit.includes(c) ? audit : pane).slice(0, 600));
+  }
+  check(`${mode}: the caption asked for isn't in the audit log`, !audit.includes(CANARY_ASKED), audit.slice(0, 600));
+  check(`${mode}: the pane names it only as the AI app's request ("Clicking …"), never the program's answer`, pane.split("\n").filter((l) => l.includes(CANARY_ASKED)).every((l) => l.includes(`Clicking "${CANARY_ASKED}"`) && !/Buttons now|No button/.test(l)), pane);
+  check(`${mode}: no picture in the audit log or the pane`, !/iVBOR|data:image/.test(audit + pane));
+  const appLines = audit.split("\n").filter((l) => l.includes('"tool":"app_')).map((l) => JSON.parse(l));
+  check(`${mode}: each app_* call is logged with its outcome only (ok, error, refused, denied)`, appLines.length > 0 && appLines.every((l) => l.target === "" && /^(ok|error|refused.*|denied by you|allowed.*|asked.*)$/.test(l.decision)), JSON.stringify(appLines.map((l) => l.decision)));
+  const left = readdirSync(tmpdir()).filter((f) => f.startsWith(`rapidr-app-${pid}-`) && f.endsWith(".png"));
+  check(`${mode}: no picture left in the temporary folder`, left.length === 0, left.join(", "));
 }
 
 // ---- Allow everything: the whole tour ----------------------------------------------------
 if (want("all")) {
   const PORT = BASE_PORT;
-  const run = studio("all", ["mcp:mode=all", `mcp:on=${PORT}`].join(","), until("get_problems"), "mcplog.itemcount", { RAPIDR_SCALE: "2" });
+  const run = studio("all", ["mcp:mode=all", `mcp:on=${PORT}`].join(","), until("get_problems"), "mcplog.itemcount,mcplog.items", { RAPIDR_SCALE: "2" });
   check("Studio listens for AI apps", await listening(PORT));
   const { call, tool } = client(PORT);
   const list = (await call("tools/list")).json.result?.tools || [];
   const names = list.map((t) => t.name);
   for (const t of ["app_layout", "app_screenshot", "app_click", "app_type", "app_key", "app_drag", "app_scroll", "app_wait"]) check(`tools/list has ${t}`, names.includes(t), names.join(","));
-  check("app_screenshot and app_layout are read-only, app_click isn't", list.find((t) => t.name === "app_screenshot")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "app_layout")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "app_click")?.annotations?.readOnlyHint === false);
+  const hint = (n) => list.find((t) => t.name === n)?.annotations?.readOnlyHint;
+  check("looking at the program isn't read-only (it shows what the program shows), nor is using it; app_wait is", hint("app_screenshot") === false && hint("app_layout") === false && hint("app_click") === false && hint("app_wait") === true, JSON.stringify(list.filter((t) => t.name.startsWith("app_")).map((t) => [t.name, t.annotations])));
   check("each tool's description has an example call", list.filter((t) => t.name.startsWith("app_")).every((t) => t.description.includes("Example")), JSON.stringify(list.filter((t) => t.name.startsWith("app_")).map((t) => t.description)));
 
   let r = await tool("app_layout");
@@ -195,7 +266,7 @@ if (want("all")) {
   check("run_program: it runs (with the debugger)", !r.error && r.text.includes("running"), r.text);
 
   r = await layoutWhenUp(tool);
-  check("app_layout: the window and its buttons with their captions", !r.error && r.text.includes('Window form1 "Calculator" (RForm), inside 240 × 196, in front') && r.text.includes('b7 (RButton) "7" at 10,40 size 50×30') && r.text.includes('bplus (RButton) "+"') && r.text.includes("nameedit (REdit)"), r.text);
+  check("app_layout: the window and its buttons with their captions", !r.error && r.text.includes('Window form1 "Calculator" (RForm), inside 240 × 236, in front') && r.text.includes('b7 (RButton) "7" at 10,40 size 50×30') && r.text.includes('bplus (RButton) "+"') && r.text.includes("nameedit (REdit)"), r.text);
   check("app_layout: nothing looks wrong", r.text.includes("No problems seen"), r.text);
 
   // (the pointer gliding: a picture with it, taken while a click is on its way)
@@ -217,7 +288,7 @@ if (want("all")) {
   check("app_screenshot: a PNG of the program's window", !r.error && isPng(png(r)) && r.text.includes("pixel picture"), r.text);
   save(png(r), "app-eyes-calculator-15.png");
   r = await tool("app_screenshot", { Window: "form1", Scale: "1x", Frame: false });
-  check("app_screenshot at 1x, its inside only: 240 × 196", r.text.includes("240 × 196 pixel picture"), r.text);
+  check("app_screenshot at 1x, its inside only: 240 × 236", r.text.includes("240 × 236 pixel picture"), r.text);
 
   r = await tool("app_type", { Label: "Name", Text: "Ada" });
   check("app_type beside the label Name", !r.error && r.text.includes('Typed "Ada" into nameedit (REdit) (beside the label "Name:")'), r.text);
@@ -232,7 +303,7 @@ if (want("all")) {
   check("a key that isn't one: said, with what to use", r.error && r.text.includes("isn't a modifier"), r.text);
 
   r = await tool("app_click", { Caption: "Go" });
-  check("app_click on what isn't there: the buttons there are", r.error && r.text.includes('No button (or other control) shows "Go" in form1. Buttons now: "7", "8", "9", "+", "=", "C", "Hello"'), r.text);
+  check("app_click on what isn't there: the buttons there are", r.error && r.text.includes('No button (or other control) shows "Go" in form1. Buttons now: "7", "8", "9", "+", "=", "C", "Hello", "CANARY-BUTTON"'), r.text);
   r = await tool("app_screenshot", { Window: "Finder" });
   check("app_screenshot of a window the program hasn't got: refused, its windows listed", r.error && r.text.includes('No window named "Finder" in this program. Its windows now: form1 ("Calculator").') && !png(r), r.text);
   r = await tool("app_screenshot", { Window: "RapidR Studio" });
@@ -250,90 +321,126 @@ if (want("all")) {
   check("going on: app_click works again", !r.error && r.text.startsWith('Clicked bclear (RButton "C")'), r.text);
   r = await tool("app_wait", { Ms: 200 });
   check("app_wait", !r.error && r.text.includes("Waited 200 ms"), r.text);
+  await canaryCalls("all", tool, true);
   r = await tool("get_problems");
   const end = await run.ended();
   check("Studio ended after the tour", end.ok);
   check("the pane lists the AI app's calls", Number(end.lines["mcplog.itemcount"]) >= 20, end.lines["mcplog.itemcount"]);
+  check("the pane says how many characters were typed, never what", paneText(end.out).includes('Typing 3 characters into the box beside "Name" in the running program') && !paneText(end.out).includes("Ada"), paneText(end.out));
+  checkTrail("all", end, run.child.pid);
   const shot = join(WORK, "all-window-1.bmp");
   if (existsSync(shot)) spawnSync("sips", ["-s", "format", "png", shot, "--out", join(WORK, "app-eyes-studio.png")], { stdio: "ignore" });
 }
 
-// ---- Ask before changes: asked once per run -----------------------------------------------
+// ---- Ask before changes: asked once per run, looking too ---------------------------------
 if (want("ask")) {
   const PORT = BASE_PORT + 1;
-  // (Allow Once on the run, Allow Once on the first click; the second click isn't asked)
-  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
-  const run = studio("ask", `mcp:on=${PORT}`, events, "mcpask.visible,mcpasktext.caption");
+  // (the run: Allow for This Session; the first look of the run: Allow
+  // Once; the first look of the next run (a restart): Allow Once)
+  const events = ["mcpask.__until_Visible_1", "mcpsessionbtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const run = studio("ask", `mcp:on=${PORT}`, events, "mcpask.visible,mcplog.items");
   check("Ask before changes: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   let r = await tool("run_program", { Action: "start", Wait: 2 });
-  check("Ask before changes: the run allowed once", !r.error, r.text);
-  await layoutWhenUp(tool);
+  check("Ask before changes: the run allowed (for this session)", !r.error, r.text);
+  r = await layoutWhenUp(tool);
+  check("the first look at the program waited for the user, then answered", r.asked && r.text.includes("b7 (RButton)"), r.text);
   r = await tool("app_click", { Caption: "7" });
-  check("the first app_click waited for the user, then clicked", !r.error && r.text.startsWith("Clicked b7") && r.raw.progress.some((p) => JSON.stringify(p).includes("Waiting for the user")), r.text + JSON.stringify(r.raw.progress));
+  check("using it in the same run isn't asked again", !r.error && r.text.startsWith("Clicked b7") && !asked(r), r.text + JSON.stringify(r.raw.progress));
   r = await tool("app_click", { Caption: "8" });
-  check("the next app_click in the same run isn't asked", !r.error && r.text.startsWith("Clicked b8") && !r.raw.progress.some((p) => JSON.stringify(p).includes("Waiting for the user")), r.text + JSON.stringify(r.raw.progress));
+  check("…nor the next click", !r.error && r.text.startsWith("Clicked b8") && !asked(r), r.text);
   r = await tool("app_screenshot");
-  check("looking never asks", !r.error && isPng(png(r)) && r.raw.progress.length === 0, r.text);
+  check("…nor a picture", !r.error && isPng(png(r)) && !asked(r), r.text);
+  await canaryCalls("ask", tool, true);
+  r = await tool("run_program", { Action: "restart", Wait: 2 });
+  check("a new run (restart): the run itself isn't asked (Allow for This Session)", !r.error && !asked(r), r.text);
+  r = await layoutWhenUp(tool);
+  check("…but looking at it asks again: Allow Once lasted the run", r.asked && r.text.includes("b7 (RButton)"), r.text);
   r = await tool("get_problems");
   const end = await run.ended();
   check("Ask before changes: nothing left waiting", end.lines["mcpask.visible"] === "0", JSON.stringify(end.lines));
+  checkTrail("ask", end, run.child.pid);
 }
 
-// ---- Allow edits: using the program asks ------------------------------------------------
+// ---- Allow edits: looking and using the program ask -------------------------------------
 if (want("edits")) {
   const PORT = BASE_PORT + 2;
-  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcpdenybtn.onclick", until("get_problems")].join(",");
-  const run = studio("edits", `mcp:mode=edits,mcp:on=${PORT}`, events, "mcpmodebox.text");
+  // (the run: Allow Once; the typing: Deny; the next look: Allow Once)
+  const events = ["mcpask.__until_Visible_1", "mcponcebtn.onclick", "mcpask.__until_Visible_1", "mcpdenybtn.onclick", "mcpask.__until_Visible_1", "mcponcebtn.onclick", until("get_problems")].join(",");
+  const run = studio("edits", `mcp:mode=edits,mcp:on=${PORT}`, events, "mcpmodebox.text,mcplog.items");
   check("Allow edits: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   let r = await tool("run_program", { Action: "start", Wait: 2 });
   check("Allow edits: the run allowed once", !r.error, r.text);
-  await layoutWhenUp(tool);
+  r = await tool("app_type", { Label: "Name", Text: CANARY_TYPED });
+  check("Allow edits: app_type asks, like a run (denied here)", r.error && r.text.includes("didn't allow") && asked(r), r.text);
+  r = await layoutWhenUp(tool);
+  check("a Deny grants nothing: the next look asks again (allowed once here)", r.asked && r.text.includes("b7 (RButton)"), r.text);
+  check("the denied typing never reached the program", !r.text.includes(CANARY_TYPED), r.text);
   r = await tool("app_click", { Caption: "7" });
-  check("Allow edits: app_click asks, like a run (denied here)", r.error && r.text.includes("didn't allow"), r.text);
+  check("then using it isn't asked in this run", !r.error && !asked(r), r.text);
+  await canaryCalls("edits", tool, true);
   r = await tool("get_problems");
   const end = await run.ended();
   check("Allow edits: the menu says it", end.lines["mcpmodebox.text"] === "Allow edits", JSON.stringify(end.lines));
+  check("the pane: the denied typing said as a count, denied", paneText(end.out).includes(`Typing ${CANARY_TYPED.length} characters into the box beside "Name" in the running program  — denied by you`), paneText(end.out));
+  checkTrail("edits", end, run.child.pid);
 }
 
-// ---- Read only: the user runs it; the AI app only looks ----------------------------------
+// ---- Read only: the user runs it; the AI app neither looks at nor uses it -----------------
 if (want("read")) {
   const PORT = BASE_PORT + 3;
-  const run = studio("read", `mcp:mode=read,mcp:on=${PORT},run.start`, until("get_problems"), "mcpmodebox.text");
+  const run = studio("read", `mcp:mode=read,mcp:on=${PORT},run.start`, until("get_problems"), "mcpmodebox.text,mcplog.items");
   check("Read only: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
-  let r = await layoutWhenUp(tool);
-  check("Read only: app_layout works", !r.error && r.text.includes('b7 (RButton) "7"'), r.text);
-  r = await tool("app_screenshot");
-  check("Read only: app_screenshot works", !r.error && isPng(png(r)), r.text);
-  r = await tool("app_click", { Caption: "7" });
-  check("Read only: app_click refused, in the mode's words", r.error && r.text.includes("Read only"), r.text);
-  r = await tool("app_type", { Label: "Name", Text: "x" });
-  check("Read only: app_type refused", r.error && r.text.includes("Read only"), r.text);
+  // (app_wait only lets time pass: it works in every mode — here, once the
+  // program is up)
+  let r = { error: true, text: "" };
+  for (let i = 0; i < 40 && r.error; i++) {
+    r = await tool("app_wait", { Ms: 100 });
+    if (r.error) await sleep(250);
+  }
+  check("Read only: app_wait works", !r.error && r.text.includes("Waited"), r.text);
+  for (const [t, a] of [["app_layout", {}], ["app_screenshot", {}], ["app_click", { Caption: "7" }], ["app_type", { Label: "Name", Text: "x" }], ["app_key", { Keys: "Enter" }], ["app_drag", { Name: "B7", ToX: 5, ToY: 5 }], ["app_scroll", { Name: "B7" }]]) {
+    r = await tool(t, a);
+    check(`Read only: ${t} refused, in the mode's words`, r.error && r.text.includes("Read only") && !png(r), r.text);
+  }
+  await canaryCalls("read", tool, false);
   r = await tool("get_problems");
   const end = await run.ended();
   check("Read only: the menu says it", end.lines["mcpmodebox.text"] === "Read only", JSON.stringify(end.lines));
+  checkTrail("read", end, run.child.pid);
 }
 
-// ---- RAI: the same eyes and hands ------------------------------------------------------
+// ---- RAI: the same eyes and hands, asked once a run ---------------------------------------
 if (want("rai")) {
   const PORT = BASE_PORT + 4;
   const AI_READY = `ai:on,ai:provider=compatible,ai:base=${MOCK_URL},ai:model=mock-small`;
-  const run = studio("rai", [AI_READY, "mcp:mode=all", `mcp:on=${PORT}`].join(","), until("get_problems"), "", { RAPIDR_AI_TEST_SERVER: MOCK_URL.replace(/\/v1$/, "") });
+  // (RAI's card answered: Don't allow the first time, Allow for this run
+  // the second — each step waits until RAI asks)
+  const run = studio("rai", [AI_READY, "mcp:mode=all", `mcp:on=${PORT}`, "ai:applink=deny", "ai:applink=allow"].join(","), until("get_problems"), "", { RAPIDR_AI_TEST_SERVER: MOCK_URL.replace(/\/v1$/, "") });
   check("RAI: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   let r = await tool("run_program", { Action: "start", Wait: 2 });
   check("RAI: the program runs", !r.error, r.text);
   await layoutWhenUp(tool);
+  r = await tool("ask_rai", { Prompt: "click 8 in the program" });
+  check("RAI asked the user first, and was told they didn't allow it", !r.error && r.text.includes("didn't allow you to look at or use their running program"), r.text);
+  r = await tool("app_layout");
+  check("…so nothing was clicked: the display shows 0", r.text.includes('display (RLabel) "0"'), r.text);
   r = await tool("ask_rai", { Prompt: "click 7 in the program" });
-  check("RAI read the layout and clicked 7 (its turn waited for the program)", !r.error && r.text.includes('The program: Clicked b7 (RButton "7") in form1 ("Calculator")'), r.text);
+  check("asked again in a new answer and allowed for this run: RAI read the layout and clicked 7 (its turn waited for the program)", !r.error && r.text.includes('The program: Clicked b7 (RButton "7") in form1 ("Calculator")'), r.text);
   check("RAI's steps name what it did", r.text.includes("Reading the running program's layout") || r.text.includes("Clicking"), r.text);
   r = await tool("app_layout");
   check("the program shows 7", r.text.includes('display (RLabel) "7"'), r.text);
+  r = await tool("get_rai_transcript", { Chars: 30000 });
+  check("RAI's chat shows each answer to its card", r.text.includes("You didn't allow RAI to use your running program") && r.text.includes("You allowed RAI to use your running program for this run"), r.text.slice(-1500));
   r = await tool("get_problems");
   const end = await run.ended();
   check("RAI: Studio ended", end.ok);
+  const audit = existsSync(join(WORK, "rai-audit.jsonl")) ? readFileSync(join(WORK, "rai-audit.jsonl"), "utf8") : "";
+  const raiTools = audit.split("\n").filter((l) => l.includes('"op":"tool"') && !l.includes('"source":"mcp"')).map((l) => JSON.parse(l)).filter((l) => String(l.tool).startsWith("app_"));
+  check("RAI's audit: the refused click not done, the click that ran said so — no digest of what it was asked", raiTools.some((l) => l.tool === "app_click" && l.decision === "not done in your program") && raiTools.some((l) => l.tool === "app_click" && l.decision === "ran in your program") && raiTools.filter((l) => l.risk === "ui").every((l) => l.digest === ""), JSON.stringify(raiTools));
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

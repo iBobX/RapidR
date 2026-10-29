@@ -224,12 +224,12 @@ pub fn app_tools(input: bool) -> Vec<Tool> {
 }
 
 /// An app tool's call (RAI's): the request sent to the program Studio
-/// runs ([`crate::session::app_send`]), answered later; refused when it
-/// uses the program and the user allows reading only.
+/// runs ([`crate::session::app_send`]), answered later; refused when the
+/// user allows reading only (looking at the program shows what it shows,
+/// private data too: it counts as using it).
 pub fn app_call(name: &str, input: &Json, may_use: bool) -> Outcome {
-    let looks = matches!(name, "app_layout" | "app_wait");
-    if !looks && !may_use {
-        return err("the user allowed reading only (Tools > Settings > AI > Permission): say what you would click or type instead", format!("{name}: not allowed (read-only)"), "");
+    if name != "app_wait" && !may_use {
+        return err("the user allowed reading only (Tools > Settings > AI > Permission): you can't look at or use their running program; say what you would look at, click or type instead", format!("{name}: not allowed (read-only)"), "");
     }
     let mut req = serde_json::Map::new();
     req.insert("do".into(), json!(name.trim_start_matches("app_")));
@@ -309,8 +309,20 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
             let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
             match name {
                 "app_click" => format!("Clicking{on} in the running program"),
-                "app_type" => format!("Typing \"{}\"{} in the running program", any("Text").unwrap_or_default().chars().take(40).collect::<String>(), if on.is_empty() { String::new() } else { format!(" into{on}") }),
-                "app_key" => format!("Pressing {} in the running program", any("Keys").unwrap_or_else(|| "keys".into())),
+                // (never what is typed: a password typed into the program
+                // would show in the pane, the status line, read aloud and
+                // in the question — only how many characters)
+                "app_type" => {
+                    let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
+                    format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
+                }
+                // (keys by name — Enter, Ctrl+S —; single characters are
+                // typing, and only counted)
+                "app_key" => match any("Keys") {
+                    Some(k) if k.split_whitespace().all(|t| t.chars().count() > 1) => format!("Pressing {k} in the running program"),
+                    Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
+                    None => "Pressing keys in the running program".into(),
+                },
                 "app_drag" => format!("Dragging{on} in the running program"),
                 _ => format!("Scrolling{on} in the running program"),
             }
@@ -2627,5 +2639,23 @@ mod tests {
         assert!(!run("write_file", &json!({"path": "new.rr", "summary": "x", "text": long}), &p, &mut Vec::new(), true).is_error);
         // (the lines that change, not the span between the first and the last)
         assert_eq!(line_delta(&long, &long.replace("PRINT 1\n", "PRINT 0\n").replace("PRINT 120\n", "PRINT 121\n")), (2, 2));
+    }
+
+    #[test]
+    fn typing_in_the_program_never_shows_the_text() {
+        // (an AI app's arguments capitalised, RAI's not; a password typed
+        // into the program must never reach the pane, the status line, a
+        // screen reader or the question — only how many characters)
+        let ai_app = activity("app_type", &json!({"Label": "Password", "Text": "hunter2"})).unwrap();
+        assert_eq!(ai_app, "Typing 7 characters into the box beside \"Password\" in the running program");
+        let rai = activity("app_type", &json!({"name": "txtPin", "text": " 1234 "})).unwrap();
+        assert_eq!(rai, "Typing 6 characters into txtPin in the running program");
+        assert_eq!(activity("app_type", &json!({"text": "x"})).unwrap(), "Typing 1 character in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Ctrl+A Backspace"})).unwrap(), "Pressing Ctrl+A Backspace in the running program");
+        // (single characters are typing: counted, not shown)
+        assert_eq!(activity("app_key", &json!({"Keys": "h u n t e r 2"})).unwrap(), "Pressing 7 keys in the running program");
+        for line in [ai_app, rai] {
+            assert!(!line.contains("hunter2") && !line.contains("1234"), "{line}");
+        }
     }
 }

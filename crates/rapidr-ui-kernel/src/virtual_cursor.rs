@@ -1,5 +1,5 @@
 //! The virtual cursor: the pointer an AI (RapidR Studio's AI apps, RAI) or
-//! the program's own RAppDriver moves over the program's windows while it
+//! the program's own RAppHands moves over the program's windows while it
 //! drives them (`rapidr_ui_app::hands`). It is drawn by the kernel, on top
 //! of everything in the window it is in — never the system's mouse, which
 //! stays where the person left it and keeps working.

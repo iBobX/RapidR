@@ -517,8 +517,8 @@ def secrets(g):
     g.frect(11, 13.5, 2, 4.5, fill="amber")
 
 
-@icon("appcapture", C, "App capture (the program's own windows as pictures)")
-def appcapture(g):
+@icon("windowcapture", C, "Window capture (the program's own windows as pictures)")
+def windowcapture(g):
     # (a window inside a viewfinder's corners: a picture of the program's
     # own window — media's violet for the picture taken)
     window(g, x=6, y=7, w=12, h=10, c="ink", fill="paper", bar=3.5)
@@ -526,8 +526,8 @@ def appcapture(g):
         g.path(f"M{x} {y + 4 * dy} V{y} H{x + 4 * dx}", c="violet")
 
 
-@icon("appdriver", C, "App driver (the program's own hands)")
-def appdriver(g):
+@icon("apphands", C, "App hands (clicks and keys played into the program's own windows)")
+def apphands(g):
     # (a window, and the pointer that clicks in it with its ring — RapidR's
     # own drawing of a driven pointer)
     window(g, x=2.5, y=3, w=16, h=13, c="ink", fill="paper", bar=3.5)
