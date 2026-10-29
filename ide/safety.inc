@@ -174,7 +174,8 @@ SUB FailPick(Sender AS RButton)
 END SUB
 
 ' The tests' steps (--do): safety:fail (a run-time error in Studio's own
-' code: a file written into a folder that isn't there), safety:keep (the
+' code: a file written into a folder that isn't there; safety:divide, a
+' division by zero), safety:keep (the
 ' copies kept now, not at the next tick), safety:restore, safety:discard,
 ' safety:later (the question at the start answered so).
 FUNCTION SafetyStep(Stp AS STRING) AS INTEGER
@@ -185,6 +186,10 @@ FUNCTION SafetyStep(Stp AS STRING) AS INTEGER
     CASE "fail"
       f.Open(Proj.StudioFolder + "/no-such-folder/studio-test.txt", 65535)
       f.Close
+    CASE "divide"
+      ' (an error of the language's own: the page's store has no folders
+      ' to be missing)
+      Restoring = Restoring \ Restoring
     CASE "keep"
       KeepAll 0
     CASE "restore", "discard", "later"

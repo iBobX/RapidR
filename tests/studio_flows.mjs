@@ -4420,6 +4420,23 @@ const CASES = [
     files: { "studio/studio-errors.log": /RapidR Studio \(RapidR [\d.]+\): Cannot create file .* \(at Studio's safety\.inc line \d+\)/ },
   },
   {
+    // (…in the browser: a division by zero in Studio's own code — the
+    // page's store has no folders to be missing —, said the same way)
+    name: "studio-error-safe-web",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    webOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:divide,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /^Division by zero \(safety\.inc line \d+\)\n\nYour work is safe/,
+      "outputbox.text": /Something went wrong in Studio: Division by zero \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+    },
+  },
+  {
     // (unsaved work kept, Studio ended without closing — killed: the test's
     // end —; started again: "Restore your unsaved work?", Enter restores it
     // in its editor, not saved)
