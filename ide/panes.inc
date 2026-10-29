@@ -166,6 +166,7 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"

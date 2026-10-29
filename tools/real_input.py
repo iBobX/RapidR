@@ -1,5 +1,5 @@
 # Real mouse/keyboard input for checking desktop GUI builds by hand (macOS):
-# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) dc:x,y (double click) pd:/pm:/pu:x,y (press, drag, release) C:x,y (click, screen coords) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
+# python3 tools/real_input.py PID c:x,y (click, window coords incl. title bar) dc:x,y (double click) rc:x,y (right click) pd:/pm:/pu:x,y (press, drag, release) C:x,y (click, screen coords) d:x1,y1,x2,y2 (drag) k:keycode s:out.png
 #   m:x,y (the mouse moved there: hover), w:seconds (wait), r:x,y,n (the wheel, n notches down; negative: up),
 #   k:cmd+shift+keycode (modifiers: cmd, shift, ctrl, alt), kd:code / ku:code (a key held down, let go),
 #   t:text (typed)
@@ -37,6 +37,12 @@ for a in sys.argv[2:]:
         x,y=[float(v) for v in arg.split(",")]
         if kind=="c": x+=b['X']; y+=b['Y']
         mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1); mouse(Quartz.kCGEventLeftMouseDown,x,y); time.sleep(0.05); mouse(Quartz.kCGEventLeftMouseUp,x,y)
+    elif kind=="rc":
+        # right click: rc:x,y (in the window) — a context menu
+        x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']
+        mouse(Quartz.kCGEventMouseMoved,x,y); time.sleep(0.1)
+        for t in (Quartz.kCGEventRightMouseDown,Quartz.kCGEventRightMouseUp):
+            e=Quartz.CGEventCreateMouseEvent(None,t,(x,y),Quartz.kCGMouseButtonRight); Quartz.CGEventSetFlags(e,0); Quartz.CGEventPost(Quartz.kCGHIDEventTap,e); time.sleep(0.05)
     elif kind=="dc":
         # double click: dc:x,y (in the window), the second press counted 2
         x,y=[float(v) for v in arg.split(",")]; x+=b['X']; y+=b['Y']

@@ -65,6 +65,9 @@ SUB RunCommand(Id AS STRING)
   ' (Edit's in Variables or Watch, when they have the focus — the selected
   ' value copied, the last value set undone: debug.inc)
   IF DebugPaneCommand(Id) THEN EXIT SUB
+  ' (Edit's Copy and Select All in the Output pane, when it has the
+  ' focus: panels.inc)
+  IF OutputCommand(Id) THEN EXIT SUB
   ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
   IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)

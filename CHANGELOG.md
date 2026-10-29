@@ -7,6 +7,12 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **Copy anything in Output, Build and Problems** (Robert: "There is no way to copy an error, or a message"): drag to select text (across lines, scrolling past the edges), double-click a word, triple-click a line, Shift + a click to extend, then Ctrl+C / ⌘C (Ctrl+Insert) — plain text, no colours, a wrapped line as one line; Ctrl+A selects the page. The pane's right-click menu is now **Copy**, **Copy Line** (the line right-clicked), **Copy All** (**Copy All Problems**), **Select All**, then Wrap Long Lines and Clear; the status bar says what was copied. Problems' rows (several with Shift) copy as `file:line:col: severity: message`. Edit ▸ Copy / Select All work on the pane while it has the keyboard. A link still opens on a click; a drag that starts on it selects. Screen readers read the pane by character, word and line and hear the selection. `ROutputConsole` gains `SelText`, `HasSelection`, `ClickedLine`, `SelectAll`, `CopySelection`, `CopyAll`, `CopyLine` (desktop and web; example `examples/studio/log_copy.rr`; manual: debugging.md, "Copying from Output, Build and Problems").
+- **Call Stack and Breakpoints copy:** Ctrl+C (⌘C) and a right-click menu (Copy, Copy All).
+- **Ctrl+C (⌘C) on a message box** (SHOWMESSAGE, MESSAGEDLG, MESSAGEBOX) copies its title, text and buttons, as Windows' message boxes do.
+- Test hook `comp.__rightclick_x_y`: a right click through the kernel (the context menu opens).
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

@@ -2755,6 +2755,13 @@ END SUB
 ' set while paused — Ctrl+Z, the tree's OnUndo; True when Id was one)
 FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
   DIM w AS INTEGER
+  ' (Call Stack's and Breakpoints' Copy: the selected row)
+  IF Id = "edit.copy" THEN
+    SELECT CASE LCASE$(Dock.ActivePane)
+      CASE "stacktree": StackCopy: Result = 1: EXIT FUNCTION
+      CASE "bppanel": BpCopy: Result = 1: EXIT FUNCTION
+    END SELECT
+  END IF
   SELECT CASE LCASE$(Dock.ActivePane)
     CASE "varstree": w = 0
     CASE "watchpanel": w = 1
@@ -2781,6 +2788,93 @@ END SUB
 
 SUB WatchCopy
   ValueAction "copy", PickedExpr(1), PickedShown(1)
+END SUB
+
+' ---- Call Stack and Breakpoints: Copy, Copy All (COPY-ANYWHERE) ----------------------
+DIM StackMenu AS RPopupMenu
+DIM StackMenuItem(1) AS RMenuItem
+DIM BpMenu AS RPopupMenu
+DIM BpMenuItem(1) AS RMenuItem
+
+' (Ctrl+C — ⌘C — in Call Stack, the tree's OnCopy, and its menu's Copy:
+' the selected call as shown, "Main   main.rr:12")
+SUB StackCopy
+  DIM i AS INTEGER
+  i = StackTree.ItemIndex
+  IF i < 0 OR i >= StackTree.ItemCount THEN EXIT SUB
+  Clipboard.Text = StackTree.Item(i).Text
+  SetState RunState, "Copied the call"
+END SUB
+
+' (…and in Breakpoints: the selected breakpoint as listed, "main.rr:12  when x > 1")
+SUB BpCopy
+  DIM i AS INTEGER
+  i = BpTree.ItemIndex
+  IF i < 0 OR i >= BpCount THEN EXIT SUB
+  Clipboard.Text = BreakpointText(i)
+  SetState RunState, "Copied the breakpoint"
+END SUB
+
+' (Copy All: every call, every breakpoint, a line each)
+SUB ListCopyAll(Which AS INTEGER)
+  DIM i AS INTEGER, t AS STRING, n AS INTEGER
+  t = ""
+  IF Which = 0 THEN
+    n = StackTree.ItemCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + StackTree.Item(i).Text
+    NEXT
+  ELSE
+    n = BpCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + BreakpointText(i)
+    NEXT
+  END IF
+  IF n = 0 THEN EXIT SUB
+  Clipboard.Text = t
+  IF Which = 0 THEN
+    SetState RunState, "Copied " + IIF(n = 1, "1 call", Num(n) + " calls")
+  ELSE
+    SetState RunState, "Copied " + IIF(n = 1, "1 breakpoint", Num(n) + " breakpoints")
+  END IF
+END SUB
+
+SUB ListMenusOpening
+  StackMenuItem(0).Enabled = Flag(StackTree.ItemIndex >= 0)
+  StackMenuItem(1).Enabled = Flag(StackTree.ItemCount > 0)
+  BpMenuItem(0).Enabled = Flag(BpTree.ItemIndex >= 0 AND BpCount > 0)
+  BpMenuItem(1).Enabled = Flag(BpCount > 0)
+END SUB
+
+SUB ListMenuPicked(Sender AS RMenuItem)
+  SELECT CASE Sender.Tag
+    CASE 0: StackCopy
+    CASE 1: ListCopyAll 0
+    CASE 10: BpCopy
+    CASE 11: ListCopyAll 1
+  END SELECT
+END SUB
+
+SUB SetUpListMenus
+  DIM k AS INTEGER
+  FOR k = 0 TO 1
+    StackMenuItem(k).Caption = IIF(k = 0, "&Copy", "Copy &All")
+    StackMenuItem(k).Tag = k
+    StackMenuItem(k).OnClick = ListMenuPicked
+    StackMenu.AddItems StackMenuItem(k)
+    BpMenuItem(k).Caption = IIF(k = 0, "&Copy", "Copy &All")
+    BpMenuItem(k).Tag = 10 + k
+    BpMenuItem(k).OnClick = ListMenuPicked
+    BpMenu.AddItems BpMenuItem(k)
+  NEXT
+  StackMenuItem(0).ShortCut = "Ctrl+C"
+  BpMenuItem(0).ShortCut = "Ctrl+C"
+  StackMenu.OnPopup = ListMenusOpening
+  BpMenu.OnPopup = ListMenusOpening
+  StackTree.PopupMenu = StackMenu
+  BpTree.PopupMenu = BpMenu
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -3208,6 +3302,11 @@ SUB SetUpDebug
   BpTree.OnClick = BpTreeClick
   BpTree.OnDblClick = BpTreeOpen
   BpTree.OnKeyDown = BpTreeKey
+  ' (COPY-ANYWHERE: Ctrl+C — ⌘C — and a right-click's Copy / Copy All in
+  ' Call Stack and Breakpoints)
+  StackTree.OnCopy = StackCopy
+  BpTree.OnCopy = BpCopy
+  SetUpListMenus
 
   ' (the debugging layout's group beside Output — Variables, Watch, Call
   ' Stack, Breakpoints —; Breakpoints is a tab beside Output while editing:

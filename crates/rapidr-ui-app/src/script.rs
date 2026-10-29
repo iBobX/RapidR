@@ -121,6 +121,7 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::KeyWith(vk, state) => rt.script_input(ScriptInput::Key { comp, vk, state }),
         Action::Mouse(kind, x, y) => rt.script_input(ScriptInput::Mouse { comp, kind, x, y }),
         Action::DblClick(x, y) => rt.script_input(ScriptInput::DblClick { comp, x, y }),
+        Action::RightClick(x, y) => rt.script_input(ScriptInput::RightClick { comp, x, y }),
         Action::Close => forms::close(rt, &e.comp),
         // (RapidR's OnDropFiles: RAPIDR_TEST_DROP's files on the form)
         Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),

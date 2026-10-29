@@ -71,6 +71,10 @@ pub enum ScriptInput {
     /// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y)
     /// in the component.
     DblClick { comp: String, x: i64, y: i64 },
+    /// (COPY-ANYWHERE) `comp.__rightclick_x_y`: a right click (press,
+    /// release) at (x, y) in the component — its context menu, as the
+    /// user's right click opens it.
+    RightClick { comp: String, x: i64, y: i64 },
     /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
     /// in the component, and the pointer there noted (its CSS name:
     /// `col-resize`, `text` …; `desktop::take_probe`).

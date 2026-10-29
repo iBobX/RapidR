@@ -57,6 +57,10 @@ pub trait Runtime: Copy + 'static {
     /// Opens a web link (http, https, mailto) the user clicked in the
     /// system's browser (a new tab on the web); nothing by default.
     fn open_url(self, _url: &str) {}
+    /// Puts `text` on the clipboard, as `Clipboard.Text = text` does (the
+    /// system's; the tests' own under `RAPIDR_TEST_CLIPBOARD`); nothing by
+    /// default.
+    fn set_clipboard(self, _text: &str) {}
 }
 
 /// The type `name` is, if it is a panel (`RTOOLBOX` …).
