@@ -24,7 +24,7 @@ use lsp_server::{Connection, ErrorCode, Message, Notification, Request, RequestI
 use lsp_types::notification::Notification as _;
 use lsp_types::request::Request as _;
 use lsp_types::*;
-use rapidr_langsvc::{Analysis, CompletionKind, LineIndex, OutlineKind, Severity, TokenKind};
+use rapidr_langsvc::{Analysis, CompletionKind, HelperKind, LineIndex, OutlineKind, Severity, TokenKind};
 
 /// `rapidr lsp`: serves one client on stdin / stdout until it exits.
 pub fn run_stdio() -> ExitCode {
@@ -105,6 +105,10 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
             code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
             ..Default::default()
         })),
+        // (the code helpers' arguments' names and colours: docs/code-helpers-plan.md)
+        inlay_hint_provider: Some(OneOf::Left(true)),
+        color_provider: Some(ColorProviderCapability::Simple(true)),
+        document_highlight_provider: Some(OneOf::Left(true)),
         semantic_tokens_provider: Some(SemanticTokensServerCapabilities::SemanticTokensOptions(SemanticTokensOptions {
             legend: SemanticTokensLegend { token_types: TOKEN_TYPES.to_vec(), token_modifiers: TOKEN_MODIFIERS.to_vec() },
             full: Some(SemanticTokensFullOptions::Bool(true)),
@@ -116,6 +120,8 @@ pub fn serve(connection: &Connection) -> Result<(), String> {
             workspace_folders: Some(WorkspaceFoldersServerCapabilities { supported: Some(true), change_notifications: Some(OneOf::Left(true)) }),
             file_operations: None,
         }),
+        // (RapidR's own requests, for a client that wants to know: `rapidr/helpPage`, `rapidr/helpSuggest`)
+        experimental: Some(serde_json::json!({ "rapidr": { "helpPage": true, "helpSuggest": true } })),
         ..Default::default()
     };
     let result = InitializeResult {
@@ -468,7 +474,144 @@ impl Server {
                     .collect();
                 json(serde_json::to_value(actions).unwrap())
             }
+            // The parameter's name before a literal argument (`DrawDot x, y: 40, r: 12`):
+            // Studio's chips that show without Ctrl.
+            request::InlayHintRequest::METHOD => {
+                let p: InlayHintParams = params(&req)?;
+                let path = uri_to_path(&p.text_document.uri);
+                let text = self.analysis.text(&path).unwrap_or_default();
+                let index = LineIndex::new(&text);
+                let (from, to) = (self.offset(&text, &index, p.range.start), self.offset(&text, &index, p.range.end));
+                let hints: Vec<InlayHint> = self
+                    .analysis
+                    .helpers(&path)
+                    .into_iter()
+                    .filter(|h| h.kind == HelperKind::ArgName && h.flag && h.start >= from && h.start <= to)
+                    .map(|h| InlayHint {
+                        position: self.position(&text, &index, h.start),
+                        label: InlayHintLabel::String(format!("{}:", h.label)),
+                        kind: Some(InlayHintKind::PARAMETER),
+                        text_edits: None,
+                        tooltip: None,
+                        padding_left: Some(false),
+                        padding_right: Some(true),
+                        data: None,
+                    })
+                    .collect();
+                json(serde_json::to_value(hints).unwrap())
+            }
+            // The colours written in the program (RGB(…), &HBBGGRR, clRed): a swatch and a picker.
+            request::DocumentColor::METHOD => {
+                let p: DocumentColorParams = params(&req)?;
+                let path = uri_to_path(&p.text_document.uri);
+                let text = self.analysis.text(&path).unwrap_or_default();
+                let index = LineIndex::new(&text);
+                let colors: Vec<ColorInformation> = self
+                    .analysis
+                    .helpers(&path)
+                    .into_iter()
+                    .filter(|h| h.kind == HelperKind::Color)
+                    .filter_map(|h| Some((color_of(h.value.parse().ok()?)?, h)))
+                    .map(|(color, h)| ColorInformation { range: self.range(&text, &index, h.start, h.end), color })
+                    .collect();
+                json(serde_json::to_value(colors).unwrap())
+            }
+            request::ColorPresentationRequest::METHOD => {
+                let p: ColorPresentationParams = params(&req)?;
+                let path = uri_to_path(&p.text_document.uri);
+                let text = self.analysis.text(&path).unwrap_or_default();
+                let index = LineIndex::new(&text);
+                let (start, end) = (self.offset(&text, &index, p.range.start), self.offset(&text, &index, p.range.end));
+                let form = self.analysis.helpers(&path).into_iter().find(|h| h.kind == HelperKind::Color && h.start == start && h.end == end).map(|h| h.form).unwrap_or_default();
+                let presentations: Vec<ColorPresentation> = color_presentations(&p.color, &form)
+                    .into_iter()
+                    .map(|label| ColorPresentation { text_edit: Some(TextEdit { range: p.range, new_text: label.clone() }), label, additional_text_edits: None })
+                    .collect();
+                json(serde_json::to_value(presentations).unwrap())
+            }
+            // Every use of the name under the caret in this file, lit as the caret moves.
+            request::DocumentHighlightRequest::METHOD => {
+                let p: DocumentHighlightParams = params(&req)?;
+                let (path, text, offset) = self.place(&p.text_document_position_params)?;
+                let index = LineIndex::new(&text);
+                let found: Vec<DocumentHighlight> = self
+                    .analysis
+                    .references(&path, offset, true)
+                    .iter()
+                    .filter(|l| l.file == path)
+                    .map(|l| DocumentHighlight { range: self.range(&text, &index, l.start, l.end), kind: None })
+                    .collect();
+                json(serde_json::to_value(found).unwrap())
+            }
+            // RapidR's own: the Help page of the word at a position, or of a word —
+            // Studio's Help pane, one implementation (rapidr_langsvc::help).
+            HELP_PAGE => {
+                let p: HelpParams = params(&req)?;
+                json(serde_json::to_value(self.help_page(p)).unwrap())
+            }
+            // What a typed word may mean (the Help box's suggestions): the program's names and the language's.
+            HELP_SUGGEST => {
+                let p: HelpParams = params(&req)?;
+                let program = p.text_document.as_ref().map(|d| self.analysis.program_names(&uri_to_path(&d.uri))).unwrap_or_default();
+                let found: Vec<serde_json::Value> = rapidr_langsvc::help::suggest(p.word.as_deref().unwrap_or(""), &program, 25)
+                    .into_iter()
+                    .map(|(name, what)| serde_json::json!({ "name": name, "what": what }))
+                    .collect();
+                json(serde_json::Value::Array(found))
+            }
             _ => Err((ErrorCode::MethodNotFound, format!("rapidr lsp doesn't answer {}", req.method))),
+        }
+    }
+
+    /// The Help page for what [`HelpParams`] asks (a word, or a position in a document).
+    fn help_page(&mut self, p: HelpParams) -> HelpPage {
+        let mut ask = rapidr_langsvc::help::Ask {
+            word: p.word.clone().unwrap_or_default(),
+            of: p.of.clone().unwrap_or_default(),
+            can_insert: p.can_insert,
+            key: p.key.clone().unwrap_or_default(),
+            ..Default::default()
+        };
+        if let Some(doc) = &p.text_document {
+            let path = uri_to_path(&doc.uri);
+            ask.program = self.analysis.program_names(&path);
+            match (self.analysis.text(&path), p.position) {
+                (Some(text), Some(position)) => {
+                    let index = LineIndex::new(&text);
+                    let at = self.offset(&text, &index, position);
+                    if ask.word.trim().is_empty() {
+                        ask.word = rapidr_langsvc::text::word_at(&text, at).map(|(s, e)| text[s..e].to_string()).unwrap_or_default();
+                    }
+                    // (a member of something: the component it is of)
+                    if let Some(owner) = self.analysis.member_owner(&path, at) {
+                        ask.of = owner;
+                    }
+                    if ask.of.is_empty() {
+                        ask.mine = self.analysis.symbol_help(&path, at).filter(|m| ask.word.is_empty() || m.name.eq_ignore_ascii_case(ask.word.trim()));
+                    }
+                }
+                // (typed in the box: the program's name of that name)
+                _ if !ask.word.trim().is_empty() && ask.of.is_empty() => ask.mine = self.analysis.symbol_help_named(&path, ask.word.trim()),
+                _ => {}
+            }
+        }
+        let page = rapidr_langsvc::help::page(&ask);
+        let (meta, markdown) = page.split_once('\n').unwrap_or(("none\t\t\t0\t0", ""));
+        let mut fields = meta.split('\t');
+        let kind = fields.next().unwrap_or("none").to_string();
+        let insert = fields.next().unwrap_or("").replace('\r', "\n");
+        let file = fields.next().unwrap_or("");
+        let line: u32 = fields.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+        let column: u32 = fields.next().and_then(|n| n.parse().ok()).unwrap_or(0);
+        let declared = (!file.is_empty() && line > 0).then(|| path_to_uri(Path::new(file)).map(|u| u.as_str().to_string())).flatten();
+        HelpPage {
+            kind,
+            insert,
+            // (where the name is declared: a position from 0 in the file's URI)
+            uri: declared,
+            line: line.saturating_sub(1),
+            column: column.saturating_sub(1),
+            markdown: markdown.to_string(),
         }
     }
 
@@ -599,6 +742,68 @@ impl Server {
                 Some(Notification::new(notification::PublishDiagnostics::METHOD.into(), PublishDiagnosticsParams { uri, diagnostics, version: None }))
             })
             .collect()
+    }
+}
+
+/// RapidR's own request: the Help page of a word or of the word at a position.
+pub const HELP_PAGE: &str = "rapidr/helpPage";
+/// RapidR's own request: the names a typed word may mean.
+pub const HELP_SUGGEST: &str = "rapidr/helpSuggest";
+
+/// What [`HELP_PAGE`] and [`HELP_SUGGEST`] are asked: a `word` (and the
+/// component type it is `of`, when it is a member), or a `position` in a
+/// document (the word there; the program's own names come first).
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct HelpParams {
+    text_document: Option<TextDocumentIdentifier>,
+    position: Option<Position>,
+    word: Option<String>,
+    of: Option<String>,
+    /// The editor can take the syntax: the page offers to insert it.
+    #[serde(default)]
+    can_insert: bool,
+    /// The key that asks for Help in this editor, as the start page names it (default F1).
+    key: Option<String>,
+}
+
+/// [`HELP_PAGE`]'s answer: the page as Markdown (`help:Word[@Type]` links open
+/// another entry, `help-insert:` types the syntax, `help-goto:` jumps to
+/// where a name of the program is declared, `help-refs:` finds its references).
+#[derive(serde::Serialize)]
+struct HelpPage {
+    /// `start`, `none` (no entry), `entry` (the language's) or `mine` (the program's).
+    kind: String,
+    /// The syntax to insert (`entry`; empty when the editor can't take it).
+    insert: String,
+    /// Where a name of the program is declared (`mine`): the file's URI, the line and the column from 0.
+    uri: Option<String>,
+    line: u32,
+    column: u32,
+    markdown: String,
+}
+
+/// A RapidQ colour number (blue in the high byte) as a colour; none for a
+/// system colour (`&H800000nn`) or what isn't a colour.
+fn color_of(v: i64) -> Option<Color> {
+    if !(0..=0x00FF_FFFF).contains(&v) {
+        return None;
+    }
+    let channel = |shift: u32| ((v >> shift) & 0xFF) as f32 / 255.0;
+    Some(Color { red: channel(0), green: channel(8), blue: channel(16), alpha: 1.0 })
+}
+
+/// The ways to write a colour: `RGB(r, g, b)` and `&HBBGGRR`, the form the
+/// program already uses first.
+fn color_presentations(c: &Color, form: &str) -> Vec<String> {
+    let byte = |x: f32| (x.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let (r, g, b) = (byte(c.red), byte(c.green), byte(c.blue));
+    let rgb = format!("RGB({r}, {g}, {b})");
+    let hex = format!("&H{b:02X}{g:02X}{r:02X}");
+    if form == "hex" {
+        vec![hex, rgb]
+    } else {
+        vec![rgb, hex]
     }
 }
 

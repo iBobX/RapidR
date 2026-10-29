@@ -23,7 +23,23 @@ const { runTests } = require('@vscode/test-electron');
 
 const EXT = path.resolve(__dirname, '..', '..');
 const REPO = path.resolve(EXT, '..', '..', '..');
-const SHOTS = ['completion', 'hover', 'signature', 'diagnostics', 'outline', 'debug'];
+const SHOTS = ['completion', 'completion-as', 'hover', 'signature', 'diagnostics', 'outline', 'hints', 'help', 'debug'];
+
+/**
+ * SHOTS_SCENARIO=old-path: the window of a user whose PATH has an ancient
+ * `rapidr` 0.1.0 first (the real one after it), with no rapidr.path set: the
+ * extension skips the old one and says so (the driver takes that one shot).
+ */
+function scenarioEnv(work, rapidr) {
+    if (process.env.SHOTS_SCENARIO !== 'old-path') return {};
+    const old = path.join(work, 'old-bin');
+    const real = path.join(work, 'real-bin');
+    fs.mkdirSync(old);
+    fs.mkdirSync(real);
+    fs.writeFileSync(path.join(old, 'rapidr'), '#!/bin/sh\nif [ "$1" = "version" ]; then echo "RapidR 0.1.0"; else echo "error: unknown command $1" >&2; exit 2; fi\n', { mode: 0o755 });
+    fs.symlinkSync(rapidr, path.join(real, 'rapidr'));
+    return { SHOTS_SCENARIO: 'old-path', RAPIDR_PATH: '', PATH: [old, real, process.env.PATH || ''].join(path.delimiter) };
+}
 
 async function main() {
     if (process.platform !== 'darwin') throw new Error('the screenshots are taken on macOS (screencapture)');
@@ -63,7 +79,8 @@ async function main() {
         'chat.commandCenter.enabled': false,
         'files.autoSave': 'off',
         'debug.toolBarLocation': 'docked',
-        'rapidr.path': rapidr,
+        // (the old-path scenario leaves rapidr.path empty: the extension finds rapidr by itself)
+        ...(process.env.SHOTS_SCENARIO === 'old-path' ? {} : { 'rapidr.path': rapidr }),
     }, null, 2));
 
     // The driver says when a state is on screen (ready-<name>); the window
@@ -93,7 +110,7 @@ async function main() {
                 // (the window is captured while other windows may cover it)
                 '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-background-timer-throttling',
                 '--user-data-dir', userData, '--extensions-dir', path.join(userData, 'extensions')],
-            extensionTestsEnv: { SHOT_SIGNALS: signals, RAPIDR_PRINT_TO: path.join(work, 'prints'), RAPIDR_REGISTRY: path.join(work, 'registry.reg') },
+            extensionTestsEnv: { SHOT_SIGNALS: signals, RAPIDR_PRINT_TO: path.join(work, 'prints'), RAPIDR_REGISTRY: path.join(work, 'registry.reg'), ...scenarioEnv(work, rapidr) },
         });
     } finally {
         clearInterval(timer);

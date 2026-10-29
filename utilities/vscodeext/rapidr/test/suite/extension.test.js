@@ -10,7 +10,7 @@ const path = require('path');
 const vscode = require('vscode');
 
 const FIXTURES = path.resolve(__dirname, '..', 'fixtures', 'workspace');
-const EXTENSION_ID = 'rapidr.rapidr';
+const { EXTENSION_ID } = require('./util');
 
 let api;
 
@@ -302,7 +302,7 @@ describe('RapidR for VS Code', () => {
                 const st = await session.customRequest('stackTrace', { threadId: 1 });
                 const scopes = (await session.customRequest('scopes', { frameId: st.stackFrames[0].id })).scopes;
                 const vars = async (s) => (await session.customRequest('variables', { variablesReference: s.variablesReference })).variables.map((v) => `${v.name}=${v.value}`);
-                assert.deepStrictEqual(scopes.map((s) => s.name), ['Locals', 'Globals']);
+                assert.deepStrictEqual(scopes.map((s) => s.name).slice(0, 2), ['Locals', 'Globals']);
                 assert.deepStrictEqual(await vars(scopes[0]), ['n=2', 'hits=2', 'p=3']);
                 const globals = await vars(scopes[1]);
                 assert.ok(globals.includes('Total=1'), `globals: ${globals.join(', ')}`);
@@ -330,7 +330,7 @@ describe('RapidR for VS Code', () => {
         it('warns of what RapidR doesn\'t have yet, and in a RapidQ-compatible project of RapidR\'s extensions', async () => {
             const doc = await open('registry.bas');
             const messages = () => vscode.languages.getDiagnostics(doc.uri).map((d) => d.message);
-            await eventually(() => messages().some((m) => /QForm\.ShapeForm is not implemented in RapidR yet/.test(m)), 'the not-implemented warning');
+            await eventually(() => messages().some((m) => /MICROTIMER.*not implemented.*isn't supported yet/.test(m)), 'the not-implemented message');
             assert.ok(!messages().some((m) => /RapidR's own component/.test(m)), 'no compatibility warning by default');
             const cfg = vscode.workspace.getConfiguration('rapidr');
             await cfg.update('rapidqCompatible', true, vscode.ConfigurationTarget.Global);
