@@ -71,6 +71,9 @@ pub enum ScriptInput {
     /// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y)
     /// in the component.
     DblClick { comp: String, x: i64, y: i64 },
+    /// `comp.__rightclick_x_y`: the right button pressed and released at
+    /// (x, y) in the component.
+    RightClick { comp: String, x: i64, y: i64 },
     /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
     /// in the component, and the pointer there noted (its CSS name:
     /// `col-resize`, `text` …; `desktop::take_probe`).
@@ -152,6 +155,12 @@ pub trait Windows: Copy + 'static {
     /// never hold the program has none to say.
     fn popup_open(self, _form: &str) -> bool {
         false
+    }
+    /// Where the kernel-drawn pop-up menu open on `form` is (its window's
+    /// inside, logical): a test's `comp.__popupat` (`None`: none open, or
+    /// the host shows the system's).
+    fn popup_rect(self, _form: &str) -> Option<(i64, i64, i64, i64)> {
+        None
     }
     /// `X.StartDrag` on form `form`: component `comp` moves with the mouse
     /// while a button is held (the kernel's `FormUi::start_move`); whether

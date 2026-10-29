@@ -4309,6 +4309,24 @@ const CASES = [
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
   },
+  // (the code editor's context menu opens where the right click was — a
+  // long file scrolled down, the editor away from the window's corner:
+  // Robert 2026-10-28, it opened far from the click. The kernel's menu,
+  // desktop and web; macOS' own: menu.rs's muda_y, its unit test)
+  {
+    name: "code-menu-at-click",
+    open: "examples/showcase/midi_visualizer.rr",
+    copy: true,
+    webFiles: ["examples/showcase/midi_visualizer.rr"],
+    do: "view:Code,wait,focus:codedoc(0),key:Ctrl+End,wait,wait",
+    events: "studio.__wait_3500,codedoc(0).__rightclick_220_160",
+    capture: true,
+    delay: 7,
+    dump: {
+      "codedoc(0).__popupat": /^220,160$/,
+      "codedoc(0).caretline": /^(?!0$)\d+$/,
+    },
+  },
   // ---- a project as RAI left Robert's ShopInvoices: the main file a module
   // that main.rr includes; Run ran it, it ended at once, nothing said ----
   {

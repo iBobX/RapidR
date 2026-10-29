@@ -673,6 +673,9 @@ impl Windows for Web {
     fn popup_open(self, form: &str) -> bool {
         host::with(|h, _| h.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false)
     }
+    fn popup_rect(self, form: &str) -> Option<(i64, i64, i64, i64)> {
+        host::with(|h, _| h.desk.forms.get(form).and_then(|f| f.ui.popup_rect())).flatten()
+    }
     fn start_move(self, form: &str, comp: &str) -> bool {
         host::with(|h, _| h.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
     }

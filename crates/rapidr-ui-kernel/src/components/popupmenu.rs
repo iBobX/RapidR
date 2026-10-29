@@ -39,6 +39,14 @@ impl FormUi {
     pub fn popup_open(&self) -> Option<&str> {
         self.menus.popup.as_deref().filter(|_| self.menu_open())
     }
+
+    /// Where the pop-up menu open now is: its first panel's rectangle in
+    /// the window's inside (logical) — for a test that checks it opened
+    /// where the click was.
+    pub fn popup_rect(&self) -> Option<crate::Rect> {
+        self.popup_open()?;
+        self.menus.panels.first().map(|p| p.rect)
+    }
 }
 
 #[cfg(test)]
