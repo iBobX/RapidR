@@ -15,3 +15,8 @@ description = "RapidR's host-neutral program glue for the UI kernel: the kernel'
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-ui-kernel = { workspace = true }
+# (the eyes: the program's windows drawn by the CPU renderer both hosts
+# use for their captures; component names from the registry)
+rapidr-ui-render = { workspace = true }
+rapidr-lang = { workspace = true }
+serde_json = "1"

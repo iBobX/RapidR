@@ -5447,8 +5447,11 @@ dependencies = [
 name = "rapidr-ui-app"
 version = "2.121.3"
 dependencies = [
+ "rapidr-lang",
  "rapidr-ui-kernel",
+ "rapidr-ui-render",
  "rapidr-value",
+ "serde_json",
 ]
 
 [[package]]

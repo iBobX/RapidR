@@ -55,6 +55,10 @@ pub mod tray;
 
 pub mod script;
 pub mod testhooks;
+// (what an AI or the program itself sees of its windows, and the input it
+// plays into them: RapidR Studio's app_* tools, RAppCapture, RAppDriver)
+pub mod eyes;
+pub mod hands;
 // (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
 pub mod choose_dialogs;
 pub mod dialogs;
@@ -62,6 +66,8 @@ pub mod file_dialog;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod eyes_tests;
 
 pub use program::Program;
 pub use windows::{Icon, ScriptInput, WindowOp, Windows};
