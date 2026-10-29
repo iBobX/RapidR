@@ -183,3 +183,84 @@ The engineer states in the merge note, and the reviewer checks, that:
 - `claude mcp add` syntax: https://code.claude.com/docs/en/mcp
 - Anthropic consumer terms (minimum age): https://www.anthropic.com/legal/consumer-terms
 - Earlier reviews: `docs/legal/review-2026-10-22.md` (4e, 1d), `docs/legal/six-traps-preview4.md`; design: `docs/ai-architecture.md` §4-§5, `docs/ide-ai.md` §4.
+
+## Addendum 2026-10-29: consent dialog rewording
+
+**Scope.** `ide/consent.inc`, `ide/mcp.inc` (the first-time dialog, the Allow everything confirmation, Clear Activity, the Settings > AI Apps rows) and `docs/manual/ai-apps.md`, in the worktree `agent-ae48ca24d94722b3c`, plus the picture `scratch/design-guide/consent-light-before-after.png`. Read against §4b, §4c and the "Required before merge" list above. Not legal advice.
+
+**Verdict: OK AFTER CHANGES.** The new rows keep almost everything the review required and the form is better: the old one was a single wall of text, the new one is four short rows, Cancel is the default (Enter and Esc), the button says "Turn On" instead of "OK". But the new text is **not yet at least as protective as the reviewed one** in four places (A to D below), and the Allow everything rows say one thing too strongly (E). All are small string edits.
+
+### What is kept (checked against the code)
+- Nothing outside the project or hidden in it; no provider keys or passwords (keychain); RapidR sends nothing anywhere; the AI app's maker decides what happens to what it reads; adults-only wording with "under 18, set this up with a parent or teacher"; connect only apps you trust; off or Reset Token disconnects every AI app; Cancel is the default; the switch off by default; no client name, no `claude` command, no MCP logo in the dialog or on the Settings page; the "AI Apps pane shows everything" line is true.
+- Clear Activity: question title, one sentence naming where the list lives, "C&lear" and "Cancel" (default), and nothing in the dialog contains log contents. Fine.
+- "Learn more" opens `https://github.com/iBobX/RapidR/blob/main/docs/manual/ai-apps.md` in the browser **only when the user clicks it**; nothing loads by itself, no data is sent, so no third-party-asset problem (trap 2). Note: the link works only once this page is on `main` (the main checkout already has an older copy); if the repository were ever private it would show a 404, which is harmless.
+- No new dependency, no copied text, no MCP or Claude mark in any of the new strings. Traps 1 and 3 to 6 are unchanged from §4f.
+
+### Required changes
+
+**A. Studio's text lacks "share only what you may share" (the review's note had it; the manual has it).** Put it in the footer, which is shared by the dialog and the Settings page (`McpFootText`). Replace:
+
+> `Turn this off, or Reset Token, to disconnect every AI app.`
+
+with:
+
+> `Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app.`
+
+**B. `capture` is not covered, and it makes "nothing outside the project" untrue for that one tool.** `capture` (a "read" tool, so it works even in Read only) returns a picture of the whole Studio window "as the user sees it": code, panes, the RAI chat, the Output, and anything else on screen. That can include things that are not in the project (a file opened from elsewhere, RAI's chat, a provider key or the token if the Settings page shows it). A row that says "It never sees your keys" must not be falsifiable by one call. Two parts:
+1. Text, row "It can see" (`McpRowBody` case 0). Replace:
+
+> `The files of your open project — your code, forms and data files — and nothing outside the project or hidden in it.`
+
+with:
+
+> `The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets a picture of Studio's window, as you see it.`
+
+2. Code (verify and fix before merge): `McpCapture` must refuse, with a plain message, while the Settings page or any dialog is open or any password-style field (the token with **Show** on, a provider key) is visible, and it must not capture a part of the window that is outside Studio. Add a test: open Settings, press Show on the token, call `capture`, expect a refusal; the canary token must not appear in any returned picture. If `Studio.SaveImage` is not able to tell this, refuse `capture` whenever Settings is open. (If this cannot be guaranteed, remove the `capture` tool until it can be; softening the "never sees" row is not enough.)
+
+**C. The "It can" row hides what the tools really do, and attaches the permission only to "propose changes".** Gaps the lane found are real: `debug`, `set_property`, `layout_report`, `capture`, `open_project` are in neither text; also `ask_rai` can spend the user's money (its own description says so; the manual says so; the dialog does not). The old line also said Studio asks first; the new one points at "your permission mode", which a first-time user does not know. Replace (`McpRowBody` case 1):
+
+> `Check code, look things up in RapidR's help, run your program and read what it prints, read and ask RAI's chat, and propose changes, applied only as your permission mode allows.`
+
+with:
+
+> `Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run and debug your program and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first.`
+
+(This keeps the "look things up in the help" tools out of the row on purpose: they are harmless and the line is long enough. If a short row is wanted, drop "open other projects, " last, not the cost or the "default asks you first".)
+
+**D. Manual: same gaps in "What AI apps can see".** In `docs/manual/ai-apps.md`: bullet 1 ends "... or hidden in it (a file or folder whose name starts with a dot);" add after it a new bullet "- get a picture of Studio's window, as you see it;". Change bullet 4 "read and ask RAI's chat." to "read RAI's chat, and ask RAI (which may cost money: it uses your AI provider)." Bullet 2 already says "as the permission menu allows — Studio asks you first under **Ask before changes**", keep it and add "open other projects" to it ("look at and change forms and code, open other projects, and build, run and debug your program"). The rows in the manual's text above the picture (Turn it on, step 2) need no change.
+
+**E. Allow everything: the "Never" row is stronger than the truth.** `McpConfirmAll` says "Never: AI apps themselves never reach your keys, or files outside the project." In the same dialog the first row says a program they run can do anything you can. A reader (or a child) can take "never" as a guarantee. Studio's tools do keep that promise; a program the AI app writes and runs does not. Replace the third row's body:
+
+> `AI apps themselves never reach your keys, or files outside the project.`
+
+with:
+
+> `Studio's own tools never hand over your keys, or files outside the project.`
+
+(head stays "Never"; the first row already says what a program they run can do). And replace the lead:
+
+> `Nothing waits for you: AI apps change files, run the program and ask RAI on their own.`
+
+with:
+
+> `Nothing waits for you: AI apps change files, run the program and ask RAI (which may cost money) on their own.`
+
+In the manual's Allow everything table row, replace "and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer" with "Studio's own tools still never hand over keys or files outside the project — but a program they run can do anything you can on this computer". The rest of that row ("Choose it only while you watch an AI app you trust", the amber chip, Stop) is good and stays.
+
+### Not required, but fine to do
+- The Settings page has the Clear Activity button right under the rows, so the review's "Studio keeps a list of what AI apps did, on this computer only; you can clear it" is met there and in the manual. The dialog does not repeat it; that is acceptable because its lead says the AI Apps pane shows everything and "RapidR sends none of this anywhere". If room allows, append to the footer: ` Studio keeps a list of what they did on this computer only; Clear Activity removes it.`
+- Consent state: `McpConfirmed` means a user who said Turn On under the old text is not asked again. That is fine for this rewording (the old text was already a reviewed consent). It is **not** fine when a new kind of power arrives (next section): re-ask once.
+
+### Coming soon: `app_screenshot` and `app_click` (see and drive the user's running program)
+Update the text **when they land, and re-review before merge**; do not ship them silently under the current wording. They are a new category: a picture of the running program shows whatever that program shows (the user's data, an end user's personal data in a school or shop program), and clicking and typing means acting as the user inside it (a Send, Pay or Delete button is real). Conditions:
+1. Only the program's own windows that Studio started; never the desktop, other apps, a password or system dialog, or Studio itself (that is `capture`). Refuse when the window is not Studio's child program.
+2. Treated as "run" kind: never in Read only; under Ask before changes each use (or "Allow for This Session") waits for the user; Allow edits does not allow it.
+3. A new row or an extended row, and one re-ask: raise a consent version so everyone who confirmed before sees the dialog once more. Strings to use then. Row "It can see": add `, and a picture of your running program's windows` (and keep the Studio picture sentence from B). Row "It can": replace "run and debug your program" with "run, debug, look at, click and type in your program". Row "Keep in mind": append ` A program can show private data, and clicking in it acts as you.`
+4. Audit log: log the action (the window and the kind of action, for example "click, Button OK") but **never the picture, the typed text or what the program showed**; typed text may be a password. Same canary test as §4d, with text typed into the program.
+5. The manual says plainly that a program under test may send real emails, make real purchases or delete real data: test with test data.
+
+### Checklist added to "Required before merge"
+- [ ] Footer, "It can see", "It can", "Never" row and Allow everything lead use the replacement strings above (A, B1, C, E), in `ide/mcp.inc`; the manual follows (D, E).
+- [ ] `capture` refuses while Settings, a dialog or a visible key or token is on screen; a test proves it (B2).
+- [ ] Every verb in the "It can" row is a real tool (`studio_status`, `check_code`, `read_output`, `get_rai_transcript`, `set_property`, `propose_edit`, `write_file`, `open_project`, `run_program`, `debug`, `ask_rai`) and each one the row calls permission-gated really waits under Ask before changes (test in `tests/studio_mcp.mjs`).
+- [ ] `app_screenshot` and `app_click` are not merged until their own review (section above).

@@ -3,7 +3,8 @@
 // keychain's token), the fixture project tests/fixtures/studio_mcp open, and
 // an AI app — the tests' client, tests/http_client_probe.mjs — calling a few
 // tools: the AI Apps pane listing them under Allow everything, a change
-// waiting for the user under Ask before changes, Settings > AI Apps. A port
+// waiting for the user under Ask before changes, Settings > AI Apps, the
+// question the first time the switch is ticked (the test step mcp:consent). A port
 // and a token of their own; nothing leaves the computer, nothing is saved.
 import { spawn } from "node:child_process";
 import { join } from "node:path";
@@ -39,6 +40,14 @@ export const scenes = [
     open: "tests/fixtures/studio_mcp/Hello.rrproj",
     do: "mcp:on=47393,wait,mcp:settings",
     delay: 6,
+    window: 2,
+    env: { RAPIDR_TEST_MCP_TOKEN: TOKEN },
+  },  {
+    // (the first time the switch is ticked: the question, Cancel the default)
+    name: "consent",
+    open: "tests/fixtures/studio_mcp/Hello.rrproj",
+    do: "mcp:consent",
+    delay: 5,
     window: 2,
     env: { RAPIDR_TEST_MCP_TOKEN: TOKEN },
   },

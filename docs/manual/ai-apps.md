@@ -16,15 +16,18 @@ This is RapidR Studio on the desktop. Studio in a browser can't listen for
 AI apps (a web page can't open a port); a browser way to do the same is
 planned.
 
-![The AI Apps pane: an AI app's calls as they happen, the permission menu set to Allow everything, the amber badge and the status bar saying so](images/ai-apps/pane.png)
+![The AI Apps pane: an AI app's calls as they happen; in its header the soft amber No questions asked chip, the permission menu set to Allow everything and Stop, all one height; the status bar saying so](images/ai-apps/pane.png)
 
 ## Turn it on
 
 1. **Tools > AI Apps Settings…** (or **Tools > Settings**, the **AI Apps**
    tab).
-2. Tick **Let AI apps use RapidR Studio**. The first time, Studio says what
-   AI apps can see (below) and asks you to confirm; **Cancel** is the
-   default.
+2. Tick **Let AI apps use RapidR Studio**. The first time, Studio asks
+   **Let AI apps use RapidR Studio?** and says, in four rows, what an AI app
+   can see, what it can do, what it never sees and what to keep in mind
+   (the same rows are on the Settings page); **Learn more** opens this
+   page. **Turn On** turns it on; **Cancel**, the default (Enter and Esc
+   both), leaves it off.
 3. Press **OK**. Studio listens at the **Address** shown —
    `http://127.0.0.1:47330/mcp` unless you change the **Port**.
 4. Give your AI app the **Address** and the **Header**
@@ -32,7 +35,9 @@ planned.
    **Copy Header** put them on the clipboard. **Show** shows the token;
    it's hidden otherwise.
 
-![Settings > AI Apps: the switch, the port, the address and the header to copy, the token hidden, Reset Token, the permission menu for the open project, what AI apps can see](images/ai-apps/settings.png)
+![The first time: Let AI apps use RapidR Studio? — four rows with their icons (It can see, It can, It never sees, Keep in mind), how to disconnect, Learn more, Turn On and Cancel, the default](images/ai-apps/consent.png)
+
+![Settings > AI Apps: the switch, the port, the address and the header to copy, the token hidden, Reset Token, the permission menu for the open project, what AI apps can see and do in four rows, Learn more](images/ai-apps/settings.png)
 
 The token is kept in your system's keychain (the macOS Keychain, Windows
 Credential Manager, the Secret Service on Linux), never in a project or in
@@ -75,7 +80,7 @@ project, and a project starts with **Ask before changes**.
 | **Read only** | Look: read the project, check code, look things up in RapidR's help, see the program's output, the layout of its forms and a picture of Studio. A change or a run is refused, and the AI app is told why in plain words. |
 | **Ask before changes** | Look freely. Each change, run or question to RAI waits for you in the pane: **Allow Once**, **Allow for This Session** (that kind of call until Studio closes, the server stops or another project opens) or **Deny**; **Review…** shows a change as a diff first. |
 | **Allow edits** | Changes to files are made at once — each is one **Edit > Undo** step, listed in the pane, in the activity log. Running the program and asking RAI still wait for you. |
-| **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows an amber **No questions asked** badge in the pane and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
+| **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows a soft amber **No questions asked** chip, with a warning sign, in the pane's header and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
 
 In every mode a project outside your Projects folder, RapidR's examples and
 your recent list is asked about before it opens, and nothing is ever
@@ -92,8 +97,12 @@ you (the keyboard stays where you were). It shows:
 - who is connected, and what the last call did ("an-ai-app: Reading main.rr");
 - a line for every call: the time, the AI app, what it did, how it went
   (ok, applied, refused, denied by you);
-- the call waiting for you, with its buttons;
+- the call waiting for you, marked in amber at its left, with its buttons;
 - the permission menu, and **Stop**.
+
+Right-click the list for **Copy** (the line picked; Ctrl+C, ⌘C on a Mac,
+too) and **Copy All**, as plain text — "time  AI app  what — how it went",
+a line each —, and **Clear Activity…**.
 
 The status bar's last panel says it too: "AI apps: on", "AI apps: waiting
 for you", "AI apps: allow everything". A screen reader hears when an AI app

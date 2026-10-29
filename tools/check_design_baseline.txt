@@ -1,0 +1,25 @@
+# tools/check_design.py's baseline: the design guide's hits Studio's code
+# had when the guard came (2026-10-29), file, rule and code. Fix them and
+# run `python3 tools/check_design.py --update`; never add a new one here.
+ide/ai.inc	height	AINewBrowseBtn.Left = w - 360: AINewBrowseBtn.Top = 12: AINewBrowseBtn.Width = 100: AINewBrowseBtn.Height = 30
+ide/ai.inc	height	AINewCancelBtn.Left = w - 104: AINewCancelBtn.Top = 12: AINewCancelBtn.Width = 88: AINewCancelBtn.Height = 30
+ide/ai.inc	height	AINewCreateBtn.Left = w - 252: AINewCreateBtn.Top = 12: AINewCreateBtn.Width = 140: AINewCreateBtn.Height = 30
+ide/ai.inc	height	AIQueueCancel.Left = w - 34: AIQueueCancel.Top = (32 - 26) \ 2: AIQueueCancel.Width = 28: AIQueueCancel.Height = 26
+ide/ai.inc	height	AIRevAll.Left = w - 432: AIRevAll.Top = 12: AIRevAll.Width = 108: AIRevAll.Height = 30
+ide/ai.inc	height	AIRevApplyBtn.Left = w - 200: AIRevApplyBtn.Top = 12: AIRevApplyBtn.Width = 88: AIRevApplyBtn.Height = 30
+ide/ai.inc	height	AIRevCancelBtn.Left = w - 104: AIRevCancelBtn.Top = 12: AIRevCancelBtn.Width = 88: AIRevCancelBtn.Height = 30
+ide/ai.inc	height	AIRevNone.Left = w - 316: AIRevNone.Top = 12: AIRevNone.Width = 108: AIRevNone.Height = 30
+ide/ai.inc	height	AISentOk.Left = AISent.ClientWidth - 104: AISentOk.Top = 14: AISentOk.Width = 88: AISentOk.Height = 30
+ide/ai.inc	height	IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
+ide/ai.inc	height	bh = 34: h = 56
+ide/aichats.inc	height	IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
+ide/aisetup.inc	height	IF ThemeName = "classic" THEN bh = 25 ELSE bh = 30
+ide/build.inc	height	row = 40: fh = 28: bh = 32: bw = 96: x = 112: w = 340: pad = 20: ic = 64: nh = 32: ch = 20
+ide/chrome.inc	height	row = 44: fh = 28: bh = 32: bw = 96: x = 112: w = 340: pad = 20
+ide/mcp.inc	height	McpRevApplyBtn.Width = 96: McpRevApplyBtn.Height = 30: McpRevApplyBtn.Top = 13
+ide/mcp.inc	height	McpRevRejectBtn.Width = 96: McpRevRejectBtn.Height = 30: McpRevRejectBtn.Top = 13
+ide/prompts.inc	height	pad = 14: ic = 32: bh = 23: gap = 6: th = 32: tx = 30
+ide/safety.inc	height	pad = 14: ic = 32: bh = 23: gap = 6
+ide/search.inc	height	fh = 26
+ide/search.inc	height	fh = 26: bw = 92
+ide/settings.inc	height	pad = 20: w = 540: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28

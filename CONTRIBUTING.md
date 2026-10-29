@@ -75,6 +75,9 @@ the `Q…` names exist only so that RapidQ programs run.
 
 - `tools/regress.sh` (or the stages your change touches), as in
   [README.md](README.md);
+- **UI work** (RapidR Studio's screens, `ide/*.inc`): read
+  [docs/design-guidelines.md](docs/design-guidelines.md) first and run its
+  checklist; `python3 tools/check_design.py` passes;
 - for any new dependency: a permissive licence accepted by `deny.toml`
   (`tools/regress.sh legal`);
 - for anything ported from RapidQ's behaviour: a conformance case you wrote,

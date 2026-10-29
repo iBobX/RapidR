@@ -147,6 +147,11 @@ export const cases = [
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  // (the status colours as chips: the look picked in the header's menu, the
+  // chips' words taken again — status.warning.text in dark is Run Amber,
+  // &H24B2FF; a question answered)
+  { file: "gui/status_colors.rr", runtimes: ["run", "interp", "native", "web"], events: "lookbox.__item_1,keepbtn.onclick", dump: "said.caption,chiptext(2).font.color",
+    expect: ["said.caption=You chose Keep Them.", "chiptext(2).font.color=2405119"] },
   // (Application.OnError: two buttons with a bug each — an average of no
   // scores, a remainder of a division by zero —, the window still answering
   // after both; the interpreter says the file and line, a native build none)

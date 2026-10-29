@@ -457,6 +457,12 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] Phase 2, the rest: "Upgrade this file to RapidR names" (Code menu, the palette, a code action: the diff, then one undoable edit)
 - [x] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files — decided 2026-10-16 (Constants, the modern way), done in M0-CONST: built into `.rr`, `.bas` as in RapidQ
 
+**DESIGN-GUIDE — one design for Studio** (Robert, 2026-10-29: "That brown 'No questions asked' looks ugly … we need a design guideline so every agent sticks to it")
+- [x] [docs/design-guidelines.md](docs/design-guidelines.md): measured sizes (compact 24, dialog buttons 32), spacing, type, chips, pane anatomy, confirmations and consent, words, the checklist; CONTRIBUTING.md and docs/ide-plan.md point at it; `tools/check_design.py` in `tools/regress.sh` *(DESIGN-GUIDE, 2026-10-29)*
+- [x] Status tokens `status.info` / `success` / `warning` / `danger` (fill, `.text`, `.border`), contrast-tested; example gui/status_colors.rr *(DESIGN-GUIDE, 2026-10-29)*
+- [x] The AI Apps pane per the guide (soft chip, one-height header, the question strip), the first-time question as a consent dialog with rows (`ide/consent.inc`, reusable), Settings > AI Apps' rows, Copy / Copy All on the activity *(DESIGN-GUIDE, 2026-10-29)*
+- [ ] The other panes and dialogs brought to the guide (the offenders listed in docs/design-guidelines.md "Known gaps"; `tools/check_design.py --list`)
+
 **I0 — Foundations** (L, 12–16 sessions)
 - [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")
 - [ ] Project format `.rrproj` v2 (`rapidr-project`), reading the web IDE's JSON v1; plain `.bas` / `.rr` files open without a project
