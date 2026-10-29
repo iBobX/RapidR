@@ -277,6 +277,19 @@ DECLARE FUNCTION AskToSave(d AS INTEGER) AS INTEGER
 DECLARE FUNCTION AskToSaveAll AS INTEGER
 ' (prompts.inc)
 DECLARE FUNCTION AskSave(Question AS STRING, Detail AS STRING, Many AS INTEGER) AS INTEGER
+' (panels.inc: the file the project tree's selection rests on, shown — its
+' tab, or the preview tab the next file takes over while unchanged)
+DIM PreviewWanted AS STRING
+DIM PreviewDoc AS INTEGER
+DIM OpenQuietly AS INTEGER
+DECLARE SUB PreviewTick
+DECLARE SUB PreviewKept(d AS INTEGER)
+' (safety.inc: Studio keeps your work)
+DECLARE SUB SetUpSafety
+DECLARE SUB KeepNoted(d AS INTEGER)
+DECLARE SUB KeepForget(d AS INTEGER)
+DECLARE SUB KeepEnd
+DECLARE SUB OfferRestoreSoon
 DECLARE SUB UpdateModified
 DECLARE SUB SaveSession
 DECLARE SUB LayoutChanged

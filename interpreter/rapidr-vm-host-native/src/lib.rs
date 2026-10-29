@@ -48,8 +48,10 @@ pub struct NativeHost {
     keys: std::collections::HashMap<String, Option<std::rc::Rc<str>>>,
 }
 
-impl Host for NativeHost {
-    fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+impl NativeHost {
+    /// A builtin call ([`Host::call_builtin`] runs it inside
+    /// `rapidr_value::host_call`).
+    fn builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
         let key = match self.keys.get(name) {
             Some(k) => k.clone(),
             None => {
@@ -98,16 +100,26 @@ impl Host for NativeHost {
         }
         Ok(call_builtin_key(key, args))
     }
+}
+
+impl Host for NativeHost {
+    fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+        // (a run-time error the runtime raises in a call of the program's:
+        // the program's, at its line — a ShowModal's loop goes on after it
+        // — never the process' end there: rapidr_value::host_call)
+        rapidr_value::host_call(|| self.builtin(name, args)).and_then(|r| r)
+    }
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
-        rp_create_component(id, kind);
-        Ok(v_str(id))
+        rapidr_value::host_call(|| {
+            rp_create_component(id, kind);
+            v_str(id)
+        })
     }
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
         // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
-        rp_prop_set(id, name, value);
-        Ok(())
+        rapidr_value::host_call(|| rp_prop_set(id, name, value))
     }
 
     fn get_prop(&mut self, id: &str, name: &str) -> Result<Value, String> {
@@ -118,7 +130,7 @@ impl Host for NativeHost {
             return Ok(v);
         }
         // (`WHILE DB.FetchRow`: a method of the object's type is called)
-        Ok(rp_comp_value(id, name))
+        rapidr_value::host_call(|| rp_comp_value(id, name))
     }
 
     fn component_type(&mut self, id: &str) -> Option<String> {
@@ -140,7 +152,9 @@ impl Host for NativeHost {
                 on_form(id, shown);
             }
         }
-        Ok(rp_comp_call(id, method, args))
+        // (an object's RapidQ exception — "Cannot create file x." —: the
+        // program's run-time error, rapidr_value::host_call)
+        rapidr_value::host_call(|| rp_comp_call(id, method, args)).map_err(|m| rapidr_value::exception(&m))
     }
 
     fn take_events(&mut self) -> Vec<QueuedEvent> {
@@ -165,10 +179,16 @@ impl Host for NativeHost {
         obj::rp_wait_catches_errors()
     }
 
-    fn handler_failed(&mut self, error: &str) {
+    fn handler_failed(&mut self, failure: &rapidr_vm::HandlerFailure) {
         match self.errors.as_mut() {
-            Some(errors) => errors(&format!("{error}\n")),
-            None => eprintln!("{error}"),
+            Some(errors) => errors(&format!("{}\n", failure.text)),
+            None => eprintln!("{}", failure.text),
+        }
+        // (RapidR's Application.OnError: the program hears it — not of an
+        // error in its OnError handler itself, which would go round)
+        let bound = self.events.iter().rev().find(|(id, event, _)| id.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror")).map(|(_, _, h)| *h);
+        if bound.is_some_and(|h| failure.handler != Some(h)) {
+            obj::rp_fire_event_args("application", "onerror", &failure.event_args());
         }
     }
 

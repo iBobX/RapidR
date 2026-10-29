@@ -587,11 +587,36 @@ An error in included code points at the include file and line.
   `IF NOT FILEEXISTS(f) THEN` is always true, because FILEEXISTS gives 1
   for yes and `NOT 1` is -2. The warning's quick fix (Ctrl+.) writes
   `IF FILEEXISTS(f) = 0 THEN`.
-- A run-time error stops the program with its message and line: `run-time
-  error: Division by zero (at err.bas line 4)`.
+- A run-time error in the main program's code stops the program with its
+  message and line: `run-time error: Division by zero (at err.bas line 4)`.
+- A run-time error in an **event handler** (a click's, a timer's) ends that
+  handler — and the handlers that fired it — and the window keeps working:
+  the error is written to the program's error output (in Studio, the
+  Output). An error a component raises (`Cannot create file
+  notes/today.txt.`) is a run-time error like any other, with its line.
 - `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB's) are accepted
-  so that such programs compile, and **ignored**: a run-time error still
-  ends the program.
+  so that such programs compile, and **ignored**.
+
+### When a handler fails: `Application.OnError`
+
+A program can hear each of those handler errors, to tell its user, write a
+log or save their work (RapidR's own):
+
+```basic
+SUB Failed(Message AS STRING, File AS STRING, Line AS INTEGER)
+  Status.Caption = "Something went wrong: " + Message + " (line " + STR$(Line) + ")"
+END SUB
+
+Application.OnError = Failed
+```
+
+`Message` is the error alone (`Division by zero`), `File` and `Line` where
+it happened (a native build gives `""` and `0`). It fires once per error,
+after the handler has ended — never for an error in `Failed` itself. An
+error in the main program's own code still ends the program. RapidR Studio
+uses it to keep your work safe ([Studio keeps your work](studio-projects.md#studio-keeps-your-work)).
+Try [examples/gui/on_error.rr](../../examples/gui/on_error.rr): two buttons,
+each with a bug, and a window that keeps working.
 
 ## Native code: `RUSTSTART`
 

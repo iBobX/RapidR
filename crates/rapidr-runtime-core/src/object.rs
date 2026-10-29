@@ -1921,6 +1921,12 @@ fn bind_handler(name: &str, event: &str, handler: EventHandler) {
     EVENT_HANDLERS.with(|h| {
         h.borrow_mut().insert((name.to_lowercase(), event.to_lowercase()), handler);
     });
+    // (RapidR's Application.OnError in a native build: a handler's run-time
+    // error a wait went on after — rapidr_value::catching; the
+    // interpreter's hosts fire it themselves)
+    if name.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
+        rapidr_value::on_handler_failed(|message| rp_fire_event_args("application", "onerror", &[v_str(message), v_str(""), v_int(0)]));
+    }
     // (OnStartDrag makes a drag source, OnHint the hints' receiver)
     rapidr_value::events::bound(name, event);
 }

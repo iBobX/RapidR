@@ -80,9 +80,11 @@ pub trait Host {
     /// ([`Host::wait_catches_errors`]): the error, worded as the program's
     /// run-time errors are, for the program's error output (RapidQ shows
     /// none; RapidR says it where a person running the program looks:
-    /// standard error, the IDE's Output). The program goes on.
-    fn handler_failed(&mut self, error: &str) {
-        eprintln!("{error}");
+    /// standard error, the IDE's Output). The program goes on. A host that
+    /// tells the program (RapidR's Application.OnError) has the error in
+    /// parts and the handler it ended ([`crate::HandlerFailure`]).
+    fn handler_failed(&mut self, failure: &crate::HandlerFailure) {
+        eprintln!("{}", failure.text);
     }
     /// Processes pending UI events once for the innermost wait: `None`
     /// while it goes on, `Some(result)` when it's over (the result of the

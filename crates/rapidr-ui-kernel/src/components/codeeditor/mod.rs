@@ -359,8 +359,20 @@ fn sync_rows(x: &mut Ctx) {
     x.ui.rows.sync(x.c, cols);
 }
 
-/// The bars' ranges and positions for the text now.
+/// The bars' ranges and positions for the text now. When that shows or
+/// hides a bar, the text's area is made again with it at once (and the
+/// bars once more for it) — not a repaint later, whose first frame had the
+/// old area.
 pub fn update_bars(x: &mut Ctx) {
+    let shown = (x.ui.bars.vert.shown, x.ui.bars.horz.shown);
+    bars_once(x);
+    if (x.ui.bars.vert.shown, x.ui.bars.horz.shown) != shown {
+        x.ui.geo = geometry(x.ui, x.c, x.size.0, x.size.1);
+        bars_once(x);
+    }
+}
+
+fn bars_once(x: &mut Ctx) {
     // (after an edit in this turn: the rows of the text as it is now — an
     // undo that took lines away once read past the text's end)
     sync_rows(x);
@@ -380,13 +392,19 @@ pub fn update_bars(x: &mut Ctx) {
 }
 
 /// The widest line in view's width (pixels): enough for the horizontal
-/// bar, without measuring every line of a large file.
+/// bar, without measuring every line of a large file. The lines are those
+/// the view shows when the horizontal bar is hidden — the same whether it
+/// shows or not: measured over the rows the bar's height leaves, a long
+/// line just under the bar was in view without the bar and out of it with
+/// it, and the bar went on and off at every repaint (faster as the mouse
+/// moved; Robert 2026-10-29).
 fn widest_px(x: &mut Ctx) -> f64 {
     if x.c.opts.word_wrap {
         return 0.0;
     }
     let first = (x.ui.scroll.1 / x.ui.lh()).floor().max(0.0) as usize;
-    let rows = x.ui.rows.rows(x.c, first, x.ui.page_rows() + 1);
+    let tall = ((x.ui.geo.bars.3 as f64 / x.ui.lh()).ceil() as usize).max(1);
+    let rows = x.ui.rows.rows(x.c, first, tall + 1);
     let tab = x.c.doc.tab_size as usize;
     let cols = rows.iter().map(|r| view::display_cols(&x.c.doc.line(r.line), tab)).max().unwrap_or(0);
     // (and the caret's line, so typing past the view scrolls)

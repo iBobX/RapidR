@@ -202,6 +202,8 @@ SUB StudioClose(Action AS INTEGER)
     Action = 0
     EXIT SUB
   END IF
+  ' (every change saved or let go: the copies of unsaved work go)
+  KeepEnd
   StopProgram
   Session.StopBrowser
   SaveSettings
@@ -324,6 +326,9 @@ SUB StartStudio
     END IF
     i = i + 1
   WEND
+  ' (from here on an error in Studio's own code is said, never the end of
+  ' Studio; unsaved work is kept as it is typed: safety.inc)
+  SetUpSafety
   ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
   DefaultFolder = Proj.ProjectsFolder(HomeDir)
   ' (S2: offered unless the settings turned it off)
@@ -338,6 +343,7 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
+  PreviewDoc = -1
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -372,6 +378,8 @@ SUB StartStudio
   END IF
   UpdateTitle
   UpdateCommands
+  ' (unsaved work a Studio that ended without closing kept: Restore?)
+  OfferRestoreSoon
   IF DoList <> "" THEN Macro.Enabled = 1
 END SUB
 
@@ -398,7 +406,9 @@ SUB MacroTick
   IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
-    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
+    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;
+    ' safety.inc's safety: steps)
+    IF SafetyStep(id) THEN EXIT SUB
     IF PanelStep(id) = 0 THEN
       IF DebugStep(id) = 0 THEN RunCommand id
     END IF

@@ -77,10 +77,23 @@ SUB OpenProject(Path AS STRING)
   ' (an example's copy: the Output says where it is, and how to start over)
   ExampleOriginal = Proj.ExampleOf(p, HomeDir + "examples")
   IF ExampleOriginal <> "" THEN SayExampleCopy p, copied
+  ' (a main file another file of the project includes: the program likely
+  ' starts in that one — said, with where to change it; Robert's
+  ' ShopInvoices: main = lang.rr, which main.rr includes)
+  SayMainIncluded
   UpdateTitle
   UpdateCommands
   ' (another project than the assistant's new program: its banner goes)
   AIProjectChanged
+END SUB
+
+SUB SayMainIncluded
+  DIM by AS STRING
+  IF ProjectOpen = 0 OR Proj.Kind <> "project" THEN EXIT SUB
+  by = Proj.MainIncludedBy
+  IF by = "" THEN EXIT SUB
+  OutputLine "The main file " + Proj.MainFile + " is included by " + by + ": the program probably starts in " + by + ". To run it from there, select the project's name in the Project pane, then MainFile in Properties."
+  SetState "stopped", "The main file is " + Proj.MainFile + ", which " + by + " includes"
 END SUB
 
 ' The Output's line for an example's copy (Copied: "made" now, else the

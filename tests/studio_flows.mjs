@@ -4309,6 +4309,200 @@ const CASES = [
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
   },
+  // (the code editor's context menu opens where the right click was — a
+  // long file scrolled down, the editor away from the window's corner:
+  // Robert 2026-10-28, it opened far from the click. The kernel's menu,
+  // desktop and web; macOS' own: menu.rs's muda_y, its unit test)
+  {
+    name: "code-menu-at-click",
+    open: "examples/showcase/midi_visualizer.rr",
+    copy: true,
+    webFiles: ["examples/showcase/midi_visualizer.rr"],
+    do: "view:Code,wait,focus:codedoc(0),key:Ctrl+End,wait,wait",
+    events: "studio.__wait_3500,codedoc(0).__rightclick_220_160",
+    capture: true,
+    delay: 7,
+    dump: {
+      "codedoc(0).__popupat": /^220,160$/,
+      "codedoc(0).caretline": /^(?!0$)\d+$/,
+    },
+  },
+  // ---- a project as RAI left Robert's ShopInvoices: the main file a module
+  // that main.rr includes; Run ran it, it ended at once, nothing said ----
+  {
+    name: "project-main-included",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,wait",
+    delay: 5,
+    dump: {
+      "proj.mainfile": /^lang\.rr$/,
+      "outputbox.text": /The main file lang\.rr is included by main\.rr: the program probably starts in main\.rr\. To run it from there, select the project's name in the Project pane, then MainFile in Properties\./,
+    },
+  },
+  {
+    // (…Run there: it ends at once, and says what to look at)
+    name: "project-main-runs-module",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "outputbox.text": /\[lang\.rr ended, exit code 0\]\nlang\.rr ran and ended at once: it showed no window and printed nothing\. If the program starts in another file, make that the main file/,
+    },
+  },
+  {
+    // (…the project's properties fix it: MainFile main.rr, written to the
+    // project file; Run starts there)
+    name: "project-main-fixed",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,project:select,prop:MainFile=main.rr,wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "outputbox.text": /Shop open\n\[main\.rr ended, exit code 0\](?![\s\S]*ended at once)/,
+    },
+    files: { "Shop.rrproj": /^main = "main\.rr"$/m },
+  },
+  {
+    // (Run with nothing open says so)
+    name: "run-nothing-open",
+    open: "",
+    desktopOnly: true,
+    do: "run.start,wait",
+    delay: 4,
+    dump: { "outputbox.text": /Nothing to run: open a project or a program first/ },
+  },
+  // (the project tree's selection shows its file: lang/pt-BR.po selected
+  // opens in the preview tab, the keys stay in the tree; lang/es.po
+  // selected takes the preview tab over — never another file's text on
+  // show, Robert 2026-10-29)
+  {
+    name: "project-tree-preview",
+    open: "tests/fixtures/studio_assets/Langs.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_assets/Langs.rrproj", "tests/fixtures/studio_assets/main.rr", "tests/fixtures/studio_assets/lang/es.po", "tests/fixtures/studio_assets/lang/pt-BR.po"],
+    do: "wait,focus:projecttree,key:Home,key:Down,key:Down,key:Down,key:Down,key:Down,key:Down,wait,wait,wait,key:Up,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "projecttree.selected": /^lang\/es\.po$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).text": /Language: es\\n[\s\S]*Velocidad"/,
+      "outputbox.text": /Opened .*lang\/pt-BR\.po\n> key:Up\nOpened .*lang\/es\.po/,
+    },
+  },
+  // ---- Studio keeps your work (safety.inc; Robert 2026-10-28: Studio quit
+  // on a run-time error in its own code, the unsaved work and the chat's
+  // proposals with it) ----
+  {
+    // (a run-time error in Studio's own code — a file written into a folder
+    // that isn't there —: Studio goes on, says it in a dialog and the Output,
+    // logs it with its file and line, keeps a copy of the unsaved work)
+    name: "studio-error-safe",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:fail,wait,wait,wait",
+    delay: 8,
+    capture: true,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /Cannot create file …\/studio\/no-such-folder\/studio-test\.txt\. \(safety\.inc line \d+\)\n\nYour work is safe: nothing was lost, and Studio goes on/,
+      "outputbox.text": /Something went wrong in Studio: Cannot create file .* \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+    },
+    files: { "studio/studio-errors.log": /RapidR Studio \(RapidR [\d.]+\): Cannot create file .* \(at Studio's safety\.inc line \d+\)/ },
+  },
+  {
+    // (…in the browser: a division by zero in Studio's own code — the
+    // page's store has no folders to be missing —, said the same way)
+    name: "studio-error-safe-web",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    webOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:divide,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /^Division by zero \(safety\.inc line \d+\)\n\nYour work is safe/,
+      "outputbox.text": /Something went wrong in Studio: Division by zero \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+    },
+  },
+  {
+    // (unsaved work kept, Studio ended without closing — killed: the test's
+    // end —; started again: "Restore your unsaved work?", Enter restores it
+    // in its editor, not saved)
+    name: "studio-restore-unsaved",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:keep,wait",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,key:Enter,wait,wait,wait", delay: 8 },
+    dump: {
+      "codedoc(0).text": /Form\.ShowModal\n+PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+      "outputbox.text": /Restored the unsaved work of 1 file \(not saved yet\)\./,
+      "saveprompt.__shown": /^0$/,
+    },
+    files: { "hello_form.rr": /^(?![\s\S]*PRINT 42)/ },
+  },
+  {
+    // (a new file with Chinese in it: on disk as the proposal has it, UTF-8
+    // — the old Apply wrote a byte a character, "??? 3D")
+    name: "ai-apply-utf8",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add a chinese translation,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: { "aistatus.simpletext": /^1 file changed/ },
+    files: { "lang/zh-Hans.po": /^msgid ""\nmsgstr ""\n"Content-Type: text\/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n$/ },
+  },
+  {
+    // (an Apply that can't be done whole changes nothing: the rename, the
+    // icon in a new folder and a file that can't be made — none applied, the
+    // folder not made, why said; the changes still wait to be reviewed)
+    name: "ai-apply-all-or-nothing",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add three things,wait,wait,wait,wait,ai:apply,wait",
+    delay: 8,
+    desktopGone: ["icons"],
+    dump: {
+      "aistatus.simpletext": /^Nothing was changed: hello_form\.rr\/blocked\.txt: its folder can't be made: .*hello_form\.rr is a file\. The changes still wait \(Review\)\.$/,
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "codedoc(0).modified": /^(0|False)$/i,
+      "outputbox.text": /AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+    },
+    same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // (changes left waiting are kept with the chat: Studio started again —
+    // the project's chat opened —, they are still there to apply)
+    name: "ai-proposals-kept",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,wait",
+    delay: 7,
+    restart: { do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,wait,wait,ai:apply,wait", delay: 7 },
+    dump: {
+      "aireviewbar.__shown": /^0$/,
+      "codedoc(0).text": /Caption = "AI Notes"/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
+    },
+  },
   {
     name: "ai-apply-undo",
     open: "examples/gui/hello_form.rr",
@@ -6075,6 +6269,9 @@ function runDesktop(c, scale = 1) {
       // (R1: the case's kept chats in its own folder — kept across a
       // restart, never another case's)
       RAPIDR_AI_CHATS: join(dir, "chats"),
+      // (Studio's own folder — the copies of unsaved work, its log: the
+      // case's, kept across a restart, never another case's)
+      RAPIDR_STUDIO_DATA: join(dir, "studio"),
       // (S6: the user's login shell isn't read by the tests — the PATH
       // cases give one of their own, RAPIDR_LOGIN_SHELL)
       RAPIDR_LOGIN_PATH: "off",

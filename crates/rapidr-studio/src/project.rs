@@ -56,6 +56,32 @@ thread_local! {
     static IMPORTED: RefCell<HashMap<String, (String, String, String)>> = RefCell::new(HashMap::new());
 }
 
+/// The project's file (relative, as listed) whose code `$INCLUDE`s the main
+/// file — "" when none does (the main file is where the program starts).
+fn main_included_by(m: &Model) -> String {
+    let main = normalize_path(&m.project.main).to_ascii_lowercase();
+    if main.is_empty() {
+        return String::new();
+    }
+    for f in &m.project.files {
+        if !matches!(f.kind, FileKind::Module | FileKind::Form | FileKind::Include) || normalize_path(&f.path).eq_ignore_ascii_case(&main) {
+            continue;
+        }
+        let Ok(text) = read_text(&join(&m.folder, &f.path)) else { continue };
+        let includes = text.lines().filter_map(|l| {
+            let l = l.trim_start();
+            let rest = l.get(..8).filter(|k| k.eq_ignore_ascii_case("$include")).map(|_| &l[8..])?;
+            let q = rest.trim_start().strip_prefix('"')?;
+            Some(q.split('"').next().unwrap_or("").to_string())
+        });
+        let dir = folder_of(&f.path);
+        if includes.map(|inc| normalize_path(&join(&dir, &slashes(&inc))).to_ascii_lowercase()).any(|inc| inc == main) {
+            return f.path.clone();
+        }
+    }
+    String::new()
+}
+
 fn imported(name: &str) -> (String, String, String) {
     IMPORTED.with(|i| i.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
 }
@@ -766,6 +792,58 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::String(path)
         }
         "projectsfolder" => Value::String(projects_folder(&s(0))),
+        // (Studio keeps your work: crate::recovery — on the web it asks the
+        // page's store whether a file is there before it reads it)
+        m if cfg!(target_arch = "wasm32") && (m.starts_with("recovery") || m.starts_with("log") || m.ends_with("newfile")) && !crate::recovery::store_known() => {
+            crate::recovery::set_store_has(Box::new(move |p: &str| {
+                let p = slashes(p);
+                let (folder, file) = p.rsplit_once('/').unwrap_or(("", p.as_str()));
+                host.list_files(folder).iter().any(|f| f == file)
+            }));
+            return call(host, name, method, args);
+        }
+        "studiofolder" => Value::String(crate::recovery::studio_folder()),
+        "recoverykeep" => {
+            let r = crate::recovery::keep(&s(0), &s(1), &s(2), &s(3));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "recoveryforget" => {
+            crate::recovery::forget(&s(0));
+            Value::Null
+        }
+        "recoveryend" => {
+            crate::recovery::end();
+            Value::Null
+        }
+        "recoveryfound" => Value::String(crate::recovery::found()),
+        "recoverytext" => Value::String(crate::recovery::text(&s(0), &s(1))),
+        "recoverydiscard" => {
+            crate::recovery::discard(&s(0));
+            Value::Null
+        }
+        "logerror" => flag(crate::recovery::log(&s(0)).is_ok()),
+        "logfile" => Value::String(crate::recovery::log_file()),
+        // (the main file is a module another file of the project
+        // includes: that file is where the program likely starts — Robert's
+        // ShopInvoices, main = lang.rr while main.rr includes it)
+        "mainincludedby" => Value::String(with(name, |m| main_included_by(m))),
+        // (RAI's Apply, all or nothing: crate::recovery)
+        "applybegin" => {
+            crate::recovery::apply_begin();
+            Value::Null
+        }
+        "canwritenewfile" => {
+            let r = crate::recovery::can_write_new(&s(0));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "writenewfile" => {
+            let r = crate::recovery::write_new(&s(0), &s(1));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "applyundo" => Value::String(crate::recovery::apply_undo()),
         "exampleof" => Value::String(example_of(&s(0), &s(1))),
         "copyexampleagain" => {
             let r = copy_example_again(&s(0), &s(1));

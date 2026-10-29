@@ -673,6 +673,9 @@ impl Windows for Web {
     fn popup_open(self, form: &str) -> bool {
         host::with(|h, _| h.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false)
     }
+    fn popup_rect(self, form: &str) -> Option<(i64, i64, i64, i64)> {
+        host::with(|h, _| h.desk.forms.get(form).and_then(|f| f.ui.popup_rect())).flatten()
+    }
     fn start_move(self, form: &str, comp: &str) -> bool {
         host::with(|h, _| h.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
     }
@@ -851,7 +854,7 @@ pub fn set_test_env(vars: &JsValue) {
 /// desktop's `RAPIDR_CAPTURE` BMP: the same bytes for the same pixels),
 /// bottom to top, kept for `rapidr_test_results`; the program ends.
 fn test_end() {
-    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
+    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") || prop.eq_ignore_ascii_case("__popupat") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
     sync();
     let shots = host::with(|h, store| {
         let order = h.desk.stacking();

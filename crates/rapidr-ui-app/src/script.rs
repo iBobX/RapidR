@@ -121,6 +121,7 @@ fn run_event<R: Program + Windows>(rt: R, e: TestEvent) {
         Action::KeyWith(vk, state) => rt.script_input(ScriptInput::Key { comp, vk, state }),
         Action::Mouse(kind, x, y) => rt.script_input(ScriptInput::Mouse { comp, kind, x, y }),
         Action::DblClick(x, y) => rt.script_input(ScriptInput::DblClick { comp, x, y }),
+        Action::RightClick(x, y) => rt.script_input(ScriptInput::RightClick { comp, x, y }),
         Action::Close => forms::close(rt, &e.comp),
         // (RapidR's OnDropFiles: RAPIDR_TEST_DROP's files on the form)
         Action::Drop => forms::files_dropped(rt, &rt.form_of(&comp).unwrap_or(comp), &testhooks::drop_files()),
@@ -306,6 +307,15 @@ pub fn step<R: Program + Windows>(rt: R) {
 /// (the mouse moved there as the user's; the CSS name: `col-resize`,
 /// `text`, `default` …).
 pub fn dump_value<R: Program + Windows>(rt: R, comp: &str, prop: &str) -> String {
+    // (`__popupat`: where the pop-up menu open on the component's window is,
+    // from the component's top left — a right click at (x, y) of it must
+    // open the menu at "x,y"; "none" when none is open)
+    if prop.eq_ignore_ascii_case("__popupat") {
+        return rt
+            .place_of(&comp.to_lowercase())
+            .and_then(|(form, (ox, oy))| rt.popup_rect(&form).map(|(x, y, _, _)| format!("{},{}", x - ox, y - oy)))
+            .unwrap_or_else(|| "none".into());
+    }
     let at = prop.strip_prefix("__cursor_").and_then(|n| n.split_once('_')).and_then(|(x, y)| Some((x.parse::<i64>().ok()?, y.parse::<i64>().ok()?)));
     match at {
         Some((x, y)) => {

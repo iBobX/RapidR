@@ -387,6 +387,16 @@ file after the assistant read it — *The change to main.rr wasn't applied:
 main.rr changed after the assistant read it*. A review opened again shows
 only what still waits.
 
+**Apply is all or nothing.** Before it changes anything, Studio checks every
+change: a new file can be written where it goes (its folder is made when it
+isn't there yet: `icons/folder.svg`), nothing is there already, and each
+changed file is still as the assistant read it. Only then are the new files
+written — exactly as their text is, in UTF-8 like every file Studio saves
+(`lang/zh-Hans.po` keeps its 太阳系) — and the changes made in their editors.
+If anything can't be done, nothing is: the status line and the Output say
+why (*Nothing was changed: hello_form.rr/blocked.txt: its folder can't be
+made*), and the changes still wait, to review again.
+
 ### Small, exact changes
 
 The assistant changes an existing file by sending only the lines that
@@ -420,8 +430,11 @@ Changes…** shows them all together.
   newer proposal*.
 - If you edit a file yourself while a change to it waits, that change is
   set aside at your next question, and the chat says so: it is never
-  applied over your own edits. Opening another project sets the waiting
-  changes aside too.
+  applied over your own edits.
+- **The waiting changes are kept with the chat.** Close Studio, open the
+  project again tomorrow: its chat comes back with **Review the Changes…**
+  ready, and Apply works as before. Opening another project keeps them with
+  their own project's chat, never offered to apply in this one.
 
 ## A new program: "Build me…"
 
@@ -588,8 +601,11 @@ from the cache — and 400 to 2,000 received: a fraction of a cent.
 ### The context meter and Compact
 
 Under the buttons, the **context meter** shows how much the next question
-will send — *Context: 12,400 of 40,000 (31%)*. At the right end (40,000
-tokens, or 70% of a smaller model's window) the chat is compacted by itself:
+will send — *Context: 12,400 of 700,000 (2%)*. At the right end (70% of the
+model's window: 700,000 tokens for claude-opus-5-5 or claude-sonnet-5-5,
+whose window is 1,000,000 — RapidR knows Claude's windows before the
+provider's model list is fetched; 40,000 when a model's window isn't known,
+or the lower point you set) the chat is compacted by itself:
 summarised in one short request, and the next questions start from the
 summary. **Compact** (or `/compact`) does it now — the chat says *The chat
 was compacted: what each question sends of it went from about 12,400 tokens

@@ -147,6 +147,13 @@ export const cases = [
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  // (Application.OnError: two buttons with a bug each — an average of no
+  // scores, a remainder of a division by zero —, the window still answering
+  // after both; the interpreter says the file and line, a native build none)
+  { file: "gui/on_error.rr", runtimes: ["run", "interp", "native", "web"], events: "averagebtn.onclick,halvebtn.onclick,averagebtn.onclick", dump: "counted.caption",
+    expect: ["counted.caption=Errors so far: 3"] },
+  { file: "gui/on_error.rr", runtimes: ["run", "interp", "web"], events: "averagebtn.onclick,halvebtn.onclick", dump: "said.caption",
+    expect: ["said.caption=Something went wrong: Division by zero (on_error.rr, line 51). The window still works."] },
   // (your own SVG icons: four in the tree's image list and one in an RImage,
   // all $RESOURCEs — `elsewhere`: a built app started from another folder
   // still has them; the theme switched to dark, they're drawn again)

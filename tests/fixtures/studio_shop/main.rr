@@ -1,0 +1,6 @@
+' main.rr: the program's start — its texts, its window.
+$INCLUDE "lang.rr"
+$INCLUDE "ui.rr"
+
+Form.Caption = ShopTitle
+PRINT "Shop open"

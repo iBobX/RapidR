@@ -111,6 +111,12 @@ CREATE Studio AS RForm
     Enabled = 0
     OnTimer = AnalyzerTick
   END CREATE
+  ' (the file the project tree's selection rests on, shown: panels.inc)
+  CREATE PreviewTimer AS RTimer
+    Interval = 250
+    Enabled = 0
+    OnTimer = PreviewTick
+  END CREATE
 
   ' ---- the start page (a document): the brand, Start, Recent, the examples ----
   ' (a scroll box holding the page: a window too short for every example

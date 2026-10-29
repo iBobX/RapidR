@@ -158,6 +158,9 @@ pub enum Action {
     /// (the input lane's) `__dblclick_x_y`: a double click at (x, y) in the
     /// component — press, release, press (the double), release.
     DblClick(i64, i64),
+    /// `__rightclick_x_y`: the right button pressed and released at (x, y)
+    /// in the component — its context menu (AutoPopup) opens there.
+    RightClick(i64, i64),
     /// `__item_i`: a list's (or combo box's) item i picked, then OnClick.
     Item(i64),
     /// `__node_i`: a tree's node i picked, then OnClick.
@@ -234,6 +237,7 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         .into_iter()
         .find_map(|(p, kind)| nums(p).and_then(|n| <[i64; 2]>::try_from(n).ok()).map(|[x, y]| (kind, x, y)));
     let double = nums("__dblclick_").and_then(|n| <[i64; 2]>::try_from(n).ok());
+    let right = nums("__rightclick_").and_then(|n| <[i64; 2]>::try_from(n).ok());
     let key_with = nums("__key_").and_then(|n| <[i64; 2]>::try_from(n).ok());
     let action = if let Some([vk, state]) = key_with {
         Action::KeyWith(vk, state)
@@ -255,6 +259,8 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Mouse(kind, x, y)
     } else if let Some([x, y]) = double {
         Action::DblClick(x, y)
+    } else if let Some([x, y]) = right {
+        Action::RightClick(x, y)
     } else if let Some(ms) = one("__hold_") {
         Action::Hold(ms)
     } else if let Some(ms) = one("__wait_") {
@@ -267,7 +273,7 @@ pub fn parse_event(item: &str) -> Option<TestEvent> {
         Action::Until(prop.to_string(), value.to_string())
     } else if let Some(step) = event.strip_prefix("__do_").filter(|s| !s.is_empty()) {
         Action::Step(format!("__{step}"))
-    } else if ["__key_", "__mouse", "__dblclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__wait", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
+    } else if ["__key_", "__mouse", "__dblclick", "__rightclick", "__item_", "__node_", "__toggle_", "__edit", "__enter", "__escape", "__hold", "__wait", "__tray", "__look_"].iter().any(|p| event.starts_with(p)) {
         Action::Ignored
     } else if event == "__close" {
         Action::Close
@@ -492,6 +498,7 @@ mod tests {
         assert_eq!(act("c.__mouseup_1_2"), Action::Mouse(Mouse::Up, 1, 2));
         assert_eq!(act("c.__mousemove_-3_4"), Action::Mouse(Mouse::Move, -3, 4));
         assert_eq!(act("p.__dblclick_3_4"), Action::DblClick(3, 4));
+        assert_eq!(act("c.__rightclick_200_150"), Action::RightClick(200, 150));
         assert_eq!(act("form.__hold_600"), Action::Hold(600));
         assert_eq!(act("form.__hold_"), Action::Ignored);
         // a plain wait: the program runs on its own meanwhile

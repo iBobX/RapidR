@@ -201,7 +201,10 @@ END FUNCTION
 SUB ProjectNodeOpen(Path AS STRING)
   DIM d AS INTEGER, comp AS STRING
   IF Path = "" OR RIGHT$(Path, 1) = "/" THEN EXIT SUB
+  PreviewTimer.Enabled = 0
   OpenDocument ProjectPath(Path)
+  ' (opened on purpose: no more a preview)
+  PreviewKept DocOf(ProjectPath(Path))
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   comp = MID$(Path, INSTR(Path, "#") + 1)
   d = DocOf(ProjectPath(Path))
@@ -211,6 +214,38 @@ SUB ProjectNodeOpen(Path AS STRING)
   ShowDesigner d
   DesignDoc(d).SelectName comp
   InspectActive
+END SUB
+
+' The file the tree's selection rests on, shown: its open tab brought to
+' the front, else the file opened in the preview tab — one tab that the
+' next file selected takes over while it's unchanged (opened with Enter or
+' a double click, or edited, it stays). The keys stay in the tree.
+SUB PreviewTick
+  DIM d AS INTEGER, full AS STRING
+  PreviewTimer.Enabled = 0
+  IF PreviewWanted = "" OR ProjectOpen = 0 THEN EXIT SUB
+  IF ProjectTree.Selected <> PreviewWanted THEN EXIT SUB
+  full = ProjectPath(PreviewWanted)
+  d = DocOf(full)
+  IF d >= 0 THEN
+    IF Dock.ActiveDocument <> DocPane(d) THEN Dock.ActiveDocument = DocPane(d)
+    EXIT SUB
+  END IF
+  IF FILEEXISTS(full) = 0 THEN EXIT SUB
+  ' (the last preview, unchanged: this one takes its place)
+  IF PreviewDoc >= 0 THEN
+    IF DocOpen(PreviewDoc) AND DocDirty(PreviewDoc) = 0 THEN CloseDocument PreviewDoc
+  END IF
+  PreviewDoc = -1
+  OpenQuietly = 1
+  OpenDocument full
+  OpenQuietly = 0
+  PreviewDoc = DocOf(full)
+END SUB
+
+' (a document kept: opened from the tree, or changed — no more a preview)
+SUB PreviewKept(d AS INTEGER)
+  IF d = PreviewDoc THEN PreviewDoc = -1
 END SUB
 
 ' Selected: a form, or a component of one, shown in its open designer too
@@ -223,6 +258,15 @@ SUB ProjectNodeSelect(Path AS STRING)
     EXIT SUB
   END IF
   IF ProjectInspecting THEN LeaveProjectInspector
+  ' (a file: what it holds shows — its tab to the front, or a preview of
+  ' it — once the selection rests there a moment; Robert 2026-10-29:
+  ' es.po selected, pt-BR.po's text on show)
+  IF INSTR(Path, "#") = 0 AND ProjectTree.SelectedKind = "file" THEN
+    PreviewWanted = Path
+    PreviewTimer.Enabled = 0
+    PreviewTimer.Enabled = 1
+    EXIT SUB
+  END IF
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   d = DocOf(ProjectPath(Path))
   IF d < 0 THEN EXIT SUB
@@ -253,9 +297,11 @@ SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
   IF FILEEXISTS(full) = 0 THEN
     ' (the toolbox's RFormMDI: an MDI main window)
     IF Kind = "form" AND PendingFormKind = "formmdi" THEN t = Proj.NewFileText(Path, "formmdi", mainText) ELSE t = Proj.NewFileText(Path, Kind, mainText)
-    f.Open(full, 65535)
-    f.WriteStr(t, LEN(t))
-    f.Close
+    ' (as Studio saves a document: UTF-8, whole — a name in any language)
+    IF Proj.WriteNewFile(full, t) = 0 THEN
+      OutputLine "Can't make " + Path + ": " + Proj.Error
+      EXIT SUB
+    END IF
   END IF
   IF Proj.AddFile(full, Kind) THEN
     IF Proj.Kind = "project" THEN SaveProjectFile

@@ -1477,6 +1477,9 @@ impl Windows for Rt {
     fn popup_open(self, form: &str) -> bool {
         menus::popup_open(form)
     }
+    fn popup_rect(self, form: &str) -> Option<(i64, i64, i64, i64)> {
+        with_kern(|k| k.desk.forms.get(form).and_then(|f| f.ui.popup_rect())).flatten()
+    }
     fn start_move(self, form: &str, comp: &str) -> bool {
         with_kern(|k| k.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
     }

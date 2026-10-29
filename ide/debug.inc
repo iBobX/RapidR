@@ -242,6 +242,8 @@ DIM BreakOnErrors AS INTEGER
 ' (the budgets' measures, ms: F5 to the program's first form, a step to its
 ' line shown with its values; -1 not measured)
 DIM PerfForm AS INTEGER
+' (the program printed something this run)
+DIM RunOutputSeen AS INTEGER
 DIM PerfStep AS INTEGER
 DIM StepStarted AS DOUBLE
 DIM PerfReady AS RTimer
@@ -760,8 +762,39 @@ FUNCTION ProgramErrors AS INTEGER
   IF Result = 0 THEN FillProblems ActiveCode
 END FUNCTION
 
+' (the project's main file isn't there: none set, gone from the disk — on
+' the web a file of the site's isn't in the page's store, so its editor or
+' a read says whether it is there)
+FUNCTION MainMissing AS INTEGER
+  DIM t AS STRING
+  IF ProjectMain = "" THEN
+    Result = 1
+  ELSEIF FILEEXISTS(ProjectMain) = 0 AND DocOf(ProjectMain) < 0 THEN
+    t = Proj.FileText(ProjectMain)
+    Result = Flag(Proj.Error <> "")
+  END IF
+END FUNCTION
+
 SUB StartProgram(WithDebugger AS INTEGER)
-  IF ProjectOpen = 0 OR RunState = "running" OR RunState = "paused" THEN EXIT SUB
+  ' (Run always says why it didn't start: Robert 2026-10-28, a Run that
+  ' did nothing and said nothing)
+  IF ProjectOpen = 0 THEN
+    OutputLine "Nothing to run: open a project or a program first (File > Open, or an example)."
+    SetState "error", "Nothing to run: no project is open"
+    EXIT SUB
+  END IF
+  IF RunState = "running" OR RunState = "paused" THEN
+    SetState RunState, FileTitle(ProjectMain) + " is " + RunState + " already: Stop it first (Shift+F5)"
+    EXIT SUB
+  END IF
+  IF MainMissing THEN
+    OutputLine "Can't run: the project's main file " + IIF(ProjectMain = "", "isn't set", ProjectMain + " isn't there") + ". Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
+    SetState "error", "Can't run: no main file"
+    OutputBox.Page = "output"
+    Dock.ShowPane("outputbox")
+    EXIT SUB
+  END IF
+  RunOutputSeen = 0
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
   RunStarted = TIMER
   PerfForm = -1
@@ -1070,6 +1103,7 @@ END SUB
 DIM OutLineOpen AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
+  IF Text <> "" THEN RunOutputSeen = 1
   OutputBox.Write Text
   AITools.AddRunOutput Text
   IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
@@ -1196,6 +1230,11 @@ SUB ProgramExited(Code AS INTEGER)
   StaleTimer.Enabled = 0
   DebugStale = 0
   OutputAfterProgram "[" + FileTitle(ProjectMain) + " ended, exit code " + Num(Code) + "]"
+  ' (it ended at once, showed no window and printed nothing: maybe it isn't
+  ' the program's start — a project whose main file became a module)
+  IF Code = 0 AND PerfForm < 0 AND RunOutputSeen = 0 AND TIMER - RunStarted < 3 THEN
+    OutputLine FileTitle(ProjectMain) + " ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties."
+  END IF
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
   ClearPausedMarks
   ClearDebugPanes

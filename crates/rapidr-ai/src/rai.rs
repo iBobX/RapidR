@@ -972,9 +972,16 @@ impl Ai {
     }
 
     /// The model's context window, when the provider said it (and it is
-    /// the one the model runs with).
+    /// the one the model runs with); a cloud model's the provider hasn't
+    /// said this session (its models list not fetched): the one RapidR
+    /// knows (`provider::known_window` — claude-opus-5-5's 1,000,000, so
+    /// the chat is summarised at 700,000, not at the 40,000 fallback).
     fn window(&self) -> Option<u64> {
-        self.windows.get(&self.model).filter(|(_, sure)| *sure).map(|(w, _)| *w)
+        self.windows
+            .get(&self.model)
+            .filter(|(_, sure)| *sure)
+            .map(|(w, _)| *w)
+            .or_else(|| if self.local() { None } else { crate::provider::known_window(&self.provider, &self.model) })
     }
 
     /// The window the conversation is kept within: the model's; a
@@ -3155,9 +3162,20 @@ mod chat_tests {
         a.last_input = 12_000;
         a.last_output = 400;
         assert_eq!(a.context_tokens(), 12_400);
-        assert_eq!(a.context_limit(), DEFAULT_SUMMARY_AT as u64);
+        // (a Claude model the table doesn't know: the smallest Claude window's 70%)
+        assert_eq!(a.context_limit(), crate::provider::ANTHROPIC_LEAST_WINDOW * 7 / 10);
         a.windows.insert("claude-x".into(), (20_000, true));
         assert_eq!(a.context_limit(), 14_000);
+        // (the models list not fetched: a known model's window all the same —
+        // claude-opus-5-5 said "of 40,000" before, Robert 2026-10-28)
+        let opus = Ai { provider: "anthropic".into(), model: "claude-opus-5-5".into(), ..Ai::default() };
+        assert_eq!(opus.context_limit(), 700_000);
+        assert_eq!(opus.window(), Some(1_000_000));
+        let sonnet = Ai { provider: "anthropic".into(), model: "claude-sonnet-5-5".into(), ..Ai::default() };
+        assert_eq!(sonnet.context_limit(), 700_000);
+        // (a provider that says nothing and isn't known: the fallback, as before)
+        let other = Ai { provider: "openai".into(), model: "gpt-x".into(), ..Ai::default() };
+        assert_eq!(other.context_limit(), DEFAULT_SUMMARY_AT as u64);
     }
 
     /// SummaryAt reads what was set — 0 while it's automatic (70% of the

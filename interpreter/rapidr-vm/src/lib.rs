@@ -346,6 +346,52 @@ pub struct Vm<'h, H: Host + ?Sized> {
     /// Set Next Statement moved the program while it was stopped at a
     /// run-time error: it goes on from there instead of failing.
     error_moved: bool,
+    /// The event handler (its function) a run-time error last ended, the
+    /// outermost one the error went through ([`Self::run_events`]): the
+    /// host is told which ([`HandlerFailure::handler`]).
+    failed_handler: Option<u32>,
+}
+
+/// A handler's run-time error that a wait went on after
+/// ([`Host::handler_failed`]): as the program's errors are worded, and in
+/// parts — for a host that hands it to the program (RapidR's
+/// Application.OnError).
+#[derive(Clone, Debug, PartialEq)]
+pub struct HandlerFailure {
+    /// "run-time error: Division by zero (at calc.rr line 12)".
+    pub text: String,
+    /// The error alone: "Division by zero".
+    pub message: String,
+    /// The file it happened in ("" when the program has one file only and
+    /// the line is the compiled one, or it isn't known).
+    pub file: String,
+    /// The line it happened on (0: not known).
+    pub line: u32,
+    /// The event handler it ended (the outermost one, when one handler
+    /// fired another): its function's index.
+    pub handler: Option<u32>,
+}
+
+impl HandlerFailure {
+    pub fn new(error: &VmError, handler: Option<u32>) -> Self {
+        fn bare(e: &VmError) -> String {
+            match e {
+                VmError::At { error, .. } => bare(error),
+                VmError::Runtime(s) | VmError::HostError(s) => s.clone(),
+                other => other.to_string(),
+            }
+        }
+        let (file, line) = match error {
+            VmError::At { file, line, .. } => (file.clone().unwrap_or_default(), *line),
+            _ => (String::new(), 0),
+        };
+        HandlerFailure { text: error.to_string(), message: bare(error), file, line, handler }
+    }
+
+    /// Application.OnError's arguments: (Message, File, Line).
+    pub fn event_args(&self) -> Vec<Value> {
+        vec![v_str(&self.message), v_str(&self.file), Value::Integer(i64::from(self.line))]
+    }
 }
 
 impl<'h, H: Host + ?Sized> Vm<'h, H> {
@@ -380,6 +426,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             line_span: None,
             quiet: (0, 0),
             error_moved: false,
+            failed_handler: None,
         }
     }
 
@@ -1257,7 +1304,8 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     fn handler_failed(&mut self, error: VmError) {
         self.error_line = None;
         self.stop_error = None;
-        self.host.handler_failed(&error.to_string());
+        let failure = HandlerFailure::new(&error, self.failed_handler.take());
+        self.host.handler_failed(&failure);
     }
 
     /// Runs `events` one after the other, each to completion, on top of the
@@ -1272,7 +1320,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 top.ip = ip;
             }
             let depth = self.frames.len();
+            let handler = event.handler;
             if let Err(e) = self.invoke(module, event, true) {
+                // (the handler it ended: the outermost one the error goes
+                // through is the last to say so — HandlerFailure::handler)
+                if is_program_error(&e) {
+                    self.failed_handler = Some(handler);
+                }
                 let rest: Vec<_> = events.collect();
                 if matches!(e, VmError::Yielded) {
                     if !rest.is_empty() {
@@ -2267,6 +2321,19 @@ mod tests {
         assert!(vm.frames.is_empty() && vm.stack.is_empty());
         assert!(vm.invoke_function(&m, 99, vec![v_int(1)]).is_err());
         assert!(vm.stack.is_empty());
+    }
+
+    /// A handler's run-time error in parts, for Application.OnError: the
+    /// message alone, the file and line it happened at, the handler.
+    #[test]
+    fn a_handler_failure_is_told_in_parts() {
+        let at = VmError::At { error: Box::new(VmError::Runtime("Cannot create file a/b.svg.".into())), file: Some("ai.inc".into()), line: 1931 };
+        let f = HandlerFailure::new(&at, Some(7));
+        assert_eq!(f.text, "run-time error: Cannot create file a/b.svg. (at ai.inc line 1931)");
+        assert_eq!((f.message.as_str(), f.file.as_str(), f.line, f.handler), ("Cannot create file a/b.svg.", "ai.inc", 1931, Some(7)));
+        assert_eq!(f.event_args(), vec![v_str("Cannot create file a/b.svg."), v_str("ai.inc"), v_int(1931)]);
+        let bare = HandlerFailure::new(&VmError::HostError("Division by zero".into()), None);
+        assert_eq!((bare.message.as_str(), bare.file.as_str(), bare.line), ("Division by zero", "", 0));
     }
 
     /// [`QueueHost`] that yields at every question (each
