@@ -48,6 +48,11 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 - **Call Stack and Breakpoints copy:** Ctrl+C (⌘C) and a right-click menu (Copy, Copy All).
 - **Ctrl+C (⌘C) on a message box** (SHOWMESSAGE, MESSAGEDLG, MESSAGEBOX) copies its title, text and buttons, as Windows' message boxes do.
 - Test hook `comp.__rightclick_x_y`: a right click through the kernel (the context menu opens).
+### Added
+- **Archives in your programs: `RArchive`.** Open zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format is found from the first bytes, never the name — list what they hold (`Count`, `Name`, `Size`, `CompressedSize`, `IsFolder`, `IsEncrypted`, `DateTime`, `Find`) and unpack it: `Extract` (the bytes as a string), `ExtractText`, `ExtractToStream`, `ExtractToFile`, `ExtractAll`. Make zip, tar, tar.gz and .gz files with `Create` / `CreateStream`, `AddFile`, `AddText`, `AddData`, `AddStream`, `AddFolder` and `Close` (`Level` 0-9). An archive opens from a file, a stream, a string of bytes (`OpenData`: a download) or a `$RESOURCE`. `FormatOf(FileName)` says what a file is without opening it, so an emulator takes `game.z80` or `game.zip` alike. Every call says why it failed in `Error`. The same on the desktop, native builds and the web. Example `examples/data/archives.rr`, manual page "Archives: zip, 7z, tar and gzip files".
+- **Safe with archives from anywhere:** `MaxSize` (1 GB; 256 MB in a browser) and `MaxRatio` (1000 to 1 past 1 MB) stop zip bombs by the bytes really unpacked; `ExtractAll` checks every name and unpacks everything before writing, so a name with `..`, an absolute path, a drive or a device writes nothing; links and devices are never extracted, nothing is written through a link already in the folder; encrypted entries and RAR files are refused with a clear message. The readers were fed 300,000 damaged archives without a crash.
+- **`COMPRESS$` and `DECOMPRESS$`:** pack and unpack strings of bytes — gzip, zlib and raw Deflate both ways, xz and zstd unpacked — with a size limit (256 MB by default) on unpacking.
+- A native build carries the archive code only when the program uses `RArchive`, `COMPRESS$` or `DECOMPRESS$` (a first step of lean builds).
 
 ## [2.121.3] — 2026-10-25 (hotfix)
 

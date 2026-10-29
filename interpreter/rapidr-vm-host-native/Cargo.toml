@@ -24,5 +24,7 @@ studio = ["rapidr-runtime-core/studio"]
 rapidr-value = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
-rapidr-runtime-core = { workspace = true }
+# (`archive`: RArchive in every interpreted program — the runners carry
+# every component until runner flavours, docs/lean-builds-and-export-plan.md)
+rapidr-runtime-core = { workspace = true, features = ["archive"] }
 rapidr-session = { workspace = true, features = ["program"], optional = true }

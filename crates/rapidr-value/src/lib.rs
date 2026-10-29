@@ -1272,6 +1272,11 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
     if key == "trn" {
         return Some(Ok(i18n::rp_trn(args)));
     }
+    // (RapidR's) COMPRESS$ / DECOMPRESS$: bytes packed and unpacked
+    // (objects::archive, RArchive's engine).
+    if key == "compress" || key == "decompress" {
+        return Some(objects::archive::builtin(key, args));
+    }
     if key == "__lprint" {
         return Some(Ok(lprint::lprint(args)));
     }

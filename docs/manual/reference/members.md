@@ -3435,6 +3435,49 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 | `LoadUdtArray(ArrayField)` | Reads every element of a TYPE's array field (`Mem.LoadUDTArray(t.Items)`) from Position, laid out as the TYPE's fields are in memory; the stream must hold them all. |
 | `SaveUdtArray(ArrayField)` | Writes every element of a TYPE's array field (`Mem.SaveUDTArray(t.Items)`) at Position, laid out as the TYPE's fields are in memory. |
 
+<a id="rarchive"></a>
+## RArchive
+
+Opens zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format found from their first bytes, not their name — lists what they hold and unpacks it: one file's bytes into a string or a stream, to a file, or everything into a folder. Makes zip, tar, tar.gz and .gz files. An archive is untrusted: MaxSize and MaxRatio stop a zip bomb, ExtractAll never writes outside its folder (a name with `..`, an absolute path or a drive stops it before anything is written; links are never extracted), encrypted entries are refused. RAR files are refused: their format isn't open. Every call leaves Error "" when it worked, else says why. The same on the desktop, native builds and the web (where files are the page's). RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Count` (read-only) | int |  | How many entries (files and folders) the open archive holds, or the archive being made; 0 with none. |
+| `Format` (read-only) | string |  | The open archive's format, from its first bytes: "zip", "7z", "tar", "tar.gz", "gzip" (one file), "tar.xz", "xz", "tar.zst", "zstd"; or the one being made; "" with none. |
+| `FileName` (read-only) | string |  | The file Open opened or Create makes; "" for a stream, data or a resource. |
+| `Error` (read-only) | string |  | Why the last call failed, in plain words (not an archive, a zip bomb, a name outside the folder, encrypted, damaged); "" when it worked. |
+| `MaxSize` | int | 1073741824 | The most an archive may unpack to: one entry, all of ExtractAll, a whole .tar.gz at Open; also the most an archive being made may hold. 1 GB by default (256 MB in a browser). More is an error, not a full memory: a zip bomb stops here. |
+| `MaxRatio` | int | 1000 | The most an entry larger than 1 MB may grow when unpacked (unpacked size ÷ packed size): real files rarely pass 100, a zip bomb passes thousands. 0: no ratio check (MaxSize still holds). |
+| `Level` | int | 6 | How hard Create packs: 0 stores (fastest), 9 is the smallest; 6 by default. |
+| `CaseSensitive` | bool | False | Whether Find and an entry named in Extract tell "Game.Z80" from "game.z80" (False by default: either finds it). |
+
+| Method | |
+|---|---|
+| `Open(FileName AS STRING) AS INTEGER` | Opens an archive file (or a `$RESOURCE` built into the program: its handle), whatever its extension says. True when it opened; False when it isn't an archive RapidR reads, is damaged or encrypted (Error says which). A .gz, .xz or .zst holding one file is an archive of one entry. |
+| `OpenStream(Stream AS RMEMORYSTREAM) AS INTEGER` | Opens the archive a stream holds (all of it, wherever its Position is): one downloaded into a memory stream, or a file stream's. |
+| `OpenData(Bytes AS STRING) AS INTEGER` | Opens the archive in a string of bytes (one character a byte: what a download or ReadBinStr gives). |
+| `FormatOf(FileName AS STRING) AS STRING` | What a file is, from its first bytes, without opening it: "zip", "7z", "tar", "gzip", "xz", "zstd", "rar", "bzip2" …, or "" when it's no archive (a .z80 snapshot, a picture, a text). So a program takes a .z80 or an archive holding one alike. |
+| `Close AS INTEGER` | Writes the archive Create or CreateStream began (to its file or stream) and lets go of an open one. True when it worked. |
+| `Find(Name AS STRING) AS INTEGER` | The index (0 the first) of the entry with this name (folders with `/` or `\`; "Roms/Game.z80" finds "roms/game.z80" unless CaseSensitive); -1 when there's none. |
+| `Name(Entry AS VARIANT) AS STRING` | An entry's name, its folders before it with `/` ("roms/game.z80"); "" for an index outside 0 … Count - 1. An entry is its index or its name, here and in the other entry methods. |
+| `Size(Entry AS VARIANT) AS LONG` | An entry's size unpacked, in bytes, as the archive says (Extract checks the real one). |
+| `CompressedSize(Entry AS VARIANT) AS LONG` | An entry's size packed, in bytes (a .tar.gz's entries share one stream: their size). |
+| `IsFolder(Entry AS VARIANT) AS INTEGER` | True when the entry is a folder. |
+| `IsEncrypted(Entry AS VARIANT) AS INTEGER` | True when the entry is protected by a password: RArchive lists it but doesn't unpack it. |
+| `DateTime(Entry AS VARIANT) AS STRING` | When the entry was last changed, local time, as "2026-10-29 14:05:00" (it sorts as text); "" when the archive doesn't say. |
+| `Extract(Entry AS VARIANT) AS STRING` | An entry's bytes as a string, one character a byte (LEN is its size; ASC(MID$(…)) a byte; a stream's WriteBinStr writes it back). "" with Error set when it can't: a folder gives "" and no error. |
+| `ExtractText(Entry AS VARIANT) AS STRING` | An entry as text: UTF-8 (a byte-order mark dropped) when it is, else one character a byte. |
+| `ExtractToStream(Entry AS VARIANT, Stream AS RMEMORYSTREAM) AS INTEGER` | Writes an entry's bytes into a stream at its Position (as WriteBinStr does), Position after them. True when it worked. |
+| `ExtractToFile(Entry AS VARIANT, FileName AS STRING) AS INTEGER` | Writes an entry to the file you name (replacing one already there); the file is written only once the whole entry is unpacked and checked. True when it worked. |
+| `ExtractAll(Folder AS STRING) AS INTEGER` | Unpacks everything into a folder (made if needed; files already there are replaced). Every name is checked and everything unpacked first, so a name that would leave the folder (`..`, an absolute path, a drive, a device), an encrypted entry or a zip bomb writes nothing; links and devices are never extracted, and nothing is written through a link already in the folder. True when it worked. |
+| `Create(FileName AS STRING, [Format AS STRING]) AS INTEGER` | Begins a new archive, written to the file on Close: its format the file's extension (.zip, .tar, .tar.gz or .tgz, .gz) or `Format` ("zip", "tar", "tar.gz", "gzip"). Entries are added with AddFile, AddText, AddData, AddStream and AddFolder; a .gz holds one file. |
+| `CreateStream(Stream AS RMEMORYSTREAM, [Format AS STRING]) AS INTEGER` | Begins a new archive (a zip unless `Format` says) written into a stream on Close, at its Position. |
+| `AddFile(FileName AS STRING, [NameInArchive AS STRING]) AS INTEGER` | Adds a file (or a `$RESOURCE`'s handle) under its own name, no folders, or `NameInArchive` ("roms/game.z80": folders with `/`). An entry already of that name is replaced. |
+| `AddText(NameInArchive AS STRING, Text AS STRING) AS INTEGER` | Adds text as a file, in UTF-8 (every language's letters kept). |
+| `AddData(NameInArchive AS STRING, Bytes AS STRING) AS INTEGER` | Adds a string of bytes as a file, one character a byte (what Extract gives back). |
+| `AddStream(NameInArchive AS STRING, Stream AS RMEMORYSTREAM) AS INTEGER` | Adds all of a stream's bytes as a file (wherever its Position is). |
+| `AddFolder(Folder AS STRING, [NameInArchive AS STRING]) AS INTEGER` | Adds a folder on disk and everything in it, under its own name or `NameInArchive` ("" or ".": its contents at the top). Links aren't followed. Not in a browser (no folders there): add each file. |
+
 <a id="rbitmap"></a>
 ## RBitmap
 
