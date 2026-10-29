@@ -106,8 +106,39 @@ text, result size), `summary.json` (steps, tokens, seconds, where it stopped, th
 
 `tools/ai_eval/run_matrix.mjs` runs the same apps through both drivers and any models, one
 folder per cell (`--cells A:bonsai,B:bonsai,A:haiku,B:haiku`, `A` = this outside app, `B` =
-Studio's RAI through ai_eval; `--rep 2` for a repeat), and `tools/ai_eval/analyse.mjs` turns
-the folders into the score table and the failure categories. A cell is one run of a
-model that varies: repeat it and read the pass rate. Keys are never printed or written
-(transcripts are redacted); Haiku's cost is counted per request in a ledger shared by every
-run, and nothing starts past `--cost-cap`. Model outputs are test artefacts, not shipped.
+Studio's RAI through ai_eval; `--rep 2` for a repeat; `--set apps,held-out,school`), and
+`tools/ai_eval/analyse.mjs` turns the folders into the score table, the failure categories
+and, per model, the pass rate, the seconds an app takes and how its tool calls arrive. A cell
+is one run of a model that varies: repeat it and read the pass rate. Keys are never printed or
+written (transcripts are redacted); Haiku's cost is counted per request in a ledger shared by
+every run, and nothing starts past `--cost-cap`. Model outputs are test artefacts, not shipped.
+
+**The models are a parameter.** A cell's model is `bonsai` (bonsai-2:2b on Ollama), `haiku`
+(claude-haiku-5-5), `mock`, `ollama/<any model Ollama serves>` (`A:ollama/qwen3.5:4b-q4_K_M`:
+free, local; folders are named with `/` and `:` as `_`), or a name in a `--models FILE.json`
+(`{"name": {"id": "…", "url": "http://host:port/v1", "anthropic": false, "paid": false}}`).
+`ollama/…` cells use Ollama's own chat API for driver A (`--driver ollama`): the context window
+asked for is explicit (`--num-ctx`, default 32768: RAI's prompt and the tool schemas are large)
+and thinking is off (`--think on` turns it on), which Ollama's `/v1` can't say; driver B is
+RAI's own compatible provider on `/v1` and gets the server's default. Per run the harness
+counts how each call arrived — in the API's `tool_calls`, as text in the reply that a parser
+had to find (`<tool_call>…`), or not at all (a reply with no finish, no text and no call: an
+Ollama template parser dropped a malformed call: `Ollama … tool call parsing failed` in its
+log). Local models run one at a time (`ollama stop MODEL` after a model: `--unload`).
+
+**The school set** (`school/`) is ten harder requests of the kind a school would give: a
+periodic table explorer, a molar mass calculator (type H2O, Ca(OH)2 …), a chemical equation
+balancer, a projectile motion simulator, an animated pendulum, planets orbiting the sun, a
+predator–prey (Lotka–Volterra) chart, Conway's Game of Life, a logic gate simulator and a tiny
+8-bit CPU emulator. Their click tests are looser (it compiles, runs, the key output appears,
+the picture changes) but each was shown achievable: `molar-mass`, `projectile-motion`,
+`game-of-life`, `logic-gates` and `pendulum` pass on a reference solution written for it
+(kept out of the repository: they are not recipes). The click tests can type `+ = > < ( ) , / *`
+since 2026-10-29.
+
+**Tools for the next problem.** `studio_mcp_agent.mjs --calls calls.json` makes a list of tool
+calls as an AI app would, no model, each with its own wait, to reproduce what a run showed (a
+call that never answers says so after its wait); `rescore.mjs RUNS_DIR --app NAME` judges
+finished runs again with the click test as it is now, from the files they left (a test that
+was wrong — `/^and$/` missed the caption `&AND` — is fixed and the runs it judged are judged
+again); `show_transcript.mjs` reads a transcript.

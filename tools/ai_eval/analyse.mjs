@@ -187,6 +187,31 @@ out("| kind | " + aCells.join(" | ") + " |");
 out("|---|" + aCells.map(() => "---").join("|") + "|");
 for (const k of kindNames) out(`| ${k} | ` + aCells.map((c) => { const rs = aRuns.filter((r) => r.cell === c); const es = rs.flatMap((r) => errorsOf(r).filter((e) => errKind(e) === k)); const rn = rs.filter((r) => errorsOf(r).some((e) => errKind(e) === k)).length; return es.length ? `${es.length} / ${rn}` : ""; }).join(" | ") + " |");
 out();
+// (the signals the fixes are read from: did the model look before it wrote, what did it write with, did it repeat itself)
+out("What the outside AI apps did (runs): looked first = called find_example, search_manual or rapidr_describe before its first change; stuck = the same error three times in a row;");
+out("a model's pass rate with and without having looked first shows what the knowledge tools are worth:");
+out();
+out("| cell | runs | looked first | pass: looked / did not | first change by create_project / write_file / propose_edit / none | stuck (3 same errors in a row) | the last 5 calls all failed |");
+out("|---|---|---|---|---|---|---|");
+const writers = new Set(["create_project", "write_file", "propose_edit"]);
+const looked = new Set(["find_example", "search_manual", "rapidr_describe"]);
+for (const c of aCells) {
+  const rs = aRuns.filter((r) => r.cell === c);
+  const info = rs.map((r) => {
+    const tools = r.events.filter((e) => e.type === "tool");
+    const firstWrite = tools.findIndex((e) => writers.has(e.name));
+    const lookedFirst = tools.slice(0, firstWrite < 0 ? tools.length : firstWrite).some((e) => looked.has(e.name));
+    let run = 0, stuck = false, prev = "";
+    for (const e of tools) { const k = e.ok ? "" : `${e.name}${norm(e.error)}`; if (k && k === prev) { run++; if (run >= 2) stuck = true; } else run = 0; prev = k; }
+    const last5 = tools.slice(-5);
+    return { r, lookedFirst, first: firstWrite < 0 ? "none" : tools[firstWrite].name, stuck, allFailed: last5.length === 5 && last5.every((e) => !e.ok) };
+  });
+  const L = info.filter((i) => i.lookedFirst), N = info.filter((i) => !i.lookedFirst);
+  const pass = (a) => `${a.filter((i) => i.r.score === 1).length}/${a.length}`;
+  const first = (k) => info.filter((i) => i.first === k).length;
+  out(`| ${c} | ${rs.length} | ${L.length}/${rs.length} | ${pass(L)} / ${pass(N)} | ${first("create_project")} / ${first("write_file")} / ${first("propose_edit")} / ${first("none")} | ${info.filter((i) => i.stuck).length} | ${info.filter((i) => i.allFailed).length} |`);
+}
+out();
 out("Most common tool errors (outside AI app, by normalised text):");
 out();
 const errCount = {};

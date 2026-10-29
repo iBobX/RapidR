@@ -5,14 +5,18 @@
 //   B  Studio's own RAI: crates/rapidr-studio/examples/ai_eval.rs, headless
 //
 //   node tools/ai_eval/run_matrix.mjs --out dist/ai-eval-2026-10-29/runs \
-//        --cells A:bonsai,B:bonsai,A:haiku,B:haiku [--apps tip-calculator,todo-list] [--held-out] \
-//        [--rep N] [--cost-cap 30] [--ledger FILE] [--port-base 47950] [--keychain]
+//        --cells A:bonsai,B:bonsai,A:haiku,B:haiku,A:ollama/qwen3.5:4b-q4_K_M \
+//        [--set apps,held-out,school] [--apps tip-calculator,todo-list] [--rep N] \
+//        [--cost-cap 30] [--ledger FILE] [--port-base 47950 --ports 24] [--keychain] \
+//        [--models FILE.json] [--unload] [--think on|off --num-ctx 32768]
 //
-// cells: DRIVER:MODEL — MODEL is bonsai (bonsai-2:2b on Ollama, http://localhost:11434/v1),
-// haiku (claude-haiku-5-5, Anthropic's Messages API), or mock (the tests' mock, free).
-// Every cell's folder is --out/DRIVER-MODEL/APP/ with its transcript, summary and
+// cells: DRIVER:MODEL — MODEL is bonsai (bonsai-2:2b on Ollama's /v1, thinking as the model
+// defaults), haiku (claude-haiku-5-5, Anthropic's Messages API), mock (the tests' mock, free),
+// ollama/<id> (any model Ollama serves; driver A through Ollama's own API with an explicit
+// context window and thinking off), or a name of --models FILE.json: the models are a parameter.
+// Every cell's folder is --out/DRIVER-MODEL/APP[.rN]/ with its transcript, summary and
 // result.json (a finished cell is not run again: resume by running the same line).
-// One run per cell — a model's answers vary, a cell is a sample, not a mean.
+// One run per cell — a model's answers vary, a cell is a sample, not a mean: --rep 2, 3 add runs.
 //
 // Cost: a Haiku cell adds what it used to the ledger (US$ per million tokens: 0.10 in, 0.50
 // out, 0.50 / 2.50 past a 100K prompt — the claude-api skill's table for Haiku 5.5); when the
