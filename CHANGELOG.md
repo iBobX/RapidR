@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **RAI's context meter knows Claude's windows before the models list is fetched:** claude-opus-5-5 said "121,309 of 40,000 (100%)" (no window known, so the 40,000 fallback) while Sonnet said "of 700,000". RAI now knows each Claude model's window (`rapidr_ai::provider::ANTHROPIC_WINDOWS`: 1,000,000 for the current models, 200,000 for Haiku 4.5 and any Claude it doesn't know yet), so the chat is summarised at 70% of it; the provider's own list still wins once fetched. Test: every model in the table has a window.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed
