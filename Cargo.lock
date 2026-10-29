@@ -5110,6 +5110,7 @@ dependencies = [
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
+ "rapidr-value",
  "rapidr-vm",
  "rapidr-vm-host-native",
  "rapidr-webbundle",
@@ -5570,6 +5571,7 @@ dependencies = [
  "rapidr-session",
  "rapidr-value",
  "rapidr-vm",
+ "serde_json",
 ]
 
 [[package]]

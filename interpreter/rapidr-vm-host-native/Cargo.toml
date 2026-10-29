@@ -16,7 +16,7 @@ datascience = ["rapidr-runtime-core/datascience"]
 full = ["gui", "network", "database", "ffi", "datascience"]
 # `rapidr run --session`: the program's end of RapidR Studio's session
 # protocol (the rapidr CLI; never in a program's own runner).
-session = ["dep:rapidr-session"]
+session = ["dep:rapidr-session", "dep:serde_json"]
 # RapidR Studio's components (rapidr-runtime-core's `studio`): the CLI's.
 studio = ["rapidr-runtime-core/studio"]
 
@@ -26,3 +26,5 @@ rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
 rapidr-runtime-core = { workspace = true }
 rapidr-session = { workspace = true, features = ["program"], optional = true }
+# (the eyes and hands' replies, JSON: session.rs)
+serde_json = { version = "1", optional = true }

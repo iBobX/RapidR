@@ -141,6 +141,16 @@ pub enum Command {
     SetProperty { object: String, prop: String, value: String },
     /// A component's properties as the runtime holds them.
     Properties { object: String },
+    /// RapidR Studio's eyes and hands on the running program (its AI
+    /// apps' `app_*` tools, RAI's): a look — `{"do":"screenshot"}`,
+    /// `{"do":"layout"}` — or input played through the program's own
+    /// windows — `{"do":"click","caption":"7"}`, `type`, `key`, `drag`,
+    /// `scroll`, `wait` (`rapidr_ui_app::link` says them all). Served by
+    /// the program's runtime on its own thread whether it runs under the
+    /// debugger or not; a look is answered at once, paused or not; input
+    /// once the handlers it started have run, refused while the program is
+    /// paused. Answered with [`EventBody::App`].
+    App { request: serde_json::Value },
     /// Input for the program: a line for INPUT (`text`), or an event for a
     /// form drawn in the IDE (`form`, `event`: remote forms, I5).
     Input {
@@ -348,6 +358,9 @@ pub enum EventBody {
     Properties { kind: String, properties: Vec<Variable> },
     /// `stepInTargets`' reply.
     StepInTargets { targets: Vec<StepInTarget> },
+    /// `app`'s reply: `{"ok": …, "text": "Clicked b7 …"}`, with a look's
+    /// report (`layout`) or picture (`png`, base64; `width`, `height`).
+    App { result: serde_json::Value },
 }
 
 /// A message from the program: a reply (`re`) or an event.
@@ -512,6 +525,11 @@ mod tests {
         let r = Request::from_json(r#"{"seq":9,"type":"variables","ref":2}"#).unwrap();
         assert_eq!(r.command, Command::Variables { reference: 2, start: None, count: None });
         assert!(Request::from_json(r#"{"type":"fly"}"#).is_err());
+        // (the eyes and hands: a JSON request, a JSON result)
+        let r = Request::from_json(r#"{"seq":4,"type":"app","request":{"do":"click","caption":"7"}}"#).unwrap();
+        assert_eq!(r.command, Command::App { request: serde_json::json!({"do": "click", "caption": "7"}) });
+        let e = Event::reply(4, EventBody::App { result: serde_json::json!({"ok": true, "text": "Clicked"}) });
+        assert_eq!(e.to_json(), r#"{"re":4,"type":"app","result":{"ok":true,"text":"Clicked"}}"#);
     }
 
     #[test]

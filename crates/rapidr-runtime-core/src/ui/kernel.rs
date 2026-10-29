@@ -303,11 +303,20 @@ pub fn gui_serve_paused() -> bool {
         return false;
     }
     let Some(k) = kern() else { return false };
-    {
-        let Ok(k) = k.try_borrow() else { return false };
-        if k.host.headless() || !k.desk.forms.values().any(|f| f.shown) {
-            return false;
+    let nothing_to_serve = match k.try_borrow() {
+        Ok(kb) => kb.host.headless() || !kb.desk.forms.values().any(|f| f.shown),
+        Err(_) => return false,
+    };
+    if nothing_to_serve {
+        // (RapidR Studio's link: its looks — a picture, the layout — are
+        // served while the debugger holds the program, its input refused;
+        // the wait ends when a request arrives, `rp_wake`)
+        if super::drive::linked() {
+            std::thread::park_timeout(Duration::from_millis(250));
+            super::drive::turn_paused();
+            return true;
         }
+        return false;
     }
     struct Restore;
     impl Drop for Restore {
@@ -358,6 +367,9 @@ pub fn gui_serve_paused() -> bool {
         let _ = host.tray_clicks();
         let _ = rapidr_ui_host_winit::winmsg::take();
     });
+    // (RapidR Studio's link: what it asked meanwhile — looking is served,
+    // input refused: drive.rs)
+    super::drive::turn_paused();
     true
 }
 
@@ -439,6 +451,15 @@ pub fn step(max_wait: Option<Duration>) {
     if let Some(at) = with_kern(|k| k.desk.next_wake()).flatten() {
         at_most(at.saturating_duration_since(now));
     }
+    // (the eyes and hands: the virtual cursor's frames, a job's next step —
+    // and a program under RapidR Studio's link keeps waiting for its
+    // requests, even with nothing of its own scheduled: drive.rs)
+    if let Some(at) = rapidr_ui_app::hands::next_wake() {
+        at_most(at.saturating_duration_since(now));
+    }
+    if super::drive::linked() && headless() {
+        at_most(Duration::from_millis(250));
+    }
     // (a test hook's answer to a dialog, once it has been open long enough)
     if let Some(at) = rapidr_ui_app::dialogs::hook_wake() {
         at_most(at.saturating_duration_since(now));
@@ -501,6 +522,9 @@ pub fn step(max_wait: Option<Duration>) {
         // (a timer's handler queued for the VM runs before anything else)
         return;
     }
+    // (RapidR Studio's link and the program's RAppCapture / RAppDriver:
+    // requests served, the hands' jobs played, what ended answered)
+    super::drive::turn();
     script::step(Rt);
 }
 
@@ -1545,4 +1569,23 @@ impl Windows for Rt {
     fn capture_and_end(self, prefix: &str) {
         capture_and_end(prefix)
     }
+    // (the eyes and hands: rapidr_ui_app::{eyes, hands}, `drive.rs`)
+    fn with_desk(self, f: &mut dyn FnMut(&mut Desktop, &dyn rapidr_ui_kernel::Store)) -> bool {
+        with_kern(|k| {
+            sync_desk(&mut k.desk);
+            f(&mut k.desk, &RtStore)
+        })
+        .is_some()
+    }
+}
+
+/// (the eyes and hands, `drive.rs`) Runs `f` on the program's forms now,
+/// the program's changes into them first; `None` before the window system
+/// is up, or while it pumps.
+pub(super) fn with_desk_now<R>(f: &mut dyn FnMut(&mut Desktop) -> R) -> Option<R> {
+    ensure_host();
+    with_kern(|k| {
+        sync_desk(&mut k.desk);
+        f(&mut k.desk)
+    })
 }

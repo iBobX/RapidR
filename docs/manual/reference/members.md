@@ -5601,6 +5601,59 @@ A conversation with an AI provider — Anthropic (Claude), OpenAI, DeepSeek, or 
 | `OnError(Message AS STRING)` | A request failed: Message says why and what to do. |
 | `OnKeyNeeded` | There is no key yet (APIKeySource found none, or says "ask"): ask the user for one and set APIKey, then ask again. |
 
+<a id="rappcapture"></a>
+## RAppCapture
+
+The program's own eyes: a picture of its windows as they show now — one window, or all of them side by side — saved as a PNG (a BMP when the name ends in .bmp), with each window's title bar drawn or without, at the screen's scale (sharp on a high-DPI screen) or at 1× (one picture pixel per program pixel); and a layout report of its forms as they are laid out now — each component's name, type, caption, text, place and size, whether it shows, is enabled and has the keyboard — with what a person would see wrong: a caption cut off, two controls on top of each other, a control past its window's edge. Only the program's own windows, ever: never the screen, the desktop or another program, so it needs no Screen Recording permission. Use it for a "save as picture" command, a bug report with a picture, help pages made from the program itself, or a self-check (Problems) after a layout change. RapidR Studio's AI tools look at a running program the same way (app_screenshot, app_layout). Recording a video of the windows comes later. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Scale` | float | 0 | How big the pictures are: 0 (the default) at the screen's scale — sharp on a high-DPI screen, twice the program's pixels on a Retina one —, 1 one picture pixel per program pixel, 2 twice … |
+| `Frame` | bool | True | Each window drawn with its frame and title bar (as RapidR draws a window's on the web and in the form designer): its title shows which window it is. False: its inside only (what Form.SaveImage saves). |
+| `Width` (read-only) | int |  | The last picture's width in pixels. |
+| `Height` (read-only) | int |  | The last picture's height in pixels. |
+| `Windows` (read-only) | string |  | The program's windows that show now, back to front, one a line: the form's name and its title, a TAB between. |
+| `Error` (read-only) | string |  | Why the last call failed ("" when it worked): no such window (the message lists the program's windows), nothing shown, a file that can't be written. |
+
+| Method | |
+|---|---|
+| `SaveToFile(FileName AS STRING, [Window AS STRING]) AS INTEGER` | Saves a picture of Window — a form's name or its title — or, when none is given (or "all"), of every window that shows, side by side from the back one to the front one: a PNG file, a BMP when FileName ends in .bmp. True when it was saved; False when not (Error says why). The program's own windows only. |
+| `LayoutReport([Window AS STRING]) AS STRING` | The forms that show (or Window only) in words, a line a component: `b7 (RButton) "7" at 8,60 size 56×36`, places in the window's inside; then the problems a person would see, or that there are none. |
+| `LayoutJson([Window AS STRING]) AS STRING` | The same report as JSON: {"windows": [{name, type, title, x, y, width, height, front, modal, components: [{name, type, caption, text, x, y, width, height, visible, enabled, focused, parent}], problems: […]}]} — for a program that reads it (RJson). |
+| `Problems([Window AS STRING]) AS STRING` | Only what looks wrong, one problem a line ("" when nothing does): a caption cut off, controls on top of each other, a control past its window's edge or outside it — each with its numbers and what to do. |
+
+<a id="rappdriver"></a>
+## RAppDriver
+
+The program's own hands: clicks, typing, keys, drags and the wheel played into its own windows as a person's would be — through the same routing, so its handlers run as for the user — with a visible pointer that glides to what it clicks (a ring shows each click; with the system's reduced motion it jumps). Components are named as a person finds them: their name, what they show ("OK", "7": a button's caption), or the label beside an edit ("label:Name"); force one with `name:`, `caption:` or `label:`. Each call queues the action and returns its number at once; OnDone(Id, Ok, Text) says how it went in a sentence — or what is there instead ("No button shows \"Go\". Buttons now: Start, Reset."). Only the program's own windows: the system's mouse and keyboard are never touched, nothing outside the program can be, and no Accessibility permission is needed. Use it for guided tours and demos, a "show me" button in help, self-tests, or macros. A program that drives itself acts as its user: everything its buttons do can happen. RapidR's own.
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `ShowCursor` | bool | True | The pointer that shows what it does is drawn over the window (an arrow with a dot in the theme's accent; a ring at each click). False: the actions happen at once, unseen. |
+| `Speed` | float | 1 | How fast the pointer glides and the text is typed: 1 a person's pace, 2 twice as fast, 0 at once. |
+| `Busy` (read-only) | bool |  | True while actions wait or run. |
+| `Pending` (read-only) | int |  | How many actions wait or run. |
+| `LastResult` (read-only) | string |  | The last action's sentence (what OnDone said last). |
+| `Error` (read-only) | string |  | Why the last action failed ("" when it worked): what it looked for and what is there instead. |
+
+| Method | |
+|---|---|
+| `Click(Target AS STRING) AS INTEGER` | Clicks Target — a component's name, what it shows (a button's caption), or the label beside it — as the user would: the pointer glides there, presses, lets go. Returns the action's number (OnDone tells how it went). |
+| `DoubleClick(Target AS STRING) AS INTEGER` | Double-clicks Target (a list's item, a file's name). |
+| `RightClick(Target AS STRING) AS INTEGER` | Right-clicks Target: its pop-up menu opens, as the user's would. |
+| `ClickAt(Window AS STRING, X AS INTEGER, Y AS INTEGER) AS INTEGER` | Clicks at (X, Y) of Window's inside (a form's name or title; "" the front window), in the program's pixels: what a canvas or a picture shows. |
+| `Hover(Target AS STRING) AS INTEGER` | Moves the pointer onto Target and stays a moment (its hint, its hover look). |
+| `TypeText(Target AS STRING, Text AS STRING) AS INTEGER` | Clicks Target ("": what has the keyboard) and types Text into it, a key at a time (a line break is Enter); characters no key types (é, 中) arrive as the system's input method gives them. |
+| `PressKeys(Keys AS STRING, [Target AS STRING]) AS INTEGER` | Presses keys — "Enter", "Ctrl+S", "Shift+Tab", "Alt+F4", "Escape", "F5", several separated by spaces ("Tab Tab Enter") — in Target (it gets the keyboard) or in what has the keyboard. Ctrl is the shortcut key on every system (Command's shortcuts on a Mac). |
+| `Drag(Target AS STRING, ToX AS INTEGER, ToY AS INTEGER) AS INTEGER` | Presses on Target, moves to (ToX, ToY) of the same window's inside, lets go there (a track bar's thumb, a splitter, something StartDrag moves). |
+| `Scroll(Target AS STRING, [Notches AS INTEGER]) AS INTEGER` | Turns the mouse wheel over Target: Notches down (3 when none is given), up when negative. |
+| `Wait(Milliseconds AS INTEGER) AS INTEGER` | Lets the program run on its own that long before the next action (its timers, its work). |
+| `Cancel AS INTEGER` | Drops the actions still waiting (the one running finishes): how many were dropped. |
+
+| Event | |
+|---|---|
+| `OnDone(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)` | Action Id is over: Ok True when it was done, Text says what was done in a sentence — or, when Ok is False, what it looked for and what is there instead, or why it couldn't (a disabled button, a window waiting for an answer in front). |
+
 <a id="rproject"></a>
 ## RProject
 
@@ -5772,6 +5825,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `StepInTargets` | Step Into Specific's choices: the SUBs and FUNCTIONs the paused line still calls, in the order it calls them — OnStepInTargets(Targets). |
 | `StepInTarget(Id AS INTEGER) AS INTEGER` | Step Into Specific: into the call of that SUB or FUNCTION (an id from OnStepInTargets) the paused line makes; a line that doesn't make it is stepped over. |
 | `Input(Text AS STRING) AS INTEGER` | A line for the program's INPUT. |
+| `App(Request AS STRING) AS INTEGER` | The eyes and hands on the running program, as JSON: a look — {"do":"screenshot"} ("window", "scale": "screen" or "1x", "frame"), {"do":"layout"} — or input played into its own windows as a person's — {"do":"click","caption":"7"} (or "name", "label", "window" with "x" and "y"; "double", "button"), "type" ("text"), "key" ("keys": "Ctrl+S"), "drag" ("to_x", "to_y"), "scroll" ("dy"), "wait" ("ms", "idle") — with the virtual cursor showing it. Returns the request's Id at once; OnApp(Id, Ok, Text, Picture) answers it — a look at once, paused or not; input once the handlers it started have run, refused while the program is paused. The program's own windows only: never the system's mouse, keyboard or screen. |
 | `RunInBrowser AS INTEGER` | Program's web build served on this machine (127.0.0.1, an address nobody can guess) and opened in the default browser (the desktop's; on the web, Error says to run it here). Its lines come as OnOutput; BrowserURL says where it is. |
 | `StopBrowser` | Ends what RunInBrowser serves. |
 | `ReadShellPath` | Starts reading your login shell's PATH in the background (RapidR Studio does at start-up): ShellPath waits for it. Nothing on Windows and the web. |
@@ -5782,6 +5836,7 @@ A run of a program under development, as an IDE runs it: in its own process on t
 | `OnOutput(Text AS STRING)` | The program printed Text (PRINT, errors, logpoints). |
 | `OnStopped(Reason AS STRING, File AS STRING, Line AS INTEGER)` | The program paused: at a breakpoint, a step's end, a pause, a run-time error. The call stack, the locals, the globals and the watches are in. |
 | `OnContinue` | A paused program goes on. |
+| `OnApp(Id AS INTEGER, Ok AS INTEGER, Text AS STRING, Picture AS STRING)` | App(Id)'s answer: Ok True when it was done, Text what was seen or done in a sentence (the layout report in words for a layout) — or what is there instead, or why not (paused, a window waiting for an answer in front, the program busy or ended). Picture: a screenshot's PNG, a file in the temporary folder that only you can read (remove it once used), a data: URL on the web; "" when there is none. |
 | `OnExit(Code AS INTEGER)` | The program ended, with its exit code. |
 | `OnFormShown(Id AS STRING)` | The program showed a form. |
 | `OnVariables(Ref AS INTEGER)` | Values fetched: Ref's children (Expand), or 0 — the selected frame's locals and the watches again (Frame, Watches, SetVariable, a statement evaluated). |

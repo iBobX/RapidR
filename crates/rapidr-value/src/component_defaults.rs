@@ -200,6 +200,20 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
         // (RapidR's local HTTP server, runtime-core's httpserver on the
         // desktop: what it reads back; Host, Port, Token … are the
         // registry's defaults)
+        // (the program's own eyes and hands: what they read back before
+        // they did anything — the runtimes answer them after)
+        "RAPPCAPTURE" => {
+            put("width", v_int(0));
+            put("height", v_int(0));
+            put("windows", v_str(""));
+            put("error", v_str(""));
+        }
+        "RAPPDRIVER" => {
+            put("busy", v_int(0));
+            put("pending", v_int(0));
+            put("lastresult", v_str(""));
+            put("error", v_str(""));
+        }
         // (RMcpServer: what it reads back once started, and the call in hand)
         "RMCPSERVER" => {
             put("listening", v_int(0));

@@ -466,6 +466,9 @@ impl ProgramEnd {
                 };
                 (reply(event), Control::None)
             }
+            // (the eyes and hands are the runtime's, which the host hands
+            // them to before they reach here: rapidr_ui_app::link)
+            Command::App { .. } => (reply(Event::error(seq, "this program's runtime has no eyes and hands (no windows)")), Control::None),
             Command::Input { text: Some(text), .. } => (reply(ok()), Control::Input(text)),
             Command::Input { .. } => (reply(Event::error(seq, "input to a form drawn in the IDE comes with remote forms (I5)")), Control::None),
         }

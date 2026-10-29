@@ -133,7 +133,7 @@ fn thinking_budget(effort: &str) -> u32 {
 }
 
 /// Now, in milliseconds (a clock that only goes forward on the desktop).
-pub(crate) fn now_ms() -> f64 {
+pub fn now_ms() -> f64 {
     #[cfg(target_arch = "wasm32")]
     {
         js_sys::Date::now()

@@ -138,3 +138,100 @@ events = [
   { name = "OnError", params = "Message AS STRING", doc = "A request failed: Message says why and what to do." },
   { name = "OnKeyNeeded", doc = "There is no key yet (APIKeySource found none, or says \"ask\"): ask the user for one and set APIKey, then ask again." },
 ]
+
+[[component]]
+name = "RAPPCAPTURE"
+display = "AppCapture"
+visual = false
+doc = "The program's own eyes: a picture of its windows as they show now — one window, or all of them side by side — saved as a PNG (a BMP when the name ends in .bmp), with each window's title bar drawn or without, at the screen's scale (sharp on a high-DPI screen) or at 1× (one picture pixel per program pixel); and a layout report of its forms as they are laid out now — each component's name, type, caption, text, place and size, whether it shows, is enabled and has the keyboard — with what a person would see wrong: a caption cut off, two controls on top of each other, a control past its window's edge. Only the program's own windows, ever: never the screen, the desktop or another program, so it needs no Screen Recording permission. Use it for a \"save as picture\" command, a bug report with a picture, help pages made from the program itself, or a self-check (Problems) after a layout change. RapidR Studio's AI tools look at a running program the same way (app_screenshot, app_layout). Recording a video of the windows comes later. RapidR's own."
+example = """
+CREATE Form1 AS RForm
+    Caption = "Snapshot"
+    Width = 300: Height = 160
+    CREATE Info AS RLabel
+        Caption = "Hello from my program"
+        Left = 20: Top = 20
+    END CREATE
+END CREATE
+DIM Eyes AS RAppCapture
+Eyes.Scale = 1
+Form1.Show
+IF Eyes.SaveToFile("snapshot.png", "Form1") THEN PRINT "saved"; Eyes.Width; " x"; Eyes.Height ELSE PRINT Eyes.Error
+PRINT Eyes.LayoutReport("Form1")
+"""
+properties = [
+  { name = "Scale", type = "float", default = 0, range = "0..4", doc = "How big the pictures are: 0 (the default) at the screen's scale — sharp on a high-DPI screen, twice the program's pixels on a Retina one —, 1 one picture pixel per program pixel, 2 twice …" },
+  { name = "Frame", type = "bool", default = true, doc = "Each window drawn with its frame and title bar (as RapidR draws a window's on the web and in the form designer): its title shows which window it is. False: its inside only (what Form.SaveImage saves)." },
+  { name = "Width", type = "int", access = "read", design = false, unit = "px", doc = "The last picture's width in pixels." },
+  { name = "Height", type = "int", access = "read", design = false, unit = "px", doc = "The last picture's height in pixels." },
+  { name = "Windows", type = "string", access = "read", design = false, doc = "The program's windows that show now, back to front, one a line: the form's name and its title, a TAB between." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last call failed (\"\" when it worked): no such window (the message lists the program's windows), nothing shown, a file that can't be written." },
+]
+methods = [
+  { name = "SaveToFile", params = "FileName AS STRING, [Window AS STRING]", returns = "INTEGER", effects = ["file-write"], arg_kinds = { FileName = "file:image" }, test = "skip: needs a shown window", doc = "Saves a picture of Window — a form's name or its title — or, when none is given (or \"all\"), of every window that shows, side by side from the back one to the front one: a PNG file, a BMP when FileName ends in .bmp. True when it was saved; False when not (Error says why). The program's own windows only." },
+  { name = "LayoutReport", params = "[Window AS STRING]", returns = "STRING", effects = ["none"], test = "skip: needs a shown window", doc = "The forms that show (or Window only) in words, a line a component: `b7 (RButton) \"7\" at 8,60 size 56×36`, places in the window's inside; then the problems a person would see, or that there are none." },
+  { name = "LayoutJson", params = "[Window AS STRING]", returns = "STRING", effects = ["none"], test = "skip: needs a shown window", doc = "The same report as JSON: {\"windows\": [{name, type, title, x, y, width, height, front, modal, components: [{name, type, caption, text, x, y, width, height, visible, enabled, focused, parent}], problems: […]}]} — for a program that reads it (RJson)." },
+  { name = "Problems", params = "[Window AS STRING]", returns = "STRING", effects = ["none"], test = "skip: needs a shown window", doc = "Only what looks wrong, one problem a line (\"\" when nothing does): a caption cut off, controls on top of each other, a control past its window's edge or outside it — each with its numbers and what to do." },
+]
+events = []
+
+[[component]]
+name = "RAPPDRIVER"
+display = "AppDriver"
+visual = false
+default_event = "OnDone"
+doc = "The program's own hands: clicks, typing, keys, drags and the wheel played into its own windows as a person's would be — through the same routing, so its handlers run as for the user — with a visible pointer that glides to what it clicks (a ring shows each click; with the system's reduced motion it jumps). Components are named as a person finds them: their name, what they show (\"OK\", \"7\": a button's caption), or the label beside an edit (\"label:Name\"); force one with `name:`, `caption:` or `label:`. Each call queues the action and returns its number at once; OnDone(Id, Ok, Text) says how it went in a sentence — or what is there instead (\"No button shows \\\"Go\\\". Buttons now: Start, Reset.\"). Only the program's own windows: the system's mouse and keyboard are never touched, nothing outside the program can be, and no Accessibility permission is needed. Use it for guided tours and demos, a \"show me\" button in help, self-tests, or macros. A program that drives itself acts as its user: everything its buttons do can happen. RapidR's own."
+example = """
+DECLARE SUB Done(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)
+DECLARE SUB AddOne
+DIM Count AS INTEGER
+CREATE Form1 AS RForm
+    Caption = "Counter"
+    Width = 260: Height = 140
+    CREATE Total AS RLabel
+        Caption = "0"
+        Left = 20: Top = 20
+    END CREATE
+    CREATE AddButton AS RButton
+        Caption = "Add one"
+        Left = 20: Top = 50: Width = 100
+        OnClick = AddOne
+    END CREATE
+END CREATE
+CREATE Hands AS RAppDriver
+    OnDone = Done
+END CREATE
+SUB AddOne
+    Count = Count + 1
+    Total.Caption = STR$(Count)
+END SUB
+SUB Done(Id AS INTEGER, Ok AS INTEGER, Text AS STRING)
+    PRINT Text
+END SUB
+Hands.Click "Add one"
+Form1.ShowModal
+"""
+properties = [
+  { name = "ShowCursor", type = "bool", default = true, doc = "The pointer that shows what it does is drawn over the window (an arrow with a dot in the theme's accent; a ring at each click). False: the actions happen at once, unseen." },
+  { name = "Speed", type = "float", default = 1, range = "0..20", doc = "How fast the pointer glides and the text is typed: 1 a person's pace, 2 twice as fast, 0 at once." },
+  { name = "Busy", type = "bool", access = "read", design = false, doc = "True while actions wait or run." },
+  { name = "Pending", type = "int", access = "read", design = false, doc = "How many actions wait or run." },
+  { name = "LastResult", type = "string", access = "read", design = false, doc = "The last action's sentence (what OnDone said last)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last action failed (\"\" when it worked): what it looked for and what is there instead." },
+]
+methods = [
+  { name = "Click", params = "Target AS STRING", returns = "INTEGER", value = true, effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Clicks Target — a component's name, what it shows (a button's caption), or the label beside it — as the user would: the pointer glides there, presses, lets go. Returns the action's number (OnDone tells how it went)." },
+  { name = "DoubleClick", params = "Target AS STRING", returns = "INTEGER", effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Double-clicks Target (a list's item, a file's name)." },
+  { name = "RightClick", params = "Target AS STRING", returns = "INTEGER", effects = ["ui"], test = "skip: needs a shown window", doc = "Right-clicks Target: its pop-up menu opens, as the user's would." },
+  { name = "ClickAt", params = "Window AS STRING, X AS INTEGER, Y AS INTEGER", returns = "INTEGER", effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Clicks at (X, Y) of Window's inside (a form's name or title; \"\" the front window), in the program's pixels: what a canvas or a picture shows." },
+  { name = "Hover", params = "Target AS STRING", returns = "INTEGER", effects = ["ui"], test = "skip: needs a shown window", doc = "Moves the pointer onto Target and stays a moment (its hint, its hover look)." },
+  { name = "TypeText", params = "Target AS STRING, Text AS STRING", returns = "INTEGER", effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Clicks Target (\"\": what has the keyboard) and types Text into it, a key at a time (a line break is Enter); characters no key types (é, 中) arrive as the system's input method gives them." },
+  { name = "PressKeys", params = "Keys AS STRING, [Target AS STRING]", returns = "INTEGER", effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Presses keys — \"Enter\", \"Ctrl+S\", \"Shift+Tab\", \"Alt+F4\", \"Escape\", \"F5\", several separated by spaces (\"Tab Tab Enter\") — in Target (it gets the keyboard) or in what has the keyboard. Ctrl is the shortcut key on every system (Command's shortcuts on a Mac)." },
+  { name = "Drag", params = "Target AS STRING, ToX AS INTEGER, ToY AS INTEGER", returns = "INTEGER", effects = ["ui", "state"], risk = "irreversible", test = "skip: needs a shown window", doc = "Presses on Target, moves to (ToX, ToY) of the same window's inside, lets go there (a track bar's thumb, a splitter, something StartDrag moves)." },
+  { name = "Scroll", params = "Target AS STRING, [Notches AS INTEGER]", returns = "INTEGER", effects = ["ui"], test = "skip: needs a shown window", doc = "Turns the mouse wheel over Target: Notches down (3 when none is given), up when negative." },
+  { name = "Wait", params = "Milliseconds AS INTEGER", returns = "INTEGER", effects = ["none"], test = "skip: needs a shown window", doc = "Lets the program run on its own that long before the next action (its timers, its work)." },
+  { name = "Cancel", returns = "INTEGER", value = true, effects = ["state"], doc = "Drops the actions still waiting (the one running finishes): how many were dropped." },
+]
+events = [
+  { name = "OnDone", params = "Id AS INTEGER, Ok AS INTEGER, Text AS STRING", doc = "Action Id is over: Ok True when it was done, Text says what was done in a sentence — or, when Ok is False, what it looked for and what is there instead, or why it couldn't (a disabled button, a window waiting for an answer in front)." },
+]

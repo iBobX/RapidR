@@ -33,6 +33,7 @@
 //! | `SetNextStatement(File, Line)` → Id | Set Next Statement: the paused program goes on from that line (within its SUB or FUNCTION): OnEvaluate(Id, "") then OnStopped("goto", …), or OnEvaluate(Id, "error: …") |
 //! | `StepInTargets`, `StepInTarget(Id)` | Step Into Specific: the calls the paused line still makes — OnStepInTargets(Targets: a line each, its id and name tab-separated) —; into the one picked |
 //! | `Input(Text)` | a line for the program's INPUT |
+//! | `App(Request)` → Id | the eyes and hands on the running program (rapidr-session's `app`, `rapidr_ui_app::link`): a JSON request — `{"do":"screenshot"}`, `{"do":"layout"}`, `{"do":"click","caption":"7"}`, `type`, `key`, `drag`, `scroll`, `wait` —; OnApp(Id, Ok, Text, Picture) when it is answered (Picture: the PNG a screenshot gave, a file in the temporary folder the caller removes — a `data:` URL on the web; "" for none), or when the program didn't answer in time |
 //! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)`, `OnBreakpointPlaced(File, Line, NewLine)` | |
 
 use std::cell::{Cell, RefCell};
@@ -66,6 +67,45 @@ enum Want {
     More(u32),
     /// `StepInTargets`' answer: OnStepInTargets.
     Targets,
+    /// `App`'s answer: OnApp(Id, …); `until`: when it stops waiting for it
+    /// (`rapidr_ai::rai::now_ms`).
+    App { id: i64, until: f64 },
+}
+
+/// How long `App` waits for the program: a look 10 s, input 20 s more
+/// than what it asked to wait.
+fn app_timeout(request: &serde_json::Value) -> f64 {
+    let what = request.get("do").and_then(serde_json::Value::as_str).unwrap_or("");
+    let waits = request.get("ms").and_then(serde_json::Value::as_f64).unwrap_or(0.0).clamp(0.0, 60_000.0);
+    match what {
+        "screenshot" | "capture" | "picture" | "layout" | "windows" | "cursor" => 10_000.0,
+        _ => 20_000.0 + waits,
+    }
+}
+
+/// A screenshot's PNG (base64) where the caller can take it: a file in the
+/// temporary folder, readable by this user only, on the desktop; a `data:`
+/// URL on the web.
+fn app_picture(id: i64, png_base64: &str) -> String {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = id;
+        format!("data:image/png;base64,{png_base64}")
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Some(bytes) = rapidr_value::objects::codec::base64_decode(png_base64) else { return String::new() };
+        let path = std::env::temp_dir().join(format!("rapidr-app-{}-{id}.png", std::process::id()));
+        if std::fs::write(&path, bytes).is_err() {
+            return String::new();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
+        path.to_string_lossy().into_owned()
+    }
 }
 
 /// A variable as the last stop fetched it, and whether its value changed
@@ -105,6 +145,8 @@ struct Model {
     /// A frame or watch refresh in flight: OnVariables(0) when done.
     refreshing: bool,
     next_eval: i64,
+    /// `App`'s requests' numbers.
+    next_app: i64,
     /// The look a program that names none is drawn in ($THEME's names).
     theme: String,
 }
@@ -135,7 +177,9 @@ impl Model {
         self.frame = 0;
         self.vars.clear();
         self.watch_values.clear();
-        self.pending.clear();
+        // (the eyes and hands' requests are answered whether it stops or
+        // goes on: kept)
+        self.pending.retain(|_, w| matches!(w, Want::App { .. }));
         self.held = None;
         self.refreshing = false;
         self.scope.clear();
@@ -498,6 +542,31 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::Integer(id)
         }
         "input" => r(with(name, |m| m.session.input(&text_arg(args, 0)))),
+        // (the eyes and hands on the running program: OnApp when answered)
+        "app" => {
+            let text = text_arg(args, 0);
+            let (id, refused) = with(name, |m| {
+                m.next_app += 1;
+                let id = m.next_app;
+                let request: serde_json::Value = match serde_json::from_str(&text) {
+                    Ok(v) => v,
+                    Err(e) => return (id, Some(format!("The request isn't JSON: {e}"))),
+                };
+                if m.session.state() == State::Stopped {
+                    return (id, Some("The program isn't running: run it first (run_program), then try again.".to_string()));
+                }
+                let until = rapidr_ai::rai::now_ms() + app_timeout(&request);
+                if m.ask(Command::App { request }, Want::App { id, until }) {
+                    (id, None)
+                } else {
+                    (id, Some("The program couldn't be reached (it is ending?): try again.".to_string()))
+                }
+            });
+            if let Some(why) = refused {
+                host.fire(name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String(why), Value::String(String::new())]);
+            }
+            Value::Integer(id)
+        }
         _ => return None,
     })
 }
@@ -564,6 +633,10 @@ fn poll_once<H: Host>(host: H) -> bool {
                 }
                 SessionEvent::Exited { code } => {
                     with(&name, Model::forget);
+                    // (the eyes and hands' requests still waiting: the program ended)
+                    for id in with(&name, |m| take_apps(m, f64::INFINITY)) {
+                        host.fire(&name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String(format!("The program ended (exit code {code}) before it answered.")), Value::String(String::new())]);
+                    }
                     host.fire(&name, "onexit", &[Value::Integer(i64::from(code))]);
                 }
                 SessionEvent::FormShown { id } => host.fire(&name, "onformshown", &[Value::String(id)]),
@@ -571,8 +644,28 @@ fn poll_once<H: Host>(host: H) -> bool {
                 SessionEvent::FormClosed { .. } => {}
             }
         }
+        // (the eyes and hands' requests not answered in time: a program busy
+        // in its own code — a long loop without DOEVENTS — answers only when
+        // it next waits for its events)
+        let late = with(&name, |m| take_apps(m, rapidr_ai::rai::now_ms()));
+        for id in late {
+            host.fire(&name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String("The program didn't answer in time: it may be busy running its own code (a long loop) and will answer when it next waits for its events. Wait and try again, or pause it in the debugger to see where it is.".into()), Value::String(String::new())]);
+        }
     }
     running
+}
+
+/// The `App` requests whose time is up by `now` (`INFINITY`: all), taken
+/// out: their ids.
+fn take_apps(m: &mut Model, now: f64) -> Vec<i64> {
+    let late: Vec<(u64, i64)> = m.pending.iter().filter_map(|(seq, w)| match w {
+        Want::App { id, until } if *until <= now => Some((*seq, *id)),
+        _ => None,
+    }).collect();
+    for (seq, _) in &late {
+        m.pending.remove(seq);
+    }
+    late.into_iter().map(|(_, id)| id).collect()
 }
 
 /// A reply to one of the session's own requests.
@@ -645,6 +738,18 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                 let shown = m.mark(r, list);
                 m.vars.entry(r).or_default().extend(shown);
                 fire.push(("onvariables", vec![Value::Integer(i64::from(r))]));
+            }
+            Want::App { id, .. } => {
+                let (ok, text, picture) = match &body {
+                    EventBody::App { result } => {
+                        let ok = result.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                        let text = result.get("text").and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+                        let picture = result.get("png").and_then(serde_json::Value::as_str).map(|p| app_picture(id, p)).unwrap_or_default();
+                        (ok, text, picture)
+                    }
+                    _ => (false, error.clone().unwrap_or_else(|| "the program gave no answer".into()), String::new()),
+                };
+                fire.push(("onapp", vec![Value::Integer(id), Value::Integer(if ok { -1 } else { 0 }), Value::String(text), Value::String(picture)]));
             }
             Want::Targets => {
                 let text = match body {

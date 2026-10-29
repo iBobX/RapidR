@@ -59,6 +59,7 @@ pub mod testhooks;
 // plays into them: RapidR Studio's app_* tools, RAppCapture, RAppDriver)
 pub mod eyes;
 pub mod hands;
+pub mod link;
 // (the dialogs lane's: Open / Save dialogs; colour and font dialogs too)
 pub mod choose_dialogs;
 pub mod dialogs;
