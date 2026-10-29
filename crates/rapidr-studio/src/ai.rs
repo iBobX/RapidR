@@ -119,6 +119,38 @@ fn s(v: impl Into<String>) -> Value {
     Value::String(v.into())
 }
 
+/// The key a kept chat's state holds its waiting changes under.
+const PENDING_KEY: &str = "studioPendingChanges";
+
+/// A chat's state (RAI.ChatState, JSON) with the changes still waiting for
+/// the user (not decided, a new program not created) kept in it.
+pub(crate) fn with_pending(state: &str, proposals: &[Proposal]) -> String {
+    let waiting: Vec<serde_json::Value> = proposals
+        .iter()
+        .filter(|p| p.decision.is_empty())
+        .map(|p| serde_json::json!({"kind": p.kind, "path": p.path, "old": p.old, "new": p.new, "summary": p.summary, "project": p.project, "title": p.title, "main": p.main}))
+        .collect();
+    let Ok(serde_json::Value::Object(mut o)) = serde_json::from_str::<serde_json::Value>(state) else { return state.to_string() };
+    o.remove(PENDING_KEY);
+    if !waiting.is_empty() {
+        o.insert(PENDING_KEY.into(), serde_json::Value::Array(waiting));
+    }
+    serde_json::Value::Object(o).to_string()
+}
+
+/// A kept chat's state without its waiting changes, and those changes.
+pub(crate) fn take_pending(state: &str) -> (String, Vec<Proposal>) {
+    let Ok(serde_json::Value::Object(mut o)) = serde_json::from_str::<serde_json::Value>(state) else { return (state.to_string(), Vec::new()) };
+    let Some(serde_json::Value::Array(items)) = o.remove(PENDING_KEY) else { return (state.to_string(), Vec::new()) };
+    let t = |v: &serde_json::Value, k: &str| v.get(k).and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+    let pending = items
+        .iter()
+        .filter(|v| !t(v, "path").is_empty() && matches!(t(v, "kind").as_str(), "edit" | "create" | "project"))
+        .map(|v| Proposal { kind: t(v, "kind"), path: t(v, "path"), old: t(v, "old"), new: t(v, "new"), summary: t(v, "summary"), project: t(v, "project"), title: t(v, "title"), main: v.get("main").and_then(serde_json::Value::as_bool).unwrap_or(false), decision: String::new() })
+        .collect();
+    (serde_json::Value::Object(o).to_string(), pending)
+}
+
 /// Installs the project tools for RAI.AttachComponent (once a
 /// RAIPROJECTTOOLS is used).
 pub fn install() {
@@ -948,10 +980,23 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "chatlist" => s(rapidr_ai::chats::list(&arg(0)).iter().map(|c| format!("{}\t{}\t{}\t{}", c.id, one_line(&c.title), c.updated, c.questions)).collect::<Vec<_>>().join("\n")),
         "searchchats" => s(rapidr_ai::chats::search(&arg(0), &arg(1)).iter().map(|(c, line)| format!("{}\t{}\t{}\t{}\t{}", c.id, one_line(&c.title), c.updated, c.questions, one_line(line))).collect::<Vec<_>>().join("\n")),
         "savechat" => {
+            // (the changes still waiting for the user kept with it: after a
+            // restart they can still be reviewed and applied — Robert
+            // 2026-10-28: "can't apply again")
+            let state = with(name, |t| with_pending(&arg(4), &t.proposals));
             // (the secrets the program holds, removed whatever their shape)
-            s(rapidr_ai::chats::save(&arg(0), &arg(1), &arg(2), &arg(3), &arg(4), &[]).unwrap_or_else(|e| format!("error: {e}")))
+            s(rapidr_ai::chats::save(&arg(0), &arg(1), &arg(2), &arg(3), &state, &[]).unwrap_or_else(|e| format!("error: {e}")))
         }
-        "loadchat" => s(rapidr_ai::chats::load(&arg(0), &arg(1)).unwrap_or_default()),
+        "loadchat" => {
+            let (state, pending) = take_pending(&rapidr_ai::chats::load(&arg(0), &arg(1)).unwrap_or_default());
+            // (the chat's own waiting changes, in place of the last chat's —
+            // none when it can't be read: another chat's never stay)
+            with(name, |t| {
+                t.proposals = pending;
+                t.carried.clear();
+            });
+            s(state)
+        }
         "deletechat" => {
             let kept = rapidr_ai::chats::raw(&arg(0), &arg(1)).unwrap_or_default();
             if rapidr_ai::chats::delete(&arg(0), &arg(1)) {

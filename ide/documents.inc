@@ -306,7 +306,8 @@ SUB OpenDocument(Path AS STRING)
   ' (editor.inc: the caret's place, encoding and line breaks; the caret in
   ' the code, ready to type, as an editor opens a file)
   EditorFacts d
-  FocusCodeSoon d
+  ' (a preview from the project tree: the keys stay there)
+  IF OpenQuietly = 0 THEN FocusCodeSoon d
   OutputLine "Opened " + Path
   UpdateCommands
 END SUB
@@ -317,6 +318,8 @@ FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
   IF DocOpen(d) = 0 THEN EXIT FUNCTION
   CodeDoc(d).SaveToFile DocFile(d)
   DocDirty(d) = 0
+  ' (saved: no copy of it needed — safety.inc)
+  KeepForget d
   DocTitles d
   ProjectFollowsCode
   Result = 1
@@ -358,6 +361,8 @@ SUB CloseDocument(d AS INTEGER)
   IF DocOpen(d) = 0 THEN EXIT SUB
   ' (its changes: Save / Don't Save / Cancel — workspace.inc)
   IF AskToSave(d) = 0 THEN EXIT SUB
+  ' (saved or let go: no copy of it — safety.inc)
+  KeepForget d
   DocOpen(d) = 0
   Dock.ClosePane(DocPane(d))
   Lang.Close DocFile(d)
@@ -385,6 +390,10 @@ SUB CodeChanged(Sender AS RCodeEditor)
   IF Loading THEN EXIT SUB
   d = Sender.Tag
   DirtyFollows d
+  ' (its copy kept at the next tick — safety.inc)
+  KeepNoted d
+  ' (changed: a preview tab is kept — panels.inc)
+  PreviewKept d
   CodeTyped d
   ' (the problems and the outline follow once typing stops)
   Analyzer.Enabled = 0

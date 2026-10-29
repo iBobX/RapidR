@@ -138,6 +138,13 @@ CONST AIMAXPROPS = 32
 DIM AIRevResult(AIMAXPROPS) AS STRING
 DIM AIRevSeen(AIMAXPROPS) AS INTEGER
 DIM AIRevAt AS INTEGER
+' (an Apply under way, all or nothing: each proposal's step — 0 nothing,
+' 1 a new file, 2 a change —, its file, its editor, its text before)
+DIM AIApAct(AIMAXPROPS) AS INTEGER
+DIM AIApFull(AIMAXPROPS) AS STRING
+DIM AIApDoc(AIMAXPROPS) AS INTEGER
+DIM AIApBefore(AIMAXPROPS) AS STRING
+DECLARE SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
 ' (the panel's lists being filled: their OnChange isn't the user's)
 DIM AIFilling AS INTEGER
 ' (Set Up RAI's Finish asked for the models: when they come, the status
@@ -1909,72 +1916,142 @@ SUB AIRevCancel
   AIReview.Close
 END SUB
 
-' Applies what the review left: each file changed in its editor as one
-' undo step (opened when it wasn't; saved by the user, as any change); a
-' new file written, added to the project and opened. Each decision goes
-' to the conversation and the audit log.
+' Applies what the review left, all or nothing (Robert 2026-10-28: an Apply
+' that failed half-way left some files written and others not):
+'   1. every change is checked before anything changes — a new file can be
+'      written where it goes (its folder made or there, nothing there
+'      already), a changed file is still as RAI read it;
+'   2. the new files are written (their folders made: icons/folder.svg);
+'   3. the changed files are changed in their editors, each as one undo
+'      step (opened when they weren't; saved by the user, as any change).
+' Anything that fails takes back what this Apply did (its files and
+' folders, its editors' changes), says why, and leaves the changes waiting
+' to be applied again. Each decision goes to the conversation and the
+' audit log.
 SUB AIApplyProposals
-  DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
-  DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, f AS RFileStream
-  DIM before AS STRING, undoN AS INTEGER
-  FOR i = 0 TO AITools.ProposalCount - 1
-    IF i >= AIMAXPROPS THEN EXIT FOR
+  DIM i AS INTEGER, n AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
+  DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, why AS STRING, current AS STRING
+  DIM undoN AS INTEGER, k AS INTEGER, failed AS STRING
+  n = AITools.ProposalCount
+  IF n > AIMAXPROPS THEN n = AIMAXPROPS
+  ' ---- 1. checked, nothing changed yet (act: 0 nothing, 1 new file, 2 change) ----
+  FOR i = 0 TO n - 1
     info = AITools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
     path = FIELD$(info, CHR$(9), 2)
     full = ProjectPath(path)
+    AIApFull(i) = full
+    AIApDoc(i) = -1
     newText = AIRevResult(i)
     IF newText = AITools.ProposalOld(i) THEN
+      AIApAct(i) = 0
+    ELSEIF kind = "create" AND FILEEXISTS(full) = 0 AND DocOf(full) < 0 THEN
+      AIApAct(i) = 1
+      ' (two new files at one place: the second can't be written)
+      FOR k = 0 TO i - 1
+        IF AIApAct(k) = 1 AND LCASE$(AIApFull(k)) = LCASE$(full) THEN why = why + path + " is proposed twice" + CHR$(10)
+      NEXT
+      IF Proj.CanWriteNewFile(full) = 0 THEN why = why + path + ": " + Proj.Error + CHR$(10)
+    ELSE
+      AIApAct(i) = 2
+      d = DocOf(full)
+      IF d >= 0 THEN
+        current = CodeDoc(d).Text
+      ELSEIF FILEEXISTS(full) THEN
+        current = Proj.FileText(full)
+      ELSE
+        current = ""
+        why = why + path + " isn't there any more" + CHR$(10)
+      END IF
+      ' (the user changed it since the assistant read it: never overwritten)
+      IF FILEEXISTS(full) OR d >= 0 THEN
+        IF AIMatches(current, AITools.ProposalOld(i)) = 0 THEN why = why + path + " changed since the assistant read it" + CHR$(10)
+      END IF
+    END IF
+  NEXT
+  IF why <> "" THEN
+    AIApplyRefused why, 0
+    EXIT SUB
+  END IF
+  ' ---- 2. the new files ----
+  Proj.ApplyBegin
+  FOR i = 0 TO n - 1
+    IF AIApAct(i) = 1 THEN
+      IF Proj.WriteNewFile(AIApFull(i), AIRevResult(i)) = 0 THEN
+        failed = FIELD$(AITools.ProposalInfo(i), CHR$(9), 2) + ": " + Proj.Error
+        EXIT FOR
+      END IF
+    END IF
+  NEXT
+  ' ---- 3. the changes, each in its editor ----
+  IF failed = "" THEN
+    FOR i = 0 TO n - 1
+      IF AIApAct(i) = 2 THEN
+        d = DocOf(AIApFull(i))
+        IF d < 0 THEN
+          OpenDocument AIApFull(i)
+          d = DocOf(AIApFull(i))
+        END IF
+        IF d < 0 THEN
+          failed = FIELD$(AITools.ProposalInfo(i), CHR$(9), 2) + ": it can't be opened"
+          EXIT FOR
+        END IF
+        AIApBefore(i) = CodeDoc(d).Text
+        patch = AITools.Patch(CodeDoc(d).Text, AIRevResult(i))
+        ' (a patch the editor refuses leaves the file as it was)
+        IF patch <> "" THEN
+          IF CodeDoc(d).ApplyPatches(patch, 0) = 0 THEN
+            failed = FIELD$(AITools.ProposalInfo(i), CHR$(9), 2) + ": its editor refused the change"
+            EXIT FOR
+          END IF
+        END IF
+        AIApDoc(i) = d
+      END IF
+    NEXT
+  END IF
+  IF failed <> "" THEN
+    ' (taken back: the editors' changes, then the files and folders made)
+    FOR i = n - 1 TO 0 STEP -1
+      IF AIApAct(i) = 2 AND AIApDoc(i) >= 0 THEN
+        d = AIApDoc(i)
+        patch = AITools.Patch(CodeDoc(d).Text, AIApBefore(i))
+        IF patch <> "" THEN k = CodeDoc(d).ApplyPatches(patch, 0)
+        DirtyFollows d
+      END IF
+    NEXT
+    Proj.ApplyUndo
+    AIApplyRefused failed + CHR$(10), 1
+    EXIT SUB
+  END IF
+  ' ---- all in: what was decided ----
+  FOR i = 0 TO n - 1
+    newText = AIRevResult(i)
+    IF AIApAct(i) = 0 THEN
       AITools.Decide i, "rejected"
-    ELSEIF kind = "create" AND FILEEXISTS(full) = 0 THEN
-      ' (a new file in a new folder, icons/folder.svg: the folder first —
-      ' opening a file in a missing folder is a run-time error that closed
-      ' Studio, Robert 2026-10-25)
-      IF FolderOf(full) <> "" AND DIREXISTS(FolderOf(full)) = 0 THEN MKDIR FolderOf(full)
-      f.Open(full, 65535)
-      f.WriteStr(newText, LEN(newText))
-      f.Close
-      IF Proj.AddFile(full) THEN
+    ELSEIF AIApAct(i) = 1 THEN
+      IF Proj.AddFile(AIApFull(i)) THEN
         IF Proj.Kind = "project" THEN SaveProjectFile
       END IF
-      FillProjectTree
-      OpenDocument full
       AITools.Decide i, "applied"
       done = done + 1
     ELSE
-      d = DocOf(full)
-      IF d < 0 THEN
-        OpenDocument full
-        d = DocOf(full)
+      d = AIApDoc(i)
+      ' (/undo: the file as it was and became)
+      IF undoN < AIMAXPROPS THEN
+        AIUndoDoc(undoN) = d
+        AIUndoBefore(undoN) = AIApBefore(i)
+        AIUndoAfter(undoN) = CodeDoc(d).Text
+        undoN = undoN + 1
       END IF
-      IF d < 0 THEN
-        OutputLine "AI: can't open " + path + " to change it"
-      ELSEIF AIMatches(CodeDoc(d).Text, AITools.ProposalOld(i)) = 0 THEN
-        ' (the user changed it since the assistant read it: never overwritten)
-        OutputLine "AI: " + path + " changed since the assistant read it; its change wasn't applied (ask again)"
-        AITools.Decide i, "stale"
-      ELSE
-        before = CodeDoc(d).Text
-        patch = AITools.Patch(CodeDoc(d).Text, newText)
-        ' (said only when it really changed: a patch the editor refused
-        ' leaves the file as it was, and the chat says so)
-        IF patch <> "" AND CodeDoc(d).ApplyPatches(patch, 0) = 0 THEN
-          OutputLine "AI: the change to " + path + " couldn't be applied in its editor (ask again)"
-          AITools.Decide i, "failed"
-        ELSE
-          ' (/undo: the file as it was and became)
-          IF undoN < AIMAXPROPS THEN
-            AIUndoDoc(undoN) = d
-            AIUndoBefore(undoN) = before
-            AIUndoAfter(undoN) = CodeDoc(d).Text
-            undoN = undoN + 1
-          END IF
-          ProjectFileChanged d
-          IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
-          done = done + 1
-        END IF
-      END IF
+      ProjectFileChanged d
+      IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
+      done = done + 1
     END IF
+  NEXT
+  ' (the new files: in the project's tree, opened)
+  FillProjectTree
+  FOR i = 0 TO n - 1
+    IF AIApAct(i) = 1 THEN OpenDocument AIApFull(i)
   NEXT
   ' (what was decided is done with: a review opened again shows only what
   ' still waits, and nothing is said twice)
@@ -1993,6 +2070,25 @@ SUB AIApplyProposals
   IF done > 0 THEN AIRecheck
   ' (the decisions are in the chat: kept)
   AISaveChat
+  UpdateCommands
+END SUB
+
+' An Apply that changed nothing (Why: a line a reason; Undone: it had
+' begun and was taken back): said in the status, the Output and the chat's
+' note; the changes still wait, to be applied again or rejected.
+SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
+  DIM i AS INTEGER, n AS INTEGER, first AS STRING
+  n = TALLY(Why, CHR$(10))
+  first = FIELD$(Why, CHR$(10), 1)
+  FOR i = 1 TO n
+    OutputLine "AI: not applied — " + FIELD$(Why, CHR$(10), i)
+  NEXT
+  IF Undone THEN
+    AIStatus.SimpleText = "Nothing was changed: " + first + ". What this Apply had done was taken back; the changes still wait (Review)."
+  ELSE
+    AIStatus.SimpleText = "Nothing was changed: " + first + IIF(n > 1, " (and " + LTRIM$(STR$(n - 1)) + " more in the Output)", "") + ". The changes still wait (Review)."
+  END IF
+  AIShowReviewBar
   UpdateCommands
 END SUB
 
@@ -2231,13 +2327,14 @@ END FUNCTION
 ' the changes proposed to the project before wait no more — never applied
 ' to another project's files)
 SUB AIProjectChanged
-  ' (R1: the project's own chats — its newest shown; aichats.inc)
+  ' (R1: the project's own chats — its newest shown, with the changes it
+  ' left waiting: aichats.inc; another project's are kept with its chat)
   AILoadProjectChat
-  IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 THEN
-    IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AITools.ProjectFolder) THEN
-      AITools.ClearProposals
-      AIReviewBar.Visible = 0
-    END IF
+  ' (none open: the closed project's waiting changes are kept with its
+  ' chat, never left to apply here)
+  IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 AND ProjectOpen = 0 THEN
+    AITools.ClearProposals
+    AIReviewBar.Visible = 0
   END IF
   IF AIBanner.Visible = 0 THEN EXIT SUB
   IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AIBannerFolder) THEN AIHideBanner

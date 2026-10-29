@@ -9,6 +9,11 @@
 //   "hello …"          a short answer
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
 //   "add an icon"      write_file icons/folder.svg (a new file in a new folder)
+//   "add a chinese translation"  write_file lang/zh-Hans.po (Chinese text, a new
+//                      folder): its bytes on disk must be the text's UTF-8
+//   "add three things" read the main file, then: its window renamed, an icon in
+//                      a new folder, a file under the main file (it can't be
+//                      made): an Apply that must change nothing
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
 //                      (a type RapidR doesn't have) before its form: a change that leaves an error
@@ -274,6 +279,30 @@ function script(first, results, system, messages = []) {
   if (q.startsWith("add an icon")) {
     if (step === 0) return { tools: [{ name: "write_file", input: { path: "icons/folder.svg", summary: "A folder icon", text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l2 2h7v8H1z"/></svg>\n' } }] };
     return { text: "I proposed a folder icon in a new **icons** folder: review it and apply it." };
+  }
+  // (a translation in Chinese, a new file in a new folder: its characters
+  // on disk as written — UTF-8 —, never "???": Robert's zh-Hans.po)
+  if (q.startsWith("add a chinese translation")) {
+    if (step === 0) return { tools: [{ name: "write_file", input: { path: "lang/zh-Hans.po", summary: "Chinese", text: 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n' } }] };
+    return { text: "I proposed a Chinese translation in lang/zh-Hans.po: review it and apply it." };
+  }
+  // (an Apply that can't be done whole: the window renamed, an icon in a
+  // new folder, and a file whose folder would be the main file — it can't
+  // be made. Applying it must change nothing: Robert 2026-10-28)
+  if (q.startsWith("add three things")) {
+    if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) {
+      let file = "";
+      try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+      const m = file.match(/Caption = "[^"]*"/);
+      if (!m) return { text: "I couldn't find the form's caption." };
+      return { tools: [
+        { name: "propose_edit", input: { path: mainFile, summary: "The window's title becomes AI Notes", edits: [{ old_text: m[0], new_text: 'Caption = "AI Notes"' }] } },
+        { name: "write_file", input: { path: "icons/note.svg", summary: "A note icon", text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>\n' } },
+        { name: "write_file", input: { path: `${mainFile}/blocked.txt`, summary: "A file where it can't go", text: "x\n" } },
+      ] };
+    }
+    return { text: "I proposed three changes: review them and apply them." };
   }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };

@@ -4309,6 +4309,115 @@ const CASES = [
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
   },
+  // (the project tree's selection shows its file: lang/pt-BR.po selected
+  // opens in the preview tab, the keys stay in the tree; lang/es.po
+  // selected takes the preview tab over — never another file's text on
+  // show, Robert 2026-10-29)
+  {
+    name: "project-tree-preview",
+    open: "tests/fixtures/studio_assets/Langs.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_assets/Langs.rrproj", "tests/fixtures/studio_assets/main.rr", "tests/fixtures/studio_assets/lang/es.po", "tests/fixtures/studio_assets/lang/pt-BR.po"],
+    do: "wait,focus:projecttree,key:Home,key:Down,key:Down,key:Down,key:Down,key:Down,key:Down,wait,wait,wait,key:Up,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "projecttree.selected": /^lang\/es\.po$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).text": /Language: es\\n[\s\S]*Velocidad"/,
+      "outputbox.text": /Opened .*lang\/pt-BR\.po\n> key:Up\nOpened .*lang\/es\.po/,
+    },
+  },
+  // ---- Studio keeps your work (safety.inc; Robert 2026-10-28: Studio quit
+  // on a run-time error in its own code, the unsaved work and the chat's
+  // proposals with it) ----
+  {
+    // (a run-time error in Studio's own code — a file written into a folder
+    // that isn't there —: Studio goes on, says it in a dialog and the Output,
+    // logs it with its file and line, keeps a copy of the unsaved work)
+    name: "studio-error-safe",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:fail,wait,wait,wait",
+    delay: 8,
+    capture: true,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /Cannot create file …\/studio\/no-such-folder\/studio-test\.txt\. \(safety\.inc line \d+\)\n\nYour work is safe: nothing was lost, and Studio goes on/,
+      "outputbox.text": /Something went wrong in Studio: Cannot create file .* \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+    },
+    files: { "studio/studio-errors.log": /RapidR Studio \(RapidR [\d.]+\): Cannot create file .* \(at Studio's safety\.inc line \d+\)/ },
+  },
+  {
+    // (unsaved work kept, Studio ended without closing — killed: the test's
+    // end —; started again: "Restore your unsaved work?", Enter restores it
+    // in its editor, not saved)
+    name: "studio-restore-unsaved",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:keep,wait",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,key:Enter,wait,wait,wait", delay: 8 },
+    dump: {
+      "codedoc(0).text": /Form\.ShowModal\n+PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+      "outputbox.text": /Restored the unsaved work of 1 file \(not saved yet\)\./,
+      "saveprompt.__shown": /^0$/,
+    },
+    files: { "hello_form.rr": /^(?![\s\S]*PRINT 42)/ },
+  },
+  {
+    // (a new file with Chinese in it: on disk as the proposal has it, UTF-8
+    // — the old Apply wrote a byte a character, "??? 3D")
+    name: "ai-apply-utf8",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add a chinese translation,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: { "aistatus.simpletext": /^1 file changed/ },
+    files: { "lang/zh-Hans.po": /^msgid ""\nmsgstr ""\n"Content-Type: text\/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n$/ },
+  },
+  {
+    // (an Apply that can't be done whole changes nothing: the rename, the
+    // icon in a new folder and a file that can't be made — none applied, the
+    // folder not made, why said; the changes still wait to be reviewed)
+    name: "ai-apply-all-or-nothing",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add three things,wait,wait,wait,wait,ai:apply,wait",
+    delay: 8,
+    desktopGone: ["icons"],
+    dump: {
+      "aistatus.simpletext": /^Nothing was changed: hello_form\.rr\/blocked\.txt: its folder can't be made: .*hello_form\.rr is a file\. The changes still wait \(Review\)\.$/,
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "codedoc(0).modified": /^(0|False)$/i,
+      "outputbox.text": /AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+    },
+    same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // (changes left waiting are kept with the chat: Studio started again —
+    // the project's chat opened —, they are still there to apply)
+    name: "ai-proposals-kept",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,wait",
+    delay: 7,
+    restart: { do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,wait,wait,ai:apply,wait", delay: 7 },
+    dump: {
+      "aireviewbar.__shown": /^0$/,
+      "codedoc(0).text": /Caption = "AI Notes"/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
+    },
+  },
   {
     name: "ai-apply-undo",
     open: "examples/gui/hello_form.rr",
@@ -6075,6 +6184,9 @@ function runDesktop(c, scale = 1) {
       // (R1: the case's kept chats in its own folder — kept across a
       // restart, never another case's)
       RAPIDR_AI_CHATS: join(dir, "chats"),
+      // (Studio's own folder — the copies of unsaved work, its log: the
+      // case's, kept across a restart, never another case's)
+      RAPIDR_STUDIO_DATA: join(dir, "studio"),
       // (S6: the user's login shell isn't read by the tests — the PATH
       // cases give one of their own, RAPIDR_LOGIN_SHELL)
       RAPIDR_LOGIN_PATH: "off",

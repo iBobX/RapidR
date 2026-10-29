@@ -1,0 +1,17 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Langs"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "module"
+
+[[files]]
+path = "lang/es.po"
+kind = "asset"
+
+[[files]]
+path = "lang/pt-BR.po"
+kind = "asset"

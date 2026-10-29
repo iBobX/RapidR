@@ -35,6 +35,7 @@ pub mod login_path;
 pub mod manual_search;
 pub mod project;
 pub mod recipes;
+pub mod recovery;
 pub mod session;
 
 pub use rapidr_session::Transport;

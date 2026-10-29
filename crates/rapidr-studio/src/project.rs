@@ -766,6 +766,45 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::String(path)
         }
         "projectsfolder" => Value::String(projects_folder(&s(0))),
+        // (Studio keeps your work: crate::recovery)
+        "studiofolder" => Value::String(crate::recovery::studio_folder()),
+        "recoverykeep" => {
+            let r = crate::recovery::keep(&s(0), &s(1), &s(2), &s(3));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "recoveryforget" => {
+            crate::recovery::forget(&s(0));
+            Value::Null
+        }
+        "recoveryend" => {
+            crate::recovery::end();
+            Value::Null
+        }
+        "recoveryfound" => Value::String(crate::recovery::found()),
+        "recoverytext" => Value::String(crate::recovery::text(&s(0), &s(1))),
+        "recoverydiscard" => {
+            crate::recovery::discard(&s(0));
+            Value::Null
+        }
+        "logerror" => flag(crate::recovery::log(&s(0)).is_ok()),
+        "logfile" => Value::String(crate::recovery::log_file()),
+        // (RAI's Apply, all or nothing: crate::recovery)
+        "applybegin" => {
+            crate::recovery::apply_begin();
+            Value::Null
+        }
+        "canwritenewfile" => {
+            let r = crate::recovery::can_write_new(&s(0));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "writenewfile" => {
+            let r = crate::recovery::write_new(&s(0), &s(1));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "applyundo" => Value::String(crate::recovery::apply_undo()),
         "exampleof" => Value::String(example_of(&s(0), &s(1))),
         "copyexampleagain" => {
             let r = copy_example_again(&s(0), &s(1));

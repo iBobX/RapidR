@@ -959,3 +959,22 @@ fn walk(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     }
     out
 }
+
+/// The changes left waiting are kept in the chat's state and given back
+/// when it is opened again (Robert 2026-10-28: after a restart they were
+/// gone, "can't apply again"); decided ones aren't kept; a state without
+/// them is as it was.
+#[test]
+fn waiting_changes_go_with_the_chat() {
+    let state = r#"{"marks":[1],"transcript":"x"}"#;
+    let edit = Proposal { kind: "edit".into(), path: "main.rr".into(), old: "A\n".into(), new: "B\n".into(), summary: "B".into(), ..Proposal::default() };
+    let done = Proposal { kind: "create".into(), path: "x.svg".into(), new: "<svg/>".into(), decision: "applied".into(), ..Proposal::default() };
+    let kept = with_pending(state, &[edit.clone(), done]);
+    let (back, pending) = take_pending(&kept);
+    assert_eq!(pending, vec![edit]);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&back).unwrap(), serde_json::from_str::<serde_json::Value>(state).unwrap());
+    // (none waiting: nothing added; an old chat: as it was)
+    assert_eq!(take_pending(&with_pending(state, &[])).1, Vec::new());
+    assert_eq!(take_pending(state), (state.to_string(), Vec::new()));
+    assert_eq!(take_pending("not json").1, Vec::new());
+}

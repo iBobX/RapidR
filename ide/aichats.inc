@@ -221,6 +221,10 @@ SUB AILoadProjectChat
     AIOpenChat FIELD$(FIELD$(list, CHR$(10), 1), CHR$(9), 1), FIELD$(FIELD$(list, CHR$(10), 1), CHR$(9), 2)
   ELSE
     AI.NewChat
+    ' (the last project's waiting changes are its chat's, kept with it:
+    ' never offered — or applied — in this project)
+    AITools.ClearProposals
+    AIReviewBar.Visible = 0
     AIChatId = ""
     AIChatName = ""
     AIChat.Text = AI.Transcript
@@ -243,6 +247,10 @@ SUB AIOpenChat(Id AS STRING, Title AS STRING)
   AIEditing = 0
   AIEditBar.Visible = 0
   AIChat.Text = AI.Transcript
+  ' (the changes it left waiting, kept with it: still to review and apply —
+  ' LoadChat gave them back to AITools)
+  AIReviewBar.Visible = 0
+  AIShowReviewBar
   AIShowChatTitle
   AIEnableSend
 END SUB
