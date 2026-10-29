@@ -69,3 +69,14 @@ design/brand/3D/intro3/
 
 # (Chrome headless stderr from local test runs)
 chrome_run*.log
+
+# (RArchive: its samples and test archives, made by other tools, are tracked
+# — a zip an example makes as it runs, my-notes.zip, is not)
+!examples/data/snapshots.zip
+!examples/data/snapshots.7z
+!examples/data/hello.z80
+!examples/data/hello.z80.gz
+!crates/rapidr-archive/tests/fixtures/*.zip
+!tests/conformance/cases/resource_files/archive-*.zip
+# (the snapshot examples/recipes/load_binary.rr writes when it runs)
+examples/recipes/sample.tsn

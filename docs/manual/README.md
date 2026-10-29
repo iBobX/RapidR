@@ -44,11 +44,13 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
 | [A program's eyes and hands](app-eyes-and-hands.md) | `RWindowCapture`: pictures of the program's own windows and a report of what looks wrong (text cut off, controls on top of each other); `RAppHands`: clicks, typing and keys played into them with a pointer you see — tours, demos, self-tests; how AI apps and RAI look at and use your running program in Studio |
 | [Keeping secrets](secrets.md) | `RSecrets`: passwords and keys in the OS keychain, each program its own, never shown by the debugger or to an AI; none in a browser |
+| [Archives: zip, 7z, tar and gzip files](archives.md) | `RArchive`: opening zip, 7z, tar.gz, .gz, .xz and .zst files by their first bytes, listing and unpacking them, making zip and tar.gz files; zip bombs, paths outside the folder, links and encrypted entries refused; `COMPRESS$` / `DECOMPRESS$` |
 | [Your own SVG icons](svg-icons.md) | `RImageList.AddSVGFile`, SVGs that take the theme's colours (`currentColor`, RapidR's colour tokens), SVGs built in with `$RESOURCE` |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events; background queries (`QueryAsync`, `Cancel`) streaming a million rows into an `RDBGrid`; column names and types; the SQL editor |
 | [The code editor in your programs](code-editor.md) | `RCodeEditor`: languages, files, completion; its SQL mode (dialects, completion from your tables, Ctrl+Enter runs the statement) |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
 | [Networking: sockets and a local web server](network.md) | Servers on `127.0.0.1` (this computer only) or the network; `RServerSocket` by lines, bytes or whole HTTP requests; `RHttpServer`: a local API, Server-Sent Events, the token, the requests it refuses by itself; `RMcpServer`: your program's own tools for AI apps |
+| [Recipes for systems programs](recipes-systems.md) | Ten small programs for a machine's insides, one technique each, one tiny computer between them: memory as a byte array, bits and flags, a CPU that fetches and decodes, the stack, a hex dump, a disassembler, a binary file, video memory on a canvas, a keyboard matrix, cycles per frame; how fast RapidR runs them |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (older name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 
 ## Data science and rich text

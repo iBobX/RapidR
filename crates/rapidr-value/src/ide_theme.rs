@@ -93,7 +93,68 @@ pub struct IdeColors {
     /// The debugger's values as Variables, Watch, the data tips and the
     /// Properties panel draw them ([`ValueColors`]).
     pub values: ValueColors,
+    /// What a chip, a status pill or a strip's mark says by colour
+    /// (`status.info`, `status.success`, `status.warning`, `status.danger`:
+    /// [`StatusColors`]; docs/design-guidelines.md).
+    pub info: StatusColors,
+    pub success: StatusColors,
+    pub warning: StatusColors,
+    pub danger: StatusColors,
     pub editor: EditorColors,
+}
+
+/// A status's colours (0xRRGGBB): a soft fill, its strong text (and
+/// icon), a border. Never a solid saturated block: the fill is the
+/// surface tinted with the status's brand hue, the text reads at 4.5:1 on
+/// it, on the face and on the window (7:1 in high contrast), the border at
+/// 3:1 against the face, the window and a card (WCAG 1.4.11: it is the
+/// chip's edge, or a strip's 4-pixel mark). Derived from the brand
+/// palette: info from RapidR Blue, success from BASIC Teal Deep, warning
+/// from Run Amber, danger from the error red `#C42B1C`. High contrast
+/// frames each in white on black (the words and the icon say which);
+/// the classic look draws them on the window, framed in its dark shadow.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StatusColors {
+    /// The soft fill: `status.warning`.
+    pub back: u32,
+    /// Text and icon on it: `status.warning.text`.
+    pub text: u32,
+    /// Its edge, and a strip's mark: `status.warning.border`.
+    pub border: u32,
+}
+
+/// The four statuses in `t`: info, success, warning, danger.
+pub fn statuses(t: &Theme) -> [StatusColors; 4] {
+    const BLACK: u32 = 0x000000;
+    const RED: u32 = 0xC42B1C;
+    let s = |back, text, border| StatusColors { back, text, border };
+    if t.look == Look::Classic {
+        let one = s(t.window, t.text, t.dark_shadow);
+        return [one; 4];
+    }
+    if t.contrast {
+        let one = s(0x000000, 0xFFFFFF, 0xFFFFFF);
+        return [one; 4];
+    }
+    if t.dark {
+        // (the face tinted; the hue lightened for text; a border that
+        // shows on the face, the window and a card)
+        let f = t.face;
+        return [
+            s(mix(f, brand::BLUE, 220), mix(brand::BLUE_ON_DARK, brand::WHITE, 250), mix(f, brand::BLUE_ON_DARK, 760)),
+            s(mix(f, brand::TEAL, 200), mix(brand::TEAL, brand::WHITE, 350), mix(f, brand::TEAL, 720)),
+            s(mix(f, brand::AMBER, 180), brand::AMBER, mix(f, brand::AMBER, 580)),
+            s(mix(f, RED, 280), mix(RED, brand::WHITE, 550), mix(f, mix(RED, brand::WHITE, 400), 760)),
+        ];
+    }
+    // (white tinted; the hue darkened toward black for text, keeping it
+    // warm — never toward Ink, which turns amber olive)
+    [
+        s(mix(brand::WHITE, brand::BLUE, 90), brand::BLUE_DEEP, mix(brand::WHITE, brand::BLUE, 780)),
+        s(mix(brand::WHITE, brand::TEAL, 110), mix(brand::TEAL_DEEP, BLACK, 150), mix(brand::WHITE, brand::TEAL_DEEP, 790)),
+        s(mix(brand::WHITE, brand::AMBER, 180), mix(brand::AMBER, BLACK, 520), mix(brand::AMBER, BLACK, 300)),
+        s(mix(brand::WHITE, RED, 90), mix(RED, BLACK, 150), mix(brand::WHITE, RED, 720)),
+    ]
 }
 
 /// A value's parts as the debugger draws them (0xRRGGBB, on the `window`
@@ -242,6 +303,7 @@ pub fn editor(t: &Theme) -> EditorColors {
 /// The IDE's chrome in `t`.
 pub fn ide(t: &Theme) -> IdeColors {
     let editor = editor(t);
+    let [info, success, warning, danger] = statuses(t);
     if t.look == Look::Classic {
         // (classic: everything on the face, the state in words)
         return IdeColors {
@@ -263,6 +325,10 @@ pub fn ide(t: &Theme) -> IdeColors {
             card_border: t.shadow,
             changed: 0x0066CC,
             values: values(t),
+            info,
+            success,
+            warning,
+            danger,
             editor,
         };
     }
@@ -286,6 +352,10 @@ pub fn ide(t: &Theme) -> IdeColors {
             card_border: 0xFFFFFF,
             changed: crate::code_scheme::HIGH_CONTRAST.mark_changed,
             values: values(t),
+            info,
+            success,
+            warning,
+            danger,
             editor,
         };
     }
@@ -316,6 +386,10 @@ pub fn ide(t: &Theme) -> IdeColors {
         card_border: t.border,
         changed: crate::code_scheme::for_theme(t).mark_changed,
         values: values(t),
+        info,
+        success,
+        warning,
+        danger,
         editor,
     }
 }
@@ -352,6 +426,18 @@ impl IdeColors {
             ("debug.type", v.type_name),
             ("debug.dim", v.dim),
             ("debug.changedback", v.changed_back),
+            ("status.info", self.info.back),
+            ("status.info.text", self.info.text),
+            ("status.info.border", self.info.border),
+            ("status.success", self.success.back),
+            ("status.success.text", self.success.text),
+            ("status.success.border", self.success.border),
+            ("status.warning", self.warning.back),
+            ("status.warning.text", self.warning.text),
+            ("status.warning.border", self.warning.border),
+            ("status.danger", self.danger.back),
+            ("status.danger.text", self.danger.text),
+            ("status.danger.border", self.danger.border),
             ("editor.background", e.background),
             ("editor.text", e.text),
             ("editor.gutter", e.gutter),
@@ -448,6 +534,53 @@ mod tests {
             assert!(v.number != v.string && v.string != v.keyword, "{}", t.name);
         }
         assert_eq!(color_by_name(&crate::theme::RAPIDR, "debug.number"), Some(values(&crate::theme::RAPIDR).number));
+    }
+
+    /// The status colours (chips, status pills, a strip's mark;
+    /// docs/design-guidelines.md): the text reads on its soft fill, on the
+    /// face and on the window at 4.5:1 (7:1 in high contrast), the border
+    /// shows at 3:1 against the face, the window and a card; the fill is
+    /// soft (never a saturated block: close to the surface it tints) and
+    /// says something (not the surface itself), except where the look
+    /// frames instead (high contrast, classic).
+    #[test]
+    fn status_colours_read() {
+        for t in ALL {
+            let need = if t.contrast { 7.0 } else { 4.5 };
+            let c = ide(t);
+            assert_eq!([c.info, c.success, c.warning, c.danger], statuses(t));
+            for (what, s) in [("info", c.info), ("success", c.success), ("warning", c.warning), ("danger", c.danger)] {
+                for (ground, g) in [("its fill", s.back), ("the face", t.face), ("the window", t.window)] {
+                    let r = contrast(s.text, g);
+                    assert!(r >= need, "{}: status.{what}.text {:06X} on {ground} {g:06X}: {r:.2}", t.name, s.text);
+                }
+                for (ground, g) in [("the face", t.face), ("the window", t.window), ("a card", c.card)] {
+                    let r = contrast(s.border, g);
+                    assert!(r >= 3.0, "{}: status.{what}.border {:06X} on {ground} {g:06X}: {r:.2}", t.name, s.border);
+                }
+                if t.look != Look::Classic && !t.contrast {
+                    // (soft: a tint of the face, not a block of colour)
+                    let soft = contrast(s.back, t.face);
+                    assert!(soft < 1.8, "{}: status.{what} {:06X} is not soft on the face: {soft:.2}", t.name, s.back);
+                    assert!(s.back != t.face && s.back != t.window, "{}: status.{what} has no tint", t.name);
+                }
+            }
+            // (four statuses, four colours, where colour speaks)
+            if t.look != Look::Classic && !t.contrast {
+                let texts = [c.info.text, c.success.text, c.warning.text, c.danger.text];
+                for i in 0..4 {
+                    for j in i + 1..4 {
+                        assert_ne!(texts[i], texts[j], "{}", t.name);
+                    }
+                }
+            }
+        }
+        // (by name, as Application.ThemeColor reads them)
+        assert_eq!(color_by_name(&crate::theme::RAPIDR, "status.warning"), Some(statuses(&crate::theme::RAPIDR)[2].back));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR_DARK, "Status Warning Text"), Some(brand::AMBER));
+        assert_eq!(color_by_name(&crate::theme::RAPIDR_HIGH_CONTRAST, "status.danger.border"), Some(0xFFFFFF));
+        // (the warning is Run Amber's family, never the paused bar's brown)
+        assert_ne!(color_by_name(&crate::theme::RAPIDR, "status.warning"), color_by_name(&crate::theme::RAPIDR, "statusbar.debugging"));
     }
 
     #[test]

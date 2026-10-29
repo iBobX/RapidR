@@ -457,6 +457,12 @@ The IDE plan ([docs/ide-plan.md](docs/ide-plan.md)) schedules the immediate wind
 - [ ] Phase 2, the rest: "Upgrade this file to RapidR names" (Code menu, the palette, a code action: the diff, then one undoable edit)
 - [x] Decide (Robert): built-in RAPIDQ.INC constants without the `$INCLUDE` line for RapidR's own files — decided 2026-10-16 (Constants, the modern way), done in M0-CONST: built into `.rr`, `.bas` as in RapidQ
 
+**DESIGN-GUIDE — one design for Studio** (Robert, 2026-10-29: "That brown 'No questions asked' looks ugly … we need a design guideline so every agent sticks to it")
+- [x] [docs/design-guidelines.md](docs/design-guidelines.md): measured sizes (compact 24, dialog buttons 32), spacing, type, chips, pane anatomy, confirmations and consent, words, the checklist; CONTRIBUTING.md and docs/ide-plan.md point at it; `tools/check_design.py` in `tools/regress.sh` *(DESIGN-GUIDE, 2026-10-29)*
+- [x] Status tokens `status.info` / `success` / `warning` / `danger` (fill, `.text`, `.border`), contrast-tested; example gui/status_colors.rr *(DESIGN-GUIDE, 2026-10-29)*
+- [x] The AI Apps pane per the guide (soft chip, one-height header, the question strip), the first-time question as a consent dialog with rows (`ide/consent.inc`, reusable), Settings > AI Apps' rows, Copy / Copy All on the activity *(DESIGN-GUIDE, 2026-10-29)*
+- [ ] The other panes and dialogs brought to the guide (the offenders listed in docs/design-guidelines.md "Known gaps"; `tools/check_design.py --list`)
+
 **I0 — Foundations** (L, 12–16 sessions)
 - [ ] The language registry (`rapidr-lang`): every component (Q and R names, which RapidQ has), property (type, default, editor, origin), method, event, builtin, statement and directive, with docs in our words; tests tie it to both runtimes both ways; generates the IDE's completion data, the VS Code data, the manual's reference sections and the AI prompt; `COMPONENT_TYPES` and the runtimes' name lists generated (Phase 0's "single language registry")
 - [ ] Project format `.rrproj` v2 (`rapidr-project`), reading the web IDE's JSON v1; plain `.bas` / `.rr` files open without a project
@@ -650,6 +656,7 @@ In order of how many showcase ideas each unlocks:
   - [x] A proposed new project stays editable before Create; the Preview follows (2026-10-18).
   - [x] Friendly hints in check_code (`crates/rapidr-studio/src/friendly.rs`), the component's members beside an unknown property (2026-10-18).
   - [x] Ten recipes (`examples/recipes/`, click-tested on every runtime), pushed by BM25 with a new-program request; `find_example` (2026-10-18).
+  - [x] Ten systems recipes (`examples/recipes/`: memory as a byte array, bits and flags, a tiny CPU, the stack, a hex dump, a disassembler, a binary file, video memory on a canvas, a keyboard matrix, cycles per frame; one tiny computer of our own between them; [the manual page](docs/manual/recipes-systems.md); click-tested on every runtime; found by BM25 in English, Spanish and Portuguese) — so even a tiny model can handle memory, addresses and CPUs (Robert, 2026-10-29).
   - [x] The eval suite with click tests, and the measured BEFORE / AFTER table ([Results](docs/small-models-plan.md#results), 2026-10-18).
   - [x] The `layout` tool and the layout check in check_code (cut off, overlapping, a caption too long; 2026-10-18).
   - [ ] Handler skeletons (an event's exact DECLARE SUB and SUB … END SUB).
@@ -846,7 +853,7 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
 
 ## Lean builds and Export anywhere (for 1.0; Robert, 2026-10-21; plan: [docs/lean-builds-and-export-plan.md](docs/lean-builds-and-export-plan.md))
 
-- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set
+- [ ] L1 Each component's and builtin's runtime feature in the registry; finer runtime features; the compiler computes a program's feature set *(a first one, RZIP 2026-10-29: runtime-core's `archive` feature — RArchive, COMPRESS$, DECOMPRESS$ — is in a native build only when the program names them, as `studio` is (`uses_archive` in the CLI); a web build without them drops it too. A console "hello" native build has no archive code: 3.5 MB vs 5.0 MB debug.)*
 - [ ] L2 Native builds with only the features a program uses + the size profile; a size report in Studio
 - [ ] L3 Runner flavours (console, gui, gui+data, full) for desktop and wasm, built and signed with each release
 - [ ] L4 Export anywhere: Windows, macOS, Linux and the web from any Studio, the web one included (verified runner downloads)
@@ -892,6 +899,9 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - [x] Reference fixes, verified 2026-10-21 *(LANG-SMALL, 2026-10-22: the registry and the generated pages say `Cell(row, col)`, `SetCell(row, col, value)` (the same slip) and `CONST name [AS type] = expression`; a registry test keeps them right until K7)*:
     - `RDataFrame.Cell` is `(row, col)` in the code and its tests, but the registry says `(col, row)`;
     - `CONST`'s syntax claims `[, …]`, which RapidQ never had (one constant per CONST) and our parser rejects. Fix both docs; see K7
+- **A Z80 emulator for students** (Robert, 2026-10-29; an agent builds it in its own repo): it loads `.z80` snapshots, also zipped, as emulators do.
+  - [x] Archives in programs *(RZIP, 2026-10-29: `RArchive` — Open / OpenStream / OpenData / a `$RESOURCE`, the format from the first bytes; zip, tar, tar.gz, .gz read and made; 7z, xz / tar.xz, zstd / tar.zst read; Name / Size / CompressedSize / IsFolder / IsEncrypted / DateTime, Find, Extract / ExtractText / ExtractToStream / ExtractToFile / ExtractAll, Create / CreateStream / AddFile / AddText / AddData / AddStream / AddFolder / Close, FormatOf; MaxSize (1 GB, 256 MB on the web) and MaxRatio (1000) against zip bombs, zip-slip names / links / devices never written, encrypted entries refused, RAR refused in plain words; `COMPRESS$` / `DECOMPRESS$` (gzip, zlib, deflate; xz, zstd read). Engine: crate rapidr-archive (zip 9, flate2 + zlib-rs, lzma-rust2, ruzstd, sevenz-rust2; tar RapidR's own), fuzzed (tests/robustness.rs); conformance archive_read / archive_guard / archive_write on VM, native and web; example data/archives.rr; manual archives.md. Native builds carry it only when a program uses it.)*
+  - [ ] Archives, phase 2: bzip2 / tar.bz2 (the only pure-Rust reader, libbz2-rs-sys, is under the bzip2-1.0.6 licence: a lawyer check first); making 7z, xz and zstd; a `Comment`; extracting while unpacking (no whole-archive-in-memory) for archives past a few hundred MB; one format feature per program in native builds (needs L1).
 - **Visualmusicator X**: see the next section.
 
 Scheduling: after Preview 4. The small items (SQL mode, RSecrets) may board Preview 4 if ready; RMcpServer comes early because three products need it.

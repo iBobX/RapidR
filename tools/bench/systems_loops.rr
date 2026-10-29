@@ -1,0 +1,166 @@
+' The main loops of the systems recipes (examples/recipes/, docs/manual/recipes-systems.md)
+' timed on their own, with no window: the memory array, the hex dump's rows,
+' a file read into memory and written, and the tiny CPU's step loop.
+' Each line says what it did and how long it took (TIMER: wall-clock seconds).
+'
+'   rapidr run tools/bench/systems_loops.rr                 every loop, one after the other
+'   rapidr run tools/bench/systems_loops.rr cpu             one loop: memory, hexdump, filewrite,
+'                                                           fileread, cpu (fetch written out), cpu2
+'   rapidr build tools/bench/systems_loops.rr out           a native executable (takes the same words)
+'
+' The manual page's numbers are each line's time, the fastest of six runs. On
+' a computer that is busy TIMER counts the waiting too (they are upper
+' bounds): to see a loop's CPU time alone, run it by its word under `time`
+' (user + sys), less the same run with the word `none` (the program's start).
+DIM which AS STRING
+DIM mem(0 TO 65535) AS BYTE
+DIM hexTab(255) AS STRING
+DIM i AS INTEGER, k AS INTEGER, r AS INTEGER, c AS INTEGER, b AS INTEGER, n AS INTEGER
+DIM t AS DOUBLE, line AS STRING, chars AS STRING, total AS INTEGER
+DIM a AS INTEGER, pc AS INTEGER, bb AS INTEGER, cycles AS INTEGER, used AS INTEGER, op AS INTEGER, lo AS INTEGER, hi AS INTEGER
+
+FUNCTION MemRead (addr AS INTEGER) AS INTEGER
+    Result = mem(addr AND &HFFFF)
+END FUNCTION
+
+SUB MemWrite (addr AS INTEGER, v AS INTEGER)
+    mem(addr AND &HFFFF) = v AND &HFF
+END SUB
+
+' (cpu_timing.rr's step, as the recipe writes it: a function for each fetch)
+FUNCTION Fetch8 AS INTEGER
+    Result = mem(pc)
+    pc = (pc + 1) AND &HFFFF
+END FUNCTION
+
+FUNCTION Fetch16 AS INTEGER
+    DIM lo AS INTEGER, hi AS INTEGER
+    lo = Fetch8
+    hi = Fetch8
+    Result = lo + hi * 256
+END FUNCTION
+
+FUNCTION OneStep AS INTEGER
+    SELECT CASE Fetch8
+        CASE 1: a = Fetch8: Result = 2
+        CASE 2: bb = Fetch8: Result = 2
+        CASE 5: a = (a + bb) AND 255: Result = 1
+        CASE 4: mem(Fetch16) = a: Result = 4
+        CASE 9: pc = Fetch16: Result = 3
+        CASE ELSE: Result = 1
+    END SELECT
+END FUNCTION
+
+SUB Show (what AS STRING, secs AS DOUBLE)
+    PRINT what; ": "; FORMAT$("%.3f", secs); " s"
+END SUB
+
+' LDA 0, LDB 1, then forever: ADD, STA [0200], JMP back
+SUB LoadCounter
+    DIM j AS INTEGER
+    FOR j = 0 TO 65535: mem(j) = 0: NEXT
+    mem(0) = 1: mem(1) = 0: mem(2) = 2: mem(3) = 1: mem(4) = 5: mem(5) = 4: mem(6) = 0: mem(7) = 2: mem(8) = 9: mem(9) = 4: mem(10) = 0
+    a = 0: bb = 0: pc = 0: cycles = 0: n = 0
+END SUB
+
+which = LCASE$(COMMAND$)
+
+' memory_bytes.rr: 10 x 65,536 writes and reads through the two helpers
+IF which = "" OR which = "memory" THEN
+    t = TIMER
+    FOR k = 1 TO 10
+        FOR i = 0 TO 65535
+            MemWrite i, i
+        NEXT
+        FOR i = 0 TO 65535
+            total = total + MemRead(i)
+        NEXT
+    NEXT
+    Show "memory: 1,310,720 helper calls (MemWrite / MemRead)", TIMER - t
+END IF
+
+' hex_dump.rr: all 4,096 rows of 16 bytes, hex and ASCII, one row at a time
+IF which = "" OR which = "hexdump" THEN
+    FOR i = 0 TO 255: hexTab(i) = RIGHT$(HEX$(i), 2): NEXT
+    t = TIMER
+    FOR r = 0 TO 4095
+        line = RIGHT$(HEX$(r * 16), 4) + "  "
+        chars = ""
+        FOR c = 0 TO 15
+            b = mem(r * 16 + c)
+            line = line + hexTab(b) + " "
+            IF c = 7 THEN line = line + " "
+            chars = chars + IIF(b >= 32 AND b < 127, CHR$(b), ".")
+        NEXT
+        n = n + LEN(line + chars)
+    NEXT
+    Show "hex dump: 4,096 rows built", TIMER - t
+END IF
+
+' load_binary.rr: a 64 KB file written (zeros in one WriteBinStr; one byte a call)
+DIM f AS RFileStream
+IF which = "" OR which = "filewrite" THEN
+    f.Open("systems_loops.tmp", fmCreate)
+    t = TIMER
+    f.WriteBinStr(STRING$(65536, CHR$(0)), 65536)
+    Show "file: 64 KB written with one WriteBinStr", TIMER - t
+    f.Close
+    f.Open("systems_loops.tmp", fmCreate)
+    t = TIMER
+    FOR i = 0 TO 65535
+        f.WriteNum(mem(i), 1)
+    NEXT
+    Show "file: 64 KB written one WriteNum(, 1) at a time", TIMER - t
+    f.Close
+    KILL "systems_loops.tmp"
+END IF
+
+' ... and read into memory byte by byte
+IF which = "" OR which = "fileread" THEN
+    f.Open("systems_loops.tmp", fmCreate)
+    f.WriteBinStr(STRING$(65536, CHR$(0)), 65536)
+    f.Close
+    f.Open("systems_loops.tmp", fmOpenRead)
+    t = TIMER
+    FOR i = 0 TO 65535
+        mem(i) = f.ReadNum(Num_Byte)
+    NEXT
+    Show "file: 64 KB read one ReadNum(Num_Byte) at a time", TIMER - t
+    f.Close
+    KILL "systems_loops.tmp"
+END IF
+
+' cpu_timing.rr's step loop, 2,000,000 cycles: first with the instruction
+' fetch written out in the loop, then as the recipe has it (functions)
+IF which = "" OR which = "cpu" THEN
+    LoadCounter
+    t = TIMER
+    DO WHILE cycles < 2000000
+        op = mem(pc): pc = (pc + 1) AND &HFFFF
+        SELECT CASE op
+            CASE 1: a = mem(pc): pc = (pc + 1) AND &HFFFF: used = 2
+            CASE 2: bb = mem(pc): pc = (pc + 1) AND &HFFFF: used = 2
+            CASE 5: a = (a + bb) AND 255: used = 1
+            CASE 4
+                lo = mem(pc): hi = mem((pc + 1) AND &HFFFF): pc = (pc + 2) AND &HFFFF
+                mem(lo + hi * 256) = a: used = 4
+            CASE 9
+                lo = mem(pc): hi = mem((pc + 1) AND &HFFFF)
+                pc = lo + hi * 256: used = 3
+            CASE ELSE: used = 1
+        END SELECT
+        cycles = cycles + used
+        n = n + 1
+    LOOP
+    Show "cpu, fetch written out: " + STR$(n) + " instructions = " + STR$(cycles) + " cycles", TIMER - t
+END IF
+IF which = "" OR which = "cpu2" THEN
+    LoadCounter
+    t = TIMER
+    DO WHILE cycles < 2000000
+        cycles = cycles + OneStep
+        n = n + 1
+    LOOP
+    Show "cpu, as cpu_timing.rr writes it: " + STR$(n) + " instructions = " + STR$(cycles) + " cycles", TIMER - t
+END IF
+IF which = "" THEN PRINT "(a checksum, so nothing is optimised away:"; total + a + n; ")"

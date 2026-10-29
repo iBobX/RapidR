@@ -5,6 +5,13 @@ version.workspace = true
 publish = false
 license.workspace = true
 
+[features]
+# RARCHIVE and COMPRESS$ / DECOMPRESS$ (rapidr_value::objects::archive): in
+# the interpreter's wasm always; a web build of a program that doesn't use
+# them is made without (the CLI writes default-features = false).
+default = ["archive"]
+archive = ["rapidr-value/archive", "rapidr-value/archive-xz", "rapidr-value/archive-zstd", "rapidr-value/archive-7z"]
+
 [dependencies]
 rapidr-value = { workspace = true }
 # Which names are components and their methods (object_web.rs): the language registry's

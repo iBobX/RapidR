@@ -188,6 +188,16 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         c.borrow_mut().insert(name_lower, comp);
     });
     rapidr_value::objects::create(name, type_name);
+    // (RARCHIVE: the clock and the local time zone a zip's times are in)
+    if rapidr_value::objects::archive::is_type(type_name) {
+        rapidr_value::objects::archive::set_clock(
+            || chrono::Utc::now().timestamp(),
+            |t| {
+                use chrono::TimeZone;
+                chrono::Local.timestamp_opt(t, 0).single().map_or(0, |d| i64::from(d.offset().local_minus_utc()))
+            },
+        );
+    }
     // (I7: an RJSON's document can be a data source)
     if type_name.eq_ignore_ascii_case("RJSON") {
         crate::links::install();

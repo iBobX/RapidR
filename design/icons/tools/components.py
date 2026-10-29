@@ -499,6 +499,35 @@ def memorystream(g):
         g.line(x, 15, x, 18, c="ink")
 
 
+@icon("archive", C, "Archive (zip, 7z, tar)")
+def archive(g):
+    # a folder closed with a zipper (the sign of a compressed file): the folder
+    # neutral, the zipper in the files' and streams' blue: its slider at the top
+    # edge, the teeth alternating down the middle
+    g.path("M3 6.5 A1.5 1.5 0 0 1 4.5 5 H7.5 L9.5 7.5 H19.5 A1.5 1.5 0 0 1 21 9 V18.5 A1.5 1.5 0 0 1 19.5 20 H4.5 A1.5 1.5 0 0 1 3 18.5 Z",
+           c="ink", fill="paper")
+
+    # (the zipper is laid out in whole pixels, per size, so every edge is crisp
+    # and it is centred: `u` turns a pixel edge into a master coordinate, `d` a
+    # length in pixels into a master length)
+    def u(px):
+        return 2 + (px - g.off) / g.k
+
+    def d(px):
+        return px / g.k
+
+    # size: (middle x, slider half width, first row, slider height,
+    #        tooth width, tooth height, teeth)
+    cx, sw, y, sh, tw, th, n = {
+        16: (8, 2, 5, 2, 1, 1, 5),
+        24: (12, 3, 9, 2, 2, 1, 7),
+        32: (16, 4, 11, 3, 3, 2, 5),
+    }[g.size]
+    g.frect(u(cx - sw), u(y), d(2 * sw), d(sh), fill="blue")
+    for i in range(n):
+        g.frect(u(cx - tw if i % 2 == 0 else cx), u(y + sh + i * th), d(tw), d(th), fill="blue")
+
+
 @icon("registry", C, "Registry")
 def registry(g):
     g.circle(8, 9, 5, c="amber", fill="amber-tint")

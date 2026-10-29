@@ -1,0 +1,72 @@
+' RArchive (RapidR's) makes archives — a zip in a memory stream, a tar.gz
+' and a .gz as files, every byte value kept, UTF-8 names and text — and
+' reads them back; ExtractAll and ExtractToFile write below their folder;
+' COMPRESS$ / DECOMPRESS$ pack and unpack strings of bytes. The same on
+' every runtime (the web's files are the page's).
+$RESOURCE ZIP_FILE AS "resource_files/archive-games.zip"
+
+DIM A AS RArchive
+DIM M AS RMemoryStream
+DIM i AS INTEGER, AllBytes AS STRING
+
+FOR i = 0 TO 255
+    AllBytes = AllBytes + CHR$(i)
+NEXT
+
+' (a zip in a stream)
+PRINT A.CreateStream(M, "zip"); " "; A.Format
+PRINT A.AddText("hello.txt", "Hello from RapidR — ¡hola!"); A.AddData("roms/bytes.bin", AllBytes); A.AddText("ünïcode/naïve.txt", "ok")
+PRINT A.AddText("../escape.txt", "no"); " "; A.Error
+PRINT A.Count; " "; A.Close; " "; M.Size > 100
+PRINT A.OpenStream(M); " "; A.Format; " "; A.Count
+FOR i = 0 TO A.Count - 1
+    PRINT "  "; A.Name(i); " "; A.Size(i)
+NEXT
+PRINT A.ExtractText("hello.txt")
+PRINT A.Extract("roms/bytes.bin") = AllBytes; " "; A.ExtractText("ünïcode/naïve.txt")
+
+' (a tar.gz file from files: AddFile, AddStream, Level)
+DIM F AS RFileStream
+F.Open "archive-write-note.txt", 65535
+F.WriteLine "a note"
+F.Close
+A.Level = 9
+PRINT A.Create("archive-write-test.tar.gz"); " "; A.Format; " "; A.FileName
+PRINT A.AddFile("archive-write-note.txt"); A.AddFile("archive-write-note.txt", "notes/copy.txt"); A.AddStream("stream.bin", M); A.Count
+PRINT A.Close; " "; A.Format; " ["; A.Error; "]"
+PRINT A.Open("archive-write-test.tar.gz"); " "; A.Format; " "; A.Count
+FOR i = 0 TO A.Count - 1
+    PRINT "  "; A.Name(i); " "; A.Size(i)
+NEXT
+PRINT A.ExtractText("notes/copy.txt");
+
+' (one file gzipped: its name kept inside)
+PRINT A.Create("archive-write-one.gz"); A.AddData("hello.z80", LEFT$(AllBytes, 64)); A.AddText("second.txt", "x")
+PRINT "  "; A.Error
+PRINT A.Close; A.Open("archive-write-one.gz"); " "; A.Format; " "; A.Name(0); " "; A.Size(0)
+PRINT A.Create("archive-write.rar"); " "; A.Error
+PRINT A.Create("archive-write.7z"); " "; A.Error
+
+' (ExtractAll into a folder, ExtractToFile to a name the program gives)
+A.Open ZIP_FILE
+PRINT A.ExtractAll("archive-write-out"); " ["; A.Error; "] "; FILEEXISTS("archive-write-out/roms/hello.z80"); FILEEXISTS("archive-write-out/readme.txt")
+PRINT A.ExtractToFile("roms/hello.z80", "archive-write-game.z80"); " "; FILELEN("archive-write-game.z80")
+PRINT A.ExtractToFile("roms", "archive-write-x"); " ["; A.Error; "]"
+
+' (COMPRESS$ / DECOMPRESS$)
+DIM P AS STRING, Big AS STRING
+Big = STRING$(5000, "R")
+P = COMPRESS$(Big)
+PRINT LEN(P) < 100; " "; ASC(P); " "; ASC(MID$(P, 2, 1)); " "; DECOMPRESS$(P) = Big
+PRINT DECOMPRESS$(COMPRESS$(AllBytes, "zlib", 0)) = AllBytes; " "; DECOMPRESS$(COMPRESS$(AllBytes, "deflate"), "deflate") = AllBytes
+PRINT LEN(COMPRESS$(Big, "gzip", 0)) > LEN(COMPRESS$(Big, "gzip", 9)); " "; LEN(DECOMPRESS$(""))
+
+KILL "archive-write-note.txt"
+KILL "archive-write-test.tar.gz"
+KILL "archive-write-one.gz"
+KILL "archive-write-game.z80"
+KILL "archive-write-out/roms/hello.z80"
+KILL "archive-write-out/readme.txt"
+RMDIR "archive-write-out/roms"
+RMDIR "archive-write-out"
+PRINT "done"

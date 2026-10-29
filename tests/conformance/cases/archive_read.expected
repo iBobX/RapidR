@@ -1,0 +1,37 @@
+zip: FormatOf=zip Format=zip Count=3
+  readme.txt size=56 folder=0
+  roms/ size=0 folder=-1
+  roms/hello.z80 size=64 folder=0
+  z80 at 2: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+  readme: Hello from RapidR!
+7z: FormatOf=7z Format=7z Count=3
+  roms size=0 folder=-1
+  readme.txt size=56 folder=0
+  roms/hello.z80 size=64 folder=0
+  z80 at 2: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+  readme: Hello from RapidR!
+tar.gz: FormatOf=gzip Format=tar.gz Count=2
+  readme.txt size=56 folder=0
+  roms/hello.z80 size=64 folder=0
+  z80 at 1: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+  readme: Hello from RapidR!
+tar.xz: FormatOf=xz Format=tar.xz Count=2
+  readme.txt size=56 folder=0
+  roms/hello.z80 size=64 folder=0
+  z80 at 1: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+  readme: Hello from RapidR!
+tar.zst: FormatOf=zstd Format=tar.zst Count=2
+  readme.txt size=56 folder=0
+  roms/hello.z80 size=64 folder=0
+  z80 at 1: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+  readme: Hello from RapidR!
+gz: FormatOf=gzip Format=gzip Count=1
+  hello.z80 size=64 folder=0
+  z80 at 0: 64 bytes: F3 AF 11 FF FF C3 CB 11 []
+2026-10-29 12:00:00 -1
+-1 2 -1
+-1 66 66
+[] 0 [] -1
+café.txt cp437
+-1 3 zip
+0 not an archive RapidR knows (zip, 7z, tar, tar.gz, gz, xz, zst)

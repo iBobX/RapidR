@@ -8,6 +8,51 @@ FUNCTION TC(Name AS STRING) AS LONG
   Result = Application.ThemeColor(Name)
 END FUNCTION
 
+' ---- the design guide's sizes and chips (docs/design-guidelines.md) ----------------
+
+' A compact control's height: everything in a pane's header, a tool strip
+' or an inline question — buttons, combo boxes, fields, chips — is this
+' tall, on one centre line. It is the height RapidR gives a combo box and a
+' field in the chrome font (its line and 8: 24 in Inter 10 pt, 21 in MS
+' Sans Serif 8), so a button beside them matches.
+FUNCTION UiCompactH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 21 ELSE Result = 24
+END FUNCTION
+
+' A dialog's command button's height (OK, Cancel, Apply, Copy Address …).
+FUNCTION UiButtonH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 25 ELSE Result = 32
+END FUNCTION
+
+' A pane's header with a title and a one-line subtitle under it.
+FUNCTION UiPaneHeadH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 44 ELSE Result = 52
+END FUNCTION
+
+' The status a chip's Tag says: 0 info, 1 success, 2 warning, 3 danger.
+FUNCTION ChipStatus(Tag AS INTEGER) AS STRING
+  SELECT CASE Tag
+    CASE 1: Result = "success"
+    CASE 2: Result = "warning"
+    CASE 3: Result = "danger"
+    CASE ELSE: Result = "info"
+  END SELECT
+END FUNCTION
+
+' A chip (a status pill): an RCanvas whose Tag is its status and whose
+' Color is the ground it sits on, OnPaint = ChipPaint; its icon (an RImage,
+' 16 px, from RapidR's icons) and its text (an RLabel, Transparent, in
+' status.<name>.text) on top. A soft fill, a 1-pixel border, round ends —
+' never a solid block of colour.
+SUB ChipPaint(Sender AS RCanvas)
+  DIM k AS STRING, w AS INTEGER, h AS INTEGER
+  k = "status." + ChipStatus(Sender.Tag)
+  w = Sender.Width: h = Sender.Height
+  Sender.FillRect 0, 0, w, h, Sender.Color
+  Sender.RoundRect 0, 0, w, h, h, h, TC(k + ".border")
+  Sender.RoundRect 1, 1, w - 1, h - 1, h - 2, h - 2, TC(k)
+END SUB
+
 ' The fonts of the look: Inter / JetBrains Mono in RapidR's, Windows' in
 ' the classic one; trees' and lists' rows roomier in RapidR's.
 SUB ApplyFonts

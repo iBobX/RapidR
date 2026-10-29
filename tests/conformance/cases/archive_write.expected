@@ -1,0 +1,30 @@
+-1 zip
+-1-1-1
+0 "../escape.txt" goes up a folder (..): not extracted (it would be written outside the folder)
+3 -1 -1
+-1 zip 3
+  hello.txt 29
+  roms/bytes.bin 256
+  ünïcode/naïve.txt 2
+Hello from RapidR — ¡hola!
+-1 ok
+-1 tar.gz archive-write-test.tar.gz
+-1-1-13
+-1  []
+-1 tar.gz 3
+  archive-write-note.txt 8
+  notes/copy.txt 8
+  stream.bin 632
+a note
+-1-10
+  a .gz file holds one file: make a .tar.gz or .zip for more
+-1-1 gzip hello.z80 64
+0 RAR files can't be opened: it's a closed, proprietary format. Ask for a .zip or .7z.
+0 7z archives can be opened but not made: make a .zip, .tar, .tar.gz or .gz
+-1 [] 11
+-1 64
+0 ["roms" is a folder: ExtractAll makes folders]
+-1 31 139 -1
+-1 -1
+-1 0
+done

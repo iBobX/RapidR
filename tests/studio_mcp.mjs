@@ -23,9 +23,11 @@
 //   Read only           reading works; a change and a run are refused, said
 //                       in plain words
 //
-// and a waiting change and Settings > AI Apps are captured.
+// and a waiting change and Settings > AI Apps are captured; the
+// first-time question (turning the switch on) answered both ways; the
+// activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|settings …]
+//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|badge|consent|capture|settings …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -77,11 +79,12 @@ function env(name) {
 }
 
 /// Studio with a copy of the fixture project (`name`'s own), the steps,
-/// the events (the "user"), what to print at the end.
-function studio(name, steps, events, dump) {
+/// the events (the "user"), what to print at the end (`more`: more of the
+/// hooks' environment).
+function studio(name, steps, events, dump, more = {}) {
   cpSync(join(ROOT, "tests", "fixtures", "studio_mcp"), join(WORK, name), { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light", "--do", steps, join(WORK, name, "Hello.rrproj")];
-  const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, ...more }, stdio: ["ignore", "pipe", "pipe"] });
   children.push(child);
   let out = "";
   child.stdout.on("data", (d) => (out += d));
@@ -180,6 +183,11 @@ if (want("all")) {
   for (const t of ["studio_status", "list_files", "read_file", "rapidr_describe", "rapidr_list", "rapidr_get", "check_code", "search_manual", "find_example", "project_outline", "propose_edit", "write_file", "create_project", "list_documents", "get_problems", "read_output", "open_project", "set_property", "run_program", "debug", "layout_report", "capture", "ask_rai", "get_rai_steps", "get_rai_transcript", "get_rai_audit"]) {
     check(`tools/list has ${t}`, names.includes(t), names.join(","));
   }
+  // (every description whole: BASIC strings take no backslash escapes — a
+  // \" once cut set_property's at "(\")
+  const cut = list.filter((t) => !/[.!?)]$/.test((t.description || "").trim()) || (t.description || "").includes("\\"));
+  check("every tool's description is whole (no stray backslash, ends a sentence)", list.length > 0 && cut.length === 0, cut.map((t) => `${t.name}: …${(t.description || "").slice(-60)}`).join(" | "));
+  check("set_property's description names a text value in quotes", /\("OK" for text, 120, &HFF0000, True\)\. One undo step in its file\.$/.test(list.find((t) => t.name === "set_property")?.description || ""), list.find((t) => t.name === "set_property")?.description);
   check("read_file is marked read-only, propose_edit isn't", list.find((t) => t.name === "read_file")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "propose_edit")?.annotations?.readOnlyHint === false);
 
   let r = await tool("studio_status");
@@ -349,7 +357,7 @@ if (want("picture")) {
 // ---- Allow everything's badge (the picture: the pane in front, its list) ----------------
 if (want("badge")) {
   const PORT = BASE_PORT + 6;
-  const run = studio("badge", `mcp:mode=all,mcp:on=${PORT}`, until("Checking (compiling)"), "mcpbadge.__shown");
+  const run = studio("badge", `mcp:mode=all,mcp:on=${PORT}`, `${until("Checking (compiling)")},mcplogitem(0).onclick`, "mcpbadge.__shown,clipboard.text", { RAPIDR_TEST_CLIPBOARD: "1" });
   check("Allow everything (picture): Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   await tool("studio_status");
@@ -358,7 +366,50 @@ if (want("badge")) {
   await tool("check_code");
   const end = await run.ended(90000);
   check("Allow everything: the badge shows in the pane in front", end.lines["mcpbadge.__shown"] === "1", JSON.stringify(end.lines));
+  check("the activity's Copy: its last line as plain text", /^\d\d:\d\d:\d\d  studio-test  Checking \(compiling\)  — ok$/.test(end.lines["clipboard.text"] || ""), JSON.stringify(end.lines));
   if (existsSync(join(WORK, "badge-window-1.bmp"))) spawnSync("sips", ["-s", "format", "png", join(WORK, "badge-window-1.bmp"), "--out", join(WORK, "studio-mcp-allow-everything-pane.png")], { stdio: "ignore" });
+}
+
+// ---- the first-time question (turning the switch on): Cancel by Enter, Turn On ---------
+if (want("consent")) {
+  const no = studio("consent-no", "mcp:consent", "consentno.__key_13", "mcponbox.checked,consenttitle.caption,consentyes.caption,consentno.default");
+  let end = await no.ended(90000);
+  check("the first-time question: its title, Turn On, Cancel the default", end.lines["consenttitle.caption"] === "Let AI apps use RapidR Studio?" && end.lines["consentyes.caption"] === "&Turn On" && shown(end.lines["consentno.default"]), JSON.stringify(end.lines));
+  check("Enter answers Cancel: the switch stays off", end.lines["mcponbox.checked"] === "0", JSON.stringify(end.lines));
+  const yes = studio("consent-yes", "mcp:consent", "consentyes.onclick", "mcponbox.checked");
+  end = await yes.ended(90000);
+  check("Turn On: the switch on", shown(end.lines["mcponbox.checked"]), JSON.stringify(end.lines));
+  // (the pane's menu set to Allow everything: its question, Cancel by Enter, then Allow Everything)
+  const keep = studio("all-no", `mcp:on=${BASE_PORT + 7},mcp:pane`, "mcpmodebox.__item_3,consentno.__key_13", "mcpmodebox.text,mcpbadge.visible,consenttitle.caption");
+  end = await keep.ended(90000);
+  check("Allow everything asked first; Enter keeps Ask before changes", end.lines["consenttitle.caption"] === "Allow everything for AI apps in this project?" && end.lines["mcpmodebox.text"] === "Ask before changes" && !shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+  const all = studio("all-yes", `mcp:on=${BASE_PORT + 8},mcp:pane`, "mcpmodebox.__item_3,consentyes.onclick", "mcpmodebox.text,mcpbadge.visible");
+  end = await all.ended(90000);
+  check("Allow Everything: the mode and its chip", end.lines["mcpmodebox.text"] === "Allow everything" && shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+}
+
+// ---- capture refused while a dialog is open (docs/legal/review-2026-10-29-mcp.md,
+// addendum B): Settings open, the token shown, an AI app asks for a picture ----
+if (want("capture")) {
+  const PORT = BASE_PORT + 9;
+  const run = studio("capture", `mcp:on=${PORT},wait,mcp:settings`, `mcpaddredit.__until_Text_http://127.0.0.1:${PORT}/mcp,mcpshowtokenbtn.onclick,mcpheaderedit.__until_PasswordChar_,${until("A picture of Studio")}`, "mcpheaderedit.passwordchar,mcpheaderedit.text");
+  check("capture guard: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  // (until Studio says Settings is open: studio_status names an open dialog)
+  let status = "";
+  for (let i = 0; i < 60 && !/Open in Studio: Settings/.test(status); i++) {
+    status = (await tool("studio_status")).text;
+    if (!/Open in Studio: Settings/.test(status)) await new Promise((res) => setTimeout(res, 500));
+  }
+  check("studio_status names the open dialog", /Open in Studio: Settings \(no picture of Studio until it closes\)/.test(status), status);
+  // (a moment for the user's Show: the token on screen when the AI app asks)
+  await new Promise((res) => setTimeout(res, 2000));
+  const r = await tool("capture");
+  const raw = JSON.stringify(r.raw.json || {});
+  check("capture refused while Settings is open, said plainly", r.error && /Settings is open/.test(r.text) && !r.content.some((c) => c.type === "image"), r.text);
+  check("capture: the token appears nowhere in the answer", !raw.includes(TOKEN), raw.slice(0, 300));
+  const end = await run.ended(90000);
+  check("capture guard: the token was on screen (Show pressed)", end.lines["mcpheaderedit.passwordchar"] === "" && (end.lines["mcpheaderedit.text"] || "").includes(TOKEN), JSON.stringify(end.lines));
 }
 
 // ---- Settings > AI Apps ---------------------------------------------------------------

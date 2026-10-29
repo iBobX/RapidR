@@ -9,6 +9,8 @@
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
 pub mod a11y;
+// RARCHIVE (RapidR's): zip, 7z, tar … (the engine: rapidr-archive, feature `archive`)
+pub mod archive;
 pub mod avi;
 pub mod bevel;
 pub mod bitmap;
@@ -295,6 +297,10 @@ pub fn create(id: &str, type_name: &str) -> bool {
     }
     // (the I/O and media lane's: QCGI … — their own store, rqlib.rs)
     if rqlib::create(id, type_name) {
+        return true;
+    }
+    // (RARCHIVE: its own store, archive.rs)
+    if archive::create(id, type_name) {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
@@ -1235,6 +1241,9 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if rqlib::exists(id) {
         return rqlib::get(id, &prop);
     }
+    if archive::exists(id) {
+        return archive::get(id, &prop);
+    }
     if let Some(v) = menu::get(id, &prop) {
         return Some(v);
     }
@@ -1295,6 +1304,9 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     }
     if rqlib::exists(id) {
         return rqlib::set(id, &prop, val);
+    }
+    if archive::exists(id) {
+        return archive::set(id, &prop, val);
     }
     if menu::is_menu(id) {
         return menu::set(id, &prop, val).map(Ok);
@@ -1460,6 +1472,9 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     if rqlib::exists(id) {
         return rqlib::call(id, &method, args);
+    }
+    if archive::exists(id) {
+        return archive::call(id, &method, args);
     }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));

@@ -64,6 +64,7 @@ claims, headless).
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
 | [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [status_colors.rr](gui/status_colors.rr) | The theme's status colours (`status.info`, `status.success`, `status.warning`, `status.danger`: a soft fill, its text and border colours) as chips with RapidR's icons, a pane's header and a question's strip sized as RapidR Studio's design guide says, taken again in `Application.OnThemeChange` ([the manual](../docs/manual/components.md#status-colours)) | run · interp · native · web | `rapidr run gui/status_colors.rr` |
 | [on_error.rr](gui/on_error.rr) | A program that keeps going after a bug in its own code, and says so: a run-time error ends the button's handler, the window keeps working, and `Application.OnError` hears the message, the file and the line ([the manual](../docs/manual/language.md#when-a-handler-fails-applicationonerror)) | run · interp · native · web | `rapidr run gui/on_error.rr` |
 | [markdown_code.rr](gui/markdown_code.rr) | Code in Markdown, coloured as the code editor colours it: an `RMarkdownView` with a ```` ```sql ```` query, its answer as a table and the ```` ```basic ```` that ran it; the colours follow the theme ([the manual](../docs/manual/markdown.md)) | run · interp · native · web | `rapidr run gui/markdown_code.rr` |
 | [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
@@ -96,6 +97,26 @@ assistant starts from the closest one when you ask it for a new program
 | [csv_viewer.rr](recipes/csv_viewer.rr) | Open a CSV file (`ROpenDialog`) and show it in an `RStringGrid` (people.csv beside it) | run · interp · native · web | `rapidr run recipes/csv_viewer.rr` |
 | [server_manager.rr](recipes/server_manager.rr) | A list of sites with their status and Start / Stop / Restart buttons | run · interp · native · web | `rapidr run recipes/server_manager.rr` |
 
+#### Systems recipes: one tiny computer, ten small programs
+
+For programs that handle a machine's insides: memory, addresses, bits, a CPU,
+a screen, a keyboard. Each is one technique in one runnable file, with a
+small window that shows the result; they share one tiny 8-bit instruction set
+of our own, so they read as one story ([the manual page](../docs/manual/recipes-systems.md)).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [memory_bytes.rr](recipes/memory_bytes.rr) | Memory as a `BYTE` array of 64 KB: peek and poke a byte, a 16-bit word (low byte first), addresses that wrap with `AND &HFFFF` | run · interp · native · web | `rapidr run recipes/memory_bytes.rr` |
+| [flags_bits.rr](recipes/flags_bits.rr) | An 8-bit ALU: flags as bits (set with `OR`, clear with `AND (NOT mask)`), Carry / Zero / Sign / Overflow / Half-carry after an add or subtract, rotate through the carry, signed and unsigned | run · interp · native · web | `rapidr run recipes/flags_bits.rr` |
+| [cpu_step.rr](recipes/cpu_step.rr) | A tiny CPU: registers, `PC`, three flags, a `SELECT CASE` decoder, a cycle count, Step / Run / Reset | run · interp · native · web | `rapidr run recipes/cpu_step.rr` |
+| [cpu_stack.rr](recipes/cpu_stack.rr) | The stack on the memory array: `PUSH`, `POP`, `CALL` and `RET` with an `SP` that counts down, the stack shown as it grows | run · interp · native · web | `rapidr run recipes/cpu_stack.rr` |
+| [hex_dump.rr](recipes/hex_dump.rr) | A memory viewer: address, 16 bytes, an ASCII column in a monospace list; a page of 16 rows, or all 4,096 in about a tenth of a second | run · interp · native · web | `rapidr run recipes/hex_dump.rr` |
+| [disassembler.rr](recipes/disassembler.rr) | Bytes back to text with an opcode table read from `DATA` (no `SELECT CASE`): mnemonics, operands, unknown bytes as `DB` | run · interp · native · web | `rapidr run recipes/disassembler.rr` |
+| [load_binary.rr](recipes/load_binary.rr) | A binary snapshot file into memory with `RFileStream` (`ReadNum`), its header parsed at fixed offsets; the sample file is written by the program | run · interp · native · web | `rapidr run recipes/load_binary.rr` |
+| [video_memory.rr](recipes/video_memory.rr) | Video memory drawn on an `RCanvas`: a 1-bit bitmap and colour attributes, only the changed cells redrawn, a moving ball drawn with `XOR`, a 50 Hz `RTimer` | run · interp · native · web | `rapidr run recipes/video_memory.rr` |
+| [keyboard_matrix.rr](recipes/keyboard_matrix.rr) | The keyboard as a matrix of 8 rows of 5 bits: `OnKeyDown` / `OnKeyUp` set the bits, an `IN` function reads rows by a port mask | run · interp · native · web | `rapidr run recipes/keyboard_matrix.rr` |
+| [cpu_timing.rr](recipes/cpu_timing.rr) | A CPU run a budget of cycles per timer frame (50 Hz), the overspent cycles carried over, Pause / Frame / Slower / Faster without freezing the window | run · interp · native · web | `rapidr run recipes/cpu_timing.rr` |
+
 ### graphics/ — drawing
 
 | Example | What it shows | Runs on | Try |
@@ -110,6 +131,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 |---------|---------------|---------|-----|
 | [sqlite.rr](data/sqlite.rr) | `RSQLite`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
 | [secrets.rr](data/secrets.rr) | `RSecrets`: a password kept in the OS keychain (Save, Read, Delete), never in the program or a file; on the web the buttons say there's no keychain ([the manual](../docs/manual/secrets.md)) | run · interp · native · web | `rapidr run data/secrets.rr` |
+| [archives.rr](data/archives.rr) | `RArchive`: a Z80 snapshot taken as it is or found inside a zip, 7z or .gz ([snapshots.zip](data/snapshots.zip) and friends are the samples); entries listed, an entry's first bytes in hex, a zip made ([the manual](../docs/manual/archives.md)) | run · interp · native · web | `cd data && rapidr run archives.rr` |
 | [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save and load | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV on the window ([shop.csv](data/shop.csv) is the sample): a sortable table, a filter, each column's statistics, a live `RPlot` chart ([the tutorial](../docs/manual/data-science.md#tutorial-the-csv-explorer)) | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
