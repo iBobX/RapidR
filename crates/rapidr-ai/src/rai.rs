@@ -2495,7 +2495,9 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "apikeysource" => s(a.key_source.clone()),
             "keyowner" => s(a.key_owner.clone()),
             "maxtokens" => Value::Integer(if a.max_tokens <= 0 { DEFAULT_MAX_TOKENS } else { a.max_tokens }),
-            "summaryat" => Value::Integer(if a.summary_at <= 0 { a.context_limit() as i64 } else { a.summary_at }),
+            // (what was set; 0: automatic, 70% of the model's window.
+            // ContextLimit is the effective point)
+            "summaryat" => Value::Integer(a.summary_at.max(0)),
             "system" => s(a.system.clone()),
             "replylanguage" => s(a.language_pin.clone()),
             "userlanguage" => s(a.language_seen.clone()),
@@ -3156,6 +3158,22 @@ mod chat_tests {
         assert_eq!(a.context_limit(), DEFAULT_SUMMARY_AT as u64);
         a.windows.insert("claude-x".into(), (20_000, true));
         assert_eq!(a.context_limit(), 14_000);
+    }
+
+    /// SummaryAt reads what was set — 0 while it's automatic (70% of the
+    /// model's window), the registry's default; ContextLimit is the point
+    /// the conversation is actually compacted at.
+    #[test]
+    fn summary_at_reads_what_was_set_and_context_limit_the_effective_point() {
+        let name = "summaryat_reads_set";
+        assert_eq!(get(name, "summaryat").map(|v| v.to_i64()), Some(0));
+        assert_eq!(get(name, "contextlimit").map(|v| v.to_i64()), Some(DEFAULT_SUMMARY_AT));
+        assert!(set(name, "summaryat", &Value::Integer(5_000)));
+        assert_eq!(get(name, "summaryat").map(|v| v.to_i64()), Some(5_000));
+        assert_eq!(get(name, "contextlimit").map(|v| v.to_i64()), Some(5_000));
+        assert!(set(name, "summaryat", &Value::Integer(0)));
+        assert_eq!(get(name, "summaryat").map(|v| v.to_i64()), Some(0));
+        assert_eq!(get(name, "contextlimit").map(|v| v.to_i64()), Some(DEFAULT_SUMMARY_AT));
     }
 
     /// The chat's smart text (RAI shows its work): each closed code block

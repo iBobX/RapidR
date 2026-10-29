@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **Two registry reads answer what the registry says:** a component's `AccessibleHidden` reads 0 (False) until it is set (it read an empty string, on the desktop, the interpreter and the web), and `RAI.SummaryAt` reads 0 while it is automatic (it read the effective limit; `ContextLimit` is the point the chat is compacted at). The language conformance suite is green again.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed
