@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Fixed
+- **Chinese (and every character above Latin-1) no longer turns into `?` in a program's files and on its canvases** (Robert's Solar System 3D: with Chinese chosen, every caption and the 3D view's labels showed `??`). Three faults in a chain, each fixed: (1) `RFileStream.WriteStr` mixed Latin-1 and UTF-8 in one string and its length argument cut the UTF-8 tail (Studio's Apply wrote RAI's new files with `WriteStr(Text, LEN(Text))`): a string with any character above 255 is now written whole as UTF-8, a string of characters up to 255 stays bytes (binary data is exact), and the count is of characters; (2) a Studio editor opens a file that isn't UTF-8 as Windows-1252, and its save wrote `?` for every character that code page lacks — `RCodeEdit`, the text boxes (`RMemo`, `REdit`, `RRichEdit` plain text) and the designer's saves now write UTF-8 instead, never a `?`; (3) `RCanvas.TextOut` drew a `?` for each character RapidR's built-in fonts lack — it now draws it with the font a label uses (the system's CJK font on the desktop, the Noto fonts on the web), from the program's first line. TR$ catalogs, lists, grids, `LINE INPUT #` and text boxes also read a file that isn't UTF-8 as Windows-1252, so an `é` is never turned into `�`. New: `WriteText` / `ReadAllText` on both streams (UTF-8 text on purpose). A `.po` file the old Studio already wrote with `?` can't be recovered: write it again. Tests: stream, editor, text box, catalog and encoder unit tests; conformance `stream_unicode_text`, `i18n_encodings`; `tests/native_gui_unicode.mjs`. Manual: [Text and bytes](docs/manual/language.md#text-and-bytes-accents-chinese-emoji); example `examples/basics/unicode.rr`.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

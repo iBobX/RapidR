@@ -62,6 +62,13 @@ pub fn apply_loaded() {
         // (the host was busy: next frame)
         LOADED.with(|l| l.borrow_mut().extend(fonts));
     }
+    // (a canvas that drew a `?` for a character this font has is painted
+    // again: its OnPaint draws the text anew)
+    if rapidr_value::objects::text::take_missed_fallbacks() {
+        for id in rapidr_value::objects::canvas_ids() {
+            rapidr_value::events::post_paint(&id);
+        }
+    }
     rapidr_ui_app::windows::invalidate();
 }
 

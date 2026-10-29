@@ -1,0 +1,6 @@
+# A Windows-1252 file, as an older Studio wrote them: one byte per accent.
+msgid "Playing"
+msgstr "Reproduciendo · Español (€ 5)"
+
+msgid "Language"
+msgstr "Idioma: ¿cuál?"

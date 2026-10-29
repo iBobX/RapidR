@@ -1,0 +1,58 @@
+' unicode.rr: text in any language in a file, and bytes that are not text.
+'
+'   rapidr run unicode.rr
+'
+' A string is characters; a file is bytes. Text (accents, Chinese, emoji) is
+' written as UTF-8 and comes back whole; a string of characters up to 255 is
+' written as the bytes it holds, so binary data is never changed. The manual:
+' docs/manual/language.md ("Text and bytes").
+$APPTYPE CONSOLE
+
+CONST NOTE = "unicode_note.txt"
+
+DIM f AS RFileStream
+DIM text AS STRING
+DIM back AS STRING
+
+text = "Hola, café · 日期 · 😀"
+PRINT "Text: " + text
+PRINT "Characters: " + STR$(LEN(text))
+
+' 1. An RFileStream. WriteStr(text, LEN(text)) writes every character; the
+'    Chinese and the emoji need UTF-8, so it is more bytes than characters.
+f.Open(NOTE, fmCreate)
+f.WriteStr(text, LEN(text))
+' (written? A folder that can't be written leaves no file: say so, stop)
+IF FILEEXISTS(NOTE) = 0 THEN
+    PRINT "Couldn't write " + NOTE + ": this folder (" + CURDIR$ + ") can't be written. Run it from a folder of yours."
+    END
+END IF
+PRINT "Bytes in the file: " + STR$(f.Size)
+f.Position = 0
+back = f.ReadAllText                 ' the rest of the file, as text
+PRINT "ReadAllText: " + back
+PRINT "Same text: " + IIF(back = text, "yes", "no")
+f.Close
+
+' 2. The BASIC way writes the same text the same way.
+OPEN NOTE FOR OUTPUT AS #1
+PRINT #1, text
+CLOSE #1
+OPEN NOTE FOR INPUT AS #1
+LINE INPUT #1, back
+CLOSE #1
+PRINT "LINE INPUT, same text: " + IIF(back = text, "yes", "no")
+
+' 3. Bytes. A string whose characters are all up to 255 is bytes: CHR$(200)
+'    is the byte 200, so binary data comes back exactly as it went.
+DIM data AS STRING
+data = "H" + CHR$(200) + CHR$(255) + CHR$(0) + "Z"
+f.Open(NOTE, fmCreate)
+f.WriteStr(data, LEN(data))
+PRINT "Binary: " + STR$(f.Size) + " bytes for " + STR$(LEN(data)) + " characters"
+f.Position = 1
+PRINT "The second byte: " + STR$(f.ReadByte)
+f.Close
+
+KILL NOTE
+PRINT "Removed: " + IIF(FILEEXISTS(NOTE), "no", "yes")

@@ -775,7 +775,7 @@ fn load(tag: &str) -> Option<Catalog> {
             names.push(name);
         }
     }
-    names.iter().find_map(|name| read(&format!("{name}.po"))).map(|bytes| parse_po(&String::from_utf8_lossy(&bytes)))
+    names.iter().find_map(|name| read(&format!("{name}.po"))).map(|bytes| parse_po(&crate::objects::codec::decode_text(&bytes)))
 }
 
 /// The current language's catalogs (read once per language).
@@ -1048,6 +1048,39 @@ msgstr ""
         // back to the system's
         set_language("");
         assert_eq!(language(), "en-US");
+    }
+
+    thread_local!(static RAW_FILES: RefCell<HashMap<String, Vec<u8>>> = RefCell::new(HashMap::new()));
+
+    fn raw_reader(name: &str) -> Option<Vec<u8>> {
+        RAW_FILES.with(|f| f.borrow().get(name).cloned())
+    }
+
+    /// Robert's Solar System 3D (2.121.3): the translation files an earlier
+    /// Studio wrote were Windows-1252 (a single-byte `é`, `·`), and TR$
+    /// turned each of those into U+FFFD. A `.po` is read as UTF-8 (a BOM
+    /// dropped) or, when it isn't, as Windows-1252 — no character is lost on
+    /// the way in.
+    #[test]
+    fn a_po_file_is_read_as_utf8_or_windows_1252() {
+        RAW_FILES.with(|f| {
+            let mut f = f.borrow_mut();
+            f.clear();
+            f.insert("lang/es.po".into(), b"msgid \"Playing\"\nmsgstr \"Reproduciendo \xB7 Espa\xF1ol\"\n".to_vec());
+            f.insert("lang/zh-Hans.po".into(), "msgid \"Language\"\nmsgstr \"语言 · 中文(简体)\"\n".as_bytes().to_vec());
+            f.insert("lang/fr.po".into(), "\u{feff}msgid \"Hello\"\nmsgstr \"Bonjour, ça va?\"\n".as_bytes().to_vec());
+        });
+        set_platform(|| "en-US".to_string(), raw_reader);
+        STATE.with(|s| *s.borrow_mut() = State::default());
+        let tr = |text: &str| rp_tr(&[v_str(text)]).to_string_val();
+        set_language("es");
+        assert_eq!(tr("Playing"), "Reproduciendo · Español");
+        set_language("zh-Hans");
+        assert_eq!(tr("Language"), "语言 · 中文(简体)");
+        set_language("fr");
+        assert_eq!(tr("Hello"), "Bonjour, ça va?");
+        assert!(!tr("Hello").contains('\u{fffd}'));
+        set_language("");
     }
 
     #[test]

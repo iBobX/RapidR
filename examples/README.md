@@ -45,6 +45,7 @@ claims, headless).
 | [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
+| [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |
 | [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events
@@ -70,7 +71,7 @@ claims, headless).
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [languages.rr](translations/languages.rr) | `TR$` and `TRN$` with PO files in `lang/` beside it (Spanish, Portuguese, Chinese): it starts in the system's language, a list switches `Application.Language`, `Application.OnLanguageChange` writes the captions again, "1 file" / "5 files" in each language's way ([the manual](../docs/manual/translations.md)) | run · web | `rapidr run translations/languages.rr es` |
+| [languages.rr](translations/languages.rr) | `TR$` and `TRN$` with PO files in `lang/` beside it (Spanish, Portuguese, Chinese): it starts in the system's language, a list switches `Application.Language`, `Application.OnLanguageChange` writes the captions again, "1 file" / "5 files" in each language's way, and a canvas draws the greeting with `TextOut` (Chinese included) ([the manual](../docs/manual/translations.md)) | run · web | `rapidr run translations/languages.rr es` |
 
 ### recipes/ — short programs to start from
 

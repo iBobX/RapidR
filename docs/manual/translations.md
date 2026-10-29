@@ -62,7 +62,10 @@ text. `rapidr run hello.rr es-AR` prints the Spanish: Argentina's Spanish
 looks in `es-AR.po` first, then in `es.po`.
 
 The same program is in [examples/translations](../../examples/translations/),
-with Spanish and Chinese files.
+with Spanish, Portuguese and Chinese files; its canvas row draws the greeting
+with `TextOut`, so the Chinese is on a label and on a canvas:
+
+![The translations example in Chinese](images/translations/languages-chinese.png)
 
 ## Text in code
 
@@ -145,7 +148,16 @@ Application.OnLanguageChange = LanguageChanged
     Without one, the English rule is used.
 - A missing folder, file or entry is never an error: the program shows its
   own text. A line RapidR can't read is skipped; the rest of the file still
-  works. Save the files as UTF-8.
+  works. Save the files as UTF-8. A file that isn't UTF-8 (one an older
+  program or editor saved as Windows-1252, an `é` as one byte) is read as
+  Windows-1252, so no letter turns into `?` or `�`; a `?` already *in* the
+  file (Chinese that an old tool lost when it wrote it) can't come back, so
+  write the file again. To write a catalog from a program, use
+  `WriteText` (or `WriteStr(Text, LEN(Text))`) on an `RFileStream`: see
+  [Text and bytes](language.md#text-and-bytes-accents-chinese-emoji).
+- Chinese, Japanese and Korean show on labels, buttons and canvases alike:
+  the desktop uses the system's CJK font and the web the Noto fonts that
+  ship with the build; nothing to install.
 - A console program prints translations as they are when its file is a
   `.rr` file (or any file with a non-English letter in it). A `.bas` file
   of plain English letters is taken as a classic program, whose console

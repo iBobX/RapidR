@@ -216,6 +216,10 @@ pub fn install_object_hooks() {
     // translations among the page's files (`lang/es.po`: the project's, or
     // beside the page, fetched as the program's other files are).
     rapidr_value::i18n::set_platform(browser_language, read_page_file);
+    // A canvas's TextOut draws the characters the built-in faces lack
+    // (Chinese, Japanese, Korean) with the fallback fonts the page loads,
+    // as its labels do.
+    rapidr_ui_kernel::text::install_canvas_fallback();
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).

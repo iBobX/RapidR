@@ -885,6 +885,11 @@ pub fn with_picture<R>(id: &str, f: impl FnOnce(&mut Bitmap) -> R) -> Option<R> 
     })?
 }
 
+/// Every QCANVAS's name (a runtime paints them again: a font arrived).
+pub fn canvas_ids() -> Vec<String> {
+    OBJECTS.with(|o| o.borrow().iter().filter(|(_, o)| matches!(o, Object::Bitmap(b) if b.canvas && !b.form)).map(|(k, _)| k.clone()).collect())
+}
+
 /// Whether `id` is a QCANVAS (its runtime widget shows the surface again
 /// after a change).
 pub fn is_canvas(id: &str) -> bool {
@@ -1246,7 +1251,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readbyte") => m.call(&prop, &[]),
+        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readalltext" | "readbyte") => m.call(&prop, &[]),
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
@@ -1961,7 +1966,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 })
                 .unwrap_or_default()
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::Grid(g) = o { g.load_text(&text, rows, cols, max) });
             Some(Ok(Value::Null))
         }
@@ -1971,7 +1976,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::Tree(t) = o { t.load_text(&text) });
             Some(Ok(Value::Null))
         }
@@ -1988,7 +1993,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::List(l) = o { l.load_text(&text) });
             Some(Ok(Value::Null))
         }

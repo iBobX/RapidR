@@ -207,7 +207,7 @@ pub fn line_input(file_num: &Value) -> Value {
         if line.last() == Some(&b'\r') {
             line = &line[..line.len() - 1];
         }
-        Value::String(String::from_utf8_lossy(line).into_owned())
+        Value::String(crate::objects::codec::decode_text(line))
     })
     .unwrap_or_else(|| v_str(""))
 }
@@ -255,7 +255,7 @@ pub fn input_field(file_num: &Value) -> Value {
             i += 1;
         }
         h.pos = i;
-        Value::String(String::from_utf8_lossy(&out).into_owned())
+        Value::String(crate::objects::codec::decode_text(&out))
     })
     .unwrap_or_else(|| v_str(""))
 }
