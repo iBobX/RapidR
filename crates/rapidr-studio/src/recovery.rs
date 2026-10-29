@@ -27,6 +27,34 @@ use crate::{join, read_text, slashes, write_text};
 /// The log's size it is kept under.
 const LOG_MAX: usize = 256 * 1024;
 
+thread_local! {
+    /// Whether the page's store has a file (the web: its files listed by
+    /// the host — a file read that isn't there asks the site for it, and
+    /// the console says 404).
+    static STORE_HAS: std::cell::RefCell<Option<Box<dyn Fn(&str) -> bool>>> = const { std::cell::RefCell::new(None) };
+}
+
+/// The host's way to tell whether a file is there without reading it
+/// (RPROJECT gives its host's, `Host::list_files`).
+pub fn set_store_has(f: Box<dyn Fn(&str) -> bool>) {
+    STORE_HAS.with(|s| *s.borrow_mut() = Some(f));
+}
+
+/// Whether the host's way is known already.
+pub fn store_known() -> bool {
+    STORE_HAS.with(|s| s.borrow().is_some())
+}
+
+/// A file's text when it is there (on the web: asked of the store first,
+/// never of the site).
+fn read_if_there(path: &str) -> Option<String> {
+    #[cfg(target_arch = "wasm32")]
+    if STORE_HAS.with(|s| s.borrow().as_ref().is_some_and(|has| !has(path))) {
+        return None;
+    }
+    read_text(path).ok()
+}
+
 /// Studio's own folder (`/` separators, no trailing `/`).
 pub fn studio_folder() -> String {
     #[cfg(target_arch = "wasm32")]
@@ -78,7 +106,7 @@ fn run_folder(run: &str) -> String {
 
 /// A run's documents: (key, path, caption), as its index says.
 fn index_of(run: &str) -> Vec<(String, String, String)> {
-    let Ok(text) = read_text(&join(&run_folder(run), "index.json")) else { return Vec::new() };
+    let Some(text) = read_if_there(&join(&run_folder(run), "index.json")) else { return Vec::new() };
     let Ok(Json::Array(items)) = serde_json::from_str::<Json>(&text) else { return Vec::new() };
     items
         .iter()
@@ -220,7 +248,7 @@ pub fn found() -> String {
 
 /// A copy's text ("" when there is none).
 pub fn text(run: &str, key: &str) -> String {
-    read_text(&copy_file(run, key)).unwrap_or_default()
+    read_if_there(&copy_file(run, key)).unwrap_or_default()
 }
 
 /// Lets the copies of `run` go ("": every run that can be restored).
@@ -245,7 +273,7 @@ pub fn log_file() -> String {
 pub fn log(line: &str) -> Result<(), String> {
     make_folder(&studio_folder());
     let path = log_file();
-    let mut text = read_text(&path).unwrap_or_default();
+    let mut text = read_if_there(&path).unwrap_or_default();
     text.push_str(line.trim_end());
     text.push('\n');
     if text.len() > LOG_MAX {
@@ -283,7 +311,7 @@ pub fn can_write_new(path: &str) -> Result<(), String> {
     }
     #[cfg(target_arch = "wasm32")]
     {
-        if read_text(&path).is_ok() {
+        if read_if_there(&path).is_some() {
             return Err(format!("{path} is there already"));
         }
         Ok(())

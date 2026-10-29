@@ -762,6 +762,19 @@ FUNCTION ProgramErrors AS INTEGER
   IF Result = 0 THEN FillProblems ActiveCode
 END FUNCTION
 
+' (the project's main file isn't there: none set, gone from the disk — on
+' the web a file of the site's isn't in the page's store, so its editor or
+' a read says whether it is there)
+FUNCTION MainMissing AS INTEGER
+  DIM t AS STRING
+  IF ProjectMain = "" THEN
+    Result = 1
+  ELSEIF FILEEXISTS(ProjectMain) = 0 AND DocOf(ProjectMain) < 0 THEN
+    t = Proj.FileText(ProjectMain)
+    Result = Flag(Proj.Error <> "")
+  END IF
+END FUNCTION
+
 SUB StartProgram(WithDebugger AS INTEGER)
   ' (Run always says why it didn't start: Robert 2026-10-28, a Run that
   ' did nothing and said nothing)
@@ -774,7 +787,7 @@ SUB StartProgram(WithDebugger AS INTEGER)
     SetState RunState, FileTitle(ProjectMain) + " is " + RunState + " already: Stop it first (Shift+F5)"
     EXIT SUB
   END IF
-  IF ProjectMain = "" OR FILEEXISTS(ProjectMain) = 0 THEN
+  IF MainMissing THEN
     OutputLine "Can't run: the project's main file " + IIF(ProjectMain = "", "isn't set", ProjectMain + " isn't there") + ". Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
     SetState "error", "Can't run: no main file"
     OutputBox.Page = "output"

@@ -792,7 +792,16 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::String(path)
         }
         "projectsfolder" => Value::String(projects_folder(&s(0))),
-        // (Studio keeps your work: crate::recovery)
+        // (Studio keeps your work: crate::recovery — on the web it asks the
+        // page's store whether a file is there before it reads it)
+        m if cfg!(target_arch = "wasm32") && (m.starts_with("recovery") || m.starts_with("log") || m.ends_with("newfile")) && !crate::recovery::store_known() => {
+            crate::recovery::set_store_has(Box::new(move |p: &str| {
+                let p = slashes(p);
+                let (folder, file) = p.rsplit_once('/').unwrap_or(("", p.as_str()));
+                host.list_files(folder).iter().any(|f| f == file)
+            }));
+            return call(host, name, method, args);
+        }
         "studiofolder" => Value::String(crate::recovery::studio_folder()),
         "recoverykeep" => {
             let r = crate::recovery::keep(&s(0), &s(1), &s(2), &s(3));
