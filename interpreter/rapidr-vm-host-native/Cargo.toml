@@ -26,3 +26,14 @@ rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
 rapidr-runtime-core = { workspace = true }
 rapidr-session = { workspace = true, features = ["program"], optional = true }
+
+[dev-dependencies]
+# (tests/string_speed.rs: BASIC source compiled and run on this host)
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-bcgen = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+# (the test's CPU-time clock: steady on a machine busy with other work;
+# MIT OR Apache-2.0, already in the tree through rapidr-runtime-core)
+libc = "0.2"

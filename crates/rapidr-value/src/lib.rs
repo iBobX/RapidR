@@ -6,6 +6,8 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
 pub mod lprint;
+pub mod basic_string;
+pub use basic_string::BasicString;
 pub mod strings;
 pub mod numeric;
 pub mod variadic;
@@ -70,7 +72,9 @@ pub mod component_defaults;
 pub enum Value {
     Integer(i64),
     Double(f64),
-    String(String),
+    /// Text: shared, copied on write, indexed by character when long
+    /// ([`BasicString`]).
+    String(BasicString),
     Boolean(bool),
     Null,
     /// A DIMmed array. Shared (cloning the Value aliases the same array), so
@@ -331,7 +335,7 @@ impl BasicArray {
             Ok(i) => self.data[i].clone(),
             Err(_) if self.place(indices).is_some_and(|p| self.overflow.contains_key(&p)) => self.overflow[&self.place(indices).unwrap_or_default()].clone(),
             Err(_) => match self.data.first() {
-                Some(Value::String(_)) => Value::String(String::new()),
+                Some(Value::String(_)) => Value::String(String::new().into()),
                 Some(Value::Double(_)) => Value::Double(0.0),
                 Some(Value::Integer(_)) => Value::Integer(0),
                 _ => Value::Null,
@@ -374,7 +378,7 @@ pub fn v_dbl(n: f64) -> Value {
     Value::Double(n)
 }
 pub fn v_str(s: &str) -> Value {
-    Value::String(s.to_string())
+    Value::String(s.to_string().into())
 }
 /// A RapidQ exception an object's method raises (RC.EXE's programs stop
 /// with its message: `Cannot open file x.txt.` — EFOpenError): the error
@@ -414,6 +418,9 @@ pub fn take_raised() -> Option<String> {
 /// it: unwound to the loop, which goes on ([`catching`]), as RapidQ's does.
 pub fn runtime_error(message: &str) -> ! {
     eprintln!("run-time error: {message}");
+    // (what file streams were given is written, as when every write went
+    // straight through)
+    objects::flush_streams();
     if TURNS.with(|t| t.borrow().contains(&true)) {
         std::panic::resume_unwind(Box::new(HandlerFailed));
     }
@@ -607,7 +614,7 @@ impl Value {
             // As RapidQ shows numbers (RapidQ's FloatToStr, `format`): 15
             // significant digits, so PRINT 2 ^ 10 → 1024 and 0.1 + 0.2 → 0.3.
             Value::Double(n) => crate::format::float_to_str(*n),
-            Value::String(s) => s.clone(),
+            Value::String(s) => s.as_str().to_owned(),
             // RapidQ has no boolean type: a comparison is -1 (true) or 0.
             Value::Boolean(b) => if *b { "-1".to_string() } else { "0".to_string() },
             Value::Null => String::new(),
@@ -662,7 +669,7 @@ impl Value {
                 // Try comma-separated splitting
                 let parts: Vec<&str> = s.split(',').collect();
                 if i >= 0 && (i as usize) < parts.len() {
-                    Value::String(parts[i as usize].trim().to_string())
+                    Value::String(parts[i as usize].trim().to_string().into())
                 } else {
                     Value::Null
                 }
@@ -673,7 +680,42 @@ impl Value {
 
     /// BASIC string concatenation (&)
     pub fn concat(&self, rhs: &Value) -> Value {
-        Value::String(format!("{}{}", self.to_string_val(), rhs.to_string_val()))
+        let (a, b) = (self.text(), rhs.text());
+        let mut out = String::with_capacity(a.len() + b.len());
+        out.push_str(&a);
+        out.push_str(&b);
+        Value::String(out.into())
+    }
+
+    /// The text of a value: a string's own (borrowed, nothing copied), any
+    /// other value's as `to_string_val` makes it.
+    pub fn text(&self) -> std::borrow::Cow<'_, str> {
+        match self {
+            Value::String(s) => std::borrow::Cow::Borrowed(s.as_str()),
+            other => std::borrow::Cow::Owned(other.to_string_val()),
+        }
+    }
+
+    /// `x = x + y` (`plus`: within [`strings::MAX_STRING_LEN`], as `+`
+    /// checks) or `x = x & y` for a string `x` and a string `y`, done in
+    /// place on `x` — `x` the variable's own value: when nothing else
+    /// shares its text, nothing is copied (a string built a character at
+    /// a time costs what it adds, not its length each time). `false`, and
+    /// nothing changed, for anything else: the caller then does `x + y`.
+    pub fn append_in_place(&mut self, rhs: &Value, plus: bool) -> bool {
+        let (Value::String(a), Value::String(b)) = (&mut *self, rhs) else { return false };
+        if plus && a.len() + b.len() > strings::MAX_STRING_LEN * 4 {
+            return false;
+        }
+        a.push_str(b);
+        true
+    }
+
+    /// [`Value::append_in_place`] for a string nothing else shares (a
+    /// result just made: `a$ + b$ + c$`); `false`, nothing changed, when
+    /// shared — a copy then costs the same as `x + y`'s.
+    pub fn append_in_place_if_unique(&mut self, rhs: &Value, plus: bool) -> bool {
+        matches!(self, Value::String(a) if a.is_unique()) && self.append_in_place(rhs, plus)
     }
 
     /// BASIC logical AND
@@ -782,6 +824,26 @@ impl Value {
     }
 }
 
+// --- From text ---
+
+impl From<String> for Value {
+    fn from(s: String) -> Value {
+        Value::String(s.into())
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Value {
+        Value::String(s.into())
+    }
+}
+
+impl From<BasicString> for Value {
+    fn from(s: BasicString) -> Value {
+        Value::String(s)
+    }
+}
+
 // --- Display ---
 
 impl fmt::Display for Value {
@@ -830,7 +892,7 @@ fn joined(a: &str, b: &str) -> Value {
     let mut out = String::with_capacity(a.len() + b.len());
     out.push_str(a);
     out.push_str(b);
-    Value::String(out)
+    Value::String(out.into())
 }
 
 impl Sub for &Value {
@@ -838,7 +900,7 @@ impl Sub for &Value {
     fn sub(self, rhs: Self) -> Value {
         match (self, rhs) {
             // RapidQ: "jello" - "l" removes every "l" → "jeo".
-            (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "")),
+            (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "").into()),
             (Value::String(a), Value::String(_)) => Value::String(a.clone()),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_sub(*b)),
             _ => Value::Double(self.to_f64() - rhs.to_f64()),
@@ -903,6 +965,43 @@ mod tests {
         assert_eq!(a.concat(&b).to_string_val(), "Hello World");
     }
 
+    /// `x = x + y` in a native build: in place when x is the text it read
+    /// (its buffer kept), a copy when something else shares it, the general
+    /// `+` / `&` when x changed meanwhile or y isn't text.
+    #[test]
+    fn append_assign_in_place() {
+        let text_ptr = |v: &Value| match v {
+            Value::String(s) => s.as_ptr(),
+            _ => std::ptr::null(),
+        };
+        let mut x = Value::String(BasicString::from(String::with_capacity(64)));
+        let buffer = text_ptr(&x);
+        for piece in ["a", "é", "€"] {
+            rp_append_assign(x.clone(), v_str(piece), &mut x, true);
+        }
+        assert_eq!(x.to_string_val(), "aé€");
+        assert_eq!(text_ptr(&x), buffer, "appended in its own buffer");
+        // (shared: the other holder keeps its text)
+        let other = x.clone();
+        rp_append_assign(x.clone(), v_str("!"), &mut x, false);
+        assert_eq!((x.to_string_val().as_str(), other.to_string_val().as_str()), ("aé€!", "aé€"));
+        // (x changed while y was worked out: the text it had, plus y)
+        let left = x.clone();
+        x = v_str("changed");
+        rp_append_assign(left, v_str("?"), &mut x, true);
+        assert_eq!(x.to_string_val(), "aé€!?");
+        // (numbers and text: as `+` and `&` make them)
+        let mut n = v_int(2);
+        rp_append_assign(n.clone(), v_int(3), &mut n, true);
+        assert_eq!(n, v_int(5));
+        let mut t = v_str("n=");
+        rp_append_assign(t.clone(), v_int(7), &mut t, true);
+        assert_eq!(t.to_string_val(), "n=7");
+        let mut c = v_int(1);
+        rp_append_assign(c.clone(), v_int(2), &mut c, false);
+        assert_eq!(c.to_string_val(), "12");
+    }
+
     #[test]
     fn comparisons() {
         assert!(v_int(5).rp_gt(&v_int(3)).to_bool());
@@ -929,6 +1028,32 @@ mod tests {
 /// (RC.EXE: the operands as the bitwise operators take them — `2.5 SHL 1`
 /// is 4 — and the count as the x86 takes it, its low 5 bits: `1 SHL 32` is
 /// 1, `1 SHL 31` -2147483648.)
+/// `x = x + y` (`plus`) or `x = x & y` in a native build: `left` is the
+/// value `x` had when the expression read it, `right` the value of `y`
+/// (worked out after it, as the expression does), `slot` the variable. When
+/// the variable still holds the text `left` was read from, `right` is
+/// appended there in place — nothing copied when nothing else shares it, so
+/// a string built a piece at a time costs what each piece adds; otherwise
+/// the variable gets `left + right` (or `left & right`), as before.
+pub fn rp_append_assign(left: Value, right: Value, slot: &mut Value, plus: bool) {
+    if let (Value::String(held), Value::String(l)) = (&*slot, &left) {
+        if BasicString::ptr_eq(held, l) {
+            // (`left` dropped: the variable then holds the text alone, unless
+            // something else shares it — then it is copied, as `left + right`
+            // would)
+            drop(left);
+            if !slot.append_in_place(&right, plus) {
+                // (`y` isn't a string, or `+` past the longest string: the
+                // general path, with its message)
+                let left = slot.clone();
+                *slot = if plus { &left + &right } else { left.concat(&right) };
+            }
+            return;
+        }
+    }
+    *slot = if plus { &left + &right } else { left.concat(&right) };
+}
+
 pub fn rp_shl(a: &Value, n: &Value) -> Value {
     let shift = (n.bits() & 31) as u32;
     let bits = a.bits() as u32;

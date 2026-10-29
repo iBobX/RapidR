@@ -77,14 +77,14 @@ pub fn generate_with_resources(program: &Program, target: AppTarget, resources: 
 }
 
 /// Turns the named module-level variable accesses the generator writes —
-/// `gv("total")`, `gs("total", …)`, `ginit("total", …)` — into slot indexes
+/// `gv("total")`, `gs("total", …)`, `ga("total", …)`, `ginit("total", …)` — into slot indexes
 /// (`gv(0)`), and sizes the slot table. Inside a Rust string literal a quote
 /// is always escaped, so user text can't match.
 fn index_globals(code: &str) -> String {
     let mut slots: HashMap<String, usize> = HashMap::new();
     let mut out = String::with_capacity(code.len());
     let mut rest = code;
-    while let Some(pos) = ["gv(\"", "gs(\"", "ginit(\""].iter().filter_map(|p| rest.find(p).map(|i| (i, p.len()))).min() {
+    while let Some(pos) = ["gv(\"", "gs(\"", "ga(\"", "ginit(\""].iter().filter_map(|p| rest.find(p).map(|i| (i, p.len()))).min() {
         let (at, len) = pos;
         let name_start = at + len;
         let Some(end) = rest[name_start..].find('"') else { break };
@@ -103,6 +103,21 @@ fn index_globals(code: &str) -> String {
     }
     out.push_str(rest);
     out.replace("__GLOBAL_SLOTS__", &slots.len().max(1).to_string())
+}
+
+/// `x = x + y` (`true`) or `x = x & y` (`false`) for the variable `target`:
+/// the left operand (`x`, as the expression reads it) and `y`.
+fn appended_to<'e>(target: &Identifier, value: &'e Expression) -> Option<(&'e Expression, &'e Expression, bool)> {
+    let Expression::Binary(b) = value else { return None };
+    let plus = match b.operator {
+        BinaryOperator::Add => true,
+        BinaryOperator::Concat => false,
+        _ => return None,
+    };
+    match b.left.as_ref() {
+        Expression::Identifier(l) if strip_type_suffix(&l.name).eq_ignore_ascii_case(&strip_type_suffix(&target.name)) => Some((&b.left, &b.right, plus)),
+        _ => None,
+    }
 }
 
 /// `MySub @x` passes x by reference (RapidQ manual 3.5). A Rust function
@@ -695,6 +710,8 @@ impl RustCodegen {
         self.line("}");
         self.line("#[inline] fn gv(i: usize) -> Value { GVARS.with(|g| g.borrow()[i].clone()) }");
         self.line("#[inline] fn gs(i: usize, v: Value) { GVARS.with(|g| g.borrow_mut()[i] = v); }");
+        self.line("/// `x = x + y` / `x = x & y` on a module-level string: appended in place (rp_append_assign).");
+        self.line("#[allow(dead_code)] #[inline] fn ga(i: usize, left: Value, right: Value, plus: bool) { GVARS.with(|g| rp_append_assign(left, right, &mut g.borrow_mut()[i], plus)) }");
         self.line("/// A STATIC variable's slot, set the first time only.");
         self.line("#[allow(dead_code)] fn ginit(i: usize, f: impl FnOnce() -> Value) { if !GINIT.with(|d| std::mem::replace(&mut d.borrow_mut()[i], true)) { gs(i, f()); } }");
         // Typed main-program variables (`typed::analyze_globals`).
@@ -1266,6 +1283,17 @@ impl RustCodegen {
             // A module-level scalar, or a whole array (`a = __objectarray(…)`).
             if self.is_global_scalar(&stripped) || self.is_global_array(&stripped) {
                 let snake = to_snake(&stripped);
+                // `x = x + y` / `x = x & y`: appended in place when x still
+                // holds the text the expression read (rp_append_assign).
+                if let Some((left, right, plus)) = appended_to(id, &a.value) {
+                    let left = self.owned_expr(left);
+                    if left == format!("gv(\"{snake}\")") {
+                        let right = self.owned_expr(right);
+                        self.write_indent();
+                        let _ = writeln!(self.output, "ga(\"{snake}\", {left}, {right}, {plus});");
+                        return;
+                    }
+                }
                 let value = self.owned_expr(&a.value);
                 self.write_indent();
                 let _ = writeln!(self.output, "gs(\"{snake}\", {value});");
@@ -1297,6 +1325,19 @@ impl RustCodegen {
         }
 
         let target = self.lvalue_to_string(&a.target);
+        // `x = x + y` / `x = x & y` on a variable of the routine: appended in
+        // place when x still holds the text the expression read.
+        if let Expression::Identifier(id) = &a.target {
+            if let Some((left, right, plus)) = appended_to(id, &a.value) {
+                let left = self.owned_expr(left);
+                if left == format!("{target}.clone()") {
+                    let right = self.owned_expr(right);
+                    self.write_indent();
+                    let _ = writeln!(self.output, "rp_append_assign({left}, {right}, &mut {target}, {plus});");
+                    return;
+                }
+            }
+        }
         let value = self.owned_expr(&a.value);
         self.write_indent();
         let _ = writeln!(self.output, "{target} = {value};");
@@ -3687,6 +3728,22 @@ mod tests {
         let rust = gen("DIM x AS INTEGER\n");
         assert!(rust.contains("static TG_X: std::sync::atomic::AtomicI64"));
         assert!(rust.contains("TG_X.store(0_i64"));
+    }
+
+    /// `x = x + y` / `x = x & y` append in place (rp_append_assign): the
+    /// module's variable through `ga`, a routine's own directly — `x` read
+    /// before `y`, as the expression reads them. Anything else stays an
+    /// assignment.
+    #[test]
+    fn appending_to_a_string_variable_appends_in_place() {
+        let rust = gen("DIM s AS STRING, t AS STRING\ns = s + CHR$(65)\ns = s & \"x\"\nt = s + t\ns = s + \"a\" + \"b\"\n");
+        assert!(rust.contains("ga(0, gv(0), rp_chr(&v_int(65)), true);"), "{rust}");
+        assert!(rust.contains("ga(0, gv(0), v_str(\"x\"), false);"), "{rust}");
+        assert!(rust.contains("gs(1, (&gv(0) + &gv(1)));"), "{rust}");
+        assert!(rust.contains("gs(0, (&(&gv(0) + &v_str(\"a\")) + &v_str(\"b\")));"), "{rust}");
+        let rust = gen("SUB Build\n  DIM t AS STRING\n  t = t + \"x\"\n  t$ = t$ & \"y\"\nEND SUB\n");
+        assert!(rust.contains("rp_append_assign(t.clone(), v_str(\"x\"), &mut t, true);"), "{rust}");
+        assert!(rust.contains("rp_append_assign(t.clone(), v_str(\"y\"), &mut t, false);"), "{rust}");
     }
 
     #[test]

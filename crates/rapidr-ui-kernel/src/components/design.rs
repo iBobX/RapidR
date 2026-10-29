@@ -330,7 +330,7 @@ fn value_of(design: &FormDesign, text: &str) -> Option<Value> {
     match design.read_value(text) {
         PropValue::Number(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Some(Value::Integer(f as i64)),
         PropValue::Number(f) => Some(Value::Double(f)),
-        PropValue::Str(s) => Some(Value::String(s)),
+        PropValue::Str(s) => Some(Value::String(s.into())),
         _ => None,
     }
 }

@@ -197,6 +197,8 @@ Next up, in order:
 - [x] Objects as values with compile-time field slots, one shared front end (`rapidr_ast::objects`) for both backends; arrays of TYPE objects; instance-bound EVENT handlers; method pointers (v2.27.0)
 - [x] Remove the interpreter compiler's old object code (setup_instance, TypeInfo, …) and codegen's UDT-struct path, now unused (v2.28.1)
 - [x] Speed: slot globals (both backends), allocation-free array access and frame reuse in the VM (v2.28.0)
+- [x] Speed: binary data (STRING-SPEED, 2026-10-29) — strings shared (copy on write) with a character index, so `MID$` / `LEFT$` / `RIGHT$` / `LEN` / `INSTR` / `ASC` / `s[i]` on a long string cost what they return (a 64 KB byte scan 8.2 s → 13 ms in `rapidr run`, 18 s → 7 ms native, 13 s → 23 ms on the web); `s = s + x` in place (VM and native); `RFileStream` writes kept and written together (flushed at Close, waits, the end, every 64 KB and before any other use of the file by name); `SaveArray` / `LoadArray` in one call; `tools/bench/vm/` + `web_bench.mjs`, the `string_speed` guard test
+- [ ] Speed next (found by STRING-SPEED): a component method call costs ~1–3 µs (`ReadNum`, `WriteNum`: the method name lower-cased and the component looked up by name in several registries each call) — resolve once, as builtins are; `SHL` / `SHR` are builtin calls, not opcodes; `s = s + a + b` copies `s` once per statement (in place only for `s = s + (a + b)`)
 - [x] Declared numeric types enforced in both backends (`rapidr_ast::numeric`, v2.31.0)
 - [x] Native typed locals: numeric SUB/FUNCTION locals are Rust `i64`/`f64` with native arithmetic, conditions and FOR loops (`typed.rs`, v2.32.0)
 - [x] Native typed main-program variables (atomic statics) and BYVAL parameters (v2.38.0)

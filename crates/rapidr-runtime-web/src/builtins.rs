@@ -37,7 +37,7 @@ pub fn rp_dll_call(args: &[Value]) -> Value {
 pub fn rp_poke(args: &[Value]) -> Value {
     let text = crate::value::memory::rp_poke_text(args);
     if !text.is_empty() {
-        rp_print(&[Value::String(text)], false);
+        rp_print(&[Value::String(text.into())], false);
     }
     Value::Null
 }
@@ -46,7 +46,7 @@ pub fn rp_poke(args: &[Value]) -> Value {
 pub fn rp_pcopy(from: &Value, to: &Value) -> Value {
     let text = crate::value::memory::rp_pcopy_text(from, to);
     if !text.is_empty() {
-        rp_print(&[Value::String(text)], false);
+        rp_print(&[Value::String(text.into())], false);
     }
     Value::Null
 }
@@ -129,7 +129,7 @@ fn track_print_column(text: &str) {
 /// `,` in PRINT: pad with spaces to the next print zone.
 pub fn rp_print_zone() {
     let pad = PRINT_ZONE_WIDTH - PRINT_COL.with(|c| c.get()) % PRINT_ZONE_WIDTH;
-    rp_print(&[Value::String(" ".repeat(pad))], false);
+    rp_print(&[Value::String(" ".repeat(pad).into())], false);
 }
 
 /// Send any buffered partial line to console.log.
@@ -169,15 +169,15 @@ pub fn rp_input(prompt: &Value) -> Value {
     let p = prompt.to_string_val();
     if crate::dialog_web::can_wait() {
         open_input(&p, false);
-        return Value::String(String::new());
+        return Value::String(String::new().into());
     }
     if let Some(window) = web_sys::window() {
         match window.prompt_with_message(&p) {
-            Ok(Some(s)) => Value::String(s),
-            _ => Value::String(String::new()),
+            Ok(Some(s)) => Value::String(s.into()),
+            _ => Value::String(String::new().into()),
         }
     } else {
-        Value::String(String::new())
+        Value::String(String::new().into())
     }
 }
 
@@ -188,7 +188,7 @@ pub fn rp_input_line() -> Value {
     let prompt = LINE_BUF.with(|b| b.borrow().clone());
     if crate::dialog_web::can_wait() {
         open_input(&prompt, true);
-        return Value::String(String::new());
+        return Value::String(String::new().into());
     }
     rp_input(&v_str(&prompt))
 }
@@ -269,7 +269,7 @@ pub fn rp_date() -> Value {
     let m = d.get_month() + 1; // JS months are 0-based
     let day = d.get_date();
     let y = d.get_full_year();
-    Value::String(format!("{:02}-{:02}-{:04}", m, day, y))
+    Value::String(format!("{:02}-{:02}-{:04}", m, day, y).into())
 }
 
 pub fn rp_time() -> Value {
@@ -277,7 +277,7 @@ pub fn rp_time() -> Value {
     let h = d.get_hours();
     let m = d.get_minutes();
     let s = d.get_seconds();
-    Value::String(format!("{:02}:{:02}:{:02}", h, m, s))
+    Value::String(format!("{:02}:{:02}:{:02}", h, m, s).into())
 }
 
 // ---------------------------------------------------------------------------
@@ -436,7 +436,7 @@ pub fn rp_environ(name: &Value) -> Value {
     if v.to_string_val().is_empty() {
         let test = web_sys::window().and_then(|w| js_sys::Reflect::get(&w, &"RAPIDR_TEST_ENV".into()).ok()).filter(|o| o.is_object());
         if let Some(s) = test.and_then(|o| js_sys::Reflect::get(&o, &name.to_string_val().into()).ok()).and_then(|v| v.as_string()) {
-            return Value::String(s);
+            return Value::String(s.into());
         }
     }
     v

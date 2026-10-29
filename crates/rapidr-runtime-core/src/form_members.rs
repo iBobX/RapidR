@@ -68,7 +68,7 @@ fn title_bar(name: &str, show: bool) {
 /// leaves the form as it was (RapidQ's runtime raises "Cannot open file
 /// …", which a GUI program's message box reports before going on).
 fn shape_form(name: &str, args: &[Value]) {
-    let source = args.first().cloned().unwrap_or(Value::String(String::new()));
+    let source = args.first().cloned().unwrap_or(Value::String(String::new().into()));
     let transparent = args.get(1).map_or(0xFF_FFFF, Value::to_i64);
     match rapidr_value::shape::shape_form(name, &source, transparent) {
         Ok(_) => {

@@ -896,7 +896,7 @@ fn next_id() -> u64 {
 }
 
 fn s(v: impl Into<String>) -> Value {
-    Value::String(v.into())
+    Value::String(v.into().into())
 }
 
 fn flag(b: bool) -> Value {

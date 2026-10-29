@@ -276,32 +276,32 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
     // (the PATH the program gets: your login shell's, S6 — "" where it
     // isn't changed, Windows and the web)
     match prop {
-        "shellpath" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.path).unwrap_or_default())),
-        "shellpathsource" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.describe()).unwrap_or_default())),
+        "shellpath" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.path).unwrap_or_default().into())),
+        "shellpathsource" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.describe()).unwrap_or_default().into())),
         _ => {}
     }
     with(name, |m| {
         let s = &m.session;
         Some(match prop {
-            "program" => Value::String(s.program.clone()),
-            "args" => Value::String(m.args.clone()),
+            "program" => Value::String(s.program.clone().into()),
+            "args" => Value::String(m.args.clone().into()),
             "debug" => flag(s.debug),
             "breakonerror" => flag(s.break_on_error),
             "stoponentry" => flag(s.stop_on_entry),
-            "state" => Value::String(s.state().as_str().to_string()),
-            "currentfile" => Value::String(s.current_file().unwrap_or("").to_string()),
+            "state" => Value::String(s.state().as_str().to_string().into()),
+            "currentfile" => Value::String(s.current_file().unwrap_or("").to_string().into()),
             "currentline" => Value::Integer(i64::from(s.current_line())),
             "exitcode" => Value::Integer(i64::from(s.exit_code().unwrap_or(0))),
-            "stopreason" => Value::String(s.stop_reason().to_string()),
-            "stopmessage" => Value::String(s.stop_description().to_string()),
-            "error" => Value::String(m.error.clone()),
+            "stopreason" => Value::String(s.stop_reason().to_string().into()),
+            "stopmessage" => Value::String(s.stop_description().to_string().into()),
+            "error" => Value::String(m.error.clone().into()),
             "frame" => Value::Integer(m.frame as i64),
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
             "componentsref" => Value::Integer(i64::from(COMPONENTS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
-            "browserurl" => Value::String(browser::url(name)),
-            "theme" => Value::String(m.theme.clone()),
+            "browserurl" => Value::String(browser::url(name).into()),
+            "theme" => Value::String(m.theme.clone().into()),
             _ => return None,
         })
     })
@@ -356,7 +356,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             crate::login_path::start();
             Value::Null
         }
-        "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default()),
+        "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default().into()),
         "start" => {
             let (program, run_args, theme, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.session.state() != State::Stopped));
             if running {
@@ -438,7 +438,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "stepintargets" => {
             let sent = with(name, |m| m.session.state() == State::Paused && m.ask(Command::StepInTargets, Want::Targets));
             if !sent {
-                host.fire(name, "onstepintargets", &[Value::String(String::new())]);
+                host.fire(name, "onstepintargets", &[Value::String(String::new().into())]);
             }
             Value::Null
         }
@@ -540,7 +540,7 @@ fn poll_once<H: Host>(host: H) -> bool {
         running |= live;
         for e in events {
             match e {
-                SessionEvent::Output { text, .. } => host.fire(&name, "onoutput", &[Value::String(text)]),
+                SessionEvent::Output { text, .. } => host.fire(&name, "onoutput", &[Value::String(text.into())]),
                 SessionEvent::Stopped { reason, file, line, .. } => {
                     // (the snapshot first: OnStopped once it's in)
                     let fire = with(&name, |m| {
@@ -555,7 +555,7 @@ fn poll_once<H: Host>(host: H) -> bool {
                         }
                     });
                     if let Some((reason, file, line)) = fire {
-                        host.fire(&name, "onstopped", &[Value::String(reason), Value::String(file), Value::Integer(line)]);
+                        host.fire(&name, "onstopped", &[Value::String(reason.into()), Value::String(file.into()), Value::Integer(line)]);
                     }
                 }
                 SessionEvent::Continued => {
@@ -566,7 +566,7 @@ fn poll_once<H: Host>(host: H) -> bool {
                     with(&name, Model::forget);
                     host.fire(&name, "onexit", &[Value::Integer(i64::from(code))]);
                 }
-                SessionEvent::FormShown { id } => host.fire(&name, "onformshown", &[Value::String(id)]),
+                SessionEvent::FormShown { id } => host.fire(&name, "onformshown", &[Value::String(id.into())]),
                 SessionEvent::Reply { re, body } => reply(host, &name, re, body),
                 SessionEvent::FormClosed { .. } => {}
             }
@@ -585,7 +585,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
         for b in breakpoints {
             let at = if b.verified { b.actual_line.unwrap_or(b.line) } else { 0 };
             if at != b.line {
-                fire.push(("onbreakpointplaced", vec![Value::String(file.clone()), Value::Integer(i64::from(b.line)), Value::Integer(i64::from(at))]));
+                fire.push(("onbreakpointplaced", vec![Value::String(file.clone().into()), Value::Integer(i64::from(b.line)), Value::Integer(i64::from(at))]));
             }
         }
     }
@@ -651,7 +651,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                     EventBody::StepInTargets { targets } => targets.iter().map(|t| format!("{}\t{}\n", t.id, t.label)).collect(),
                     _ => String::new(),
                 };
-                fire.push(("onstepintargets", vec![Value::String(text)]));
+                fire.push(("onstepintargets", vec![Value::String(text.into())]));
             }
             Want::Eval { id, refresh } => {
                 let (text, kind, reference, count, columns) = match body {
@@ -663,7 +663,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                 if reference != 0 {
                     m.scope.insert(reference, "E:".into());
                 }
-                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text), Value::String(kind), Value::Integer(i64::from(reference)), Value::Integer(i64::from(count)), Value::String(columns)]));
+                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text.into()), Value::String(kind.into()), Value::Integer(i64::from(reference)), Value::Integer(i64::from(count)), Value::String(columns.into())]));
                 // (a statement or an assignment may have changed what's shown)
                 if refresh && m.held.is_none() && m.session.state() == State::Paused {
                     m.vars.clear();
@@ -676,7 +676,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
         }
         if m.snapshot_done() {
             if let Some((reason, file, line)) = m.held.take() {
-                fire.push(("onstopped", vec![Value::String(reason), Value::String(file), Value::Integer(line)]));
+                fire.push(("onstopped", vec![Value::String(reason.into()), Value::String(file.into()), Value::Integer(line)]));
             } else if std::mem::take(&mut m.refreshing) {
                 fire.push(("onvariables", vec![Value::Integer(0)]));
             }
@@ -803,7 +803,7 @@ mod browser {
             }
         });
         for (name, text) in out {
-            host.fire(&name, "onoutput", &[Value::String(text)]);
+            host.fire(&name, "onoutput", &[Value::String(text.into())]);
         }
         starting()
     }

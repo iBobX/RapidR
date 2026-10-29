@@ -583,7 +583,7 @@ pub fn rt_method<R: Runtime>(_rt: R, name: &str, method: &str, args: &[Value]) -
             with_mut(name, |c| c.clear(Page::Problems));
             Value::Null
         }
-        "line" => Value::String(with(name, |c| c.line_text(c.page, usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().unwrap_or_default()),
+        "line" => Value::String(with(name, |c| c.line_text(c.page, usize::try_from(n(0)).unwrap_or(usize::MAX))).flatten().unwrap_or_default().into()),
         "find" => Value::Integer(with_mut(name, |c| c.find(&s(0))) as i64),
         "findnext" => Value::Integer(with_mut(name, |c| c.find_next(false)).map_or(-1, |l| l as i64)),
         _ => return None,
@@ -596,7 +596,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
         Some(match prop {
             "page" => Value::String(c.page.name().into()),
             "maxlines" => Value::Integer(c.max_lines as i64),
-            "filter" => Value::String(c.filter.clone()),
+            "filter" => Value::String(c.filter.clone().into()),
             "showtabs" => basic_bool(c.show_tabs),
             "autoscroll" => basic_bool(c.auto_scroll),
             "wordwrap" => basic_bool(c.word_wrap),
@@ -604,7 +604,7 @@ pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
             "problemcount" => Value::Integer(c.problems.iter().filter(|p| !p.heading).count() as i64),
             // (the first line — the Problems page's row — the page shows, from 0)
             "topline" => Value::Integer(c.view().top.saturating_sub(c.first(c.page)) as i64),
-            "text" => Value::String(c.text(c.page)),
+            "text" => Value::String(c.text(c.page).into()),
             _ => return None,
         })
     })
@@ -646,7 +646,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                 rt.fire(name, "onpagechange", &[Value::String(p.name().into())]);
             }
         }
-        User::Link(file, line) => rt.fire(name, "onlinkclick", &[Value::String(file), Value::Integer(line)]),
+        User::Link(file, line) => rt.fire(name, "onlinkclick", &[Value::String(file.into()), Value::Integer(line)]),
     }
 }
 

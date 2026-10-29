@@ -183,6 +183,8 @@ fn close_num(num: i64) {
 
 /// Closes every open file (the program ends): what was written is kept.
 pub fn close_all() {
+    // (and every file stream writes what it still keeps)
+    crate::objects::flush_streams();
     let all: Vec<i64> = HANDLES.with(|h| h.borrow().keys().copied().collect());
     for n in all {
         close_num(n);
@@ -207,7 +209,7 @@ pub fn line_input(file_num: &Value) -> Value {
         if line.last() == Some(&b'\r') {
             line = &line[..line.len() - 1];
         }
-        Value::String(String::from_utf8_lossy(line).into_owned())
+        Value::String(String::from_utf8_lossy(line).into_owned().into())
     })
     .unwrap_or_else(|| v_str(""))
 }
@@ -255,7 +257,7 @@ pub fn input_field(file_num: &Value) -> Value {
             i += 1;
         }
         h.pos = i;
-        Value::String(String::from_utf8_lossy(&out).into_owned())
+        Value::String(String::from_utf8_lossy(&out).into_owned().into())
     })
     .unwrap_or_else(|| v_str(""))
 }

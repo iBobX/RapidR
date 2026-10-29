@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Changed
+- **Faster strings and file streams, on every runtime (`rapidr run`, native, web).** Reading a 64 KB binary file's string a byte at a time with `ASC(MID$(b, i, 1))` took 8.2 s with `rapidr run` (18 s native, 13 s in a browser); now 13 ms (7 ms native, 23 ms in a browser). Strings are shared instead of copied each time a variable is read, and a long string gets an index from character positions to bytes the first time one is asked for, so `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `INSTR`, `RINSTR`, `ASC`, `INSERT$`, `DELETE$` and `s[i]` cost what they return, not the string's length. `s = s + x` and `s = s & x` grow the string in place (262,144 one-character appends: 1,029 → 79 ms). An `RFileStream` keeps its writes and writes them together — at Close, every 64 KB, when the program waits or ends, and before anything else uses the file by its name — so writing a 64 KB file a byte at a time twice (`WriteNum(x, 1)`, then `WriteByte`) takes 0.15 s, not 2.0 s, and whatever reads the file still sees every byte; `SaveArray` / `LoadArray` of a numeric array are one call (65,536 elements each: 1,617 → 8 ms). The same answers as before: the conformance suite, three new cases (`string_long_positions`, `filestream_buffered_writes`, `stream_arrays_bulk`) and a randomized test against the character-by-character walk. The benchmarks are in `tools/bench/vm/` (`vm_bench`, `tools/bench/web_bench.mjs`; numbers in tools/bench/README.md), a test fails if reading or building a long string turns quadratic again, and the new example `examples/basics/bytes.rr` reads a binary file's bytes.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

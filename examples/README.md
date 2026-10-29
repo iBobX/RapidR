@@ -45,6 +45,7 @@ claims, headless).
 | [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
+| [bytes.rr](basics/bytes.rr) | A binary file's bytes: `WriteNum`, `ReadBinStr`, every byte with `ASC(MID$(…))` / `data[i]` (fast at any length), a hex dump built with `s = s + …`, `MemCopyTo` into a `BYTE` array | run · interp · native · web | `rapidr run basics/bytes.rr` |
 | [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events

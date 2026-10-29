@@ -112,7 +112,7 @@ impl Dialog {
         // in the classic look, Inter in RapidR's — a dialog is the
         // system's, not the program's)
         let font = rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current());
-        store.set(&id, "fontname", Value::String(font.name));
+        store.set(&id, "fontname", Value::String(font.name.into()));
         store.set(&id, "fontsize", Value::Integer(font.size));
         Dialog { id, title: title.to_string(), size: (0, 0), store, kind, applied: None }
     }
@@ -155,7 +155,7 @@ impl Dialog {
         let id = self.id.clone();
         self.set(&id, "clientwidth", Value::Integer(w));
         self.set(&id, "clientheight", Value::Integer(h));
-        self.set(&id, "caption", Value::String(self.title.clone()));
+        self.set(&id, "caption", Value::String(self.title.clone().into()));
     }
 
     /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `icon` (if any) at the top
@@ -181,11 +181,11 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w.max(1) + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         for (i, (label, rect)) in labels.iter().zip(&layout.buttons).enumerate() {
             let id = d.put(&format!("b{i}"), "RBUTTON", *rect);
-            d.set(&id, "caption", Value::String(button_caption(label)));
+            d.set(&id, "caption", Value::String(button_caption(label).into()));
             if i == 0 {
                 d.set(&id, "default", Value::Integer(-1));
             }
@@ -240,15 +240,15 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         let field = d.put("field", "REDIT", (tx, ty + text_h + GAP, text_w, FIELD_H));
-        d.set(&field, "text", Value::String(initial.to_string()));
+        d.set(&field, "text", Value::String(initial.to_string().into()));
         // (the proposed text selected, as Windows' boxes have it: typing
         // replaces it)
         d.set(&field, "selstart", Value::Integer(0));
         d.set(&field, "sellength", Value::Integer(initial.chars().count() as i64));
-        d.set(&field, "accessiblename", Value::String(lines.join(" ")));
+        d.set(&field, "accessiblename", Value::String(lines.join(" ").into()));
         if let Some(rect) = layout.buttons.first() {
             let id = d.put("ok", "RBUTTON", *rect);
             d.set(&id, "caption", Value::String(ok.into()));
@@ -318,7 +318,7 @@ impl Dialog {
         for (i, caption) in cd::FIELDS.iter().enumerate() {
             let (label, edit) = cl::field(i);
             let id = self.put(&format!("l{i}"), "RLABEL", label);
-            self.set(&id, "caption", Value::String(caption.to_string()));
+            self.set(&id, "caption", Value::String(caption.to_string().into()));
             let id = self.put(&format!("f{i}"), "REDIT", edit);
             self.set(&id, "maxlength", Value::Integer(3));
         }
@@ -364,7 +364,7 @@ impl Dialog {
         for (i, v) in state.fields().iter().enumerate() {
             if typing != Some(i) {
                 let id = self.child(&format!("f{i}"));
-                self.set(&id, "text", Value::String(v.to_string()));
+                self.set(&id, "text", Value::String(v.to_string().into()));
             }
         }
     }
@@ -407,7 +407,7 @@ impl Dialog {
         put_caption(&mut d, "lsize", "RLABEL", "&Size:", fl::SIZE_LABEL);
         let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
             let id = d.put(part, kind, rect);
-            let args: Vec<Value> = items.into_iter().map(Value::String).collect();
+            let args: Vec<Value> = items.into_iter().map(Value::from).collect();
             d.store.call(&id, "additems", &args);
             id
         };

@@ -315,7 +315,7 @@ impl Inspector {
                     *lines.get_mut(n).ok_or("No such line")? = text.to_string();
                 }
             }
-            return Ok(whole(Value::String(lines.join("\r\n"))));
+            return Ok(whole(Value::String(lines.join("\r\n").into())));
         }
         if matches!(p.kind, Kind::Font) {
             return Err("A font is changed by its parts".into());

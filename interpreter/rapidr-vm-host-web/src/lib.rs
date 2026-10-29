@@ -721,6 +721,9 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
     if matches!(result, Err(VmError::Yielded)) {
         return;
     }
+    // (the program's turn is over — main, a handler: what its file streams
+    // were given goes to the page's files, rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     let error = matches!(&result, Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded));
     // The main program ran to its end: the program's end, as in RapidQ
     // (RC.EXE: a program whose main code ends after `Form.Show` exits

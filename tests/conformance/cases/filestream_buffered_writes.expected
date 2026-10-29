@@ -1,0 +1,12 @@
+size 100000 filelen 100000
+another stream 100000 12749008
+start HEAD 
+middle 1094861636
+end TAIL size 100004
+after close 100004 HEAxy#
+read line1
+read line2
+read line3
+rw 100004
+rw after HE--y#*1 100004
+gone 0 0

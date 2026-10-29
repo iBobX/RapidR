@@ -116,7 +116,7 @@ impl Subject for DesignerModelSubject {
     fn get(&self, _host: &dyn Host, object: &str, prop: &str) -> Option<Value> {
         let text = self.text(object, prop)?;
         Some(match read(&text) {
-            PropValue::Str(s) => Value::String(s),
+            PropValue::Str(s) => Value::String(s.into()),
             PropValue::Number(n) if text.trim().chars().next().is_some_and(|c| c.is_ascii_digit() || c == '-' || c == '.') => {
                 if n.fract() == 0.0 {
                     Value::Integer(n as i64)
@@ -124,7 +124,7 @@ impl Subject for DesignerModelSubject {
                     Value::Double(n)
                 }
             }
-            _ => Value::String(text.trim().to_string()),
+            _ => Value::String(text.trim().to_string().into()),
         })
     }
 

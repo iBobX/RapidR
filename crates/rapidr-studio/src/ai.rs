@@ -116,7 +116,7 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Tools) -> R) -> R {
 }
 
 fn s(v: impl Into<String>) -> Value {
-    Value::String(v.into())
+    Value::String(v.into().into())
 }
 
 /// Installs the project tools for RAI.AttachComponent (once a
