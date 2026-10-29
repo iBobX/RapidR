@@ -49,6 +49,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [The code editor in your programs](code-editor.md) | `RCodeEditor`: languages, files, completion; its SQL mode (dialects, completion from your tables, Ctrl+Enter runs the statement) |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
 | [Networking: sockets and a local web server](network.md) | Servers on `127.0.0.1` (this computer only) or the network; `RServerSocket` by lines, bytes or whole HTTP requests; `RHttpServer`: a local API, Server-Sent Events, the token, the requests it refuses by itself; `RMcpServer`: your program's own tools for AI apps |
+| [Recipes for systems programs](recipes-systems.md) | Ten small programs for a machine's insides, one technique each, one tiny computer between them: memory as a byte array, bits and flags, a CPU that fetches and decodes, the stack, a hex dump, a disassembler, a binary file, video memory on a canvas, a keyboard matrix, cycles per frame; how fast RapidR runs them |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (older name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 
 ## Data science and rich text

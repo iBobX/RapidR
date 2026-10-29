@@ -36,6 +36,18 @@ const SOURCES: &[(&str, &str)] = &[
     ("password_generator.rr", include_str!("../../../examples/recipes/password_generator.rr")),
     ("csv_viewer.rr", include_str!("../../../examples/recipes/csv_viewer.rr")),
     ("server_manager.rr", include_str!("../../../examples/recipes/server_manager.rr")),
+    // (the systems recipes: one tiny machine told in ten small programs —
+    // docs/manual/recipes-systems.md)
+    ("memory_bytes.rr", include_str!("../../../examples/recipes/memory_bytes.rr")),
+    ("flags_bits.rr", include_str!("../../../examples/recipes/flags_bits.rr")),
+    ("cpu_step.rr", include_str!("../../../examples/recipes/cpu_step.rr")),
+    ("cpu_stack.rr", include_str!("../../../examples/recipes/cpu_stack.rr")),
+    ("hex_dump.rr", include_str!("../../../examples/recipes/hex_dump.rr")),
+    ("disassembler.rr", include_str!("../../../examples/recipes/disassembler.rr")),
+    ("load_binary.rr", include_str!("../../../examples/recipes/load_binary.rr")),
+    ("video_memory.rr", include_str!("../../../examples/recipes/video_memory.rr")),
+    ("keyboard_matrix.rr", include_str!("../../../examples/recipes/keyboard_matrix.rr")),
+    ("cpu_timing.rr", include_str!("../../../examples/recipes/cpu_timing.rr")),
 ];
 
 impl Recipe {
@@ -215,10 +227,12 @@ mod tests {
     #[test]
     fn every_recipe_has_a_header_and_fits() {
         let all = all();
-        assert!(all.len() >= 10);
+        assert!(all.len() >= 20);
         for r in &all {
             assert!(!r.title.is_empty() && r.keywords.split(',').count() >= 6, "{}: its header", r.file);
-            assert!(r.text.lines().count() <= 130, "{}: {} lines", r.file, r.text.lines().count());
+            // (130 lines for an app; the systems recipes — a CPU, a screen
+            // — are the longest, and a small model's window holds 150)
+            assert!(r.text.lines().count() <= 150, "{}: {} lines", r.file, r.text.lines().count());
             assert!(r.text.contains("ShowModal") && r.text.contains("$THEME rapidr"), "{}", r.file);
         }
     }
@@ -242,6 +256,70 @@ mod tests {
         assert_eq!(top("Quiero una lista de tareas"), "todo_list.rr");
         // (nothing alike: nothing)
         assert!(search("zzz qqq").is_empty());
+    }
+
+    /// The systems recipes (docs/manual/recipes-systems.md): what an agent
+    /// building a machine asks, in English, Spanish and Portuguese, finds
+    /// the one technique it needs.
+    #[test]
+    fn the_systems_recipes_are_found_by_what_they_do() {
+        for (q, file) in [
+            // (the CPU)
+            ("emulador cpu registros", "cpu_step.rr"),
+            ("write a tiny CPU emulator with registers and a program counter", "cpu_step.rr"),
+            ("fetch decode execute loop with SELECT CASE opcodes", "cpu_step.rr"),
+            ("emulador de CPU con contador de programa", "cpu_step.rr"),
+            ("processador registradores instrução", "cpu_step.rr"),
+            // (an agent's first words for a machine: the CPU leads, the
+            // technique it then needs is found on its own words)
+            ("8-bit CPU emulator", "cpu_step.rr"),
+            ("how do I emulate an 8 bit computer", "cpu_step.rr"),
+            ("emulador de ordenador de 8 bits con juegos", "cpu_step.rr"),
+            ("instruction decoder", "cpu_step.rr"),
+            ("debugger showing registers and memory", "cpu_step.rr"),
+            ("build a debugger for my CPU", "disassembler.rr"),
+            ("keyboard for the emulated computer", "keyboard_matrix.rr"),
+            ("show the screen of the emulated machine", "video_memory.rr"),
+            ("load a snapshot file into the emulator memory", "load_binary.rr"),
+            ("ROM loader", "load_binary.rr"),
+            ("game loop at 50 frames per second", "cpu_timing.rr"),
+            // (the stack)
+            ("stack push pop", "cpu_stack.rr"),
+            ("how do I do CALL and RET with a stack pointer", "cpu_stack.rr"),
+            ("pila puntero de pila apilar desapilar", "cpu_stack.rr"),
+            ("pilha empilhar desempilhar sub-rotina", "cpu_stack.rr"),
+            // (memory)
+            ("memory as a byte array with peek and poke", "memory_bytes.rr"),
+            ("leer y escribir una palabra de 16 bits en memoria", "memory_bytes.rr"),
+            ("endereço e memória little-endian", "memory_bytes.rr"),
+            // (bits and flags)
+            ("flags register carry zero overflow after add", "flags_bits.rr"),
+            ("banderas acarreo desbordamiento rotar bits", "flags_bits.rr"),
+            ("signed and unsigned bytes, rotate left through carry", "flags_bits.rr"),
+            // (a viewer)
+            ("memory hex dump", "hex_dump.rr"),
+            ("visor de memoria volcado hexadecimal", "hex_dump.rr"),
+            ("hex editor with an ASCII column", "hex_dump.rr"),
+            // (a disassembler)
+            ("disassembler opcode table", "disassembler.rr"),
+            ("desensamblador tabla de opcodes mnemonico", "disassembler.rr"),
+            // (a file)
+            ("read binary file header", "load_binary.rr"),
+            ("load a binary file into the memory array and parse its header", "load_binary.rr"),
+            ("cargar archivo binario cabecera", "load_binary.rr"),
+            // (the screen)
+            ("draw video memory on canvas", "video_memory.rr"),
+            ("framebuffer bitmap with colour attributes on an RCanvas", "video_memory.rr"),
+            ("memoria de video pantalla atributos de color", "video_memory.rr"),
+            // (the keyboard)
+            ("keyboard matrix key down key up", "keyboard_matrix.rr"),
+            ("teclado matriz de teclado puerto de entrada", "keyboard_matrix.rr"),
+            // (time)
+            ("run cycles per frame from a timer", "cpu_timing.rr"),
+            ("emulation speed 50 Hz frame budget pause and step", "cpu_timing.rr"),
+        ] {
+            assert_eq!(top(q), file, "{q}");
+        }
     }
 
     #[test]

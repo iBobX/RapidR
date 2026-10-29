@@ -78,3 +78,5 @@ chrome_run*.log
 !examples/data/hello.z80.gz
 !crates/rapidr-archive/tests/fixtures/*.zip
 !tests/conformance/cases/resource_files/archive-*.zip
+# (the snapshot examples/recipes/load_binary.rr writes when it runs)
+examples/recipes/sample.tsn
