@@ -151,6 +151,13 @@ out("| category | " + cells.join(" | ") + " |");
 out("|---|" + cells.map(() => "---").join("|") + "|");
 for (const k of catNames) out(`| ${k} | ` + cells.map((c) => (cats[`${c}|${k}`] || []).length || "").join(" | ") + " |");
 out();
+out("How the runs ended (stopped by: the model said it was done / the 40-request cap / five identical calls / the reply or the context was full / our server or the model's server failed):");
+out();
+const endings = ["model_stopped", "answered", "step_cap", "stuck_loop", "max_tokens", "server_error", "model_error", "time_cap", "aborted", "harness_error"];
+out("| ended | " + cells.join(" | ") + " |");
+out("|---|" + cells.map(() => "---").join("|") + "|");
+for (const k of endings) { const row = cells.map((c) => runs.filter((r) => r.cell === c && r.stopped === k).length || ""); if (row.some(Boolean)) out(`| ${k} | ` + row.join(" | ") + " |"); }
+out();
 out("Compile failures by kind:");
 out();
 const kinds = {};
@@ -214,6 +221,23 @@ for (const c of aCells) {
   out(`| ${c} | ${rs.length} | ${L.length}/${rs.length} | ${pass(L)} / ${pass(N)} | ${first("create_project")} / ${first("write_file")} / ${first("propose_edit")} / ${first("none")} | ${info.filter((i) => i.stuck).length} | ${info.filter((i) => i.allFailed).length} |`);
 }
 out();
+// (what the compiler said to refused writes: the first error of each, the line and column dropped: the invented syntax, in the compiler's words)
+{
+  const said = {};
+  for (const r of aRuns) for (const e of errorsOf(r)) {
+    if (errKind(e) !== "the program text doesn't compile") continue;
+    const m = /error [^\s:]+:\d+:\d+: (.*?)(?=\s+(?:error|hint|warning) \S+:\d+|\s+hint |$)/s.exec(e.error);
+    if (!m) continue;
+    const k = m[1].replace(/\s+/g, " ").replace(/'[^']{1,20}'/g, "'…'").replace(/\d+/g, "N").slice(0, 90);
+    (said[k] ||= { n: 0, cells: {}, kind: compileKind(m[1]) });
+    said[k].n++;
+    said[k].cells[r.cell] = (said[k].cells[r.cell] || 0) + 1;
+  }
+  out("What the compiler said to the refused writes (first error of each; calls, all outside-AI-app cells):");
+  out();
+  for (const [k, v] of Object.entries(said).sort((a, b) => b[1].n - a[1].n).slice(0, 14)) out(`- ${v.n}×  ${k}   [${v.kind}; ${Object.entries(v.cells).map(([c, n]) => `${c.replace("A-", "")} ${n}`).join(", ")}]`);
+  out();
+}
 out("Most common tool errors (outside AI app, by normalised text):");
 out();
 const errCount = {};
@@ -276,5 +300,9 @@ if (bRuns.length) {
   out();
 }
 
+{
+  const sum = (f) => runs.reduce((a, r) => a + (f(r) || 0), 0);
+  out(`Totals: ${runs.length} runs (${runs.filter((r) => r.score === 1).length} passed), ${(sum((r) => r.seconds) / 3600).toFixed(1)} hours of runs (several ran side by side), ${sum((r) => r.inTok)} tokens in, ${sum((r) => r.outTok)} out, US$${sum((r) => r.usd).toFixed(2)} (Haiku 5.5 at 0.10 / 0.50 per million).`);
+}
 console.log(lines.join("\n"));
 if (jsonOut) writeFileSync(jsonOut, JSON.stringify(runs.map((r) => ({ cell: r.cell, app: r.app, rep: r.rep, name: r.name, score: r.score, compiles: r.compiles, stopped: r.stopped, requests: r.requests, toolCalls: r.toolCalls, toolErrors: r.toolErrors, inTok: r.inTok, outTok: r.outTok, usd: r.usd, seconds: r.seconds, failure: r.failure, clickTest: r.clickTest })), null, 1));

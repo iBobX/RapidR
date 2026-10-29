@@ -123,7 +123,7 @@ for (const cell of cells) {
     let row = { cell: `${driver}-${label(modelKey)}`, driver, model: model.id, app: app.name, set: app.set, rep, heldOut: app.heldOut };
     const childEnv = { ...env, RAPIDR_AI_EVAL_RAPIDR: process.env.RAPIDR || env.RAPIDR_AI_EVAL_RAPIDR || "" };
     if (driver === "A") {
-      const args = [join(HERE, "studio_mcp_agent.mjs"), "--app", app.file, "--out", dir, "--steps", steps, "--minutes", minutes, "--port", String(port)];
+      const args = [join(HERE, "studio_mcp_agent.mjs"), "--app", app.file, "--out", dir, "--steps", steps, "--minutes", minutes, "--port", String(port), ...(opt("--system-extra", "") ? ["--system-extra", opt("--system-extra")] : [])];
       if (model.mock) args.push("--dry");
       else if (model.anthropic) args.push("--driver", "anthropic", "--model", model.id, "--ledger", ledger, "--cost-cap", String(costCap));
       else if (model.ollama) args.push("--driver", "ollama", "--model", model.id, "--base-url", model.url, "--num-ctx", opt("--num-ctx", "32768"), "--think", opt("--think", "off"));

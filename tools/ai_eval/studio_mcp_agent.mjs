@@ -80,6 +80,7 @@ function parseArgs(argv) {
       case "--rapidr": a.rapidr = val(); break;
       case "--max-tokens": a.maxTokens = Number(val()); break;
       case "--num-ctx": a.numCtx = Number(val()); break;     // --driver ollama: the context window asked for (default 32768)
+      case "--system-extra": a.systemExtra = val(); break;   // text added to the system prompt after the server's instructions (an experiment: what a better instruction would be worth)
       case "--think": a.think = val() === "on"; break;       // --driver ollama: thinking on or off (default off)
       case "--dry": case "--list-tools": case "--keep-studio": case "--no-score": case "--keychain": a.flags.add(k.slice(2)); break;
       default: console.error(`unknown option ${k}`); process.exit(2);
@@ -520,7 +521,8 @@ async function main() {
     return;
   }
   const known = new Set(tools.map((t) => t.name));
-  const system = instructions ? `${SYSTEM}\n\n${instructions}` : SYSTEM;
+  // (--system-extra: a sentence more in the server's instructions, to measure what a change to them would be worth)
+  const system = [SYSTEM, instructions, args.systemExtra].filter(Boolean).join("\n\n");
   const turns = args.app ? turnsOf(args.app) : ["Build me a tip calculator"];
   const run = { app: args.app ? basename(args.app, ".txt") : "adhoc", driver: args.driver, model: args.model, tools: tools.length, toolBytes: JSON.stringify(tools).length, systemChars: system.length, turns: turns.length };
   log({ type: "start", ...run, instructionsFromServer: instructions.length });
