@@ -282,13 +282,15 @@ END CREATE
 
 ' (RapidQ's sizes in the classic look, the RAPIDR look's elsewhere — as
 ' LayOutAppDialog does)
+' (620 wide — 600 classic —: AI Apps' rows, what an AI app can see and do,
+' in full, without making the dialog taller than a small laptop's screen)
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
   DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
   IF ThemeName = "classic" THEN
-    pad = 16: w = 520: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
+    pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
   ELSE
-    pad = 20: w = 540: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
+    pad = 20: w = 620: bh = 32: bw = 96: nh = 66: lh = 150: side = 140: th = 30: row = 38: fh = 28
   END IF
   SettingsDialog.Font.Name = UIFont.Name: SettingsDialog.Font.Size = UIFont.Size
   AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
