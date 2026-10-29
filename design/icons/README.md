@@ -1,6 +1,6 @@
 # RapidR's icons
 
-RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group, glyph and debugger value kind of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 364 icons in seven categories, each hinted at 16, 24 and 32 px.
+RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group, glyph and debugger value kind of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 376 icons in seven categories, each hinted at 16, 24 and 32 px.
 
 | Category | What | Colour |
 |---|---|---|

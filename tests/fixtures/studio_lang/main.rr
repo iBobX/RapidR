@@ -1,0 +1,23 @@
+' main.rr: the project of RapidR Studio's Project-pane test
+' (tools/visual/studio_scenes.py, project-translations): a small shop front
+' that translates itself, its catalogs in lang/ (a template, .pot, and three
+' languages, .po), beside the other kinds of file a project carries.
+$APPTYPE GUI
+$THEME rapidr
+
+CREATE Form AS RForm
+    Caption = TR$("Bookshop")
+    Width = 360
+    Height = 160
+    Center
+    CREATE Greeting AS RLabel
+        Caption = TR$("Welcome to the bookshop")
+        Left = 16: Top = 16
+    END CREATE
+    CREATE Logo AS RImage
+        Left = 16: Top = 48: Width = 64: Height = 64
+    END CREATE
+END CREATE
+
+Logo.Load "art/logo.svg"
+Form.ShowModal

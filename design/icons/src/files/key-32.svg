@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Key (.key, .pem, .pub)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <circle cx="12.5" cy="18.5" r="3.5" fill="#FFEDC7" stroke="#B86E00"/>
+  <path d="M16 18L23 18" stroke="#B86E00"/>
+  <path d="M20 18L20 22" stroke="#B86E00"/>
+  <path d="M23 18L23 22" stroke="#B86E00"/>
+</svg>

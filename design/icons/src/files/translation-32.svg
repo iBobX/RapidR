@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Translation file (.po, .pot)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M12 12H20A3 3 0 0 1 23 15V21A3 3 0 0 1 20 23H16L11 27V23H12A3 3 0 0 1 9 21V15A3 3 0 0 1 12 12Z" fill="#FFEDC7" stroke="#B86E00"/>
+  <path d="M13 16L18 16" stroke="#B86E00"/>
+  <path d="M21 16L18 15L18 18Z" fill="#B86E00"/>
+  <path d="M19 20L14 20" stroke="#B86E00"/>
+  <path d="M11 20L14 18L14 22Z" fill="#B86E00"/>
+</svg>

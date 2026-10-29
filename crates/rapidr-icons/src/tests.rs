@@ -85,6 +85,32 @@ fn lookups() {
     assert!(all().windows(2).all(|w| w[0].id < w[1].id), "sorted by id");
 }
 
+/// Translation catalogs (`lang/es.po`, a `.pot` template) have their own
+/// icon, and the other file kinds RAssets draws are told apart by extension.
+#[test]
+fn file_kinds_have_their_own_icons() {
+    for path in ["lang/es.po", "lang\\pt-BR.po", "Messages.POT", "app.pot"] {
+        let i = file(path);
+        assert_eq!(i.id, "files/translation", "{path}");
+        assert!(i.title.starts_with("Translation file"), "{}", i.title);
+    }
+    for (path, id) in [
+        ("a.xml", "files/xml"),
+        ("run.log", "files/log"),
+        ("manual.pdf", "files/pdf"),
+        ("art/logo.svg", "files/svg"),
+        ("song.mid", "files/midi"),
+        ("ship.obj", "files/model"),
+        ("site.crt", "files/certificate"),
+        ("id_rsa.pem", "files/key"),
+        (".env", "files/env"),
+        ("art/logo.png", "files/image"),
+        ("song.wav", "files/audio"),
+    ] {
+        assert_eq!(file(path).id, id, "{path}");
+    }
+}
+
 /// Each source is one standalone SVG per size that resvg reads, with the
 /// size's own view box; monochrome icons carry no token colour.
 #[test]

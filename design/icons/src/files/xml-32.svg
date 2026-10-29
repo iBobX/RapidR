@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>XML (.xml, .xsd, .plist)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M16 17V20M12 22V20H20V22" stroke="#08805E"/>
+  <rect x="14" y="12" width="4" height="5" fill="#08805E"/>
+  <rect x="10" y="22" width="5" height="5" fill="#08805E"/>
+  <rect x="17" y="22" width="5" height="5" fill="#08805E"/>
+</svg>

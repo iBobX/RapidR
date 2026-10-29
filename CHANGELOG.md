@@ -7,6 +7,9 @@ project uses [Semantic Versioning](https://semver.org/). Planned work lives in
 
 ## [Unreleased]
 
+### Added
+- **A translation icon, and nine more file-type icons, in RapidR's own icon set** (`files/translation`, `xml`, `log`, `pdf`, `svg`, `midi`, `model`, `certificate`, `key`, `env`; each hinted at 16, 24 and 32 px, in every theme). `.po` and `.pot` files show a speech bubble with swap arrows in text-amber in the Project pane, tabs, Search results and file lists (`lang/es.po` was the plain file icon); `.svg` has its own vector icon (it was the image's), `.mid`/`.midi` a keyboard (they were the audio's), and `.xml`, `.log`, `.pdf`, 3D models, certificates, keys and `.env` files each have theirs. Studio's new golden `project-translations` guards the Project pane of a program with a `lang` folder. Part of the icon set RAssets will offer to users' apps.
+
 ## [2.121.3] — 2026-10-25 (hotfix)
 
 ### Fixed

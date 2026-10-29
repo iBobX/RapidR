@@ -1,0 +1,41 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Bookshop"
+main = "main.rr"
+
+[[files]]
+path = "main.rr"
+kind = "form"
+
+[[files]]
+path = "art/logo.svg"
+kind = "asset"
+
+[[files]]
+path = "data/books.csv"
+kind = "data"
+
+[[files]]
+path = "docs/catalog.xml"
+kind = "asset"
+
+[[files]]
+path = "lang/bookshop.pot"
+kind = "asset"
+
+[[files]]
+path = "lang/es.po"
+kind = "asset"
+
+[[files]]
+path = "lang/pt-BR.po"
+kind = "asset"
+
+[[files]]
+path = "lang/zh-Hans.po"
+kind = "asset"
+
+[[files]]
+path = "media/tune.mid"
+kind = "asset"

@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Bookshop"
+msgstr "书店"
+
+msgid "Welcome to the bookshop"
+msgstr "欢迎来到书店"
