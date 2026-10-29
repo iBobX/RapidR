@@ -423,6 +423,16 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
             fill(ops, (x + 8, y + 6, 6, 1), color);
             fill(ops, (x + 8, y + 9, 6, 1), color);
         }
+        // (a plug, its cord ending in a spark: AI apps connected to Studio)
+        "plug" | "connections" | "aiapps" => {
+            line(ops, &[(4.5, 1.5), (4.5, 4.5)], 1.3);
+            line(ops, &[(8.5, 1.5), (8.5, 4.5)], 1.3);
+            ops.push(Op::Round { rect: (x + 2, y + 4, 9, 5), radius: 1.5, fill: None, stroke: Some(color), width: 1.2 });
+            line(ops, &[(6.5, 9.0), (6.5, 11.5), (9.5, 13.0)], 1.2);
+            let k = 0.8;
+            let (cx, cy, r) = (12.8, 12.6, 2.6);
+            ops.push(Op::Polygon { points: [(cx, cy - r), (cx + k, cy - k), (cx + r, cy), (cx + k, cy + k), (cx, cy + r), (cx - k, cy + k), (cx - r, cy), (cx - k, cy - k)].iter().map(|(a, b)| (fx + a, fy + b)).collect(), color: accent });
+        }
         _ => {}
     }
 }

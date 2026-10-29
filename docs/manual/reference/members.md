@@ -84,6 +84,7 @@ A window: the top-level container of a program's components, with its caption, b
 | `TextRect(Rect AS RRECT, x AS INTEGER, y AS INTEGER, S AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes `S` at (`x`, `y`) in colour `fc` as TextOut does, but only the part inside `Rect` (its right and bottom edges left out) shows; a background colour `bc` fills the whole of `Rect` first, -1 leaves what is there. |
 | `TextOut(x AS INTEGER, y AS INTEGER, s AS STRING, fc AS INTEGER, bc AS INTEGER)` | Writes text `S` at (`x`, `y`) in color `fc` on background `bc` (-1: transparent), in the current font. |
 | `Refresh` *(RapidR)* | Redraws the component at once; MySQL's flushes the server's tables or caches that `RefreshFlags` names. |
+| `SaveImage(FileName AS STRING) AS INTEGER` *(RapidR)* *(desktop)* | Saves what the form shows now — its controls as drawn, at the screen's scale — as a picture: a PNG file (a BMP when the name ends in .bmp). True when it was saved; False when the form isn't shown or the file can't be written. Only the program's own windows: never the screen or another program's. Desktop only for now. |
 | `Hide` *(RapidR)* | Makes the component or form invisible; it stays loaded. |
 | `SetFocus` *(RapidR)* | Gives the component the keyboard focus. |
 | `Update` *(RapidR)* | Brings the component up to date: redraws it, lists its files again, or reads its device's state again. |
@@ -3768,6 +3769,64 @@ A local web server for the program: a web API, a dashboard, an MCP server. It li
 |---|---|
 | `OnRequest(Method AS STRING, Path AS STRING, Headers AS STRING, Body AS STRING)` | A request arrived: its method, its path (without the query: Query has it), its headers (`Name: value` lines, CR LF between) and its body, as text. One at a time: the next waits until this handler is over. Answer with Respond (or BeginStream), now or later with the Request number; a request no handler answers stays open until its client gives up. |
 
+<a id="rmcpserver"></a>
+## RMcpServer
+
+Serves the program's own tools to AI apps that support MCP, the protocol AI apps use for tools: an AI app on this computer that has the address and the token can call them, and the program sees each call in OnToolCall, on its own thread, one at a time, and answers it then or later with Reply (text), ReplyImage (a picture) or ReplyJson. Add each tool with AddTool: its name, what it does in a sentence the AI reads, the JSON Schema of its arguments and how it acts ("read", "change" …). The component speaks the protocol itself — the current revision (2026-07-28, no session) and the earlier initialize-based ones — and checks each call's arguments against the tool's schema before the program sees them: a wrong call is answered at once with a sentence saying what the tool needs. It listens on 127.0.0.1 (this computer only) and refuses to start without a Token (NewToken makes one): every request must carry it as `Authorization: Bearer <token>`. It also refuses a request for another host name and any request from a web page. Clients shows who is connected; Disconnect keeps an AI app out until the next Start. What the program exposes, and the privacy of its users' data, are the program's author's responsibility: offer only what an AI app may see, and describe the program as working with MCP clients rather than putting MCP in its name. RapidR's own; desktop only (a web page can't listen for connections).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Host` | string | `"127.0.0.1"` | The address it listens on: 127.0.0.1, this computer only (the default and the safe choice). Another address opens the program's tools to the network: don't, unless you know every computer that can reach it. Set it before Start. |
+| `Port` | int | 0 | The port it listens on; 0 (the default) lets the system pick a free one, and Port says which after Start. AI apps keep the address, so a program that is started again should keep its port. Set it before Start. |
+| `Path` | string | `"/mcp"` | The address's path AI apps send their messages to. Set it before Start. |
+| `Token` | string | `""` | What every request must carry as `Authorization: Bearer <token>` (else 401). Start refuses to run without one. Make it with NewToken, keep it with RSecrets, and show it only to the person who sets up the AI app. Set it before Start. |
+| `ServerName` | string | `""` | The program's name as AI apps see it (a short id: my-notes); "" says rapidr-app. Set it before Start. |
+| `ServerTitle` | string | `""` | The program's name as AI apps show it to their user (My Notes). Set it before Start. |
+| `ServerVersion` | string | `"1.0"` | The program's version, as AI apps see it. Set it before Start. |
+| `Instructions` | string | `""` | A few sentences for the AI: what the tools are for and how to use them well. Set it before Start. |
+| `AllowedOrigins` | string | `""` | Web pages that may call the server, by origin, separated by commas: leave it empty — AI apps aren't web pages, and a page's request is refused. Set it before Start. |
+| `AllowedHosts` | string | `""` | More host names the server answers to, separated by commas; 127.0.0.1, localhost and [::1] with the Port are always allowed. Set it before Start. |
+| `MaxRequestSize` | int | 4194304 | The largest message an AI app may send; a larger one is refused with 413. Set it before Start. |
+| `MaxConnections` | int | 32 | How many connections may be open at once. Set it before Start. |
+| `Timeout` | int | 30000 | How long a message may take to arrive whole, and how long an idle connection stays open. Set it before Start. |
+| `IdleSeconds` | int | 900 | An AI app silent this long (15 minutes by default) counts as gone: OnDisconnect. Set it before Start. |
+| `Listening` (read-only) | bool |  | True while it listens. |
+| `Url` (read-only) | string |  | Its address once started, what AI apps connect to: `http://127.0.0.1:47120/mcp`. |
+| `Error` (read-only) | string |  | Why the last Start, AddTool or ReplyJson failed; "" when it worked. |
+| `Call` (read-only) | int |  | The number of the call OnToolCall is handling: keep it to answer later (Reply's first argument). |
+| `Tool` (read-only) | string |  | The tool of the call OnToolCall is handling. |
+| `ClientName` (read-only) | string |  | The AI app making the call OnToolCall is handling, as it names itself (its title, else its name). |
+| `Arguments` (read-only) | string |  | The call's arguments, as JSON (OnToolCall's Arguments). |
+| `Clients` (read-only) | string |  | The AI apps connected, one a line: name, version, seconds since its last message and how many tools it called, a TAB between. |
+| `ClientCount` (read-only) | int |  | How many AI apps are connected. |
+| `PendingCount` (read-only) | int |  | How many calls wait for an answer. |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Starts listening on Host:Port: True when it does, False when it can't — no Token, the port taken — and Error says why. |
+| `Stop` | Stops listening: the calls still waiting are told the server stopped, the connections close. |
+| `NewToken AS STRING` | Sets Token to a new random one — 64 hex digits from the operating system's secure random source — and returns it. A new token keeps out every AI app that had the old one (after the next Start). |
+| `AddTool(Name AS STRING, Description AS STRING, [Schema AS STRING], [Kind AS STRING]) AS INTEGER` | Offers a tool: its name (letters, digits, _ - .), what it does — the sentence the AI reads to decide when to call it —, its arguments — as a SUB's parameters (`Text AS STRING, [Count AS INTEGER]`, the optional ones in [ ]; STRING, INTEGER, DOUBLE, BOOLEAN, LIST, OBJECT) or as a JSON Schema ({"type": "object", "properties": {…}}); "" for none — and how it acts: "read" (it only reads), "change", "delete", "network", or the annotations as JSON. Added again: replaced. False when the name or the schema is wrong (Error says why). |
+| `RemoveTool(Name AS STRING) AS INTEGER` | Takes a tool away: True when there was one by that name. |
+| `ClearTools` | Takes every tool away. |
+| `ToolCount AS INTEGER` | How many tools it offers. |
+| `AddResource(Uri AS STRING, Name AS STRING, [Description AS STRING], [MimeType AS STRING]) AS INTEGER` | Offers something AI apps can read (app://notes/today): OnReadResource asks the program for it, and Reply gives its text. |
+| `ClearResources` | Takes every resource away. |
+| `Reply(CallId AS INTEGER, Text AS STRING, [IsError AS INTEGER]) AS INTEGER` | Answers a call with text — what the AI reads — marked as a failure when IsError is True (say what went wrong and what to do instead: the AI acts on it). False when that call was answered already or its AI app left. |
+| `ReplyImage(CallId AS INTEGER, File AS STRING, [Text AS STRING]) AS INTEGER` | Answers a call with a picture — a PNG, JPEG, GIF or WebP file (a BMP goes as PNG) — and, when given, a text before it. |
+| `ReplyJson(CallId AS INTEGER, Result AS STRING) AS INTEGER` | Answers a call with a whole result object as JSON, for what Reply can't say ({"content": […], "structuredContent": {…}}). |
+| `Progress(CallId AS INTEGER, Message AS STRING, [Done AS DOUBLE], [Total AS DOUBLE]) AS INTEGER` | Says how a call that waits is going ("Asking the user…", 3 of 10), to an AI app that listens for it. False when it doesn't. |
+| `Argument(Name AS STRING, [CallId AS INTEGER]) AS STRING` | One of the call's arguments as text: a string as it is, a number or true / false as written, a list or an object as JSON; "" when it wasn't given. `options.size` reaches inside an object. |
+| `IsOpen(CallId AS INTEGER) AS INTEGER` | True while the call waits for an answer. |
+| `Disconnect([Client AS STRING]) AS INTEGER` | Keeps an AI app out — the one named, every one when none is — until the next Start: its calls waiting are told, its requests refused. Only a new token keeps out an AI app that names itself again: NewToken, then Start. |
+
+| Event | |
+|---|---|
+| `OnToolCall(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)` | An AI app calls a tool: its name, its arguments as JSON (Argument reads one) and the call's number. One at a time: the next waits until this handler is over. Answer with Reply now, or later with the number (after asking the user, say) — Progress meanwhile. |
+| `OnReadResource(Uri AS STRING, CallId AS INTEGER)` | An AI app reads a resource AddResource offers: answer with Reply (its text). |
+| `OnConnect(Client AS STRING)` | An AI app is heard from the first time. |
+| `OnDisconnect(Client AS STRING)` | An AI app ended its session, was disconnected, or has been silent for IdleSeconds. |
+
 <a id="rhttp"></a>
 ## RHttp
 
@@ -5750,6 +5809,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
 | `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
 | `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
+| `CallFailed` (read-only) | bool |  | True when the last CallTool failed (its text says why: the AI app reads it and can try again). |
+| `CallNote` (read-only) | string |  | What the last CallTool did, in one line ("Read main.rr (40 lines)", "Proposed a change to main.rr"): for an activity log. |
+| `CallTarget` (read-only) | string |  | The project's file (relative) or the name the last CallTool touched; "" for none. |
+| `CallRisk` (read-only) | string |  | What the last CallTool's kind of action is: "read", "proposal" … |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5773,6 +5836,17 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
 | `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
 | `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
+| `ToolNames AS STRING` | The tools an AI app may call through a program's MCP server (RMcpServer) — the ones an attached RAI gets, a name a line: with Permission "read-only" the reading ones only. |
+| `ToolDescription(Name AS STRING) AS STRING` | A tool's description, as the model reads it (RMcpServer.AddTool's Description). |
+| `ToolSchema(Name AS STRING) AS STRING` | The JSON Schema of a tool's arguments (RMcpServer.AddTool's Schema). |
+| `LayoutReport AS STRING` | The project's forms as its source makes them, in words: each form's client area, each component's place and size (or that Align places it), then what looks wrong — a control cut off by its form, two on top of each other, a caption longer than its button. |
+| `ToolKind(Name AS STRING) AS STRING` | How a tool acts: "read", or "change" for the ones that propose changes (RMcpServer.AddTool's Kind). |
+| `ToolActivity(Name AS STRING, Arguments AS STRING) AS STRING` | A call in words, for an activity log: "Reading main.rr", "Checking (compiling)", "Writing a change" (Arguments: the call's, as JSON). |
+| `CallTool(Name AS STRING, Arguments AS STRING) AS STRING` | Runs a tool for an AI app — an outside one, through a program's RMcpServer — on the project and the changes waiting for the user (no conversation around it): its text, for the AI app. What the proposing tools propose waits for the user like the assistant's (ProposalCount …): nothing is written. A path is never a hidden file or folder, and in a project whose folder is a home folder or a disk's root only the project's listed files are reached. CallFailed, CallNote, CallTarget and CallRisk say how it went. |
+| `AuditCall(Client AS STRING, Tool AS STRING, Target AS STRING, Decision AS STRING)` | Writes an AI app's call to the audit log the assistant uses (beside Studio's settings, never in the project): when, which AI app, which tool, the project's file it touched (never its text) and how it went. |
+| `AuditCalls([Count AS INTEGER]) AS STRING` | The audit log's last Count AI-app calls (50 by default), oldest first, a line each, tab-separated: the time, the AI app, the tool, its target and how it went. |
+| `ClearAudit AS INTEGER` | Removes the AI apps' calls from the audit log (the assistant's own lines stay): True when it was written. |
+| `AuditLocation AS STRING` | Where the audit log is, in words (~/Library/Application Support/RapidR/ai-audit.jsonl on macOS). |
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |

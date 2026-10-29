@@ -978,3 +978,42 @@ fn waiting_changes_go_with_the_chat() {
     assert_eq!(take_pending(state), (state.to_string(), Vec::new()));
     assert_eq!(take_pending("not json").1, Vec::new());
 }
+
+/// An AI app's calls (Studio's MCP server, CallTool): the assistant's tools
+/// on the project, never a hidden file, never past the project's listed
+/// files where its folder is a home folder; what it proposes waits.
+#[test]
+fn an_outside_ai_apps_calls() {
+    let dir = std::env::temp_dir().join(format!("rapidr-mcp-calls-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join(".secret")).unwrap();
+    std::fs::write(dir.join("main.rr"), "PRINT \"Hello\"\n").unwrap();
+    std::fs::write(dir.join("notes.txt"), "a note\n").unwrap();
+    std::fs::write(dir.join(".secret/key.txt"), "not for AI apps\n").unwrap();
+    let folder = crate::slashes(&dir.to_string_lossy());
+    let t = "mcp_outside_tools";
+    assert!(set(t, "projectfolder", &s(folder.clone())));
+    assert!(set(t, "projectfiles", &s("main.rr")));
+    assert!(set(t, "mainfile", &s("main.rr")));
+    let call_tool = |tool: &str, args: &str| call(t, "calltool", &[s(tool), s(args)]).unwrap().to_string_val();
+    let failed = || get(t, "callfailed").unwrap().to_bool();
+    assert!(call_tool("read_file", r#"{"path": "main.rr"}"#).contains("Hello") && !failed());
+    assert!(call_tool("read_file", r#"{"path": ".secret/key.txt"}"#).contains("hidden") && failed());
+    assert!(call_tool("read_file", r#"{"path": "../x.rr"}"#).contains("outside the project") && failed());
+    // (a file in the folder, not a listed one: fine in a project's own folder)
+    assert!(!call_tool("read_file", r#"{"path": "notes.txt"}"#).is_empty() && !failed());
+    assert!(outside_path_ok("/Users", &["main.rr".into()], "notes.txt").is_err(), "a shallow folder: only the listed files");
+    assert!(outside_path_ok("/Users", &["main.rr".into()], "main.rr").is_ok());
+    // (a change: proposed, waiting; nothing written)
+    let said = call_tool("propose_edit", r#"{"path": "main.rr", "edits": [{"old_text": "PRINT \"Hello\"", "new_text": "PRINT \"Hi\""}], "summary": "Says hi."}"#);
+    assert!(!failed(), "{said}");
+    assert_eq!(get(t, "proposalcount").unwrap().to_i64(), 1);
+    assert_eq!(get(t, "calltarget").unwrap().to_string_val(), "main.rr");
+    assert_eq!(std::fs::read_to_string(dir.join("main.rr")).unwrap(), "PRINT \"Hello\"\n", "nothing is written");
+    // (no change tools when the permission is read-only)
+    assert!(set(t, "permission", &s("read-only")));
+    assert!(!call(t, "toolnames", &[]).unwrap().to_string_val().contains("propose_edit"));
+    assert_eq!(call(t, "toolkind", &[s("propose_edit")]).unwrap().to_string_val(), "change");
+    assert_eq!(call(t, "toolkind", &[s("read_file")]).unwrap().to_string_val(), "read");
+    let _ = std::fs::remove_dir_all(&dir);
+}

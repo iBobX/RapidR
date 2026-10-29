@@ -75,6 +75,8 @@ SUB RunCommand(Id AS STRING)
   IF WorkspaceCommand(Id) THEN EXIT SUB
   ' (the AI assistant's: ai.inc)
   IF AICommand(Id) THEN EXIT SUB
+  ' (AI apps': mcp.inc)
+  IF McpCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -165,6 +167,9 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 3) = "ai:" THEN
         ' (a test step: ai:<what>=<value> — ai.inc's AIStep)
         AIStep MID$(Id, 4)
+      ELSEIF LEFT$(Id, 4) = "mcp:" THEN
+        ' (a test step: mcp:<what>=<value> — mcp.inc's McpStep)
+        McpStep MID$(Id, 5)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -207,6 +212,8 @@ SUB StudioClose(Action AS INTEGER)
   StopProgram
   Session.StopBrowser
   SaveSettings
+  ' (AI apps: disconnected, the server off)
+  McpShutdown
 END SUB
 
 ' (keys the menus don't hold: F8 stepping beside F11 / F10)
@@ -355,6 +362,7 @@ SUB StartStudio
   SetUpAI
   SetUpDocuments
   SetUpSearch
+  SetUpMcp
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)

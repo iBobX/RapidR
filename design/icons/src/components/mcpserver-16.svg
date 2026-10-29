@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>MCP server</title>
+  <defs><linearGradient id="g1" gradientUnits="userSpaceOnUse" x1="3.8" y1="8" x2="12.2" y2="0.3"><stop offset="0" stop-color="#2F5BFF"/><stop offset="1" stop-color="#19C6E6"/></linearGradient></defs>
+  <path d="M2.5 9.5H13.5A1 1 0 0 1 14.5 10.5V13.5A1 1 0 0 1 13.5 14.5H2.5A1 1 0 0 1 1.5 13.5V10.5A1 1 0 0 1 2.5 9.5Z" fill="#D7F3F9" stroke="#007F9C"/>
+  <rect x="3" y="11" width="2" height="2" fill="#007F9C"/>
+  <path d="M8 0.3Q8.724 3.6 12.025 4.325Q8.724 5.05 8 8.35Q7.275 5.05 3.975 4.325Q7.275 3.6 8 0.3Z" fill="url(#g1)"/>
+</svg>

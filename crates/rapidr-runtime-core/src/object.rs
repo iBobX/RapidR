@@ -1550,6 +1550,17 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
                 v_null()
             }
         }
+        "RMCPSERVER" => {
+            #[cfg(feature = "network")]
+            {
+                crate::mcpserver::method(name, &method_lower, args)
+            }
+            #[cfg(not(feature = "network"))]
+            {
+                eprintln!("[WARN] Network support not compiled. Method {}.{}() ignored.", name, method);
+                v_null()
+            }
+        }
         "RHTTP" => {
             #[cfg(feature = "network")]
             {

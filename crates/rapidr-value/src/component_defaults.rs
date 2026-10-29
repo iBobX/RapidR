@@ -200,6 +200,19 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
         // (RapidR's local HTTP server, runtime-core's httpserver on the
         // desktop: what it reads back; Host, Port, Token … are the
         // registry's defaults)
+        // (RMcpServer: what it reads back once started, and the call in hand)
+        "RMCPSERVER" => {
+            put("listening", v_int(0));
+            put("url", v_str(""));
+            put("error", v_str(""));
+            put("call", v_int(0));
+            put("tool", v_str(""));
+            put("clientname", v_str(""));
+            put("arguments", v_str(""));
+            put("clients", v_str(""));
+            put("clientcount", v_int(0));
+            put("pendingcount", v_int(0));
+        }
         "RHTTPSERVER" => {
             put("listening", v_int(0));
             put("url", v_str(""));

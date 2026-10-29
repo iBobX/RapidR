@@ -403,6 +403,17 @@ export const cases = [
     expect: ["client: no token 401", "client: wrong token 401", "client: foreign origin 403", "client: foreign host 403", "client: cross-site 403", "client: hello 200 Hello from RapidR",
       "client: echo 200 application/json same", 'client: events 200 text/event-stream 3 {"tick":1} {"tick":2} {"tick":3}', "client: too large 413", "client: not found 404",
       "status.caption=4 requests answered", "(this computer only)"] },
+  // mcp_tools.rr: RMcpServer — the refusals, an earlier revision's session,
+  // the current revision's headers and errors, a wrong call told what the
+  // tool needs; the calls seen in the window
+  { file: "network/mcp_tools.rr", runtimes: ["run", "interp", "native"], args: ["{port}", "suite-token-0123456789"], client: { mode: "mcp", args: ["suite-token-0123456789"] },
+    events: wait("log", 140), dump: "status.caption,notes.itemcount,urllabel.caption",
+    expect: ["client: no token 401", "client: foreign origin 403", "client: get 405", "client: initialize 200 2025-06-18 notes session 32", "client: initialized 202",
+      "client: tools list_notes,find_notes,add_note read-only 2", "client: add Added. There are 3 notes.",
+      "client: wrong call error true Call add_note again: it needs `Text` (a string).", "client: unknown tool -32602", "client: end session 200", "client: ended session 404",
+      "client: discover 2026-07-28,2025-11-25,2025-06-18,2025-03-26 notes complete", "client: list Buy milk / Call the library about the book / Water the plants",
+      "client: find Water the plants", "client: header mismatch 400 -32020", "client: unsupported 400 -32022 2026-07-28", "client: no method 404 -32601", "client: no session 400",
+      "status.caption=3 calls from 1 AI app(s)", "notes.itemcount=3", "(this computer only)"] },
   // ai/ (the tests' mock provider, local: an OpenAI-compatible server)
   { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
     events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",

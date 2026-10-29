@@ -47,6 +47,10 @@ pub mod netframe;
 /// RHttpServer: a local HTTP server for programs.
 #[cfg(feature = "network")]
 pub mod httpserver;
+/// RMcpServer: a program's tools served to AI apps (MCP), on httpserver's
+/// connections.
+#[cfg(feature = "network")]
+pub mod mcpserver;
 
 /// RAI, the AI component (rapidr_ai::rai), on the desktop.
 #[cfg(feature = "network")]

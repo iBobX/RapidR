@@ -596,6 +596,18 @@ def httpserver(g):
     globe(g, cx=12, cy=7, r=5)
 
 
+@icon("mcpserver", C, "MCP server", mono=False)
+def mcpserver(g):
+    # (a server's rack, an AI's spark above it: RMcpServer serves the
+    # program's tools to AI apps — RapidR's own drawing, no protocol logo)
+    g.rect(3, 14, 18, 7, r=2, c="cyan", fill="cyan-tint")
+    g.dot(7, 17.5, 1.25, fill="cyan")
+    if g.size != 16:
+        g.line(11.5, 17.5, 17, 17.5, c="cyan")
+    grad = g.gradient(6, 12, 18, 1, [(0, "blue"), (1, "spark")])
+    star4(g, 12, 6.75, 5.75, fill=grad)
+
+
 @icon("download", C, "Download")
 def download(g):
     g.path("M4 14 V19 A1 1 0 0 0 5 20 H19 A1 1 0 0 0 20 19 V14", c="ink")

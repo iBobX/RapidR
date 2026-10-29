@@ -1666,6 +1666,9 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
     if comp_type == "RHTTPSERVER" {
         return http_server_web_method(&uname, &lmethod);
     }
+    if comp_type == "RMCPSERVER" {
+        return mcp_server_web_method(&uname, &lmethod);
+    }
 
     // WebSocket special handling
     if comp_type == "RSOCKET" || comp_type == "RSERVERSOCKET" {
@@ -2029,6 +2032,23 @@ fn http_server_web_method(name: &str, method: &str) -> Value {
         "header" | "newtoken" => v_str(""),
         "stop" => v_null(),
         "respond" | "beginstream" | "sendevent" | "endstream" | "close" => v_int(0),
+        _ => v_null(),
+    }
+}
+
+/// RMcpServer on the web: desktop only, as RHttpServer (a page can't
+/// listen for connections). Start fails and Error says why; tools can
+/// still be added (a program that serves them on the desktop runs here).
+fn mcp_server_web_method(name: &str, method: &str) -> Value {
+    match method {
+        "start" => {
+            rp_comp_set(name, "error", v_str("RMcpServer runs on the desktop only: a web page can't listen for connections"));
+            rp_comp_set(name, "listening", v_int(0));
+            v_int(0)
+        }
+        "newtoken" | "argument" => v_str(""),
+        "addtool" | "addresource" | "removetool" => v_int(1),
+        "toolcount" | "reply" | "replyimage" | "replyjson" | "progress" | "isopen" | "disconnect" => v_int(0),
         _ => v_null(),
     }
 }

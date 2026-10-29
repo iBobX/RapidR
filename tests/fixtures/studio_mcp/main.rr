@@ -1,0 +1,7 @@
+' Hello: a greeting, then two numbered lines (RapidR Studio's tests of
+' AI apps and the manual's pictures of them use it).
+DIM n AS INTEGER
+PRINT "Hello from Studio"
+FOR n = 1 TO 2
+    PRINT "Line "; n
+NEXT

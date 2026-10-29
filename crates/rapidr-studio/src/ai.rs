@@ -95,6 +95,9 @@ struct Tools {
     turn_folder: String,
     /// The model's window is small: the lite instructions and tools (K8).
     lite: bool,
+    /// The last CallTool's outcome (an AI app's call through Studio's MCP
+    /// server: CallFailed, CallNote, CallTarget, CallRisk).
+    last_call: Option<ai_tools::Outcome>,
 }
 
 /// A new program Studio wrote: its folder, each file it wrote (with the
@@ -889,9 +892,71 @@ fn list_tree(root: &std::path::Path) -> Vec<String> {
     out
 }
 
+/// A path an AI app gave (Studio's MCP server, CallTool): never a hidden
+/// file or folder (`.git/…`, `.env`, `.ssh/…`), and in a project whose
+/// folder is a home folder or a disk's root (a lone file opened there) only
+/// the project's own listed files — an AI app reads the project, nothing
+/// else of the user's.
+fn outside_path_ok(folder: &str, files: &[String], path: &str) -> Result<(), String> {
+    let rel = ai_tools::project_path(folder, path)?;
+    if rel.split('/').any(|part| part.starts_with('.')) {
+        return Err(format!("{path}: a hidden file or folder — AI apps can't read or change those"));
+    }
+    let f = crate::slashes(folder.trim_end_matches(['/', '\\']));
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).map(|h| crate::slashes(h.trim_end_matches(['/', '\\']))).unwrap_or_default();
+    let shallow = f.matches('/').count() <= 1 || f.ends_with(':') || (!home.is_empty() && f.eq_ignore_ascii_case(&home));
+    if shallow && !files.contains(&rel) {
+        return Err(format!("{path}: not one of the project's files (the project's folder is {f}: AI apps reach only its listed files there)"));
+    }
+    Ok(())
+}
+
+impl Tools {
+    /// An AI app's call (Studio's MCP server): the assistant's tools, on
+    /// the project and the changes waiting for the user, with no turn of
+    /// a conversation around it — what it proposes waits for the user's
+    /// review like the assistant's.
+    fn outside_call(&mut self, name: &str, input: &Json) -> ai_tools::Outcome {
+        let mut input = input.clone();
+        if let Some(o) = input.as_object_mut() {
+            o.remove("_rewrite_ok");
+        }
+        for key in ["path"] {
+            if let Some(p) = input.get(key).and_then(Json::as_str) {
+                if let Err(why) = outside_path_ok(&self.folder, &self.files, p) {
+                    return ai_tools::Outcome { content: why.clone(), is_error: true, note: format!("Refused: {why}"), read: None, risk: "read", target: p.to_string() };
+                }
+            }
+        }
+        // (a decision recorded for no conversation: nothing waits for it)
+        self.records.clear();
+        let may = self.may_propose();
+        let (files, buffers) = self.with_waiting();
+        let mut proposals = std::mem::take(&mut self.proposals);
+        let project = Project { folder: &self.folder, files: &files, main: &self.main, compat: &self.compat, buffers: &buffers };
+        let out = ai_tools::run(name, &input, &project, &mut proposals, may);
+        self.proposals = proposals;
+        out
+    }
+}
+
+/// How a tool acts, for an AI app: "read", or "change" for the proposing
+/// ones.
+fn tool_kind(name: &str) -> &'static str {
+    if matches!(name, "propose_edit" | "write_file" | "create_project") {
+        "change"
+    } else {
+        "read"
+    }
+}
+
 pub fn get(name: &str, prop: &str) -> Option<Value> {
     with(name, |t| {
         Some(match prop {
+            "callfailed" => crate::flag(t.last_call.as_ref().is_some_and(|o| o.is_error)),
+            "callnote" => s(t.last_call.as_ref().map(|o| o.note.clone()).unwrap_or_default()),
+            "calltarget" => s(t.last_call.as_ref().map(|o| o.target.clone()).unwrap_or_default()),
+            "callrisk" => s(t.last_call.as_ref().map(|o| o.risk.to_string()).unwrap_or_default()),
             "projectfolder" => s(t.folder.clone()),
             "projectfiles" => s(t.files.join("\n")),
             "mainfile" => s(t.main.clone()),
@@ -921,7 +986,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
             "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "callfailed" | "callnote" | "calltarget" | "callrisk" => {}
             "reviewfirst" => x.review_first = matches!(t.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "yes"),
             "runoutput" => {
                 x.run_output.clear();
@@ -1012,6 +1077,60 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "restorechat" => s(rapidr_ai::chats::restore(&arg(0), &arg(1)).unwrap_or_default()),
         "renamechat" => crate::flag(rapidr_ai::chats::rename(&arg(0), &arg(1), &arg(2))),
         "chattitle" => s(rapidr_ai::chats::title_of(&arg(0))),
+        // (an AI app's calls, through Studio's MCP server: the same tools)
+        "toolnames" => s(with(name, |t| ai_tools::tools(t.may_propose()).iter().map(|x| x.name.clone()).collect::<Vec<_>>().join("\n"))),
+        "tooldescription" | "toolschema" => {
+            let want = arg(0);
+            s(with(name, |t| {
+                ai_tools::tools(t.may_propose()).into_iter().find(|x| x.name == want).map(|x| if method == "tooldescription" { x.description } else { x.input_schema.to_string() }).unwrap_or_default()
+            }))
+        }
+        "toolkind" => s(tool_kind(&arg(0))),
+        "layoutreport" => s(with(name, |t| {
+            let (files, buffers) = t.with_waiting();
+            let project = Project { folder: &t.folder, files: &files, main: &t.main, compat: &t.compat, buffers: &buffers };
+            ai_tools::layout_report(&project.sources())
+        })),
+        "toolactivity" => {
+            let input: Json = serde_json::from_str(&arg(1)).unwrap_or(Json::Null);
+            s(ai_tools::activity(&arg(0), &input).unwrap_or_else(|| arg(0)))
+        }
+        "calltool" => {
+            let (tool, args_text) = (arg(0), arg(1));
+            let input: Json = serde_json::from_str(&args_text).unwrap_or_else(|_| json!({}));
+            s(with(name, |t| {
+                let out = t.outside_call(&tool, &input);
+                let content = out.content.clone();
+                t.last_call = Some(out);
+                content
+            }))
+        }
+        "auditcall" => {
+            // (the shared audit log: who, which tool, what it touched — a
+            // project's path, never a file's text — and how it went)
+            let line = json!({"time": rapidr_ai::audit::now_iso(), "source": "mcp", "op": "tool", "client": arg(0), "tool": arg(1), "target": arg(2), "decision": arg(3)});
+            rapidr_ai::audit::append(&line.to_string());
+            Value::Null
+        }
+        "auditcalls" => {
+            let n = usize::try_from(int_arg(args, 0, 50)).unwrap_or(50).clamp(1, 2000);
+            let lines: Vec<String> = rapidr_ai::audit::last(rapidr_ai::audit::KEEP)
+                .iter()
+                .filter_map(|l| serde_json::from_str::<Json>(l).ok())
+                .filter(|v| v["source"] == "mcp")
+                .map(|v| {
+                    let g = |k: &str| v[k].as_str().unwrap_or("").replace(['\t', '\n', '\r'], " ");
+                    format!("{}\t{}\t{}\t{}\t{}", g("time"), g("client"), g("tool"), g("target"), g("decision"))
+                })
+                .collect();
+            s(lines[lines.len().saturating_sub(n)..].join("\n"))
+        }
+        "clearaudit" => {
+            // (the MCP lines only: the assistant's stay)
+            let kept: Vec<String> = rapidr_ai::audit::last(rapidr_ai::audit::KEEP).into_iter().filter(|l| serde_json::from_str::<Json>(l).ok().is_none_or(|v| v["source"] != "mcp")).collect();
+            crate::flag(rapidr_ai::audit::replace(&kept))
+        }
+        "auditlocation" => s(rapidr_ai::audit::location()),
         "undocheck" => s(with(name, |t| t.undo_check())),
         "undofiles" => s(with(name, |t| t.undo_files().join("\n"))),
         "undodone" => crate::flag(with(name, Tools::undo_done)),

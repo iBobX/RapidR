@@ -1,0 +1,180 @@
+# Let AI apps work in Studio
+
+RapidR Studio can let an AI app on your computer work with the project you
+have open — read it, check it, change it, run it, debug it, ask RAI — while
+you watch every step in the **AI Apps** pane. Studio is then an MCP server:
+MCP is the protocol AI apps use to call tools. It's off until you turn it
+on, it listens on your computer only (`127.0.0.1`), and every request must
+carry a token only you have.
+
+Model Context Protocol® and MCP™ are marks of LF Projects, LLC
+(https://www.lfprojects.org/policies/). RapidR uses them only to say which
+protocol it speaks. Claude Code is a product of Anthropic, PBC. RapidR is
+independent of both and is not sponsored or endorsed by them.
+
+This is RapidR Studio on the desktop. Studio in a browser can't listen for
+AI apps (a web page can't open a port); a browser way to do the same is
+planned.
+
+![The AI Apps pane: an AI app's calls as they happen, the permission menu set to Allow everything, the amber badge and the status bar saying so](images/ai-apps/pane.png)
+
+## Turn it on
+
+1. **Tools > AI Apps Settings…** (or **Tools > Settings**, the **AI Apps**
+   tab).
+2. Tick **Let AI apps use RapidR Studio**. The first time, Studio says what
+   AI apps can see (below) and asks you to confirm; **Cancel** is the
+   default.
+3. Press **OK**. Studio listens at the **Address** shown —
+   `http://127.0.0.1:47330/mcp` unless you change the **Port**.
+4. Give your AI app the **Address** and the **Header**
+   (`Authorization: Bearer …` with your token): **Copy Address** and
+   **Copy Header** put them on the clipboard. **Show** shows the token;
+   it's hidden otherwise.
+
+![Settings > AI Apps: the switch, the port, the address and the header to copy, the token hidden, Reset Token, the permission menu for the open project, what AI apps can see](images/ai-apps/settings.png)
+
+The token is kept in your system's keychain (the macOS Keychain, Windows
+Credential Manager, the Secret Service on Linux), never in a project or in
+Studio's settings. **Reset Token** makes a new one at once: every AI app
+that had the old one is out until you give it the new header. Turn the
+switch off, or press **Stop** in the AI Apps pane, and every AI app is
+disconnected.
+
+## Set up your AI app
+
+Any AI app that supports MCP can connect with the address and token from
+Settings. As an example, here is how Claude Code (a product of Anthropic)
+takes them:
+
+```sh
+claude mcp add --transport http rapidr-studio http://127.0.0.1:47330/mcp --header "Authorization: Bearer <token>"
+```
+
+Other AI apps ask for the same two things in their own settings; see their
+documentation for the current steps. RapidR is independent: it is not made,
+sponsored or endorsed by Anthropic, by LF Projects or by the MCP project.
+
+The token you type into a command stays in your shell history and in the
+AI app's own settings file. If you shared it by mistake, press **Reset
+Token** in Settings.
+
+Studio speaks the current revision of the protocol (2026-07-28, no
+handshake: each request says its version) and the earlier ones that start
+with `initialize` (2025-11-25, 2025-06-18, 2025-03-26), so older AI apps
+connect too.
+
+## What AI apps may do: the permission menu
+
+One choice says what AI apps may do in the project open now. It's in the
+AI Apps pane's header and in **Settings > AI Apps**, it's kept for each
+project, and a project starts with **Ask before changes**.
+
+| Choice | What AI apps may do |
+|---|---|
+| **Read only** | Look: read the project, check code, look things up in RapidR's help, see the program's output, the layout of its forms and a picture of Studio. A change or a run is refused, and the AI app is told why in plain words. |
+| **Ask before changes** | Look freely. Each change, run or question to RAI waits for you in the pane: **Allow Once**, **Allow for This Session** (that kind of call until Studio closes, the server stops or another project opens) or **Deny**; **Review…** shows a change as a diff first. |
+| **Allow edits** | Changes to files are made at once — each is one **Edit > Undo** step, listed in the pane, in the activity log. Running the program and asking RAI still wait for you. |
+| **Allow everything** | Nothing waits for you. Studio asks you to confirm when you choose it, shows an amber **No questions asked** badge in the pane and **AI apps: allow everything** in the status bar. Everything is still listed and logged, **Stop** ends it, and AI apps still never reach keys or files outside the project themselves — but a program they run can do anything you can on this computer. Choose it only while you watch an AI app you trust. |
+
+In every mode a project outside your Projects folder, RapidR's examples and
+your recent list is asked about before it opens, and nothing is ever
+opened over unsaved changes.
+
+![A change waiting in the AI Apps pane: what the AI app wants to change and why, Allow Once, Allow for This Session, Deny and Review](images/ai-apps/ask.png)
+
+## Watch it work: the AI Apps pane
+
+**Tools > AI Apps Activity** shows it; it also appears, beside Output, the
+first time an AI app works, and comes to the front when something waits for
+you (the keyboard stays where you were). It shows:
+
+- who is connected, and what the last call did ("an-ai-app: Reading main.rr");
+- a line for every call: the time, the AI app, what it did, how it went
+  (ok, applied, refused, denied by you);
+- the call waiting for you, with its buttons;
+- the permission menu, and **Stop**.
+
+The status bar's last panel says it too: "AI apps: on", "AI apps: waiting
+for you", "AI apps: allow everything". A screen reader hears when an AI app
+connects and, at once, when something waits for you.
+
+Changes an AI app makes go into Studio's editors, unsaved, as yours would:
+**Edit > Undo** takes each back, and **Run** saves them (as it always does).
+
+## The tools
+
+The tools are the ones RAI, Studio's own assistant, uses, plus Studio's:
+
+| Tool | What it does | Kind |
+|---|---|---|
+| `studio_status` | What Studio has open: the project and its files, the documents (unsaved ones marked), whether the program runs, its errors, RAI, the permission | look |
+| `list_files`, `read_file` | The project's files, a file's text (the editor's, unsaved changes included) | look |
+| `project_outline` | Files in include order, forms, SUBs and FUNCTIONs, globals | look |
+| `rapidr_list`, `rapidr_get` | The forms' components and their properties, from the source | look |
+| `rapidr_describe`, `search_manual`, `find_example` | RapidR's help: a component or builtin, the manual, a working example | look |
+| `check_code`, `get_problems` | The compiler's errors and warnings, and the forms' layout problems | look |
+| `layout_report` | Each form's components with their places and sizes, and what looks wrong (cut off, on top of each other, a caption too long) | look |
+| `capture` | A picture (PNG) of Studio's window as you see it | look |
+| `list_documents` | The documents open, the active one, unsaved changes | look |
+| `read_output` | What the program printed since the last read | look |
+| `get_rai_steps`, `get_rai_transcript`, `get_rai_audit` | RAI's work: its steps, its chat, its audit log | look |
+| `propose_edit`, `write_file`, `create_project` | A change to a file (only the parts that change), a new file, a new program — checked by the compiler first | change |
+| `set_property` | A component's property set in the form designer, as in the Properties pane | change |
+| `open_project` | Opens a project or a program | change |
+| `run_program` | Saves, runs the program, waits a few seconds, gives back its output (or where it paused) | run |
+| `debug` | Breakpoints, continue, step over / into / out, pause, the call stack and the variables | run |
+| `ask_rai` | Asks RAI as you would in its panel, and gives back its answer and steps | run (it may cost money: it uses your AI provider) |
+
+A call with a missing or wrong argument is answered at once with what the
+tool needs ("Call read_file again: it needs `path` (a string)…"), so even a
+small model can correct itself.
+
+## What AI apps can see
+
+With this on, an AI app that has your token can, through Studio:
+
+- list and read the files in your open project (your code, forms and data
+  files), and nothing outside the project or hidden in it (a file or folder
+  whose name starts with a dot);
+- look at and change forms and code, and build, run and debug your program,
+  as the permission menu allows — Studio asks you first under **Ask before
+  changes**;
+- read what your program prints and Studio's error messages;
+- read and ask RAI's chat.
+
+It cannot see your AI provider keys or passwords (they stay in your
+system's keychain), or files outside the project. RapidR sends none of this
+anywhere. The AI app may pass what it reads to the company that makes it,
+under that company's terms and privacy rules. Many AI apps are for adults
+only; if you are under 18, set this up with a parent or teacher. Connect
+only AI apps you trust, and share only what you are allowed to share
+(schoolwork, an employer's code or someone else's licensed code may not be
+yours to share).
+
+## The activity log
+
+Every call is written to the audit log RAI uses, on this computer only:
+`~/Library/Application Support/RapidR/ai-audit.jsonl` on macOS,
+`%APPDATA%\RapidR\ai-audit.jsonl` on Windows, `~/.config/rapidr/` on
+Linux — never in your project. It keeps when, which AI app, which tool, the
+project's file it touched (never the file's text) and how it went; never a
+key, the token or your code. **Clear Activity…** in Settings > AI Apps
+removes the AI apps' lines (after asking).
+
+## Your own programs can do this too
+
+`RMcpServer` gives a program of yours its own tools for AI apps, with the
+same protocol and the same protections: see
+[Networking](network.md#rmcpserver-your-programs-tools-for-ai-apps) and
+[examples/network/mcp_tools.rr](../../examples/network/mcp_tools.rr).
+
+## Notes
+
+- The pictures here are made by `node tools/manual/shots.mjs ai-apps`
+  (Studio with the tests' AI app, `tests/http_client_probe.mjs`); the
+  behaviour is checked by `node tests/studio_mcp.mjs`.
+- RAI's own permission choices (Settings > AI) are still their own; using
+  these four words for RAI too is planned.
+- A picture of the running program's own windows (rather than Studio's)
+  isn't there yet.
