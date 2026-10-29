@@ -14,6 +14,7 @@ const { majorMinor } = require('./version');
 const { shellKind, commandLine } = require('./shell');
 const { readProject, projectPaths } = require('./project');
 const { HelpPanel } = require('./help');
+const { registerMcp } = require('./mcp');
 const { suggestsTypes } = require('./triggers');
 
 const DOWNLOAD_URL = 'https://github.com/iBobX/RapidR/releases';
@@ -36,6 +37,7 @@ let watcher;
 let missingNotified = false;
 let globalState;
 let help;
+let mcp = null;
 let hasProject = false;
 /** How many times typing `AS ` opened the list of types (the tests read it). */
 let typeSuggestions = 0;
@@ -76,6 +78,7 @@ async function resolveRapidr() {
     updateStatus();
     // (not awaited: a notification stays until it is dismissed, and the server starts now)
     if (rapidr.path) announceSkipped().catch(() => {});
+    if (mcp) mcp.refresh();
     return rapidr;
 }
 
@@ -611,6 +614,8 @@ async function activate(context) {
     const projectWatcher = vscode.workspace.createFileSystemWatcher('**/*.rrproj');
     help = new HelpPanel(() => client, log);
     context.subscriptions.push(output, status, watcher, projectWatcher, help);
+    // (experimental, off by default: `rapidr mcp` for the editor's AI agents; src/mcp.js)
+    mcp = registerMcp(context, { getRapidr: () => rapidr, log });
 
     const command = (id, fn) => context.subscriptions.push(vscode.commands.registerCommand(id, fn));
     command('rapidr.run', runCommand);
@@ -687,6 +692,7 @@ async function activate(context) {
         languageClient: () => client,
         help: () => ({ state: help.state, show: (t) => help.show(t), message: (m) => help.onMessage(m), page: help.page }),
         typeSuggestions: () => typeSuggestions,
+        mcpDefinitions: () => (mcp ? mcp.definitions() : Promise.resolve(null)),
     };
 }
 

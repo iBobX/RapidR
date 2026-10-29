@@ -275,4 +275,20 @@ function rapidrVersion(file, timeoutMs = 60000) {
     });
 }
 
-module.exports = { findRapidr, candidates, chooseRapidr, rapidrVersion, searchPath, installPlaces, workspacePlaces, candidatesForSetting };
+/** Whether a usage text (what `rapidr --help` prints) lists `rapidr mcp` among its commands. */
+function usageHasMcp(text) {
+    return /^\s*rapidr\s+mcp\b/m.test(String(text));
+}
+
+/**
+ * Whether this rapidr has `rapidr mcp` (the MCP server for AI agents): its
+ * usage lists it. None of 2.121 does, so asking is how the experimental MCP
+ * provider knows not to offer a server that can't start. Never rejects.
+ */
+function rapidrHasMcp(file, timeoutMs = 20000) {
+    return new Promise((resolve) => {
+        execFile(file, ['--help'], { timeout: timeoutMs, windowsHide: true }, (err, stdout, stderr) => resolve(usageHasMcp(`${stdout}\n${stderr}`)));
+    });
+}
+
+module.exports = { findRapidr, candidates, chooseRapidr, rapidrVersion, rapidrHasMcp, usageHasMcp, searchPath, installPlaces, workspacePlaces, candidatesForSetting };

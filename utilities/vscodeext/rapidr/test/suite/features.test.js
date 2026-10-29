@@ -342,6 +342,45 @@ describe('RapidR for VS Code, around the server', () => {
         });
     });
 
+    describe('the experimental MCP server (rapidr mcp)', function () {
+        const setting = () => vscode.workspace.getConfiguration('rapidr');
+
+        afterEach(async () => {
+            await setting().update('experimental.mcpServer', undefined, vscode.ConfigurationTarget.Global);
+            await setting().update('path', undefined, vscode.ConfigurationTarget.Global);
+            await eventually(() => api.rapidr().path && api.rapidr().state === 'current', 'rapidr found again');
+            await sleep(300);
+            await api.whenServerReady();
+        });
+
+        it('is off by default: nothing is offered to the agents', async () => {
+            assert.strictEqual(setting().get('experimental.mcpServer'), false);
+            assert.deepStrictEqual(await api.mcpDefinitions(), []);
+        });
+
+        it('offers nothing, even when on, from a rapidr that has no `rapidr mcp` (none has yet)', async () => {
+            await setting().update('experimental.mcpServer', true, vscode.ConfigurationTarget.Global);
+            assert.deepStrictEqual(await api.mcpDefinitions(), []);
+        });
+
+        it('offers `rapidr mcp` as a stdio server, in the workspace folder, from a rapidr that lists it', async function () {
+            if (process.platform === 'win32') this.skip(); // (the stand-in is a shell script)
+            const real = process.env.RAPIDR_PATH;
+            const file = scratchFile('rapidr-with-mcp', `#!/bin/sh\nif [ "$1" = "--help" ]; then echo "  rapidr mcp   The MCP server"; elif [ "$1" = "version" ]; then echo "RapidR 2.121.3"; else exec '${real}' "$@"; fi\n`);
+            fs.chmodSync(file, 0o755);
+            await setting().update('path', file, vscode.ConfigurationTarget.Global);
+            await eventually(() => api.rapidr().path === file, 'the stand-in in use');
+            await setting().update('experimental.mcpServer', true, vscode.ConfigurationTarget.Global);
+            const defs = await api.mcpDefinitions();
+            assert.strictEqual(defs.length, 1);
+            assert.strictEqual(defs[0].command, file);
+            assert.deepStrictEqual(defs[0].args, ['mcp']);
+            assert.strictEqual(defs[0].label, 'RapidR (language tools)');
+            assert.strictEqual(defs[0].version, '2.121.3');
+            assert.strictEqual(path.resolve(defs[0].cwd.fsPath), FIXTURES);
+        });
+    });
+
     describe('projects (.rrproj)', () => {
         const project = vscode.Uri.file(path.join(FIXTURES, 'Demo.rrproj'));
 

@@ -121,6 +121,7 @@ The extension highlights RapidR syntax (RapidQ-compatible programs included), wi
 |---|---|---|
 | `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR Studio.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace, and uses the first one that is as new as the extension (an older `rapidr` that has the language server is the fallback). |
 | `rapidr.rapidqCompatible` | `false` | Warn about everything RapidQ doesn't have. |
+| `rapidr.experimental.mcpServer` | `false` | Experimental: offer `rapidr mcp` to the editor's AI agents as an MCP server. Needs VS Code 1.101 and a RapidR that has `rapidr mcp` (none yet). |
 | `rapidr.keywordCase` | `upper` | The case of keywords, types, directives and builtins: `upper`, `lower`, `proper` (`Dim x As Integer`) or `preserve` (off). |
 | `rapidr.identifierCase` | `preserve` | `declaration`: write your names as declared, and members as RapidR spells them (`Form.Caption`). |
 | `rapidr.trace.server` | `off` | Log the language server's messages in the "RapidR Language Server" output. |
