@@ -1,6 +1,6 @@
 # RapidR's icons
 
-RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group, glyph and debugger value kind of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 376 icons in seven categories, each hinted at 16, 24 and 32 px.
+RapidR's own icon set ([docs/ide-plan.md](../../docs/ide-plan.md), decision D8): every action, component, file type, symbol, toolbox group, glyph and debugger value kind of RapidR Studio, also used by the manual, the website and the VS Code extension. Every icon is our own drawing, under the project's licence (MIT). There are 388 icons in seven categories, each hinted at 16, 24 and 32 px.
 
 | Category | What | Colour |
 |---|---|---|
@@ -114,7 +114,7 @@ python3 design/icons/tools/build.py --check  # fail if anything is out of date (
 1. **Draw.** The geometry is Python, standard library only:
    - [`tools/kit.py`](tools/kit.py): the kit and the hinter;
    - [`tools/motifs.py`](tools/motifs.py): shared shapes;
-   - `actions.py`, `glyphs.py`, `components.py`, `planned.py`, `files.py`, `symbols.py`, `groups.py`, `debug.py`: one function per icon.
+   - `actions.py`, `versions.py` (the Versions actions), `glyphs.py`, `components.py`, `planned.py`, `files.py`, `symbols.py`, `groups.py`, `debug.py`: one function per icon.
 
    The sources are written to `src/`. A source drawn in an editor instead is never overwritten if it holds `data-hand-drawn`.
 2. **Optimize.** This is our own code ([`tools/build.py`](tools/build.py)). It strips the XML declaration, comments, `<title>`, `<desc>`, `<metadata>`, editor attributes and whitespace, and checks:

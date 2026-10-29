@@ -111,6 +111,18 @@ fn file_kinds_have_their_own_icons() {
     }
 }
 
+/// The Versions actions (save a version, history, branch, merge, compare,
+/// line history, push, pull, sync, conflict, restore, pull request) are
+/// monochrome, so they follow the theme and the caller's colour.
+#[test]
+fn versions_actions_are_there_and_monochrome() {
+    for name in ["save-version", "timeline", "branch", "merge", "compare", "line-history", "push", "pull", "sync", "conflict", "restore-version", "pull-request"] {
+        let i = get(&format!("actions/{name}")).unwrap_or_else(|| panic!("no icon actions/{name}"));
+        assert!(i.mono, "{name} is monochrome");
+        assert!(!i.title.is_empty());
+    }
+}
+
 /// Each source is one standalone SVG per size that resvg reads, with the
 /// size's own view box; monochrome icons carry no token colour.
 #[test]
