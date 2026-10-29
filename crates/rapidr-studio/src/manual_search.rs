@@ -18,6 +18,7 @@ pub const PAGES: &[(&str, &str)] = &[
     ("README.md", include_str!("../../../docs/manual/README.md")),
     ("ai-assistant.md", include_str!("../../../docs/manual/ai-assistant.md")),
     ("ai-apps.md", include_str!("../../../docs/manual/ai-apps.md")),
+    ("archives.md", include_str!("../../../docs/manual/archives.md")),
     ("building-apps.md", include_str!("../../../docs/manual/building-apps.md")),
     ("cli-and-runtime.md", include_str!("../../../docs/manual/cli-and-runtime.md")),
     ("code-editor.md", include_str!("../../../docs/manual/code-editor.md")),
