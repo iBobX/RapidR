@@ -555,6 +555,16 @@ mod score {
                 '0'..='9' | ' ' => (c as u32).to_string(),
                 '.' => "190".into(),
                 '-' => "189".into(),
+                // (the school set types equations and formulas: H2 + O2 -> H2O, Ca(OH)2)
+                '=' => "187".into(),
+                '+' => "187_256".into(),
+                '>' => "190_256".into(),
+                '<' => "188_256".into(),
+                ',' => "188".into(),
+                '/' => "191".into(),
+                '*' => "56_256".into(),
+                '(' => "57_256".into(),
+                ')' => "48_256".into(),
                 _ => continue,
             };
             out.push(format!("{id}.__key_{k}"));

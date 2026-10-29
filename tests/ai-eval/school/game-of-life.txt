@@ -1,0 +1,7 @@
+# School app: Conway's Game of Life.
+Build me Conway's Game of Life: a grid of cells, with Random, Step and Run buttons
+#! test generations
+#! click? /random|randomi|seed|glider|fill/
+#! click /step|next|generation|run|start|play/
+#! wait 5
+#! expect-picture-changed

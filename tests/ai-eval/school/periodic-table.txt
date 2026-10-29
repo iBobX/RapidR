@@ -1,0 +1,5 @@
+# School app: a periodic table explorer (a list; a pick is the "click").
+Build me a periodic table explorer: a list of the elements, and when I click one show its name, its symbol, its atomic number and its atomic mass
+#! test element
+#! pick #list 1
+#! expect-changed /atomic|number|mass|\d+\.\d+/
