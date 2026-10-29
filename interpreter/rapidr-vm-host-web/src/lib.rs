@@ -161,6 +161,10 @@ impl Host for WebHost {
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
         obj::rp_bind_event_indirect(id, event, handler_fn_index);
+        // (RapidR's Application.OnError: told_failed)
+        if id.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
+            ON_ERROR.with(|h| h.set(Some(handler_fn_index)));
+        }
         Ok(())
     }
 
@@ -527,6 +531,8 @@ use rapidr_runtime_web::dialog_web as dialog;
 
 thread_local! {
     static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
+    /// The program's Application.OnError handler (RapidR's), once bound.
+    static ON_ERROR: Cell<Option<u32>> = const { Cell::new(None) };
     /// Event handlers the runtime fired, not yet taken by the VM.
     static EVENTS: RefCell<VecDeque<Event>> = const { RefCell::new(VecDeque::new()) };
     /// Events the VM took but couldn't run because a handler before them
@@ -626,6 +632,19 @@ fn report(result: Result<(), VmError>, what: &str) {
         Ok(()) | Err(VmError::Suspended | VmError::Yielded | VmError::Paused) => {}
         Err(e) => report_error(&format!("[rapidr] {what}: {e}")),
     }
+}
+
+/// An event handler's run-time error (the program goes on, its page's
+/// events still come): RapidR's Application.OnError hears it, as on the
+/// desktop (`rapidr_vm::HandlerFailure`) — not an error in that handler
+/// itself, which would go round.
+fn told_failed(failure: &rapidr_vm::HandlerFailure) {
+    let Some(on_error) = ON_ERROR.with(Cell::get) else { return };
+    // (Suspended, Paused … aren't errors: report() said nothing of them)
+    if failure.handler == Some(on_error) || failure.text.is_empty() {
+        return;
+    }
+    obj::rp_fire_event_args("application", "onerror", &failure.event_args());
 }
 
 /// An error, on the console (which the page running a session passes on
@@ -857,21 +876,32 @@ fn run_idle_events_inner() {
                 return None;
             }
             let mut batch = batch.into_iter();
+            let mut failed = None;
             let (result, _) = run_step(session, Slice::Idle, |vm, module| {
-                batch.by_ref().try_for_each(|event| vm.invoke_event(module, event).map(drop))
+                batch.by_ref().try_for_each(|event| {
+                    let handler = event.handler;
+                    vm.invoke_event(module, event).map(drop).inspect_err(|_| failed = Some(handler))
+                })
             });
             // A handler waits for a dialog, yielded (or failed): the rest
             // run later.
             DEFERRED.with(|q| q.borrow_mut().extend(batch));
-            Some(result)
+            Some((result, failed))
         });
         match outcome {
-            None | Some(Err(VmError::Yielded)) => return,
-            Some(Err(e @ (VmError::Suspended | VmError::Paused))) => {
+            None | Some((Err(VmError::Yielded), _)) => return,
+            Some((Err(e @ (VmError::Suspended | VmError::Paused)), _)) => {
                 report(Err(e), "event handler");
                 return;
             }
-            Some(result) => report(result, "event handler failed"),
+            Some((Err(e), failed)) => {
+                let failure = (!matches!(e, VmError::Halted)).then(|| rapidr_vm::HandlerFailure::new(&e, failed));
+                report(Err(e), "event handler failed");
+                if let Some(failure) = failure {
+                    told_failed(&failure);
+                }
+            }
+            Some((result, _)) => report(result, "event handler failed"),
         }
     }
 }

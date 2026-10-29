@@ -413,11 +413,56 @@ pub fn take_raised() -> Option<String> {
 /// handler a ShowModal's loop runs, that handler and the handlers that fired
 /// it: unwound to the loop, which goes on ([`catching`]), as RapidQ's does.
 pub fn runtime_error(message: &str) -> ! {
+    // (under the interpreter, inside a call of its host: back to that call,
+    // which makes it the program's run-time error — `host_call`)
+    if HOST_CALLS.with(std::cell::Cell::get) > 0 {
+        std::panic::resume_unwind(Box::new(HostRaised(message.to_string())));
+    }
     eprintln!("run-time error: {message}");
     if TURNS.with(|t| t.borrow().contains(&true)) {
+        LAST_ERROR.with(|m| *m.borrow_mut() = message.to_string());
         std::panic::resume_unwind(Box::new(HandlerFailed));
     }
     std::process::exit(1);
+}
+
+thread_local! {
+    /// The interpreter host's calls into the runtime running now
+    /// ([`host_call`]).
+    static HOST_CALLS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// What a run-time error unwinds an interpreter host's call with
+/// ([`host_call`]): its message.
+pub struct HostRaised(pub String);
+
+/// Runs `f`, a call of the interpreter's host into the runtime (a builtin,
+/// a component's method, a property): a run-time error the runtime raises
+/// there ([`runtime_error`] — an object's RapidQ exception, "Cannot create
+/// file icons/folder.svg.", a DIM or a DLL call that fails) comes back as
+/// `Err(message)`: the program's run-time error, which the VM reports at
+/// the line it happened on and which a ShowModal's loop goes on after, as
+/// it does after any other — not the end of the process there and then
+/// (RapidR Studio, a RapidR program, closed on one with the user's
+/// unsaved work: Robert, 2026-10-25). Native builds keep [`catching`].
+pub fn host_call<R>(f: impl FnOnce() -> R) -> Result<R, String> {
+    struct Out;
+    impl Drop for Out {
+        fn drop(&mut self) {
+            HOST_CALLS.with(|c| c.set(c.get().saturating_sub(1)));
+        }
+    }
+    HOST_CALLS.with(|c| c.set(c.get() + 1));
+    let out = Out;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    drop(out);
+    match result {
+        Ok(v) => Ok(v),
+        Err(payload) => match payload.downcast::<HostRaised>() {
+            Ok(raised) => Err(raised.0),
+            Err(other) => std::panic::resume_unwind(other),
+        },
+    }
 }
 
 thread_local! {
@@ -456,7 +501,47 @@ pub fn catching(f: impl FnOnce()) {
         if !payload.is::<HandlerFailed>() {
             std::panic::resume_unwind(payload);
         }
+        // (RapidR's Application.OnError: the program hears it — not of an
+        // error in its OnError handler, which would go round)
+        let message = LAST_ERROR.with(|m| std::mem::take(&mut *m.borrow_mut()));
+        if let Some(hook) = FAILED_HOOK.with(std::cell::Cell::get).filter(|_| !REPORTING.with(std::cell::Cell::get)) {
+            told_failed(hook, &message);
+        }
     }
+}
+
+/// [`catching`]'s hook run as a turn of its own: an error in the handler
+/// it fires ends that handler, and isn't told again.
+fn told_failed(hook: fn(&str), message: &str) {
+    REPORTING.with(|r| r.set(true));
+    TURNS.with(|t| t.borrow_mut().push(true));
+    let out = TurnOut;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| hook(message)));
+    drop(out);
+    REPORTING.with(|r| r.set(false));
+    if let Err(payload) = result {
+        if !payload.is::<HandlerFailed>() {
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
+thread_local! {
+    /// The message of the run-time error a native build's handler failed
+    /// with last ([`runtime_error`]), for [`on_handler_failed`]'s hook.
+    static LAST_ERROR: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+    /// What tells the program a handler failed (runtime-core's: its
+    /// Application.OnError), once one is bound.
+    static FAILED_HOOK: std::cell::Cell<Option<fn(&str)>> = const { std::cell::Cell::new(None) };
+    /// The hook is running.
+    static REPORTING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// A native build's runtime: `hook` hears each handler's run-time error a
+/// wait went on after ([`catching`]), with its message — RapidR's
+/// Application.OnError (the interpreter's hosts fire it themselves).
+pub fn on_handler_failed(hook: fn(&str)) {
+    FAILED_HOOK.with(|h| h.set(Some(hook)));
 }
 
 /// Runs `f`, a DOEVENTS' turn: a handler's run-time error there goes on to
@@ -887,6 +972,23 @@ impl Neg for &Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An interpreter host's call: a run-time error raised in it is its
+    /// error, not the process' end; nested calls give it to the innermost;
+    /// any other panic goes on as it was.
+    #[test]
+    fn a_host_call_gets_the_run_time_error_raised_in_it() {
+        assert_eq!(host_call(|| 7), Ok(7));
+        assert_eq!(host_call(|| -> i32 { runtime_error("Cannot create file icons/folder.svg.") }), Err("Cannot create file icons/folder.svg.".to_string()));
+        let outer = host_call(|| host_call(|| -> i32 { runtime_error("inner") }));
+        assert_eq!(outer, Ok(Err("inner".to_string())));
+        // (the count is back to none: a later error outside a call would end
+        // the process, as before — not tested, it exits)
+        assert_eq!(HOST_CALLS.with(std::cell::Cell::get), 0);
+        let other = std::panic::catch_unwind(|| host_call(|| -> i32 { std::panic::resume_unwind(Box::new(42u8)) }));
+        assert!(other.is_err_and(|p| p.downcast_ref::<u8>() == Some(&42)));
+        assert_eq!(HOST_CALLS.with(std::cell::Cell::get), 0);
+    }
 
     #[test]
     fn integer_arithmetic() {
