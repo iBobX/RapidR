@@ -99,7 +99,7 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 /// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
 /// `OK = Tree.Save`, `Console.FindNext`.
-const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall"];
+const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall", "copyselection", "copyall", "copyline"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];

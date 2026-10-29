@@ -13,17 +13,22 @@
 //! and its place dimmed.
 //!
 //! The mouse: a tab shows its page; a line clicked is selected (Shift:
-//! the selection reaches it; a drag extends it); a link or a problem
-//! clicked is OnLinkClick; the wheel and the bar scroll (the page stops
-//! following new output until it's scrolled back to its end). The keys:
-//! the arrows, Page Up / Down, Home / End (Shift extends), Ctrl+A,
-//! Ctrl+C / Cmd+C copies the selected lines, Enter opens the caret line's
+//! the selection reaches it); a drag selects text — characters, across
+//! lines, the page scrolling while it's held past the top or bottom — a
+//! double click a word, a triple click the line (COPY-ANYWHERE); a link or
+//! a problem clicked is OnLinkClick (a drag that starts on one selects
+//! instead); a right press notes the line for a context menu's Copy Line
+//! (a problem's row: selected); the wheel and the bar scroll (the page
+//! stops following new output until it's scrolled back to its end). The
+//! keys: the arrows, Page Up / Down, Home / End (Shift extends; problems
+//! too), Ctrl+A, Ctrl+C / Cmd+C / Ctrl+Insert copies what's selected as
+//! plain text, Enter opens the caret line's
 //! link (a problem), Ctrl+F or typing starts a search, Enter / F3 the next
 //! match, Shift+F3 the previous, Escape clears the search,
 //! Ctrl+Page Up / Down the pages.
 
-use rapidr_value::input::Cursor;
-use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
+use rapidr_value::input::{Button, Cursor};
+use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, TextInfo, TextPos, TextRun, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -383,6 +388,10 @@ impl Console {
         let lh = g.lh;
         let focused = cx.state.focused && editing(cx.id).is_none();
         let sel = s.view.selection();
+        // (a text selection — a drag, a double click — marks its characters;
+        // else the selected lines are marked whole)
+        let by_chars = s.view.cols.is_some();
+        let (sel_fill, sel_ink) = if focused { (l.selected, l.selected_text) } else { (l.inactive, l.text) };
         let font = &g.mono;
         // (EmptyText while the page is empty: what to do — "Press F5 to run")
         if s.lines.is_empty() || s.lines.iter().all(|(_, line)| line.text().is_empty()) {
@@ -398,10 +407,14 @@ impl Console {
                 let chars: Vec<char> = line.text().chars().collect();
                 // (a line that wraps is more rows: the characters each shows)
                 let rows = f.rows_of(i, chars.len());
-                let selected = sel.is_some_and(|(a, b)| (a..=b).contains(abs));
+                let selected = !by_chars && sel.is_some_and(|(a, b)| (a..=b).contains(abs));
                 if selected {
-                    p.fill((bx, top, cw, f.height(i)), if focused { l.selected } else { l.inactive });
+                    p.fill((bx, top, cw, f.height(i)), sel_fill);
                 }
+                // (the characters selected on this line: from, to — its end
+                // and its line break when the selection goes on past it)
+                let marked = if by_chars { s.view.cols_on(*abs) } else { None };
+                let (ma, mb) = marked.map_or((usize::MAX, usize::MAX), |(a, b)| (a, b.unwrap_or(usize::MAX)));
                 let spans = line.spans();
                 let links = rapidr_value::panels::console::links::of_line(line);
                 let default_ink = if selected && focused { l.selected_text } else { l.text };
@@ -417,6 +430,18 @@ impl Console {
                                 let (xa, xb) = (x_of(a), x_of(b));
                                 p.fill((xa, y, xb - xa, lh), PALETTE[bg as usize & 15]);
                             }
+                        }
+                    }
+                    // (the selected characters, over the program's backgrounds;
+                    // a selected line break a space wide after the row's end)
+                    if marked.is_some() {
+                        let (a, b) = (ma.max(ra), mb.min(rb));
+                        let last_row = r + 1 == rows.len();
+                        let past_end = mb == usize::MAX && last_row;
+                        if a < b || (past_end && a <= rb) {
+                            let (xa, xb) = (x_of(a), x_of(b));
+                            let nl = if past_end { text_size(" ", font).0.max(4) } else { 0 };
+                            p.fill((xa, y, xb - xa + nl, lh), sel_fill);
                         }
                     }
                     // (the search's matches; the current one ringed)
@@ -438,12 +463,11 @@ impl Console {
                             continue;
                         }
                         // (cut where links start and end: a link in the link colour)
+                        // (and where the selected characters start and end)
                         let mut cuts = vec![a, b];
-                        for k in &links {
-                            for e in [k.start, k.end] {
-                                if e > a && e < b {
-                                    cuts.push(e);
-                                }
+                        for e in links.iter().flat_map(|k| [k.start, k.end]).chain([ma, mb]) {
+                            if e > a && e < b {
+                                cuts.push(e);
                             }
                         }
                         cuts.sort_unstable();
@@ -451,15 +475,18 @@ impl Console {
                         for pair in cuts.windows(2) {
                             let (xa_k, xb_k) = (pair[0], pair[1]);
                             let in_link = links.iter().any(|k| k.start <= xa_k && xb_k <= k.end);
+                            let in_sel = marked.is_some() && ma <= xa_k && xb_k <= mb;
                             let ink = match attr.fg {
                                 Some(fg) if !l.contrast => PALETTE[fg as usize & 15],
+                                _ if in_sel => sel_ink,
                                 _ if in_link => l.link,
                                 _ => default_ink,
                             };
                             // (a colour that wouldn't read on what's behind it: made to)
                             let behind = match attr.bg {
+                                _ if in_sel => sel_fill,
                                 Some(bg) if !l.contrast => PALETTE[bg as usize & 15],
-                                _ if selected => if focused { l.selected } else { l.inactive },
+                                _ if selected => sel_fill,
                                 _ => l.body,
                             };
                             let ink = readable(ink, behind, l);
@@ -476,7 +503,7 @@ impl Console {
                         }
                     }
                 }
-                if focused && s.view.caret == Some(*abs) && sel.is_some_and(|(a, b)| a != b) {
+                if focused && !by_chars && s.view.caret == Some(*abs) && sel.is_some_and(|(a, b)| a != b) {
                     common::row_focus(p, (bx, top, cw, f.height(i)), l);
                 }
             }
@@ -495,7 +522,8 @@ impl Console {
             for (i, pr) in &s.problems {
                 let y = by + f.top(*i) - s.pos;
                 let row = (bx, y, cw, f.height(*i));
-                let selected = s.view.caret == Some(*i as u64);
+                // (one row or several: Shift + a click, Shift + the arrows, Ctrl+A)
+                let selected = s.view.selection().is_some_and(|(a, b)| (a..=b).contains(&(*i as u64)));
                 let ink = common::row(p, row, l, selected, focused, s.hover_row == Some(*i));
                 // (a file's heading: its icon — the Project pane's for it —, its
                 // name in bold, its folder dimmed, how many problems in a pill;
@@ -539,7 +567,7 @@ impl Console {
                         let f = common::elide(&folder, font, right - fx);
                         p.text((fx, y, right - fx, rows::ROW), &f, font, dim, Place::Left);
                     }
-                    if selected && focused && l.classic {
+                    if s.view.caret == Some(*i as u64) && focused && l.classic {
                         common::row_focus(p, row, l);
                     }
                     continue;
@@ -595,7 +623,7 @@ impl Console {
                     }
                 }
                 // (the selection shows the focus; classic's dotted rectangle too)
-                if selected && focused && l.classic {
+                if s.view.caret == Some(*i as u64) && focused && l.classic {
                     common::row_focus(p, row, l);
                 }
             }
@@ -645,16 +673,73 @@ impl Console {
         .flatten()
     }
 
-    /// The caret moves to `to` (absolute; Shift: the selection reaches it).
+    /// The caret moves to `to` (absolute; Shift: the selection reaches it —
+    /// a text selection keeps its caret's column on the new line; else the
+    /// lines are selected whole).
     fn move_caret(cx: &Cx, to: u64, extend: bool) {
         model::with_mut(cx.id, |c| {
             let v = c.view_mut();
             if !(extend && v.anchor.is_some()) {
                 v.anchor = Some(to);
+                v.cols = None;
             }
             v.caret = Some(to);
             v.follow = false;
         });
+    }
+
+    /// A text selection from (line, character) `from` to `to`.
+    fn select_text(cx: &Cx, from: (u64, usize), to: (u64, usize)) {
+        model::with_mut(cx.id, |c| {
+            let v = c.view_mut();
+            v.anchor = Some(from.0);
+            v.caret = Some(to.0);
+            v.cols = Some((from.1, to.1));
+            v.follow = false;
+        });
+    }
+
+    /// The line and character a drag at (x, y) reaches: inside the page,
+    /// what's under it; above the page, its first line in view (from its
+    /// start), below it, its last (to its end).
+    fn drag_hit(cx: &Cx, g: &Geo, x: f64, y: f64) -> Option<(u64, usize)> {
+        let (bx, by, bw, bh) = g.body;
+        let inside_y = y.clamp(by as f64, (by + bh - 1).max(by) as f64);
+        let (line, ch) = Self::hit(cx, g, x.clamp(bx as f64, (bx + bw - 1).max(bx) as f64), inside_y)?;
+        if y < by as f64 {
+            return Some((line, 0));
+        }
+        if y >= (by + bh) as f64 {
+            let len = model::with(cx.id, |c| line.checked_sub(c.first(c.page)).and_then(|i| c.line_text(c.page, i as usize)).map_or(0, |t| t.chars().count())).unwrap_or(0);
+            return Some((line, len));
+        }
+        Some((line, ch))
+    }
+
+    /// The drag's selection to (line, character) `to`, as the press's unit
+    /// makes it: characters from the press; a double click's word kept
+    /// whole, the selection growing from its far end; a triple click's
+    /// lines whole.
+    fn drag_to(cx: &Cx, press: &mut Press, to: (u64, usize)) {
+        match press.unit {
+            Unit::Line => Self::move_caret(cx, to.0, true),
+            Unit::Word(a, b) => {
+                let line = press.at.0;
+                if to < (line, a) {
+                    Self::select_text(cx, (line, b), to);
+                } else if to > (line, b) {
+                    Self::select_text(cx, (line, a), to);
+                } else {
+                    Self::select_text(cx, (line, a), (line, b));
+                }
+            }
+            Unit::Char => {
+                if to != press.at || press.dragged {
+                    press.dragged = true;
+                    Self::select_text(cx, press.at, to);
+                }
+            }
+        }
     }
 
     /// OnLinkClick for the problem at row `i`, or the first link on line
@@ -844,6 +929,22 @@ impl ComponentKind for Console {
     fn mouse(&self, cx: &mut Cx, m: &MouseIn) -> MouseOut {
         let g = geo(cx);
         let (bx, by, bw, bh) = g.body;
+        // (a right press — before the context menu opens: what its Copy
+        // Line copies; a problem's row not selected yet is selected, as a
+        // list's; a text selection stays)
+        if m.button == Button::Right {
+            if m.kind == MouseKind::Down {
+                let hit = Self::hit(cx, &g, m.x, m.y);
+                let problems = model::with(cx.id, |c| c.page == Page::Problems).unwrap_or(false);
+                model::with_mut(cx.id, |c| c.pressed_line = hit.map(|h| h.0));
+                if let (Some((at, _)), true) = (hit, problems) {
+                    if !model::with(cx.id, |c| c.view().selection().is_some_and(|(a, b)| (a..=b).contains(&at))).unwrap_or(false) {
+                        Self::move_caret(cx, at, false);
+                    }
+                }
+            }
+            return MouseOut::default();
+        }
         let inner = MouseIn { x: m.x - bx as f64, y: m.y - by as f64, ..*m };
         if bar_mouse(cx, &inner, bw, bh) {
             Self::follow_bar(cx, &g);
@@ -865,12 +966,26 @@ impl ComponentKind for Console {
                 });
             }
             MouseKind::Move if m.captured => {
-                // (a drag over the lines: the selection follows)
-                if let Some((at, _)) = Self::hit(cx, &g, m.x, m.y.clamp(by as f64, (by + bh - 1) as f64)) {
-                    if model::with(cx.id, |c| c.page != Page::Problems).unwrap_or(false) {
-                        Self::move_caret(cx, at, true);
+                // (a drag: the selection follows — characters, words or
+                // lines as the press selected them; a problem's rows. Past
+                // the page's top or bottom it scrolls on while the mouse is
+                // held there: tick)
+                let Some(mut press) = PRESSED.with(|p| p.borrow().get(cx.id).copied()) else { return MouseOut::default() };
+                press.mouse = (m.x, m.y);
+                if let Some(to) = Self::drag_hit(cx, &g, m.x, m.y) {
+                    if model::with(cx.id, |c| c.page == Page::Problems).unwrap_or(false) {
+                        if to.0 != press.at.0 {
+                            press.dragged = true;
+                        }
+                        Self::move_caret(cx, to.0, true);
+                    } else {
+                        Self::drag_to(cx, &mut press, to);
                     }
                 }
+                if m.y < by as f64 || m.y >= (by + bh) as f64 {
+                    cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
+                }
+                PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), press));
             }
             MouseKind::Move => {
                 let tab = g.tabs.iter().position(|&r| common::inside(r, x, y));
@@ -895,17 +1010,66 @@ impl ComponentKind for Console {
                 }
                 Self::stop_search(cx);
                 if let Some((at, ch)) = Self::hit(cx, &g, m.x, m.y) {
-                    Self::move_caret(cx, at, m.mods.shift);
-                    let link = model::with(cx.id, |c| if c.page == Page::Problems { Some(Match { line: at, start: 0, end: 0 }) } else { c.link_at(at, ch).map(|(_, mm)| mm) }).flatten();
+                    let problems = model::with(cx.id, |c| c.page == Page::Problems).unwrap_or(false);
+                    model::with_mut(cx.id, |c| c.pressed_line = Some(at));
+                    // (a click selects the line — Ctrl+C copies it —, a
+                    // double click the word, a triple click the line again;
+                    // Shift + a click: the selection reaches it, by
+                    // characters when it was a text selection)
+                    let text_sel = model::with(cx.id, |c| c.view().cols.is_some() && c.view().anchor.is_some()).unwrap_or(false);
+                    let unit = match m.clicks {
+                        _ if problems || m.mods.shift => Unit::Char,
+                        2 => {
+                            model::with_mut(cx.id, |c| c.select_word(at, ch));
+                            let (a, b) = model::with(cx.id, |c| c.view().cols.unwrap_or((ch, ch))).unwrap_or((ch, ch));
+                            Unit::Word(a, b)
+                        }
+                        n if n >= 3 => Unit::Line,
+                        _ => Unit::Char,
+                    };
+                    if m.clicks < 2 || problems || m.mods.shift {
+                        if m.mods.shift && text_sel && !problems {
+                            model::with_mut(cx.id, |c| {
+                                let v = c.view_mut();
+                                v.caret = Some(at);
+                                v.cols = v.cols.map(|(a, _)| (a, ch));
+                                v.follow = false;
+                            });
+                        } else {
+                            Self::move_caret(cx, at, m.mods.shift);
+                        }
+                    } else if unit == Unit::Line {
+                        Self::move_caret(cx, at, false);
+                    }
+                    // (a link — a problem — opens when let go on, unless the
+                    // press became a drag)
+                    let link = if m.mods.shift || (m.clicks >= 2 && !problems) {
+                        None
+                    } else {
+                        model::with(cx.id, |c| if c.page == Page::Problems { Some(Match { line: at, start: 0, end: 0 }) } else { c.link_at(at, ch).map(|(_, mm)| mm) }).flatten()
+                    };
                     model::with_mut(cx.id, |c| c.hover_link = link.filter(|_| c.page != Page::Problems));
-                    PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), link));
+                    // (Shift + a click extends from the selection's anchor: a
+                    // drag on from it too)
+                    let from = model::with(cx.id, |c| {
+                        let v = c.view();
+                        match (m.mods.shift, v.anchor, v.cols) {
+                            (true, Some(a), Some((ac, _))) => (a, ac),
+                            _ => (at, ch),
+                        }
+                    })
+                    .unwrap_or((at, ch));
+                    let press = Press { link, at: from, unit, dragged: m.mods.shift && text_sel, mouse: (m.x, m.y) };
+                    PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), press));
                 } else {
+                    model::with_mut(cx.id, |c| c.pressed_line = None);
                     PRESSED.with(|p| p.borrow_mut().remove(cx.id));
                 }
             }
             MouseKind::Up => {
-                let pressed = PRESSED.with(|p| p.borrow_mut().remove(cx.id)).flatten();
-                if let (Some(pm), Some((at, ch))) = (pressed, Self::hit(cx, &g, m.x, m.y)) {
+                let pressed = PRESSED.with(|p| p.borrow_mut().remove(cx.id));
+                let link = pressed.filter(|p| !p.dragged).and_then(|p| p.link);
+                if let (Some(pm), Some((at, ch))) = (link, Self::hit(cx, &g, m.x, m.y)) {
                     let same = model::with(cx.id, |c| if c.page == Page::Problems { at == pm.line } else { c.link_at(at, ch).is_some_and(|(_, mm)| mm == pm) }).unwrap_or(false);
                     if same && m.inside {
                         Self::open_at(cx, pm.line, pm.start);
@@ -929,7 +1093,35 @@ impl ComponentKind for Console {
         if bar_tick(cx) {
             let g = geo(cx);
             Self::follow_bar(cx, &g);
+            return;
         }
+        // (a drag held past the page's top or bottom: the selection a line
+        // further each time, the page scrolling with it)
+        let Some(mut press) = PRESSED.with(|p| p.borrow().get(cx.id).copied()) else { return };
+        let g = geo(cx);
+        let (_, by, _, bh) = g.body;
+        let (up, down) = (press.mouse.1 < by as f64, press.mouse.1 >= (by + bh) as f64);
+        if !up && !down {
+            return;
+        }
+        let next = model::with(cx.id, |c| {
+            let (first, count) = (c.first(c.page), c.count(c.page) as u64);
+            let caret = c.view().caret?;
+            let to = if up { caret.checked_sub(1).filter(|&l| l >= first)? } else { Some(caret + 1).filter(|&l| l < first + count)? };
+            let len = c.line_text(c.page, (to - first) as usize).map_or(0, |t| t.chars().count());
+            Some((c.page == Page::Problems, (to, if up { 0 } else { len })))
+        })
+        .flatten();
+        if let Some((problems, to)) = next {
+            if problems {
+                Self::move_caret(cx, to.0, true);
+            } else {
+                press.dragged = true;
+                Self::drag_to(cx, &mut press, to);
+            }
+            PRESSED.with(|p| p.borrow_mut().insert(cx.id.to_string(), press));
+        }
+        cx.ui.wake = Some(crate::tick::now() + crate::tick::REPEAT);
     }
 
     fn key(&self, cx: &mut Cx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
@@ -950,15 +1142,14 @@ impl ComponentKind for Console {
                 model::with_mut(cx.id, |c| c.find_next(k.mods.shift));
             }
             vk::ESCAPE if !filter.is_empty() => model::with_mut(cx.id, |c| c.clear_filter()),
-            // Ctrl+A: every line
-            65 if ctrl && page != Page::Problems => model::with_mut(cx.id, |c| {
+            // Ctrl+A: every line (every problem)
+            65 if ctrl => model::with_mut(cx.id, |c| {
                 if count > 0 {
-                    let v = c.view_mut();
-                    v.anchor = Some(first);
-                    v.caret = Some(first + count as u64 - 1);
+                    c.select_all();
                 }
             }),
-            // Ctrl+C / Cmd+C (Ctrl+Insert): the selected lines
+            // Ctrl+C / Cmd+C (Ctrl+Insert): what's selected — the characters
+            // dragged over, else the selected lines (problems), as text
             67 | 45 if ctrl => {
                 if let Some(t) = model::with(cx.id, |c| c.selected_text()).flatten() {
                     clip.set_text(&t);
@@ -980,7 +1171,7 @@ impl ComponentKind for Console {
             vk::UP | vk::DOWN | vk::PAGE_UP | vk::PAGE_DOWN | vk::HOME | vk::END if !ctrl || matches!(k.vk, vk::HOME | vk::END) => {
                 let at = caret.and_then(|c| c.checked_sub(first)).map(|c| c as usize);
                 if let Some(to) = rows::nav(k.vk, at, count, page_rows) {
-                    Self::move_caret(cx, first + to as u64, k.mods.shift && page != Page::Problems);
+                    Self::move_caret(cx, first + to as u64, k.mods.shift);
                 }
             }
             _ if !k.text.is_empty() && !ctrl && !k.mods.alt && k.text.chars().all(|c| !c.is_control()) && g.search.is_some() => {
@@ -1093,6 +1284,9 @@ impl ComponentKind for Console {
             let start = f.line_at((pos - 2).max(0)).unwrap_or(0);
             let end = f.line_at(pos + g.body.3).map_or(0, |i| i + 1);
             t.value = model::with(cx.id, |c| (start..end.min(c.count(page))).filter_map(|i| c.line_text(page, i)).collect::<Vec<_>>().join("\n"));
+            // (read by character, word and line, the selection said as it
+            // changes — a text editor's)
+            t.text = Some(Box::new(Self::text_info(cx, &g, &f, start, end, pos, (x0, y0))));
             n.children.push(t);
         }
         n
@@ -1130,12 +1324,124 @@ impl ComponentKind for Console {
     }
 }
 
+/// What a press selects as the mouse drags on from it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Unit {
+    /// Characters (a click).
+    Char,
+    /// A double click's word (its characters on the press's line): kept
+    /// whole as the drag grows the selection from its far end.
+    Word(usize, usize),
+    /// Lines whole (a triple click).
+    Line,
+}
+
+/// A left press held on the page.
+#[derive(Clone, Copy, Debug)]
+struct Press {
+    /// The link (a problem) pressed: its release on the same one opens it,
+    /// unless the press became a drag.
+    link: Option<Match>,
+    /// Where the selection grows from: (line, character).
+    at: (u64, usize),
+    unit: Unit,
+    /// The mouse moved off the press's character: a text selection.
+    dragged: bool,
+    /// The mouse's last place (the component's): held past the page's top
+    /// or bottom, the page scrolls on.
+    mouse: (f64, f64),
+}
+
 thread_local! {
-    /// A press on a link (a problem): its release on the same one opens it.
-    static PRESSED: std::cell::RefCell<std::collections::HashMap<String, Option<Match>>> = std::cell::RefCell::new(std::collections::HashMap::new());
+    /// The press held on each console.
+    static PRESSED: std::cell::RefCell<std::collections::HashMap<String, Press>> = std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
 impl Console {
+    /// The lines in view (`start..end`, from 0) as a screen reader reads a
+    /// text field's — a run a row (a long row in pieces), each line's last
+    /// ending with its line break — and the selection on them.
+    fn text_info(cx: &Cx, g: &Geo, f: &Flow, start: usize, end: usize, pos: i64, (x0, y0): (i64, i64)) -> TextInfo {
+        const RUN_CHARS: usize = 255;
+        let (bx, by, _, _) = g.body;
+        let Some((first, view, lines)) = model::with(cx.id, |c| (c.first(c.page), *c.view(), (start..end.min(c.count(c.page))).map(|i| c.line_text(c.page, i).unwrap_or_default()).collect::<Vec<_>>())) else {
+            return TextInfo::default();
+        };
+        let n = lines.len();
+        let mut runs: Vec<TextRun> = Vec::new();
+        // (each run's line — from `start` —, first and end characters)
+        let mut spans: Vec<(usize, usize, usize)> = Vec::new();
+        let width = |c: &char| text_size(&c.to_string(), &g.mono).0 as f32;
+        for (k, text) in lines.iter().enumerate() {
+            let i = start + k;
+            let chars: Vec<char> = text.chars().collect();
+            let top = by + 2 + f.top(i) - pos;
+            let mut pieces = Vec::new();
+            for (r, &(ra, rb)) in f.rows_of(i, chars.len()).iter().enumerate() {
+                let mut a = ra;
+                loop {
+                    let b = (a + RUN_CHARS).min(rb);
+                    pieces.push((r, ra, a, b));
+                    if b >= rb {
+                        break;
+                    }
+                    a = b;
+                }
+            }
+            let np = pieces.len();
+            for (pi, &(r, ra, a, b)) in pieces.iter().enumerate() {
+                let line_end = pi + 1 == np;
+                let mut run = TextRun {
+                    id: rapidr_value::objects::a11y::node_id(&format!("{}$line${}${pi}", cx.id, first + i as u64)),
+                    text: chars[a..b].iter().collect(),
+                    continues: !line_end,
+                    ..TextRun::default()
+                };
+                run.char_lengths = chars[a..b].iter().map(|c| c.len_utf8() as u8).collect();
+                run.word_starts = (a..b).filter(|&j| !chars[j].is_whitespace() && (j == 0 || chars[j - 1].is_whitespace())).map(|j| (j - a) as u8).collect();
+                let left = x0 + bx + MARGIN + chars[ra..a].iter().map(width).sum::<f32>() as i64;
+                let mut x = 0.0f32;
+                for c in &chars[a..b] {
+                    let w = width(c);
+                    run.char_positions.push(x);
+                    run.char_widths.push(w);
+                    x += w;
+                }
+                if line_end && k + 1 < n {
+                    run.text.push('\n');
+                    run.char_lengths.push(1);
+                    run.char_positions.push(x);
+                    run.char_widths.push(0.0);
+                }
+                run.bounds = (left, y0 + top + r as i64 * g.lh, (x.ceil() as i64).max(1), g.lh);
+                runs.push(run);
+                spans.push((k, a, b));
+            }
+        }
+        // (a place — absolute line, character — as a run and a character in
+        // it; one out of view: the nearest end of the text in view)
+        let pos_of = |line: u64, col: usize| -> TextPos {
+            let Some(k) = line.checked_sub(first + start as u64).map(|k| k as usize) else { return TextPos::default() };
+            if k >= n {
+                return runs.len().checked_sub(1).map_or(TextPos::default(), |r| TextPos { run: r, char_index: runs[r].char_lengths.len() });
+            }
+            let i0 = spans.partition_point(|&(l, _, _)| l < k);
+            let i1 = spans.partition_point(|&(l, _, _)| l <= k);
+            let run = (i0..i1).find(|&r| col < spans[r].2).unwrap_or(i1.saturating_sub(1).max(i0));
+            let Some(&(_, a, b)) = spans.get(run) else { return TextPos::default() };
+            TextPos { run, char_index: col.clamp(a, b) - a }
+        };
+        let len_of = |line: u64| line.checked_sub(first).and_then(|i| i.checked_sub(start as u64)).and_then(|k| lines.get(k as usize)).map_or(0, |t| t.chars().count());
+        let selection = match (view.anchor, view.caret, view.cols) {
+            (Some(a), Some(c), Some((ac, cc))) => Some((pos_of(a, ac), pos_of(c, cc))),
+            // (whole lines: from the first's start to the last's end)
+            (Some(a), Some(c), None) if a <= c => Some((pos_of(a, 0), pos_of(c, len_of(c)))),
+            (Some(a), Some(c), None) => Some((pos_of(a, len_of(a)), pos_of(c, 0))),
+            _ => None,
+        };
+        TextInfo { runs, selection: selection.filter(|_| !spans.is_empty()) }
+    }
+
     /// The link pressed and let go on (line `line`, its start `start`; a
     /// problem's row): OnLinkClick.
     fn open_at(cx: &mut Cx, line: u64, start: usize) {
@@ -1261,6 +1567,259 @@ mod tests {
         assert_eq!(con.children[0].children.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(), ["Output", "Build", "Problems (1 warning)"]);
         assert_eq!(con.children.last().unwrap().children[0].name, "Warning: w, a.bas line 3");
         model::remove("con1");
+    }
+
+    /// (COPY-ANYWHERE) The classic look's places: a character's middle on a
+    /// line (Courier New's 8-pixel cells from the text's margin).
+    fn char_at(k: i64, line: i64) -> (f64, f64) {
+        let lh = rapidr_value::objects::text::text_size("Ag", &super::Console::mono_default()).1 + 2;
+        let cw = rapidr_value::objects::text::text_size("M", &super::Console::mono_default()).0;
+        ((2 + super::MARGIN + k * cw + cw / 2) as f64, (2 + 28 + 2 + line * lh + lh / 2) as f64)
+    }
+
+    fn drag(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, from: (f64, f64), to: (f64, f64)) {
+        f.forget_clicks();
+        f.mouse_down(s, ts, from.0, from.1, Button::Left, Mods::NONE);
+        let steps = 4;
+        for k in 1..=steps {
+            let t = f64::from(k) / f64::from(steps);
+            f.mouse_move(s, ts, from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t, Mods::NONE);
+        }
+        f.mouse_up(s, ts, to.0, to.1, Button::Left, Mods::NONE);
+    }
+
+    fn copy(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, mods: Mods) -> Option<String> {
+        let mut clip = MemClipboard::default();
+        f.key_down(s, ts, 67, "", mods, &mut clip);
+        clip.0
+    }
+
+    /// A drag selects characters — inside a line, across lines (by the
+    /// characters, a coloured line's text without its escape sequences) —
+    /// and Ctrl+C / Cmd+C copies exactly them; a plain click still selects
+    /// the line, Ctrl+A everything.
+    #[test]
+    fn a_drag_selects_text_and_copies_exactly_it() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_drag");
+        let mut ts = TextSystem::new();
+        model::remove("con_drag");
+        model::with_mut("con_drag", |c| c.write("alpha\nbravo charlie delta\n\x1b[31mecho\x1b[0m foxtrot\n"));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        // the middle of line 2: "charlie"
+        let (a, b) = (char_at(6, 1), char_at(12, 1));
+        drag(&mut f, &s, &mut ts, (a.0 - 3.0, a.1), (b.0 + 3.0, b.1));
+        assert_eq!(model::with("con_drag", |c| c.view().cols).flatten(), Some((6, 13)));
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).as_deref(), Some("charlie"));
+        // (⌘C on a Mac; Ctrl+Insert)
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { command: true, ..Mods::NONE }).as_deref(), Some("charlie"));
+        let mut clip = MemClipboard::default();
+        f.key_down(&s, &mut ts, 45, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some("charlie"));
+        // the selection is drawn over those characters only, in the
+        // selection's colours
+        let l = super::look(rapidr_value::theme::current());
+        let drawn = f.paint(&s, &mut ts, 1.0).dump();
+        assert!(drawn.contains("\"charlie\""), "the selected run is its own text op: {drawn}");
+        assert!(drawn.contains("\"bravo \""), "{drawn}");
+        // (the mark starts where "charlie" is drawn and is as wide as it,
+        // in the selection's colours; nothing else is marked)
+        let ink = drawn.lines().find(|d| d.contains("\"charlie\"")).unwrap();
+        assert!(ink.contains(&format!("#{:06x}", l.selected_text)), "{ink}");
+        let at = ink.split_whitespace().nth(1).unwrap().to_string();
+        let marks: Vec<&str> = drawn.lines().filter(|d| d.starts_with("fill ") && d.contains(&format!("#{:06x}", l.selected))).collect();
+        let w = rapidr_value::objects::text::text_size("charlie", &super::Console::mono_default()).0;
+        assert_eq!(marks.len(), 1, "{drawn}");
+        let mark: Vec<&str> = marks[0].split_whitespace().collect();
+        let mw: i64 = mark[2].split('x').next().unwrap().parse().unwrap();
+        assert!(mark[1] == at && (mw - w).abs() <= 1, "{marks:?}: at {at}, {w} wide");
+        // across lines, backwards: from "lie" of line 2 to "ho" of line 3
+        // (the red "echo": its text, no escape sequence)
+        let (a, b) = (char_at(2, 2), char_at(10, 1));
+        drag(&mut f, &s, &mut ts, (a.0 - 3.0, a.1), (b.0 - 3.0, b.1));
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).as_deref(), Some("lie delta\nec"));
+        // a click: the line, whole (as before)
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, 100.0, char_at(0, 0).1, Mods::NONE);
+        assert_eq!(model::with("con_drag", |c| c.view().cols).flatten(), None);
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).as_deref(), Some("alpha"));
+        // Ctrl+A: every line
+        let mut clip = MemClipboard::default();
+        f.key_down(&s, &mut ts, 65, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).as_deref(), Some("alpha\nbravo charlie delta\necho foxtrot"));
+        model::remove("con_drag");
+    }
+
+    /// A double click selects the word, a triple click the line; Shift + a
+    /// click extends a text selection by characters.
+    #[test]
+    fn double_and_triple_clicks_and_shift_click() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_dbl");
+        let mut ts = TextSystem::new();
+        model::remove("con_dbl");
+        model::with_mut("con_dbl", |c| c.write("x = my_value + 12\nsecond line\n"));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let p = char_at(7, 0);
+        let ctrl = Mods { ctrl: true, ..Mods::NONE };
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, p.0, p.1, Mods::NONE);
+        click(&mut f, &s, &mut ts, p.0, p.1, Mods::NONE);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("my_value"));
+        click(&mut f, &s, &mut ts, p.0, p.1, Mods::NONE);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("x = my_value + 12"));
+        // Shift + a click: a text selection reaches it
+        let (a, b) = (char_at(4, 0), char_at(5, 0));
+        drag(&mut f, &s, &mut ts, (a.0 - 3.0, a.1), (b.0 - 3.0, b.1));
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("m"));
+        let q = char_at(6, 1);
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, q.0 - 3.0, q.1, Mods::SHIFT);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("my_value + 12\nsecond"));
+        model::remove("con_drag");
+    }
+
+    /// A link opens on a click, never on a drag that starts on it (that
+    /// selects); a right press keeps the selection and says which line the
+    /// context menu's Copy Line copies.
+    #[test]
+    fn a_drag_from_a_link_selects_and_a_right_press_keeps_the_selection() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_link");
+        let mut ts = TextSystem::new();
+        model::remove("con_link");
+        model::with_mut("con_link", |c| c.write("first\nsee Main.rr:12 here\nthird\n"));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let on_link = char_at(4, 1);
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, on_link.0, on_link.1, Mods::NONE);
+        assert_eq!(panel_events(&mut f), vec![User::Console(model::User::Link("Main.rr".into(), 12))]);
+        let to = char_at(17, 1);
+        drag(&mut f, &s, &mut ts, (on_link.0 - 3.0, on_link.1), (to.0 - 3.0, to.1));
+        assert_eq!(panel_events(&mut f), vec![], "a drag opens nothing");
+        assert_eq!(copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).as_deref(), Some("Main.rr:12 he"));
+        // a right press on line 3: the selection stays, ClickedLine is 2
+        let r = char_at(2, 2);
+        f.mouse_down(&s, &mut ts, r.0, r.1, Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, r.0, r.1, Button::Right, Mods::NONE);
+        assert_eq!(model::with("con_link", |c| (c.pressed_index(), c.selected_text())), Some((Some(2), Some("Main.rr:12 he".into()))));
+        assert_eq!(model::with("con_link", |c| c.copy_line_text(None)).flatten().as_deref(), Some("third"));
+        model::remove("con_link");
+    }
+
+    /// A drag held below the page scrolls it on, the selection growing a
+    /// line at a time to the last; a wrapped line is copied as the line it
+    /// is (no breaks where it wrapped).
+    #[test]
+    fn a_drag_past_the_bottom_scrolls_and_wrapped_lines_copy_whole() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_auto2");
+        let mut ts = TextSystem::new();
+        model::remove("con_auto2");
+        let long = "word ".repeat(60).trim_end().to_string();
+        model::with_mut("con_auto2", |c| {
+            c.write(&format!("top\n{long}\n"));
+            for i in 0..40 {
+                c.write(&format!("line {i}\n"));
+            }
+            let first = c.first(Page::Output);
+            let v = c.view_mut();
+            v.follow = false;
+            v.top = first;
+        });
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        // from "top" into the long line's third row: the long line's
+        // characters, one line of text
+        let a = char_at(0, 0);
+        let b = char_at(3, 3);
+        drag(&mut f, &s, &mut ts, (a.0 - 3.0, a.1), (b.0 - 3.0, b.1));
+        let got = copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).unwrap();
+        assert!(got.starts_with("top\nword word") && got.lines().count() == 2, "{got:?}");
+        // held under the page: ticks scroll it, the selection reaching the end
+        f.forget_clicks();
+        f.mouse_down(&s, &mut ts, a.0 - 3.0, a.1, Button::Left, Mods::NONE);
+        f.mouse_move(&s, &mut ts, 100.0, 260.0, Mods::NONE);
+        let top0 = model::with("con_auto2", |c| c.view().top).unwrap();
+        for _ in 0..60 {
+            f.tick(&s, &mut ts, crate::tick::now() + std::time::Duration::from_secs(5));
+            f.paint(&s, &mut ts, 1.0);
+        }
+        f.mouse_up(&s, &mut ts, 100.0, 260.0, Button::Left, Mods::NONE);
+        assert!(model::with("con_auto2", |c| c.view().top).unwrap() > top0, "it scrolled");
+        let all = copy(&mut f, &s, &mut ts, Mods { ctrl: true, ..Mods::NONE }).unwrap();
+        assert!(all.starts_with("top\n") && all.ends_with("line 39"), "{all:?}");
+        model::remove("con_auto2");
+    }
+
+    /// The Problems page: a row selected, Shift + a click selects several;
+    /// a copy is each row as `file:line:col: severity: message`; Ctrl+A
+    /// selects them all.
+    #[test]
+    fn problems_rows_copy_as_file_line_col_severity_message() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_prob");
+        let mut ts = TextSystem::new();
+        model::remove("con_prob");
+        model::with_mut("con_prob", |c| {
+            c.add_problem(Problem { file: "main.rr".into(), line: 4, col: 7, severity: Severity::Error, message: "Undefined variable X".into(), heading: false, icon: String::new() });
+            c.add_problem(Problem { file: "main.rr".into(), line: 9, col: 1, severity: Severity::Warning, message: "unused".into(), heading: false, icon: String::new() });
+            c.add_problem(Problem { file: "b.rr".into(), line: 2, col: 3, severity: Severity::Info, message: "note".into(), heading: false, icon: String::new() });
+            c.show(Page::Problems);
+        });
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let row = |k: i64| (2 + 28 + k * rapidr_value::panels::rows::ROW + rapidr_value::panels::rows::ROW / 2) as f64;
+        let ctrl = Mods { ctrl: true, ..Mods::NONE };
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, 100.0, row(0), Mods::NONE);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("main.rr:4:7: error: Undefined variable X"));
+        f.forget_clicks();
+        click(&mut f, &s, &mut ts, 100.0, row(1), Mods::SHIFT);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).as_deref(), Some("main.rr:4:7: error: Undefined variable X\nmain.rr:9:1: warning: unused"));
+        // both rows drawn selected
+        let drawn = f.paint(&s, &mut ts, 1.0).dump();
+        assert!(drawn.contains("Undefined variable X") && drawn.contains("unused"), "{drawn}");
+        let mut clip = MemClipboard::default();
+        f.key_down(&s, &mut ts, 65, "", ctrl, &mut clip);
+        assert_eq!(copy(&mut f, &s, &mut ts, ctrl).unwrap().lines().count(), 3);
+        // a right press on a row not selected selects it
+        model::with_mut("con_prob", |c| {
+            let v = c.view_mut();
+            v.anchor = Some(0);
+            v.caret = Some(0);
+        });
+        f.mouse_down(&s, &mut ts, 100.0, row(2), Button::Right, Mods::NONE);
+        f.mouse_up(&s, &mut ts, 100.0, row(2), Button::Right, Mods::NONE);
+        assert_eq!(model::with("con_prob", |c| c.selected_text()).flatten().as_deref(), Some("b.rr:2:3: info: note"));
+        model::remove("con_prob");
+    }
+
+    /// A screen reader reads the page as a text field — by character, word
+    /// and line — and hears the selection as it changes.
+    #[test]
+    fn the_selection_is_a_screen_readers_text_selection() {
+        rapidr_value::theme::set(&rapidr_value::theme::CLASSIC);
+        let s = store("con_ax");
+        let mut ts = TextSystem::new();
+        model::remove("con_ax");
+        model::with_mut("con_ax", |c| c.write("alpha\nbravo charlie\n"));
+        let mut f = FormUi::build(&s, "cform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let (a, b) = (char_at(6, 1), char_at(9, 1));
+        drag(&mut f, &s, &mut ts, (a.0 - 3.0, a.1), (b.0 - 3.0, b.1));
+        let tree = f.access_tree(&s, &mut ts);
+        let text = tree.children[0].children.last().unwrap();
+        let info = text.text.as_ref().expect("text runs");
+        assert_eq!(info.runs.iter().map(|r| r.text.as_str()).collect::<String>(), "alpha\nbravo charlie");
+        assert_eq!(info.runs.len(), 2);
+        let (from, to) = info.selection.unwrap();
+        assert_eq!((from.run, from.char_index, to.run, to.char_index), (1, 6, 1, 9));
+        assert!(info.runs[1].char_positions.len() == "bravo charlie".len() && info.runs[1].char_widths.iter().all(|&w| w > 0.0));
+        model::remove("con_ax");
     }
 
     /// WordWrap (on by default): a line longer than the page wraps onto more
