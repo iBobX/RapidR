@@ -23,9 +23,11 @@
 //   Read only           reading works; a change and a run are refused, said
 //                       in plain words
 //
-// and a waiting change and Settings > AI Apps are captured.
+// and a waiting change and Settings > AI Apps are captured; the
+// first-time question (turning the switch on) answered both ways; the
+// activity's Copy.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|settings …]
+//   node tests/studio_mcp.mjs [all|ask|edits|read|picture|badge|consent|settings …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -77,11 +79,12 @@ function env(name) {
 }
 
 /// Studio with a copy of the fixture project (`name`'s own), the steps,
-/// the events (the "user"), what to print at the end.
-function studio(name, steps, events, dump) {
+/// the events (the "user"), what to print at the end (`more`: more of the
+/// hooks' environment).
+function studio(name, steps, events, dump, more = {}) {
   cpSync(join(ROOT, "tests", "fixtures", "studio_mcp"), join(WORK, name), { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", "rapidr-light", "--do", steps, join(WORK, name, "Hello.rrproj")];
-  const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump }, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(RAPIDR, args, { cwd: ROOT, env: { ...env(name), RAPIDR_TEST_EVENTS: events, RAPIDR_TEST_DUMP: dump, ...more }, stdio: ["ignore", "pipe", "pipe"] });
   children.push(child);
   let out = "";
   child.stdout.on("data", (d) => (out += d));
@@ -349,7 +352,7 @@ if (want("picture")) {
 // ---- Allow everything's badge (the picture: the pane in front, its list) ----------------
 if (want("badge")) {
   const PORT = BASE_PORT + 6;
-  const run = studio("badge", `mcp:mode=all,mcp:on=${PORT}`, until("Checking (compiling)"), "mcpbadge.__shown");
+  const run = studio("badge", `mcp:mode=all,mcp:on=${PORT}`, `${until("Checking (compiling)")},mcplogitem(0).onclick`, "mcpbadge.__shown,clipboard.text", { RAPIDR_TEST_CLIPBOARD: "1" });
   check("Allow everything (picture): Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   await tool("studio_status");
@@ -358,7 +361,26 @@ if (want("badge")) {
   await tool("check_code");
   const end = await run.ended(90000);
   check("Allow everything: the badge shows in the pane in front", end.lines["mcpbadge.__shown"] === "1", JSON.stringify(end.lines));
+  check("the activity's Copy: its last line as plain text", /^\d\d:\d\d:\d\d  studio-test  Checking \(compiling\)  — ok$/.test(end.lines["clipboard.text"] || ""), JSON.stringify(end.lines));
   if (existsSync(join(WORK, "badge-window-1.bmp"))) spawnSync("sips", ["-s", "format", "png", join(WORK, "badge-window-1.bmp"), "--out", join(WORK, "studio-mcp-allow-everything-pane.png")], { stdio: "ignore" });
+}
+
+// ---- the first-time question (turning the switch on): Cancel by Enter, Turn On ---------
+if (want("consent")) {
+  const no = studio("consent-no", "mcp:consent", "consentno.__key_13", "mcponbox.checked,consenttitle.caption,consentyes.caption,consentno.default");
+  let end = await no.ended(90000);
+  check("the first-time question: its title, Turn On, Cancel the default", end.lines["consenttitle.caption"] === "Let AI apps use RapidR Studio?" && end.lines["consentyes.caption"] === "&Turn On" && shown(end.lines["consentno.default"]), JSON.stringify(end.lines));
+  check("Enter answers Cancel: the switch stays off", end.lines["mcponbox.checked"] === "0", JSON.stringify(end.lines));
+  const yes = studio("consent-yes", "mcp:consent", "consentyes.onclick", "mcponbox.checked");
+  end = await yes.ended(90000);
+  check("Turn On: the switch on", shown(end.lines["mcponbox.checked"]), JSON.stringify(end.lines));
+  // (the pane's menu set to Allow everything: its question, Cancel by Enter, then Allow Everything)
+  const keep = studio("all-no", `mcp:on=${BASE_PORT + 7},mcp:pane`, "mcpmodebox.__item_3,consentno.__key_13", "mcpmodebox.text,mcpbadge.visible,consenttitle.caption");
+  end = await keep.ended(90000);
+  check("Allow everything asked first; Enter keeps Ask before changes", end.lines["consenttitle.caption"] === "Allow everything for AI apps in this project?" && end.lines["mcpmodebox.text"] === "Ask before changes" && !shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
+  const all = studio("all-yes", `mcp:on=${BASE_PORT + 8},mcp:pane`, "mcpmodebox.__item_3,consentyes.onclick", "mcpmodebox.text,mcpbadge.visible");
+  end = await all.ended(90000);
+  check("Allow Everything: the mode and its chip", end.lines["mcpmodebox.text"] === "Allow everything" && shown(end.lines["mcpbadge.visible"]), JSON.stringify(end.lines));
 }
 
 // ---- Settings > AI Apps ---------------------------------------------------------------

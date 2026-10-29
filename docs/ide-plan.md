@@ -46,6 +46,7 @@ These are the project's standing rules, restated so this plan stands alone.
 7. **Secure by default** (principle 4): untrusted code, imported projects and AI output never get more privilege than they asked for.
 8. **Local verification.** No remote CI (it costs money); `tools/regress.sh` is the gate. Each stage adds its suites there. Real printers are never used by tests (`RAPIDR_PRINT_TO`).
 9. **Close gaps before new work.** A stage isn't done while one runtime (native, interpreter, web) lags.
+10. **One design.** UI work reads [design-guidelines.md](design-guidelines.md) first and runs its checklist before merging: colours only from theme tokens, compact controls 24 px on one centre line in panes and strips, dialog buttons 32, soft status chips, plain words (`tools/check_design.py` in `tools/regress.sh`).
 
 ---
 
@@ -493,6 +494,7 @@ The IDE is fully usable with a keyboard and with VoiceOver, NVDA, JAWS, Narrator
 - Every panel is a kernel component with an accessibility description; the dock manager exposes areas as landmarks (groups with names), F6 / Shift+F6 cycle areas, Ctrl+Tab cycles documents, every command has a shortcut or is in the command palette.
 - Editor: text runs, line / column, diagnostics, completion (I2). Designer: components as a tree (name, type, position, size), keyboard placement and resizing with announcements (I4). Inspector: a grid with row names, editors as native-like controls. Debugger: the current line announced on stop. Assistant: streaming replies in a polite live region, diffs readable as text.
 - High contrast theme, focus rings everywhere, no colour-only information (diagnostic icons and shapes, not just colour), respects reduced motion, UI scale (Ctrl+= / Ctrl+−) and the OS text size.
+- How Studio's screens are composed — sizes per context, chips, pane anatomy, words, the checklist before merging UI: [design-guidelines.md](design-guidelines.md).
 - Verified per stage: `tests/web_a11y.mjs`-style comparisons of Chrome's tree with the kernel's, AccessKit unit tests, the macOS AX probe and the Windows UIA probe on the IDE's windows, and a hands-on screen-reader pass per stage on each OS before its box is ticked.
 
 ### 6.2 Performance targets

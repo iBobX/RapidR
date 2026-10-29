@@ -528,6 +528,29 @@ placeholders — included) and AAA in high contrast; RapidR's tests check
 it on what is drawn. Where each colour comes from: [theme
 tokens](../theme-tokens.md).
 
+### Status colours
+
+To say how something went — a note, a result, a warning, a failure — take
+the theme's status colours rather than picking your own: they read in every
+look. Each of the four, `status.info`, `status.success`, `status.warning`
+and `status.danger`, is a soft fill, with a strong colour for its words and
+icon (`".text"`) and one for its edge (`".border"`):
+
+```basic
+Chip.Color = Application.ThemeColor("status.warning")
+ChipText.Font.Color = Application.ThemeColor("status.warning.text")
+```
+
+The words always say it too: in high contrast the four are white on black,
+framed. [status_colors.rr](../../examples/gui/status_colors.rr) draws them
+as chips (a canvas with round ends, RapidR's icons for info, success,
+warning and error, the words on top) with a header and a question's strip
+sized as RapidR Studio is, and takes the colours again in
+`OnThemeChange`; pick a look in its menu.
+
+![status_colors.rr in RapidR's light look: a header, the four status chips, a question with its amber mark, OK and Cancel](images/themes/status-colors-light.png)
+![The same in dark](images/themes/status-colors-dark.png)
+
 ## High-DPI screens
 
 A program's coordinates are logical pixels (1/96 inch, as Windows at 100 %) on every screen, so old layouts stay as they were; everything is drawn at
