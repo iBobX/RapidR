@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Agent working</title>
+  <path d="M8.5 2.5A6 6 0 1 1 2.5 8.5" stroke="currentColor"/>
+  <path d="M0.5 9.5L2.5 7.5L4.5 9.5" stroke="currentColor"/>
+  <path d="M8 5.2Q8.504 7.496 10.8 8Q8.504 8.504 8 10.8Q7.496 8.504 5.2 8Q7.496 7.496 8 5.2Z" fill="currentColor"/>
+</svg>

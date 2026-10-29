@@ -123,6 +123,18 @@ fn versions_actions_are_there_and_monochrome() {
     }
 }
 
+/// RAI's actions and the audio ones are there, monochrome (the brand's
+/// gradient stays on `actions/ai`).
+#[test]
+fn rai_and_audio_actions_are_there_and_monochrome() {
+    for name in ["ai-plan", "ai-ask", "ai-vision", "ai-record", "ai-search", "ai-agent", "ai-tool", "ai-local-model", "ai-on-device", "microphone", "speaker-on", "speaker-off"] {
+        let i = get(&format!("actions/{name}")).unwrap_or_else(|| panic!("no icon actions/{name}"));
+        assert!(i.mono, "{name} is monochrome");
+        assert!(!i.title.is_empty());
+    }
+    assert!(!get("actions/ai").unwrap().mono, "the AI sparkle keeps its gradient");
+}
+
 /// Each source is one standalone SVG per size that resvg reads, with the
 /// size's own view box; monochrome icons carry no token colour.
 #[test]
