@@ -56,6 +56,32 @@ thread_local! {
     static IMPORTED: RefCell<HashMap<String, (String, String, String)>> = RefCell::new(HashMap::new());
 }
 
+/// The project's file (relative, as listed) whose code `$INCLUDE`s the main
+/// file — "" when none does (the main file is where the program starts).
+fn main_included_by(m: &Model) -> String {
+    let main = normalize_path(&m.project.main).to_ascii_lowercase();
+    if main.is_empty() {
+        return String::new();
+    }
+    for f in &m.project.files {
+        if !matches!(f.kind, FileKind::Module | FileKind::Form | FileKind::Include) || normalize_path(&f.path).eq_ignore_ascii_case(&main) {
+            continue;
+        }
+        let Ok(text) = read_text(&join(&m.folder, &f.path)) else { continue };
+        let includes = text.lines().filter_map(|l| {
+            let l = l.trim_start();
+            let rest = l.get(..8).filter(|k| k.eq_ignore_ascii_case("$include")).map(|_| &l[8..])?;
+            let q = rest.trim_start().strip_prefix('"')?;
+            Some(q.split('"').next().unwrap_or("").to_string())
+        });
+        let dir = folder_of(&f.path);
+        if includes.map(|inc| normalize_path(&join(&dir, &slashes(&inc))).to_ascii_lowercase()).any(|inc| inc == main) {
+            return f.path.clone();
+        }
+    }
+    String::new()
+}
+
 fn imported(name: &str) -> (String, String, String) {
     IMPORTED.with(|i| i.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
 }
@@ -789,6 +815,10 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }
         "logerror" => flag(crate::recovery::log(&s(0)).is_ok()),
         "logfile" => Value::String(crate::recovery::log_file()),
+        // (the main file is a module another file of the project
+        // includes: that file is where the program likely starts — Robert's
+        // ShopInvoices, main = lang.rr while main.rr includes it)
+        "mainincludedby" => Value::String(with(name, |m| main_included_by(m))),
         // (RAI's Apply, all or nothing: crate::recovery)
         "applybegin" => {
             crate::recovery::apply_begin();

@@ -1666,13 +1666,73 @@ fn folder_name(text: &str) -> String {
     if n.is_empty() { "NewProgram".into() } else { n }
 }
 
+/// Each of a new project's files (its path) and the others of them it
+/// `$INCLUDE`s (lower case).
+fn includes_among(files: &[Json]) -> Vec<(String, Vec<String>)> {
+    let paths: Vec<String> = files.iter().filter_map(|f| project_path("", s(f, "path")).ok()).collect();
+    let includes_of = |text: &str, from: &str| -> Vec<String> {
+        text.lines()
+            .filter_map(|l| {
+                let l = l.trim_start();
+                let rest = l.get(..8).filter(|k| k.eq_ignore_ascii_case("$include")).map(|_| &l[8..])?;
+                let q = rest.trim_start().strip_prefix('"')?;
+                let inc = q.split('"').next().unwrap_or("");
+                project_path(&crate::folder_of(from), inc).ok().or_else(|| project_path("", inc).ok())
+            })
+            .map(|p| p.to_ascii_lowercase())
+            .filter(|i| paths.iter().any(|p| p.eq_ignore_ascii_case(i)))
+            .collect()
+    };
+    files.iter().filter_map(|f| project_path("", s(f, "path")).ok().map(|p| (p.clone(), includes_of(s(f, "text"), &p)))).collect()
+}
+
+/// Whether another of the files includes `path`.
+fn includes_file(files: &[Json], path: &str) -> bool {
+    let Ok(p) = project_path("", path) else { return false };
+    includes_among(files).iter().any(|(_, inc)| inc.contains(&p.to_ascii_lowercase()))
+}
+
+/// The program's start among a new project's files, by their code: the one
+/// source file that `$INCLUDE`s another of them and that none of them
+/// includes (`None`: no such file, or more than one).
+fn entry_of(files: &[Json]) -> Option<String> {
+    let all = includes_among(files);
+    let included: std::collections::HashSet<&String> = all.iter().flat_map(|(_, inc)| inc).collect();
+    let mut starts = all.iter().filter(|(p, inc)| !inc.is_empty() && !included.contains(&p.to_ascii_lowercase())).map(|(p, _)| p.clone());
+    let first = starts.next()?;
+    starts.next().is_none().then_some(first)
+}
+
 fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
     let files = input.get("files").and_then(Json::as_array).cloned().unwrap_or_default();
     // (a small model leaves out the name or the main file: what the files
     // say is taken — the main file is the first program, the name its own)
     let first_program = files.iter().map(|f| s(f, "path")).find(|p| is_source(p) && !p.to_ascii_lowercase().ends_with(".inc")).unwrap_or("").to_string();
+    // (the program's start, by its code: the file that includes others and
+    // that none includes)
+    let entry = entry_of(&files);
     let main_given = s(input, "main").trim().to_string();
-    let main_given = if main_given.is_empty() || !files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok()) { first_program.clone() } else { main_given };
+    let given_in = !main_given.is_empty() && files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok());
+    // (a main file named that another of the files includes — a module —:
+    // the file that includes it is where the program starts)
+    let included_main = given_in && entry.is_some() && includes_file(&files, &main_given);
+    let main_given = if given_in && !included_main {
+        main_given
+    } else if let Some(e) = entry {
+        e
+    } else if main_given.is_empty() {
+        first_program.clone()
+    } else {
+        // (a main file named and not sent — a project cut short: never
+        // another file made the main one in its place; Robert's
+        // ShopInvoices got main = lang.rr, a module, so Run did nothing)
+        let title = s(input, "name").trim().to_string();
+        return err(
+            format!("the main file \"{main_given}\" isn't among the files. Nothing was made. Call create_project again with every file of the project complete, the main file among them."),
+            format!("Refused the new program {title}: its main file {main_given} wasn't sent"),
+            &project_name(&title),
+        );
+    };
     let name_given = s(input, "name").trim();
     let title = if name_given.is_empty() { folder_name(&main_given) } else { name_given.chars().take(80).collect::<String>() };
     // (any title: its folder's name made from it)
@@ -2079,6 +2139,16 @@ mod tests {
         assert!(props.iter().any(|q| q.project == "tip_calculator" && q.main && q.path == "tip calculator.rr"), "{props:#?}");
         let wrong_main = run("create_project", &json!({"name": "T", "main": "app.rr", "summary": "T", "files": [{"path": "forms.inc", "text": "CREATE F AS RForm\nEND CREATE\n"}, {"path": "main.rr", "text": "$INCLUDE \"forms.inc\"\nF.ShowModal\n"}]}), &none, &mut props, true);
         assert!(!wrong_main.is_error && props.iter().any(|q| q.project == "T" && q.main && q.path == "main.rr"), "{}", wrong_main.content);
+        // (Robert's ShopInvoices: a project cut short — its main file named,
+        // not sent, the modules none includes: refused, never a module made
+        // the main file)
+        let cut = run("create_project", &json!({"name": "ShopInvoices", "main": "main.rr", "summary": "x", "files": [{"path": "lang.rr", "text": "DIM lang AS INTEGER\nlang = 1\n"}, {"path": "ui_form.rr", "text": "CREATE Form AS RForm\nEND CREATE\n"}, {"path": "ui_logic.rr", "text": "SUB StartApp\nEND SUB\n"}]}), &none, &mut props, true);
+        assert!(cut.is_error && cut.content.contains("the main file \"main.rr\" isn't among the files. Nothing was made"), "{}", cut.content);
+        assert!(!props.iter().any(|q| q.project == "ShopInvoices"), "nothing proposed");
+        // (a module named as the main file, which another file includes: the
+        // file that includes it is the main one)
+        let module_main = run("create_project", &json!({"name": "Shop", "main": "lang.rr", "summary": "x", "files": [{"path": "lang.rr", "text": "DIM lang AS INTEGER\n"}, {"path": "main.rr", "text": "$INCLUDE \"lang.rr\"\nPRINT lang\n"}]}), &none, &mut props, true);
+        assert!(!module_main.is_error && props.iter().any(|q| q.project == "Shop" && q.main && q.path == "main.rr"), "{}", module_main.content);
         // (write_file with create_project's files and no project open: a new program too)
         let mixed = run("write_file", &json!({"summary": "x", "files": [{"path": "main.rr", "text": "PRINT 1\n"}]}), &none, &mut props, true);
         assert!(!mixed.is_error && props.iter().any(|q| q.project == "main"), "{}", mixed.content);

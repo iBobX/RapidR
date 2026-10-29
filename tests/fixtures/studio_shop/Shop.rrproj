@@ -1,0 +1,19 @@
+# RapidR Studio project (format 2)
+# (as RAI left Robert's ShopInvoices: the main file a module that main.rr
+# includes — Run ran it, and it ended at once)
+
+format = 2
+name = "Shop"
+main = "lang.rr"
+
+[[files]]
+path = "lang.rr"
+kind = "module"
+
+[[files]]
+path = "ui.rr"
+kind = "form"
+
+[[files]]
+path = "main.rr"
+kind = "module"

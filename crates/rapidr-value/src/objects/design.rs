@@ -735,6 +735,21 @@ impl DesignSurface {
     /// nothing happens), its form designed — the one FormName names, else
     /// its first QFORM. The same text again changes nothing; another text
     /// is read again, the selection kept where its components still are.
+    /// The source and its design let go (the surface designs another file
+    /// next): the next Source is read afresh, its errors never shown over
+    /// the last file's form.
+    fn forget_source(&mut self) {
+        self.source = None;
+        self.code_error = None;
+        self.want_form.clear();
+        self.preview = None;
+        self.designer = Designer::new(FormDesign::new("", "RForm"));
+        self.forget_gestures();
+        self.outside.clear();
+        self.outside_sel = None;
+        self.form_caption.clear();
+    }
+
     pub fn open_source(&mut self, text: &str) -> bool {
         let first = match &self.source {
             Some(a) => {
@@ -2364,7 +2379,17 @@ impl DesignSurface {
             "source" => {
                 self.open_source(&val.to_string_val());
             }
-            "sourcefile" => self.source_file = val.to_string_val(),
+            "sourcefile" => {
+                let file = val.to_string_val();
+                // (another file: nothing of the last one's design stays — a
+                // surface used again for a file whose code had errors kept
+                // the last file's form on show, \"read-only until fixed\": a
+                // form from another project, Robert 2026-10-28)
+                if file != self.source_file {
+                    self.forget_source();
+                }
+                self.source_file = file;
+            }
             "formname" => {
                 self.want_form = val.to_string_val();
                 self.pick_form(true);

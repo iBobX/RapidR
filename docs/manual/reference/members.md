@@ -5600,6 +5600,7 @@ A RapidR project: a .rrproj file (format 2, or the web IDE's v1 projects), or a 
 | `RecoveryDiscard([Run AS STRING])` | Lets go of the copies of Run (none given: every copy RecoveryFound gives). |
 | `LogError(Line AS STRING) AS INTEGER` | Adds Line to the log of what went wrong in Studio (LogFile; the last 256 KB are kept). True when it was written. |
 | `LogFile AS STRING` | The log of what went wrong in Studio's own code: studio-errors.log in StudioFolder. |
+| `MainIncludedBy AS STRING` | The project's file whose code `$INCLUDE`s its main file ("" when none does): the program likely starts there, not in MainFile — a project whose main file became one of its modules. |
 | `ApplyBegin` | An Apply of changes starts (RAI's: all or nothing): nothing written yet for ApplyUndo to take away. |
 | `CanWriteNewFile(Path AS STRING) AS INTEGER` | Whether a new file can be written at Path: nothing is there yet, and its folder is one or can be made (the nearest folder above it that is there is a folder, not a file, and can be written). Error says why not. Nothing is written. |
 | `WriteNewFile(Path AS STRING, Text AS STRING) AS INTEGER` | Writes a new file, the folders it needs made first — never over a file that is there. True when it was written; Error says why not (no run-time error). What it made is noted for ApplyUndo. |

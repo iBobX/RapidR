@@ -689,9 +689,13 @@ impl Tools {
             {
                 std::path::Path::new(root).exists()
             }
+            // (the page's store has no folders: a folder with any of the
+            // files to write — or a project file — is another project's,
+            // never written over)
             #[cfg(target_arch = "wasm32")]
             {
-                rapidr_value::objects::read_file(&crate::join(root, &main_rel)).is_ok() || rapidr_value::objects::read_file(&crate::join(root, &proj_file)).is_ok()
+                files.iter().map(|p| p.path.as_str()).chain([proj_file.as_str()]).any(|rel| rapidr_value::objects::read_file(&crate::join(root, rel)).is_ok())
+                    || rapidr_value::objects::read_file(&crate::join(root, &main_rel)).is_ok()
             }
         };
         let root = (1..1000).map(|k| crate::join(&base, &if k == 1 { name.clone() } else { format!("{name}{k}") })).find(|r| !taken(r)).ok_or("there are a thousand folders of that name already")?;

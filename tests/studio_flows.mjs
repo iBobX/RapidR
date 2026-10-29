@@ -4309,6 +4309,56 @@ const CASES = [
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
   },
+  // ---- a project as RAI left Robert's ShopInvoices: the main file a module
+  // that main.rr includes; Run ran it, it ended at once, nothing said ----
+  {
+    name: "project-main-included",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,wait",
+    delay: 5,
+    dump: {
+      "proj.mainfile": /^lang\.rr$/,
+      "outputbox.text": /The main file lang\.rr is included by main\.rr: the program probably starts in main\.rr\. To run it from there, select the project's name in the Project pane, then MainFile in Properties\./,
+    },
+  },
+  {
+    // (…Run there: it ends at once, and says what to look at)
+    name: "project-main-runs-module",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "outputbox.text": /\[lang\.rr ended, exit code 0\]\nlang\.rr ran and ended at once: it showed no window and printed nothing\. If the program starts in another file, make that the main file/,
+    },
+  },
+  {
+    // (…the project's properties fix it: MainFile main.rr, written to the
+    // project file; Run starts there)
+    name: "project-main-fixed",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,project:select,prop:MainFile=main.rr,wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "outputbox.text": /Shop open\n\[main\.rr ended, exit code 0\](?![\s\S]*ended at once)/,
+    },
+    files: { "Shop.rrproj": /^main = "main\.rr"$/m },
+  },
+  {
+    // (Run with nothing open says so)
+    name: "run-nothing-open",
+    open: "",
+    desktopOnly: true,
+    do: "run.start,wait",
+    delay: 4,
+    dump: { "outputbox.text": /Nothing to run: open a project or a program first/ },
+  },
   // (the project tree's selection shows its file: lang/pt-BR.po selected
   // opens in the preview tab, the keys stay in the tree; lang/es.po
   // selected takes the preview tab over — never another file's text on
