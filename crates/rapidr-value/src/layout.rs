@@ -617,12 +617,17 @@ pub fn constraint_alias(prop: &str) -> Option<&'static str> {
     CONSTRAINT_PROPERTIES.iter().find(|p| **p == flat).copied()
 }
 
-/// What a visual component's RapidR layout properties read before the
-/// program sets them: Anchors akLeft + akTop, no constraints.
+/// What a visual component's RapidR extension-set members read before the
+/// program sets them (`sets.toml`: the `layout` and `a11y` sets, which the
+/// registry's creation defaults leave to the runtimes): Anchors akLeft +
+/// akTop, no constraints, AccessibleHidden False (0). The text members
+/// (AccessibleName, AccessibleDescription) read "" unset, which needs no
+/// answer here.
 pub fn default_property(type_name: &str, prop: &str) -> Option<i64> {
     default_size(type_name)?;
     match prop {
         "anchors" => Some(DEFAULT_ANCHORS),
+        "accessiblehidden" => Some(0),
         p if CONSTRAINT_PROPERTIES.contains(&p) || constraint_alias(p).is_some() => Some(0),
         _ => None,
     }
@@ -1094,6 +1099,7 @@ mod tests {
         assert_eq!(default_property("RBUTTON", "anchors"), Some(DEFAULT_ANCHORS));
         assert_eq!(default_property("RPANEL", "constraints.minwidth"), Some(0));
         assert_eq!(default_property("RTIMER", "anchors"), None, "not a visual component");
+        assert_eq!(default_property("RBUTTON", "accessiblehidden"), Some(0));
         // Aligned controls keep theirs: an alTop panel's MinHeight is the
         // strip it takes; an alClient one's MaxWidth leaves room unfilled.
         let mut top = c(Align::Top, 0, 0, 10, 20);
@@ -1120,5 +1126,30 @@ mod tests {
         assert!(!status_grip(true, true, 2, Align::Top), "docked at the top");
         assert_eq!(default_align("RSPLITTER"), Align::Left);
         assert_eq!(default_align("RBUTTON"), Align::None);
+    }
+
+    /// The members of the `layout` and `a11y` sets (sets.toml) aren't in the
+    /// registry's creation defaults — the runtimes answer them unset. A text
+    /// one reads "" with no answer; every other one needs one here, or a
+    /// program reads "" where the registry says 0 (AccessibleHidden did).
+    #[test]
+    fn every_extension_set_member_that_is_not_text_has_an_unset_answer() {
+        use rapidr_lang::{DefaultValue, Type};
+        let button = rapidr_lang::component("RBUTTON").expect("RBUTTON");
+        let members: Vec<_> = button.properties.iter().filter(|p| p.set.is_some()).collect();
+        assert!(members.iter().any(|p| p.name == "AccessibleHidden") && members.iter().any(|p| p.name == "Anchors"));
+        for p in members {
+            if p.ty == Type::String {
+                continue;
+            }
+            let answer = default_property("RBUTTON", &p.name.to_ascii_lowercase());
+            assert!(answer.is_some(), "{} has no unset answer in layout::default_property", p.name);
+            match p.default {
+                Some(DefaultValue::Int(i)) => assert_eq!(answer, Some(i), "{}", p.name),
+                Some(DefaultValue::Bool(b)) => assert_eq!(answer, Some(i64::from(b)), "{}", p.name),
+                Some(DefaultValue::Expr(e)) => assert_eq!(answer, rapidr_lang::eval_constant(e), "{}", p.name),
+                _ => {}
+            }
+        }
     }
 }
