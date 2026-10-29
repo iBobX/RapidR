@@ -24,6 +24,7 @@ pub mod case;
 pub mod diagnostics;
 pub mod editor;
 pub mod front;
+pub mod help;
 pub mod model;
 pub mod text;
 
@@ -47,6 +48,8 @@ pub use front::{Location, Parsed};
 pub use hover::SymbolHelp;
 pub use model::SemanticModel;
 pub use rapidr_diagnostics::Severity;
+// (what [`Analysis::helpers`] answers: an argument's name, a colour …)
+pub use rapidr_editor::service::{HelperKind, HelperSite};
 pub use text::LineIndex;
 
 /// How a project is analysed.
