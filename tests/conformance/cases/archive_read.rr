@@ -1,5 +1,5 @@
 ' RArchive (RapidR's) reads archives other tools made — zip (zip), 7z
-' (7-Zip), tar.gz (gzip), tar.xz (xz), tar.zst (zstd), one file gzipped —
+' (7zz), tar.gz (gzip), tar.xz (xz), tar.zst (zstd), one file gzipped —
 ' built into the program as $RESOURCEs: the format from the first bytes,
 ' the entries, a .z80 found and its bytes, a text, a zip's local time, an
 ' old zip's code page 437 name. The same on every runtime.

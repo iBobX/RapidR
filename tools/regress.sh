@@ -211,6 +211,9 @@ if want legal; then echo "== legal"
   # (no private key, certificate, signing key or token in a tracked file)
   python3 tools/check_secrets.py || LEGAL_FAILED=1
   python3 tools/third_party_notices.py --check || LEGAL_FAILED=1
+  # (RArchive's libraries: only the features the legal review cleared — no
+  # AES, Deflate64, PPMd, ruzstd's dictionary builder or C codecs)
+  python3 tools/check_archive_features.py || LEGAL_FAILED=1
   out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
   echo "$out" | grep -E "FAIL|notices: all ok"; fi
 [ $LEGAL_FAILED = 1 ] && { echo "LEGAL CHECKS FAILED"; exit 1; }

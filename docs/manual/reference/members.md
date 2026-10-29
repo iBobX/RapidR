@@ -3438,7 +3438,7 @@ A stream in memory: write and read text, numbers and binary data as in a file, w
 <a id="rarchive"></a>
 ## RArchive
 
-Opens zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format found from their first bytes, not their name — lists what they hold and unpacks it: one file's bytes into a string or a stream, to a file, or everything into a folder. Makes zip, tar, tar.gz and .gz files. An archive is untrusted: MaxSize and MaxRatio stop a zip bomb, ExtractAll never writes outside its folder (a name with `..`, an absolute path or a drive stops it before anything is written; links are never extracted), encrypted entries are refused. RAR files are refused: their format isn't open. Every call leaves Error "" when it worked, else says why. The same on the desktop, native builds and the web (where files are the page's). RapidR's own.
+Opens zip, 7z, tar, tar.gz, .gz, .xz and .zst files — the format found from their first bytes, not their name — lists what they hold and unpacks it: one file's bytes into a string or a stream, to a file, or everything into a folder. Makes zip, tar, tar.gz and .gz files. An archive is untrusted: MaxSize and MaxRatio stop a zip bomb, ExtractAll never writes outside its folder (a name with `..`, an absolute path or a drive stops it before anything is written; links are never extracted), encrypted entries are refused. RAR files are refused: it's a closed, proprietary format. Every call leaves Error "" when it worked, else says why. The same on the desktop, native builds and the web (where files are the page's). RapidR's own.
 
 | Property | Type | Default | |
 |---|---|---|---|

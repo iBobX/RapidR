@@ -1,4 +1,4 @@
-//! zip, through the `zip` crate (MIT): stored and deflated entries, zip64,
+//! zip, through the `zip` crate (MIT): stored and deflated entries, zip files over 4 GB,
 //! UTF-8 names and old tools' code page 437 names (the crate's); written
 //! with UTF-8 names, deflated at the level asked (0: stored).
 

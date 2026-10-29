@@ -19,7 +19,7 @@ a note
 -1-10
   a .gz file holds one file: make a .tar.gz or .zip for more
 -1-1 gzip hello.z80 64
-0 RAR files can't be opened: the format isn't open. Ask for a .zip or .7z.
+0 RAR files can't be opened: it's a closed, proprietary format. Ask for a .zip or .7z.
 0 7z archives can be opened but not made: make a .zip, .tar, .tar.gz or .gz
 -1 [] 11
 -1 64

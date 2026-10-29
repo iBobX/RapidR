@@ -20,7 +20,7 @@ encrypted zip:-1 readme.txt -1
   [] "readme.txt" is encrypted: RArchive doesn't open password-protected entries
 encrypted 7z:0 the 7z archive is encrypted: RArchive doesn't open password-protected archives
 rar:rar 0
-  RAR files can't be opened: the format isn't open. Ask for a .zip or .7z.
+  RAR files can't be opened: it's a closed, proprietary format. Ask for a .zip or .7z.
 cut:0 not a zip, or a damaged one (its list of files can't be found)
 changed:-1 3 [-1] -1
 not an archive:0 not an archive RapidR knows (zip, 7z, tar, tar.gz, gz, xz, zst)

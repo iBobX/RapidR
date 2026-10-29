@@ -16,7 +16,7 @@ own file, and click an entry to see its first bytes.
 
 | Format | Opens | Makes | Notes |
 |---|---|---|---|
-| zip (`.zip`) | yes | yes | Stored and Deflate entries, zip64, UTF-8 names and older code page 437 names |
+| zip (`.zip`) | yes | yes | Stored and Deflate entries, zip files over 4 GB, UTF-8 names and older code page 437 names |
 | tar (`.tar`) | yes | yes | Long and UTF-8 names |
 | tar.gz (`.tar.gz`, `.tgz`) | yes | yes | |
 | gzip (`.gz`) | yes | yes | One file: an archive of one entry |
@@ -24,7 +24,7 @@ own file, and click an entry to see its first bytes.
 | xz and tar.xz | yes | no | |
 | zstd and tar.zst | yes | no | |
 | bzip2 | no | no | Recognised; `Error` says it can't be opened yet |
-| RAR | no | no | Refused: "RAR files can't be opened: the format isn't open. Ask for a .zip or .7z." |
+| RAR | no | no | Refused: "RAR files can't be opened: it's a closed, proprietary format. Ask for a .zip or .7z." |
 
 `Format` says what was opened: `"zip"`, `"7z"`, `"tar"`, `"tar.gz"`,
 `"gzip"`, `"tar.xz"`, `"xz"`, `"tar.zst"` or `"zstd"`.

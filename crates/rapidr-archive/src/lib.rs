@@ -6,8 +6,8 @@
 //! What it opens (the format found from the first bytes, the file's
 //! extension only a hint): zip, tar, tar.gz, a single .gz file, and with
 //! their features 7z, xz / tar.xz and zstd / tar.zst. What it makes: zip,
-//! tar, tar.gz and .gz. RAR is recognised and refused in plain words (its
-//! format isn't open); bzip2 is recognised and not read yet.
+//! tar, tar.gz and .gz. RAR is recognised and refused in plain words (a
+//! closed, proprietary format); bzip2 is recognised and not read yet.
 //!
 //! An archive is untrusted input:
 //! - nothing unpacks to more than [`Limits::max_size`] bytes (one entry, a
@@ -326,7 +326,7 @@ impl std::fmt::Debug for Writer {
 }
 
 /// "RAR files can't be opened: …" — the same words wherever one is met.
-pub const RAR_REFUSED: &str = "RAR files can't be opened: the format isn't open. Ask for a .zip or .7z.";
+pub const RAR_REFUSED: &str = "RAR files can't be opened: it's a closed, proprietary format. Ask for a .zip or .7z.";
 
 fn not_in_build(f: Format) -> String {
     format!("this program was built without {} support", f.name())
