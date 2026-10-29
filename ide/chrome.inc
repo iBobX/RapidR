@@ -37,6 +37,7 @@ SUB ApplyFonts
   ApplyPanelFonts
   Dock.Font = UIFont
   Status.Font = StatusFont
+  McpFonts
   ' (Studio's dialogs: the chrome font's face and size on the form, which
   ' their components follow — inherited from the parent; not a QFONT, whose
   ' colour would be chosen for them and win over the theme's text colour;
@@ -215,8 +216,13 @@ SUB LayOutStatus
   w0 = StatusMeasure.TextWidth(StateText) + 14
   IF w0 < 230 THEN w0 = 230
   IF w0 > StateRoom + 14 THEN w0 = StateRoom + 14
-  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160
+  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160 - McpStatusWidth
   IF w < 40 THEN w = 40
+  ' (AI apps' panel, once they've been on: mcp.inc)
+  IF McpStatusWidth > 0 THEN
+    Status.Panel(5).Width = 160
+    Status.Panel(6).Width = McpStatusWidth
+  END IF
   Status.Panel(0).Width = w0
   Status.Panel(0).Caption = FitMiddle(StateText, w0 - 14)
   Status.Panel(1).Width = w

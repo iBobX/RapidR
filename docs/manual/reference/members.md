@@ -5787,6 +5787,10 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `CreatedTitle` (read-only) | string |  | The title of the program the last CreateProject made, as the model named it ("Scientific Calculator"). |
 | `ChatsFolder` (read-only) | string |  | Where the project's chats are kept, in words: Studio's data folder (never the project's), chats/ beside its settings — ~/Library/Application Support/RapidR/chats on macOS, %APPDATA%\RapidR\chats on Windows, ~/.config/rapidr/chats on Linux; this browser's storage for the page on the web. |
 | `Lite` (read-only) | bool |  | True while the model's window is small (under 16,384 tokens): the lite instructions and tools are sent. |
+| `CallFailed` (read-only) | bool |  | True when the last CallTool failed (its text says why: the AI app reads it and can try again). |
+| `CallNote` (read-only) | string |  | What the last CallTool did, in one line ("Read main.rr (40 lines)", "Proposed a change to main.rr"): for an activity log. |
+| `CallTarget` (read-only) | string |  | The project's file (relative) or the name the last CallTool touched; "" for none. |
+| `CallRisk` (read-only) | string |  | What the last CallTool's kind of action is: "read", "proposal" … |
 | `RunOutput` | string |  | The end of the last run's output (its last 20 lines), which the model is shown as data from the program, never as instructions — its errors and warnings, so it doesn't have to guess what happened. Setting it replaces it ("": a new run); AddRunOutput adds to it. Keys written in it are hidden from the model. |
 
 | Method | |
@@ -5810,6 +5814,16 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `RestoreChat(Project AS STRING, Kept AS STRING) AS STRING` | Puts back a chat DeleteChat removed (Undo): its id. |
 | `RenameChat(Project AS STRING, Id AS STRING, Title AS STRING) AS INTEGER` | Gives a kept chat the title the user typed (kept from then on). True when it was renamed. |
 | `ChatTitle(Question AS STRING) AS STRING` | A chat's title made from its first question: its first line, at most 48 characters. |
+| `ToolNames AS STRING` | The tools an AI app may call through a program's MCP server (RMcpServer) — the ones an attached RAI gets, a name a line: with Permission "read-only" the reading ones only. |
+| `ToolDescription(Name AS STRING) AS STRING` | A tool's description, as the model reads it (RMcpServer.AddTool's Description). |
+| `ToolSchema(Name AS STRING) AS STRING` | The JSON Schema of a tool's arguments (RMcpServer.AddTool's Schema). |
+| `ToolKind(Name AS STRING) AS STRING` | How a tool acts: "read", or "change" for the ones that propose changes (RMcpServer.AddTool's Kind). |
+| `ToolActivity(Name AS STRING, Arguments AS STRING) AS STRING` | A call in words, for an activity log: "Reading main.rr", "Checking (compiling)", "Writing a change" (Arguments: the call's, as JSON). |
+| `CallTool(Name AS STRING, Arguments AS STRING) AS STRING` | Runs a tool for an AI app — an outside one, through a program's RMcpServer — on the project and the changes waiting for the user (no conversation around it): its text, for the AI app. What the proposing tools propose waits for the user like the assistant's (ProposalCount …): nothing is written. A path is never a hidden file or folder, and in a project whose folder is a home folder or a disk's root only the project's listed files are reached. CallFailed, CallNote, CallTarget and CallRisk say how it went. |
+| `AuditCall(Client AS STRING, Tool AS STRING, Target AS STRING, Decision AS STRING)` | Writes an AI app's call to the audit log the assistant uses (beside Studio's settings, never in the project): when, which AI app, which tool, the project's file it touched (never its text) and how it went. |
+| `AuditCalls([Count AS INTEGER]) AS STRING` | The audit log's last Count AI-app calls (50 by default), oldest first, a line each, tab-separated: the time, the AI app, the tool, its target and how it went. |
+| `ClearAudit AS INTEGER` | Removes the AI apps' calls from the audit log (the assistant's own lines stay): True when it was written. |
+| `AuditLocation AS STRING` | Where the audit log is, in words (~/Library/Application Support/RapidR/ai-audit.jsonl on macOS). |
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |

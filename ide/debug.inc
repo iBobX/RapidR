@@ -1072,6 +1072,8 @@ DIM OutLineOpen AS INTEGER
 SUB ProgramOutput(Text AS STRING)
   OutputBox.Write Text
   AITools.AddRunOutput Text
+  ' (AI apps' read_output: mcp.inc)
+  McpProgramOutput Text
   IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 

@@ -262,6 +262,9 @@ SUB DefineCommands
   AddCmd "ai.compact", "Co&mpact the AI Chat", "Tools", "", "", "ai", "-"
   AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
   AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
+  AddSep "Tools"
+  AddCmd "mcp.settings", "AI A&pps Settings...", "Tools", "", "", "", "-"
+  AddCmd "view.aiApps", "AI Apps Acti&vity", "Tools", "", "", "", "-"
 
   ' ---- Window (documents are tabs, split into groups) ----
   AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
