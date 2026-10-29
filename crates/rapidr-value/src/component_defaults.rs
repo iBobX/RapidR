@@ -158,6 +158,7 @@ pub fn extras(type_name: &str) -> Vec<(String, Value)> {
             put("min", v_int(0));
             put("max", v_int(100));
             put("position", v_int(0));
+            put("associate", v_str(""));
         }
         "RPRINTER" => put("title", v_str("")),
         // (database.rs / database_web.rs keep the rest)

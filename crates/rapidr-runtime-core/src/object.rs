@@ -244,8 +244,25 @@ pub fn rp_component_array(kind: &str, name: &str, bounds: &[(i64, i64)]) -> Valu
 /// Set a property on a registered component.
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     comp_set(name, prop, val);
+    updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links::apply();
+}
+
+/// An RUPDOWN whose Position (or Associate) was set: its Associate, an edit
+/// or a label, shows the number (`rapidr_value::objects::updown`); an edit
+/// that took a new text fires its OnChange, as RapidQ's does for a Text set.
+/// What the user's arrows set comes here too (the kernel's Set).
+fn updown_buddy(name: &str, prop: &str) {
+    if !(prop.eq_ignore_ascii_case("position") || prop.eq_ignore_ascii_case("associate")) || rp_comp_type(name) != "RUPDOWN" {
+        return;
+    }
+    if let Some((buddy, buddy_prop, text)) = rapidr_value::objects::updown::buddy_text(&|i, p| rp_comp_get(i, p), &rp_comp_type, &name.to_lowercase()) {
+        rp_comp_set(&buddy, buddy_prop, v_str(&text));
+        if buddy_prop == "text" {
+            rp_fire_event(&buddy, "onchange");
+        }
+    }
 }
 
 /// A property the program sets (an assignment in its code: the VM's, a

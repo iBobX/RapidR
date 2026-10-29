@@ -54,6 +54,7 @@ claims, headless).
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [focus_events.rr](gui/focus_events.rr) | `OnEnter` and `OnExit` (RapidR's own): a box's help when the focus comes to it, its check when the focus leaves it ([the manual](../docs/manual/components.md#the-focus-onenter-and-onexit)) | run · interp · native · web | `rapidr run gui/focus_events.rr` |
 | [links.rr](gui/links.rr) | Labels as links (`TabStop = 1`, RapidR's own): Tab walks them, a focus ring shows, Enter or Space follows one, a screen reader says "link" ([the manual](../docs/manual/components.md#accessibility)) | run · interp · native · web | `rapidr run gui/links.rr` |
+| [updown.rr](gui/updown.rr) | `RUpDown`, arrows that step a number beside an edit: `Associate` makes the edit show it, `Increment` and `Wrap`, `OnChange`; a medicine reminder ([the manual](../docs/manual/components.md#rupdown-arrows-that-step-a-number)) | run · interp · native · web | `rapidr run gui/updown.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
@@ -126,6 +127,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [midi.rr](media/midi.rr) | `RMIDI`: play, pause, stop a MIDI song ([tune.mid](media/tune.mid)); RapidR's own synthesizer where the system has none | run · interp · native · web | `rapidr run media/midi.rr` |
+| [midi_compose.rr](media/midi_compose.rr) | Music made by the program: a song written byte by byte as a `.mid` file (chords, a bass line, drums on channel 10) and played with `RMIDI`; `RAPIDR_MIDI_OUT` picks the output ([the manual](../docs/manual/directx-and-media.md#sound-and-music)) | run · interp · native · web | `rapidr run media/midi_compose.rr` |
 | [wave.rr](media/wave.rr) | `RWave`: play a WAV ([chime.wav](media/chime.wav)); record a second from the microphone, save, play back | run · interp · native · web | `rapidr run media/wave.rr` |
 | [video.rr](media/video.rr) | `RVideo`: an AVI ([clip.avi](media/clip.avi)) on a form, enlarged, with a frame counter | run · interp · native · web | `rapidr run media/video.rr` |
 

@@ -3,10 +3,14 @@
 //! raised with a black arrow and pushed while held. A click on one, or the
 //! arrow keys while it has the focus, steps Position by Increment (1)
 //! between Min and Max (round with Wrap); the new Position goes to the
-//! store ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnClick.
+//! store ([`KernelEvent::Set`](crate::KernelEvent::Set)) before OnChange
+//! (when it changed) and OnClick. Its Associate, an edit or a label
+//! (`rapidr_value::objects::updown`), shows the number: the runtimes write
+//! it when Position is set; here the arrows count from the number it shows.
 
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::Rect;
+use rapidr_value::objects::updown;
 
 use super::progress::range;
 use super::{ComponentKind, Cx, KeyIn, MouseIn, MouseKind, MouseOut};
@@ -32,11 +36,18 @@ fn halves(store: &dyn Store, id: &str, w: i64, h: i64) -> [Rect; 2] {
     }
 }
 
-/// One step up (`up`) or down: whether Position changed (stored, OnClick).
+/// One step up (`up`) or down: whether Position changed (stored, OnChange,
+/// then OnClick). With an Associate (its edit or label), the step counts
+/// from the number it shows now when that is a whole number - Windows'
+/// up-down does - and Position is stored even when the step changes
+/// nothing, so a buddy showing a number out of range is brought back.
 fn step(cx: &mut Cx, up: bool) -> bool {
-    let (min, max, pos) = range(cx.store, cx.id);
+    let (min, max, stored) = range(cx.store, cx.id);
     let inc = store::int(cx.store, cx.id, "increment", 1).max(1);
     let wrap = store::flag(cx.store, cx.id, "wrap", false);
+    let buddy = updown::buddy(&|i, p| cx.store.get(i, p), &|i| cx.store.type_of(i), cx.id);
+    let shown = buddy.as_ref().and_then(|(b, p)| updown::parse(&store::string(cx.store, b, p)));
+    let pos = shown.map_or(stored, |n| n.clamp(min, max));
     let mut next = if up { pos + inc } else { pos - inc };
     if next > max {
         next = if wrap { min } else { max };
@@ -44,11 +55,14 @@ fn step(cx: &mut Cx, up: bool) -> bool {
         next = if wrap { max } else { min };
     }
     let id = cx.id.to_string();
-    if next != pos {
+    if next != stored || buddy.is_some() {
         cx.set(&id, "position", next);
     }
+    if next != stored {
+        cx.change();
+    }
     cx.click();
-    next != pos
+    next != stored
 }
 
 impl ComponentKind for UpDown {
@@ -158,7 +172,7 @@ impl ComponentKind for UpDown {
 #[cfg(test)]
 mod tests {
     use rapidr_value::input::Button;
-    use rapidr_value::v_int;
+    use rapidr_value::{v_int, v_str};
 
     use crate::{FormUi, KernelEvent, MemClipboard, MemStore, Mods, TextSystem};
 
@@ -175,12 +189,78 @@ mod tests {
         f.mouse_up(&s, &mut ts, 8.0, 4.0, Button::Left, Mods::NONE);
         let set = |v| KernelEvent::Set { id: "ud".into(), prop: "position".into(), value: v };
         let ev: Vec<_> = f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. }) && !matches!(e, KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit")).collect();
-        assert_eq!(ev, vec![set(100), KernelEvent::Click("ud".into())]);
+        // (the value changed: OnChange, the control's default event, then OnClick)
+        assert_eq!(ev, vec![set(100), KernelEvent::Change("ud".into()), KernelEvent::Click("ud".into())]);
         s.set("ud", "position", v_int(100));
         let mut clip = MemClipboard::default();
         f.key_down(&s, &mut ts, 38, "", Mods::NONE, &mut clip);
-        assert!(!f.take_events().iter().any(|e| matches!(e, KernelEvent::Set { .. })));
+        // (at Max: nothing changed, so no OnChange)
+        let at_max = f.take_events();
+        assert!(!at_max.iter().any(|e| matches!(e, KernelEvent::Set { .. } | KernelEvent::Change(_))));
         f.key_down(&s, &mut ts, 40, "", Mods::NONE, &mut clip);
-        assert!(f.take_events().contains(&set(99)));
+        let down = f.take_events();
+        assert!(down.contains(&set(99)) && down.contains(&KernelEvent::Change("ud".into())));
+    }
+
+    /// The events of a click on the upper (`up`) or lower half of up-down "ud".
+    fn click(f: &mut FormUi, s: &MemStore, ts: &mut TextSystem, up: bool) -> Vec<KernelEvent> {
+        let y = if up { 4.0 } else { 20.0 };
+        f.mouse_down(s, ts, 8.0, y, Button::Left, Mods::NONE);
+        f.mouse_up(s, ts, 8.0, y, Button::Left, Mods::NONE);
+        f.take_events().into_iter().filter(|e| !matches!(e, KernelEvent::Mouse { .. }) && !matches!(e, KernelEvent::Fire { event, .. } if event == "onenter" || event == "onexit")).collect()
+    }
+
+    #[test]
+    fn increment_and_wrap() {
+        let mut s = MemStore::new();
+        s.add("udform", "RFORM", None);
+        s.add("ud", "RUPDOWN", Some("udform"))
+            .set("ud", "width", v_int(17))
+            .set("ud", "height", v_int(24))
+            .set("ud", "min", v_int(0))
+            .set("ud", "max", v_int(20))
+            .set("ud", "position", v_int(18))
+            .set("ud", "increment", v_int(5))
+            .set("ud", "wrap", v_int(-1));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "udform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let set = |v| KernelEvent::Set { id: "ud".into(), prop: "position".into(), value: v };
+        // (18 + 5 is past Max: round to Min)
+        assert_eq!(click(&mut f, &s, &mut ts, true), vec![set(0), KernelEvent::Change("ud".into()), KernelEvent::Click("ud".into())]);
+        s.set("ud", "position", v_int(0));
+        assert_eq!(click(&mut f, &s, &mut ts, false), vec![set(20), KernelEvent::Change("ud".into()), KernelEvent::Click("ud".into())]);
+    }
+
+    #[test]
+    fn its_associate_gives_the_number_to_count_from() {
+        let mut s = MemStore::new();
+        s.add("udform", "RFORM", None);
+        s.add("age", "REDIT", Some("udform")).set("age", "top", v_int(60)).set("age", "text", v_str("7"));
+        s.add("ud", "RUPDOWN", Some("udform"))
+            .set("ud", "width", v_int(17))
+            .set("ud", "height", v_int(24))
+            .set("ud", "min", v_int(0))
+            .set("ud", "max", v_int(10))
+            .set("ud", "position", v_int(3))
+            .set("ud", "associate", v_str("Age"));
+        let mut ts = TextSystem::new();
+        let mut f = FormUi::build(&s, "udform", false);
+        f.paint(&s, &mut ts, 1.0);
+        let set = |v| KernelEvent::Set { id: "ud".into(), prop: "position".into(), value: v };
+        let (change, clicked) = (KernelEvent::Change("ud".into()), KernelEvent::Click("ud".into()));
+        // (the edit shows 7, Position is 3: the step is from 7)
+        assert_eq!(click(&mut f, &s, &mut ts, true), vec![set(8), change.clone(), clicked.clone()]);
+        s.set("ud", "position", v_int(8));
+        // (typed past Max: stepping up brings it back to Max)
+        s.set("age", "text", v_str("50"));
+        assert_eq!(click(&mut f, &s, &mut ts, true), vec![set(10), change.clone(), clicked.clone()]);
+        s.set("ud", "position", v_int(10));
+        // (already Max: no change, but Position is stored so the edit shows it again)
+        s.set("age", "text", v_str("99"));
+        assert_eq!(click(&mut f, &s, &mut ts, true), vec![set(10), clicked.clone()]);
+        // (not a number: counted from Position)
+        s.set("age", "text", v_str("abc"));
+        assert_eq!(click(&mut f, &s, &mut ts, false), vec![set(9), change, clicked]);
     }
 }
