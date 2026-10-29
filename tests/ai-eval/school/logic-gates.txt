@@ -3,10 +3,10 @@ Build me a logic gate simulator: two inputs A and B where I type 0 or 1, buttons
 #! test and
 #! type #1 1
 #! type #2 1
-#! click /^and$/
+#! click /^&?and$/
 #! expect-changed /\b1\b|true|high/
 #! test xor
 #! type #1 1
 #! type #2 0
-#! click /^xor$/
+#! click /^&?xor$/
 #! expect-changed /\b1\b|true|high/

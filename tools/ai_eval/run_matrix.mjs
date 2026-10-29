@@ -33,6 +33,7 @@ const opt = (k, d) => (argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
 const out = resolve(opt("--out", join(ROOT, "dist", "ai-eval", "runs")));
 const cells = opt("--cells", "A:mock").split(",");
 const portBase = Number(opt("--port-base", 47950));
+const portCount = Number(opt("--ports", 24));   // the ports used in turn from --port-base
 const costCap = Number(opt("--cost-cap", 30));
 const ledger = resolve(opt("--ledger", join(dirname(out), "cost-ledger.json")));
 const steps = opt("--steps", "40");
@@ -113,7 +114,7 @@ for (const cell of cells) {
       continue;
     }
     mkdirSync(dir, { recursive: true });
-    const port = portBase + (n++ % 24);
+    const port = portBase + (n++ % portCount);
     const started = Date.now();
     let row = { cell: `${driver}-${label(modelKey)}`, driver, model: model.id, app: app.name, set: app.set, rep, heldOut: app.heldOut };
     const childEnv = { ...env, RAPIDR_AI_EVAL_RAPIDR: process.env.RAPIDR || env.RAPIDR_AI_EVAL_RAPIDR || "" };

@@ -76,6 +76,7 @@ function parseArgs(argv) {
       case "--cost-cap": a.costCap = Number(val()); break;
       case "--ledger": a.ledger = val(); break;
       case "--port": a.port = Number(val()); break;
+      case "--calls": a.calls = val(); break;   // a JSON list of {"name", "args", "timeoutSeconds"} made as an AI app would, no model (to reproduce a problem)
       case "--rapidr": a.rapidr = val(); break;
       case "--max-tokens": a.maxTokens = Number(val()); break;
       case "--num-ctx": a.numCtx = Number(val()); break;     // --driver ollama: the context window asked for (default 32768)
@@ -193,7 +194,7 @@ function startStudio(work, port, capture) {
 }
 
 // ---- an MCP client (the protocol code of tests/studio_mcp.mjs) ---------------------------
-function mcpClient(port, clientName) {
+function mcpClient(port, clientName, timeoutMs = 240000) {
   let nextId = 1;
   const meta = { "io.modelcontextprotocol/protocolVersion": MODERN, "io.modelcontextprotocol/clientInfo": { name: clientName, version: "1.0" }, "io.modelcontextprotocol/clientCapabilities": {} };
   async function post(body, headers = {}) {
@@ -201,7 +202,7 @@ function mcpClient(port, clientName) {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: `Bearer ${TOKEN}`, ...headers },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(300000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const text = await r.text();
     let json = {};
@@ -384,7 +385,7 @@ async function openaiTurn(model, system, messages, tools, known) {
   }
   return {
     text, thinking, calls: list, stop, inTok, outTok, format, rawTail: stop ? undefined : tail,
-    assistant: { role: "assistant", content: text || null, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
+    assistant: { role: "assistant", content: list.length ? text || null : text, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
   };
 }
 
@@ -452,7 +453,7 @@ async function ollamaTurn(model, system, messages, tools, known) {
   }
   return {
     text, thinking, calls: list, stop, inTok, outTok, format, rawTail: stop ? undefined : tail,
-    assistant: { role: "assistant", content: text || null, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
+    assistant: { role: "assistant", content: list.length ? text || null : text, ...(list.length ? { tool_calls: list.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: JSON.stringify(c.input) } })) } : {}) },
   };
 }
 
@@ -500,6 +501,20 @@ async function main() {
   const tools = (await mcp.call("tools/list")).json.result?.tools || [];
   if (has("list-tools")) {
     console.log(JSON.stringify({ instructions, discover: disc.json.result, tools }, null, 1));
+    studio.child.kill();
+    return;
+  }
+  if (args.calls) {
+    // (no model: the calls of a file, in order, each with its own wait — what Studio's MCP server
+    // does with them, to reproduce a problem a run showed)
+    const list = JSON.parse(readFileSync(resolve(args.calls), "utf8"));
+    for (const c of list) {
+      const t0 = Date.now();
+      const r = await mcpClient(port, "eval-calls", (c.timeoutSeconds || 30) * 1000).tool(c.name, c.args || {});
+      console.log(`-> ${c.name} ${short(JSON.stringify(c.args || {}), 120)}\n   ${r.error ? "ERROR" : "ok"}${r.protocol ? " (NO ANSWER / PROTOCOL)" : ""} after ${((Date.now() - t0) / 1000).toFixed(1)}s: ${short(r.text.replace(/\s+/g, " "), 300)}`);
+    }
+    const shot = await mcpClient(port, "eval-calls", 20000).picture();
+    if (shot) writeFileSync(join(out, "window.png"), shot);
     studio.child.kill();
     return;
   }
@@ -577,7 +592,7 @@ async function main() {
       } else {
         for (const x of results) messages.push({ role: "tool", tool_call_id: x.call.id, content: x.text.slice(0, 60000) || "(empty)" });
       }
-      if (protocolErrors >= 3) { stopped = "server_error"; detail = "Studio's server failed three calls"; break turnLoop; }
+      if (protocolErrors >= 2) { stopped = "server_error"; detail = "Studio stopped answering (two calls failed: a timeout, a connection)"; break turnLoop; }
       // (the same call, the same answer, five times: it is stuck, and going on only costs)
       if (sig.length >= 5 && sig.slice(-5).every((s) => s === sig[sig.length - 1])) { stopped = "stuck_loop"; detail = sig[sig.length - 1].split("|")[0]; break turnLoop; }
     }
@@ -585,7 +600,7 @@ async function main() {
   if (!stopped) stopped = "model_stopped";
 
   // ---- the end: the project Studio has open, a picture of Studio, then Studio is ended -------
-  const end = mcpClient(port, END_CLIENT);
+  const end = mcpClient(port, END_CLIENT, 20000);   // (a Studio that has stopped answering is not waited for again)
   const status = await end.tool("studio_status");
   const picture = await end.picture();
   // What the AI app made lives in Studio's editor (a change is "applied, unsaved":

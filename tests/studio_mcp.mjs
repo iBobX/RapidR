@@ -211,6 +211,12 @@ if (want("all")) {
   check("write_file: a new file made at once", !r.error && r.text.includes("notes.txt") && existsSync(join(WORK, "all", "notes.txt")), r.text);
   r = await tool("list_documents");
   check("list_documents: main.rr changed, not saved", r.text.includes("main.rr") && r.text.includes("unsaved changes"), r.text);
+  // (a new program would open over unsaved changes: Studio would ask its user to save them and answer
+  // nothing, to any call, until they did — found by tools/ai_eval's runs: now said at once, as open_project does)
+  r = await tool("create_project", { name: "Second", main: "main.rr", files: [{ path: "main.rr", text: 'PRINT "second"\n' }], summary: "A second program." });
+  check("create_project over unsaved changes: told at once, nothing opened", r.text.includes("unsaved changes") && !r.text.includes("Created and opened"), r.text);
+  r = await tool("studio_status");
+  check("Studio still answers, with the same project", r.text.includes("Project: Hello"), r.text);
 
   r = await tool("run_program", { Action: "start", Wait: 20 });
   check("run_program: run at once, the changed program's output back", !r.error && r.text.includes("Hello from an AI app") && r.text.includes("Line 2"), r.text);

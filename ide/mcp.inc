@@ -99,6 +99,7 @@ DECLARE FUNCTION McpDocumentsText AS STRING
 DECLARE FUNCTION McpFullPath(Path AS STRING) AS STRING
 DECLARE FUNCTION McpInside(Path AS STRING, Folder AS STRING) AS INTEGER
 DECLARE FUNCTION McpOpenAllowed(Path AS STRING) AS INTEGER
+DECLARE FUNCTION McpDirtyFiles AS STRING
 DECLARE FUNCTION McpOpenProject(Path AS STRING) AS STRING
 DECLARE FUNCTION McpOpenCheck(Path AS STRING) AS STRING
 DECLARE FUNCTION McpRunWords AS STRING
@@ -1011,7 +1012,7 @@ END SUB
 ' new program created and opened. What the AI app is told.
 FUNCTION McpApply(Said AS STRING) AS STRING
   DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING, d AS INTEGER
-  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING
+  DIM newText AS STRING, patch AS STRING, done AS STRING, f AS RFileStream, made AS STRING, problems AS STRING, dirty AS STRING
   FOR i = 0 TO McpTools.ProposalCount - 1
     info = McpTools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
@@ -1020,10 +1021,18 @@ FUNCTION McpApply(Said AS STRING) AS STRING
       ' (decided already)
     ELSEIF kind = "project" THEN
       IF made = "" THEN
-        made = McpTools.CreateProject(DefaultFolder)
-        IF made = "" OR LEFT$(made, 6) = "error:" THEN
-          problems = problems + "The new program couldn't be created: " + MID$(made, 8) + ". "
+        dirty = McpDirtyFiles
+        IF dirty <> "" THEN
+          ' (opening the new program would ask the user to save these: found by tools/ai_eval's
+          ' outside-AI-app runs, where Studio then answered nothing, to any call, for good)
+          problems = problems + "The new program wasn't made: Studio has unsaved changes (" + dirty + "), and opening another program would ask the user to save them. Put the program in the open project with write_file or propose_edit, or ask the user to save or close them first. "
           made = "!"
+        ELSE
+          made = McpTools.CreateProject(DefaultFolder)
+          IF made = "" OR LEFT$(made, 6) = "error:" THEN
+            problems = problems + "The new program couldn't be created: " + MID$(made, 8) + ". "
+            made = "!"
+          END IF
         END IF
       END IF
     ELSE
@@ -1075,7 +1084,9 @@ FUNCTION McpApply(Said AS STRING) AS STRING
     EXIT FUNCTION
   END IF
   IF done <> "" THEN AnalyzeActive
-  IF problems <> "" THEN
+  IF problems <> "" AND done = "" THEN
+    Result = "Not applied: " + problems
+  ELSEIF problems <> "" THEN
     Result = "Applied to: " + RTRIM$(done) + ". Not applied: " + problems
   ELSE
     Result = "Applied in Studio's editor (unsaved, so the user can undo it with Edit > Undo; Run saves it): " + RTRIM$(done) + ". " + Said
@@ -1308,16 +1319,25 @@ FUNCTION McpOpenCheck(Path AS STRING) AS STRING
   END IF
 END FUNCTION
 
+' The files with unsaved changes in Studio's editor, "a.rr b.rr", "" when there are none:
+' opening another project would ask the user to save them, a question nobody answers while an
+' AI app waits (and every call after it waits too).
+FUNCTION McpDirtyFiles AS STRING
+  DIM d AS INTEGER
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) THEN Result = Result + McpRel(DocFile(d)) + " "
+  NEXT
+  Result = RTRIM$(Result)
+END FUNCTION
+
 FUNCTION McpOpenProject(Path AS STRING) AS STRING
-  DIM p AS STRING, d AS INTEGER, dirty AS STRING
+  DIM p AS STRING, dirty AS STRING
   p = McpFullPath(Path)
   Result = McpOpenCheck(Path)
   IF Result <> "" THEN EXIT FUNCTION
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) AND DocDirty(d) THEN dirty = dirty + McpRel(DocFile(d)) + " "
-  NEXT
+  dirty = McpDirtyFiles
   IF dirty <> "" THEN
-    Result = "Can't open " + Path + ": Studio has unsaved changes (" + RTRIM$(dirty) + "). Ask the user to save or close them first: open_project never discards them."
+    Result = "Can't open " + Path + ": Studio has unsaved changes (" + dirty + "). Ask the user to save or close them first: open_project never discards them."
     EXIT FUNCTION
   END IF
   OpenProject p

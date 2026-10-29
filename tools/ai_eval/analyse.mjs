@@ -169,6 +169,24 @@ out("| tool | " + cells.filter((c) => c.startsWith("A-")).join(" | ") + " |");
 out("|---|" + cells.filter((c) => c.startsWith("A-")).map(() => "---").join("|") + "|");
 for (const t of toolNames) out(`| ${t} | ` + cells.filter((c) => c.startsWith("A-")).map((c) => { const rs = aRuns.filter((r) => r.cell === c); return `${rs.filter((r) => r.events.some((e) => e.type === "tool" && e.name === t)).length}/${rs.length}`; }).join(" | ") + " |");
 out();
+// (what kind of mistake each failed call was: the Studio's own words classified)
+const errKind = (e) => {
+  if (/^Unknown tool/.test(e.error)) return "a tool that doesn't exist";
+  if (/must be (a|an|true|one of)|it needs `|has no argument|it takes no arguments|weren't valid JSON/.test(e.error)) return "arguments don't fit the tool's schema";
+  if (/syntax error|is cut off|doesn't compile|isn't declared|Unexpected character|Member not part|Expected end-of-line/i.test(e.error)) return "the program text doesn't compile";
+  if (/old_text|edit \d|isn't in /.test(e.error)) return "an edit that doesn't match the file";
+  if (/outside the project|can't read|no such file|Can't open|hidden|not for AI apps|isn't among the files|isn't a file/.test(e.error)) return "a path that isn't a file of the project";
+  if (/Not allowed|didn't allow|Read only/.test(e.error)) return "refused by the permission mode";
+  return "other";
+};
+out("Failed tool calls by kind (outside AI app; calls / runs that had one):");
+out();
+const aCells = cells.filter((c) => c.startsWith("A-"));
+const kindNames = ["the program text doesn't compile", "arguments don't fit the tool's schema", "an edit that doesn't match the file", "a path that isn't a file of the project", "a tool that doesn't exist", "refused by the permission mode", "other"];
+out("| kind | " + aCells.join(" | ") + " |");
+out("|---|" + aCells.map(() => "---").join("|") + "|");
+for (const k of kindNames) out(`| ${k} | ` + aCells.map((c) => { const rs = aRuns.filter((r) => r.cell === c); const es = rs.flatMap((r) => errorsOf(r).filter((e) => errKind(e) === k)); const rn = rs.filter((r) => errorsOf(r).some((e) => errKind(e) === k)).length; return es.length ? `${es.length} / ${rn}` : ""; }).join(" | ") + " |");
+out();
 out("Most common tool errors (outside AI app, by normalised text):");
 out();
 const errCount = {};
