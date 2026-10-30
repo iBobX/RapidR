@@ -154,7 +154,7 @@ The program does the work on the disk in those events; the tree changes only the
 
 ### 3.6 RToolbox (I1, built: `rapidr_value::panels::toolbox`)
 
-- **Properties**: `Filter`, `ShowNames` (`"rapidr"`, the default: RapidR's names, `RButton`; `"rapidq"`: as a file written with RapidQ's names writes them, QBUTTON for RapidQ's components; `"titles"`), `Selected`, `Count`.
+- **Properties**: `Filter`, `ShowNames` (`"rapidr"`, the default: RapidR's names, `RButton`; `"classic"` (`"rapidq"` still works): as a file written with the classic names writes them, QBUTTON for the classic components; `"titles"`), `Selected`, `Count`.
 - **Methods**: `Item(i)`, `Expand(Group)`, `Collapse(Group)`, `ExpandAll`, `CollapseAll`, `AddTemplate(Name, Source, Icon)`, `RemoveTemplate`, `Template(Name)`.
 - **Events**: `OnPick(Type)`, `OnSelect(Type)`, `OnDragStart(Type)`, `OnDragDrop(Type, Target, X, Y)` (the deepest component under the drop, in its own pixels).
 

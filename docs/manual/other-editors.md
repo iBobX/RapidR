@@ -2,7 +2,7 @@
 
 RapidR Studio is the editor made for RapidR, but a program is a text file, and two programs that come with RapidR let any editor that speaks the standard protocols understand it the way Studio does:
 
-- **`rapidr lsp`** is the language server (the Language Server Protocol, over standard input and output). It is the engine of Studio's code editor, so another editor gets the same completion, hover help, parameter help, Go to Definition, references, rename, outline, formatting, quick fixes, and the same problems worded the way RapidQ's compiler words them.
+- **`rapidr lsp`** is the language server (the Language Server Protocol, over standard input and output). It is the engine of Studio's code editor, so another editor gets the same completion, hover help, parameter help, Go to Definition, references, rename, outline, formatting, quick fixes, and the same problems, worded the same way.
 - **`rapidr dap`** is the debug adapter (the Debug Adapter Protocol), the engine behind Studio's debugger: breakpoints, stepping, the call stack, variables, watches.
 
 There is a ready-made RapidR extension for Visual Studio Code. This chapter says what it does and how it finds RapidR, then what another editor can ask the server for.
@@ -40,7 +40,7 @@ The extension's own page, with its settings (`rapidr.path`, `rapidr.rapidqCompat
 
 ## Any editor that speaks LSP
 
-`rapidr lsp` takes these **initialization options** (all optional): `rapidqCompatible` (true: report what RapidQ doesn't have), `keywordCase` (`upper`, `lower`, `proper`, `preserve`), `identifierCase` (`declaration`, `preserve`) and `includeDirs` (more folders for `$INCLUDE`). It reads files only inside the workspace folders the editor opened and the folders of the documents it opened.
+`rapidr lsp` takes these **initialization options** (all optional): `rapidqCompatible` (true: report what classic programs don't have), `keywordCase` (`upper`, `lower`, `proper`, `preserve`), `identifierCase` (`declaration`, `preserve`) and `includeDirs` (more folders for `$INCLUDE`). It reads files only inside the workspace folders the editor opened and the folders of the documents it opened.
 
 | What | Request |
 |---|---|

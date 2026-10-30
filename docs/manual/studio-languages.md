@@ -42,7 +42,7 @@ $ RAPIDR_LANG=es rapidr check hello.rr
 hello.rr:3:11: error: Se esperaba el fin de la línea, pero se encontró THEN [Expected end-of-line but got THEN]
 ```
 
-- A message that RapidQ's compiler also gives keeps RapidQ's own words
+- A message in the classic compiler's wording keeps its English original
   beside the translation, in brackets, so the words you know (and search
   for) are still there.
 - `rapidr check file.rr` compiles a program and lists its errors without

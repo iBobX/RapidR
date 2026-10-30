@@ -75,7 +75,7 @@ fn one_line(code: &str) -> Option<String> {
 pub fn card() -> String {
     let mut out = String::new();
     out.push_str("# RapidR: the rules to get right\n\n");
-    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs RapidQ programs. Names are case-insensitive. What follows is checked by RapidR's compiler.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. What follows is checked by RapidR's compiler.\n\n");
     for r in RULES {
         let _ = write!(out, "- {}", r.text);
         // (a rule about a statement — FOR, CREATE —: its syntax, the registry's)
@@ -110,7 +110,7 @@ pub fn card() -> String {
     out.push_str("The component that fired it may come last, `Sender AS RButton` (its type): one SUB for many buttons. A few components' events differ: the reference has each one's.\n");
     out.push_str("\n## RapidR's names\n");
     let examples: Vec<String> = NAME_EXAMPLES.iter().filter_map(|q| component(q).map(|c| format!("{q} is {}", c.spelling()))).collect();
-    let _ = writeln!(out, "Write components with RapidR's names, R for RapidQ's Q: {}. RapidQ's names are the same components: keep the names a file already uses.", examples.join(", "));
+    let _ = writeln!(out, "Write components with RapidR's names, R for the classic Q: {}. The classic names are the same components: keep the names a file already uses.", examples.join(", "));
     out
 }
 

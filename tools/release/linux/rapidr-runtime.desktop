@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=RapidR Runtime
-Comment=Run RapidR and RapidQ programs
+Comment=Run RapidR programs
 Exec=@BIN@/rapidr open %f
 Terminal=false
 Icon=rapidr-runtime

@@ -1,4 +1,4 @@
-<!-- translated-from: studio-editor.md 9ccaf841158486ee -->
+<!-- translated-from: studio-editor.md df4f98b6e7907b01 -->
 # El editor de código en RapidR Studio
 
 El editor de código de RapidR Studio conoce tu programa como lo conoce el
@@ -56,10 +56,10 @@ END CREATE
 ```
 
 Después de `AS`, la lista ofrece los tipos integrados, tus `TYPE` y todos los
-componentes con los nombres de RapidR (`RButton`, `RForm`). Los nombres Q
-anteriores (`QButton`, `QForm`) funcionan exactamente igual: empieza a escribir
+componentes con los nombres de RapidR (`RButton`, `RForm`). Los nombres
+clásicos (`QButton`, `QForm`) funcionan exactamente igual: empieza a escribir
 uno (`QBu`) y la lista también lo ofrece, después de los de RapidR. En un
-archivo que ya usa nombres Q, la lista ofrece esos en su lugar (y los de RapidR
+archivo que ya usa nombres clásicos, la lista ofrece esos en su lugar (y los de RapidR
 cuando escribes una `R`), así que un archivo conserva un solo estilo.
 
 ### Ctrl+Space
@@ -71,7 +71,7 @@ instrucciones y constantes de RapidR:
 
 ![Ctrl+Space en una línea vacía enumera los nombres del programa: clicks, Answer, Form, Greet, GreetButton, NameChanged, NameEdit, NameLabel, y luego funciones como ABS](../images/studio-editor/ctrl-space.png)
 
-### Las constantes de RAPIDQ.INC
+### Las constantes clásicas
 
 Constantes como `mbYes`, `mtWarning`, `clRed` o `fmOpenRead` están integradas en
 un programa de RapidR (`.rr`): la lista las ofrece tal cual, y no necesitas
@@ -80,7 +80,7 @@ ninguna línea de inclusión
 
 ![Al escribir mby en hello_form.rr se enumeran mbYes, MB_YESNO y otras constantes, todas integradas, con su número](../images/studio-editor/completion-builtin.png)
 
-En un programa `.bas` vienen del archivo incluido RAPIDQ.INC. La lista las ofrece
+En un programa `.bas` vienen del archivo incluido `RAPIDQ.INC`. La lista las ofrece
 incluso antes de que tu programa lo incluya, y al elegir una también se añade la
 línea `$INCLUDE "RAPIDQ.INC"` al comienzo del archivo (después de sus primeros
 comentarios). Ctrl+Z deshace las dos cosas.
@@ -288,11 +288,11 @@ más filas para que se lea completo
 Con Ver > Ajustar las líneas largas de la salida desactivado, termina en “…” y,
 al dejar el mouse sobre él, una sugerencia lo muestra completo.
 
-### La advertencia de RAPIDQ.INC
+### La advertencia de las constantes clásicas
 
 En un programa `.bas`, RapidR, para ejecutar los programas antiguos de la misma
 manera, lee un nombre que no conoce como una variable nueva que vale 0. Así que
-si un programa así usa `mbYes` sin incluir RAPIDQ.INC, `mbYes` vale 0, y una
+si un programa así usa `mbYes` sin incluir `RAPIDQ.INC`, `mbYes` vale 0, y una
 pregunta como esta muestra solo un botón Aceptar (un programa `.rr` tiene las
 constantes integradas: ahí no hay advertencia):
 
@@ -315,7 +315,7 @@ primera. Para la advertencia de arriba, la corrección añade
 
 Otras correcciones: una propiedad mal escrita (`NameEdit.Txet`) ofrece las más
 cercanas que existen (“Cambiar a Text”); en un proyecto que se mantiene
-compatible con lo clásico, un nombre Q que no existe (`QPLOT`) ofrece el de
+compatible con lo clásico, un nombre clásico que no existe (`QPLOT`) ofrece el de
 RapidR (`RPLOT`).
 
 `IF NOT FILEEXISTS(f) THEN` parece correcto pero siempre es verdadero:

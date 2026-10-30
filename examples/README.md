@@ -208,18 +208,18 @@ Plug the board in by USB first. [Serial ports and IoT boards](../docs/manual/ser
 |---------|---------------|---------|-----|
 | [esp32_monitor.rr](iot/esp32_monitor.rr) | `RComPort` for boards: ports listed with their USB adapters, connect at 115200, reset through DTR / RTS, the boot log line by line, plug and unplug events. Never writes to the board | run · interp · native · web | `rapidr run iot/esp32_monitor.rr` |
 
-### rapidq/ — RapidQ programs, unchanged
+### rapidq/ — older programs, unchanged (to try the importer on)
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, Q components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
-| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | A RapidQ program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
+| [notepad.bas](rapidq/notepad.bas) | A text editor in the classic style: `$TYPECHECK ON`, `DECLARE SUB`, classic components, open / save dialogs, `OnClose`'s `Action` | run · interp · native · web | `rapidr run rapidq/notepad.bas` |
+| [shapes/shapes.bas](rapidq/shapes/shapes.bas) | An older program in several files, brought in with `$INCLUDE` written as on Windows; try `rapidr import-rapidq` on it ([Include files](../docs/manual/importing-rapidq.md#include-files)) | run · interp · native · web | `rapidr run rapidq/shapes/shapes.bas` |
 
-Programs written for RapidQ run unchanged. The other examples use RapidR's own
-names: `RButton`, `RForm`, `RStringGrid` …. To bring a RapidQ program of your
+Older programs run unchanged. The other examples use RapidR's own
+names: `RButton`, `RForm`, `RStringGrid` …. To bring an older program of your
 own over to RapidR's names, use `rapidr import-rapidq` (it writes a converted
 copy and a report, and leaves the original alone; see
-[Importing a RapidQ program](../docs/manual/importing-rapidq.md)).
+[Importing older programs](../docs/manual/importing-rapidq.md)).
 
 ### windows/ — Windows only: a form's Windows messages, winmm's MIDI
 

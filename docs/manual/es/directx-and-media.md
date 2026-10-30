@@ -1,11 +1,11 @@
-<!-- translated-from: directx-and-media.md 62ca4b0b9e9c5788 -->
+<!-- translated-from: directx-and-media.md ee0ac415e7616eb3 -->
 # DirectX, multimedia y dispositivos
 
 Los objetos de DirectX, multimedia y dispositivos se ejecutan en todas las
 plataformas y en el navegador. Son implementaciones propias de RapidR de lo que
 hacen los programas con las API de Windows para DirectX, MCI, WinINet y puertos
 seriales, con los miembros y el comportamiento en los que se apoyan los
-programas anteriores. Cada uno tiene también un nombre Q anterior (`QDXSCREEN`
+programas anteriores. Cada uno tiene también un nombre clásico (`QDXSCREEN`
 para `RDXScreen`, y así sucesivamente), que se acepta en todas partes.
 
 ## DirectX 2D

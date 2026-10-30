@@ -1,4 +1,4 @@
-<!-- translated-from: components.md 544bc0080cdf30d3 -->
+<!-- translated-from: components.md 694912b9ade24d32 -->
 # Componentes y objetos
 
 Un programa de RapidR construye sus ventanas con **componentes** —
@@ -10,7 +10,7 @@ de datos). RapidR tiene todos los componentes y objetos clásicos excepto OLE
 La lista completa, con los dos nombres y dónde se ejecuta cada uno:
 [reference/components.md](../reference/components.md).
 
-## Los nombres Q anteriores
+## Los nombres clásicos
 
 Los componentes de RapidR se escriben `RButton`, `RForm`, `RStringGrid`, ….
 Los programas anteriores usan `QBUTTON`, `QFORM`, `QSTRINGGRID`, …: los mismos
@@ -18,7 +18,7 @@ componentes, aceptados en todas partes
 ([la lista completa](../reference/classic-names.md)). **Los dos nombres son un
 solo componente**: las mismas propiedades, métodos, eventos, valores
 predeterminados, aspecto y comportamiento, en todos los entornos de ejecución.
-Unos pocos nombres Q se asignan a otro nombre R: `QGAUGE` es `RProgressBar`,
+Unos pocos nombres clásicos se asignan a otro nombre R: `QGAUGE` es `RProgressBar`,
 `QOUTLINE` (el árbol de Windows 3.1) es `RTreeView`, y `COMPORT` es `RComPort`.
 
 - Mézclalos con libertad: un formulario `RForm` puede contener un botón
@@ -31,17 +31,17 @@ Unos pocos nombres Q se asignan a otro nombre R: `QGAUGE` es `RProgressBar`,
   `RAI` ([El asistente de IA y RAI](ai-assistant.md)), `RMarkdownView`
   ([Markdown](markdown.md)), `RCodeEditor`, los componentes web
   (`RWebView`, `RDOM`, …) y otros.
-- Un programa escrito con nombres Q, que usa solo los componentes y miembros
-  clásicos, sigue siendo un programa clásico simple, que el compilador anterior
-  todavía compila. Para pasar uno a los nombres de RapidR, impórtalo
+- Un programa escrito con nombres clásicos, que usa solo los componentes y
+  miembros clásicos, sigue siendo un programa clásico simple. Para pasar uno a
+  los nombres de RapidR, impórtalo
   (el comando de importación del menú **Archivo** de RapidR Studio, o
   `rapidr import-rapidq`): una copia convertida y un informe, con el original
   intacto — [Importar programas anteriores](importing-rapidq.md).
 - RapidR Studio muestra los nombres de RapidR (la caja de herramientas, el
   inspector, la Ayuda, el autocompletado); lo que añade a un archivo escrito con
-  nombres Q se escribe con nombres Q, así que un archivo nunca los mezcla.
+  nombres clásicos se escribe con nombres clásicos, así que un archivo nunca los mezcla.
 - Como una Q inicial se lee como R siempre que exista el componente R, `QPLOT` se
-  acepta y significa `RPlot`, aunque nunca hubo un QPLOT. Prefiere el nombre R
+  acepta y significa `RPlot`, aunque nunca hubo un `QPLOT` clásico. Prefiere el nombre R
   para los componentes propios de RapidR.
 
 Más sobre cómo conviven las dos familias (y cómo las escribe RapidR Studio):

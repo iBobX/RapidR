@@ -1,4 +1,4 @@
-<!-- translated-from: designing-forms.md 53178d3f908c608b -->
+<!-- translated-from: designing-forms.md 787571a21d444a3a -->
 # Diseñar formularios en RapidR Studio
 
 El diseñador de formularios de RapidR Studio te permite construir las ventanas
@@ -204,7 +204,7 @@ tu código.
   una de sus ventanas hijas (siguiente sección).
 
 El diseñador escribe cada archivo con sus propios nombres: los de RapidR
-(RButton) en un archivo escrito con ellos, los nombres Q anteriores (QBUTTON) en
+(RButton) en un archivo escrito con ellos, los nombres clásicos (QBUTTON) en
 un programa clásico — un archivo que crea componentes `QFORM`, o un archivo `.bas`
 — nunca una mezcla. Los dos nombres significan el mismo componente.
 
@@ -344,8 +344,8 @@ permiten llegar a todo.
   sigue; quítalo del proyecto (Delete) y su `$INCLUDE` también se va (el archivo
   se queda en el disco).
 - En un programa escrito con los nombres anteriores (`main.bas`), los formularios
-  y módulos nuevos son archivos `.bas` y usan los nombres Q, para que el
-  compilador anterior también pueda compilarlo.
+  y módulos nuevos son archivos `.bas` y usan los nombres clásicos, para que
+  el programa siga siendo clásico.
 - Un archivo puede contener varios formularios (`CREATE Form AS RForm`,
   `CREATE NewForm AS RForm` …): el árbol del proyecto muestra cada uno bajo el
   archivo, y abrir uno lo diseña. El árbol toma lo que es un formulario de tu

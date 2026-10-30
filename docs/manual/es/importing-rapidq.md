@@ -1,4 +1,4 @@
-<!-- translated-from: importing-rapidq.md 7c70868841888e37 -->
+<!-- translated-from: importing-rapidq.md 38e8b3960766d0cc -->
 # Importar programas de RapidQ
 
 RapidR ejecuta los programas de RapidQ **tal como están**: no tienes que importar
@@ -49,8 +49,8 @@ END CREATE                                     END CREATE
 ## Archivos incluidos
 
 Un programa de RapidQ suele ser varios archivos: el programa principal incorpora
-sus bibliotecas y formularios con `$INCLUDE`. RapidR encuentra cada uno donde lo
-encontraba RapidQ, en todos los sistemas:
+sus bibliotecas y formularios con `$INCLUDE`. RapidR busca cada uno en estos
+lugares, en este orden, en todos los sistemas:
 
 1. **en la propia carpeta del programa** — también un `$INCLUDE` anidado (un
    archivo incluido que incluye a otro lo nombra desde la carpeta del programa,
@@ -176,7 +176,7 @@ muestra primero los cambios).
 
 - **Mezclar nombres no es un problema.** RapidR lee `QBUTTON` y `RButton` como el
   mismo componente, siempre, sin ninguna configuración, tanto en archivos
-  antiguos como nuevos (mira [Componentes](components.md#los-nombres-q-anteriores)).
+  antiguos como nuevos (mira [Componentes](components.md#los-nombres-clásicos)).
 - **Cuando añades algo a un archivo, Studio sigue su estilo.** En un archivo
   escrito con los nombres de RapidQ, el diseñador añade `QBUTTON` y el
   autocompletado ofrece los nombres de RapidQ, así que el archivo nunca los

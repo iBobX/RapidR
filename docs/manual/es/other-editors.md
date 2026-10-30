@@ -1,9 +1,9 @@
-<!-- translated-from: other-editors.md 3ebdd571e7247db1 -->
+<!-- translated-from: other-editors.md 75e6085c5e92a6d8 -->
 # RapidR en otros editores
 
 RapidR Studio es el editor hecho para RapidR, pero un programa es un archivo de texto, y dos programas que vienen con RapidR permiten que cualquier editor que hable los protocolos estándar lo entienda como lo entiende Studio:
 
-- **`rapidr lsp`** es el servidor de lenguaje (el Language Server Protocol, por entrada y salida estándar). Es el motor del editor de código de Studio, así que otro editor obtiene el mismo autocompletado, la misma información flotante, la información de parámetros, Ir a la definición, referencias, renombrar, estructura, formato, correcciones rápidas y los mismos problemas, redactados como los redacta el compilador.
+- **`rapidr lsp`** es el servidor de lenguaje (el Language Server Protocol, por entrada y salida estándar). Es el motor del editor de código de Studio, así que otro editor obtiene el mismo autocompletado, la misma información flotante, la información de parámetros, Ir a la definición, referencias, renombrar, estructura, formato, correcciones rápidas y los mismos problemas, redactados de la misma manera.
 - **`rapidr dap`** es el adaptador de depuración (el Debug Adapter Protocol), el motor detrás del depurador de Studio: puntos de interrupción, ejecución paso a paso, la pila de llamadas, variables, expresiones observadas.
 
 Hay una extensión de RapidR ya preparada para Visual Studio Code. Este capítulo dice qué hace y cómo encuentra RapidR, y luego qué le puede pedir otro editor al servidor.

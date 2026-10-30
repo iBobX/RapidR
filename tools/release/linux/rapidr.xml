@@ -21,7 +21,7 @@
     <glob pattern="*.rrproj"/>
   </mime-type>
   <mime-type type="text/x-rapidq-basic">
-    <comment>RapidQ BASIC source</comment>
+    <comment>Classic BASIC source</comment>
     <sub-class-of type="text/plain"/>
     <glob pattern="*.bas" weight="60"/>
     <glob pattern="*.rqw"/>

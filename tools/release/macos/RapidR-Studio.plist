@@ -65,7 +65,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>RapidQ BASIC source</string>
+			<string>Classic BASIC source</string>
 			<key>CFBundleTypeIconFile</key>
 			<string>BASIC-Source</string>
 			<key>CFBundleTypeRole</key>
@@ -126,7 +126,7 @@
 			<key>UTTypeIconFile</key>
 			<string>BASIC-Source</string>
 			<key>UTTypeDescription</key>
-			<string>RapidQ BASIC source</string>
+			<string>Classic BASIC source</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.source-code</string>

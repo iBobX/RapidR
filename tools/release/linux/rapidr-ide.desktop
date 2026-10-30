@@ -2,7 +2,7 @@
 Type=Application
 Name=RapidR Studio
 GenericName=BASIC IDE
-Comment=Write, run and build RapidR and RapidQ programs
+Comment=Write, run and build RapidR programs
 Exec=@BIN@/rapidr ide %f
 Terminal=false
 Icon=rapidr-ide

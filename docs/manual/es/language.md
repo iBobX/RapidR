@@ -1,4 +1,4 @@
-<!-- translated-from: language.md 734f79e172fd3b75 -->
+<!-- translated-from: language.md beaf0deba0f91c9d -->
 # El lenguaje
 
 El lenguaje de RapidR es un BASIC moderno, y los programas anteriores se
@@ -9,7 +9,7 @@ para cada ejemplo de aquí.
 
 RapidR también acepta algo de sintaxis que el lenguaje clásico no tiene (el
 `#If` de otros BASIC, `ON ERROR`, `i++`, …): mira
-[Notas de compatibilidad y extensiones](differences.md).
+[Notas de compatibilidad](compatibility.md).
 
 ## Archivos de código fuente
 
@@ -112,7 +112,7 @@ RapidR tiene ese archivo incluido integrado, así que la línea no necesita ning
 archivo: RapidR no distribuye ninguna copia de él. Sin la línea, `clRed` —y
 también `True` y `False`— es un nombre no declarado y vale 0, y el editor de
 código te avisa
-([la advertencia de RAPIDQ.INC](studio-editor.md#la-advertencia-de-rapidqinc)). Los
+([la advertencia de las constantes clásicas](studio-editor.md#la-advertencia-de-las-constantes-clásicas)). Los
 programas anteriores se comportan igual. La línea en un programa `.rr` es
 inofensiva: las constantes son entonces las del archivo incluido.
 
@@ -717,7 +717,7 @@ lugar para sus palabras, así que se pueden traducir como cualquier mensaje.
 | `a && b` (se compila, pero une texto: una advertencia) | `a AND b` | `hint.and-and` |
 | `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; una lista: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
 | `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
-| un `FOR`, `WHILE`, `DO`, `IF` o `SELECT` que nunca se cierra (el *Missing NEXT statement* de RC.EXE …, una advertencia) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| un `FOR`, `WHILE`, `DO`, `IF` o `SELECT` que nunca se cierra (el *Missing NEXT statement* del compilador clásico …, una advertencia) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
 | `ELSE IF c THEN` (un segundo `IF` que necesita su propio `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
 | `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
 | `ENDIF` | `END IF` | `hint.endif` |

@@ -77,7 +77,7 @@ Type: filesandordirs; Name: "{app}\lib"
 
 [Icons]
 #if Kind == "sdk"
-Name: "{autoprograms}\RapidR Studio"; Filename: "{app}\bin\rapidrw.exe"; Parameters: "--ide"; WorkingDir: "{userdocs}"; IconFilename: "{app}\share\icons\rapidr-ide.ico"; Comment: "Write, run and build RapidR and RapidQ programs"
+Name: "{autoprograms}\RapidR Studio"; Filename: "{app}\bin\rapidrw.exe"; Parameters: "--ide"; WorkingDir: "{userdocs}"; IconFilename: "{app}\share\icons\rapidr-ide.ico"; Comment: "Write, run and build RapidR programs"
 #endif
 
 [Registry]
@@ -131,7 +131,7 @@ Root: HKA; Subkey: "Software\Classes\.rqb\OpenWithProgids"; ValueType: string; V
 Root: HKA; Subkey: "Software\Classes\.rqb"; ValueType: string; ValueName: ""; ValueData: "RapidR.RapidQSource"; Flags: uninsdeletevalue; Tasks: basdefault
 Root: HKA; Subkey: "Software\Classes\.rq\OpenWithProgids"; ValueType: string; ValueName: "RapidR.RapidQSource"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKA; Subkey: "Software\Classes\.rq"; ValueType: string; ValueName: ""; ValueData: "RapidR.RapidQSource"; Flags: uninsdeletevalue; Tasks: basdefault
-Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource"; ValueType: string; ValueName: ""; ValueData: "RapidQ BASIC source"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource"; ValueType: string; ValueName: ""; ValueData: "Classic BASIC source"; Flags: uninsdeletekey
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\share\icons\basic-source.ico"""
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\run"; ValueType: string; ValueName: ""; ValueData: "&Run"
 Root: HKA; Subkey: "Software\Classes\RapidR.RapidQSource\shell\run\command"; ValueType: string; ValueName: ""; ValueData: """{app}\bin\rapidrw.exe"" ""%1"""

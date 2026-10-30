@@ -331,7 +331,7 @@ Read = { doc = "Reads data: up to `NumBytes` from a socket (returned), `Count` b
 Read_csv = { doc = "Loads a CSV file into the DataFrame. Same as `ReadCSV`." }
 Read_json = { doc = "Loads a JSON file into the DataFrame. Same as `LoadFromJSON`." }
 ReadAll = { doc = "Returns the rest of the stream as text." }
-ReadAllText = { doc = "Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as RapidQ's do." }
+ReadAllText = { doc = "Returns the rest of the stream as text: UTF-8 (a byte-order mark dropped) when it is, else Windows-1252, the ANSI text of older programs. `ReadAll` and `ReadStr` return bytes, a character each, as older programs expect." }
 ReadBinary = { doc = "Reads the named binary value of the open key." }
 ReadBinStr = { doc = "Reads `n` bytes from the stream and returns them as a string." }
 ReadByte = { doc = "Reads one byte from the socket or stream." }
@@ -497,7 +497,7 @@ WriteInteger = { doc = "Writes an integer value under a name in the open key." }
 WriteLine = { doc = "Writes text followed by a line end. A string is written as `WriteStr` writes it: bytes, or UTF-8 when it has a character above 255." }
 Writeln = { doc = "Writes text followed by a line end. Same as `WriteLine`." }
 WriteNum = { doc = "Writes a number in binary, `bytes` bytes long." }
-WriteStr = { doc = "Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as RapidQ does; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds." }
+WriteStr = { doc = "Writes `bytes` characters of the string to the stream (`WriteStr(S, LEN(S))` writes all of S). A string of characters up to 255 is written as bytes, one each, as older programs expect; a string with any other character (Chinese, emoji …) is written whole as UTF-8. Use `WriteText` to write UTF-8 whatever the string holds." }
 WriteString = { doc = "Writes a string: to the serial port (waiting when `Wait` is true), or as a named value of the open registry key." }
-WriteText = { doc = "Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as RapidQ does, and one with any other character as its UTF-8." }
+WriteText = { doc = "Writes the string as UTF-8 text, whatever it holds (accents, Chinese, emoji). `WriteStr` writes a string of characters up to 255 as bytes, as older programs expect, and one with any other character as its UTF-8." }
 WriteUDT = { doc = "Writes a user-defined type variable to the stream, field by field." }

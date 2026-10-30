@@ -1,4 +1,4 @@
-<!-- translated-from: markdown.md 9a05cc2b6544c4fc -->
+<!-- translated-from: markdown.md 73186c84654abbee -->
 # Archivos Markdown y RMarkdownView
 
 Markdown es el formato de texto sin formato de los archivos `README.md`, las
@@ -130,7 +130,7 @@ de apertura:
 |---|---|
 | ```` ```sql ```` | SQL: las palabras de todos los dialectos |
 | ```` ```sqlite ````, ```` ```mysql ```` (o `mariadb`) | SQL con las palabras de ese dialecto (`PRAGMA`, `AUTO_INCREMENT` …) |
-| ```` ```basic ```` (o `rapidr`, `rr`, `bas`, `rapidq`, `vb` …) | el BASIC de RapidR |
+| ```` ```basic ```` (o `rapidr`, `rr`, `bas`, `vb` …) | el BASIC de RapidR |
 | ```` ```json ````, ```` ```html ````, ```` ```css ````, ```` ```javascript ```` (`js`), ```` ```toml ````, ```` ```csv ````, ```` ```rust ````, ```` ```markdown ```` | ese lenguaje |
 | cualquier otra palabra, o ninguna | texto simple, con la fuente de código |
 

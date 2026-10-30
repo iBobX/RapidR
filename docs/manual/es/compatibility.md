@@ -1,13 +1,12 @@
-<!-- translated-from: differences.md 1451b7e09d8b1eae -->
-# Notas de compatibilidad y extensiones
+<!-- translated-from: compatibility.md e1fafade60abd40d -->
+# Notas de compatibilidad
 
 <!-- legal -->
-RapidR es una implementación original, escrita desde cero en Rust puro; no es
-una copia de ningún otro producto. Es **compatible** con los programas clásicos:
-lo que hacían los programas escritos antes lo siguen haciendo, y las
-extensiones de RapidR son aditivas y nunca cambian lo que hace un programa
-existente. RapidR tiene una capa de compatibilidad para importar programas de
-RapidQ anteriores ([impórtalos](importing-rapidq.md)).
+RapidR es una implementación original, escrita desde cero en Rust puro.
+
+RapidR incluye una capa de compatibilidad para importar programas anteriores escritos para RapidQ ([Importar programas anteriores](importing-rapidq.md)).
+
+La regla que sigue la capa: lo que hace un programa anterior lo sigue haciendo; las extensiones de RapidR son aditivas y nunca cambian lo que hace un programa existente.
 
 ## Nombres
 
@@ -19,8 +18,8 @@ nombres se pueden mezclar en un mismo programa. Cada nombre clásico es su
 nombre R (`QBUTTON` = `RButton`), salvo `QGAUGE` = `RProgressBar`,
 `QOUTLINE` = `RTreeView` y `COMPORT` = `RComPort`
 ([la lista completa](../reference/classic-names.md)). Los componentes propios de
-RapidR (`RPlot`, `RSQLite`, `RJson` …) tienen solo un nombre R. Las otras
-extensiones de archivo de código fuente clásicas, `.rqw`, `.rqb` y `.rq`, se
+RapidR (`RPlot`, `RSQLite`, `RJson` …) tienen solo un nombre R. Las
+extensiones de archivo de código fuente anteriores, `.rqw`, `.rqb` y `.rq`, se
 leen como `.bas`. Para pasar un programa a los nombres de RapidR,
 impórtalo: una copia convertida, que se comprobó que compila exactamente igual
 que el original, con un informe.
@@ -62,7 +61,7 @@ que el original, con un informe.
   macOS, Linux y la web se compila y se ejecuta hasta la primera llamada de ese
   tipo, que lo detiene con un error que nombra la función y, cuando la hay, el
   equivalente portátil de RapidR (`GetTickCount` → `TIMER`). RapidR no emula
-  Windows. Unas pocas llamadas de Windows que los programas clásicos hacen con
+  Windows. Unas pocas llamadas de Windows que los programas anteriores hacen con
   frecuencia siguen funcionando en todas las plataformas porque tienen un
   significado claro: `Shell_NotifyIcon` (la bandeja del sistema), el registro
   (RRegistry), `joyGetPosEx` nombra RDXJoystick.
@@ -79,48 +78,44 @@ que el original, con un informe.
   controles), así que los mensajes de Windows que se le envían no llegan a
   ninguna parte; el `Handle` de un formulario es su ventana real. En una pantalla
   de alta densidad de píxeles (high-DPI), las coordenadas que las funciones de
-  Windows toman y dan son los píxeles de la pantalla, mientras que un programa clásico
+  Windows toman y dan son los píxeles de la pantalla, mientras que un programa anterior
   (que no tiene en cuenta el DPI) obtenía coordenadas escaladas.
 - **OLE / COM** (`QOLECONTAINER`, `QOLEOBJECT`): los programas que los declaran se
   compilan; sus métodos no hacen nada e imprimen una advertencia.
-- Los `QD3DANIMATION` / `QD3DANIMATIONSET` no documentados del lenguaje clásico
-  (solo en su lista de palabras clave): los programas que los declaran se compilan y
-  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` los aceptan, pero, como en
-  el lenguaje clásico, no hay nada que hacer con ellos (este no les da claves
-  (keys) ni nada que los reproduzca).
+- Los `QD3DANIMATION` / `QD3DANIMATIONSET` no documentados (nombrados solo en la
+  lista de palabras clave clásica): los programas que los declaran se compilan y
+  `QDXSCREEN.CreateAnimation` / `CreateAnimationSet` los aceptan, pero no hay
+  nada que hacer con ellos (no tienen claves, y nada los reproduce).
 - La entrada y salida de puertos de la época de DOS.
-- `ON ERROR` se acepta y se ignora (viene de otros BASIC, no del lenguaje clásico): un error de
-  ejecución sigue terminando el programa.
+- `ON ERROR` se acepta y se ignora: un error de ejecución sigue terminando el
+  programa.
 
-## Diferencias deliberadas
+## Decisiones deliberadas
 
-Donde el comportamiento clásico era un fallo o dependía de Windows, RapidR hace
-en su lugar algo definido, y lo dice:
+Donde el comportamiento de un programa anterior era un fallo o dependía de
+Windows, RapidR hace en su lugar algo definido, y lo dice:
 
 - Los valores hostiles nunca hacen fallar el entorno de ejecución: en su lugar
-  hay un error de ejecución con su línea (“Division by zero” donde el lenguaje clásico
-  lanzaba una excepción).
+  hay un error de ejecución con su línea (por ejemplo “Division by zero”).
 - Las funciones de memoria (`VARPTR`, `MEMCPY`, `MEMSET`, `MEMCMP`) son seguras
   para la memoria: las direcciones son vistas de los propios datos del programa;
   una dirección no válida es un error de ejecución.
-- Un RDXJoystick sin ningún joystick lee “no conectado” en lugar de lanzar el
-  error de índice de lista del lenguaje clásico.
-- `TextRect(Rect, x, y, S$, fc, bc)` dibuja: el texto recortado a `Rect`, que un
-  fondo `bc` rellena primero (como hace la llamada de Windows que hay debajo). El
-  propio TextRect clásico detiene el programa en cada objeto probado (una
-  infracción de acceso en un QBITMAP, un error de índice de lista en un QCANVAS).
+- Un RDXJoystick sin ningún joystick lee “no conectado” en lugar de lanzar un
+  error de índice de lista.
+- `TextRect(Rect, x, y, S$, fc, bc)` dibuja en cualquier objeto: el texto recortado a
+  `Rect`, que un fondo `bc` rellena primero (como hace la llamada de Windows que
+  hay debajo).
 - Las ventanas de todos los sistemas las dibuja el propio RapidR, con el aspecto
-  propio de RapidR de forma predeterminada (el aspecto exacto clásico de Windows
+  propio de RapidR de forma predeterminada (el aspecto clásico de Windows
   con `$THEME Classic`; los tamaños y las posiciones son los clásicos en ambos), con menús, cuadros de diálogo y portapapeles reales del sistema donde
   los usuarios los esperan.
 - Los documentos impresos con `Printer` / `LPRINT` son PDF que se envían a la
   impresora del sistema (mira [Componentes](components.md#los-objetos-globales)).
 - **Una cadena de texto con un carácter por encima de 255 es texto, no bytes.**
-  Las cadenas de texto clásicas son bytes, y las de RapidR también lo son siempre que
-  todos los caracteres sean de hasta 255: `WriteStr(CHR$(200), 1)` escribe el
-  byte 200 y un archivo binario copiado con `ReadStr` / `WriteStr` es exacto.
-  El lenguaje clásico no tenía ningún carácter por encima de 255; RapidR sí (`"中文"`,
-  `"😀"`), y un flujo escribe una cadena así entera como UTF-8, donde un conteo de
+  Una cadena de texto son bytes siempre que todos los caracteres sean de hasta
+  255: `WriteStr(CHR$(200), 1)` escribe el byte 200 y un archivo binario copiado
+  con `ReadStr` / `WriteStr` es exacto. RapidR también tiene caracteres por
+  encima de 255 (`"中文"`, `"😀"`), y un flujo escribe una cadena así entera como UTF-8, donde un conteo de
   bytes la habría cortado por la mitad de un carácter. `WriteStr(S, n)` cuenta
   caracteres, así que `WriteStr(S, LEN(S))` escribe todo `S`. Los cuadros de
   texto y el editor de código nunca guardan un `?` en lugar de un carácter que
@@ -129,10 +124,9 @@ en su lugar algo definido, y lo dice:
   (mira [Texto y bytes](language.md#texto-y-bytes-acentos-chino-emoji)).
 - **El cuadro de diálogo de fuente nombra un color del sistema.** Una fuente que
   nunca estableció un color (un `RFontDialog` nuevo, las fuentes de la mayoría de
-  los componentes) tiene `clWindowText`. El cuadro de diálogo clásico lo
-  muestra como “Custom”; el de RapidR muestra “Black” (`clWindow`, “White”), y
-  presionar Aceptar sin elegir otro color conserva `clWindowText`, así que el
-  texto sigue al tema:
+  los componentes) tiene `clWindowText`. El cuadro de diálogo lo muestra como
+  “Black” (`clWindow`, “White”), y presionar Aceptar sin elegir otro color
+  conserva `clWindowText`, así que el texto sigue al tema:
 
   ```basic
   FontDlg.GetFont(Label1.Font)     ' la lista muestra Black
@@ -141,8 +135,7 @@ en su lugar algo definido, y lo dice:
 
 ## Extensiones
 
-Todo lo de aquí es propio de RapidR; un programa que lo usa ya no se compila con
-un compilador clásico.
+Todo lo de aquí es propio de RapidR: solo RapidR compila un programa que lo usa.
 
 **Lenguaje**
 
@@ -170,7 +163,7 @@ un compilador clásico.
   ([Componentes](components.md#adiciones-de-rapidr-a-todos-los-componentes)).
 - Enlace de parámetros de SQL (`Query sql, values…`, `AddParam`): sin inyección de
   SQL.
-- Imágenes SVG dondequiera que un programa clásico toma un mapa de bits; dibujadas con
+- Imágenes SVG dondequiera que un componente toma un mapa de bits; dibujadas con
   `currentColor` o con los tokens de color de RapidR, toman los colores del tema,
   y `RImageList.AddSVGFile` las añade al tamaño de la lista
   ([Tus propios íconos SVG](svg-icons.md)). El nombre de un `$RESOURCE` va
@@ -194,7 +187,7 @@ un compilador clásico.
 - Los programas se dibujan con el aspecto propio de RapidR de forma
   predeterminada (el de RapidR Studio: claro, oscuro o de contraste alto según
   esté configurado el sistema, con Inter como fuente predeterminada);
-  `$THEME Classic` dibuja el aspecto exacto clásico de Windows. Los tamaños, las
+  `$THEME Classic` dibuja el aspecto clásico de Windows. Los tamaños, las
   posiciones y los colores que un programa lee son los clásicos en todos los
   aspectos ([Temas](components.md#temas)).
 - El RapidR Runtime con tipos de archivo; ejecutables independientes que no

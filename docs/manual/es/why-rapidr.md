@@ -1,4 +1,4 @@
-<!-- translated-from: why-rapidr.md ef2c06eac22f124f -->
+<!-- translated-from: why-rapidr.md 98dbdbab0d7d0ebf -->
 # Por qué RapidR
 
 RapidR es un hogar moderno para los programas BASIC: escribes un solo código
@@ -148,7 +148,7 @@ Los programas anteriores siguen haciendo lo que hacían, y los extras de RapidR
 son aditivos. Un conjunto de pruebas de compatibilidad con 428 programas de
 ejemplo anteriores vigila, programa por programa, y los resultados se publican
 completos; lo que se ejecuta, lo que difiere y lo que RapidR no hace (DLL de 32
-bits, OLE) está en una sola página: [Notas de compatibilidad y extensiones](differences.md).
+bits, OLE) está en una sola página: [Notas de compatibilidad](compatibility.md).
 Para pasar un programa anterior a los nombres de componentes propios de RapidR,
 [impórtalo](importing-rapidq.md): una copia, comprobada para que se compile al
 mismo bytecode, con un informe.
@@ -227,6 +227,6 @@ exterior.
   más lento allí que en el escritorio (números más arriba).
 - Las llamadas a las bibliotecas propias de Windows (`DECLARE … LIB "user32"`)
   funcionan solo en Windows; RapidR no finge ser Windows
-  ([Notas de compatibilidad y extensiones](differences.md)).
+  ([Notas de compatibilidad](compatibility.md)).
 - RapidR es una Preview. La hoja de ruta enumera lo que aún no está:
   [ROADMAP.md](../../../ROADMAP.md).

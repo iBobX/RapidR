@@ -256,7 +256,7 @@ fn rapidq_compatible_projects_get_fixes() {
     let main_uri = c.open(&main);
     let diags = c.diagnostics_for(&main_uri);
     let messages: Vec<&str> = diags.iter().map(|d| d["message"].as_str().unwrap()).collect();
-    assert!(messages.iter().any(|m| m.contains("RapidQ has no QPLOT")), "{messages:?}");
+    assert!(messages.iter().any(|m| m.contains("QPLOT is not a classic name")), "{messages:?}");
     assert!(messages.iter().any(|m| m.contains("RNum is RapidR's own component")), "{messages:?}");
     let r = c.request(
         "textDocument/codeAction",

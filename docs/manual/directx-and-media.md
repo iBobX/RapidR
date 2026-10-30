@@ -3,7 +3,7 @@
 The DirectX, media and device objects run on every platform and in the
 browser. They are RapidR's own implementations of what programs do
 with Windows' DirectX, MCI, WinINet and serial APIs, with the members and
-behaviour that older programs rely on. Each has an older Q name too
+behaviour that older programs rely on. Each has a classic name too
 (`QDXSCREEN` for `RDXScreen`, and so on), accepted everywhere.
 
 ## DirectX 2D

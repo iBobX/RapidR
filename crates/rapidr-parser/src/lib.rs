@@ -712,7 +712,7 @@ impl<'a> Parser<'a> {
                 let start = self.pos;
                 self.skip_to_eol();
                 let span = self.span_from(start);
-                Some(Statement::Comment(CommentStatement { span, text: "CASE outside a SELECT CASE (RapidQ ignores it in a TYPE)".into() }))
+                Some(Statement::Comment(CommentStatement { span, text: "CASE outside a SELECT CASE (ignored in a TYPE, as in classic programs)".into() }))
             }
             TokenType::Const if self.peek_kind_at(1) == Some(TokenType::Number) && self.peek_kind_at(2) == Some(TokenType::Eq) => {
                 let start = self.pos;
@@ -721,7 +721,7 @@ impl<'a> Parser<'a> {
                 self.advance();
                 let _ = self.parse_expression()?;
                 let span = self.span_from(start);
-                Some(Statement::Comment(CommentStatement { span, text: "CONST of a number (RapidQ ignores it)".into() }))
+                Some(Statement::Comment(CommentStatement { span, text: "CONST of a number (ignored, as in classic programs)".into() }))
             }
             TokenType::Const => self.parse_const().map(Statement::Const),
             TokenType::Import => self.parse_import().map(Statement::Import),

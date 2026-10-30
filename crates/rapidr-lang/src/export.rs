@@ -334,7 +334,7 @@ fn classic_names_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Classic component names\n\n");
     out.push_str(
-        "Programs written for RapidQ name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads each of these names as the component it stands for (same properties, methods, events and behaviour), and a program may use either name and mix them. `rapidr import-rapidq` converts a copy of such a program to RapidR's names; see [Differences](../differences.md) and [Importing a RapidQ program](../importing-rapidq.md).\n\n",
+        "Older programs name their components with a Q: `QBUTTON`, `QFORM`. RapidR reads each of these classic names as the component it stands for (same properties, methods, events and behaviour), and a program may use either name and mix them. `rapidr import-rapidq` converts a copy of such a program to RapidR's names; see [Compatibility notes](../compatibility.md) and [Importing older programs](../importing-rapidq.md).\n\n",
     );
     out.push_str("| Classic name | Component |\n|---|---|\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
@@ -549,7 +549,7 @@ fn reach_mark(effects: &[Effect]) -> String {
 pub fn prompt() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (generated from its registry)\n\n");
-    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs RapidQ programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component RapidQ has is also known by its RapidQ name (QBUTTON), the same component: keep the names a file already uses, and write RapidQ's names only in a project that must also compile with RapidQ's own compiler. Members marked [R] are RapidR extensions (RapidQ's own compiler refuses them); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid). A component that older programs know is also known by its classic name (QBUTTON), the same component: keep the names a file already uses, and write classic names only in a project kept classic-compatible. Members marked [R] are RapidR extensions (a project kept classic-compatible gets them reported); [missing] ones aren't implemented yet: don't use them. A mark like [file-write], [network] or [process] says what an entry reaches outside the program: the user is asked before such code runs.\n\n");
     out.push_str("## Statements\n\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -566,7 +566,7 @@ pub fn prompt() -> String {
     out.push_str("\n## Components\n\n");
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component) {
         let names = match c.rapidq {
-            Some(q) => format!("{} (RapidQ name: {q})", c.spelling()),
+            Some(q) => format!("{} (classic name: {q})", c.spelling()),
             None => c.spelling(),
         };
         let _ = writeln!(out, "### {names}{}\n{}", if c.runtimes == Runtimes::Web { " (web only)" } else { "" }, c.doc);
@@ -603,7 +603,7 @@ pub fn prompt() -> String {
 pub fn prompt_compact() -> String {
     let mut out = String::new();
     out.push_str("# The RapidR language (names only: rapidr_describe gives a component's properties, methods and events, or a builtin's syntax)\n\n");
-    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs RapidQ programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a RapidQ name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
+    out.push_str("RapidR is a modern BASIC with its own IDE, RapidR Studio; it also runs older programs. Names are case-insensitive. Write components with RapidR's names (RButton, RForm, RStringGrid); a classic name (QBUTTON) is the same component: keep the names a file already uses. [R] marks a RapidR extension.\n\n");
     out.push_str("## Statements\n");
     for s in STATEMENTS {
         let _ = writeln!(out, "- {}{}", s.syntax, if s.origin == Origin::RapidR { " [R]" } else { "" });
@@ -662,8 +662,8 @@ mod tests {
         assert!(j.contains("\"name\":\"RBUTTON\""));
         assert!(manual().iter().any(|(n, t)| *n == "classic-names.md" && t.contains("`QFORM` | [`RForm`](members.md#rform)")));
         assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton\n")));
-        assert!(manual().iter().filter(|(n, _)| *n != "classic-names.md").all(|(n, t)| !t.contains("RapidQ name")), "the reference pages don't name RapidQ's components");
-        assert!(prompt().contains("### RButton (RapidQ name: QBUTTON)"));
+        assert!(manual().iter().filter(|(n, _)| *n != "classic-names.md").all(|(_, t)| !t.contains("RapidQ name")), "the reference pages don't name RapidQ's components");
+        assert!(prompt().contains("### RButton (classic name: QBUTTON)"));
         assert!(j.contains("\"spelling\":\"RButton\""));
     }
 }

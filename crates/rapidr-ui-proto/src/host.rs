@@ -388,7 +388,7 @@ impl Shim<'_> {
                 HostCmd::OpenFileDialog { id, parent } => {
                     // Inside the pump NSApp is running, so rfd makes a sheet
                     // and returns at once; its completion wakes the pump.
-                    let mut d = rfd::AsyncFileDialog::new().set_title("Open (async)").add_filter("RapidQ source", &["bas", "inc"]);
+                    let mut d = rfd::AsyncFileDialog::new().set_title("Open (async)").add_filter("BASIC source", &["bas", "inc"]);
                     if let Some(w) = self.s.wins.get(&parent) {
                         d = d.set_parent(&*w.window);
                     }

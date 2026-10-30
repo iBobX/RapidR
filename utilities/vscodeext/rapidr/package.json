@@ -426,7 +426,7 @@
         "rapidr.rapidqCompatible": {
           "type": "boolean",
           "default": false,
-          "markdownDescription": "Report what RapidQ doesn't have as warnings, for programs that must still compile with RapidQ: RapidR's own components, and Q-names RapidQ doesn't have (with a quick fix). How programs compile and run doesn't change."
+          "markdownDescription": "Report what a classic compiler doesn't have as warnings, for programs that must still compile with one: RapidR's own components, and Q-names that aren't classic (with a quick fix). How programs compile and run doesn't change."
         },
         "rapidr.keywordCase": {
           "type": "string",
