@@ -1,8 +1,5 @@
-# RapidR's compiler messages in Spanish (español neutro).
-# A SAMPLE that proves the pipeline (lane I18N-STUDIO): a few messages
-# only, each marked `review` until a person checks it against
-# docs/i18n/glossary-es.md. The translation lanes complete it from
-# compiler.pot (`rapidr i18n update`).
+# RapidR's compiler messages in Spanish (español neutro, docs/i18n/glossary-es.md).
+# Lane ES-STUDIO (2026-10-30): all 35 translated by a first pass; Robert reviews them.
 #
 # msgctxt is the message's ID (never translated), msgid its English
 # template, msgstr the translation: keep every {name} and the code as written.
@@ -14,52 +11,505 @@ msgstr ""
 "Language: es\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0001"
 msgid "Member {member} not part of class {class}"
 msgstr "El miembro {member} no es parte de la clase {class}"
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0002"
 msgid "{name} is a read-only value."
 msgstr "{name} es un valor de solo lectura."
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0003"
+msgid "Property {property} of {class} is read-only."
+msgstr "La propiedad {property} de {class} es de solo lectura."
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0004"
 msgid "Undeclared identifier {name}"
 msgstr "Identificador no declarado: {name}"
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0005"
 msgid "Expected end-of-line but got {got}"
 msgstr "Se esperaba el fin de la línea, pero se encontró {got}"
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0006"
+msgid "Expected {expected} but got \"{got}\""
+msgstr "Se esperaba {expected}, pero se encontró \"{got}\""
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0007"
+msgid "Identifier {name} already used, try another name"
+msgstr "El identificador {name} ya se usó; prueba con otro nombre"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0008"
+msgid "Unknown type {name}"
+msgstr "Tipo desconocido: {name}"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0009"
+msgid "ICON file {file} does not exist."
+msgstr "El archivo ICON {file} no existe."
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0010"
+msgid "Array of {type} is not supported!"
+msgstr "¡No se admite un arreglo de {type}!"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0011"
+msgid "Create Method only works for QObjects, not {name}"
+msgstr "El método Create solo funciona con QObjects, no con {name}"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0012"
+msgid "Datatype {type} not supported in STRUCT"
+msgstr "El tipo de dato {type} no se admite en STRUCT"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0013"
+msgid "{name} is not a valid data type for your FUNCTION"
+msgstr "{name} no es un tipo de dato válido para tu FUNCTION"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0014"
+msgid "Component assignment is not yet supported."
+msgstr "Todavía no se admite la asignación de componentes."
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0015"
+msgid "Too many actual parameters for {name}"
+msgstr "Demasiados parámetros reales para {name}"
+
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
 msgctxt "RQ0016"
 msgid "Expected end-of-line"
 msgstr "Se esperaba el fin de la línea"
 
-#, review
+#. RapidQ's own message (RC.EXE): the English stays beside the translation
+msgctxt "RQ0017"
+msgid "Expected {expected}"
+msgstr "Se esperaba {expected}"
+
+msgctxt "RR0001"
+msgid "Syntax error in {word} statement (did you mean {fix}?)"
+msgstr "Error de sintaxis en la instrucción {word} (¿quisiste decir {fix}?)"
+
 msgctxt "RR0002"
 msgid "Syntax error in {word} statement"
 msgstr "Error de sintaxis en la instrucción {word}"
 
-#, review
+msgctxt "RR0003"
+msgid "Syntax error near '{text}'"
+msgstr "Error de sintaxis cerca de '{text}'"
+
 msgctxt "RR0004"
 msgid "Syntax error: unexpected '{text}'"
 msgstr "Error de sintaxis: no se esperaba '{text}'"
 
-#, review
 msgctxt "RR0005"
 msgid "Syntax error: unexpected end of file"
 msgstr "Error de sintaxis: fin de archivo inesperado"
 
-#, review
 msgctxt "RR0006"
 msgid "Unknown SUB or FUNCTION '{name}'"
 msgstr "SUB o FUNCTION desconocida: '{name}'"
 
-#, review
+msgctxt "RR0007"
+msgid "Label '{label}' not found in {routine}"
+msgstr "No se encontró la etiqueta '{label}' en {routine}"
+
+msgctxt "RR0008"
+msgid "Label '{label}' is defined more than once"
+msgstr "La etiqueta '{label}' está definida más de una vez"
+
+msgctxt "RR0009"
+msgid "EXIT {kind} is not inside a {kind} loop"
+msgstr "EXIT {kind} no está dentro de un ciclo {kind}"
+
+msgctxt "RR0010"
+msgid "EXIT {kind} is not inside a {kind}"
+msgstr "EXIT {kind} no está dentro de un bloque {kind}"
+
+msgctxt "RR0011"
+msgid "'{word}' is a reserved word and can't be used as a name"
+msgstr "'{word}' es una palabra reservada y no se puede usar como nombre"
+
+msgctxt "RR0012"
+msgid "EVENT {name} is missing END EVENT"
+msgstr "Falta END EVENT en EVENT {name}"
+
+msgctxt "RR0013"
+msgid "PROPERTY SET {name} is missing END PROPERTY"
+msgstr "Falta END PROPERTY en PROPERTY SET {name}"
+
+msgctxt "RR0014"
+msgid "Field {field} in TYPE {type} needs a type: `{field} AS INTEGER`"
+msgstr "El campo {field} de TYPE {type} necesita un tipo: `{field} AS INTEGER`"
+
+msgctxt "RR0015"
+msgid "Unexpected '{text}' after field declaration"
+msgstr "No se esperaba '{text}' después de la declaración del campo"
+
+msgctxt "RR0016"
+msgid "GOSUB needs a label"
+msgstr "GOSUB necesita una etiqueta"
+
+msgctxt "RR0017"
+msgid "FOR {name} AS {type}: {name} is already declared AS {declared}"
+msgstr "FOR {name} AS {type}: {name} ya está declarado AS {declared}"
+
 msgctxt "RR0018"
 msgid "{file}: no errors"
 msgstr "{file}: sin errores"
+
+#. The word that labels a hint under a compiler message
+#, review
+msgctxt "hint.label"
+msgid "hint"
+msgstr "sugerencia"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.set"
+msgid "RapidR has no SET: write x = 1 (the name, =, then the value)"
+msgstr "RapidR no tiene SET: escribe x = 1 (el nombre, =, y luego el valor)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.let"
+msgid "RapidR has no LET: write x = 1 (the name, =, then the value)"
+msgstr "RapidR no tiene LET: escribe x = 1 (el nombre, =, y luego el valor)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.var"
+msgid "a variable is declared with DIM name AS type (DIM total AS DOUBLE); a constant with CONST NAME = value"
+msgstr "una variable se declara con DIM nombre AS tipo (DIM total AS DOUBLE); una constante con CONST NOMBRE = valor"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.as-as"
+msgid "a name takes one `AS type`: DIM ready AS INTEGER (not AS INTEGER AS INTEGER)"
+msgstr "un nombre lleva un solo `AS type`: DIM ready AS INTEGER (no AS INTEGER AS INTEGER)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.for-foreign"
+msgid "a counting loop is FOR i = 1 TO 10 … NEXT (STEP 2 to skip); RapidR has no `for … in range()`, `for (…;…;…)` or FOR EACH — to visit a list's items count them: FOR i = 0 TO List.ItemCount - 1"
+msgstr "un ciclo con contador es FOR i = 1 TO 10 … NEXT (STEP 2 para saltar); RapidR no tiene `for … in range()`, `for (…;…;…)` ni FOR EACH — para recorrer los elementos de una lista, cuéntalos: FOR i = 0 TO List.ItemCount - 1"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.end-loop"
+msgid "a FOR loop ends with NEXT, a WHILE with WEND, a DO with LOOP — not END FOR, END WHILE or END DO"
+msgstr "un ciclo FOR termina con NEXT, un WHILE con WEND, un DO con LOOP — no con END FOR, END WHILE ni END DO"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.endif"
+msgid "it's END IF, two words"
+msgstr "es END IF, dos palabras"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.endword"
+msgid "END SUB, END FUNCTION, END IF, END SELECT, END WITH, END TYPE and END CREATE are two words with a space"
+msgstr "END SUB, END FUNCTION, END IF, END SELECT, END WITH, END TYPE y END CREATE son dos palabras con un espacio"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.elseif"
+msgid "it's ELSEIF, one word: IF … THEN … ELSEIF … THEN … ELSE … END IF"
+msgstr "es ELSEIF, una sola palabra: IF … THEN … ELSEIF … THEN … ELSE … END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.if-then"
+msgid "IF needs THEN on the same line: IF a = 1 THEN … END IF"
+msgstr "IF necesita THEN en la misma línea: IF a = 1 THEN … END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.missing-next"
+msgid "every FOR needs its NEXT: FOR i = 1 TO 3 … NEXT i"
+msgstr "todo FOR necesita su NEXT: FOR i = 1 TO 3 … NEXT i"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.missing-wend"
+msgid "every WHILE needs its WEND: WHILE a < 3 … WEND"
+msgstr "todo WHILE necesita su WEND: WHILE a < 3 … WEND"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.missing-loop"
+msgid "every DO needs its LOOP: DO … LOOP UNTIL a > 3"
+msgstr "todo DO necesita su LOOP: DO … LOOP UNTIL a > 3"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.missing-end-if"
+msgid "every block IF needs its END IF: IF a THEN, the lines, END IF (a one-line IF needs none)"
+msgstr "todo IF de bloque necesita su END IF: IF a THEN, las líneas, END IF (un IF de una sola línea no lo necesita)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.else-if"
+msgid "ELSE IF starts a second IF that needs an END IF of its own: write ELSEIF, one word — IF … THEN … ELSEIF … THEN … ELSE … END IF"
+msgstr "ELSE IF empieza un segundo IF que necesita su propio END IF: escribe ELSEIF, una sola palabra — IF … THEN … ELSEIF … THEN … ELSE … END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.missing-end-select"
+msgid "every SELECT CASE needs its END SELECT"
+msgstr "todo SELECT CASE necesita su END SELECT"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.and-and"
+msgid "RapidR uses AND and OR: IF a > 0 AND b > 0 THEN (`&&` joins text, so such a test is never what you meant)"
+msgstr "RapidR usa AND y OR: IF a > 0 AND b > 0 THEN (`&&` une texto, así que una condición así nunca es lo que querías)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.else-line"
+msgid "a one-line IF takes its ELSE on the same line (IF a THEN x ELSE y); for several lines write IF a THEN, the lines, ELSE, the lines, END IF"
+msgstr "un IF de una línea lleva su ELSE en la misma línea (IF a THEN x ELSE y); para varias líneas escribe IF a THEN, las líneas, ELSE, las líneas, END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.colon"
+msgid "no `:` after IF, ELSE, FOR, WHILE or SUB: write IF a = 1 THEN, the statements on the lines below, then END IF"
+msgstr "sin `:` después de IF, ELSE, FOR, WHILE o SUB: escribe IF a = 1 THEN, las instrucciones en las líneas de abajo y luego END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.braces"
+msgid "BASIC has no braces: a block ends with its own words — END SUB, END FUNCTION, END IF, NEXT, WEND, LOOP"
+msgstr "BASIC no tiene llaves: un bloque termina con sus propias palabras — END SUB, END FUNCTION, END IF, NEXT, WEND, LOOP"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.semicolon"
+msgid "statements end at the end of the line: no `;`"
+msgstr "las instrucciones terminan al final de la línea: sin `;`"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.function"
+msgid "a routine is SUB Name(a AS INTEGER) … END SUB, or FUNCTION Name(a AS INTEGER) AS INTEGER … Result = … END FUNCTION"
+msgstr "una rutina es SUB Name(a AS INTEGER) … END SUB, o FUNCTION Name(a AS INTEGER) AS INTEGER … Result = … END FUNCTION"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.return"
+msgid "a FUNCTION gives its value with `Result = …` (or `FunctionName = …`); RETURN only goes back from a GOSUB"
+msgstr "una FUNCTION da su valor con `Result = …` (o `FunctionName = …`); RETURN solo vuelve de un GOSUB"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.switch"
+msgid "RapidR has no switch: write SELECT CASE x, CASE 1, CASE ELSE, END SELECT"
+msgstr "RapidR no tiene switch: escribe SELECT CASE x, CASE 1, CASE ELSE, END SELECT"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.break"
+msgid "RapidR has no break: leave a loop with EXIT FOR, EXIT DO or EXIT WHILE"
+msgstr "RapidR no tiene break: sal de un ciclo con EXIT FOR, EXIT DO o EXIT WHILE"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.continue"
+msgid "RapidR has no continue: put the rest of the loop inside IF … THEN … END IF"
+msgstr "RapidR no tiene continue: pon el resto del ciclo dentro de IF … THEN … END IF"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.include"
+msgid "to use another file write $INCLUDE \"file.rr\" at the top: RapidR has no #include or import"
+msgstr "para usar otro archivo escribe $INCLUDE \"file.rr\" al principio: RapidR no tiene #include ni import"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.new"
+msgid "components are made with CREATE Name AS RButton … END CREATE (or DIM Name AS RButton), not `new`"
+msgstr "los componentes se crean con CREATE Name AS RButton … END CREATE (o DIM Name AS RButton), no con `new`"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.event"
+msgid "an event takes a SUB's name: OnChange = ValueChanged — with DECLARE SUB ValueChanged at the top and SUB ValueChanged … END SUB below; leave the line out if nothing should happen"
+msgstr "un evento toma el nombre de una SUB: OnChange = ValueChanged — con DECLARE SUB ValueChanged al principio y SUB ValueChanged … END SUB más abajo; quita la línea si no debe pasar nada"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.console-log"
+msgid "use PRINT to write a line: PRINT \"hi\" (console.log is JavaScript); in a window, set a label's Caption"
+msgstr "usa PRINT para escribir una línea: PRINT \"hola\" (console.log es de JavaScript); en una ventana, establece el Caption de una etiqueta"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.print"
+msgid "to write a line: PRINT \"Total: \"; total (no brackets around the list); in a window, set a label's Caption instead"
+msgstr "para escribir una línea: PRINT \"Total: \"; total (sin paréntesis alrededor de la lista); en una ventana, establece mejor el Caption de una etiqueta"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.mod"
+msgid "RapidR has no %: a remainder is MOD — 7 MOD 3 is 1 (a \\ b is whole division, a / b exact)"
+msgstr "RapidR no tiene %: el resto es MOD — 7 MOD 3 es 1 (a \\ b es la división entera, a / b la exacta)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.compound"
+msgid "the shortcuts are += -= *= /= &=; for any other write it out: x = x ^ 2, x = x \\ 2, x = x MOD 3"
+msgstr "los atajos son += -= *= /= &=; para cualquier otro, escríbelo completo: x = x ^ 2, x = x \\ 2, x = x MOD 3"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.pow"
+msgid "RapidR has no **: a power is ^ — 2 ^ 3 is 8"
+msgstr "RapidR no tiene **: una potencia es ^ — 2 ^ 3 es 8"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.intdiv"
+msgid "RapidR has no //: whole division is \\ — 7 \\ 2 is 3 (a / b gives decimals)"
+msgstr "RapidR no tiene //: la división entera es \\ — 7 \\ 2 es 3 (a / b da decimales)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.ternary"
+msgid "RapidR has no a ? b : c: write IF a THEN x = 1 ELSE x = 2, or x = IIF(a, 1, 2)"
+msgstr "RapidR no tiene a ? b : c: escribe IF a THEN x = 1 ELSE x = 2, o x = IIF(a, 1, 2)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.ne"
+msgid "`!=` isn't BASIC: \"not equal\" is `<>` — IF a <> b THEN"
+msgstr "`!=` no es BASIC: “distinto” se escribe `<>` — IF a <> b THEN"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.bang"
+msgid "`!` isn't BASIC: \"not equal\" is `<>` (IF a <> b THEN), and \"is false\" is IF x = 0 THEN"
+msgstr "`!` no es BASIC: “distinto” se escribe `<>` (IF a <> b THEN), y “es falso” es IF x = 0 THEN"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.or"
+msgid "`||` isn't BASIC: use OR — IF a > 0 OR b > 0 THEN"
+msgstr "`||` no es BASIC: usa OR — IF a > 0 OR b > 0 THEN"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.brackets"
+msgid "BASIC has no `[ ]`: an array is DIM names(3) AS STRING, filled one item at a time — names(1) = \"Ana\"; its items are names(i)"
+msgstr "BASIC no tiene `[ ]`: un arreglo es DIM names(3) AS STRING, que se llena un elemento a la vez — names(1) = \"Ana\"; sus elementos son names(i)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.squote"
+msgid "text goes in double quotes — s = \"hello\" (a single quote starts a comment)"
+msgstr "el texto va entre comillas dobles — s = \"hola\" (una comilla simple empieza un comentario)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.comment"
+msgid "a comment starts with ' (an apostrophe), not //"
+msgstr "un comentario empieza con ' (un apóstrofo), no con //"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.null"
+msgid "BASIC has no null: use \"\" for an empty string, 0 for a number"
+msgstr "BASIC no tiene null: usa \"\" para una cadena vacía, 0 para un número"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.bool"
+msgid "truth values are numbers: 1 is true, 0 is false — DIM done AS INTEGER: done = 1, then IF done THEN (a .rr program's True is -1 while a check box's Checked is 1: don't compare with True)"
+msgstr "los valores de verdad son números: 1 es verdadero, 0 es falso — DIM done AS INTEGER: done = 1 y luego IF done THEN (el True de un programa .rr es -1 mientras que el Checked de una casilla es 1: no compares con True)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.length"
+msgid "a string's length is LEN(s); a list's items are .ItemCount"
+msgstr "la longitud de una cadena es LEN(s); los elementos de una lista son .ItemCount"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-str"
+msgid "RapidR has no str(): text from a number is STR$(n) — PRINT \"n = \" + STR$(n)"
+msgstr "RapidR no tiene str(): el texto de un número es STR$(n) — PRINT \"n = \" + STR$(n)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-tostring"
+msgid "RapidR has no toString(): text from a number is STR$(n)"
+msgstr "RapidR no tiene toString(): el texto de un número es STR$(n)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-int"
+msgid "RapidR has no int(): a number from text is VAL(s); INT(x) cuts the decimals of a number"
+msgstr "RapidR no tiene int(): el número de un texto es VAL(s); INT(x) corta los decimales de un número"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-float"
+msgid "RapidR has no float(): a number from text is VAL(s)"
+msgstr "RapidR no tiene float(): el número de un texto es VAL(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-parseint"
+msgid "RapidR has no parseInt(): a number from text is VAL(s)"
+msgstr "RapidR no tiene parseInt(): el número de un texto es VAL(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-parsefloat"
+msgid "RapidR has no parseFloat(): a number from text is VAL(s)"
+msgstr "RapidR no tiene parseFloat(): el número de un texto es VAL(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-input"
+msgid "RapidR has no input(): in a console program INPUT name; in a window an REdit, read its Text"
+msgstr "RapidR no tiene input(): en un programa de consola usa INPUT name; en una ventana, un REdit: lee su Text"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-prompt"
+msgid "RapidR has no prompt(): ask with INPUTBOX$(\"Question\") or read an REdit's Text"
+msgstr "RapidR no tiene prompt(): pregunta con INPUTBOX$(\"Pregunta\") o lee el Text de un REdit"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-alert"
+msgid "RapidR has no alert(): a message box is ShowMessage \"text\""
+msgstr "RapidR no tiene alert(): un cuadro de mensaje es ShowMessage \"texto\""
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-toupper"
+msgid "upper case is UCASE$(s)"
+msgstr "las mayúsculas se obtienen con UCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-touppercase"
+msgid "upper case is UCASE$(s)"
+msgstr "las mayúsculas se obtienen con UCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-upper"
+msgid "upper case is UCASE$(s)"
+msgstr "las mayúsculas se obtienen con UCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-tolower"
+msgid "lower case is LCASE$(s)"
+msgstr "las minúsculas se obtienen con LCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-tolowercase"
+msgid "lower case is LCASE$(s)"
+msgstr "las minúsculas se obtienen con LCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-lower"
+msgid "lower case is LCASE$(s)"
+msgstr "las minúsculas se obtienen con LCASE$(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-strlen"
+msgid "a string's length is LEN(s)"
+msgstr "la longitud de una cadena es LEN(s)"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-length"
+msgid "a string's length is LEN(s); a list's items are .ItemCount"
+msgstr "la longitud de una cadena es LEN(s); los elementos de una lista son .ItemCount"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-substr"
+msgid "part of a string is MID$(s, start, count), LEFT$(s, n) or RIGHT$(s, n); the first character is 1"
+msgstr "una parte de una cadena es MID$(s, inicio, cantidad), LEFT$(s, n) o RIGHT$(s, n); el primer carácter es el 1"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-substring"
+msgid "part of a string is MID$(s, start, count), LEFT$(s, n) or RIGHT$(s, n); the first character is 1"
+msgstr "una parte de una cadena es MID$(s, inicio, cantidad), LEFT$(s, n) o RIGHT$(s, n); el primer carácter es el 1"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-random"
+msgid "a random number is RND (0 up to 1): INT(RND * 6) + 1 is a die"
+msgstr "un número al azar es RND (de 0 a 1): INT(RND * 6) + 1 es un dado"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-rand"
+msgid "a random number is RND (0 up to 1): INT(RND * 6) + 1 is a die"
+msgstr "un número al azar es RND (de 0 a 1): INT(RND * 6) + 1 es un dado"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-sleep"
+msgid "to wait write SLEEP 500 (milliseconds); in a window use an RTimer"
+msgstr "para esperar escribe SLEEP 500 (milisegundos); en una ventana usa un RTimer"
+
+#. A hint under a compiler message: what to write in RapidR instead (code stays as written)
+msgctxt "hint.fn-trim"
+msgid "trimming is TRIM$(s) (LTRIM$ and RTRIM$ for one side)"
+msgstr "recortar espacios es TRIM$(s) (LTRIM$ y RTRIM$ para un solo lado)"

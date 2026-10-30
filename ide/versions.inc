@@ -134,6 +134,7 @@ CREATE VerPanel AS RPanel
   ' (a project with versions: its changes, its timeline, what to do)
   CREATE VerChangesHead AS RLabel
     Caption = TR$("Changes not saved as a version")
+    WordWrap = 1: AutoSize = 0
   END CREATE
   CREATE VerChanges AS RListBox
     Style = lbOwnerDrawFixed
@@ -612,8 +613,11 @@ SUB VerLayOut
   VerLocalBtn.Visible = 0
   ' (the changes: up to five rows; none — a line saying so; Save a
   ' Version... under them, the pane's main action)
-  VerChangesHead.Left = 12: VerChangesHead.Top = y: VerChangesHead.Width = w - 24: VerChangesHead.Height = 18
-  y = y + 20
+  ' (a longer language wraps the line: "No hay cambios desde la última versión")
+  lh = AISetLinesHigh(VerChangesHead.Caption, w - 24)
+  IF lh < 18 THEN lh = 18
+  VerChangesHead.Left = 12: VerChangesHead.Top = y: VerChangesHead.Width = w - 24: VerChangesHead.Height = lh
+  y = y + lh + 2
   rows = VerChCount
   IF rows > 5 THEN rows = 5
   IF rows = 0 THEN

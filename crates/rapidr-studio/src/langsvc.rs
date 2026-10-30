@@ -295,7 +295,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 // a catalog translates; the rest as the compiler says them —
                 // and the hint for a habit from another language after it)
                 let message = rapidr_diagnostics::messages::localize(&d.message, &lang);
-                let message = match d.hint { Some(h) => format!("{message} — hint: {}", h.text()), None => message };
+                let message = match d.hint { Some(h) => format!("{message} — {}: {}", rapidr_diagnostics::messages::hint_label(&lang), h.text_in(&lang)), None => message };
                 out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&message), slashes(&d.file.to_string_lossy())));
             }
             s.errors = errors;

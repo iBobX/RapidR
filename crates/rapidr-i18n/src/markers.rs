@@ -121,7 +121,9 @@ pub fn check(source: &str, translation: &str) -> Vec<String> {
         out.push("ends with \"...\" in the source: keep the three dots (not \"…\")".to_string());
     }
     if let Some(k) = mnemonic(translation) {
-        if !k.is_ascii_alphanumeric() {
+        // (not when the source has the very same "mnemonic": the `&=` of a
+        // hint that names that operator isn't a mnemonic at all)
+        if !k.is_ascii_alphanumeric() && mnemonic(source) != Some(k) {
             out.push(format!("the & mnemonic is on '{k}': choose a letter without an accent (it can't be typed with Alt on every keyboard)"));
         }
     }
@@ -184,6 +186,8 @@ mod tests {
         assert!(check("Save &As...", "Guardar co&mo...").is_empty());
         assert_eq!(check("Save &As...", "Guardar co&mo…").len(), 1);
         assert_eq!(check("&Edit", "&Édición").len(), 1);
+        // (an operator's `&=` in a sentence: no mnemonic to move)
+        assert!(check("the shortcuts are += &=", "los atajos son += &=").is_empty());
         assert!(check_for("es", "Save changes?", "¿Guardar los cambios?").is_empty());
         assert_eq!(check_for("es", "Save changes?", "Guardar los cambios?").len(), 1);
         assert_eq!(check_for("es", "Hello, {name}!", "Hola, {name}!").len(), 1);

@@ -283,10 +283,22 @@ pub fn studio_mnemonic_clashes(root: &Path, file: &[Message]) -> Result<Vec<(Str
     Ok(tools::studio_mnemonic_clashes(&read(&root.join("ide/commands.inc"))?, file))
 }
 
+/// The compiler catalog's template: the messages, then the hints under
+/// them (`hint.<id>`, rapidr_langsvc::foreign) — one file per language
+/// translates both.
+pub fn compiler_template() -> Vec<Message> {
+    let mut template = rapidr_diagnostics::messages::template();
+    for (key, en) in rapidr_langsvc::foreign::catalog_entries() {
+        let note = if key == "hint.label" { "The word that labels a hint under a compiler message" } else { "A hint under a compiler message: what to write in RapidR instead (code stays as written)" };
+        template.push(Message { context: key, id: en, notes: vec![note.to_string()], ..Default::default() });
+    }
+    template
+}
+
 fn compiler_cmd(args: &[String]) -> Result<ExitCode, String> {
     let check = args.iter().any(|a| a == "--check");
     let root = root()?;
-    let template = rapidr_diagnostics::messages::template();
+    let template = compiler_template();
     let ok = generated(&root.join("crates/rapidr-diagnostics/lang/compiler.pot"), &tools::write(&template), check)?;
     println!("{} compiler messages", template.len() - 1);
     Ok(if ok { ExitCode::SUCCESS } else { ExitCode::from(1) })
@@ -394,7 +406,7 @@ fn coverage_cmd(args: &[String]) -> Result<ExitCode, String> {
     // (Studio's text: its own catalog's and RapidR's own that it shows)
     let studio = studio_template(&root)?;
     let runtime = runtime_template(&root);
-    let compiler = rapidr_diagnostics::messages::template();
+    let compiler = compiler_template();
     let manual: Vec<String> = {
         let mut v: Vec<String> = fs::read_dir(root.join("docs/manual")).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.ends_with(".md")).collect();
         v.sort();

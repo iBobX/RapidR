@@ -53,7 +53,7 @@ CREATE Form AS RForm
         Left = 128: Top = 18: Width = 90
     END CREATE
     CREATE VolBar AS RTrackBar
-        Left = 216: Top = 12: Width = 180: Height = 30
+        Left = 218: Top = 12: Width = 180: Height = 30
         Min = 0: Max = 100: Position = 50: Frequency = 10: PageSize = 10
         OnChange = VolChanged
         AccessibleName = "Volume"

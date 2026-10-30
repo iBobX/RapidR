@@ -1192,7 +1192,8 @@ fn check_files(args: &[String]) -> ExitCode {
             let place = if d.file == file { path.clone() } else { d.file.display().to_string() };
             eprintln!("{}", rapidr_diagnostics::messages::localize_report(&format!("{place}:{line}:{col}: {}: {}", d.severity, d.message), &lang));
             if let Some(h) = d.hint {
-                eprintln!("  hint: {}", h.text());
+                // (the fix, in the language of the message above it)
+                eprintln!("  {}: {}", rapidr_diagnostics::messages::hint_label(&lang), h.text_in(&lang));
             }
         }
     }

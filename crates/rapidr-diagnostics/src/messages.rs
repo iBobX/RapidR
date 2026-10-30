@@ -233,6 +233,65 @@ fn translations(tag: &str) -> Option<&'static HashMap<String, String>> {
     rapidr_i18n::fallback_chain(tag).iter().find_map(|t| all.get(t.as_str()))
 }
 
+/// The catalogs' other texts: entries whose context is no message's ID but
+/// a hint's key (`hint.set` …, rapidr_langsvc::foreign): per language, each
+/// key's (English, translation), and the translation of an English text.
+type Extras = (HashMap<String, (String, String)>, HashMap<String, String>);
+
+fn extras(tag: &str) -> Option<&'static Extras> {
+    static ALL: OnceLock<HashMap<&'static str, Extras>> = OnceLock::new();
+    let all = ALL.get_or_init(|| {
+        CATALOGS
+            .iter()
+            .map(|(t, text)| {
+                let mut by_key = HashMap::new();
+                let mut by_text = HashMap::new();
+                for m in rapidr_i18n::po::read_messages(text).iter().filter(|m| m.context.starts_with("hint.") && m.translated() && !m.has_flag("fuzzy")) {
+                    by_key.insert(m.context.clone(), (m.id.clone(), m.forms[0].clone()));
+                    by_text.insert(m.id.clone(), m.forms[0].clone());
+                }
+                (*t, (by_key, by_text))
+            })
+            .collect()
+    });
+    rapidr_i18n::fallback_chain(tag).iter().find_map(|t| all.get(t.as_str()))
+}
+
+/// A text of the catalog that isn't a compiler message — a hint under one
+/// (`hint.<id>`, with its English `en`) — in language `tag`: the translation,
+/// the pseudo-language's, or None (English). A translation of an older
+/// English text isn't used.
+pub fn translate_text(key: &str, en: &str, tag: &str) -> Option<String> {
+    let tag = rapidr_i18n::normalize_tag(tag);
+    if tag.is_empty() || tag == "en" || tag.starts_with("en-") {
+        return None;
+    }
+    if tag == rapidr_i18n::pseudo::TAG {
+        return Some(rapidr_i18n::pseudo::pseudo(en));
+    }
+    let (by_key, _) = extras(&tag)?;
+    by_key.get(key).filter(|(e, _)| e == en).map(|(_, t)| t.clone())
+}
+
+/// The hint whose English text is `en`, in language `tag` (a report only
+/// has the words, not the hint's key).
+pub fn translate_hint(en: &str, tag: &str) -> Option<String> {
+    let tag = rapidr_i18n::normalize_tag(tag);
+    if tag.is_empty() || tag == "en" || tag.starts_with("en-") {
+        return None;
+    }
+    if tag == rapidr_i18n::pseudo::TAG {
+        return Some(rapidr_i18n::pseudo::pseudo(en));
+    }
+    extras(&tag)?.1.get(en).cloned()
+}
+
+/// The word that labels a hint under a message (`hint.label`: "hint"), in
+/// language `tag`.
+pub fn hint_label(tag: &str) -> String {
+    translate_text("hint.label", "hint", tag).unwrap_or_else(|| "hint".to_string())
+}
+
 /// Message `id`'s text in language `tag` (its template, `{name}` where a
 /// value goes): the translation, the pseudo-language's, or None (English).
 pub fn translation(id: &str, tag: &str) -> Option<String> {
@@ -285,6 +344,13 @@ pub fn localize_report(report: &str, tag: &str) -> String {
                         None => line.to_string(),
                     };
                 }
+            }
+            // (the fix a hint gives, under a message: `  hint: …`)
+            if let Some(text) = line.strip_prefix("  hint: ") {
+                return match translate_hint(text, tag) {
+                    Some(t) => format!("  {}: {t}", hint_label(tag)),
+                    None => line.to_string(),
+                };
             }
             if let Some(msg) = line.strip_prefix("error: ") {
                 if let Some((t, _)) = localized(msg, tag) {
@@ -353,10 +419,26 @@ mod tests {
     }
 
     #[test]
+    fn hints_are_translated_through_the_same_catalog() {
+        // (English, the pseudo-language, and a hint no catalog has)
+        assert_eq!(translate_text("hint.set", "RapidR has no SET", "en"), None);
+        assert_eq!(hint_label("en"), "hint");
+        let xx = translate_text("hint.set", "RapidR has no SET", "xx").unwrap();
+        assert!(xx.starts_with('['), "{xx}");
+        let report = "a.rr:2:1: error: Syntax error in SET statement\n  hint: something no catalog has";
+        assert_eq!(localize_report(report, "es").lines().nth(1), Some("  hint: something no catalog has"));
+        // (a hint of the catalog: its translation, with the hint's label in the language)
+        let es = localize_report("  hint: it's END IF, two words", "es");
+        assert!(es.starts_with("  sugerencia: ") && !es.contains("two words"), "{es}");
+    }
+
+    #[test]
     fn the_template_is_current() {
         // (`rapidr i18n compiler` writes it from MESSAGES)
         let file = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/lang/compiler.pot")).expect("lang/compiler.pot");
-        assert_eq!(file, rapidr_i18n::tools::write(&template()), "lang/compiler.pot is out of date: rapidr i18n compiler");
+        // (the messages first, then the hints under them — rapidr_langsvc::foreign's,
+        // written by the same command)
+        assert!(file.starts_with(&rapidr_i18n::tools::write(&template())), "lang/compiler.pot is out of date: rapidr i18n compiler");
     }
 
     #[test]
@@ -364,6 +446,11 @@ mod tests {
         for tag in languages() {
             let file = rapidr_i18n::po::read_messages(catalog_text(tag).unwrap());
             for m in file.iter().filter(|m| !m.is_header() && m.translated()) {
+                if m.context.starts_with("hint.") {
+                    let problems = rapidr_i18n::markers::check_for(tag, &m.id, &m.forms[0]);
+                    assert!(problems.is_empty(), "{tag}.po {}: {problems:?}", m.context);
+                    continue;
+                }
                 let msg = by_id(&m.context).unwrap_or_else(|| panic!("{tag}.po: {} is no message's ID", m.context));
                 assert_eq!(msg.en, m.id, "{tag}.po: {}'s English differs from the catalog's", m.context);
                 let problems = rapidr_i18n::markers::check_for(tag, &m.id, &m.forms[0]);
