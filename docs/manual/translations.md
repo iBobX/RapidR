@@ -38,7 +38,7 @@ msgid "Open"
 msgstr "Abrir"
 
 msgid "Hello, {name}!"
-msgstr "Hola, {name}!"
+msgstr "¡Hola, {name}!"
 
 msgid "{n} file"
 msgid_plural "{n} files"
