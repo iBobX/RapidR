@@ -193,6 +193,7 @@ SUB FillExamples
   AddMoreExample "studio/versions.rr", TR$("Versions from a program: save, go back, undo, the local history")
   AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
   AddMoreExample "gui/guided_tour.rr", "Show me: a pointer types and clicks for you"
+  AddMoreExample "graphics/pixels_fast.rr", "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"

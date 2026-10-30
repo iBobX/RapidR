@@ -74,7 +74,7 @@ that uses every instruction.
 | [hex_dump.rr](../../examples/recipes/hex_dump.rr) | **A memory viewer.** Address, 16 bytes in hex, the same as text; the hex of each value looked up in a table made once, a row built by itself | Show all 64 KB: 4,096 rows |
 | [disassembler.rr](../../examples/recipes/disassembler.rr) | **An opcode table.** Bytes back to mnemonics with a table read from `DATA` (no `SELECT CASE`): the name and the kind of operand of each opcode | List from `0006`, the middle of an instruction: the listing goes wrong |
 | [load_binary.rr](../../examples/recipes/load_binary.rr) | **A binary file into memory.** `RFileStream`: the header's fields at fixed offsets, `ReadNum(Num_Byte)` and `ReadNum(Num_Word)`, then the memory in a loop | Make the sample file, then load it |
-| [video_memory.rr](../../examples/recipes/video_memory.rr) | **Video memory on a canvas.** A 1-bit bitmap and colour attributes in the memory array drawn on an `RCanvas`; every write marks its cell dirty, a frame redraws only those; a ball drawn with `XOR` | Run: a 50 Hz timer |
+| [video_memory.rr](../../examples/recipes/video_memory.rr) | **Video memory on a canvas.** A 1-bit bitmap and colour attributes in the memory array; a decoded copy (a colour number for each pixel) kept up to date by every write, drawn on an `RCanvas` with `SetPixels8` and `StretchDraw` ([Drawing many pixels fast](graphics.md#drawing-many-pixels-fast)); a ball drawn with `XOR` | Repaint: the whole screen in about 0.1 ms |
 | [keyboard_matrix.rr](../../examples/recipes/keyboard_matrix.rr) | **A keyboard matrix.** `OnKeyDown` and `OnKeyUp` clear and set a bit in 8 rows of 5; `IN` selects rows with a mask and gives their AND | Press `Q`, then `Enter` |
 | [cpu_timing.rr](../../examples/recipes/cpu_timing.rr) | **Timing.** A budget of cycles for each tick of an `RTimer` (a frame, 20 ms), the overspent cycles carried to the next frame, so the speed is exact; Pause and Frame without freezing the window | Faster, then Frame |
 
@@ -157,9 +157,19 @@ are the same or better.
   its CPU, which does more per instruction than this one, wants the native
   build or a leaner step.
 - **The screen.** In [video_memory.rr](../../examples/recipes/video_memory.rr)
-  a frame (the ball moved, its few dirty cells redrawn) takes about 0.3 ms of
-  the 20 ms a 50 Hz frame has, and redrawing all 768 cells takes about 13 ms
-  (CPU time, the Runtime, drawing on the headless canvas).
+  a frame (the ball moved, the whole screen drawn again) takes about 0.2 ms of
+  the 20 ms a 50 Hz frame has, and a full repaint alone takes about 0.1 ms
+  (the Runtime, drawing on the headless canvas, the Mac busy with other work).
+  The first version of the recipe drew each cell with `FillRect` calls and
+  redrew only the cells that had changed: its full repaint took 7.7 ms, 77
+  times as long. A call for every pixel (or every pixel that is set) costs
+  1 to 3 µs in the Runtime; `SetPixels8` puts all 49,152 through a palette in
+  one call ([Drawing many pixels fast](graphics.md#drawing-many-pixels-fast)).
+- **A frame every 20 ms.** An `RTimer` ticks in steps of 15.6 ms, as Windows'
+  own timers do: the recipes' `Interval = 20` comes about 32 times a second,
+  and a tick comes 15.6 ms after the handler before it ended. For exactly 50
+  a second, tick often and draw when a frame is *due*
+  ([A picture every 20 milliseconds](graphics.md#a-picture-every-20-milliseconds)).
 - **The one slow thing found: writing a file a byte at a time.** A write is a
   system call each time (the computer spends 0.8 s of that second in the
   system), a read is buffered: 64 KB takes 0.6 to 1 s to write and 0.09 s to
