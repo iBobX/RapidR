@@ -25,6 +25,7 @@ pub mod ai;
 pub mod ai_tools;
 pub mod build;
 pub mod channel;
+pub mod crash;
 pub mod design;
 pub mod external;
 pub mod find;

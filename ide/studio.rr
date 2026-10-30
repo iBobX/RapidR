@@ -32,6 +32,9 @@
 '   mcp.inc        AI apps working in Studio: its MCP server, the AI Apps
 '                  pane and settings page
 '   prompts.inc    Save / Don't Save / Cancel before changes would be lost
+'   crash.inc      RapidR's crash and hang reports: the strip after a Studio
+'                  that ended unexpectedly, a program RapidR stopped, the
+'                  hang watchdog
 '   safety.inc     Studio keeps your work: an error in Studio's own code
 '                  said (never the end of Studio), copies of unsaved work,
 '                  Restore at the next start
@@ -67,6 +70,7 @@ $INCLUDE "mcp.inc"
 $INCLUDE "prompts.inc"
 $INCLUDE "safety.inc"
 $INCLUDE "consent.inc"
+$INCLUDE "crash.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
 $INCLUDE "versions.inc"

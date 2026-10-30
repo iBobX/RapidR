@@ -9,3 +9,6 @@ description = "RapidR bytecode interpreter (host-agnostic core)"
 [dependencies]
 rapidr-value = { workspace = true }
 rapidr-bytecode = { workspace = true }
+# (where the program is, for RapidR's crash reports: a relaxed store before
+# each call into the runtime, the event being handled)
+rapidr-crash = { workspace = true }

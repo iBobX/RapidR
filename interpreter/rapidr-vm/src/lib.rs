@@ -739,6 +739,13 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 }
             };
         }
+        // Where the program is before each call into the runtime, for a
+        // crash report (rapidr_crash::place: one relaxed store).
+        macro_rules! mark {
+            () => {
+                rapidr_crash::place::at(self.frames.last().map_or(u32::MAX, |f| f.fn_index), ip as u32)
+            };
+        }
         // After a host operation: run the events it queued (and serve a
         // wait it started); stop here if a handler ENDed the program.
         macro_rules! after_host {
@@ -990,6 +997,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let argc = read_u8(code, &mut ip)? as usize;
                     let name = module.strings.get(name_i as usize).ok_or_else(|| VmError::BadStringIndex(name_i))?;
                     let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
+                    mark!();
                     let r = self.host.call_builtin(name, &self.stack[at..]);
                     self.stack.truncate(at);
                     let r = r.map_err(VmError::HostError)?;
@@ -1009,6 +1017,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id_i = read_u32(code, &mut ip)?;
                     let kind = module.strings.get(kind_i as usize).ok_or_else(|| VmError::BadStringIndex(kind_i))?;
                     let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
+                    mark!();
                     let r = self.host.create_comp(&kind, &id).map_err(VmError::HostError)?;
                     self.stack.push(r);
                     after_host!(true);
@@ -1019,6 +1028,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
                     let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
                     let v = self.pop()?;
+                    mark!();
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                     after_host!(false);
                 }
@@ -1027,6 +1037,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let prop_i = read_u32(code, &mut ip)?;
                     let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
                     let prop = module.strings.get(prop_i as usize).ok_or_else(|| VmError::BadStringIndex(prop_i))?;
+                    mark!();
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
                     after_host!(true);
@@ -1039,6 +1050,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let m = module.strings.get(m_i as usize).ok_or_else(|| VmError::BadStringIndex(m_i))?;
                     let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
                     let args = self.stack.split_off(at);
+                    mark!();
                     let r = self.host.call_method(id, m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
@@ -1064,6 +1076,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                         }
                     }
                     let id = self.pop_object_id()?;
+                    mark!();
                     let v = self.host.get_prop(&id, &prop).map_err(VmError::HostError)?;
                     self.stack.push(v);
                     after_host!(true);
@@ -1083,6 +1096,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     }
                     let id = self.pop_object_id()?;
                     let v = self.pop()?;
+                    mark!();
                     self.host.set_prop(&id, &prop, v).map_err(VmError::HostError)?;
                     after_host!(false);
                 }
@@ -1133,6 +1147,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let at = self.stack.len().checked_sub(argc).ok_or_else(|| VmError::StackUnderflow)?;
                     let args = self.stack.split_off(at);
                     let id = self.pop_object_id()?;
+                    mark!();
                     let r = self.host.call_method(&id, m, &args).map_err(host_error)?;
                     // A method that waits (the web's ShowModal): suspended
                     // until the host resumes with its result.
@@ -1151,6 +1166,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     let fi = read_u32(code, &mut ip)?;
                     let id = module.strings.get(id_i as usize).ok_or_else(|| VmError::BadStringIndex(id_i))?;
                     let ev = module.strings.get(ev_i as usize).ok_or_else(|| VmError::BadStringIndex(ev_i))?;
+                    mark!();
                     self.host.register_event(&id, &ev, fi).map_err(VmError::HostError)?;
                 }
 
@@ -1215,6 +1231,7 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                     self.emit_output(&" ".repeat(pad))?;
                 }
                 Op::Input => {
+                    mark!();
                     let s = self.host.input().map_err(VmError::HostError)?;
                     if self.host.suspend_requested() {
                         let top = self.frames.last_mut().unwrap();
@@ -1575,6 +1592,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             self.host.event_finished(event.then, &[]);
             return Err(VmError::Runtime(message));
         }
+        // (the event being handled, for a crash report: until this returns)
+        let _crash_event = (!event.event.is_empty()).then(|| {
+            let component = match event.sender.and_then(|i| event.args.get(i)) {
+                Some(Value::String(s)) => s.as_str(),
+                _ => "",
+            };
+            rapidr_crash::place::event_enter(event.handler, &event.event, component)
+        });
         let QueuedEvent { handler: fn_index, args, then, sender, .. } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         // (the debugger: an event's handler starts afresh — its first line

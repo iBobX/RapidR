@@ -175,6 +175,7 @@ SUB ApplyChrome
   ApplySearchChrome
   ApplyVersionsChrome
   ApplyExternalChrome
+  ApplyCrashChrome
   ApplyState
 END SUB
 

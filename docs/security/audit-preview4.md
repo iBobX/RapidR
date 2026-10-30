@@ -178,6 +178,14 @@ itself, read what it shows, and read the user's files), so the hooks add no
 reach across users or the network. Revisit in Preview 5 with a signed
 test-mode design (ROADMAP, Preview 5).
 
+**One more for that design (2026-10-30, lane CRASH-REPORTS):**
+`RAPIDR_TEST_CRASH=panic|overflow|abort@[file:]line` (`crates/rapidr-crash/src/place.rs`)
+crashes a program run by `rapidr run` at that line, so the tests see a real
+crash report; RProject's `CrashTest` does the same for Studio only under
+`RAPIDR_TEST_DUMP` / `RAPIDR_CAPTURE` / `RAPIDR_TEST_EVENTS`. Either ends
+only the process whose environment says so (the launcher could kill it
+anyway); it reads and sends nothing.
+
 ### SEC-25 — Low — MySQL Preferred/Required do not verify the certificate
 
 **Where.** `crates/rapidr-db/src/mysql.rs:444-453` (`SslMode::opts`):

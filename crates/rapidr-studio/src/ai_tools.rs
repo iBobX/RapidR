@@ -538,6 +538,8 @@ fn s<'a>(input: &'a Json, key: &str) -> &'a str {
 /// Runs a tool. `proposals` collects what the proposing tools propose (a
 /// second proposal for a file in the same turn builds on the first).
 pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Proposal>, may_propose: bool) -> Outcome {
+    // (a crash report's last calls: the tool's name only, never its input)
+    rapidr_crash::call(&format!("tool: {name}"));
     if let Some(raw) = input.get("_invalid_json").and_then(Json::as_str) {
         return err(format!("the arguments weren't valid JSON ({}…): call {name} again with a JSON object", raw.chars().take(60).collect::<String>()), format!("{name}: arguments not understood"), "");
     }

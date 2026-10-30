@@ -6785,6 +6785,160 @@ const CASES = [
     dump: {},
     webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
   },
+  // (CRASH-REPORTS) RapidR's crash and hang reports, walked as a person
+  // meets them: Studio crashed for real (crash:panic, a Rust panic in a
+  // component's call — the process ends, 101), started again on the same
+  // folders — the strip under the tool bar says it closed unexpectedly,
+  // with View Report, Copy Report, Save Report..., Report on GitHub... and
+  // Dismiss, read by a screen reader; any answer and it isn't offered
+  // again. The report is the case's (RAPIDR_STUDIO_DATA/crashes), never
+  // the user's; Report on GitHub opens nothing in a test (the address is
+  // said instead). A UI hang (crash:hang: Studio's thread asleep 8 s)
+  // writes a hang report within 6 s and, answered again, is no crash at
+  // the next start. A program RapidR crashes in its timer's handler:
+  // "Your program stopped: …, at main.rr line 24, in SUB Tick (OnTimer of
+  // Ticker)." with its report. The desktop only (the web writes none yet).
+  {
+    name: "crash-banner",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report of what happened stays on this computer; nothing was sent\./, null], ["View Report", "button"], ["Copy Report", "button"], ["Save Report...", "button"], ["Report on GitHub...", "button"], ["Dismiss", "button"]],
+    dump: {
+      "crashbar.visible": /^1$/, "crashbartext.caption": /^RapidR Studio closed unexpectedly last time\.$/,
+      "outputbox.text": /\[crash\] bar=1 report=\d{8}-\d{6}-studio-\d+-crash\.txt kind=crash pending=\d{8}-\d{6}-studio-\d+-crash\.txt /,
+    },
+  },
+  {
+    // (in Spanish: the strip, its buttons)
+    name: "crash-banner-es",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait", delay: 6 },
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe de lo que pasó queda en esta computadora; no se envió nada\./, null], ["Ver informe", "button"], ["Copiar informe", "button"], ["Guardar informe...", "button"], ["Informar en GitHub...", "button"], ["Ocultar", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbartext.caption": /^La última vez, RapidR Studio se cerró de forma inesperada\.$/, "crashviewb.caption": /^&Ver informe$/ },
+  },
+  {
+    // (Copy Report: the report's text on the clipboard; seen — not offered
+    // at the next start)
+    name: "crash-copy",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:copy,wait,crash:report", delay: 6 },
+    dump: { "outputbox.text": /\[crash\] bar=1 report=\S+-crash\.txt kind=crash pending= copied=\d{4,} /, "clipboard.text": /^RapidR crash report\n===================\n\nRapidR Studio stopped unexpectedly[\s\S]*\nWhere: crash\.inc line \d+, in FUNCTION CrashStep \(OnTimer of Macro\)\n[\s\S]*\nPrivacy\n/ },
+  },
+  {
+    // (Save Report...: a copy where the person picks — the test's dialog answers)
+    name: "crash-save",
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:save,wait", delay: 6 },
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_FILE_DIALOG: join(WORK, "crash-save-desktop", "saved-report.txt") },
+    desktopFiles: ["saved-report.txt"],
+    dump: { "outputbox.text": /Saved the report as \S*saved-report\.txt\./ },
+  },
+  {
+    // (Report on GitHub..., yes: the prefilled new-issue address — title,
+    // the report in the body —; nothing opened in a test)
+    name: "crash-github",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:github=yes,wait,crash:report", delay: 6 },
+    dump: { "outputbox.text": /url=https:\/\/github\.com\/iBobX\/RapidR\/issues\/new\?title=RapidR%20Studio%3A%20RapidR%27s%20crash%20test[^&\s]*%282\.\d+\.\d+%29&body=%2A%2AWhat%20happened%2A%2A[^\s]*%60%60%60text%0ARapidR%20crash%20report/ },
+  },
+  {
+    // (…and its question first: what opens, what it shows, a GitHub
+    // account and 13+, public — Cancel the default)
+    name: "crash-github-ask",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:github", delay: 6 },
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    captureAll: true,
+    contrast: true,
+    a11y: [[/^You need: A GitHub account\. GitHub's terms ask that you be 13 or older/, null], ["Open GitHub", "button"], ["Cancel", "button"]],
+    dump: { "consentdialog.visible": YES, "consenttitle.caption": /^Report this on GitHub\?$/ },
+  },
+  {
+    // (Dismiss: gone, seen; the next start says nothing)
+    name: "crash-dismiss",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:dismiss,wait,crash:check,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 report=\S+ kind=crash pending= / },
+  },
+  {
+    // (School Lock on — the other lane's hook, CrashSchoolLock: no strip)
+    name: "crash-locked",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "crash:lock,wait,wait,wait,crash:check,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 / },
+  },
+  {
+    // (a UI hang: the report within 6 s, how long it lasted once Studio
+    // answers again; started again, no strip — it wasn't a crash)
+    name: "crash-hang",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,wait,crash:hang,wait,wait,crash:report",
+    delay: 13,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 report= kind= pending= copied=0 program= list=\d{8}-\d{6}-studio-\d+-hang\.txt outcome=Answered again after [6-9] s/ },
+  },
+  {
+    // (a program RapidR crashes in its timer's handler: the Output says
+    // where, plainly, with links to the line and the report)
+    name: "crash-program",
+    desktopOnly: true,
+    open: "tests/fixtures/studio_crash/main.rr",
+    copy: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_PROGRAM_CRASH: "panic@main.rr:24" },
+    do: "run.start,wait,wait,wait,wait,wait,wait,wait,wait,crash:report",
+    delay: 9,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    dump: {
+      "outputbox.text": /\[main\.rr ended, exit code 101\]\nYour program stopped: RapidR's crash test \(RAPIDR_TEST_CRASH\): a panic, as a bug in RapidR would make one, at main\.rr line 24, in SUB Tick \(OnTimer of Ticker\)\.\nRapidR stopped it: a problem in RapidR, not in your code\. A report stays on this computer: View Report[\s\S]*program=\d{8}-\d{6}-program-\d+-crash\.txt/,
+      "status.panel(0).caption": /^Your program stopped: a problem in RapidR$/,
+    },
+  },
+  {
+    name: "crash-program-es",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    open: "tests/fixtures/studio_crash/main.rr",
+    copy: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_PROGRAM_CRASH: "overflow@main.rr:24" },
+    do: "run.start,wait,wait,wait,wait,wait,wait,wait,wait,crash:report",
+    delay: 9,
+    capture: true,
+    dump: { "outputbox.text": /Tu programa se detuvo: se desbordó la pila \(las llamadas fueron demasiado profundas\), en main\.rr línea 24, en SUB Tick \(OnTimer de Ticker\)\.\nRapidR lo detuvo: es un problema de RapidR, no de tu código\. Un informe queda en esta computadora: Ver informe/ },
+  },
 ];
 
 

@@ -76,9 +76,14 @@ fn start(path: &str, args: Vec<String>, from: From) -> Result<(), String> {
     }
     let program = crate::home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
     // (RapidR Studio itself: its own keys; any other program, its own)
-    if crate::home::is_own_ide(Path::new(&program)) {
+    let studio = crate::home::is_own_ide(Path::new(&program));
+    if studio {
         rapidr_ai::keys::set_studio();
     }
+    // (RapidR's crash reports, on this computer only: Studio's, or the
+    // program's — rapidr-crash)
+    rapidr_crash::install(if studio { rapidr_crash::App::Studio } else { rapidr_crash::App::Program });
+    rapidr_crash::set_program_file(&program);
     rapidr_vm_host_native::set_program(&program, args);
     // (the runtime running it and the system's temporary folder, for a
     // program that runs others: the IDE)
@@ -113,6 +118,10 @@ pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
         }
     };
     let program = crate::home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    // (a program run by Studio: its crash report is the program's, which
+    // Studio finds and offers when the run ends)
+    rapidr_crash::install(rapidr_crash::App::Program);
+    rapidr_crash::set_program_file(&program);
     rapidr_vm_host_native::set_program(&program, args);
     if let Ok(exe) = env::current_exe() {
         env::set_var("RAPIDR_RUNTIME", exe);
