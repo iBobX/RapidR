@@ -35,7 +35,7 @@ fn set_has_a_hint_under_the_compilers_own_message() {
     assert_eq!(hint, Some("set"));
     let d = problems("DIM x AS INTEGER\nSET x = 1\n").into_iter().find(|d| d.severity == Severity::Error).unwrap();
     assert_eq!(d.two_lines(), "Syntax error in SET statement\nhint: RapidR has no SET: write x = 1 (the name, =, then the value)");
-    assert!(d.one_line().starts_with("Syntax error in SET statement — RapidR has no SET: write x = 1"));
+    assert!(d.one_line().starts_with("Syntax error in SET statement — hint: RapidR has no SET: write x = 1"));
 }
 
 #[test]

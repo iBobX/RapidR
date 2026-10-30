@@ -35,10 +35,10 @@ pub struct FileDiagnostic {
 
 impl FileDiagnostic {
     /// The message and its hint on one line (Problems rows, the editor's
-    /// tooltip): `Syntax error in SET statement — RapidR has no SET: …`.
+    /// tooltip): `Syntax error in SET statement — hint: RapidR has no SET: …`.
     pub fn one_line(&self) -> String {
         match self.hint {
-            Some(h) => format!("{} — {}", self.message, h.text()),
+            Some(h) => format!("{} — hint: {}", self.message, h.text()),
             None => self.message.clone(),
         }
     }
