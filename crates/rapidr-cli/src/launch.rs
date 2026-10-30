@@ -52,6 +52,9 @@ pub fn run(path: &str, args: Vec<String>, from: From) -> ExitCode {
     match start(path, args, from) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
+            // (a run-time error's words in the program's language: RAPIDR_LANG,
+            // Application.Language, the system's)
+            let e = rapidr_value::runtime_text::localize_report(&e);
             eprintln!("{e}");
             // (opened from the desktop: nobody reads stderr)
             if from == From::Desktop && !has_terminal() {
@@ -299,7 +302,7 @@ pub fn run_dialog(path: &str) -> ExitCode {
     match crate::compile_to_bytecode(path).map(|c| c.module.to_bytes()).and_then(|b| rapidr_vm_host_native::run_bytes(&b)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("{e}");
+            eprintln!("{}", rapidr_value::runtime_text::localize_report(&e));
             ExitCode::from(1)
         }
     }
