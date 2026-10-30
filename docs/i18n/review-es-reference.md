@@ -145,5 +145,22 @@ For Robert, 2026-10-30. Goal: no English visible anywhere in Studio when it is i
 | dark blue / light grey | azul oscuro / gris claro | The shade follows the colour in Spanish (template `{name} oscuro`). |
 | brown | marrón | *Café* is regional. |
 | Waiting for events | Esperando eventos | Studio puts it after "Pausado," in lower case. |
-| A copy each time the file was saved, kept in the project's .rapidr folder (never in a version) | Una copia en cada guardado, en la carpeta .rapidr del proyecto (nunca en una versión) | The first Spanish was 12 characters longer than the English and was cut by the button beside it. |
+| A copy each time the file was saved, kept in the project's .rapidr folder (never in a version) | Una copia de cada guardado, en .rapidr del proyecto (nunca en una versión) | The first Spanish was 12 characters longer than the English and was cut by the button beside it. |
 | Cannot open file {path}. | No se puede abrir el archivo {path}. | RC.EXE's words: the classic English is kept beside a Spanish message only where the compiler catalog does it for compile errors, so a run-time error has none. |
+
+## After merging development (the end of the lane)
+
+- The merge brought Coach mode, Local AI (`RSystemInfo`), School Lock, the Versions polish and the Inspector's categories: 53 registry docs and 5 Studio / runtime texts were missing and are translated (*modo tutor*, *pista*, *bloqueo escolar*, as Studio's catalog says); coverage is 100% / 100% / 100% again.
+- The Properties / Assistant column is 272 wide in English (development's choice) and **380 wide in a longer language** (Spanish, the pseudo-language), unless a person has set it: the Assistant's greeting, chips and privacy note do not fit in 272 when they are a third longer. It follows the language when it changes (`InspectorDefaultWidth` in `ide/panes.inc`).
+- The local history's one-line description is shortened once more (above) so it fits beside *Restaurar esta copia* in a narrow editor area.
+- Every page of the manual has its Spanish now, so the scenes and tests that used an English-only page to show the "not translated yet" note (`es-help-english`, `lookups_come_in_studios_language`) were changed to check that a Spanish page is read; the note itself still works for a language whose manual is partial.
+
+- The language service says *a classic compiler* (development's wording, nothing about the older product), so the five compatibility notes' templates and their Spanish say it too (`RR0025`–`RR0029`): *un compilador clásico la rechaza*, *no es un nombre clásico*, *este proyecto se mantiene compatible con el lenguaje clásico*. A test (`crates/rapidr-langsvc/tests/notes_translate.rs`) keeps the service's English and the templates together.
+- **RAI answers in** (*RAI responde en:*): *El idioma de Studio* (`AI.ReplyLanguage = "app"`: Studio's language, unless the latest message is clearly in another) or *El idioma en que escribo* (`"auto"`); the chat, Coach's hints and Help With This Error follow it.
+
+## What is left
+
+- **Run-time messages that belong to one component** (databases, sockets, printers, serial ports, streams, archives) and the `[WARN]` lines on stderr are still English (40 common run-time messages are translated). The mechanism is in (`rapidr_value::runtime_text`, one `tr_note!`-style template each).
+- **Not run**: the web page (building it needs a download of fonts: `tools/build_studio_web.sh`), so the new Spanish scenes and flows were run on the desktop only; they carry `lang` and `webFiles`, so they run on the web once it is built. `cargo check` of the Studio crates for `wasm32-unknown-unknown` passes.
+- **Set Up RAI pages that need a live server**, the AI consent card and the import report (it needs a native file dialog) were not walked in Spanish.
+- **Known, not from this lane**: `tests/studio_flows.mjs` `ai-settings-401-*` (`aifetchnote.height` 50, wanted 60 to 89) fails the same way on the commit before this lane; `node tests/lang_conformance.mjs --backend vm rai` fails on development itself (`InsertLinks=1` expected, the runtime prints `-1`: COACH-MODE's new `RAI.InsertLinks`); the font's name in `tests/studio_lang.mjs` (a name, not English) is now in `tools/words-allowlist.txt`.

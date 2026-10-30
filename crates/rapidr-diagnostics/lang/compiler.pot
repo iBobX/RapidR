@@ -186,23 +186,23 @@ msgid "{what} works in the web runtime only: the desktop doesn't have it"
 msgstr ""
 
 msgctxt "RR0025"
-msgid "{what} is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"
+msgid "{what} is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)"
 msgstr ""
 
 msgctxt "RR0026"
-msgid "RapidQ's {what} is not implemented in RapidR yet"
+msgid "The classic {what} is not implemented in RapidR yet"
 msgstr ""
 
 msgctxt "RR0027"
-msgid "RapidQ has no {written}: RapidR reads it as {name}"
+msgid "{written} is not a classic name: RapidR reads it as {name}"
 msgstr ""
 
 msgctxt "RR0028"
-msgid "{shown} is RapidR's name: RapidQ's compiler knows it as {q}"
+msgid "{shown} is RapidR's name: a classic compiler knows it as {q}"
 msgstr ""
 
 msgctxt "RR0029"
-msgid "{name} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)"
+msgid "{name} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)"
 msgstr ""
 
 msgctxt "RR0030"

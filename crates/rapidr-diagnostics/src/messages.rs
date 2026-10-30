@@ -92,14 +92,14 @@ pub const MESSAGES: &[Message] = &[
     m("RR0022", "{key} works in the web runtime only: the desktop doesn't have it (1 use)"),
     m("RR0023", "{what} works on the desktop only: the web runtime doesn't have it"),
     m("RR0024", "{what} works in the web runtime only: the desktop doesn't have it"),
-    // (the language service's other notes — compatibility with RapidQ's
+    // (the language service's other notes — compatibility with the classic
     // compiler, the habits of other languages, a number's NOT — written in
     // English too and shown translated: ES-REFERENCE part 2b)
-    m("RR0025", "{what} is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)"),
-    m("RR0026", "RapidQ's {what} is not implemented in RapidR yet"),
-    m("RR0027", "RapidQ has no {written}: RapidR reads it as {name}"),
-    m("RR0028", "{shown} is RapidR's name: RapidQ's compiler knows it as {q}"),
-    m("RR0029", "{name} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)"),
+    m("RR0025", "{what} is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)"),
+    m("RR0026", "The classic {what} is not implemented in RapidR yet"),
+    m("RR0027", "{written} is not a classic name: RapidR reads it as {name}"),
+    m("RR0028", "{shown} is RapidR's name: a classic compiler knows it as {q}"),
+    m("RR0029", "{name} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)"),
     m("RR0030", "{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"),
     m("RR0031", "Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"),
     m("RR0032", "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant"),
@@ -334,7 +334,7 @@ mod tests {
 
     #[test]
     fn the_language_services_notes_are_identified_and_translated() {
-        let (m, v, _) = identify("RButton.Foo is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)").unwrap();
+        let (m, v, _) = identify("RButton.Foo is a RapidR extension: a classic compiler refuses it (this project is kept classic-compatible)").unwrap();
         assert_eq!((m.id, v[0].1.as_str()), ("RR0025", "RButton.Foo"));
         assert_eq!(identify("console.log is not RapidR: nothing is printed").unwrap().0.id, "RR0033");
         assert_eq!(identify("mbYes is a RAPIDQ.INC constant — add $INCLUDE \"RAPIDQ.INC\"").unwrap().0.id, "RR0034");
