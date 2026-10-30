@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md f9f072488f99006c -->
+<!-- translated-from: studio-languages.md 73ef1a3a4868ad57 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -117,7 +117,7 @@ en él (`tests/studio_lang.mjs`).
 - Los mensajes de error de ejecución de un programa en marcha, y las palabras
   propias del panel Ayuda alrededor de una entrada (“Property of RButton”), están
   en inglés.
-- El manual en español empieza con sus páginas más leídas: el índice, *Primeros
-  pasos*, el editor de código, los proyectos, Studio en tu idioma, la Depuración,
-  el asistente de IA, las Versiones y la Solución de problemas; las demás páginas
-  van después.
+- El manual está en español: todas sus páginas de guía. Las páginas de
+  referencia (los componentes, los miembros, las funciones integradas, las
+  instrucciones y las constantes), generadas desde el registro del lenguaje,
+  van después en español con el texto del registro.
