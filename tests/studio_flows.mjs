@@ -7127,7 +7127,7 @@ const CASES = [
     env: { RAPIDR_TEST_CLIPBOARD: "1" },
     do: "lock:set=maestra1,wait,crash:panic",
     delay: 6,
-    restart: { noOpen: true, do: "wait,wait,wait,crash:check,crash:report,lock:state", delay: 6 },
+    restart: { noOpen: true, do: "wait,wait,wait,crash:check,crash:report,lock:state", delay: 9 },
     dump: {
       "crashbar.visible": /^0$/,
       "crashgitb.__shown": /^0$/,

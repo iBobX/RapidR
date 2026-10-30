@@ -163,7 +163,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn unhex(s: &str) -> Option<Vec<u8>> {
-    if s.len() % 2 != 0 || !s.bytes().all(|c| c.is_ascii_hexdigit()) {
+    if !s.len().is_multiple_of(2) || !s.bytes().all(|c| c.is_ascii_hexdigit()) {
         return None;
     }
     (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()
@@ -232,7 +232,7 @@ pub fn strength(password: &str) -> u8 {
     }
     let lower = password.to_lowercase();
     let common = ["123456", "1234567", "12345678", "123456789", "password", "qwerty", "abc123", "111111", "000000", "contraseña", "maestro", "teacher", "letmein"];
-    let one_char = password.chars().all(|c| Some(c) == password.chars().next());
+    let one_char = password.chars().all(|c| password.starts_with(c));
     if one_char || common.contains(&lower.as_str()) || is_run(&lower) {
         return 1;
     }
@@ -273,7 +273,7 @@ impl Throttle {
 
     fn wrong(&mut self, now: f64) {
         self.failures += 1;
-        if self.failures % MAX_TRIES == 0 {
+        if self.failures.is_multiple_of(MAX_TRIES) {
             self.until = now + WAIT_SECS;
         }
     }

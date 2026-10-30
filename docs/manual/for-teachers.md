@@ -43,7 +43,7 @@ A wrong password is said plainly, with the tries left. After **5 wrong passwords
 
 ![Unlock: That isn't the password. 4 more tries before a one-minute wait](images/for-teachers/unlock.png)
 
-![After five wrong passwords: Too many wrong passwords. Try again in 0:59, the buttons greyed until then](images/for-teachers/wait.png)
+![After five wrong passwords: Too many wrong passwords. Try again in 0:54, the buttons greyed until then](images/for-teachers/wait.png)
 
 ## The password
 
