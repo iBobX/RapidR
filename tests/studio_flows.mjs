@@ -6334,8 +6334,8 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [["Start keeping versions of this project", "button"]],
-    dump: { "versub.caption": /^Hello$/, "veremptytitle.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verstartbtn.primary": /^(1|-1|True)$/i, "verlocalbtn.visible": /^1$/, "repo.versioned": NO, "verbranch.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
+    a11y: [["Local History...", "button"]],
+    dump: { "versub.caption": /^Hello$/, "veremptytitle.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verstartbtn.primary": /^(1|-1|True)$/i, "verstartbtn.accessiblename": /^Start keeping versions of this project$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO, "verbranch.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
     webDump: { "veremptytitle.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
   },
   {
@@ -6710,7 +6710,7 @@ const CASES = [
     delay: 4,
     capture: true,
     dump: { "veremptytitle.caption": /^Aún no hay versiones$|^Todavía no hay versiones$|^No hay versiones/, "verstartbtn.caption": /^&Empezar a guardar versiones/, "outputbox.text": /\[versions\] problems=0/ },
-    webDump: { "veremptytitle.caption": /^No en un navegador$|navegador/ },
+    webDump: { "veremptytitle.caption": /^No disponible en un navegador$/, "verstartbtn.visible": /^0$/ },
   },
   // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
   // editor, git — walked as a person sees it (the lane's acceptance): a
@@ -7937,6 +7937,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
+    // (a case in another language: the page's ?lang=, as the desktop's --lang)
+    const langAt = (c.desktopArgs || []).indexOf("--lang");
+    if (langAt >= 0) q.set("lang", c.desktopArgs[langAt + 1]);
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
     // (the program's files are in the page's store: imported from there;
