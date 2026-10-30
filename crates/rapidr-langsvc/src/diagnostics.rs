@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use rapidr_diagnostics::{Diagnostic, Severity};
 use rapidr_preprocessor::PreprocessOptions;
 
+use crate::foreign::{self, Hint};
 use crate::front::Parsed;
 use crate::text::{is_name_char, LineIndex};
 
@@ -26,6 +27,29 @@ pub struct FileDiagnostic {
     pub message: String,
     /// A code for code actions (`rapidq-compat` …).
     pub code: Option<String>,
+    /// For an error that is a habit from another language: what to write
+    /// in RapidR, in a line of plain words ([`crate::foreign`]) — an
+    /// ADDITIONAL line, the compiler's own message stays as it is.
+    pub hint: Option<&'static Hint>,
+}
+
+impl FileDiagnostic {
+    /// The message and its hint on one line (Problems rows, the editor's
+    /// tooltip): `Syntax error in SET statement — hint: RapidR has no SET: …`.
+    pub fn one_line(&self) -> String {
+        match self.hint {
+            Some(h) => format!("{} — hint: {}", self.message, h.text()),
+            None => self.message.clone(),
+        }
+    }
+
+    /// The message and its hint on two lines (a terminal, `rapidr lsp`).
+    pub fn two_lines(&self) -> String {
+        match self.hint {
+            Some(h) => format!("{}\nhint: {}", self.message, h.text()),
+            None => self.message.clone(),
+        }
+    }
 }
 
 /// The options the CLI's compiler uses (`preprocess_file` adds the user's
@@ -61,12 +85,17 @@ pub fn compile(parsed: &Parsed) -> Vec<FileDiagnostic> {
     if parse.iter().any(|d| d.severity == Severity::Error) {
         return parse.into_iter().filter_map(|d| at_pre(parsed, d)).collect();
     }
+    // (RC.EXE's warnings for a block never closed — Missing NEXT statement …
+    // — come with whatever the compiler says next: the program compiles)
+    let warnings: Vec<FileDiagnostic> = parse.into_iter().filter_map(|d| at_pre(parsed, d)).collect();
     // 4. The bytecode compiler, on the same program and text.
     let library_lines: Vec<bool> = tools.preprocessed.line_map.iter().map(|(file, _)| file.as_deref().is_some_and(|f| f != parsed.root)).collect();
-    match rapidr_bcgen::compile_program_diagnostics(&parsed.program, Some(source), &library_lines) {
+    let mut out: Vec<FileDiagnostic> = match rapidr_bcgen::compile_program_diagnostics(&parsed.program, Some(source), &library_lines) {
         Ok(_) => missing_icons(parsed),
         Err(errors) => errors.iter().filter_map(|d| at_pre(parsed, d)).collect(),
-    }
+    };
+    out.extend(warnings);
+    out
 }
 
 /// The lexer's and the parser's errors — the program's syntax, what no
@@ -96,7 +125,7 @@ fn missing_icons(parsed: &Parsed) -> Vec<FileDiagnostic> {
             let index = LineIndex::new(text);
             let start = index.line_start(line.saturating_sub(1)).unwrap_or(0);
             let end = start + index.line_text(text, line.saturating_sub(1)).len();
-            Some(FileDiagnostic { file, start, end: end.max(start), severity: Severity::Error, message: format!("ICON file {} does not exist.", r.file), code: None })
+            Some(FileDiagnostic { file, start, end: end.max(start), severity: Severity::Error, message: format!("ICON file {} does not exist.", r.file), code: None, hint: None })
         })
         .collect()
 }
@@ -147,7 +176,10 @@ fn place(parsed: &Parsed, file: &Path, start: usize, end: Option<usize>, d: &Dia
         let line_end = line_start + line_text.len();
         end_at = (start + text[start..].chars().next().map_or(0, char::len_utf8)).min(line_end).max(start);
     }
-    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at, severity: d.severity, message: d.message.clone(), code: None })
+    // (an error that is another language's habit: the fix, under the
+    // compiler's words — from the message and the lines it is about)
+    let hint = (d.severity == Severity::Error || d.message.starts_with("Missing ")).then(|| foreign::for_error_in(&d.message, text, line)).flatten();
+    Some(FileDiagnostic { file: file.to_path_buf(), start, end: end_at, severity: d.severity, message: d.message.clone(), code: None, hint })
 }
 
 /// The part of a line a message at column `col` is about: the name it

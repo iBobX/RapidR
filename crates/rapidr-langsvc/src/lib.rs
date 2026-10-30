@@ -23,6 +23,7 @@
 pub mod case;
 pub mod diagnostics;
 pub mod editor;
+pub mod foreign;
 pub mod front;
 pub mod help;
 pub mod model;

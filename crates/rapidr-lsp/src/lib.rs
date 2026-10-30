@@ -708,7 +708,7 @@ impl Server {
             }),
             code: d.code.clone().map(NumberOrString::String),
             source: Some("rapidr".into()),
-            message: d.message.clone(),
+            message: d.two_lines(),
             ..Default::default()
         }
     }

@@ -61,6 +61,7 @@ fn not_one(s: &Snapshot) -> Vec<FileDiagnostic> {
             severity: Severity::Warning,
             message: format!("{name} gives 1, and NOT 1 is -2 (true): write {shown} = 0"),
             code: Some(NOT_ONE.into()),
+            hint: None,
         });
     }
     out
@@ -81,10 +82,100 @@ fn hidden_result(s: &Snapshot) -> Vec<FileDiagnostic> {
             severity: Severity::Warning,
             message: format!("Inside FUNCTION {function}, Result is the FUNCTION's own value (RESULT): this variable can't be used there. Give it another name"),
             code: Some(HIDDEN_RESULT.into()),
+            hint: None,
         });
     }
     out
 }
+
+/// Another language's code RapidR compiles, and what it does there isn't
+/// what its writer meant (docs/manual/diagnostics.md, "Coming from another
+/// language?"):
+///
+/// * `a && b` — RapidQ takes `&&` (two `&`: text joining), so it compiles
+///   and the test is never true; RapidR's error for it would not be RapidQ's
+///   behaviour, so it is a warning whose hint says AND / OR;
+/// * `console.log("hi")` (and `System.out.println`, `Console.WriteLine`) —
+///   it compiles as a call on a name nobody declared, and warns when it
+///   runs; here a warning before that, its hint PRINT.
+///
+/// The program's own files only (a library's are its authors'); code only
+/// (not strings, not comments). RapidR Studio's assistant treats both as
+/// errors (check_code).
+fn foreign_code(s: &Snapshot) -> Vec<FileDiagnostic> {
+    let folder = s.parsed.root.parent().map(Path::to_path_buf).filter(|f| !f.as_os_str().is_empty());
+    // (a program that declares its own `console` or `system` is not quoting JavaScript)
+    let declared = |name: &str| s.model.symbols.iter().any(|sym| !sym.implicit && sym.name.eq_ignore_ascii_case(name));
+    let mut out = Vec::new();
+    for file in s.parsed.files() {
+        if folder.as_ref().is_some_and(|f| !file.starts_with(f)) {
+            continue;
+        }
+        let Some(text) = s.parsed.file_text(&file) else { continue };
+        let mut offset = 0;
+        for line in text.split_inclusive('\n') {
+            let line_start = offset;
+            offset += line.len();
+            let code = crate::foreign::code_of(line);
+            // (`x &&HFF` is `x & &HFF`: a hex number after a join)
+            let mut from = 0;
+            while let Some(i) = code[from..].find("&&") {
+                let at = from + i;
+                from = at + 2;
+                let rest = &code[at + 2..];
+                let number = rest.chars().next().is_some_and(|c| "hHoObB".contains(c)) && rest[1..].chars().next().is_some_and(|c| c.is_ascii_hexdigit());
+                if number || rest.trim().is_empty() {
+                    continue;
+                }
+                out.push(FileDiagnostic {
+                    file: file.clone(),
+                    start: line_start + at,
+                    end: line_start + at + 2,
+                    severity: Severity::Warning,
+                    message: "&& is not a logical AND in RapidR (& joins text), so this test is never what was meant".into(),
+                    code: Some(FOREIGN_AND.into()),
+                    hint: crate::foreign::hint("and-and"),
+                });
+            }
+            let trimmed = code.trim_start();
+            let lower = trimmed.to_ascii_lowercase();
+            for (prefix, owner) in FOREIGN_PRINTS {
+                if lower.starts_with(prefix) && !declared(owner) {
+                    let start = line_start + (code.len() - trimmed.len());
+                    out.push(FileDiagnostic {
+                        file: file.clone(),
+                        start,
+                        end: start + prefix.len() - 1,
+                        severity: Severity::Warning,
+                        message: format!("{} is not RapidR: nothing is printed", &trimmed[..prefix.len() - 1]),
+                        code: Some(FOREIGN_PRINT.into()),
+                        hint: crate::foreign::hint("console-log"),
+                    });
+                    break;
+                }
+            }
+        }
+    }
+    out
+}
+
+/// `&&` used as a logical AND.
+pub(crate) const FOREIGN_AND: &str = "foreign-and";
+/// `console.log(…)` and friends.
+pub(crate) const FOREIGN_PRINT: &str = "foreign-print";
+
+/// How other languages print a line (with the `(` that follows), and the
+/// name a program would have to declare for it to be its own.
+const FOREIGN_PRINTS: &[(&str, &str)] = &[
+    ("console.log(", "console"),
+    ("console.info(", "console"),
+    ("console.warn(", "console"),
+    ("console.error(", "console"),
+    ("console.debug(", "console"),
+    ("system.out.println(", "system"),
+    ("system.out.print(", "system"),
+    ("system.console.writeline(", "system"),
+];
 
 /// The hints for the program of `s` (every file of it).
 pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
@@ -120,12 +211,13 @@ pub(crate) fn check(s: &Snapshot) -> Vec<FileDiagnostic> {
         let (severity, code, message) = (Severity::Warning, NEEDS_INCLUDE, format!("{name} is a {inc} constant — add $INCLUDE \"{inc}\""));
         for r in uses.iter() {
             if let Some(l) = s.locate(r.span) {
-                out.push(FileDiagnostic { file: l.file, start: l.start, end: l.end.max(l.start + 1), severity, message: message.clone(), code: Some(code.into()) });
+                out.push(FileDiagnostic { file: l.file, start: l.start, end: l.end.max(l.start + 1), severity, message: message.clone(), code: Some(code.into()), hint: None });
             }
         }
     }
     out.extend(not_one(s));
     out.extend(hidden_result(s));
+    out.extend(foreign_code(s));
     out.sort_by(|a, b| (&a.file, a.start).cmp(&(&b.file, b.start)));
     out
 }

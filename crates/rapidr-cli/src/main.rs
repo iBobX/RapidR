@@ -37,7 +37,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "check", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -300,6 +300,7 @@ fn main() -> ExitCode {
             }
             build_source_file(&path, output_dir.or(app.output.clone()), release.unwrap_or(true), web, interp, target, csp, &app)
         }
+        (Some("check"), _) => check_files(&args[1..]),
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
             let mut iter = rest.iter();
@@ -339,6 +340,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
+            eprintln!("  rapidr check <file.rr|.bas>…                     Its errors and warnings as Studio's Problems pane lists them, each fix of another language's habit under it");
             eprintln!("  rapidr setup [--check|--rust] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
@@ -1132,6 +1134,64 @@ fn web_needs(path: &str, csp: Option<&str>) -> Result<rapidr_webbundle::WebNeeds
 /// Preprocess → lex → parse → bytecode, keeping the preprocessed source so
 /// every error carries `file:line:col`. All errors are reported, one per line.
 fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
+    // (a syntax from another language gets its fix under the compiler's own
+    // message: one more line, `  hint: …` — rapidr_langsvc::foreign)
+    compile_to_bytecode_plain(path).map_err(|e| rapidr_langsvc::foreign::annotate(&e, &|file| fs::read_to_string(file).ok()))
+}
+
+/// `rapidr check <file>…`: what RapidR Studio's Problems pane lists for each
+/// program (the program a file is the main file of, with the files it
+/// `$INCLUDE`s): its errors, warnings and notes, a line each as `file:line:col:
+/// severity: message`, an error that is another language's habit with its
+/// fix under it (`  hint: …`). Nothing is built or run. Exit status 1 when
+/// there is an error.
+fn check_files(args: &[String]) -> ExitCode {
+    let files: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
+    if files.is_empty() {
+        eprintln!("Usage: rapidr check <file.rr|.bas>…");
+        return ExitCode::from(2);
+    }
+    let mut errors = 0;
+    for path in files {
+        let text = match fs::read_to_string(path) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("{path}: {e}");
+                errors += 1;
+                continue;
+            }
+        };
+        let file = PathBuf::from(path);
+        let mut analysis = rapidr_langsvc::Analysis::new(rapidr_langsvc::Options::default());
+        analysis.update(file.clone(), text);
+        let mut found = analysis.diagnostics(&file);
+        rapidr_langsvc::sort_problems(&mut found, &file);
+        if found.is_empty() {
+            println!("{path}: no problems");
+        }
+        for d in &found {
+            let shown = analysis.text(&d.file).unwrap_or_default();
+            let before = shown.get(..d.start.min(shown.len())).unwrap_or("");
+            let line = before.matches('\n').count() + 1;
+            let col = before.rsplit('\n').next().map_or(0, |l| l.chars().count()) + 1;
+            if d.severity == rapidr_langsvc::Severity::Error {
+                errors += 1;
+            }
+            let place = if d.file == file { path.clone() } else { d.file.display().to_string() };
+            println!("{place}:{line}:{col}: {}: {}", d.severity, d.message);
+            if let Some(h) = d.hint {
+                println!("  hint: {}", h.text());
+            }
+        }
+    }
+    if errors > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn compile_to_bytecode_plain(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     let pre = preprocess_file(path, PreprocessOptions::default()).map_err(|e| e.to_string())?;
     // Positions count preprocessed lines; map them back to the real file
     // and line (code from an $INCLUDE reports the include file).

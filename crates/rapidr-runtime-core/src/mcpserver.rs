@@ -653,7 +653,12 @@ fn argument(name: &str, key: &str, id: i64) -> String {
         let c = s.calls.get(&id)?;
         let mut v = &c.args;
         for part in key.split('.') {
-            v = v.get(part)?;
+            // (an argument's name in any case: a model sends `path` for a
+            // tool whose schema says `Path`, and BASIC names don't care)
+            v = match v.get(part) {
+                Some(found) => found,
+                None => v.as_object()?.iter().find(|(k, _)| k.eq_ignore_ascii_case(part))?.1,
+            };
         }
         Some(match v {
             Json::String(t) => t.clone(),
@@ -1149,6 +1154,19 @@ fn coerce_args(def: &ToolDef, args: &mut Json) {
     let empty = Map::new();
     let props = def.schema.get("properties").and_then(Json::as_object).unwrap_or(&empty);
     let Some(obj) = args.as_object_mut() else { return };
+    // (an argument named in another case — `Path` for `path`, as an older
+    // tool list wrote it — is that argument)
+    let sent: Vec<String> = obj.keys().cloned().collect();
+    for key in sent {
+        if props.contains_key(&key) {
+            continue;
+        }
+        if let Some(spelled) = props.keys().find(|p| p.eq_ignore_ascii_case(&key)).filter(|p| !obj.contains_key(*p)) {
+            if let Some(v) = obj.remove(&key) {
+                obj.insert(spelled.clone(), v);
+            }
+        }
+    }
     for (key, v) in obj.iter_mut() {
         let Some(want) = props.get(key).and_then(|p| p.get("type")).and_then(Json::as_str) else { continue };
         let Some(text) = v.as_str().map(str::trim) else { continue };
@@ -1259,6 +1277,21 @@ mod tests {
         let mut c = json!({"path": "x", "edits": "{\"old_text\": \"a\"}"});
         coerce_args(&d, &mut c);
         assert!(c["edits"].is_string());
+    }
+
+    #[test]
+    fn an_argument_in_another_case_is_that_argument() {
+        // (`Path` for `path`: a tool list that spelled it so, a model that guesses)
+        let d = def(json!({"type": "object", "properties": {"path": {"type": "string"}, "wait": {"type": "integer"}}, "required": ["path"], "additionalProperties": false}));
+        let mut a = json!({"Path": "main.rr", "WAIT": "5"});
+        coerce_args(&d, &mut a);
+        assert_eq!(a, json!({"path": "main.rr", "wait": 5}));
+        assert!(check_args(&d, &a).is_ok());
+        // (both given: the schema's own spelling wins, the other is refused as unknown)
+        let mut both = json!({"path": "a", "Path": "b"});
+        coerce_args(&d, &mut both);
+        assert_eq!(both["path"], json!("a"));
+        assert!(check_args(&d, &both).is_err());
     }
 
     #[test]

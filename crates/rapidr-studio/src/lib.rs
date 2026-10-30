@@ -28,6 +28,7 @@ pub mod channel;
 pub mod design;
 pub mod find;
 pub mod friendly;
+pub mod guide;
 pub mod help;
 pub mod import;
 pub mod langsvc;

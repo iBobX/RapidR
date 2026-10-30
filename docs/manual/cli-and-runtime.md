@@ -17,6 +17,7 @@ One command, `rapidr`, is the compiler, the build tool and the runtime.
 | `rapidr <file.rr\|.bas> [flags]` | Shortcut for `build`, optimized by default |
 | `rapidr build <app.rrproj>` | Build a project's main file with its app settings |
 | `rapidr install-app <Name.AppDir>` | Linux: put a built app in your applications menu |
+| `rapidr check <file…>` | What Studio's Problems pane lists for the program: its errors and warnings with their place, and under an error that is another language's habit, a `  hint:` line with the RapidR form ([Coming from another language?](language.md#coming-from-another-language)). Nothing is built or run; the exit status is 1 when there is an error |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compile to bytecode, for the Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | A static web bundle (a `.zip`) |
 | `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Write a converted copy of a RapidQ program — and every file it `$INCLUDE`s — with RapidR's names, and a report (`rapidr-import-report.md`), in `out_dir` (also `-o out_dir`; else `<name>-rapidr` beside it). The original is untouched, and each program is proved to compile to the same bytecode. An include found nowhere is printed with what to do (exit code 1). RapidR Studio's File ▸ Import RapidQ Project or File… does the same ([Include files](importing-rapidq.md#include-files)) |

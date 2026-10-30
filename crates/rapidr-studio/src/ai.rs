@@ -301,6 +301,7 @@ pub fn instructions(may_propose: bool) -> String {
         p.push_str("- Text alone changes nothing: every change is a tool call, which Studio shows the user (a change to a file as a diff to apply, a new program opened in Studio). propose_edit: any change to an existing file — send only the lines that change, each edit's old_text a few whole lines copied exactly from the file (once in it); several edits in one call for several places. write_file: a new file (or an existing one rewritten almost entirely). create_project: a new program. Never say you proposed, wrote, applied or ran something unless a tool did it in this answer.\n");
         p.push_str("- When the user says to go ahead (\"do it\", \"write it\", \"implement\", \"continue\", \"ok\"), make the change now with a tool: don't ask again or only describe it. Ask a question only when you can't go on without the answer.\n");
         p.push_str("- Code you propose must compile: check_code it first and fix every error. Propose each change once, complete: a change with a syntax error, or cut off before its end, is refused.\n");
+        p.push_str("- An error from check_code or a tool has a hint line under it with the RapidR form: apply it. The same error twice: don't rewrite the file again — find_example and start from its recipe. Paths are relative to the project's folder (main.rr).\n");
         p.push_str("- After your tools, reply in one or two plain sentences: what you made and how to use it (\"Press Run, then type two numbers…\"). Studio shows the user what the tools did — the files, whether it compiles —, so don't repeat project names, file names or paths, and never say something was created, written or saved: say what it does.\n");
         p.push_str("- \"Build me …\", \"make a program that …\": a new program, with create_project (main.rr; more files only when they help) — right away, without asking first: choose sensible defaults (a program with a window, an RForm, unless they ask for a console one), the user changes what they want afterwards. Leave the open project as it is.\n");
         p.push_str("- For example, the user: \"Build me a stopwatch\". You: call create_project with a complete main.rr (a form, Start / Stop / Reset buttons, a label, a timer) in this answer, then say in one sentence what it does.\n");
@@ -336,7 +337,7 @@ pub fn instructions_lite(may_propose: bool) -> String {
     p.push_str("- Read only what you need: list_files, read_file, rapidr_describe (a component or builtin), search_manual, check_code.\n");
     if may_propose {
         p.push_str("- Every change is a tool call: propose_edit (only the lines that change), write_file (a new file), create_project (a new program: \"build me …\"). Text alone changes nothing; never say you changed something no tool changed.\n");
-        p.push_str("- check_code your code and fix every error before you propose it.\n");
+        p.push_str("- check_code your code and fix every error before you propose it: the hint line under an error says the RapidR form. The same error twice: find_example and start from its recipe instead of rewriting the file.\n");
     } else {
         p.push_str("- You may only read: describe changes in words, with short code samples.\n");
     }
@@ -1067,6 +1068,31 @@ impl Tools {
         let mut input = input.clone();
         if let Some(o) = input.as_object_mut() {
             o.remove("_rewrite_ok");
+            // (the names of the arguments are lower case; the capitalised
+            // ones an older tool list had — Path, Text … — are still taken)
+            for old in ["Path", "Text", "Summary", "Edits", "Query", "Files", "Name", "Main"] {
+                let new = old.to_ascii_lowercase();
+                if !o.contains_key(&new) && !name.starts_with("app_") {
+                    if let Some(v) = o.remove(old) {
+                        o.insert(new, v);
+                    }
+                }
+            }
+        }
+        // (a path written with the project folder before it — `project/main.rr`,
+        // `./main.rr`, the absolute path inside it — is the project's file;
+        // one outside the project says so and lists the files)
+        if let Some(p) = input.get("path").and_then(Json::as_str).map(str::to_string) {
+            let (files, buffers) = self.with_waiting();
+            let project = Project { folder: &self.folder, files: &files, main: &self.main, compat: &self.compat, buffers: &buffers };
+            match ai_tools::resolve(&project, &p) {
+                Ok(rel) => {
+                    if let Some(o) = input.as_object_mut() {
+                        o.insert("path".into(), json!(rel));
+                    }
+                }
+                Err(why) => return ai_tools::Outcome { content: why.clone(), is_error: true, note: format!("Refused: {why}"), read: None, risk: "read", target: p },
+            }
         }
         for key in ["path"] {
             if let Some(p) = input.get(key).and_then(Json::as_str) {
@@ -1241,6 +1267,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             }))
         }
         "toolkind" => s(tool_kind(&arg(0))),
+        "serverinstructions" => s(crate::guide::server_instructions()),
+        "appliedtext" => s(ai_tools::applied_text(&arg(0), &arg(1))),
+        "statusnext" => s(with(name, |t| {
+            let (files, buffers) = t.with_waiting();
+            let project = Project { folder: &t.folder, files: &files, main: &t.main, compat: &t.compat, buffers: &buffers };
+            crate::guide::status_next(!t.folder.is_empty() || !t.buffers.is_empty(), &project.sources())
+        })),
         "layoutreport" => s(with(name, |t| {
             let (files, buffers) = t.with_waiting();
             let project = Project { folder: &t.folder, files: &files, main: &t.main, compat: &t.compat, buffers: &buffers };

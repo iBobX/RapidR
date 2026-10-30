@@ -240,7 +240,11 @@ amber for warnings. A sign in
 the margin marks the line, and the **Problems** tab under the editor (View >
 Problems) lists them all, with their place. Click one to go there. The
 messages are the compiler's own words, so they read the same as when
-you build.
+you build. When the error is something another language taught you
+(`SET x = 1`, `a % b`, `for i in range(10)`), the message is followed by
+a short hint with the RapidR form: *RapidR has no SET: write x = 1*. The
+same hints are in `rapidr check` and when you run or build; the table is
+[Coming from another language?](language.md#coming-from-another-language).
 
 Studio checks the whole project together, the way a build compiles it: a
 module or a form's file that the main file includes is checked as part of
