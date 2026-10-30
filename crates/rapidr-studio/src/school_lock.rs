@@ -1,8 +1,9 @@
 //! School Lock (docs/manual/for-teachers.md): a teacher — or a school's IT,
 //! for every account on a computer — turns features of RapidR Studio off
 //! behind a password. For now the features are its AI: RAI in Studio
-//! (`ai`) and AI apps working in Studio over MCP (`ai_apps`); the list is
-//! open for more.
+//! (`ai`), AI apps working in Studio over MCP (`ai_apps`), and RAI kept in
+//! Coach mode (`coach`: RAI teaches with hints and never writes the answer
+//! into the student's code — crate::coach); the list is open for more.
 //!
 //! - **The password is never kept**, only a salted, slow hash of it:
 //!   PBKDF2-HMAC-SHA256 (RFC 8018 §5.2, HMAC as RFC 2104), [`ITERATIONS`]
@@ -29,6 +30,9 @@
 //!   password_hash = "pbkdf2-sha256$600000$…$…"   # rapidr school-lock hash
 //!   ```
 //!
+//!   `coach_only = true` adds Coach to what it locks (RAI stays on, in
+//!   Coach mode only) — the same as `"coach"` in `locked`.
+//!
 //!   It wins over the user's setting: while it locks, the lock can only be
 //!   unlocked until Studio closes (with its password), never turned off from
 //!   Studio. A policy file that can't be read locks everything with no way to
@@ -49,8 +53,9 @@ pub const MIN_PASSWORD: usize = 6;
 pub const MAX_TRIES: u32 = 5;
 /// The wait, in seconds.
 pub const WAIT_SECS: f64 = 60.0;
-/// The features School Lock can turn off: RAI in Studio, AI apps (MCP).
-pub const FEATURES: &[&str] = &["ai", "ai_apps"];
+/// The features School Lock can lock: RAI in Studio, AI apps (MCP), and
+/// RAI's Build mode (`coach`: RAI kept in Coach mode).
+pub const FEATURES: &[&str] = &["ai", "ai_apps", "coach"];
 const SCHEME: &str = "pbkdf2-sha256";
 /// Rounds a hash may say (a hash asking for more is refused, not run).
 const MAX_ITERATIONS: u32 = 10_000_000;
@@ -375,6 +380,18 @@ pub fn parse_policy(text: &str, file: &str) -> Policy {
         Some(toml::Value::Array(a)) => features_of(&a.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>().join(",")),
         Some(_) => return closed("locked isn't a list of features".into()),
     };
+    // (coach_only = true: RAI kept in Coach mode — added to what it locks)
+    let features = match table.get("coach_only") {
+        None | Some(toml::Value::Boolean(false)) => features,
+        Some(toml::Value::Boolean(true)) => {
+            let mut f = features;
+            if !f.iter().any(|x| x == "coach") {
+                f.push("coach".into());
+            }
+            f
+        }
+        Some(_) => return closed("coach_only is neither true nor false".into()),
+    };
     let hash = match table.get("password_hash") {
         None => String::new(),
         Some(toml::Value::String(h)) => h.trim().to_string(),
@@ -585,6 +602,19 @@ thread_local! {
     static LOCK: std::cell::RefCell<SchoolLock> = std::cell::RefCell::new(SchoolLock::default());
 }
 
+/// Whether Studio's lock keeps `feature` off now (`coach`: RAI is kept in
+/// Coach mode — the assistant's tools ask it on every call, so the lock
+/// holds in code, whatever the pane shows).
+pub fn locked_now(feature: &str) -> bool {
+    LOCK.with(|l| l.borrow().locked(feature))
+}
+
+/// (tests) Studio's lock, changed in place.
+#[cfg(test)]
+pub(crate) fn with_lock<R>(f: impl FnOnce(&mut SchoolLock) -> R) -> R {
+    LOCK.with(|l| f(&mut l.borrow_mut()))
+}
+
 /// Where the wrong tries are kept between runs: Studio's folder.
 fn tries_file() -> String {
     format!("{}/school-lock-tries", crate::recovery::studio_folder())
@@ -619,8 +649,8 @@ fn read_disk(file: &str) -> Result<Option<String>, String> {
 /// | Member | |
 /// |---|---|
 /// | `SchoolLockLoad(Setting)` → on | the user's setting as Studio kept it, the computer's policy read again, the wrong tries kept |
-/// | `SchoolLock(What)` → text | `on`, `unlocked`, `policy` ("1" / "0"), `features` ("ai,ai_apps"), `wait` (seconds), `left` (tries before a wait), `setting` (to keep), `file` (the policy's), `error` (why the policy can't be read) |
-/// | `SchoolLocked(Feature)` → True / False | `ai` (RAI in Studio), `ai_apps` (AI apps, MCP) turned off now |
+/// | `SchoolLock(What)` → text | `on`, `unlocked`, `policy` ("1" / "0"), `features` ("ai,ai_apps,coach"), `wait` (seconds), `left` (tries before a wait), `setting` (to keep), `file` (the policy's), `error` (why the policy can't be read) |
+/// | `SchoolLocked(Feature)` → True / False | `ai` (RAI in Studio), `ai_apps` (AI apps, MCP) turned off now; `coach` RAI kept in Coach mode |
 /// | `SchoolLockTurnOn(Password, Features)` → True / False | on, the password's hash kept (never the password) |
 /// | `SchoolLockUnlock(Password)`, `SchoolLockTurnOff(Password)` | 1 right, 0 wrong, -1 wait, -2 the policy keeps it, -3 no password can |
 /// | `SchoolLockRelock` | locked again |
@@ -841,10 +871,10 @@ mod tests {
 
     #[test]
     fn a_bad_policy_fails_closed() {
-        for text in ["school_lock = maybe", "school_lock = 1\n", "locked = \"ai\"\n", "password_hash = 7\n", "password_hash = \"maestra1\"\n"] {
+        for text in ["school_lock = maybe", "school_lock = 1\n", "locked = \"ai\"\n", "password_hash = 7\n", "password_hash = \"maestra1\"\n", "coach_only = \"yes\"\n", "coach_only = 1\n"] {
             let p = parse_policy(text, "/p.toml");
             assert!(p.lock && !p.error.is_empty(), "{text}: {p:?}");
-            assert_eq!(p.features, vec!["ai".to_string(), "ai_apps".to_string()]);
+            assert_eq!(p.features, vec!["ai".to_string(), "ai_apps".to_string(), "coach".to_string()]);
             let mut l = SchoolLock { policy: Some(p), ..Default::default() };
             assert!(l.locked("ai") && l.locked("ai_apps"));
             assert_eq!(l.unlock("", 0.0), Outcome::NoPassword);
@@ -854,6 +884,36 @@ mod tests {
         let mut l = SchoolLock { policy: Some(parse_policy("school_lock = true\n", "/p.toml")), ..Default::default() };
         assert!(l.locked("ai"));
         assert_eq!(l.unlock("anything", 0.0), Outcome::NoPassword);
+    }
+
+    #[test]
+    fn coach_can_be_kept_on() {
+        // (the teacher's lock: Keep RAI in Coach mode only — RAI stays on)
+        let mut l = locked_with("coach");
+        assert!(l.locked("coach") && !l.locked("ai") && !l.locked("ai_apps"));
+        assert_eq!(l.user.to_text().split(';').nth(1), Some("features=coach"));
+        // (unlocked until Studio closes: Build is back; Lock Again: Coach)
+        assert_eq!(l.unlock("maestra1", 0.0), Outcome::Right);
+        assert!(!l.locked("coach"));
+        l.relock();
+        assert!(l.locked("coach"));
+        // (the computer's policy: coach_only adds it to what it locks)
+        let it = hash_password("it-secret", b"fedcba9876543210", 100);
+        let p = parse_policy(&format!("locked = [\"ai_apps\"]\ncoach_only = true\npassword_hash = \"{it}\"\n"), "/p.toml");
+        assert!(p.error.is_empty(), "{p:?}");
+        assert_eq!(p.features, vec!["ai_apps".to_string(), "coach".to_string()]);
+        let mut by_it = SchoolLock { policy: Some(p), ..Default::default() };
+        assert!(by_it.locked("coach") && by_it.locked("ai_apps") && !by_it.locked("ai"));
+        // (the policy wins over a student's own setting with no Coach lock)
+        by_it.user = locked_with("ai_apps").user;
+        assert!(by_it.locked("coach"));
+        assert_eq!(by_it.turn_off("maestra1", 0.0), Outcome::Policy);
+        // (coach_only = false, or not said: nothing added; "coach" in the list: the same)
+        assert_eq!(parse_policy("locked = [\"ai_apps\"]\ncoach_only = false\n", "/p.toml").features, vec!["ai_apps".to_string()]);
+        assert_eq!(parse_policy("locked = [\"coach\"]\n", "/p.toml").features, vec!["coach".to_string()]);
+        // (a policy that can't be read locks AI altogether: Coach too)
+        let broken = parse_policy("coach_only = maybe", "/p.toml");
+        assert!(broken.lock && broken.features.iter().any(|f| f == "ai") && broken.features.iter().any(|f| f == "coach"));
     }
 
     #[test]

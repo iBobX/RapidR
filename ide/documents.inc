@@ -193,6 +193,8 @@ SUB AnalyzeActive
   END IF
   FillOutline d
   FillProblems d
+  ' (Coach: Help With This Error follows the problems — aicoach.inc)
+  IF AICoachNow THEN AICoachShow
   ' ($THEME edited by hand in the main file: the designer follows)
   RefreshProgramLook 0
   ' (S-PANELS: the inspector follows the active form's designer)

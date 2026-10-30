@@ -1059,6 +1059,130 @@ msgstr ""
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
 msgstr ""
 
+#: ide/aicoach.inc
+msgid "a nudge"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the idea"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the shape of the code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "the code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach hints"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "I &Got It"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Ends this problem: your next question starts again at the first hint"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Help With This Error"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach, chosen"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build, chosen"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI writes changes for you to review and apply"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI gives hints one step at a time and never writes the answer into your code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Your school keeps RAI in Coach mode."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Your teacher keeps RAI in Coach mode."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach mode: RAI gives hints one step at a time. You write the code."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Build mode: RAI writes changes for you to review and apply."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Hint {n} of 4"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Hint {n} of 4: {what}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Show the Code"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "&Next Hint"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "The fourth hint: RAI shows the code, for you to type or copy in yourself"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI gives the next hint: a little more each time"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "RAI says what the error means, why it happens, and gives a hint to fix it yourself: {error}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "I Got It"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Show me the code."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Give me the next hint."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Nice work. Ask about the next thing when you're ready."
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Help me with this error: {error}"
+msgstr ""
+
+#: ide/aicoach.inc
+msgid "Coach mode: ask about your code, or about what you want to make. RAI gives one hint at a time — a nudge, the idea, the shape of the code — and shows code only when you ask a fourth time. You write the code yourself."
+msgstr ""
+
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
 msgstr ""
@@ -4828,6 +4952,14 @@ msgid "AI apps on this computer can't connect to RapidR Studio"
 msgstr ""
 
 #: ide/schoollock.inc
+msgid "Keep RAI in &Coach mode"
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this."
+msgstr ""
+
+#: ide/schoollock.inc
 msgid "&Password:"
 msgstr ""
 
@@ -4865,6 +4997,14 @@ msgstr ""
 
 #: ide/schoollock.inc
 msgid "RAI is off in RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer."
+msgstr ""
+
+#: ide/schoollock.inc
+msgid "RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files."
 msgstr ""
 
 #: ide/schoollock.inc

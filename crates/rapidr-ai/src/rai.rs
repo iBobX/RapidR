@@ -345,7 +345,9 @@ fn looks_like_rapidr(code: &str) -> bool {
 /// closed code block (RapidR's get Insert too; one without a language that
 /// looks like RapidR's is labelled so, and coloured as the editor does),
 /// and the blocks' texts. `n` counts the blocks over the whole chat.
-fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
+/// `insert`: the Insert links (InsertLinks; RapidR Studio's Coach mode
+/// leaves them out — the learner types the code in).
+fn decorate_code(text: &str, n: &mut usize, insert: bool) -> (String, Vec<String>) {
     let mut out = String::with_capacity(text.len() + 64);
     let mut blocks = Vec::new();
     // (the fence being read: its marker, length, language, the lines, and
@@ -379,7 +381,7 @@ fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
                 *n += 1;
                 blocks.push(code.trim_end_matches(['\n', '\r']).to_string());
                 let copy = format!("[Copy]({})", own_link(&format!("rai:copy/{n}")));
-                let insert = if rapidr { format!(" · [Insert]({})", own_link(&format!("rai:insert/{n}"))) } else { String::new() };
+                let insert = if rapidr && insert { format!(" · [Insert]({})", own_link(&format!("rai:insert/{n}"))) } else { String::new() };
                 out.push_str(&format!("\n{copy}{insert}\n"));
             }
             (Some((_, _, _, lines, _)), _) => {
@@ -628,6 +630,13 @@ pub trait ToolProvider {
     fn nudge(&self, _question: &str, _answer: &str) -> Option<String> {
         None
     }
+    /// The answer [`Self::nudge`] asks again about is hidden — never shown
+    /// as text — with this muted line in its place and these words for the
+    /// progress checklist (RapidR Studio's Coach mode: a first hint that
+    /// showed code). `None`: hidden only when it claimed a change.
+    fn nudge_hides(&self, _answer: &str) -> Option<(String, String)> {
+        None
+    }
     /// What the tools send with the user's `question`, as data the model
     /// reads with it (RapidR Studio: a working program close to the new one
     /// asked for): part of the request — "what was sent" shows it —, never
@@ -721,6 +730,9 @@ struct Turn {
     buttons: Vec<(String, String)>,
     /// The steps are kept with the entry ([`Ai::keep_steps`]).
     kept: bool,
+    /// The muted line in place of a hidden draft, when the tools gave one
+    /// ([`ToolProvider::nudge_hides`]); else [`EARLIER_DRAFT`].
+    hidden_line: Option<String>,
 }
 
 impl Turn {
@@ -730,7 +742,7 @@ impl Turn {
     fn render(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.drafts.iter().any(|(_, collapsed)| *collapsed) {
-            parts.push(format!("> *{EARLIER_DRAFT}*"));
+            parts.push(format!("> *{}*", self.hidden_line.as_deref().unwrap_or(EARLIER_DRAFT)));
         }
         for (t, collapsed) in &self.drafts {
             if !collapsed && !t.trim().is_empty() {
@@ -890,6 +902,8 @@ struct Ai {
     /// Edit links on the questions and Retry on the last answer
     /// (RapidR Studio's chat).
     editable: bool,
+    /// InsertLinks False: no Insert link under code blocks (Copy stays).
+    no_insert: bool,
     /// The reasoning effort chosen: "", "low", "medium" or "high".
     effort: String,
     /// (Anthropic) How each model took an effort.
@@ -1667,7 +1681,7 @@ impl Ai {
                             out.push_str("\n\n");
                         }
                     }
-                    let (text, _) = decorate_code(t, &mut blocks);
+                    let (text, _) = decorate_code(t, &mut blocks, !self.no_insert);
                     out.push_str(if t.is_empty() { "…" } else { &text });
                 }
                 _ => out.push_str(&format!("*{}*", text.trim_end())),
@@ -1683,7 +1697,7 @@ impl Ai {
         let mut all = Vec::new();
         for (who, text) in &self.log {
             if who == "assistant" {
-                all.extend(decorate_code(text.trim_end(), &mut n).1);
+                all.extend(decorate_code(text.trim_end(), &mut n, true).1);
             }
         }
         all
@@ -2364,9 +2378,17 @@ impl Ai {
                         // (a reply that claimed the change: one muted line
                         // in the chat, never the claim as full text — the
                         // reply that comes next says what is true)
-                        let claimed = crate::claims::claims_change(&text);
+                        let hides = self.tools.iter().find_map(|(_, _, t)| t.nudge_hides(&text));
+                        let claimed = hides.is_some() || crate::claims::claims_change(&text);
                         self.reply_done(!claimed, claimed);
-                        self.turn.steps.push("Asked the model to make the change it described".into());
+                        let step = match hides {
+                            Some((line, step)) => {
+                                self.turn.hidden_line = Some(line);
+                                step
+                            }
+                            None => "Asked the model to make the change it described".into(),
+                        };
+                        self.turn.steps.push(step);
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;
@@ -2710,6 +2732,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "auditlocation" => s(audit::location()),
             "chatstate" => s(a.chat_state()),
             "editable" => flag(a.editable),
+            "insertlinks" => flag(!a.no_insert),
             "effort" => s(a.effort.clone()),
             "effortsupported" => flag(a.effort_supported()),
             // (a turn waiting for a tool's later answer — the program's, the
@@ -2797,6 +2820,10 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "replylanguage" => a.language_pin = t.trim().to_string(),
             "editable" => {
                 a.editable = truth(v);
+                a.changed = true;
+            }
+            "insertlinks" => {
+                a.no_insert = !truth(v);
                 a.changed = true;
             }
             "effort" => {
@@ -3389,7 +3416,11 @@ mod chat_tests {
     fn code_blocks_get_copy_and_insert_and_their_language() {
         let mut n = 0;
         let text = "Here:\n\n```\nDIM A AS INTEGER\nA = 1\n```\n\nand\n\n```python\nprint(1)\n```\n\n```basic\nPRINT 2\n```\n\n```\nSUB Half(\n";
-        let (out, blocks) = decorate_code(text, &mut n);
+        let (out, blocks) = decorate_code(text, &mut n, true);
+        // (InsertLinks off: Copy only)
+        let mut m = 0;
+        let (bare, _) = decorate_code(text, &mut m, false);
+        assert!(bare.contains("[Copy](rai:copy/1") && !bare.contains("rai:insert"), "{bare}");
         assert_eq!(blocks, vec!["DIM A AS INTEGER\nA = 1".to_string(), "print(1)".to_string(), "PRINT 2".to_string()]);
         assert_eq!(n, 3);
         assert!(out.contains("```rapidr\nDIM A AS INTEGER"), "{out}");

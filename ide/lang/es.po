@@ -1082,6 +1082,161 @@ msgstr "No se reintentó: antes no se pudo copiar el chat."
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
 msgstr "IA: la respuesta anterior a Reintentar se guarda en {q}{title}{q} (Chats)."
 
+#: ide/aicoach.inc
+#, review
+msgid "a nudge"
+msgstr "un empujoncito"
+
+#: ide/aicoach.inc
+#, review
+msgid "the idea"
+msgstr "la idea"
+
+#: ide/aicoach.inc
+#, review
+msgid "the shape of the code"
+msgstr "la forma del código"
+
+#: ide/aicoach.inc
+#, review
+msgid "the code"
+msgstr "el código"
+
+#: ide/aicoach.inc
+#, review
+msgid "Build"
+msgstr "Construir"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach"
+msgstr "Tutor"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach hints"
+msgstr "Pistas del tutor"
+
+#: ide/aicoach.inc
+#, review
+msgid "I &Got It"
+msgstr "Ya lo &entendí"
+
+#: ide/aicoach.inc
+#, review
+msgid "Ends this problem: your next question starts again at the first hint"
+msgstr "Termina este problema: tu próxima pregunta empieza otra vez en la primera pista"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Help With This Error"
+msgstr "&Ayuda con este error"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach, chosen"
+msgstr "Tutor, elegido"
+
+#: ide/aicoach.inc
+#, review
+msgid "Build, chosen"
+msgstr "Construir, elegido"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI writes changes for you to review and apply"
+msgstr "RAI escribe cambios para que los revises y los apliques"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI gives hints one step at a time and never writes the answer into your code"
+msgstr "RAI da pistas paso a paso y nunca escribe la respuesta en tu código"
+
+#: ide/aicoach.inc
+#, review
+msgid "Your school keeps RAI in Coach mode."
+msgstr "Tu escuela mantiene a RAI en modo tutor."
+
+#: ide/aicoach.inc
+#, review
+msgid "Your teacher keeps RAI in Coach mode."
+msgstr "Tu docente mantiene a RAI en modo tutor."
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach mode: RAI gives hints one step at a time. You write the code."
+msgstr "Modo tutor: RAI da pistas paso a paso. El código lo escribes tú."
+
+#: ide/aicoach.inc
+#, review
+msgid "Build mode: RAI writes changes for you to review and apply."
+msgstr "Modo construir: RAI escribe cambios para que los revises y los apliques."
+
+#: ide/aicoach.inc
+#, review
+msgid "Hint {n} of 4"
+msgstr "Pista {n} de 4"
+
+#: ide/aicoach.inc
+#, review
+msgid "Hint {n} of 4: {what}"
+msgstr "Pista {n} de 4: {what}"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Show the Code"
+msgstr "&Mostrar el código"
+
+#: ide/aicoach.inc
+#, review
+msgid "&Next Hint"
+msgstr "&Siguiente pista"
+
+#: ide/aicoach.inc
+#, review
+msgid "The fourth hint: RAI shows the code, for you to type or copy in yourself"
+msgstr "La cuarta pista: RAI muestra el código para que lo escribas o lo copies tú"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI gives the next hint: a little more each time"
+msgstr "RAI da la siguiente pista: un poco más cada vez"
+
+#: ide/aicoach.inc
+#, review
+msgid "RAI says what the error means, why it happens, and gives a hint to fix it yourself: {error}"
+msgstr "RAI explica qué significa el error y por qué ocurre, y te da una pista para que lo corrijas tú: {error}"
+
+#: ide/aicoach.inc
+#, review
+msgid "I Got It"
+msgstr "Ya lo entendí"
+
+#: ide/aicoach.inc
+#, review
+msgid "Show me the code."
+msgstr "Muéstrame el código."
+
+#: ide/aicoach.inc
+#, review
+msgid "Give me the next hint."
+msgstr "Dame la siguiente pista."
+
+#: ide/aicoach.inc
+#, review
+msgid "Nice work. Ask about the next thing when you're ready."
+msgstr "Buen trabajo. Pregunta por lo siguiente cuando quieras."
+
+#: ide/aicoach.inc
+#, review
+msgid "Help me with this error: {error}"
+msgstr "Ayúdame con este error: {error}"
+
+#: ide/aicoach.inc
+#, review
+msgid "Coach mode: ask about your code, or about what you want to make. RAI gives one hint at a time — a nudge, the idea, the shape of the code — and shows code only when you ask a fourth time. You write the code yourself."
+msgstr "Modo tutor: pregunta sobre tu código o sobre lo que quieres hacer. RAI da una pista a la vez —un empujón, la idea, la forma del código— y muestra el código solo cuando lo pides por cuarta vez. El código lo escribes tú."
+
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
 msgstr "Configurar RAI"
@@ -4934,6 +5089,17 @@ msgid "AI apps on this computer can't connect to RapidR Studio"
 msgstr "Las aplicaciones de IA de esta computadora no pueden conectarse a RapidR Studio"
 
 #: ide/schoollock.inc
+#, review
+msgid "Keep RAI in &Coach mode"
+msgstr "Mantener a RAI en modo &tutor"
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays on but only gives hints. It never writes the answer into the student's code. Uncheck AI in Studio to choose this."
+msgstr "RAI sigue activo, pero solo da pistas. Nunca escribe la respuesta en el código del estudiante. Para elegir esto, desmarca IA en Studio."
+
+#: ide/schoollock.inc
 msgid "&Password:"
 msgstr "&Contraseña:"
 
@@ -4972,6 +5138,18 @@ msgstr "RAI y las aplicaciones de IA están desactivados en RapidR Studio en est
 #: ide/schoollock.inc
 msgid "RAI is off in RapidR Studio on this computer."
 msgstr "RAI está desactivado en RapidR Studio en esta computadora."
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays in Coach mode, and AI apps can't connect to RapidR Studio on this computer."
+msgstr "RAI se mantiene en modo tutor y las aplicaciones de IA no pueden conectarse a RapidR Studio en esta computadora."
+
+# legal
+#: ide/schoollock.inc
+#, review
+msgid "RAI stays in Coach mode in RapidR Studio on this computer: it gives hints one step at a time and doesn't change the student's files."
+msgstr "RAI se mantiene en modo tutor en RapidR Studio en esta computadora: da pistas paso a paso y no cambia los archivos del estudiante."
 
 #: ide/schoollock.inc
 msgid "AI apps can't connect to RapidR Studio on this computer."
