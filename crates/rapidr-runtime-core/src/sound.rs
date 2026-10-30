@@ -255,7 +255,7 @@ pub(crate) fn play_source(id: &str, source: impl rodio::Source<Item = f32> + Sen
     true
 }
 
-/// Whether there is a sound device (opened now if it wasn't: RAudioStream
+/// Whether there is a sound device (opened now if it wasn't: RAudioOut
 /// asks before it hands its source over).
 #[cfg(feature = "audio")]
 pub(crate) fn has_output() -> bool {

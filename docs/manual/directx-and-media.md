@@ -59,9 +59,9 @@ The media objects share these members: `Open`, `Close`, `Play`, `Stop`,
 own texts), `Volume`, their `Timer` and `OnChange`. A program that
 `$INCLUDE`s the classic library file gets RapidR's object.
 
-## Sound made sample by sample: RAudioStream
+## Sound made sample by sample: RAudioOut
 
-**RAudioStream** plays sound your program makes as it goes, one number
+**RAudioOut** plays sound your program makes as it goes, one number
 (a *sample*) at a time: an emulator's beeper or sound chip, a synthesizer,
 a tone for a physics lesson, a music game. The program writes samples into
 the stream's queue; the sound device plays them on a thread of its own and
@@ -70,7 +70,7 @@ never waits for the program.
 ![The tone generator playing A4: wave buttons, frequency and volume sliders and a Stop button on the left; on the right an oscilloscope screen with three cycles of a sine wave and the readout "440.0 Hz sine, playing: 60 ms queued, 0 gaps"](images/media/tone-generator.png)
 
 ```basic
-DIM Sound AS RAudioStream
+DIM Sound AS RAudioOut
 DIM phase AS DOUBLE
 
 SUB Feed (Count AS INTEGER)                 ' the stream asks for Count samples
@@ -105,7 +105,9 @@ Sound.Start
   after a 2 ms fade (no click), counts the gap in `Underruns`, and fades the
   next sound in. `Stop` fades out the same way; `Volume` (0–100, by the ear:
   50 sounds half as loud) glides over 10 ms, so a slider never clicks.
-  `Enabled = False` pauses; `Clear` drops what waits.
+  `Enabled = False` pauses; `Clear` drops what waits. `Start` gives the
+  sound device 40 ms of silence before your samples, so a headset that
+  takes a burst as it begins (Bluetooth ones do) never cuts the start.
 - **Everywhere.** The same on Windows, macOS and Linux, interpreted and
   native, and in the browser. The device converts your `SampleRate` to its
   own. Without a sound device (or in a program built without sound) the

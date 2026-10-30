@@ -1,5 +1,5 @@
 ' Recipe: Emulator sound from a level timeline (one-bit beeper, frame audio)
-' Keywords: sound, audio, beeper, speaker, emulator, emulation, frame, timeline, cycles, samples, synthesizer, RAudioStream, sonido, pitido, altavoz, emulador, muestras, ciclos, som, alto-falante, amostras, ciclos
+' Keywords: sound, audio, beeper, speaker, emulator, emulation, frame, timeline, cycles, samples, synthesizer, RAudioOut, sonido, pitido, altavoz, emulador, muestras, ciclos, som, alto-falante, amostras, ciclos
 ' A machine that only flips a speaker bit, at exact cycle times, played
 ' the way an emulator plays it: run a frame (here 70560 cycles), note the
 ' cycle of every flip, then turn the flips into the frame's 882 samples
@@ -24,7 +24,7 @@ DIM samples(SPF - 1) AS INTEGER
 DIM nextFlip AS LONG, half AS LONG, frames AS LONG
 DIM dcIn AS DOUBLE, dcOut AS DOUBLE
 
-DIM Speaker AS RAudioStream
+DIM Speaker AS RAudioOut
 
 CREATE Form AS RForm
     Caption = "Frame audio"

@@ -1,4 +1,4 @@
-//! RAudioStream: sound a program makes sample by sample, played as it
+//! RAudioOut: sound a program makes sample by sample, played as it
 //! comes — an emulator's beeper, a synthesizer, a science simulation. The
 //! same model on every runtime; the runtimes only give it a sound device
 //! ([`set_device`]) and ask it, between the program's turns, which streams
@@ -18,6 +18,8 @@
 //!   the device plays silence, after a 2 ms fade from the last sample (no
 //!   click), Underruns counts it, and the sound that comes next fades in
 //!   over 2 ms. Stop fades out the same way; Volume changes glide (10 ms).
+//!   Start gives the device 40 ms of silence first (the lead-in): a device
+//!   that takes a burst as it begins takes it from that.
 //! - **Sample rates.** The stream's SampleRate is the program's; the device
 //!   converts to its own (rodio on the desktop, [`Resampled`] in the
 //!   browser).
@@ -35,7 +37,7 @@ use std::sync::{Arc, Mutex};
 use crate::{v_int, v_str, Value};
 
 /// The type name.
-pub const TYPE: &str = "RAUDIOSTREAM";
+pub const TYPE: &str = "RAUDIOOUT";
 
 /// SampleRate's range (what browsers' audio buffers take too).
 pub const MIN_RATE: i64 = 8000;
@@ -49,6 +51,10 @@ pub const QUEUE_SECONDS: usize = 2;
 pub const FADE_MS: f64 = 2.0;
 /// How long a Volume change takes to glide from 0 to full, in ms.
 pub const GLIDE_MS: f64 = 10.0;
+/// Silence the device gets first after Start, in ms, before the queue's
+/// samples: a device that takes a burst as it begins (a Bluetooth headset)
+/// takes it from this, not from the program's sound.
+pub const LEAD_IN_MS: f64 = 40.0;
 /// How many heard samples the test sink keeps one by one.
 const HEARD_KEPT: usize = 64;
 
@@ -231,6 +237,8 @@ pub struct Consumer {
     fade_frames: usize,
     glide_step: f32,
     finished: bool,
+    /// Frames of the lead-in's silence still to give ([`LEAD_IN_MS`]).
+    lead_in: usize,
 }
 
 impl Consumer {
@@ -238,7 +246,8 @@ impl Consumer {
         let gain = f32::from_bits(shared.gain.load(Ordering::Relaxed));
         let fade_frames = ((f64::from(shared.rate) * FADE_MS / 1000.0).round() as usize).max(1);
         let glide_step = (1000.0 / (f64::from(shared.rate) * GLIDE_MS)) as f32;
-        Consumer { shared, gain, last: [0.0; 2], fading_out: 0, fade_in: 0, had_sound: false, starved: false, fade_frames, glide_step, finished: false }
+        let lead_in = (f64::from(shared.rate) * LEAD_IN_MS / 1000.0).round() as usize;
+        Consumer { shared, gain, last: [0.0; 2], fading_out: 0, fade_in: 0, had_sound: false, starved: false, fade_frames, glide_step, finished: false, lead_in }
     }
 
     pub fn rate(&self) -> u32 {
@@ -261,6 +270,19 @@ impl Consumer {
         let frames = out.len() / ch;
         let out = &mut out[..frames * ch];
         self.shared.played.fetch_add(frames as u64, Ordering::Relaxed);
+        // (the lead-in: silence first, the queue untouched)
+        if self.lead_in > 0 && self.shared.playing.load(Ordering::Acquire) {
+            let n = self.lead_in.min(frames);
+            out[..n * ch].fill(0.0);
+            self.lead_in -= n;
+            return self.take(&mut out[n * ch..]);
+        }
+        self.take(out)
+    }
+
+    /// [`Consumer::render`] after the lead-in.
+    fn take(&mut self, out: &mut [f32]) -> bool {
+        let ch = self.shared.channels.max(1);
         let playing = self.shared.playing.load(Ordering::Acquire);
         let paused = self.shared.paused.load(Ordering::Acquire);
         if !playing || paused {
@@ -431,7 +453,7 @@ pub struct Device {
 
 thread_local! {
     static DEVICE: std::cell::Cell<Option<Device>> = const { std::cell::Cell::new(None) };
-    static STREAMS: RefCell<HashMap<String, AudioStream>> = RefCell::new(HashMap::new());
+    static STREAMS: RefCell<HashMap<String, AudioOut>> = RefCell::new(HashMap::new());
 }
 
 /// The runtime's sound device (once, before the first Start).
@@ -446,8 +468,8 @@ pub fn has_device() -> bool {
 
 // ---------------------------------------------------- the program's side --
 
-/// An RAudioStream as the program sees it.
-pub struct AudioStream {
+/// An RAudioOut as the program sees it.
+pub struct AudioOut {
     rate: i64,
     channels: i64,
     bits: i64,
@@ -467,13 +489,13 @@ pub fn gain_of(volume: i64) -> f32 {
     v * v
 }
 
-impl Default for AudioStream {
+impl Default for AudioOut {
     fn default() -> Self {
-        AudioStream { rate: 44100, channels: 1, bits: 16, buffer_ms: 60, volume: 100, enabled: true, started: false, error: String::new(), shared: Shared::new(44100, 1, 1.0), asked_at: None }
+        AudioOut { rate: 44100, channels: 1, bits: 16, buffer_ms: 60, volume: 100, enabled: true, started: false, error: String::new(), shared: Shared::new(44100, 1, 1.0), asked_at: None }
     }
 }
 
-impl AudioStream {
+impl AudioOut {
     /// Samples (not frames) in `ms` of sound.
     fn samples_in(&self, ms: f64) -> usize {
         (ms * self.rate as f64 / 1000.0).round() as usize * self.channels as usize
@@ -652,7 +674,7 @@ fn span(args: &[Value], len: usize) -> std::ops::Range<usize> {
 /// The samples a Write gives: an array, a binary string, an RMemoryStream
 /// (from its Position, which moves past what the queue takes), a number.
 /// `float`: -1 to 1 (WriteFloat), else integers as Bits says.
-fn samples_of(s: &AudioStream, args: &[Value], float: bool) -> (Vec<f32>, Option<(String, usize)>) {
+fn samples_of(s: &AudioOut, args: &[Value], float: bool) -> (Vec<f32>, Option<(String, usize)>) {
     let conv = |v: f64| if float { v.clamp(-1.0, 1.0) as f32 } else { s.int_sample(v) };
     match args.first() {
         Some(Value::Array(a)) => {
@@ -707,7 +729,7 @@ pub fn exists(id: &str) -> bool {
     STREAMS.with(|s| s.borrow().contains_key(&id.to_lowercase()))
 }
 
-fn with<R>(id: &str, f: impl FnOnce(&mut AudioStream) -> R) -> Option<R> {
+fn with<R>(id: &str, f: impl FnOnce(&mut AudioOut) -> R) -> Option<R> {
     STREAMS.with(|s| s.borrow_mut().get_mut(&id.to_lowercase()).map(f))
 }
 
@@ -777,7 +799,7 @@ pub fn remove(id: &str) -> bool {
 
 /// Whether a stream plays (the runtime then asks [`due`] often).
 pub fn active() -> bool {
-    STREAMS.with(|s| s.borrow().values().any(AudioStream::playing))
+    STREAMS.with(|s| s.borrow().values().any(AudioOut::playing))
 }
 
 /// The streams that play and want more — their queue under BufferMs — with
@@ -838,8 +860,30 @@ mod tests {
     fn stream_with(rate: u32, channels: usize) -> (Arc<Shared>, Consumer) {
         let shared = Shared::new(rate, channels, 1.0);
         shared.playing.store(true, Ordering::Release);
-        let c = Consumer::new(shared.clone());
+        let mut c = Consumer::new(shared.clone());
+        c.lead_in = 0;
         (shared, c)
+    }
+
+    /// The device gets 40 ms of silence first; the queue waits meanwhile,
+    /// and then plays exactly (the test sink hears only the program's).
+    #[test]
+    fn the_lead_in() {
+        let shared = Shared::new(1000, 1, 1.0);
+        shared.playing.store(true, Ordering::Release);
+        shared.record();
+        let mut c = Consumer::new(shared.clone());
+        shared.ring.push(&[0.5, 0.25, -0.5]);
+        let mut out = [9.0f32; 30];
+        c.render(&mut out);
+        assert!(out.iter().all(|s| *s == 0.0));
+        assert_eq!(shared.ring.queued(), 3, "nothing taken during the lead-in");
+        let mut out = [9.0f32; 13];
+        c.render(&mut out);
+        assert!(out[..10].iter().all(|s| *s == 0.0));
+        assert_eq!(&out[10..], &[0.5, 0.25, -0.5]);
+        assert_eq!(shared.underruns(), 0);
+        assert_eq!(shared.heard.lock().unwrap().first, vec![16384, 8192, -16384]);
     }
 
     #[test]
@@ -1006,7 +1050,7 @@ mod tests {
 
     #[test]
     fn formats_from_arrays_strings_and_numbers() {
-        let mut s = AudioStream::default();
+        let mut s = AudioOut::default();
         let arr = Value::Array(Rc::new(RefCell::new(crate::BasicArray::new(vec![(0, 3)], v_int(0)).unwrap())));
         if let Value::Array(a) = &arr {
             a.borrow_mut().data = vec![v_int(16384), v_int(-32768), Value::Double(40000.0), v_int(0)];
@@ -1036,7 +1080,7 @@ mod tests {
     #[test]
     fn the_component_its_properties_and_asking() {
         let id = "ut_stream";
-        create(id, "RAudioStream");
+        create(id, "RAudioOut");
         assert_eq!(get(id, "samplerate").unwrap().to_i64(), 44100);
         assert_eq!(get(id, "bufferms").unwrap().to_i64(), 60);
         assert_eq!(get(id, "enabled").unwrap().to_i64(), 1);

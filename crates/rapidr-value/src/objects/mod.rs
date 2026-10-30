@@ -9,7 +9,7 @@
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
 pub mod a11y;
-pub mod audiostream;
+pub mod audioout;
 pub mod avi;
 pub mod bevel;
 pub mod bitmap;
@@ -296,8 +296,8 @@ pub fn create(id: &str, type_name: &str) -> bool {
     if rqlib::create(id, type_name) {
         return true;
     }
-    // (RAudioStream: sound made sample by sample — audiostream.rs)
-    if audiostream::create(id, type_name) {
+    // (RAudioOut: sound made sample by sample — audioout.rs)
+    if audioout::create(id, type_name) {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
@@ -1202,7 +1202,7 @@ pub fn exists(id: &str) -> bool {
 /// Forgets object `id` (a kernel-drawn dialog's components once it
 /// closes; a test's store starting again); whether there was one.
 pub fn remove(id: &str) -> bool {
-    if audiostream::remove(id) {
+    if audioout::remove(id) {
         return true;
     }
     OBJECTS.with(|o| o.borrow_mut().remove(&id.to_lowercase()).is_some())
@@ -1236,8 +1236,8 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if rqlib::exists(id) {
         return rqlib::get(id, &prop);
     }
-    if audiostream::exists(id) {
-        return audiostream::get(id, &prop);
+    if audioout::exists(id) {
+        return audioout::get(id, &prop);
     }
     if let Some(v) = menu::get(id, &prop) {
         return Some(v);
@@ -1300,8 +1300,8 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     if rqlib::exists(id) {
         return rqlib::set(id, &prop, val);
     }
-    if audiostream::exists(id) {
-        return audiostream::set(id, &prop, val).map(Ok);
+    if audioout::exists(id) {
+        return audioout::set(id, &prop, val).map(Ok);
     }
     if menu::is_menu(id) {
         return menu::set(id, &prop, val).map(Ok);
@@ -1468,8 +1468,8 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     if rqlib::exists(id) {
         return rqlib::call(id, &method, args);
     }
-    if audiostream::exists(id) {
-        return audiostream::call(id, &method, args).map(Ok);
+    if audioout::exists(id) {
+        return audioout::call(id, &method, args).map(Ok);
     }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));

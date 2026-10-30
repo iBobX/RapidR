@@ -344,7 +344,7 @@ members = "RNUM RDATAFRAME RPLOT RDFFILTER RDFSORT RDFGROUP RDFJOIN RDFCOMPUTE R
 [toolbox-groups.media]
 icon = "media"
 title = "Media"
-members = "RMIDI RWAVE RVIDEO RCDAUDIO RAUDIOSTREAM"
+members = "RMIDI RWAVE RVIDEO RCDAUDIO RAUDIOOUT"
 [toolbox-groups.directx]
 icon = "directx"
 title = "DirectX"

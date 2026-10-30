@@ -128,7 +128,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/wave.svg" width="20" height="20" alt=""> | [`RWave`](members.md#rwave) | everywhere |
 | <img src="../icons/light/components/video.svg" width="20" height="20" alt=""> | [`RVideo`](members.md#rvideo) | everywhere |
 | <img src="../icons/light/components/cdaudio.svg" width="20" height="20" alt=""> | [`RCDAudio`](members.md#rcdaudio) | everywhere |
-| <img src="../icons/light/components/audiostream.svg" width="20" height="20" alt=""> | [`RAudioStream`](members.md#raudiostream) | everywhere |
+| <img src="../icons/light/components/audioout.svg" width="20" height="20" alt=""> | [`RAudioOut`](members.md#raudioout) | everywhere |
 
 ## DirectX 2D
 

@@ -30,8 +30,8 @@ pub(crate) mod io;
 pub(crate) mod serial;
 pub(crate) mod serial_list;
 pub(crate) mod media;
-/// RAudioStream's sound device and OnNeedData (sound made sample by sample).
-pub mod audio_stream;
+/// RAudioOut's sound device and OnNeedData (sound made sample by sample).
+pub mod audio_out;
 /// (I7) Linked data on the desktop: what `rapidr_value::datascience::link`
 /// asks of the runtime.
 pub(crate) mod links;

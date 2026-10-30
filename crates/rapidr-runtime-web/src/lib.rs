@@ -27,7 +27,7 @@ pub mod globals_web;
 pub mod io_web;
 /// The media objects' devices (QMIDI, QWAVE).
 pub mod media_web;
-/// RAudioStream's sound device and OnNeedData (sound made sample by sample).
+/// RAudioOut's sound device and OnNeedData (sound made sample by sample).
 pub mod audio_web;
 /// The UI kernel as the page's GUI host: the program's windows.
 pub mod kernel_web;

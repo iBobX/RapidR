@@ -1,5 +1,5 @@
 // The manual's "DirectX, media and devices" page (docs/manual/
-// directx-and-media.md), its sound made sample by sample: RAudioStream's
+// directx-and-media.md), its sound made sample by sample: RAudioOut's
 // examples caught playing — the headless host, the test hooks' clicks, the
 // tests' silent sink taking the samples in real time (nothing is heard).
 // (50 ms an event: `wait` is n clicks on a label that does nothing with

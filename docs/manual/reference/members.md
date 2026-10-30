@@ -4069,8 +4069,8 @@ Plays audio CDs (Qcdaudio.inc). RapidR answers as a computer with no CD drive.
 |---|---|
 | `OnChange(track AS INTEGER, time AS STRING)` | Fires when the control's value changes: an edit's text, a list's, tree's or tab's selection, a scroll bar's or track bar's position, a picker's date, a media object's state. |
 
-<a id="raudiostream"></a>
-## RAudioStream
+<a id="raudioout"></a>
+## RAudioOut
 
 Plays sound the program makes sample by sample, as it comes: an emulator's beeper or sound chip, a synthesizer, a tone for a science lesson. Write puts samples in its queue (16-bit numbers, -32768 to 32767, from an INTEGER array, a binary string or an RMemoryStream; WriteFloat takes -1 to 1); the sound device plays them on a thread of its own and never waits for the program. Keep about BufferMs of sound queued: write in OnNeedData (raised on the program's thread when the queue drops under BufferMs, with how many samples fill it again) or check Queued from a timer, one frame at a time. When the queue runs dry it plays silence after a 2 ms fade (no click) and Underruns counts it. Stereo samples are interleaved, left then right. In a browser sound starts only after a click or a key on the page: call Start from a button's OnClick (Error says so otherwise). Without a sound device it plays silently, in time (Error says why). RapidR's own.
 

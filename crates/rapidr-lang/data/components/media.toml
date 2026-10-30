@@ -160,13 +160,13 @@ events = [
 ]
 
 [[component]]
-name = "RAUDIOSTREAM"
-display = "AudioStream"
+name = "RAUDIOOUT"
+display = "AudioOut"
 visual = false
 default_event = "OnNeedData"
 doc = "Plays sound the program makes sample by sample, as it comes: an emulator's beeper or sound chip, a synthesizer, a tone for a science lesson. Write puts samples in its queue (16-bit numbers, -32768 to 32767, from an INTEGER array, a binary string or an RMemoryStream; WriteFloat takes -1 to 1); the sound device plays them on a thread of its own and never waits for the program. Keep about BufferMs of sound queued: write in OnNeedData (raised on the program's thread when the queue drops under BufferMs, with how many samples fill it again) or check Queued from a timer, one frame at a time. When the queue runs dry it plays silence after a 2 ms fade (no click) and Underruns counts it. Stereo samples are interleaved, left then right. In a browser sound starts only after a click or a key on the page: call Start from a button's OnClick (Error says so otherwise). Without a sound device it plays silently, in time (Error says why). RapidR's own."
 example = """
-DIM Sound AS RAudioStream
+DIM Sound AS RAudioOut
 DIM phase AS DOUBLE
 SUB Feed (Count AS INTEGER)
     DIM buf(Count - 1) AS INTEGER, i AS INTEGER
@@ -192,7 +192,7 @@ properties = [
   { name = "Error", type = "string", access = "read", design = false, doc = "Why it can't be heard (\"\" when it can): no sound device, a program built without sound, a browser waiting for a click or key, a property set out of its range (the nearest value is used)." },
 ]
 methods = [
-  { name = "Start", effects = ["device"], doc = "Starts playing: what is queued first, then what the program writes. In a browser, call it from a click or key handler (the browser's rule)." },
+  { name = "Start", effects = ["device"], doc = "Starts playing: what is queued first, then what the program writes (the sound device gets 40 ms of silence before them, so a headset that takes a burst as it begins never cuts the start). In a browser, call it from a click or key handler (the browser's rule)." },
   { name = "Stop", effects = ["device"], doc = "Stops the sound with a 2 ms fade (no click) and drops what was waiting; Start begins again with what is written next." },
   { name = "Clear", value = true, effects = ["state"], doc = "Drops what is waiting and keeps playing (an emulator's reset): silence until the next Write." },
   { name = "Write", params = "Samples AS VARIANT, [Count AS INTEGER], [Offset AS INTEGER]", returns = "INTEGER", effects = ["device"], test = "args: 0", doc = "Queues samples as Bits says, from an INTEGER (or BYTE, LONG …) array, a binary string (16-bit: two bytes a sample, low byte first), an RMemoryStream (from its Position, which moves past what was taken) or one number. Count: how many samples (default: all); Offset: how many to skip first. Stereo is interleaved. Returns how many it took: fewer when the queue (2 seconds) is full." },

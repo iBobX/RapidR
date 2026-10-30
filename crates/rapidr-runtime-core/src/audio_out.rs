@@ -1,5 +1,5 @@
-//! RAudioStream on the desktop (interpreted and native programs): the
-//! model is `rapidr_value::objects::audiostream` (the web's too); this is
+//! RAudioOut on the desktop (interpreted and native programs): the
+//! model is `rapidr_value::objects::audioout` (the web's too); this is
 //! its sound device and its OnNeedData.
 //!
 //! - **The device.** Each stream is a rodio source on the sound device
@@ -19,14 +19,14 @@
 
 use std::time::{Duration, Instant};
 
-use rapidr_value::objects::audiostream::{self, Consumer, Device};
+use rapidr_value::objects::audioout::{self, Consumer, Device};
 
 use crate::value::Value;
 
 /// How often the window loop asks while a stream with OnNeedData plays.
 pub const POLL_EVERY: Duration = Duration::from_millis(5);
 
-/// Gives RAudioStream its device (once: the first stream made).
+/// Gives RAudioOut its device (once: the first stream made).
 pub fn install() {
     thread_local! {
         static DONE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -34,7 +34,7 @@ pub fn install() {
     if DONE.with(|d| d.replace(true)) {
         return;
     }
-    audiostream::set_device(Device { start, stop });
+    audioout::set_device(Device { start, stop });
     // (the sound device opened now, when the stream is made: opening it
     // takes a moment — 200 ms on a Bluetooth headset — that Start then
     // doesn't spend while the program's sound is due)
@@ -47,7 +47,7 @@ pub fn install() {
 /// The sound device's name for stream `id`'s source (sound.rs keeps one per name).
 #[cfg(feature = "audio")]
 fn key(id: &str) -> String {
-    format!("audiostream:{}", id.to_lowercase())
+    format!("audioout:{}", id.to_lowercase())
 }
 
 fn start(id: &str, consumer: Consumer) -> Result<(), String> {
@@ -91,7 +91,7 @@ fn clocked(mut consumer: Consumer, record: bool) {
     if record {
         consumer.shared().record();
     }
-    let spawned = std::thread::Builder::new().name("rapidr-audiostream".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("rapidr-audioout".into()).spawn(move || {
         let rate = f64::from(consumer.rate());
         let ch = consumer.channels();
         let began = Instant::now();
@@ -113,7 +113,7 @@ fn clocked(mut consumer: Consumer, record: bool) {
         }
     });
     if let Err(e) = spawned {
-        eprintln!("[rapidr] RAudioStream: no thread for its sink: {e}");
+        eprintln!("[rapidr] RAudioOut: no thread for its sink: {e}");
     }
 }
 
@@ -183,16 +183,16 @@ thread_local! {
 /// Whether a stream with an OnNeedData plays (the window loop then asks
 /// every [`POLL_EVERY`]).
 pub fn busy() -> bool {
-    audiostream::active() && audiostream::playing_ids().iter().any(|id| crate::object::rp_has_handler(id, "onneeddata"))
+    audioout::active() && audioout::playing_ids().iter().any(|id| crate::object::rp_has_handler(id, "onneeddata"))
 }
 
 /// OnNeedData for each stream that wants more, on the program's thread.
 pub fn poll() {
-    if !audiostream::active() {
+    if !audioout::active() {
         return;
     }
     let now = EPOCH.with(|e| e.elapsed().as_secs_f64() * 1000.0);
-    for (id, count) in audiostream::due(now, &|id| crate::object::rp_has_handler(id, "onneeddata")) {
+    for (id, count) in audioout::due(now, &|id| crate::object::rp_has_handler(id, "onneeddata")) {
         crate::object::rp_fire_event_args(&id, "onneeddata", &[Value::Integer(count)]);
     }
 }
@@ -206,20 +206,20 @@ mod tests {
     #[test]
     fn rodio_converts_the_rate_and_channels() {
         let id = "rt_conv";
-        rapidr_value::objects::audiostream::create(id, "RAUDIOSTREAM");
-        let _ = rapidr_value::objects::audiostream::set(id, "samplerate", &crate::value::Value::Integer(22050));
+        rapidr_value::objects::audioout::create(id, "RAUDIOOUT");
+        let _ = rapidr_value::objects::audioout::set(id, "samplerate", &crate::value::Value::Integer(22050));
         // (a consumer straight from the model: started with a device that hands it over)
         thread_local! { static TAKEN: std::cell::RefCell<Option<super::StreamSource>> = const { std::cell::RefCell::new(None) }; }
-        fn take(_: &str, c: rapidr_value::objects::audiostream::Consumer) -> Result<(), String> {
+        fn take(_: &str, c: rapidr_value::objects::audioout::Consumer) -> Result<(), String> {
             TAKEN.with(|t| *t.borrow_mut() = Some(super::StreamSource::new(c)));
             Ok(())
         }
         fn none(_: &str) {}
-        rapidr_value::objects::audiostream::set_device(rapidr_value::objects::audiostream::Device { start: take, stop: none });
+        rapidr_value::objects::audioout::set_device(rapidr_value::objects::audioout::Device { start: take, stop: none });
         let ramp: Vec<crate::value::Value> = (0..2205).map(|i| crate::value::Value::Integer(i * 10)).collect();
         let arr = crate::value::Value::Array(std::rc::Rc::new(std::cell::RefCell::new(rapidr_value::BasicArray { bounds: vec![(0, 2204)], data: ramp, overflow: Default::default() })));
-        rapidr_value::objects::audiostream::call(id, "write", &[arr]);
-        rapidr_value::objects::audiostream::call(id, "start", &[]);
+        rapidr_value::objects::audioout::call(id, "write", &[arr]);
+        rapidr_value::objects::audioout::call(id, "start", &[]);
         let source = TAKEN.with(|t| t.borrow_mut().take()).expect("started");
         assert_eq!((source.sample_rate(), source.channels()), (22050, 1));
         let converted = rodio::source::UniformSourceIterator::<_, f32>::new(source.take_duration(Duration::from_millis(100)), 2, 44100);

@@ -2,7 +2,7 @@
 ' chips of small computers made music — and RapidR's own tune. Each voice
 ' is a square wave with its own duty (how long it stays up: 50 % hollow,
 ' 25 % thinner) and a volume that fades as the note goes on; the three are
-' added up sample by sample and written to an RAudioStream.
+' added up sample by sample and written to an RAudioOut.
 '
 '   rapidr run chiptune.rr          (or open it in RapidR Studio and press F5)
 '
@@ -36,7 +36,7 @@ DATA 72,60,41, 0,0,0, 69,0,53, 0,0,0, 65,57,41, 0,0,0, 67,0,53, 69,0,0
 DATA 67,64,48, 0,0,0, 72,0,60, 0,0,0, 76,60,48, 0,0,0, 79,0,60, 76,0,0
 DATA 74,62,43, 0,0,0, 71,0,55, 0,0,0, 67,59,43, 0,0,0, 69,0,55, 71,0,0
 
-DIM Chip AS RAudioStream
+DIM Chip AS RAudioOut
 Chip.SampleRate = RATE
 Chip.BufferMs = 80
 Chip.OnNeedData = Feed

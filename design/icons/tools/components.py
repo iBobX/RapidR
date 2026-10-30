@@ -643,8 +643,8 @@ def wave(g):
         g.line(x, 12 - h / 2, x, 12 + h / 2, c="violet")
 
 
-@icon("audiostream", C, "Audio stream (RAudioStream)")
-def audiostream(g):
+@icon("audioout", C, "Audio out (RAudioOut)")
+def audioout(g):
     """Samples (stems with their dots) flowing into a speaker."""
     g.line(2.5, 12, 10.5, 12, c="ink")
     stems = ((3.75, 6.75), (7.25, 17.25), (10.25, 8.75)) if g.size != 16 else ((4, 6), (8.5, 18))

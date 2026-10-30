@@ -1,5 +1,5 @@
 ' tone_generator.rr: a tone made sample by sample and played as it is
-' made (RAudioStream), with an oscilloscope drawn from the very samples
+' made (RAudioOut), with an oscilloscope drawn from the very samples
 ' that were played. Pick a wave (sine, square, sawtooth, noise), move the
 ' frequency in musical steps (A4 = 440 Hz), set the volume.
 '
@@ -34,7 +34,7 @@ DIM readout AS STRING
 
 freq = 440
 
-DIM Sound AS RAudioStream
+DIM Sound AS RAudioOut
 Sound.SampleRate = RATE
 Sound.BufferMs = 60
 Sound.OnNeedData = Feed

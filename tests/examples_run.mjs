@@ -246,7 +246,7 @@ export const cases = [
     expect: ["info.caption=24 frames of 64x48"] },
   { file: "media/video.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 50)}`, dump: "info.caption",
     expect: ["info.caption=Played to the end: 24 frames"] },
-  // (RAudioStream: the tests' clocked sink takes the samples in real time
+  // (RAudioOut: the tests' clocked sink takes the samples in real time
   // and keeps what it heard — `__heard`: how many, their sum, the first
   // ones as 16-bit numbers —, so these check exact samples on every runtime)
   { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 20)}`, dump: "info.caption,sound.__heard",

@@ -1,6 +1,6 @@
-//! RAudioStream in the browser: the model is `rapidr_value::objects::
-//! audiostream` (the desktop's too); this is its sound device and its
-//! OnNeedData, as runtime-core's audio_stream.rs on the desktop.
+//! RAudioOut in the browser: the model is `rapidr_value::objects::
+//! audioout` (the desktop's too); this is its sound device and its
+//! OnNeedData, as runtime-core's audio_out.rs on the desktop.
 //!
 //! - **The device.** A Web Audio script processor on the page's audio
 //!   context (builtins.rs) pulls each block from the stream's queue,
@@ -24,7 +24,7 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use rapidr_value::objects::audiostream::{self, Consumer, Device, Resampled};
+use rapidr_value::objects::audioout::{self, Consumer, Device, Resampled};
 use rapidr_value::Value;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -69,7 +69,7 @@ fn testing() -> bool {
     ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| rapidr_ui_app::testhooks::var(v).is_some()) || page_var("RAPIDR_TEST_SOUND") || page_var("RAPIDR_TEST_MIDI")
 }
 
-/// Gives RAudioStream its device (once: the first stream made).
+/// Gives RAudioOut its device (once: the first stream made).
 pub fn install() {
     thread_local! {
         static DONE: Cell<bool> = const { Cell::new(false) };
@@ -77,7 +77,7 @@ pub fn install() {
     if DONE.with(|d| d.replace(true)) {
         return;
     }
-    audiostream::set_device(Device { start, stop });
+    audioout::set_device(Device { start, stop });
 }
 
 fn start(id: &str, consumer: Consumer) -> Result<(), String> {
@@ -218,19 +218,19 @@ fn tick() {
     }
     // (the page may play now: the click came)
     if PLAYERS.with(|p| !p.borrow().is_empty()) && running() {
-        for id in audiostream::playing_ids() {
-            if audiostream::error(&id) == WAITING_FOR_CLICK {
-                audiostream::set_error(&id, "");
+        for id in audioout::playing_ids() {
+            if audioout::error(&id) == WAITING_FOR_CLICK {
+                audioout::set_error(&id, "");
             }
         }
     }
     if !crate::object_web::debug_stopped() {
-        for (id, count) in audiostream::due(now, &|id| crate::object_web::rp_has_handler(id, "onneeddata")) {
+        for (id, count) in audioout::due(now, &|id| crate::object_web::rp_has_handler(id, "onneeddata")) {
             crate::object_web::rp_fire_event_args(&id, "onneeddata", &[Value::Integer(count)]);
         }
     }
     // (nothing plays: the interval stops)
-    let idle = !audiostream::active() && SINKS.with(|s| s.borrow().is_empty()) && PLAYERS.with(|p| p.borrow().is_empty());
+    let idle = !audioout::active() && SINKS.with(|s| s.borrow().is_empty()) && PLAYERS.with(|p| p.borrow().is_empty());
     if idle {
         if let (Some(handle), Some(w)) = (TICK.with(|t| t.take()), web_sys::window()) {
             w.clear_interval_with_handle(handle);

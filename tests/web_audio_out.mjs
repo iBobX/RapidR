@@ -1,4 +1,4 @@
-// RAudioStream on the web's real device (crates/rapidr-runtime-web's
+// RAudioOut on the web's real device (crates/rapidr-runtime-web's
 // audio_web.rs), not the tests' sink: no test hooks on this page, the
 // program's own Start, and a real mouse click (the browser's rule: sound
 // only after a click or a key on the page).
@@ -14,7 +14,7 @@
 // Volume 0 anyway.)
 //
 // Usage (repo root, after tools/build_web_artifacts.sh, with the repo served
-// on RAPIDR_URL, default http://localhost:8765): node tests/web_audio_stream.mjs
+// on RAPIDR_URL, default http://localhost:8765): node tests/web_audio_out.mjs
 
 import { chromium } from "playwright";
 import * as k from "./web_kernel_page.mjs";
@@ -24,7 +24,7 @@ let failed = 0;
 const ok = (cond, msg) => { console.log(`${cond ? "✓" : "✗"} ${msg}`); if (!cond) failed++; };
 
 const SOURCE = `
-DIM S AS RAudioStream
+DIM S AS RAudioOut
 DIM phase AS DOUBLE, buf(8191) AS INTEGER, asked AS LONG
 SUB Feed (Count AS INTEGER)
     DIM i AS INTEGER
@@ -114,5 +114,5 @@ await page.waitForTimeout(300);
 ok((await get("Playing")) === "0" && Number(await get("Queued")) === 0, "Stop: not playing, nothing queued");
 ok(errors.length === 0, `no page errors (${errors.join(" / ")})`);
 await browser.close();
-if (failed) { console.log(`\nWeb audio stream: ${failed} CHECK(S) FAILED`); process.exit(1); }
-console.log("\nWeb audio stream: ALL CHECKS PASSED");
+if (failed) { console.log(`\nWeb audio out: ${failed} CHECK(S) FAILED`); process.exit(1); }
+console.log("\nWeb audio out: ALL CHECKS PASSED");

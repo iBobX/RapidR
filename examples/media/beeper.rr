@@ -2,7 +2,7 @@
 ' speaker — played the way an emulator plays it. A made-up 3.528 MHz
 ' machine runs a tiny sound routine that flips the bit at exact cycle
 ' times; every frame (50 a second) the flips are turned into 882 samples
-' (44100 / 50) and written to an RAudioStream. The top screen is what the
+' (44100 / 50) and written to an RAudioOut. The top screen is what the
 ' machine did (the bit, a frame long); the bottom one is what you hear.
 '
 '   rapidr run beeper.rr          (or open it in RapidR Studio and press F5)
@@ -40,7 +40,7 @@ DIM tune(63) AS INTEGER, lens(63) AS INTEGER, tuneLen AS INTEGER
 DIM dcIn AS DOUBLE, dcOut AS DOUBLE
 DIM frames AS LONG, msFrame AS DOUBLE
 
-DIM Beeper AS RAudioStream
+DIM Beeper AS RAudioOut
 Beeper.SampleRate = RATE
 
 CREATE Form AS RForm

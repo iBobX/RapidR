@@ -264,8 +264,8 @@ pub fn rp_doevents() {
     // (a background query's rows and events, also in a console program)
     #[cfg(feature = "database")]
     crate::database::poll();
-    // (RAudioStream's OnNeedData, also in a console program)
-    crate::audio_stream::poll();
+    // (RAudioOut's OnNeedData, also in a console program)
+    crate::audio_out::poll();
 }
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).
