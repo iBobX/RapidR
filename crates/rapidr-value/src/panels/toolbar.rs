@@ -18,6 +18,7 @@
 use std::sync::Arc;
 
 use super::runtime::{basic_bool, truth, Runtime};
+use crate::i18n::{tr_ui, tr_ui_fill};
 use crate::objects::font::Font;
 use crate::objects::ops::Rect;
 use crate::objects::text::text_size;
@@ -129,7 +130,9 @@ pub const SEPARATOR: i64 = 9;
 pub const CHECK: &str = "√ ";
 pub const NO_CHECK: &str = "    ";
 /// The heading of Customizable's lines in the menu.
-pub const SHOWN_HEADING: &str = "Buttons shown:";
+pub fn shown_heading() -> String {
+    tr_ui("Buttons shown:")
+}
 
 /// RTOOLBAR's state.
 #[derive(Clone, Debug, PartialEq)]
@@ -284,10 +287,10 @@ impl ToolBar {
                 continue;
             }
             let label = it.label();
-            out.push((if it.kind == Kind::Toggle && it.down { format!("{label} (on)") } else { label }, Entry::Overflow(i)));
+            out.push((if it.kind == Kind::Toggle && it.down { tr_ui_fill("{label} (on)", &[("label", &label)]) } else { label }, Entry::Overflow(i)));
         }
         if self.customizable {
-            out.push((SHOWN_HEADING.to_string(), Entry::Heading));
+            out.push((shown_heading(), Entry::Heading));
             for (i, it) in self.items.iter().enumerate() {
                 if it.is_separator() || !it.visible {
                     continue;
@@ -567,7 +570,7 @@ mod tests {
         let l = t.layout(400, 32, 0, &font());
         assert!(l.chevron.is_some(), "a customizable bar always has its menu");
         let menu = t.menu_entries(&l.overflow);
-        assert_eq!(menu[0], (SHOWN_HEADING.to_string(), Entry::Heading));
+        assert_eq!(menu[0], (shown_heading(), Entry::Heading));
         assert_eq!(menu[2], (format!("{CHECK}open hint"), Entry::Customize(1)));
         t.items[1].hidden = true;
         assert_eq!(t.layout_text(), "open");

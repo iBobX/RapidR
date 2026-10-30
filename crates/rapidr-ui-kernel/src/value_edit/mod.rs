@@ -23,6 +23,7 @@ use std::collections::HashMap;
 
 use rapidr_editor::service::HelperSite;
 use rapidr_lang::kinds::FileKind;
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -178,21 +179,21 @@ const BUTTONS_H: i64 = 8 + 30 + 8;
 impl Popover {
     /// A colour editor of `value` (the project's colours its palette).
     pub fn color(owner: Owner, value: i64, project: &[i64], anchor: Rect) -> Popover {
-        Popover { editor: Editor::Color(ColorEd::new(value, project)), owner, title: "Colour".into(), anchor, rect: (0, 0, 0, 0) }
+        Popover { editor: Editor::Color(ColorEd::new(value, project)), owner, title: tr_ui("Colour"), anchor, rect: (0, 0, 0, 0) }
     }
 
     /// A list editor.
     pub fn list(owner: Owner, kind: ListKind, items: Vec<Item>, selected: Option<usize>, anchor: Rect) -> Popover {
         let filter = matches!(kind, ListKind::File(_) | ListKind::Font) || items.len() > 12;
         let title = match kind {
-            ListKind::Choice => "Choose a value",
-            ListKind::Flags => "Choose the flags",
-            ListKind::Bool => "True or False",
-            ListKind::Link => "Link",
-            ListKind::File(FileKind::Image) => "Picture",
-            ListKind::File(FileKind::Sound) => "Sound",
-            ListKind::File(FileKind::Any) => "File",
-            ListKind::Font => "Font",
+            ListKind::Choice => tr_ui("Choose a value"),
+            ListKind::Flags => tr_ui("Choose the flags"),
+            ListKind::Bool => tr_ui("True or False"),
+            ListKind::Link => tr_ui("Link"),
+            ListKind::File(FileKind::Image) => tr_ui("Picture"),
+            ListKind::File(FileKind::Sound) => tr_ui("Sound"),
+            ListKind::File(FileKind::Any) => tr_ui("File"),
+            ListKind::Font => tr_ui("Font"),
         };
         let mut list = ListEd::new(items, selected, filter);
         if let Some(f) = &mut list.filter {
@@ -200,7 +201,7 @@ impl Popover {
             f.all = false;
         }
         let editor = Editor::List { list, kind, create: None, size: None, style: None, part: 0, folder: String::new() };
-        Popover { editor, owner, title: title.into(), anchor, rect: (0, 0, 0, 0) }
+        Popover { editor, owner, title, anchor, rect: (0, 0, 0, 0) }
     }
 
     /// Its size (logical pixels).
@@ -262,23 +263,24 @@ impl Popover {
             Editor::List { list, kind, size, style, .. } => {
                 let sel = list.selected().map(|i| list.items[i].said()).unwrap_or_default();
                 match kind {
-                    ListKind::Flags => format!("{}: {}", self.title, list.ticked().join(" + ")),
+                    ListKind::Flags => tr_ui_fill("{title}: {value}", &[("title", &self.title), ("value", &list.ticked().join(" + "))]),
                     ListKind::Font => {
-                        let mut s = format!("Font: {sel}");
+                        // (the parts in a list: "Font: Arial, 12 pt, bold")
+                        let mut parts = vec![tr_ui_fill("Font: {name}", &[("name", &sel)])];
                         if let Some(f) = size {
-                            s.push_str(&format!(", {} pt", f.text));
+                            parts.push(tr_ui_fill("{size} pt", &[("size", &f.text)]));
                         }
                         if let Some((b, i)) = style {
                             if *b {
-                                s.push_str(", bold");
+                                parts.push(tr_ui("bold"));
                             }
                             if *i {
-                                s.push_str(", italic");
+                                parts.push(tr_ui("italic"));
                             }
                         }
-                        s
+                        parts.join(", ")
                     }
-                    _ => format!("{}: {sel}", self.title),
+                    _ => tr_ui_fill("{title}: {value}", &[("title", &self.title), ("value", &sel)]),
                 }
             }
         }
@@ -439,16 +441,16 @@ impl Popover {
         let th = text_size("Ag", font).1;
         p.text((r.0 + PAD + 2, r.1 + (TITLE_H - th) / 2 + 2, r.2 - 2 * PAD, th), &self.title, &bold, look.text, Place::TopLeft);
         let keys = match &self.editor {
-            Editor::Color(_) => "Enter keeps · Esc cancels",
-            Editor::List { kind: ListKind::Flags, .. } => "Space ticks · Enter keeps",
-            Editor::List { kind: ListKind::Bool, .. } => "Space turns · Enter keeps",
-            _ => "Enter picks · Esc cancels",
+            Editor::Color(_) => tr_ui("Enter keeps · Esc cancels"),
+            Editor::List { kind: ListKind::Flags, .. } => tr_ui("Space ticks · Enter keeps"),
+            Editor::List { kind: ListKind::Bool, .. } => tr_ui("Space turns · Enter keeps"),
+            _ => tr_ui("Enter picks · Esc cancels"),
         };
         // (the keys' reminder where it fits beside the heading — whole or
         // not at all; the dialog's description says them too)
-        let kw = text_size(keys, font).0;
+        let kw = text_size(&keys, font).0;
         if text_size(&self.title, &bold).0 + kw + 3 * PAD <= r.2 {
-            p.text((r.0 + r.2 - PAD - kw, r.1 + (TITLE_H - th) / 2 + 2, kw + 2, th), keys, font, look.dim, Place::TopLeft);
+            p.text((r.0 + r.2 - PAD - kw, r.1 + (TITLE_H - th) / 2 + 2, kw + 2, th), &keys, font, look.dim, Place::TopLeft);
         }
         p.fill((r.0 + 1, r.1 + TITLE_H - 1, r.2 - 2, 1), look.border);
         let body = (r.0, r.1 + TITLE_H, r.2, r.3 - TITLE_H);
@@ -473,8 +475,8 @@ impl Popover {
                                     p.picture(&format!("value-edit/preview/{folder}/{}", it.label), 1, pic, fit);
                                 }
                                 None => {
-                                    let msg = if it.missing { "Not in the project" } else { "No preview" };
-                                    p.text((pv.0 + 8, pv.1 + pv.3 / 2 - th / 2, pv.2 - 16, th), msg, font, if it.missing { look.error } else { look.dim }, Place::Center);
+                                    let msg = if it.missing { tr_ui("Not in the project") } else { tr_ui("No preview") };
+                                    p.text((pv.0 + 8, pv.1 + pv.3 / 2 - th / 2, pv.2 - 16, th), &msg, font, if it.missing { look.error } else { look.dim }, Place::Center);
                                 }
                             }
                             p.text((pv.0, pv.1 + pv.3 + 6, pv.2, th), &it.label, font, look.dim, Place::Center);
@@ -487,22 +489,22 @@ impl Popover {
                         let sample = Font { name: name.clone(), size: pt, styles: u8::from(b) | (u8::from(it) << 1), ..Font::default() };
                         let pr = (body.0 + PAD, body.1 + lr.1 + lr.3 + 6, body.2 - 2 * PAD, PREVIEW_H);
                         p.round(pr, 4.0, Some(look.field), Some(look.border), 1.0);
-                        p.clipped(pr, |p| p.text((pr.0 + 8, pr.1, pr.2 - 16, pr.3), "The quick brown fox 0123", &sample, look.text, Place::Left));
+                        p.clipped(pr, |p| p.text((pr.0 + 8, pr.1, pr.2 - 16, pr.3), &tr_ui("The quick brown fox 0123"), &sample, look.text, Place::Left));
                         let (sr, br, ir) = font_parts(lr, body.2);
                         if let Some(f) = size {
                             f.paint(p, (body.0 + sr.0, body.1 + sr.1, sr.2, sr.3), 40, *part == 1, look, font);
                         }
                         if let Some((bo, itl)) = style {
-                            toggle(p, (body.0 + br.0, body.1 + br.1, br.2, br.3), "Bold", *bo, *part == 2, look, font);
-                            toggle(p, (body.0 + ir.0, body.1 + ir.1, ir.2, ir.3), "Italic", *itl, *part == 3, look, font);
+                            toggle(p, (body.0 + br.0, body.1 + br.1, br.2, br.3), &tr_ui("Bold"), *bo, *part == 2, look, font);
+                            toggle(p, (body.0 + ir.0, body.1 + ir.1, ir.2, ir.3), &tr_ui("Italic"), *itl, *part == 3, look, font);
                         }
                     }
                     _ => {}
                 }
                 if matches!(kind, ListKind::Flags | ListKind::Font) {
                     let (apply, cancel) = buttons(body.2, body.3);
-                    button(p, (body.0 + cancel.0, body.1 + cancel.1, cancel.2, cancel.3), "Cancel", false, false, look, font);
-                    button(p, (body.0 + apply.0, body.1 + apply.1, apply.2, apply.3), "Apply", true, false, look, font);
+                    button(p, (body.0 + cancel.0, body.1 + cancel.1, cancel.2, cancel.3), &tr_ui("Cancel"), false, false, look, font);
+                    button(p, (body.0 + apply.0, body.1 + apply.1, apply.2, apply.3), &tr_ui("Apply"), true, false, look, font);
                 }
             }
         }
@@ -511,7 +513,7 @@ impl Popover {
     /// Its dialog node for screen readers (ids under `base`).
     pub fn access(&self, base: &str) -> AccessNode {
         let mut d = AccessNode::new(node_id(&format!("{base}$valueeditor")), Role::Dialog);
-        d.name = format!("{} editor", self.title);
+        d.name = tr_ui_fill("{title} editor", &[("title", &self.title)]);
         d.description = self.said();
         d.bounds = self.rect;
         let origin = (self.rect.0, self.rect.1);
@@ -520,7 +522,7 @@ impl Popover {
             Editor::List { list, kind, size, style, part, .. } => {
                 if let Some(f) = &list.filter {
                     let mut n = AccessNode::new(node_id(&format!("{base}$filter")), Role::TextInput);
-                    n.name = "Filter".into();
+                    n.name = tr_ui("Filter");
                     n.value = Some(f.text.clone());
                     n.bounds = self.rect;
                     d.children.push(n);
@@ -544,16 +546,16 @@ impl Popover {
                 d.children.push(lb);
                 if let Some(f) = size {
                     let mut n = AccessNode::new(node_id(&format!("{base}$size")), Role::TextInput);
-                    n.name = "Size".into();
+                    n.name = tr_ui("Size");
                     n.value = Some(f.text.clone());
                     n.states.focused = *part == 1;
                     n.bounds = self.rect;
                     d.children.push(n);
                 }
                 if let Some((b, i)) = style {
-                    for (k, (name, on)) in [("Bold", *b), ("Italic", *i)].into_iter().enumerate() {
+                    for (k, (name, label, on)) in [("Bold", tr_ui("Bold"), *b), ("Italic", tr_ui("Italic"), *i)].into_iter().enumerate() {
                         let mut n = AccessNode::new(node_id(&format!("{base}${name}")), Role::CheckBox);
-                        n.name = name.into();
+                        n.name = label;
                         n.states.checked = Some(on);
                         n.states.focused = *part == 2 + k;
                         n.bounds = self.rect;

@@ -49,13 +49,28 @@ END SUB
 ' Document d's tab: the preview first (shown), then the source.
 SUB AddMarkdownTab(d AS INTEGER)
   Dock.AddPane(CodeDoc(d), FileTitle(DocFile(d)), "documents", "markdown")
-  Dock.AddView(DocPane(d), MdDoc(d), "Preview")
-  Dock.AddView(DocPane(d), CodeDoc(d), "Source")
+  Dock.AddView(DocPane(d), MdDoc(d), ViewCaption("Preview"))
+  Dock.AddView(DocPane(d), CodeDoc(d), ViewCaption("Source"))
   DocViewNow(d) = "Preview"
   DocKind(d) = "preview"
 END SUB
 
-' (what document d shows, by the switch's caption)
+' (Studio's language changed) The Preview | Source switches' captions, made in
+' the language before, made again.
+SUB MarkdownLanguageChanged
+  DIM d AS INTEGER
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) THEN
+      IF DocIsMd(d) THEN
+        Dock.AddView(DocPane(d), MdDoc(d), ViewCaption("Preview"))
+        Dock.AddView(DocPane(d), CodeDoc(d), ViewCaption("Source"))
+      END IF
+    END IF
+  NEXT
+END SUB
+
+' (what document d shows, by the view's id: "Preview" or "Source"; the switch's
+' caption is ViewCaption's)
 SUB MarkdownViewShown(d AS INTEGER, View AS STRING)
   DocViewNow(d) = View
   IF View = "Preview" THEN DocKind(d) = "preview" ELSE DocKind(d) = "code"
@@ -85,7 +100,7 @@ SUB MarkdownLink(Url AS STRING, Sender AS RMarkdownView)
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   IF LEFT$(Url, 1) = "#" THEN EXIT SUB
   IF INSTR(Url, "://") > 0 OR LCASE$(LEFT$(Url, 7)) = "mailto:" THEN
-    OutputLine "Opened " + Url + " in the browser"
+    OutputLine TR$("Opened {url} in the browser", "url", Url)
     EXIT SUB
   END IF
   target = Url
@@ -99,7 +114,7 @@ SUB MarkdownLink(Url AS STRING, Sender AS RMarkdownView)
   IF LEFT$(target, 1) <> "/" AND k > 0 THEN target = LEFT$(p, k) + target
   target = TidyPath(target)
   IF FILEEXISTS(target) = 0 THEN
-    OutputLine "Can't open " + Url + ": there is no " + target
+    OutputLine TR$("Can't open {url}: there is no {file}", "url", Url, "file", target)
     EXIT SUB
   END IF
   OpenDocument target
@@ -183,7 +198,7 @@ FUNCTION MarkdownCommand(Id AS STRING) AS INTEGER
       Result = 0
   END SELECT
   IF v = "" THEN EXIT FUNCTION
-  Dock.DocumentView(DocPane(d), v)
+  Dock.DocumentView(DocPane(d), ViewCaption(v))
   IF v = "Source" THEN Dock.FocusPane(DocPane(d))
   IF v = "Preview" THEN Dock.FocusPane("mddoc(" + LTRIM$(STR$(d)) + ")")
 END FUNCTION

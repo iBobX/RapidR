@@ -254,6 +254,62 @@ pub fn extract(text: &str, file: &str, keywords: &[Keyword]) -> Vec<Found> {
     out
 }
 
+/// RapidR's own text in Rust sources: every `tr_ui("…")` and
+/// `tr_ui_fill("…", …)` with a string literal (Rust's escapes read), for
+/// the runtime's template (`rapidr i18n runtime`).
+pub fn extract_rust(text: &str, file: &str) -> Vec<Found> {
+    // (the code only: not its tests — from the first `#[cfg(test)]` on —
+    // nor its comments, which may show a call; line numbers kept)
+    let code_end = text.find("#[cfg(test)]").unwrap_or(text.len());
+    let text: String = text[..code_end].lines().map(|l| if l.trim_start().starts_with("//") { "" } else { l }).collect::<Vec<_>>().join("\n");
+    let text = text.as_str();
+    let mut out = Vec::new();
+    for marker in ["tr_ui(\"", "tr_ui_fill(\""] {
+        let mut from = 0;
+        while let Some(i) = text[from..].find(marker) {
+            let at = from + i;
+            from = at + marker.len();
+            // (a name ending in tr_ui, `my_tr_ui(`, isn't it)
+            if at > 0 && text[..at].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+                continue;
+            }
+            let mut s = String::new();
+            let mut chars = text[from..].char_indices();
+            let mut ok = false;
+            while let Some((_, c)) = chars.next() {
+                match c {
+                    '"' => {
+                        ok = true;
+                        break;
+                    }
+                    '\\' => match chars.next().map(|(_, e)| e) {
+                        Some('n') => s.push('\n'),
+                        Some('t') => s.push('\t'),
+                        Some('"') => s.push('"'),
+                        Some('\\') => s.push('\\'),
+                        Some('\'') => s.push('\''),
+                        Some('\n') => {
+                            // (a line continued: the next line's spaces skipped)
+                            while chars.clone().next().is_some_and(|(_, c)| c.is_whitespace()) {
+                                chars.next();
+                            }
+                        }
+                        Some(o) => s.push(o),
+                        None => break,
+                    },
+                    c => s.push(c),
+                }
+            }
+            if ok && !s.is_empty() {
+                let line = text[..at].matches('\n').count() + 1;
+                out.push(Found { context: String::new(), id: s, plural: None, file: file.to_string(), line });
+            }
+        }
+    }
+    out.sort_by_key(|f| f.line);
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -270,6 +326,13 @@ mod tests {
         assert_eq!(ids, [("", "Save"), ("menu", "Open"), ("", "Hello, {name}!"), ("", "{n} file"), ("", "a long text")]);
         assert_eq!(f[3].plural.as_deref(), Some("{n} files"));
         assert_eq!(f[4].line, 5);
+    }
+
+    #[test]
+    fn finds_rapidr_s_own_text_in_rust() {
+        let src = "let a = tr_ui(\"Search components\");\nlet b = i18n::tr_ui_fill(\"Remove {name} from \\\"it\\\"?\", &[(\"name\", n)]);\nlet c = my_tr_ui(\"no\");\n";
+        let ids: Vec<String> = extract_rust(src, "x.rs").into_iter().map(|f| f.id).collect();
+        assert_eq!(ids, ["Search components", "Remove {name} from \"it\"?"]);
     }
 
     #[test]

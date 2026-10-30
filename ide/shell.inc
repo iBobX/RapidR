@@ -14,7 +14,7 @@ END FUNCTION
 FUNCTION AboutText AS STRING
   DIM nl AS STRING
   nl = CHR$(13) + CHR$(10)
-  Result = "RapidR Studio (RapidR " + Lang.Version + ")" + nl + "BASIC is powerful again: desktop and web apps from one source." + nl + nl + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  Result = TR$("RapidR Studio (RapidR {version})", "version", Lang.Version) + nl + TR$("BASIC is powerful again: desktop and web apps from one source.") + nl + nl + TR$("Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence.")
 END FUNCTION
 
 SUB ShowAbout
@@ -40,9 +40,9 @@ SUB SaveDocumentAs
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  SaveDlg.Caption = "Save As"
+  SaveDlg.Caption = TR$("Save As")
   SaveDlg.FileName = FileTitle(DocFile(d))
-  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
+  SaveDlg.Filter = TR$("RapidR sources") + " (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|" + TR$("All files") + "|*.*"
   IF SaveDlg.Execute THEN
     DocFile(d) = SaveDlg.FileName
     SaveDocument d
@@ -52,8 +52,8 @@ SUB SaveDocumentAs
 END SUB
 
 SUB AddFileToProject
-  OpenDlg.Caption = "Add a File to the Project"
-  OpenDlg.Filter = "All files|*.*"
+  OpenDlg.Caption = TR$("Add a File to the Project")
+  OpenDlg.Filter = TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
     IF Proj.AddFile(OpenDlg.FileName) THEN FillProjectTree ELSE OutputLine Proj.Error
   END IF
@@ -88,7 +88,7 @@ SUB RunCommand(Id AS STRING)
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.clearRecent": ClearRecent
-    CASE "file.openExample": ShowPalette "Example"
+    CASE "file.openExample": ShowPalette TR$("Example")
     CASE "file.exampleAgain": CopyExampleAgain
     CASE "file.importRapidQ": AskImportRapidQ
     CASE "file.importRapidQFolder": AskImportRapidQFolder
@@ -185,7 +185,7 @@ SUB RunCommand(Id AS STRING)
         ' (a test step: about:text — what Help > About says, in the Output)
         OutputLine AboutText
       ELSEIF EditorCommand(Id) = 0 THEN
-        OutputLine "(" + Id + ": not there yet)"
+        OutputLine TR$("({id}: not there yet)", "id", Id)
       END IF
   END SELECT
 END SUB
@@ -288,7 +288,7 @@ SUB StartAction(Which AS INTEGER)
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
     CASE 3: RunCommand "file.importRapidQ"
-    CASE 4: ShowPalette "Example"
+    CASE 4: ShowPalette TR$("Example")
     CASE ELSE: RunCommand "view.commandPalette"
   END SELECT
 END SUB
@@ -394,7 +394,7 @@ SUB StartStudio
   Application.OnLanguageChange = StudioLanguageChanged
   FillProjectTree
   InspectActive
-  OutputLine "RapidR Studio is ready."
+  OutputLine TR$("RapidR Studio is ready.")
   LayOutWelcome
   ApplyPreview
   IF startFile <> "" THEN

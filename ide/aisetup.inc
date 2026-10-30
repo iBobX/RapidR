@@ -59,7 +59,7 @@ DIM AISuProvIds(4) AS STRING
 DIM AISuProvCount AS INTEGER
 
 CREATE AISetup AS RForm
-  Caption = "Set Up RAI"
+  Caption = TR$("Set Up RAI")
   Width = 660: Height = 560
   BorderStyle = 3
   CREATE AISuFoot AS RPanel
@@ -67,17 +67,17 @@ CREATE AISetup AS RForm
     Height = 56
     BevelOuter = 0
     CREATE AISuBackBtn AS RButton
-      Caption = "< &Back"
-      AccessibleName = "Back"
+      Caption = TR$("< &Back")
+      AccessibleName = TR$("Back")
       OnClick = AISuBack
     END CREATE
     CREATE AISuCancelBtn AS RButton
-      Caption = "Cancel"
+      Caption = TR$("Cancel")
       Cancel = 1
       OnClick = AISuCancel
     END CREATE
     CREATE AISuNextBtn AS RButton
-      Caption = "&Next >"
+      Caption = TR$("&Next >")
       Default = 1
       OnClick = AISuNext
     END CREATE
@@ -95,31 +95,31 @@ CREATE AISetup AS RForm
   CREATE AISuPage1 AS RPanel
     Align = 5
     BevelOuter = 0
-    AccessibleName = "Where RAI's answers come from"
+    AccessibleName = TR$("Where RAI's answers come from")
     CREATE AISuLocal AS RRadioButton
-      Caption = "Free, on &this computer"
+      Caption = TR$("Free, on &this computer")
       OnClick = AISuPicked
     END CREATE
     CREATE AISuLocalText AS RLabel
       AutoSize = 0: WordWrap = 1
-      Caption = "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
+      Caption = TR$("Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's.")
     END CREATE
     CREATE AISuFoundText AS RLabel
       AutoSize = 0: WordWrap = 1
-      AccessibleName = "The servers found on this computer"
+      AccessibleName = TR$("The servers found on this computer")
     END CREATE
     CREATE AISuLookBtn AS RButton
-      Caption = "&Look Again"
-      AccessibleName = "Look again for a server on this computer"
+      Caption = TR$("&Look Again")
+      AccessibleName = TR$("Look again for a server on this computer")
       OnClick = AISuLook
     END CREATE
     CREATE AISuCloudRadio AS RRadioButton
-      Caption = "A &cloud service, with your own key"
+      Caption = TR$("A &cloud service, with your own key")
       OnClick = AISuPicked
     END CREATE
     CREATE AISuCloudText AS RLabel
       AutoSize = 0: WordWrap = 1
-      Caption = "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
+      Caption = TR$("Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project.")
     END CREATE
   END CREATE
   ' ---- 2: on this computer ----
@@ -127,37 +127,37 @@ CREATE AISetup AS RForm
     Align = 5
     BevelOuter = 0
     Visible = 0
-    AccessibleName = "A server on this computer"
+    AccessibleName = TR$("A server on this computer")
     CREATE AISuServerLabel AS RLabel
-      Caption = "&Server:"
+      Caption = TR$("&Server:")
       Left = 24: Top = 12: Width = 100
     END CREATE
     CREATE AISuServerBox AS RComboBox
       Style = 2
       Left = 130: Top = 8: Width = 300
-      AccessibleName = "The server on this computer"
+      AccessibleName = TR$("The server on this computer")
       OnChange = AISuServerPicked
     END CREATE
     CREATE AISuAddrLabel AS RLabel
-      Caption = "&Address:"
+      Caption = TR$("&Address:")
       Left = 24: Top = 48: Width = 100
     END CREATE
     CREATE AISuAddrEdit AS REdit
       Left = 130: Top = 44: Width = 300
-      AccessibleName = "The server's address"
+      AccessibleName = TR$("The server's address")
     END CREATE
     CREATE AISuLocalModelLabel AS RLabel
-      Caption = "&Model:"
+      Caption = TR$("&Model:")
       Left = 24: Top = 84: Width = 100
     END CREATE
     CREATE AISuLocalModel AS RComboBox
       Left = 130: Top = 80: Width = 300
-      AccessibleName = "Model"
+      AccessibleName = TR$("Model")
     END CREATE
     CREATE AISuLocalNote AS RLabel
       Left = 24: Top = 124: Width = 560: Height = 96
       AutoSize = 0: WordWrap = 1
-      AccessibleName = "About this server"
+      AccessibleName = TR$("About this server")
     END CREATE
   END CREATE
   ' ---- 3: a cloud service ----
@@ -165,56 +165,56 @@ CREATE AISetup AS RForm
     Align = 5
     BevelOuter = 0
     Visible = 0
-    AccessibleName = "A cloud service"
+    AccessibleName = TR$("A cloud service")
     CREATE AISuProvLabel AS RLabel
-      Caption = "&Provider:"
+      Caption = TR$("&Provider:")
       Left = 24: Top = 12: Width = 100
     END CREATE
     CREATE AISuProvBox AS RComboBox
       Style = 2
       Left = 130: Top = 8: Width = 300
-      AccessibleName = "The cloud provider"
+      AccessibleName = TR$("The cloud provider")
       OnChange = AISuProvPicked
     END CREATE
     CREATE AISuKeyLink AS RLabel
-      Caption = "Get a key"
+      Caption = TR$("Get a key")
       Left = 444: Top = 12: Width = 150
       Cursor = -21
-      AccessibleName = "Get a key on the provider's website, in the browser"
+      AccessibleName = TR$("Get a key on the provider's website, in the browser")
       OnClick = AISuKeyLinkClick
     END CREATE
     CREATE AISuKeyLabel AS RLabel
-      Caption = "API &key:"
+      Caption = TR$("API &key:")
       Left = 24: Top = 48: Width = 100
     END CREATE
     CREATE AISuKeyEdit AS REdit
       PasswordChar = "*"
       Left = 130: Top = 44: Width = 300
-      AccessibleName = "API key"
-      AccessibleDescription = "Paste the key the provider gave you: it is kept in this computer's keychain, never in a project"
+      AccessibleName = TR$("API key")
+      AccessibleDescription = TR$("Paste the key the provider gave you: it is kept in this computer's keychain, never in a project")
     END CREATE
     CREATE AISuTestBtn AS RButton
-      Caption = "&Test the Key"
-      AccessibleName = "Test the key: ask the provider for its models"
+      Caption = TR$("&Test the Key")
+      AccessibleName = TR$("Test the key: ask the provider for its models")
       OnClick = AISuTest
     END CREATE
     CREATE AISuTestNote AS RLabel
       Left = 130: Top = 80: Width = 460: Height = 54
       AutoSize = 0: WordWrap = 1
-      AccessibleName = "The key's test"
+      AccessibleName = TR$("The key's test")
     END CREATE
     CREATE AISuCloudModelLabel AS RLabel
-      Caption = "&Model:"
+      Caption = TR$("&Model:")
       Left = 24: Top = 144: Width = 100
     END CREATE
     CREATE AISuCloudModel AS RComboBox
       Left = 130: Top = 140: Width = 300
-      AccessibleName = "Model"
+      AccessibleName = TR$("Model")
     END CREATE
     CREATE AISuCostText AS RLabel
       Left = 24: Top = 182: Width = 560: Height = 130
       AutoSize = 0: WordWrap = 1
-      AccessibleName = "What it costs, and what is sent"
+      AccessibleName = TR$("What it costs, and what is sent")
     END CREATE
   END CREATE
 END CREATE
@@ -314,17 +314,17 @@ SUB AISuShowPage(P AS INTEGER)
   AISuBackBtn.Visible = Flag(P > 1)
   SELECT CASE P
     CASE 1
-      AISuTitle.Caption = "Where should RAI's answers come from?"
-      AISuNextBtn.Caption = "&Next >"
+      AISuTitle.Caption = TR$("Where should RAI's answers come from?")
+      AISuNextBtn.Caption = TR$("&Next >")
     CASE 2
-      AISuTitle.Caption = "RAI on this computer"
-      AISuNextBtn.Caption = "&Finish"
+      AISuTitle.Caption = TR$("RAI on this computer")
+      AISuNextBtn.Caption = TR$("&Finish")
     CASE 3
-      AISuTitle.Caption = "RAI from a cloud service"
-      AISuNextBtn.Caption = "&Finish"
+      AISuTitle.Caption = TR$("RAI from a cloud service")
+      AISuNextBtn.Caption = TR$("&Finish")
   END SELECT
   AISuTitle.AccessibleName = AISuTitle.Caption
-  AISetup.Caption = "Set Up RAI — " + AISuTitle.Caption
+  AISetup.Caption = TR$("Set Up RAI — {title}", "title", AISuTitle.Caption)
 END SUB
 
 ' (the choice on page 1: the found servers say so; Next goes on)
@@ -382,10 +382,13 @@ SUB AISuFound
   FOR k = 0 TO AISUSERVERS - 1
     SELECT CASE AISuState(k)
       CASE 1
-        IF AISuCount(k) = 1 THEN n = "1 model" ELSE n = LTRIM$(STR$(AISuCount(k))) + " models"
-        IF AISuCount(k) = 0 THEN n = "no model yet: download one in it first"
+        IF AISuCount(k) = 0 THEN
+          n = TR$("{name} (no model yet: download one in it first)", "name", AISuNames(k))
+        ELSE
+          n = TRN$("{name} ({n} model)", "{name} ({n} models)", AISuCount(k), "name", AISuNames(k))
+        END IF
         IF found <> "" THEN found = found + "; "
-        found = found + AISuNames(k) + " (" + n + ")"
+        found = found + n
       CASE -1
         IF notRun <> "" THEN notRun = notRun + ", "
         notRun = notRun + AISuNames(k)
@@ -395,13 +398,16 @@ SUB AISuFound
     END SELECT
   NEXT
   IF found <> "" THEN
-    AISuFoundText.Caption = "✓ Found on this computer: " + found + "."
+    IF notRun <> "" THEN
+      AISuFoundText.Caption = TR$("✓ Found on this computer: {servers}. Not running: {others}.", "servers", found, "others", notRun)
+    ELSE
+      AISuFoundText.Caption = TR$("✓ Found on this computer: {servers}.", "servers", found)
+    END IF
   ELSEIF asking <> "" THEN
-    AISuFoundText.Caption = "Looking for a server on this computer…"
+    AISuFoundText.Caption = TR$("Looking for a server on this computer…")
   ELSE
-    AISuFoundText.Caption = "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
+    AISuFoundText.Caption = TR$("None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again.")
   END IF
-  IF notRun <> "" AND found <> "" THEN AISuFoundText.Caption = AISuFoundText.Caption + " Not running: " + notRun + "."
   AISuFoundText.AccessibleDescription = AISuFoundText.Caption
 END SUB
 
@@ -417,10 +423,10 @@ SUB AISuNext
         first = -1
         FOR k = 0 TO AISUSERVERS - 1
           IF AISuState(k) = 1 THEN
-            AISuServerBox.AddItems AISuNames(k) + " (running)"
+            AISuServerBox.AddItems TR$("{name} (running)", "name", AISuNames(k))
             IF first < 0 THEN first = k
           ELSE
-            AISuServerBox.AddItems AISuNames(k) + " (not running)"
+            AISuServerBox.AddItems TR$("{name} (not running)", "name", AISuNames(k))
           END IF
         NEXT
         IF first < 0 THEN first = 0
@@ -467,11 +473,11 @@ SUB AISuServerPicked
   END SELECT
   AISuFillModels 2, models
   IF AISuState(k) = 1 AND AISuCount(k) = 0 THEN
-    AISuLocalNote.Caption = AISuNames(k) + " is running here, but has no model yet: download one in " + AISuNames(k) + " (Studio never downloads or starts one for you), then go Back and Look Again."
+    AISuLocalNote.Caption = TR$("{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again.", "name", AISuNames(k))
   ELSEIF AISuState(k) = 1 THEN
-    AISuLocalNote.Caption = AISuNames(k) + " is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
+    AISuLocalNote.Caption = TR$("{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help.", "name", AISuNames(k))
   ELSE
-    AISuLocalNote.Caption = AISuNames(k) + " isn't running at " + AISuUrls(k) + ". Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
+    AISuLocalNote.Caption = TR$("{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address.", "name", AISuNames(k), "url", AISuUrls(k))
   END IF
   AISuLocalNote.AccessibleDescription = AISuLocalNote.Caption
 END SUB
@@ -490,22 +496,21 @@ SUB AISuProvPicked
   AISuCloudModel.Clear
   AISuCloudModel.Text = ""
   IF AISuCloud.HasKey THEN
-    AISuTestNote.Caption = "A key for " + name + " is already found (" + AISuCloud.KeyHint + ", " + AISuCloud.KeyStore + "): Test it, or paste another."
+    AISuTestNote.Caption = TR$("A key for {name} is already found ({hint}, {store}): Test it, or paste another.", "name", name, "hint", AISuCloud.KeyHint, "store", AISuCloud.KeyStore)
   ELSE
-    AISuTestNote.Caption = "Paste the key " + name + " gave you (Get a key opens its page), then Test the Key."
+    AISuTestNote.Caption = TR$("Paste the key {name} gave you (Get a key opens its page), then Test the Key.", "name", name)
   END IF
   AISuTestNote.AccessibleDescription = AISuTestNote.Caption
   SELECT CASE id
     CASE "anthropic"
-      AISuCostText.Caption = "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms."
+      AISuCostText.Caption = TR$("Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
     CASE "openai"
-      AISuCostText.Caption = "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms."
+      AISuCostText.Caption = TR$("OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
     CASE "deepseek"
-      AISuCostText.Caption = "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms."
+      AISuCostText.Caption = TR$("DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
     CASE ELSE
-      AISuCostText.Caption = "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms."
+      AISuCostText.Caption = TR$("You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms." + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key.")
   END SELECT
-  AISuCostText.Caption = AISuCostText.Caption + " Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
   AISuCostText.AccessibleDescription = AISuCostText.Caption
 END SUB
 
@@ -521,12 +526,12 @@ SUB AISuTest
   key = LTRIM$(RTRIM$(AISuKeyEdit.Text))
   IF key <> "" THEN AISuCloud.APIKey = key
   IF AISuCloud.HasKey = 0 THEN
-    AISuTestNote.Caption = "Paste your API key first: the provider lists its models only to a key it knows."
+    AISuTestNote.Caption = TR$("Paste your API key first: the provider lists its models only to a key it knows.")
     AISuKeyEdit.SetFocus
     EXIT SUB
   END IF
   AISuTestBtn.Enabled = 0
-  AISuTestNote.Caption = "Testing the key…"
+  AISuTestNote.Caption = TR$("Testing the key…")
   IF AISuCloud.RefreshModels = 0 THEN AISuTestErr AISuCloud.Error
 END SUB
 
@@ -534,9 +539,9 @@ SUB AISuTestIn(Count AS INTEGER)
   AISuTestBtn.Enabled = 1
   AISuFillModels 3, AISuCloud.Models
   IF Count = 0 THEN
-    AISuTestNote.Caption = "The key works, but it can chat with no model: check it on the provider's website."
+    AISuTestNote.Caption = TR$("The key works, but it can chat with no model: check it on the provider's website.")
   ELSE
-    AISuTestNote.Caption = "✓ The key works: " + LTRIM$(STR$(Count)) + " models. The first, " + AIModelId(AISuCloudModel.Text) + ", is fast and low-cost: a good start. Finish when you have chosen."
+    AISuTestNote.Caption = TRN$("✓ The key works: {n} model. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen.", "✓ The key works: {n} models. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen.", Count, "model", AIModelId(AISuCloudModel.Text))
     AISuCloudModel.SetFocus
   END IF
   AISuTestNote.AccessibleDescription = AISuTestNote.Caption
@@ -576,7 +581,7 @@ SUB AISuFinish
   IF AISuPage = 2 THEN
     model = AIModelId(AISuLocalModel.Text)
     IF model = "" THEN
-      AISuLocalNote.Caption = "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
+      AISuLocalNote.Caption = TR$("Choose a model first (the server lists its own): start the server and Look Again if the list is empty.")
       AISuLocalModel.SetFocus
       EXIT SUB
     END IF
@@ -589,7 +594,7 @@ SUB AISuFinish
     id = AISuProvIds(k)
     model = AIModelId(AISuCloudModel.Text)
     IF model = "" THEN
-      AISuTestNote.Caption = "Test the key first: then choose one of the provider's models."
+      AISuTestNote.Caption = TR$("Test the key first: then choose one of the provider's models.")
       AISuTestBtn.SetFocus
       EXIT SUB
     END IF
@@ -622,9 +627,9 @@ SUB AISuFinish
         AISuReady = 1
       END IF
     END IF
-    AIStatus.SimpleText = "RAI is ready: " + AI.Model + "."
+    AIStatus.SimpleText = TR$("RAI is ready: {model}.", "model", AI.Model)
   ELSE
-    SHOWMESSAGE "RAI isn't ready yet: " + AIEmptyText
+    SHOWMESSAGE TR$("RAI isn't ready yet: {why}", "why", AIEmptyText)
   END IF
 END SUB
 

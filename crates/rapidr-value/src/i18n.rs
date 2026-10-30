@@ -290,6 +290,73 @@ fn chain() -> Rc<Vec<Catalog>> {
     chain
 }
 
+// ------------------------------------------------- RapidR's own text --
+
+/// RapidR's own catalogs: the text its components and dialogs show
+/// themselves (the toolbox's "Search components", a message box's "OK"),
+/// compiled in (`lang/<language>.po`; the template is `lang/runtime.pot`,
+/// `rapidr i18n runtime` writes it from every [`tr_ui`] in the sources).
+const RUNTIME_CATALOGS: &[(&str, &str)] = &[("es", include_str!("../lang/es.po"))];
+
+thread_local! {
+    static RUNTIME: RefCell<Vec<(String, Rc<Catalog>)>> = const { RefCell::new(Vec::new()) };
+}
+
+/// RapidR's own catalog for exactly language `tag`, parsed once.
+fn runtime_catalog(tag: &str) -> Option<Rc<Catalog>> {
+    let text = RUNTIME_CATALOGS.iter().find(|(t, _)| t.eq_ignore_ascii_case(tag))?.1;
+    RUNTIME.with(|r| {
+        let mut r = r.borrow_mut();
+        if let Some((_, c)) = r.iter().find(|(t, _)| t == tag) {
+            return Some(c.clone());
+        }
+        let c = Rc::new(parse_po(text));
+        r.push((tag.to_string(), c.clone()));
+        Some(c)
+    })
+}
+
+/// RapidR's own text, `text` (English), in the program's language: the
+/// program's catalogs first (RapidR Studio's translate it as its own), then
+/// RapidR's (compiled in), the pseudo-language's (`xx`: every text accented
+/// and longer), else the English. What components draw themselves —
+/// written `tr_ui("Search components")` in the sources, so `rapidr i18n
+/// runtime` finds it.
+pub fn tr_ui(text: &str) -> String {
+    let chain = chain();
+    if let Some(t) = chain.iter().find_map(|c| c.text("", text)) {
+        return t.to_string();
+    }
+    let lang = language();
+    if lang == "en" || lang.starts_with("en-") {
+        return text.to_string();
+    }
+    if lang == rapidr_i18n::pseudo::TAG {
+        return rapidr_i18n::pseudo::pseudo(text);
+    }
+    for tag in fallback_chain(&lang) {
+        if let Some(t) = runtime_catalog(&tag).and_then(|c| c.text("", text).map(String::from)) {
+            return t;
+        }
+    }
+    text.to_string()
+}
+
+/// [`tr_ui`] with `{name}` placeholders filled: `tr_ui_fill("Remove {name}
+/// from the project?", &[("name", file)])`.
+pub fn tr_ui_fill(text: &str, values: &[(&str, &str)]) -> String {
+    fill(&tr_ui(text), |name| values.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)).map(|(_, v)| v.to_string()))
+}
+
+/// RapidR's own catalogs' languages and texts (for `rapidr i18n`).
+pub fn runtime_catalog_text(tag: &str) -> Option<&'static str> {
+    RUNTIME_CATALOGS.iter().find(|(t, _)| t.eq_ignore_ascii_case(tag)).map(|(_, text)| *text)
+}
+
+pub fn runtime_languages() -> Vec<&'static str> {
+    RUNTIME_CATALOGS.iter().map(|(t, _)| *t).collect()
+}
+
 /// `text`'s translation in `context` in the current language, else `text`.
 pub fn translate(context: &str, text: &str) -> String {
     let chain = chain();
@@ -495,6 +562,22 @@ mod tests {
         assert_eq!(languages(), ["es", "pt-BR"]);
         set_folder("");
         assert!(languages().is_empty());
+    }
+
+    #[test]
+    fn rapidr_s_own_text_follows_the_language() {
+        with_files(&[("lang/es.po", "msgid \"Search components\"\nmsgstr \"Buscar (del programa)\"\n")]);
+        set_language("en");
+        assert_eq!(tr_ui("Search components"), "Search components");
+        set_language("xx");
+        assert!(tr_ui("Search components").starts_with('['));
+        set_language("es");
+        // (the program's catalog first)
+        assert_eq!(tr_ui("Search components"), "Buscar (del programa)");
+        // (RapidR's own, compiled in: its sample has OK)
+        assert_ne!(tr_ui("OK"), "OK");
+        assert_eq!(tr_ui_fill("Remove {name} from the project?", &[("name", "a.rr")]).contains("a.rr"), true);
+        assert_eq!(tr_ui("Nothing anyone wrote"), "Nothing anyone wrote");
     }
 
     #[test]

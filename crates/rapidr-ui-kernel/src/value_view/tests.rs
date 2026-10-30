@@ -166,7 +166,7 @@ fn the_plain_rows_styled() {
     assert_eq!(changed.accessible_name(), "Lives, whole number 2, changed");
 
     let locals = ValueRow::section(ValueKind::Locals, "Locals");
-    assert_eq!((locals.icon().map(|i| i.id), locals.accessible_name(), locals.description()), (Some("debug/locals"), "Locals", "locals"));
+    assert_eq!((locals.icon().map(|i| i.id), locals.accessible_name(), locals.description().as_str()), (Some("debug/locals"), "Locals", "locals"));
 }
 
 /// The value's parts in the theme's `debug.*` colours, its icon first;

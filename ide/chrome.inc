@@ -248,7 +248,7 @@ SUB SetState(State AS STRING, Text AS STRING)
 END SUB
 
 SUB SetUpStatus
-  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidR BASIC"
+  Status.AddPanels "", "", TR$("Ln {line}, Col {col}", "line", 1, "col", 1), "UTF-8", "CRLF", "RapidR BASIC"
   LayOutStatus
 END SUB
 
@@ -310,6 +310,17 @@ SUB StudioLanguageChanged
   NEXT
   FillPalette
   FillRecent
+  ' (each part's own lists, titles and page texts: made again)
+  PanesLanguageChanged
+  PanelsLanguageChanged
+  EditorLanguageChanged
+  WorkspaceLanguageChanged
+  MarkdownLanguageChanged
+  SearchLanguageChanged
+  DebugLanguageChanged
+  AiLanguageChanged
+  ' (AI Apps' Settings page before Settings is laid out again)
+  McpLanguageChanged
   ' (the lists Settings fills once: filled again, the choice kept)
   SettingsLanguageChanged
   StudioThemeChanged

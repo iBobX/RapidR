@@ -83,7 +83,7 @@ END SUB
 
 ' ---- the status bar: the caret, the file's encoding and line breaks ---------------------
 SUB CodeCaretMoved(Line AS INTEGER, Column AS INTEGER)
-  Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(Line)) + ", Col " + LTRIM$(STR$(Column))
+  Status.Panel(2).Caption = TR$("Ln {line}, Col {col}", "line", Line, "col", Column)
   ' (Go to Definition's jump in the same file, kept for Back: search.inc)
   NavCaretMoved Line, Column
 END SUB
@@ -91,9 +91,15 @@ END SUB
 ' (document d's facts in the status bar: when it opens or comes to the front)
 SUB EditorFacts(d AS INTEGER)
   IF d < 0 THEN EXIT SUB
-  Status.Panel(2).Caption = "Ln " + LTRIM$(STR$(CodeDoc(d).CaretLine)) + ", Col " + LTRIM$(STR$(CodeDoc(d).CaretColumn))
+  Status.Panel(2).Caption = TR$("Ln {line}, Col {col}", "line", CodeDoc(d).CaretLine, "col", CodeDoc(d).CaretColumn)
   Status.Panel(3).Caption = CodeDoc(d).Encoding
   Status.Panel(4).Caption = CodeDoc(d).LineEnding
+END SUB
+
+' (Studio's language changed) The status bar's line and column, made in
+' the language before, made again.
+SUB EditorLanguageChanged
+  IF ActiveCode >= 0 THEN EditorFacts ActiveCode
 END SUB
 
 ' (the caret into document d's code once its pane is in the window — a
@@ -202,7 +208,7 @@ SUB CodeFileEdits(File AS STRING, Json AS STRING, Sender AS RCodeEditor)
   DIM d AS INTEGER
   d = CodeDocOf(File)
   IF d < 0 THEN
-    OutputLine "Rename: " + File + " couldn't be opened"
+    OutputLine TR$("Rename: {file} couldn't be opened", "file", File)
     EXIT SUB
   END IF
   CodeDoc(d).ApplyEdits Json

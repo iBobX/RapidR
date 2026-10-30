@@ -13,6 +13,7 @@
 
 use super::fuzzy;
 use super::runtime::{basic_bool, truth, Runtime};
+use crate::i18n::tr_ui;
 use crate::Value;
 
 /// One command.
@@ -95,6 +96,18 @@ impl Default for Palette {
 }
 
 crate::panel_models!(Palette);
+
+impl Palette {
+    /// The placeholder as drawn: the default one in the program's language,
+    /// a program's own as it set it.
+    pub fn shown_placeholder(&self) -> String {
+        if self.placeholder == "Type a command" {
+            tr_ui("Type a command")
+        } else {
+            self.placeholder.clone()
+        }
+    }
+}
 
 /// The palette's metrics (logical pixels): the margin around its search
 /// box, the box's height, a row's.

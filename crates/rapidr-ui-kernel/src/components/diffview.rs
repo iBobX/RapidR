@@ -32,6 +32,7 @@
 
 use rapidr_editor::Token;
 use rapidr_value::code_scheme::{self, Scheme};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::Button;
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::diffview::forms::{self, FormCompare, Line, DETAIL_H};
@@ -262,14 +263,14 @@ fn draw_header(p: &mut Painter, look: &Look, d: &DiffView, h: usize, y: i64, cw:
     // (its state, before the buttons)
     let font = &d.ui_font;
     let said = match state {
-        1 => Some(("Accepted", look.s.mark_added)),
-        -1 => Some(("Rejected", look.s.mark_removed)),
+        1 => Some((tr_ui("Accepted"), look.s.mark_added)),
+        -1 => Some((tr_ui("Rejected"), look.s.mark_removed)),
         _ => None,
     };
     if let Some((word, color)) = said {
-        let ww = rapidr_value::objects::text::text_size(word, font).0 + 4;
+        let ww = rapidr_value::objects::text::text_size(&word, font).0 + 4;
         if accept.0 - 12 - ww > 12 + lw {
-            p.text((accept.0 - 12 - ww, y, ww, HEADER_H), word, font, color, Place::Left);
+            p.text((accept.0 - 12 - ww, y, ww, HEADER_H), &word, font, color, Place::Left);
         }
     }
     for (rect, on, accept_it) in [(accept, state == 1, true), (reject, state == -1, false)] {
@@ -287,7 +288,7 @@ fn draw_header(p: &mut Painter, look: &Look, d: &DiffView, h: usize, y: i64, cw:
         p.round(rect, radius, Some(fill), Some(stroke), 1.0);
         let (x, by, w, bh) = rect;
         p.icon(if accept_it { "glyphs/check" } else { "glyphs/close-small" }, (x + 6, by + (bh - 14) / 2, 14, 14), Some(icon), false);
-        p.text((x + 22, by, w - 24, bh), if accept_it { "Accept" } else { "Reject" }, font, ink, Place::Left);
+        p.text((x + 22, by, w - 24, bh), &if accept_it { tr_ui("Accept") } else { tr_ui("Reject") }, font, ink, Place::Left);
     }
 }
 
@@ -378,12 +379,12 @@ fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mu
     let ((bx, by), (ax, ay)) = f.picture_origins(cw);
     let half = (cw - 3 * forms::PAD) / 2;
     if f.pictures_h > 0 && f.pictures_h - top > 0 {
-        let sides = [(&f.before, bx, by, false, "Before"), (&f.after, ax, ay, true, "After")];
+        let sides = [(&f.before, bx, by, false, tr_ui("Before")), (&f.after, ax, ay, true, tr_ui("After"))];
         for (k, (surface, x, y, after, label)) in sides.into_iter().enumerate() {
-            p.text((x, -top, half, forms::LABEL_H), label, &font, look.s.line_number, Place::Left);
+            p.text((x, -top, half, forms::LABEL_H), &label, &font, look.s.line_number, Place::Left);
             let Some(s) = surface else {
-                let what = if after { "(the form isn't there any more)" } else { "(a new form)" };
-                p.text((x, y - top, half, ROW_H), what, &font, look.s.line_number, Place::Left);
+                let what = if after { tr_ui("(the form isn't there any more)") } else { tr_ui("(a new form)") };
+                p.text((x, y - top, half, ROW_H), &what, &font, look.s.line_number, Place::Left);
                 continue;
             };
             let at = (x, y - top);
@@ -409,7 +410,7 @@ fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mu
         y0 += DETAIL_H + 4;
     }
     if f.changes.is_empty() && f.note.is_empty() {
-        p.text((forms::PAD, y0 - top, cw - 2 * forms::PAD, ROW_H), "The forms are the same.", &font, look.s.line_number, Place::Left);
+        p.text((forms::PAD, y0 - top, cw - 2 * forms::PAD, ROW_H), &tr_ui("The forms are the same."), &font, look.s.line_number, Place::Left);
     }
     let bold = Font { styles: 1, ..font.clone() };
     let first = f.lines.partition_point(|(y, _)| *y + forms::ITEM_H <= top);
@@ -429,12 +430,13 @@ fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mu
                 let tw = rapidr_value::objects::text::text_size(&title, &bold).0 + 4;
                 p.text((30, y, tw, forms::ITEM_H), &title, &bold, look.s.text, Place::Left);
                 let what = match change.kind {
-                    ChangeKind::Added => "added".to_string(),
-                    ChangeKind::Removed => "removed".to_string(),
-                    ChangeKind::Changed => {
-                        let n = change.props.len();
-                        if n == 0 { "changed".into() } else { format!("{n} propert{} changed", if n == 1 { "y" } else { "ies" }) }
-                    }
+                    ChangeKind::Added => tr_ui("added"),
+                    ChangeKind::Removed => tr_ui("removed"),
+                    ChangeKind::Changed => match change.props.len() {
+                        0 => tr_ui("changed"),
+                        1 => tr_ui("1 property changed"),
+                        n => tr_ui_fill("{count} properties changed", &[("count", &n.to_string())]),
+                    },
                 };
                 p.text((30 + tw + 8, y, (cw - tw - 46).max(0), forms::ITEM_H), &what, &font, look.s.line_number, Place::Left);
             }
@@ -445,7 +447,7 @@ fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mu
                 match &pc.old {
                     Some(o) => x += value_box(p, look, o, x, y, Tint::Removed) + 6,
                     None => {
-                        p.text((x, y, 80, DETAIL_H), "(not set)", &font, look.s.line_number, Place::Left);
+                        p.text((x, y, 80, DETAIL_H), &tr_ui("(not set)"), &font, look.s.line_number, Place::Left);
                         x += 72;
                     }
                 }
@@ -455,7 +457,7 @@ fn paint_form(p: &mut Painter, text: &mut crate::text::TextSystem, pictures: &mu
                     Some(n) => {
                         value_box(p, look, n, x, y, Tint::Added);
                     }
-                    None => p.text((x, y, 90, DETAIL_H), "(removed)", &font, look.s.line_number, Place::Left),
+                    None => p.text((x, y, 90, DETAIL_H), &tr_ui("(removed)"), &font, look.s.line_number, Place::Left),
                 }
             }
             Line::Detail(c, k) => {
@@ -881,7 +883,7 @@ impl ComponentKind for DiffViewBox {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let b = Self::laid_out(cx);
         let mut n = AccessNode::new(node_id(cx.id), Role::Group);
-        n.name = "Differences".into();
+        n.name = tr_ui("Differences");
         n.bounds = cx.rect;
         let (x0, y0) = (cx.rect.0 + b, cx.rect.1 + b);
         let id = cx.id.to_string();
@@ -889,8 +891,14 @@ impl ComponentKind for DiffViewBox {
         let other = with_diff(&id, |d| (d.kind != Kind::Text).then(|| (d.kind, d.summary(), d.form.as_ref().map(|f| f.note.clone()).unwrap_or_default())))
             .flatten();
         if let Some((kind, lines, note)) = other {
-            n.name = if kind == Kind::Form { "Form changes".into() } else { "Table changes".into() };
-            n.value = Some(if lines.is_empty() && !note.is_empty() { note } else { format!("{} change{}", lines.len(), if lines.len() == 1 { "" } else { "s" }) });
+            n.name = if kind == Kind::Form { tr_ui("Form changes") } else { tr_ui("Table changes") };
+            n.value = Some(if lines.is_empty() && !note.is_empty() {
+                note
+            } else if lines.len() == 1 {
+                tr_ui("1 change")
+            } else {
+                tr_ui_fill("{count} changes", &[("count", &lines.len().to_string())])
+            });
             for (k, line) in lines.into_iter().enumerate() {
                 let mut item = AccessNode::new(part_id(&id, PART_ITEM, k), Role::ListItem);
                 item.name = line;
@@ -901,14 +909,20 @@ impl ComponentKind for DiffViewBox {
         with_diff(&id, |d| {
             let count = d.hunks.len();
             let (acc, rej) = (d.states.iter().filter(|&&s| s == 1).count(), d.states.iter().filter(|&&s| s == -1).count());
-            n.value = Some(format!("{count} hunk{}: {acc} accepted, {rej} rejected, {} undecided", if count == 1 { "" } else { "s" }, count - acc - rej));
+            let counts = [("count", count.to_string()), ("accepted", acc.to_string()), ("rejected", rej.to_string()), ("undecided", (count - acc - rej).to_string())];
+            let counts: Vec<(&str, &str)> = counts.iter().map(|(k, v)| (*k, v.as_str())).collect();
+            n.value = Some(if count == 1 {
+                tr_ui_fill("{count} hunk: {accepted} accepted, {rejected} rejected, {undecided} undecided", &counts)
+            } else {
+                tr_ui_fill("{count} hunks: {accepted} accepted, {rejected} rejected, {undecided} undecided", &counts)
+            });
             let (cw, ch) = d.client();
             for h in 0..count {
                 let mut g = AccessNode::new(part_id(&id, PART_ITEM, 3 * h), Role::Group);
                 g.name = d.hunk_summary(h);
                 // (ARIA has no "selected" for a group: the current one says so)
                 if d.current == h as i64 {
-                    g.description = "current hunk".into();
+                    g.description = tr_ui("current hunk");
                 }
                 g.actions = vec![Action::Click, Action::ScrollIntoView];
                 let y = d.rows[d.header_rows[h]].y - d.top();
@@ -917,9 +931,9 @@ impl ComponentKind for DiffViewBox {
                     g.bounds = (x0, y0 + y.max(0), cw, HEADER_H.min(ch - y.max(0)));
                 }
                 let (accept, reject) = d.buttons(y);
-                for (k, (word, rect, on)) in [("Accept", accept, d.state(h) == 1), ("Reject", reject, d.state(h) == -1)].into_iter().enumerate() {
+                for (k, (word, rect, on)) in [(tr_ui("Accept"), accept, d.state(h) == 1), (tr_ui("Reject"), reject, d.state(h) == -1)].into_iter().enumerate() {
                     let mut bn = AccessNode::new(part_id(&id, PART_ITEM, 3 * h + 1 + k), Role::Button);
-                    bn.name = word.into();
+                    bn.name = word;
                     bn.states.checked = Some(on);
                     bn.actions = vec![Action::Click];
                     if shown {

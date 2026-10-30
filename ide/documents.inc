@@ -134,12 +134,9 @@ END FUNCTION
 ' (how many of each kind, in words: "2 errors, 1 warning, 3 notes")
 FUNCTION ProblemCounts(errs AS INTEGER, warns AS INTEGER, notes AS INTEGER) AS STRING
   DIM t AS STRING
-  IF errs = 1 THEN t = "1 error, "
-  IF errs > 1 THEN t = LTRIM$(STR$(errs)) + " errors, "
-  IF warns = 1 THEN t = t + "1 warning, "
-  IF warns > 1 THEN t = t + LTRIM$(STR$(warns)) + " warnings, "
-  IF notes = 1 THEN t = t + "1 note, "
-  IF notes > 1 THEN t = t + LTRIM$(STR$(notes)) + " notes, "
+  IF errs > 0 THEN t = TRN$("{n} error", "{n} errors", errs) + ", "
+  IF warns > 0 THEN t = t + TRN$("{n} warning", "{n} warnings", warns) + ", "
+  IF notes > 0 THEN t = t + TRN$("{n} note", "{n} notes", notes) + ", "
   IF t <> "" THEN t = LEFT$(t, LEN(t) - 2)
   Result = t
 END FUNCTION
@@ -308,7 +305,7 @@ SUB OpenDocument(Path AS STRING)
   EditorFacts d
   ' (a preview from the project tree: the keys stay there)
   IF OpenQuietly = 0 THEN FocusCodeSoon d
-  OutputLine "Opened " + Path
+  OutputLine TR$("Opened {file}", "file", Path)
   UpdateCommands
 END SUB
 
@@ -338,11 +335,11 @@ SUB ProjectFollowsCode
     row = FIELD$(changed, CHR$(10), i)
     ' (short lines: the Output pane is narrow)
     IF FIELD$(row, CHR$(9), 2) = "form" THEN
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes a form: now under Forms"
+      OutputLine TR$("{file} makes a form: now under Forms", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     ELSEIF FIELD$(row, CHR$(9), 2) = "include" THEN
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Includes"
+      OutputLine TR$("{file} makes no form: now under Includes", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     ELSE
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Modules"
+      OutputLine TR$("{file} makes no form: now under Modules", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     END IF
   NEXT
   SaveProjectFile

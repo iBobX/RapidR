@@ -22,6 +22,7 @@ use std::sync::Arc;
 use rapidr_value::color_dialog::{self as cd, layout as cl, State as ColorState};
 use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
 use rapidr_value::font_dialog as fd;
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Op;
@@ -248,7 +249,7 @@ impl Dialog {
     /// answers), titled `title` — a message box's layout with the field
     /// under the text.
     pub fn input(n: u64, title: &str, text: &str, initial: &str) -> Dialog {
-        Dialog::prompt(n, title, text, initial, "OK", None)
+        Dialog::prompt(n, title, text, initial, &tr_ui("OK"), None)
     }
 
     /// An input box whose default button is captioned `ok` ("&Save"),
@@ -305,7 +306,7 @@ impl Dialog {
             let id = d.put(part, "RLABEL", rect);
             d.set(&id, "caption", Value::String(text.into()));
         };
-        label(&mut d, "basic", "&Basic colors:", cl::BASIC_LABEL);
+        label(&mut d, "basic", &tr_ui("&Basic colors:"), cl::BASIC_LABEL);
         // (the selection's frame, under the swatches: drawn first)
         let sel = d.put("sel", "RPANEL", (0, 0, 0, 0));
         d.set(&sel, "bevelouter", Value::Integer(0));
@@ -313,17 +314,17 @@ impl Dialog {
         for (i, rgb) in cd::BASIC_COLORS.iter().enumerate() {
             d.swatch(&format!("c{i}"), cd::swap_rb(i64::from(*rgb)), cl::basic(i));
         }
-        label(&mut d, "custom", "&Custom colors:", cl::CUSTOM_LABEL);
+        label(&mut d, "custom", &tr_ui("&Custom colors:"), cl::CUSTOM_LABEL);
         for i in 0..16 {
             d.swatch(&format!("u{i}"), 0, cl::custom(i));
         }
         let define = d.put("define", "RBUTTON", cl::DEFINE);
-        d.set(&define, "caption", Value::String("&Define Custom Colors >>".into()));
+        d.set(&define, "caption", Value::String(tr_ui("&Define Custom Colors >>").into()));
         let id = d.put("ok", "RBUTTON", cl::OK);
-        d.set(&id, "caption", Value::String("OK".into()));
+        d.set(&id, "caption", Value::String(tr_ui("OK").into()));
         d.set(&id, "default", Value::Integer(-1));
         let id = d.put("cancel", "RBUTTON", cl::CANCEL);
-        d.set(&id, "caption", Value::String("Cancel".into()));
+        d.set(&id, "caption", Value::String(tr_ui("Cancel").into()));
         d.set(&id, "cancel", Value::Integer(-1));
         if full {
             d.color_editor();
@@ -341,7 +342,7 @@ impl Dialog {
             self.set(&id, "part", Value::String(part.into()));
         }
         let id = self.put("lpreview", "RLABEL", cl::PREVIEW_LABEL);
-        self.set(&id, "caption", Value::String("Color|S&olid".into()));
+        self.set(&id, "caption", Value::String(tr_ui("Color|S&olid").into()));
         self.set(&id, "alignment", Value::Integer(2));
         for (i, caption) in cd::FIELDS.iter().enumerate() {
             let (label, edit) = cl::field(i);
@@ -351,7 +352,7 @@ impl Dialog {
             self.set(&id, "maxlength", Value::Integer(3));
         }
         let id = self.put("add", "RBUTTON", cl::ADD);
-        self.set(&id, "caption", Value::String("&Add to Custom Colors".into()));
+        self.set(&id, "caption", Value::String(tr_ui("&Add to Custom Colors").into()));
     }
 
     fn swatch(&mut self, part: &str, bgr: i64, rect: cd::Rect) {
@@ -430,9 +431,9 @@ impl Dialog {
             d.set(&id, "caption", Value::String(text.into()));
             id
         };
-        put_caption(&mut d, "lfont", "RLABEL", "&Font:", fl::FONT_LABEL);
-        put_caption(&mut d, "lstyle", "RLABEL", "Font st&yle:", fl::STYLE_LABEL);
-        put_caption(&mut d, "lsize", "RLABEL", "&Size:", fl::SIZE_LABEL);
+        put_caption(&mut d, "lfont", "RLABEL", &tr_ui("&Font:"), fl::FONT_LABEL);
+        put_caption(&mut d, "lstyle", "RLABEL", &tr_ui("Font st&yle:"), fl::STYLE_LABEL);
+        put_caption(&mut d, "lsize", "RLABEL", &tr_ui("&Size:"), fl::SIZE_LABEL);
         let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
             let id = d.put(part, kind, rect);
             let args: Vec<Value> = items.into_iter().map(Value::from).collect();
@@ -443,27 +444,27 @@ impl Dialog {
         list(&mut d, "style", "RLISTBOX", fl::STYLE_LIST, fd::STYLES.iter().map(|s| s.to_string()).collect());
         list(&mut d, "size", "RLISTBOX", fl::SIZE_LIST, sizes.iter().map(|s| s.to_string()).collect());
         if effects {
-            put_caption(&mut d, "effects", "RGROUPBOX", "Effects", fl::EFFECTS);
-            put_caption(&mut d, "strike", "RCHECKBOX", "Stri&keout", fl::STRIKEOUT);
-            put_caption(&mut d, "under", "RCHECKBOX", "&Underline", fl::UNDERLINE);
-            put_caption(&mut d, "lcolor", "RLABEL", "&Color:", fl::COLOR_LABEL);
+            put_caption(&mut d, "effects", "RGROUPBOX", &tr_ui("Effects"), fl::EFFECTS);
+            put_caption(&mut d, "strike", "RCHECKBOX", &tr_ui("Stri&keout"), fl::STRIKEOUT);
+            put_caption(&mut d, "under", "RCHECKBOX", &tr_ui("&Underline"), fl::UNDERLINE);
+            put_caption(&mut d, "lcolor", "RLABEL", &tr_ui("&Color:"), fl::COLOR_LABEL);
             let id = list(&mut d, "color", "RCOMBOBOX", fl::COLOR_LIST, colors.into_iter().map(|(n, _)| n).collect());
             // (csDropDownList: a pick, no typing)
             d.set(&id, "style", Value::Integer(2));
         }
         let (group, text) = fl::sample(effects);
-        put_caption(&mut d, "group", "RGROUPBOX", "Sample", group);
+        put_caption(&mut d, "group", "RGROUPBOX", &tr_ui("Sample"), group);
         let sample = d.put("sample", "RDLGPART", text);
         d.set(&sample, "part", Value::String("sample".into()));
-        let id = put_caption(&mut d, "ok", "RBUTTON", "OK", fl::OK);
+        let id = put_caption(&mut d, "ok", "RBUTTON", &tr_ui("OK"), fl::OK);
         d.set(&id, "default", Value::Integer(-1));
-        let id = put_caption(&mut d, "cancel", "RBUTTON", "Cancel", fl::CANCEL);
+        let id = put_caption(&mut d, "cancel", "RBUTTON", &tr_ui("Cancel"), fl::CANCEL);
         d.set(&id, "cancel", Value::Integer(-1));
         if apply {
-            put_caption(&mut d, "apply", "RBUTTON", "&Apply", fl::APPLY);
+            put_caption(&mut d, "apply", "RBUTTON", &tr_ui("&Apply"), fl::APPLY);
         }
         if help {
-            let id = put_caption(&mut d, "help", "RBUTTON", "&Help", if apply { fl::HELP } else { fl::APPLY });
+            let id = put_caption(&mut d, "help", "RBUTTON", &tr_ui("&Help"), if apply { fl::HELP } else { fl::APPLY });
             d.set(&id, "enabled", Value::Integer(0));
         }
         let (w, h) = fl::size(effects);
@@ -799,9 +800,9 @@ impl ComponentKind for Part {
         let mut n = AccessNode::new(node_id(cx.id), Role::Image);
         n.name = match store::string(cx.store, cx.id, "part").as_str() {
             "icon" => MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)).map_or("", MsgIcon::name).to_string(),
-            "spectrum" => "Color matrix".into(),
-            "lum" => "Luminosity".into(),
-            "preview" => "Color|Solid".into(),
+            "spectrum" => tr_ui("Color matrix"),
+            "lum" => tr_ui("Luminosity"),
+            "preview" => tr_ui("Color|Solid"),
             "sample" => fd::SAMPLE.into(),
             _ => String::new(),
         };

@@ -5,6 +5,7 @@
 //! into the CREATE block) and as a runtime keeps it (a constant's number,
 //! -1 / 0 for True / False).
 
+use crate::i18n::{tr_ui, tr_ui_fill};
 use crate::Value;
 
 /// How a property is edited (from its registry type and editor).
@@ -350,8 +351,8 @@ pub fn display(kind: &Kind, v: &Value) -> String {
         Kind::Enum(values) => enum_name(values, &v).unwrap_or_else(|| v.to_string_val()),
         Kind::Set(values) => set_flags(values, v.to_i64()).join(", "),
         Kind::Color => color_name(v.to_i64()).map(str::to_string).unwrap_or_else(|| color_hex(v.to_i64())),
-        Kind::Strings => count_text(&v.to_string_val(), "line"),
-        Kind::Columns => count_text(&v.to_string_val(), "column"),
+        Kind::Strings => count_text(&v.to_string_val(), false),
+        Kind::Columns => count_text(&v.to_string_val(), true),
         // (never shown: whether one was typed, at most)
         Kind::Secret => if v.to_string_val().is_empty() { String::new() } else { "••••••••".into() },
         _ => v.to_string_val().replace(['\r', '\n'], " "),
@@ -381,34 +382,33 @@ pub fn source(kind: &Kind, v: &Value) -> String {
 /// says why it can't be one.
 pub fn parse(kind: &Kind, text: &str) -> Result<Value, String> {
     let t = text.trim();
-    let bad = |what: &str| Err(format!("\"{t}\" is not {what}"));
     match kind {
         Kind::Int => match parse_int(t) {
             Some(i) => Ok(Value::Integer(i)),
-            None => bad("a whole number"),
+            None => Err(tr_ui_fill("\"{text}\" is not a whole number", &[("text", t)])),
         },
         Kind::Float => match t.parse::<f64>().ok().or_else(|| parse_int(t).map(|i| i as f64)) {
             Some(f) if f.is_finite() => Ok(Value::Double(f)),
-            _ => bad("a number"),
+            _ => Err(tr_ui_fill("\"{text}\" is not a number", &[("text", t)])),
         },
         Kind::Bool => match parse_bool(t) {
             Some(b) => Ok(basic(b)),
-            None => bad("True or False"),
+            None => Err(tr_ui_fill("\"{text}\" is not True or False", &[("text", t)])),
         },
         Kind::Enum(values) => match values.iter().position(|n| n.eq_ignore_ascii_case(t)) {
             Some(i) => Ok(const_of(values, i)),
             None => match parse_int(t).filter(|_| !t.is_empty()) {
                 Some(n) if values.iter().enumerate().any(|(i, _)| const_of(values, i) == Value::Integer(n)) => Ok(Value::Integer(n)),
-                _ => Err(format!("\"{t}\" is not one of {}", values.join(", "))),
+                _ => Err(tr_ui_fill("\"{text}\" is not one of {values}", &[("text", t), ("values", &values.join(", "))])),
             },
         },
         Kind::Set(values) => match parse_set(values, t) {
             Some(m) => Ok(Value::Integer(m)),
-            None => Err(format!("\"{t}\" is not a set of {}", values.join(", "))),
+            None => Err(tr_ui_fill("\"{text}\" is not a set of {values}", &[("text", t), ("values", &values.join(", "))])),
         },
         Kind::Color => match parse_color(t) {
             Some(c) => Ok(Value::Integer(c)),
-            None => bad("a colour (clRed, &HBBGGRR, #RRGGBB)"),
+            None => Err(tr_ui_fill("\"{text}\" is not a colour (clRed, &HBBGGRR, #RRGGBB)", &[("text", t)])),
         },
         _ => Ok(Value::String(text.to_string().into())),
     }
@@ -428,13 +428,16 @@ pub fn float_text(f: f64) -> String {
     s
 }
 
-/// "3 lines", "1 line", "(none)".
-fn count_text(text: &str, what: &str) -> String {
+/// "3 lines", "1 line", "(none)" (columns: "3 columns" …).
+fn count_text(text: &str, columns: bool) -> String {
     let n = lines(text).len();
-    match n {
-        0 => "(none)".into(),
-        1 => format!("1 {what}"),
-        n => format!("{n} {what}s"),
+    let count = n.to_string();
+    match (n, columns) {
+        (0, _) => tr_ui("(none)"),
+        (1, false) => tr_ui("1 line"),
+        (1, true) => tr_ui("1 column"),
+        (_, false) => tr_ui_fill("{n} lines", &[("n", &count)]),
+        (_, true) => tr_ui_fill("{n} columns", &[("n", &count)]),
     }
 }
 

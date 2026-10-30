@@ -179,7 +179,13 @@ pub fn pseudo(text: &str) -> String {
     let core = out[..out.len() - trailing_ws.len()].to_string();
     let leading_ws: String = core.chars().take_while(|c| c.is_whitespace()).collect();
     let core = &core[leading_ws.len()..];
-    format!("{leading_ws}[{core}{}]{trailing_ws}{tail}", PAD.to_string().repeat(pad))
+    // (a command's "..." stays last, as a translation keeps it: Studio
+    // strips those three dots for tool-bar tips and the palette)
+    let (core, dots) = match core.strip_suffix("...") {
+        Some(c) if !c.is_empty() => (c, "..."),
+        _ => (core, ""),
+    };
+    format!("{leading_ws}[{core}{}]{dots}{trailing_ws}{tail}", PAD.to_string().repeat(pad))
 }
 
 #[cfg(test)]
@@ -197,7 +203,7 @@ mod tests {
 
     #[test]
     fn keeps_what_translations_keep() {
-        assert_eq!(pseudo("&Open Project..."), "[&Oþéñ Þŕöĵéçţ...······]");
+        assert_eq!(pseudo("&Open Project..."), "[&Oþéñ Þŕöĵéçţ······]...");
         assert_eq!(pseudo("Hello, {name}!"), "[Ĥéĺĺö, {name}!·····]");
         assert_eq!(pseudo("Line %1 of %2"), "[Ĺíñé %1 öf %2·····]");
         assert_eq!(pseudo("Use `TR$` here"), "[Ûšé `TR$` ĥéŕé·····]");

@@ -15,6 +15,7 @@ use std::collections::{HashMap, HashSet};
 use rapidr_project::{actual_path, implicit_from_resolver, import_v1, is_v1_json, kind_for_path, kind_for_source, normalize_path, FileKind, Project, ProjectFile};
 
 use super::scan::{self, Comp};
+use crate::i18n::{tr_ui, tr_ui_fill};
 
 /// The project's own node.
 pub const KEY_PROJECT: &str = "@project";
@@ -23,14 +24,14 @@ pub const KEY_PROJECT: &str = "@project";
 pub const KINDS: [FileKind; 6] = [FileKind::Form, FileKind::Module, FileKind::Include, FileKind::Resource, FileKind::Asset, FileKind::Data];
 
 /// A group's title.
-pub fn kind_title(k: FileKind) -> &'static str {
+pub fn kind_title(k: FileKind) -> String {
     match k {
-        FileKind::Form => "Forms",
-        FileKind::Module => "Modules",
-        FileKind::Include => "Includes",
-        FileKind::Resource => "Resources",
-        FileKind::Asset => "Assets",
-        FileKind::Data => "Data",
+        FileKind::Form => tr_ui("Forms"),
+        FileKind::Module => tr_ui("Modules"),
+        FileKind::Include => tr_ui("Includes"),
+        FileKind::Resource => tr_ui("Resources"),
+        FileKind::Asset => tr_ui("Assets"),
+        FileKind::Data => tr_ui("Data"),
     }
 }
 
@@ -471,16 +472,16 @@ impl ProjectTree {
     pub fn validate(&self, old: &str, typed: &str) -> Result<String, String> {
         let t = typed.trim();
         if t.is_empty() {
-            return Err("A file name is needed.".into());
+            return Err(tr_ui("A file name is needed."));
         }
         if t.contains(['/', '\\']) {
-            return Err("A name can't hold / or \\.".into());
+            return Err(tr_ui("A name can't hold / or \\."));
         }
         if t.chars().any(|c| c.is_control() || "<>:\"|?*".contains(c)) {
-            return Err("A name can't hold < > : \" | ? *.".into());
+            return Err(tr_ui("A name can't hold < > : \" | ? *."));
         }
         if t.chars().all(|c| c == '.') {
-            return Err("That isn't a file name.".into());
+            return Err(tr_ui("That isn't a file name."));
         }
         let old_ext = ext_of(name_of(old));
         let name = if ext_of(t).is_empty() && !old_ext.is_empty() { format!("{}.{old_ext}", t.trim_end_matches('.')) } else { t.to_string() };
@@ -489,7 +490,7 @@ impl ProjectTree {
             return Ok(new);
         }
         if self.project.files.iter().any(|f| f.path.eq_ignore_ascii_case(&new) && !f.path.eq_ignore_ascii_case(old)) {
-            return Err(format!("{name} is already in the project."));
+            return Err(tr_ui_fill("{name} is already in the project.", &[("name", &name)]));
         }
         Ok(new)
     }
@@ -675,7 +676,7 @@ impl ProjectTree {
         rows.push(Node {
             kind: NodeKind::Project,
             key: KEY_PROJECT.into(),
-            label: if self.project.name.is_empty() { "Project".into() } else { self.project.name.clone() },
+            label: if self.project.name.is_empty() { tr_ui("Project") } else { self.project.name.clone() },
             level: 0,
             expandable: true,
             expanded: open,
@@ -697,7 +698,7 @@ impl ProjectTree {
             let key = group_key(k);
             let open = self.expanded(&key);
             let at = rows.len();
-            rows.push(Node { kind: NodeKind::Group(k), key, label: kind_title(k).into(), level: 1, expandable: true, expanded: open, main: false, count: Some(files.len()), parent: Some(0) });
+            rows.push(Node { kind: NodeKind::Group(k), key, label: kind_title(k), level: 1, expandable: true, expanded: open, main: false, count: Some(files.len()), parent: Some(0) });
             if open {
                 self.folder_rows(&mut rows, k, "", &files, 2, at);
             }

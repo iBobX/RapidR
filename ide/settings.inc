@@ -64,12 +64,12 @@ DIM SettingsLanguageWas AS STRING
 DIM SettingsFilling AS INTEGER
 
 CREATE SettingsDialog AS RForm
-  Caption = "Settings"
+  Caption = TR$("Settings")
   Width = 600: Height = 560
   BorderStyle = 3
   OnClose = SettingsClosed
   CREATE SettingsTabs AS RTabControl
-    AccessibleName = "Settings pages"
+    AccessibleName = TR$("Settings pages")
     OnChange = SettingsTabChanged
   END CREATE
   ' ---- General ----
@@ -88,213 +88,213 @@ CREATE SettingsDialog AS RForm
       OnChange = SettingsLanguagePicked
     END CREATE
     CREATE IncFoldersLabel AS RLabel
-      Caption = "&Include folders"
+      Caption = TR$("&Include folders")
     END CREATE
     CREATE IncFoldersNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in."
+      Caption = TR$("Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in.")
     END CREATE
     CREATE IncFolders AS RListBox
-      AccessibleName = "Include folders"
+      AccessibleName = TR$("Include folders")
       OnClick = SettingsPicked
     END CREATE
     CREATE IncAdd AS RButton
-      Caption = "&Add Folder..."
-      AccessibleName = "Add an include folder"
+      Caption = TR$("&Add Folder...")
+      AccessibleName = TR$("Add an include folder")
       OnClick = SettingsAddFolder
     END CREATE
     CREATE IncRemove AS RButton
-      Caption = "&Remove"
-      AccessibleName = "Remove the selected include folder"
+      Caption = TR$("&Remove")
+      AccessibleName = TR$("Remove the selected include folder")
       OnClick = SettingsRemoveFolder
     END CREATE
     CREATE SettingsViewsBtn AS RButton
-      Caption = "Themes and &Views..."
-      AccessibleName = "The themes and views, in the command palette"
+      Caption = TR$("Themes and &Views...")
+      AccessibleName = TR$("The themes and views, in the command palette")
       OnClick = SettingsViews
     END CREATE
     ' (S2) the start-up's offer to reopen the last project
     CREATE ReopenBox AS RCheckBox
-      Caption = "&Offer to reopen the last project and its files at start-up"
-      AccessibleDescription = "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
+      Caption = TR$("&Offer to reopen the last project and its files at start-up")
+      AccessibleDescription = TR$("On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it")
     END CREATE
     ' (E) the code's helpers: what the code editor shows beside the code
     CREATE HelpersLabel AS RLabel
-      Caption = "Code &helpers"
+      Caption = TR$("Code &helpers")
     END CREATE
     CREATE HelpersBox AS RComboBox
       Style = 2
-      AccessibleName = "Code helpers"
-      AccessibleDescription = "What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names"
+      AccessibleName = TR$("Code helpers")
+      AccessibleDescription = TR$("What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names")
     END CREATE
     CREATE HelpersNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name."
+      Caption = TR$("Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name.")
     END CREATE
     ' (S6) the PATH the programs run from here get: your login shell's
     CREATE PathLabel AS RLabel
-      Caption = "Programs' &PATH"
+      Caption = TR$("Programs' &PATH")
     END CREATE
     CREATE PathNote AS RLabel
       WordWrap = 1: AutoSize = 0
     END CREATE
     CREATE PathList AS RListBox
-      AccessibleName = "The folders programs run from Studio find commands in, in order"
+      AccessibleName = TR$("The folders programs run from Studio find commands in, in order")
     END CREATE
     CREATE PathRefresh AS RButton
-      Caption = "Re&fresh"
-      AccessibleName = "Read your login shell's PATH again"
+      Caption = TR$("Re&fresh")
+      AccessibleName = TR$("Read your login shell's PATH again")
       OnClick = SettingsPathRefresh
     END CREATE
     ' (S9: the debugging layout — debug.inc)
     CREATE DebugPanesLabel AS RLabel
-      Caption = "&Debug panes"
+      Caption = TR$("&Debug panes")
     END CREATE
     CREATE DebugPanesBox AS RComboBox
       Style = 2
-      AccessibleName = "Debug panes"
+      AccessibleName = TR$("Debug panes")
     END CREATE
     CREATE DebugPanesNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
+      Caption = TR$("Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them.")
     END CREATE
   END CREATE
   ' ---- AI ----
   CREATE AIPage AS RPanel
     BevelOuter = 0
-    AccessibleName = "AI"
+    AccessibleName = TR$("AI")
     CREATE AIOnBox AS RCheckBox
-      Caption = "&Turn on the AI assistant"
+      Caption = TR$("&Turn on the AI assistant")
     END CREATE
     ' (R6: the guided way — free on this computer, or a cloud key)
     CREATE AISetupBtn AS RButton
-      Caption = "Set &Up RAI..."
-      AccessibleName = "Set up RAI, step by step"
-      AccessibleDescription = "Free on this computer, or a cloud service with your key: what each costs and sends, in plain words"
+      Caption = TR$("Set &Up RAI...")
+      AccessibleName = TR$("Set up RAI, step by step")
+      AccessibleDescription = TR$("Free on this computer, or a cloud service with your key: what each costs and sends, in plain words")
       OnClick = SettingsSetupClick
     END CREATE
     CREATE AIOnNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      Caption = "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
+      Caption = TR$("Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run.")
     END CREATE
     CREATE AIProvLabel AS RLabel
-      Caption = "&Provider:"
+      Caption = TR$("&Provider:")
     END CREATE
     CREATE AIProvBox AS RComboBox
       Style = 2
-      AccessibleName = "AI provider"
+      AccessibleName = TR$("AI provider")
       OnChange = AISetProviderPicked
     END CREATE
     CREATE AIPricesLink AS RLabel
-      Caption = "See prices"
+      Caption = TR$("See prices")
       Cursor = -21
-      AccessibleName = "The provider's prices, in the browser"
+      AccessibleName = TR$("The provider's prices, in the browser")
       OnClick = AISetPricesClick
     END CREATE
     CREATE AIKeyLabel AS RLabel
-      Caption = "API &key:"
+      Caption = TR$("API &key:")
     END CREATE
     CREATE AIKeyEdit AS REdit
       PasswordChar = "*"
-      AccessibleName = "API key"
-      AccessibleDescription = "Paste the key the provider gave you; it is kept in your system's keychain, never in a project"
+      AccessibleName = TR$("API key")
+      AccessibleDescription = TR$("Paste the key the provider gave you; it is kept in your system's keychain, never in a project")
     END CREATE
     CREATE AIKeySaveBtn AS RButton
-      Caption = "&Save Key"
-      AccessibleName = "Keep the API key"
+      Caption = TR$("&Save Key")
+      AccessibleName = TR$("Keep the API key")
       OnClick = AISetKeySave
     END CREATE
     CREATE AIKeyRemoveBtn AS RButton
-      Caption = "Remo&ve"
-      AccessibleName = "Remove the API key"
+      Caption = TR$("Remo&ve")
+      AccessibleName = TR$("Remove the API key")
       OnClick = AISetKeyRemove
     END CREATE
     CREATE AIKeyNote AS RLabel
       WordWrap = 1: AutoSize = 0
     END CREATE
     CREATE AIRemember AS RCheckBox
-      Caption = "R&emember on this device"
-      AccessibleDescription = "Kept in this browser's storage for the page: anyone using this browser profile could read it"
+      Caption = TR$("R&emember on this device")
+      AccessibleDescription = TR$("Kept in this browser's storage for the page: anyone using this browser profile could read it")
     END CREATE
     CREATE AIWsLabel AS RLabel
-      Caption = "&Workspace ID:"
+      Caption = TR$("&Workspace ID:")
     END CREATE
     CREATE AIWsEdit AS REdit
-      AccessibleName = "Anthropic workspace ID (optional)"
+      AccessibleName = TR$("Anthropic workspace ID (optional)")
     END CREATE
     CREATE AIBaseLabel AS RLabel
-      Caption = "&Base URL:"
+      Caption = TR$("&Base URL:")
     END CREATE
     CREATE AIBaseBox AS RComboBox
-      AccessibleName = "The server's base URL"
+      AccessibleName = TR$("The server's base URL")
     END CREATE
     CREATE AIModelLabel AS RLabel
-      Caption = "&Model:"
+      Caption = TR$("&Model:")
     END CREATE
     CREATE AIModelCombo AS RComboBox
-      AccessibleName = "Model"
+      AccessibleName = TR$("Model")
     END CREATE
     CREATE AIFetchBtn AS RButton
-      Caption = "&Fetch Models"
-      AccessibleName = "Ask the provider which models your key can use"
+      Caption = TR$("&Fetch Models")
+      AccessibleName = TR$("Ask the provider which models your key can use")
       OnClick = AISetFetch
     END CREATE
     ' (what Fetch Models found, or why it couldn't: under the list it fills)
     CREATE AIFetchNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      AccessibleName = "Fetch Models' result"
+      AccessibleName = TR$("Fetch Models' result")
     END CREATE
     CREATE AIMaxLabel AS RLabel
-      Caption = "Longest &answer:"
+      Caption = TR$("Longest &answer:")
     END CREATE
     CREATE AIMaxEdit AS REdit
-      AccessibleName = "Longest answer, in tokens a part"
+      AccessibleName = TR$("Longest answer, in tokens a part")
     END CREATE
     CREATE AIMaxUnit AS RLabel
-      Caption = "tokens a part, up to the model's limit"
+      Caption = TR$("tokens a part, up to the model's limit")
     END CREATE
     ' (in plain words: what happens past that length, and when the chat is
     ' summarised)
     CREATE AIMaxNote AS RLabel
       WordWrap = 1: AutoSize = 0
-      AccessibleName = "About the answer's length and the chat's size"
+      AccessibleName = TR$("About the answer's length and the chat's size")
     END CREATE
     CREATE AIPriceLabel AS RLabel
-      Caption = "&Prices:"
+      Caption = TR$("&Prices:")
     END CREATE
     CREATE AIPriceInEdit AS REdit
-      AccessibleName = "Price of a million tokens sent, in dollars (optional)"
+      AccessibleName = TR$("Price of a million tokens sent, in dollars (optional)")
     END CREATE
     CREATE AIPriceOutEdit AS REdit
-      AccessibleName = "Price of a million tokens received, in dollars (optional)"
+      AccessibleName = TR$("Price of a million tokens received, in dollars (optional)")
     END CREATE
     CREATE AIPriceUnit AS RLabel
-      Caption = "$ per million tokens sent / received"
+      Caption = TR$("$ per million tokens sent / received")
     END CREATE
     CREATE AIPermLabel AS RLabel
-      Caption = "&It may:"
+      Caption = TR$("&It may:")
     END CREATE
     CREATE AIPermBox AS RComboBox
       Style = 2
-      AccessibleName = "What the assistant may do"
+      AccessibleName = TR$("What the assistant may do")
     END CREATE
     CREATE AIReviewBox AS RCheckBox
-      Caption = "Ask before the assistant &creates or changes files"
-      AccessibleDescription = "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
+      Caption = TR$("Ask before the assistant &creates or changes files")
+      AccessibleDescription = TR$("On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo.")
     END CREATE
     CREATE AISetLinks AS RMarkdownView
       OpenLinks = 1
-      AccessibleName = "The provider's links"
+      AccessibleName = TR$("The provider's links")
       OnLinkClick = AISetLink
     END CREATE
   END CREATE
   CREATE SettingsOkBtn AS RButton
-    Caption = "OK"
+    Caption = TR$("OK")
     Default = 1
     OnClick = SettingsOk
   END CREATE
   CREATE SettingsNo AS RButton
-    Caption = "Cancel"
+    Caption = TR$("Cancel")
     Cancel = 1
     OnClick = SettingsCancel
   END CREATE
@@ -523,7 +523,7 @@ END SUB
 
 SUB SettingsAddFolder
   DIM i AS INTEGER, f AS STRING
-  OpenDlg.Caption = "Add an Include Folder"
+  OpenDlg.Caption = TR$("Add an Include Folder")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute THEN f = OpenDlg.FileName
   OpenDlg.PickFolder = 0
@@ -545,7 +545,7 @@ END SUB
 
 SUB SettingsViews
   SettingsDialog.Close
-  ShowPalette "View: "
+  ShowPalette PaletteCategory("View") + ": "
 END SUB
 
 SUB SettingsOk
@@ -587,7 +587,7 @@ SUB SettingsFillPath
   PathLabel.Visible = shown: PathNote.Visible = shown: PathList.Visible = shown: PathRefresh.Visible = shown
   PathList.Clear
   IF shown = 0 THEN EXIT SUB
-  PathNote.Caption = "Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. " + Session.ShellPathSource
+  PathNote.Caption = TR$("Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. {source}", "source", Session.ShellPathSource)
   n = TALLY(p, ":") + 1
   FOR i = 1 TO n
     IF FIELD$(p, ":", i) <> "" THEN PathList.AddItems FIELD$(p, ":", i)
@@ -600,7 +600,7 @@ SUB SettingsPathRefresh
   Session.RefreshShellPath
   SettingsFillPath
   LayOutSettingsDialog
-  OutputLine "Programs' PATH read again. " + Session.ShellPathSource
+  OutputLine TR$("Programs' PATH read again. {source}", "source", Session.ShellPathSource)
 END SUB
 
 ' (nothing of the AI tab reaches the assistant: its own RAI is dropped)
@@ -661,7 +661,7 @@ END SUB
 ' (Studio's language changed) Settings' own lists, made in the language
 ' before, made again — what is chosen in them kept — and its tabs named.
 SUB SettingsLanguageChanged
-  DIM h AS INTEGER, d AS INTEGER
+  DIM h AS INTEGER, d AS INTEGER, p AS INTEGER
   SettingsTabs.Tab(0) = TR$("General")
   SettingsTabs.Tab(1) = TR$("AI")
   h = HelpersBox.ItemIndex
@@ -679,6 +679,19 @@ SUB SettingsLanguageChanged
     DebugPanesBox.AddItems TR$("Automatic"), TR$("Always"), TR$("Never")
     DebugPanesBox.ItemIndex = d
   END IF
+  p = AIPermBox.ItemIndex
+  IF AIPermBox.ItemCount > 0 THEN
+    AIPermBox.Clear
+    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
+    AIPermBox.ItemIndex = p
+  END IF
+  ' (the AI tab's notes made with values and the provider's links, while
+  ' the dialog is open: each time it opens they are made again)
+  IF SettingsDialog.Visible THEN
+    AIMaxNoteFill
+    AISetKeyNote
+    AISetLinksFill
+  END IF
   SettingsFillLanguages
   LayOutSettingsDialog
 END SUB
@@ -688,9 +701,9 @@ END SUB
 SUB SetIncludeFolders(Folders AS STRING)
   Proj.IncludeFolders = Folders
   IF Folders = "" THEN
-    OutputLine "Include folders: none ($INCLUDE looks in the program's folder)"
+    OutputLine TR$("Include folders: none ($INCLUDE looks in the program's folder)")
   ELSE
-    OutputLine "Include folders: " + REPLACESUBSTR$(Folders, CHR$(10), ", ")
+    OutputLine TR$("Include folders: {folders}", "folders", REPLACESUBSTR$(Folders, CHR$(10), ", "))
   END IF
   IF ProjectOpen THEN FillProblemsOf ProjectMain
 END SUB
@@ -737,12 +750,12 @@ END SUB
 ' window to where RAI compacts it)
 SUB AIMaxNoteFill
   DIM at AS INTEGER, txt AS STRING
-  txt = "An answer that reaches this length goes on by itself, in up to " + LTRIM$(STR$(AI.MaxParts)) + " parts. "
+  txt = TR$("An answer that reaches this length goes on by itself, in up to {parts} parts.", "parts", AI.MaxParts) + " "
   at = AI.ContextLimit
   IF at > 0 THEN
-    txt = txt + "The chat is summarised, keeping your request word for word, when it holds about " + AIThousands(at) + " tokens (70% of this model's window)."
+    txt = txt + TR$("The chat is summarised, keeping your request word for word, when it holds about {tokens} tokens (70% of this model's window).", "tokens", AIThousands(at))
   ELSE
-    txt = txt + "The chat is summarised, keeping your request word for word, when it fills 70% of the model's window."
+    txt = txt + TR$("The chat is summarised, keeping your request word for word, when it fills 70% of the model's window.")
   END IF
   AIMaxNote.Caption = txt
 END SUB
@@ -760,7 +773,7 @@ SUB AISettingsFill
       line = FIELD$(all, CHR$(10), i)
       IF line <> "" THEN AIBaseBox.AddItems FIELD$(line, CHR$(9), 2)
     NEXT
-    AIPermBox.AddItems "Read the project, propose changes you review", "Only read the project and answer"
+    AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
   END IF
   ' (a list still coming from the last time the tab was open: not waited
   ' for; a key typed then and not kept: forgotten)
@@ -796,10 +809,20 @@ SUB AISetTakeRows
   IF AISetProv = "anthropic" THEN SetAI.WorkspaceID = LTRIM$(RTRIM$(AIWsEdit.Text)) ELSE SetAI.WorkspaceID = ""
 END SUB
 
+' (the provider's own pages, and what was sent: under the rows)
+SUB AISetLinksFill
+  DIM links AS STRING
+  ' (the provider's own pages; what was sent)
+  IF SetAI.KeysURL <> "" THEN links = "[" + TR$("Get a key") + "](" + SetAI.KeysURL + ") · "
+  links = links + "[" + TR$("What was sent") + "](#sent)" + CHR$(10) + CHR$(10)
+  links = links + TR$("Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer.")
+  AISetLinks.Text = links
+END SUB
+
 ' The rows for the provider shown: its key, its workspace or URL, its
 ' models, its links.
 SUB AISettingsProvider
-  DIM links AS STRING, web AS INTEGER
+  DIM web AS INTEGER
   web = Flag(Proj.FileManager = "")
   AISetTakeRows
   ' (a compatible server's address: the one kept, else the provider's own)
@@ -820,11 +843,7 @@ SUB AISettingsProvider
   LayOutSettingsDialog
   AISetFillModels AIModelOf(AISetProv)
   AIPricesLink.Visible = Flag(SetAI.PricingURL <> "")
-  ' (the provider's own pages; what was sent)
-  IF SetAI.KeysURL <> "" THEN links = "[Get a key](" + SetAI.KeysURL + ") · "
-  links = links + "[What was sent](#sent)" + CHR$(10) + CHR$(10)
-  links = links + "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
-  AISetLinks.Text = links
+  AISetLinksFill
 END SUB
 
 ' (where the shown provider's key is: never the key, its last four
@@ -833,17 +852,17 @@ SUB AISetKeyNote
   DIM keyNote AS STRING, web AS INTEGER
   web = Flag(Proj.FileManager = "")
   IF SetAI.NeedsKey = 0 THEN
-    keyNote = "A local server needs no key (one is kept if you give it: some servers ask for one)."
+    keyNote = TR$("A local server needs no key (one is kept if you give it: some servers ask for one).")
   ELSEIF SetAI.HasKey THEN
     SELECT CASE SetAI.KeySource
-      CASE "environment": keyNote = "Using the key in " + SetAI.KeyEnv + " (" + SetAI.KeyHint + "). A key saved here goes first."
-      CASE "program": keyNote = "Trying the key you typed (" + SetAI.KeyHint + "): OK or Save Key keeps it."
-      CASE ELSE: keyNote = "Your key " + SetAI.KeyHint + " is kept in " + SetAI.KeyStore + ", never in a project."
+      CASE "environment": keyNote = TR$("Using the key in {env} ({hint}). A key saved here goes first.", "env", SetAI.KeyEnv, "hint", SetAI.KeyHint)
+      CASE "program": keyNote = TR$("Trying the key you typed ({hint}): OK or Save Key keeps it.", "hint", SetAI.KeyHint)
+      CASE ELSE: keyNote = TR$("Your key {hint} is kept in {store}, never in a project.", "hint", SetAI.KeyHint, "store", SetAI.KeyStore)
     END SELECT
   ELSEIF web THEN
-    keyNote = "Paste your key and press Save Key: it is kept in " + SetAI.KeyStore + " (or on this device, if you tick the box), never in a project."
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.", "store", SetAI.KeyStore)
   ELSE
-    keyNote = "Paste your key and press Save Key: it is kept in " + SetAI.KeyStore + ", never in a project."
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store}, never in a project.", "store", SetAI.KeyStore)
   END IF
   AIKeyNote.Caption = keyNote
   AIKeyNoteH = AISetLinesHigh(keyNote, AIKeyNote.Width)
@@ -933,13 +952,13 @@ SUB AISetFetch
   SetAI.APIKey = key
   IF key <> "" THEN AISetKeyNote
   IF SetAI.NeedsKey AND SetAI.HasKey = 0 THEN
-    AISetNote "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
+    AISetNote TR$("Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one).")
     AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
     AIKeyEdit.SetFocus
     EXIT SUB
   END IF
   AIFetchBtn.Enabled = 0
-  AISetNote "Asking " + AIProvNames(AIProvBox.ItemIndex) + " for its models..."
+  AISetNote TR$("Asking {provider} for its models...", "provider", AIProvNames(AIProvBox.ItemIndex))
   AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
   IF SetAI.RefreshModels = 0 THEN AISetError SetAI.Error
 END SUB
@@ -954,11 +973,11 @@ SUB AISetModelsIn(Count AS INTEGER)
   IF keep = "" THEN keep = AIModelOf(AISetProv)
   AISetFillModels keep
   IF Count = 0 THEN
-    AISetNote SetAI.Status + " None this key can chat with: check the key, or the server's models."
+    AISetNote TR$("{status} None this key can chat with: check the key, or the server's models.", "status", SetAI.Status)
   ELSEIF AIModelCombo.ItemIndex < 0 THEN
-    AISetNote SetAI.Status + " Choose one in the Model list (the fast, low-cost ones are first)."
+    AISetNote TR$("{status} Choose one in the Model list (the fast, low-cost ones are first).", "status", SetAI.Status)
   ELSE
-    AISetNote SetAI.Status + " " + AIModelId(AIModelCombo.Text) + " is still chosen."
+    AISetNote TR$("{status} {model} is still chosen.", "status", SetAI.Status, "model", AIModelId(AIModelCombo.Text))
   END IF
   AIFetchBtn.AccessibleDescription = AIFetchNote.Caption
   ' (the next thing to do: choose a model — a screen reader reads the list)

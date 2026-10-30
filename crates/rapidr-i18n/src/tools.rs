@@ -59,6 +59,25 @@ pub fn template(project: &str, sources: &[(String, String)], extra: &[Keyword]) 
     out
 }
 
+/// A template of RapidR's own text from Rust sources (file name, text):
+/// every `tr_ui` / `tr_ui_fill` ([`extract::extract_rust`]).
+pub fn rust_template(project: &str, sources: &[(String, String)]) -> Vec<Message> {
+    let mut out: Vec<Message> = vec![header(project, "", "")];
+    for (file, text) in sources {
+        for f in extract::extract_rust(text, file) {
+            match out.iter_mut().find(|m| !m.is_header() && m.id == f.id) {
+                Some(m) => {
+                    if !m.refs.contains(&f.file) {
+                        m.refs.push(f.file);
+                    }
+                }
+                None => out.push(Message { id: f.id, refs: vec![f.file], ..Default::default() }),
+            }
+        }
+    }
+    out
+}
+
 /// The pseudo-language's catalog (`xx.po`) for a template: every text in
 /// it ([`pseudo::pseudo`]).
 pub fn pseudo_catalog(template: &[Message], project: &str) -> Vec<Message> {

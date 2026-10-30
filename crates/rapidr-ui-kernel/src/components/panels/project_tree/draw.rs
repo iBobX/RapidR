@@ -4,6 +4,7 @@
 //! one (± boxes, a full-row highlight) — every colour from the theme
 //! (`common::look`).
 
+use rapidr_value::i18n::{fill, tr_ui};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -50,7 +51,7 @@ pub(super) fn paint(cx: &mut Cx, p: &mut Painter) {
     if !m.loaded {
         // (EmptyText: what to do, the program's — "No project" else)
         let empty = crate::store::string(cx.store, cx.id, "emptytext");
-        let text = if empty.trim().is_empty() { "No project".to_string() } else { empty };
+        let text = if empty.trim().is_empty() { tr_ui("No project") } else { empty };
         common::wrapped_center(p, (g.area.0 + 12, g.area.1 + 12, (g.area.2 - 24).max(0), g.area.3), &text, &font, l.dim);
         return;
     }
@@ -181,8 +182,9 @@ fn row(p: &mut Painter, g: &Geo, l: &Look, m: &Model, n: &Node, r: Rect, ink: u3
         room = pill.0 - 6 - tx;
     } else if n.main {
         let small = smaller(font);
-        let (mw, _) = text_size("main", &small);
-        p.text((right - mw, y, mw, h), "main", &small, dim, Place::Left);
+        let main = tr_ui("main");
+        let (mw, _) = text_size(&main, &small);
+        p.text((right - mw, y, mw, h), &main, &small, dim, Place::Left);
         room = right - mw - 8 - tx;
     }
     match &n.kind {
@@ -274,15 +276,17 @@ fn confirm_strip(p: &mut Painter, l: &Look, strip: Rect, c: &rapidr_value::panel
     }
     common::icon(p, "warning", x + 10, y + 11, 16, None, false);
     let name = model::name_of(&c.path);
-    let text = format!("Remove {name} from the project?");
-    let start = "Remove ".chars().count();
-    let marks: Vec<usize> = (start..start + name.chars().count()).collect();
+    // (the file's name marked wherever the language puts it)
+    let template = tr_ui("Remove {name} from the project?");
+    let text = fill(&template, |n| (n == "name").then(|| name.to_string()));
+    let start = template.find("{name}").map(|i| template[..i].chars().count());
+    let marks: Vec<usize> = start.map(|s| (s..s + name.chars().count()).collect()).unwrap_or_default();
     common::marked_text(p, (x + 32, y + 6, w - 42, 26), &text, &marks, font, l.text, l.text);
     let _ = h;
     for (b, rect) in strip_buttons(strip, font).into_iter().enumerate() {
-        let title = if b == 0 { "Remove" } else { "Cancel" };
+        let title = if b == 0 { tr_ui("Remove") } else { tr_ui("Cancel") };
         let (pressed, hover, has) = (c.pressed == Some(b) && c.hover == Some(b), c.hover == Some(b), focused && c.focus == b);
-        button(p, l, rect, title, b == 0, pressed, hover, has, font);
+        button(p, l, rect, &title, b == 0, pressed, hover, has, font);
     }
 }
 

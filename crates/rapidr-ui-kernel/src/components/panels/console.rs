@@ -27,6 +27,7 @@
 //! match, Shift+F3 the previous, Escape clears the search,
 //! Ctrl+Page Up / Down the pages.
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, TextInfo, TextPos, TextRun, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
 use rapidr_value::objects::font::Font;
@@ -108,7 +109,7 @@ fn tab_rects(strip: Rect, font: &Font) -> Vec<Rect> {
     Page::ALL
         .iter()
         .map(|p| {
-            let (tw, _) = text_size(p.title(), font);
+            let (tw, _) = text_size(&p.title(), font);
             let r = (at, y, tw + 20, h);
             at += r.2 + 2;
             r
@@ -337,7 +338,8 @@ impl Console {
 
     fn paint_strip(cx: &mut Cx, p: &mut Painter, g: &Geo, s: &Snapshot, l: &Look) {
         let Some(strip) = g.strip else { return };
-        let titles: Vec<&str> = Page::ALL.iter().map(|p| p.title()).collect();
+        let owned: Vec<String> = Page::ALL.iter().map(|p| p.title()).collect();
+        let titles: Vec<&str> = owned.iter().map(String::as_str).collect();
         let tabs = common::tabs(p, strip, l, &titles, s.page.index(), s.hover_tab, &chrome(cx));
         // (the problems' count after their tab's title)
         if let (Some((n, sev)), Some(&tab)) = (s.badge, tabs.get(Page::Problems.index())) {
@@ -347,7 +349,7 @@ impl Console {
             let (bw, bh) = ((tw + 8).max(th + 2), th + 2);
             // (clear of the title, drawn bold while its page shows)
             let title_font = Font { styles: chrome(cx).styles | u8::from(s.page == Page::Problems && !l.classic), ..chrome(cx) };
-            let (title_w, _) = text_size(Page::Problems.title(), &title_font);
+            let (title_w, _) = text_size(&Page::Problems.title(), &title_font);
             let x = (tab.0 + tab.2 - 5).max(tab.0 + (tab.2 + title_w) / 2 + 3);
             let r = (x, strip.1 + (strip.3 - bh) / 2, bw, bh);
             let color = match sev {
@@ -370,13 +372,13 @@ impl Console {
                 common::search_box(p, sr, l, "", "", focused, &chrome(cx));
                 crate::components::edit::paint_line(cx, p, list::editor_area(editor_rect(sr)), crate::components::edit::Source::InPlace);
             } else {
-                common::search_box(p, sr, l, &s.filter, "Search", false, &chrome(cx));
+                common::search_box(p, sr, l, &s.filter, &tr_ui("Search"), false, &chrome(cx));
             }
             if !s.found.is_empty() {
                 let (tw, _) = text_size(&s.found, &chrome(cx));
                 let x = sr.0 - 8 - tw;
                 if tabs.last().is_none_or(|t| x > t.0 + t.2 + 24) {
-                    let color = if s.found == "No results" { l.error } else { l.dim };
+                    let color = if s.found == tr_ui("No results") { l.error } else { l.dim };
                     p.text((x, strip.1, tw + 2, strip.3), &s.found, &chrome(cx), color, Place::Left);
                 }
             }
@@ -514,7 +516,7 @@ impl Console {
         let (bx, by, _, bh) = g.body;
         let focused = cx.state.focused && editing(cx.id).is_none();
         if s.count == 0 {
-            p.text((bx, by, cw, bh.min(rows::ROW * 3)), "No problems", &chrome(cx), l.dim, Place::Center);
+            p.text((bx, by, cw, bh.min(rows::ROW * 3)), &tr_ui("No problems"), &chrome(cx), l.dim, Place::Center);
             return;
         }
         let font = &g.chrome;
@@ -1211,7 +1213,7 @@ impl ComponentKind for Console {
         n.states.multiline = false;
         n.states.read_only = false;
         if n.name.is_empty() {
-            n.name = "Output".into();
+            n.name = tr_ui("Output");
         }
         let g = geo(cx);
         let (x0, y0) = (cx.rect.0, cx.rect.1);
@@ -1220,16 +1222,26 @@ impl ComponentKind for Console {
         let editing_now = editing(cx.id).is_some();
         if show_tabs {
             let mut list = AccessNode::new(part_id(cx.id, PART_TAB, A11Y_TABLIST), Role::TabList);
-            list.name = "Pages".into();
+            list.name = tr_ui("Pages");
             if let Some(strip) = g.strip {
                 list.bounds = at(strip);
             }
             for (i, p) in Page::ALL.iter().enumerate() {
                 let mut t = AccessNode::new(part_id(cx.id, PART_TAB, i), Role::Tab);
-                t.name = p.title().into();
+                t.name = p.title();
                 if *p == Page::Problems {
                     if let Some((count, sev)) = badge {
-                        t.name = format!("Problems ({count} {}{})", sev.name(), if count == 1 { "" } else { "s" });
+                        // (a whole sentence per kind and number)
+                        let shown = count.to_string();
+                        let n = [("count", shown.as_str())];
+                        t.name = match (sev, count == 1) {
+                            (Severity::Error, true) => tr_ui_fill("Problems ({count} error)", &n),
+                            (Severity::Error, false) => tr_ui_fill("Problems ({count} errors)", &n),
+                            (Severity::Warning, true) => tr_ui_fill("Problems ({count} warning)", &n),
+                            (Severity::Warning, false) => tr_ui_fill("Problems ({count} warnings)", &n),
+                            (Severity::Info, true) => tr_ui_fill("Problems ({count} info)", &n),
+                            (Severity::Info, false) => tr_ui_fill("Problems ({count} infos)", &n),
+                        };
                     }
                 }
                 t.states.selected = Some(*p == page);
@@ -1242,7 +1254,7 @@ impl ComponentKind for Console {
             n.children.push(list);
             if let Some(sr) = g.search {
                 let mut s = AccessNode::new(part_id(cx.id, PART_EDITOR, A11Y_SEARCH), Role::TextInput);
-                s.name = "Search".into();
+                s.name = tr_ui("Search");
                 s.value = Some(filter);
                 s.description = found;
                 s.states.focused = editing_now;
@@ -1257,7 +1269,7 @@ impl ComponentKind for Console {
         let (pos, _, _, f) = Self::scroll(cx, &g);
         if page == Page::Problems {
             let mut lb = AccessNode::new(part_id(cx.id, PART_ROW, A11Y_PROBLEMS), Role::ListBox);
-            lb.name = "Problems".into();
+            lb.name = tr_ui("Problems");
             lb.bounds = at(g.body);
             lb.states.focused = !editing_now;
             let (problems, caret) = model::with(cx.id, |c| (c.problems.clone(), c.view().caret)).unwrap_or_default();
@@ -1274,7 +1286,7 @@ impl ComponentKind for Console {
             n.children.push(lb);
         } else {
             let mut t = AccessNode::new(part_id(cx.id, PART_ROW, A11Y_TEXT), Role::MultilineTextInput);
-            t.name = page.title().into();
+            t.name = page.title();
             t.states.read_only = true;
             t.states.multiline = true;
             t.states.focused = !editing_now;

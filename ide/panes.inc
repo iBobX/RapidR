@@ -18,14 +18,33 @@
 '   HelpPane      "Help"        with Properties   F1             (search.inc)
 
 SUB SetUpDock
-  Dock.AddPane(ProjectTree, "Project", "left", "explorer")
-  Dock.AddPane(Toolbox, "Toolbox", "bottom:projecttree", "toolbox")
-  Dock.AddPane(Inspector, "Properties", "right", "properties")
-  Dock.AddPane(OutlineTree, "Outline", "bottom:inspector", "outline")
-  Dock.AddPane(OutputBox, "Output", "bottom:documents", "output")
-  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "immediate")
-  Dock.AddPane(Welcome, "Welcome", "documents", "list")
+  Dock.AddPane(ProjectTree, TR$("Project"), "left", "explorer")
+  Dock.AddPane(Toolbox, TR$("Toolbox"), "bottom:projecttree", "toolbox")
+  Dock.AddPane(Inspector, TR$("Properties"), "right", "properties")
+  Dock.AddPane(OutlineTree, TR$("Outline"), "bottom:inspector", "outline")
+  Dock.AddPane(OutputBox, TR$("Output"), "bottom:documents", "output")
+  Dock.AddPane(ImmediateBox, TR$("Immediate"), "tab:outputbox", "immediate")
+  Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
   Dock.ShowPane("outputbox")
+END SUB
+
+' (Studio's language changed) The panes' titles, made in the language
+' before, made again; and the start page's texts made with values (the
+' cards' names for a screen reader, the offer to reopen), which a change of
+' language does not reach by itself.
+SUB PanesLanguageChanged
+  DIM k AS INTEGER
+  Dock.PaneTitle("projecttree", TR$("Project"))
+  Dock.PaneTitle("toolbox", TR$("Toolbox"))
+  Dock.PaneTitle("inspector", TR$("Properties"))
+  Dock.PaneTitle("outlinetree", TR$("Outline"))
+  Dock.PaneTitle("outputbox", TR$("Output"))
+  Dock.PaneTitle("immediatebox", TR$("Immediate"))
+  IF Dock.PaneState("welcome") <> "" THEN Dock.PaneTitle("welcome", TR$("Welcome"))
+  FOR k = 0 TO ExampleCount - 1
+    ExCard(k).AccessibleName = TR$("Example {name}: {what}", "name", BaseName(ExampleFile(k)), "what", TR$(ExampleWhat(k)))
+  NEXT
+  IF StartShift > 0 AND ReopenPath <> "" THEN ReopenTexts
 END SUB
 
 ' ---- the start page ----------------------------------------------------------------
@@ -71,7 +90,7 @@ SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartRow(k).BevelOuter = 0
   StartRow(k).Tag = k + 1
   StartRow(k).Cursor = -21
-  StartRow(k).AccessibleName = Caption
+  StartRow(k).AccessibleName = TR$(Caption)
   StartRow(k).OnClick = StartRowPicked
   StartRow(k).TabStop = 1
   StartIcon(k).Parent = StartRow(k)
@@ -79,7 +98,7 @@ SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartIconName(k) = Icon
   StartLink(k).Parent = StartRow(k)
   StartLink(k).Left = 30: StartLink(k).Top = 2: StartLink(k).Width = 200: StartLink(k).Height = 20
-  StartLink(k).Caption = Caption
+  StartLink(k).Caption = TR$(Caption)
   StartLink(k).Cursor = -21
   StartLink(k).Tag = k + 1
   StartLink(k).OnClick = WelcomeLink
@@ -95,7 +114,7 @@ SUB AddExample(File AS STRING, What AS STRING)
   ExCard(i).BevelOuter = 0
   ExCard(i).Tag = i
   ExCard(i).Cursor = -21
-  ExCard(i).AccessibleName = "Example " + BaseName(File) + ": " + What
+  ExCard(i).AccessibleName = TR$("Example {name}: {what}", "name", BaseName(File), "what", TR$(What))
   ExCard(i).OnClick = CardPicked
   ' (Tab reaches each card, Enter or Space opens it)
   ExCard(i).TabStop = 1
@@ -108,7 +127,7 @@ SUB AddExample(File AS STRING, What AS STRING)
   ExTitle(i).OnClick = CardLabelPicked
   ExText(i).Parent = ExCard(i)
   ExText(i).Left = 48: ExText(i).Top = 32: ExText(i).Width = 168: ExText(i).Height = 18
-  ExText(i).Caption = What
+  ExText(i).Caption = TR$(What)
   ExText(i).Tag = i
   ExText(i).OnClick = CardLabelPicked
   ExampleCount = ExampleCount + 1
@@ -318,7 +337,7 @@ SUB FillRecent
     IF i <= n THEN
       p = FIELD$(RecentList, CHR$(10), i)
       folder = LEFT$(p, RINSTR(REPLACESUBSTR$(p, "\", "/"), "/") - 1)
-      Palette.AddCommand "recent:" + LTRIM$(STR$(i)), FileTitle(p) + " - " + ShortPath(folder), "", "Open Recent", "nav.history"
+      Palette.AddCommand "recent:" + LTRIM$(STR$(i)), FileTitle(p) + " - " + ShortPath(folder), "", TR$("Open Recent"), "nav.history"
     END IF
   NEXT
   IF n > 6 THEN n = 6
@@ -367,15 +386,27 @@ SUB PlaceStart
   FillRecent
 END SUB
 
+' (the offer's two lines and its name for a screen reader: made with the
+' project's name and how many files were open; again when the language
+' changes)
+SUB ReopenTexts
+  DIM n AS INTEGER
+  n = TALLY(SessionFiles, CHR$(10))
+  ReopenTitle.Caption = TR$("Reopen {name}", "name", BaseName(ReopenPath))
+  IF n >= 1 THEN
+    ReopenText.Caption = TRN$("and the file you had open", "and the {n} files you had open", n)
+  ELSE
+    ReopenText.Caption = TR$("where you left it")
+  END IF
+  ReopenRow.AccessibleName = TR$("{title}, {text}", "title", ReopenTitle.Caption, "text", ReopenText.Caption)
+END SUB
+
 ' (S2) The offer to reopen the last project and its files, at start-up:
 ' a card at the top of Start — Enter, Space or a click reopens it; the
 ' keyboard starts on it.
 SUB ShowReopen
-  DIM n AS INTEGER, name AS STRING
   ReopenPath = ReopenCandidate
   IF ReopenPath = "" THEN EXIT SUB
-  n = TALLY(SessionFiles, CHR$(10))
-  name = BaseName(ReopenPath)
   ReopenRow.Parent = WelcomePage
   ReopenRow.Left = 44: ReopenRow.Top = 164: ReopenRow.Width = 234: ReopenRow.Height = 52
   ReopenRow.BevelOuter = 0
@@ -386,21 +417,13 @@ SUB ShowReopen
   ReopenIcon.Left = 12: ReopenIcon.Top = 14: ReopenIcon.Width = 24: ReopenIcon.Height = 24
   ReopenTitle.Parent = ReopenRow
   ReopenTitle.Left = 46: ReopenTitle.Top = 8: ReopenTitle.Width = 180: ReopenTitle.Height = 18
-  ReopenTitle.Caption = "Reopen " + name
   ReopenTitle.Cursor = -21
   ReopenTitle.OnClick = ReopenLabelPicked
   ReopenText.Parent = ReopenRow
   ReopenText.Left = 46: ReopenText.Top = 28: ReopenText.Width = 180: ReopenText.Height = 18
-  IF n = 1 THEN
-    ReopenText.Caption = "and the file you had open"
-  ELSEIF n > 1 THEN
-    ReopenText.Caption = "and the " + LTRIM$(STR$(n)) + " files you had open"
-  ELSE
-    ReopenText.Caption = "where you left it"
-  END IF
   ReopenText.Cursor = -21
   ReopenText.OnClick = ReopenLabelPicked
-  ReopenRow.AccessibleName = ReopenTitle.Caption + ", " + ReopenText.Caption
+  ReopenTexts
   ReopenRow.Hint = ReopenPath
   ReopenRow.Visible = 1
   StartShift = 60

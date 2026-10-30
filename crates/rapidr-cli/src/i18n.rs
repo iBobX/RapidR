@@ -12,6 +12,7 @@
 //! rapidr i18n check <lang.po…>                   translations keep {name}, %1, `code`, & …
 //! rapidr i18n studio [--check]                   Studio's template, xx.po, checks (from the checkout)
 //! rapidr i18n compiler [--check]                 the compiler messages' template
+//! rapidr i18n runtime [--check]                  RapidR's own text's template (every tr_ui in the sources)
 //! rapidr i18n coverage [LANG…]                   how much of RapidR each language has
 //! ```
 //!
@@ -30,7 +31,7 @@ const USAGE: &str = "usage: rapidr i18n extract <file|folder…> [-o FILE.pot] [
                      \x20      rapidr i18n pseudo <template.pot> [-o xx.po]\n\
                      \x20      rapidr i18n update <template.pot> <lang.po…>\n\
                      \x20      rapidr i18n check <lang.po…>\n\
-                     \x20      rapidr i18n studio [--check] | compiler [--check] | coverage [LANG…]";
+                     \x20      rapidr i18n studio [--check] | compiler [--check] | runtime [--check] | coverage [LANG…]";
 
 pub fn command(args: &[String]) -> ExitCode {
     let rest = args.get(1..).unwrap_or(&[]);
@@ -41,6 +42,7 @@ pub fn command(args: &[String]) -> ExitCode {
         Some("check") => check_cmd(rest),
         Some("studio") => studio_cmd(rest),
         Some("compiler") => compiler_cmd(rest),
+        Some("runtime") => runtime_cmd(rest),
         Some("coverage") => coverage_cmd(rest),
         _ => Err(USAGE.to_string()),
     };
@@ -311,6 +313,53 @@ fn compiler_cmd(args: &[String]) -> Result<ExitCode, String> {
     Ok(if ok { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
 
+/// The Rust sources of RapidR's crates (crates/*/src, interpreter/*/src),
+/// sorted, as (path from the root, text).
+fn rust_sources(root: &Path) -> Vec<(String, String)> {
+    fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = fs::read_dir(dir) else { return };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                out.push(p);
+            }
+        }
+    }
+    let mut files = Vec::new();
+    for top in ["crates", "interpreter"] {
+        for c in fs::read_dir(root.join(top)).into_iter().flatten().flatten() {
+            walk(&c.path().join("src"), &mut files);
+        }
+    }
+    files.sort();
+    files.into_iter().filter_map(|f| fs::read_to_string(&f).ok().map(|t| (f.strip_prefix(root).unwrap_or(&f).to_string_lossy().replace('\\', "/"), t))).filter(|(_, t)| t.contains("tr_ui")).collect()
+}
+
+/// RapidR's own text's template, as crates/rapidr-value/lang/runtime.pot
+/// should hold it.
+pub fn runtime_template(root: &Path) -> Vec<Message> {
+    tools::rust_template("RapidR runtime", &rust_sources(root))
+}
+
+fn runtime_cmd(args: &[String]) -> Result<ExitCode, String> {
+    let check = args.iter().any(|a| a == "--check");
+    let root = root()?;
+    let template = runtime_template(&root);
+    let mut ok = generated(&root.join("crates/rapidr-value/lang/runtime.pot"), &tools::write(&template), check)?;
+    for tag in rapidr_value::i18n::runtime_languages() {
+        let file = po::read_messages(rapidr_value::i18n::runtime_catalog_text(tag).unwrap_or(""));
+        let c = tools::coverage(&template, &file);
+        println!("crates/rapidr-value/lang/{tag}.po: {} of {} texts ({:.1}%), {} to review", c.translated, c.total, c.percent(), c.review);
+        if report_problems(&format!("crates/rapidr-value/lang/{tag}.po"), tag, &file) > 0 {
+            ok = false;
+        }
+    }
+    println!("{} texts of RapidR's own in crates/rapidr-value/lang/runtime.pot", template.len() - 1);
+    Ok(if ok { ExitCode::SUCCESS } else { ExitCode::from(1) })
+}
+
 /// A short hash of a text (FNV-1a, 64 bits, hex): what a translated
 /// manual page records of the English it was made from.
 pub fn text_hash(text: &str) -> String {
@@ -345,7 +394,9 @@ fn coverage_cmd(args: &[String]) -> Result<ExitCode, String> {
         all.dedup();
         langs = all;
     }
+    // (Studio's text: its own catalog's and RapidR's own that it shows)
     let studio = studio_template(&root)?;
+    let runtime = runtime_template(&root);
     let compiler = rapidr_diagnostics::messages::template();
     let manual: Vec<String> = {
         let mut v: Vec<String> = fs::read_dir(root.join("docs/manual")).map_err(|e| e.to_string())?.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.ends_with(".md")).collect();
@@ -359,7 +410,11 @@ fn coverage_cmd(args: &[String]) -> Result<ExitCode, String> {
         let pct = |n: usize, t: usize| if t == 0 { 0.0 } else { n as f64 * 100.0 / t as f64 };
         let cell = |n: usize, t: usize| format!("{n}/{t} {:.1}%", pct(n, t));
         let studio_file = root.join("ide/lang").join(format!("{tag}.po"));
-        let s = if studio_file.exists() { tools::coverage(&studio, &po::read_messages(&read(&studio_file)?)) } else { tools::Coverage { total: studio.len() - 1, ..Default::default() } };
+        let mut s = if studio_file.exists() { tools::coverage(&studio, &po::read_messages(&read(&studio_file)?)) } else { tools::Coverage { total: studio.len() - 1, ..Default::default() } };
+        let r = tools::coverage(&runtime, &po::read_messages(rapidr_value::i18n::runtime_catalog_text(tag).unwrap_or("")));
+        s.total += r.total;
+        s.translated += r.translated;
+        s.review += r.review;
         let c = rapidr_diagnostics::messages::catalog_text(tag).map(|t| tools::coverage(&compiler, &po::read_messages(t))).unwrap_or(tools::Coverage { total: compiler.len() - 1, ..Default::default() });
         let (mut pages, mut outdated) = (0, Vec::new());
         for page in &manual {

@@ -43,12 +43,12 @@ CREATE FailNote AS RForm
   Width = 520: Height = 220
   BorderStyle = 3
   CREATE FailOK AS RButton
-    Caption = "OK": Tag = 1
+    Caption = TR$("OK"): Tag = 1
     Default = 1: Cancel = 1
     OnClick = FailPick
   END CREATE
   CREATE FailCopy AS RButton
-    Caption = "&Copy Details": Tag = 2
+    Caption = TR$("&Copy Details"): Tag = 2
     OnClick = FailPick
   END CREATE
   CREATE FailIcon AS RImage
@@ -78,32 +78,39 @@ END SUB
 ' ---- something went wrong in Studio's own code --------------------------------------
 
 SUB StudioFailed(Message AS STRING, File AS STRING, Line AS INTEGER)
-  DIM where AS STRING, said AS STRING
+  DIM where AS STRING, shown AS STRING
   FailCount = FailCount + 1
   where = ""
   IF File <> "" THEN where = File
   IF Line > 0 THEN where = where + " line " + LTRIM$(STR$(Line))
   where = LTRIM$(where)
+  ' (what the person reads; the log's and Copy Details' words stay English)
+  shown = LTRIM$(File)
+  IF Line > 0 THEN
+    IF File <> "" THEN shown = TR$("{file} line {n}", "file", File, "n", Line) ELSE shown = TR$("line {n}", "n", Line)
+  END IF
   ' (first the work: every unsaved change kept, whatever happens next)
   KeepAll 1
-  said = "Something went wrong in Studio: " + Message
-  IF where <> "" THEN said = said + " (" + where + ")"
   FailDetails = "RapidR Studio (RapidR " + Lang.Version + "): " + Message
   IF where <> "" THEN FailDetails = FailDetails + " (at Studio's " + where + ")"
   Proj.LogError DATE$ + " " + TIME$ + "  " + FailDetails
-  OutputLine said + ". Your work is safe; Studio goes on."
+  IF shown <> "" THEN
+    OutputLine TR$("Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on.", "message", Message, "where", shown)
+  ELSE
+    OutputLine TR$("Something went wrong in Studio: {message}. Your work is safe; Studio goes on.", "message", Message)
+  END IF
   IF FailShowing THEN
     ' (one dialog at a time: the one up says how many came since)
     FailMore = FailMore + 1
-    FailTitle.Caption = "Something went wrong in Studio (" + LTRIM$(STR$(FailMore + 1)) + " times)"
+    FailTitle.Caption = TRN$("Something went wrong in Studio ({n} time)", "Something went wrong in Studio ({n} times)", FailMore + 1)
     EXIT SUB
   END IF
   FailMore = 0
   LayOutFail
-  FailTitle.Caption = "Something went wrong in Studio"
-  FailText.Caption = ShortPaths(RTRIM$(Message)) + IIF(where <> "", " (" + where + ")", "") + CHR$(10) + CHR$(10) + "Your work is safe: nothing was lost, and Studio goes on. A copy of your unsaved changes is kept. Copy Details copies what happened; Studio's log keeps it too."
+  FailTitle.Caption = TR$("Something went wrong in Studio")
+  FailText.Caption = ShortPaths(RTRIM$(Message)) + IIF(shown <> "", " (" + shown + ")", "") + CHR$(10) + CHR$(10) + TR$("Your work is safe: nothing was lost, and Studio goes on. A copy of your unsaved changes is kept. Copy Details copies what happened; Studio's log keeps it too.")
   FailText.Hint = Proj.LogFile
-  Application.Announce "Something went wrong in Studio. Your work is safe.", 1
+  Application.Announce TR$("Something went wrong in Studio. Your work is safe."), 1
   FailShowing = 1
   FailNote.Center
   FailNote.ShowModal
@@ -166,10 +173,10 @@ END SUB
 SUB FailPick(Sender AS RButton)
   IF Sender.Tag = 2 THEN
     Clipboard.Text = FailDetails
-    FailCopy.Caption = "Copied"
+    FailCopy.Caption = TR$("Copied")
     EXIT SUB
   END IF
-  FailCopy.Caption = "&Copy Details"
+  FailCopy.Caption = TR$("&Copy Details")
   FailNote.Close
 END SUB
 
@@ -247,7 +254,7 @@ SUB OfferRestoreSoon
 END SUB
 
 SUB OfferTick
-  DIM found AS STRING, n AS INTEGER, i AS INTEGER, names AS STRING, row AS STRING, answer AS INTEGER
+  DIM found AS STRING, n AS INTEGER, i AS INTEGER, names AS STRING, row AS STRING, answer AS INTEGER, detail AS STRING
   OfferTimer.Enabled = 0
   found = Proj.RecoveryFound
   IF found = "" THEN EXIT SUB
@@ -259,22 +266,23 @@ SUB OfferTick
       names = names + FIELD$(row, CHR$(9), 4)
     END IF
   NEXT
-  IF n > 3 THEN names = names + " and " + LTRIM$(STR$(n - 3)) + " more"
+  IF n > 3 THEN names = TR$("{names} and {n} more", "names", names, "n", n - 3)
   PromptRestore = 1
   IF Restoring THEN
     ' (a test's step: 1 Restore, 2 Discard, 3 Not Now)
     answer = Restoring MOD 3
   ELSE
-    answer = AskSave("Restore your unsaved work?", "Studio closed before " + IIF(n = 1, "a file was", LTRIM$(STR$(n)) + " files were") + " saved: " + names + ". Restore puts your changes back in " + IIF(n = 1, "its editor", "their editors") + " (not saved yet; Undo goes back to the file).", 0)
+    detail = TRN$("Studio closed before a file was saved: {names}. Restore puts your changes back in its editor (not saved yet; Undo goes back to the file).", "Studio closed before {n} files were saved: {names}. Restore puts your changes back in their editors (not saved yet; Undo goes back to the file).", n, "names", names)
+    answer = AskSave(TR$("Restore your unsaved work?"), detail, 0)
   END IF
   PromptRestore = 0
   IF answer = PROMPT_SAVE THEN
     RestoreFound found
   ELSEIF answer = PROMPT_DONT THEN
     Proj.RecoveryDiscard ""
-    OutputLine "The unsaved work Studio kept was let go."
+    OutputLine TR$("The unsaved work Studio kept was let go.")
   ELSE
-    OutputLine "Studio keeps your unsaved work: it asks again at the next start."
+    OutputLine TR$("Studio keeps your unsaved work: it asks again at the next start.")
   END IF
 END SUB
 
@@ -312,12 +320,16 @@ SUB RestoreFound(Found AS STRING)
       done = done + 1
     ELSE
       missed = missed + 1
-      OutputLine "Couldn't restore " + IIF(path <> "", path + " (it isn't there any more)", FIELD$(row, CHR$(9), 4)) + ": its copy is kept for the next start."
+      IF path <> "" THEN
+        OutputLine TR$("Couldn't restore {file} (it isn't there any more): its copy is kept for the next start.", "file", path)
+      ELSE
+        OutputLine TR$("Couldn't restore {file}: its copy is kept for the next start.", "file", FIELD$(row, CHR$(9), 4))
+      END IF
     END IF
   NEXT
   IF missed = 0 THEN Proj.RecoveryDiscard ""
   ' (kept again at once: this Studio's own copies now)
   KeepAll 1
-  OutputLine "Restored the unsaved work of " + LTRIM$(STR$(done)) + IIF(done = 1, " file", " files") + " (not saved yet)."
+  OutputLine TRN$("Restored the unsaved work of {n} file (not saved yet).", "Restored the unsaved work of {n} files (not saved yet).", done)
   UpdateCommands
 END SUB

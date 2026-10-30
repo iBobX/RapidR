@@ -18,6 +18,7 @@ pub mod geo;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::Cursor;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_EDITOR, PART_ITEM, PART_ROW, PART_TAB};
 use rapidr_value::objects::ops::Rect;
@@ -389,7 +390,7 @@ fn open_editor(cx: &mut Cx, v: &V, i: usize) -> bool {
             }).collect();
             if !name.is_empty() && !names.iter().any(|n| n.eq_ignore_ascii_case(&name)) {
                 let mut it = Item::new(name.clone());
-                it.detail = "not on this computer".into();
+                it.detail = tr_ui("not on this computer");
                 items.insert(0, it);
             }
             let sel = items.iter().position(|it| it.label.eq_ignore_ascii_case(&name));
@@ -814,11 +815,16 @@ fn sync_drop(cx: &Cx) {
     }
 }
 
+/// The two pages' tab titles.
+fn page_titles() -> [String; 2] {
+    [tr_ui("Properties"), tr_ui("Events")]
+}
+
 /// The tab at x, if the strip has one there.
 fn tab_at(cx: &Cx, v: &V, x: i64) -> Option<usize> {
     let t = v.g.tabs?;
     let mut at = t.0 + 4;
-    for (i, title) in ["Properties", "Events"].iter().enumerate() {
+    for (i, title) in page_titles().iter().enumerate() {
         let (tw, _) = rapidr_value::objects::text::text_size(title, &cx.font);
         let w = tw + 20;
         if x >= at && x < at + w {
@@ -874,7 +880,8 @@ impl ComponentKind for Inspector {
                 Some(Hover::Tab(i)) => Some(i),
                 _ => None,
             };
-            common::tabs(p, t, &l, &["Properties", "Events"], usize::from(v.m.on_events()), hover, &font);
+            let titles = page_titles();
+            common::tabs(p, t, &l, &[titles[0].as_str(), titles[1].as_str()], usize::from(v.m.on_events()), hover, &font);
         }
         draw::strip(p, &v.g, &v.m, &c);
         if searching {
@@ -1065,10 +1072,10 @@ impl ComponentKind for Inspector {
         let v = view(cx, classic());
         if n.name.is_empty() {
             n.name = match v.m.snap.objects.as_slice() {
-                [] if !v.m.heading.0.is_empty() => format!("Properties of {} ({})", v.m.heading.0, v.m.heading.1),
-                [] => "Properties".into(),
-                [(name, ty)] => format!("Properties of {name} ({})", rapidr_value::panels::inspector::type_label(ty, false)),
-                more => format!("Properties of {} components", more.len()),
+                [] if !v.m.heading.0.is_empty() => tr_ui_fill("Properties of {name} ({type})", &[("name", &v.m.heading.0), ("type", &v.m.heading.1)]),
+                [] => tr_ui("Properties"),
+                [(name, ty)] => tr_ui_fill("Properties of {name} ({type})", &[("name", name), ("type", &rapidr_value::panels::inspector::type_label(ty, false))]),
+                more => tr_ui_fill("Properties of {count} components", &[("count", &more.len().to_string())]),
             };
         }
         n.children.clear();
@@ -1082,13 +1089,13 @@ impl ComponentKind for Inspector {
         let focused = cx.state.focused;
         if let Some(t) = v.g.tabs {
             let mut list = AccessNode::new(part_id(cx.id, PART_TAB, PART_TABS + 9), Role::TabList);
-            list.name = "Pages".into();
+            list.name = tr_ui("Pages");
             list.bounds = at(t);
             let mut x = t.0 + 4;
-            for (i, title) in ["Properties", "Events"].iter().enumerate() {
+            for (i, title) in page_titles().iter().enumerate() {
                 let (tw, _) = rapidr_value::objects::text::text_size(title, &cx.font);
                 let mut tab = AccessNode::new(part_id(cx.id, PART_TAB, PART_TABS + i), Role::Tab);
-                tab.name = title.to_string();
+                tab.name = title.clone();
                 tab.states.selected = Some(usize::from(v.m.on_events()) == i);
                 tab.actions = vec![Action::Click];
                 tab.bounds = at((x, t.1, tw + 20, t.3));
@@ -1098,7 +1105,7 @@ impl ComponentKind for Inspector {
             n.children.push(list);
         }
         let mut search = AccessNode::new(part_id(cx.id, PART_ITEM, PART_SEARCH), Role::TextInput);
-        search.name = if v.m.on_events() { "Search events".into() } else { "Search properties".into() };
+        search.name = if v.m.on_events() { tr_ui("Search events") } else { tr_ui("Search properties") };
         search.value = Some(match &editing {
             Some(k) if k == SEARCH => list::editing(cx.id).map(|e| e.text).unwrap_or_default(),
             _ => v.m.filter.clone(),
@@ -1108,7 +1115,7 @@ impl ComponentKind for Inspector {
         search.bounds = at(v.g.search);
         n.children.push(search);
         let mut view_button = AccessNode::new(part_id(cx.id, PART_ITEM, PART_VIEW), Role::Button);
-        view_button.name = "Sort A to Z".into();
+        view_button.name = tr_ui("Sort A to Z");
         view_button.states.checked = Some(v.m.alphabetic);
         view_button.states.disabled = v.m.on_events();
         view_button.actions = vec![Action::Click];
@@ -1121,8 +1128,9 @@ impl ComponentKind for Inspector {
             top += r.height;
             let mut row = AccessNode::new(part_id(cx.id, PART_ROW, i), Role::Row);
             row.name = match r.kind {
-                RowKind::Pins => "Anchors editor".into(),
+                RowKind::Pins => tr_ui("Anchors editor"),
                 RowKind::AddLine => r.name.clone(),
+                RowKind::Category => rapidr_value::panels::inspector::model::category_title(&r.name),
                 _ => r.prop_name(&v.m.snap.props, &v.m.snap.events),
             };
             if !matches!(r.kind, RowKind::Category | RowKind::Pins) {
@@ -1137,10 +1145,10 @@ impl ComponentKind for Inspector {
                 row.states.expanded = Some(r.expanded);
             }
             row.description = match r.kind {
-                RowKind::Category => format!("{} properties", r.count),
-                _ if r.mixed => "values differ".into(),
-                _ if r.ext => "RapidR extension".into(),
-                _ if !r.is_default && geo::resettable(r) => "changed".into(),
+                RowKind::Category => tr_ui_fill("{count} properties", &[("count", &r.count.to_string())]),
+                _ if r.mixed => tr_ui("values differ"),
+                _ if r.ext => tr_ui("RapidR extension"),
+                _ if !r.is_default && geo::resettable(r) => tr_ui("changed"),
                 _ => String::new(),
             };
             row.actions = vec![Action::Click, Action::Focus];
@@ -1157,7 +1165,12 @@ impl ComponentKind for Inspector {
                     let mask = v.m.snap.props.get(r.prop).and_then(|p| p.value.as_ref()).map_or(0, |x| x.to_i64());
                     for (k, s) in struts.iter().enumerate() {
                         let mut pin = AccessNode::new(part_id(cx.id, PART_ITEM, PART_PINS + i * 4 + k), Role::CheckBox);
-                        pin.name = format!("Anchor {}", ["left", "top", "right", "bottom"][k]);
+                        pin.name = match k {
+                            0 => tr_ui("Anchor left"),
+                            1 => tr_ui("Anchor top"),
+                            2 => tr_ui("Anchor right"),
+                            _ => tr_ui("Anchor bottom"),
+                        };
                         pin.states.checked = Some(mask & (1 << k) != 0);
                         pin.states.focused = focused && selected == Some(i) && v.m.ui.pin == k && editing.is_none();
                         pin.actions = vec![Action::Click];

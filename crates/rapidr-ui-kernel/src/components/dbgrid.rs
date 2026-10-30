@@ -34,6 +34,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use rapidr_value::datascience::{frame, link};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_CELL, PART_ROW};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place};
@@ -227,7 +228,7 @@ impl ComponentKind for DbGrid {
         let Some(d) = link::grid(cx.id) else {
             // (the designer: what to set)
             if super::design::designed(cx.id) {
-                p.text((8, 4, w - 16, h - 8), "Set DataSource to see the rows here", &font, t.secondary_text(), Place::Center);
+                p.text((8, 4, w - 16, h - 8), &tr_ui("Set DataSource to see the rows here"), &font, t.secondary_text(), Place::Center);
             }
             return;
         };
@@ -490,10 +491,10 @@ impl ComponentKind for DbGrid {
             });
             (f.columns.clone(), rows.collect())
         });
-        n.description = format!("{} rows, {} columns", d.rows, names.len());
+        n.description = tr_ui_fill("{rows} rows, {columns} columns", &[("rows", &d.rows.to_string()), ("columns", &names.len().to_string())]);
         let (x0, y0) = (cx.rect.0 + 2, cx.rect.1 + 2);
         let mut head = AccessNode::new(part_id(cx.id, PART_ROW, 0), Role::Row);
-        head.name = "Headings".into();
+        head.name = tr_ui("Headings");
         head.bounds = (x0, y0, l.inner.0, l.row_h);
         for (c, name) in names.iter().enumerate() {
             let mut cell = AccessNode::new(part_id(cx.id, PART_CELL, c), Role::Cell);
@@ -503,7 +504,7 @@ impl ComponentKind for DbGrid {
         n.children.push(head);
         for (i, (r, cells)) in rows.into_iter().enumerate() {
             let mut row = AccessNode::new(part_id(cx.id, PART_ROW, r + 1), Role::Row);
-            row.name = format!("Row {r} of {}", d.rows);
+            row.name = tr_ui_fill("Row {row} of {total}", &[("row", &r.to_string()), ("total", &d.rows.to_string())]);
             row.value = Some(names.iter().zip(&cells).map(|(n, v)| format!("{n} {v}")).collect::<Vec<_>>().join(", "));
             row.states.selected = Some(r == d.row);
             row.bounds = (x0, y0 + l.row_h + 1 + i as i64 * l.row_h, l.inner.0, l.row_h);

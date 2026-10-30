@@ -27,6 +27,7 @@
 use std::rc::Rc;
 
 use parley::{Affinity, Alignment, AlignmentOptions, Cursor, FontStyle, FontWeight, Layout, LineHeight, Selection, StyleProperty};
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_CELL, PART_ITEM, PART_ROW};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Rect};
@@ -1076,7 +1077,7 @@ impl ComponentKind for MarkdownView {
                             node.role = Role::Heading;
                             node.level = Some(usize::from(*lv));
                         }
-                        Kind::Code(_) => node.description = "code".into(),
+                        Kind::Code(_) => node.description = tr_ui("code"),
                         Kind::Rule => {
                             node.role = Role::Splitter;
                             node.name.clear();

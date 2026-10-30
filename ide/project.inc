@@ -17,8 +17,8 @@ SUB OpenProject(Path AS STRING)
   IF Path = "" THEN EXIT SUB
   p = Proj.ExampleToOpen(Path, HomeDir + "examples")
   IF p = "" THEN
-    OutputLine "Can't open the example " + FileTitle(Path) + ": " + Proj.Error
-    SetState "error", "Can't open " + FileTitle(Path)
+    OutputLine TR$("Can't open the example {file}: {error}", "file", FileTitle(Path), "error", Proj.Error)
+    SetState "error", TR$("Can't open {file}", "file", FileTitle(Path))
     EXIT SUB
   END IF
   copied = Proj.ExampleCopy
@@ -34,8 +34,8 @@ SUB OpenProject(Path AS STRING)
     ' (a Markdown file — a README, a report — opens on its own, in Preview:
     ' markdown.inc)
     IF OpenMarkdownFile(p) THEN EXIT SUB
-    OutputLine "Can't open " + p + ": " + Proj.Error
-    SetState "error", "Can't open " + FileTitle(p)
+    OutputLine TR$("Can't open {file}: {error}", "file", p, "error", Proj.Error)
+    SetState "error", TR$("Can't open {file}", "file", FileTitle(p))
     EXIT SUB
   END IF
   ' (a browser gave Studio the project file alone: its folder has the files)
@@ -92,8 +92,8 @@ SUB SayMainIncluded
   IF ProjectOpen = 0 OR Proj.Kind <> "project" THEN EXIT SUB
   by = Proj.MainIncludedBy
   IF by = "" THEN EXIT SUB
-  OutputLine "The main file " + Proj.MainFile + " is included by " + by + ": the program probably starts in " + by + ". To run it from there, select the project's name in the Project pane, then MainFile in Properties."
-  SetState "stopped", "The main file is " + Proj.MainFile + ", which " + by + " includes"
+  OutputLine TR$("The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties.", "main", Proj.MainFile, "by", by)
+  SetState "stopped", TR$("The main file is {main}, which {by} includes", "main", Proj.MainFile, "by", by)
 END SUB
 
 ' The Output's line for an example's copy (Copied: "made" now, else the
@@ -103,14 +103,14 @@ SUB SayExampleCopy(Copy AS STRING, Copied AS STRING)
   folder = LEFT$(Copy, RINSTR(Copy, "/") - 1)
   ' (short lines: the Output pane is narrow; the link on its own)
   IF Copied = "again" THEN
-    OutputLine "Copied " + FileTitle(Copy) + " again from the original, in:"
+    OutputLine TR$("Copied {file} again from the original, in:", "file", FileTitle(Copy))
   ELSEIF Copied = "made" THEN
-    OutputLine "Made your copy of the example " + FileTitle(Copy) + " (the installed examples can't be changed), in:"
+    OutputLine TR$("Made your copy of the example {file} (the installed examples can't be changed), in:", "file", FileTitle(Copy))
   ELSE
-    OutputLine "Your copy of the example " + FileTitle(Copy) + ", as you left it, in:"
+    OutputLine TR$("Your copy of the example {file}, as you left it, in:", "file", FileTitle(Copy))
   END IF
   OutputLine "  " + folder
-  OutputLine "  " + Hyperlink("Copy again from the original", "example-again:")
+  OutputLine "  " + Hyperlink(TR$("Copy again from the original"), "example-again:")
 END SUB
 
 ' File > Copy Example Again from the Original: the example's files (its
@@ -121,11 +121,11 @@ SUB CopyExampleAgain
   DIM p AS STRING, name AS STRING, d AS INTEGER
   IF ExampleOriginal = "" OR ProjectOpen = 0 THEN EXIT SUB
   name = FileTitle(ExampleOriginal)
-  IF AskCopyAgain("Copy " + name + " again from the original?", "Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay.") = 0 THEN EXIT SUB
+  IF AskCopyAgain(TR$("Copy {name} again from the original?", "name", name), TR$("Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay.")) = 0 THEN EXIT SUB
   p = Proj.CopyExampleAgain(ProjectFile, HomeDir + "examples")
   IF p = "" THEN
-    OutputLine "Can't copy " + name + " again: " + Proj.Error
-    SetState "error", "Can't copy " + name + " again"
+    OutputLine TR$("Can't copy {name} again: {error}", "name", name, "error", Proj.Error)
+    SetState "error", TR$("Can't copy {name} again", "name", name)
     EXIT SUB
   END IF
   ' (what was open goes without a question: its changes were asked about)
@@ -166,8 +166,8 @@ END SUB
 
 ' File > Open: a project or a source file.
 SUB AskOpen
-  OpenDlg.Caption = "Open Project or File"
-  OpenDlg.Filter = "RapidR projects and sources (*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
+  OpenDlg.Caption = TR$("Open Project or File")
+  OpenDlg.Filter = TR$("RapidR projects and sources") + " (*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rrproj;*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|" + TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN OpenProject OpenDlg.FileName
 END SUB
 
@@ -175,7 +175,7 @@ END SUB
 ' folder's files read in, saved back to it (showDirectoryPicker).
 SUB AskOpenFolder
   DIM f AS STRING
-  OpenDlg.Caption = "Open Folder"
+  OpenDlg.Caption = TR$("Open Folder")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute THEN
     f = OpenDlg.FileName
@@ -183,8 +183,8 @@ SUB AskOpenFolder
     IF Proj.OpenFolder(f) THEN
       IF Proj.FileName <> "" THEN OpenProject Proj.FileName ELSE OpenProject Proj.Folder + "/" + Proj.MainFile
     ELSE
-      OutputLine "Can't open " + f + ": " + Proj.Error
-      SetState "error", "No RapidR project in " + FileTitle(f)
+      OutputLine TR$("Can't open {file}: {error}", "file", f, "error", Proj.Error)
+      SetState "error", TR$("No RapidR project in {folder}", "folder", FileTitle(f))
     END IF
   END IF
   OpenDlg.PickFolder = 0
@@ -206,12 +206,12 @@ FUNCTION ProjectFilesElsewhere(Path AS STRING) AS INTEGER
   Result = 1
   ' (the project that was open before, as it was)
   IF ProjectOpen THEN back = Proj.Open(ProjectFile) ELSE Proj.Close
-  OutputLine FileTitle(Path) + ": the browser gave RapidR Studio this file only, not the project's files in its folder"
-  IF AskOpenItsFolder("Open the folder " + FileTitle(Path) + " is in?", "The browser let RapidR Studio read only the file you picked. The project's files are in its folder.") THEN
+  OutputLine TR$("{file}: the browser gave RapidR Studio this file only, not the project's files in its folder", "file", FileTitle(Path))
+  IF AskOpenItsFolder(TR$("Open the folder {file} is in?", "file", FileTitle(Path)), TR$("The browser let RapidR Studio read only the file you picked. The project's files are in its folder.")) THEN
     AskOpenFolder
   ELSE
-    OutputLine "  File > Open Folder... opens the project with its files"
-    SetState "error", "Open the folder " + FileTitle(Path) + " is in to open the project"
+    OutputLine "  " + TR$("File > Open Folder... opens the project with its files")
+    SetState "error", TR$("Open the folder {file} is in to open the project", "file", FileTitle(Path))
   END IF
 END FUNCTION
 
@@ -223,8 +223,8 @@ END FUNCTION
 ' its report (what changed, line by line, and the proof) beside the code.
 SUB AskImportRapidQ
   DIM i AS INTEGER, f AS STRING, pick AS STRING
-  ImportDlg.Caption = "Import RapidQ Project or File"
-  ImportDlg.Filter = "RapidQ programs (*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.bas;*.rqw;*.rqb;*.rq;*.inc|RapidR projects (*.rrproj)|*.rrproj|All files|*.*"
+  ImportDlg.Caption = TR$("Import RapidQ Project or File")
+  ImportDlg.Filter = TR$("RapidQ programs") + " (*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.bas;*.rqw;*.rqb;*.rq;*.inc|" + TR$("RapidR projects") + " (*.rrproj)|*.rrproj|" + TR$("All files") + "|*.*"
   ImportDlg.Mode = 0
   ImportDlg.MultiSelect = 1
   IF ImportDlg.Execute = 0 THEN EXIT SUB
@@ -249,7 +249,7 @@ END FUNCTION
 
 SUB AskImportRapidQFolder
   DIM f AS STRING
-  OpenDlg.Caption = "Import RapidQ Folder"
+  OpenDlg.Caption = TR$("Import RapidQ Folder")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute THEN f = OpenDlg.FileName
   OpenDlg.PickFolder = 0
@@ -258,11 +258,11 @@ END SUB
 
 SUB ImportRapidQ(Source AS STRING)
   DIM made AS STRING, report AS STRING, summary AS STRING, missing AS STRING, row AS STRING, n AS INTEGER, i AS INTEGER
-  OutputLine "Importing " + Source + ": a copy with RapidR's names and every file it includes (the original is only read)"
+  OutputLine TR$("Importing {source}: a copy with RapidR's names and every file it includes (the original is only read)", "source", Source)
   made = Proj.ImportRapidQ(Source)
   IF made = "" THEN
-    OutputLine "Can't import " + Source + ": " + Proj.Error
-    SetState "error", "Can't import " + FileTitle(Source)
+    OutputLine TR$("Can't import {source}: {error}", "source", Source, "error", Proj.Error)
+    SetState "error", TR$("Can't import {file}", "file", FileTitle(Source))
     EXIT SUB
   END IF
   summary = Proj.ImportSummary
@@ -274,15 +274,15 @@ SUB ImportRapidQ(Source AS STRING)
   IF missing <> "" THEN n = TALLY(missing, CHR$(10)) + 1
   FOR i = 1 TO n
     row = FIELD$(missing, CHR$(10), i)
-    OutputLine FIELD$(row, CHR$(9), 1) + ": include file not found: " + FIELD$(row, CHR$(9), 2) + " - " + FIELD$(row, CHR$(9), 3)
+    OutputLine TR$("{file}: include file not found: {include} - {what}", "file", FIELD$(row, CHR$(9), 1), "include", FIELD$(row, CHR$(9), 2), "what", FIELD$(row, CHR$(9), 3))
   NEXT
-  OutputLine "The copy: " + made
+  OutputLine TR$("The copy: {path}", "path", made)
   OpenProject made
   OpenDocument report
   IF n > 0 THEN
-    SetState "error", "Imported " + FileTitle(Source) + ", but " + LTRIM$(STR$(n)) + " include file(s) weren't found: see Output"
+    SetState "error", TRN$("Imported {file}, but {n} include file wasn't found: see Output", "Imported {file}, but {n} include files weren't found: see Output", n, "file", FileTitle(Source))
   ELSE
-    SetState "stopped", "Imported " + FileTitle(Source) + " as a copy with RapidR's names"
+    SetState "stopped", TR$("Imported {file} as a copy with RapidR's names", "file", FileTitle(Source))
   END IF
 END SUB
 
@@ -296,9 +296,9 @@ SUB AskNew
 END SUB
 
 SUB NewBrowse
-  SaveDlg.Caption = "Where the new project goes"
+  SaveDlg.Caption = TR$("Where the new project goes")
   SaveDlg.FileName = NewName.Text + ".rrproj"
-  SaveDlg.Filter = "RapidR projects (*.rrproj)|*.rrproj"
+  SaveDlg.Filter = TR$("RapidR projects") + " (*.rrproj)|*.rrproj"
   IF SaveDlg.Execute THEN
     NewFolder.Text = LEFT$(SaveDlg.FileName, RINSTR(REPLACESUBSTR$(SaveDlg.FileName, "\", "/"), "/") - 1)
     NewName.Text = BaseName(SaveDlg.FileName)
@@ -316,7 +316,7 @@ SUB NewCreate
     NewDialog.Close
     OpenProject Proj.FileName
   ELSE
-    SHOWMESSAGE "Can't make the project: " + Proj.Error
+    SHOWMESSAGE TR$("Can't make the project: {error}", "error", Proj.Error)
   END IF
 END SUB
 
@@ -329,9 +329,9 @@ SUB SaveProjectFile
   IF Proj.Save THEN
     ProjectFile = Proj.FileName
     AddRecent ProjectFile
-    OutputLine "Saved " + ProjectFile
+    OutputLine TR$("Saved {file}", "file", ProjectFile)
   ELSE
-    OutputLine "Can't save the project: " + Proj.Error
+    OutputLine TR$("Can't save the project: {error}", "error", Proj.Error)
   END IF
 END SUB
 
@@ -449,9 +449,9 @@ SUB OpenRecent(k AS INTEGER)
   IF p = "" THEN EXIT SUB
   IF FILEEXISTS(p) = 0 THEN
     ForgetRecent p
-    OutputLine FileTitle(p) + " isn't there any more (" + p + "): taken off Open Recent"
+    OutputLine TR$("{file} isn't there any more ({path}): taken off Open Recent", "file", FileTitle(p), "path", p)
     ' (short: the status bar's first part is narrow; the Output says where)
-    SetState "error", FileTitle(p) + " isn't there any more"
+    SetState "error", TR$("{file} isn't there any more", "file", FileTitle(p))
     SaveSettings
     UpdateCommands
     EXIT SUB
@@ -464,7 +464,7 @@ SUB ClearRecent
   RecentList = ""
   FillRecent
   SaveSettings
-  OutputLine "Open Recent cleared"
+  OutputLine TR$("Open Recent cleared")
   SetState RunState, "Open Recent cleared"
   UpdateCommands
 END SUB
@@ -476,7 +476,7 @@ END SUB
 FUNCTION ReopenCandidate AS STRING
   IF ReopenLast = 0 OR SessionProject = "" THEN EXIT FUNCTION
   IF FILEEXISTS(SessionProject) = 0 THEN
-    OutputLine "The last project, " + FileTitle(SessionProject) + ", isn't there any more (" + SessionProject + "): taken off Open Recent"
+    OutputLine TR$("The last project, {file}, isn't there any more ({path}): taken off Open Recent", "file", FileTitle(SessionProject), "path", SessionProject)
     ForgetRecent SessionProject
     SessionProject = ""
     SessionFiles = ""

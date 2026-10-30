@@ -26,6 +26,8 @@ rapidr-lang.workspace = true
 # the user's language (RapidR's own, no dependencies).
 rapidr-i18n.workspace = true
 rapidr-diagnostics.workspace = true
+# (RapidR's own catalogs, compiled in: `rapidr i18n runtime`, coverage)
+rapidr-value.workspace = true
 # `rapidr ai`: the AI provider layer RapidR Studio's assistant uses
 rapidr-ai.workspace = true
 # `rapidr introspect` (feature `ai-introspect`): the AI introspection

@@ -9,7 +9,7 @@
 ' files). The command table keeps its titles in English and shows
 ' TR$(title): the routines below take text to translate in these
 ' arguments, for the template —
-' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2 SetState:2
+' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2 SetState:2 AddStart:3 AddExample:2 AddMoreExample:2 AddTemplate:4 AddTemplate:5
 ' Ids, keys, file names, code and what the user wrote are never translated.
 
 ' ---- the command table (docs/ide-plan.md I1) -------------------------------
@@ -64,8 +64,21 @@ DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
 DIM DocDirty(MAXDOCS) AS INTEGER
 DIM DocHasForm(MAXDOCS) AS INTEGER
-' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc)
+' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc.
+' These are ids, English whatever language Studio speaks; the switch shows
+' ViewCaption(id), and ViewId(caption) reads what the dock manager says back)
 DIM DocViewNow(MAXDOCS) AS STRING
+DECLARE FUNCTION ViewCaption(Id AS STRING) AS STRING
+DECLARE FUNCTION ViewId(Caption AS STRING) AS STRING
+' (Studio's language changed: the texts these made in the language before,
+' made again — chrome.inc's StudioLanguageChanged calls them)
+DECLARE SUB PanesLanguageChanged
+DECLARE SUB PanelsLanguageChanged
+DECLARE SUB EditorLanguageChanged
+DECLARE SUB WorkspaceLanguageChanged
+DECLARE SUB MarkdownLanguageChanged
+DECLARE SUB SearchLanguageChanged
+DECLARE SUB DebugLanguageChanged
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER

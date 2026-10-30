@@ -10,6 +10,7 @@
 //! click runs a command (the palette closes first, then OnCommand),
 //! Escape or the focus leaving closes it (OnCancel).
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::font::Font;
@@ -305,7 +306,7 @@ impl ComponentKind for Palette {
             p.round((0, 0, w, h), 8.0, Some(l.chrome), Some(l.border), 1.0);
         }
         let font = cx.font.clone();
-        let (filter, placeholder, max_rows, top, active, hover, has_icons) = model(cx.id, |m| (m.filter.clone(), m.placeholder.clone(), m.max_rows.max(1), m.top, m.active, m.hover, m.commands.iter().any(|c| !c.icon.is_empty())));
+        let (filter, placeholder, max_rows, top, active, hover, has_icons) = model(cx.id, |m| (m.filter.clone(), m.shown_placeholder(), m.max_rows.max(1), m.top, m.active, m.hover, m.commands.iter().any(|c| !c.icon.is_empty())));
         // (the search box, its editor over it)
         let sbox = search_rect(w);
         let typing = editing(cx.id).is_some();
@@ -319,8 +320,8 @@ impl ComponentKind for Palette {
         let found = model(cx.id, |m| m.matches());
         if found.is_empty() {
             let r = row_rect(w, 0);
-            let msg = if model(cx.id, |m| m.commands.is_empty()) { "No commands" } else { "No matching commands" };
-            p.text((r.0 + 12, r.1, r.2 - 24, r.3), msg, &font, l.dim, Place::Left);
+            let msg = if model(cx.id, |m| m.commands.is_empty()) { tr_ui("No commands") } else { tr_ui("No matching commands") };
+            p.text((r.0 + 12, r.1, r.2 - 24, r.3), &msg, &font, l.dim, Place::Left);
             return;
         }
         let cmds = model(cx.id, |m| m.commands.clone());
@@ -475,9 +476,9 @@ impl ComponentKind for Palette {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let mut n = crate::components::shared_describe(cx, self.name());
         n.role = Role::Dialog;
-        n.name = "Command palette".into();
+        n.name = tr_ui("Command palette");
         let (x0, y0, w) = (cx.rect.0, cx.rect.1, cx.width());
-        let (filter, placeholder, top, max_rows, active, found, cmds) = model(cx.id, |m| (editing(cx.id).map(|e| e.text).unwrap_or_else(|| m.filter.clone()), m.placeholder.clone(), m.top, m.max_rows.max(1), m.active, m.matches(), m.commands.clone()));
+        let (filter, placeholder, top, max_rows, active, found, cmds) = model(cx.id, |m| (editing(cx.id).map(|e| e.text).unwrap_or_else(|| m.filter.clone()), m.shown_placeholder(), m.top, m.max_rows.max(1), m.active, m.matches(), m.commands.clone()));
         let sbox = search_rect(w);
         let mut s = AccessNode::new(part_id(cx.id, PART_ITEM, PART_SEARCH), Role::TextInput);
         s.name = placeholder;
@@ -486,7 +487,7 @@ impl ComponentKind for Palette {
         s.actions = vec![Action::Focus, Action::SetValue];
         n.children.push(s);
         let mut list_node = AccessNode::new(part_id(cx.id, PART_ITEM, PART_LIST), Role::ListBox);
-        list_node.name = "Commands".into();
+        list_node.name = tr_ui("Commands");
         let shown = found.len().saturating_sub(top).min(max_rows);
         list_node.bounds = (x0 + PAD / 2, y0 + LIST_TOP, w - PAD, shown.max(1) as i64 * ROW);
         for (row, f) in found.iter().enumerate() {

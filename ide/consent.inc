@@ -42,7 +42,7 @@ CREATE ConsentDialog AS RForm
   BorderStyle = 3
   ' (Cancel first: the safe answer has the keyboard when the question shows)
   CREATE ConsentNo AS RButton
-    Caption = "Cancel": Tag = 0
+    Caption = TR$("Cancel"): Tag = 0
     Default = 1
     Cancel = 1
     OnClick = ConsentPick
@@ -52,9 +52,9 @@ CREATE ConsentDialog AS RForm
     OnClick = ConsentPick
   END CREATE
   CREATE ConsentLink AS RLabel
-    Caption = "Learn more"
+    Caption = TR$("Learn more")
     TabStop = 1
-    AccessibleDescription = "Opens the manual's page in your browser"
+    AccessibleDescription = TR$("Opens the manual's page in your browser")
     OnClick = ConsentLinkClick
   END CREATE
   CREATE ConsentLogo AS RImage
