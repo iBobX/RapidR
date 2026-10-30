@@ -1,4 +1,4 @@
-<!-- translated-from: language.md beaf0deba0f91c9d -->
+<!-- translated-from: language.md bb52cad52c222a10 -->
 # El lenguaje
 
 El lenguaje de RapidR es un BASIC moderno, y los programas anteriores se
@@ -167,6 +167,11 @@ comparaciones (`=`, `<>`, `<`, `>`, `<=`, `>=`, `NOT=`) · `+`, `-`, `&` · `*`,
 - `a INV m` es el inverso modular (`3 INV 26` es 9).
 - Cadenas de texto: `+` o `&` las unen; `-` quita todas las apariciones
   (`"jello" - "l"` es `"jeo"`); `s$[i]` es el i-ésimo carácter.
+- `&` es `+` (como en los programas clásicos): dos números se suman (`5 & 3` es 8,
+  no 53), dos cadenas de texto se unen, en el mismo nivel que `+` y `-`; `&&` es el
+  mismo operador (no un `AND` lógico), así que `IF x = 3 && x = 3` nunca es
+  verdadero: escribe `AND`. Para unir un número a un texto, conviértelo en texto:
+  `"n = " + STR$(n)`.
 - `i++`, `i--`, `x += y` (y `-=`, `*=`, `/=`, `&=`); `INC x [, n]`,
   `DEC x [, n]`.
 - `@var` pasa una variable por referencia.
