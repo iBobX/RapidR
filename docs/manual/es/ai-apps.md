@@ -116,7 +116,7 @@ de cambiar**.
 
 ![Un cambio que espera en el panel “AI Apps”: qué quiere cambiar la aplicación de IA y por qué, “Allow Once”, “Allow for This Session”, “Deny” y “Review”](../images/ai-apps/ask.png)
 
-## Míralo trabajar: el panel Aplicaciones de IA
+## Mira cómo trabaja: el panel Aplicaciones de IA
 
 **Herramientas > Actividad de aplicaciones de IA** lo muestra; también aparece,
 junto a Salida, la primera vez que trabaja una aplicación de IA, y pasa al frente

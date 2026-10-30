@@ -13,7 +13,7 @@ entorno de ejecución.
 | `rapidr open <file> [args]` | Lo ejecuta como lo hace un doble clic: un archivo descargado pregunta primero, un programa de consola recibe una terminal |
 | `rapidr info <file>` | El tipo del programa, el formato del bytecode y el Runtime más antiguo que necesita |
 | `rapidr ide [file]` | El IDE (SDK) |
-| `rapidr examples [copy <name\|all> [folder]]` | Los programas de ejemplo: se listan, o se copian (con sus archivos incluidos y de datos) a una carpeta para jugar con ellos — por nombre (`linked_data`), por tema (`data/linked_data`, `rapidq/shapes`) o `all`. Los archivos que ya están en la carpeta nunca se sobrescriben. RapidR Studio hace la misma copia, en `Documents/RapidR/Examples/<name>`, cuando abres un ejemplo donde RapidR está instalado |
+| `rapidr examples [copy <name\|all> [folder]]` | Los programas de ejemplo: se listan, o se copian (con sus archivos incluidos y de datos) a una carpeta para jugar con ellos — por nombre (`linked_data`), por tema (`data/linked_data`, `rapidq/shapes`) o `all`. Los archivos que ya están en la carpeta nunca se sobrescriben. RapidR Studio hace la misma copia, en `Documents/RapidR/Examples/<nombre>`, cuando abres un ejemplo donde RapidR está instalado |
 | `rapidr serve <file> [--open]` | La compilación web de un programa, servida solo en esta computadora (127.0.0.1); `--open` la abre en el navegador |
 | `rapidr build <file> [outdir] [flags]` | Compila un ejecutable o una compilación web (más abajo) |
 | `rapidr <file.rr\|.bas> [flags]` | Atajo de `build`, optimizado de forma predeterminada |
@@ -22,7 +22,7 @@ entorno de ejecución.
 | `rapidr check <file…>` | Lo que el panel Problemas de Studio enumera para el programa: sus errores y advertencias con su ubicación, y debajo de un error que es una costumbre de otro lenguaje, una línea `  hint:` con la forma de RapidR ([¿Vienes de otro lenguaje?](language.md#coming-from-another-language)). No se compila ni se ejecuta nada; el estado de salida es 1 cuando hay un error |
 | `rapidr build-bc <file> [-o out.rrbc]` | Compila a bytecode, para el Runtime |
 | `rapidr bundle-bc <file> [-o out.zip]` | Un paquete web estático (un `.zip`) |
-| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Escribe una copia convertida de un programa de RapidQ —y de cada archivo que este incluye con `$INCLUDE`— con los nombres de RapidR, y un informe (`rapidr-import-report.md`), en `out_dir` (también `-o out_dir`; si no, `<name>-rapidr` junto a él). El original no se toca, y se comprueba que cada programa se compila al mismo bytecode. Un archivo incluido que no se encuentra en ninguna parte se imprime con lo que hay que hacer (código de salida 1). Archivo ▸ Importar proyecto o archivo de RapidQ… de RapidR Studio hace lo mismo ([Archivos incluidos](importing-rapidq.md#include-files)) |
+| `rapidr import-rapidq <file\|folder\|.rrproj> [out_dir]` | Escribe una copia convertida de un programa de RapidQ —y de cada archivo que este incluye con `$INCLUDE`— con los nombres de RapidR, y un informe (`rapidr-import-report.md`), en `out_dir` (también `-o out_dir`; si no, `<nombre>-rapidr` junto a él). El original no se toca, y se comprueba que cada programa se compila al mismo bytecode. Un archivo incluido que no se encuentra en ninguna parte se imprime con lo que hay que hacer (código de salida 1). Archivo ▸ Importar proyecto o archivo de RapidQ… de RapidR Studio hace lo mismo ([Archivos incluidos](importing-rapidq.md#include-files)) |
 | `rapidr upgrade-names <file> [--dry-run]` | La misma conversión en el mismo archivo, para los archivos propios de RapidR; `--dry-run` imprime las diferencias y no cambia nada |
 | `rapidr setup [--check] [--yes] [--no-path]` | Instala el Rust que usan las compilaciones nativas; pone `rapidr` en el PATH. `rapidr setup --rust` solo responde si las compilaciones nativas pueden ejecutarse (código de salida 0 sí, 1 no); un `rapidr build` nativo sin Rust se detiene y dice que uses `--interp` o ejecutes `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Imprime los avisos de terceros que lleva un tipo de compilación |
@@ -44,7 +44,7 @@ archivo: [Archivos incluidos](importing-rapidq.md#include-files).
 ```sh
 rapidr build prog.bas --interp             # independiente, con el intérprete adentro
 rapidr build prog.bas --interp --target windows-x86_64
-rapidr build prog.bas                      # nativa: una compilación de versión final, optimizada
+rapidr build prog.bas                      # nativa: una compilación final, optimizada
 rapidr build prog.bas --debug              # nativa, para depurar (se compila más rápido)
 rapidr build prog.bas dist                 # la aplicación en dist/
 rapidr build prog.bas --keep-rust          # y el Rust generado en prog-rust-source/
@@ -57,7 +57,7 @@ rapidr build prog.bas --web --interp       # paquete web: prog-web.zip
 | `--interp`, `-i` | el intérprete de bytecode: no necesita Rust |
 | `--release`, `-r` / `--debug`, `-d` | optimizada, la que distribuyes (el valor predeterminado) / rápida de compilar, para depurar |
 | `[output folder]`, `--output <folder>`, `-o <folder>` | dónde va la aplicación: si no, la carpeta de salida del proyecto (`build`); si no, la carpeta del código fuente |
-| `--keep-rust` / `--no-keep-rust` | una compilación nativa deja también el Rust que generó en `<output>/prog-rust-source/` (con un README) / lo elimina (el valor predeterminado; el `keep_rust` de un proyecto dice lo contrario) |
+| `--keep-rust` / `--no-keep-rust` | una compilación nativa deja también el Rust que generó en `<salida>/prog-rust-source/` (con un README) / lo elimina (el valor predeterminado; el `keep_rust` de un proyecto dice lo contrario) |
 | `--web`, `-w` | para el navegador (también cuando el programa dice `$APPTYPE WEB`) |
 | `--csp "connect-src https://api.example.com; …"` | (compilaciones web, y `bundle-bc`) orígenes que la Content-Security-Policy de la página añade a lo que necesitan los componentes del programa ([Compilar aplicaciones](building-apps.md#build-a-web-app)) |
 | `--icon`, `--name`, `--bundle-id`, `--app-version`, `--company`, `--project`, `--bundle` / `--no-bundle`, `-g<icon>` | la aplicación en que se convierte y su ícono: [Compilar aplicaciones y sus íconos](building-apps.md) |
@@ -98,7 +98,7 @@ Una compilación nativa traduce el programa a Rust y lo compila con cargo:
   Studio, y los programas no necesitan ninguna DLL a su lado.
   `RAPIDR_TOOLCHAIN=msvc` (con `rapidr setup --toolchain msvc`) usa en su lugar el
   conjunto de herramientas de Microsoft.
-- macOS: una compilación de versión final tiene Apple silicon e Intel unidos en un
+- macOS: una compilación final tiene Apple silicon e Intel unidos en un
   solo ejecutable cuando Rust tiene ambos destinos (`rapidr setup` los añade); una
   compilación de depuración es solo de la arquitectura de esta Mac.
 - Dónde se hace una compilación: la caché de compilación, fuera de la carpeta de
