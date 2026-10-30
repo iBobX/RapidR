@@ -100,7 +100,7 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
     let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
     let mut out = vec![
         t("list_files", "The open project's files (paths relative to its folder), its main file first.", schema(json!({}), &[])),
-        t("read_file", "A file of the open project: its text as the editor has it (unsaved changes included). Only files inside the project.", schema(json!({"path": {"type": "string", "description": "the file's path, relative to the project's folder"}}), &["path"])),
+        t("read_file", "A file of the open project: its text as the editor has it (unsaved changes included). Only files inside the project.", schema(json!({"path": {"type": "string", "description": "the file's path, relative to the project's folder, e.g. main.rr (list_files names them)"}}), &["path"])),
         t(
             "rapidr_describe",
             "RapidR's registry entry for a component type (its properties with types, ranges and defaults, its methods, its events, an example) or for a builtin; or every type / builtin in one line each. Use it before using a component you haven't checked.",
@@ -119,7 +119,7 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         t(
             "check_code",
             "RapidR's compiler on a file of the project — or on `text` as that file would be with it — and the project's other files: its errors and warnings with line and column, or that there are none. Check every change before you propose it.",
-            schema(json!({"path": {"type": "string", "description": "the file (relative); default: the main file"}, "text": {"type": "string", "description": "the file's text to check instead of what it has now"}}), &[]),
+            schema(json!({"path": {"type": "string", "description": "the file, relative to the project's folder (main.rr); default: the main file"}, "text": {"type": "string", "description": "the file's text to check instead of what it has now"}}), &[]),
         ),
         t(
             "find_example",
@@ -156,10 +156,10 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
         out.push(t(
             "propose_edit",
-            "The way to change an existing file of the project: send only the parts that change, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — a few whole lines copied exactly from the file, appearing exactly once in it — with `new_text`. Several edits in one call for changes in several places.",
+            "The way to change an existing file of the open project (which IS the user's program): send only the parts that change, shown to the user as a diff they accept or reject (nothing changes until they do). Each edit replaces `old_text` — a few whole lines copied exactly from the file, appearing exactly once in it — with `new_text`. Several edits in one call for changes in several places.",
             schema(
                 json!({
-                    "path": {"type": "string"},
+                    "path": {"type": "string", "description": "the file, relative to the project's folder (main.rr)"},
                     "edits": {"type": "array", "items": {"type": "object", "properties": {"old_text": {"type": "string"}, "new_text": {"type": "string"}}, "required": ["old_text", "new_text"], "additionalProperties": false}},
                     "summary": {"type": "string", "description": "one sentence: what the change does"}
                 }),
@@ -168,12 +168,12 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
         out.push(t(
             "write_file",
-            "A new file's whole text (or, rarely, an existing file rewritten almost entirely), shown to the user as a diff they accept or reject. To change part of an existing file use propose_edit: a whole-file rewrite of a file over 40 lines that keeps most of it is refused.",
-            schema(json!({"path": {"type": "string"}, "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"]),
+            "A new file's whole text in the open project (which IS the user's program) — or, rarely, an existing file rewritten almost entirely —, shown to the user as a diff they accept or reject. To change part of an existing file use propose_edit: a whole-file rewrite of a file over 40 lines that keeps most of it is refused.",
+            schema(json!({"path": {"type": "string", "description": "the file, relative to the project's folder (main.rr); a new file is made"}, "text": {"type": "string"}, "summary": {"type": "string"}}), &["path", "text", "summary"]),
         ));
         out.push(t(
             "create_project",
-            "Makes a new program as a new project — its files (a main .rr file; more for forms or modules it $INCLUDEs) — which Studio opens for the user when your answer ends. Checked by the compiler: fix the errors it reports and call it again.",
+            "Makes a separate NEW program as a new project — its files (a main .rr file; more for forms or modules it $INCLUDEs) — which Studio opens for the user when your answer ends. The open project IS the user's program: for the work they asked for in it, use write_file and propose_edit on its files; create_project is only for a different new program, or when no project is open. Checked by the compiler: fix the errors it reports and call it again.",
             schema(
                 json!({
                     "name": {"type": "string", "description": "the program's title, e.g. Scientific Calculator (its folder is made from it)"},
@@ -186,6 +186,73 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         ));
     }
     out
+}
+
+/// The running program's eyes and hands for RAI (RapidR Studio's AI apps
+/// have the same through ide/mcpapp.inc): its layout in words and a wait
+/// always; clicks, typing, keys, drags and the wheel when `input` (the
+/// user allows changes). A picture isn't one of RAI's: its models get the
+/// layout in words.
+pub fn app_tools(input: bool) -> Vec<Tool> {
+    let t = |name: &str, description: &str, input_schema: Json| Tool { name: name.into(), description: description.into(), input_schema };
+    let target = || json!({
+        "caption": {"type": "string", "description": "the text on it (a button's caption)"},
+        "name": {"type": "string", "description": "its name (app_layout lists them)"},
+        "label": {"type": "string", "description": "the label beside it (an edit's)"},
+        "window": {"type": "string", "description": "the window (a form's name or title)"},
+        "x": {"type": "integer"}, "y": {"type": "integer"}
+    });
+    let with = |extra: Json| {
+        let mut p = target();
+        if let (Some(p), Some(e)) = (p.as_object_mut(), extra.as_object()) {
+            p.extend(e.clone());
+        }
+        p
+    };
+    let mut out = vec![
+        t("app_layout", "What the program the user runs shows now, in words: its windows, each control's name, type, caption or text and place (x,y size w×h), and what looks wrong (text cut off, controls on top of each other). Example: {}.", schema(json!({"window": {"type": "string"}}), &[])),
+        t("app_wait", "Lets the running program work on its own for ms milliseconds (its timers). Example: {\"ms\": 500}.", schema(json!({"ms": {"type": "integer"}, "idle": {"type": "boolean", "description": "until it has nothing left to run (at most ms)"}}), &[])),
+    ];
+    if input {
+        out.push(t("app_click", "Clicks in the program the user runs, as a person would (a pointer shows it). Example: {\"caption\": \"7\"}; or {\"name\": \"btnSave\"}, {\"label\": \"Name\"}, {\"window\": \"Form1\", \"x\": 30, \"y\": 55}. Says what it clicked, or what is there.", schema(with(json!({"double": {"type": "boolean"}, "button": {"type": "string", "enum": ["left", "right"]}})), &[])));
+        out.push(t("app_type", "Types text into the running program (clicks the control first). Example: {\"label\": \"Name\", \"text\": \"Ada\"}.", schema(with(json!({"text": {"type": "string"}})), &["text"])));
+        out.push(t("app_key", "Presses keys in the running program: Enter, Tab, Escape, Ctrl+S, Shift+Tab … separated by spaces. Example: {\"keys\": \"Ctrl+A Backspace\", \"name\": \"txtName\"}.", schema(with(json!({"keys": {"type": "string"}})), &["keys"])));
+        out.push(t("app_drag", "Drags in the running program from a control to (to_x, to_y) of its window. Example: {\"name\": \"Slider1\", \"to_x\": 180, \"to_y\": 20}.", schema(with(json!({"to_x": {"type": "integer"}, "to_y": {"type": "integer"}})), &["to_x", "to_y"])));
+        out.push(t("app_scroll", "Turns the mouse wheel over a control of the running program (notches down; negative: up). Example: {\"name\": \"List1\", \"notches\": 5}.", schema(with(json!({"notches": {"type": "integer"}})), &[])));
+    }
+    out
+}
+
+/// An app tool's call (RAI's): the request sent to the program Studio
+/// runs ([`crate::session::app_send`]), answered later; refused when the
+/// user allows reading only (looking at the program shows what it shows,
+/// private data too: it counts as using it).
+pub fn app_call(name: &str, input: &Json, may_use: bool) -> Outcome {
+    if name != "app_wait" && !may_use {
+        return err("the user allowed reading only (Tools > Settings > AI > Permission): you can't look at or use their running program; say what you would look at, click or type instead", format!("{name}: not allowed (read-only)"), "");
+    }
+    let mut req = serde_json::Map::new();
+    req.insert("do".into(), json!(name.trim_start_matches("app_")));
+    for (from, to) in [("window", "window"), ("name", "name"), ("caption", "caption"), ("label", "label"), ("x", "x"), ("y", "y"), ("text", "text"), ("keys", "keys"), ("to_x", "to_x"), ("to_y", "to_y"), ("double", "double"), ("button", "button"), ("ms", "ms"), ("idle", "idle"), ("notches", "dy")] {
+        if let Some(v) = input.get(from).filter(|v| !v.is_null()) {
+            req.insert(to.into(), v.clone());
+        }
+    }
+    match crate::session::app_send(Json::Object(req)) {
+        Ok(ticket) => Outcome::later(ticket),
+        Err(e) => err(e, format!("{name}: the program isn't running"), ""),
+    }
+}
+
+/// An app tool's answer (RAI's), as the turn takes it.
+pub fn app_done(name: &str, ok: bool, text: String) -> Outcome {
+    let note = activity(name, &Json::Null).unwrap_or_else(|| name.to_string());
+    let risk = if matches!(name, "app_layout" | "app_wait") { "read" } else { "ui" };
+    if ok {
+        Outcome { content: text, is_error: false, note, read: None, risk, target: String::new() }
+    } else {
+        Outcome { content: text, is_error: true, note: format!("{note}: not done"), read: None, risk, target: String::new() }
+    }
 }
 
 /// The lite set for a small context window (under 16K tokens; K8): the
@@ -217,6 +284,22 @@ pub fn tools_lite(proposals: bool) -> Vec<Tool> {
     out
 }
 
+/// A key as app_key names it, safe to show: a key's name (Enter, F5,
+/// PageDown), or a shortcut — Ctrl, Alt, Shift, Cmd … and a key or a
+/// character (Ctrl+S). A bare character or any other word is not.
+fn known_key(token: &str) -> bool {
+    const NAMES: &[&str] = &["enter", "return", "tab", "escape", "esc", "backspace", "delete", "del", "insert", "ins", "home", "end", "pageup", "pagedown", "pgup", "pgdn", "up", "down", "left", "right", "space", "menu", "apps"];
+    let parts: Vec<&str> = token.split('+').collect();
+    let (mods, key) = parts.split_at(parts.len() - 1);
+    let modifier = |m: &str| ["ctrl", "control", "alt", "option", "shift", "cmd", "command", "meta", "win", "super"].contains(&m.to_ascii_lowercase().as_str());
+    if !mods.iter().all(|m| modifier(m)) {
+        return false;
+    }
+    let k = key[0].to_ascii_lowercase();
+    let function = k.strip_prefix('f').and_then(|n| n.parse::<u8>().ok()).is_some_and(|n| (1..=24).contains(&n));
+    NAMES.contains(&k.as_str()) || function || (!mods.is_empty() && k.chars().count() == 1)
+}
+
 /// A tool call as the live status line says it, while the model writes it
 /// or it runs ("Reading main.rr", "Searching the manual", "Writing
 /// server.rr"); `input` may hold only the fields written so far.
@@ -232,6 +315,35 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
         "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
         "check_code" => "Checking (compiling)".into(),
         "layout" => "Laying out the buttons".into(),
+        // (the running program's eyes and hands: an AI app's arguments are
+        // capitalised, RAI's not)
+        "app_layout" => "Reading the running program's layout".into(),
+        "app_screenshot" => "Looking at the running program".into(),
+        "app_wait" => "Letting the running program work".into(),
+        "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
+            let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));
+            let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
+            match name {
+                "app_click" => format!("Clicking{on} in the running program"),
+                // (never what is typed: a password typed into the program
+                // would show in the pane, the status line, read aloud and
+                // in the question — only how many characters)
+                "app_type" => {
+                    let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
+                    format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
+                }
+                // (keys by name — Enter, Ctrl+S —; anything else, a single
+                // character or a word, may be typing: only counted)
+                "app_key" => match any("Keys") {
+                    Some(k) if k.split_whitespace().all(known_key) => format!("Pressing {k} in the running program"),
+                    Some(k) if k.split_whitespace().count() == 1 => "Pressing a key in the running program".into(),
+                    Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
+                    None => "Pressing keys in the running program".into(),
+                },
+                "app_drag" => format!("Dragging{on} in the running program"),
+                _ => format!("Scrolling{on} in the running program"),
+            }
+        }
         // ("lines": how many the model has written so far, counted as they
         // stream in — a file's or a program's, not an edit's)
         "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
@@ -263,7 +375,8 @@ pub fn project_path(folder: &str, path: &str) -> Result<String, String> {
     if rel.is_empty() {
         return Err("give a file's path, relative to the project's folder".into());
     }
-    if rel.starts_with('/') || rel.get(1..3) == Some(":/") || rel.starts_with("//") {
+    // (`~/x` is the user's home folder, not a folder of the project called ~)
+    if rel.starts_with('/') || rel.get(1..3) == Some(":/") || rel.starts_with("//") || rel == "~" || rel.starts_with("~/") {
         return Err(format!("{path}: outside the project (only its own files can be read or changed)"));
     }
     let mut parts: Vec<&str> = Vec::new();
@@ -288,6 +401,45 @@ pub fn project_path(folder: &str, path: &str) -> Result<String, String> {
         return Err(format!("{path}: outside the project, through a link (only the project's own files can be read or changed)"));
     }
     Ok(rel)
+}
+
+/// A path a model gave, as the project's relative path: [`project_path`]
+/// (the absolute path inside the project, `./main.rr`, `a/../main.rr`), and
+/// also with the project folder's own name before it (`MyApp/main.rr`) or
+/// the word `project` (`project/main.rr`), which models write for "the
+/// project's folder" — unless the project has a folder of that name. Never
+/// outside the project: a path outside it says so and lists the project's
+/// files, so the next call can name one.
+pub fn resolve(p: &Project, path: &str) -> Result<String, String> {
+    let rel = match project_path(p.folder, path) {
+        Ok(rel) => rel,
+        Err(e) => return Err(format!("{e}. {}", files_note(p))),
+    };
+    if let Some((first, rest)) = rel.split_once('/') {
+        let folder = crate::slashes(p.folder.trim_end_matches(['/', '\\']));
+        let base = folder.rsplit('/').next().unwrap_or("");
+        let named = first.eq_ignore_ascii_case("project") || (!base.is_empty() && first.eq_ignore_ascii_case(base));
+        let real_folder = p.files.iter().chain(p.buffers.keys()).any(|f| f.split_once('/').is_some_and(|(d, _)| d.eq_ignore_ascii_case(first)));
+        if named && !real_folder && !rest.is_empty() {
+            return project_path(p.folder, rest).map_err(|e| format!("{e}. {}", files_note(p)));
+        }
+    }
+    Ok(rel)
+}
+
+/// The project's files in a sentence, for an error about a path.
+pub fn files_note(p: &Project) -> String {
+    let mut names: Vec<&str> = Vec::new();
+    for f in std::iter::once(p.main).chain(p.files.iter().map(String::as_str)).chain(p.buffers.keys().map(String::as_str)) {
+        if !f.is_empty() && !names.contains(&f) {
+            names.push(f);
+        }
+    }
+    if names.is_empty() {
+        "No project is open.".to_string()
+    } else {
+        format!("The project's files (paths are relative to its folder): {}.", names.iter().take(40).copied().collect::<Vec<_>>().join(", "))
+    }
 }
 
 /// Whether `rel` under `folder` stays inside the folder once links are
@@ -339,6 +491,12 @@ impl Project<'_> {
         self.buffers.contains_key(rel) || self.files.iter().any(|f| f == rel) || (!self.folder.is_empty() && rapidr_value::objects::read_file(&self.full(rel)).is_ok())
     }
 
+    /// Every project source's text (relative path, text), the main file
+    /// first: what the compiler and the designer read.
+    pub fn sources(&self) -> Vec<(String, String)> {
+        self.all()
+    }
+
     /// Every project file's text (relative path, text), the main file first.
     fn all(&self) -> Vec<(String, String)> {
         let mut names: Vec<String> = Vec::new();
@@ -380,6 +538,8 @@ fn s<'a>(input: &'a Json, key: &str) -> &'a str {
 /// Runs a tool. `proposals` collects what the proposing tools propose (a
 /// second proposal for a file in the same turn builds on the first).
 pub fn run(name: &str, input: &Json, project: &Project, proposals: &mut Vec<Proposal>, may_propose: bool) -> Outcome {
+    // (a crash report's last calls: the tool's name only, never its input)
+    rapidr_crash::call(&format!("tool: {name}"));
     if let Some(raw) = input.get("_invalid_json").and_then(Json::as_str) {
         return err(format!("the arguments weren't valid JSON ({}…): call {name} again with a JSON object", raw.chars().take(60).collect::<String>()), format!("{name}: arguments not understood"), "");
     }
@@ -519,10 +679,13 @@ fn list_files(p: &Project) -> Outcome {
 }
 
 fn read_file(input: &Json, p: &Project) -> Outcome {
-    let rel = match project_path(p.folder, s(input, "path")) {
+    let rel = match resolve(p, s(input, "path")) {
         Ok(r) => r,
         Err(e) => return err(e, format!("Refused to read {}: outside the project", s(input, "path")), s(input, "path")),
     };
+    if !p.exists(&rel) {
+        return err(format!("{rel} is not a file of the project. {}", files_note(p)), format!("Couldn't read {rel}: not a file of the project"), &rel);
+    }
     match p.text(&rel) {
         Ok(text) => {
             // (a key a developer wrote into a file never reaches the model)
@@ -730,6 +893,40 @@ fn find_example(input: &Json) -> Outcome {
     ok(format!("Recipe \"{}\", a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.code()), format!("Found an example: {}", best.title), "read", query)
 }
 
+/// What RapidR's reference says about `query`'s last word (`ReducedMotion`,
+/// `Application.ReducedMotion`, `MID$`): the builtin, the component or
+/// global object, or the members of that name — at most five.
+fn reference_hits(query: &str) -> Option<String> {
+    let word = query.split(|c: char| c.is_whitespace() || c == '.').filter(|w| !w.is_empty()).last()?;
+    let mut hits: Vec<String> = Vec::new();
+    if let Some(b) = rapidr_lang::builtin(word) {
+        hits.push(format!("{} (builtin): {}", b.syntax, b.doc));
+    }
+    if let Some(c) = rapidr_lang::component(word).or_else(|| rapidr_lang::global(word)) {
+        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, c.doc, c.display));
+    }
+    for c in rapidr_lang::GLOBALS.iter().chain(rapidr_lang::COMPONENTS.iter()) {
+        let owner = c.display;
+        for p in c.properties.iter().filter(|p| p.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (property): {}", p.name, p.doc));
+        }
+        for m in c.methods.iter().filter(|m| m.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (method): {}", m.name, m.doc));
+        }
+        for e in c.events.iter().filter(|e| e.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (event): {}", e.name, e.doc));
+        }
+        if hits.len() >= 5 {
+            break;
+        }
+    }
+    if hits.is_empty() {
+        return None;
+    }
+    hits.truncate(5);
+    Some(format!("The manual's pages don't mention \"{query}\", but RapidR's reference does:\n- {}", hits.join("\n- ")))
+}
+
 /// `search_manual`: the manual's three sections that answer the question
 /// best (crate::manual_search). The manual is RapidR's own text.
 fn search_manual(input: &Json) -> Outcome {
@@ -737,8 +934,15 @@ fn search_manual(input: &Json) -> Outcome {
     if query.is_empty() {
         return err("give `query`: the question, or a few words of it", "search_manual: no question".into(), "");
     }
-    let found = crate::manual_search::search(query, 3);
+    // (the user's language first — RAI answers in it —, English too)
+    let found = crate::manual_search::search_in(query, 3, &rapidr_value::i18n::language());
     if found.is_empty() {
+        // (a member's or builtin's name the manual's pages don't mention —
+        // Application.ReducedMotion — is in the reference: say what it is
+        // there rather than "nothing", a small model would stop at that)
+        if let Some(text) = reference_hits(query) {
+            return ok(text, format!("Searched the manual for {query}: found in RapidR's reference"), "read", query);
+        }
         return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
     }
     let text = found.iter().map(|s| crate::manual_search::excerpt(s)).collect::<Vec<_>>().join("\n\n---\n\n");
@@ -1124,7 +1328,11 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
             // (a RapidQ include's constant without its include is 0 — alClient
             // is alNone, a layout that silently isn't: an error, for the
             // assistant)
-            let sev = if d.code.as_deref() == Some("needs-include") { "error".to_string() } else { format!("{:?}", d.severity).to_ascii_lowercase() };
+            // (so are what other languages' code does in RapidR — `&&`,
+            // console.log — and a block never closed, RC.EXE's "Missing
+            // NEXT statement": warnings for a person, mistakes for a model)
+            let promoted = matches!(d.code.as_deref(), Some("needs-include" | "foreign-and" | "foreign-print")) || (d.message.starts_with("Missing ") && d.message.ends_with(" statement"));
+            let sev = if promoted { "error".to_string() } else { format!("{:?}", d.severity).to_ascii_lowercase() };
             let l = format!("{sev} {file}:{line}:{col}: {}", d.message);
             if out.contains(&l) {
                 continue;
@@ -1134,7 +1342,9 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
             // message means: the exact fix, under the compiler's words)
             if sev == "error" {
                 let src = text.lines().nth(line.saturating_sub(1)).unwrap_or("");
-                for (_, h) in crate::friendly::for_message(&d.message).into_iter().chain(crate::friendly::for_line(src)) {
+                // (the language service's hint for this very error first)
+                let first = d.hint.map(|h| h.text().to_string());
+                for h in first.into_iter().chain(crate::friendly::for_message(&d.message).map(|(_, h)| h)).chain(crate::friendly::for_line(src).into_iter().map(|(_, h)| h)) {
                     push(&mut out, format!("hint {file}:{line}: {h}"));
                 }
             }
@@ -1218,26 +1428,61 @@ fn diagnostics(files: &[(String, String)], root: &str, target: &str, main: &str,
 /// control laid out by Align, and labels (which size to their text), aren't
 /// judged.
 pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
+    let boxes = design_boxes(files);
+    let mut out = Vec::new();
+    let judged = |b: &DesignBox| b.visual && !b.aligned && !b.ty.ends_with("FORM") && b.w > 0 && b.h > 0;
+    for f in boxes.iter().filter(|b| b.ty.ends_with("FORM")) {
+        let Some((cw, ch)) = f.client else { continue };
+        for b in boxes.iter().filter(|b| b.parent == f.id && judged(b)) {
+            if b.x + b.w > cw + 2 || b.y + b.h > ch + 2 {
+                out.push(format!("warning layout: {} (Left {} + Width {}, Top {} + Height {}) reaches past {}'s client area ({cw} × {ch}): it's cut off — make the form bigger (ClientWidth / ClientHeight) or move it", b.id, b.x, b.w, b.y, b.h, f.id));
+            }
+        }
+    }
+    let solid = |b: &DesignBox| judged(b) && !b.ty.ends_with("LABEL") && !b.ty.ends_with("PANEL") && !b.ty.ends_with("GROUPBOX") && !b.ty.ends_with("TIMER");
+    let all: Vec<&DesignBox> = boxes.iter().filter(|b| solid(b)).collect();
+    for (i, a) in all.iter().enumerate() {
+        for b in &all[i + 1..] {
+            if a.parent == b.parent && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h {
+                out.push(format!("warning layout: {} ({},{} {}×{}) and {} ({},{} {}×{}) overlap: move one", a.id, a.x, a.y, a.w, a.h, b.id, b.x, b.y, b.w, b.h));
+            }
+        }
+    }
+    for b in boxes.iter().filter(|b| judged(b) && b.ty.ends_with("BUTTON") && !b.caption.is_empty()) {
+        let need = b.caption.chars().count() as i64 * 7 + 12;
+        if need > b.w + 4 {
+            out.push(format!("warning layout: {}'s caption \"{}\" needs about {need} pixels, its Width is {}: make it wider or the caption shorter", b.id, b.caption, b.w));
+        }
+    }
+    out
+}
+
+/// The forms the source makes, as boxes: each component's place and size
+/// (its own, else its type's default), parent, caption, Align, a form's
+/// client area — what [`layout_problems`] judges and [`layout_report`]
+/// lists.
+struct DesignBox {
+    id: String,
+    ty: String,
+    parent: String,
+    x: i64,
+    y: i64,
+    w: i64,
+    h: i64,
+    aligned: bool,
+    caption: String,
+    client: Option<(i64, i64)>,
+    visual: bool,
+}
+
+fn design_boxes(files: &[(String, String)]) -> Vec<DesignBox> {
     let srcs: Vec<(&str, &str)> = files.iter().filter(|(p, _)| is_source(p)).map(|(a, b)| (a.as_str(), b.as_str())).collect();
     if srcs.is_empty() {
         return Vec::new();
     }
     let model = rapidr_introspect::design::DesignModel::in_memory(&srcs);
     let Reply::Ok(list) = rapidr_introspect::handle(Some(&model), &Request::List { scope: None, type_name: None, limit: Some(1000), cursor: None }) else { return Vec::new() };
-    struct Box_ {
-        id: String,
-        ty: String,
-        parent: String,
-        x: i64,
-        y: i64,
-        w: i64,
-        h: i64,
-        aligned: bool,
-        caption: String,
-        client: Option<(i64, i64)>,
-        visual: bool,
-    }
-    let mut boxes: Vec<Box_> = Vec::new();
+    let mut boxes: Vec<DesignBox> = Vec::new();
     for o in list["objects"].as_array().into_iter().flatten() {
         let id = o["id"].as_str().unwrap_or("").to_string();
         let ty = o["type"].as_str().unwrap_or("").to_string();
@@ -1257,7 +1502,7 @@ pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
             (_, _, Some(w), Some(h)) => Some((w - 16, h - 39)),
             _ => None,
         };
-        boxes.push(Box_ {
+        boxes.push(DesignBox {
             id,
             ty: ty.to_ascii_uppercase(),
             parent: o["parent"].as_str().unwrap_or("").to_string(),
@@ -1271,30 +1516,39 @@ pub fn layout_problems(files: &[(String, String)]) -> Vec<String> {
             visual: comp.is_some_and(|c| c.visual),
         });
     }
-    let mut out = Vec::new();
-    let judged = |b: &Box_| b.visual && !b.aligned && !b.ty.ends_with("FORM") && b.w > 0 && b.h > 0;
+    boxes
+}
+
+/// The forms the source makes, in words, for an AI app (Studio's
+/// layout_report): each form's client area, each visual component's place
+/// and size (Align instead, when it has one), then what
+/// [`layout_problems`] finds.
+pub fn layout_report(files: &[(String, String)]) -> String {
+    let boxes = design_boxes(files);
+    let mut out = String::new();
     for f in boxes.iter().filter(|b| b.ty.ends_with("FORM")) {
-        let Some((cw, ch)) = f.client else { continue };
-        for b in boxes.iter().filter(|b| b.parent == f.id && judged(b)) {
-            if b.x + b.w > cw + 2 || b.y + b.h > ch + 2 {
-                out.push(format!("warning layout: {} (Left {} + Width {}, Top {} + Height {}) reaches past {}'s client area ({cw} × {ch}): it's cut off — make the form bigger (ClientWidth / ClientHeight) or move it", b.id, b.x, b.w, b.y, b.h, f.id));
+        match f.client {
+            Some((w, h)) => out.push_str(&format!("{} ({}): client area {w} × {h}\n", f.id, f.ty)),
+            None => out.push_str(&format!("{} ({})\n", f.id, f.ty)),
+        }
+        let mut kids = vec![(f.id.clone(), 1usize)];
+        while let Some((parent, depth)) = kids.pop() {
+            for b in boxes.iter().filter(|b| b.parent == parent && b.visual).rev() {
+                let place = if b.aligned { "aligned".to_string() } else { format!("Left {} Top {} Width {} Height {}", b.x, b.y, b.w, b.h) };
+                let cap = if b.caption.is_empty() { String::new() } else { format!(" \"{}\"", b.caption) };
+                out.push_str(&format!("{}{} ({}){cap}: {place}\n", "  ".repeat(depth), b.id, b.ty));
+                kids.push((b.id.clone(), depth + 1));
             }
         }
     }
-    let solid = |b: &Box_| judged(b) && !b.ty.ends_with("LABEL") && !b.ty.ends_with("PANEL") && !b.ty.ends_with("GROUPBOX") && !b.ty.ends_with("TIMER");
-    let all: Vec<&Box_> = boxes.iter().filter(|b| solid(b)).collect();
-    for (i, a) in all.iter().enumerate() {
-        for b in &all[i + 1..] {
-            if a.parent == b.parent && a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h {
-                out.push(format!("warning layout: {} ({},{} {}×{}) and {} ({},{} {}×{}) overlap: move one", a.id, a.x, a.y, a.w, a.h, b.id, b.x, b.y, b.w, b.h));
-            }
-        }
+    if out.is_empty() {
+        return "The program makes no form (no CREATE … AS RFORM in its files).".into();
     }
-    for b in boxes.iter().filter(|b| judged(b) && b.ty.ends_with("BUTTON") && !b.caption.is_empty()) {
-        let need = b.caption.chars().count() as i64 * 7 + 12;
-        if need > b.w + 4 {
-            out.push(format!("warning layout: {}'s caption \"{}\" needs about {need} pixels, its Width is {}: make it wider or the caption shorter", b.id, b.caption, b.w));
-        }
+    let problems = layout_problems(files);
+    if problems.is_empty() {
+        out.push_str("No layout problems found (nothing cut off, nothing on top of another, captions fit).");
+    } else {
+        out.push_str(&problems.join("\n"));
     }
     out
 }
@@ -1338,7 +1592,7 @@ fn check(input: &Json, p: &Project) -> Outcome {
     let mut files = p.all();
     let target = match s(input, "path") {
         "" => p.main.to_string(),
-        path => match project_path(p.folder, path) {
+        path => match resolve(p, path) {
             Ok(r) => r,
             Err(e) => return err(e, "check_code: outside the project".into(), path),
         },
@@ -1351,7 +1605,7 @@ fn check(input: &Json, p: &Project) -> Outcome {
         files.push((target.clone(), text.to_string()));
     }
     if !files.iter().any(|(f, _)| *f == target) {
-        return err(format!("{target}: no such file in the project"), format!("check_code: {target} not found"), &target);
+        return err(format!("{target}: no such file in the project. {}", files_note(p)), format!("check_code: {target} not found"), &target);
     }
     let found = diagnostics(&files, "/project", &target, p.main, p.compat.eq_ignore_ascii_case("rapidq"));
     let errors = found.iter().filter(|l| l.starts_with("error")).count();
@@ -1515,12 +1769,12 @@ fn base_text(rel: &str, p: &Project, proposals: &[Proposal]) -> Option<String> {
 }
 
 fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
-    let rel = match project_path(p.folder, s(input, "path")) {
+    let rel = match resolve(p, s(input, "path")) {
         Ok(r) => r,
         Err(e) => return err(e, format!("Refused a change to {}: outside the project", s(input, "path")), s(input, "path")),
     };
     let Some(current) = base_text(&rel, p, proposals) else {
-        return err(format!("{rel}: no such file (to make a new file, use write_file)"), format!("propose_edit: {rel} not found"), &rel);
+        return err(format!("{rel}: no such file in the project (to make a new file, use write_file). {}", files_note(p)), format!("propose_edit: {rel} not found"), &rel);
     };
     let edits = input.get("edits").and_then(Json::as_array).cloned().unwrap_or_default();
     match apply_edits(&rel, &current, &edits) {
@@ -1530,14 +1784,128 @@ fn propose_edit(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Out
             }
             let original = p.text(&rel).unwrap_or_default();
             let summary = s(input, "summary").to_string();
+            let new_text = new.clone();
             propose(proposals, Proposal { kind: "edit".into(), path: rel.clone(), old: original, new, summary: summary.clone(), ..Proposal::default() });
             match compile_errors(p, proposals) {
-                None => ok(format!("Proposed to the user as a diff of {rel}; they decide whether to apply it. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed a change to {rel}: {summary}"), "state", &rel),
-                Some(errors) => ok(format!("Proposed to the user as a diff of {rel}, but the project doesn't compile with it yet — fix these now with propose_edit on the lines in error (it builds on this proposal):\n{errors}"), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
+                None => {
+                    forget_refusals(&rel);
+                    ok(format!("{}\nIt compiles. Don't send it again: tell them in a sentence what it does.", waiting_for_the_user(&rel)), format!("Proposed a change to {rel}: {summary}"), "state", &rel)
+                }
+                Some(errors) => ok(format!("{}\n{}", waiting_for_the_user(&rel), but_errors(&rel, &errors, &new_text)), format!("Proposed a change to {rel}: {summary} (errors to fix)"), "state", &rel),
             }
         }
-        Err(e) => err(e, format!("A change to {rel} didn't fit the file"), &rel),
+        Err(e) => {
+            let e = same_again(&rel, "edit-miss", &e, &current).unwrap_or(e);
+            err(e, format!("A change to {rel} didn't fit the file"), &rel)
+        }
     }
+}
+
+/// A proposal's first line: it waits for the user (a line of its own, so
+/// that Studio's MCP server, when the change is applied at once, can say
+/// "Changed …" in its place and keep the rest: one sentence, not both).
+fn waiting_for_the_user(rel: &str) -> String {
+    format!("Waiting for the user to apply the change to {rel} (they see it as a diff).")
+}
+
+/// A proposal that doesn't compile yet: the errors, and what to do.
+/// (Studio's MCP server drops the line before this one when it applies.)
+fn but_errors(rel: &str, errors: &str, text: &str) -> String {
+    let first = errors.lines().find(|l| l.starts_with("error"));
+    let again = first.and_then(|l| error_id(l).map(|id| (id, l))).and_then(|(id, l)| same_again(rel, &id, l, text));
+    match again {
+        Some(text) => format!("But the project doesn't compile with it yet.\n{text}\n{errors}"),
+        None => format!("But the project doesn't compile with it yet — fix these now with propose_edit on the lines in error (it builds on this proposal):\n{errors}"),
+    }
+}
+
+/// The text of a proposal's tool answer once the change was applied at
+/// once (Studio's MCP server): `said` is what the tool answered, `files`
+/// what was changed. One sentence about the change, then the rest — whether
+/// it compiles and what to fix —, not "Applied" and "Proposed … they
+/// decide" together.
+pub fn applied_text(said: &str, files: &str) -> String {
+    let rest = said.split_once('\n').map_or("", |(_, r)| r);
+    let head = format!("Changed {files} in Studio's editor (not on disk yet: Run saves it; the user can undo with Edit > Undo).");
+    if rest.trim().is_empty() {
+        head
+    } else {
+        format!("{head}\n{rest}")
+    }
+}
+
+thread_local! {
+    /// The refusals in a row for each file: the error's id and how many
+    /// times it came back (Studio's tools run on one thread).
+    static REFUSALS: std::cell::RefCell<HashMap<String, (String, u32)>> = std::cell::RefCell::new(HashMap::new());
+}
+
+/// The file's change was accepted: its refusals are forgotten.
+fn forget_refusals(rel: &str) {
+    REFUSALS.with(|r| {
+        r.borrow_mut().remove(rel);
+    });
+}
+
+/// An error's id for "the same error again": its message without the
+/// names and numbers in it (`Syntax error near 'x'` → `Syntax error near '…'`).
+fn error_id(line: &str) -> Option<String> {
+    // ("error main.rr:12:5: message")
+    let message = line.strip_prefix("error ").unwrap_or(line);
+    let message = message.splitn(4, ':').nth(3).map_or(message, str::trim);
+    let mut out = String::new();
+    let mut quoted = false;
+    for c in message.chars() {
+        match c {
+            '\'' => {
+                quoted = !quoted;
+                out.push('\'');
+                if quoted {
+                    out.push('…');
+                }
+            }
+            _ if quoted => {}
+            c if c.is_ascii_digit() => {}
+            c => out.push(c),
+        }
+    }
+    let out = out.trim().to_string();
+    (!out.is_empty()).then_some(out)
+}
+
+/// A file refused (or its change failing) with error `id`: the first time
+/// nothing changes (`None`); the second time in a row — the same id for the
+/// same file — the advice does: stop rewriting the whole file, start from a
+/// recipe, with the nearest recipe's first lines (found with the file's own
+/// text). `why` is the error's text, `file_text` the text refused ("" when
+/// unknown).
+fn same_again(rel: &str, id: &str, why: &str, file_text: &str) -> Option<String> {
+    let count = REFUSALS.with(|r| {
+        let mut r = r.borrow_mut();
+        let entry = r.entry(rel.to_string()).or_insert_with(|| (id.to_string(), 0));
+        if entry.0 == id {
+            entry.1 += 1;
+        } else {
+            *entry = (id.to_string(), 1);
+        }
+        entry.1
+    });
+    if count < 2 {
+        return None;
+    }
+    let found = crate::recipes::search(file_text);
+    let (query, recipe) = match found.first() {
+        Some((_, r)) => (r.title.to_lowercase(), Some(r.code().lines().take(30).collect::<Vec<_>>().join("\n"))),
+        None => ("what you build".to_string(), None),
+    };
+    let mut out = format!("Same error again ({count} times in a row for {rel}). Stop rewriting the whole file. Call find_example('{query}') and start from that recipe.");
+    if let Some(code) = recipe {
+        out.push_str(&format!("\nThe nearest recipe starts like this:\n```basic\n{code}\n```"));
+    }
+    if !why.is_empty() {
+        out.push_str(&format!("\nThe error was: {}", why.lines().next().unwrap_or("")));
+    }
+    Some(out)
 }
 
 /// The compiler's errors for the project as the turn's proposals would
@@ -1560,7 +1928,7 @@ fn compile_errors(p: &Project, proposals: &[Proposal]) -> Option<String> {
 }
 
 fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outcome {
-    let rel = match project_path(p.folder, s(input, "path")) {
+    let rel = match resolve(p, s(input, "path")) {
         Ok(r) => r,
         Err(e) if s(input, "path").trim().is_empty() => return err(format!("{e} (write_file takes path, text and summary)"), "write_file: no file named".into(), ""),
         Err(e) => return err(e, format!("Refused to write {}: outside the project", s(input, "path")), s(input, "path")),
@@ -1595,11 +1963,15 @@ fn write_file(input: &Json, p: &Project, proposals: &mut Vec<Proposal>) -> Outco
             return err(format!("write_file would replace {rel} ({old_lines} lines) with {new_lines} lines that don't compile: write_file takes the file's whole new text. Send the complete file, or change a part with propose_edit.\n{errors}"), format!("Refused a shortened {rel} that doesn't compile"), &rel);
         }
     }
+    let new_text = text.clone();
     propose(proposals, Proposal { kind: kind.into(), path: rel.clone(), old: original, new: text, summary: summary.clone(), ..Proposal::default() });
     let what = if exists { "a new text for" } else { "the new file" };
     match compile_errors(p, proposals) {
-        None => ok(format!("Proposed {what} {rel} to the user as a diff; they decide. It compiles. Don't propose it again: tell them in a sentence what it does."), format!("Proposed {what} {rel}: {summary}"), "state", &rel),
-        Some(errors) => ok(format!("Proposed {what} {rel} to the user as a diff, but the project doesn't compile with it yet — fix these now with propose_edit on the lines in error (it builds on this proposal):\n{errors}"), format!("Proposed {what} {rel}: {summary} (errors to fix)"), "state", &rel),
+        None => {
+            forget_refusals(&rel);
+            ok(format!("{}\nIt compiles. Don't send it again: tell them in a sentence what it does.", waiting_for_the_user(&rel)), format!("Proposed {what} {rel}: {summary}"), "state", &rel)
+        }
+        Some(errors) => ok(format!("{}\n{}", waiting_for_the_user(&rel), but_errors(&rel, &errors, &new_text)), format!("Proposed {what} {rel}: {summary} (errors to fix)"), "state", &rel),
     }
 }
 
@@ -1666,13 +2038,73 @@ fn folder_name(text: &str) -> String {
     if n.is_empty() { "NewProgram".into() } else { n }
 }
 
+/// Each of a new project's files (its path) and the others of them it
+/// `$INCLUDE`s (lower case).
+fn includes_among(files: &[Json]) -> Vec<(String, Vec<String>)> {
+    let paths: Vec<String> = files.iter().filter_map(|f| project_path("", s(f, "path")).ok()).collect();
+    let includes_of = |text: &str, from: &str| -> Vec<String> {
+        text.lines()
+            .filter_map(|l| {
+                let l = l.trim_start();
+                let rest = l.get(..8).filter(|k| k.eq_ignore_ascii_case("$include")).map(|_| &l[8..])?;
+                let q = rest.trim_start().strip_prefix('"')?;
+                let inc = q.split('"').next().unwrap_or("");
+                project_path(&crate::folder_of(from), inc).ok().or_else(|| project_path("", inc).ok())
+            })
+            .map(|p| p.to_ascii_lowercase())
+            .filter(|i| paths.iter().any(|p| p.eq_ignore_ascii_case(i)))
+            .collect()
+    };
+    files.iter().filter_map(|f| project_path("", s(f, "path")).ok().map(|p| (p.clone(), includes_of(s(f, "text"), &p)))).collect()
+}
+
+/// Whether another of the files includes `path`.
+fn includes_file(files: &[Json], path: &str) -> bool {
+    let Ok(p) = project_path("", path) else { return false };
+    includes_among(files).iter().any(|(_, inc)| inc.contains(&p.to_ascii_lowercase()))
+}
+
+/// The program's start among a new project's files, by their code: the one
+/// source file that `$INCLUDE`s another of them and that none of them
+/// includes (`None`: no such file, or more than one).
+fn entry_of(files: &[Json]) -> Option<String> {
+    let all = includes_among(files);
+    let included: std::collections::HashSet<&String> = all.iter().flat_map(|(_, inc)| inc).collect();
+    let mut starts = all.iter().filter(|(p, inc)| !inc.is_empty() && !included.contains(&p.to_ascii_lowercase())).map(|(p, _)| p.clone());
+    let first = starts.next()?;
+    starts.next().is_none().then_some(first)
+}
+
 fn create_project(input: &Json, proposals: &mut Vec<Proposal>) -> Outcome {
     let files = input.get("files").and_then(Json::as_array).cloned().unwrap_or_default();
     // (a small model leaves out the name or the main file: what the files
     // say is taken — the main file is the first program, the name its own)
     let first_program = files.iter().map(|f| s(f, "path")).find(|p| is_source(p) && !p.to_ascii_lowercase().ends_with(".inc")).unwrap_or("").to_string();
+    // (the program's start, by its code: the file that includes others and
+    // that none includes)
+    let entry = entry_of(&files);
     let main_given = s(input, "main").trim().to_string();
-    let main_given = if main_given.is_empty() || !files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok()) { first_program.clone() } else { main_given };
+    let given_in = !main_given.is_empty() && files.iter().any(|f| project_path("", s(f, "path")).ok() == project_path("", &main_given).ok());
+    // (a main file named that another of the files includes — a module —:
+    // the file that includes it is where the program starts)
+    let included_main = given_in && entry.is_some() && includes_file(&files, &main_given);
+    let main_given = if given_in && !included_main {
+        main_given
+    } else if let Some(e) = entry {
+        e
+    } else if main_given.is_empty() {
+        first_program.clone()
+    } else {
+        // (a main file named and not sent — a project cut short: never
+        // another file made the main one in its place; Robert's
+        // ShopInvoices got main = lang.rr, a module, so Run did nothing)
+        let title = s(input, "name").trim().to_string();
+        return err(
+            format!("the main file \"{main_given}\" isn't among the files. Nothing was made. Call create_project again with every file of the project complete, the main file among them."),
+            format!("Refused the new program {title}: its main file {main_given} wasn't sent"),
+            &project_name(&title),
+        );
+    };
     let name_given = s(input, "name").trim();
     let title = if name_given.is_empty() { folder_name(&main_given) } else { name_given.chars().take(80).collect::<String>() };
     // (any title: its folder's name made from it)
@@ -1876,7 +2308,8 @@ fn syntax_problems(files: &[(String, String)], root: &str, target: &str) -> Vec<
         let (line, col) = crate::langsvc::line_col(&text, d.start);
         out.push(format!("error {target}:{line}:{col}: {}", d.message));
         let src = text.lines().nth(line.saturating_sub(1)).unwrap_or("");
-        for (_, h) in crate::friendly::for_message(&d.message).into_iter().chain(crate::friendly::for_line(src)) {
+        let first = d.hint.map(|h| h.text().to_string());
+        for h in first.into_iter().chain(crate::friendly::for_message(&d.message).map(|(_, h)| h)).chain(crate::friendly::for_line(src).into_iter().map(|(_, h)| h)) {
             let hint = format!("hint {target}:{line}: {h}");
             if !out.contains(&hint) {
                 out.push(hint);
@@ -1895,6 +2328,10 @@ fn refused(p: &Project, proposals: &[Proposal], rel: &str, old: &str, new: &str)
         return None;
     }
     if let Some(at) = cut_off(old, new) {
+        // (the same refusal again: the advice changes)
+        if let Some(again) = same_again(rel, "cut-off", &at, new) {
+            return Some((format!("Not proposed: the new text of {rel} is cut off — {at}.\n{again}"), "it is cut off at the end (again)".into()));
+        }
         return Some((format!("Not proposed: the new text of {rel} is cut off — {at}. A reply that ran out of room ends like that. Send the change again, complete: only the parts that change, with propose_edit."), "it is cut off at the end".into()));
     }
     let mut files = project_files(p, proposals);
@@ -1905,6 +2342,12 @@ fn refused(p: &Project, proposals: &[Proposal], rel: &str, old: &str, new: &str)
         return None;
     }
     let shown: Vec<&str> = errors.iter().take(12).map(String::as_str).collect();
+    // (the same error again, for the same file: stop rewriting it, start
+    // from a recipe — docs/manual/ai-apps.md)
+    let first = errors.iter().find(|l| l.starts_with("error"));
+    if let Some(again) = first.and_then(|l| error_id(l).map(|id| (id, l))).and_then(|(id, l)| same_again(rel, &id, l, new)) {
+        return Some((format!("Not proposed: the new text of {rel} has a syntax error again.\n{again}\nThe errors:\n{}", shown.join("\n")), "the same syntax error again".into()));
+    }
     Some((format!("Not proposed: the new text of {rel} has a syntax error, so it can't be part of the program — fix it and send the change again (propose_edit, with every line it needs):\n{}", shown.join("\n")), "a syntax error".into()))
 }
 
@@ -1991,7 +2434,7 @@ mod tests {
         let empty = HashMap::new();
         let p = project(&[], &empty);
         let r = run("search_manual", &json!({"query": "how do I set a breakpoint"}), &p, &mut Vec::new(), true);
-        assert!(!r.is_error && r.content.contains("docs/manual/debugging.md — "), "{}", r.content);
+        assert!(!r.is_error && r.content.contains("Manual › "), "{}", r.content);
         assert!(r.content.matches("docs/manual/").count() <= 3);
         assert!(run("search_manual", &json!({"query": "qqzzx"}), &p, &mut Vec::new(), true).content.contains("nothing on"));
         assert!(run("search_manual", &json!({}), &p, &mut Vec::new(), true).is_error);
@@ -2079,6 +2522,16 @@ mod tests {
         assert!(props.iter().any(|q| q.project == "tip_calculator" && q.main && q.path == "tip calculator.rr"), "{props:#?}");
         let wrong_main = run("create_project", &json!({"name": "T", "main": "app.rr", "summary": "T", "files": [{"path": "forms.inc", "text": "CREATE F AS RForm\nEND CREATE\n"}, {"path": "main.rr", "text": "$INCLUDE \"forms.inc\"\nF.ShowModal\n"}]}), &none, &mut props, true);
         assert!(!wrong_main.is_error && props.iter().any(|q| q.project == "T" && q.main && q.path == "main.rr"), "{}", wrong_main.content);
+        // (Robert's ShopInvoices: a project cut short — its main file named,
+        // not sent, the modules none includes: refused, never a module made
+        // the main file)
+        let cut = run("create_project", &json!({"name": "ShopInvoices", "main": "main.rr", "summary": "x", "files": [{"path": "lang.rr", "text": "DIM lang AS INTEGER\nlang = 1\n"}, {"path": "ui_form.rr", "text": "CREATE Form AS RForm\nEND CREATE\n"}, {"path": "ui_logic.rr", "text": "SUB StartApp\nEND SUB\n"}]}), &none, &mut props, true);
+        assert!(cut.is_error && cut.content.contains("the main file \"main.rr\" isn't among the files. Nothing was made"), "{}", cut.content);
+        assert!(!props.iter().any(|q| q.project == "ShopInvoices"), "nothing proposed");
+        // (a module named as the main file, which another file includes: the
+        // file that includes it is the main one)
+        let module_main = run("create_project", &json!({"name": "Shop", "main": "lang.rr", "summary": "x", "files": [{"path": "lang.rr", "text": "DIM lang AS INTEGER\n"}, {"path": "main.rr", "text": "$INCLUDE \"lang.rr\"\nPRINT lang\n"}]}), &none, &mut props, true);
+        assert!(!module_main.is_error && props.iter().any(|q| q.project == "Shop" && q.main && q.path == "main.rr"), "{}", module_main.content);
         // (write_file with create_project's files and no project open: a new program too)
         let mixed = run("write_file", &json!({"summary": "x", "files": [{"path": "main.rr", "text": "PRINT 1\n"}]}), &none, &mut props, true);
         assert!(!mixed.is_error && props.iter().any(|q| q.project == "main"), "{}", mixed.content);
@@ -2424,5 +2877,150 @@ mod tests {
         assert!(!run("write_file", &json!({"path": "new.rr", "summary": "x", "text": long}), &p, &mut Vec::new(), true).is_error);
         // (the lines that change, not the span between the first and the last)
         assert_eq!(line_delta(&long, &long.replace("PRINT 1\n", "PRINT 0\n").replace("PRINT 120\n", "PRINT 121\n")), (2, 2));
+    }
+
+    #[test]
+    fn typing_in_the_program_never_shows_the_text() {
+        // (an AI app's arguments capitalised, RAI's not; a password typed
+        // into the program must never reach the pane, the status line, a
+        // screen reader or the question — only how many characters)
+        let ai_app = activity("app_type", &json!({"Label": "Password", "Text": "hunter2"})).unwrap();
+        assert_eq!(ai_app, "Typing 7 characters into the box beside \"Password\" in the running program");
+        let rai = activity("app_type", &json!({"name": "txtPin", "text": " 1234 "})).unwrap();
+        assert_eq!(rai, "Typing 6 characters into txtPin in the running program");
+        assert_eq!(activity("app_type", &json!({"text": "x"})).unwrap(), "Typing 1 character in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Ctrl+A Backspace"})).unwrap(), "Pressing Ctrl+A Backspace in the running program");
+        // (single characters are typing: counted, not shown; so is a word
+        // that isn't a key's name)
+        assert_eq!(activity("app_key", &json!({"Keys": "h u n t e r 2"})).unwrap(), "Pressing 7 keys in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "hunter2"})).unwrap(), "Pressing a key in the running program");
+        assert_eq!(activity("app_key", &json!({"keys": "Shift+Tab F5 PageDown Cmd+Z"})).unwrap(), "Pressing Shift+Tab F5 PageDown Cmd+Z in the running program");
+        for line in [ai_app, rai] {
+            assert!(!line.contains("hunter2") && !line.contains("1234"), "{line}");
+        }
+    }
+
+    /// The eval of 2026-10-29: the same refusal came back three times in a
+    /// row and the model rewrote the whole file each time. The second time
+    /// the advice changes: stop rewriting, find_example, the nearest
+    /// recipe's first lines.
+    #[test]
+    fn the_same_refusal_twice_changes_the_advice() {
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "' MyApp: an empty program.\n".to_string());
+        let p = project(&files, &buffers);
+        let mut props = Vec::new();
+        let broken = |extra: &str| json!({"path": "main.rr", "summary": "x", "text": format!("' a stopwatch with Start, Stop and Reset buttons and a timer\nDIM x AS INTEGER\nSET x = 1\n{extra}")});
+        let first = run("write_file", &broken(""), &p, &mut props, true);
+        assert!(first.is_error && first.content.contains("has a syntax error") && !first.content.contains("Same error again"), "{}", first.content);
+        // (the hint is under the compiler's message)
+        assert!(first.content.contains("hint main.rr:3: RapidR has no SET: write x = 1"), "{}", first.content);
+        let second = run("write_file", &broken("PRINT x\n"), &p, &mut props, true);
+        assert!(second.is_error && second.content.contains("Same error again") && second.content.contains("Stop rewriting the whole file"), "{}", second.content);
+        assert!(second.content.contains("Call find_example('") && second.content.contains("and start from that recipe"), "{}", second.content);
+        assert!(second.content.contains("```basic") && second.content.to_ascii_lowercase().contains("stopwatch"), "the nearest recipe's lines: {}", second.content);
+        let third = run("write_file", &broken("PRINT x + 1\n"), &p, &mut props, true);
+        assert!(third.content.contains("Same error again (3 times in a row"), "{}", third.content);
+        // (another error is a new start)
+        let other = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "DIM a AS INTEGER\na = 7 % 3\n"}), &p, &mut props, true);
+        assert!(other.is_error && !other.content.contains("Same error again"), "{}", other.content);
+        // (a text that is taken forgets them)
+        let good = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "PRINT 1\n"}), &p, &mut props, true);
+        assert!(!good.is_error, "{}", good.content);
+        let again = run("write_file", &broken(""), &p, &mut props, true);
+        assert!(again.is_error && !again.content.contains("Same error again"), "{}", again.content);
+        // (no recipe is close to a file about nothing: the advice is still given)
+        let mut np = Vec::new();
+        let _ = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "SET q = 1\n"}), &p, &mut np, true);
+        let nothing = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "SET q = 2\n"}), &p, &mut np, true);
+        assert!(nothing.content.contains("Same error again") && nothing.content.contains("find_example('"), "{}", nothing.content);
+    }
+
+    /// A path written the project's way, or the way a model writes it.
+    #[test]
+    fn paths_with_the_project_folders_name_before_them_are_the_projects_files() {
+        let files = vec!["main.rr".to_string(), "util.rr".to_string(), "lib/helper.rr".to_string()];
+        let buffers = HashMap::new();
+        let p = Project { folder: "/Users/x/Projects/MyApp", files: &files, main: "main.rr", compat: "", buffers: &buffers };
+        for given in ["main.rr", "./main.rr", "project/main.rr", "Project/main.rr", "MyApp/main.rr", "myapp/./main.rr", "/Users/x/Projects/MyApp/main.rr", "/Users/x/Projects/MyApp/project/../main.rr"] {
+            assert_eq!(resolve(&p, given).as_deref(), Ok("main.rr"), "{given}");
+        }
+        assert_eq!(resolve(&p, "project/lib/helper.rr").as_deref(), Ok("lib/helper.rr"));
+        // (a real folder of that name is left alone)
+        let with_project_folder = vec!["main.rr".to_string(), "project/a.rr".to_string()];
+        let q = Project { folder: "/Users/x/Projects/MyApp", files: &with_project_folder, main: "main.rr", compat: "", buffers: &buffers };
+        assert_eq!(resolve(&q, "project/a.rr").as_deref(), Ok("project/a.rr"));
+        // (never outside: said so, with the project's files)
+        for outside in ["~/Elsewhere/main.rr", "/etc/passwd", "../other/main.rr", "C:/Users/x/main.rr", "project/../../x.rr"] {
+            let e = resolve(&p, outside).unwrap_err();
+            assert!(e.contains("outside the project") && e.contains("The project's files") && e.contains("main.rr, util.rr, lib/helper.rr"), "{outside}: {e}");
+        }
+        // (the tools say it too; a miss lists the files)
+        let read = run("read_file", &json!({"path": "project/util.rr"}), &p, &mut Vec::new(), true);
+        assert!(read.is_error && !read.content.contains("outside"), "{}", read.content);
+        let miss = run("read_file", &json!({"path": "nothing.rr"}), &p, &mut Vec::new(), true);
+        assert!(miss.is_error && miss.content.contains("is not a file of the project") && miss.content.contains("main.rr, util.rr"), "{}", miss.content);
+        let edit = run("propose_edit", &json!({"path": "nothing.rr", "summary": "x", "edits": [{"old_text": "a", "new_text": "b"}]}), &p, &mut Vec::new(), true);
+        assert!(edit.is_error && edit.content.contains("The project's files"), "{}", edit.content);
+        let check = run("check_code", &json!({"path": "nothing.rr"}), &p, &mut Vec::new(), true);
+        assert!(check.is_error && check.content.contains("The project's files"), "{}", check.content);
+    }
+
+    /// One clear sentence about a change: waiting for the user, or changed
+    /// — not both.
+    #[test]
+    fn a_change_says_waiting_or_changed_not_both() {
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "PRINT 1\n".to_string());
+        let p = project(&files, &buffers);
+        let mut props = Vec::new();
+        let said = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "PRINT 2\n"}), &p, &mut props, true);
+        assert!(!said.is_error, "{}", said.content);
+        assert_eq!(said.content.lines().next().unwrap(), "Waiting for the user to apply the change to main.rr (they see it as a diff).");
+        assert!(said.content.contains("It compiles"));
+        let applied = applied_text(&said.content, "main.rr");
+        assert!(applied.starts_with("Changed main.rr in Studio's editor (not on disk yet"), "{applied}");
+        assert!(!applied.contains("Waiting") && !applied.contains("Proposed") && !applied.contains("they decide") && applied.contains("It compiles"), "{applied}");
+        // (a change that doesn't compile yet: the errors stay)
+        let bad = run("write_file", &json!({"path": "main.rr", "summary": "x", "text": "DIM b AS BOOLEAN\nPRINT 3\n"}), &p, &mut props, true);
+        let applied = applied_text(&bad.content, "main.rr");
+        assert!(applied.starts_with("Changed main.rr") && applied.contains("doesn't compile with it yet") && !applied.contains("Waiting"), "{applied}");
+        // (nothing but a head: just the sentence)
+        assert!(applied_text("Waiting for the user to apply the change to a.rr (they see it as a diff).", "a.rr").starts_with("Changed a.rr in Studio's editor"));
+    }
+
+    /// check_code: another language's habit has its fix under the compiler's
+    /// message, and `&&` / console.log — which RapidR compiles — are errors for
+    /// the assistant (warnings for a person).
+    #[test]
+    fn check_code_gives_the_hint_and_promotes_what_compiles_wrongly() {
+        let files = vec!["main.rr".to_string()];
+        let mut buffers = HashMap::new();
+        buffers.insert("main.rr".to_string(), "PRINT 1\n".to_string());
+        let p = project(&files, &buffers);
+        let check = |text: &str| run("check_code", &json!({"path": "main.rr", "text": text}), &p, &mut Vec::new(), true).content;
+        let set = check("DIM x AS INTEGER\nSET x = 1\n");
+        assert!(set.contains("error main.rr:2:1: Syntax error in SET statement") && set.contains("hint main.rr:2: RapidR has no SET: write x = 1"), "{set}");
+        let rem = check("DIM a AS INTEGER\na = 7 % 3\n");
+        assert!(rem.contains("hint main.rr:2: RapidR has no %"), "{rem}");
+        let and = check("DIM x AS INTEGER\nx = 3\nIF x = 3 && x = 3 THEN PRINT \"yes\"\n");
+        assert!(and.contains("error main.rr:3:") && and.contains("&& is not a logical AND") && and.contains("hint main.rr:3: RapidR uses AND and OR"), "{and}");
+        let console = check("console.log(\"hi\")\n");
+        assert!(console.contains("error main.rr:1:1: console.log is not RapidR") && console.contains("hint main.rr:1: use PRINT"), "{console}");
+        let next = check("DIM i AS INTEGER\nFOR i = 1 TO 3\n  PRINT i\n");
+        assert!(next.contains("error main.rr:2:1: Missing NEXT statement") && next.contains("hint main.rr:2: every FOR needs its NEXT"), "{next}");
+        // (a valid program, and what RapidQ compiles on purpose: nothing said)
+        assert_eq!(check("DIM x AS INTEGER\nx += 1\nx++\nIF x == 2 THEN PRINT x\nprint(x)\n"), "No problems: it compiles.");
+    }
+
+    #[test]
+    fn a_member_the_manual_never_names_is_found_in_the_reference() {
+        let r = super::reference_hits("ReducedMotion").expect("ReducedMotion is in the reference");
+        assert!(r.contains("Application.ReducedMotion (property)"), "{r}");
+        assert!(super::reference_hits("Application.ReducedMotion").is_some());
+        assert!(super::reference_hits("MID$").is_some_and(|r| r.contains("(builtin)")));
+        assert!(super::reference_hits("nosuchthingatall").is_none());
     }
 }

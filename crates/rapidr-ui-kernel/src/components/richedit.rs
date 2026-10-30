@@ -7,6 +7,7 @@
 //! back with the text. Screen readers get the text's runs with their
 //! formats.
 
+use rapidr_value::i18n::tr_ui_fill;
 use rapidr_value::objects::a11y::{AccessNode, Action};
 use rapidr_value::objects::ops::Rect;
 use rapidr_value::objects::with_textedit;
@@ -74,7 +75,7 @@ impl ComponentKind for RichEdit {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let mut n = Memo.describe(cx);
         if let Some(f) = with_textedit(cx.id, |t| t.caret_format()).flatten() {
-            let spoken = format!("At the caret: {}", text_format(&f).spoken());
+            let spoken = tr_ui_fill("At the caret: {format}", &[("format", &text_format(&f).spoken())]);
             n.description = if n.description.is_empty() { spoken } else { format!("{}; {spoken}", n.description) };
         }
         n.text = Memo::rich_access(cx).map(Box::new);

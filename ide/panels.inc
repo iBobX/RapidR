@@ -64,6 +64,14 @@ END SUB
 ' ones dimmed: UpdateCommands), the examples ("Example: …"), and ":N" for a
 ' line of the active document.
 
+' A command's menu as the palette's category, in Studio's language: the top
+' menu's title, without its & (a category no menu has: its own name).
+FUNCTION PaletteCategory(Cat AS STRING) AS STRING
+  DIM m AS INTEGER
+  m = MenuIndex(Cat)
+  IF m >= 0 THEN Result = REPLACESUBSTR$(MI(m).Caption, "&", "") ELSE Result = TR$(Cat)
+END FUNCTION
+
 SUB FillPalette
   DIM i AS INTEGER, cat AS STRING, icon AS STRING
   Palette.Clear
@@ -74,16 +82,16 @@ SUB FillPalette
       IF INSTR(cat, "/") > 0 THEN cat = LEFT$(cat, INSTR(cat, "/") - 1)
       icon = CmdIcon(i)
       IF icon = "-" THEN icon = ""
-      Palette.AddCommand Cmd(i).Id, PlainTitle(Cmd(i).Title), CmdKeys(i), cat, icon
+      Palette.AddCommand Cmd(i).Id, PlainTitle(Cmd(i).Title), CmdKeys(i), PaletteCategory(cat), icon
     END IF
   NEXT
   FOR i = 0 TO ExampleCount - 1
-    Palette.AddCommand "example:" + LTRIM$(STR$(i)), FileTitle(ExampleFile(i)) + " - " + ExampleWhat(i), "", "Example", "RFORM"
+    Palette.AddCommand "example:" + LTRIM$(STR$(i)), FileTitle(ExampleFile(i)) + " - " + TR$(ExampleWhat(i)), "", TR$("Example"), "RFORM"
   NEXT
   FOR i = 0 TO MoreCount - 1
-    Palette.AddCommand "more:" + LTRIM$(STR$(i)), FileTitle(MoreFile(i)) + " - " + MoreWhat(i), "", "Example", "RFORM"
+    Palette.AddCommand "more:" + LTRIM$(STR$(i)), FileTitle(MoreFile(i)) + " - " + TR$(MoreWhat(i)), "", TR$("Example"), "RFORM"
   NEXT
-  Palette.AddPrefix ":", "Go to line {}"
+  Palette.AddPrefix ":", TR$("Go to line {}")
 END SUB
 
 ' One search for everything (docs/studio-wow.md CMD-2): beside the
@@ -108,7 +116,7 @@ SUB RefreshQuickOpen
   QuickCount = 0
   IF ProjectOpen THEN
     FOR i = 0 TO Proj.FileCount - 1
-      AddQuick "open:" + Proj.FullPath(i), Proj.File(i), "Open", "files/" + FileExt(Proj.File(i))
+      AddQuick "open:" + Proj.FullPath(i), Proj.File(i), TR$("Open"), "files/" + FileExt(Proj.File(i))
     NEXT
   END IF
   d = ActiveCode
@@ -121,9 +129,9 @@ SUB RefreshQuickOpen
     nm = FIELD$(row, CHR$(9), 3)
     detail = FIELD$(row, CHR$(9), 4)
     IF kind = "component" THEN
-      AddQuick "comp:" + nm, nm + ": " + detail, "Component", UCASE$(MID$(detail, RINSTR(detail, " ") + 1))
+      AddQuick "comp:" + nm, nm + ": " + detail, TR$("Component"), UCASE$(MID$(detail, RINSTR(detail, " ") + 1))
     ELSE
-      AddQuick "line:" + FIELD$(row, CHR$(9), 5) + ":" + nm, nm, "Symbol", "symbols/" + kind
+      AddQuick "line:" + FIELD$(row, CHR$(9), 5) + ":" + nm, nm, TR$("Symbol"), "symbols/" + kind
     END IF
   NEXT
 END SUB
@@ -201,7 +209,10 @@ END FUNCTION
 SUB ProjectNodeOpen(Path AS STRING)
   DIM d AS INTEGER, comp AS STRING
   IF Path = "" OR RIGHT$(Path, 1) = "/" THEN EXIT SUB
+  PreviewTimer.Enabled = 0
   OpenDocument ProjectPath(Path)
+  ' (opened on purpose: no more a preview)
+  PreviewKept DocOf(ProjectPath(Path))
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   comp = MID$(Path, INSTR(Path, "#") + 1)
   d = DocOf(ProjectPath(Path))
@@ -211,6 +222,38 @@ SUB ProjectNodeOpen(Path AS STRING)
   ShowDesigner d
   DesignDoc(d).SelectName comp
   InspectActive
+END SUB
+
+' The file the tree's selection rests on, shown: its open tab brought to
+' the front, else the file opened in the preview tab — one tab that the
+' next file selected takes over while it's unchanged (opened with Enter or
+' a double click, or edited, it stays). The keys stay in the tree.
+SUB PreviewTick
+  DIM d AS INTEGER, full AS STRING
+  PreviewTimer.Enabled = 0
+  IF PreviewWanted = "" OR ProjectOpen = 0 THEN EXIT SUB
+  IF ProjectTree.Selected <> PreviewWanted THEN EXIT SUB
+  full = ProjectPath(PreviewWanted)
+  d = DocOf(full)
+  IF d >= 0 THEN
+    IF Dock.ActiveDocument <> DocPane(d) THEN Dock.ActiveDocument = DocPane(d)
+    EXIT SUB
+  END IF
+  IF FILEEXISTS(full) = 0 THEN EXIT SUB
+  ' (the last preview, unchanged: this one takes its place)
+  IF PreviewDoc >= 0 THEN
+    IF DocOpen(PreviewDoc) AND DocDirty(PreviewDoc) = 0 THEN CloseDocument PreviewDoc
+  END IF
+  PreviewDoc = -1
+  OpenQuietly = 1
+  OpenDocument full
+  OpenQuietly = 0
+  PreviewDoc = DocOf(full)
+END SUB
+
+' (a document kept: opened from the tree, or changed — no more a preview)
+SUB PreviewKept(d AS INTEGER)
+  IF d = PreviewDoc THEN PreviewDoc = -1
 END SUB
 
 ' Selected: a form, or a component of one, shown in its open designer too
@@ -223,6 +266,15 @@ SUB ProjectNodeSelect(Path AS STRING)
     EXIT SUB
   END IF
   IF ProjectInspecting THEN LeaveProjectInspector
+  ' (a file: what it holds shows — its tab to the front, or a preview of
+  ' it — once the selection rests there a moment; Robert 2026-10-29:
+  ' es.po selected, pt-BR.po's text on show)
+  IF INSTR(Path, "#") = 0 AND ProjectTree.SelectedKind = "file" THEN
+    PreviewWanted = Path
+    PreviewTimer.Enabled = 0
+    PreviewTimer.Enabled = 1
+    EXIT SUB
+  END IF
   IF INSTR(Path, "#") = 0 THEN EXIT SUB
   d = DocOf(ProjectPath(Path))
   IF d < 0 THEN EXIT SUB
@@ -253,14 +305,16 @@ SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
   IF FILEEXISTS(full) = 0 THEN
     ' (the toolbox's RFormMDI: an MDI main window)
     IF Kind = "form" AND PendingFormKind = "formmdi" THEN t = Proj.NewFileText(Path, "formmdi", mainText) ELSE t = Proj.NewFileText(Path, Kind, mainText)
-    f.Open(full, 65535)
-    f.WriteStr(t, LEN(t))
-    f.Close
+    ' (as Studio saves a document: UTF-8, whole — a name in any language)
+    IF Proj.WriteNewFile(full, t) = 0 THEN
+      OutputLine TR$("Can't make {file}: {error}", "file", Path, "error", Proj.Error)
+      EXIT SUB
+    END IF
   END IF
   IF Proj.AddFile(full, Kind) THEN
     IF Proj.Kind = "project" THEN SaveProjectFile
   ELSE
-    OutputLine "Can't add " + Path + ": " + Proj.Error
+    OutputLine TR$("Can't add {file}: {error}", "file", Path, "error", Proj.Error)
   END IF
   IF (Kind = "form" OR Kind = "module") AND LCASE$(full) <> LCASE$(ProjectMain) THEN
     patch = Proj.IncludeEdit(mainText, full)
@@ -272,7 +326,7 @@ SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
       IF dm >= 0 THEN
         CodeDoc(dm).ApplyPatches patch, 0
         ProjectFileChanged dm
-        OutputLine FileTitle(ProjectMain) + " includes " + FileTitle(full) + " ($INCLUDE): its forms are made when the program starts"
+        OutputLine TR$("{main} includes {file} ($INCLUDE): its forms are made when the program starts", "main", FileTitle(ProjectMain), "file", FileTitle(full))
       END IF
     END IF
   END IF
@@ -282,7 +336,7 @@ SUB ProjectNewFile(Path AS STRING, Kind AS STRING)
       SetState RunState, REPLACESUBSTR$(PendingFormHint, "{form}", BaseName(full))
       OutputLine REPLACESUBSTR$(PendingFormHint, "{form}", BaseName(full))
     ELSE
-      SetState RunState, BaseName(full) + " added: drop components on it; show it with " + BaseName(full) + ".Show"
+      SetState RunState, TR$("{form} added: drop components on it; show it with {form}.Show", "form", BaseName(full))
     END IF
   END IF
   PendingFormKind = ""
@@ -294,7 +348,7 @@ SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
   DIM o AS STRING, n AS STRING, d AS INTEGER
   o = ProjectPath(OldPath): n = ProjectPath(NewPath)
   IF FILEEXISTS(n) THEN
-    SetState "error", FileTitle(n) + " is there already"
+    SetState "error", TR$("{file} is there already", "file", FileTitle(n))
     Cancel = 1
     EXIT SUB
   END IF
@@ -302,12 +356,15 @@ SUB ProjectRename(OldPath AS STRING, NewPath AS STRING, Cancel AS INTEGER)
   IF d >= 0 THEN
     IF DocDirty(d) THEN SaveDocument d
   END IF
+  ' (the old name no longer watched; the new one Studio's own)
+  Proj.Unwatch o
   IF FILEEXISTS(o) THEN RENAME o, n
   Proj.RemoveFile o
   Proj.AddFile n
   SaveProjectFile
   IF d >= 0 THEN
     DocFile(d) = n
+    ExtOwnWrite n
     DocTitles d
   END IF
   IF LCASE$(o) = LCASE$(ProjectMain) THEN
@@ -332,7 +389,7 @@ SUB IncludeFollows(OldPath AS STRING, NewPath AS STRING)
   IF dm < 0 THEN EXIT SUB
   CodeDoc(dm).ApplyPatches patch, 0
   ProjectFileChanged dm
-  OutputLine FileTitle(ProjectMain) + " includes " + FileTitle(NewPath) + " now"
+  OutputLine TR$("{main} includes {file} now", "main", FileTitle(ProjectMain), "file", FileTitle(NewPath))
 END SUB
 
 ' Taken out of the project (confirmed in the tree): its documents close; the
@@ -349,7 +406,7 @@ SUB ProjectDelete(Path AS STRING, Cancel AS INTEGER)
   Proj.RemoveFile p
   SaveProjectFile
   IncludeLeaves p
-  SetState RunState, FileTitle(p) + " taken out of the project (still on the disk)"
+  SetState RunState, TR$("{file} taken out of the project (still on the disk)", "file", FileTitle(p))
 END SUB
 
 ' (a file taken out of the project: the main file no longer includes it —
@@ -367,16 +424,17 @@ SUB IncludeLeaves(Path AS STRING)
   IF patch = "" THEN EXIT SUB
   CodeDoc(dm).ApplyPatches patch, 0
   ProjectFileChanged dm
-  OutputLine FileTitle(ProjectMain) + " no longer includes " + FileTitle(Path)
+  OutputLine TR$("{main} no longer includes {file}", "main", FileTitle(ProjectMain), "file", FileTitle(Path))
 END SUB
 
 ' Dragged to another place (or folder): the project keeps the tree's order.
 SUB ProjectMove(Path AS STRING, NewPath AS STRING, Index AS INTEGER)
   IF Proj.Kind <> "project" THEN EXIT SUB
   IF ProjectTree.Save THEN
-    IF Proj.Open(ProjectFile) = 0 THEN OutputLine "Can't read the project again: " + Proj.Error
+    ExtOwnWrite ProjectFile
+    IF Proj.Open(ProjectFile) = 0 THEN OutputLine TR$("Can't read the project again: {error}", "error", Proj.Error)
   ELSE
-    OutputLine "Can't save the project's order"
+    OutputLine TR$("Can't save the project's order")
   END IF
 END SUB
 
@@ -435,7 +493,7 @@ SUB ToolboxPick(TypeName AS STRING)
   END IF
   d = ActiveDesign
   IF d < 0 THEN
-    SetState "stopped", "Open a form to add a " + TypeName
+    SetState "stopped", TR$("Open a form to add a {type}", "type", TypeName)
     EXIT SUB
   END IF
   DesignDoc(d).AddComponent TypeName, -1, -1
@@ -481,7 +539,7 @@ SUB ToolboxDrop(TypeName AS STRING, Target AS STRING, X AS INTEGER, Y AS INTEGER
             OutputLine DesignDoc(d).StatusText
           END IF
         ELSE
-          AddFormOfType TypeName, "A form can't go inside a form: {form} was added as a new window. For child windows, make " + DesignDoc(d).FormName + " an RFormMDI."
+          AddFormOfType TypeName, TR$("A form can't go inside a form: {form} was added as a new window. For child windows, make {mdi} an RFormMDI.", "mdi", DesignDoc(d).FormName)
         END IF
         EXIT SUB
       END IF
@@ -511,11 +569,11 @@ SUB InspectActive
   d = ActiveDesign
   IF d >= 0 THEN
     Inspector.Designer = DesignDoc(d)
-    Dock.PaneTitle("inspector", "Properties")
+    Dock.PaneTitle("inspector", TR$("Properties"))
   ELSE
     Inspector.Designer = ""
     Inspector.Target = ""
-    Dock.PaneTitle("inspector", "Properties")
+    Dock.PaneTitle("inspector", TR$("Properties"))
   END IF
 END SUB
 
@@ -555,7 +613,16 @@ SUB ShowProjectInspector
   Inspector.Page = "properties"
   Inspector.ShowEvents = 0
   FillProjectInspector
-  Dock.PaneTitle("inspector", "Properties")
+  Dock.PaneTitle("inspector", TR$("Properties"))
+END SUB
+
+' (Studio's language changed) The project's properties, if they are shown,
+' made in the language before, made again.
+SUB PanelsLanguageChanged
+  IF ProjectInspecting THEN
+    ProjectInspSig = ""
+    FillProjectInspector
+  END IF
 END SUB
 
 ' The component inspector again (a form, a component or a file selected).
@@ -594,16 +661,16 @@ SUB FillProjectInspector
   IF sig = ProjectInspSig THEN EXIT SUB
   ProjectInspSig = sig
   Inspector.ClearProperties
-  Inspector.SetHeading Proj.Name, "Project", "project"
-  Inspector.AddProperty "Theme", LOOKS, look, "Appearance", "The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too).", "RapidR"
-  Inspector.AddProperty "Name", "string", Proj.Name, "General", "The project's name, as the Project pane and the window's title show it. Its files keep their names.", ""
-  Inspector.AddProperty "MainFile", "string", Proj.MainFile, "General", "The file the program starts from: Run, Build and the checks begin there.", ""
+  Inspector.SetHeading Proj.Name, TR$("Project"), "project"
+  Inspector.AddProperty "Theme", LOOKS, look, TR$("Appearance"), TR$("The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."), "RapidR"
+  Inspector.AddProperty "Name", "string", Proj.Name, TR$("General"), TR$("The project's name, as the Project pane and the window's title show it. Its files keep their names."), ""
+  Inspector.AddProperty "MainFile", "string", Proj.MainFile, TR$("General"), TR$("The file the program starts from: Run, Build and the checks begin there."), ""
   Inspector.SetChoices "MainFile", files
-  Inspector.AddProperty "Targets", "set:desktop|web", TargetsMask(Proj.Targets), "General", "Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other.", "desktop"
-  Inspector.AddProperty "Arguments", "string", Proj.RunArgs, "Run", "The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a " + CHR$(34) + "quoted" + CHR$(34) + " one keeps its spaces.", ""
-  Inspector.AddProperty "Grid", "int", Num(Proj.DesignerGrid), "Designer", "The form designer's grid, in pixels: what Snap snaps to.", "8"
-  Inspector.AddProperty "Snap", "bool", IIF(Proj.DesignerSnap, "True", "False"), "Designer", "The form designer snaps what you move or size to the grid.", "True"
-  Inspector.AddProperty "Guides", "bool", IIF(Proj.DesignerGuides, "True", "False"), "Designer", "The form designer shows alignment guides and snaps to them.", "True"
+  Inspector.AddProperty "Targets", "set:desktop|web", TargetsMask(Proj.Targets), TR$("General"), TR$("Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other."), "desktop"
+  Inspector.AddProperty "Arguments", "string", Proj.RunArgs, TR$("Run"), TR$("The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a {q}quoted{q} one keeps its spaces.", "q", CHR$(34)), ""
+  Inspector.AddProperty "Grid", "int", Num(Proj.DesignerGrid), TR$("Designer"), TR$("The form designer's grid, in pixels: what Snap snaps to."), "8"
+  Inspector.AddProperty "Snap", "bool", IIF(Proj.DesignerSnap, "True", "False"), TR$("Designer"), TR$("The form designer snaps what you move or size to the grid."), "True"
+  Inspector.AddProperty "Guides", "bool", IIF(Proj.DesignerGuides, "True", "False"), TR$("Designer"), TR$("The form designer shows alignment guides and snaps to them."), "True"
 END SUB
 
 ' A row of the project's changed (the user's, or a test step's).
@@ -631,7 +698,7 @@ SUB ProjectPropChanged(Prop AS STRING, Value AS STRING)
       END IF
     CASE "mainfile"
       IF InStrList(v, Proj.MainFile) = 0 AND FileInProject(v) = 0 THEN
-        SetState "error", v + " is not one of the project's source files"
+        SetState "error", TR$("{file} is not one of the project's source files", "file", v)
         ok = 0
       ELSE
         Proj.MainFile = v
@@ -761,9 +828,9 @@ SUB SetProgramLook(Look AS STRING)
     CodeDoc(dm).ApplyPatches patch, 0
     ProjectFileChanged dm
     IF Look = "RapidR" THEN
-      OutputLine "Theme: the $THEME line is out of " + FileTitle(ProjectMain) + ": the program follows the system"
+      OutputLine TR$("Theme: the $THEME line is out of {file}: the program follows the system", "file", FileTitle(ProjectMain))
     ELSE
-      OutputLine "Theme: " + FileTitle(ProjectMain) + " says $THEME " + Look
+      OutputLine TR$("Theme: {file} says $THEME {look}", "file", FileTitle(ProjectMain), "look", Look)
     END IF
   END IF
   RefreshProgramLook 1
@@ -779,7 +846,7 @@ SUB InspectorEvent(EventName AS STRING)
   IF comp = "" OR INSTR(comp, ",") > 0 THEN EXIT SUB
   sb = DesignDoc(d).CreateHandler(comp, EventName)
   IF sb = "" THEN
-    OutputLine "Designer: " + DesignDoc(d).StatusText
+    OutputLine TR$("Designer: {message}", "message", DesignDoc(d).StatusText)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")
@@ -798,6 +865,9 @@ END SUB
 
 SUB OutputLine(Text AS STRING)
   OutputBox.WriteLine Text
+  ' (Studio's own messages, the last 50 kept for a crash report: scrubbed,
+  ' in memory only — crash.inc)
+  Proj.CrashNote Text
 END SUB
 
 SUB ClearProblems
@@ -832,7 +902,12 @@ END SUB
 SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
   DIM d AS INTEGER, p AS STRING
   IF LEFT$(InFile, 7) = "reveal:" THEN
-    IF Proj.Reveal(MID$(InFile, 8)) = 0 THEN OutputLine "Can't show it: " + Proj.Error
+    IF Proj.Reveal(MID$(InFile, 8)) = 0 THEN OutputLine TR$("Can't show it: {error}", "error", Proj.Error)
+    EXIT SUB
+  END IF
+  ' (a program RapidR stopped: its place and its report — crash.inc)
+  IF LEFT$(InFile, 6) = "crash-" THEN
+    CrashLink InFile
     EXIT SUB
   END IF
   ' (an example's copy: "Copy again from the original" — project.inc)
@@ -864,8 +939,15 @@ END SUB
 ' the settings: OutputNoWrap is 1 once it was turned off)
 
 DIM OutputMenu AS RPopupMenu
+DIM OutputMenuCopy AS RMenuItem
+DIM OutputMenuCopyLine AS RMenuItem
+DIM OutputMenuCopyAll AS RMenuItem
+DIM OutputMenuSelAll AS RMenuItem
+DIM OutputMenuSep AS RMenuItem
 DIM OutputMenuWrap AS RMenuItem
 DIM OutputMenuClear AS RMenuItem
+' (the Output pane has the keyboard: Edit > Copy and Select All are its)
+DIM OutputFocused AS INTEGER
 
 SUB ToggleOutputWrap
   OutputNoWrap = Flag(OutputNoWrap = 0)
@@ -874,7 +956,19 @@ SUB ToggleOutputWrap
   CheckCmd "view.outputWrap", Flag(OutputNoWrap = 0)
 END SUB
 
+' (the right-click menu as it opens: Copy for a selection, Copy Line for the
+' line right-clicked, the Problems page's own Copy All)
 SUB OutputMenuOpening
+  DIM probs AS INTEGER, has AS INTEGER
+  probs = Flag(OutputBox.Page = "problems")
+  has = Flag(OutputBox.LineCount > 0)
+  OutputMenuCopy.Enabled = Flag(OutputBox.HasSelection)
+  OutputMenuCopyLine.Visible = Flag(probs = 0)
+  OutputMenuCopyLine.Enabled = Flag(OutputBox.ClickedLine >= 0)
+  IF probs THEN OutputMenuCopyAll.Caption = TR$("Copy &All Problems") ELSE OutputMenuCopyAll.Caption = TR$("Copy &All")
+  OutputMenuCopyAll.Enabled = has
+  OutputMenuSelAll.Enabled = has
+  OutputMenuClear.Enabled = has
   OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
 END SUB
 
@@ -882,22 +976,102 @@ SUB ClearOutputPage
   OutputBox.Clear
 END SUB
 
+' (what was copied, said on the status bar: "Copied 2 lines", "Copied 7
+' characters", "Copied 3 problems")
+SUB OutputCopied(T AS STRING)
+  DIM n AS INTEGER, k AS INTEGER, what AS STRING
+  n = 1
+  k = INSTR(T, CHR$(10))
+  DO WHILE k > 0
+    n = n + 1
+    k = INSTR(k + 1, T, CHR$(10))
+  LOOP
+  IF OutputBox.Page = "problems" THEN
+    what = TRN$("Copied {n} problem", "Copied {n} problems", n)
+  ELSEIF n > 1 THEN
+    what = TRN$("Copied {n} line", "Copied {n} lines", n)
+  ELSE
+    what = TRN$("Copied {n} character", "Copied {n} characters", LEN(T))
+  END IF
+  SetState RunState, what
+END SUB
+
+' Copy: what's selected (Ctrl+C in the pane does the same)
+SUB OutputCopy
+  IF OutputBox.CopySelection THEN OutputCopied OutputBox.SelText ELSE SetState RunState, "Nothing selected to copy"
+END SUB
+
+' Copy Line: the line right-clicked
+SUB OutputCopyLine
+  IF OutputBox.CopyLine THEN OutputCopied OutputBox.Line(OutputBox.ClickedLine)
+END SUB
+
+' Copy All (Copy All Problems): the page shown
+SUB OutputCopyAll
+  IF OutputBox.CopyAll THEN OutputCopied OutputBox.Text
+END SUB
+
+SUB OutputSelectAll
+  OutputBox.SelectAll
+END SUB
+
+SUB OutputEntered
+  OutputFocused = 1
+  UpdateCommands
+END SUB
+
+SUB OutputLeft
+  OutputFocused = 0
+  UpdateCommands
+END SUB
+
+' True when the Output pane has the keyboard (Edit's Copy and Select All are its)
+FUNCTION OutputHasKeys AS INTEGER
+  Result = Flag(OutputFocused <> 0 OR LCASE$(Dock.ActivePane) = "outputbox")
+END FUNCTION
+
+' (Edit's Copy and Select All while the Output pane has the keyboard —
+' shell.inc's RunCommand; True when Id was one)
+FUNCTION OutputCommand(Id AS STRING) AS INTEGER
+  IF OutputHasKeys = 0 THEN EXIT FUNCTION
+  SELECT CASE Id
+    CASE "edit.copy": OutputCopy: Result = 1
+    CASE "edit.selectAll": OutputSelectAll: Result = 1
+  END SELECT
+END FUNCTION
+
 ' (what each panel says while it has nothing to show)
 SUB SetUpPanels
-  ProjectTree.EmptyText = "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
-  Inspector.EmptyText = "Select a component on a form to see its properties."
-  OutputBox.EmptyText = "Press F5 to run the program; its output shows here."
+  ProjectTree.EmptyText = TR$("No project open. File > New Project (Ctrl+N), or Open (Ctrl+O).")
+  Inspector.EmptyText = TR$("Select a component on a form to see its properties.")
+  OutputBox.EmptyText = TR$("Press F5 to run the program; its output shows here.")
   OutputBox.WordWrap = Flag(OutputNoWrap = 0)
-  OutputMenuWrap.Caption = "&Wrap Long Lines"
+  OutputMenuCopy.Caption = TR$("&Copy"): OutputMenuCopy.ShortCut = "Ctrl+C"
+  OutputMenuCopy.OnClick = OutputCopy
+  OutputMenuCopyLine.Caption = TR$("Copy &Line")
+  OutputMenuCopyLine.OnClick = OutputCopyLine
+  OutputMenuCopyAll.Caption = TR$("Copy &All")
+  OutputMenuCopyAll.OnClick = OutputCopyAll
+  OutputMenuSelAll.Caption = TR$("&Select All"): OutputMenuSelAll.ShortCut = "Ctrl+A"
+  OutputMenuSelAll.OnClick = OutputSelectAll
+  OutputMenuSep.Caption = "-"
+  OutputMenuWrap.Caption = TR$("&Wrap Long Lines")
   OutputMenuWrap.Checked = Flag(OutputNoWrap = 0)
   OutputMenuWrap.OnClick = ToggleOutputWrap
-  OutputMenuClear.Caption = "&Clear"
+  OutputMenuClear.Caption = TR$("Cl&ear")
   OutputMenuClear.OnClick = ClearOutputPage
+  OutputMenu.AddItems OutputMenuCopy
+  OutputMenu.AddItems OutputMenuCopyLine
+  OutputMenu.AddItems OutputMenuCopyAll
+  OutputMenu.AddItems OutputMenuSelAll
+  OutputMenu.AddItems OutputMenuSep
   OutputMenu.AddItems OutputMenuWrap
   OutputMenu.AddItems OutputMenuClear
   OutputMenu.OnPopup = OutputMenuOpening
   OutputBox.PopupMenu = OutputMenu
-  Toolbox.Hint = "Double-click or press Enter to add a component to the form; drag it to place it."
+  OutputBox.OnEnter = OutputEntered
+  OutputBox.OnExit = OutputLeft
+  Toolbox.Hint = TR$("Double-click or press Enter to add a component to the form; drag it to place it.")
   ' (RapidR's names: RButton, RLabel …; the designer writes each file in
   ' its own — a form written with RapidQ's names gets QBUTTON)
   Toolbox.ShowNames = "rapidr"
@@ -945,7 +1119,7 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
     CASE "prop"
       k = INSTR(arg, "=")
       IF k > 1 THEN
-        IF Inspector.SetValue(LEFT$(arg, k - 1), MID$(arg, k + 1)) = 0 THEN OutputLine "(" + Stp + ": refused)"
+        IF Inspector.SetValue(LEFT$(arg, k - 1), MID$(arg, k + 1)) = 0 THEN OutputLine TR$("({step}: refused)", "step", Stp)
       END IF
     CASE "project"
       ' (project:select: the project's name selected, as a click on it)

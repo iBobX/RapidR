@@ -2,30 +2,161 @@
 
 **Versions** keeps every saved state of your project, shows what changed
 between any two, and takes you back to any of them. It is Git underneath
-(the same repositories every Git tool opens), in plain words on top.
+(the same repositories every Git tool opens), in plain words on top: each
+word in RapidR Studio has its Git name in a tooltip, so you learn real Git
+without noticing.
 
-> **Where it is today.** The engine and the diff views are done. The
-> Versions panel in RapidR Studio (the Timeline, the Save a version box,
-> the Diff tab) comes next, in Preview 4. Until then, the diff views are
-> yours to use in your own programs: [RDiffView](#rdiffview-three-ways-to-see-what-changed)
-> below.
+And even before you start: Studio keeps a copy of a file **every time you
+save it** — the [local history](#local-history-every-save-kept). Nothing you
+save is ever lost.
+
+## Versions in RapidR Studio
+
+### Start versioning
+
+Open your project, then **View > Versions** (or **File > Versions > Start
+Versioning This Project**). The Versions pane opens beside Project and
+says what a version is. **Start Versioning This Project** makes the
+project's folder keep versions from now on.
+
+![A project without versions: what they are, Start Versioning This Project, and the local history that already keeps your saves](images/versions/studio-start.png)
+
+Studio starts versions in a project's **own folder** only. It says why, and
+starts nothing, for a whole drive, your home folder or its Desktop,
+Documents or Downloads (they hold much more than one project), and for a
+folder inside another one that already has versions. Put the project in a
+folder of its own first (File > New Project).
+
+### Save a version
+
+**File > Save a Version...** — **Ctrl+Shift+V** (Cmd+Shift+V on a Mac; "V"
+for version. Ctrl+S stays **Save**: it saves the file, a version saves the
+whole project's state) — or **Save a Version...** in the pane:
+
+![Save a Version: what changed in a few words, the files (every changed one ticked), your name](images/versions/studio-save.png)
+
+- **What changed:** a few words ("Bigger button", "Fixed the total"). They
+  are what the timeline shows.
+- **Files in this version:** every changed file is ticked; untick the ones
+  to keep out of this version (Space ticks or unticks one).
+- **Your name:** saved with the version, remembered.
+
+Files open with unsaved changes are saved first (Studio asks, as when you
+close them): a version keeps what is on the disk.
+
+**A check for keys and passwords.** Before saving, Studio reads the lines
+you added. A line that looks like a private key, an API key, an access
+token or a password written in the code stops the save: the dialog says
+which file and line, with the secret masked. Take it out (keep real secrets
+with [RSecrets](secrets.md)), or tick **These aren't real keys or
+passwords: save them anyway** — only then does **Save Anyway** save.
+
+![A key written in the code: the line said, masked; Save Anyway only once ticked](images/versions/studio-secret.png)
+
+### The timeline
+
+The pane lists the files **not saved as a version** — each with a letter
+(**M** changed, **N** new, **D** removed) — then the **Timeline**: every
+version, newest first, with its words, who saved it and when. An AI's
+checkpoints (what the assistant keeps before it changes your files) are
+smaller and lighter.
+
+![The Versions pane: one change not saved as a version, two versions on the timeline, What Changed?, Go Back..., Undo](images/versions/studio-timeline.png)
+
+### What changed?
+
+As you work, the editor marks the lines that differ from the last version
+in its gutter — a bar for added and changed lines, a small triangle where
+lines were removed —; the Project pane shows the file's **M**, and the
+status bar the experiment you're on ("main": Git calls it a branch) and how
+many files have changes not saved as a version.
+
+![main.rr changed since "first": the mark in the gutter, M in the Project pane, the status bar](images/versions/studio-changed.png)
+
+Click a mark (or **File > Versions > Show This Line's Change**, for the
+caret's line) to see what the lines were. **Undo This Change** puts them
+back as the last version has them — one Ctrl+Z brings your change back.
+Escape closes it.
+
+![What line 12 was in the last version, with Undo This Change](images/versions/studio-change-box.png)
+
+Pick a version in the timeline and press **What Changed?** (or double-click it): the
+files it changed open in a tab beside your code, each file's lines before
+and after, the changed words marked.
+
+![What changed in "second": main.rr's last line, before and after](images/versions/studio-what-changed.png)
+
+### Go back
+
+Pick a version, then **Go Back...**: **The Whole Project** or **Only This
+File** (the file open). Studio asks first — Cancel is the default:
+
+![Go back to "first"?: what happens, Go Back or Cancel](images/versions/studio-go-back.png)
+
+Going back saves a **new** version with that version's files ("Went back to
+“first”"): the newer versions stay on the timeline, nothing is thrown
+away, and Studio keeps a hidden safety point before it changes any file.
+Going back for one file leaves the other files — and their unsaved changes
+— as they are.
+
+### Undo
+
+**Undo** (in the pane, or File > Versions > Undo the Last Versions Action)
+takes back the last thing done to the versions — a save, a go back —, even
+the next day. The pane says what it would undo. Undo refuses, changing
+nothing, when it would overwrite work you did afterwards: it says which
+file, so you can save a version first.
+
+### Local history: every save kept
+
+Every time Studio saves a file — versioned or not — it keeps a copy, and
+the file as the disk had it before Studio first wrote it. **File > Versions
+> Local History of This File...** (or **Local History...** in the pane)
+lists the copies, newest first; pick one to compare it with the editor, and
+**Restore This Copy** puts its text in the editor as one step (Ctrl+Z takes
+it back; save to keep it).
+
+![main.rr's local history: a copy at each of three saves, and the file as it was on disk](images/versions/studio-local-history.png)
+
+The copies live in the project's `.rapidr/history` folder: each content
+once, checked when read back (a damaged copy is said, never shown as your
+file), the newest 100 of each file; a file over 8 MB isn't copied. That
+folder is never part of a version, and you can delete it: only the copies
+go.
+
+### In a browser
+
+Studio in a browser can't keep versions yet (the Git engine, gitoxide,
+doesn't run in a browser): the Versions pane says so. The **local history**
+works there too, in the browser's own storage.
+
+### The keys
+
+| Action | Keys |
+|---|---|
+| Save a Version... | Ctrl+Shift+V (Cmd+Shift+V) |
+| Pick a version | Up and Down in the timeline, then Tab to What Changed? or Go Back... |
+| Open a changed file | a double click in the changes list |
+| Close a change shown under its line | Escape |
+| Every Versions command | File > Versions, or the command palette (Ctrl+Shift+P, "Versions") |
+
+Every control has a name for screen readers: a changed file's row says
+"main.rr, changed since the last version", a version's "first, saved by
+Ana, 2 minutes ago", and the Project pane's rows say their change in words
+too.
 
 ## The ideas, in plain words
-
-Each plain word has its Git name beside it, so you learn real Git without
-noticing.
 
 | You say | What it means | Git calls it |
 |---|---|---|
 | **Start versioning** | The project's folder starts keeping versions. | `git init` |
 | **Save a version** | A snapshot of your files, with a few words about what changed. You choose all changed files or some. | commit (with staging) |
 | **Timeline** | Every version, newest first: its words, who saved it, when. | log |
-| **What changed?** | The differences: since the last version, or between any two. | diff |
-| **Go back** | The whole project as it was in an older version. It is saved as a *new* version, so the newer ones stay on the timeline. | revert / checkout (never a hard reset) |
-| **Restore a file** | One file as it was in an older version. It becomes an unsaved change, which you save or undo. | restore |
-| **Experiment** | A separate line of versions to try something, without touching the main one. Switching rewrites only the files that differ. | branch, switch |
-| **Bring in** | An experiment's changes joined into the current one. | merge |
-| **Shared folder** | A folder (a USB stick, a network drive) to share versions with others: *Get latest* takes theirs, *Share* gives yours. | a bare repository, fetch / push |
+| **What changed?** | The differences: since the last version, or what a version changed. | diff |
+| **Go back** | The whole project, or one file, as it was in an older version. It is saved as a *new* version, so the newer ones stay on the timeline. | revert (never a hard reset) |
+| **Experiment** | A separate line of versions to try something, without touching the main one ("main"). | branch |
+| **Undo** | The last action taken back. | (RapidR's own history of actions) |
+| **Local history** | A copy of a file at every save, versioned or not. | (RapidR's own) |
 
 ## Nothing is ever lost
 
@@ -35,32 +166,49 @@ noticing.
   changes and new files included. Safety points never show on the
   timeline and are never shared.
 - **Undo.** Every action goes into a history, and **Undo** takes the last
-  one back, even the next day. Undo refuses, changing nothing, when it would
-  overwrite work you did afterwards: it tells you which file, so you can
-  save first.
-- **Unsaved changes are never thrown away.** Switching to an experiment or
-  going back waits until your changes are saved in a version.
+  one back, even the next day.
+- **Unsaved changes are never thrown away.** Going back saves your open
+  files first, and waits when there are changes not saved as a version.
+- **The local history.** Every save keeps a copy of the file.
 - **The AI's checkpoints.** Before the assistant changes your files, a
-  checkpoint keeps them as they were. "Go back to before the AI's change"
-  puts them back, and Undo brings the AI's change back again.
-
-## A secret check before every save
-
-Saving a password or a key in a version is a common mistake: versions are
-often shared, and a secret stays in the timeline. Before each save,
-Versions reads the lines you added and stops when one looks like a private
-key, an API key, an access token or a password written in the code. It
-says the file and the line, shows the secret masked (`"sk-p…"`), and lets
-you save anyway when it isn't a real one. Keep real secrets out of your
-code with [RSecrets](secrets.md).
+  checkpoint keeps them as they were.
 
 ## Safe with any folder
 
 Opening a project never runs anything from it: no hooks, no filters, no
 programs named in its settings. A project that belongs to another user
 account on your computer (or comes from a USB stick or a network drive)
-isn't opened for changes: Versions explains why and offers to open it
-read-only, to look at its versions.
+isn't opened for changes: Versions explains why and opens it read-only, to
+look at its versions.
+
+## RRepository: versions in your own programs
+
+Studio's Versions pane is built on **RRepository**, a component any program
+`rapidr run` runs can use too (it is one of the IDE components, with
+RProject and RLanguageService):
+
+```basic
+DIM Repo AS RRepository
+Repo.Folder = CURDIR$
+IF Repo.Versioned = 0 THEN Repo.Start
+PRINT Repo.ChangeCount; " file(s) not saved as a version"
+IF Repo.ChangeCount > 0 THEN
+    IF Repo.SaveVersion("Saved from my program") = "" THEN PRINT Repo.Error
+END IF
+PRINT Repo.Timeline(5)
+```
+
+Its members are in the [reference](reference/components.md): `Start`,
+`SaveVersion` (with `CheckSecrets` and `Secrets`), `Timeline`,
+`VersionFiles`, `FileAt`, `GoBack`, `GoBackFile`, `Undo` and `CanUndo`,
+`History`, `Checkpoint`, and the local history's `Snapshot`, `LocalHistory`
+and `SnapshotText`. Errors are said in plain words (`Error`), their kind in
+`ErrorKind`.
+
+The code editor's side is RCodeEditor's `ChangeBase` (the gutter's marks
+against a version's text), `ChangeAt`, `ShowChange` and `RevertChange`;
+RProjectTree's `FileBadge` draws a file's letter; RDiffView's `ReadOnly`
+shows what changed without Accept and Reject.
 
 ## RDiffView: three ways to see what changed
 
@@ -68,7 +216,7 @@ read-only, to look at its versions.
 
 | Kind | What it shows |
 |---|---|
-| `"text"` (the default) | Line by line, side by side or in one column. The changed **words** are marked, and each run of changes (a hunk) has Accept and Reject buttons. |
+| `"text"` (the default) | Line by line, side by side or in one column. The changed **words** are marked, and each run of changes (a hunk) has Accept and Reject buttons (none with `ReadOnly`). |
 | `"form"` | Two versions of a program's forms: the form **before and after**, drawn as the designer draws it, the changed components outlined (green added, red removed, blue changed), and the changes listed: "GreetButton: Caption "&Greet" → "&Say hello"; Width 90 → 110". |
 | `"table"` | Two CSV files as one table: added rows green, removed rows red, a changed row as its old values over its new ones with the changed cells marked, a new column tinted. Rows are matched by their first column when its values are unique (an Id), else by their content. |
 
@@ -103,9 +251,16 @@ executable built on its own shows a note there instead.
 ## For the curious
 
 - The diff is RapidR's own: Myers' algorithm, written from his 1986 paper,
-  the same for RDiffView, Versions and the assistant's changes. A
-  4,500-line file is compared in well under 50 ms.
+  the same for RDiffView, Versions, the editor's marks and the assistant's
+  changes. A 4,500-line file is compared in well under 50 ms.
 - The repositories are ordinary Git repositories (gitoxide, a Git engine
   written in Rust): other Git tools open them, and RapidR opens theirs.
+  Starting versions writes a `.gitignore` that keeps RapidR's own folder
+  (`.rapidr/`) and what Build writes beside the program out of them.
 - Safety points and checkpoints are commits under `refs/rapidr/`; the
-  history of actions is `.git/rapidr/history.jsonl`.
+  history of actions is `.git/rapidr/history.jsonl`; the local history is
+  `.rapidr/history/index.jsonl` and its `blobs/` (each named by its
+  content's SHA-256).
+- Coming next: experiments in the pane, bringing one into main with a
+  form-aware merge, who wrote each line, sharing online, and a Pro level
+  with Git's own words.

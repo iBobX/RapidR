@@ -37,7 +37,7 @@ use crate::object::{rp_comp_get, rp_comp_set};
 use crate::value::{v_int, v_null, v_str, Value};
 
 /// What a connection's thread is told to write.
-enum Out {
+pub(crate) enum Out {
     Bytes(Vec<u8>),
     /// The answer is whole: the next request may come, or the connection
     /// closes.
@@ -156,12 +156,12 @@ impl Config {
     }
 }
 
-/// A request that arrived, for the program.
-struct Arrived {
-    id: i64,
-    request: Request,
-    peer: String,
-    conn: mpsc::Sender<Out>,
+/// A request that arrived, for the program (RHttpServer's, RMcpServer's).
+pub(crate) struct Arrived {
+    pub(crate) id: i64,
+    pub(crate) request: Request,
+    pub(crate) peer: String,
+    pub(crate) conn: mpsc::Sender<Out>,
 }
 
 /// A request the program has seen and not finished answering.
@@ -263,30 +263,81 @@ fn failed(name: &str, why: String) -> Value {
 
 fn start(name: &str) -> Value {
     stop(name);
-    let host = prop_text(name, "host").trim().to_string();
-    let host = if host.is_empty() { "127.0.0.1".to_string() } else { host };
-    let port = rp_comp_get(name, "port").to_i64();
-    if !(0..=65535).contains(&port) {
-        return failed(name, format!("Port {port} isn't a port number (1 to 65535, or 0 for any free one)"));
-    }
-    let max_body = rp_comp_get(name, "maxrequestsize").to_i64();
-    let timeout = rp_comp_get(name, "timeout").to_i64();
-    let max_connections = rp_comp_get(name, "maxconnections").to_i64();
-    let listener = match TcpListener::bind((host.as_str(), port as u16)) {
+    let options = ListenOptions::of(name);
+    let l = match listen(&options) {
         Ok(l) => l,
-        Err(e) => return failed(name, format!("can't listen on {host}:{port}: {e}")),
+        Err(why) => return failed(name, why),
     };
+    SERVERS.with(|s| {
+        s.borrow_mut().insert(name.to_string(), Server { running: l.running, events: l.events, queue: VecDeque::new(), open: HashMap::new(), busy: Rc::new(Cell::new(false)), current: 0 });
+    });
+    rp_comp_set(name, "port", v_int(i64::from(l.port)));
+    rp_comp_set(name, "url", v_str(&l.url));
+    rp_comp_set(name, "error", v_str(""));
+    rp_comp_set(name, "listening", v_int(1));
+    v_int(1)
+}
+
+/// What a server listens on and refuses (its component's properties at
+/// Start).
+pub(crate) struct ListenOptions {
+    pub(crate) host: String,
+    pub(crate) port: i64,
+    pub(crate) hosts: String,
+    pub(crate) origins: String,
+    pub(crate) token: String,
+    pub(crate) max_body: i64,
+    pub(crate) timeout_ms: i64,
+    pub(crate) max_connections: i64,
+}
+
+impl ListenOptions {
+    /// Component `name`'s: Host, Port, AllowedHosts, AllowedOrigins,
+    /// Token, MaxRequestSize, Timeout, MaxConnections.
+    pub(crate) fn of(name: &str) -> ListenOptions {
+        ListenOptions {
+            host: prop_text(name, "host").trim().to_string(),
+            port: rp_comp_get(name, "port").to_i64(),
+            hosts: prop_text(name, "allowedhosts"),
+            origins: prop_text(name, "allowedorigins"),
+            token: prop_text(name, "token").trim().to_string(),
+            max_body: rp_comp_get(name, "maxrequestsize").to_i64(),
+            timeout_ms: rp_comp_get(name, "timeout").to_i64(),
+            max_connections: rp_comp_get(name, "maxconnections").to_i64(),
+        }
+    }
+}
+
+/// A server listening: the requests its connections read arrive on
+/// `events` (the connections' threads wake the loop for each).
+pub(crate) struct Listening {
+    pub(crate) running: Arc<AtomicBool>,
+    pub(crate) events: mpsc::Receiver<Arrived>,
+    pub(crate) port: u16,
+    pub(crate) url: String,
+}
+
+/// Listens as `o` says: a thread accepts the connections, a thread each
+/// reads its requests — refused by the server itself when they don't
+/// belong (Config::check) — and writes their answers.
+pub(crate) fn listen(o: &ListenOptions) -> Result<Listening, String> {
+    let host = if o.host.is_empty() { "127.0.0.1".to_string() } else { o.host.clone() };
+    let port = o.port;
+    if !(0..=65535).contains(&port) {
+        return Err(format!("Port {port} isn't a port number (1 to 65535, or 0 for any free one)"));
+    }
+    let listener = TcpListener::bind((host.as_str(), port as u16)).map_err(|e| format!("can't listen on {host}:{port}: {e}"))?;
     let port = listener.local_addr().map(|a| a.port()).unwrap_or(port as u16);
     let _ = listener.set_nonblocking(true);
     let cfg = Arc::new(Config {
         port,
         bound: host.clone(),
-        hosts: list(&prop_text(name, "allowedhosts")),
-        origins: list(&prop_text(name, "allowedorigins")),
-        token: prop_text(name, "token").trim().to_string(),
-        limits: Limits { max_head: 64 * 1024, max_body: if max_body > 0 { max_body as usize } else { Limits::default().max_body } },
-        timeout: Duration::from_millis(if timeout > 0 { timeout as u64 } else { 30_000 }),
-        max_connections: if max_connections > 0 { max_connections as usize } else { 32 },
+        hosts: list(&o.hosts),
+        origins: list(&o.origins),
+        token: o.token.clone(),
+        limits: Limits { max_head: 64 * 1024, max_body: if o.max_body > 0 { o.max_body as usize } else { Limits::default().max_body } },
+        timeout: Duration::from_millis(if o.timeout_ms > 0 { o.timeout_ms as u64 } else { 30_000 }),
+        max_connections: if o.max_connections > 0 { o.max_connections as usize } else { 32 },
     });
     let running = Arc::new(AtomicBool::new(true));
     let (tx, rx) = mpsc::channel::<Arrived>();
@@ -296,15 +347,8 @@ fn start(name: &str) -> Value {
         let running = running.clone();
         std::thread::spawn(move || accept_loop(listener, cfg, tx, ids, running, active));
     }
-    SERVERS.with(|s| {
-        s.borrow_mut().insert(name.to_string(), Server { running, events: rx, queue: VecDeque::new(), open: HashMap::new(), busy: Rc::new(Cell::new(false)), current: 0 });
-    });
-    rp_comp_set(name, "port", v_int(i64::from(port)));
     let shown = if host.contains(':') { format!("[{host}]") } else if host == "0.0.0.0" { "127.0.0.1".to_string() } else { host };
-    rp_comp_set(name, "url", v_str(&format!("http://{shown}:{port}/")));
-    rp_comp_set(name, "error", v_str(""));
-    rp_comp_set(name, "listening", v_int(1));
-    v_int(1)
+    Ok(Listening { running, events: rx, port, url: format!("http://{shown}:{port}/") })
 }
 
 fn stop(name: &str) {
@@ -388,47 +432,76 @@ fn respond(name: &str, args: &[Value]) -> Value {
     v_int(respond_to(name, id, status, headers, &body) as i64)
 }
 
-fn respond_to(name: &str, id: i64, status: u16, mut headers: Vec<(String, String)>, body: &str) -> bool {
+fn respond_to(name: &str, id: i64, status: u16, headers: Vec<(String, String)>, body: &str) -> bool {
     let Some(open) = take_open(name, id, false) else { return false };
+    write_response(&open.conn, &open.request, status, headers, body.as_bytes())
+}
+
+/// Writes a whole answer to `request` on its connection `conn`: its
+/// status, headers (a text body gets a Content-Type) and body. False when
+/// the client went away.
+pub(crate) fn write_response(conn: &mpsc::Sender<Out>, request: &Request, status: u16, mut headers: Vec<(String, String)>, body: &[u8]) -> bool {
     let bodiless = status == 204 || status == 304 || (100..200).contains(&status);
     if !bodiless && !body.is_empty() && !headers.iter().any(|(n, _)| n.eq_ignore_ascii_case("content-type")) {
         headers.push(("Content-Type".into(), "text/plain; charset=utf-8".into()));
     }
-    let close = !open.request.keep_alive();
+    let close = !request.keep_alive();
     let mut bytes = netframe::response_head(status, &headers, (!bodiless).then_some(body.len()), false, close).into_bytes();
-    if !bodiless && !open.request.method.eq_ignore_ascii_case("HEAD") {
-        bytes.extend_from_slice(body.as_bytes());
+    if !bodiless && !request.method.eq_ignore_ascii_case("HEAD") {
+        bytes.extend_from_slice(body);
     }
-    open.conn.send(Out::Bytes(bytes)).is_ok() && open.conn.send(Out::Done { close }).is_ok()
+    conn.send(Out::Bytes(bytes)).is_ok() && conn.send(Out::Done { close }).is_ok()
 }
 
-fn begin_stream(name: &str, headers: &str, id: i64) -> Value {
-    let Some(mut open) = take_open(name, id, false) else { return v_int(0) };
+/// Begins answering `request` with a stream of Server-Sent Events (200,
+/// `text/event-stream`, not cached, not buffered by a proxy, and
+/// `headers`): Some(chunked) when it began — HTTP/1.1's events go as
+/// chunks, HTTP/1.0's until the connection closes.
+pub(crate) fn write_stream_head(conn: &mpsc::Sender<Out>, request: &Request, headers: &str) -> Option<bool> {
     let mut headers = netframe::header_lines(headers);
-    for (n, v) in [("Content-Type", "text/event-stream"), ("Cache-Control", "no-cache")] {
+    for (n, v) in [("Content-Type", "text/event-stream"), ("Cache-Control", "no-cache"), ("X-Accel-Buffering", "no")] {
         if !headers.iter().any(|(h, _)| h.eq_ignore_ascii_case(n)) {
             headers.push((n.into(), v.into()));
         }
     }
-    // (HTTP/1.0: no chunks — the stream ends with the connection)
-    let chunked = open.request.version.eq_ignore_ascii_case("HTTP/1.1");
-    let close = !chunked || !open.request.keep_alive();
+    let chunked = request.version.eq_ignore_ascii_case("HTTP/1.1");
+    let close = !chunked || !request.keep_alive();
     let head = netframe::response_head(200, &headers, None, chunked, close);
-    let ok = open.conn.send(Out::Bytes(head.into_bytes())).is_ok();
-    if ok {
-        open.streaming = Some(chunked);
-        with_server(name, |s| s.open.insert(id, open));
-    }
-    v_int(ok as i64)
+    conn.send(Out::Bytes(head.into_bytes())).is_ok().then_some(chunked)
+}
+
+/// Sends one event on a stream [`write_stream_head`] began. False when the
+/// client went away.
+pub(crate) fn write_event(conn: &mpsc::Sender<Out>, chunked: bool, data: &str, event: &str) -> bool {
+    let text = netframe::sse_event(data, event);
+    let bytes = if chunked { netframe::chunk(text.as_bytes()) } else { text.into_bytes() };
+    conn.send(Out::Bytes(bytes)).is_ok()
+}
+
+/// Ends a stream [`write_stream_head`] began.
+pub(crate) fn write_stream_end(conn: &mpsc::Sender<Out>, request: &Request, chunked: bool) -> bool {
+    let close = !chunked || !request.keep_alive();
+    (!chunked || conn.send(Out::Bytes(b"0\r\n\r\n".to_vec())).is_ok()) && conn.send(Out::Done { close }).is_ok()
+}
+
+/// Closes a request's connection now, without an answer.
+pub(crate) fn close_conn(conn: &mpsc::Sender<Out>) -> bool {
+    conn.send(Out::Close).is_ok()
+}
+
+fn begin_stream(name: &str, headers: &str, id: i64) -> Value {
+    let Some(mut open) = take_open(name, id, false) else { return v_int(0) };
+    let Some(chunked) = write_stream_head(&open.conn, &open.request, headers) else { return v_int(0) };
+    open.streaming = Some(chunked);
+    with_server(name, |s| s.open.insert(id, open));
+    v_int(1)
 }
 
 fn send_event(name: &str, data: &str, event: &str, id: i64) -> Value {
     let sent = with_server(name, |s| {
         let Some(open) = s.open.get(&id) else { return false };
         let Some(chunked) = open.streaming else { return false };
-        let text = netframe::sse_event(data, event);
-        let bytes = if chunked { netframe::chunk(text.as_bytes()) } else { text.into_bytes() };
-        let ok = open.conn.send(Out::Bytes(bytes)).is_ok();
+        let ok = write_event(&open.conn, chunked, data, event);
         // (the client went away: the stream is over)
         if !ok {
             s.open.remove(&id);
@@ -440,15 +513,12 @@ fn send_event(name: &str, data: &str, event: &str, id: i64) -> Value {
 
 fn end_stream(name: &str, id: i64) -> Value {
     let Some(open) = take_open(name, id, true) else { return v_int(0) };
-    let chunked = open.streaming == Some(true);
-    let close = !chunked || !open.request.keep_alive();
-    let ok = (!chunked || open.conn.send(Out::Bytes(b"0\r\n\r\n".to_vec())).is_ok()) && open.conn.send(Out::Done { close }).is_ok();
-    v_int(ok as i64)
+    v_int(write_stream_end(&open.conn, &open.request, open.streaming == Some(true)) as i64)
 }
 
 fn close(name: &str, id: i64) -> Value {
     let open = with_server(name, |s| s.open.remove(&id)).flatten();
-    v_int(open.is_some_and(|o| o.conn.send(Out::Close).is_ok()) as i64)
+    v_int(open.is_some_and(|o| close_conn(&o.conn)) as i64)
 }
 
 // ------------------------------------------------- the connections' side --

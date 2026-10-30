@@ -14,6 +14,8 @@ rapidr-bcgen.workspace = true
 rapidr-bytecode.workspace = true
 rapidr-vm.workspace = true
 rapidr-vm-host-native = { workspace = true, features = ["full", "session", "studio"] }
+# RapidR's crash and hang reports for Studio and the programs it runs
+rapidr-crash.workspace = true
 rapidr-webbundle = { workspace = true, features = ["zip"] }
 rapidr-lsp.workspace = true
 # The code editor's completion and hovers in programs run here (RapidR Studio's
@@ -22,6 +24,12 @@ rapidr-langsvc.workspace = true
 rapidr-dap.workspace = true
 # `rapidr lang`: the language registry's generators
 rapidr-lang.workspace = true
+# `rapidr i18n`, `rapidr check`: catalogs and the compiler's messages in
+# the user's language (RapidR's own, no dependencies).
+rapidr-i18n.workspace = true
+rapidr-diagnostics.workspace = true
+# (RapidR's own catalogs, compiled in: `rapidr i18n runtime`, coverage)
+rapidr-value.workspace = true
 # `rapidr ai`: the AI provider layer RapidR Studio's assistant uses
 rapidr-ai.workspace = true
 # `rapidr introspect` (feature `ai-introspect`): the AI introspection
@@ -55,3 +63,5 @@ path = "src/main.rs"
 [dev-dependencies]
 # (tests/session.rs: the IDE's end of a session against `rapidr run --session`)
 rapidr-session.workspace = true
+# (tests/app_eyes.rs: a screenshot's PNG, base64)
+rapidr-value.workspace = true

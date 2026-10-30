@@ -25,16 +25,22 @@ pub mod ai;
 pub mod ai_tools;
 pub mod build;
 pub mod channel;
+pub mod crash;
 pub mod design;
+pub mod external;
 pub mod find;
 pub mod friendly;
+pub mod guide;
 pub mod help;
 pub mod import;
 pub mod langsvc;
+pub mod local_history;
 pub mod login_path;
 pub mod manual_search;
 pub mod project;
 pub mod recipes;
+pub mod recovery;
+pub mod repository;
 pub mod session;
 
 pub use rapidr_session::Transport;
@@ -86,7 +92,7 @@ pub trait Host: Copy + 'static {
 
 /// Whether `type_name` (a canonical R name) is one of Studio's components.
 pub fn is_studio_type(type_name: &str) -> bool {
-    matches!(type_name.to_ascii_uppercase().as_str(), "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RAIPROJECTTOOLS")
+    matches!(type_name.to_ascii_uppercase().as_str(), "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RAIPROJECTTOOLS" | "RREPOSITORY")
 }
 
 /// A property of component `name` of `type_name` (`None`: not one of its
@@ -98,6 +104,7 @@ pub fn get(type_name: &str, name: &str, prop: &str) -> Option<Value> {
         "RLANGUAGESERVICE" => langsvc::get(name, &prop),
         "RPROGRAMSESSION" => session::get(name, &prop),
         "RAIPROJECTTOOLS" => ai::get(name, &prop),
+        "RREPOSITORY" => repository::get(name, &prop),
         _ => None,
     }
 }
@@ -113,6 +120,7 @@ pub fn set<H: Host>(host: H, type_name: &str, name: &str, prop: &str, value: &Va
             ai::install();
             ai::set(name, &prop, value)
         }
+        "RREPOSITORY" => repository::set(name, &prop, value),
         _ => false,
     }
 }
@@ -128,6 +136,7 @@ pub fn call<H: Host>(host: H, type_name: &str, name: &str, method: &str, args: &
             ai::install();
             ai::call(name, &method, args)
         }
+        "RREPOSITORY" => repository::call(name, &method, args),
         _ => None,
     }
 }

@@ -67,6 +67,9 @@ impl Runtime for Desktop {
     fn open_url(self, url: &str) {
         open_in_browser(url);
     }
+    fn set_clipboard(self, text: &str) {
+        crate::globals::set_clipboard_text(text);
+    }
 }
 
 /// A web link the user clicked (an RMARKDOWNVIEW's: http, https or mailto,

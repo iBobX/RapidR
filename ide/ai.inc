@@ -30,6 +30,8 @@
 ' aisetup.inc).
 
 DECLARE SUB AIUpdate
+DECLARE SUB AIShowNote
+DECLARE SUB AiLanguageChanged
 DECLARE SUB AIDone(Status AS STRING)
 DECLARE SUB AIModelsIn(Count AS INTEGER)
 DECLARE SUB AIErrorSaid(Message AS STRING)
@@ -115,6 +117,7 @@ DECLARE SUB AISlashComplete
 DECLARE FUNCTION AIMatches(A AS STRING, B AS STRING) AS INTEGER
 ' (aichats.inc: the chats kept, edit and retry)
 DECLARE SUB SetUpAIChats
+DECLARE SUB AiChatsLanguageChanged
 DECLARE SUB LayOutAIChats
 DECLARE SUB AIShowChatTitle
 DECLARE SUB AIChatsFonts
@@ -138,6 +141,13 @@ CONST AIMAXPROPS = 32
 DIM AIRevResult(AIMAXPROPS) AS STRING
 DIM AIRevSeen(AIMAXPROPS) AS INTEGER
 DIM AIRevAt AS INTEGER
+' (an Apply under way, all or nothing: each proposal's step — 0 nothing,
+' 1 a new file, 2 a change —, its file, its editor, its text before)
+DIM AIApAct(AIMAXPROPS) AS INTEGER
+DIM AIApFull(AIMAXPROPS) AS STRING
+DIM AIApDoc(AIMAXPROPS) AS INTEGER
+DIM AIApBefore(AIMAXPROPS) AS STRING
+DECLARE SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
 ' (the panel's lists being filled: their OnChange isn't the user's)
 DIM AIFilling AS INTEGER
 ' (Set Up RAI's Finish asked for the models: when they come, the status
@@ -208,6 +218,11 @@ DIM AIMotionTest AS INTEGER
 ' tests', less)
 DIM AIWaitAfter AS INTEGER
 DIM AIQuietSaid AS INTEGER
+' (the strip says it waits for the provider: said once, whatever the language)
+DIM AIWaitingNow AS INTEGER
+' (RAI asks before it looks at or uses the running program — a card in
+' its chat, once a run —: the pane shown and the question said, once)
+DIM AIProgramAskSaid AS INTEGER
 ' (seconds of silence before it is said: 30; the tests', less)
 DIM AIQuietAfter AS INTEGER
 ' (R5: the context meter and Compact)
@@ -291,7 +306,7 @@ DIM AITouch AS RFileStream
 
 ' ---- the review of the changes it proposes -----------------------------------------
 CREATE AIReview AS RForm
-  Caption = "Review the Assistant's Changes"
+  Caption = TR$("Review the Assistant's Changes")
   Width = 1000: Height = 660
   CREATE AIRevFoot AS RPanel
     Align = 2
@@ -299,26 +314,26 @@ CREATE AIReview AS RForm
     BevelOuter = 0
     CREATE AIRevInfo AS RLabel
       Left = 16: Top = 18: Width = 380
-      AccessibleName = "What will be applied"
+      AccessibleName = TR$("What will be applied")
     END CREATE
     CREATE AIRevAll AS RButton
-      Caption = "Accept &All"
-      AccessibleName = "Accept every change of every file"
+      Caption = TR$("Accept &All")
+      AccessibleName = TR$("Accept every change of every file")
       OnClick = AIRevAcceptAll
     END CREATE
     CREATE AIRevNone AS RButton
-      Caption = "&Reject All"
-      AccessibleName = "Reject every change of every file"
+      Caption = TR$("&Reject All")
+      AccessibleName = TR$("Reject every change of every file")
       OnClick = AIRevRejectAll
     END CREATE
     CREATE AIRevApplyBtn AS RButton
-      Caption = "A&pply"
-      AccessibleName = "Apply the accepted changes"
+      Caption = TR$("A&pply")
+      AccessibleName = TR$("Apply the accepted changes")
       Default = 1
       OnClick = AIRevApplyClick
     END CREATE
     CREATE AIRevCancelBtn AS RButton
-      Caption = "Cancel"
+      Caption = TR$("Cancel")
       Cancel = 1
       OnClick = AIRevCancel
     END CREATE
@@ -330,26 +345,26 @@ CREATE AIReview AS RForm
     BevelOuter = 0
     CREATE AIRevHead AS RLabel
       Left = 16: Top = 13: Width = 960
-      AccessibleName = "What the change does"
+      AccessibleName = TR$("What the change does")
     END CREATE
   END CREATE
   CREATE AIRevList AS RListBox
     Align = 3
     Width = 220
-    AccessibleName = "Files the assistant changes"
+    AccessibleName = TR$("Files the assistant changes")
     OnClick = AIRevPicked
   END CREATE
   CREATE AIRevDiff AS RDiffView
     Align = 5
     Mode = "split"
-    AccessibleName = "The change: the file as it is on the left, as proposed on the right"
+    AccessibleName = TR$("The change: the file as it is on the left, as proposed on the right")
     OnHunkChange = AIRevHunk
   END CREATE
 END CREATE
 
 ' ---- a new program's preview --------------------------------------------------------
 CREATE AINew AS RForm
-  Caption = "A New Program from the Assistant"
+  Caption = TR$("A New Program from the Assistant")
   Width = 1040: Height = 700
   CREATE AINewHead AS RPanel
     Align = 1
@@ -367,25 +382,25 @@ CREATE AINew AS RForm
     Height = 56
     BevelOuter = 0
     CREATE AINewFolderLabel AS RLabel
-      Caption = "Create &in:"
+      Caption = TR$("Create &in:")
       Left = 16: Top = 19: Width = 70
     END CREATE
     CREATE AINewFolder AS REdit
       Left = 88: Top = 14: Width = 460
-      AccessibleName = "The folder the new project goes in"
+      AccessibleName = TR$("The folder the new project goes in")
     END CREATE
     CREATE AINewBrowseBtn AS RButton
-      Caption = "&Browse..."
-      AccessibleName = "Choose the folder the new project goes in"
+      Caption = TR$("&Browse...")
+      AccessibleName = TR$("Choose the folder the new project goes in")
       OnClick = AINewBrowse
     END CREATE
     CREATE AINewCreateBtn AS RButton
-      Caption = "&Create and Open"
+      Caption = TR$("&Create and Open")
       Default = 1
       OnClick = AINewCreate
     END CREATE
     CREATE AINewCancelBtn AS RButton
-      Caption = "Cancel"
+      Caption = TR$("Cancel")
       Cancel = 1
       OnClick = AINewCancel
     END CREATE
@@ -393,25 +408,25 @@ CREATE AINew AS RForm
   CREATE AINewFiles AS RListBox
     Align = 3
     Width = 150
-    AccessibleName = "The new program's files"
+    AccessibleName = TR$("The new program's files")
     OnClick = AINewPicked
   END CREATE
   CREATE AINewForm AS RDesignSurface
     Align = 4
     Width = 400
     ShowGrid = 0
-    AccessibleName = "The form, as it will look"
+    AccessibleName = TR$("The form, as it will look")
   END CREATE
   CREATE AINewCode AS RCodeEditor
     Align = 5
     ReadOnly = 1
-    AccessibleName = "The file's code"
+    AccessibleName = TR$("The file's code")
   END CREATE
 END CREATE
 
 ' ---- what was sent ---------------------------------------------------------------------
 CREATE AISent AS RForm
-  Caption = "What Was Sent"
+  Caption = TR$("What Was Sent")
   Width = 860: Height = 620
   CREATE AISentFoot AS RPanel
     Align = 2
@@ -422,7 +437,7 @@ CREATE AISent AS RForm
       WordWrap = 1: AutoSize = 0
     END CREATE
     CREATE AISentOk AS RButton
-      Caption = "Close"
+      Caption = TR$("Close")
       Default = 1: Cancel = 1
       OnClick = AISentClose
     END CREATE
@@ -431,7 +446,7 @@ CREATE AISent AS RForm
     Align = 5
     ReadOnly = 1
     Language = "plaintext"
-    AccessibleName = "The last request, as sent (your key isn't in it)"
+    AccessibleName = TR$("The last request, as sent (your key isn't in it)")
   END CREATE
 END CREATE
 
@@ -479,7 +494,7 @@ SUB SetUpAI
   AIPanel.Parent = Studio
   AIPanel.Width = 360: AIPanel.Height = 520
   AIPanel.BevelOuter = 0
-  AIPanel.AccessibleName = "AI Assistant"
+  AIPanel.AccessibleName = TR$("AI Assistant")
 
   ' (the top strip: the chats and this one's title, a new chat; the model
   ' — the provider is Settings' — with ↻, and the effort)
@@ -488,39 +503,39 @@ SUB SetUpAI
   AITop.Height = 70
   AITop.BevelOuter = 0
   AIChatsBtn.Parent = AITop
-  AIChatsBtn.Caption = "Chats"
-  AIChatsBtn.AccessibleName = "Chats"
-  AIChatsBtn.AccessibleDescription = "This project's chats: switch, rename, delete, search"
+  AIChatsBtn.Caption = TR$("Chats")
+  AIChatsBtn.AccessibleName = TR$("Chats")
+  AIChatsBtn.AccessibleDescription = TR$("This project's chats: switch, rename, delete, search")
   AIChatsBtn.OnClick = AIChatsClick
   AIChatTitle.Parent = AITop
   AIChatTitle.AutoSize = 0: AIChatTitle.WordWrap = 0
-  AIChatTitle.AccessibleName = "This chat"
+  AIChatTitle.AccessibleName = TR$("This chat")
   AIModelBox.Parent = AITop
-  AIModelBox.AccessibleName = "Model"
+  AIModelBox.AccessibleName = TR$("Model")
   AIModelBox.OnChange = AIModelPicked
   AIRefreshBtn.Parent = AITop
   AIRefreshBtn.Caption = "↻"
-  AIRefreshBtn.AccessibleName = "Refresh the model list"
-  AIRefreshBtn.Hint = "Ask the provider for its models again"
+  AIRefreshBtn.AccessibleName = TR$("Refresh the model list")
+  AIRefreshBtn.Hint = TR$("Ask the provider for its models again")
   AIRefreshBtn.ShowHint = 1
   AIRefreshBtn.OnClick = AIRefreshClick
   AIEffortBox.Parent = AITop
   AIEffortBox.Style = 2
-  AIEffortBox.AddItems "Effort: Auto", "Effort: Low", "Effort: Medium", "Effort: High"
-  AIEffortBox.AccessibleName = "Reasoning effort"
-  AIEffortBox.AccessibleDescription = "How hard the model thinks before it answers: more takes longer and costs more"
+  AIEffortBox.AddItems TR$("Effort: Auto"), TR$("Effort: Low"), TR$("Effort: Medium"), TR$("Effort: High")
+  AIEffortBox.AccessibleName = TR$("Reasoning effort")
+  AIEffortBox.AccessibleDescription = TR$("How hard the model thinks before it answers: more takes longer and costs more")
   AIEffortBox.OnChange = AIEffortPicked
   AINewBtn.Parent = AITop
-  AINewBtn.Caption = "New Chat"
-  AINewBtn.AccessibleName = "Start a new chat"
-  AINewBtn.AccessibleDescription = "This chat is kept: Chats lists it"
+  AINewBtn.Caption = TR$("New Chat")
+  AINewBtn.AccessibleName = TR$("Start a new chat")
+  AINewBtn.AccessibleDescription = TR$("This chat is kept: Chats lists it")
   AINewBtn.OnClick = AINewChat
 
   ' (the bottom: the status sentence a screen reader announces, the box
   ' to ask in, Send, Stop, and what Send shares)
   AIStatus.Parent = AIPanel
   AIStatus.SimplePanel = 1
-  AIStatus.AccessibleName = "Assistant status"
+  AIStatus.AccessibleName = TR$("Assistant status")
   AIBottom.Parent = AIPanel
   AIBottom.Align = 2
   AIBottom.Height = 204
@@ -528,35 +543,35 @@ SUB SetUpAI
   AIInput.Parent = AIBottom
   AIInput.WordWrap = 1
   AIInput.ScrollBars = 2
-  AIInput.AccessibleName = "Ask the assistant"
-  AIInput.AccessibleDescription = "Enter sends; Shift+Enter starts a new line"
+  AIInput.AccessibleName = TR$("Ask the assistant")
+  AIInput.AccessibleDescription = TR$("Enter sends; Shift+Enter starts a new line")
   AIInput.OnKeyDown = AIInputKey
   AISendBtn.Parent = AIBottom
-  AISendBtn.Caption = "Send"
-  AISendBtn.AccessibleName = "Send to the assistant"
+  AISendBtn.Caption = TR$("Send")
+  AISendBtn.AccessibleName = TR$("Send to the assistant")
   AISendBtn.OnClick = AISend
   AIStopBtn.Parent = AIBottom
-  AIStopBtn.Caption = "Stop"
-  AIStopBtn.AccessibleName = "Stop the answer"
+  AIStopBtn.Caption = TR$("Stop")
+  AIStopBtn.AccessibleName = TR$("Stop the answer")
   AIStopBtn.OnClick = AIStopClick
   AIStopBtn.Enabled = 0
   AINote.Parent = AIBottom
   AINote.WordWrap = 1: AINote.AutoSize = 0
-  AINote.AccessibleName = "What Send shares"
+  AINote.AccessibleName = TR$("What Send shares")
   ' (the session's tokens, and their cost when the prices are known)
   AIMeter.Parent = AIBottom
   AIMeter.WordWrap = 1: AIMeter.AutoSize = 0
-  AIMeter.AccessibleName = "Tokens used"
+  AIMeter.AccessibleName = TR$("Tokens used")
   AISentLink.Parent = AIBottom
-  AISentLink.Caption = "What was sent"
+  AISentLink.Caption = TR$("What was sent")
   AISentLink.Cursor = -21
-  AISentLink.AccessibleName = "What was sent to the assistant"
+  AISentLink.AccessibleName = TR$("What was sent to the assistant")
   AISentLink.OnClick = AISentLinkClick
   ' (R4: the answer's seconds, right of Stop while it works)
   AIElapsed.Parent = AIBottom
   AIElapsed.AutoSize = 0: AIElapsed.WordWrap = 0
   AIElapsed.Alignment = 1
-  AIElapsed.AccessibleName = "Time the answer has taken"
+  AIElapsed.AccessibleName = TR$("Time the answer has taken")
   ' (the strip says the seconds: said once)
   AIElapsed.Visible = 0
   AIClock.Interval = 1000
@@ -568,14 +583,14 @@ SUB SetUpAI
   AIContextBar.Parent = AIBottom
   AIContextBar.Min = 0: AIContextBar.Max = 100
   AIContextBar.ShowText = 0
-  AIContextBar.AccessibleName = "Context used"
+  AIContextBar.AccessibleName = TR$("Context used")
   AIContextText.Parent = AIBottom
   AIContextText.AutoSize = 0: AIContextText.WordWrap = 0
-  AIContextText.AccessibleName = "Context"
+  AIContextText.AccessibleName = TR$("Context")
   AICompactBtn.Parent = AIBottom
-  AICompactBtn.Caption = "Compact"
-  AICompactBtn.AccessibleName = "Compact the chat"
-  AICompactBtn.AccessibleDescription = "Summarises this chat now, so each question sends less (/compact)"
+  AICompactBtn.Caption = TR$("Compact")
+  AICompactBtn.AccessibleName = TR$("Compact the chat")
+  AICompactBtn.AccessibleDescription = TR$("Summarises this chat now, so each question sends less (/compact)")
   AICompactBtn.OnClick = AICompactClick
   AIInput.OnChange = AIInputChanged
 
@@ -585,10 +600,10 @@ SUB SetUpAI
   AISlashBar.Height = 132
   AISlashBar.BevelOuter = 0
   AISlashBar.Visible = 0
-  AISlashBar.AccessibleName = "Commands"
+  AISlashBar.AccessibleName = TR$("Commands")
   AISlashList.Parent = AISlashBar
   AISlashList.Align = 5
-  AISlashList.AccessibleName = "Commands: Up and Down choose, Tab completes, Enter runs"
+  AISlashList.AccessibleName = TR$("Commands: Up and Down choose, Tab completes, Enter runs")
   AISlashList.OnClick = AISlashPicked
   AISlashList.OnDblClick = AISlashPicked
 
@@ -598,12 +613,12 @@ SUB SetUpAI
   AIEditBar.Height = 72
   AIEditBar.BevelOuter = 0
   AIEditBar.Visible = 0
-  AIEditBar.AccessibleName = "Editing a sent question"
+  AIEditBar.AccessibleName = TR$("Editing a sent question")
   AIEditText.Parent = AIEditBar
   AIEditText.AutoSize = 0: AIEditText.WordWrap = 1
   AIEditCancel.Parent = AIEditBar
-  AIEditCancel.Caption = "Cancel"
-  AIEditCancel.AccessibleName = "Stop editing the question"
+  AIEditCancel.Caption = TR$("Cancel")
+  AIEditCancel.AccessibleName = TR$("Stop editing the question")
   AIEditCancel.OnClick = AIEditCancelClick
 
   ' (a message sent while the assistant works: "Queued: …" just above the
@@ -613,13 +628,13 @@ SUB SetUpAI
   AIQueueBar.Height = 32
   AIQueueBar.BevelOuter = 0
   AIQueueBar.Visible = 0
-  AIQueueBar.AccessibleName = "Queued message"
+  AIQueueBar.AccessibleName = TR$("Queued message")
   AIQueueText.Parent = AIQueueBar
   AIQueueText.AutoSize = 0: AIQueueText.WordWrap = 0
   AIQueueCancel.Parent = AIQueueBar
   AIQueueCancel.Caption = "×"
-  AIQueueCancel.AccessibleName = "Cancel the queued message"
-  AIQueueCancel.AccessibleDescription = "It won't be sent"
+  AIQueueCancel.AccessibleName = TR$("Cancel the queued message")
+  AIQueueCancel.AccessibleDescription = TR$("It won't be sent")
   AIQueueCancel.OnClick = AIQueueCancelClick
 
   ' (the proposals' bar: shown when the answer proposes changes — one
@@ -630,8 +645,8 @@ SUB SetUpAI
   AIReviewBar.BevelOuter = 0
   AIReviewBar.Visible = 0
   AIReviewBtn.Parent = AIReviewBar
-  AIReviewBtn.Caption = "Review the Changes..."
-  AIReviewBtn.AccessibleName = "Review the proposed changes"
+  AIReviewBtn.Caption = TR$("Review the Changes...")
+  AIReviewBtn.AccessibleName = TR$("Review the proposed changes")
   AIReviewBtn.OnClick = AIReviewClick
 
   ' (RAI shows its work: the strip under the conversation, only while an
@@ -641,21 +656,21 @@ SUB SetUpAI
   AILive.Height = 48
   AILive.BevelOuter = 0
   AILive.Visible = 0
-  AILive.AccessibleName = "What the assistant is doing"
+  AILive.AccessibleName = TR$("What the assistant is doing")
   ' (the dots are decoration: no name, nothing for a screen reader to say)
   AIDots.Parent = AILive
   AIDots.AccessibleHidden = 1
   AIDots.OnPaint = AIDotsPaint
   AILiveText.Parent = AILive
   AILiveText.AutoSize = 0: AILiveText.WordWrap = 0
-  AILiveText.AccessibleName = "What the assistant is doing now"
+  AILiveText.AccessibleName = TR$("What the assistant is doing now")
   AILiveTime.Parent = AILive
   AILiveTime.AutoSize = 0: AILiveTime.WordWrap = 0
   AILiveTime.Alignment = 1
-  AILiveTime.AccessibleName = "Time this answer has taken"
+  AILiveTime.AccessibleName = TR$("Time this answer has taken")
   AILiveSteps.Parent = AILive
   AILiveSteps.AutoSize = 0: AILiveSteps.WordWrap = 1
-  AILiveSteps.AccessibleName = "Steps done in this answer"
+  AILiveSteps.AccessibleName = TR$("Steps done in this answer")
   AIBeat.Interval = 60
   AIBeat.Enabled = 0
   AIBeat.OnTimer = AIBeatTick
@@ -667,7 +682,7 @@ SUB SetUpAI
   AIChat.Parent = AIPanel
   AIChat.Align = 5
   AIChat.FollowEnd = 1
-  AIChat.AccessibleName = "Conversation with the assistant"
+  AIChat.AccessibleName = TR$("Conversation with the assistant")
   AIChat.OnLinkClick = AIChatLink
   AIChat.CodeLanguage = "rapidr"
   AIChat.OnCodeClick = AICodeClick
@@ -680,36 +695,36 @@ SUB SetUpAI
   AIBanner.Height = 56
   AIBanner.BevelOuter = 0
   AIBanner.Visible = 0
-  AIBanner.AccessibleName = "The assistant's new program"
+  AIBanner.AccessibleName = TR$("The assistant's new program")
   AIBannerMark.Parent = AIBanner
   AIBannerMark.BevelOuter = 0
   AIBannerMark.Left = 0: AIBannerMark.Top = 0: AIBannerMark.Width = 6
   AIBannerText.Parent = AIBanner
   AIBannerText.WordWrap = 1: AIBannerText.AutoSize = 0
   AIBannerRun.Parent = AIBanner
-  AIBannerRun.AccessibleName = "Run it"
-  AIBannerRun.AccessibleDescription = "Runs the new program (F5). Nothing runs until you press it."
+  AIBannerRun.AccessibleName = TR$("Run it")
+  AIBannerRun.AccessibleDescription = TR$("Runs the new program (F5). Nothing runs until you press it.")
   AIBannerRun.OnClick = AIBannerRunClick
   ' (the accent, and Enter, only while it has the keys: Enter in the
   ' designer or a list never runs the program)
   AIBannerRun.OnEnter = AIBannerRunIn
   AIBannerRun.OnExit = AIBannerRunOut
   AIBannerFix.Parent = AIBanner
-  AIBannerFix.Caption = "Ask It to Fix"
-  AIBannerFix.AccessibleName = "Ask the assistant to fix the errors"
+  AIBannerFix.Caption = TR$("Ask It to Fix")
+  AIBannerFix.AccessibleName = TR$("Ask the assistant to fix the errors")
   AIBannerFix.OnClick = AIBannerFixClick
   AIBannerUndo.Parent = AIBanner
-  AIBannerUndo.AccessibleName = "Undo"
-  AIBannerUndo.AccessibleDescription = "Closes the new program and removes the files the assistant wrote"
+  AIBannerUndo.AccessibleName = TR$("Undo")
+  AIBannerUndo.AccessibleDescription = TR$("Closes the new program and removes the files the assistant wrote")
   AIBannerUndo.OnClick = AIBannerUndoClick
   AIBannerWhat.Parent = AIBanner
-  AIBannerWhat.Caption = "What Did It Do?"
-  AIBannerWhat.AccessibleName = "What did it do?"
-  AIBannerWhat.AccessibleDescription = "Shows what the assistant did, in the Assistant pane"
+  AIBannerWhat.Caption = TR$("What Did It Do?")
+  AIBannerWhat.AccessibleName = TR$("What did it do?")
+  AIBannerWhat.AccessibleDescription = TR$("Shows what the assistant did, in the Assistant pane")
   AIBannerWhat.OnClick = AIBannerWhatClick
   AIBannerClose.Parent = AIBanner
   AIBannerClose.Caption = "×"
-  AIBannerClose.AccessibleName = "Close the banner"
+  AIBannerClose.AccessibleName = TR$("Close the banner")
   AIBannerClose.OnClick = AIBannerCloseClick
   AIBanner.OnResize = LayOutAIBanner
 
@@ -722,11 +737,48 @@ SUB SetUpAI
 
   AIPanel.OnResize = LayOutAIPanel
   ' (Tools > Settings: its General and AI pages)
-  SettingsTabs.AddTabs "General", "AI"
-  Dock.AddPane(AIPanel, "Assistant", "tab:inspector", "ai")
+  SettingsTabs.AddTabs TR$("General"), TR$("AI")
+  Dock.AddPane(AIPanel, TR$("Assistant"), "tab:inspector", "ai")
   AIApplySettings
   LayOutAIPanel
   IF AIReady = 0 THEN Dock.HidePane("aipanel")
+END SUB
+
+' Studio's language was changed in Settings (the lead's OnLanguageChange
+' calls this): what the assistant shows that is a list, a tab, a pane's
+' title or a text made from values — not a caption set from a TR$ literal,
+' which translates itself. The model-facing texts (prompts, tool results)
+' stay English: nothing of them is here.
+SUB AiLanguageChanged
+  DIM k AS INTEGER
+  ' (the Settings tabs, the pane's title)
+  SettingsTabs.Tab(0) = TR$("General")
+  SettingsTabs.Tab(1) = TR$("AI")
+  Dock.PaneTitle("aipanel", TR$("Assistant"))
+  ' (the effort list again, the same one chosen; the model list's spoken
+  ' form and hint; the effort's hint)
+  AIFilling = 1
+  k = AIEffortBox.ItemIndex
+  AIEffortBox.Clear
+  AIEffortBox.AddItems TR$("Effort: Auto"), TR$("Effort: Low"), TR$("Effort: Medium"), TR$("Effort: High")
+  AIEffortBox.ItemIndex = k
+  AIFillModels
+  AIFillEffort
+  AIFilling = 0
+  ' (what Send shares; the empty conversation's words)
+  AIShowNote
+  AIChat.EmptyText = AIEmptyText
+  ' (the context line is made again, whatever it said)
+  AIContextText.Caption = ""
+  AIShowContext
+  ' (the / commands listed again when they show)
+  AISlashShown = ""
+  AIShowSlash
+  ' (the banner's words)
+  IF AIBanner.Visible THEN AISetBanner AIBannerErrors
+  ' (the chats list, its title, the bars)
+  AiChatsLanguageChanged
+  LayOutAIPanel
 END SUB
 
 ' How tall the meter is for its text wrapped at spaces to W pixels in its
@@ -887,24 +939,24 @@ END SUB
 ' What the empty conversation says: how to start, or what is missing.
 FUNCTION AIEmptyText AS STRING
   IF AI.Provider = "" THEN
-    Result = "RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key)."
+    Result = TR$("RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key).")
   ELSEIF AI.NeedsKey AND AI.HasKey = 0 THEN
-    Result = "Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program."
+    Result = TR$("Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program.")
   ELSEIF AI.Model = "" THEN
-    Result = "Choose a model in the list above (↻ asks the provider for its models)."
+    Result = TR$("Choose a model in the list above (↻ asks the provider for its models).")
   ELSE
-    Result = "Ask about this project, or for a new program: " + CHR$(34) + "Add a Clear button" + CHR$(34) + ", " + CHR$(34) + "Build me a tip calculator" + CHR$(34) + ". A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
+    Result = TR$("Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands.", "q", CHR$(34))
   END IF
 END FUNCTION
 
 ' (the provider's name, as the lists show it)
 FUNCTION AIProviderName AS STRING
   DIM k AS INTEGER
-  Result = "the provider"
+  Result = TR$("the provider")
   FOR k = 0 TO AIProvCount - 1
     IF AIProvIds(k) = AI.Provider THEN Result = AIProvNames(k)
   NEXT
-  IF AI.Provider = "compatible" THEN Result = "the server at " + AI.BaseURL
+  IF AI.Provider = "compatible" THEN Result = TR$("the server at {url}", "url", AI.BaseURL)
 END FUNCTION
 
 ' The settings into the component and the panel.
@@ -931,9 +983,14 @@ SUB AIApplySettings
   AIFillModels
   AIFillEffort
   AIFilling = 0
-  AINote.Caption = "Send shares your message, this chat and what the assistant reads of this project with " + AIProviderName + ": nothing else, nothing before."
+  AIShowNote
   AIChat.EmptyText = AIEmptyText
   AIEnableSend
+END SUB
+
+' What Send shares, said under the box (the provider's name in it).
+SUB AIShowNote
+  AINote.Caption = TR$("Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before.", "provider", AIProviderName)
 END SUB
 
 ' The model list: the ones fetched (by the assistant, or by Settings for
@@ -960,8 +1017,8 @@ SUB AIFillModels
   AIModelBox.ItemIndex = k
   AIModelBox.Text = AI.Model
   ' (who answers: said, not a row of its own — Settings changes it)
-  AIModelBox.AccessibleDescription = "A model of " + AIProviderName + ". The provider is chosen in Tools > Settings > AI, or Set up RAI."
-  AIModelBox.Hint = AIProviderName + "'s models (the provider: Tools > Settings > AI)"
+  AIModelBox.AccessibleDescription = TR$("A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI.", "provider", AIProviderName)
+  AIModelBox.Hint = TR$("{provider}'s models (the provider: Tools > Settings > AI)", "provider", AIProviderName)
   AIModelBox.ShowHint = 1
 END SUB
 
@@ -976,9 +1033,9 @@ SUB AIFillEffort
   END SELECT
   AIEffortBox.Enabled = Flag(AI.EffortSupported <> 0)
   IF AI.EffortSupported THEN
-    AIEffortBox.Hint = "Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does."
+    AIEffortBox.Hint = TR$("Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does.")
   ELSE
-    AIEffortBox.Hint = "This provider's models choose how much to think for themselves."
+    AIEffortBox.Hint = TR$("This provider's models choose how much to think for themselves.")
   END IF
   AIEffortBox.ShowHint = 1
 END SUB
@@ -1004,9 +1061,14 @@ SUB AISetEffort(E AS STRING)
   AIFillEffort
   AIFilling = 0
   IF E = "" THEN
-    AIStatus.SimpleText = "Effort: Auto, as the model usually thinks."
+    AIStatus.SimpleText = TR$("Effort: Auto, as the model usually thinks.")
   ELSE
-    AIStatus.SimpleText = "Effort: " + UCASE$(LEFT$(E, 1)) + MID$(E, 2) + " — slower, and it costs more."
+    SELECT CASE E
+      CASE "low": AIStatus.SimpleText = TR$("Effort: Low — slower, and it costs more.")
+      CASE "medium": AIStatus.SimpleText = TR$("Effort: Medium — slower, and it costs more.")
+      CASE "high": AIStatus.SimpleText = TR$("Effort: High — slower, and it costs more.")
+      CASE ELSE: AIStatus.SimpleText = TR$("Effort: {effort} — slower, and it costs more.", "effort", UCASE$(LEFT$(E, 1)) + MID$(E, 2))
+    END SELECT
   END IF
 END SUB
 
@@ -1014,7 +1076,7 @@ END SUB
 ' forgotten, chosen again); the list fills when they come.
 SUB AIRefreshClick
   IF AI.Busy THEN
-    AIStatus.SimpleText = "RAI is answering: ↻ works once it is done (or Stop)."
+    AIStatus.SimpleText = TR$("RAI is answering: ↻ works once it is done (or Stop).")
     EXIT SUB
   END IF
   IF AI.RefreshModels THEN
@@ -1069,13 +1131,13 @@ SUB AIShowContext
   IF pct > 100 THEN pct = 100
   IF AIContextBar.Position <> pct THEN AIContextBar.Position = pct
   IF used <= 0 THEN
-    t = "Context: empty"
+    t = TR$("Context: empty")
   ELSE
-    t = "Context: " + AIThousands(used) + " of " + AIThousands(limit) + " (" + LTRIM$(STR$(pct)) + "%)"
+    t = TR$("Context: {used} of {limit} ({pct}%)", "used", AIThousands(used), "limit", AIThousands(limit), "pct", pct)
   END IF
   IF AIContextText.Caption <> t THEN
     AIContextText.Caption = t
-    AIContextText.Hint = "About " + AIThousands(used) + " tokens go with the next question. At " + AIThousands(limit) + " the chat is compacted by itself; Compact does it now."
+    AIContextText.Hint = TR$("About {used} tokens go with the next question. At {limit} the chat is compacted by itself; Compact does it now.", "used", AIThousands(used), "limit", AIThousands(limit))
     AIContextText.ShowHint = 1
     AIContextBar.AccessibleDescription = t
   END IF
@@ -1106,12 +1168,12 @@ SUB AIClockTick(Sender AS RTimer)
   e = AI.Elapsed
   AILiveRefresh
   ' (an answer's seconds; nothing while only the model list is asked for)
-  IF AI.Activity = "" AND e = 0 THEN AIElapsed.Caption = "" ELSE AIElapsed.Caption = LTRIM$(STR$(e)) + " s"
+  IF AI.Activity = "" AND e = 0 THEN AIElapsed.Caption = "" ELSE AIElapsed.Caption = TR$("{n} s", "n", e)
   q = AI.Quiet
   IF q >= AIQuietAfter THEN
     IF AIQuietSaid = 0 THEN
       AIQuietSaid = 1
-      AIStatus.SimpleText = "No answer from the model for " + LTRIM$(STR$(q)) + " s: wait, or Stop."
+      AIStatus.SimpleText = TR$("No answer from the model for {n} s: wait, or Stop.", "n", q)
       AIProgressSaid = AIStatus.SimpleText
       IF AILive.Visible THEN Application.Announce AIStatus.SimpleText
     END IF
@@ -1125,7 +1187,7 @@ END SUB
 
 SUB AICompactClick
   IF AI.Compact THEN
-    AIStatus.SimpleText = "Compacting the chat…"
+    AIStatus.SimpleText = TR$("Compacting the chat…")
     AIEnableSend
   ELSE
     AIStatus.SimpleText = AI.Error
@@ -1396,8 +1458,8 @@ SUB AIShowQueue
   room = (AIQueueText.Width - 60) \ 7
   IF room < 12 THEN room = 12
   IF LEN(first) > room THEN first = LEFT$(first, room - 1) + "…"
-  AIQueueText.Caption = "Queued: " + first
-  AIQueueText.AccessibleName = "Queued: " + AIQueued
+  AIQueueText.Caption = TR$("Queued: {message}", "message", first)
+  AIQueueText.AccessibleName = TR$("Queued: {message}", "message", AIQueued)
   AIQueueText.Hint = AIQueued
   IF AIQueueBar.Visible = 0 THEN AIQueueBar.Visible = 1
 END SUB
@@ -1406,7 +1468,7 @@ END SUB
 SUB AIQueueCancelClick
   AIQueued = ""
   AIShowQueue
-  AIStatus.SimpleText = "The queued message won't be sent."
+  AIStatus.SimpleText = TR$("The queued message won't be sent.")
   AIInput.SetFocus
 END SUB
 
@@ -1453,13 +1515,13 @@ END SUB
 
 ' (the commands, a line each: the command, what it does)
 FUNCTION AISlashCommands AS STRING
-  Result = "/compact" + CHR$(9) + "Summarise this chat now: each question then sends less" + CHR$(10)
-  Result = Result + "/new" + CHR$(9) + "Start a new chat (this one is kept in Chats)" + CHR$(10)
-  Result = Result + "/chats" + CHR$(9) + "This project's chats: switch, rename, delete, search" + CHR$(10)
-  Result = Result + "/model" + CHR$(9) + "Choose the model (/model name picks it)" + CHR$(10)
-  Result = Result + "/effort" + CHR$(9) + "How hard it thinks: /effort low, medium, high or auto" + CHR$(10)
-  Result = Result + "/undo" + CHR$(9) + "Undo the assistant's last change" + CHR$(10)
-  Result = Result + "/help" + CHR$(9) + "What you can type here"
+  Result = "/compact" + CHR$(9) + TR$("Summarise this chat now: each question then sends less") + CHR$(10)
+  Result = Result + "/new" + CHR$(9) + TR$("Start a new chat (this one is kept in Chats)") + CHR$(10)
+  Result = Result + "/chats" + CHR$(9) + TR$("This project's chats: switch, rename, delete, search") + CHR$(10)
+  Result = Result + "/model" + CHR$(9) + TR$("Choose the model (/model name picks it)") + CHR$(10)
+  Result = Result + "/effort" + CHR$(9) + TR$("How hard it thinks: /effort low, medium, high or auto") + CHR$(10)
+  Result = Result + "/undo" + CHR$(9) + TR$("Undo the assistant's last change") + CHR$(10)
+  Result = Result + "/help" + CHR$(9) + TR$("What you can type here")
 END FUNCTION
 
 ' The list under the box follows what is typed: the commands that start
@@ -1533,28 +1595,28 @@ FUNCTION AIRunSlash(T AS STRING) AS INTEGER
     CASE "/model"
       IF arg = "" THEN
         AIModelBox.SetFocus
-        AIStatus.SimpleText = "Choose the model in the list (↻ asks " + AIProviderName + " for its models again)."
+        AIStatus.SimpleText = TR$("Choose the model in the list (↻ asks {provider} for its models again).", "provider", AIProviderName)
       ELSE
         AIModelBox.Text = arg
         AIModelPicked
-        AIStatus.SimpleText = "The model is " + AI.Model + " now."
+        AIStatus.SimpleText = TR$("The model is {model} now.", "model", AI.Model)
       END IF
     CASE "/effort"
       SELECT CASE LCASE$(arg)
         CASE "low", "medium", "high": AISetEffort LCASE$(arg)
         CASE "auto", "off", "": AISetEffort ""
         CASE ELSE
-          AIStatus.SimpleText = "/effort takes low, medium, high or auto."
+          AIStatus.SimpleText = TR$("/effort takes low, medium, high or auto.")
           Result = 0
       END SELECT
     CASE "/undo": AIUndoLast
     CASE "/help"
-      AIStatus.SimpleText = "Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed."
+      AIStatus.SimpleText = TR$("Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed.")
       AIInput.Text = "/"
       AIShowSlash
       Result = 0
     CASE ELSE
-      AIStatus.SimpleText = cmd + " isn't a command: /help lists them. (To send it, start it with a space.)"
+      AIStatus.SimpleText = TR$("{command} isn't a command: /help lists them. (To send it, start it with a space.)", "command", cmd)
       Result = 0
   END SELECT
 END FUNCTION
@@ -1569,7 +1631,7 @@ SUB AIUndoLast
     EXIT SUB
   END IF
   IF AIUndoCount = 0 THEN
-    AIStatus.SimpleText = "Nothing to undo: the assistant changed nothing since Studio started (or it was undone)."
+    AIStatus.SimpleText = TR$("Nothing to undo: the assistant changed nothing since Studio started (or it was undone).")
     EXIT SUB
   END IF
   FOR i = 0 TO AIUndoCount - 1
@@ -1585,17 +1647,17 @@ SUB AIUndoLast
         END IF
       ELSE
         IF stale <> "" THEN stale = stale + ", "
-        IF DocOpen(d) THEN stale = stale + FileTitle(DocFile(d)) ELSE stale = stale + "a closed file"
+        IF DocOpen(d) THEN stale = stale + FileTitle(DocFile(d)) ELSE stale = stale + TR$("a closed file")
       END IF
     END IF
   NEXT
   AIUndoCount = 0
   IF stale <> "" THEN
-    AIStatus.SimpleText = "Undone in " + LTRIM$(STR$(done)) + " file(s); " + stale + " changed since: Edit > Undo there."
+    AIStatus.SimpleText = TR$("Undone in {n} file(s); {files} changed since: Edit > Undo there.", "n", done, "files", stale)
   ELSEIF done = 1 THEN
-    AIStatus.SimpleText = "Undone: the assistant's last change is taken back (Edit > Redo puts it back)."
+    AIStatus.SimpleText = TR$("Undone: the assistant's last change is taken back (Edit > Redo puts it back).")
   ELSE
-    AIStatus.SimpleText = "Undone: the assistant's last changes are taken back in " + LTRIM$(STR$(done)) + " files."
+    AIStatus.SimpleText = TR$("Undone: the assistant's last changes are taken back in {n} files.", "n", done)
   END IF
   IF done > 0 THEN AIRecheck
 END SUB
@@ -1605,7 +1667,7 @@ SUB AIEditCancelClick
   AIEditing = 0
   AIEditBar.Visible = 0
   AIInput.Text = ""
-  AIStatus.SimpleText = "Not edited: the chat is as it was."
+  AIStatus.SimpleText = TR$("Not edited: the chat is as it was.")
   AIInput.SetFocus
 END SUB
 
@@ -1629,6 +1691,17 @@ SUB AIUpdate
   AIEnableSend
   AIProgressShow
   AILiveRefresh
+  ' (RAI's card asks to use the running program: seen and heard, even
+  ' when an AI app asked RAI — the answer is the user's)
+  IF AITools.ProgramUseAsked THEN
+    IF AIProgramAskSaid = 0 THEN
+      AIProgramAskSaid = 1
+      Dock.ShowPane("aipanel")
+      Application.Announce TR$("RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat.")
+    END IF
+  ELSE
+    AIProgramAskSaid = 0
+  END IF
 END SUB
 
 ' The progress checklist while an answer runs, in the one status line (a
@@ -1680,7 +1753,7 @@ SUB AIDone(Status AS STRING)
     ELSE
       AIShowReviewBar
       ' (R4: what it waits for, said)
-      IF AIReviewBar.Visible AND LEFT$(AIStatus.SimpleText, 16) <> "Waiting for you" THEN AIStatus.SimpleText = "Waiting for you — " + AIStatus.SimpleText
+      IF AIReviewBar.Visible THEN AIStatus.SimpleText = TR$("Waiting for you — {status}", "status", AIStatus.SimpleText)
     END IF
   END IF
   AIShowUsage
@@ -1699,7 +1772,7 @@ SUB AISendQueued(Status AS STRING)
   AIShowQueue
   IF Status = "cancelled" THEN
     IF AIInput.Text = "" THEN AIInput.Text = q ELSE AIInput.Text = q + CHR$(10) + AIInput.Text
-    AIStatus.SimpleText = "Stopped. Your queued message is back in the box, not sent."
+    AIStatus.SimpleText = TR$("Stopped. Your queued message is back in the box, not sent.")
   ELSE
     AISendNow q, 0
   END IF
@@ -1710,18 +1783,18 @@ END SUB
 SUB AIShowReviewBar
   IF AITools.ProposalCount = 0 THEN EXIT SUB
   IF AIProjectProposal THEN
-    AIReviewBtn.Caption = "Preview the New Program..."
-    AIReviewBtn.AccessibleName = "Preview the new program before it is created"
+    AIReviewBtn.Caption = TR$("Preview the New Program...")
+    AIReviewBtn.AccessibleName = TR$("Preview the new program before it is created")
   ELSE
-    AIReviewBtn.Caption = "Review the Changes..."
-    AIReviewBtn.AccessibleName = "Review the proposed changes"
+    AIReviewBtn.Caption = TR$("Review the Changes...")
+    AIReviewBtn.AccessibleName = TR$("Review the proposed changes")
   END IF
   AIReviewBar.Visible = 1
 END SUB
 
 ' (no key: Tools > Settings > AI asks for one)
 SUB AIKeyNeeded
-  AIStatus.SimpleText = "There is no key for " + AIProviderName + ": Tools > Settings > AI."
+  AIStatus.SimpleText = TR$("There is no key for {provider}: Tools > Settings > AI.", "provider", AIProviderName)
 END SUB
 
 SUB AIErrorSaid(Message AS STRING)
@@ -1735,7 +1808,7 @@ SUB AIModelsIn(Count AS INTEGER)
   ' (nothing is chosen for the user; a model chosen before that the
   ' provider no longer lists is forgotten: chosen again)
   IF AI.Model = "" AND AIModelOf(AI.Provider) <> "" THEN
-    OutputLine "AI: " + AIModelOf(AI.Provider) + " is no longer in the provider's list: choose a model again"
+    OutputLine TR$("AI: {model} is no longer in the provider's list: choose a model again", "model", AIModelOf(AI.Provider))
     AISetModelOf AI.Provider, ""
   END IF
   AIFillModels
@@ -1743,9 +1816,9 @@ SUB AIModelsIn(Count AS INTEGER)
   AIFilling = 0
   AIStatus.SimpleText = AI.Status
   IF AIModelBox.ItemCount > 0 AND AI.Model = "" THEN
-    AIStatus.SimpleText = AI.Status + " Choose one in the list."
+    AIStatus.SimpleText = TR$("{status} Choose one in the list.", "status", AI.Status)
   ELSEIF AISuReady AND AI.Model <> "" THEN
-    AIStatus.SimpleText = "RAI is ready: " + AI.Model + "."
+    AIStatus.SimpleText = TR$("RAI is ready: {model}.", "model", AI.Model)
   END IF
   AISuReady = 0
   AIEnableSend
@@ -1772,11 +1845,11 @@ END SUB
 
 SUB ShowWhatWasSent
   IF AI.LastRequest = "" THEN
-    AISentText.Text = "Nothing has been sent yet."
+    AISentText.Text = TR$("Nothing has been sent yet.")
   ELSE
     AISentText.Text = AI.LastRequest
   END IF
-  AISentWhere.Caption = "Your key is never shown or logged. Every request and change is in the audit log on this computer: " + AI.AuditLocation
+  AISentWhere.Caption = TR$("Your key is never shown or logged. Every request and change is in the audit log on this computer: {location}", "location", AI.AuditLocation)
   AISentOk.Left = AISent.ClientWidth - 104: AISentOk.Top = 14: AISentOk.Width = 88: AISentOk.Height = 30
   AISentWhere.Top = 10: AISentWhere.Height = 40
   AISentWhere.Width = AISent.ClientWidth - 140
@@ -1812,7 +1885,7 @@ SUB ShowAIReview
   FOR i = 0 TO n - 1
     info = AITools.ProposalInfo(i)
     IF FIELD$(info, CHR$(9), 1) = "create" THEN
-      AIRevList.AddItems FIELD$(info, CHR$(9), 2) + " (new)"
+      AIRevList.AddItems TR$("{file} (new)", "file", FIELD$(info, CHR$(9), 2))
     ELSE
       AIRevList.AddItems FIELD$(info, CHR$(9), 2)
     END IF
@@ -1872,7 +1945,7 @@ SUB AIRevHunk(Index AS INTEGER, Accepted AS INTEGER)
 END SUB
 
 SUB AIRevSummary
-  AIRevInfo.Caption = LTRIM$(STR$(AIRevDiff.AcceptedCount)) + " of " + LTRIM$(STR$(AIRevDiff.HunkCount)) + " changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
+  AIRevInfo.Caption = TRN$("{accepted} of {n} change accepted in this file. F7: next change; Enter accepts it, Backspace rejects it.", "{accepted} of {n} changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it.", AIRevDiff.HunkCount, "accepted", AIRevDiff.AcceptedCount)
 END SUB
 
 SUB AIRevAcceptAll
@@ -1909,72 +1982,142 @@ SUB AIRevCancel
   AIReview.Close
 END SUB
 
-' Applies what the review left: each file changed in its editor as one
-' undo step (opened when it wasn't; saved by the user, as any change); a
-' new file written, added to the project and opened. Each decision goes
-' to the conversation and the audit log.
+' Applies what the review left, all or nothing (Robert 2026-10-28: an Apply
+' that failed half-way left some files written and others not):
+'   1. every change is checked before anything changes — a new file can be
+'      written where it goes (its folder made or there, nothing there
+'      already), a changed file is still as RAI read it;
+'   2. the new files are written (their folders made: icons/folder.svg);
+'   3. the changed files are changed in their editors, each as one undo
+'      step (opened when they weren't; saved by the user, as any change).
+' Anything that fails takes back what this Apply did (its files and
+' folders, its editors' changes), says why, and leaves the changes waiting
+' to be applied again. Each decision goes to the conversation and the
+' audit log.
 SUB AIApplyProposals
-  DIM i AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
-  DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, f AS RFileStream
-  DIM before AS STRING, undoN AS INTEGER
-  FOR i = 0 TO AITools.ProposalCount - 1
-    IF i >= AIMAXPROPS THEN EXIT FOR
+  DIM i AS INTEGER, n AS INTEGER, info AS STRING, kind AS STRING, path AS STRING, full AS STRING
+  DIM d AS INTEGER, newText AS STRING, patch AS STRING, done AS INTEGER, why AS STRING, current AS STRING
+  DIM undoN AS INTEGER, k AS INTEGER, failed AS STRING
+  n = AITools.ProposalCount
+  IF n > AIMAXPROPS THEN n = AIMAXPROPS
+  ' ---- 1. checked, nothing changed yet (act: 0 nothing, 1 new file, 2 change) ----
+  FOR i = 0 TO n - 1
     info = AITools.ProposalInfo(i)
     kind = FIELD$(info, CHR$(9), 1)
     path = FIELD$(info, CHR$(9), 2)
     full = ProjectPath(path)
+    AIApFull(i) = full
+    AIApDoc(i) = -1
     newText = AIRevResult(i)
     IF newText = AITools.ProposalOld(i) THEN
+      AIApAct(i) = 0
+    ELSEIF kind = "create" AND FILEEXISTS(full) = 0 AND DocOf(full) < 0 THEN
+      AIApAct(i) = 1
+      ' (two new files at one place: the second can't be written)
+      FOR k = 0 TO i - 1
+        IF AIApAct(k) = 1 AND LCASE$(AIApFull(k)) = LCASE$(full) THEN why = why + TR$("{file} is proposed twice", "file", path) + CHR$(10)
+      NEXT
+      IF Proj.CanWriteNewFile(full) = 0 THEN why = why + path + ": " + Proj.Error + CHR$(10)
+    ELSE
+      AIApAct(i) = 2
+      d = DocOf(full)
+      IF d >= 0 THEN
+        current = CodeDoc(d).Text
+      ELSEIF FILEEXISTS(full) THEN
+        current = Proj.FileText(full)
+      ELSE
+        current = ""
+        why = why + TR$("{file} isn't there any more", "file", path) + CHR$(10)
+      END IF
+      ' (the user changed it since the assistant read it: never overwritten)
+      IF FILEEXISTS(full) OR d >= 0 THEN
+        IF AIMatches(current, AITools.ProposalOld(i)) = 0 THEN why = why + TR$("{file} changed since the assistant read it", "file", path) + CHR$(10)
+      END IF
+    END IF
+  NEXT
+  IF why <> "" THEN
+    AIApplyRefused why, 0
+    EXIT SUB
+  END IF
+  ' ---- 2. the new files ----
+  Proj.ApplyBegin
+  FOR i = 0 TO n - 1
+    IF AIApAct(i) = 1 THEN
+      IF Proj.WriteNewFile(AIApFull(i), AIRevResult(i)) = 0 THEN
+        failed = FIELD$(AITools.ProposalInfo(i), CHR$(9), 2) + ": " + Proj.Error
+        EXIT FOR
+      END IF
+    END IF
+  NEXT
+  ' ---- 3. the changes, each in its editor ----
+  IF failed = "" THEN
+    FOR i = 0 TO n - 1
+      IF AIApAct(i) = 2 THEN
+        d = DocOf(AIApFull(i))
+        IF d < 0 THEN
+          OpenDocument AIApFull(i)
+          d = DocOf(AIApFull(i))
+        END IF
+        IF d < 0 THEN
+          failed = TR$("{file}: it can't be opened", "file", FIELD$(AITools.ProposalInfo(i), CHR$(9), 2))
+          EXIT FOR
+        END IF
+        AIApBefore(i) = CodeDoc(d).Text
+        patch = AITools.Patch(CodeDoc(d).Text, AIRevResult(i))
+        ' (a patch the editor refuses leaves the file as it was)
+        IF patch <> "" THEN
+          IF CodeDoc(d).ApplyPatches(patch, 0) = 0 THEN
+            failed = TR$("{file}: its editor refused the change", "file", FIELD$(AITools.ProposalInfo(i), CHR$(9), 2))
+            EXIT FOR
+          END IF
+        END IF
+        AIApDoc(i) = d
+      END IF
+    NEXT
+  END IF
+  IF failed <> "" THEN
+    ' (taken back: the editors' changes, then the files and folders made)
+    FOR i = n - 1 TO 0 STEP -1
+      IF AIApAct(i) = 2 AND AIApDoc(i) >= 0 THEN
+        d = AIApDoc(i)
+        patch = AITools.Patch(CodeDoc(d).Text, AIApBefore(i))
+        IF patch <> "" THEN k = CodeDoc(d).ApplyPatches(patch, 0)
+        DirtyFollows d
+      END IF
+    NEXT
+    Proj.ApplyUndo
+    AIApplyRefused failed + CHR$(10), 1
+    EXIT SUB
+  END IF
+  ' ---- all in: what was decided ----
+  FOR i = 0 TO n - 1
+    newText = AIRevResult(i)
+    IF AIApAct(i) = 0 THEN
       AITools.Decide i, "rejected"
-    ELSEIF kind = "create" AND FILEEXISTS(full) = 0 THEN
-      ' (a new file in a new folder, icons/folder.svg: the folder first —
-      ' opening a file in a missing folder is a run-time error that closed
-      ' Studio, Robert 2026-10-25)
-      IF FolderOf(full) <> "" AND DIREXISTS(FolderOf(full)) = 0 THEN MKDIR FolderOf(full)
-      f.Open(full, 65535)
-      f.WriteStr(newText, LEN(newText))
-      f.Close
-      IF Proj.AddFile(full) THEN
+    ELSEIF AIApAct(i) = 1 THEN
+      IF Proj.AddFile(AIApFull(i)) THEN
         IF Proj.Kind = "project" THEN SaveProjectFile
       END IF
-      FillProjectTree
-      OpenDocument full
       AITools.Decide i, "applied"
       done = done + 1
     ELSE
-      d = DocOf(full)
-      IF d < 0 THEN
-        OpenDocument full
-        d = DocOf(full)
+      d = AIApDoc(i)
+      ' (/undo: the file as it was and became)
+      IF undoN < AIMAXPROPS THEN
+        AIUndoDoc(undoN) = d
+        AIUndoBefore(undoN) = AIApBefore(i)
+        AIUndoAfter(undoN) = CodeDoc(d).Text
+        undoN = undoN + 1
       END IF
-      IF d < 0 THEN
-        OutputLine "AI: can't open " + path + " to change it"
-      ELSEIF AIMatches(CodeDoc(d).Text, AITools.ProposalOld(i)) = 0 THEN
-        ' (the user changed it since the assistant read it: never overwritten)
-        OutputLine "AI: " + path + " changed since the assistant read it; its change wasn't applied (ask again)"
-        AITools.Decide i, "stale"
-      ELSE
-        before = CodeDoc(d).Text
-        patch = AITools.Patch(CodeDoc(d).Text, newText)
-        ' (said only when it really changed: a patch the editor refused
-        ' leaves the file as it was, and the chat says so)
-        IF patch <> "" AND CodeDoc(d).ApplyPatches(patch, 0) = 0 THEN
-          OutputLine "AI: the change to " + path + " couldn't be applied in its editor (ask again)"
-          AITools.Decide i, "failed"
-        ELSE
-          ' (/undo: the file as it was and became)
-          IF undoN < AIMAXPROPS THEN
-            AIUndoDoc(undoN) = d
-            AIUndoBefore(undoN) = before
-            AIUndoAfter(undoN) = CodeDoc(d).Text
-            undoN = undoN + 1
-          END IF
-          ProjectFileChanged d
-          IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
-          done = done + 1
-        END IF
-      END IF
+      ProjectFileChanged d
+      IF newText = AITools.ProposalNew(i) THEN AITools.Decide i, "applied" ELSE AITools.Decide i, "partly"
+      done = done + 1
     END IF
+  NEXT
+  ' (the new files: in the project's tree, opened)
+  FillProjectTree
+  FOR i = 0 TO n - 1
+    IF AIApAct(i) = 1 THEN OpenDocument AIApFull(i)
   NEXT
   ' (what was decided is done with: a review opened again shows only what
   ' still waits, and nothing is said twice)
@@ -1983,16 +2126,39 @@ SUB AIApplyProposals
   IF undoN > 0 THEN AIUndoCount = undoN
   AIChat.Text = AI.Transcript
   IF done = 0 THEN
-    AIStatus.SimpleText = "Nothing was changed: no change was accepted."
+    AIStatus.SimpleText = TR$("Nothing was changed: no change was accepted.")
   ELSEIF done = 1 THEN
-    AIStatus.SimpleText = "1 file changed: Edit > Undo takes it back."
+    AIStatus.SimpleText = TR$("1 file changed: Edit > Undo takes it back.")
   ELSE
-    AIStatus.SimpleText = LTRIM$(STR$(done)) + " files changed: Edit > Undo in each takes it back."
+    AIStatus.SimpleText = TR$("{n} files changed: Edit > Undo in each takes it back.", "n", done)
   END IF
   ' (the changes in, is it a program that runs? the banner and the status say)
   IF done > 0 THEN AIRecheck
   ' (the decisions are in the chat: kept)
   AISaveChat
+  UpdateCommands
+END SUB
+
+' An Apply that changed nothing (Why: a line a reason; Undone: it had
+' begun and was taken back): said in the status, the Output and the chat's
+' note; the changes still wait, to be applied again or rejected.
+SUB AIApplyRefused(Why AS STRING, Undone AS INTEGER)
+  DIM i AS INTEGER, n AS INTEGER, first AS STRING
+  n = TALLY(Why, CHR$(10))
+  first = FIELD$(Why, CHR$(10), 1)
+  FOR i = 1 TO n
+    OutputLine TR$("AI: not applied — {reason}", "reason", FIELD$(Why, CHR$(10), i))
+  NEXT
+  IF Undone THEN
+    AIStatus.SimpleText = TR$("Nothing was changed: {reason}. What this Apply had done was taken back; the changes still wait (Review).", "reason", first)
+  ELSE
+    IF n > 1 THEN
+      AIStatus.SimpleText = TR$("Nothing was changed: {reason} (and {n} more in the Output). The changes still wait (Review).", "reason", first, "n", n - 1)
+    ELSE
+      AIStatus.SimpleText = TR$("Nothing was changed: {reason}. The changes still wait (Review).", "reason", first)
+    END IF
+  END IF
+  AIShowReviewBar
   UpdateCommands
 END SUB
 
@@ -2016,11 +2182,7 @@ SUB ShowAINew
       AINewWhat.Caption = FIELD$(info, CHR$(9), 3)
     END IF
   NEXT
-  IF AINewFiles.ItemCount = 1 THEN
-    AINewTitle.Caption = name + ": 1 file, previewed: nothing is written until you press Create"
-  ELSE
-    AINewTitle.Caption = name + ": " + LTRIM$(STR$(AINewFiles.ItemCount)) + " files, previewed: nothing is written until you press Create"
-  END IF
+  AINewTitle.Caption = TRN$("{name}: {n} file, previewed: nothing is written until you press Create", "{name}: {n} files, previewed: nothing is written until you press Create", AINewFiles.ItemCount, "name", name)
   IF AINewFolder.Text = "" THEN AINewFolder.Text = DefaultFolder
   AINewFiles.ItemIndex = mainAt
   AINewShow mainAt
@@ -2070,7 +2232,7 @@ SUB AINewPicked
 END SUB
 
 SUB AINewBrowse
-  OpenDlg.Caption = "Where the New Program Goes"
+  OpenDlg.Caption = TR$("Where the New Program Goes")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute THEN AINewFolder.Text = OpenDlg.FileName
   OpenDlg.PickFolder = 0
@@ -2085,7 +2247,7 @@ SUB AINewCreate
   IF ProjectOpen THEN AIPrevProject = ProjectFile ELSE AIPrevProject = ""
   made = AITools.CreateProject(AINewFolder.Text)
   IF made = "" OR LEFT$(made, 6) = "error:" THEN
-    SHOWMESSAGE "Can't create the project: " + MID$(made, 8)
+    SHOWMESSAGE TR$("Can't create the project: {error}", "error", MID$(made, 8))
     EXIT SUB
   END IF
   AINew.Close
@@ -2118,14 +2280,14 @@ SUB AICreateNow
   IF AIUnsavedAsked = 0 THEN
     ' (kept to create later: Preview… creates it)
     AIShowReviewBar
-    AIStatus.SimpleText = "The new program isn't created yet: your changes came first. Preview the New Program creates it."
+    AIStatus.SimpleText = TR$("The new program isn't created yet: your changes came first. Preview the New Program creates it.")
     EXIT SUB
   END IF
   IF ProjectOpen THEN AIPrevProject = ProjectFile ELSE AIPrevProject = ""
   made = AITools.CreateProject(DefaultFolder)
   IF made = "" OR LEFT$(made, 6) = "error:" THEN
     AIShowReviewBar
-    AIStatus.SimpleText = "Can't create the new program in " + DefaultFolder + ": " + MID$(made, 8) + ". Preview the New Program lets you choose another folder."
+    AIStatus.SimpleText = TR$("Can't create the new program in {folder}: {error}. Preview the New Program lets you choose another folder.", "folder", DefaultFolder, "error", MID$(made, 8))
     EXIT SUB
   END IF
   AIOpenMade made, errs
@@ -2151,14 +2313,13 @@ END SUB
 ' first (the keys go there, Enter runs); with errors left, Run anyway and
 ' Ask it to fix.
 SUB AIShowBanner(Errs AS INTEGER)
-  DIM title AS STRING, errText AS STRING
+  DIM title AS STRING
   title = AITools.CreatedTitle
   AIBannerFolder = AITools.CreatedFolder
-  IF Errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(Errs)) + " errors"
   IF Errs = 0 THEN
-    AIStatus.SimpleText = "Made " + title + ": Run It is at the top."
+    AIStatus.SimpleText = TR$("Made {title}: Run It is at the top.", "title", title)
   ELSE
-    AIStatus.SimpleText = "Made " + title + ", " + errText + " left: see the top."
+    AIStatus.SimpleText = TRN$("Made {title}, {n} error left: see the top.", "Made {title}, {n} errors left: see the top.", Errs, "title", title)
   END IF
   AISetBanner Errs
   ' (the keys to Run it, after the editor's own focus on opening)
@@ -2170,21 +2331,20 @@ END SUB
 ' with errors (Run anyway, Ask it to fix). Nothing else moves: not the keys,
 ' not the status.
 SUB AISetBanner(Errs AS INTEGER)
-  DIM title AS STRING, errText AS STRING
+  DIM title AS STRING
   title = AITools.CreatedTitle
   AIBannerErrors = Errs
-  IF Errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(Errs)) + " errors"
   IF Errs = 0 THEN
-    AIBannerText.Caption = "The assistant made this program for you."
-    AIBannerRun.Caption = "▶  Run It"
-    AIBannerRun.AccessibleName = "Run it"
+    AIBannerText.Caption = TR$("The assistant made this program for you.")
+    AIBannerRun.Caption = TR$("▶  Run It")
+    AIBannerRun.AccessibleName = TR$("Run it")
   ELSE
-    AIBannerText.Caption = "The assistant made this program — it still has " + errText + "."
-    AIBannerRun.Caption = "▶  Run Anyway"
-    AIBannerRun.AccessibleName = "Run anyway"
+    AIBannerText.Caption = TRN$("The assistant made this program — it still has {n} error.", "The assistant made this program — it still has {n} errors.", Errs)
+    AIBannerRun.Caption = TR$("▶  Run Anyway")
+    AIBannerRun.AccessibleName = TR$("Run anyway")
   END IF
   AIBannerText.AccessibleName = AIBannerText.Caption
-  AIBannerUndo.Caption = "↺  Undo"
+  AIBannerUndo.Caption = TR$("↺  Undo")
   AIBannerFix.Visible = Flag(Errs > 0)
   AIBanner.AccessibleDescription = title + ": " + AIBannerText.Caption
   AIBanner.Visible = 1
@@ -2198,16 +2358,16 @@ END SUB
 ' DISPLAYCANVAS" under a banner that said "made for you"). The banner, if
 ' it is about this program, says what is true; the status says so too.
 SUB AIRecheck
-  DIM errs AS INTEGER, errText AS STRING, said AS STRING
+  DIM errs AS INTEGER, said AS STRING
   IF ProjectOpen = 0 THEN EXIT SUB
   errs = ProgramErrors
   IF AIBanner.Visible AND LCASE$(Proj.Folder) = LCASE$(AIBannerFolder) THEN
     IF errs <> AIBannerErrors THEN AISetBanner errs
   END IF
-  IF errs = 1 THEN errText = "1 error" ELSE errText = LTRIM$(STR$(errs)) + " errors"
   said = AIStatus.SimpleText
-  IF errs > 0 AND INSTR(said, "error") = 0 THEN
-    AIStatus.SimpleText = said + " The program has " + errText + ": Problems lists them."
+  ' (the status already mentions errors: in English, or in the language's own word)
+  IF errs > 0 AND INSTR(said, "error") = 0 AND INSTR(said, TR$("error", "the word looked for in a status line")) = 0 THEN
+    AIStatus.SimpleText = TRN$("{status} The program has {n} error: Problems lists them.", "{status} The program has {n} errors: Problems lists them.", errs, "status", said)
   END IF
 END SUB
 
@@ -2231,13 +2391,14 @@ END FUNCTION
 ' the changes proposed to the project before wait no more — never applied
 ' to another project's files)
 SUB AIProjectChanged
-  ' (R1: the project's own chats — its newest shown; aichats.inc)
+  ' (R1: the project's own chats — its newest shown, with the changes it
+  ' left waiting: aichats.inc; another project's are kept with its chat)
   AILoadProjectChat
-  IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 THEN
-    IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AITools.ProjectFolder) THEN
-      AITools.ClearProposals
-      AIReviewBar.Visible = 0
-    END IF
+  ' (none open: the closed project's waiting changes are kept with its
+  ' chat, never left to apply here)
+  IF AITools.ProposalCount > 0 AND AIProjectProposal = 0 AND ProjectOpen = 0 THEN
+    AITools.ClearProposals
+    AIReviewBar.Visible = 0
   END IF
   IF AIBanner.Visible = 0 THEN EXIT SUB
   IF ProjectOpen = 0 OR LCASE$(Proj.Folder) <> LCASE$(AIBannerFolder) THEN AIHideBanner
@@ -2290,7 +2451,7 @@ END SUB
 ' Ask it to fix: the assistant asked, in the chat, to fix what is left.
 SUB AIBannerFixClick
   ShowAIPanel
-  AIInput.Text = "Please fix the errors that are left."
+  AIInput.Text = TR$("Please fix the errors that are left.")
   AISend
 END SUB
 
@@ -2346,7 +2507,7 @@ SUB AIUndoProject
   folder = AITools.CreatedFolder
   title = AITools.CreatedTitle
   IF folder = "" THEN
-    AIStatus.SimpleText = "There is no new program to undo."
+    AIStatus.SimpleText = TR$("There is no new program to undo.")
     AIHideBanner
     EXIT SUB
   END IF
@@ -2354,11 +2515,11 @@ SUB AIUndoProject
   FOR d = 0 TO DocCount - 1
     IF DocOpen(d) AND DocDirty(d) AND LCASE$(LEFT$(DocFile(d), LEN(folder) + 1)) = LCASE$(folder + "/") THEN
       IF said <> "" THEN said = said + "; "
-      said = said + FileTitle(DocFile(d)) + " has changes not saved"
+      said = said + TR$("{file} has changes not saved", "file", FileTitle(DocFile(d)))
     END IF
   NEXT
   IF said <> "" THEN
-    IF AskUndoAnyway("Undo the new program " + title + "?", "It changed since the assistant made it: " + said + ". Undo removes the files the assistant wrote, with your changes to them; files you added stay.") = 0 THEN EXIT SUB
+    IF AskUndoAnyway(TR$("Undo the new program {title}?", "title", title), TR$("It changed since the assistant made it: {changes}. Undo removes the files the assistant wrote, with your changes to them; files you added stay.", "changes", said)) = 0 THEN EXIT SUB
   END IF
   ' (its documents go without another question: Undo was the answer; the
   ' chat stays, and goes back with the project open before)
@@ -2388,9 +2549,9 @@ SUB AIUndoProject
   AIRehoming = 0
   AIPrevProject = ""
   IF gone THEN
-    AIStatus.SimpleText = "Undone: " + title + " was removed."
+    AIStatus.SimpleText = TR$("Undone: {title} was removed.", "title", title)
   ELSE
-    AIStatus.SimpleText = "Undone: the assistant's files of " + title + " were removed; the files you added stay in " + folder + "."
+    AIStatus.SimpleText = TR$("Undone: the assistant's files of {title} were removed; the files you added stay in {folder}.", "title", title, "folder", folder)
   END IF
   OutputLine "AI: " + AIStatus.SimpleText
 END SUB
@@ -2421,19 +2582,22 @@ SUB AIChatLink(Url AS STRING)
       IF AI.Busy = 0 THEN AIChat.ScrollTo Url
     CASE "rai:copy"
       Clipboard.Text = AI.CodeBlock(VAL(which))
-      AIStatus.SimpleText = "Copied the code."
-      Application.Announce "Copied the code"
+      AIStatus.SimpleText = TR$("Copied the code.")
+      Application.Announce TR$("Copied the code")
     CASE "rai:insert": AIInsertCode VAL(which)
     CASE "rai:continue": AIContinueSmaller
     CASE "ai:review"
       IF AITools.ProposalCount > 0 THEN
         AIReviewClick
       ELSE
-        AIStatus.SimpleText = "Nothing waits for review: those changes were applied or rejected already."
+        AIStatus.SimpleText = TR$("Nothing waits for review: those changes were applied or rejected already.")
       END IF
+    ' (RAI's card: it may look at and use the running program this run)
+    CASE "ai:app-allow": AITools.AllowProgramUse 1
+    CASE "ai:app-deny": AITools.AllowProgramUse 0
     CASE "ai:open", "ai:undo"
       IF AICreatedFile = "" OR (which <> "" AND LCASE$(RIGHT$(AITools.CreatedFolder, LEN(which) + 1)) <> LCASE$("/" + which)) THEN
-        AIStatus.SimpleText = "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
+        AIStatus.SimpleText = TR$("That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open.")
       ELSEIF verb = "ai:open" THEN
         IF LCASE$(Proj.Folder) <> LCASE$(AITools.CreatedFolder) OR ProjectOpen = 0 THEN OpenProject AICreatedFile
       ELSE
@@ -2461,11 +2625,11 @@ FUNCTION AIDoing AS STRING
   IF AI.Activity <> "" THEN
     Result = AI.Activity + "…"
   ELSEIF INSTR(newest, " to fix") > 0 THEN
-    Result = "Fixing the errors…"
+    Result = TR$("Fixing the errors…")
   ELSEIF n = 0 THEN
-    Result = "Thinking…"
+    Result = TR$("Thinking…")
   ELSE
-    Result = "Working…"
+    Result = TR$("Working…")
   END IF
 END FUNCTION
 
@@ -2474,7 +2638,7 @@ FUNCTION AIWaitName AS STRING
   IF AI.Provider = "anthropic" THEN
     Result = "Claude"
   ELSEIF AI.Provider = "compatible" THEN
-    Result = "the server"
+    Result = TR$("the server")
   ELSE
     Result = AIProviderName
   END IF
@@ -2483,9 +2647,9 @@ END FUNCTION
 ' (42 s, 1 min 12 s)
 FUNCTION AISecondsText(S AS INTEGER) AS STRING
   IF S < 60 THEN
-    Result = LTRIM$(STR$(S)) + " s"
+    Result = TR$("{n} s", "n", S)
   ELSE
-    Result = LTRIM$(STR$(S \ 60)) + " min " + LTRIM$(STR$(S MOD 60)) + " s"
+    Result = TR$("{min} min {n} s", "min", S \ 60, "n", S MOD 60)
   END IF
 END FUNCTION
 
@@ -2611,7 +2775,7 @@ SUB AIAnnounceStep(Text AS STRING)
   key = Text
   k = INSTR(key, " (+")
   IF k > 0 THEN key = LEFT$(key, k - 1)
-  IF LEFT$(key, 11) = "Waiting for" THEN key = "Waiting for the provider…"
+  IF AIWaitingNow OR LEFT$(key, 11) = "Waiting for" THEN key = TR$("Waiting for the provider…")
   IF key = AIAnnounced THEN EXIT SUB
   AIAnnounced = key
   Application.Announce key
@@ -2628,9 +2792,11 @@ SUB AILiveRefresh
   ' (never a silent wait: past 10 s with nothing new, what it waits for)
   q = AI.Quiet
   IF q >= AIWaitAfter THEN
-    txt = "Waiting for " + AIWaitName + "'s answer… " + LTRIM$(STR$(q)) + " s"
+    txt = TR$("Waiting for {name}'s answer… {n} s", "name", AIWaitName, "n", q)
+    AIWaitingNow = 1
   ELSE
     txt = AIDoing
+    AIWaitingNow = 0
   END IF
   IF AILiveText.Caption <> txt THEN AILiveText.Caption = txt
   AIAnnounceStep txt
@@ -2644,7 +2810,7 @@ SUB AILiveRefresh
   rows = n
   IF rows > room THEN rows = room
   txt = ""
-  IF n > rows AND rows > 0 THEN txt = LTRIM$(STR$(n - rows)) + " earlier steps" + CHR$(10)
+  IF n > rows AND rows > 0 THEN txt = TRN$("{n} earlier step", "{n} earlier steps", n - rows) + CHR$(10)
   first = n - rows + 1
   FOR i = first TO n
     IF i > first THEN txt = txt + CHR$(10)
@@ -2658,10 +2824,19 @@ SUB AILiveRefresh
   ' (the tokens of this answer so far: the token meter's line while it works
   ' — the session's totals again when it is done —, one place; never the
   ' same numbers twice)
-  cnt = "This answer: " + AIThousands(AI.TurnInputTokens) + " in"
-  IF AI.TurnCachedTokens > 0 THEN cnt = cnt + " (" + AIThousands(AI.TurnCachedTokens) + " cached)"
-  cnt = cnt + " · " + AIThousands(AI.TurnOutputTokens) + " out"
-  IF AI.Part > 1 THEN cnt = cnt + " · part " + LTRIM$(STR$(AI.Part)) + " of " + LTRIM$(STR$(AI.MaxParts))
+  IF AI.TurnCachedTokens > 0 THEN
+    IF AI.Part > 1 THEN
+      cnt = TR$("This answer: {in} in ({cached} cached) · {out} out · part {part} of {parts}", "in", AIThousands(AI.TurnInputTokens), "cached", AIThousands(AI.TurnCachedTokens), "out", AIThousands(AI.TurnOutputTokens), "part", AI.Part, "parts", AI.MaxParts)
+    ELSE
+      cnt = TR$("This answer: {in} in ({cached} cached) · {out} out", "in", AIThousands(AI.TurnInputTokens), "cached", AIThousands(AI.TurnCachedTokens), "out", AIThousands(AI.TurnOutputTokens))
+    END IF
+  ELSE
+    IF AI.Part > 1 THEN
+      cnt = TR$("This answer: {in} in · {out} out · part {part} of {parts}", "in", AIThousands(AI.TurnInputTokens), "out", AIThousands(AI.TurnOutputTokens), "part", AI.Part, "parts", AI.MaxParts)
+    ELSE
+      cnt = TR$("This answer: {in} in · {out} out", "in", AIThousands(AI.TurnInputTokens), "out", AIThousands(AI.TurnOutputTokens))
+    END IF
+  END IF
   IF AIMeter.Caption <> cnt THEN
     AIMeter.Caption = cnt
     IF AIMeter.Width > 0 THEN
@@ -2684,21 +2859,21 @@ SUB AIInsertCode(N AS INTEGER)
   IF t = "" THEN EXIT SUB
   d = ActiveCode
   IF d < 0 THEN
-    AIStatus.SimpleText = "Open a file in the editor first: Insert types the code at its caret."
+    AIStatus.SimpleText = TR$("Open a file in the editor first: Insert types the code at its caret.")
     EXIT SUB
   END IF
   Dock.FocusPane(DocPane(d))
   CodeDoc(d).SelText = t
   CodeChanged CodeDoc(d)
-  AIStatus.SimpleText = "Inserted the code at the caret in " + BaseName(DocFile(d)) + " (Ctrl+Z takes it back)."
-  Application.Announce "Inserted the code"
+  AIStatus.SimpleText = TR$("Inserted the code at the caret in {file} (Ctrl+Z takes it back).", "file", BaseName(DocFile(d)))
+  Application.Announce TR$("Inserted the code")
 END SUB
 
 ' "Continue in smaller steps", under an answer that kept reaching its
 ' length limit: that request, sent.
 SUB AIContinueSmaller
   IF AI.Busy THEN EXIT SUB
-  AISendNow "Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short.", 0
+  AISendNow TR$("Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short."), 0
 END SUB
 
 ' ---- commands and test steps ---------------------------------------------------------
@@ -2713,7 +2888,7 @@ FUNCTION AICommand(Id AS STRING) AS INTEGER
       IF AITools.ProposalCount > 0 THEN
         AIReviewClick
       ELSE
-        AIStatus.SimpleText = "Nothing waits for review: those changes were applied or rejected already."
+        AIStatus.SimpleText = TR$("Nothing waits for review: those changes were applied or rejected already.")
       END IF
     CASE "ai.whatWasSent": ShowWhatWasSent
     CASE "ai.settings": ShowSettingsPage 1
@@ -2761,6 +2936,10 @@ SUB AIStep(Stp AS STRING)
     CASE "copyblock": AIChatLink "rai:copy/" + arg
     CASE "insertblock": AIChatLink "rai:insert/" + arg
     CASE "stepslink": AIChatLink "rai:steps/" + arg
+    CASE "applink"
+      ' (tests: RAI's card about the running program answered — allow or
+      ' deny — once it asks; until then the step waits its turn)
+      IF AITools.ProgramUseAsked THEN AIChatLink "ai:app-" + arg ELSE DoList = "ai:applink=" + arg + "," + DoList
     CASE "word": AICodeClick FIELD$(arg, "@", 1), FIELD$(arg, "@", 2)
     CASE "compact": AICompactClick
     CASE "refresh": AIRefreshClick
@@ -2920,16 +3099,16 @@ SUB DesignAIModels
   IF DesignAIShown = 0 THEN EXIT SUB
   DesignAITake
   IF DesignAI.Provider = "" THEN
-    Inspector.SetNote "Model", "Choose a Provider first: its models are listed here then."
+    Inspector.SetNote "Model", TR$("Choose a Provider first: its models are listed here then.")
     EXIT SUB
   END IF
   IF DesignAI.NeedsKey AND DesignAI.HasKey = 0 THEN
-    Inspector.SetNote "Model", "Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then."
+    Inspector.SetNote "Model", TR$("Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then.")
     EXIT SUB
   END IF
   DesignAIFor = DesignAIKey
   DesignAIList = ""
-  Inspector.SetNote "Model", "Loading " + DesignAIProviderName + "'s models…"
+  Inspector.SetNote "Model", TR$("Loading {provider}'s models…", "provider", DesignAIProviderName)
   IF DesignAI.RefreshModels = 0 THEN Inspector.SetNote "Model", DesignAI.Error
 END SUB
 
@@ -2937,7 +3116,7 @@ SUB DesignAIModelsIn(Count AS INTEGER)
   DIM i AS INTEGER, list AS STRING, fast AS STRING, line AS STRING
   ' (another RAI shown meanwhile: not its list)
   IF DesignAIShown = 0 OR FIELD$(DesignAIFor, "|", 1) <> Inspector.Target THEN EXIT SUB
-  list = "↻ Refresh the list"
+  list = TR$("↻ Refresh the list")
   FOR i = 1 TO TALLY(DesignAI.Models, CHR$(10)) + 1
     line = FIELD$(DesignAI.Models, CHR$(10), i)
     IF line <> "" THEN
@@ -2946,9 +3125,9 @@ SUB DesignAIModelsIn(Count AS INTEGER)
     END IF
   NEXT
   IF fast <> "" THEN
-    DesignAINote = LTRIM$(STR$(Count)) + " models from " + DesignAIProviderName + ", fast, low-cost ones first: pick one."
+    DesignAINote = TRN$("{n} model from {provider}, fast, low-cost ones first: pick one.", "{n} models from {provider}, fast, low-cost ones first: pick one.", Count, "provider", DesignAIProviderName)
   ELSE
-    DesignAINote = LTRIM$(STR$(Count)) + " models from " + DesignAIProviderName + ": pick one."
+    DesignAINote = TRN$("{n} model from {provider}: pick one.", "{n} models from {provider}: pick one.", Count, "provider", DesignAIProviderName)
   END IF
   DesignAIList = list
   Inspector.SetChoices "Model", DesignAIList
@@ -2987,7 +3166,7 @@ FUNCTION DesignAIChanged(Prop AS STRING, Value AS STRING) AS INTEGER
     kept = DesignAI.RememberKey(0)
     DesignAI.APIKey = ""
     IF kept THEN
-      SetState RunState, "The key is kept in " + DesignAI.KeyStore + " as " + CHR$(34) + nm + CHR$(34) + ": the program names it, never the key."
+      SetState RunState, TR$("The key is kept in {store} as {q}{name}{q}: the program names it, never the key.", "store", DesignAI.KeyStore, "q", CHR$(34), "name", nm)
       IF KeychainNameOf(src) = "" THEN
         ' (the code names where the key is — and asks the program's user
         ' wherever the keychain doesn't have it); that change lists the
@@ -3013,9 +3192,9 @@ SUB DesignAIKeyNote
   DesignAITake
   nm = KeychainNameOf(DesignAI.APIKeySource)
   IF DesignAI.HasKey AND nm <> "" THEN
-    Inspector.SetNote "APIKey", "A key (" + DesignAI.KeyHint + ") is kept in " + DesignAI.KeyStore + " as " + CHR$(34) + nm + CHR$(34) + ": the code names it, never the key. Type another to replace it."
+    Inspector.SetNote "APIKey", TR$("A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it.", "hint", DesignAI.KeyHint, "store", DesignAI.KeyStore, "q", CHR$(34), "name", nm)
   ELSEIF DesignAI.HasKey THEN
-    Inspector.SetNote "APIKey", "A key (" + DesignAI.KeyHint + ") is found in the " + DesignAI.KeySource + ": the code never holds it."
+    Inspector.SetNote "APIKey", TR$("A key ({hint}) is found in the {source}: the code never holds it.", "hint", DesignAI.KeyHint, "source", DesignAI.KeySource)
   ELSE
     Inspector.SetNote "APIKey", ""
   END IF

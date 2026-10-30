@@ -85,6 +85,56 @@ fn lookups() {
     assert!(all().windows(2).all(|w| w[0].id < w[1].id), "sorted by id");
 }
 
+/// Translation catalogs (`lang/es.po`, a `.pot` template) have their own
+/// icon, and the other file kinds RAssets draws are told apart by extension.
+#[test]
+fn file_kinds_have_their_own_icons() {
+    for path in ["lang/es.po", "lang\\pt-BR.po", "Messages.POT", "app.pot"] {
+        let i = file(path);
+        assert_eq!(i.id, "files/translation", "{path}");
+        assert!(i.title.starts_with("Translation file"), "{}", i.title);
+    }
+    for (path, id) in [
+        ("a.xml", "files/xml"),
+        ("run.log", "files/log"),
+        ("manual.pdf", "files/pdf"),
+        ("art/logo.svg", "files/svg"),
+        ("song.mid", "files/midi"),
+        ("ship.obj", "files/model"),
+        ("site.crt", "files/certificate"),
+        ("id_rsa.pem", "files/key"),
+        (".env", "files/env"),
+        ("art/logo.png", "files/image"),
+        ("song.wav", "files/audio"),
+    ] {
+        assert_eq!(file(path).id, id, "{path}");
+    }
+}
+
+/// The Versions actions (save a version, history, branch, merge, compare,
+/// line history, push, pull, sync, conflict, restore, pull request) are
+/// monochrome, so they follow the theme and the caller's colour.
+#[test]
+fn versions_actions_are_there_and_monochrome() {
+    for name in ["save-version", "timeline", "branch", "merge", "compare", "line-history", "push", "pull", "sync", "conflict", "restore-version", "pull-request"] {
+        let i = get(&format!("actions/{name}")).unwrap_or_else(|| panic!("no icon actions/{name}"));
+        assert!(i.mono, "{name} is monochrome");
+        assert!(!i.title.is_empty());
+    }
+}
+
+/// RAI's actions and the audio ones are there, monochrome (the brand's
+/// gradient stays on `actions/ai`).
+#[test]
+fn rai_and_audio_actions_are_there_and_monochrome() {
+    for name in ["ai-plan", "ai-ask", "ai-vision", "ai-record", "ai-search", "ai-agent", "ai-tool", "ai-local-model", "ai-on-device", "microphone", "speaker-on", "speaker-off"] {
+        let i = get(&format!("actions/{name}")).unwrap_or_else(|| panic!("no icon actions/{name}"));
+        assert!(i.mono, "{name} is monochrome");
+        assert!(!i.title.is_empty());
+    }
+    assert!(!get("actions/ai").unwrap().mono, "the AI sparkle keeps its gradient");
+}
+
 /// Each source is one standalone SVG per size that resvg reads, with the
 /// size's own view box; monochrome icons carry no token colour.
 #[test]

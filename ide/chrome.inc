@@ -8,6 +8,51 @@ FUNCTION TC(Name AS STRING) AS LONG
   Result = Application.ThemeColor(Name)
 END FUNCTION
 
+' ---- the design guide's sizes and chips (docs/design-guidelines.md) ----------------
+
+' A compact control's height: everything in a pane's header, a tool strip
+' or an inline question — buttons, combo boxes, fields, chips — is this
+' tall, on one centre line. It is the height RapidR gives a combo box and a
+' field in the chrome font (its line and 8: 24 in Inter 10 pt, 21 in MS
+' Sans Serif 8), so a button beside them matches.
+FUNCTION UiCompactH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 21 ELSE Result = 24
+END FUNCTION
+
+' A dialog's command button's height (OK, Cancel, Apply, Copy Address …).
+FUNCTION UiButtonH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 25 ELSE Result = 32
+END FUNCTION
+
+' A pane's header with a title and a one-line subtitle under it.
+FUNCTION UiPaneHeadH AS INTEGER
+  IF ThemeName = "classic" THEN Result = 44 ELSE Result = 52
+END FUNCTION
+
+' The status a chip's Tag says: 0 info, 1 success, 2 warning, 3 danger.
+FUNCTION ChipStatus(Tag AS INTEGER) AS STRING
+  SELECT CASE Tag
+    CASE 1: Result = "success"
+    CASE 2: Result = "warning"
+    CASE 3: Result = "danger"
+    CASE ELSE: Result = "info"
+  END SELECT
+END FUNCTION
+
+' A chip (a status pill): an RCanvas whose Tag is its status and whose
+' Color is the ground it sits on, OnPaint = ChipPaint; its icon (an RImage,
+' 16 px, from RapidR's icons) and its text (an RLabel, Transparent, in
+' status.<name>.text) on top. A soft fill, a 1-pixel border, round ends —
+' never a solid block of colour.
+SUB ChipPaint(Sender AS RCanvas)
+  DIM k AS STRING, w AS INTEGER, h AS INTEGER
+  k = "status." + ChipStatus(Sender.Tag)
+  w = Sender.Width: h = Sender.Height
+  Sender.FillRect 0, 0, w, h, Sender.Color
+  Sender.RoundRect 0, 0, w, h, h, h, TC(k + ".border")
+  Sender.RoundRect 1, 1, w - 1, h - 1, h - 2, h - 2, TC(k)
+END SUB
+
 ' The fonts of the look: Inter / JetBrains Mono in RapidR's, Windows' in
 ' the classic one; trees' and lists' rows roomier in RapidR's.
 SUB ApplyFonts
@@ -37,6 +82,7 @@ SUB ApplyFonts
   ApplyPanelFonts
   Dock.Font = UIFont
   Status.Font = StatusFont
+  McpFonts
   ' (Studio's dialogs: the chrome font's face and size on the form, which
   ' their components follow — inherited from the parent; not a QFONT, whose
   ' colour would be chosen for them and win over the theme's text colour;
@@ -127,6 +173,9 @@ SUB ApplyChrome
   ImmediateBox.Font = MonoFont
   ApplyDebugColors
   ApplySearchChrome
+  ApplyVersionsChrome
+  ApplyExternalChrome
+  ApplyCrashChrome
   ApplyState
 END SUB
 
@@ -155,10 +204,15 @@ END SUB
 ' a shortened panel says in full)
 SUB ShowStatusHint
   DIM h AS STRING
-  IF Status.Panel(0).Caption <> StateText THEN h = StateText
-  IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName THEN
+  IF Status.Panel(0).Caption <> TR$(StateText) THEN h = TR$(StateText)
+  IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName + VerStatusText THEN
     IF h <> "" THEN h = h + " - "
-    h = h + ProjectName
+    h = h + ProjectName + VerStatusText
+  END IF
+  ' (Versions: what the experiment is, with Git's word for it)
+  IF VerStatusText <> "" THEN
+    IF h <> "" THEN h = h + " - "
+    h = h + TR$("{experiment} is the experiment you're on (Git calls it a branch)", "experiment", Repo.Experiment)
   END IF
   Status.Hint = h
   Status.ShowHint = (h <> "")
@@ -192,6 +246,8 @@ FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
   Result = s
 END FUNCTION
 
+' (Text: in English, shown in Studio's language — LayOutStatus — so a
+' change of language reaches it; a text made with values is TR$'s already)
 SUB SetState(State AS STRING, Text AS STRING)
   RunState = State
   StateText = Text
@@ -200,7 +256,7 @@ SUB SetState(State AS STRING, Text AS STRING)
 END SUB
 
 SUB SetUpStatus
-  Status.AddPanels "", "", "Ln 1, Col 1", "UTF-8", "CRLF", "RapidR BASIC"
+  Status.AddPanels "", "", TR$("Ln {line}, Col {col}", "line", 1, "col", 1), "UTF-8", "CRLF", "RapidR BASIC"
   LayOutStatus
 END SUB
 
@@ -212,20 +268,27 @@ END SUB
 SUB LayOutStatus
   DIM w AS INTEGER, w0 AS INTEGER
   StatusMeasure.Font.Name = StatusFont.Name: StatusMeasure.Font.Size = StatusFont.Size
-  w0 = StatusMeasure.TextWidth(StateText) + 14
+  w0 = StatusMeasure.TextWidth(TR$(StateText)) + 14
   IF w0 < 230 THEN w0 = 230
   IF w0 > StateRoom + 14 THEN w0 = StateRoom + 14
-  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160
+  w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160 - McpStatusWidth
   IF w < 40 THEN w = 40
+  ' (AI apps' panel, once they've been on: mcp.inc)
+  IF McpStatusWidth > 0 THEN
+    Status.Panel(5).Width = 160
+    Status.Panel(6).Width = McpStatusWidth
+  END IF
   Status.Panel(0).Width = w0
-  Status.Panel(0).Caption = FitMiddle(StateText, w0 - 14)
+  Status.Panel(0).Caption = FitMiddle(TR$(StateText), w0 - 14)
   Status.Panel(1).Width = w
   Status.Panel(2).Width = 110
   Status.Panel(3).Width = 70
   Status.Panel(4).Width = 60
   ' (a layout's note there stays its four seconds: debug.inc's LayoutNote)
   IF LayoutNoteTimer.Enabled = 0 THEN
-    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName, w - 12) ELSE Status.Panel(1).Caption = ""
+    ' (Versions: the experiment and the changes not saved as a version
+    ' after the name — versions.inc)
+    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName + VerStatusText, w - 12) ELSE Status.Panel(1).Caption = ""
   END IF
   ShowStatusHint
 END SUB
@@ -233,6 +296,52 @@ END SUB
 SUB UpdateTitle
   IF ProjectOpen THEN Studio.Caption = ProjectName + " - RapidR Studio" ELSE Studio.Caption = "RapidR Studio"
   LayOutStatus
+END SUB
+
+' (Text's width in Studio's UI font, its & left out: a layout that fits
+' its words in the language Studio speaks)
+FUNCTION UITextWidth(Text AS STRING) AS INTEGER
+  StatusMeasure.Font.Name = UIFont.Name: StatusMeasure.Font.Size = UIFont.Size
+  Result = StatusMeasure.TextWidth(REPLACESUBSTR$(Text, "&", ""))
+END FUNCTION
+
+' Tools > Settings > General > Language: the language Studio speaks — ""
+' the system's, "en", "es" … (StudioLanguageChanged follows, at once).
+SUB SetLanguage(Tag AS STRING)
+  LanguageChoice = Tag
+  IF Tag = "" THEN Application.Language = "" ELSE Application.Language = Tag
+END SUB
+
+' (Application.OnLanguageChange) Studio's language changed: captions, hints
+' and accessible names that are a catalog's text whole were translated
+' again before this (the runtime's); what Studio made itself — the tool
+' bar's tips, the palette, lists' items, the status bar, the page texts
+' made with values — is made again, and what is laid out by its text's
+' width laid out again (a longer language: nothing cut off).
+SUB StudioLanguageChanged
+  DIM i AS INTEGER
+  FOR i = 0 TO CmdCount - 1
+    IF Cmd(i).Tool >= 0 THEN
+      IF CmdKeys(i) <> "" THEN ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")" ELSE ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title)
+    END IF
+  NEXT
+  FillPalette
+  FillRecent
+  ' (each part's own lists, titles and page texts: made again)
+  PanesLanguageChanged
+  PanelsLanguageChanged
+  EditorLanguageChanged
+  WorkspaceLanguageChanged
+  MarkdownLanguageChanged
+  SearchLanguageChanged
+  DebugLanguageChanged
+  AiLanguageChanged
+  ' (AI Apps' Settings page before Settings is laid out again)
+  McpLanguageChanged
+  ' (the lists Settings fills once: filled again, the choice kept)
+  SettingsLanguageChanged
+  StudioThemeChanged
+  UpdateTitle
 END SUB
 
 ' View > Theme: the look Studio is drawn in (StudioThemeChanged follows,

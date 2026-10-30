@@ -58,7 +58,9 @@ pub trait Host {
     /// An event handler returned: its continuations (what the runtime
     /// does once the handler has run, `rapidr_value::events`).
     fn event_finished(&mut self, then: Vec<u32>, params: &[Value]) {
-        rapidr_value::events::run_all(then, params);
+        // (what they fire belongs to the event that ran — an MDI child closed
+        // activates another —: it runs at once, as the statement's own)
+        rapidr_value::events::program_call(|| rapidr_value::events::run_all(then, params));
     }
     /// Asked after each host operation: `true` if it started a wait the VM
     /// must serve (a desktop `ShowModal`): the VM then calls [`Host::pump`]
@@ -80,9 +82,11 @@ pub trait Host {
     /// ([`Host::wait_catches_errors`]): the error, worded as the program's
     /// run-time errors are, for the program's error output (RapidQ shows
     /// none; RapidR says it where a person running the program looks:
-    /// standard error, the IDE's Output). The program goes on.
-    fn handler_failed(&mut self, error: &str) {
-        eprintln!("{error}");
+    /// standard error, the IDE's Output). The program goes on. A host that
+    /// tells the program (RapidR's Application.OnError) has the error in
+    /// parts and the handler it ended ([`crate::HandlerFailure`]).
+    fn handler_failed(&mut self, failure: &crate::HandlerFailure) {
+        eprintln!("{}", failure.text);
     }
     /// Processes pending UI events once for the innermost wait: `None`
     /// while it goes on, `Some(result)` when it's over (the result of the

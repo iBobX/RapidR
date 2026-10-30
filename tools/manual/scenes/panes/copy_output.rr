@@ -1,0 +1,7 @@
+' The manual's "Copying from Output, Build and Problems" (docs/manual/debugging.md):
+' a few lines of output to select and copy
+$APPTYPE CONSOLE
+
+PRINT "Reading orders.csv"
+PRINT "Read 1204 orders in 0.3 s"
+PRINT "Total: 48113.50"

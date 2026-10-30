@@ -102,6 +102,9 @@ def main():
         shutil.copy2(args.ide, os.path.join(lib, "ide", "rapidr-ide.rrbc"))
         # (RapidR Studio's start page: the brand's lockups, ide/assets)
         shutil.copytree(os.path.join(ROOT, "ide", "assets"), os.path.join(lib, "ide", "assets"))
+        # (Studio in your language: ide/lang's catalogs — never the
+        # pseudo-language xx, a test's — read beside rapidr-ide.rrbc)
+        shutil.copytree(os.path.join(ROOT, "ide", "lang"), os.path.join(lib, "ide", "lang"), ignore=shutil.ignore_patterns("xx.po", "*.pot"))
         # (a checkout's tracked files — no builds, nothing a run left; a
         # release archive's examples/ is only those)
         tracked = subprocess.run(["git", "ls-files", "examples"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.splitlines() \

@@ -90,8 +90,8 @@ END SUB
   (Col, Row, State, Rect)`, … A handler may declare fewer parameters.
 - Handlers can be bound at run time too: `Btn(i).OnClick = Clicked`.
 - Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
-  dialog. The program ends when its main code does: forms
-  still open close with it and their timers stop.
+  dialog (see [When events run](#when-events-run)). The program ends when
+  its main code does: forms still open close with it and their timers stop.
 - A form's first `Show` (or `ShowModal`) fires `OnResize`, `OnShow`,
   `OnResize` — lay a form out in `OnResize` and it is right
   when it appears. `OnPaint` comes after, when the program next waits. A size
@@ -110,6 +110,36 @@ Form.ShowModal          ' shows the form and waits until it closes
 Form.Show               ' shows it and goes on; to keep it, wait:
 DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 ```
+
+### When events run
+
+- **The window's events** — a timer's tick, a click, a key, a paint the
+  window asks for — run only while the program waits (`ShowModal`,
+  `DOEVENTS`, a dialog), each to its end before the next. A handler that
+  is still running is never interrupted by one: it runs once that handler
+  has ended.
+- **A timer never runs inside itself.** If its handler takes longer than its
+  `Interval`, the next tick comes when the handler ends; the ticks missed
+  meanwhile are not made up. An emulator's frame timer at `Interval = 10`
+  whose frame takes 30 ms simply runs about 30 frames a second.
+- **A handler that calls `DOEVENTS`** lets the waiting events run there and
+  then — another timer's tick, a click —, then goes on.
+- **The events your own code fires run at once**, inside the line that
+  fires them ([below](#events-your-own-code-fires)): `Canvas.Repaint` runs
+  the canvas's `OnPaint` before the next line.
+
+So a handler that fires its own event runs inside itself: a `Repaint`
+inside the same canvas's `OnPaint`, an `OnChange` that gives its edit a new
+`Text`. When that never stops, the program stops it, 200 handlers deep,
+with a run-time error that names the event and the line:
+
+```
+run-time error: OnPaint of Screen ran inside itself 200 times: its handler fires it again before it ends (at game.rr line 21)
+```
+
+As with any [error in a handler](#a-run-time-error-in-a-handler), the
+window keeps working. Draw in `OnPaint`, and ask for the paint somewhere
+else — the timer that moves the game: `Screen.Repaint`.
 
 ### The focus: OnEnter and OnExit
 
@@ -301,6 +331,42 @@ Messages.ItemIndex = Messages.ItemCount - 1
 (`TopIndex` reads the list as it was last drawn: set it, and it reads what
 the list shows once the window has drawn it, a moment later.)
 
+## RUpDown: arrows that step a number
+
+An `RUpDown` is two small arrow buttons that step `Position` between `Min` and
+`Max` (`Increment` at a time; `Wrap = -1` goes round from one end to the
+other). Click an arrow, or press the Up and Down keys while it has the focus.
+Each step that changes `Position` fires `OnChange`, then `OnClick`; a click at
+the end of the range (nothing changes) fires `OnClick` only. Setting `Position`
+in code fires no event.
+
+Most of the time the arrows sit beside an edit that shows the number. Say so
+with `Associate` and there is nothing to write:
+
+```basic
+CREATE Dose AS REdit
+    Left = 130: Top = 12: Width = 56: Text = "2"
+END CREATE
+CREATE DoseSpin AS RUpDown
+    Left = 188: Top = 12: Width = 18: Height = 24
+    Min = 0: Max = 8: Position = 2
+    Associate = Dose
+END CREATE
+```
+
+The edit (or an `RLabel`, which shows it as its `Caption`) takes `Position`
+whenever the arrows or your program change it, and the edit's own `OnChange`
+fires as it does for any `Text` you set. The arrows count on from the whole
+number the edit shows, so a number typed there is stepped from, and one past
+`Max` is brought back to `Max`; text that isn't a whole number is ignored and
+the step is from `Position`. Create the edit before the arrows, so it exists
+when `Associate` names it. Without `Associate` the arrows only change
+`Position`: show it yourself in `OnChange`.
+
+The example [`examples/gui/updown.rr`](../../examples/gui/updown.rr) has one
+pair of arrows with an edit, one that steps by 15, and one with no `Associate`
+that a label follows through `OnChange`.
+
 ## The global objects
 
 | Object | What it has |
@@ -491,6 +557,29 @@ Text contrast meets WCAG AA in every theme (secondary text — hints,
 placeholders — included) and AAA in high contrast; RapidR's tests check
 it on what is drawn. Where each colour comes from: [theme
 tokens](../theme-tokens.md).
+
+### Status colours
+
+To say how something went — a note, a result, a warning, a failure — take
+the theme's status colours rather than picking your own: they read in every
+look. Each of the four, `status.info`, `status.success`, `status.warning`
+and `status.danger`, is a soft fill, with a strong colour for its words and
+icon (`".text"`) and one for its edge (`".border"`):
+
+```basic
+Chip.Color = Application.ThemeColor("status.warning")
+ChipText.Font.Color = Application.ThemeColor("status.warning.text")
+```
+
+The words always say it too: in high contrast the four are white on black,
+framed. [status_colors.rr](../../examples/gui/status_colors.rr) draws them
+as chips (a canvas with round ends, RapidR's icons for info, success,
+warning and error, the words on top) with a header and a question's strip
+sized as RapidR Studio is, and takes the colours again in
+`OnThemeChange`; pick a look in its menu.
+
+![status_colors.rr in RapidR's light look: a header, the four status chips, a question with its amber mark, OK and Cancel](images/themes/status-colors-light.png)
+![The same in dark](images/themes/status-colors-dark.png)
 
 ## High-DPI screens
 

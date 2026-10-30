@@ -160,6 +160,18 @@ def project(g):
     rglyph(g, 9.5, 10.5, 7)
 
 
+@icon("repository", C, "Repository (a project's versions)")
+def repository(g):
+    # (Versions G3) a project's folder with its versions: rings on a line
+    folder(g, 2.5, 4, 19, 15, c="blue", fill="blue-tint")
+    g.circle(9, 12.5, 1.75, c="ink", fill="paper")
+    g.circle(15, 12.5, 1.75, c="ink", fill="paper")
+    g.line(10.75, 12.5, 13.25, 12.5, c="ink")
+    if g.size != 16:
+        g.line(16.75, 12.5, 18.5, 12.5, c="ink")
+        g.line(5.5, 12.5, 7.25, 12.5, c="ink")
+
+
 @icon("breakpointlist", C, "Breakpoint list")
 def breakpointlist(g):
     frame(g, 3, 3, 18, 18)

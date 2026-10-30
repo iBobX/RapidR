@@ -309,10 +309,10 @@ pub mod component {
     /// A property of RSecrets `name` (`None`: not one of its own).
     pub fn get(name: &str, prop: &str) -> Option<Value> {
         Some(match prop {
-            "error" => Value::String(ERRORS.with(|e| e.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())),
+            "error" => Value::String(ERRORS.with(|e| e.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default()).into()),
             "available" => flag(super::available()),
-            "store" => Value::String(super::store_name()),
-            "program" => Value::String(program()),
+            "store" => Value::String(super::store_name().into()),
+            "program" => Value::String(program().into()),
             _ => return None,
         })
     }
@@ -336,9 +336,9 @@ pub mod component {
                 Ok(v) => {
                     let v = v.unwrap_or_default();
                     rapidr_value::secrets::note(&v);
-                    (Ok(()), Value::String(v))
+                    (Ok(()), Value::String(v.into()))
                 }
-                Err(e) => (Err(e), Value::String(String::new())),
+                Err(e) => (Err(e), Value::String(String::new().into())),
             },
             "delete" => match super::delete(&program, &service, &key) {
                 Ok(had) => (Ok(()), flag(had)),

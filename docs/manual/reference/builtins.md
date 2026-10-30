@@ -160,7 +160,9 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `ASC(char$)` | The character code of a string's first character, 0 for an empty string; the inverse of `CHR$`. It counts characters, not UTF-8 bytes: `ASC("é")` is 233. |
 | `BIN$(Integer)` | The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. |
 | `CHR$(byte)` | The one-character string whose code is the number's low byte (`CHR$(65)` is `A`); a real number is rounded half to even first. |
+| `COMPRESS$(Bytes$ [, Format$ [, Level]])` *(RapidR)* | `Bytes$` packed smaller: a string of bytes (one character a byte, as a stream's ReadBinStr gives and DECOMPRESS$ takes back). `Format$` is "gzip" (the default: what `.gz` files hold), "zlib" or "deflate"; `Level` 0 (stored, fastest) to 9 (smallest), 6 by default. For files and folders, RArchive. |
 | `CONVBASE$(Text$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
+| `DECOMPRESS$(Bytes$ [, Format$ [, MaxSize]])` *(RapidR)* | Packed bytes unpacked: gzip, zlib, xz and zstd are found from their first bytes; "deflate" (no header) must be named in `Format$`. At most `MaxSize` bytes (256 MB if not given): more stops with an error, so a tiny string can't fill the memory. Data that isn't packed, or is damaged, is a run-time error saying why; to unpack something that may be damaged, use RArchive's OpenData, which says why in Error instead. |
 | `DELETE$(String$, Index, Count)` | The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$("Hello", 2, 3)` is `Ho`. |
 | `FIELD$(Source$, Delimiter$, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
 | `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. |
@@ -221,4 +223,4 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |
 | `UNLOADLIBRARY(DLLName)` | Removes a DLL from memory — only one the program declared (`DECLARE … LIB "name"`), by that very name: `UNLOADLIBRARY("USER32")` unloads `LIB "USER32"`, while `UNLOADLIBRARY("USER32.DLL")` does nothing (capitals don't matter). A library not loaded, or not declared, does nothing; a later call to one of its functions loads it again, so unloading is never required (it is done when the program ends). Only on Windows is there a DLL to unload: elsewhere it does nothing, without an error. |
 
-160 builtins.
+162 builtins.

@@ -27,6 +27,8 @@ DECLARE SUB AIFillChats
 DECLARE SUB AIOpenChat(Id AS STRING, Title AS STRING)
 DECLARE FUNCTION AIChatPicked AS STRING
 DECLARE SUB AISelectChat(Id AS STRING)
+DECLARE SUB AIShowEditText
+DECLARE SUB AiChatsLanguageChanged
 
 SUB SetUpAIChats
   AIChatProject = CHR$(1)
@@ -34,19 +36,19 @@ SUB SetUpAIChats
   AIChatsPanel.Align = 5
   AIChatsPanel.BevelOuter = 0
   AIChatsPanel.Visible = 0
-  AIChatsPanel.AccessibleName = "Chats"
+  AIChatsPanel.AccessibleName = TR$("Chats")
   ' (the search box on top)
   AIChatsHead.Parent = AIChatsPanel
   AIChatsHead.Align = 1
   AIChatsHead.Height = 40
   AIChatsHead.BevelOuter = 0
   AIChatSearchLabel.Parent = AIChatsHead
-  AIChatSearchLabel.Caption = "Search:"
+  AIChatSearchLabel.Caption = TR$("Search:")
   AIChatSearchLabel.AutoSize = 0
   AIChatSearch.Parent = AIChatsHead
-  AIChatSearch.AccessibleName = "Search chats"
-  AIChatSearch.AccessibleDescription = "Their titles and what was said; Down goes to the list, Escape back to the chat"
-  AIChatSearch.Hint = "Search chats"
+  AIChatSearch.AccessibleName = TR$("Search chats")
+  AIChatSearch.AccessibleDescription = TR$("Their titles and what was said; Down goes to the list, Escape back to the chat")
+  AIChatSearch.Hint = TR$("Search chats")
   AIChatSearch.OnChange = AIChatsSearchChanged
   AIChatSearch.OnKeyDown = AIChatsSearchKey
   ' (Open, Rename, Delete at the bottom — Back is the Chats button's, at the
@@ -56,55 +58,55 @@ SUB SetUpAIChats
   AIChatsFoot.Height = 96
   AIChatsFoot.BevelOuter = 0
   AIChatsOpenBtn.Parent = AIChatsFoot
-  AIChatsOpenBtn.Caption = "Open"
-  AIChatsOpenBtn.AccessibleName = "Open the chat"
+  AIChatsOpenBtn.Caption = TR$("Open")
+  AIChatsOpenBtn.AccessibleName = TR$("Open the chat")
   AIChatsOpenBtn.OnClick = AIChatsOpenClick
   AIChatsRenameBtn.Parent = AIChatsFoot
-  AIChatsRenameBtn.Caption = "Rename"
-  AIChatsRenameBtn.AccessibleName = "Rename the chat"
+  AIChatsRenameBtn.Caption = TR$("Rename")
+  AIChatsRenameBtn.AccessibleName = TR$("Rename the chat")
   AIChatsRenameBtn.OnClick = AIChatsRenameClick
   AIChatsDeleteBtn.Parent = AIChatsFoot
-  AIChatsDeleteBtn.Caption = "Delete"
-  AIChatsDeleteBtn.AccessibleName = "Delete the chat"
-  AIChatsDeleteBtn.AccessibleDescription = "It is removed from this computer; Undo puts it back"
+  AIChatsDeleteBtn.Caption = TR$("Delete")
+  AIChatsDeleteBtn.AccessibleName = TR$("Delete the chat")
+  AIChatsDeleteBtn.AccessibleDescription = TR$("It is removed from this computer; Undo puts it back")
   AIChatsDeleteBtn.OnClick = AIChatsDeleteClick
   AIChatUndoBar.Parent = AIChatsPanel
   AIChatUndoBar.Align = 2
   AIChatUndoBar.Height = 36
   AIChatUndoBar.BevelOuter = 0
   AIChatUndoBar.Visible = 0
-  AIChatUndoBar.AccessibleName = "Chat deleted"
+  AIChatUndoBar.AccessibleName = TR$("Chat deleted")
   AIChatUndoText.Parent = AIChatUndoBar
   AIChatUndoText.AutoSize = 0: AIChatUndoText.WordWrap = 0
   AIChatUndoBtn.Parent = AIChatUndoBar
-  AIChatUndoBtn.Caption = "Undo"
-  AIChatUndoBtn.AccessibleName = "Undo: put the chat back"
+  AIChatUndoBtn.Caption = TR$("Undo")
+  AIChatUndoBtn.AccessibleName = TR$("Undo: put the chat back")
   AIChatUndoBtn.OnClick = AIChatsUndoClick
   AIRenameBar.Parent = AIChatsPanel
   AIRenameBar.Align = 2
   AIRenameBar.Height = 40
   AIRenameBar.BevelOuter = 0
   AIRenameBar.Visible = 0
-  AIRenameBar.AccessibleName = "Rename the chat"
+  AIRenameBar.AccessibleName = TR$("Rename the chat")
   AIRenameEdit.Parent = AIRenameBar
-  AIRenameEdit.AccessibleName = "The chat's new name"
-  AIRenameEdit.AccessibleDescription = "Enter keeps it, Escape leaves the name as it was"
+  AIRenameEdit.AccessibleName = TR$("The chat's new name")
+  AIRenameEdit.AccessibleDescription = TR$("Enter keeps it, Escape leaves the name as it was")
   AIRenameEdit.OnKeyDown = AIRenameKey
   AIRenameOk.Parent = AIRenameBar
-  AIRenameOk.Caption = "Save"
-  AIRenameOk.AccessibleName = "Save the new name"
+  AIRenameOk.Caption = TR$("Save")
+  AIRenameOk.AccessibleName = TR$("Save the new name")
   AIRenameOk.OnClick = AIRenameOkClick
   AIRenameCancel.Parent = AIRenameBar
-  AIRenameCancel.Caption = "Cancel"
-  AIRenameCancel.AccessibleName = "Keep the name as it was"
+  AIRenameCancel.Caption = TR$("Cancel")
+  AIRenameCancel.AccessibleName = TR$("Keep the name as it was")
   AIRenameCancel.OnClick = AIRenameCancelClick
   ' (where they are kept, said under the list: personal data, plainly)
   AIChatsNote.Parent = AIChatsFoot
   AIChatsNote.AutoSize = 0: AIChatsNote.WordWrap = 1
-  AIChatsNote.AccessibleName = "Where chats are kept"
+  AIChatsNote.AccessibleName = TR$("Where chats are kept")
   AIChatList.Parent = AIChatsPanel
   AIChatList.Align = 5
-  AIChatList.AccessibleName = "This project's chats, the newest first"
+  AIChatList.AccessibleName = TR$("This project's chats, the newest first")
   AIChatList.OnDblClick = AIChatsOpenClick
   AIShowChatTitle
 END SUB
@@ -151,11 +153,11 @@ END SUB
 ' (the chat's title beside Chats: its name, or "New chat")
 SUB AIShowChatTitle
   DIM t AS STRING, w AS INTEGER
-  IF AIChatName = "" THEN t = "New chat" ELSE t = AIChatName
+  IF AIChatName = "" THEN t = TR$("New chat") ELSE t = AIChatName
   ' (as much as fits, then "…": the whole title in its hint and its name)
   AIChatTitle.Hint = t
   AIChatTitle.ShowHint = 1
-  AIChatTitle.AccessibleName = "This chat: " + t
+  AIChatTitle.AccessibleName = TR$("This chat: {title}", "title", t)
   AIMeterMeasure.Font.Name = UIFont.Name: AIMeterMeasure.Font.Size = UIFont.Size: AIMeterMeasure.Font.Bold = 1
   w = AIChatTitle.Width - 4
   IF w > 20 AND AIMeterMeasure.TextWidth(t) > w THEN
@@ -183,7 +185,7 @@ SUB AISaveChat
   IF title = "" THEN title = AITools.ChatTitle(AI.QuestionText(1))
   r = AITools.SaveChat(AIChatProject, AIChatId, title, AI.Model, AI.ChatState)
   IF LEFT$(r, 6) = "error:" OR r = "" THEN
-    OutputLine "AI: this chat couldn't be kept: " + MID$(r, 8)
+    OutputLine TR$("AI: this chat couldn't be kept: {error}", "error", MID$(r, 8))
     EXIT SUB
   END IF
   AIChatId = r
@@ -221,6 +223,10 @@ SUB AILoadProjectChat
     AIOpenChat FIELD$(FIELD$(list, CHR$(10), 1), CHR$(9), 1), FIELD$(FIELD$(list, CHR$(10), 1), CHR$(9), 2)
   ELSE
     AI.NewChat
+    ' (the last project's waiting changes are its chat's, kept with it:
+    ' never offered — or applied — in this project)
+    AITools.ClearProposals
+    AIReviewBar.Visible = 0
     AIChatId = ""
     AIChatName = ""
     AIChat.Text = AI.Transcript
@@ -234,7 +240,7 @@ SUB AIOpenChat(Id AS STRING, Title AS STRING)
   DIM state AS STRING
   state = AITools.LoadChat(AIChatProject, Id)
   IF state = "" THEN
-    AIStatus.SimpleText = "That chat can't be read any more (removed outside Studio?)."
+    AIStatus.SimpleText = TR$("That chat can't be read any more (removed outside Studio?).")
     EXIT SUB
   END IF
   AI.ChatState = state
@@ -243,6 +249,10 @@ SUB AIOpenChat(Id AS STRING, Title AS STRING)
   AIEditing = 0
   AIEditBar.Visible = 0
   AIChat.Text = AI.Transcript
+  ' (the changes it left waiting, kept with it: still to review and apply —
+  ' LoadChat gave them back to AITools)
+  AIReviewBar.Visible = 0
+  AIShowReviewBar
   AIShowChatTitle
   AIEnableSend
 END SUB
@@ -262,9 +272,9 @@ SUB AIStartNewChat
   AIShowChatTitle
   AIShowChats 0
   IF had > 0 THEN
-    AIStatus.SimpleText = "A new chat. The last one is kept: Chats lists it."
+    AIStatus.SimpleText = TR$("A new chat. The last one is kept: Chats lists it.")
   ELSE
-    AIStatus.SimpleText = "A new chat."
+    AIStatus.SimpleText = TR$("A new chat.")
   END IF
 END SUB
 
@@ -286,16 +296,16 @@ SUB AIShowChats(Show AS INTEGER)
     AISaveChat
     AIRenameBar.Visible = 0
     AIChatSearch.Text = ""
-    AIChatsNote.Caption = "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
+    AIChatsNote.Caption = TR$("Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good.")
     AIChatsNote.Hint = AITools.ChatsFolder
     AIChatsNote.ShowHint = 1
-    AIChatsNote.AccessibleDescription = "Kept in " + AITools.ChatsFolder
+    AIChatsNote.AccessibleDescription = TR$("Kept in {folder}", "folder", AITools.ChatsFolder)
     ' (the list gets the pane: the box and its buttons come back with Back)
     AIChat.Visible = 0
     AIBottom.Visible = 0
     AIChatsPanel.Visible = 1
-    AIChatsBtn.Caption = "Back"
-    AIChatsBtn.AccessibleName = "Back to the chat"
+    AIChatsBtn.Caption = TR$("Back")
+    AIChatsBtn.AccessibleName = TR$("Back to the chat")
     LayOutAIChats
     AIFillChats
     AIChatSearch.SetFocus
@@ -304,8 +314,8 @@ SUB AIShowChats(Show AS INTEGER)
     AIChatsPanel.Visible = 0
     AIBottom.Visible = 1
     AIChat.Visible = 1
-    AIChatsBtn.Caption = "Chats"
-    AIChatsBtn.AccessibleName = "Chats"
+    AIChatsBtn.Caption = TR$("Chats")
+    AIChatsBtn.AccessibleName = TR$("Chats")
     AIInput.SetFocus
   END IF
 END SUB
@@ -330,10 +340,10 @@ SUB AIFillChats
         q = VAL(FIELD$(line, CHR$(9), 4))
         dt = MID$(FIELD$(line, CHR$(9), 3), 1, 10)
         item = FIELD$(line, CHR$(9), 2)
-        IF q = 1 THEN item = item + " — 1 question, " + dt ELSE item = item + " — " + LTRIM$(STR$(q)) + " questions, " + dt
-        IF FIELD$(line, CHR$(9), 5) <> "" THEN item = item + ": " + CHR$(34) + FIELD$(line, CHR$(9), 5) + CHR$(34)
+        item = TRN$("{title} — {n} question, {date}", "{title} — {n} questions, {date}", q, "title", item, "date", dt)
+        IF FIELD$(line, CHR$(9), 5) <> "" THEN item = TR$("{item}: {q}{snippet}{q}", "item", item, "q", CHR$(34), "snippet", FIELD$(line, CHR$(9), 5))
         IF FIELD$(line, CHR$(9), 1) = AIChatId THEN
-          item = item + " (open)"
+          item = TR$("{item} (open)", "item", item)
           at = AIChatList.ItemCount
         END IF
         AIChatList.AddItems item
@@ -350,12 +360,12 @@ SUB AIFillChats
   AIChatsDeleteBtn.Enabled = Flag(AIChatList.ItemCount > 0)
   IF AIChatList.ItemCount = 0 THEN
     IF LTRIM$(AIChatSearch.Text) = "" THEN
-      AIChatList.AccessibleDescription = "No chats kept for this project yet."
+      AIChatList.AccessibleDescription = TR$("No chats kept for this project yet.")
     ELSE
-      AIChatList.AccessibleDescription = "No chat has " + CHR$(34) + AIChatSearch.Text + CHR$(34) + "."
+      AIChatList.AccessibleDescription = TR$("No chat has {q}{text}{q}.", "q", CHR$(34), "text", AIChatSearch.Text)
     END IF
   ELSE
-    AIChatList.AccessibleDescription = LTRIM$(STR$(AIChatList.ItemCount)) + " chats"
+    AIChatList.AccessibleDescription = TRN$("{n} chat", "{n} chats", AIChatList.ItemCount)
   END IF
 END SUB
 
@@ -393,7 +403,7 @@ SUB AIChatsOpenClick
     IF AI.Busy THEN AI.Cancel
     AISaveChat
     AIOpenChat id, title
-    AIStatus.SimpleText = "Opened " + CHR$(34) + title + CHR$(34) + "."
+    AIStatus.SimpleText = TR$("Opened {q}{title}{q}.", "q", CHR$(34), "title", title)
   END IF
   AIShowChats 0
 END SUB
@@ -429,9 +439,9 @@ SUB AIRenameOkClick
       AIChatName = t
       AIShowChatTitle
     END IF
-    AIStatus.SimpleText = "Renamed: " + CHR$(34) + t + CHR$(34) + "."
+    AIStatus.SimpleText = TR$("Renamed: {q}{title}{q}.", "q", CHR$(34), "title", t)
   ELSE
-    AIStatus.SimpleText = "That chat couldn't be renamed."
+    AIStatus.SimpleText = TR$("That chat couldn't be renamed.")
   END IF
   AIRenameBar.Visible = 0
   AIFillChats
@@ -462,7 +472,7 @@ SUB AIChatsDeleteClick
   IF id = AIChatId AND AI.Busy THEN AI.Cancel
   kept = AITools.DeleteChat(AIChatProject, id)
   IF kept = "" THEN
-    AIStatus.SimpleText = "That chat couldn't be deleted."
+    AIStatus.SimpleText = TR$("That chat couldn't be deleted.")
     EXIT SUB
   END IF
   AIChatDeleted = kept
@@ -477,9 +487,9 @@ SUB AIChatsDeleteClick
     AIShowChatTitle
   END IF
   AIRenameBar.Visible = 0
-  AIChatUndoText.Caption = "Deleted " + CHR$(34) + title + CHR$(34) + "."
+  AIChatUndoText.Caption = TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", title)
   AIChatUndoBar.Visible = 1
-  AIStatus.SimpleText = "Deleted " + CHR$(34) + title + CHR$(34) + ". Undo puts it back."
+  AIStatus.SimpleText = TR$("Deleted {q}{title}{q}. Undo puts it back.", "q", CHR$(34), "title", title)
   AIFillChats
   IF AIChatList.ItemCount > 0 THEN AIChatList.SetFocus ELSE AIChatUndoBtn.SetFocus
 END SUB
@@ -490,11 +500,11 @@ SUB AIChatsUndoClick
   id = AITools.RestoreChat(AIChatDeletedProject, AIChatDeleted)
   AIChatUndoBar.Visible = 0
   IF id = "" THEN
-    AIStatus.SimpleText = "The chat couldn't be put back."
+    AIStatus.SimpleText = TR$("The chat couldn't be put back.")
     EXIT SUB
   END IF
   AIChatDeleted = ""
-  AIStatus.SimpleText = "Put back: " + CHR$(34) + AIChatDeletedTitle + CHR$(34) + "."
+  AIStatus.SimpleText = TR$("Put back: {q}{title}{q}.", "q", CHR$(34), "title", AIChatDeletedTitle)
   ' (nothing said in the chat shown: the one put back is opened)
   IF AI.QuestionCount = 0 AND AIChatDeletedProject = AIChatProject THEN AIOpenChat id, AIChatDeletedTitle
   AIFillChats
@@ -506,39 +516,48 @@ END SUB
 ' The Edit link under question Q: its text in the box, the bar saying what
 ' Send will do — the replies below it move to a saved copy.
 SUB AIEditQuestion(Q AS INTEGER)
-  DIM after AS INTEGER
   IF AI.Busy THEN
-    AIStatus.SimpleText = "RAI is answering: wait for it, or Stop, then edit a question."
+    AIStatus.SimpleText = TR$("RAI is answering: wait for it, or Stop, then edit a question.")
     EXIT SUB
   END IF
   IF Q < 1 OR Q > AI.QuestionCount THEN EXIT SUB
   AIShowChats 0
-  after = AI.QuestionCount - Q
   AIEditing = Q
   AIInput.Text = AI.QuestionText(Q)
-  IF after = 0 THEN
-    AIEditText.Caption = "Editing your question. Send replaces it: its answer moves to a saved copy of this chat (in Chats)."
-  ELSEIF after = 1 THEN
-    AIEditText.Caption = "Editing your question. Send replaces it: its answer and the 1 question after it move to a saved copy of this chat (in Chats)."
-  ELSE
-    AIEditText.Caption = "Editing your question. Send replaces it: its answer and the " + LTRIM$(STR$(after)) + " questions after it move to a saved copy of this chat (in Chats)."
-  END IF
-  AIEditBar.AccessibleDescription = AIEditText.Caption
+  AIShowEditText
   AIEditBar.Visible = 1
   AIShowSlash
   AIInput.SetFocus
-  AIStatus.SimpleText = "Editing a question: Send replaces it, Escape cancels."
+  AIStatus.SimpleText = TR$("Editing a question: Send replaces it, Escape cancels.")
 END SUB
 
-' (the chat kept as it is, under a title that says why: nothing lost)
-FUNCTION AIKeepCopy(Why AS STRING) AS STRING
+' What the bar over the box says while a question is edited: what Send
+' will do, by how many questions follow the one edited.
+SUB AIShowEditText
+  DIM after AS INTEGER
+  after = AI.QuestionCount - AIEditing
+  IF after <= 0 THEN
+    AIEditText.Caption = TR$("Editing your question. Send replaces it: its answer moves to a saved copy of this chat (in Chats).")
+  ELSE
+    AIEditText.Caption = TRN$("Editing your question. Send replaces it: its answer and the {n} question after it move to a saved copy of this chat (in Chats).", "Editing your question. Send replaces it: its answer and the {n} questions after it move to a saved copy of this chat (in Chats).", after)
+  END IF
+  AIEditBar.AccessibleDescription = AIEditText.Caption
+END SUB
+
+' (the chat kept as it is, under a title that says why: nothing lost —
+' AfterEdit: it is the chat before an edit, else before Retry)
+FUNCTION AIKeepCopy(AfterEdit AS INTEGER) AS STRING
   DIM title AS STRING
   title = AIChatName
   IF title = "" THEN title = AITools.ChatTitle(AI.QuestionText(1))
-  title = title + " (" + Why + ")"
+  IF AfterEdit THEN
+    title = TR$("{title} (before the edit)", "title", title)
+  ELSE
+    title = TR$("{title} (before Retry)", "title", title)
+  END IF
   Result = AITools.SaveChat(AIChatProject, "", title, AI.Model, AI.ChatState)
   IF LEFT$(Result, 6) = "error:" THEN
-    OutputLine "AI: the copy couldn't be kept: " + MID$(Result, 8)
+    OutputLine TR$("AI: the copy couldn't be kept: {error}", "error", MID$(Result, 8))
     Result = ""
   ELSE
     Result = title
@@ -551,12 +570,12 @@ FUNCTION AISendEdited(T AS STRING) AS INTEGER
   DIM kept AS STRING, asked AS STRING
   Result = 0
   IF AI.Busy THEN
-    AIStatus.SimpleText = "RAI is answering: wait for it, or Stop, then send the edited question."
+    AIStatus.SimpleText = TR$("RAI is answering: wait for it, or Stop, then send the edited question.")
     EXIT FUNCTION
   END IF
-  kept = AIKeepCopy("before the edit")
+  kept = AIKeepCopy(1)
   IF kept = "" THEN
-    AIStatus.SimpleText = "The question wasn't changed: the chat couldn't be copied first."
+    AIStatus.SimpleText = TR$("The question wasn't changed: the chat couldn't be copied first.")
     EXIT FUNCTION
   END IF
   asked = AI.Rewind(AIEditing)
@@ -567,7 +586,7 @@ FUNCTION AISendEdited(T AS STRING) AS INTEGER
   AIEditing = 0
   AIEditBar.Visible = 0
   AIChat.Text = AI.Transcript
-  OutputLine "AI: the chat before the edit is kept as " + CHR$(34) + kept + CHR$(34) + " (Chats)."
+  OutputLine TR$("AI: the chat before the edit is kept as {q}{title}{q} (Chats).", "q", CHR$(34), "title", kept)
   AISendNow T, 1
   Result = 1
 END FUNCTION
@@ -580,9 +599,9 @@ SUB AIRetry
   q = AI.QuestionCount
   IF q = 0 THEN EXIT SUB
   t = AI.QuestionText(q)
-  kept = AIKeepCopy("before Retry")
+  kept = AIKeepCopy(0)
   IF kept = "" THEN
-    AIStatus.SimpleText = "Not retried: the chat couldn't be copied first."
+    AIStatus.SimpleText = TR$("Not retried: the chat couldn't be copied first.")
     EXIT SUB
   END IF
   IF AI.Rewind(q) = "" THEN
@@ -590,7 +609,7 @@ SUB AIRetry
     EXIT SUB
   END IF
   AIChat.Text = AI.Transcript
-  OutputLine "AI: the answer before Retry is kept in " + CHR$(34) + kept + CHR$(34) + " (Chats)."
+  OutputLine TR$("AI: the answer before Retry is kept in {q}{title}{q} (Chats).", "q", CHR$(34), "title", kept)
   AISendNow t, 0
 END SUB
 
@@ -633,3 +652,21 @@ FUNCTION AIChatStep(Verb AS STRING, Arg AS STRING) AS INTEGER
     CASE ELSE: Result = 0
   END SELECT
 END FUNCTION
+
+' ---- the language changed ---------------------------------------------------------------
+' Studio's language was changed in Settings (ai.inc's AiLanguageChanged calls
+' this): what the chats show that is made from values, not a caption that
+' translates itself — the title beside Chats, the list, the note's spoken
+' form, the Undo bar, the bar over the box while a question is edited.
+SUB AiChatsLanguageChanged
+  DIM id AS STRING
+  AIShowChatTitle
+  AIChatsNote.AccessibleDescription = TR$("Kept in {folder}", "folder", AITools.ChatsFolder)
+  IF AIChatsPanel.Visible THEN
+    id = AIChatPicked
+    AIFillChats
+    IF id <> "" THEN AISelectChat id
+  END IF
+  IF AIChatUndoBar.Visible THEN AIChatUndoText.Caption = TR$("Deleted {q}{title}{q}.", "q", CHR$(34), "title", AIChatDeletedTitle)
+  IF AIEditing > 0 THEN AIShowEditText
+END SUB

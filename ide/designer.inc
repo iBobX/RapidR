@@ -120,11 +120,11 @@ SUB ShowDesigner(d AS INTEGER)
   IF DocOpen(d) = 0 THEN EXIT SUB
   IF DocHasForm(d) = 0 THEN
     DocHasForm(d) = 1
-    Dock.AddView(DocPane(d), DesignDoc(d), "Design")
-    Dock.AddView(DocPane(d), CodeDoc(d), "Code")
+    Dock.AddView(DocPane(d), DesignDoc(d), ViewCaption("Design"))
+    Dock.AddView(DocPane(d), CodeDoc(d), ViewCaption("Code"))
     DesignDoc(d).OnSelect = DesignPicked
   END IF
-  IF DocViewNow(d) = "Code" OR DocViewNow(d) = "" THEN Dock.DocumentView(DocPane(d), "Design")
+  IF DocViewNow(d) = "Code" OR DocViewNow(d) = "" THEN Dock.DocumentView(DocPane(d), ViewCaption("Design"))
   Dock.FocusPane("designdoc(" + LTRIM$(STR$(d)) + ")")
 END SUB
 
@@ -136,7 +136,7 @@ SUB DesignDblClick(Index AS INTEGER, Sender AS RDesignSurface)
   nm = Sender.GetName(Index)
   s = Sender.CreateHandler(nm, "")
   IF s = "" THEN
-    OutputLine "Designer: " + Sender.StatusText
+    OutputLine TR$("Designer: {message}", "message", Sender.StatusText)
     EXIT SUB
   END IF
   Dock.FocusPane("codedoc(" + LTRIM$(STR$(d)) + ")")

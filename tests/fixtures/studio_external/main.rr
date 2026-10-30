@@ -1,0 +1,27 @@
+' Outside: the walk's project for files changed outside Studio
+' (tests/studio_flows.mjs, ext-*): a greeting, a window, nine parts.
+$INCLUDE "greet.rr"
+$INCLUDE "window.rr"
+$INCLUDE "part1.rr"
+$INCLUDE "part2.rr"
+$INCLUDE "part3.rr"
+$INCLUDE "part4.rr"
+$INCLUDE "part5.rr"
+$INCLUDE "part6.rr"
+$INCLUDE "part7.rr"
+$INCLUDE "part8.rr"
+$INCLUDE "part9.rr"
+
+DIM Name AS STRING
+Name = "Ana"
+PRINT Greeting(Name)
+Part1
+Part2
+Part3
+Part4
+Part5
+Part6
+Part7
+Part8
+Part9
+PRINT "Done."

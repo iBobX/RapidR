@@ -14,7 +14,7 @@ END FUNCTION
 FUNCTION AboutText AS STRING
   DIM nl AS STRING
   nl = CHR$(13) + CHR$(10)
-  Result = "RapidR Studio (RapidR " + Lang.Version + ")" + nl + "BASIC is powerful again: desktop and web apps from one source." + nl + nl + "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+  Result = TR$("RapidR Studio (RapidR {version})", "version", Lang.Version) + nl + TR$("BASIC is powerful again: desktop and web apps from one source.") + nl + nl + TR$("Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence.")
 END FUNCTION
 
 SUB ShowAbout
@@ -40,10 +40,12 @@ SUB SaveDocumentAs
   DIM d AS INTEGER
   d = ActiveCode
   IF d < 0 THEN EXIT SUB
-  SaveDlg.Caption = "Save As"
+  SaveDlg.Caption = TR$("Save As")
   SaveDlg.FileName = FileTitle(DocFile(d))
-  SaveDlg.Filter = "RapidR sources (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|All files|*.*"
+  SaveDlg.Filter = TR$("RapidR sources") + " (*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc)|*.rr;*.bas;*.rqw;*.rqb;*.rq;*.inc|" + TR$("All files") + "|*.*"
   IF SaveDlg.Execute THEN
+    ' (the file it was is no longer this document's: not watched)
+    Proj.Unwatch DocFile(d)
     DocFile(d) = SaveDlg.FileName
     SaveDocument d
     Proj.AddFile SaveDlg.FileName
@@ -52,8 +54,8 @@ SUB SaveDocumentAs
 END SUB
 
 SUB AddFileToProject
-  OpenDlg.Caption = "Add a File to the Project"
-  OpenDlg.Filter = "All files|*.*"
+  OpenDlg.Caption = TR$("Add a File to the Project")
+  OpenDlg.Filter = TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
     IF Proj.AddFile(OpenDlg.FileName) THEN FillProjectTree ELSE OutputLine Proj.Error
   END IF
@@ -61,10 +63,17 @@ END SUB
 
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
+  ' (what Studio is doing, for a crash or hang report: the command's id)
+  Proj.CrashDoing Id
   d = ActiveCode
   ' (Edit's in Variables or Watch, when they have the focus — the selected
   ' value copied, the last value set undone: debug.inc)
   IF DebugPaneCommand(Id) THEN EXIT SUB
+  ' (Edit's Copy and Select All in the Output pane, when it has the
+  ' focus: panels.inc)
+  IF OutputCommand(Id) THEN EXIT SUB
+  ' (Edit > Copy in the AI Apps pane's activity: mcp.inc)
+  IF McpPaneCommand(Id) THEN EXIT SUB
   ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
   IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
@@ -75,13 +84,19 @@ SUB RunCommand(Id AS STRING)
   IF WorkspaceCommand(Id) THEN EXIT SUB
   ' (the AI assistant's: ai.inc)
   IF AICommand(Id) THEN EXIT SUB
+  ' (AI apps': mcp.inc)
+  IF McpCommand(Id) THEN EXIT SUB
+  ' (Versions': versions.inc)
+  IF VersionsCommand(Id) THEN EXIT SUB
+  ' (files changed outside Studio, Reopen Project: external.inc)
+  IF ExternalCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
     CASE "file.open": AskOpen
     CASE "file.openFolder": AskOpenFolder
     CASE "file.clearRecent": ClearRecent
-    CASE "file.openExample": ShowPalette "Example"
+    CASE "file.openExample": ShowPalette TR$("Example")
     CASE "file.exampleAgain": CopyExampleAgain
     CASE "file.importRapidQ": AskImportRapidQ
     CASE "file.importRapidQFolder": AskImportRapidQFolder
@@ -165,6 +180,15 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 3) = "ai:" THEN
         ' (a test step: ai:<what>=<value> — ai.inc's AIStep)
         AIStep MID$(Id, 4)
+      ELSEIF LEFT$(Id, 4) = "mcp:" THEN
+        ' (a test step: mcp:<what>=<value> — mcp.inc's McpStep)
+        McpStep MID$(Id, 5)
+      ELSEIF LEFT$(Id, 9) = "versions:" THEN
+        ' (a test step: versions:<what>=<value> — versions.inc's VersionsStep)
+        VersionsStep MID$(Id, 10)
+      ELSEIF LEFT$(Id, 4) = "ext:" THEN
+        ' (a test step: ext:<what>=<value> — external.inc's ExternalStep)
+        ExternalStep MID$(Id, 5)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -175,7 +199,7 @@ SUB RunCommand(Id AS STRING)
         ' (a test step: about:text — what Help > About says, in the Output)
         OutputLine AboutText
       ELSEIF EditorCommand(Id) = 0 THEN
-        OutputLine "(" + Id + ": not there yet)"
+        OutputLine TR$("({id}: not there yet)", "id", Id)
       END IF
   END SELECT
 END SUB
@@ -202,9 +226,13 @@ SUB StudioClose(Action AS INTEGER)
     Action = 0
     EXIT SUB
   END IF
+  ' (every change saved or let go: the copies of unsaved work go)
+  KeepEnd
   StopProgram
   Session.StopBrowser
   SaveSettings
+  ' (AI apps: disconnected, the server off)
+  McpShutdown
 END SUB
 
 ' (keys the menus don't hold: F8 stepping beside F11 / F10)
@@ -238,6 +266,8 @@ SUB DocumentActivated(Name AS STRING)
     DesignNames ActiveDoc
   END IF
   IF ActiveDoc >= 0 THEN EditorFacts ActiveDoc
+  ' (its question about a change outside Studio, if it has one: external.inc)
+  ExtShowBar
   UpdateCommands
 END SUB
 
@@ -252,6 +282,8 @@ SUB DocumentClosing(Name AS STRING, Cancel AS INTEGER)
         Cancel = 1
         EXIT SUB
       END IF
+      ' (no longer watched for changes outside Studio: external.inc)
+      ExtClosed d
       DocOpen(d) = 0
       Lang.Close DocFile(d)
       IF ActiveDoc = d THEN ActiveDoc = -1
@@ -274,7 +306,7 @@ SUB StartAction(Which AS INTEGER)
     CASE 1: RunCommand "file.newProject"
     CASE 2: RunCommand "file.open"
     CASE 3: RunCommand "file.importRapidQ"
-    CASE 4: ShowPalette "Example"
+    CASE 4: ShowPalette TR$("Example")
     CASE ELSE: RunCommand "view.commandPalette"
   END SELECT
 END SUB
@@ -301,6 +333,7 @@ END SUB
 
 SUB StartStudio
   DIM i AS INTEGER, a AS STRING, startFile AS STRING, fresh AS INTEGER
+  DIM langArg AS STRING, langGiven AS INTEGER
   HomeDir = ""
   i = 1
   WHILE i <= COMMANDCOUNT
@@ -312,6 +345,11 @@ SUB StartStudio
     ELSEIF a = "--theme" THEN
       i = i + 1
       ThemeChoice = COMMAND$(i)
+    ELSEIF a = "--lang" THEN
+      ' (Studio in a language for this run: a test's, the pseudo-language xx)
+      i = i + 1
+      langArg = COMMAND$(i)
+      langGiven = 1
     ELSEIF a = "--fresh" THEN
       fresh = 1
     ELSEIF a = "--maximized" THEN
@@ -324,11 +362,23 @@ SUB StartStudio
     END IF
     i = i + 1
   WEND
+  ' (from here on an error in Studio's own code is said, never the end of
+  ' Studio; unsaved work is kept as it is typed: safety.inc)
+  SetUpSafety
+  ' (RapidR's crash and hang reports: the strip after a Studio that ended
+  ' unexpectedly, the hang watchdog — crash.inc)
+  SetUpCrash
   ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
   DefaultFolder = Proj.ProjectsFolder(HomeDir)
   ' (S2: offered unless the settings turned it off)
   ReopenLast = 1
   IF fresh = 0 THEN LoadSettings
+  IF langGiven THEN LanguageChoice = langArg
+  ' (Studio's catalogs: ide/lang beside studio.rr on the desktop — the
+  ' default — and ide/lang beside the page on the web, apart from the
+  ' programs it runs, which have their own lang/)
+  IF Proj.FileManager = "" THEN Application.LanguageFolder = HomeDir + "ide/lang"
+  IF LanguageChoice <> "" THEN Application.Language = LanguageChoice
   ' (S6: your login shell's PATH for the programs run from here, read in the
   ' background now — a Run waits for it, three seconds at most)
   Session.ReadShellPath
@@ -338,6 +388,7 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
+  PreviewDoc = -1
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -349,6 +400,9 @@ SUB StartStudio
   SetUpAI
   SetUpDocuments
   SetUpSearch
+  SetUpVersions
+  SetUpExternal
+  SetUpMcp
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)
@@ -359,9 +413,11 @@ SUB StartStudio
   ApplyChrome
   ' (from here on, the look's changes: the system's, View > Theme)
   Application.OnThemeChange = StudioThemeChanged
+  ' (and the language's: Tools > Settings > General > Language)
+  Application.OnLanguageChange = StudioLanguageChanged
   FillProjectTree
   InspectActive
-  OutputLine "RapidR Studio is ready."
+  OutputLine TR$("RapidR Studio is ready.")
   LayOutWelcome
   ApplyPreview
   IF startFile <> "" THEN
@@ -372,6 +428,8 @@ SUB StartStudio
   END IF
   UpdateTitle
   UpdateCommands
+  ' (unsaved work a Studio that ended without closing kept: Restore?)
+  OfferRestoreSoon
   IF DoList <> "" THEN Macro.Enabled = 1
 END SUB
 
@@ -396,9 +454,23 @@ SUB MacroTick
   END IF
   id = LTRIM$(RTRIM$(id))
   IF EditorStep(id) THEN EXIT SUB
+  ' (lang:<tag> — Studio's language changed as Settings changes it, for
+  ' the language tests; lang: alone, the system's)
+  IF LEFT$(id, 5) = "lang:" THEN
+    SetLanguage MID$(id, 6)
+    EXIT SUB
+  END IF
+  ' (manual:<page> — the Help pane's link to a page of the manual)
+  IF LEFT$(id, 7) = "manual:" THEN
+    HelpLink id
+    EXIT SUB
+  END IF
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
-    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
+    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;
+    ' safety.inc's safety: steps)
+    IF SafetyStep(id) THEN EXIT SUB
+    IF CrashStep(id) THEN EXIT SUB
     IF PanelStep(id) = 0 THEN
       IF DebugStep(id) = 0 THEN RunCommand id
     END IF

@@ -1,0 +1,2 @@
+﻿msgid "Playing"
+msgstr "Lecture · français 中文"

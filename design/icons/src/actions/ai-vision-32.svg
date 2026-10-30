@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Vision (RAI sees the window)</title>
+  <path d="M4 11V7A3 3 0 0 1 7 4H11" stroke="currentColor"/>
+  <path d="M21 4H25A3 3 0 0 1 28 7V11" stroke="currentColor"/>
+  <path d="M28 21V25A3 3 0 0 1 25 28H21" stroke="currentColor"/>
+  <path d="M11 28H7A3 3 0 0 1 4 25V21" stroke="currentColor"/>
+  <path d="M10 16C12 12 20 12 22 16C20 20 12 20 10 16Z" stroke="currentColor"/>
+  <circle cx="16.5" cy="16.5" r="1.5" fill="currentColor"/>
+</svg>

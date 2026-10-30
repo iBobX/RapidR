@@ -59,6 +59,8 @@ SITES = {
     ("crates/rapidr-value/src/datascience/link.rs", "get"): "RCSV RDATASOURCE RDBGRID RPLOT",
     ("crates/rapidr-value/src/datascience/link.rs", "dataframe_call"): "RDATAFRAME",
     ("crates/rapidr-value/src/datascience/plot.rs", "*"): "RPLOT",
+    # (RARCHIVE: its own store, every runtime)
+    ("crates/rapidr-value/src/objects/archive.rs", "*"): "RARCHIVE",
     ("crates/rapidr-runtime-core/src/layout.rs", "after_set"): "*",
     ("crates/rapidr-runtime-core/src/network.rs", "socket_method"): "RSOCKET",
     ("crates/rapidr-runtime-core/src/network.rs", "method"): "RSOCKET RSERVERSOCKET",
@@ -160,6 +162,7 @@ SITES = {
     ("crates/rapidr-value/src/objects/listview.rs", "*"): "RLISTVIEW",
     ("crates/rapidr-value/src/objects/media.rs", "*"): MEDIA,
     ("crates/rapidr-value/src/objects/memstream.rs", "*"): "RMEMORYSTREAM RFILESTREAM",
+    ("crates/rapidr-value/src/objects/audioout.rs", "*"): "RAUDIOOUT",
     ("crates/rapidr-value/src/objects/menu.rs", "*"): "RMAINMENU RMENUITEM RPOPUPMENU",
     ("crates/rapidr-value/src/objects/mod.rs", "call"): "*",
     ("crates/rapidr-value/src/objects/printer.rs", "*"): "RPRINTER",

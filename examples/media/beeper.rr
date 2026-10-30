@@ -1,0 +1,192 @@
+' beeper.rr: the simplest sound hardware there is — one bit wired to a
+' speaker — played the way an emulator plays it. A made-up 3.528 MHz
+' machine runs a tiny sound routine that flips the bit at exact cycle
+' times; every frame (50 a second) the flips are turned into 882 samples
+' (44100 / 50) and written to an RAudioOut. The top screen is what the
+' machine did (the bit, a frame long); the bottom one is what you hear.
+'
+'   rapidr run beeper.rr          (or open it in RapidR Studio and press F5)
+'
+' The pattern for an emulator: 1. run the machine for a frame, noting the
+' cycle of every write to the speaker; 2. for each sample, how much of its
+' 80 cycles the bit was high (no aliasing hiss); 3. a DC blocker (a real
+' speaker can't hold a push); 4. Write. An RTimer checks often (Interval
+' 10: its ticks come on the system timer's 15.6 ms steps) and runs frames
+' until about 60 ms is queued, so a late tick catches up and the sound
+' never gaps.
+' Runs on the desktop (run, interpreted, native) and the web (Start: a
+' browser plays sound only after a click). The tune is RapidR's own.
+$THEME rapidr
+
+CONST RATE = 44100
+CONST SPF = 882                  ' samples a frame: 44100 / 50
+CONST CPF = 70560                ' the machine's cycles a frame: 3528000 / 50
+CONST CPS = 80                   ' cycles a sample: CPF / SPF
+CONST AMP = 9000
+CONST AHEAD = 60                 ' ms of sound kept queued
+
+DECLARE SUB Tick
+DECLARE SUB StartStop
+DECLARE SUB ScopePaint
+
+DIM flips(4095) AS LONG          ' cycles (in this frame) where the bit flipped
+DIM nFlips AS INTEGER
+DIM bit AS INTEGER, startBit AS INTEGER
+DIM samples(SPF - 1) AS INTEGER
+DIM nextFlip AS LONG             ' the routine's next OUT, in cycles from the frame's start
+DIM half AS LONG                 ' cycles between flips for this note (0: a rest)
+DIM noteAt AS INTEGER, framesLeft AS INTEGER, noteName AS STRING
+DIM tune(63) AS INTEGER, lens(63) AS INTEGER, tuneLen AS INTEGER
+DIM dcIn AS DOUBLE, dcOut AS DOUBLE
+DIM frames AS LONG, msFrame AS DOUBLE
+
+DIM Beeper AS RAudioOut
+Beeper.SampleRate = RATE
+
+CREATE Form AS RForm
+    Caption = "One-bit beeper"
+    ClientWidth = 640: ClientHeight = 360
+    Center
+    CREATE StartBtn AS RButton
+        Caption = "&Start": Left = 12: Top = 12: Width = 100: Height = 30
+        OnClick = StartStop
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 124: Top = 12: Width = 504: Height = 34
+    END CREATE
+    CREATE Scope AS RCanvas
+        Left = 12: Top = 54: Width = 616: Height = 294
+        OnPaint = ScopePaint
+        AccessibleName = "The speaker bit and the sound"
+    END CREATE
+    CREATE Clock AS RTimer
+        Interval = 10: Enabled = 0
+        OnTimer = Tick
+    END CREATE
+END CREATE
+
+' ---- the machine ----------------------------------------------------------------------
+
+' The tune: a MIDI note number (0, a rest) and a length in frames, our own.
+DATA 64,8, 67,8, 72,16, 71,8, 67,8, 69,16, 65,8, 69,8, 74,16, 72,8, 71,8, 72,24, 0,8
+DATA 72,8, 74,8, 76,16, 74,8, 72,8, 71,16, 69,8, 71,8, 72,8, 67,8, 64,8, 67,8, 60,24, 0,16
+
+SUB NextNote
+    noteAt = (noteAt + 1) MOD tuneLen
+    framesLeft = lens(noteAt)
+    IF tune(noteAt) = 0 THEN
+        half = 0
+        noteName = "rest"
+    ELSE
+        ' the routine's loop: OUT (12 cycles), its bookkeeping (8) and a delay of
+        ' 16 cycles a turn — so a note's pitch is as exact as the delay allows
+        half = 20 + 16 * INT((3528000 / (2 * 440 * 2 ^ ((tune(noteAt) - 69) / 12)) - 20) / 16 + 0.5)
+        noteName = FORMAT$("%.1f", 3528000 / (2 * half)) + " Hz"
+    END IF
+    ' (a short gap between notes, as the routine returns and starts the next)
+    nextFlip = nextFlip + 900
+END SUB
+
+' One frame: the machine runs CPF cycles, then its flips become SPF samples.
+SUB RunFrame
+    DIM i AS INTEGER, t AS INTEGER, lv AS INTEGER, s1 AS LONG, high AS LONG, edge AS LONG, x AS DOUBLE
+    ' 1. the routine flips the bit every `half` cycles (a rest: it waits)
+    nFlips = 0: startBit = bit
+    DO WHILE nextFlip < CPF
+        IF half > 0 THEN
+            bit = 1 - bit
+            flips(nFlips) = nextFlip: nFlips = nFlips + 1
+            nextFlip = nextFlip + half
+        ELSE
+            nextFlip = CPF
+        END IF
+    LOOP
+    nextFlip = nextFlip - CPF
+    framesLeft = framesLeft - 1
+    IF framesLeft <= 0 THEN NextNote
+    ' 2. each sample: the share of its 80 cycles the bit was high, -AMP to +AMP;
+    ' 3. a DC blocker brings a held bit back to the middle
+    lv = startBit: t = 0
+    FOR i = 0 TO SPF - 1
+        s1 = (i + 1) * CPS: edge = i * CPS: high = 0
+        DO WHILE t < nFlips
+            IF flips(t) >= s1 THEN EXIT DO
+            IF lv THEN high = high + flips(t) - edge
+            edge = flips(t): lv = 1 - lv: t = t + 1
+        LOOP
+        IF lv THEN high = high + s1 - edge
+        x = (high * 2 - CPS) * AMP / CPS
+        dcOut = x - dcIn + 0.995 * dcOut: dcIn = x
+        samples(i) = dcOut
+    NEXT
+    ' 4. to the speaker
+    Beeper.Write samples, SPF
+    frames = frames + 1
+END SUB
+
+' The timer: frames until AHEAD ms is queued (a late tick catches up).
+SUB Tick
+    DIM t0 AS DOUBLE, n AS INTEGER
+    t0 = TIMER
+    DO WHILE Beeper.Queued < AHEAD AND n < 10
+        RunFrame
+        n = n + 1
+    LOOP
+    IF n > 0 THEN msFrame = msFrame * 0.9 + (TIMER - t0) * 1000 / n * 0.1
+    Info.Caption = noteName + "   frame " + FORMAT$("%d", frames) + " made in " + FORMAT$("%.2f", msFrame) + " ms" + CHR$(10) + FORMAT$("%d", Beeper.Queued) + " ms queued, " + FORMAT$("%d", Beeper.Underruns) + " gaps" + IIF(Beeper.Error <> "", ". " + Beeper.Error, "")
+    Scope.AccessibleDescription = Info.Caption
+    Scope.Repaint
+END SUB
+
+SUB StartStop
+    IF Beeper.Playing THEN
+        Beeper.Stop: Clock.Enabled = 0
+        StartBtn.Caption = "&Start"
+    ELSE
+        Beeper.Start: Clock.Enabled = 1
+        StartBtn.Caption = "&Stop"
+        Tick
+    END IF
+END SUB
+
+' ---- the screens ----------------------------------------------------------------------
+
+SUB ScopePaint
+    DIM W AS INTEGER, H AS INTEGER, i AS INTEGER, x AS DOUBLE, y AS DOUBLE, px AS DOUBLE, py AS DOUBLE, lv AS INTEGER, top AS INTEGER, low AS INTEGER
+    W = Scope.Width: H = Scope.Height
+    Scope.FillRect 0, 0, W, H, RGB(18, 20, 34)
+    ' the bit over the frame: a line at each flip
+    top = 34: low = 104: lv = startBit
+    px = 0: py = IIF(lv, top, low)
+    Scope.PenWidth = 2
+    FOR i = 0 TO nFlips - 1
+        x = flips(i) * (W - 1) / CPF
+        Scope.Line px, py, x, py, RGB(255, 196, 92)
+        lv = 1 - lv: y = IIF(lv, top, low)
+        Scope.Line x, py, x, y, RGB(255, 196, 92)
+        px = x: py = y
+    NEXT
+    Scope.Line px, py, W - 1, py, RGB(255, 196, 92)
+    ' the frame's samples
+    Scope.Line 0, 220, W, 220, RGB(52, 60, 96)
+    px = 0: py = 220 - samples(0) * 62 / AMP
+    FOR i = 1 TO SPF - 1
+        x = i * (W - 1) / (SPF - 1): y = 220 - samples(i) * 62 / AMP
+        Scope.Line px, py, x, y, RGB(120, 200, 255)
+        px = x: py = y
+    NEXT
+    Scope.PenWidth = 1
+    Scope.TextOut 8, 6, "THE SPEAKER BIT: " + FORMAT$("%d", nFlips) + " flips in this frame (70560 cycles)", RGB(255, 214, 140), -1
+    Scope.TextOut 8, 124, "WHAT YOU HEAR: 882 samples, the share of each sample's 80 cycles the bit was high", RGB(160, 214, 255), -1
+END SUB
+
+' ---- start ----------------------------------------------------------------------------
+
+DO
+    READ tune(tuneLen), lens(tuneLen)
+    tuneLen = tuneLen + 1
+LOOP UNTIL tuneLen = 26
+noteAt = -1
+NextNote
+Info.Caption = "Press Start: a melody played by one bit."
+Form.ShowModal

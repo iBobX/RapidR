@@ -18,7 +18,8 @@
 // (4.5:1, 3:1 for large and disabled text) fails.
 
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -450,10 +451,35 @@ const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
 // release) at (x, y) of a component
 const AI_READY = "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small";
 const CLICK = (comp, x, y) => `${comp}.__mousedown_${x}_${y},${comp}.__mouseup_${x}_${y}`;
+// (COPY-ANYWHERE) the program's output in Output, then "line of" dragged over
+const COPY_WAIT = "outputbox.__wait_4000";
+const COPY_DRAG = "outputbox.__mousedown_62_60,outputbox.__mousemove_80_60,outputbox.__mousemove_100_60,outputbox.__mousemove_117_60,outputbox.__mouseup_117_60";
 // (Set up RAI — a modal window: its steps are input once it shows — "a
 // cloud service" picked, Next, Anthropic in the provider list)
 const SETUP_CLOUD = [CLICK("aisucloudradio", 8, 12), idle(2), CLICK("aisunextbtn", 30, 14), idle(2), "aisuprovbox.__item_0", idle(2)].join(",");
+// (VERSIONS-G3) The walk's project — a copy of tests/fixtures/studio_versions
+// (on the web, its files in the page's store) — and its steps: started and
+// "first" saved by Ana; main.rr's last line changed and saved; "second"
+const VERSIONS_FILES = ["Hello.rrproj", "main.rr", "greet.rr"].map((f) => `tests/fixtures/studio_versions/${f}`);
+const V_OPEN = { open: "tests/fixtures/studio_versions/Hello.rrproj", copyDir: true, webFiles: VERSIONS_FILES, fsck: true };
+const V_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
+const V_EDIT = 'code:PRINT "Done."=>PRINT "All done!",file.save';
+const V_SECOND = `${V_FIRST},${V_EDIT},versions:save=second`;
+// (a key written in the code: the secret check's line; not a real key)
+const V_SECRET = 'code:PRINT "Done."=>key$ = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save';
 
+// (EXTERNAL-CHANGES) The walk's project — a copy of tests/fixtures/
+// studio_external outside this repository — and what another process writes
+// into it (tests/ext_writer.mjs): main.rr changed, typed in first, twelve
+// files rewritten at once.
+const X_OPEN = { open: "tests/fixtures/studio_external/Outside.rrproj", copyDir: true, fsck: true };
+const X_DIR = "tests/fixtures/studio_external";
+const X_MAIN = readFileSync(join(ROOT, X_DIR, "main.rr"), "utf8");
+const X_AGENT = X_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."');
+const X_CHANGE = "ext:go=1,ext:await=1";
+const X_MINE = 'code:PRINT "Done."=>PRINT "Mine."';
+const X_WINDOW = readFileSync(join(ROOT, X_DIR, "window.rr"), "utf8").replace('Caption = "Hello"', 'Caption = "Changed outside"').replace("Left = 24", "Left = 140");
+const X_TWELVE = Object.fromEntries(["main.rr", "greet.rr", "window.rr", ...Array.from({ length: 9 }, (_, i) => `part${i + 1}.rr`)].map((f) => [f, readFileSync(join(ROOT, X_DIR, f), "utf8") + "' (rewritten by an agent)\n"]));
 const CASES = [
   {
     name: "run-console",
@@ -3925,6 +3951,28 @@ const CASES = [
     dump: { "clipboard.text": /^1$/, "status.panel(0).caption": /Copied the value \(1 character\)/ },
   },
   {
+    // (COPY-ANYWHERE) Ctrl+C in Call Stack: the selected call as shown
+    name: "copy-call-stack",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,focus:stacktree",
+    events: "stacktree.__wait_4000,stacktree.__key_67_16,stacktree.__wait_300",
+    delay: 8,
+    dump: { "clipboard.text": /counter\.rr:6$/, "status.panel(0).caption": /^Copied the call$/ },
+  },
+  {
+    // (COPY-ANYWHERE) …and in Breakpoints: the breakpoint as listed
+    name: "copy-breakpoints",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "line:6,debug.toggleBreakpoint,wait,focus:bppanel",
+    events: "bptree.__wait_3000,bptree.__key_40,bptree.__key_67_16,bptree.__wait_300",
+    delay: 6,
+    dump: { "clipboard.text": /^counter\.rr:6$/, "status.panel(0).caption": /^Copied the breakpoint$/ },
+  },
+  {
     // (POLISH-2) F5 after a pause, the program running on (a line that
     // takes seconds): a moment later Call Stack and Variables say it's
     // running — the last pause's values aren't the program's any more —;
@@ -4308,6 +4356,200 @@ const CASES = [
     delay: 7,
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
+  },
+  // (the code editor's context menu opens where the right click was — a
+  // long file scrolled down, the editor away from the window's corner:
+  // Robert 2026-10-28, it opened far from the click. The kernel's menu,
+  // desktop and web; macOS' own: menu.rs's muda_y, its unit test)
+  {
+    name: "code-menu-at-click",
+    open: "examples/showcase/midi_visualizer.rr",
+    copy: true,
+    webFiles: ["examples/showcase/midi_visualizer.rr"],
+    do: "view:Code,wait,focus:codedoc(0),key:Ctrl+End,wait,wait",
+    events: "studio.__wait_3500,codedoc(0).__rightclick_220_160",
+    capture: true,
+    delay: 7,
+    dump: {
+      "codedoc(0).__popupat": /^220,160$/,
+      "codedoc(0).caretline": /^(?!0$)\d+$/,
+    },
+  },
+  // ---- a project as RAI left Robert's ShopInvoices: the main file a module
+  // that main.rr includes; Run ran it, it ended at once, nothing said ----
+  {
+    name: "project-main-included",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,wait",
+    delay: 5,
+    dump: {
+      "proj.mainfile": /^lang\.rr$/,
+      "outputbox.text": /The main file lang\.rr is included by main\.rr: the program probably starts in main\.rr\. To run it from there, select the project's name in the Project pane, then MainFile in Properties\./,
+    },
+  },
+  {
+    // (…Run there: it ends at once, and says what to look at)
+    name: "project-main-runs-module",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "outputbox.text": /\[lang\.rr ended, exit code 0\]\nlang\.rr ran and ended at once: it showed no window and printed nothing\. If the program starts in another file, make that the main file/,
+    },
+  },
+  {
+    // (…the project's properties fix it: MainFile main.rr, written to the
+    // project file; Run starts there)
+    name: "project-main-fixed",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,project:select,prop:MainFile=main.rr,wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "outputbox.text": /Shop open\n\[main\.rr ended, exit code 0\](?![\s\S]*ended at once)/,
+    },
+    files: { "Shop.rrproj": /^main = "main\.rr"$/m },
+  },
+  {
+    // (Run with nothing open says so)
+    name: "run-nothing-open",
+    open: "",
+    desktopOnly: true,
+    do: "run.start,wait",
+    delay: 4,
+    dump: { "outputbox.text": /Nothing to run: open a project or a program first/ },
+  },
+  // (the project tree's selection shows its file: lang/pt-BR.po selected
+  // opens in the preview tab, the keys stay in the tree; lang/es.po
+  // selected takes the preview tab over — never another file's text on
+  // show, Robert 2026-10-29)
+  {
+    name: "project-tree-preview",
+    open: "tests/fixtures/studio_assets/Langs.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_assets/Langs.rrproj", "tests/fixtures/studio_assets/main.rr", "tests/fixtures/studio_assets/lang/es.po", "tests/fixtures/studio_assets/lang/pt-BR.po"],
+    do: "wait,focus:projecttree,key:Home,key:Down,key:Down,key:Down,key:Down,key:Down,key:Down,wait,wait,wait,key:Up,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "projecttree.selected": /^lang\/es\.po$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).text": /Language: es\\n[\s\S]*Velocidad"/,
+      "outputbox.text": /Opened .*lang\/pt-BR\.po\n> key:Up\nOpened .*lang\/es\.po/,
+    },
+  },
+  // ---- Studio keeps your work (safety.inc; Robert 2026-10-28: Studio quit
+  // on a run-time error in its own code, the unsaved work and the chat's
+  // proposals with it) ----
+  {
+    // (a run-time error in Studio's own code — a file written into a folder
+    // that isn't there —: Studio goes on, says it in a dialog and the Output,
+    // logs it with its file and line, keeps a copy of the unsaved work)
+    name: "studio-error-safe",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:fail,wait,wait,wait",
+    delay: 8,
+    capture: true,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /Cannot create file …\/studio\/no-such-folder\/studio-test\.txt\. \(safety\.inc line \d+\)\n\nYour work is safe: nothing was lost, and Studio goes on/,
+      "outputbox.text": /Something went wrong in Studio: Cannot create file .* \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+    },
+    files: { "studio/studio-errors.log": /RapidR Studio \(RapidR [\d.]+\): Cannot create file .* \(at Studio's safety\.inc line \d+\)/ },
+  },
+  {
+    // (…in the browser: a division by zero in Studio's own code — the
+    // page's store has no folders to be missing —, said the same way)
+    name: "studio-error-safe-web",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    webOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:divide,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /^Division by zero \(safety\.inc line \d+\)\n\nYour work is safe/,
+      "outputbox.text": /Something went wrong in Studio: Division by zero \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+    },
+  },
+  {
+    // (unsaved work kept, Studio ended without closing — killed: the test's
+    // end —; started again: "Restore your unsaved work?", Enter restores it
+    // in its editor, not saved)
+    name: "studio-restore-unsaved",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:keep,wait",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,key:Enter,wait,wait,wait", delay: 8 },
+    dump: {
+      "codedoc(0).text": /Form\.ShowModal\n+PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+      "outputbox.text": /Restored the unsaved work of 1 file \(not saved yet\)\./,
+      "saveprompt.__shown": /^0$/,
+    },
+    files: { "hello_form.rr": /^(?![\s\S]*PRINT 42)/ },
+  },
+  {
+    // (a new file with Chinese in it: on disk as the proposal has it, UTF-8
+    // — the old Apply wrote a byte a character, "??? 3D")
+    name: "ai-apply-utf8",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add a chinese translation,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: { "aistatus.simpletext": /^1 file changed/ },
+    files: { "lang/zh-Hans.po": /^msgid ""\nmsgstr ""\n"Content-Type: text\/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n$/ },
+  },
+  {
+    // (an Apply that can't be done whole changes nothing: the rename, the
+    // icon in a new folder and a file that can't be made — none applied, the
+    // folder not made, why said; the changes still wait to be reviewed)
+    name: "ai-apply-all-or-nothing",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add three things,wait,wait,wait,wait,ai:apply,wait",
+    delay: 8,
+    desktopGone: ["icons"],
+    dump: {
+      "aistatus.simpletext": /^Nothing was changed: hello_form\.rr\/blocked\.txt: its folder can't be made: .*hello_form\.rr is a file\. The changes still wait \(Review\)\.$/,
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "codedoc(0).modified": /^(0|False)$/i,
+      "outputbox.text": /AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+    },
+    same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // (changes left waiting are kept with the chat: Studio started again —
+    // the project's chat opened —, they are still there to apply)
+    name: "ai-proposals-kept",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,wait",
+    delay: 7,
+    restart: { do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,wait,wait,ai:apply,wait", delay: 7 },
+    dump: {
+      "aireviewbar.__shown": /^0$/,
+      "codedoc(0).text": /Caption = "AI Notes"/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
+    },
   },
   {
     name: "ai-apply-undo",
@@ -5893,7 +6135,813 @@ const CASES = [
       "airemember.__shown": /^1$/,
     },
   },
+  // ---- COPY-ANYWHERE: copying from the Output pane (tests/fixtures/studio_copy) ----
+  // (Output's lines from y 30 down, 20 pixels each in Studio's monospaced
+  // font; "second line of output"'s "line of" from x 62 to 117 — its
+  // characters 7 to 14 — on line 2, y 60; "third line" at y 80)
+  {
+    // a drag over the middle of line 2 selects "line of"; Ctrl+C (⌘C)
+    // copies exactly that (the tests' own clipboard); the selection read
+    // in every look (contrast judged, the selected text with it)
+    name: "copy-output-drag",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__key_67_16", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "outputbox.seltext": /^line of$/, "outputbox.hasselection": /^1$/, "clipboard.text": /^line of$/, "outputbox.text": /^first line\nsecond line of output\nthird line\n/ },
+    // (the web: the kernel's Ctrl+C fills the page's copy event — the real
+    // ⌘C in Chrome below; here the selection)
+    webDump: { "outputbox.seltext": /^line of$/, "outputbox.hasselection": /^1$/ },
+  },
+  {
+    // the right-click menu over "third line", "line of" selected: Copy
+    // (enabled), Copy Line, Copy All, Select All, —, Wrap Long Lines ✓,
+    // Clear — captured open, light and dark
+    name: "copy-output-menu",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__rightclick_100_80", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: {
+      "outputbox.clickedline": /^2$/,
+      "outputbox.seltext": /^line of$/,
+      "outputmenucopy.enabled": /^1$/, "outputmenucopy.caption": /^&Copy$/,
+      "outputmenucopyline.enabled": /^1$/, "outputmenucopyline.visible": /^(1|-1)$/, "outputmenucopyline.caption": /^Copy &Line$/,
+      "outputmenucopyall.caption": /^Copy &All$/, "outputmenuselall.caption": /^&Select All$/,
+      "outputmenuwrap.checked": /^(1|-1)$/, "outputmenuclear.caption": /^Cl&ear$/,
+    },
+  },
+  {
+    // the menu's Copy (Down, Enter): the selection on the clipboard, said
+    // on the status bar
+    name: "copy-output-menu-copy",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "clipboard.text": /^line of$/, "status.panel(0).caption": /^Copied 7 characters$/ },
+  },
+  {
+    // nothing selected: Copy disabled; Copy Line (Down past Copy, Down,
+    // Enter) copies the line right-clicked
+    name: "copy-output-menu-line",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "outputbox.hasselection": /^0$/, "outputmenucopy.enabled": /^0$/, "clipboard.text": /^third line$/, "status.panel(0).caption": /^Copied 10 characters$/ },
+  },
+  {
+    // Copy All: the whole page, its last line Studio's own
+    name: "copy-output-menu-all",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "clipboard.text": /^first line\nsecond line of output\nthird line\n\[three\.rr ended, exit code 0\]$/, "status.panel(0).caption": /^Copied 4 lines$/ },
+  },
+  {
+    // Edit > Copy and Select All while Output has the keyboard (no
+    // document needed): Select All, Copy — every line
+    name: "copy-output-edit-menu",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait,focus:outputbox,edit.selectAll,edit.copy",
+    delay: 7,
+    dump: { "clipboard.text": /^first line\nsecond line of output\nthird line\n\[three\.rr ended, exit code 0\]\n> focus:outputbox\n> edit\.selectAll$/, "status.panel(0).caption": /^Copied 6 lines$/ },
+  },
+  {
+    // the Problems page: an error's row clicked, the next added with
+    // Shift+Down, Ctrl+C — each as `file:line:col: severity: message`; the menu's Copy
+    // All says Problems
+    name: "copy-problems",
+    open: "tests/fixtures/studio_copy/problems.rr",
+    webFiles: ["tests/fixtures/studio_copy/problems.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "wait,run.start,wait,wait",
+    events: [COPY_WAIT, "outputbox.__mousedown_300_60", "outputbox.__mouseup_300_60", "outputbox.__wait_300", "outputbox.__key_40_256", "outputbox.__key_67_16", "outputbox.__rightclick_300_60", "outputbox.__wait_300"].join(","),
+    delay: 8,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: {
+      "outputbox.page": /^problems$/,
+      "clipboard.text": /^problems\.rr:8:1: error: Unknown SUB or FUNCTION 'Missing'[^\n]*\nproblems\.rr:9:1: error: Unknown SUB or FUNCTION 'Other'[^\n]*$/,
+      "outputmenucopy.enabled": /^1$/, "outputmenucopyline.visible": /^0$/, "outputmenucopyall.caption": /^Copy &All Problems$/,
+    },
+    webDump: { "outputbox.page": /^problems$/, "outputbox.seltext": /^problems\.rr:8:1: error: [^\n]*\nproblems\.rr:9:1: error: [^\n]*$/, "outputmenucopyall.caption": /^Copy &All Problems$/ },
+  },
+  // (VERSIONS-G3) Versions in Studio, walked as a person would (docs/
+  // versions-plan.md; the acceptance in the lane's brief): a copy of a small
+  // project (tests/fixtures/studio_versions) — Start Versioning, Save a
+  // Version "first", main.rr changed: the gutter's marks, the Project
+  // pane's M, the status bar's "1 change not saved as a version"; the
+  // change shown under its line; Save a Version "second" through the
+  // dialog; the timeline; What Changed? of "first"; Go Back to "first"
+  // (asked; a third version "Went back to “first”"); Undo. A key in a file:
+  // the dialog says so, saves only once ticked. A project never versioned
+  // keeps a local history of every save. The web: no versions (said), the
+  // local history works.
+  {
+    name: "versions-empty",
+    ...V_OPEN,
+    do: "versions.pane",
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "versub.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO },
+    webDump: { "versub.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
+  },
+  {
+    name: "versions-first",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: V_FIRST,
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now$/, null]],
+    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "versub.caption": /^main · all saved$/, "repo.experiment": /^main$/ },
+    desktopFiles: ["project/.gitignore", "project/.git/HEAD"],
+  },
+  {
+    name: "versions-changed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},view.project,versions:report=main.rr`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["main.rr", "treeitem", null, (n) => /changed since the last version/.test(n.description || "")]],
+    dump: {
+      "codedoc(0).changessince": /^version$/, "codedoc(0).changecount": /^1$/, "repo.changecount": /^1$/,
+      "outputbox.text": /\[versions\] versioned=1 changes=1 timeline=1 experiment=main badge=M status=Hello {2}· {2}main · 1 change not saved as a version/,
+    },
+  },
+  {
+    name: "versions-peek",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},line:12,versions.showChange`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    dump: { "codedoc(0).changepeek": /^12$/, "codedoc(0).changecount": /^1$/ },
+  },
+  {
+    // (Undo This Change: the line as the last version has it, one Ctrl+Z step)
+    name: "versions-undo-change",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},line:12,versions.undoChange`,
+    delay: 6,
+    dump: { "codedoc(0).changecount": /^0$/, "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES },
+  },
+  {
+    name: "versions-save-dialog",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions.save`,
+    events: typeInto("vermsgedit", "second"),
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    captureAll: true,
+    contrast: true,
+    dump: { "versavedialog.__shown": /^1$/, "vermsgedit.text": /^second$/, "verfileslist.itemcount": /^1$/, "versaveok.enabled": /^1$/, "vernameedit.text": /^Ana$/ },
+  },
+  {
+    name: "versions-save-second",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions.save,wait,versions.pane`,
+    events: `${typeInto("vermsgedit", "second")},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "versavedialog.__shown": /^0$/, "vertimeline.itemcount": /^2$/, "repo.changecount": /^0$/, "outputbox.text": /Saved the version “second”/ },
+  },
+  {
+    // (a key written in the code: not saved, the line said — masked —, Save
+    // only once "save anyway" is ticked)
+    name: "versions-secrets",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_SECRET},versions.save`,
+    events: `${typeInto("vermsgedit", "keys")},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    capture: true,
+    captureAll: true,
+    dump: { "verwarn.visible": /^1$/, "veranyway.visible": /^1$/, "versaveok.enabled": /^0$/, "verwarnlines.caption": /^main\.rr, line 12: an API key[\s\S]*sk-a/, "vertimeline.itemcount": /^1$/ },
+  },
+  {
+    name: "versions-secrets-anyway",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_SECRET},versions.save`,
+    events: `${typeInto("vermsgedit", "keys")},${CLICK("versaveok", 40, 14)},${CLICK("veranyway", 8, 10)},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    dump: { "versavedialog.__shown": /^0$/, "vertimeline.itemcount": /^2$/, "outputbox.text": /Saved the version “keys”/ },
+  },
+  {
+    // ("first" picked: what it changed — every file new)
+    name: "versions-what-changed-first",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.whatChanged`,
+    delay: 6,
+    dump: { "verdifflist.itemcount": /^4$/, "verdiffhead.caption": /^What changed in “first”$/, "verdiff.readonly": YES },
+  },
+  {
+    name: "versions-what-changed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=second,versions.whatChanged`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdifflist.itemcount": /^1$/, "verdiffhead.caption": /^What changed in “second”$/, "verdiff.changecount": /^1$/, "verdiff.summary": /changed/ },
+  },
+  {
+    // (Go Back to "first": asked first — Cancel the default —, then a third
+    // version with first's files; main.rr back in the editor)
+    name: "versions-go-back",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack,wait,versions.pane`,
+    events: `${CLICK("consentyes", 40, 14)},verpanel.__wait_2500`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.caption": /^Undo: Went back to “first”/ },
+    files: { "main.rr": /PRINT "Done\."\n$/ },
+  },
+  {
+    name: "versions-go-back-asks",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack`,
+    delay: 5,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    captureAll: true,
+    dump: { "consentdialog.__shown": /^1$/, "consenttitle.caption": /^Go back to “first”\?$/, "consentno.default": YES },
+  },
+  {
+    name: "versions-undo",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack,wait,versions.undo,wait,versions.pane`,
+    events: `${CLICK("consentyes", 40, 14)},verpanel.__wait_2500`,
+    delay: 7,
+    capture: true,
+    dump: { "vertimeline.itemcount": /^2$/, "outputbox.text": /Undid: Went back to “first”/, "codedoc(0).text": /PRINT "All done!"$/ },
+    files: { "main.rr": /PRINT "All done!"\n$/ },
+  },
+  {
+    // (a project never versioned: every save kept — what the disk had, then
+    // each save —, the newest first, one compared with the editor)
+    name: "versions-local-history",
+    ...V_OPEN,
+    do: 'code:PRINT "Done."=>PRINT "One",file.save,code:PRINT "One"=>PRINT "Two",file.save,code:PRINT "Two"=>PRINT "Three",file.save,versions.localHistory',
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdifflist.itemcount": /^4$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/, "verdiff.changecount": /^0$/ },
+    webDump: { "verdifflist.itemcount": /^[34]$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/ },
+  },
+  {
+    // (an AI's checkpoint on the timeline: smaller and lighter, said as one)
+    name: "versions-checkpoint",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions:checkpoint=make the button bigger,versions:save=second,versions.pane`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    a11y: [[/^AI checkpoint: make the button bigger, just now$/, null]],
+    dump: { "vertimeline.itemcount": /^3$/ },
+  },
+  {
+    // (keyboard only: View > Versions gives the pane the keys; Down picks
+    // "first" in the timeline, Tab reaches What Changed?, Space presses it)
+    name: "versions-keyboard",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,wait,key:Down,wait,key:Tab,wait,key:Space,wait`,
+    delay: 7,
+    a11y: [[/^What changed in “first”$|^Files that changed$/, null]],
+    dump: { "vertimeline.itemindex": /^1$/, "verdiffhead.caption": /^What changed in “first”$/ },
+  },
+  {
+    // (the oldest copy picked — the file as it was before the first save —
+    // and Restore This Copy: its text in the editor, unsaved, one Ctrl+Z
+    // step; the editor's text kept first)
+    name: "versions-local-restore",
+    ...V_OPEN,
+    do: 'code:PRINT "Done."=>PRINT "One",file.save,code:PRINT "One"=>PRINT "Two",file.save,versions.localHistory',
+    events: `verdifflist.__item_2,${CLICK("verdiffact", 40, 12)},verdiffpane.__wait_1500`,
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES, "verdiff.changecount": /^0$/ },
+  },
+  // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
+  // editor, git — walked as a person sees it (the lane's acceptance): a
+  // copy of tests/fixtures/studio_external outside this repository, its
+  // files changed by another process (tests/ext_writer.mjs) between Studio's
+  // steps. main.rr changed with nothing unsaved: loaded again, the status
+  // bar says so, Ctrl+Z brings the old text back, the local history has a
+  // "before reload" copy — on a look (ext:check, as Studio coming to the
+  // front) and by the two-second timer. With unsaved changes: the strip
+  // above the editor (Compare, Use Disk Version, Keep Mine); Save after Keep
+  // Mine asks first, Cancel writing nothing. greet.rr deleted: its tab
+  // marked, its text kept. Twelve files at once: one note. Studio's own
+  // Save: no notice. The web: no disk to watch, nothing said.
+  {
+    name: "ext-reload",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: {
+      "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/,
+      "outputbox.text": /\[ext\] status=main\.rr was updated outside Studio bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0[\s\S]*history=\d+\s+\d+\s+before-reload\s+\d+/,
+    },
+  },
+  {
+    // (Ctrl+Z: the text before the reload, one step — marked changed, as it
+    // differs from the disk's)
+    name: "ext-reload-undo",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,focus:codedoc(0),key:Ctrl+Z,wait,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES },
+  },
+  {
+    // (no look asked for: the two-second timer finds it)
+    name: "ext-timer",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},wait,wait,wait,wait,wait,wait,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    dump: { "codedoc(0).text": /PRINT "Changed by an agent\."$/, "outputbox.text": /main\.rr was updated outside Studio/ },
+  },
+  {
+    // (typed in, not saved, then changed on disk: the question above the
+    // editor; the editor's text untouched)
+    name: "ext-ask",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^main\.rr changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine\.$/, null], ["Compare", "button"], ["Use Disk Version", "button"], ["Keep Mine", "button"]],
+    dump: {
+      "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr changed outside Studio\.$/, "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES,
+      "outputbox.text": /bar=ask \| main\.rr:main\.rr:dirty=1:ask=1:gone=0/,
+    },
+  },
+  {
+    // (in Spanish: the strip, its buttons, the status bar)
+    name: "ext-ask-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [[/^main\.rr cambió fuera de Studio, y tienes cambios sin guardar en él: Comparar, Usar la versión del disco o Conservar la mía\.$/, null], ["Comparar", "button"], ["Usar la versión del disco", "button"], ["Conservar la mía", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^main\.rr cambió fuera de Studio\.$/, "extdisk.caption": /^&Usar la versión del disco$/ },
+  },
+  {
+    name: "ext-many-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    external: [{ write: X_TWELVE }],
+    delay: 9,
+    themes: ["rapidr-light"],
+    capture: true,
+    dump: { "extbartext.caption": /^12 archivos se actualizaron fuera de Studio\.$/, "extshow.caption": /^&Mostrar$/ },
+  },
+  {
+    name: "ext-keep-mine-asks-es",
+    ...X_OPEN,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    themes: ["rapidr-light"],
+    capture: true,
+    captureAll: true,
+    dump: { "consenttitle.caption": /^¿Guardar main\.rr de todos modos\?$/, "consentyes.caption": /^&Guardar de todos modos$/, "consentno.default": YES },
+  },
+  {
+    // (Compare: the disk's version beside the editor's)
+    name: "ext-compare",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.compareDisk`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdiffhead.caption": /^main\.rr: the disk's version and yours$/, "verdifflist.itemcount": /^1$/, "verdiff.changecount": /^1$/, "verdiffact.caption": /^&Use Disk Version$/ },
+  },
+  {
+    // (Use Disk Version, the strip's button clicked: the disk's text, saved;
+    // the editor's kept in the local history; Ctrl+Z brings it back)
+    name: "ext-use-disk",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `extbar.__until_visible_1,${CLICK("extdisk", 40, 12)},codedoc(0).__wait_1000`,
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Changed by an agent\."$/, "codedoc(0).modified": NO, "extbar.visible": /^0$/, "outputbox.text": /main\.rr changed outside Studio, and you have unsaved changes in it/ },
+  },
+  {
+    name: "ext-use-disk-undo",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.useDisk,wait,focus:codedoc(0),key:Ctrl+Z,wait,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    dump: { "codedoc(0).text": /PRINT "Mine\."$/, "codedoc(0).modified": YES, "outputbox.text": /history=\d+\s+\d+\s+before-reload\s+\d+/ },
+  },
+  {
+    // (Keep Mine, then Ctrl+S: asked — Cancel the default — before the
+    // disk's newer text is replaced)
+    name: "ext-keep-mine-asks",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,focus:codedoc(0),key:Ctrl+S`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    captureAll: true,
+    dump: { "consentdialog.__shown": /^1$/, "consenttitle.caption": /^Save main\.rr anyway\?$/, "consentlead.caption": /^main\.rr changed outside Studio since you opened it\. Saving replaces/,"consentno.default": YES, "consentyes.caption": /^&Save Anyway$/, "extbar.visible": /^0$/ },
+    files: { "main.rr": /PRINT "Changed by an agent\."\n$/ },
+  },
+  {
+    name: "ext-keep-mine-cancel",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `${CLICK("consentno", 40, 14)},codedoc(0).__wait_1000`,
+    delay: 7,
+    dump: { "consentdialog.__shown": /^0$/, "codedoc(0).modified": YES, "codedoc(0).text": /PRINT "Mine\."$/ },
+    files: { "main.rr": /PRINT "Changed by an agent\."\n$/ },
+  },
+  {
+    // (Save Anyway: written; the disk's version kept in the local history first)
+    name: "ext-keep-mine-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},${X_CHANGE},ext:check,wait,file.keepMine,wait,file.save,wait,ext:report`,
+    external: [{ write: { "main.rr": X_AGENT } }],
+    events: `${CLICK("consentyes", 40, 14)},codedoc(0).__wait_1500`,
+    delay: 7,
+    dump: { "codedoc(0).modified": NO, "outputbox.text": /history=\d+\s+\d+\s+saved\s+\d+;\d+\s+\d+\s+on-disk\s+\d+/ },
+    files: { "main.rr": /PRINT "Mine\."\n?$/ },
+  },
+  {
+    // (greet.rr deleted outside: its tab stays, marked, its text kept)
+    name: "ext-deleted",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    a11y: [["greet.rr (deleted on disk)", "tab"]],
+    dump: { "codedoc(1).text": /FUNCTION Greeting/, "outputbox.text": /greet\.rr was deleted outside Studio: its text is kept here[\s\S]*greet\.rr:greet\.rr \(deleted on disk\):dirty=1:ask=0:gone=1 \| history=\d+\s+\d+\s+deleted-outside\s+\d+/ },
+  },
+  {
+    // (deleted, then there again as Studio has it — a branch switched and
+    // back: no mark, nothing to save)
+    name: "ext-deleted-back",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,ext:go=2,ext:await=2,ext:check,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }, { write: { "greet.rr": readFileSync(join(ROOT, X_DIR, "greet.rr"), "utf8") } }],
+    delay: 8,
+    dump: { "codedoc(1).modified": NO, "outputbox.text": /greet\.rr:greet\.rr:dirty=0:ask=0:gone=0/ },
+  },
+  {
+    // (Save on a file deleted outside: asked — Save Again —, then made again)
+    name: "ext-deleted-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=greet.rr,wait,${X_CHANGE},ext:check,wait,file.save,wait,ext:report`,
+    external: [{ remove: ["greet.rr"] }],
+    events: `consenttitle.__until_caption_Save greet.rr again?,${CLICK("consentyes", 40, 14)},codedoc(1).__wait_1000`,
+    delay: 7,
+    dump: { "outputbox.text": /greet\.rr:greet\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "greet.rr": /FUNCTION Greeting/ },
+  },
+  {
+    // (a form's file changed outside with nothing unsaved: the designer
+    // shows the new form)
+    name: "ext-form-reload",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=window.rr,wait,wait,${X_CHANGE},ext:check,wait,wait,ext:report`,
+    external: [{ write: { "window.rr": X_WINDOW } }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: { "codedoc(1).text": /Caption = "Changed outside"[\s\S]*Left = 140/, "extbar.visible": /^0$/, "outputbox.text": /window\.rr was updated outside Studio/ },
+  },
+  {
+    // (changed in the designer, not saved, then outside: the question above
+    // the designer too)
+    name: "ext-form-ask",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:open=window.rr,wait,wait,pick:Hello,prop:Caption=Mine,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: { "window.rr": X_WINDOW } }],
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    capture: true,
+    contrast: true,
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^window\.rr changed outside Studio\.$/, "codedoc(1).text": /Caption = "Mine"/, "outputbox.text": /window\.rr:window\.rr:dirty=1:ask=1:gone=0/ },
+  },
+  {
+    // (twelve open files rewritten at once — git checkout, an agent: one
+    // note, Show lists them in the Output)
+    name: "ext-many",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait,ext:report`,
+    external: [{ write: X_TWELVE }],
+    delay: 9,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^12 files were updated outside Studio\.$/, null], ["Show", "button"]],
+    dump: { "extbar.visible": /^1$/, "extbartext.caption": /^12 files were updated outside Studio\.$/, "outputbox.text": /\[ext\] status=12 files were updated outside Studio bar=note/ },
+  },
+  {
+    name: "ext-many-show",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `ext:openall,wait,${X_CHANGE},ext:check,wait`,
+    external: [{ write: X_TWELVE }],
+    events: `extbar.__until_visible_1,${CLICK("extshow", 30, 12)},outputbox.__wait_800`,
+    delay: 9,
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /12 files were updated outside Studio:\n {2}greet\.rr\n {2}main\.rr\n {2}part1\.rr[\s\S]* {2}window\.rr/ },
+  },
+  {
+    // (Studio's own writes: Save, then a look — nothing said)
+    name: "ext-own-save",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_MINE},file.save,wait,ext:check,wait,ext:report`,
+    delay: 6,
+    dump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=(?![^\n]*outside)[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "main.rr": /PRINT "Mine\."\n?$/ },
+  },
+  {
+    // (RAI's change applied, then saved: Studio's own — nothing said)
+    name: "ext-own-ai-apply",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,ai:apply,wait,file.save,wait,ext:check,wait,ext:report",
+    delay: 9,
+    dump: { "codedoc(0).text": /Caption = "AI Notes"/, "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=(?![^\n]*outside)[^\n]*bar= \| hello_form\.rr:hello_form\.rr:dirty=0:ask=0:gone=0/ },
+    files: { "hello_form.rr": /Caption = "AI Notes"/ },
+  },
+  {
+    // (the project file rewritten outside — a file added by an agent: the
+    // Project pane follows quietly)
+    name: "ext-project-file",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: `${X_CHANGE},ext:check,wait,view.project`,
+    external: [{ write: { "notes.rr": "' notes.rr: added by an agent.\n", "Outside.rrproj": readFileSync(join(ROOT, "tests/fixtures/studio_external/Outside.rrproj"), "utf8") + '\n[[files]]\npath = "notes.rr"\nkind = "module"\n' } }],
+    delay: 6,
+    dump: { "proj.filecount": /^13$/, "outputbox.text": /Outside\.rrproj was updated outside Studio: the Project pane follows it/ },
+  },
+  {
+    // (File > Reopen Project: the project read again from the disk)
+    name: "ext-reopen",
+    ...X_OPEN,
+    desktopOnly: true,
+    do: "file.reopenProject,wait,wait",
+    delay: 5,
+    dump: { "outputbox.text": /Opened Outside\.rrproj again from the disk/, "codedoc(0).text": /PRINT "Done\."$/ },
+  },
+  {
+    // (the web: files in the page's store change only through Studio — a
+    // look finds nothing, says nothing)
+    name: "ext-web",
+    open: "tests/fixtures/studio_versions/Hello.rrproj",
+    webFiles: VERSIONS_FILES,
+    webOnly: true,
+    do: "ext:check,wait,ext:report",
+    delay: 4,
+    dump: {},
+    webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+  },
+  // (CRASH-REPORTS) RapidR's crash and hang reports, walked as a person
+  // meets them: Studio crashed for real (crash:panic, a Rust panic in a
+  // component's call — the process ends, 101), started again on the same
+  // folders — the strip under the tool bar says it closed unexpectedly,
+  // with View Report, Copy Report, Save Report..., Report on GitHub... and
+  // Dismiss, read by a screen reader; any answer and it isn't offered
+  // again. The report is the case's (RAPIDR_STUDIO_DATA/crashes), never
+  // the user's; Report on GitHub opens nothing in a test (the address is
+  // said instead). A UI hang (crash:hang: Studio's thread asleep 8 s)
+  // writes a hang report within 6 s and, answered again, is no crash at
+  // the next start. A program RapidR crashes in its timer's handler:
+  // "Your program stopped: …, at main.rr line 24, in SUB Tick (OnTimer of
+  // Ticker)." with its report. The desktop only (the web writes none yet).
+  {
+    name: "crash-banner",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^RapidR Studio closed unexpectedly last time\. A report of what happened stays on this computer; nothing was sent\./, null], ["View Report", "button"], ["Copy Report", "button"], ["Save Report...", "button"], ["Report on GitHub...", "button"], ["Dismiss", "button"]],
+    dump: {
+      "crashbar.visible": /^1$/, "crashbartext.caption": /^RapidR Studio closed unexpectedly last time\.$/,
+      "outputbox.text": /\[crash\] bar=1 report=\d{8}-\d{6}-studio-\d+-crash\.txt kind=crash pending=\d{8}-\d{6}-studio-\d+-crash\.txt /,
+    },
+  },
+  {
+    // (in Spanish: the strip, its buttons)
+    name: "crash-banner-es",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait", delay: 6 },
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [[/^La última vez, RapidR Studio se cerró de forma inesperada\. Un informe de lo que pasó queda en esta computadora; no se envió nada\./, null], ["Ver informe", "button"], ["Copiar informe", "button"], ["Guardar informe...", "button"], ["Informar en GitHub...", "button"], ["Ocultar", "button"]],
+    dump: { "crashbar.visible": /^1$/, "crashbartext.caption": /^La última vez, RapidR Studio se cerró de forma inesperada\.$/, "crashviewb.caption": /^&Ver informe$/ },
+  },
+  {
+    // (Copy Report: the report's text on the clipboard; seen — not offered
+    // at the next start)
+    name: "crash-copy",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:copy,wait,crash:report", delay: 6 },
+    dump: { "outputbox.text": /\[crash\] bar=1 report=\S+-crash\.txt kind=crash pending= copied=\d{4,} /, "clipboard.text": /^RapidR crash report\n===================\n\nRapidR Studio stopped unexpectedly[\s\S]*\nWhere: crash\.inc line \d+, in FUNCTION CrashStep \(OnTimer of Macro\)\n[\s\S]*\nPrivacy\n/ },
+  },
+  {
+    // (Save Report...: a copy where the person picks — the test's dialog answers)
+    name: "crash-save",
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:save,wait", delay: 6 },
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_FILE_DIALOG: join(WORK, "crash-save-desktop", "saved-report.txt") },
+    desktopFiles: ["saved-report.txt"],
+    dump: { "outputbox.text": /Saved the report as \S*saved-report\.txt\./ },
+  },
+  {
+    // (Report on GitHub..., yes: the prefilled new-issue address — title,
+    // the report in the body —; nothing opened in a test)
+    name: "crash-github",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:github=yes,wait,crash:report", delay: 6 },
+    dump: { "outputbox.text": /url=https:\/\/github\.com\/iBobX\/RapidR\/issues\/new\?title=RapidR%20Studio%3A%20RapidR%27s%20crash%20test[^&\s]*%282\.\d+\.\d+%29&body=%2A%2AWhat%20happened%2A%2A[^\s]*%60%60%60text%0ARapidR%20crash%20report/ },
+  },
+  {
+    // (…and its question first: what opens, what it shows, a GitHub
+    // account and 13+, public — Cancel the default)
+    name: "crash-github-ask",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:github", delay: 6 },
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    captureAll: true,
+    contrast: true,
+    a11y: [[/^You need: A GitHub account\. GitHub's terms ask that you be 13 or older/, null], ["Open GitHub", "button"], ["Cancel", "button"]],
+    dump: { "consentdialog.visible": YES, "consenttitle.caption": /^Report this on GitHub\?$/ },
+  },
+  {
+    // (Dismiss: gone, seen; the next start says nothing)
+    name: "crash-dismiss",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:dismiss,wait,crash:check,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 report=\S+ kind=crash pending= / },
+  },
+  {
+    // (School Lock on — the other lane's hook, CrashSchoolLock: no strip)
+    name: "crash-locked",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,crash:panic",
+    delay: 5,
+    restart: { noOpen: true, do: "crash:lock,wait,wait,wait,crash:check,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 / },
+  },
+  {
+    // (a UI hang: the report within 6 s, how long it lasted once Studio
+    // answers again; started again, no strip — it wasn't a crash)
+    name: "crash-hang",
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    desktopOnly: true,
+    do: "wait,wait,crash:hang,wait,wait,crash:report",
+    delay: 13,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    dump: { "crashbar.visible": /^0$/, "outputbox.text": /\[crash\] bar=0 report= kind= pending= copied=0 program= list=\d{8}-\d{6}-studio-\d+-hang\.txt outcome=Answered again after [6-9] s/ },
+  },
+  {
+    // (a program RapidR crashes in its timer's handler: the Output says
+    // where, plainly, with links to the line and the report)
+    name: "crash-program",
+    desktopOnly: true,
+    open: "tests/fixtures/studio_crash/main.rr",
+    copy: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_PROGRAM_CRASH: "panic@main.rr:24" },
+    do: "run.start,wait,wait,wait,wait,wait,wait,wait,wait,crash:report",
+    delay: 9,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    dump: {
+      "outputbox.text": /\[main\.rr ended, exit code 101\]\nYour program stopped: RapidR's crash test \(RAPIDR_TEST_CRASH\): a panic, as a bug in RapidR would make one, at main\.rr line 24, in SUB Tick \(OnTimer of Ticker\)\.\nRapidR stopped it: a problem in RapidR, not in your code\. A report stays on this computer: View Report[\s\S]*program=\d{8}-\d{6}-program-\d+-crash\.txt/,
+      "status.panel(0).caption": /^Your program stopped: a problem in RapidR$/,
+    },
+  },
+  {
+    name: "crash-program-es",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    open: "tests/fixtures/studio_crash/main.rr",
+    copy: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1", RAPIDR_TEST_PROGRAM_CRASH: "overflow@main.rr:24" },
+    do: "run.start,wait,wait,wait,wait,wait,wait,wait,wait,crash:report",
+    delay: 9,
+    capture: true,
+    dump: { "outputbox.text": /Tu programa se detuvo: se desbordó la pila \(las llamadas fueron demasiado profundas\), en main\.rr línea 24, en SUB Tick \(OnTimer de Ticker\)\.\nRapidR lo detuvo: es un problema de RapidR, no de tu código\. Un informe queda en esta computadora: Ver informe/ },
+  },
 ];
+
+
 
 // (I8 AI-REAL) The settings dialog's input: the AI tab clicked, Fetch
 // Models, OK and Cancel pressed with the mouse; text typed key by key into
@@ -6028,7 +7076,12 @@ function runDesktop(c, scale = 1) {
     // (the project's whole folder: Build writes the app beside it — not the
     // *.tmp.* files an example run left in it: they are no part of the
     // project, and the web build leaves them out too)
-    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
+    // (a versions case's copy lives outside this repository — Studio rightly
+    // refuses to start versions inside a folder that already has them —
+    // reached through a link from the case's folder)
+    const copyTo = c.fsck ? mkdtempSync(join(tmpdir(), "rapidr-versions-")) : join(dir, "project");
+    cpSync(join(ROOT, dirname(c.open)), copyTo, { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
+    if (c.fsck) symlinkSync(copyTo, join(dir, "project"));
     args.push(join(dir, "project", c.open.split("/").pop()));
   } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
@@ -6075,6 +7128,9 @@ function runDesktop(c, scale = 1) {
       // (R1: the case's kept chats in its own folder — kept across a
       // restart, never another case's)
       RAPIDR_AI_CHATS: join(dir, "chats"),
+      // (Studio's own folder — the copies of unsaved work, its log: the
+      // case's, kept across a restart, never another case's)
+      RAPIDR_STUDIO_DATA: join(dir, "studio"),
       // (S6: the user's login shell isn't read by the tests — the PATH
       // cases give one of their own, RAPIDR_LOGIN_SHELL)
       RAPIDR_LOGIN_PATH: "off",
@@ -6084,7 +7140,20 @@ function runDesktop(c, scale = 1) {
     },
   });
   rmSync(join(WORK, `${c.name}.reg`), { force: true });
+  // (EXTERNAL-CHANGES: another process changing the project's files while
+  // Studio has them open — tests/ext_writer.mjs, step n when Studio's
+  // `ext:go=n` asks, Studio's `ext:await=n` waiting for it; its folder of
+  // meeting files is RAPIDR_TEST_EXT)
+  let writer;
+  if (c.external) {
+    const meet = join(dir, "meet");
+    mkdirSync(meet, { recursive: true });
+    writeFileSync(join(dir, "external.json"), JSON.stringify(c.external));
+    writer = spawn(process.execPath, [join(HERE, "ext_writer.mjs"), meet, join(dir, "project"), join(dir, "external.json")], { stdio: "ignore" });
+    c.env = { ...(c.env || {}), RAPIDR_TEST_EXT: meet };
+  }
   let r = run(args, c.delay);
+  if (writer && writer.exitCode === null) writer.kill();
   if (c.restart) {
     // (started again on the settings the first run left: not --fresh)
     const again = args.filter((a) => a !== "--fresh");
@@ -6102,12 +7171,23 @@ function runDesktop(c, scale = 1) {
   if (c.readOnlyHome) writableTree(home, true);
   const dump = parseDump(r.stdout || "", keys);
   const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
+  // (VERSIONS-G3: the repository the run wrote, checked by the system's git
+  // — an independent judge, isolated from this machine's configuration;
+  // Studio never runs git)
+  if (c.fsck && existsSync(join(dir, "project", ".git"))) {
+    const g = spawnSync("git", ["fsck", "--full", "--strict", "--no-dangling"], { cwd: join(dir, "project"), encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", LC_ALL: "C" } });
+    dump.__fsck = g.error ? "no git" : g.status === 0 ? "ok" : `${g.stdout}${g.stderr}`.trim();
+  }
   // (files the run must leave: the program's own window captured)
   for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
   for (const f of c.desktopGone || []) dump["gone " + f] = existsSync(join(dir, f)) ? "there" : "gone";
-  // (the Studio window, to look at: <case>-desktop@<s>x.png)
+  // (the Studio window, to look at: <case>-desktop@<s>x.png; a dialog open
+  // over it — `captureAll` — <case>-desktop-<n>@<s>x.png)
   if (c.capture && existsSync(join(dir, "window-1.bmp"))) {
     spawnSync("sips", ["-s", "format", "png", join(dir, "window-1.bmp"), "--out", join(WORK, `${c.name}-desktop@${scale}x.png`)], { stdio: "ignore" });
+    for (let n = 2; c.captureAll && existsSync(join(dir, `window-${n}.bmp`)); n++) {
+      spawnSync("sips", ["-s", "format", "png", join(dir, `window-${n}.bmp`), "--out", join(WORK, `${c.name}-desktop-${n}@${scale}x.png`)], { stdio: "ignore" });
+    }
   }
   const files = {};
   for (const f of Object.keys(c.files || {})) {
@@ -6280,6 +7360,12 @@ const check = (label, run, c) => {
     const ok = dump["file " + f] === "there";
     ok ? passed++ : failed++;
     console.log((ok ? "✓ " : "✗ ") + c.name + " (desktop): " + f + (ok ? " written" : " missing"));
+  }
+  // (VERSIONS-G3: git fsck --strict on the repository the run wrote)
+  if (c.fsck && label === "desktop" && dump.__fsck !== undefined && dump.__fsck !== "no git") {
+    const ok = dump.__fsck === "ok";
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (desktop): git fsck --strict ${ok ? "passes" : dump.__fsck}`);
   }
   // (AI-UX: files the run must have removed — Undo's)
   for (const f of label === "desktop" ? c.desktopGone || [] : []) {
@@ -7253,6 +8339,57 @@ async function webHandlerSteps() {
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-steps-web-handler".includes(f) || f === "debug-steps"))) {
   await webHandlerSteps();
+}
+
+// (COPY-ANYWHERE, the web) Real input in Chrome, on a page without the
+// tests' hooks (they hold the user's input off): three.rr run, "line of"
+// dragged over with the mouse, ⌘C (Ctrl+C) — the page's copy event carries
+// exactly it (Chromium's headless clipboard, never the system's).
+async function outputCopyWebMouse() {
+  const name = "copy-output-web-mouse (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  try {
+    const files = [{ path: "tests/fixtures/studio_copy/three.rr", text: readFileSync(join(ROOT, "tests/fixtures/studio_copy/three.rr"), "utf8") }];
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, files);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "run.start", open: "tests/fixtures/studio_copy/three.rr" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && /third line/.test(String(window.rr.rapidr_get_prop("outputbox", "text"))), null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    const lines = (await page.evaluate(() => String(window.rr.rapidr_get_prop("outputbox", "text")))).split("\n");
+    const row = lines.indexOf("second line of output");
+    const box = await page.locator("#rr-outputbox").first().boundingBox();
+    record(name, !!box && row >= 0, `Output shows the program's lines (line ${row + 1}: "second line of output")`);
+    if (!box || row < 0) return;
+    await page.evaluate(() => {
+      window.__copied = null;
+      document.addEventListener("copy", (e) => { window.__copied = e.clipboardData ? e.clipboardData.getData("text/plain") : null; });
+    });
+    const y = box.y + 30 + row * 20 + 10;
+    await page.mouse.move(box.x + 62, y);
+    await page.mouse.down();
+    for (const x of [80, 100, 117]) await page.mouse.move(box.x + x, y);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const sel = await page.evaluate(() => String(window.rr.rapidr_get_prop("outputbox", "seltext")));
+    record(name, sel === "line of", `the mouse's drag selects "line of" (${JSON.stringify(sel)})`);
+    await page.keyboard.press("ControlOrMeta+c");
+    await page.waitForTimeout(300);
+    const copied = await page.evaluate(() => window.__copied);
+    record(name, copied === "line of", `⌘C in Chrome puts exactly it on the clipboard (${JSON.stringify(copied)})`);
+    await page.screenshot({ path: join(WORK, "copy-output-web-mouse.png") });
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "copy-output-web-mouse".includes(f)))) {
+  await outputCopyWebMouse();
 }
 
 async function aiSettingsByMouse() {

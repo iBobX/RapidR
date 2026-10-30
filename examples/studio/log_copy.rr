@@ -1,0 +1,137 @@
+' log_copy.rr: copying from an ROutputConsole — what the user selected
+' (SelText, HasSelection, CopySelection), the line right-clicked
+' (ClickedLine, CopyLine), the whole page (CopyAll) — with a right-click
+' menu like RapidR Studio's Output pane.
+'
+'   rapidr run studio/log_copy.rr
+'
+' Drag over the log to select text (a double click selects a word, a
+' triple click the line, Shift + a click extends), then press Ctrl+C (⌘C on
+' a Mac), use the buttons or right-click. The status line says what is
+' selected; colours are never copied, only the text.
+$THEME rapidr
+$APPTYPE GUI
+
+DECLARE SUB AddLines
+DECLARE SUB CopySel
+DECLARE SUB CopyEverything
+DECLARE SUB SelectEverything
+DECLARE SUB MenuOpening
+DECLARE SUB CopyClickedLine
+DECLARE SUB Watch
+
+DIM Count AS INTEGER
+DIM LastSel AS STRING
+
+CREATE Form AS RForm
+    Caption = "Copying from a log"
+    Width = 640: Height = 420
+    Center
+    CREATE Tools AS RPanel
+        Align = alTop
+        Height = 40
+        BevelOuter = 0
+        CREATE AddBtn AS RButton
+            Caption = "&Add Lines": Left = 8: Top = 8: Width = 100
+            OnClick = AddLines
+        END CREATE
+        CREATE CopyBtn AS RButton
+            Caption = "&Copy Selection": Left = 116: Top = 8: Width = 124
+            Enabled = 0
+            OnClick = CopySel
+        END CREATE
+        CREATE AllBtn AS RButton
+            Caption = "Copy A&ll": Left = 248: Top = 8: Width = 100
+            OnClick = CopyEverything
+        END CREATE
+        CREATE SelBtn AS RButton
+            Caption = "&Select All": Left = 356: Top = 8: Width = 100
+            OnClick = SelectEverything
+        END CREATE
+    END CREATE
+    CREATE Status AS RStatusBar
+        SimplePanel = 1
+        SimpleText = "Nothing selected"
+    END CREATE
+    CREATE LogMenu AS RPopupMenu
+        OnPopup = MenuOpening
+        CREATE MenuCopy AS RMenuItem
+            Caption = "&Copy": ShortCut = "Ctrl+C": OnClick = CopySel
+        END CREATE
+        CREATE MenuLine AS RMenuItem
+            Caption = "Copy &Line": OnClick = CopyClickedLine
+        END CREATE
+        CREATE MenuAll AS RMenuItem
+            Caption = "Copy &All": OnClick = CopyEverything
+        END CREATE
+        CREATE MenuSep AS RMenuItem
+            Caption = "-"
+        END CREATE
+        CREATE MenuSelAll AS RMenuItem
+            Caption = "&Select All": ShortCut = "Ctrl+A": OnClick = SelectEverything
+        END CREATE
+    END CREATE
+    CREATE Log AS ROutputConsole
+        Align = alClient
+        EmptyText = "Press Add Lines to write to the log."
+        PopupMenu = LogMenu
+    END CREATE
+    ' (what is selected, looked at a few times a second)
+    CREATE Watcher AS RTimer
+        Interval = 250
+        OnTimer = Watch
+    END CREATE
+END CREATE
+
+' A few lines, some in colour (ANSI escape sequences: copied without them)
+SUB AddLines
+    DIM esc AS STRING
+    esc = CHR$(27)
+    Count = Count + 1
+    Log.WriteLine "Run " + STR$(Count) + ": reading orders.csv"
+    Log.WriteLine "Read 1204 orders in 0.3 s"
+    Log.WriteLine esc + "[33mwarning:" + esc + "[0m 3 orders have no date (orders.csv:17)"
+    Log.WriteLine esc + "[32mTotal: 48113.50" + esc + "[0m"
+END SUB
+
+SUB CopySel
+    IF Log.CopySelection THEN
+        Status.SimpleText = "Copied: " + Log.SelText
+        LastSel = Log.SelText
+    ELSE
+        Status.SimpleText = "Select some text first"
+    END IF
+END SUB
+
+SUB CopyEverything
+    IF Log.CopyAll THEN Status.SimpleText = "Copied the whole log (" + STR$(Log.LineCount) + " lines)"
+END SUB
+
+SUB SelectEverything
+    Log.SelectAll
+END SUB
+
+' (the menu as it opens: Copy only with a selection, Copy Line on a line)
+SUB MenuOpening
+    MenuCopy.Enabled = Log.HasSelection
+    MenuLine.Enabled = (Log.ClickedLine >= 0)
+END SUB
+
+SUB CopyClickedLine
+    IF Log.CopyLine THEN Status.SimpleText = "Copied line " + STR$(Log.ClickedLine + 1) + ": " + Log.Line(Log.ClickedLine)
+END SUB
+
+SUB Watch
+    CopyBtn.Enabled = Log.HasSelection
+    ' (a copy's message stays until the selection changes)
+    IF Log.SelText = LastSel THEN EXIT SUB
+    LastSel = Log.SelText
+    IF Log.HasSelection THEN
+        Status.SimpleText = "Selected " + STR$(LEN(Log.SelText)) + " characters"
+    ELSE
+        Status.SimpleText = "Nothing selected"
+    END IF
+END SUB
+
+AddLines
+Form.ShowModal

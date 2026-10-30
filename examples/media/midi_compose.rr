@@ -1,0 +1,195 @@
+' midi_compose.rr: music made by the program. It writes a small standard
+' MIDI file, byte by byte (a chord for each bar, a bass line, a drum beat
+' on channel 10), and RMIDI plays it - then Volume and Stop work on it.
+'
+'   rapidr run midi_compose.rr
+'
+' Where the system has a synthesizer of its own (Windows' GS Wavetable
+' Synth, FluidSynth on Linux) RMIDI plays on it; everywhere else RapidR's
+' built-in synthesizer plays the song. A MIDI port that only passes
+' messages on to other programs (an IAC bus on a Mac, "Midi Through" on
+' Linux) makes no sound by itself, so RMIDI does not use it. To play on a
+' keyboard or sound module instead, name it (a part of its name will do)
+' before you start the program:
+'
+'   RAPIDR_MIDI_OUT="Roland" rapidr run midi_compose.rr
+'
+' (RAPIDR_MIDI_OUT=builtin plays on RapidR's synthesizer whatever else
+' is there.) The song is written to compose.tmp.mid and removed on exit.
+$INCLUDE "QMidi.inc"
+
+CONST TPQ = 480               ' MIDI ticks a beat
+CONST BEATS = 16              ' four bars of four beats: 8 seconds at 120 bpm
+
+DECLARE SUB PlayIt
+DECLARE SUB StopIt
+DECLARE SUB Louder
+DECLARE SUB Moved (Position AS LONG)
+
+DIM Midi AS RMIDI
+DIM Out AS RFileStream
+DIM Song(1023) AS INTEGER     ' the file's bytes
+DIM SongLen AS LONG, LastTick AS LONG
+
+' The file: a header, then one track of events in time order.
+SUB PutByte (b AS INTEGER)
+    Song(SongLen) = b AND 255
+    SongLen = SongLen + 1
+END SUB
+
+SUB PutText (s AS STRING)
+    DIM k AS INTEGER
+    FOR k = 1 TO LEN(s)
+        PutByte ASC(MID$(s, k, 1))
+    NEXT
+END SUB
+
+' A number in the bytes MIDI wants first (big endian).
+SUB PutBE (n AS LONG, bytes AS INTEGER)
+    DIM k AS INTEGER
+    FOR k = bytes - 1 TO 0 STEP -1
+        PutByte INT(n / 256 ^ k)
+    NEXT
+END SUB
+
+' A time between two events: 7 bits a byte, all but the last byte over 127.
+SUB PutDelta (n AS LONG)
+    IF n >= 128 THEN
+        PutByte 128 + n \ 128
+        PutByte n MOD 128
+    ELSE
+        PutByte n
+    END IF
+END SUB
+
+' A note on (status &H90 + channel) or off (&H80 + channel) at `tick`.
+SUB Note (tick AS LONG, status AS INTEGER, key AS INTEGER, velocity AS INTEGER)
+    PutDelta tick - LastTick
+    LastTick = tick
+    PutByte status
+    PutByte key
+    PutByte velocity
+END SUB
+
+SUB SetInstrument (channel AS INTEGER, instrument AS INTEGER)
+    PutDelta 0
+    PutByte &HC0 + channel
+    PutByte instrument
+END SUB
+
+' The chords C, Am, F, G: k = 0 is the bass note, 1 to 3 the three of the chord.
+FUNCTION ChordNote (bar AS INTEGER, k AS INTEGER) AS INTEGER
+    DIM s AS STRING
+    s = "36606467" + "33576064" + "41576065" + "43555962"
+    ChordNote = VAL(MID$(s, bar * 8 + k * 2 + 1, 2))
+END FUNCTION
+
+SUB Compose
+    DIM beat AS INTEGER, bar AS INTEGER, k AS INTEGER, t AS LONG, bass AS INTEGER
+    SongLen = 0: LastTick = 0
+    PutText "MThd": PutBE 6, 4: PutBE 0, 2: PutBE 1, 2: PutBE TPQ, 2
+    PutText "MTrk": PutBE 0, 4                 ' (its length is filled in below)
+    PutDelta 0: PutByte 255: PutByte 81: PutByte 3: PutBE 500000, 3   ' 120 beats a minute
+    SetInstrument 0, 4                         ' channel 1: electric piano
+    SetInstrument 1, 33                        ' channel 2: finger bass
+    FOR beat = 0 TO BEATS - 1
+        t = beat * TPQ
+        bar = beat \ 4
+        IF beat MOD 4 = 0 THEN
+            IF beat > 0 THEN                   ' the chord of the bar before ends
+                FOR k = 1 TO 3
+                    Note t, &H80, ChordNote(bar - 1, k), 0
+                NEXT
+            END IF
+            FOR k = 1 TO 3
+                Note t, &H90, ChordNote(bar, k), 70
+            NEXT
+        END IF
+        IF beat > 0 THEN Note t, &H81, bass, 0
+        bass = ChordNote(bar, 0)
+        Note t, &H91, bass, 95
+        ' channel 10 (&H99): the drums. Kick on 1 and 3, snare on 2 and 4, a hat on each beat
+        IF beat MOD 2 = 0 THEN Note t, &H99, 36, 110 ELSE Note t, &H99, 38, 100
+        Note t, &H99, 42, 80
+    NEXT
+    t = BEATS * TPQ
+    FOR k = 1 TO 3
+        Note t, &H80, ChordNote(3, k), 0
+    NEXT
+    Note t, &H81, bass, 0
+    PutDelta 0: PutByte 255: PutByte 47: PutByte 0   ' the end of the track
+    t = SongLen - 22                           ' the track's length
+    FOR k = 0 TO 3
+        Song(21 - k) = INT(t / 256 ^ k) AND 255
+    NEXT
+END SUB
+
+' The song in a file RMIDI can open.
+FUNCTION WriteSong (path AS STRING) AS INTEGER
+    DIM k AS LONG
+    Out.Open path, fmCreate
+    FOR k = 0 TO SongLen - 1
+        Out.WriteByte Song(k)
+    NEXT
+    Out.Close
+    WriteSong = FILEEXISTS(path)
+END FUNCTION
+
+CREATE Form AS RForm
+    Caption = "MIDI from code"
+    Width = 330
+    Height = 190
+    Center
+    CREATE PlayBtn AS RButton
+        Caption = "&Play": Left = 12: Top = 12: Width = 90: OnClick = PlayIt
+    END CREATE
+    CREATE StopBtn AS RButton
+        Caption = "&Stop": Left = 112: Top = 12: Width = 90: OnClick = StopIt
+    END CREATE
+    CREATE VolLabel AS RLabel
+        Caption = "Volume": Left = 12: Top = 56: Width = 60
+    END CREATE
+    CREATE VolBar AS RTrackBar
+        Left = 74: Top = 50: Width = 228: Min = 0: Max = 100: Position = 80
+        OnChange = Louder
+    END CREATE
+    CREATE Info AS RLabel
+        Left = 12: Top = 100: Width = 290
+    END CREATE
+END CREATE
+
+SUB PlayIt
+    Midi.Volume = VolBar.Position
+    Midi.Play
+END SUB
+
+SUB StopIt
+    Midi.Stop
+    Midi.CurrentFrame = 0
+    Info.Caption = "stopped"
+END SUB
+
+SUB Louder
+    Midi.Volume = VolBar.Position
+END SUB
+
+' The timer's tick while it plays: the position, in milliseconds.
+SUB Moved (Position AS LONG)
+    IF Midi.State = MD_PLAY THEN
+        Info.Caption = "playing, " + STR$(Position \ 1000) + " of " + STR$((Midi.Lenght + 500) \ 1000) + " s"
+    END IF
+END SUB
+
+Midi.Timer.Interval = 100
+Midi.OnChange = Moved
+Compose
+IF WriteSong("compose.tmp.mid") = 0 THEN
+    Info.Caption = "Can't write compose.tmp.mid here"
+ELSEIF Midi.Open("compose.tmp.mid") = 0 THEN
+    Info.Caption = "Can't open it: " + Midi.Error
+ELSE
+    Info.Caption = "composed: " + STR$(SongLen) + " bytes, " + STR$(Midi.Lenght) + " ms"
+END IF
+Form.ShowModal
+Midi.Close
+KILL "compose.tmp.mid"

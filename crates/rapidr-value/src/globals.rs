@@ -52,6 +52,12 @@ pub trait Platform {
     }
     /// `Application.Theme = name`: draw with that theme from now on.
     fn set_theme(&self, _name: &str) {}
+    /// `Application.Active` (RapidR's): one of the program's windows has
+    /// the keyboard — the program is the application in front. A platform
+    /// that can't tell (the web's page, a program without windows) always is.
+    fn active(&self) -> bool {
+        true
+    }
     /// `Application.Announce` (RapidR's): screen readers told `a`
     /// ([`crate::objects::a11y::announce`] kept it) — the desktop's windows
     /// sent to AccessKit again, the web's page live region given its text.
@@ -185,10 +191,16 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         // (RapidR's) the language the program speaks: what it set, else
         // the system's (crate::i18n)
         ("application", "language") => v_str(&crate::i18n::language()),
+        ("application", "languagefolder") => v_str(&crate::i18n::folder()),
+        // (RapidR's) the languages the program's catalogs have, one tag a line
+        ("application", "languages") => v_str(&crate::i18n::languages().join("\n")),
         // (RapidR's) The user asked the system for reduced motion
         ("application", "reducedmotion") => v_bool(crate::theme::reduced_motion()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
         ("application", "keyspending") => v_int(crate::send_keys::pending() as i64),
+        // (RapidR's) the program is the application in front (one of its
+        // windows has the keyboard)
+        ("application", "active") => v_bool(p.active()),
         // (RC.EXE: Application.Icon reads as the icon's handle — a number,
         // never 0 — which a QNOTIFYICONDATA's hIcon takes; crate::tray
         // shows the application's icon for it)
@@ -217,6 +229,7 @@ pub fn set(p: &dyn Platform, name: &str, prop: &str, value: &Value) -> bool {
         }
         ("application", "theme") => p.set_theme(&value.to_string_val()),
         ("application", "language") => crate::i18n::set_language(&value.to_string_val()),
+        ("application", "languagefolder") => crate::i18n::set_folder(&value.to_string_val()),
         // (read-only: what the platform answers)
         ("screen", "width" | "height" | "clientwidth" | "clientheight" | "mousex" | "mousey" | "monitors" | "scale" | "pixelsperinch") => {}
         _ => store(object, prop, value.clone()),
@@ -262,6 +275,9 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
         // (RapidR's) A colour of the current theme by name, as a RapidQ
         // colour (&HBBGGRR): the theme's tokens and the IDE's
         // (`crate::ide_theme`); -1 for a name no theme has.
+        // (RapidR's) A language's own name, for a list people pick from:
+        // Español, Português, 中文（简体）; else the tag as written.
+        ("application", "languagename") => v_str(&rapidr_i18n::tags::native_name(&arg(0).to_string_val())),
         ("application", "themecolor") => {
             let name = arg(0).to_string_val();
             match crate::ide_theme::color_by_name(crate::theme::current(), &name) {

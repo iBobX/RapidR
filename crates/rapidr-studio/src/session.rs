@@ -33,6 +33,7 @@
 //! | `SetNextStatement(File, Line)` → Id | Set Next Statement: the paused program goes on from that line (within its SUB or FUNCTION): OnEvaluate(Id, "") then OnStopped("goto", …), or OnEvaluate(Id, "error: …") |
 //! | `StepInTargets`, `StepInTarget(Id)` | Step Into Specific: the calls the paused line still makes — OnStepInTargets(Targets: a line each, its id and name tab-separated) —; into the one picked |
 //! | `Input(Text)` | a line for the program's INPUT |
+//! | `App(Request)` → Id | the eyes and hands on the running program (rapidr-session's `app`, `rapidr_ui_app::link`): a JSON request — `{"do":"screenshot"}`, `{"do":"layout"}`, `{"do":"click","caption":"7"}`, `type`, `key`, `drag`, `scroll`, `wait` —; OnApp(Id, Ok, Text, Picture) when it is answered (Picture: the PNG a screenshot gave, a file in the temporary folder the caller removes — a `data:` URL on the web; "" for none), or when the program didn't answer in time |
 //! | `OnOutput(Text)`, `OnStopped(Reason, File, Line)`, `OnContinue`, `OnExit(Code)`, `OnFormShown(Id)`, `OnVariables(Ref)`, `OnEvaluate(Id, Result)`, `OnBreakpointPlaced(File, Line, NewLine)` | |
 
 use std::cell::{Cell, RefCell};
@@ -66,6 +67,111 @@ enum Want {
     More(u32),
     /// `StepInTargets`' answer: OnStepInTargets.
     Targets,
+    /// `App`'s answer: OnApp(Id, …); `until`: when it stops waiting for it
+    /// (`rapidr_ai::rai::now_ms`).
+    App { id: i64, until: f64 },
+    /// RAI's app tool ([`app_send`]): its answer kept for [`app_take`].
+    RaiApp { ticket: String, until: f64 },
+}
+
+/// How long `App` waits for the program: a look 10 s, input 20 s more
+/// than what it asked to wait.
+fn app_timeout(request: &serde_json::Value) -> f64 {
+    let what = request.get("do").and_then(serde_json::Value::as_str).unwrap_or("");
+    let waits = request.get("ms").and_then(serde_json::Value::as_f64).unwrap_or(0.0).clamp(0.0, 60_000.0);
+    match what {
+        "screenshot" | "capture" | "picture" | "layout" | "windows" | "cursor" => 10_000.0,
+        _ => 20_000.0 + waits,
+    }
+}
+
+thread_local! {
+    /// RAI's app tools' answers by ticket (`None`: still waiting).
+    static RAI_APPS: RefCell<std::collections::HashMap<String, Option<(bool, String)>>> = RefCell::new(std::collections::HashMap::new());
+}
+
+/// (RAI's app tools: the running program's eyes and hands) A request to
+/// the program Studio runs now: its ticket for [`app_take`], or why it
+/// can't be sent (nothing runs).
+pub fn app_send(request: serde_json::Value) -> Result<String, String> {
+    let running: Option<String> = SESSIONS.with(|s| s.try_borrow().ok().and_then(|s| s.iter().find(|(_, m)| m.session.state() != State::Stopped).map(|(n, _)| n.clone())));
+    let Some(name) = running else {
+        return Err("The program isn't running: ask the user to run it (Run, F5), then try again.".into());
+    };
+    let until = rapidr_ai::rai::now_ms() + app_timeout(&request);
+    let ticket = with(&name, |m| {
+        m.next_app += 1;
+        let ticket = format!("{name}:{}", m.next_app);
+        m.ask(Command::App { request }, Want::RaiApp { ticket: ticket.clone(), until }).then_some(ticket)
+    });
+    let ticket = ticket.ok_or("The program couldn't be reached (it is ending?): try again.")?;
+    RAI_APPS.with(|r| r.borrow_mut().insert(ticket.clone(), None));
+    Ok(ticket)
+}
+
+/// (RAI's app tools) Request `ticket`'s answer once it came: (done, what
+/// was seen or done, in a sentence).
+pub fn app_take(ticket: &str) -> Option<(bool, String)> {
+    RAI_APPS.with(|r| {
+        let mut r = r.borrow_mut();
+        let done = r.get(ticket)?.clone()?;
+        r.remove(ticket);
+        Some(done)
+    })
+}
+
+fn rai_answered(ticket: String, ok: bool, text: String) {
+    RAI_APPS.with(|r| {
+        r.borrow_mut().insert(ticket, Some((ok, text)));
+    });
+}
+
+/// The pictures a Studio left in the temporary folder (`rapidr-app-*.png`:
+/// each is removed as soon as it is handed over, but a crash or a killed
+/// Studio leaves it) older than `age`: removed. How many.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn sweep_pictures(dir: &std::path::Path, age: std::time::Duration) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+    let now = std::time::SystemTime::now();
+    let mut n = 0;
+    for e in entries.flatten() {
+        let name = e.file_name().to_string_lossy().into_owned();
+        if !name.starts_with("rapidr-app-") || !name.ends_with(".png") {
+            continue;
+        }
+        // (a file of its own, never a link to something else)
+        let Ok(meta) = std::fs::symlink_metadata(e.path()) else { continue };
+        let old = meta.modified().ok().and_then(|m| now.duration_since(m).ok()).is_some_and(|d| d >= age);
+        if meta.is_file() && old && std::fs::remove_file(e.path()).is_ok() {
+            n += 1;
+        }
+    }
+    n
+}
+
+/// A screenshot's PNG (base64) where the caller can take it: a file in the
+/// temporary folder, readable by this user only, on the desktop; a `data:`
+/// URL on the web.
+fn app_picture(id: i64, png_base64: &str) -> String {
+    #[cfg(target_arch = "wasm32")]
+    {
+        let _ = id;
+        format!("data:image/png;base64,{png_base64}")
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let Some(bytes) = rapidr_value::objects::codec::base64_decode(png_base64) else { return String::new() };
+        let path = std::env::temp_dir().join(format!("rapidr-app-{}-{id}.png", std::process::id()));
+        if std::fs::write(&path, bytes).is_err() {
+            return String::new();
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
+        path.to_string_lossy().into_owned()
+    }
 }
 
 /// A variable as the last stop fetched it, and whether its value changed
@@ -105,6 +211,8 @@ struct Model {
     /// A frame or watch refresh in flight: OnVariables(0) when done.
     refreshing: bool,
     next_eval: i64,
+    /// `App`'s requests' numbers.
+    next_app: i64,
     /// The look a program that names none is drawn in ($THEME's names).
     theme: String,
 }
@@ -135,7 +243,9 @@ impl Model {
         self.frame = 0;
         self.vars.clear();
         self.watch_values.clear();
-        self.pending.clear();
+        // (the eyes and hands' requests are answered whether it stops or
+        // goes on: kept)
+        self.pending.retain(|_, w| matches!(w, Want::App { .. } | Want::RaiApp { .. }));
         self.held = None;
         self.refreshing = false;
         self.scope.clear();
@@ -228,6 +338,10 @@ thread_local! {
     /// A [`poll`] was asked for while the table was in use: the poll that
     /// has it goes round again once it's free.
     static SKIPPED: Cell<bool> = const { Cell::new(false) };
+    /// The temporary folder's leftover pictures were removed.
+    static SWEPT: Cell<bool> = const { Cell::new(false) };
+    /// The programs started so far ([`run_number`]).
+    static RUNS: Cell<u64> = const { Cell::new(0) };
 }
 
 /// Whether a call on a session is in progress (the table is borrowed for
@@ -239,6 +353,14 @@ pub fn in_use() -> bool {
 }
 
 fn with<R>(name: &str, f: impl FnOnce(&mut Model) -> R) -> R {
+    // (Studio's start — its session set up —: the pictures an earlier
+    // Studio left, older than a minute, go)
+    #[cfg(not(target_arch = "wasm32"))]
+    SWEPT.with(|swept| {
+        if !swept.replace(true) {
+            sweep_pictures(&std::env::temp_dir(), std::time::Duration::from_secs(60));
+        }
+    });
     SESSIONS.with(|s| f(s.borrow_mut().entry(name.to_ascii_lowercase()).or_default()))
 }
 
@@ -276,32 +398,32 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
     // (the PATH the program gets: your login shell's, S6 — "" where it
     // isn't changed, Windows and the web)
     match prop {
-        "shellpath" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.path).unwrap_or_default())),
-        "shellpathsource" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.describe()).unwrap_or_default())),
+        "shellpath" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.path).unwrap_or_default().into())),
+        "shellpathsource" => return Some(Value::String(crate::login_path::shell_path().map(|s| s.describe()).unwrap_or_default().into())),
         _ => {}
     }
     with(name, |m| {
         let s = &m.session;
         Some(match prop {
-            "program" => Value::String(s.program.clone()),
-            "args" => Value::String(m.args.clone()),
+            "program" => Value::String(s.program.clone().into()),
+            "args" => Value::String(m.args.clone().into()),
             "debug" => flag(s.debug),
             "breakonerror" => flag(s.break_on_error),
             "stoponentry" => flag(s.stop_on_entry),
-            "state" => Value::String(s.state().as_str().to_string()),
-            "currentfile" => Value::String(s.current_file().unwrap_or("").to_string()),
+            "state" => Value::String(s.state().as_str().to_string().into()),
+            "currentfile" => Value::String(s.current_file().unwrap_or("").to_string().into()),
             "currentline" => Value::Integer(i64::from(s.current_line())),
             "exitcode" => Value::Integer(i64::from(s.exit_code().unwrap_or(0))),
-            "stopreason" => Value::String(s.stop_reason().to_string()),
-            "stopmessage" => Value::String(s.stop_description().to_string()),
-            "error" => Value::String(m.error.clone()),
+            "stopreason" => Value::String(s.stop_reason().to_string().into()),
+            "stopmessage" => Value::String(s.stop_description().to_string().into()),
+            "error" => Value::String(m.error.clone().into()),
             "frame" => Value::Integer(m.frame as i64),
             "localsref" => Value::Integer(i64::from(m.locals_ref())),
             "globalsref" => Value::Integer(i64::from(GLOBALS_REF)),
             "componentsref" => Value::Integer(i64::from(COMPONENTS_REF)),
             "watches" => Value::String(m.watches.iter().map(|w| format!("{w}\n")).collect()),
-            "browserurl" => Value::String(browser::url(name)),
-            "theme" => Value::String(m.theme.clone()),
+            "browserurl" => Value::String(browser::url(name).into()),
+            "theme" => Value::String(m.theme.clone().into()),
             _ => return None,
         })
     })
@@ -356,7 +478,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             crate::login_path::start();
             Value::Null
         }
-        "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default()),
+        "refreshshellpath" => Value::String(crate::login_path::refresh().map(|s| s.path).unwrap_or_default().into()),
         "start" => {
             let (program, run_args, theme, running) = with(name, |m| (m.session.program.clone(), m.session.args.clone(), m.theme.clone(), m.session.state() != State::Stopped));
             if running {
@@ -369,6 +491,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let ok = started.is_ok();
             let v = r(started);
             if ok {
+                RUNS.with(|n| n.set(n.get() + 1));
                 poll(host);
             }
             v
@@ -438,7 +561,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "stepintargets" => {
             let sent = with(name, |m| m.session.state() == State::Paused && m.ask(Command::StepInTargets, Want::Targets));
             if !sent {
-                host.fire(name, "onstepintargets", &[Value::String(String::new())]);
+                host.fire(name, "onstepintargets", &[Value::String(String::new().into())]);
             }
             Value::Null
         }
@@ -498,6 +621,31 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             Value::Integer(id)
         }
         "input" => r(with(name, |m| m.session.input(&text_arg(args, 0)))),
+        // (the eyes and hands on the running program: OnApp when answered)
+        "app" => {
+            let text = text_arg(args, 0);
+            let (id, refused) = with(name, |m| {
+                m.next_app += 1;
+                let id = m.next_app;
+                let request: serde_json::Value = match serde_json::from_str(&text) {
+                    Ok(v) => v,
+                    Err(e) => return (id, Some(format!("The request isn't JSON: {e}"))),
+                };
+                if m.session.state() == State::Stopped {
+                    return (id, Some("The program isn't running: run it first (run_program), then try again.".to_string()));
+                }
+                let until = rapidr_ai::rai::now_ms() + app_timeout(&request);
+                if m.ask(Command::App { request }, Want::App { id, until }) {
+                    (id, None)
+                } else {
+                    (id, Some("The program couldn't be reached (it is ending?): try again.".to_string()))
+                }
+            });
+            if let Some(why) = refused {
+                host.fire(name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String(why.into()), Value::String(String::new().into())]);
+            }
+            Value::Integer(id)
+        }
         _ => return None,
     })
 }
@@ -540,7 +688,7 @@ fn poll_once<H: Host>(host: H) -> bool {
         running |= live;
         for e in events {
             match e {
-                SessionEvent::Output { text, .. } => host.fire(&name, "onoutput", &[Value::String(text)]),
+                SessionEvent::Output { text, .. } => host.fire(&name, "onoutput", &[Value::String(text.into())]),
                 SessionEvent::Stopped { reason, file, line, .. } => {
                     // (the snapshot first: OnStopped once it's in)
                     let fire = with(&name, |m| {
@@ -555,7 +703,7 @@ fn poll_once<H: Host>(host: H) -> bool {
                         }
                     });
                     if let Some((reason, file, line)) = fire {
-                        host.fire(&name, "onstopped", &[Value::String(reason), Value::String(file), Value::Integer(line)]);
+                        host.fire(&name, "onstopped", &[Value::String(reason.into()), Value::String(file.into()), Value::Integer(line)]);
                     }
                 }
                 SessionEvent::Continued => {
@@ -564,15 +712,49 @@ fn poll_once<H: Host>(host: H) -> bool {
                 }
                 SessionEvent::Exited { code } => {
                     with(&name, Model::forget);
+                    // (the eyes and hands' requests still waiting: the program ended)
+                    for id in with(&name, |m| take_apps(m, f64::INFINITY)) {
+                        host.fire(&name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String(format!("The program ended (exit code {code}) before it answered.").into()), Value::String(String::new().into())]);
+                    }
                     host.fire(&name, "onexit", &[Value::Integer(i64::from(code))]);
                 }
-                SessionEvent::FormShown { id } => host.fire(&name, "onformshown", &[Value::String(id)]),
+                SessionEvent::FormShown { id } => host.fire(&name, "onformshown", &[Value::String(id.into())]),
                 SessionEvent::Reply { re, body } => reply(host, &name, re, body),
                 SessionEvent::FormClosed { .. } => {}
             }
         }
+        // (the eyes and hands' requests not answered in time: a program busy
+        // in its own code — a long loop without DOEVENTS — answers only when
+        // it next waits for its events)
+        let late = with(&name, |m| take_apps(m, rapidr_ai::rai::now_ms()));
+        for id in late {
+            host.fire(&name, "onapp", &[Value::Integer(id), Value::Integer(0), Value::String("The program didn't answer in time: it may be busy running its own code (a long loop) and will answer when it next waits for its events. Wait and try again, or pause it in the debugger to see where it is.".into()), Value::String(String::new().into())]);
+        }
     }
     running
+}
+
+/// The `App` requests whose time is up by `now` (`INFINITY`: all), taken
+/// out: their ids.
+fn take_apps(m: &mut Model, now: f64) -> Vec<i64> {
+    let late: Vec<(u64, i64)> = m.pending.iter().filter_map(|(seq, w)| match w {
+        Want::App { id, until } if *until <= now => Some((*seq, *id)),
+        _ => None,
+    }).collect();
+    for (seq, _) in &late {
+        m.pending.remove(seq);
+    }
+    // (RAI's: answered the same way)
+    let rai: Vec<(u64, String)> = m.pending.iter().filter_map(|(seq, w)| match w {
+        Want::RaiApp { ticket, until } if *until <= now => Some((*seq, ticket.clone())),
+        _ => None,
+    }).collect();
+    for (seq, ticket) in rai {
+        m.pending.remove(&seq);
+        let why = if now.is_infinite() { "The program ended before it answered." } else { "The program didn't answer in time: it may be busy running its own code. Wait and try again." };
+        rai_answered(ticket, false, why.to_string());
+    }
+    late.into_iter().map(|(_, id)| id).collect()
 }
 
 /// A reply to one of the session's own requests.
@@ -585,7 +767,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
         for b in breakpoints {
             let at = if b.verified { b.actual_line.unwrap_or(b.line) } else { 0 };
             if at != b.line {
-                fire.push(("onbreakpointplaced", vec![Value::String(file.clone()), Value::Integer(i64::from(b.line)), Value::Integer(i64::from(at))]));
+                fire.push(("onbreakpointplaced", vec![Value::String(file.clone().into()), Value::Integer(i64::from(b.line)), Value::Integer(i64::from(at))]));
             }
         }
     }
@@ -646,12 +828,31 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                 m.vars.entry(r).or_default().extend(shown);
                 fire.push(("onvariables", vec![Value::Integer(i64::from(r))]));
             }
+            Want::RaiApp { ticket, .. } => {
+                let (ok, text) = match &body {
+                    EventBody::App { result } => (result.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false), result.get("text").and_then(serde_json::Value::as_str).unwrap_or("").to_string()),
+                    _ => (false, error.clone().unwrap_or_else(|| "the program gave no answer".into())),
+                };
+                rai_answered(ticket, ok, text);
+            }
+            Want::App { id, .. } => {
+                let (ok, text, picture) = match &body {
+                    EventBody::App { result } => {
+                        let ok = result.get("ok").and_then(serde_json::Value::as_bool).unwrap_or(false);
+                        let text = result.get("text").and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+                        let picture = result.get("png").and_then(serde_json::Value::as_str).map(|p| app_picture(id, p)).unwrap_or_default();
+                        (ok, text, picture)
+                    }
+                    _ => (false, error.clone().unwrap_or_else(|| "the program gave no answer".into()), String::new()),
+                };
+                fire.push(("onapp", vec![Value::Integer(id), Value::Integer(if ok { -1 } else { 0 }), Value::String(text.into()), Value::String(picture.into())]));
+            }
             Want::Targets => {
                 let text = match body {
                     EventBody::StepInTargets { targets } => targets.iter().map(|t| format!("{}\t{}\n", t.id, t.label)).collect(),
                     _ => String::new(),
                 };
-                fire.push(("onstepintargets", vec![Value::String(text)]));
+                fire.push(("onstepintargets", vec![Value::String(text.into())]));
             }
             Want::Eval { id, refresh } => {
                 let (text, kind, reference, count, columns) = match body {
@@ -663,7 +864,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
                 if reference != 0 {
                     m.scope.insert(reference, "E:".into());
                 }
-                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text), Value::String(kind), Value::Integer(i64::from(reference)), Value::Integer(i64::from(count)), Value::String(columns)]));
+                fire.push(("onevaluate", vec![Value::Integer(id), Value::String(text.into()), Value::String(kind.into()), Value::Integer(i64::from(reference)), Value::Integer(i64::from(count)), Value::String(columns.into())]));
                 // (a statement or an assignment may have changed what's shown)
                 if refresh && m.held.is_none() && m.session.state() == State::Paused {
                     m.vars.clear();
@@ -676,7 +877,7 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
         }
         if m.snapshot_done() {
             if let Some((reason, file, line)) = m.held.take() {
-                fire.push(("onstopped", vec![Value::String(reason), Value::String(file), Value::Integer(line)]));
+                fire.push(("onstopped", vec![Value::String(reason.into()), Value::String(file.into()), Value::Integer(line)]));
             } else if std::mem::take(&mut m.refreshing) {
                 fire.push(("onvariables", vec![Value::Integer(0)]));
             }
@@ -685,6 +886,14 @@ fn reply<H: Host>(host: H, name: &str, re: u64, body: EventBody) {
     for (event, args) in fire {
         host.fire(name, event, &args);
     }
+}
+
+/// The run of the user's program going on now: its number (each start a
+/// new one), `None` when nothing runs. RAI's leave to use the program
+/// lasts a run (the chat's "Allow for this run").
+pub fn run_number() -> Option<u64> {
+    let running = SESSIONS.with(|s| s.try_borrow().ok().is_some_and(|s| s.values().any(|m| m.session.state() != State::Stopped)));
+    running.then(|| RUNS.with(Cell::get))
 }
 
 /// Whether a session is running (the desktop's loop then looks at it now
@@ -803,7 +1012,7 @@ mod browser {
             }
         });
         for (name, text) in out {
-            host.fire(&name, "onoutput", &[Value::String(text)]);
+            host.fire(&name, "onoutput", &[Value::String(text.into())]);
         }
         starting()
     }
@@ -812,6 +1021,28 @@ mod browser {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A picture a Studio left behind (a crash, a kill) goes at the next
+    /// start once it is a minute old; anything else in the folder stays.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn leftover_pictures_are_swept() {
+        let dir = std::env::temp_dir().join(format!("rapidr-sweep-test-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = std::time::SystemTime::now() - std::time::Duration::from_secs(120);
+        for (name, aged) in [("rapidr-app-1-1.png", true), ("rapidr-app-1-2.png", false), ("holiday.png", true), ("rapidr-app-1-3.txt", true)] {
+            let f = std::fs::File::create(dir.join(name)).unwrap();
+            if aged {
+                f.set_modified(old).unwrap();
+            }
+        }
+        assert_eq!(sweep_pictures(&dir, std::time::Duration::from_secs(60)), 1);
+        let mut left: Vec<String> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["holiday.png", "rapidr-app-1-2.png", "rapidr-app-1-3.txt"]);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     /// A value is changed when it differs from the stop before — or, set
     /// while paused, from what this stop first showed; set back, it isn't.

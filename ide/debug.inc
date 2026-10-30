@@ -133,7 +133,7 @@ DIM WatchMenuItem(4) AS RMenuItem
 
 ' ---- the text viewer: a string's whole text -------------------------------------------
 CREATE TextViewer AS RForm
-  Caption = "Text"
+  Caption = TR$("Text")
   Width = 560: Height = 400
   BorderStyle = 2
   CREATE TextViewerBox AS RMemo
@@ -141,16 +141,16 @@ CREATE TextViewer AS RForm
     ReadOnly = 1
     WordWrap = 1
     ScrollBars = 2
-    AccessibleName = "The text"
+    AccessibleName = TR$("The text")
   END CREATE
   CREATE TextViewerInfo AS RLabel
     Left = 10: Top = 322: Width = 300: Caption = ""
   END CREATE
   CREATE TextViewerCopy AS RButton
-    Left = 342: Top = 318: Width = 90: Caption = "&Copy"
+    Left = 342: Top = 318: Width = 90: Caption = TR$("&Copy")
   END CREATE
   CREATE TextViewerClose AS RButton
-    Left = 444: Top = 318: Width = 90: Caption = "Close"
+    Left = 444: Top = 318: Width = 90: Caption = TR$("Close")
     Cancel = 1
     ModalResult = 2
   END CREATE
@@ -202,23 +202,23 @@ DIM UndoOld(MAXUNDO) AS STRING
 DIM UndoCount AS INTEGER
 ' (a STRING's whole text, in its own window: long or of several lines)
 CREATE ValueEditor AS RForm
-  Caption = "Set Value"
+  Caption = TR$("Set Value")
   Width = 560: Height = 400
   BorderStyle = 2
   CREATE ValueEditorBox AS RMemo
     Left = 10: Top = 10: Width = 524: Height = 300
     WordWrap = 1
     ScrollBars = 2
-    AccessibleName = "The new text"
+    AccessibleName = TR$("The new text")
   END CREATE
   CREATE ValueEditorInfo AS RLabel
     Left = 10: Top = 322: Width = 300: Caption = ""
   END CREATE
   CREATE ValueEditorSet AS RButton
-    Left = 342: Top = 318: Width = 90: Caption = "&Set"
+    Left = 342: Top = 318: Width = 90: Caption = TR$("&Set")
   END CREATE
   CREATE ValueEditorCancel AS RButton
-    Left = 444: Top = 318: Width = 90: Caption = "Cancel"
+    Left = 444: Top = 318: Width = 90: Caption = TR$("Cancel")
     Cancel = 1
     ModalResult = 2
   END CREATE
@@ -242,6 +242,8 @@ DIM BreakOnErrors AS INTEGER
 ' (the budgets' measures, ms: F5 to the program's first form, a step to its
 ' line shown with its values; -1 not measured)
 DIM PerfForm AS INTEGER
+' (the program printed something this run)
+DIM RunOutputSeen AS INTEGER
 DIM PerfStep AS INTEGER
 DIM StepStarted AS DOUBLE
 DIM PerfReady AS RTimer
@@ -297,7 +299,7 @@ SUB ShowRunningPanes
   TreeFilling = 1
   StackTree.Clear
   FrameCount = 0
-  StackTree.AddItems "Running…"
+  StackTree.AddItems TR$("Running…")
   TreeFilling = 0
   FillVariables
   FillWatches
@@ -462,10 +464,10 @@ SUB ToggleBreakpointAt(d AS INTEGER, LineNo AS INTEGER)
   i = FindBreakpoint(DocFile(d), LineNo)
   IF i >= 0 THEN
     RemoveBreakpoint i
-    SetState RunState, "Breakpoint removed: " + FileTitle(DocFile(d)) + ", line " + Num(LineNo)
+    SetState RunState, TR$("Breakpoint removed: {file}, line {line}", "file", FileTitle(DocFile(d)), "line", LineNo)
   ELSE
     BpPicked = AddBreakpoint(DocFile(d), LineNo)
-    SetState RunState, "Breakpoint at " + FileTitle(DocFile(d)) + ", line " + Num(LineNo)
+    SetState RunState, TR$("Breakpoint at {file}, line {line}", "file", FileTitle(DocFile(d)), "line", LineNo)
   END IF
   FillBreakpoints
 END SUB
@@ -598,11 +600,11 @@ END SUB
 FUNCTION BreakpointText(i AS INTEGER) AS STRING
   DIM t AS STRING
   t = FileTitle(BpFile(i)) + ":" + Num(BpLine(i))
-  IF BpOn(i) = 0 THEN t = t + "  (off)"
-  IF BpNever(i) AND BpOn(i) THEN t = t + "  (no code here: never stops)"
-  IF BpCond(i) <> "" THEN t = t + "  when " + BpCond(i)
-  IF BpHit(i) <> "" THEN t = t + "  hit " + BpHit(i)
-  IF BpLog(i) <> "" THEN t = t + "  log " + CHR$(34) + BpLog(i) + CHR$(34)
+  IF BpOn(i) = 0 THEN t = t + "  " + TR$("(off)")
+  IF BpNever(i) AND BpOn(i) THEN t = t + "  " + TR$("(no code here: never stops)")
+  IF BpCond(i) <> "" THEN t = t + "  " + TR$("when {condition}", "condition", BpCond(i))
+  IF BpHit(i) <> "" THEN t = t + "  " + TR$("hit {count}", "count", BpHit(i))
+  IF BpLog(i) <> "" THEN t = t + "  " + TR$("log {message}", "message", CHR$(34) + BpLog(i) + CHR$(34))
   Result = t
 END FUNCTION
 
@@ -619,7 +621,7 @@ SUB FillBreakpoints
   IF BpCount = 0 THEN BpPicked = -1
   IF BpPicked >= 0 THEN BpTree.ItemIndex = BpPicked
   ShowPickedBreakpoint
-  IF BpCount > 0 THEN Dock.PaneTitle("bppanel", "Breakpoints (" + Num(BpCount) + ")") ELSE Dock.PaneTitle("bppanel", "Breakpoints")
+  IF BpCount > 0 THEN Dock.PaneTitle("bppanel", TR$("Breakpoints ({n})", "n", BpCount)) ELSE Dock.PaneTitle("bppanel", TR$("Breakpoints"))
 END SUB
 
 ' (the selected breakpoint's rules in the edit strip)
@@ -681,7 +683,7 @@ END SUB
 SUB ApplyBreakpointEdits
   IF BpPicked < 0 OR BpPicked >= BpCount THEN EXIT SUB
   ChangeBreakpoint BpPicked, BpCondEdit.Text, BpHitEdit.Text, BpLogEdit.Text, BpOnCheck.Checked
-  SetState RunState, "Breakpoint " + BreakpointText(BpPicked)
+  SetState RunState, TR$("Breakpoint {text}", "text", BreakpointText(BpPicked))
 END SUB
 
 ' Debug > Edit Breakpoint (Shift+F9): the caret line's breakpoint (made if
@@ -760,18 +762,58 @@ FUNCTION ProgramErrors AS INTEGER
   IF Result = 0 THEN FillProblems ActiveCode
 END FUNCTION
 
+' (the project's main file isn't there: none set, gone from the disk — on
+' the web a file of the site's isn't in the page's store, so its editor or
+' a read says whether it is there)
+FUNCTION MainMissing AS INTEGER
+  DIM t AS STRING
+  IF ProjectMain = "" THEN
+    Result = 1
+  ELSEIF FILEEXISTS(ProjectMain) = 0 AND DocOf(ProjectMain) < 0 THEN
+    t = Proj.FileText(ProjectMain)
+    Result = Flag(Proj.Error <> "")
+  END IF
+END FUNCTION
+
 SUB StartProgram(WithDebugger AS INTEGER)
-  IF ProjectOpen = 0 OR RunState = "running" OR RunState = "paused" THEN EXIT SUB
+  ' (Run always says why it didn't start: Robert 2026-10-28, a Run that
+  ' did nothing and said nothing)
+  IF ProjectOpen = 0 THEN
+    OutputLine TR$("Nothing to run: open a project or a program first (File > Open, or an example).")
+    SetState "error", "Nothing to run: no project is open"
+    EXIT SUB
+  END IF
+  IF RunState = "running" OR RunState = "paused" THEN
+    IF RunState = "running" THEN
+      SetState RunState, TR$("{file} is running already: Stop it first (Shift+F5)", "file", FileTitle(ProjectMain))
+    ELSE
+      SetState RunState, TR$("{file} is paused already: Stop it first (Shift+F5)", "file", FileTitle(ProjectMain))
+    END IF
+    EXIT SUB
+  END IF
+  IF MainMissing THEN
+    IF ProjectMain = "" THEN
+      OutputLine TR$("Can't run: the project's main file isn't set. Choose it in the project's properties: select the project's name in the Project pane, then MainFile.")
+    ELSE
+      OutputLine TR$("Can't run: the project's main file {file} isn't there. Choose it in the project's properties: select the project's name in the Project pane, then MainFile.", "file", ProjectMain)
+    END IF
+    SetState "error", "Can't run: no main file"
+    OutputBox.Page = "output"
+    Dock.ShowPane("outputbox")
+    EXIT SUB
+  END IF
+  RunOutputSeen = 0
   ' (F5 to the first form: docs/studio-wow.md PERF-8)
   RunStarted = TIMER
   PerfForm = -1
-  ' (VB's way: what is being run is saved first)
-  SaveAll
+  ' (VB's way: what is being run is saved first — not run when a save was
+  ' declined: its file changed outside Studio)
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   ' (the program is its main file and what that includes: their errors
   ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)
   IF ProgramErrors > 0 THEN
-    SetState "error", "Can't run: " + Num(Lang.ErrorCount) + " errors. The first is selected."
+    SetState "error", TRN$("Can't run: {n} error. The first is selected.", "Can't run: {n} errors. The first is selected.", Lang.ErrorCount)
     OutputBox.Page = "problems"
     Dock.ShowPane("outputbox")
     GoToFirstProblem
@@ -790,13 +832,15 @@ SUB StartProgram(WithDebugger AS INTEGER)
   Session.Program = ProjectMain
   Session.Debug = WithDebugger
   Session.BreakOnError = Flag(WithDebugger <> 0 AND BreakOnErrors <> 0)
+  ' (a crash report RapidR may write while it runs: crash.inc)
+  CrashRunStarts
   IF Session.Start THEN
-    SetState "running", "Running " + FileTitle(ProjectMain)
+    SetState "running", TR$("Running {file}", "file", FileTitle(ProjectMain))
     ' (with the debugger: the debugging layout — S9)
     IF WithDebugger THEN DebugLayoutRunStarts
   ELSE
-    OutputLine "Can't run " + ProjectMain + ": " + Session.Error
-    SetState "error", "Can't run " + FileTitle(ProjectMain)
+    OutputLine TR$("Can't run {file}: {error}", "file", ProjectMain, "error", Session.Error)
+    SetState "error", TR$("Can't run {file}", "file", FileTitle(ProjectMain))
   END IF
 END SUB
 
@@ -927,13 +971,13 @@ END SUB
 SUB ShowDebugLayout
   IF DebugLayoutOn THEN EXIT SUB
   DebugPanesIn 1
-  LayoutNote "Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output"
+  LayoutNote TR$("Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output")
 END SUB
 
 SUB ShowEditingLayout
   IF DebugLayoutOn = 0 THEN EXIT SUB
   DebugPanesOut 1
-  LayoutNote "Editing layout: the bottom panel is full width"
+  LayoutNote TR$("Editing layout: the bottom panel is full width")
 END SUB
 
 ' A run with the debugger starts: the debugging layout (Automatic, Always).
@@ -1024,22 +1068,22 @@ END SUB
 SUB RunInBrowser
   DIM why AS STRING
   IF ProjectOpen = 0 THEN EXIT SUB
-  SaveAll
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   ' (the program is its main file and what that includes: their errors
   ' stop it, whichever file is shown — Problems lists them: S-DESIGN-2)
   IF ProgramErrors > 0 THEN
-    SetState "error", "Can't run: " + Num(Lang.ErrorCount) + " errors. The first is selected."
+    SetState "error", TRN$("Can't run: {n} error. The first is selected.", "Can't run: {n} errors. The first is selected.", Lang.ErrorCount)
     GoToFirstProblem
     EXIT SUB
   END IF
   Session.Program = ProjectMain
   Dock.ShowPane("outputbox")
-  OutputLine "Run in Browser: building " + FileTitle(ProjectMain) + " for the web..."
+  OutputLine TR$("Run in Browser: building {file} for the web...", "file", FileTitle(ProjectMain))
   Session.RunInBrowser
   why = Session.Error
   IF why = "" THEN
-    SetState RunState, "Opening " + FileTitle(ProjectMain) + " in the browser..."
+    SetState RunState, TR$("Opening {file} in the browser...", "file", FileTitle(ProjectMain))
   ELSEIF RunState = "stopped" OR RunState = "error" THEN
     ' (Studio is in the browser: it runs here, saying so)
     StartProgram 0
@@ -1070,8 +1114,11 @@ END SUB
 DIM OutputUnendedLine AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
+  IF Text <> "" THEN RunOutputSeen = 1
   OutputBox.Write Text
   AITools.AddRunOutput Text
+  ' (AI apps' read_output: mcp.inc)
+  McpProgramOutput Text
   IF Text <> "" THEN OutputUnendedLine = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 
@@ -1083,25 +1130,26 @@ SUB OutputAfterProgram(Text AS STRING)
 END SUB
 
 SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
-  DIM what AS STRING, kind AS STRING
+  DIM what AS STRING, kind AS STRING, at AS STRING
   StepRaise.Enabled = 0
   StaleTimer.Enabled = 0
   ' (the run's stops, for the flows' stops:report)
   StopLog = StopLog + " " + Num(LineNo) + ":" + Reason
   PausedFile = DebugPath(InFile)
   PausedLine = LineNo
+  at = FileTitle(PausedFile) + ":" + Num(LineNo)
   SELECT CASE Reason
-    CASE "breakpoint": what = "Breakpoint"
-    CASE "entry": what = "Paused at the start"
-    CASE "exception": what = "Run-time error"
-    CASE "goto": what = "Next statement"
+    CASE "breakpoint": what = TR$("Breakpoint: {place}", "place", at)
+    CASE "entry": what = TR$("Paused at the start: {place}", "place", at)
+    CASE "exception": what = TR$("Run-time error: {place}", "place", at)
+    CASE "goto": what = TR$("Next statement: {place}", "place", at)
     CASE ELSE
-      what = "Paused"
+      what = TR$("Paused: {place}", "place", at)
       ' (while the program waits for its events: a ShowModal, a dialog)
-      IF Reason = "pause" AND Session.StopMessage <> "" THEN what = "Paused, " + LCASE$(Session.StopMessage)
+      IF Reason = "pause" AND Session.StopMessage <> "" THEN what = TR$("Paused, {message}: {place}", "message", LCASE$(Session.StopMessage), "place", at)
   END SELECT
   IF Reason = "exception" THEN kind = "exception" ELSE kind = "current"
-  SetState "paused", what + ": " + FileTitle(PausedFile) + ":" + Num(LineNo)
+  SetState "paused", what
   ' (the data tips' values are the last stop's: they compare with this one's)
   TipNewStop
   ClearPausedMarks
@@ -1184,7 +1232,7 @@ END FUNCTION
 
 SUB ProgramContinued
   ForgetSetValues
-  SetState "running", "Running " + FileTitle(ProjectMain)
+  SetState "running", TR$("Running {file}", "file", FileTitle(ProjectMain))
   ClearPausedMarks
   ' (still running in a moment: the panes say so — ShowRunningPanes)
   StaleTimer.Enabled = 0
@@ -1195,8 +1243,16 @@ SUB ProgramExited(Code AS INTEGER)
   StepRaise.Enabled = 0
   StaleTimer.Enabled = 0
   DebugStale = 0
-  OutputAfterProgram "[" + FileTitle(ProjectMain) + " ended, exit code " + Num(Code) + "]"
-  IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", "Ended with exit code " + Num(Code)
+  OutputAfterProgram TR$("[{file} ended, exit code {code}]", "file", FileTitle(ProjectMain), "code", Code)
+  ' (it ended at once, showed no window and printed nothing: maybe it isn't
+  ' the program's start — a project whose main file became a module)
+  IF Code = 0 AND PerfForm < 0 AND RunOutputSeen = 0 AND TIMER - RunStarted < 3 THEN
+    OutputLine TR$("{file} ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties.", "file", FileTitle(ProjectMain))
+  END IF
+  IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", TR$("Ended with exit code {code}", "code", Code)
+  ' (RapidR stopped it — a crash in RapidR's own code: said plainly, with
+  ' its report — crash.inc)
+  CrashProgramEnded Code
   ClearPausedMarks
   ClearDebugPanes
   ' (the editing layout again — S9)
@@ -1332,10 +1388,10 @@ SUB AddValueChildren(w AS INTEGER, Parent AS INTEGER, Ref AS INTEGER, Path AS ST
   NEXT
   ' (more than came: the next page when it's opened)
   IF Total > n AND n > 0 AND TreeCount(w) < MAXVARITEMS THEN
-    TreeAddChild w, Parent, "… " + Num(Total - n) + " more"
+    TreeAddChild w, Parent, TR$("… {n} more", "n", Total - n)
     item = TreeCount(w) - 1
     TreeItemData w, item, 0, Path + "/[more]"
-    TreeSetValue w, item, "… " + Num(Total - n) + " more", "More", "", 0, ""
+    TreeSetValue w, item, TR$("… {n} more", "n", Total - n), "More", "", 0, ""
     IF item <= MAXVARITEMS THEN
       IF w = 0 THEN
         VarItemMore(item) = n: VarItemRef(item) = Ref: VarsTree.Item(item).HasChildren = 1
@@ -1373,33 +1429,33 @@ SUB FillVariables
   VarsTree.Clear
   IF RunState <> "paused" THEN
     IF RunState = "running" THEN
-      VarsTree.AddItems "Running… the values show when it pauses (F9 sets a breakpoint)."
+      VarsTree.AddItems TR$("Running… the values show when it pauses (F9 sets a breakpoint).")
     ELSE
-      VarsTree.AddItems "Not paused: F9 sets a breakpoint, F5 runs."
+      VarsTree.AddItems TR$("Not paused: F9 sets a breakpoint, F5 runs.")
     END IF
     TreeItemData 0, 0, 0, ""
     TreeFilling = 0
     EXIT SUB
   END IF
-  VarsTree.AddItems "Locals"
-  VarsTree.SetItemValue 0, "Locals", "Locals", ""
+  VarsTree.AddItems TR$("Locals")
+  VarsTree.SetItemValue 0, TR$("Locals"), "Locals", ""
   TreeItemData 0, 0, 0, "L"
   root = 0
   IF Session.LocalsRef > 0 THEN AddValueChildren 0, root, Session.LocalsRef, "L", 0, "", 0
   IF VarsTree.ItemCount = 1 THEN
-    VarsTree.AddChildItems 0, "(none)"
+    VarsTree.AddChildItems 0, TR$("(none)")
     TreeItemData 0, 1, 0, "L/"
   END IF
-  VarsTree.AddItems "Globals"
+  VarsTree.AddItems TR$("Globals")
   root = VarsTree.ItemCount - 1
-  VarsTree.SetItemValue root, "Globals", "Globals", ""
+  VarsTree.SetItemValue root, TR$("Globals"), "Globals", ""
   TreeItemData 0, root, 0, "G"
   AddValueChildren 0, root, Session.GlobalsRef, "G", 0, "", 0
   ' (the program's components — its forms, frames, timers —, each opening
   ' to its properties and the components it holds; filled once opened)
-  VarsTree.AddItems "Components"
+  VarsTree.AddItems TR$("Components")
   root = VarsTree.ItemCount - 1
-  VarsTree.SetItemValue root, "Components", "Components", ""
+  VarsTree.SetItemValue root, TR$("Components"), "Components", ""
   TreeItemData 0, root, Session.ComponentsRef, "C"
   IF IsOpen(VarsOpen, "C") THEN AddValueChildren 0, root, Session.ComponentsRef, "C", 0, "", 0
   ReopenTree 0
@@ -1436,9 +1492,9 @@ SUB FillWatches
     value = FIELD$(row, CHR$(9), 2)
     wref = VAL(FIELD$(row, CHR$(9), 4))
     IF RunState = "running" THEN
-      value = "(running)"
+      value = TR$("(running)")
     ELSEIF RunState <> "paused" THEN
-      value = "(not paused)"
+      value = TR$("(not paused)")
     END IF
     WatchTree.AddItems ValueText(expr, value)
     item = WatchTree.ItemCount - 1
@@ -1701,7 +1757,7 @@ FUNCTION TypedToExpr(Nm AS STRING, Kind AS STRING, Hint AS STRING, Typed AS STRI
   t = Typed
   IF LEFT$(LTRIM$(t), 1) = "=" THEN
     Result = MID$(LTRIM$(t), 2)
-    IF LTRIM$(Result) = "" THEN Problem = "Type an expression after the =, such as =" + Nm + " * 2."
+    IF LTRIM$(Result) = "" THEN Problem = TR$("Type an expression after the =, such as ={name} * 2.", "name", Nm)
     EXIT FUNCTION
   END IF
   IF TextKind(Kind) THEN
@@ -1710,7 +1766,7 @@ FUNCTION TypedToExpr(Nm AS STRING, Kind AS STRING, Hint AS STRING, Typed AS STRI
   END IF
   t = LTRIM$(RTRIM$(t))
   low = LCASE$(t)
-  IF t = "" THEN Problem = "Type the new value of " + Nm + ".": EXIT FUNCTION
+  IF t = "" THEN Problem = TR$("Type the new value of {name}.", "name", Nm): EXIT FUNCTION
   choices = HintAfter(Hint, "choices:")
   IF choices <> "" THEN
     n = TALLY(choices, "|") + 1
@@ -1718,35 +1774,35 @@ FUNCTION TypedToExpr(Nm AS STRING, Kind AS STRING, Hint AS STRING, Typed AS STRI
       IF LCASE$(FIELD$(choices, "|", k)) = low THEN Result = FIELD$(choices, "|", k): EXIT FUNCTION
     NEXT
     IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
-    Problem = Nm + " takes one of: " + REPLACESUBSTR$(choices, "|", ", ") + "."
+    Problem = TR$("{name} takes one of: {choices}.", "name", Nm, "choices", REPLACESUBSTR$(choices, "|", ", "))
     EXIT FUNCTION
   END IF
   IF HintHas(Hint, "bool") THEN
     IF low = "on" OR low = "yes" OR low = "true" THEN Result = "1": EXIT FUNCTION
     IF low = "off" OR low = "no" OR low = "false" THEN Result = "0": EXIT FUNCTION
     IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
-    Problem = Nm + " is on or off: type on, off, 1 or 0."
+    Problem = TR$("{name} is on or off: type on, off, 1 or 0.", "name", Nm)
     EXIT FUNCTION
   END IF
   IF LCASE$(Kind) = "boolean" OR LCASE$(Kind) = "bool" THEN
     IF low = "true" OR low = "yes" OR low = "on" OR low = "-1" OR low = "1" THEN Result = "True": EXIT FUNCTION
     IF low = "false" OR low = "no" OR low = "off" OR low = "0" THEN Result = "False": EXIT FUNCTION
-    Problem = Nm + " is True or False: type True or False."
+    Problem = TR$("{name} is True or False: type True or False.", "name", Nm)
     EXIT FUNCTION
   END IF
   IF NumberKind(Kind) OR HintHas(Hint, "color") OR HintHas(Hint, "handle") THEN
     IF LooksNumber(t) THEN Result = t: EXIT FUNCTION
     IF HintHas(Hint, "color") AND LEFT$(t, 1) = "#" THEN
       Result = WebColour(t)
-      IF Result = "" THEN Problem = "A colour as the web writes it has six hex digits, such as #FF8000."
+      IF Result = "" THEN Problem = TR$("A colour as the web writes it has six hex digits, such as #FF8000.")
       EXIT FUNCTION
     END IF
     ' (a constant's name — clRed, MAXORDERS —: the program says whether it is one)
     IF INSTR("ABCDEFGHIJKLMNOPQRSTUVWXYZ_", UCASE$(LEFT$(t, 1))) > 0 AND INSTR(t, " ") = 0 THEN Result = t: EXIT FUNCTION
     IF HintHas(Hint, "color") THEN
-      Problem = Nm + " is a colour: type a number, a colour's name such as clRed, or #RRGGBB."
+      Problem = TR$("{name} is a colour: type a number, a colour's name such as clRed, or #RRGGBB.", "name", Nm)
     ELSE
-      Problem = Nm + " holds a number: type one, such as 42."
+      Problem = TR$("{name} holds a number: type one, such as 42.", "name", Nm)
     END IF
     EXIT FUNCTION
   END IF
@@ -1778,24 +1834,24 @@ SUB BeginSetValue(w AS INTEGER, i AS INTEGER)
   IF i < 0 OR i > MAXVARITEMS THEN EXIT SUB
   expr = ItemExpr(w, i): kind = ItemKind(w, i): hint = ItemHint(w, i): nm = ItemName(w, i)
   IF RunState <> "paused" THEN
-    SetRefused nm, "Values can be changed while the program is paused (F9 sets a breakpoint)."
+    SetRefused nm, TR$("Values can be changed while the program is paused (F9 sets a breakpoint).")
     EXIT SUB
   END IF
   IF expr = "" THEN
-    IF nm <> "" THEN SetRefused nm, nm + " isn't a value that can be set."
+    IF nm <> "" THEN SetRefused nm, TR$("{name} isn't a value that can be set.", "name", nm)
     EXIT SUB
   END IF
   IF HintHas(hint, "readonly") THEN
-    SetRefused nm, nm + " can't be changed: it's read-only."
+    SetRefused nm, TR$("{name} can't be changed: it's read-only.", "name", nm)
     EXIT SUB
   END IF
   IF ItemRef(w, i) > 0 THEN
     IF LCASE$(kind) = "array" THEN
-      SetRefused nm, nm + " is an array: open it and set its elements one at a time."
+      SetRefused nm, TR$("{name} is an array: open it and set its elements one at a time.", "name", nm)
     ELSEIF LEFT$(ItemValue(w, i), 1) = CHR$(34) THEN
-      SetRefused nm, nm + " is a component: open it and set its properties."
+      SetRefused nm, TR$("{name} is a component: open it and set its properties.", "name", nm)
     ELSE
-      SetRefused nm, nm + " is a record (a TYPE): open it and set its fields one at a time."
+      SetRefused nm, TR$("{name} is a record (a TYPE): open it and set its fields one at a time.", "name", nm)
     END IF
     EXIT SUB
   END IF
@@ -1841,15 +1897,15 @@ SUB EditFullText(Full AS STRING)
   ' (a credential the program holds comes as •••• and stays unseen: never
   ' edited from its mask)
   IF Full = "••••" THEN
-    SetRefused ItemName(EditW, EditI), ItemName(EditW, EditI) + " holds a secret: it isn't shown, so it can't be edited here."
+    SetRefused ItemName(EditW, EditI), TR$("{name} holds a secret: it isn't shown, so it can't be edited here.", "name", ItemName(EditW, EditI))
     EXIT SUB
   END IF
   EditOld = TextLiteral(Full)
   EditFull = Full
   IF LEN(Full) > 80 OR INSTR(Full, CHR$(10)) > 0 OR INSTR(Full, CHR$(13)) > 0 THEN
-    ValueEditor.Caption = "Set " + ItemName(EditW, EditI)
+    ValueEditor.Caption = TR$("Set {name}", "name", ItemName(EditW, EditI))
     ValueEditorBox.Text = Full
-    ValueEditorInfo.Caption = Num(LEN(Full)) + " characters, " + Num(TALLY(Full, CHR$(10)) + 1) + " lines"
+    ValueEditorInfo.Caption = TextSize(LEN(Full), TALLY(Full, CHR$(10)) + 1)
     ' (Set's click sets it — ValueEditorSetClick —; Cancel, Esc and the
     ' window's close leave it)
     ValueEditor.ShowModal
@@ -1873,7 +1929,7 @@ END SUB
 ' Variables in the debugging layout — whole, where the status bar would
 ' shorten it —, the status bar pointing there)
 SUB SetRefused(Nm AS STRING, Why AS STRING)
-  SetState RunState, "Can't set " + Nm + ": see Output"
+  SetState RunState, TR$("Can't set {name}: see Output", "name", Nm)
   OutputAfterProgram Why
 END SUB
 
@@ -1887,7 +1943,7 @@ SUB SetTyped(w AS INTEGER, i AS INTEGER, Typed AS STRING)
   END IF
   ' (left as it was: nothing to set, nothing to undo)
   IF w = EditW AND i = EditI AND e = EditOld THEN
-    SetState RunState, ItemName(w, i) + " is unchanged."
+    SetState RunState, TR$("{name} is unchanged.", "name", ItemName(w, i))
     EXIT SUB
   END IF
   SetValue ItemExpr(w, i), e, ""
@@ -2143,6 +2199,12 @@ END SUB
 
 ' ---- Call Stack -----------------------------------------------------------------------------------
 
+' (frame i's name as the Call Stack shows it: the program's own level in words;
+' FrameName keeps "(the program)", the name the code tells it by)
+FUNCTION FrameShown(i AS INTEGER) AS STRING
+  IF FrameName(i) = "(the program)" THEN Result = TR$("(the program)") ELSE Result = FrameName(i)
+END FUNCTION
+
 SUB FillCallStack
   DIM rows AS STRING, n AS INTEGER, k AS INTEGER, row AS STRING
   TreeFilling = 1
@@ -2157,7 +2219,7 @@ SUB FillCallStack
     IF LEFT$(FrameName(k - 1), 2) = "__" THEN FrameName(k - 1) = "(the program)"
     FrameFile(k - 1) = DebugPath(FIELD$(row, CHR$(9), 2))
     FrameLine(k - 1) = VAL(FIELD$(row, CHR$(9), 3))
-    StackTree.AddItems FrameName(k - 1) + "   " + FileTitle(FrameFile(k - 1)) + ":" + Num(FrameLine(k - 1))
+    StackTree.AddItems FrameShown(k - 1) + "   " + FileTitle(FrameFile(k - 1)) + ":" + Num(FrameLine(k - 1))
     IF k = 1 THEN
       StackTree.SetItemValue k - 1, StackTree.Item(k - 1).Text, "CurrentFrame", ""
     ELSE
@@ -2247,7 +2309,7 @@ SUB ImmediateKey(Key AS INTEGER, Shift AS INTEGER)
     ImmEvalId = Session.Evaluate(typed, "repl")
     ImmPending = ImmPending + "|" + Num(ImmEvalId) + "|"
   ELSE
-    ImmAnswer "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
+    ImmAnswer TR$("(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)")
   END IF
 END SUB
 
@@ -2266,21 +2328,21 @@ END SUB
 ' set, copied or viewed, Set Next Statement's; Kind its type, Ref its
 ' children and Count how many)
 SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INTEGER, Count AS INTEGER, Columns AS STRING)
-  DIM failed AS INTEGER, k AS INTEGER, msg AS STRING
+  DIM failed AS INTEGER, k AS INTEGER, msg AS STRING, undoNote AS STRING
   failed = Flag(LEFT$(Answer, 6) = "error:")
   IF Id = SetVarId THEN
     SetVarId = -1
     IF failed THEN
       ' (the program's own words, plain: "count holds a whole number, …")
       IF SetVarImm THEN
-        SetState RunState, "Can't set " + SetVarExpr
+        SetState RunState, TR$("Can't set {name}", "name", SetVarExpr)
         ImmAnswer LTRIM$(MID$(Answer, 7))
       ELSE
         SetRefused SetVarExpr, LTRIM$(MID$(Answer, 7))
       END IF
     ELSE
       IF SetVarUndo THEN
-        SetState RunState, SetVarExpr + " is back to " + Answer
+        SetState RunState, TR$("{name} is back to {value}", "name", SetVarExpr, "value", Answer)
       ELSE
         ' (remembered for Ctrl+Z while the program stays paused)
         IF SetVarOld <> "" THEN
@@ -2297,7 +2359,8 @@ SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INT
         ' room — the value itself is never shortened for it)
         msg = SetVarExpr + " = " + IIF(SetVarShown <> "", SetVarShown, Answer)
         IF SetVarOld <> "" THEN
-          IF FitMiddle(msg + "  (Ctrl+Z undoes)", StateRoom) = msg + "  (Ctrl+Z undoes)" THEN msg = msg + "  (Ctrl+Z undoes)"
+          undoNote = "  " + TR$("(Ctrl+Z undoes)")
+          IF FitMiddle(msg + undoNote, StateRoom) = msg + undoNote THEN msg = msg + undoNote
         END IF
         SetState RunState, msg
       END IF
@@ -2346,23 +2409,23 @@ SUB SessionEvaluated(Id AS INTEGER, Answer AS STRING, Kind AS STRING, Ref AS INT
   ELSEIF Id = CopyEvalId THEN
     CopyEvalId = -1
     IF failed THEN
-      SetState RunState, "Can't copy: " + LTRIM$(MID$(Answer, 7))
+      SetState RunState, TR$("Can't copy: {error}", "error", LTRIM$(MID$(Answer, 7)))
     ELSE
       Clipboard.Text = Answer
-      SetState RunState, "Copied the value (" + Num(LEN(Answer)) + IIF(LEN(Answer) = 1, " character)", " characters)")
+      SetState RunState, TRN$("Copied the value ({n} character)", "Copied the value ({n} characters)", LEN(Answer))
     END IF
   ELSEIF Id = ViewEvalId THEN
     ViewEvalId = -1
     IF failed THEN
-      SetState RunState, "Can't show " + ViewExpr + ": " + LTRIM$(MID$(Answer, 7))
+      SetState RunState, TR$("Can't show {expr}: {error}", "expr", ViewExpr, "error", LTRIM$(MID$(Answer, 7)))
     ELSE
       ShowTextViewer ViewExpr, Answer
     END IF
   ELSEIF Id = GotoEvalId THEN
     GotoEvalId = -1
     IF failed THEN
-      SetState RunState, "Set Next Statement: " + LTRIM$(MID$(Answer, 7))
-      OutputAfterProgram "Set Next Statement: " + LTRIM$(MID$(Answer, 7))
+      SetState RunState, TR$("Set Next Statement: {error}", "error", LTRIM$(MID$(Answer, 7)))
+      OutputAfterProgram TR$("Set Next Statement: {error}", "error", LTRIM$(MID$(Answer, 7)))
     END IF
   END IF
 END SUB
@@ -2495,7 +2558,7 @@ SUB TipChildren(Ref AS INTEGER, Path AS STRING, Depth AS INTEGER, Columns AS STR
   NEXT
   ' (more than came: the next page when it's clicked)
   IF Total > n AND n > 0 THEN
-    TipRow Depth, "e", Path + "/[more]", "", "…", Num(Total - n) + " more", "", Ref, "", "", 0
+    TipRow Depth, "e", Path + "/[more]", "", "…", TR$("{n} more", "n", Total - n), "", Ref, "", "", 0
     TipRowMore(TipRowCount - 1) = n
   END IF
 END SUB
@@ -2552,7 +2615,7 @@ SUB ValueAction(Action AS STRING, Expr AS STRING, Shown AS STRING)
     CASE "copyexpr"
       IF Expr <> "" THEN
         Clipboard.Text = Expr
-        SetState RunState, "Copied " + Expr
+        SetState RunState, TR$("Copied {expr}", "expr", Expr)
       END IF
     CASE "watch"
       IF Expr <> "" THEN AddWatch Expr
@@ -2561,25 +2624,30 @@ SUB ValueAction(Action AS STRING, Expr AS STRING, Shown AS STRING)
         ViewExpr = Expr
         ViewEvalId = Session.Evaluate(Expr, "clipboard")
       ELSE
-        ShowTextViewer "(value)", Shown
+        ShowTextViewer TR$("(value)"), Shown
       END IF
   END SELECT
 END SUB
 
 ' ---- the text viewer: a string's whole text ---------------------------------------------------
 
+' ("12 characters, 3 lines")
+FUNCTION TextSize(Chars AS INTEGER, Lines AS INTEGER) AS STRING
+  Result = TR$("{characters}, {lines}", "characters", TRN$("{n} character", "{n} characters", Chars), "lines", TRN$("{n} line", "{n} lines", Lines))
+END FUNCTION
+
 SUB ShowTextViewer(Expr AS STRING, Text AS STRING)
   DIM lines AS INTEGER
   lines = TALLY(Text, CHR$(10)) + 1
-  TextViewer.Caption = "Text of " + Expr
+  TextViewer.Caption = TR$("Text of {expr}", "expr", Expr)
   TextViewerBox.Text = Text
-  TextViewerInfo.Caption = Num(LEN(Text)) + " characters, " + Num(lines) + " line" + IIF(lines = 1, "", "s")
+  TextViewerInfo.Caption = TextSize(LEN(Text), lines)
   TextViewer.ShowModal
 END SUB
 
 SUB TextViewerCopyClick
   Clipboard.Text = TextViewerBox.Text
-  TextViewerInfo.Caption = "Copied"
+  TextViewerInfo.Caption = TR$("Copied")
 END SUB
 
 ' ---- Set Next Statement, Step Into Specific -------------------------------------------------
@@ -2642,7 +2710,7 @@ SUB SessionTargets(Targets AS STRING)
     IF TargetCount < MAXTARGETS THEN
       row = FIELD$(Targets, CHR$(10), k)
       TargetId(TargetCount) = VAL(FIELD$(row, CHR$(9), 1))
-      TargetItem(TargetCount).Caption = "Step into " + FIELD$(row, CHR$(9), 2)
+      TargetItem(TargetCount).Caption = TR$("Step into {name}", "name", FIELD$(row, CHR$(9), 2))
       TargetItem(TargetCount).Visible = 1
       TargetCount = TargetCount + 1
     END IF
@@ -2716,14 +2784,18 @@ END SUB
 
 ' (the menus made: four items each)
 SUB SetUpValueMenus
-  DIM k AS INTEGER, captions AS STRING
-  captions = "&Copy Value" + CHR$(9) + "Ctrl+C|Copy &Expression|Add &Watch|&View Text...|&Set Value..." + CHR$(9) + "F2"
+  DIM k AS INTEGER, captions(4) AS STRING
+  captions(0) = TR$("&Copy Value") + CHR$(9) + "Ctrl+C"
+  captions(1) = TR$("Copy &Expression")
+  captions(2) = TR$("Add &Watch")
+  captions(3) = TR$("&View Text...")
+  captions(4) = TR$("&Set Value...") + CHR$(9) + "F2"
   FOR k = 0 TO 4
-    VarsMenuItem(k).Caption = FIELD$(captions, "|", k + 1)
+    VarsMenuItem(k).Caption = captions(k)
     VarsMenuItem(k).Tag = k
     VarsMenuItem(k).OnClick = ValueMenuPicked
     VarsMenu.AddItems VarsMenuItem(k)
-    WatchMenuItem(k).Caption = FIELD$(captions, "|", k + 1)
+    WatchMenuItem(k).Caption = captions(k)
     WatchMenuItem(k).Tag = 10 + k
     WatchMenuItem(k).OnClick = ValueMenuPicked
     WatchMenu.AddItems WatchMenuItem(k)
@@ -2755,6 +2827,13 @@ END SUB
 ' set while paused — Ctrl+Z, the tree's OnUndo; True when Id was one)
 FUNCTION DebugPaneCommand(Id AS STRING) AS INTEGER
   DIM w AS INTEGER
+  ' (Call Stack's and Breakpoints' Copy: the selected row)
+  IF Id = "edit.copy" THEN
+    SELECT CASE LCASE$(Dock.ActivePane)
+      CASE "stacktree": StackCopy: Result = 1: EXIT FUNCTION
+      CASE "bppanel": BpCopy: Result = 1: EXIT FUNCTION
+    END SELECT
+  END IF
   SELECT CASE LCASE$(Dock.ActivePane)
     CASE "varstree": w = 0
     CASE "watchpanel": w = 1
@@ -2781,6 +2860,93 @@ END SUB
 
 SUB WatchCopy
   ValueAction "copy", PickedExpr(1), PickedShown(1)
+END SUB
+
+' ---- Call Stack and Breakpoints: Copy, Copy All (COPY-ANYWHERE) ----------------------
+DIM StackMenu AS RPopupMenu
+DIM StackMenuItem(1) AS RMenuItem
+DIM BpMenu AS RPopupMenu
+DIM BpMenuItem(1) AS RMenuItem
+
+' (Ctrl+C — ⌘C — in Call Stack, the tree's OnCopy, and its menu's Copy:
+' the selected call as shown, "Main   main.rr:12")
+SUB StackCopy
+  DIM i AS INTEGER
+  i = StackTree.ItemIndex
+  IF i < 0 OR i >= StackTree.ItemCount THEN EXIT SUB
+  Clipboard.Text = StackTree.Item(i).Text
+  SetState RunState, "Copied the call"
+END SUB
+
+' (…and in Breakpoints: the selected breakpoint as listed, "main.rr:12  when x > 1")
+SUB BpCopy
+  DIM i AS INTEGER
+  i = BpTree.ItemIndex
+  IF i < 0 OR i >= BpCount THEN EXIT SUB
+  Clipboard.Text = BreakpointText(i)
+  SetState RunState, "Copied the breakpoint"
+END SUB
+
+' (Copy All: every call, every breakpoint, a line each)
+SUB ListCopyAll(Which AS INTEGER)
+  DIM i AS INTEGER, t AS STRING, n AS INTEGER
+  t = ""
+  IF Which = 0 THEN
+    n = StackTree.ItemCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + StackTree.Item(i).Text
+    NEXT
+  ELSE
+    n = BpCount
+    FOR i = 0 TO n - 1
+      IF i > 0 THEN t = t + CHR$(10)
+      t = t + BreakpointText(i)
+    NEXT
+  END IF
+  IF n = 0 THEN EXIT SUB
+  Clipboard.Text = t
+  IF Which = 0 THEN
+    SetState RunState, TRN$("Copied {n} call", "Copied {n} calls", n)
+  ELSE
+    SetState RunState, TRN$("Copied {n} breakpoint", "Copied {n} breakpoints", n)
+  END IF
+END SUB
+
+SUB ListMenusOpening
+  StackMenuItem(0).Enabled = Flag(StackTree.ItemIndex >= 0)
+  StackMenuItem(1).Enabled = Flag(StackTree.ItemCount > 0)
+  BpMenuItem(0).Enabled = Flag(BpTree.ItemIndex >= 0 AND BpCount > 0)
+  BpMenuItem(1).Enabled = Flag(BpCount > 0)
+END SUB
+
+SUB ListMenuPicked(Sender AS RMenuItem)
+  SELECT CASE Sender.Tag
+    CASE 0: StackCopy
+    CASE 1: ListCopyAll 0
+    CASE 10: BpCopy
+    CASE 11: ListCopyAll 1
+  END SELECT
+END SUB
+
+SUB SetUpListMenus
+  DIM k AS INTEGER
+  FOR k = 0 TO 1
+    StackMenuItem(k).Caption = IIF(k = 0, TR$("&Copy"), TR$("Copy &All"))
+    StackMenuItem(k).Tag = k
+    StackMenuItem(k).OnClick = ListMenuPicked
+    StackMenu.AddItems StackMenuItem(k)
+    BpMenuItem(k).Caption = IIF(k = 0, TR$("&Copy"), TR$("Copy &All"))
+    BpMenuItem(k).Tag = 10 + k
+    BpMenuItem(k).OnClick = ListMenuPicked
+    BpMenu.AddItems BpMenuItem(k)
+  NEXT
+  StackMenuItem(0).ShortCut = "Ctrl+C"
+  BpMenuItem(0).ShortCut = "Ctrl+C"
+  StackMenu.OnPopup = ListMenusOpening
+  BpMenu.OnPopup = ListMenusOpening
+  StackTree.PopupMenu = StackMenu
+  BpTree.PopupMenu = BpMenu
 END SUB
 
 ' ---- the commands ------------------------------------------------------------------------------
@@ -3115,7 +3281,7 @@ SUB SetUpDebug
   ' tests/studio_perf.mjs — PERF-1's cold start)
   IF ENVIRON$("RAPIDR_STUDIO_PERF") <> "" THEN PerfReady.Enabled = 1
 
-  DebugTree VarsTree, "Variables"
+  DebugTree VarsTree, TR$("Variables")
   VarsTree.OnExpanding = VarsExpanding
   VarsTree.OnCollapsed = VarsCollapsed
   ' (a value set in place: F2)
@@ -3129,7 +3295,7 @@ SUB SetUpDebug
   WatchPanel.Parent = Studio
   WatchPanel.Width = 440: WatchPanel.Height = 190
   WatchPanel.BevelOuter = 0
-  WatchPanel.AccessibleName = "Watch"
+  WatchPanel.AccessibleName = TR$("Watch")
   ' (a strip at the top: "Add" and the box an expression is typed in)
   WatchStrip.Parent = WatchPanel
   WatchStrip.Align = 1
@@ -3137,13 +3303,13 @@ SUB SetUpDebug
   WatchStrip.BevelOuter = 0
   WatchLabel.Parent = WatchStrip
   WatchLabel.Left = 6: WatchLabel.Top = 7: WatchLabel.Width = 88
-  WatchLabel.Caption = "&Add a watch:"
+  WatchLabel.Caption = TR$("&Add a watch:")
   WatchEdit.Parent = WatchStrip
   WatchEdit.Left = 96: WatchEdit.Top = 4: WatchEdit.Width = 260
-  WatchEdit.Hint = "Add a watch: an expression, then Enter"
-  WatchEdit.AccessibleName = "Add a watch"
+  WatchEdit.Hint = TR$("Add a watch: an expression, then Enter")
+  WatchEdit.AccessibleName = TR$("Add a watch")
   WatchEdit.OnKeyDown = WatchEditKey
-  DebugTree WatchTree, "Watches"
+  DebugTree WatchTree, TR$("Watches")
   WatchTree.Parent = WatchPanel
   WatchTree.Align = 5
   WatchTree.OnExpanding = WatchExpanding
@@ -3156,7 +3322,7 @@ SUB SetUpDebug
   WatchTree.OnEditing = WatchEditing
   WatchTree.OnEdited = WatchEdited
 
-  DebugTree StackTree, "Call Stack"
+  DebugTree StackTree, TR$("Call Stack")
   StackTree.ShowRoot = 0
   StackTree.ShowLines = 0
   StackTree.ShowButtons = 0
@@ -3165,7 +3331,7 @@ SUB SetUpDebug
   BpPanel.Parent = Studio
   BpPanel.Width = 440: BpPanel.Height = 190
   BpPanel.BevelOuter = 0
-  BpPanel.AccessibleName = "Breakpoints"
+  BpPanel.AccessibleName = TR$("Breakpoints")
   BpStrip.Parent = BpPanel
   BpStrip.Align = 2
   BpStrip.Height = 30
@@ -3173,33 +3339,33 @@ SUB SetUpDebug
   BpCondLabel.Parent = BpStrip
   ' (each label clear of its box: Inter is wider than MS Sans Serif)
   BpCondLabel.Left = 6: BpCondLabel.Top = 7: BpCondLabel.Width = 40
-  BpCondLabel.Caption = "&When"
+  BpCondLabel.Caption = TR$("&When")
   BpCondEdit.Parent = BpStrip
   BpCondEdit.Left = 50: BpCondEdit.Top = 4: BpCondEdit.Width = 130
-  BpCondEdit.Hint = "A condition: it stops when this is true (clicks > 1)"
-  BpCondEdit.AccessibleName = "Condition"
+  BpCondEdit.Hint = TR$("A condition: it stops when this is true (clicks > 1)")
+  BpCondEdit.AccessibleName = TR$("Condition")
   BpCondEdit.OnKeyDown = BpEditKey
   BpHitLabel.Parent = BpStrip
   BpHitLabel.Left = 190: BpHitLabel.Top = 7: BpHitLabel.Width = 24
-  BpHitLabel.Caption = "&Hit"
+  BpHitLabel.Caption = TR$("&Hit")
   BpHitEdit.Parent = BpStrip
   BpHitEdit.Left = 218: BpHitEdit.Top = 4: BpHitEdit.Width = 50
-  BpHitEdit.Hint = "A hit count: 3 (the third time), >= 3, % 3 (every third)"
-  BpHitEdit.AccessibleName = "Hit count"
+  BpHitEdit.Hint = TR$("A hit count: 3 (the third time), >= 3, % 3 (every third)")
+  BpHitEdit.AccessibleName = TR$("Hit count")
   BpHitEdit.OnKeyDown = BpEditKey
   BpLogLabel.Parent = BpStrip
   BpLogLabel.Left = 278: BpLogLabel.Top = 7: BpLogLabel.Width = 28
-  BpLogLabel.Caption = "&Log"
+  BpLogLabel.Caption = TR$("&Log")
   BpLogEdit.Parent = BpStrip
   BpLogEdit.Left = 310: BpLogEdit.Top = 4: BpLogEdit.Width = 116
-  BpLogEdit.Hint = "A logpoint: prints this ({expr} shows a value) and goes on"
-  BpLogEdit.AccessibleName = "Log message"
+  BpLogEdit.Hint = TR$("A logpoint: prints this ({{expr}} shows a value) and goes on")
+  BpLogEdit.AccessibleName = TR$("Log message")
   BpLogEdit.OnKeyDown = BpEditKey
   BpOnCheck.Parent = BpStrip
   BpOnCheck.Left = 436: BpOnCheck.Top = 6: BpOnCheck.Width = 46
-  BpOnCheck.Caption = "On"
+  BpOnCheck.Caption = TR$("On")
   BpOnCheck.OnClick = BpOnClicked
-  DebugTree BpTree, "Breakpoints"
+  DebugTree BpTree, TR$("Breakpoints")
   BpTree.Parent = BpPanel
   BpTree.Align = 5
   BpTree.ShowRoot = 0
@@ -3208,18 +3374,44 @@ SUB SetUpDebug
   BpTree.OnClick = BpTreeClick
   BpTree.OnDblClick = BpTreeOpen
   BpTree.OnKeyDown = BpTreeKey
+  ' (COPY-ANYWHERE: Ctrl+C — ⌘C — and a right-click's Copy / Copy All in
+  ' Call Stack and Breakpoints)
+  StackTree.OnCopy = StackCopy
+  BpTree.OnCopy = BpCopy
+  SetUpListMenus
 
   ' (the debugging layout's group beside Output — Variables, Watch, Call
   ' Stack, Breakpoints —; Breakpoints is a tab beside Output while editing:
   ' DebugLayoutLoaded, after the layout is read, puts each where the mode
   ' says)
-  Dock.AddPane(VarsTree, "Variables", "right:outputbox", "variables")
-  Dock.AddPane(WatchPanel, "Watch", "tab:varstree", "watch")
-  Dock.AddPane(StackTree, "Call Stack", "tab:varstree", "callstack")
-  Dock.AddPane(BpPanel, "Breakpoints", "tab:varstree", "breakpoint")
+  Dock.AddPane(VarsTree, TR$("Variables"), "right:outputbox", "variables")
+  Dock.AddPane(WatchPanel, TR$("Watch"), "tab:varstree", "watch")
+  Dock.AddPane(StackTree, TR$("Call Stack"), "tab:varstree", "callstack")
+  Dock.AddPane(BpPanel, TR$("Breakpoints"), "tab:varstree", "breakpoint")
   Dock.ShowPane("varstree")
   IF DebugPanesMode = "" THEN DebugPanesMode = "auto"
   SetUpValueMenus
+  FillVariables
+  FillWatches
+  FillBreakpoints
+END SUB
+
+' The language changed: the debugger's panes made again in it (the titles
+' and what the trees show; captions, hints and names follow by themselves,
+' but the logpoint's hint has braces in it and is set again here).
+SUB DebugLanguageChanged
+  Dock.PaneTitle("varstree", TR$("Variables"))
+  Dock.PaneTitle("watchpanel", TR$("Watch"))
+  Dock.PaneTitle("stacktree", TR$("Call Stack"))
+  BpLogEdit.Hint = TR$("A logpoint: prints this ({{expr}} shows a value) and goes on")
+  IF RunState = "paused" THEN
+    FillCallStack
+  ELSEIF DebugStale THEN
+    TreeFilling = 1
+    StackTree.Clear
+    StackTree.AddItems TR$("Running…")
+    TreeFilling = 0
+  END IF
   FillVariables
   FillWatches
   FillBreakpoints

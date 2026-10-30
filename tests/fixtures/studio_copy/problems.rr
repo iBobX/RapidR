@@ -1,0 +1,9 @@
+' (COPY-ANYWHERE) A program with two problems: the Problems page's rows
+' selected and copied (tests/studio_flows.mjs copy-problems)
+$APPTYPE CONSOLE
+
+DIM total AS INTEGER
+total = 1
+PRINT totl
+CALL Missing(total)
+CALL Other(2)

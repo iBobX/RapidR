@@ -196,17 +196,17 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             let want = arg(2).to_i64();
             manager::with_mut(dock, |m| m.set_pane_extent(&name(0), axis, want))
         }
-        "savelayout" => return Some(Value::String(manager::with_mut(dock, |m| m.save()))),
+        "savelayout" => return Some(Value::String(manager::with_mut(dock, |m| m.save()).into())),
         "loadlayout" => manager::with_mut(dock, |m| m.load(&s(0))),
         "resetlayout" => manager::with_mut(dock, |m| m.reset()),
         "pane" => {
             let i = arg(0).to_i64();
-            return Some(Value::String(manager::with(dock, |m| (i >= 0).then(|| m.panes.get(i as usize).map(|p| p.given.clone())).flatten()).flatten().unwrap_or_default()));
+            return Some(Value::String(manager::with(dock, |m| (i >= 0).then(|| m.panes.get(i as usize).map(|p| p.given.clone())).flatten()).flatten().unwrap_or_default().into()));
         }
         "document" => {
             let i = arg(0).to_i64();
             let d = manager::with(dock, |m| (i >= 0).then(|| m.layout.documents.get(i as usize).cloned()).flatten()).flatten();
-            return Some(Value::String(d.map(|d| given(dock, &d)).unwrap_or_default()));
+            return Some(Value::String(d.map(|d| given(dock, &d)).unwrap_or_default().into()));
         }
         "panetitle" => {
             if args.len() >= 2 {
@@ -222,10 +222,10 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
                 mdi::set_child_title(&docs_name(dock), &p, &t);
                 Outcome::default()
             } else {
-                return Some(Value::String(manager::with(dock, |m| m.pane(&name(0)).map(|p| p.title.clone())).flatten().unwrap_or_default()));
+                return Some(Value::String(manager::with(dock, |m| m.pane(&name(0)).map(|p| p.title.clone())).flatten().unwrap_or_default().into()));
             }
         }
-        "panestate" => return Some(Value::String(manager::with(dock, |m| m.state_of(&name(0)).to_string()).unwrap_or_default())),
+        "panestate" => return Some(Value::String(manager::with(dock, |m| m.state_of(&name(0)).to_string()).unwrap_or_default().into())),
         "panevisible" => {
             let p = name(0);
             let shown = manager::with(dock, |m| m.layout.find(&p).is_some() && m.layout.is_active(&p)).unwrap_or(false);
@@ -263,7 +263,7 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
             // (a view's component lives in the document area)
             let docs = docs_name(dock);
             if rt.exists(&docs) && !rt.get(&comp, "parent").to_string_val().eq_ignore_ascii_case(&docs) {
-                rt.set(&comp, "parent", Value::String(docs));
+                rt.set(&comp, "parent", Value::String(docs.into()));
             }
             Outcome { changed: false, ..out }
         }
@@ -272,7 +272,7 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
         "documentview" => {
             let p = name(0);
             if args.len() < 2 {
-                return Some(Value::String(manager::with(dock, |m| m.pane(&p).map(|i| i.view_caption())).flatten().unwrap_or_default()));
+                return Some(Value::String(manager::with(dock, |m| m.pane(&p).map(|i| i.view_caption())).flatten().unwrap_or_default().into()));
             }
             let v = manager::with(dock, |m| m.view_named(&p, &s(1))).flatten();
             match v {
@@ -293,6 +293,34 @@ pub fn rt_method<R: Runtime>(rt: R, dock: &str, method: &str, args: &[Value]) ->
                 }
                 m.touch();
             });
+            Outcome::default()
+        }
+        // (RapidR's) DocumentBar(Name[, Component]): a strip across the top
+        // of a tabbed document, above its views (a question about the
+        // document: RapidR Studio's "changed outside Studio"), as tall as
+        // the component's Height; "" takes it away. A component is the bar
+        // of one document at a time.
+        "documentbar" => {
+            let p = name(0);
+            if args.len() < 2 {
+                return Some(Value::String(manager::with(dock, |m| m.pane(&p).map(|i| i.bar.clone())).flatten().unwrap_or_default().into()));
+            }
+            let bar = component_arg(&arg(1)).to_ascii_lowercase();
+            let old: Vec<String> = manager::with_mut(dock, |m| {
+                let mut old = Vec::new();
+                for i in m.panes.iter_mut() {
+                    if (i.name == p && i.bar != bar && !i.bar.is_empty()) || (i.name != p && !bar.is_empty() && i.bar == bar) {
+                        old.push(std::mem::take(&mut i.bar));
+                    }
+                    if i.name == p {
+                        i.bar = bar.clone();
+                    }
+                }
+                old
+            });
+            for b in old.iter().filter(|b| **b != bar) {
+                hide(rt, b);
+            }
             Outcome::default()
         }
         // SplitDocument(Name, Side): a new group of documents on that side
@@ -335,12 +363,12 @@ pub fn rt_get(dock: &str, prop: &str) -> Option<Value> {
     let read = |m: &manager::Manager| -> Option<Value> {
         Some(match p.as_str() {
             "documentmode" => Value::String(m.layout.mode.name().into()),
-            "activedocument" => Value::String(m.active_document().map(|d| m.pane(&d).map_or(d.clone(), |i| i.given.clone())).unwrap_or_default()),
-            "activepane" => Value::String(m.active_pane.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default()),
+            "activedocument" => Value::String(m.active_document().map(|d| m.pane(&d).map_or(d.clone(), |i| i.given.clone())).unwrap_or_default().into()),
+            "activepane" => Value::String(m.active_pane.as_ref().map(|a| m.pane(a).map_or(a.clone(), |i| i.given.clone())).unwrap_or_default().into()),
             "panecount" => Value::Integer(m.panes.len() as i64),
             "documentcount" => Value::Integer(m.layout.documents.len() as i64),
             "documentgroupcount" => Value::Integer(if m.layout.documents.is_empty() { 0 } else { m.layout.group_count() as i64 }),
-            "layout" => Value::String(m.save()),
+            "layout" => Value::String(m.save().into()),
             _ => return None,
         })
     };
@@ -467,7 +495,7 @@ pub fn finish<R: Runtime>(rt: R, dock: &str, out: Outcome) {
 
 fn fire<R: Runtime>(rt: R, dock: &str, e: &Event) {
     // (the pane named as the program named it)
-    let args: Vec<Value> = e.args.iter().map(|a| Value::String(given(dock, &a.to_string_val()))).collect();
+    let args: Vec<Value> = e.args.iter().map(|a| Value::String(given(dock, &a.to_string_val()).into())).collect();
     rt.fire(dock, e.name, &args);
 }
 
@@ -483,11 +511,12 @@ fn close_next<R: Runtime>(rt: R, dock: String, mut rest: Vec<String>) {
     }
     let name = given(&dock, &doc);
     let d = dock.clone();
-    let views: Vec<String> = manager::with(&dock, |m| m.pane(&doc).map(|i| i.views.iter().map(|v| v.0.clone()).collect())).flatten().unwrap_or_default();
+    // (its views and its bar go with it)
+    let views: Vec<String> = manager::with(&dock, |m| m.pane(&doc).map(|i| i.views.iter().map(|v| v.0.clone()).chain((!i.bar.is_empty()).then(|| i.bar.clone())).collect())).flatten().unwrap_or_default();
     rt.fire_then(
         &dock,
         "ondocumentclose",
-        &[Value::String(name), int(0)],
+        &[Value::String(name.into()), int(0)],
         Box::new(move |args: &[Value]| {
             let cancel = args.get(1).is_some_and(Value::to_bool);
             if !cancel {
@@ -537,7 +566,7 @@ fn focus_pane<R: Runtime>(rt: R, dock: &str, pane: &str) {
 
 fn place<R: Runtime>(rt: R, name: &str, parent: &str, r: Rect) {
     if !rt.get(name, "parent").to_string_val().eq_ignore_ascii_case(parent) {
-        rt.set(name, "parent", Value::String(parent.to_string()));
+        rt.set(name, "parent", Value::String(parent.to_string().into()));
     }
     for (p, v) in [("left", r.0), ("top", r.1), ("width", r.2), ("height", r.3)] {
         if rt.get(name, p).to_i64() != v {
@@ -580,9 +609,9 @@ fn ensure_group<R: Runtime>(rt: R, dock: &str, slot: Slot, parent: &str) -> Stri
     let name = group_name(dock, slot);
     if !rt.exists(&name) {
         rt.create(&name, "RDOCKGROUP");
-        rt.set(&name, "__dock", Value::String(dock.to_string()));
-        rt.set(&name, "__slot", Value::String(slot.suffix()));
-        rt.set(&name, "parent", Value::String(parent.to_string()));
+        rt.set(&name, "__dock", Value::String(dock.to_string().into()));
+        rt.set(&name, "__slot", Value::String(slot.suffix().into()));
+        rt.set(&name, "parent", Value::String(parent.to_string().into()));
     }
     name
 }
@@ -630,8 +659,8 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
         let docs = docs_name(dock);
         if !rt.exists(&docs) {
             rt.create(&docs, "RDOCKDOCS");
-            rt.set(&docs, "__dock", Value::String(dock.to_string()));
-            rt.set(&docs, "parent", Value::String(dock.to_string()));
+            rt.set(&docs, "__dock", Value::String(dock.to_string().into()));
+            rt.set(&docs, "parent", Value::String(dock.to_string().into()));
         }
         let size_before = (rt.get(&docs, "width").to_i64(), rt.get(&docs, "height").to_i64());
         place(rt, &docs, dock, d.rect);
@@ -665,26 +694,50 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
             let (all, shown) = comps(p);
             for c in &all {
                 if !rt.get(c, "parent").to_string_val().eq_ignore_ascii_case(&docs) {
-                    rt.set(c, "parent", Value::String(docs.clone()));
+                    rt.set(c, "parent", Value::String(docs.clone().into()));
                 }
             }
             if mdi_on {
-                // (an MDI window holds the document's own component)
+                // (an MDI window holds the document's own component; a bar
+                // is the tabs')
                 for c in all.iter().filter(|c| *c != p) {
                     hide(rt, c);
+                }
+                if let Some(b) = manager::with(dock, |m| m.pane(p).map(|i| i.bar.clone())).flatten().filter(|b| !b.is_empty()) {
+                    hide(rt, &b);
                 }
                 if mdi::child_index(&docs, p).is_none() {
                     let title = manager::with(dock, |m| m.pane(p).map(|i| i.title.clone())).flatten().unwrap_or_default();
                     let h = crate::handles::handle_of(p);
-                    let _ = mdi::call(&docs, "addchild", &[int(h), Value::String(title), int(k as i64), int(0), int(0), int(0), int(0), int(-1)], client, &crate::handles::name_of);
+                    let _ = mdi::call(&docs, "addchild", &[int(h), Value::String(title.into()), int(k as i64), int(0), int(0), int(0), int(0), int(-1)], client, &crate::handles::name_of);
                 }
                 continue;
             }
             // (tabbed: the shown document of each group in its group's places)
             let gr = d.groups.iter().find(|g| g.shown().map(String::as_str) == Some(p.as_str()));
+            // (its bar, when it has one: across the top of its places, the
+            // views under it)
+            let bar = manager::with(dock, |m| m.pane(p).map(|i| i.bar.clone())).flatten().unwrap_or_default();
+            let mut bar_h = 0;
+            if !bar.is_empty() && rt.exists(&bar) {
+                match gr.filter(|g| !g.places.is_empty()) {
+                    Some(g) => {
+                        let x0 = g.places.iter().map(|r| r.0).min().unwrap_or(0);
+                        let y0 = g.places.iter().map(|r| r.1).min().unwrap_or(0);
+                        let x1 = g.places.iter().map(|r| r.0 + r.2).max().unwrap_or(0);
+                        let h_min = g.places.iter().map(|r| r.3).min().unwrap_or(0);
+                        bar_h = rt.get(&bar, "height").to_i64().clamp(0, (h_min - 24).max(0));
+                        place(rt, &bar, &docs, (x0, y0, x1 - x0, bar_h));
+                    }
+                    None => hide(rt, &bar),
+                }
+            }
             for c in &all {
                 match (gr, shown.iter().position(|x| x == c)) {
-                    (Some(g), Some(i)) if i < g.places.len() => place_pane(rt, c, &docs, g.places[i]),
+                    (Some(g), Some(i)) if i < g.places.len() => {
+                        let r = g.places[i];
+                        place_pane(rt, c, &docs, (r.0, r.1 + bar_h, r.2, r.3 - bar_h));
+                    }
                     _ => hide(rt, c),
                 }
             }
@@ -725,7 +778,7 @@ fn apply_now<R: Runtime>(rt: R, dock: &str) {
             rt.set(&form, "borderstyle", int(2));
         }
         let title = manager::with(dock, |m| m.pane(&fl.panes[fl.active]).map(|p| p.title.clone())).flatten().unwrap_or_default();
-        rt.set(&form, "caption", Value::String(title));
+        rt.set(&form, "caption", Value::String(title.into()));
         for (p, v) in [("left", fl.rect.0), ("top", fl.rect.1), ("width", fl.rect.2), ("height", fl.rect.3)] {
             if rt.get(&form, p).to_i64() != v {
                 rt.set(&form, p, int(v));

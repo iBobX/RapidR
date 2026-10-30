@@ -13,6 +13,7 @@ mod cache;
 mod examples;
 mod home;
 mod import;
+mod i18n;
 mod lang;
 mod lang_truth;
 // (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
@@ -37,7 +38,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -201,6 +202,7 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("i18n"), _) => i18n::command(&args[1..]),
         (Some("ai"), _) => ai::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
@@ -213,7 +215,12 @@ fn main() -> ExitCode {
         (Some("upgrade-names"), _) => import::upgrade_names(&args[1..]),
         (Some("__dialog"), Some(path)) => launch::run_dialog(&path),
         (Some("install-app"), Some(dir)) => package::install_app(Path::new(&dir)),
-        (Some("lsp"), _) => rapidr_lsp::run_stdio(),
+        (Some("lsp"), _) => {
+            // (hovers and help in the user's language: RAPIDR_LANG, else the
+            // system's — the registry's translated docs, English without)
+            rapidr_lang::docs_i18n::set_doc_language(&rapidr_diagnostics::messages::cli_language());
+            rapidr_lsp::run_stdio()
+        }
         (Some("dap"), _) => rapidr_dap::run_stdio(),
         (Some("serve"), _) => serve::run(&args[1..]),
         (Some("parse"), Some(path)) => parse_source_file(&path),
@@ -300,6 +307,7 @@ fn main() -> ExitCode {
             }
             build_source_file(&path, output_dir.or(app.output.clone()), release.unwrap_or(true), web, interp, target, csp, &app)
         }
+        (Some("check"), _) => check_files(&args[1..]),
         (Some("build-bc"), Some(path)) => {
             let mut out: Option<String> = None;
             let mut iter = rest.iter();
@@ -339,6 +347,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr run --session <file> [args]               Run it under the IDE's session protocol (stdio)");
             eprintln!("  rapidr open <file> [args]                        Run it as opening it from the desktop does");
             eprintln!("  rapidr info <file>                               Its app type, format and the runtime it needs");
+            eprintln!("  rapidr check <file.rr|.bas>…                     Its errors and warnings as Studio's Problems pane lists them, each fix of another language's habit under it");
             eprintln!("  rapidr setup [--check|--rust] [--yes] [--toolchain gnullvm|msvc]  Rust for native builds, rapidr on PATH");
             eprintln!("  rapidr ide [file.rr]                             The IDE");
             eprintln!("  rapidr examples [copy <name|all> [folder]]       The example programs: listed, or copied to a folder");
@@ -355,6 +364,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
+            eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");
+            eprintln!("  rapidr i18n extract|pseudo|update|check|studio|compiler|coverage …  Translators' tools");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
@@ -435,7 +446,21 @@ fn uses_studio_components(path: &str) -> bool {
         Ok(p) => p.source.to_ascii_uppercase(),
         Err(_) => fs::read_to_string(path).unwrap_or_default().to_ascii_uppercase(),
     };
-    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION"))
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RREPOSITORY"))
+}
+
+/// Whether the program uses RArchive or COMPRESS$ / DECOMPRESS$: a native
+/// build gets the runtime's `archive` feature (the zip, 7z, tar … code)
+/// only then — the lean-builds rule, docs/lean-builds-and-export-plan.md.
+/// Its words after `$INCLUDE`s (and their `$`s dropped: `COMPRESS$` is
+/// `COMPRESS`); a word in a comment or a string only adds code, never
+/// removes what the program needs.
+fn uses_archive(path: &str) -> bool {
+    let text = match rapidr_preprocessor::preprocess_file(Path::new(path), Default::default()) {
+        Ok(p) => p.source.to_ascii_uppercase(),
+        Err(_) => fs::read_to_string(path).unwrap_or_default().to_ascii_uppercase(),
+    };
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RARCHIVE" | "COMPRESS" | "DECOMPRESS"))
 }
 
 /// `rapidr codegen <file> [folder]`: the Rust project for a program, in
@@ -510,17 +535,27 @@ fn generate_rust_project(path: &str, out_dir: &Path, force_web: bool) -> Result<
     if target == AppTarget::Desktop && gui {
         rust_source.insert_str(0, "#![windows_subsystem = \"windows\"]\n");
     }
+    let archive = uses_archive(path);
     let cargo_toml = if target == AppTarget::Web {
-        rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
+        let toml = rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy());
+        // (the web runtime has RArchive by default — the interpreter's wasm
+        // needs it —: a program that doesn't use it is built without)
+        if archive {
+            toml
+        } else {
+            toml.replacen("rapidr-runtime-web = { path = ", "rapidr-runtime-web = { default-features = false, path = ", 1)
+        }
     } else {
         let toml = rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy());
         // (RapidR Studio's components — RPROJECT, RLANGUAGESERVICE,
         // RPROGRAMSESSION — come with the runtime's `studio` feature, only in
-        // the programs that use them: the language service is large)
-        if uses_studio_components(path) {
-            toml.replacen("rapidr-runtime-core = { path = ", "rapidr-runtime-core = { features = [\"studio\"], path = ", 1)
-        } else {
+        // the programs that use them: the language service is large; RArchive
+        // and COMPRESS$ / DECOMPRESS$ with its `archive` feature, the same way)
+        let features: Vec<&str> = [(uses_studio_components(path), "\"studio\""), (archive, "\"archive\"")].into_iter().filter(|(on, _)| *on).map(|(_, f)| f).collect();
+        if features.is_empty() {
             toml
+        } else {
+            toml.replacen("rapidr-runtime-core = { path = ", &format!("rapidr-runtime-core = {{ features = [{}], path = ", features.join(", ")), 1)
         }
     };
     fs::create_dir_all(&src_dir).map_err(|e| format!("Cannot create {}: {e}", src_dir.display()))?;
@@ -1108,6 +1143,68 @@ fn web_needs(path: &str, csp: Option<&str>) -> Result<rapidr_webbundle::WebNeeds
 /// Preprocess → lex → parse → bytecode, keeping the preprocessed source so
 /// every error carries `file:line:col`. All errors are reported, one per line.
 fn compile_to_bytecode(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
+    // (a syntax from another language gets its fix under the compiler's own
+    // message: one more line, `  hint: …` — rapidr_langsvc::foreign)
+    compile_to_bytecode_plain(path).map_err(|e| rapidr_langsvc::foreign::annotate(&e, &|file| fs::read_to_string(file).ok()))
+}
+
+/// `rapidr check <file>…`: what RapidR Studio's Problems pane lists for each
+/// program (the program a file is the main file of, with the files it
+/// `$INCLUDE`s): its errors, warnings and notes, a line each as `file:line:col:
+/// severity: message`, an error that is another language's habit with its
+/// fix under it (`  hint: …`). Nothing is built or run. Exit status 1 when
+/// there is an error.
+fn check_files(args: &[String]) -> ExitCode {
+    let files: Vec<&String> = args.iter().filter(|a| !a.starts_with("--")).collect();
+    if files.is_empty() {
+        eprintln!("Usage: rapidr check <file.rr|.bas>…");
+        return ExitCode::from(2);
+    }
+    // (the messages in the user's language — RAPIDR_LANG, else the system's —
+    // RC.EXE's own words beside a translated one: rapidr_diagnostics::messages)
+    let lang = rapidr_diagnostics::messages::cli_language();
+    let mut errors = 0;
+    for path in files {
+        let text = match fs::read_to_string(path) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("{path}: {e}");
+                errors += 1;
+                continue;
+            }
+        };
+        let file = PathBuf::from(path);
+        let mut analysis = rapidr_langsvc::Analysis::new(rapidr_langsvc::Options::default());
+        analysis.update(file.clone(), text);
+        let mut found = analysis.diagnostics(&file);
+        rapidr_langsvc::sort_problems(&mut found, &file);
+        if found.is_empty() {
+            println!("{}", rapidr_diagnostics::messages::localize(&format!("{path}: no problems"), &lang));
+        }
+        for d in &found {
+            let shown = analysis.text(&d.file).unwrap_or_default();
+            let before = shown.get(..d.start.min(shown.len())).unwrap_or("");
+            let line = before.matches('\n').count() + 1;
+            let col = before.rsplit('\n').next().map_or(0, |l| l.chars().count()) + 1;
+            if d.severity == rapidr_langsvc::Severity::Error {
+                errors += 1;
+            }
+            let place = if d.file == file { path.clone() } else { d.file.display().to_string() };
+            eprintln!("{}", rapidr_diagnostics::messages::localize_report(&format!("{place}:{line}:{col}: {}: {}", d.severity, d.message), &lang));
+            if let Some(h) = d.hint {
+                // (the fix, in the language of the message above it)
+                eprintln!("  {}: {}", rapidr_diagnostics::messages::hint_label(&lang), h.text_in(&lang));
+            }
+        }
+    }
+    if errors > 0 {
+        ExitCode::from(1)
+    } else {
+        ExitCode::SUCCESS
+    }
+}
+
+fn compile_to_bytecode_plain(path: &str) -> Result<rapidr_bcgen::Compiled, String> {
     let pre = preprocess_file(path, PreprocessOptions::default()).map_err(|e| e.to_string())?;
     // Positions count preprocessed lines; map them back to the real file
     // and line (code from an $INCLUDE reports the include file).
@@ -1190,6 +1287,9 @@ fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     // `run-bc <file>` (COMMAND$, CommandCount, Application.ExeName), as
     // `rapidr run` and a built executable.
     let program = home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    // (RapidR's crash reports, as for `rapidr run`: rapidr-crash)
+    rapidr_crash::install(rapidr_crash::App::Program);
+    rapidr_crash::set_program_file(&program);
     rapidr_vm_host_native::set_program(&program, args);
     // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
     // indirect event dispatcher *before* `MAIN` runs — required for any

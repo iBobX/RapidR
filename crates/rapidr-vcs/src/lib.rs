@@ -267,6 +267,47 @@ pub struct SaveOptions {
     pub allow_secrets: bool,
 }
 
+/// RapidR Studio's own folder in a project (`.rapidr/`: the local history
+/// of saves, previews): never in a version, a safety point or a checkpoint
+/// ([`Versions::changes`] leaves it out).
+pub const STUDIO_FOLDER: &str = ".rapidr/";
+
+/// What RapidR puts in a project's `.gitignore` when versioning starts
+/// ([`write_ignore_file`]): Studio's own folder and what Build and Run
+/// write beside the program.
+pub const IGNORE_LINES: &[&str] = &[
+    "# RapidR Studio's own files: the local history of saves, previews",
+    ".rapidr/",
+    "# What Build and Run write beside the program",
+    "*_web/",
+    "*_rust/",
+    "*.tmp.*",
+    "THIRD-PARTY-NOTICES.txt",
+];
+
+/// Writes RapidR's `.gitignore` in `dir` (the versions-plan's "git init +
+/// RapidR's .gitignore"): a new one with [`IGNORE_LINES`], or — the
+/// project has its own — `.rapidr/` added at its end when it isn't there
+/// (nothing else in it is changed). Whether the file was written.
+pub fn write_ignore_file(dir: &Path) -> Result<bool> {
+    let path = dir.join(".gitignore");
+    match std::fs::read_to_string(&path) {
+        Ok(text) => {
+            if text.lines().any(|l| matches!(l.trim(), ".rapidr" | ".rapidr/" | "/.rapidr" | "/.rapidr/")) {
+                return Ok(false);
+            }
+            let sep = if text.is_empty() || text.ends_with('\n') { "" } else { "\n" };
+            std::fs::write(&path, format!("{text}{sep}{}\n{}\n", IGNORE_LINES[0], IGNORE_LINES[1])).ctx("Could not write the project's .gitignore.")?;
+            Ok(true)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            std::fs::write(&path, format!("{}\n", IGNORE_LINES.join("\n"))).ctx("Could not write the project's .gitignore.")?;
+            Ok(true)
+        }
+        Err(e) => Err(e).ctx("Could not read the project's .gitignore."),
+    }
+}
+
 /// The options every repository is opened with: only its own
 /// configuration, never the system's, the user's, the environment's or
 /// included files.
@@ -429,6 +470,12 @@ impl Versions {
         let mut out = Vec::new();
         for item in iter {
             let item = item.ctx("Could not check the project for changes.")?;
+            // (RapidR Studio's own folder — the local history of saves,
+            // previews — is never part of a version, a safety point or a
+            // checkpoint, whatever the project's .gitignore says)
+            if item.rela_path().starts_with(STUDIO_FOLDER.as_bytes()) {
+                continue;
+            }
             match item {
                 Item::Modification { rela_path, status, .. } => {
                     let state = match status {
@@ -688,9 +735,29 @@ impl Versions {
         self.compare_trees(a, b)
     }
 
+    /// What version `version` changed (the Timeline's "What changed?"):
+    /// its files against its first parent's — every file new for the
+    /// first version —, with hunks, files sorted by path.
+    pub fn changes_in(&self, version: &str) -> Result<Vec<FileDiff>> {
+        let id = self.resolve(version)?;
+        let tree = self.tree_of(version)?;
+        let parent = self.repo.find_commit(id).ctx("Could not read a version.")?.parent_ids().next().map(|p| p.detach());
+        match parent {
+            Some(p) => {
+                let a = self.tree_id_of_commit(p)?;
+                self.compare_trees_from(Some(a), tree)
+            }
+            None => self.compare_trees_from(None, tree),
+        }
+    }
+
     fn compare_trees(&self, a: ObjectId, b: ObjectId) -> Result<Vec<FileDiff>> {
+        self.compare_trees_from(Some(a), b)
+    }
+
+    fn compare_trees_from(&self, a: Option<ObjectId>, b: ObjectId) -> Result<Vec<FileDiff>> {
         let mut out = Vec::new();
-        for (path, old, new) in checkout::tree_changes(&self.repo, Some(a), b)? {
+        for (path, old, new) in checkout::tree_changes(&self.repo, a, b)? {
             let data = |id: Option<(ObjectId, gix::objs::tree::EntryMode)>| -> Result<Vec<u8>> {
                 match id {
                     Some((id, _)) => Ok(self.repo.find_object(id).ctx("Could not read a file.")?.detach().data),
@@ -760,7 +827,9 @@ impl Versions {
         let v = self.version(target)?;
         let words = format!("Went back to \u{201C}{}\u{201D} ({})", first_line(&v.message), v.short_id());
         let safety = self.safety_point(&words)?;
-        let id = self.commit_on_head(&format!("Go back to \u{201C}{}\u{201D} ({})", first_line(&v.message), v.short_id()), tree, head, who)?;
+        // (the version's message says what happened, as the history does:
+        // what the Timeline shows)
+        let id = self.commit_on_head(&words, tree, head, who)?;
         checkout::switch_files(self, tree)?;
         let branch = self.head_ref()?;
         self.record(history::Entry::new("go-back", words).moved(&branch, head, Some(id)).with_before(safety).with_after(tree))?;
@@ -779,6 +848,51 @@ impl Versions {
         checkout::restore_paths(self, tree, &[path.to_string()])?;
         let after = self.working_tree()?;
         self.record(history::Entry::new("restore-file", words).with_before(safety).with_after(after))
+    }
+
+    /// **Go back to this version, for one file**: a new version whose
+    /// `path` is as it was in `version` (removed when that version didn't
+    /// have it); every other file stays as the last version has it, and
+    /// their unsaved changes stay unsaved. Never a destructive reset: the
+    /// newer versions stay on the timeline. `path` itself must have no
+    /// unsaved changes ([`ErrorKind::UnsavedChanges`]); a safety point
+    /// first, one history entry (one Undo). Returns the new version's id.
+    pub fn go_back_file(&mut self, path: &str, version: &str, who: &Person) -> Result<String> {
+        self.writable()?;
+        let path = path.replace('\\', "/");
+        if self.changes()?.iter().any(|c| c.path == path) {
+            return fail(ErrorKind::UnsavedChanges, format!("{path} has changes that aren't in a version yet. Save a version first (or undo them), then go back."));
+        }
+        let target = self.resolve(version)?;
+        let old_tree = self.tree_of(version)?;
+        let Some(head) = self.head_id()? else {
+            return fail(ErrorKind::NothingToSave, "Save a first version first.");
+        };
+        let head_tree = self.tree_id_of_commit(head)?;
+        let wanted = checkout::entry_at(&self.repo, old_tree, &path)?;
+        if checkout::entry_at(&self.repo, head_tree, &path)? == wanted {
+            return fail(ErrorKind::NothingToSave, format!("{path} is already as it was in that version."));
+        }
+        let mut editor = self.repo.edit_tree(head_tree).ctx("Could not build the version's list of files.")?;
+        match wanted {
+            Some((id, mode)) => {
+                editor.upsert(path.as_str(), mode.kind(), id).ctx("Could not build the version's list of files.")?;
+            }
+            None => {
+                editor.remove(path.as_str()).ctx("Could not build the version's list of files.")?;
+            }
+        }
+        let tree = editor.write().ctx("Could not write the version's list of files.")?.detach();
+        let v = self.version(target)?;
+        let words = format!("Went back to \u{201C}{}\u{201D} ({}) for {path}", first_line(&v.message), v.short_id());
+        let safety = self.safety_point(&words)?;
+        let id = self.commit_on_head(&words, tree, Some(head), who)?;
+        checkout::restore_paths(self, tree, std::slice::from_ref(&path))?;
+        checkout::reset_index(self)?;
+        let branch = self.head_ref()?;
+        let after = self.working_tree()?;
+        self.record(history::Entry::new("go-back", words).moved(&branch, Some(head), Some(id)).with_before(safety).with_after(after))?;
+        Ok(id.to_string())
     }
 
     // ---------------------------------------------------- experiments --

@@ -48,10 +48,16 @@ else:
   encryption and the key derivation that follow it are the system's OpenSSL
   3, not compiled-in code. On macOS and Windows the keys go to the system's
   Keychain and Credential Manager, and no code of RapidR's is involved.
-- **Hashing** (SHA-1, SHA-256, CRC-32), which is not encryption.
+- **Hashing** (SHA-1, SHA-256, CRC-32), which is not encryption. RArchive
+  uses SHA-256 to check the integrity of .xz files.
+- **ZipCrypto**, the old zip cipher, as code inside the zip library RArchive
+  uses: RArchive never calls it (it refuses encrypted entries). No AES: the
+  zip and 7z libraries' AES features are off, and AES crates are banned.
 
-A web build contains none of these: the browser does the HTTPS.
-[docs/licensing.md](docs/licensing.md) §2.5 says where each one comes from.
+A web build contains only RArchive's hashing and its unused ZipCrypto code
+(the browser does the HTTPS), and a native build carries RArchive only when
+the program uses it. [docs/licensing.md](docs/licensing.md) §2.5 says where
+each one comes from.
 
 ## What to ship, for each kind of output
 
@@ -181,6 +187,15 @@ is called Versions, and it is built on Git). Their owners' notices:
 - Postgres, PostgreSQL and the Slonik Logo are trademarks or registered
   trademarks of the PostgreSQL Community Association of Canada, and used with
   their permission.
+- Model Context Protocol® and MCP™ are marks of LF Projects, LLC
+  (https://www.lfprojects.org/policies/). RapidR uses them only to say which
+  protocol it speaks (RapidR Studio's AI apps feature, the `RMcpServer`
+  component). Claude Code is a product of Anthropic, PBC; the manual names
+  it once, as an example of an AI app that connects.
+- RAR is a trademark of its owner; 7-Zip, PKWARE, PKZIP, ZIP64, Deflate64
+  and Zstandard are names or marks of their owners. RapidR uses these names
+  only to say which file formats it reads and writes (the `RArchive`
+  component), and is independent of all of them.
 
 RapidR is not affiliated with or endorsed by these owners. Names are used
 only to say what RapidR works with.

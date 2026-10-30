@@ -305,11 +305,26 @@ impl<'a> Parser<'a> {
             Some(t) => t,
             None => return,
         };
-        if self.diagnostics.iter().any(|d| d.location.line == tok.line) {
+        if self.diagnostics.iter().any(|d| d.severity == Severity::Error && d.location.line == tok.line) {
             return;
         }
         self.diagnostics.push(Diagnostic::error(
             message,
+            tok.span,
+            SourceLocation::new(tok.line, tok.column),
+            None,
+        ));
+    }
+
+    /// RC.EXE's warning for a block that was never closed — `! WARNING:
+    /// Missing NEXT statement` (also WEND, LOOP, END IF and END SELECT; the
+    /// program still compiles, as it does there): at the token that opened
+    /// the block, which RC.EXE's report doesn't give.
+    fn warn_missing(&mut self, opener: usize, closer: &str) {
+        let Some(tok) = self.tokens.get(opener) else { return };
+        self.diagnostics.push(Diagnostic::new(
+            Severity::Warning,
+            format!("Missing {closer} statement"),
             tok.span,
             SourceLocation::new(tok.line, tok.column),
             None,
@@ -1879,8 +1894,10 @@ impl<'a> Parser<'a> {
         }
 
         // consume END IF
-        self.expect(TokenType::End);
-        self.expect(TokenType::If);
+        let (had_end, had_if) = (self.expect(TokenType::End).is_some(), self.expect(TokenType::If).is_some());
+        if !(had_end && had_if) {
+            self.warn_missing(start, "END IF");
+        }
 
         Some(IfStatement {
             span: self.span_from(start),
@@ -1918,7 +1935,9 @@ impl<'a> Parser<'a> {
         self.consume_eol();
         let body = self.parse_body(&[Terminator::Keyword("NEXT")]);
         // consume NEXT [var]
-        self.expect(TokenType::Next);
+        if self.expect(TokenType::Next).is_none() {
+            self.warn_missing(start, "NEXT");
+        }
         // optional variable name after NEXT
         if self.peek_kind() == Some(TokenType::Identifier) {
             self.advance();
@@ -1949,7 +1968,9 @@ impl<'a> Parser<'a> {
         let step = if self.match_kind(TokenType::Step) { Some(self.parse_expression()?) } else { None };
         self.consume_eol();
         let mut body = self.parse_body(&[Terminator::Keyword("NEXT")]);
-        self.expect(TokenType::Next);
+        if self.expect(TokenType::Next).is_none() {
+            self.warn_missing(start, "NEXT");
+        }
         if !self.at_eol() && self.peek_kind() != Some(TokenType::Colon) {
             self.parse_postfix_expression();
         }
@@ -1989,7 +2010,9 @@ impl<'a> Parser<'a> {
         let condition = self.parse_expression()?;
         self.consume_eol();
         let body = self.parse_body(&[Terminator::Keyword("WEND")]);
-        self.expect(TokenType::Wend);
+        if self.expect(TokenType::Wend).is_none() {
+            self.warn_missing(start, "WEND");
+        }
         Some(WhileStatement {
             span: self.span_from(start),
             condition,
@@ -2013,7 +2036,9 @@ impl<'a> Parser<'a> {
 
         self.consume_eol();
         let body = self.parse_body(&[Terminator::Keyword("LOOP")]);
-        self.expect(TokenType::Loop);
+        if self.expect(TokenType::Loop).is_none() {
+            self.warn_missing(start, "LOOP");
+        }
 
         // LOOP WHILE / LOOP UNTIL (post-condition)
         let (condition, post_until) = if !pre_condition {
@@ -2140,8 +2165,10 @@ impl<'a> Parser<'a> {
             });
         }
 
-        self.expect(TokenType::End);
-        self.expect(TokenType::Select);
+        let (had_end, had_select) = (self.expect(TokenType::End).is_some(), self.expect(TokenType::Select).is_some());
+        if !(had_end && had_select) {
+            self.warn_missing(start, "END SELECT");
+        }
 
         Some(SelectCaseStatement {
             span: self.span_from(start),

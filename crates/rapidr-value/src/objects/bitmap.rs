@@ -21,6 +21,7 @@
 //! and text finer, SVGs drawn at that scale — and the runtimes show it
 //! in the bitmap's size, so nothing looks blurry or blocky.
 
+use super::blit::{self, Source, Target};
 use super::codec::{base64_encode, bmp_data_url, decode_svg, encode_bmp_alpha, is_svg, Pixels, BMP_DATA_URL, MAX_PIXELS, SVG_DATA_URL};
 use super::font::Font;
 use crate::{v_int, v_str, Value};
@@ -156,14 +157,31 @@ impl HiRes {
     }
 
     fn to_rgba(&self, transparent: Option<u32>) -> Vec<u8> {
-        let soft = self.alpha.as_deref().filter(|a| a.len() == self.img.pixels.len());
-        let mut out = Vec::with_capacity(self.img.pixels.len() * 4);
-        for (i, &c) in self.img.pixels.iter().enumerate() {
-            let alpha = if transparent == Some(c) { 0 } else { soft.map_or(255, |a| a[i]) };
-            out.extend_from_slice(&[c as u8, (c >> 8) as u8, (c >> 16) as u8, alpha]);
-        }
-        out
+        rgba_of(&self.img.pixels, self.alpha.as_deref().filter(|a| a.len() == self.img.pixels.len()), transparent)
     }
+}
+
+/// `pixels` (&HBBGGRR) as RGBA bytes: opaque, or as `soft` says; the colour
+/// `transparent` (if any) not at all. A whole frame of it is made for the
+/// screen each time a bitmap changes, so it is one pass over the pixels.
+fn rgba_of(pixels: &[u32], soft: Option<&[u8]>, transparent: Option<u32>) -> Vec<u8> {
+    let mut out = vec![0u8; pixels.len() * 4];
+    let (quads, _) = out.as_chunks_mut::<4>();
+    match soft {
+        None => {
+            // (a colour no pixel has when there is no key: nothing is skipped)
+            let key = transparent.unwrap_or(u32::MAX);
+            for (o, &c) in quads.iter_mut().zip(pixels) {
+                *o = [c as u8, (c >> 8) as u8, (c >> 16) as u8, if c == key { 0 } else { 255 }];
+            }
+        }
+        Some(a) => {
+            for ((o, &c), &alpha) in quads.iter_mut().zip(pixels).zip(a) {
+                *o = [c as u8, (c >> 8) as u8, (c >> 16) as u8, if transparent == Some(c) { 0 } else { alpha }];
+            }
+        }
+    }
+    out
 }
 
 /// The points of the line (x1, y1)–(x2, y2), both ends included.
@@ -264,6 +282,11 @@ pub struct Bitmap {
     /// a PixelFormat the program sets reads back. The pixels are kept 32-bit
     /// whatever it says.
     pub pixel_format: i64,
+    /// RapidR's `Smooth`: whether `StretchDraw` and `CopyRect` blend when
+    /// they scale (bilinear). False, how a scaled copy has always been
+    /// drawn, takes the nearest pixel: crisp, as pixel art and an
+    /// emulator's screen want it.
+    pub smooth: bool,
 }
 
 /// TPixelFormat of a BMP file's pixels (its bit count; 16 bits: pf15bit
@@ -374,6 +397,7 @@ impl Default for Bitmap {
             redraw: None,
             revision: next_revision(),
             pixel_format: 0,
+            smooth: false,
         }
     }
 }
@@ -667,6 +691,16 @@ impl Bitmap {
     /// Draws `src` with its top-left corner at (x, y), skipping its
     /// transparent color if it has one.
     pub fn draw(&mut self, x: i64, y: i64, src: &Bitmap) {
+        // A plain picture (no transparent colour, no soft edges, not an
+        // SVG that is drawn again at the screen's scale) is rows copied.
+        if !src.transparent && src.alpha_channel().is_none() && src.svg.is_none() && src.redraw.is_none() {
+            let (w, h) = (src.img.width as i64, src.img.height as i64);
+            if w == 0 || h == 0 {
+                return;
+            }
+            self.copy_rect((x, y, x + w, y + h), src, (0, 0, w, h));
+            return;
+        }
         let alpha = src.alpha_channel();
         for sy in 0..src.img.height {
             for sx in 0..src.img.width {
@@ -799,38 +833,72 @@ impl Bitmap {
     }
 
     /// Copies the (sx1,sy1)-(sx2,sy2) area of `src`, scaled, onto the
-    /// (dx1,dy1)-(dx2,dy2) area of this bitmap.
+    /// (dx1,dy1)-(dx2,dy2) area of this bitmap: a row at a time, each
+    /// pixel the nearest one of `src` — or, with [`Bitmap::smooth`], the
+    /// blend of the four around it. What the screen shows is scaled the
+    /// same way from what `src` shows (finer, when it has it).
     #[allow(clippy::too_many_arguments)]
     pub fn copy_rect(&mut self, (dx1, dy1, dx2, dy2): (i64, i64, i64, i64), src: &Bitmap, (sx1, sy1, sx2, sy2): (i64, i64, i64, i64)) {
         let (dw, dh, sw, sh) = (dx2 - dx1, dy2 - dy1, sx2 - sx1, sy2 - sy1);
         if dw <= 0 || dh <= 0 || sw <= 0 || sh <= 0 || dw * dh > MAX_PIXELS as i64 {
             return;
         }
-        for y in 0..dh {
-            for x in 0..dw {
-                if let Some(c) = src.pixel(sx1 + x * sw / dw, sy1 + y * sh / dh) {
-                    self.lo_pset(dx1 + x, dy1 + y, c);
-                }
-            }
-        }
+        let smooth = self.smooth;
+        self.svg = None;
+        self.redraw = None;
+        self.touch();
+        let (iw, ih, len) = (self.img.width, self.img.height, self.img.pixels.len());
+        blit::scale(
+            &mut Target { px: &mut self.img.pixels, alpha: self.alpha.as_deref_mut().filter(|a| a.len() == len), w: iw, h: ih },
+            (dx1, dy1, dw, dh),
+            Source { px: &src.img.pixels, w: src.img.width, h: src.img.height },
+            (sx1, sy1, sw, sh),
+            smooth,
+        );
         let Some(hi) = self.hi_mut() else { return };
         let s = hi.scale as i64;
+        let (hw, hh) = (hi.img.width, hi.img.height);
+        let len = hi.img.pixels.len();
+        let mut target = Target { px: &mut hi.img.pixels, alpha: hi.alpha.as_deref_mut().filter(|a| a.len() == len), w: hw, h: hh };
         // (from what `src` shows at this scale, when it has it)
         let fine = src.hi.as_deref().filter(|h| h.scale as i64 == s && h.img.width == src.img.width * s as usize && h.img.height == src.img.height * s as usize);
-        let (pw, ph) = (dw * s, dh * s);
-        for y in 0..ph {
-            for x in 0..pw {
-                // The source device pixel under this one.
-                let (fx, fy) = (sx1 * s + x * sw / dw, sy1 * s + y * sh / dh);
-                let c = match fine {
-                    Some(f) => f.pixel(fx, fy),
-                    None => src.pixel(fx.div_euclid(s), fy.div_euclid(s)),
-                };
-                if let Some(c) = c {
-                    hi.put(dx1 * s + x, dy1 * s + y, c);
-                }
-            }
+        match fine {
+            Some(f) => blit::scale(&mut target, (dx1 * s, dy1 * s, dw * s, dh * s), Source { px: &f.img.pixels, w: f.img.width, h: f.img.height }, (sx1 * s, sy1 * s, sw * s, sh * s), smooth),
+            // (else its pixels, each a square of the finer ones)
+            None => blit::scale(&mut target, (dx1 * s, dy1 * s, dw * s, dh * s), Source { px: &src.img.pixels, w: src.img.width, h: src.img.height }, (sx1, sy1, sw, sh), smooth),
         }
+    }
+
+    /// Puts `block` — `w` × `h` colours, row by row (&HBBGGRR) — into the
+    /// bitmap with its top-left corner at (x, y); the caller has checked
+    /// that it lies inside. Whole rows are copied (what the screen shows
+    /// too, each pixel a square of it): the one call that replaces
+    /// `w` × `h` calls of `Pset`.
+    pub fn put_block(&mut self, x: usize, y: usize, w: usize, h: usize, block: &[u32]) {
+        if w == 0 || h == 0 || block.len() < w * h {
+            return;
+        }
+        self.svg = None;
+        self.redraw = None;
+        self.touch();
+        let (iw, ih, len) = (self.img.width, self.img.height, self.img.pixels.len());
+        blit::put_block(&mut Target { px: &mut self.img.pixels, alpha: self.alpha.as_deref_mut().filter(|a| a.len() == len), w: iw, h: ih }, x, y, w, h, block, 1);
+        if let Some(hi) = self.hi_mut() {
+            let (s, hw, hh) = (hi.scale, hi.img.width, hi.img.height);
+            let len = hi.img.pixels.len();
+            blit::put_block(&mut Target { px: &mut hi.img.pixels, alpha: hi.alpha.as_deref_mut().filter(|a| a.len() == len), w: hw, h: hh }, x, y, w, h, block, s);
+        }
+    }
+
+    /// The colours of the `w` × `h` block with its top-left corner at (x, y)
+    /// (inside the bitmap), row by row.
+    pub fn read_block(&self, x: usize, y: usize, w: usize, h: usize) -> Vec<u32> {
+        let mut out = Vec::with_capacity(w * h);
+        for row in y..y + h {
+            let from = row * self.img.width + x;
+            out.extend_from_slice(&self.img.pixels[from..from + w]);
+        }
+        out
     }
 
     pub fn get(&self, prop: &str) -> Option<Value> {
@@ -862,6 +930,7 @@ impl Bitmap {
             "transparent" => v_int(if self.transparent { -1 } else { 0 }),
             "transparentcolor" => v_int(self.transparent_color as i64),
             "pixelformat" if !self.picture => v_int(self.pixel_format),
+            "smooth" => v_int(if self.smooth { -1 } else { 0 }),
             _ => return None,
         })
     }
@@ -899,6 +968,7 @@ impl Bitmap {
                 "fontcolor" => self.font.color = color as i64,
                 "fontname" => self.font.name = val.to_string_val(),
                 "fontsize" => self.font.size = -val.to_i64().clamp(1, 1000),
+                "smooth" => self.smooth = val.to_bool(),
                 _ => return None,
             }
             return Some(Ok(()));
@@ -915,6 +985,7 @@ impl Bitmap {
             "transparent" => self.transparent = val.to_bool(),
             "transparentcolor" => self.transparent_color = super::color_bgr(val.to_i64()),
             "pixelformat" if !self.picture => self.pixel_format = val.to_i64(),
+            "smooth" => self.smooth = val.to_bool(),
             _ => return None,
         }
         Some(Ok(()))
@@ -1098,13 +1169,7 @@ impl Bitmap {
     /// Pixels as RGBA bytes for drawing on screen; the transparent color (if
     /// the bitmap has one) gets alpha 0.
     pub fn to_rgba(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(self.img.pixels.len() * 4);
-        let soft = self.alpha_channel();
-        for (i, &c) in self.img.pixels.iter().enumerate() {
-            let alpha = if self.transparent && c == self.transparent_color { 0 } else { soft.map_or(255, |a| a[i]) };
-            out.extend_from_slice(&[c as u8, (c >> 8) as u8, (c >> 16) as u8, alpha]);
-        }
-        out
+        rgba_of(&self.img.pixels, self.alpha_channel(), self.transparent.then_some(self.transparent_color))
     }
 
     /// Loads a BMP — or an SVG, drawn at its size (with its soft edges), in

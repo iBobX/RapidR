@@ -17,6 +17,7 @@ DIM PromptAnswer AS INTEGER
 DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
 DIM PromptAgain AS INTEGER  ' 1: File > Copy Example Again's question (Copy Again, Cancel)
 DIM PromptFolder AS INTEGER ' 1: a project file a browser gave alone (Open Folder..., Cancel)
+DIM PromptRestore AS INTEGER ' 1: unsaved work kept from a Studio that ended (Restore, Discard, Not Now)
 DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
 DIM PromptMany AS INTEGER   ' (the question laid out last: again when the look changes)
@@ -27,20 +28,20 @@ CREATE SavePrompt AS RForm
   BorderStyle = 3
   ' (Save first: it has the keyboard when the question shows)
   CREATE PromptSave AS RButton
-    Caption = "&Save": Tag = 1
+    Caption = TR$("&Save"): Tag = 1
     Default = 1
     OnClick = PromptPick
   END CREATE
   CREATE PromptReview AS RButton
-    Caption = "&Review Changes...": Tag = 3
+    Caption = TR$("&Review Changes..."): Tag = 3
     OnClick = PromptPick
   END CREATE
   CREATE PromptDont AS RButton
-    Caption = "Do&n't Save": Tag = 2
+    Caption = TR$("Do&n't Save"): Tag = 2
     OnClick = PromptPick
   END CREATE
   CREATE PromptCancel AS RButton
-    Caption = "Cancel": Tag = 0
+    Caption = TR$("Cancel"): Tag = 0
     Cancel = 1
     OnClick = PromptPick
   END CREATE
@@ -82,6 +83,7 @@ SUB LayOutPrompt(Many AS INTEGER)
   END IF
   IF PromptAgain THEN ws = ws + 14
   IF PromptFolder THEN ws = ws + 30
+  IF PromptRestore THEN wc = wc + 10
   SavePrompt.Font.Name = UIFont.Name: SavePrompt.Font.Size = UIFont.Size
   PromptTitle.Font = SubFont
   PromptText.Font.Color = TC("page.dim")
@@ -106,19 +108,24 @@ SUB LayOutPrompt(Many AS INTEGER)
   ' (Copy Example Again: Copy Again or Cancel, nothing between; a project
   ' file without its files: Open Folder... or Cancel)
   PromptDont.Visible = Flag(PromptAgain = 0 AND PromptFolder = 0)
-  IF PromptFolder THEN
-    PromptSave.Caption = "&Open Folder..."
+  PromptCancel.Caption = TR$("Cancel")
+  IF PromptRestore THEN
+    PromptSave.Caption = TR$("&Restore")
+    PromptDont.Caption = TR$("&Discard")
+    PromptCancel.Caption = TR$("Not Now")
+  ELSEIF PromptFolder THEN
+    PromptSave.Caption = TR$("&Open Folder...")
   ELSEIF PromptAgain THEN
-    PromptSave.Caption = "&Copy Again"
+    PromptSave.Caption = TR$("&Copy Again")
   ELSEIF PromptRust THEN
-    PromptSave.Caption = "&Build Interpreted Instead"
-    PromptDont.Caption = "&Install Rust..."
+    PromptSave.Caption = TR$("&Build Interpreted Instead")
+    PromptDont.Caption = TR$("&Install Rust...")
   ELSEIF Many THEN
-    PromptSave.Caption = "Save &All"
-    PromptDont.Caption = "&Discard Changes"
+    PromptSave.Caption = TR$("Save &All")
+    PromptDont.Caption = TR$("&Discard Changes")
   ELSE
-    PromptSave.Caption = "&Save"
-    PromptDont.Caption = "Do&n't Save"
+    PromptSave.Caption = TR$("&Save")
+    PromptDont.Caption = TR$("Do&n't Save")
   END IF
   PromptSave.Width = ws: PromptDont.Width = wd: PromptReview.Width = wr: PromptCancel.Width = wc
   PromptSave.Height = bh: PromptDont.Height = bh: PromptReview.Height = bh: PromptCancel.Height = bh
@@ -171,8 +178,8 @@ END FUNCTION
 FUNCTION AskRust AS STRING
   PromptRust = 1
   LayOutPrompt 0
-  PromptTitle.Caption = "Native builds need Rust (it is free)."
-  PromptText.Caption = "Rust is not installed on this computer. An interpreted app needs none and runs the same program."
+  PromptTitle.Caption = TR$("Native builds need Rust (it is free).")
+  PromptText.Caption = TR$("Rust is not installed on this computer. An interpreted app needs none and runs the same program.")
   PromptAnswer = PROMPT_CANCEL
   SavePrompt.Center
   SavePrompt.ShowModal
@@ -222,7 +229,7 @@ FUNCTION AskUndoAnyway(Question AS STRING, Detail AS STRING) AS INTEGER
   DIM y AS INTEGER
   PromptAgain = 1
   LayOutPrompt 0
-  PromptSave.Caption = "&Undo Anyway"
+  PromptSave.Caption = TR$("&Undo Anyway")
   ' (what changed takes a few lines: all of it shows)
   PromptText.Height = PromptText.Height * 2 + 4
   y = PromptText.Top + PromptText.Height + 16

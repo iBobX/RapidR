@@ -39,11 +39,11 @@ CREATE Studio AS RForm
   CREATE ToolBar AS RToolBar
     Align = 1: Height = 40
     ButtonSize = 30
-    AccessibleName = "Tool bar"
+    AccessibleName = TR$("Tool bar")
     OnButtonClick = ToolClicked
   END CREATE
   CREATE Status AS RStatusBar
-    AccessibleName = "Status"
+    AccessibleName = TR$("Status")
   END CREATE
   CREATE Dock AS RDockManager
     Align = 5
@@ -56,7 +56,7 @@ CREATE Studio AS RForm
   ' ---- tool panes ----
   CREATE ProjectTree AS RProjectTree
     Width = 250: Height = 300
-    AccessibleName = "Project"
+    AccessibleName = TR$("Project")
     OnOpen = ProjectNodeOpen
     OnSelect = ProjectNodeSelect
     OnNewFile = ProjectNewFile
@@ -66,7 +66,7 @@ CREATE Studio AS RForm
   END CREATE
   CREATE Toolbox AS RToolbox
     Width = 250: Height = 300
-    AccessibleName = "Toolbox"
+    AccessibleName = TR$("Toolbox")
     OnPick = ToolboxPick
     OnSelect = ToolboxSelect
     OnDragStart = ToolboxDragStart
@@ -74,25 +74,25 @@ CREATE Studio AS RForm
   END CREATE
   CREATE Inspector AS RPropertyInspector
     Width = 290: Height = 340
-    AccessibleName = "Properties"
+    AccessibleName = TR$("Properties")
     OnPropertyChange = InspectorChanged
     OnEventDblClick = InspectorEvent
   END CREATE
   CREATE OutlineTree AS RTreeView
     Width = 290: Height = 260
     Images = SymbolIcons
-    AccessibleName = "Outline"
+    AccessibleName = TR$("Outline")
     OnDblClick = OutlineOpen
   END CREATE
   CREATE OutputBox AS ROutputConsole
     Width = 700: Height = 190
-    AccessibleName = "Output"
+    AccessibleName = TR$("Output")
     OnLinkClick = OutputLink
   END CREATE
   CREATE ImmediateBox AS RRichEdit
     Width = 700: Height = 190
     WordWrap = 0
-    AccessibleName = "Immediate"
+    AccessibleName = TR$("Immediate")
     OnKeyDown = ImmediateKey
   END CREATE
   ' (the problems and the outline follow the editor once typing stops)
@@ -111,6 +111,12 @@ CREATE Studio AS RForm
     Enabled = 0
     OnTimer = AnalyzerTick
   END CREATE
+  ' (the file the project tree's selection rests on, shown: panels.inc)
+  CREATE PreviewTimer AS RTimer
+    Interval = 250
+    Enabled = 0
+    OnTimer = PreviewTick
+  END CREATE
 
   ' ---- the start page (a document): the brand, Start, Recent, the examples ----
   ' (a scroll box holding the page: a window too short for every example
@@ -118,7 +124,7 @@ CREATE Studio AS RForm
   CREATE Welcome AS RScrollBox
     Width = 720: Height = 520
     BorderStyle = 0
-    AccessibleName = "Welcome"
+    AccessibleName = TR$("Welcome")
     OnResize = LayOutWelcome
     CREATE WelcomePage AS RPanel
     Width = 720: Height = 520
@@ -134,23 +140,23 @@ CREATE Studio AS RForm
     END CREATE
     CREATE WelcomeTag AS RLabel
       Left = 48: Top = 92: Width = 640: Height = 20
-      Caption = "BASIC is powerful again: desktop and web apps from one source."
+      Caption = TR$("BASIC is powerful again: desktop and web apps from one source.")
     END CREATE
     CREATE StartHead AS RLabel
       Left = 48: Top = 136: Width = 220: Height = 22
-      Caption = "Start"
+      Caption = TR$("Start")
     END CREATE
     CREATE RecentHead AS RLabel
       Left = 48: Top = 324: Width = 220: Height = 22
-      Caption = "Recent"
+      Caption = TR$("Recent")
     END CREATE
     CREATE RecentNone AS RLabel
       Left = 48: Top = 354: Width = 220: Height = 20
-      Caption = "No recent projects yet"
+      Caption = TR$("No recent projects yet")
     END CREATE
     CREATE ExamplesHead AS RLabel
       Left = 300: Top = 136: Width = 300: Height = 22
-      Caption = "Examples"
+      Caption = TR$("Examples")
     END CREATE
     END CREATE
   END CREATE
@@ -158,8 +164,8 @@ CREATE Studio AS RForm
   ' ---- the command palette (Ctrl+Shift+P): over the window's top ----
   CREATE Palette AS RCommandPalette
     Width = 600
-    Placeholder = "Type a command, :line, or an example"
-    AccessibleName = "Command Palette"
+    Placeholder = TR$("Type a command, :line, or an example")
+    AccessibleName = TR$("Command Palette")
     OnCommand = PaletteCommand
   END CREATE
 END CREATE
@@ -167,11 +173,11 @@ END CREATE
 
 ' ---- File > New Project ---------------------------------------------------------------
 CREATE NewDialog AS RForm
-  Caption = "New Project"
+  Caption = TR$("New Project")
   Width = 460: Height = 230
   BorderStyle = 3
   CREATE NewNameLabel AS RLabel
-    Left = 16: Top = 20: Width = 90: Caption = "&Name:"
+    Left = 16: Top = 20: Width = 90: Caption = TR$("&Name:")
   END CREATE
   ' (the fields as tall as LayOutDialogs makes them: not their font's
   ' height again when the dialog first shows — RapidQ's QEDIT AutoSize —,
@@ -180,27 +186,27 @@ CREATE NewDialog AS RForm
     Left = 110: Top = 16: Width = 320: AutoSize = 0
   END CREATE
   CREATE NewKindLabel AS RLabel
-    Left = 16: Top = 56: Width = 90: Caption = "Template:"
+    Left = 16: Top = 56: Width = 90: Caption = TR$("Template:")
   END CREATE
   ' (the templates' cards: workspace.inc's gallery)
   CREATE NewFolderLabel AS RLabel
-    Left = 16: Top = 92: Width = 90: Caption = "&Folder:"
+    Left = 16: Top = 92: Width = 90: Caption = TR$("&Folder:")
   END CREATE
   CREATE NewFolder AS REdit
     Left = 110: Top = 88: Width = 284: AutoSize = 0
   END CREATE
   CREATE NewFolderBtn AS RButton
     Left = 400: Top = 87: Width = 30: Caption = "..."
-    AccessibleName = "Choose the folder"
+    AccessibleName = TR$("Choose the folder")
     OnClick = NewBrowse
   END CREATE
   CREATE NewOk AS RButton
-    Left = 254: Top = 140: Width = 84: Caption = "Create"
+    Left = 254: Top = 140: Width = 84: Caption = TR$("Create")
     Default = 1
     OnClick = NewCreate
   END CREATE
   CREATE NewNo AS RButton
-    Left = 346: Top = 140: Width = 84: Caption = "Cancel"
+    Left = 346: Top = 140: Width = 84: Caption = TR$("Cancel")
     Cancel = 1
     OnClick = NewCancel
   END CREATE

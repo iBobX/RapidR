@@ -45,8 +45,27 @@ follows Direct3D's documentation where those are silent.
 - `PLAYWAV file [, options]` and `PLAYSOUND` play WAV, Ogg Vorbis, FLAC and
   MP3 files (or `$RESOURCE`s); `BEEP` and `SOUND freq, duration`.
 - **RMIDI** (older name `QMIDI`, from `QMidi.inc`) plays standard MIDI files with MCI's timing on
-  the system's MIDI output; where there is none (macOS, Linux, browsers
-  without Web MIDI) RapidR's own General MIDI synthesizer plays them.
+  a system MIDI output that makes sound; where there is none (macOS, Linux,
+  browsers without Web MIDI) RapidR's own General MIDI synthesizer plays them.
+  An output counts when its name says it is a synthesizer (Windows' *GS
+  Wavetable Synth*, FluidSynth, TiMidity …) or, on Windows, when it is the
+  first one that isn't a loop or a bus. A Mac's own MIDI outputs (an IAC bus,
+  a network session, a virtual port another program made) and Linux's *Midi
+  Through* only pass messages on to other programs and make no sound, so a
+  song is never sent to one of them by itself: RapidR's synthesizer plays it.
+  To play on a keyboard or a sound module you have plugged in, name it before
+  the program starts (a part of its name, in any case); `builtin` always
+  plays on RapidR's synthesizer. A name no output has is reported on the
+  error output and RapidR's synthesizer plays.
+
+  ```
+  RAPIDR_MIDI_OUT="Roland" rapidr run song.rr     (macOS, Linux)
+  set RAPIDR_MIDI_OUT=builtin & rapidr run song.rr  (Windows)
+  ```
+
+  Example: [`examples/media/midi_compose.rr`](../../examples/media/midi_compose.rr)
+  writes a song in code (chords, a bass line, drums on channel 10) and plays
+  it. In a browser the page variable `RAPIDR_MIDI_OUT` does the same.
 - **RWave** (`QWAVE`, from `QWave.inc`) plays WAV files, records from the default input
   (`New`, `Record`), saves and deletes.
 - **RVideo** (`QVIDEO`, from `QVideo.inc`) plays AVI files with RapidR's own decoders:
@@ -58,6 +77,100 @@ The media objects share these members: `Open`, `Close`, `Play`, `Stop`,
 `Pause`, `State`, `FileOpen`, `Lenght` (the classic spelling), `Error` (MCI's
 own texts), `Volume`, their `Timer` and `OnChange`. A program that
 `$INCLUDE`s the classic library file gets RapidR's object.
+
+## Sound made sample by sample: RAudioOut
+
+**RAudioOut** plays sound your program makes as it goes, one number
+(a *sample*) at a time: an emulator's beeper or sound chip, a synthesizer,
+a tone for a physics lesson, a music game. The program writes samples into
+the stream's queue; the sound device plays them on a thread of its own and
+never waits for the program.
+
+![The tone generator playing A4: wave buttons, frequency and volume sliders and a Stop button on the left; on the right an oscilloscope screen with three cycles of a sine wave and the readout "440.0 Hz sine, playing: 60 ms queued, 0 gaps"](images/media/tone-generator.png)
+
+```basic
+DIM Sound AS RAudioOut
+DIM phase AS DOUBLE
+
+SUB Feed (Count AS INTEGER)                 ' the stream asks for Count samples
+    DIM buf(Count - 1) AS INTEGER, i AS INTEGER
+    FOR i = 0 TO Count - 1
+        buf(i) = SIN(phase) * 6000          ' a quiet 440 Hz tone
+        phase = phase + 2 * 3.14159265 * 440 / Sound.SampleRate
+    NEXT
+    Sound.Write buf, Count
+END SUB
+
+Sound.OnNeedData = Feed
+Sound.Start
+```
+
+- **Samples.** By default a sample is a 16-bit number from -32768 to 32767,
+  44,100 of them a second (`SampleRate`, 8000 to 96000). `Write` takes an
+  INTEGER (or BYTE, LONG …) array, a binary string (two bytes a sample, low
+  byte first), an `RMemoryStream` (from its `Position`) or one number, with
+  an optional `Count` and `Offset`; `WriteFloat` takes -1 to 1 from a SINGLE
+  or DOUBLE array; `WriteSample v` writes one sample, the easiest way to
+  learn. `Bits = 8` reads bytes 0 to 255 (128 is silence) as 8-bit WAV files
+  have them. With `Channels = 2` samples are interleaved: left, right, left …
+- **Keeping it fed.** Keep about `BufferMs` (60 ms by default) of sound
+  queued. Either write in `OnNeedData(Count)`, which the stream raises on
+  your program's own thread when the queue drops under `BufferMs` (Count
+  fills it again), or, for a program that works a frame at a time, check
+  `Queued` (ms waiting) from an `RTimer` and write until it is about
+  `BufferMs`. The sound you hear is about `BufferMs` late: smaller answers
+  sooner, larger survives a busy moment.
+- **When the program is late** the queue runs dry: the stream plays silence
+  after a 2 ms fade (no click), counts the gap in `Underruns`, and fades the
+  next sound in. `Stop` fades out the same way; `Volume` (0–100, by the ear:
+  50 sounds half as loud) glides over 10 ms, so a slider never clicks.
+  `Enabled = False` pauses; `Clear` drops what waits. `Start` gives the
+  sound device 40 ms of silence before your samples, so a headset that
+  takes a burst as it begins (Bluetooth ones do) never cuts the start.
+- **Everywhere.** The same on Windows, macOS and Linux, interpreted and
+  native, and in the browser. The device converts your `SampleRate` to its
+  own. Without a sound device (or in a program built without sound) the
+  stream plays silently, in time, and `Error` says why.
+
+### Emulators: sound from a level timeline
+
+A computer's simplest sound is one bit wired to a speaker, flipped by the
+program at exact moments. An emulator plays it a frame at a time
+(examples/media/beeper.rr, and the recipe examples/recipes/frame_audio.rr):
+
+1. run the emulated machine for one frame (at 50 frames a second, 1/50 of
+   its cycles), noting the cycle of every write to the speaker;
+2. for each of the frame's samples (44100 / 50 = 882), how much of its
+   time the bit was high: -1 to +1 by that share. Averaging over the
+   sample instead of reading the bit once keeps the sound clean (no
+   aliasing hiss);
+3. a DC blocker (`out = x - prevX + 0.995 * prevOut`): a real speaker can't
+   hold a push, so a bit left high drifts back to the middle;
+4. `Write` the 882 samples.
+
+An `RTimer` checks often and runs frames until about 60 ms is queued, so a
+tick that comes late catches up and the sound never gaps. Use
+`Interval = 10`: an `RTimer`'s ticks come on the system timer's 15.6 ms
+steps, as they always have (`Interval = 20` ticks only every 31 ms, which
+leaves a 60 ms queue little room for a late one). RapidR's interpreter makes such a frame in 0.2 to 0.6 ms, a
+small part of the 20 ms it has.
+
+![The one-bit beeper: the speaker bit as a square wave over one frame at the top, the frame's 882 samples below it, and the readout: the note, the frame made in well under a millisecond, 75 ms queued, 0 gaps](images/media/beeper.png)
+
+### In the browser
+
+A browser plays sound only after the person clicked or pressed a key on the
+page: call `Start` from a button's `OnClick`. Until the page may play,
+`Error` says so; the sound starts (and `Error` clears) as soon as it may.
+Keep the queue a little longer there (`BufferMs = 80` or more) if the page
+is busy: the browser plays the stream between the page's own work.
+
+The examples: [tone_generator.rr](../../examples/media/tone_generator.rr)
+(a sine, square, sawtooth or noise and an oscilloscope of the samples
+played), [beeper.rr](../../examples/media/beeper.rr) (the one-bit speaker),
+[chiptune.rr](../../examples/media/chiptune.rr) (three square-wave voices
+playing RapidR's own tune) and the recipe
+[frame_audio.rr](../../examples/recipes/frame_audio.rr).
 
 ## Devices and the network
 

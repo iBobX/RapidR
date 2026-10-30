@@ -268,6 +268,169 @@ pub(super) fn frame(p: &mut Painter, sc: &Scheme, r: Rect) {
     p.op(Op::Round { rect: r, radius: 4.0, fill: Some(sc.popup), stroke: Some(sc.popup_border), width: 1.0 });
 }
 
+// ---- (Versions G3) a change shown under its lines ----------------------------------
+
+/// Old lines a change's box shows at most (then "… N more").
+const PEEK_LINES: usize = 12;
+const PEEK_BUTTON_H: i64 = 24;
+
+/// Where a change's box and its parts are (absolute): the box, the title's
+/// row, the first old line's top, the old lines' height each, Undo This
+/// Change, Close.
+pub struct PeekLayout {
+    pub rect: Rect,
+    pub title: Rect,
+    pub lines_top: i64,
+    pub line_h: i64,
+    pub undo: Rect,
+    pub close: Rect,
+}
+
+fn peek_title(kind: &str) -> &'static str {
+    match kind {
+        "added" => "Added since the last version",
+        "removed" => "Removed since the last version. It was:",
+        _ => "Changed since the last version. It was:",
+    }
+}
+
+fn peek_buttons(font: &Font) -> (i64, i64) {
+    (text_size("Undo This Change", font).0 + 24, text_size("Close", font).0 + 24)
+}
+
+/// The box of the change shown under its lines (`peek`), if one is.
+pub fn peek_layout(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, i64)) -> Option<PeekLayout> {
+    use rapidr_editor::Buffer;
+    let pk = c.peek.as_ref()?;
+    let buf = c.doc.buffer();
+    let line = pk.hunk.last_line().min(buf.len_lines().saturating_sub(1));
+    let (ax, top, bottom) = anchor(c, ui, abs, scale, buf.line_start(line))?;
+    let uf = ui_font();
+    let cf = code_font(ui.font.pixel_size().max(8));
+    let line_h = text_size("Ag", &cf).1 + 4;
+    let title_h = text_size("Ag", &uf).1 + 12;
+    let shown = if pk.hunk.kind() == "added" { 0 } else { pk.old_lines.len().min(PEEK_LINES) + usize::from(pk.old_lines.len() > PEEK_LINES) };
+    let widest = pk.old_lines.iter().take(PEEK_LINES).map(|l| text_size(&format!("\u{2212} {l}"), &cf).0).max().unwrap_or(0);
+    let (uw, cw) = peek_buttons(&uf);
+    let w = (widest + 32).max(text_size(peek_title(pk.hunk.kind()), &uf).0 + 32).max(uw + cw + 40).clamp(300, 640).min((client.0 - 8).max(200));
+    let h = title_h + shown as i64 * line_h + 8 + PEEK_BUTTON_H + 10;
+    let x = ax.clamp(0, (client.0 - w).max(0));
+    let y = if bottom + 2 + h <= client.1 || top - h - 2 < 0 { bottom + 2 } else { top - h - 2 };
+    let by = y + h - 10 - PEEK_BUTTON_H;
+    Some(PeekLayout {
+        rect: (x, y, w, h),
+        title: (x + 12, y + 4, w - 24, title_h - 4),
+        lines_top: y + title_h,
+        line_h,
+        undo: (x + 12, by, uw, PEEK_BUTTON_H),
+        close: (x + 12 + uw + 8, by, cw, PEEK_BUTTON_H),
+    })
+}
+
+fn inside(r: Rect, x: f64, y: f64) -> bool {
+    x >= r.0 as f64 && y >= r.1 as f64 && x < (r.0 + r.2) as f64 && y < (r.1 + r.3) as f64
+}
+
+fn paint_peek(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, i64), p: &mut Painter) {
+    let (Some(pk), Some(l)) = (c.peek.as_ref(), peek_layout(c, ui, abs, scale, client)) else { return };
+    let sc = rapidr_value::code_scheme::resolve(&c.opts.color_scheme);
+    let uf = ui_font();
+    let bold = Font { styles: 1, ..uf.clone() };
+    let cf = code_font(ui.font.pixel_size().max(8));
+    frame(p, sc, l.rect);
+    // (the change's colour down the left edge: the gutter's mark, bigger)
+    let mark = match pk.hunk.kind() {
+        "added" => sc.mark_added,
+        "removed" => sc.mark_removed,
+        _ => sc.mark_changed,
+    };
+    p.op(Op::Round { rect: (l.rect.0 + 1, l.rect.1 + 1, 4, l.rect.3 - 2), radius: 2.0, fill: Some(mark), stroke: None, width: 1.0 });
+    p.text(l.title, peek_title(pk.hunk.kind()), &bold, sc.popup_text, Place::Left);
+    if pk.hunk.kind() != "added" {
+        // (each old line on a soft "removed" ground, a − before it: never colour alone)
+        let ground = super::paint::blend(sc.mark_removed, sc.popup, if sc.dark { 0.22 } else { 0.12 });
+        for (k, line) in pk.old_lines.iter().take(PEEK_LINES).enumerate() {
+            let y = l.lines_top + k as i64 * l.line_h;
+            p.fill((l.rect.0 + 8, y, l.rect.2 - 16, l.line_h), ground);
+            let t = ellipsized(&format!("\u{2212} {line}"), &cf, l.rect.2 - 28);
+            p.text((l.rect.0 + 12, y, l.rect.2 - 24, l.line_h), &t, &cf, sc.popup_text, Place::Left);
+        }
+        if pk.old_lines.len() > PEEK_LINES {
+            let y = l.lines_top + PEEK_LINES as i64 * l.line_h;
+            p.text((l.rect.0 + 12, y, l.rect.2 - 24, l.line_h), &format!("\u{2026} {} more lines", pk.old_lines.len() - PEEK_LINES), &uf, sc.popup_detail, Place::Left);
+        }
+    }
+    for (r, label, hot) in [(l.undo, "Undo This Change", pk.hot == 1), (l.close, "Close", pk.hot == 2)] {
+        let fill = if hot { sc.popup_selected } else { sc.popup };
+        p.op(Op::Round { rect: r, radius: 4.0, fill: Some(fill), stroke: Some(sc.popup_border), width: 1.0 });
+        p.text(r, label, &uf, if hot { sc.popup_selected_text } else { sc.popup_text }, Place::Center);
+    }
+}
+
+/// A press on a code editor's change box: Undo This Change (the change
+/// taken back, one undo step, OnChange), Close, or inside it (kept). True
+/// when the press was the box's.
+fn peek_mouse_down(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, x: f64, y: f64) -> bool {
+    let client = (f.client.0, f.client.1 + f.menu_offset);
+    for i in 0..f.nodes.len() {
+        let n = &f.nodes[i];
+        let Some(ui) = n.ui.code.as_ref() else { continue };
+        if !n.shown {
+            continue;
+        }
+        let abs = (n.abs.0, n.abs.1);
+        let Some((layout, line)) = with_code(&n.id, |c| peek_layout(c, ui, abs, f.scale, client).zip(c.peek.as_ref().map(|p| p.hunk.last_line()))).flatten() else { continue };
+        if !inside(layout.rect, x, y) {
+            continue;
+        }
+        f.dirty = true;
+        if inside(layout.undo, x, y) {
+            f.with_cx(store, ts, i, |_, cx| {
+                super::with_view(cx, |v| {
+                    if v.c.revert_change(line) {
+                        v.c.program_change = false;
+                        v.ui.announce = "The change was undone.".into();
+                        super::input::edited(v, None);
+                    }
+                })
+            });
+        } else if inside(layout.close, x, y) {
+            let id = f.nodes[i].id.clone();
+            with_code_mut(&id, |c| c.peek = None);
+        }
+        return true;
+    }
+    false
+}
+
+/// The mouse over a change box's buttons lights them.
+pub fn peek_mouse_move(f: &mut FormUi, x: f64, y: f64) {
+    let client = (f.client.0, f.client.1 + f.menu_offset);
+    for n in &f.nodes {
+        let Some(ui) = n.ui.code.as_ref() else { continue };
+        let abs = (n.abs.0, n.abs.1);
+        let Some(layout) = with_code(&n.id, |c| peek_layout(c, ui, abs, f.scale, client)).flatten() else { continue };
+        let hot = if inside(layout.undo, x, y) {
+            1
+        } else if inside(layout.close, x, y) {
+            2
+        } else {
+            0
+        };
+        let changed = with_code_mut(&n.id, |c| match &mut c.peek {
+            Some(p) if p.hot != hot => {
+                p.hot = hot;
+                true
+            }
+            _ => false,
+        })
+        .unwrap_or(false);
+        if changed {
+            f.dirty = true;
+        }
+    }
+}
+
 /// Every code editor's popups in form `f` (its popup layer).
 pub fn paint_popups(f: &FormUi, _store: &dyn Store, _ts: &mut TextSystem, p: &mut Painter) {
     let client = (f.client.0, f.client.1 + f.menu_offset);
@@ -345,6 +508,8 @@ fn paint_one(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64, 
             draw_blocks(p, sc, &lang, &bl, (x + 10, y + 6, w - 20, hh - 10), code_px);
         }
     }
+    // (Versions G3) a change shown under its lines
+    paint_peek(c, ui, abs, scale, client, p);
     // a debugger's data tip
     super::datatip::paint(c, ui, abs, scale, client, p);
     // the completion list
@@ -435,6 +600,10 @@ pub fn popup_mouse_down(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, 
     // (a debugger's data tip, in any editor: a press on it is its own; one
     // elsewhere closes it)
     if super::datatip::mouse_down(f, x, y, false) {
+        return true;
+    }
+    // (Versions G3: a change shown under its lines — its buttons)
+    if peek_mouse_down(f, store, ts, x, y) {
         return true;
     }
     for n in &f.nodes {

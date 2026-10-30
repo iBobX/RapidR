@@ -1,21 +1,30 @@
 //! The media objects' devices on the desktop (rapidr_value::objects::media;
 //! docs/io-media-plan.md §4–§5):
 //!
-//! - **QMIDI** plays its song on the system's first MIDI output through
-//!   midir (MIT; ALSA on Linux — the library rodio already needs —,
-//!   CoreMIDI on macOS, winmm on Windows, whose first output is Microsoft's
-//!   GS Wavetable Synth: what MCI's sequencer played on). A thread sends
-//!   the messages at their times; Volume scales the notes' velocities.
-//!   No output port (macOS and Linux have no synthesizer of their own):
-//!   RapidR's built-in one (`objects::synth`, procedural General MIDI
-//!   instruments, no SoundFont) plays it on the sound device instead.
+//! - **QMIDI** plays its song on a system MIDI output that makes sound,
+//!   through midir (MIT; ALSA on Linux — the library rodio already needs —,
+//!   CoreMIDI on macOS, winmm on Windows, whose GS Wavetable Synth is what
+//!   MCI's sequencer played on), and otherwise on RapidR's built-in
+//!   synthesizer (`objects::synth`, procedural General MIDI instruments, no
+//!   SoundFont) on the sound device. Which one is
+//!   `rapidr_value::objects::midiout`'s rule: an output counts only when it
+//!   is known to sound — macOS and Linux list buses and loops that carry
+//!   messages to other programs (an IAC bus, "Midi Through"), and a song
+//!   sent to one is silence. `RAPIDR_MIDI_OUT` names the output to use (a
+//!   keyboard, a sound module), or `builtin`. A thread sends the messages at
+//!   their times; Volume scales the notes' velocities.
 //! - **QWAVE** plays through QDXSOUND's device (sound.rs, rodio) and
 //!   records from the default input through cpal (rodio's).
 //!
 //! Never under a test: `RAPIDR_TEST_MIDI` (set, even empty, by the test
-//! runners) leaves QMIDI silent; `RAPIDR_TEST_WAVE_IN` gives QWAVE a
-//! scripted input (`tone:440`, or empty: none) instead of a microphone;
-//! the GUI tests have no sound device at all (sound.rs).
+//! runners) leaves QMIDI silent, or `capture:<prefix>` records what QMIDI
+//! would play instead of playing it (the outputs the system has:
+//! `RAPIDR_TEST_MIDI_PORTS`, names separated by `;`; the seconds of the
+//! built-in synthesizer rendered: `RAPIDR_TEST_MIDI_SECS`, 10):
+//! `<prefix>.txt` says where the song went and, for the synthesizer, how
+//! loud it was, and `<prefix>.wav` is that sound; `RAPIDR_TEST_WAVE_IN`
+//! gives QWAVE a scripted input (`tone:440`, or empty: none) instead of a
+//! microphone; the GUI tests have no sound device at all (sound.rs).
 
 #[cfg(feature = "audio")]
 use std::collections::HashMap;
@@ -31,6 +40,8 @@ use rapidr_value::objects::media;
 use rapidr_value::objects::media::{MidiDevice, WaveInput};
 #[cfg(feature = "audio")]
 use rapidr_value::objects::midifile::Song;
+#[cfg(feature = "audio")]
+use rapidr_value::objects::midiout;
 
 /// Installs the media devices, once (the first QMIDI or QWAVE made).
 pub fn install() {
@@ -42,8 +53,11 @@ pub fn install() {
     }
     crate::sound::install_dx_device();
     #[cfg(feature = "audio")]
-    if std::env::var_os("RAPIDR_TEST_MIDI").is_none() && !crate::sound::testing() {
-        media::set_midi_device(MidiDevice { play: midi_play, stop: midi_stop, volume: midi_volume });
+    match std::env::var("RAPIDR_TEST_MIDI") {
+        Ok(spec) if spec.starts_with("capture:") => media::set_midi_device(MidiDevice { play: capture_play, stop: capture_stop, volume: capture_volume }),
+        Ok(_) => {}
+        Err(_) if !crate::sound::testing() => media::set_midi_device(MidiDevice { play: midi_play, stop: midi_stop, volume: midi_volume }),
+        Err(_) => {}
     }
     match std::env::var("RAPIDR_TEST_WAVE_IN") {
         Ok(script) => {
@@ -71,28 +85,54 @@ thread_local! {
     static PLAYING: std::cell::RefCell<HashMap<String, Playing>> = std::cell::RefCell::new(HashMap::new());
 }
 
-/// Whether the system has a MIDI output to play songs on.
+/// The system's MIDI outputs by name, in the system's order.
 #[cfg(feature = "audio")]
-fn has_midi_output() -> bool {
-    midir::MidiOutput::new("RapidR").is_ok_and(|o| o.port_count() > 0)
+fn output_names() -> Vec<String> {
+    midir::MidiOutput::new("RapidR").map(|o| o.ports().iter().map(|p| o.port_name(p).unwrap_or_default()).collect()).unwrap_or_default()
+}
+
+/// The output to play on (an index in `names`), or none: the built-in
+/// synthesizer (`rapidr_value::objects::midiout`'s rule).
+#[cfg(feature = "audio")]
+fn pick(names: &[String]) -> Option<usize> {
+    let wanted = std::env::var("RAPIDR_MIDI_OUT").unwrap_or_default();
+    let chosen = midiout::choose(names, &wanted, cfg!(windows));
+    if chosen.is_none() && !wanted.trim().is_empty() && !midiout::builtin(&wanted) {
+        eprintln!("[rapidr] {}", midiout::not_found(&wanted, names));
+    }
+    chosen
+}
+
+/// A message with Volume's gain applied: a note-on's velocity scaled (at least 1).
+#[cfg(feature = "audio")]
+fn scaled(mut m: Vec<u8>, gain: f32) -> Vec<u8> {
+    if m.len() == 3 && m[0] & 0xF0 == 0x90 && m[2] > 0 {
+        m[2] = ((f32::from(m[2]) * gain).round() as u8).clamp(1, 127);
+    }
+    m
 }
 
 #[cfg(feature = "audio")]
 fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
     midi_stop(id);
-    if !has_midi_output() {
+    let names = output_names();
+    let Some(index) = pick(&names) else {
         synth_play(id, &song, from_us, gain);
         return;
-    }
+    };
+    let wanted = names[index].clone();
     let stop = Arc::new(AtomicBool::new(false));
     let g = Arc::new(AtomicU32::new((gain.clamp(0.0, 1.0) * 1000.0) as u32));
     let events: Vec<(u64, Vec<u8>)> = song.events.iter().filter(|e| e.at_us >= from_us).map(|e| (e.at_us - from_us, e.bytes.clone())).collect();
     let (s2, g2) = (stop.clone(), g.clone());
+    let (opened, heard) = std::sync::mpsc::channel::<bool>();
     let started = std::thread::Builder::new().name("rapidr-midi".into()).spawn(move || {
-        let Ok(out) = midir::MidiOutput::new("RapidR") else { return };
-        let ports = out.ports();
-        let Some(port) = ports.first() else { return };
-        let Ok(mut conn) = out.connect(port, "RapidR QMIDI") else { return };
+        let connected = midir::MidiOutput::new("RapidR").ok().and_then(|out| {
+            let port = out.ports().into_iter().find(|p| out.port_name(p).is_ok_and(|n| n == wanted))?;
+            out.connect(&port, "RapidR QMIDI").ok()
+        });
+        let _ = opened.send(connected.is_some());
+        let Some(mut conn) = connected else { return };
         let t0 = std::time::Instant::now();
         for (at, bytes) in events {
             loop {
@@ -108,12 +148,8 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
             if s2.load(Ordering::Relaxed) {
                 break;
             }
-            let mut m = bytes;
             // (Volume: a note's velocity scaled)
-            if m.len() == 3 && m[0] & 0xF0 == 0x90 && m[2] > 0 {
-                m[2] = ((f32::from(m[2]) * g2.load(Ordering::Relaxed) as f32 / 1000.0).round() as u8).clamp(1, 127);
-            }
-            let _ = conn.send(&m);
+            let _ = conn.send(&scaled(bytes, g2.load(Ordering::Relaxed) as f32 / 1000.0));
         }
         // (all notes off, every channel)
         for ch in 0..16u8 {
@@ -121,9 +157,17 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
             let _ = conn.send(&[0xB0 | ch, 120, 0]);
         }
     });
-    if started.is_ok() {
-        PLAYING.with(|p| p.borrow_mut().insert(id.to_string(), Playing { stop, gain: g }));
+    if started.is_err() {
+        synth_play(id, &song, from_us, gain);
+        return;
     }
+    // (an output that can't be opened: the synthesizer plays; a slow one
+    // is waited for no longer)
+    if heard.recv_timeout(std::time::Duration::from_millis(1500)) == Ok(false) {
+        synth_play(id, &song, from_us, gain);
+        return;
+    }
+    PLAYING.with(|p| p.borrow_mut().insert(id.to_string(), Playing { stop, gain: g }));
 }
 
 #[cfg(feature = "audio")]
@@ -142,6 +186,71 @@ fn midi_volume(id: &str, gain: f32) {
         }
     });
 }
+
+// ------------------------------------------------- the tests' MIDI sink --
+
+/// `RAPIDR_TEST_MIDI=capture:<prefix>`: QMIDI plays nowhere; what it would
+/// play is written to `<prefix>.txt` (and `<prefix>.wav`), and the last
+/// song played is the one kept. The outputs the system has are
+/// `RAPIDR_TEST_MIDI_PORTS` (names separated by `;`; none by default), the
+/// choice among them and the built-in synthesizer the real one's
+/// ([`pick`]): a song for an output lists its messages (µs from the start,
+/// bytes in hex, Volume applied); a song for the synthesizer is rendered
+/// (the first `RAPIDR_TEST_MIDI_SECS` seconds, 10) and measured.
+#[cfg(feature = "audio")]
+fn capture_play(_id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
+    let prefix = std::env::var("RAPIDR_TEST_MIDI").unwrap_or_default().trim_start_matches("capture:").to_string();
+    let names: Vec<String> = std::env::var("RAPIDR_TEST_MIDI_PORTS").unwrap_or_default().split(';').filter(|s| !s.is_empty()).map(String::from).collect();
+    let gain = gain.clamp(0.0, 1.0);
+    let mut log = String::new();
+    match pick(&names) {
+        Some(i) => {
+            log.push_str(&format!("out: port {}\n", names[i]));
+            for e in song.events.iter().filter(|e| e.at_us >= from_us) {
+                let hex: Vec<String> = scaled(e.bytes.clone(), gain).iter().map(|b| format!("{b:02X}")).collect();
+                log.push_str(&format!("{} {}\n", e.at_us - from_us, hex.join(" ")));
+            }
+        }
+        None => {
+            let secs: usize = std::env::var("RAPIDR_TEST_MIDI_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(10);
+            let events = song.events.iter().map(|e| (e.at_us, e.bytes.clone())).collect();
+            let mut player = rapidr_value::objects::synth::Player::new(events, SYNTH_RATE, from_us, gain);
+            let (mut pcm, mut block) = (Vec::<f32>::new(), vec![0.0f32; 1024]);
+            loop {
+                let more = player.render(&mut block);
+                pcm.extend_from_slice(&block);
+                if !more || pcm.len() >= secs * SYNTH_RATE as usize * 2 {
+                    break;
+                }
+            }
+            let peak = pcm.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+            let rms = (pcm.iter().map(|v| v * v).sum::<f32>() / pcm.len().max(1) as f32).sqrt();
+            log.push_str(&format!("out: synth\nframes: {}\npeak: {peak:.4}\nrms: {rms:.4}\n", pcm.len() / 2));
+            let mut wav = b"RIFF".to_vec();
+            let data = (pcm.len() * 2) as u32;
+            wav.extend((36 + data).to_le_bytes());
+            wav.extend(b"WAVEfmt ");
+            wav.extend(16u32.to_le_bytes());
+            wav.extend([1, 0, 2, 0]);
+            wav.extend(SYNTH_RATE.to_le_bytes());
+            wav.extend((SYNTH_RATE * 4).to_le_bytes());
+            wav.extend([4, 0, 16, 0]);
+            wav.extend(b"data");
+            wav.extend(data.to_le_bytes());
+            for v in &pcm {
+                wav.extend(((v.clamp(-1.0, 1.0) * 32767.0) as i16).to_le_bytes());
+            }
+            let _ = std::fs::write(format!("{prefix}.wav"), wav);
+        }
+    }
+    let _ = std::fs::write(format!("{prefix}.txt"), log);
+}
+
+#[cfg(feature = "audio")]
+fn capture_stop(_id: &str) {}
+
+#[cfg(feature = "audio")]
+fn capture_volume(_id: &str, _gain: f32) {}
 
 // ------------------------------------------------- built-in synthesizer --
 

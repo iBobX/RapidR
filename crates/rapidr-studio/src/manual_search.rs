@@ -17,6 +17,9 @@ use std::sync::OnceLock;
 pub const PAGES: &[(&str, &str)] = &[
     ("README.md", include_str!("../../../docs/manual/README.md")),
     ("ai-assistant.md", include_str!("../../../docs/manual/ai-assistant.md")),
+    ("ai-apps.md", include_str!("../../../docs/manual/ai-apps.md")),
+    ("app-eyes-and-hands.md", include_str!("../../../docs/manual/app-eyes-and-hands.md")),
+    ("archives.md", include_str!("../../../docs/manual/archives.md")),
     ("building-apps.md", include_str!("../../../docs/manual/building-apps.md")),
     ("cli-and-runtime.md", include_str!("../../../docs/manual/cli-and-runtime.md")),
     ("code-editor.md", include_str!("../../../docs/manual/code-editor.md")),
@@ -29,15 +32,19 @@ pub const PAGES: &[(&str, &str)] = &[
     ("differences.md", include_str!("../../../docs/manual/differences.md")),
     ("directx-and-media.md", include_str!("../../../docs/manual/directx-and-media.md")),
     ("getting-started.md", include_str!("../../../docs/manual/getting-started.md")),
+    ("graphics.md", include_str!("../../../docs/manual/graphics.md")),
     ("importing-rapidq.md", include_str!("../../../docs/manual/importing-rapidq.md")),
     ("language.md", include_str!("../../../docs/manual/language.md")),
     ("markdown.md", include_str!("../../../docs/manual/markdown.md")),
     ("network.md", include_str!("../../../docs/manual/network.md")),
+    ("other-editors.md", include_str!("../../../docs/manual/other-editors.md")),
+    ("recipes-systems.md", include_str!("../../../docs/manual/recipes-systems.md")),
     ("rich-text.md", include_str!("../../../docs/manual/rich-text.md")),
     ("secrets.md", include_str!("../../../docs/manual/secrets.md")),
     ("serial-ports.md", include_str!("../../../docs/manual/serial-ports.md")),
     ("showcase.md", include_str!("../../../docs/manual/showcase.md")),
     ("studio-editor.md", include_str!("../../../docs/manual/studio-editor.md")),
+    ("studio-languages.md", include_str!("../../../docs/manual/studio-languages.md")),
     ("studio-projects.md", include_str!("../../../docs/manual/studio-projects.md")),
     ("svg-icons.md", include_str!("../../../docs/manual/svg-icons.md")),
     ("translations.md", include_str!("../../../docs/manual/translations.md")),
@@ -136,10 +143,66 @@ pub fn sections() -> &'static [Section] {
     ALL.get_or_init(|| PAGES.iter().flat_map(|(page, text)| split(page, text)).filter(|s| !s.text.is_empty()).collect())
 }
 
+/// The manual's pages translated (docs/manual/<language>/<page>.md, a
+/// test keeps the list whole): (language, page, text). A page with no
+/// translation is read in English.
+pub const TRANSLATED: &[(&str, &str, &str)] = &[("es", "getting-started.md", include_str!("../../../docs/manual/es/getting-started.md"))];
+
+/// The translated pages' sections, as `es/getting-started.md`.
+fn translated_sections() -> &'static [(&'static str, Vec<Section>)] {
+    static ALL: OnceLock<Vec<(&'static str, Vec<Section>)>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        let mut out: Vec<(&'static str, Vec<Section>)> = Vec::new();
+        for (lang, page, text) in TRANSLATED {
+            let name: &'static str = Box::leak(format!("{lang}/{page}").into_boxed_str());
+            let secs: Vec<Section> = split(name, text).into_iter().filter(|s| !s.text.is_empty()).collect();
+            match out.iter_mut().find(|(l, _)| l == lang) {
+                Some((_, v)) => v.extend(secs),
+                None => out.push((lang, secs)),
+            }
+        }
+        out
+    })
+}
+
+/// A page of the manual in language `tag` (`es-UY` → `es` → English):
+/// its text, and whether it is the translation.
+pub fn page_in(page: &str, tag: &str) -> Option<(&'static str, bool)> {
+    let page = page.trim().trim_start_matches("./");
+    for t in rapidr_value::i18n::fallback_chain(tag) {
+        if let Some((_, _, text)) = TRANSLATED.iter().find(|(l, p, _)| *l == t && *p == page) {
+            return Some((text, true));
+        }
+    }
+    PAGES.iter().find(|(p, _)| *p == page).map(|(_, text)| (*text, false))
+}
+
+/// [`search`] for a person who speaks `tag`: the sections of the pages in
+/// their language first, then the English manual's, `n` in all.
+pub fn search_in(query: &str, n: usize, tag: &str) -> Vec<&'static Section> {
+    let mut out: Vec<&'static Section> = Vec::new();
+    for t in rapidr_value::i18n::fallback_chain(tag) {
+        if let Some((_, secs)) = translated_sections().iter().find(|(l, _)| *l == t) {
+            out.extend(rank(secs, query, n));
+        }
+    }
+    for s in search(query, n) {
+        if out.len() >= n {
+            break;
+        }
+        out.push(s);
+    }
+    out.truncate(n);
+    out
+}
+
 /// The `n` sections that answer `query` best (none when no word of it is
 /// in the manual).
 pub fn search(query: &str, n: usize) -> Vec<&'static Section> {
-    let all = sections();
+    rank(sections(), query, n)
+}
+
+fn rank<'a>(all: &'a [Section], query: &str, n: usize) -> Vec<&'a Section> {
     let mut q = words(query);
     q.sort();
     q.dedup();
@@ -189,7 +252,9 @@ pub fn excerpt(s: &Section) -> String {
         text.push_str(line);
         text.push('\n');
     }
-    format!("docs/manual/{} — {}\n{}", s.page, s.heading, text.trim_end())
+    // (the section's place in words, not a file path: the manual is built
+    // into Studio, an AI app has no file to open — it's all here)
+    format!("Manual › {}\n{}", s.heading, text.trim_end())
 }
 
 #[cfg(test)]
@@ -208,6 +273,44 @@ mod tests {
     }
 
     #[test]
+    fn every_translated_page_is_built_in() {
+        // (docs/manual/<language>/<page>.md: each one in TRANSLATED, each
+        // translating a page the manual has)
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/manual");
+        let mut on_disk: Vec<String> = Vec::new();
+        for lang in std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.path().is_dir()) {
+            let l = lang.file_name().to_string_lossy().to_string();
+            if l == "reference" || l == "images" || l.len() > 7 {
+                continue;
+            }
+            for page in std::fs::read_dir(lang.path()).unwrap().flatten() {
+                let n = page.file_name().to_string_lossy().to_string();
+                if n.ends_with(".md") {
+                    on_disk.push(format!("{l}/{n}"));
+                }
+            }
+        }
+        on_disk.sort();
+        let mut listed: Vec<String> = TRANSLATED.iter().map(|(l, p, _)| format!("{l}/{p}")).collect();
+        listed.sort();
+        assert_eq!(listed, on_disk);
+        for (_, page, _) in TRANSLATED {
+            assert!(PAGES.iter().any(|(p, _)| p == page), "{page} translates no page of the manual");
+        }
+    }
+
+    #[test]
+    fn the_user_s_language_comes_first() {
+        let (text, translated) = page_in("getting-started.md", "es-UY").unwrap();
+        assert!(translated && text.contains("# Primeros pasos"));
+        let (text, translated) = page_in("debugging.md", "es").unwrap();
+        assert!(!translated && text.starts_with("# "));
+        assert!(page_in("getting-started.md", "en").is_some_and(|(_, t)| !t));
+        let top = search_in("instalar el SDK", 3, "es");
+        assert_eq!(top[0].page, "es/getting-started.md", "{:?}", top.iter().map(|s| &s.page).collect::<Vec<_>>());
+    }
+
+    #[test]
     fn questions_find_their_sections() {
         assert!(sections().len() > 100, "{}", sections().len());
         let top = search("how do I debug with breakpoints", 3);
@@ -216,6 +319,6 @@ mod tests {
         assert_eq!(top[0].page, "serial-ports.md");
         assert!(search("zzqx", 3).is_empty());
         let e = excerpt(top[0]);
-        assert!(e.starts_with("docs/manual/serial-ports.md — ") && e.chars().count() <= SECTION_CHARS + 200, "{e}");
+        assert!(e.starts_with("Manual › ") && e.chars().count() <= SECTION_CHARS + 200, "{e}");
     }
 }

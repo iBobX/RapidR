@@ -132,7 +132,7 @@ impl Store for MemStore {
         // (its Parent, as the runtimes answer it)
         if prop == "parent" {
             if let Some(p) = self.comps.get(&key).and_then(|c| c.parent.clone()) {
-                return Value::String(p);
+                return Value::String(p.into());
             }
         }
         rapidr_value::objects::get(&key, &prop).unwrap_or(Value::Null)

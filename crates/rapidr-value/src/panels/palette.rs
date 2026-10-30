@@ -13,6 +13,7 @@
 
 use super::fuzzy;
 use super::runtime::{basic_bool, truth, Runtime};
+use crate::i18n::tr_ui;
 use crate::Value;
 
 /// One command.
@@ -95,6 +96,18 @@ impl Default for Palette {
 }
 
 crate::panel_models!(Palette);
+
+impl Palette {
+    /// The placeholder as drawn: the default one in the program's language,
+    /// a program's own as it set it.
+    pub fn shown_placeholder(&self) -> String {
+        if self.placeholder == "Type a command" {
+            tr_ui("Type a command")
+        } else {
+            self.placeholder.clone()
+        }
+    }
+}
 
 /// The palette's metrics (logical pixels): the margin around its search
 /// box, the box's height, a row's.
@@ -384,7 +397,7 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         }
         "command" => {
             let i = args.first().map(Value::to_i64).unwrap_or(-1);
-            Some(Value::String(with(name, |p| usize::try_from(i).ok().and_then(|i| p.command_at(i)).map(|c| c.id.clone())).flatten().unwrap_or_default()))
+            Some(Value::String(with(name, |p| usize::try_from(i).ok().and_then(|i| p.command_at(i)).map(|c| c.id.clone())).flatten().unwrap_or_default().into()))
         }
         "show" => {
             show(rt, name);
@@ -410,11 +423,11 @@ fn resize<R: Runtime>(rt: R, name: &str) {
 /// Its properties its model answers.
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     Some(match prop {
-        "filter" => Value::String(with(name, |p| p.filter.clone()).unwrap_or_default()),
-        "placeholder" => Value::String(with(name, |p| p.placeholder.clone()).unwrap_or_else(|| Palette::default().placeholder)),
+        "filter" => Value::String(with(name, |p| p.filter.clone()).unwrap_or_default().into()),
+        "placeholder" => Value::String(with(name, |p| p.placeholder.clone()).unwrap_or_else(|| Palette::default().placeholder).into()),
         "count" => Value::Integer(with(name, |p| p.matches().len()).unwrap_or(0) as i64),
         "commandcount" => Value::Integer(with(name, |p| p.commands.len()).unwrap_or(0) as i64),
-        "selected" => Value::String(with(name, Palette::selected).unwrap_or_default()),
+        "selected" => Value::String(with(name, Palette::selected).unwrap_or_default().into()),
         "maxrows" => Value::Integer(with(name, |p| p.max_rows).unwrap_or(10) as i64),
         _ => return None,
     })
@@ -469,7 +482,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                 return;
             }
             hide(rt, name);
-            rt.fire(name, "OnCommand", &[Value::String(id)]);
+            rt.fire(name, "OnCommand", &[Value::String(id.into())]);
         }
         User::Redraw => {}
         User::Cancel => {

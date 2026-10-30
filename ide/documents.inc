@@ -134,12 +134,9 @@ END FUNCTION
 ' (how many of each kind, in words: "2 errors, 1 warning, 3 notes")
 FUNCTION ProblemCounts(errs AS INTEGER, warns AS INTEGER, notes AS INTEGER) AS STRING
   DIM t AS STRING
-  IF errs = 1 THEN t = "1 error, "
-  IF errs > 1 THEN t = LTRIM$(STR$(errs)) + " errors, "
-  IF warns = 1 THEN t = t + "1 warning, "
-  IF warns > 1 THEN t = t + LTRIM$(STR$(warns)) + " warnings, "
-  IF notes = 1 THEN t = t + "1 note, "
-  IF notes > 1 THEN t = t + LTRIM$(STR$(notes)) + " notes, "
+  IF errs > 0 THEN t = TRN$("{n} error", "{n} errors", errs) + ", "
+  IF warns > 0 THEN t = t + TRN$("{n} warning", "{n} warnings", warns) + ", "
+  IF notes > 0 THEN t = t + TRN$("{n} note", "{n} notes", notes) + ", "
   IF t <> "" THEN t = LEFT$(t, LEN(t) - 2)
   Result = t
 END FUNCTION
@@ -240,7 +237,12 @@ SUB DocTitles(d AS INTEGER)
   ' (S-PANELS: the project tree marks a file with changes not saved; its
   ' tab shows a dot)
   ProjectTree.FileModified DocFile(d), DocDirty(d)
-  Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
+  ' (deleted outside Studio: the tab says so — external.inc)
+  IF DocGone(d) THEN
+    Dock.PaneTitle(DocPane(d), TR$("{file} (deleted on disk)", "file", FileTitle(DocFile(d))))
+  ELSE
+    Dock.PaneTitle(DocPane(d), FileTitle(DocFile(d)))
+  END IF
   Dock.DocumentModified(DocPane(d), DocDirty(d))
   ' (Studio's window: the dot in macOS' close button, the browser's
   ' question before the page is left)
@@ -279,6 +281,9 @@ SUB OpenDocument(Path AS STRING)
   DocKind(d) = "code"
   DocOpen(d) = 1
   DocDirty(d) = 0
+  ' (its file as read: changes outside Studio are looked for from here —
+  ' external.inc)
+  ExtOpened d
   DesignDoc(d).OnSourceEdit = DesignSourceEdit
   DesignDoc(d).OnSourceStep = DesignStep
   DesignDoc(d).OnUndo = DesignUndo
@@ -299,6 +304,8 @@ SUB OpenDocument(Path AS STRING)
   ActiveDoc = d
   ' (debug.inc: its breakpoints, the paused line, data tips)
   DebugDocOpened d
+  ' (versions.inc: its gutter marks against the last version)
+  VerApplyBase d
   ' (the project tree lists its components; the others' names are kept
   ' from its designer)
   ProjectFileChanged d
@@ -306,8 +313,9 @@ SUB OpenDocument(Path AS STRING)
   ' (editor.inc: the caret's place, encoding and line breaks; the caret in
   ' the code, ready to type, as an editor opens a file)
   EditorFacts d
-  FocusCodeSoon d
-  OutputLine "Opened " + Path
+  ' (a preview from the project tree: the keys stay there)
+  IF OpenQuietly = 0 THEN FocusCodeSoon d
+  OutputLine TR$("Opened {file}", "file", Path)
   UpdateCommands
 END SUB
 
@@ -315,10 +323,22 @@ END SUB
 FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
   IF d < 0 THEN EXIT FUNCTION
   IF DocOpen(d) = 0 THEN EXIT FUNCTION
+  ' (the file changed or was deleted outside Studio since it was read:
+  ' asked first, never overwritten silently — external.inc)
+  IF ExtSaveOk(d) = 0 THEN EXIT FUNCTION
+  ' (Versions: what the disk had, kept in the local history first — never
+  ' lost, versioned or not: versions.inc)
+  VerBeforeSave d
   CodeDoc(d).SaveToFile DocFile(d)
   DocDirty(d) = 0
+  ' (Studio's own write: no change from outside)
+  ExtSaved d
+  ' (saved: no copy of it needed — safety.inc)
+  KeepForget d
   DocTitles d
   ProjectFollowsCode
+  ' (a copy of what was saved; the versions' badges and counts again)
+  VerAfterSave d
   Result = 1
 END FUNCTION
 
@@ -335,22 +355,33 @@ SUB ProjectFollowsCode
     row = FIELD$(changed, CHR$(10), i)
     ' (short lines: the Output pane is narrow)
     IF FIELD$(row, CHR$(9), 2) = "form" THEN
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes a form: now under Forms"
+      OutputLine TR$("{file} makes a form: now under Forms", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     ELSEIF FIELD$(row, CHR$(9), 2) = "include" THEN
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Includes"
+      OutputLine TR$("{file} makes no form: now under Includes", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     ELSE
-      OutputLine FileTitle(FIELD$(row, CHR$(9), 1)) + " makes no form: now under Modules"
+      OutputLine TR$("{file} makes no form: now under Modules", "file", FileTitle(FIELD$(row, CHR$(9), 1)))
     END IF
   NEXT
   SaveProjectFile
 END SUB
 
 SUB SaveAll
-  DIM d AS INTEGER
-  FOR d = 0 TO DocCount - 1
-    IF DocOpen(d) AND DocDirty(d) THEN SaveDocument d
-  NEXT
+  DIM ok AS INTEGER
+  ok = SaveAllOk
 END SUB
+
+' Every document with changes saved; 0 when one wasn't (its file changed
+' outside Studio and the question was cancelled): Run, Build and quitting
+' stop there.
+FUNCTION SaveAllOk AS INTEGER
+  DIM d AS INTEGER
+  Result = 1
+  FOR d = 0 TO DocCount - 1
+    IF DocOpen(d) AND DocDirty(d) THEN
+      IF SaveDocument(d) = 0 THEN Result = 0
+    END IF
+  NEXT
+END FUNCTION
 
 ' (the documents of file d go; asked first when it has changes)
 SUB CloseDocument(d AS INTEGER)
@@ -358,6 +389,10 @@ SUB CloseDocument(d AS INTEGER)
   IF DocOpen(d) = 0 THEN EXIT SUB
   ' (its changes: Save / Don't Save / Cancel — workspace.inc)
   IF AskToSave(d) = 0 THEN EXIT SUB
+  ' (saved or let go: no copy of it — safety.inc)
+  KeepForget d
+  ' (no longer watched for changes outside Studio)
+  ExtClosed d
   DocOpen(d) = 0
   Dock.ClosePane(DocPane(d))
   Lang.Close DocFile(d)
@@ -373,7 +408,8 @@ SUB DirtyFollows(d AS INTEGER)
   DIM now AS INTEGER
   IF d < 0 OR d >= DocCount THEN EXIT SUB
   IF DocOpen(d) = 0 THEN EXIT SUB
-  now = Flag(CodeDoc(d).Modified)
+  ' (a file deleted outside Studio stays changed: its text is only here)
+  now = Flag(CodeDoc(d).Modified OR DocGone(d))
   IF now <> DocDirty(d) THEN
     DocDirty(d) = now
     DocTitles d
@@ -385,6 +421,10 @@ SUB CodeChanged(Sender AS RCodeEditor)
   IF Loading THEN EXIT SUB
   d = Sender.Tag
   DirtyFollows d
+  ' (its copy kept at the next tick — safety.inc)
+  KeepNoted d
+  ' (changed: a preview tab is kept — panels.inc)
+  PreviewKept d
   CodeTyped d
   ' (the problems and the outline follow once typing stops)
   Analyzer.Enabled = 0

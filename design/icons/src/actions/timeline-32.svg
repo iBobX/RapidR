@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Version history</title>
+  <circle cx="8" cy="7" r="3" stroke="currentColor"/>
+  <path d="M15 7L28 7" stroke="currentColor"/>
+  <circle cx="8" cy="16" r="3" stroke="currentColor"/>
+  <path d="M15 16L28 16" stroke="currentColor"/>
+  <circle cx="8" cy="25" r="3" stroke="currentColor"/>
+  <path d="M15 25L23 25" stroke="currentColor"/>
+  <path d="M8 10L8 13" stroke="currentColor"/>
+  <path d="M8 19L8 22" stroke="currentColor"/>
+</svg>

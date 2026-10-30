@@ -3,24 +3,62 @@
 //! QIMAGELIST use). Written here rather than pulling in image crates, since
 //! uncompressed BMP is all RapidQ's own objects read and write.
 
-/// A RapidQ string as bytes: characters up to U+00FF are one byte each (as
-/// CHR$ makes them); anything else is written as its UTF-8 bytes.
+/// A RapidQ string as bytes (what `WriteStr`, `Write`, `WriteLine`, PEEK /
+/// POKE and a DLL call's string argument take).
+///
+/// - A string whose characters are all up to U+00FF is **bytes**, one per
+///   character, exactly as `CHR$` makes them and `ReadStr` returns them:
+///   a program that builds or copies binary data (a BMP, a WAV, a packet)
+///   with strings gets the very bytes back, as in RapidQ.
+/// - A string with any character above U+00FF can't be bytes: it is
+///   **text**, and the *whole* string is its UTF-8 (so `é` beside `中` is
+///   `C3 A9`, never a lone `E9` in a file that is otherwise UTF-8, which is
+///   what made Studio's `.po` files unreadable).
+///
+/// Nothing is ever replaced by `?`.
 pub fn string_to_bytes(s: &str) -> Vec<u8> {
-    let mut out = Vec::with_capacity(s.len());
-    for c in s.chars() {
-        if (c as u32) < 256 {
-            out.push(c as u32 as u8);
-        } else {
-            let mut buf = [0u8; 4];
-            out.extend_from_slice(c.encode_utf8(&mut buf).as_bytes());
-        }
+    if s.chars().any(|c| (c as u32) > 0xFF) {
+        return s.as_bytes().to_vec();
     }
+    s.chars().map(|c| c as u32 as u8).collect()
+}
+
+/// `s`'s first `count` characters, padded with NULs when it has fewer: the
+/// text `WriteStr(S, count)` writes. RapidQ counts bytes, which are
+/// characters there; here a count is of **characters**, so
+/// `WriteStr(S, LEN(S))` writes all of `S` whatever it holds (counted in
+/// the UTF-8 bytes it would cut a Chinese text in the middle of a character).
+pub fn fit_characters(s: &str, count: usize) -> String {
+    let mut out: String = s.chars().take(count).collect();
+    let have = out.chars().count();
+    out.extend(std::iter::repeat_n('\0', count.saturating_sub(have)));
     out
 }
 
 /// Bytes as a RapidQ string, one character per byte (the inverse of CHR$).
 pub fn bytes_to_string(bytes: &[u8]) -> String {
     bytes.iter().map(|&b| char::from(b)).collect()
+}
+
+/// A text file's bytes as the text they hold: UTF-8 (a BOM dropped) when
+/// they are, else Windows-1252 (the ANSI text of older programs, and of
+/// files an older Studio wrote). Never U+FFFD: a byte is always some
+/// character. For files read as *text* (translations, lists, text boxes),
+/// not for the byte-oriented `ReadStr`.
+pub fn decode_text(bytes: &[u8]) -> String {
+    let body = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
+    match std::str::from_utf8(body) {
+        Ok(s) => s.to_string(),
+        Err(_) => body.iter().map(|&b| super::rtf::cp1252_char(b)).collect(),
+    }
+}
+
+/// Whether `bytes` are a UTF-8 text that is more than ASCII (a
+/// multi-byte character in it): what tells a file read as text from the
+/// ANSI file of an older program.
+pub fn is_utf8_text(bytes: &[u8]) -> bool {
+    let body = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
+    !body.is_ascii() && std::str::from_utf8(body).is_ok()
 }
 
 const B64: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -677,5 +715,42 @@ mod tests {
     fn strings_are_bytes() {
         let s = bytes_to_string(&[72, 0, 200, 255]);
         assert_eq!(string_to_bytes(&s), [72, 0, 200, 255]);
+        // (every byte value comes back as it went in)
+        let all: Vec<u8> = (0..=255).collect();
+        assert_eq!(string_to_bytes(&bytes_to_string(&all)), all);
+    }
+
+    /// A string with a character above U+00FF is text: all of it is UTF-8
+    /// (an `é` beside a `中` is C3 A9, never a lone E9 in a UTF-8 file).
+    #[test]
+    fn a_unicode_string_is_utf8_whole() {
+        assert_eq!(string_to_bytes("caf\u{e9}"), b"caf\xE9");
+        assert_eq!(string_to_bytes("caf\u{e9} \u{4e2d}"), "café 中".as_bytes());
+        assert_eq!(string_to_bytes("\u{b7}\u{20ac}"), "·€".as_bytes());
+        assert_eq!(string_to_bytes("😀"), "😀".as_bytes());
+        assert_eq!(string_to_bytes(""), b"");
+    }
+
+    #[test]
+    fn counts_are_of_characters() {
+        assert_eq!(fit_characters("中文字", 2), "中文");
+        assert_eq!(fit_characters("é", 3), "é\0\0");
+        assert_eq!(fit_characters("abc", 0), "");
+        assert_eq!(fit_characters("abc", 3), "abc");
+    }
+
+    #[test]
+    fn text_files_decode_as_utf8_or_windows_1252() {
+        assert_eq!(decode_text("太阳 é".as_bytes()), "太阳 é");
+        assert_eq!(decode_text(b"\xEF\xBB\xBFcaf\xC3\xA9"), "café");
+        // (an ANSI file: never U+FFFD)
+        assert_eq!(decode_text(b"Espa\xF1ol \x80 \x93q\x94 \xB7"), "Español € “q” ·");
+        assert_eq!(decode_text(b"plain"), "plain");
+        assert_eq!(decode_text(b""), "");
+        // (a UTF-8 text cut in the middle of a character is an ANSI text,
+        // as far as anyone can tell: its bytes are characters, none lost)
+        assert_eq!(decode_text(b"\xE4\xB8"), "ä¸");
+        assert!(is_utf8_text("é".as_bytes()));
+        assert!(!is_utf8_text(b"ascii") && !is_utf8_text(b"\xEF\xBB\xBFe") && !is_utf8_text(b"caf\xE9"));
     }
 }

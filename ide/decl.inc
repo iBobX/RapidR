@@ -1,6 +1,16 @@
 ' decl.inc: RapidR Studio's shared state — the command table, the open
 ' documents, the run state — and the SUBs the window's components call
 ' (declared before the window is made, as RapidQ wants).
+'
+' Studio in your language (docs/manual/studio-languages.md): every text a
+' person reads goes through TR$ — TR$("&Save"), TR$("Can't open {file}",
+' "file", f) — and its catalog is ide/lang/<language>.po, made from
+' ide/lang/studio.pot (`rapidr i18n studio` writes the template from these
+' files). The command table keeps its titles in English and shows
+' TR$(title): the routines below take text to translate in these
+' arguments, for the template —
+' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2@menubar SetState:2 AddStart:3 AddExample:2 AddMoreExample:2 AddTemplate:4 AddTemplate:5
+' Ids, keys, file names, code and what the user wrote are never translated.
 
 ' ---- the command table (docs/ide-plan.md I1) -------------------------------
 ' One row per command: what the menus, the tool bar, the keyboard and the
@@ -25,8 +35,8 @@ TYPE StudioCommand
   Tool AS INTEGER
 END TYPE
 
-CONST MAXCMDS = 240
-CONST MAXMENUS = 280
+CONST MAXCMDS = 260
+CONST MAXMENUS = 300
 CONST MAXDOCS = 32
 
 DIM Cmd(MAXCMDS) AS StudioCommand
@@ -54,8 +64,22 @@ DIM DocKind(MAXDOCS) AS STRING
 DIM DocOpen(MAXDOCS) AS INTEGER
 DIM DocDirty(MAXDOCS) AS INTEGER
 DIM DocHasForm(MAXDOCS) AS INTEGER
-' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc)
+' (which view a form's file shows: "Design", "Code" or "Split" — workspace.inc.
+' These are ids, English whatever language Studio speaks; the switch shows
+' ViewCaption(id), and ViewId(caption) reads what the dock manager says back)
 DIM DocViewNow(MAXDOCS) AS STRING
+DECLARE FUNCTION ViewCaption(Id AS STRING) AS STRING
+DECLARE FUNCTION ViewId(Caption AS STRING) AS STRING
+' (Studio's language changed: the texts these made in the language before,
+' made again — chrome.inc's StudioLanguageChanged calls them)
+DECLARE SUB PanesLanguageChanged
+DECLARE SUB PanelsLanguageChanged
+DECLARE SUB EditorLanguageChanged
+DECLARE SUB WorkspaceLanguageChanged
+DECLARE SUB MarkdownLanguageChanged
+DECLARE FUNCTION UITextWidth(Text AS STRING) AS INTEGER
+DECLARE SUB SearchLanguageChanged
+DECLARE SUB DebugLanguageChanged
 ' (a file being loaded: its editor's OnChange isn't the user's)
 DIM Loading AS INTEGER
 DIM DocCount AS INTEGER
@@ -97,6 +121,9 @@ DIM ThemeName AS STRING
 ' dark or high contrast; the default — "rapidr light", "rapidr dark",
 ' "rapidr high contrast", "classic"; ThemeName is the theme drawn)
 DIM ThemeChoice AS STRING
+' (the language Studio speaks, as chosen: "" the system's, "en", "es" …
+' — Tools > Settings > General > Language; --lang for a test)
+DIM LanguageChoice AS STRING
 DIM StateText AS STRING
 ' (the status bar's text measured: a long file name shortened in its middle)
 DIM StatusMeasure AS RBitmap
@@ -106,6 +133,11 @@ DECLARE SUB ShowStatusHint
 
 DECLARE SUB RunCommand(Id AS STRING)
 DECLARE SUB LayOutDialogs
+DECLARE FUNCTION UiCompactH AS INTEGER
+DECLARE FUNCTION UiButtonH AS INTEGER
+DECLARE FUNCTION UiPaneHeadH AS INTEGER
+DECLARE FUNCTION ChipStatus(Tag AS INTEGER) AS STRING
+DECLARE SUB ChipPaint(Sender AS RCanvas)
 DECLARE SUB MenuPicked(Sender AS RMenuItem)
 DECLARE SUB ToolClicked(Name AS STRING, Command AS STRING)
 DECLARE SUB StudioResize
@@ -177,6 +209,20 @@ DECLARE SUB PaletteCommand(Id AS STRING)
 DECLARE SUB CodeChanged(Sender AS RCodeEditor)
 DECLARE SUB AnalyzerTick
 DECLARE SUB ProgramOutput(Text AS STRING)
+' (mcp.inc: AI apps working in Studio, its MCP server)
+DECLARE SUB SetUpMcp
+DECLARE FUNCTION McpCommand(Id AS STRING) AS INTEGER
+DECLARE FUNCTION McpPaneCommand(Id AS STRING) AS INTEGER
+DECLARE SUB McpStep(Stp AS STRING)
+DECLARE SUB McpShutdown
+DECLARE SUB McpSettingsTab(Index AS INTEGER)
+DECLARE SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Row AS INTEGER, Fh AS INTEGER, Bh AS INTEGER)
+DECLARE FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
+DECLARE SUB McpSettingsFill
+DECLARE SUB McpSettingsTake
+DECLARE FUNCTION McpStatusWidth AS INTEGER
+DECLARE SUB McpFonts
+DECLARE SUB McpProgramOutput(Text AS STRING)
 DECLARE SUB ProgramStopped(Reason AS STRING, InFile AS STRING, LineNo AS INTEGER)
 DECLARE SUB ProgramContinued
 DECLARE SUB ProgramExited(Code AS INTEGER)
@@ -277,6 +323,19 @@ DECLARE FUNCTION AskToSave(d AS INTEGER) AS INTEGER
 DECLARE FUNCTION AskToSaveAll AS INTEGER
 ' (prompts.inc)
 DECLARE FUNCTION AskSave(Question AS STRING, Detail AS STRING, Many AS INTEGER) AS INTEGER
+' (panels.inc: the file the project tree's selection rests on, shown — its
+' tab, or the preview tab the next file takes over while unchanged)
+DIM PreviewWanted AS STRING
+DIM PreviewDoc AS INTEGER
+DIM OpenQuietly AS INTEGER
+DECLARE SUB PreviewTick
+DECLARE SUB PreviewKept(d AS INTEGER)
+' (safety.inc: Studio keeps your work)
+DECLARE SUB SetUpSafety
+DECLARE SUB KeepNoted(d AS INTEGER)
+DECLARE SUB KeepForget(d AS INTEGER)
+DECLARE SUB KeepEnd
+DECLARE SUB OfferRestoreSoon
 DECLARE SUB UpdateModified
 DECLARE SUB SaveSession
 DECLARE SUB LayoutChanged
@@ -376,8 +435,56 @@ DECLARE SUB InspectorRowSelected(Prop AS STRING)
 DECLARE FUNCTION AIBannerTakesFocus AS INTEGER
 DECLARE SUB AIProjectChanged
 
+' ---- Versions (versions.inc: the Versions pane, Save a Version, the local
+' history, the editors' change marks, the Project pane's badges) ----
+DECLARE SUB SetUpVersions
+DECLARE SUB ApplyVersionsChrome
+DECLARE FUNCTION VerStatusText AS STRING
+DECLARE SUB VerBeforeSave(d AS INTEGER)
+DECLARE SUB VerAfterSave(d AS INTEGER)
+DECLARE SUB VerApplyBase(d AS INTEGER)
+DECLARE SUB VersionsProjectChanged
+DECLARE FUNCTION VersionsCommand(Id AS STRING) AS INTEGER
+DECLARE SUB VersionsStep(S AS STRING)
+
+' ---- files changed outside Studio (external.inc: another AI agent, an
+' editor, git — the file loaded again, or a question when it has unsaved
+' changes here; Save never overwrites newer content without asking) ----
+' (each document: its file changed on disk while it had unsaved changes —
+' the question waits; its file was deleted on disk — its tab marked)
+DIM DocExtAsk(MAXDOCS) AS INTEGER
+DIM DocGone(MAXDOCS) AS INTEGER
+DECLARE SUB SetUpExternal
+DECLARE SUB ApplyExternalChrome
+DECLARE SUB ExtCheck
+DECLARE SUB ExtOpened(d AS INTEGER)
+DECLARE SUB ExtClosed(d AS INTEGER)
+DECLARE SUB ExtSaved(d AS INTEGER)
+DECLARE FUNCTION ExtSaveOk(d AS INTEGER) AS INTEGER
+DECLARE SUB ExtOwnWrite(Path AS STRING)
+DECLARE SUB ExtProjectOpened
+DECLARE SUB ExtProjectClosed
+DECLARE SUB ExtCompareDoc(d AS INTEGER)
+DECLARE SUB ExtUseDisk(d AS INTEGER)
+DECLARE SUB ExtKeepMine(d AS INTEGER)
+DECLARE SUB ReopenProject
+DECLARE FUNCTION ExternalCommand(Id AS STRING) AS INTEGER
+DECLARE SUB ExternalStep(S AS STRING)
+' (every document with changes saved; 0 when a save was declined: documents.inc)
+DECLARE FUNCTION SaveAllOk AS INTEGER
+' (RapidR's crash and hang reports: crash.inc)
+DECLARE SUB SetUpCrash
+DECLARE SUB ApplyCrashChrome
+DECLARE SUB CrashSchoolLock(Locked AS INTEGER)
+DECLARE SUB CrashRunStarts
+DECLARE SUB CrashProgramEnded(Code AS INTEGER)
+DECLARE SUB CrashLink(Target AS STRING)
+DECLARE FUNCTION CrashStep(Stp AS STRING) AS INTEGER
+
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject
+' (the project's versions and its local history: versions.inc)
+DIM Repo AS RRepository
 DIM Lang AS RLanguageService
 DIM Session AS RProgramSession
 DIM Reg AS RRegistry

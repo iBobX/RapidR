@@ -16,13 +16,30 @@ datascience = ["rapidr-runtime-core/datascience"]
 full = ["gui", "network", "database", "ffi", "datascience"]
 # `rapidr run --session`: the program's end of RapidR Studio's session
 # protocol (the rapidr CLI; never in a program's own runner).
-session = ["dep:rapidr-session"]
+session = ["dep:rapidr-session", "dep:serde_json"]
 # RapidR Studio's components (rapidr-runtime-core's `studio`): the CLI's.
 studio = ["rapidr-runtime-core/studio"]
 
 [dependencies]
 rapidr-value = { workspace = true }
+# (RapidR's crash reports: the program's map, where it is)
+rapidr-crash = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
-rapidr-runtime-core = { workspace = true }
+# (`archive`: RArchive in every interpreted program — the runners carry
+# every component until runner flavours, docs/lean-builds-and-export-plan.md)
+rapidr-runtime-core = { workspace = true, features = ["archive"] }
 rapidr-session = { workspace = true, features = ["program"], optional = true }
+# (the eyes and hands' replies, JSON: session.rs)
+serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+# (tests/string_speed.rs: BASIC source compiled and run on this host)
+rapidr-lexer = { workspace = true }
+rapidr-parser = { workspace = true }
+rapidr-bcgen = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+# (the test's CPU-time clock: steady on a machine busy with other work;
+# MIT OR Apache-2.0, already in the tree through rapidr-runtime-core)
+libc = "0.2"

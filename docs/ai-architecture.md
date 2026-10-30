@@ -467,7 +467,7 @@ Lane AI-PROVIDERS. User-facing: [docs/manual/ai-assistant.md](manual/ai-assistan
 - *A stable prefix, cached*: the instructions (rules, one complete example program, `rapidr lang export --prompt --compact`: statements, directives, builtin and component names by group — 1/8 of the full prompt) are the same for every project and go first; the facts that change (the open project's name and files) go last (`system_tail`); Anthropic gets `cache_control` breakpoints on the system prompt, the tools and the last message, the others cache a stable prefix by themselves.
 - *Context on demand*: nothing of the project is sent up front; the model reads files, components and registry entries through the tools when it needs them.
 - *Small edits*: `propose_edit` takes old/new snippets, never whole files.
-- *Trimmed history*: at the next question, earlier tool results over 200 characters become a one-line note and thinking blocks are dropped; past `SummaryAt` input tokens (40,000) the conversation is summarized.
+- *Trimmed history*: at the next question, earlier tool results over 200 characters become a one-line note and thinking blocks are dropped; past the context limit (SummaryAt, or by default 70% of the model's window) the conversation is summarized.
 - *Caps*: `MaxTokens` a reply (RAI 1024, Studio 4096, the user's to change), 25 tool calls a question, Stop.
 - *A meter*: `Usage` — tokens sent (from the cache), received, and the cost from the prices the user typed (`PriceIn` / `PriceOut`: no prices in code).
 

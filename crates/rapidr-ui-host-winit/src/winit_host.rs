@@ -305,6 +305,8 @@ impl Host for WinitHost {
         // back; winit's own timer would spin inside a tracked menu)
         let winit_timeout = if crate::tracking::OWN_DEADLINE { timeout.filter(Duration::is_zero) } else { timeout };
         let status = self.event_loop.pump_app_events(winit_timeout, &mut Shim { s: &mut self.state, desk, store });
+        // (back: the program's turn — busy until the next wait)
+        rapidr_crash::watchdog::busy();
         drop(held);
         if let Some(panic) = crate::tracking::take_panic() {
             std::panic::resume_unwind(panic);
@@ -1042,12 +1044,17 @@ impl ApplicationHandler<UserEvent> for Shim<'_> {
     }
 
     fn new_events(&mut self, el: &ActiveEventLoop, _cause: winit::event::StartCause) {
+        // (woken: the window's thread has work — the hang watchdog's
+        // "busy", rapidr-crash)
+        rapidr_crash::watchdog::busy();
         self.apply(el);
     }
 
     fn about_to_wait(&mut self, el: &ActiveEventLoop) {
         self.apply(el);
         el.set_control_flow(ControlFlow::Wait);
+        // (about to wait for the system: answering)
+        rapidr_crash::watchdog::idle();
     }
 
     fn user_event(&mut self, _el: &ActiveEventLoop, event: UserEvent) {

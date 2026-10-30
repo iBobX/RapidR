@@ -1,0 +1,9 @@
+# RAI-TRAIN: llama.cpp b11981 converter environment (from PyPI only: the
+# converter's own requirements file names the PyTorch CPU index; the PyPI
+# macOS arm64 wheel is the same CPU build). torch: BSD-style; transformers,
+# sentencepiece: Apache-2.0; numpy: BSD-3; gguf (from llama.cpp/gguf-py): MIT.
+torch==2.11.0
+numpy~=2.2.6
+sentencepiece>=0.1.98,<0.3.0
+transformers==4.57.6
+protobuf>=4.21.0,<5.0.0

@@ -16,6 +16,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::a11y::{node_id, AccessNode, Numeric, Role};
 use rapidr_value::objects::codehelp::{color_said, color_words};
 use rapidr_value::objects::font::Font;
@@ -401,7 +402,7 @@ impl ColorEd {
         p.round((ox + 42, oy + 12, 30, 24), 3.0, Some(new), Some(look.border_strong), 1.0);
         let bold = Font { styles: 1, ..font.clone() };
         p.text((ox + 82, oy + 10, WIDTH - 94, th + 2), &self.name_line(), &bold, look.text, Place::TopLeft);
-        p.text((ox + 82, oy + 12 + th, WIDTH - 94, th + 2), "was · now", font, look.dim, Place::TopLeft);
+        p.text((ox + 82, oy + 12 + th, WIDTH - 94, th + 2), &tr_ui("was · now"), font, look.dim, Place::TopLeft);
         // the wheel and the square
         let scale = p.scale();
         let wr = at(self.wheel_rect());
@@ -428,11 +429,11 @@ impl ColorEd {
         // the palette
         let top = oy + 46 + WHEEL + 14;
         if self.project > 0 {
-            p.text((ox + 12, top + (CELL - th) / 2, 68, th), "Project", font, look.dim, Place::TopLeft);
+            p.text((ox + 12, top + (CELL - th) / 2, 68, th), &tr_ui("Project"), font, look.dim, Place::TopLeft);
         }
         let pr = i64::from(self.project > 0);
-        p.text((ox + 12, top + CELL * pr + (CELL - th) / 2, 68, th), "Standard", font, look.dim, Place::TopLeft);
-        p.text((ox + 12, top + CELL * (pr + 2) + (CELL - th) / 2, 68, th), "System", font, look.dim, Place::TopLeft);
+        p.text((ox + 12, top + CELL * pr + (CELL - th) / 2, 68, th), &tr_ui("Standard"), font, look.dim, Place::TopLeft);
+        p.text((ox + 12, top + CELL * (pr + 2) + (CELL - th) / 2, 68, th), &tr_ui("System"), font, look.dim, Place::TopLeft);
         for (i, &c) in self.palette.iter().enumerate() {
             let r = at(self.cell(i));
             p.round((r.0 + 2, r.1 + 2, r.2 - 4, r.3 - 4), 3.0, Some(Self::shown_of(c)), Some(look.border_strong), 1.0);
@@ -444,8 +445,8 @@ impl ColorEd {
             }
         }
         let (cancel, apply) = self.buttons(h);
-        button(p, at(cancel), "Cancel", false, self.part() == Part::Cancel, look, font);
-        button(p, at(apply), "Apply", true, self.part() == Part::Apply, look, font);
+        button(p, at(cancel), &tr_ui("Cancel"), false, self.part() == Part::Cancel, look, font);
+        button(p, at(apply), &tr_ui("Apply"), true, self.part() == Part::Apply, look, font);
     }
 
     /// Its parts for screen readers (ids under `base`), in `origin`'s place.
@@ -457,23 +458,23 @@ impl ColorEd {
             n.bounds = (origin.0, origin.1, 0, 0);
             n
         };
-        let mut wheel = node("hue", Role::Slider, "Hue".into());
+        let mut wheel = node("hue", Role::Slider, tr_ui("Hue"));
         wheel.numeric = Some(Numeric { value: self.h.round(), min: 0.0, max: 359.0, step: 1.0, jump: 30.0 });
-        wheel.value = Some(format!("{} degrees", self.h.round()));
+        wheel.value = Some(tr_ui_fill("{degrees} degrees", &[("degrees", &self.h.round().to_string())]));
         wheel.states.focused = self.part() == Part::Wheel;
         out.push(wheel);
-        let mut sq = node("sv", Role::Slider, "Saturation and brightness".into());
-        sq.value = Some(format!("saturation {}, brightness {}", (self.s * 100.0).round(), (self.v * 100.0).round()));
-        sq.description = "Left and Right: saturation; Up and Down: brightness".into();
+        let mut sq = node("sv", Role::Slider, tr_ui("Saturation and brightness"));
+        sq.value = Some(tr_ui_fill("saturation {saturation}, brightness {brightness}", &[("saturation", &(self.s * 100.0).round().to_string()), ("brightness", &(self.v * 100.0).round().to_string())]));
+        sq.description = tr_ui("Left and Right: saturation; Up and Down: brightness");
         sq.states.focused = self.part() == Part::Square;
         out.push(sq);
         for (k, f) in self.fields.iter().enumerate() {
-            let mut n = node(&format!("field{k}"), Role::TextInput, f.label.to_string());
+            let mut n = node(&format!("field{k}"), Role::TextInput, f.label_text());
             n.value = Some(f.text.clone());
             n.states.focused = self.part() == Part::Field(k);
             out.push(n);
         }
-        let mut list = node("palette", Role::ListBox, "Palette".into());
+        let mut list = node("palette", Role::ListBox, tr_ui("Palette"));
         for (i, &c) in self.palette.iter().enumerate() {
             let mut o = node(&format!("palette{i}"), Role::ListBoxOption, color_said(c));
             o.states.selected = Some(i == self.palette_at);
@@ -481,10 +482,10 @@ impl ColorEd {
             list.children.push(o);
         }
         out.push(list);
-        let mut cancel = node("cancel", Role::Button, "Cancel".into());
+        let mut cancel = node("cancel", Role::Button, tr_ui("Cancel"));
         cancel.states.focused = self.part() == Part::Cancel;
         out.push(cancel);
-        let mut apply = node("apply", Role::Button, "Apply".into());
+        let mut apply = node("apply", Role::Button, tr_ui("Apply"));
         apply.states.focused = self.part() == Part::Apply;
         out.push(apply);
         out
@@ -493,7 +494,7 @@ impl ColorEd {
     /// What it shows, in words (the editor's text for tests and the
     /// dialog's description): "orange, 255 130 20 (was blue, 0 0 255)".
     pub fn said(&self) -> String {
-        format!("{} (was {})", color_said(self.value), color_said(self.original))
+        tr_ui_fill("{color} (was {original})", &[("color", &color_said(self.value)), ("original", &color_said(self.original))])
     }
 }
 

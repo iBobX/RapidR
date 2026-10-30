@@ -17,6 +17,7 @@ mod draw;
 use std::cell::RefCell;
 use std::collections::HashMap;
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{part_id, AccessNode, Action, Role, PART_ITEM};
 use rapidr_value::objects::ops::Rect;
@@ -108,11 +109,25 @@ fn row_at(cx: &Cx, g: &Geo, count: usize, y: i64) -> Option<usize> {
     (at >= 0).then_some((at / ROW) as usize).filter(|&i| i < count)
 }
 
+/// A file kind (the project file's word for it) in the program's language,
+/// for a screen reader.
+fn kind_word(kind: &str) -> String {
+    match kind {
+        "form" => tr_ui("form"),
+        "module" => tr_ui("module"),
+        "include" => tr_ui("include"),
+        "resource" => tr_ui("resource"),
+        "asset" => tr_ui("asset"),
+        "data" => tr_ui("data"),
+        other => other.to_string(),
+    }
+}
+
 /// The strip's buttons: Remove, Cancel.
 pub(crate) fn strip_buttons(strip: Rect, font: &rapidr_value::objects::font::Font) -> [Rect; 2] {
     let (x, y, w, h) = strip;
     let bw = |t: &str| (rapidr_value::objects::text::text_size(t, font).0 + 28).max(72);
-    let (rw, cw) = (bw("Remove"), bw("Cancel"));
+    let (rw, cw) = (bw(&tr_ui("Remove")), bw(&tr_ui("Cancel")));
     let by = y + h - 10 - 24;
     let remove = (x + w - 10 - rw, by, rw, 24);
     let cancel = (remove.0 - 8 - cw, by, cw, 24);
@@ -572,12 +587,12 @@ impl ComponentKind for ProjectTree {
         n.role = Role::Tree;
         let Some(m) = with(cx.id, Clone::clone) else {
             if n.name.is_empty() {
-                n.name = "Project".into();
+                n.name = tr_ui("Project");
             }
             return n;
         };
         if n.name.is_empty() {
-            n.name = if m.loaded { format!("Project {}", m.project.name) } else { "Project".into() };
+            n.name = if m.loaded { tr_ui_fill("Project {name}", &[("name", &m.project.name)]) } else { tr_ui("Project") };
         }
         let l = look(rapidr_value::theme::current());
         let g = geo(cx, &l, m.confirm.is_some());
@@ -592,27 +607,29 @@ impl ComponentKind for ProjectTree {
                 _ => r.label.clone(),
             };
             item.description = match &r.kind {
-                NodeKind::Project => "project".into(),
-                NodeKind::Group(_) => format!("{} file{}", r.count.unwrap_or(0), if r.count == Some(1) { "" } else { "s" }),
-                NodeKind::Folder(..) => "folder".into(),
+                NodeKind::Project => tr_ui("project"),
+                NodeKind::Group(_) if r.count == Some(1) => tr_ui("1 file"),
+                NodeKind::Group(_) => tr_ui_fill("{count} files", &[("count", &r.count.unwrap_or(0).to_string())]),
+                NodeKind::Folder(..) => tr_ui("folder"),
                 NodeKind::File(p) => m
                     .file(p)
                     .map(|f| {
                         // (a file of several forms says how many: S1)
                         let kind = match m.form_count(p) {
-                            n if n > 1 => format!("{}, {n} forms", f.kind.as_str()),
-                            _ => f.kind.as_str().to_string(),
+                            n if n > 1 => tr_ui_fill("{kind}, {n} forms", &[("kind", &kind_word(f.kind.as_str())), ("n", &n.to_string())]),
+                            _ => kind_word(f.kind.as_str()),
                         };
-                        if r.main {
-                            format!("{kind}, the main file")
-                        } else {
-                            kind
+                        let kind = if r.main { tr_ui_fill("{kind}, the main file", &[("kind", &kind)]) } else { kind };
+                        // (Versions G3: its state against the last version, in words)
+                        match m.badge(p) {
+                            Some(b) => format!("{kind}, {}", rapidr_value::panels::project_tree::ProjectTree::badge_words(b)),
+                            None => kind,
                         }
                     })
                     .unwrap_or_default(),
                 // (a form: Enter opens it in the designer)
-                NodeKind::Component { ty, .. } if matches!(ty.as_str(), "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI") => "form".into(),
-                NodeKind::Component { .. } => "component".into(),
+                NodeKind::Component { ty, .. } if matches!(ty.as_str(), "QFORM" | "RFORM" | "QFORMMDI" | "RFORMMDI") => tr_ui("form"),
+                NodeKind::Component { .. } => tr_ui("component"),
             };
             item.level = Some(r.level + 1);
             item.states.selected = Some(r.key == m.selected);
@@ -628,7 +645,7 @@ impl ComponentKind for ProjectTree {
         }
         if let (Some(ed), Some(r)) = (&editing, Self::edit_rect(cx, &g)) {
             let mut e = AccessNode::new(part_id(cx.id, PART_ITEM, PART_EDITOR), Role::TextInput);
-            e.name = "File name".into();
+            e.name = tr_ui("File name");
             e.value = Some(ed.text.clone());
             e.description = m.rename_error.clone().unwrap_or_default();
             e.states.focused = focused;
@@ -638,11 +655,11 @@ impl ComponentKind for ProjectTree {
         }
         if let (Some(c), Some(strip)) = (&m.confirm, g.strip) {
             let mut s = AccessNode::new(part_id(cx.id, PART_ITEM, PART_STRIP), Role::Group);
-            s.name = format!("Remove {} from the project?", model::name_of(&c.path));
+            s.name = tr_ui_fill("Remove {name} from the project?", &[("name", model::name_of(&c.path))]);
             s.bounds = (ox + strip.0, oy + strip.1, strip.2, strip.3);
-            for (b, (rect, (title, part))) in strip_buttons(strip, &cx.font).into_iter().zip([("Remove", PART_REMOVE), ("Cancel", PART_CANCEL)]).enumerate() {
+            for (b, (rect, (title, part))) in strip_buttons(strip, &cx.font).into_iter().zip([(tr_ui("Remove"), PART_REMOVE), (tr_ui("Cancel"), PART_CANCEL)]).enumerate() {
                 let mut btn = AccessNode::new(part_id(cx.id, PART_ITEM, part), Role::Button);
-                btn.name = title.into();
+                btn.name = title;
                 btn.states.focused = focused && c.focus == b;
                 btn.actions = vec![Action::Click, Action::Focus];
                 btn.bounds = (ox + rect.0, oy + rect.1, rect.2, rect.3);

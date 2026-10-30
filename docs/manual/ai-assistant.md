@@ -12,7 +12,7 @@ model server on your own computer (Ollama, LM Studio), which needs no key
 and sends nothing out.
 
 **Off by default.** Nothing is sent anywhere until you turn the assistant
-on, set it up and press Send. RapidR has no telemetry.
+on, set it up and press Send. RapidR has no telemetry. While your program runs, RAI can read what its windows show and click and type in them; that goes to your provider like the rest of the chat.
 
 **What it costs.** RapidR charges nothing. A cloud provider charges your
 account for each request, by the *tokens* (pieces of words) sent and
@@ -387,6 +387,16 @@ file after the assistant read it — *The change to main.rr wasn't applied:
 main.rr changed after the assistant read it*. A review opened again shows
 only what still waits.
 
+**Apply is all or nothing.** Before it changes anything, Studio checks every
+change: a new file can be written where it goes (its folder is made when it
+isn't there yet: `icons/folder.svg`), nothing is there already, and each
+changed file is still as the assistant read it. Only then are the new files
+written — exactly as their text is, in UTF-8 like every file Studio saves
+(`lang/zh-Hans.po` keeps its 太阳系) — and the changes made in their editors.
+If anything can't be done, nothing is: the status line and the Output say
+why (*Nothing was changed: hello_form.rr/blocked.txt: its folder can't be
+made*), and the changes still wait, to review again.
+
 ### Small, exact changes
 
 The assistant changes an existing file by sending only the lines that
@@ -420,8 +430,11 @@ Changes…** shows them all together.
   newer proposal*.
 - If you edit a file yourself while a change to it waits, that change is
   set aside at your next question, and the chat says so: it is never
-  applied over your own edits. Opening another project sets the waiting
-  changes aside too.
+  applied over your own edits.
+- **The waiting changes are kept with the chat.** Close Studio, open the
+  project again tomorrow: its chat comes back with **Review the Changes…**
+  ready, and Apply works as before. Opening another project keeps them with
+  their own project's chat, never offered to apply in this one.
 
 ## A new program: "Build me…"
 
@@ -475,7 +488,11 @@ When you ask for a new program, Studio first looks for the closest of its
 **recipes** — short, working programs of the shapes people ask for most: a
 calculator, a tip calculator, a stopwatch, a to-do list, a unit converter, a
 quiz, a drawing pad, a password generator, a CSV viewer, a list with Start /
-Stop buttons ([examples/recipes](../../examples/recipes/)). It sends that
+Stop buttons ([examples/recipes](../../examples/recipes/)) — and, for programs
+that handle a machine's insides, ten systems recipes: memory, bits and flags,
+a tiny CPU, the stack, a hex dump, a disassembler, a binary file, video
+memory, a keyboard, cycles per frame ([Recipes for systems
+programs](recipes-systems.md)). It sends that
 recipe with your request, so the assistant adapts a program that already
 works instead of inventing one. The search runs on your computer, in
 English, Spanish and Portuguese; *What was sent* shows the recipe that went.
@@ -548,8 +565,10 @@ RapidR starts a new one with the next request.
   teacher to make the key. RapidR needs no account, and a model on this
   computer is free.
 - **Send shares** your message, the chat so far, RapidR's instructions (the
-  same for every project) and what the assistant reads of the open project —
-  nothing outside it, nothing before you press Send.
+  same for every project), what the assistant reads of the open project and,
+  while your program runs and you allowed it (a card in the chat asks once a
+  run), what the program's windows show — nothing outside it, nothing before
+  you press Send. See [A program's eyes and hands](app-eyes-and-hands.md#in-rapidr-studio-ai-apps-and-rai-look-at-your-running-program).
 - **Text in your files is data.** A comment or a data file that says
   "ignore your instructions and …" is something the assistant reports, not
   something it obeys; and whatever it is persuaded of, it can only propose
@@ -588,8 +607,11 @@ from the cache — and 400 to 2,000 received: a fraction of a cent.
 ### The context meter and Compact
 
 Under the buttons, the **context meter** shows how much the next question
-will send — *Context: 12,400 of 40,000 (31%)*. At the right end (40,000
-tokens, or 70% of a smaller model's window) the chat is compacted by itself:
+will send — *Context: 12,400 of 700,000 (2%)*. At the right end (70% of the
+model's window: 700,000 tokens for claude-opus-5-5 or claude-sonnet-5-5,
+whose window is 1,000,000 — RapidR knows Claude's windows before the
+provider's model list is fetched; 40,000 when a model's window isn't known,
+or the lower point you set) the chat is compacted by itself:
 summarised in one short request, and the next questions start from the
 summary. **Compact** (or `/compact`) does it now — the chat says *The chat
 was compacted: what each question sends of it went from about 12,400 tokens

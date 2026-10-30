@@ -1,0 +1,5774 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: RapidR Studio\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ide/ai.inc
+msgid "Review the Assistant's Changes"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What will be applied"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Accept &All"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Accept every change of every file"
+msgstr ""
+
+#: ide/ai.inc
+msgid "&Reject All"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Reject every change of every file"
+msgstr ""
+
+#: ide/ai.inc ide/mcp.inc
+msgid "A&pply"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Apply the accepted changes"
+msgstr ""
+
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+msgid "Cancel"
+msgstr ""
+
+#: ide/ai.inc ide/mcp.inc
+msgid "What the change does"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Files the assistant changes"
+msgstr ""
+
+#: ide/ai.inc ide/mcp.inc
+msgid "The change: the file as it is on the left, as proposed on the right"
+msgstr ""
+
+#: ide/ai.inc
+msgid "A New Program from the Assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Create &in:"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The folder the new project goes in"
+msgstr ""
+
+#: ide/ai.inc
+msgid "&Browse..."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Choose the folder the new project goes in"
+msgstr ""
+
+#: ide/ai.inc
+msgid "&Create and Open"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The new program's files"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The form, as it will look"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The file's code"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What Was Sent"
+msgstr ""
+
+#: ide/ai.inc ide/debug.inc
+msgid "Close"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The last request, as sent (your key isn't in it)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "AI Assistant"
+msgstr ""
+
+#: ide/ai.inc ide/aichats.inc
+msgid "Chats"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This project's chats: switch, rename, delete, search"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This chat"
+msgstr ""
+
+#: ide/ai.inc ide/aisetup.inc ide/settings.inc
+msgid "Model"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Refresh the model list"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Ask the provider for its models again"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Auto"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Low"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Medium"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: High"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Reasoning effort"
+msgstr ""
+
+#: ide/ai.inc
+msgid "How hard the model thinks before it answers: more takes longer and costs more"
+msgstr ""
+
+#: ide/ai.inc
+msgid "New Chat"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Start a new chat"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This chat is kept: Chats lists it"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Assistant status"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Ask the assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Enter sends; Shift+Enter starts a new line"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Send"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Send to the assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Stop"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Stop the answer"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What Send shares"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Tokens used"
+msgstr ""
+
+#: ide/ai.inc ide/settings.inc
+msgid "What was sent"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What was sent to the assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Time the answer has taken"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context used"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Compact"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Compact the chat"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Summarises this chat now, so each question sends less (/compact)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Commands"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Commands: Up and Down choose, Tab completes, Enter runs"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Editing a sent question"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Stop editing the question"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Queued message"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Cancel the queued message"
+msgstr ""
+
+#: ide/ai.inc
+msgid "It won't be sent"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Review the Changes..."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Review the proposed changes"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What the assistant is doing"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What the assistant is doing now"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Time this answer has taken"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Steps done in this answer"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Conversation with the assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The assistant's new program"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Run it"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Runs the new program (F5). Nothing runs until you press it."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Ask It to Fix"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Ask the assistant to fix the errors"
+msgstr ""
+
+#: ide/ai.inc ide/aichats.inc
+msgid "Undo"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Closes the new program and removes the files the assistant wrote"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What Did It Do?"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What did it do?"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Shows what the assistant did, in the Assistant pane"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Close the banner"
+msgstr ""
+
+#: ide/ai.inc ide/panels.inc ide/settings.inc
+msgid "General"
+msgstr ""
+
+#: ide/ai.inc ide/settings.inc
+msgid "AI"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Assistant"
+msgstr ""
+
+#: ide/ai.inc
+msgid "RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Choose a model in the list above (↻ asks the provider for its models)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
+msgstr ""
+
+#: ide/ai.inc
+msgid "the provider"
+msgstr ""
+
+#: ide/ai.inc
+msgid "the server at {url}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before."
+msgstr ""
+
+#: ide/ai.inc
+msgid "A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{provider}'s models (the provider: Tools > Settings > AI)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does."
+msgstr ""
+
+#: ide/ai.inc
+msgid "This provider's models choose how much to think for themselves."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Auto, as the model usually thinks."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Low — slower, and it costs more."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: Medium — slower, and it costs more."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: High — slower, and it costs more."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Effort: {effort} — slower, and it costs more."
+msgstr ""
+
+#: ide/ai.inc
+msgid "RAI is answering: ↻ works once it is done (or Stop)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context: empty"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context: {used} of {limit} ({pct}%)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "About {used} tokens go with the next question. At {limit} the chat is compacted by itself; Compact does it now."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{n} s"
+msgstr ""
+
+#: ide/ai.inc
+msgid "No answer from the model for {n} s: wait, or Stop."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Compacting the chat…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Queued: {message}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The queued message won't be sent."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Summarise this chat now: each question then sends less"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Start a new chat (this one is kept in Chats)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Choose the model (/model name picks it)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "How hard it thinks: /effort low, medium, high or auto"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undo the assistant's last change"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What you can type here"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Choose the model in the list (↻ asks {provider} for its models again)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "The model is {model} now."
+msgstr ""
+
+#: ide/ai.inc
+msgid "/effort takes low, medium, high or auto."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{command} isn't a command: /help lists them. (To send it, start it with a space.)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing to undo: the assistant changed nothing since Studio started (or it was undone)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "a closed file"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undone in {n} file(s); {files} changed since: Edit > Undo there."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undone: the assistant's last change is taken back (Edit > Redo puts it back)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undone: the assistant's last changes are taken back in {n} files."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Not edited: the chat is as it was."
+msgstr ""
+
+#: ide/ai.inc
+msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Waiting for you — {status}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Stopped. Your queued message is back in the box, not sent."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Preview the New Program..."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Preview the new program before it is created"
+msgstr ""
+
+#: ide/ai.inc
+msgid "There is no key for {provider}: Tools > Settings > AI."
+msgstr ""
+
+#: ide/ai.inc
+msgid "AI: {model} is no longer in the provider's list: choose a model again"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{status} Choose one in the list."
+msgstr ""
+
+#: ide/ai.inc ide/aisetup.inc
+msgid "RAI is ready: {model}."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing has been sent yet."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Your key is never shown or logged. Every request and change is in the audit log on this computer: {location}"
+msgstr ""
+
+#: ide/ai.inc ide/versions.inc
+msgid "{file} (new)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{accepted} of {n} change accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
+msgid_plural "{accepted} of {n} changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "{file} is proposed twice"
+msgstr ""
+
+#: ide/ai.inc ide/project.inc
+msgid "{file} isn't there any more"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{file} changed since the assistant read it"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{file}: it can't be opened"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{file}: its editor refused the change"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing was changed: no change was accepted."
+msgstr ""
+
+#: ide/ai.inc
+msgid "1 file changed: Edit > Undo takes it back."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{n} files changed: Edit > Undo in each takes it back."
+msgstr ""
+
+#: ide/ai.inc
+msgid "AI: not applied — {reason}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing was changed: {reason}. What this Apply had done was taken back; the changes still wait (Review)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing was changed: {reason} (and {n} more in the Output). The changes still wait (Review)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing was changed: {reason}. The changes still wait (Review)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{name}: {n} file, previewed: nothing is written until you press Create"
+msgid_plural "{name}: {n} files, previewed: nothing is written until you press Create"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "Where the New Program Goes"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Can't create the project: {error}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The new program isn't created yet: your changes came first. Preview the New Program creates it."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Can't create the new program in {folder}: {error}. Preview the New Program lets you choose another folder."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Made {title}: Run It is at the top."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Made {title}, {n} error left: see the top."
+msgid_plural "Made {title}, {n} errors left: see the top."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "The assistant made this program for you."
+msgstr ""
+
+#: ide/ai.inc
+msgid "▶  Run It"
+msgstr ""
+
+#: ide/ai.inc
+msgid "The assistant made this program — it still has {n} error."
+msgid_plural "The assistant made this program — it still has {n} errors."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "▶  Run Anyway"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Run anyway"
+msgstr ""
+
+#: ide/ai.inc
+msgid "↺  Undo"
+msgstr ""
+
+#: ide/ai.inc
+msgctxt "the word looked for in a status line"
+msgid "error"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{status} The program has {n} error: Problems lists them."
+msgid_plural "{status} The program has {n} errors: Problems lists them."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "Please fix the errors that are left."
+msgstr ""
+
+#: ide/ai.inc
+msgid "There is no new program to undo."
+msgstr ""
+
+#: ide/ai.inc
+msgid "{file} has changes not saved"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undo the new program {title}?"
+msgstr ""
+
+#: ide/ai.inc
+msgid "It changed since the assistant made it: {changes}. Undo removes the files the assistant wrote, with your changes to them; files you added stay."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undone: {title} was removed."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Undone: the assistant's files of {title} were removed; the files you added stay in {folder}."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Copied the code."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Copied the code"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Nothing waits for review: those changes were applied or rejected already."
+msgstr ""
+
+#: ide/ai.inc
+msgid "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Fixing the errors…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Thinking…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Working…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "the server"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{min} min {n} s"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Waiting for the provider…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Waiting for {name}'s answer… {n} s"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{n} earlier step"
+msgid_plural "{n} earlier steps"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "This answer: {in} in ({cached} cached) · {out} out · part {part} of {parts}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This answer: {in} in ({cached} cached) · {out} out"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This answer: {in} in · {out} out · part {part} of {parts}"
+msgstr ""
+
+#: ide/ai.inc
+msgid "This answer: {in} in · {out} out"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Open a file in the editor first: Insert types the code at its caret."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Inserted the code at the caret in {file} (Ctrl+Z takes it back)."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Inserted the code"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Choose a Provider first: its models are listed here then."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Loading {provider}'s models…"
+msgstr ""
+
+#: ide/ai.inc
+msgid "↻ Refresh the list"
+msgstr ""
+
+#: ide/ai.inc
+msgid "{n} model from {provider}, fast, low-cost ones first: pick one."
+msgid_plural "{n} models from {provider}, fast, low-cost ones first: pick one."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "{n} model from {provider}: pick one."
+msgid_plural "{n} models from {provider}: pick one."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/ai.inc
+msgid "The key is kept in {store} as {q}{name}{q}: the program names it, never the key."
+msgstr ""
+
+#: ide/ai.inc
+msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it."
+msgstr ""
+
+#: ide/ai.inc
+msgid "A key ({hint}) is found in the {source}: the code never holds it."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Search:"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Search chats"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
+msgstr ""
+
+#: ide/aichats.inc ide/panels.inc
+msgid "Open"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Open the chat"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Rename"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Rename the chat"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Delete"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Delete the chat"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "It is removed from this computer; Undo puts it back"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Chat deleted"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Undo: put the chat back"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "The chat's new name"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Enter keeps it, Escape leaves the name as it was"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Save"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Save the new name"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Keep the name as it was"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Where chats are kept"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "This project's chats, the newest first"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "New chat"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "This chat: {title}"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "AI: this chat couldn't be kept: {error}"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "That chat can't be read any more (removed outside Studio?)."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "A new chat. The last one is kept: Chats lists it."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "A new chat."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Kept in {folder}"
+msgstr ""
+
+#: ide/aichats.inc ide/aisetup.inc
+msgid "Back"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Back to the chat"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "{title} — {n} question, {date}"
+msgid_plural "{title} — {n} questions, {date}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aichats.inc
+msgid "{item}: {q}{snippet}{q}"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "{item} (open)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "No chats kept for this project yet."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "No chat has {q}{text}{q}."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "{n} chat"
+msgid_plural "{n} chats"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aichats.inc
+msgid "Opened {q}{title}{q}."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Renamed: {q}{title}{q}."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "That chat couldn't be renamed."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "That chat couldn't be deleted."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Deleted {q}{title}{q}."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Deleted {q}{title}{q}. Undo puts it back."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "The chat couldn't be put back."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Put back: {q}{title}{q}."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "RAI is answering: wait for it, or Stop, then edit a question."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Editing a question: Send replaces it, Escape cancels."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Editing your question. Send replaces it: its answer moves to a saved copy of this chat (in Chats)."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Editing your question. Send replaces it: its answer and the {n} question after it move to a saved copy of this chat (in Chats)."
+msgid_plural "Editing your question. Send replaces it: its answer and the {n} questions after it move to a saved copy of this chat (in Chats)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aichats.inc
+msgid "{title} (before the edit)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "{title} (before Retry)"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "AI: the copy couldn't be kept: {error}"
+msgstr ""
+
+#: ide/aichats.inc
+msgid "RAI is answering: wait for it, or Stop, then send the edited question."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "The question wasn't changed: the chat couldn't be copied first."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "AI: the chat before the edit is kept as {q}{title}{q} (Chats)."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "Not retried: the chat couldn't be copied first."
+msgstr ""
+
+#: ide/aichats.inc
+msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
+msgstr ""
+
+#: ide/aisetup.inc ide/mcp.inc
+msgid "Set Up RAI"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "< &Back"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Next >"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Where RAI's answers come from"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Free, on &this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The servers found on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Look Again"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Look again for a server on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A &cloud service, with your own key"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A server on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Server:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The server on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Address:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The server's address"
+msgstr ""
+
+#: ide/aisetup.inc ide/settings.inc
+msgid "&Model:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "About this server"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A cloud service"
+msgstr ""
+
+#: ide/aisetup.inc ide/settings.inc
+msgid "&Provider:"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The cloud provider"
+msgstr ""
+
+#: ide/aisetup.inc ide/settings.inc
+msgid "Get a key"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Get a key on the provider's website, in the browser"
+msgstr ""
+
+#: ide/aisetup.inc ide/settings.inc
+msgid "API &key:"
+msgstr ""
+
+#: ide/aisetup.inc ide/settings.inc
+msgid "API key"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Paste the key the provider gave you: it is kept in this computer's keychain, never in a project"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Test the Key"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Test the key: ask the provider for its models"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The key's test"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "What it costs, and what is sent"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Where should RAI's answers come from?"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "RAI on this computer"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "&Finish"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "RAI from a cloud service"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Set Up RAI — {title}"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} (no model yet: download one in it first)"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} ({n} model)"
+msgid_plural "{name} ({n} models)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "✓ Found on this computer: {servers}. Not running: {others}."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "✓ Found on this computer: {servers}."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Looking for a server on this computer…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} (running)"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} (not running)"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A key for {name} is already found ({hint}, {store}): Test it, or paste another."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Paste the key {name} gave you (Get a key opens its page), then Test the Key."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Paste your API key first: the provider lists its models only to a key it knows."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Testing the key…"
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "The key works, but it can chat with no model: check it on the provider's website."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "✓ The key works: {n} model. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
+msgid_plural "✓ The key works: {n} models. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/aisetup.inc
+msgid "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "Test the key first: then choose one of the provider's models."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "RAI isn't ready yet: {why}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Project Options"
+msgstr ""
+
+#: ide/build.inc
+msgid "The app's icon"
+msgstr ""
+
+#: ide/build.inc
+msgid "App &name:"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Bundle ID:"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Version:"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Company:"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Icon:"
+msgstr ""
+
+#: ide/build.inc
+msgid "Choose the icon file"
+msgstr ""
+
+#: ide/build.inc
+msgid "Use RapidR's icon"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Targets:"
+msgstr ""
+
+#: ide/build.inc
+msgid "Desktop"
+msgstr ""
+
+#: ide/build.inc
+msgid "Web"
+msgstr ""
+
+#: ide/build.inc
+msgid "Desktop and web"
+msgstr ""
+
+#: ide/build.inc
+msgid "Targets: where the program runs"
+msgstr ""
+
+#: ide/build.inc
+msgid "B&uild:"
+msgstr ""
+
+#: ide/build.inc
+msgid "Compiled (native: needs Rust)"
+msgstr ""
+
+#: ide/build.inc
+msgid "Interpreted (no Rust needed)"
+msgstr ""
+
+#: ide/build.inc
+msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
+msgstr ""
+
+#: ide/build.inc
+msgid "&Output folder:"
+msgstr ""
+
+#: ide/build.inc
+msgid "Output folder: where Build puts the app"
+msgstr ""
+
+#: ide/build.inc
+msgid "Choose the output folder"
+msgstr ""
+
+#: ide/build.inc
+msgid "&Keep the generated Rust source"
+msgstr ""
+
+#: ide/build.inc ide/safety.inc ide/settings.inc
+msgid "OK"
+msgstr ""
+
+#: ide/build.inc
+msgid "In a browser. Problems notes what works on the desktop only."
+msgstr ""
+
+#: ide/build.inc
+msgid "On the desktop and in a browser. Problems notes what works on one of them only."
+msgstr ""
+
+#: ide/build.inc
+msgid "Native builds and the interpreter. What works on the desktop only isn't noted."
+msgstr ""
+
+#: ide/build.inc
+msgid "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
+msgstr ""
+
+#: ide/build.inc
+msgid "The app's icon, made into every size each system shows."
+msgstr ""
+
+#: ide/build.inc
+msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
+msgstr ""
+
+#: ide/build.inc
+msgid "An interpreted build has no Rust: the app runs the program's bytecode."
+msgstr ""
+
+#: ide/build.inc
+msgid "Left in {path}, beside the app, to read."
+msgstr ""
+
+#: ide/build.inc
+msgid "Off: the Rust RapidR generates is deleted after the build."
+msgstr ""
+
+#: ide/build.inc
+msgid "Compiled (Rust not installed)"
+msgstr ""
+
+#: ide/build.inc
+msgid "The App's Icon"
+msgstr ""
+
+#: ide/build.inc
+msgid "Icons and pictures"
+msgstr ""
+
+#: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
+msgid "All files"
+msgstr ""
+
+#: ide/build.inc
+msgid "The Output Folder"
+msgstr ""
+
+#: ide/build.inc
+msgid "Build: {n} error (see Problems)."
+msgid_plural "Build: {n} errors (see Problems)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/build.inc
+msgid "Can't build: the program has errors"
+msgstr ""
+
+#: ide/build.inc
+msgid "Building {file}..."
+msgstr ""
+
+#: ide/build.inc
+msgid "Can't build: {error}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Can't build {file}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Installing Rust..."
+msgstr ""
+
+#: ide/build.inc
+msgid "Can't install Rust: {error}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Can't install Rust"
+msgstr ""
+
+#: ide/build.inc
+msgid "native"
+msgstr ""
+
+#: ide/build.inc
+msgid "interpreted"
+msgstr ""
+
+#: ide/build.inc
+msgid "web"
+msgstr ""
+
+#: ide/build.inc
+msgid "✓ Rust is installed ({seconds} s): Run > Build Native App is ready."
+msgstr ""
+
+#: ide/build.inc
+msgid "Rust is installed"
+msgstr ""
+
+#: ide/build.inc
+msgid "✗ Installing Rust failed (exit code {code}) after {seconds} s: see above. `rapidr setup` in a terminal asks the same questions."
+msgstr ""
+
+#: ide/build.inc
+msgid "Installing Rust failed"
+msgstr ""
+
+#: ide/build.inc
+msgid "✓ Built {file} — unzip on any web host"
+msgstr ""
+
+#: ide/build.inc
+msgid "Reveal in {manager}"
+msgstr ""
+
+#: ide/build.inc
+msgid "Built {file}"
+msgstr ""
+
+#: ide/build.inc
+msgid "✓ Built {file} ({mode}) in {seconds} s"
+msgstr ""
+
+#: ide/build.inc
+msgid "✗ The build failed (exit code {code}) after {seconds} s: see above."
+msgstr ""
+
+#: ide/build.inc
+msgid "The build failed"
+msgstr ""
+
+#: ide/build.inc
+msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
+msgstr ""
+
+#: ide/build.inc ide/panels.inc
+msgid "Can't show it: {error}"
+msgstr ""
+
+#: ide/chrome.inc ide/versions.inc
+msgid "{experiment} is the experiment you're on (Git calls it a branch)"
+msgstr ""
+
+#: ide/chrome.inc ide/editor.inc
+msgid "Ln {line}, Col {col}"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&New Project..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Open Project or File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Folder..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Recent"
+msgstr ""
+
+#: ide/commands.inc
+msgid "No Recent Projects or Files"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Clear Recent"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Example..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Copy Example Again from the Ori&ginal..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Import RapidQ Project or File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Import RapidQ Fol&der..."
+msgstr ""
+
+#: ide/commands.inc ide/prompts.inc
+msgid "&Save"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Save &As..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Save A&ll"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Save a &Version..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Versio&ns"
+msgstr ""
+
+#: ide/commands.inc ide/versions.inc
+msgid "&Start Versioning This Project"
+msgstr ""
+
+#: ide/commands.inc ide/versions.inc
+msgid "What &Changed?"
+msgstr ""
+
+#: ide/commands.inc
+msgid "What Changed Since the &Last Version"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Go Back to This Version..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Go Back to This Version for This &File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Undo the Last Versions Action"
+msgstr ""
+
+#: ide/commands.inc
+msgid "S&how This Line's Change"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Undo This &Line's Change"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Local &History of This File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Changed Outside S&tudio"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Compare with the Disk's Version"
+msgstr ""
+
+#: ide/commands.inc ide/external.inc ide/versions.inc
+msgid "&Use Disk Version"
+msgstr ""
+
+#: ide/commands.inc ide/external.inc
+msgid "&Keep Mine"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Close Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Reo&pen Project"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Close Pro&ject"
+msgstr ""
+
+#: ide/commands.inc
+msgid "E&xit"
+msgstr ""
+
+#: ide/commands.inc ide/versions.inc
+msgid "&Undo"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Redo"
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "Cu&t"
+msgstr ""
+
+#: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
+msgid "&Copy"
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "&Paste"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Delete"
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "Select &All"
+msgstr ""
+
+#: ide/commands.inc
+msgid "D&uplicate"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Find..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "R&eplace..."
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "Find in F&iles..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Go to Line..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find &Next"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find Pre&vious"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Ad&vanced"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Indent Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Outdent Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Select Next &Occurrence"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Go to Matching &Bracket"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Fold"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Unfold"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Fold &All"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Unfold A&ll"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Parameter Info"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Show &Hover"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Word Wrap"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Complete &Word"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Quick Fix..."
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "Go to &Definition"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find Re&ferences"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Navigate &Back"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Navigate For&ward"
+msgstr ""
+
+#: ide/commands.inc ide/search.inc
+msgid "Re&name Symbol..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Comment"
+msgstr ""
+
+#: ide/commands.inc
+msgid "F&ormat Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Command &Palette..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Go to Anything..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Project"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Toolbox"
+msgstr ""
+
+#: ide/commands.inc
+msgid "P&roperties"
+msgstr ""
+
+#: ide/commands.inc
+msgid "O&utline"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Output"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Pro&blems"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Wrap &Long Output Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Immediate"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Variables"
+msgstr ""
+
+#: ide/commands.inc
+msgid "W&atch"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Call &Stack"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Breakpoints"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Debug Panes"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Welcome Page"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&AI Assistant"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Code"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Designer"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom &In"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom O&ut"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Actual Si&ze"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom to &Fit"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Form / Code"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Designer and Code &Side by Side"
+msgstr ""
+
+#: ide/commands.inc
+msgid "T&heme"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&RapidR (as the System)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Light"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Dark"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &High Contrast"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Classic (Windows)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Reset Layout"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add &File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add F&orm"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add &Module"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add a Form to This F&ile"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Project &Options..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Run"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run &Without Debugging"
+msgstr ""
+
+#: ide/commands.inc ide/mcp.inc
+msgid "&Stop"
+msgstr ""
+
+#: ide/commands.inc
+msgid "R&estart"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run in &Browser"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Build Web App (.zip)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Build"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Native App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Interpreted App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Continue"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Pause"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Show Program &Window"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step &Into"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step &Over"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step O&ut"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run to C&ursor"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Set &Next Statement"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step Into &Specific..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Breakpoint"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Edit Breakpoint..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Delete All Breakpoints"
+msgstr ""
+
+#: ide/commands.inc ide/debug.inc
+msgid "Add &Watch"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Stop at Run-time &Errors"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Lefts"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Rights"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Tops"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Bottoms"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align C&enters"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Middles"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Width"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Height"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Size"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Space Evenly Acr&oss"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Space Evenly &Down"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Center H&orizontally"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Center &Vertically"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Bring to &Front"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Send to Bac&k"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Edit &Caption"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Menu Editor"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Tab &Order"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Keyboard Shortcuts"
+msgstr ""
+
+#: ide/commands.inc ide/settings.inc
+msgid "Set &Up RAI..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&AI Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "New AI &Chat"
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI C&hats"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Co&mpact the AI Chat"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Review the AI's Changes..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&What Was Sent to the AI..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI A&pps Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI Apps Acti&vity"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Split &Right"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Split &Down"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Next Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Previous Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Next &Area"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Resize Panes"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Close &All Documents"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Help"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Examples"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&About RapidR Studio"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&File"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Edit"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&View"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Project"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Run"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Debug"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "F&ormat"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Tools"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Window"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Help"
+msgstr ""
+
+#: ide/consent.inc
+msgid "Learn more"
+msgstr ""
+
+#: ide/consent.inc ide/mcp.inc
+msgid "Opens the manual's page in your browser"
+msgstr ""
+
+#: ide/crash.inc
+msgid "&View Report"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Cop&y Report"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr ""
+
+#: ide/crash.inc
+msgid "Report on &GitHub..."
+msgstr ""
+
+#: ide/crash.inc
+msgid "&Dismiss"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Opens the report in a tab"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Copies the report's text"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Saves a copy of the report where you choose"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
+msgstr ""
+
+#: ide/crash.inc
+msgid "Closes this note. The report stays on this computer for 30 days."
+msgstr ""
+
+#: ide/crash.inc
+msgid "RapidR Studio isn't responding"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
+msgstr ""
+
+#: ide/crash.inc
+msgid "&Wait"
+msgstr ""
+
+#: ide/crash.inc
+msgid "&Save Copies and Quit"
+msgstr ""
+
+#: ide/crash.inc
+msgid "RapidR Studio stopped responding last time and was closed."
+msgstr ""
+
+#: ide/crash.inc
+msgid "RapidR Studio closed unexpectedly last time."
+msgstr ""
+
+#: ide/crash.inc
+msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
+msgstr ""
+
+#: ide/crash.inc
+msgid "The report isn't there any more."
+msgstr ""
+
+#: ide/crash.inc
+msgid "The report was copied."
+msgstr ""
+
+#: ide/crash.inc
+msgid "Save Report"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Text files"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Saved the report as {file}."
+msgstr ""
+
+#: ide/crash.inc
+msgid "Couldn't save the report: {error}"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Report this on GitHub?"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Your browser opens RapidR's page for a new issue on GitHub, filled in with this report. Nothing is sent until you send it there yourself."
+msgstr ""
+
+#: ide/crash.inc
+msgid "It shows"
+msgstr ""
+
+#: ide/crash.inc
+msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
+msgstr ""
+
+#: ide/crash.inc
+msgid "You need"
+msgstr ""
+
+#: ide/crash.inc
+msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
+msgstr ""
+
+#: ide/crash.inc ide/mcp.inc
+msgid "Keep in mind"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Issues on GitHub are public: anyone can read them. Read the report first, and take out anything you don't want to share."
+msgstr ""
+
+#: ide/crash.inc
+msgid "&Open GitHub"
+msgstr ""
+
+#: ide/crash.inc
+msgid "The page has a shorter report; the whole one was copied: paste it into the issue's text too."
+msgstr ""
+
+#: ide/crash.inc
+msgid "the stack overflowed (calls went too deep)"
+msgstr ""
+
+#: ide/crash.inc ide/safety.inc
+msgid "{file} line {n}"
+msgstr ""
+
+#: ide/crash.inc ide/safety.inc
+msgid "line {n}"
+msgstr ""
+
+#: ide/crash.inc
+msgid "{place}, in {routine}"
+msgstr ""
+
+#: ide/crash.inc
+msgid "{place}, in the main program"
+msgstr ""
+
+#: ide/crash.inc
+msgid "{event} of {component}"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}, at {where}."
+msgstr ""
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}."
+msgstr ""
+
+#: ide/crash.inc
+msgid "RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer:"
+msgstr ""
+
+#: ide/crash.inc
+msgid "View Report"
+msgstr ""
+
+#: ide/crash.inc
+msgid "Your program stopped: a problem in RapidR"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Text"
+msgstr ""
+
+#: ide/debug.inc
+msgid "The text"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Set Value"
+msgstr ""
+
+#: ide/debug.inc
+msgid "The new text"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Set"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Running…"
+msgstr ""
+
+#: ide/debug.inc
+msgid "The program has no window to bring to the front"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoint removed: {file}, line {line}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoint at {file}, line {line}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Every breakpoint removed"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(off)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(no code here: never stops)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "when {condition}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "hit {count}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "log {message}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoints ({n})"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoints"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoint {text}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Nothing to run: open a project or a program first (File > Open, or an example)."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Nothing to run: no project is open"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{file} is running already: Stop it first (Shift+F5)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{file} is paused already: Stop it first (Shift+F5)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run: the project's main file isn't set. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run: the project's main file {file} isn't there. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run: no main file"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run: {n} error. The first is selected."
+msgid_plural "Can't run: {n} errors. The first is selected."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc
+msgid "Running {file}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run {file}: {error}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't run {file}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Editing layout: the bottom panel is full width"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Run in Browser: building {file} for the web..."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Opening {file} in the browser..."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Breakpoint: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Paused at the start: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Run-time error: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Next statement: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Paused: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Paused, {message}: {place}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "[{file} ended, exit code {code}]"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{file} ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Ended with exit code {code}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "… {n} more"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Running… the values show when it pauses (F9 sets a breakpoint)."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Not paused: F9 sets a breakpoint, F5 runs."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Locals"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(none)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Globals"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Components"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(running)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(not paused)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Type an expression after the =, such as ={name} * 2."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Type the new value of {name}."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} takes one of: {choices}."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is on or off: type on, off, 1 or 0."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is True or False: type True or False."
+msgstr ""
+
+#: ide/debug.inc
+msgid "A colour as the web writes it has six hex digits, such as #FF8000."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is a colour: type a number, a colour's name such as clRed, or #RRGGBB."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} holds a number: type one, such as 42."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Values can be changed while the program is paused (F9 sets a breakpoint)."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} isn't a value that can be set."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} can't be changed: it's read-only."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is an array: open it and set its elements one at a time."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is a component: open it and set its properties."
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is a record (a TYPE): open it and set its fields one at a time."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Enter sets it, Esc leaves it"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} holds a secret: it isn't shown, so it can't be edited here."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Set {name}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't set {name}: see Output"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is unchanged."
+msgstr ""
+
+#: ide/debug.inc ide/versions.inc
+msgid "Nothing to undo"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(the program)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't set {name}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{name} is back to {value}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(Ctrl+Z undoes)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Can't copy: {error}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied the value ({n} character)"
+msgid_plural "Copied the value ({n} characters)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc
+msgid "Can't show {expr}: {error}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Set Next Statement: {error}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{n} more"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied the value"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied {expr}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "(value)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{characters}, {lines}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "{n} character"
+msgid_plural "{n} characters"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc
+msgid "{n} line"
+msgid_plural "{n} lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc
+msgid "Text of {expr}"
+msgstr ""
+
+#: ide/debug.inc ide/safety.inc
+msgid "Copied"
+msgstr ""
+
+#: ide/debug.inc
+msgid "This line calls no SUB or FUNCTION: stepping over it"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Step into {name}"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Copy Value"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copy &Expression"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&View Text..."
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Set Value..."
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied the call"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied the breakpoint"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Copied {n} call"
+msgid_plural "Copied {n} calls"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc
+msgid "Copied {n} breakpoint"
+msgid_plural "Copied {n} breakpoints"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/debug.inc ide/mcp.inc ide/panels.inc
+msgid "Copy &All"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Run-time errors end the program"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Variables"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Watch"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Add a watch:"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Add a watch: an expression, then Enter"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Add a watch"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Watches"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Call Stack"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&When"
+msgstr ""
+
+#: ide/debug.inc
+msgid "A condition: it stops when this is true (clicks > 1)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Condition"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Hit"
+msgstr ""
+
+#: ide/debug.inc
+msgid "A hit count: 3 (the third time), >= 3, % 3 (every third)"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Hit count"
+msgstr ""
+
+#: ide/debug.inc
+msgid "&Log"
+msgstr ""
+
+#: ide/debug.inc
+msgid "A logpoint: prints this ({{expr}} shows a value) and goes on"
+msgstr ""
+
+#: ide/debug.inc
+msgid "Log message"
+msgstr ""
+
+#: ide/debug.inc
+msgid "On"
+msgstr ""
+
+#: ide/designer.inc ide/panels.inc
+msgid "Designer: {message}"
+msgstr ""
+
+#: ide/documents.inc
+msgid "{n} error"
+msgid_plural "{n} errors"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/documents.inc
+msgid "{n} warning"
+msgid_plural "{n} warnings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/documents.inc
+msgid "{n} note"
+msgid_plural "{n} notes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/documents.inc
+msgid "{file} (deleted on disk)"
+msgstr ""
+
+#: ide/documents.inc
+msgid "Opened {file}"
+msgstr ""
+
+#: ide/documents.inc
+msgid "{file} makes a form: now under Forms"
+msgstr ""
+
+#: ide/documents.inc
+msgid "{file} makes no form: now under Includes"
+msgstr ""
+
+#: ide/documents.inc
+msgid "{file} makes no form: now under Modules"
+msgstr ""
+
+#: ide/editor.inc
+msgid "Rename: {file} couldn't be opened"
+msgstr ""
+
+#: ide/external.inc
+msgid "&Compare"
+msgstr ""
+
+#: ide/external.inc
+msgid "Shows the disk's version beside yours"
+msgstr ""
+
+#: ide/external.inc ide/versions.inc
+msgid "Loads the file as it is on disk. Your version is kept in the local history, and Undo brings it back."
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeps your version here. Saving it will ask before it replaces the disk's version."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Show"
+msgstr ""
+
+#: ide/external.inc
+msgid "Lists the files in the Output"
+msgstr ""
+
+#: ide/external.inc
+msgid "C&lose"
+msgstr ""
+
+#: ide/external.inc
+msgid "Close the note"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio."
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it: Compare, Use Disk Version or Keep Mine."
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio."
+msgid_plural "{n} files were updated outside Studio."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc ide/versions.inc
+msgid "Local history: {why}"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: its text is kept here"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio, and you have unsaved changes in it"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio"
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio"
+msgid_plural "{n} files were updated outside Studio"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio: Save All makes it again"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was updated outside Studio: the Project pane follows it"
+msgstr ""
+
+#: ide/external.inc ide/panels.inc
+msgid "Can't read the project again: {error}"
+msgstr ""
+
+#: ide/external.inc
+msgid "Loaded the disk's version of {file}: yours is in the local history, and Undo brings it back"
+msgstr ""
+
+#: ide/external.inc
+msgid "Loaded the disk's version. Undo brings yours back."
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeping your version of {file}: saving it asks first"
+msgstr ""
+
+#: ide/external.inc
+msgid "Keeping your version. Saving it asks first."
+msgstr ""
+
+#: ide/external.inc
+msgid "{n} file was updated outside Studio:"
+msgid_plural "{n} files were updated outside Studio:"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/external.inc
+msgid "Save {file} again?"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} was deleted outside Studio. Saving makes the file again with the text you have here."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Save Again"
+msgstr ""
+
+#: ide/external.inc
+msgid "Save {file} anyway?"
+msgstr ""
+
+#: ide/external.inc
+msgid "{file} changed outside Studio since you opened it. Saving replaces the version on disk with yours; Studio keeps the disk's version in the local history first."
+msgstr ""
+
+#: ide/external.inc
+msgid "&Save Anyway"
+msgstr ""
+
+#: ide/external.inc
+msgid "Not saved: {file} changed outside Studio"
+msgstr ""
+
+#: ide/external.inc
+msgid "Opened {file} again from the disk"
+msgstr ""
+
+#: ide/markdown.inc ide/project.inc
+msgid "Ready"
+msgstr ""
+
+#: ide/markdown.inc
+msgid "Opened {url} in the browser"
+msgstr ""
+
+#: ide/markdown.inc
+msgid "Can't open {url}: there is no {file}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI Apps"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What the AI app does now"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What AI apps may do"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Read only, Ask before changes, Allow edits or Allow everything: for this project"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Warning: AI apps may change and run anything in this project without asking"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "No questions asked"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Stop the server: every AI app is disconnected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What an AI app asks to do"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Allow &Once"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Allow for This Se&ssion"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Calls of this kind are allowed until Studio closes or the server stops"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Deny"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Review..."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Review the change before deciding"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What AI apps did"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Let AI apps use RapidR Studio"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Off by default. On: an AI app on this computer that has the address and token below can work with your open project"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "P&ort:"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Port"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The port AI apps connect to on 127.0.0.1 (this computer only)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Address:"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The address AI apps connect to"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Copy &Address"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Header:"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The header AI apps send: Authorization, Bearer and the token"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Copy &Header"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Sho&w"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Show or hide the token"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Reset Token"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "A new token: every AI app that had the old one is disconnected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What AI apps may &do:"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What AI apps may do in this project"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "What the choice means"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Learn more about AI apps"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "C&lear Activity..."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Removes the list of what AI apps did from this computer"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Review the AI App's Change"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Reject"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Files the AI app changes"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Read only"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Allow edits"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Allow everything"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Ask before changes"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "New project: same permission as before ({mode})"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps may now: {mode}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: {mode}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Allow everything for AI apps in this project?"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "You still see"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Everything they do, listed in the AI Apps pane; Stop ends it."
+msgstr ""
+
+#: ide/mcp.inc ide/settings.inc
+msgid "Never"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Studio's own tools never hand over your keys, or files outside the project."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps change and run anything in this project without asking"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The permission stays as it was"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Allow Everything"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: off. Confirm again in Settings > AI Apps."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: the token couldn't be kept in the keychain ({error}): it is new each time Studio starts."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "It can see"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "It can"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "It never sees"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Your AI provider keys or passwords: your keychain keeps them."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: port {port} is taken"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps can connect at {url} (this computer only; the header is in Tools > Settings > AI Apps)."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: stopped. Every AI app was disconnected."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: on, none connected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Waiting at {url} (this computer only)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: {names}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{n} call"
+msgid_plural "{n} calls"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/mcp.inc
+msgid "AI apps: off"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Tools > Settings > AI Apps turns them on."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Turn On..."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: allow everything"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: waiting for you"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: on"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: {what}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: connected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "ok"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "error"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "applied"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "applied (you allowed it)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "denied by you"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "refused"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "couldn't run"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "started"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "sent"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "RAI didn't start"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "refused: {why}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "refused ({dialog} open)"
+msgstr ""
+
+#: ide/mcp.inc ide/settings.inc
+msgid "Settings"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "a question"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "a review window"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "a dialog"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "a value's window"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} connected"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} connected to Studio"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} left"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Opening a project"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Opening {path}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "waiting for you"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client}: {what} (waiting for you)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} asks: {what}. Allow it in the AI Apps pane."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} wants to open {what}."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} wants to change {files}: {summary}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} wants to run your program ({what})."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{client} wants to ask RAI: {prompt}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "{question} ({n} more waiting)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Program status"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Stopped the program"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Running the program"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Debugger state"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Debugger: {action}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "A picture of Studio"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Asking RAI: {prompt}"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "(turn AI apps on: a token is made)"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "In {project}, AI apps may &do:"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Let AI apps use RapidR Studio?"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps that have the token can connect to RapidR Studio"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps stay off"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Turn On"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: off. Every AI app was disconnected."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Address copied"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Header copied"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "&Hide"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "AI apps: the new token couldn't be kept in the keychain ({error})."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "A new token: AI apps need the new header"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Clear the AI apps' activity?"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The list of what AI apps did is removed from this computer ({location})."
+msgstr ""
+
+#: ide/mcp.inc
+msgid "The list stays"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "Removes the list of what AI apps did"
+msgstr ""
+
+#: ide/mcp.inc
+msgid "C&lear"
+msgstr ""
+
+#: ide/panels.inc ide/shell.inc
+msgid "Example"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Go to line {}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Component"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Symbol"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Can't make {file}: {error}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Can't add {file}: {error}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{main} includes {file} ($INCLUDE): its forms are made when the program starts"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{form} added: drop components on it; show it with {form}.Show"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{file} is there already"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{main} includes {file} now"
+msgstr ""
+
+#: ide/panels.inc
+msgid "The main file stays in the project"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{file} taken out of the project (still on the disk)"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{main} no longer includes {file}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Can't save the project's order"
+msgstr ""
+
+#: ide/panels.inc ide/shell.inc
+msgid "Open or make a project first (File > New Project)"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Open a form to add a {type}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "A form can't go inside a form: {form} was added as a new window. For child windows, make {mdi} an RFormMDI."
+msgstr ""
+
+#: ide/panels.inc ide/panes.inc ide/window.inc
+msgid "Properties"
+msgstr ""
+
+#: ide/panels.inc ide/panes.inc ide/window.inc
+msgid "Project"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Appearance"
+msgstr ""
+
+#: ide/panels.inc
+msgid "The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."
+msgstr ""
+
+#: ide/panels.inc
+msgid "The project's name, as the Project pane and the window's title show it. Its files keep their names."
+msgstr ""
+
+#: ide/panels.inc
+msgid "The file the program starts from: Run, Build and the checks begin there."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Run"
+msgstr ""
+
+#: ide/panels.inc
+msgid "The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a {q}quoted{q} one keeps its spaces."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Designer"
+msgstr ""
+
+#: ide/panels.inc
+msgid "The form designer's grid, in pixels: what Snap snaps to."
+msgstr ""
+
+#: ide/panels.inc
+msgid "The form designer snaps what you move or size to the grid."
+msgstr ""
+
+#: ide/panels.inc
+msgid "The form designer shows alignment guides and snaps to them."
+msgstr ""
+
+#: ide/panels.inc
+msgid "A project needs a name"
+msgstr ""
+
+#: ide/panels.inc
+msgid "{file} is not one of the project's source files"
+msgstr ""
+
+#: ide/panels.inc
+msgid "The grid is 1 to 64 pixels"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Theme: the $THEME line is out of {file}: the program follows the system"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Theme: {file} says $THEME {look}"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Copy &All Problems"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Copied {n} problem"
+msgid_plural "Copied {n} problems"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/panels.inc
+msgid "Copied {n} line"
+msgid_plural "Copied {n} lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/panels.inc
+msgid "Copied {n} character"
+msgid_plural "Copied {n} characters"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/panels.inc
+msgid "Nothing selected to copy"
+msgstr ""
+
+#: ide/panels.inc
+msgid "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Select a component on a form to see its properties."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Press F5 to run the program; its output shows here."
+msgstr ""
+
+#: ide/panels.inc
+msgid "Copy &Line"
+msgstr ""
+
+#: ide/panels.inc
+msgid "&Select All"
+msgstr ""
+
+#: ide/panels.inc
+msgid "&Wrap Long Lines"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Cl&ear"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Double-click or press Enter to add a component to the form; drag it to place it."
+msgstr ""
+
+#: ide/panels.inc
+msgid "({step}: refused)"
+msgstr ""
+
+#: ide/panes.inc ide/window.inc
+msgid "Toolbox"
+msgstr ""
+
+#: ide/panes.inc ide/window.inc
+msgid "Outline"
+msgstr ""
+
+#: ide/panes.inc ide/window.inc
+msgid "Output"
+msgstr ""
+
+#: ide/panes.inc ide/window.inc
+msgid "Immediate"
+msgstr ""
+
+#: ide/panes.inc ide/window.inc ide/workspace.inc
+msgid "Welcome"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Example {name}: {what}"
+msgstr ""
+
+#: ide/panes.inc
+msgid "New Project..."
+msgstr ""
+
+#: ide/panes.inc
+msgid "Open Project or File..."
+msgstr ""
+
+#: ide/panes.inc
+msgid "Import a RapidQ Program..."
+msgstr ""
+
+#: ide/panes.inc
+msgid "Open an Example"
+msgstr ""
+
+#: ide/panes.inc
+msgid "All Commands"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Drop a CSV, see it charted"
+msgstr ""
+
+#: ide/panes.inc
+msgid "CSV, grid and edits, linked"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A million rows, analysed"
+msgstr ""
+
+#: ide/panes.inc
+msgid "JSON records in a grid"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A form, a button, its OnClick"
+msgstr ""
+
+#: ide/panes.inc
+msgid "The focus: OnEnter, OnExit"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Main and pop-up menus"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Open, save, colour, font"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A rich-text editor (.rtf)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A list and a grid together"
+msgstr ""
+
+#: ide/panes.inc
+msgid "The themes, switched live"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A big window: a dashboard"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A data frame and a chart"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Debug it: values as trees"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Ask an AI: models, an answer"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A program in the classic style"
+msgstr ""
+
+#: ide/panes.inc
+msgid "PRINT, FOR, SUB, FUNCTION"
+msgstr ""
+
+#: ide/panes.inc
+msgid "The code shows its own values: colours, pictures, fonts"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A bug in a handler: the program goes on and says so"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Click the sky: rockets and thousands of sparks"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A Markdown notes app, live preview"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A snake game, for the keyboard alone"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Four pictures, the very same numbers"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Pi by throwing darts, live"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A lit 3D planet with a ring and a moon"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A signal generator, an oscilloscope and an FFT spectrum"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A 3D scene that dances to a song (reads the MIDI file itself)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Composes the visualizer's song and writes a .mid file"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Values as the debugger shows them: icons, swatches, changes"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A million rows from SQLite in the background, an SQL editor"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A transaction you can see; closing asks, Enter answers No"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A web API in your program (RHttpServer), this computer only"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Code in Markdown, coloured: SQL and BASIC"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Labels as links: Tab, a focus ring, Enter or Space"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A tone made sample by sample, with an oscilloscope"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A one-bit speaker played the way an emulator plays it"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A three-voice square-wave music player"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Versions from a program: save, go back, undo, the local history"
+msgstr ""
+
+#: ide/panes.inc
+msgid "A picture of its own window, its own layout checked"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Show me: a pointer types and clicks for you"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a tip calculator"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a stopwatch (RTimer)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a to-do list, add and remove"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a unit converter"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a quiz with a score"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a drawing pad (RCanvas)"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a password generator"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a CSV file in a grid"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: a list with Start, Stop and Restart"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: memory as a byte array, words, wrapping addresses"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: bits and flags, an 8-bit ALU"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a tiny CPU, fetch, decode, execute"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: the stack, PUSH, POP, CALL, RET"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a hex dump, a memory viewer"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a disassembler, an opcode table"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a binary file into memory, its header"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: video memory drawn on a canvas"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a keyboard matrix and an IN port"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Systems recipe: a CPU run in cycles per frame"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Recipe: emulator sound from a speaker bit's flips"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Open Recent"
+msgstr ""
+
+#: ide/panes.inc
+msgid "Reopen {name}"
+msgstr ""
+
+#: ide/panes.inc
+msgid "and the file you had open"
+msgid_plural "and the {n} files you had open"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/panes.inc
+msgid "where you left it"
+msgstr ""
+
+#: ide/panes.inc
+msgid "{title}, {text}"
+msgstr ""
+
+#: ide/preview.inc
+msgid "Preview in &Classic"
+msgstr ""
+
+#: ide/preview.inc
+msgid "Preview in Classic: Run and the designer show the program in the classic look."
+msgstr ""
+
+#: ide/preview.inc
+msgid "Preview in Classic off: the program in its own look."
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't open the example {file}: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't open {file}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't open {file}: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
+msgstr ""
+
+#: ide/project.inc
+msgid "The main file is {main}, which {by} includes"
+msgstr ""
+
+#: ide/project.inc
+msgid "Copied {file} again from the original, in:"
+msgstr ""
+
+#: ide/project.inc
+msgid "Made your copy of the example {file} (the installed examples can't be changed), in:"
+msgstr ""
+
+#: ide/project.inc
+msgid "Your copy of the example {file}, as you left it, in:"
+msgstr ""
+
+#: ide/project.inc
+msgid "Copy again from the original"
+msgstr ""
+
+#: ide/project.inc
+msgid "Copy {name} again from the original?"
+msgstr ""
+
+#: ide/project.inc
+msgid "Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay."
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't copy {name} again: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't copy {name} again"
+msgstr ""
+
+#: ide/project.inc
+msgid "Open Project or File"
+msgstr ""
+
+#: ide/project.inc
+msgid "RapidR projects and sources"
+msgstr ""
+
+#: ide/project.inc
+msgid "Open Folder"
+msgstr ""
+
+#: ide/project.inc
+msgid "No RapidR project in {folder}"
+msgstr ""
+
+#: ide/project.inc
+msgid "{file}: the browser gave RapidR Studio this file only, not the project's files in its folder"
+msgstr ""
+
+#: ide/project.inc
+msgid "Open the folder {file} is in?"
+msgstr ""
+
+#: ide/project.inc
+msgid "The browser let RapidR Studio read only the file you picked. The project's files are in its folder."
+msgstr ""
+
+#: ide/project.inc
+msgid "File > Open Folder... opens the project with its files"
+msgstr ""
+
+#: ide/project.inc
+msgid "Open the folder {file} is in to open the project"
+msgstr ""
+
+#: ide/project.inc
+msgid "Import RapidQ Project or File"
+msgstr ""
+
+#: ide/project.inc
+msgid "RapidQ programs"
+msgstr ""
+
+#: ide/project.inc
+msgid "RapidR projects"
+msgstr ""
+
+#: ide/project.inc
+msgid "Import RapidQ Folder"
+msgstr ""
+
+#: ide/project.inc
+msgid "Importing {source}: a copy with RapidR's names and every file it includes (the original is only read)"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't import {source}: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't import {file}"
+msgstr ""
+
+#: ide/project.inc
+msgid "{file}: include file not found: {include} - {what}"
+msgstr ""
+
+#: ide/project.inc
+msgid "The copy: {path}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Imported {file}, but {n} include file wasn't found: see Output"
+msgid_plural "Imported {file}, but {n} include files weren't found: see Output"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/project.inc
+msgid "Imported {file} as a copy with RapidR's names"
+msgstr ""
+
+#: ide/project.inc
+msgid "Where the new project goes"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't make the project: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Saved {file}"
+msgstr ""
+
+#: ide/project.inc
+msgid "Can't save the project: {error}"
+msgstr ""
+
+#: ide/project.inc
+msgid "{file} isn't there any more ({path}): taken off Open Recent"
+msgstr ""
+
+#: ide/project.inc
+msgid "Open Recent cleared"
+msgstr ""
+
+#: ide/project.inc
+msgid "The last project, {file}, isn't there any more ({path}): taken off Open Recent"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Review Changes..."
+msgstr ""
+
+#: ide/prompts.inc
+msgid "Do&n't Save"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Restore"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Discard"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "Not Now"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Open Folder..."
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Copy Again"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Build Interpreted Instead"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Install Rust..."
+msgstr ""
+
+#: ide/prompts.inc
+msgid "Save &All"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Discard Changes"
+msgstr ""
+
+#: ide/prompts.inc
+msgid "Native builds need Rust (it is free)."
+msgstr ""
+
+#: ide/prompts.inc
+msgid "Rust is not installed on this computer. An interpreted app needs none and runs the same program."
+msgstr ""
+
+#: ide/prompts.inc
+msgid "&Undo Anyway"
+msgstr ""
+
+#: ide/safety.inc
+msgid "&Copy Details"
+msgstr ""
+
+#: ide/safety.inc
+msgid "Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Something went wrong in Studio: {message}. Your work is safe; Studio goes on."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Something went wrong in Studio ({n} time)"
+msgid_plural "Something went wrong in Studio ({n} times)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/safety.inc
+msgid "Something went wrong in Studio"
+msgstr ""
+
+#: ide/safety.inc
+msgid "Your work is safe: nothing was lost, and Studio goes on. A copy of your unsaved changes is kept. Copy Details copies what happened; Studio's log keeps it too."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Something went wrong in Studio. Your work is safe."
+msgstr ""
+
+#: ide/safety.inc
+msgid "{names} and {n} more"
+msgstr ""
+
+#: ide/safety.inc
+msgid "Studio closed before a file was saved: {names}. Restore puts your changes back in its editor (not saved yet; Undo goes back to the file)."
+msgid_plural "Studio closed before {n} files were saved: {names}. Restore puts your changes back in their editors (not saved yet; Undo goes back to the file)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/safety.inc
+msgid "Restore your unsaved work?"
+msgstr ""
+
+#: ide/safety.inc
+msgid "The unsaved work Studio kept was let go."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Studio keeps your unsaved work: it asks again at the next start."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Couldn't restore {file} (it isn't there any more): its copy is kept for the next start."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Couldn't restore {file}: its copy is kept for the next start."
+msgstr ""
+
+#: ide/safety.inc
+msgid "Restored the unsaved work of {n} file (not saved yet)."
+msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/search.inc
+msgid "Search"
+msgstr ""
+
+#: ide/search.inc
+msgid "Search for"
+msgstr ""
+
+#: ide/search.inc
+msgid "Search (Enter)"
+msgstr ""
+
+#: ide/search.inc
+msgid "Replace with"
+msgstr ""
+
+#: ide/search.inc
+msgid "Case"
+msgstr ""
+
+#: ide/search.inc
+msgid "Match case"
+msgstr ""
+
+#: ide/search.inc
+msgid "Word"
+msgstr ""
+
+#: ide/search.inc
+msgid "Whole words only"
+msgstr ""
+
+#: ide/search.inc
+msgid "Regex"
+msgstr ""
+
+#: ide/search.inc
+msgid "A regular expression"
+msgstr ""
+
+#: ide/search.inc
+msgid "Find"
+msgstr ""
+
+#: ide/search.inc
+msgid "Replace All"
+msgstr ""
+
+#: ide/search.inc
+msgid "In:"
+msgstr ""
+
+#: ide/search.inc
+msgid "Search in"
+msgstr ""
+
+#: ide/search.inc
+msgid "This file"
+msgstr ""
+
+#: ide/search.inc
+msgid "Open files"
+msgstr ""
+
+#: ide/search.inc
+msgid "Modules"
+msgstr ""
+
+#: ide/search.inc
+msgid "Forms"
+msgstr ""
+
+#: ide/search.inc
+msgid "Resources"
+msgstr ""
+
+#: ide/search.inc
+msgid "Whole project"
+msgstr ""
+
+#: ide/search.inc
+msgid "A folder..."
+msgstr ""
+
+#: ide/search.inc
+msgid "Type what to find, then Enter."
+msgstr ""
+
+#: ide/search.inc
+msgid "Search results"
+msgstr ""
+
+#: ide/search.inc
+msgid "Find &References"
+msgstr ""
+
+#: ide/search.inc
+msgid "Help"
+msgstr ""
+
+#: ide/search.inc
+msgid "Search the help"
+msgstr ""
+
+#: ide/search.inc
+msgid "Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code."
+msgstr ""
+
+#: ide/search.inc
+msgid "Names that match: Up and Down choose, Enter opens"
+msgstr ""
+
+#: ide/search.inc
+msgid "Help page"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in this file"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in the open files"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in the modules"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in the forms"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in the resources"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in {folder}"
+msgstr ""
+
+#: ide/search.inc
+msgid "No results for {text} in the project"
+msgstr ""
+
+#: ide/search.inc
+msgid "Choose a folder: In, A folder..."
+msgstr ""
+
+#: ide/search.inc
+msgid "Not a regular expression: {error}"
+msgstr ""
+
+#: ide/search.inc
+msgid "{results} in {files}"
+msgstr ""
+
+#: ide/search.inc
+msgid "{n} result"
+msgid_plural "{n} results"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/search.inc ide/versions.inc
+msgid "{n} file"
+msgid_plural "{n} files"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/search.inc
+msgid "(the first 1,990 shown)"
+msgstr ""
+
+#: ide/search.inc
+msgid "Search in a Folder"
+msgstr ""
+
+#: ide/search.inc
+msgid "Replaced in {n} file. {info}"
+msgid_plural "Replaced in {n} files. {info}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/search.inc
+msgid "No references: put the caret on a name of the program (a variable, a SUB, a component)."
+msgstr ""
+
+#: ide/search.inc
+msgid "References to {name}: {n} in {files}"
+msgstr ""
+
+#: ide/search.inc
+msgid "Nothing to go back to"
+msgstr ""
+
+#: ide/search.inc
+msgid "Nothing to go forward to"
+msgstr ""
+
+#: ide/search.inc
+msgid "Help: how to use it"
+msgstr ""
+
+#: ide/search.inc
+msgid "Help: {word}"
+msgstr ""
+
+#: ide/search.inc
+msgid "{n} name matches. {first}"
+msgid_plural "{n} names match. {first}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/settings.inc
+msgid "Settings pages"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Language"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Language"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The language RapidR Studio's menus, dialogs and messages are in. It changes at once."
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Include folders"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Include folders"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Add Folder..."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Add an include folder"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Remove"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Remove the selected include folder"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Themes and &Views..."
+msgstr ""
+
+#: ide/settings.inc
+msgid "The themes and views, in the command palette"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Offer to reopen the last project and its files at start-up"
+msgstr ""
+
+#: ide/settings.inc
+msgid "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Code &helpers"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Code helpers"
+msgstr ""
+
+#: ide/settings.inc
+msgid "What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Programs' &PATH"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The folders programs run from Studio find commands in, in order"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Re&fresh"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Read your login shell's PATH again"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Debug panes"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Debug panes"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Turn on the AI assistant"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Set up RAI, step by step"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Free on this computer, or a cloud service with your key: what each costs and sends, in plain words"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
+msgstr ""
+
+#: ide/settings.inc
+msgid "AI provider"
+msgstr ""
+
+#: ide/settings.inc
+msgid "See prices"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The provider's prices, in the browser"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Paste the key the provider gave you; it is kept in your system's keychain, never in a project"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Save Key"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Keep the API key"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Remo&ve"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Remove the API key"
+msgstr ""
+
+#: ide/settings.inc
+msgid "R&emember on this device"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Kept in this browser's storage for the page: anyone using this browser profile could read it"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Workspace ID:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Anthropic workspace ID (optional)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Base URL:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The server's base URL"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Fetch Models"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Ask the provider which models your key can use"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Fetch Models' result"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Longest &answer:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Longest answer, in tokens a part"
+msgstr ""
+
+#: ide/settings.inc
+msgid "tokens a part, up to the model's limit"
+msgstr ""
+
+#: ide/settings.inc
+msgid "About the answer's length and the chat's size"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Prices:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Price of a million tokens sent, in dollars (optional)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Price of a million tokens received, in dollars (optional)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "$ per million tokens sent / received"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&It may:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "What the assistant may do"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Ask before the assistant &creates or changes files"
+msgstr ""
+
+#: ide/settings.inc
+msgid "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
+msgstr ""
+
+#: ide/settings.inc
+msgid "The provider's links"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Off"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Quiet: the marks only"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Helpful: marks, the line's help, argument names"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Everything: every argument's name, choices marked too"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Automatic"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Always"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Add an Include Folder"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. {source}"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Programs' PATH read again. {source}"
+msgstr ""
+
+#: ide/settings.inc
+msgid "System default"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Read the project, propose changes you review"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Only read the project and answer"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Include folders: none ($INCLUDE looks in the program's folder)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Include folders: {folders}"
+msgstr ""
+
+#: ide/settings.inc
+msgid "An answer that reaches this length goes on by itself, in up to {parts} parts."
+msgstr ""
+
+#: ide/settings.inc
+msgid "The chat is summarised, keeping your request word for word, when it holds about {tokens} tokens (70% of this model's window)."
+msgstr ""
+
+#: ide/settings.inc
+msgid "The chat is summarised, keeping your request word for word, when it fills 70% of the model's window."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
+msgstr ""
+
+#: ide/settings.inc
+msgid "A local server needs no key (one is kept if you give it: some servers ask for one)."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Using the key in {env} ({hint}). A key saved here goes first."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Trying the key you typed ({hint}): OK or Save Key keeps it."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Your key {hint} is kept in {store}, never in a project."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Paste your key and press Save Key: it is kept in {store}, never in a project."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Asking {provider} for its models..."
+msgstr ""
+
+#: ide/settings.inc
+msgid "{status} None this key can chat with: check the key, or the server's models."
+msgstr ""
+
+#: ide/settings.inc
+msgid "{status} Choose one in the Model list (the fast, low-cost ones are first)."
+msgstr ""
+
+#: ide/settings.inc
+msgid "{status} {model} is still chosen."
+msgstr ""
+
+#: ide/shell.inc
+msgid "RapidR Studio (RapidR {version})"
+msgstr ""
+
+#: ide/shell.inc ide/window.inc
+msgid "BASIC is powerful again: desktop and web apps from one source."
+msgstr ""
+
+#: ide/shell.inc
+msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
+msgstr ""
+
+#: ide/shell.inc
+msgid "Save As"
+msgstr ""
+
+#: ide/shell.inc
+msgid "RapidR sources"
+msgstr ""
+
+#: ide/shell.inc
+msgid "Add a File to the Project"
+msgstr ""
+
+#: ide/shell.inc
+msgid "No splitter to move"
+msgstr ""
+
+#: ide/shell.inc
+msgid "({id}: not there yet)"
+msgstr ""
+
+#: ide/shell.inc
+msgid "RapidR Studio is ready."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project (Git calls this git init)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Local History..."
+msgstr ""
+
+#: ide/versions.inc
+msgid "The copies Studio kept of this file each time it was saved"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Changes not saved as a version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files not saved as a version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A double click opens the file"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Save a Version..."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Save a version of your files (Git calls this a commit)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Timeline"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Every version, newest first (Git calls this the log)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Timeline: every version, newest first"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Up and Down pick a version; What Changed? and Go Back... act on it"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What this version changed (Git calls this a diff)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Go Back..."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go back to this version: a new version with its files (Git calls this a revert)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Restore This Copy"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Save a Version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A version keeps the files you choose as they are now, with a few words about what changed, so you can always come back to them. Git calls it a commit."
+msgstr ""
+
+#: ide/versions.inc
+msgid "&What changed:"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Say in a few words what this version changes"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Files in this version:"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files in this version: Space ticks or unticks one"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Your name:"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Your name, saved with the version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "These aren't real keys or passwords: save them &anyway"
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Save Version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "The &Whole Project"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Only This &File"
+msgstr ""
+
+#: ide/versions.inc
+msgid "File"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Change"
+msgstr ""
+
+#: ide/versions.inc
+msgid "just now"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} minute ago"
+msgid_plural "{n} minutes ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "{n} hour ago"
+msgid_plural "{n} hours ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "yesterday"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "new, not in a version yet"
+msgstr ""
+
+#: ide/versions.inc
+msgid "removed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "AI checkpoint: {what}, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "saved by {who}, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Open a project to see its versions"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Not in a browser"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions need RapidR Studio on your computer: a browser can't keep them yet."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them."
+msgstr ""
+
+#: ide/versions.inc
+msgid "No versions yet"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Until then Studio keeps a copy of each file every time you save it. Local History shows them."
+msgstr ""
+
+#: ide/versions.inc
+msgid "{experiment} · all saved"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{experiment} · {n} change"
+msgid_plural "{experiment} · {n} changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "No changes since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Changes not saved as a version ({n})"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Undo: {what}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "no changes since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} change not saved as a version"
+msgid_plural "{n} changes not saved as a version"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "AI checkpoint: {what}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{who} · {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Only {file}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions didn't start: {why}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions didn't start"
+msgstr ""
+
+#: ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions started: save your first version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Versions started. Save a Version keeps your files as they are now."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Nothing changed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Nothing changed since the last version, so there is nothing to save."
+msgstr ""
+
+#: ide/versions.inc
+msgid "new"
+msgstr ""
+
+#: ide/versions.inc
+msgid "removed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Save &Anyway"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Tick at least one file to save in this version."
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file}, line {line}: {what}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "and {n} more line"
+msgid_plural "and {n} more lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one."
+msgid_plural "These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones."
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "Not saved: lines look like keys or passwords. The dialog lists them."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Saved the version “{message}” ({id})"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Saved the version “{message}”"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Version saved."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Pick a version in the timeline first"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go back to “{message}” for {file}?"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file} becomes as it was in that version, saved as a new version. The other files stay as they are, and the newer versions stay on the timeline. Undo takes it back."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Go back to “{message}”?"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Your files become as they were in that version, saved as a new version. The newer versions stay on the timeline, and Undo takes it back. Git calls this a revert."
+msgstr ""
+
+#: ide/versions.inc
+msgid "&Go Back"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Didn't go back: {why}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Didn't go back: see the Output"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Went back to “{message}”: a new version ({id}). Undo takes it back."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Went back to “{message}”"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Went back to {message}. Undo takes it back."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Nothing to undo in the versions"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Couldn't undo: {why}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Couldn't undo: see the Output"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Undid: {what}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Open a file to see its local history"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Local History: {file}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Copies of {file}, newest first"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Puts this copy's text in the editor; Undo (Ctrl+Z) takes it back"
+msgstr ""
+
+#: ide/versions.inc
+msgid "As it was on disk, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Before reloading, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Before a restore, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "When it was deleted outside Studio, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Saved, {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "No copies yet: Studio keeps one each time you save this file."
+msgstr ""
+
+#: ide/versions.inc
+msgid "Compare: {file}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file}: the disk's version and yours"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Left: on disk, changed outside Studio. Right: yours, not saved."
+msgstr ""
+
+#: ide/versions.inc
+msgid "What Changed: {message}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What changed in “{message}”"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{who} · {when} · {files}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What Changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "What changed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files that changed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file} (removed)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Restored a copy of {file}: save it to keep it, Ctrl+Z takes it back"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Restored. Save the file to keep it; Undo takes it back."
+msgstr ""
+
+#: ide/versions.inc
+msgid "This line is as the last version has it"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Start versioning the project to see what changed since a version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Line {n} was: {text}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "The change was undone. Ctrl+Z brings it back."
+msgstr ""
+
+#: ide/window.inc
+msgid "Tool bar"
+msgstr ""
+
+#: ide/window.inc
+msgid "Status"
+msgstr ""
+
+#: ide/window.inc
+msgid "Start"
+msgstr ""
+
+#: ide/window.inc
+msgid "Recent"
+msgstr ""
+
+#: ide/window.inc
+msgid "No recent projects yet"
+msgstr ""
+
+#: ide/window.inc
+msgid "Examples"
+msgstr ""
+
+#: ide/window.inc
+msgid "Type a command, :line, or an example"
+msgstr ""
+
+#: ide/window.inc
+msgid "Command Palette"
+msgstr ""
+
+#: ide/window.inc
+msgid "New Project"
+msgstr ""
+
+#: ide/window.inc
+msgid "&Name:"
+msgstr ""
+
+#: ide/window.inc
+msgid "Template:"
+msgstr ""
+
+#: ide/window.inc
+msgid "&Folder:"
+msgstr ""
+
+#: ide/window.inc
+msgid "Choose the folder"
+msgstr ""
+
+#: ide/window.inc
+msgid "Create"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Design"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Code"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Preview"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Source"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "{title}: {what}"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Do you want to save the changes you made to {file}?"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Your changes will be lost if you don't save them."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "You have {n} document with unsaved changes. Do you want to save it before quitting?"
+msgid_plural "You have {n} documents with unsaved changes. Do you want to save them before quitting?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/workspace.inc
+msgid "Review Changes asks about each one. If you discard them, all your changes will be lost."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Form app"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "A window to design, with its code beside it."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Console"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "PRINT and INPUT in a text window."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Classic form app"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "A .bas with the classic names only, checked as classic."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Data dashboard"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "A table in a grid and a chart of it."
+msgstr ""
+
+#: ide/workspace.inc
+msgid "MDI app"
+msgstr ""
+
+#: ide/workspace.inc
+msgid "Child windows, File and Window menus."
+msgstr ""

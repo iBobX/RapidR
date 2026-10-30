@@ -3,6 +3,8 @@ resolver = "2"
 members = [
     "crates/rapidr-cli",
     "crates/rapidr-diagnostics",
+    # RapidR in every language: PO catalogs, the pseudo-language, the tools
+    "crates/rapidr-i18n",
     "crates/rapidr-ast",
     "crates/rapidr-lang",
     "crates/rapidr-lexer",
@@ -13,6 +15,10 @@ members = [
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
     "crates/rapidr-value",
+    # RapidR's own crash and hang reports, on this computer only
+    "crates/rapidr-crash",
+    # RArchive's engine: zip, tar, gzip, 7z, xz, zstd (wasm-safe)
+    "crates/rapidr-archive",
     "crates/rapidr-d3d-gpu",
     "crates/rapidr-db",
     "crates/rapidr-ui-kernel",
@@ -61,6 +67,7 @@ license = "MIT"
 rapidr-ast = { path = "crates/rapidr-ast" }
 rapidr-lang = { path = "crates/rapidr-lang" }
 rapidr-diagnostics = { path = "crates/rapidr-diagnostics" }
+rapidr-i18n = { path = "crates/rapidr-i18n" }
 rapidr-lexer = { path = "crates/rapidr-lexer" }
 rapidr-parser = { path = "crates/rapidr-parser" }
 rapidr-preprocessor = { path = "crates/rapidr-preprocessor" }
@@ -68,6 +75,8 @@ rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
 rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
+rapidr-crash = { path = "crates/rapidr-crash" }
+rapidr-archive = { path = "crates/rapidr-archive", default-features = false }
 rapidr-d3d-gpu = { path = "crates/rapidr-d3d-gpu" }
 rapidr-db = { path = "crates/rapidr-db" }
 rapidr-ui-kernel = { path = "crates/rapidr-ui-kernel" }

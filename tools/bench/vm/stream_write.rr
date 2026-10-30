@@ -1,0 +1,43 @@
+' vm_bench: a 64 KB file written a byte at a time — WriteNum(x, 1), then
+' WriteByte, 65,536 calls each — and a 64 KB BYTE array saved and loaded
+' with SaveArray / LoadArray; read back to check. Before STRING-SPEED
+' (2026-10-29) every write went to the file at once (three system calls a
+' byte: 0.6–1 s for 64 KB); now a file stream keeps its writes and writes
+' them together. Writes tests/results/bench/write.bin (git-ignored): run it
+' from the repository's folder.
+$APPTYPE CONSOLE
+CONST OUT = "tests/results/bench/write.bin"
+DIM fs AS RFileStream
+DIM a(65535) AS BYTE, c(65535) AS BYTE
+DIM i AS INTEGER, s AS INTEGER, u AS INTEGER, t AS DOUBLE, t1 AS DOUBLE, t2 AS DOUBLE
+FOR i = 0 TO 65535
+  a(i) = (i * 167 + 13) AND 255
+NEXT
+t = TIMER
+fs.Open(OUT, fmCreate)
+FOR i = 0 TO 65535
+  fs.WriteNum(a(i), 1)
+NEXT
+fs.Close
+fs.Open(OUT, fmCreate)
+FOR i = 0 TO 65535
+  fs.WriteByte(a(i))
+NEXT
+fs.Close
+t1 = TIMER
+fs.Open(OUT, fmCreate)
+fs.SaveArray(a(0), 65536)
+fs.Close
+fs.Open(OUT, fmOpenRead)
+fs.LoadArray(c(0), 65536)
+fs.Close
+t2 = TIMER
+s = 0
+u = 0
+FOR i = 0 TO 65535
+  s = s + a(i)
+  u = u + c(i)
+NEXT
+PRINT "stream_write "; FILELEN(OUT); " "; s; " "; u
+KILL OUT
+PRINT "ms "; INT((t2 - t) * 1000); " (WriteNum + WriteByte "; INT((t1 - t) * 1000); ", SaveArray + LoadArray "; INT((t2 - t1) * 1000); ")"

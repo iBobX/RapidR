@@ -1,0 +1,12 @@
+' Hello: the Versions walk's project (tests/studio_flows.mjs, versions-*):
+' a greeting and a count.
+$INCLUDE "greet.rr"
+
+DIM Name AS STRING
+Name = "Ana"
+PRINT Greeting(Name)
+PRINT "Counting to three:"
+FOR i = 1 TO 3
+    PRINT i
+NEXT
+PRINT "Done."

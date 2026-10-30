@@ -71,6 +71,9 @@ pub enum ScriptInput {
     /// (the input lane's) `comp.__dblclick_x_y`: a double click at (x, y)
     /// in the component.
     DblClick { comp: String, x: i64, y: i64 },
+    /// `comp.__rightclick_x_y`: the right button pressed and released at
+    /// (x, y) in the component.
+    RightClick { comp: String, x: i64, y: i64 },
     /// `comp.__cursor_x_y` in `RAPIDR_TEST_DUMP`: the mouse moved to (x, y)
     /// in the component, and the pointer there noted (its CSS name:
     /// `col-resize`, `text` …; `desktop::take_probe`).
@@ -153,6 +156,12 @@ pub trait Windows: Copy + 'static {
     fn popup_open(self, _form: &str) -> bool {
         false
     }
+    /// Where the kernel-drawn pop-up menu open on `form` is (its window's
+    /// inside, logical): a test's `comp.__popupat` (`None`: none open, or
+    /// the host shows the system's).
+    fn popup_rect(self, _form: &str) -> Option<(i64, i64, i64, i64)> {
+        None
+    }
     /// `X.StartDrag` on form `form`: component `comp` moves with the mouse
     /// while a button is held (the kernel's `FormUi::start_move`); whether
     /// it does. A host without the kernel's forms has none to move.
@@ -199,6 +208,20 @@ pub trait Windows: Copy + 'static {
     /// Request `id`'s paths once its dialog closed (none: cancelled),
     /// `None` while it's open.
     fn files_answer(self, id: u64) -> Option<Vec<String>>;
+
+    // ---- the eyes and hands (`crate::eyes`, `crate::hands`) ----
+
+    /// Runs `f` on the host's forms and the program's store, now: false
+    /// when they can't be had (the host is pumping, or hasn't started).
+    fn with_desk(self, _f: &mut dyn FnMut(&mut crate::desktop::Desktop, &dyn rapidr_ui_kernel::Store)) -> bool {
+        false
+    }
+    /// The program has handlers queued that haven't run yet (the
+    /// interpreter's VM runs them after the host's turn): what a driven
+    /// click started isn't over until they have.
+    fn handlers_pending(self) -> bool {
+        false
+    }
 
     // ---- a GUI test (`script.rs`) ----
 

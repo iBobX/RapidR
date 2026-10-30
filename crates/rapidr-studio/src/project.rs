@@ -56,6 +56,32 @@ thread_local! {
     static IMPORTED: RefCell<HashMap<String, (String, String, String)>> = RefCell::new(HashMap::new());
 }
 
+/// The project's file (relative, as listed) whose code `$INCLUDE`s the main
+/// file — "" when none does (the main file is where the program starts).
+fn main_included_by(m: &Model) -> String {
+    let main = normalize_path(&m.project.main).to_ascii_lowercase();
+    if main.is_empty() {
+        return String::new();
+    }
+    for f in &m.project.files {
+        if !matches!(f.kind, FileKind::Module | FileKind::Form | FileKind::Include) || normalize_path(&f.path).eq_ignore_ascii_case(&main) {
+            continue;
+        }
+        let Ok(text) = read_text(&join(&m.folder, &f.path)) else { continue };
+        let includes = text.lines().filter_map(|l| {
+            let l = l.trim_start();
+            let rest = l.get(..8).filter(|k| k.eq_ignore_ascii_case("$include")).map(|_| &l[8..])?;
+            let q = rest.trim_start().strip_prefix('"')?;
+            Some(q.split('"').next().unwrap_or("").to_string())
+        });
+        let dir = folder_of(&f.path);
+        if includes.map(|inc| normalize_path(&join(&dir, &slashes(&inc))).to_ascii_lowercase()).any(|inc| inc == main) {
+            return f.path.clone();
+        }
+    }
+    String::new()
+}
+
 fn imported(name: &str) -> (String, String, String) {
     IMPORTED.with(|i| i.borrow().get(&name.to_ascii_lowercase()).cloned().unwrap_or_default())
 }
@@ -83,34 +109,34 @@ fn kind_parse(s: &str) -> Option<FileKind> {
 pub fn get(name: &str, prop: &str) -> Option<Value> {
     with(name, |m| {
         Some(match prop {
-            "filename" => Value::String(m.file_name.clone()),
-            "folder" => Value::String(m.folder.clone()),
-            "kind" => Value::String(m.kind.to_string()),
-            "error" => Value::String(m.error.clone()),
-            "name" => Value::String(m.project.name.clone()),
-            "mainfile" => Value::String(m.project.main.clone()),
+            "filename" => Value::String(m.file_name.clone().into()),
+            "folder" => Value::String(m.folder.clone().into()),
+            "kind" => Value::String(m.kind.to_string().into()),
+            "error" => Value::String(m.error.clone().into()),
+            "name" => Value::String(m.project.name.clone().into()),
+            "mainfile" => Value::String(m.project.main.clone().into()),
             "filecount" => Value::Integer(if m.kind.is_empty() { 0 } else { m.project.file_count() as i64 }),
-            "compatmode" => Value::String(m.project.compat_mode().to_string()),
-            "icon" => Value::String(m.project.build.icon.clone()),
-            "appname" => Value::String(m.project.build.app_name.clone()),
-            "bundleid" => Value::String(m.project.build.bundle_id.clone()),
-            "version" => Value::String(m.project.build.version.clone()),
-            "company" => Value::String(m.project.build.company.clone()),
-            "buildkind" => Value::String(build_kind(&m.project).to_string()),
-            "targets" => Value::String(m.project.build.runs_on_or_default().to_string()),
-            "outputfolder" => Value::String(m.project.build.output.clone()),
+            "compatmode" => Value::String(m.project.compat_mode().to_string().into()),
+            "icon" => Value::String(m.project.build.icon.clone().into()),
+            "appname" => Value::String(m.project.build.app_name.clone().into()),
+            "bundleid" => Value::String(m.project.build.bundle_id.clone().into()),
+            "version" => Value::String(m.project.build.version.clone().into()),
+            "company" => Value::String(m.project.build.company.clone().into()),
+            "buildkind" => Value::String(build_kind(&m.project).to_string().into()),
+            "targets" => Value::String(m.project.build.runs_on_or_default().to_string().into()),
+            "outputfolder" => Value::String(m.project.build.output.clone().into()),
             "keeprust" => flag(m.project.build.keep_rust),
-            "runargs" => Value::String(join_args(&m.project.run.args)),
+            "runargs" => Value::String(join_args(&m.project.run.args).into()),
             "designergrid" => Value::Integer(i64::from(m.project.designer.grid)),
             "designersnap" => flag(m.project.designer.snap),
             "designerguides" => flag(m.project.designer.guides),
             "building" => flag(crate::build::building(name)),
-            "builtpath" => Value::String(m.built.clone()),
-            "importsummary" => Value::String(imported(name).0),
-            "importreport" => Value::String(imported(name).1),
-            "importmissing" => Value::String(imported(name).2),
-            "includefolders" => Value::String(include_folders()),
-            "examplecopy" => Value::String(EXAMPLE_COPY.with(|e| e.borrow().get(&name.to_ascii_lowercase()).copied().unwrap_or("")).to_string()),
+            "builtpath" => Value::String(m.built.clone().into()),
+            "importsummary" => Value::String(imported(name).0.into()),
+            "importreport" => Value::String(imported(name).1.into()),
+            "importmissing" => Value::String(imported(name).2.into()),
+            "includefolders" => Value::String(include_folders().into()),
+            "examplecopy" => Value::String(EXAMPLE_COPY.with(|e| e.borrow().get(&name.to_ascii_lowercase()).copied().unwrap_or("")).to_string().into()),
             // (Reveal's: what the system calls its file manager)
             "filemanager" => Value::String(if cfg!(target_arch = "wasm32") { "" } else if cfg!(target_os = "macos") { "Finder" } else if cfg!(windows) { "File Explorer" } else { "Files" }.into()),
             _ => return None,
@@ -674,7 +700,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             if !changed.is_empty() {
                 host.fire(name, "onchange", &[]);
             }
-            Value::String(changed)
+            Value::String(changed.into())
         }
         // (the desktop only asks whether Rust is there; the web builds nothing)
         "new" => {
@@ -699,8 +725,8 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let rel = project_path(&m.folder, &s(0));
             if m.project.remove_file(&rel) { Ok(()) } else { Err(format!("{rel} isn't in the project")) }
         }),
-        "file" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| f.path.clone()).unwrap_or_default())),
-        "filekind" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| kind_name(f.kind).to_string()).unwrap_or_default())),
+        "file" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| f.path.clone()).unwrap_or_default()).into()),
+        "filekind" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| kind_name(f.kind).to_string()).unwrap_or_default()).into()),
         "build" => {
             let kind = s(0);
             let started = if kind.eq_ignore_ascii_case("web") && host.rapidr().is_none() {
@@ -750,7 +776,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             with(name, |m| m.error = r.err().unwrap_or_default());
             flag(ok)
         }
-        "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32)),
+        "iconpreview" => Value::String(icon_preview(name, int_arg(args, 0, 128).clamp(16, 1024) as u32).into()),
         // (an example installed where it can't be changed opens as the
         // user's copy: rapidr_project::program_files)
         "exampletoopen" => {
@@ -763,14 +789,103 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 }
             };
             EXAMPLE_COPY.with(|e| e.borrow_mut().insert(name.to_ascii_lowercase(), what));
-            Value::String(path)
+            Value::String(path.into())
         }
-        "projectsfolder" => Value::String(projects_folder(&s(0))),
-        "exampleof" => Value::String(example_of(&s(0), &s(1))),
+        "projectsfolder" => Value::String(projects_folder(&s(0)).into()),
+        // (Studio keeps your work: crate::recovery — on the web it asks the
+        // page's store whether a file is there before it reads it)
+        m if cfg!(target_arch = "wasm32") && (m.starts_with("recovery") || m.starts_with("log") || m.ends_with("newfile")) && !crate::recovery::store_known() => {
+            crate::recovery::set_store_has(Box::new(move |p: &str| {
+                let p = slashes(p);
+                let (folder, file) = p.rsplit_once('/').unwrap_or(("", p.as_str()));
+                host.list_files(folder).iter().any(|f| f == file)
+            }));
+            return call(host, name, method, args);
+        }
+        "studiofolder" => Value::String(crate::recovery::studio_folder().into()),
+        "recoverykeep" => {
+            let r = crate::recovery::keep(&s(0), &s(1), &s(2), &s(3));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "recoveryforget" => {
+            crate::recovery::forget(&s(0));
+            Value::Null
+        }
+        "recoveryend" => {
+            crate::recovery::end();
+            Value::Null
+        }
+        "recoveryfound" => Value::String(crate::recovery::found().into()),
+        "recoverytext" => Value::String(crate::recovery::text(&s(0), &s(1)).into()),
+        "recoverydiscard" => {
+            crate::recovery::discard(&s(0));
+            Value::Null
+        }
+        "logerror" => {
+            rapidr_crash::note(&s(0));
+            flag(crate::recovery::log(&s(0)).is_ok())
+        }
+        // (RapidR's crash reports: crate::crash — on this computer only)
+        "crashpending" => Value::String(crate::crash::pending().into()),
+        "crashtext" => Value::String(crate::crash::text(&s(0)).into()),
+        "crashpath" => Value::String(crate::crash::path(&s(0)).into()),
+        "crashfield" => Value::String(crate::crash::field(&s(0), &s(1)).into()),
+        "crashseen" => {
+            rapidr_crash::mark_seen(&s(0));
+            Value::Null
+        }
+        "crashsave" => {
+            let r = crate::crash::save(&s(0), &s(1));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "crashissueurl" => Value::String(crate::crash::issue(&s(0)).0.into()),
+        "crashissuewhole" => flag(crate::crash::issue(&s(0)).1),
+        "crashmark" => Value::String(crate::crash::mark().into()),
+        "crashforprogram" => Value::String(crate::crash::for_program(&s(0), &s(1)).into()),
+        "crashnote" => {
+            rapidr_crash::note(&s(0));
+            Value::Null
+        }
+        "crashcall" => {
+            rapidr_crash::call(&s(0));
+            Value::Null
+        }
+        "crashdoing" => {
+            rapidr_crash::doing(&s(0));
+            Value::Null
+        }
+        "crashwatch" => flag(crate::crash::watch(args.first().map(Value::to_i64).unwrap_or(5), &s(1), &s(2), &s(3), &s(4), &s(5), &s(6))),
+        "crashtest" => flag(crate::crash::test(&s(0))),
+        "crashfolder" => Value::String(crate::crash::folder().into()),
+        "crashlist" => Value::String(rapidr_crash::list().iter().map(|n| format!("{n}\n")).collect::<String>().into()),
+        "logfile" => Value::String(crate::recovery::log_file().into()),
+        // (the main file is a module another file of the project
+        // includes: that file is where the program likely starts — Robert's
+        // ShopInvoices, main = lang.rr while main.rr includes it)
+        "mainincludedby" => Value::String(with(name, |m| main_included_by(m)).into()),
+        // (RAI's Apply, all or nothing: crate::recovery)
+        "applybegin" => {
+            crate::recovery::apply_begin();
+            Value::Null
+        }
+        "canwritenewfile" => {
+            let r = crate::recovery::can_write_new(&s(0));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "writenewfile" => {
+            let r = crate::recovery::write_new(&s(0), &s(1));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "applyundo" => Value::String(crate::recovery::apply_undo().into()),
+        "exampleof" => Value::String(example_of(&s(0), &s(1)).into()),
         "copyexampleagain" => {
             let r = copy_example_again(&s(0), &s(1));
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
-            Value::String(r.unwrap_or_default())
+            Value::String(r.unwrap_or_default().into())
         }
         // (File > Import RapidQ Project or File: a copy, never the original)
         "importrapidq" => {
@@ -779,9 +894,9 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             match r {
                 Ok(i) => {
                     IMPORTED.with(|x| x.borrow_mut().insert(name.to_ascii_lowercase(), (i.summary.clone(), i.report.clone(), i.missing.clone())));
-                    Value::String(i.project)
+                    Value::String(i.project.into())
                 }
-                Err(_) => Value::String(String::new()),
+                Err(_) => Value::String(String::new().into()),
             }
         }
         // (Studio's keys) MacKeys: a Mac's keyboard (Option moves by words)
@@ -795,43 +910,61 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             let r = if method == "find" { crate::find::find(&s(2), &s(0), &s(1)) } else { crate::find::replace(&s(2), &s(0), &s(1), &s(3)).map(|(t, _)| t) };
             let ok = r.is_ok();
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
-            Value::String(if ok { r.unwrap() } else if method == "find" { String::new() } else { s(2) })
+            Value::String(if ok { r.unwrap().into() } else if method == "find" { String::new().into() } else { s(2).into() })
         }
+        // (files changed outside Studio: crate::external) Watch(Path): the
+        // disk's file as Studio's own now (read or written); Unwatch(Path),
+        // UnwatchAll; ExternalChanges: what changed outside since the last
+        // look, a line each ("changed" / "deleted" / "back", a tab, the
+        // path), each once; ChangedOnDisk(Path): the disk differs from what
+        // Studio last read or wrote (Save asks first)
+        "watch" => flag(crate::external::with(|w| w.watch(&s(0)))),
+        "unwatch" => {
+            crate::external::with(|w| w.unwatch(&s(0)));
+            Value::Null
+        }
+        "unwatchall" => {
+            crate::external::with(crate::external::Watcher::clear);
+            Value::Null
+        }
+        "externalchanges" => Value::String(crate::external::changes_text(&crate::external::with(crate::external::Watcher::check)).into()),
+        "changedondisk" => flag(crate::external::with(|w| w.changed_since_base(&s(0)))),
+        "missingondisk" => flag(crate::external::with(|w| w.missing(&s(0)))),
         "filetext" => {
             let r = crate::read_text(&s(0));
             with(name, |m| m.error = r.as_ref().err().cloned().unwrap_or_default());
-            Value::String(r.unwrap_or_default())
+            Value::String(r.unwrap_or_default().into())
         }
-        "fullpath" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| join(&m.folder, &f.path)).unwrap_or_default())),
+        "fullpath" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| join(&m.folder, &f.path)).unwrap_or_default()).into()),
         // (Project > Add Form / Add Module) NewFileText(Path, Kind,
         // MainText): a new file's text in the program's names;
         // IncludeEdit(MainText, Path): the `$INCLUDE` the main program needs
         // for it, as one patch for RCODEEDITOR.ApplyPatches ("" when it has it)
-        "newfiletext" => Value::String(with(name, |m| new_file_text(m, &s(0), &s(1), &s(2)))),
-        "includeedit" => Value::String(with(name, |m| include_edit(m, &s(0), &s(1)))),
+        "newfiletext" => Value::String(with(name, |m| new_file_text(m, &s(0), &s(1), &s(2))).into()),
+        "includeedit" => Value::String(with(name, |m| include_edit(m, &s(0), &s(1))).into()),
         // IncludeRenameEdit(MainText, OldPath, NewPath): the main program's
         // $INCLUDE of a file renamed or moved, following it ("" none)
-        "includerenameedit" => Value::String(with(name, |m| include_rename_edit(m, &s(0), &s(1), &s(2)))),
+        "includerenameedit" => Value::String(with(name, |m| include_rename_edit(m, &s(0), &s(1), &s(2))).into()),
         // ThemeOf(MainText): the look the main program names; ThemeEdit(
         // MainText, Look): the edit that makes it name Look ("" none)
-        "themeof" => Value::String(look_label(&rapidr_project::forms::theme_of(&s(0))).to_string()),
+        "themeof" => Value::String(look_label(&rapidr_project::forms::theme_of(&s(0))).to_string().into()),
         "themeedit" => {
             let (text, want) = (s(0), look_label(&s(1)));
             // (the line says the look as RapidR spells it; RapidR's default is no line)
             if look_label(&rapidr_project::forms::theme_of(&text)) == want {
-                return Some(Value::String(String::new()));
+                return Some(Value::String(String::new().into()));
             }
             let named = if want == "RapidR" { "" } else { want };
             Value::String(match rapidr_project::forms::theme_edit(&text, named) {
-                Some((a, b, c, d, t)) => format!("{a}	{b}	{c}	{d}	{}", patch_escaped(&t)),
-                None => String::new(),
+                Some((a, b, c, d, t)) => format!("{a}	{b}	{c}	{d}	{}", patch_escaped(&t)).into(),
+                None => String::new().into(),
             })
         }
         // IncludeRemoveEdit(MainText, Path): its $INCLUDE line taken out ("" none)
         "includeremoveedit" => Value::String(with(name, |m| match rapidr_project::forms::include_line(&s(0), &from_main(m, &s(1))) {
             Some(line) => format!("{line}\t0\t{}\t0\t", line + 1),
             None => String::new(),
-        })),
+        }).into()),
         _ => return None,
     })
 }
@@ -1039,7 +1172,7 @@ mod tests {
             assert_eq!(make(Rapidr(rapidr), &folder), 1);
             assert_eq!(get("pn", "buildkind").unwrap().to_string_val(), kind);
             // (and in the file: opened again, it builds the same)
-            assert_eq!(call(Rapidr(rapidr), "pn", "open", &[Value::String(format!("{folder}/Fresh.rrproj"))]).unwrap().to_i64(), 1);
+            assert_eq!(call(Rapidr(rapidr), "pn", "open", &[Value::String(format!("{folder}/Fresh.rrproj").into())]).unwrap().to_i64(), 1);
             assert_eq!(get("pn", "buildkind").unwrap().to_string_val(), kind);
         }
         std::fs::remove_dir_all(&dir).unwrap();
@@ -1078,25 +1211,25 @@ mod tests {
         std::fs::write(dir.join("lib.inc"), "SUB X\nEND SUB\n").unwrap();
         let call = |m: &str, args: &[Value]| call(Quiet, "p1", m, args).unwrap();
         let get = |p: &str| get("p1", p).unwrap().to_string_val();
-        assert_eq!(call("open", &[Value::String(format!("{d}/main.bas"))]).to_i64(), 1);
+        assert_eq!(call("open", &[Value::String(format!("{d}/main.bas").into())]).to_i64(), 1);
         assert_eq!((get("kind"), get("filecount"), get("mainfile")), ("file".into(), "2".into(), "main.bas".into()));
         assert_eq!(call("file", &[Value::Integer(1)]).to_string_val(), "lib.inc");
         assert_eq!(call("filekind", &[Value::Integer(1)]).to_string_val(), "include");
         assert_eq!(call("fullpath", &[Value::Integer(0)]).to_string_val(), format!("{d}/main.bas"));
         assert_eq!(call("save", &[]).to_i64(), 1);
         assert!(dir.join("main.rrproj").is_file());
-        assert_eq!(call("open", &[Value::String(format!("{d}/main.rrproj"))]).to_i64(), 1);
+        assert_eq!(call("open", &[Value::String(format!("{d}/main.rrproj").into())]).to_i64(), 1);
         assert_eq!(get("kind"), "project");
-        assert_eq!(call("addfile", &[Value::String(format!("{d}/data.csv"))]).to_i64(), 1);
+        assert_eq!(call("addfile", &[Value::String(format!("{d}/data.csv").into())]).to_i64(), 1);
         assert_eq!(call("filekind", &[Value::Integer(2)]).to_string_val(), "data");
         assert_eq!(call("addfile", &[Value::String("data.csv".into())]).to_i64(), 0);
         assert!(get("error").contains("already"));
         let new_dir = format!("{d}/fresh");
         std::fs::create_dir_all(&new_dir).unwrap();
-        assert_eq!(call("new", &[Value::String("gui".into()), Value::String("Fresh".into()), Value::String(new_dir.clone())]).to_i64(), 1);
+        assert_eq!(call("new", &[Value::String("gui".into()), Value::String("Fresh".into()), Value::String(new_dir.clone().into())]).to_i64(), 1);
         assert!(std::path::Path::new(&new_dir).join("main.rr").is_file() && std::path::Path::new(&new_dir).join("Fresh.rrproj").is_file());
         // the app's settings, the build's arguments, the icon's preview
-        assert_eq!(call("open", &[Value::String(format!("{d}/main.rrproj"))]).to_i64(), 1);
+        assert_eq!(call("open", &[Value::String(format!("{d}/main.rrproj").into())]).to_i64(), 1);
         let set = |p: &str, v: &str| assert!(set("p1", p, &Value::String(v.into())));
         set("appname", "Main App");
         set("version", "2.0");
@@ -1128,7 +1261,7 @@ mod tests {
         assert!(get("error").contains("desktop"));
         // (nothing to ask on the web: native is not refused for want of Rust)
         assert_eq!(call("rustready", &[]).to_i64(), 1);
-        assert_eq!(call("open", &[Value::String(format!("{d}/nope.rr"))]).to_i64(), 0);
+        assert_eq!(call("open", &[Value::String(format!("{d}/nope.rr").into())]).to_i64(), 0);
         assert!(get("error").contains("no such file"));
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -1151,7 +1284,7 @@ mod tests {
         std::fs::write(dir.join("main.rr"), "$INCLUDE \"ui.rr\"\nForm.ShowModal\n").unwrap();
         std::fs::write(dir.join("ui.rr"), "CREATE Form AS RForm\nEND CREATE\nCREATE NewForm AS RForm\nEND CREATE\nCREATE CfgForm AS RForm\nEND CREATE\n").unwrap();
         let call = |m: &str, args: &[Value]| call(Quiet, "pf", m, args).unwrap();
-        assert_eq!(call("open", &[Value::String(format!("{d}/Web.rrproj"))]).to_i64(), 1);
+        assert_eq!(call("open", &[Value::String(format!("{d}/Web.rrproj").into())]).to_i64(), 1);
         // (as the file says, until the code is followed)
         assert_eq!(call("filekind", &[Value::Integer(0)]).to_string_val(), "form");
         assert_eq!(call("followcode", &[]).to_string_val(), "main.rr\tmodule\nui.rr\tform\n");
@@ -1161,7 +1294,7 @@ mod tests {
         assert!(saved.contains("path = \"main.rr\"\nkind = \"module\"") && saved.contains("path = \"ui.rr\"\nkind = \"form\""), "{saved}");
         // (a form written by the assistant, added with no kind)
         std::fs::write(dir.join("about.rr"), "CREATE About AS RForm\nEND CREATE\n").unwrap();
-        assert_eq!(call("addfile", &[Value::String(format!("{d}/about.rr"))]).to_i64(), 1);
+        assert_eq!(call("addfile", &[Value::String(format!("{d}/about.rr").into())]).to_i64(), 1);
         assert_eq!(call("filekind", &[Value::Integer(2)]).to_string_val(), "form");
         // (the form taken out of the code, saved: a module again when the project is saved)
         std::fs::write(dir.join("about.rr"), "SUB About\nEND SUB\n").unwrap();

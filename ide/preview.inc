@@ -59,9 +59,9 @@ SUB TogglePreviewClassic
   PreviewClassic = Flag(PreviewClassic = 0)
   ApplyPreview
   IF PreviewClassic THEN
-    OutputLine "Preview in Classic: Run and the designer show the program in the classic look."
+    OutputLine TR$("Preview in Classic: Run and the designer show the program in the classic look.")
   ELSE
-    OutputLine "Preview in Classic off: the program in its own look."
+    OutputLine TR$("Preview in Classic off: the program in its own look.")
   END IF
 END SUB
 

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Vector image (.svg)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M11 24C11 14 21 24 21 14" stroke="#6F42E5"/>
+  <path d="M8 22H12V27H8V22Z" fill="#FFFFFF" stroke="#6F42E5"/>
+  <path d="M20 12H24V17H20V12Z" fill="#FFFFFF" stroke="#6F42E5"/>
+</svg>

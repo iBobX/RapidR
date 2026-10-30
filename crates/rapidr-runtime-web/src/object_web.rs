@@ -107,9 +107,11 @@ pub fn rp_create_component(name: &str, type_name: &str) {
         // Nothing more (and not the generic place and size below): what the
         // registry and the shared models give them.
         "RFORM" | "RBUTTON" | "RLABEL" | "REDIT" | "RMEMO" | "RRICHEDIT" | "RCHECKBOX" | "RRADIOBUTTON" | "RCOMBOBOX" | "RLISTBOX" | "RFILELISTBOX" | "RDIRTREE"
-        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "ROPENDIALOG"
+        | "RTIMER" | "RIMAGE" | "RCANVAS" | "RDXTIMER" | "RHEADER" | "RSTRINGGRID" | "RPROGRESS" | "RPROGRESSBAR" | "RSQLITE" | "RJSON" | "RARCHIVE" | "ROPENDIALOG"
         | "RSAVEDIALOG" | "RFILEDIALOG" | "RCOLORDIALOG" | "RFONTDIALOG" | "RPANEL" | "RTRACKBAR" | "RWEBVIEW" | "RWEBSTORAGE" | "RWEBNOTIFICATION" | "RNUM"
         | "RDATAFRAME" | "RCOOLBTN" | "RTOOLBAR" => {}
+        // (RAudioOut: its model's properties; its sound device — audio_web.rs)
+        "RAUDIOOUT" => crate::audio_web::install(),
         // (QDXSCREEN's Direct3D: Render draws on the browser's WebGL 2,
         // through wgpu — made at the first Render)
         "RDXSCREEN" => rapidr_d3d_gpu::install(),
@@ -191,6 +193,14 @@ pub fn rp_create_component(name: &str, type_name: &str) {
     }
     if rapidr_value::objects::create(name, type_name) {
         install_file_hooks();
+        // (RARCHIVE: the clock and the local time zone a zip's times are in)
+        if rapidr_value::objects::archive::is_type(type_name) {
+            // (the browser's Date: its offset is minutes west, so negated)
+            rapidr_value::objects::archive::set_clock(
+                || (js_sys::Date::now() / 1000.0) as i64,
+                |t| -(js_sys::Date::new(&wasm_bindgen::JsValue::from_f64(t as f64 * 1000.0)).get_timezone_offset() * 60.0) as i64,
+            );
+        }
         // (the I/O and media lane's: their devices, a QDOWNLOAD's gauge)
         if rapidr_value::objects::rqlib::is_type(type_name) {
             crate::io_web::created(name, type_name);
@@ -216,6 +226,10 @@ pub fn install_object_hooks() {
     // translations among the page's files (`lang/es.po`: the project's, or
     // beside the page, fetched as the program's other files are).
     rapidr_value::i18n::set_platform(browser_language, read_page_file);
+    // A canvas's TextOut draws the characters the built-in faces lack
+    // (Chinese, Japanese, Korean) with the fallback fonts the page loads,
+    // as its labels do.
+    rapidr_ui_kernel::text::install_canvas_fallback();
     // QREGISTRY's keys: the page's local storage.
     rapidr_value::registry::set_io(registry_load, registry_save);
     // RND's first seed (wasm has no clock).
@@ -245,10 +259,40 @@ fn read_page_file(path: &str) -> Option<Vec<u8>> {
     if let Some(bytes) = web_project_file(path) {
         return Some(bytes);
     }
-    let name = path.replace('\\', "/");
-    let name = name.strip_prefix("lang/")?;
-    let listed = page_catalogs().into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
-    rapidr_value::objects::read_file(&format!("lang/{listed}")).ok()
+    let path = path.replace('\\', "/");
+    let path = path.trim_start_matches("./");
+    // (the program's lang/, or the folder it named — Application.
+    // LanguageFolder: RapidR Studio's ide/lang, apart from the programs it
+    // runs — each with its own list)
+    let (dir, name) = path.rsplit_once('/')?;
+    if dir == "lang" {
+        if name.eq_ignore_ascii_case("index.txt") {
+            return Some(page_catalogs().join("\n").into_bytes());
+        }
+        let listed = page_catalogs().into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
+        return rapidr_value::objects::read_file(&format!("lang/{listed}")).ok();
+    }
+    if dir.contains("..") || dir.starts_with('/') || dir.contains("://") {
+        return None;
+    }
+    let listed = folder_catalogs(dir);
+    if name.eq_ignore_ascii_case("index.txt") {
+        return Some(listed.join("\n").into_bytes());
+    }
+    let listed = listed.into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
+    rapidr_value::objects::read_file(&format!("{dir}/{listed}")).ok()
+}
+
+/// The catalogs a folder beside the page has (its `index.txt`), read once
+/// per folder; none without a list (no request for a missing language).
+fn folder_catalogs(dir: &str) -> Vec<String> {
+    thread_local!(static LISTED: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new()));
+    if let Some(list) = LISTED.with(|l| l.borrow().get(dir).cloned()) {
+        return list;
+    }
+    let list = rapidr_value::objects::read_file(&format!("{dir}/index.txt")).map(|bytes| rapidr_webbundle::parse_lang_index(&String::from_utf8_lossy(&bytes))).unwrap_or_default();
+    LISTED.with(|l| l.borrow_mut().insert(dir.to_string(), list.clone()));
+    list
 }
 
 /// The catalogs the page has, read once: its list
@@ -332,6 +376,10 @@ thread_local! {
 /// A path as RapidQ on Windows compares them: `\\` and `/` alike, no
 /// leading `./`, any case.
 pub(crate) fn file_key(path: &str) -> String {
+    // (every use of a file by its name goes through here: what file streams
+    // still keep is in the page's files first, as on the desktop's
+    // paths::host — rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     let p = path.trim().replace('\\', "/");
     p.trim_start_matches("./").to_lowercase()
 }
@@ -569,8 +617,26 @@ pub fn rp_comp_get_stored(name: &str, prop: &str) -> Value {
 
 pub fn rp_comp_set(name: &str, prop: &str, val: Value) {
     comp_set(name, prop, val);
+    updown_buddy(name, prop);
     // (linked data: bound controls follow — rapidr_value::datascience::link)
     crate::links_web::apply();
+}
+
+/// An RUPDOWN whose Position (or Associate) was set: its Associate, an edit
+/// or a label, shows the number (`rapidr_value::objects::updown`); an edit
+/// that took a new text fires its OnChange, as RapidQ's does for a Text set.
+/// What the user's arrows set comes here too (the kernel's Set). The
+/// desktop's `updown_buddy`.
+fn updown_buddy(name: &str, prop: &str) {
+    if !(prop.eq_ignore_ascii_case("position") || prop.eq_ignore_ascii_case("associate")) || rp_comp_type(name) != "RUPDOWN" {
+        return;
+    }
+    if let Some((buddy, buddy_prop, text)) = rapidr_value::objects::updown::buddy_text(&|i, p| rp_comp_get(i, p), &rp_comp_type, &name.to_lowercase()) {
+        rp_comp_set(&buddy, buddy_prop, v_str(&text));
+        if buddy_prop == "text" {
+            rp_fire_event(&buddy, "onchange");
+        }
+    }
 }
 
 /// A property the program sets (an assignment in its code): the events
@@ -1229,6 +1295,21 @@ pub fn rp_comp_get(name: &str, prop: &str) -> Value {
             }
         }
     }
+    // RWindowCapture and RAppHands: the program's own eyes and hands
+    // (kernel_web.rs, rapidr_ui_app::app_components).
+    match rp_comp_type(name).as_str() {
+        "RWINDOWCAPTURE" => {
+            if let Some(v) = crate::kernel_web::app_capture_get(name, &lprop) {
+                return v;
+            }
+        }
+        "RAPPHANDS" => {
+            if let Some(v) = rapidr_ui_app::app_components::hands_get(name, &lprop) {
+                return v;
+            }
+        }
+        _ => {}
+    }
     // (I1) An RDOCKMANAGER's PaneCount, ActiveDocument, … (dock_web.rs).
     if rp_comp_type(name) == "RDOCKMANAGER" {
         if let Some(v) = rapidr_value::dock::runtime::rt_get(name, &lprop) {
@@ -1571,7 +1652,7 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             picture_changed(&uname);
         }
         // `ImageList.Draw Target, X, Y, Index`: a target QIMAGE shows it.
-        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| lmethod == "draw" && rapidr_value::objects::is_picture(t)) {
+        if let Some(target) = args.first().filter(|_| lmethod == "draw").map(Value::to_string_val).filter(|t| rapidr_value::objects::is_picture(t)) {
             picture_changed(&target.to_uppercase());
         }
         // (I1 / L-PANELS) A designer's selection or props changed: the
@@ -1643,6 +1724,16 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
 
     if comp_type == "RHTTPSERVER" {
         return http_server_web_method(&uname, &lmethod);
+    }
+    if comp_type == "RMCPSERVER" {
+        return mcp_server_web_method(&uname, &lmethod);
+    }
+    // (the program's own eyes and hands: kernel_web.rs)
+    if comp_type == "RWINDOWCAPTURE" {
+        return crate::kernel_web::app_capture_method(&uname, &lmethod, args);
+    }
+    if comp_type == "RAPPHANDS" {
+        return crate::kernel_web::app_hands_method(&uname, &lmethod, args);
     }
 
     // WebSocket special handling
@@ -2007,6 +2098,23 @@ fn http_server_web_method(name: &str, method: &str) -> Value {
         "header" | "newtoken" => v_str(""),
         "stop" => v_null(),
         "respond" | "beginstream" | "sendevent" | "endstream" | "close" => v_int(0),
+        _ => v_null(),
+    }
+}
+
+/// RMcpServer on the web: desktop only, as RHttpServer (a page can't
+/// listen for connections). Start fails and Error says why; tools can
+/// still be added (a program that serves them on the desktop runs here).
+fn mcp_server_web_method(name: &str, method: &str) -> Value {
+    match method {
+        "start" => {
+            rp_comp_set(name, "error", v_str("RMcpServer runs on the desktop only: a web page can't listen for connections"));
+            rp_comp_set(name, "listening", v_int(0));
+            v_int(0)
+        }
+        "newtoken" | "argument" => v_str(""),
+        "addtool" | "addresource" | "removetool" => v_int(1),
+        "toolcount" | "reply" | "replyimage" | "replyjson" | "progress" | "isopen" | "disconnect" => v_int(0),
         _ => v_null(),
     }
 }
@@ -2442,7 +2550,7 @@ fn fire(name: &str, event: &str, args: &[Value]) -> Vec<Value> {
         return args.to_vec();
     }
     let Some(handler) = lookup_handler(name, event) else { return args.to_vec() };
-    rapidr_value::events::call(handler, name, args, dispatch_indirect)
+    rapidr_value::events::call(handler, name, event, args, dispatch_indirect)
 }
 
 /// Fire an event with no arguments (handlers get the Sender).

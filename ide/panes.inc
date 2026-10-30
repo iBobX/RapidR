@@ -18,14 +18,33 @@
 '   HelpPane      "Help"        with Properties   F1             (search.inc)
 
 SUB SetUpDock
-  Dock.AddPane(ProjectTree, "Project", "left", "explorer")
-  Dock.AddPane(Toolbox, "Toolbox", "bottom:projecttree", "toolbox")
-  Dock.AddPane(Inspector, "Properties", "right", "properties")
-  Dock.AddPane(OutlineTree, "Outline", "bottom:inspector", "outline")
-  Dock.AddPane(OutputBox, "Output", "bottom:documents", "output")
-  Dock.AddPane(ImmediateBox, "Immediate", "tab:outputbox", "immediate")
-  Dock.AddPane(Welcome, "Welcome", "documents", "list")
+  Dock.AddPane(ProjectTree, TR$("Project"), "left", "explorer")
+  Dock.AddPane(Toolbox, TR$("Toolbox"), "bottom:projecttree", "toolbox")
+  Dock.AddPane(Inspector, TR$("Properties"), "right", "properties")
+  Dock.AddPane(OutlineTree, TR$("Outline"), "bottom:inspector", "outline")
+  Dock.AddPane(OutputBox, TR$("Output"), "bottom:documents", "output")
+  Dock.AddPane(ImmediateBox, TR$("Immediate"), "tab:outputbox", "immediate")
+  Dock.AddPane(Welcome, TR$("Welcome"), "documents", "list")
   Dock.ShowPane("outputbox")
+END SUB
+
+' (Studio's language changed) The panes' titles, made in the language
+' before, made again; and the start page's texts made with values (the
+' cards' names for a screen reader, the offer to reopen), which a change of
+' language does not reach by itself.
+SUB PanesLanguageChanged
+  DIM k AS INTEGER
+  Dock.PaneTitle("projecttree", TR$("Project"))
+  Dock.PaneTitle("toolbox", TR$("Toolbox"))
+  Dock.PaneTitle("inspector", TR$("Properties"))
+  Dock.PaneTitle("outlinetree", TR$("Outline"))
+  Dock.PaneTitle("outputbox", TR$("Output"))
+  Dock.PaneTitle("immediatebox", TR$("Immediate"))
+  IF Dock.PaneState("welcome") <> "" THEN Dock.PaneTitle("welcome", TR$("Welcome"))
+  FOR k = 0 TO ExampleCount - 1
+    ExCard(k).AccessibleName = TR$("Example {name}: {what}", "name", BaseName(ExampleFile(k)), "what", TR$(ExampleWhat(k)))
+  NEXT
+  IF StartShift > 0 AND ReopenPath <> "" THEN ReopenTexts
 END SUB
 
 ' ---- the start page ----------------------------------------------------------------
@@ -60,8 +79,8 @@ DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
 ' More examples than the page has room for: only in "Open an Example" (the
 ' command palette), not cards on this page
-DIM MoreFile(40) AS STRING
-DIM MoreWhat(40) AS STRING
+DIM MoreFile(63) AS STRING
+DIM MoreWhat(63) AS STRING
 DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
@@ -71,7 +90,7 @@ SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartRow(k).BevelOuter = 0
   StartRow(k).Tag = k + 1
   StartRow(k).Cursor = -21
-  StartRow(k).AccessibleName = Caption
+  StartRow(k).AccessibleName = TR$(Caption)
   StartRow(k).OnClick = StartRowPicked
   StartRow(k).TabStop = 1
   StartIcon(k).Parent = StartRow(k)
@@ -79,7 +98,7 @@ SUB AddStart(k AS INTEGER, Icon AS STRING, Caption AS STRING)
   StartIconName(k) = Icon
   StartLink(k).Parent = StartRow(k)
   StartLink(k).Left = 30: StartLink(k).Top = 2: StartLink(k).Width = 200: StartLink(k).Height = 20
-  StartLink(k).Caption = Caption
+  StartLink(k).Caption = TR$(Caption)
   StartLink(k).Cursor = -21
   StartLink(k).Tag = k + 1
   StartLink(k).OnClick = WelcomeLink
@@ -95,7 +114,7 @@ SUB AddExample(File AS STRING, What AS STRING)
   ExCard(i).BevelOuter = 0
   ExCard(i).Tag = i
   ExCard(i).Cursor = -21
-  ExCard(i).AccessibleName = "Example " + BaseName(File) + ": " + What
+  ExCard(i).AccessibleName = TR$("Example {name}: {what}", "name", BaseName(File), "what", TR$(What))
   ExCard(i).OnClick = CardPicked
   ' (Tab reaches each card, Enter or Space opens it)
   ExCard(i).TabStop = 1
@@ -108,14 +127,14 @@ SUB AddExample(File AS STRING, What AS STRING)
   ExTitle(i).OnClick = CardLabelPicked
   ExText(i).Parent = ExCard(i)
   ExText(i).Left = 48: ExText(i).Top = 32: ExText(i).Width = 168: ExText(i).Height = 18
-  ExText(i).Caption = What
+  ExText(i).Caption = TR$(What)
   ExText(i).Tag = i
   ExText(i).OnClick = CardLabelPicked
   ExampleCount = ExampleCount + 1
 END SUB
 
 SUB AddMoreExample(File AS STRING, What AS STRING)
-  IF MoreCount > 40 THEN EXIT SUB
+  IF MoreCount > 63 THEN EXIT SUB
   MoreFile(MoreCount) = File
   MoreWhat(MoreCount) = What
   MoreCount = MoreCount + 1
@@ -151,6 +170,7 @@ SUB FillExamples
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
+  AddMoreExample "gui/on_error.rr", "A bug in a handler: the program goes on and says so"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"
@@ -166,6 +186,14 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "media/tone_generator.rr", "A tone made sample by sample, with an oscilloscope"
+  AddMoreExample "media/beeper.rr", "A one-bit speaker played the way an emulator plays it"
+  AddMoreExample "media/chiptune.rr", "A three-voice square-wave music player"
+  AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
+  AddMoreExample "studio/versions.rr", TR$("Versions from a program: save, go back, undo, the local history")
+  AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
+  AddMoreExample "gui/guided_tour.rr", "Show me: a pointer types and clicks for you"
+  AddMoreExample "graphics/pixels_fast.rr", "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
@@ -177,6 +205,18 @@ SUB FillExamples
   AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
   AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
   AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
+  ' (the systems recipes: one tiny computer in ten programs — docs/manual/recipes-systems.md)
+  AddMoreExample "recipes/memory_bytes.rr", "Systems recipe: memory as a byte array, words, wrapping addresses"
+  AddMoreExample "recipes/flags_bits.rr", "Systems recipe: bits and flags, an 8-bit ALU"
+  AddMoreExample "recipes/cpu_step.rr", "Systems recipe: a tiny CPU, fetch, decode, execute"
+  AddMoreExample "recipes/cpu_stack.rr", "Systems recipe: the stack, PUSH, POP, CALL, RET"
+  AddMoreExample "recipes/hex_dump.rr", "Systems recipe: a hex dump, a memory viewer"
+  AddMoreExample "recipes/disassembler.rr", "Systems recipe: a disassembler, an opcode table"
+  AddMoreExample "recipes/load_binary.rr", "Systems recipe: a binary file into memory, its header"
+  AddMoreExample "recipes/video_memory.rr", "Systems recipe: video memory drawn on a canvas"
+  AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
+  AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
+  AddMoreExample "recipes/frame_audio.rr", "Recipe: emulator sound from a speaker bit's flips"
   LayOutWelcome
 END SUB
 
@@ -208,7 +248,22 @@ SUB LayOutWelcome
   DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
   DIM rows AS INTEGER, pitch AS INTEGER, tall AS INTEGER
   DIM pageW AS INTEGER, pageH AS INTEGER, bottom AS INTEGER, pass AS INTEGER
-  x0 = 290
+  DIM sw AS INTEGER, tw AS INTEGER, two AS INTEGER
+  ' (Start as wide as its longest link — 200 pixels at least, English's —
+  ' in the language Studio speaks: a longer one isn't cut off)
+  StatusMeasure.Font.Name = LinkFont.Name: StatusMeasure.Font.Size = LinkFont.Size
+  sw = 200
+  FOR k = 0 TO 4
+    tw = StatusMeasure.TextWidth(REPLACESUBSTR$(StartLink(k).Caption, "&", "")) + 8
+    IF tw > sw THEN sw = tw
+  NEXT
+  FOR k = 0 TO 4
+    StartLink(k).Width = sw: StartRow(k).Width = sw + 34
+  NEXT
+  FOR k = 0 TO 5
+    RecentLink(k).Width = sw + 30
+  NEXT
+  x0 = 44 + sw + 46
   pageW = Welcome.Width
   FOR pass = 1 TO 2
     room = pageW - x0 - 32
@@ -217,6 +272,14 @@ SUB LayOutWelcome
     IF cols > 4 THEN cols = 4
     w = (room - (cols - 1) * 12) \ cols
     IF w > 300 THEN w = 300
+    ' (an example's line longer than its card — a longer language —: two
+    ' lines, the cards taller)
+    two = 0
+    StatusMeasure.Font.Name = DimFont.Name: StatusMeasure.Font.Size = DimFont.Size
+    FOR k = 0 TO ExampleCount - 1
+      ' (up to the card's own edge: its 8 pixels of padding)
+      IF StatusMeasure.TextWidth(ExText(k).Caption) > w - 48 THEN two = 1
+    NEXT
     ' (a short page: the cards closer together, down to 56 apart; still
     ' too short, it scrolls)
     rows = (ExampleCount + cols - 1) \ cols
@@ -229,6 +292,9 @@ SUB LayOutWelcome
         tall = pitch - 6
         IF tall > 58 THEN tall = 58
       END IF
+    END IF
+    IF two THEN
+      pitch = pitch + 16: tall = tall + 16
     END IF
     ' (the lowest thing on the page: the last card, or the Recent list's
     ' last line)
@@ -252,6 +318,8 @@ SUB LayOutWelcome
     ExCard(k).Width = w: ExCard(k).Height = tall
     ExTitle(k).Width = w - 56
     ExText(k).Width = w - 56
+    ExText(k).WordWrap = two: ExText(k).AutoSize = 0
+    IF two THEN ExText(k).Height = 36 ELSE ExText(k).Height = 18
   NEXT
 END SUB
 
@@ -303,7 +371,7 @@ SUB FillRecent
     IF i <= n THEN
       p = FIELD$(RecentList, CHR$(10), i)
       folder = LEFT$(p, RINSTR(REPLACESUBSTR$(p, "\", "/"), "/") - 1)
-      Palette.AddCommand "recent:" + LTRIM$(STR$(i)), FileTitle(p) + " - " + ShortPath(folder), "", "Open Recent", "nav.history"
+      Palette.AddCommand "recent:" + LTRIM$(STR$(i)), FileTitle(p) + " - " + ShortPath(folder), "", TR$("Open Recent"), "nav.history"
     END IF
   NEXT
   IF n > 6 THEN n = 6
@@ -352,15 +420,27 @@ SUB PlaceStart
   FillRecent
 END SUB
 
+' (the offer's two lines and its name for a screen reader: made with the
+' project's name and how many files were open; again when the language
+' changes)
+SUB ReopenTexts
+  DIM n AS INTEGER
+  n = TALLY(SessionFiles, CHR$(10))
+  ReopenTitle.Caption = TR$("Reopen {name}", "name", BaseName(ReopenPath))
+  IF n >= 1 THEN
+    ReopenText.Caption = TRN$("and the file you had open", "and the {n} files you had open", n)
+  ELSE
+    ReopenText.Caption = TR$("where you left it")
+  END IF
+  ReopenRow.AccessibleName = TR$("{title}, {text}", "title", ReopenTitle.Caption, "text", ReopenText.Caption)
+END SUB
+
 ' (S2) The offer to reopen the last project and its files, at start-up:
 ' a card at the top of Start — Enter, Space or a click reopens it; the
 ' keyboard starts on it.
 SUB ShowReopen
-  DIM n AS INTEGER, name AS STRING
   ReopenPath = ReopenCandidate
   IF ReopenPath = "" THEN EXIT SUB
-  n = TALLY(SessionFiles, CHR$(10))
-  name = BaseName(ReopenPath)
   ReopenRow.Parent = WelcomePage
   ReopenRow.Left = 44: ReopenRow.Top = 164: ReopenRow.Width = 234: ReopenRow.Height = 52
   ReopenRow.BevelOuter = 0
@@ -371,21 +451,13 @@ SUB ShowReopen
   ReopenIcon.Left = 12: ReopenIcon.Top = 14: ReopenIcon.Width = 24: ReopenIcon.Height = 24
   ReopenTitle.Parent = ReopenRow
   ReopenTitle.Left = 46: ReopenTitle.Top = 8: ReopenTitle.Width = 180: ReopenTitle.Height = 18
-  ReopenTitle.Caption = "Reopen " + name
   ReopenTitle.Cursor = -21
   ReopenTitle.OnClick = ReopenLabelPicked
   ReopenText.Parent = ReopenRow
   ReopenText.Left = 46: ReopenText.Top = 28: ReopenText.Width = 180: ReopenText.Height = 18
-  IF n = 1 THEN
-    ReopenText.Caption = "and the file you had open"
-  ELSEIF n > 1 THEN
-    ReopenText.Caption = "and the " + LTRIM$(STR$(n)) + " files you had open"
-  ELSE
-    ReopenText.Caption = "where you left it"
-  END IF
   ReopenText.Cursor = -21
   ReopenText.OnClick = ReopenLabelPicked
-  ReopenRow.AccessibleName = ReopenTitle.Caption + ", " + ReopenText.Caption
+  ReopenTexts
   ReopenRow.Hint = ReopenPath
   ReopenRow.Visible = 1
   StartShift = 60

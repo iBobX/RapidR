@@ -6,6 +6,8 @@ use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
 use std::rc::Rc;
 
 pub mod lprint;
+pub mod basic_string;
+pub use basic_string::BasicString;
 pub mod strings;
 pub mod numeric;
 pub mod variadic;
@@ -70,7 +72,9 @@ pub mod component_defaults;
 pub enum Value {
     Integer(i64),
     Double(f64),
-    String(String),
+    /// Text: shared, copied on write, indexed by character when long
+    /// ([`BasicString`]).
+    String(BasicString),
     Boolean(bool),
     Null,
     /// A DIMmed array. Shared (cloning the Value aliases the same array), so
@@ -331,7 +335,7 @@ impl BasicArray {
             Ok(i) => self.data[i].clone(),
             Err(_) if self.place(indices).is_some_and(|p| self.overflow.contains_key(&p)) => self.overflow[&self.place(indices).unwrap_or_default()].clone(),
             Err(_) => match self.data.first() {
-                Some(Value::String(_)) => Value::String(String::new()),
+                Some(Value::String(_)) => Value::String(String::new().into()),
                 Some(Value::Double(_)) => Value::Double(0.0),
                 Some(Value::Integer(_)) => Value::Integer(0),
                 _ => Value::Null,
@@ -374,7 +378,7 @@ pub fn v_dbl(n: f64) -> Value {
     Value::Double(n)
 }
 pub fn v_str(s: &str) -> Value {
-    Value::String(s.to_string())
+    Value::String(s.to_string().into())
 }
 /// A RapidQ exception an object's method raises (RC.EXE's programs stop
 /// with its message: `Cannot open file x.txt.` — EFOpenError): the error
@@ -413,11 +417,60 @@ pub fn take_raised() -> Option<String> {
 /// handler a ShowModal's loop runs, that handler and the handlers that fired
 /// it: unwound to the loop, which goes on ([`catching`]), as RapidQ's does.
 pub fn runtime_error(message: &str) -> ! {
+    // (under the interpreter, inside a call of its host: back to that call,
+    // which makes it the program's run-time error — `host_call`)
+    if HOST_CALLS.with(std::cell::Cell::get) > 0 {
+        std::panic::resume_unwind(Box::new(HostRaised(message.to_string())));
+    }
     eprintln!("run-time error: {message}");
+    // (what file streams were given is written, as when every write went
+    // straight through)
+    objects::flush_streams();
     if TURNS.with(|t| t.borrow().contains(&true)) {
+        LAST_ERROR.with(|m| *m.borrow_mut() = message.to_string());
         std::panic::resume_unwind(Box::new(HandlerFailed));
     }
     std::process::exit(1);
+}
+
+thread_local! {
+    /// The interpreter host's calls into the runtime running now
+    /// ([`host_call`]).
+    static HOST_CALLS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// What a run-time error unwinds an interpreter host's call with
+/// ([`host_call`]): its message.
+pub struct HostRaised(pub String);
+
+/// Runs `f`, a call of the interpreter's host into the runtime (a builtin,
+/// a component's method, a property): a run-time error the runtime raises
+/// there ([`runtime_error`] — an object's RapidQ exception, "Cannot create
+/// file icons/folder.svg.", a DIM or a DLL call that fails) comes back as
+/// `Err(message)`: the program's run-time error, which the VM reports at
+/// the line it happened on and which a ShowModal's loop goes on after, as
+/// it does after any other — not the end of the process there and then
+/// (RapidR Studio, a RapidR program, closed on one with the user's
+/// unsaved work: Robert, 2026-10-25). Native builds keep [`catching`].
+pub fn host_call<R>(f: impl FnOnce() -> R) -> Result<R, String> {
+    struct Out;
+    impl Drop for Out {
+        fn drop(&mut self) {
+            HOST_CALLS.with(|c| c.set(c.get().saturating_sub(1)));
+        }
+    }
+    HOST_CALLS.with(|c| c.set(c.get() + 1));
+    let out = Out;
+    // (the events it fires are the statement's own: events::program_call)
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| events::program_call(f)));
+    drop(out);
+    match result {
+        Ok(v) => Ok(v),
+        Err(payload) => match payload.downcast::<HostRaised>() {
+            Ok(raised) => Err(raised.0),
+            Err(other) => std::panic::resume_unwind(other),
+        },
+    }
 }
 
 thread_local! {
@@ -456,7 +509,47 @@ pub fn catching(f: impl FnOnce()) {
         if !payload.is::<HandlerFailed>() {
             std::panic::resume_unwind(payload);
         }
+        // (RapidR's Application.OnError: the program hears it — not of an
+        // error in its OnError handler, which would go round)
+        let message = LAST_ERROR.with(|m| std::mem::take(&mut *m.borrow_mut()));
+        if let Some(hook) = FAILED_HOOK.with(std::cell::Cell::get).filter(|_| !REPORTING.with(std::cell::Cell::get)) {
+            told_failed(hook, &message);
+        }
     }
+}
+
+/// [`catching`]'s hook run as a turn of its own: an error in the handler
+/// it fires ends that handler, and isn't told again.
+fn told_failed(hook: fn(&str), message: &str) {
+    REPORTING.with(|r| r.set(true));
+    TURNS.with(|t| t.borrow_mut().push(true));
+    let out = TurnOut;
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| hook(message)));
+    drop(out);
+    REPORTING.with(|r| r.set(false));
+    if let Err(payload) = result {
+        if !payload.is::<HandlerFailed>() {
+            std::panic::resume_unwind(payload);
+        }
+    }
+}
+
+thread_local! {
+    /// The message of the run-time error a native build's handler failed
+    /// with last ([`runtime_error`]), for [`on_handler_failed`]'s hook.
+    static LAST_ERROR: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+    /// What tells the program a handler failed (runtime-core's: its
+    /// Application.OnError), once one is bound.
+    static FAILED_HOOK: std::cell::Cell<Option<fn(&str)>> = const { std::cell::Cell::new(None) };
+    /// The hook is running.
+    static REPORTING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// A native build's runtime: `hook` hears each handler's run-time error a
+/// wait went on after ([`catching`]), with its message — RapidR's
+/// Application.OnError (the interpreter's hosts fire it themselves).
+pub fn on_handler_failed(hook: fn(&str)) {
+    FAILED_HOOK.with(|h| h.set(Some(hook)));
 }
 
 /// Runs `f`, a DOEVENTS' turn: a handler's run-time error there goes on to
@@ -607,7 +700,7 @@ impl Value {
             // As RapidQ shows numbers (RapidQ's FloatToStr, `format`): 15
             // significant digits, so PRINT 2 ^ 10 → 1024 and 0.1 + 0.2 → 0.3.
             Value::Double(n) => crate::format::float_to_str(*n),
-            Value::String(s) => s.clone(),
+            Value::String(s) => s.as_str().to_owned(),
             // RapidQ has no boolean type: a comparison is -1 (true) or 0.
             Value::Boolean(b) => if *b { "-1".to_string() } else { "0".to_string() },
             Value::Null => String::new(),
@@ -662,7 +755,7 @@ impl Value {
                 // Try comma-separated splitting
                 let parts: Vec<&str> = s.split(',').collect();
                 if i >= 0 && (i as usize) < parts.len() {
-                    Value::String(parts[i as usize].trim().to_string())
+                    Value::String(parts[i as usize].trim().to_string().into())
                 } else {
                     Value::Null
                 }
@@ -681,7 +774,42 @@ impl Value {
         if number(self) && number(rhs) {
             return self + rhs;
         }
-        Value::String(format!("{}{}", self.to_string_val(), rhs.to_string_val()))
+        let (a, b) = (self.text(), rhs.text());
+        let mut out = String::with_capacity(a.len() + b.len());
+        out.push_str(&a);
+        out.push_str(&b);
+        Value::String(out.into())
+    }
+
+    /// The text of a value: a string's own (borrowed, nothing copied), any
+    /// other value's as `to_string_val` makes it.
+    pub fn text(&self) -> std::borrow::Cow<'_, str> {
+        match self {
+            Value::String(s) => std::borrow::Cow::Borrowed(s.as_str()),
+            other => std::borrow::Cow::Owned(other.to_string_val()),
+        }
+    }
+
+    /// `x = x + y` (`plus`: within [`strings::MAX_STRING_LEN`], as `+`
+    /// checks) or `x = x & y` for a string `x` and a string `y`, done in
+    /// place on `x` — `x` the variable's own value: when nothing else
+    /// shares its text, nothing is copied (a string built a character at
+    /// a time costs what it adds, not its length each time). `false`, and
+    /// nothing changed, for anything else: the caller then does `x + y`.
+    pub fn append_in_place(&mut self, rhs: &Value, plus: bool) -> bool {
+        let (Value::String(a), Value::String(b)) = (&mut *self, rhs) else { return false };
+        if plus && a.len() + b.len() > strings::MAX_STRING_LEN * 4 {
+            return false;
+        }
+        a.push_str(b);
+        true
+    }
+
+    /// [`Value::append_in_place`] for a string nothing else shares (a
+    /// result just made: `a$ + b$ + c$`); `false`, nothing changed, when
+    /// shared — a copy then costs the same as `x + y`'s.
+    pub fn append_in_place_if_unique(&mut self, rhs: &Value, plus: bool) -> bool {
+        matches!(self, Value::String(a) if a.is_unique()) && self.append_in_place(rhs, plus)
     }
 
     /// BASIC logical AND
@@ -790,6 +918,26 @@ impl Value {
     }
 }
 
+// --- From text ---
+
+impl From<String> for Value {
+    fn from(s: String) -> Value {
+        Value::String(s.into())
+    }
+}
+
+impl From<&str> for Value {
+    fn from(s: &str) -> Value {
+        Value::String(s.into())
+    }
+}
+
+impl From<BasicString> for Value {
+    fn from(s: BasicString) -> Value {
+        Value::String(s)
+    }
+}
+
 // --- Display ---
 
 impl fmt::Display for Value {
@@ -838,7 +986,7 @@ fn joined(a: &str, b: &str) -> Value {
     let mut out = String::with_capacity(a.len() + b.len());
     out.push_str(a);
     out.push_str(b);
-    Value::String(out)
+    Value::String(out.into())
 }
 
 impl Sub for &Value {
@@ -846,7 +994,7 @@ impl Sub for &Value {
     fn sub(self, rhs: Self) -> Value {
         match (self, rhs) {
             // RapidQ: "jello" - "l" removes every "l" → "jeo".
-            (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "")),
+            (Value::String(a), Value::String(b)) if !b.is_empty() => Value::String(a.replace(b.as_str(), "").into()),
             (Value::String(a), Value::String(_)) => Value::String(a.clone()),
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a.wrapping_sub(*b)),
             _ => Value::Double(self.to_f64() - rhs.to_f64()),
@@ -896,6 +1044,23 @@ impl Neg for &Value {
 mod tests {
     use super::*;
 
+    /// An interpreter host's call: a run-time error raised in it is its
+    /// error, not the process' end; nested calls give it to the innermost;
+    /// any other panic goes on as it was.
+    #[test]
+    fn a_host_call_gets_the_run_time_error_raised_in_it() {
+        assert_eq!(host_call(|| 7), Ok(7));
+        assert_eq!(host_call(|| -> i32 { runtime_error("Cannot create file icons/folder.svg.") }), Err("Cannot create file icons/folder.svg.".to_string()));
+        let outer = host_call(|| host_call(|| -> i32 { runtime_error("inner") }));
+        assert_eq!(outer, Ok(Err("inner".to_string())));
+        // (the count is back to none: a later error outside a call would end
+        // the process, as before — not tested, it exits)
+        assert_eq!(HOST_CALLS.with(std::cell::Cell::get), 0);
+        let other = std::panic::catch_unwind(|| host_call(|| -> i32 { std::panic::resume_unwind(Box::new(42u8)) }));
+        assert!(other.is_err_and(|p| p.downcast_ref::<u8>() == Some(&42)));
+        assert_eq!(HOST_CALLS.with(std::cell::Cell::get), 0);
+    }
+
     #[test]
     fn integer_arithmetic() {
         assert_eq!(&v_int(3) + &v_int(4), v_int(7));
@@ -909,6 +1074,43 @@ mod tests {
         let b = v_str("World");
         assert_eq!((&a + &b).to_string_val(), "Hello World");
         assert_eq!(a.concat(&b).to_string_val(), "Hello World");
+    }
+
+    /// `x = x + y` in a native build: in place when x is the text it read
+    /// (its buffer kept), a copy when something else shares it, the general
+    /// `+` / `&` when x changed meanwhile or y isn't text.
+    #[test]
+    fn append_assign_in_place() {
+        let text_ptr = |v: &Value| match v {
+            Value::String(s) => s.as_ptr(),
+            _ => std::ptr::null(),
+        };
+        let mut x = Value::String(BasicString::from(String::with_capacity(64)));
+        let buffer = text_ptr(&x);
+        for piece in ["a", "é", "€"] {
+            rp_append_assign(x.clone(), v_str(piece), &mut x, true);
+        }
+        assert_eq!(x.to_string_val(), "aé€");
+        assert_eq!(text_ptr(&x), buffer, "appended in its own buffer");
+        // (shared: the other holder keeps its text)
+        let other = x.clone();
+        rp_append_assign(x.clone(), v_str("!"), &mut x, false);
+        assert_eq!((x.to_string_val().as_str(), other.to_string_val().as_str()), ("aé€!", "aé€"));
+        // (x changed while y was worked out: the text it had, plus y)
+        let left = x.clone();
+        x = v_str("changed");
+        rp_append_assign(left, v_str("?"), &mut x, true);
+        assert_eq!(x.to_string_val(), "aé€!?");
+        // (numbers and text: as `+` and `&` make them)
+        let mut n = v_int(2);
+        rp_append_assign(n.clone(), v_int(3), &mut n, true);
+        assert_eq!(n, v_int(5));
+        let mut t = v_str("n=");
+        rp_append_assign(t.clone(), v_int(7), &mut t, true);
+        assert_eq!(t.to_string_val(), "n=7");
+        let mut c = v_int(1);
+        rp_append_assign(c.clone(), v_int(2), &mut c, false);
+        assert_eq!(c.to_string_val(), "12");
     }
 
     #[test]
@@ -937,6 +1139,32 @@ mod tests {
 /// (RC.EXE: the operands as the bitwise operators take them — `2.5 SHL 1`
 /// is 4 — and the count as the x86 takes it, its low 5 bits: `1 SHL 32` is
 /// 1, `1 SHL 31` -2147483648.)
+/// `x = x + y` (`plus`) or `x = x & y` in a native build: `left` is the
+/// value `x` had when the expression read it, `right` the value of `y`
+/// (worked out after it, as the expression does), `slot` the variable. When
+/// the variable still holds the text `left` was read from, `right` is
+/// appended there in place — nothing copied when nothing else shares it, so
+/// a string built a piece at a time costs what each piece adds; otherwise
+/// the variable gets `left + right` (or `left & right`), as before.
+pub fn rp_append_assign(left: Value, right: Value, slot: &mut Value, plus: bool) {
+    if let (Value::String(held), Value::String(l)) = (&*slot, &left) {
+        if BasicString::ptr_eq(held, l) {
+            // (`left` dropped: the variable then holds the text alone, unless
+            // something else shares it — then it is copied, as `left + right`
+            // would)
+            drop(left);
+            if !slot.append_in_place(&right, plus) {
+                // (`y` isn't a string, or `+` past the longest string: the
+                // general path, with its message)
+                let left = slot.clone();
+                *slot = if plus { &left + &right } else { left.concat(&right) };
+            }
+            return;
+        }
+    }
+    *slot = if plus { &left + &right } else { left.concat(&right) };
+}
+
 pub fn rp_shl(a: &Value, n: &Value) -> Value {
     let shift = (n.bits() & 31) as u32;
     let bits = a.bits() as u32;
@@ -1180,6 +1408,11 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
     }
     if key == "trn" {
         return Some(Ok(i18n::rp_trn(args)));
+    }
+    // (RapidR's) COMPRESS$ / DECOMPRESS$: bytes packed and unpacked
+    // (objects::archive, RArchive's engine).
+    if key == "compress" || key == "decompress" {
+        return Some(objects::archive::builtin(key, args));
     }
     if key == "__lprint" {
         return Some(Ok(lprint::lprint(args)));

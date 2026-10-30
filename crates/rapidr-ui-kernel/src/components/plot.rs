@@ -21,6 +21,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use rapidr_value::datascience::{chart, link, plot};
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::AccessNode;
 use rapidr_value::objects::ops::Op;
 use rapidr_value::theme::Theme;
@@ -54,7 +55,7 @@ pub fn chart_ops(id: &str, size: (i64, i64), theme: &'static Theme) -> Rc<Vec<Op
 /// under its Title (or "Sample data"), so the designer shows a chart, as
 /// other designers do.
 fn design_sample(title: &str) -> plot::Plot {
-    let mut p = plot::Plot { title: if title.trim().is_empty() { "Sample data".into() } else { title.to_string() }, ..plot::Plot::default() };
+    let mut p = plot::Plot { title: if title.trim().is_empty() { tr_ui("Sample data") } else { title.to_string() }, ..plot::Plot::default() };
     p.series.push(plot::Series {
         x: (0..5).map(f64::from).collect(),
         y: vec![4.0, 7.0, 3.0, 8.0, 5.0],

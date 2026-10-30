@@ -286,7 +286,7 @@ fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
 pub(crate) fn component_doc(c: &Component) -> Option<String> {
     let mut doc = String::new();
     if !c.doc.is_empty() {
-        doc.push_str(c.doc);
+        doc.push_str(crate::hover::tdoc(c.name, c.doc));
         doc.push_str("\n\n");
     }
     doc.push_str(&format!("**{}**", c.spelling()));
@@ -352,7 +352,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
             label: p.name.to_string(),
             kind: CompletionKind::Property,
             detail: Some(format!("property of {owner} ({ty})")),
-            doc: doc(p.doc, p.origin, p.runtimes, p.from),
+            doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, p.name), p.doc), p.origin, p.runtimes, p.from),
             insert: in_create.then(|| format!("{} = ", p.name)),
             snippet: false,
             edits: Vec::new(),
@@ -365,7 +365,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
                 label: m.name.to_string(),
                 kind: CompletionKind::Method,
                 detail: Some(format!("method of {owner}: {}", m.signature())),
-                doc: doc(m.doc, m.origin, m.runtimes, m.from),
+                doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, m.name), m.doc), m.origin, m.runtimes, m.from),
                 insert: None,
                 snippet: false,
                 edits: Vec::new(),
@@ -378,7 +378,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
             label: e.name.to_string(),
             kind: CompletionKind::Event,
             detail: Some(format!("event of {owner}: {}", e.signature())),
-            doc: doc(e.doc, e.origin, e.runtimes, e.from),
+            doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, e.name), e.doc), e.origin, e.runtimes, e.from),
             insert: Some(format!("{} = ", e.name)),
             snippet: false,
             edits: Vec::new(),

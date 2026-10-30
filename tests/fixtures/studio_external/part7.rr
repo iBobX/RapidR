@@ -1,0 +1,4 @@
+' part7.rr: part 7 of Outside.
+SUB Part7
+    PRINT "Part 7"
+END SUB

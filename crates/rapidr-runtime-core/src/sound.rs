@@ -255,6 +255,19 @@ pub(crate) fn play_source(id: &str, source: impl rodio::Source<Item = f32> + Sen
     true
 }
 
+/// Whether there is a sound device (opened now if it wasn't: RAudioOut
+/// asks before it hands its source over).
+#[cfg(feature = "audio")]
+pub(crate) fn has_output() -> bool {
+    OUTPUT.with(|o| {
+        let mut o = o.borrow_mut();
+        if o.is_none() {
+            *o = rodio::OutputStream::try_default().ok();
+        }
+        o.is_some()
+    })
+}
+
 /// Stops what [`play_source`] plays as `id`.
 #[cfg(feature = "audio")]
 pub(crate) fn stop_source(id: &str) {

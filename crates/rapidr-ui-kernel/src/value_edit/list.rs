@@ -4,6 +4,7 @@
 //! without a filter field, jumps to the item it starts); Space ticks a flag;
 //! a click picks.
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -42,7 +43,8 @@ impl Item {
     pub fn said(&self) -> String {
         let mut s = if self.said.is_empty() { self.label.clone() } else { self.said.clone() };
         if self.missing {
-            s.push_str(", missing");
+            s.push_str(", ");
+            s.push_str(&tr_ui("missing"));
         }
         s
     }
@@ -207,7 +209,7 @@ impl ListEd {
             f.paint(p, (r.0, r.1, r.2, ROW + 2), 0, filter_focus, look, font);
             if f.text.is_empty() && !filter_focus {
                 let th = text_size("Ag", font).1;
-                p.text((r.0 + 6, r.1 + 1 + (ROW - th) / 2, r.2 - 12, th), "Type to filter", font, look.dim, Place::TopLeft);
+                p.text((r.0 + 6, r.1 + 1 + (ROW - th) / 2, r.2 - 12, th), &tr_ui("Type to filter"), font, look.dim, Place::TopLeft);
             }
         }
         let rr = self.rows_rect(r);
@@ -259,7 +261,7 @@ impl ListEd {
             }
         });
         if self.shown.is_empty() {
-            p.text((rr.0 + 10, rr.1 + 6, rr.2 - 20, th), "Nothing matches", font, look.dim, Place::TopLeft);
+            p.text((rr.0 + 10, rr.1 + 6, rr.2 - 20, th), &tr_ui("Nothing matches"), font, look.dim, Place::TopLeft);
         }
         if self.shown.len() > ROWS {
             let track = rr.3 - 8;

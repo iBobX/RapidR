@@ -3,7 +3,10 @@
 ' translations are PO files in the lang folder beside it: lang/es.po,
 ' lang/pt.po, lang/zh-Hans.po. It starts in the system's language; the list
 ' at the top switches (Application.Language), and Application.OnLanguageChange
-' writes every caption again. Add a file counts in each language's way.
+' writes every caption again. Add a file counts in each language's way. A
+' canvas draws the greeting with TextOut: Chinese on a canvas shows as it
+' does on a label (RapidR uses the system's CJK font for what its own fonts
+' lack).
 '
 '   rapidr run languages.rr        (the system's language)
 '   rapidr run languages.rr es     (Spanish; pt, zh-Hans, en)
@@ -14,13 +17,14 @@ $THEME rapidr
 DECLARE SUB ShowTexts
 DECLARE SUB Pick
 DECLARE SUB AddFile
+DECLARE SUB DrawBanner
 
 DIM files AS INTEGER
 files = 1
 IF COMMAND$(1) <> "" THEN Application.Language = COMMAND$(1)
 
 CREATE Form AS RForm
-    Width = 380: Height = 210
+    Width = 380: Height = 250
     Center
     ' (fixed widths, AutoSize off: room for the longest language)
     CREATE LanguageLabel AS RLabel
@@ -43,6 +47,10 @@ CREATE Form AS RForm
     CREATE SaveButton AS RButton
         Left = 190: Top = 122: Width = 160
     END CREATE
+    ' (the greeting drawn, not a label: the same text, TextOut's way)
+    CREATE Banner AS RCanvas
+        Left = 16: Top = 164: Width = 334: Height = 40
+    END CREATE
 END CREATE
 
 ' The captions, in the language the program speaks now.
@@ -53,6 +61,14 @@ SUB ShowTexts
     FileCount.Caption = TRN$("{n} file", "{n} files", files)
     AddButton.Caption = TR$("&Add a file")
     SaveButton.Caption = TR$("&Save", "button")
+    DrawBanner
+END SUB
+
+' The greeting drawn on the canvas.
+SUB DrawBanner
+    Banner.Cls
+    Banner.FontSize = 14
+    Banner.TextOut 6, 8, Greeting.Caption, &H202020, -1
 END SUB
 
 ' The list picked a language: the program speaks it from now on.

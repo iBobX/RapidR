@@ -7,6 +7,9 @@ license.workspace = true
 
 [dependencies]
 rapidr-value = { workspace = true }
+# (a GUI test's capture is the test's work, not a hang: ui/kernel.rs tells
+# RapidR Studio's hang watchdog — rapidr-crash, a leaf crate)
+rapidr-crash = { workspace = true }
 # Which names are components and their methods (object.rs): the language registry's
 rapidr-lang = { workspace = true }
 # (preserve_order: an object's keys stay in their order, as the web's RJSON
@@ -95,6 +98,11 @@ datascience = ["dep:rapidr-ui-render", "dep:rapidr-ui-kernel"]
 audio = ["dep:rodio", "dep:nanomp3", "dep:midir"]
 gamepad = ["dep:gilrs"]
 ffi = ["dep:libloading"]
+# RARCHIVE and COMPRESS$ / DECOMPRESS$ (rapidr_value::objects::archive):
+# every format. Not a default: the VM's runners turn it on
+# (rapidr-vm-host-native), and a native build only for a program that uses
+# them (the CLI's uses_archive) — the others don't carry the zip code.
+archive = ["rapidr-value/archive", "rapidr-value/archive-xz", "rapidr-value/archive-zstd", "rapidr-value/archive-7z"]
 # RapidR Studio's components (RPROJECT, RLANGUAGESERVICE, RPROGRAMSESSION:
 # rapidr-studio) — the `rapidr` CLI's runtime, not programs' own runners.
 studio = ["dep:rapidr-studio", "dep:rapidr-session"]

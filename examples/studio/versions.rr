@@ -1,0 +1,73 @@
+' versions.rr: a project's versions from a program (RRepository, the
+' component RapidR Studio's Versions pane is built on — docs/manual/
+' versions.md). It makes a little project in a folder of its own beside
+' this program (versions_demo), starts keeping versions there, saves two,
+' goes back to the first — a new version: nothing is thrown away —, takes
+' that back with Undo, and lists the copies the local history kept.
+'
+' Run it with `rapidr run studio/versions.rr` from your copy of the
+' examples (RRepository is one of RapidR Studio's components: `rapidr run`
+' and Studio have it). Run it again: it starts over in a new folder. Inside
+' another project that has versions it says why it won't start them: a
+' project's versions are kept in its own folder only — the local history
+' works all the same.
+
+DIM Repo AS RRepository
+DIM Folder AS STRING
+DIM First AS STRING
+DIM Second AS STRING
+
+' (a new folder each run: versions_demo, versions_demo2 …)
+Folder = CURDIR$ + "/versions_demo"
+DIM n AS INTEGER
+n = 1
+WHILE DIREXISTS(Folder)
+    n = n + 1
+    Folder = CURDIR$ + "/versions_demo" + LTRIM$(STR$(n))
+WEND
+MKDIR Folder
+
+' (main.rr written, and a copy kept in the local history, as Studio's Save does)
+SUB SaveMain(Text AS STRING)
+    DIM F AS RFileStream
+    F.Open(Folder + "/main.rr", 65535)
+    F.WriteText(Text)
+    F.Close
+    Repo.Snapshot "main.rr", "saved"
+END SUB
+
+Repo.Folder = Folder
+Repo.Author = "Ana"
+SaveMain("PRINT " + CHR$(34) + "Hello" + CHR$(34) + CHR$(10))
+
+IF Repo.Start = 0 THEN
+    PRINT "Versions didn't start: "; Repo.Error
+ELSE
+    PRINT "Keeping versions in "; Folder; " (experiment "; Repo.Experiment; ")"
+
+    ' the first version: every changed file
+    First = Repo.SaveVersion("first")
+    PRINT "Saved "; CHR$(34); "first"; CHR$(34); ": "; LEFT$(First, 7)
+
+    ' a change, then the second version
+    SaveMain("PRINT " + CHR$(34) + "Hello, again" + CHR$(34) + CHR$(10))
+    Repo.Refresh
+    PRINT Repo.ChangeCount; " file not saved as a version: "; Repo.Changes
+    Second = Repo.SaveVersion("second")
+    PRINT "Saved "; CHR$(34); "second"; CHR$(34); ": "; LEFT$(Second, 7)
+
+    ' what "second" changed; main.rr as "first" had it
+    PRINT "What second changed: "; Repo.VersionFiles(Second)
+    PRINT "main.rr in first: "; Repo.FileAt("main.rr", First);
+
+    ' go back to "first": a third version with first's files
+    IF Repo.GoBack(First) = "" THEN PRINT "Didn't go back: "; Repo.Error
+    PRINT "Timeline:"
+    PRINT Repo.Timeline
+    PRINT "Undo would take back: "; Repo.CanUndo
+    PRINT "Undid: "; Repo.Undo
+    PRINT "main.rr now: "; Repo.FileAt("main.rr", "");
+END IF
+
+' the local history: a copy at each save, versioned or not
+PRINT "Local history of main.rr: "; TALLY(Repo.LocalHistory("main.rr"), CHR$(10)) + 1; " copies"

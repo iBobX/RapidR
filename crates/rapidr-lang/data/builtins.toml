@@ -230,6 +230,18 @@ bare = true
 doc = "The number of arguments on the program's command line (not counting the program itself); COMMAND$(n) reads each."
 
 [[builtin]]
+name = "COMPRESS$"
+syntax = "COMPRESS$(Bytes$ [, Format$ [, Level]])"
+params = "Bytes AS STRING, [Format AS STRING], [Level AS INTEGER]"
+returns = "STRING"
+group = "Strings"
+origin = "rapidr"
+doc = "`Bytes$` packed smaller: a string of bytes (one character a byte, as a stream's ReadBinStr gives and DECOMPRESS$ takes back). `Format$` is \"gzip\" (the default: what `.gz` files hold), \"zlib\" or \"deflate\"; `Level` 0 (stored, fastest) to 9 (smallest), 6 by default. For files and folders, RArchive."
+effects = ["none"]
+example = "Bytes$ = STRING$(1000, \"A\")\nFormat$ = \"gzip\"\nLevel = 9\nPacked$ = COMPRESS$(Bytes$, Format$, Level)\nPRINT LEN(Packed$) < 50; \"|\"; DECOMPRESS$(Packed$) = Bytes$; \"|\"; LEN(DECOMPRESS$(Packed$))"
+expect = "-1|-1|1000"
+
+[[builtin]]
 name = "CONVBASE$"
 syntax = "CONVBASE$(Text$, FromBase, ToBase)"
 group = "Strings"
@@ -277,6 +289,18 @@ syntax = "DATE$"
 group = "System"
 bare = true
 doc = "Today's local date as text, `MM-DD-YYYY`."
+
+[[builtin]]
+name = "DECOMPRESS$"
+syntax = "DECOMPRESS$(Bytes$ [, Format$ [, MaxSize]])"
+params = "Bytes AS STRING, [Format AS STRING], [MaxSize AS LONG]"
+returns = "STRING"
+group = "Strings"
+origin = "rapidr"
+doc = "Packed bytes unpacked: gzip, zlib, xz and zstd are found from their first bytes; \"deflate\" (no header) must be named in `Format$`. At most `MaxSize` bytes (256 MB if not given): more stops with an error, so a tiny string can't fill the memory. Data that isn't packed, or is damaged, is a run-time error saying why; to unpack something that may be damaged, use RArchive's OpenData, which says why in Error instead."
+effects = ["none"]
+example = "Bytes$ = COMPRESS$(\"Hello, RapidR! Hello, RapidR!\", \"zlib\")\nFormat$ = \"zlib\"\nMaxSize = 1000\nPRINT DECOMPRESS$(Bytes$, Format$, MaxSize)"
+expect = "Hello, RapidR! Hello, RapidR!"
 
 [[builtin]]
 name = "DELETE$"

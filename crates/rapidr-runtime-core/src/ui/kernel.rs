@@ -226,6 +226,9 @@ fn sync_desk(desk: &mut Desktop) {
 /// The host's turn: up to `timeout` (`None`: until something happens).
 /// Program code fired meanwhile waits ([`crate::object::rp_in_host_callback`]).
 fn pump(timeout: Option<Duration>) {
+    // (the program waits for its events: what its file streams were given
+    // is written, so other programs see it — rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     // (a tracking tick's handler: the host pumps already, held by the system)
     if held() {
         return;
@@ -303,11 +306,20 @@ pub fn gui_serve_paused() -> bool {
         return false;
     }
     let Some(k) = kern() else { return false };
-    {
-        let Ok(k) = k.try_borrow() else { return false };
-        if k.host.headless() || !k.desk.forms.values().any(|f| f.shown) {
-            return false;
+    let nothing_to_serve = match k.try_borrow() {
+        Ok(kb) => kb.host.headless() || !kb.desk.forms.values().any(|f| f.shown),
+        Err(_) => return false,
+    };
+    if nothing_to_serve {
+        // (RapidR Studio's link: its looks — a picture, the layout — are
+        // served while the debugger holds the program, its input refused;
+        // the wait ends when a request arrives, `rp_wake`)
+        if super::drive::linked() {
+            std::thread::park_timeout(Duration::from_millis(250));
+            super::drive::turn_paused();
+            return true;
         }
+        return false;
     }
     struct Restore;
     impl Drop for Restore {
@@ -358,6 +370,9 @@ pub fn gui_serve_paused() -> bool {
         let _ = host.tray_clicks();
         let _ = rapidr_ui_host_winit::winmsg::take();
     });
+    // (RapidR Studio's link: what it asked meanwhile — looking is served,
+    // input refused: drive.rs)
+    super::drive::turn_paused();
     true
 }
 
@@ -439,6 +454,15 @@ pub fn step(max_wait: Option<Duration>) {
     if let Some(at) = with_kern(|k| k.desk.next_wake()).flatten() {
         at_most(at.saturating_duration_since(now));
     }
+    // (the eyes and hands: the virtual cursor's frames, a job's next step —
+    // and a program under RapidR Studio's link keeps waiting for its
+    // requests, even with nothing of its own scheduled: drive.rs)
+    if let Some(at) = rapidr_ui_app::hands::next_wake() {
+        at_most(at.saturating_duration_since(now));
+    }
+    if super::drive::linked() && headless() {
+        at_most(Duration::from_millis(250));
+    }
     // (a test hook's answer to a dialog, once it has been open long enough)
     if let Some(at) = rapidr_ui_app::dialogs::hook_wake() {
         at_most(at.saturating_duration_since(now));
@@ -465,6 +489,10 @@ pub fn step(max_wait: Option<Duration>) {
     if crate::database::busy() {
         at_most(Duration::from_millis(16));
     }
+    // (RAudioOut: OnNeedData asked often while a stream with one plays)
+    if crate::audio_out::busy() {
+        at_most(crate::audio_out::POLL_EVERY);
+    }
     let queued = crate::object::rp_vm_events_queued();
     pump(t);
     #[cfg(feature = "studio")]
@@ -475,8 +503,12 @@ pub fn step(max_wait: Option<Duration>) {
     // program's OnRequest)
     #[cfg(feature = "network")]
     crate::httpserver::poll();
+    // (RMcpServer: an AI app's messages answered, its calls to OnToolCall)
+    #[cfg(feature = "network")]
+    crate::mcpserver::poll();
     #[cfg(feature = "database")]
     crate::database::poll();
+    crate::audio_out::poll();
     crate::object::rp_run_deferred();
     // (a form's WndProc on Windows: its window's messages, as they came)
     deliver_window_messages();
@@ -498,6 +530,9 @@ pub fn step(max_wait: Option<Duration>) {
         // (a timer's handler queued for the VM runs before anything else)
         return;
     }
+    // (RapidR Studio's link and the program's RWindowCapture / RAppHands:
+    // requests served, the hands' jobs played, what ended answered)
+    super::drive::turn();
     script::step(Rt);
 }
 
@@ -1150,6 +1185,25 @@ pub fn form_scale(name: &str) -> f64 {
     forms::form_scale(Rt, name)
 }
 
+/// Form.SaveImage: what form `name` shows now — drawn by the CPU renderer at
+/// its scale, as the tests' captures are — saved as a PNG (a BMP when the
+/// file's name ends in .bmp). Only the program's own forms.
+pub fn save_form_image(name: &str, path: &str) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("no file name".into());
+    }
+    // (the eyes' picture, RWindowCapture's: the form's inside at its scale,
+    // never the virtual pointer of a driven program)
+    let px = with_kern(|k| {
+        sync_desk(&mut k.desk);
+        rapidr_ui_app::eyes::capture(&mut k.desk, &RtStore, name, rapidr_ui_app::eyes::Scale::Screen, false, false).ok()
+    })
+    .flatten()
+    .ok_or_else(|| format!("{name} isn't shown"))?;
+    let bytes = if path.to_ascii_lowercase().ends_with(".bmp") { rapidr_value::objects::codec::encode_bmp(&px) } else { rapidr_value::objects::codec::encode_png(&px)? };
+    std::fs::write(path, bytes).map_err(|e| format!("can't write {path}: {e}"))
+}
+
 /// MOUSEX / MOUSEY: the mouse in the topmost form's client area.
 pub fn mouse_in_form() -> (i64, i64) {
     let (mx, my) = mouse();
@@ -1367,6 +1421,9 @@ fn place_of(comp: &str) -> Option<(String, (i64, i64))> {
 /// every shown window saved as `<prefix>-<n>.bmp` (bottom to top, at its
 /// scale, by the CPU renderer), and the program ends.
 fn capture_and_end(prefix: &str) -> ! {
+    // (the test's own work from here, not the program's: Studio's hang
+    // watchdog doesn't count it — rapidr-crash)
+    rapidr_crash::watchdog::stop();
     let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
     let contrast = std::env::var("RAPIDR_TEST_CONTRAST").ok().filter(|p| !p.is_empty());
     let mut reports = Vec::new();
@@ -1477,6 +1534,9 @@ impl Windows for Rt {
     fn popup_open(self, form: &str) -> bool {
         menus::popup_open(form)
     }
+    fn popup_rect(self, form: &str) -> Option<(i64, i64, i64, i64)> {
+        with_kern(|k| k.desk.forms.get(form).and_then(|f| f.ui.popup_rect())).flatten()
+    }
     fn start_move(self, form: &str, comp: &str) -> bool {
         with_kern(|k| k.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
     }
@@ -1522,4 +1582,13 @@ impl Windows for Rt {
     fn capture_and_end(self, prefix: &str) {
         capture_and_end(prefix)
     }
+    // (the eyes and hands: rapidr_ui_app::{eyes, hands}, `drive.rs`)
+    fn with_desk(self, f: &mut dyn FnMut(&mut Desktop, &dyn rapidr_ui_kernel::Store)) -> bool {
+        with_kern(|k| {
+            sync_desk(&mut k.desk);
+            f(&mut k.desk, &RtStore)
+        })
+        .is_some()
+    }
 }
+

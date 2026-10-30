@@ -19,7 +19,8 @@
 #                                     examples, gui, visual, web, studio,
 #                                     studio-goldens, security, perf, legal,
 #                                     words (the quick one: no other
-#                                     products named in RapidR's text)),
+#                                     products named in RapidR's text;
+#                                     Studio's design guard)),
 #                                     caches kept
 #   tools/regress.sh --clean          (with stages) remove the caches after
 cd "$(dirname "$0")/.."
@@ -40,6 +41,10 @@ export RAPIDR_AI_KEYSTORE=memory
 # …nor the user's build cache (`rapidr build`'s generated Rust and cargo's
 # target folder): one in here, gone with the rest.
 export RAPIDR_BUILD_CACHE="$PWD/$W/build-cache"
+# …nor the machine's language: the tests read RapidR Studio, the runtime's
+# own words and the compiler's messages in English (the language tests ask
+# for theirs: tests/studio_lang.mjs).
+export LANGUAGE=en_US.UTF-8 RAPIDR_LANG=en
 STAGES=(); CLEAN=0
 for a in "$@"; do if [ "$a" = --clean ]; then CLEAN=1; else STAGES+=("$a"); fi; done
 [ ${#STAGES[@]} -eq 0 ] && { STAGES=(unit conformance examples gui visual web studio security perf legal); CLEAN=1; }
@@ -73,11 +78,17 @@ if want unit; then echo "== unit"; cargo test --workspace 2>&1 | grep -E "test r
   # (RapidR's own words: no other products as models or comparisons in the
   # code, docs or UI text; tools/words-allowlist.txt lists what stays)
   python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  # (RapidR Studio's design guide, docs/design-guidelines.md: no colour
+  # written as a number, no unknown token, no control height off the
+  # guide's scale — new ones only; tools/check_design_baseline.txt lists
+  # today's)
+  python3 tools/check_design.py || echo "tools/check_design.py: FAILED"
   # (no API key's shape anywhere, real or made up: tests build theirs from two pieces)
   python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
   # (no private key, certificate, signing key or token in a tracked file)
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; echo "(unit done)"; fi
 if want words; then echo "== words"; python3 tools/check_words.py || echo "tools/check_words.py: FAILED"
+  python3 tools/check_design.py || echo "tools/check_design.py: FAILED"
   python3 tools/check_key_shapes.py || echo "tools/check_key_shapes.py: FAILED"
   python3 tools/check_secrets.py || echo "tools/check_secrets.py: FAILED"; fi
 if want conformance; then echo "== conformance"; node tests/conformance/run.mjs 2>&1 | tail -1
@@ -90,7 +101,10 @@ if want examples; then echo "== examples"; node tests/examples_run.mjs 2>&1 | gr
   echo "== built programs started elsewhere"; node tests/built_elsewhere.mjs --native 2>&1 | grep -E "✗|Built elsewhere"
   # (a console program's input is read line by line as it arrives: two
   # lines piped with a pause, the first answered before the second is sent)
-  echo "== stdin, line by line"; node tests/stdin_lines.mjs --runtimes run,interp,native 2>&1 | grep -E "✗|Stdin lines"; fi
+  echo "== stdin, line by line"; node tests/stdin_lines.mjs --runtimes run,interp,native 2>&1 | grep -E "✗|Stdin lines"
+  # (where RMIDI's song goes: a synthesizer, never a bus; the built-in
+  # synthesizer's sound measured — nobody listens to a test)
+  echo "== MIDI output"; node tests/midi_output.mjs 2>&1 | grep -E "✗|^    |MIDI output"; fi
 if want gui; then echo "== gui events (the UI kernel's headless host, native + interpreted)"; node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"
   echo "== gui events at 2x (high-DPI: what programs read is unchanged)"; RAPIDR_SCALE=2 node tests/native_gui_events.mjs 2>&1 | grep -E "✗|GUI events"; fi
 # (the visual gallery: every case and GUI example captured at 1× and 2× in
@@ -100,6 +114,7 @@ if want visual; then echo "== visual gallery"; python3 tools/visual/gallery.py c
 if want web; then
   echo "== web conformance"; node tests/web_conformance.mjs 2>&1 | tail -1
   echo "== the language registry against the web runtime"; node tests/lang_conformance.mjs --backend web 2>&1 | grep -E "^FAIL|passed"
+  echo "== MIDI output (web)"; node tests/midi_output_web.mjs 2>&1 | grep -E "✗|^    |MIDI output"
   # (the UI kernel hosts the web — docs/web-host-plan.md: the cases' dumps
   # by the desktop's own test hooks, and every window and accessibility tree
   # byte for byte against the desktop's own captures, made here by
@@ -117,7 +132,7 @@ if want web; then
   # Studio's run frame — its isolation, its file pickers — on Studio's web
   # build, made here from the current sources and runtime)
   RAPIDR="$PWD/rapidr" bash tools/build_studio_web.sh --no-runtime >/dev/null || echo "tools/build_studio_web.sh: FAILED"
-  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
+  echo "== web"; for t in tests/web_align.mjs tests/web_canvas.mjs tests/web_components.mjs tests/web_dialogs.mjs tests/web_grid.mjs tests/web_grid_draw.mjs tests/web_lists.mjs tests/web_owner_list.mjs tests/web_objects.mjs tests/web_picture.mjs tests/web_reentrant_events.mjs tests/web_multiform.mjs tests/web_pixels.mjs tests/web_debugger.mjs tests/web_session.mjs tests/web_bundle_*.mjs tests/web_file_dialogs.mjs tests/web_file_store.mjs tests/web_modal_focus.mjs tests/web_end_timer.mjs tests/web_main_end.mjs tests/web_end_code.mjs tests/web_vm_yield.mjs tests/web_overlays.mjs tests/web_fonts.mjs tests/web_webapi.mjs tests/web_audio_out.mjs tests/web_sqlite.mjs tests/studio_run_frame.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m3 -E "ASSERT|Error|✗"; }
   done
 fi
@@ -141,9 +156,11 @@ if want studio || want studio-goldens; then echo "== studio goldens"
 # Call Stack, Immediate, a run-time error, the program's windows floating
 # over the page), the look switched while it runs (THEME-LIVE: identical to
 # Studio started in that look), and Run in Browser (the web build served on
-# 127.0.0.1).
+# 127.0.0.1), and Studio in other languages (the pseudo-language xx in its
+# main scenes: no English left, nothing cut off; Spanish switched live; a
+# compiler error in Spanish — tests/studio_lang.mjs).
 if want studio; then echo "== studio"
-  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/studio_run_panic.mjs tests/run_in_browser.mjs; do
+  for t in tests/studio_shell.mjs tests/studio_flows.mjs tests/studio_theme_follow.mjs tests/studio_run_panic.mjs tests/run_in_browser.mjs tests/studio_lang.mjs; do
     out=$(node "$t" 2>&1) || { echo "$t: FAILED"; echo "$out" | grep -m8 -E "✗|≠|Error"; }
     echo "$out" | tail -1
   done
@@ -207,6 +224,9 @@ if want legal; then echo "== legal"
   # (no private key, certificate, signing key or token in a tracked file)
   python3 tools/check_secrets.py || LEGAL_FAILED=1
   python3 tools/third_party_notices.py --check || LEGAL_FAILED=1
+  # (RArchive's libraries: only the features the legal review cleared — no
+  # AES, Deflate64, PPMd, ruzstd's dictionary builder or C codecs)
+  python3 tools/check_archive_features.py || LEGAL_FAILED=1
   out=$(python3 tools/check_notices.py --rapidr ./rapidr 2>&1) || LEGAL_FAILED=1
   echo "$out" | grep -E "FAIL|notices: all ok"; fi
 [ $LEGAL_FAILED = 1 ] && { echo "LEGAL CHECKS FAILED"; exit 1; }

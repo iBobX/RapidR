@@ -40,10 +40,11 @@ FUNCTION CmdIndex(Id AS STRING) AS INTEGER
   NEXT
 END FUNCTION
 
-' A title as text: no "&", no "...".
+' A title as text, in Studio's language: no "&", no "..." (a translation
+' keeps the three dots: docs/i18n/glossary-es.md).
 FUNCTION PlainTitle(Title AS STRING) AS STRING
   DIM t AS STRING
-  t = REPLACESUBSTR$(Title, "&", "")
+  t = REPLACESUBSTR$(TR$(Title), "&", "")
   IF RIGHT$(t, 3) = "..." THEN t = LEFT$(t, LEN(t) - 3)
   Result = t
 END FUNCTION
@@ -77,8 +78,32 @@ SUB DefineCommands
   AddCmd "file.save", "&Save", "File", "Ctrl+S", "", "document", ""
   AddCmd "file.saveAs", "Save &As...", "File", "", "", "document", "-"
   AddCmd "file.saveAll", "Save A&ll", "File", "Ctrl+Shift+S", "", "project", ""
+  ' (Versions — versions.inc: Save a Version... is Ctrl+Shift+V, Cmd+Shift+V
+  ' on a Mac, "V" for version; Ctrl+S stays Save. Each plain word has its
+  ' Git name in the pane's tooltips)
+  AddCmd "versions.save", TR$("Save a &Version..."), "File", "Ctrl+Shift+V", "", "project", ""
+  AddSubmenu "File", "Versions", TR$("Versio&ns")
+  AddCmd "versions.start", TR$("&Start Versioning This Project"), "File/Versions", "", "", "unversioned", ""
+  AddCmd "versions.whatChanged", TR$("What &Changed?"), "File/Versions", "", "", "versioned", ""
+  AddCmd "versions.changes", TR$("What Changed Since the &Last Version"), "File/Versions", "", "", "versioned", "versions.whatChanged"
+  AddCmd "versions.goBack", TR$("&Go Back to This Version..."), "File/Versions", "", "", "versioned", ""
+  AddCmd "versions.goBackFile", TR$("Go Back to This Version for This &File..."), "File/Versions", "", "", "versionedcode", ""
+  AddCmd "versions.undo", TR$("&Undo the Last Versions Action"), "File/Versions", "", "", "versioned", ""
+  AddSep "File/Versions"
+  AddCmd "versions.showChange", TR$("S&how This Line's Change"), "File/Versions", "", "", "versionedcode", ""
+  AddCmd "versions.undoChange", TR$("Undo This &Line's Change"), "File/Versions", "", "", "versionedcode", ""
+  AddSep "File/Versions"
+  AddCmd "versions.localHistory", TR$("Local &History of This File..."), "File/Versions", "", "", "code", ""
+  AddSep "File"
+  ' (a file changed outside Studio while it had unsaved changes here: the
+  ' question above its editor, as commands too — external.inc)
+  AddSubmenu "File", "Outside", "Changed Outside S&tudio"
+  AddCmd "file.compareDisk", "&Compare with the Disk's Version", "File/Outside", "", "", "extask", "compare"
+  AddCmd "file.useDisk", "&Use Disk Version", "File/Outside", "", "", "extask", "-"
+  AddCmd "file.keepMine", "&Keep Mine", "File/Outside", "", "", "extask", "-"
   AddSep "File"
   AddCmd "file.close", "&Close Document", "File", "Ctrl+F4", "", "document", ""
+  AddCmd "file.reopenProject", "Reo&pen Project", "File", "", "", "project", "-"
   AddCmd "file.closeProject", "Close Pro&ject", "File", "", "", "project", "-"
   AddSep "File"
   AddCmd "file.exit", "E&xit", "File", "", "Alt+F4", "", "-"
@@ -141,6 +166,7 @@ SUB DefineCommands
   AddCmd "view.toolbox", "&Toolbox", "View", "", "", "", "groups/standard"
   AddCmd "view.properties", "P&roperties", "View", "F4", "", "", "symbols/property"
   AddCmd "view.outline", "O&utline", "View", "", "", "", "symbols/module"
+  AddCmd "versions.pane", TR$("Versio&ns"), "View", "", "", "", ""
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
   ' (long lines of the Output, Build and Problems pages: wrapped, or cut at the edge)
@@ -262,6 +288,12 @@ SUB DefineCommands
   AddCmd "ai.compact", "Co&mpact the AI Chat", "Tools", "", "", "ai", "-"
   AddCmd "ai.review", "&Review the AI's Changes...", "Tools", "", "", "ai", "-"
   AddCmd "ai.whatWasSent", "&What Was Sent to the AI...", "Tools", "", "", "ai", "-"
+  ' (AI apps: the desktop's — a web page can't listen for them: mcp.inc)
+  IF Proj.FileManager <> "" THEN
+    AddSep "Tools"
+    AddCmd "mcp.settings", "AI A&pps Settings...", "Tools", "", "", "", "-"
+    AddCmd "view.aiApps", "AI Apps Acti&vity", "Tools", "", "", "", "-"
+  END IF
 
   ' ---- Window (documents are tabs, split into groups) ----
   AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
@@ -298,7 +330,9 @@ END FUNCTION
 
 ' A top menu on the bar.
 SUB AddTopMenu(Name AS STRING, Title AS STRING)
-  MI(MICount).Caption = Title
+  ' (the menu bar's words have a context of their own: View > Project is
+  ' an item, the bar's Project a menu — two translations may differ)
+  MI(MICount).Caption = TR$(Title, "menubar")
   MainMenu.AddItems MI(MICount)
   MenuName(MenuCount) = Name
   MenuItemOf(MenuCount) = MICount
@@ -322,7 +356,8 @@ SUB BuildMenus
   FOR i = 0 TO CmdCount - 1
     parent = MenuIndex(Cmd(i).Category)
     IF parent >= 0 AND MICount < MAXMENUS THEN
-      caption = Cmd(i).Title
+      ' (the table keeps the English; the menu shows Studio's language)
+      caption = TR$(Cmd(i).Title)
       IF Cmd(i).Shown <> "" THEN caption = caption + CHR$(9) + Cmd(i).Shown
       MI(MICount).Caption = caption
       IF Cmd(i).Shortcut <> "" THEN MI(MICount).ShortCut = Cmd(i).Shortcut
@@ -356,6 +391,14 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
   w = Cmd(i).EnabledWhen
   k = ""
   IF ActiveDoc >= 0 THEN k = DocKind(ActiveDoc)
+  ' (Edit's Copy and Select All are the Output pane's while it has the
+  ' keyboard, a document open or not: panels.inc)
+  IF Cmd(i).Id = "edit.copy" OR Cmd(i).Id = "edit.selectAll" THEN
+    IF OutputHasKeys THEN
+      Result = 1
+      EXIT FUNCTION
+    END IF
+  END IF
   SELECT CASE w
     CASE "": Result = 1
     ' (Open Recent's "No Recent Projects or Files": a note, never a command)
@@ -385,6 +428,15 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
     CASE "session": Result = (ProgramIdle = 0)
     ' (the AI's: once it is turned on — Tools > Settings > AI)
     CASE "ai": Result = AIReady
+    ' (Versions': a project without versions, with them, with them and a
+    ' code document — versions.inc)
+    CASE "unversioned": Result = (ProjectOpen <> 0 AND Repo.Versioned = 0 AND Repo.Available <> 0)
+    CASE "versioned": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0)
+    CASE "versionedcode": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0 AND k = "code")
+    ' (the document in front: its file changed outside Studio under unsaved
+    ' changes, the question waiting — external.inc)
+    CASE "extask"
+      IF ActiveCode >= 0 THEN Result = DocExtAsk(ActiveCode) ELSE Result = 0
     CASE ELSE: Result = 1
   END SELECT
 END FUNCTION
@@ -423,10 +475,10 @@ SUB UpdateCommands
   i = CmdIndex("run.start")
   IF i >= 0 THEN
     IF RunState = "paused" THEN
-      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = "&Continue"
-      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", "Continue (F5)"
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = TR$("&Continue")
+      IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", PlainTitle("&Continue") + " (F5)"
     ELSE
-      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = Cmd(i).Title
+      IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Caption = TR$(Cmd(i).Title)
       IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonHint "run.start", PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")"
     END IF
   END IF

@@ -4,6 +4,7 @@
 //! it —, Backspace, Delete, Home / End, Left / Right; what it may hold is
 //! its kind's (digits, hex digits, any text).
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
@@ -35,6 +36,19 @@ pub struct Field {
 impl Field {
     pub fn new(label: &'static str, text: &str, accept: Accept) -> Field {
         Field { label, text: text.to_string(), caret: text.len(), all: false, accept }
+    }
+
+    /// Its label in the program's language (`label` stays the English name
+    /// the code goes by).
+    pub fn label_text(&self) -> String {
+        match self.label {
+            "Red" => tr_ui("Red"),
+            "Green" => tr_ui("Green"),
+            "Blue" => tr_ui("Blue"),
+            "Hex" => tr_ui("Hex"),
+            "Filter" => tr_ui("Filter"),
+            other => other.to_string(),
+        }
     }
 
     /// Its text set from outside (the value changed elsewhere).
@@ -126,7 +140,7 @@ impl Field {
     pub fn paint(&self, p: &mut Painter, r: Rect, label_w: i64, focused: bool, look: &Look, font: &Font) {
         let (x, y, w, h) = r;
         if label_w > 0 {
-            p.text((x, y, label_w, h), self.label, font, look.text, Place::Left);
+            p.text((x, y, label_w, h), &self.label_text(), font, look.text, Place::Left);
         }
         let b = (x + label_w, y + 2, w - label_w, h - 4);
         p.round(b, 3.0, Some(look.field), Some(if focused { look.focus } else { look.border }), if focused { 2.0 } else { 1.0 });

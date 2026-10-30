@@ -1,0 +1,12 @@
+' window.rr: Outside's window.
+CREATE Window AS RForm
+    Caption = "Outside"
+    Width = 320
+    Height = 200
+    CREATE Hello AS RButton
+        Caption = "Hello"
+        Left = 24
+        Top = 24
+        Width = 96
+    END CREATE
+END CREATE

@@ -49,6 +49,8 @@ DIM SearchScopeWas AS INTEGER
 ' (what the tab shows: "find" — a search's results — or "refs" — Find
 ' References' places)
 DIM SearchShows AS STRING
+' (the scope list being made again in another language: its change isn't a pick)
+DIM SearchRefilling AS INTEGER
 
 ' The scopes, as the list shows them (SearchScope.ItemIndex)
 CONST SCOPE_FILE = 0
@@ -131,6 +133,7 @@ DECLARE SUB HelpSearchChanged
 DECLARE SUB HelpSearchKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB HelpSuggestPicked
 DECLARE SUB HelpLink(Url AS STRING)
+DECLARE SUB HelpShowManual(Page AS STRING)
 DECLARE SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
 DECLARE SUB HelpFocusSearch
 DECLARE FUNCTION HelpFile AS STRING
@@ -147,36 +150,36 @@ HelpTimer.OnTimer = HelpTyped
 SUB SetUpSearch
   SearchPane.Parent = Studio
   SearchPane.BevelOuter = 0
-  SearchPane.AccessibleName = "Search"
+  SearchPane.AccessibleName = TR$("Search")
   SearchPane.OnResize = LayOutSearch
   SearchEdit.Parent = SearchPane
-  SearchEdit.AccessibleName = "Search for"
-  SearchEdit.Hint = "Search (Enter)"
+  SearchEdit.AccessibleName = TR$("Search for")
+  SearchEdit.Hint = TR$("Search (Enter)")
   SearchEdit.OnKeyDown = SearchKey
   ReplaceEdit.Parent = SearchPane
-  ReplaceEdit.AccessibleName = "Replace with"
-  SearchCase.Parent = SearchPane: SearchCase.Caption = "Case"
-  SearchCase.Hint = "Match case"
-  SearchWord.Parent = SearchPane: SearchWord.Caption = "Word"
-  SearchWord.Hint = "Whole words only"
-  SearchRegex.Parent = SearchPane: SearchRegex.Caption = "Regex"
-  SearchRegex.Hint = "A regular expression"
-  SearchGo.Parent = SearchPane: SearchGo.Caption = "Find"
+  ReplaceEdit.AccessibleName = TR$("Replace with")
+  SearchCase.Parent = SearchPane: SearchCase.Caption = TR$("Case")
+  SearchCase.Hint = TR$("Match case")
+  SearchWord.Parent = SearchPane: SearchWord.Caption = TR$("Word")
+  SearchWord.Hint = TR$("Whole words only")
+  SearchRegex.Parent = SearchPane: SearchRegex.Caption = TR$("Regex")
+  SearchRegex.Hint = TR$("A regular expression")
+  SearchGo.Parent = SearchPane: SearchGo.Caption = TR$("Find")
   SearchGo.OnClick = SearchClicked
-  ReplaceGo.Parent = SearchPane: ReplaceGo.Caption = "Replace All"
+  ReplaceGo.Parent = SearchPane: ReplaceGo.Caption = TR$("Replace All")
   ReplaceGo.OnClick = ReplaceClicked
   SearchScopeLabel.Parent = SearchPane
-  SearchScopeLabel.Caption = "In:"
+  SearchScopeLabel.Caption = TR$("In:")
   SearchScope.Parent = SearchPane
-  SearchScope.AccessibleName = "Search in"
-  SearchScope.AddItems "This file", "Open files", "Modules", "Forms", "Resources", "Whole project", "A folder..."
+  SearchScope.AccessibleName = TR$("Search in")
+  SearchScope.AddItems TR$("This file"), TR$("Open files"), TR$("Modules"), TR$("Forms"), TR$("Resources"), TR$("Whole project"), TR$("A folder...")
   SearchScope.ItemIndex = SCOPE_PROJECT
   SearchScopeWas = SCOPE_PROJECT
   SearchScope.OnChange = SearchScopeChanged
   SearchInfo.Parent = SearchPane
-  SearchInfo.Caption = "Type what to find, then Enter."
+  SearchInfo.Caption = TR$("Type what to find, then Enter.")
   SearchTree.Parent = SearchPane
-  SearchTree.AccessibleName = "Search results"
+  SearchTree.AccessibleName = TR$("Search results")
   ' (a click shows the place and keeps the keys here; Enter or a double
   ' click opens it, the caret on the match)
   SearchTree.OnClick = SearchPeek
@@ -185,16 +188,16 @@ SUB SetUpSearch
   SearchShows = "find"
 
   ' (the code editors' context menu: OpenDocument gives it to each)
-  CodeMenuDef.Caption = "Go to &Definition": CodeMenuDef.ShortCut = "F12"
-  CodeMenuRefs.Caption = "Find &References": CodeMenuRefs.ShortCut = "Shift+F12"
-  CodeMenuRename.Caption = "Re&name Symbol...": CodeMenuRename.ShortCut = "F2"
+  CodeMenuDef.Caption = TR$("Go to &Definition"): CodeMenuDef.ShortCut = "F12"
+  CodeMenuRefs.Caption = TR$("Find &References"): CodeMenuRefs.ShortCut = "Shift+F12"
+  CodeMenuRename.Caption = TR$("Re&name Symbol..."): CodeMenuRename.ShortCut = "F2"
   CodeMenuSep1.Caption = "-"
-  CodeMenuCut.Caption = "Cu&t": CodeMenuCut.ShortCut = "Ctrl+X"
-  CodeMenuCopy.Caption = "&Copy": CodeMenuCopy.ShortCut = "Ctrl+C"
-  CodeMenuPaste.Caption = "&Paste": CodeMenuPaste.ShortCut = "Ctrl+V"
+  CodeMenuCut.Caption = TR$("Cu&t"): CodeMenuCut.ShortCut = "Ctrl+X"
+  CodeMenuCopy.Caption = TR$("&Copy"): CodeMenuCopy.ShortCut = "Ctrl+C"
+  CodeMenuPaste.Caption = TR$("&Paste"): CodeMenuPaste.ShortCut = "Ctrl+V"
   CodeMenuSep2.Caption = "-"
-  CodeMenuSelAll.Caption = "Select &All": CodeMenuSelAll.ShortCut = "Ctrl+A"
-  CodeMenuFind.Caption = "Find in F&iles...": CodeMenuFind.ShortCut = "Ctrl+Shift+F"
+  CodeMenuSelAll.Caption = TR$("Select &All"): CodeMenuSelAll.ShortCut = "Ctrl+A"
+  CodeMenuFind.Caption = TR$("Find in F&iles..."): CodeMenuFind.ShortCut = "Ctrl+Shift+F"
   CodeMenuCmd(1) = "edit.goToDefinition": CodeMenuDef.Tag = 1
   CodeMenuCmd(2) = "edit.findReferences": CodeMenuRefs.Tag = 2
   CodeMenuCmd(3) = "edit.rename": CodeMenuRename.Tag = 3
@@ -225,27 +228,27 @@ SUB SetUpSearch
 
   HelpPane.Parent = Studio
   HelpPane.BevelOuter = 0
-  HelpPane.AccessibleName = "Help"
+  HelpPane.AccessibleName = TR$("Help")
   HelpPane.OnResize = LayOutHelp
   HelpSearch.Parent = HelpPane
-  HelpSearch.AccessibleName = "Search the help"
-  HelpSearch.Placeholder = "Search the help"
-  HelpSearch.Hint = "Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code."
+  HelpSearch.AccessibleName = TR$("Search the help")
+  HelpSearch.Placeholder = TR$("Search the help")
+  HelpSearch.Hint = TR$("Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code.")
   HelpSearch.OnChange = HelpSearchChanged
   HelpSearch.OnKeyDown = HelpSearchKey
   HelpSuggest.Parent = HelpPane
-  HelpSuggest.AccessibleName = "Names that match: Up and Down choose, Enter opens"
+  HelpSuggest.AccessibleName = TR$("Names that match: Up and Down choose, Enter opens")
   HelpSuggest.Visible = 0
   HelpSuggest.OnClick = HelpSuggestPicked
   HelpPage.Parent = HelpPane
-  HelpPage.AccessibleName = "Help page"
+  HelpPage.AccessibleName = TR$("Help page")
   HelpPage.OnLinkClick = HelpLink
   ' (the pane may be shown by its tab before any F1: the start page is there)
   HelpShowPage "", "", "", 0, 0
   ' (Search: a tab beside Project, always there — Ctrl+Shift+F brings it
   ' to the front; Help docked hidden with the properties, F1 shows it)
-  Dock.AddPane(SearchPane, "Search", "tab:projecttree", "search")
-  Dock.AddPane(HelpPane, "Help", "tab:inspector", "help")
+  Dock.AddPane(SearchPane, TR$("Search"), "tab:projecttree", "search")
+  Dock.AddPane(HelpPane, TR$("Help"), "tab:inspector", "help")
   Dock.HidePane("helppane")
   Dock.ShowPane("projecttree")
   Dock.ShowPane("inspector")
@@ -276,6 +279,12 @@ SUB LayOutSearch
   IF w < 60 THEN EXIT SUB
   fh = 26: bw = 92
   IF ThemeName = "classic" THEN fh = 21: bw = 76
+  ' (the buttons as wide as their words need in Studio's language — a
+  ' longer one isn't cut off — up to half the pane)
+  lw = UITextWidth(SearchGo.Caption) + 24
+  IF UITextWidth(ReplaceGo.Caption) + 24 > lw THEN lw = UITextWidth(ReplaceGo.Caption) + 24
+  IF lw > bw THEN bw = lw
+  IF bw > w \ 2 THEN bw = w \ 2
   y = 8
   SearchEdit.Left = 8: SearchEdit.Top = y: SearchEdit.Width = w - bw - 6: SearchEdit.Height = fh
   SearchGo.Left = 8 + w - bw: SearchGo.Top = y: SearchGo.Width = bw: SearchGo.Height = fh
@@ -290,12 +299,20 @@ SUB LayOutSearch
   SearchRegex.Left = 8 + 2 * bw: SearchRegex.Top = y: SearchRegex.Width = w - 2 * bw: SearchRegex.Height = 20
   y = y + 26
   ' (where: "In:" and the scope's list)
-  lw = 28
+  lw = UITextWidth(SearchScopeLabel.Caption) + 6
+  IF lw < 28 THEN lw = 28
   SearchScopeLabel.Left = 8: SearchScopeLabel.Top = y + (fh - 16) \ 2: SearchScopeLabel.Width = lw: SearchScopeLabel.Height = 18
   SearchScope.Left = 8 + lw + 4: SearchScope.Top = y: SearchScope.Width = w - lw - 4
   y = y + fh + 6
-  SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 20
-  y = y + 24
+  ' (the note on two lines when one can't hold it)
+  SearchInfo.WordWrap = 1: SearchInfo.AutoSize = 0
+  IF UITextWidth(SearchInfo.Caption) > w THEN
+    SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 38
+    y = y + 42
+  ELSE
+    SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 20
+    y = y + 24
+  END IF
   SearchTree.Left = 0: SearchTree.Top = y: SearchTree.Width = SearchPane.Width
   SearchTree.Height = SearchPane.Height - y
 END SUB
@@ -352,11 +369,6 @@ FUNCTION AddSearchFile(List AS STRING, Path AS STRING) AS STRING
   Result = List + Path + CHR$(10)
 END FUNCTION
 
-' (n things: "1 file", "3 files")
-FUNCTION Counted(n AS INTEGER, Thing AS STRING) AS STRING
-  IF n = 1 THEN Result = "1 " + Thing ELSE Result = LTRIM$(STR$(n)) + " " + Thing + "s"
-END FUNCTION
-
 ' (the open documents' files)
 FUNCTION OpenSearchFiles AS STRING
   DIM d AS INTEGER, t AS STRING
@@ -402,18 +414,22 @@ FUNCTION SearchFiles AS STRING
   Result = t
 END FUNCTION
 
-' (where the scope is, in words, for "No results … in …")
-FUNCTION ScopeWords AS STRING
-  SELECT CASE SearchScope.ItemIndex
-    CASE SCOPE_FILE: Result = "this file"
-    CASE SCOPE_OPEN: Result = "the open files"
-    CASE SCOPE_MODULES: Result = "the modules"
-    CASE SCOPE_FORMS: Result = "the forms"
-    CASE SCOPE_RESOURCES: Result = "the resources"
-    CASE SCOPE_FOLDER: Result = ShortPath(SearchFolder)
-    CASE ELSE: Result = "the project"
+' ("No results for "x" in …": the whole sentence for each scope, so it
+' translates whole)
+FUNCTION NoResults(Pattern AS STRING) AS STRING
+  DIM q AS STRING, scope AS INTEGER
+  q = CHR$(34) + Pattern + CHR$(34)
+  scope = SearchScope.ItemIndex
+  IF ProjectOpen = 0 AND scope >= SCOPE_MODULES AND scope <= SCOPE_PROJECT THEN scope = SCOPE_OPEN
+  SELECT CASE scope
+    CASE SCOPE_FILE: Result = TR$("No results for {text} in this file", "text", q)
+    CASE SCOPE_OPEN: Result = TR$("No results for {text} in the open files", "text", q)
+    CASE SCOPE_MODULES: Result = TR$("No results for {text} in the modules", "text", q)
+    CASE SCOPE_FORMS: Result = TR$("No results for {text} in the forms", "text", q)
+    CASE SCOPE_RESOURCES: Result = TR$("No results for {text} in the resources", "text", q)
+    CASE SCOPE_FOLDER: Result = TR$("No results for {text} in {folder}", "text", q, "folder", ShortPath(SearchFolder))
+    CASE ELSE: Result = TR$("No results for {text} in the project", "text", q)
   END SELECT
-  IF ProjectOpen = 0 AND SearchScope.ItemIndex >= SCOPE_MODULES AND SearchScope.ItemIndex <= SCOPE_PROJECT THEN Result = "the open files"
 END FUNCTION
 
 ' (a file's text: its editor's when it is open)
@@ -507,11 +523,11 @@ SUB FindInFiles(Pattern AS STRING)
   SearchTree.Clear
   SearchShows = "find"
   IF Pattern = "" THEN
-    SearchInfo.Caption = "Type what to find, then Enter."
+    SearchInfo.Caption = TR$("Type what to find, then Enter.")
     EXIT SUB
   END IF
   IF SearchScope.ItemIndex = SCOPE_FOLDER AND SearchFolder = "" THEN
-    SearchInfo.Caption = "Choose a folder: In, A folder..."
+    SearchInfo.Caption = TR$("Choose a folder: In, A folder...")
     EXIT SUB
   END IF
   opts = SearchOptions
@@ -521,7 +537,7 @@ SUB FindInFiles(Pattern AS STRING)
     f = FIELD$(files, CHR$(10), i)
     hits = Proj.Find(Pattern, opts, SearchText(f))
     IF Proj.Error <> "" THEN
-      SearchInfo.Caption = "Not a regular expression: " + Proj.Error
+      SearchInfo.Caption = TR$("Not a regular expression: {error}", "error", Proj.Error)
       EXIT SUB
     END IF
     m = TALLY(hits, CHR$(10))
@@ -547,10 +563,10 @@ SUB FindInFiles(Pattern AS STRING)
   NEXT
   SearchTree.FullExpand
   IF total = 0 THEN
-    SearchInfo.Caption = "No results for " + CHR$(34) + Pattern + CHR$(34) + " in " + ScopeWords
+    SearchInfo.Caption = NoResults(Pattern)
   ELSE
-    SearchInfo.Caption = Counted(total, "result") + " in " + Counted(nfiles, "file")
-    IF more THEN SearchInfo.Caption = SearchInfo.Caption + " (the first 1,990 shown)"
+    SearchInfo.Caption = TR$("{results} in {files}", "results", TRN$("{n} result", "{n} results", total), "files", TRN$("{n} file", "{n} files", nfiles))
+    IF more THEN SearchInfo.Caption = SearchInfo.Caption + " " + TR$("(the first 1,990 shown)")
   END IF
   Application.Announce SearchInfo.Caption
 END SUB
@@ -566,8 +582,9 @@ END SUB
 ' The scope changed: "A folder..." asks which (cancelled: the scope it was);
 ' the search again in the new scope.
 SUB SearchScopeChanged
+  IF SearchRefilling THEN EXIT SUB
   IF SearchScope.ItemIndex = SCOPE_FOLDER THEN
-    OpenDlg.Caption = "Search in a Folder"
+    OpenDlg.Caption = TR$("Search in a Folder")
     OpenDlg.PickFolder = 1
     IF OpenDlg.Execute THEN
       SearchFolder = OpenDlg.FileName
@@ -665,7 +682,7 @@ SUB ReplaceClicked
     END IF
   NEXT
   FindInFiles SearchEdit.Text
-  SearchInfo.Caption = "Replaced in " + LTRIM$(STR$(done)) + " files. " + SearchInfo.Caption
+  SearchInfo.Caption = TRN$("Replaced in {n} file. {info}", "Replaced in {n} files. {info}", done, "info", SearchInfo.Caption)
 END SUB
 
 ' Ctrl+Shift+F: the Search tab, the selection (or the word at the caret)
@@ -743,7 +760,7 @@ SUB ShowReferences(Json AS STRING, Name AS STRING)
   SearchTree.Clear
   SearchShows = "refs"
   IF n = 0 THEN
-    SearchInfo.Caption = "No references: put the caret on a name of the program (a variable, a SUB, a component)."
+    SearchInfo.Caption = TR$("No references: put the caret on a name of the program (a variable, a SUB, a component).")
     Application.Announce SearchInfo.Caption
     EXIT SUB
   END IF
@@ -777,7 +794,7 @@ SUB ShowReferences(Json AS STRING, Name AS STRING)
     NEXT
   NEXT
   SearchTree.FullExpand
-  SearchInfo.Caption = "References to " + nm + ": " + LTRIM$(STR$(n)) + " in " + Counted(nfiles, "file")
+  SearchInfo.Caption = TR$("References to {name}: {n} in {files}", "name", nm, "n", n, "files", TRN$("{n} file", "{n} files", nfiles))
   Application.Announce SearchInfo.Caption
 END SUB
 
@@ -996,6 +1013,18 @@ SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER,
   IF head <> "" THEN HelpPage.ScrollTo "#" + FIELD$(head, CHR$(9), 3)
 END SUB
 
+' A page of the manual in the Help pane: docs/manual/<language>/<page> when
+' Studio's language has it, else the English page with a note.
+SUB HelpShowManual(Page AS STRING)
+  DIM t AS STRING
+  t = Lang.ManualPage(Page)
+  IF t = "" THEN EXIT SUB
+  Dock.ShowPane("helppane")
+  HelpKind = "manual"
+  HelpPage.Text = t
+  HelpPage.ScrollTo "#"
+END SUB
+
 ' Shows the language's entry for Word (a member of OfType when given) in the
 ' Help pane, its search box saying the word.
 SUB ShowHelp(Word AS STRING, OfType AS STRING)
@@ -1011,9 +1040,9 @@ SUB ShowHelpFor(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, 
   HelpBoxSet = TRIM$(Word)
   HelpSearch.Text = HelpBoxSet
   IF HelpKind = "start" THEN
-    Application.Announce "Help: how to use it"
+    Application.Announce TR$("Help: how to use it")
   ELSE
-    Application.Announce "Help: " + HelpBoxSet
+    Application.Announce TR$("Help: {word}", "word", HelpBoxSet)
   END IF
 END SUB
 
@@ -1064,7 +1093,7 @@ SUB HelpTyped
     HelpShowPage q, "", HelpFile, 0, 0
   END IF
   LayOutHelp
-  IF HelpSuggest.Visible THEN Application.Announce Counted(n, "name") + " match. " + HelpNames(0)
+  IF HelpSuggest.Visible THEN Application.Announce TRN$("{n} name matches. {first}", "{n} names match. {first}", n, "first", HelpNames(0))
 END SUB
 
 ' (Up and Down choose a name from the list — its page shown —, Enter opens
@@ -1120,6 +1149,9 @@ SUB HelpLink(Url AS STRING)
       w = LEFT$(w, k - 1)
     END IF
     ShowHelpFor w, of, HelpFile, 0, 0
+  ELSEIF LEFT$(Url, 7) = "manual:" THEN
+    ' (a page of the manual, in Studio's language when it is translated)
+    HelpShowManual MID$(Url, 8)
   ELSEIF Url = "help-insert:" THEN
     HelpInsertClicked
   ELSEIF Url = "help-goto:" OR Url = "help-refs:" THEN
@@ -1190,6 +1222,21 @@ SUB HelpInsertClicked
   Dock.FocusPane(DocPane(d))
   CodeDoc(d).SelText = HelpSyntaxText
   CodeChanged CodeDoc(d)
+END SUB
+
+' The language changed: the scope list and the panes' titles made again in
+' it (the captions, hints and names follow by themselves).
+SUB SearchLanguageChanged
+  DIM at AS INTEGER
+  at = SearchScope.ItemIndex
+  SearchRefilling = 1
+  SearchScope.Clear
+  SearchScope.AddItems TR$("This file"), TR$("Open files"), TR$("Modules"), TR$("Forms"), TR$("Resources"), TR$("Whole project"), TR$("A folder...")
+  SearchScope.ItemIndex = at
+  SearchRefilling = 0
+  Dock.PaneTitle("searchpane", TR$("Search"))
+  Dock.PaneTitle("helppane", TR$("Help"))
+  LayOutSearch
 END SUB
 
 ' The search and help commands; True when Id was one.

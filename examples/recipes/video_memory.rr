@@ -1,0 +1,150 @@
+' Recipe: Video memory drawn on a canvas (bitmap and colour attributes)
+' Keywords: video memory, screen, framebuffer, bitmap, pixels, attributes, colour attributes, ink, paper, canvas, RCanvas, SetPixels8, palette, indexed colour, decoded copy, redraw, sprite, XOR, scale, 50 Hz, frame, RTimer, memoria de video, pantalla, mapa de bits, atributos de color, lienzo, sprite, cuadro, memória de vídeo, tela, atributos de cor, quadro
+' The screen is a region of the memory array: 6,144 bytes of bitmap (256 x 192
+' pixels, 1 bit each, 32 bytes a row, the leftmost pixel in bit 7) and 768
+' bytes of attributes, one per 8 x 8 cell (bits 0-2 ink colour, 3-5 paper,
+' bit 6 a bright ink). To draw it fast the program keeps a decoded copy: a
+' colour number (0-15) for each of the 49,152 pixels, kept up to date by
+' every write into video memory (a bitmap byte decodes 8 pixels, an attribute
+' byte the 64 of its cell). A frame is two calls: SetPixels8 puts the decoded
+' copy through the palette into a bitmap (one lookup a pixel, in Rust),
+' StretchDraw draws that twice as large on the canvas, crisp. Drawing each
+' cell with FillRect, as this recipe once did, took 8 to 13 ms for a full
+' repaint in the Runtime; this takes about 0.2 ms (Repaint times it).
+' A moving 8 x 8 ball is drawn with XOR. Run starts the 50 Hz timer.
+'
+'   rapidr run video_memory.rr
+$THEME rapidr
+
+CONST VIDEO = &H8000          ' the bitmap: 32 bytes a row, 192 rows
+CONST ATTR = &H9800           ' the colours: 32 x 24 cells
+CONST SCALE = 2               ' a screen pixel is 2 x 2 on the canvas
+
+DECLARE SUB Present
+DECLARE SUB NextFrame
+DECLARE SUB RunClick: DECLARE SUB RepaintClick
+
+DIM mem(0 TO 65535) AS BYTE
+DIM pix(0 TO 49151) AS BYTE               ' the screen decoded: a colour number (0-15) for each pixel
+DIM palette(15) AS LONG                   ' 0-7 normal, 8-15 bright (ink only): the numbers' RGB
+DIM sprite(7) AS INTEGER                  ' the ball, 8 rows of 8 bits
+DIM bx AS INTEGER, by AS INTEGER, dx AS INTEGER, dy AS INTEGER, frames AS INTEGER
+DIM Frame AS RBitmap                      ' the screen as the machine makes it: 256 x 192
+
+CREATE Form AS RForm
+    Caption = "Video Memory": ClientWidth = 512 + 32: ClientHeight = 384 + 72
+    Center
+    CREATE Screen AS RCanvas: Left = 16: Top = 20: Width = 512: Height = 384: OnPaint = Present: AccessibleName = "Screen": AccessibleDescription = "The video memory drawn as pixels": END CREATE
+    CREATE RunBtn AS RButton: Caption = "&Run": Left = 16: Top = 412: Width = 100: Height = 30: OnClick = RunClick: END CREATE
+    CREATE FrameBtn AS RButton: Caption = "&Frame": Left = 124: Top = 412: Width = 100: Height = 30: OnClick = NextFrame: END CREATE
+    CREATE RepaintBtn AS RButton: Caption = "Re&paint": Left = 232: Top = 412: Width = 100: Height = 30: OnClick = RepaintClick: END CREATE
+    CREATE Info AS RLabel: Caption = "": Left = 344: Top = 418: Width = 184: END CREATE
+    CREATE Clock AS RTimer: Interval = 20: Enabled = 0: OnTimer = NextFrame: END CREATE      ' 50 frames a second
+END CREATE
+
+' --- the decoded copy: a pixel's colour number from its bit and its cell's attribute ---
+SUB Decode (off AS INTEGER)                        ' the 8 pixels of the bitmap byte at VIDEO + off
+    DIM row AS INTEGER, cx AS INTEGER, at AS INTEGER, ink AS INTEGER, paper AS INTEGER
+    DIM v AS INTEGER, bit AS INTEGER, p AS INTEGER
+    row = off \ 32: cx = off MOD 32                ' the pixel row; the byte's column
+    at = mem(ATTR + (row \ 8) * 32 + cx)           ' its cell's attribute (a cell is 8 rows high)
+    ink = (at AND 7) + IIF(at AND 64, 8, 0)
+    paper = (at SHR 3) AND 7
+    v = mem(VIDEO + off)
+    p = row * 256 + cx * 8
+    FOR bit = 0 TO 7                               ' bit 7 is the leftmost pixel
+        pix(p + bit) = IIF(v AND (128 SHR bit), ink, paper)
+    NEXT
+END SUB
+
+' --- memory: a write into video memory decodes what it changed ---
+SUB MemWrite (addr AS INTEGER, v AS INTEGER)
+    DIM a AS INTEGER, cell AS INTEGER, row AS INTEGER
+    a = addr AND &HFFFF
+    mem(a) = v AND &HFF
+    IF a >= VIDEO AND a < ATTR THEN
+        Decode a - VIDEO
+    ELSEIF a >= ATTR AND a < ATTR + 768 THEN
+        cell = a - ATTR                            ' new colours: the cell's 8 rows decode again
+        FOR row = 0 TO 7
+            Decode ((cell \ 32) * 8 + row) * 32 + cell MOD 32
+        NEXT
+    END IF
+END SUB
+
+' --- the screen: the whole decoded copy, in two calls ---
+SUB Present                                        ' (also the canvas's OnPaint: the window needs all of it)
+    Frame.SetPixels8 pix, palette, 256, 192                      ' colour numbers -> colours
+    Screen.StretchDraw 0, 0, 256 * SCALE, 192 * SCALE, Frame     ' twice as large, every pixel crisp
+END SUB
+
+SUB RepaintClick                                  ' how long a full repaint takes: 50, timed
+    DIM t AS DOUBLE, n AS INTEGER
+    t = TIMER
+    FOR n = 1 TO 50
+        Present
+    NEXT
+    Info.Caption = "Full repaint " + FORMAT$("%.2f", (TIMER - t) * 1000 / 50) + " ms"
+END SUB
+
+' --- the "program": XOR the ball into the bitmap, a byte pair per row ---
+SUB XorBall
+    DIM row AS INTEGER, w AS INTEGER, addr AS INTEGER
+    FOR row = 0 TO 7
+        w = (sprite(row) * 256) SHR (bx AND 7)          ' 16 bits: the row, shifted to its pixel
+        addr = VIDEO + (by + row) * 32 + bx \ 8
+        MemWrite addr, mem(addr) XOR ((w SHR 8) AND 255)
+        MemWrite addr + 1, mem(addr + 1) XOR (w AND 255)
+    NEXT
+END SUB
+
+SUB NextFrame
+    XorBall                                               ' erase it where it was
+    bx = bx + dx: by = by + dy
+    IF bx < 1 OR bx > 247 THEN dx = -dx: bx = bx + 2 * dx
+    IF by < 1 OR by > 183 THEN dy = -dy: by = by + 2 * dy
+    XorBall                                               ' and draw it where it is
+    frames = frames + 1
+    Present
+    Info.Caption = "Frame " + STR$(frames) + "   ball at " + STR$(bx) + "," + STR$(by)
+END SUB
+
+SUB RunClick
+    Clock.Enabled = IIF(Clock.Enabled, 0, 1)
+    RunBtn.Caption = IIF(Clock.Enabled, "&Pause", "&Run")
+END SUB
+
+' --- set up: the palette, the attributes, a frame round the screen, the ball
+
+SUB Setup
+    DIM i AS INTEGER, cx AS INTEGER, cy AS INTEGER, shape AS STRING
+    Frame.Width = 256: Frame.Height = 192
+    FOR i = 0 TO 7
+        ' (a colour number is 3 bits: bit 0 red, bit 1 green, bit 2 blue)
+        palette(i) = RGB((i AND 1) * 190, ((i SHR 1) AND 1) * 190, ((i SHR 2) AND 1) * 190)
+        palette(i + 8) = RGB((i AND 1) * 255, ((i SHR 1) AND 1) * 255, ((i SHR 2) AND 1) * 255)
+    NEXT
+    FOR cy = 0 TO 23
+        FOR cx = 0 TO 31
+            ' yellow ink (3) on a blue (4) and black (0) chessboard, a bright ink
+            MemWrite ATTR + cy * 32 + cx, 3 + IIF((cx + cy) AND 1, 4, 0) * 8 + 64
+        NEXT
+    NEXT
+    FOR i = 0 TO 31                                        ' the frame: top and bottom rows ...
+        MemWrite VIDEO + i, 255
+        MemWrite VIDEO + 191 * 32 + i, 255
+    NEXT
+    FOR i = 1 TO 190                                       ' ... and the left and right columns
+        MemWrite VIDEO + i * 32, mem(VIDEO + i * 32) OR 128
+        MemWrite VIDEO + i * 32 + 31, mem(VIDEO + i * 32 + 31) OR 1
+    NEXT
+    shape = "3C 7E FF FF FF FF 7E 3C"
+    FOR i = 0 TO 7
+        sprite(i) = VAL(CONVBASE$(FIELD$(shape, " ", i + 1), 16, 10))
+    NEXT
+    bx = 40: by = 30: dx = 2: dy = 1
+    XorBall
+END SUB
+
+Setup
+Form.ShowModal

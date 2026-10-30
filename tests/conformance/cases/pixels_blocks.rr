@@ -1,0 +1,107 @@
+' SetPixels, SetPixels8, GetPixels and the scaled StretchDraw (RapidR's, the
+' fast way to draw a picture from data) on an RBitmap and an RCanvas: the
+' same pixels as Pset puts, colours as Pset takes them, a block at (X, Y),
+' 1-D and 2-D arrays, a palette, the picture read back, a scaled copy
+' crisp (nearest pixel) and Smooth (blended), the five-number StretchDraw
+' the same as the Rect one.
+DIM Bm AS RBitmap
+DIM Big AS RBitmap
+Bm.Width = 6: Bm.Height = 4
+
+' --- SetPixels: colours in order, row by row ---
+DIM Cols(23) AS LONG
+DIM i AS INTEGER, x AS INTEGER, y AS INTEGER
+FOR i = 0 TO 23
+    Cols(i) = RGB(i * 10, 255 - i * 10, i)
+NEXT
+Bm.SetPixels Cols, 6, 4
+PRINT Bm.Pixel(0, 0); " "; Bm.Pixel(5, 0); " "; Bm.Pixel(0, 3); " "; Bm.Pixel(5, 3)
+PRINT Bm.Pixel(2, 1) = RGB(80, 175, 8)
+
+' the same as Pset puts, pixel for pixel
+DIM Ref AS RBitmap, same AS INTEGER
+Ref.Width = 6: Ref.Height = 4
+FOR y = 0 TO 3
+    FOR x = 0 TO 5
+        Ref.Pset x, y, Cols(y * 6 + x)
+    NEXT
+NEXT
+same = -1
+FOR y = 0 TO 3
+    FOR x = 0 TO 5
+        IF Ref.Pixel(x, y) <> Bm.Pixel(x, y) THEN same = 0
+    NEXT
+NEXT
+PRINT "like Pset: "; same
+
+' --- a block at (X, Y); a 2-D array is Pixels(y, x) ---
+DIM Two(1, 2) AS LONG
+Two(0, 0) = 11: Two(0, 1) = 12: Two(0, 2) = 13
+Two(1, 0) = 21: Two(1, 1) = 22: Two(1, 2) = 23
+Bm.SetPixels Two, 3, 2, 2, 1
+PRINT Bm.Pixel(2, 1); " "; Bm.Pixel(4, 1); " "; Bm.Pixel(2, 2); " "; Bm.Pixel(4, 2); " "; Bm.Pixel(1, 1) <> 11
+
+' a 1-based array is taken from its first element
+DIM One(1 TO 4) AS LONG
+One(1) = 5: One(2) = 6: One(3) = 7: One(4) = 8
+Bm.SetPixels One, 2, 2
+PRINT Bm.Pixel(0, 0); " "; Bm.Pixel(1, 0); " "; Bm.Pixel(0, 1); " "; Bm.Pixel(1, 1)
+
+' --- SetPixels8: palette numbers ---
+DIM Idx(5) AS BYTE
+DIM Pal(2) AS LONG
+Pal(0) = RGB(0, 0, 0): Pal(1) = RGB(255, 0, 0): Pal(2) = RGB(0, 0, 255)
+FOR i = 0 TO 5
+    Idx(i) = i MOD 3
+NEXT
+Bm.SetPixels8 Idx, Pal, 3, 2, 3, 2
+PRINT Bm.Pixel(3, 2); " "; Bm.Pixel(4, 2); " "; Bm.Pixel(5, 2); " "; Bm.Pixel(3, 3); " "; Bm.Pixel(4, 3); " "; Bm.Pixel(5, 3)
+
+' --- GetPixels: the block back, row by row ---
+DIM Back(5) AS LONG
+Bm.GetPixels Back, 3, 2, 3, 2
+PRINT Back(0); " "; Back(1); " "; Back(2); " "; Back(3); " "; Back(4); " "; Back(5)
+
+' --- scaled copies: nearest by default, Smooth blends ---
+Bm.Width = 2: Bm.Height = 1
+DIM Two2(1) AS LONG
+Two2(0) = RGB(0, 0, 0): Two2(1) = RGB(255, 255, 255)
+Bm.SetPixels Two2, 2, 1
+Big.Width = 8: Big.Height = 1
+Big.StretchDraw 0, 0, 8, 1, Bm
+PRINT "smooth="; Big.Smooth; " "; Big.Pixel(0, 0); " "; Big.Pixel(3, 0); " "; Big.Pixel(4, 0); " "; Big.Pixel(7, 0)
+Big.Smooth = -1
+Big.StretchDraw 0, 0, 8, 1, Bm
+PRINT "smooth="; Big.Smooth; " "; Big.Pixel(0, 0); " "; Big.Pixel(7, 0)
+PRINT Big.Pixel(3, 0) > 0 AND Big.Pixel(3, 0) < RGB(255, 255, 255); " "; Big.Pixel(4, 0) >= Big.Pixel(3, 0)
+Big.Smooth = 0
+
+' StretchDraw x, y, w, h, Bmp is StretchDraw Rect, Bmp
+DIM R AS RRect, A AS RBitmap, B AS RBitmap, same2 AS INTEGER
+A.Width = 12: A.Height = 8: B.Width = 12: B.Height = 8
+R.Left = 1: R.Top = 2: R.Right = 9: R.Bottom = 7
+A.StretchDraw R, Bm
+B.StretchDraw 1, 2, 8, 5, Bm
+same2 = -1
+FOR y = 0 TO 7
+    FOR x = 0 TO 11
+        IF A.Pixel(x, y) <> B.Pixel(x, y) THEN same2 = 0
+    NEXT
+NEXT
+PRINT "five numbers like Rect: "; same2
+
+' --- an RCanvas takes the same calls, on its own surface ---
+CREATE Form AS RForm
+    CREATE Cv AS RCanvas
+        Left = 0: Top = 0: Width = 8: Height = 4
+    END CREATE
+END CREATE
+DIM Cx(7) AS LONG
+FOR i = 0 TO 7
+    Cx(i) = i + 100
+NEXT
+Cv.SetPixels Cx, 4, 2, 2, 1
+PRINT Cv.Pixel(2, 1); " "; Cv.Pixel(5, 2); " "; Cv.Pixel(0, 0) <> 100
+DIM Cb(3) AS LONG
+Cv.GetPixels Cb, 3, 1, 2, 2
+PRINT Cb(0); " "; Cb(1); " "; Cb(2); " "; Cb(3)

@@ -55,6 +55,8 @@ pub mod tooltip;
 pub mod tree;
 pub mod value_edit;
 pub mod value_view;
+// (the AI's and RAppHands's pointer over the program: rapidr_ui_app::hands)
+pub mod virtual_cursor;
 pub mod window_frame;
 
 #[cfg(test)]

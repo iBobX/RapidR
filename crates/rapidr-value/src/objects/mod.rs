@@ -9,9 +9,13 @@
 //! BMP file name or the `data:` URL a bitmap's `.BMP` property returns.
 
 pub mod a11y;
+pub mod audioout;
+// RARCHIVE (RapidR's): zip, 7z, tar … (the engine: rapidr-archive, feature `archive`)
+pub mod archive;
 pub mod avi;
 pub mod bevel;
 pub mod bitmap;
+pub mod blit;
 pub mod cgi;
 pub mod code;
 pub mod codeedit;
@@ -39,8 +43,11 @@ pub mod listview;
 pub mod media;
 pub mod memstream;
 pub mod midifile;
+pub mod midiout;
+pub mod updown;
 pub mod menu;
 pub mod ops;
+pub mod pixels;
 pub mod printer;
 pub mod record;
 pub mod richtext;
@@ -237,6 +244,8 @@ pub fn read_file(path: &str) -> Result<Vec<u8>, String> {
     if let Some(bytes) = crate::resources::read_path(path) {
         return bytes;
     }
+    // (a file stream's writes it still keeps: in the file first)
+    flush_streams();
     let reader = FILE_IO.with(|io| io.borrow().0);
     reader(path)
 }
@@ -267,6 +276,7 @@ pub fn picture_bytes(v: &Value) -> Result<Vec<u8>, String> {
 }
 
 pub fn write_file(path: &str, bytes: &[u8]) -> Result<(), String> {
+    flush_streams();
     let writer = FILE_IO.with(|io| io.borrow().1);
     writer(path, bytes)
 }
@@ -293,6 +303,14 @@ pub fn create(id: &str, type_name: &str) -> bool {
     }
     // (the I/O and media lane's: QCGI … — their own store, rqlib.rs)
     if rqlib::create(id, type_name) {
+        return true;
+    }
+    // (RAudioOut: sound made sample by sample — audioout.rs)
+    if audioout::create(id, type_name) {
+        return true;
+    }
+    // (RARCHIVE: its own store, archive.rs)
+    if archive::create(id, type_name) {
         return true;
     }
     let object = match type_name.to_ascii_uppercase().as_str() {
@@ -885,6 +903,11 @@ pub fn with_picture<R>(id: &str, f: impl FnOnce(&mut Bitmap) -> R) -> Option<R> 
     })?
 }
 
+/// Every QCANVAS's name (a runtime paints them again: a font arrived).
+pub fn canvas_ids() -> Vec<String> {
+    OBJECTS.with(|o| o.borrow().iter().filter(|(_, o)| matches!(o, Object::Bitmap(b) if b.canvas && !b.form)).map(|(k, _)| k.clone()).collect())
+}
+
 /// Whether `id` is a QCANVAS (its runtime widget shows the surface again
 /// after a change).
 pub fn is_canvas(id: &str) -> bool {
@@ -1197,11 +1220,36 @@ pub fn exists(id: &str) -> bool {
 /// Forgets object `id` (a kernel-drawn dialog's components once it
 /// closes; a test's store starting again); whether there was one.
 pub fn remove(id: &str) -> bool {
+    if audioout::remove(id) {
+        return true;
+    }
     OBJECTS.with(|o| o.borrow_mut().remove(&id.to_lowercase()).is_some())
 }
 
 fn with<R>(id: &str, f: impl FnOnce(&mut Object) -> R) -> Option<R> {
     OBJECTS.with(|o| o.borrow_mut().get_mut(&id.to_lowercase()).map(f))
+}
+
+/// Every file stream (RFileStream) writes what it hasn't written to its
+/// file yet (`memstream::FileSink` keeps a stream's writes, up to 64 KB,
+/// to write them together): before anything else uses a file by its name
+/// (`paths::host`, `read_file`, `write_file`), at Close and when the
+/// program ends (`basic_files::close_all`, a run-time error). One look when
+/// nothing is pending; nothing done while a stream's own method runs (it
+/// writes its own at the end of it, or the next time).
+pub fn flush_streams() {
+    if !memstream::pending() {
+        return;
+    }
+    OBJECTS.with(|o| {
+        let Ok(mut objects) = o.try_borrow_mut() else { return };
+        for object in objects.values_mut() {
+            if let Object::Stream(m) = object {
+                m.flush();
+            }
+        }
+        memstream::none_pending();
+    });
 }
 
 /// A property of object `id`; `None` if `id` isn't an object or the
@@ -1228,6 +1276,12 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     if rqlib::exists(id) {
         return rqlib::get(id, &prop);
     }
+    if audioout::exists(id) {
+        return audioout::get(id, &prop);
+    }
+    if archive::exists(id) {
+        return archive::get(id, &prop);
+    }
     if let Some(v) = menu::get(id, &prop) {
         return Some(v);
     }
@@ -1246,7 +1300,7 @@ pub fn get(id: &str, prop: &str) -> Option<Value> {
     with(id, |o| match o {
         Object::Font(f) => f.get(&prop),
         // Functions called without parentheses: `S$ = Mem.ReadLine`.
-        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readbyte") => m.call(&prop, &[]),
+        Object::Stream(m) if matches!(prop.as_str(), "readline" | "readln" | "readall" | "readalltext" | "readbyte") => m.call(&prop, &[]),
         Object::Stream(m) => m.get(&prop),
         Object::Bitmap(b) => b.get(&prop),
         Object::ImageList(l) => l.get(&prop),
@@ -1288,6 +1342,12 @@ pub fn set(id: &str, prop: &str, val: &Value) -> Option<Result<(), String>> {
     }
     if rqlib::exists(id) {
         return rqlib::set(id, &prop, val);
+    }
+    if audioout::exists(id) {
+        return audioout::set(id, &prop, val).map(Ok);
+    }
+    if archive::exists(id) {
+        return archive::set(id, &prop, val);
     }
     if menu::is_menu(id) {
         return menu::set(id, &prop, val).map(Ok);
@@ -1454,6 +1514,12 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     if rqlib::exists(id) {
         return rqlib::call(id, &method, args);
     }
+    if audioout::exists(id) {
+        return audioout::call(id, &method, args).map(Ok);
+    }
+    if archive::exists(id) {
+        return archive::call(id, &method, args);
+    }
     if let Some(v) = menu::call(id, &method, args) {
         return Some(Ok(v));
     }
@@ -1582,7 +1648,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         .flatten() else {
             return with(id, |o| matches!(o, Object::List(_))).filter(|&l| l).map(|_| Ok(Value::Null));
         };
-        let args: Vec<Value> = other.into_iter().map(Value::String).collect();
+        let args: Vec<Value> = other.into_iter().map(Value::from).collect();
         return with(id, |o| match o {
             Object::List(l) => l.call("additems", &args).map(Ok),
             _ => None,
@@ -1634,7 +1700,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
-    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "textrect")
+    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "textrect" | "setpixels" | "setpixels8")
         || (method == "pixel" && args.len() >= 3);
     // A QCANVAS is always the control's size; a QFORM's surface its client
     // area's, drawing in the form's font.
@@ -1697,7 +1763,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
         }
         // QMEMORYSTREAM's MemCopyFrom / MemCopyTo (address, bytes) and the
         // streams' SaveUDTArray / LoadUDTArray: stream_ops.rs.
-        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray") => Some(stream_ops::call(id, &method, args)),
+        ("stream", "memcopyfrom" | "memcopyto" | "saveudtarray" | "loadudtarray" | "__arrayio") => Some(stream_ops::call(id, &method, args)),
         // (`Image.Load file`: RapidR's other name)
         // (a `$RESOURCE`'s handle too: `Image.Load RES`)
         ("bitmap", "loadfromfile" | "load") => Some(picture_bytes(&arg(0)).and_then(|bytes| {
@@ -1848,12 +1914,42 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             });
             Some(Ok(Value::Null))
         }
+        // RapidR's pixel blocks (pixels.rs): an array of colours (or of
+        // palette indexes) to or from a rectangle of the picture, one call.
+        ("bitmap", "setpixels") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::set_pixels(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
+        ("bitmap", "setpixels8") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::set_pixels8(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
+        ("bitmap", "getpixels") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::get_pixels(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
         ("bitmap", "draw") => {
             let src = match load_image(&arg(2)) {
                 Ok(src) => src,
                 Err(e) => return Some(Err(e)),
             };
             with(id, |o| if let Object::Bitmap(b) = o { b.draw(arg(0).to_i64(), arg(1).to_i64(), &src) });
+            Some(Ok(Value::Null))
+        }
+        // RapidR's `StretchDraw x, y, w, h, Bitmap`: the Rect's four numbers
+        // given one by one (the picture, scaled to w x h at x, y).
+        ("bitmap", "stretchdraw") if args.len() >= 5 => {
+            let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
+            let (w, h) = (arg(2).to_i64(), arg(3).to_i64());
+            let src = match load_image(&arg(4)) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let whole = (0, 0, src.img.width as i64, src.img.height as i64);
+            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect((x, y, x.saturating_add(w), y.saturating_add(h)), &src, whole) });
             Some(Ok(Value::Null))
         }
         ("bitmap", "copyrect" | "stretchdraw") => {
@@ -1961,7 +2057,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 })
                 .unwrap_or_default()
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::Grid(g) = o { g.load_text(&text, rows, cols, max) });
             Some(Ok(Value::Null))
         }
@@ -1971,7 +2067,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::Tree(t) = o { t.load_text(&text) });
             Some(Ok(Value::Null))
         }
@@ -1988,7 +2084,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
-            let text = String::from_utf8_lossy(&bytes).into_owned();
+            let text = codec::decode_text(&bytes);
             with(id, |o| if let Object::List(l) = o { l.load_text(&text) });
             Some(Ok(Value::Null))
         }
@@ -2158,12 +2254,12 @@ fn open_file(id: &str, path: &str, mode: i64) -> Result<Value, String> {
     if create && !native {
         write_file(path, &[]).map_err(|_| crate::exception(&format!("Cannot create file {path}.")))?;
     }
-    let sink = memstream::FileSink {
-        path: path.to_string(),
+    let sink = memstream::FileSink::new(
+        path,
         writable,
         #[cfg(not(target_arch = "wasm32"))]
         handle,
-    };
+    );
     with(id, |o| {
         if let Object::Stream(m) = o {
             *m = MemStream { data, pos: 0, file: Some(sink) };

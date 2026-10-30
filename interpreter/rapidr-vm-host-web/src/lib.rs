@@ -106,11 +106,11 @@ impl Host for WebHost {
             }
             return Ok(v_null());
         }
-        Ok(call_builtin_web(key, args))
+        Ok(rapidr_value::events::program_call(|| call_builtin_web(key, args)))
     }
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
-        rp_create_component(id, kind);
+        rapidr_value::events::program_call(|| rp_create_component(id, kind));
         self.has_components = true;
         HAS_COMPONENTS.with(|h| h.set(true));
         Ok(v_str(id))
@@ -118,7 +118,7 @@ impl Host for WebHost {
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
         // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
-        rp_prop_set(id, name, value);
+        rapidr_value::events::program_call(|| rp_prop_set(id, name, value));
         Ok(())
     }
 
@@ -127,7 +127,7 @@ impl Host for WebHost {
             return Ok(v);
         }
         // (`WHILE DB.FetchRow`: a method of the object's type is called)
-        Ok(rp_comp_value(id, name))
+        Ok(rapidr_value::events::program_call(|| rp_comp_value(id, name)))
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
@@ -143,7 +143,7 @@ impl Host for WebHost {
                 emit(Message::new(if shown { EventBody::FormShown { id, caption: None } } else { EventBody::FormClosed { id } }));
             }
         }
-        let v = rp_comp_call(id, method, args);
+        let v = rapidr_value::events::program_call(|| rp_comp_call(id, method, args));
         // (an object's RapidQ exception: a run-time error — rapidr_value::raise)
         match rapidr_value::take_raised() {
             Some(m) => Err(rapidr_value::exception(&m)),
@@ -160,7 +160,11 @@ impl Host for WebHost {
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
-        obj::rp_bind_event_indirect(id, event, handler_fn_index);
+        rapidr_value::events::program_call(|| obj::rp_bind_event_indirect(id, event, handler_fn_index));
+        // (RapidR's Application.OnError: told_failed)
+        if id.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
+            ON_ERROR.with(|h| h.set(Some(handler_fn_index)));
+        }
         Ok(())
     }
 
@@ -341,8 +345,16 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
                     rp_doevents();
                 }
             } else {
+                // (the window loop's events that waited — a timer's tick
+                // during a time slice's pause — let in by this DOEVENTS:
+                // they run right after it, as its own, not held back for
+                // the end of the running handler)
                 let waiting: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
-                EVENTS.with(|q| waiting.into_iter().rev().for_each(|e| q.borrow_mut().push_front(e)));
+                EVENTS.with(|q| {
+                    let mut q = q.borrow_mut();
+                    waiting.into_iter().rev().for_each(|e| q.push_front(e));
+                    q.iter_mut().for_each(|e| e.asynchronous = false);
+                });
             }
             v_null()
         }
@@ -527,6 +539,8 @@ use rapidr_runtime_web::dialog_web as dialog;
 
 thread_local! {
     static SESSION: RefCell<Option<Session>> = const { RefCell::new(None) };
+    /// The program's Application.OnError handler (RapidR's), once bound.
+    static ON_ERROR: Cell<Option<u32>> = const { Cell::new(None) };
     /// Event handlers the runtime fired, not yet taken by the VM.
     static EVENTS: RefCell<VecDeque<Event>> = const { RefCell::new(VecDeque::new()) };
     /// Events the VM took but couldn't run because a handler before them
@@ -549,6 +563,20 @@ thread_local! {
 
 /// Queues an event for the IDE (sent by [`flush_events`]).
 fn emit(event: Message) {
+    // (where the debugger holds the program, for the eyes and hands: input
+    // is refused with it while it's paused)
+    match &event.body {
+        EventBody::Stopped { file, line, .. } => {
+            let at = match (line, file) {
+                (Some(l), Some(f)) => format!("at line {l} of {f}"),
+                (Some(l), None) => format!("at line {l}"),
+                _ => "where it stopped".to_string(),
+            };
+            rapidr_runtime_web::kernel_web::app_paused(Some(at));
+        }
+        EventBody::Continued | EventBody::Exited { .. } => rapidr_runtime_web::kernel_web::app_paused(None),
+        _ => {}
+    }
     if SINK.with(|s| s.borrow().is_some()) {
         OUTBOX.with(|o| o.borrow_mut().push(event));
     }
@@ -626,6 +654,19 @@ fn report(result: Result<(), VmError>, what: &str) {
         Ok(()) | Err(VmError::Suspended | VmError::Yielded | VmError::Paused) => {}
         Err(e) => report_error(&format!("[rapidr] {what}: {e}")),
     }
+}
+
+/// An event handler's run-time error (the program goes on, its page's
+/// events still come): RapidR's Application.OnError hears it, as on the
+/// desktop (`rapidr_vm::HandlerFailure`) — not an error in that handler
+/// itself, which would go round.
+fn told_failed(failure: &rapidr_vm::HandlerFailure) {
+    let Some(on_error) = ON_ERROR.with(Cell::get) else { return };
+    // (Suspended, Paused … aren't errors: report() said nothing of them)
+    if failure.handler == Some(on_error) || failure.text.is_empty() {
+        return;
+    }
+    obj::rp_fire_event_args("application", "onerror", &failure.event_args());
 }
 
 /// An error, on the console (which the page running a session passes on
@@ -721,6 +762,9 @@ fn settle(kind: Slice, result: Result<(), VmError>, main_done: bool) {
     if matches!(result, Err(VmError::Yielded)) {
         return;
     }
+    // (the program's turn is over — main, a handler: what its file streams
+    // were given goes to the page's files, rapidr_value::objects::flush_streams)
+    rapidr_value::objects::flush_streams();
     let error = matches!(&result, Err(e) if !matches!(e, VmError::Paused | VmError::Suspended | VmError::Yielded));
     // The main program ran to its end: the program's end, as in RapidQ
     // (RC.EXE: a program whose main code ends after `Form.Show` exits
@@ -857,21 +901,32 @@ fn run_idle_events_inner() {
                 return None;
             }
             let mut batch = batch.into_iter();
+            let mut failed = None;
             let (result, _) = run_step(session, Slice::Idle, |vm, module| {
-                batch.by_ref().try_for_each(|event| vm.invoke_event(module, event).map(drop))
+                batch.by_ref().try_for_each(|event| {
+                    let handler = event.handler;
+                    vm.invoke_event(module, event).map(drop).inspect_err(|_| failed = Some(handler))
+                })
             });
             // A handler waits for a dialog, yielded (or failed): the rest
             // run later.
             DEFERRED.with(|q| q.borrow_mut().extend(batch));
-            Some(result)
+            Some((result, failed))
         });
         match outcome {
-            None | Some(Err(VmError::Yielded)) => return,
-            Some(Err(e @ (VmError::Suspended | VmError::Paused))) => {
+            None | Some((Err(VmError::Yielded), _)) => return,
+            Some((Err(e @ (VmError::Suspended | VmError::Paused)), _)) => {
                 report(Err(e), "event handler");
                 return;
             }
-            Some(result) => report(result, "event handler failed"),
+            Some((Err(e), failed)) => {
+                let failure = (!matches!(e, VmError::Halted)).then(|| rapidr_vm::HandlerFailure::new(&e, failed));
+                report(Err(e), "event handler failed");
+                if let Some(failure) = failure {
+                    told_failed(&failure);
+                }
+            }
+            Some((result, _)) => report(result, "event handler failed"),
         }
     }
 }
@@ -1273,6 +1328,12 @@ pub fn session_open(bytes: &[u8], program: &str, sink: js_sys::Function) -> Resu
     start_session(session);
     SINK.with(|s| *s.borrow_mut() = Some(sink));
     OUTBOX.with(|o| o.borrow_mut().clear());
+    // (the eyes and hands' replies: from the runtime's turn)
+    rapidr_runtime_web::kernel_web::app_paused(None);
+    rapidr_runtime_web::kernel_web::app_link(std::rc::Rc::new(|seq, result| {
+        emit(Message::reply(seq, EventBody::App { result }));
+        flush_events();
+    }));
     emit(Message::new(EventBody::Ready { protocol: PROTOCOL_VERSION, runtime: format!("RapidR {}", env!("CARGO_PKG_VERSION")), program: program.to_string() }));
     flush_events();
     Ok(())
@@ -1282,6 +1343,9 @@ pub fn session_open(bytes: &[u8], program: &str, sink: js_sys::Function) -> Resu
 #[wasm_bindgen]
 pub fn session_request(json: &str) {
     match Request::from_json(json) {
+        // (the eyes and hands: the runtime's, beside the VM — served whether
+        // the program runs, waits or is paused: kernel_web)
+        Ok(Request { seq, command: Command::App { request } }) => rapidr_runtime_web::kernel_web::app_request(seq, &request),
         Ok(request) => serve_request(request),
         Err(e) => emit(Message::error(0, e)),
     }

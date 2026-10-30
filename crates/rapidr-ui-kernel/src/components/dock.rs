@@ -28,6 +28,7 @@ use rapidr_value::dock::access::{self, AccessPart};
 use rapidr_value::dock::geometry::{self, DocHit, Group, GroupHit, Hit, Slot};
 use rapidr_value::dock::manager::{self, DocDrag, DocSplitDrag, Drag, Part, SplitDrag, User};
 use rapidr_value::dock::{look, Axis, Target};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::input::{Button, Cursor};
 use rapidr_value::objects::a11y::{AccessNode, Action};
 
@@ -396,9 +397,9 @@ impl ComponentKind for DockGroup {
         let gr = group_geo(&dock, slot, w, h, &font)?;
         let titles = manager::with(&dock, |m| { use rapidr_value::dock::geometry::Titles; let t = m.titles(); gr.panes.iter().map(|p| t.title(p)).collect::<Vec<_>>() })?;
         match gr.hit(x.floor() as i64, y.floor() as i64)? {
-            GroupHit::Button(rapidr_value::dock::geometry::Button::Close) => Some("Close".into()),
-            GroupHit::Button(rapidr_value::dock::geometry::Button::Pin) => Some(if slot == Slot::Flyout { "Dock" } else { "Auto Hide" }.into()),
-            GroupHit::Button(rapidr_value::dock::geometry::Button::Dock) => Some("Dock".into()),
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Close) => Some(tr_ui("Close")),
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Pin) => Some(if slot == Slot::Flyout { tr_ui("Dock") } else { tr_ui("Auto Hide") }),
+            GroupHit::Button(rapidr_value::dock::geometry::Button::Dock) => Some(tr_ui("Dock")),
             GroupHit::Tab(i) => titles.get(i).cloned(),
             GroupHit::Header => titles.get(gr.active).cloned(),
             GroupHit::Content => None,
@@ -585,7 +586,7 @@ impl ComponentKind for DockDocs {
         let titles = |p: &str| manager::with(&dock, |m| { use rapidr_value::dock::geometry::Titles; m.titles().title(p) }).unwrap_or_default();
         match d.hit(x.floor() as i64, y.floor() as i64)? {
             DocHit::Tab(g, i) => Some(titles(&d.groups[g].tabs[i].pane)),
-            DocHit::Close(g, i) => Some(format!("Close {}", titles(&d.groups[g].tabs[i].pane))),
+            DocHit::Close(g, i) => Some(tr_ui_fill("Close {name}", &[("name", &titles(&d.groups[g].tabs[i].pane))])),
             DocHit::View(g, k) => d.groups[g].switch.get(k).map(|(_, c, _)| c.clone()),
             _ => None,
         }

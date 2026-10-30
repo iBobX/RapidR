@@ -4,10 +4,12 @@
 //! selected name in the highlight, ± headings, grooves between the rows) —
 //! every colour from the theme's look (`common::look`).
 
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
 use rapidr_value::objects::text::text_size;
 use rapidr_value::panels::inspector::values::{self, Kind};
+use rapidr_value::panels::inspector::model::category_title;
 use rapidr_value::panels::inspector::{type_label, Hover, Inspector, Row, RowKind};
 
 use super::super::common::{self, mix, Look};
@@ -53,15 +55,16 @@ pub fn header(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) {
     let objects = &m.snap.objects;
     // (the program's own properties with a heading of their own: a project's)
     let head = (objects.is_empty() && !m.heading.0.is_empty()).then_some(&m.heading);
+    let mixed = objects.len() > 1 && m.snap.type_name.is_empty();
     let (title, kind) = match objects.len() {
         0 if head.is_some() => (m.heading.0.clone(), m.heading.1.clone()),
-        0 if m.snap.props.is_empty() => ("No selection".to_string(), String::new()),
-        0 => ("Properties".to_string(), String::new()),
+        0 if m.snap.props.is_empty() => (tr_ui("No selection"), String::new()),
+        0 => (tr_ui("Properties"), String::new()),
         1 => (objects[0].0.clone(), objects[0].1.clone()),
-        n => (format!("{n} components"), if m.snap.type_name.is_empty() { "mixed types".into() } else { m.snap.type_name.clone() }),
+        n => (rapidr_value::i18n::tr_ui_fill("{count} components", &[("count", &n.to_string())]), if mixed { tr_ui("mixed types") } else { m.snap.type_name.clone() }),
     };
     // (RapidR's name, RapidQ's as a note: R-NAMES)
-    let (long, short) = if objects.is_empty() || kind == "mixed types" { (kind.clone(), kind.clone()) } else { (type_label(&kind, false), type_label(&kind, true)) };
+    let (long, short) = if objects.is_empty() || mixed { (kind.clone(), kind.clone()) } else { (type_label(&kind, false), type_label(&kind, true)) };
     if l.classic {
         // (the object selector: a sunken white box, "Button1: RButton")
         let r = (x + 4, y + 4, w - 8, h - 8);
@@ -100,8 +103,8 @@ pub fn strip(p: &mut Painter, g: &Geo, m: &Inspector, c: &Ctx) -> Rect {
     let l = c.l;
     p.fill(g.strip, l.chrome);
     let shown = if c.searching { "" } else { m.filter.as_str() };
-    let placeholder = if c.searching { "" } else if m.on_events() { "Search events" } else { "Search properties" };
-    let area = common::search_box(p, g.search, l, shown, placeholder, c.searching && c.focused, c.font);
+    let placeholder = if c.searching { String::new() } else if m.on_events() { tr_ui("Search events") } else { tr_ui("Search properties") };
+    let area = common::search_box(p, g.search, l, shown, &placeholder, c.searching && c.focused, c.font);
     // (the view's button: A–Z lit when on)
     let b = g.view_button;
     let hot = m.ui.hover == Some(Hover::ViewButton);
@@ -134,22 +137,22 @@ pub fn footer(p: &mut Painter, r: Rect, m: &Inspector, rows: &[Row], c: &Ctx) {
     if let Some((key, why)) = &m.ui.error {
         common::icon(p, "error", x + 8, y + 8, 14, Some(l.error), false);
         let b = bold(c.font);
-        p.text((x + 28, y + 4, w - 34, 18), "Not changed", &b, l.error, Place::Left);
+        p.text((x + 28, y + 4, w - 34, 18), &tr_ui("Not changed"), &b, l.error, Place::Left);
         let _ = key;
         wrapped(p, (x + 28, y + 22, w - 34, h - 24), why, c.font, l.text, 2);
         return;
     }
     let Some(row) = sel else {
         let hint = if m.snap.objects.is_empty() && m.snap.props.is_empty() && !c.empty.trim().is_empty() {
-            c.empty
+            c.empty.to_string()
         } else if !m.designer.is_empty() && m.snap.objects.is_empty() {
-            "Select a component on the form."
+            tr_ui("Select a component on the form.")
         } else if m.snap.objects.is_empty() && m.snap.props.is_empty() {
-            "Set Target (a component's name) or Designer to inspect."
+            tr_ui("Set Target (a component's name) or Designer to inspect.")
         } else {
-            "Select a row to see what it does."
+            tr_ui("Select a row to see what it does.")
         };
-        wrapped(p, (x + 8, y + 6, w - 16, h - 8), hint, c.font, l.dim, 2);
+        wrapped(p, (x + 8, y + 6, w - 16, h - 8), &hint, c.font, l.dim, 2);
         return;
     };
     let name = row.prop_name(&m.snap.props, &m.snap.events);
@@ -259,9 +262,10 @@ pub fn row(p: &mut Painter, m: &Inspector, r: &Row, i: usize, rr: Rect, nw: i64,
     let (x, y, w, h) = rr;
     let hover = matches!(m.ui.hover, Some(Hover::Row(k) | Hover::Reset(k) | Hover::Button(k) | Hover::Check(k)) if k == i);
     if r.kind == RowKind::Category {
-        common::section(p, rr, l, &r.name, r.expanded, Some(r.count), c.font);
+        let title = category_title(&r.name);
+        common::section(p, rr, l, &title, r.expanded, Some(r.count), c.font);
         if r.ext {
-            let (tw, _) = text_size(&r.name, &bold(c.font));
+            let (tw, _) = text_size(&title, &bold(c.font));
             let cw = text_size(&r.count.to_string(), c.font).0;
             common::badge(p, x + 22 + tw + 6 + cw + 8, y + h / 2, "R", l, c.font);
         }
@@ -496,37 +500,52 @@ fn pins(p: &mut Painter, m: &Inspector, r: &Row, rr: Rect, selected: bool, c: &C
 }
 
 /// What anchors `mask` (akLeft 1, akTop 2, akRight 4, akBottom 8) make a
-/// control do as its parent resizes.
+/// control do as its parent resizes: one whole sentence for each of the
+/// sixteen ways (a language orders the two halves its own way).
 pub fn anchors_words(mask: i64) -> String {
     let h = match (mask & 1 != 0, mask & 4 != 0) {
-        (true, true) => "stretches across",
-        (true, false) => "stays left",
-        (false, true) => "follows the right",
-        (false, false) => "keeps the middle",
+        (true, true) => 0,
+        (true, false) => 1,
+        (false, true) => 2,
+        (false, false) => 3,
     };
     let v = match (mask & 2 != 0, mask & 8 != 0) {
-        (true, true) => "stretches down",
-        (true, false) => "stays at the top",
-        (false, true) => "follows the bottom",
-        (false, false) => "keeps the middle",
+        (true, true) => 0,
+        (true, false) => 1,
+        (false, true) => 2,
+        (false, false) => 3,
     };
-    let mut s = format!("{h}, {v}");
-    if let Some(f) = s.get_mut(0..1) {
-        f.make_ascii_uppercase();
+    match (h, v) {
+        (0, 0) => tr_ui("Stretches across, stretches down"),
+        (0, 1) => tr_ui("Stretches across, stays at the top"),
+        (0, 2) => tr_ui("Stretches across, follows the bottom"),
+        (0, 3) => tr_ui("Stretches across, keeps the middle"),
+        (1, 0) => tr_ui("Stays left, stretches down"),
+        (1, 1) => tr_ui("Stays left, stays at the top"),
+        (1, 2) => tr_ui("Stays left, follows the bottom"),
+        (1, 3) => tr_ui("Stays left, keeps the middle"),
+        (2, 0) => tr_ui("Follows the right, stretches down"),
+        (2, 1) => tr_ui("Follows the right, stays at the top"),
+        (2, 2) => tr_ui("Follows the right, follows the bottom"),
+        (2, 3) => tr_ui("Follows the right, keeps the middle"),
+        (3, 0) => tr_ui("Keeps the middle, stretches down"),
+        (3, 1) => tr_ui("Keeps the middle, stays at the top"),
+        (3, 2) => tr_ui("Keeps the middle, follows the bottom"),
+        (3, 3) => tr_ui("Keeps the middle, keeps the middle"),
+        _ => String::new(),
     }
-    s
 }
 
 /// The empty list's words.
 pub fn empty(p: &mut Painter, r: Rect, m: &Inspector, c: &Ctx) {
     let text = if !m.filter.trim().is_empty() {
-        "Nothing matches the search"
+        tr_ui("Nothing matches the search")
     } else if m.on_events() {
-        "No events"
+        tr_ui("No events")
     } else {
-        "Nothing to inspect"
+        tr_ui("Nothing to inspect")
     };
-    p.text((r.0, r.1 + 16, r.2, 20), text, c.font, c.l.dim, Place::Center);
+    p.text((r.0, r.1 + 16, r.2, 20), &text, c.font, c.l.dim, Place::Center);
 }
 
 /// Whether a part is one the mouse lights.

@@ -48,7 +48,7 @@ pub trait Runtime: Copy + 'static {
     /// A file's text, through the objects' file hooks (the disk on the
     /// desktop, the page's own files on the web).
     fn read_file(self, path: &str) -> Option<String> {
-        crate::objects::read_file(path).ok().map(|b| String::from_utf8_lossy(&b).into_owned())
+        crate::objects::read_file(path).ok().map(|b| crate::objects::codec::decode_text(&b))
     }
     /// Writes a file through the same hooks: whether it was written.
     fn write_file(self, path: &str, text: &str) -> bool {
@@ -57,6 +57,10 @@ pub trait Runtime: Copy + 'static {
     /// Opens a web link (http, https, mailto) the user clicked in the
     /// system's browser (a new tab on the web); nothing by default.
     fn open_url(self, _url: &str) {}
+    /// Puts `text` on the clipboard, as `Clipboard.Text = text` does (the
+    /// system's; the tests' own under `RAPIDR_TEST_CLIPBOARD`); nothing by
+    /// default.
+    fn set_clipboard(self, _text: &str) {}
 }
 
 /// The type `name` is, if it is a panel (`RTOOLBOX` …).

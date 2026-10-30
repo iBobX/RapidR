@@ -86,6 +86,8 @@ const typeKeys = (comp, text) => [...text].map((c) => {
   if (/[0-9 ]/.test(c)) return c.charCodeAt(0);
   return { "-": "189", ".": "190", "_": "189_256" }[c];
 }).map((k) => `${comp}.__key_${k}`).join(",");
+// (the box's text selected with Ctrl+A, then typed over)
+const typeOver = (comp, text) => `${comp}.__key_65_16,${typeKeys(comp, text)}`;
 export const cases = [
   // basics/
   { file: "basics/hello.rr", runtimes: ["run", "interp", "native", "web"],
@@ -94,6 +96,12 @@ export const cases = [
     expect: ["Hello, Ada.", "Total with a 15% tip: 92.00", "Each of 4 pays: 23.00"] },
   { file: "basics/files.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["shopping.txt has", "1. bread", "4. coffee", "First line again: bread", "Removed: yes"] },
+  { file: "basics/unicode.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["Text: Hola, café · 日期 · 😀", "Characters: 19", "Bytes in the file: 29", "ReadAllText: Hola, café · 日期 · 😀", "Same text: yes", "LINE INPUT, same text: yes", "Binary: 5 bytes for 5 characters", "The second byte: 200", "Removed: yes"] },
+  { file: "basics/bytes.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["bytes_demo.bin: 65536 bytes", "Signature: RR, version 2", "Sum of the bytes: 8355528, zero bytes: 256",
+      "0000: 52 52 02 95 F1 D9 9C D3 F3 5F 01 80 AD EE EC 2C", "0010: 20 A2 98 D0 2A 52 35 CE 79 A7 03 12 6C A8 78 3B",
+      "In the array: mem(0) = R, mem(2) = 2, the last = 78 (the string's last: 78)"] },
   { file: "basics/language.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Mercury: no moons, 57.9 million km", "Earth: one moon", "Mars: 2 moons", "Average distance: 135.9", "Initials: MVEM", "The counter counted to 15"] },
   // debugging/ (the debugger's example: here it runs on its own)
@@ -107,6 +115,16 @@ export const cases = [
     expect: ["answer.caption=Hello, World! (2)"] },
   // (Tab out of each box: its OnExit checks it, the next one's OnEnter
   // shows its help)
+  // snapshot.rr: RWindowCapture — a picture of its own window saved beside it
+  // (1x, framed: 360 × 236 inside), its own layout checked (a caption cut
+  // off once the button is narrowed); a read-only folder said
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "savebutton.onclick", dump: "status.caption", expect: ["status.caption=Saved snapshot.png (362 x 267 pixels)."] },
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "checkbutton.onclick,sizebutton.onclick", dump: "status.caption", expect: ["status.caption=The layout looks right: nothing cut off, nothing on top of another."] },
+  { file: "gui/snapshot.rr", runtimes: ["run", "interp", "native", "web"], events: "sizebutton.onclick,checkbutton.onclick", dump: "status.caption", expect: ['status.caption=savebutton\'s caption "Save as picture" is cut off: it needs about'] },
+  { file: "gui/snapshot.rr", runtimes: ["run"], readOnly: true, events: "savebutton.onclick", dump: "status.caption", expect: ["status.caption=Couldn't save the picture: can't write snapshot.png"] },
+  // guided_tour.rr: RAppHands — "Show me" types two tasks and adds them,
+  // each step said in the list as it is done
+  { file: "gui/guided_tour.rr", runtimes: ["run", "interp", "native", "web"], events: "tourbutton.onclick,form.__wait_7000", dump: "tasks.itemcount,steps.itemcount,taskedit.text", expect: ["tasks.itemcount=2", "steps.itemcount=5", "taskedit.text="] },
   { file: "gui/focus_events.rr", runtimes: ["run", "interp", "native", "web"], events: "nameedit.__key_65,nameedit.__key_9,ageedit.__key_51,ageedit.__key_9", dump: "help.caption,check.caption",
     expect: ["help.caption=Press Space to finish.", "check.caption=Age: 3"] },
   // (a label given TabStop is a link: Enter on the second, Space on the
@@ -129,12 +147,34 @@ export const cases = [
   { file: "gui/richtext.rr", runtimes: ["run", "interp", "native", "web"], events: "doc.__key_35_16,boldbtn.onclick,doc.__key_88,centrebtn.onclick,bulletbtn.onclick",
     dump: "status.simpletext,boldbtn.down,centrebtn.down,leftbtn.down,bulletbtn.down",
     expect: ["status.simpletext=Line 5, column 36   MS Sans Serif 8 pt", "boldbtn.down=-1", "centrebtn.down=-1", "leftbtn.down=0", "bulletbtn.down=-1"] },
+  // (RUpDown, Associate: the edit shows the arrows' number — two clicks up
+  // 2 → 4, one down by 15 from 60 — and OnChange fired for the plan)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "dosespin.__mousedown_9_4,dosespin.__mouseup_9_4,dosespin.__mousedown_9_4,dosespin.__mouseup_9_4,everyspin.__mousedown_9_18,everyspin.__mouseup_9_18", dump: "dose.text,dosespin.position,every.text,plan.caption",
+    expect: ["dose.text=4", "dosespin.position=4", "every.text=45", "plan.caption=4 tablets a day, a reminder every 45 minutes"] },
+  // (a 7 typed after the 2: the next step counts from 27 — past Max, so 8)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "dose.__key_55,dosespin.__mousedown_9_4,dosespin.__mouseup_9_4", dump: "dose.text,dosespin.position",
+    expect: ["dose.text=8", "dosespin.position=8"] },
+  // (no Associate: the program's OnChange writes the label; Wrap goes round from 1 to 5)
+  { file: "gui/updown.rr", runtimes: ["run", "interp", "native", "web"], events: "pagespin.__mousedown_9_18,pagespin.__mouseup_9_18", dump: "pageno.caption,pagespin.position",
+    expect: ["pageno.caption=5", "pagespin.position=5"] },
   { file: "gui/stopwatch.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("state", 6)},lapbtn.onclick,${wait("state", 4)},lapbtn.onclick,startbtn.onclick`,
     dump: "laps.itemcount,state.caption,time.caption", expect: ["laps.itemcount=2", "state.caption=Stopped", "time.caption=0:0"] },
   { file: "gui/pantry.rr", runtimes: ["run", "interp", "native", "web"], events: "shelves.__item_1,addbtn.onclick", dump: "total.caption,grid.rowcount",
     expect: ["total.caption=Vegetables: 3 items, worth 4.80", "grid.rowcount=4"] },
   { file: "gui/themes.rr", runtimes: ["run", "interp", "native", "web"], events: "pickdark.onclick", dump: "now.caption",
     expect: ["now.caption=Theme: rapidr dark"] },
+  // (the status colours as chips: the look picked in the header's menu, the
+  // chips' words taken again — status.warning.text in dark is Run Amber,
+  // &H24B2FF; a question answered)
+  { file: "gui/status_colors.rr", runtimes: ["run", "interp", "native", "web"], events: "lookbox.__item_1,keepbtn.onclick", dump: "said.caption,chiptext(2).font.color",
+    expect: ["said.caption=You chose Keep Them.", "chiptext(2).font.color=2405119"] },
+  // (Application.OnError: two buttons with a bug each — an average of no
+  // scores, a remainder of a division by zero —, the window still answering
+  // after both; the interpreter says the file and line, a native build none)
+  { file: "gui/on_error.rr", runtimes: ["run", "interp", "native", "web"], events: "averagebtn.onclick,halvebtn.onclick,averagebtn.onclick", dump: "counted.caption",
+    expect: ["counted.caption=Errors so far: 3"] },
+  { file: "gui/on_error.rr", runtimes: ["run", "interp", "web"], events: "averagebtn.onclick,halvebtn.onclick", dump: "said.caption",
+    expect: ["said.caption=Something went wrong: Division by zero (on_error.rr, line 51). The window still works."] },
   // (your own SVG icons: four in the tree's image list and one in an RImage,
   // all $RESOURCEs — `elsewhere`: a built app started from another folder
   // still has them; the theme switched to dark, they're drawn again)
@@ -206,6 +246,86 @@ export const cases = [
     expect: ["www.example.com  -  stopped", "shop.example.com  -  running", "status.caption=www.example.com is stopped."] },
   { file: "recipes/server_manager.rr", runtimes: ["run", "interp", "native", "web"], events: "sitelist.__item_2,restartbtn.onclick", dump: "status.caption",
     expect: ["status.caption=blog.example.com restarted."] },
+  { file: "recipes/frame_audio.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("status", 30)}`, dump: "status.caption,speaker.underruns,speaker.__heard",
+    expect: ["speaker.underruns=0", " ms queued, 0 gaps", " 8000 7960 7920 7880 7841 7801 7762 7724"] },
+  // (the systems recipes — docs/manual/recipes-systems.md — one tiny machine
+  // in ten programs; `wait(comp, n)` is also n presses of a button)
+  // memory: a word poked at FFFF, its high byte at 0000; peeked back
+  { file: "recipes/memory_bytes.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("addredit", "FFFF")},${typeOver("valueedit", "1234")},pokewordbtn.onclick`, dump: "result.caption,view.caption",
+    expect: ["result.caption=Wrote 1234 at FFFF: FFFF=34, 0000=12", "view.caption=FFFF: 34 12 00 00 00 00 00 00"] },
+  { file: "recipes/memory_bytes.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("addredit", "FFFF")},${typeOver("valueedit", "1234")},pokewordbtn.onclick,peekwordbtn.onclick,${typeOver("addredit", "0")},peekbytebtn.onclick`, dump: "result.caption",
+    expect: ["result.caption=Read 12 at 0000"] },
+  { file: "recipes/memory_bytes.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("addredit", "0100")},${typeOver("valueedit", "1ff")},pokebytebtn.onclick,peekbytebtn.onclick`, dump: "result.caption,view.caption",
+    expect: ["result.caption=Read FF at 0100", "view.caption=0100: FF 00 00 00 00 00 00 00"] },
+  // flags: 7F + 01 (Sign and Overflow), FF + 01 (Zero and Carry), then the carry added in
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: "addbtn.onclick", dump: "result.caption,bits.caption,flagslabel.caption,aedit.text",
+    expect: ["result.caption=A = 80   unsigned 128, signed -128", "bits.caption=bits  10000000", "flagslabel.caption=S=1 Z=0 H=1 V=1 N=0 C=0", "aedit.text=80"] },
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("aedit", "FF")},${typeOver("bedit", "01")},addbtn.onclick`, dump: "result.caption,flagslabel.caption",
+    expect: ["result.caption=A = 00   unsigned 0, signed 0", "flagslabel.caption=S=0 Z=1 H=1 V=0 N=0 C=1"] },
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("aedit", "FF")},${typeOver("bedit", "01")},addbtn.onclick,adcbtn.onclick`, dump: "result.caption,flagslabel.caption",
+    expect: ["result.caption=A = 02   unsigned 2, signed 2", "flagslabel.caption=S=0 Z=0 H=0 V=0 N=0 C=0"] },
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("aedit", "05")},${typeOver("bedit", "06")},subbtn.onclick`, dump: "result.caption,flagslabel.caption",
+    expect: ["result.caption=A = FF   unsigned 255, signed -1", "flagslabel.caption=S=1 Z=0 H=1 V=0 N=1 C=1"] },
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("aedit", "80")},rolbtn.onclick`, dump: "result.caption,bits.caption,flagslabel.caption",
+    expect: ["result.caption=A = 00   unsigned 0, signed 0", "bits.caption=bits  00000000", "flagslabel.caption=S=0 Z=0 H=0 V=0 N=0 C=1"] },
+  // (the bit that went out through the carry comes back in at the other end)
+  { file: "recipes/flags_bits.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("aedit", "80")},rolbtn.onclick,rorbtn.onclick`, dump: "result.caption,flagslabel.caption",
+    expect: ["result.caption=A = 80   unsigned 128, signed -128", "flagslabel.caption=S=0 Z=0 H=0 V=0 N=0 C=0"] },
+  // the CPU: three Steps (LDA, LDB, ADD), then Run to the HALT; Reset puts it back
+  { file: "recipes/cpu_step.rr", runtimes: ["run", "interp", "native", "web"], events: wait("stepbtn", 3), dump: "regs.caption,info.caption,status.caption",
+    expect: ["regs.caption=PC=0005  A=08  B=03  SP=0200", "info.caption=Z=0 C=0 S=0  cycles=5  [0200]=00", "status.caption=Next opcode: 04"] },
+  { file: "recipes/cpu_step.rr", runtimes: ["run", "interp", "native", "web"], events: "runbtn.onclick", dump: "regs.caption,info.caption,status.caption",
+    expect: ["regs.caption=PC=000F  A=00  B=01  SP=0200", "info.caption=Z=1 C=0 S=0  cycles=43  [0200]=08", "status.caption=Halted."] },
+  { file: "recipes/cpu_step.rr", runtimes: ["run", "interp", "native", "web"], events: "runbtn.onclick,resetbtn.onclick,stepbtn.onclick", dump: "regs.caption,info.caption",
+    expect: ["regs.caption=PC=0002  A=05  B=00  SP=0200", "info.caption=Z=0 C=0 S=0  cycles=2  [0200]=00"] },
+  // the stack: LDA, PUSH, CALL (the return address on the stack), then INC, RET, and Run to the end
+  { file: "recipes/cpu_stack.rr", runtimes: ["run", "interp", "native", "web"], events: wait("stepbtn", 3), dump: "regs.caption,stackview.caption,note.caption",
+    expect: ["regs.caption=PC=0010  SP=01FD  A=05", "stackview.caption=stack 01FD: 06 00 05", "note.caption=Next opcode: 07"] },
+  { file: "recipes/cpu_stack.rr", runtimes: ["run", "interp", "native", "web"], events: wait("stepbtn", 5), dump: "regs.caption,stackview.caption",
+    expect: ["regs.caption=PC=0006  SP=01FF  A=06", "stackview.caption=stack 01FF: 05"] },
+  { file: "recipes/cpu_stack.rr", runtimes: ["run", "interp", "native", "web"], events: "runbtn.onclick", dump: "regs.caption,stackview.caption,note.caption",
+    expect: ["regs.caption=PC=0008  SP=0200  A=05", "stackview.caption=stack: empty", "note.caption=Halted."] },
+  // the hex dump: the first page (Hello …), the next, a page that wraps past FFFF, all 4,096 rows
+  { file: "recipes/hex_dump.rr", runtimes: ["run", "interp", "native", "web"], dump: "dump.itemcount,dump.text,status.caption",
+    expect: ["dump.itemcount=16", "0000  48 65 6C 6C 6F 2C 20 74  69 6E 79 20 6D 61 63 68  Hello, tiny mach", "0010  69 6E 65 21 00 00 00 00  00 00 00 00 00 00 00 00  ine!............", "0020  01 05 02 03 05 04 00 02  02 01 06 0A 0A 00 FF 00  ................", "status.caption=Showing 0000 to 00FF"] },
+  { file: "recipes/hex_dump.rr", runtimes: ["run", "interp", "native", "web"], events: "nextbtn.onclick", dump: "dump.text,status.caption,addredit.text",
+    expect: ["0100  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  ................", "0120  20 21 22 23 24 25 26 27  28 29 2A 2B 2C 2D 2E 2F   !\"#$%&'()*+,-./", "status.caption=Showing 0100 to 01FF", "addredit.text=0100"] },
+  { file: "recipes/hex_dump.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("addredit", "FF80")},pagebtn.onclick`, dump: "status.caption,dump.itemcount",
+    expect: ["status.caption=Showing FF80 to 007F", "dump.itemcount=16"] },
+  { file: "recipes/hex_dump.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "dump.itemcount,status.caption",
+    expect: ["dump.itemcount=4096", "status.caption=All 4096 rows (64 KB) in "] },
+  // the disassembler: the program's listing, and one started in the middle of an instruction
+  { file: "recipes/disassembler.rr", runtimes: ["run", "interp", "native", "web"], dump: "listing.itemcount,listing.text",
+    expect: ["listing.itemcount=18", "0000  01 05     LDA 05", "0004  05        ADD", "0005  04 00 02  STA [0200]", "0009  0D 10 00  CALL 0010", "000D  03 00 02  LDA [0200]", "0014  0A 10 00  JNZ 0010", "001B  5A        DB 5A", "001C  FF        HALT"] },
+  { file: "recipes/disassembler.rr", runtimes: ["run", "interp", "native", "web"], events: `${typeOver("fromedit", "6")},listbtn.onclick`, dump: "listing.text",
+    expect: ["0006  00        NOP", "0007  02 0B     LDB 0B", "0009  0D 10 00  CALL 0010"] },
+  // the binary file: made, then loaded (the header's fields, the memory at its PC); loaded with none made
+  { file: "recipes/load_binary.rr", runtimes: ["run", "interp", "native", "web"], events: "makebtn.onclick,loadbtn.onclick", dump: "header.caption,image.caption,loaded.caption,timing.caption",
+    expect: ["header.caption=TS v1  A=2A B=07 flags=02 PC=0100 SP=0200", "image.caption=memory at PC: 01 05 02 03 05 04 00 02", "loaded.caption=Loaded 65536 bytes into memory.", "timing.caption=Reading them took "] },
+  { file: "recipes/load_binary.rr", runtimes: ["run", "interp", "native", "web"], events: "loadbtn.onclick", dump: "loaded.caption,header.caption",
+    expect: ["loaded.caption=No sample.tsn yet: press Make sample file."] },
+  { file: "recipes/load_binary.rr", runtimes: ["run", "interp", "native", "web"], events: "makebtn.onclick", dump: "loaded.caption",
+    expect: ["loaded.caption=Wrote sample.tsn: 65546 bytes."] },
+  // video memory: three frames by hand (the ball moved, the cells redrawn); the timer running a while
+  { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: wait("framebtn", 3), dump: "info.caption,runbtn.caption",
+    expect: ["info.caption=Frame 3   ball at 46,33", "runbtn.caption=&Run"] },
+  // (the whole screen repainted fifty times, timed: SetPixels8 + StretchDraw)
+  { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: "repaintbtn.onclick", dump: "info.caption",
+    expect: ["info.caption=Full repaint "] },
+  { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: `runbtn.onclick,${wait("info", 8)}`, dump: "info.caption,runbtn.caption",
+    expect: ["info.caption=Frame ", "runbtn.caption=&Pause"] },
+  // the keyboard: Q (row 2's first key), Enter (row 5's last), Space (row 7's third): down, then up
+  { file: "recipes/keyboard_matrix.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__key_81,form.__key_13,form.__key_32", dump: "eventlog.text,matrixview.text,scan.caption",
+    expect: ["Q down: row 2 -> 01111   IN 00 = 0F", "Q up: row 2 -> 11111   IN 00 = 1F", "Enter down: row 5 -> 11110   IN 00 = 1E", "Space down: row 7 -> 11011   IN 00 = 1B", "row 5   H J K L <   11111", "scan.caption=IN 00 (all rows) = 1F    IN FB (row 2) = 1F"] },
+  { file: "recipes/keyboard_matrix.rr", runtimes: ["run", "interp", "native", "web"], events: "form.__key_49,form.__key_90,form.__key_187", dump: "eventlog.text,eventlog.itemcount",
+    expect: ["1 down: row 0 -> 01111   IN 00 = 0F", "Z down: row 6 -> 01111   IN 00 = 0F", "eventlog.itemcount=4"] },
+  // timing: three frames of 1000 cycles by hand (the overspent cycle carried), a faster speed, the timer running
+  { file: "recipes/cpu_timing.rr", runtimes: ["run", "interp", "native", "web"], events: wait("framebtn", 3), dump: "regs.caption,counts.caption",
+    expect: ["regs.caption=PC=0008  A=77  B=01  [0200]=77", "counts.caption=frame 3   cycles 3001   carried -1"] },
+  { file: "recipes/cpu_timing.rr", runtimes: ["run", "interp", "native", "web"], events: `fasterbtn.onclick,${wait("framebtn", 2)}`, dump: "counts.caption,speed.caption",
+    expect: ["counts.caption=frame 2   cycles 4001   carried -1", "speed.caption=2000 cycles a frame = 100000 cycles a second."] },
+  { file: "recipes/cpu_timing.rr", runtimes: ["run", "interp", "native", "web"], events: `runbtn.onclick,${wait("regs", 8)},runbtn.onclick`, dump: "runbtn.caption,counts.caption",
+    expect: ["runbtn.caption=&Run", "counts.caption=frame "] },
   // studio/
   // (the code helpers' window: its button turns the form's colour round
   // three, twice here)
@@ -226,11 +346,31 @@ export const cases = [
     expect: ["diff.kind=table", "diff.changecount=4", "info.caption=4 change(s): Added column: City ..."] },
   { file: "studio/diff_views.rr", runtimes: ["run", "web"], events: "bform.onclick", dump: "diff.kind,diff.changecount,info.caption",
     expect: ["diff.kind=form", "diff.changecount=2", "info.caption=2 change(s): Go: Caption \"OK\" → \"Say hello\"; Width = 110 (new) ..."] },
+  // (COPY-ANYWHERE: an ROutputConsole's selection and copies — a word
+  // double-clicked, Copy Selection, then Copy All; the tests' own clipboard)
+  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "log.__wait_300,log.__dblclick_150_40,copybtn.onclick", dump: "log.seltext,log.hasselection,status.simpletext",
+    expect: ["log.seltext=orders", "log.hasselection=1", "status.simpletext=Copied: orders"] },
+  { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "log.linecount,status.simpletext",
+    expect: ["log.linecount=4", "status.simpletext=Copied the whole log (4 lines)"] },
+  // (VERSIONS-G3: RRepository, `rapidr run`'s — the copy runs where the
+  // tests keep their work: inside this repository's checkout Start refuses,
+  // said in words (versions are kept in a project's own folder only),
+  // elsewhere it saves, goes back and undoes; the local history either way)
+  { file: "studio/versions.rr", runtimes: ["run"], expect: ["Local history of main.rr:"] },
+  // (EXTERNAL-CHANGES: RProject's Watch / ExternalChanges(); the change
+  // from outside is tests/studio_flows.mjs' ext-* walk)
+  { file: "studio/watch_file.rr", runtimes: ["run"], dump: "said.caption,note.text", expect: ["said.caption=Edit note.tmp.txt elsewhere, then come back.", "note.text=A note. Change me in another editor."] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "clearbtn.onclick", dump: "info.caption",
     expect: ["info.caption=No dots; bar 4 is &H00B48246"] },
+  // pixels_fast: the plasma for a couple of seconds (the readout appears once a second: frames a second
+  // and the time of each step), Life with the slow Pset method, a click on the picture, Pause
+  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: wait("hint", 50), dump: "info.caption,effectbtn.caption,methodbtn.caption",
+    expect: [" fps  work", "effectbtn.caption=&Life", "methodbtn.caption=&Method: SetPixels8"] },
+  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: `effectbtn.onclick,methodbtn.onclick,screen.__mousedown_100_100,screen.__mouseup_100_100,${wait("hint", 50)},pausebtn.onclick`, dump: "info.caption,effectbtn.caption,methodbtn.caption,pausebtn.caption",
+    expect: [" fps  work", "effectbtn.caption=&Plasma", "methodbtn.caption=&Method: Pset", "pausebtn.caption=&Resume"] },
   { file: "directx/sprites.rr", runtimes: ["run", "interp", "native", "web"], events: `screen.__mousedown_100_100,${wait("info", 8)},pausebtn.onclick`, dump: "info.caption,pausebtn.caption",
     expect: ["info.caption=4 balls", "pausebtn.caption=&Go"] },
   { file: "directx/d3d_cube.rr", runtimes: ["run", "interp", "native", "web"], events: `fasterbtn.onclick,${wait("info", 4)}`, dump: "info.caption",
@@ -240,6 +380,14 @@ export const cases = [
     expect: ["info.caption=playing, 1 of 8 s"] },
   { file: "media/midi.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 4)},pausebtn.onclick`, dump: "info.caption",
     expect: ["info.caption=paused"] },
+  // (a song written by the program, opened and played: no sound under the
+  // tests — tests/midi_output.mjs checks where it goes and how it sounds)
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: "", dump: "info.caption",
+    expect: ["info.caption=composed: 407 bytes, 7994 ms"] },
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 24)}`, dump: "info.caption",
+    expect: ["info.caption=playing, 1 of 8 s"] },
+  { file: "media/midi_compose.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 4)},stopbtn.onclick`, dump: "info.caption",
+    expect: ["info.caption=stopped"] },
   { file: "media/wave.rr", runtimes: ["run", "interp", "native", "web"], events: "chimebtn.onclick", dump: "info.caption",
     expect: ["info.caption=Chime: 1200 ms, 16-bit, 11025 Hz"] },
   { file: "media/wave.rr", runtimes: ["run", "interp", "native", "web"], events: `recordbtn.onclick,${wait("info", 30)},minebtn.onclick`, dump: "info.caption",
@@ -248,6 +396,20 @@ export const cases = [
     expect: ["info.caption=24 frames of 64x48"] },
   { file: "media/video.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 50)}`, dump: "info.caption",
     expect: ["info.caption=Played to the end: 24 frames"] },
+  // (RAudioOut: the tests' clocked sink takes the samples in real time
+  // and keeps what it heard — `__heard`: how many, their sum, the first
+  // ones as 16-bit numbers —, so these check exact samples on every runtime)
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 20)}`, dump: "info.caption,sound.__heard",
+    expect: ["info.caption=440.0 Hz sine, playing: ", " 0 160 320 479 635 789 940 1088 1231 1369 1502 1629 1749 1863 1969 2068 2158 2240"] },
+  { file: "media/tone_generator.rr", runtimes: ["run", "interp", "native", "web"], events: `wsquare.__mousedown_8_8,wsquare.__mouseup_8_8,freqbar.__key_34,startbtn.onclick,${wait("info", 6)},startbtn.onclick`, dump: "info.caption,sound.playing",
+    expect: ["info.caption=880.0 Hz square, stopped", "sound.playing=0"] },
+  // (the timing test: the interpreter makes 50 frames a second from an
+  // RTimer, 882 samples each, and the sound never gaps; the first frame's
+  // samples exact)
+  { file: "media/beeper.rr", runtimes: ["run", "interp", "native", "web"], events: `startbtn.onclick,${wait("info", 60)}`, dump: "info.caption,beeper.underruns,beeper.__heard",
+    expect: ["beeper.underruns=0", " ms queued, 0 gaps", " -9000 -8955 -8910 -8865 -8821 -8777 -8733 -8689 -8646 -8603 -8559 4982 9457 9410"] },
+  { file: "media/chiptune.rr", runtimes: ["run", "interp", "native", "web"], events: `playbtn.onclick,${wait("info", 40)}`, dump: "info.caption,chip.underruns,chip.__heard",
+    expect: ["chip.underruns=0", " 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 3150 1050 1050"] },
   // data/
   // (RSecrets in the test keystore — the runner's RAPIDR_AI_KEYSTORE=memory,
   // never the keychain: a password typed, saved, read back; an empty one
@@ -260,6 +422,22 @@ export const cases = [
     expect: ["status.caption=There was nothing to delete.", "valueedit.text="] },
   { file: "data/secrets.rr", runtimes: ["web"], events: `${typeKeys("valueedit", "s3c")},savebtn.onclick`, dump: "status.caption,keptin.caption",
     expect: ["status.caption=Not saved: RSecrets isn't available in the browser: a web page has no keychain", "keptin.caption=Nowhere to keep it: no keychain (a web page has none)"] },
+  // (RArchive: a .z80 found in a zip, a 7z, a .gz — or taken as it is —
+  // its first bytes; a zip made and opened)
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], dump: "info.caption,loaded.caption,hexview.caption,entries.itemcount",
+    expect: ["info.caption=snapshots.zip: zip, 3 entries", "loaded.caption=Loaded 64 bytes, starting:", "hexview.caption=F3 AF 11 FF FF C3 CB 11 00 01 02 03 04 05 06 07", "entries.itemcount=3"] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "samples.__item_1", dump: "info.caption,hexview.caption",
+    expect: ["info.caption=snapshots.7z: 7z, 3 entries", "hexview.caption=F3 AF 11 FF FF C3 CB 11 00 01 02 03 04 05 06 07"] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "samples.__item_2", dump: "info.caption,hexview.caption",
+    expect: ["info.caption=hello.z80.gz: gzip, 1 entries", "hexview.caption=F3 AF 11 FF FF C3 CB 11 00 01 02 03 04 05 06 07"] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "samples.__item_3", dump: "info.caption,loaded.caption,hexview.caption",
+    expect: ["info.caption=hello.z80: not an archive — the snapshot itself", "loaded.caption=Loaded 64 bytes, starting:", "hexview.caption=F3 AF 11 FF FF C3 CB 11 00 01 02 03 04 05 06 07"] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "entries.__item_0", dump: "loaded.caption,hexview.caption",
+    expect: ["loaded.caption=readme.txt: 56 bytes, starting:", "hexview.caption=48 65 6C 6C 6F 20 66 72 6F 6D 20 52 61 70 69 64"] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "entries.__item_1", dump: "loaded.caption,hexview.caption",
+    expect: ["loaded.caption=roms/ is a folder.", "hexview.caption="] },
+  { file: "data/archives.rr", runtimes: ["run", "interp", "native", "web"], events: "makebtn.onclick", dump: "info.caption,entries.itemcount,hexview.caption",
+    expect: ["info.caption=my-notes.zip: zip, 2 entries", "entries.itemcount=2", "hexview.caption=48 65 6C 6C 6F 20 66 72 6F 6D 20 52 61 70 69 64"] },
   { file: "data/sqlite.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["  1968 | A Wizard of Earthsea", "  Ursula K. Le Guin | 2 | 4.35", "Best rated: The Hitch-Hiker's Guide to the Galaxy", "Neuromancer is now rated 4.8", "finds 0 books", "Done."] },
   { file: "data/json.rr", runtimes: ["run", "interp", "native", "web"],
@@ -380,6 +558,17 @@ export const cases = [
     expect: ["client: no token 401", "client: wrong token 401", "client: foreign origin 403", "client: foreign host 403", "client: cross-site 403", "client: hello 200 Hello from RapidR",
       "client: echo 200 application/json same", 'client: events 200 text/event-stream 3 {"tick":1} {"tick":2} {"tick":3}', "client: too large 413", "client: not found 404",
       "status.caption=4 requests answered", "(this computer only)"] },
+  // mcp_tools.rr: RMcpServer — the refusals, an earlier revision's session,
+  // the current revision's headers and errors, a wrong call told what the
+  // tool needs; the calls seen in the window
+  { file: "network/mcp_tools.rr", runtimes: ["run", "interp", "native"], args: ["{port}", "suite-token-0123456789"], client: { mode: "mcp", args: ["suite-token-0123456789"] },
+    events: wait("log", 140), dump: "status.caption,notes.itemcount,urllabel.caption",
+    expect: ["client: no token 401", "client: foreign origin 403", "client: get 405", "client: initialize 200 2025-06-18 notes session 32", "client: initialized 202",
+      "client: tools list_notes,find_notes,add_note read-only 2", "client: add Added. There are 3 notes.",
+      "client: wrong call error true Call add_note again: it needs `Text` (a string).", "client: unknown tool -32602", "client: end session 200", "client: ended session 404",
+      "client: discover 2026-07-28,2025-11-25,2025-06-18,2025-03-26 notes complete", "client: list Buy milk / Call the library about the book / Water the plants",
+      "client: find Water the plants", "client: header mismatch 400 -32020", "client: unsupported 400 -32022 2026-07-28", "client: no method 404 -32601", "client: no session 400",
+      "status.caption=3 calls from 1 AI app(s)", "notes.itemcount=3", "(this computer only)"] },
   // ai/ (the tests' mock provider, local: an OpenAI-compatible server)
   { file: "ai/rai_models.rr", runtimes: ["run", "interp", "native", "web"], args: ["{aimock}"],
     events: `listbtn.onclick,${wait("info", 4)},modelbox.__item_0,askbtn.onclick,${wait("info", 6)}`, dump: "modelbox.itemcount,modelbox.text,ai.model,answer.text,info.caption",

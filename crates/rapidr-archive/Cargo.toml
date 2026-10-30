@@ -1,0 +1,53 @@
+[package]
+name = "rapidr-archive"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+description = "RArchive's engine: zip, tar, gzip, 7z, xz and zstd read (and zip, tar, tar.gz, gzip written) in memory, with zip-slip and zip-bomb guards — GUI-free, wasm-safe"
+
+# A zip, a tar, a 7z a program opens is untrusted input: every reader here is
+# bounded (MaxSize, MaxRatio), refuses encrypted entries, links and paths
+# outside the folder it extracts to, and never panics on a malformed file
+# (tests/robustness.rs). Each format is a feature, so a build carries only
+# the formats it reads (docs/lean-builds-and-export-plan.md); tar is RapidR's
+# own code (tar.rs) and always in.
+[features]
+default = ["zip", "gzip", "xz", "zstd", "7z"]
+# zip (PKWARE's APPNOTE, an open format): the `zip` crate (MIT), its
+# Deflate through flate2 — stored and deflated entries, the two every zip
+# tool writes.
+zip = ["dep:zip", "gzip"]
+# gzip, zlib and raw deflate (RFC 1950-1952): flate2 (MIT OR Apache-2.0) on
+# zlib-rs (Zlib), pure Rust — the same pair the zip crate uses.
+gzip = ["dep:flate2"]
+# xz and tar.xz (read): lzma-rust2 (Apache-2.0), pure Rust.
+xz = ["dep:lzma-rust2"]
+# zstd and tar.zst (read): ruzstd (MIT), pure Rust.
+zstd = ["dep:ruzstd"]
+# 7z (read): sevenz-rust2 (Apache-2.0), pure Rust; LZMA, LZMA2, Deflate,
+# BCJ and Delta (no AES: encrypted archives are refused).
+7z = ["dep:sevenz-rust2"]
+
+# Never turn on without a new legal review (docs/legal/review-2026-10-29-
+# rarchive.md; tools/check_archive_features.py fails the legal stage if one
+# is on, anywhere in the workspace, desktop or web):
+# - zip: `aes-crypto` (the APPNOTE's strong encryption is PKWARE's, and
+#   `aes` is banned), `deflate64` (a PKWARE mark), `default`, `bzip2`,
+#   `zstd`, `ppmd`, `deflate-zopfli`;
+# - sevenz-rust2: `aes256` / `aes256_wasm`, `ppmd` (a port of another
+#   project's C), `bzip2`, `zstd`, `brotli`, `lz4` (C or unreviewed
+#   libraries), `default` / `default_wasm`;
+# - ruzstd: `dict_builder` (translated from facebook/zstd: a BSD-3 notice and
+#   another crate).
+[dependencies]
+zip = { version = "9", optional = true, default-features = false, features = ["deflate-flate2-zlib-rs"] }
+flate2 = { version = "1.1", optional = true, default-features = false, features = ["zlib-rs"] }
+lzma-rust2 = { version = "0.23", optional = true, default-features = false, features = ["std", "xz"] }
+ruzstd = { version = "0.9", optional = true, default-features = false, features = ["std"] }
+sevenz-rust2 = { version = "0.24", optional = true, default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+# Malformed-archive robustness (MIT OR Apache-2.0; dev-only, already in the
+# tree through rapidr-value's tests).
+proptest = { version = "1.11", default-features = false, features = ["std"] }

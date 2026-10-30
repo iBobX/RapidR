@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Date"
+msgstr "Fecha · día"
+
+msgid "&Pause"
+msgstr "&Pausa ¿si?"

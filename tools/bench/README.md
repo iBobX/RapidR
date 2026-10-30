@@ -36,6 +36,7 @@ each time is the median of 3 runs (`--runs N` to change it).
 | `bench_pandas.py` | the same steps in pandas: `python3 tools/bench/bench_pandas.py [rows]`. |
 | `bench_polars.py` | the same steps in Polars: `python3 tools/bench/bench_polars.py [rows]`. |
 | `compare.sh` | all of the above that this machine has, then one table: `tools/bench/compare.sh [rows]`. |
+| `systems_loops.rr` | the main loops of the systems recipes (memory helpers, a hex dump's rows, a file read and written, the tiny CPU's step loop), no window: `./rapidr run tools/bench/systems_loops.rr [memory\|hexdump\|filewrite\|fileread\|cpu\|cpu2]`, or built native; the numbers are on [the manual page](../../docs/manual/recipes-systems.md#how-fast). |
 
 pandas and Polars are never dependencies of RapidR and nothing here
 installs them: their scripts say so and stop cleanly when the library
@@ -106,3 +107,144 @@ ms for a million rows (target 300 ms, hard limit 1 s) and 0.27 s for ten
 million (limit 5 s); most steps also beat the plan's phase-3
 "Polars-class" goals (load 40, filter 5, sort 30, group-by 15, join 20,
 describe 10, save 40, pipeline 100 ms).
+
+# Binary data: strings, bytes and streams (`tools/bench/vm/`)
+
+What a program that parses or writes binary data does — a file viewer, a
+game's level loader, an emulator loading a ROM — measured on the three
+runtimes (STRING-SPEED, 2026-10-29). An emulator written in RapidR gave up
+on reading a 64 KB ROM with `ASC(MID$(b, i, 1))`: 51 s. Every `MID$` copied
+the whole string twice (reading the variable, then `to_string_val`) and
+made a 4-bytes-a-character copy of it to count characters; `s = s + x`
+copied all of `s` each time; every `RFileStream` write went to the file at
+once (seek, write, set the length: three system calls a byte, ~15 µs).
+
+| Program | What |
+|---|---|
+| `mid_scan.rr` | a 64 KB binary string (every byte value, half of them two bytes in UTF-8) read a byte at a time: `ASC(MID$(b, i, 1))` |
+| `concat_build.rr` | `s = s + CHR$(x)`, 65,536 times, four times over |
+| `byte_array.rr` | a 64 KB `BYTE` array decoded with `AND` / `SHR` / `SHL`, 16 passes (1 M reads) |
+| `stream_read.rr` | a 64 KB `RMemoryStream`: `ReadNum(1)` 65,536 times, then `MemCopyTo(VARPTR(a(0)), n)` into a `BYTE` array |
+| `stream_write.rr` | a 64 KB file written with `WriteNum(x, 1)`, then with `WriteByte` (65,536 calls each), then a 64 KB `BYTE` array saved and loaded with `SaveArray` / `LoadArray` (writes `tests/results/bench/write.bin`) |
+| `binary_read.rr` | the program that found it: a 64 KB file written with `WriteNum(x, 1)`, read with `RFileStream.ReadNum(1)`, then with `ReadStr` + `ASC(MID$())` (writes `tests/results/bench/blob.bin`) |
+
+Each prints its answer and its own time (`ms …`, `TIMER`: the work alone).
+Run them with `tools/bench/vm_bench` (`rapidr run`: CPU time, the budgets in
+`vm_budgets.json`), built native (`./rapidr build tools/bench/vm/mid_scan.rr
+--output DIR`, then run it from the repository's folder), and on the web with
+`node tools/bench/web_bench.mjs` (the web runtime's own page, the repository
+served on `RAPIDR_URL`, after `tools/build_web_artifacts.sh`).
+
+**Before and after** — Apple M4 Max, macOS 27.2, release builds, 2.121.3
+against this change; the Mac was shared with other lanes' builds (load
+average 15–60 for these runs, 200+ earlier), so `rapidr run` and native are
+CPU time (the fastest of 5 runs, before and after taken in turn, the whole
+program), the web the program's own `TIMER` time in Chromium (the fastest of
+2–3). Milliseconds:
+
+| Program | `rapidr run` before | after | native before | after | web before | after |
+|---|--:|--:|--:|--:|--:|--:|
+| `mid_scan` | 3,268 | 19 | 4,043 | 10 | 4,434 | 16 |
+| `concat_build` | 1,029 | 79 | 593 | 18 | 524 | 43 |
+| `byte_array` | 297 | 284 | 27 | 25 | 396 | 308 |
+| `stream_read` | 148 | 154 | 78 | 77 | 150 | 84 |
+| `stream_write` | 1,640 | 177 | 2,721 | 270 | 599 | 165 |
+| `binary_read` | 9,195 | 174 | 9,147 | 156 | 11,822 | 86 |
+
+`stream_write`'s parts (`TIMER`, `rapidr run`): the 131,072 `WriteNum` /
+`WriteByte` calls 2,039 → 152 ms, `SaveArray` + `LoadArray` of 65,536
+elements each 1,617 → 8 ms. The lead's repro itself (`rd.rr` with its
+`blob.bin`; its own `TIMER` lines, the faster of two runs) — the
+`ReadNum(1)` loop / the `ReadStr` + `ASC(MID$())` loop: `rapidr run` 92 / 8,214
+→ 78 / 13 ms, native 163 / 17,985 → 96 / 7 ms, web 85 / 13,051 → 106 / 23 ms.
+`byte_array`'s and `stream_read`'s differences, and the `ReadNum` loops',
+are within this Mac's noise (the same code runs them).
+
+The guards: `cargo test -p rapidr-vm-host-native --test string_speed` fails
+when four times the data takes eight times as long (quadratic is sixteen)
+for the `MID$` / `b[i]` / `LEN` scan or for `s = s + x`; `vm_bench --check`
+holds the six programs to their budgets; the conformance cases
+`string_long_positions`, `filestream_buffered_writes` and
+`stream_arrays_bulk` hold the answers to the ones before.
+
+How:
+
+- **Strings.** A string value is a `BasicString`
+  (`crates/rapidr-value/src/basic_string.rs`) — shared, copied only when a
+  shared string is changed, so reading a variable costs a reference count —
+  with an index from character positions to byte offsets built the first
+  time a position past the 64th character of a long string is asked for
+  (none for ASCII: the position is the offset; else one offset every 32
+  characters). `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `INSTR`, `RINSTR`, `ASC`,
+  `INSERT$`, `DELETE$` and `s[i]` read the text in place through it
+  (`crates/rapidr-value/src/strings.rs`); the answers are the character
+  walk's (a randomized test against it).
+- **`x = x + y` / `x = x & y`** appends in place when `x` still holds the
+  text the expression read: the VM's Add / Concat when the next instruction
+  stores into that variable, native builds through `rp_append_assign` (`ga`
+  for a module variable). (`s = s + a + b` still makes a new `s + a` first:
+  write `s = s + (a + b)`.)
+- **File streams** (`crates/rapidr-value/src/objects/memstream.rs`) keep
+  what they're given — one run of changed bytes, written in one go — and
+  write it at Close, every 64 KB, when the program waits (its events,
+  `SLEEP`, `INPUT`, the web's turn ending) or ends (`END`, a run-time error,
+  its main code done), and before anything else uses a file by its name
+  (`paths::host`, the web's `file_key`, `read_file` / `write_file`, `SHELL` /
+  `RUN`): what reads the file sees every byte, as when each write went
+  straight through. A program killed from outside can lose its last 64 KB.
+- **`SaveArray` / `LoadArray`** of a numeric array variable with plain
+  indices are one call (`rapidr_ast::stream_arrays`, `__ArrayIO` in
+  `objects/stream_ops.rs`) doing what the element-by-element loop did.
+
+## The pixel benchmark: a whole picture from data (FAST-PIXELS)
+
+How fast a program can put a picture it made from numbers — an emulator's
+screen, a filter, a heat map — into a bitmap and show it larger, on the
+three runtimes ([the manual](../../docs/manual/graphics.md#drawing-many-pixels-fast)).
+One 256 × 192 picture (49,152 pixels), twice as large on the screen.
+
+| Tool | Runs |
+|---|---|
+| `pixels.rr` | the program: `rapidr run tools/bench/pixels.rr` (the interpreter), `rapidr build tools/bench/pixels.rr <folder>` then the program (native). Milliseconds a picture, the average of 300 (3 for the `Pset` loop), and a check that the pixels are the ones put in. |
+| `tests/web_pixels_bench.mjs` | the same program in the web runtime (Chromium), at device scale 1 and 2; fails when a call of the pixel-block methods takes 2 ms or more. |
+| `pixels_bench` (`crates/rapidr-value/examples/pixels_bench.rs`) | the engine alone: `cargo run --release -p rapidr-value --example pixels_bench [-- --runs N] [--check]`, at the screen scales 1, 2 (Retina) and 3; `--check` exits 1 when a frame costs 2 ms or more at scale 1. |
+
+Apple M4 Max, macOS, release builds, 2026-10-30; the Mac was busy with other work
+(load average 20 to 40), so these are on the slow side. Milliseconds a picture:
+
+| step (256 × 192) | interpreter | native | web (Chromium) |
+|---|--:|--:|--:|
+| `Pset` for every pixel | 77.7 | 62.0 | 83 |
+| `SetPixels` (colours) | 0.031 | 0.030 | 0.050 |
+| `SetPixels8` (palette numbers) | 0.044 | 0.048 | 0.083 |
+| `GetPixels` | 0.044 | 0.021 | 0.057 |
+| `StretchDraw`, twice as large | 0.044 | 0.045 | 0.060 |
+| **`SetPixels8` + `StretchDraw`** | **0.087** | **0.090** | **0.127** |
+
+The engine alone (`pixels_bench`), microseconds a picture, at the screen
+scales 1, 2 and 3 — and what it was before:
+
+| | scale 1 | scale 2 | scale 3 | before (1, 2, 3) |
+|---|--:|--:|--:|--|
+| `SetPixels` | 30 | 80 | 105 | — |
+| `SetPixels8` | 46 | 98 | 120 | — |
+| `GetPixels` | 28 | 28 | 29 | — |
+| `Draw`, 1 to 1 | 2 | 12 | 23 | 114, 293, 477 |
+| `StretchDraw`, twice, nearest | 39 | 193 | 396 | 368, 1,158, 2,133 |
+| `StretchDraw`, twice, `Smooth` | 297 | 1,130 | 2,172 | (none) |
+| what the screen is given (`display_rgba`) | 17 | 67 | 146 | 175, 701, 1,576 |
+| a whole frame: `SetPixels8` + `StretchDraw` | 82 | 286 | 472 | — |
+| …and handed to the screen | 100 | 341 | 640 | — |
+
+How:
+
+- **Whole rows, not pixels.** `Draw`, `CopyRect` and `StretchDraw` copy and scale
+  a row at a time on the pixel slices (`crates/rapidr-value/src/objects/blit.rs`:
+  the source column of each destination column found once, a source row
+  used again copied as a row); `SetPixels` and `SetPixels8` read the array once and
+  copy rows, each pixel a square of the finer picture a high-DPI screen
+  shows. The scaled copy is held to the old per-pixel arithmetic by a test.
+- **An array passed to a method was turned into text.** The runtimes asked,
+  for every method of every component, whether its first argument named the
+  target of `ImageList.Draw`, by making it a string first: for a 49,152-element
+  array a millisecond a call. Now the method's name is looked at first.

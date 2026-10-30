@@ -25,13 +25,13 @@ DIM BuildMode AS STRING   ' what runs on the Build page: native, interpreted or 
 
 ' ---- Project > Project Options -------------------------------------------------------
 CREATE AppDialog AS RForm
-  Caption = "Project Options"
+  Caption = TR$("Project Options")
   Width = 520: Height = 480
   BorderStyle = 3
   CREATE AppIconImage AS RImage
     Left = 16: Top = 16: Width = 64: Height = 64
     Stretch = 1
-    AccessibleName = "The app's icon"
+    AccessibleName = TR$("The app's icon")
   END CREATE
   CREATE AppIconNote AS RLabel
     Left = 96: Top = 16: Width = 330: Height = 40
@@ -39,35 +39,35 @@ CREATE AppDialog AS RForm
     Caption = ""
   END CREATE
   CREATE AppNameLabel AS RLabel
-    Left = 16: Top = 100: Width = 90: Caption = "App &name:"
+    Left = 16: Top = 100: Width = 90: Caption = TR$("App &name:")
   END CREATE
   CREATE AppNameEdit AS REdit
     AutoSize = 0
     Left = 120: Top = 96: Width = 320
   END CREATE
   CREATE AppIdLabel AS RLabel
-    Left = 16: Top = 130: Width = 90: Caption = "&Bundle ID:"
+    Left = 16: Top = 130: Width = 90: Caption = TR$("&Bundle ID:")
   END CREATE
   CREATE AppIdEdit AS REdit
     AutoSize = 0
     Left = 120: Top = 126: Width = 320
   END CREATE
   CREATE AppVersionLabel AS RLabel
-    Left = 16: Top = 160: Width = 90: Caption = "&Version:"
+    Left = 16: Top = 160: Width = 90: Caption = TR$("&Version:")
   END CREATE
   CREATE AppVersionEdit AS REdit
     AutoSize = 0
     Left = 120: Top = 156: Width = 320
   END CREATE
   CREATE AppCompanyLabel AS RLabel
-    Left = 16: Top = 190: Width = 90: Caption = "&Company:"
+    Left = 16: Top = 190: Width = 90: Caption = TR$("&Company:")
   END CREATE
   CREATE AppCompanyEdit AS REdit
     AutoSize = 0
     Left = 120: Top = 186: Width = 320
   END CREATE
   CREATE AppIconLabel AS RLabel
-    Left = 16: Top = 220: Width = 90: Caption = "&Icon:"
+    Left = 16: Top = 220: Width = 90: Caption = TR$("&Icon:")
   END CREATE
   CREATE AppIconEdit AS REdit
     AutoSize = 0
@@ -75,21 +75,21 @@ CREATE AppDialog AS RForm
   END CREATE
   CREATE AppIconBtn AS RButton
     Left = 376: Top = 215: Width = 30: Caption = "..."
-    AccessibleName = "Choose the icon file"
+    AccessibleName = TR$("Choose the icon file")
     OnClick = AppIconBrowse
   END CREATE
   CREATE AppIconReset AS RButton
     Left = 410: Top = 215: Width = 30: Caption = "x"
-    AccessibleName = "Use RapidR's icon"
+    AccessibleName = TR$("Use RapidR's icon")
     OnClick = AppIconDefault
   END CREATE
   CREATE AppTargetsLabel AS RLabel
-    Left = 16: Top = 250: Width = 90: Caption = "&Targets:"
+    Left = 16: Top = 250: Width = 90: Caption = TR$("&Targets:")
   END CREATE
   CREATE AppTargets AS RComboBox
     Left = 120: Top = 246: Width = 320
-    AddItems "Desktop", "Web", "Desktop and web"
-    AccessibleName = "Targets: where the program runs"
+    AddItems TR$("Desktop"), TR$("Web"), TR$("Desktop and web")
+    AccessibleName = TR$("Targets: where the program runs")
     OnChange = AppTargetsChanged
   END CREATE
   CREATE AppTargetsNote AS RLabel
@@ -98,35 +98,35 @@ CREATE AppDialog AS RForm
     Caption = ""
   END CREATE
   CREATE AppKindLabel AS RLabel
-    Left = 16: Top = 250: Width = 90: Caption = "B&uild:"
+    Left = 16: Top = 250: Width = 90: Caption = TR$("B&uild:")
   END CREATE
   CREATE AppKind AS RComboBox
     Left = 120: Top = 246: Width = 320
-    AddItems "Compiled (native: needs Rust)", "Interpreted (no Rust needed)"
+    AddItems TR$("Compiled (native: needs Rust)"), TR$("Interpreted (no Rust needed)")
     OnChange = AppBuildChanged
   END CREATE
   CREATE AppKindNote AS RLabel
     Left = 120: Top = 276: Width = 320: Height = 32
     WordWrap = 1: AutoSize = 0
-    Caption = "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
+    Caption = TR$("A release build: optimized, what you ship. Run (F5) runs the program to debug it.")
   END CREATE
   CREATE AppOutputLabel AS RLabel
-    Left = 16: Top = 316: Width = 90: Caption = "&Output folder:"
+    Left = 16: Top = 316: Width = 90: Caption = TR$("&Output folder:")
   END CREATE
   CREATE AppOutputEdit AS REdit
     AutoSize = 0
     Left = 120: Top = 312: Width = 284
-    AccessibleName = "Output folder: where Build puts the app"
+    AccessibleName = TR$("Output folder: where Build puts the app")
     OnChange = AppBuildChanged
   END CREATE
   CREATE AppOutputBtn AS RButton
     Left = 410: Top = 311: Width = 30: Caption = "..."
-    AccessibleName = "Choose the output folder"
+    AccessibleName = TR$("Choose the output folder")
     OnClick = AppOutputBrowse
   END CREATE
   CREATE AppKeepRust AS RCheckBox
     Left = 120: Top = 346: Width = 320
-    Caption = "&Keep the generated Rust source"
+    Caption = TR$("&Keep the generated Rust source")
     OnClick = AppBuildChanged
   END CREATE
   CREATE AppKeepNote AS RLabel
@@ -135,12 +135,12 @@ CREATE AppDialog AS RForm
     Caption = ""
   END CREATE
   CREATE AppOk AS RButton
-    Left = 254: Top = 410: Width = 84: Caption = "OK"
+    Left = 254: Top = 410: Width = 84: Caption = TR$("OK")
     Default = 1
     OnClick = AppSettingsOk
   END CREATE
   CREATE AppNo AS RButton
-    Left = 346: Top = 410: Width = 84: Caption = "Cancel"
+    Left = 346: Top = 410: Width = 84: Caption = TR$("Cancel")
     Cancel = 1
     OnClick = AppSettingsCancel
   END CREATE
@@ -210,9 +210,9 @@ END SUB
 ' (what the Targets choice means, under it)
 SUB AppTargetsChanged
   SELECT CASE AppTargets.ItemIndex
-    CASE 1: AppTargetsNote.Caption = "In a browser. Problems notes what works on the desktop only."
-    CASE 2: AppTargetsNote.Caption = "On the desktop and in a browser. Problems notes what works on one of them only."
-    CASE ELSE: AppTargetsNote.Caption = "Native builds and the interpreter. What works on the desktop only isn't noted."
+    CASE 1: AppTargetsNote.Caption = TR$("In a browser. Problems notes what works on the desktop only.")
+    CASE 2: AppTargetsNote.Caption = TR$("On the desktop and in a browser. Problems notes what works on one of them only.")
+    CASE ELSE: AppTargetsNote.Caption = TR$("Native builds and the interpreter. What works on the desktop only isn't noted.")
   END SELECT
 END SUB
 
@@ -228,9 +228,9 @@ SUB ShowAppIcon
     Proj.Icon = ""
     png = Proj.IconPreview(128)
   ELSEIF AppIconEdit.Text = "" THEN
-    AppIconNote.Caption = "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
+    AppIconNote.Caption = TR$("RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own.")
   ELSE
-    AppIconNote.Caption = "The app's icon, made into every size each system shows."
+    AppIconNote.Caption = TR$("The app's icon, made into every size each system shows.")
   END IF
   Proj.Icon = keep
   IF png <> "" THEN
@@ -250,16 +250,16 @@ END FUNCTION
 SUB AppBuildChanged
   AppKeepRust.Enabled = (AppKind.ItemIndex = 0)
   IF AppKind.ItemIndex = 0 AND AppRustOk = 0 THEN
-    AppKindNote.Caption = "Rust is free: Build Native App offers to install it. Interpreted needs none."
+    AppKindNote.Caption = TR$("Rust is free: Build Native App offers to install it. Interpreted needs none.")
   ELSE
-    AppKindNote.Caption = "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
+    AppKindNote.Caption = TR$("A release build: optimized, what you ship. Run (F5) runs the program to debug it.")
   END IF
   IF AppKind.ItemIndex = 1 THEN
-    AppKeepNote.Caption = "An interpreted build has no Rust: the app runs the program's bytecode."
+    AppKeepNote.Caption = TR$("An interpreted build has no Rust: the app runs the program's bytecode.")
   ELSEIF AppKeepRust.Checked THEN
-    AppKeepNote.Caption = "Left in " + OutputShown + "/" + BaseName(ProjectMain) + "-rust-source, beside the app, to read."
+    AppKeepNote.Caption = TR$("Left in {path}, beside the app, to read.", "path", OutputShown + "/" + BaseName(ProjectMain) + "-rust-source")
   ELSE
-    AppKeepNote.Caption = "Off: the Rust RapidR generates is deleted after the build."
+    AppKeepNote.Caption = TR$("Off: the Rust RapidR generates is deleted after the build.")
   END IF
 END SUB
 
@@ -275,11 +275,15 @@ SUB ShowAppSettings
   AppKind.Clear
   AppRustOk = Proj.RustReady
   IF AppRustOk THEN
-    AppKind.AddItems "Compiled (native: needs Rust)", "Interpreted (no Rust needed)"
+    AppKind.AddItems TR$("Compiled (native: needs Rust)"), TR$("Interpreted (no Rust needed)")
   ELSE
-    AppKind.AddItems "Compiled (Rust not installed)", "Interpreted (no Rust needed)"
+    AppKind.AddItems TR$("Compiled (Rust not installed)"), TR$("Interpreted (no Rust needed)")
   END IF
   IF Proj.BuildKind = "interpreted" THEN AppKind.ItemIndex = 1 ELSE AppKind.ItemIndex = 0
+  ' (the CREATE block's list was made before the language was set: made again
+  ' here, as the build's is)
+  AppTargets.Clear
+  AppTargets.AddItems TR$("Desktop"), TR$("Web"), TR$("Desktop and web")
   SELECT CASE Proj.Targets
     CASE "web": AppTargets.ItemIndex = 1
     CASE "both": AppTargets.ItemIndex = 2
@@ -296,8 +300,8 @@ SUB ShowAppSettings
 END SUB
 
 SUB AppIconBrowse
-  OpenDlg.Caption = "The App's Icon"
-  OpenDlg.Filter = "Icons and pictures (*.icns;*.ico;*.png;*.svg)|*.icns;*.ico;*.png;*.svg|All files|*.*"
+  OpenDlg.Caption = TR$("The App's Icon")
+  OpenDlg.Filter = TR$("Icons and pictures") + " (*.icns;*.ico;*.png;*.svg)|*.icns;*.ico;*.png;*.svg|" + TR$("All files") + "|*.*"
   IF OpenDlg.Execute THEN
     AppIconEdit.Text = OpenDlg.FileName
     ShowAppIcon
@@ -310,7 +314,7 @@ SUB AppIconDefault
 END SUB
 
 SUB AppOutputBrowse
-  OpenDlg.Caption = "The Output Folder"
+  OpenDlg.Caption = TR$("The Output Folder")
   OpenDlg.PickFolder = 1
   IF OpenDlg.Execute THEN AppOutputEdit.Text = OpenDlg.FileName
   OpenDlg.PickFolder = 0
@@ -375,10 +379,10 @@ SUB BuildProject(Kind AS STRING)
       EXIT SUB
     END IF
   END IF
-  SaveAll
+  IF SaveAllOk = 0 THEN EXIT SUB
   AnalyzeActive
   IF Lang.ErrorCount > 0 THEN
-    OutputLine "Build: " + LTRIM$(STR$(Lang.ErrorCount)) + " errors (see Problems)."
+    OutputLine TRN$("Build: {n} error (see Problems).", "Build: {n} errors (see Problems).", Lang.ErrorCount)
     SetState "error", "Can't build: the program has errors"
     OutputBox.Page = "problems"
     Dock.FocusPane("outputbox")
@@ -390,10 +394,10 @@ SUB BuildProject(Kind AS STRING)
   BuildMode = Kind
   IF Proj.Build(Kind) THEN
     BuildStarted = TIMER
-    SetState "building", "Building " + FileTitle(ProjectMain) + "..."
+    SetState "building", TR$("Building {file}...", "file", FileTitle(ProjectMain))
   ELSE
-    BuildLine CHR$(27) + "[31mCan't build: " + Proj.Error + CHR$(27) + "[0m"
-    SetState "error", "Can't build " + FileTitle(ProjectMain)
+    BuildLine CHR$(27) + "[31m" + TR$("Can't build: {error}", "error", Proj.Error) + CHR$(27) + "[0m"
+    SetState "error", TR$("Can't build {file}", "file", FileTitle(ProjectMain))
   END IF
 END SUB
 
@@ -424,10 +428,20 @@ SUB InstallRust
     BuildStarted = TIMER
     SetState "building", "Installing Rust..."
   ELSE
-    BuildLine CHR$(27) + "[31mCan't install Rust: " + Proj.Error + CHR$(27) + "[0m"
+    BuildLine CHR$(27) + "[31m" + TR$("Can't install Rust: {error}", "error", Proj.Error) + CHR$(27) + "[0m"
     SetState "error", "Can't install Rust"
   END IF
 END SUB
+
+' (BuildMode as the build's log says it)
+FUNCTION BuildModeWord AS STRING
+  SELECT CASE BuildMode
+    CASE "native": Result = TR$("native")
+    CASE "interpreted": Result = TR$("interpreted")
+    CASE "web": Result = TR$("web")
+    CASE ELSE: Result = BuildMode
+  END SELECT
+END FUNCTION
 
 SUB BuildDone(Code AS INTEGER, Built AS STRING)
   DIM took AS STRING
@@ -435,10 +449,10 @@ SUB BuildDone(Code AS INTEGER, Built AS STRING)
   IF BuildMode = "setup" THEN
     BuildLine ""
     IF Code = 0 THEN
-      BuildLine CHR$(27) + "[32m" + "✓ Rust is installed (" + took + " s): Run > Build Native App is ready." + CHR$(27) + "[0m"
+      BuildLine CHR$(27) + "[32m" + TR$("✓ Rust is installed ({seconds} s): Run > Build Native App is ready.", "seconds", took) + CHR$(27) + "[0m"
       SetState "stopped", "Rust is installed"
     ELSE
-      BuildLine CHR$(27) + "[31m" + "✗ Installing Rust failed (exit code " + LTRIM$(STR$(Code)) + ") after " + took + " s: see above. `rapidr setup` in a terminal asks the same questions." + CHR$(27) + "[0m"
+      BuildLine CHR$(27) + "[31m" + TR$("✗ Installing Rust failed (exit code {code}) after {seconds} s: see above. `rapidr setup` in a terminal asks the same questions.", "code", Code, "seconds", took) + CHR$(27) + "[0m"
       SetState "error", "Installing Rust failed"
     END IF
     EXIT SUB
@@ -447,27 +461,27 @@ SUB BuildDone(Code AS INTEGER, Built AS STRING)
     ' (a web app: the .zip any web host serves, unzipped)
     BuildLine ""
     IF Proj.FileManager = "" THEN
-      BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " — unzip on any web host" + CHR$(27) + "[0m"
+      BuildLine CHR$(27) + "[32m" + TR$("✓ Built {file} — unzip on any web host", "file", FileTitle(Built)) + CHR$(27) + "[0m"
     ELSE
-      BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " — unzip on any web host" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
+      BuildLine CHR$(27) + "[32m" + TR$("✓ Built {file} — unzip on any web host", "file", FileTitle(Built)) + CHR$(27) + "[0m   " + Hyperlink(TR$("Reveal in {manager}", "manager", Proj.FileManager), "reveal:" + Built)
     END IF
-    SetState "stopped", "Built " + FileTitle(Built)
+    SetState "stopped", TR$("Built {file}", "file", FileTitle(Built))
   ELSEIF Code = 0 THEN
     BuildLine ""
-    BuildLine CHR$(27) + "[32m" + "✓ Built " + FileTitle(Built) + " (" + BuildMode + ") in " + took + " s" + CHR$(27) + "[0m   " + Hyperlink("Reveal in " + Proj.FileManager, "reveal:" + Built)
-    SetState "stopped", "Built " + FileTitle(Built)
+    BuildLine CHR$(27) + "[32m" + TR$("✓ Built {file} ({mode}) in {seconds} s", "file", FileTitle(Built), "mode", BuildModeWord, "seconds", took) + CHR$(27) + "[0m   " + Hyperlink(TR$("Reveal in {manager}", "manager", Proj.FileManager), "reveal:" + Built)
+    SetState "stopped", TR$("Built {file}", "file", FileTitle(Built))
   ELSE
     BuildLine ""
-    BuildLine CHR$(27) + "[31m" + "✗ The build failed (exit code " + LTRIM$(STR$(Code)) + ") after " + took + " s: see above." + CHR$(27) + "[0m"
+    BuildLine CHR$(27) + "[31m" + TR$("✗ The build failed (exit code {code}) after {seconds} s: see above.", "code", Code, "seconds", took) + CHR$(27) + "[0m"
     SetState "error", "The build failed"
   END IF
 END SUB
 
 SUB RevealBuild
   IF Proj.BuiltPath = "" THEN
-    OutputLine "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
+    OutputLine TR$("Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app.")
   ELSEIF Proj.Reveal = 0 THEN
-    OutputLine "Can't show it: " + Proj.Error
+    OutputLine TR$("Can't show it: {error}", "error", Proj.Error)
   END IF
 END SUB
 
@@ -475,3 +489,4 @@ SUB SetUpBuild
   Proj.OnBuildOutput = BuildOutput
   Proj.OnBuildDone = BuildDone
 END SUB
+

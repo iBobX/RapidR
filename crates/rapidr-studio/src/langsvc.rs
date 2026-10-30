@@ -75,9 +75,9 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Service) -> R) -> R {
 pub fn get(name: &str, prop: &str) -> Option<Value> {
     with(name, |s| {
         Some(match prop {
-            "compatmode" => Value::String(if s.rapidq { "rapidq".into() } else { String::new() }),
+            "compatmode" => Value::String(if s.rapidq { "rapidq".into() } else { String::new().into() }),
             "errorcount" => Value::Integer(s.errors),
-            "project" => Value::String(s.project.clone()),
+            "project" => Value::String(s.project.clone().into()),
             "targets" => Value::String(s.targets.name().into()),
             // (the build's own: the workspace's version, as Help > About says it)
             "version" => Value::String(env!("CARGO_PKG_VERSION").into()),
@@ -173,6 +173,12 @@ fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut Stri
 
 pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let file = PathBuf::from(slashes(&text_arg(args, 0)));
+    // (the program's language — RapidR Studio's —: the registry's docs in
+    // hovers and help, the compiler's messages in Problems)
+    let lang = rapidr_value::i18n::language();
+    if rapidr_lang::docs_i18n::doc_language() != lang {
+        rapidr_lang::docs_i18n::set_doc_language(&lang);
+    }
     Some(match method {
         "update" => {
             let text = text_arg(args, 1);
@@ -195,7 +201,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             Value::Null
         }
         // (the Help pane: Help(Word, [OfType]) — crate::help)
-        "help" => Value::String(crate::help::text(&text_arg(args, 0), &text_arg(args, 1))),
+        "help" => Value::String(crate::help::text(&text_arg(args, 0), &text_arg(args, 1)).into()),
         // (HelpPage(Word, [OfType], [File], [Line], [Column], [CanInsert]):
         // the pane's page — the program's own name at the caret first)
         "helppage" => {
@@ -227,7 +233,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                     }
                 });
             }
-            Value::String(crate::help::page(&ask))
+            Value::String(crate::help::page(&ask).into())
         }
         // (HelpFind(Query, [File]): what Query may mean, a line each: name,
         // what it is — the program's own names too)
@@ -238,7 +244,7 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             for (n, what) in crate::help::suggest(&text_arg(args, 0), &program, 12) {
                 out.push_str(&format!("{n}\t{what}\n"));
             }
-            Value::String(out)
+            Value::String(out.into())
         }
         "outline" => Value::String(with(name, |s| {
             let a = s.analysis();
@@ -246,7 +252,22 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             let mut out = String::new();
             outline_lines(&a.outline(&file), &text, 0, &mut out);
             out
-        })),
+        }).into()),
+        // ManualPage(Page): a page of the manual in Studio's language
+        // (docs/manual/<language>/<page>.md), else in English with a note
+        // that says so; "" for no such page
+        "manualpage" => {
+            let page = text_arg(args, 0);
+            Value::String(match crate::manual_search::page_in(&page, &lang) {
+                Some((text, true)) => text.to_string().into(),
+                Some((text, false)) if !lang.starts_with("en") => {
+                    let note = rapidr_value::i18n::tr_ui("Not translated yet: this page is in English.");
+                    format!("> *{note}*\n\n{text}").into()
+                }
+                Some((text, false)) => text.to_string().into(),
+                None => String::new().into(),
+            })
+        }
         "diagnostics" | "projectdiagnostics" => Value::String(with(name, |s| {
             let project = (method == "projectdiagnostics").then(|| PathBuf::from(&s.project)).filter(|p| !p.as_os_str().is_empty());
             let a = s.analysis();
@@ -270,11 +291,16 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 if severity == "error" {
                     errors += 1;
                 }
-                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&d.message), slashes(&d.file.to_string_lossy())));
+                // (the compiler's words in Studio's language: RQ… / RR… messages
+                // a catalog translates; the rest as the compiler says them —
+                // and the hint for a habit from another language after it)
+                let message = rapidr_diagnostics::messages::localize(&d.message, &lang);
+                let message = match d.hint { Some(h) => format!("{message} — {}: {}", rapidr_diagnostics::messages::hint_label(&lang), h.text_in(&lang)), None => message };
+                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&message), slashes(&d.file.to_string_lossy())));
             }
             s.errors = errors;
             out
-        })),
+        }).into()),
         _ => return None,
     })
 }
@@ -345,7 +371,7 @@ mod tests {
         let f = Value::String("/w/helpdemo.rr".into());
         let call = |m: &str, args: &[Value]| call("ls-help", m, args).unwrap().to_string_val();
         call("update", &[f.clone(), Value::String(src.into())]);
-        let ask = |word: &str, line: i64, col: i64| call("helppage", &[Value::String(word.into()), Value::String(String::new()), f.clone(), Value::Integer(line), Value::Integer(col), Value::Integer(1)]);
+        let ask = |word: &str, line: i64, col: i64| call("helppage", &[Value::String(word.into()), Value::String(String::new().into()), f.clone(), Value::Integer(line), Value::Integer(col), Value::Integer(1)]);
         // (the caret just after PickedFont, on its use: line 8)
         let t = ask("PickedFont", 8, 13);
         let (meta, md) = t.split_once('\n').unwrap();

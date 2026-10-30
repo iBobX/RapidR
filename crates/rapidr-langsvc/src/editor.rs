@@ -216,11 +216,11 @@ impl ed::LanguageService for EditorService {
             .diagnostics(&root)
             .into_iter()
             .map(|d| ed::Diagnostic {
+                message: d.one_line(),
                 file: name(&d.file),
                 start: d.start,
                 end: d.end,
                 severity: severity(d.severity),
-                message: d.message,
                 code: d.code.unwrap_or_default(),
             })
             .collect()

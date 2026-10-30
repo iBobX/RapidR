@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>Record the window</title>
+  <path d="M6 8H18A3 3 0 0 1 21 11V21A3 3 0 0 1 18 24H6A3 3 0 0 1 3 21V11A3 3 0 0 1 6 8Z" stroke="currentColor"/>
+  <path d="M21 14L29 10V22L21 18" stroke="currentColor"/>
+  <circle cx="12" cy="16" r="3" fill="currentColor"/>
+</svg>

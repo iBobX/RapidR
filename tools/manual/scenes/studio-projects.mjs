@@ -77,6 +77,20 @@ export const scenes = [
     delay: 6,
     crop: [0, 68, 1280, 502],
   },
+  // Studio keeps your work: something going wrong in Studio's own code (the
+  // tests' step safety:fail — a file written into a folder that isn't
+  // there) says so in a dialog, the unsaved change kept
+  {
+    name: "studio-error",
+    setup: (work, root) => {
+      mkdirSync(join(work, "Projects/Hello"), { recursive: true });
+      cpSync(join(root, "examples/gui/hello_form.rr"), join(work, "Projects/Hello/hello_form.rr"));
+      return { open: "Projects/Hello/hello_form.rr", cwd: work, env: { HOME: work, RAPIDR_STUDIO_DATA: join(work, "studio") } };
+    },
+    do: "view:Code,focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:fail,wait,wait",
+    delay: 7,
+    window: 2,
+  },
   // (S5) Project > Project Options: Targets, Web picked (what it means under it)
   {
     name: "targets",

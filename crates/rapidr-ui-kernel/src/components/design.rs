@@ -49,6 +49,7 @@ use std::collections::HashMap;
 
 use rapidr_value::datascience::link;
 use rapidr_value::designer::{FormDesign, Item};
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{node_id, part_id, AccessNode, Action, Role, PART_ITEM, PART_STATUS};
 use rapidr_value::objects::design::{DesignEvent, DesignSurface, TrayItem, TRAY_ICON};
 use rapidr_value::objects::font::Font;
@@ -330,7 +331,7 @@ fn value_of(design: &FormDesign, text: &str) -> Option<Value> {
     match design.read_value(text) {
         PropValue::Number(f) if f.fract() == 0.0 && f.abs() < 9.0e15 => Some(Value::Integer(f as i64)),
         PropValue::Number(f) => Some(Value::Double(f)),
-        PropValue::Str(s) => Some(Value::String(s)),
+        PropValue::Str(s) => Some(Value::String(s.into())),
         _ => None,
     }
 }
@@ -808,7 +809,7 @@ impl ComponentKind for Design {
             // (and offers it: "Add a form")
             if let Some(b) = with_design(cx.id, |d| d.add_form_button()).flatten() {
                 p.round(b, t.radius.max(4.0), Some(t.accent), None, 0.0);
-                p.text(b, "Add a Form", &font, t.window, Place::Center);
+                p.text(b, &tr_ui("Add a Form"), &font, t.window, Place::Center);
             }
             cx.ui.design = Some(view);
             return;

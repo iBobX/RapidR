@@ -37,6 +37,7 @@
 use std::cell::RefCell;
 use std::ops::Range;
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::ide_theme::{self, ValueColors};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Place, Rect};
@@ -128,30 +129,30 @@ impl ValueKind {
     }
 
     /// Its name, read before the value ("whole number 2").
-    pub fn words(self) -> &'static str {
+    pub fn words(self) -> String {
         match self {
-            ValueKind::Integer => "whole number",
-            ValueKind::Decimal => "decimal number",
-            ValueKind::Text => "text",
-            ValueKind::Boolean => "true or false",
-            ValueKind::Array => "array",
-            ValueKind::Record => "record",
-            ValueKind::Component => "component",
-            ValueKind::Constant => "constant",
-            ValueKind::Color => "colour",
-            ValueKind::Handle => "handle",
-            ValueKind::Empty => "empty",
-            ValueKind::Row => "row",
-            ValueKind::Include => "included names",
-            ValueKind::Components => "components",
-            ValueKind::More => "more",
-            ValueKind::Locals => "locals",
-            ValueKind::Globals => "globals",
-            ValueKind::Watch => "watch",
-            ValueKind::CallStack => "call stack",
-            ValueKind::Breakpoint => "breakpoint",
-            ValueKind::Frame => "call",
-            ValueKind::CurrentFrame => "current call",
+            ValueKind::Integer => tr_ui("whole number"),
+            ValueKind::Decimal => tr_ui("decimal number"),
+            ValueKind::Text => tr_ui("text"),
+            ValueKind::Boolean => tr_ui("true or false"),
+            ValueKind::Array => tr_ui("array"),
+            ValueKind::Record => tr_ui("record"),
+            ValueKind::Component => tr_ui("component"),
+            ValueKind::Constant => tr_ui("constant"),
+            ValueKind::Color => tr_ui("colour"),
+            ValueKind::Handle => tr_ui("handle"),
+            ValueKind::Empty => tr_ui("empty"),
+            ValueKind::Row => tr_ui("row"),
+            ValueKind::Include => tr_ui("included names"),
+            ValueKind::Components => tr_ui("components"),
+            ValueKind::More => tr_ui("more"),
+            ValueKind::Locals => tr_ui("locals"),
+            ValueKind::Globals => tr_ui("globals"),
+            ValueKind::Watch => tr_ui("watch"),
+            ValueKind::CallStack => tr_ui("call stack"),
+            ValueKind::Breakpoint => tr_ui("breakpoint"),
+            ValueKind::Frame => tr_ui("call"),
+            ValueKind::CurrentFrame => tr_ui("current call"),
         }
     }
 
@@ -368,8 +369,21 @@ fn parse_whole(s: &str) -> Option<i64> {
 }
 
 /// "1 item", "65 items".
-fn count(n: u32, one: &str, many: &str) -> String {
-    format!("{n} {}", if n == 1 { one } else { many })
+fn items(n: u32) -> String {
+    if n == 1 {
+        tr_ui("1 item")
+    } else {
+        tr_ui_fill("{count} items", &[("count", &n.to_string())])
+    }
+}
+
+/// "1 field", "3 fields".
+fn fields(n: u32) -> String {
+    if n == 1 {
+        tr_ui("1 field")
+    } else {
+        tr_ui_fill("{count} fields", &[("count", &n.to_string())])
+    }
 }
 
 struct Builder {
@@ -417,22 +431,22 @@ impl ValueRow {
                 let on = (v.hint == Hint::Bool).then(|| parse_whole(text).is_some_and(|n| n != 0));
                 match on {
                     Some(on) => {
-                        let word = if on { "on" } else { "off" };
+                        let word = if on { tr_ui("on") } else { tr_ui("off") };
                         b.push(" · ", Part::Punctuation);
-                        b.push(word, Part::Dim);
+                        b.push(&word, Part::Dim);
                         format!("{text}, {word}")
                     }
-                    None => format!("{} {text}", kind.words()),
+                    None => tr_ui_fill("{kind} {value}", &[("kind", &kind.words()), ("value", text)]),
                 }
             }
             ValueKind::Text => {
                 let inner = text.strip_prefix('"').and_then(|t| t.strip_suffix('"')).unwrap_or(text);
                 if inner.is_empty() {
                     b.push("\"\"", Part::Dim);
-                    "empty text".to_string()
+                    tr_ui("empty text")
                 } else {
                     b.push(text, Part::String);
-                    format!("text {inner}")
+                    tr_ui_fill("text {value}", &[("value", inner)])
                 }
             }
             ValueKind::Boolean => {
@@ -443,18 +457,18 @@ impl ValueRow {
                 b.push(text, Part::Type);
                 if v.count > 0 {
                     b.push(" · ", Part::Punctuation);
-                    b.push(&count(v.count, "item", "items"), Part::Dim);
+                    b.push(&items(v.count), Part::Dim);
                 }
                 let bounds = text.strip_prefix("Array(").and_then(|t| t.strip_suffix(')')).unwrap_or(text).replace(" TO ", " to ");
-                format!("array {bounds}, {}", count(v.count, "item", "items"))
+                tr_ui_fill("array {bounds}, {count}", &[("bounds", &bounds), ("count", &items(v.count))])
             }
             ValueKind::Record => {
                 b.push(text, Part::Type);
                 if v.count > 0 {
                     b.push(" · ", Part::Punctuation);
-                    b.push(&count(v.count, "field", "fields"), Part::Dim);
+                    b.push(&fields(v.count), Part::Dim);
                 }
-                format!("record {text}, {}", count(v.count, "field", "fields"))
+                tr_ui_fill("record {name}, {count}", &[("name", text), ("count", &fields(v.count))])
             }
             ValueKind::Component => {
                 // `"Button1" (RButton)`, `"df" (RDataFrame: 3 rows × 2 columns)`
@@ -482,7 +496,7 @@ impl ValueRow {
                     b.push(text, Part::Dim);
                     b.push(")", Part::Dim);
                 }
-                format!("constant {c}")
+                tr_ui_fill("constant {name}", &[("name", c)])
             }
             ValueKind::Color => {
                 let n = parse_whole(text).unwrap_or(0);
@@ -492,30 +506,30 @@ impl ValueRow {
                         match color_name(n) {
                             Some(c) => {
                                 b.push(c, Part::Constant);
-                                format!("colour {c}")
+                                tr_ui_fill("colour {name}", &[("name", c)])
                             }
                             None => {
                                 b.push(&color_hex(n), Part::Number);
                                 match s {
-                                    Swatch::Bgr(bgr) => format!("colour red {}, green {}, blue {}", bgr & 0xFF, (bgr >> 8) & 0xFF, (bgr >> 16) & 0xFF),
-                                    Swatch::System(i) => format!("colour, the system's colour {i}"),
+                                    Swatch::Bgr(bgr) => tr_ui_fill("colour red {red}, green {green}, blue {blue}", &[("red", &(bgr & 0xFF).to_string()), ("green", &((bgr >> 8) & 0xFF).to_string()), ("blue", &((bgr >> 16) & 0xFF).to_string())]),
+                                    Swatch::System(i) => tr_ui_fill("colour, the system's colour {number}", &[("number", &i.to_string())]),
                                 }
                             }
                         }
                     }
                     None => {
                         b.push(text, Part::Number);
-                        format!("whole number {text}")
+                        tr_ui_fill("whole number {value}", &[("value", text)])
                     }
                 }
             }
             ValueKind::Empty => {
-                b.push("Empty", Part::Dim);
-                "empty".to_string()
+                b.push(&tr_ui("Empty"), Part::Dim);
+                tr_ui("empty")
             }
             ValueKind::Row => {
                 b.push(text, Part::Dim);
-                format!("row, {text}")
+                tr_ui_fill("row, {value}", &[("value", text)])
             }
             ValueKind::Include | ValueKind::Components => {
                 b.push(text, Part::Dim);
@@ -537,7 +551,8 @@ impl ValueRow {
             _ if pairs => {
                 access.push_str(name);
                 if v.result {
-                    access.push_str(", result");
+                    access.push_str(", ");
+                    access.push_str(&tr_ui("result"));
                 }
                 access.push_str(", ");
                 access.push_str(&said);
@@ -545,7 +560,8 @@ impl ValueRow {
             _ => access.push_str(&said),
         }
         if v.changed {
-            access.push_str(", changed");
+            access.push_str(", ");
+            access.push_str(&tr_ui("changed"));
         }
         let icon = if v.result {
             rapidr_icons::get("debug/result")
@@ -600,12 +616,12 @@ impl ValueRow {
     /// conditional breakpoint".
     pub fn breakpoint(title: &str, state: &str) -> ValueRow {
         let (marker, words) = match state.to_ascii_lowercase().as_str() {
-            "off" | "disabled" => ("breakpoint-disabled", "breakpoint, off"),
-            "unverified" => ("breakpoint-unverified", "breakpoint, not bound to code yet"),
-            "conditional" => ("breakpoint-conditional", "conditional breakpoint"),
-            "hitcount" => ("breakpoint-hit-count", "breakpoint with a hit count"),
-            "log" => ("logpoint", "log point"),
-            _ => ("breakpoint", "breakpoint"),
+            "off" | "disabled" => ("breakpoint-disabled", tr_ui("breakpoint, off")),
+            "unverified" => ("breakpoint-unverified", tr_ui("breakpoint, not bound to code yet")),
+            "conditional" => ("breakpoint-conditional", tr_ui("conditional breakpoint")),
+            "hitcount" => ("breakpoint-hit-count", tr_ui("breakpoint with a hit count")),
+            "log" => ("logpoint", tr_ui("log point")),
+            _ => ("breakpoint", tr_ui("breakpoint")),
         };
         let mut row = ValueRow::section(ValueKind::Breakpoint, title);
         row.icon = rapidr_icons::marker(marker).or(row.icon);
@@ -659,7 +675,7 @@ impl ValueRow {
     }
 
     /// Its kind in words (the accessible description).
-    pub fn description(&self) -> &'static str {
+    pub fn description(&self) -> String {
         self.kind.words()
     }
 

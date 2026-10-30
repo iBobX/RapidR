@@ -22,6 +22,7 @@ use std::sync::Arc;
 use rapidr_value::color_dialog::{self as cd, layout as cl, State as ColorState};
 use rapidr_value::dialogs::{icon_shapes, message_layout, MsgIcon};
 use rapidr_value::font_dialog as fd;
+use rapidr_value::i18n::tr_ui;
 use rapidr_value::objects::a11y::{node_id, AccessNode, Role};
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::Op;
@@ -40,6 +41,30 @@ pub const PREFIX: &str = "rapidr:";
 /// Whether `id` is (a component of) a kernel-drawn dialog.
 pub fn is_dialog(id: &str) -> bool {
     id.len() >= PREFIX.len() && id[..PREFIX.len()].eq_ignore_ascii_case(PREFIX)
+}
+
+/// A message box's form property holding what Ctrl+C copies.
+const COPY_PROP: &str = "__copytext";
+
+/// What a message box copies on Ctrl+C (⌘C on a Mac, Ctrl+Insert), as
+/// Windows' own message boxes give it: the title, the text and the
+/// buttons between dashed lines.
+pub fn message_copy(title: &str, text: &str, labels: &[&str]) -> String {
+    let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+    let rule = "---------------------------";
+    let text = text.split('\0').next().unwrap_or("").replace("\r\n", "\n").replace('\r', "\n").replace('\n', nl);
+    let buttons: String = labels.iter().map(|l| format!("{}   ", l.replace('&', ""))).collect();
+    [rule, title, rule, &text, rule, &buttons, rule].join(nl) + nl
+}
+
+/// What a dialog form (`form`) copies on Ctrl+C: a message box's text
+/// (`None`: another dialog, or not one of the kernel's).
+pub fn copy_text(store: &dyn Store, form: &str) -> Option<String> {
+    if !is_dialog(form) {
+        return None;
+    }
+    let t = store::string(store, form, COPY_PROP);
+    (!t.is_empty()).then_some(t)
 }
 
 /// What a dialog answered when it closed.
@@ -112,7 +137,7 @@ impl Dialog {
         // in the classic look, Inter in RapidR's — a dialog is the
         // system's, not the program's)
         let font = rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current());
-        store.set(&id, "fontname", Value::String(font.name));
+        store.set(&id, "fontname", Value::String(font.name.into()));
         store.set(&id, "fontsize", Value::Integer(font.size));
         Dialog { id, title: title.to_string(), size: (0, 0), store, kind, applied: None }
     }
@@ -155,7 +180,7 @@ impl Dialog {
         let id = self.id.clone();
         self.set(&id, "clientwidth", Value::Integer(w));
         self.set(&id, "clientheight", Value::Integer(h));
-        self.set(&id, "caption", Value::String(self.title.clone()));
+        self.set(&id, "caption", Value::String(self.title.clone().into()));
     }
 
     /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `icon` (if any) at the top
@@ -181,15 +206,19 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w.max(1) + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         for (i, (label, rect)) in labels.iter().zip(&layout.buttons).enumerate() {
             let id = d.put(&format!("b{i}"), "RBUTTON", *rect);
-            d.set(&id, "caption", Value::String(button_caption(label)));
+            d.set(&id, "caption", Value::String(button_caption(label).into()));
             if i == 0 {
                 d.set(&id, "default", Value::Integer(-1));
             }
         }
+        // (Ctrl+C — ⌘C — copies the box as Windows' message boxes do:
+        // `copy_text`)
+        let id = d.id.clone();
+        d.set(&id, COPY_PROP, Value::String(message_copy(title, text, labels).into()));
         d.finish(layout.size.0, layout.size.1);
         d
     }
@@ -220,7 +249,7 @@ impl Dialog {
     /// answers), titled `title` — a message box's layout with the field
     /// under the text.
     pub fn input(n: u64, title: &str, text: &str, initial: &str) -> Dialog {
-        Dialog::prompt(n, title, text, initial, "OK", None)
+        Dialog::prompt(n, title, text, initial, &tr_ui("OK"), None)
     }
 
     /// An input box whose default button is captioned `ok` ("&Save"),
@@ -240,15 +269,15 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         let field = d.put("field", "REDIT", (tx, ty + text_h + GAP, text_w, FIELD_H));
-        d.set(&field, "text", Value::String(initial.to_string()));
+        d.set(&field, "text", Value::String(initial.to_string().into()));
         // (the proposed text selected, as Windows' boxes have it: typing
         // replaces it)
         d.set(&field, "selstart", Value::Integer(0));
         d.set(&field, "sellength", Value::Integer(initial.chars().count() as i64));
-        d.set(&field, "accessiblename", Value::String(lines.join(" ")));
+        d.set(&field, "accessiblename", Value::String(lines.join(" ").into()));
         if let Some(rect) = layout.buttons.first() {
             let id = d.put("ok", "RBUTTON", *rect);
             d.set(&id, "caption", Value::String(ok.into()));
@@ -277,7 +306,7 @@ impl Dialog {
             let id = d.put(part, "RLABEL", rect);
             d.set(&id, "caption", Value::String(text.into()));
         };
-        label(&mut d, "basic", "&Basic colors:", cl::BASIC_LABEL);
+        label(&mut d, "basic", &tr_ui("&Basic colors:"), cl::BASIC_LABEL);
         // (the selection's frame, under the swatches: drawn first)
         let sel = d.put("sel", "RPANEL", (0, 0, 0, 0));
         d.set(&sel, "bevelouter", Value::Integer(0));
@@ -285,17 +314,17 @@ impl Dialog {
         for (i, rgb) in cd::BASIC_COLORS.iter().enumerate() {
             d.swatch(&format!("c{i}"), cd::swap_rb(i64::from(*rgb)), cl::basic(i));
         }
-        label(&mut d, "custom", "&Custom colors:", cl::CUSTOM_LABEL);
+        label(&mut d, "custom", &tr_ui("&Custom colors:"), cl::CUSTOM_LABEL);
         for i in 0..16 {
             d.swatch(&format!("u{i}"), 0, cl::custom(i));
         }
         let define = d.put("define", "RBUTTON", cl::DEFINE);
-        d.set(&define, "caption", Value::String("&Define Custom Colors >>".into()));
+        d.set(&define, "caption", Value::String(tr_ui("&Define Custom Colors >>").into()));
         let id = d.put("ok", "RBUTTON", cl::OK);
-        d.set(&id, "caption", Value::String("OK".into()));
+        d.set(&id, "caption", Value::String(tr_ui("OK").into()));
         d.set(&id, "default", Value::Integer(-1));
         let id = d.put("cancel", "RBUTTON", cl::CANCEL);
-        d.set(&id, "caption", Value::String("Cancel".into()));
+        d.set(&id, "caption", Value::String(tr_ui("Cancel").into()));
         d.set(&id, "cancel", Value::Integer(-1));
         if full {
             d.color_editor();
@@ -313,17 +342,17 @@ impl Dialog {
             self.set(&id, "part", Value::String(part.into()));
         }
         let id = self.put("lpreview", "RLABEL", cl::PREVIEW_LABEL);
-        self.set(&id, "caption", Value::String("Color|S&olid".into()));
+        self.set(&id, "caption", Value::String(tr_ui("Color|S&olid").into()));
         self.set(&id, "alignment", Value::Integer(2));
         for (i, caption) in cd::FIELDS.iter().enumerate() {
             let (label, edit) = cl::field(i);
             let id = self.put(&format!("l{i}"), "RLABEL", label);
-            self.set(&id, "caption", Value::String(caption.to_string()));
+            self.set(&id, "caption", Value::String(caption.to_string().into()));
             let id = self.put(&format!("f{i}"), "REDIT", edit);
             self.set(&id, "maxlength", Value::Integer(3));
         }
         let id = self.put("add", "RBUTTON", cl::ADD);
-        self.set(&id, "caption", Value::String("&Add to Custom Colors".into()));
+        self.set(&id, "caption", Value::String(tr_ui("&Add to Custom Colors").into()));
     }
 
     fn swatch(&mut self, part: &str, bgr: i64, rect: cd::Rect) {
@@ -364,7 +393,7 @@ impl Dialog {
         for (i, v) in state.fields().iter().enumerate() {
             if typing != Some(i) {
                 let id = self.child(&format!("f{i}"));
-                self.set(&id, "text", Value::String(v.to_string()));
+                self.set(&id, "text", Value::String(v.to_string().into()));
             }
         }
     }
@@ -402,12 +431,12 @@ impl Dialog {
             d.set(&id, "caption", Value::String(text.into()));
             id
         };
-        put_caption(&mut d, "lfont", "RLABEL", "&Font:", fl::FONT_LABEL);
-        put_caption(&mut d, "lstyle", "RLABEL", "Font st&yle:", fl::STYLE_LABEL);
-        put_caption(&mut d, "lsize", "RLABEL", "&Size:", fl::SIZE_LABEL);
+        put_caption(&mut d, "lfont", "RLABEL", &tr_ui("&Font:"), fl::FONT_LABEL);
+        put_caption(&mut d, "lstyle", "RLABEL", &tr_ui("Font st&yle:"), fl::STYLE_LABEL);
+        put_caption(&mut d, "lsize", "RLABEL", &tr_ui("&Size:"), fl::SIZE_LABEL);
         let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
             let id = d.put(part, kind, rect);
-            let args: Vec<Value> = items.into_iter().map(Value::String).collect();
+            let args: Vec<Value> = items.into_iter().map(Value::from).collect();
             d.store.call(&id, "additems", &args);
             id
         };
@@ -415,27 +444,27 @@ impl Dialog {
         list(&mut d, "style", "RLISTBOX", fl::STYLE_LIST, fd::STYLES.iter().map(|s| s.to_string()).collect());
         list(&mut d, "size", "RLISTBOX", fl::SIZE_LIST, sizes.iter().map(|s| s.to_string()).collect());
         if effects {
-            put_caption(&mut d, "effects", "RGROUPBOX", "Effects", fl::EFFECTS);
-            put_caption(&mut d, "strike", "RCHECKBOX", "Stri&keout", fl::STRIKEOUT);
-            put_caption(&mut d, "under", "RCHECKBOX", "&Underline", fl::UNDERLINE);
-            put_caption(&mut d, "lcolor", "RLABEL", "&Color:", fl::COLOR_LABEL);
+            put_caption(&mut d, "effects", "RGROUPBOX", &tr_ui("Effects"), fl::EFFECTS);
+            put_caption(&mut d, "strike", "RCHECKBOX", &tr_ui("Stri&keout"), fl::STRIKEOUT);
+            put_caption(&mut d, "under", "RCHECKBOX", &tr_ui("&Underline"), fl::UNDERLINE);
+            put_caption(&mut d, "lcolor", "RLABEL", &tr_ui("&Color:"), fl::COLOR_LABEL);
             let id = list(&mut d, "color", "RCOMBOBOX", fl::COLOR_LIST, colors.into_iter().map(|(n, _)| n).collect());
             // (csDropDownList: a pick, no typing)
             d.set(&id, "style", Value::Integer(2));
         }
         let (group, text) = fl::sample(effects);
-        put_caption(&mut d, "group", "RGROUPBOX", "Sample", group);
+        put_caption(&mut d, "group", "RGROUPBOX", &tr_ui("Sample"), group);
         let sample = d.put("sample", "RDLGPART", text);
         d.set(&sample, "part", Value::String("sample".into()));
-        let id = put_caption(&mut d, "ok", "RBUTTON", "OK", fl::OK);
+        let id = put_caption(&mut d, "ok", "RBUTTON", &tr_ui("OK"), fl::OK);
         d.set(&id, "default", Value::Integer(-1));
-        let id = put_caption(&mut d, "cancel", "RBUTTON", "Cancel", fl::CANCEL);
+        let id = put_caption(&mut d, "cancel", "RBUTTON", &tr_ui("Cancel"), fl::CANCEL);
         d.set(&id, "cancel", Value::Integer(-1));
         if apply {
-            put_caption(&mut d, "apply", "RBUTTON", "&Apply", fl::APPLY);
+            put_caption(&mut d, "apply", "RBUTTON", &tr_ui("&Apply"), fl::APPLY);
         }
         if help {
-            let id = put_caption(&mut d, "help", "RBUTTON", "&Help", if apply { fl::HELP } else { fl::APPLY });
+            let id = put_caption(&mut d, "help", "RBUTTON", &tr_ui("&Help"), if apply { fl::HELP } else { fl::APPLY });
             d.set(&id, "enabled", Value::Integer(0));
         }
         let (w, h) = fl::size(effects);
@@ -771,9 +800,9 @@ impl ComponentKind for Part {
         let mut n = AccessNode::new(node_id(cx.id), Role::Image);
         n.name = match store::string(cx.store, cx.id, "part").as_str() {
             "icon" => MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)).map_or("", MsgIcon::name).to_string(),
-            "spectrum" => "Color matrix".into(),
-            "lum" => "Luminosity".into(),
-            "preview" => "Color|Solid".into(),
+            "spectrum" => tr_ui("Color matrix"),
+            "lum" => tr_ui("Luminosity"),
+            "preview" => tr_ui("Color|Solid"),
             "sample" => fd::SAMPLE.into(),
             _ => String::new(),
         };
@@ -842,6 +871,40 @@ mod tests {
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    /// (COPY-ANYWHERE) Ctrl+C (⌘C, Ctrl+Insert) on a message box copies
+    /// it as Windows' message boxes do — the title, the whole text (not as
+    /// it wraps), the buttons — and leaves the box open; an input box's
+    /// field copies its own selection instead.
+    #[test]
+    fn ctrl_c_copies_a_message_box_as_windows_does() {
+        let mut ts = TextSystem::new();
+        let long = "Can't open data.csv: the file is in use by another program. Close it and try again.";
+        let mut d = Dialog::message(41, "Error", long, &["OK", "Cancel"], None);
+        let mut f = ui(&d);
+        let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+        let want = ["---------------------------", "Error", "---------------------------", long, "---------------------------", "OK   Cancel   ", "---------------------------", ""].join(nl);
+        for mods in [Mods { ctrl: true, ..Mods::NONE }, Mods { command: true, ..Mods::NONE }] {
+            let mut clip = MemClipboard::default();
+            f.key_down(&d.store, &mut ts, 67, "", mods, &mut clip);
+            f.key_up(67, mods);
+            assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+            assert_eq!(answer(&mut d, &mut f), None, "the box stays open");
+        }
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 45, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+        // (a plain C: nothing copied)
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 67, "c", Mods::NONE, &mut clip);
+        assert_eq!(clip.0, None);
+        // (a mnemonic's & isn't copied; Yes / No's are RapidR's)
+        let d2 = Dialog::message(42, "Question", "Save?", &["Yes", "No"], None);
+        assert!(copy_text(&d2.store, &d2.id).unwrap().contains("Yes   No   "));
+        // (an input box isn't copied whole: its field copies its own text)
+        let d3 = Dialog::input(43, "Name", "Your name:", "Robert");
+        assert_eq!(copy_text(&d3.store, &d3.id), None);
     }
 
     #[test]

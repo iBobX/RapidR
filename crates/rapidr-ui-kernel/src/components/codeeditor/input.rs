@@ -363,6 +363,11 @@ fn key_in(x: &mut Ctx, k: &KeyIn, clip: &mut dyn Clipboard) -> bool {
         report_moves(x);
         return r;
     }
+    // (Versions G3) a change shown under its lines: Escape closes it
+    if k.vk == 27 && x.c.peek.is_some() {
+        x.c.peek = None;
+        return true;
+    }
     let m = k.mods;
     let cmd = m.command;
     let ro = x.c.doc.read_only;
@@ -855,6 +860,20 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
                         x.c.fold(line);
                     }
                     "fold"
+                } else if mx >= (g.diff_x - 3) as f64 && x.c.change_base.is_some() && x.ui.changes.at(line) != lang::Change::None {
+                    // (Versions G3) a change mark: what the lines were in the
+                    // last version, under them, with Undo This Change
+                    if x.c.peek.as_ref().is_some_and(|p| p.hunk.holds(line)) {
+                        x.c.peek = None;
+                    } else if x.c.show_change(line) {
+                        let words = match x.c.peek.as_ref().map(|p| p.hunk.kind()) {
+                            Some("added") => "added since the last version",
+                            Some("removed") => "lines removed after it since the last version",
+                            _ => "changed since the last version",
+                        };
+                        x.ui.announce = format!("Line {}: {words}. Escape closes it.", line + 1);
+                    }
+                    "change"
                 } else if mx < (g.glyph_x + 18) as f64 {
                     // (the debugger's arrow: carried to another line — Set
                     // Next Statement — or, let go where it was, a click)
@@ -875,6 +894,8 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
                 report_moves(x);
                 return MouseOut::default();
             }
+            // (a press in the text: a change shown under its lines goes)
+            x.c.peek = None;
             if !inside(g.text, mx, my) {
                 return MouseOut::default();
             }
@@ -1229,7 +1250,7 @@ pub fn tick(cx: &mut Cx) {
                 let _ = x.c.fold_ranges();
                 let text = x.c.doc.text();
                 let (v, m) = (x.c.doc.version(), x.c.doc.is_modified());
-                x.ui.changes.update(text, v, m);
+                x.ui.changes.update_with(text, v, m, x.c.change_base.clone(), x.c.change_base_gen);
             }
         }
         lang::tick(x, at);

@@ -19,7 +19,11 @@ cd "$ROOT"
 
 PROFILE=release
 if [ "${1:-}" = "--debug" ]; then PROFILE=debug; shift; fi
-OUT="${1:-$ROOT/target/RapidR Studio.app}"
+FINAL="${1:-$ROOT/target/RapidR Studio.app}"
+# (built beside the app and swapped in at the end: a Studio already running
+# from the app keeps its files — deleting them under it froze it, its code
+# pages gone, 2026-10-30; the old copy is removed once nothing runs from it)
+OUT="$FINAL.new"
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
 
 echo "== building rapidr and rapidrw ($PROFILE)"
@@ -59,6 +63,18 @@ codesign --force --sign - --entitlements tools/release/macos/rapidr.entitlements
 codesign --force --sign - "$OUT/Contents/MacOS/rapidrw"
 codesign --force --sign - "$OUT"
 codesign --verify --strict "$OUT"
+RUNNING_FINAL=0
+if ps -axo command | grep -F -q -e "$FINAL/Contents/MacOS/" -e "$(cd "$(dirname "$FINAL")" && pwd -P)/$(basename "$FINAL")/Contents/MacOS/"; then RUNNING_FINAL=1; fi
+if [ -d "$FINAL" ]; then mv "$FINAL" "$FINAL.old-$(date +%Y%m%d-%H%M%S)"; fi
+mv "$OUT" "$FINAL"
+for old in "$FINAL".old-*; do
+    [ -d "$old" ] || continue
+    # (a Studio started from the app's path still runs from the copy just moved aside)
+    # (its path doesn't say which copy, so every old copy is kept until it quits)
+    if [ "$RUNNING_FINAL" = 1 ]; then echo "== kept $old: a Studio started from this app still runs (removed by a build after it quits)"; continue; fi
+    real="$(cd "$old" && pwd -P)"
+    if lsof -t "$old/Contents/MacOS/rapidr" "$old/Contents/MacOS/rapidrw" >/dev/null 2>&1 || ps -axo command | grep -F -q -e "$old/Contents/MacOS/" -e "$real/Contents/MacOS/"; then echo "== kept $old: a Studio still runs from it (removed by the next build after it quits)"; else rm -rf "$old"; fi
+done
 # (Finder and the Dock read the new icon and name)
-/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$OUT" || true
-echo "RapidR Studio: $OUT (open it, or double-click it in Finder)"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$FINAL" || true
+echo "RapidR Studio: $FINAL (open it, or double-click it in Finder)"

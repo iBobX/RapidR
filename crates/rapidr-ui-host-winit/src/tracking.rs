@@ -175,14 +175,23 @@ pub(crate) fn with_popup_tick<R>(tick: &mut dyn FnMut(), f: impl FnOnce() -> R) 
         }
     }
     let _restore = Restore(POPUP_TICK.with(|t| t.replace(Some(p))), held());
-    f()
+    // (the person is choosing from the menu: the window answers — the
+    // hang watchdog's "idle", rapidr-crash)
+    rapidr_crash::watchdog::idle();
+    let r = f();
+    rapidr_crash::watchdog::busy();
+    r
 }
 
 /// Runs the tick `f` (no other starts inside it); a panic is stashed and the
 /// held loop ended, so the pump comes back and unwinds there.
 fn ticking(f: impl FnOnce()) {
     TICKING.with(|t| t.set(true));
+    // (the hang watchdog: a tick is work; the held loop around it, the
+    // person using a menu, is waiting — rapidr-crash)
+    rapidr_crash::watchdog::busy();
     let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    rapidr_crash::watchdog::idle();
     TICKING.with(|t| t.set(false));
     if let Err(p) = r {
         PANIC.with(|s| *s.borrow_mut() = Some(p));
@@ -232,6 +241,9 @@ pub(crate) fn fired() {
 
 /// The pump is held from now (`RAPIDR_HOST_LOG` says by what, once a pump).
 fn hold(by: &str) {
+    // (the system's loop runs — a menu tracked, a window sized —: the
+    // window answers; not a hang)
+    rapidr_crash::watchdog::idle();
     if !HELD.with(|h| h.replace(true)) && std::env::var_os("RAPIDR_HOST_LOG").is_some() {
         eprintln!("[rapidr] {by} holds the pump: the program's timers tick from the tracking timer");
     }

@@ -152,12 +152,12 @@ pub fn poll<H: Host>(host: H, mut finished: impl FnMut(&str, &str)) -> bool {
     for (name, news) in web {
         for n in news {
             match n {
-                WebNews::Line(l) => host.fire(&name, "onbuildoutput", &[Value::String(l)]),
+                WebNews::Line(l) => host.fire(&name, "onbuildoutput", &[Value::String(l.into())]),
                 WebNews::Done(code, made) => {
                     WEB_BUILDS.with(|b| b.borrow_mut().remove(&name));
                     let made = if code == 0 { made } else { String::new() };
                     finished(&name, &made);
-                    host.fire(&name, "onbuilddone", &[Value::Integer(i64::from(code)), Value::String(made)]);
+                    host.fire(&name, "onbuilddone", &[Value::Integer(i64::from(code)), Value::String(made.into())]);
                 }
             }
         }
@@ -197,13 +197,13 @@ pub fn poll<H: Host>(host: H, mut finished: impl FnMut(&str, &str)) -> bool {
             (lines, done)
         });
         for l in lines {
-            host.fire(&name, "onbuildoutput", &[Value::String(l)]);
+            host.fire(&name, "onbuildoutput", &[Value::String(l.into())]);
         }
         if let Some(code) = done {
             let made = BUILDS.with(|b| b.borrow_mut().remove(&name)).map(|r| r.made);
             let made = if code == 0 { made.unwrap_or_default() } else { String::new() };
             finished(&name, &made);
-            host.fire(&name, "onbuilddone", &[Value::Integer(i64::from(code)), Value::String(made)]);
+            host.fire(&name, "onbuilddone", &[Value::Integer(i64::from(code)), Value::String(made.into())]);
         }
     }
     any()

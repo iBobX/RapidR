@@ -6,6 +6,7 @@
 use std::collections::BTreeSet;
 
 use super::values::{self, Kind, FONT_PARTS};
+use crate::i18n::tr_ui;
 use crate::panels::fuzzy;
 use crate::panels::rows::ROW;
 use crate::Value;
@@ -14,6 +15,28 @@ use crate::Value;
 pub const EXTENSIONS: &str = "RapidR extensions";
 /// The category of members without one.
 pub const MISC: &str = "Misc";
+
+/// A category's name in the program's language (the rows and the registry
+/// keep the English; `[layout]`-style keys and `prop_name` stay as they
+/// are). Each is a literal, for `rapidr i18n runtime`.
+pub fn category_title(category: &str) -> String {
+    match category {
+        "Accessibility" => tr_ui("Accessibility"),
+        "Appearance" => tr_ui("Appearance"),
+        "Behavior" => tr_ui("Behavior"),
+        "Data" => tr_ui("Data"),
+        "Drawing" => tr_ui("Drawing"),
+        "Font" => tr_ui("Font"),
+        "Help" => tr_ui("Help"),
+        "Layout" => tr_ui("Layout"),
+        "Media" => tr_ui("Media"),
+        "Misc" => tr_ui("Misc"),
+        "Network" => tr_ui("Network"),
+        "Window" => tr_ui("Window"),
+        "RapidR extensions" => tr_ui("RapidR extensions"),
+        other => other.to_string(),
+    }
+}
 
 /// The anchors' pin editor row's height.
 pub const PINS_H: i64 = 112;
@@ -307,7 +330,7 @@ fn parts(out: &mut Vec<Row>, p: &Prop, i: usize, level: usize) {
     };
     match &p.kind {
         Kind::Set(values) if key == "anchors" && *values == ["akLeft", "akTop", "akRight", "akBottom"] => {
-            out.push(row(format!("{key}#pins"), RowKind::Pins, "Anchors editor".into(), p.text(), p.is_default, PINS_H));
+            out.push(row(format!("{key}#pins"), RowKind::Pins, tr_ui("Anchors editor"), p.text(), p.is_default, PINS_H));
         }
         Kind::Set(values) => {
             let mask = p.value.as_ref().map(|v| v.to_i64());
@@ -332,8 +355,8 @@ fn parts(out: &mut Vec<Row>, p: &Prop, i: usize, level: usize) {
             for (n, line) in values::lines(&text).into_iter().enumerate() {
                 out.push(row(format!("{key}#{n}"), RowKind::Line(n), format!("[{n}]"), line, false, ROW));
             }
-            let add = if p.kind == Kind::Columns { "Add a column" } else { "Add a line" };
-            out.push(row(format!("{key}#+"), RowKind::AddLine, add.into(), String::new(), true, ROW));
+            let add = if p.kind == Kind::Columns { tr_ui("Add a column") } else { tr_ui("Add a line") };
+            out.push(row(format!("{key}#+"), RowKind::AddLine, add, String::new(), true, ROW));
         }
         _ => {}
     }
