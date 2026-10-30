@@ -18,15 +18,20 @@
 //!   `%1`, `` `code` ``, one `&` mnemonic, tabs).
 //! - [`extract`]: the texts a RapidR program translates (`TR$`, `TRN$`, and
 //!   the routines its sources name as taking text), for a template (POT).
+//! - [`template`]: a text against its `{name}` template, the values taken out.
+//! - [`host`]: RapidR's own words for the crates that hold no catalogs (the
+//!   language service, the AI layer): the host installs how to translate.
 //! - [`tools`]: templates, updates, coverage and checks, as `rapidr i18n`
 //!   runs them.
 
 pub mod extract;
 mod fill;
+pub mod host;
 pub mod markers;
 pub mod po;
 pub mod pseudo;
 pub mod tags;
+pub mod template;
 pub mod tools;
 
 pub use fill::fill;

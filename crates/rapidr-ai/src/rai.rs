@@ -53,6 +53,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::Value;
 use serde_json::{json, Value as Json};
 
@@ -312,12 +313,12 @@ fn close_fence(t: &mut String) {
 /// "✓ 6 steps · hide".
 fn steps_line(k: usize, st: &Steps) -> String {
     let n = st.steps.len();
-    let head = format!("✓ {n} {}", if n == 1 { "step" } else { "steps" });
+    let head = format!("✓ {}", if n == 1 { tr_ui("1 step") } else { tr_ui_fill("{n} steps", &[("n", &n.to_string())]) });
     if !st.open {
-        return format!("[{head} · show]({})", own_link(&format!("rai:steps/{}", k + 1)));
+        return format!("[{head} · {}]({})", tr_ui("show"), own_link(&format!("rai:steps/{}", k + 1)));
     }
     let list: Vec<String> = st.steps.iter().map(|x| format!("- ✓ {}", x.replace(['\n', '\r'], " "))).collect();
-    format!("[{head} · hide]({})\n\n{}", own_link(&format!("rai:steps/{}", k + 1)), list.join("\n"))
+    format!("[{head} · {}]({})\n\n{}", tr_ui("hide"), own_link(&format!("rai:steps/{}", k + 1)), list.join("\n"))
 }
 
 /// Whether a code block without a language looks like RapidR's (BASIC):
@@ -378,8 +379,8 @@ fn decorate_code(text: &str, n: &mut usize) -> (String, Vec<String>) {
                 }
                 *n += 1;
                 blocks.push(code.trim_end_matches(['\n', '\r']).to_string());
-                let copy = format!("[Copy]({})", own_link(&format!("rai:copy/{n}")));
-                let insert = if rapidr { format!(" · [Insert]({})", own_link(&format!("rai:insert/{n}"))) } else { String::new() };
+                let copy = format!("[{}]({})", tr_ui("Copy"), own_link(&format!("rai:copy/{n}")));
+                let insert = if rapidr { format!(" · [{}]({})", tr_ui("Insert"), own_link(&format!("rai:insert/{n}"))) } else { String::new() };
                 out.push_str(&format!("\n{copy}{insert}\n"));
             }
             (Some((_, _, _, lines, _)), _) => {
@@ -403,15 +404,15 @@ fn thought_line(k: usize, th: &Thought, live: bool) -> String {
         return String::new();
     }
     let secs = th.secs.round().max(1.0) as u64;
-    let head = format!("Thought for {secs} s");
+    let head = tr_ui_fill("Thought for {secs} s", &[("secs", &secs.to_string())]);
     if th.text.trim().is_empty() {
         return format!("*{head}*");
     }
     if !th.open {
-        return format!("[{head} · show]({})", own_link(&format!("rai:thought/{}", k + 1)));
+        return format!("[{head} · {}]({})", tr_ui("show"), own_link(&format!("rai:thought/{}", k + 1)));
     }
     let quoted = th.text.trim().lines().map(|l| if l.trim().is_empty() { ">".to_string() } else { format!("> {l}") }).collect::<Vec<_>>().join("\n");
-    format!("[{head} · hide]({})\n\n{quoted}", own_link(&format!("rai:thought/{}", k + 1)))
+    format!("[{head} · {}]({})\n\n{quoted}", tr_ui("hide"), own_link(&format!("rai:thought/{}", k + 1)))
 }
 
 /// A message as ChatState keeps it (a provider's own blocks — thinking,
@@ -730,7 +731,7 @@ impl Turn {
     fn render(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.drafts.iter().any(|(_, collapsed)| *collapsed) {
-            parts.push(format!("> *{EARLIER_DRAFT}*"));
+            parts.push(format!("> *{}*", tr_ui("An earlier draft said this was done before it was — Studio asked it to actually do it.")));
         }
         for (t, collapsed) in &self.drafts {
             if !collapsed && !t.trim().is_empty() {
@@ -1226,7 +1227,7 @@ impl Ai {
 
     /// Where requests go, with the key; why not when they can't.
     fn endpoint(&mut self) -> Result<Endpoint, String> {
-        let p = self.provider().ok_or("Choose an AI provider first (Provider).")?;
+        let p = self.provider().ok_or_else(|| tr_ui("Choose an AI provider first (Provider)."))?;
         let mut ep = Endpoint::new(p);
         ep.base_url = self.base_url.clone();
         ep.workspace = if self.workspace.is_empty() { keys::env_workspace(p.id) } else { self.workspace.clone() };
@@ -1239,7 +1240,7 @@ impl Ai {
                 if let Some(note) = keys::studio_key_note(&self.scope(), &self.key_source) {
                     return Err(note);
                 }
-                return Err(format!("There is no {} API key yet: give one (APIKey), or say where it is kept (APIKeySource).", wire::short_name(p)));
+                return Err(tr_ui_fill("There is no {provider} API key yet: give one (APIKey), or say where it is kept (APIKeySource).", &[("provider", &wire::provider_name(p))]));
             }
             None => {}
         }
@@ -1275,13 +1276,17 @@ impl Ai {
     /// fixing the problems a check found, else `plain`.
     fn base_activity(&self, plain: &str) -> String {
         if self.continuing {
-            return format!("Continuing (part {})", self.continued + 1);
+            return tr_ui_fill("Continuing (part {n})", &[("n", &(self.continued + 1).to_string())]);
         }
         match self.fixing {
-            Some(0) => "Fixing the errors".into(),
-            Some(1) => "Fixing 1 problem".into(),
-            Some(n) => format!("Fixing {n} problems"),
-            None => plain.into(),
+            Some(0) => tr_ui("Fixing the errors"),
+            Some(1) => tr_ui("Fixing 1 problem"),
+            Some(n) => tr_ui_fill("Fixing {n} problems", &[("n", &n.to_string())]),
+            None => match plain {
+                "Thinking" => tr_ui("Thinking"),
+                "Writing the answer" => tr_ui("Writing the answer"),
+                other => other.into(),
+            },
         }
     }
 
@@ -1345,7 +1350,7 @@ impl Ai {
 
     /// A tool call's activity in words, from its tools.
     fn tool_activity(&self, name: &str, input: &Json) -> String {
-        self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).and_then(|(_, _, t)| t.activity(name, input)).unwrap_or_else(|| format!("Using {name}"))
+        self.tools.iter().find(|(_, _, t)| t.tools().iter().any(|x| x.name == name)).and_then(|(_, _, t)| t.activity(name, input)).unwrap_or_else(|| tr_ui_fill("Using {name}", &[("name", name)]))
     }
 
     /// The instructions' and tools' size in characters, as the next request
@@ -1501,13 +1506,13 @@ impl Ai {
     /// text, to ask again.
     fn rewind(&mut self, q: usize) -> Result<String, String> {
         if self.running.is_some() {
-            return Err("Still answering: wait for it, or Stop.".into());
+            return Err(tr_ui("Still answering: wait for it, or Stop."));
         }
         let Some(mark) = q.checked_sub(1).and_then(|i| self.marks.get(i)).copied() else {
-            return Err(format!("There is no question {q} in this chat."));
+            return Err(tr_ui_fill("There is no question {n} in this chat.", &[("n", &q.to_string())]));
         };
         let Some(msg) = mark.msg else {
-            return Err("That question is from before the chat was compacted: it can't be edited. Ask it again as a new question.".into());
+            return Err(tr_ui("That question is from before the chat was compacted: it can't be edited. Ask it again as a new question."));
         };
         let text = self.log.get(mark.log).map(|(_, t)| t.clone()).unwrap_or_default();
         self.log.truncate(mark.log);
@@ -1537,14 +1542,14 @@ impl Ai {
     /// (the next questions start from the summary).
     fn compact_now(&mut self) -> Result<(), String> {
         if self.running.is_some() {
-            return Err("Still answering: wait for it, or Stop.".into());
+            return Err(tr_ui("Still answering: wait for it, or Stop."));
         }
         if self.messages.len() < 3 {
-            return Err("Nothing to compact yet: the chat is still short.".into());
+            return Err(tr_ui("Nothing to compact yet: the chat is still short."));
         }
         let ep = self.endpoint()?;
         if self.model.trim().is_empty() {
-            return Err("Choose a model first (RefreshModels lists the provider's).".into());
+            return Err(tr_ui("Choose a model first (RefreshModels lists the provider's)."));
         }
         self.compacting = true;
         self.turn_started = now_ms();
@@ -1618,19 +1623,19 @@ impl Ai {
             }
             match who.as_str() {
                 "user" => {
-                    out.push_str("**You**");
+                    out.push_str(&format!("**{}**", tr_ui("You")));
                     if self.editable && !busy {
                         if let Some(q) = self.marks.iter().position(|m| m.log == i && m.msg.is_some()) {
-                            out.push_str(&format!(" · [Edit]({})", own_link(&format!("rai:edit/{}", q + 1))));
+                            out.push_str(&format!(" · [{}]({})", tr_ui("Edit"), own_link(&format!("rai:edit/{}", q + 1))));
                         }
                     }
                     out.push_str(&format!("\n\n{}", text.trim_end()));
                 }
                 "assistant" => {
                     let t = text.trim_end();
-                    out.push_str("**Assistant**");
+                    out.push_str(&format!("**{}**", tr_ui("Assistant")));
                     if self.editable && !busy && Some(i) == last_answer && self.marks.last().is_some_and(|m| m.msg.is_some() && m.log < i) {
-                        out.push_str(&format!(" · [Retry]({})", own_link("rai:retry")));
+                        out.push_str(&format!(" · [{}]({})", tr_ui("Retry"), own_link("rai:retry")));
                     }
                     out.push_str("\n\n");
                     if let Some((k, th)) = self.thoughts.iter().enumerate().find(|(_, th)| th.log == i) {
@@ -1719,9 +1724,9 @@ impl Ai {
             self.turn_started = self.last_data;
         }
         match job {
-            Job::Probe => self.set_activity("Asking the server about the model"),
-            Job::Summary if self.compacting => self.set_activity("Compacting the conversation"),
-            Job::Summary => self.set_activity("Summarising the chat to keep it short"),
+            Job::Probe => self.set_activity(&tr_ui("Asking the server about the model")),
+            Job::Summary if self.compacting => self.set_activity(&tr_ui("Compacting the conversation")),
+            Job::Summary => self.set_activity(&tr_ui("Summarising the chat to keep it short")),
             Job::Chat => {
                 // (a new request: its own counters start)
                 self.live_in = 0;
@@ -1740,7 +1745,7 @@ impl Ai {
         if self.wants_probe() {
             self.probes += 1;
             self.start(Job::Probe, wire::models_request(ep), ep.provider.format)?;
-            self.status = "Answering…".into();
+            self.status = tr_ui("Answering…");
             return Ok(());
         }
         // (a small window: the tools' lite set — K8)
@@ -1770,7 +1775,7 @@ impl Ai {
             if need + 512 > w {
                 // (asked again next time: the server may have more memory then)
                 self.windows.remove(&self.model);
-                return Err(format!("This model takes {} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {}). Choose a model or a server setting with a larger window: 16,384 tokens or more.", thousands(w), thousands(need)));
+                return Err(tr_ui_fill("This model takes {window} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {need}). Choose a model or a server setting with a larger window: 16,384 tokens or more.", &[("window", &thousands(w)), ("need", &thousands(need))]));
             }
         }
         let (before, after, cut) = self.compact(fixed);
@@ -1790,7 +1795,7 @@ impl Ai {
         self.last_chars = fixed + req.messages.iter().map(message_chars).sum::<usize>();
         self.start(Job::Chat, wire::chat_request(ep, &req), ep.provider.format)?;
         self.chats += 1;
-        self.status = "Answering…".into();
+        self.status = tr_ui("Answering…");
         self.audit_log("request", json!({"messages": n.0, "tools": n.1, "maxTokens": n.2, "promptEstimate": after, "window": self.window()}));
         Ok(())
     }
@@ -1798,14 +1803,14 @@ impl Ai {
     fn ask(&mut self, text: &str) -> Result<(), String> {
         let text = text.trim();
         if text.is_empty() {
-            return Err("Type a question or a request first.".into());
+            return Err(tr_ui("Type a question or a request first."));
         }
         if self.running.is_some() {
-            return Err("Still answering: wait for it, or Cancel.".into());
+            return Err(tr_ui("Still answering: wait for it, or Cancel."));
         }
         let ep = self.endpoint()?;
         if self.model.trim().is_empty() {
-            return Err("Choose a model first (RefreshModels lists the provider's).".into());
+            return Err(tr_ui("Choose a model first (RefreshModels lists the provider's)."));
         }
         for (_, _, t) in &mut self.tools {
             t.begin_turn();
@@ -1879,11 +1884,11 @@ impl Ai {
         // (a list asked for again: the newer request wins)
         self.stale_models();
         if self.running.is_some() {
-            return Err("Still answering: wait for it, or Cancel.".into());
+            return Err(tr_ui("Still answering: wait for it, or Cancel."));
         }
         let ep = self.endpoint()?;
         self.start(Job::Models, wire::models_request(&ep), ep.provider.format)?;
-        self.status = format!("Asking {} for its models…", wire::short_name(ep.provider));
+        self.status = tr_ui_fill("Asking {provider} for its models…", &[("provider", &wire::provider_name(ep.provider))]);
         self.error.clear();
         self.audit_log("models", json!({}));
         Ok(())
@@ -1941,9 +1946,9 @@ impl Ai {
             }
             self.messages.push(Message { role: Role::User, content: results });
             self.thinking_done();
-            self.note("Stopped.");
+            self.note(&tr_ui("Stopped."));
             self.flush_records();
-            self.status = "Stopped.".into();
+            self.status = tr_ui("Stopped.");
             self.audit_log("cancel", json!({}));
             self.idle();
             self.events.push(("ondone", vec![s("cancelled")]));
@@ -1960,9 +1965,9 @@ impl Ai {
                     self.answer = text;
                 }
                 self.thinking_done();
-                self.note("Stopped.");
+                self.note(&tr_ui("Stopped."));
                 self.flush_records();
-                self.status = "Stopped.".into();
+                self.status = tr_ui("Stopped.");
                 self.audit_log("cancel", json!({}));
             }
             if r.job == Job::Summary {
@@ -1982,7 +1987,7 @@ impl Ai {
         self.error = message.clone();
         self.status = message.clone();
         if self.log.last().is_some_and(|(w, _)| w == "assistant") && self.turn.entry == Some(self.log.len() - 1) {
-            self.note(&format!("Error: {message}"));
+            self.note(&tr_ui_fill("Error: {message}", &[("message", &message)]));
         }
         self.audit_log("error", json!({"message": message}));
         self.events.push(("onerror", vec![s(message)]));
@@ -2151,7 +2156,7 @@ impl Ai {
                             self.effort_way.insert(self.model.clone(), next);
                             self.audit_log("effort", json!({"way": format!("{next:?}")}));
                             if next == EffortWay::Off {
-                                self.note("This model takes no effort setting: it answers as it usually does.");
+                                self.note(&tr_ui("This model takes no effort setting: it answers as it usually does."));
                             }
                             if self.go_on() {
                                 return;
@@ -2164,7 +2169,7 @@ impl Ai {
                     if self.reasoning.get(&self.model) != Some(&wants) {
                         self.reasoning.insert(self.model.clone(), wants);
                         if !self.effort.is_empty() {
-                            self.note(if wants { "This model can't think at an effort while it uses tools here: it answers without one." } else { "This model takes no effort setting: it answers as it usually does." });
+                            self.note(&if wants { tr_ui("This model can't think at an effort while it uses tools here: it answers without one.") } else { tr_ui("This model takes no effort setting: it answers as it usually does.") });
                         }
                         if let Ok(ep) = self.endpoint() {
                             if self.start_chat(&ep).is_ok() {
@@ -2222,11 +2227,11 @@ impl Ai {
                         self.model.clear();
                     }
                     self.models = models;
-                    self.status = format!("{} lists {n} models.", wire::short_name(p));
+                    self.status = tr_ui_fill("{provider} lists {n} models.", &[("provider", &wire::provider_name(p)), ("n", &n.to_string())]);
                     self.events.push(("onmodelsloaded", vec![Value::Integer(n as i64)]));
                     self.audit_log("models-done", json!({"count": n}));
                 }
-                Err(e) => self.fail(format!("{} answered, but not with a models list: {e}.", wire::short_name(p))),
+                Err(e) => self.fail(tr_ui_fill("{provider} answered, but not with a models list: {error}.", &[("provider", &wire::provider_name(p)), ("error", &e.to_string())])),
             },
             Job::Summary => {
                 for e in run.decoder.finish() {
@@ -2259,15 +2264,15 @@ impl Ai {
                     self.last_output = 0;
                     if compacting {
                         let after = self.messages_tokens();
-                        let said = format!("The chat was compacted: what each question sends of it went from about {} tokens to about {}.", thousands(before), thousands(after));
+                        let said = tr_ui_fill("The chat was compacted: what each question sends of it went from about {before} tokens to about {after}.", &[("before", &thousands(before)), ("after", &thousands(after))]);
                         self.say("info", &said);
                         self.status = said;
                     } else {
-                        self.say("info", "The conversation so far was summarised, to keep each question cheap.");
-                        self.status = if before_status.is_empty() { "Done.".into() } else { before_status };
+                        self.say("info", &tr_ui("The conversation so far was summarised, to keep each question cheap."));
+                        self.status = if before_status.is_empty() { tr_ui("Done.") } else { before_status };
                     }
                 } else {
-                    self.status = if compacting { "The chat wasn't compacted: the model gave no summary.".into() } else if before_status.is_empty() { "Done.".into() } else { before_status };
+                    self.status = if compacting { tr_ui("The chat wasn't compacted: the model gave no summary.") } else if before_status.is_empty() { tr_ui("Done.") } else { before_status };
                 }
                 self.idle();
                 self.events.push(("ondone", vec![s("ok")]));
@@ -2309,7 +2314,7 @@ impl Ai {
                         self.go_on();
                         return;
                     }
-                    self.fail(if too_long { explained.message } else { format!("{} stopped answering: {e}", wire::short_name(p)) });
+                    self.fail(if too_long { explained.message } else { tr_ui_fill("{provider} stopped answering: {error}", &[("provider", &wire::provider_name(p)), ("error", &e)]) });
                     return;
                 }
                 if !run.reply.blocks.is_empty() {
@@ -2346,7 +2351,7 @@ impl Ai {
                         // reply that comes next says what is true)
                         let claimed = crate::claims::claims_change(&text);
                         self.reply_done(!claimed, claimed);
-                        self.turn.steps.push("Asked the model to make the change it described".into());
+                        self.turn.steps.push(tr_ui("Asked the model to make the change it described"));
                         self.audit_log("nudge", json!({}));
                         self.go_on();
                         return;
@@ -2370,10 +2375,10 @@ impl Ai {
                         // the code block the cut left open closed, or the
                         // lines below would be code)
                         close_fence(&mut self.turn.last);
-                        self.turn.buttons.push(("Continue in smaller steps".into(), "rai:continue".into()));
-                        self.note(&format!("RAI stopped here: the answer kept reaching its length limit ({} tokens), {MAX_PARTS} parts in a row. What it finished is above.", thousands(u64::from(self.max_tokens()))));
+                        self.turn.buttons.push((tr_ui("Continue in smaller steps"), "rai:continue".into()));
+                        self.note(&tr_ui_fill("RAI stopped here: the answer kept reaching its length limit ({tokens} tokens), {parts} parts in a row. What it finished is above.", &[("tokens", &thousands(u64::from(self.max_tokens()))), ("parts", &MAX_PARTS.to_string())]));
                     }
-                    "refusal" => self.note("The model declined to answer this."),
+                    "refusal" => self.note(&tr_ui("The model declined to answer this.")),
                     _ => {}
                 }
                 self.end_turn();
@@ -2391,10 +2396,10 @@ impl Ai {
         if let Some((t, _)) = self.turn.drafts.last_mut() {
             close_fence(t);
         }
-        self.turn.drafts.push((format!("> *Answer was long: continuing (part {} of up to {MAX_PARTS})*", self.continued + 1), false));
+        self.turn.drafts.push((format!("> *{}*", tr_ui_fill("Answer was long: continuing (part {part} of up to {parts})", &[("part", &(self.continued + 1).to_string()), ("parts", &MAX_PARTS.to_string())])), false));
         self.show_turn();
-        self.turn.steps.push(format!("Continued after the length limit ({} of {MAX_CONTINUES})", self.continued));
-        self.status = format!("Continuing (part {})…", self.continued + 1);
+        self.turn.steps.push(tr_ui_fill("Continued after the length limit ({n} of {max})", &[("n", &self.continued.to_string()), ("max", &MAX_CONTINUES.to_string())]));
+        self.status = tr_ui_fill("Continuing (part {n})…", &[("n", &(self.continued + 1).to_string())]);
         self.audit_log("continue", json!({"part": self.continued + 1}));
     }
 
@@ -2446,7 +2451,7 @@ impl Ai {
         self.flush_records();
         // (what the turn left to review first; then an answer that says it
         // changed what nothing changed; else it answered)
-        self.status = self.tools.iter().find_map(|(_, _, t)| t.turn_status()).or_else(|| self.claim_left.then(|| CLAIM_STATUS.to_string())).unwrap_or_else(|| "Answered.".into());
+        self.status = self.tools.iter().find_map(|(_, _, t)| t.turn_status()).or_else(|| self.claim_left.then(|| tr_ui("The assistant didn't make the change you asked for. Ask again, or try a larger model."))).unwrap_or_else(|| tr_ui("Answered."));
         self.audit_log("answer", json!({"toolCalls": self.tool_calls, "inputTokens": self.turn_usage.input, "outputTokens": self.turn_usage.output, "provenance": self.read, "nudged": self.nudged, "claimLeft": self.claim_left}));
         // (past SummaryAt tokens: one short request summarises the
         // conversation, and the next questions start from the summary)
@@ -2497,7 +2502,7 @@ impl Ai {
             thinking: None,
         };
         self.start(Job::Summary, wire::chat_request(ep, &req), ep.provider.format)?;
-        self.status = "Summarising the conversation, to keep it cheap…".into();
+        self.status = tr_ui("Summarising the conversation, to keep it cheap…");
         self.audit_log("summary", json!({"messages": self.messages.len()}));
         Ok(())
     }
@@ -2602,10 +2607,11 @@ impl Ai {
         if self.usage == Usage::default() {
             return String::new();
         }
-        let cached = if self.usage.cached > 0 { format!(" ({} from the cache)", thousands(self.usage.cached)) } else { String::new() };
-        let mut t = format!("{} tokens sent{cached}, {} received", thousands(self.usage.input), thousands(self.usage.output));
+        let cached = if self.usage.cached > 0 { format!(" {}", tr_ui_fill("({n} from the cache)", &[("n", &thousands(self.usage.cached))])) } else { String::new() };
+        let mut t = format!("{}{}", tr_ui_fill("{sent} tokens sent", &[("sent", &thousands(self.usage.input))]), cached);
+        t.push_str(&format!(", {}", tr_ui_fill("{n} received", &[("n", &thousands(self.usage.output))])));
         if let Some(c) = self.cost() {
-            t.push_str(&format!(" · about ${c:.4}"));
+            t.push_str(&format!(" · {}", tr_ui_fill("about ${cost}", &[("cost", &format!("{c:.4}"))])));
         }
         t
     }
@@ -2758,7 +2764,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
                 // (RapidR Studio's designer, keeping a key for the program
                 // it designs; a program's keys are always its own, SEC-21)
                 if !keys::is_studio() {
-                    a.error = "KeyOwner is RapidR Studio's own: a program's keys are always its own.".into();
+                    a.error = tr_ui("KeyOwner is RapidR Studio's own: a program's keys are always its own.");
                 } else if t.trim() != a.key_owner {
                     a.stale_models();
                     a.key_owner = t.trim().to_string();
@@ -2831,7 +2837,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                 for (_, _, t) in &mut a.tools {
                     t.begin_turn();
                 }
-                a.status = "A new chat.".into();
+                a.status = tr_ui("A new chat.");
                 a.changed = true;
             });
             Value::Null
@@ -2896,22 +2902,22 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
             flag(with(name, |a| {
                 let target = keys::keychain_name(&a.key_source);
                 if target.is_empty() {
-                    a.error = "APIKeySource names no keychain entry (keychain:NAME) to keep the key under.".into();
+                    a.error = tr_ui("APIKeySource names no keychain entry (keychain:NAME) to keep the key under.");
                     return false;
                 }
                 if a.key.is_empty() {
-                    a.error = "There is no key to keep: set APIKey first.".into();
+                    a.error = tr_ui("There is no key to keep: set APIKey first.");
                     return false;
                 }
                 match keys::set_named_in(&a.scope(), &target, &a.key, remember) {
                     Ok(place) => {
-                        a.status = format!("The key is kept in {place}.");
+                        a.status = tr_ui_fill("The key is kept in {place}.", &[("place", &place)]);
                         a.error.clear();
                         a.audit_log("key-kept", json!({"where": place}));
                         true
                     }
                     Err(e) => {
-                        a.error = format!("The key wasn't kept: {e}.");
+                        a.error = tr_ui_fill("The key wasn't kept: {error}.", &[("error", &e.to_string())]);
                         false
                     }
                 }
@@ -2924,7 +2930,7 @@ pub fn call(name: &str, method: &str, args: &[Value], component: fn(&Value) -> S
                     keys::delete_named_in(&a.scope(), &target);
                 }
                 a.key.clear();
-                a.status = "The key is forgotten.".into();
+                a.status = tr_ui("The key is forgotten.");
                 a.audit_log("key-forgotten", json!({}));
             });
             Value::Null

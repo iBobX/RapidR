@@ -12,6 +12,7 @@ use crate::context::{self, chain_before, Ty};
 use crate::model::{name_key, ScopeKind, Symbol, SymbolKind};
 use rapidr_lang::Origin;
 use crate::text::{word_at, LineIndex};
+use crate::words::{tr_ui, tr_ui_fill};
 use crate::{Hover, Snapshot};
 
 pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Option<Hover> {
@@ -71,7 +72,7 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     }
     if let Some(g) = rapidr_lang::global(word) {
         let notes = compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from);
-        return hover(format!("```rapidr\n{}\n```\n*global object*\n\n{}", g.name, with_notes(tdoc(g.name, g.doc), &notes)));
+        return hover(format!("```rapidr\n{}\n```\n*{}*\n\n{}", g.name, tr_ui("global object"), with_notes(tdoc(g.name, g.doc), &notes)));
     }
     if let Some(b) = rapidr_lang::builtin(word) {
         let mut md = format!("```rapidr\n{}\n```\n", b.syntax);
@@ -90,14 +91,14 @@ pub(crate) fn hover(s: &Snapshot, file: &Path, text: &str, offset: usize) -> Opt
     if let Some((value, group)) = rapidr_lang::constant(word) {
         let from = if group.origin == Origin::RapidR && rapidr_ast::builtin_constants::is_rapidr_only(word) {
             // (ctText …: built into a .rr program, nothing in a .bas)
-            if s.rapidr_program() { "built in".to_string() } else { "RapidR's own: built into a .rr program only".to_string() }
+            if s.rapidr_program() { tr_ui("built in") } else { tr_ui("RapidR's own: built into a .rr program only") }
         } else if group.origin == Origin::RapidR {
-            "RapidR's own, always there".to_string()
+            tr_ui("RapidR's own, always there")
         } else if s.rapidr_program() && rapidr_ast::builtin_constants::constant(word).is_some() {
             // (RAPIDQ.INC's, built into a RapidR program)
-            "built in".to_string()
+            tr_ui("built in")
         } else {
-            format!("from {}", group.source)
+            tr_ui_fill("from {source}", &[("source", group.source)])
         };
         return hover(format!("```rapidr\nCONST {word} = {value}\n```\n*{}: {from}*\n\n{}", group.name, tdoc(group.name, group.doc)));
     }
@@ -123,37 +124,46 @@ pub(crate) fn symbol_facts(s: &Snapshot, sym: &Symbol) -> Facts {
         let (line, _) = index.line_col(loc.start);
         Some((index.line_text(text, line).trim().to_string(), loc.file.clone(), line))
     });
-    let owner = match &s.model.scopes[sym.scope].kind {
-        ScopeKind::Program => String::new(),
-        ScopeKind::Routine(r) => format!(" in `{r}`"),
-        ScopeKind::Type(t) => format!(" of TYPE `{t}`"),
-    };
+    let scope = &s.model.scopes[sym.scope].kind;
+    // (a whole phrase for each kind and place: the words agree in other languages)
     let what = match sym.kind {
         // (RapidQ's implicit variables: the compiler declares one where it's
         // first used, not by a DIM)
         SymbolKind::Global if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => {
-            "global variable (implicit: made by its first use)".to_string()
+            tr_ui("global variable (implicit: made by its first use)")
         }
-        SymbolKind::Global => "global variable".to_string(),
-        SymbolKind::Local => format!("local variable{owner}"),
-        SymbolKind::Param => format!("parameter{owner}"),
+        SymbolKind::Global => tr_ui("global variable"),
+        SymbolKind::Local => match scope {
+            ScopeKind::Routine(r) => tr_ui_fill("local variable in `{routine}`", &[("routine", r)]),
+            _ => tr_ui("local variable"),
+        },
+        SymbolKind::Param => match scope {
+            ScopeKind::Routine(r) => tr_ui_fill("parameter in `{routine}`", &[("routine", r)]),
+            _ => tr_ui("parameter"),
+        },
         // (a SUB's own undeclared variable: RapidQ keeps it between calls)
-        SymbolKind::Static if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match &s.model.scopes[sym.scope].kind {
-            ScopeKind::Routine(r) => format!("variable of `{r}` (implicit: its own, kept between calls)"),
-            _ => format!("STATIC variable{owner}"),
+        SymbolKind::Static if sym.implicit || decl.as_ref().is_some_and(|(line, _, _)| !declares(line)) => match scope {
+            ScopeKind::Routine(r) => tr_ui_fill("variable of `{routine}` (implicit: its own, kept between calls)", &[("routine", r)]),
+            _ => tr_ui("STATIC variable"),
         },
-        SymbolKind::Static => format!("STATIC variable{owner}"),
+        SymbolKind::Static => match scope {
+            ScopeKind::Routine(r) => tr_ui_fill("STATIC variable in `{routine}`", &[("routine", r)]),
+            _ => tr_ui("STATIC variable"),
+        },
         SymbolKind::Constant => match (&decl, rapidr_lang::constant(&sym.name)) {
-            (None, Some((_, group))) => format!("constant of {}", group.source),
-            _ => "constant".to_string(),
+            (None, Some((_, group))) => tr_ui_fill("constant of {source}", &[("source", group.source)]),
+            _ => tr_ui("constant"),
         },
-        SymbolKind::Component => "component".to_string(),
-        SymbolKind::Sub => format!("SUB{owner}"),
-        SymbolKind::Function => format!("FUNCTION{owner}"),
-        SymbolKind::External => "DLL routine (DECLARE … LIB)".to_string(),
+        SymbolKind::Component => tr_ui("component"),
+        SymbolKind::Sub => "SUB".to_string(),
+        SymbolKind::Function => "FUNCTION".to_string(),
+        SymbolKind::External => tr_ui("DLL routine (DECLARE … LIB)"),
         SymbolKind::Type => "TYPE".to_string(),
-        SymbolKind::Field => format!("field{owner}"),
-        SymbolKind::Label => "label".to_string(),
+        SymbolKind::Field => match scope {
+            ScopeKind::Type(t) => tr_ui_fill("field of TYPE `{type}`", &[("type", t)]),
+            _ => tr_ui("field"),
+        },
+        SymbolKind::Label => tr_ui("label"),
     };
     let code = match (&decl, sym.kind) {
         (Some((line, _, _)), SymbolKind::Sub | SymbolKind::Function | SymbolKind::External) => {
@@ -209,9 +219,9 @@ fn symbol_help_of(s: &Snapshot, sym: &Symbol) -> SymbolHelp {
     let dimmed = sym.kind == SymbolKind::Component && decl.as_ref().is_some_and(|(line, _, _)| declares(line));
     if dimmed {
         what = match &s.model.scopes[sym.scope].kind {
-            ScopeKind::Program => "global variable".to_string(),
-            ScopeKind::Routine(r) => format!("local variable in `{r}`"),
-            ScopeKind::Type(t) => format!("field of TYPE `{t}`"),
+            ScopeKind::Program => tr_ui("global variable"),
+            ScopeKind::Routine(r) => tr_ui_fill("local variable in `{routine}`", &[("routine", r)]),
+            ScopeKind::Type(t) => tr_ui_fill("field of TYPE `{type}`", &[("type", t)]),
         };
     }
     let kind = match sym.kind {
@@ -322,7 +332,8 @@ pub(crate) fn program_names(s: &Snapshot) -> Vec<(String, &'static str)> {
 pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
     let Facts { decl, what, code, uses } = symbol_facts(s, sym);
     // (a top-level SUB / FUNCTION: its signature says what it is)
-    let mut md = if what == "SUB" || what == "FUNCTION" { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
+    let top_routine = matches!(sym.kind, SymbolKind::Sub | SymbolKind::Function) && matches!(s.model.scopes[sym.scope].kind, ScopeKind::Program);
+    let mut md = if top_routine { format!("```rapidr\n{code}\n```\n") } else { format!("```rapidr\n{code}\n```\n*{what}*") };
     if let Some(t) = &sym.ty {
         if let Some(c) = rapidr_lang::resolve_component(t) {
             md.push_str(&format!(" — {}", c.spelling()));
@@ -331,16 +342,24 @@ pub(crate) fn symbol_hover(s: &Snapshot, sym: &Symbol) -> String {
         }
     }
     let used = match uses {
-        0 => "not used yet".to_string(),
-        1 => "used once".to_string(),
-        n => format!("used {n} times"),
+        0 => tr_ui("not used yet"),
+        1 => tr_ui("used once"),
+        n => tr_ui_fill("used {n} times", &[("n", &n.to_string())]),
     };
     match decl {
         Some((_, file, line)) => {
             let name = file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            md.push_str(&format!("\n\nDeclared in `{name}`, line {}; {used}.", line + 1));
+            md.push_str("\n\n");
+            md.push_str(&tr_ui_fill("Declared in `{name}`, line {line}; {used}.", &[("name", &name), ("line", &(line + 1).to_string()), ("used", &used)]));
         }
-        None => md.push_str(&format!("\n\n{}{}.", used[..1].to_ascii_uppercase(), &used[1..])),
+        None => {
+            let sentence = match uses {
+                0 => tr_ui("Not used yet."),
+                1 => tr_ui("Used once."),
+                n => tr_ui_fill("Used {n} times.", &[("n", &n.to_string())]),
+            };
+            md.push_str(&format!("\n\n{sentence}"));
+        }
     }
     md
 }
@@ -350,24 +369,25 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
         Ty::Component(c) => {
             let owner = c.spelling();
             let (code, kind, doc, notes) = if let Some(p) = c.property(member) {
+                let values = [("type", p.ty.as_str()), ("owner", owner.as_str())];
                 let kind = match p.access {
-                    rapidr_lang::Access::Read => format!("{} property (read only)", p.ty.as_str()),
-                    rapidr_lang::Access::Write => format!("{} property (write only)", p.ty.as_str()),
-                    rapidr_lang::Access::ReadWrite => format!("{} property", p.ty.as_str()),
+                    rapidr_lang::Access::Read => tr_ui_fill("{type} property (read only) of {owner}", &values),
+                    rapidr_lang::Access::Write => tr_ui_fill("{type} property (write only) of {owner}", &values),
+                    rapidr_lang::Access::ReadWrite => tr_ui_fill("{type} property of {owner}", &values),
                 };
                 // (RapidQ's value at creation after the owner: "string
                 // property of QButton · default """)
                 let kind = match p.default {
-                    Some(d) => format!("{kind} of {owner}* · *{}", default_text(d)),
-                    None => format!("{kind} of {owner}"),
+                    Some(d) => format!("{kind}* · *{}", default_text(d)),
+                    None => kind,
                 };
                 let notes = compat::notes(p.origin, c.origin, p.missing, p.runtimes, p.from);
                 (format!("{owner}.{}", p.name), kind, p.doc, notes)
             } else if let Some(m) = c.method(member) {
-                (format!("{owner}.{}", m.signature()), format!("method of {owner}"), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
+                (format!("{owner}.{}", m.signature()), tr_ui_fill("method of {owner}", &[("owner", &owner)]), m.doc, compat::notes(m.origin, c.origin, m.missing, m.runtimes, m.from))
             } else {
                 let e = c.event(member)?;
-                (format!("{owner}.{}", e.signature()), format!("event of {owner}"), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
+                (format!("{owner}.{}", e.signature()), tr_ui_fill("event of {owner}", &[("owner", &owner)]), e.doc, compat::notes(e.origin, c.origin, e.missing, e.runtimes, e.from))
             };
             let mut md = format!("```rapidr\n{code}\n```\n*{kind}*");
             let text = with_notes(doc, &notes);
@@ -391,13 +411,14 @@ fn member_hover(s: &Snapshot, ty: &Ty, member: &str) -> Option<String> {
 /// creation (the registry's).
 fn default_text(d: rapidr_lang::DefaultValue) -> String {
     use rapidr_lang::DefaultValue::*;
-    match d {
-        Int(n) => format!("default {n}"),
-        Float(x) => format!("default {x}"),
-        Bool(b) => format!("default {}", if b { "True" } else { "False" }),
-        Str(s) => format!("default \"{s}\""),
-        Expr(e) => format!("default {e}"),
-    }
+    let value = match d {
+        Int(n) => n.to_string(),
+        Float(x) => x.to_string(),
+        Bool(b) => if b { "True" } else { "False" }.to_string(),
+        Str(s) => format!("\"{s}\""),
+        Expr(e) => e.to_string(),
+    };
+    tr_ui_fill("default {value}", &[("value", &value)])
 }
 
 /// Whether a line declares names (DIM, CONST …) rather than using one.

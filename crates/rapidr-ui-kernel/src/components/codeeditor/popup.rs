@@ -7,6 +7,7 @@
 use rapidr_editor::service::CompletionKind;
 use rapidr_editor::{Highlighter, Languages};
 use rapidr_value::code_scheme::Scheme;
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::objects::codeedit::CodeEditor as Model;
 use rapidr_value::objects::font::Font;
 use rapidr_value::objects::ops::{Op, Place, Rect};
@@ -286,16 +287,22 @@ pub struct PeekLayout {
     pub close: Rect,
 }
 
-fn peek_title(kind: &str) -> &'static str {
+fn peek_title(kind: &str) -> String {
     match kind {
-        "added" => "Added since the last version",
-        "removed" => "Removed since the last version. It was:",
-        _ => "Changed since the last version. It was:",
+        "added" => tr_ui("Added since the last version"),
+        "removed" => tr_ui("Removed since the last version. It was:"),
+        _ => tr_ui("Changed since the last version. It was:"),
     }
 }
 
+/// "… 3 more lines" under the lines of a change that has more than it shows.
+fn more_lines(n: usize) -> String {
+    let more = if n == 1 { tr_ui("1 more line") } else { tr_ui_fill("{n} more lines", &[("n", &n.to_string())]) };
+    format!("\u{2026} {more}")
+}
+
 fn peek_buttons(font: &Font) -> (i64, i64) {
-    (text_size("Undo This Change", font).0 + 24, text_size("Close", font).0 + 24)
+    (text_size(&tr_ui("Undo This Change"), font).0 + 24, text_size(&tr_ui("Close"), font).0 + 24)
 }
 
 /// The box of the change shown under its lines (`peek`), if one is.
@@ -312,7 +319,7 @@ pub fn peek_layout(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: 
     let shown = if pk.hunk.kind() == "added" { 0 } else { pk.old_lines.len().min(PEEK_LINES) + usize::from(pk.old_lines.len() > PEEK_LINES) };
     let widest = pk.old_lines.iter().take(PEEK_LINES).map(|l| text_size(&format!("\u{2212} {l}"), &cf).0).max().unwrap_or(0);
     let (uw, cw) = peek_buttons(&uf);
-    let w = (widest + 32).max(text_size(peek_title(pk.hunk.kind()), &uf).0 + 32).max(uw + cw + 40).clamp(300, 640).min((client.0 - 8).max(200));
+    let w = (widest + 32).max(text_size(&peek_title(pk.hunk.kind()), &uf).0 + 32).max(uw + cw + 40).clamp(300, 640).min((client.0 - 8).max(200));
     let h = title_h + shown as i64 * line_h + 8 + PEEK_BUTTON_H + 10;
     let x = ax.clamp(0, (client.0 - w).max(0));
     let y = if bottom + 2 + h <= client.1 || top - h - 2 < 0 { bottom + 2 } else { top - h - 2 };
@@ -345,7 +352,7 @@ fn paint_peek(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64,
         _ => sc.mark_changed,
     };
     p.op(Op::Round { rect: (l.rect.0 + 1, l.rect.1 + 1, 4, l.rect.3 - 2), radius: 2.0, fill: Some(mark), stroke: None, width: 1.0 });
-    p.text(l.title, peek_title(pk.hunk.kind()), &bold, sc.popup_text, Place::Left);
+    p.text(l.title, &peek_title(pk.hunk.kind()), &bold, sc.popup_text, Place::Left);
     if pk.hunk.kind() != "added" {
         // (each old line on a soft "removed" ground, a − before it: never colour alone)
         let ground = super::paint::blend(sc.mark_removed, sc.popup, if sc.dark { 0.22 } else { 0.12 });
@@ -357,13 +364,13 @@ fn paint_peek(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: (i64,
         }
         if pk.old_lines.len() > PEEK_LINES {
             let y = l.lines_top + PEEK_LINES as i64 * l.line_h;
-            p.text((l.rect.0 + 12, y, l.rect.2 - 24, l.line_h), &format!("\u{2026} {} more lines", pk.old_lines.len() - PEEK_LINES), &uf, sc.popup_detail, Place::Left);
+            p.text((l.rect.0 + 12, y, l.rect.2 - 24, l.line_h), &more_lines(pk.old_lines.len() - PEEK_LINES), &uf, sc.popup_detail, Place::Left);
         }
     }
-    for (r, label, hot) in [(l.undo, "Undo This Change", pk.hot == 1), (l.close, "Close", pk.hot == 2)] {
+    for (r, label, hot) in [(l.undo, tr_ui("Undo This Change"), pk.hot == 1), (l.close, tr_ui("Close"), pk.hot == 2)] {
         let fill = if hot { sc.popup_selected } else { sc.popup };
         p.op(Op::Round { rect: r, radius: 4.0, fill: Some(fill), stroke: Some(sc.popup_border), width: 1.0 });
-        p.text(r, label, &uf, if hot { sc.popup_selected_text } else { sc.popup_text }, Place::Center);
+        p.text(r, &label, &uf, if hot { sc.popup_selected_text } else { sc.popup_text }, Place::Center);
     }
 }
 
@@ -389,7 +396,7 @@ fn peek_mouse_down(f: &mut FormUi, store: &dyn Store, ts: &mut TextSystem, x: f6
                 super::with_view(cx, |v| {
                     if v.c.revert_change(line) {
                         v.c.program_change = false;
-                        v.ui.announce = "The change was undone.".into();
+                        v.ui.announce = rapidr_value::i18n::tr_ui("The change was undone.");
                         super::input::edited(v, None);
                     }
                 })

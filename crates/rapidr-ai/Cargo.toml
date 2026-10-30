@@ -11,6 +11,10 @@ license.workspace = true
 # platform's (cfg: a thread and ureq on the desktop, fetch in a browser).
 [dependencies]
 serde_json = { version = "1", features = ["preserve_order"] }
+# RapidR's own words in the person's language (rapidr_i18n::host: the host
+# installs how to translate; English without) and `{name}` templates; no
+# dependencies of its own
+rapidr-i18n.workspace = true
 # (feature `component`) RAI, the component programs and RapidR Studio use:
 # its properties, methods and events in the runtimes' values
 rapidr-value = { workspace = true, optional = true }

@@ -176,6 +176,9 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     // (the program's language — RapidR Studio's —: the registry's docs in
     // hovers and help, the compiler's messages in Problems)
     let lang = rapidr_value::i18n::language();
+    // (the service's own words — the Help pages' labels, the hover's kinds —
+    // are RapidR's own text: translated by the same catalogs as the panes')
+    rapidr_langsvc::words::install(rapidr_value::i18n::tr_ui, None);
     if rapidr_lang::docs_i18n::doc_language() != lang {
         rapidr_lang::docs_i18n::set_doc_language(&lang);
     }

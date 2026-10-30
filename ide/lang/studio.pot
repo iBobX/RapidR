@@ -3785,6 +3785,22 @@ msgstr ""
 msgid "Properties"
 msgstr ""
 
+#: ide/panels.inc
+msgid "RapidR Light"
+msgstr ""
+
+#: ide/panels.inc
+msgid "RapidR Dark"
+msgstr ""
+
+#: ide/panels.inc
+msgid "RapidR High Contrast"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Classic"
+msgstr ""
+
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Project"
 msgstr ""

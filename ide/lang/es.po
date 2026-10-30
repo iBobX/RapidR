@@ -5883,3 +5883,20 @@ msgstr "Ver informe"
 #: ide/crash.inc
 msgid "Your program stopped: a problem in RapidR"
 msgstr "Tu programa se detuvo: un problema de RapidR"
+
+
+#: ide/panels.inc
+msgid "RapidR Light"
+msgstr "RapidR claro"
+
+#: ide/panels.inc
+msgid "RapidR Dark"
+msgstr "RapidR oscuro"
+
+#: ide/panels.inc
+msgid "RapidR High Contrast"
+msgstr "RapidR contraste alto"
+
+#: ide/panels.inc
+msgid "Classic"
+msgstr "Clásico"

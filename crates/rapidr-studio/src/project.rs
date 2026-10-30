@@ -31,6 +31,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use rapidr_project::{import_v1, is_v1_json, kind_for_path, kind_for_source, normalize_path, FileKind, Project};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::Value;
 
 use crate::{flag, folder_of, int_arg, join, read_text, slashes, text_arg, write_text, Host};
@@ -390,7 +391,7 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
                 let file = join(&folder, &format!("{}.rrproj", imported.project.name));
                 (imported.project, "v1", file)
             } else if text.trim_start().starts_with('{') {
-                return Err(format!("{path}: not a RapidR project"));
+                return Err(tr_ui_fill("{path}: not a RapidR project", &[("path", &path)]));
             } else {
                 (Project::from_toml(&text).map_err(|e| e.to_string())?, "project", path.clone())
             }
@@ -400,11 +401,11 @@ fn open(m: &mut Model, path: &str) -> Result<(), String> {
             let main = path.rsplit('/').next().unwrap_or(&path).to_string();
             let resolve = |rel: &str| -> Option<(String, String)> { read_project_file(&folder, rel) };
             if !exists(&path) {
-                return Err(format!("{path}: no such file"));
+                return Err(tr_ui_fill("{path}: no such file", &[("path", &path)]));
             }
             (rapidr_project::implicit_from_resolver(&main, &resolve), "file", String::new())
         }
-        _ => return Err(format!("{path}: not a project or a source file")),
+        _ => return Err(tr_ui_fill("{path}: not a project or a source file", &[("path", &path)])),
     };
     *m = Model { project, kind, file_name, folder, ..Model::default() };
     Ok(())
@@ -420,7 +421,7 @@ fn follow_code(m: &mut Model) -> String {
 
 fn save(m: &mut Model, to: &str) -> Result<(), String> {
     if m.kind.is_empty() {
-        return Err("no project is open".into());
+        return Err(tr_ui("no project is open"));
     }
     // (the kinds written are the code's: S1)
     follow_code(m);
@@ -462,7 +463,7 @@ fn new(m: &mut Model, template: &str, name: &str, folder: &str, interpreted: boo
 fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
     with(name, |m| {
         if m.kind.is_empty() {
-            return Err("no project is open".to_string());
+            return Err(tr_ui("no project is open"));
         }
         // (in full: the build runs in the project's folder, and Studio may
         // have opened it by a relative path)
@@ -505,7 +506,7 @@ fn build_args(name: &str, kind: &str) -> Result<(Vec<String>, String), String> {
 fn web_build<H: Host>(host: H, name: &str) -> Result<(), String> {
     let (main, stem) = with(name, |m| {
         if m.kind.is_empty() {
-            return Err("no project is open".to_string());
+            return Err(tr_ui("no project is open"));
         }
         let main = join(&full(&m.folder), &m.project.main);
         let named = if m.kind == "project" && !m.file_name.is_empty() { m.file_name.as_str() } else { main.as_str() };
@@ -647,14 +648,14 @@ fn copy_example_again(path: &str, examples: &str) -> Result<String, String> {
         let original = match example_of(path, examples) {
             o if !o.is_empty() => o,
             _ if !path.is_empty() && rapidr_project::program_files::is_inside(Path::new(path), Path::new(examples)) => path.to_string(),
-            _ => return Err(format!("{path} isn't a copy of one of RapidR's examples")),
+            _ => return Err(tr_ui_fill("{path} isn't a copy of one of RapidR's examples", &[("path", &path)])),
         };
         rapidr_project::program_files::copy_example_again(Path::new(&original)).map(|p| slashes(&p.to_string_lossy()))
     }
     #[cfg(target_arch = "wasm32")]
     {
         let _ = (path, examples);
-        Err("the web keeps the examples you change in the page's store".into())
+        Err(tr_ui("the web keeps the examples you change in the page's store"))
     }
 }
 
@@ -687,7 +688,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             match main_of_folder(&folder, &files) {
                 Some(f) => changing(&|m| open(m, &join(&folder, &f))),
                 None => {
-                    with(name, |m| m.error = format!("{folder}: no RapidR project or source in it"));
+                    with(name, |m| m.error = tr_ui_fill("{folder}: no RapidR project or source in it", &[("folder", &folder)]));
                     flag(false)
                 }
             }
@@ -713,17 +714,17 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }),
         "addfile" => changing(&|m| {
             if m.kind.is_empty() {
-                return Err("no project is open".into());
+                return Err(tr_ui("no project is open"));
             }
             let rel = project_path(&m.folder, &s(0));
             // (no kind given: its code says — a file that creates a form is
             // a form file, whoever wrote it: S1)
             let kind = kind_parse(&s(1)).unwrap_or_else(|| read_text(&join(&m.folder, &rel)).map_or_else(|_| kind_for_path(&rel), |t| kind_for_source(&rel, &t)));
-            if m.project.add_file(&rel, kind) { Ok(()) } else { Err(format!("{rel} is in the project already")) }
+            if m.project.add_file(&rel, kind) { Ok(()) } else { Err(tr_ui_fill("{file} is in the project already", &[("file", &rel)])) }
         }),
         "removefile" => changing(&|m| {
             let rel = project_path(&m.folder, &s(0));
-            if m.project.remove_file(&rel) { Ok(()) } else { Err(format!("{rel} isn't in the project")) }
+            if m.project.remove_file(&rel) { Ok(()) } else { Err(tr_ui_fill("{file} isn't in the project", &[("file", &rel)])) }
         }),
         "file" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| f.path.clone()).unwrap_or_default()).into()),
         "filekind" => Value::String(with(name, |m| m.project.file(i.max(0) as usize).filter(|_| i >= 0).map(|f| kind_name(f.kind).to_string()).unwrap_or_default()).into()),
@@ -734,7 +735,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 web_build(host, name)
             } else {
                 build_args(name, &kind).and_then(|(args, cwd)| {
-                    let rapidr = host.rapidr().ok_or("Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program")?;
+                    let rapidr = host.rapidr().ok_or_else(|| tr_ui("Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program"))?;
                     crate::build::start(name, rapidr, &args, &cwd)
                 })
             };
@@ -756,7 +757,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         "installrust" => {
             let started = host
                 .rapidr()
-                .ok_or("Installing Rust is the desktop's: run `rapidr setup` on the computer".to_string())
+                .ok_or_else(|| tr_ui("Installing Rust is the desktop's: run `rapidr setup` on the computer"))
                 .and_then(|rapidr| crate::build::start(name, rapidr, &["setup".to_string(), "--yes".to_string(), "--no-path".to_string()], ""));
             let ok = started.is_ok();
             with(name, |m| m.error = started.err().unwrap_or_default());
@@ -771,7 +772,7 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
                 p if p.is_empty() => with(name, |m| m.built.clone()),
                 p => p,
             };
-            let r = if path.is_empty() { Err("nothing built yet".to_string()) } else { host.reveal(&path) };
+            let r = if path.is_empty() { Err(tr_ui("nothing built yet")) } else { host.reveal(&path) };
             let ok = r.is_ok();
             with(name, |m| m.error = r.err().unwrap_or_default());
             flag(ok)

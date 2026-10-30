@@ -29,6 +29,7 @@ use std::collections::HashMap;
 
 use rapidr_ai::rai::{ToolOutcome, ToolProvider};
 use rapidr_ai::Tool;
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use rapidr_value::Value;
 use serde_json::{json, Value as Json};
 
@@ -484,7 +485,7 @@ impl ToolProvider for Handle {
                 if unchanged {
                     kept.push(p);
                 } else {
-                    t.records.push((format!("The change to {} proposed before was set aside: {} changed since.", p.path, p.path), json!({"target": p.path, "decision": "set-aside"})));
+                    t.records.push((tr_ui_fill("The change to {path} proposed before was set aside: {path} changed since.", &[("path", &p.path)]), json!({"target": p.path, "decision": "set-aside"})));
                 }
             }
             t.proposals = kept;
@@ -551,7 +552,7 @@ impl ToolProvider for Handle {
             for path in changed {
                 if let Some(k) = t.carried.iter().position(|c| *c == path) {
                     t.carried.remove(k);
-                    t.records.push((format!("The change to {path} proposed before was replaced by a newer proposal."), json!({"target": path, "decision": "replaced"})));
+                    t.records.push((tr_ui_fill("The change to {path} proposed before was replaced by a newer proposal.", &[("path", &path)]), json!({"target": path, "decision": "replaced"})));
                 }
                 t.refused.retain(|(r, _)| *r != path);
                 if !t.turn_paths.contains(&path) {
@@ -607,25 +608,25 @@ impl ToolProvider for Handle {
             // for a change it didn't make, which the status must say —;
             // changes from before that wait for the user too)
             if !t.touched {
-                if let Some(said) = ai_tools::pending(&t.proposals).filter(|_| !t.asked_again).map(|(name, _)| if t.review_first { format!("The new program {name} isn't created yet: preview it, then create it.") } else { format!("The new program {name} isn't created yet.") }) {
+                if let Some(said) = ai_tools::pending(&t.proposals).filter(|_| !t.asked_again).map(|(name, _)| if t.review_first { tr_ui_fill("The new program {name} isn't created yet: preview it, then create it.", &[("name", &name)]) } else { tr_ui_fill("The new program {name} isn't created yet.", &[("name", &name)]) }) {
                     return Some(said);
                 }
                 let waiting = t.waiting().len();
-                return (waiting > 0 && !t.asked_again).then(|| if waiting == 1 { "A change proposed before still waits for your review.".to_string() } else { format!("Changes to {waiting} files proposed before still wait for your review.") });
+                return (waiting > 0 && !t.asked_again).then(|| if waiting == 1 { tr_ui("A change proposed before still waits for your review.") } else { tr_ui_fill("Changes to {n} files proposed before still wait for your review.", &[("n", &waiting.to_string())]) });
             }
             let n = t.proposals.len();
             let files = t.proposals.iter().filter(|p| p.project.is_empty()).count();
             // (a new program: previewed first when the user asked for that,
             // else Studio creates and opens it — its banner says what next)
             (n > 0).then(|| match (files, t.broken) {
-                (0, false) if t.review_first => "The assistant made a new program: preview it, then create it.".to_string(),
-                (0, true) if t.review_first => "The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors.".to_string(),
-                (0, false) => "The assistant made a new program.".to_string(),
-                (0, true) => "The assistant made a new program that doesn't compile yet.".to_string(),
-                (1, false) => "The assistant proposed a change: review it.".to_string(),
-                (1, true) => "The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors.".to_string(),
-                (_, false) => format!("The assistant proposed changes to {files} files: review them."),
-                (_, true) => format!("The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors."),
+                (0, false) if t.review_first => tr_ui("The assistant made a new program: preview it, then create it."),
+                (0, true) if t.review_first => tr_ui("The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors."),
+                (0, false) => tr_ui("The assistant made a new program."),
+                (0, true) => tr_ui("The assistant made a new program that doesn't compile yet."),
+                (1, false) => tr_ui("The assistant proposed a change: review it."),
+                (1, true) => tr_ui("The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors."),
+                (_, false) => tr_ui_fill("The assistant proposed changes to {files} files: review them.", &[("files", &files.to_string())]),
+                (_, true) => tr_ui_fill("The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors.", &[("files", &files.to_string())]),
             })
         })
     }
@@ -655,7 +656,8 @@ impl ToolProvider for Handle {
     /// newest steps fit the status line ("Found an example", "Wrote
     /// main.rr", "Checked the code").
     fn step_label(&self, name: &str, note: &str) -> String {
-        step_label(name, note)
+        // (the label the notes make, in the person's language: they read it as a step)
+        crate::notes::ui_note(&step_label(name, note))
     }
 
     fn nudge(&self, question: &str, answer: &str) -> Option<String> {
@@ -730,12 +732,13 @@ impl Tools {
         }
         let decision = decision.to_ascii_lowercase();
         let path = self.proposals[k].path.clone();
+        let values = [("path", path.as_str())];
         let line = match decision.as_str() {
-            "applied" => format!("You applied the change to {path}."),
-            "partly" => format!("You applied part of the change to {path}."),
-            "rejected" => format!("You rejected the change to {path}."),
-            "stale" => format!("The change to {path} wasn't applied: {path} changed after the assistant read it. Ask again."),
-            "failed" => format!("The change to {path} couldn't be applied in its editor: {path} is as it was. Ask again."),
+            "applied" => tr_ui_fill("You applied the change to {path}.", &values),
+            "partly" => tr_ui_fill("You applied part of the change to {path}.", &values),
+            "rejected" => tr_ui_fill("You rejected the change to {path}.", &values),
+            "stale" => tr_ui_fill("The change to {path} wasn't applied: {path} changed after the assistant read it. Ask again.", &values),
+            "failed" => tr_ui_fill("The change to {path} couldn't be applied in its editor: {path} is as it was. Ask again.", &values),
             _ => return,
         };
         self.proposals[k].decision = decision.clone();
@@ -763,7 +766,7 @@ impl Tools {
     fn cards(&self) -> Vec<(String, String)> {
         let mut out = Vec::new();
         if !self.recipe.is_empty() {
-            out.push(("recipe".to_string(), format!("✓ Started from the recipe *{}*", self.recipe)));
+            out.push(("recipe".to_string(), format!("✓ {}", tr_ui_fill("Started from the recipe {recipe}", &[("recipe", &format!("*{}*", self.recipe))]))));
         }
         // (this turn's changes: one waiting from an earlier answer has its
         // card there)
@@ -775,37 +778,40 @@ impl Tools {
             // as a group of their own — added and removed in the diff's
             // colours, a title a screen reader says in words —, then Review:
             // the groups kept apart by em spaces)
-            let counts = |n: usize, what: &str| format!("{n} {} {what}", if n == 1 { "line" } else { "lines" });
+            let added_words = if added == 1 { tr_ui("1 line added") } else { tr_ui_fill("{n} lines added", &[("n", &added.to_string())]) };
+            let removed_words = if removed == 1 { tr_ui("1 line removed") } else { tr_ui_fill("{n} lines removed", &[("n", &removed.to_string())]) };
             let gap = "\u{2003}\u{2003}";
+            let review_word = tr_ui("Review");
             let line = if p.kind == "create" {
-                format!("✓ New file {}{gap}<ins title=\"{}\">+{added}</ins>{gap}[Review]({review})", p.path, counts(added, "added"))
+                format!("✓ {}{gap}<ins title=\"{added_words}\">+{added}</ins>{gap}[{review_word}]({review})", tr_ui_fill("New file {file}", &[("file", &p.path)]))
             } else {
-                format!("✓ Proposed a change to {}{gap}<ins title=\"{}\">+{added}</ins> <del title=\"{}\">−{removed}</del>{gap}[Review]({review})", p.path, counts(added, "added"), counts(removed, "removed"))
+                format!("✓ {}{gap}<ins title=\"{added_words}\">+{added}</ins> <del title=\"{removed_words}\">−{removed}</del>{gap}[{review_word}]({review})", tr_ui_fill("Proposed a change to {file}", &[("file", &p.path)]))
             };
             out.push((format!("edit:{}", p.path), line));
         }
         // (a change refused and not proposed again: said, nothing to review)
         for (path, why) in &self.refused {
-            out.push((format!("edit:{path}"), format!("× {why}")));
+            out.push((format!("edit:{path}"), format!("× {}", crate::notes::ui_note(why))));
         }
         if let Some((_, main)) = ai_tools::pending(&self.proposals) {
             let title = self.proposals.iter().find(|p| p.kind == "project").map(|p| p.title.clone()).unwrap_or_default();
             let errors = ai_tools::project_errors(&self.proposals);
-            let state = if errors == 0 { "compiles".to_string() } else { format!("{} to fix", plural(errors, "error")) };
-            out.push(("project".to_string(), format!("✓ New program *{title}*\u{2003}\u{2003}{main} · {state}")));
+            let state = if errors == 0 { tr_ui("compiles") } else { errors_to_fix(errors) };
+            out.push(("project".to_string(), format!("✓ {}\u{2003}\u{2003}{main} · {state}", tr_ui_fill("New program {title}", &[("title", &format!("*{title}*"))]))));
         }
         if self.first_errors > 0 && self.touched && !self.broken {
-            out.push(("fixed".to_string(), format!("✓ Fixed {}", plural(self.first_errors, "error"))));
+            let fixed = if self.first_errors == 1 { tr_ui("Fixed 1 error") } else { tr_ui_fill("Fixed {n} errors", &[("n", &self.first_errors.to_string())]) };
+            out.push(("fixed".to_string(), format!("✓ {fixed}")));
         }
         // (RAI asks before it looks at or uses the running program: once a
         // run — Studio's own links, marked)
         match self.app_asked {
             Some(None) => {
                 let (allow, deny) = (rapidr_ai::rai::own_link("ai:app-allow"), rapidr_ai::rai::own_link("ai:app-deny"));
-                out.push(("app".to_string(), format!("✋ RAI wants to click and type in your running program. It sees whatever the program shows, including private data.\u{2003}\u{2003}[Allow for this run]({allow})\u{2003}\u{2003}[Don't allow]({deny})")));
+                out.push(("app".to_string(), format!("✋ {}\u{2003}\u{2003}[{}]({allow})\u{2003}\u{2003}[{}]({deny})", tr_ui("RAI wants to click and type in your running program. It sees whatever the program shows, including private data."), tr_ui("Allow for this run"), tr_ui("Don't allow"))));
             }
-            Some(Some(true)) => out.push(("app".to_string(), "✓ You allowed RAI to use your running program for this run".to_string())),
-            Some(Some(false)) => out.push(("app".to_string(), "× You didn't allow RAI to use your running program".to_string())),
+            Some(Some(true)) => out.push(("app".to_string(), format!("✓ {}", tr_ui("You allowed RAI to use your running program for this run")))),
+            Some(Some(false)) => out.push(("app".to_string(), format!("× {}", tr_ui("You didn't allow RAI to use your running program")))),
             None => {}
         }
         out
@@ -876,10 +882,11 @@ impl Tools {
         }
         rapidr_ai::rai::record(&self.rai, "", json!({"target": root, "decision": "created", "files": made.files.len()}));
         let errors = diagnostics_count(&texts, &name, &main_rel);
-        let state = if errors == 0 { "compiles".to_string() } else { format!("{} left", plural(errors, "error")) };
+        let state = if errors == 0 { tr_ui("compiles") } else if errors == 1 { tr_ui("1 error left") } else { tr_ui_fill("{n} errors left", &[("n", &errors.to_string())]) };
         let folder_name = root.rsplit('/').next().unwrap_or(&name).to_string();
         let (open, undo) = (rapidr_ai::rai::own_link(&format!("ai:open/{folder_name}")), rapidr_ai::rai::own_link(&format!("ai:undo/{folder_name}")));
-        rapidr_ai::rai::set_card(&self.rai, "project", &format!("✓ Created *{title}*\u{2003}\u{2003}{main_rel} · {state}\u{2003}\u{2003}[Open]({open}) · [Undo]({undo})"));
+        let created = tr_ui_fill("Created {title}", &[("title", &format!("*{title}*"))]);
+        rapidr_ai::rai::set_card(&self.rai, "project", &format!("✓ {created}\u{2003}\u{2003}{main_rel} · {state}\u{2003}\u{2003}[{}]({open}) · [{}]({undo})", tr_ui("Open"), tr_ui("Undo")));
         self.created = Some(made);
         Ok(crate::join(&root, &proj_file))
     }
@@ -888,19 +895,19 @@ impl Tools {
     /// nothing): a file changed or gone, a file added (the desktop lists
     /// the folder; the web checks the files written).
     fn undo_check(&self) -> String {
-        let Some(c) = &self.created else { return "There is no new program to undo.".into() };
+        let Some(c) = &self.created else { return tr_ui("There is no new program to undo.") };
         let mut said = Vec::new();
         for (path, text) in &c.files {
             match crate::read_text(path) {
                 Ok(t) if t == *text => {}
-                Ok(_) => said.push(format!("{} was changed", rel_of(&c.root, path))),
-                Err(_) => said.push(format!("{} is gone", rel_of(&c.root, path))),
+                Ok(_) => said.push(tr_ui_fill("{file} was changed", &[("file", &rel_of(&c.root, path))])),
+                Err(_) => said.push(tr_ui_fill("{file} is gone", &[("file", &rel_of(&c.root, path))])),
             }
         }
         #[cfg(not(target_arch = "wasm32"))]
         for f in list_tree(std::path::Path::new(&c.root)) {
             if !c.files.iter().any(|(p, _)| *p == f) && !c.dirs.contains(&f) && !is_state(&c.root, &f) {
-                said.push(format!("{} was added", rel_of(&c.root, &f)));
+                said.push(tr_ui_fill("{file} was added", &[("file", &rel_of(&c.root, &f))]));
             }
         }
         said.join("; ")
@@ -946,8 +953,9 @@ impl Tools {
         };
         #[cfg(target_arch = "wasm32")]
         let gone = true;
-        let left = if gone { String::new() } else { " (the files you added stay in its folder)".to_string() };
-        rapidr_ai::rai::record(&self.rai, &format!("Undone: the new program *{}* was removed{left}.", c.title), json!({"target": c.root, "decision": "undone", "files": c.files.len()}));
+        let title = format!("*{}*", c.title);
+        let line = if gone { tr_ui_fill("Undone: the new program {title} was removed.", &[("title", &title)]) } else { tr_ui_fill("Undone: the new program {title} was removed (the files you added stay in its folder).", &[("title", &title)]) };
+        rapidr_ai::rai::record(&self.rai, &line, json!({"target": c.root, "decision": "undone", "files": c.files.len()}));
         gone
     }
 }
@@ -995,11 +1003,13 @@ fn app_refused(name: &str) -> ToolOutcome {
     }
 }
 
-fn plural(n: usize, noun: &str) -> String {
+/// "1 error to fix", "3 errors to fix": what the card of a new program says
+/// it has left.
+fn errors_to_fix(n: usize) -> String {
     if n == 1 {
-        format!("1 {noun}")
+        tr_ui("1 error to fix")
     } else {
-        format!("{n} {noun}s")
+        tr_ui_fill("{n} errors to fix", &[("n", &n.to_string())])
     }
 }
 

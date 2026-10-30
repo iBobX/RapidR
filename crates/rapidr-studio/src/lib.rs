@@ -37,6 +37,7 @@ pub mod langsvc;
 pub mod local_history;
 pub mod login_path;
 pub mod manual_search;
+pub mod notes;
 pub mod project;
 pub mod recipes;
 pub mod recovery;

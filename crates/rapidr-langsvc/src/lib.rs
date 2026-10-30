@@ -28,6 +28,7 @@ pub mod front;
 pub mod help;
 pub mod model;
 pub mod text;
+pub mod words;
 
 mod compat;
 mod complete;

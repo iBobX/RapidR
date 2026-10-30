@@ -19,6 +19,9 @@
 
 use std::time::Duration;
 
+use rapidr_value::i18n::tr_ui_fill;
+
+
 /// How long the login shell is given.
 pub const TIMEOUT: Duration = Duration::from_secs(3);
 
@@ -46,8 +49,8 @@ impl ShellPath {
     /// Where it came from, in words (Settings shows it).
     pub fn describe(&self) -> String {
         match &self.source {
-            Source::LoginShell(shell) => format!("From your login shell ({shell}), as Terminal has it."),
-            Source::Fallback(why) => format!("Your login shell couldn't say ({why}): Studio's own PATH and the usual folders that are on this computer."),
+            Source::LoginShell(shell) => tr_ui_fill("From your login shell ({shell}), as Terminal has it.", &[("shell", shell)]),
+            Source::Fallback(why) => tr_ui_fill("Your login shell couldn't say ({why}): Studio's own PATH and the usual folders that are on this computer.", &[("why", why)]),
         }
     }
 }
@@ -202,7 +205,13 @@ mod reader {
             std::thread::sleep(Duration::from_millis(20));
         }
         let secs = timeout.as_secs();
-        found.ok_or_else(|| if Instant::now() >= deadline { format!("{shell} didn't answer in {secs} second{}", if secs == 1 { "" } else { "s" }) } else { format!("{shell} didn't print its PATH") })
+        found.ok_or_else(|| {
+            if Instant::now() >= deadline {
+                if secs == 1 { rapidr_value::i18n::tr_ui_fill("{shell} didn't answer in 1 second", &[("shell", shell)]) } else { rapidr_value::i18n::tr_ui_fill("{shell} didn't answer in {secs} seconds", &[("shell", shell), ("secs", &secs.to_string())]) }
+            } else {
+                rapidr_value::i18n::tr_ui_fill("{shell} didn't print its PATH", &[("shell", shell)])
+            }
+        })
     }
 
     /// The PATH for the programs: the login shell's (then Studio's own

@@ -80,6 +80,7 @@ pub fn set_platform(system_language: fn() -> String, reader: Reader) {
 /// The language the program speaks now: what it set as
 /// `Application.Language`, else the system's (normalized: `es-AR`).
 pub fn language() -> String {
+    host();
     STATE.with(|s| {
         let mut s = s.borrow_mut();
         if let Some(l) = &s.chosen {
@@ -94,6 +95,7 @@ pub fn language() -> String {
 /// the language changes, the text the components show is to be translated
 /// again ([`take_retranslation`]).
 pub fn set_language(tag: &str) {
+    host();
     let tag = normalize_tag(tag);
     let old = language();
     let old_chain = chain();
@@ -316,6 +318,13 @@ fn runtime_catalog(tag: &str) -> Option<Rc<Catalog>> {
     })
 }
 
+/// The crates that hold no catalogs (the language service, the AI layer:
+/// `rapidr_i18n::host`) translate their words through this module's: told
+/// once, the first time anything here is used.
+fn host() {
+    rapidr_i18n::host::install(tr_ui, Some(set_language));
+}
+
 /// RapidR's own text, `text` (English), in the program's language: the
 /// program's catalogs first (RapidR Studio's translate it as its own), then
 /// RapidR's (compiled in), the pseudo-language's (`xx`: every text accented
@@ -323,6 +332,7 @@ fn runtime_catalog(tag: &str) -> Option<Rc<Catalog>> {
 /// written `tr_ui("Search components")` in the sources, so `rapidr i18n
 /// runtime` finds it.
 pub fn tr_ui(text: &str) -> String {
+    host();
     let chain = chain();
     if let Some(t) = chain.iter().find_map(|c| c.text("", text)) {
         return t.to_string();

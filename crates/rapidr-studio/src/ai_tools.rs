@@ -31,6 +31,7 @@ use std::path::PathBuf;
 use rapidr_ai::Tool;
 use rapidr_introspect::{Reply, Request};
 use rapidr_langsvc::{Analysis, Options};
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
 use serde_json::{json, Value as Json};
 
 /// A change the assistant proposes: the user sees it as a diff (an edit),
@@ -305,50 +306,88 @@ fn known_key(token: &str) -> bool {
 /// server.rr"); `input` may hold only the fields written so far.
 pub fn activity(name: &str, input: &Json) -> Option<String> {
     let field = |k: &str| input.get(k).and_then(Json::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    // (the person reads these, in their language: whole phrases, the values
+    // — a file, a component, a caption — put in)
     Some(match name {
-        "read_file" => field("path").map_or_else(|| "Reading a file".to_string(), |p| format!("Reading {p}")),
-        "list_files" => "Listing the files".into(),
-        "project_outline" => "Reading the project's outline".into(),
-        "search_manual" => "Searching the manual".into(),
-        "find_example" => "Finding an example".into(),
-        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| "Reading RapidR's reference".to_string(), |t| format!("Reading the help of {t}")),
-        "rapidr_list" | "rapidr_get" => "Looking at the form".into(),
-        "check_code" => "Checking (compiling)".into(),
-        "layout" => "Laying out the buttons".into(),
+        "read_file" => field("path").map_or_else(|| tr_ui("Reading a file"), |p| tr_ui_fill("Reading {file}", &[("file", &p)])),
+        "list_files" => tr_ui("Listing the files"),
+        "project_outline" => tr_ui("Reading the project's outline"),
+        "search_manual" => tr_ui("Searching the manual"),
+        "find_example" => tr_ui("Finding an example"),
+        "rapidr_describe" => field("type").or_else(|| field("builtin")).map_or_else(|| tr_ui("Reading RapidR's reference"), |t| tr_ui_fill("Reading the help of {name}", &[("name", &t)])),
+        "rapidr_list" | "rapidr_get" => tr_ui("Looking at the form"),
+        "check_code" => tr_ui("Checking (compiling)"),
+        "layout" => tr_ui("Laying out the buttons"),
         // (the running program's eyes and hands: an AI app's arguments are
         // capitalised, RAI's not)
-        "app_layout" => "Reading the running program's layout".into(),
-        "app_screenshot" => "Looking at the running program".into(),
-        "app_wait" => "Letting the running program work".into(),
+        "app_layout" => tr_ui("Reading the running program's layout"),
+        "app_screenshot" => tr_ui("Looking at the running program"),
+        "app_wait" => tr_ui("Letting the running program work"),
         "app_click" | "app_type" | "app_key" | "app_drag" | "app_scroll" => {
             let any = |k: &str| field(k).or_else(|| field(&k.to_ascii_lowercase()));
-            let on = any("Caption").map(|c| format!(" \"{c}\"")).or_else(|| any("Name").map(|n| format!(" {n}"))).or_else(|| any("Label").map(|l| format!(" the box beside \"{l}\""))).unwrap_or_default();
+            // (what it is done on: a caption, a name, or the box beside a label)
+            enum On {
+                Nothing,
+                Caption(String),
+                Name(String),
+                Beside(String),
+            }
+            let on = any("Caption").map(On::Caption).or_else(|| any("Name").map(On::Name)).or_else(|| any("Label").map(On::Beside)).unwrap_or(On::Nothing);
+            let a: &str = match &on {
+                On::Nothing => "",
+                On::Caption(c) | On::Name(c) | On::Beside(c) => c,
+            };
             match name {
-                "app_click" => format!("Clicking{on} in the running program"),
+                "app_click" => match &on {
+                    On::Nothing => tr_ui("Clicking in the running program"),
+                    On::Caption(_) => tr_ui_fill("Clicking \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Clicking {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Clicking the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
                 // (never what is typed: a password typed into the program
                 // would show in the pane, the status line, read aloud and
                 // in the question — only how many characters)
                 "app_type" => {
                     let n = ["Text", "text"].iter().find_map(|k| input.get(*k).and_then(Json::as_str)).unwrap_or_default().chars().count();
-                    format!("Typing {n} character{}{} in the running program", if n == 1 { "" } else { "s" }, if on.is_empty() { String::new() } else { format!(" into{on}") })
+                    let count = n.to_string();
+                    match (&on, n == 1) {
+                        (On::Nothing, true) => tr_ui("Typing 1 character in the running program"),
+                        (On::Nothing, false) => tr_ui_fill("Typing {n} characters in the running program", &[("n", &count)]),
+                        (On::Caption(_), true) => tr_ui_fill("Typing 1 character into \"{what}\" in the running program", &[("what", a)]),
+                        (On::Caption(_), false) => tr_ui_fill("Typing {n} characters into \"{what}\" in the running program", &[("n", &count), ("what", a)]),
+                        (On::Name(_), true) => tr_ui_fill("Typing 1 character into {what} in the running program", &[("what", a)]),
+                        (On::Name(_), false) => tr_ui_fill("Typing {n} characters into {what} in the running program", &[("n", &count), ("what", a)]),
+                        (On::Beside(_), true) => tr_ui_fill("Typing 1 character into the box beside \"{what}\" in the running program", &[("what", a)]),
+                        (On::Beside(_), false) => tr_ui_fill("Typing {n} characters into the box beside \"{what}\" in the running program", &[("n", &count), ("what", a)]),
+                    }
                 }
                 // (keys by name — Enter, Ctrl+S —; anything else, a single
                 // character or a word, may be typing: only counted)
                 "app_key" => match any("Keys") {
-                    Some(k) if k.split_whitespace().all(known_key) => format!("Pressing {k} in the running program"),
-                    Some(k) if k.split_whitespace().count() == 1 => "Pressing a key in the running program".into(),
-                    Some(k) => format!("Pressing {} keys in the running program", k.split_whitespace().count()),
-                    None => "Pressing keys in the running program".into(),
+                    Some(k) if k.split_whitespace().all(known_key) => tr_ui_fill("Pressing {keys} in the running program", &[("keys", &k)]),
+                    Some(k) if k.split_whitespace().count() == 1 => tr_ui("Pressing a key in the running program"),
+                    Some(k) => tr_ui_fill("Pressing {n} keys in the running program", &[("n", &k.split_whitespace().count().to_string())]),
+                    None => tr_ui("Pressing keys in the running program"),
                 },
-                "app_drag" => format!("Dragging{on} in the running program"),
-                _ => format!("Scrolling{on} in the running program"),
+                "app_drag" => match &on {
+                    On::Nothing => tr_ui("Dragging in the running program"),
+                    On::Caption(_) => tr_ui_fill("Dragging \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Dragging {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Dragging the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
+                _ => match &on {
+                    On::Nothing => tr_ui("Scrolling in the running program"),
+                    On::Caption(_) => tr_ui_fill("Scrolling \"{what}\" in the running program", &[("what", a)]),
+                    On::Name(_) => tr_ui_fill("Scrolling {what} in the running program", &[("what", a)]),
+                    On::Beside(_) => tr_ui_fill("Scrolling the box beside \"{what}\" in the running program", &[("what", a)]),
+                },
             }
         }
         // ("lines": how many the model has written so far, counted as they
         // stream in — a file's or a program's, not an edit's)
-        "propose_edit" => field("path").map_or_else(|| "Writing a change".to_string(), |p| format!("Writing {p}")),
-        "write_file" => field("path").map_or_else(|| "Writing a file".to_string(), |p| format!("Writing {p}{}", lines(input))),
-        "create_project" => field("name").map_or_else(|| "Writing the new program".to_string(), |n| format!("Writing {n}{}", lines(input))),
+        "propose_edit" => field("path").map_or_else(|| tr_ui("Writing a change"), |p| tr_ui_fill("Writing {file}", &[("file", &p)])),
+        "write_file" => field("path").map_or_else(|| tr_ui("Writing a file"), |p| format!("{}{}", tr_ui_fill("Writing {file}", &[("file", &p)]), lines(input))),
+        "create_project" => field("name").map_or_else(|| tr_ui("Writing the new program"), |n| format!("{}{}", tr_ui_fill("Writing {file}", &[("file", &n)]), lines(input))),
         _ => return None,
     })
 }
@@ -356,8 +395,8 @@ pub fn activity(name: &str, input: &Json) -> Option<String> {
 /// " (+318 lines)" for the lines written so far, else nothing.
 fn lines(input: &Json) -> String {
     match input.get("lines").and_then(Json::as_u64) {
-        Some(1) => " (+1 line)".into(),
-        Some(n) if n > 1 => format!(" (+{n} lines)"),
+        Some(1) => format!(" {}", tr_ui("(+1 line)")),
+        Some(n) if n > 1 => format!(" {}", tr_ui_fill("(+{n} lines)", &[("n", &n.to_string())])),
         _ => String::new(),
     }
 }
