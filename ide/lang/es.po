@@ -1,8 +1,9 @@
 # RapidR Studio in Spanish (español neutro): docs/i18n/glossary-es.md.
-# A SAMPLE that proves the pipeline (lane I18N-STUDIO): the menu bar, part
-# of the File menu, Settings > Language and the start-up's words, each
-# marked `review` until a person checks it. The rest is the translation
-# lanes' (update it from studio.pot: rapidr i18n update ide/lang/studio.pot ide/lang/es.po).
+# Lane ES-STUDIO (2026-10-30): every text translated by a first pass; Robert
+# reviews them (docs/i18n/review-es-studio.md). `# legal` above an entry marks
+# a consent, privacy, cost, key or age text, translated point by point: the
+# lawyer check finds them with grep -B1 "^# legal". `#, review` marks a doubt.
+# Update from the template: rapidr i18n update ide/lang/studio.pot ide/lang/es.po
 msgid ""
 msgstr ""
 "Project-Id-Version: RapidR Studio\n"
@@ -13,4895 +14,5495 @@ msgstr ""
 
 #: ide/ai.inc
 msgid "Review the Assistant's Changes"
-msgstr ""
+msgstr "Revisar los cambios del asistente"
 
 #: ide/ai.inc
 msgid "What will be applied"
-msgstr ""
+msgstr "Qué se aplicará"
 
 #: ide/ai.inc
 msgid "Accept &All"
-msgstr ""
+msgstr "Aceptar &todo"
 
 #: ide/ai.inc
 msgid "Accept every change of every file"
-msgstr ""
+msgstr "Aceptar todos los cambios de todos los archivos"
 
 #: ide/ai.inc
 msgid "&Reject All"
-msgstr ""
+msgstr "&Rechazar todo"
 
 #: ide/ai.inc
 msgid "Reject every change of every file"
-msgstr ""
+msgstr "Rechazar todos los cambios de todos los archivos"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "A&pply"
-msgstr ""
+msgstr "A&plicar"
 
 #: ide/ai.inc
 msgid "Apply the accepted changes"
-msgstr ""
+msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
-msgstr ""
+msgstr "Cancelar"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "What the change does"
-msgstr ""
+msgstr "Qué hace el cambio"
 
 #: ide/ai.inc
 msgid "Files the assistant changes"
-msgstr ""
+msgstr "Archivos que cambia el asistente"
 
 #: ide/ai.inc ide/mcp.inc
 msgid "The change: the file as it is on the left, as proposed on the right"
-msgstr ""
+msgstr "El cambio: a la izquierda, el archivo como está; a la derecha, como se propone"
 
 #: ide/ai.inc
 msgid "A New Program from the Assistant"
-msgstr ""
+msgstr "Un programa nuevo del asistente"
 
 #: ide/ai.inc
 msgid "Create &in:"
-msgstr ""
+msgstr "Crear e&n:"
 
 #: ide/ai.inc
 msgid "The folder the new project goes in"
-msgstr ""
+msgstr "La carpeta donde irá el proyecto nuevo"
 
 #: ide/ai.inc
 msgid "&Browse..."
-msgstr ""
+msgstr "&Examinar..."
 
 #: ide/ai.inc
 msgid "Choose the folder the new project goes in"
-msgstr ""
+msgstr "Elige la carpeta donde irá el proyecto nuevo"
 
 #: ide/ai.inc
 msgid "&Create and Open"
-msgstr ""
+msgstr "&Crear y abrir"
 
 #: ide/ai.inc
 msgid "The new program's files"
-msgstr ""
+msgstr "Los archivos del programa nuevo"
 
 #: ide/ai.inc
 msgid "The form, as it will look"
-msgstr ""
+msgstr "El formulario, como se verá"
 
 #: ide/ai.inc
 msgid "The file's code"
-msgstr ""
+msgstr "El código del archivo"
 
 #: ide/ai.inc
 msgid "What Was Sent"
-msgstr ""
+msgstr "Qué se envió"
 
 #: ide/ai.inc ide/debug.inc
 msgid "Close"
-msgstr ""
+msgstr "Cerrar"
 
+# legal
 #: ide/ai.inc
 msgid "The last request, as sent (your key isn't in it)"
-msgstr ""
+msgstr "La última solicitud, como se envió (tu clave no está en ella)"
 
 #: ide/ai.inc
 msgid "AI Assistant"
-msgstr ""
+msgstr "Asistente de IA"
 
 #: ide/ai.inc ide/aichats.inc
 msgid "Chats"
-msgstr ""
+msgstr "Chats"
 
 #: ide/ai.inc
 msgid "This project's chats: switch, rename, delete, search"
-msgstr ""
+msgstr "Los chats de este proyecto: cambiar, renombrar, eliminar, buscar"
 
 #: ide/ai.inc
 msgid "This chat"
-msgstr ""
+msgstr "Este chat"
 
 #: ide/ai.inc ide/aisetup.inc ide/settings.inc
 msgid "Model"
-msgstr ""
+msgstr "Modelo"
 
 #: ide/ai.inc
 msgid "Refresh the model list"
-msgstr ""
+msgstr "Actualizar la lista de modelos"
 
 #: ide/ai.inc
 msgid "Ask the provider for its models again"
-msgstr ""
+msgstr "Pedir de nuevo los modelos al proveedor"
 
 #: ide/ai.inc
 msgid "Effort: Auto"
-msgstr ""
+msgstr "Esfuerzo: automático"
 
 #: ide/ai.inc
 msgid "Effort: Low"
-msgstr ""
+msgstr "Esfuerzo: bajo"
 
 #: ide/ai.inc
 msgid "Effort: Medium"
-msgstr ""
+msgstr "Esfuerzo: medio"
 
 #: ide/ai.inc
 msgid "Effort: High"
-msgstr ""
+msgstr "Esfuerzo: alto"
 
 #: ide/ai.inc
 msgid "Reasoning effort"
-msgstr ""
+msgstr "Esfuerzo de razonamiento"
 
 #: ide/ai.inc
 msgid "How hard the model thinks before it answers: more takes longer and costs more"
-msgstr ""
+msgstr "Cuánto piensa el modelo antes de responder: más esfuerzo tarda más y cuesta más"
 
 #: ide/ai.inc
 msgid "New Chat"
-msgstr ""
+msgstr "Nuevo chat"
 
 #: ide/ai.inc
 msgid "Start a new chat"
-msgstr ""
+msgstr "Empezar un chat nuevo"
 
 #: ide/ai.inc
 msgid "This chat is kept: Chats lists it"
-msgstr ""
+msgstr "Este chat se conserva: Chats lo muestra"
 
 #: ide/ai.inc
 msgid "Assistant status"
-msgstr ""
+msgstr "Estado del asistente"
 
 #: ide/ai.inc
 msgid "Ask the assistant"
-msgstr ""
+msgstr "Pregunta al asistente"
 
 #: ide/ai.inc
 msgid "Enter sends; Shift+Enter starts a new line"
-msgstr ""
+msgstr "Enter envía; Shift+Enter empieza una línea nueva"
 
 #: ide/ai.inc
 msgid "Send"
-msgstr ""
+msgstr "Enviar"
 
 #: ide/ai.inc
 msgid "Send to the assistant"
-msgstr ""
+msgstr "Enviar al asistente"
 
 #: ide/ai.inc
 msgid "Stop"
-msgstr ""
+msgstr "Detener"
 
 #: ide/ai.inc
 msgid "Stop the answer"
-msgstr ""
+msgstr "Detener la respuesta"
 
 #: ide/ai.inc
 msgid "What Send shares"
-msgstr ""
+msgstr "Qué comparte Enviar"
 
 #: ide/ai.inc
 msgid "Tokens used"
-msgstr ""
+msgstr "Tokens usados"
 
 #: ide/ai.inc ide/settings.inc
 msgid "What was sent"
-msgstr ""
+msgstr "Qué se envió"
 
 #: ide/ai.inc
 msgid "What was sent to the assistant"
-msgstr ""
+msgstr "Qué se envió al asistente"
 
 #: ide/ai.inc
 msgid "Time the answer has taken"
-msgstr ""
+msgstr "Tiempo que lleva la respuesta"
 
 #: ide/ai.inc
 msgid "Context used"
-msgstr ""
+msgstr "Contexto usado"
 
 #: ide/ai.inc
 msgid "Context"
-msgstr ""
+msgstr "Contexto"
 
 #: ide/ai.inc
 msgid "Compact"
-msgstr ""
+msgstr "Compactar"
 
 #: ide/ai.inc
 msgid "Compact the chat"
-msgstr ""
+msgstr "Compactar el chat"
 
 #: ide/ai.inc
 msgid "Summarises this chat now, so each question sends less (/compact)"
-msgstr ""
+msgstr "Resume este chat ahora, para que cada pregunta envíe menos (/compact)"
 
 #: ide/ai.inc
 msgid "Commands"
-msgstr ""
+msgstr "Comandos"
 
 #: ide/ai.inc
 msgid "Commands: Up and Down choose, Tab completes, Enter runs"
-msgstr ""
+msgstr "Comandos: las flechas arriba y abajo eligen, Tab completa, Enter ejecuta"
 
 #: ide/ai.inc
 msgid "Editing a sent question"
-msgstr ""
+msgstr "Editando una pregunta enviada"
 
 #: ide/ai.inc
 msgid "Stop editing the question"
-msgstr ""
+msgstr "Dejar de editar la pregunta"
 
 #: ide/ai.inc
 msgid "Queued message"
-msgstr ""
+msgstr "Mensaje en cola"
 
 #: ide/ai.inc
 msgid "Cancel the queued message"
-msgstr ""
+msgstr "Cancelar el mensaje en cola"
 
 #: ide/ai.inc
 msgid "It won't be sent"
-msgstr ""
+msgstr "No se enviará"
 
 #: ide/ai.inc
 msgid "Review the Changes..."
-msgstr ""
+msgstr "Revisar los cambios..."
 
 #: ide/ai.inc
 msgid "Review the proposed changes"
-msgstr ""
+msgstr "Revisar los cambios propuestos"
 
 #: ide/ai.inc
 msgid "What the assistant is doing"
-msgstr ""
+msgstr "Qué está haciendo el asistente"
 
 #: ide/ai.inc
 msgid "What the assistant is doing now"
-msgstr ""
+msgstr "Qué está haciendo el asistente ahora"
 
 #: ide/ai.inc
 msgid "Time this answer has taken"
-msgstr ""
+msgstr "Tiempo que lleva esta respuesta"
 
 #: ide/ai.inc
 msgid "Steps done in this answer"
-msgstr ""
+msgstr "Pasos hechos en esta respuesta"
 
 #: ide/ai.inc
 msgid "Conversation with the assistant"
-msgstr ""
+msgstr "Conversación con el asistente"
 
 #: ide/ai.inc
 msgid "The assistant's new program"
-msgstr ""
+msgstr "El programa nuevo del asistente"
 
 #: ide/ai.inc
 msgid "Run it"
-msgstr ""
+msgstr "Ejecutarlo"
 
 #: ide/ai.inc
 msgid "Runs the new program (F5). Nothing runs until you press it."
-msgstr ""
+msgstr "Ejecuta el programa nuevo (F5). No se ejecuta nada hasta que lo presionas."
 
 #: ide/ai.inc
 msgid "Ask It to Fix"
-msgstr ""
+msgstr "Pedir que lo corrija"
 
 #: ide/ai.inc
 msgid "Ask the assistant to fix the errors"
-msgstr ""
+msgstr "Pedir al asistente que corrija los errores"
 
 #: ide/ai.inc ide/aichats.inc
 msgid "Undo"
-msgstr ""
+msgstr "Deshacer"
 
 #: ide/ai.inc
 msgid "Closes the new program and removes the files the assistant wrote"
-msgstr ""
+msgstr "Cierra el programa nuevo y quita los archivos que escribió el asistente"
 
 #: ide/ai.inc
 msgid "What Did It Do?"
-msgstr ""
+msgstr "¿Qué hizo?"
 
 #: ide/ai.inc
 msgid "What did it do?"
-msgstr ""
+msgstr "¿Qué hizo?"
 
 #: ide/ai.inc
 msgid "Shows what the assistant did, in the Assistant pane"
-msgstr ""
+msgstr "Muestra lo que hizo el asistente, en el panel Asistente"
 
 #: ide/ai.inc
 msgid "Close the banner"
-msgstr ""
+msgstr "Cerrar el aviso"
 
 #: ide/ai.inc ide/panels.inc ide/settings.inc
-#, review
 msgid "General"
 msgstr "General"
 
 #: ide/ai.inc ide/settings.inc
 msgid "AI"
-msgstr ""
+msgstr "IA"
 
 #: ide/ai.inc
 msgid "Assistant"
-msgstr ""
+msgstr "Asistente"
 
 #: ide/ai.inc
 msgid "RAI needs a place to answer from: Tools > Set up RAI walks you through it (free on this computer, or a cloud key)."
-msgstr ""
+msgstr "RAI necesita un lugar desde donde responder: Herramientas > Configurar RAI te guía (gratis en esta computadora, o con una clave de un servicio en la nube)."
 
 #: ide/ai.inc
 msgid "Add your API key (Tools > Set up RAI, or Tools > Settings > AI), then ask about this project or for a new program."
-msgstr ""
+msgstr "Añade tu clave de API (Herramientas > Configurar RAI, o Herramientas > Configuración > IA) y luego pregunta por este proyecto o pide un programa nuevo."
 
 #: ide/ai.inc
 msgid "Choose a model in the list above (↻ asks the provider for its models)."
-msgstr ""
+msgstr "Elige un modelo en la lista de arriba (↻ pide sus modelos al proveedor)."
 
 #: ide/ai.inc
 msgid "Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
-msgstr ""
+msgstr "Pregunta por este proyecto o pide un programa nuevo: {q}Añade un botón Borrar{q}, {q}Hazme una calculadora de propinas{q}. Un programa nuevo se abre en Studio, listo para ejecutarse; los cambios a tus archivos esperan a que los revises. Escribe / para ver los comandos."
 
 #: ide/ai.inc
 msgid "the provider"
-msgstr ""
+msgstr "el proveedor"
 
 #: ide/ai.inc
 msgid "the server at {url}"
-msgstr ""
+msgstr "el servidor en {url}"
 
+# legal
 #: ide/ai.inc
 msgid "Send shares your message, this chat, what the assistant reads of this project and, while your program runs, what its windows show (it asks you first) with {provider}: nothing else, nothing before."
-msgstr ""
+msgstr "Enviar comparte con {provider} tu mensaje, este chat, lo que el asistente lee de este proyecto y, mientras tu programa se ejecuta, lo que muestran sus ventanas (antes te pregunta): nada más, nada antes."
 
 #: ide/ai.inc
 msgid "A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI."
-msgstr ""
+msgstr "Un modelo que ofrece {provider}. El proveedor se elige en Herramientas > Configuración > IA, o en Configurar RAI."
 
 #: ide/ai.inc
 msgid "{provider}'s models (the provider: Tools > Settings > AI)"
-msgstr ""
+msgstr "Modelos que ofrece {provider} (el proveedor: Herramientas > Configuración > IA)"
 
 #: ide/ai.inc
 msgid "Low, Medium or High: the model thinks more before it answers (slower, costs more). Auto: as it usually does."
-msgstr ""
+msgstr "Bajo, medio o alto: el modelo piensa más antes de responder (más lento, cuesta más). Automático: como suele hacerlo."
 
 #: ide/ai.inc
 msgid "This provider's models choose how much to think for themselves."
-msgstr ""
+msgstr "Los modelos de este proveedor eligen por sí mismos cuánto pensar."
 
 #: ide/ai.inc
 msgid "Effort: Auto, as the model usually thinks."
-msgstr ""
+msgstr "Esfuerzo: automático, como suele pensar el modelo."
 
 #: ide/ai.inc
 msgid "Effort: Low — slower, and it costs more."
-msgstr ""
+msgstr "Esfuerzo: bajo — más lento y cuesta más."
 
 #: ide/ai.inc
 msgid "Effort: Medium — slower, and it costs more."
-msgstr ""
+msgstr "Esfuerzo: medio — más lento y cuesta más."
 
 #: ide/ai.inc
 msgid "Effort: High — slower, and it costs more."
-msgstr ""
+msgstr "Esfuerzo: alto — más lento y cuesta más."
 
 #: ide/ai.inc
 msgid "Effort: {effort} — slower, and it costs more."
-msgstr ""
+msgstr "Esfuerzo: {effort} — más lento y cuesta más."
 
 #: ide/ai.inc
 msgid "RAI is answering: ↻ works once it is done (or Stop)."
-msgstr ""
+msgstr "RAI está respondiendo: ↻ funciona cuando termine (o con Detener)."
 
 #: ide/ai.inc
 msgid "Context: empty"
-msgstr ""
+msgstr "Contexto: vacío"
 
 #: ide/ai.inc
 msgid "Context: {used} of {limit} ({pct}%)"
-msgstr ""
+msgstr "Contexto: {used} de {limit} ({pct}%)"
 
 #: ide/ai.inc
 msgid "About {used} tokens go with the next question. At {limit} the chat is compacted by itself; Compact does it now."
-msgstr ""
+msgstr "Unos {used} tokens van con la próxima pregunta. Al llegar a {limit}, el chat se compacta solo; Compactar lo hace ahora."
 
 #: ide/ai.inc
 msgid "{n} s"
-msgstr ""
+msgstr "{n} s"
 
 #: ide/ai.inc
 msgid "No answer from the model for {n} s: wait, or Stop."
-msgstr ""
+msgstr "El modelo no responde desde hace {n} s: espera o usa Detener."
 
 #: ide/ai.inc
 msgid "Compacting the chat…"
-msgstr ""
+msgstr "Compactando el chat…"
 
 #: ide/ai.inc
 msgid "Queued: {message}"
-msgstr ""
+msgstr "En cola: {message}"
 
 #: ide/ai.inc
 msgid "The queued message won't be sent."
-msgstr ""
+msgstr "El mensaje en cola no se enviará."
 
 #: ide/ai.inc
 msgid "Summarise this chat now: each question then sends less"
-msgstr ""
+msgstr "Resume este chat ahora: cada pregunta enviará menos"
 
 #: ide/ai.inc
 msgid "Start a new chat (this one is kept in Chats)"
-msgstr ""
+msgstr "Empieza un chat nuevo (este se conserva en Chats)"
 
 #: ide/ai.inc
 msgid "Choose the model (/model name picks it)"
-msgstr ""
+msgstr "Elige el modelo (/model nombre lo elige)"
 
 #: ide/ai.inc
 msgid "How hard it thinks: /effort low, medium, high or auto"
-msgstr ""
+msgstr "Cuánto piensa: /effort low, medium, high o auto"
 
 #: ide/ai.inc
 msgid "Undo the assistant's last change"
-msgstr ""
+msgstr "Deshacer el último cambio del asistente"
 
 #: ide/ai.inc
 msgid "What you can type here"
-msgstr ""
+msgstr "Qué puedes escribir aquí"
 
 #: ide/ai.inc
 msgid "Choose the model in the list (↻ asks {provider} for its models again)."
-msgstr ""
+msgstr "Elige el modelo en la lista (↻ hace que {provider} envíe sus modelos otra vez)."
 
 #: ide/ai.inc
 msgid "The model is {model} now."
-msgstr ""
+msgstr "Ahora el modelo es {model}."
 
 #: ide/ai.inc
 msgid "/effort takes low, medium, high or auto."
-msgstr ""
+msgstr "/effort acepta low, medium, high o auto."
 
 #: ide/ai.inc
 msgid "Commands: /compact, /new, /chats, /model, /effort, /undo, /help. Type / to see them listed."
-msgstr ""
+msgstr "Comandos: /compact, /new, /chats, /model, /effort, /undo, /help. Escribe / para verlos en una lista."
 
 #: ide/ai.inc
 msgid "{command} isn't a command: /help lists them. (To send it, start it with a space.)"
-msgstr ""
+msgstr "{command} no es un comando: /help los muestra. (Para enviarlo, empieza con un espacio.)"
 
 #: ide/ai.inc
 msgid "Nothing to undo: the assistant changed nothing since Studio started (or it was undone)."
-msgstr ""
+msgstr "No hay nada que deshacer: el asistente no cambió nada desde que Studio empezó (o ya se deshizo)."
 
 #: ide/ai.inc
 msgid "a closed file"
-msgstr ""
+msgstr "un archivo cerrado"
 
 #: ide/ai.inc
 msgid "Undone in {n} file(s); {files} changed since: Edit > Undo there."
-msgstr ""
+msgstr "Se deshizo en {n} archivo(s); {files} cambió desde entonces: usa Edición > Deshacer allí."
 
 #: ide/ai.inc
 msgid "Undone: the assistant's last change is taken back (Edit > Redo puts it back)."
-msgstr ""
+msgstr "Se deshizo: el último cambio del asistente se revirtió (Edición > Rehacer lo devuelve)."
 
 #: ide/ai.inc
 msgid "Undone: the assistant's last changes are taken back in {n} files."
-msgstr ""
+msgstr "Se deshizo: los últimos cambios del asistente se revirtieron en {n} archivos."
 
 #: ide/ai.inc
 msgid "Not edited: the chat is as it was."
-msgstr ""
+msgstr "Sin editar: el chat sigue como estaba."
 
+# legal
 #: ide/ai.inc
 msgid "RAI wants to click and type in your running program: Allow for this run, or Don't allow, in its chat."
-msgstr ""
+msgstr "RAI quiere hacer clic y escribir en tu programa en ejecución: elige Permitir en esta ejecución, o No permitir, en su chat."
 
 #: ide/ai.inc
 msgid "Waiting for you — {status}"
-msgstr ""
+msgstr "Esperando tu respuesta — {status}"
 
 #: ide/ai.inc
 msgid "Stopped. Your queued message is back in the box, not sent."
-msgstr ""
+msgstr "Detenido. Tu mensaje en cola volvió al cuadro, sin enviarse."
 
 #: ide/ai.inc
 msgid "Preview the New Program..."
-msgstr ""
+msgstr "Vista previa del programa nuevo..."
 
 #: ide/ai.inc
 msgid "Preview the new program before it is created"
-msgstr ""
+msgstr "Ver el programa nuevo antes de crearlo"
 
 #: ide/ai.inc
 msgid "There is no key for {provider}: Tools > Settings > AI."
-msgstr ""
+msgstr "No hay clave para {provider}: Herramientas > Configuración > IA."
 
 #: ide/ai.inc
 msgid "AI: {model} is no longer in the provider's list: choose a model again"
-msgstr ""
+msgstr "IA: {model} ya no está en la lista del proveedor: elige un modelo de nuevo"
 
 #: ide/ai.inc
 msgid "{status} Choose one in the list."
-msgstr ""
+msgstr "{status} Elige uno en la lista."
 
 #: ide/ai.inc ide/aisetup.inc
 msgid "RAI is ready: {model}."
-msgstr ""
+msgstr "Todo listo para usar RAI: {model}."
 
 #: ide/ai.inc
 msgid "Nothing has been sent yet."
-msgstr ""
+msgstr "Todavía no se ha enviado nada."
 
+# legal
 #: ide/ai.inc
 msgid "Your key is never shown or logged. Every request and change is in the audit log on this computer: {location}"
-msgstr ""
+msgstr "Tu clave nunca se muestra ni se registra. Cada solicitud y cada cambio quedan en el registro de auditoría de esta computadora: {location}"
 
-#: ide/ai.inc
+#: ide/ai.inc ide/versions.inc
 msgid "{file} (new)"
-msgstr ""
+msgstr "{file} (nuevo)"
 
 #: ide/ai.inc
 msgid "{accepted} of {n} change accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
 msgid_plural "{accepted} of {n} changes accepted in this file. F7: next change; Enter accepts it, Backspace rejects it."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{accepted} de {n} cambio aceptado en este archivo. F7: siguiente cambio; Enter lo acepta, Backspace lo rechaza."
+msgstr[1] "{accepted} de {n} cambios aceptados en este archivo. F7: siguiente cambio; Enter lo acepta, Backspace lo rechaza."
 
 #: ide/ai.inc
 msgid "{file} is proposed twice"
-msgstr ""
+msgstr "{file} se propone dos veces"
 
 #: ide/ai.inc ide/project.inc
 msgid "{file} isn't there any more"
-msgstr ""
+msgstr "{file} ya no está"
 
 #: ide/ai.inc
 msgid "{file} changed since the assistant read it"
-msgstr ""
+msgstr "{file} cambió desde que el asistente lo leyó"
 
 #: ide/ai.inc
 msgid "{file}: it can't be opened"
-msgstr ""
+msgstr "{file}: no se puede abrir"
 
 #: ide/ai.inc
 msgid "{file}: its editor refused the change"
-msgstr ""
+msgstr "{file}: su editor rechazó el cambio"
 
 #: ide/ai.inc
 msgid "Nothing was changed: no change was accepted."
-msgstr ""
+msgstr "No se cambió nada: no se aceptó ningún cambio."
 
 #: ide/ai.inc
 msgid "1 file changed: Edit > Undo takes it back."
-msgstr ""
+msgstr "Se cambió 1 archivo: Edición > Deshacer lo revierte."
 
 #: ide/ai.inc
 msgid "{n} files changed: Edit > Undo in each takes it back."
-msgstr ""
+msgstr "Se cambiaron {n} archivos: Edición > Deshacer en cada uno los revierte."
 
 #: ide/ai.inc
 msgid "AI: not applied — {reason}"
-msgstr ""
+msgstr "IA: no se aplicó — {reason}"
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason}. What this Apply had done was taken back; the changes still wait (Review)."
-msgstr ""
+msgstr "No se cambió nada: {reason}. Lo que había hecho este Aplicar se revirtió; los cambios siguen esperando (Revisar)."
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason} (and {n} more in the Output). The changes still wait (Review)."
-msgstr ""
+msgstr "No se cambió nada: {reason} (y {n} más en Salida). Los cambios siguen esperando (Revisar)."
 
 #: ide/ai.inc
 msgid "Nothing was changed: {reason}. The changes still wait (Review)."
-msgstr ""
+msgstr "No se cambió nada: {reason}. Los cambios siguen esperando (Revisar)."
 
 #: ide/ai.inc
 msgid "{name}: {n} file, previewed: nothing is written until you press Create"
 msgid_plural "{name}: {n} files, previewed: nothing is written until you press Create"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{name}: {n} archivo, en vista previa: no se escribe nada hasta que presiones Crear"
+msgstr[1] "{name}: {n} archivos, en vista previa: no se escribe nada hasta que presiones Crear"
 
 #: ide/ai.inc
 msgid "Where the New Program Goes"
-msgstr ""
+msgstr "Dónde va el programa nuevo"
 
 #: ide/ai.inc
 msgid "Can't create the project: {error}"
-msgstr ""
+msgstr "No se puede crear el proyecto: {error}"
 
 #: ide/ai.inc
 msgid "The new program isn't created yet: your changes came first. Preview the New Program creates it."
-msgstr ""
+msgstr "El programa nuevo aún no se creó: primero van tus cambios. Vista previa del programa nuevo lo crea."
 
 #: ide/ai.inc
 msgid "Can't create the new program in {folder}: {error}. Preview the New Program lets you choose another folder."
-msgstr ""
+msgstr "No se puede crear el programa nuevo en {folder}: {error}. Vista previa del programa nuevo te deja elegir otra carpeta."
 
 #: ide/ai.inc
 msgid "Made {title}: Run It is at the top."
-msgstr ""
+msgstr "Se creó {title}: Ejecutarlo está arriba."
 
 #: ide/ai.inc
 msgid "Made {title}, {n} error left: see the top."
 msgid_plural "Made {title}, {n} errors left: see the top."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se creó {title}, queda {n} error: mira arriba."
+msgstr[1] "Se creó {title}, quedan {n} errores: mira arriba."
 
 #: ide/ai.inc
 msgid "The assistant made this program for you."
-msgstr ""
+msgstr "El asistente hizo este programa para ti."
 
 #: ide/ai.inc
 msgid "▶  Run It"
-msgstr ""
+msgstr "▶  Ejecutarlo"
 
 #: ide/ai.inc
 msgid "The assistant made this program — it still has {n} error."
 msgid_plural "The assistant made this program — it still has {n} errors."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "El asistente hizo este programa — todavía tiene {n} error."
+msgstr[1] "El asistente hizo este programa — todavía tiene {n} errores."
 
 #: ide/ai.inc
 msgid "▶  Run Anyway"
-msgstr ""
+msgstr "▶  Ejecutar de todos modos"
 
 #: ide/ai.inc
 msgid "Run anyway"
-msgstr ""
+msgstr "Ejecutar de todos modos"
 
 #: ide/ai.inc
 msgid "↺  Undo"
-msgstr ""
+msgstr "↺  Deshacer"
 
 #: ide/ai.inc
 msgctxt "the word looked for in a status line"
 msgid "error"
-msgstr ""
+msgstr "error"
 
 #: ide/ai.inc
 msgid "{status} The program has {n} error: Problems lists them."
 msgid_plural "{status} The program has {n} errors: Problems lists them."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{status} El programa tiene {n} error: Problemas lo muestra."
+msgstr[1] "{status} El programa tiene {n} errores: Problemas los muestra."
 
 #: ide/ai.inc
 msgid "Please fix the errors that are left."
-msgstr ""
+msgstr "Por favor, corrige los errores que quedan."
 
 #: ide/ai.inc
 msgid "There is no new program to undo."
-msgstr ""
+msgstr "No hay ningún programa nuevo que deshacer."
 
 #: ide/ai.inc
 msgid "{file} has changes not saved"
-msgstr ""
+msgstr "{file} tiene cambios sin guardar"
 
 #: ide/ai.inc
 msgid "Undo the new program {title}?"
-msgstr ""
+msgstr "¿Deshacer el programa nuevo {title}?"
 
 #: ide/ai.inc
 msgid "It changed since the assistant made it: {changes}. Undo removes the files the assistant wrote, with your changes to them; files you added stay."
-msgstr ""
+msgstr "Cambió desde que lo hizo el asistente: {changes}. Deshacer quita los archivos que escribió el asistente, con tus cambios en ellos; los archivos que añadiste se quedan."
 
 #: ide/ai.inc
 msgid "Undone: {title} was removed."
-msgstr ""
+msgstr "Se deshizo: se quitó {title}."
 
 #: ide/ai.inc
 msgid "Undone: the assistant's files of {title} were removed; the files you added stay in {folder}."
-msgstr ""
+msgstr "Se deshizo: se quitaron los archivos del asistente de {title}; los archivos que añadiste se quedan en {folder}."
 
 #: ide/ai.inc
 msgid "Copied the code."
-msgstr ""
+msgstr "Se copió el código."
 
 #: ide/ai.inc
 msgid "Copied the code"
-msgstr ""
+msgstr "Se copió el código"
 
 #: ide/ai.inc
 msgid "Nothing waits for review: those changes were applied or rejected already."
-msgstr ""
+msgstr "Nada espera revisión: esos cambios ya se aplicaron o se rechazaron."
 
 #: ide/ai.inc
 msgid "That program isn't the assistant's last one any more (undone, or another came after): open it with File > Open."
-msgstr ""
+msgstr "Ese programa ya no es el último del asistente (se deshizo, o vino otro después): ábrelo con Archivo > Abrir proyecto o archivo."
 
 #: ide/ai.inc
 msgid "Fixing the errors…"
-msgstr ""
+msgstr "Corrigiendo los errores…"
 
 #: ide/ai.inc
 msgid "Thinking…"
-msgstr ""
+msgstr "Pensando…"
 
 #: ide/ai.inc
 msgid "Working…"
-msgstr ""
+msgstr "Trabajando…"
 
 #: ide/ai.inc
 msgid "the server"
-msgstr ""
+msgstr "el servidor"
 
 #: ide/ai.inc
 msgid "{min} min {n} s"
-msgstr ""
+msgstr "{min} min {n} s"
 
 #: ide/ai.inc
 msgid "Waiting for the provider…"
-msgstr ""
+msgstr "Esperando al proveedor…"
 
 #: ide/ai.inc
 msgid "Waiting for {name}'s answer… {n} s"
-msgstr ""
+msgstr "Esperando la respuesta… {n} s ({name})"
 
 #: ide/ai.inc
 msgid "{n} earlier step"
 msgid_plural "{n} earlier steps"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} paso anterior"
+msgstr[1] "{n} pasos anteriores"
 
 #: ide/ai.inc
 msgid "This answer: {in} in ({cached} cached) · {out} out · part {part} of {parts}"
-msgstr ""
+msgstr "Esta respuesta: {in} de entrada ({cached} en caché) · {out} de salida · parte {part} de {parts}"
 
 #: ide/ai.inc
 msgid "This answer: {in} in ({cached} cached) · {out} out"
-msgstr ""
+msgstr "Esta respuesta: {in} de entrada ({cached} en caché) · {out} de salida"
 
 #: ide/ai.inc
 msgid "This answer: {in} in · {out} out · part {part} of {parts}"
-msgstr ""
+msgstr "Esta respuesta: {in} de entrada · {out} de salida · parte {part} de {parts}"
 
 #: ide/ai.inc
 msgid "This answer: {in} in · {out} out"
-msgstr ""
+msgstr "Esta respuesta: {in} de entrada · {out} de salida"
 
 #: ide/ai.inc
 msgid "Open a file in the editor first: Insert types the code at its caret."
-msgstr ""
+msgstr "Abre primero un archivo en el editor: Insertar escribe el código en su cursor."
 
 #: ide/ai.inc
 msgid "Inserted the code at the caret in {file} (Ctrl+Z takes it back)."
-msgstr ""
+msgstr "Se insertó el código en el cursor de {file} (Ctrl+Z lo revierte)."
 
 #: ide/ai.inc
 msgid "Inserted the code"
-msgstr ""
+msgstr "Se insertó el código"
 
 #: ide/ai.inc
 msgid "Continue where you stopped, in smaller steps: several changes of at most about 100 lines each, and keep your explanations short."
-msgstr ""
+msgstr "Continúa donde te quedaste, en pasos más pequeños: varios cambios de unas 100 líneas como máximo cada uno, y mantén tus explicaciones breves."
 
 #: ide/ai.inc
 msgid "Choose a Provider first: its models are listed here then."
-msgstr ""
+msgstr "Elige primero el Provider: así sus modelos aparecen aquí."
 
+# legal
 #: ide/ai.inc
 msgid "Type the API key in APIKey (kept in your keychain, never in the code): the provider's models are listed here then."
-msgstr ""
+msgstr "Escribe la clave de API en APIKey (se guarda en tu llavero, nunca en el código): entonces los modelos del proveedor aparecen aquí."
 
 #: ide/ai.inc
 msgid "Loading {provider}'s models…"
-msgstr ""
+msgstr "Cargando los modelos que ofrece {provider}…"
 
 #: ide/ai.inc
 msgid "↻ Refresh the list"
-msgstr ""
+msgstr "↻ Actualizar la lista"
 
 #: ide/ai.inc
 msgid "{n} model from {provider}, fast, low-cost ones first: pick one."
 msgid_plural "{n} models from {provider}, fast, low-cost ones first: pick one."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} modelo ofrecido por {provider}, primero los rápidos y baratos: elige uno."
+msgstr[1] "{n} modelos ofrecidos por {provider}, primero los rápidos y baratos: elige uno."
 
 #: ide/ai.inc
 msgid "{n} model from {provider}: pick one."
 msgid_plural "{n} models from {provider}: pick one."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} modelo ofrecido por {provider}: elige uno."
+msgstr[1] "{n} modelos ofrecidos por {provider}: elige uno."
 
+# legal
 #: ide/ai.inc
 msgid "The key is kept in {store} as {q}{name}{q}: the program names it, never the key."
-msgstr ""
+msgstr "La clave se guarda en {store} como {q}{name}{q}: el programa la nombra, nunca contiene la clave."
 
+# legal
 #: ide/ai.inc
 msgid "A key ({hint}) is kept in {store} as {q}{name}{q}: the code names it, never the key. Type another to replace it."
-msgstr ""
+msgstr "Hay una clave ({hint}) guardada en {store} como {q}{name}{q}: el código la nombra, nunca contiene la clave. Escribe otra para reemplazarla."
 
+# legal
 #: ide/ai.inc
 msgid "A key ({hint}) is found in the {source}: the code never holds it."
-msgstr ""
+msgstr "Hay una clave ({hint}) en {source}: el código nunca la contiene."
 
 #: ide/aichats.inc
 msgid "Search:"
-msgstr ""
+msgstr "Buscar:"
 
 #: ide/aichats.inc
 msgid "Search chats"
-msgstr ""
+msgstr "Buscar chats"
 
 #: ide/aichats.inc
 msgid "Their titles and what was said; Down goes to the list, Escape back to the chat"
-msgstr ""
+msgstr "Sus títulos y lo que se dijo; la flecha abajo va a la lista, Escape vuelve al chat"
 
 #: ide/aichats.inc ide/panels.inc
 msgid "Open"
-msgstr ""
+msgstr "Abrir"
 
 #: ide/aichats.inc
 msgid "Open the chat"
-msgstr ""
+msgstr "Abrir el chat"
 
 #: ide/aichats.inc
 msgid "Rename"
-msgstr ""
+msgstr "Renombrar"
 
 #: ide/aichats.inc
 msgid "Rename the chat"
-msgstr ""
+msgstr "Renombrar el chat"
 
 #: ide/aichats.inc
 msgid "Delete"
-msgstr ""
+msgstr "Eliminar"
 
 #: ide/aichats.inc
 msgid "Delete the chat"
-msgstr ""
+msgstr "Eliminar el chat"
 
 #: ide/aichats.inc
 msgid "It is removed from this computer; Undo puts it back"
-msgstr ""
+msgstr "Se quita de esta computadora; Deshacer lo devuelve"
 
 #: ide/aichats.inc
 msgid "Chat deleted"
-msgstr ""
+msgstr "Chat eliminado"
 
 #: ide/aichats.inc
 msgid "Undo: put the chat back"
-msgstr ""
+msgstr "Deshacer: devolver el chat"
 
 #: ide/aichats.inc
 msgid "The chat's new name"
-msgstr ""
+msgstr "El nombre nuevo del chat"
 
 #: ide/aichats.inc
 msgid "Enter keeps it, Escape leaves the name as it was"
-msgstr ""
+msgstr "Enter lo conserva, Escape deja el nombre como estaba"
 
 #: ide/aichats.inc
 msgid "Save"
-msgstr ""
+msgstr "Guardar"
 
 #: ide/aichats.inc
 msgid "Save the new name"
-msgstr ""
+msgstr "Guardar el nombre nuevo"
 
 #: ide/aichats.inc
 msgid "Keep the name as it was"
-msgstr ""
+msgstr "Conservar el nombre como estaba"
 
 #: ide/aichats.inc
 msgid "Where chats are kept"
-msgstr ""
+msgstr "Dónde se guardan los chats"
 
 #: ide/aichats.inc
 msgid "This project's chats, the newest first"
-msgstr ""
+msgstr "Los chats de este proyecto, los más nuevos primero"
 
 #: ide/aichats.inc
 msgid "New chat"
-msgstr ""
+msgstr "Nuevo chat"
 
 #: ide/aichats.inc
 msgid "This chat: {title}"
-msgstr ""
+msgstr "Este chat: {title}"
 
 #: ide/aichats.inc
 msgid "AI: this chat couldn't be kept: {error}"
-msgstr ""
+msgstr "IA: no se pudo guardar este chat: {error}"
 
 #: ide/aichats.inc
 msgid "That chat can't be read any more (removed outside Studio?)."
-msgstr ""
+msgstr "Ese chat ya no se puede leer (¿se quitó fuera de Studio?)."
 
 #: ide/aichats.inc
 msgid "A new chat. The last one is kept: Chats lists it."
-msgstr ""
+msgstr "Un chat nuevo. El anterior se conserva: Chats lo muestra."
 
 #: ide/aichats.inc
 msgid "A new chat."
-msgstr ""
+msgstr "Un chat nuevo."
 
+# legal
 #: ide/aichats.inc
 msgid "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
-msgstr ""
+msgstr "Se guardan en esta computadora, en la carpeta propia de Studio — nunca en el proyecto. Eliminar quita un chat para siempre."
 
 #: ide/aichats.inc
 msgid "Kept in {folder}"
-msgstr ""
+msgstr "Guardados en {folder}"
 
 #: ide/aichats.inc ide/aisetup.inc
 msgid "Back"
-msgstr ""
+msgstr "Atrás"
 
 #: ide/aichats.inc
 msgid "Back to the chat"
-msgstr ""
+msgstr "Volver al chat"
 
 #: ide/aichats.inc
 msgid "{title} — {n} question, {date}"
 msgid_plural "{title} — {n} questions, {date}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{title} — {n} pregunta, {date}"
+msgstr[1] "{title} — {n} preguntas, {date}"
 
 #: ide/aichats.inc
 msgid "{item}: {q}{snippet}{q}"
-msgstr ""
+msgstr "{item}: {q}{snippet}{q}"
 
 #: ide/aichats.inc
 msgid "{item} (open)"
-msgstr ""
+msgstr "{item} (abierto)"
 
 #: ide/aichats.inc
 msgid "No chats kept for this project yet."
-msgstr ""
+msgstr "Aún no hay chats guardados para este proyecto."
 
 #: ide/aichats.inc
 msgid "No chat has {q}{text}{q}."
-msgstr ""
+msgstr "Ningún chat tiene {q}{text}{q}."
 
 #: ide/aichats.inc
 msgid "{n} chat"
 msgid_plural "{n} chats"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} chat"
+msgstr[1] "{n} chats"
 
 #: ide/aichats.inc
 msgid "Opened {q}{title}{q}."
-msgstr ""
+msgstr "Se abrió {q}{title}{q}."
 
 #: ide/aichats.inc
 msgid "Renamed: {q}{title}{q}."
-msgstr ""
+msgstr "Se renombró: {q}{title}{q}."
 
 #: ide/aichats.inc
 msgid "That chat couldn't be renamed."
-msgstr ""
+msgstr "No se pudo renombrar ese chat."
 
 #: ide/aichats.inc
 msgid "That chat couldn't be deleted."
-msgstr ""
+msgstr "No se pudo eliminar ese chat."
 
 #: ide/aichats.inc
 msgid "Deleted {q}{title}{q}."
-msgstr ""
+msgstr "Se eliminó {q}{title}{q}."
 
 #: ide/aichats.inc
 msgid "Deleted {q}{title}{q}. Undo puts it back."
-msgstr ""
+msgstr "Se eliminó {q}{title}{q}. Deshacer lo devuelve."
 
 #: ide/aichats.inc
 msgid "The chat couldn't be put back."
-msgstr ""
+msgstr "No se pudo devolver el chat."
 
 #: ide/aichats.inc
 msgid "Put back: {q}{title}{q}."
-msgstr ""
+msgstr "Se devolvió: {q}{title}{q}."
 
 #: ide/aichats.inc
 msgid "RAI is answering: wait for it, or Stop, then edit a question."
-msgstr ""
+msgstr "RAI está respondiendo: espera o usa Detener, y luego edita una pregunta."
 
 #: ide/aichats.inc
 msgid "Editing a question: Send replaces it, Escape cancels."
-msgstr ""
+msgstr "Editando una pregunta: Enviar la reemplaza, Escape cancela."
 
 #: ide/aichats.inc
 msgid "Editing your question. Send replaces it: its answer moves to a saved copy of this chat (in Chats)."
-msgstr ""
+msgstr "Editando tu pregunta. Enviar la reemplaza: su respuesta pasa a una copia guardada de este chat (en Chats)."
 
 #: ide/aichats.inc
 msgid "Editing your question. Send replaces it: its answer and the {n} question after it move to a saved copy of this chat (in Chats)."
 msgid_plural "Editing your question. Send replaces it: its answer and the {n} questions after it move to a saved copy of this chat (in Chats)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Editando tu pregunta. Enviar la reemplaza: su respuesta y {n} pregunta posterior pasan a una copia guardada de este chat (en Chats)."
+msgstr[1] "Editando tu pregunta. Enviar la reemplaza: su respuesta y {n} preguntas posteriores pasan a una copia guardada de este chat (en Chats)."
 
 #: ide/aichats.inc
 msgid "{title} (before the edit)"
-msgstr ""
+msgstr "{title} (antes de la edición)"
 
 #: ide/aichats.inc
 msgid "{title} (before Retry)"
-msgstr ""
+msgstr "{title} (antes de Reintentar)"
 
 #: ide/aichats.inc
 msgid "AI: the copy couldn't be kept: {error}"
-msgstr ""
+msgstr "IA: no se pudo guardar la copia: {error}"
 
 #: ide/aichats.inc
 msgid "RAI is answering: wait for it, or Stop, then send the edited question."
-msgstr ""
+msgstr "RAI está respondiendo: espera o usa Detener, y luego envía la pregunta editada."
 
 #: ide/aichats.inc
 msgid "The question wasn't changed: the chat couldn't be copied first."
-msgstr ""
+msgstr "La pregunta no se cambió: antes no se pudo copiar el chat."
 
 #: ide/aichats.inc
 msgid "AI: the chat before the edit is kept as {q}{title}{q} (Chats)."
-msgstr ""
+msgstr "IA: el chat anterior a la edición se guarda como {q}{title}{q} (Chats)."
 
 #: ide/aichats.inc
 msgid "Not retried: the chat couldn't be copied first."
-msgstr ""
+msgstr "No se reintentó: antes no se pudo copiar el chat."
 
 #: ide/aichats.inc
 msgid "AI: the answer before Retry is kept in {q}{title}{q} (Chats)."
-msgstr ""
+msgstr "IA: la respuesta anterior a Reintentar se guarda en {q}{title}{q} (Chats)."
 
 #: ide/aisetup.inc ide/mcp.inc
 msgid "Set Up RAI"
-msgstr ""
+msgstr "Configurar RAI"
 
 #: ide/aisetup.inc
 msgid "< &Back"
-msgstr ""
+msgstr "< &Atrás"
 
 #: ide/aisetup.inc
 msgid "&Next >"
-msgstr ""
+msgstr "&Siguiente >"
 
 #: ide/aisetup.inc
 msgid "Where RAI's answers come from"
-msgstr ""
+msgstr "De dónde vienen las respuestas de RAI"
 
 #: ide/aisetup.inc
 msgid "Free, on &this computer"
-msgstr ""
+msgstr "&Gratis, en esta computadora"
 
+# legal
 #: ide/aisetup.inc
 msgid "Nothing you ask leaves this computer, and it costs nothing. A model runs here with Ollama, LM Studio or MLX Serve (free programs you install). It needs a fast computer with plenty of memory (16 GB or more); answers are slower and simpler than a cloud model's."
-msgstr ""
+msgstr "Nada de lo que preguntas sale de esta computadora, y no cuesta nada. Un modelo se ejecuta aquí con Ollama, LM Studio o MLX Serve (programas gratuitos que tú instalas). Necesita una computadora rápida con mucha memoria (16 GB o más); las respuestas son más lentas y más simples que las de un modelo en la nube."
 
 #: ide/aisetup.inc
 msgid "The servers found on this computer"
-msgstr ""
+msgstr "Los servidores encontrados en esta computadora"
 
 #: ide/aisetup.inc
 msgid "&Look Again"
-msgstr ""
+msgstr "&Buscar de nuevo"
 
 #: ide/aisetup.inc
 msgid "Look again for a server on this computer"
-msgstr ""
+msgstr "Buscar de nuevo un servidor en esta computadora"
 
 #: ide/aisetup.inc
 msgid "A &cloud service, with your own key"
-msgstr ""
+msgstr "Un servicio en la &nube, con tu propia clave"
 
+# legal
 #: ide/aisetup.inc
 msgid "Anthropic (Claude), OpenAI or DeepSeek: usually the best answers. You make a key on the provider's website and pay it for what you use: a question usually costs from a tenth of a cent (small, fast models) to a few cents (the largest). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to that provider, under its privacy terms. Your key stays in this computer's keychain, never in a project."
-msgstr ""
+msgstr "Anthropic (Claude), OpenAI o DeepSeek: normalmente las mejores respuestas. Creas una clave en el sitio web del proveedor y le pagas por lo que usas: una pregunta suele costar desde una décima de centavo (modelos pequeños y rápidos) hasta unos pocos centavos (los más grandes). Lo que envías —tu pregunta, el chat, las partes de tu proyecto que RAI lee y, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a ese proveedor, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto."
 
 #: ide/aisetup.inc
 msgid "A server on this computer"
-msgstr ""
+msgstr "Un servidor en esta computadora"
 
 #: ide/aisetup.inc
 msgid "&Server:"
-msgstr ""
+msgstr "Ser&vidor:"
 
 #: ide/aisetup.inc
 msgid "The server on this computer"
-msgstr ""
+msgstr "El servidor en esta computadora"
 
 #: ide/aisetup.inc
 msgid "&Address:"
-msgstr ""
+msgstr "&Dirección:"
 
 #: ide/aisetup.inc
 msgid "The server's address"
-msgstr ""
+msgstr "La dirección del servidor"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "&Model:"
-msgstr ""
+msgstr "&Modelo:"
 
 #: ide/aisetup.inc
 msgid "About this server"
-msgstr ""
+msgstr "Sobre este servidor"
 
 #: ide/aisetup.inc
 msgid "A cloud service"
-msgstr ""
+msgstr "Un servicio en la nube"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "&Provider:"
-msgstr ""
+msgstr "Prove&edor:"
 
 #: ide/aisetup.inc
 msgid "The cloud provider"
-msgstr ""
+msgstr "El proveedor en la nube"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "Get a key"
-msgstr ""
+msgstr "Obtener una clave"
 
 #: ide/aisetup.inc
 msgid "Get a key on the provider's website, in the browser"
-msgstr ""
+msgstr "Obtener una clave en el sitio web del proveedor, en el navegador"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "API &key:"
-msgstr ""
+msgstr "&Clave de API:"
 
 #: ide/aisetup.inc ide/settings.inc
 msgid "API key"
-msgstr ""
+msgstr "Clave de API"
 
+# legal
 #: ide/aisetup.inc
 msgid "Paste the key the provider gave you: it is kept in this computer's keychain, never in a project"
-msgstr ""
+msgstr "Pega la clave que te dio el proveedor: se guarda en el llavero de esta computadora, nunca en un proyecto"
 
 #: ide/aisetup.inc
 msgid "&Test the Key"
-msgstr ""
+msgstr "&Probar la clave"
 
 #: ide/aisetup.inc
 msgid "Test the key: ask the provider for its models"
-msgstr ""
+msgstr "Probar la clave: pedir al proveedor sus modelos"
 
 #: ide/aisetup.inc
 msgid "The key's test"
-msgstr ""
+msgstr "La prueba de la clave"
 
+# legal
 #: ide/aisetup.inc
 msgid "What it costs, and what is sent"
-msgstr ""
+msgstr "Cuánto cuesta y qué se envía"
 
 #: ide/aisetup.inc
 msgid "Where should RAI's answers come from?"
-msgstr ""
+msgstr "¿De dónde deben venir las respuestas de RAI?"
 
 #: ide/aisetup.inc
 msgid "RAI on this computer"
-msgstr ""
+msgstr "RAI en esta computadora"
 
 #: ide/aisetup.inc
 msgid "&Finish"
-msgstr ""
+msgstr "&Finalizar"
 
 #: ide/aisetup.inc
 msgid "RAI from a cloud service"
-msgstr ""
+msgstr "RAI desde un servicio en la nube"
 
 #: ide/aisetup.inc
 msgid "Set Up RAI — {title}"
-msgstr ""
+msgstr "Configurar RAI — {title}"
 
 #: ide/aisetup.inc
 msgid "{name} (no model yet: download one in it first)"
-msgstr ""
+msgstr "{name} (aún sin modelo: descarga uno en él primero)"
 
 #: ide/aisetup.inc
 msgid "{name} ({n} model)"
 msgid_plural "{name} ({n} models)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{name} ({n} modelo)"
+msgstr[1] "{name} ({n} modelos)"
 
 #: ide/aisetup.inc
 msgid "✓ Found on this computer: {servers}. Not running: {others}."
-msgstr ""
+msgstr "✓ Encontrados en esta computadora: {servers}. Sin ejecutarse: {others}."
 
 #: ide/aisetup.inc
 msgid "✓ Found on this computer: {servers}."
-msgstr ""
+msgstr "✓ Encontrados en esta computadora: {servers}."
 
 #: ide/aisetup.inc
 msgid "Looking for a server on this computer…"
-msgstr ""
+msgstr "Buscando un servidor en esta computadora…"
 
 #: ide/aisetup.inc
 msgid "None found running: install Ollama, LM Studio or MLX Serve, start it, then Look Again."
-msgstr ""
+msgstr "No se encontró ninguno en ejecución: instala Ollama, LM Studio o MLX Serve, inícialo y luego usa Buscar de nuevo."
 
 #: ide/aisetup.inc
 msgid "{name} (running)"
-msgstr ""
+msgstr "{name} (en ejecución)"
 
 #: ide/aisetup.inc
 msgid "{name} (not running)"
-msgstr ""
+msgstr "{name} (sin ejecutarse)"
 
 #: ide/aisetup.inc
 msgid "{name} is running here, but has no model yet: download one in {name} (Studio never downloads or starts one for you), then go Back and Look Again."
-msgstr ""
+msgstr "{name} se está ejecutando aquí, pero aún no tiene ningún modelo: descarga uno en {name} (Studio nunca descarga ni inicia uno por ti), luego presiona Atrás y usa Buscar de nuevo."
 
+# legal
 #: ide/aisetup.inc
 msgid "{name} is running here. Choose a model and Finish. Free, and nothing you ask leaves this computer. A model of a small window (under 16,000 tokens) gets RAI's lite instructions, so it can still help."
-msgstr ""
+msgstr "{name} se está ejecutando aquí. Elige un modelo y presiona Finalizar. Es gratis, y nada de lo que preguntas sale de esta computadora. Un modelo con una ventana pequeña (menos de 16 000 tokens) recibe las instrucciones ligeras de RAI, así que aún puede ayudar."
 
 #: ide/aisetup.inc
 msgid "{name} isn't running at {url}. Start it (Studio never starts it for you), then go Back and Look Again; or type another address."
-msgstr ""
+msgstr "{name} no se está ejecutando en {url}. Inícialo (Studio nunca lo inicia por ti), luego presiona Atrás y usa Buscar de nuevo; o escribe otra dirección."
 
 #: ide/aisetup.inc
 msgid "A key for {name} is already found ({hint}, {store}): Test it, or paste another."
-msgstr ""
+msgstr "Ya se encontró una clave para {name} ({hint}, {store}): pruébala o pega otra."
 
 #: ide/aisetup.inc
 msgid "Paste the key {name} gave you (Get a key opens its page), then Test the Key."
-msgstr ""
+msgstr "Pega la clave que te dio {name} (Obtener una clave abre su página) y luego presiona Probar la clave."
 
+# legal
 #: ide/aisetup.inc
 msgid "Claude's small, fast models (Haiku) cost about a tenth of a cent a question; the largest (Opus) a few cents. Anthropic charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to Anthropic, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "Los modelos pequeños y rápidos de Claude (Haiku) cuestan alrededor de una décima de centavo por pregunta; el más grande (Opus), unos pocos centavos. Anthropic cobra a tu cuenta lo que usas: fija un límite mensual en su sitio web. Lo que envías —tu pregunta, el chat, las partes de tu proyecto que RAI lee y, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a Anthropic, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto. Los servicios en la nube son para personas adultas: si tienes menos de 18 años, pide a un padre, una madre o un docente que cree la clave."
 
+# legal
 #: ide/aisetup.inc
 msgid "OpenAI's small models (mini, nano) cost a fraction of a cent a question; the largest a few cents. OpenAI charges your account for what you use: set a monthly limit on its website. What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to OpenAI, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "Los modelos pequeños de OpenAI (mini, nano) cuestan una fracción de centavo por pregunta; el más grande, unos pocos centavos. OpenAI cobra a tu cuenta lo que usas: fija un límite mensual en su sitio web. Lo que envías —tu pregunta, el chat, las partes de tu proyecto que RAI lee y, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a OpenAI, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto. Los servicios en la nube son para personas adultas: si tienes menos de 18 años, pide a un padre, una madre o un docente que cree la clave."
 
+# legal
 #: ide/aisetup.inc
 msgid "DeepSeek's models cost a fraction of a cent a question. DeepSeek charges your account for what you use (you pay in advance on its website). What you send — your question, the chat, the parts of your project RAI reads and, while your program runs, what its windows show — goes to DeepSeek, in China, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "Los modelos de DeepSeek cuestan una fracción de centavo por pregunta. DeepSeek cobra a tu cuenta lo que usas (pagas por adelantado en su sitio web). Lo que envías —tu pregunta, el chat, las partes de tu proyecto que RAI lee y, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a DeepSeek, en China, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto. Los servicios en la nube son para personas adultas: si tienes menos de 18 años, pide a un padre, una madre o un docente que cree la clave."
 
+# legal
 #: ide/aisetup.inc
 msgid "You pay the provider for what you use. What you send — including, while your program runs, what its windows show — goes to it, under its privacy terms. Your key stays in this computer's keychain, never in a project. Cloud services are for adults: if you're under 18, ask a parent or teacher to make the key."
-msgstr ""
+msgstr "Le pagas al proveedor por lo que usas. Lo que envías —incluido, mientras tu programa se ejecuta, lo que muestran sus ventanas— va a él, bajo sus términos de privacidad. Tu clave se queda en el llavero de esta computadora, nunca en un proyecto. Los servicios en la nube son para personas adultas: si tienes menos de 18 años, pide a un padre, una madre o un docente que cree la clave."
 
+# legal
 #: ide/aisetup.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows."
-msgstr ""
+msgstr "Pega primero tu clave de API: el proveedor solo enumera sus modelos a una clave que conoce."
 
 #: ide/aisetup.inc
 msgid "Testing the key…"
-msgstr ""
+msgstr "Probando la clave…"
 
 #: ide/aisetup.inc
 msgid "The key works, but it can chat with no model: check it on the provider's website."
-msgstr ""
+msgstr "La clave funciona, pero no puede conversar con ningún modelo: revísala en el sitio web del proveedor."
 
 #: ide/aisetup.inc
 msgid "✓ The key works: {n} model. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
 msgid_plural "✓ The key works: {n} models. The first, {model}, is fast and low-cost: a good start. Finish when you have chosen."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "✓ La clave funciona: {n} modelo. El primero, {model}, es rápido y económico: un buen comienzo. Presiona Finalizar cuando hayas elegido."
+msgstr[1] "✓ La clave funciona: {n} modelos. El primero, {model}, es rápido y económico: un buen comienzo. Presiona Finalizar cuando hayas elegido."
 
 #: ide/aisetup.inc
 msgid "Choose a model first (the server lists its own): start the server and Look Again if the list is empty."
-msgstr ""
+msgstr "Elige primero un modelo (el servidor muestra los suyos): inicia el servidor y usa Buscar de nuevo si la lista está vacía."
 
 #: ide/aisetup.inc
 msgid "Test the key first: then choose one of the provider's models."
-msgstr ""
+msgstr "Prueba primero la clave: luego elige uno de los modelos del proveedor."
 
 #: ide/aisetup.inc
 msgid "RAI isn't ready yet: {why}"
-msgstr ""
+msgstr "Todavía falta algo para usar RAI: {why}"
 
 #: ide/build.inc
 msgid "Project Options"
-msgstr ""
+msgstr "Opciones del proyecto"
 
 #: ide/build.inc
 msgid "The app's icon"
-msgstr ""
+msgstr "El ícono de la aplicación"
 
 #: ide/build.inc
 msgid "App &name:"
-msgstr ""
+msgstr "&Nombre de la aplicación:"
 
 #: ide/build.inc
 msgid "&Bundle ID:"
-msgstr ""
+msgstr "&Bundle ID:"
 
 #: ide/build.inc
 msgid "&Version:"
-msgstr ""
+msgstr "&Versión:"
 
 #: ide/build.inc
 msgid "&Company:"
-msgstr ""
+msgstr "&Empresa:"
 
 #: ide/build.inc
 msgid "&Icon:"
-msgstr ""
+msgstr "Íc&ono:"
 
 #: ide/build.inc
 msgid "Choose the icon file"
-msgstr ""
+msgstr "Elegir el archivo del ícono"
 
 #: ide/build.inc
 msgid "Use RapidR's icon"
-msgstr ""
+msgstr "Usar el ícono de RapidR"
 
 #: ide/build.inc
 msgid "&Targets:"
-msgstr ""
+msgstr "&Destinos:"
 
 #: ide/build.inc
 msgid "Desktop"
-msgstr ""
+msgstr "Escritorio"
 
 #: ide/build.inc
 msgid "Web"
-msgstr ""
+msgstr "Web"
 
 #: ide/build.inc
 msgid "Desktop and web"
-msgstr ""
+msgstr "Escritorio y web"
 
 #: ide/build.inc
 msgid "Targets: where the program runs"
-msgstr ""
+msgstr "Destinos: dónde se ejecuta el programa"
 
 #: ide/build.inc
 msgid "B&uild:"
-msgstr ""
+msgstr "&Compilación:"
 
 #: ide/build.inc
 msgid "Compiled (native: needs Rust)"
-msgstr ""
+msgstr "Compilada (nativa: necesita Rust)"
 
 #: ide/build.inc
 msgid "Interpreted (no Rust needed)"
-msgstr ""
+msgstr "Interpretada (no necesita Rust)"
 
 #: ide/build.inc
 msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
-msgstr ""
+msgstr "Una compilación de lanzamiento: optimizada, la que distribuyes. Ejecutar (F5) ejecuta el programa para depurarlo."
 
 #: ide/build.inc
 msgid "&Output folder:"
-msgstr ""
+msgstr "Carpeta de &salida:"
 
 #: ide/build.inc
 msgid "Output folder: where Build puts the app"
-msgstr ""
+msgstr "Carpeta de salida: dónde deja Compilar la aplicación"
 
 #: ide/build.inc
 msgid "Choose the output folder"
-msgstr ""
+msgstr "Elegir la carpeta de salida"
 
 #: ide/build.inc
 msgid "&Keep the generated Rust source"
-msgstr ""
+msgstr "&Mantener el código fuente de Rust generado"
 
 #: ide/build.inc ide/safety.inc ide/settings.inc
 msgid "OK"
-msgstr ""
+msgstr "Aceptar"
 
 #: ide/build.inc
 msgid "In a browser. Problems notes what works on the desktop only."
-msgstr ""
+msgstr "En un navegador. Problemas indica lo que solo funciona en el escritorio."
 
 #: ide/build.inc
 msgid "On the desktop and in a browser. Problems notes what works on one of them only."
-msgstr ""
+msgstr "En el escritorio y en un navegador. Problemas indica lo que solo funciona en uno de ellos."
 
 #: ide/build.inc
 msgid "Native builds and the interpreter. What works on the desktop only isn't noted."
-msgstr ""
+msgstr "Compilaciones nativas y el intérprete. No se indica lo que solo funciona en el escritorio."
 
 #: ide/build.inc
 msgid "RapidR's icon for programs. Choose an .icns, .ico, .png (1024 x 1024 is best) or .svg for the app's own."
-msgstr ""
+msgstr "El ícono de RapidR para los programas. Elige un .icns, .ico, .png (lo mejor es 1024 x 1024) o .svg para el propio de la aplicación."
 
 #: ide/build.inc
 msgid "The app's icon, made into every size each system shows."
-msgstr ""
+msgstr "El ícono de la aplicación, hecho en cada tamaño que muestra cada sistema."
 
 #: ide/build.inc
 msgid "Rust is free: Build Native App offers to install it. Interpreted needs none."
-msgstr ""
+msgstr "Rust es gratuito: Compilar aplicación nativa ofrece instalarlo. La interpretada no lo necesita."
 
 #: ide/build.inc
 msgid "An interpreted build has no Rust: the app runs the program's bytecode."
-msgstr ""
+msgstr "Una compilación interpretada no usa Rust: la aplicación ejecuta el bytecode del programa."
 
 #: ide/build.inc
 msgid "Left in {path}, beside the app, to read."
-msgstr ""
+msgstr "Queda en {path}, junto a la aplicación, para leerlo."
 
 #: ide/build.inc
 msgid "Off: the Rust RapidR generates is deleted after the build."
-msgstr ""
+msgstr "Desactivado: el Rust que genera RapidR se elimina después de compilar."
 
 #: ide/build.inc
 msgid "Compiled (Rust not installed)"
-msgstr ""
+msgstr "Compilada (Rust sin instalar)"
 
 #: ide/build.inc
 msgid "The App's Icon"
-msgstr ""
+msgstr "El ícono de la aplicación"
 
 #: ide/build.inc
 msgid "Icons and pictures"
-msgstr ""
+msgstr "Íconos e imágenes"
 
 #: ide/build.inc ide/project.inc ide/shell.inc
 msgid "All files"
-msgstr ""
+msgstr "Todos los archivos"
 
 #: ide/build.inc
 msgid "The Output Folder"
-msgstr ""
+msgstr "La carpeta de salida"
 
 #: ide/build.inc
 msgid "Build: {n} error (see Problems)."
 msgid_plural "Build: {n} errors (see Problems)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Compilación: {n} error (mira Problemas)."
+msgstr[1] "Compilación: {n} errores (mira Problemas)."
 
 #: ide/build.inc
 msgid "Can't build: the program has errors"
-msgstr ""
+msgstr "No se puede compilar: el programa tiene errores"
 
 #: ide/build.inc
 msgid "Building {file}..."
-msgstr ""
+msgstr "Compilando {file}..."
 
 #: ide/build.inc
 msgid "Can't build: {error}"
-msgstr ""
+msgstr "No se puede compilar: {error}"
 
 #: ide/build.inc
 msgid "Can't build {file}"
-msgstr ""
+msgstr "No se puede compilar {file}"
 
 #: ide/build.inc
 msgid "Installing Rust..."
-msgstr ""
+msgstr "Instalando Rust..."
 
 #: ide/build.inc
 msgid "Can't install Rust: {error}"
-msgstr ""
+msgstr "No se puede instalar Rust: {error}"
 
 #: ide/build.inc
 msgid "Can't install Rust"
-msgstr ""
+msgstr "No se puede instalar Rust"
 
 #: ide/build.inc
 msgid "native"
-msgstr ""
+msgstr "nativo"
 
 #: ide/build.inc
 msgid "interpreted"
-msgstr ""
+msgstr "interpretado"
 
 #: ide/build.inc
 msgid "web"
-msgstr ""
+msgstr "web"
 
 #: ide/build.inc
 msgid "✓ Rust is installed ({seconds} s): Run > Build Native App is ready."
-msgstr ""
+msgstr "✓ Rust está instalado ({seconds} s): Ejecutar > Compilar aplicación nativa está listo."
 
 #: ide/build.inc
 msgid "Rust is installed"
-msgstr ""
+msgstr "Rust está instalado"
 
 #: ide/build.inc
 msgid "✗ Installing Rust failed (exit code {code}) after {seconds} s: see above. `rapidr setup` in a terminal asks the same questions."
-msgstr ""
+msgstr "✗ Falló la instalación de Rust (código de salida {code}) tras {seconds} s: mira arriba. `rapidr setup` en una terminal hace las mismas preguntas."
 
 #: ide/build.inc
 msgid "Installing Rust failed"
-msgstr ""
+msgstr "Falló la instalación de Rust"
 
 #: ide/build.inc
 msgid "✓ Built {file} — unzip on any web host"
-msgstr ""
+msgstr "✓ Se compiló {file} — descomprímelo en cualquier servidor web"
 
 #: ide/build.inc
 msgid "Reveal in {manager}"
-msgstr ""
+msgstr "Mostrar en {manager}"
 
 #: ide/build.inc
 msgid "Built {file}"
-msgstr ""
+msgstr "Se compiló {file}"
 
 #: ide/build.inc
 msgid "✓ Built {file} ({mode}) in {seconds} s"
-msgstr ""
+msgstr "✓ Se compiló {file} ({mode}) en {seconds} s"
 
 #: ide/build.inc
 msgid "✗ The build failed (exit code {code}) after {seconds} s: see above."
-msgstr ""
+msgstr "✗ Falló la compilación (código de salida {code}) tras {seconds} s: mira arriba."
 
 #: ide/build.inc
 msgid "The build failed"
-msgstr ""
+msgstr "Falló la compilación"
 
 #: ide/build.inc
 msgid "Nothing built yet: Run > Build (Ctrl+Shift+B) makes the app."
-msgstr ""
+msgstr "Todavía no se ha compilado nada: Ejecutar > Compilar (Ctrl+Shift+B) crea la aplicación."
 
 #: ide/build.inc ide/panels.inc
 msgid "Can't show it: {error}"
-msgstr ""
+msgstr "No se puede mostrar: {error}"
+
+#: ide/chrome.inc ide/versions.inc
+msgid "{experiment} is the experiment you're on (Git calls it a branch)"
+msgstr "{experiment} es el experimento en el que estás (Git lo llama rama)"
 
 #: ide/chrome.inc ide/editor.inc
 msgid "Ln {line}, Col {col}"
-msgstr ""
+msgstr "Lín {line}, Col {col}"
 
 #: ide/commands.inc
-#, review
 msgid "&New Project..."
 msgstr "&Nuevo proyecto..."
 
 #: ide/commands.inc
-#, review
 msgid "&Open Project or File..."
 msgstr "&Abrir proyecto o archivo..."
 
 #: ide/commands.inc
 msgid "Open &Folder..."
-msgstr ""
+msgstr "Abrir &carpeta..."
 
 #: ide/commands.inc
 msgid "Open &Recent"
-msgstr ""
+msgstr "Abrir &reciente"
 
 #: ide/commands.inc
 msgid "No Recent Projects or Files"
-msgstr ""
+msgstr "No hay proyectos ni archivos recientes"
 
 #: ide/commands.inc
 msgid "&Clear Recent"
-msgstr ""
+msgstr "&Borrar recientes"
 
 #: ide/commands.inc
 msgid "Open &Example..."
-msgstr ""
+msgstr "Abrir &ejemplo..."
 
 #: ide/commands.inc
 msgid "Copy Example Again from the Ori&ginal..."
-msgstr ""
+msgstr "Copiar el ejemplo &otra vez del original..."
 
 #: ide/commands.inc
 msgid "&Import RapidQ Project or File..."
-msgstr ""
+msgstr "&Importar proyecto o archivo de RapidQ..."
 
 #: ide/commands.inc
 msgid "Import RapidQ Fol&der..."
-msgstr ""
+msgstr "Im&portar carpeta de RapidQ..."
 
 #: ide/commands.inc ide/prompts.inc
-#, review
 msgid "&Save"
 msgstr "G&uardar"
 
 #: ide/commands.inc
-#, review
 msgid "Save &As..."
 msgstr "Guardar co&mo..."
 
 #: ide/commands.inc
-#, review
 msgid "Save A&ll"
 msgstr "Guardar &todo"
 
 #: ide/commands.inc
+msgid "Save a &Version..."
+msgstr "Guardar una &versión..."
+
+#: ide/commands.inc
+msgid "Versio&ns"
+msgstr "Versio&nes"
+
+#: ide/commands.inc ide/versions.inc
+msgid "&Start Versioning This Project"
+msgstr "&Empezar a guardar versiones de este proyecto"
+
+#: ide/commands.inc ide/versions.inc
+msgid "What &Changed?"
+msgstr "¿Qué &cambió?"
+
+#: ide/commands.inc
+msgid "What Changed Since the &Last Version"
+msgstr "Cambios desde la última ve&rsión"
+
+#: ide/commands.inc
+msgid "&Go Back to This Version..."
+msgstr "&Volver a esta versión..."
+
+#: ide/commands.inc
+msgid "Go Back to This Version for This &File..."
+msgstr "Volver a esta versión de este &archivo..."
+
+#: ide/commands.inc
+msgid "&Undo the Last Versions Action"
+msgstr "&Deshacer la última acción de Versiones"
+
+#: ide/commands.inc
+msgid "S&how This Line's Change"
+msgstr "&Mostrar el cambio de esta línea"
+
+#: ide/commands.inc
+msgid "Undo This &Line's Change"
+msgstr "Deshacer el cam&bio de esta línea"
+
+#: ide/commands.inc
+msgid "Local &History of This File..."
+msgstr "&Historial local de este archivo..."
+
+#: ide/commands.inc
 msgid "&Close Document"
-msgstr ""
+msgstr "Cerrar &documento"
 
 #: ide/commands.inc
 msgid "Close Pro&ject"
-msgstr ""
+msgstr "Cerrar pro&yecto"
 
 #: ide/commands.inc
-#, review
 msgid "E&xit"
 msgstr "&Salir"
 
-#: ide/commands.inc
+#: ide/commands.inc ide/versions.inc
 msgid "&Undo"
-msgstr ""
+msgstr "&Deshacer"
 
 #: ide/commands.inc
 msgid "&Redo"
-msgstr ""
+msgstr "Re&hacer"
 
 #: ide/commands.inc ide/search.inc
 msgid "Cu&t"
-msgstr ""
+msgstr "C&ortar"
 
 #: ide/commands.inc ide/debug.inc ide/mcp.inc ide/panels.inc ide/search.inc
 msgid "&Copy"
-msgstr ""
+msgstr "&Copiar"
 
 #: ide/commands.inc ide/search.inc
 msgid "&Paste"
-msgstr ""
+msgstr "&Pegar"
 
 #: ide/commands.inc
 msgid "&Delete"
-msgstr ""
+msgstr "&Eliminar"
 
 #: ide/commands.inc ide/search.inc
 msgid "Select &All"
-msgstr ""
+msgstr "Seleccionar &todo"
 
 #: ide/commands.inc
 msgid "D&uplicate"
-msgstr ""
+msgstr "&Duplicar"
 
 #: ide/commands.inc
 msgid "&Find..."
-msgstr ""
+msgstr "&Buscar..."
 
 #: ide/commands.inc
 msgid "R&eplace..."
-msgstr ""
+msgstr "Ree&mplazar..."
 
 #: ide/commands.inc ide/search.inc
 msgid "Find in F&iles..."
-msgstr ""
+msgstr "Buscar en &archivos..."
 
 #: ide/commands.inc
 msgid "&Go to Line..."
-msgstr ""
+msgstr "&Ir a la línea..."
 
 #: ide/commands.inc
 msgid "Find &Next"
-msgstr ""
+msgstr "Buscar &siguiente"
 
 #: ide/commands.inc
 msgid "Find Pre&vious"
-msgstr ""
+msgstr "B&uscar anterior"
 
 #: ide/commands.inc
 msgid "Ad&vanced"
-msgstr ""
+msgstr "A&vanzado"
 
 #: ide/commands.inc
 msgid "&Indent Lines"
-msgstr ""
+msgstr "Aumentar &sangría"
 
 #: ide/commands.inc
 msgid "&Outdent Lines"
-msgstr ""
+msgstr "Dis&minuir sangría"
 
 #: ide/commands.inc
 msgid "Select Next &Occurrence"
-msgstr ""
+msgstr "Seleccionar siguiente &ocurrencia"
 
 #: ide/commands.inc
 msgid "Go to Matching &Bracket"
-msgstr ""
+msgstr "Ir al &corchete que corresponde"
 
 #: ide/commands.inc
 msgid "&Fold"
-msgstr ""
+msgstr "&Plegar"
 
 #: ide/commands.inc
 msgid "&Unfold"
-msgstr ""
+msgstr "D&esplegar"
 
 #: ide/commands.inc
 msgid "Fold &All"
-msgstr ""
+msgstr "Plegar &todo"
 
 #: ide/commands.inc
 msgid "Unfold A&ll"
-msgstr ""
+msgstr "&Desplegar todo"
 
 #: ide/commands.inc
 msgid "&Parameter Info"
-msgstr ""
+msgstr "&Información de parámetros"
 
 #: ide/commands.inc
 msgid "Show &Hover"
-msgstr ""
+msgstr "Mostrar información &flotante"
 
 #: ide/commands.inc
 msgid "&Word Wrap"
-msgstr ""
+msgstr "&Ajuste de línea"
 
 #: ide/commands.inc
 msgid "Complete &Word"
-msgstr ""
+msgstr "Completar pa&labra"
 
 #: ide/commands.inc
 msgid "&Quick Fix..."
-msgstr ""
+msgstr "Corrección &rápida..."
 
 #: ide/commands.inc ide/search.inc
 msgid "Go to &Definition"
-msgstr ""
+msgstr "Ir a la d&efinición"
 
 #: ide/commands.inc
 msgid "Find Re&ferences"
-msgstr ""
+msgstr "&Buscar referencias"
 
 #: ide/commands.inc
 msgid "Navigate &Back"
-msgstr ""
+msgstr "&Navegar hacia atrás"
 
 #: ide/commands.inc
 msgid "Navigate For&ward"
-msgstr ""
+msgstr "Navegar hacia ade&lante"
 
 #: ide/commands.inc ide/search.inc
 msgid "Re&name Symbol..."
-msgstr ""
+msgstr "Cambiar nombre del &símbolo..."
 
 #: ide/commands.inc
 msgid "Toggle &Comment"
-msgstr ""
+msgstr "Alternar &comentario"
 
 #: ide/commands.inc
 msgid "F&ormat Document"
-msgstr ""
+msgstr "Dar &formato al documento"
 
 #: ide/commands.inc
 msgid "Command &Palette..."
-msgstr ""
+msgstr "Paleta de &comandos..."
 
 #: ide/commands.inc
 msgid "&Go to Anything..."
-msgstr ""
+msgstr "Ir a cual&quier elemento..."
 
 #: ide/commands.inc
 msgid "&Project"
-msgstr ""
+msgstr "Proye&cto"
 
 #: ide/commands.inc
 msgid "&Toolbox"
-msgstr ""
+msgstr "Caja de &herramientas"
 
 #: ide/commands.inc
 msgid "P&roperties"
-msgstr ""
+msgstr "P&ropiedades"
 
 #: ide/commands.inc
 msgid "O&utline"
-msgstr ""
+msgstr "&Estructura"
 
 #: ide/commands.inc
 msgid "&Output"
-msgstr ""
+msgstr "&Salida"
 
 #: ide/commands.inc
 msgid "Pro&blems"
-msgstr ""
+msgstr "&Problemas"
 
 #: ide/commands.inc
 msgid "Wrap &Long Output Lines"
-msgstr ""
+msgstr "Aj&ustar las líneas largas de la salida"
 
 #: ide/commands.inc
 msgid "&Immediate"
-msgstr ""
+msgstr "Inmedi&ato"
 
 #: ide/commands.inc
 msgid "&Variables"
-msgstr ""
+msgstr "&Variables"
 
 #: ide/commands.inc
 msgid "W&atch"
-msgstr ""
+msgstr "&Observar"
 
 #: ide/commands.inc
 msgid "Call &Stack"
-msgstr ""
+msgstr "Pila de &llamadas"
 
 #: ide/commands.inc
 msgid "&Breakpoints"
-msgstr ""
+msgstr "&Puntos de interrupción"
 
 #: ide/commands.inc
 msgid "&Debug Panes"
-msgstr ""
+msgstr "Paneles de &depuración"
 
 #: ide/commands.inc
 msgid "&Welcome Page"
-msgstr ""
+msgstr "Página de &bienvenida"
 
 #: ide/commands.inc
 msgid "&AI Assistant"
-msgstr ""
+msgstr "Asistente de &IA"
 
 #: ide/commands.inc
 msgid "&Code"
-msgstr ""
+msgstr "Códi&go"
 
 #: ide/commands.inc
 msgid "&Designer"
-msgstr ""
+msgstr "&Diseñador"
 
 #: ide/commands.inc
 msgid "Zoom &In"
-msgstr ""
+msgstr "&Acercar"
 
 #: ide/commands.inc
 msgid "Zoom O&ut"
-msgstr ""
+msgstr "Al&ejar"
 
 #: ide/commands.inc
 msgid "Actual Si&ze"
-msgstr ""
+msgstr "Ta&maño real"
 
 #: ide/commands.inc
 msgid "Zoom to &Fit"
-msgstr ""
+msgstr "A&justar al espacio"
 
 #: ide/commands.inc
 msgid "Toggle &Form / Code"
-msgstr ""
+msgstr "Alternar &formulario / código"
 
 #: ide/commands.inc
 msgid "Designer and Code &Side by Side"
-msgstr ""
+msgstr "Diseñador y código &lado a lado"
 
 #: ide/commands.inc
 msgid "T&heme"
-msgstr ""
+msgstr "&Tema"
 
 #: ide/commands.inc
 msgid "&RapidR (as the System)"
-msgstr ""
+msgstr "&RapidR (como el sistema)"
 
 #: ide/commands.inc
 msgid "RapidR &Light"
-msgstr ""
+msgstr "RapidR c&laro"
 
 #: ide/commands.inc
 msgid "RapidR &Dark"
-msgstr ""
+msgstr "RapidR &oscuro"
 
 #: ide/commands.inc
 msgid "RapidR &High Contrast"
-msgstr ""
+msgstr "RapidR contraste &alto"
 
 #: ide/commands.inc
 msgid "&Classic (Windows)"
-msgstr ""
+msgstr "&Clásico (Windows)"
 
 #: ide/commands.inc
 msgid "&Reset Layout"
-msgstr ""
+msgstr "&Restablecer disposición"
 
 #: ide/commands.inc
 msgid "Add &File..."
-msgstr ""
+msgstr "&Añadir archivo..."
 
 #: ide/commands.inc
 msgid "Add F&orm"
-msgstr ""
+msgstr "Añadir &formulario"
 
 #: ide/commands.inc
 msgid "Add &Module"
-msgstr ""
+msgstr "Añadir &módulo"
 
 #: ide/commands.inc
 msgid "Add a Form to This F&ile"
-msgstr ""
+msgstr "Añadir un formulario a este archi&vo"
 
 #: ide/commands.inc
 msgid "Project &Options..."
-msgstr ""
+msgstr "&Opciones del proyecto..."
 
 #: ide/commands.inc
 msgid "&Run"
-msgstr ""
+msgstr "&Ejecutar"
 
 #: ide/commands.inc
 msgid "Run &Without Debugging"
-msgstr ""
+msgstr "Ejecutar &sin depurar"
 
 #: ide/commands.inc ide/mcp.inc
 msgid "&Stop"
-msgstr ""
+msgstr "&Detener"
 
 #: ide/commands.inc
 msgid "R&estart"
-msgstr ""
+msgstr "&Reiniciar"
 
 #: ide/commands.inc
 msgid "Run in &Browser"
-msgstr ""
+msgstr "Ejecutar en el &navegador"
 
 #: ide/commands.inc
 msgid "&Build Web App (.zip)"
-msgstr ""
+msgstr "Compilar aplicación web (.&zip)"
 
 #: ide/commands.inc
 msgid "&Build"
-msgstr ""
+msgstr "&Compilar"
 
 #: ide/commands.inc
 msgid "Build &Native App"
-msgstr ""
+msgstr "Compilar &aplicación nativa"
 
 #: ide/commands.inc
 msgid "Build &Interpreted App"
-msgstr ""
+msgstr "Compilar aplicación &interpretada"
 
 #: ide/commands.inc
 msgid "Build &Web App"
-msgstr ""
+msgstr "Compilar aplicación &web"
 
 #: ide/commands.inc
 msgid "Reveal the &App"
-msgstr ""
+msgstr "&Mostrar la aplicación en su carpeta"
 
 #: ide/commands.inc
 msgid "&Continue"
-msgstr ""
+msgstr "&Continuar"
 
 #: ide/commands.inc
 msgid "&Pause"
-msgstr ""
+msgstr "&Pausar"
 
 #: ide/commands.inc
 msgid "Show Program &Window"
-msgstr ""
+msgstr "Mostrar la &ventana del programa"
 
 #: ide/commands.inc
 msgid "Step &Into"
-msgstr ""
+msgstr "En&trar en la llamada"
 
 #: ide/commands.inc
 msgid "Step &Over"
-msgstr ""
+msgstr "Pasar por e&ncima"
 
 #: ide/commands.inc
 msgid "Step O&ut"
-msgstr ""
+msgstr "Salir de la &llamada"
 
 #: ide/commands.inc
 msgid "Run to C&ursor"
-msgstr ""
+msgstr "Ejecutar &hasta el cursor"
 
 #: ide/commands.inc
 msgid "Set &Next Statement"
-msgstr ""
+msgstr "Establecer la siguiente &instrucción"
 
 #: ide/commands.inc
 msgid "Step Into &Specific..."
-msgstr ""
+msgstr "Entrar en llamada e&specífica..."
 
 #: ide/commands.inc
 msgid "Toggle &Breakpoint"
-msgstr ""
+msgstr "&Alternar punto de interrupción"
 
 #: ide/commands.inc
 msgid "&Edit Breakpoint..."
-msgstr ""
+msgstr "&Editar punto de interrupción..."
 
 #: ide/commands.inc
 msgid "&Delete All Breakpoints"
-msgstr ""
+msgstr "Eli&minar todos los puntos de interrupción"
 
 #: ide/commands.inc ide/debug.inc
 msgid "Add &Watch"
-msgstr ""
+msgstr "Añadir a &Observar"
 
 #: ide/commands.inc
 msgid "Stop at Run-time &Errors"
-msgstr ""
+msgstr "Detener en &errores de ejecución"
 
 #: ide/commands.inc
 msgid "Align &Lefts"
-msgstr ""
+msgstr "Alinear a la &izquierda"
 
 #: ide/commands.inc
 msgid "Align &Rights"
-msgstr ""
+msgstr "Alinear a la &derecha"
 
 #: ide/commands.inc
 msgid "Align &Tops"
-msgstr ""
+msgstr "&Alinear arriba"
 
 #: ide/commands.inc
 msgid "Align &Bottoms"
-msgstr ""
+msgstr "Alinear a&bajo"
 
 #: ide/commands.inc
 msgid "Align C&enters"
-msgstr ""
+msgstr "Alinear al &centro"
 
 #: ide/commands.inc
 msgid "Align &Middles"
-msgstr ""
+msgstr "Alinear al &medio"
 
 #: ide/commands.inc
 msgid "Make Same &Width"
-msgstr ""
+msgstr "Ig&ualar ancho"
 
 #: ide/commands.inc
 msgid "Make Same &Height"
-msgstr ""
+msgstr "Igualar a&lto"
 
 #: ide/commands.inc
 msgid "Make Same &Size"
-msgstr ""
+msgstr "Igualar &tamaño"
 
 #: ide/commands.inc
 msgid "Space Evenly Acr&oss"
-msgstr ""
+msgstr "Espaciar uniforme en &horizontal"
 
 #: ide/commands.inc
 msgid "Space Evenly &Down"
-msgstr ""
+msgstr "Espaciar uniforme en &vertical"
 
 #: ide/commands.inc
 msgid "Center H&orizontally"
-msgstr ""
+msgstr "Centrar en h&orizontal"
 
 #: ide/commands.inc
 msgid "Center &Vertically"
-msgstr ""
+msgstr "Centrar en ve&rtical"
 
 #: ide/commands.inc
 msgid "Bring to &Front"
-msgstr ""
+msgstr "Traer al &frente"
 
 #: ide/commands.inc
 msgid "Send to Bac&k"
-msgstr ""
+msgstr "E&nviar al fondo"
 
 #: ide/commands.inc
 msgid "Edit &Caption"
-msgstr ""
+msgstr "&Editar texto"
 
 #: ide/commands.inc
 msgid "&Menu Editor"
-msgstr ""
+msgstr "Editor de &menús"
 
 #: ide/commands.inc
 msgid "Tab &Order"
-msgstr ""
+msgstr "&Orden de tabulación"
 
 #: ide/commands.inc
-#, review
 msgid "&Settings..."
 msgstr "Con&figuración..."
 
 #: ide/commands.inc
 msgid "&Keyboard Shortcuts"
-msgstr ""
+msgstr "Atajos de &teclado"
 
 #: ide/commands.inc ide/settings.inc
 msgid "Set &Up RAI..."
-msgstr ""
+msgstr "C&onfigurar RAI..."
 
 #: ide/commands.inc
 msgid "&AI Settings..."
-msgstr ""
+msgstr "Configuración de &IA..."
 
 #: ide/commands.inc
 msgid "New AI &Chat"
-msgstr ""
+msgstr "&Nuevo chat de IA"
 
 #: ide/commands.inc
 msgid "AI C&hats"
-msgstr ""
+msgstr "C&hats de IA"
 
 #: ide/commands.inc
 msgid "Co&mpact the AI Chat"
-msgstr ""
+msgstr "&Compactar el chat de IA"
 
 #: ide/commands.inc
 msgid "&Review the AI's Changes..."
-msgstr ""
+msgstr "&Revisar los cambios de la IA..."
 
 #: ide/commands.inc
 msgid "&What Was Sent to the AI..."
-msgstr ""
+msgstr "Qué se &envió a la IA..."
 
 #: ide/commands.inc
 msgid "AI A&pps Settings..."
-msgstr ""
+msgstr "Configuración de &apps de IA..."
 
 #: ide/commands.inc
 msgid "AI Apps Acti&vity"
-msgstr ""
+msgstr "Actividad de app&s de IA"
 
 #: ide/commands.inc
 msgid "Split &Right"
-msgstr ""
+msgstr "&Dividir a la derecha"
 
 #: ide/commands.inc
 msgid "Split &Down"
-msgstr ""
+msgstr "Dividir hacia a&bajo"
 
 #: ide/commands.inc
 msgid "&Next Document"
-msgstr ""
+msgstr "Documento &siguiente"
 
 #: ide/commands.inc
 msgid "&Previous Document"
-msgstr ""
+msgstr "Documento &anterior"
 
 #: ide/commands.inc
 msgid "Next &Area"
-msgstr ""
+msgstr "Siguiente &zona"
 
 #: ide/commands.inc
 msgid "&Resize Panes"
-msgstr ""
+msgstr "&Cambiar tamaño de los paneles"
 
 #: ide/commands.inc
 msgid "Close &All Documents"
-msgstr ""
+msgstr "Cerrar &todos los documentos"
 
 #: ide/commands.inc
 msgid "RapidR &Help"
-msgstr ""
+msgstr "&Ayuda de RapidR"
 
 #: ide/commands.inc
 msgid "&Examples"
-msgstr ""
+msgstr "&Ejemplos"
 
 #: ide/commands.inc
 msgid "&About RapidR Studio"
-msgstr ""
+msgstr "A&cerca de RapidR Studio"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&File"
 msgstr "&Archivo"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Edit"
 msgstr "&Edición"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&View"
 msgstr "&Ver"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Project"
 msgstr "&Proyecto"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Run"
 msgstr "E&jecutar"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Debug"
 msgstr "&Depurar"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "F&ormat"
 msgstr "&Formato"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Tools"
 msgstr "&Herramientas"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Window"
 msgstr "Ve&ntana"
 
 #: ide/commands.inc
 msgctxt "menubar"
-#, review
 msgid "&Help"
 msgstr "Ay&uda"
 
 #: ide/consent.inc
 msgid "Learn more"
-msgstr ""
+msgstr "Más información"
 
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
-msgstr ""
+msgstr "Abre la página del manual en tu navegador"
 
 #: ide/debug.inc
 msgid "Text"
-msgstr ""
+msgstr "Texto"
 
 #: ide/debug.inc
 msgid "The text"
-msgstr ""
+msgstr "El texto"
 
 #: ide/debug.inc
 msgid "Set Value"
-msgstr ""
+msgstr "Establecer valor"
 
 #: ide/debug.inc
 msgid "The new text"
-msgstr ""
+msgstr "El texto nuevo"
 
 #: ide/debug.inc
 msgid "&Set"
-msgstr ""
+msgstr "&Establecer"
 
 #: ide/debug.inc
 msgid "Running…"
-msgstr ""
+msgstr "Ejecutando…"
 
 #: ide/debug.inc
 msgid "The program has no window to bring to the front"
-msgstr ""
+msgstr "El programa no tiene ninguna ventana que traer al frente"
 
 #: ide/debug.inc
 msgid "Breakpoint removed: {file}, line {line}"
-msgstr ""
+msgstr "Punto de interrupción quitado: {file}, línea {line}"
 
 #: ide/debug.inc
 msgid "Breakpoint at {file}, line {line}"
-msgstr ""
+msgstr "Punto de interrupción en {file}, línea {line}"
 
 #: ide/debug.inc
 msgid "Every breakpoint removed"
-msgstr ""
+msgstr "Se quitaron todos los puntos de interrupción"
 
 #: ide/debug.inc
 msgid "(off)"
-msgstr ""
+msgstr "(desactivado)"
 
 #: ide/debug.inc
 msgid "(no code here: never stops)"
-msgstr ""
+msgstr "(aquí no hay código: nunca se detiene)"
 
 #: ide/debug.inc
 msgid "when {condition}"
-msgstr ""
+msgstr "cuando {condition}"
 
 #: ide/debug.inc
 msgid "hit {count}"
-msgstr ""
+msgstr "veces {count}"
 
 #: ide/debug.inc
 msgid "log {message}"
-msgstr ""
+msgstr "registro {message}"
 
 #: ide/debug.inc
 msgid "Breakpoints ({n})"
-msgstr ""
+msgstr "Puntos de interrupción ({n})"
 
 #: ide/debug.inc
 msgid "Breakpoints"
-msgstr ""
+msgstr "Puntos de interrupción"
 
 #: ide/debug.inc
 msgid "Breakpoint {text}"
-msgstr ""
+msgstr "Punto de interrupción {text}"
 
 #: ide/debug.inc
 msgid "Nothing to run: open a project or a program first (File > Open, or an example)."
-msgstr ""
+msgstr "No hay nada que ejecutar: abre primero un proyecto o un programa (Archivo > Abrir proyecto o archivo, o un ejemplo)."
 
 #: ide/debug.inc
 msgid "Nothing to run: no project is open"
-msgstr ""
+msgstr "No hay nada que ejecutar: no hay ningún proyecto abierto"
 
 #: ide/debug.inc
 msgid "{file} is running already: Stop it first (Shift+F5)"
-msgstr ""
+msgstr "{file} ya se está ejecutando: deténlo primero (Shift+F5)"
 
 #: ide/debug.inc
 msgid "{file} is paused already: Stop it first (Shift+F5)"
-msgstr ""
+msgstr "{file} ya está en pausa: deténlo primero (Shift+F5)"
 
 #: ide/debug.inc
 msgid "Can't run: the project's main file isn't set. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
-msgstr ""
+msgstr "No se puede ejecutar: no se ha definido el archivo principal del proyecto. Elígelo en las propiedades del proyecto: selecciona el nombre del proyecto en el panel Proyecto y luego MainFile."
 
 #: ide/debug.inc
 msgid "Can't run: the project's main file {file} isn't there. Choose it in the project's properties: select the project's name in the Project pane, then MainFile."
-msgstr ""
+msgstr "No se puede ejecutar: el archivo principal del proyecto, {file}, no está. Elígelo en las propiedades del proyecto: selecciona el nombre del proyecto en el panel Proyecto y luego MainFile."
 
 #: ide/debug.inc
 msgid "Can't run: no main file"
-msgstr ""
+msgstr "No se puede ejecutar: no hay archivo principal"
 
 #: ide/debug.inc
 msgid "Can't run: {n} error. The first is selected."
 msgid_plural "Can't run: {n} errors. The first is selected."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "No se puede ejecutar: {n} error. El primero está seleccionado."
+msgstr[1] "No se puede ejecutar: {n} errores. El primero está seleccionado."
 
 #: ide/debug.inc
 msgid "Running {file}"
-msgstr ""
+msgstr "Ejecutando {file}"
 
 #: ide/debug.inc
 msgid "Can't run {file}: {error}"
-msgstr ""
+msgstr "No se puede ejecutar {file}: {error}"
 
 #: ide/debug.inc
 msgid "Can't run {file}"
-msgstr ""
+msgstr "No se puede ejecutar {file}"
 
 #: ide/debug.inc
 msgid "Debugging layout: Variables, Watch, Call Stack and Breakpoints beside Output"
-msgstr ""
+msgstr "Disposición de depuración: Variables, Observar, Pila de llamadas y Puntos de interrupción junto a Salida"
 
 #: ide/debug.inc
 msgid "Editing layout: the bottom panel is full width"
-msgstr ""
+msgstr "Disposición de edición: el panel inferior ocupa todo el ancho"
 
 #: ide/debug.inc
 msgid "Run in Browser: building {file} for the web..."
-msgstr ""
+msgstr "Ejecutar en el navegador: compilando {file} para la web..."
 
 #: ide/debug.inc
 msgid "Opening {file} in the browser..."
-msgstr ""
+msgstr "Abriendo {file} en el navegador..."
 
 #: ide/debug.inc
 msgid "Breakpoint: {place}"
-msgstr ""
+msgstr "Punto de interrupción: {place}"
 
 #: ide/debug.inc
 msgid "Paused at the start: {place}"
-msgstr ""
+msgstr "En pausa al inicio: {place}"
 
 #: ide/debug.inc
 msgid "Run-time error: {place}"
-msgstr ""
+msgstr "Error de ejecución: {place}"
 
 #: ide/debug.inc
 msgid "Next statement: {place}"
-msgstr ""
+msgstr "Siguiente instrucción: {place}"
 
 #: ide/debug.inc
 msgid "Paused: {place}"
-msgstr ""
+msgstr "En pausa: {place}"
 
 #: ide/debug.inc
 msgid "Paused, {message}: {place}"
-msgstr ""
+msgstr "En pausa, {message}: {place}"
 
 #: ide/debug.inc
 msgid "[{file} ended, exit code {code}]"
-msgstr ""
+msgstr "[{file} terminó, código de salida {code}]"
 
 #: ide/debug.inc
 msgid "{file} ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties."
-msgstr ""
+msgstr "{file} se ejecutó y terminó enseguida: no mostró ninguna ventana ni imprimió nada. Si el programa empieza en otro archivo, haz que ese sea el archivo principal: selecciona el nombre del proyecto en el panel Proyecto y luego MainFile en Propiedades."
 
 #: ide/debug.inc
 msgid "Ended with exit code {code}"
-msgstr ""
+msgstr "Terminó con código de salida {code}"
 
 #: ide/debug.inc
 msgid "… {n} more"
-msgstr ""
+msgstr "… {n} más"
 
 #: ide/debug.inc
 msgid "Running… the values show when it pauses (F9 sets a breakpoint)."
-msgstr ""
+msgstr "Ejecutando… los valores aparecen cuando se pausa (F9 pone un punto de interrupción)."
 
 #: ide/debug.inc
 msgid "Not paused: F9 sets a breakpoint, F5 runs."
-msgstr ""
+msgstr "Sin pausa: F9 pone un punto de interrupción, F5 ejecuta."
 
 #: ide/debug.inc
 msgid "Locals"
-msgstr ""
+msgstr "Locales"
 
 #: ide/debug.inc
 msgid "(none)"
-msgstr ""
+msgstr "(ninguno)"
 
 #: ide/debug.inc
 msgid "Globals"
-msgstr ""
+msgstr "Globales"
 
 #: ide/debug.inc
 msgid "Components"
-msgstr ""
+msgstr "Componentes"
 
 #: ide/debug.inc
 msgid "(running)"
-msgstr ""
+msgstr "(en ejecución)"
 
 #: ide/debug.inc
 msgid "(not paused)"
-msgstr ""
+msgstr "(sin pausa)"
 
 #: ide/debug.inc
 msgid "Type an expression after the =, such as ={name} * 2."
-msgstr ""
+msgstr "Escribe una expresión después del =, como ={name} * 2."
 
 #: ide/debug.inc
 msgid "Type the new value of {name}."
-msgstr ""
+msgstr "Escribe el valor nuevo de {name}."
 
 #: ide/debug.inc
 msgid "{name} takes one of: {choices}."
-msgstr ""
+msgstr "{name} acepta uno de estos: {choices}."
 
 #: ide/debug.inc
 msgid "{name} is on or off: type on, off, 1 or 0."
-msgstr ""
+msgstr "{name} está activado o desactivado: escribe on, off, 1 o 0."
 
 #: ide/debug.inc
 msgid "{name} is True or False: type True or False."
-msgstr ""
+msgstr "{name} es True o False: escribe True o False."
 
 #: ide/debug.inc
 msgid "A colour as the web writes it has six hex digits, such as #FF8000."
-msgstr ""
+msgstr "Un color escrito como en la web tiene seis dígitos hexadecimales, como #FF8000."
 
 #: ide/debug.inc
 msgid "{name} is a colour: type a number, a colour's name such as clRed, or #RRGGBB."
-msgstr ""
+msgstr "{name} es un color: escribe un número, el nombre de un color como clRed, o #RRGGBB."
 
 #: ide/debug.inc
 msgid "{name} holds a number: type one, such as 42."
-msgstr ""
+msgstr "{name} contiene un número: escribe uno, como 42."
 
 #: ide/debug.inc
 msgid "Values can be changed while the program is paused (F9 sets a breakpoint)."
-msgstr ""
+msgstr "Los valores se pueden cambiar mientras el programa está en pausa (F9 pone un punto de interrupción)."
 
 #: ide/debug.inc
 msgid "{name} isn't a value that can be set."
-msgstr ""
+msgstr "{name} no es un valor que se pueda establecer."
 
 #: ide/debug.inc
 msgid "{name} can't be changed: it's read-only."
-msgstr ""
+msgstr "{name} no se puede cambiar: es de solo lectura."
 
 #: ide/debug.inc
 msgid "{name} is an array: open it and set its elements one at a time."
-msgstr ""
+msgstr "{name} es un arreglo: ábrelo y establece sus elementos uno por uno."
 
 #: ide/debug.inc
 msgid "{name} is a component: open it and set its properties."
-msgstr ""
+msgstr "{name} es un componente: ábrelo y establece sus propiedades."
 
 #: ide/debug.inc
 msgid "{name} is a record (a TYPE): open it and set its fields one at a time."
-msgstr ""
+msgstr "{name} es un registro (un TYPE): ábrelo y establece sus campos uno por uno."
 
 #: ide/debug.inc
 msgid "Enter sets it, Esc leaves it"
-msgstr ""
+msgstr "Enter lo establece, Esc lo deja como está"
 
 #: ide/debug.inc
 msgid "{name} holds a secret: it isn't shown, so it can't be edited here."
-msgstr ""
+msgstr "{name} contiene un secreto: no se muestra, así que no se puede editar aquí."
 
 #: ide/debug.inc
 msgid "Set {name}"
-msgstr ""
+msgstr "Establecer {name}"
 
 #: ide/debug.inc
 msgid "Can't set {name}: see Output"
-msgstr ""
+msgstr "No se puede establecer {name}: mira Salida"
 
 #: ide/debug.inc
 msgid "{name} is unchanged."
-msgstr ""
+msgstr "{name} no cambió."
 
-#: ide/debug.inc
+#: ide/debug.inc ide/versions.inc
 msgid "Nothing to undo"
-msgstr ""
+msgstr "No hay nada que deshacer"
 
 #: ide/debug.inc
 msgid "(the program)"
-msgstr ""
+msgstr "(el programa)"
 
 #: ide/debug.inc
 msgid "(the program isn't paused: F9 sets a breakpoint, Debug > Pause stops it)"
-msgstr ""
+msgstr "(el programa no está en pausa: F9 pone un punto de interrupción, Depurar > Pausar lo pausa)"
 
 #: ide/debug.inc
 msgid "Can't set {name}"
-msgstr ""
+msgstr "No se puede establecer {name}"
 
 #: ide/debug.inc
 msgid "{name} is back to {value}"
-msgstr ""
+msgstr "{name} volvió a {value}"
 
 #: ide/debug.inc
 msgid "(Ctrl+Z undoes)"
-msgstr ""
+msgstr "(Ctrl+Z lo deshace)"
 
 #: ide/debug.inc
 msgid "Can't copy: {error}"
-msgstr ""
+msgstr "No se puede copiar: {error}"
 
 #: ide/debug.inc
 msgid "Copied the value ({n} character)"
 msgid_plural "Copied the value ({n} characters)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió el valor ({n} carácter)"
+msgstr[1] "Se copió el valor ({n} caracteres)"
 
 #: ide/debug.inc
 msgid "Can't show {expr}: {error}"
-msgstr ""
+msgstr "No se puede mostrar {expr}: {error}"
 
 #: ide/debug.inc
 msgid "Set Next Statement: {error}"
-msgstr ""
+msgstr "Establecer la siguiente instrucción: {error}"
 
 #: ide/debug.inc
 msgid "{n} more"
-msgstr ""
+msgstr "{n} más"
 
 #: ide/debug.inc
 msgid "Copied the value"
-msgstr ""
+msgstr "Se copió el valor"
 
 #: ide/debug.inc
 msgid "Copied {expr}"
-msgstr ""
+msgstr "Se copió {expr}"
 
 #: ide/debug.inc
 msgid "(value)"
-msgstr ""
+msgstr "(valor)"
 
 #: ide/debug.inc
 msgid "{characters}, {lines}"
-msgstr ""
+msgstr "{characters}, {lines}"
 
 #: ide/debug.inc
 msgid "{n} character"
 msgid_plural "{n} characters"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} carácter"
+msgstr[1] "{n} caracteres"
 
 #: ide/debug.inc
 msgid "{n} line"
 msgid_plural "{n} lines"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} línea"
+msgstr[1] "{n} líneas"
 
 #: ide/debug.inc
 msgid "Text of {expr}"
-msgstr ""
+msgstr "Texto de {expr}"
 
 #: ide/debug.inc ide/safety.inc
 msgid "Copied"
-msgstr ""
+msgstr "Copiado"
 
 #: ide/debug.inc
 msgid "This line calls no SUB or FUNCTION: stepping over it"
-msgstr ""
+msgstr "Esta línea no llama a ninguna SUB ni FUNCTION: se pasa por encima"
 
 #: ide/debug.inc
 msgid "Step into {name}"
-msgstr ""
+msgstr "Entrar en {name}"
 
 #: ide/debug.inc
 msgid "&Copy Value"
-msgstr ""
+msgstr "&Copiar valor"
 
 #: ide/debug.inc
 msgid "Copy &Expression"
-msgstr ""
+msgstr "Copiar &expresión"
 
 #: ide/debug.inc
 msgid "&View Text..."
-msgstr ""
+msgstr "&Ver texto..."
 
 #: ide/debug.inc
 msgid "&Set Value..."
-msgstr ""
+msgstr "&Establecer valor..."
 
 #: ide/debug.inc
 msgid "Copied the call"
-msgstr ""
+msgstr "Se copió la llamada"
 
 #: ide/debug.inc
 msgid "Copied the breakpoint"
-msgstr ""
+msgstr "Se copió el punto de interrupción"
 
 #: ide/debug.inc
 msgid "Copied {n} call"
 msgid_plural "Copied {n} calls"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió {n} llamada"
+msgstr[1] "Se copiaron {n} llamadas"
 
 #: ide/debug.inc
 msgid "Copied {n} breakpoint"
 msgid_plural "Copied {n} breakpoints"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió {n} punto de interrupción"
+msgstr[1] "Se copiaron {n} puntos de interrupción"
 
 #: ide/debug.inc ide/mcp.inc ide/panels.inc
 msgid "Copy &All"
-msgstr ""
+msgstr "Copiar &todo"
 
 #: ide/debug.inc
 msgid "Run-time errors end the program"
-msgstr ""
+msgstr "Los errores de ejecución terminan el programa"
 
 #: ide/debug.inc
 msgid "Variables"
-msgstr ""
+msgstr "Variables"
 
 #: ide/debug.inc
 msgid "Watch"
-msgstr ""
+msgstr "Observar"
 
 #: ide/debug.inc
 msgid "&Add a watch:"
-msgstr ""
+msgstr "&Añadir a Observar:"
 
 #: ide/debug.inc
 msgid "Add a watch: an expression, then Enter"
-msgstr ""
+msgstr "Añadir a Observar: una expresión y luego Enter"
 
 #: ide/debug.inc
 msgid "Add a watch"
-msgstr ""
+msgstr "Añadir a Observar"
 
 #: ide/debug.inc
 msgid "Watches"
-msgstr ""
+msgstr "Expresiones observadas"
 
 #: ide/debug.inc
 msgid "Call Stack"
-msgstr ""
+msgstr "Pila de llamadas"
 
 #: ide/debug.inc
 msgid "&When"
-msgstr ""
+msgstr "&Cuando"
 
 #: ide/debug.inc
 msgid "A condition: it stops when this is true (clicks > 1)"
-msgstr ""
+msgstr "Una condición: se detiene cuando esto es verdadero (clicks > 1)"
 
 #: ide/debug.inc
 msgid "Condition"
-msgstr ""
+msgstr "Condición"
 
 #: ide/debug.inc
 msgid "&Hit"
-msgstr ""
+msgstr "&Veces"
 
 #: ide/debug.inc
 msgid "A hit count: 3 (the third time), >= 3, % 3 (every third)"
-msgstr ""
+msgstr "Un número de veces: 3 (la tercera vez), >= 3, % 3 (cada tres)"
 
 #: ide/debug.inc
 msgid "Hit count"
-msgstr ""
+msgstr "Número de veces"
 
 #: ide/debug.inc
 msgid "&Log"
-msgstr ""
+msgstr "&Registro"
 
 #: ide/debug.inc
 msgid "A logpoint: prints this ({{expr}} shows a value) and goes on"
-msgstr ""
+msgstr "Un punto de registro: imprime esto ({{expr}} muestra un valor) y continúa"
 
 #: ide/debug.inc
 msgid "Log message"
-msgstr ""
+msgstr "Mensaje de registro"
 
 #: ide/debug.inc
 msgid "On"
-msgstr ""
+msgstr "Activado"
 
 #: ide/designer.inc ide/panels.inc
 msgid "Designer: {message}"
-msgstr ""
+msgstr "Diseñador: {message}"
 
 #: ide/documents.inc
 msgid "{n} error"
 msgid_plural "{n} errors"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} error"
+msgstr[1] "{n} errores"
 
 #: ide/documents.inc
 msgid "{n} warning"
 msgid_plural "{n} warnings"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} advertencia"
+msgstr[1] "{n} advertencias"
 
 #: ide/documents.inc
 msgid "{n} note"
 msgid_plural "{n} notes"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} nota"
+msgstr[1] "{n} notas"
 
 #: ide/documents.inc
 msgid "Opened {file}"
-msgstr ""
+msgstr "Se abrió {file}"
 
 #: ide/documents.inc
 msgid "{file} makes a form: now under Forms"
-msgstr ""
+msgstr "{file} crea un formulario: ahora está en Formularios"
 
 #: ide/documents.inc
 msgid "{file} makes no form: now under Includes"
-msgstr ""
+msgstr "{file} no crea ningún formulario: ahora está en Archivos incluidos"
 
 #: ide/documents.inc
 msgid "{file} makes no form: now under Modules"
-msgstr ""
+msgstr "{file} no crea ningún formulario: ahora está en Módulos"
 
 #: ide/editor.inc
 msgid "Rename: {file} couldn't be opened"
-msgstr ""
+msgstr "Renombrar: no se pudo abrir {file}"
 
 #: ide/markdown.inc ide/project.inc
-#, review
 msgid "Ready"
 msgstr "Listo"
 
 #: ide/markdown.inc
 msgid "Opened {url} in the browser"
-msgstr ""
+msgstr "Se abrió {url} en el navegador"
 
 #: ide/markdown.inc
 msgid "Can't open {url}: there is no {file}"
-msgstr ""
+msgstr "No se puede abrir {url}: no existe {file}"
 
 #: ide/mcp.inc
 msgid "AI Apps"
-msgstr ""
+msgstr "Apps de IA"
 
 #: ide/mcp.inc
 msgid "AI apps"
-msgstr ""
+msgstr "Apps de IA"
 
 #: ide/mcp.inc
 msgid "What the AI app does now"
-msgstr ""
+msgstr "Qué hace ahora la app de IA"
 
 #: ide/mcp.inc
 msgid "What AI apps may do"
-msgstr ""
+msgstr "Qué pueden hacer las apps de IA"
 
 #: ide/mcp.inc
 msgid "Read only, Ask before changes, Allow edits or Allow everything: for this project"
-msgstr ""
+msgstr "Solo lectura, Preguntar antes de cambiar, Permitir ediciones o Permitir todo: para este proyecto"
 
+# legal
 #: ide/mcp.inc
 msgid "Warning: AI apps may change and run anything in this project without asking"
-msgstr ""
+msgstr "Advertencia: las apps de IA pueden cambiar y ejecutar cualquier cosa de este proyecto sin preguntar"
 
 #: ide/mcp.inc
 msgid "No questions asked"
-msgstr ""
+msgstr "Sin preguntar"
 
 #: ide/mcp.inc
 msgid "Stop the server: every AI app is disconnected"
-msgstr ""
+msgstr "Detener el servidor: todas las apps de IA se desconectan"
 
 #: ide/mcp.inc
 msgid "What an AI app asks to do"
-msgstr ""
+msgstr "Qué pide hacer una app de IA"
 
 #: ide/mcp.inc
 msgid "Allow &Once"
-msgstr ""
+msgstr "Permitir &una vez"
 
 #: ide/mcp.inc
 msgid "Allow for This Se&ssion"
-msgstr ""
+msgstr "Permitir en esta se&sión"
 
 #: ide/mcp.inc
 msgid "Calls of this kind are allowed until Studio closes or the server stops"
-msgstr ""
+msgstr "Las llamadas de este tipo se permiten hasta que Studio se cierre o el servidor se detenga"
 
 #: ide/mcp.inc
 msgid "&Deny"
-msgstr ""
+msgstr "&Denegar"
 
 #: ide/mcp.inc
 msgid "&Review..."
-msgstr ""
+msgstr "&Revisar..."
 
 #: ide/mcp.inc
 msgid "Review the change before deciding"
-msgstr ""
+msgstr "Revisar el cambio antes de decidir"
 
 #: ide/mcp.inc
 msgid "What AI apps did"
-msgstr ""
+msgstr "Qué hicieron las apps de IA"
 
 #: ide/mcp.inc
 msgid "&Let AI apps use RapidR Studio"
-msgstr ""
+msgstr "&Permitir que las apps de IA usen RapidR Studio"
 
+# legal
 #: ide/mcp.inc
 msgid "Off by default. On: an AI app on this computer that has the address and token below can work with your open project"
-msgstr ""
+msgstr "Desactivado de forma predeterminada. Activado: una app de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto"
 
+# legal
 #: ide/mcp.inc
 msgid "When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings."
-msgstr ""
+msgstr "Cuando está activado, una app de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto; ves todo lo que hace en el panel Apps de IA (Herramientas > Actividad de apps de IA). Pega ambos en la configuración MCP de la app de IA."
 
 #: ide/mcp.inc
 msgid "P&ort:"
-msgstr ""
+msgstr "Puer&to:"
 
 #: ide/mcp.inc
 msgid "Port"
-msgstr ""
+msgstr "Puerto"
 
 #: ide/mcp.inc
 msgid "The port AI apps connect to on 127.0.0.1 (this computer only)"
-msgstr ""
+msgstr "El puerto al que se conectan las apps de IA en 127.0.0.1 (solo esta computadora)"
 
 #: ide/mcp.inc
 msgid "Address:"
-msgstr ""
+msgstr "Dirección:"
 
 #: ide/mcp.inc
 msgid "The address AI apps connect to"
-msgstr ""
+msgstr "La dirección a la que se conectan las apps de IA"
 
 #: ide/mcp.inc
 msgid "Copy &Address"
-msgstr ""
+msgstr "Copiar &dirección"
 
 #: ide/mcp.inc
 msgid "Header:"
-msgstr ""
+msgstr "Encabezado:"
 
 #: ide/mcp.inc
 msgid "The header AI apps send: Authorization, Bearer and the token"
-msgstr ""
+msgstr "El encabezado que envían las apps de IA: Authorization, Bearer y el token"
 
 #: ide/mcp.inc
 msgid "Copy &Header"
-msgstr ""
+msgstr "Copiar &encabezado"
 
 #: ide/mcp.inc
 msgid "Sho&w"
-msgstr ""
+msgstr "&Mostrar"
 
 #: ide/mcp.inc
 msgid "Show or hide the token"
-msgstr ""
+msgstr "Mostrar u ocultar el token"
 
 #: ide/mcp.inc
 msgid "&Reset Token"
-msgstr ""
+msgstr "&Restablecer token"
 
 #: ide/mcp.inc
 msgid "A new token: every AI app that had the old one is disconnected"
-msgstr ""
+msgstr "Un token nuevo: todas las apps de IA que tenían el anterior se desconectan"
 
 #: ide/mcp.inc
 msgid "What AI apps may &do:"
-msgstr ""
+msgstr "Qué pueden &hacer las apps de IA:"
 
 #: ide/mcp.inc
 msgid "What AI apps may do in this project"
-msgstr ""
+msgstr "Qué pueden hacer las apps de IA en este proyecto"
 
 #: ide/mcp.inc
 msgid "What the choice means"
-msgstr ""
+msgstr "Qué significa la opción"
 
 #: ide/mcp.inc
 msgid "Learn more about AI apps"
-msgstr ""
+msgstr "Más información sobre las apps de IA"
 
 #: ide/mcp.inc
 msgid "C&lear Activity..."
-msgstr ""
+msgstr "&Borrar actividad..."
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did from this computer"
-msgstr ""
+msgstr "Quita de esta computadora la lista de lo que hicieron las apps de IA"
 
 #: ide/mcp.inc
 msgid "Review the AI App's Change"
-msgstr ""
+msgstr "Revisar el cambio de la app de IA"
 
 #: ide/mcp.inc
 msgid "&Reject"
-msgstr ""
+msgstr "&Rechazar"
 
 #: ide/mcp.inc
 msgid "Files the AI app changes"
-msgstr ""
+msgstr "Archivos que cambia la app de IA"
 
 #: ide/mcp.inc
 msgid "Read only"
-msgstr ""
+msgstr "Solo lectura"
 
 #: ide/mcp.inc
 msgid "Allow edits"
-msgstr ""
+msgstr "Permitir ediciones"
 
 #: ide/mcp.inc
 msgid "Allow everything"
-msgstr ""
+msgstr "Permitir todo"
 
 #: ide/mcp.inc
 msgid "Ask before changes"
-msgstr ""
+msgstr "Preguntar antes de cambiar"
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
-msgstr ""
+msgstr "Las apps de IA pueden mirar —leer el proyecto, revisar código, consultar cosas, ver la salida del programa y Studio—, pero no cambiar, ejecutar, mirar ni usar tu programa."
 
+# legal
 #: ide/mcp.inc
 msgid "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
-msgstr ""
+msgstr "Los cambios a los archivos se hacen de inmediato (cada uno es un paso de Deshacer, listado en el panel Apps de IA); ejecutar el programa, mirarlo o usarlo, y preguntarle a RAI siguen esperando tu permiso."
 
+# legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-msgstr ""
+msgstr "Nada espera tu permiso: las apps de IA cambian archivos, ejecutan el programa, lo miran y lo usan, y le preguntan a RAI por su cuenta — y un programa puede hacer en esta computadora todo lo que tú puedes. Todo sigue listado, Detener lo termina y las herramientas propias de Studio nunca entregan claves ni archivos de fuera del proyecto."
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
-msgstr ""
+msgstr "Las apps de IA pueden mirar el proyecto con libertad; cada cambio, ejecución, vistazo a tu programa en ejecución o pregunta a RAI espera tu decisión en el panel Apps de IA: Permitir una vez, Permitir en esta sesión o Denegar."
 
+# legal
 #: ide/mcp.inc
 msgid "New project: Allow edits. Allow everything is not passed on to a new project: choose it again here if you want it."
-msgstr ""
+msgstr "Proyecto nuevo: Permitir ediciones. Permitir todo no pasa a un proyecto nuevo: vuelve a elegirlo aquí si lo quieres."
 
 #: ide/mcp.inc
 msgid "New project: same permission as before ({mode})"
-msgstr ""
+msgstr "Proyecto nuevo: el mismo permiso de antes ({mode})"
 
 #: ide/mcp.inc
 msgid "AI apps may now: {mode}"
-msgstr ""
+msgstr "Ahora las apps de IA pueden: {mode}"
 
 #: ide/mcp.inc
 msgid "AI apps: {mode}"
-msgstr ""
+msgstr "Apps de IA: {mode}"
 
+# legal
 #: ide/mcp.inc
 msgid "Allow everything for AI apps in this project?"
-msgstr ""
+msgstr "¿Permitir todo a las apps de IA en este proyecto?"
 
+# legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-msgstr ""
+msgstr "Nada espera tu permiso: las apps de IA cambian archivos, ejecutan el programa, lo miran, hacen clic y escriben en él y le preguntan a RAI (lo cual puede costar dinero) por su cuenta."
 
+# legal
 #: ide/mcp.inc
 msgid "Keep in mind"
-msgstr ""
+msgstr "Ten en cuenta"
 
+# legal
 #: ide/mcp.inc
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
-msgstr ""
+msgstr "Un programa que ejecuten puede hacer en esta computadora todo lo que tú puedes, y los clics que hagan en él son reales. Elige esto solo mientras observas una app de IA en la que confías."
 
+# legal
 #: ide/mcp.inc
 msgid "You still see"
-msgstr ""
+msgstr "Sigues viendo"
 
+# legal
 #: ide/mcp.inc
 msgid "Everything they do, listed in the AI Apps pane; Stop ends it."
-msgstr ""
+msgstr "Todo lo que hacen, listado en el panel Apps de IA; Detener lo termina."
 
+# legal
 #: ide/mcp.inc ide/settings.inc
 msgid "Never"
-msgstr ""
+msgstr "Nunca"
 
+# legal
 #: ide/mcp.inc
 msgid "Studio's own tools never hand over your keys, or files outside the project."
-msgstr ""
+msgstr "Las herramientas propias de Studio nunca entregan tus claves ni archivos de fuera del proyecto."
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps change and run anything in this project without asking"
-msgstr ""
+msgstr "Las apps de IA cambian y ejecutan cualquier cosa de este proyecto sin preguntar"
 
 #: ide/mcp.inc
 msgid "The permission stays as it was"
-msgstr ""
+msgstr "El permiso sigue como estaba"
 
 #: ide/mcp.inc
 msgid "&Allow Everything"
-msgstr ""
+msgstr "&Permitir todo"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Confirm again in Settings > AI Apps."
-msgstr ""
+msgstr "Apps de IA: desactivadas. Confirma de nuevo en Configuración > Apps de IA."
 
 #: ide/mcp.inc
 msgid "AI apps: the token couldn't be kept in the keychain ({error}): it is new each time Studio starts."
-msgstr ""
+msgstr "Apps de IA: no se pudo guardar el token en el llavero ({error}): es nuevo cada vez que Studio se inicia."
 
+# legal
 #: ide/mcp.inc
 msgid "It can see"
-msgstr ""
+msgstr "Puede ver"
 
+# legal
 #: ide/mcp.inc
 msgid "It can"
-msgstr ""
+msgstr "Puede"
 
+# legal
 #: ide/mcp.inc
 msgid "It never sees"
-msgstr ""
+msgstr "Nunca ve"
 
+# legal
 #: ide/mcp.inc
 msgid "The files of your open project — your code, forms and data files — and nothing else on your computer. It also gets pictures of Studio's window and of your running program's windows, and a written list of what they show, as you see them."
-msgstr ""
+msgstr "Los archivos de tu proyecto abierto —tu código, tus formularios y tus archivos de datos— y nada más de tu computadora. También recibe imágenes de la ventana de Studio y de las ventanas de tu programa en ejecución, y una lista escrita de lo que muestran, tal como tú lo ves."
 
+# legal
 #: ide/mcp.inc
 msgid "Check code, and read what your program prints and RAI's chat. It can also change forms and code, open other projects, run, debug, look at, click and type in your program, and ask RAI (which may cost money), each only as your permission mode allows; the default asks you first."
-msgstr ""
+msgstr "Revisar código y leer lo que imprime tu programa y el chat de RAI. También puede cambiar formularios y código, abrir otros proyectos, ejecutar, depurar, mirar tu programa, hacer clic y escribir en él, y preguntarle a RAI (lo cual puede costar dinero), cada cosa solo como lo permita tu modo de permisos; el predeterminado te pregunta primero."
 
+# legal
 #: ide/mcp.inc
 msgid "Your AI provider keys or passwords: your keychain keeps them."
-msgstr ""
+msgstr "Tus claves de proveedores de IA o tus contraseñas: tu llavero las guarda."
 
+# legal
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
-msgstr ""
+msgstr "RapidR no envía nada de esto a ningún lugar, pero la app de IA puede pasar lo que lee a la empresa que la fabrica, bajo los términos de esa empresa. Un programa puede mostrar datos privados, tuyos o de otras personas, y hacer clic en él actúa como tú: un botón real de Enviar, Pagar o Eliminar lo hace de verdad, así que usa datos de prueba. Muchas apps de IA son solo para personas adultas: si tienes menos de 18 años, configura esto con un padre, una madre o un docente. Conecta solo apps de IA en las que confíes."
 
+# legal
 #: ide/mcp.inc
 msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
-msgstr ""
+msgstr "Comparte solo lo que puedas compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto, o usa Restablecer token, para desconectar todas las apps de IA. Studio guarda una lista de lo que hicieron solo en esta computadora; Borrar actividad la quita."
 
 #: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
-msgstr ""
+msgstr "Las apps de IA no se pueden conectar: {error}. Elige otro puerto en Herramientas > Configuración > Apps de IA."
 
 #: ide/mcp.inc
 msgid "AI apps: port {port} is taken"
-msgstr ""
+msgstr "Apps de IA: el puerto {port} está ocupado"
 
 #: ide/mcp.inc
 msgid "AI apps can connect at {url} (this computer only; the header is in Tools > Settings > AI Apps)."
-msgstr ""
+msgstr "Las apps de IA pueden conectarse en {url} (solo esta computadora; el encabezado está en Herramientas > Configuración > Apps de IA)."
 
 #: ide/mcp.inc
 msgid "AI apps: stopped. Every AI app was disconnected."
-msgstr ""
+msgstr "Apps de IA: detenido. Todas las apps de IA se desconectaron."
 
 #: ide/mcp.inc
 msgid "AI apps: on, none connected"
-msgstr ""
+msgstr "Apps de IA: activado, ninguna conectada"
 
 #: ide/mcp.inc
 msgid "Waiting at {url} (this computer only)"
-msgstr ""
+msgstr "Esperando en {url} (solo esta computadora)"
 
 #: ide/mcp.inc
 msgid "AI apps: {names}"
-msgstr ""
+msgstr "Apps de IA: {names}"
 
 #: ide/mcp.inc
 msgid "{n} call"
 msgid_plural "{n} calls"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} llamada"
+msgstr[1] "{n} llamadas"
 
 #: ide/mcp.inc
 msgid "AI apps: off"
-msgstr ""
+msgstr "Apps de IA: desactivado"
 
 #: ide/mcp.inc
 msgid "Tools > Settings > AI Apps turns them on."
-msgstr ""
+msgstr "Herramientas > Configuración > Apps de IA las activa."
 
 #: ide/mcp.inc
 msgid "&Turn On..."
-msgstr ""
+msgstr "&Activar..."
 
 #: ide/mcp.inc
 msgid "AI apps: allow everything"
-msgstr ""
+msgstr "Apps de IA: permitir todo"
 
 #: ide/mcp.inc
 msgid "AI apps: waiting for you"
-msgstr ""
+msgstr "Apps de IA: esperando tu respuesta"
 
 #: ide/mcp.inc
 msgid "AI apps: on"
-msgstr ""
+msgstr "Apps de IA: activado"
 
 #: ide/mcp.inc
 msgid "AI apps: {what}"
-msgstr ""
+msgstr "Apps de IA: {what}"
 
 #: ide/mcp.inc
 msgid "AI apps: connected"
-msgstr ""
+msgstr "Apps de IA: conectado"
 
 #: ide/mcp.inc
 msgid "ok"
-msgstr ""
+msgstr "correcto"
 
 #: ide/mcp.inc
 msgid "error"
-msgstr ""
+msgstr "error"
 
 #: ide/mcp.inc
 msgid "applied"
-msgstr ""
+msgstr "aplicado"
 
 #: ide/mcp.inc
 msgid "applied (you allowed it)"
-msgstr ""
+msgstr "aplicado (lo permitiste)"
 
 #: ide/mcp.inc
 msgid "denied by you"
-msgstr ""
+msgstr "denegado por ti"
 
 #: ide/mcp.inc
 msgid "refused"
-msgstr ""
+msgstr "rechazado"
 
 #: ide/mcp.inc
 msgid "couldn't run"
-msgstr ""
+msgstr "no se pudo ejecutar"
 
 #: ide/mcp.inc
 msgid "started"
-msgstr ""
+msgstr "iniciado"
 
 #: ide/mcp.inc
 msgid "sent"
-msgstr ""
+msgstr "enviado"
 
 #: ide/mcp.inc
 msgid "RAI didn't start"
-msgstr ""
+msgstr "RAI no se inició"
 
 #: ide/mcp.inc
 msgid "refused: {why}"
-msgstr ""
+msgstr "rechazado: {why}"
 
 #: ide/mcp.inc
 msgid "refused ({dialog} open)"
-msgstr ""
+msgstr "rechazado ({dialog} abierto)"
 
 #: ide/mcp.inc ide/settings.inc
 msgid "Settings"
-msgstr ""
+msgstr "Configuración"
 
 #: ide/mcp.inc
 msgid "a question"
-msgstr ""
+msgstr "una pregunta"
 
 #: ide/mcp.inc
 msgid "a review window"
-msgstr ""
+msgstr "una ventana de revisión"
 
 #: ide/mcp.inc
 msgid "a dialog"
-msgstr ""
+msgstr "un cuadro de diálogo"
 
 #: ide/mcp.inc
 msgid "a value's window"
-msgstr ""
+msgstr "la ventana de un valor"
 
 #: ide/mcp.inc
 msgid "{client} connected"
-msgstr ""
+msgstr "{client} se conectó"
 
 #: ide/mcp.inc
 msgid "{client} connected to Studio"
-msgstr ""
+msgstr "{client} se conectó a Studio"
 
 #: ide/mcp.inc
 msgid "{client} left"
-msgstr ""
+msgstr "{client} se desconectó"
 
 #: ide/mcp.inc
 msgid "Opening a project"
-msgstr ""
+msgstr "Abriendo un proyecto"
 
 #: ide/mcp.inc
 msgid "Opening {path}"
-msgstr ""
+msgstr "Abriendo {path}"
 
 #: ide/mcp.inc
 msgid "waiting for you"
-msgstr ""
+msgstr "esperando tu respuesta"
 
 #: ide/mcp.inc
 msgid "{client}: {what} (waiting for you)"
-msgstr ""
+msgstr "{client}: {what} (esperando tu respuesta)"
 
 #: ide/mcp.inc
 msgid "{client} asks: {what}. Allow it in the AI Apps pane."
-msgstr ""
+msgstr "{client} pide: {what}. Permítelo en el panel Apps de IA."
 
 #: ide/mcp.inc
 msgid "{client} wants to open {what}."
-msgstr ""
+msgstr "{client} quiere abrir {what}."
 
 #: ide/mcp.inc
 msgid "{client} wants to change {files}: {summary}"
-msgstr ""
+msgstr "{client} quiere cambiar {files}: {summary}"
 
 #: ide/mcp.inc
 msgid "{client} wants to run your program ({what})."
-msgstr ""
+msgstr "{client} quiere ejecutar tu programa ({what})."
 
+# legal
 #: ide/mcp.inc
 msgid "{client} wants to look at or use your running program: {what}. Allow Once covers pictures, clicks and typing until this run ends. It may see whatever the program shows, including private data."
-msgstr ""
+msgstr "{client} quiere mirar o usar tu programa en ejecución: {what}. Permitir una vez cubre imágenes, clics y escritura hasta que termine esta ejecución. Puede ver todo lo que el programa muestre, incluidos datos privados."
 
 #: ide/mcp.inc
 msgid "{client} wants to ask RAI: {prompt}"
-msgstr ""
+msgstr "{client} quiere preguntarle a RAI: {prompt}"
 
 #: ide/mcp.inc
 msgid "{question} ({n} more waiting)"
-msgstr ""
+msgstr "{question} (esperan {n} más)"
 
 #: ide/mcp.inc
 msgid "Program status"
-msgstr ""
+msgstr "Estado del programa"
 
 #: ide/mcp.inc
 msgid "Stopped the program"
-msgstr ""
+msgstr "Detuvo el programa"
 
 #: ide/mcp.inc
 msgid "Running the program"
-msgstr ""
+msgstr "Ejecutando el programa"
 
 #: ide/mcp.inc
 msgid "Debugger state"
-msgstr ""
+msgstr "Estado del depurador"
 
 #: ide/mcp.inc
 msgid "Debugger: {action}"
-msgstr ""
+msgstr "Depurador: {action}"
 
 #: ide/mcp.inc
 msgid "A picture of Studio"
-msgstr ""
+msgstr "Una imagen de Studio"
 
 #: ide/mcp.inc
 msgid "Asking RAI: {prompt}"
-msgstr ""
+msgstr "Preguntando a RAI: {prompt}"
 
 #: ide/mcp.inc
 msgid "(turn AI apps on: a token is made)"
-msgstr ""
+msgstr "(activa las apps de IA: se crea un token)"
 
 #: ide/mcp.inc
 msgid "In {project}, AI apps may &do:"
-msgstr ""
+msgstr "En {project}, las apps de IA pueden &hacer:"
 
+# legal
 #: ide/mcp.inc
 msgid "Let AI apps use RapidR Studio?"
-msgstr ""
+msgstr "¿Permitir que las apps de IA usen RapidR Studio?"
 
+# legal
 #: ide/mcp.inc
 msgid "With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane."
-msgstr ""
+msgstr "Con esto activado, una app de IA en esta computadora que tenga tu token puede trabajar con tu proyecto abierto a través de Studio, y ves todo lo que hace en el panel Apps de IA."
 
+# legal
 #: ide/mcp.inc
 msgid "AI apps that have the token can connect to RapidR Studio"
-msgstr ""
+msgstr "Las apps de IA que tengan el token pueden conectarse a RapidR Studio"
 
 #: ide/mcp.inc
 msgid "AI apps stay off"
-msgstr ""
+msgstr "Las apps de IA siguen desactivadas"
 
 #: ide/mcp.inc
 msgid "&Turn On"
-msgstr ""
+msgstr "&Activar"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Every AI app was disconnected."
-msgstr ""
+msgstr "Apps de IA: desactivado. Todas las apps de IA se desconectaron."
 
 #: ide/mcp.inc
 msgid "Address copied"
-msgstr ""
+msgstr "Dirección copiada"
 
 #: ide/mcp.inc
 msgid "Header copied"
-msgstr ""
+msgstr "Encabezado copiado"
 
 #: ide/mcp.inc
 msgid "&Hide"
-msgstr ""
+msgstr "&Ocultar"
 
 #: ide/mcp.inc
 msgid "AI apps: the new token couldn't be kept in the keychain ({error})."
-msgstr ""
+msgstr "Apps de IA: no se pudo guardar el token nuevo en el llavero ({error})."
 
 #: ide/mcp.inc
 msgid "A new token: AI apps need the new header"
-msgstr ""
+msgstr "Un token nuevo: las apps de IA necesitan el encabezado nuevo"
 
 #: ide/mcp.inc
 msgid "Clear the AI apps' activity?"
-msgstr ""
+msgstr "¿Borrar la actividad de las apps de IA?"
 
+# legal
 #: ide/mcp.inc
 msgid "The list of what AI apps did is removed from this computer ({location})."
-msgstr ""
+msgstr "La lista de lo que hicieron las apps de IA se quita de esta computadora ({location})."
 
 #: ide/mcp.inc
 msgid "The list stays"
-msgstr ""
+msgstr "La lista se queda"
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did"
-msgstr ""
+msgstr "Quita la lista de lo que hicieron las apps de IA"
 
 #: ide/mcp.inc
 msgid "C&lear"
-msgstr ""
+msgstr "&Borrar"
 
 #: ide/panels.inc ide/shell.inc
 msgid "Example"
-msgstr ""
+msgstr "Ejemplo"
 
 #: ide/panels.inc
 msgid "Go to line {}"
-msgstr ""
+msgstr "Ir a la línea {}"
 
 #: ide/panels.inc
 msgid "Component"
-msgstr ""
+msgstr "Componente"
 
 #: ide/panels.inc
 msgid "Symbol"
-msgstr ""
+msgstr "Símbolo"
 
 #: ide/panels.inc
 msgid "Can't make {file}: {error}"
-msgstr ""
+msgstr "No se puede crear {file}: {error}"
 
 #: ide/panels.inc
 msgid "Can't add {file}: {error}"
-msgstr ""
+msgstr "No se puede añadir {file}: {error}"
 
 #: ide/panels.inc
 msgid "{main} includes {file} ($INCLUDE): its forms are made when the program starts"
-msgstr ""
+msgstr "{main} incluye {file} ($INCLUDE): sus formularios se crean cuando el programa se inicia"
 
 #: ide/panels.inc
 msgid "{form} added: drop components on it; show it with {form}.Show"
-msgstr ""
+msgstr "Se añadió {form}: suelta componentes en él; muéstralo con {form}.Show"
 
 #: ide/panels.inc
 msgid "{file} is there already"
-msgstr ""
+msgstr "{file} ya está"
 
 #: ide/panels.inc
 msgid "{main} includes {file} now"
-msgstr ""
+msgstr "Ahora {main} incluye {file}"
 
 #: ide/panels.inc
 msgid "The main file stays in the project"
-msgstr ""
+msgstr "El archivo principal se queda en el proyecto"
 
 #: ide/panels.inc
 msgid "{file} taken out of the project (still on the disk)"
-msgstr ""
+msgstr "{file} se quitó del proyecto (sigue en el disco)"
 
 #: ide/panels.inc
 msgid "{main} no longer includes {file}"
-msgstr ""
+msgstr "{main} ya no incluye {file}"
 
 #: ide/panels.inc
 msgid "Can't read the project again: {error}"
-msgstr ""
+msgstr "No se puede volver a leer el proyecto: {error}"
 
 #: ide/panels.inc
 msgid "Can't save the project's order"
-msgstr ""
+msgstr "No se puede guardar el orden del proyecto"
 
 #: ide/panels.inc ide/shell.inc
 msgid "Open or make a project first (File > New Project)"
-msgstr ""
+msgstr "Abre o crea primero un proyecto (Archivo > Nuevo proyecto)"
 
 #: ide/panels.inc
 msgid "Open a form to add a {type}"
-msgstr ""
+msgstr "Abre un formulario para añadir {type}"
 
 #: ide/panels.inc
 msgid "A form can't go inside a form: {form} was added as a new window. For child windows, make {mdi} an RFormMDI."
-msgstr ""
+msgstr "Un formulario no puede ir dentro de otro formulario: {form} se añadió como una ventana nueva. Para ventanas secundarias, haz de {mdi} un RFormMDI."
 
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Properties"
-msgstr ""
+msgstr "Propiedades"
 
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Project"
-msgstr ""
+msgstr "Proyecto"
 
 #: ide/panels.inc
 msgid "Appearance"
-msgstr ""
+msgstr "Apariencia"
 
 #: ide/panels.inc
 msgid "The look the program is drawn in: RapidR follows the system, or choose Light, Dark, High Contrast or Classic. It is the $THEME line at the top of the main file, and the form designer shows the look you choose whatever look Studio has (RapidR: Studio's own, which follows the system too)."
-msgstr ""
+msgstr "El aspecto con el que se dibuja el programa: RapidR sigue al sistema, o elige Claro, Oscuro, Contraste alto o Clásico. Es la línea $THEME al principio del archivo principal, y el diseñador de formularios muestra el aspecto que elijas sea cual sea el de Studio (RapidR: el propio de Studio, que también sigue al sistema)."
 
 #: ide/panels.inc
 msgid "The project's name, as the Project pane and the window's title show it. Its files keep their names."
-msgstr ""
+msgstr "El nombre del proyecto, como lo muestran el panel Proyecto y el título de la ventana. Sus archivos conservan sus nombres."
 
 #: ide/panels.inc
 msgid "The file the program starts from: Run, Build and the checks begin there."
-msgstr ""
+msgstr "El archivo desde el que empieza el programa: Ejecutar, Compilar y las comprobaciones empiezan allí."
 
 #: ide/panels.inc
 msgid "Where the program runs: on the desktop, in a browser, or both. The Problems pane notes what works on one only when the program runs on the other."
-msgstr ""
+msgstr "Dónde se ejecuta el programa: en el escritorio, en un navegador o en ambos. El panel Problemas indica lo que solo funciona en uno cuando el programa se ejecuta en el otro."
 
 #: ide/panels.inc
 msgid "Run"
-msgstr ""
+msgstr "Ejecutar"
 
 #: ide/panels.inc
 msgid "The command-line arguments Run gives the program (what COMMAND$ reads), separated by spaces; a {q}quoted{q} one keeps its spaces."
-msgstr ""
+msgstr "Los argumentos de la línea de comandos que Ejecutar le da al programa (lo que lee COMMAND$), separados por espacios; uno {q}entre comillas{q} conserva sus espacios."
 
 #: ide/panels.inc
 msgid "Designer"
-msgstr ""
+msgstr "Diseñador"
 
 #: ide/panels.inc
 msgid "The form designer's grid, in pixels: what Snap snaps to."
-msgstr ""
+msgstr "La cuadrícula del diseñador de formularios, en píxeles: a lo que se ajusta Snap."
 
 #: ide/panels.inc
 msgid "The form designer snaps what you move or size to the grid."
-msgstr ""
+msgstr "El diseñador de formularios ajusta a la cuadrícula lo que mueves o cambias de tamaño."
 
 #: ide/panels.inc
 msgid "The form designer shows alignment guides and snaps to them."
-msgstr ""
+msgstr "El diseñador de formularios muestra guías de alineación y se ajusta a ellas."
 
 #: ide/panels.inc
 msgid "A project needs a name"
-msgstr ""
+msgstr "Un proyecto necesita un nombre"
 
 #: ide/panels.inc
 msgid "{file} is not one of the project's source files"
-msgstr ""
+msgstr "{file} no es uno de los archivos fuente del proyecto"
 
 #: ide/panels.inc
 msgid "The grid is 1 to 64 pixels"
-msgstr ""
+msgstr "La cuadrícula va de 1 a 64 píxeles"
 
 #: ide/panels.inc
 msgid "Theme: the $THEME line is out of {file}: the program follows the system"
-msgstr ""
+msgstr "Tema: la línea $THEME ya no está en {file}: el programa sigue al sistema"
 
 #: ide/panels.inc
 msgid "Theme: {file} says $THEME {look}"
-msgstr ""
+msgstr "Tema: {file} dice $THEME {look}"
 
 #: ide/panels.inc
 msgid "Copy &All Problems"
-msgstr ""
+msgstr "Copiar &todos los problemas"
 
 #: ide/panels.inc
 msgid "Copied {n} problem"
 msgid_plural "Copied {n} problems"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió {n} problema"
+msgstr[1] "Se copiaron {n} problemas"
 
 #: ide/panels.inc
 msgid "Copied {n} line"
 msgid_plural "Copied {n} lines"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió {n} línea"
+msgstr[1] "Se copiaron {n} líneas"
 
 #: ide/panels.inc
 msgid "Copied {n} character"
 msgid_plural "Copied {n} characters"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se copió {n} carácter"
+msgstr[1] "Se copiaron {n} caracteres"
 
 #: ide/panels.inc
 msgid "Nothing selected to copy"
-msgstr ""
+msgstr "No hay nada seleccionado para copiar"
 
 #: ide/panels.inc
 msgid "No project open. File > New Project (Ctrl+N), or Open (Ctrl+O)."
-msgstr ""
+msgstr "No hay ningún proyecto abierto. Archivo > Nuevo proyecto (Ctrl+N), o Abrir (Ctrl+O)."
 
 #: ide/panels.inc
 msgid "Select a component on a form to see its properties."
-msgstr ""
+msgstr "Selecciona un componente de un formulario para ver sus propiedades."
 
 #: ide/panels.inc
 msgid "Press F5 to run the program; its output shows here."
-msgstr ""
+msgstr "Presiona F5 para ejecutar el programa; su salida aparece aquí."
 
 #: ide/panels.inc
 msgid "Copy &Line"
-msgstr ""
+msgstr "Copiar &línea"
 
 #: ide/panels.inc
 msgid "&Select All"
-msgstr ""
+msgstr "&Seleccionar todo"
 
 #: ide/panels.inc
 msgid "&Wrap Long Lines"
-msgstr ""
+msgstr "&Ajustar líneas largas"
 
 #: ide/panels.inc
 msgid "Cl&ear"
-msgstr ""
+msgstr "&Borrar"
 
 #: ide/panels.inc
 msgid "Double-click or press Enter to add a component to the form; drag it to place it."
-msgstr ""
+msgstr "Haz doble clic o presiona Enter para añadir un componente al formulario; arrástralo para colocarlo."
 
 #: ide/panels.inc
 msgid "({step}: refused)"
-msgstr ""
+msgstr "({step}: rechazado)"
 
 #: ide/panes.inc ide/window.inc
 msgid "Toolbox"
-msgstr ""
+msgstr "Caja de herramientas"
 
 #: ide/panes.inc ide/window.inc
 msgid "Outline"
-msgstr ""
+msgstr "Estructura"
 
 #: ide/panes.inc ide/window.inc
 msgid "Output"
-msgstr ""
+msgstr "Salida"
 
 #: ide/panes.inc ide/window.inc
 msgid "Immediate"
-msgstr ""
+msgstr "Inmediato"
 
 #: ide/panes.inc ide/window.inc ide/workspace.inc
 msgid "Welcome"
-msgstr ""
+msgstr "Bienvenida"
 
 #: ide/panes.inc
 msgid "Example {name}: {what}"
-msgstr ""
+msgstr "Ejemplo {name}: {what}"
 
 #: ide/panes.inc
 msgid "New Project..."
-msgstr ""
+msgstr "Nuevo proyecto..."
 
 #: ide/panes.inc
 msgid "Open Project or File..."
-msgstr ""
+msgstr "Abrir proyecto o archivo..."
 
 #: ide/panes.inc
 msgid "Import a RapidQ Program..."
-msgstr ""
+msgstr "Importar un programa de RapidQ..."
 
 #: ide/panes.inc
 msgid "Open an Example"
-msgstr ""
+msgstr "Abrir un ejemplo"
 
 #: ide/panes.inc
 msgid "All Commands"
-msgstr ""
+msgstr "Todos los comandos"
 
 #: ide/panes.inc
 msgid "Drop a CSV, see it charted"
-msgstr ""
+msgstr "Suelta un CSV y velo en un gráfico"
 
 #: ide/panes.inc
 msgid "CSV, grid and edits, linked"
-msgstr ""
+msgstr "CSV, tabla y ediciones, vinculados"
 
 #: ide/panes.inc
 msgid "A million rows, analysed"
-msgstr ""
+msgstr "Un millón de filas, analizadas"
 
 #: ide/panes.inc
 msgid "JSON records in a grid"
-msgstr ""
+msgstr "Registros JSON en una tabla"
 
 #: ide/panes.inc
 msgid "A form, a button, its OnClick"
-msgstr ""
+msgstr "Un formulario, un botón, su OnClick"
 
 #: ide/panes.inc
 msgid "The focus: OnEnter, OnExit"
-msgstr ""
+msgstr "El foco: OnEnter, OnExit"
 
 #: ide/panes.inc
 msgid "Main and pop-up menus"
-msgstr ""
+msgstr "Menú principal y menús emergentes"
 
 #: ide/panes.inc
 msgid "Open, save, colour, font"
-msgstr ""
+msgstr "Abrir, guardar, color, fuente"
 
 #: ide/panes.inc
 msgid "A rich-text editor (.rtf)"
-msgstr ""
+msgstr "Un editor de texto enriquecido (.rtf)"
 
 #: ide/panes.inc
 msgid "A list and a grid together"
-msgstr ""
+msgstr "Una lista y una tabla juntas"
 
 #: ide/panes.inc
 msgid "The themes, switched live"
-msgstr ""
+msgstr "Los temas, cambiados en vivo"
 
 #: ide/panes.inc
 msgid "A big window: a dashboard"
-msgstr ""
+msgstr "Una ventana grande: un tablero"
 
 #: ide/panes.inc
 msgid "A data frame and a chart"
-msgstr ""
+msgstr "Un marco de datos y un gráfico"
 
 #: ide/panes.inc
 msgid "Debug it: values as trees"
-msgstr ""
+msgstr "Depúralo: valores como árboles"
 
 #: ide/panes.inc
 msgid "Ask an AI: models, an answer"
-msgstr ""
+msgstr "Pregunta a una IA: modelos y una respuesta"
 
 #: ide/panes.inc
 msgid "A program in the classic style"
-msgstr ""
+msgstr "Un programa al estilo clásico"
 
 #: ide/panes.inc
 msgid "PRINT, FOR, SUB, FUNCTION"
-msgstr ""
+msgstr "PRINT, FOR, SUB, FUNCTION"
 
 #: ide/panes.inc
 msgid "The code shows its own values: colours, pictures, fonts"
-msgstr ""
+msgstr "El código muestra sus propios valores: colores, imágenes, fuentes"
 
 #: ide/panes.inc
 msgid "A bug in a handler: the program goes on and says so"
-msgstr ""
+msgstr "Un error en un controlador: el programa sigue y lo dice"
 
 #: ide/panes.inc
 msgid "Click the sky: rockets and thousands of sparks"
-msgstr ""
+msgstr "Haz clic en el cielo: cohetes y miles de chispas"
 
 #: ide/panes.inc
 msgid "A Markdown notes app, live preview"
-msgstr ""
+msgstr "Una aplicación de notas en Markdown, con vista previa en vivo"
 
 #: ide/panes.inc
 msgid "A snake game, for the keyboard alone"
-msgstr ""
+msgstr "Un juego de la serpiente, solo con el teclado"
 
 #: ide/panes.inc
 msgid "Four pictures, the very same numbers"
-msgstr ""
+msgstr "Cuatro imágenes, los mismos números"
 
 #: ide/panes.inc
 msgid "Pi by throwing darts, live"
-msgstr ""
+msgstr "Pi lanzando dardos, en vivo"
 
 #: ide/panes.inc
 msgid "A lit 3D planet with a ring and a moon"
-msgstr ""
+msgstr "Un planeta 3D iluminado con un anillo y una luna"
 
 #: ide/panes.inc
 msgid "A signal generator, an oscilloscope and an FFT spectrum"
-msgstr ""
+msgstr "Un generador de señales, un osciloscopio y un espectro FFT"
 
 #: ide/panes.inc
 msgid "A 3D scene that dances to a song (reads the MIDI file itself)"
-msgstr ""
+msgstr "Una escena 3D que baila al ritmo de una canción (lee ella misma el archivo MIDI)"
 
 #: ide/panes.inc
 msgid "Composes the visualizer's song and writes a .mid file"
-msgstr ""
+msgstr "Compone la canción del visualizador y escribe un archivo .mid"
 
 #: ide/panes.inc
 msgid "Values as the debugger shows them: icons, swatches, changes"
-msgstr ""
+msgstr "Valores como los muestra el depurador: íconos, muestras de color, cambios"
 
 #: ide/panes.inc
 msgid "A million rows from SQLite in the background, an SQL editor"
-msgstr ""
+msgstr "Un millón de filas de SQLite en segundo plano, un editor de SQL"
 
 #: ide/panes.inc
 msgid "A transaction you can see; closing asks, Enter answers No"
-msgstr ""
+msgstr "Una transacción que puedes ver; al cerrar pregunta, Enter responde No"
 
 #: ide/panes.inc
 msgid "A web API in your program (RHttpServer), this computer only"
-msgstr ""
+msgstr "Una API web en tu programa (RHttpServer), solo en esta computadora"
 
 #: ide/panes.inc
 msgid "Code in Markdown, coloured: SQL and BASIC"
-msgstr ""
+msgstr "Código en Markdown, con colores: SQL y BASIC"
 
 #: ide/panes.inc
 msgid "Labels as links: Tab, a focus ring, Enter or Space"
-msgstr ""
+msgstr "Etiquetas como enlaces: Tab, un anillo de foco, Enter o Space"
+
+#: ide/panes.inc
+msgid "A tone made sample by sample, with an oscilloscope"
+msgstr "Un tono hecho muestra por muestra, con un osciloscopio"
+
+#: ide/panes.inc
+msgid "A one-bit speaker played the way an emulator plays it"
+msgstr "Un altavoz de un bit sonando como lo hace un emulador"
+
+#: ide/panes.inc
+msgid "A three-voice square-wave music player"
+msgstr "Un reproductor de música de onda cuadrada de tres voces"
 
 #: ide/panes.inc
 msgid "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
-msgstr ""
+msgstr "Un registro del que seleccionar y copiar: Ctrl+C, Copiar línea, Copiar todo"
+
+#: ide/panes.inc
+msgid "Versions from a program: save, go back, undo, the local history"
+msgstr "Versiones desde un programa: guardar, volver atrás, deshacer, el historial local"
 
 #: ide/panes.inc
 msgid "A picture of its own window, its own layout checked"
-msgstr ""
+msgstr "Una imagen de su propia ventana, con su propia disposición revisada"
 
 #: ide/panes.inc
 msgid "Show me: a pointer types and clicks for you"
-msgstr ""
+msgstr "Muéstrame: un puntero escribe y hace clic por ti"
 
 #: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
-msgstr ""
+msgstr "Receta: una calculadora con sqrt, sin, log, un controlador para todas las teclas"
 
 #: ide/panes.inc
 msgid "Recipe: a tip calculator"
-msgstr ""
+msgstr "Receta: una calculadora de propinas"
 
 #: ide/panes.inc
 msgid "Recipe: a stopwatch (RTimer)"
-msgstr ""
+msgstr "Receta: un cronómetro (RTimer)"
 
 #: ide/panes.inc
 msgid "Recipe: a to-do list, add and remove"
-msgstr ""
+msgstr "Receta: una lista de tareas, añadir y quitar"
 
 #: ide/panes.inc
 msgid "Recipe: a unit converter"
-msgstr ""
+msgstr "Receta: un convertidor de unidades"
 
 #: ide/panes.inc
 msgid "Recipe: a quiz with a score"
-msgstr ""
+msgstr "Receta: un cuestionario con puntaje"
 
 #: ide/panes.inc
 msgid "Recipe: a drawing pad (RCanvas)"
-msgstr ""
+msgstr "Receta: un tablero de dibujo (RCanvas)"
 
 #: ide/panes.inc
 msgid "Recipe: a password generator"
-msgstr ""
+msgstr "Receta: un generador de contraseñas"
 
 #: ide/panes.inc
 msgid "Recipe: a CSV file in a grid"
-msgstr ""
+msgstr "Receta: un archivo CSV en una tabla"
 
 #: ide/panes.inc
 msgid "Recipe: a list with Start, Stop and Restart"
-msgstr ""
+msgstr "Receta: una lista con Iniciar, Detener y Reiniciar"
 
 #: ide/panes.inc
 msgid "Systems recipe: memory as a byte array, words, wrapping addresses"
-msgstr ""
+msgstr "Receta de sistemas: la memoria como un arreglo de bytes, palabras, direcciones que dan la vuelta"
 
 #: ide/panes.inc
 msgid "Systems recipe: bits and flags, an 8-bit ALU"
-msgstr ""
+msgstr "Receta de sistemas: bits e indicadores, una ALU de 8 bits"
 
 #: ide/panes.inc
 msgid "Systems recipe: a tiny CPU, fetch, decode, execute"
-msgstr ""
+msgstr "Receta de sistemas: una CPU diminuta, obtener, decodificar, ejecutar"
 
 #: ide/panes.inc
 msgid "Systems recipe: the stack, PUSH, POP, CALL, RET"
-msgstr ""
+msgstr "Receta de sistemas: la pila, PUSH, POP, CALL, RET"
 
 #: ide/panes.inc
 msgid "Systems recipe: a hex dump, a memory viewer"
-msgstr ""
+msgstr "Receta de sistemas: un volcado hexadecimal, un visor de memoria"
 
 #: ide/panes.inc
 msgid "Systems recipe: a disassembler, an opcode table"
-msgstr ""
+msgstr "Receta de sistemas: un desensamblador, una tabla de códigos de operación"
 
 #: ide/panes.inc
 msgid "Systems recipe: a binary file into memory, its header"
-msgstr ""
+msgstr "Receta de sistemas: un archivo binario en memoria, su encabezado"
 
 #: ide/panes.inc
 msgid "Systems recipe: video memory drawn on a canvas"
-msgstr ""
+msgstr "Receta de sistemas: la memoria de video dibujada en un lienzo"
 
 #: ide/panes.inc
 msgid "Systems recipe: a keyboard matrix and an IN port"
-msgstr ""
+msgstr "Receta de sistemas: una matriz de teclado y un puerto IN"
 
 #: ide/panes.inc
 msgid "Systems recipe: a CPU run in cycles per frame"
-msgstr ""
+msgstr "Receta de sistemas: una CPU ejecutada en ciclos por fotograma"
+
+#: ide/panes.inc
+msgid "Recipe: emulator sound from a speaker bit's flips"
+msgstr "Receta: el sonido de un emulador a partir de los cambios de un bit del altavoz"
 
 #: ide/panes.inc
 msgid "Open Recent"
-msgstr ""
+msgstr "Abrir reciente"
 
 #: ide/panes.inc
 msgid "Reopen {name}"
-msgstr ""
+msgstr "Reabrir {name}"
 
 #: ide/panes.inc
 msgid "and the file you had open"
 msgid_plural "and the {n} files you had open"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "y el archivo que tenías abierto"
+msgstr[1] "y los {n} archivos que tenías abiertos"
 
 #: ide/panes.inc
 msgid "where you left it"
-msgstr ""
+msgstr "donde lo dejaste"
 
 #: ide/panes.inc
 msgid "{title}, {text}"
-msgstr ""
+msgstr "{title}, {text}"
 
 #: ide/preview.inc
 msgid "Preview in &Classic"
-msgstr ""
+msgstr "Vista previa en &Clásico"
 
 #: ide/preview.inc
 msgid "Preview in Classic: Run and the designer show the program in the classic look."
-msgstr ""
+msgstr "Vista previa en Clásico: Ejecutar y el diseñador muestran el programa con el aspecto clásico."
 
 #: ide/preview.inc
 msgid "Preview in Classic off: the program in its own look."
-msgstr ""
+msgstr "Vista previa en Clásico desactivada: el programa con su propio aspecto."
 
 #: ide/project.inc
 msgid "Can't open the example {file}: {error}"
-msgstr ""
+msgstr "No se puede abrir el ejemplo {file}: {error}"
 
 #: ide/project.inc
 msgid "Can't open {file}"
-msgstr ""
+msgstr "No se puede abrir {file}"
 
 #: ide/project.inc
 msgid "Can't open {file}: {error}"
-msgstr ""
+msgstr "No se puede abrir {file}: {error}"
 
 #: ide/project.inc
 msgid "The main file {main} is included by {by}: the program probably starts in {by}. To run it from there, select the project's name in the Project pane, then MainFile in Properties."
-msgstr ""
+msgstr "El archivo principal {main} está incluido por {by}: el programa probablemente empieza en {by}. Para ejecutarlo desde allí, selecciona el nombre del proyecto en el panel Proyecto y luego MainFile en Propiedades."
 
 #: ide/project.inc
 msgid "The main file is {main}, which {by} includes"
-msgstr ""
+msgstr "El archivo principal es {main}, que {by} incluye"
 
 #: ide/project.inc
 msgid "Copied {file} again from the original, in:"
-msgstr ""
+msgstr "Se copió {file} otra vez desde el original, en:"
 
 #: ide/project.inc
 msgid "Made your copy of the example {file} (the installed examples can't be changed), in:"
-msgstr ""
+msgstr "Se hizo tu copia del ejemplo {file} (los ejemplos instalados no se pueden cambiar), en:"
 
 #: ide/project.inc
 msgid "Your copy of the example {file}, as you left it, in:"
-msgstr ""
+msgstr "Tu copia del ejemplo {file}, como la dejaste, en:"
 
 #: ide/project.inc
 msgid "Copy again from the original"
-msgstr ""
+msgstr "Copiar otra vez desde el original"
 
 #: ide/project.inc
 msgid "Copy {name} again from the original?"
-msgstr ""
+msgstr "¿Copiar {name} otra vez desde el original?"
 
 #: ide/project.inc
 msgid "Your changes to the example's own files, saved or not, are replaced by RapidR's. Files you added to its folder stay."
-msgstr ""
+msgstr "Tus cambios a los archivos propios del ejemplo, guardados o no, se reemplazan por los de RapidR. Los archivos que añadiste a su carpeta se quedan."
 
 #: ide/project.inc
 msgid "Can't copy {name} again: {error}"
-msgstr ""
+msgstr "No se puede copiar {name} otra vez: {error}"
 
 #: ide/project.inc
 msgid "Can't copy {name} again"
-msgstr ""
+msgstr "No se puede copiar {name} otra vez"
 
 #: ide/project.inc
 msgid "Open Project or File"
-msgstr ""
+msgstr "Abrir proyecto o archivo"
 
 #: ide/project.inc
 msgid "RapidR projects and sources"
-msgstr ""
+msgstr "Proyectos y fuentes de RapidR"
 
 #: ide/project.inc
 msgid "Open Folder"
-msgstr ""
+msgstr "Abrir carpeta"
 
 #: ide/project.inc
 msgid "No RapidR project in {folder}"
-msgstr ""
+msgstr "No hay ningún proyecto de RapidR en {folder}"
 
 #: ide/project.inc
 msgid "{file}: the browser gave RapidR Studio this file only, not the project's files in its folder"
-msgstr ""
+msgstr "{file}: el navegador le dio a RapidR Studio solo este archivo, no los archivos del proyecto en su carpeta"
 
 #: ide/project.inc
 msgid "Open the folder {file} is in?"
-msgstr ""
+msgstr "¿Abrir la carpeta donde está {file}?"
 
 #: ide/project.inc
 msgid "The browser let RapidR Studio read only the file you picked. The project's files are in its folder."
-msgstr ""
+msgstr "El navegador solo dejó que RapidR Studio leyera el archivo que elegiste. Los archivos del proyecto están en su carpeta."
 
 #: ide/project.inc
 msgid "File > Open Folder... opens the project with its files"
-msgstr ""
+msgstr "Archivo > Abrir carpeta... abre el proyecto con sus archivos"
 
 #: ide/project.inc
 msgid "Open the folder {file} is in to open the project"
-msgstr ""
+msgstr "Abre la carpeta donde está {file} para abrir el proyecto"
 
 #: ide/project.inc
 msgid "Import RapidQ Project or File"
-msgstr ""
+msgstr "Importar proyecto o archivo de RapidQ"
 
 #: ide/project.inc
 msgid "RapidQ programs"
-msgstr ""
+msgstr "Programas de RapidQ"
 
 #: ide/project.inc
 msgid "RapidR projects"
-msgstr ""
+msgstr "Proyectos de RapidR"
 
 #: ide/project.inc
 msgid "Import RapidQ Folder"
-msgstr ""
+msgstr "Importar carpeta de RapidQ"
 
 #: ide/project.inc
 msgid "Importing {source}: a copy with RapidR's names and every file it includes (the original is only read)"
-msgstr ""
+msgstr "Importando {source}: una copia con los nombres de RapidR y todos los archivos que incluye (el original solo se lee)"
 
 #: ide/project.inc
 msgid "Can't import {source}: {error}"
-msgstr ""
+msgstr "No se puede importar {source}: {error}"
 
 #: ide/project.inc
 msgid "Can't import {file}"
-msgstr ""
+msgstr "No se puede importar {file}"
 
 #: ide/project.inc
 msgid "{file}: include file not found: {include} - {what}"
-msgstr ""
+msgstr "{file}: no se encontró el archivo incluido: {include} - {what}"
 
 #: ide/project.inc
 msgid "The copy: {path}"
-msgstr ""
+msgstr "La copia: {path}"
 
 #: ide/project.inc
 msgid "Imported {file}, but {n} include file wasn't found: see Output"
 msgid_plural "Imported {file}, but {n} include files weren't found: see Output"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se importó {file}, pero no se encontró {n} archivo incluido: mira Salida"
+msgstr[1] "Se importó {file}, pero no se encontraron {n} archivos incluidos: mira Salida"
 
 #: ide/project.inc
 msgid "Imported {file} as a copy with RapidR's names"
-msgstr ""
+msgstr "Se importó {file} como una copia con los nombres de RapidR"
 
 #: ide/project.inc
 msgid "Where the new project goes"
-msgstr ""
+msgstr "Dónde va el proyecto nuevo"
 
 #: ide/project.inc
 msgid "Can't make the project: {error}"
-msgstr ""
+msgstr "No se puede crear el proyecto: {error}"
 
 #: ide/project.inc
 msgid "Saved {file}"
-msgstr ""
+msgstr "Se guardó {file}"
 
 #: ide/project.inc
 msgid "Can't save the project: {error}"
-msgstr ""
+msgstr "No se puede guardar el proyecto: {error}"
 
 #: ide/project.inc
 msgid "{file} isn't there any more ({path}): taken off Open Recent"
-msgstr ""
+msgstr "{file} ya no está ({path}): se quitó de Abrir reciente"
 
 #: ide/project.inc
 msgid "Open Recent cleared"
-msgstr ""
+msgstr "Se borró Abrir reciente"
 
 #: ide/project.inc
 msgid "The last project, {file}, isn't there any more ({path}): taken off Open Recent"
-msgstr ""
+msgstr "El último proyecto, {file}, ya no está ({path}): se quitó de Abrir reciente"
 
 #: ide/prompts.inc
 msgid "&Review Changes..."
-msgstr ""
+msgstr "&Revisar cambios..."
 
 #: ide/prompts.inc
 msgid "Do&n't Save"
-msgstr ""
+msgstr "&No guardar"
 
 #: ide/prompts.inc
 msgid "&Restore"
-msgstr ""
+msgstr "&Restaurar"
 
 #: ide/prompts.inc
 msgid "&Discard"
-msgstr ""
+msgstr "&Descartar"
 
 #: ide/prompts.inc
 msgid "Not Now"
-msgstr ""
+msgstr "Ahora no"
 
 #: ide/prompts.inc
 msgid "&Open Folder..."
-msgstr ""
+msgstr "&Abrir carpeta..."
 
 #: ide/prompts.inc
 msgid "&Copy Again"
-msgstr ""
+msgstr "&Copiar otra vez"
 
 #: ide/prompts.inc
 msgid "&Build Interpreted Instead"
-msgstr ""
+msgstr "&Compilar interpretada en su lugar"
 
 #: ide/prompts.inc
 msgid "&Install Rust..."
-msgstr ""
+msgstr "&Instalar Rust..."
 
 #: ide/prompts.inc
 msgid "Save &All"
-msgstr ""
+msgstr "Guardar &todo"
 
 #: ide/prompts.inc
 msgid "&Discard Changes"
-msgstr ""
+msgstr "&Descartar cambios"
 
 #: ide/prompts.inc
 msgid "Native builds need Rust (it is free)."
-msgstr ""
+msgstr "Las compilaciones nativas necesitan Rust (es gratuito)."
 
 #: ide/prompts.inc
 msgid "Rust is not installed on this computer. An interpreted app needs none and runs the same program."
-msgstr ""
+msgstr "Rust no está instalado en esta computadora. Una aplicación interpretada no lo necesita y ejecuta el mismo programa."
 
 #: ide/prompts.inc
 msgid "&Undo Anyway"
-msgstr ""
+msgstr "&Deshacer de todos modos"
 
 #: ide/safety.inc
 msgid "&Copy Details"
-msgstr ""
+msgstr "&Copiar detalles"
 
 #: ide/safety.inc
 msgid "{file} line {n}"
-msgstr ""
+msgstr "{file} línea {n}"
 
 #: ide/safety.inc
 msgid "line {n}"
-msgstr ""
+msgstr "línea {n}"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on."
-msgstr ""
+msgstr "Algo salió mal en Studio: {message} ({where}). Tu trabajo está a salvo; Studio sigue funcionando."
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio: {message}. Your work is safe; Studio goes on."
-msgstr ""
+msgstr "Algo salió mal en Studio: {message}. Tu trabajo está a salvo; Studio sigue funcionando."
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio ({n} time)"
 msgid_plural "Something went wrong in Studio ({n} times)"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Algo salió mal en Studio ({n} vez)"
+msgstr[1] "Algo salió mal en Studio ({n} veces)"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio"
-msgstr ""
+msgstr "Algo salió mal en Studio"
 
 #: ide/safety.inc
 msgid "Your work is safe: nothing was lost, and Studio goes on. A copy of your unsaved changes is kept. Copy Details copies what happened; Studio's log keeps it too."
-msgstr ""
+msgstr "Tu trabajo está a salvo: no se perdió nada y Studio sigue funcionando. Se conserva una copia de tus cambios sin guardar. Copiar detalles copia lo que pasó; el registro de Studio también lo guarda."
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio. Your work is safe."
-msgstr ""
+msgstr "Algo salió mal en Studio. Tu trabajo está a salvo."
 
 #: ide/safety.inc
 msgid "{names} and {n} more"
-msgstr ""
+msgstr "{names} y {n} más"
 
 #: ide/safety.inc
 msgid "Studio closed before a file was saved: {names}. Restore puts your changes back in its editor (not saved yet; Undo goes back to the file)."
 msgid_plural "Studio closed before {n} files were saved: {names}. Restore puts your changes back in their editors (not saved yet; Undo goes back to the file)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Studio se cerró antes de guardar un archivo: {names}. Restaurar vuelve a poner tus cambios en su editor (aún sin guardar; Deshacer vuelve al archivo)."
+msgstr[1] "Studio se cerró antes de guardar {n} archivos: {names}. Restaurar vuelve a poner tus cambios en sus editores (aún sin guardar; Deshacer vuelve al archivo)."
 
 #: ide/safety.inc
 msgid "Restore your unsaved work?"
-msgstr ""
+msgstr "¿Restaurar tu trabajo sin guardar?"
 
 #: ide/safety.inc
 msgid "The unsaved work Studio kept was let go."
-msgstr ""
+msgstr "Se descartó el trabajo sin guardar que Studio conservaba."
 
 #: ide/safety.inc
 msgid "Studio keeps your unsaved work: it asks again at the next start."
-msgstr ""
+msgstr "Studio conserva tu trabajo sin guardar: volverá a preguntar en el próximo inicio."
 
 #: ide/safety.inc
 msgid "Couldn't restore {file} (it isn't there any more): its copy is kept for the next start."
-msgstr ""
+msgstr "No se pudo restaurar {file} (ya no está): su copia se conserva para el próximo inicio."
 
 #: ide/safety.inc
 msgid "Couldn't restore {file}: its copy is kept for the next start."
-msgstr ""
+msgstr "No se pudo restaurar {file}: su copia se conserva para el próximo inicio."
 
 #: ide/safety.inc
 msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se restauró el trabajo sin guardar de {n} archivo (aún sin guardar)."
+msgstr[1] "Se restauró el trabajo sin guardar de {n} archivos (aún sin guardar)."
 
 #: ide/search.inc
 msgid "Search"
-msgstr ""
+msgstr "Búsqueda"
 
 #: ide/search.inc
 msgid "Search for"
-msgstr ""
+msgstr "Buscar"
 
 #: ide/search.inc
 msgid "Search (Enter)"
-msgstr ""
+msgstr "Buscar (Enter)"
 
 #: ide/search.inc
 msgid "Replace with"
-msgstr ""
+msgstr "Reemplazar con"
 
 #: ide/search.inc
 msgid "Case"
-msgstr ""
+msgstr "Mayús."
 
 #: ide/search.inc
 msgid "Match case"
-msgstr ""
+msgstr "Distinguir mayúsculas y minúsculas"
 
 #: ide/search.inc
 msgid "Word"
-msgstr ""
+msgstr "Palabra"
 
 #: ide/search.inc
 msgid "Whole words only"
-msgstr ""
+msgstr "Solo palabras completas"
 
 #: ide/search.inc
 msgid "Regex"
-msgstr ""
+msgstr "Regex"
 
 #: ide/search.inc
 msgid "A regular expression"
-msgstr ""
+msgstr "Una expresión regular"
 
 #: ide/search.inc
 msgid "Find"
-msgstr ""
+msgstr "Buscar"
 
 #: ide/search.inc
 msgid "Replace All"
-msgstr ""
+msgstr "Reemplazar todo"
 
 #: ide/search.inc
 msgid "In:"
-msgstr ""
+msgstr "En:"
 
 #: ide/search.inc
 msgid "Search in"
-msgstr ""
+msgstr "Buscar en"
 
 #: ide/search.inc
 msgid "This file"
-msgstr ""
+msgstr "Este archivo"
 
 #: ide/search.inc
 msgid "Open files"
-msgstr ""
+msgstr "Archivos abiertos"
 
 #: ide/search.inc
 msgid "Modules"
-msgstr ""
+msgstr "Módulos"
 
 #: ide/search.inc
 msgid "Forms"
-msgstr ""
+msgstr "Formularios"
 
 #: ide/search.inc
 msgid "Resources"
-msgstr ""
+msgstr "Recursos"
 
 #: ide/search.inc
 msgid "Whole project"
-msgstr ""
+msgstr "Todo el proyecto"
 
 #: ide/search.inc
 msgid "A folder..."
-msgstr ""
+msgstr "Una carpeta..."
 
 #: ide/search.inc
 msgid "Type what to find, then Enter."
-msgstr ""
+msgstr "Escribe lo que buscas y presiona Enter."
 
 #: ide/search.inc
 msgid "Search results"
-msgstr ""
+msgstr "Resultados de la búsqueda"
 
 #: ide/search.inc
 msgid "Find &References"
-msgstr ""
+msgstr "Buscar &referencias"
 
 #: ide/search.inc
 msgid "Help"
-msgstr ""
+msgstr "Ayuda"
 
 #: ide/search.inc
 msgid "Search the help"
-msgstr ""
+msgstr "Buscar en la ayuda"
 
 #: ide/search.inc
 msgid "Type a word of the language or a name of your program. Up and Down choose, Enter opens, Escape goes back to the code."
-msgstr ""
+msgstr "Escribe una palabra del lenguaje o un nombre de tu programa. Las flechas arriba y abajo eligen, Enter abre, Escape vuelve al código."
 
 #: ide/search.inc
 msgid "Names that match: Up and Down choose, Enter opens"
-msgstr ""
+msgstr "Nombres que coinciden: las flechas arriba y abajo eligen, Enter abre"
 
 #: ide/search.inc
 msgid "Help page"
-msgstr ""
+msgstr "Página de ayuda"
 
 #: ide/search.inc
 msgid "No results for {text} in this file"
-msgstr ""
+msgstr "No hay resultados para {text} en este archivo"
 
 #: ide/search.inc
 msgid "No results for {text} in the open files"
-msgstr ""
+msgstr "No hay resultados para {text} en los archivos abiertos"
 
 #: ide/search.inc
 msgid "No results for {text} in the modules"
-msgstr ""
+msgstr "No hay resultados para {text} en los módulos"
 
 #: ide/search.inc
 msgid "No results for {text} in the forms"
-msgstr ""
+msgstr "No hay resultados para {text} en los formularios"
 
 #: ide/search.inc
 msgid "No results for {text} in the resources"
-msgstr ""
+msgstr "No hay resultados para {text} en los recursos"
 
 #: ide/search.inc
 msgid "No results for {text} in {folder}"
-msgstr ""
+msgstr "No hay resultados para {text} en {folder}"
 
 #: ide/search.inc
 msgid "No results for {text} in the project"
-msgstr ""
+msgstr "No hay resultados para {text} en el proyecto"
 
 #: ide/search.inc
 msgid "Choose a folder: In, A folder..."
-msgstr ""
+msgstr "Elige una carpeta: En, Una carpeta..."
 
 #: ide/search.inc
 msgid "Not a regular expression: {error}"
-msgstr ""
+msgstr "No es una expresión regular: {error}"
 
 #: ide/search.inc
 msgid "{results} in {files}"
-msgstr ""
+msgstr "{results} en {files}"
 
 #: ide/search.inc
 msgid "{n} result"
 msgid_plural "{n} results"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} resultado"
+msgstr[1] "{n} resultados"
 
-#: ide/search.inc
+#: ide/search.inc ide/versions.inc
 msgid "{n} file"
 msgid_plural "{n} files"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "{n} archivo"
+msgstr[1] "{n} archivos"
 
 #: ide/search.inc
 msgid "(the first 1,990 shown)"
-msgstr ""
+msgstr "(se muestran los primeros 1990)"
 
 #: ide/search.inc
 msgid "Search in a Folder"
-msgstr ""
+msgstr "Buscar en una carpeta"
 
 #: ide/search.inc
 msgid "Replaced in {n} file. {info}"
 msgid_plural "Replaced in {n} files. {info}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Se reemplazó en {n} archivo. {info}"
+msgstr[1] "Se reemplazó en {n} archivos. {info}"
 
 #: ide/search.inc
 msgid "No references: put the caret on a name of the program (a variable, a SUB, a component)."
-msgstr ""
+msgstr "Sin referencias: pon el cursor en un nombre del programa (una variable, una SUB, un componente)."
 
 #: ide/search.inc
 msgid "References to {name}: {n} in {files}"
-msgstr ""
+msgstr "Referencias a {name}: {n} en {files}"
 
 #: ide/search.inc
 msgid "Nothing to go back to"
-msgstr ""
+msgstr "No hay a dónde volver"
 
 #: ide/search.inc
 msgid "Nothing to go forward to"
-msgstr ""
+msgstr "No hay a dónde avanzar"
 
 #: ide/search.inc
 msgid "Help: how to use it"
-msgstr ""
+msgstr "Ayuda: cómo usarla"
 
 #: ide/search.inc
 msgid "Help: {word}"
-msgstr ""
+msgstr "Ayuda: {word}"
 
 #: ide/search.inc
 msgid "{n} name matches. {first}"
 msgid_plural "{n} names match. {first}"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Coincide {n} nombre. {first}"
+msgstr[1] "Coinciden {n} nombres. {first}"
 
 #: ide/settings.inc
 msgid "Settings pages"
-msgstr ""
+msgstr "Páginas de la configuración"
 
 #: ide/settings.inc
-#, review
 msgid "&Language"
 msgstr "&Idioma"
 
 #: ide/settings.inc
 msgid "Language"
-msgstr ""
+msgstr "Idioma"
 
 #: ide/settings.inc
 msgid "The language RapidR Studio's menus, dialogs and messages are in. It changes at once."
-msgstr ""
+msgstr "El idioma de los menús, cuadros de diálogo y mensajes de RapidR Studio. Cambia al instante."
 
 #: ide/settings.inc
 msgid "&Include folders"
-msgstr ""
+msgstr "&Carpetas de inclusión"
 
 #: ide/settings.inc
 msgid "Where $INCLUDE looks after the program's own folder, in this order: add the folder that holds your include files and libraries. The classic RAPIDQ.INC needs none: RapidR has it built in."
-msgstr ""
+msgstr "Dónde busca $INCLUDE después de la carpeta del propio programa, en este orden: añade la carpeta que contiene tus archivos incluidos y tus bibliotecas. El clásico RAPIDQ.INC no necesita ninguna: RapidR lo trae integrado."
 
 #: ide/settings.inc
 msgid "Include folders"
-msgstr ""
+msgstr "Carpetas de inclusión"
 
 #: ide/settings.inc
 msgid "&Add Folder..."
-msgstr ""
+msgstr "&Añadir carpeta..."
 
 #: ide/settings.inc
 msgid "Add an include folder"
-msgstr ""
+msgstr "Añadir una carpeta de inclusión"
 
 #: ide/settings.inc
 msgid "&Remove"
-msgstr ""
+msgstr "&Quitar"
 
 #: ide/settings.inc
 msgid "Remove the selected include folder"
-msgstr ""
+msgstr "Quitar la carpeta de inclusión seleccionada"
 
 #: ide/settings.inc
 msgid "Themes and &Views..."
-msgstr ""
+msgstr "Temas y &vistas..."
 
 #: ide/settings.inc
 msgid "The themes and views, in the command palette"
-msgstr ""
+msgstr "Los temas y las vistas, en la paleta de comandos"
 
 #: ide/settings.inc
 msgid "&Offer to reopen the last project and its files at start-up"
-msgstr ""
+msgstr "&Ofrecer reabrir el último proyecto y sus archivos al iniciar"
 
 #: ide/settings.inc
 msgid "On: the Welcome page offers the project you had open last, with the files you had open in it; Enter reopens it"
-msgstr ""
+msgstr "Activado: la página de bienvenida ofrece el último proyecto que tenías abierto, con los archivos que tenías abiertos en él; Enter lo reabre"
 
 #: ide/settings.inc
 msgid "Code &helpers"
-msgstr ""
+msgstr "&Ayudas del código"
 
 #: ide/settings.inc
 msgid "Code helpers"
-msgstr ""
+msgstr "Ayudas del código"
 
 #: ide/settings.inc
 msgid "What the code editor shows beside your code: colour swatches, pictures, a line's help, the argument names"
-msgstr ""
+msgstr "Lo que el editor de código muestra junto a tu código: muestras de color, imágenes, la ayuda de una línea, los nombres de los argumentos"
 
 #: ide/settings.inc
 msgid "Swatches for colours, thumbnails for pictures (a red mark when the file is missing), the caret line's help and the argument names. Click a mark, or press Ctrl+. on a value, to change it; hold Ctrl a moment to see every argument's name."
-msgstr ""
+msgstr "Muestras para los colores, miniaturas para las imágenes (una marca roja cuando falta el archivo), la ayuda de la línea del cursor y los nombres de los argumentos. Haz clic en una marca, o presiona Ctrl+. sobre un valor, para cambiarlo; mantén presionada la tecla Ctrl un momento para ver el nombre de cada argumento."
 
 #: ide/settings.inc
 msgid "Programs' &PATH"
-msgstr ""
+msgstr "&PATH de los programas"
 
 #: ide/settings.inc
 msgid "The folders programs run from Studio find commands in, in order"
-msgstr ""
+msgstr "Las carpetas donde los programas ejecutados desde Studio buscan comandos, en orden"
 
 #: ide/settings.inc
 msgid "Re&fresh"
-msgstr ""
+msgstr "&Actualizar"
 
 #: ide/settings.inc
 msgid "Read your login shell's PATH again"
-msgstr ""
+msgstr "Volver a leer el PATH de tu shell de inicio de sesión"
 
 #: ide/settings.inc
 msgid "&Debug panes"
-msgstr ""
+msgstr "Paneles de &depuración"
 
 #: ide/settings.inc
 msgid "Debug panes"
-msgstr ""
+msgstr "Paneles de depuración"
 
 #: ide/settings.inc
 msgid "Automatic: Variables, Watch, Call Stack and Breakpoints appear beside Output while a program runs. View > Debug Panes (Ctrl+Shift+D) shows or hides them."
-msgstr ""
+msgstr "Automático: Variables, Observar, Pila de llamadas y Puntos de interrupción aparecen junto a Salida mientras se ejecuta un programa. Ver > Paneles de depuración (Ctrl+Shift+D) los muestra u oculta."
 
 #: ide/settings.inc
 msgid "&Turn on the AI assistant"
-msgstr ""
+msgstr "&Activar el asistente de IA"
 
 #: ide/settings.inc
 msgid "Set up RAI, step by step"
-msgstr ""
+msgstr "Configurar RAI, paso a paso"
 
 #: ide/settings.inc
 msgid "Free on this computer, or a cloud service with your key: what each costs and sends, in plain words"
-msgstr ""
+msgstr "Gratis en esta computadora, o un servicio en la nube con tu clave: lo que cuesta y envía cada uno, en palabras sencillas"
 
+# legal
 #: ide/settings.inc
 msgid "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
-msgstr ""
+msgstr "Desactivado de forma predeterminada. Activado, Studio muestra el panel Asistente de IA (Ver > Asistente de IA, Ctrl+I): pregunta por tu proyecto o pide un programa nuevo. No se envía nada hasta que presionas Enviar allí. Un programa nuevo que hace se abre en Studio al instante (Deshacer lo revierte); los cambios a tus archivos se muestran para que los revises, y nada se ejecuta hasta que presionas Ejecutar."
 
 #: ide/settings.inc
 msgid "AI provider"
-msgstr ""
+msgstr "Proveedor de IA"
 
 #: ide/settings.inc
 msgid "See prices"
-msgstr ""
+msgstr "Ver precios"
 
 #: ide/settings.inc
 msgid "The provider's prices, in the browser"
-msgstr ""
+msgstr "Los precios del proveedor, en el navegador"
 
+# legal
 #: ide/settings.inc
 msgid "Paste the key the provider gave you; it is kept in your system's keychain, never in a project"
-msgstr ""
+msgstr "Pega la clave que te dio el proveedor; se guarda en el llavero de tu sistema, nunca en un proyecto"
 
 #: ide/settings.inc
 msgid "&Save Key"
-msgstr ""
+msgstr "&Guardar clave"
 
 #: ide/settings.inc
 msgid "Keep the API key"
-msgstr ""
+msgstr "Guardar la clave de API"
 
 #: ide/settings.inc
 msgid "Remo&ve"
-msgstr ""
+msgstr "&Quitar"
 
 #: ide/settings.inc
 msgid "Remove the API key"
-msgstr ""
+msgstr "Quitar la clave de API"
 
 #: ide/settings.inc
 msgid "R&emember on this device"
-msgstr ""
+msgstr "&Recordar en este dispositivo"
 
+# legal
 #: ide/settings.inc
 msgid "Kept in this browser's storage for the page: anyone using this browser profile could read it"
-msgstr ""
+msgstr "Se guarda en el almacenamiento de este navegador para la página: cualquier persona que use este perfil del navegador podría leerla"
 
 #: ide/settings.inc
 msgid "&Workspace ID:"
-msgstr ""
+msgstr "ID del espacio de &trabajo:"
 
 #: ide/settings.inc
 msgid "Anthropic workspace ID (optional)"
-msgstr ""
+msgstr "ID del espacio de trabajo de Anthropic (opcional)"
 
 #: ide/settings.inc
 msgid "&Base URL:"
-msgstr ""
+msgstr "&URL base:"
 
 #: ide/settings.inc
 msgid "The server's base URL"
-msgstr ""
+msgstr "La URL base del servidor"
 
 #: ide/settings.inc
 msgid "&Fetch Models"
-msgstr ""
+msgstr "&Obtener modelos"
 
 #: ide/settings.inc
 msgid "Ask the provider which models your key can use"
-msgstr ""
+msgstr "Preguntar al proveedor qué modelos puede usar tu clave"
 
 #: ide/settings.inc
 msgid "Fetch Models' result"
-msgstr ""
+msgstr "Resultado de Obtener modelos"
 
 #: ide/settings.inc
 msgid "Longest &answer:"
-msgstr ""
+msgstr "&Respuesta más larga:"
 
 #: ide/settings.inc
 msgid "Longest answer, in tokens a part"
-msgstr ""
+msgstr "Respuesta más larga, en tokens por parte"
 
 #: ide/settings.inc
 msgid "tokens a part, up to the model's limit"
-msgstr ""
+msgstr "tokens por parte, hasta el límite del modelo"
 
 #: ide/settings.inc
 msgid "About the answer's length and the chat's size"
-msgstr ""
+msgstr "Sobre la longitud de la respuesta y el tamaño del chat"
 
 #: ide/settings.inc
 msgid "&Prices:"
-msgstr ""
+msgstr "&Precios:"
 
 #: ide/settings.inc
 msgid "Price of a million tokens sent, in dollars (optional)"
-msgstr ""
+msgstr "Precio de un millón de tokens enviados, en dólares (opcional)"
 
 #: ide/settings.inc
 msgid "Price of a million tokens received, in dollars (optional)"
-msgstr ""
+msgstr "Precio de un millón de tokens recibidos, en dólares (opcional)"
 
 #: ide/settings.inc
 msgid "$ per million tokens sent / received"
-msgstr ""
+msgstr "US$ por millón de tokens enviados / recibidos"
 
 #: ide/settings.inc
 msgid "&It may:"
-msgstr ""
+msgstr "Puede &hacer:"
 
 #: ide/settings.inc
 msgid "What the assistant may do"
-msgstr ""
+msgstr "Qué puede hacer el asistente"
 
 #: ide/settings.inc
 msgid "Ask before the assistant &creates or changes files"
-msgstr ""
+msgstr "Preguntar antes de que el asistente &cree o cambie archivos"
 
 #: ide/settings.inc
 msgid "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
-msgstr ""
+msgstr "Activado: primero se te muestra un programa nuevo y se crea cuando presionas Crear. Desactivado: un programa nuevo se abre en Studio al instante, con Ejecutarlo y Deshacer."
 
 #: ide/settings.inc
 msgid "The provider's links"
-msgstr ""
+msgstr "Los enlaces del proveedor"
 
 #: ide/settings.inc
 msgid "Off"
-msgstr ""
+msgstr "Desactivado"
 
 #: ide/settings.inc
 msgid "Quiet: the marks only"
-msgstr ""
+msgstr "Discreto: solo las marcas"
 
 #: ide/settings.inc
 msgid "Helpful: marks, the line's help, argument names"
-msgstr ""
+msgstr "Útil: marcas, la ayuda de la línea, nombres de argumentos"
 
 #: ide/settings.inc
 msgid "Everything: every argument's name, choices marked too"
-msgstr ""
+msgstr "Todo: el nombre de cada argumento, y también las opciones marcadas"
 
 #: ide/settings.inc
 msgid "Automatic"
-msgstr ""
+msgstr "Automático"
 
 #: ide/settings.inc
 msgid "Always"
-msgstr ""
+msgstr "Siempre"
 
 #: ide/settings.inc
 msgid "Add an Include Folder"
-msgstr ""
+msgstr "Añadir una carpeta de inclusión"
 
 #: ide/settings.inc
 msgid "Programs run from Studio, and their SHELL and RUN commands, find commands in these folders, in this order. {source}"
-msgstr ""
+msgstr "Los programas ejecutados desde Studio, y sus comandos SHELL y RUN, buscan comandos en estas carpetas, en este orden. {source}"
 
 #: ide/settings.inc
 msgid "Programs' PATH read again. {source}"
-msgstr ""
+msgstr "Se volvió a leer el PATH de los programas. {source}"
 
 #: ide/settings.inc
-#, review
 msgid "System default"
 msgstr "Predeterminado del sistema"
 
 #: ide/settings.inc
 msgid "Read the project, propose changes you review"
-msgstr ""
+msgstr "Leer el proyecto y proponer cambios que revisas"
 
 #: ide/settings.inc
 msgid "Only read the project and answer"
-msgstr ""
+msgstr "Solo leer el proyecto y responder"
 
 #: ide/settings.inc
 msgid "Include folders: none ($INCLUDE looks in the program's folder)"
-msgstr ""
+msgstr "Carpetas de inclusión: ninguna ($INCLUDE busca en la carpeta del programa)"
 
 #: ide/settings.inc
 msgid "Include folders: {folders}"
-msgstr ""
+msgstr "Carpetas de inclusión: {folders}"
 
 #: ide/settings.inc
 msgid "An answer that reaches this length goes on by itself, in up to {parts} parts."
-msgstr ""
+msgstr "Una respuesta que llega a esta longitud continúa sola, en hasta {parts} partes."
 
 #: ide/settings.inc
 msgid "The chat is summarised, keeping your request word for word, when it holds about {tokens} tokens (70% of this model's window)."
-msgstr ""
+msgstr "El chat se resume, conservando tu petición palabra por palabra, cuando contiene unos {tokens} tokens (70% de la ventana de este modelo)."
 
 #: ide/settings.inc
 msgid "The chat is summarised, keeping your request word for word, when it fills 70% of the model's window."
-msgstr ""
+msgstr "El chat se resume, conservando tu petición palabra por palabra, cuando llena el 70% de la ventana del modelo."
 
+# legal
 #: ide/settings.inc
 msgid "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
-msgstr ""
+msgstr "Enviar comparte tu mensaje, el chat hasta ahora, las instrucciones de RapidR y lo que el asistente lee del proyecto abierto — nada fuera de él, nada antes de que presiones Enviar. Un registro de cada solicitud y cambio se queda en esta computadora."
 
+# legal
 #: ide/settings.inc
 msgid "A local server needs no key (one is kept if you give it: some servers ask for one)."
-msgstr ""
+msgstr "Un servidor local no necesita clave (se guarda una si la das: algunos servidores la piden)."
 
 #: ide/settings.inc
 msgid "Using the key in {env} ({hint}). A key saved here goes first."
-msgstr ""
+msgstr "Usando la clave de {env} ({hint}). Una clave guardada aquí tiene prioridad."
 
 #: ide/settings.inc
 msgid "Trying the key you typed ({hint}): OK or Save Key keeps it."
-msgstr ""
+msgstr "Probando la clave que escribiste ({hint}): Aceptar o Guardar clave la conserva."
 
+# legal
 #: ide/settings.inc
 msgid "Your key {hint} is kept in {store}, never in a project."
-msgstr ""
+msgstr "Tu clave {hint} se guarda en {store}, nunca en un proyecto."
 
+# legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project."
-msgstr ""
+msgstr "Pega tu clave y presiona Guardar clave: se guarda en {store} (o en este dispositivo, si marcas la casilla), nunca en un proyecto."
 
+# legal
 #: ide/settings.inc
 msgid "Paste your key and press Save Key: it is kept in {store}, never in a project."
-msgstr ""
+msgstr "Pega tu clave y presiona Guardar clave: se guarda en {store}, nunca en un proyecto."
 
 #: ide/settings.inc
 msgid "Paste your API key first: the provider lists its models only to a key it knows (Get a key, below, opens the page that makes one)."
-msgstr ""
+msgstr "Pega primero tu clave de API: el proveedor solo enumera sus modelos a una clave que conoce (Obtener una clave, abajo, abre la página que crea una)."
 
 #: ide/settings.inc
 msgid "Asking {provider} for its models..."
-msgstr ""
+msgstr "{provider}: pidiendo sus modelos..."
 
 #: ide/settings.inc
 msgid "{status} None this key can chat with: check the key, or the server's models."
-msgstr ""
+msgstr "{status} Ninguno con el que esta clave pueda conversar: revisa la clave o los modelos del servidor."
 
 #: ide/settings.inc
 msgid "{status} Choose one in the Model list (the fast, low-cost ones are first)."
-msgstr ""
+msgstr "{status} Elige uno en la lista Modelo (los rápidos y económicos van primero)."
 
 #: ide/settings.inc
 msgid "{status} {model} is still chosen."
-msgstr ""
+msgstr "{status} {model} sigue elegido."
 
 #: ide/shell.inc
 msgid "RapidR Studio (RapidR {version})"
-msgstr ""
+msgstr "RapidR Studio (RapidR {version})"
 
 #: ide/shell.inc ide/window.inc
 msgid "BASIC is powerful again: desktop and web apps from one source."
-msgstr ""
+msgstr "BASIC vuelve a ser potente: aplicaciones de escritorio y web desde un solo código fuente."
 
+# legal
 #: ide/shell.inc
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
-msgstr ""
+msgstr "Copyright (c) 2025-2026 Ruta Internet SRL. Licencia MIT."
 
 #: ide/shell.inc
 msgid "Save As"
-msgstr ""
+msgstr "Guardar como"
 
 #: ide/shell.inc
 msgid "RapidR sources"
-msgstr ""
+msgstr "Fuentes de RapidR"
 
 #: ide/shell.inc
 msgid "Add a File to the Project"
-msgstr ""
+msgstr "Añadir un archivo al proyecto"
 
 #: ide/shell.inc
 msgid "No splitter to move"
-msgstr ""
+msgstr "No hay ningún divisor que mover"
 
 #: ide/shell.inc
 msgid "({id}: not there yet)"
-msgstr ""
+msgstr "({id}: aún no está)"
 
 #: ide/shell.inc
-#, review
 msgid "RapidR Studio is ready."
 msgstr "RapidR Studio está listo."
 
+#: ide/versions.inc
+msgid "Versions"
+msgstr "Versiones"
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project (Git calls this git init)"
+msgstr "Empezar a guardar versiones de este proyecto (Git lo llama git init)"
+
+#: ide/versions.inc
+msgid "&Local History..."
+msgstr "&Historial local..."
+
+#: ide/versions.inc
+msgid "The copies Studio kept of this file each time it was saved"
+msgstr "Las copias que Studio guardó de este archivo cada vez que se guardó"
+
+#: ide/versions.inc
+msgid "Changes not saved as a version"
+msgstr "Cambios sin guardar como versión"
+
+#: ide/versions.inc
+msgid "Files not saved as a version"
+msgstr "Archivos sin guardar como versión"
+
+#: ide/versions.inc
+msgid "A double click opens the file"
+msgstr "Un doble clic abre el archivo"
+
+#: ide/versions.inc
+msgid "&Save a Version..."
+msgstr "&Guardar una versión..."
+
+#: ide/versions.inc
+msgid "Save a version of your files (Git calls this a commit)"
+msgstr "Guardar una versión de tus archivos (Git lo llama commit)"
+
+#: ide/versions.inc
+msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
+msgstr "Conserva los archivos cambiados como están ahora, con unas palabras sobre lo que cambió (Git lo llama commit)"
+
+#: ide/versions.inc
+msgid "Timeline"
+msgstr "Línea de tiempo"
+
+#: ide/versions.inc
+msgid "Every version, newest first (Git calls this the log)"
+msgstr "Todas las versiones, la más nueva primero (Git lo llama log)"
+
+#: ide/versions.inc
+msgid "Timeline: every version, newest first"
+msgstr "Línea de tiempo: todas las versiones, la más nueva primero"
+
+#: ide/versions.inc
+msgid "Up and Down pick a version; What Changed? and Go Back... act on it"
+msgstr "Las flechas arriba y abajo eligen una versión; ¿Qué cambió? y Volver... actúan sobre ella"
+
+#: ide/versions.inc
+msgid "What this version changed (Git calls this a diff)"
+msgstr "Qué cambió esta versión (Git lo llama diff)"
+
+#: ide/versions.inc
+msgid "&Go Back..."
+msgstr "&Volver..."
+
+#: ide/versions.inc
+msgid "Go back to this version: a new version with its files (Git calls this a revert)"
+msgstr "Volver a esta versión: una versión nueva con sus archivos (Git lo llama revert)"
+
+#: ide/versions.inc
+msgid "What changed"
+msgstr "Qué cambió"
+
+#: ide/versions.inc
+msgid "&Restore This Copy"
+msgstr "&Restaurar esta copia"
+
+#: ide/versions.inc
+msgid "Files"
+msgstr "Archivos"
+
+#: ide/versions.inc
+msgid "Save a Version"
+msgstr "Guardar una versión"
+
+#: ide/versions.inc
+msgid "A version keeps the files you choose as they are now, with a few words about what changed, so you can always come back to them. Git calls it a commit."
+msgstr "Una versión conserva los archivos que eliges tal como están ahora, con unas palabras sobre lo que cambió, para que siempre puedas volver a ellos. Git la llama commit."
+
+#: ide/versions.inc
+msgid "&What changed:"
+msgstr "&Qué cambió:"
+
+#: ide/versions.inc
+msgid "Say in a few words what this version changes"
+msgstr "Di en pocas palabras qué cambia esta versión"
+
+#: ide/versions.inc
+msgid "&Files in this version:"
+msgstr "&Archivos de esta versión:"
+
+#: ide/versions.inc
+msgid "Files in this version: Space ticks or unticks one"
+msgstr "Archivos de esta versión: Space marca o desmarca uno"
+
+#: ide/versions.inc
+msgid "&Your name:"
+msgstr "T&u nombre:"
+
+#: ide/versions.inc
+msgid "Your name, saved with the version"
+msgstr "Tu nombre, guardado con la versión"
+
+#: ide/versions.inc
+msgid "These aren't real keys or passwords: save them &anyway"
+msgstr "Estas no son claves ni contraseñas reales: guardarlas de &todos modos"
+
+#: ide/versions.inc
+msgid "&Save Version"
+msgstr "&Guardar versión"
+
+#: ide/versions.inc
+msgid "The &Whole Project"
+msgstr "Todo el &proyecto"
+
+#: ide/versions.inc
+msgid "Only This &File"
+msgstr "Solo este ar&chivo"
+
+#: ide/versions.inc
+msgid "File"
+msgstr "Archivo"
+
+#: ide/versions.inc
+msgid "Change"
+msgstr "Cambio"
+
+#: ide/versions.inc
+msgid "just now"
+msgstr "justo ahora"
+
+#: ide/versions.inc
+msgid "{n} minute ago"
+msgid_plural "{n} minutes ago"
+msgstr[0] "hace {n} minuto"
+msgstr[1] "hace {n} minutos"
+
+#: ide/versions.inc
+msgid "{n} hour ago"
+msgid_plural "{n} hours ago"
+msgstr[0] "hace {n} hora"
+msgstr[1] "hace {n} horas"
+
+#: ide/versions.inc
+msgid "yesterday"
+msgstr "ayer"
+
+#: ide/versions.inc
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] "hace {n} día"
+msgstr[1] "hace {n} días"
+
+#: ide/versions.inc
+msgid "new, not in a version yet"
+msgstr "nuevo, aún no está en una versión"
+
+#: ide/versions.inc
+msgid "removed since the last version"
+msgstr "quitado desde la última versión"
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr "cambiado desde la última versión"
+
+#: ide/versions.inc
+msgid "AI checkpoint: {what}, {when}"
+msgstr "Punto de control de la IA: {what}, {when}"
+
+#: ide/versions.inc
+msgid "saved by {who}, {when}"
+msgstr "guardada por {who}, {when}"
+
+#: ide/versions.inc
+msgid "Open a project to see its versions"
+msgstr "Abre un proyecto para ver sus versiones"
+
+#: ide/versions.inc
+msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
+msgstr "Las versiones conservan los archivos de tu proyecto como estaban en cada paso, para que nunca se pierda nada."
+
+#: ide/versions.inc
+msgid "Not in a browser"
+msgstr "No disponible en un navegador"
+
+#: ide/versions.inc
+msgid "Versions need RapidR Studio on your computer: a browser can't keep them yet."
+msgstr "Las versiones necesitan RapidR Studio en tu computadora: un navegador todavía no puede guardarlas."
+
+#: ide/versions.inc
+msgid "Studio still keeps a copy of each file every time you save it, in this browser. Local History shows them."
+msgstr "Studio sigue guardando una copia de cada archivo cada vez que lo guardas, en este navegador. Historial local las muestra."
+
+#: ide/versions.inc
+msgid "No versions yet"
+msgstr "Aún no hay versiones"
+
+#: ide/versions.inc
+msgid "A version keeps all your files as they are now, with a few words about what changed, so you can always go back. Git calls versions commits."
+msgstr "Una versión conserva todos tus archivos como están ahora, con unas palabras sobre lo que cambió, para que siempre puedas volver. Git llama commits a las versiones."
+
+#: ide/versions.inc
+msgid "Until then Studio keeps a copy of each file every time you save it. Local History shows them."
+msgstr "Mientras tanto, Studio guarda una copia de cada archivo cada vez que lo guardas. Historial local las muestra."
+
+#: ide/versions.inc
+msgid "{experiment} · all saved"
+msgstr "{experiment} · todo guardado"
+
+#: ide/versions.inc
+msgid "{experiment} · {n} change"
+msgid_plural "{experiment} · {n} changes"
+msgstr[0] "{experiment} · {n} cambio"
+msgstr[1] "{experiment} · {n} cambios"
+
+#: ide/versions.inc
+msgid "No changes since the last version"
+msgstr "No hay cambios desde la última versión"
+
+#: ide/versions.inc
+msgid "Changes not saved as a version ({n})"
+msgstr "Cambios sin guardar como versión ({n})"
+
+#: ide/versions.inc
+msgid "Undo: {what}"
+msgstr "Deshacer: {what}"
+
+#: ide/versions.inc
+msgid "no changes since the last version"
+msgstr "sin cambios desde la última versión"
+
+#: ide/versions.inc
+msgid "{n} change not saved as a version"
+msgid_plural "{n} changes not saved as a version"
+msgstr[0] "{n} cambio sin guardar como versión"
+msgstr[1] "{n} cambios sin guardar como versión"
+
+#: ide/versions.inc
+msgid "AI checkpoint: {what}"
+msgstr "Punto de control de la IA: {what}"
+
+#: ide/versions.inc
+msgid "{who} · {when}"
+msgstr "{who} · {when}"
+
+#: ide/versions.inc
+msgid "Only {file}"
+msgstr "Solo {file}"
+
+#: ide/versions.inc
+msgid "Versions didn't start: {why}"
+msgstr "Las versiones no se iniciaron: {why}"
+
+#: ide/versions.inc
+msgid "Versions didn't start"
+msgstr "Las versiones no se iniciaron"
+
+#: ide/versions.inc
+msgid "This project keeps versions now: {folder}"
+msgstr "Este proyecto guarda versiones ahora: {folder}"
+
+#: ide/versions.inc
+msgid "Versions started: save your first version"
+msgstr "Versiones iniciadas: guarda tu primera versión"
+
+#: ide/versions.inc
+msgid "Versions started. Save a Version keeps your files as they are now."
+msgstr "Versiones iniciadas. Guardar una versión conserva tus archivos como están ahora."
+
+#: ide/versions.inc
+msgid "Nothing changed since the last version"
+msgstr "Nada cambió desde la última versión"
+
+#: ide/versions.inc
+msgid "Nothing changed since the last version, so there is nothing to save."
+msgstr "Nada cambió desde la última versión, así que no hay nada que guardar."
+
+#: ide/versions.inc
+msgid "new"
+msgstr "nuevo"
+
+#: ide/versions.inc
+msgid "removed"
+msgstr "quitado"
+
+#: ide/versions.inc
+msgid "changed"
+msgstr "cambiado"
+
+#: ide/versions.inc
+msgid "Save &Anyway"
+msgstr "Guardar de &todos modos"
+
+#: ide/versions.inc
+msgid "Tick at least one file to save in this version."
+msgstr "Marca al menos un archivo para guardar en esta versión."
+
+#: ide/versions.inc
+msgid "{file}, line {line}: {what}"
+msgstr "{file}, línea {line}: {what}"
+
+#: ide/versions.inc
+msgid "and {n} more line"
+msgid_plural "and {n} more lines"
+msgstr[0] "y {n} línea más"
+msgstr[1] "y {n} líneas más"
+
+# legal
+#: ide/versions.inc
+msgid "This line looks like a key or a password. Versions are often shared, and a secret saved in one stays in the timeline: take it out first, or save anyway if it isn't a real one."
+msgid_plural "These {n} lines look like keys or passwords. Versions are often shared, and a secret saved in one stays in the timeline: take them out first, or save anyway if they aren't real ones."
+msgstr[0] "Esta línea parece una clave o una contraseña. Las versiones a menudo se comparten, y un secreto guardado en una se queda en la línea de tiempo: quítalo primero, o guarda de todos modos si no es uno real."
+msgstr[1] "Estas {n} líneas parecen claves o contraseñas. Las versiones a menudo se comparten, y un secreto guardado en una se queda en la línea de tiempo: quítalos primero, o guarda de todos modos si no son reales."
+
+# legal
+#: ide/versions.inc
+msgid "Not saved: lines look like keys or passwords. The dialog lists them."
+msgstr "No se guardó: hay líneas que parecen claves o contraseñas. El cuadro de diálogo las enumera."
+
+#: ide/versions.inc
+msgid "Saved the version “{message}” ({id})"
+msgstr "Se guardó la versión “{message}” ({id})"
+
+#: ide/versions.inc
+msgid "Saved the version “{message}”"
+msgstr "Se guardó la versión “{message}”"
+
+#: ide/versions.inc
+msgid "Version saved."
+msgstr "Versión guardada."
+
+#: ide/versions.inc
+msgid "Pick a version in the timeline first"
+msgstr "Elige primero una versión en la línea de tiempo"
+
+#: ide/versions.inc
+msgid "Go back to “{message}” for {file}?"
+msgstr "¿Volver a “{message}” para {file}?"
+
+#: ide/versions.inc
+msgid "{file} becomes as it was in that version, saved as a new version. The other files stay as they are, and the newer versions stay on the timeline. Undo takes it back."
+msgstr "{file} queda como estaba en esa versión, guardado como una versión nueva. Los demás archivos se quedan como están, y las versiones más nuevas se quedan en la línea de tiempo. Deshacer lo revierte."
+
+#: ide/versions.inc
+msgid "Go back to “{message}”?"
+msgstr "¿Volver a “{message}”?"
+
+#: ide/versions.inc
+msgid "Your files become as they were in that version, saved as a new version. The newer versions stay on the timeline, and Undo takes it back. Git calls this a revert."
+msgstr "Tus archivos quedan como estaban en esa versión, guardados como una versión nueva. Las versiones más nuevas se quedan en la línea de tiempo, y Deshacer lo revierte. Git lo llama revert."
+
+#: ide/versions.inc
+msgid "&Go Back"
+msgstr "&Volver"
+
+#: ide/versions.inc
+msgid "Didn't go back: {why}"
+msgstr "No se volvió: {why}"
+
+#: ide/versions.inc
+msgid "Didn't go back: see the Output"
+msgstr "No se volvió: mira Salida"
+
+#: ide/versions.inc
+msgid "Went back to “{message}”: a new version ({id}). Undo takes it back."
+msgstr "Se volvió a “{message}”: una versión nueva ({id}). Deshacer lo revierte."
+
+#: ide/versions.inc
+msgid "Went back to “{message}”"
+msgstr "Se volvió a “{message}”"
+
+#: ide/versions.inc
+msgid "Went back to {message}. Undo takes it back."
+msgstr "Se volvió a {message}. Deshacer lo revierte."
+
+#: ide/versions.inc
+msgid "Nothing to undo in the versions"
+msgstr "No hay nada que deshacer en las versiones"
+
+#: ide/versions.inc
+msgid "Couldn't undo: {why}"
+msgstr "No se pudo deshacer: {why}"
+
+#: ide/versions.inc
+msgid "Couldn't undo: see the Output"
+msgstr "No se pudo deshacer: mira Salida"
+
+#: ide/versions.inc
+msgid "Undid: {what}"
+msgstr "Se deshizo: {what}"
+
+#: ide/versions.inc
+msgid "Open a file to see its local history"
+msgstr "Abre un archivo para ver su historial local"
+
+#: ide/versions.inc
+msgid "Local History: {file}"
+msgstr "Historial local: {file}"
+
+#: ide/versions.inc
+msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
+msgstr "Una copia cada vez que se guardó el archivo, guardada en la carpeta .rapidr del proyecto (nunca en una versión)"
+
+#: ide/versions.inc
+msgid "Copies of {file}, newest first"
+msgstr "Copias de {file}, la más nueva primero"
+
+#: ide/versions.inc
+msgid "Puts this copy's text in the editor; Undo (Ctrl+Z) takes it back"
+msgstr "Pone el texto de esta copia en el editor; Deshacer (Ctrl+Z) lo revierte"
+
+#: ide/versions.inc
+msgid "As it was on disk, {when}"
+msgstr "Como estaba en el disco, {when}"
+
+#: ide/versions.inc
+msgid "Before reloading, {when}"
+msgstr "Antes de volver a cargar, {when}"
+
+#: ide/versions.inc
+msgid "Before a restore, {when}"
+msgstr "Antes de una restauración, {when}"
+
+#: ide/versions.inc
+msgid "Saved, {when}"
+msgstr "Guardado, {when}"
+
+#: ide/versions.inc
+msgid "No copies yet: Studio keeps one each time you save this file."
+msgstr "Aún no hay copias: Studio guarda una cada vez que guardas este archivo."
+
+#: ide/versions.inc
+msgid "What Changed: {message}"
+msgstr "Qué cambió: {message}"
+
+#: ide/versions.inc
+msgid "What changed in “{message}”"
+msgstr "Qué cambió en “{message}”"
+
+#: ide/versions.inc
+msgid "{who} · {when} · {files}"
+msgstr "{who} · {when} · {files}"
+
+#: ide/versions.inc
+msgid "What Changed"
+msgstr "Qué cambió"
+
+#: ide/versions.inc
+msgid "What changed since the last version"
+msgstr "Qué cambió desde la última versión"
+
+#: ide/versions.inc
+msgid "Files that changed"
+msgstr "Archivos que cambiaron"
+
+#: ide/versions.inc
+msgid "{file} (removed)"
+msgstr "{file} (quitado)"
+
+#: ide/versions.inc
+msgid "Restored a copy of {file}: save it to keep it, Ctrl+Z takes it back"
+msgstr "Se restauró una copia de {file}: guárdalo para conservarlo, Ctrl+Z lo revierte"
+
+#: ide/versions.inc
+msgid "Restored. Save the file to keep it; Undo takes it back."
+msgstr "Restaurado. Guarda el archivo para conservarlo; Deshacer lo revierte."
+
+#: ide/versions.inc
+msgid "Local history: {why}"
+msgstr "Historial local: {why}"
+
+#: ide/versions.inc
+msgid "This line is as the last version has it"
+msgstr "Esta línea está como la tiene la última versión"
+
+#: ide/versions.inc
+msgid "Start versioning the project to see what changed since a version"
+msgstr "Empieza a guardar versiones del proyecto para ver qué cambió desde una versión"
+
+#: ide/versions.inc
+msgid "Line {n} was: {text}"
+msgstr "La línea {n} era: {text}"
+
+#: ide/versions.inc
+msgid "The change was undone. Ctrl+Z brings it back."
+msgstr "Se deshizo el cambio. Ctrl+Z lo devuelve."
+
 #: ide/window.inc
 msgid "Tool bar"
-msgstr ""
+msgstr "Barra de herramientas"
 
 #: ide/window.inc
 msgid "Status"
-msgstr ""
+msgstr "Estado"
 
 #: ide/window.inc
 msgid "Start"
-msgstr ""
+msgstr "Comenzar"
 
 #: ide/window.inc
 msgid "Recent"
-msgstr ""
+msgstr "Recientes"
 
 #: ide/window.inc
 msgid "No recent projects yet"
-msgstr ""
+msgstr "Aún no hay proyectos recientes"
 
 #: ide/window.inc
 msgid "Examples"
-msgstr ""
+msgstr "Ejemplos"
 
 #: ide/window.inc
 msgid "Type a command, :line, or an example"
-msgstr ""
+msgstr "Escribe un comando, :línea o un ejemplo"
 
 #: ide/window.inc
 msgid "Command Palette"
-msgstr ""
+msgstr "Paleta de comandos"
 
 #: ide/window.inc
 msgid "New Project"
-msgstr ""
+msgstr "Nuevo proyecto"
 
 #: ide/window.inc
 msgid "&Name:"
-msgstr ""
+msgstr "&Nombre:"
 
 #: ide/window.inc
 msgid "Template:"
-msgstr ""
+msgstr "Plantilla:"
 
 #: ide/window.inc
 msgid "&Folder:"
-msgstr ""
+msgstr "&Carpeta:"
 
 #: ide/window.inc
 msgid "Choose the folder"
-msgstr ""
+msgstr "Elegir la carpeta"
 
 #: ide/window.inc
 msgid "Create"
-msgstr ""
+msgstr "Crear"
 
 #: ide/workspace.inc
 msgid "Design"
-msgstr ""
+msgstr "Diseño"
 
 #: ide/workspace.inc
 msgid "Code"
-msgstr ""
+msgstr "Código"
 
 #: ide/workspace.inc
 msgid "Preview"
-msgstr ""
+msgstr "Vista previa"
 
 #: ide/workspace.inc
 msgid "Source"
-msgstr ""
+msgstr "Código fuente"
 
 #: ide/workspace.inc
 msgid "{title}: {what}"
-msgstr ""
+msgstr "{title}: {what}"
 
 #: ide/workspace.inc
 msgid "Do you want to save the changes you made to {file}?"
-msgstr ""
+msgstr "¿Quieres guardar los cambios que hiciste en {file}?"
 
 #: ide/workspace.inc
 msgid "Your changes will be lost if you don't save them."
-msgstr ""
+msgstr "Perderás tus cambios si no los guardas."
 
 #: ide/workspace.inc
 msgid "You have {n} document with unsaved changes. Do you want to save it before quitting?"
 msgid_plural "You have {n} documents with unsaved changes. Do you want to save them before quitting?"
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Tienes {n} documento con cambios sin guardar. ¿Quieres guardarlo antes de salir?"
+msgstr[1] "Tienes {n} documentos con cambios sin guardar. ¿Quieres guardarlos antes de salir?"
 
 #: ide/workspace.inc
 msgid "Review Changes asks about each one. If you discard them, all your changes will be lost."
-msgstr ""
+msgstr "Revisar cambios pregunta por cada uno. Si los descartas, perderás todos tus cambios."
 
 #: ide/workspace.inc
 msgid "Form app"
-msgstr ""
+msgstr "Aplicación de formulario"
 
 #: ide/workspace.inc
 msgid "A window to design, with its code beside it."
-msgstr ""
+msgstr "Una ventana para diseñar, con su código al lado."
 
 #: ide/workspace.inc
 msgid "Console"
-msgstr ""
+msgstr "Consola"
 
 #: ide/workspace.inc
 msgid "PRINT and INPUT in a text window."
-msgstr ""
+msgstr "PRINT e INPUT en una ventana de texto."
 
 #: ide/workspace.inc
 msgid "Classic form app"
-msgstr ""
+msgstr "Aplicación de formulario clásica"
 
 #: ide/workspace.inc
 msgid "A .bas with the classic names only, checked as classic."
-msgstr ""
+msgstr "Un .bas con solo los nombres clásicos, revisado como clásico."
 
 #: ide/workspace.inc
 msgid "Data dashboard"
-msgstr ""
+msgstr "Tablero de datos"
 
 #: ide/workspace.inc
 msgid "A table in a grid and a chart of it."
-msgstr ""
+msgstr "Una tabla en una cuadrícula y un gráfico de ella."
 
 #: ide/workspace.inc
 msgid "MDI app"
-msgstr ""
+msgstr "Aplicación MDI"
 
 #: ide/workspace.inc
 msgid "Child windows, File and Window menus."
-msgstr ""
+msgstr "Ventanas secundarias, menús Archivo y Ventana."
