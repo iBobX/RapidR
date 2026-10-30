@@ -438,9 +438,19 @@ pub mod issue {
 pub struct Day(pub i64);
 
 /// Today (UTC).
+#[cfg(not(target_arch = "wasm32"))]
 pub fn today() -> Day {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
     Day(secs.div_euclid(86_400))
+}
+
+/// (the web) No clock from the standard library there — SystemTime::now
+/// panics in a browser ("time not implemented on this platform"), which
+/// stopped Studio for the web at start —, and no token to date: the page's
+/// own hooks (window.RAPIDR_STUDIO_TEST) are the web's.
+#[cfg(target_arch = "wasm32")]
+pub fn today() -> Day {
+    Day(0)
 }
 
 impl Day {
