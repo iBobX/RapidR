@@ -5345,6 +5345,7 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-diagnostics",
  "rapidr-editor",
+ "rapidr-i18n",
  "rapidr-lang",
  "rapidr-lexer",
  "rapidr-parser",

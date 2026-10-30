@@ -1,7 +1,6 @@
 # RapidR's own text (what its components and dialogs show themselves) in
-# Spanish (español neutro, docs/i18n/glossary-es.md). A SAMPLE that proves
-# the pipeline (lane I18N-STUDIO), each entry marked `review`; the
-# translation lanes complete it from runtime.pot (`rapidr i18n update`).
+# Spanish (español neutro, docs/i18n/glossary-es.md). Lane ES-STUDIO
+# (2026-10-30): every text translated by a first pass; Robert reviews them.
 msgid ""
 msgstr ""
 "Project-Id-Version: RapidR runtime\n"
@@ -11,1288 +10,1281 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: crates/rapidr-studio/src/langsvc.rs
-#, review
 msgid "Not translated yet: this page is in English."
 msgstr "No traducido aún: esta página está en inglés."
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}, column {column}"
-msgstr ""
+msgstr "Línea {line}, columna {column}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{count} cursors"
-msgstr ""
+msgstr "{count} cursores"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{errors} errors, {warnings} warnings"
-msgstr ""
+msgstr "{errors} errores, {warnings} advertencias"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "helpers on this line: Ctrl+K H reads them, Ctrl+. edits"
-msgstr ""
+msgstr "ayudas en esta línea: Ctrl+K H las lee, Ctrl+. las edita"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Suggestions"
-msgstr ""
+msgstr "Sugerencias"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Code editor"
-msgstr ""
+msgstr "Editor de código"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Line {line}"
-msgstr ""
+msgstr "Línea {line}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "Column {column}"
-msgstr ""
+msgstr "Columna {column}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
 msgid "{label} ({kind}), {current} of {total}"
-msgstr ""
+msgstr "{label} ({kind}), {current} de {total}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "No language service for this file"
-msgstr ""
+msgstr "No hay servicio de lenguaje para este archivo"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Replaced {count}"
-msgstr ""
+msgstr "Reemplazados: {count}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Find"
-msgstr ""
+msgstr "Buscar"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Go to line (1–{count}), :column"
-msgstr ""
+msgstr "Ir a la línea (1–{count}), :columna"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "New name"
-msgstr ""
+msgstr "Nombre nuevo"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Replace"
-msgstr ""
+msgstr "Reemplazar"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "No results"
-msgstr ""
+msgstr "Sin resultados"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-value/src/panels/console.rs
 msgid "{current} of {total}"
-msgstr ""
+msgstr "{current} de {total}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "? of {total}"
-msgstr ""
+msgstr "? de {total}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "All"
-msgstr ""
+msgstr "Todo"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Create handler “{name}”"
-msgstr ""
+msgstr "Crear controlador “{name}”"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Create handler {name}"
-msgstr ""
+msgstr "Crear controlador {name}"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Handler"
-msgstr ""
+msgstr "Controlador"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Link"
-msgstr ""
+msgstr "Enlace"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "not on this computer"
-msgstr ""
+msgstr "no está en esta computadora"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "That name can't be written in the code (it has a quote)"
-msgstr ""
+msgstr "Ese nombre no se puede escribir en el código (tiene una comilla)"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
 msgid "Changed"
-msgstr ""
+msgstr "Cambiado"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "No quick fixes here"
-msgstr ""
+msgstr "No hay correcciones rápidas aquí"
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "The language service is busy"
-msgstr ""
+msgstr "El servicio de lenguaje está ocupado"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Set DataSource to see the rows here"
-msgstr ""
+msgstr "Establece DataSource para ver las filas aquí"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "{rows} rows, {columns} columns"
-msgstr ""
+msgstr "{rows} filas, {columns} columnas"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Headings"
-msgstr ""
+msgstr "Encabezados"
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
 msgid "Row {row} of {total}"
-msgstr ""
+msgstr "Fila {row} de {total}"
 
 #: crates/rapidr-ui-kernel/src/components/design.rs
 msgid "Add a Form"
-msgstr ""
+msgstr "Añadir un formulario"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Accepted"
-msgstr ""
+msgstr "Aceptado"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Rejected"
-msgstr ""
+msgstr "Rechazado"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Accept"
-msgstr ""
+msgstr "Aceptar"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Reject"
-msgstr ""
+msgstr "Rechazar"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Before"
-msgstr ""
+msgstr "Antes"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "After"
-msgstr ""
+msgstr "Después"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(the form isn't there any more)"
-msgstr ""
+msgstr "(el formulario ya no está)"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(a new form)"
-msgstr ""
+msgstr "(un formulario nuevo)"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "The forms are the same."
-msgstr ""
+msgstr "Los formularios son iguales."
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "added"
-msgstr ""
+msgstr "añadido"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "removed"
-msgstr ""
+msgstr "quitado"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs crates/rapidr-ui-kernel/src/value_view.rs
 msgid "changed"
-msgstr ""
+msgstr "cambiado"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "1 property changed"
-msgstr ""
+msgstr "1 propiedad cambiada"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} properties changed"
-msgstr ""
+msgstr "{count} propiedades cambiadas"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(not set)"
-msgstr ""
+msgstr "(sin definir)"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "(removed)"
-msgstr ""
+msgstr "(quitado)"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Differences"
-msgstr ""
+msgstr "Diferencias"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Form changes"
-msgstr ""
+msgstr "Cambios del formulario"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "Table changes"
-msgstr ""
+msgstr "Cambios de la tabla"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "1 change"
-msgstr ""
+msgstr "1 cambio"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} changes"
-msgstr ""
+msgstr "{count} cambios"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} hunk: {accepted} accepted, {rejected} rejected, {undecided} undecided"
-msgstr ""
+msgstr "{count} bloque: {accepted} aceptados, {rejected} rechazados, {undecided} sin decidir"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "{count} hunks: {accepted} accepted, {rejected} rejected, {undecided} undecided"
-msgstr ""
+msgstr "{count} bloques: {accepted} aceptados, {rejected} rechazados, {undecided} sin decidir"
 
 #: crates/rapidr-ui-kernel/src/components/diffview.rs
 msgid "current hunk"
-msgstr ""
+msgstr "bloque actual"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close"
-msgstr ""
+msgstr "Cerrar"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Dock"
-msgstr ""
+msgstr "Acoplar"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Auto Hide"
-msgstr ""
+msgstr "Ocultar automáticamente"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Close {name}"
-msgstr ""
+msgstr "Cerrar {name}"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Undo"
-msgstr ""
+msgstr "&Deshacer"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "Cu&t"
-msgstr ""
+msgstr "C&ortar"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Copy"
-msgstr ""
+msgstr "&Copiar"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Paste"
-msgstr ""
+msgstr "&Pegar"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "&Delete"
-msgstr ""
+msgstr "&Eliminar"
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "Select &All"
-msgstr ""
+msgstr "Seleccionar &todo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Search"
-msgstr ""
+msgstr "Búsqueda"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "No problems"
-msgstr ""
+msgstr "Sin problemas"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "Output"
-msgstr ""
+msgstr "Salida"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Pages"
-msgstr ""
+msgstr "Páginas"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} error)"
-msgstr ""
+msgstr "Problemas ({count} error)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} errors)"
-msgstr ""
+msgstr "Problemas ({count} errores)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} warning)"
-msgstr ""
+msgstr "Problemas ({count} advertencia)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} warnings)"
-msgstr ""
+msgstr "Problemas ({count} advertencias)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} info)"
-msgstr ""
+msgstr "Problemas ({count} nota)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
 msgid "Problems ({count} infos)"
-msgstr ""
+msgstr "Problemas ({count} notas)"
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
 msgid "Problems"
-msgstr ""
+msgstr "Problemas"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
-#, review
 msgid "No selection"
 msgstr "Nada seleccionado"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-#, review
 msgid "Properties"
 msgstr "Propiedades"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "mixed types"
-msgstr ""
+msgstr "tipos mixtos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "{count} components"
-msgstr ""
+msgstr "{count} componentes"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Search events"
-msgstr ""
+msgstr "Buscar eventos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Search properties"
-msgstr ""
+msgstr "Buscar propiedades"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Not changed"
-msgstr ""
+msgstr "Sin cambios"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Select a component on the form."
-msgstr ""
+msgstr "Selecciona un componente del formulario."
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Set Target (a component's name) or Designer to inspect."
-msgstr ""
+msgstr "Establece Target (el nombre de un componente) o Designer para inspeccionar."
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Select a row to see what it does."
-msgstr ""
+msgstr "Selecciona una fila para ver qué hace."
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, stretches down"
-msgstr ""
+msgstr "Se estira a lo ancho y a lo alto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, stays at the top"
-msgstr ""
+msgstr "Se estira a lo ancho, se queda arriba"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, follows the bottom"
-msgstr ""
+msgstr "Se estira a lo ancho, sigue el borde inferior"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stretches across, keeps the middle"
-msgstr ""
+msgstr "Se estira a lo ancho, mantiene el centro"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, stretches down"
-msgstr ""
+msgstr "Se queda a la izquierda, se estira a lo alto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, stays at the top"
-msgstr ""
+msgstr "Se queda a la izquierda, se queda arriba"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, follows the bottom"
-msgstr ""
+msgstr "Se queda a la izquierda, sigue el borde inferior"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Stays left, keeps the middle"
-msgstr ""
+msgstr "Se queda a la izquierda, mantiene el centro"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, stretches down"
-msgstr ""
+msgstr "Sigue el borde derecho, se estira a lo alto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, stays at the top"
-msgstr ""
+msgstr "Sigue el borde derecho, se queda arriba"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, follows the bottom"
-msgstr ""
+msgstr "Sigue el borde derecho, sigue el borde inferior"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Follows the right, keeps the middle"
-msgstr ""
+msgstr "Sigue el borde derecho, mantiene el centro"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, stretches down"
-msgstr ""
+msgstr "Mantiene el centro, se estira a lo alto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, stays at the top"
-msgstr ""
+msgstr "Mantiene el centro, se queda arriba"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, follows the bottom"
-msgstr ""
+msgstr "Mantiene el centro, sigue el borde inferior"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Keeps the middle, keeps the middle"
-msgstr ""
+msgstr "Mantiene el centro, mantiene el centro"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Nothing matches the search"
-msgstr ""
+msgstr "Nada coincide con la búsqueda"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "No events"
-msgstr ""
+msgstr "Sin eventos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "Nothing to inspect"
-msgstr ""
+msgstr "Nada que inspeccionar"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-#, review
 msgid "Events"
 msgstr "Eventos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {name} ({type})"
-msgstr ""
+msgstr "Propiedades de {name} ({type})"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {count} components"
-msgstr ""
+msgstr "Propiedades de {count} componentes"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Sort A to Z"
-msgstr ""
+msgstr "Ordenar de A a Z"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Anchors editor"
-msgstr ""
+msgstr "Editor de anclajes"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "{count} properties"
-msgstr ""
+msgstr "{count} propiedades"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "values differ"
-msgstr ""
+msgstr "los valores difieren"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "RapidR extension"
-msgstr ""
+msgstr "Extensión de RapidR"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor left"
-msgstr ""
+msgstr "Anclar a la izquierda"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor top"
-msgstr ""
+msgstr "Anclar arriba"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor right"
-msgstr ""
+msgstr "Anclar a la derecha"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor bottom"
-msgstr ""
+msgstr "Anclar abajo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/markdown.rs
 msgid "code"
-msgstr ""
+msgstr "código"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No commands"
-msgstr ""
+msgstr "Sin comandos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "No matching commands"
-msgstr ""
+msgstr "Ningún comando coincide"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "Command palette"
-msgstr ""
+msgstr "Paleta de comandos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/palette.rs
 msgid "Commands"
-msgstr ""
+msgstr "Comandos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs
 msgid "No project"
-msgstr ""
+msgstr "Sin proyecto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs
 msgid "main"
-msgstr ""
+msgstr "principal"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Remove {name} from the project?"
-msgstr ""
+msgstr "¿Quitar {name} del proyecto?"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Remove"
-msgstr ""
+msgstr "Quitar"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
-#, review
 msgid "Cancel"
 msgstr "Cancelar"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "form"
-msgstr ""
+msgstr "formulario"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "module"
-msgstr ""
+msgstr "módulo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "include"
-msgstr ""
+msgstr "archivo incluido"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "resource"
-msgstr ""
+msgstr "recurso"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "asset"
-msgstr ""
+msgstr "activo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "data"
-msgstr ""
+msgstr "datos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Project"
-msgstr ""
+msgstr "Proyecto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "Project {name}"
-msgstr ""
+msgstr "Proyecto {name}"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "project"
-msgstr ""
+msgstr "proyecto"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "1 file"
-msgstr ""
+msgstr "1 archivo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{count} files"
-msgstr ""
+msgstr "{count} archivos"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "folder"
-msgstr ""
+msgstr "carpeta"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{kind}, {n} forms"
-msgstr ""
+msgstr "{kind}, {n} formularios"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "{kind}, the main file"
-msgstr ""
+msgstr "{kind}, el archivo principal"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_view.rs
 msgid "component"
-msgstr ""
+msgstr "componente"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
 msgid "File name"
-msgstr ""
+msgstr "Nombre del archivo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "More buttons"
-msgstr ""
+msgstr "Más botones"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "Toolbar"
-msgstr ""
+msgstr "Barra de herramientas"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbar.rs
 msgid "More buttons and customize"
-msgstr ""
+msgstr "Más botones y personalizar"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
-#, review
 msgid "Search components"
 msgstr "Buscar componentes"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "No components"
-msgstr ""
+msgstr "Sin componentes"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "No components match"
-msgstr ""
+msgstr "Ningún componente coincide"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "Toolbox"
-msgstr ""
+msgstr "Caja de herramientas"
 
 #: crates/rapidr-ui-kernel/src/components/panels/toolbox.rs
 msgid "{name} — template"
-msgstr ""
+msgstr "{name} — plantilla"
 
 #: crates/rapidr-ui-kernel/src/components/plot.rs
 msgid "Sample data"
-msgstr ""
+msgstr "Datos de muestra"
 
 #: crates/rapidr-ui-kernel/src/components/richedit.rs
 msgid "At the caret: {format}"
-msgstr ""
+msgstr "En el cursor: {format}"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
-#, review
 msgid "OK"
 msgstr "Aceptar"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Basic colors:"
-msgstr ""
+msgstr "Colores &básicos:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Custom colors:"
-msgstr ""
+msgstr "Colores &personalizados:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Define Custom Colors >>"
-msgstr ""
+msgstr "&Definir colores personalizados >>"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|S&olid"
-msgstr ""
+msgstr "Color|Sól&ido"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Add to Custom Colors"
-msgstr ""
+msgstr "&Añadir a los colores personalizados"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Font:"
-msgstr ""
+msgstr "&Fuente:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Font st&yle:"
-msgstr ""
+msgstr "&Estilo de fuente:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Size:"
-msgstr ""
+msgstr "&Tamaño:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Effects"
-msgstr ""
+msgstr "Efectos"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Stri&keout"
-msgstr ""
+msgstr "Tac&hado"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Underline"
-msgstr ""
+msgstr "&Subrayado"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Color:"
-msgstr ""
+msgstr "C&olor:"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Sample"
-msgstr ""
+msgstr "Muestra"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Apply"
-msgstr ""
+msgstr "&Aplicar"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Help"
-msgstr ""
+msgstr "Ay&uda"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color matrix"
-msgstr ""
+msgstr "Matriz de color"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Luminosity"
-msgstr ""
+msgstr "Luminosidad"
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|Solid"
-msgstr ""
+msgstr "Color|Sólido"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "was · now"
-msgstr ""
+msgstr "antes · ahora"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Standard"
-msgstr ""
+msgstr "Estándar"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "System"
-msgstr ""
+msgstr "Sistema"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Apply"
-msgstr ""
+msgstr "Aplicar"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Hue"
-msgstr ""
+msgstr "Matiz"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{degrees} degrees"
-msgstr ""
+msgstr "{degrees} grados"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Saturation and brightness"
-msgstr ""
+msgstr "Saturación y brillo"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "saturation {saturation}, brightness {brightness}"
-msgstr ""
+msgstr "saturación {saturation}, brillo {brightness}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Left and Right: saturation; Up and Down: brightness"
-msgstr ""
+msgstr "Izquierda y derecha: saturación; arriba y abajo: brillo"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "Palette"
-msgstr ""
+msgstr "Paleta"
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{color} (was {original})"
-msgstr ""
+msgstr "{color} (antes {original})"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Red"
-msgstr ""
+msgstr "Rojo"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Green"
-msgstr ""
+msgstr "Verde"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Blue"
-msgstr ""
+msgstr "Azul"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
 msgid "Hex"
-msgstr ""
+msgstr "Hex"
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Filter"
-msgstr ""
+msgstr "Filtro"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "missing"
-msgstr ""
+msgstr "falta"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "Type to filter"
-msgstr ""
+msgstr "Escribe para filtrar"
 
 #: crates/rapidr-ui-kernel/src/value_edit/list.rs
 msgid "Nothing matches"
-msgstr ""
+msgstr "Nada coincide"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Colour"
-msgstr ""
+msgstr "Color"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Choose a value"
-msgstr ""
+msgstr "Elige un valor"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Choose the flags"
-msgstr ""
+msgstr "Elige los indicadores"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "True or False"
-msgstr ""
+msgstr "True o False"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Picture"
-msgstr ""
+msgstr "Imagen"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Sound"
-msgstr ""
+msgstr "Sonido"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "File"
-msgstr ""
+msgstr "Archivo"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Font"
-msgstr ""
+msgstr "Fuente"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title}: {value}"
-msgstr ""
+msgstr "{title}: {value}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Font: {name}"
-msgstr ""
+msgstr "Fuente: {name}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{size} pt"
-msgstr ""
+msgstr "{size} pt"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "bold"
-msgstr ""
+msgstr "negrita"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "italic"
-msgstr ""
+msgstr "cursiva"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Enter keeps · Esc cancels"
-msgstr ""
+msgstr "Enter conserva · Esc cancela"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Space ticks · Enter keeps"
-msgstr ""
+msgstr "Space marca · Enter conserva"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Space turns · Enter keeps"
-msgstr ""
+msgstr "Space cambia · Enter conserva"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Enter picks · Esc cancels"
-msgstr ""
+msgstr "Enter elige · Esc cancela"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Not in the project"
-msgstr ""
+msgstr "No está en el proyecto"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "No preview"
-msgstr ""
+msgstr "Sin vista previa"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "The quick brown fox 0123"
-msgstr ""
+msgstr "El veloz murciélago hindú 0123"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Bold"
-msgstr ""
+msgstr "Negrita"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Italic"
-msgstr ""
+msgstr "Cursiva"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title} editor"
-msgstr ""
+msgstr "Editor de {title}"
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "Size"
-msgstr ""
+msgstr "Tamaño"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "whole number"
-msgstr ""
+msgstr "número entero"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "decimal number"
-msgstr ""
+msgstr "número decimal"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "text"
-msgstr ""
+msgstr "texto"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "true or false"
-msgstr ""
+msgstr "verdadero o falso"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "array"
-msgstr ""
+msgstr "arreglo"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "record"
-msgstr ""
+msgstr "registro"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "constant"
-msgstr ""
+msgstr "constante"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour"
-msgstr ""
+msgstr "color"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "handle"
-msgstr ""
+msgstr "identificador"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "empty"
-msgstr ""
+msgstr "vacío"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "row"
-msgstr ""
+msgstr "fila"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "included names"
-msgstr ""
+msgstr "nombres incluidos"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "components"
-msgstr ""
+msgstr "componentes"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "more"
-msgstr ""
+msgstr "más"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "locals"
-msgstr ""
+msgstr "locales"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "globals"
-msgstr ""
+msgstr "globales"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "watch"
-msgstr ""
+msgstr "observar"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "call stack"
-msgstr ""
+msgstr "pila de llamadas"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint"
-msgstr ""
+msgstr "punto de interrupción"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "call"
-msgstr ""
+msgstr "llamada"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "current call"
-msgstr ""
+msgstr "llamada actual"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "1 item"
-msgstr ""
+msgstr "1 elemento"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{count} items"
-msgstr ""
+msgstr "{count} elementos"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "1 field"
-msgstr ""
+msgstr "1 campo"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{count} fields"
-msgstr ""
+msgstr "{count} campos"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "on"
-msgstr ""
+msgstr "activado"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "off"
-msgstr ""
+msgstr "desactivado"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "{kind} {value}"
-msgstr ""
+msgstr "{kind} {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "empty text"
-msgstr ""
+msgstr "texto vacío"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "text {value}"
-msgstr ""
+msgstr "texto {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "array {bounds}, {count}"
-msgstr ""
+msgstr "arreglo {bounds}, {count}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "record {name}, {count}"
-msgstr ""
+msgstr "registro {name}, {count}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "constant {name}"
-msgstr ""
+msgstr "constante {name}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour {name}"
-msgstr ""
+msgstr "color {name}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour red {red}, green {green}, blue {blue}"
-msgstr ""
+msgstr "color rojo {red}, verde {green}, azul {blue}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "colour, the system's colour {number}"
-msgstr ""
+msgstr "color, el color del sistema {number}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "whole number {value}"
-msgstr ""
+msgstr "número entero {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "Empty"
-msgstr ""
+msgstr "Vacío"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "row, {value}"
-msgstr ""
+msgstr "fila, {value}"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "result"
-msgstr ""
+msgstr "resultado"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint, off"
-msgstr ""
+msgstr "punto de interrupción, desactivado"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint, not bound to code yet"
-msgstr ""
+msgstr "punto de interrupción, aún sin enlazar al código"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "conditional breakpoint"
-msgstr ""
+msgstr "punto de interrupción condicional"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "breakpoint with a hit count"
-msgstr ""
+msgstr "punto de interrupción con número de veces"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "log point"
-msgstr ""
+msgstr "punto de registro"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
-msgstr ""
+msgstr "Compilación"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Error"
-msgstr ""
+msgstr "Error"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Warning"
-msgstr ""
+msgstr "Advertencia"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Information"
-msgstr ""
+msgstr "Información"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "{file} line {line}"
-msgstr ""
+msgstr "{file} línea {line}"
 
 #: crates/rapidr-value/src/panels/console.rs
 msgid "{total} found"
-msgstr ""
+msgstr "{total} encontrados"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Accessibility"
-msgstr ""
+msgstr "Accesibilidad"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Appearance"
-msgstr ""
+msgstr "Apariencia"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Behavior"
-msgstr ""
+msgstr "Comportamiento"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/project_tree/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Data"
-msgstr ""
+msgstr "Datos"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Drawing"
-msgstr ""
+msgstr "Dibujo"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Help"
-msgstr ""
+msgstr "Ayuda"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Layout"
-msgstr ""
+msgstr "Disposición"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Media"
-msgstr ""
+msgstr "Multimedia"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Misc"
-msgstr ""
+msgstr "Varios"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs crates/rapidr-value/src/panels/toolbox.rs
 msgid "Network"
-msgstr ""
+msgstr "Red"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Window"
-msgstr ""
+msgstr "Ventana"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "RapidR extensions"
-msgstr ""
+msgstr "Extensiones de RapidR"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a column"
-msgstr ""
+msgstr "Añadir una columna"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a line"
-msgstr ""
+msgstr "Añadir una línea"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a whole number"
-msgstr ""
+msgstr "“{text}” no es un número entero"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a number"
-msgstr ""
+msgstr "“{text}” no es un número"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not True or False"
-msgstr ""
+msgstr "“{text}” no es True ni False"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not one of {values}"
-msgstr ""
+msgstr "“{text}” no es uno de {values}"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a set of {values}"
-msgstr ""
+msgstr "“{text}” no es un conjunto de {values}"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "\"{text}\" is not a colour (clRed, &HBBGGRR, #RRGGBB)"
-msgstr ""
+msgstr "“{text}” no es un color (clRed, &HBBGGRR, #RRGGBB)"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "(none)"
-msgstr ""
+msgstr "(ninguno)"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "1 line"
-msgstr ""
+msgstr "1 línea"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "1 column"
-msgstr ""
+msgstr "1 columna"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} lines"
-msgstr ""
+msgstr "{n} líneas"
 
 #: crates/rapidr-value/src/panels/inspector/values.rs
 msgid "{n} columns"
-msgstr ""
+msgstr "{n} columnas"
 
 #: crates/rapidr-value/src/panels/palette.rs
 msgid "Type a command"
-msgstr ""
+msgstr "Escribe un comando"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Forms"
-msgstr ""
+msgstr "Formularios"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Modules"
-msgstr ""
+msgstr "Módulos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Includes"
-msgstr ""
+msgstr "Archivos incluidos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Resources"
-msgstr ""
+msgstr "Recursos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "Assets"
-msgstr ""
+msgstr "Activos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A file name is needed."
-msgstr ""
+msgstr "Se necesita un nombre de archivo."
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A name can't hold / or \\."
-msgstr ""
+msgstr "Un nombre no puede contener / ni \\."
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A name can't hold < > : \" | ? *."
-msgstr ""
+msgstr "Un nombre no puede contener < > : \" | ? *."
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "That isn't a file name."
-msgstr ""
+msgstr "Eso no es un nombre de archivo."
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "{name} is already in the project."
-msgstr ""
+msgstr "{name} ya está en el proyecto."
 
 #: crates/rapidr-value/src/panels/toolbar.rs
 msgid "Buttons shown:"
-msgstr ""
+msgstr "Botones mostrados:"
 
 #: crates/rapidr-value/src/panels/toolbar.rs
 msgid "{label} (on)"
-msgstr ""
+msgstr "{label} (activado)"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Additional"
-msgstr ""
+msgstr "Adicionales"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Dialogs"
-msgstr ""
+msgstr "Cuadros de diálogo"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Data Science"
-msgstr ""
+msgstr "Ciencia de datos"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "DirectX"
-msgstr ""
+msgstr "DirectX"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Direct3D"
-msgstr ""
+msgstr "Direct3D"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Web"
-msgstr ""
+msgstr "Web"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "AI"
-msgstr ""
+msgstr "IA"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "IDE"
-msgstr ""
+msgstr "Studio"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Templates"
-msgstr ""
+msgstr "Plantillas"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "(desktop only)"
-msgstr ""
+msgstr "(solo escritorio)"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "(web only)"
-msgstr ""
+msgstr "(solo web)"
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: Project > Add Form, a new form file of the program; dragged onto an RFormMDI: one of its child windows."
-msgstr ""
+msgstr "Clic o doble clic: Proyecto > Añadir formulario, un archivo de formulario nuevo del programa; arrastrado a un RFormMDI: una de sus ventanas secundarias."
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: a new MDI main window file of the program."
-msgstr ""
+msgstr "Clic o doble clic: un archivo de ventana principal MDI nuevo del programa."

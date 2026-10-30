@@ -22,4 +22,6 @@ rapidr-editor.workspace = true
 
 [dev-dependencies]
 rapidr-bytecode.workspace = true
+# (the test that compiler.pot has every hint)
+rapidr-i18n.workspace = true
 rapidr-preprocessor.workspace = true

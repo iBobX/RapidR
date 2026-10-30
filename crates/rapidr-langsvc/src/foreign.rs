@@ -32,10 +32,32 @@ impl Hint {
         format!("hint.{}", self.id)
     }
 
-    /// The hint's words. (Where a message catalog would answer.)
+    /// The hint's words, in English: what the build report and the AI's
+    /// tools carry.
     pub fn text(&self) -> &'static str {
         self.text
     }
+
+    /// The hint's words in language `tag`: the compiler catalog's
+    /// translation (`hint.<id>` in `rapidr-diagnostics/lang/<tag>.po`,
+    /// the same file the compiler's messages are in), else English.
+    pub fn text_in(&self, tag: &str) -> String {
+        rapidr_diagnostics::messages::translate_text(&self.key(), self.text, tag).unwrap_or_else(|| self.text.to_string())
+    }
+}
+
+/// Every text this module adds to the compiler catalog, as (key, English):
+/// each hint (`hint.<id>`, once) and the word that labels one
+/// (`hint.label`). `rapidr i18n compiler` writes them into
+/// `compiler.pot` after the messages.
+pub fn catalog_entries() -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = vec![("hint.label".to_string(), "hint".to_string())];
+    for x in HINTS.iter().chain(FOREIGN_FUNCTIONS.iter().map(|(_, x)| x)) {
+        if !out.iter().any(|(k, _)| *k == x.key()) {
+            out.push((x.key(), x.text.to_string()));
+        }
+    }
+    out
 }
 
 const fn h(id: &'static str, text: &'static str) -> Hint {
@@ -561,6 +583,24 @@ mod tests {
     /// The hint id for an error: the message and the program's line (1-based).
     fn id_of(message: &str, program: &str, line: usize) -> Option<&'static str> {
         for_error_in(message, program, line - 1).map(|x| x.id)
+    }
+
+    #[test]
+    fn the_compiler_catalog_has_every_hint() {
+        // (rapidr i18n compiler writes them into compiler.pot after the messages;
+        // a language's file translates them there, hint.<id> being the context)
+        let pot = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../rapidr-diagnostics/lang/compiler.pot")).expect("compiler.pot");
+        let template = rapidr_i18n::po::read_messages(&pot);
+        let entries = catalog_entries();
+        assert_eq!(entries.len(), HINTS.len() + FOREIGN_FUNCTIONS.len() + 1);
+        for (key, en) in &entries {
+            let found = template.iter().find(|m| &m.context == key);
+            assert_eq!(found.map(|m| m.id.as_str()), Some(en.as_str()), "{key} is missing from (or differs in) compiler.pot: rapidr i18n compiler");
+        }
+        assert_eq!(template.iter().filter(|m| m.context.starts_with("hint.")).count(), entries.len(), "compiler.pot has hints that no longer exist");
+        // (English is the hint's own text; a language without it, English too)
+        assert_eq!(hint("set").unwrap().text_in("en"), hint("set").unwrap().text);
+        assert_eq!(hint("set").unwrap().text_in("zz"), hint("set").unwrap().text);
     }
 
     #[test]
