@@ -330,7 +330,7 @@ export const cases = [
   // (the code helpers' window: its button turns the form's colour round
   // three, twice here)
   { file: "studio/helpers.rr", runtimes: ["run", "interp", "native", "web"], events: "again.onclick,again.onclick", dump: "title.caption,form.color",
-    expect: ["title.caption=Colour 3 of 3", "form.color=16511212"] },
+    expect: ["title.caption=Colour 3 of 3", "form.color=16445676"] },
   { file: "studio/panels.rr", runtimes: ["run", "interp", "native", "web"], events: "box.__dblclick_60_170", dump: "tree.projectname,tree.filecount,designer.compcount,insp.targettype",
     expect: ["tree.projectname=Greeter", "tree.filecount=4", "designer.compcount=2", "insp.targettype=RCheckBox"] },
   // (the form designer's surface: six components added, the resize

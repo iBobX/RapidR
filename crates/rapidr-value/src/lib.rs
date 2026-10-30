@@ -1358,7 +1358,7 @@ pub fn shared_builtin(key: &str, args: &[Value]) -> Option<Result<Value, String>
         "__null" => return Some(Ok(Value::Null)),
         // FORMAT$: a specifier RapidQ's Format refuses is a run-time error
         // (the program's own, with its line).
-        "format" => return Some(format::try_format(&arg(0).to_string_val(), args.get(1..).unwrap_or(&[])).map(Value::String)),
+        "format" => return Some(format::try_format(&arg(0).to_string_val(), args.get(1..).unwrap_or(&[])).map(|s| Value::String(s.into()))),
         "__lastoftype" => return Some(Ok(rp_last_of_type(&arg(0)))),
         "__lone_equals" => return Some(Ok(rp_lone_equals(&arg(0)))),
         "__environ_set" => return Some(Ok(builtins::rp_environ_set(&arg(0)))),

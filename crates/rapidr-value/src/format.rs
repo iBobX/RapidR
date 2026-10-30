@@ -125,7 +125,7 @@ pub fn try_format(fmt: &str, args: &[Value]) -> Result<String, String> {
         let text = match kind.to_ascii_lowercase() {
             's' => {
                 let s = match arg {
-                    Value::String(s) => s.clone(),
+                    Value::String(s) => s.as_str().to_string(),
                     _ => String::new(),
                 };
                 match prec {

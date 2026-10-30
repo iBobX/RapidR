@@ -52,6 +52,9 @@ d = 99999.9999999999
 Show("near", FORMAT$("%.2f|%f", d, d))
 Show("small", FORMAT$("%.2f|%f|%.9f|%.2f", 0.00001, 1E-10, 0.000001, 1000000))
 Show("big", FORMAT$("%.2f|%f", 1E15, 1E15))
+' (a whole part of more than 18 digits is the scientific form)
+Show("huge17", FORMAT$("%f|%n|%.0f|%.3f", 1E17, 1E17, 123456789012345678, 5E17))
+Show("huge18", FORMAT$("%f|%n|%m|%.3f|%f", 1E18, 1E19, 5E18, -1E18, 1234567890123456789))
 ' exponent and general
 Show("e", FORMAT$("%e|%.2e|%.0e|%.1e|%.5e|%.18e|%.19e", 1234.5, 1234.5, 1234.5, 1234.5, 1234.5, 1234.5, 1234.5))
 Show("e2", FORMAT$("%e|%e|%.3e|%.0e", 0, -0.04, 0.00001, 2.675))
