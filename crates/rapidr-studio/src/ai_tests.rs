@@ -959,3 +959,61 @@ fn walk(dir: &std::path::Path) -> Vec<std::path::PathBuf> {
     }
     out
 }
+
+/// The changes left waiting are kept in the chat's state and given back
+/// when it is opened again (Robert 2026-10-28: after a restart they were
+/// gone, "can't apply again"); decided ones aren't kept; a state without
+/// them is as it was.
+#[test]
+fn waiting_changes_go_with_the_chat() {
+    let state = r#"{"marks":[1],"transcript":"x"}"#;
+    let edit = Proposal { kind: "edit".into(), path: "main.rr".into(), old: "A\n".into(), new: "B\n".into(), summary: "B".into(), ..Proposal::default() };
+    let done = Proposal { kind: "create".into(), path: "x.svg".into(), new: "<svg/>".into(), decision: "applied".into(), ..Proposal::default() };
+    let kept = with_pending(state, &[edit.clone(), done]);
+    let (back, pending) = take_pending(&kept);
+    assert_eq!(pending, vec![edit]);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&back).unwrap(), serde_json::from_str::<serde_json::Value>(state).unwrap());
+    // (none waiting: nothing added; an old chat: as it was)
+    assert_eq!(take_pending(&with_pending(state, &[])).1, Vec::new());
+    assert_eq!(take_pending(state), (state.to_string(), Vec::new()));
+    assert_eq!(take_pending("not json").1, Vec::new());
+}
+
+/// An AI app's calls (Studio's MCP server, CallTool): the assistant's tools
+/// on the project, never a hidden file, never past the project's listed
+/// files where its folder is a home folder; what it proposes waits.
+#[test]
+fn an_outside_ai_apps_calls() {
+    let dir = std::env::temp_dir().join(format!("rapidr-mcp-calls-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join(".secret")).unwrap();
+    std::fs::write(dir.join("main.rr"), "PRINT \"Hello\"\n").unwrap();
+    std::fs::write(dir.join("notes.txt"), "a note\n").unwrap();
+    std::fs::write(dir.join(".secret/key.txt"), "not for AI apps\n").unwrap();
+    let folder = crate::slashes(&dir.to_string_lossy());
+    let t = "mcp_outside_tools";
+    assert!(set(t, "projectfolder", &s(folder.clone())));
+    assert!(set(t, "projectfiles", &s("main.rr")));
+    assert!(set(t, "mainfile", &s("main.rr")));
+    let call_tool = |tool: &str, args: &str| call(t, "calltool", &[s(tool), s(args)]).unwrap().to_string_val();
+    let failed = || get(t, "callfailed").unwrap().to_bool();
+    assert!(call_tool("read_file", r#"{"path": "main.rr"}"#).contains("Hello") && !failed());
+    assert!(call_tool("read_file", r#"{"path": ".secret/key.txt"}"#).contains("hidden") && failed());
+    assert!(call_tool("read_file", r#"{"path": "../x.rr"}"#).contains("outside the project") && failed());
+    // (a file in the folder, not a listed one: fine in a project's own folder)
+    assert!(!call_tool("read_file", r#"{"path": "notes.txt"}"#).is_empty() && !failed());
+    assert!(outside_path_ok("/Users", &["main.rr".into()], "notes.txt").is_err(), "a shallow folder: only the listed files");
+    assert!(outside_path_ok("/Users", &["main.rr".into()], "main.rr").is_ok());
+    // (a change: proposed, waiting; nothing written)
+    let said = call_tool("propose_edit", r#"{"path": "main.rr", "edits": [{"old_text": "PRINT \"Hello\"", "new_text": "PRINT \"Hi\""}], "summary": "Says hi."}"#);
+    assert!(!failed(), "{said}");
+    assert_eq!(get(t, "proposalcount").unwrap().to_i64(), 1);
+    assert_eq!(get(t, "calltarget").unwrap().to_string_val(), "main.rr");
+    assert_eq!(std::fs::read_to_string(dir.join("main.rr")).unwrap(), "PRINT \"Hello\"\n", "nothing is written");
+    // (no change tools when the permission is read-only)
+    assert!(set(t, "permission", &s("read-only")));
+    assert!(!call(t, "toolnames", &[]).unwrap().to_string_val().contains("propose_edit"));
+    assert_eq!(call(t, "toolkind", &[s("propose_edit")]).unwrap().to_string_val(), "change");
+    assert_eq!(call(t, "toolkind", &[s("read_file")]).unwrap().to_string_val(), "read");
+    let _ = std::fs::remove_dir_all(&dir);
+}

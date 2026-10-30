@@ -89,7 +89,7 @@ fn rename<R: Runtime>(rt: R, name: &str, old: String, new: String) {
     rt.fire_then(
         name,
         "onrename",
-        &[Value::String(old.clone()), Value::String(new.clone()), int(0)],
+        &[Value::String(old.clone().into()), Value::String(new.clone().into()), int(0)],
         Box::new(move |args: &[Value]| {
             if !args.get(2).is_some_and(truth) {
                 with_mut(&n, |m| m.apply_rename(&old, &new));
@@ -124,12 +124,12 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
         }
         // ComponentNames(ExceptPath): the names the other files' CREATE
         // blocks make, separated by commas (a designer's ReservedNames)
-        "componentnames" => Value::String(with(name, |m| m.component_names(&s(0)).join(",")).unwrap_or_default()),
+        "componentnames" => Value::String(with(name, |m| m.component_names(&s(0)).join(",")).unwrap_or_default().into()),
         "file" => {
             let i = arg(0).to_i64();
-            Value::String(with(name, |m| usize::try_from(i).ok().and_then(|i| m.project.file(i)).map(|f| f.path.clone())).flatten().unwrap_or_default())
+            Value::String(with(name, |m| usize::try_from(i).ok().and_then(|i| m.project.file(i)).map(|f| f.path.clone())).flatten().unwrap_or_default().into())
         }
-        "filekind" => Value::String(with(name, |m| m.file(&s(0)).map(|f| f.kind.as_str().to_string())).flatten().unwrap_or_default()),
+        "filekind" => Value::String(with(name, |m| m.file(&s(0)).map(|f| f.kind.as_str().to_string())).flatten().unwrap_or_default().into()),
         "addfile" => {
             let kind = model::parse_kind(&s(1));
             if args.len() > 1 && !s(1).trim().is_empty() && kind.is_none() {
@@ -156,7 +156,7 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             basic_bool(on)
         }
         "newfile" => {
-            let Some(kind) = model::parse_kind(&s(0)) else { return Some(Value::String(String::new())) };
+            let Some(kind) = model::parse_kind(&s(0)) else { return Some(Value::String(String::new().into())) };
             let wanted = (args.len() > 1).then(|| s(1));
             let path = with_mut(name, |m| {
                 let path = m.free_name(kind, wanted.as_deref());
@@ -167,7 +167,7 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
                 path
             });
             rt.focus(name);
-            Value::String(path)
+            Value::String(path.into())
         }
         "rename" => {
             let Some(old) = file_arg(name, args.first().map(Value::to_string_val)) else { return Some(int(0)) };
@@ -214,7 +214,7 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             }
             basic_bool(ok)
         }
-        "projecttext" => Value::String(with(name, |m| m.project.to_toml()).unwrap_or_default()),
+        "projecttext" => Value::String(with(name, |m| m.project.to_toml()).unwrap_or_default().into()),
         "expandall" => {
             with_mut(name, |m| m.open_all(true));
             int(0)
@@ -232,12 +232,12 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
 pub fn rt_get<R: Runtime>(_rt: R, name: &str, prop: &str) -> Option<Value> {
     let m = |f: &dyn Fn(&ProjectTree) -> Value| with(name, f).unwrap_or_else(|| f(&ProjectTree::default()));
     Some(match prop {
-        "project" => m(&|t| Value::String(t.path.clone())),
-        "projectname" => m(&|t| Value::String(if t.loaded { t.project.name.clone() } else { String::new() })),
+        "project" => m(&|t| Value::String(t.path.clone().into())),
+        "projectname" => m(&|t| Value::String(if t.loaded { t.project.name.clone().into() } else { String::new().into() })),
         "showfiles" => m(&|t| basic_bool(t.show_files)),
         "showforms" => m(&|t| basic_bool(t.show_forms)),
         "showcomponents" => m(&|t| basic_bool(t.show_components)),
-        "selected" => m(&|t| Value::String(ProjectTree::public(&t.selected))),
+        "selected" => m(&|t| Value::String(ProjectTree::public(&t.selected).into())),
         "selectedkind" => m(&|t| Value::String(ProjectTree::kind_of_key(&t.selected).into())),
         "filecount" => m(&|t| int(t.project.file_count() as i64)),
         "modified" => m(&|t| basic_bool(t.modified)),
@@ -279,8 +279,8 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
 /// What the user did.
 pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
     match action {
-        User::Select(key) => rt.fire(name, "onselect", &[Value::String(ProjectTree::public(&key))]),
-        User::Open(key) => rt.fire(name, "onopen", &[Value::String(ProjectTree::public(&key))]),
+        User::Select(key) => rt.fire(name, "onselect", &[Value::String(ProjectTree::public(&key).into())]),
+        User::Open(key) => rt.fire(name, "onopen", &[Value::String(ProjectTree::public(&key).into())]),
         User::Rename(old, new) => rename(rt, name, old, new),
         User::Named(old, new) => {
             let kind = with_mut(name, |m| {
@@ -288,14 +288,14 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                 m.new_file = None;
                 m.file(&new).map(|f| f.kind.as_str().to_string()).unwrap_or_default()
             });
-            rt.fire(name, "onnewfile", &[Value::String(new), Value::String(kind)]);
+            rt.fire(name, "onnewfile", &[Value::String(new.into()), Value::String(kind.into())]);
         }
         User::Delete(path) => {
             let n = name.to_string();
             rt.fire_then(
                 name,
                 "ondelete",
-                &[Value::String(path.clone()), int(0)],
+                &[Value::String(path.clone().into()), int(0)],
                 Box::new(move |args: &[Value]| {
                     if !args.get(1).is_some_and(truth) {
                         let before = with(&n, |m| m.selected.clone()).unwrap_or_default();
@@ -304,7 +304,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
                             m.selected.clone()
                         });
                         if after != before {
-                            rt.fire(&n, "onselect", &[Value::String(ProjectTree::public(&after))]);
+                            rt.fire(&n, "onselect", &[Value::String(ProjectTree::public(&after).into())]);
                         }
                     }
                     rt.invalidate();
@@ -313,7 +313,7 @@ pub fn rt_user<R: Runtime>(rt: R, name: &str, action: User) {
         }
         User::Move(path, new, index) => {
             with_mut(name, |m| m.apply_move(&path, &new, index));
-            rt.fire(name, "onmove", &[Value::String(path), Value::String(new), int(index as i64)]);
+            rt.fire(name, "onmove", &[Value::String(path.into()), Value::String(new.into()), int(index as i64)]);
         }
     }
 }

@@ -634,6 +634,14 @@ pub fn script_input<P: Program>(p: P, desk: &mut Desktop, store: &dyn Store, inp
                 desk.mouse_up(store, &form, at, Button::Left, Mods::NONE, Source::Script);
             }
         }
+        ScriptInput::RightClick { comp, x, y } => {
+            if let Some((form, (ox, oy))) = place_of(p, desk, store, &comp) {
+                let at = ((ox + x) as f64 + 0.5, (oy + y) as f64 + 0.5);
+                desk.mouse_move(store, &form, at.0, at.1, Mods::NONE, Source::Script);
+                desk.mouse_down(store, &form, at, Button::Right, Mods::NONE, Source::Script);
+                desk.mouse_up(store, &form, at, Button::Right, Mods::NONE, Source::Script);
+            }
+        }
         ScriptInput::Step { form, comp, step } => {
             desk.test_action(store, &form, &comp, &step);
         }

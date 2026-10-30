@@ -14,6 +14,13 @@ pub fn method(name: &str, comp_type: &str, method: &str, args: &[Value]) -> Opti
     match method {
         "hidetitlebar" | "showtitlebar" if form => title_bar(name, method == "showtitlebar"),
         "shapeform" if form => shape_form(name, args),
+        // (RapidR's: the form as drawn, to a file — the program's own windows only)
+        "saveimage" if form => {
+            #[cfg(feature = "gui")]
+            return Some(v_int(crate::ui::save_form_image(name, &args.first().map(Value::to_string_val).unwrap_or_default()).is_ok() as i64));
+            #[cfg(not(feature = "gui"))]
+            return Some(v_int(0));
+        }
         m if form && rapidr_value::mdi::qform_method(m, 0).is_some() => {
             // (a QFORM has no MDI children: nothing to arrange; a QFORMMDI's)
             if rapidr_value::mdi::is_mdi(name) {
@@ -68,7 +75,7 @@ fn title_bar(name: &str, show: bool) {
 /// leaves the form as it was (RapidQ's runtime raises "Cannot open file
 /// …", which a GUI program's message box reports before going on).
 fn shape_form(name: &str, args: &[Value]) {
-    let source = args.first().cloned().unwrap_or(Value::String(String::new()));
+    let source = args.first().cloned().unwrap_or(Value::String(String::new().into()));
     let transparent = args.get(1).map_or(0xFF_FFFF, Value::to_i64);
     match rapidr_value::shape::shape_form(name, &source, transparent) {
         Ok(_) => {

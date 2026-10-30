@@ -438,6 +438,20 @@ fn uses_studio_components(path: &str) -> bool {
     text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION"))
 }
 
+/// Whether the program uses RArchive or COMPRESS$ / DECOMPRESS$: a native
+/// build gets the runtime's `archive` feature (the zip, 7z, tar … code)
+/// only then — the lean-builds rule, docs/lean-builds-and-export-plan.md.
+/// Its words after `$INCLUDE`s (and their `$`s dropped: `COMPRESS$` is
+/// `COMPRESS`); a word in a comment or a string only adds code, never
+/// removes what the program needs.
+fn uses_archive(path: &str) -> bool {
+    let text = match rapidr_preprocessor::preprocess_file(Path::new(path), Default::default()) {
+        Ok(p) => p.source.to_ascii_uppercase(),
+        Err(_) => fs::read_to_string(path).unwrap_or_default().to_ascii_uppercase(),
+    };
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RARCHIVE" | "COMPRESS" | "DECOMPRESS"))
+}
+
 /// `rapidr codegen <file> [folder]`: the Rust project for a program, in
 /// `<file>_rust` beside it (or the folder), to read or build by hand.
 fn codegen_source_file(path: &str, output_dir: Option<String>) -> ExitCode {
@@ -510,17 +524,27 @@ fn generate_rust_project(path: &str, out_dir: &Path, force_web: bool) -> Result<
     if target == AppTarget::Desktop && gui {
         rust_source.insert_str(0, "#![windows_subsystem = \"windows\"]\n");
     }
+    let archive = uses_archive(path);
     let cargo_toml = if target == AppTarget::Web {
-        rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy())
+        let toml = rapidr_codegen_rust::generate_cargo_toml_web(stem, &runtime_path.to_string_lossy());
+        // (the web runtime has RArchive by default — the interpreter's wasm
+        // needs it —: a program that doesn't use it is built without)
+        if archive {
+            toml
+        } else {
+            toml.replacen("rapidr-runtime-web = { path = ", "rapidr-runtime-web = { default-features = false, path = ", 1)
+        }
     } else {
         let toml = rapidr_codegen_rust::generate_cargo_toml(stem, &runtime_path.to_string_lossy());
         // (RapidR Studio's components — RPROJECT, RLANGUAGESERVICE,
         // RPROGRAMSESSION — come with the runtime's `studio` feature, only in
-        // the programs that use them: the language service is large)
-        if uses_studio_components(path) {
-            toml.replacen("rapidr-runtime-core = { path = ", "rapidr-runtime-core = { features = [\"studio\"], path = ", 1)
-        } else {
+        // the programs that use them: the language service is large; RArchive
+        // and COMPRESS$ / DECOMPRESS$ with its `archive` feature, the same way)
+        let features: Vec<&str> = [(uses_studio_components(path), "\"studio\""), (archive, "\"archive\"")].into_iter().filter(|(on, _)| *on).map(|(_, f)| f).collect();
+        if features.is_empty() {
             toml
+        } else {
+            toml.replacen("rapidr-runtime-core = { path = ", &format!("rapidr-runtime-core = {{ features = [{}], path = ", features.join(", ")), 1)
         }
     };
     fs::create_dir_all(&src_dir).map_err(|e| format!("Cannot create {}: {e}", src_dir.display()))?;

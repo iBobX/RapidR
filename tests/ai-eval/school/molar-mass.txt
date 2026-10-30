@@ -1,0 +1,14 @@
+# School app: a molar mass calculator (a formula typed in, a number out).
+Build me a molar mass calculator: I type a chemical formula like H2O and it shows the molar mass in g/mol
+#! test water
+#! type /formula|compound|molecule|substance|input|text/ H2O
+#! click? /calc|compute|molar|mass|find|^=$|^go$/
+#! expect /18\.0/
+#! test salt
+#! type /formula|compound|molecule|substance|input|text/ NaCl
+#! click? /calc|compute|molar|mass|find|^=$|^go$/
+#! expect /58\.4/
+#! test brackets
+#! type /formula|compound|molecule|substance|input|text/ Ca(OH)2
+#! click? /calc|compute|molar|mass|find|^=$|^go$/
+#! expect /74\.[01]/

@@ -95,6 +95,31 @@ struct Tools {
     turn_folder: String,
     /// The model's window is small: the lite instructions and tools (K8).
     lite: bool,
+    /// The last CallTool's outcome (an AI app's call through Studio's MCP
+    /// server: CallFailed, CallNote, CallTarget, CallRisk).
+    last_call: Option<ai_tools::Outcome>,
+    /// RAI's use of the user's running program (it asks once a run, a card
+    /// in the chat): the run the user allowed it for.
+    app_run: Option<u64>,
+    /// This turn's question about it: `None` none asked, `Some(None)` the
+    /// card waits, `Some(Some(allowed))` answered.
+    app_asked: Option<Option<bool>>,
+    /// The calls waiting for that answer: (their ticket, the input).
+    app_held: Vec<(String, Json)>,
+    /// The held calls sent once allowed: their ticket, the program's.
+    app_sent: HashMap<String, String>,
+    /// The last held call's number (its ticket `ask:N`).
+    app_next: u64,
+}
+
+/// Where a call RAI held for the user's answer is.
+enum Held {
+    /// The card still waits.
+    Asking,
+    /// Sent to the program: its ticket there.
+    Sent(String),
+    /// Not done (the user didn't allow it, or it couldn't be sent).
+    Done(ToolOutcome),
 }
 
 /// A new program Studio wrote: its folder, each file it wrote (with the
@@ -116,7 +141,39 @@ fn with<R>(name: &str, f: impl FnOnce(&mut Tools) -> R) -> R {
 }
 
 fn s(v: impl Into<String>) -> Value {
-    Value::String(v.into())
+    Value::String(v.into().into())
+}
+
+/// The key a kept chat's state holds its waiting changes under.
+const PENDING_KEY: &str = "studioPendingChanges";
+
+/// A chat's state (RAI.ChatState, JSON) with the changes still waiting for
+/// the user (not decided, a new program not created) kept in it.
+pub(crate) fn with_pending(state: &str, proposals: &[Proposal]) -> String {
+    let waiting: Vec<serde_json::Value> = proposals
+        .iter()
+        .filter(|p| p.decision.is_empty())
+        .map(|p| serde_json::json!({"kind": p.kind, "path": p.path, "old": p.old, "new": p.new, "summary": p.summary, "project": p.project, "title": p.title, "main": p.main}))
+        .collect();
+    let Ok(serde_json::Value::Object(mut o)) = serde_json::from_str::<serde_json::Value>(state) else { return state.to_string() };
+    o.remove(PENDING_KEY);
+    if !waiting.is_empty() {
+        o.insert(PENDING_KEY.into(), serde_json::Value::Array(waiting));
+    }
+    serde_json::Value::Object(o).to_string()
+}
+
+/// A kept chat's state without its waiting changes, and those changes.
+pub(crate) fn take_pending(state: &str) -> (String, Vec<Proposal>) {
+    let Ok(serde_json::Value::Object(mut o)) = serde_json::from_str::<serde_json::Value>(state) else { return (state.to_string(), Vec::new()) };
+    let Some(serde_json::Value::Array(items)) = o.remove(PENDING_KEY) else { return (state.to_string(), Vec::new()) };
+    let t = |v: &serde_json::Value, k: &str| v.get(k).and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+    let pending = items
+        .iter()
+        .filter(|v| !t(v, "path").is_empty() && matches!(t(v, "kind").as_str(), "edit" | "create" | "project"))
+        .map(|v| Proposal { kind: t(v, "kind"), path: t(v, "path"), old: t(v, "old"), new: t(v, "new"), summary: t(v, "summary"), project: t(v, "project"), title: t(v, "title"), main: v.get("main").and_then(serde_json::Value::as_bool).unwrap_or(false), decision: String::new() })
+        .collect();
+    (serde_json::Value::Object(o).to_string(), pending)
 }
 
 /// Installs the project tools for RAI.AttachComponent (once a
@@ -141,6 +198,65 @@ fn factory(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvide
 impl Tools {
     fn may_propose(&self) -> bool {
         !self.permission.eq_ignore_ascii_case("read-only")
+    }
+
+    /// An app tool's call (RAI's: the running program's eyes and hands).
+    /// Looking at it and using it wait for the user once a run — the
+    /// chat's card, "Allow for this run" or "Don't allow" —; letting time
+    /// pass doesn't. Reading only: none of it.
+    fn app_call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        let run = crate::session::run_number();
+        if !self.may_propose() || name == "app_wait" || run.is_none() || run == self.app_run {
+            return ai_tools::app_call(name, input, self.may_propose());
+        }
+        if self.app_asked == Some(Some(false)) {
+            return app_refused(name);
+        }
+        if self.app_asked != Some(None) {
+            self.app_asked = Some(None);
+        }
+        self.app_next += 1;
+        let ticket = format!("ask:{}", self.app_next);
+        self.app_held.push((ticket.clone(), input.clone()));
+        ToolOutcome::later(ticket)
+    }
+
+    /// A held call (`ask:N`): still asking, sent (the program's ticket),
+    /// or done.
+    fn app_held(&mut self, name: &str, ticket: &str) -> Held {
+        if let Some(sent) = self.app_sent.get(ticket) {
+            return Held::Sent(sent.clone());
+        }
+        match self.app_asked {
+            Some(None) => Held::Asking,
+            Some(Some(true)) => {
+                let Some(k) = self.app_held.iter().position(|(t, _)| t == ticket) else { return Held::Done(app_refused(name)) };
+                let (_, input) = self.app_held.remove(k);
+                let out = ai_tools::app_call(name, &input, true);
+                if out.risk == rapidr_ai::rai::LATER {
+                    self.app_sent.insert(ticket.to_string(), out.target.clone());
+                    Held::Sent(out.target)
+                } else {
+                    Held::Done(out)
+                }
+            }
+            _ => {
+                self.app_held.retain(|(t, _)| t != ticket);
+                Held::Done(app_refused(name))
+            }
+        }
+    }
+
+    /// The user's answer to the card ("Allow for this run": the program
+    /// may be looked at and used until this run ends).
+    fn app_answer(&mut self, allowed: bool) {
+        if self.app_asked != Some(None) {
+            return;
+        }
+        self.app_asked = Some(Some(allowed));
+        if allowed {
+            self.app_run = crate::session::run_number();
+        }
     }
 
     fn project(&self) -> Project<'_> {
@@ -287,7 +403,20 @@ struct Handle {
 
 impl ToolProvider for Handle {
     fn tools(&self) -> Vec<Tool> {
-        with(&self.name, |t| if t.lite { ai_tools::tools_lite(t.may_propose()) } else { ai_tools::tools(t.may_propose()) })
+        with(&self.name, |t| {
+            if t.lite {
+                return ai_tools::tools_lite(t.may_propose());
+            }
+            let mut tools = ai_tools::tools(t.may_propose());
+            // (while the user's program runs: its eyes and hands — offered
+            // only then, so the request stays small the rest of the time;
+            // never when RAI only reads: looking at the program shows what
+            // it shows, private data too)
+            if t.may_propose() && crate::session::any_running() {
+                tools.extend(ai_tools::app_tools(true));
+            }
+            tools
+        })
     }
 
     fn instructions(&self) -> String {
@@ -304,6 +433,25 @@ impl ToolProvider for Handle {
 
     fn facts(&self) -> String {
         with(&self.name, |t| facts(t))
+    }
+
+    fn finish_call(&mut self, name: &str, ticket: &str) -> Option<ToolOutcome> {
+        // (a call held for the user's answer: sent once allowed)
+        let ticket = if ticket.starts_with("ask:") {
+            match with(&self.name, |t| t.app_held(name, ticket)) {
+                Held::Asking => return None,
+                Held::Done(out) => return Some(out),
+                Held::Sent(sent) => sent,
+            }
+        } else {
+            ticket.to_string()
+        };
+        let (ok, text) = crate::session::app_take(&ticket)?;
+        Some(ai_tools::app_done(name, ok, text))
+    }
+
+    fn waits_for_user(&self, ticket: &str) -> bool {
+        ticket.starts_with("ask:") && with(&self.name, |t| t.app_asked == Some(None) && !t.app_sent.contains_key(ticket))
     }
 
     fn begin_turn(&mut self) {
@@ -350,10 +498,20 @@ impl ToolProvider for Handle {
             t.asked_again = false;
             t.recipe.clear();
             t.first_errors = 0;
+            // (RAI's question about the running program is this turn's: a
+            // "Don't allow" lasts the answer; "Allow for this run", the run)
+            t.app_asked = None;
+            t.app_held.clear();
+            t.app_sent.clear();
         });
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        // (the running program's eyes and hands: answered later, by the
+        // program — finish_call)
+        if name.starts_with("app_") {
+            return with(&self.name, |t| t.app_call(name, input));
+        }
         with(&self.name, |t| {
             let may = t.may_propose();
             // (the same file read again in the same answer, unchanged: not
@@ -638,6 +796,17 @@ impl Tools {
         if self.first_errors > 0 && self.touched && !self.broken {
             out.push(("fixed".to_string(), format!("✓ Fixed {}", plural(self.first_errors, "error"))));
         }
+        // (RAI asks before it looks at or uses the running program: once a
+        // run — Studio's own links, marked)
+        match self.app_asked {
+            Some(None) => {
+                let (allow, deny) = (rapidr_ai::rai::own_link("ai:app-allow"), rapidr_ai::rai::own_link("ai:app-deny"));
+                out.push(("app".to_string(), format!("✋ RAI wants to click and type in your running program. It sees whatever the program shows, including private data.\u{2003}\u{2003}[Allow for this run]({allow})\u{2003}\u{2003}[Don't allow]({deny})")));
+            }
+            Some(Some(true)) => out.push(("app".to_string(), "✓ You allowed RAI to use your running program for this run".to_string())),
+            Some(Some(false)) => out.push(("app".to_string(), "× You didn't allow RAI to use your running program".to_string())),
+            None => {}
+        }
         out
     }
 
@@ -657,9 +826,13 @@ impl Tools {
             {
                 std::path::Path::new(root).exists()
             }
+            // (the page's store has no folders: a folder with any of the
+            // files to write — or a project file — is another project's,
+            // never written over)
             #[cfg(target_arch = "wasm32")]
             {
-                rapidr_value::objects::read_file(&crate::join(root, &main_rel)).is_ok() || rapidr_value::objects::read_file(&crate::join(root, &proj_file)).is_ok()
+                files.iter().map(|p| p.path.as_str()).chain([proj_file.as_str()]).any(|rel| rapidr_value::objects::read_file(&crate::join(root, rel)).is_ok())
+                    || rapidr_value::objects::read_file(&crate::join(root, &main_rel)).is_ok()
             }
         };
         let root = (1..1000).map(|k| crate::join(&base, &if k == 1 { name.clone() } else { format!("{name}{k}") })).find(|r| !taken(r)).ok_or("there are a thousand folders of that name already")?;
@@ -808,6 +981,19 @@ fn one_line(t: &str) -> String {
 }
 
 /// `n` and a noun, its plural with s.
+/// A call on the running program the user didn't allow (the chat's card).
+fn app_refused(name: &str) -> ToolOutcome {
+    let note = ai_tools::activity(name, &Json::Null).unwrap_or_else(|| name.to_string());
+    ToolOutcome {
+        content: "The user didn't allow you to look at or use their running program (they answered \"Don't allow\" in RapidR Studio's chat). Don't try again in this answer: say what you would have looked at or done instead.".into(),
+        is_error: true,
+        note: format!("{note}: you didn't allow it"),
+        read: None,
+        risk: "ui",
+        target: String::new(),
+    }
+}
+
 fn plural(n: usize, noun: &str) -> String {
     if n == 1 {
         format!("1 {noun}")
@@ -853,9 +1039,71 @@ fn list_tree(root: &std::path::Path) -> Vec<String> {
     out
 }
 
+/// A path an AI app gave (Studio's MCP server, CallTool): never a hidden
+/// file or folder (`.git/…`, `.env`, `.ssh/…`), and in a project whose
+/// folder is a home folder or a disk's root (a lone file opened there) only
+/// the project's own listed files — an AI app reads the project, nothing
+/// else of the user's.
+fn outside_path_ok(folder: &str, files: &[String], path: &str) -> Result<(), String> {
+    let rel = ai_tools::project_path(folder, path)?;
+    if rel.split('/').any(|part| part.starts_with('.')) {
+        return Err(format!("{path}: a hidden file or folder — AI apps can't read or change those"));
+    }
+    let f = crate::slashes(folder.trim_end_matches(['/', '\\']));
+    let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).map(|h| crate::slashes(h.trim_end_matches(['/', '\\']))).unwrap_or_default();
+    let shallow = f.matches('/').count() <= 1 || f.ends_with(':') || (!home.is_empty() && f.eq_ignore_ascii_case(&home));
+    if shallow && !files.contains(&rel) {
+        return Err(format!("{path}: not one of the project's files (the project's folder is {f}: AI apps reach only its listed files there)"));
+    }
+    Ok(())
+}
+
+impl Tools {
+    /// An AI app's call (Studio's MCP server): the assistant's tools, on
+    /// the project and the changes waiting for the user, with no turn of
+    /// a conversation around it — what it proposes waits for the user's
+    /// review like the assistant's.
+    fn outside_call(&mut self, name: &str, input: &Json) -> ai_tools::Outcome {
+        let mut input = input.clone();
+        if let Some(o) = input.as_object_mut() {
+            o.remove("_rewrite_ok");
+        }
+        for key in ["path"] {
+            if let Some(p) = input.get(key).and_then(Json::as_str) {
+                if let Err(why) = outside_path_ok(&self.folder, &self.files, p) {
+                    return ai_tools::Outcome { content: why.clone(), is_error: true, note: format!("Refused: {why}"), read: None, risk: "read", target: p.to_string() };
+                }
+            }
+        }
+        // (a decision recorded for no conversation: nothing waits for it)
+        self.records.clear();
+        let may = self.may_propose();
+        let (files, buffers) = self.with_waiting();
+        let mut proposals = std::mem::take(&mut self.proposals);
+        let project = Project { folder: &self.folder, files: &files, main: &self.main, compat: &self.compat, buffers: &buffers };
+        let out = ai_tools::run(name, &input, &project, &mut proposals, may);
+        self.proposals = proposals;
+        out
+    }
+}
+
+/// How a tool acts, for an AI app: "read", or "change" for the proposing
+/// ones.
+fn tool_kind(name: &str) -> &'static str {
+    if matches!(name, "propose_edit" | "write_file" | "create_project") {
+        "change"
+    } else {
+        "read"
+    }
+}
+
 pub fn get(name: &str, prop: &str) -> Option<Value> {
     with(name, |t| {
         Some(match prop {
+            "callfailed" => crate::flag(t.last_call.as_ref().is_some_and(|o| o.is_error)),
+            "callnote" => s(t.last_call.as_ref().map(|o| o.note.clone()).unwrap_or_default()),
+            "calltarget" => s(t.last_call.as_ref().map(|o| o.target.clone()).unwrap_or_default()),
+            "callrisk" => s(t.last_call.as_ref().map(|o| o.risk.to_string()).unwrap_or_default()),
             "projectfolder" => s(t.folder.clone()),
             "projectfiles" => s(t.files.join("\n")),
             "mainfile" => s(t.main.clone()),
@@ -870,6 +1118,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "createdtitle" => s(t.created.as_ref().map(|c| c.title.clone()).unwrap_or_default()),
             "chatsfolder" => s(rapidr_ai::chats::location()),
             "lite" => crate::flag(t.lite),
+            "programuseasked" => crate::flag(t.app_asked == Some(None)),
             _ => return None,
         })
     })
@@ -885,7 +1134,7 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
             "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "programuseasked" | "callfailed" | "callnote" | "calltarget" | "callrisk" => {}
             "reviewfirst" => x.review_first = matches!(t.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "yes"),
             "runoutput" => {
                 x.run_output.clear();
@@ -939,6 +1188,13 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
             with(name, Tools::clear_decided);
             Value::Null
         }
+        // (the chat's card: RAI may look at and use the running program
+        // until this run ends, or not in this answer)
+        "allowprogramuse" => {
+            let allowed = int_arg(args, 0, 0) != 0;
+            with(name, |t| t.app_answer(allowed));
+            Value::Null
+        }
         "createproject" => {
             let folder = arg(0);
             s(with(name, |t| t.create_project(&folder).unwrap_or_else(|e| format!("error: {e}"))))
@@ -948,10 +1204,23 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "chatlist" => s(rapidr_ai::chats::list(&arg(0)).iter().map(|c| format!("{}\t{}\t{}\t{}", c.id, one_line(&c.title), c.updated, c.questions)).collect::<Vec<_>>().join("\n")),
         "searchchats" => s(rapidr_ai::chats::search(&arg(0), &arg(1)).iter().map(|(c, line)| format!("{}\t{}\t{}\t{}\t{}", c.id, one_line(&c.title), c.updated, c.questions, one_line(line))).collect::<Vec<_>>().join("\n")),
         "savechat" => {
+            // (the changes still waiting for the user kept with it: after a
+            // restart they can still be reviewed and applied — Robert
+            // 2026-10-28: "can't apply again")
+            let state = with(name, |t| with_pending(&arg(4), &t.proposals));
             // (the secrets the program holds, removed whatever their shape)
-            s(rapidr_ai::chats::save(&arg(0), &arg(1), &arg(2), &arg(3), &arg(4), &[]).unwrap_or_else(|e| format!("error: {e}")))
+            s(rapidr_ai::chats::save(&arg(0), &arg(1), &arg(2), &arg(3), &state, &[]).unwrap_or_else(|e| format!("error: {e}")))
         }
-        "loadchat" => s(rapidr_ai::chats::load(&arg(0), &arg(1)).unwrap_or_default()),
+        "loadchat" => {
+            let (state, pending) = take_pending(&rapidr_ai::chats::load(&arg(0), &arg(1)).unwrap_or_default());
+            // (the chat's own waiting changes, in place of the last chat's —
+            // none when it can't be read: another chat's never stay)
+            with(name, |t| {
+                t.proposals = pending;
+                t.carried.clear();
+            });
+            s(state)
+        }
         "deletechat" => {
             let kept = rapidr_ai::chats::raw(&arg(0), &arg(1)).unwrap_or_default();
             if rapidr_ai::chats::delete(&arg(0), &arg(1)) {
@@ -963,6 +1232,60 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "restorechat" => s(rapidr_ai::chats::restore(&arg(0), &arg(1)).unwrap_or_default()),
         "renamechat" => crate::flag(rapidr_ai::chats::rename(&arg(0), &arg(1), &arg(2))),
         "chattitle" => s(rapidr_ai::chats::title_of(&arg(0))),
+        // (an AI app's calls, through Studio's MCP server: the same tools)
+        "toolnames" => s(with(name, |t| ai_tools::tools(t.may_propose()).iter().map(|x| x.name.clone()).collect::<Vec<_>>().join("\n"))),
+        "tooldescription" | "toolschema" => {
+            let want = arg(0);
+            s(with(name, |t| {
+                ai_tools::tools(t.may_propose()).into_iter().find(|x| x.name == want).map(|x| if method == "tooldescription" { x.description } else { x.input_schema.to_string() }).unwrap_or_default()
+            }))
+        }
+        "toolkind" => s(tool_kind(&arg(0))),
+        "layoutreport" => s(with(name, |t| {
+            let (files, buffers) = t.with_waiting();
+            let project = Project { folder: &t.folder, files: &files, main: &t.main, compat: &t.compat, buffers: &buffers };
+            ai_tools::layout_report(&project.sources())
+        })),
+        "toolactivity" => {
+            let input: Json = serde_json::from_str(&arg(1)).unwrap_or(Json::Null);
+            s(ai_tools::activity(&arg(0), &input).unwrap_or_else(|| arg(0)))
+        }
+        "calltool" => {
+            let (tool, args_text) = (arg(0), arg(1));
+            let input: Json = serde_json::from_str(&args_text).unwrap_or_else(|_| json!({}));
+            s(with(name, |t| {
+                let out = t.outside_call(&tool, &input);
+                let content = out.content.clone();
+                t.last_call = Some(out);
+                content
+            }))
+        }
+        "auditcall" => {
+            // (the shared audit log: who, which tool, what it touched — a
+            // project's path, never a file's text — and how it went)
+            let line = json!({"time": rapidr_ai::audit::now_iso(), "source": "mcp", "op": "tool", "client": arg(0), "tool": arg(1), "target": arg(2), "decision": arg(3)});
+            rapidr_ai::audit::append(&line.to_string());
+            Value::Null
+        }
+        "auditcalls" => {
+            let n = usize::try_from(int_arg(args, 0, 50)).unwrap_or(50).clamp(1, 2000);
+            let lines: Vec<String> = rapidr_ai::audit::last(rapidr_ai::audit::KEEP)
+                .iter()
+                .filter_map(|l| serde_json::from_str::<Json>(l).ok())
+                .filter(|v| v["source"] == "mcp")
+                .map(|v| {
+                    let g = |k: &str| v[k].as_str().unwrap_or("").replace(['\t', '\n', '\r'], " ");
+                    format!("{}\t{}\t{}\t{}\t{}", g("time"), g("client"), g("tool"), g("target"), g("decision"))
+                })
+                .collect();
+            s(lines[lines.len().saturating_sub(n)..].join("\n"))
+        }
+        "clearaudit" => {
+            // (the MCP lines only: the assistant's stay)
+            let kept: Vec<String> = rapidr_ai::audit::last(rapidr_ai::audit::KEEP).into_iter().filter(|l| serde_json::from_str::<Json>(l).ok().is_none_or(|v| v["source"] != "mcp")).collect();
+            crate::flag(rapidr_ai::audit::replace(&kept))
+        }
+        "auditlocation" => s(rapidr_ai::audit::location()),
         "undocheck" => s(with(name, |t| t.undo_check())),
         "undofiles" => s(with(name, |t| t.undo_files().join("\n"))),
         "undodone" => crate::flag(with(name, Tools::undo_done)),

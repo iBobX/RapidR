@@ -1,0 +1,120 @@
+' Recipe: Keyboard matrix (key down / key up into an IN port)
+' Keywords: keyboard, keyboard matrix, key down, key up, OnKeyDown, OnKeyUp, key code, virtual key, scan, port, IN port, rows and columns, active low, bits, input, game controls, teclado, matriz de teclado, tecla, puerto de entrada, filas y columnas, entrada, teclado de la maquina, teclado, matriz do teclado, porta de entrada, linhas e colunas
+' Old computers read the keyboard as a matrix: 8 rows of 5 keys, a row
+' being 5 bits, and a key held down is a 0 bit (active low: a row with no
+' key is 1F). The window's OnKeyDown clears the key's bit and OnKeyUp sets it
+' again, from a table that says each key's row and bit. A program then asks
+' with IN: the port number is a mask that selects rows (a 0 bit selects
+' one), and what comes back is the AND of the selected rows. Press keys on
+' the keyboard: the matrix and the log follow. KeyPreview = 1 gives the
+' form the keys before the list that has the focus.
+'
+'   rapidr run keyboard_matrix.rr
+$THEME rapidr
+
+DECLARE SUB KeyDown (BYREF Key AS WORD, Shift AS INTEGER)
+DECLARE SUB KeyUp (BYREF Key AS WORD, Shift AS INTEGER)
+
+DIM layout(7) AS STRING            ' the keys of each row, left to right ("<" is Enter, "_" Space)
+DIM matrix(7) AS INTEGER           ' each row's 5 bits: 0 = pressed
+DIM keyRow(255) AS INTEGER, keyBit(255) AS INTEGER   ' from a key code to its row and bit (-1: no such key)
+
+CREATE Form AS RForm
+    Caption = "Keyboard Matrix": ClientWidth = 420: ClientHeight = 360
+    KeyPreview = 1
+    OnKeyDown = KeyDown
+    OnKeyUp = KeyUp
+    Center
+    CREATE Help AS RLabel: Caption = "Press keys: 1-0, Q-P, A-G, H-L and Enter, Z-B, N M Space.": Left = 16: Top = 12: Width = 388: END CREATE
+    CREATE MatrixView AS RListBox: Left = 16: Top = 40: Width = 388: Height = 136: Font.Name = "Courier New": END CREATE
+    CREATE Scan AS RLabel: Caption = "": Left = 16: Top = 186: Width = 388: Font.Name = "Courier New": END CREATE
+    CREATE EventLog AS RListBox: Left = 16: Top = 214: Width = 388: Height = 132: Font.Name = "Courier New": END CREATE
+END CREATE
+
+FUNCTION Hex2 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v), 2)
+END FUNCTION
+
+' A row's 5 bits as text, bit 4 first
+FUNCTION Bin5 (v AS INTEGER) AS STRING
+    Result = RIGHT$("00000" + BIN$(v AND &H1F), 5)
+END FUNCTION
+
+' The key a character stands for
+FUNCTION CodeOf (ch AS STRING) AS INTEGER
+    IF ch = "<" THEN
+        Result = 13                        ' Enter
+    ELSEIF ch = "_" THEN
+        Result = 32                        ' Space
+    ELSE
+        Result = ASC(ch)                   ' letters and digits: their capital letter's code
+    END IF
+END FUNCTION
+
+' IN: the port's 0 bits select rows; the answer is the AND of those rows
+FUNCTION PortIn (port AS INTEGER) AS INTEGER
+    DIM r AS INTEGER, v AS INTEGER
+    v = &H1F
+    FOR r = 0 TO 7
+        IF (port AND (1 SHL r)) = 0 THEN v = v AND matrix(r)
+    NEXT
+    Result = v
+END FUNCTION
+
+SUB ShowRow (r AS INTEGER)
+    DIM c AS INTEGER, keys AS STRING
+    FOR c = 1 TO 5
+        keys = keys + MID$(layout(r), c, 1) + " "
+    NEXT
+    MatrixView.Item(r) = "row " + STR$(r) + "   " + keys + "  " + Bin5(matrix(r))
+END SUB
+
+SUB ShowScan
+    Scan.Caption = "IN 00 (all rows) = " + Hex2(PortIn(&H00)) + "    IN FB (row 2) = " + Hex2(PortIn(&HFB))
+END SUB
+
+' One log line: the key, what it did to its row, and what IN 00 gives now
+SUB AddLog (key AS INTEGER, what AS STRING)
+    EventLog.AddItems IIF(key = 13, "Enter", IIF(key = 32, "Space", CHR$(key))) + " " + what + ": row " + STR$(keyRow(key)) + " -> " + Bin5(matrix(keyRow(key))) + "   IN 00 = " + Hex2(PortIn(&H00))
+    IF EventLog.ItemCount > 8 THEN EventLog.DelItems 0
+    EventLog.ItemIndex = EventLog.ItemCount - 1
+END SUB
+
+SUB KeyDown (BYREF Key AS WORD, Shift AS INTEGER)
+    IF Key > 255 THEN EXIT SUB
+    IF keyRow(Key) < 0 THEN EXIT SUB
+    matrix(keyRow(Key)) = matrix(keyRow(Key)) AND (NOT (1 SHL keyBit(Key)))       ' pressed: bit to 0
+    ShowRow keyRow(Key)
+    ShowScan
+    AddLog Key, "down"
+END SUB
+
+SUB KeyUp (BYREF Key AS WORD, Shift AS INTEGER)
+    IF Key > 255 THEN EXIT SUB
+    IF keyRow(Key) < 0 THEN EXIT SUB
+    matrix(keyRow(Key)) = matrix(keyRow(Key)) OR (1 SHL keyBit(Key))              ' released: bit to 1
+    ShowRow keyRow(Key)
+    ShowScan
+    AddLog Key, "up"
+END SUB
+
+SUB Setup
+    DIM r AS INTEGER, c AS INTEGER, ch AS STRING
+    layout(0) = "12345": layout(1) = "67890": layout(2) = "QWERT": layout(3) = "YUIOP"
+    layout(4) = "ASDFG": layout(5) = "HJKL<": layout(6) = "ZXCVB": layout(7) = "NM_  "
+    FOR r = 0 TO 255: keyRow(r) = -1: NEXT
+    FOR r = 0 TO 7
+        matrix(r) = &H1F                                  ' nothing pressed
+        FOR c = 1 TO 5
+            ch = MID$(layout(r), c, 1)
+            ' (the leftmost key is bit 4: a row's bits read as its keys look)
+            IF ch <> " " THEN keyRow(CodeOf(ch)) = r: keyBit(CodeOf(ch)) = 5 - c
+        NEXT
+        MatrixView.AddItems ""
+        ShowRow r
+    NEXT
+    ShowScan
+END SUB
+
+Setup
+Form.ShowModal

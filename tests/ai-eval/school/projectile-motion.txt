@@ -1,0 +1,8 @@
+# School app: projectile motion (angle and speed in, a trajectory drawn).
+Build me a projectile motion simulator: I set the angle and the speed, press Launch, and the trajectory is drawn
+#! test launch
+#! type /angle|degree/ 45
+#! type /speed|velocity|v0/ 30
+#! click /launch|fire|shoot|draw|simulate|start|go|run|plot/
+#! wait 10
+#! expect-picture-changed

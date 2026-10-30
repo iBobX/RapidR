@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>On this device</title>
+  <path d="M5 2.5H11A1.5 1.5 0 0 1 12.5 4V9A1.5 1.5 0 0 1 11 10.5H5A1.5 1.5 0 0 1 3.5 9V4A1.5 1.5 0 0 1 5 2.5Z" stroke="currentColor"/>
+  <path d="M1.5 12.5H14.5" stroke="currentColor"/>
+  <path d="M8 4.325Q8.378 6.047 10.1 6.425Q8.378 6.803 8 8.525Q7.622 6.803 5.9 6.425Q7.622 6.047 8 4.325Z" fill="currentColor"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <title>MIDI music (.mid, .midi)</title>
+  <path d="M5 2H20L27 9V30H5L5 2Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M20 2V9H27" stroke="#5B6478"/>
+  <path d="M11.5 13H20.5A1.5 1.5 0 0 1 22 14.5V23.5A1.5 1.5 0 0 1 20.5 25H11.5A1.5 1.5 0 0 1 10 23.5V14.5A1.5 1.5 0 0 1 11.5 13Z" fill="#FFFFFF" stroke="#6F42E5"/>
+  <path d="M14 20L14 25" stroke="#6F42E5"/>
+  <path d="M18 20L18 25" stroke="#6F42E5"/>
+  <rect x="12" y="13" width="3" height="7" fill="#6F42E5"/>
+  <rect x="17" y="13" width="3" height="7" fill="#6F42E5"/>
+</svg>

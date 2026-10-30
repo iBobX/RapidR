@@ -178,11 +178,11 @@ const DEFAULT_ICON_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewB
 /// `IcoHandle`), else RapidR's own. (Windows shows an empty slot for an
 /// icon it can't load; an empty status item can't even be clicked.)
 pub fn picture(hicon: Option<i64>) -> (usize, usize, Vec<u8>) {
-    let own = hicon.and_then(crate::handles::icon_source).filter(|s| !s.is_empty()).map(Value::String);
+    let own = hicon.and_then(crate::handles::icon_source).filter(|s| !s.is_empty()).map(Value::from);
     let pixels = |v: Value| crate::objects::icon_pixels(&v).map(|(w, h, rgba, _)| (w, h, rgba));
     own.and_then(pixels)
         .or_else(|| crate::globals::application_icon().and_then(pixels))
-        .or_else(|| pixels(Value::String(format!("{}{}", crate::objects::codec::SVG_DATA_URL, crate::objects::codec::base64_encode(DEFAULT_ICON_SVG.as_bytes())))))
+        .or_else(|| pixels(Value::String(format!("{}{}", crate::objects::codec::SVG_DATA_URL, crate::objects::codec::base64_encode(DEFAULT_ICON_SVG.as_bytes())).into())))
         .unwrap_or((1, 1, vec![0, 0, 0, 0]))
 }
 

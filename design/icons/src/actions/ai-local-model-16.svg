@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Local model (runs on this computer)</title>
+  <path d="M6 4.5H10A1.5 1.5 0 0 1 11.5 6V10A1.5 1.5 0 0 1 10 11.5H6A1.5 1.5 0 0 1 4.5 10V6A1.5 1.5 0 0 1 6 4.5Z" stroke="currentColor"/>
+  <path d="M6.5 1.5L6.5 4.5" stroke="currentColor"/>
+  <path d="M6.5 11.5L6.5 14.5" stroke="currentColor"/>
+  <path d="M1.5 6.5L4.5 6.5" stroke="currentColor"/>
+  <path d="M11.5 6.5L14.5 6.5" stroke="currentColor"/>
+  <path d="M9.5 1.5L9.5 4.5" stroke="currentColor"/>
+  <path d="M9.5 11.5L9.5 14.5" stroke="currentColor"/>
+  <path d="M1.5 9.5L4.5 9.5" stroke="currentColor"/>
+  <path d="M11.5 9.5L14.5 9.5" stroke="currentColor"/>
+  <path d="M8 5.9Q8.378 7.622 10.1 8Q8.378 8.378 8 10.1Q7.622 8.378 5.9 8Q7.622 7.622 8 5.9Z" fill="currentColor"/>
+</svg>

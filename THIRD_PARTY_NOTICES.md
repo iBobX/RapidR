@@ -19,9 +19,9 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**667 libraries** under 23 license expressions.
+**676 libraries** under 23 license expressions.
 
-## Apache-2.0 OR MIT (408)
+## Apache-2.0 OR MIT (414)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -65,6 +65,7 @@ their `OFL.txt`.
 | bitflags | 1.3.2 | <https://github.com/bitflags/bitflags> |
 | bitflags | 2.11.0 | <https://github.com/bitflags/bitflags> |
 | block-buffer | 0.10.4 | <https://github.com/RustCrypto/utils> |
+| block-buffer | 0.12.1 | <https://github.com/RustCrypto/utils> |
 | blocking | 1.7.0 | <https://github.com/smol-rs/blocking> |
 | bstr | 1.13.1 | <https://github.com/BurntSushi/bstr> |
 | btoi | 0.5.0 | <https://github.com/niklasf/rust-btoi> |
@@ -75,6 +76,7 @@ their `OFL.txt`.
 | chrono | 0.4.44 | <https://github.com/chronotope/chrono> |
 | color | 0.3.3 | <https://github.com/linebender/color> |
 | concurrent-queue | 2.5.0 | <https://github.com/smol-rs/concurrent-queue> |
+| const-oid | 0.10.2 | <https://github.com/RustCrypto/formats> |
 | core-foundation | 0.10.1 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation | 0.9.4 | <https://github.com/servo/core-foundation-rs> |
 | core-foundation-sys | 0.8.7 | <https://github.com/servo/core-foundation-rs> |
@@ -82,6 +84,7 @@ their `OFL.txt`.
 | core-graphics-types | 0.1.3 | <https://github.com/servo/core-foundation-rs> |
 | coreaudio-rs | 0.11.3 | <https://github.com/RustAudio/coreaudio-rs.git> |
 | cpufeatures | 0.2.17 | <https://github.com/RustCrypto/utils> |
+| cpufeatures | 0.3.1 | <https://github.com/RustCrypto/utils> |
 | crc32fast | 1.5.0 | <https://github.com/srijs/rust-crc32fast> |
 | crossbeam | 0.8.5 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-channel | 0.5.15 | <https://github.com/crossbeam-rs/crossbeam> |
@@ -90,6 +93,7 @@ their `OFL.txt`.
 | crossbeam-queue | 0.3.12 | <https://github.com/crossbeam-rs/crossbeam> |
 | crossbeam-utils | 0.8.21 | <https://github.com/crossbeam-rs/crossbeam> |
 | crypto-common | 0.1.7 | <https://github.com/RustCrypto/traits> |
+| crypto-common | 0.2.2 | <https://github.com/RustCrypto/traits> |
 | ctor | 0.10.1 | <https://github.com/mmastrac/rust-ctor> |
 | dasp_sample | 0.11.0 | <https://github.com/rustaudio/sample.git> |
 | data-url | 0.3.2 | <https://github.com/servo/rust-url> |
@@ -100,6 +104,7 @@ their `OFL.txt`.
 | defmt-parser | 1.1.0 | <https://github.com/knurling-rs/defmt> |
 | derive_utils | 0.15.1 | <https://github.com/taiki-e/derive_utils> |
 | digest | 0.10.7 | <https://github.com/RustCrypto/traits> |
+| digest | 0.11.3 | <https://github.com/RustCrypto/traits> |
 | displaydoc | 0.2.5 | <https://github.com/yaahc/displaydoc> |
 | document-features | 0.2.12 | <https://github.com/slint-ui/document-features> |
 | downcast-rs | 1.2.1 | <https://github.com/marcianx/downcast-rs> |
@@ -326,6 +331,7 @@ their `OFL.txt`.
 | sha1 | 0.10.6 | <https://github.com/RustCrypto/hashes> |
 | sha1dc | 0.1.5 | <https://github.com/srijs/sha1dc> |
 | sha2 | 0.10.9 | <https://github.com/RustCrypto/hashes> |
+| sha2 | 0.11.1 | <https://github.com/RustCrypto/hashes> |
 | signal-hook-registry | 1.4.8 | <https://github.com/vorner/signal-hook> |
 | simd_cesu8 | 1.2.0 | <https://github.com/seancroach/simd_cesu8> |
 | simdutf8 | 0.1.5 | <https://github.com/rusticstuff/simdutf8> |
@@ -434,7 +440,7 @@ their `OFL.txt`.
 | zbus-secret-service-keyring-store | 1.0.1 | <https://github.com/open-source-cooperative/zbus-secret-service-keyring-store.git> |
 | zeroize | 1.9.1 | <https://github.com/RustCrypto/utils> |
 
-## MIT (136)
+## MIT (137)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -516,7 +522,7 @@ their `OFL.txt`.
 | phf_shared | 0.14.0 | <https://github.com/rust-phf/rust-phf> |
 | pico-args | 0.5.0 | <https://github.com/RazrFalcon/pico-args> |
 | prodash | 31.0.1 | <https://github.com/GitoxideLabs/prodash> |
-| pulldown-cmark | 0.13.4 | <https://github.com/raphlinus/pulldown-cmark> |
+| pulldown-cmark | 0.13.5 | <https://github.com/raphlinus/pulldown-cmark> |
 | quick-xml | 0.41.0 | <https://github.com/tafia/quick-xml> |
 | redox_syscall | 0.4.1 | <https://gitlab.redox-os.org/redox-os/syscall> |
 | redox_syscall | 0.5.18 | <https://gitlab.redox-os.org/redox-os/syscall> |
@@ -526,6 +532,7 @@ their `OFL.txt`.
 | ropey | 1.6.1 | <https://github.com/cessen/ropey> |
 | rsqlite-vfs | 0.1.1 | <https://crates.io/crates/rsqlite-vfs> |
 | rusqlite | 0.40.2 | <https://github.com/rusqlite/rusqlite> |
+| ruzstd | 0.9.1 | <https://github.com/KillingSpark/zstd-rs> |
 | saturating | 0.1.0 | <https://github.com/breeswish/saturating-rs> |
 | schannel | 0.1.29 | <https://github.com/steffengy/schannel-rs> |
 | sctk-adwaita | 0.10.1 | <https://github.com/PolyMeilex/sctk-adwaita> |
@@ -628,7 +635,7 @@ their `OFL.txt`.
 | wide | 1.7.1 | <https://github.com/Lokathor/wide> |
 | xkeysym | 0.2.1 | <https://github.com/notgull/xkeysym> |
 
-## Apache-2.0 (18)
+## Apache-2.0 (20)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -642,10 +649,12 @@ their `OFL.txt`.
 | gix-imara-diff | 0.3.1 | <https://github.com/GitoxideLabs/gitoxide> |
 | glutin_wgl_sys | 0.6.1 | <https://github.com/rust-windowing/glutin> |
 | hound | 3.5.1 | <https://github.com/ruuda/hound> |
+| lzma-rust2 | 0.23.0 | <https://github.com/hasenbanck/lzma-rust2/> |
 | oboe | 0.6.1 | <https://github.com/katyo/oboe-rs> |
 | oboe-sys | 0.6.1 | <https://github.com/katyo/oboe-rs> |
 | openssl | 0.10.81 | <https://github.com/rust-openssl/rust-openssl> |
 | owned_ttf_parser | 0.25.1 | <https://github.com/alexheretic/owned-ttf-parser> |
+| sevenz-rust2 | 0.24.1 | <https://github.com/hasenbanck/sevenz-rust> |
 | spirv | 0.4.0+sdk-1.4.341.0 | <https://github.com/gfx-rs/rspirv> |
 | sync_wrapper | 1.0.2 | <https://github.com/Actyx/sync_wrapper> |
 | unicode-bom | 2.0.3 | <https://gitlab.com/philbooth/unicode-bom> |

@@ -653,6 +653,53 @@ from another user is closed; the token file's mode and `O_EXCL`; `Host` /
 absolute path and a link out of the project; a client-supplied environment
 ignored.
 
+### 7.1 What was built first (STUDIO-MCP, 2026-10-29)
+
+RapidR Studio's own MCP server came first over the **loopback HTTP
+transport**, the switch in Settings (docs/manual/ai-apps.md) — the local
+socket and the stdio relay `rapidr mcp` are still to come. How it meets the
+design above, and where it differs:
+
+- **Who can connect.** Off by default; on, it listens on `127.0.0.1` only
+  (RMcpServer refuses to start without a token). The guards are
+  `rapidr-runtime-core`'s `httpserver.rs` `Config::check`, one module for
+  RHttpServer and RMcpServer: `Host` must be the server's own (DNS
+  rebinding: 403), any `Origin` but its own and any `Sec-Fetch-Site:
+  cross-site` refused (403), no CORS headers, the bearer token compared in
+  constant time on every request (401), request size, time and connection
+  limits. A loopback port, unlike the socket, is reachable by another user
+  of the same computer: the token is what keeps them out.
+- **The token.** 256 random bits from the OS, kept in the user's keychain
+  (`RSecrets`, Studio's own item), not new at every start — an AI app keeps
+  its configuration; **Reset Token** makes a new one and restarts the
+  server. It is shown only on the Settings page (masked until Show), never
+  written to a log, the audit log, a URL or a command line by Studio; the
+  user's own `claude mcp add … --header` line does put it in their shell
+  history, which the manual says (and how to reset it).
+- **What a client may do.** Files: the assistant's own tools, confined to
+  the project (`ai_tools::project_path`, links resolved), and for an
+  outside AI app no hidden file or folder at all and, in a project whose
+  folder is a home folder or a disk's root, only its listed files
+  (`ai.rs`'s `outside_path_ok`). Tiers: one permission mode per project —
+  Read only, Ask before changes (default), Allow edits, Allow everything
+  (confirmed, badged) — over three kinds (change, run, RAI); opening a
+  project outside the Projects folder, the examples and the recent list is
+  asked in every mode, never over unsaved changes. Every call is in the
+  audit log (`ai-audit.jsonl`, `source: mcp`: client, tool, project-relative
+  target, decision — never contents, keys or the token). Environment: no
+  tool lets a client set one; a run is Studio's Run. Native power: an
+  MCP-started run is Studio's ordinary Run — `DECLARE … LIB` and
+  `RUSTSTART` are **not** yet refused for it (left, with SEC-10).
+- **Limits.** 4 MB requests (RMcpServer's MaxRequestSize), 32 connections,
+  calls handed to Studio one at a time; no per-client rate limit yet (left).
+
+Tests: `tests/studio_mcp.mjs` (no token 401, a web page's Origin 403, `../`
+and a hidden folder refused, each permission mode, the audit log without
+the token or a file's text), `tests/http_client_probe.mjs mcp` with
+`examples/network/mcp_tools.rr` (Host, Origin, token, both eras, header
+mismatches), `httpserver.rs`'s and `mcpserver.rs`'s unit tests,
+`ai_tests::an_outside_ai_apps_calls`.
+
 ---
 
 ## 8. Signing `SHA256SUMS` (proposal, SEC-20 — the key is Robert's decision)

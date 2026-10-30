@@ -1,0 +1,7 @@
+' (COPY-ANYWHERE) Three lines in Studio's Output: a drag over the middle
+' of the second, Ctrl+C, the right-click menu (tests/studio_flows.mjs copy-*)
+$APPTYPE CONSOLE
+
+PRINT "first line"
+PRINT "second line of output"
+PRINT "third line"

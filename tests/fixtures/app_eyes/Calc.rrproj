@@ -1,0 +1,9 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Calc"
+main = "calc.rr"
+
+[[files]]
+path = "calc.rr"
+kind = "module"

@@ -1,0 +1,13 @@
+# RapidR Studio project (format 2): the integration tests' project.
+
+format = 2
+name = "Demo"
+main = "hello.bas"
+
+[[files]]
+path = "hello.bas"
+kind = "module"
+
+[run]
+args = ["one", "two words"]
+cwd = "."

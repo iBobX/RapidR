@@ -362,12 +362,12 @@ fn windows_1252_char(byte: u8) -> char {
     }
 }
 
-/// The Windows-1252 byte of a character (`?` when it has none).
-fn windows_1252_byte(c: char) -> u8 {
+/// The Windows-1252 byte of a character (`None` when it has none).
+fn windows_1252_byte(c: char) -> Option<u8> {
     match WINDOWS_1252_HIGH.iter().position(|&h| h == c) {
-        Some(i) => 0x80 + i as u8,
-        None if (c as u32) < 0x80 || (0xA0..=0xFF).contains(&(c as u32)) => c as u32 as u8,
-        None => b'?',
+        Some(i) => Some(0x80 + i as u8),
+        None if (c as u32) < 0x80 || (0xA0..=0xFF).contains(&(c as u32)) => Some(c as u32 as u8),
+        None => None,
     }
 }
 
@@ -2305,5 +2305,20 @@ mod tests {
             let (text, encoding) = super::decode_source(bytes);
             assert_eq!(super::encode_source(&text, encoding), bytes, "{encoding:?}");
         }
+    }
+
+    /// A Windows-1252 program whose form gained a Chinese caption in the
+    /// designer was saved with `?` for each character; it is UTF-8 then.
+    #[test]
+    fn a_windows_1252_file_that_gained_chinese_is_saved_as_utf8() {
+        let (text, encoding) = super::decode_source(b"Form.Caption = \"caf\xE9\"\r\n");
+        assert_eq!(encoding, super::SourceEncoding::Windows1252);
+        let changed = text.replace("café", "café 中文");
+        assert_eq!(super::encode_source(&changed, encoding), "Form.Caption = \"café 中文\"\r\n".as_bytes());
+        assert!(!super::encode_source(&changed, encoding).contains(&b'?'));
+        // (with a BOM kept; one that still fits stays Windows-1252)
+        let bom = super::encode_source("é 中", super::SourceEncoding::Windows1252Bom);
+        assert_eq!(bom, "\u{feff}é 中".as_bytes());
+        assert_eq!(super::encode_source("é €", super::SourceEncoding::Windows1252), b"\xE9 \x80");
     }
 }

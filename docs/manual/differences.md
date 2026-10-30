@@ -101,6 +101,17 @@ something defined instead, and says so:
   clipboard where users expect them.
 - Documents printed with `Printer` / `LPRINT` are PDFs sent to the system's
   printer (see [Components](components.md#the-global-objects)).
+- **A string with a character above 255 is text, not bytes.** RapidQ's
+  strings are bytes, and so are RapidR's whenever every character is up to
+  255: `WriteStr(CHR$(200), 1)` writes the byte 200 and a binary file copied
+  with `ReadStr` / `WriteStr` is exact. RapidQ had no character above 255;
+  RapidR does (`"中文"`, `"😀"`), and a stream writes such a string whole as
+  UTF-8, where a count of bytes would have cut it in the middle of a
+  character. `WriteStr(S, n)` counts characters, so `WriteStr(S, LEN(S))`
+  writes all of `S`. Text boxes and the code editor never save a `?` in
+  place of a character their file's encoding lacks (they save UTF-8
+  instead), and `WriteText` / `ReadAllText` are there for text on purpose
+  (see [Text and bytes](language.md#text-and-bytes-accents-chinese-emoji)).
 - **The font dialog names a system colour.** A font that never set a colour
   (a new `RFontDialog`, most components' fonts) has `clWindowText`. RapidQ's
   dialog lists it as "Custom"; RapidR's shows "Black" (`clWindow` "White"),

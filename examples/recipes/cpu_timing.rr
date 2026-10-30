@@ -1,0 +1,143 @@
+' Recipe: Running a CPU in time (cycles per frame from a timer)
+' Keywords: timing, cycles per frame, frame, frame counter, RTimer, game loop, emulation speed, clock speed, 50 Hz, budget, pause, step, run, responsive window, temporizacion, ciclos por cuadro, cuadro, contador de cuadros, velocidad de emulacion, pausa, temporização, ciclos por quadro, quadro, velocidade de emulação, pausar
+' A real CPU runs millions of cycles a second; a program that imitates one
+' gets the same speed by running a fixed BUDGET of cycles in every tick of a timer (a
+' frame, here 20 ms = 50 a second) and then giving the window back, so it
+' never freezes: Pause just turns the timer off, Frame runs one frame by
+' hand. Each instruction says how many cycles it cost; the budget is spent
+' instruction by instruction, and the little that is overspent is taken off
+' the next frame, so the speed is exact over time. The program counts in A
+' and stores it in memory, forever.
+'
+'   rapidr run cpu_timing.rr
+$THEME rapidr
+
+CONST OP_NOP = &H00
+CONST OP_LDA = &H01
+CONST OP_LDB = &H02
+CONST OP_ADD = &H05
+CONST OP_STM = &H04
+CONST OP_JMP = &H09
+CONST OP_HLT = &HFF
+
+DECLARE SUB Tick
+DECLARE SUB RunClick
+DECLARE SUB FrameClick
+DECLARE SUB SlowerClick
+DECLARE SUB FasterClick
+DECLARE SUB ResetClick
+
+DIM mem(0 TO 65535) AS BYTE
+DIM a AS INTEGER, b AS INTEGER, pc AS INTEGER, halted AS INTEGER
+DIM perFrame AS INTEGER                    ' the budget: cycles to run in a frame
+DIM budget AS INTEGER                      ' what is left to spend (below 0: overspent)
+DIM frames AS INTEGER, cycles AS INTEGER, frameMs AS DOUBLE
+
+CREATE Form AS RForm
+    Caption = "CPU Timing"
+    ClientWidth = 444: ClientHeight = 156
+    Center
+    CREATE Regs AS RLabel: Caption = "": Left = 16: Top = 16: Width = 408: Font.Name = "Courier New": END CREATE
+    CREATE Counts AS RLabel: Caption = "": Left = 16: Top = 44: Width = 408: Font.Name = "Courier New": END CREATE
+    CREATE Speed AS RLabel: Caption = "": Left = 16: Top = 72: Width = 408: END CREATE
+    CREATE RunBtn AS RButton: Caption = "&Run": Left = 16: Top = 112: Width = 76: Height = 32: OnClick = RunClick: END CREATE
+    CREATE FrameBtn AS RButton: Caption = "&Frame": Left = 100: Top = 112: Width = 76: Height = 32: OnClick = FrameClick: END CREATE
+    CREATE SlowerBtn AS RButton: Caption = "&Slower": Left = 184: Top = 112: Width = 76: Height = 32: OnClick = SlowerClick: END CREATE
+    CREATE FasterBtn AS RButton: Caption = "Fa&ster": Left = 268: Top = 112: Width = 76: Height = 32: OnClick = FasterClick: END CREATE
+    CREATE ResetBtn AS RButton: Caption = "R&eset": Left = 352: Top = 112: Width = 76: Height = 32: OnClick = ResetClick: END CREATE
+    CREATE Clock AS RTimer: Interval = 20: Enabled = 0: OnTimer = Tick: END CREATE      ' 50 frames a second
+END CREATE
+
+FUNCTION Hex2 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v), 2)
+END FUNCTION
+
+FUNCTION Hex4 (v AS INTEGER) AS STRING
+    Result = RIGHT$(HEX$(v), 4)
+END FUNCTION
+
+FUNCTION Fetch8 AS INTEGER
+    Result = mem(pc)
+    pc = (pc + 1) AND &HFFFF
+END FUNCTION
+
+FUNCTION Fetch16 AS INTEGER
+    DIM lo AS INTEGER, hi AS INTEGER
+    lo = Fetch8
+    hi = Fetch8
+    Result = lo + hi * 256
+END FUNCTION
+
+' One instruction; the cycles it took
+FUNCTION OneStep AS INTEGER
+    SELECT CASE Fetch8
+        CASE OP_NOP: Result = 1
+        CASE OP_LDA: a = Fetch8: Result = 2
+        CASE OP_LDB: b = Fetch8: Result = 2
+        CASE OP_ADD: a = (a + b) AND 255: Result = 1
+        CASE OP_STM: mem(Fetch16) = a: Result = 4
+        CASE OP_JMP: pc = Fetch16: Result = 3
+        CASE ELSE: halted = 1: Result = 1
+    END SELECT
+END FUNCTION
+
+SUB ShowState
+    Regs.Caption = "PC=" + Hex4(pc) + "  A=" + Hex2(a) + "  B=" + Hex2(b) + "  [0200]=" + Hex2(mem(&H200))
+    Counts.Caption = "frame " + STR$(frames) + "   cycles " + STR$(cycles) + "   carried " + STR$(budget)
+    Speed.Caption = STR$(perFrame) + " cycles a frame = " + STR$(perFrame * 50) + " cycles a second.  Last frame took " + FORMAT$("%.2f", frameMs) + " ms of 20."
+END SUB
+
+' One frame: spend the budget, a little overspent is taken off the next one
+SUB RunFrame
+    DIM t AS DOUBLE, used AS INTEGER
+    t = TIMER
+    budget = budget + perFrame
+    DO WHILE budget > 0 AND halted = 0
+        used = OneStep
+        budget = budget - used
+        cycles = cycles + used
+    LOOP
+    frames = frames + 1
+    frameMs = (TIMER - t) * 1000
+    ShowState
+END SUB
+
+SUB Tick
+    RunFrame
+END SUB
+
+SUB FrameClick
+    RunFrame
+END SUB
+
+SUB RunClick
+    Clock.Enabled = IIF(Clock.Enabled, 0, 1)
+    RunBtn.Caption = IIF(Clock.Enabled, "&Pause", "&Run")
+END SUB
+
+SUB SlowerClick
+    IF perFrame > 100 THEN perFrame = perFrame \ 2
+    ShowState
+END SUB
+
+SUB FasterClick
+    IF perFrame < 100000 THEN perFrame = perFrame * 2
+    ShowState
+END SUB
+
+' LDA 0, LDB 1, then forever: ADD, STA [0200], JMP back
+SUB ResetClick
+    DIM i AS INTEGER, bytes AS STRING
+    bytes = "01 00 02 01 05 04 00 02 09 04 00"
+    FOR i = 0 TO 65535: mem(i) = 0: NEXT
+    FOR i = 1 TO TALLY(bytes, " ") + 1
+        mem(i - 1) = VAL(CONVBASE$(FIELD$(bytes, " ", i), 16, 10))
+    NEXT
+    a = 0: b = 0: pc = 0: halted = 0
+    budget = 0: frames = 0: cycles = 0: frameMs = 0
+    IF perFrame = 0 THEN perFrame = 1000
+    ShowState
+END SUB
+
+ResetClick
+Form.ShowModal

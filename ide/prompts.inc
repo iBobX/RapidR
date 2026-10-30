@@ -17,6 +17,7 @@ DIM PromptAnswer AS INTEGER
 DIM PromptRust AS INTEGER   ' 1: the native build's question (no Rust), else the save questions
 DIM PromptAgain AS INTEGER  ' 1: File > Copy Example Again's question (Copy Again, Cancel)
 DIM PromptFolder AS INTEGER ' 1: a project file a browser gave alone (Open Folder..., Cancel)
+DIM PromptRestore AS INTEGER ' 1: unsaved work kept from a Studio that ended (Restore, Discard, Not Now)
 DIM PromptIconBmp AS RBitmap
 DIM PromptIconLoaded AS INTEGER
 DIM PromptMany AS INTEGER   ' (the question laid out last: again when the look changes)
@@ -82,6 +83,7 @@ SUB LayOutPrompt(Many AS INTEGER)
   END IF
   IF PromptAgain THEN ws = ws + 14
   IF PromptFolder THEN ws = ws + 30
+  IF PromptRestore THEN wc = wc + 10
   SavePrompt.Font.Name = UIFont.Name: SavePrompt.Font.Size = UIFont.Size
   PromptTitle.Font = SubFont
   PromptText.Font.Color = TC("page.dim")
@@ -106,7 +108,12 @@ SUB LayOutPrompt(Many AS INTEGER)
   ' (Copy Example Again: Copy Again or Cancel, nothing between; a project
   ' file without its files: Open Folder... or Cancel)
   PromptDont.Visible = Flag(PromptAgain = 0 AND PromptFolder = 0)
-  IF PromptFolder THEN
+  PromptCancel.Caption = "Cancel"
+  IF PromptRestore THEN
+    PromptSave.Caption = "&Restore"
+    PromptDont.Caption = "&Discard"
+    PromptCancel.Caption = "Not Now"
+  ELSEIF PromptFolder THEN
     PromptSave.Caption = "&Open Folder..."
   ELSEIF PromptAgain THEN
     PromptSave.Caption = "&Copy Again"

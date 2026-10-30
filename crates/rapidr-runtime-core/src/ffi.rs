@@ -230,7 +230,7 @@ pub fn dll_call(lib: &str, name: &str, spec: &str, args: &[Value]) -> Result<Val
                 let mut b: Vec<u8> = fields.1.iter().flat_map(|&n| (n as i32).to_le_bytes()).collect();
                 b.resize(b.len() + TEMP_SLACK, 0);
                 temps.push(b);
-                rects.push((id.clone(), temps.len() - 1));
+                rects.push((id.to_string(), temps.len() - 1));
                 Slot::Int(temps.last_mut().unwrap().as_mut_ptr() as i64)
             }
             Value::String(s) => {

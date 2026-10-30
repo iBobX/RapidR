@@ -9,6 +9,11 @@
 //   "hello …"          a short answer
 //   "say hello …"      five words (examples/ai/rai_models.rr's question)
 //   "add an icon"      write_file icons/folder.svg (a new file in a new folder)
+//   "add a chinese translation"  write_file lang/zh-Hans.po (Chinese text, a new
+//                      folder): its bytes on disk must be the text's UTF-8
+//   "add three things" read the main file, then: its window renamed, an icon in
+//                      a new folder, a file under the main file (it can't be
+//                      made): an Apply that must change nothing
 //   "rename …"         read_file the main file, then propose_edit its form's Caption → "AI Notes"
 //   "break …"          read_file the main file, then propose_edit: a `DIM … AS BOOLEAN`
 //                      (a type RapidR doesn't have) before its form: a change that leaves an error
@@ -21,6 +26,13 @@
 //   "slowly …"         any of these, each answer after a tool's held 6 s
 //   "then fail …"      any of these, each answer after a tool's refused (400)
 //   "check …"          check_code, then say what it found
+//   "click 7 in the program"  app_layout, then app_click on "7" (the program
+//                      Studio runs: tests/app_eyes.mjs' rai mode), then say it
+//   "click 8 in the program"  app_click on "8" (refused by the user in
+//                      tests/app_eyes.mjs' rai mode), then say what it was told
+//   "greet ada in my running program"  app_layout, app_type "Ada" beside the
+//                      label "Your name", app_click on "Greet" (examples/gui/
+//                      hello_form.rr: the manual's picture of RAI asking first)
 //   "describe …"       rapidr_describe RButton, rapidr_list, then answer
 //   "inject …"         try write_file outside its permission (read-only tests)
 //   "and add a clear button"  a short answer (the message queued while the
@@ -275,6 +287,30 @@ function script(first, results, system, messages = []) {
     if (step === 0) return { tools: [{ name: "write_file", input: { path: "icons/folder.svg", summary: "A folder icon", text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M1 3h5l2 2h7v8H1z"/></svg>\n' } }] };
     return { text: "I proposed a folder icon in a new **icons** folder: review it and apply it." };
   }
+  // (a translation in Chinese, a new file in a new folder: its characters
+  // on disk as written — UTF-8 —, never "???": Robert's zh-Hans.po)
+  if (q.startsWith("add a chinese translation")) {
+    if (step === 0) return { tools: [{ name: "write_file", input: { path: "lang/zh-Hans.po", summary: "Chinese", text: 'msgid ""\nmsgstr ""\n"Content-Type: text/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n' } }] };
+    return { text: "I proposed a Chinese translation in lang/zh-Hans.po: review it and apply it." };
+  }
+  // (an Apply that can't be done whole: the window renamed, an icon in a
+  // new folder, and a file whose folder would be the main file — it can't
+  // be made. Applying it must change nothing: Robert 2026-10-28)
+  if (q.startsWith("add three things")) {
+    if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
+    if (step === 1) {
+      let file = "";
+      try { file = JSON.parse(results[0].content).content; } catch { file = ""; }
+      const m = file.match(/Caption = "[^"]*"/);
+      if (!m) return { text: "I couldn't find the form's caption." };
+      return { tools: [
+        { name: "propose_edit", input: { path: mainFile, summary: "The window's title becomes AI Notes", edits: [{ old_text: m[0], new_text: 'Caption = "AI Notes"' }] } },
+        { name: "write_file", input: { path: "icons/note.svg", summary: "A note icon", text: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2 2h12v12H2z"/></svg>\n' } },
+        { name: "write_file", input: { path: `${mainFile}/blocked.txt`, summary: "A file where it can't go", text: "x\n" } },
+      ] };
+    }
+    return { text: "I proposed three changes: review them and apply them." };
+  }
   if (q.startsWith("rename")) {
     if (step === 0) return { text: "Let me read the form first.", tools: [{ name: "read_file", input: { path: mainFile } }] };
     if (step === 1) {
@@ -325,6 +361,22 @@ function script(first, results, system, messages = []) {
   if (q.startsWith("build me")) {
     if (step === 0) return { text: "Here is a small program with a form.", tools: [{ name: "create_project", input: { name: "hello-form", main: "main.rr", summary: "A form that greets the name typed in it", files: [{ path: "main.rr", text: HELLO_FORM }] } }] };
     return { text: "The project **hello-form** is ready to preview: a form with a name box and a Greet button." };
+  }
+  // (the running program's eyes and hands: tests/app_eyes.mjs' rai mode)
+  if (q.startsWith("greet ada in my running program")) {
+    if (step === 0) return { tools: [{ name: "app_layout", input: {} }] };
+    if (step === 1) return { tools: [{ name: "app_type", input: { label: "Your name", text: "Ada" } }] };
+    if (step === 2) return { tools: [{ name: "app_click", input: { caption: "Greet" } }] };
+    return { text: `Done: ${results[2].content}` };
+  }
+  if (q.startsWith("click 8 in the program")) {
+    if (step === 0) return { tools: [{ name: "app_click", input: { caption: "8" } }] };
+    return { text: `The program: ${results[0].content}` };
+  }
+  if (q.startsWith("click 7 in the program")) {
+    if (step === 0) return { tools: [{ name: "app_layout", input: {} }] };
+    if (step === 1) return { tools: [{ name: "app_click", input: { caption: "7" } }] };
+    return { text: `The program: ${results[1].content}` };
   }
   if (q.startsWith("check")) {
     if (step === 0) return { tools: [{ name: "check_code", input: {} }] };

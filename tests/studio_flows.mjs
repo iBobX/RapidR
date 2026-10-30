@@ -450,6 +450,9 @@ const CANCEL = "settingsno.__mousedown_40_14,settingsno.__mouseup_40_14";
 // release) at (x, y) of a component
 const AI_READY = "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small";
 const CLICK = (comp, x, y) => `${comp}.__mousedown_${x}_${y},${comp}.__mouseup_${x}_${y}`;
+// (COPY-ANYWHERE) the program's output in Output, then "line of" dragged over
+const COPY_WAIT = "outputbox.__wait_4000";
+const COPY_DRAG = "outputbox.__mousedown_62_60,outputbox.__mousemove_80_60,outputbox.__mousemove_100_60,outputbox.__mousemove_117_60,outputbox.__mouseup_117_60";
 // (Set up RAI — a modal window: its steps are input once it shows — "a
 // cloud service" picked, Next, Anthropic in the provider list)
 const SETUP_CLOUD = [CLICK("aisucloudradio", 8, 12), idle(2), CLICK("aisunextbtn", 30, 14), idle(2), "aisuprovbox.__item_0", idle(2)].join(",");
@@ -3925,6 +3928,28 @@ const CASES = [
     dump: { "clipboard.text": /^1$/, "status.panel(0).caption": /Copied the value \(1 character\)/ },
   },
   {
+    // (COPY-ANYWHERE) Ctrl+C in Call Stack: the selected call as shown
+    name: "copy-call-stack",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,focus:stacktree",
+    events: "stacktree.__wait_4000,stacktree.__key_67_16,stacktree.__wait_300",
+    delay: 8,
+    dump: { "clipboard.text": /counter\.rr:6$/, "status.panel(0).caption": /^Copied the call$/ },
+  },
+  {
+    // (COPY-ANYWHERE) …and in Breakpoints: the breakpoint as listed
+    name: "copy-breakpoints",
+    open: "tests/fixtures/studio_debug/counter.rr",
+    webFiles: DEBUG_FILES,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "line:6,debug.toggleBreakpoint,wait,focus:bppanel",
+    events: "bptree.__wait_3000,bptree.__key_40,bptree.__key_67_16,bptree.__wait_300",
+    delay: 6,
+    dump: { "clipboard.text": /^counter\.rr:6$/, "status.panel(0).caption": /^Copied the breakpoint$/ },
+  },
+  {
     // (POLISH-2) F5 after a pause, the program running on (a line that
     // takes seconds): a moment later Call Stack and Variables say it's
     // running — the last pause's values aren't the program's any more —;
@@ -4308,6 +4333,200 @@ const CASES = [
     delay: 7,
     dump: { "ai.transcript": /\*You applied the change to icons\/folder\.svg\.\*|applied/ },
     files: { "icons/folder.svg": /^<svg / },
+  },
+  // (the code editor's context menu opens where the right click was — a
+  // long file scrolled down, the editor away from the window's corner:
+  // Robert 2026-10-28, it opened far from the click. The kernel's menu,
+  // desktop and web; macOS' own: menu.rs's muda_y, its unit test)
+  {
+    name: "code-menu-at-click",
+    open: "examples/showcase/midi_visualizer.rr",
+    copy: true,
+    webFiles: ["examples/showcase/midi_visualizer.rr"],
+    do: "view:Code,wait,focus:codedoc(0),key:Ctrl+End,wait,wait",
+    events: "studio.__wait_3500,codedoc(0).__rightclick_220_160",
+    capture: true,
+    delay: 7,
+    dump: {
+      "codedoc(0).__popupat": /^220,160$/,
+      "codedoc(0).caretline": /^(?!0$)\d+$/,
+    },
+  },
+  // ---- a project as RAI left Robert's ShopInvoices: the main file a module
+  // that main.rr includes; Run ran it, it ended at once, nothing said ----
+  {
+    name: "project-main-included",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,wait",
+    delay: 5,
+    dump: {
+      "proj.mainfile": /^lang\.rr$/,
+      "outputbox.text": /The main file lang\.rr is included by main\.rr: the program probably starts in main\.rr\. To run it from there, select the project's name in the Project pane, then MainFile in Properties\./,
+    },
+  },
+  {
+    // (…Run there: it ends at once, and says what to look at)
+    name: "project-main-runs-module",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "outputbox.text": /\[lang\.rr ended, exit code 0\]\nlang\.rr ran and ended at once: it showed no window and printed nothing\. If the program starts in another file, make that the main file/,
+    },
+  },
+  {
+    // (…the project's properties fix it: MainFile main.rr, written to the
+    // project file; Run starts there)
+    name: "project-main-fixed",
+    open: "tests/fixtures/studio_shop/Shop.rrproj",
+    copyDir: true,
+    desktopOnly: true,
+    do: "wait,project:select,prop:MainFile=main.rr,wait,run.start,wait,wait,wait,wait,wait,wait",
+    delay: 10,
+    dump: {
+      "proj.mainfile": /^main\.rr$/,
+      "outputbox.text": /Shop open\n\[main\.rr ended, exit code 0\](?![\s\S]*ended at once)/,
+    },
+    files: { "Shop.rrproj": /^main = "main\.rr"$/m },
+  },
+  {
+    // (Run with nothing open says so)
+    name: "run-nothing-open",
+    open: "",
+    desktopOnly: true,
+    do: "run.start,wait",
+    delay: 4,
+    dump: { "outputbox.text": /Nothing to run: open a project or a program first/ },
+  },
+  // (the project tree's selection shows its file: lang/pt-BR.po selected
+  // opens in the preview tab, the keys stay in the tree; lang/es.po
+  // selected takes the preview tab over — never another file's text on
+  // show, Robert 2026-10-29)
+  {
+    name: "project-tree-preview",
+    open: "tests/fixtures/studio_assets/Langs.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_assets/Langs.rrproj", "tests/fixtures/studio_assets/main.rr", "tests/fixtures/studio_assets/lang/es.po", "tests/fixtures/studio_assets/lang/pt-BR.po"],
+    do: "wait,focus:projecttree,key:Home,key:Down,key:Down,key:Down,key:Down,key:Down,key:Down,wait,wait,wait,key:Up,wait,wait,wait",
+    delay: 9,
+    dump: {
+      "projecttree.selected": /^lang\/es\.po$/,
+      "dock.activedocument": /^codedoc\(1\)$/,
+      "codedoc(1).text": /Language: es\\n[\s\S]*Velocidad"/,
+      "outputbox.text": /Opened .*lang\/pt-BR\.po\n> key:Up\nOpened .*lang\/es\.po/,
+    },
+  },
+  // ---- Studio keeps your work (safety.inc; Robert 2026-10-28: Studio quit
+  // on a run-time error in its own code, the unsaved work and the chat's
+  // proposals with it) ----
+  {
+    // (a run-time error in Studio's own code — a file written into a folder
+    // that isn't there —: Studio goes on, says it in a dialog and the Output,
+    // logs it with its file and line, keeps a copy of the unsaved work)
+    name: "studio-error-safe",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:fail,wait,wait,wait",
+    delay: 8,
+    capture: true,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /Cannot create file …\/studio\/no-such-folder\/studio-test\.txt\. \(safety\.inc line \d+\)\n\nYour work is safe: nothing was lost, and Studio goes on/,
+      "outputbox.text": /Something went wrong in Studio: Cannot create file .* \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+    },
+    files: { "studio/studio-errors.log": /RapidR Studio \(RapidR [\d.]+\): Cannot create file .* \(at Studio's safety\.inc line \d+\)/ },
+  },
+  {
+    // (…in the browser: a division by zero in Studio's own code — the
+    // page's store has no folders to be missing —, said the same way)
+    name: "studio-error-safe-web",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    webOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:divide,wait,wait,wait",
+    delay: 8,
+    dump: {
+      "failnote.__shown": /^1$/,
+      "failtitle.caption": /^Something went wrong in Studio$/,
+      "failtext.caption": /^Division by zero \(safety\.inc line \d+\)\n\nYour work is safe/,
+      "outputbox.text": /Something went wrong in Studio: Division by zero \(safety\.inc line \d+\)\. Your work is safe; Studio goes on\./,
+      "codedoc(0).text": /PRINT 42/,
+    },
+  },
+  {
+    // (unsaved work kept, Studio ended without closing — killed: the test's
+    // end —; started again: "Restore your unsaved work?", Enter restores it
+    // in its editor, not saved)
+    name: "studio-restore-unsaved",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:PRINT 42,wait,safety:keep,wait",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,key:Enter,wait,wait,wait", delay: 8 },
+    dump: {
+      "codedoc(0).text": /Form\.ShowModal\n+PRINT 42/,
+      "codedoc(0).modified": /^(-1|1|True)$/i,
+      "outputbox.text": /Restored the unsaved work of 1 file \(not saved yet\)\./,
+      "saveprompt.__shown": /^0$/,
+    },
+    files: { "hello_form.rr": /^(?![\s\S]*PRINT 42)/ },
+  },
+  {
+    // (a new file with Chinese in it: on disk as the proposal has it, UTF-8
+    // — the old Apply wrote a byte a character, "??? 3D")
+    name: "ai-apply-utf8",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add a chinese translation,wait,wait,wait,ai:apply,wait",
+    delay: 7,
+    dump: { "aistatus.simpletext": /^1 file changed/ },
+    files: { "lang/zh-Hans.po": /^msgid ""\nmsgstr ""\n"Content-Type: text\/plain; charset=UTF-8\\n"\n"Language: zh-Hans\\n"\n\nmsgid "Solar System 3D"\nmsgstr "太阳系 3D"\n\nmsgid "Speed"\nmsgstr "速度"\n$/ },
+  },
+  {
+    // (an Apply that can't be done whole changes nothing: the rename, the
+    // icon in a new folder and a file that can't be made — none applied, the
+    // folder not made, why said; the changes still wait to be reviewed)
+    name: "ai-apply-all-or-nothing",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=add three things,wait,wait,wait,wait,ai:apply,wait",
+    delay: 8,
+    desktopGone: ["icons"],
+    dump: {
+      "aistatus.simpletext": /^Nothing was changed: hello_form\.rr\/blocked\.txt: its folder can't be made: .*hello_form\.rr is a file\. The changes still wait \(Review\)\.$/,
+      "aireviewbar.__shown": /^1$/,
+      "codedoc(0).text": /Caption = "Hello, RapidR"/,
+      "codedoc(0).modified": /^(0|False)$/i,
+      "outputbox.text": /AI: not applied — hello_form\.rr\/blocked\.txt: its folder can't be made/,
+    },
+    same: { "codedoc(0).text": "examples/gui/hello_form.rr" },
+  },
+  {
+    // (changes left waiting are kept with the chat: Studio started again —
+    // the project's chat opened —, they are still there to apply)
+    name: "ai-proposals-kept",
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    desktopOnly: true,
+    do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:ask=rename the window,wait,wait,wait,wait,wait",
+    delay: 7,
+    restart: { do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,wait,wait,ai:apply,wait", delay: 7 },
+    dump: {
+      "aireviewbar.__shown": /^0$/,
+      "codedoc(0).text": /Caption = "AI Notes"/,
+      "aistatus.simpletext": /^1 file changed: Edit > Undo takes it back\.$/,
+    },
   },
   {
     name: "ai-apply-undo",
@@ -5893,7 +6112,119 @@ const CASES = [
       "airemember.__shown": /^1$/,
     },
   },
+  // ---- COPY-ANYWHERE: copying from the Output pane (tests/fixtures/studio_copy) ----
+  // (Output's lines from y 30 down, 20 pixels each in Studio's monospaced
+  // font; "second line of output"'s "line of" from x 62 to 117 — its
+  // characters 7 to 14 — on line 2, y 60; "third line" at y 80)
+  {
+    // a drag over the middle of line 2 selects "line of"; Ctrl+C (⌘C)
+    // copies exactly that (the tests' own clipboard); the selection read
+    // in every look (contrast judged, the selected text with it)
+    name: "copy-output-drag",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__key_67_16", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "outputbox.seltext": /^line of$/, "outputbox.hasselection": /^1$/, "clipboard.text": /^line of$/, "outputbox.text": /^first line\nsecond line of output\nthird line\n/ },
+    // (the web: the kernel's Ctrl+C fills the page's copy event — the real
+    // ⌘C in Chrome below; here the selection)
+    webDump: { "outputbox.seltext": /^line of$/, "outputbox.hasselection": /^1$/ },
+  },
+  {
+    // the right-click menu over "third line", "line of" selected: Copy
+    // (enabled), Copy Line, Copy All, Select All, —, Wrap Long Lines ✓,
+    // Clear — captured open, light and dark
+    name: "copy-output-menu",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__rightclick_100_80", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: {
+      "outputbox.clickedline": /^2$/,
+      "outputbox.seltext": /^line of$/,
+      "outputmenucopy.enabled": /^1$/, "outputmenucopy.caption": /^&Copy$/,
+      "outputmenucopyline.enabled": /^1$/, "outputmenucopyline.visible": /^(1|-1)$/, "outputmenucopyline.caption": /^Copy &Line$/,
+      "outputmenucopyall.caption": /^Copy &All$/, "outputmenuselall.caption": /^&Select All$/,
+      "outputmenuwrap.checked": /^(1|-1)$/, "outputmenuclear.caption": /^Cl&ear$/,
+    },
+  },
+  {
+    // the menu's Copy (Down, Enter): the selection on the clipboard, said
+    // on the status bar
+    name: "copy-output-menu-copy",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, COPY_DRAG, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "clipboard.text": /^line of$/, "status.panel(0).caption": /^Copied 7 characters$/ },
+  },
+  {
+    // nothing selected: Copy disabled; Copy Line (Down past Copy, Down,
+    // Enter) copies the line right-clicked
+    name: "copy-output-menu-line",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "outputbox.hasselection": /^0$/, "outputmenucopy.enabled": /^0$/, "clipboard.text": /^third line$/, "status.panel(0).caption": /^Copied 10 characters$/ },
+  },
+  {
+    // Copy All: the whole page, its last line Studio's own
+    name: "copy-output-menu-all",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait",
+    events: [COPY_WAIT, "outputbox.__rightclick_100_80", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_40", "outputbox.__key_13", "outputbox.__wait_300"].join(","),
+    delay: 7,
+    dump: { "clipboard.text": /^first line\nsecond line of output\nthird line\n\[three\.rr ended, exit code 0\]$/, "status.panel(0).caption": /^Copied 4 lines$/ },
+  },
+  {
+    // Edit > Copy and Select All while Output has the keyboard (no
+    // document needed): Select All, Copy — every line
+    name: "copy-output-edit-menu",
+    open: "tests/fixtures/studio_copy/three.rr",
+    webFiles: ["tests/fixtures/studio_copy/three.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "run.start,wait,wait,wait,focus:outputbox,edit.selectAll,edit.copy",
+    delay: 7,
+    dump: { "clipboard.text": /^first line\nsecond line of output\nthird line\n\[three\.rr ended, exit code 0\]\n> focus:outputbox\n> edit\.selectAll$/, "status.panel(0).caption": /^Copied 6 lines$/ },
+  },
+  {
+    // the Problems page: an error's row clicked, the next added with
+    // Shift+Down, Ctrl+C — each as `file:line:col: severity: message`; the menu's Copy
+    // All says Problems
+    name: "copy-problems",
+    open: "tests/fixtures/studio_copy/problems.rr",
+    webFiles: ["tests/fixtures/studio_copy/problems.rr"],
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "wait,run.start,wait,wait",
+    events: [COPY_WAIT, "outputbox.__mousedown_300_60", "outputbox.__mouseup_300_60", "outputbox.__wait_300", "outputbox.__key_40_256", "outputbox.__key_67_16", "outputbox.__rightclick_300_60", "outputbox.__wait_300"].join(","),
+    delay: 8,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    dump: {
+      "outputbox.page": /^problems$/,
+      "clipboard.text": /^problems\.rr:8:1: error: Unknown SUB or FUNCTION 'Missing'[^\n]*\nproblems\.rr:9:1: error: Unknown SUB or FUNCTION 'Other'[^\n]*$/,
+      "outputmenucopy.enabled": /^1$/, "outputmenucopyline.visible": /^0$/, "outputmenucopyall.caption": /^Copy &All Problems$/,
+    },
+    webDump: { "outputbox.page": /^problems$/, "outputbox.seltext": /^problems\.rr:8:1: error: [^\n]*\nproblems\.rr:9:1: error: [^\n]*$/, "outputmenucopyall.caption": /^Copy &All Problems$/ },
+  },
 ];
+
+
 
 // (I8 AI-REAL) The settings dialog's input: the AI tab clicked, Fetch
 // Models, OK and Cancel pressed with the mouse; text typed key by key into
@@ -6075,6 +6406,9 @@ function runDesktop(c, scale = 1) {
       // (R1: the case's kept chats in its own folder — kept across a
       // restart, never another case's)
       RAPIDR_AI_CHATS: join(dir, "chats"),
+      // (Studio's own folder — the copies of unsaved work, its log: the
+      // case's, kept across a restart, never another case's)
+      RAPIDR_STUDIO_DATA: join(dir, "studio"),
       // (S6: the user's login shell isn't read by the tests — the PATH
       // cases give one of their own, RAPIDR_LOGIN_SHELL)
       RAPIDR_LOGIN_PATH: "off",
@@ -7253,6 +7587,57 @@ async function webHandlerSteps() {
 }
 if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "debug-steps-web-handler".includes(f) || f === "debug-steps"))) {
   await webHandlerSteps();
+}
+
+// (COPY-ANYWHERE, the web) Real input in Chrome, on a page without the
+// tests' hooks (they hold the user's input off): three.rr run, "line of"
+// dragged over with the mouse, ⌘C (Ctrl+C) — the page's copy event carries
+// exactly it (Chromium's headless clipboard, never the system's).
+async function outputCopyWebMouse() {
+  const name = "copy-output-web-mouse (web)";
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const page = await ctx.newPage();
+  try {
+    const files = [{ path: "tests/fixtures/studio_copy/three.rr", text: readFileSync(join(ROOT, "tests/fixtures/studio_copy/three.rr"), "utf8") }];
+    await page.addInitScript((files) => {
+      window.RAPIDR_STUDIO_TEST = {};
+      window.RAPIDR_STUDIO_TEST_FILES = files;
+      window.RAPIDR_FILE_SINK = () => {};
+    }, files);
+    const q = new URLSearchParams({ theme: "rapidr-light", window: "normal", fresh: "", do: "run.start", open: "tests/fixtures/studio_copy/three.rr" });
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && /third line/.test(String(window.rr.rapidr_get_prop("outputbox", "text"))), null, { timeout: 60000, polling: 200 });
+    await page.waitForTimeout(800);
+    const lines = (await page.evaluate(() => String(window.rr.rapidr_get_prop("outputbox", "text")))).split("\n");
+    const row = lines.indexOf("second line of output");
+    const box = await page.locator("#rr-outputbox").first().boundingBox();
+    record(name, !!box && row >= 0, `Output shows the program's lines (line ${row + 1}: "second line of output")`);
+    if (!box || row < 0) return;
+    await page.evaluate(() => {
+      window.__copied = null;
+      document.addEventListener("copy", (e) => { window.__copied = e.clipboardData ? e.clipboardData.getData("text/plain") : null; });
+    });
+    const y = box.y + 30 + row * 20 + 10;
+    await page.mouse.move(box.x + 62, y);
+    await page.mouse.down();
+    for (const x of [80, 100, 117]) await page.mouse.move(box.x + x, y);
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const sel = await page.evaluate(() => String(window.rr.rapidr_get_prop("outputbox", "seltext")));
+    record(name, sel === "line of", `the mouse's drag selects "line of" (${JSON.stringify(sel)})`);
+    await page.keyboard.press("ControlOrMeta+c");
+    await page.waitForTimeout(300);
+    const copied = await page.evaluate(() => window.__copied);
+    record(name, copied === "line of", `⌘C in Chrome puts exactly it on the clipboard (${JSON.stringify(copied)})`);
+    await page.screenshot({ path: join(WORK, "copy-output-web-mouse.png") });
+  } catch (e) {
+    record(name, false, e.message.split("\n")[0]);
+  } finally {
+    await ctx.close();
+  }
+}
+if (HOSTS.includes("web") && (!filters.length || filters.some((f) => "copy-output-web-mouse".includes(f)))) {
+  await outputCopyWebMouse();
 }
 
 async function aiSettingsByMouse() {

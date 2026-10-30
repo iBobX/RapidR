@@ -79,7 +79,7 @@ pub fn read(host: &dyn Host, subject: Option<&dyn Subject>, custom: &[Custom]) -
                     })
                     .collect();
                 prop.is_default = prop.parts.iter().all(|q| q.is_default);
-                prop.value = Some(Value::String(prop.text()));
+                prop.value = Some(Value::String(prop.text().into()));
             } else {
                 let set: Vec<Option<Value>> = names.iter().map(|o| s.get(host, o, p.name)).collect();
                 let fallbacks: Vec<Option<Value>> = names.iter().zip(&set).map(|(o, v)| if v.is_none() { s.fallback(host, o, p.name) } else { None }).collect();

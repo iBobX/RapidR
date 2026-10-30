@@ -37,7 +37,7 @@ pub fn rp_print(items: &[Value], newline: bool) {
 pub fn rp_poke(args: &[Value]) -> Value {
     let text = crate::value::memory::rp_poke_text(args);
     if !text.is_empty() {
-        rp_print(&[Value::String(text)], false);
+        rp_print(&[Value::String(text.into())], false);
     }
     Value::Null
 }
@@ -46,7 +46,7 @@ pub fn rp_poke(args: &[Value]) -> Value {
 pub fn rp_pcopy(from: &Value, to: &Value) -> Value {
     let text = crate::value::memory::rp_pcopy_text(from, to);
     if !text.is_empty() {
-        rp_print(&[Value::String(text)], false);
+        rp_print(&[Value::String(text.into())], false);
     }
     Value::Null
 }
@@ -68,7 +68,7 @@ fn track_print_column(text: &str) {
 /// `,` in PRINT: pad with spaces to the next print zone.
 pub fn rp_print_zone() {
     let pad = PRINT_ZONE_WIDTH - PRINT_COL.with(|c| c.get()) % PRINT_ZONE_WIDTH;
-    rp_print(&[Value::String(" ".repeat(pad))], false);
+    rp_print(&[Value::String(" ".repeat(pad).into())], false);
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +76,8 @@ pub fn rp_print_zone() {
 // ---------------------------------------------------------------------------
 
 pub fn rp_input(prompt: &Value) -> Value {
+    // (waiting for the user: the file streams' writes in their files)
+    crate::value::objects::flush_streams();
     let p = prompt.to_string_val();
     if !p.is_empty() {
         print!("{}", p);
@@ -84,8 +86,8 @@ pub fn rp_input(prompt: &Value) -> Value {
     let mut buf = String::new();
     crate::terminal::line_mode();
     match io::stdin().read_line(&mut buf) {
-        Ok(_) => Value::String(buf.trim_end_matches('\n').trim_end_matches('\r').to_string()),
-        Err(_) => Value::String(String::new()),
+        Ok(_) => Value::String(buf.trim_end_matches('\n').trim_end_matches('\r').to_string().into()),
+        Err(_) => Value::String(String::new().into()),
     }
 }
 
@@ -152,12 +154,12 @@ pub fn rp_input(prompt: &Value) -> Value {
 
 /// DATE$ — today's local date as MM-DD-YYYY
 pub fn rp_date() -> Value {
-    Value::String(chrono::Local::now().format("%m-%d-%Y").to_string())
+    Value::String(chrono::Local::now().format("%m-%d-%Y").to_string().into())
 }
 
 /// TIME$ — the local time as HH:MM:SS
 pub fn rp_time() -> Value {
-    Value::String(chrono::Local::now().format("%H:%M:%S").to_string())
+    Value::String(chrono::Local::now().format("%H:%M:%S").to_string().into())
 }
 
 
@@ -259,6 +261,7 @@ pub fn rp_doevents() {
         crate::ai::poll();
         // (RHttpServer's requests, also in a console program)
         crate::httpserver::poll();
+        crate::mcpserver::poll();
         crate::object::rp_run_deferred();
     }
     // (a background query's rows and events, also in a console program)
@@ -268,6 +271,8 @@ pub fn rp_doevents() {
 
 /// `SLEEP seconds` (RapidQ's manual: `SLEEP 1.5` pauses 1.5 seconds).
 pub fn rp_sleep(seconds: &Value) {
+    // (a program that waits has its file streams' writes in their files)
+    crate::value::objects::flush_streams();
     let s = seconds.to_f64();
     if s.is_finite() && s > 0.0 {
         std::thread::sleep(std::time::Duration::from_secs_f64(s.min(86_400.0)));
@@ -389,7 +394,10 @@ pub fn rp_shell(command: &Value) -> Value {
 }
 
 /// The system's shell running `cmd` (`cmd /C` on Windows, `sh -c` elsewhere).
+/// (What the program's file streams still keep is written first: the
+/// program started may read those files.)
 fn shell_command(cmd: &str) -> std::process::Command {
+    crate::value::objects::flush_streams();
     #[cfg(windows)]
     {
         // The command line as written (quoted programs and paths): `/S /C

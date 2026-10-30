@@ -27,7 +27,7 @@ fn strings_and_numbers(pack: &Value) -> (Vec<Value>, Vec<Value>) {
 pub fn param_str(pack: &Value, i: &Value) -> Value {
     let (strings, _) = strings_and_numbers(pack);
     let i = i.to_i64();
-    (i >= 1).then(|| strings.get(i as usize - 1).cloned()).flatten().unwrap_or_else(|| Value::String(String::new()))
+    (i >= 1).then(|| strings.get(i as usize - 1).cloned()).flatten().unwrap_or_else(|| Value::String(String::new().into()))
 }
 
 /// ParamVal(i): the i-th numeric argument (1-based), 0 past the end.
@@ -58,7 +58,7 @@ mod tests {
         assert_eq!(param_val_count(&p), Value::Integer(2));
         assert_eq!(param_str(&p, &Value::Integer(2)), Value::String("Hmmm".into()));
         assert_eq!(param_val(&p, &Value::Integer(2)), Value::Double(2.5));
-        assert_eq!(param_str(&p, &Value::Integer(3)), Value::String(String::new()));
+        assert_eq!(param_str(&p, &Value::Integer(3)), Value::String(String::new().into()));
         assert_eq!(param_val(&p, &Value::Integer(0)), Value::Integer(0));
         assert_eq!(param_val_count(&pack(&[])), Value::Integer(0));
     }

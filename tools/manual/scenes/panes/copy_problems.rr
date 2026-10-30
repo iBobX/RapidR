@@ -1,0 +1,8 @@
+' The manual's "Copying from Output, Build and Problems" (docs/manual/debugging.md):
+' two errors on the Problems page
+$APPTYPE CONSOLE
+
+DIM total AS INTEGER
+total = 12
+CALL ShowTotal(total)
+CALL SaveReport(total)

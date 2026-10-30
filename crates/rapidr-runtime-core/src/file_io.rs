@@ -80,7 +80,7 @@ pub fn rp_dir(pattern: &Value, attr: &Value) -> Value {
         match iter.next() {
             Some(name) => {
                 set_file_rec(&folder.join(&name), &name);
-                Value::String(name)
+                Value::String(name.into())
             }
             None => v_str(""),
         }
@@ -191,7 +191,7 @@ pub fn rp_rename(old_name: &Value, new_name: &Value) {
 
 pub fn rp_curdir() -> Value {
     match std::env::current_dir() {
-        Ok(p) => Value::String(p.to_string_lossy().into_owned()),
+        Ok(p) => Value::String(p.to_string_lossy().into_owned().into()),
         Err(_) => v_str(""),
     }
 }
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn test_open_write_close_read() {
         let tmp = std::env::temp_dir().join("rapidr_test_file_io.txt");
-        let path = Value::String(tmp.to_string_lossy().into_owned());
+        let path = Value::String(tmp.to_string_lossy().into_owned().into());
 
         // Write
         rp_open(&path, &v_str("OUTPUT"), &v_int(1));
@@ -248,7 +248,7 @@ mod tests {
             let mut f = File::create(&tmp).unwrap();
             f.write_all(b"12345").unwrap();
         }
-        let len = rp_filelen(&Value::String(tmp.to_string_lossy().into_owned()));
+        let len = rp_filelen(&Value::String(tmp.to_string_lossy().into_owned().into()));
         assert_eq!(len, v_int(5));
         let _ = std::fs::remove_file(&tmp);
     }
@@ -264,7 +264,7 @@ mod tests {
     #[test]
     fn test_mkdir_rmdir() {
         let tmp = std::env::temp_dir().join("rapidr_test_mkdir");
-        let path = Value::String(tmp.to_string_lossy().into_owned());
+        let path = Value::String(tmp.to_string_lossy().into_owned().into());
         rp_mkdir(&path);
         assert!(tmp.is_dir());
         rp_rmdir(&path);

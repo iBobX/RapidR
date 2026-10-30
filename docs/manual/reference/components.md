@@ -97,6 +97,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/json.svg" width="20" height="20" alt=""> | [`RJson`](members.md#rjson) | everywhere |
 | <img src="../icons/light/components/font.svg" width="20" height="20" alt=""> | [`RFont`](members.md#rfont) | everywhere |
 | <img src="../icons/light/components/memorystream.svg" width="20" height="20" alt=""> | [`RMemoryStream`](members.md#rmemorystream) | everywhere |
+| <img src="../icons/light/components/archive.svg" width="20" height="20" alt=""> | [`RArchive`](members.md#rarchive) | everywhere |
 | <img src="../icons/light/components/bitmap.svg" width="20" height="20" alt=""> | [`RBitmap`](members.md#rbitmap) | everywhere |
 | <img src="../icons/light/components/imagelist.svg" width="20" height="20" alt=""> | [`RImageList`](members.md#rimagelist) | everywhere |
 | <img src="../icons/light/components/notifyicondata.svg" width="20" height="20" alt=""> | [`RNotifyIconData`](members.md#rnotifyicondata) | everywhere |
@@ -115,6 +116,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/socket.svg" width="20" height="20" alt=""> | [`RSocket`](members.md#rsocket) | desktop (TCP); web (WebSocket) |
 | <img src="../icons/light/components/serversocket.svg" width="20" height="20" alt=""> | [`RServerSocket`](members.md#rserversocket) | desktop |
 | <img src="../icons/light/components/httpserver.svg" width="20" height="20" alt=""> | [`RHttpServer`](members.md#rhttpserver) | desktop |
+| <img src="../icons/light/components/mcpserver.svg" width="20" height="20" alt=""> | [`RMcpServer`](members.md#rmcpserver) | desktop |
 | <img src="../icons/light/components/http.svg" width="20" height="20" alt=""> | [`RHttp`](members.md#rhttp) | everywhere |
 | <img src="../icons/light/components/cgi.svg" width="20" height="20" alt=""> | [`RCGI`](members.md#rcgi) | everywhere |
 | <img src="../icons/light/components/comport.svg" width="20" height="20" alt=""> | [`RComPort`](members.md#rcomport) | desktop (serial2); web (Web Serial) |
@@ -200,6 +202,8 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | | Component | Where |
 |---|---|---|
 | <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAI`](members.md#rai) | everywhere |
+| <img src="../icons/light/components/windowcapture.svg" width="20" height="20" alt=""> | [`RWindowCapture`](members.md#rwindowcapture) | everywhere |
+| <img src="../icons/light/components/apphands.svg" width="20" height="20" alt=""> | [`RAppHands`](members.md#rapphands) | everywhere |
 
 ## Libraries built in
 
@@ -217,4 +221,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-117 components.
+121 components.

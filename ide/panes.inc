@@ -151,6 +151,7 @@ SUB FillExamples
   ' (the showcase: in Open an Example, not on the page)
   MoreCount = 0
   AddMoreExample "studio/helpers.rr", "The code shows its own values: colours, pictures, fonts"
+  AddMoreExample "gui/on_error.rr", "A bug in a handler: the program goes on and says so"
   AddMoreExample "showcase/fireworks.rr", "Click the sky: rockets and thousands of sparks"
   AddMoreExample "showcase/notes.rr", "A Markdown notes app, live preview"
   AddMoreExample "showcase/snake.rr", "A snake game, for the keyboard alone"
@@ -166,6 +167,9 @@ SUB FillExamples
   AddMoreExample "network/local_api.rr", "A web API in your program (RHttpServer), this computer only"
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
+  AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
+  AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
+  AddMoreExample "gui/guided_tour.rr", "Show me: a pointer types and clicks for you"
   ' (the recipes: short programs to start from — the assistant starts from them too)
   AddMoreExample "recipes/calculator.rr", "Recipe: a calculator with sqrt, sin, log, one handler for every key"
   AddMoreExample "recipes/tip_calculator.rr", "Recipe: a tip calculator"
@@ -177,6 +181,17 @@ SUB FillExamples
   AddMoreExample "recipes/password_generator.rr", "Recipe: a password generator"
   AddMoreExample "recipes/csv_viewer.rr", "Recipe: a CSV file in a grid"
   AddMoreExample "recipes/server_manager.rr", "Recipe: a list with Start, Stop and Restart"
+  ' (the systems recipes: one tiny computer in ten programs — docs/manual/recipes-systems.md)
+  AddMoreExample "recipes/memory_bytes.rr", "Systems recipe: memory as a byte array, words, wrapping addresses"
+  AddMoreExample "recipes/flags_bits.rr", "Systems recipe: bits and flags, an 8-bit ALU"
+  AddMoreExample "recipes/cpu_step.rr", "Systems recipe: a tiny CPU, fetch, decode, execute"
+  AddMoreExample "recipes/cpu_stack.rr", "Systems recipe: the stack, PUSH, POP, CALL, RET"
+  AddMoreExample "recipes/hex_dump.rr", "Systems recipe: a hex dump, a memory viewer"
+  AddMoreExample "recipes/disassembler.rr", "Systems recipe: a disassembler, an opcode table"
+  AddMoreExample "recipes/load_binary.rr", "Systems recipe: a binary file into memory, its header"
+  AddMoreExample "recipes/video_memory.rr", "Systems recipe: video memory drawn on a canvas"
+  AddMoreExample "recipes/keyboard_matrix.rr", "Systems recipe: a keyboard matrix and an IN port"
+  AddMoreExample "recipes/cpu_timing.rr", "Systems recipe: a CPU run in cycles per frame"
   LayOutWelcome
 END SUB
 

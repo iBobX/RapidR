@@ -30,6 +30,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
 | [The AI assistant and RAI](ai-assistant.md) | Setting up a provider and a key, asking, changes as diffs you accept, "Build me…", what was sent, privacy and tokens; the `RAI` component for your own programs, and keeping keys out of them |
+| [Let AI apps work in Studio](ai-apps.md) | Turning it on (off by default, this computer only, a token), giving an AI app the address and the header, the permission menu (Read only, Ask before changes, Allow edits, Allow everything), watching every call in the AI Apps pane, the tools, what AI apps can see, the activity log |
 | [Markdown files and RMarkdownView](markdown.md) | `.md` files formatted in RapidR Studio (Preview \| Source), and Markdown shown in your own programs, its code blocks coloured by language (SQL, BASIC, JSON …) |
 | [Versions: never lose your work](versions.md) | Saving versions, the timeline, going back, experiments, shared folders, safety points and Undo, the secret check — in plain words with Git's names beside them (the Studio panel comes in Preview 4); `RDiffView`'s text, form and table views in your own programs |
 
@@ -41,12 +42,15 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es` |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the older Q names; the global objects; themes, high-DPI and accessibility |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
+| [A program's eyes and hands](app-eyes-and-hands.md) | `RWindowCapture`: pictures of the program's own windows and a report of what looks wrong (text cut off, controls on top of each other); `RAppHands`: clicks, typing and keys played into them with a pointer you see — tours, demos, self-tests; how AI apps and RAI look at and use your running program in Studio |
 | [Keeping secrets](secrets.md) | `RSecrets`: passwords and keys in the OS keychain, each program its own, never shown by the debugger or to an AI; none in a browser |
+| [Archives: zip, 7z, tar and gzip files](archives.md) | `RArchive`: opening zip, 7z, tar.gz, .gz, .xz and .zst files by their first bytes, listing and unpacking them, making zip and tar.gz files; zip bombs, paths outside the folder, links and encrypted entries refused; `COMPRESS$` / `DECOMPRESS$` |
 | [Your own SVG icons](svg-icons.md) | `RImageList.AddSVGFile`, SVGs that take the theme's colours (`currentColor`, RapidR's colour tokens), SVGs built in with `$RESOURCE` |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events; background queries (`QueryAsync`, `Cancel`) streaming a million rows into an `RDBGrid`; column names and types; the SQL editor |
 | [The code editor in your programs](code-editor.md) | `RCodeEditor`: languages, files, completion; its SQL mode (dialects, completion from your tables, Ctrl+Enter runs the statement) |
 | [DirectX and media](directx-and-media.md) | RDXScreen and the Direct3D objects, sound, joysticks, RMIDI / RWave / RVideo / RCDAudio, the system tray, CGI, downloads |
-| [Networking: sockets and a local web server](network.md) | Servers on `127.0.0.1` (this computer only) or the network; `RServerSocket` by lines, bytes or whole HTTP requests; `RHttpServer`: a local API, Server-Sent Events, the token, the requests it refuses by itself, an MCP server |
+| [Networking: sockets and a local web server](network.md) | Servers on `127.0.0.1` (this computer only) or the network; `RServerSocket` by lines, bytes or whole HTTP requests; `RHttpServer`: a local API, Server-Sent Events, the token, the requests it refuses by itself; `RMcpServer`: your program's own tools for AI apps |
+| [Recipes for systems programs](recipes-systems.md) | Ten small programs for a machine's insides, one technique each, one tiny computer between them: memory as a byte array, bits and flags, a CPU that fetches and decodes, the stack, a hex dump, a disassembler, a binary file, video memory on a canvas, a keyboard matrix, cycles per frame; how fast RapidR runs them |
 | [Serial ports and IoT boards](serial-ports.md) | RComPort (older name QCOMPORT): opening ports, listing them with their USB IDs, lines in, plug events, resetting an ESP32 through DTR / RTS, Web Serial |
 
 ## Data science and rich text
@@ -64,6 +68,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | [Building apps and their icons](building-apps.md) | `Name.app`, the `.exe`'s icon and version, `Name.AppDir`; your icon or RapidR's; Studio's Build; Build Web App |
 | [Importing older programs](importing-rapidq.md) | A copy of an older program (`.bas`, `.rqw`, `.rqb`, `.rq`) with RapidR's names, checked to compile to the same bytecode: in RapidR Studio and with `rapidr import-rapidq`; include files |
 | [The web](web.md) | Running programs in a browser: bundles, `--web` builds, files and assets, web-only components, windows bigger than the page |
+| [RapidR in other editors](other-editors.md) | The Visual Studio Code extension (which `rapidr` it uses, completion, Help beside the code, colours, projects, debugging), and what `rapidr lsp` and `rapidr dap` give any editor that speaks the protocols |
 | [The CLI and the RapidR Runtime](cli-and-runtime.md) | Every `rapidr` command, the kinds of builds, the Runtime, file types, `rapidr setup`, environment variables, the notices builds carry |
 
 ## When something differs, or goes wrong

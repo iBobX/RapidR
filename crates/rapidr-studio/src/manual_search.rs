@@ -17,6 +17,9 @@ use std::sync::OnceLock;
 pub const PAGES: &[(&str, &str)] = &[
     ("README.md", include_str!("../../../docs/manual/README.md")),
     ("ai-assistant.md", include_str!("../../../docs/manual/ai-assistant.md")),
+    ("ai-apps.md", include_str!("../../../docs/manual/ai-apps.md")),
+    ("app-eyes-and-hands.md", include_str!("../../../docs/manual/app-eyes-and-hands.md")),
+    ("archives.md", include_str!("../../../docs/manual/archives.md")),
     ("building-apps.md", include_str!("../../../docs/manual/building-apps.md")),
     ("cli-and-runtime.md", include_str!("../../../docs/manual/cli-and-runtime.md")),
     ("code-editor.md", include_str!("../../../docs/manual/code-editor.md")),
@@ -33,6 +36,8 @@ pub const PAGES: &[(&str, &str)] = &[
     ("language.md", include_str!("../../../docs/manual/language.md")),
     ("markdown.md", include_str!("../../../docs/manual/markdown.md")),
     ("network.md", include_str!("../../../docs/manual/network.md")),
+    ("other-editors.md", include_str!("../../../docs/manual/other-editors.md")),
+    ("recipes-systems.md", include_str!("../../../docs/manual/recipes-systems.md")),
     ("rich-text.md", include_str!("../../../docs/manual/rich-text.md")),
     ("secrets.md", include_str!("../../../docs/manual/secrets.md")),
     ("serial-ports.md", include_str!("../../../docs/manual/serial-ports.md")),

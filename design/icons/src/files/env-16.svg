@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+  <title>Secrets (.env)</title>
+  <path d="M2.5 0.5H9.5L13.5 4.5V15.5H2.5L2.5 0.5Z" fill="#FFFFFF" stroke="#5B6478"/>
+  <path d="M9.5 0.5V4.5H13.5" stroke="#5B6478"/>
+  <path d="M6.5 8.5V6.5A1.5 1.5 0 0 1 9.5 6.5V8.5" stroke="#5B6478"/>
+  <path d="M6.5 8.5H9.5A1 1 0 0 1 10.5 9.5V11.5A1 1 0 0 1 9.5 12.5H6.5A1 1 0 0 1 5.5 11.5V9.5A1 1 0 0 1 6.5 8.5Z" fill="#FFEDC7" stroke="#B86E00"/>
+  <rect x="7" y="9" width="2" height="2" fill="#B86E00"/>
+</svg>

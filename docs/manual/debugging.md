@@ -72,6 +72,62 @@ you set it.
 
 ![The same with Wrap Long Output Lines off: the long line is cut at the pane's edge](images/panes/output-cut.png)
 
+### Copying from Output, Build and Problems
+
+Everything the panes show can be copied — an error to search for, a line of
+your program's output, the whole build log.
+
+- **Select text with the mouse.** Drag over it (across lines too; the pane
+  scrolls when you drag past its top or bottom). A double click selects a
+  word, a triple click the whole line, and Shift + a click stretches the
+  selection to where you click. A plain click selects the line it's on.
+  A drag that starts on a `file:line` link selects text; a click on the link
+  still opens it.
+- **Copy it** with **Ctrl+C** (**⌘C** on a Mac; Ctrl+Insert works too).
+  What's copied is the plain text — never the colours — and a wrapped line
+  is copied as the one line it is. **Ctrl+A** (⌘A) selects the whole page.
+- **Right-click** for the pane's menu:
+
+  | Item | What it copies |
+  |---|---|
+  | **Copy** (Ctrl+C) | What you selected. Grey when nothing is. |
+  | **Copy Line** | The line you right-clicked, selected or not. |
+  | **Copy All** | The whole page you are looking at. |
+  | **Select All** (Ctrl+A) | Selects the whole page. |
+  | **Wrap Long Lines**, **Clear** | As before: long lines wrapped or cut; the page emptied. |
+
+  The status bar says what was copied (*Copied 7 characters*,
+  *Copied 4 lines*).
+- **Edit ▸ Copy** and **Edit ▸ Select All** work on the pane while it has
+  the keyboard, even with no document open.
+- **On the Problems page** each row copies as one line,
+  `file:line:column: severity: message` —
+  `main.rr:4:7: error: Undefined variable X` — ready to paste into a search,
+  a message or a question to RAI. Click a row (it also takes you to the
+  line), add the next ones with **Shift + a click** or **Shift+↓**, then
+  Ctrl+C; or right-click: **Copy** copies the selected problems and **Copy
+  All Problems** every one.
+
+![Output with "1204 orders" selected by a drag in the second line](images/panes/output-copy-select.png)
+
+![The Output pane's right-click menu: Copy, Copy Line, Copy All, Select All, then Wrap Long Lines (checked) and Clear](images/panes/output-copy-menu.png)
+
+![The Problems page with two errors selected and its right-click menu: Copy, Copy All Problems, Select All, Wrap Long Lines, Clear](images/panes/output-copy-problems.png)
+
+A screen reader reads the pane as a read-only text field, by character,
+word and line, and says the selection as it changes.
+
+The same works in your own programs: an `ROutputConsole` has `SelText`,
+`HasSelection`, `ClickedLine`, `SelectAll`, `CopySelection`, `CopyAll` and
+`CopyLine` (see [examples/studio/log_copy.rr](../../examples/studio/log_copy.rr),
+a log with Copy buttons and a right-click menu like Studio's).
+
+The other panes copy too: **Variables** and **Watch** (*Copy Value*, Ctrl+C),
+**Call Stack** and **Breakpoints** (Ctrl+C, or right-click: **Copy** the
+selected row, **Copy All** of them), the **Immediate** pane (as any text
+box), and message boxes: **Ctrl+C** (⌘C) on a message box copies its title,
+text and buttons, as Windows' message boxes do.
+
 ### Two layouts: editing and debugging
 
 Studio arranges its panes for what you are doing.

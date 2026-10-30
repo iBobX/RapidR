@@ -42,6 +42,12 @@ serde_json = "1"
 # features: no HTML writer, no command-line parser.
 pulldown-cmark = { version = "0.13.4", default-features = false }
 
+# RARCHIVE and COMPRESS$ / DECOMPRESS$ (objects/archive.rs): RapidR's
+# archive engine — zip, tar, gzip; xz, zstd and 7z read — wasm-safe. Only in
+# what turns the `archive` features on (the VM's runners, the web runtime,
+# a native build of a program that uses RArchive).
+rapidr-archive = { workspace = true, optional = true }
+
 # QREGISTRY on Windows: Windows' own registry (registry.rs). Microsoft's
 # windows-rs (MIT OR Apache-2.0); its windows-link / -result / -strings are
 # already in the tree.
@@ -59,6 +65,15 @@ windows-sys = { version = "0.52", features = ["Win32_System_Memory", "Win32_UI_W
 # that the build has no icons.
 default = ["icons"]
 icons = ["dep:rapidr-icons"]
+# RARCHIVE: zip (stored, Deflate), tar, tar.gz and .gz, read and made —
+# the zip crate (MIT), flate2 (MIT OR Apache-2.0) on zlib-rs (Zlib); tar is
+# RapidR's own. Each other format a feature of its own (lean builds).
+archive = ["dep:rapidr-archive", "rapidr-archive/zip", "rapidr-archive/gzip"]
+# …and read: xz and tar.xz (lzma-rust2, Apache-2.0), zstd and tar.zst
+# (ruzstd, MIT), 7z (sevenz-rust2, Apache-2.0).
+archive-xz = ["archive", "rapidr-archive/xz"]
+archive-zstd = ["archive", "rapidr-archive/zstd"]
+archive-7z = ["archive", "rapidr-archive/7z"]
 
 [dev-dependencies]
 # Property tests of the designer model (MIT OR Apache-2.0; dev-only, never

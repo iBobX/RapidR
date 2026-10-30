@@ -22,23 +22,23 @@ pub fn rp_right(s: &Value, n: &Value) -> Value {
 }
 
 pub fn rp_ucase(s: &Value) -> Value {
-    Value::String(s.to_string_val().to_uppercase())
+    Value::String(s.to_string_val().to_uppercase().into())
 }
 
 pub fn rp_lcase(s: &Value) -> Value {
-    Value::String(s.to_string_val().to_lowercase())
+    Value::String(s.to_string_val().to_lowercase().into())
 }
 
 pub fn rp_ltrim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim_start().to_string())
+    Value::String(s.to_string_val().trim_start().to_string().into())
 }
 
 pub fn rp_rtrim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim_end().to_string())
+    Value::String(s.to_string_val().trim_end().to_string().into())
 }
 
 pub fn rp_trim(s: &Value) -> Value {
-    Value::String(s.to_string_val().trim().to_string())
+    Value::String(s.to_string_val().trim().to_string().into())
 }
 
 pub fn rp_instr(start: &Value, haystack: &Value, needle: &Value) -> Value {
@@ -60,7 +60,7 @@ pub fn rp_chr(n: &Value) -> Value {
         Value::Double(d) => crate::format::int32(*d),
         other => other.to_i64(),
     };
-    Value::String(String::from(char::from(code as u8)))
+    Value::String(String::from(char::from(code as u8)).into())
 }
 
 pub fn rp_asc(s: &Value) -> Value {
@@ -84,14 +84,14 @@ pub fn rp_replace(s: &Value, replacement: &Value, index: &Value) -> Value {
     let mut out: String = chars[..before].iter().collect();
     out.push_str(&rep);
     out.extend(&chars[after..]);
-    Value::String(out)
+    Value::String(out.into())
 }
 
 /// `STR$(n)`: RapidQ's 9 significant digits (`crate::format::str_number`).
 pub fn rp_str(val: &Value) -> Value {
     match val {
-        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => Value::String(crate::format::str_number(val.to_f64())),
-        _ => Value::String(val.to_string_val()),
+        Value::Integer(_) | Value::Double(_) | Value::Boolean(_) => Value::String(crate::format::str_number(val.to_f64()).into()),
+        _ => Value::String(val.to_string_val().into()),
     }
 }
 
@@ -202,7 +202,7 @@ pub fn rp_environ_set(spec: &Value) -> Value {
 
 /// `ENVIRON$(name)` (crate::environ).
 pub fn rp_environ_get(name: &Value) -> Value {
-    Value::String(crate::environ::get(&name.to_string_val()))
+    Value::String(crate::environ::get(&name.to_string_val()).into())
 }
 
 /// `VAL(s)` as RapidQ reads a number (RC.EXE): spaces anywhere are
@@ -395,16 +395,16 @@ fn low32(val: &Value) -> u32 {
 /// `HEX$(n)`: RapidQ for Windows pads to 8 digits (`HEX$(255)` is
 /// 000000FF — its manual says so, RC.EXE shows it).
 pub fn rp_hex(val: &Value) -> Value {
-    Value::String(format!("{:08X}", low32(val)))
+    Value::String(format!("{:08X}", low32(val)).into())
 }
 
 pub fn rp_oct(val: &Value) -> Value {
-    Value::String(format!("{:o}", val.to_i64()))
+    Value::String(format!("{:o}", val.to_i64()).into())
 }
 
 /// `BIN$(n)`: the 32 bits, without leading zeros (`BIN$(-1)` is 32 ones).
 pub fn rp_bin(val: &Value) -> Value {
-    Value::String(format!("{:b}", low32(val)))
+    Value::String(format!("{:b}", low32(val)).into())
 }
 
 /// `FIX(x)`: truncated toward zero, a float's whole number (as INT).
@@ -481,10 +481,10 @@ pub fn rp_convbase(num_str: &Value, from_base: &Value, to_base: &Value) -> Value
     // CONVBASE$("-10", 10, 16) is FFFFFFF6 — "32 bits negative", Lib's notes).
     let decimal = if decimal < 0 && to != 10 && decimal >= i32::MIN as i64 { decimal as u32 as i64 } else { decimal };
     match to {
-        10 => Value::String(decimal.to_string()),
-        16 => Value::String(format!("{:X}", decimal)),
-        8 => Value::String(format!("{:o}", decimal)),
-        2 => Value::String(format!("{:b}", decimal)),
+        10 => Value::String(decimal.to_string().into()),
+        16 => Value::String(format!("{:X}", decimal).into()),
+        8 => Value::String(format!("{:o}", decimal).into()),
+        2 => Value::String(format!("{:b}", decimal).into()),
         _ => {
             // General base conversion
             if decimal == 0 {
@@ -502,7 +502,7 @@ pub fn rp_convbase(num_str: &Value, from_base: &Value, to_base: &Value) -> Value
                 result.push(b'-');
             }
             result.reverse();
-            Value::String(String::from_utf8_lossy(&result).into_owned())
+            Value::String(String::from_utf8_lossy(&result).into_owned().into())
         }
     }
 }
@@ -584,7 +584,7 @@ pub fn rp_field(s: &Value, delim: &Value, n: &Value) -> Value {
     if n < 1 || n > parts.len() as i64 {
         v_str("")
     } else {
-        Value::String(parts[(n - 1) as usize].to_string())
+        Value::String(parts[(n - 1) as usize].to_string().into())
     }
 }
 
@@ -618,14 +618,14 @@ pub fn rp_rinstr_from(start: &Value, s: &Value, substr: &Value) -> Value {
 
 /// `FORMAT$(fmt, arg0, arg1, …)` (Pascal `Format`, see `crate::format`).
 pub fn rp_format(fmt: &Value, args: &[Value]) -> Value {
-    Value::String(crate::format::format(&fmt.to_string_val(), args))
+    Value::String(crate::format::format(&fmt.to_string_val(), args).into())
 }
 
 /// `STRF$(value, format, precision, digits)` (`FloatToStrF`, see
 /// `crate::format::strf`); a missing format is ffGeneral, precision 15.
 pub fn rp_strf(v: &Value, format: &Value, precision: &Value, digits: &Value) -> Value {
     let precision = if matches!(precision, Value::Null) { 15 } else { precision.to_i64() };
-    Value::String(crate::format::strf(v.to_f64(), format.to_i64(), precision, digits.to_i64()))
+    Value::String(crate::format::strf(v.to_f64(), format.to_i64(), precision, digits.to_i64()).into())
 }
 
 // ---------------------------------------------------------------------------

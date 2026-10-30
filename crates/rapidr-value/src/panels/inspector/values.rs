@@ -135,7 +135,7 @@ impl Kind {
             Kind::Int | Kind::Bool | Kind::Color | Kind::Set(_) => Value::Integer(0),
             Kind::Float => Value::Double(0.0),
             Kind::Enum(v) => const_of(v, 0),
-            _ => Value::String(String::new()),
+            _ => Value::String(String::new().into()),
         }
     }
 }
@@ -146,7 +146,7 @@ impl Kind {
 fn const_of(values: &[String], i: usize) -> Value {
     match values.get(i).and_then(|n| rapidr_lang::constant(n)) {
         Some((v, _)) => Value::Integer(v),
-        None if values.iter().all(|n| rapidr_lang::constant(n).is_none()) => Value::String(values.get(i).cloned().unwrap_or_default()),
+        None if values.iter().all(|n| rapidr_lang::constant(n).is_none()) => Value::String(values.get(i).cloned().unwrap_or_default().into()),
         None => Value::Integer(i as i64),
     }
 }
@@ -312,7 +312,7 @@ pub fn normalize(kind: &Kind, v: &Value) -> Option<Value> {
         Kind::Font => return None,
         _ => match v {
             Value::Null => return None,
-            _ => Value::String(text()),
+            _ => Value::String(text().into()),
         },
     })
 }
@@ -410,7 +410,7 @@ pub fn parse(kind: &Kind, text: &str) -> Result<Value, String> {
             Some(c) => Ok(Value::Integer(c)),
             None => bad("a colour (clRed, &HBBGGRR, #RRGGBB)"),
         },
-        _ => Ok(Value::String(text.to_string())),
+        _ => Ok(Value::String(text.to_string().into())),
     }
 }
 

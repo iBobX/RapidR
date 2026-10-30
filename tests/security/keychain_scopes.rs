@@ -89,7 +89,7 @@ fn sec21_rai_in_a_program() {
     memory();
     keys::set_named_in(&Scope::Studio, "RapidR Studio/openai", &key("studio-0004"), false).unwrap();
     let name = "sec21ai";
-    let s = |v: &str| Value::String(v.to_string());
+    let s = |v: &str| Value::String(v.to_string().into());
     crate::rai::set(name, "provider", &s("openai"));
     crate::rai::set(name, "keyowner", &s("/Users/someone/ide/studio.rr"));
     assert!(crate::rai::get(name, "error").unwrap().to_string_val().contains("KeyOwner is RapidR Studio's own"));

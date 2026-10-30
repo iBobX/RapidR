@@ -521,6 +521,12 @@ pub fn turn() {
     fire_timers();
     serve_waits();
     script::step(Web);
+    // (the eyes and hands: RapidR Studio's link and the program's
+    // RAppHands — the jobs played, what ended answered)
+    if !crate::object_web::debug_stopped() {
+        rapidr_ui_app::hands::step(Web);
+    }
+    rapidr_ui_app::app_components::deliver(Web, &app_answer);
     dispatch_pending();
     serve_waits();
     modals_closed();
@@ -597,7 +603,7 @@ fn frame() {
 fn arm_deadline() {
     let now = rapidr_ui_kernel::tick::now();
     let kernel = host::with(|h, _| h.next_wake()).flatten();
-    let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake()].into_iter().flatten().min();
+    let next = [kernel, script::next_step(), rapidr_ui_app::timers::next_due(), rapidr_ui_app::dialogs::hook_wake(), rapidr_ui_app::hands::next_wake()].into_iter().flatten().min();
     let Some(at) = next else { return };
     let ms = at.saturating_duration_since(now).as_secs_f64() * 1000.0;
     let Some(w) = web_sys::window() else { return };
@@ -675,6 +681,9 @@ impl Windows for Web {
     }
     fn popup_open(self, form: &str) -> bool {
         host::with(|h, _| h.desk.forms.get(form).is_some_and(|f| f.ui.popup_open().is_some())).unwrap_or(false)
+    }
+    fn popup_rect(self, form: &str) -> Option<(i64, i64, i64, i64)> {
+        host::with(|h, _| h.desk.forms.get(form).and_then(|f| f.ui.popup_rect())).flatten()
     }
     fn start_move(self, form: &str, comp: &str) -> bool {
         host::with(|h, _| h.desk.forms.get_mut(form).is_some_and(|f| f.ui.start_move(comp))).unwrap_or(false)
@@ -758,6 +767,81 @@ impl Windows for Web {
     fn capture_and_end(self, _prefix: &str) {
         test_end();
     }
+    // (the eyes and hands: rapidr_ui_app::{eyes, hands})
+    fn with_desk(self, f: &mut dyn FnMut(&mut desktop::Desktop, &dyn Store)) -> bool {
+        host::with(|h, store| f(&mut h.desk, store)).is_some()
+    }
+}
+
+// ----------------------------------------------------- the eyes and hands --
+//
+// RapidR Studio's link to the program it runs in its frame (the session's
+// `app` requests, `rapidr-vm-host-web`) and the program's RWindowCapture and
+// RAppHands: `rapidr_ui_app::{eyes, hands, link, app_components}`, the
+// desktop's own.
+
+/// How RapidR Studio is answered: the session's reply, by its number.
+pub type AppSink = Rc<dyn Fn(u64, serde_json::Value)>;
+
+thread_local! {
+    static APP_SINK: RefCell<Option<AppSink>> = const { RefCell::new(None) };
+    /// Where the debugger holds the program, in words ("at line 12 of
+    /// calc.rr"), while it does.
+    static APP_PAUSED: RefCell<Option<String>> = const { RefCell::new(None) };
+}
+
+fn app_answer(seq: u64, reply: &serde_json::Value) {
+    if let Some(sink) = APP_SINK.with(|s| s.borrow().clone()) {
+        sink(seq, reply.clone());
+    }
+}
+
+/// RapidR Studio's link is up: its replies go to `sink`.
+pub fn app_link(sink: AppSink) {
+    APP_SINK.with(|s| *s.borrow_mut() = Some(sink));
+}
+
+/// The debugger holds the program `at`, or let it go on (`None`).
+pub fn app_paused(at: Option<String>) {
+    APP_PAUSED.with(|p| *p.borrow_mut() = at);
+}
+
+/// A request from RapidR Studio: a look answered now, input queued for the
+/// hands (answered at the turn its handlers have run) — refused while the
+/// debugger holds the program.
+pub fn app_request(seq: u64, request: &serde_json::Value) {
+    sync();
+    let paused = APP_PAUSED.with(|p| p.borrow().clone()).or_else(|| crate::object_web::debug_stopped().then(|| "where it stopped".to_string()));
+    if let Some(reply) = rapidr_ui_app::link::request(Web, seq, request, paused.as_deref()) {
+        app_answer(seq, &reply);
+    }
+    later();
+}
+
+/// RWindowCapture's properties the runtime answers.
+pub fn app_capture_get(name: &str, prop: &str) -> Option<Value> {
+    sync();
+    rapidr_ui_app::app_components::capture_get(Web, name, prop)
+}
+
+/// RWindowCapture's methods (SaveToFile into the page's files — RapidR
+/// Studio keeps them in the project's folder).
+pub fn app_capture_method(name: &str, method: &str, args: &[Value]) -> Value {
+    sync();
+    rapidr_ui_app::app_components::capture_method(Web, name, method, args, &|file, bytes| crate::object_web::web_write_file(file, bytes)).unwrap_or_else(|| {
+        web_sys::console::warn_1(&JsValue::from_str(&format!("RWindowCapture.{method}() isn't one of its methods")));
+        Value::Null
+    })
+}
+
+/// RAppHands's methods: a turn soon for the job.
+pub fn app_hands_method(name: &str, method: &str, args: &[Value]) -> Value {
+    let v = rapidr_ui_app::app_components::hands_method(Web, name, method, args);
+    later();
+    v.unwrap_or_else(|| {
+        web_sys::console::warn_1(&JsValue::from_str(&format!("RAppHands.{method}() isn't one of its methods")));
+        Value::Null
+    })
 }
 
 // ------------------------------------------------------- Open / Save --
@@ -822,7 +906,7 @@ fn gesture_box(req: Request) -> FileWait {
 /// out as a download.
 fn name_box(req: &Request) -> FileWait {
     let initial = rapidr_value::file_dialog::with_default_ext(req.file_name.as_deref().unwrap_or(""), &req.default_ext);
-    let pending = rapidr_ui_app::dialogs::prompt(Web, &files_title(req), "File name:", &initial, "&Save", Some("Cancel"), |t| t.map_or(Value::Null, Value::String));
+    let pending = rapidr_ui_app::dialogs::prompt(Web, &files_title(req), "File name:", &initial, "&Save", Some("Cancel"), |t| t.map_or(Value::Null, Value::from));
     match pending {
         rapidr_ui_app::dialogs::Pending::Open(wait) => FileWait::Name { wait },
         rapidr_ui_app::dialogs::Pending::Done(_) => FileWait::Done(Vec::new()),
@@ -854,7 +938,7 @@ pub fn set_test_env(vars: &JsValue) {
 /// desktop's `RAPIDR_CAPTURE` BMP: the same bytes for the same pixels),
 /// bottom to top, kept for `rapidr_test_results`; the program ends.
 fn test_end() {
-    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
+    let dump = testhooks::dump_lines(&testhooks::parse_dump(&testhooks::var("RAPIDR_TEST_DUMP").unwrap_or_default()), |c| script::shown_up(Web, c), |comp, prop| if prop.starts_with("__cursor_") || prop.eq_ignore_ascii_case("__popupat") { script::dump_value(Web, comp, prop) } else { rp_comp_get(comp, prop).to_string_val() });
     sync();
     let shots = host::with(|h, store| {
         let order = h.desk.stacking();
@@ -1251,7 +1335,7 @@ pub fn input_box(title: &str, prompt: &str, echo: bool) -> Option<Value> {
         if echo {
             crate::dialog_web::echo_next(text.clone());
         }
-        Value::String(text)
+        Value::String(text.into())
     };
     match rapidr_ui_app::dialogs::input(Web, title, prompt, "", then) {
         rapidr_ui_app::dialogs::Pending::Done(v) => Some(v),

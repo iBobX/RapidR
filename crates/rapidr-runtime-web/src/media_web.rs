@@ -1,7 +1,9 @@
 //! The media objects' devices in the browser (rapidr_value::objects::media;
 //! docs/io-media-plan.md §4–§5), as runtime-core's `media.rs` on the
-//! desktop: QMIDI's song sent to the page's first MIDI output (Web MIDI —
-//! the browser asks the user once; none, refused, or a browser without Web
+//! desktop: QMIDI's song sent to a MIDI output of the page's that makes
+//! sound (Web MIDI — the browser asks the user once; `objects::midiout`
+//! chooses: a synthesizer by its name, not a bus that only carries
+//! messages to other programs; none, refused, or a browser without Web
 //! MIDI: RapidR's built-in synthesizer, `objects::synth`, rendered in wasm
 //! for Web Audio as it plays), QWAVE played
 //! through QDXSOUND's Web Audio device and recorded from the microphone
@@ -15,6 +17,7 @@ use std::rc::Rc;
 
 use rapidr_value::objects::media::{self, MidiDevice, WaveInput};
 use rapidr_value::objects::midifile::Song;
+use rapidr_value::objects::midiout;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
@@ -47,7 +50,11 @@ thread_local! {
     static SENT: RefCell<HashMap<String, JsValue>> = RefCell::new(HashMap::new());
 }
 
-async fn first_output() -> Option<JsValue> {
+/// The page's MIDI output that makes sound (`objects::midiout`'s rule,
+/// as the desktop's: a bus or a loop that carries messages to other
+/// programs is silence), or none: RapidR's own synthesizer plays. The page
+/// variable `RAPIDR_MIDI_OUT` names the output to use, or `builtin`.
+async fn chosen_output() -> Option<JsValue> {
     let access = match ACCESS.with(|a| a.borrow().clone()) {
         Some(a) => a,
         None => {
@@ -62,8 +69,22 @@ async fn first_output() -> Option<JsValue> {
     let values: js_sys::Function = js_sys::Reflect::get(&outputs, &"values".into()).ok()?.dyn_into().ok()?;
     let iter = values.call0(&outputs).ok()?;
     let next: js_sys::Function = js_sys::Reflect::get(&iter, &"next".into()).ok()?.dyn_into().ok()?;
-    let first = next.call0(&iter).ok()?;
-    js_sys::Reflect::get(&first, &"value".into()).ok().filter(|v| !v.is_undefined())
+    let mut found: Vec<(String, JsValue)> = Vec::new();
+    // (a page has a few outputs; the cap keeps a broken iterator from looping)
+    for _ in 0..128 {
+        let step = next.call0(&iter).ok()?;
+        let done = js_sys::Reflect::get(&step, &"done".into()).ok().and_then(|d| d.as_bool()).unwrap_or(true);
+        let Some(out) = js_sys::Reflect::get(&step, &"value".into()).ok().filter(|v| !v.is_undefined()) else { break };
+        if done {
+            break;
+        }
+        let name = js_sys::Reflect::get(&out, &"name".into()).ok().and_then(|n| n.as_string()).unwrap_or_default();
+        found.push((name, out));
+    }
+    let names: Vec<String> = found.iter().map(|(n, _)| n.clone()).collect();
+    let wanted = page_var("RAPIDR_MIDI_OUT").and_then(|v| v.as_string()).unwrap_or_default();
+    let index = midiout::choose(&names, &wanted, false)?;
+    found.into_iter().nth(index).map(|(_, out)| out)
 }
 
 fn now_ms() -> f64 {
@@ -77,7 +98,7 @@ fn midi_play(id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
     }
     let id = id.to_string();
     wasm_bindgen_futures::spawn_local(async move {
-        let Some(out) = first_output().await else {
+        let Some(out) = chosen_output().await else {
             synth_play(&id, &song, from_us, gain);
             return;
         };

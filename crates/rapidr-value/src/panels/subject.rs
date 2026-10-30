@@ -206,7 +206,7 @@ impl Subject for Live {
 
     fn set_handler(&self, host: &dyn Host, objects: &[String], event: &str, sub: &str) {
         for o in objects {
-            host.set(o, event, Value::String(sub.to_string()));
+            host.set(o, event, Value::String(sub.to_string().into()));
         }
     }
 
@@ -234,7 +234,7 @@ pub fn default_value(type_name: &str, prop: &str) -> Option<Value> {
         D::Int(i) => Value::Integer(i),
         D::Float(f) => Value::Double(f),
         D::Bool(b) => Value::Integer(if b { -1 } else { 0 }),
-        D::Str(s) => Value::String(s.to_string()),
+        D::Str(s) => Value::String(s.to_string().into()),
         D::Expr(e) => Value::Integer(rapidr_lang::eval_constant(e)?),
     })
 }

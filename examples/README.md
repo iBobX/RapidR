@@ -45,6 +45,8 @@ claims, headless).
 | [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
+| [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |
+| [bytes.rr](basics/bytes.rr) | A binary file's bytes: `WriteNum`, `ReadBinStr`, every byte with `ASC(MID$(…))` / `data[i]` (fast at any length), a hex dump built with `s = s + …`, `MemCopyTo` into a `BYTE` array | run · interp · native · web | `rapidr run basics/bytes.rr` |
 | [language.rr](basics/language.rr) | A tour: `TYPE` records, arrays, `DATA` / `READ`, `SELECT CASE`, `DO … LOOP`, an object `TYPE` with methods and a constructor | run · interp · native · web | `rapidr run basics/language.rr` |
 
 ### gui/ — forms and their events
@@ -53,13 +55,18 @@ claims, headless).
 |---------|---------------|---------|-----|
 | [hello_form.rr](gui/hello_form.rr) | A form built with `CREATE`: a text box, a button's `OnClick`, `OnChange` | run · interp · native · web | `rapidr run gui/hello_form.rr` |
 | [focus_events.rr](gui/focus_events.rr) | `OnEnter` and `OnExit` (RapidR's own): a box's help when the focus comes to it, its check when the focus leaves it ([the manual](../docs/manual/components.md#the-focus-onenter-and-onexit)) | run · interp · native · web | `rapidr run gui/focus_events.rr` |
+| [snapshot.rr](gui/snapshot.rr) | `RWindowCapture`, the program's own eyes: "Save as picture" saves a PNG of its own window (never the screen or another program), "Check layout" says what looks wrong — narrow a button and its caption is cut off ([the manual](../docs/manual/app-eyes-and-hands.md)) | run · interp · native · web | `rapidr run gui/snapshot.rr` |
+| [guided_tour.rr](gui/guided_tour.rr) | `RAppHands`, the program's own hands: "Show me" types and clicks through a to-do list with a pointer that glides to each control, each step said as it is done — never your real mouse ([the manual](../docs/manual/app-eyes-and-hands.md)) | run · interp · native · web | `rapidr run gui/guided_tour.rr` |
 | [links.rr](gui/links.rr) | Labels as links (`TabStop = 1`, RapidR's own): Tab walks them, a focus ring shows, Enter or Space follows one, a screen reader says "link" ([the manual](../docs/manual/components.md#accessibility)) | run · interp · native · web | `rapidr run gui/links.rr` |
+| [updown.rr](gui/updown.rr) | `RUpDown`, arrows that step a number beside an edit: `Associate` makes the edit show it, `Increment` and `Wrap`, `OnChange`; a medicine reminder ([the manual](../docs/manual/components.md#rupdown-arrows-that-step-a-number)) | run · interp · native · web | `rapidr run gui/updown.rr` |
 | [stopwatch.rr](gui/stopwatch.rr) | An `RTimer`: start, lap, stop, reset; a list of laps | run · interp · native · web | `rapidr run gui/stopwatch.rr` |
 | [pantry.rr](gui/pantry.rr) | An `RListBox` and an `RStringGrid` working together; adding rows, totals | run · interp · native · web | `rapidr run gui/pantry.rr` |
 | [menus.rr](gui/menus.rr) | A main menu with shortcuts, check and radio items, a submenu; a pop-up menu; a status bar | run · interp · native · web | `rapidr run gui/menus.rr` |
 | [dialogs.rr](gui/dialogs.rr) | Open file, colour and font dialogs; a Yes / No question (`MESSAGEDLG`) | run · interp · native · web | `rapidr run gui/dialogs.rr` |
 | [richtext.rr](gui/richtext.rr) | A small rich-text editor: `SelAttributes`, paragraphs aligned and bulleted, open and save `.rtf` ([the manual](../docs/manual/rich-text.md)) | run · interp · native · web | `rapidr run gui/richtext.rr` |
 | [themes.rr](gui/themes.rr) | RapidR's looks: following the system's light, dark or high contrast as it switches, picking one with `Application.Theme` (light, dark, high contrast, classic), and `Application.OnThemeChange` to take the theme's colours again | run · interp · native · web | `rapidr run gui/themes.rr` |
+| [status_colors.rr](gui/status_colors.rr) | The theme's status colours (`status.info`, `status.success`, `status.warning`, `status.danger`: a soft fill, its text and border colours) as chips with RapidR's icons, a pane's header and a question's strip sized as RapidR Studio's design guide says, taken again in `Application.OnThemeChange` ([the manual](../docs/manual/components.md#status-colours)) | run · interp · native · web | `rapidr run gui/status_colors.rr` |
+| [on_error.rr](gui/on_error.rr) | A program that keeps going after a bug in its own code, and says so: a run-time error ends the button's handler, the window keeps working, and `Application.OnError` hears the message, the file and the line ([the manual](../docs/manual/language.md#when-a-handler-fails-applicationonerror)) | run · interp · native · web | `rapidr run gui/on_error.rr` |
 | [markdown_code.rr](gui/markdown_code.rr) | Code in Markdown, coloured as the code editor colours it: an `RMarkdownView` with a ```` ```sql ```` query, its answer as a table and the ```` ```basic ```` that ran it; the colours follow the theme ([the manual](../docs/manual/markdown.md)) | run · interp · native · web | `rapidr run gui/markdown_code.rr` |
 | [svg_icons.rr](gui/svg_icons.rr) | Your own SVG icons ([icons/](gui/icons)) in a tree's `RImageList` (`AddSVGFile`) and an `RImage` (`Load` of a `$RESOURCE`): sharp at 2×, in the theme's colours (`currentColor`, RapidR's colour tokens) and drawn again when it changes ([the manual](../docs/manual/svg-icons.md)) | run · interp · native · web | `rapidr run gui/svg_icons.rr` |
 | [sales_dashboard.rr](gui/sales_dashboard.rr) | A big window (1200 × 800): figures, two `RPlot` charts, a grid; in Studio on the web it shows whole, the run area scrolls ([the web](../docs/manual/web.md#windows-bigger-than-the-page)) | run · interp · native · web | `rapidr run gui/sales_dashboard.rr` |
@@ -70,7 +77,7 @@ claims, headless).
 
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
-| [languages.rr](translations/languages.rr) | `TR$` and `TRN$` with PO files in `lang/` beside it (Spanish, Portuguese, Chinese): it starts in the system's language, a list switches `Application.Language`, `Application.OnLanguageChange` writes the captions again, "1 file" / "5 files" in each language's way ([the manual](../docs/manual/translations.md)) | run · web | `rapidr run translations/languages.rr es` |
+| [languages.rr](translations/languages.rr) | `TR$` and `TRN$` with PO files in `lang/` beside it (Spanish, Portuguese, Chinese): it starts in the system's language, a list switches `Application.Language`, `Application.OnLanguageChange` writes the captions again, "1 file" / "5 files" in each language's way, and a canvas draws the greeting with `TextOut` (Chinese included) ([the manual](../docs/manual/translations.md)) | run · web | `rapidr run translations/languages.rr es` |
 
 ### recipes/ — short programs to start from
 
@@ -91,6 +98,26 @@ assistant starts from the closest one when you ask it for a new program
 | [csv_viewer.rr](recipes/csv_viewer.rr) | Open a CSV file (`ROpenDialog`) and show it in an `RStringGrid` (people.csv beside it) | run · interp · native · web | `rapidr run recipes/csv_viewer.rr` |
 | [server_manager.rr](recipes/server_manager.rr) | A list of sites with their status and Start / Stop / Restart buttons | run · interp · native · web | `rapidr run recipes/server_manager.rr` |
 
+#### Systems recipes: one tiny computer, ten small programs
+
+For programs that handle a machine's insides: memory, addresses, bits, a CPU,
+a screen, a keyboard. Each is one technique in one runnable file, with a
+small window that shows the result; they share one tiny 8-bit instruction set
+of our own, so they read as one story ([the manual page](../docs/manual/recipes-systems.md)).
+
+| Example | What it shows | Runs on | Try |
+|---------|---------------|---------|-----|
+| [memory_bytes.rr](recipes/memory_bytes.rr) | Memory as a `BYTE` array of 64 KB: peek and poke a byte, a 16-bit word (low byte first), addresses that wrap with `AND &HFFFF` | run · interp · native · web | `rapidr run recipes/memory_bytes.rr` |
+| [flags_bits.rr](recipes/flags_bits.rr) | An 8-bit ALU: flags as bits (set with `OR`, clear with `AND (NOT mask)`), Carry / Zero / Sign / Overflow / Half-carry after an add or subtract, rotate through the carry, signed and unsigned | run · interp · native · web | `rapidr run recipes/flags_bits.rr` |
+| [cpu_step.rr](recipes/cpu_step.rr) | A tiny CPU: registers, `PC`, three flags, a `SELECT CASE` decoder, a cycle count, Step / Run / Reset | run · interp · native · web | `rapidr run recipes/cpu_step.rr` |
+| [cpu_stack.rr](recipes/cpu_stack.rr) | The stack on the memory array: `PUSH`, `POP`, `CALL` and `RET` with an `SP` that counts down, the stack shown as it grows | run · interp · native · web | `rapidr run recipes/cpu_stack.rr` |
+| [hex_dump.rr](recipes/hex_dump.rr) | A memory viewer: address, 16 bytes, an ASCII column in a monospace list; a page of 16 rows, or all 4,096 in about a tenth of a second | run · interp · native · web | `rapidr run recipes/hex_dump.rr` |
+| [disassembler.rr](recipes/disassembler.rr) | Bytes back to text with an opcode table read from `DATA` (no `SELECT CASE`): mnemonics, operands, unknown bytes as `DB` | run · interp · native · web | `rapidr run recipes/disassembler.rr` |
+| [load_binary.rr](recipes/load_binary.rr) | A binary snapshot file into memory with `RFileStream` (`ReadNum`), its header parsed at fixed offsets; the sample file is written by the program | run · interp · native · web | `rapidr run recipes/load_binary.rr` |
+| [video_memory.rr](recipes/video_memory.rr) | Video memory drawn on an `RCanvas`: a 1-bit bitmap and colour attributes, only the changed cells redrawn, a moving ball drawn with `XOR`, a 50 Hz `RTimer` | run · interp · native · web | `rapidr run recipes/video_memory.rr` |
+| [keyboard_matrix.rr](recipes/keyboard_matrix.rr) | The keyboard as a matrix of 8 rows of 5 bits: `OnKeyDown` / `OnKeyUp` set the bits, an `IN` function reads rows by a port mask | run · interp · native · web | `rapidr run recipes/keyboard_matrix.rr` |
+| [cpu_timing.rr](recipes/cpu_timing.rr) | A CPU run a budget of cycles per timer frame (50 Hz), the overspent cycles carried over, Pause / Frame / Slower / Faster without freezing the window | run · interp · native · web | `rapidr run recipes/cpu_timing.rr` |
+
 ### graphics/ — drawing
 
 | Example | What it shows | Runs on | Try |
@@ -105,6 +132,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 |---------|---------------|---------|-----|
 | [sqlite.rr](data/sqlite.rr) | `RSQLite`: a table, inserts and queries with `?` parameters (and why they matter), `QueryScalar`, `GROUP BY` | run · interp · native · web | `rapidr run data/sqlite.rr` |
 | [secrets.rr](data/secrets.rr) | `RSecrets`: a password kept in the OS keychain (Save, Read, Delete), never in the program or a file; on the web the buttons say there's no keychain ([the manual](../docs/manual/secrets.md)) | run · interp · native · web | `rapidr run data/secrets.rr` |
+| [archives.rr](data/archives.rr) | `RArchive`: a Z80 snapshot taken as it is or found inside a zip, 7z or .gz ([snapshots.zip](data/snapshots.zip) and friends are the samples); entries listed, an entry's first bytes in hex, a zip made ([the manual](../docs/manual/archives.md)) | run · interp · native · web | `cd data && rapidr run archives.rr` |
 | [json.rr](data/json.rr) | `RJson`: parse, read by path (`customer.city`, `items.0`), set, remove, save and load | run · interp · native · web | `rapidr run data/json.rr` |
 | [numbers.rr](data/numbers.rr) | `RNum` arrays: `FromList`, `Arange`, `Linspace`, statistics, arithmetic on every element, `Cumsum`, `Unique` | run · interp · native · web | `rapidr run data/numbers.rr` |
 | [csv_explorer.rr](data/csv_explorer.rr) | Drop a CSV on the window ([shop.csv](data/shop.csv) is the sample): a sortable table, a filter, each column's statistics, a live `RPlot` chart ([the tutorial](../docs/manual/data-science.md#tutorial-the-csv-explorer)) | run · interp · native · web | `rapidr run data/csv_explorer.rr` |
@@ -126,6 +154,7 @@ Start with the CSV Explorer; [Data science with RapidR](../docs/manual/data-scie
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [midi.rr](media/midi.rr) | `RMIDI`: play, pause, stop a MIDI song ([tune.mid](media/tune.mid)); RapidR's own synthesizer where the system has none | run · interp · native · web | `rapidr run media/midi.rr` |
+| [midi_compose.rr](media/midi_compose.rr) | Music made by the program: a song written byte by byte as a `.mid` file (chords, a bass line, drums on channel 10) and played with `RMIDI`; `RAPIDR_MIDI_OUT` picks the output ([the manual](../docs/manual/directx-and-media.md#sound-and-music)) | run · interp · native · web | `rapidr run media/midi_compose.rr` |
 | [wave.rr](media/wave.rr) | `RWave`: play a WAV ([chime.wav](media/chime.wav)); record a second from the microphone, save, play back | run · interp · native · web | `rapidr run media/wave.rr` |
 | [video.rr](media/video.rr) | `RVideo`: an AVI ([clip.avi](media/clip.avi)) on a form, enlarged, with a frame counter | run · interp · native · web | `rapidr run media/video.rr` |
 
@@ -145,6 +174,7 @@ The servers listen on 127.0.0.1 (this computer only): try them with `curl`.
 |---------|---------------|---------|-----|
 | [http_json.rr](network/http_json.rr) | `RHttp.Get` fetching a JSON document ([forecast.json](network/forecast.json)), read with `RJson` | run · interp · native · web | `rapidr run network/http_json.rr http://127.0.0.1:8000/forecast.json` |
 | [download.rr](network/download.rr) | `RDownload`: a file into a file, its progress bar on the form | run · interp · native · web | `rapidr run network/download.rr http://127.0.0.1:8000/forecast.json` |
+| [mcp_tools.rr](network/mcp_tools.rr) | A program's own tools for AI apps (`RMcpServer`, MCP): a notes list an AI app on this computer can read and add to while you watch — every call in the window, a box that stops it adding, the arguments checked before the program sees them, the token every request needs ([the manual](../docs/manual/network.md)) | run · interp · native | `rapidr run network/mcp_tools.rr`, then give an AI app the address and header it shows |
 | [local_api.rr](network/local_api.rr) | A web API in a program (`RHttpServer`) on 127.0.0.1: `/hello`, `/echo` and three Server-Sent Events from `/events`, a token every request needs, the requests the server refuses by itself (another site's page, another host name, too large), each answer announced to screen readers ([the manual](../docs/manual/network.md)) | run · interp · native | `rapidr run network/local_api.rr`, then the `curl` line it shows |
 | [echo_server.rr](network/echo_server.rr) | `RServerSocket` with `Mode = "http"`: each request arrives whole, a body of any size (by its length or in chunks), and is sent back with `Send` and `Disconnect`; this computer only (`Host = "127.0.0.1"`) | run · interp · native | `rapidr run network/echo_server.rr`, then `curl -d hello http://127.0.0.1:47120/echo` |
 
@@ -234,6 +264,7 @@ has a picture of each and explains its best lines.
 | [panels.rr](studio/panels.rr) | The IDE's public components docked together: toolbar, toolbox, project tree, designer with the inspector, output console, command palette | run · interp · native · web | `rapidr run studio/panels.rr` |
 | [form_designer.rr](studio/form_designer.rr) | The designer surface alone (`RDesignSurface`): select and drag components, smart guides, anchor pins, undo, the resize preview | run · interp · native · web | `rapidr run studio/form_designer.rr` |
 | [diff_views.rr](studio/diff_views.rr) | What changed? `RDiffView`'s three views: two versions of a program (the changed words marked), of a form (the form before and after, the changed components outlined, the changes in words), of a CSV file (rows and cells); `Summary` says them in words (the form view: `rapidr run` and the web) | run · interp · native · web | `rapidr run studio/diff_views.rr` |
+| [log_copy.rr](studio/log_copy.rr) | Copying from an `ROutputConsole`: drag, double-click or triple-click to select, Ctrl+C (⌘C); `SelText`, `HasSelection`, `CopySelection`, `CopyAll`, and a right-click menu with Copy Line (`ClickedLine`, `CopyLine`) like RapidR Studio's Output pane — colours never copied ([the manual](../docs/manual/debugging.md#copying-from-output-build-and-problems)) | run · interp · native · web | `rapidr run studio/log_copy.rr` |
 | [helpers.rr](studio/helpers.rr) | A small window to try Studio's code helpers on: colours written as `RGB()`, `&H` and constants (each shows its swatch), a picture (its thumbnail), a font (its sample), a choice and an event's SUB; click a swatch or press Ctrl+. on a value to change it ([the manual](../docs/manual/studio-editor.md#helpers)) | run · interp · native · web | `rapidr run studio/helpers.rr` |
 | [ide.rr](ide.rr) | The first RapidR IDE, itself a large RapidR program, kept to read until RapidR Studio (`rapidr ide`, source in `ide/`) has replaced it | run · interp · native | `rapidr run ide.rr` |
 

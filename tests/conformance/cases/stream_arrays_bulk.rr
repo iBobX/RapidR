@@ -1,0 +1,75 @@
+' SaveArray / LoadArray of a numeric array with plain indices run as one
+' call (rapidr_ast::stream_arrays, STRING-SPEED 2026-10-29): the same bytes,
+' the same stop at the array's last element, the same Position past the
+' stream's end as the element-by-element loop. (The .expected is what the
+' loop of 2.121.3 printed.)
+$APPTYPE CONSOLE
+DIM W(5) AS WORD, DW(3) AS DWORD, SG(2) AS SINGLE, B(7) AS BYTE, G(2, 3) AS SHORT
+DIM i AS INTEGER, j AS INTEGER, n AS INTEGER
+DIM S AS RMemoryStream
+CALLS = 0
+
+FUNCTION Pick(x AS INTEGER) AS INTEGER
+  CALLS = CALLS + 1
+  Pick = x
+END FUNCTION
+
+FOR i = 0 TO 5: W(i) = 65535 - i * 1000: NEXT
+FOR i = 0 TO 3: DW(i) = -i * 100000: NEXT
+SG(0) = 0.1: SG(1) = -2.5: SG(2) = 3.14159
+FOR i = 0 TO 2: FOR j = 0 TO 3: G(i, j) = i * 10 - j: NEXT: NEXT
+
+S.SaveArray(W(0), 6)
+S.SaveArray(DW(1), 10)
+S.SaveArray(SG(0), 3)
+S.SaveArray(G(1, 1), 3)
+PRINT "size "; S.Size; " position "; S.Position
+
+' back, into other places (past the end: the loop stops)
+FOR i = 0 TO 5: W(i) = 0: NEXT
+S.Position = 0
+S.LoadArray(W(2), 6)
+FOR i = 0 TO 5: PRINT W(i); " ";: NEXT: PRINT
+PRINT "position "; S.Position
+
+' every byte as BYTE, a count with a fraction, a count of 0 and below
+S.Position = 0
+n = 0
+S.LoadArray(B(0), 2.5)
+PRINT "fraction "; B(0); " "; B(1); " "; B(2); " position "; S.Position
+S.LoadArray(B(3), 0)
+S.LoadArray(B(3), -4)
+PRINT "none "; S.Position
+
+' past the stream's end: zeros, Position at the end
+S.Position = S.Size - 2
+S.LoadArray(B(0), 6)
+FOR i = 0 TO 7: PRINT B(i); " ";: NEXT: PRINT
+PRINT "end "; S.Position; " of "; S.Size
+
+' an index worked out by a FUNCTION: element by element, called each time
+S.Position = 0
+S.LoadArray(B(Pick(1)), 3)
+PRINT "calls "; CALLS; " "; B(1); " "; B(2); " "; B(3)
+
+' singles and a row of a 2-D array back
+S.Position = 12 + 12
+S.LoadArray(SG(0), 3)
+PRINT "singles "; SG(0); " "; SG(1); " "; SG(2)
+S.Position = 12 + 12 + 12
+S.LoadArray(G(0, 0), 4)
+FOR j = 0 TO 3: PRINT G(0, j); " ";: NEXT: PRINT
+
+' to a file and back, through a file stream
+DIM F AS RFileStream
+F.Open("tests/conformance/.work/stream_arrays_bulk.bin", fmCreate)
+F.SaveArray(W(0), 6)
+F.SaveArray(DW(0), 4)
+F.Close
+F.Open("tests/conformance/.work/stream_arrays_bulk.bin", fmOpenRead)
+FOR i = 0 TO 3: DW(i) = 1: NEXT
+F.Position = 12
+F.LoadArray(DW(0), 4)
+PRINT "file "; F.Size; " "; DW(0); " "; DW(1); " "; DW(2); " "; DW(3)
+F.Close
+KILL "tests/conformance/.work/stream_arrays_bulk.bin"

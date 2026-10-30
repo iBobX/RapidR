@@ -391,6 +391,30 @@ mod tests {
         assert!(s.add_at("QBUTTON", (8, 8), None).is_some());
     }
 
+    /// A surface used again for another file — Studio's documents reuse
+    /// theirs — designs that file only: its code's errors never show the
+    /// last file's form (Robert 2026-10-28: ShopInvoices' broken form file
+    /// showed Beat Maker's form, another project's), as Studio sets them
+    /// (SourceFile, then Source).
+    #[test]
+    fn another_file_never_shows_the_last_files_form() {
+        let mut s = surface();
+        assert!(s.set("sourcefile", &rapidr_value::v_str("/beat/main.rr")));
+        s.open_source(NOTEPAD);
+        assert_eq!(s.root_name(), "Form");
+        assert!(s.set("sourcefile", &rapidr_value::v_str("/shop/ui_form.rr")));
+        let broken = "CREATE Invoices AS RForm\n    Caption = \"Shop\"\nEND CREATE\nIF x THEN\nPRINT (\n";
+        assert!(s.set("source", &rapidr_value::v_str(broken)));
+        assert_ne!(s.title(), "Notepad", "not the last file's form");
+        assert!(s.root_name() != "Form" || s.no_form(), "{}", s.root_name());
+        // (the same file again: its own last good form stays while it has errors)
+        assert!(s.set("sourcefile", &rapidr_value::v_str("/shop/ui_form.rr")));
+        s.open_source("CREATE Invoices AS RForm\n    Caption = \"Shop\"\nEND CREATE\n");
+        assert_eq!(s.root_name(), "Invoices");
+        s.open_source(broken);
+        assert_eq!(s.root_name(), "Invoices", "its own last good form");
+    }
+
     // ---- S-DESIGN-2: the tray's outside components, the menu editor, Tab
     // order, captions in place, a new form, zoom, the shared history ----
 

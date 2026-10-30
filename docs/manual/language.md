@@ -413,6 +413,32 @@ characters, not bytes.
   side by side). Use `CHR$(34)`, or turn on `$ESCAPECHARS ON` for `\"`,
   `\n`, `\t`, `\\`, `\x41`.
 
+### Long strings and binary data
+
+A string can hold a whole file: `ReadBinStr` (or `ReadStr`) on an
+`RFileStream` gives one character per byte, `CHR$(0)` … `CHR$(255)`, and
+`ASC(MID$(data, i, 1))` — or `ASC(data[i])` — is the byte at `i`. Reading
+every byte of a 64 KB file this way took 13 ms with `rapidr run`, 7 ms
+built native and 23 ms in a browser on an Apple M4 Max
+([tools/bench](../../tools/bench/README.md)), the same per byte however
+long the string: `MID$`, `LEFT$`, `RIGHT$`, `LEN`, `INSTR` and `data[i]`
+cost what they return, not the string's length. Strings are
+shared, not copied — passing one to a SUB or putting it in another
+variable costs nothing — and a string built a piece at a time,
+`s = s + x` or `s = s & x`, grows in place. (Write `s = s + (a + b)`
+rather than `s = s + a + b` when `s` is long: the second makes a new
+`s + a` first.) To get the bytes into an array in one call, copy them with
+`MemCopyTo`:
+
+```basic
+DIM mem(65535) AS BYTE
+fs.Open("game.rom", fmOpenRead)
+fs.MemCopyTo(VARPTR(mem(0)), fs.Size)     ' its bytes, mem(0) the first (no more than the array holds)
+fs.Close
+```
+
+[bytes.rr](../../examples/basics/bytes.rr) does both with a 64 KB file.
+
 ## Files
 
 ```basic
@@ -459,6 +485,53 @@ The stream objects do the same with methods: `RFileStream` (older name
 `RStringList` (`LoadFromFile`, `SaveToFile`). `DIR$`, `KILL`, `MKDIR`,
 `RMDIR`, `RENAME`, `CHDIR`, `CURDIR$` and `DIREXISTS` work with folders.
 In a browser, files are the page's own (see [The web](web.md)).
+
+### Text and bytes: accents, Chinese, emoji
+
+A string is made of characters and a file of bytes. RapidR keeps them
+apart, so text is never lost and binary data is never changed:
+
+| You use | The file holds |
+|---|---|
+| `PRINT #`, `LINE INPUT #`, `RStringList.SaveToFile` / `LoadFromFile`, translation (`.po`) files | Text as **UTF-8**. Reading also takes the Windows-1252 text that older programs and editors wrote (an `é` as one byte): a character is never turned into `?` or `�` on the way in. |
+| `RFileStream` and `RMemoryStream`: `WriteStr`, `WriteLine`, `Write`, `ReadStr`, `Read`, `ReadLine` | **Bytes.** A string whose characters are all up to 255 is written one byte a character (`CHR$(200)` is the byte 200), so pictures, sounds and packets built or copied with strings come back exact. A string with any character above 255 (Chinese, emoji, `€`) is text: it is written whole as UTF-8, accents included. |
+| `WriteText` and `ReadAllText` (RapidR's, on both streams) | Text as UTF-8 whatever the string holds, even only accents. `ReadAllText` reads the rest of the stream as UTF-8 (a byte-order mark dropped) or, when it isn't UTF-8, as Windows-1252. |
+| `RMemo`, `REdit` and `RRichEdit` (plain text), `RCodeEdit` | The encoding the file had when it was loaded: UTF-8 (with or without a byte-order mark) or Windows-1252. A text never loaded in a text box is written as Windows-1252 while it fits. |
+
+`WriteStr(S, n)` counts **characters**, so `WriteStr(S, LEN(S))` writes all
+of `S` in any language. A file is **never saved with a `?` in place of a
+character** its encoding lacks: a Windows-1252 file that gets Chinese typed
+into it (or a text box's text that has an emoji) is saved as UTF-8, and
+`RCodeEdit.Encoding` says "UTF-8" afterwards.
+
+```basic
+DIM f AS RFileStream, s AS STRING
+s = "Fecha: 日期 · café · 😀"
+f.Open("note.txt", fmCreate)
+f.WriteStr(s, LEN(s))              ' UTF-8: the Chinese and the emoji need it
+f.Position = 0
+PRINT IIF(f.ReadAllText = s, "same", "different")    ' same: all of it came back
+f.Close
+```
+
+The picture below is the translations example: the same greeting in a label
+(above) and drawn on a canvas with `TextOut` (below), from a Chinese and a
+Spanish catalog. A canvas draws the characters RapidR's own fonts lack
+(Chinese, Japanese, Korean) with the system's CJK font on the desktop and
+with the Noto fonts of the page on the web, as its labels do; on the web
+draw in `OnPaint`, which runs again when such a font arrives.
+
+![The translations example in Chinese and in Spanish](images/translations/languages-chinese.png)
+![The same in Spanish](images/translations/languages-spanish.png)
+An `RFileStream` writes a file a byte at a time as fast as all at once:
+it keeps what it's given and writes it together — at `Close`, when the
+program waits (for its events, `SLEEP`, `INPUT`) or ends (`END`, a
+run-time error), every 64 KB, and before anything else uses the file by
+its name (`OPEN`, another stream's `Open`, `FILELEN`, `KILL` …), so
+whatever reads the file sees every byte, as if each write had gone
+straight to it. Only a program stopped from outside (killed, the power
+gone) can lose what it wrote last, at most 64 KB. `SaveArray` and
+`LoadArray` of a numeric array move all its elements in one go.
 
 File names work as they do on Windows, on every system: `\` and `/` both
 separate folders, and a name finds its file in any case. A program
@@ -549,11 +622,36 @@ An error in included code points at the include file and line.
   `IF NOT FILEEXISTS(f) THEN` is always true, because FILEEXISTS gives 1
   for yes and `NOT 1` is -2. The warning's quick fix (Ctrl+.) writes
   `IF FILEEXISTS(f) = 0 THEN`.
-- A run-time error stops the program with its message and line: `run-time
-  error: Division by zero (at err.bas line 4)`.
+- A run-time error in the main program's code stops the program with its
+  message and line: `run-time error: Division by zero (at err.bas line 4)`.
+- A run-time error in an **event handler** (a click's, a timer's) ends that
+  handler — and the handlers that fired it — and the window keeps working:
+  the error is written to the program's error output (in Studio, the
+  Output). An error a component raises (`Cannot create file
+  notes/today.txt.`) is a run-time error like any other, with its line.
 - `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB's) are accepted
-  so that such programs compile, and **ignored**: a run-time error still
-  ends the program.
+  so that such programs compile, and **ignored**.
+
+### When a handler fails: `Application.OnError`
+
+A program can hear each of those handler errors, to tell its user, write a
+log or save their work (RapidR's own):
+
+```basic
+SUB Failed(Message AS STRING, File AS STRING, Line AS INTEGER)
+  Status.Caption = "Something went wrong: " + Message + " (line " + STR$(Line) + ")"
+END SUB
+
+Application.OnError = Failed
+```
+
+`Message` is the error alone (`Division by zero`), `File` and `Line` where
+it happened (a native build gives `""` and `0`). It fires once per error,
+after the handler has ended — never for an error in `Failed` itself. An
+error in the main program's own code still ends the program. RapidR Studio
+uses it to keep your work safe ([Studio keeps your work](studio-projects.md#studio-keeps-your-work)).
+Try [examples/gui/on_error.rr](../../examples/gui/on_error.rr): two buttons,
+each with a bug, and a window that keeps working.
 
 ## Native code: `RUSTSTART`
 

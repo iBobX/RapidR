@@ -65,6 +65,11 @@ SUB RunCommand(Id AS STRING)
   ' (Edit's in Variables or Watch, when they have the focus — the selected
   ' value copied, the last value set undone: debug.inc)
   IF DebugPaneCommand(Id) THEN EXIT SUB
+  ' (Edit's Copy and Select All in the Output pane, when it has the
+  ' focus: panels.inc)
+  IF OutputCommand(Id) THEN EXIT SUB
+  ' (Edit > Copy in the AI Apps pane's activity: mcp.inc)
+  IF McpPaneCommand(Id) THEN EXIT SUB
   ' (View's and Edit's on a Markdown file's Preview | Source: markdown.inc)
   IF MarkdownCommand(Id) THEN EXIT SUB
   ' (the designer's commands, and Edit's on a designer: designer.inc)
@@ -75,6 +80,8 @@ SUB RunCommand(Id AS STRING)
   IF WorkspaceCommand(Id) THEN EXIT SUB
   ' (the AI assistant's: ai.inc)
   IF AICommand(Id) THEN EXIT SUB
+  ' (AI apps': mcp.inc)
+  IF McpCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -165,6 +172,9 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 3) = "ai:" THEN
         ' (a test step: ai:<what>=<value> — ai.inc's AIStep)
         AIStep MID$(Id, 4)
+      ELSEIF LEFT$(Id, 4) = "mcp:" THEN
+        ' (a test step: mcp:<what>=<value> — mcp.inc's McpStep)
+        McpStep MID$(Id, 5)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -202,9 +212,13 @@ SUB StudioClose(Action AS INTEGER)
     Action = 0
     EXIT SUB
   END IF
+  ' (every change saved or let go: the copies of unsaved work go)
+  KeepEnd
   StopProgram
   Session.StopBrowser
   SaveSettings
+  ' (AI apps: disconnected, the server off)
+  McpShutdown
 END SUB
 
 ' (keys the menus don't hold: F8 stepping beside F11 / F10)
@@ -324,6 +338,9 @@ SUB StartStudio
     END IF
     i = i + 1
   WEND
+  ' (from here on an error in Studio's own code is said, never the end of
+  ' Studio; unsaved work is kept as it is typed: safety.inc)
+  SetUpSafety
   ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
   DefaultFolder = Proj.ProjectsFolder(HomeDir)
   ' (S2: offered unless the settings turned it off)
@@ -338,6 +355,7 @@ SUB StartStudio
   RunState = "stopped"
   StateText = "Ready"
   ActiveDoc = -1
+  PreviewDoc = -1
   SetUpBuild
   DefineCommands
   BuildMenus
@@ -349,6 +367,7 @@ SUB StartStudio
   SetUpAI
   SetUpDocuments
   SetUpSearch
+  SetUpMcp
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)
@@ -372,6 +391,8 @@ SUB StartStudio
   END IF
   UpdateTitle
   UpdateCommands
+  ' (unsaved work a Studio that ended without closing kept: Restore?)
+  OfferRestoreSoon
   IF DoList <> "" THEN Macro.Enabled = 1
 END SUB
 
@@ -398,7 +419,9 @@ SUB MacroTick
   IF EditorStep(id) THEN EXIT SUB
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
-    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command)
+    ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;
+    ' safety.inc's safety: steps)
+    IF SafetyStep(id) THEN EXIT SUB
     IF PanelStep(id) = 0 THEN
       IF DebugStep(id) = 0 THEN RunCommand id
     END IF

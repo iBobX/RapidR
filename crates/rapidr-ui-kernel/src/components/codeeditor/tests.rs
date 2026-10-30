@@ -433,3 +433,37 @@ fn sql_completes_the_schema_and_runs_the_statement() {
     with_code_mut("ce_sql", |c| c.set("sqldialect", &v_str("mysql")));
     assert_eq!(with_code("ce_sql", |c| c.doc.language().id.clone()).unwrap(), "sql-mysql");
 }
+
+/// The scroll bars settle at once and stay: a long line just past the
+/// rows the horizontal bar leaves (in view without the bar, out of view
+/// with it) turned the bar on and off at every repaint — and the vertical
+/// bar's thumb with it —, faster as the mouse moved, until the first
+/// scroll (Robert, 2026-10-29: a project's main.rr just opened, lines of
+/// ~150 characters). Every place of the long line, from the top and after
+/// a jump, over many repaints and mouse moves: the same bars each time.
+#[test]
+fn the_scroll_bars_settle_at_once_and_stay() {
+    let long = format!("PRINT \"{}\"", "x".repeat(150));
+    for at in 0..24 {
+        for jump in [None, Some(30i64)] {
+            let src = (0..80).map(|i| if i == at || jump.is_some_and(|j| i == j as usize + at) { long.clone() } else { format!("PRINT {i}") }).collect::<Vec<_>>().join("\n");
+            let id = format!("cebars{at}_{}", jump.unwrap_or(0));
+            let (mut s, mut f, mut ts) = code_form(&id, &src);
+            if let Some(j) = jump {
+                s.call(&id, "gotoline", &[v_int(j)]);
+            }
+            let state = |f: &FormUi| {
+                let ui = f.node(&id).and_then(|n| n.ui.code.as_ref()).expect("the editor's view");
+                (ui.bars.horz.shown, ui.bars.vert.shown, ui.geo.text.2, ui.geo.text.3, ui.bars.vert.range, ui.bars.horz.range)
+            };
+            f.paint(&s, &mut ts, 1.0);
+            let first = state(&f);
+            for frame in 0..8 {
+                // (the mouse moved over the text: a repaint each time)
+                f.mouse_move(&s, &mut ts, 120.0 + frame as f64 * 7.0, 60.0 + frame as f64 * 5.0, Mods::NONE);
+                f.paint(&s, &mut ts, 1.0);
+                assert_eq!(state(&f), first, "the long line at row {at} (jump {jump:?}): frame {frame} differs ({first:?} first)");
+            }
+        }
+    }
+}

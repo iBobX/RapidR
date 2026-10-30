@@ -556,7 +556,7 @@ pub(crate) fn read_text(path: &str) -> Result<String, String> {
     let mut first_error = None;
     for t in &tries {
         match crate::objects::read_file(t) {
-            Ok(bytes) => return Ok(String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())),
+            Ok(bytes) => return Ok(crate::objects::codec::decode_text(&bytes)),
             Err(e) => {
                 first_error.get_or_insert(e);
             }

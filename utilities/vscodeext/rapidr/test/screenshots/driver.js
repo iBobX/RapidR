@@ -46,6 +46,21 @@ exports.run = async function () {
     const ext = vscode.extensions.getExtension('rapidr.rapidr');
     const api = await ext.activate();
     await api.whenServerReady();
+    if (process.env.SHOTS_SCENARIO === 'old-path') {
+        // An ancient rapidr 0.1.0 first on PATH: skipped, and the status bar and the
+        // notification say which RapidR is in use.
+        for (const c of ['workbench.action.closeAllEditors', 'workbench.action.closePanel', 'workbench.action.closeAuxiliaryBar']) {
+            try { await vscode.commands.executeCommand(c); } catch (_) { /* */ }
+        }
+        await open(path.join(ws, 'inventory.bas'));
+        await sleep(3500);
+        const r = api.rapidr();
+        fs.writeFileSync(path.join(SIG, 'ready-old-on-path'), `${r.version} ${r.path}`);
+        for (let i = 0; i < 150 && !fs.existsSync(path.join(SIG, 'done-old-on-path')); i++) await sleep(200);
+        fs.writeFileSync(path.join(SIG, 'ready-last'), '');
+        await sleep(1500);
+        return;
+    }
     for (const c of ['workbench.action.closeAllEditors', 'workbench.action.closePanel', 'workbench.action.closeAuxiliaryBar']) {
         try { await vscode.commands.executeCommand(c); } catch (_) { /* (not in every version) */ }
     }
@@ -216,13 +231,13 @@ exports.run = async function () {
     await vscode.workspace.getConfiguration('rapidr').update('rapidqCompatible', true, vscode.ConfigurationTarget.Global);
     await sleep(2500);
     at = lineOf(ed, 'Form.ShowModal');
-    await ed.edit((e) => e.insert(new vscode.Position(at.line, 0), 'DIM chart AS RPLOT\nForm.ShapeForm "logo.bmp", 0\nForm.Anchors = 0\nItemList.Circle 4, 4, 40, 40, 0, 0\n'));
-    await until(() => vscode.languages.getDiagnostics(ed.document.uri).length >= 4, 30000);
+    await ed.edit((e) => e.insert(new vscode.Position(at.line, 0), 'DIM chart AS RPLOT\nx = MICROTIMER()\nForm.Anchors = 0\nItemList.Circle 4, 4, 40, 40, 0, 0\n'));
+    await until(() => vscode.languages.getDiagnostics(ed.document.uri).length >= 3, 30000);
     await vscode.commands.executeCommand('workbench.actions.view.problems');
     await sleep(800);
     await vscode.window.showTextDocument(ed.document);
-    at = lineOf(ed, 'Form.ShapeForm');
-    await placeCaret(ed, at.translate(0, 'Form.Sha'.length));
+    at = lineOf(ed, 'x = MICROTIMER()');
+    await placeCaret(ed, at.translate(0, 'x = MICRO'.length));
     await vscode.commands.executeCommand('editor.action.showHover');
     await sleep(1500);
     await shot('registry');
@@ -312,6 +327,56 @@ exports.run = async function () {
     await shot('case-done');
     await vscode.commands.executeCommand('workbench.action.files.revert');
     await sleep(500);
+    await edCfg.update('quickSuggestions', undefined, vscode.ConfigurationTarget.Global);
+    await edCfg.update('suggestOnTriggerCharacters', undefined, vscode.ConfigurationTarget.Global);
+
+    // 13. The list of types opens by itself when `DIM test AS ` is typed.
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    ed = await open(path.join(ws, 'inventory.bas'));
+    at = lineOf(ed, 'DIM total AS DOUBLE');
+    await ed.edit((e) => e.insert(new vscode.Position(at.line + 1, 0), '\n'));
+    await placeCaret(ed, new vscode.Position(at.line + 2, 0));
+    for (const ch of 'DIM test AS ') {
+        await vscode.commands.executeCommand('type', { text: ch });
+        await sleep(110);
+    }
+    await sleep(1500);
+    await shot('completion-as');
+    await vscode.commands.executeCommand('hideSuggestWidget');
+    await restore();
+
+    // 14. Parameter names before literal arguments, and colour swatches.
+    ed = await open(path.join(ws, 'shapes.bas'));
+    await sleep(2500);
+    await placeCaret(ed, lineOf(ed, 'Form.ShowModal'));
+    await shot('hints');
+
+    // 15. RapidR Help beside the editor: the word under the caret (a property in a
+    // CREATE body), then a name of the program with where it is declared.
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    ed = await open(path.join(ws, 'inventory.bas'));
+    at = lineOf(ed, 'Caption = "&Add"');
+    await placeCaret(ed, at.translate(0, 'Capt'.length));
+    await vscode.commands.executeCommand('rapidr.help');
+    await sleep(1500);
+    await shot('help');
+    ed = await vscode.window.showTextDocument(ed.document, { viewColumn: ed.viewColumn, preserveFocus: false });
+    at = lineOf(ed, 'total = total + PriceOf(item, 2)');
+    await placeCaret(ed, at.translate(0, 9));
+    await vscode.commands.executeCommand('rapidr.help');
+    await sleep(1500);
+    await shot('help-mine');
+    await vscode.commands.executeCommand('workbench.action.closeAllEditors');
+    await sleep(500);
+
+    // 16. The status bar, with the RapidR in use (the commands, one click away).
+    ed = await open(path.join(ws, 'inventory.bas'));
+    await sleep(800);
+    vscode.commands.executeCommand('rapidr.showCommands'); // (not awaited: it returns when the pick is closed)
+    await sleep(1000);
+    await shot('commands');
+    await vscode.commands.executeCommand('workbench.action.closeQuickOpen');
+    await sleep(300);
     fs.writeFileSync(path.join(SIG, 'ready-last'), '');
     await sleep(1500);
 };

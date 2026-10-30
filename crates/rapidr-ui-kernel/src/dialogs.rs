@@ -42,6 +42,30 @@ pub fn is_dialog(id: &str) -> bool {
     id.len() >= PREFIX.len() && id[..PREFIX.len()].eq_ignore_ascii_case(PREFIX)
 }
 
+/// A message box's form property holding what Ctrl+C copies.
+const COPY_PROP: &str = "__copytext";
+
+/// What a message box copies on Ctrl+C (⌘C on a Mac, Ctrl+Insert), as
+/// Windows' own message boxes give it: the title, the text and the
+/// buttons between dashed lines.
+pub fn message_copy(title: &str, text: &str, labels: &[&str]) -> String {
+    let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+    let rule = "---------------------------";
+    let text = text.split('\0').next().unwrap_or("").replace("\r\n", "\n").replace('\r', "\n").replace('\n', nl);
+    let buttons: String = labels.iter().map(|l| format!("{}   ", l.replace('&', ""))).collect();
+    [rule, title, rule, &text, rule, &buttons, rule].join(nl) + nl
+}
+
+/// What a dialog form (`form`) copies on Ctrl+C: a message box's text
+/// (`None`: another dialog, or not one of the kernel's).
+pub fn copy_text(store: &dyn Store, form: &str) -> Option<String> {
+    if !is_dialog(form) {
+        return None;
+    }
+    let t = store::string(store, form, COPY_PROP);
+    (!t.is_empty()).then_some(t)
+}
+
 /// What a dialog answered when it closed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Answer {
@@ -112,7 +136,7 @@ impl Dialog {
         // in the classic look, Inter in RapidR's — a dialog is the
         // system's, not the program's)
         let font = rapidr_value::ide_theme::chrome_font(rapidr_value::theme::current());
-        store.set(&id, "fontname", Value::String(font.name));
+        store.set(&id, "fontname", Value::String(font.name.into()));
         store.set(&id, "fontsize", Value::Integer(font.size));
         Dialog { id, title: title.to_string(), size: (0, 0), store, kind, applied: None }
     }
@@ -155,7 +179,7 @@ impl Dialog {
         let id = self.id.clone();
         self.set(&id, "clientwidth", Value::Integer(w));
         self.set(&id, "clientheight", Value::Integer(h));
-        self.set(&id, "caption", Value::String(self.title.clone()));
+        self.set(&id, "caption", Value::String(self.title.clone().into()));
     }
 
     /// MESSAGEBOX / MESSAGEDLG / SHOWMESSAGE: `icon` (if any) at the top
@@ -181,15 +205,19 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w.max(1) + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         for (i, (label, rect)) in labels.iter().zip(&layout.buttons).enumerate() {
             let id = d.put(&format!("b{i}"), "RBUTTON", *rect);
-            d.set(&id, "caption", Value::String(button_caption(label)));
+            d.set(&id, "caption", Value::String(button_caption(label).into()));
             if i == 0 {
                 d.set(&id, "default", Value::Integer(-1));
             }
         }
+        // (Ctrl+C — ⌘C — copies the box as Windows' message boxes do:
+        // `copy_text`)
+        let id = d.id.clone();
+        d.set(&id, COPY_PROP, Value::String(message_copy(title, text, labels).into()));
         d.finish(layout.size.0, layout.size.1);
         d
     }
@@ -240,15 +268,15 @@ impl Dialog {
         let (tx, ty, _, _) = layout.text;
         for (i, line) in lines.iter().enumerate() {
             let id = d.put(&format!("t{i}"), "RLABEL", (tx, ty + i as i64 * line_h, text_w + 2, line_h));
-            d.set(&id, "caption", Value::String(literal(line)));
+            d.set(&id, "caption", Value::String(literal(line).into()));
         }
         let field = d.put("field", "REDIT", (tx, ty + text_h + GAP, text_w, FIELD_H));
-        d.set(&field, "text", Value::String(initial.to_string()));
+        d.set(&field, "text", Value::String(initial.to_string().into()));
         // (the proposed text selected, as Windows' boxes have it: typing
         // replaces it)
         d.set(&field, "selstart", Value::Integer(0));
         d.set(&field, "sellength", Value::Integer(initial.chars().count() as i64));
-        d.set(&field, "accessiblename", Value::String(lines.join(" ")));
+        d.set(&field, "accessiblename", Value::String(lines.join(" ").into()));
         if let Some(rect) = layout.buttons.first() {
             let id = d.put("ok", "RBUTTON", *rect);
             d.set(&id, "caption", Value::String(ok.into()));
@@ -318,7 +346,7 @@ impl Dialog {
         for (i, caption) in cd::FIELDS.iter().enumerate() {
             let (label, edit) = cl::field(i);
             let id = self.put(&format!("l{i}"), "RLABEL", label);
-            self.set(&id, "caption", Value::String(caption.to_string()));
+            self.set(&id, "caption", Value::String(caption.to_string().into()));
             let id = self.put(&format!("f{i}"), "REDIT", edit);
             self.set(&id, "maxlength", Value::Integer(3));
         }
@@ -364,7 +392,7 @@ impl Dialog {
         for (i, v) in state.fields().iter().enumerate() {
             if typing != Some(i) {
                 let id = self.child(&format!("f{i}"));
-                self.set(&id, "text", Value::String(v.to_string()));
+                self.set(&id, "text", Value::String(v.to_string().into()));
             }
         }
     }
@@ -407,7 +435,7 @@ impl Dialog {
         put_caption(&mut d, "lsize", "RLABEL", "&Size:", fl::SIZE_LABEL);
         let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
             let id = d.put(part, kind, rect);
-            let args: Vec<Value> = items.into_iter().map(Value::String).collect();
+            let args: Vec<Value> = items.into_iter().map(Value::from).collect();
             d.store.call(&id, "additems", &args);
             id
         };
@@ -842,6 +870,40 @@ mod tests {
         assert_eq!(store::string(&d2.store, "rapidr:dlg2:t0", "caption"), "R&&D");
         d.close();
         assert!(d.store.ids().is_empty());
+    }
+
+    /// (COPY-ANYWHERE) Ctrl+C (⌘C, Ctrl+Insert) on a message box copies
+    /// it as Windows' message boxes do — the title, the whole text (not as
+    /// it wraps), the buttons — and leaves the box open; an input box's
+    /// field copies its own selection instead.
+    #[test]
+    fn ctrl_c_copies_a_message_box_as_windows_does() {
+        let mut ts = TextSystem::new();
+        let long = "Can't open data.csv: the file is in use by another program. Close it and try again.";
+        let mut d = Dialog::message(41, "Error", long, &["OK", "Cancel"], None);
+        let mut f = ui(&d);
+        let nl = if cfg!(windows) { "\r\n" } else { "\n" };
+        let want = ["---------------------------", "Error", "---------------------------", long, "---------------------------", "OK   Cancel   ", "---------------------------", ""].join(nl);
+        for mods in [Mods { ctrl: true, ..Mods::NONE }, Mods { command: true, ..Mods::NONE }] {
+            let mut clip = MemClipboard::default();
+            f.key_down(&d.store, &mut ts, 67, "", mods, &mut clip);
+            f.key_up(67, mods);
+            assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+            assert_eq!(answer(&mut d, &mut f), None, "the box stays open");
+        }
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 45, "", Mods { ctrl: true, ..Mods::NONE }, &mut clip);
+        assert_eq!(clip.0.as_deref(), Some(want.as_str()));
+        // (a plain C: nothing copied)
+        let mut clip = MemClipboard::default();
+        f.key_down(&d.store, &mut ts, 67, "c", Mods::NONE, &mut clip);
+        assert_eq!(clip.0, None);
+        // (a mnemonic's & isn't copied; Yes / No's are RapidR's)
+        let d2 = Dialog::message(42, "Question", "Save?", &["Yes", "No"], None);
+        assert!(copy_text(&d2.store, &d2.id).unwrap().contains("Yes   No   "));
+        // (an input box isn't copied whole: its field copies its own text)
+        let d3 = Dialog::input(43, "Name", "Your name:", "Robert");
+        assert_eq!(copy_text(&d3.store, &d3.id), None);
     }
 
     #[test]

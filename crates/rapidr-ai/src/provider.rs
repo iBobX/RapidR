@@ -125,6 +125,50 @@ pub fn provider(id: &str) -> Option<&'static Provider> {
     PROVIDERS.iter().find(|p| p.id.eq_ignore_ascii_case(id.trim()))
 }
 
+/// Anthropic's models and their context windows (tokens), as the
+/// provider's model list says them: what RAI keeps a conversation within
+/// when the list hasn't been fetched in this session (a model chosen from
+/// the kept settings, or typed). The list's own `max_input_tokens` wins
+/// when it has come. A dated name (`claude-haiku-4-5-20251001`) is its
+/// model's.
+pub const ANTHROPIC_WINDOWS: &[(&str, u64)] = &[
+    ("claude-fable-5-1", 1_000_000),
+    ("claude-fable-5", 1_000_000),
+    ("claude-opus-5-5", 1_000_000),
+    ("claude-opus-5", 1_000_000),
+    ("claude-opus-4-8", 1_000_000),
+    ("claude-opus-4-7", 1_000_000),
+    ("claude-opus-4-6", 1_000_000),
+    ("claude-sonnet-5-5", 1_000_000),
+    ("claude-sonnet-5", 1_000_000),
+    ("claude-sonnet-4-6", 1_000_000),
+    ("claude-haiku-5-5", 1_000_000),
+    ("claude-haiku-4-5", 200_000),
+];
+
+/// The smallest window of any Claude model the provider still serves: a
+/// `claude-` model this table doesn't know yet is kept within it.
+pub const ANTHROPIC_LEAST_WINDOW: u64 = 200_000;
+
+/// The context window of `provider`'s `model` when RapidR knows it
+/// without asking ([`ANTHROPIC_WINDOWS`]); `None` for the others (their
+/// models list says it).
+pub fn known_window(provider: &str, model: &str) -> Option<u64> {
+    if !provider.trim().eq_ignore_ascii_case("anthropic") {
+        return None;
+    }
+    let model = model.trim().to_ascii_lowercase();
+    // (the name itself, or the name and a date or `latest`: a dated
+    // snapshot is its model's — `claude-opus-5-7` is not `claude-opus-5`'s)
+    let of = |id: &str| match model.strip_prefix(id) {
+        Some("") => true,
+        Some(rest) => rest.strip_prefix('-').is_some_and(|tag| tag == "latest" || (tag.len() == 8 && tag.bytes().all(|b| b.is_ascii_digit()))),
+        None => false,
+    };
+    let known = ANTHROPIC_WINDOWS.iter().find(|(id, _)| of(id)).map(|(_, w)| *w);
+    known.or_else(|| model.starts_with("claude-").then_some(ANTHROPIC_LEAST_WINDOW))
+}
+
 // ---- the tests' server ---------------------------------------------------------------
 //
 // Tests (Studio's flows, the examples' runs) point the cloud providers at a
@@ -244,6 +288,29 @@ mod tests {
         }
         assert_eq!(provider(" anthropic ").unwrap().format, Format::Anthropic);
         assert!(provider("gemini").is_none());
+    }
+
+    // (Robert 2026-10-28: the context meter said "121,309 of 40,000 (100%)"
+    // on claude-opus-5-5 while Sonnet said "of 700,000": no window was
+    // known for it, so the 40,000 fallback was used)
+    #[test]
+    fn every_anthropic_model_has_a_window() {
+        for (id, w) in ANTHROPIC_WINDOWS {
+            assert!(*w >= ANTHROPIC_LEAST_WINDOW, "{id}");
+            assert_eq!(known_window("anthropic", id), Some(*w), "{id}");
+            assert_eq!(known_window("Anthropic", &format!("{id}-20260401")), Some(*w), "{id}, dated");
+            assert_eq!(known_window("anthropic", &format!(" {} ", id.to_uppercase())), Some(*w), "{id}, as typed");
+        }
+        assert_eq!(known_window("anthropic", "claude-opus-5-5"), Some(1_000_000));
+        assert_eq!(known_window("anthropic", "claude-sonnet-5-5"), Some(1_000_000));
+        assert_eq!(known_window("anthropic", "claude-haiku-4-5-20251001"), Some(200_000));
+        // (a newer Claude than the table: the smallest window, not a
+        // sibling's — claude-opus-5-7 isn't claude-opus-5)
+        assert_eq!(known_window("anthropic", "claude-opus-5-7"), Some(ANTHROPIC_LEAST_WINDOW));
+        assert_eq!(known_window("anthropic", "mystery"), None);
+        // (other providers' models lists say theirs)
+        assert_eq!(known_window("openai", "claude-opus-5-5"), None);
+        assert_eq!(known_window("compatible", "claude-opus-5-5"), None);
     }
 
     #[test]

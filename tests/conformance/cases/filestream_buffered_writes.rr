@@ -1,0 +1,74 @@
+' An RFileStream keeps its writes to write them together (STRING-SPEED,
+' 2026-10-29): whatever uses the file meanwhile sees every byte, as when
+' each write went straight to the file — OPEN, FILELEN, another stream's
+' Open — and Position, Seek and writes in the middle keep the file the
+' stream's bytes. (The .expected is what the write-through streams of
+' 2.121.3 printed.)
+$APPTYPE CONSOLE
+CONST F = "tests/conformance/.work/filestream_buffered.bin"
+CONST G = "tests/conformance/.work/filestream_buffered.txt"
+DIM fs AS RFileStream, other AS RFileStream
+DIM i AS INTEGER, s AS INTEGER, line AS STRING
+
+' 100 000 bytes, one at a time: the file has them before Close
+fs.Open(F, fmCreate)
+FOR i = 0 TO 99999
+  fs.WriteNum((i * 7) AND 255, 1)
+NEXT
+PRINT "size "; fs.Size; " filelen "; FILELEN(F)
+other.Open(F, fmOpenRead)
+s = 0
+FOR i = 1 TO other.Size
+  s = s + other.ReadNum(1)
+NEXT
+PRINT "another stream "; other.Size; " "; s
+other.Close
+
+' back to the start and in the middle: the file follows
+fs.Position = 0
+fs.WriteStr("HEAD")
+fs.Seek(50000, 0)
+fs.WriteNum(&H41424344, 4)
+fs.Position = fs.Size
+fs.WriteStr("TAIL")
+other.Open(F, fmOpenRead)
+PRINT "start "; other.ReadStr(4)
+other.Position = 50000
+PRINT "middle "; other.ReadNum(4)
+other.Position = other.Size - 4
+PRINT "end "; other.ReadBinStr(4); " size "; other.Size
+other.Close
+
+' written at Position 3, then closed: the file has it
+fs.Position = 3
+fs.WriteStr("xy")
+fs.Close
+other.Open(F, fmOpenRead)
+PRINT "after close "; other.Size; " "; other.ReadBinStr(6)
+other.Close
+
+' text lines, read back with OPEN … FOR INPUT while the stream is open
+fs.Open(G, fmCreate)
+FOR i = 1 TO 3
+  fs.WriteLine("line" + STR$(i))
+NEXT
+OPEN G FOR INPUT AS #1
+WHILE NOT EOF(1)
+  LINE INPUT #1, line
+  PRINT "read "; line
+WEND
+CLOSE #1
+fs.Close
+
+' an existing file opened for writing: bytes changed in place, the rest kept
+fs.Open(F, fmOpenReadWrite)
+fs.Position = 2
+fs.WriteStr("--")
+PRINT "rw "; FILELEN(F)
+fs.Close
+other.Open(F, fmOpenRead)
+PRINT "rw after "; other.ReadBinStr(8); " "; other.Size
+other.Close
+KILL F
+KILL G
+PRINT "gone "; FILEEXISTS(F); " "; FILEEXISTS(G)

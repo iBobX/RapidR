@@ -47,6 +47,10 @@ pub mod netframe;
 /// RHttpServer: a local HTTP server for programs.
 #[cfg(feature = "network")]
 pub mod httpserver;
+/// RMcpServer: a program's tools served to AI apps (MCP), on httpserver's
+/// connections.
+#[cfg(feature = "network")]
+pub mod mcpserver;
 
 /// RAI, the AI component (rapidr_ai::rai), on the desktop.
 #[cfg(feature = "network")]
@@ -91,7 +95,9 @@ pub mod prelude {
     pub use crate::value::memory;
     // TR$ / TRN$ (RapidR's): the program's text in its language
     pub use crate::value::i18n;
-    pub use crate::value::{input_value, obj_field, rp_inv, rp_last_of_type, rp_lone_equals, rp_new_object, rp_new_object_array, rp_redim, rp_shl, rp_shr, set_obj_field};
+    // COMPRESS$ / DECOMPRESS$ (RapidR's; RArchive's engine)
+    pub use crate::value::objects::archive as rr_archive;
+    pub use crate::value::{input_value, obj_field, rp_inv, rp_last_of_type, rp_lone_equals, rp_new_object, rp_new_object_array, rp_redim, rp_append_assign, rp_shl, rp_shr, set_obj_field};
 
     #[cfg(feature = "gui")]
     pub use crate::ui::{set_theme, gui_register_timer};

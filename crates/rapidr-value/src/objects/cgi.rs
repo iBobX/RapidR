@@ -220,7 +220,7 @@ impl Cgi {
             "__get" => {
                 let found = self.lookup(&arg(0).to_string_val());
                 self.found = found.is_some();
-                Some(found.map(Value::String).unwrap_or_else(|| value_or(arg(1))))
+                Some(found.map(Value::from).unwrap_or_else(|| value_or(arg(1))))
             }
             // (`CGI.Get(Name)` not lowered — a value not a variable: only
             // whether it's there)
