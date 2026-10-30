@@ -173,6 +173,7 @@ SUB ApplyChrome
   ImmediateBox.Font = MonoFont
   ApplyDebugColors
   ApplySearchChrome
+  ApplyVersionsChrome
   ApplyState
 END SUB
 
@@ -202,9 +203,14 @@ END SUB
 SUB ShowStatusHint
   DIM h AS STRING
   IF Status.Panel(0).Caption <> StateText THEN h = StateText
-  IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName THEN
+  IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName + VerStatusText THEN
     IF h <> "" THEN h = h + " - "
-    h = h + ProjectName
+    h = h + ProjectName + VerStatusText
+  END IF
+  ' (Versions: what the experiment is, with Git's word for it)
+  IF VerStatusText <> "" THEN
+    IF h <> "" THEN h = h + " - "
+    h = h + TR$("{experiment} is the experiment you're on (Git calls it a branch)", "experiment", Repo.Experiment)
   END IF
   Status.Hint = h
   Status.ShowHint = (h <> "")
@@ -276,7 +282,9 @@ SUB LayOutStatus
   Status.Panel(4).Width = 60
   ' (a layout's note there stays its four seconds: debug.inc's LayoutNote)
   IF LayoutNoteTimer.Enabled = 0 THEN
-    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName, w - 12) ELSE Status.Panel(1).Caption = ""
+    ' (Versions: the experiment and the changes not saved as a version
+    ' after the name — versions.inc)
+    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName + VerStatusText, w - 12) ELSE Status.Panel(1).Caption = ""
   END IF
   ShowStatusHint
 END SUB

@@ -159,7 +159,30 @@ fn row(p: &mut Painter, g: &Geo, l: &Look, m: &Model, n: &Node, r: Rect, ink: u3
     if editing {
         return;
     }
-    let right = x + w - 8;
+    let mut right = x + w - 8;
+    // (Versions G3) the file's state against the last version: a letter in
+    // a soft status square at the right — M changed (info), N new
+    // (success), D removed (danger); the letter says it, never the colour
+    // alone, and the row's description says it in words
+    if let NodeKind::File(path) = &n.kind {
+        if let Some(b) = m.badge(path) {
+            let st = rapidr_value::ide_theme::statuses(rapidr_value::theme::current());
+            let s = match b {
+                'N' => st[1],
+                'D' => st[3],
+                _ => st[0],
+            };
+            let r = (right - 16, mid - 8, 16, 16);
+            if l.classic {
+                p.fill(r, s.back);
+                p.frame(r, s.border);
+            } else {
+                p.round(r, 4.0, Some(s.back), Some(s.border), 1.0);
+            }
+            p.text(r, &b.to_string(), &bold(&smaller(font)), s.text, Place::Center);
+            right -= 16 + 6;
+        }
+    }
     let heading = matches!(n.kind, NodeKind::Project | NodeKind::Group(_)) || n.main;
     let f = if heading { bold(font) } else { font.clone() };
     let dim = if strong || l.contrast { ink } else { l.dim };

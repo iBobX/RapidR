@@ -1,0 +1,4 @@
+' greet.rr: the greeting Hello prints.
+FUNCTION Greeting(Who AS STRING) AS STRING
+    Result = "Hello, " + Who + "!"
+END FUNCTION

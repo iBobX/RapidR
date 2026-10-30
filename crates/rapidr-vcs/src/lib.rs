@@ -735,9 +735,29 @@ impl Versions {
         self.compare_trees(a, b)
     }
 
+    /// What version `version` changed (the Timeline's "What changed?"):
+    /// its files against its first parent's — every file new for the
+    /// first version —, with hunks, files sorted by path.
+    pub fn changes_in(&self, version: &str) -> Result<Vec<FileDiff>> {
+        let id = self.resolve(version)?;
+        let tree = self.tree_of(version)?;
+        let parent = self.repo.find_commit(id).ctx("Could not read a version.")?.parent_ids().next().map(|p| p.detach());
+        match parent {
+            Some(p) => {
+                let a = self.tree_id_of_commit(p)?;
+                self.compare_trees_from(Some(a), tree)
+            }
+            None => self.compare_trees_from(None, tree),
+        }
+    }
+
     fn compare_trees(&self, a: ObjectId, b: ObjectId) -> Result<Vec<FileDiff>> {
+        self.compare_trees_from(Some(a), b)
+    }
+
+    fn compare_trees_from(&self, a: Option<ObjectId>, b: ObjectId) -> Result<Vec<FileDiff>> {
         let mut out = Vec::new();
-        for (path, old, new) in checkout::tree_changes(&self.repo, Some(a), b)? {
+        for (path, old, new) in checkout::tree_changes(&self.repo, a, b)? {
             let data = |id: Option<(ObjectId, gix::objs::tree::EntryMode)>| -> Result<Vec<u8>> {
                 match id {
                     Some((id, _)) => Ok(self.repo.find_object(id).ctx("Could not read a file.")?.detach().data),

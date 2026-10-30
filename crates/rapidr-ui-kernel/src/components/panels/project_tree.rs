@@ -603,10 +603,11 @@ impl ComponentKind for ProjectTree {
                             n if n > 1 => format!("{}, {n} forms", f.kind.as_str()),
                             _ => f.kind.as_str().to_string(),
                         };
-                        if r.main {
-                            format!("{kind}, the main file")
-                        } else {
-                            kind
+                        let kind = if r.main { format!("{kind}, the main file") } else { kind };
+                        // (Versions G3: its state against the last version, in words)
+                        match m.badge(p) {
+                            Some(b) => format!("{kind}, {}", rapidr_value::panels::project_tree::ProjectTree::badge_words(b)),
+                            None => kind,
                         }
                     })
                     .unwrap_or_default(),

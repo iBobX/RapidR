@@ -343,6 +343,11 @@ export const cases = [
     expect: ["log.seltext=orders", "log.hasselection=1", "status.simpletext=Copied: orders"] },
   { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "log.linecount,status.simpletext",
     expect: ["log.linecount=4", "status.simpletext=Copied the whole log (4 lines)"] },
+  // (VERSIONS-G3: RRepository, `rapidr run`'s — the copy runs where the
+  // tests keep their work: inside this repository's checkout Start refuses,
+  // said in words (versions are kept in a project's own folder only),
+  // elsewhere it saves, goes back and undoes; the local history either way)
+  { file: "studio/versions.rr", runtimes: ["run"], expect: ["Local history of main.rr:"] },
   // graphics/, directx/
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "chart.__mousedown_60_40,chart.__mouseup_60_40,chart.__mousedown_300_30,chart.__mouseup_300_30", dump: "info.caption",
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },

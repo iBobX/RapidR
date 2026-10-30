@@ -47,12 +47,21 @@ pub fn store_known() -> bool {
 
 /// A file's text when it is there (on the web: asked of the store first,
 /// never of the site).
-fn read_if_there(path: &str) -> Option<String> {
+pub(crate) fn read_if_there(path: &str) -> Option<String> {
     #[cfg(target_arch = "wasm32")]
     if STORE_HAS.with(|s| s.borrow().as_ref().is_some_and(|has| !has(path))) {
         return None;
     }
     read_text(path).ok()
+}
+
+/// A file's bytes when it is there (as [`read_if_there`]).
+pub(crate) fn read_bytes_if_there(path: &str) -> Option<Vec<u8>> {
+    #[cfg(target_arch = "wasm32")]
+    if STORE_HAS.with(|s| s.borrow().as_ref().is_some_and(|has| !has(path))) {
+        return None;
+    }
+    rapidr_value::objects::read_file(path).ok()
 }
 
 /// Studio's own folder (`/` separators, no trailing `/`).

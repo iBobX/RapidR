@@ -394,7 +394,8 @@ pub const HIGH_CONTRAST: Scheme = Scheme {
     popup_param: 0xFFFF00,
     diff_added: 0x0B3D0B,
     diff_removed: 0x4A0B0B,
-    diff_added_text: 0x1E6B1E,
+    // (an added word's mark: white text on it at 7:1 — Versions G3)
+    diff_added_text: 0x1A631A,
     diff_removed_text: 0x8A1A1A,
     mark_added: 0x3FF23F,
     mark_changed: 0x1AEBFF,
@@ -495,6 +496,14 @@ mod tests {
                 // (the debugger's line, a run-time error's line: AA)
                 check(format!("{}: {name} on the debugger's line", s.name), st.color, s.current_statement_line, 4.5);
                 check(format!("{}: {name} on a run-time error's line", s.name), st.color, s.exception_line, 4.5);
+            }
+            // (Versions G3: a diff's plain text on its added and removed
+            // lines and on their changed words' marks — What Changed?: AA)
+            if s.name != "classic" {
+                let need = if s.name == "highcontrast" { 7.0 } else { 4.5 };
+                for (what, bg) in [("an added line", s.diff_added), ("a removed line", s.diff_removed), ("an added word", s.diff_added_text), ("a removed word", s.diff_removed_text)] {
+                    check(format!("{}: text on {what}", s.name), s.text, bg, need);
+                }
             }
             check(format!("{}: text", s.name), s.text, s.background, min);
             // (line numbers are text: AA, the classic look's grey aside)

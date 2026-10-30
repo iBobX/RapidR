@@ -435,7 +435,7 @@ fn uses_studio_components(path: &str) -> bool {
         Ok(p) => p.source.to_ascii_uppercase(),
         Err(_) => fs::read_to_string(path).unwrap_or_default().to_ascii_uppercase(),
     };
-    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION"))
+    text.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|w| matches!(w, "RPROJECT" | "RLANGUAGESERVICE" | "RPROGRAMSESSION" | "RREPOSITORY"))
 }
 
 /// Whether the program uses RArchive or COMPRESS$ / DECOMPRESS$: a native

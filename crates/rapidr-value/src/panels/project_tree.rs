@@ -155,6 +155,31 @@ pub fn rt_method<R: Runtime>(rt: R, name: &str, method: &str, args: &[Value]) ->
             }
             basic_bool(on)
         }
+        // (Versions G3) FileBadge(Path, Letter): M changed, N new, D removed
+        // since the last version ("" takes it off); ClearBadges: none
+        "filebadge" => {
+            if args.len() < 2 {
+                let b = with(name, |m| m.badge(&s(0))).flatten();
+                return Some(Value::String(b.map(String::from).unwrap_or_default().into()));
+            }
+            let key = s(0).replace('\\', "/").to_lowercase();
+            let letter = s(1).trim().to_ascii_uppercase().chars().next().filter(|c| matches!(c, 'M' | 'N' | 'D'));
+            with_mut(name, |m| match letter {
+                Some(b) => {
+                    m.badges.insert(key.clone(), b);
+                }
+                None => {
+                    m.badges.remove(&key);
+                }
+            });
+            rt.invalidate();
+            int(0)
+        }
+        "clearbadges" => {
+            with_mut(name, |m| m.badges.clear());
+            rt.invalidate();
+            int(0)
+        }
         "newfile" => {
             let Some(kind) = model::parse_kind(&s(0)) else { return Some(Value::String(String::new().into())) };
             let wanted = (args.len() > 1).then(|| s(1));

@@ -299,6 +299,8 @@ SUB OpenDocument(Path AS STRING)
   ActiveDoc = d
   ' (debug.inc: its breakpoints, the paused line, data tips)
   DebugDocOpened d
+  ' (versions.inc: its gutter marks against the last version)
+  VerApplyBase d
   ' (the project tree lists its components; the others' names are kept
   ' from its designer)
   ProjectFileChanged d
@@ -316,12 +318,17 @@ END SUB
 FUNCTION SaveDocument(d AS INTEGER) AS INTEGER
   IF d < 0 THEN EXIT FUNCTION
   IF DocOpen(d) = 0 THEN EXIT FUNCTION
+  ' (Versions: what the disk had, kept in the local history first — never
+  ' lost, versioned or not: versions.inc)
+  VerBeforeSave d
   CodeDoc(d).SaveToFile DocFile(d)
   DocDirty(d) = 0
   ' (saved: no copy of it needed — safety.inc)
   KeepForget d
   DocTitles d
   ProjectFollowsCode
+  ' (a copy of what was saved; the versions' badges and counts again)
+  VerAfterSave d
   Result = 1
 END FUNCTION
 

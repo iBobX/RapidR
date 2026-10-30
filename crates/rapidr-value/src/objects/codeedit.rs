@@ -371,6 +371,73 @@ pub struct CodeEditor {
     /// The code's helpers (docs/code-helpers-plan.md): the language
     /// service's sites, the settings, the values while paused.
     pub helpers: super::codehelp::Helpers,
+    /// (Versions G3) What the gutter's change marks compare the text with:
+    /// the last version's text (`ChangeBase`); `None`: since the last save
+    /// (the view keeps that one itself).
+    pub change_base: Option<Arc<str>>,
+    /// Goes up when `change_base` changes (the view's marks again).
+    pub change_base_gen: u64,
+    /// A change shown under its lines (its mark clicked, `ShowChange`):
+    /// what it was, Undo This Change.
+    pub peek: Option<ChangePeek>,
+}
+
+/// (Versions G3) A run of changed lines against the change base
+/// (`ChangeBase`): `old` lines of the base became `new` lines of the text
+/// (0-based; one of them may be empty).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChangeHunk {
+    pub old: std::ops::Range<usize>,
+    pub new: std::ops::Range<usize>,
+}
+
+impl ChangeHunk {
+    /// "added", "changed" or "removed".
+    pub fn kind(&self) -> &'static str {
+        if self.old.is_empty() {
+            "added"
+        } else if self.new.is_empty() {
+            "removed"
+        } else {
+            "changed"
+        }
+    }
+
+    /// The line whose gutter carries its mark: its lines, or — lines
+    /// removed — the line before where they were.
+    pub fn holds(&self, line: usize) -> bool {
+        if self.new.is_empty() {
+            line == self.new.start.saturating_sub(1)
+        } else {
+            self.new.contains(&line)
+        }
+    }
+
+    /// The line it is shown under: its last line (removed: the line before).
+    pub fn last_line(&self) -> usize {
+        if self.new.is_empty() {
+            self.new.start.saturating_sub(1)
+        } else {
+            self.new.end - 1
+        }
+    }
+}
+
+/// (Versions G3) The change shown under its lines: the hunk, and the base's
+/// lines it replaced.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChangePeek {
+    pub hunk: ChangeHunk,
+    pub old_lines: Vec<String>,
+    /// The mouse is over Undo This Change (1) or Close (2).
+    pub hot: u8,
+}
+
+/// The changed runs of lines from `base` to `text` ('\n' breaks).
+pub fn change_hunks(base: &str, text: &str) -> Vec<ChangeHunk> {
+    let a: Vec<&str> = base.split('\n').collect();
+    let b: Vec<&str> = text.split('\n').collect();
+    rapidr_diff::text::changes(&a, &b).into_iter().map(|c| ChangeHunk { old: c.old, new: c.new }).collect()
 }
 
 impl Default for CodeEditor {
@@ -574,7 +641,80 @@ impl CodeEditor {
             sql_dialect: rapidr_editor::sql::Dialect::Any,
             sql_schema: Arc::new(rapidr_editor::sql::Schema::default()),
             helpers: super::codehelp::Helpers::default(),
+            change_base: None,
+            change_base_gen: 0,
+            peek: None,
         }
+    }
+
+    // ---- (Versions G3) the changes since the last version ----
+
+    /// The text's changed runs against the change base (none without one).
+    pub fn change_hunks(&self) -> Vec<ChangeHunk> {
+        match &self.change_base {
+            Some(base) => change_hunks(base, &self.doc.text()),
+            None => Vec::new(),
+        }
+    }
+
+    /// The run whose mark is on 0-based `line`.
+    pub fn change_at(&self, line: usize) -> Option<ChangeHunk> {
+        self.change_hunks().into_iter().find(|h| h.holds(line))
+    }
+
+    /// The base's lines a run replaced.
+    fn base_lines(&self, h: &ChangeHunk) -> Vec<String> {
+        let base = self.change_base.as_deref().unwrap_or("");
+        base.split('\n').skip(h.old.start).take(h.old.len()).map(str::to_string).collect()
+    }
+
+    /// Shows the change whose mark is on 0-based `line` under its lines;
+    /// whether there is one.
+    pub fn show_change(&mut self, line: usize) -> bool {
+        let Some(h) = self.change_at(line) else {
+            self.peek = None;
+            return false;
+        };
+        let old_lines = self.base_lines(&h);
+        self.hide_popups();
+        self.peek = Some(ChangePeek { hunk: h, old_lines, hot: 0 });
+        self.changed();
+        true
+    }
+
+    /// **Undo this change**: the run whose mark is on 0-based `line` back as
+    /// the base has it, one undo step (OnChange follows). Whether it was.
+    pub fn revert_change(&mut self, line: usize) -> bool {
+        let Some(h) = self.change_at(line) else { return false };
+        let old = self.base_lines(&h);
+        let buf = self.doc.buffer();
+        let lines = buf.len_lines();
+        // (the run's lines with their breaks, or — lines removed — the place
+        // they go back to)
+        let (a, b, text) = if h.new.is_empty() {
+            let at = if h.new.start >= lines { buf.len_bytes() } else { buf.line_start(h.new.start) };
+            let mut t = old.join("\n");
+            // (back at the very end of a text without a final break: one first)
+            if h.new.start >= lines {
+                t.insert(0, '\n');
+            } else {
+                t.push('\n');
+            }
+            (at, at, t)
+        } else {
+            let a = buf.line_start(h.new.start);
+            let b = if h.new.end >= lines { buf.len_bytes() } else { buf.line_start(h.new.end) };
+            let ends_with_break = h.new.end < lines;
+            let mut t = old.join("\n");
+            if !old.is_empty() && ends_with_break {
+                t.push('\n');
+            }
+            (a, b, t)
+        };
+        self.peek = None;
+        self.program_edit(|d| d.apply_patch(a..b, &text, false, 0).is_ok());
+        self.program_change = true;
+        true
     }
 
     /// Whether the text is SQL (any dialect).
@@ -868,6 +1008,8 @@ impl CodeEditor {
         if sets.is_empty() {
             return;
         }
+        // (a change shown under its lines: it changed, so it goes)
+        self.peek = None;
         let lines = self.doc.take_line_edits();
         if self.line_edits.len() + lines.len() > 4096 {
             self.line_edits.clear();
@@ -1441,6 +1583,11 @@ impl CodeEditor {
                 v_str(&self.helpers.describe_line(a, b, &text, &|h| self.helpers.file_there(&folder, &h.value)))
             }
             "helpereditortext" => v_str(&self.helpers.editor_text),
+            // (Versions G3)
+            "changebase" => v_str(self.change_base.as_deref().unwrap_or("")),
+            "changessince" => v_str(if self.change_base.is_some() { "version" } else { "save" }),
+            "changecount" => v_int(self.change_hunks().len() as i64),
+            "changepeek" => v_int(self.peek.as_ref().map_or(0, |p| p.hunk.last_line() as i64 + 1)),
             "linevaluestext" => {
                 let line = self.doc.buffer().line_of(p.head);
                 let text = self.doc.buffer().line_text(line).into_owned();
@@ -1469,6 +1616,22 @@ impl CodeEditor {
                 self.modified = b;
                 if !b {
                     self.doc.mark_saved();
+                }
+            }
+            // (Versions G3: the gutter's marks against the last version's
+            // text; ChangesSince = "save" goes back to the last save)
+            "changebase" => {
+                self.change_base = Some(Arc::from(normalize_breaks(&val.to_string_val())));
+                self.change_base_gen += 1;
+                self.peek = None;
+                self.changed();
+            }
+            "changessince" => {
+                if val.to_string_val().trim().eq_ignore_ascii_case("save") {
+                    self.change_base = None;
+                    self.change_base_gen += 1;
+                    self.peek = None;
+                    self.changed();
                 }
             }
             "readonly" => {
@@ -1756,6 +1919,31 @@ impl CodeEditor {
             "hidedatatip" => self.datatip = None,
             "showsignature" => self.show_signature(&arg(0), num(1, 0)),
             "hidepopups" => self.hide_popups(),
+            // (Versions G3: the changes since the last version, ChangeBase)
+            "changeat" => {
+                let line = num(0, 1).max(1) as usize - 1;
+                return Some(v_str(self.change_at(line).map_or("", |h| h.kind())));
+            }
+            "changetext" => {
+                let line = num(0, 1).max(1) as usize - 1;
+                return Some(v_str(&self.change_at(line).map(|h| self.base_lines(&h).join("\n")).unwrap_or_default()));
+            }
+            "revertchange" => return Some(flag(self.revert_change(num(0, 1).max(1) as usize - 1))),
+            "showchange" => return Some(flag(self.show_change(num(0, 1).max(1) as usize - 1))),
+            "hidechange" => {
+                self.peek = None;
+                self.changed();
+            }
+            "nextchange" | "previouschange" => {
+                let line = num(0, 1).max(1) as usize - 1;
+                let starts: Vec<usize> = self.change_hunks().iter().map(|h| if h.new.is_empty() { h.new.start.saturating_sub(1) } else { h.new.start }).collect();
+                let next = if method == "nextchange" {
+                    starts.iter().find(|&&s| s > line).or(starts.first())
+                } else {
+                    starts.iter().rev().find(|&&s| s < line).or(starts.last())
+                };
+                return Some(v_int(next.map_or(0, |s| *s as i64 + 1)));
+            }
             "triggercompletion" => self.requests.push(Request::Completion),
             "triggersignature" => self.requests.push(Request::Signature),
             "triggerhover" => {
@@ -2044,6 +2232,48 @@ mod tests {
         assert_eq!(n(c.get("debughover")), 0);
         c.set("debughover", &v_int(-1));
         assert!(n(c.get("debughover")) != 0);
+    }
+
+    /// (Versions G3) The changes since the last version: ChangeBase, the
+    /// runs' kinds and old text, Show / Undo This Change as one undo step,
+    /// next and previous.
+    #[test]
+    fn changes_since_the_last_version() {
+        let mut c = CodeEditor::new();
+        c.set("text", &v_str("a\nb\nc\nd\n"));
+        assert_eq!(s(c.get("changessince")), "save");
+        assert_eq!(s(c.call("changeat", &[v_int(1)])), "", "no base: no marks of the model's");
+        // (the last version's text, as Git keeps a .bas: CR LF)
+        c.set("changebase", &v_str("a\r\nB\r\nc\r\nd\r\nold\r\n"));
+        assert_eq!(s(c.get("changessince")), "version");
+        c.set("text", &v_str("a\nb\nc\nnew\nd\n"));
+        assert_eq!(n(c.get("changecount")), 3);
+        assert_eq!(s(c.call("changeat", &[v_int(2)])), "changed");
+        assert_eq!(s(c.call("changetext", &[v_int(2)])), "B");
+        assert_eq!(s(c.call("changeat", &[v_int(4)])), "added");
+        assert_eq!(s(c.call("changeat", &[v_int(5)])), "removed", "\"old\" was after line 5");
+        assert_eq!(s(c.call("changetext", &[v_int(5)])), "old");
+        assert_eq!((n(c.call("nextchange", &[v_int(2)])), n(c.call("nextchange", &[v_int(5)])), n(c.call("previouschange", &[v_int(2)]))), (4, 2, 5));
+        // shown under its lines, gone with the next edit
+        assert_eq!(n(c.call("showchange", &[v_int(2)])), -1);
+        assert_eq!(n(c.get("changepeek")), 2);
+        // undo this change: one step, Modified, OnChange's flag
+        c.program_change = false;
+        assert_eq!(n(c.call("revertchange", &[v_int(2)])), -1);
+        assert!(c.program_change && c.peek.is_none());
+        assert_eq!(c.text(), "a\nB\nc\nnew\nd\n");
+        assert_eq!(n(c.call("revertchange", &[v_int(4)])), -1);
+        assert_eq!(n(c.call("revertchange", &[v_int(4)])), -1, "the removed line back after d");
+        assert_eq!(c.text(), "a\nB\nc\nd\nold\n");
+        assert_eq!(n(c.get("changecount")), 0);
+        assert_eq!(n(c.call("revertchange", &[v_int(1)])), 0, "nothing there");
+        c.call("undo", &[]);
+        assert_eq!(c.text(), "a\nB\nc\nd\n", "one Ctrl+Z takes one back");
+        // a new file's base is empty: every line added
+        c.set("changebase", &v_str(""));
+        assert_eq!(s(c.call("changeat", &[v_int(1)])), "added");
+        c.set("changessince", &v_str("save"));
+        assert_eq!(n(c.get("changecount")), 0);
     }
 
     /// The `code_editor` GUI case's answers, as the old model gave them.

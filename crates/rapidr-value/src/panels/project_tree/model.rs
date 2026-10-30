@@ -157,6 +157,9 @@ pub struct ProjectTree {
     /// Files with changes not saved yet (FileModified), by lowercase path:
     /// marked with a dot.
     pub dirty: HashSet<String>,
+    /// (Versions G3) Each file's state against the last version
+    /// (FileBadge), by lowercase path: 'M' changed, 'N' new, 'D' removed.
+    pub badges: std::collections::HashMap<String, char>,
     // ---- what the kernel keeps here (pure UI state) ----
     pub hover: Option<String>,
     pub confirm: Option<Confirm>,
@@ -190,6 +193,7 @@ impl Default for ProjectTree {
             selected: String::new(),
             modified: false,
             dirty: HashSet::new(),
+            badges: std::collections::HashMap::new(),
             hover: None,
             confirm: None,
             drag: None,
@@ -203,6 +207,29 @@ impl Default for ProjectTree {
 }
 
 impl ProjectTree {
+    /// (Versions G3) File `path`'s badge against the last version: 'M'
+    /// changed, 'N' new, 'D' removed; `None` when it is as saved. `path` is
+    /// a file node's (relative to the project, or absolute).
+    pub fn badge(&self, path: &str) -> Option<char> {
+        let p = path.replace('\\', "/").to_lowercase();
+        if let Some(b) = self.badges.get(&p) {
+            return Some(*b);
+        }
+        // (the badges are named relative to the project's folder)
+        let folder = self.folder().to_lowercase();
+        let rel = p.strip_prefix(&format!("{folder}/")).unwrap_or(&p);
+        self.badges.get(rel).copied()
+    }
+
+    /// A badge in words, for a screen reader and a tooltip.
+    pub fn badge_words(b: char) -> &'static str {
+        match b {
+            'N' => "new, not in a version yet",
+            'D' => "removed since the last version",
+            _ => "changed since the last version",
+        }
+    }
+
     // ---------------------------------------------------------- loading --
 
     /// The project's folder (its file's, with `/`; "" here).
