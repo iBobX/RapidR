@@ -8,8 +8,8 @@ gente—. Las compilaciones nativas, el intérprete y la web dan la misma salida
 para cada ejemplo de aquí.
 
 RapidR también acepta algo de sintaxis que el lenguaje clásico no tiene (el
-`#If` de VB, `ON ERROR`, `i++`, …): mira
-[Diferencias y extensiones](differences.md).
+`#If` de otros BASIC, `ON ERROR`, `i++`, …): mira
+[Notas de compatibilidad y extensiones](differences.md).
 
 ## Archivos de código fuente
 
@@ -625,7 +625,7 @@ SLEEP(Calc.Twice(3)) / 10         ' (…) inicia el argumento: SLEEP 0.6
 | `$TYPECHECK ON` / `OFF` (`$OPTION EXPLICIT`: ON) | toda variable tiene que estar declarada (`DIM`, `CONST`, un parámetro): a una no declarada a la que se le asigna un valor da `Undeclared identifier x`, y leída da `Undefined symbol X` |
 | `$OPTIMIZE` | se acepta |
 | `$THEME name` | de RapidR: el aspecto del escritorio ([Componentes](components.md#temas)) |
-| `#If … Then` / `#ElseIf` / `#Else` / `#End If`, `#Const` | la compilación condicional de VB |
+| `#If … Then` / `#ElseIf` / `#Else` / `#End If`, `#Const` | la compilación condicional de otros BASIC |
 
 Un error en el código incluido señala el archivo incluido y la línea.
 
@@ -657,7 +657,7 @@ Un error en el código incluido señala el archivo incluido y la línea.
   (un `Repaint` dentro del `OnPaint` del mismo lienzo) se detienen, a 200 niveles
   de profundidad, con un error de ejecución que nombra el evento —nunca un fallo
   ([Cuándo se ejecutan los eventos](components.md#cuándo-se-ejecutan-los-eventos)).
-- `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (los de VB) se aceptan para que esos
+- `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (los de otros BASIC) se aceptan para que esos
   programas se compilen, y se **ignoran**.
 
 ### Cuando un controlador falla: `Application.OnError`
