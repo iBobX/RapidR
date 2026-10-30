@@ -40,13 +40,15 @@ impl Host for Desktop {
         let full = std::fs::canonicalize(program).map_err(|e| format!("{program}: {e}"))?;
         let cwd = full.parent().filter(|p| !p.as_os_str().is_empty());
         // (the IDE's own test hooks aren't the program's; under a capture
-        // test the program's windows are captured too, as `<prefix>-program`)
+        // test the program's windows are captured too, as `<prefix>-program`
+        // — only while Studio's own hooks act, SEC-24; the test-mode token
+        // goes on: the program checks it for itself)
         let mut env: Vec<(String, Option<String>)> = std::env::vars()
             .map(|(k, _)| k)
-            .filter(|k| k.starts_with("RAPIDR_TEST_") || k == "RAPIDR_CAPTURE" || k == "RAPIDR_CAPTURE_DELAY")
+            .filter(|k| (k.starts_with("RAPIDR_TEST_") && k != rapidr_testmode::ENV) || k == "RAPIDR_CAPTURE" || k == "RAPIDR_CAPTURE_DELAY")
             .map(|k| (k, None))
             .collect();
-        if let Ok(prefix) = std::env::var("RAPIDR_CAPTURE") {
+        if let Some(prefix) = rapidr_testmode::var("RAPIDR_CAPTURE") {
             env.push(("RAPIDR_CAPTURE".into(), Some(format!("{prefix}-program"))));
             // (a test that drives the program too — the debugger's event
             // flows: clicks and keys into it, its handlers' breakpoints, its

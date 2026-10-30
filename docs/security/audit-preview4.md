@@ -186,6 +186,23 @@ crash report; RProject's `CrashTest` does the same for Studio only under
 only the process whose environment says so (the launcher could kill it
 anyway); it reads and sends nothing.
 
+**Fixed in** lane SEC-24 (2026-10-30, Preview 5): the signed test mode
+([test-mode.md](test-mode.md)). Every hook reads its variable through one
+gate, `crates/rapidr-testmode` (testhooks' `var`, the runtime's devices and
+sound, Studio's program launch, `RAPIDR_TEST_CRASH`, `RAPIDR_SCHOOL_POLICY`,
+`RAPIDR_LOGIN_SHELL`, `RAPIDR_AI_TEST_SERVER`, and `ENVIRON$` for every
+`RAPIDR_TEST_*` / `RAPIDR_CAPTURE*` name, so Studio's `RAPIDR_TEST_MCP_TOKEN`
+too). A release build's hooks act only when `RAPIDR_TEST_MODE` names a token
+signed with Ed25519 by the key in `crates/rapidr-testmode/test-mode.pub`
+(purpose `rapidr-test-mode`, at most a year, an optional machine hint);
+otherwise every hook variable is ignored and one line on stderr says so.
+Development builds (debug, or the `dev-hooks` feature no release script
+passes) act without a token. The repository holds a placeholder key that
+trusts nothing until Robert installs his (`rapidr dev test-mode new-key`,
+`issue`). `RAPIDR_TEST_SYSTEM_LOOK=file:PATH` is read only under test mode.
+The web is unchanged (`window.RAPIDR_STUDIO_TEST`). Tests:
+`tests/security/test_mode_tokens.rs`, `tests/security/test_mode_release.mjs`.
+
 ### SEC-25 — Low — MySQL Preferred/Required do not verify the certificate
 
 **Where.** `crates/rapidr-db/src/mysql.rs:444-453` (`SslMode::opts`):
@@ -461,8 +478,8 @@ offered, and the picker starts at the project file (`file_picker_web.rs`
 `LoadFromFile` so a file that cannot be read opens empty, never with
 another file's code (commit `64174247`). Fine.
 
-**Test hooks** — see SEC-24. The web path is correctly off by default
-(needs `window.RAPIDR_STUDIO_TEST`).
+**Test hooks** — see SEC-24 (fixed in Preview 5: the signed test mode). The
+web path is correctly off by default (needs `window.RAPIDR_STUDIO_TEST`).
 
 **Supply chain / build** (`zip` 9, codegen). `zip` 9.0.5 is used for
 writing only — `ZipWriter` with `SimpleFileOptions`
@@ -496,3 +513,5 @@ Preview 4's UI. Fine for this release; audit its surface when the UI lands.
   SEC-25, SEC-26, SEC-27, SEC-28, SEC-29 and SEC-30 fixed, each with a
   "Fixed in" line above and a test in `tests/security/`; SEC-24 accepted for
   Preview 4 and moved to Preview 5.
+- **SEC-24 fixed** (lane SEC-24, 2026-10-30): the signed test mode
+  ([test-mode.md](test-mode.md)).

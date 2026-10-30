@@ -23,6 +23,8 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RAPIDR = process.env.RAPIDR_BIN || join(ROOT, process.platform === "win32" ? "rapidr.exe" : "rapidr");

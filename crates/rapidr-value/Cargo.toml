@@ -7,6 +7,9 @@ license.workspace = true
 description = "Shared dynamic Value type for RapidR runtimes and bytecode VM"
 
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 # The language registry (GUI-free, static tables, no runtime dependencies):
 # the IDE's designer model (designer/) reads component names, sizes,
 # defaults and constants from it, and what a new component starts with

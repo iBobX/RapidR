@@ -192,7 +192,7 @@ fn play(_bytes: Vec<u8>, _looped: bool, _wait: bool) {
 /// set even empty) — no sound device then, nothing heard.
 #[cfg(feature = "audio")]
 pub(crate) fn testing() -> bool {
-    ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| std::env::var_os(v).is_some())
+    ["RAPIDR_CAPTURE", "RAPIDR_TEST_EVENTS", "RAPIDR_TEST_SOUND"].iter().any(|v| rapidr_testmode::var_os(v).is_some())
 }
 
 /// Gives QDXSOUND the sound device (once; not under a test).

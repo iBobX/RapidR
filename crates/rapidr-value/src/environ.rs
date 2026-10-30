@@ -20,6 +20,12 @@ pub fn get(name: &str) -> String {
     // (any case, as Windows' — RapidQ's — names are: the exact name first)
     #[cfg(not(target_arch = "wasm32"))]
     {
+        // (RapidR's own test hooks' variables — RAPIDR_TEST_*,
+        // RAPIDR_CAPTURE* —: empty unless the hooks act, SEC-24; RapidR
+        // Studio reads its test steps' through here)
+        if rapidr_testmode::is_hook(name) && !rapidr_testmode::allowed(name) {
+            return String::new();
+        }
         std::env::var_os(name)
             .or_else(|| std::env::vars_os().find(|(k, _)| k.to_str().is_some_and(|k| k.eq_ignore_ascii_case(name))).map(|(_, v)| v))
             .map(|v| v.to_string_lossy().into_owned())

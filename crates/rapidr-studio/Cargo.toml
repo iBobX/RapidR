@@ -9,6 +9,9 @@ license.workspace = true
 # wasm-safe: the hosts give it files (rapidr-value's file hooks), events and
 # a way to launch the program under development.
 [dependencies]
+# (SEC-24: the test hooks act only in development builds or with a signed
+# test-mode token — docs/security/test-mode.md)
+rapidr-testmode.workspace = true
 rapidr-value.workspace = true
 rapidr-project.workspace = true
 rapidr-session.workspace = true

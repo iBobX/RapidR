@@ -53,13 +53,13 @@ pub fn install() {
     }
     crate::sound::install_dx_device();
     #[cfg(feature = "audio")]
-    match std::env::var("RAPIDR_TEST_MIDI") {
+    match rapidr_testmode::env_var("RAPIDR_TEST_MIDI") {
         Ok(spec) if spec.starts_with("capture:") => media::set_midi_device(MidiDevice { play: capture_play, stop: capture_stop, volume: capture_volume }),
         Ok(_) => {}
         Err(_) if !crate::sound::testing() => media::set_midi_device(MidiDevice { play: midi_play, stop: midi_stop, volume: midi_volume }),
         Err(_) => {}
     }
-    match std::env::var("RAPIDR_TEST_WAVE_IN") {
+    match rapidr_testmode::env_var("RAPIDR_TEST_WAVE_IN") {
         Ok(script) => {
             if let Some(hz) = media::tone_script(&script) {
                 media::install_tone_input(hz);
@@ -199,8 +199,8 @@ fn midi_volume(id: &str, gain: f32) {
 /// (the first `RAPIDR_TEST_MIDI_SECS` seconds, 10) and measured.
 #[cfg(feature = "audio")]
 fn capture_play(_id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
-    let prefix = std::env::var("RAPIDR_TEST_MIDI").unwrap_or_default().trim_start_matches("capture:").to_string();
-    let names: Vec<String> = std::env::var("RAPIDR_TEST_MIDI_PORTS").unwrap_or_default().split(';').filter(|s| !s.is_empty()).map(String::from).collect();
+    let prefix = rapidr_testmode::env_var("RAPIDR_TEST_MIDI").unwrap_or_default().trim_start_matches("capture:").to_string();
+    let names: Vec<String> = rapidr_testmode::env_var("RAPIDR_TEST_MIDI_PORTS").unwrap_or_default().split(';').filter(|s| !s.is_empty()).map(String::from).collect();
     let gain = gain.clamp(0.0, 1.0);
     let mut log = String::new();
     match pick(&names) {
@@ -212,7 +212,7 @@ fn capture_play(_id: &str, song: Rc<Song>, from_us: u64, gain: f32) {
             }
         }
         None => {
-            let secs: usize = std::env::var("RAPIDR_TEST_MIDI_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(10);
+            let secs: usize = rapidr_testmode::env_var("RAPIDR_TEST_MIDI_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(10);
             let events = song.events.iter().map(|e| (e.at_us, e.bytes.clone())).collect();
             let mut player = rapidr_value::objects::synth::Player::new(events, SYNTH_RATE, from_us, gain);
             let (mut pcm, mut block) = (Vec::<f32>::new(), vec![0.0f32; 1024]);
