@@ -1346,6 +1346,11 @@ SUB VersionsStep(S AS STRING)
         VerRefresh
       END IF
     CASE "author": VerAuthor = v: Repo.Author = v
+    CASE "checkpoint"
+      ' (versions:checkpoint=<label>: an AI's checkpoint, as the assistant
+      ' keeps one before it changes files — RAI's own wiring is lane G8)
+      IF Repo.Checkpoint(v) = "" THEN OutputLine "versions:checkpoint: " + Repo.Error
+      VerRefresh
     CASE "report"
       ' (versions:report=<file>: what the pane, the Project pane's badge of
       ' that file and the status bar say)

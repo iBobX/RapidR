@@ -6420,6 +6420,18 @@ const CASES = [
     webDump: { "verdifflist.itemcount": /^[34]$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/ },
   },
   {
+    // (an AI's checkpoint on the timeline: smaller and lighter, said as one)
+    name: "versions-checkpoint",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions:checkpoint=make the button bigger,versions:save=second,versions.pane`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    a11y: [[/^AI checkpoint: make the button bigger, just now$/, null]],
+    dump: { "vertimeline.itemcount": /^3$/ },
+  },
+  {
     // (keyboard only: View > Versions gives the pane the keys; Down picks
     // "first" in the timeline, Tab reaches What Changed?, Space presses it)
     name: "versions-keyboard",
