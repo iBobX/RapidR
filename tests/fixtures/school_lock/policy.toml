@@ -1,0 +1,9 @@
+# A School Lock policy for RapidR Studio's tests (tests/studio_flows.mjs
+# school-lock-policy*): every AI feature locked; the password is
+# it-secret-1 (a test password: nothing real). On a real computer this
+# file is /Library/Application Support/RapidR/policy.toml (macOS),
+# %ProgramData%\RapidR\policy.toml (Windows) or /etc/rapidr/policy.toml
+# (Linux); the tests name it with RAPIDR_SCHOOL_POLICY.
+school_lock = true
+locked = ["ai", "ai_apps"]
+password_hash = "pbkdf2-sha256$600000$544dc891f57ee275ea7033415e93f2d4$bba6797ef2de9800240ee340347707c3c03c453383c48945f6c60b60a7e37593"

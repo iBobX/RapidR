@@ -22,6 +22,7 @@
 //! | `RunArgs` | the arguments Run gives the program, one string (`[run] args`) |
 //! | `DesignerGrid`, `DesignerSnap`, `DesignerGuides` | the form designer's grid step, snapping to it, alignment guides (`[designer]`; 8, True, True unless the project says) |
 //! | `ThemeOf(MainText)` → look, `ThemeEdit(MainText, Look)` → patch | the look the main program names with `$THEME` (RapidR, RapidR Light, RapidR Dark, RapidR High Contrast, Classic), and the one-line edit that makes it name another: Studio's project properties keep the look in the program, not the project file |
+//! | `SchoolLock…` | School Lock: Studio's features (its AI) turned off behind a password — `crate::school_lock` |
 //! | `MacKeys` → True / False | the keyboard is a Mac's: Cmd is the shortcut key, Option+arrows move by words (the desktop on macOS, a page on a Mac) |
 //! | `FilesIn(Folder)` → text | the text files under Folder, a line each (full paths; hidden folders, `build`, `target` and pictures, sounds, archives left out; at most 2,000): Search's "A folder" scope |
 //! | `FileCount` | read-only |
@@ -901,6 +902,13 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
         }
         // (Studio's keys) MacKeys: a Mac's keyboard (Option moves by words)
         "mackeys" => flag(host.mac_keys()),
+        // (School Lock: crate::school_lock — the lock, the computer's
+        // policy, the password's hash, the wrong tries)
+        m if m.starts_with("schoollock") => {
+            let (v, error) = crate::school_lock::call(host, m, args)?;
+            with(name, |m| m.error = error);
+            v
+        }
         // (Search's "A folder" scope) FilesIn(Folder): its text files
         "filesin" => Value::String(files_in(host, &s(0)).iter().map(|p| format!("{p}\n")).collect()),
         // (Find in Files) Find(Pattern, Options, Text): the matches of one

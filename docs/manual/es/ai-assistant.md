@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 7150718d7a0b7fff -->
+<!-- translated-from: ai-assistant.md 2b1084f75845f2aa -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -6,6 +6,9 @@ RapidR: pregúntale por tu proyecto, pídele que proponga cambios (se muestran c
 diferencias que aceptas o rechazas) o pídele que construya un programa nuevo, con
 una vista previa antes de que se escriba nada. Tus propios programas pueden usar la
 misma IA mediante el componente **RAI**; el asistente es en sí mismo un RAI.
+
+En una clase, cada docente puede mantener el asistente desactivado con una
+contraseña: [Para docentes: bloqueo escolar](../for-teachers.md) (en inglés).
 
 Funciona con el proveedor de IA que elijas: **Anthropic** (Claude), **OpenAI**,
 **DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluido un servidor

@@ -1,0 +1,4 @@
+# A School Lock policy that can't be read (tests/studio_flows.mjs
+# school-lock-policy-broken): RapidR Studio keeps everything locked,
+# with no password, until IT fixes it.
+school_lock = yes please

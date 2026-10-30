@@ -28,12 +28,15 @@
 //                       before: Ask before changes
 //   Read only           reading works; a change and a run are refused, said
 //                       in plain words
+//   School Lock         AI apps locked by a teacher (ide/schoollock.inc): the
+//                       server refuses to start, the port never answers;
+//                       unlocked until Studio closes, it starts
 //
 // and a waiting change and Settings > AI Apps are captured; the
 // first-time question (turning the switch on) answered both ways; the
 // activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe …]
+//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe|locked …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -639,6 +642,33 @@ if (want("recipe")) {
   r = await tool("read_file", { path: "main.rr" });
   const end = await run.ended();
   check("recipe: Studio ended", end.ok);
+}
+
+// ---- School Lock (ide/schoollock.inc): AI apps locked by a teacher — the server never
+// starts, nothing ever listens on the port while Studio runs; unlocked until Studio
+// closes, it starts as the user had it ---------------------------------------------------
+if (want("locked")) {
+  const PORT = BASE_PORT + 10;
+  const run = studio("locked", `lock:set=maestra1,mcp:on=${PORT},lock:state`, "", "outputbox.text,mcponbox.checked", { RAPIDR_CAPTURE_DELAY: "10" });
+  // (the port tried every quarter second for as long as Studio runs)
+  let answered = false;
+  let done = false;
+  const watch = (async () => {
+    while (!done) {
+      if (await listening(PORT, 250)) answered = true;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  })();
+  const end = await run.ended(120000);
+  done = true;
+  await watch;
+  check("School Lock: the port never answered while Studio ran (connection refused)", !answered);
+  check("School Lock: mcp:on refused, said plainly; the server off", /AI apps can't start: School Lock is on \(Tools > School Lock\.\.\.\)\./.test(end.out) && /School Lock state: on=1 [^\n]* ai_apps=1 [^\n]* mcp=0/.test(end.out), end.out.split("\n").filter((l) => /School Lock|AI apps/.test(l)).join(" | "));
+  const PORT2 = BASE_PORT + 11;
+  const open = studio("locked-unlock", `lock:set=maestra1,mcp:on=${PORT2},lock:unlock=maestra1`, "", "outputbox.text,mcponbox.checked", { RAPIDR_CAPTURE_DELAY: "12" });
+  check("unlocked until Studio closes: AI apps can connect again (the same check sees a server)", await listening(PORT2));
+  const end2 = await open.ended(120000);
+  check("unlocked: said, the server started", /School Lock is unlocked until Studio closes\./.test(end2.out) && end2.out.includes(`AI apps can connect at http://127.0.0.1:${PORT2}/mcp`), end2.out.split("\n").filter((l) => /School Lock|AI apps/.test(l)).join(" | "));
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

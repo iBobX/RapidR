@@ -114,6 +114,7 @@ DECLARE SUB McpSyncTools
 DECLARE SUB McpSyncProject
 DECLARE SUB McpLayOutPane
 DECLARE FUNCTION McpModeNoteHigh(W AS INTEGER) AS INTEGER
+DECLARE FUNCTION McpOnNoteHigh(W AS INTEGER) AS INTEGER
 DECLARE SUB McpModeNoteColour
 DECLARE SUB McpShowState
 DECLARE SUB McpStatusShow
@@ -833,7 +834,9 @@ SUB SetUpMcp
   McpReaskTimer.Enabled = 0
   McpReaskTimer.OnTimer = McpReaskTick
   McpShowState
-  IF McpOn THEN
+  ' (School Lock: AI apps locked — nothing started, nothing asked; the
+  ' unlock starts them as the user had them: schoollock.inc)
+  IF McpOn AND LockOffApps = 0 THEN
     IF McpConsentOk THEN
       McpStart
     ELSEIF McpConfirmed THEN
@@ -890,6 +893,12 @@ END SUB
 
 SUB McpStart
   IF Mcp.Listening THEN EXIT SUB
+  ' (School Lock: AI apps can't connect while it is on — schoollock.inc)
+  IF LockOffApps THEN
+    OutputLine TR$("AI apps can't start: School Lock is on (Tools > School Lock...).")
+    McpShowState
+    EXIT SUB
+  END IF
   McpToken = McpTokenNow
   IF McpToken = "" THEN EXIT SUB
   Mcp.Host = "127.0.0.1"
@@ -1119,7 +1128,11 @@ SUB McpShowState
     McpStopBtn.Caption = TR$("&Stop")
   ELSE
     head = TR$("AI apps: off")
-    McpSub.Caption = TR$("Tools > Settings > AI Apps turns them on.")
+    IF LockOffApps THEN
+      McpSub.Caption = TR$("School Lock is on: AI apps can't connect.")
+    ELSE
+      McpSub.Caption = TR$("Tools > Settings > AI Apps turns them on.")
+    END IF
     McpStopBtn.Caption = TR$("&Turn On...")
   END IF
   McpHead.Caption = head
@@ -2149,7 +2162,7 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpOnBox.Left = lx: McpOnBox.Top = y: McpOnBox.Width = W: McpOnBox.Height = 22
   McpOnBox.Font.Bold = 1
   y = y + 26
-  nh = AISetLinesHigh(McpOnNote.Caption, W)
+  nh = McpOnNoteHigh(W)
   McpOnNote.Left = lx: McpOnNote.Top = y: McpOnNote.Width = W: McpOnNote.Height = nh
   McpOnNote.Font.Color = TC("page.dim")
   y = y + nh + 10
@@ -2208,9 +2221,16 @@ SUB McpLayOutPage(Pad AS INTEGER, W AS INTEGER, Top AS INTEGER, H AS INTEGER, Ro
   McpLearnLink.Left = lx + W - McpLearnLink.Width + 4: McpLearnLink.Top = y + (Bh - 24) \ 2 + 3
 END SUB
 
+' (the switch's note: as tall as its lines, and room for School Lock's
+' strip, which takes its place while AI apps are locked — schoollock.inc)
+FUNCTION McpOnNoteHigh(W AS INTEGER) AS INTEGER
+  Result = AISetLinesHigh(McpOnNote.Caption, W)
+  IF LockOffApps AND Result < LockStripH + 4 THEN Result = LockStripH + 4
+END FUNCTION
+
 ' (how tall the page needs to be, for the dialog: settings.inc)
 FUNCTION McpPageHigh(W AS INTEGER, Row AS INTEGER, Bh AS INTEGER) AS INTEGER
-  Result = 26 + AISetLinesHigh(McpOnNote.Caption, W) + 10 + 3 * Row + Bh + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
+  Result = 26 + McpOnNoteHigh(W) + 10 + 3 * Row + Bh + 16 + Row + McpModeNoteHigh(W) + 10 + McpRowsHigh(W) + Bh + 20
 END FUNCTION
 
 ' (the rows' column of heads: 104 wide, wider when a head in Studio's language

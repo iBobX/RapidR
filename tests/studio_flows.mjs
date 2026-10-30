@@ -6784,6 +6784,388 @@ const CASES = [
     delay: 4,
     dump: {},
     webDump: { "extbar.visible": /^0$/, "outputbox.text": /\[ext\] status=[^\n]*bar= \| main\.rr:main\.rr:dirty=0:ask=0:gone=0/ },
+  },  // ---- SCHOOL-LOCK (Preview 5): a teacher turns Studio's AI off behind a
+  // password — ide/schoollock.inc, rapidr-studio's school_lock.rs, the
+  // manual's "For teachers". The password "maestra1" (a test's); the
+  // computer's policy is tests/fixtures/school_lock (RAPIDR_SCHOOL_POLICY:
+  // never the real /Library, %ProgramData% or /etc file). Each password
+  // costs 600,000 PBKDF2 rounds: the delays leave room for a busy machine.
+  // (A dialog's events fire at the end of the delay, the dump at once: no
+  // step runs after them.) ----
+  {
+    // Tools > School Lock…, the password typed twice with the keyboard,
+    // Enter: locked — the status bar's chip, RAI's card, said
+    name: "school-lock-set",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra1"), "lockpw2edit.__key_13"].join(","),
+    delay: 6,
+    capture: true,
+    a11y: [[/^School Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/]],
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockcard.visible": /^1$/,
+      "lockchipbox.visible": /^1$/,
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /> tools\.schoolLock\nSchool Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/,
+    },
+  },
+  {
+    // Locked: RAI's pane shows the teacher's card (View > AI Assistant),
+    // the AI commands disabled with the reason in the menu and the palette,
+    // AI apps off — in the three looks, every text readable
+    name: "school-lock-card",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,ai.assistant,wait,lock:state",
+    delay: 8,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^School Lock is on: RAI and AI apps are off in RapidR Studio on this computer\.$/], [/^AI is turned off by your teacher$/], [/^Unlock\.\.\.$/, "button"]],
+    dump: {
+      "lockcard.visible": /^1$/,
+      "lockcardtitle.caption": /^AI is turned off by your teacher$/,
+      "lockcardbody.caption": /^RAI and AI apps are off in RapidR Studio on this computer\. Everything else works as usual\.$/,
+      "lockcardbtn.caption": /^&Unlock\.\.\.$/,
+      "aichat.visible": /^0$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=0 features=ai,ai_apps ai=1 ai_apps=1 wait=0 left=5 mcp=0\nSchool Lock commands: newchat palette=0 menu=0 hint=turned off by your teacher/,
+    },
+  },
+  {
+    // Escape is Cancel: nothing locked, nothing kept
+    name: "school-lock-cancel",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_27"].join(","),
+    delay: 4,
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /> tools\.schoolLock$/,
+    },
+  },
+  {
+    // Two passwords that differ: said under the field, nothing locked
+    name: "school-lock-set-refused",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), typeInto("lockpw2edit", "maestra2"), "lockpw2edit.__key_13"].join(","),
+    delay: 4,
+    dump: {
+      "lockhint.caption": /^The two passwords differ: type the same one twice\.$/,
+      "lockchipbox.visible": /^0$/,
+    },
+  },
+  {
+    // Settings > AI read-only: the strip with Unlock…, every control greyed
+    name: "school-lock-settings",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,wait,ai.settings",
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    dump: {
+      "locksetstrip.visible": /^1$/,
+      "locksethead.caption": /^AI is turned off by your teacher\.$/,
+      "locksetbody.caption": /^These settings can't be changed while School Lock is on\.$/,
+      "aionbox.enabled": /^0$/,
+      "aisetupbtn.enabled": /^0$/,
+      "aiprovbox.enabled": /^0$/,
+      "aikeyedit.enabled": /^0$/,
+      "aifetchbtn.enabled": /^0$/,
+      "aionnote.visible": /^0$/,
+    },
+  },
+  {
+    // Settings > AI Apps: the switch off and greyed, the rest read-only;
+    // the server never started (the tests' token stands in for the
+    // keychain's)
+    name: "school-lock-apps",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_MCP_TOKEN: "school-lock-test-token-0123456789abcdef" },
+    do: "lock:set=maestra1,mcp:on=47395,lock:state,mcp.settings",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "locksetstrip.visible": /^1$/,
+      "mcponbox.enabled": /^0$/,
+      "mcponbox.checked": /^0$/,
+      "mcpresetbtn.enabled": /^0$/,
+      "outputbox.text": /AI apps can't start: School Lock is on \(Tools > School Lock\.\.\.\)\.[\s\S]*School Lock state: on=1 [^\n]* ai_apps=1 [^\n]* mcp=0/,
+    },
+  },
+  {
+    // AI apps on, then locked: the server stops (every AI app
+    // disconnected); unlocked, it starts again as the user had it
+    name: "school-lock-apps-running",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_MCP_TOKEN: "school-lock-test-token-0123456789abcdef" },
+    do: "mcp:on=47396,lock:state,lock:set=maestra1,lock:state,lock:unlock=maestra1,lock:state",
+    delay: 10,
+    dump: {
+      "outputbox.text": /mcp=1\n[\s\S]*AI apps: stopped, School Lock is on\. Every AI app was disconnected\.[\s\S]*School Lock state: on=1 unlocked=0 [^\n]* mcp=0[\s\S]*AI apps can connect at http:\/\/127\.0\.0\.1:47396\/mcp[\s\S]*School Lock state: on=1 unlocked=1 [^\n]* mcp=1/,
+    },
+  },
+  {
+    // Set Up RAI read-only: the strip on its first page, nothing looked for
+    name: "school-lock-setup",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,wait,ai.setup",
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "locksustrip.visible": /^1$/,
+      "locksubody.caption": /^RAI can't be set up while School Lock is on\.$/,
+      "aisulocal.enabled": /^0$/,
+      "aisucloudradio.enabled": /^0$/,
+      "aisunextbtn.enabled": /^0$/,
+      "aisufoundtext.caption": /^$/,
+    },
+  },
+  {
+    // RAI set up and asked once; locked: its pane keeps its place, the card
+    // over the chat, a question isn't sent
+    name: "school-lock-ai-ready",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello there,ai:wait,wait,lock:set=maestra1,wait,ai:ask=hello again,wait`,
+    delay: 10,
+    capture: true,
+    dump: {
+      "lockcard.visible": /^1$/,
+      "aichat.visible": /^0$/,
+      "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
+      "ai.questioncount": /^1$/,
+      "aistatus.simpletext": /^AI is turned off by your teacher$/,
+    },
+  },
+  {
+    // …and unlocked: the chat is back as it was
+    name: "school-lock-ai-unlocked",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello there,ai:wait,wait,lock:set=maestra1,wait,lock:unlock=maestra1,wait`,
+    delay: 10,
+    dump: {
+      "lockcard.visible": /^0$/,
+      "aichat.visible": /^1$/,
+      "aitop.visible": /^1$/,
+      "ai.questioncount": /^1$/,
+      "lockchiptext.caption": /^School Lock: unlocked$/,
+    },
+  },
+  {
+    // Unlock… > five wrong passwords (Enter each time): the tries left said,
+    // then a minute's wait counted down — the right one isn't even checked
+    name: "school-lock-wrong",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,tools.schoolLock",
+    events: [1, 2, 3, 4, 5].map((k) => `${typeInto("lockpwedit", `nope${k}`)},lockpwedit.__key_13`).concat([typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_13"]).join(","),
+    delay: 7,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockhint.caption": /^Too many wrong passwords\. Try again in (0:5\d|1:00)\.$/,
+      "lockmainbtn.enabled": /^0$/,
+      "lockoffbtn.enabled": /^0$/,
+      "lockdialog.visible": /^(1|-1|True)$/i,
+      "lockchiptext.caption": /^School Lock$/,
+    },
+  },
+  {
+    // One wrong (the tries left said), then the right one with the
+    // keyboard: unlocked until Studio closes — the chip says so
+    name: "school-lock-unlock",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,lock:unlock=wrong-one,tools.schoolLock",
+    events: [typeInto("lockpwedit", "maestra1"), "lockpwedit.__key_13"].join(","),
+    delay: 7,
+    capture: true,
+    a11y: [[/^School Lock is unlocked until Studio closes$/]],
+    dump: {
+      "lockdialog.visible": /^(0|False)$/i,
+      "lockchiptext.caption": /^School Lock: unlocked$/,
+      "lockcard.visible": /^0$/,
+      "outputbox.text": /School Lock answered: 0 — That isn't the password\. 4 more tries before a one-minute wait\.[\s\S]*> tools\.schoolLock\nSchool Lock is unlocked until Studio closes\.$/,
+    },
+  },
+  {
+    // Unlocked, Studio closed and started again: locked again
+    name: "school-lock-restart",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:unlock=maestra1,lock:state",
+    delay: 7,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=0 features=ai,ai_apps ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // The wrong tries are kept: five, Studio closed and started again —
+    // still waiting
+    name: "school-lock-wait-kept",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:unlock=a1b2c3,lock:unlock=a1b2c4,lock:unlock=a1b2c5,lock:unlock=a1b2c6,lock:unlock=a1b2c7,lock:state",
+    delay: 12,
+    restart: { do: "lock:unlock=maestra1,lock:state", delay: 6 },
+    dump: {
+      "outputbox.text": /School Lock answered: -1 — Too many wrong passwords\. Try again in (0:[1-5]\d|1:00)\.\n[\s\S]*School Lock state: on=1 unlocked=0 [^\n]* wait=[1-6]\d? left=5/,
+    },
+  },
+  {
+    // Turn School Lock Off: the password again (a wrong one refused); off
+    // for good — kept so (the next start has no lock)
+    name: "school-lock-off",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,lock:off=maestra2,lock:off=maestra1,lock:state",
+    delay: 8,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /School Lock state: on=0 unlocked=0 policy=0 features= ai=0 ai_apps=0/,
+    },
+  },
+  {
+    // (the same, on both hosts: what Turn Off says)
+    name: "school-lock-off-said",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "lock:set=maestra1,lock:off=maestra2,lock:off=maestra1,lock:state",
+    delay: 8,
+    dump: {
+      "lockchipbox.visible": /^0$/,
+      "outputbox.text": /School Lock answered: 0 — That isn't the password\.[\s\S]*School Lock is off\.\nSchool Lock answered: 1 — \n[\s\S]*School Lock state: on=0/,
+    },
+  },
+  {
+    // The computer's policy (IT's file): locked from the start, the
+    // school's words; Turn Off refused and not offered — only unlocked for
+    // this run, with IT's password
+    name: "school-lock-policy",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:state,lock:off=it-secret-1,ai.assistant,wait,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockcardtitle.caption": /^AI is turned off by your school$/,
+      "lockoffbtn.visible": /^0$/,
+      "lockfoot.caption": /^Your school's IT set this for every account on this computer\. It can be unlocked until Studio closes, but only IT can turn it off\.$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1[\s\S]*School Lock answered: -2 — Your school's IT set this lock: only IT can turn it off\./,
+    },
+  },
+  {
+    // …unlocked with IT's password until Studio closes (the dialog then
+    // offers only Lock Again); started again: locked again
+    name: "school-lock-policy-unlock",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:unlock=it-secret-1,lock:state,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    dump: {
+      "lockmainbtn.caption": /^Lock &Again$/,
+      "lockoffbtn.visible": /^0$/,
+      "lockpwedit.visible": /^0$/,
+      "outputbox.text": /School Lock state: on=1 unlocked=1 policy=1 [^\n]* ai=0 ai_apps=0/,
+    },
+  },
+  {
+    name: "school-lock-policy-restart",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/policy.toml") },
+    do: "lock:unlock=it-secret-1,lock:state",
+    delay: 6,
+    restart: { do: "lock:state", delay: 5 },
+    dump: {
+      "outputbox.text": /School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // A policy file that can't be read: everything locked, said once, no
+    // password unlocks it
+    name: "school-lock-policy-broken",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    env: { RAPIDR_SCHOOL_POLICY: join(ROOT, "tests/fixtures/school_lock/broken.toml") },
+    do: "lock:unlock=it-secret-1,lock:state",
+    delay: 6,
+    dump: {
+      "outputbox.text": /School Lock: this computer's policy \([^)]*broken\.toml\) can't be read: it isn't TOML[^\n]*AI stays off until your school's IT fixes it\.[\s\S]*School Lock answered: -3 — No password can unlock this lock: ask your school's IT\.[\s\S]*School Lock state: on=1 unlocked=0 policy=1 features=ai,ai_apps ai=1 ai_apps=1/,
+    },
+  },
+  {
+    // A crash while School Lock is on (crash.inc's CrashSchoolLock): at the
+    // next start no crash strip, no Report on GitHub — a GitHub account is
+    // for 13 and over
+    name: "school-lock-crash",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "lock:set=maestra1,wait,crash:panic",
+    delay: 6,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:check,crash:report,lock:state", delay: 9 },
+    dump: {
+      "crashbar.visible": /^0$/,
+      "crashgitb.__shown": /^0$/,
+      "lockchiptext.caption": /^School Lock$/,
+      "outputbox.text": /\[crash\] bar=0 [\s\S]*School Lock state: on=1 unlocked=0/,
+    },
+  },
+  {
+    // …and once a teacher turned it off, the strip and Report on GitHub
+    // are offered again (the same crash)
+    name: "school-lock-crash-off",
+    desktopOnly: true,
+    env: { RAPIDR_TEST_CLIPBOARD: "1" },
+    do: "lock:set=maestra1,lock:off=maestra1,wait,crash:panic",
+    delay: 7,
+    restart: { noOpen: true, do: "wait,wait,wait,crash:report", delay: 6 },
+    dump: {
+      "crashbar.visible": /^1$/,
+      "crashgitb.__shown": /^1$/,
+      "outputbox.text": /\[crash\] bar=1 /,
+    },
+  },
+  {
+    // In Spanish: the card, the chip and the dialog
+    name: "school-lock-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "lock:set=maestra1,ai.assistant,wait,tools.schoolLock",
+    delay: 8,
+    capture: true,
+    captureAll: true,
+    themes: ["rapidr-light", "rapidr-dark"],
+    dump: {
+      "lockcardtitle.caption": /^Tu docente desactivó la IA$/,
+      "lockchiptext.caption": /^Bloqueo escolar$/,
+      "lockmainbtn.caption": /^&Desbloquear hasta cerrar Studio$/,
+    },
   },
   // (CRASH-REPORTS) RapidR's crash and hang reports, walked as a person
   // meets them: Studio crashed for real (crash:panic, a Rust panic in a

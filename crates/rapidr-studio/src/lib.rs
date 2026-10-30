@@ -11,6 +11,9 @@
 //! - [`session`]: **RPROGRAMSESSION**, a run of the program under
 //!   development (`rapidr-session`'s client): its own process on the
 //!   desktop, a sandboxed frame on the web;
+//! - [`school_lock`]: School Lock — features of Studio (its AI) turned off
+//!   behind a password, by a teacher or the computer's policy (RPROJECT's
+//!   `SchoolLock…` members);
 //! - [`ai`]: **RAIPROJECTTOOLS**, the open project as tools for an RAI
 //!   (`rapidr-ai`'s component: Studio's assistant is one) — the tools in
 //!   [`ai_tools`], the changes they propose kept for review as diffs.
@@ -41,6 +44,7 @@ pub mod project;
 pub mod recipes;
 pub mod recovery;
 pub mod repository;
+pub mod school_lock;
 pub mod session;
 
 pub use rapidr_session::Transport;
@@ -87,6 +91,31 @@ pub trait Host: Copy + 'static {
     /// Explorer, the Linux one): RPROJECT.Reveal.
     fn reveal(self, _path: &str) -> Result<(), String> {
         Err("there is no file manager here".into())
+    }
+    /// Seconds since 1970 by the system's clock (School Lock's wait after
+    /// wrong passwords): the desktop's; the web's `Date.now()`.
+    fn unix_time(self) -> f64 {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0.0, |d| d.as_secs_f64())
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            0.0
+        }
+    }
+    /// Fills `buf` from the system's secure random source (School Lock's
+    /// salt); false when there is none. The web's `crypto.getRandomValues`.
+    fn random_bytes(self, buf: &mut [u8]) -> bool {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            getrandom::fill(buf).is_ok()
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = buf;
+            false
+        }
     }
 }
 

@@ -37,11 +37,23 @@ rapidr-crash.workspace = true
 # RREPOSITORY's local history (local_history.rs): each saved file's copy
 # named by its SHA-256 (MIT OR Apache-2.0; already in the tree, rapidr-cli's)
 sha2 = "0.10"
+# School Lock's password hash (school_lock.rs: PBKDF2-HMAC-SHA256 on
+# SHA-256's compression function, which 0.11 runs on the processor's SHA
+# instructions where it has them — 600,000 rounds in a fraction of a second);
+# MIT OR Apache-2.0, already in the tree (lzma-rust2's)
+sha256 = { package = "sha2", version = "0.11", default-features = false }
+# School Lock's policy file (school_lock.rs: /Library/Application
+# Support/RapidR/policy.toml …; MIT OR Apache-2.0, already in the tree:
+# rapidr-project's)
+toml = "0.9"
 
 # RREPOSITORY's versions (repository.rs): gitoxide through rapidr-vcs —
 # not in a browser (gix doesn't build for wasm: docs/versions-g0.md §5)
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rapidr-vcs = { path = "../rapidr-vcs" }
+# School Lock's salt: the system's secure random source (MIT OR Apache-2.0,
+# already in the tree: rapidr-runtime-core's); the web's comes from the page
+getrandom = { version = "0.4.2", default-features = false }
 
 # Run gets your Terminal's PATH (login_path.rs): the login shell read in a
 # session of its own (setsid), ended with what it started after its time

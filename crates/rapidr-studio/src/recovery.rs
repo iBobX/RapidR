@@ -136,7 +136,7 @@ fn copy_file(run: &str, key: &str) -> String {
     join(&run_folder(run), &format!("{safe}-{:08x}.txt", digest as u32))
 }
 
-fn make_folder(path: &str) {
+pub(crate) fn make_folder(path: &str) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let _ = std::fs::create_dir_all(path);

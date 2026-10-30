@@ -1,4 +1,4 @@
-<!-- translated-from: README.md 9003f2ea248c5920 -->
+<!-- translated-from: README.md ad4c61b433cb8b9f -->
 # El manual de usuario de RapidR
 
 RapidR es un BASIC moderno con su propio IDE, RapidR Studio: una
@@ -32,6 +32,7 @@ saber en qué destaca RapidR? [Por qué RapidR](../why-rapidr.md).
 | [Diseñar formularios](../designing-forms.md) | Un tutorial (un programa de dos formularios, paso a paso), la caja de herramientas, mover y alinear, el inspector y los eventos, los editores de menús y de orden de tabulación, programas de varios formularios, el código que escribe el diseñador |
 | [Depuración](debugging.md) | Ejecutar y detener, puntos de interrupción (condiciones, número de veces, mensajes de registro), ejecución paso a paso, Entrar en llamada específica, Establecer la siguiente instrucción, Pausar, valores como árboles (sugerencias de datos, Variables, Observar), la Pila de llamadas, Inmediato, errores de ejecución, qué tan rápido se ejecuta, el escritorio y el navegador |
 | [El asistente de IA y RAI](ai-assistant.md) | Configurar un proveedor y una clave, preguntar, cambios en forma de diferencias que aceptas, “Hazme…”, qué se envió, privacidad y tokens; el componente `RAI` para tus propios programas, y cómo mantener las claves fuera de ellos |
+| [Para docentes: bloqueo escolar](../for-teachers.md) (en inglés) | Desactivar la IA de Studio (RAI y las aplicaciones de IA) con una contraseña, lo que ve cada estudiante, desbloquear para una clase, la espera tras contraseñas incorrectas; para el equipo de informática de la escuela: el archivo de política de la computadora y `rapidr school-lock hash` |
 | [Deja que las aplicaciones de IA trabajen en Studio](../ai-apps.md) | Activarlo (desactivado de forma predeterminada, solo en esta computadora, con un token), darle a una aplicación de IA la dirección y el encabezado, el menú de permisos (Solo lectura, Preguntar antes de cambiar, Permitir ediciones, Permitir todo), ver cada llamada en el panel Aplicaciones de IA, las herramientas, lo que pueden ver las aplicaciones de IA, el registro de actividad |
 | [Archivos Markdown y RMarkdownView](../markdown.md) | Los archivos `.md` con formato en RapidR Studio (Vista previa \| Código fuente), y Markdown mostrado en tus propios programas, con sus bloques de código coloreados según el lenguaje (SQL, BASIC, JSON …) |
 | [Versiones: nunca pierdas tu trabajo](versions.md) | Guardar versiones, la línea de tiempo, volver atrás, experimentos, carpetas compartidas, puntos de seguridad y Deshacer, la revisión de secretos, todo en palabras sencillas con los nombres de Git al lado (el panel de Studio llega en Preview 4); las vistas de texto, de formulario y de tabla de `RDiffView` en tus propios programas |

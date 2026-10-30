@@ -1218,6 +1218,11 @@ END FUNCTION
 ' Whether the assistant may show itself: turned on, with a provider, a
 ' key (a local server needs none) and a model the user chose.
 FUNCTION AIReady AS INTEGER
+  Result = Flag(AISetUpDone <> 0 AND LockOffAI = 0)
+END FUNCTION
+
+' (set up as above, whether School Lock turns it off now or not)
+FUNCTION AISetUpDone AS INTEGER
   Result = Flag(AIOn <> 0 AND AI.Provider <> "" AND AI.Model <> "" AND (AI.NeedsKey = 0 OR AI.HasKey <> 0))
 END FUNCTION
 
@@ -1340,10 +1345,15 @@ SUB AIShowOrHide
     wasHidden = (Dock.PaneState("aipanel") = "hidden")
     Dock.ShowPane("aipanel")
     IF wasHidden THEN WidenAIPanel
+  ELSEIF LockOffAI THEN
+    ' (School Lock: the pane stays where it is, its card in place of the
+    ' chat; nothing is asked — schoollock.inc)
+    AI.Cancel
   ELSE
     AI.Cancel
     Dock.HidePane("aipanel")
   END IF
+  LockCardShow
   ' (Send and Stop as the assistant now is: ready or not, a key saved or
   ' removed in Settings)
   AIEnableSend
@@ -1354,6 +1364,17 @@ END SUB
 ' set up yet, Set up RAI (the provider chosen, a model; Settings > AI has
 ' every detail).
 SUB ShowAIPanel
+  DIM wasHidden AS INTEGER
+  ' (School Lock: the pane with its card — Unlock… has the keyboard)
+  IF LockOffAI THEN
+    wasHidden = (Dock.PaneState("aipanel") = "hidden")
+    Dock.ShowPane("aipanel")
+    IF wasHidden THEN WidenAIPanel
+    LockCardShow
+    Dock.FocusPane("aipanel")
+    LockCardFocus
+    EXIT SUB
+  END IF
   IF AIReady = 0 THEN
     ShowAISetup
     EXIT SUB
@@ -1426,6 +1447,11 @@ END SUB
 
 ' (a question to the assistant now: typed in the box, or the one queued)
 SUB AISendNow(T AS STRING, FromBox AS INTEGER)
+  ' (School Lock: nothing goes to an AI while it is off)
+  IF LockOffAI THEN
+    AIStatus.SimpleText = LockTitleText
+    EXIT SUB
+  END IF
   ' (the answer followed again, a thought opened before or not)
   AIChat.FollowEnd = 1
   AISyncProject
