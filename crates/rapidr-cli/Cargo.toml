@@ -39,6 +39,9 @@ rapidr-package.workspace = true
 rapidr-project.workspace = true
 # `rapidr import-rapidq` / `upgrade-names`: RapidR's names in RapidQ programs
 rapidr-import.workspace = true
+# `rapidr school-lock`: School Lock's password hash and policy check for a
+# school's IT (rapidr-studio's school_lock: the same code Studio uses)
+rapidr-studio.workspace = true
 base64 = "0.22"
 # Downloaded files are remembered by content (SHA-256)
 sha2 = "0.10"

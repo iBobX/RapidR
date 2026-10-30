@@ -7,6 +7,9 @@ MCP is the protocol AI apps use to call tools. It's off until you turn it
 on, it listens on your computer only (`127.0.0.1`), and every request must
 carry a token only you have.
 
+In a classroom, a teacher can keep AI apps (and RAI) off behind a password:
+[For teachers: School Lock](for-teachers.md).
+
 Model Context Protocol® and MCP™ are marks of LF Projects, LLC
 (https://www.lfprojects.org/policies/). RapidR uses them only to say which
 protocol it speaks. Claude Code is a product of Anthropic, PBC. RapidR is

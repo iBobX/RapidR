@@ -137,6 +137,7 @@ SUB RunCommand(Id AS STRING)
       IF Dock.FocusSplitter("") = 0 THEN SetState RunState, "No splitter to move"
     CASE "view.settings": ShowSettings
     CASE "view.keyboardShortcuts": ShowShortcuts
+    CASE "tools.schoolLock": ShowSchoolLock
     ' ---- project ----
     CASE "project.addFile": AddFileToProject
     CASE "project.addForm"
@@ -181,6 +182,9 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 4) = "mcp:" THEN
         ' (a test step: mcp:<what>=<value> — mcp.inc's McpStep)
         McpStep MID$(Id, 5)
+      ELSEIF LEFT$(Id, 5) = "lock:" THEN
+        ' (a test step: lock:<what>=<value> — schoollock.inc's SchoolLockStep)
+        SchoolLockStep MID$(Id, 6)
       ELSEIF LEFT$(Id, 9) = "versions:" THEN
         ' (a test step: versions:<what>=<value> — versions.inc's VersionsStep)
         VersionsStep MID$(Id, 10)
@@ -368,6 +372,9 @@ SUB StartStudio
   ' (S2: offered unless the settings turned it off)
   ReopenLast = 1
   IF fresh = 0 THEN LoadSettings
+  ' (School Lock: the teacher's lock and the computer's policy — read even
+  ' with --fresh, before RAI and AI apps are set up: schoollock.inc)
+  LoadSchoolLock
   IF langGiven THEN LanguageChoice = langArg
   ' (Studio's catalogs: ide/lang beside studio.rr on the desktop — the
   ' default — and ide/lang beside the page on the web, apart from the
@@ -398,6 +405,7 @@ SUB StartStudio
   SetUpVersions
   SetUpExternal
   SetUpMcp
+  SetUpSchoolLock
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)

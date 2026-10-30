@@ -5177,6 +5177,7 @@ dependencies = [
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
+ "rapidr-studio",
  "rapidr-value",
  "rapidr-vm",
  "rapidr-vm-host-native",
@@ -5496,6 +5497,7 @@ dependencies = [
 name = "rapidr-studio"
 version = "2.121.3"
 dependencies = [
+ "getrandom 0.4.2",
  "libc",
  "rapidr-ai",
  "rapidr-ast",
@@ -5520,7 +5522,9 @@ dependencies = [
  "regex",
  "serde_json",
  "sha2 0.10.9",
+ "sha2 0.11.1",
  "tempfile",
+ "toml 0.9.12+spec-1.1.0",
 ]
 
 [[package]]

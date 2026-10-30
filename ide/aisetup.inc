@@ -248,9 +248,12 @@ END SUB
 SUB ShowAISetup
   AISuFonts
   AISuShowPage 1
-  AISuLook
+  ' (School Lock: nothing looked for while RAI is off)
+  IF LockOffAI = 0 THEN AISuLook
   IF AIProvider = "compatible" OR AIProvider = "" THEN AISuLocal.Checked = 1 ELSE AISuCloudRadio.Checked = 1
   AISuPicked
+  ' (School Lock: the page read-only, its strip — schoollock.inc)
+  LockSetupShow
   ' (the texts as they now say: their heights)
   LayOutAISetup
   AISetup.Center
@@ -282,7 +285,7 @@ SUB AISuFonts
 END SUB
 
 SUB LayOutAISetup
-  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER, h AS INTEGER, dy AS INTEGER
+  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER, h AS INTEGER, dy AS INTEGER, lk AS INTEGER
   w = AISetup.ClientWidth
   IF w < 400 THEN w = 400
   IF ThemeName = "classic" THEN bh = 25 ELSE bh = 30
@@ -290,8 +293,12 @@ SUB LayOutAISetup
   AISuNextBtn.Left = w - 24 - 110: AISuNextBtn.Top = 12: AISuNextBtn.Width = 110: AISuNextBtn.Height = bh
   AISuCancelBtn.Left = w - 24 - 110 - 8 - 96: AISuCancelBtn.Top = 12: AISuCancelBtn.Width = 96: AISuCancelBtn.Height = bh
   AISuBackBtn.Left = 24: AISuBackBtn.Top = 12: AISuBackBtn.Width = 96: AISuBackBtn.Height = bh
+  ' (School Lock: its strip at the top of the first page while RAI is
+  ' off, the page under it — schoollock.inc)
+  IF LockOffAI THEN lk = LockStripH + 12
+  LockSuPlace 24, 6, w - 48
   ' (1: the two choices, each with what it means; what was found, Look Again)
-  AISuLocal.Left = 24: AISuLocal.Top = 6: AISuLocal.Width = w - 48: AISuLocal.Height = 24
+  AISuLocal.Left = 24: AISuLocal.Top = 6 + lk: AISuLocal.Width = w - 48: AISuLocal.Height = 24
   ' (each text as tall as its lines need in Studio's language — English's
   ' heights at least —, what follows it moved down by as much: a longer
   ' language isn't cut off)
@@ -299,8 +306,8 @@ SUB LayOutAISetup
   AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
   h = AISetLinesHigh(AISuLocalText.Caption, w - 72)
   IF h < 78 THEN h = 78
-  AISuLocalText.Left = 48: AISuLocalText.Top = 32: AISuLocalText.Width = w - 72: AISuLocalText.Height = h
-  dy = h - 78
+  AISuLocalText.Left = 48: AISuLocalText.Top = 32 + lk: AISuLocalText.Width = w - 72: AISuLocalText.Height = h
+  dy = h - 78 + lk
   h = AISetLinesHigh(AISuFoundText.Caption, w - 72 - 132)
   IF h < 44 THEN h = 44
   AISuFoundText.Left = 48: AISuFoundText.Top = 114 + dy: AISuFoundText.Width = w - 72 - 132: AISuFoundText.Height = h

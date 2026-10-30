@@ -341,6 +341,10 @@ export const cases = [
     expect: ["diff.kind=form", "diff.changecount=2", "info.caption=2 change(s): Go: Caption \"OK\" → \"Say hello\"; Width = 110 (new) ..."] },
   // (COPY-ANYWHERE: an ROutputConsole's selection and copies — a word
   // double-clicked, Copy Selection, then Copy All; the tests' own clipboard)
+  // (SCHOOL-LOCK: the computer's policy as Studio reads it — none here: the
+  // tests never write /Library, %ProgramData% or /etc — and the strength hints)
+  { file: "studio/school_lock.rr", runtimes: ["run"],
+    expect: ["School Lock as RapidR Studio sees it:", "abc12: too short", "123456: weak", "maestra1: fair", "Maestra-2026!: strong"] },
   { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "log.__wait_300,log.__dblclick_150_40,copybtn.onclick", dump: "log.seltext,log.hasselection,status.simpletext",
     expect: ["log.seltext=orders", "log.hasselection=1", "status.simpletext=Copied: orders"] },
   { file: "studio/log_copy.rr", runtimes: ["run", "interp", "native", "web"], events: "allbtn.onclick", dump: "log.linecount,status.simpletext",

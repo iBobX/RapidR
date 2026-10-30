@@ -147,6 +147,25 @@ impl Host for Web {
     fn list_tree(self, folder: &str) -> Vec<String> {
         crate::object_web::stored_names_under(folder)
     }
+
+    // (School Lock's wait after wrong passwords: the page's clock)
+    fn unix_time(self) -> f64 {
+        js_sys::Date::now() / 1000.0
+    }
+
+    // (School Lock's salt: the browser's secure random source,
+    // crypto.getRandomValues)
+    fn random_bytes(self, buf: &mut [u8]) -> bool {
+        let Some(w) = web_sys::window() else { return false };
+        let Ok(crypto) = js_sys::Reflect::get(&w, &"crypto".into()) else { return false };
+        let Ok(f) = js_sys::Reflect::get(&crypto, &"getRandomValues".into()).and_then(|f| f.dyn_into::<js_sys::Function>().map_err(JsValue::from)) else { return false };
+        let arr = js_sys::Uint8Array::new_with_length(buf.len() as u32);
+        if f.call1(&crypto, &arr).is_err() {
+            return false;
+        }
+        arr.copy_to(buf);
+        true
+    }
 }
 
 /// A property of one of Studio's components (`None`: not its own).

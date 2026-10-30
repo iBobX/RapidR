@@ -175,6 +175,8 @@ SUB ApplyChrome
   ApplySearchChrome
   ApplyVersionsChrome
   ApplyExternalChrome
+  ' (School Lock's card, chip and strips: schoollock.inc)
+  SchoolLockChrome
   ApplyState
 END SUB
 
@@ -287,8 +289,11 @@ SUB LayOutStatus
   IF LayoutNoteTimer.Enabled = 0 THEN
     ' (Versions: the experiment and the changes not saved as a version
     ' after the name — versions.inc)
-    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName + VerStatusText, w - 12) ELSE Status.Panel(1).Caption = ""
+    IF ProjectOpen THEN Status.Panel(1).Caption = FitMiddle(ProjectName + VerStatusText, w - 12 - LockChipRoom) ELSE Status.Panel(1).Caption = ""
   END IF
+  ' (School Lock's chip: at the right end of the project's panel —
+  ' schoollock.inc)
+  LockChipPlace w0 + w - 6
   ShowStatusHint
 END SUB
 
@@ -339,6 +344,8 @@ SUB StudioLanguageChanged
   McpLanguageChanged
   ' (the lists Settings fills once: filled again, the choice kept)
   SettingsLanguageChanged
+  ' (School Lock's card, chip, strips, the commands' reasons)
+  SchoolLockLanguageChanged
   StudioThemeChanged
   UpdateTitle
 END SUB

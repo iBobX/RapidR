@@ -294,6 +294,9 @@ SUB DefineCommands
     AddCmd "mcp.settings", "AI A&pps Settings...", "Tools", "", "", "", "-"
     AddCmd "view.aiApps", "AI Apps Acti&vity", "Tools", "", "", "", "-"
   END IF
+  ' (School Lock: a teacher turns Studio's AI off behind a password — schoollock.inc)
+  AddSep "Tools"
+  AddCmd "tools.schoolLock", "School &Lock...", "Tools", "", "", "", "lock"
 
   ' ---- Window (documents are tabs, split into groups) ----
   AddCmd "view.splitVertically", "Split &Right", "Window", "", "", "document", ""
@@ -461,11 +464,17 @@ SUB CheckCmd(Id AS STRING, Checked AS INTEGER)
 END SUB
 
 SUB UpdateCommands
-  DIM i AS INTEGER, en AS INTEGER
+  DIM i AS INTEGER, en AS INTEGER, lk AS INTEGER
+  ' (School Lock: the AI commands it turns off say why, in their hints —
+  ' the palette's titles too: panels.inc's FillPalette)
+  lk = LockOffAI
   FOR i = 0 TO CmdCount - 1
     IF Cmd(i).Id <> "" THEN
       en = Flag(CmdEnabled(i))
       IF Cmd(i).Item >= 0 THEN MI(Cmd(i).Item).Enabled = en
+      IF Cmd(i).Item >= 0 AND Cmd(i).EnabledWhen = "ai" THEN
+        IF lk THEN MI(Cmd(i).Item).Hint = LockReason ELSE MI(Cmd(i).Item).Hint = ""
+      END IF
       IF Cmd(i).Tool >= 0 THEN ToolBar.ButtonEnabled Cmd(i).Id, en
       Palette.CommandEnabled Cmd(i).Id, en
     END IF

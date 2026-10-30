@@ -73,8 +73,10 @@ FUNCTION PaletteCategory(Cat AS STRING) AS STRING
 END FUNCTION
 
 SUB FillPalette
-  DIM i AS INTEGER, cat AS STRING, icon AS STRING
+  DIM i AS INTEGER, cat AS STRING, icon AS STRING, t AS STRING, lk AS INTEGER
   Palette.Clear
+  ' (School Lock: the AI commands it turns off say why beside their titles)
+  lk = LockOffAI
   FOR i = 0 TO CmdCount - 1
     ' (Open Recent's items are named by FillRecent: "recent:k" entries)
     IF Cmd(i).Id <> "" AND LEFT$(Cmd(i).Id, 12) <> "file.recent." AND Cmd(i).Id <> "file.recentNone" THEN
@@ -82,7 +84,9 @@ SUB FillPalette
       IF INSTR(cat, "/") > 0 THEN cat = LEFT$(cat, INSTR(cat, "/") - 1)
       icon = CmdIcon(i)
       IF icon = "-" THEN icon = ""
-      Palette.AddCommand Cmd(i).Id, PlainTitle(Cmd(i).Title), CmdKeys(i), PaletteCategory(cat), icon
+      t = PlainTitle(Cmd(i).Title)
+      IF lk AND Cmd(i).EnabledWhen = "ai" THEN t = t + " (" + LockReason + ")"
+      Palette.AddCommand Cmd(i).Id, t, CmdKeys(i), PaletteCategory(cat), icon
     END IF
   NEXT
   FOR i = 0 TO ExampleCount - 1

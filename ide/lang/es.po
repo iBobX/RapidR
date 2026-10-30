@@ -44,7 +44,7 @@ msgstr "A&plicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -2222,6 +2222,10 @@ msgid "AI Apps Acti&vity"
 msgstr "Acti&vidad de aplicaciones de IA"
 
 #: ide/commands.inc
+msgid "School &Lock..."
+msgstr "&Bloqueo escolar..."
+
+#: ide/commands.inc
 msgid "Split &Right"
 msgstr "&Dividir a la derecha"
 
@@ -3326,6 +3330,10 @@ msgid "Share only what you may share: schoolwork, an employer's code or someone 
 msgstr "Comparte solo lo que puedas compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto, o usa Restablecer token, para desconectar todas las aplicaciones de IA. Studio guarda una lista de lo que hicieron solo en esta computadora; Borrar actividad la quita."
 
 #: ide/mcp.inc
+msgid "AI apps can't start: School Lock is on (Tools > School Lock...)."
+msgstr "Las aplicaciones de IA no pueden iniciarse: el bloqueo escolar está activado (Herramientas > Bloqueo escolar...)."
+
+#: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
 msgstr "Las aplicaciones de IA no se pueden conectar: {error}. Elige otro puerto en Herramientas > Configuración > Aplicaciones de IA."
 
@@ -3362,6 +3370,10 @@ msgstr[1] "{n} llamadas"
 #: ide/mcp.inc
 msgid "AI apps: off"
 msgstr "Aplicaciones de IA: desactivadas"
+
+#: ide/mcp.inc
+msgid "School Lock is on: AI apps can't connect."
+msgstr "El bloqueo escolar está activado: las aplicaciones de IA no pueden conectarse."
 
 #: ide/mcp.inc
 msgid "Tools > Settings > AI Apps turns them on."
@@ -4442,6 +4454,266 @@ msgid "Restored the unsaved work of {n} file (not saved yet)."
 msgid_plural "Restored the unsaved work of {n} files (not saved yet)."
 msgstr[0] "Se restauró el trabajo sin guardar de {n} archivo (aún sin guardar)."
 msgstr[1] "Se restauró el trabajo sin guardar de {n} archivos (aún sin guardar)."
+
+#: ide/schoollock.inc
+msgid "School Lock"
+msgstr "Bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "What to lock:"
+msgstr "Qué bloquear:"
+
+#: ide/schoollock.inc
+msgid "&AI in Studio (RAI)"
+msgstr "&IA en Studio (RAI)"
+
+#: ide/schoollock.inc
+msgid "The AI Assistant pane, Set Up RAI and Settings > AI: nothing is sent to an AI"
+msgstr "El panel del asistente de IA, Configurar RAI y Configuración > IA: no se envía nada a una IA"
+
+#: ide/schoollock.inc
+msgid "AI apps (&MCP)"
+msgstr "A&plicaciones de IA (MCP)"
+
+#: ide/schoollock.inc
+msgid "AI apps on this computer can't connect to RapidR Studio"
+msgstr "Las aplicaciones de IA de esta computadora no pueden conectarse a RapidR Studio"
+
+#: ide/schoollock.inc
+msgid "&Password:"
+msgstr "&Contraseña:"
+
+#: ide/schoollock.inc
+msgid "Password"
+msgstr "Contraseña"
+
+#: ide/schoollock.inc
+msgid "Type it a&gain:"
+msgstr "&Repetir la contraseña:"
+
+#: ide/schoollock.inc
+msgid "Type the password again"
+msgstr "Escribe la contraseña de nuevo"
+
+#: ide/schoollock.inc
+msgid "About the password"
+msgstr "Sobre la contraseña"
+
+#: ide/schoollock.inc
+msgid "Learn more about School Lock"
+msgstr "Más información sobre el bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "Opens the manual's page for teachers in your browser"
+msgstr "Abre en tu navegador la página del manual para docentes"
+
+#: ide/schoollock.inc
+msgid "&Turn School Lock Off"
+msgstr "Desac&tivar el bloqueo escolar"
+
+#: ide/schoollock.inc
+msgid "RAI and AI apps are off in RapidR Studio on this computer."
+msgstr "RAI y las aplicaciones de IA están desactivados en RapidR Studio en esta computadora."
+
+#: ide/schoollock.inc
+msgid "RAI is off in RapidR Studio on this computer."
+msgstr "RAI está desactivado en RapidR Studio en esta computadora."
+
+#: ide/schoollock.inc
+msgid "AI apps can't connect to RapidR Studio on this computer."
+msgstr "Las aplicaciones de IA no pueden conectarse a RapidR Studio en esta computadora."
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your school"
+msgstr "Tu escuela desactivó la IA"
+
+#: ide/schoollock.inc
+msgid "AI is turned off by your teacher"
+msgstr "Tu docente desactivó la IA"
+
+#: ide/schoollock.inc
+msgid "turned off by your school"
+msgstr "desactivado por tu escuela"
+
+#: ide/schoollock.inc
+msgid "turned off by your teacher"
+msgstr "desactivado por tu docente"
+
+#: ide/schoollock.inc
+msgid "School Lock: this computer's policy ({file}) can't be read: {error}. AI stays off until your school's IT fixes it."
+msgstr "Bloqueo escolar: no se puede leer la política de esta computadora ({file}): {error}. La IA sigue desactivada hasta que el equipo de informática de tu escuela lo corrija."
+
+#: ide/schoollock.inc
+msgid "AI apps: stopped, School Lock is on. Every AI app was disconnected."
+msgstr "Aplicaciones de IA: detenidas, el bloqueo escolar está activado. Se desconectaron todas las aplicaciones de IA."
+
+#: ide/schoollock.inc
+msgid "School Lock is on: {what}"
+msgstr "El bloqueo escolar está activado: {what}"
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes."
+msgstr "Bloqueo escolar: desbloqueado hasta que se cierre Studio."
+
+#: ide/schoollock.inc
+msgid "School Lock is off."
+msgstr "El bloqueo escolar está desactivado."
+
+#: ide/schoollock.inc
+msgid "Everything else works as usual."
+msgstr "Todo lo demás funciona como siempre."
+
+#: ide/schoollock.inc
+msgid "&Unlock..."
+msgstr "&Desbloquear..."
+
+#: ide/schoollock.inc
+msgid "Asks for the password"
+msgstr "Pide la contraseña"
+
+#: ide/schoollock.inc
+msgid "School Lock: unlocked"
+msgstr "Bloqueo escolar: desbloqueado"
+
+#: ide/schoollock.inc
+msgid "School Lock is unlocked until Studio closes"
+msgstr "Bloqueo escolar desbloqueado hasta que se cierre Studio"
+
+#: ide/schoollock.inc
+msgid "These settings can't be changed while School Lock is on."
+msgstr "Esta configuración no se puede cambiar mientras el bloqueo escolar esté activado."
+
+#: ide/schoollock.inc
+msgid "RAI can't be set up while School Lock is on."
+msgstr "RAI no se puede configurar mientras el bloqueo escolar esté activado."
+
+#: ide/schoollock.inc
+msgid "Turn on School Lock?"
+msgstr "¿Activar el bloqueo escolar?"
+
+# legal
+#: ide/schoollock.inc
+msgid "Features of RapidR Studio are turned off for everyone who uses this account on this computer, until someone types the password. Everything else keeps working."
+msgstr "Se desactivan funciones de RapidR Studio para cada persona que use esta cuenta en esta computadora, hasta que alguien escriba la contraseña. Todo lo demás sigue funcionando."
+
+# legal
+#: ide/schoollock.inc
+msgid "RapidR keeps only a one-way scrambled form of the password on this computer, never the password itself. Anyone who knows it can unlock until Studio closes, so keep it to yourself. Forgot it? The manual's page for teachers says what to do."
+msgstr "RapidR guarda en esta computadora solo una versión codificada de la contraseña que no se puede revertir, nunca la contraseña. Quien la conozca puede desbloquear hasta que se cierre Studio, así que no la compartas. ¿La olvidaste? La página del manual para docentes explica qué hacer."
+
+#: ide/schoollock.inc
+msgid "&Lock"
+msgstr "&Bloquear"
+
+#: ide/schoollock.inc
+msgid "Turns School Lock on with this password"
+msgstr "Activa el bloqueo escolar con esta contraseña"
+
+#: ide/schoollock.inc
+msgid "At least 6 characters."
+msgstr "Al menos 6 caracteres."
+
+#: ide/schoollock.inc
+msgid "Type the password to unlock it until Studio closes."
+msgstr "Escribe la contraseña para desbloquear hasta que se cierre Studio."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer. It can be unlocked until Studio closes, but only IT can turn it off."
+msgstr "El equipo de informática de tu escuela lo configuró para todas las cuentas de esta computadora. Se puede desbloquear hasta que se cierre Studio, pero solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "Turn School Lock Off ends the lock on this account until a teacher turns it on again. It needs the password too."
+msgstr "Desactivar el bloqueo escolar lo quita en esta cuenta hasta que se vuelva a activar. También pide la contraseña."
+
+#: ide/schoollock.inc
+msgid "&Unlock Until Studio Closes"
+msgstr "&Desbloquear hasta cerrar Studio"
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes"
+msgstr "La IA vuelve a funcionar hasta que se cierre RapidR Studio"
+
+#: ide/schoollock.inc
+msgid "AI works again until RapidR Studio closes. It is locked again the next time Studio starts."
+msgstr "La IA vuelve a funcionar hasta que se cierre RapidR Studio. Se bloquea otra vez la próxima vez que se abra Studio."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this for every account on this computer: only IT can turn it off."
+msgstr "El equipo de informática de tu escuela lo configuró para todas las cuentas de esta computadora: solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "To turn School Lock off for good, type the password and choose Turn School Lock Off."
+msgstr "Para quitar el bloqueo escolar del todo, escribe la contraseña y elige Desactivar el bloqueo escolar."
+
+#: ide/schoollock.inc
+msgid "Lock &Again"
+msgstr "&Volver a bloquear"
+
+#: ide/schoollock.inc
+msgid "AI is turned off again now"
+msgstr "La IA se desactiva de nuevo ahora"
+
+#: ide/schoollock.inc
+msgid "The two passwords differ."
+msgstr "Las dos contraseñas no coinciden."
+
+#: ide/schoollock.inc
+msgid "Weak: easy to guess. A longer one with numbers or symbols is safer."
+msgstr "Débil: fácil de adivinar. Una más larga, con números o símbolos, es más segura."
+
+#: ide/schoollock.inc
+msgid "Fair. Longer, with capitals, numbers or symbols, is stronger."
+msgstr "Aceptable. Más larga, con mayúsculas, números o símbolos, es más fuerte."
+
+#: ide/schoollock.inc
+msgid "Strong."
+msgstr "Fuerte."
+
+#: ide/schoollock.inc
+msgid "Too many wrong passwords. Try again in {time}."
+msgstr "Demasiadas contraseñas incorrectas. Vuelve a intentarlo en {time}."
+
+#: ide/schoollock.inc
+msgid "You can try the password again."
+msgstr "Ya puedes volver a probar la contraseña."
+
+#: ide/schoollock.inc
+msgid "That isn't the password. {n} more try before a one-minute wait."
+msgid_plural "That isn't the password. {n} more tries before a one-minute wait."
+msgstr[0] "Esa no es la contraseña. Queda {n} intento antes de una espera de un minuto."
+msgstr[1] "Esa no es la contraseña. Quedan {n} intentos antes de una espera de un minuto."
+
+#: ide/schoollock.inc
+msgid "Your school's IT set this lock: only IT can turn it off."
+msgstr "El equipo de informática de tu escuela configuró este bloqueo: solo ese equipo puede desactivarlo."
+
+#: ide/schoollock.inc
+msgid "No password can unlock this lock: ask your school's IT."
+msgstr "Ninguna contraseña puede desbloquearlo: consulta al equipo de informática de tu escuela."
+
+#: ide/schoollock.inc
+msgid "Choose at least one feature to lock."
+msgstr "Elige al menos una función para bloquear."
+
+#: ide/schoollock.inc
+msgid "The password needs at least 6 characters."
+msgstr "La contraseña necesita al menos 6 caracteres."
+
+#: ide/schoollock.inc
+msgid "The two passwords differ: type the same one twice."
+msgstr "Las dos contraseñas no coinciden: escribe la misma dos veces."
+
+#: ide/schoollock.inc
+msgid "Type the password."
+msgstr "Escribe la contraseña."
+
+#: ide/schoollock.inc
+msgid "Type the password to turn School Lock off."
+msgstr "Escribe la contraseña para desactivar el bloqueo escolar."
+
+#: ide/schoollock.inc
+msgid "School Lock couldn't be turned on: {error}"
+msgstr "No se pudo activar el bloqueo escolar: {error}"
 
 #: ide/search.inc
 msgid "Search"

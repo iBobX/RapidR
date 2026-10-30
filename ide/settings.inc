@@ -307,6 +307,7 @@ END CREATE
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
   DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
+  DIM lk AS INTEGER
   IF ThemeName = "classic" THEN
     pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
   ELSE
@@ -450,6 +451,11 @@ SUB LayOutSettingsDialog
   IF ph < McpPageHigh(w, row, bh) THEN ph = McpPageHigh(w, row, bh)
   AISetLinks.Left = lx - 18: AISetLinks.Top = y - 12: AISetLinks.Width = w + 36: AISetLinks.Height = ph - y + 8
   AISetLinks.Font = DimFont
+  ' (School Lock: a strip on the AI and AI Apps pages while their feature
+  ' is locked, under the greyed switch, where the switch's note was — the
+  ' dialog no taller: schoollock.inc)
+  lk = pad - 8 + th + pad - 4 + 26
+  LockSetPlace pad, lk + (68 - LockStripH) \ 2, w
   GenPage.Left = 0: GenPage.Top = pad - 8 + th: GenPage.Width = w + 2 * pad: GenPage.Height = ph
   AIPage.Left = 0: AIPage.Top = pad - 8 + th: AIPage.Width = w + 2 * pad: AIPage.Height = ph
   McpLayOutPage pad, w, pad - 8 + th, ph, row, fh, bh
@@ -515,6 +521,8 @@ SUB SettingsTabChanged
   AIPage.Visible = Flag(SettingsTabs.TabIndex = 1)
   ' (AI Apps: mcp.inc)
   McpSettingsTab SettingsTabs.TabIndex
+  ' (School Lock: the locked pages read-only, the strip over them)
+  LockSettingsShow
 END SUB
 
 SUB SettingsPicked
@@ -572,8 +580,9 @@ SUB SettingsOk
   FOR i = 0 TO DocCount - 1
     IF DocOpen(i) THEN CodeDoc(i).Helpers = EditorHelpers
   NEXT
-  AISettingsTake
-  McpSettingsTake
+  ' (School Lock: a locked page is read-only — nothing of it is taken)
+  IF LockOffAI = 0 THEN AISettingsTake
+  IF LockOffApps = 0 THEN McpSettingsTake
   SettingsDialog.Close
   SaveSettings
 END SUB

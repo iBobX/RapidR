@@ -473,6 +473,31 @@ DECLARE SUB ExternalStep(S AS STRING)
 ' (every document with changes saved; 0 when a save was declined: documents.inc)
 DECLARE FUNCTION SaveAllOk AS INTEGER
 
+' ---- School Lock (schoollock.inc: Studio's AI turned off behind a
+' password, by a teacher or the computer's policy) ----
+DECLARE SUB LoadSchoolLock
+DECLARE SUB SetUpSchoolLock
+DECLARE SUB SchoolLockApply
+DECLARE SUB SchoolLockChrome
+DECLARE SUB SchoolLockLanguageChanged
+DECLARE SUB SchoolLockStep(Stp AS STRING)
+DECLARE SUB ShowSchoolLock
+DECLARE FUNCTION LockOffAI AS INTEGER
+DECLARE FUNCTION LockOffApps AS INTEGER
+DECLARE FUNCTION LockIsOn AS INTEGER
+DECLARE FUNCTION LockTitleText AS STRING
+DECLARE FUNCTION LockReason AS STRING
+DECLARE FUNCTION LockChipRoom AS INTEGER
+DECLARE SUB LockChipPlace(X AS INTEGER)
+DECLARE FUNCTION LockStripH AS INTEGER
+DECLARE SUB LockSetPlace(X AS INTEGER, Y AS INTEGER, W AS INTEGER)
+DECLARE SUB LockSuPlace(X AS INTEGER, Y AS INTEGER, W AS INTEGER)
+DECLARE SUB LockCardShow
+DECLARE SUB LockCardFocus
+DECLARE SUB LockSettingsShow
+DECLARE SUB LockSetupShow
+DECLARE FUNCTION AISetUpDone AS INTEGER
+
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject
 ' (the project's versions and its local history: versions.inc)

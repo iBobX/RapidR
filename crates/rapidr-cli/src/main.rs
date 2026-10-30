@@ -24,6 +24,7 @@ mod launch;
 mod locked;
 mod notices;
 mod package;
+mod school_lock;
 mod serve;
 mod setup;
 mod winres;
@@ -38,7 +39,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "school-lock", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -204,6 +205,7 @@ fn main() -> ExitCode {
         (Some("lang"), _) => lang::command(&args[1..]),
         (Some("i18n"), _) => i18n::command(&args[1..]),
         (Some("ai"), _) => ai::command(&args[1..]),
+        (Some("school-lock"), _) => school_lock::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
         #[cfg(not(feature = "ai-introspect"))]
@@ -362,6 +364,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr lang truth [--verbose] [--list] [--emit DIR] [NAME…]  The reference tells the truth: syntax lines and examples compile, expects print");
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
+            eprintln!("  rapidr school-lock hash [--stdin] | check [FILE]  School Lock for a school's IT: the policy file's password hash line; what the policy locks");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");

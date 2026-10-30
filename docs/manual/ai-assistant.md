@@ -6,6 +6,9 @@ ask it to build a new program, previewed before anything is written. Your
 own programs can use the same AI through the **RAI** component; the
 assistant is itself an RAI.
 
+In a classroom, a teacher can keep the assistant off behind a password:
+[For teachers: School Lock](for-teachers.md).
+
 It works with the AI provider you choose: **Anthropic** (Claude),
 **OpenAI**, **DeepSeek**, or any **OpenAI-compatible** server — including a
 model server on your own computer (Ollama, LM Studio), which needs no key
