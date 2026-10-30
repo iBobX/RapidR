@@ -186,7 +186,7 @@ function SWEEP_SCENES() {
     { name: "quick-fix", open: NOTES, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:End,edit.quickFix,wait", delay: 8, cutOk: [/^\[RapidR Šţûðíö íš ŕéàðÿ/] },
     { name: "rename-error", open: HELLO, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:Home,key:Right,key:Right,key:Right,key:Right,key:Right,key:F2,wait,type:PRINT,key:Enter,wait", delay: 9 },
     // (the external-changes bar: a file changed outside Studio while it has unsaved changes here)
-    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch", cutOk: [/\/project\/main\.rr/] },
+    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch", cutOk: [/^\[Öþéñéð \//] },
     // (a tooltip: the pointer rests on a tool bar button, then on the dock's Auto Hide button)
     { name: "tooltip-toolbar", open: HELLO, do: "wait", events: "studio.__wait_3000,toolbar.__mousemove_150_20,toolbar.__mousemove_151_20,toolbar.__wait_2500", delay: 8 },
     { name: "tooltip-dock", open: HELLO, do: "wait", events: "studio.__wait_3000,dock.__mousemove_997_515,dock.__mousemove_998_515,dock.__wait_2500", delay: 8 },

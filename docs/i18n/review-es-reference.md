@@ -79,3 +79,41 @@ What reaches the model (English, on purpose; the glossary's Decisions win over i
 - The registry's English doc of `RAI.ReplyLanguage` doesn't name the new value `"app"` (the manual's RAI section does): `crates/rapidr-lang/data/*.toml` is another lane's.
 - The slash commands' one-line descriptions are cut at the pane's edge, in English too.
 - The web page was not run for the new flows (they carry `lang` and `webFiles`: both hosts when the page is built).
+
+## Part 2b: the sweep
+
+For Robert, 2026-10-30. Goal: no English visible anywhere in Studio when it is in Spanish. `tests/studio_lang.mjs` now walks **54 scenes in the pseudo-language** and **84 in Spanish** (it was 13 and 40; 299 checks in all): every menu and submenu, the dialogs and bars, Settings' three pages with a list opened on each, the Set Up RAI pages that need no network, the debugging panes with a program stopped, a run-time error, Versions' history and changes, the external-changes bar, the code helpers' editors, tooltips, the context menus that exist, and the dialogs a program shows (colour, font, message box: run with `RAPIDR_LANG`). A scene fails on any visible English or any cut-off text.
+
+**What was found and fixed**
+
+- **Texts that were never translated** (found by the scenes, fixed at the root): the colour and font dialogs a program shows (style and colour lists, the editor's boxes, titles), a message box's buttons and titles, the code helpers' colour names ("&HEEF6FA · white") and the line help after a value (a registry doc shown in English), the language service's notes (RapidQ-compatibility, `&&`, `NOT`, `$INCLUDE`; 10 new compiler-catalog messages, RR0025 to RR0034), quick-fix titles, rename errors, the lines Run in Browser writes, and the line a stopped program prints (Output, the strip at the line, the status's "Paused, …").
+- **Texts that did not fit** (the layout now follows the words; the English layout is unchanged where it fitted): the Breakpoints condition strip (*Cuando, Veces, Registro, Activado*), the Replace / All buttons of the find bar, the font dialog's style and size columns, the colour dialog's editor (boxes, preview label, add button), the caret's place in the status bar, the local history's list, its one-line description.
+- **Theme in Properties**: the value column is narrow, so *RapidR oscuro* was cut. The three looks have their own words **only in that list** (*Claro, Oscuro, Contraste alto*; context `a look in the Properties pane's Theme row`); the View > Theme menu keeps *RapidR claro / oscuro / contraste alto*. The `#. too long` notes are gone.
+- **Run-time errors**: 27 new templates (13 to 40): the END / evaluation messages, event loops, string length, DLL calls, hardware ports, `PEEK` / `POKE` / `VARPTR`, files that can't be opened or created, `UBOUND`, the native builds' variant of "does not refer to an object", and a message under an object (`Sales.At: …`, `DIM Grid: …`: the head stays, the message after it is translated). The debugger's stop line goes through the same templates (`Session.StopMessage`).
+- Counts: runtime catalog 827 → 933 texts, compiler 110 → 120, Studio 1,482 (3 replaced, 1 reworded). `rapidr i18n studio|runtime|compiler --check`, `rapidr i18n check` and `coverage es` (2,367 / 120 / 5,324, all 100%) are clean.
+
+**What is not there** (so nothing to translate): the dock has no context menu (its tabs and pane buttons have tooltips and drag previews, part 2); the toolbox, the project tree, the Properties rows and the designer have no context menu of their own (the toolbox's and Properties' search boxes and the tree's name editor have the edit menu, which is translated); Versions in this version has no Pro mode or merge tab.
+
+**Not done**: run-time messages specific to one component (databases, sockets, printers, serial ports, streams, archives) and the `[WARN]` lines on stderr stay English; the Set Up RAI pages that need a server, the AI consent card and the import report need a model or a native file dialog; the web page was not run (`RAPIDR_LANG_WEB=0`).
+
+### Where I had a real doubt
+
+| English | Español | Why |
+|---|---|---|
+| RapidR Light / Dark / High Contrast (Properties > Theme) | Claro / Oscuro / Contraste alto | The value column is ~100 px: *RapidR oscuro* is cut. The list names the looks of one row, so the product word is not needed; the menu keeps it. |
+| Write {name} / Change to {name} / Add $INCLUDE "{inc}" | Escribir / Cambiar a / Añadir | Quick fixes are menu items: infinitive; *añadir* (Q8). |
+| '{name}' is already the name of {what} here | '{name}' ya está en uso aquí: es {what} | *{what}* carries its own article (*la variable global x*, *el campo y*); "ya es el nombre de el campo" would need *del*, so the sentence is built with *es*. |
+| the SUB / the FUNCTION / the TYPE | la subrutina / la función / el tipo (TYPE) | Glossary: SUB = subrutina; a TYPE keeps its keyword. |
+| '{name}' is a builtin's name | es el nombre de una función incorporada | *Builtin* is not a word a 12-year-old has; *incorporada* is what Studio's docs say. |
+| RapidQ's compiler refuses it (this project is RapidQ-compatible) | el compilador de RapidQ la rechaza (este proyecto es compatible con RapidQ) | These notes only appear in a project that asks for RapidQ compatibility: they name RapidQ as the English does (the importer's world, not the RapidR-first text). |
+| Regular (font style) | Normal | Windows' own word for the style list. |
+| Maroon, Navy, Teal, Silver, Aqua, Lime | Granate, Azul marino, Verde azulado, Plateado, Aguamarina, Lima | The font dialog's sixteen colours, as Windows' Spanish calls them; *Plateado* over *Plata* so it reads as a colour. |
+| &Abort | &Anular | Windows' Spanish for the button; *Abortar* is the other candidate. |
+| &Yes / &No | &Sí / &No | The mnemonic is the letter, so *Sí* gets S. |
+| Confirm (message box title) | Confirmar | The title of a question box. |
+| Hu&e: / &Sat: / &Lum: | Ma&tiz: / &Sat: / &Lum: | The colour editor's boxes; *matiz* is the name Windows' dialog gives. |
+| dark blue / light grey | azul oscuro / gris claro | The shade follows the colour in Spanish (template `{name} oscuro`). |
+| brown | marrón | *Café* is regional. |
+| Waiting for events | Esperando eventos | Studio puts it after "Pausado," in lower case. |
+| A copy each time the file was saved, kept in the project's .rapidr folder (never in a version) | Una copia en cada guardado, en la carpeta .rapidr del proyecto (nunca en una versión) | The first Spanish was 12 characters longer than the English and was cut by the button beside it. |
+| Cannot open file {path}. | No se puede abrir el archivo {path}. | RC.EXE's words: the classic English is kept beside a Spanish message only where the compiler catalog does it for compile errors, so a run-time error has none. |
