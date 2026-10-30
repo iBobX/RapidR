@@ -283,7 +283,24 @@ pub const IGNORE_LINES: &[&str] = &[
     "*_rust/",
     "*.tmp.*",
     "THIRD-PARTY-NOTICES.txt",
+    "# The system's own files: a folder's view settings, thumbnails",
+    ".DS_Store",
+    "._*",
+    "Thumbs.db",
+    "ehthumbs.db",
+    "desktop.ini",
 ];
+
+/// Whether `path` (a project-relative path, `/`-separated) is a file the
+/// system writes on its own beside a person's files — macOS's `.DS_Store`
+/// and `._` resource copies, Windows' `Thumbs.db`, `ehthumbs.db` and
+/// `desktop.ini`: never a change, never saved in a version, in every
+/// project (one whose `.gitignore` doesn't name them, or that saved one
+/// before, too). New projects' `.gitignore` lists them ([`IGNORE_LINES`]).
+pub fn is_system_file(path: &str) -> bool {
+    let name = path.rsplit('/').next().unwrap_or(path);
+    name == ".DS_Store" || name.starts_with("._") || ["thumbs.db", "ehthumbs.db", "desktop.ini"].iter().any(|n| name.eq_ignore_ascii_case(n))
+}
 
 /// Writes RapidR's `.gitignore` in `dir` (the versions-plan's "git init +
 /// RapidR's .gitignore"): a new one with [`IGNORE_LINES`], or — the
@@ -474,6 +491,10 @@ impl Versions {
             // previews — is never part of a version, a safety point or a
             // checkpoint, whatever the project's .gitignore says)
             if item.rela_path().starts_with(STUDIO_FOLDER.as_bytes()) {
+                continue;
+            }
+            // (nor the system's own files: a folder's .DS_Store …)
+            if is_system_file(&item.rela_path().to_string()) {
                 continue;
             }
             match item {

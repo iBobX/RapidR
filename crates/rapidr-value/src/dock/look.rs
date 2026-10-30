@@ -885,8 +885,12 @@ pub fn group_ops(m: &Manager, gr: &Group, t: &Theme, font: &Font, active: bool) 
             }
             let room = tab.text.1 - tx;
             let f = if shown { bold(font) } else { font.clone() };
-            let title = fitted(&titles.title(&tab.pane), &f, room);
-            text(&mut ops, (tx, 0, room.max(0), HEADER), &title, &f, ink, Place::Left, 0);
+            // (an icon-only tab, the group narrow: no name drawn — its
+            // tooltip and a screen reader say it)
+            if room > 0 {
+                let title = fitted(&titles.title(&tab.pane), &f, room);
+                text(&mut ops, (tx, 0, room, HEADER), &title, &f, ink, Place::Left, 0);
+            }
             if shown && !p.classic {
                 let thick = if p.contrast { 3 } else { 2 };
                 fill(&mut ops, (x + 4, HEADER - thick - 1, tw - 8, thick), if active { p.accent } else { p.underline });

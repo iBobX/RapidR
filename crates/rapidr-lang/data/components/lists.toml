@@ -95,6 +95,8 @@ events = [
   { name = "WndProc", params = "Hwnd AS INTEGER, Msg AS INTEGER, wParam AS INTEGER, lParam AS INTEGER" },
   { name = "OnChange", origin = "rapidr" },
   { name = "OnExit", origin = "rapidr" },
+  { name = "OnKeyDown", params = "Key AS WORD, Shift AS INTEGER", origin = "rapidr", doc = "A key pressed while the list has the keyboard, before the list moves its selection (Up, Down, Page Up …); Left and Right, Enter and Space are the program's to use: open or close a group of rows." },
+  { name = "OnMouseUp", params = "Button AS INTEGER, X AS INTEGER, Y AS INTEGER, Shift AS INTEGER", origin = "rapidr", doc = "A mouse button let go over the list (X, Y in the list): after OnClick, the item under the mouse picked — a click the program tells from the keyboard's picks." },
 ]
 
 [[component]]

@@ -9,7 +9,7 @@ visual = false
 doc = "A node of a Direct3D retained-mode scene: it has a position, orientation and motion, and holds meshes, lights and child frames. RapidR draws the scene with its own renderer."
 properties = [
   { name = "FogColor", type = "color" },
-  { name = "FogEnabled", type = "int", doc = "Whether the frame's fog is on (1) or off (0). RapidR keeps it; its renderer draws no fog." },
+  { name = "FogEnabled", type = "int", category = "Drawing", doc = "Whether the frame's fog is on (1) or off (0). RapidR keeps it; its renderer draws no fog." },
   { name = "FogMode", type = "int" },
   { name = "Parent", type = "component", kinds = ["QFORM", "QPANEL"], design = false },
 ]

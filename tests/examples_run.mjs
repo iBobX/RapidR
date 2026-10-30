@@ -94,6 +94,8 @@ export const cases = [
   // basics/
   { file: "basics/hello.rr", runtimes: ["run", "interp", "native", "web"],
     expect: ["Hello from RapidR!", "3 x 7 = 21", "Squares: 1 4 9 16 25", "RAPIDR in reverse: RDIPAR"] },
+  { file: "basics/if_one_line.rr", runtimes: ["run", "interp", "native", "web"],
+    expect: ["not two", "two  (i = 2)", "Several lines: every PRINT ends its line"] },
   { file: "basics/input.rr", runtimes: ["run", "interp", "native"], input: "Ada\n80\n\n4\n",
     expect: ["Hello, Ada.", "Total with a 15% tip: 92.00", "Each of 4 pays: 23.00"] },
   { file: "basics/files.rr", runtimes: ["run", "interp", "native", "web"],

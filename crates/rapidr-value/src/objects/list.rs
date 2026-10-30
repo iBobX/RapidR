@@ -116,6 +116,14 @@ pub struct ItemList {
     /// What OnDrawItem drew, per item, relative to the item's top left.
     pub owner_drawing: HashMap<usize, Vec<CellDraw>>,
     drawn_state: Option<u64>,
+    /// While OnDrawItem is asked again (the list resized, an item
+    /// selected): the items whose handler hasn't run yet, and what the
+    /// round before drew on each (with the item's text then) — shown until
+    /// that item's handler has run, so a list never flashes its items'
+    /// plain text between two drawings (a splitter dragged: every step).
+    pending: std::collections::HashSet<usize>,
+    shown_drawing: HashMap<usize, (String, Vec<CellDraw>)>,
+    round_items: Vec<String>,
     /// lbOwnerDrawVariable: each item's height as OnMeasureItem answered
     /// (0: `ItemHeight`); the items it was asked for, and the answers
     /// still to come for the current round (`measure_round`).
@@ -288,6 +296,15 @@ impl ItemList {
         tops
     }
 
+    /// How tall the items are together (the first [`MAX_OWNER_DRAWN`]):
+    /// whether a list box's view needs its scroll bar. It never depends on
+    /// the view's width, so the bar's room can't come and go as the width
+    /// changes.
+    pub fn content_height(&self) -> i64 {
+        let n = self.items.len().min(MAX_OWNER_DRAWN);
+        self.tops()[n]
+    }
+
     /// OnMeasureItem: when the items (or Style, ItemHeight) of a
     /// `lbOwnerDrawVariable` list changed, (round, index, Height) for each
     /// item to ask about, Height starting as `ItemHeight`; otherwise none.
@@ -339,8 +356,41 @@ impl ItemList {
             return false;
         }
         self.drawn_state = Some(state);
-        self.owner_drawing.clear();
+        // (the round before's drawing stays on show, item by item, until
+        // this round's handler has drawn it: [`Self::drawn`])
+        if !self.owner_drawing.is_empty() {
+            for (i, ops) in std::mem::take(&mut self.owner_drawing) {
+                if let Some(t) = self.round_items.get(i) {
+                    self.shown_drawing.insert(i, (t.clone(), ops));
+                }
+            }
+        }
+        let n = self.items.len();
+        self.shown_drawing.retain(|i, _| *i < n);
+        self.round_items = self.items.clone();
+        self.pending = (0..n.min(MAX_OWNER_DRAWN)).collect();
         true
+    }
+
+    /// Item `i`'s OnDrawItem handler has run (this round's drawing is the
+    /// one shown from now on).
+    pub fn drawn(&mut self, i: usize) {
+        self.pending.remove(&i);
+        self.shown_drawing.remove(&i);
+    }
+
+    /// Whether an item would show its plain text rather than a drawing
+    /// (the program asked to draw its items, and one has neither this
+    /// round's drawing nor the last's): a test's check that resizing a list
+    /// never flashes it.
+    pub fn shows_plain(&self) -> bool {
+        self.owner_drawn() && !self.round_items.is_empty() && (0..self.items.len().min(MAX_OWNER_DRAWN)).any(|i| self.drawing_of(i).is_none())
+    }
+
+    /// The drawing item `i` shows: this round's, else (its handler not run
+    /// yet) the round before's when the item is still the same.
+    fn drawing_of(&self, i: usize) -> Option<&Vec<CellDraw>> {
+        self.owner_drawing.get(&i).or_else(|| self.shown_drawing.get(&i).filter(|(t, _)| self.pending.contains(&i) && self.items.get(i) == Some(t)).map(|(_, ops)| ops))
     }
 
     /// Items in columns: (items per column, column width) for the view.
@@ -464,8 +514,14 @@ impl ItemList {
         let mut b = Bitmap::default();
         let height = self.item_h(i);
         b.resize(width.clamp(1, 10_000), height);
-        match self.owner_drawing.get(&i) {
+        match self.drawing_of(i) {
             Some(ops) => ops.iter().for_each(|op| op.paint(&mut b, font)),
+            // (its handler hasn't drawn it yet — a new item: its ground only,
+            // never its plain text for a frame)
+            None if self.pending.contains(&i) => {
+                let th = crate::theme::current();
+                b.fill_rect(0, 0, width, height, crate::theme::bgr(if self.is_selected(i) { th.highlight } else { th.window }));
+            }
             None => {
                 // (in the current theme's colours: crate::theme)
                 let th = crate::theme::current();
@@ -1029,6 +1085,44 @@ mod tests {
         l.select(2);
         assert!(l.owner_draw_needed());
         assert!(l.owner_drawing.is_empty());
+    }
+
+    /// (VERSIONS-POLISH) The list resized — its view's width changed, as a
+    /// splitter dragged does at every step — asks OnDrawItem again; until
+    /// an item's handler has run it shows what the round before drew, never
+    /// its plain text (the Versions pane flashed its rows' words between
+    /// frames while the dock's splitter moved).
+    #[test]
+    fn a_resized_owner_drawn_list_keeps_its_drawing_until_drawn_again() {
+        let mut l = ItemList::new(false);
+        l.call("additems", &[s("a"), s("b")]);
+        l.set("style", &v_int(LB_OWNER_FIXED));
+        l.set("itemheight", &v_int(20));
+        l.set_view(100, 120);
+        assert!(l.owner_draw_needed());
+        assert!(l.shows_plain(), "asked, nothing drawn yet: the ground only");
+        // (nothing drawn yet: the ground, not the item's text)
+        let b = l.render_item(0, 100, &Font::default());
+        assert!((0..100).all(|x| (0..20).all(|y| b.pixel(x, y) == Some(0xFFFFFF))), "no plain text while asked");
+        for i in 0..2 {
+            l.call("fillrect", &[v_int(0), v_int(i * 20), v_int(100), v_int(i * 20 + 20), v_int(0x00FF00)]);
+            l.drawn(i as usize);
+        }
+        assert!(!l.shows_plain());
+        // (wider: asked again; the green rows stay on show meanwhile)
+        l.set_view(120, 120);
+        assert!(l.owner_draw_needed());
+        assert!(l.owner_drawing.is_empty() && !l.shows_plain());
+        assert_eq!(l.render_item(1, 120, &Font::default()).pixel(50, 10), Some(0x00FF00));
+        // (item 0 drawn again in blue: that one now; item 1 still the green)
+        l.call("fillrect", &[v_int(0), v_int(0), v_int(120), v_int(20), v_int(0xFF0000)]);
+        l.drawn(0);
+        assert_eq!(l.render_item(0, 120, &Font::default()).pixel(110, 10), Some(0xFF0000));
+        assert_eq!(l.render_item(1, 120, &Font::default()).pixel(50, 10), Some(0x00FF00));
+        // (an item whose text changed isn't shown with another's drawing)
+        l.call("item", &[v_int(1), s("B")]);
+        assert!(l.owner_draw_needed());
+        assert_ne!(l.render_item(1, 120, &Font::default()).pixel(50, 10), Some(0x00FF00));
     }
 
     #[test]

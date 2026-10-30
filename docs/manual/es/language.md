@@ -1,4 +1,4 @@
-<!-- translated-from: language.md bb52cad52c222a10 -->
+<!-- translated-from: language.md 57252edc8d224bfd -->
 # El lenguaje
 
 El lenguaje de RapidR es un BASIC moderno, y los programas anteriores se
@@ -238,6 +238,24 @@ END
 ```
 
 `DATA`, `READ` y `RESTORE [label]` funcionan como en otros BASIC.
+
+### `IF … ELSE` en una línea
+
+`IF ok THEN PRINT "sí" ELSE PRINT "no"` es la forma clásica de una línea, y
+conserva las costumbres del compilador clásico, así que los programas
+antiguos imprimen lo que siempre imprimieron:
+
+- Un `PRINT` justo antes de un `ELSE` **no termina su línea**: el siguiente
+  `PRINT` sigue en la misma línea. `IF 1 THEN PRINT "a" ELSE PRINT "b"`
+  seguido de `PRINT "c"` imprime `ac`. El `PRINT` de la parte ELSE, y todo
+  `PRINT` en un `IF` de bloque (varias líneas), terminan su línea como
+  siempre. Para terminarla siempre, escribe la forma de bloque (el ejemplo
+  [if_one_line.rr](../../../examples/basics/if_one_line.rr)).
+- Un **segundo** `ELSE` en la línea se acepta y lo que lo sigue nunca se
+  ejecuta (`IF 0 THEN a ELSE b ELSE c` ejecuta `b`); un **tercero** es un
+  error. Un `IF` dentro de la parte THEN se queda con el ELSE:
+  `IF 0 THEN IF 1 THEN a ELSE b ELSE c` no ejecuta nada (el segundo `ELSE`
+  es el de reserva del `IF` interno).
 
 ### `FOR i AS INTEGER`: un contador declarado en su ciclo
 

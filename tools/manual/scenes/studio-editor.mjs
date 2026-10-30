@@ -82,10 +82,10 @@ export const scenes = [
   { name: "font-colour-swatch", open: "tests/fixtures/studio_help/main.rr", do: `${HELPERS_READY},line:12,key:End,wait`, delay: 8, crop: [244, 90, 792, 440] },
   // (2.121.1) F1, the Help pane: a component, a variable of the program,
   // typing in the search box, the start page. The pane alone.
-  { name: "help-component", open: OPEN, do: "wait,view.code,wait,caret:AS RButton,help.contents,wait", delay: 8, crop: [1030, 68, 248, 500] },
-  { name: "help-own-name", open: HELPERS, do: `${HELPERS_READY},view.code,caret:Title.Font = TitleFont,help.contents,wait`, delay: 9, crop: [1030, 68, 248, 500] },
-  { name: "help-search", open: OPEN, do: "wait,helpfocus:search,type:rbut,wait,wait", delay: 8, crop: [1030, 68, 248, 500] },
-  { name: "help-start", open: OPEN, do: "wait,help:", delay: 6, crop: [1030, 68, 248, 500] },
+  { name: "help-component", open: OPEN, do: "wait,view.code,wait,caret:AS RButton,help.contents,wait", delay: 8, crop: [998, 68, 280, 500] },
+  { name: "help-own-name", open: HELPERS, do: `${HELPERS_READY},view.code,caret:Title.Font = TitleFont,help.contents,wait`, delay: 9, crop: [998, 68, 280, 500] },
+  { name: "help-search", open: OPEN, do: "wait,helpfocus:search,type:rbut,wait,wait", delay: 8, crop: [998, 68, 280, 500] },
+  { name: "help-start", open: OPEN, do: "wait,help:", delay: 6, crop: [998, 68, 280, 500] },
   // the debugger paused: the values at the lines' ends
   { name: "helpers-values", open: "tests/fixtures/studio_debug/counter.rr", do: "line:6,debug.toggleBreakpoint,run.start,wait,wait,wait,wait", delay: 7, crop: [244, 90, 792, 260] },
 ];

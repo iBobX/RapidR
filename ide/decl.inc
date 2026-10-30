@@ -350,6 +350,10 @@ DIM DebugPanesMode AS STRING
 DIM EditBottom AS INTEGER
 DIM DebugBottom AS INTEGER
 DIM DebugWidth AS INTEGER
+' (the Properties pane's names column, kept with the settings: 0 until the
+' user dragged the divider or an older Studio saved none — project.inc)
+DIM InspectorNameWidth AS INTEGER
+DIM InspectorNameWidthDefault AS INTEGER
 DECLARE SUB RememberLayoutSizes
 DECLARE SUB LayoutNoteGone
 DECLARE SUB LayOutStatus
@@ -449,6 +453,8 @@ DECLARE SUB VerBeforeSave(d AS INTEGER)
 DECLARE SUB VerAfterSave(d AS INTEGER)
 DECLARE SUB VerApplyBase(d AS INTEGER)
 DECLARE SUB VersionsProjectChanged
+DECLARE SUB VerLayoutLoaded
+DECLARE SUB VerPaneChanged(Name AS STRING)
 DECLARE FUNCTION VersionsCommand(Id AS STRING) AS INTEGER
 DECLARE SUB VersionsStep(S AS STRING)
 

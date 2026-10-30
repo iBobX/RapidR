@@ -1991,7 +1991,7 @@ msgstr ""
 msgid "Versio&ns"
 msgstr ""
 
-#: ide/commands.inc ide/versions.inc
+#: ide/commands.inc
 msgid "&Start Versioning This Project"
 msgstr ""
 
@@ -5810,7 +5810,15 @@ msgid "Versions"
 msgstr ""
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions of This Project"
+msgstr ""
+
+#: ide/versions.inc
 msgid "Start keeping versions of this project (Git calls this git init)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project"
 msgstr ""
 
 #: ide/versions.inc
@@ -5822,15 +5830,7 @@ msgid "The copies Studio kept of this file each time it was saved"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Changes not saved as a version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "Files not saved as a version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "A double click opens the file"
+msgid "Changes"
 msgstr ""
 
 #: ide/versions.inc
@@ -5843,6 +5843,22 @@ msgstr ""
 
 #: ide/versions.inc
 msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Filter the changed files"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Shows only the files whose name or folder has these letters"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Files not saved as a version, by folder"
+msgstr ""
+
+#: ide/versions.inc
+msgid "A double click or Enter opens a file; Right opens a folder, Left closes it"
 msgstr ""
 
 #: ide/versions.inc
@@ -5968,18 +5984,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/versions.inc
-msgid "new, not in a version yet"
-msgstr ""
-
-#: ide/versions.inc
-msgid "removed since the last version"
-msgstr ""
-
-#: ide/versions.inc
-msgid "changed since the last version"
-msgstr ""
-
-#: ide/versions.inc
 msgid "AI checkpoint: {what}, {when}"
 msgstr ""
 
@@ -5988,11 +5992,61 @@ msgid "saved by {who}, {when}"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Open a project to see its versions"
+msgid "the current version"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
+msgid "new, not in a version yet"
+msgstr ""
+
+#: ide/versions.inc
+msgid "deleted since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr ""
+
+#: ide/versions.inc
+msgid "closed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "open"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Folder {folder}, {changes}, {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} change"
+msgid_plural "{n} changes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: ide/versions.inc
+msgid "{file}: {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{file} in {folder}: {state}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{folder} opened"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{folder} closed"
+msgstr ""
+
+#: ide/versions.inc
+msgid "No project open"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Open a project to keep versions of it: every step of your work, so nothing is ever lost."
 msgstr ""
 
 #: ide/versions.inc
@@ -6020,21 +6074,15 @@ msgid "Until then Studio keeps a copy of each file every time you save it. Local
 msgstr ""
 
 #: ide/versions.inc
-msgid "{experiment} · all saved"
+msgid "Experiment: {experiment}"
 msgstr ""
 
 #: ide/versions.inc
-msgid "{experiment} · {n} change"
-msgid_plural "{experiment} · {n} changes"
-msgstr[0] ""
-msgstr[1] ""
-
-#: ide/versions.inc
-msgid "No changes since the last version"
+msgid "All saved"
 msgstr ""
 
 #: ide/versions.inc
-msgid "Changes not saved as a version ({n})"
+msgid "Everything is saved in a version."
 msgstr ""
 
 #: ide/versions.inc
@@ -6052,11 +6100,39 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} min ago"
+msgstr ""
+
+#: ide/versions.inc
+msgid "{n} h ago"
+msgstr ""
+
+#: ide/versions.inc
 msgid "AI checkpoint: {what}"
 msgstr ""
 
 #: ide/versions.inc
 msgid "{who} · {when}"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Current"
+msgstr ""
+
+#: ide/versions.inc
+msgid "New"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Deleted"
+msgstr ""
+
+#: ide/versions.inc
+msgid "Changed"
 msgstr ""
 
 #: ide/versions.inc
@@ -6096,7 +6172,7 @@ msgid "new"
 msgstr ""
 
 #: ide/versions.inc
-msgid "removed"
+msgid "deleted"
 msgstr ""
 
 #: ide/versions.inc

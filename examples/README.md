@@ -43,6 +43,7 @@ claims, headless).
 | Example | What it shows | Runs on | Try |
 |---------|---------------|---------|-----|
 | [hello.rr](basics/hello.rr) | The first program: `PRINT`, variables, `FOR`, a `FUNCTION` and a `SUB`, string functions | run · interp · native · web | `rapidr run basics/hello.rr` |
+| [if_one_line.rr](basics/if_one_line.rr) | `IF c THEN a ELSE b` on one line: a `PRINT` right before the `ELSE` leaves its line open (the classic form), a block `IF` ends it ([the manual](../docs/manual/language.md#control-flow)) | run · interp · native · web | `rapidr run basics/if_one_line.rr` |
 | [input.rr](basics/input.rr) | `INPUT`: a tip calculator that asks for numbers | run · interp · native | `rapidr run basics/input.rr` |
 | [files.rr](basics/files.rr) | Text files: `OPEN` for output / append / input, `LINE INPUT`, `EOF`, an `RFileStream`, `KILL` | run · interp · native · web | `rapidr run basics/files.rr` |
 | [unicode.rr](basics/unicode.rr) | Text in any language in a file (accents, Chinese, emoji): `WriteStr(text, LEN(text))`, `ReadAllText`, `PRINT #` / `LINE INPUT #`, and binary strings that stay bytes ([the manual](../docs/manual/language.md#text-and-bytes-accents-chinese-emoji)) | run · interp · native · web | `rapidr run basics/unicode.rr` |

@@ -689,15 +689,19 @@ pub fn replay(p: &mut Painter, ops: &[CellDraw], font: &Font, key: &str) {
 // ------------------------------------------------------------ QLISTBOX --
 
 /// Where a list box's items show: inside the frame, less the scroll bar
-/// (the area the web gives them too, which OnDrawItem's rects follow:
-/// a vertical bar's room in one column, a horizontal one's in Columns).
+/// when it shows (the area OnDrawItem's rects follow: a vertical bar's
+/// room in one column only when the items are taller than the list — as
+/// Windows' own list box, whose items fill its width until its bar comes
+/// —, a horizontal one's in Columns).
 pub fn view_size(l: &ItemList, w: i64, h: i64) -> (i64, i64) {
     if l.combo {
         (w - 8, 10_000)
     } else if l.multi_column() {
         (w - 4, h - 4 - 16)
-    } else {
+    } else if l.content_height() > h - 4 {
         (w - 4 - 16, h - 4)
+    } else {
+        (w - 4, h - 4)
     }
 }
 

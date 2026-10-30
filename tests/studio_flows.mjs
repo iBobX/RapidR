@@ -467,8 +467,76 @@ const V_OPEN = { open: "tests/fixtures/studio_versions/Hello.rrproj", copyDir: t
 const V_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
 const V_EDIT = 'code:PRINT "Done."=>PRINT "All done!",file.save';
 const V_SECOND = `${V_FIRST},${V_EDIT},versions:save=second`;
+// (VERSIONS-POLISH) A project with 29 changes in folders — a first version
+// of main.rr and the project file only; then .gitignore, notes.txt, docs/
+// (2), art/ (logo.svg; desktop.ini, the system's, never listed) and
+// screenshots/ (24) new — for the pane's grouping, folders and filter.
+const V_MANY = { open: "tests/fixtures/studio_versions_many/Shots.rrproj", copyDir: true, fsck: true };
+const V_MANY_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:saveonly=first;main.rr;Shots.rrproj,versions.pane";
+const V_MANY_ROWS = [
+  ".gitignore: new, not in a version yet",
+  "notes.txt: new, not in a version yet",
+  "Folder art, 1 change, open",
+  "logo.svg in art: new, not in a version yet",
+  "Folder docs, 2 changes, open",
+  "faq.md in docs: new, not in a version yet",
+  "guide.md in docs: new, not in a version yet",
+  "Folder screenshots, 24 changes, closed",
+];
+// (the dock's splitter between the left column and the documents dragged
+// step by step as a person's mouse — right, back left past where it
+// started, then slowly further left —, each step a turn)
+const V_DRAG = (() => {
+  const ev = ["dock.__mousedown_241_300"];
+  let x = 241;
+  for (let i = 0; i < 20; i++) ev.push(`dock.__mousemove_${(x += 8)}_300`);
+  for (let i = 0; i < 30; i++) ev.push(`dock.__mousemove_${(x -= 8)}_300`);
+  for (let i = 0; i < 12; i++) ev.push(`dock.__mousemove_${(x -= 3)}_300`);
+  ev.push(`dock.__mouseup_${x}_300`, "dock.__wait_500");
+  return ev.join(",");
+})();
+const V_FRAMED = ["verpanel", "verchanges", "vertimeline", "versavebtn", "verfilter", "verwhatbtn", "verbackbtn", "verundobtn", "verundonote"];
+// (the frames a drag made: every frame shows the lists drawn — never their
+// items' plain text —, each control placed for the panel's width in that
+// very frame — its right edge where the panel's says —, and each moving one
+// way while the panel does: no control comes back to a place it left)
+function stableFrames(text) {
+  const frames = text.trim().split("\n").filter(Boolean).map((line) => Object.fromEntries(line.split(" ").map((p) => {
+    const [k, v] = p.split("=");
+    return [k, v === "-" ? null : v.split(",")];
+  })));
+  const out = [];
+  let drawn = false, plain = 0, off = 0, back = 0, moves = 0;
+  let last = null, dir = 0;
+  // (from the frame before the drag's first step: the steps before it —
+  // the project opened, versions saved — change the lists' items, whose new
+  // rows show their ground for a frame until drawn)
+  const start = frames.findIndex((f, i) => i > 0 && f.verpanel && frames[i - 1].verpanel && f.verpanel[2] !== frames[i - 1].verpanel[2]);
+  for (const f of frames.slice(Math.max(0, start - 1))) {
+    const lists = ["verchanges", "vertimeline"].filter((k) => f[k]);
+    if (lists.length && lists.every((k) => f[k][4] !== "plain")) drawn = true;
+    if (drawn && lists.some((k) => f[k][4] === "plain")) plain++;
+    const p = f.verpanel;
+    if (!p) continue;
+    const right = +p[0] + +p[2];
+    for (const k of ["verchanges", "vertimeline"]) {
+      if (f[k] && +f[k][0] + +f[k][2] !== right - 8) off++;
+    }
+    if (last && +p[2] !== +last.verpanel[2]) {
+      moves++;
+      const d = Math.sign(+p[2] - +last.verpanel[2]);
+      for (const k of ["vertimeline", "verchanges", "verfilter"]) {
+        if (f[k] && last[k] && Math.sign(+f[k][2] - +last[k][2]) === -d) back++;
+      }
+      dir = d;
+    }
+    last = f;
+  }
+  out.push(`${frames.length} frames, ${moves} with a new width`);
+  return [drawn && moves >= 40 && plain === 0 && off === 0 && back === 0, `the drag's frames: ${out.join("")}; lists flashing their plain text: ${plain}; lists not placed for their frame's width: ${off}; controls moving against the drag: ${back}`];
+}
 // (a key written in the code: the secret check's line; not a real key)
-const V_SECRET = 'code:PRINT "Done."=>key$ = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save';
+const V_SECRET = `code:PRINT "Done."=>key$ = "${"sk"}-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save`;
 
 // (EXTERNAL-CHANGES) The walk's project — a copy of tests/fixtures/
 // studio_external outside this repository — and what another process writes
@@ -1300,7 +1368,8 @@ const CASES = [
     do: "wait,view.designer,pick:AddBtn,wait",
     delay: 6,
     dump: {
-      "inspector.__cursor_120_246": /^col-resize$/,
+      // (INSPECTOR-CATEGORIES: the names' column starts 148 wide)
+      "inspector.__cursor_148_246": /^col-resize$/,
       "inspector.__cursor_60_246": /^default$/,
       "inspector.__cursor_120_80": /^text$/,
       "dock.__cursor_241_200": /^col-resize$/,
@@ -1310,6 +1379,98 @@ const CASES = [
       "designdoc(0).__cursor_355_306": /^move$/,
       "designdoc(0).__cursor_339_306": /^nwse-resize$/,
     },
+  },
+  // (INSPECTOR-CATEGORIES, Robert 2026-10-30: "RapidR extensions … makes no
+  // sense") Every member is under the heading of what it is for, in every
+  // look: the form's Accessible* three under Accessibility, Anchors, AutoSize
+  // and the Min/Max sizes in Layout, BrushColor and PenColor in Drawing,
+  // FontColor / FontName / FontSize in Font, HelpFile in Help — and no heading
+  // that names where a member comes from. A project not kept classic-compatible
+  // marks nothing (no "R", no "new"): MarkNonClassic, and its older name
+  // ShowRapidRExtensions, read False; Anchors' row has no description.
+  {
+    name: "inspector-categories",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:Form,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^Form$/,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n\[Appearance\]\n[\s\S]*^\[Drawing\]\nBrushColor=[^\n]*\nCopyMode=[^\n]*\nPenColor=[^\n]*\n\[Font\]\nFont=[^\n]*\nFontColor=[^\n]*\nFontName=[^\n]*\nFontSize=[^\n]*\n\[Help\]\nHelpFile=[^\n]*\nHint=[^\n]*\nShowHint=[^\n]*\n\[Layout\]\nAnchors=akLeft, akTop\nAutoScroll=[^\n]*\nAutoSize=[^\n]*\nHeight=[^\n]*\nLeft=[^\n]*\nMaxHeight=[^\n]*\nMaxWidth=[^\n]*\nMinHeight=[^\n]*\nMinWidth=[^\n]*\nTop=[^\n]*\nWidth=[^\n]*\n\[Window\]\n/m,
+      "inspector.marknonclassic": /^(0|False)$/i,
+      "inspector.showrapidrextensions": /^(0|False)$/i,
+    },
+    a11y: [
+      ["Accessibility", "row", null, (n) => n.description === "3 properties"],
+      ["Layout", "row", null, (n) => n.description === "11 properties"],
+      ["Anchors", "row", null, (n) => !n.description],
+      ["AccessibleDescription", "row", null, (n) => !n.description],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) A project kept classic-compatible ([compat]
+  // rapidq_compatible) marks, with a small calm "new" chip, the members a
+  // classic program doesn't have; its tooltip and the row's description (what a
+  // screen reader says) are "Not in classic programs", and Caption — which
+  // classic programs have — says nothing. The inspector reads the project's
+  // setting (MarkNonClassic, ShowRapidRExtensions its older name). The same
+  // pane in Spanish: the headings and the words.
+  {
+    name: "inspector-classic-marks",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    themes: LOOKS,
+    dump: {
+      "inspector.target": /^GoBtn$/,
+      "inspector.marknonclassic": /^(1|-1|True)$/i,
+      "inspector.showrapidrextensions": /^(1|-1|True)$/i,
+      "inspector.rows": /^\[Accessibility\]\nAccessibleDescription=\nAccessibleHidden=False\nAccessibleName=\n/,
+    },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "Not in classic programs"],
+      ["MinHeight", "row", null, (n) => n.description === "Not in classic programs"],
+      ["AccessibleName", "row", null, (n) => n.description === "Not in classic programs"],
+      ["Caption", "row", null, (n) => !/classic/.test(n.description)],
+      ["Height", "row", null, (n) => !n.description],
+    ],
+  },
+  {
+    name: "inspector-classic-marks-es",
+    open: "tests/fixtures/studio_classic/Classic.rrproj",
+    copyDir: true,
+    webFiles: ["tests/fixtures/studio_classic/Classic.rrproj", "tests/fixtures/studio_classic/main.rr"],
+    do: "wait,view.designer,pick:GoBtn,wait,lang:es,wait,row:MinHeight,wait",
+    delay: 6,
+    capture: true,
+    contrast: true,
+    dump: { "inspector.target": /^GoBtn$/, "inspector.marknonclassic": /^(1|-1|True)$/i },
+    a11y: [
+      ["Anchors", "row", null, (n) => n.description === "No está en los programas clásicos"],
+      ["Accesibilidad", "row", null, (n) => n.description === "3 propiedades"],
+      ["Disposición", "row", null, (n) => n.description === "10 propiedades"],
+      ["Ayuda", "row", null, (n) => n.description === "2 propiedades"],
+      ["Caption", "row", null, (n) => !/clásic/.test(n.description)],
+    ],
+  },
+  // (INSPECTOR-CATEGORIES) The divider between the name and value columns
+  // remembers where the user left it: left at 180 (namewidth:180 — what a
+  // drag does; the real press, move and release on the line is the kernel's
+  // own test — and the settings kept as Studio closing keeps them), Studio
+  // started again on the same settings (not --fresh): the column is 180 wide,
+  // not its default 148.
+  {
+    name: "inspector-divider-remembered",
+    open: "examples/gui/pantry.rr",
+    do: "wait,view.designer,pick:AddBtn,namewidth:180,wait",
+    delay: 5,
+    restart: { do: "wait,view.designer,pick:AddBtn,wait", delay: 5 },
+    dump: { "inspector.namewidth": /^180$/ },
   },
   // (the web) A screen reader on the inspector: Chrome's accessibility
   // tree (what VoiceOver, NVDA and JAWS read) has a tree grid of rows, each
@@ -3062,7 +3223,8 @@ const CASES = [
     do: "wait",
     delay: 3,
     dump: { "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree[^\n]*watchpanel[^\n]*stacktree/, "outputbox.width": /^\d+$/ },
-    checks: [(d) => [+d["outputbox.width"] >= 780, `Output the documents' whole width (${d["outputbox.width"]})`]],
+    // (the documents are 756 wide in a 1280 window: the Properties pane is 272, the others 240)
+    checks: [(d) => [+d["outputbox.width"] >= 750, `Output the documents' whole width (${d["outputbox.width"]})`]],
   },
   {
     // (S9) A run with the debugger: the debugging layout — Variables,
@@ -6442,13 +6604,14 @@ const CASES = [
   {
     name: "versions-empty",
     ...V_OPEN,
-    do: "versions.pane",
+    do: "versions.pane,versions:problems",
     delay: 4,
     themes: LOOKS,
     capture: true,
     contrast: true,
-    dump: { "versub.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO },
-    webDump: { "versub.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
+    a11y: [["Local History...", "button"]],
+    dump: { "versub.caption": /^Hello$/, "veremptytitle.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verstartbtn.primary": /^(1|-1|True)$/i, "verstartbtn.accessiblename": /^Start keeping versions of this project$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO, "verbranch.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "veremptytitle.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
   },
   {
     name: "versions-first",
@@ -6459,8 +6622,8 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now$/, null]],
-    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "versub.caption": /^main · all saved$/, "repo.experiment": /^main$/ },
+    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now, the current version$/, null], ["Experiment: main", null], ["no changes since the last version", null]],
+    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "verbranchtext.caption": /^main$/, "vercounttext.caption": /^All saved$/, "vercountchip.tag": /^1$/, "repo.experiment": /^main$/, "versavebtn.enabled": /^0$/, "vernochanges.visible": /^1$/ },
     desktopFiles: ["project/.gitignore", "project/.git/HEAD"],
   },
   {
@@ -6577,7 +6740,7 @@ const CASES = [
     themes: LOOKS,
     capture: true,
     contrast: true,
-    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.caption": /^Undo: Went back to “first”/ },
+    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.hint": /^Undo: Went back to “first”/, "verundonote.visible": /^1$/ },
     files: { "main.rr": /PRINT "Done\."\n$/ },
   },
   {
@@ -6648,6 +6811,181 @@ const CASES = [
     events: `verdifflist.__item_2,${CLICK("verdiffact", 40, 12)},verdiffpane.__wait_1500`,
     delay: 6,
     dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES, "verdiff.changecount": /^0$/ },
+  },
+  // (VERSIONS-POLISH) The Versions pane as a person meets it (Robert's
+  // walk on a real project, 2026-10-30): a tab beside Project and Search in
+  // every layout — a fresh profile's, an old layout's — unless closed on
+  // purpose (remembered; View > Versions brings it back); its calm empty
+  // state; the changes grouped by folder (a long folder closed, opened with
+  // Right, the filter past 20 files; the system's desktop.ini never listed);
+  // the timeline's row picked across its whole width; no control cut off or
+  // on top of another at 260 and 400 pixels (the layout report), in the
+  // three looks; the dock's splitter dragged step by step with every frame
+  // drawn and placed for its own width; Spanish.
+  {
+    name: "versions-default-tab",
+    do: "wait,versions:problems",
+    delay: 4,
+    capture: true,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "veremptytitle.caption": /^No project open$/, "versub.caption": /^No project open$/, "verstartbtn.visible": /^0$/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "veremptytitle.caption": /^No project open$/ },
+  },
+  {
+    // (a project open: the tab is there, Project in front)
+    name: "versions-default-tab-project",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "wait",
+    delay: 4,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m, "versub.caption": /^Hello$/ },
+  },
+  {
+    // (a layout an older Studio saved — no Versions in it —, read at start:
+    // the tab put back beside Project and Search, Project still in front)
+    name: "versions-old-layout",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "wait,versions:oldlayout,wait",
+    delay: 4,
+    dump: { "dock.layout": /^\s+\d+ tabs 0 projecttree searchpane verpanel$/m },
+  },
+  {
+    // (the person closes the tab — its close button —: Studio started again
+    // keeps it closed)
+    name: "versions-closed-stays-closed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "versions.pane,wait",
+    events: `${CLICK("dock__g0", 226, 14)},dock.__wait_300`,
+    delay: 4,
+    restart: { delay: 5, events: "" },
+    dump: { "dock.layout": /^hidden[^\n]*\bverpanel\b/m },
+    checks: [(d) => [!/tabs \d+ projecttree searchpane verpanel/.test(d["dock.layout"] || ""), "the Versions tab isn't among Project's tabs"]],
+  },
+  {
+    // (…and View > Versions brings it back, for good)
+    name: "versions-closed-view-brings-back",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: "versions.pane,wait",
+    events: `${CLICK("dock__g0", 226, 14)},dock.__wait_300`,
+    delay: 4,
+    restart: { delay: 5, events: "", do: "versions.pane,wait" },
+    dump: { "dock.layout": /tabs \d+ projecttree searchpane verpanel/, "verpanel.visible": /^(1|-1)$/ },
+  },
+  {
+    name: "versions-grouped",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:problems`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Folder screenshots, 24 changes, closed", null], ["logo.svg in art: new, not in a version yet", null], ["Filter the changed files", null], ["29 changes not saved as a version", null]],
+    dump: {
+      "verchanges.items": new RegExp(`^${V_MANY_ROWS.map((r) => r.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\n")}$`),
+      "vercounttext.caption": /^29 changes$/, "verfilter.visible": /^1$/, "repo.changecount": /^29$/, "outputbox.text": /\[versions\] problems=0/,
+    },
+  },
+  {
+    // (the closed folder picked, Right: its 24 files under it; Left on one
+    // of them: back on the folder)
+    name: "versions-folder-open",
+    ...V_MANY,
+    desktopOnly: true,
+    do: V_MANY_FIRST,
+    events: "verchanges.__item_7,verchanges.__key_39,verchanges.__wait_200,verchanges.__item_9,verchanges.__key_37",
+    delay: 6,
+    capture: true,
+    dump: { "verchanges.itemcount": /^32$/, "verchanges.items": /^Folder screenshots, 24 changes, open$/m, "verchanges.itemindex": /^7$/ },
+  },
+  {
+    // (the filter: only the files with "pane-0" — nine screenshots, their
+    // folder open while filtering)
+    name: "versions-filter",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},focus:verfilter`,
+    events: `${typeInto("verfilter", "pane-0")},verfilter.__wait_300`,
+    delay: 6,
+    capture: true,
+    dump: { "verchanges.itemcount": /^10$/, "verchanges.items": /^Folder screenshots, 9 changes, open\n/ },
+  },
+  {
+    // (a version picked: its row in the selection's colours to the list's
+    // right edge — the timeline has room, no scroll bar —; What Changed? and
+    // Go Back... on)
+    name: "versions-timeline-pick",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,versions:pick=first`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [[/^first, saved by Ana, just now$/, null, "selected"], [/^second, saved by Ana, just now, the current version$/, null]],
+    dump: { "vertimeline.itemindex": /^1$/, "verwhatbtn.enabled": /^1$/, "verbackbtn.enabled": /^1$/ },
+  },
+  ...[260, 400].map((width) => ({
+    // (narrow side columns: nothing cut off, nothing on top of another)
+    name: `versions-narrow-${width}`,
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},code:PRINT "All done!"=>PRINT "Bye",file.save,versions.pane,versions:width=${width},wait,versions:problems`,
+    delay: 8,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verpanel.width": new RegExp(`^${width - 2}$`), "outputbox.text": /\[versions\] problems=0/ },
+  })),
+  {
+    name: "versions-narrow-many-260",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:width=260,wait,versions:problems`,
+    delay: 6,
+    capture: true,
+    dump: { "outputbox.text": /\[versions\] problems=0/ },
+  },
+  {
+    // (the dock's splitter dragged step by step: every frame drawn and
+    // placed for its own width — Robert saw the lists flash their plain
+    // text between frames)
+    name: "versions-splitter-stable",
+    ...V_MANY,
+    desktopOnly: true,
+    do: `${V_MANY_FIRST},versions:saveonly=second;notes.txt,versions.pane`,
+    events: V_DRAG,
+    frames: V_FRAMED,
+    delay: 6,
+    dump: { "verpanel.width": /^\d+$/ },
+    checks: [(d) => stableFrames(d.__frames || "")],
+  },
+  {
+    name: "versions-es",
+    ...V_MANY,
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: `${V_MANY_FIRST},versions:problems`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    contrast: true,
+    a11y: [["Carpeta screenshots, 24 cambios, cerrada", null], ["Experimento: main", null]],
+    dump: { "verchangeshead.caption": /^Cambios$/, "vercounttext.caption": /^29 cambios$/, "versavebtn.caption": /^&Guardar una versión\.\.\.$/, "outputbox.text": /\[versions\] problems=0/ },
+  },
+  {
+    // (in Spanish, no versions yet: the long words of Start fit, or the
+    // short ones)
+    name: "versions-empty-es",
+    ...V_OPEN,
+    desktopArgs: ["--lang", "es"],
+    do: "versions.pane,versions:problems",
+    delay: 4,
+    capture: true,
+    dump: { "veremptytitle.caption": /^Aún no hay versiones$|^Todavía no hay versiones$|^No hay versiones/, "verstartbtn.caption": /^&Empezar a guardar versiones/, "outputbox.text": /\[versions\] problems=0/ },
+    webDump: { "veremptytitle.caption": /^No disponible en un navegador$/, "verstartbtn.visible": /^0$/ },
   },
   // (EXTERNAL-CHANGES) Files changed outside Studio — another AI agent, an
   // editor, git — walked as a person sees it (the lane's acceptance): a
@@ -7907,6 +8245,9 @@ function runDesktop(c, scale = 1) {
       ...(c.reducedMotion ? { RAPIDR_REDUCED_MOTION: "1" } : {}),
       ...(c.contrast ? { RAPIDR_TEST_CONTRAST: join(dir, "contrast.json") } : {}),
       ...(c.a11y ? { RAPIDR_TEST_A11Y: join(dir, "a11y.json") } : {}),
+      // (VERSIONS-POLISH: each turn's place and size of these components —
+      // what every frame shows —, read back as dump.__frames)
+      ...(c.frames ? { RAPIDR_TEST_FRAMES: join(dir, "frames.txt"), RAPIDR_TEST_FRAMES_OF: c.frames.join(",") } : {}),
       RAPIDR_PRINT_TO: join(WORK, "prints"),
       RAPIDR_REGISTRY: join(WORK, `${c.name}.reg`),
       // (an example's copy, a build that can't go beside its program: the
@@ -7970,6 +8311,7 @@ function runDesktop(c, scale = 1) {
     const g = spawnSync("git", ["fsck", "--full", "--strict", "--no-dangling"], { cwd: join(dir, "project"), encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", LC_ALL: "C" } });
     dump.__fsck = g.error ? "no git" : g.status === 0 ? "ok" : `${g.stdout}${g.stderr}`.trim();
   }
+  if (c.frames) dump.__frames = existsSync(join(dir, "frames.txt")) ? readFileSync(join(dir, "frames.txt"), "utf8") : "";
   // (files the run must leave: the program's own window captured)
   for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
   for (const f of c.desktopGone || []) dump["gone " + f] = existsSync(join(dir, f)) ? "there" : "gone";
@@ -8097,6 +8439,9 @@ async function runWebPage(ctx, c, last, scale, record) {
     });
     const q = new URLSearchParams({ theme: c.theme || "rapidr-light" });
     if (c.fresh !== false) q.set("fresh", "");
+    // (a case in another language: the page's ?lang=, as the desktop's --lang)
+    const langAt = (c.desktopArgs || []).indexOf("--lang");
+    if (langAt >= 0) q.set("lang", c.desktopArgs[langAt + 1]);
     // (Studio a 1280 x 800 window on the page, unless the case has it fill the page)
     if (!c.maximized) q.set("window", "normal");
     // (the program's files are in the page's store: imported from there;

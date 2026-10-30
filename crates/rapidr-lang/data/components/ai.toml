@@ -163,8 +163,8 @@ IF Eyes.SaveToFile("snapshot.png", "Form1") THEN PRINT "saved"; Eyes.Width; " x"
 PRINT Eyes.LayoutReport("Form1")
 """
 properties = [
-  { name = "Scale", type = "float", default = 0, range = "0..4", doc = "How big the pictures are: 0 (the default) at the screen's scale — sharp on a high-DPI screen, twice the program's pixels on a Retina one —, 1 one picture pixel per program pixel, 2 twice …" },
-  { name = "Frame", type = "bool", default = true, doc = "Each window drawn with its frame and title bar (as RapidR draws a window's on the web and in the form designer): its title shows which window it is. False: its inside only (what Form.SaveImage saves)." },
+  { name = "Scale", type = "float", default = 0, range = "0..4", category = "Media", doc = "How big the pictures are: 0 (the default) at the screen's scale — sharp on a high-DPI screen, twice the program's pixels on a Retina one —, 1 one picture pixel per program pixel, 2 twice …" },
+  { name = "Frame", type = "bool", default = true, category = "Media", doc = "Each window drawn with its frame and title bar (as RapidR draws a window's on the web and in the form designer): its title shows which window it is. False: its inside only (what Form.SaveImage saves)." },
   { name = "Width", type = "int", access = "read", design = false, unit = "px", doc = "The last picture's width in pixels." },
   { name = "Height", type = "int", access = "read", design = false, unit = "px", doc = "The last picture's height in pixels." },
   { name = "Windows", type = "string", access = "read", design = false, doc = "The program's windows that show now, back to front, one a line: the form's name and its title, a TAB between." },
@@ -215,8 +215,8 @@ Hands.Click "Add one"
 Form1.ShowModal
 """
 properties = [
-  { name = "ShowCursor", type = "bool", default = true, doc = "The pointer that shows what it does is drawn over the window (an arrow with a dot in the theme's accent; a ring at each click). False: the actions happen at once, unseen." },
-  { name = "Speed", type = "float", default = 1, range = "0..20", doc = "How fast the pointer glides and the text is typed: 1 a person's pace, 2 twice as fast, 0 at once." },
+  { name = "ShowCursor", type = "bool", default = true, category = "Appearance", doc = "The pointer that shows what it does is drawn over the window (an arrow with a dot in the theme's accent; a ring at each click). False: the actions happen at once, unseen." },
+  { name = "Speed", type = "float", default = 1, range = "0..20", category = "Behavior", doc = "How fast the pointer glides and the text is typed: 1 a person's pace, 2 twice as fast, 0 at once." },
   { name = "Busy", type = "bool", access = "read", design = false, doc = "True while actions wait or run." },
   { name = "Pending", type = "int", access = "read", design = false, doc = "How many actions wait or run." },
   { name = "LastResult", type = "string", access = "read", design = false, doc = "The last action's sentence (what OnDone said last)." },

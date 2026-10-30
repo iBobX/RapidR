@@ -1103,6 +1103,9 @@ END SUB
 '   search:<text>        the toolbox's search box
 '   palette:<text>       the command palette, opened with that typed
 '   pick:<Name>          a component selected in the active designer
+'   namewidth:<pixels>   the Properties pane's divider left there (as dragged) and
+'                        the settings kept, as when Studio closes (a test starts
+'                        Studio again on them)
 '   newproject:<template>|<folder>|<name>   File > New Project's Create
 '   rename:<file>|<new name>   F2 in the project tree, the name typed
 '   remove:<file>        Delete in the project tree (it asks first)
@@ -1136,6 +1139,9 @@ FUNCTION PanelStep(Stp AS STRING) AS INTEGER
       ' (as its OnSelect)
       InspectorRowSelected arg
     CASE "filter": Inspector.Filter = arg
+    CASE "namewidth"
+      Inspector.NameWidth = VAL(arg)
+      SaveSettings
     CASE "event": InspectorEvent arg
     CASE "focus": Dock.FocusPane(arg)
     CASE "search": Toolbox.Filter = arg

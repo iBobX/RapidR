@@ -459,6 +459,14 @@ msgstr "Sin eventos"
 msgid "Nothing to inspect"
 msgstr "Nada que inspeccionar"
 
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "new"
+msgstr "nuevo"
+
+#: crates/rapidr-ui-kernel/src/components/panels/inspector/geo.rs
+msgid "Not in classic programs"
+msgstr "No está en los programas clásicos"
+
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Events"
 msgstr "Eventos"
@@ -486,10 +494,6 @@ msgstr "{count} propiedades"
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "values differ"
 msgstr "los valores difieren"
-
-#: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-msgid "RapidR extension"
-msgstr "Extensión de RapidR"
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Anchor left"
@@ -1149,10 +1153,6 @@ msgstr "Red"
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Window"
 msgstr "Ventana"
-
-#: crates/rapidr-value/src/panels/inspector/model.rs
-msgid "RapidR extensions"
-msgstr "Extensiones de RapidR"
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Add a column"

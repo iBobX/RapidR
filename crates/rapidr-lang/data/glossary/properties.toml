@@ -49,7 +49,7 @@ BMPLeaf = { category = "Appearance", doc = "The picture (a .BMP file name) drawn
 BMPMinus = { category = "Appearance", doc = "The picture (a .BMP file name) of the button that collapses an outline node; write-only." }
 BMPOpen = { category = "Appearance", doc = "The picture (a .BMP file name) drawn beside an expanded outline node; write-only." }
 BMPPlus = { category = "Appearance", doc = "The picture (a .BMP file name) of the button that expands an outline node; write-only." }
-Body = { category = "Misc", doc = "The text shown under the notification's title." }
+Body = { category = "Window", doc = "The text shown under the notification's title." }
 Bold = { category = "Font", doc = "True for a bold font." }
 BorderStyle = { category = "Appearance", doc = "The border: one of the `bsXXX` constants. On a form, `bsSizeable` lets the user resize it, `bsDialog` doesn't, `bsNone` has no title bar." }
 Bottom = { category = "Layout", doc = "The rectangle's bottom edge, in pixels." }
@@ -112,7 +112,7 @@ ContentLength = { category = "Network", doc = "The length in bytes of the reques
 ContentType = { category = "Network", doc = "The type of the request's body (`CONTENT_TYPE`); read-only." }
 Controls = { category = "Media", doc = "Shows the browser's play, pause and volume controls on the audio or video." }
 Cookie = { category = "Network", doc = "The cookies sent with the request (`HTTP_COOKIE`); read-only." }
-Copies = { category = "Misc", doc = "How many copies to print." }
+Copies = { category = "Behavior", doc = "How many copies to print." }
 CopyMode = { category = "Drawing", doc = "How `Draw` and `CopyRect` combine the source with what's there: one of the `cmXXX` raster operations (`cmSrcCopy` copies)." }
 Count = { category = "Data", doc = "How many items it holds: list items, tree nodes, strings, menu items, images, JSON entries or designed components." }
 CssClass = { category = "Appearance", doc = "The element's CSS class names (its `class` attribute)." }
@@ -212,7 +212,7 @@ GridLines = { category = "Appearance", doc = "Draws lines between the rows and c
 GridLineWidth = { category = "Appearance", doc = "The width of the lines between cells, in pixels." }
 GridWidth = { category = "Layout", doc = "The width of all the grid's columns together, in pixels." }
 GroupIndex = { category = "Behavior", doc = "Buttons with the same non-zero number act as a group: pressing one raises the others." }
-Handle = { category = "Misc", doc = "The window (or other system object's) handle, for API calls and for components that take one." }
+Handle = { category = "Data", doc = "The window (or other system object's) handle, for API calls and for components that take one." }
 HasChildren = { category = "Data", doc = "On a tree node (`Item(i).HasChildren`), whether it has child nodes; setting it shows a button before any are added." }
 Hash = { category = "Data", doc = "The same as Route: the address's `#hash` without the `#`." }
 HasSubKeys = { category = "Data", doc = "Non-zero when the open registry key has subkeys; read-only." }
@@ -235,7 +235,7 @@ HorzVisible = { category = "Layout", doc = "Shows the horizontal scroll bar when
 Host = { category = "Network", doc = "The server's host name or address." }
 HotTrack = { category = "Appearance", doc = "Highlights the item, tab or header section under the mouse." }
 Html = { category = "Data", doc = "The HTML the web view shows as its page, or the element holds." }
-hWnd = { category = "Misc", doc = "The window that gets the tray icon's messages." }
+hWnd = { category = "Data", doc = "The window that gets the tray icon's messages." }
 ICOHandle = { category = "Appearance", doc = "Sets the icon from a resource handle (`$RESOURCE`); write-only." }
 Icon = { category = "Appearance", doc = "The icon (an .ICO file name) of the window, the application or the image." }
 ImageIndex = { category = "Appearance", doc = "On a tree node (`Item(i).ImageIndex`), the picture from `Images` drawn beside it." }
@@ -370,7 +370,8 @@ Position = { category = "Data", doc = "Where it is now: a progress, scroll or tr
 Poster = { category = "Media", doc = "The picture a video shows before it plays." }
 Pov = { category = "Data", doc = "The joystick's hat direction, in hundredths of a degree clockwise from forward; -1 when centred." }
 Present = { category = "Media", doc = "True when there's a disc in the drive; read-only." }
-PrinterIndex = { category = "Misc", doc = "Which printer prints, an index into `Printers`; -1 the default one." }
+Primary = { category = "Appearance", doc = "Draws the button as the main action of its pane or strip, filled with the accent colour, without making Enter press it (`Default` does both: use it in a dialog)." }
+PrinterIndex = { category = "Behavior", doc = "Which printer prints, an index into `Printers`; -1 the default one." }
 Printers = { category = "Misc", doc = "An installed printer's name, `Printers(i)` from 0; read-only." }
 PrintersCount = { category = "Misc", doc = "The number of installed printers; read-only." }
 Printing = { category = "Misc", doc = "Non-zero while a print job is open (between `BeginDoc` and `EndDoc`); read-only." }
@@ -472,7 +473,7 @@ TabOrder = { category = "Behavior", doc = "The control's place in the Tab key's 
 TabPosition = { category = "Layout", doc = "The side the tabs sit on: 0 top, 1 bottom, 2 left, 3 right." }
 TabStops = { category = "Behavior", doc = "Whether the Tab key stops in a grid column, `TabStops(col)`." }
 TabWidth = { category = "Layout", doc = "On a tab control, each tab's width in pixels (0: fits the text); on a list box, the distance between tab stops in its items." }
-Tag = { category = "Misc", doc = "A number for the program's own use; RapidR never reads it.", range = "any" }
+Tag = { category = "Data", doc = "A number for the program's own use; RapidR never reads it.", range = "any" }
 TagName = { category = "Data", doc = "The element's HTML tag (`div`, `span` …); changing it remakes the element with the new tag." }
 Text = { category = "Data", doc = "The text: an edit's or memo's contents, a combo box's edit text, a list's items one per line, a tree node's caption, a stream's contents." }
 TextStyle = { category = "Appearance", doc = "How the label draws its text, together with `LabelStyle`." }
@@ -500,9 +501,9 @@ TransparentColor = { category = "Appearance", doc = "The colour drawn see-throug
 TransparentMode = { category = "Drawing", doc = "0 takes the see-through colour from the bitmap's bottom-left pixel; 1 uses `TransparentColor`." }
 Type = { category = "Network", doc = "The socket's type: a stream (TCP) or datagram (UDP) socket." }
 U = { category = "Data", doc = "The joystick's fifth axis, 0 to 65535, 32767 at rest." }
-uCallBackMessage = { category = "Misc", doc = "The message number the tray icon sends its window for mouse events." }
-uFlags = { category = "Misc", doc = "Which of the structure's fields hold values (`NIF_ICON`, `NIF_TIP`, `NIF_MESSAGE` …)." }
-uID = { category = "Misc", doc = "The program's own number for the tray icon." }
+uCallBackMessage = { category = "Data", doc = "The message number the tray icon sends its window for mouse events." }
+uFlags = { category = "Data", doc = "Which of the structure's fields hold values (`NIF_ICON`, `NIF_TIP`, `NIF_MESSAGE` …)." }
+uID = { category = "Data", doc = "The program's own number for the tray icon." }
 Underline = { category = "Font", doc = "True for an underlined font." }
 UndockedHeight = { category = "Layout", doc = "The dock form's height while it floats, in pixels (400)." }
 UndockedWidth = { category = "Layout", doc = "The dock form's width while it floats, in pixels (170)." }

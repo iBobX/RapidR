@@ -21,6 +21,9 @@
 //! - `RAPIDR_TEST_RESIZE=w,h`: the frontmost form resized (Width, Height)
 //!   as a user dragging its border would, before the events.
 //! - `RAPIDR_TEST_SPLIT=splitter:delta`: a QSPLITTER dragged by `delta`.
+//! - `RAPIDR_TEST_FRAMES=file`, `RAPIDR_TEST_FRAMES_OF=a,b`: each turn's
+//!   place and size of those components, a line whenever one changed
+//!   (`Desktop::trace_frame`).
 //! - `RAPIDR_TEST_NOFOCUS=1`: forms show with nothing focused ([`no_focus`]).
 //! - `RAPIDR_TEST_FILE_DIALOG=a;b`: what Open/Save dialogs pick (empty:
 //!   Cancel).
