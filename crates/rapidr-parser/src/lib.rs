@@ -208,6 +208,13 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
     )
 }
 
+/// RapidQ's PRINT right before an ELSE ends without a new line.
+fn print_ends_without_newline(body: &mut [Statement]) {
+    if let Some(Statement::Print(p)) = body.last_mut() {
+        p.append_newline = false;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Parser — recursive descent over the full token stream
 // ---------------------------------------------------------------------------
@@ -255,11 +262,27 @@ struct Parser<'a> {
     dot_scope: usize,
     /// Inside a TYPE's code (its methods): how deep.
     type_scope: usize,
+    /// How RC.EXE pairs the ELSEs of a single-line IF ([`Parser::parse_if`]).
+    line_else: LineElse,
+}
+
+/// RC.EXE's bookkeeping for the ELSEs of one line of single-line IFs: one
+/// IF waiting for its ELSE (a nested IF takes the place of the one waiting),
+/// and one more ELSE put up with after an ELSE took its IF — compiled, and
+/// what follows it never runs. A third ELSE is RC's `ELSE without IF`.
+#[derive(Default)]
+struct LineElse {
+    /// Single-line IFs being parsed, one inside the other.
+    depth: usize,
+    /// An IF is waiting for its ELSE.
+    waiting: bool,
+    /// An ELSE took its IF: one more is put up with.
+    spare: bool,
 }
 
 impl<'a> Parser<'a> {
     fn new(tokens: &'a [Token]) -> Self {
-        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0 }
+        Self { tokens, pos: 0, diagnostics: Vec::new(), pending: Vec::new(), variadic: Vec::new(), for_counter: 0, data_items: Vec::new(), data_labels: Vec::new(), labels_awaiting_data: Vec::new(), keyword_params: Vec::new(), keyword_vars: Vec::new(), default_by_ref: false, own_types: Vec::new(), type_names: Vec::new(), with_objects: Vec::new(), int_consts: std::collections::HashMap::new(), dot_scope: 0, type_scope: 0, line_else: LineElse::default() }
     }
 
     /// A type's name as written: RapidR's name for a RapidQ component
@@ -1797,6 +1820,13 @@ impl<'a> Parser<'a> {
 
         // Single-line IF: non-empty remainder after THEN on the same line
         if !block_after_colon && !self.at_eol() {
+            // (RC.EXE pairs the ELSEs of a line as [`LineElse`] says; the
+            // line's first IF starts afresh)
+            if self.line_else.depth == 0 {
+                self.line_else = LineElse::default();
+            }
+            self.line_else.depth += 1;
+            self.line_else.waiting = true;
             let mut then_body = Vec::new();
             // Parse one or more colon-separated statements on the THEN line
             loop {
@@ -1808,27 +1838,56 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            // RapidQ's PRINT right before the ELSE of a single-line IF ends
+            // RapidQ's PRINT right before an ELSE of a single-line IF ends
             // without a new line (RC.EXE: `IF 1 THEN PRINT "a" ELSE PRINT
             // "b" : PRINT "c"` prints "ac").
             if self.peek_kind() == Some(TokenType::Else) {
-                if let Some(Statement::Print(p)) = then_body.last_mut() {
-                    p.append_newline = false;
-                }
+                print_ends_without_newline(&mut then_body);
             }
             let mut else_body = Vec::new();
-            if self.match_kind(TokenType::Else) || self.peek_kind() == Some(TokenType::Else) {
+            // The ELSE belongs to the IF waiting for one: a nested IF in the
+            // THEN part took its place (and has its ELSE or none), so an
+            // ELSE after the nested IF's own is not this IF's (RC.EXE:
+            // `IF 0 THEN IF 1 THEN a ELSE b ELSE c` prints nothing).
+            let own_else = self.peek_kind() == Some(TokenType::Else) && self.line_else.waiting;
+            if own_else && self.match_kind(TokenType::Else) {
                 self.match_kind(TokenType::Else);
+                self.line_else.waiting = false;
+                self.line_else.spare = true;
                 loop {
                     if let Some(s) = self.parse_statement() {
                         else_body.push(s);
                         else_body.append(&mut self.pending);
+                    }
+                    // A second ELSE (as in a block IF, RapidQ's forms/Window
+                    // Sizer.BAS): RC.EXE takes it, and the statement after
+                    // it never runs — kept, under a condition that is never
+                    // true. The statements after a `:` are the ELSE part's
+                    // still (`IF 0 THEN a ELSE b ELSE c : d` runs b and d).
+                    if self.peek_kind() == Some(TokenType::Else) && self.line_else.spare {
+                        print_ends_without_newline(&mut else_body);
+                        self.advance();
+                        self.line_else.spare = false;
+                        let dead_start = self.pos;
+                        if let Some(s) = self.parse_statement() {
+                            let mut dead = vec![s];
+                            dead.append(&mut self.pending);
+                            let span = self.span_from(dead_start);
+                            else_body.push(Statement::If(IfStatement {
+                                span,
+                                condition: Expression::Literal(Literal { span, value: LiteralValue::Integer(0) }),
+                                then_body: dead,
+                                elseif_branches: Vec::new(),
+                                else_body: Vec::new(),
+                            }));
+                        }
                     }
                     if !self.match_kind(TokenType::Colon) || self.at_eol() {
                         break;
                     }
                 }
             }
+            self.line_else.depth -= 1;
             // `IF c THEN x END IF` on one line: the END IF is redundant.
             if self.peek_kind() == Some(TokenType::End) && self.peek_kind_at(1) == Some(TokenType::If) {
                 self.advance();
@@ -4032,6 +4091,67 @@ mod tests {
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert_eq!((errs[0].0, errs[0].1), (1, 7));
         assert!(errs[0].2.contains("Expected end-of-line but got THEN"), "{errs:?}");
+    }
+
+    /// The PRINT statements of a body, as `append_newline` flags.
+    fn print_newlines(body: &[Statement]) -> Vec<bool> {
+        body.iter().filter_map(|s| if let Statement::Print(p) = s { Some(p.append_newline) } else { None }).collect()
+    }
+
+    #[test]
+    fn single_line_if_print_before_else_keeps_the_line() {
+        // RC.EXE: a PRINT right before an ELSE ends without a new line, the
+        // ELSE's own PRINT (before the end of the line) with one
+        let stmts = parse("IF 1 THEN PRINT \"a\" ELSE PRINT \"b\"\n");
+        let Statement::If(i) = &stmts[0] else { panic!("{stmts:?}") };
+        assert_eq!(print_newlines(&i.then_body), vec![false]);
+        assert_eq!(print_newlines(&i.else_body), vec![true]);
+        // … and before a second ELSE, in a nested IF's ELSE part too
+        let stmts = parse("IF 1 THEN IF 0 THEN PRINT \"e\" ELSE PRINT \"f\" ELSE PRINT \"g\"\n");
+        let Statement::If(outer) = &stmts[0] else { panic!("{stmts:?}") };
+        let Statement::If(inner) = &outer.then_body[0] else { panic!("{outer:?}") };
+        assert_eq!(print_newlines(&inner.then_body), vec![false]);
+        assert_eq!(print_newlines(&inner.else_body), vec![false]);
+    }
+
+    #[test]
+    fn single_line_if_second_else_is_dead_and_the_third_is_an_error() {
+        // `IF 0 THEN a ELSE b ELSE c : d`: b and d run, c never (RC.EXE)
+        let stmts = parse("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3 : x = 4\n");
+        let Statement::If(i) = &stmts[0] else { panic!("{stmts:?}") };
+        assert_eq!(i.else_body.len(), 3, "{i:?}");
+        assert!(matches!(&i.else_body[1], Statement::If(dead) if matches!(&dead.condition, Expression::Literal(Literal { value: LiteralValue::Integer(0), .. }))), "{i:?}");
+        assert!(matches!(&i.else_body[2], Statement::Assignment(_)), "{i:?}");
+        assert!(errors("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3\n").is_empty());
+        // a third ELSE: RC.EXE's `ELSE without IF statement`
+        let errs = errors("IF 0 THEN x = 1 ELSE x = 2 ELSE x = 3 ELSE x = 4\n");
+        assert_eq!(errs.len(), 1, "{errs:?}");
+        assert_eq!((errs[0].0, errs[0].1), (1, 39));
+        assert!(errs[0].2.contains("Expected end-of-line but got ELSE"), "{errs:?}");
+        // a statement is needed after the second one
+        assert!(!errors("IF 0 THEN x = 1 ELSE x = 2 ELSE\n").is_empty());
+    }
+
+    #[test]
+    fn single_line_if_nested_in_then_takes_the_outer_else() {
+        // `IF 0 THEN IF 1 THEN a ELSE b ELSE c`: the second ELSE is the
+        // nested IF's own spare — the outer IF has none (it prints nothing
+        // when false: RC.EXE), and a third ELSE is an error
+        let stmts = parse("IF 0 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3\n");
+        let Statement::If(outer) = &stmts[0] else { panic!("{stmts:?}") };
+        assert!(outer.else_body.is_empty(), "{outer:?}");
+        let Statement::If(inner) = &outer.then_body[0] else { panic!("{outer:?}") };
+        assert_eq!(inner.else_body.len(), 2, "{inner:?}");
+        assert!(!errors("IF 0 THEN IF 1 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3 ELSE x = 4\n").is_empty());
+        // each line starts afresh: the next line's IF has its ELSE
+        let stmts = parse("IF 0 THEN IF 1 THEN x = 1 ELSE x = 2 ELSE x = 3\nIF 0 THEN x = 1 ELSE x = 2\n");
+        let Statement::If(second) = &stmts[1] else { panic!("{stmts:?}") };
+        assert_eq!(second.else_body.len(), 1, "{second:?}");
+        // an ELSE chain: `ELSE IF … ELSE …` — the nested IF's ELSE, then its spare
+        let stmts = parse("IF 0 THEN x = 1 ELSE IF 0 THEN x = 2 ELSE x = 3 ELSE x = 4\n");
+        let Statement::If(first) = &stmts[0] else { panic!("{stmts:?}") };
+        let Statement::If(chain) = &first.else_body[0] else { panic!("{first:?}") };
+        assert_eq!(chain.else_body.len(), 2, "{chain:?}");
     }
 
     #[test]
