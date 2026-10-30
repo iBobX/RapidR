@@ -11,7 +11,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use rapidr_vcs::{create_shared_folder, ErrorKind, FileState, GetLatest, Person, SaveOptions, Share, Versions};
+use rapidr_vcs::{create_shared_folder, write_ignore_file, ErrorKind, FileState, GetLatest, Person, SaveOptions, Share, Versions};
 
 fn ana() -> Person {
     Person::new("Ana", "ana@example.com")
@@ -170,7 +170,7 @@ fn go_back_restore_and_safety_points() {
     let back = v.go_back(&one, &ana()).unwrap();
     let tl = v.timeline(5).unwrap();
     assert_eq!(tl.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), [back.as_str(), two.as_str(), one.as_str()], "Two stays on the timeline");
-    assert!(tl[0].message.starts_with("Go back to \u{201C}One\u{201D}"));
+    assert!(tl[0].message.starts_with("Went back to \u{201C}One\u{201D}"), "{}", tl[0].message);
     assert_eq!(read(&dir, "main.rr"), "PRINT \"one\"\n");
     assert!(dir.join("form.rr").exists() && !dir.join("extra.rr").exists());
     assert!(v.changes().unwrap().is_empty());
@@ -385,6 +385,74 @@ fn a_thousand_versions() {
         assert!(timeline_ms < 100.0 && status_ms < 100.0, "timeline {timeline_ms:.1} ms, status {status_ms:.1} ms");
     }
     if git(&dir, &["status"]).is_some() {
+        fsck(&dir);
+    }
+}
+
+/// (G3) Going back for one file: a new version with that file as it was,
+/// the others' unsaved changes left alone, one Undo; Studio's own folder
+/// (`.rapidr/`) never in a version; RapidR's `.gitignore`.
+#[test]
+fn go_back_one_file_and_studio_folder() {
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = project(&tmp, "app");
+    let mut v = Versions::start(&dir, &ana()).unwrap();
+    assert!(write_ignore_file(&dir).unwrap());
+    assert!(!write_ignore_file(&dir).unwrap(), "written once");
+    assert!(read(&dir, ".gitignore").lines().any(|l| l == ".rapidr/"));
+    write(&dir, "main.rr", "PRINT \"first\"\n");
+    write(&dir, "other.rr", "' other\n");
+    // (the local history Studio keeps: never a change, even when the
+    // project's own .gitignore doesn't name it)
+    write(&dir, ".rapidr/history/index.jsonl", "{}\n");
+    std::fs::write(dir.join(".gitignore"), "# mine\n").unwrap();
+    let first = v.save_version("first", &ana()).unwrap();
+    assert!(v.changes().unwrap().is_empty(), "{:?}", v.changes().unwrap());
+    if let Some(files) = git(&dir, &["ls-files"]) {
+        assert_eq!(files, ".gitignore\nmain.rr\nother.rr\n", ".rapidr/ never saved");
+    }
+    // a project's own .gitignore gets .rapidr/ at its end, nothing else changed
+    assert!(write_ignore_file(&dir).unwrap());
+    assert!(read(&dir, ".gitignore").starts_with("# mine\n") && read(&dir, ".gitignore").ends_with(".rapidr/\n"));
+    write(&dir, "main.rr", "PRINT \"second\"\n");
+    let second = v.save_version("second", &ana()).unwrap();
+    // unsaved work in another file stays as it is
+    write(&dir, "other.rr", "' other, edited\n");
+    // the file itself with unsaved changes: refused, nothing touched
+    write(&dir, "main.rr", "PRINT \"third\"\n");
+    assert_eq!(v.go_back_file("main.rr", &first, &ana()).err().unwrap().kind, ErrorKind::UnsavedChanges);
+    assert_eq!(read(&dir, "main.rr"), "PRINT \"third\"\n");
+    write(&dir, "main.rr", "PRINT \"second\"\n");
+    let back = v.go_back_file("main.rr", &first, &ana()).unwrap();
+    let tl = v.timeline(5).unwrap();
+    assert_eq!(tl.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(), [back.as_str(), second.as_str(), first.as_str()]);
+    assert!(tl[0].message.starts_with("Went back to \u{201C}first\u{201D}") && tl[0].message.ends_with("for main.rr"), "{}", tl[0].message);
+    assert_eq!(read(&dir, "main.rr"), "PRINT \"first\"\n");
+    assert_eq!(read(&dir, "other.rr"), "' other, edited\n", "the other file's unsaved change stays");
+    assert_eq!(v.changes().unwrap().iter().map(|c| c.path.as_str()).collect::<Vec<_>>(), ["other.rr"]);
+    if let Some(st) = git(&dir, &["status", "--porcelain"]) {
+        assert_eq!(st, " M other.rr\n");
+        assert_eq!(git(&dir, &["show", "HEAD:main.rr"]).unwrap(), "PRINT \"first\"\n");
+        fsck(&dir);
+    }
+    // already as it was: nothing to do
+    assert_eq!(v.go_back_file("main.rr", &first, &ana()).err().unwrap().kind, ErrorKind::NothingToSave);
+    // one Undo: back on "second", main.rr as it was, other.rr untouched
+    assert!(v.undo().unwrap().starts_with("Went back to \u{201C}first\u{201D}"));
+    assert_eq!(v.timeline(1).unwrap()[0].id, second);
+    assert_eq!(read(&dir, "main.rr"), "PRINT \"second\"\n");
+    assert_eq!(read(&dir, "other.rr"), "' other, edited\n");
+    if let Some(st) = git(&dir, &["status", "--porcelain"]) {
+        assert_eq!(st, " M other.rr\n");
+        fsck(&dir);
+    }
+    // a file the old version didn't have goes (a new version without it)
+    write(&dir, "new.rr", "' new\n");
+    v.save_version_with("new file", &ana(), &SaveOptions { files: Some(vec!["new.rr".into()]), allow_secrets: false }).unwrap();
+    v.go_back_file("new.rr", &first, &ana()).unwrap();
+    assert!(!dir.join("new.rr").exists());
+    if let Some(files) = git(&dir, &["ls-files"]) {
+        assert_eq!(files, ".gitignore\nmain.rr\nother.rr\n");
         fsck(&dir);
     }
 }
