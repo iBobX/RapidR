@@ -622,7 +622,7 @@ impl ComponentKind for ProjectTree {
                         let kind = if r.main { tr_ui_fill("{kind}, the main file", &[("kind", &kind)]) } else { kind };
                         // (Versions G3: its state against the last version, in words)
                         match m.badge(p) {
-                            Some(b) => format!("{kind}, {}", rapidr_value::panels::project_tree::ProjectTree::badge_words(b)),
+                            Some(b) => tr_ui_fill("{kind}, {badge}", &[("kind", &kind), ("badge", &rapidr_value::panels::project_tree::ProjectTree::badge_words(b))]),
                             None => kind,
                         }
                     })

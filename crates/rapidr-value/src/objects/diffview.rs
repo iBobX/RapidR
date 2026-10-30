@@ -602,7 +602,7 @@ impl DiffView {
             self.view = (w, h);
             self.ui_font = ui_font.clone();
             let label = |s: &str| super::text::text_size(s, ui_font).0;
-            self.button_w = (label("Accept") + 34, label("Reject") + 34);
+            self.button_w = (label(&crate::i18n::tr_ui("Accept")) + 34, label(&crate::i18n::tr_ui("Reject")) + 34);
             // (the form view's pictures fit the width: with a scroll bar,
             // the width left beside it)
             if let Some(f) = self.form.as_mut() {
@@ -748,29 +748,40 @@ impl DiffView {
             return String::new();
         }
         let what = self.hunk_what(h);
+        use crate::i18n::{tr_ui, tr_ui_fill};
+        let (n, total) = ((h + 1).to_string(), self.hunks.len().to_string());
         if self.read_only {
-            return format!("Hunk {} of {}: {what}", h + 1, self.hunks.len());
+            return tr_ui_fill("Hunk {n} of {total}: {what}", &[("n", &n), ("total", &total), ("what", &what)]);
         }
         let state = match self.state(h) {
-            1 => "accepted",
-            -1 => "rejected",
-            _ => "undecided",
+            1 => tr_ui("accepted"),
+            -1 => tr_ui("rejected"),
+            _ => tr_ui("undecided"),
         };
-        format!("Hunk {} of {}: {what}, {state}", h + 1, self.hunks.len())
+        tr_ui_fill("Hunk {n} of {total}: {what}, {state}", &[("n", &n), ("total", &total), ("what", &what), ("state", &state)])
     }
 
     /// What hunk `h` changes: "lines 40–45 changed", "2 lines added after
     /// line 12", "line 7 removed".
     fn hunk_what(&self, h: usize) -> String {
         let Some(hk) = self.hunks.get(h) else { return String::new() };
-        let span = |r: &Range<usize>| if r.len() == 1 { format!("line {}", r.start + 1) } else { format!("lines {}\u{2013}{}", r.start + 1, r.end) };
+        use crate::i18n::tr_ui_fill;
+        // (whole sentences: the number of lines, and what happened to them, agree in other languages)
+        let (n, from, to) = (hk.left.start + 1, (hk.left.start + 1).to_string(), hk.left.end.to_string());
+        let n = n.to_string();
+        let one = hk.left.len() == 1;
         match (hk.left.is_empty(), hk.right.is_empty()) {
-            (false, false) => format!("{} changed", span(&hk.left)),
+            (false, false) => {
+                if one { tr_ui_fill("line {n} changed", &[("n", &n)]) } else { tr_ui_fill("lines {from}–{to} changed", &[("from", &from), ("to", &to)]) }
+            }
             (true, _) => {
                 let n = hk.right.len();
-                format!("{n} line{} added after line {}", if n == 1 { "" } else { "s" }, hk.left.start)
+                let after = hk.left.start.to_string();
+                if n == 1 { tr_ui_fill("1 line added after line {after}", &[("after", &after)]) } else { tr_ui_fill("{n} lines added after line {after}", &[("n", &n.to_string()), ("after", &after)]) }
             }
-            (_, true) => format!("{} removed", span(&hk.left)),
+            (_, true) => {
+                if one { tr_ui_fill("line {n} removed", &[("n", &n)]) } else { tr_ui_fill("lines {from}–{to} removed", &[("from", &from), ("to", &to)]) }
+            }
         }
     }
 

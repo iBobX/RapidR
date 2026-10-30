@@ -13,6 +13,7 @@
 //! Every part can be clicked (as the mouse would): the ids say which
 //! ([`decode`]).
 
+use crate::i18n::{tr_ui, tr_ui_fill};
 use super::geometry::{Button, Documents, Geometry, Group, Slot, Titles};
 use super::manager::Manager;
 use super::{Axis, Node};
@@ -88,12 +89,12 @@ pub fn describe_manager(id: &str, m: &Manager, g: &Geometry, at: (i64, i64)) -> 
     let name_of = |path: &[usize]| -> String {
         match m.layout.root.at(path) {
             Some(Node::Tabs { panes, active }) => titles.title(&panes[*active]),
-            Some(Node::Documents) => "Documents".into(),
+            Some(Node::Documents) => tr_ui("Documents"),
             Some(split) => {
                 let mut all = Vec::new();
                 split.panes(&mut all);
                 if split.has_documents() {
-                    "Documents".into()
+                    tr_ui("Documents")
                 } else {
                     all.first().map(|p| titles.title(p)).unwrap_or_default()
                 }
@@ -107,7 +108,7 @@ pub fn describe_manager(id: &str, m: &Manager, g: &Geometry, at: (i64, i64)) -> 
         a.push(s.index);
         let mut b = s.path.clone();
         b.push(s.index + 1);
-        sp.name = format!("Resize {} and {}", name_of(&a), name_of(&b));
+        sp.name = tr_ui_fill("Resize {a} and {b}", &[("a", &name_of(&a)), ("b", &name_of(&b))]);
         // (ARIA's sense: a bar between left and right panes stands up)
         sp.orientation = Some(if s.axis == Axis::Row { Orientation::Vertical } else { Orientation::Horizontal });
         // (where it is as a percentage of its split: the share before it —
@@ -124,7 +125,7 @@ pub fn describe_manager(id: &str, m: &Manager, g: &Geometry, at: (i64, i64)) -> 
     }
     for (i, st) in g.strip_tabs.iter().enumerate() {
         let mut b = AccessNode::new(part_id(id, PART_ITEM, STRIPS + i), Role::Button);
-        b.name = format!("{} (auto-hidden)", titles.title(&st.pane));
+        b.name = tr_ui_fill("{pane} (auto-hidden)", &[("pane", &titles.title(&st.pane))]);
         b.states.expanded = Some(m.flyout.as_deref() == Some(st.pane.as_str()));
         b.actions = vec![Action::Click];
         b.bounds = moved(st.rect, at);
@@ -141,8 +142,8 @@ pub fn describe_group(id: &str, m: &Manager, gr: &Group, at: (i64, i64), active:
     let shown = gr.panes.get(gr.active).cloned().unwrap_or_default();
     n.name = titles.title(&shown);
     n.description = match gr.slot {
-        Slot::Float(_) => "Floating".into(),
-        Slot::Flyout => "Auto-hidden".into(),
+        Slot::Float(_) => tr_ui("Floating"),
+        Slot::Flyout => tr_ui("Auto-hidden"),
         Slot::Docked(_) => String::new(),
     };
     n.states.focused = false;
@@ -164,8 +165,10 @@ pub fn describe_group(id: &str, m: &Manager, gr: &Group, at: (i64, i64), active:
     for (b, r) in &gr.buttons {
         let mut node = AccessNode::new(part_id(id, PART_ITEM, button_index(*b)), Role::Button);
         node.name = match (b, gr.slot) {
-            (Button::Pin, Slot::Flyout) => format!("Dock {}", n.name),
-            _ => format!("{} {}", b.name(), n.name),
+            (Button::Pin, Slot::Flyout) => tr_ui_fill("Dock {pane}", &[("pane", &n.name)]),
+            (Button::Pin, _) => tr_ui_fill("Auto Hide {pane}", &[("pane", &n.name)]),
+            (Button::Dock, _) => tr_ui_fill("Dock {pane}", &[("pane", &n.name)]),
+            (Button::Close, _) => tr_ui_fill("Close {pane}", &[("pane", &n.name)]),
         };
         node.actions = vec![Action::Click];
         node.bounds = moved(*r, at);
@@ -180,27 +183,27 @@ pub fn describe_group(id: &str, m: &Manager, gr: &Group, at: (i64, i64), active:
 pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) -> AccessNode {
     let titles = m.titles();
     let mut n = AccessNode::new(node_id(id), Role::Group);
-    n.name = "Documents".into();
+    n.name = tr_ui("Documents");
     n.bounds = (at.0, at.1, d.rect.2, d.rect.3);
     let active = m.active_document();
     let many = d.groups.len() > 1;
     let mut k = 0;
     for (g, gr) in d.groups.iter().enumerate() {
         let mut list = AccessNode::new(part_id(id, PART_TAB, if g == 0 { TABLIST } else { DOC_TABLISTS + g }), Role::TabList);
-        list.name = if many { format!("Documents, group {}", g + 1) } else { "Documents".into() };
+        list.name = if many { tr_ui_fill("Documents, group {n}", &[("n", &(g + 1).to_string())]) } else { tr_ui("Documents") };
         list.bounds = moved((gr.rect.0, gr.rect.1, gr.rect.2, super::geometry::DOC_TABS), at);
         for (i, t) in gr.tabs.iter().enumerate() {
             let mut tab = AccessNode::new(part_id(id, PART_TAB, k), Role::Tab);
             tab.name = titles.title(&t.pane);
             if titles.modified(&t.pane) {
-                tab.description = "Not saved".into();
+                tab.description = tr_ui("Not saved");
             }
             tab.states.selected = Some(i == gr.active && (active.as_deref() == Some(t.pane.as_str()) || !many));
             tab.actions = vec![Action::Click];
             tab.bounds = moved(t.rect, at);
             if let Some(c) = t.close {
                 let mut close = AccessNode::new(part_id(id, PART_ITEM, CLOSES + k), Role::Button);
-                close.name = format!("Close {}", tab.name);
+                close.name = tr_ui_fill("Close {pane}", &[("pane", &tab.name)]);
                 close.actions = vec![Action::Click];
                 close.bounds = moved(c, at);
                 tab.children.push(close);
@@ -213,7 +216,7 @@ pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) 
             let shown = gr.shown().cloned().unwrap_or_default();
             let now = titles.view(&shown);
             let mut sw = AccessNode::new(part_id(id, PART_ITEM, VIEWS + g * 16 + 15), Role::Group);
-            sw.name = format!("{} view", titles.title(&shown));
+            sw.name = tr_ui_fill("{pane} view", &[("pane", &titles.title(&shown))]);
             for (s, (v, caption, r)) in gr.switch.iter().enumerate() {
                 let mut b = AccessNode::new(part_id(id, PART_ITEM, VIEWS + g * 16 + s), Role::RadioButton);
                 b.name = caption.clone();
@@ -227,7 +230,7 @@ pub fn describe_documents(id: &str, m: &Manager, d: &Documents, at: (i64, i64)) 
     }
     for (i, s) in d.splitters.iter().enumerate() {
         let mut sp = AccessNode::new(part_id(id, PART_ITEM, DOC_SPLITTERS + i), Role::Splitter);
-        sp.name = "Resize document groups".into();
+        sp.name = tr_ui("Resize document groups");
         sp.orientation = Some(if s.axis == Axis::Row { Orientation::Vertical } else { Orientation::Horizontal });
         // (as the dock manager's: a percentage)
         if let Some((_, ext)) = d.extents.iter().find(|(p, _)| *p == s.path) {

@@ -5889,10 +5889,12 @@ msgstr "Tu programa se detuvo: un problema de RapidR"
 msgid "RapidR Light"
 msgstr "RapidR claro"
 
+#. too long
 #: ide/panels.inc
 msgid "RapidR Dark"
 msgstr "RapidR oscuro"
 
+#. too long
 #: ide/panels.inc
 msgid "RapidR High Contrast"
 msgstr "RapidR contraste alto"

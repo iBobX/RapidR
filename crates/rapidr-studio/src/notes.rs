@@ -126,3 +126,34 @@ pub fn ui_note(en: &str) -> String {
     tr_note!("a syntax error");
     en.to_string()
 }
+
+/// What a step in a project's history says it did ("Saved the version “first”",
+/// "Went back to “first” (a1b2c3d)"), in the person's language: Versions'
+/// Undo line. The words are written into the history in English (they are
+/// data, with the versions' own messages); they are translated where shown.
+pub fn ui_history(en: &str) -> String {
+    let language = rapidr_value::i18n::language();
+    if en.is_empty() || language == "en" || language.starts_with("en-") {
+        return en.to_string();
+    }
+    if let Some(inner) = en.strip_prefix("Undid: ") {
+        return tr_ui_fill("Undid: {words}", &[("words", &ui_history(inner))]);
+    }
+    macro_rules! tr_note {
+        ($tpl:literal) => {
+            if let Some(v) = match_whole($tpl, en) {
+                let v: Vec<(&str, &str)> = v.iter().map(|(n, x)| (n.as_str(), x.as_str())).collect();
+                return tr_ui_fill($tpl, &v);
+            }
+        };
+    }
+    tr_note!("Saved the version “{message}”");
+    tr_note!("Went back to “{message}” ({id}) for {path}");
+    tr_note!("Went back to “{message}” ({id})");
+    tr_note!("Went back to the checkpoint “{label}”");
+    tr_note!("Restored {path} from version {id}");
+    tr_note!("Started the experiment “{name}”");
+    tr_note!("Switched to the experiment “{name}”");
+    tr_note!("Got the latest from the shared folder ({experiment})");
+    en.to_string()
+}

@@ -319,7 +319,7 @@ pub fn peek_layout(c: &Model, ui: &CodeUi, abs: (i64, i64), scale: f64, client: 
     let shown = if pk.hunk.kind() == "added" { 0 } else { pk.old_lines.len().min(PEEK_LINES) + usize::from(pk.old_lines.len() > PEEK_LINES) };
     let widest = pk.old_lines.iter().take(PEEK_LINES).map(|l| text_size(&format!("\u{2212} {l}"), &cf).0).max().unwrap_or(0);
     let (uw, cw) = peek_buttons(&uf);
-    let w = (widest + 32).max(text_size(&peek_title(pk.hunk.kind()), &uf).0 + 32).max(uw + cw + 40).clamp(300, 640).min((client.0 - 8).max(200));
+    let w = (widest + 32).max(text_size(&peek_title(pk.hunk.kind()), &Font { styles: 1, ..uf.clone() }).0 + 32).max(uw + cw + 40).clamp(300, 640).min((client.0 - 8).max(200));
     let h = title_h + shown as i64 * line_h + 8 + PEEK_BUTTON_H + 10;
     let x = ax.clamp(0, (client.0 - w).max(0));
     let y = if bottom + 2 + h <= client.1 || top - h - 2 < 0 { bottom + 2 } else { top - h - 2 };

@@ -3033,3 +3033,212 @@ msgstr "Se deshizo el cambio."
 #: crates/rapidr-ui-kernel/src/components/menubar.rs
 msgid "Menu"
 msgstr "Menú"
+
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Undid: {words}"
+msgstr "Se deshizo: {words}"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Saved the version “{message}”"
+msgstr "Se guardó la versión “{message}”"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to “{message}” ({id}) for {path}"
+msgstr "Se volvió a “{message}” ({id}) para {path}"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to “{message}” ({id})"
+msgstr "Se volvió a “{message}” ({id})"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to the checkpoint “{label}”"
+msgstr "Se volvió al punto de control “{label}”"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Restored {path} from version {id}"
+msgstr "Se restauró {path} desde la versión {id}"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Started the experiment “{name}”"
+msgstr "Se inició el experimento “{name}”"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Switched to the experiment “{name}”"
+msgstr "Se cambió al experimento “{name}”"
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Got the latest from the shared folder ({experiment})"
+msgstr "Se obtuvo lo último de la carpeta compartida ({experiment})"
+
+#: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
+msgid "{kind}, {badge}"
+msgstr "{kind}, {badge}"
+
+#: crates/rapidr-value/src/dock/access.rs crates/rapidr-value/src/dock/look.rs
+msgid "Documents"
+msgstr "Documentos"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Resize {a} and {b}"
+msgstr "Cambiar el tamaño de {a} y {b}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "{pane} (auto-hidden)"
+msgstr "{pane} (ocultado automáticamente)"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Floating"
+msgstr "Flotante"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Auto-hidden"
+msgstr "Ocultado automáticamente"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Dock {pane}"
+msgstr "Acoplar {pane}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Auto Hide {pane}"
+msgstr "Ocultar automáticamente {pane}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Close {pane}"
+msgstr "Cerrar {pane}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Documents, group {n}"
+msgstr "Documentos, grupo {n}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Not saved"
+msgstr "Sin guardar"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "{pane} view"
+msgstr "Vista de {pane}"
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Resize document groups"
+msgstr "Cambiar el tamaño de los grupos de documentos"
+
+#: crates/rapidr-value/src/dock/geometry.rs
+msgid "Side by Side"
+msgstr "Lado a lado"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock left"
+msgstr "Acoplar a la izquierda"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock top"
+msgstr "Acoplar arriba"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock right"
+msgstr "Acoplar a la derecha"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock bottom"
+msgstr "Acoplar abajo"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Left of {pane}"
+msgstr "A la izquierda de {pane}"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Right of {pane}"
+msgstr "A la derecha de {pane}"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Above of {pane}"
+msgstr "Encima de {pane}"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Below of {pane}"
+msgstr "Debajo de {pane}"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "As a document"
+msgstr "Como documento"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Tab with {pane}"
+msgstr "Pestaña con {pane}"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Float"
+msgstr "Flotar"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide left"
+msgstr "Ocultar automáticamente a la izquierda"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide top"
+msgstr "Ocultar automáticamente arriba"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide right"
+msgstr "Ocultar automáticamente a la derecha"
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide bottom"
+msgstr "Ocultar automáticamente abajo"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "Hunk {n} of {total}: {what}"
+msgstr "Fragmento {n} de {total}: {what}"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "accepted"
+msgstr "aceptado"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "rejected"
+msgstr "rechazado"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "undecided"
+msgstr "sin decidir"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "Hunk {n} of {total}: {what}, {state}"
+msgstr "Fragmento {n} de {total}: {what}, {state}"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "line {n} changed"
+msgstr "línea {n} cambiada"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "lines {from}–{to} changed"
+msgstr "líneas {from}–{to} cambiadas"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "1 line added after line {after}"
+msgstr "1 línea añadida después de la línea {after}"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "{n} lines added after line {after}"
+msgstr "{n} líneas añadidas después de la línea {after}"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "line {n} removed"
+msgstr "línea {n} quitada"
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "lines {from}–{to} removed"
+msgstr "líneas {from}–{to} quitadas"
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "new, not in a version yet"
+msgstr "nuevo, aún no está en ninguna versión"
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "removed since the last version"
+msgstr "quitado desde la última versión"
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "changed since the last version"
+msgstr "cambiado desde la última versión"

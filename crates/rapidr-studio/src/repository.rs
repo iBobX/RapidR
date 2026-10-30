@@ -73,7 +73,7 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
         "error" => text(r.error),
         "errorkind" => text(r.kind),
         "secrets" => text(r.secrets.join("\n")),
-        "canundo" => text(engine::can_undo(&r).unwrap_or_default()),
+        "canundo" => text(crate::notes::ui_history(&engine::can_undo(&r).unwrap_or_default())),
         "historyfolder" => text(if r.folder.is_empty() { String::new() } else { local_history::history_folder(&r.folder) }),
         // (when the timeline's and the history's times are: "2 minutes ago")
         "now" => Value::Integer(local_history::now()),

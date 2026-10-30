@@ -54,7 +54,7 @@ mkdirSync(scratch, { recursive: true });
 
 // ---- what may stay English: names --------------------------------------------
 // (RapidR's product words, the keys' names, the code's file types)
-const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
+const NAMES = new Set(["snap", "guides", "grid", "arguments", "targets", "desktop", "web", "true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
 {
   const r = spawnSync(RAPIDR, ["lang", "export", "--json"], { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 28 });
   const walk = (v) => {
@@ -94,7 +94,13 @@ function english(text, programWords) {
 // squeezed beside Search's at the left group's default width (the dock
 // trims the longest tab first; the whole title is its tooltip and its
 // accessible name).
-const KNOWN_LEFT = [/^\[Þŕöĵéçţ·*…$/];
+const KNOWN_LEFT = [
+  /^\[Þŕöĵéçţ·*…$/,
+  // (the Properties tab beside Help's, the left group's tabs beside Versions': the dock trims the longest title first)
+  /^\[Þŕöþéŕţíéš·*…$/, /^\[Þŕ…$/, /^\[Šé…$/, /^\[Vé…$/,
+  // (the description under the project's rows, longer than its two lines)
+  /^RapidR föĺĺöŵš/,
+];
 // A translated text shortened ("[Šàvé ÿö…"), cut by the layout.
 const shortened = (text) => PSEUDO.test(text) && text.includes("…") && !/\][^[]*$/.test(text);
 function wordsOf(file) {
@@ -111,6 +117,10 @@ function wordsOf(file) {
 const BAD = join(ROOT, "tests/results/studio-lang-bad/bad.rr");
 mkdirSync(dirname(BAD), { recursive: true });
 writeFileSync(BAD, '\' a program with a mistake: Problems says it\nDIM b AS RButton\nPRINT "x" THEN\n');
+// (a project the scenes change — Versions starts a repository in it — is a copy)
+const VERSIONS_COPY = { copy: "tests/fixtures/studio_versions", copyOpen: "Hello.rrproj" };
+const V_START = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
+const HELP_OPEN = "tests/fixtures/studio_help/main.rr";
 const XX_SCENES = [
   { name: "main", open: "" },
   { name: "project", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 6 },
@@ -121,6 +131,16 @@ const XX_SCENES = [
   { name: "find", open: "examples/gui/hello_form.rr", do: "wait,edit.findInFiles", delay: 5 },
   { name: "problems", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5 },
   { name: "palette", open: "", do: "view.commandPalette" },
+  // (ES-REFERENCE part 2: the words Rust writes around the docs — the Help
+  // pane's start page and its page for a word nothing knows, the code
+  // editor's change box, the Theme values in Properties. The pages that
+  // carry the registry's docs are judged in Spanish below: the docs have no
+  // pseudo-language)
+  { name: "help-start", open: HELP_OPEN, do: "wait,view.code,wait,help:", delay: 5 },
+  { name: "help-unknown", open: HELP_OPEN, do: "wait,help:RapidR", delay: 5 },
+  // (the Versions pane's own "What Changed?" button and the project's path are not this scene's)
+  { name: "change-box", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /] },
+  { name: "project-theme", open: "examples/gui/hello_form.rr", do: "wait,view.designer,project:select,row:Theme,wait", delay: 6 },
 ];
 
 function runDesktop(scene, lang, theme) {
@@ -202,7 +222,7 @@ function judge(run, scene, programWords) {
   const w = run.report[(scene.window || 1) - 1] || run.report[0];
   const texts = (w && w.texts) || [];
   const eng = [...new Set(texts.filter((t) => english(t.text, programWords)).map((t) => t.text))];
-  const cut = [...new Set(texts.filter((t) => (t.cut && PSEUDO.test(t.text)) || shortened(t.text)).map((t) => t.text))].filter((t) => !KNOWN_LEFT.some((k) => k.test(t)));
+  const cut = [...new Set(texts.filter((t) => (t.cut && PSEUDO.test(t.text)) || shortened(t.text)).map((t) => t.text))].filter((t) => !KNOWN_LEFT.some((k) => k.test(t)) && !(scene.cutOk || []).some((k) => k.test(t)));
   return { form: w ? w.form : "?", count: texts.length, eng, cut, texts };
 }
 
@@ -309,10 +329,18 @@ function englishLeft(texts, programWords) {
 }
 // The Alt+<letter> that opens each menu in Spanish (the menu bar's mnemonics)
 const ALT = (c) => `studio.__key_${c.toUpperCase().charCodeAt(0)}_1`;
-const VERSIONS_COPY = { copy: "tests/fixtures/studio_versions", copyOpen: "Hello.rrproj" };
-const V_START = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
 const ES_SCENES = [
   ...XX_SCENES,
+  // (ES-REFERENCE part 2: the pages and popups that carry the registry's
+  // docs, in Spanish: a component's page, a statement's, a member's by F1 in
+  // the code, an event's, a hover, the completion list)
+  { name: "help-component", open: HELP_OPEN, do: "wait,help:RButton", delay: 5 },
+  { name: "help-statement", open: HELP_OPEN, do: "wait,help:PRINT", delay: 5 },
+  { name: "help-function", open: HELP_OPEN, do: "wait,help:MID$", delay: 5 },
+  { name: "help-member", open: "examples/gui/hello_form.rr", do: "wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents", delay: 5 },
+  { name: "help-event", open: "examples/gui/hello_form.rr", do: "wait,view.code,code:Answer.Caption=>Answer.OnClick,help.contents", delay: 5 },
+  { name: "hover", open: "examples/gui/hello_form.rr", do: 'focus:codedoc(0),key:Ctrl+End,key:Enter,type:ShowMessage "Hi",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait', delay: 6 },
+  { name: "completion", open: "examples/gui/hello_form.rr", do: "focus:codedoc(0),key:Ctrl+End,key:Enter,type:form.,wait,wait", delay: 6 },
   ...[["archivo", "A"], ["edicion", "E"], ["ver", "V"], ["proyecto", "P"], ["ejecutar", "J"], ["depurar", "D"], ["formato", "F"], ["herramientas", "H"], ["ventana", "N"], ["ayuda", "U"]].map(([n, k]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: ALT(k), delay: 5 })),
   // (two sub-menus: File > Abrir reciente (R), Edición > Avanzado (V))
   ...[["archivo-reciente", "A", 82], ["edicion-avanzado", "E", 86]].map(([n, k, sub]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: `${ALT(k)},studio.__key_${sub}`, delay: 5 })),
@@ -342,7 +370,8 @@ const ES_SCENES = [
       // (a name scrolled out of its list — RMemo at the toolbox's edge — is no text a language cuts)
       const nameOnly = (t) => { const w = t.match(/[A-Za-z][A-Za-z']+/g) || []; return w.length > 0 && w.every((x) => NAMES.has(x.toLowerCase()) || programWords.has(x.toLowerCase())); };
       // (nor is a path of the machine that runs the test, cut short in the Output pane)
-      const cut = [...new Set(texts.filter((t) => t.cut && !nameOnly(t.text) && !/[/\\]/.test(t.text)).map((t) => t.text))];
+      // (nor is a line number half scrolled out of the editor)
+      const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text)).map((t) => t.text))];
       check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       else if (cut.length) left.push(`${name}: ${cut.join(" | ")}`);
@@ -373,6 +402,16 @@ const SWITCH = [
   { name: "es-help-troubleshooting", lang: "es", do: "wait,manual:troubleshooting.md", expect: ["Solución de problemas", "Instalar y empezar"], none: ["No traducido aún"] },
   // (a page with no translation: in English, said so)
   { name: "es-help-english", lang: "es", do: "wait,manual:language.md", expect: ["No traducido aún", "The language"] },
+  // (ES-REFERENCE part 2: the Help pane's own words around an entry, the
+  // hover's and the completion's, the change box, the Theme values)
+  { name: "es-help-component", lang: "es", open: HELP_OPEN, do: "wait,help:RButton", delay: 5, expect: ["Propiedades (", "Métodos (", "Eventos (", "Insertar en el código", "Su evento predeterminado es"], none: ["Properties (", "Insert into the code"] },
+  { name: "es-help-statement", lang: "es", open: HELP_OPEN, do: "wait,help:PRINT", delay: 5, expect: ["Instrucción", "Insertar en el código"], none: ["Insert into the code"] },
+  { name: "es-help-member", lang: "es", open: "examples/gui/hello_form.rr", do: "wait,view.code,code:Answer.Caption=>Answer.Caption,help.contents", delay: 5, expect: ["Miembro de", "Propiedad de RLabel"] },
+  { name: "es-help-start", lang: "es", open: HELP_OPEN, do: "wait,view.code,wait,help:", delay: 5, expect: ["Para empezar", "Primeros pasos"], none: ["Start with"] },
+  { name: "es-help-unknown", lang: "es", open: HELP_OPEN, do: "wait,help:RapidR", delay: 5, expect: ["No hay entrada para RapidR"] },
+  { name: "es-hover", lang: "es", open: "examples/gui/hello_form.rr", do: 'focus:codedoc(0),key:Ctrl+End,key:Enter,type:ShowMessage "Hi",key:Escape,key:Home,key:Right,key:Right,edit.showHover,wait,wait', delay: 6, expect: ["SHOWMESSAGE"] },
+  { name: "es-change-box", lang: "es", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, expect: ["Deshacer este cambio", "Cambiado desde la última versión"], none: ["Undo This Change", "Changed since the last version"] },
+  { name: "es-project-theme", lang: "es", open: "examples/gui/hello_form.rr", do: "wait,view.designer,project:select,row:Theme,prop:Theme=RapidR Dark,wait,wait", delay: 6, expect: ["RapidR oscuro"], none: ["RapidR Dark"] },
   { name: "en-help", lang: "en", do: "wait,manual:getting-started.md", expect: ["Getting started", "In three lines"], none: ["Primeros pasos"] },
   // (a compiler error in Problems, in Spanish: the compiler's sample)
   { name: "es-problems", lang: "es", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5, expect: ["Se esperaba el fin de la línea, pero se encontró THEN"] },
