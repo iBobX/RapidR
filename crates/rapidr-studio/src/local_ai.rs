@@ -322,7 +322,7 @@ impl Row {
 
 /// The rows' order, best first: usable (chats, not too big) › passes the
 /// task › tools work › fast enough › memory to spare (what is free now
-/// less what it needs); then by name.
+/// less what it needs); then as the servers listed them.
 pub fn rank(rows: &[Row], mem: Option<Memory>) -> Vec<usize> {
     let spare = |r: &Row| -> i64 { mem.map_or(0, |m| m.now as i64) - r.fit.need.map_or(i64::MAX / 4, |n| n as i64) };
     let mut order: Vec<usize> = (0..rows.len()).collect();
@@ -336,7 +336,7 @@ pub fn rank(rows: &[Row], mem: Option<Memory>) -> Vec<usize> {
                 matches!(r.fit.verdict, Verdict::Fits),
             )
         };
-        key(&rows[b]).cmp(&key(&rows[a])).then_with(|| spare(&rows[b]).cmp(&spare(&rows[a]))).then_with(|| rows[a].model.id.cmp(&rows[b].model.id))
+        key(&rows[b]).cmp(&key(&rows[a])).then_with(|| spare(&rows[b]).cmp(&spare(&rows[a]))).then_with(|| a.cmp(&b))
     });
     order
 }
@@ -591,6 +591,8 @@ struct State {
     /// The rows waiting for their check.
     queue: Vec<usize>,
     checked_now: usize,
+    /// The last check was stopped before its end.
+    stopped: bool,
     cancel: Option<Arc<AtomicBool>>,
     news: bool,
     error: String,
@@ -645,7 +647,7 @@ fn facts_now() -> Facts {
 /// computer's facts in place of this one's; "" this one's again.
 fn set_test_facts(text: &str) {
     let mut f = Facts { os: "test".into(), cores: 8, ..Facts::default() };
-    for part in text.split(',') {
+    for part in text.split([',', '&']) {
         let (k, v) = part.split_once('=').unwrap_or((part, ""));
         let n = v.trim().parse::<u64>().unwrap_or(0);
         match k.trim() {
@@ -775,6 +777,7 @@ pub fn check(i: i64) -> Result<usize, String> {
             s.cancel = Some(cancel.clone());
             s.queue = queue.clone();
             s.checked_now = 0;
+            s.stopped = false;
             s.error.clear();
             s.news = true;
             (queue, Some(cancel))
@@ -834,6 +837,8 @@ fn run_checks(queue: Vec<usize>, cancel: Arc<AtomicBool>) {
                         r.kept = false;
                         r.error.clear();
                     }
+                    // (stopped by the user: left unchecked, no error)
+                    Err(e) if e == "cancelled" => {}
                     Err(e) => r.error = e,
                 }
             }
@@ -845,6 +850,7 @@ fn run_checks(queue: Vec<usize>, cancel: Arc<AtomicBool>) {
         s.checking = None;
         s.step.clear();
         s.queue.clear();
+        s.stopped = s.cancel.as_ref().is_some_and(|c| c.load(Ordering::SeqCst));
         s.cancel = None;
         s.news = true;
     });
@@ -1158,6 +1164,8 @@ fn state(what: &str) -> String {
             "unified" => (if st.facts.unified_memory { "1" } else { "0" }).into(),
             "queue" => st.queue.len().to_string(),
             "done" => st.checked_now.to_string(),
+            "stopping" => (if st.checking.is_some() && st.cancel.as_ref().is_some_and(|c| c.load(Ordering::SeqCst)) { "1" } else { "0" }).into(),
+            "stopped" => (if st.stopped { "1" } else { "0" }).into(),
             "estimate" => st.order.iter().filter(|&&k| st.rows[k].usable() && st.rows[k].check.is_none()).map(|&k| estimate_s(&st.rows[k].model)).sum::<u64>().to_string(),
             "unchecked" => st.order.iter().filter(|&&k| st.rows[k].usable() && st.rows[k].check.is_none()).count().to_string(),
             "web" => (if cfg!(target_arch = "wasm32") { "1" } else { "0" }).into(),
@@ -1465,6 +1473,11 @@ mod mock_tests {
 
     /// A server on a port of its own (a thread a connection).
     fn serve(tools: bool) -> String {
+        serve_slow(tools, 0)
+    }
+
+    /// A server whose chat answers wait `slow_ms` first.
+    pub(super) fn serve_slow(tools: bool, slow_ms: u64) -> String {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
         let port = l.local_addr().unwrap().port();
         std::thread::spawn(move || {
@@ -1489,6 +1502,9 @@ mod mock_tests {
                     let mut body = vec![0u8; len];
                     let _ = r.read_exact(&mut body);
                     let (status, ty, out) = answer(&path, &String::from_utf8_lossy(&body), tools);
+                    if path.ends_with("/chat/completions") {
+                        std::thread::sleep(std::time::Duration::from_millis(slow_ms));
+                    }
                     let mut c = c;
                     let _ = write!(c, "HTTP/1.1 {status} OK\r\ncontent-type: {ty}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{out}", out.len());
                 });
@@ -1576,4 +1592,36 @@ mod mock_tests {
         std::fs::remove_dir_all(&dir).ok();
         *TEST_CACHE_DIR.lock().unwrap() = None;
     }
+}
+
+/// (tests) Stop Checking while a slow model answers: the check ends once
+/// its answer comes, the model left unchecked, no error.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[test]
+fn a_check_stopped_while_a_model_answers_ends_unchecked() {
+    let _one = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    std::env::set_var("RAPIDR_AI_KEYSTORE", "memory");
+    let slow = mock_tests::serve_slow(true, 1500);
+    call("localaitest", &[s("addresses"), s(slow)]);
+    call("localaitest", &[s("facts"), s("total=16384&free=12288")]);
+    call("localaiclear", &[]);
+    call("localaifind", &[s("")]);
+    for _ in 0..100 {
+        if state("busy") == "0" {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert_eq!(call("localaicheck", &[Value::Integer(-1)]).unwrap().0.to_i64(), 1);
+    std::thread::sleep(std::time::Duration::from_millis(300));
+    call("localaicancel", &[]);
+    assert_eq!(state("stopping"), "1");
+    let t = std::time::Instant::now();
+    while state("busy") == "1" && t.elapsed().as_secs() < 8 {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+    assert_eq!(state("busy"), "0", "still checking after {:?}", t.elapsed());
+    assert_eq!((state("stopped"), field(0, "checked"), field(0, "error")), ("1".into(), "0".into(), String::new()));
+    call("localaitest", &[s("addresses"), s("")]);
+    call("localaitest", &[s("facts"), s("")]);
 }

@@ -403,6 +403,11 @@ DIM AIPriceIn AS DOUBLE
 DIM AIPriceOut AS DOUBLE
 ' (the model chosen for each provider: "id<TAB>model" lines)
 DIM AIModels AS STRING
+' (a model on this computer Set Up RAI checked and the user picked:
+' "address|model|context|small or full" — RAI gets that context and mode
+' while that model is the one used: docs/local-ai-plan.md §6)
+DIM AILocalPick AS STRING
+DECLARE SUB AILocalApply
 DIM AIProvIds(8) AS STRING
 DIM AIProvNames(8) AS STRING
 DIM AIProvCount AS INTEGER

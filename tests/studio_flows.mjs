@@ -5353,14 +5353,16 @@ const CASES = [
     },
   },
   {
-    // R6: Set up RAI, free on this computer — the servers looked for (the
-    // tests' addresses: the mock as Ollama, nothing for the others);
-    // found, said in plain words
+    // R6 + LOCAL-AI (docs/local-ai-plan.md): Set up RAI, free on this
+    // computer — the models of a local AI app found (the tests' addresses:
+    // the mock's local AI app, a closed port; the memory the tests'
+    // 16 GB with 12 free — never this computer's or the user's servers),
+    // said in plain words with no product named
     name: "ai-r6-setup-found",
     open: "examples/gui/hello_form.rr",
     webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
-    events: [idle(6)].join(","),
+    do: "ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8)].join(","),
     delay: 5,
     themes: LOOKS,
     capture: true,
@@ -5368,29 +5370,208 @@ const CASES = [
     window: 2,
     dump: {
       "aisetup.visible": /^(-1|1|True)$/i,
-      "aisufoundtext.caption": /^✓ Found on this computer: Ollama \(2 models\)\. Not running: LM Studio, MLX Serve\.$/,
+      "aisufoundtext.caption": /^✓ Found 3 models in a local AI app on this computer\.$/,
+      "aisulocal.checked": /^(-1|1|True)$/i,
+      "aisulocaltext.caption": /local AI app(?![\s\S]*(Ollama|LM Studio|MLX))/,
+    },
+    // (the web: a browser can't look around this computer — the address
+    // typed is asked: the first one, as the tests type it; every model
+    // listed, none described)
+    webDump: {
+      "aisetup.visible": /^(-1|1|True)$/i,
+      "aisufoundtext.caption": /^✓ Found 4 models in a local AI app on this computer\.$/,
       "aisulocal.checked": /^(-1|1|True)$/i,
     },
   },
   {
-    // ... Next (the mouse), the server and its model, Finish (the mouse):
-    // the assistant on, set up, its pane shown
-    name: "ai-r6-setup-local",
+    // ... Next (the mouse): the models, the best match first and chosen,
+    // each with its chip and its line for a student — mock-small fits
+    // (16K for RAI), mock-chat takes no tools, mock-huge is too big, the
+    // embedding model can't chat; its licence as reported, the note for
+    // apps to sell; Check My Models' estimate
+    name: "local-ai-models",
     open: "examples/gui/hello_form.rr",
-    webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mock}|http://127.0.0.1:9/v1|{mockroot}/s/bad/v1,ai:setup,wait",
-    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1|http://127.0.0.1:9/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisumodels.itemcount": /^4$/,
+      "aisumodels.itemindex": /^0$/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to be sure\.\r?\n/,
+      "aisumemtext.caption": /^This computer: 16 GB of memory; 1[01](\.\d)? GB free for a model now \(13 GB with other apps closed\)\.$/,
+      "aisudetail.caption": /^mock-small · 1\.9 GB · 3\.2B parameters · Q4_K_M · takes tools · RAI gets a 16K context\.\nLicence, as its local AI app reports it: Mock Model Licence 1\.0\. Building apps to sell\? Check this model's licence\.$/,
+      "aisuchecknote.caption": /^Optional, about \d+ minutes?: Studio tries each model that fits here/,
+      "aisucheckbtn.enabled": /^(-1|1|True)$/i,
+      "aisulicbtn.enabled": /^(-1|1|True)$/i,
+    },
+  },
+  {
+    // ... each row said in words (a screen reader reads the list's items):
+    // the model with no tools
+    name: "local-ai-rows",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), "aisumodels.__item_1", idle(2)].join(","),
     delay: 5,
+    dump: {
+      "aisumodels.text": /\nmock-chat\. Fits\. Can chat, but can't build apps with RAI\.\r?\n/,
+      "aisudetail.caption": /no tools[\s\S]*Its local AI app doesn't say its licence\. Building apps to sell\? Check this model's licence\.$/,
+      "aisulicbtn.enabled": /^(0|False)$/i,
+    },
+  },
+  {
+    // ... a computer too small (4 GB, 1 free): every model shown, none
+    // picked — Finish says so and stays
+    name: "local-ai-toobig",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=4096&free=1024,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), "aisumodels.__item_0", idle(2), CLICK("aisunextbtn", 30, 14), idle(2)].join(","),
+    delay: 5,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisetup.visible": /^(-1|1|True)$/i,
+      "aisumodels.text": /^mock-small\. Too big for this computer\. Too big for this computer: it needs [\d.]+ GB; a model can have 1 GB here at most\.\r?\n/,
+      "aisuchecknote.caption": /^mock-small is too big for this computer: choose another model\.$/,
+      "aisucheckbtn.enabled": /^(0|False)$/i,
+      "ai.provider": /^$/,
+    },
+  },
+  {
+    // ... none found (a closed port): what a local AI app is, how to add
+    // one (the manual), another address — and one of another computer
+    // refused before anything is asked
+    name: "local-ai-none",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes=http://127.0.0.1:9/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), typeInto("aisuaddredit", "192.168.1.20:11434"), CLICK("aisuaddrbtn", 30, 12), idle(4)].join(","),
+    delay: 5,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisufoundtext.caption": /^No local AI app found running on this computer: Next says what one is and how to add one\.$/,
+      "aisumodels.visible": /^(0|False)$/i,
+      "aisunone.visible": /^(-1|1|True)$/i,
+      "aisunone.caption": /^No AI model answered on this computer\. A local AI app is a free program you install/,
+      "aisunonelink.visible": /^(-1|1|True)$/i,
+      "aisuchecknote.caption": /^Studio only asks this computer: 192\.168\.1\.20 isn't this computer/,
+    },
+  },
+  {
+    // ... Check My Models (the mouse): one model at a time against the
+    // mock's local AI app — mock-small calls the tool and builds the Hello
+    // app, so it is the best match "builds apps"; mock-chat writes its call
+    // as text: it can chat, not build
+    name: "local-ai-check",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(4)].join(","),
+    delay: 12,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    window: 2,
+    dump: {
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer: builds apps, answers in about \d+ s\.\r?\nmock-chat\. Fits\. Can chat, but can't build apps with RAI: its tool calls didn't work here\.\r?\n/,
+      "aisuchecknote.caption": /^Every model that fits is checked\. Choose one, then Finish\.$/,
+      "aisucheckbtn.caption": /^&Check My Models$/,
+    },
+  },
+  {
+    // ... and Finish (the mouse): RAI on with that model, the context and
+    // the mode its check chose (it built the app, fast, with tools: the
+    // full mode, 16K); its pane shown
+    name: "local-ai-finish",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(2), CLICK("aisunextbtn", 30, 14), idle(4)].join(","),
+    delay: 12,
     dump: {
       "aisetup.visible": /^(0|False)$/i,
       "ai.provider": /^compatible$/,
       "ai.model": /^mock-small$/,
-      "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/v1$/,
+      "ai.baseurl": /^http:\/\/127\.0\.0\.1:\d+\/s\/local\/v1$/,
+      "ai.smallmodel": /^0$/,
+      "ai.contextsize": /^16384$/,
       "aistatus.simpletext": /^RAI is ready: mock-small\.$/,
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
-      // (POLISH-2: the models asked for at Finish, as ↻: the panel's own
-      // list, not only the wizard's)
-      "ai.modelcount": /^[1-9]\d*$/,
+    },
+  },
+  {
+    // ... a check stopped (Stop Checking): the model being checked is left
+    // unchecked, said — the slow local AI app holds each answer 5 s
+    name: "local-ai-cancel",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/localslow/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), idle(4), CLICK("aisucheckbtn", 30, 14), "aisucheckbtn.__until_Caption_&Check My Models", idle(2)].join(","),
+    delay: 6,
+    dump: {
+      "aisuchecknote.caption": /^The check stopped\. 2 models aren't checked yet: Check My Models goes on with them/,
+      "aisumodels.text": /^mock-small\. Fits\. Best match for this computer by its size: Check My Models to be sure\.\r?\n/,
+      "aisucheckbtn.caption": /^&Check My Models$/,
+    },
+  },
+  {
+    // ... in Spanish: the page, the chips, the lines
+    name: "local-ai-es",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    desktopArgs: ["--lang", "es"],
+    do: "ai:setupprobes={mockroot}/s/local/v1,ai:setupfacts=total=16384&free=12288,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisumodels.text": /^mock-small\. Cabe\. /,
+      "aisucheckbtn.caption": /^&Comprobar mis modelos$/,
+    },
+  },
+  {
+    // ... the web: a browser can't look around this computer — the
+    // address typed is asked (the mock's local AI app), its models listed
+    // with what the browser can tell; no check there
+    name: "local-ai-web",
+    open: "examples/gui/hello_form.rr",
+    webOnly: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: "ai:setupaddr={mockroot}/s/local/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    delay: 6,
+    capture: true,
+    window: 2,
+    dump: {
+      "aisumodels.itemcount": /^4$/,
+      "aisumodels.text": /^mock-small\. Size not known\. /,
+      "aisumemtext.caption": /^A browser can't tell how much memory this computer has free/,
+      "aisucheckbtn.enabled": /^(0|False)$/i,
+    },
+  },
+  {
+    // ... while School Lock turns RAI off: nothing is looked for — the
+    // mock's local AI app isn't asked anything
+    name: "local-ai-locked",
+    open: "examples/gui/hello_form.rr",
+    desktopOnly: true,
+    do: "lock:set=maestra1,wait,ai:setupprobes={mockroot}/s/local/v1,ai:setup,wait",
+    events: [idle(8)].join(","),
+    delay: 5,
+    mockLog: /^\[\]$/,
+    dump: {
+      "locksustrip.visible": /^1$/,
+      "aisufoundtext.caption": /^$/,
+      "aisunextbtn.enabled": /^0$/,
     },
   },
   {
@@ -5399,9 +5580,9 @@ const CASES = [
     // meter's limit is the model's
     name: "ai-r6-setup-local-window",
     open: "examples/gui/hello_form.rr",
-    webFiles: ["examples/gui/hello_form.rr"],
-    do: "ai:setupprobes={mockroot}/s/tiny/v1|http://127.0.0.1:9/v1|http://127.0.0.1:9/v1,ai:setup,wait",
-    events: [idle(6), CLICK("aisunextbtn", 30, 14), idle(2), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
+    desktopOnly: true,
+    do: "ai:setupprobes={mockroot}/s/tiny/v1,ai:setup,wait",
+    events: [idle(8), CLICK("aisunextbtn", 30, 14), idle(4), CLICK("aisunextbtn", 30, 14), idle(6)].join(","),
     delay: 6,
     dump: {
       "aisetup.visible": /^(0|False)$/i,

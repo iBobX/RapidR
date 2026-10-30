@@ -97,6 +97,15 @@
 // tries it once more). GET /__log lists what was asked of it (the keys' last
 // four characters only).
 //
+// /s/local/… and /s/localslow/… play a local AI app on this computer that
+// describes its models (Set Up RAI's "On this computer", docs/local-ai-plan.md):
+// /api/tags (sizes, digests, details), /api/show (shape, capabilities,
+// licence), /api/ps, /api/generate (letting a model go). Its models —
+// made-up names, never a real one's — are mock-small (fits, takes tools,
+// builds the Hello app), mock-chat (no tools: writes its call as text),
+// mock-huge (240 GB: too big anywhere) and mock-embed (an embedding model).
+// `localslow` holds every chat answer 5 s (a check to cancel).
+//
 //   node tests/ai_mock_server.mjs [port]      (prints its /v1 URL)
 
 import { readFileSync } from "node:fs";
@@ -560,6 +569,57 @@ function keyOf(headers) {
 const keyHint = (k) => (k ? `…${k.slice(-4)}` : "");
 const SCENARIOS = ["bad", "fail", "slow", "garbage", "empty", "org", "drop"];
 
+// (the local AI app's models: /s/local/…)
+const LOCAL_MODELS = [
+  { name: "mock-small", size: 2_000_000_000, digest: "sha256:mocksmall", params: "3.2B", quant: "Q4_K_M", caps: ["completion", "tools"], licence: "Mock Model Licence 1.0\n\nYou may use this made-up model to build anything. It is a test's.", shape: [28, 8, 24, 3072, 131072] },
+  { name: "mock-chat", size: 1_200_000_000, digest: "sha256:mockchat", params: "1.5B", quant: "Q4_K_M", caps: ["completion"], licence: "", shape: [24, 4, 16, 2048, 32768] },
+  { name: "mock-huge", size: 240_000_000_000, digest: "sha256:mockhuge", params: "405B", quant: "Q4_K_M", caps: ["completion", "tools"], licence: "Mock Huge Licence\n\nFor tests only.", shape: [126, 8, 128, 16384, 131072] },
+  { name: "mock-embed", size: 300_000_000, digest: "sha256:mockembed", params: "137M", quant: "F16", caps: ["embedding"], licence: "", shape: [12, 12, 12, 768, 8192] },
+];
+const LOCAL_HELLO = `' A window with a button that says Hello.
+CREATE Form AS RForm
+    Caption = "Hello"
+    Width = 300: Height = 160
+    Center
+    CREATE HelloButton AS RButton
+        Caption = "Hello"
+        Left = 100: Top = 48: Width = 90
+    END CREATE
+END CREATE
+
+Form.ShowModal
+`;
+
+// (a local AI app's own API, for the models it describes; null: not one of it)
+function localApi(path, json) {
+  if (path.endsWith("/api/tags")) return { models: LOCAL_MODELS.map((m) => ({ name: m.name, model: m.name, size: m.size, digest: m.digest, details: { parameter_size: m.params, quantization_level: m.quant, family: "mock" } })) };
+  if (path.endsWith("/api/ps")) return { models: [] };
+  if (path.endsWith("/api/generate")) return { done: true };
+  if (path.endsWith("/api/show")) {
+    const m = LOCAL_MODELS.find((x) => x.name === json.model);
+    if (!m) return { error: "model not found" };
+    const [layers, kv, heads, embed, ctx] = m.shape;
+    return { capabilities: m.caps, license: m.licence, model_info: { "general.architecture": "mock", "general.parameter_count": Math.round(parseFloat(m.params) * (m.params.endsWith("M") ? 1e6 : 1e9)), "mock.block_count": layers, "mock.attention.head_count_kv": kv, "mock.attention.head_count": heads, "mock.embedding_length": embed, "mock.context_length": ctx } };
+  }
+  return null;
+}
+
+// (a local AI app's model answering Studio's check: mock-small calls the
+// tool and builds the Hello app; mock-chat writes its call as text)
+function localAnswer(model, first, results) {
+  const q = first.toLowerCase();
+  if (model === "mock-chat") return { text: q.startsWith("read the file") ? "I would call read_file with {\"path\": \"main.rr\"} to read it." : "Hello! I can chat about programs." };
+  if (q.startsWith("read the file")) {
+    if (results.length === 0) return { tools: [{ name: "read_file", input: { path: "main.rr" } }] };
+    return { text: "Its first line is a comment." };
+  }
+  if (q.startsWith("build me a window with a button that says hello")) {
+    if (results.length === 0) return { text: "Here it is.", tools: [{ name: "create_project", input: { name: "Hello", main: "main.rr", summary: "A window with a Hello button", files: [{ path: "main.rr", text: LOCAL_HELLO }] } }] };
+    return { text: "A window with a button that says Hello." };
+  }
+  return { text: "Hello! I can help you build RapidR programs." };
+}
+
 /** Starts the mock on `port` (0: any); resolves to { url, root, close, requests }. */
 export function startMock(port = 0) {
   const requests = [];
@@ -609,6 +669,12 @@ export function startMock(port = 0) {
       if (scenario === "fail") return send(500, { error: { message: "The server had an error while processing your request.", type: "server_error" } });
       if (scenario === "garbage") return send(200, "<html><body><h1>Welcome!</h1><p>A web page, not an API.</p></body></html>", "text/html");
       if (scenario === "org" && provider === "anthropic" && !req.headers["anthropic-workspace-id"]) return send(400, NO_WORKSPACE);
+      const local = scenario === "local" || scenario === "localslow";
+      if (local) {
+        const api = localApi(path, json);
+        if (api) return send(api.error ? 404 : 200, api);
+        if (req.method === "GET" && path.endsWith("/v1/models")) return send(200, { object: "list", data: LOCAL_MODELS.map((m) => ({ id: m.name, object: "model", created: 1, owned_by: "mock" })) });
+      }
       if (req.method === "GET" && path.endsWith("/models")) {
         if (scenario === "empty") return send(200, provider === "anthropic" ? { data: [], has_more: false } : { object: "list", data: [] });
         // (`tiny`: a small local model's window, 8,192 tokens, as mlx-serve
@@ -644,7 +710,7 @@ export function startMock(port = 0) {
       if (failAfter) first = first.replace(/^then fail /i, "");
       const results = toolResults(anthropic ? "anthropic" : "openai", messages.slice(asked.at));
       if (failAfter && results.length > 0) return send(400, { error: { message: "The generation was interrupted: the model ran out of memory.", type: "invalid_request_error" } });
-      const answer = json.model === "mock-polyglot" ? polyglot(system, messages) : script(first, results, system, messages);
+      const answer = local ? localAnswer(json.model, first, results) : json.model === "mock-polyglot" ? polyglot(system, messages) : script(first, results, system, messages);
       const reply = () => {
         if (res.writableEnded || res.destroyed) return;
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", ...CORS });
@@ -652,6 +718,7 @@ export function startMock(port = 0) {
         (anthropic ? sseAnthropic : sseOpenAI)(out, answer, json.model || "mock", think);
       };
       if (slow && results.length > 0) setTimeout(reply, 6000).unref();
+      else if (scenario === "localslow") setTimeout(reply, 5000).unref();
       else reply();
     });
   });
