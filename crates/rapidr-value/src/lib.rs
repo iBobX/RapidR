@@ -10,6 +10,7 @@ pub mod basic_string;
 pub use basic_string::BasicString;
 pub mod strings;
 pub mod numeric;
+pub mod runtime_text;
 pub mod variadic;
 pub mod data;
 pub mod console;
@@ -422,7 +423,7 @@ pub fn runtime_error(message: &str) -> ! {
     if HOST_CALLS.with(std::cell::Cell::get) > 0 {
         std::panic::resume_unwind(Box::new(HostRaised(message.to_string())));
     }
-    eprintln!("run-time error: {message}");
+    eprintln!("{}", runtime_text::localize_report(&format!("run-time error: {message}")));
     // (what file streams were given is written, as when every write went
     // straight through)
     objects::flush_streams();

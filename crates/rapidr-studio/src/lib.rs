@@ -87,7 +87,7 @@ pub trait Host: Copy + 'static {
     /// Shows `path` selected in the system's file manager (Finder,
     /// Explorer, the Linux one): RPROJECT.Reveal.
     fn reveal(self, _path: &str) -> Result<(), String> {
-        Err("there is no file manager here".into())
+        Err(rapidr_value::i18n::tr_ui("there is no file manager here"))
     }
 }
 

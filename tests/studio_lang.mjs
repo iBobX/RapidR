@@ -54,7 +54,9 @@ mkdirSync(scratch, { recursive: true });
 
 // ---- what may stay English: names --------------------------------------------
 // (RapidR's product words, the keys' names, the code's file types)
-const NAMES = new Set(["snap", "guides", "grid", "arguments", "targets", "desktop", "web", "true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
+const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
+// (the project's Properties rows are names, like a component's: Theme, Snap, Guides …; "Aa" is the case toggle's icon)
+for (const n of ["aa", "snap", "guides", "grid", "arguments", "targets", "desktop", "web"]) NAMES.add(n);
 {
   const r = spawnSync(RAPIDR, ["lang", "export", "--json"], { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 28 });
   const walk = (v) => {
@@ -139,7 +141,7 @@ const XX_SCENES = [
   { name: "help-start", open: HELP_OPEN, do: "wait,view.code,wait,help:", delay: 5 },
   { name: "help-unknown", open: HELP_OPEN, do: "wait,help:RapidR", delay: 5 },
   // (the Versions pane's own "What Changed?" button and the project's path are not this scene's)
-  { name: "change-box", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /] },
+  { name: "change-box", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/] },
   { name: "project-theme", open: "examples/gui/hello_form.rr", do: "wait,view.designer,project:select,row:Theme,wait", delay: 6 },
 ];
 

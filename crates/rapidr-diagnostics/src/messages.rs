@@ -83,6 +83,15 @@ pub const MESSAGES: &[Message] = &[
     m("RR0016", "GOSUB needs a label"),
     m("RR0017", "FOR {name} AS {type}: {name} is already declared AS {declared}"),
     m("RR0018", "{file}: no errors"),
+    // (the Problems pane's notes about what works on one runtime only: the
+    // language service writes them in English — the assistant's tools read
+    // them so — and Problems shows them translated)
+    m("RR0019", "{key} works on the desktop only: the web runtime doesn't have it ({n} uses)"),
+    m("RR0020", "{key} works on the desktop only: the web runtime doesn't have it (1 use)"),
+    m("RR0021", "{key} works in the web runtime only: the desktop doesn't have it ({n} uses)"),
+    m("RR0022", "{key} works in the web runtime only: the desktop doesn't have it (1 use)"),
+    m("RR0023", "{what} works on the desktop only: the web runtime doesn't have it"),
+    m("RR0024", "{what} works in the web runtime only: the desktop doesn't have it"),
 ];
 
 /// The message with ID `id`.

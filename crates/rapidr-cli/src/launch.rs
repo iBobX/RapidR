@@ -130,7 +130,9 @@ pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
     match rapidr_vm_host_native::session::run_session(&bytes, path) {
         Ok(code) => ExitCode::from(code.clamp(0, 255) as u8),
         Err(e) => {
-            eprintln!("{e}");
+            // (a run-time error's words in the program's language: RAPIDR_LANG,
+            // Application.Language, the system's)
+            eprintln!("{}", rapidr_value::runtime_text::localize_report(&e));
             ExitCode::from(1)
         }
     }

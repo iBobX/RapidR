@@ -1301,7 +1301,7 @@ fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     // modal's wait a pump step at a time, so events fire while we are
     // still inside `vm.run`).
     if let Err(e) = rapidr_vm_host_native::run_bytes(&bytes) {
-        eprintln!("{e}");
+        eprintln!("{}", rapidr_value::runtime_text::localize_report(&e));
         return ExitCode::from(1);
     }
     ExitCode::SUCCESS

@@ -161,6 +161,30 @@ msgctxt "RR0018"
 msgid "{file}: no errors"
 msgstr ""
 
+msgctxt "RR0019"
+msgid "{key} works on the desktop only: the web runtime doesn't have it ({n} uses)"
+msgstr ""
+
+msgctxt "RR0020"
+msgid "{key} works on the desktop only: the web runtime doesn't have it (1 use)"
+msgstr ""
+
+msgctxt "RR0021"
+msgid "{key} works in the web runtime only: the desktop doesn't have it ({n} uses)"
+msgstr ""
+
+msgctxt "RR0022"
+msgid "{key} works in the web runtime only: the desktop doesn't have it (1 use)"
+msgstr ""
+
+msgctxt "RR0023"
+msgid "{what} works on the desktop only: the web runtime doesn't have it"
+msgstr ""
+
+msgctxt "RR0024"
+msgid "{what} works in the web runtime only: the desktop doesn't have it"
+msgstr ""
+
 #. The word that labels a hint under a compiler message
 msgctxt "hint.label"
 msgid "hint"

@@ -3242,3 +3242,101 @@ msgstr "quitado desde la última versión"
 #: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "changed since the last version"
 msgstr "cambiado desde la última versión"
+
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Division by zero"
+msgstr "División por cero"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
+msgstr "Subíndice fuera de rango: el índice {i} está fuera de {lo} TO {hi}"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Out of DATA: READ found no more DATA items"
+msgstr "Sin DATA: READ no encontró más elementos DATA"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "indexing a value that is not an array"
+msgstr "se indexa un valor que no es un arreglo"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "assigning to an element of a variable that is not an array (DIM it with a size first)"
+msgstr "se asigna a un elemento de una variable que no es un arreglo (primero decláralo con DIM y un tamaño)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "stack overflow: more than {n} nested calls (a SUB or FUNCTION calling itself without end?)"
+msgstr "desbordamiento de pila: más de {n} llamadas anidadas (¿una SUB o FUNCTION que se llama a sí misma sin fin?)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "arrays have at most {n} dimensions"
+msgstr "los arreglos tienen como máximo {n} dimensiones"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "string too long: strings are limited to {n} characters"
+msgstr "cadena demasiado larga: las cadenas están limitadas a {n} caracteres"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading a field of {what})"
+msgstr "esta variable no se refiere a un objeto (se lee un campo de {what})"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting a field of {what})"
+msgstr "esta variable no se refiere a un objeto (se establece un campo de {what})"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)"
+msgstr "CALLFUNC: {ptr} no es un puntero a una función (usa BIND o CODEPTR)"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Unknown builtin function '{name}'"
+msgstr "Función incorporada desconocida '{name}'"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ran too long and was stopped"
+msgstr "la evaluación tardó demasiado y se detuvo"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "run-time error: {message}"
+msgstr "error de ejecución: {message}"
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "(at {file} line {n})"
+msgstr "(en {file}, línea {n})"
+
+
+#: crates/rapidr-studio/src/build.rs
+msgid "a build is running already"
+msgstr "ya hay una compilación en curso"
+
+#: crates/rapidr-studio/src/crash.rs
+msgid "{name}: there is no such report"
+msgstr "{name}: no existe ese informe"
+
+#: crates/rapidr-studio/src/crash.rs crates/rapidr-studio/src/recovery.rs
+msgid "no file named"
+msgstr "no se indicó ningún archivo"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "nothing to import"
+msgstr "no hay nada que importar"
+
+#: crates/rapidr-studio/src/import.rs
+msgid "{source}: nothing there to import"
+msgstr "{source}: no hay nada que importar"
+
+#: crates/rapidr-studio/src/lib.rs
+msgid "there is no file manager here"
+msgstr "aquí no hay administrador de archivos"
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{path} is there already"
+msgstr "{path} ya existe"
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "its folder can't be made: {folder} is a file"
+msgstr "no se puede crear su carpeta: {folder} es un archivo"
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{folder} can't be written: {error}"
+msgstr "no se puede escribir en {folder}: {error}"

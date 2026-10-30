@@ -922,6 +922,20 @@ fn _id(n: i32) -> RequestId {
 mod tests {
     use super::*;
 
+    /// The client's words come in the language it asks for: its own option
+    /// first, else (no `RAPIDR_LANG`) its locale.
+    #[test]
+    fn the_clients_language_is_the_one_it_asks_for() {
+        let options = serde_json::json!({ "language": "es_MX" });
+        assert_eq!(client_language(Some(&options), Some("fr")), "es-MX");
+        // (the option wins over the locale; an empty one doesn't count)
+        let empty = serde_json::json!({ "language": "" });
+        if std::env::var_os("RAPIDR_LANG").is_none() {
+            assert_eq!(client_language(Some(&empty), Some("pt-BR")), "pt-BR");
+            assert_eq!(client_language(None, Some("es")), "es");
+        }
+    }
+
     #[test]
     fn uris_round_trip() {
         let p = PathBuf::from("/tmp/a b/é.bas");

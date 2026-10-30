@@ -71,9 +71,9 @@ pub fn place_parts(w: &str) -> (String, String, String, String, String) {
 
 /// Writes a copy of a report to `dest`.
 pub fn save(name: &str, dest: &str) -> Result<(), String> {
-    let t = rapidr_crash::text_of(name).ok_or_else(|| format!("{name}: there is no such report"))?;
+    let t = rapidr_crash::text_of(name).ok_or_else(|| rapidr_value::i18n::tr_ui_fill("{name}: there is no such report", &[("name", name)]))?;
     if dest.trim().is_empty() {
-        return Err("no file named".into());
+        return Err(rapidr_value::i18n::tr_ui("no file named"));
     }
     std::fs::write(dest, t).map_err(|e| format!("{dest}: {e}"))
 }

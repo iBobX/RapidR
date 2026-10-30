@@ -316,12 +316,12 @@ pub fn apply_begin() {
 pub fn can_write_new(path: &str) -> Result<(), String> {
     let path = slashes(path);
     if path.trim().is_empty() {
-        return Err("no file named".into());
+        return Err(rapidr_value::i18n::tr_ui("no file named"));
     }
     #[cfg(target_arch = "wasm32")]
     {
         if read_if_there(&path).is_some() {
-            return Err(format!("{path} is there already"));
+            return Err(rapidr_value::i18n::tr_ui_fill("{path} is there already", &[("path", &path)]));
         }
         Ok(())
     }
@@ -330,7 +330,7 @@ pub fn can_write_new(path: &str) -> Result<(), String> {
         use std::path::Path;
         let p = Path::new(&path);
         if p.exists() {
-            return Err(format!("{path} is there already"));
+            return Err(rapidr_value::i18n::tr_ui_fill("{path} is there already", &[("path", &path)]));
         }
         let mut up = p.parent();
         while let Some(d) = up {
@@ -339,7 +339,7 @@ pub fn can_write_new(path: &str) -> Result<(), String> {
             }
             if d.exists() {
                 if !d.is_dir() {
-                    return Err(format!("its folder can't be made: {} is a file", slashes(&d.to_string_lossy())));
+                    return Err(rapidr_value::i18n::tr_ui_fill("its folder can't be made: {folder} is a file", &[("folder", &slashes(&d.to_string_lossy()))]));
                 }
                 // (a folder that can't be written: found now, not half-way)
                 let probe = d.join(format!(".rapidr-write-probe-{}", std::process::id()));
@@ -348,7 +348,7 @@ pub fn can_write_new(path: &str) -> Result<(), String> {
                         let _ = std::fs::remove_file(&probe);
                         Ok(())
                     }
-                    Err(e) => Err(format!("{} can't be written: {e}", slashes(&d.to_string_lossy()))),
+                    Err(e) => Err(rapidr_value::i18n::tr_ui_fill("{folder} can't be written: {error}", &[("folder", &slashes(&d.to_string_lossy())), ("error", &e.to_string())])),
                 };
             }
             up = d.parent();

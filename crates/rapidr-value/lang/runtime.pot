@@ -1292,8 +1292,32 @@ msgstr ""
 msgid "(+{n} lines)"
 msgstr ""
 
+#: crates/rapidr-studio/src/build.rs
+msgid "a build is running already"
+msgstr ""
+
+#: crates/rapidr-studio/src/crash.rs
+msgid "{name}: there is no such report"
+msgstr ""
+
+#: crates/rapidr-studio/src/crash.rs crates/rapidr-studio/src/recovery.rs
+msgid "no file named"
+msgstr ""
+
+#: crates/rapidr-studio/src/import.rs
+msgid "nothing to import"
+msgstr ""
+
+#: crates/rapidr-studio/src/import.rs
+msgid "{source}: nothing there to import"
+msgstr ""
+
 #: crates/rapidr-studio/src/langsvc.rs
 msgid "Not translated yet: this page is in English."
+msgstr ""
+
+#: crates/rapidr-studio/src/lib.rs
+msgid "there is no file manager here"
 msgstr ""
 
 #: crates/rapidr-studio/src/local_history.rs
@@ -1718,6 +1742,18 @@ msgstr ""
 
 #: crates/rapidr-studio/src/project.rs
 msgid "nothing built yet"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{path} is there already"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "its folder can't be made: {folder} is a file"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{folder} can't be written: {error}"
 msgstr ""
 
 #: crates/rapidr-studio/src/repository.rs
@@ -3210,4 +3246,64 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: a new MDI main window file of the program."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Division by zero"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Out of DATA: READ found no more DATA items"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "indexing a value that is not an array"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "assigning to an element of a variable that is not an array (DIM it with a size first)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "stack overflow: more than {n} nested calls (a SUB or FUNCTION calling itself without end?)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "arrays have at most {n} dimensions"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "string too long: strings are limited to {n} characters"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading a field of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting a field of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Unknown builtin function '{name}'"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ran too long and was stopped"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "run-time error: {message}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "(at {file} line {n})"
 msgstr ""

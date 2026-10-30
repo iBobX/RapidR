@@ -243,6 +243,11 @@ fn system_language() -> String {
         let t = normalize_tag(&probe());
         return if t.is_empty() { "en".to_string() } else { t };
     }
+    // (`RAPIDR_LANG`: the language RapidR speaks on this computer, before the
+    // system's — as the `rapidr` command reads it)
+    if let Some(t) = std::env::var("RAPIDR_LANG").ok().map(|l| normalize_tag(&l)).filter(|t| !t.is_empty()) {
+        return t;
+    }
     rapidr_i18n::tags::system_language()
 }
 
