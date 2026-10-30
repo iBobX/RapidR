@@ -1421,6 +1421,9 @@ fn place_of(comp: &str) -> Option<(String, (i64, i64))> {
 /// every shown window saved as `<prefix>-<n>.bmp` (bottom to top, at its
 /// scale, by the CPU renderer), and the program ends.
 fn capture_and_end(prefix: &str) -> ! {
+    // (the test's own work from here, not the program's: Studio's hang
+    // watchdog doesn't count it — rapidr-crash)
+    rapidr_crash::watchdog::stop();
     let a11y = std::env::var("RAPIDR_TEST_A11Y").ok().filter(|p| !p.is_empty());
     let contrast = std::env::var("RAPIDR_TEST_CONTRAST").ok().filter(|p| !p.is_empty());
     let mut reports = Vec::new();

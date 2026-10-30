@@ -1,0 +1,15 @@
+[package]
+name = "rapidr-crash"
+description = "RapidR's own crash and hang reports: written on this computer only (no telemetry), readable, scrubbed — the panic hook, fatal signals (a stack overflow), RapidR Studio's hang watchdog, where the RapidR program was (file, line, SUB, event)"
+edition.workspace = true
+version.workspace = true
+publish = false
+license.workspace = true
+
+# A leaf crate (no RapidR dependency): the VM, its hosts, the UI hosts and
+# Studio all reach it. No crates.io dependency but libc on Unix, already in
+# the tree (MIT OR Apache-2.0).
+[dependencies]
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

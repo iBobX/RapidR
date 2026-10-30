@@ -832,6 +832,8 @@ SUB StartProgram(WithDebugger AS INTEGER)
   Session.Program = ProjectMain
   Session.Debug = WithDebugger
   Session.BreakOnError = Flag(WithDebugger <> 0 AND BreakOnErrors <> 0)
+  ' (a crash report RapidR may write while it runs: crash.inc)
+  CrashRunStarts
   IF Session.Start THEN
     SetState "running", TR$("Running {file}", "file", FileTitle(ProjectMain))
     ' (with the debugger: the debugging layout — S9)
@@ -1248,6 +1250,9 @@ SUB ProgramExited(Code AS INTEGER)
     OutputLine TR$("{file} ran and ended at once: it showed no window and printed nothing. If the program starts in another file, make that the main file: select the project's name in the Project pane, then MainFile in Properties.", "file", FileTitle(ProjectMain))
   END IF
   IF Code = 0 THEN SetState "stopped", "Ready" ELSE SetState "error", TR$("Ended with exit code {code}", "code", Code)
+  ' (RapidR stopped it — a crash in RapidR's own code: said plainly, with
+  ' its report — crash.inc)
+  CrashProgramEnded Code
   ClearPausedMarks
   ClearDebugPanes
   ' (the editing layout again — S9)

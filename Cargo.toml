@@ -15,6 +15,8 @@ members = [
     "crates/rapidr-codegen-rust",
     "crates/rapidr-buildserver",
     "crates/rapidr-value",
+    # RapidR's own crash and hang reports, on this computer only
+    "crates/rapidr-crash",
     # RArchive's engine: zip, tar, gzip, 7z, xz, zstd (wasm-safe)
     "crates/rapidr-archive",
     "crates/rapidr-d3d-gpu",
@@ -73,6 +75,7 @@ rapidr-runtime-core = { path = "crates/rapidr-runtime-core" }
 rapidr-runtime-web = { path = "crates/rapidr-runtime-web" }
 rapidr-codegen-rust = { path = "crates/rapidr-codegen-rust" }
 rapidr-value = { path = "crates/rapidr-value" }
+rapidr-crash = { path = "crates/rapidr-crash" }
 rapidr-archive = { path = "crates/rapidr-archive", default-features = false }
 rapidr-d3d-gpu = { path = "crates/rapidr-d3d-gpu" }
 rapidr-db = { path = "crates/rapidr-db" }

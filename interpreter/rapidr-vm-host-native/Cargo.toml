@@ -22,6 +22,8 @@ studio = ["rapidr-runtime-core/studio"]
 
 [dependencies]
 rapidr-value = { workspace = true }
+# (RapidR's crash reports: the program's map, where it is)
+rapidr-crash = { workspace = true }
 rapidr-bytecode = { workspace = true }
 rapidr-vm = { workspace = true }
 # (`archive`: RArchive in every interpreted program — the runners carry

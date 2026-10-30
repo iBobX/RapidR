@@ -822,7 +822,44 @@ pub fn call<H: Host>(host: H, name: &str, method: &str, args: &[Value]) -> Optio
             crate::recovery::discard(&s(0));
             Value::Null
         }
-        "logerror" => flag(crate::recovery::log(&s(0)).is_ok()),
+        "logerror" => {
+            rapidr_crash::note(&s(0));
+            flag(crate::recovery::log(&s(0)).is_ok())
+        }
+        // (RapidR's crash reports: crate::crash — on this computer only)
+        "crashpending" => Value::String(crate::crash::pending().into()),
+        "crashtext" => Value::String(crate::crash::text(&s(0)).into()),
+        "crashpath" => Value::String(crate::crash::path(&s(0)).into()),
+        "crashfield" => Value::String(crate::crash::field(&s(0), &s(1)).into()),
+        "crashseen" => {
+            rapidr_crash::mark_seen(&s(0));
+            Value::Null
+        }
+        "crashsave" => {
+            let r = crate::crash::save(&s(0), &s(1));
+            with(name, |m| m.error = r.clone().err().unwrap_or_default());
+            flag(r.is_ok())
+        }
+        "crashissueurl" => Value::String(crate::crash::issue(&s(0)).0.into()),
+        "crashissuewhole" => flag(crate::crash::issue(&s(0)).1),
+        "crashmark" => Value::String(crate::crash::mark().into()),
+        "crashforprogram" => Value::String(crate::crash::for_program(&s(0), &s(1)).into()),
+        "crashnote" => {
+            rapidr_crash::note(&s(0));
+            Value::Null
+        }
+        "crashcall" => {
+            rapidr_crash::call(&s(0));
+            Value::Null
+        }
+        "crashdoing" => {
+            rapidr_crash::doing(&s(0));
+            Value::Null
+        }
+        "crashwatch" => flag(crate::crash::watch(args.first().map(Value::to_i64).unwrap_or(5), &s(1), &s(2), &s(3), &s(4), &s(5), &s(6))),
+        "crashtest" => flag(crate::crash::test(&s(0))),
+        "crashfolder" => Value::String(crate::crash::folder().into()),
+        "crashlist" => Value::String(rapidr_crash::list().iter().map(|n| format!("{n}\n")).collect::<String>().into()),
         "logfile" => Value::String(crate::recovery::log_file().into()),
         // (the main file is a module another file of the project
         // includes: that file is where the program likely starts — Robert's
