@@ -891,6 +891,40 @@ fn find_example(input: &Json) -> Outcome {
     ok(format!("Recipe \"{}\", a working program — start from it and adapt it:\n```basic\n{}\n```{more}", best.title, best.code()), format!("Found an example: {}", best.title), "read", query)
 }
 
+/// What RapidR's reference says about `query`'s last word (`ReducedMotion`,
+/// `Application.ReducedMotion`, `MID$`): the builtin, the component or
+/// global object, or the members of that name — at most five.
+fn reference_hits(query: &str) -> Option<String> {
+    let word = query.split(|c: char| c.is_whitespace() || c == '.').filter(|w| !w.is_empty()).last()?;
+    let mut hits: Vec<String> = Vec::new();
+    if let Some(b) = rapidr_lang::builtin(word) {
+        hits.push(format!("{} (builtin): {}", b.syntax, b.doc));
+    }
+    if let Some(c) = rapidr_lang::component(word).or_else(|| rapidr_lang::global(word)) {
+        hits.push(format!("{} (component): {} Call rapidr_describe with type {} for its members.", c.display, c.doc, c.display));
+    }
+    for c in rapidr_lang::GLOBALS.iter().chain(rapidr_lang::COMPONENTS.iter()) {
+        let owner = c.display;
+        for p in c.properties.iter().filter(|p| p.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (property): {}", p.name, p.doc));
+        }
+        for m in c.methods.iter().filter(|m| m.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (method): {}", m.name, m.doc));
+        }
+        for e in c.events.iter().filter(|e| e.name.eq_ignore_ascii_case(word)) {
+            hits.push(format!("{owner}.{} (event): {}", e.name, e.doc));
+        }
+        if hits.len() >= 5 {
+            break;
+        }
+    }
+    if hits.is_empty() {
+        return None;
+    }
+    hits.truncate(5);
+    Some(format!("The manual's pages don't mention \"{query}\", but RapidR's reference does:\n- {}", hits.join("\n- ")))
+}
+
 /// `search_manual`: the manual's three sections that answer the question
 /// best (crate::manual_search). The manual is RapidR's own text.
 fn search_manual(input: &Json) -> Outcome {
@@ -901,6 +935,12 @@ fn search_manual(input: &Json) -> Outcome {
     // (the user's language first — RAI answers in it —, English too)
     let found = crate::manual_search::search_in(query, 3, &rapidr_value::i18n::language());
     if found.is_empty() {
+        // (a member's or builtin's name the manual's pages don't mention —
+        // Application.ReducedMotion — is in the reference: say what it is
+        // there rather than "nothing", a small model would stop at that)
+        if let Some(text) = reference_hits(query) {
+            return ok(text, format!("Searched the manual for {query}: found in RapidR's reference"), "read", query);
+        }
         return ok(format!("The manual has nothing on \"{query}\". Try other words, or rapidr_describe for a component or builtin."), format!("Searched the manual for {query}: nothing"), "read", query);
     }
     let text = found.iter().map(|s| crate::manual_search::excerpt(s)).collect::<Vec<_>>().join("\n\n---\n\n");
@@ -2971,5 +3011,14 @@ mod tests {
         assert!(next.contains("error main.rr:2:1: Missing NEXT statement") && next.contains("hint main.rr:2: every FOR needs its NEXT"), "{next}");
         // (a valid program, and what RapidQ compiles on purpose: nothing said)
         assert_eq!(check("DIM x AS INTEGER\nx += 1\nx++\nIF x == 2 THEN PRINT x\nprint(x)\n"), "No problems: it compiles.");
+    }
+
+    #[test]
+    fn a_member_the_manual_never_names_is_found_in_the_reference() {
+        let r = super::reference_hits("ReducedMotion").expect("ReducedMotion is in the reference");
+        assert!(r.contains("Application.ReducedMotion (property)"), "{r}");
+        assert!(super::reference_hits("Application.ReducedMotion").is_some());
+        assert!(super::reference_hits("MID$").is_some_and(|r| r.contains("(builtin)")));
+        assert!(super::reference_hits("nosuchthingatall").is_none());
     }
 }
