@@ -69,7 +69,7 @@ The scale: **4 · 8 · 12 · 16 · 20 · 24**.
 | 20 | a dialog's padding |
 | 24 | between sections of a page (the start page) |
 
-Studio still has 6-px edges in the Assistant pane (older); new work uses 8.
+Every Studio pane uses 8 at a narrow pane's edge (the Assistant pane since STUDIO-POLISH).
 
 ## Controls by context
 
@@ -201,7 +201,7 @@ Every change is looked at in all three (and the classic look when it touches dia
 Measured against this guide (2026-10-29); `tools/check_design.py --list` lists the code ones.
 
 - Dialogs set `fh = 28` for fields, but a field's height is its font's (24): the 28 never shows (chrome.inc, settings.inc, build.inc).
-- The Assistant pane's buttons are 28 (classic 23) beside 24-px combo boxes, with 6-px edges (ai.inc, aichats.inc); its banner's buttons 34.
+- The Assistant pane's own controls are compact (24) with 8-px edges since STUDIO-POLISH (2026-10-30); its queued-message strip's cancel (26), its banner's buttons (34) and the chats list (aichats.inc) are not yet.
 - The review windows' buttons are 30 (ai.inc, mcp.inc), the save prompt's and safety's 23 in classic (prompts.inc, safety.inc).
 - Search and Help fields are 26 (search.inc).
 - The status bar's paused colour (`statusbar.debugging`, `#B45309`) is outside the brand palette.

@@ -373,6 +373,26 @@ msgid "Send shares your message, this chat, what the assistant reads of this pro
 msgstr ""
 
 #: ide/ai.inc
+msgid "Less"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Show less about what Send shares"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Send shares this chat with {provider}."
+msgstr ""
+
+#: ide/ai.inc
+msgid "Details"
+msgstr ""
+
+#: ide/ai.inc
+msgid "What Send shares: details"
+msgstr ""
+
+#: ide/ai.inc
 msgid "A model of {provider}. The provider is chosen in Tools > Settings > AI, or Set up RAI."
 msgstr ""
 
@@ -418,6 +438,10 @@ msgstr ""
 
 #: ide/ai.inc
 msgid "Context: {used} of {limit} ({pct}%)"
+msgstr ""
+
+#: ide/ai.inc
+msgid "Context: {pct}%"
 msgstr ""
 
 #: ide/ai.inc

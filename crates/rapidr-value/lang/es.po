@@ -1367,3 +1367,83 @@ msgstr "Se volvió a {what}"
 #: crates/rapidr-studio/src/repository.rs
 msgid "Undoing “{what}” would replace your newer changes to {file}. Save a version first (or undo your own changes), then undo."
 msgstr "Deshacer “{what}” reemplazaría tus cambios más recientes en {file}. Guarda una versión primero (o deshaz tus propios cambios) y luego deshaz."
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 error"
+msgstr "1 error"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} errors"
+msgstr "{n} errores"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 warning"
+msgstr "1 advertencia"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} warnings"
+msgstr "{n} advertencias"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "errors to fix"
+msgstr "errores por corregir"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{what} to fix"
+msgstr "{what} por corregir"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Looked at the form"
+msgstr "Miré el formulario"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Listed the files"
+msgstr "Listé los archivos"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Checked the code"
+msgstr "Revisé el código"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Found an example"
+msgstr "Encontré un ejemplo"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Laid out the buttons"
+msgstr "Ordené los botones"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Wrote the program"
+msgstr "Escribí el programa"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Read {file}"
+msgstr "Leí {file}"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Looked up {name}"
+msgstr "Consulté {name}"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Changed {file}"
+msgstr "Cambié {file}"
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Checked: {what}"
+msgstr "Revisé: {what}"
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "A hint showed the whole solution too early: Studio asked RAI for the hint it was on."
+msgstr "Una pista mostró la solución completa demasiado pronto: Studio le pidió a RAI la pista que tocaba."
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "Asked for the hint without the solution"
+msgstr "Se pidió la pista sin la solución"
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
+msgstr "Una primera pista mostró código demasiado pronto: Studio le pidió a RAI una pista sin código."
+
+#: crates/rapidr-studio/src/coach.rs
+msgid "Asked for the hint without code"
+msgstr "Se pidió la pista sin código"

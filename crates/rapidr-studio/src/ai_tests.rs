@@ -1238,6 +1238,7 @@ fn coach_in_the_small_model_mode_is_short() {
 #[test]
 fn a_nudge_that_shows_code_is_written_again() {
     let _one = one_at_a_time();
+    rapidr_value::i18n::set_language("en");
     let dir = project_dir("coach-redo");
     std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
     let (url, server) = mock(vec![
@@ -1275,4 +1276,61 @@ fn a_nudge_that_shows_code_is_written_again() {
     let t2 = rapidr_ai::rai::peek(n).0;
     assert!(t2.contains("    PRINT k") && t2.contains("[Copy](rai:copy/") && !t2.contains("total = total + i"), "{t2}");
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Coach's ladder drift (STUDIO-POLISH, a Haiku walk on 10-30: the shape at
+/// hint 2, the whole program at hint 3): hint 3 answered with a whole
+/// program — no blanks, it compiles — is asked once for the shape, the
+/// program never shown; the skeleton that comes next is.
+#[test]
+fn a_hint_that_gives_the_solution_away_is_written_again() {
+    let _one = one_at_a_time();
+    rapidr_value::i18n::set_language("en");
+    let dir = project_dir("coach-drift");
+    std::env::set_var("RAPIDR_AI_AUDIT", dir.join("audit.jsonl"));
+    let (url, server) = mock(vec![
+        text_answer("Here is the program:\n\n```rapidr\nDIM Clicks AS INTEGER\nFOR i = 1 TO 3\n    Clicks = Clicks + 1\nNEXT\nPRINT Clicks\n```"),
+        text_answer("The shape:\n\n```rapidr\nDIM ___ AS INTEGER\nFOR i = 1 TO 3\n    ___ = ___ + 1\nNEXT\nPRINT ___\n```"),
+    ]);
+    install();
+    let tools = "tools-coach-drift";
+    set(tools, "projectfolder", &s(dir.to_string_lossy()));
+    set(tools, "projectfiles", &s("main.rr"));
+    set(tools, "mainfile", &s("main.rr"));
+    set(tools, "mode", &s("coach"));
+    let n = "rai-coach-drift";
+    rai_set(n, "provider", "compatible");
+    rai_set(n, "baseurl", &url);
+    rai_set(n, "model", "mock-1");
+    rai_set(n, "audit", "-1");
+    assert_eq!(rai_call(n, "attachcomponent", &[s(tools), s("project")]).to_i64(), -1, "{}", rai_get(n, "error"));
+    call(tools, "coachask", &[]);
+    call(tools, "coachnext", &[]);
+    call(tools, "coachnext", &[]);
+    assert_eq!(get(tools, "coachrung").unwrap().to_i64(), 3);
+    assert_eq!(rai_call(n, "ask", &[s("How do I count to three?")]).to_i64(), -1);
+    wait(n);
+    let (t, _) = rapidr_ai::rai::peek(n);
+    assert!(!t.contains("Clicks = Clicks + 1"), "the whole program never shows: {t}");
+    assert!(t.contains(crate::coach::REDO_SOLUTION_LINE) && t.contains("___ = ___ + 1"), "{t}");
+    assert_eq!(rai_get(n, "steps"), crate::coach::REDO_SOLUTION_STEP);
+    let seen = server.join().unwrap();
+    assert_eq!(seen.len(), 2);
+    let redo: Json = serde_json::from_str(&seen[1]).unwrap();
+    assert!(redo["messages"].as_array().unwrap().iter().any(|m| m["role"] == "user" && m["content"].as_str().unwrap_or("").contains("this was hint 3 of 4, the shape of the code")));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The progress checklist's words in Studio's language (Spanish here).
+#[test]
+fn the_steps_follow_studios_language() {
+    rapidr_value::i18n::set_language("es");
+    assert_eq!(crate::ai::step_in_language("Read main.rr"), "Leí main.rr");
+    assert_eq!(crate::ai::step_in_language("Checked: 2 errors"), "Revisé: 2 errores");
+    assert_eq!(crate::ai::step_in_language("Wrote the program: 2 errors to fix"), "Escribí el programa: 2 errores por corregir");
+    assert_eq!(crate::ai::step_in_language("Changed main.rr: errors to fix"), "Cambié main.rr: errores por corregir");
+    assert_eq!(crate::ai::step_in_language("Checked the code"), "Revisé el código");
+    assert_eq!(crate::ai::step_in_language("write_file: not allowed (read-only)"), "write_file: not allowed (read-only)");
+    assert_eq!(crate::coach::hidden_words(1).1, "Se pidió la pista sin código");
+    rapidr_value::i18n::set_language("");
 }

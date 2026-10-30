@@ -751,7 +751,8 @@ impl ToolProvider for Handle {
     }
 
     fn nudge_hides(&self, answer: &str) -> Option<(String, String)> {
-        with(&self.name, |t| (t.coach() && coach::shows_code(answer)).then(|| (coach::REDO_LINE.to_string(), coach::REDO_STEP.to_string())))
+        // (said in Studio's language: the chat's muted line, the step)
+        with(&self.name, |t| (t.coach() && coach::shows_code(answer)).then(|| coach::hidden_words(t.ladder.rung)))
     }
 
     fn turn_cards(&self) -> Vec<(String, String)> {
@@ -766,7 +767,7 @@ impl ToolProvider for Handle {
     /// newest steps fit the status line ("Found an example", "Wrote
     /// main.rr", "Checked the code").
     fn step_label(&self, name: &str, note: &str) -> String {
-        step_label(name, note)
+        step_in_language(&step_label(name, note))
     }
 
     fn nudge(&self, question: &str, answer: &str) -> Option<String> {
@@ -775,6 +776,13 @@ impl ToolProvider for Handle {
             // again without it, once: the ladder holds in Studio, whatever
             // a small model does)
             if t.coach() {
+                // (hints 2 and 3 that gave the whole solution away — a code
+                // block with no blanks that compiles as a program —: asked
+                // once for the hint they were, the draft hidden as hint 1's)
+                if t.ladder.rung >= 2 && t.ladder.rung < coach::RUNGS {
+                    let compiles = |code: &str| diagnostics_count(&[("main.rr".to_string(), code.to_string())], "coach-check", "main.rr") == 0;
+                    return coach::gives_solution(answer, compiles).then(|| coach::redo_rung(t.ladder.rung).to_string());
+                }
                 return (t.ladder.rung <= 1 && !t.ladder.error && coach::shows_code(answer)).then(|| coach::REDO_NUDGE.to_string());
             }
             if !t.may_propose() {
@@ -1132,6 +1140,58 @@ pub fn step_label(name: &str, note: &str) -> String {
         "propose_edit" | "write_file" if note.starts_with("Proposed") => format!("{}{fix}", head(note)),
         _ => note.to_string(),
     }
+}
+
+/// A step's few words ([`step_label`], English) in Studio's language: the
+/// progress checklist's fixed words and their names; a tool's own note
+/// (a failed call's) stays as it is.
+pub fn step_in_language(label: &str) -> String {
+    use rapidr_value::i18n::{tr_ui, tr_ui_fill};
+    // ("2 errors", "1 warning": the counts' words)
+    let counted = |t: &str| -> String {
+        let (n, word) = t.split_once(' ').unwrap_or((t, ""));
+        match (n.parse::<u64>(), word) {
+            (Ok(1), "error") => tr_ui("1 error"),
+            (Ok(_), "errors") => tr_ui_fill("{n} errors", &[("n", n)]),
+            (Ok(1), "warning") => tr_ui("1 warning"),
+            (Ok(_), "warnings") => tr_ui_fill("{n} warnings", &[("n", n)]),
+            _ => t.to_string(),
+        }
+    };
+    // (what is left to fix, after the step's own words)
+    let (head, fix) = match label.rsplit_once(": ") {
+        Some((h, f)) if f.ends_with(" to fix") => (h, Some(f)),
+        _ => (label, None),
+    };
+    let fix = fix.map(|f| {
+        if f == "errors to fix" {
+            format!(": {}", tr_ui("errors to fix"))
+        } else {
+            format!(": {}", tr_ui_fill("{what} to fix", &[("what", &counted(f.trim_end_matches(" to fix")))]))
+        }
+    });
+    let head = match head {
+        "Looked at the form" => tr_ui("Looked at the form"),
+        "Listed the files" => tr_ui("Listed the files"),
+        "Checked the code" => tr_ui("Checked the code"),
+        "Found an example" => tr_ui("Found an example"),
+        "Laid out the buttons" => tr_ui("Laid out the buttons"),
+        "Wrote the program" => tr_ui("Wrote the program"),
+        _ => {
+            if let Some(f) = head.strip_prefix("Read ") {
+                tr_ui_fill("Read {file}", &[("file", f)])
+            } else if let Some(f) = head.strip_prefix("Looked up ") {
+                tr_ui_fill("Looked up {name}", &[("name", f)])
+            } else if let Some(f) = head.strip_prefix("Changed ") {
+                tr_ui_fill("Changed {file}", &[("file", f)])
+            } else if let Some(c) = head.strip_prefix("Checked: ") {
+                tr_ui_fill("Checked: {what}", &[("what", &counted(c))])
+            } else {
+                return label.to_string();
+            }
+        }
+    };
+    format!("{head}{}", fix.unwrap_or_default())
 }
 
 /// A text on one line (a list's field: no tab, no line break).

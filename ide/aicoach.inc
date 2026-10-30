@@ -253,15 +253,17 @@ SUB AIDialPaint(Sender AS RCanvas)
   DIM w AS INTEGER, h AS INTEGER, chosen AS INTEGER
   w = Sender.Width: h = Sender.Height
   Sender.FillRect 0, 0, w, h, Sender.Color
+  ' (corners of radius 6, the segments' of 5: a segment, 2 in, never covers
+  ' the track's rounded ends — a pill-round track had its ends cut off)
   IF Sender.Tag < 0 THEN
-    Sender.RoundRect 0, 0, w, h, h, h, TC("border")
-    Sender.RoundRect 1, 1, w - 1, h - 1, h - 2, h - 2, TC("window")
+    Sender.RoundRect 0, 0, w, h, 12, 12, TC("border")
+    Sender.RoundRect 1, 1, w - 1, h - 1, 10, 10, TC("window")
     EXIT SUB
   END IF
   IF Sender.Tag = 1 THEN chosen = AICoachNow ELSE chosen = Flag(AICoachNow = 0)
   IF chosen THEN
-    Sender.RoundRect 0, 0, w, h, h, h, TC("accent")
-    Sender.RoundRect 1, 1, w - 1, h - 1, h - 2, h - 2, TC("selected")
+    Sender.RoundRect 0, 0, w, h, 10, 10, TC("accent")
+    Sender.RoundRect 1, 1, w - 1, h - 1, 8, 8, TC("selected")
   END IF
 END SUB
 
@@ -363,7 +365,7 @@ FUNCTION LayOutAIDial(Top AS INTEGER, W AS INTEGER) AS INTEGER
   sw = 12 + 16 + 6 + tw + 4 + 12
   IF sw < 88 THEN sw = 88
   dw = 2 + sw + 2 + sw + 2
-  x = 6
+  x = 8
   AIDialTrack.Left = x: AIDialTrack.Top = Top: AIDialTrack.Width = dw: AIDialTrack.Height = ch
   AIDialBuild.Left = x + 2: AIDialBuild.Top = Top + 2: AIDialBuild.Width = sw: AIDialBuild.Height = ch - 4
   AIDialCoach.Left = x + 2 + sw + 2: AIDialCoach.Top = Top + 2: AIDialCoach.Width = sw: AIDialCoach.Height = ch - 4
@@ -378,12 +380,12 @@ FUNCTION LayOutAIDial(Top AS INTEGER, W AS INTEGER) AS INTEGER
   IF AIDialLockText.Visible = 0 THEN EXIT FUNCTION
   ' (the lock's line: beside the dial when it fits, else under it)
   lw = UITextWidth(AIDialLockText.Caption) + 4
-  IF x + dw + 8 + 16 + 4 + lw <= W - 6 THEN
+  IF x + dw + 8 + 16 + 4 + lw <= W - 8 THEN
     AIDialLockIcon.Left = x + dw + 8: AIDialLockIcon.Top = Top + (ch - 16) \ 2
-    AIDialLockText.Left = x + dw + 8 + 20: AIDialLockText.Top = Top + (ch - 16) \ 2: AIDialLockText.Width = W - 6 - (x + dw + 28): AIDialLockText.Height = 16
+    AIDialLockText.Left = x + dw + 8 + 20: AIDialLockText.Top = Top + (ch - 16) \ 2: AIDialLockText.Width = W - 8 - (x + dw + 28): AIDialLockText.Height = 16
   ELSE
     AIDialLockIcon.Left = x + 2: AIDialLockIcon.Top = Top + ch + 4
-    AIDialLockText.Left = x + 22: AIDialLockText.Top = Top + ch + 4: AIDialLockText.Width = W - 6 - (x + 22): AIDialLockText.Height = 16
+    AIDialLockText.Left = x + 22: AIDialLockText.Top = Top + ch + 4: AIDialLockText.Width = W - 8 - (x + 22): AIDialLockText.Height = 16
     Result = ch + 22
   END IF
 END FUNCTION
@@ -472,15 +474,27 @@ SUB LayOutAICoach
     hh = 40 - 4 + ch + 8
   END IF
   IF AICoachBar.Height <> hh THEN AICoachBar.Height = hh
-  x = w - 8
-  IF AICoachGot.Visible THEN
-    x = x - gw
-    AICoachGot.Left = x: AICoachGot.Top = by: AICoachGot.Width = gw: AICoachGot.Height = ch
-    x = x - 8
-  END IF
-  IF AICoachNext.Visible THEN
-    x = x - nw
-    AICoachNext.Left = x: AICoachNext.Top = by: AICoachNext.Width = nw: AICoachNext.Height = ch
+  IF by <> y THEN
+    ' (a row of their own under the chip: from the left, in reading order)
+    x = 8
+    IF AICoachNext.Visible THEN
+      AICoachNext.Left = x: AICoachNext.Top = by: AICoachNext.Width = nw: AICoachNext.Height = ch
+      x = x + nw + 8
+    END IF
+    IF AICoachGot.Visible THEN
+      AICoachGot.Left = x: AICoachGot.Top = by: AICoachGot.Width = gw: AICoachGot.Height = ch
+    END IF
+  ELSE
+    x = w - 8
+    IF AICoachGot.Visible THEN
+      x = x - gw
+      AICoachGot.Left = x: AICoachGot.Top = by: AICoachGot.Width = gw: AICoachGot.Height = ch
+      x = x - 8
+    END IF
+    IF AICoachNext.Visible THEN
+      x = x - nw
+      AICoachNext.Left = x: AICoachNext.Top = by: AICoachNext.Width = nw: AICoachNext.Height = ch
+    END IF
   END IF
   IF AICoachErr.Visible THEN
     bw = UITextWidth(REPLACESUBSTR$(AICoachErr.Caption, "&", "")) + 24

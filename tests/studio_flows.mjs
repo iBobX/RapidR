@@ -4442,8 +4442,9 @@ const CASES = [
     do: "ai:on,ai:provider=compatible,ai:base={mock},ai:model=mock-small,ai:prices=2/10,ai:ask=hello there,wait,wait,wait",
     delay: 5,
     capture: true,
-    // (one line: 18 pixels, as it always was)
-    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^18$/ },
+    // (one line: 18 pixels, as it always was — two, 35, in the right dock's
+    // 272 since INSPECTOR-CATEGORIES)
+    dump: { "aimeter.caption": /^1,000 tokens sent, 20 received · about \$0\.0022$/, "ai.cost": /^\$0\.0022$/, "aimeter.height": /^(18|35)$/ },
   },
   {
     // The meter with cached tokens and prices is longer than a line of the
@@ -4485,8 +4486,10 @@ const CASES = [
       "dock.layout": /^(?![\s\S]*^hidden .*\baipanel\b)/m,
       // (the pane opens 380 wide, not the dock's 240; its controls follow —
       // its contents 378, inside the group's 1-pixel frame on each side)
-      "aipanel.width": /^378$/,
-      "aiinput.width": /^366$/,
+      // (the right dock 272 wide since INSPECTOR-CATEGORIES; the box 8
+      // from each edge — STUDIO-POLISH)
+      "aipanel.width": /^270$/,
+      "aiinput.width": /^254$/,
     },
   },
   {
@@ -7802,6 +7805,30 @@ const CASES = [
       "aicoachbar.visible": /^1$/,
       "aicoachchiptext.caption": /^Hint 1 of 4$/,
       "aicoachnext.caption": /^&Next Hint$/,
+    },
+  },
+  {
+    // (STUDIO-POLISH) the strip under the chat, calm: the dial whole (8 from
+    // the edge, its segments inside the track), every control compact,
+    // what Send shares one line until Details opens it (Less closes it)
+    name: "coach-strip-calm",
+    open: "examples/gui/hello_form.rr",
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai.assistant,ai:coach:mode=coach,ai:ask=how do I count the clicks on my button,ai:wait,wait`,
+    events: [CLICK("ainotelink", 10, 8), idle(3)].join(","),
+    delay: 7,
+    capture: true,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    contrast: true,
+    a11y: [[/^Show less about what Send shares$/], [/^Coach, chosen$/, "button"]],
+    dump: {
+      "aidialtrack.left": /^8$/,
+      "aidialbuild.left": /^10$/,
+      "aisendbtn.height": /^24$/,
+      "aicompactbtn.height": /^24$/,
+      "aichatsbtn.height": /^24$/,
+      "ainotelink.caption": /^Less$/,
+      "ainote.caption": /nothing else, nothing before\.$/,
     },
   },
   {

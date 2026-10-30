@@ -10,7 +10,6 @@ ide/ai.inc	height	AIRevApplyBtn.Left = w - 200: AIRevApplyBtn.Top = 12: AIRevApp
 ide/ai.inc	height	AIRevCancelBtn.Left = w - 104: AIRevCancelBtn.Top = 12: AIRevCancelBtn.Width = 88: AIRevCancelBtn.Height = 30
 ide/ai.inc	height	AIRevNone.Left = w - 316: AIRevNone.Top = 12: AIRevNone.Width = 108: AIRevNone.Height = 30
 ide/ai.inc	height	AISentOk.Left = AISent.ClientWidth - 104: AISentOk.Top = 14: AISentOk.Width = 88: AISentOk.Height = 30
-ide/ai.inc	height	IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
 ide/ai.inc	height	bh = 34: h = 56
 ide/aichats.inc	height	IF ThemeName = "classic" THEN bh = 23 ELSE bh = 28
 ide/build.inc	height	row = 40: fh = 28: bh = 32: bw = 96: x = 112: w = 340: pad = 20: ic = 64: nh = 32: ch = 20

@@ -6705,3 +6705,27 @@ msgstr "Volver a esta versión de {file}..."
 #: ide/versions.inc
 msgid "&Undo: {what}"
 msgstr "&Deshacer: {what}"
+
+#: ide/ai.inc
+msgid "Less"
+msgstr "Menos"
+
+#: ide/ai.inc
+msgid "Show less about what Send shares"
+msgstr "Mostrar menos sobre lo que comparte Enviar"
+
+#: ide/ai.inc
+msgid "Send shares this chat with {provider}."
+msgstr "Enviar comparte este chat con {provider}."
+
+#: ide/ai.inc
+msgid "Details"
+msgstr "Detalles"
+
+#: ide/ai.inc
+msgid "What Send shares: details"
+msgstr "Lo que comparte Enviar: detalles"
+
+#: ide/ai.inc
+msgid "Context: {pct}%"
+msgstr "Contexto: {pct}%"
