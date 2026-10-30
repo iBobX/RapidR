@@ -29,7 +29,7 @@
 // cut-off text without failing.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -129,7 +129,12 @@ function runDesktop(scene, lang, theme) {
   mkdirSync(dir, { recursive: true });
   const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme, "--lang", lang];
   if (scene.do) args.push("--do", scene.do);
-  if (scene.open) args.push(scene.open);
+  if (scene.copy) {
+    // (a project the scene changes — Versions starts a repository in it —
+    // is a copy beside the capture, never in this checkout)
+    cpSync(join(ROOT, scene.copy), join(dir, "project"), { recursive: true });
+    args.push(join(dir, "project", scene.copyOpen));
+  } else if (scene.open) args.push(scene.open);
   spawnSync(RAPIDR, args, {
     cwd: ROOT,
     timeout: 90000,
@@ -148,6 +153,7 @@ function runDesktop(scene, lang, theme) {
       RAPIDR_KEYSTORE: "memory",
       RAPIDR_AI_CHATS: join(dir, "chats"),
       RAPIDR_DOCUMENTS: join(dir, "documents"),
+      ...(scene.events ? { RAPIDR_TEST_EVENTS: scene.events } : {}),
       ...(scene.env || {}),
     },
   });
@@ -224,6 +230,120 @@ for (const scene of XX_SCENES) for (const theme of THEMES) for (const host of ho
     if (STRICT_CUT) check(`${name}: nothing cut off`, j.cut.length === 0, j.cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
   } catch (e) {
     check(name, false, e.message);
+  }
+}
+
+// ---- Spanish, the whole interface (ES-STUDIO) ---------------------------------
+// The scenes above in Spanish, plus every menu, the Versions pane and Save a
+// Version. A drawn text FAILS when it is English left: the very English text of
+// a source string whose Spanish differs (ide/lang/studio.pot and RapidR's
+// own runtime.pot, read against their es.po), or a sentence with English
+// function words (the, and, your …) that is no name and no word of the program
+// the scene opened. Cut-off text is reported (and fails like the pseudo-
+// language's, RAPIDR_LANG_STRICT_CUT=0 only reports).
+function poPairs(file) {
+  const text = readFileSync(join(ROOT, file), "utf8");
+  const out = [];
+  let cur = null, field = null;
+  // (a PO string: "…" with C's escapes)
+  const str = (l) => {
+    const body = l.slice(l.indexOf('"') + 1, l.lastIndexOf('"'));
+    return body.replace(/\\(.)/g, (_, c) => ({ n: "\n", t: "\t", r: "\r" })[c] ?? c);
+  };
+  for (const l of text.split("\n").concat([""])) {
+    if (!l.trim()) { if (cur && cur.id !== undefined) out.push(cur); cur = null; field = null; continue; }
+    if (l.startsWith("#")) continue;
+    cur ||= { id: undefined, plural: undefined, str: [] };
+    if (l.startsWith("msgctxt")) field = "ctx";
+    else if (l.startsWith("msgid_plural")) { cur.plural = str(l); field = "plural"; }
+    else if (l.startsWith("msgid")) { cur.id = str(l); field = "id"; }
+    else if (l.startsWith("msgstr[")) { cur.str[Number(/\[(\d+)\]/.exec(l)[1])] = str(l); field = ["str", Number(/\[(\d+)\]/.exec(l)[1])]; }
+    else if (l.startsWith("msgstr")) { cur.str[0] = str(l); field = ["str", 0]; }
+    else if (l.startsWith('"')) {
+      if (field === "id") cur.id += str(l);
+      else if (field === "plural") cur.plural += str(l);
+      else if (Array.isArray(field)) cur.str[field[1]] += str(l);
+    }
+  }
+  return out;
+}
+const noMnemonic = (s) => s.replace(/&&/g, "\u0000").replace(/&/g, "").replace(/\u0000/g, "&");
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const EN_EXACT = new Map(), EN_PATTERNS = [];
+for (const [pot, po] of [["ide/lang/studio.pot", "ide/lang/es.po"], ["crates/rapidr-value/lang/runtime.pot", "crates/rapidr-value/lang/es.po"]]) {
+  const es = new Map(poPairs(po).map((e) => [e.id, e]));
+  for (const e of poPairs(pot)) {
+    const t = es.get(e.id);
+    if (!t) continue;
+    const forms = [[e.id, t.str[0]], ...(e.plural !== undefined ? [[e.plural, t.str[1]]] : [])];
+    for (const [en, sp] of forms) {
+      if (!en || !sp) continue;
+      const a = noMnemonic(en), b = noMnemonic(sp);
+      if (a === b || a.length < 3) continue;
+      if (!/\{[^}]*\}/.test(a)) EN_EXACT.set(a, b);
+      else if (a.replace(/\{[^}]*\}/g, "").trim().length >= 12) EN_PATTERNS.push([new RegExp(`^${escRe(a).replace(/\\\{[^}]*\\\}/g, ".+?")}$`), new RegExp(`^${escRe(b).replace(/\\\{[^}]*\\\}/g, ".+?")}$`)]);
+    }
+  }
+}
+const EN_WORDS = new Set(["the", "and", "of", "is", "are", "your", "you", "this", "that", "with", "from", "was", "were", "has", "have", "will", "isn't", "can't", "doesn't", "couldn't", "please", "click", "press", "choose", "open", "close", "save", "files", "project", "projects", "new", "add", "remove", "delete", "copy", "paste", "undo", "redo", "stop", "help", "search", "find", "replace", "settings", "tools", "window", "nothing", "there", "here", "after", "before", "when", "then", "all", "any", "not", "no"]);
+// What a language-neutral window shows (a key, a name, a code word) is no English left.
+const NEUTRAL = /^(enter|esc|escape|tab|space|shift|ctrl|alt|del|backspace|f\d+|[a-z]+\d*)$/i;
+function englishLeft(texts, programWords) {
+  const out = new Set();
+  for (const t of texts) {
+    const s = t.text.trim();
+    if (!s) continue;
+    // (a text made of names — a property's, the program's own words — is no English left)
+    const plain = s.replace(/[\w./-]+\.(rr|bas|inc|rrproj|rqw|md|po|csv|json|txt|png|rtf)\b/gi, " ").replace(/\S*[/\\]\S*/g, " ");
+    const words = plain.match(/[A-Za-z][A-Za-z']+/g) || [];
+    if (words.length && words.every((w) => NAMES.has(w.toLowerCase()) || programWords.has(w.toLowerCase()))) continue;
+    if (EN_EXACT.has(s)) { out.add(s); continue; }
+    if (EN_PATTERNS.some(([en, sp]) => en.test(s) && !sp.test(s))) { out.add(s); continue; }
+    // (a sentence with English function words in it, and nothing of the program's or a name)
+    const bad = words.filter((w) => EN_WORDS.has(w.toLowerCase()) && !NAMES.has(w.toLowerCase()) && !programWords.has(w.toLowerCase()) && !(w.length <= 3 && w === w.toUpperCase()));
+    if (bad.length >= 1 && words.length >= 2 && bad.some((w) => /^(the|and|your|this|that|with|from|was|were|isn't|can't|couldn't|doesn't)$/i.test(w))) out.add(s);
+    else if (words.length >= 3 && bad.length >= 2) out.add(s);
+    else if (bad.length && s.length > 25 && words.length >= 4 && words.filter((w) => !NEUTRAL.test(w)).length >= 4 && bad.some((w) => w.length > 3)) out.add(s);
+  }
+  return [...out];
+}
+// The Alt+<letter> that opens each menu in Spanish (the menu bar's mnemonics)
+const ALT = (c) => `studio.__key_${c.toUpperCase().charCodeAt(0)}_1`;
+const VERSIONS_COPY = { copy: "tests/fixtures/studio_versions", copyOpen: "Hello.rrproj" };
+const V_START = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
+const ES_SCENES = [
+  ...XX_SCENES,
+  ...[["archivo", "A"], ["edicion", "E"], ["ver", "V"], ["proyecto", "P"], ["ejecutar", "J"], ["depurar", "D"], ["formato", "F"], ["herramientas", "H"], ["ventana", "N"], ["ayuda", "U"]].map(([n, k]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: ALT(k), delay: 5 })),
+  // (two sub-menus: File > Abrir reciente (R), Edición > Avanzado (V))
+  ...[["archivo-reciente", "A", 82], ["edicion-avanzado", "E", 86]].map(([n, k, sub]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: `${ALT(k)},studio.__key_${sub}`, delay: 5 })),
+  { name: "settings-ai", open: "", do: "ai.settings", window: 2 },
+  { name: "settings-aiapps", open: "", do: "mcp.settings", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
+  // (the AI Assistant pane: on, a server on this computer that isn't there — nothing is asked)
+  { name: "assistant", open: "", do: "ai:on,ai:provider=compatible,ai:base=http://127.0.0.1:9,ai:model=mock-small,wait,wait", delay: 6 },
+  { name: "versions-pane", ...VERSIONS_COPY, do: V_START, delay: 8 },
+  { name: "versions-save", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.save`, window: 2, delay: 8 },
+  { name: "debug-panes", open: "examples/gui/hello_form.rr", do: "wait,view.debugPanes", delay: 5 },
+];
+{
+  for (const scene of ES_SCENES) {
+    const name = `es ${scene.name} ${THEMES[0]} desktop`;
+    if (!want(name)) continue;
+    try {
+      const run = runDesktop(scene, "es", THEMES[0]);
+      writeFileSync(join(OUT, `es-${scene.name}-${THEMES[0]}-desktop.bmp`), run.bmp);
+      const w = run.report[(scene.window || 1) - 1] || run.report[0];
+      const texts = (w && w.texts) || [];
+      const programWords = wordsOf(scene.open || (scene.copy ? `${scene.copy}/main.rr` : ""));
+      const eng = englishLeft(texts, programWords);
+      // (a name scrolled out of its list — RMemo at the toolbox's edge — is no text a language cuts)
+      const nameOnly = (t) => { const w = t.match(/[A-Za-z][A-Za-z']+/g) || []; return w.length > 0 && w.every((x) => NAMES.has(x.toLowerCase()) || programWords.has(x.toLowerCase())); };
+      const cut = [...new Set(texts.filter((t) => t.cut && !nameOnly(t.text)).map((t) => t.text))];
+      check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
+      if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
+      else if (cut.length) left.push(`${name}: ${cut.join(" | ")}`);
+    } catch (e) {
+      check(name, false, e.message);
+    }
   }
 }
 

@@ -139,7 +139,7 @@ msgstr "Pedir de nuevo los modelos al proveedor"
 
 #: ide/ai.inc
 msgid "Effort: Auto"
-msgstr "Esfuerzo: automático"
+msgstr "Esfuerzo: auto"
 
 #: ide/ai.inc
 msgid "Effort: Low"
@@ -400,7 +400,7 @@ msgstr "Los modelos de este proveedor eligen por sí mismos cuánto pensar."
 
 #: ide/ai.inc
 msgid "Effort: Auto, as the model usually thinks."
-msgstr "Esfuerzo: automático, como suele pensar el modelo."
+msgstr "Esfuerzo: auto, como suele pensar el modelo."
 
 #: ide/ai.inc
 msgid "Effort: Low — slower, and it costs more."
@@ -3616,7 +3616,7 @@ msgstr "No hay ningún proyecto abierto. Archivo > Nuevo proyecto (Ctrl+N), o Ab
 
 #: ide/panels.inc
 msgid "Select a component on a form to see its properties."
-msgstr "Selecciona un componente de un formulario para ver sus propiedades."
+msgstr "Selecciona un componente para ver sus propiedades."
 
 #: ide/panels.inc
 msgid "Press F5 to run the program; its output shows here."
@@ -4538,7 +4538,7 @@ msgstr "Activado: la página de bienvenida ofrece el último proyecto que tenía
 
 #: ide/settings.inc
 msgid "Code &helpers"
-msgstr "&Ayudas del código"
+msgstr "Ay&udas del código"
 
 #: ide/settings.inc
 msgid "Code helpers"
@@ -4562,7 +4562,7 @@ msgstr "Las carpetas donde los programas ejecutados desde Studio buscan comandos
 
 #: ide/settings.inc
 msgid "Re&fresh"
-msgstr "&Actualizar"
+msgstr "Actuali&zar"
 
 #: ide/settings.inc
 msgid "Read your login shell's PATH again"
@@ -4570,7 +4570,7 @@ msgstr "Volver a leer el PATH de tu shell de inicio de sesión"
 
 #: ide/settings.inc
 msgid "&Debug panes"
-msgstr "Paneles de &depuración"
+msgstr "&Depuración"
 
 #: ide/settings.inc
 msgid "Debug panes"
@@ -4595,7 +4595,7 @@ msgstr "Gratis en esta computadora, o un servicio en la nube con tu clave: lo qu
 # legal
 #: ide/settings.inc
 msgid "Off by default. On, Studio shows the AI Assistant panel (View > AI Assistant, Ctrl+I): ask about your project or for a new program. Nothing is sent until you press Send there. A new program it makes opens in Studio at once (Undo takes it back); changes to your files are shown for you to review, and nothing runs until you press Run."
-msgstr "Desactivado de forma predeterminada. Activado, Studio muestra el panel Asistente de IA (Ver > Asistente de IA, Ctrl+I): pregunta por tu proyecto o pide un programa nuevo. No se envía nada hasta que presionas Enviar allí. Un programa nuevo que hace se abre en Studio al instante (Deshacer lo revierte); los cambios a tus archivos se muestran para que los revises, y nada se ejecuta hasta que presionas Ejecutar."
+msgstr "Desactivado por defecto. Activado, Studio muestra el panel Asistente de IA (Ver > Asistente de IA, Ctrl+I): pregunta por tu proyecto o pide un programa nuevo. No se envía nada hasta que presionas Enviar allí. Un programa nuevo se abre en Studio al instante (Deshacer lo revierte); los cambios a tus archivos se muestran para que los revises y nada se ejecuta hasta que presionas Ejecutar."
 
 #: ide/settings.inc
 msgid "AI provider"
@@ -4641,7 +4641,7 @@ msgstr "Se guarda en el almacenamiento de este navegador para la página: cualqu
 
 #: ide/settings.inc
 msgid "&Workspace ID:"
-msgstr "ID del espacio de &trabajo:"
+msgstr "&ID del espacio:"
 
 #: ide/settings.inc
 msgid "Anthropic workspace ID (optional)"
@@ -4669,7 +4669,7 @@ msgstr "Resultado de Obtener modelos"
 
 #: ide/settings.inc
 msgid "Longest &answer:"
-msgstr "&Respuesta más larga:"
+msgstr "&Máximo:"
 
 #: ide/settings.inc
 msgid "Longest answer, in tokens a part"
@@ -4709,7 +4709,7 @@ msgstr "Qué puede hacer el asistente"
 
 #: ide/settings.inc
 msgid "Ask before the assistant &creates or changes files"
-msgstr "Preguntar antes de que el asistente &cree o cambie archivos"
+msgstr "Pregu&ntar antes de que el asistente cree o cambie archivos"
 
 #: ide/settings.inc
 msgid "On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo."
