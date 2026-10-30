@@ -228,6 +228,23 @@ END
 
 `DATA`, `READ` and `RESTORE [label]` work as in other BASICs.
 
+### One-line `IF … ELSE`
+
+`IF ok THEN PRINT "yes" ELSE PRINT "no"` is the classic one-line form, and
+it keeps the classic compiler's habits, so older programs print what they
+always printed:
+
+- A `PRINT` right before an `ELSE` **does not end its line**: the next
+  `PRINT` carries on from it. `IF 1 THEN PRINT "a" ELSE PRINT "b"` followed
+  by `PRINT "c"` prints `ac`. The `PRINT` of the ELSE part, and any `PRINT`
+  in a block `IF` (several lines), end their lines as usual. To always end
+  it, write the block form (the example
+  [if_one_line.rr](../../examples/basics/if_one_line.rr)).
+- A **second** `ELSE` on the line is accepted and what follows it never
+  runs (`IF 0 THEN a ELSE b ELSE c` runs `b`); a **third** is an error. An
+  `IF` inside the THEN part takes the ELSE: `IF 0 THEN IF 1 THEN a ELSE b ELSE c`
+  runs nothing (the second `ELSE` is the inner one's spare).
+
 ### `FOR i AS INTEGER`: a counter declared in its loop
 
 Many BASICs (and the AI models that learned them) write the counter's type
