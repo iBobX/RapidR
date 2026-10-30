@@ -50,7 +50,7 @@ pub struct Recorder {
     drawn: HashMap<String, Drawn>,
     overlay: CpuRenderer,
     /// Each floating window's shadow, by its place: the pixels it darkens.
-    shadows: HashMap<(i64, i64, i64, i64), Vec<(usize, [u8; 4])>>,
+    shadows: HashMap<(i64, i64, i64, i64), Shadow>,
     /// Frames written, by their pixels' hash.
     seen: HashMap<u64, String>,
     /// Each frame: its time (ms of the video) and file.
@@ -62,10 +62,15 @@ pub struct Recorder {
     pub last: Option<Pixels>,
 }
 
+/// A shadow's pixels: each one's index and the colour it darkens to.
+type Shadow = Vec<(usize, [u8; 4])>;
+/// A window's frame top left, its inside's offset in it, the frame's size.
+pub type Placement = ((i64, i64), (i64, i64), (i64, i64));
+
 /// Where window `form`'s frame and inside are on the screen (logical
 /// pixels): its frame's top left, the inside's offset in it, the frame's
 /// size.
-pub fn placement(desk: &Desktop, store: &dyn Store, form: &str) -> Option<((i64, i64), (i64, i64), (i64, i64))> {
+pub fn placement(desk: &Desktop, store: &dyn Store, form: &str) -> Option<Placement> {
     let f = desk.forms.get(form)?;
     let caption = !f.spec.no_caption;
     let (iw, ih) = (f.ui.client.0, f.ui.client.1 + f.ui.menu_offset);

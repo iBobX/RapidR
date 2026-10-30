@@ -41,7 +41,8 @@
       ],
       "do": [
         { "type": "HelloApp" },
-        { "highlight": "TplCard(0)", "afterLine": 1, "for": 2.2 },
+        { "highlight": "TplCard(0)", "afterLine": 1, "for": 2.0 },
+        { "wait": 1.6 },
         { "click": "NewOk", "pause": 0.4 },
         { "waitFor": "gone:NewDialog" }
       ]

@@ -241,7 +241,7 @@ pub fn read_layers(b: &[u8]) -> Option<Vec<Layer>> {
         at += 16;
         let len = w.checked_mul(h)?.checked_mul(4)?;
         let px = b.get(at..at + len)?;
-        let pixels = px.chunks_exact(4).map(|c| u32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        let pixels = px.as_chunks::<4>().0.iter().map(|c| u32::from_le_bytes(*c)).collect();
         at += len;
         out.push(Layer { at: (i64::from(x), i64::from(y)), pixels: Arc::new(Pixels { width: w, height: h, pixels }) });
     }

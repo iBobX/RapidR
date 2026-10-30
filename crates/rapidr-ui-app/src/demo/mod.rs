@@ -190,7 +190,9 @@ enum Micro {
     Do { cmds: String, seq: Option<u32> },
     /// A request to the program Studio runs; its answer awaited.
     App { req: Json, seq: Option<u32>, then: AppThen },
-    Highlight { spot: Option<(f64, f64, f64, f64)>, spotlight: bool, for_ms: Option<u64> },
+    /// A ring around `spot`; `form`: the window it is in (it goes when
+    /// that window closes).
+    Highlight { spot: Option<(f64, f64, f64, f64)>, spotlight: bool, for_ms: Option<u64>, form: Option<String> },
     /// A click's ring where the pointer is (a click in the program Studio
     /// runs, which presses it there).
     Ripple,
@@ -228,13 +230,16 @@ struct StepRun {
     done_at: Option<Instant>,
 }
 
+/// A glide: from, to, when it started, how long it takes (ms).
+type Glide = ((f64, f64), (f64, f64), Instant, u64);
+
 #[derive(Default)]
 struct Ptr {
     at: (f64, f64),
     shown: bool,
     /// When it was shown (fades in) or hidden (fades out).
     since: Option<Instant>,
-    glide: Option<((f64, f64), (f64, f64), Instant, u64)>,
+    glide: Option<Glide>,
     pressed: bool,
     ripple: Option<((f64, f64), Instant)>,
 }
@@ -250,7 +255,8 @@ struct Player {
     step: usize,
     run: Option<StepRun>,
     ptr: Ptr,
-    highlight: Option<(Highlight, Option<Instant>)>,
+    /// The ring, until when, and the window it is in.
+    highlight: Option<(Highlight, Option<Instant>, Option<String>)>,
     /// The caption: its lines, width, from and until when.
     caption: Option<(Vec<String>, i64, Instant, Instant)>,
     card: Option<(CardSpec, Instant, Option<Instant>)>,
@@ -403,16 +409,13 @@ impl Player {
             if end.is_some() {
                 continue;
             }
-            match start {
-                None => {
-                    let after = if i == 0 { Some(now) } else { run.lines[i - 1].1.map(|e| e + LINE_GAP) };
-                    let cue_ok = s.say[i].cue.as_ref().is_none_or(|c| run.cues.contains(c));
-                    if after.is_some_and(|a| now >= a) && cue_ok {
-                        run.lines[i] = (Some(now), Some(now + Duration::from_millis(s.say[i].ms)));
-                        started_line = Some(i);
-                    }
+            if start.is_none() {
+                let after = if i == 0 { Some(now) } else { run.lines[i - 1].1.map(|e| e + LINE_GAP) };
+                let cue_ok = s.say[i].cue.as_ref().is_none_or(|c| run.cues.contains(c));
+                if after.is_some_and(|a| now >= a) && cue_ok {
+                    run.lines[i] = (Some(now), Some(now + Duration::from_millis(s.say[i].ms)));
+                    started_line = Some(i);
                 }
-                Some(_) => {}
             }
             break;
         }
@@ -586,11 +589,11 @@ impl Player {
             }
             Act::Wait(ms) => m.extend([Micro::Cue, Micro::Pause(*ms)]),
             Act::WaitFor { cond, timeout_ms } => m.extend([Micro::Until { cond: cond.clone(), timeout: *timeout_ms }, Micro::Cue]),
-            Act::Highlight { target: None, .. } => m.push_back(Micro::Highlight { spot: None, spotlight: false, for_ms: None }),
+            Act::Highlight { target: None, .. } => m.push_back(Micro::Highlight { spot: None, spotlight: false, for_ms: None, form: None }),
             Act::Highlight { target: Some(t), spotlight, for_ms } if t.app => m.push_back(app_find(t, AppThen::Highlight { spotlight: *spotlight, for_ms: *for_ms })),
             Act::Highlight { target: Some(t), spotlight, for_ms } => {
                 let s = find(t)?;
-                m.extend([Micro::Highlight { spot: Some(s.rect), spotlight: *spotlight, for_ms: *for_ms }, Micro::Cue]);
+                m.extend([Micro::Highlight { spot: Some(s.rect), spotlight: *spotlight, for_ms: *for_ms, form: Some(s.form) }, Micro::Cue]);
             }
             Act::Do(cmds) => m.extend([Micro::Cue, Micro::Do { cmds: cmds.clone(), seq: None }]),
             Act::Mark(name) => m.push_back(Micro::Mark(name.clone())),
@@ -750,12 +753,12 @@ impl Player {
                     }
                     AppThen::Highlight { spotlight, for_ms } => {
                         let r = if rect.len() == 4 { Some((rect[0], rect[1], rect[2], rect[3])) } else { None };
-                        vec![Micro::Highlight { spot: r, spotlight, for_ms }, Micro::Cue]
+                        vec![Micro::Highlight { spot: r, spotlight, for_ms, form: None }, Micro::Cue]
                     }
                 })
             }
-            Micro::Highlight { spot, spotlight, for_ms } => {
-                self.highlight = spot.map(|(x, y, w, h)| (Highlight { rect: (x.round() as i64, y.round() as i64, w.round() as i64, h.round() as i64), spotlight, alpha: 255 }, for_ms.map(|ms| now + Duration::from_millis(ms))));
+            Micro::Highlight { spot, spotlight, for_ms, form } => {
+                self.highlight = spot.map(|(x, y, w, h)| (Highlight { rect: (x.round() as i64, y.round() as i64, w.round() as i64, h.round() as i64), spotlight, alpha: 255 }, for_ms.map(|ms| now + Duration::from_millis(ms)), form));
                 Next::Done
             }
             Micro::Mark(name) => {
@@ -887,7 +890,7 @@ impl Player {
             let a = if on { k } else { 1.0 - k };
             (a * 255.0).round() as u8
         };
-        if let Some((h, until)) = &self.highlight {
+        if let Some((h, until, _)) = &self.highlight {
             if until.is_some_and(|u| now >= u) {
                 self.highlight = None;
             } else {
@@ -947,6 +950,15 @@ impl Player {
     }
 
     fn frame<R: Program + Windows>(&mut self, rt: R, now: Instant) {
+        // (a ring around a control of a window that has closed — a dialog
+        // dismissed meanwhile — goes with it, never left over what's behind)
+        if let Some(form) = self.highlight.as_ref().and_then(|(_, _, f)| f.clone()) {
+            let mut shown = true;
+            rt.with_desk(&mut |desk, _| shown = desk.forms.get(&form).is_some_and(|f| f.shown));
+            if !shown {
+                self.highlight = None;
+            }
+        }
         let overlay = self.overlay(now);
         let layers = self.app_layers();
         let ms = self.clock.as_ref().map_or(0, |c| c.ms(now));

@@ -54,3 +54,13 @@ Date: 2026-10-30. A careful wording review from the files themselves. **Not lega
 5. Accessibility: captions always, keyboard-only and screen-reader route (targets by accessible name), no speech over a running screen reader, no flashing (`docs/speech-and-tutorial-plan.md`, WCAG 2.2).
 6. Nothing recorded or sent: tours and RCaptions run locally, mask inputs, log no typed text. If RapidR ever ships a voice generator, RapidR becomes the Art. 50(2) *provider* (machine-readable marking) and the model licence and voice provenance need their own review; exporting video uses royalty-free codecs only.
 7. Name search for `RTutor` and `RCaptions`, then a lawyer-agent review, a manual page, an example and the AI facet before announcing.
+
+## Applied in the lane (2026-10-30)
+
+- M1: `CREDITS` per language (`en`, `es`) in `tools/video/lib/config.mjs`; the description is title, description, disclosure, made-with, music, support (with both links); tags: the disclosure as the comment, "Copyright 2026 Ruta Internet SRL"; the comment on the narrators reworded.
+- M2: the title card says "AI-generated narration" / "Narración generada con IA"; the end card's first small line is the recommended one (`first-app.json` and the six skeletons).
+- M3: the timeline beside the video carries clip file names only (`mux.mjs`).
+- M4: `RAPIDR_DEMO*` in `the_hooks_names`, in `test_mode_release.mjs` (ENVIRON$ empty, nothing written, a source check that the demo reads them only through the gate; `--gui`: no demo played), in `docs/security/test-mode.md` and `testhooks.rs`.
+- M5: `docs/video-pipeline.md` written, with the S2 notice and the narrators' provenance (S8, text only).
+- S4: `--webm` makes a VP9 + Opus copy for rapidr.dev; the MP4 stays the upload master. S5: the upload checklist is in the doc. S6: takes run on an environment allowlist (`HOME` the profile, `RAPIDR_VERSIONS_NAME`). S7: the English narrator's default is `dist/voices/narrators/en-79.wav` (a copy of the same clip); a non-loopback `MLX_SERVE_URL` is refused.
+- Left for Robert: S1 (re-read the model cards and the server's licence once, date it in the doc); the videos' own licence (S8); THIRD_PARTY_NOTICES.md unchanged (S3).
