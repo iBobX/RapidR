@@ -59,6 +59,14 @@ no translation yet shows in English, with a note that says so. Code, names
 and examples are never translated: `RButton`, `Caption`, `OnClick` stay as
 you write them.
 
+## Suggest a better word
+
+If a word or a sentence reads oddly in your language, or you know a more
+common way to say it, tell us: open a
+[Translation suggestion](https://github.com/iBobX/RapidR/issues/new?template=translation.yml)
+on GitHub (you can write in your own language). Say what it says now, where
+you saw it, and what you suggest. You don't need to know the files below.
+
 ## Help translate RapidR
 
 Translations are plain text files, in the same PO format your own programs

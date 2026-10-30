@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md d6393f15ff9afe63 -->
+<!-- translated-from: studio-languages.md ddb2a287daf91dd3 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -59,6 +59,14 @@ MID$) en el idioma de Studio cuando están traducidas, y las páginas del manual
 tiene traducción se muestra en inglés, con una nota que lo dice. El código, los
 nombres y los ejemplos nunca se traducen: `RButton`, `Caption`, `OnClick` se
 quedan como los escribes.
+
+## Sugiere una palabra mejor
+
+Si una palabra o una frase suena rara en tu idioma, o conoces una forma más
+común de decirla, cuéntanos: abre una
+[sugerencia de traducción](https://github.com/iBobX/RapidR/issues/new?template=translation.yml)
+en GitHub (puedes escribir en español). Di qué dice ahora, dónde lo viste y
+qué sugieres. No necesitas conocer los archivos de abajo.
 
 ## Ayuda a traducir RapidR
 
