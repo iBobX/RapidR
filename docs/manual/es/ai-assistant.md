@@ -8,7 +8,7 @@ una vista previa antes de que se escriba nada. Tus propios programas pueden usar
 misma IA mediante el componente **RAI**; el asistente es en sí mismo un RAI.
 
 En una clase, cada docente puede mantener el asistente desactivado con una
-contraseña: [Para docentes: bloqueo escolar](../for-teachers.md) (en inglés).
+contraseña: [Para docentes: bloqueo escolar](for-teachers.md).
 
 Funciona con el proveedor de IA que elijas: **Anthropic** (Claude), **OpenAI**,
 **DeepSeek**, o cualquier servidor **compatible con OpenAI**, incluido un servidor

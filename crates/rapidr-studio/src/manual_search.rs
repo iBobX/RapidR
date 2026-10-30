@@ -164,6 +164,7 @@ pub const TRANSLATED: &[(&str, &str, &str)] = &[
     ("es", "debugging.md", include_str!("../../../docs/manual/es/debugging.md")),
     ("es", "designing-forms.md", include_str!("../../../docs/manual/es/designing-forms.md")),
     ("es", "directx-and-media.md", include_str!("../../../docs/manual/es/directx-and-media.md")),
+    ("es", "for-teachers.md", include_str!("../../../docs/manual/es/for-teachers.md")),
     ("es", "getting-started.md", include_str!("../../../docs/manual/es/getting-started.md")),
     ("es", "graphics.md", include_str!("../../../docs/manual/es/graphics.md")),
     ("es", "importing-rapidq.md", include_str!("../../../docs/manual/es/importing-rapidq.md")),

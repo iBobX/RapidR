@@ -1,4 +1,4 @@
-<!-- translated-from: ai-apps.md 2b132d5c8da23ffb -->
+<!-- translated-from: ai-apps.md 02d868f52aaf6157 -->
 # Deja que las aplicaciones de IA trabajen en Studio
 
 <!-- legal -->
@@ -9,6 +9,9 @@ de IA**. Studio es entonces un servidor MCP: MCP es el protocolo que usan las
 aplicaciones de IA para llamar a herramientas. Está desactivado hasta que lo
 actives, escucha solo en tu computadora (`127.0.0.1`) y cada solicitud tiene que
 llevar un token que solo tú tienes.
+
+En una clase, un docente puede mantener desactivadas las aplicaciones de IA (y RAI)
+con una contraseña: [Para docentes: bloqueo escolar](for-teachers.md).
 
 <!-- legal -->
 Model Context Protocol® y MCP™ son marcas de LF Projects, LLC

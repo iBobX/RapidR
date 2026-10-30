@@ -1,4 +1,4 @@
-<!-- translated-from: cli-and-runtime.md 8d2c1dfb029d2a98 -->
+<!-- translated-from: cli-and-runtime.md 87146dfd490330b9 -->
 # La CLI y el RapidR Runtime
 
 Un solo comando, `rapidr`, es el compilador, la herramienta de compilación y el
@@ -27,6 +27,7 @@ entorno de ejecución.
 | `rapidr setup [--check] [--yes] [--no-path]` | Instala el Rust que usan las compilaciones nativas; pone `rapidr` en el PATH. `rapidr setup --rust` solo responde si las compilaciones nativas pueden ejecutarse (código de salida 0 sí, 1 no); un `rapidr build` nativo sin Rust se detiene y dice que uses `--interp` o ejecutes `rapidr setup` |
 | `rapidr notices [<os>-<arch>\|web\|tools-<os>] [-o file]` | Imprime los avisos de terceros que lleva un tipo de compilación |
 | `rapidr ai providers`, `rapidr ai models --provider P`, `rapidr ai ask --provider P [--model M] "question"` | Los proveedores de IA de RapidR desde una terminal: cuáles hay, los modelos propios de un proveedor, una pregunta y su respuesta a medida que llega; la clave viene de la variable de entorno del proveedor o del llavero ([El asistente de IA y RAI](ai-assistant.md)) |
+| `rapidr school-lock hash [--stdin]`, `rapidr school-lock check [file]` | El bloqueo escolar para el equipo de informática de una escuela: la línea `password_hash` del archivo de política para una contraseña escrita dos veces (nunca se muestra ni se guarda), y qué bloquea la política de la computadora (o un archivo) ([Para docentes](for-teachers.md#para-el-equipo-de-informática-de-la-escuela-la-política-de-la-computadora)) |
 | `rapidr lsp`, `rapidr dap` | El servidor de lenguaje y el adaptador de depuración (protocolos estándar sobre stdin y stdout), para otros editores como VS Code |
 | `rapidr lang export --json\|--prompt\|--manual\|--all` | Lo que genera el registro del lenguaje: los datos para el autocompletado y la información flotante, un texto de instrucciones para la IA, y [las tablas de referencia](../reference/components.md) de este manual |
 | `rapidr about`, `rapidr version` | |
@@ -194,6 +195,7 @@ desde la que se ejecuta el comando. `rapidr setup --check` imprime cuál.
 | `RAPIDR_RENDERER=cpu\|gpu` | fuerza el dibujo en la CPU o en la GPU (de forma predeterminada la GPU, o la CPU cuando la única GPU es una por software) |
 | `RAPIDR_PRINT_TO=<file or folder>` | los documentos impresos van allí como PDF en lugar de a una impresora |
 | `RAPIDR_REGISTRY=<file>` | RRegistry guarda sus claves en este archivo en lugar de en el del sistema (el registro de Windows; un almacén por usuario en otros sistemas) |
+| `RAPIDR_SCHOOL_POLICY=<file>` | la política del bloqueo escolar se lee de este archivo cuando la computadora no tiene una (la de las pruebas): puede añadir un bloqueo, nunca quitar el de la computadora |
 | `RAPIDR_CONFIG_DIR=<folder>` | tu carpeta de RapidR (la lista de archivos de confianza) |
 | `RAPIDR_DOCUMENTS=<folder>` | la carpeta que se usa como tus Documentos: las copias de los ejemplos de RapidR Studio (`RapidR/Examples/`) y las compilaciones que no pueden ir junto a su programa (`RapidR/Builds/`) |
 | `RAPIDR_HOME=<folder>` | la carpeta principal de RapidR (arriba) |
