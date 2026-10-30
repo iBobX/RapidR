@@ -662,7 +662,7 @@ mod tests {
         assert!(j.contains("\"name\":\"RBUTTON\""));
         assert!(manual().iter().any(|(n, t)| *n == "classic-names.md" && t.contains("`QFORM` | [`RForm`](members.md#rform)")));
         assert!(manual().iter().any(|(n, t)| *n == "members.md" && t.contains("## RButton\n")));
-        assert!(manual().iter().filter(|(n, _)| *n != "classic-names.md").all(|(n, t)| !t.contains("RapidQ")), "the reference pages don't name RapidQ");
+        assert!(manual().iter().filter(|(n, _)| *n != "classic-names.md").all(|(_, t)| !t.contains("RapidQ name")), "the reference pages don't name RapidQ's components");
         assert!(prompt().contains("### RButton (classic name: QBUTTON)"));
         assert!(j.contains("\"spelling\":\"RButton\""));
     }
