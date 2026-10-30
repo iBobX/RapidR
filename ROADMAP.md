@@ -678,6 +678,7 @@ In order of how many showcase ideas each unlocks:
   - [ ] Optional embeddings (EmbeddingGemma or any `/v1/embeddings`).
   - [ ] Measure again (MiMo 9B too), then the post.
 - [ ] **Learn with RAI** (Robert, 2026-10-18; plan: [docs/learn-with-rai-plan.md](docs/learn-with-rai-plan.md)): the assistant that teaches. A Build / Pair / Coach / Quiz-me dial; a *why* per change; friendly errors with a hint before the fix; just-in-time tips on a budget; the infinite-loop catcher; Predict, then Run; marks for your code vs the AI's code; Teach-the-AI mode; a skill map with spaced review that stays local (COPPA: no accounts, nothing collected).
+  - [x] The dial with Build and Coach, Coach's hint ladder, friendly errors in Coach (a hint before the fix), the teacher lock (2026-10-30, lane COACH-MODE; Preview 5)
 
 ## Phase 4 — AI in the IDE (~6 weeks)
 
@@ -873,6 +874,11 @@ SUB AddItem(Name AS STRING, Qty AS INTEGER)
   - the web: the lock in the page's storage (a reminder, said so in the manual); Spanish for every text; tests: 10 unit tests (hash vectors, the wait, the policy's precedence, failing closed), `tests/studio_flows.mjs` school-lock-* (keyboard, light/dark/high contrast with contrast and a11y checks, Spanish, restarts, the policy), `tests/studio_mcp.mjs` locked
   - while it is on, RapidR's crash reports show no strip and no Report on GitHub (CRASH-REPORTS' `CrashSchoolLock`, called at the start and on every change; `school-lock-crash*` flows)
   - Left: more features to lock (the design takes them: a feature name in `locked`); the lawyer's look at the teachers' and students' texts before the release
+- [x] Coach mode (Preview 5, "Pair with AI": Robert 2026-10-29, "Coach mode only"; the rest of the dial in Preview 6). Done 2026-10-30 (lane COACH-MODE; the manual's [Coach mode](docs/manual/ai-assistant.md#coach-mode) and [For teachers](docs/manual/for-teachers.md#keep-rai-in-coach-mode)):
+  - the dial in RAI's pane (Build / Coach, room for Pair and Quiz me), kept per user, keyboard and screen reader; the hint ladder kept in Studio (`rapidr-studio/src/coach.rs`: nudge → idea → shape → the code as text, only when asked a fourth time), the rung said to the model with every request (short in the small-model mode); the strip: *Hint 2 of 4*, Next Hint / Show the Code, I Got It; Help With This Error for a compiler or run-time error
+  - enforced in code: the change tools never offered in Coach and refused if called; Copy, never Insert; a first hint with code written again once, the code never shown; School Lock's *Keep RAI in Coach mode* and the policy's `coach_only = true` (failing closed); Spanish; legal review applied ([docs/legal/review-2026-10-30-coach-mode.md](docs/legal/review-2026-10-30-coach-mode.md))
+  - used with a real small local model (qwen3.5 2B, the small-model mode) on three problems: never a proposal or a changed file; the ladder followed loosely (a first hint with the whole answer — now asked again —, one empty fourth hint, its RapidR often wrong); tests: unit + `tests/studio_flows.mjs` coach-* (desktop and web)
+  - Left: Pair and Quiz me (Preview 6); RAI's chat cards and the redo's muted line in Spanish (Rust-side texts, as LOCAL-AI's); RAI answers in Studio's language or the user's (ES-REFERENCE's setting: Coach follows `AI.ReplyLanguage`); a small model's empty reply retried
 - [ ] G4 Experiments (branches), Bring into main, the three-way form-aware Merge tab
 - [ ] G5 Blame on hover, line history
 - [ ] G6 Accounts in the keychain; GitHub device flow (needs Ruta Internet's OAuth App, created by Robert), Publish, Clone, Sync; GitLab / Bitbucket / self-hosted by token; SSH through the system

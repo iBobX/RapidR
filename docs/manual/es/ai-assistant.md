@@ -1,4 +1,4 @@
-<!-- translated-from: ai-assistant.md 72eae1fb7c3b627a -->
+<!-- translated-from: ai-assistant.md 5b1ae7fac4f39a68 -->
 # El asistente de IA y RAI
 
 RapidR Studio tiene un asistente de inteligencia artificial (IA) que conoce
@@ -383,6 +383,95 @@ Los modelos Claude de Anthropic piensan de forma adaptable con el esfuerzo que e
 de tu computadora se les pide con su propia opción, cuando el modelo la tiene; los
 modelos de DeepSeek eligen por sí mismos, así que la lista está desactivada para ellos.
 Un modelo que no acepta esfuerzo lo dice una sola vez y responde como suele hacerlo.
+
+## Modo tutor
+
+El panel de RAI tiene un selector debajo de la lista de modelos: **Construir** y
+**Tutor**.
+
+- **Construir** (lo predeterminado): RAI escribe el cambio y tú decides; cada
+  cambio es una diferencia que revisas y aplicas ([Los cambios, como diferencias](#los-cambios-como-diferencias)).
+- **Tutor**: RAI enseña. Nunca escribe la respuesta en tu código. Tú preguntas,
+  RAI da una pista a la vez y el código lo escribes tú: escribir el código tú
+  mismo ayuda a que se te quede.
+
+![El selector en el panel de RAI, Construir y Tutor, con Tutor elegido; el chat vacío explica cómo funciona el modo tutor](../images/ai/coach-dial.png)
+
+Haz clic en **Tutor**, o presiona Tab hasta que el selector tenga el teclado y luego
+Enter o la barra espaciadora. Studio recuerda tu elección y puedes cambiarla cuando
+quieras; al cambiar, las pistas empiezan de nuevo.
+
+### La escalera de pistas
+
+Cada problema tiene cuatro pistas, de un poco de ayuda a mucha. RAI da la siguiente
+solo cuando la pides:
+
+| Pista | Qué da RAI |
+|---|---|
+| 1. Un empujoncito | Una pregunta que muestra el camino. Nada de código. |
+| 2. La idea | La idea con palabras sencillas y un ejemplo pequeño sobre otra cosa, no sobre tu programa. |
+| 3. La forma del código | Los pasos, o el esqueleto de tu código con espacios (`___`) para que los completes. |
+| 4. El código | Solo cuando lo pides por cuarta vez: el código que lo resuelve, como texto. Lo escribes o lo copias tú en tu programa. |
+
+La franja debajo del chat dice en qué pista estás (**Pista 2 de 4**) y tiene dos
+botones:
+
+- **Siguiente pista** pide la siguiente (después de la tercera dice **Mostrar el
+  código**).
+- **Ya lo entendí** termina el problema: tu próxima pregunta empieza otra vez en la
+  pista 1.
+
+Una pregunta que escribes sobre el mismo problema se queda en la misma pista:
+preguntar con otras palabras no te pasa a la siguiente pista. Studio lleva la
+cuenta y a RAI se le indica qué pista escribir.
+
+![Pista 1 de 4: RAI pregunta qué debe pasar cada vez que se hace clic en el botón; Siguiente pista y Ya lo entendí debajo del chat](../images/ai/coach-hint-1.png)
+
+![Pista 3 de 4: la forma del código, con espacios para completar](../images/ai/coach-hint-3.png)
+
+![Pista 4 de 4: el código como texto, solo con el enlace Copiar y sin Siguiente pista](../images/ai/coach-hint-4.png)
+
+### Ayuda con un error
+
+Cuando tu programa no compila, o se detiene con un error en tiempo de ejecución, la
+franja muestra **Ayuda con este error**. RAI explica qué significa el mensaje, por
+qué ocurre en esa línea y te da una pista para corregirlo tú. La línea corregida
+llega solo después de las pistas, como pista 4.
+
+![Ayuda con este error: RAI explica que no conoce un nombre de la línea 24 y sugiere compararlo con su DIM](../images/ai/coach-error.png)
+
+### Cómo funciona el modo tutor
+
+Lo que Studio hace cumplir, en su propio código:
+
+- **En modo tutor, RAI no puede cambiar tus archivos.** Las herramientas que
+  proponen cambios o crean programas no se le ofrecen al modelo, y si un modelo
+  intenta usar una igual, Studio la rechaza antes de que pase nada. No hay nada
+  que revisar ni aplicar, y los bloques de código tienen **Copiar**, nunca
+  **Insertar**.
+- **La escalera vive en Studio**, no en el modelo: Studio lleva la cuenta y le
+  dice al modelo qué pista escribir cada vez. Por eso el modo tutor funciona
+  también con modelos pequeños en tu propia computadora ([IA en esta computadora](local-ai.md)).
+  Si una primera pista muestra código de todos modos, Studio le pide a RAI una
+  vez que la escriba de nuevo sin código, y ese código no se muestra.
+
+Lo que se le pide a RAI (un modelo puede decir más de lo pedido):
+
+- Dar una pista a la vez: sin código en la primera, un ejemplo pequeño sobre otra
+  cosa en la segunda, espacios en blanco en la tercera.
+- Leer tu proyecto, revisar tu código con el compilador, mirar tu programa en
+  ejecución (cuando lo permites en esa ejecución) y buscar en el manual y en los
+  ejemplos de RapidR para elegir la idea adecuada.
+- Escribir las pistas en el idioma en que escribes (o en el de Studio, cuando no
+  se puede saber).
+
+<!-- legal -->
+Lo que se envía y se guarda: lo mismo que en el modo construir (tu pregunta, el
+chat, lo que RAI lee), más las instrucciones propias del modo tutor de Studio; y
+los mismos registros en tu computadora: tu chat, el registro de auditoría y el
+modo que elegiste.
+
+Un docente puede mantener a RAI en modo tutor: [Para docentes](for-teachers.md#mantener-a-rai-en-modo-tutor).
 
 ## Los cambios, como diferencias
 

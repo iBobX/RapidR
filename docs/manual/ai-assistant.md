@@ -371,6 +371,91 @@ are asked with their own setting, where the model has one; DeepSeek's
 models choose for themselves, so the list is off for them. A model that
 takes no effort says so once and answers as it usually does.
 
+## Coach mode
+
+RAI's pane has a dial under the model list: **Build** and **Coach**.
+
+- **Build** (the default): RAI writes the change and you decide — every
+  change is a diff you review and apply ([Changes, as diffs](#changes-as-diffs)).
+- **Coach**: RAI teaches. It never writes the answer into your code. You
+  ask, it gives one hint at a time, and you write the code yourself:
+  writing the code yourself helps it stick.
+
+![The dial in RAI's pane, Build and Coach, with Coach chosen; the empty chat says how Coach works](images/ai/coach-dial.png)
+
+Click **Coach**, or press Tab until the dial has the keys and then Enter or
+Space. Studio remembers your choice, and you can switch at any time;
+switching starts the hints over.
+
+### The hint ladder
+
+Every problem has four hints, from a little help to a lot. RAI gives the
+next one only when you ask for it:
+
+| Hint | What RAI gives |
+|---|---|
+| 1. A nudge | A question that points the way. No code. |
+| 2. The idea | The idea in plain words, with a tiny example about something else — not your program. |
+| 3. The shape of the code | The steps, or your code's skeleton with blanks (`___`) for you to fill. |
+| 4. The code | Only when you ask a fourth time: the code that solves it, shown as text. You type it, or copy it, into your program yourself. |
+
+The strip under the chat says which hint you're on — **Hint 2 of 4** — with
+two buttons:
+
+- **Next Hint** asks for the next one (after the third it says **Show the
+  Code**).
+- **I Got It** ends the problem: your next question starts again at hint 1.
+
+A question you type about the same problem stays on the same hint: asking
+in other words doesn't move you to the next hint. Studio keeps the count,
+and RAI is told which hint to write.
+
+![Hint 1 of 4: RAI asks what should happen each time the button is clicked; Next Hint and I Got It under the chat](images/ai/coach-hint-1.png)
+
+![Hint 3 of 4: the shape of the code, with blanks to fill](images/ai/coach-hint-3.png)
+
+![Hint 4 of 4: the code shown as text, with only a Copy link and no Next Hint](images/ai/coach-hint-4.png)
+
+### Help with an error
+
+When your program doesn't compile, or stops with a run-time error, the
+strip shows **Help With This Error**. RAI says what the message means, why
+it happens on that line, and gives you a hint to fix it yourself. The fixed
+line only comes after the hints, as hint 4.
+
+![Help With This Error: RAI explains it doesn't know a name on line 24, and hints to compare it with its DIM](images/ai/coach-error.png)
+
+### How Coach works
+
+What Studio enforces, in its own code:
+
+- **RAI can't change your files in Coach.** The tools that propose changes
+  or make programs aren't offered to the model at all, and if a model tries
+  one anyway, Studio refuses it before anything happens. There's nothing to
+  review or apply, and code blocks have **Copy**, never **Insert**.
+- **The ladder lives in Studio**, not in the model: Studio keeps the count
+  and tells the model which hint to write each time. That's why Coach works
+  with small models on your own computer too ([AI on this computer](local-ai.md)).
+  When a first hint shows code anyway, Studio asks RAI once to write it
+  again without, and the code isn't shown.
+
+What RAI is asked to do (a model may still say more than asked):
+
+- Give one hint at a time — no code in the first, a small example about
+  something else in the second, blanks in the third.
+- Read your project, check your code with the compiler, look at your
+  running program (after you allow it for that run), and search the manual
+  and RapidR's examples to pick the right idea.
+- Write hints in the language you write in (or Studio's, when it can't
+  tell).
+
+What is sent and kept: the same kinds of things as in Build (your question,
+the chat, what RAI reads), plus Studio's own Coach instructions; and the
+same records on your computer — your chat, the audit log, and which mode
+you chose.
+
+A teacher can keep RAI in Coach mode: [For teachers](for-teachers.md#keep-rai-in-coach-mode).
+
 ## Changes, as diffs
 
 The assistant never changes one of your files itself. It **proposes**: when

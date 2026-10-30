@@ -1,14 +1,15 @@
-<!-- translated-from: for-teachers.md 693cfec497ad9c4a -->
+<!-- translated-from: for-teachers.md 2e44e82e16d8c55a -->
 # Para docentes: bloqueo escolar
 
 El bloqueo escolar mantiene desactivada la IA de RapidR Studio con una contraseña. Un docente puede activarlo para la cuenta que usan los estudiantes; el equipo de informática de una escuela puede activarlo para todas las cuentas de una computadora, de una manera que los estudiantes no puedan quitar. Todo lo demás en Studio sigue funcionando: escribir código, diseñar formularios, ejecutar y depurar programas, la Ayuda.
 
-Está **desactivado hasta que alguien lo active**. Por ahora puede bloquear dos cosas:
+Está **desactivado hasta que alguien lo active**. Por ahora puede bloquear tres cosas:
 
 | Qué | Qué ven los estudiantes mientras está bloqueado |
 |---|---|
 | **IA en Studio (RAI)** | El panel de RAI muestra *Tu docente desactivó la IA* en lugar del chat; no se envía nada a una IA. Configurar RAI y Herramientas > Configuración > IA son de solo lectura. Los comandos de IA de los menús y de la paleta de comandos aparecen atenuados, con el motivo al lado. |
 | **Aplicaciones de IA (MCP)** | Las aplicaciones de IA de la computadora no pueden conectarse a Studio: su servidor de aplicaciones de IA no se inicia (y se detiene si estaba en ejecución). Herramientas > Configuración > Aplicaciones de IA es de solo lectura, con su interruptor desactivado y atenuado. |
+| **Mantener a RAI en modo tutor** | RAI sigue activo, pero solo como tutor: una pista a la vez, nunca la respuesta escrita en el código del estudiante ([Modo tutor](ai-assistant.md#modo-tutor)). El selector del panel de RAI muestra Tutor con *Tu docente mantiene a RAI en modo tutor.*, y no se puede elegir Construir. |
 
 <!-- legal -->
 La barra de estado muestra una pequeña ficha **Bloqueo escolar** mientras el bloqueo está activado. Y si Studio llega a cerrarse de forma inesperada, su informe se queda en la computadora sin la franja que ofrece informarlo en GitHub (una cuenta de GitHub es para personas de 13 años o más).
@@ -19,7 +20,7 @@ El bloqueo escolar no recopila nada sobre estudiantes ni docentes y no envía na
 ## Activarlo
 
 1. **Herramientas > Bloqueo escolar…**
-2. Deja marcadas las dos casillas bajo *Qué bloquear* (o desmarca una).
+2. Deja marcadas *IA en Studio* y *Aplicaciones de IA* bajo *Qué bloquear* (o desmarca una). Para que los estudiantes usen RAI como tutor, mira [Mantener a RAI en modo tutor](#mantener-a-rai-en-modo-tutor).
 <!-- legal -->
 3. Escribe una contraseña dos veces: al menos 6 caracteres. La línea debajo de los campos dice qué tan fácil es de adivinar; una más larga, con números o símbolos, es más segura.
 4. **Bloquear**.
@@ -35,6 +36,27 @@ A partir de entonces, cada vez que Studio se inicia en esta cuenta, la IA está 
 ![Configuración > IA con una nota arriba, “AI is turned off by your teacher”, y todas las opciones atenuadas](../images/for-teachers/settings.png)
 
 ![Configuración > Aplicaciones de IA: “Let AI apps use RapidR Studio” sin marcar y atenuado, la misma nota debajo](../images/for-teachers/apps-settings.png)
+
+## Mantener a RAI en modo tutor
+
+<!-- legal -->
+El modo tutor permite que los estudiantes pidan ayuda a RAI sin recibir toda la respuesta de golpe: RAI da un empujoncito, luego la idea, luego la forma del código, y muestra el código solo cuando lo piden por cuarta vez, como texto que escriben o copian ellos ([Modo tutor](ai-assistant.md#modo-tutor)). Los estudiantes pueden elegir Tutor por su cuenta; el bloqueo escolar lo mantiene:
+
+1. **Herramientas > Bloqueo escolar…**
+2. Desmarca **IA en Studio (RAI)** (bloquearla apaga RAI por completo) y marca **Mantener a RAI en modo tutor**. Deja marcada *Aplicaciones de IA* si los estudiantes no deben conectar otras aplicaciones de IA a Studio.
+3. Escribe una contraseña dos veces y luego **Bloquear**.
+
+![Herramientas > Bloqueo escolar con IA en Studio desmarcada y Mantener a RAI en modo tutor marcada](../images/for-teachers/turn-on-coach.png)
+
+RAI funciona como siempre, solo en modo tutor. El selector dice por qué no se puede elegir Construir:
+
+![El panel de RAI: el selector con Tutor elegido, Construir atenuado y un candado al lado con Tu docente mantiene a RAI en modo tutor](../images/for-teachers/coach-lock.png)
+
+<!-- legal -->
+En modo tutor, Studio nunca le ofrece a RAI una forma de cambiar los archivos del estudiante, y la rechaza si un modelo lo intenta: esto se cumple en el código de Studio, no solo en lo que se le pide a RAI. El bloqueo en sí es tan fuerte como el resto del bloqueo escolar: solo la política de la computadora no la pueden quitar los estudiantes (mira [¿Qué tan fuerte es?](#qué-tan-fuerte-es)). **Desbloquear hasta cerrar Studio** (con la contraseña) permite volver a elegir Construir hasta que se cierre Studio.
+
+<!-- legal -->
+El modo tutor es una ayuda para enseñar dentro de RapidR Studio; no bloquea sitios web de IA ni otros programas.
 
 ## Desbloquearlo para una clase
 
@@ -111,6 +133,15 @@ locked = ["ai", "ai_apps"]     # "ai": RAI en Studio; "ai_apps": aplicaciones de
 password_hash = "pbkdf2-sha256$600000$5c1f…$9a2e…"
 ```
 
+Para mantener RAI activo en modo tutor en lugar de apagarlo, quita `"ai"` y añade `coach_only = true` (lo mismo que `"coach"` en `locked`):
+
+```toml
+school_lock = true
+locked = ["ai_apps"]
+coach_only = true              # RAI activo, solo en modo tutor: pistas; no puede cambiar los archivos del estudiante
+password_hash = "pbkdf2-sha256$600000$5c1f…$9a2e…"
+```
+
 Compruébalo con `rapidr school-lock check` (lee el archivo de la computadora, o uno que indiques, y dice qué bloquea):
 
 ```text
@@ -129,7 +160,7 @@ Cómo la lee Studio:
 <!-- legal -->
 - **Un archivo que Studio no puede leer** (un TOML no válido, un valor incorrecto, un hash dañado) bloquea todas las funciones sin forma de desbloquear, y Studio dice por qué en su panel Salida: falla hacia el lado seguro. Corrige el archivo para cambiar eso.
 <!-- legal -->
-- `school_lock = false` significa que la computadora no pone ningún bloqueo: el bloqueo escolar de cada cuenta sigue vigente. Si omites `locked`, se bloquean las dos funciones.
+- `school_lock = false` significa que la computadora no pone ningún bloqueo: el bloqueo escolar de cada cuenta sigue vigente. Si omites `locked`, se bloquean todas las funciones (RAI queda apagado, así que el modo tutor no importa). `coach_only` debe ser `true` o `false`; cualquier otra cosa cuenta como un archivo que Studio no puede leer.
 <!-- legal -->
 - Todas las cuentas deben poder leer el archivo (Studio se ejecuta como el usuario) y solo los administradores pueden cambiarlo: legible para todos, modificable solo por administradores. No contiene ninguna contraseña, solo su hash.
 
@@ -144,5 +175,11 @@ Cómo la lee Studio:
 **¿Puede un estudiante ver la contraseña en la configuración?** No: solo se guarda el hash, y la contraseña no se puede deducir de él. Una contraseña corta o común aún puede adivinarse probando, y por eso hay una espera de un minuto después de cinco intentos incorrectos.
 
 **¿Y los chats anteriores de RAI?** Se quedan en la computadora como estaban; se muestran otra vez cuando se desbloquea la IA.
+
+<!-- legal -->
+**¿El modo tutor impide que los estudiantes reciban respuestas?** No. Los anima a intentarlo primero; no sirve para impedir copias ni para evaluar trabajos. En RapidR Studio, RAI no puede cambiar los archivos de un estudiante mientras se mantiene en modo tutor (Studio lo rechaza en su código). A RAI se le indica dar una pista a la vez y mostrar código solo como cuarta pista, a la que se llega con tres clics en Siguiente pista; Studio revisa que la primera pista no tenga código, pero no puede comprobar cada palabra que escribe un modelo, así que un modelo podría decir más de lo pedido. El estudiante puede escribir o copiar ese código. El modo tutor no impide otros sitios web o aplicaciones de IA en la computadora, ni la ayuda de otras personas; *Aplicaciones de IA (MCP)* solo impide que las aplicaciones de IA se conecten a Studio.
+
+<!-- legal -->
+**¿El modo tutor guarda algo sobre los estudiantes?** El modo tutor no añade nada propio: ni nombres, ni puntajes, ni informes. Siguen los registros habituales de RAI: el chat y el registro de auditoría de RAI se quedan en la computadora y contienen lo que el estudiante preguntó, incluido cada *Dame la siguiente pista.* que pulsó, y Studio recuerda qué modo se eligió. En una computadora donde los estudiantes comparten una cuenta, también los comparten. Lo que se envía al proveedor de IA es del mismo tipo que en el modo construir (la pregunta, el chat, lo que RAI lee), más las instrucciones propias del modo tutor de Studio; **Herramientas > Qué se envió a la IA...** lo muestra. Lo que un proveedor en la nube hace con ello depende de las condiciones de ese proveedor, que RapidR no controla. Los servicios de IA en la nube son para adultos ([Privacidad y seguridad](ai-assistant.md#privacidad-y-seguridad)): para menores de 18, un docente o la escuela configura la clave, o se usa un modelo en la computadora.
 
 **¿Más funciones para bloquear?** El bloqueo escolar está hecho para bloquear más partes de Studio más adelante; por ahora es la IA.
