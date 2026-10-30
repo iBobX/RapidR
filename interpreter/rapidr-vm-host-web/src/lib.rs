@@ -106,11 +106,11 @@ impl Host for WebHost {
             }
             return Ok(v_null());
         }
-        Ok(call_builtin_web(key, args))
+        Ok(rapidr_value::events::program_call(|| call_builtin_web(key, args)))
     }
 
     fn create_comp(&mut self, kind: &str, id: &str) -> Result<Value, String> {
-        rp_create_component(id, kind);
+        rapidr_value::events::program_call(|| rp_create_component(id, kind));
         self.has_components = true;
         HAS_COMPONENTS.with(|h| h.set(true));
         Ok(v_str(id))
@@ -118,7 +118,7 @@ impl Host for WebHost {
 
     fn set_prop(&mut self, id: &str, name: &str, value: Value) -> Result<(), String> {
         // (the program's set: RapidQ's events for it fire — an edit's OnChange …)
-        rp_prop_set(id, name, value);
+        rapidr_value::events::program_call(|| rp_prop_set(id, name, value));
         Ok(())
     }
 
@@ -127,7 +127,7 @@ impl Host for WebHost {
             return Ok(v);
         }
         // (`WHILE DB.FetchRow`: a method of the object's type is called)
-        Ok(rp_comp_value(id, name))
+        Ok(rapidr_value::events::program_call(|| rp_comp_value(id, name)))
     }
 
     fn call_method(&mut self, id: &str, method: &str, args: &[Value]) -> Result<Value, String> {
@@ -143,7 +143,7 @@ impl Host for WebHost {
                 emit(Message::new(if shown { EventBody::FormShown { id, caption: None } } else { EventBody::FormClosed { id } }));
             }
         }
-        let v = rp_comp_call(id, method, args);
+        let v = rapidr_value::events::program_call(|| rp_comp_call(id, method, args));
         // (an object's RapidQ exception: a run-time error — rapidr_value::raise)
         match rapidr_value::take_raised() {
             Some(m) => Err(rapidr_value::exception(&m)),
@@ -160,7 +160,7 @@ impl Host for WebHost {
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
-        obj::rp_bind_event_indirect(id, event, handler_fn_index);
+        rapidr_value::events::program_call(|| obj::rp_bind_event_indirect(id, event, handler_fn_index));
         // (RapidR's Application.OnError: told_failed)
         if id.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
             ON_ERROR.with(|h| h.set(Some(handler_fn_index)));
@@ -345,8 +345,16 @@ fn call_builtin_web(lower: &str, args: &[Value]) -> Value {
                     rp_doevents();
                 }
             } else {
+                // (the window loop's events that waited — a timer's tick
+                // during a time slice's pause — let in by this DOEVENTS:
+                // they run right after it, as its own, not held back for
+                // the end of the running handler)
                 let waiting: Vec<Event> = DEFERRED.with(|q| q.borrow_mut().drain(..).collect());
-                EVENTS.with(|q| waiting.into_iter().rev().for_each(|e| q.borrow_mut().push_front(e)));
+                EVENTS.with(|q| {
+                    let mut q = q.borrow_mut();
+                    waiting.into_iter().rev().for_each(|e| q.push_front(e));
+                    q.iter_mut().for_each(|e| e.asynchronous = false);
+                });
             }
             v_null()
         }

@@ -58,7 +58,9 @@ pub trait Host {
     /// An event handler returned: its continuations (what the runtime
     /// does once the handler has run, `rapidr_value::events`).
     fn event_finished(&mut self, then: Vec<u32>, params: &[Value]) {
-        rapidr_value::events::run_all(then, params);
+        // (what they fire belongs to the event that ran — an MDI child closed
+        // activates another —: it runs at once, as the statement's own)
+        rapidr_value::events::program_call(|| rapidr_value::events::run_all(then, params));
     }
     /// Asked after each host operation: `true` if it started a wait the VM
     /// must serve (a desktop `ShowModal`): the VM then calls [`Host::pump`]

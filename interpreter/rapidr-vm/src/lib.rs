@@ -1233,9 +1233,21 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// it started (see [`Host::wait_started`]), replacing the operation's
     /// result (on the stack when `has_result`) with the wait's. Returns
     /// false if a handler ENDed the program.
+    ///
+    /// After a plain statement only the events it fired itself run here, at
+    /// once (RapidQ's: an edit's Text set runs its OnChange before the next
+    /// statement, a Repaint its OnPaint); the window loop's — a timer's
+    /// tick, the user's input, a paint the system asked for
+    /// ([`QueuedEvent::asynchronous`]) — never run inside the statement of
+    /// code that is still running: they wait for the program's next wait
+    /// (ShowModal, DOEVENTS, a dialog) or for the running handler to end
+    /// and the loop to take them ([`Self::hold_async`]).
     #[inline]
     fn after_host(&mut self, module: &Module, ip: usize, has_result: bool) -> Result<bool, VmError> {
         let mut waiting = self.host.wait_started();
+        // (a wait's own turns — ShowModal's, DOEVENTS', a dialog's — are
+        // where the window loop's events run)
+        let serving = waiting;
         // (a ShowModal's loop goes on after a handler's run-time error — the
         // events its turns brought, not those the operation fired before it
         // waited: Host::wait_catches_errors)
@@ -1249,6 +1261,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 if events.is_empty() {
                     break;
                 }
+                let events = if serving {
+                    events
+                } else {
+                    match self.hold_async(events) {
+                        Some(events) => events,
+                        None => break,
+                    }
+                };
                 match self.run_events(module, ip, events) {
                     Ok(true) => {}
                     Ok(false) => return Ok(false),
@@ -1278,6 +1298,22 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
                 waiting = false;
             }
         }
+    }
+
+    /// Of the events taken after a plain statement (no wait), those the
+    /// window loop fired ([`QueuedEvent::asynchronous`]) go back to the host
+    /// ([`Host::defer_events`], ahead of anything queued since): they run
+    /// at the program's next wait, or once the code running now returns to
+    /// the loop. The rest — those the statement fired — run now; `None`
+    /// when there are none.
+    #[cold]
+    fn hold_async(&mut self, events: Vec<QueuedEvent>) -> Option<Vec<QueuedEvent>> {
+        if !events.iter().any(|e| e.asynchronous) {
+            return Some(events);
+        }
+        let (held, now): (Vec<_>, Vec<_>) = events.into_iter().partition(|e| e.asynchronous);
+        self.host.defer_events(held);
+        (!now.is_empty()).then_some(now)
     }
 
     /// One turn of the host's wait ([`Host::pump`]): `None` while it goes
@@ -1528,7 +1564,18 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
     /// [`Self::invoke_event`]; `nested`: run right after a host operation
     /// of the code below (see [`Frame::nested`]).
     fn invoke(&mut self, module: &Module, event: QueuedEvent, nested: bool) -> Result<Value, VmError> {
-        let QueuedEvent { handler: fn_index, args, then, sender } = event;
+        // (handlers running inside each other — each fired by the one below
+        // before it ended — past MAX_EVENT_DEPTH: a run-time error saying
+        // which, not the end of the process when the stack runs out)
+        let depth = self.frames.iter().filter(|f| f.stop).count();
+        if depth >= rapidr_value::events::MAX_EVENT_DEPTH {
+            let same = self.frames.iter().filter(|f| f.stop && f.fn_index == event.handler).count();
+            let message = rapidr_value::events::runaway(&event.event, &event.component(), same, depth);
+            // (its continuation runs as a failed handler's: a timer armed again)
+            self.host.event_finished(event.then, &[]);
+            return Err(VmError::Runtime(message));
+        }
+        let QueuedEvent { handler: fn_index, args, then, sender, .. } = event;
         let (base_frames, base_stack) = (self.frames.len(), self.stack.len());
         // (the debugger: an event's handler starts afresh — its first line
         // is a new line even when it's the one the last event ran, so a
@@ -1588,7 +1635,14 @@ impl<'h, H: Host + ?Sized> Vm<'h, H> {
             return Err(self.unwind_error(error));
         }
         loop {
-            self.exec(module)?;
+            match self.exec(module) {
+                Ok(()) => {}
+                // (a handler that failed after it yielded — or waited —
+                // leaves nothing behind either, as Self::invoke's: its
+                // continuations run — a timer armed again —, its frames go)
+                Err(e) if is_program_error(&e) && self.frames.iter().any(|f| f.stop) => return Err(self.unwind_error(e)),
+                Err(e) => return Err(e),
+            }
             let Some(top) = self.frames.last() else {
                 // (the value of a handler that ran with nothing below)
                 self.stack.clear();
@@ -2186,7 +2240,14 @@ mod tests {
         fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
             match name {
                 "FIRE" => self.queue.push_back(QueuedEvent::new(args[0].to_i64() as u32, vec![v_str("sender")])),
+                // (the window loop's: a timer's tick that came meanwhile)
+                "TICK" => self.queue.push_back(QueuedEvent { asynchronous: true, event: "ontimer".into(), sender: Some(0), ..QueuedEvent::new(args[0].to_i64() as u32, vec![v_str("clock")]) }),
                 "ASK" => self.asking = true,
+                // (a wait over at its first pump, 7)
+                "WAIT" => {
+                    self.wait = Some(0);
+                    self.started = true;
+                }
                 "MODAL" => {
                     self.wait = Some(2);
                     self.started = true;
@@ -2197,6 +2258,11 @@ mod tests {
         }
         fn suspend_requested(&mut self) -> bool { std::mem::take(&mut self.asking) }
         fn take_events(&mut self) -> Vec<QueuedEvent> { self.queue.drain(..).collect() }
+        fn defer_events(&mut self, events: Vec<QueuedEvent>) {
+            for e in events.into_iter().rev() {
+                self.queue.push_front(e);
+            }
+        }
         fn wait_started(&mut self) -> bool { std::mem::take(&mut self.started) }
         fn pump(&mut self) -> Option<Value> {
             match self.wait {
@@ -2278,6 +2344,134 @@ mod tests {
         vm.run(&m).unwrap();
         assert!(vm.stack.is_empty());
         assert_eq!(h.inner.output, "m1\na1\na2\nm2\n");
+    }
+
+    /// Module: 0 = handler A (prints "a1", TICK(1), FIRE(2), optionally
+    /// `WAIT` — DOEVENTS' kind of wait —, prints "a2"), 1 = handler B
+    /// (prints "b"), 2 = handler C (prints "c"); entry = main: PRINT WAIT.
+    fn tick_module(a_waits: bool) -> Module {
+        let mut m = Module::new();
+        let mut a = Function::default();
+        a.name = "A".into();
+        emit_print(&mut a, &mut m, "a1");
+        emit_builtin(&mut a, &mut m, "TICK", Some(1));
+        a.code.push(Op::Pop as u8);
+        emit_builtin(&mut a, &mut m, "FIRE", Some(2));
+        a.code.push(Op::Pop as u8);
+        if a_waits {
+            emit_builtin(&mut a, &mut m, "WAIT", None);
+            a.code.push(Op::Pop as u8);
+        }
+        emit_print(&mut a, &mut m, "a2");
+        a.code.push(Op::Ret as u8);
+        m.add_function(a);
+        for (name, text) in [("B", "b"), ("C", "c")] {
+            let mut f = Function::default();
+            f.name = name.into();
+            f.params = vec![rapidr_bytecode::Param { name: "Sender".into(), by_ref: false }];
+            f.n_locals = 1;
+            emit_print(&mut f, &mut m, text);
+            f.code.push(Op::Ret as u8);
+            m.add_function(f);
+        }
+        let mut main = Function::default();
+        main.name = "__main".into();
+        emit_builtin(&mut main, &mut m, "WAIT", None);
+        main.code.push(Op::PrintLn as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        m
+    }
+
+    #[test]
+    fn the_loops_events_wait_for_the_running_handler_to_end_its_own_run_at_once() {
+        // The wait's first turn runs A; a tick (the window loop's) comes
+        // while A runs, and A's statement fires C: C runs right after that
+        // statement, B only once A has ended — never inside it.
+        let m = tick_module(false);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        // (A waits in the queue: main's wait runs it)
+        h_queue_first(&mut vm, 0);
+        vm.run(&m).unwrap();
+        assert_eq!(h.inner.output, "a1\nc\na2\nb\n7\n");
+    }
+
+    #[test]
+    fn a_wait_inside_a_handler_lets_the_loops_events_run() {
+        // DOEVENTS' way: A waits after the tick came — B runs inside that
+        // wait, before A goes on.
+        let m = tick_module(true);
+        let mut h = QueueHost::default();
+        let mut vm = Vm::new(&mut h);
+        h_queue_first(&mut vm, 0);
+        vm.run(&m).unwrap();
+        assert_eq!(h.inner.output, "a1\nc\nb\na2\n7\n");
+    }
+
+    /// Queues handler `f` as the window loop would (asynchronous), before
+    /// the program runs: main's wait runs it.
+    fn h_queue_first(vm: &mut Vm<'_, QueueHost>, f: u32) {
+        vm.host.queue.push_back(QueuedEvent { asynchronous: true, ..QueuedEvent::new(f, vec![]) });
+    }
+
+    #[test]
+    fn events_firing_themselves_for_ever_stop_with_a_run_time_error() {
+        // Handler 0 fires itself at once (a Repaint in its own OnPaint): at
+        // MAX_EVENT_DEPTH handlers deep, a run-time error naming the event
+        // — the process doesn't run out of stack.
+        let mut m = Module::new();
+        let mut a = Function::default();
+        a.name = "Paint".into();
+        a.params = vec![rapidr_bytecode::Param { name: "Sender".into(), by_ref: false }];
+        a.n_locals = 1;
+        let fire = m.add_string("PAINT");
+        a.code.push(Op::CallBuiltin as u8); a.code.extend_from_slice(&fire.to_le_bytes()); a.code.push(0);
+        a.code.push(Op::Pop as u8);
+        a.code.push(Op::Ret as u8);
+        m.add_function(a);
+        let mut main = Function::default();
+        main.name = "__main".into();
+        main.code.push(Op::CallBuiltin as u8); main.code.extend_from_slice(&fire.to_le_bytes()); main.code.push(0);
+        main.code.push(Op::Pop as u8);
+        main.code.push(Op::Halt as u8);
+        m.entry = m.add_function(main);
+        #[derive(Default)]
+        struct PaintHost {
+            inner: QueueHost,
+        }
+        impl Host for PaintHost {
+            fn call_builtin(&mut self, name: &str, args: &[Value]) -> Result<Value, String> {
+                if name == "PAINT" {
+                    self.inner.queue.push_back(QueuedEvent { event: "onpaint".into(), sender: Some(0), ..QueuedEvent::new(0, vec![v_str("Screen")]) });
+                    return Ok(v_null());
+                }
+                self.inner.call_builtin(name, args)
+            }
+            fn take_events(&mut self) -> Vec<QueuedEvent> { self.inner.take_events() }
+            fn create_comp(&mut self, k: &str, id: &str) -> Result<Value, String> { self.inner.create_comp(k, id) }
+            fn set_prop(&mut self, id: &str, n: &str, v: Value) -> Result<(), String> { self.inner.set_prop(id, n, v) }
+            fn get_prop(&mut self, id: &str, n: &str) -> Result<Value, String> { self.inner.get_prop(id, n) }
+            fn call_method(&mut self, id: &str, m: &str, a: &[Value]) -> Result<Value, String> { self.inner.call_method(id, m, a) }
+            fn register_event(&mut self, id: &str, e: &str, f: u32) -> Result<(), String> { self.inner.register_event(id, e, f) }
+            fn print(&mut self, s: &str) -> Result<(), String> { self.inner.print(s) }
+            fn input(&mut self) -> Result<String, String> { self.inner.input() }
+        }
+        // (on a thread with a small stack: well under what MAX_EVENT_DEPTH
+        // handlers inside each other take)
+        let message = std::thread::Builder::new()
+            .stack_size(4 << 20)
+            .spawn(move || {
+                let mut h = PaintHost::default();
+                let mut vm = Vm::new(&mut h);
+                let error = vm.run(&m).unwrap_err();
+                assert!(vm.frames.iter().all(|f| !f.stop), "no handler is left");
+                error.to_string()
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+        assert!(message.contains("OnPaint of Screen ran inside itself 201 times"), "{message}");
     }
 
     #[test]

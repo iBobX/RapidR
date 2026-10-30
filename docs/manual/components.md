@@ -90,8 +90,8 @@ END SUB
   (Col, Row, State, Rect)`, … A handler may declare fewer parameters.
 - Handlers can be bound at run time too: `Btn(i).OnClick = Clicked`.
 - Events run when the program waits: during `ShowModal`, `DOEVENTS` or a
-  dialog. The program ends when its main code does: forms
-  still open close with it and their timers stop.
+  dialog (see [When events run](#when-events-run)). The program ends when
+  its main code does: forms still open close with it and their timers stop.
 - A form's first `Show` (or `ShowModal`) fires `OnResize`, `OnShow`,
   `OnResize` — lay a form out in `OnResize` and it is right
   when it appears. `OnPaint` comes after, when the program next waits. A size
@@ -110,6 +110,36 @@ Form.ShowModal          ' shows the form and waits until it closes
 Form.Show               ' shows it and goes on; to keep it, wait:
 DO: DOEVENTS: LOOP UNTIL Closed    ' (Closed set by the form's OnClose)
 ```
+
+### When events run
+
+- **The window's events** — a timer's tick, a click, a key, a paint the
+  window asks for — run only while the program waits (`ShowModal`,
+  `DOEVENTS`, a dialog), each to its end before the next. A handler that
+  is still running is never interrupted by one: it runs once that handler
+  has ended.
+- **A timer never runs inside itself.** If its handler takes longer than its
+  `Interval`, the next tick comes when the handler ends; the ticks missed
+  meanwhile are not made up. An emulator's frame timer at `Interval = 10`
+  whose frame takes 30 ms simply runs about 30 frames a second.
+- **A handler that calls `DOEVENTS`** lets the waiting events run there and
+  then — another timer's tick, a click —, then goes on.
+- **The events your own code fires run at once**, inside the line that
+  fires them ([below](#events-your-own-code-fires)): `Canvas.Repaint` runs
+  the canvas's `OnPaint` before the next line.
+
+So a handler that fires its own event runs inside itself: a `Repaint`
+inside the same canvas's `OnPaint`, an `OnChange` that gives its edit a new
+`Text`. When that never stops, the program stops it, 200 handlers deep,
+with a run-time error that names the event and the line:
+
+```
+run-time error: OnPaint of Screen ran inside itself 200 times: its handler fires it again before it ends (at game.rr line 21)
+```
+
+As with any [error in a handler](#a-run-time-error-in-a-handler), the
+window keeps working. Draw in `OnPaint`, and ask for the paint somewhere
+else — the timer that moves the game: `Screen.Repaint`.
 
 ### The focus: OnEnter and OnExit
 

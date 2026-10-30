@@ -461,7 +461,8 @@ pub fn host_call<R>(f: impl FnOnce() -> R) -> Result<R, String> {
     }
     HOST_CALLS.with(|c| c.set(c.get() + 1));
     let out = Out;
-    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    // (the events it fires are the statement's own: events::program_call)
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| events::program_call(f)));
     drop(out);
     match result {
         Ok(v) => Ok(v),
