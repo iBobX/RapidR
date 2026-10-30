@@ -1,4 +1,4 @@
-<!-- translated-from: versions.md e74e61ec909e7d51 -->
+<!-- translated-from: versions.md c340afd1271f4b1f -->
 # Versiones: nunca pierdas tu trabajo
 
 **Versiones** conserva cada estado guardado de tu proyecto, muestra qué cambió
