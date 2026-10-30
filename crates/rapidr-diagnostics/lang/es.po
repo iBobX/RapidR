@@ -169,6 +169,7 @@ msgid "{file}: no errors"
 msgstr "{file}: sin errores"
 
 #. The word that labels a hint under a compiler message
+#, review
 msgctxt "hint.label"
 msgid "hint"
 msgstr "sugerencia"

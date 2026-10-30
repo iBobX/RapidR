@@ -138,6 +138,7 @@ msgid "Ask the provider for its models again"
 msgstr "Pedir de nuevo los modelos al proveedor"
 
 #: ide/ai.inc
+#, review
 msgid "Effort: Auto"
 msgstr "Esfuerzo: auto"
 
@@ -230,6 +231,7 @@ msgid "Context"
 msgstr "Contexto"
 
 #: ide/ai.inc
+#, review
 msgid "Compact"
 msgstr "Compactar"
 
@@ -399,6 +401,7 @@ msgid "This provider's models choose how much to think for themselves."
 msgstr "Los modelos de este proveedor eligen por sí mismos cuánto pensar."
 
 #: ide/ai.inc
+#, review
 msgid "Effort: Auto, as the model usually thinks."
 msgstr "Esfuerzo: auto, como suele pensar el modelo."
 
@@ -764,6 +767,7 @@ msgid "Waiting for the provider…"
 msgstr "Esperando al proveedor…"
 
 #: ide/ai.inc
+#, review
 msgid "Waiting for {name}'s answer… {n} s"
 msgstr "Esperando la respuesta… {n} s ({name})"
 
@@ -846,6 +850,7 @@ msgstr "Hay una clave ({hint}) guardada en {store} como {q}{name}{q}: el código
 
 # legal
 #: ide/ai.inc
+#, review
 msgid "A key ({hint}) is found in the {source}: the code never holds it."
 msgstr "Hay una clave ({hint}) en {source}: el código nunca la contiene."
 
@@ -959,6 +964,7 @@ msgid "Kept in {folder}"
 msgstr "Guardados en {folder}"
 
 #: ide/aichats.inc ide/aisetup.inc
+#, review
 msgid "Back"
 msgstr "Atrás"
 
@@ -1336,7 +1342,7 @@ msgstr "El ícono de la aplicación"
 
 #: ide/build.inc
 msgid "App &name:"
-msgstr "&Nombre de la aplicación:"
+msgstr "&Nombre:"
 
 #: ide/build.inc
 msgid "&Bundle ID:"
@@ -1396,11 +1402,11 @@ msgstr "Interpretada (no necesita Rust)"
 
 #: ide/build.inc
 msgid "A release build: optimized, what you ship. Run (F5) runs the program to debug it."
-msgstr "Una compilación de lanzamiento: optimizada, la que distribuyes. Ejecutar (F5) ejecuta el programa para depurarlo."
+msgstr "Compilación final: optimizada, la que distribuyes. Ejecutar (F5) ejecuta el programa para depurarlo."
 
 #: ide/build.inc
 msgid "&Output folder:"
-msgstr "Carpeta de &salida:"
+msgstr "&Salida:"
 
 #: ide/build.inc
 msgid "Output folder: where Build puts the app"
@@ -1753,6 +1759,7 @@ msgid "&Outdent Lines"
 msgstr "Dis&minuir sangría"
 
 #: ide/commands.inc
+#, review
 msgid "Select Next &Occurrence"
 msgstr "Seleccionar siguiente &ocurrencia"
 
@@ -1761,18 +1768,22 @@ msgid "Go to Matching &Bracket"
 msgstr "Ir al &corchete que corresponde"
 
 #: ide/commands.inc
+#, review
 msgid "&Fold"
 msgstr "&Plegar"
 
 #: ide/commands.inc
+#, review
 msgid "&Unfold"
 msgstr "D&esplegar"
 
 #: ide/commands.inc
+#, review
 msgid "Fold &All"
 msgstr "Plegar &todo"
 
 #: ide/commands.inc
+#, review
 msgid "Unfold A&ll"
 msgstr "&Desplegar todo"
 
@@ -1781,6 +1792,7 @@ msgid "&Parameter Info"
 msgstr "&Información de parámetros"
 
 #: ide/commands.inc
+#, review
 msgid "Show &Hover"
 msgstr "Mostrar información &flotante"
 
@@ -1829,6 +1841,7 @@ msgid "Command &Palette..."
 msgstr "Paleta de &comandos..."
 
 #: ide/commands.inc
+#, review
 msgid "&Go to Anything..."
 msgstr "Ir a cual&quier elemento..."
 
@@ -2182,11 +2195,11 @@ msgstr "Qué se &envió a la IA..."
 
 #: ide/commands.inc
 msgid "AI A&pps Settings..."
-msgstr "Configuración de &apps de IA..."
+msgstr "Configuración de &aplicaciones de IA..."
 
 #: ide/commands.inc
 msgid "AI Apps Acti&vity"
-msgstr "Actividad de app&s de IA"
+msgstr "Acti&vidad de aplicaciones de IA"
 
 #: ide/commands.inc
 msgid "Split &Right"
@@ -2347,10 +2360,12 @@ msgid "log {message}"
 msgstr "registro {message}"
 
 #: ide/debug.inc
+#, review
 msgid "Breakpoints ({n})"
 msgstr "Puntos de interrupción ({n})"
 
 #: ide/debug.inc
+#, review
 msgid "Breakpoints"
 msgstr "Puntos de interrupción"
 
@@ -2707,26 +2722,32 @@ msgid "Variables"
 msgstr "Variables"
 
 #: ide/debug.inc
+#, review
 msgid "Watch"
 msgstr "Observar"
 
 #: ide/debug.inc
+#, review
 msgid "&Add a watch:"
 msgstr "&Añadir a Observar:"
 
 #: ide/debug.inc
+#, review
 msgid "Add a watch: an expression, then Enter"
 msgstr "Añadir a Observar: una expresión y luego Enter"
 
 #: ide/debug.inc
+#, review
 msgid "Add a watch"
 msgstr "Añadir a Observar"
 
 #: ide/debug.inc
+#, review
 msgid "Watches"
 msgstr "Expresiones observadas"
 
 #: ide/debug.inc
+#, review
 msgid "Call Stack"
 msgstr "Pila de llamadas"
 
@@ -2826,19 +2847,19 @@ msgstr "No se puede abrir {url}: no existe {file}"
 
 #: ide/mcp.inc
 msgid "AI Apps"
-msgstr "Apps de IA"
+msgstr "Aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "AI apps"
-msgstr "Apps de IA"
+msgstr "Aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "What the AI app does now"
-msgstr "Qué hace ahora la app de IA"
+msgstr "Qué hace ahora la aplicación de IA"
 
 #: ide/mcp.inc
 msgid "What AI apps may do"
-msgstr "Qué pueden hacer las apps de IA"
+msgstr "Qué pueden hacer las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "Read only, Ask before changes, Allow edits or Allow everything: for this project"
@@ -2847,19 +2868,20 @@ msgstr "Solo lectura, Preguntar antes de cambiar, Permitir ediciones o Permitir 
 # legal
 #: ide/mcp.inc
 msgid "Warning: AI apps may change and run anything in this project without asking"
-msgstr "Advertencia: las apps de IA pueden cambiar y ejecutar cualquier cosa de este proyecto sin preguntar"
+msgstr "Advertencia: las aplicaciones de IA pueden cambiar y ejecutar cualquier cosa de este proyecto sin preguntar"
 
 #: ide/mcp.inc
+#, review
 msgid "No questions asked"
 msgstr "Sin preguntar"
 
 #: ide/mcp.inc
 msgid "Stop the server: every AI app is disconnected"
-msgstr "Detener el servidor: todas las apps de IA se desconectan"
+msgstr "Detener el servidor: todas las aplicaciones de IA se desconectan"
 
 #: ide/mcp.inc
 msgid "What an AI app asks to do"
-msgstr "Qué pide hacer una app de IA"
+msgstr "Qué pide hacer una aplicación de IA"
 
 #: ide/mcp.inc
 msgid "Allow &Once"
@@ -2887,21 +2909,21 @@ msgstr "Revisar el cambio antes de decidir"
 
 #: ide/mcp.inc
 msgid "What AI apps did"
-msgstr "Qué hicieron las apps de IA"
+msgstr "Qué hicieron las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "&Let AI apps use RapidR Studio"
-msgstr "&Permitir que las apps de IA usen RapidR Studio"
+msgstr "&Permitir que las aplicaciones de IA usen RapidR Studio"
 
 # legal
 #: ide/mcp.inc
 msgid "Off by default. On: an AI app on this computer that has the address and token below can work with your open project"
-msgstr "Desactivado de forma predeterminada. Activado: una app de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto"
+msgstr "Desactivado de forma predeterminada. Activado: una aplicación de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto"
 
 # legal
 #: ide/mcp.inc
 msgid "When on, an AI app on this computer that has the address and token below can work with your open project; you see everything it does in the AI Apps pane (Tools > AI Apps Activity). Paste both into the AI app's MCP settings."
-msgstr "Cuando está activado, una app de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto; ves todo lo que hace en el panel Apps de IA (Herramientas > Actividad de apps de IA). Pega ambos en la configuración MCP de la app de IA."
+msgstr "Cuando está activado, una aplicación de IA en esta computadora que tenga la dirección y el token de abajo puede trabajar con tu proyecto abierto; ves todo lo que hace en el panel Aplicaciones de IA (Herramientas > Actividad de aplicaciones de IA). Pega ambos en la configuración MCP de la aplicación de IA."
 
 #: ide/mcp.inc
 msgid "P&ort:"
@@ -2913,7 +2935,7 @@ msgstr "Puerto"
 
 #: ide/mcp.inc
 msgid "The port AI apps connect to on 127.0.0.1 (this computer only)"
-msgstr "El puerto al que se conectan las apps de IA en 127.0.0.1 (solo esta computadora)"
+msgstr "El puerto al que se conectan las aplicaciones de IA en 127.0.0.1 (solo esta computadora)"
 
 #: ide/mcp.inc
 msgid "Address:"
@@ -2921,7 +2943,7 @@ msgstr "Dirección:"
 
 #: ide/mcp.inc
 msgid "The address AI apps connect to"
-msgstr "La dirección a la que se conectan las apps de IA"
+msgstr "La dirección a la que se conectan las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "Copy &Address"
@@ -2933,7 +2955,7 @@ msgstr "Encabezado:"
 
 #: ide/mcp.inc
 msgid "The header AI apps send: Authorization, Bearer and the token"
-msgstr "El encabezado que envían las apps de IA: Authorization, Bearer y el token"
+msgstr "El encabezado que envían las aplicaciones de IA: Authorization, Bearer y el token"
 
 #: ide/mcp.inc
 msgid "Copy &Header"
@@ -2953,15 +2975,15 @@ msgstr "&Restablecer token"
 
 #: ide/mcp.inc
 msgid "A new token: every AI app that had the old one is disconnected"
-msgstr "Un token nuevo: todas las apps de IA que tenían el anterior se desconectan"
+msgstr "Un token nuevo: todas las aplicaciones de IA que tenían el anterior se desconectan"
 
 #: ide/mcp.inc
 msgid "What AI apps may &do:"
-msgstr "Qué pueden &hacer las apps de IA:"
+msgstr "Qué pueden &hacer las aplicaciones de IA:"
 
 #: ide/mcp.inc
 msgid "What AI apps may do in this project"
-msgstr "Qué pueden hacer las apps de IA en este proyecto"
+msgstr "Qué pueden hacer las aplicaciones de IA en este proyecto"
 
 #: ide/mcp.inc
 msgid "What the choice means"
@@ -2969,7 +2991,7 @@ msgstr "Qué significa la opción"
 
 #: ide/mcp.inc
 msgid "Learn more about AI apps"
-msgstr "Más información sobre las apps de IA"
+msgstr "Más información sobre las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "C&lear Activity..."
@@ -2977,11 +2999,11 @@ msgstr "&Borrar actividad..."
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did from this computer"
-msgstr "Quita de esta computadora la lista de lo que hicieron las apps de IA"
+msgstr "Quita de esta computadora la lista de lo que hicieron las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "Review the AI App's Change"
-msgstr "Revisar el cambio de la app de IA"
+msgstr "Revisar el cambio de la aplicación de IA"
 
 #: ide/mcp.inc
 msgid "&Reject"
@@ -2989,7 +3011,7 @@ msgstr "&Rechazar"
 
 #: ide/mcp.inc
 msgid "Files the AI app changes"
-msgstr "Archivos que cambia la app de IA"
+msgstr "Archivos que cambia la aplicación de IA"
 
 #: ide/mcp.inc
 msgid "Read only"
@@ -3010,22 +3032,22 @@ msgstr "Preguntar antes de cambiar"
 # legal
 #: ide/mcp.inc
 msgid "AI apps can look — read the project, check code, look things up, see the program's output and Studio — but not change, run, look at or use your program."
-msgstr "Las apps de IA pueden mirar —leer el proyecto, revisar código, consultar cosas, ver la salida del programa y Studio—, pero no cambiar, ejecutar, mirar ni usar tu programa."
+msgstr "Las aplicaciones de IA pueden mirar —leer el proyecto, revisar código, consultar cosas, ver la salida del programa y Studio—, pero no cambiar, ejecutar, mirar ni usar tu programa."
 
 # legal
 #: ide/mcp.inc
 msgid "Changes to files are made at once (each one Undo step, listed in the AI Apps pane); running the program, looking at or using it, and asking RAI still wait for you."
-msgstr "Los cambios a los archivos se hacen de inmediato (cada uno es un paso de Deshacer, listado en el panel Apps de IA); ejecutar el programa, mirarlo o usarlo, y preguntarle a RAI siguen esperando tu permiso."
+msgstr "Los cambios a los archivos se hacen de inmediato (cada uno es un paso de Deshacer, listado en el panel Aplicaciones de IA); ejecutar el programa, mirarlo o usarlo, y preguntarle a RAI siguen esperando tu permiso."
 
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at and use it, and ask RAI on their own — and a program can do anything you can on this computer. Everything is still listed, Stop ends it, and Studio's own tools never hand over keys or files outside the project."
-msgstr "Nada espera tu permiso: las apps de IA cambian archivos, ejecutan el programa, lo miran y lo usan, y le preguntan a RAI por su cuenta — y un programa puede hacer en esta computadora todo lo que tú puedes. Todo sigue listado, Detener lo termina y las herramientas propias de Studio nunca entregan claves ni archivos de fuera del proyecto."
+msgstr "Nada espera tu permiso: las aplicaciones de IA cambian archivos, ejecutan el programa, lo miran y lo usan, y le preguntan a RAI por su cuenta — y un programa puede hacer en esta computadora todo lo que tú puedes. Todo sigue listado, Detener lo termina y las herramientas propias de Studio nunca entregan claves ni archivos de fuera del proyecto."
 
 # legal
 #: ide/mcp.inc
 msgid "AI apps can look freely at the project; each change, run, look at your running program, or question to RAI waits for you in the AI Apps pane: Allow Once, Allow for This Session or Deny."
-msgstr "Las apps de IA pueden mirar el proyecto con libertad; cada cambio, ejecución, vistazo a tu programa en ejecución o pregunta a RAI espera tu decisión en el panel Apps de IA: Permitir una vez, Permitir en esta sesión o Denegar."
+msgstr "Las aplicaciones de IA pueden mirar el proyecto con libertad; cada cambio, ejecución, vistazo a tu programa en ejecución o pregunta a RAI espera tu decisión en el panel Aplicaciones de IA: Permitir una vez, Permitir en esta sesión o Denegar."
 
 # legal
 #: ide/mcp.inc
@@ -3038,21 +3060,21 @@ msgstr "Proyecto nuevo: el mismo permiso de antes ({mode})"
 
 #: ide/mcp.inc
 msgid "AI apps may now: {mode}"
-msgstr "Ahora las apps de IA pueden: {mode}"
+msgstr "Ahora las aplicaciones de IA pueden: {mode}"
 
 #: ide/mcp.inc
 msgid "AI apps: {mode}"
-msgstr "Apps de IA: {mode}"
+msgstr "Aplicaciones de IA: {mode}"
 
 # legal
 #: ide/mcp.inc
 msgid "Allow everything for AI apps in this project?"
-msgstr "¿Permitir todo a las apps de IA en este proyecto?"
+msgstr "¿Permitir todo a las aplicaciones de IA en este proyecto?"
 
 # legal
 #: ide/mcp.inc
 msgid "Nothing waits for you: AI apps change files, run the program, look at it, click and type in it and ask RAI (which may cost money) on their own."
-msgstr "Nada espera tu permiso: las apps de IA cambian archivos, ejecutan el programa, lo miran, hacen clic y escriben en él y le preguntan a RAI (lo cual puede costar dinero) por su cuenta."
+msgstr "Nada espera tu permiso: las aplicaciones de IA cambian archivos, ejecutan el programa, lo miran, hacen clic y escriben en él y le preguntan a RAI (lo cual puede costar dinero) por su cuenta."
 
 # legal
 #: ide/mcp.inc
@@ -3062,7 +3084,7 @@ msgstr "Ten en cuenta"
 # legal
 #: ide/mcp.inc
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
-msgstr "Un programa que ejecuten puede hacer en esta computadora todo lo que tú puedes, y los clics que hagan en él son reales. Elige esto solo mientras observas una app de IA en la que confías."
+msgstr "Un programa que ejecuten puede hacer en esta computadora todo lo que tú puedes, y los clics que hagan en él son reales. Elige esto solo mientras observas una aplicación de IA en la que confías."
 
 # legal
 #: ide/mcp.inc
@@ -3072,7 +3094,7 @@ msgstr "Sigues viendo"
 # legal
 #: ide/mcp.inc
 msgid "Everything they do, listed in the AI Apps pane; Stop ends it."
-msgstr "Todo lo que hacen, listado en el panel Apps de IA; Detener lo termina."
+msgstr "Todo lo que hacen, listado en el panel Aplicaciones de IA; Detener lo termina."
 
 # legal
 #: ide/mcp.inc ide/settings.inc
@@ -3087,7 +3109,7 @@ msgstr "Las herramientas propias de Studio nunca entregan tus claves ni archivos
 # legal
 #: ide/mcp.inc
 msgid "AI apps change and run anything in this project without asking"
-msgstr "Las apps de IA cambian y ejecutan cualquier cosa de este proyecto sin preguntar"
+msgstr "Las aplicaciones de IA cambian y ejecutan cualquier cosa de este proyecto sin preguntar"
 
 #: ide/mcp.inc
 msgid "The permission stays as it was"
@@ -3099,11 +3121,11 @@ msgstr "&Permitir todo"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Confirm again in Settings > AI Apps."
-msgstr "Apps de IA: desactivadas. Confirma de nuevo en Configuración > Apps de IA."
+msgstr "Aplicaciones de IA: desactivadas. Confirma de nuevo en Configuración > Aplicaciones de IA."
 
 #: ide/mcp.inc
 msgid "AI apps: the token couldn't be kept in the keychain ({error}): it is new each time Studio starts."
-msgstr "Apps de IA: no se pudo guardar el token en el llavero ({error}): es nuevo cada vez que Studio se inicia."
+msgstr "Aplicaciones de IA: no se pudo guardar el token en el llavero ({error}): es nuevo cada vez que Studio se inicia."
 
 # legal
 #: ide/mcp.inc
@@ -3138,32 +3160,32 @@ msgstr "Tus claves de proveedores de IA o tus contraseñas: tu llavero las guard
 # legal
 #: ide/mcp.inc
 msgid "RapidR sends none of this anywhere, but the AI app may pass what it reads to the company that makes it, under that company's terms. A program can show private data, yours or other people's, and clicking in it acts as you: a real Send, Pay or Delete button does it for real, so use test data. Many AI apps are for adults only: if you are under 18, set this up with a parent or teacher. Connect only AI apps you trust."
-msgstr "RapidR no envía nada de esto a ningún lugar, pero la app de IA puede pasar lo que lee a la empresa que la fabrica, bajo los términos de esa empresa. Un programa puede mostrar datos privados, tuyos o de otras personas, y hacer clic en él actúa como tú: un botón real de Enviar, Pagar o Eliminar lo hace de verdad, así que usa datos de prueba. Muchas apps de IA son solo para personas adultas: si tienes menos de 18 años, configura esto con un padre, una madre o un docente. Conecta solo apps de IA en las que confíes."
+msgstr "RapidR no envía nada de esto a ningún lugar, pero la aplicación de IA puede pasar lo que lee a la empresa que la fabrica, bajo los términos de esa empresa. Un programa puede mostrar datos privados, tuyos o de otras personas, y hacer clic en él actúa como tú: un botón real de Enviar, Pagar o Eliminar lo hace de verdad, así que usa datos de prueba. Muchas aplicaciones de IA son solo para personas adultas: si tienes menos de 18 años, configura esto con un padre, una madre o un docente. Conecta solo aplicaciones de IA en las que confíes."
 
 # legal
 #: ide/mcp.inc
 msgid "Share only what you may share: schoolwork, an employer's code or someone else's licensed code may not be yours to share. Turn this off, or Reset Token, to disconnect every AI app. Studio keeps a list of what they did on this computer only; Clear Activity removes it."
-msgstr "Comparte solo lo que puedas compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto, o usa Restablecer token, para desconectar todas las apps de IA. Studio guarda una lista de lo que hicieron solo en esta computadora; Borrar actividad la quita."
+msgstr "Comparte solo lo que puedas compartir: las tareas escolares, el código de un empleador o el código con licencia de otra persona pueden no ser tuyos para compartir. Desactiva esto, o usa Restablecer token, para desconectar todas las aplicaciones de IA. Studio guarda una lista de lo que hicieron solo en esta computadora; Borrar actividad la quita."
 
 #: ide/mcp.inc
 msgid "AI apps can't connect: {error}. Pick another port in Tools > Settings > AI Apps."
-msgstr "Las apps de IA no se pueden conectar: {error}. Elige otro puerto en Herramientas > Configuración > Apps de IA."
+msgstr "Las aplicaciones de IA no se pueden conectar: {error}. Elige otro puerto en Herramientas > Configuración > Aplicaciones de IA."
 
 #: ide/mcp.inc
 msgid "AI apps: port {port} is taken"
-msgstr "Apps de IA: el puerto {port} está ocupado"
+msgstr "Aplicaciones de IA: el puerto {port} está ocupado"
 
 #: ide/mcp.inc
 msgid "AI apps can connect at {url} (this computer only; the header is in Tools > Settings > AI Apps)."
-msgstr "Las apps de IA pueden conectarse en {url} (solo esta computadora; el encabezado está en Herramientas > Configuración > Apps de IA)."
+msgstr "Las aplicaciones de IA pueden conectarse en {url} (solo esta computadora; el encabezado está en Herramientas > Configuración > Aplicaciones de IA)."
 
 #: ide/mcp.inc
 msgid "AI apps: stopped. Every AI app was disconnected."
-msgstr "Apps de IA: detenido. Todas las apps de IA se desconectaron."
+msgstr "Aplicaciones de IA: detenidas. Todas las aplicaciones de IA se desconectaron."
 
 #: ide/mcp.inc
 msgid "AI apps: on, none connected"
-msgstr "Apps de IA: activado, ninguna conectada"
+msgstr "Aplicaciones de IA: activadas, ninguna conectada"
 
 #: ide/mcp.inc
 msgid "Waiting at {url} (this computer only)"
@@ -3171,7 +3193,7 @@ msgstr "Esperando en {url} (solo esta computadora)"
 
 #: ide/mcp.inc
 msgid "AI apps: {names}"
-msgstr "Apps de IA: {names}"
+msgstr "Aplicaciones de IA: {names}"
 
 #: ide/mcp.inc
 msgid "{n} call"
@@ -3181,11 +3203,11 @@ msgstr[1] "{n} llamadas"
 
 #: ide/mcp.inc
 msgid "AI apps: off"
-msgstr "Apps de IA: desactivado"
+msgstr "Aplicaciones de IA: desactivadas"
 
 #: ide/mcp.inc
 msgid "Tools > Settings > AI Apps turns them on."
-msgstr "Herramientas > Configuración > Apps de IA las activa."
+msgstr "Herramientas > Configuración > Aplicaciones de IA las activa."
 
 #: ide/mcp.inc
 msgid "&Turn On..."
@@ -3193,23 +3215,23 @@ msgstr "&Activar..."
 
 #: ide/mcp.inc
 msgid "AI apps: allow everything"
-msgstr "Apps de IA: permitir todo"
+msgstr "Aplicaciones de IA: permitir todo"
 
 #: ide/mcp.inc
 msgid "AI apps: waiting for you"
-msgstr "Apps de IA: esperando tu respuesta"
+msgstr "Aplicaciones de IA: esperando tu respuesta"
 
 #: ide/mcp.inc
 msgid "AI apps: on"
-msgstr "Apps de IA: activado"
+msgstr "Aplicaciones de IA: activadas"
 
 #: ide/mcp.inc
 msgid "AI apps: {what}"
-msgstr "Apps de IA: {what}"
+msgstr "Aplicaciones de IA: {what}"
 
 #: ide/mcp.inc
 msgid "AI apps: connected"
-msgstr "Apps de IA: conectado"
+msgstr "Aplicaciones de IA: conectadas"
 
 #: ide/mcp.inc
 msgid "ok"
@@ -3309,7 +3331,7 @@ msgstr "{client}: {what} (esperando tu respuesta)"
 
 #: ide/mcp.inc
 msgid "{client} asks: {what}. Allow it in the AI Apps pane."
-msgstr "{client} pide: {what}. Permítelo en el panel Apps de IA."
+msgstr "{client} pide: {what}. Permítelo en el panel Aplicaciones de IA."
 
 #: ide/mcp.inc
 msgid "{client} wants to open {what}."
@@ -3366,30 +3388,30 @@ msgstr "Preguntando a RAI: {prompt}"
 
 #: ide/mcp.inc
 msgid "(turn AI apps on: a token is made)"
-msgstr "(activa las apps de IA: se crea un token)"
+msgstr "(activa las aplicaciones de IA: se crea un token)"
 
 #: ide/mcp.inc
 msgid "In {project}, AI apps may &do:"
-msgstr "En {project}, las apps de IA pueden &hacer:"
+msgstr "En {project}, las aplicaciones de IA pueden &hacer:"
 
 # legal
 #: ide/mcp.inc
 msgid "Let AI apps use RapidR Studio?"
-msgstr "¿Permitir que las apps de IA usen RapidR Studio?"
+msgstr "¿Permitir que las aplicaciones de IA usen RapidR Studio?"
 
 # legal
 #: ide/mcp.inc
 msgid "With this on, an AI app on this computer that has your token can work with your open project through Studio, and you see everything it does in the AI Apps pane."
-msgstr "Con esto activado, una app de IA en esta computadora que tenga tu token puede trabajar con tu proyecto abierto a través de Studio, y ves todo lo que hace en el panel Apps de IA."
+msgstr "Con esto activado, una aplicación de IA en esta computadora que tenga tu token puede trabajar con tu proyecto abierto a través de Studio, y ves todo lo que hace en el panel Aplicaciones de IA."
 
 # legal
 #: ide/mcp.inc
 msgid "AI apps that have the token can connect to RapidR Studio"
-msgstr "Las apps de IA que tengan el token pueden conectarse a RapidR Studio"
+msgstr "Las aplicaciones de IA que tengan el token pueden conectarse a RapidR Studio"
 
 #: ide/mcp.inc
 msgid "AI apps stay off"
-msgstr "Las apps de IA siguen desactivadas"
+msgstr "Las aplicaciones de IA siguen desactivadas"
 
 #: ide/mcp.inc
 msgid "&Turn On"
@@ -3397,7 +3419,7 @@ msgstr "&Activar"
 
 #: ide/mcp.inc
 msgid "AI apps: off. Every AI app was disconnected."
-msgstr "Apps de IA: desactivado. Todas las apps de IA se desconectaron."
+msgstr "Aplicaciones de IA: desactivadas. Todas las aplicaciones de IA se desconectaron."
 
 #: ide/mcp.inc
 msgid "Address copied"
@@ -3413,20 +3435,20 @@ msgstr "&Ocultar"
 
 #: ide/mcp.inc
 msgid "AI apps: the new token couldn't be kept in the keychain ({error})."
-msgstr "Apps de IA: no se pudo guardar el token nuevo en el llavero ({error})."
+msgstr "Aplicaciones de IA: no se pudo guardar el token nuevo en el llavero ({error})."
 
 #: ide/mcp.inc
 msgid "A new token: AI apps need the new header"
-msgstr "Un token nuevo: las apps de IA necesitan el encabezado nuevo"
+msgstr "Un token nuevo: las aplicaciones de IA necesitan el encabezado nuevo"
 
 #: ide/mcp.inc
 msgid "Clear the AI apps' activity?"
-msgstr "¿Borrar la actividad de las apps de IA?"
+msgstr "¿Borrar la actividad de las aplicaciones de IA?"
 
 # legal
 #: ide/mcp.inc
 msgid "The list of what AI apps did is removed from this computer ({location})."
-msgstr "La lista de lo que hicieron las apps de IA se quita de esta computadora ({location})."
+msgstr "La lista de lo que hicieron las aplicaciones de IA se quita de esta computadora ({location})."
 
 #: ide/mcp.inc
 msgid "The list stays"
@@ -3434,7 +3456,7 @@ msgstr "La lista se queda"
 
 #: ide/mcp.inc
 msgid "Removes the list of what AI apps did"
-msgstr "Quita la lista de lo que hicieron las apps de IA"
+msgstr "Quita la lista de lo que hicieron las aplicaciones de IA"
 
 #: ide/mcp.inc
 msgid "C&lear"
@@ -3735,10 +3757,12 @@ msgid "The themes, switched live"
 msgstr "Los temas, cambiados en vivo"
 
 #: ide/panes.inc
+#, review
 msgid "A big window: a dashboard"
 msgstr "Una ventana grande: un tablero"
 
 #: ide/panes.inc
+#, review
 msgid "A data frame and a chart"
 msgstr "Un marco de datos y un gráfico"
 
@@ -3879,6 +3903,7 @@ msgid "Recipe: a quiz with a score"
 msgstr "Receta: un cuestionario con puntaje"
 
 #: ide/panes.inc
+#, review
 msgid "Recipe: a drawing pad (RCanvas)"
 msgstr "Receta: un tablero de dibujo (RCanvas)"
 
@@ -4281,6 +4306,7 @@ msgid "Replace with"
 msgstr "Reemplazar con"
 
 #: ide/search.inc
+#, review
 msgid "Case"
 msgstr "Mayús."
 
@@ -4289,6 +4315,7 @@ msgid "Match case"
 msgstr "Distinguir mayúsculas y minúsculas"
 
 #: ide/search.inc
+#, review
 msgid "Word"
 msgstr "Palabra"
 
@@ -4724,10 +4751,12 @@ msgid "Off"
 msgstr "Desactivado"
 
 #: ide/settings.inc
+#, review
 msgid "Quiet: the marks only"
 msgstr "Discreto: solo las marcas"
 
 #: ide/settings.inc
+#, review
 msgid "Helpful: marks, the line's help, argument names"
 msgstr "Útil: marcas, la ayuda de la línea, nombres de argumentos"
 
@@ -4850,6 +4879,7 @@ msgstr "BASIC vuelve a ser potente: aplicaciones de escritorio y web desde un so
 
 # legal
 #: ide/shell.inc
+#, review
 msgid "Copyright (c) 2025-2026 Ruta Internet SRL. MIT licence."
 msgstr "Copyright (c) 2025-2026 Ruta Internet SRL. Licencia MIT."
 
@@ -5052,6 +5082,7 @@ msgid "changed since the last version"
 msgstr "cambiado desde la última versión"
 
 #: ide/versions.inc
+#, review
 msgid "AI checkpoint: {what}, {when}"
 msgstr "Punto de control de la IA: {what}, {when}"
 
@@ -5124,6 +5155,7 @@ msgstr[0] "{n} cambio sin guardar como versión"
 msgstr[1] "{n} cambios sin guardar como versión"
 
 #: ide/versions.inc
+#, review
 msgid "AI checkpoint: {what}"
 msgstr "Punto de control de la IA: {what}"
 
@@ -5469,7 +5501,7 @@ msgstr "Revisar cambios pregunta por cada uno. Si los descartas, perderás todos
 
 #: ide/workspace.inc
 msgid "Form app"
-msgstr "Aplicación de formulario"
+msgstr "Formulario"
 
 #: ide/workspace.inc
 msgid "A window to design, with its code beside it."
@@ -5485,13 +5517,14 @@ msgstr "PRINT e INPUT en una ventana de texto."
 
 #: ide/workspace.inc
 msgid "Classic form app"
-msgstr "Aplicación de formulario clásica"
+msgstr "Formulario clásico"
 
 #: ide/workspace.inc
 msgid "A .bas with the classic names only, checked as classic."
-msgstr "Un .bas con solo los nombres clásicos, revisado como clásico."
+msgstr "Un .bas con nombres clásicos, revisado como tal."
 
 #: ide/workspace.inc
+#, review
 msgid "Data dashboard"
 msgstr "Tablero de datos"
 

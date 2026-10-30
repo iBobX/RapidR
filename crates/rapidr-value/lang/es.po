@@ -246,10 +246,12 @@ msgid "Close"
 msgstr "Cerrar"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
+#, review
 msgid "Dock"
 msgstr "Acoplar"
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
+#, review
 msgid "Auto Hide"
 msgstr "Ocultar automáticamente"
 
@@ -538,6 +540,7 @@ msgid "module"
 msgstr "módulo"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
+#, review
 msgid "include"
 msgstr "archivo incluido"
 
@@ -546,6 +549,7 @@ msgid "resource"
 msgstr "recurso"
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
+#, review
 msgid "asset"
 msgstr "activo"
 
@@ -914,6 +918,7 @@ msgid "colour"
 msgstr "color"
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
+#, review
 msgid "handle"
 msgstr "identificador"
 
@@ -1198,6 +1203,7 @@ msgid "Modules"
 msgstr "Módulos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
+#, review
 msgid "Includes"
 msgstr "Archivos incluidos"
 
@@ -1206,6 +1212,7 @@ msgid "Resources"
 msgstr "Recursos"
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
+#, review
 msgid "Assets"
 msgstr "Activos"
 

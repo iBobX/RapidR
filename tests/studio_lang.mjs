@@ -323,6 +323,10 @@ const ES_SCENES = [
   { name: "versions-pane", ...VERSIONS_COPY, do: V_START, delay: 8 },
   { name: "versions-save", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.save`, window: 2, delay: 8 },
   { name: "debug-panes", open: "examples/gui/hello_form.rr", do: "wait,view.debugPanes", delay: 5 },
+  // (the dialogs and pages the scenes above don't reach)
+  { name: "new-project", open: "", do: "file.newProject", window: 2 },
+  { name: "project-options", open: "examples/gui/hello_form.rr", do: "wait,project.options", window: 2 },
+  { name: "help", open: "", do: "wait,help.contents", delay: 6 },
 ];
 {
   for (const scene of ES_SCENES) {
@@ -337,7 +341,8 @@ const ES_SCENES = [
       const eng = englishLeft(texts, programWords);
       // (a name scrolled out of its list — RMemo at the toolbox's edge — is no text a language cuts)
       const nameOnly = (t) => { const w = t.match(/[A-Za-z][A-Za-z']+/g) || []; return w.length > 0 && w.every((x) => NAMES.has(x.toLowerCase()) || programWords.has(x.toLowerCase())); };
-      const cut = [...new Set(texts.filter((t) => t.cut && !nameOnly(t.text)).map((t) => t.text))];
+      // (nor is a path of the machine that runs the test, cut short in the Output pane)
+      const cut = [...new Set(texts.filter((t) => t.cut && !nameOnly(t.text) && !/[/\\]/.test(t.text)).map((t) => t.text))];
       check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       else if (cut.length) left.push(`${name}: ${cut.join(" | ")}`);
