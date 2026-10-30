@@ -1642,7 +1642,7 @@ msgstr "Guardar una &versión..."
 msgid "Versio&ns"
 msgstr "Versio&nes"
 
-#: ide/commands.inc ide/versions.inc
+#: ide/commands.inc
 msgid "&Start Versioning This Project"
 msgstr "&Empezar a guardar versiones de este proyecto"
 
@@ -5515,8 +5515,16 @@ msgid "Versions"
 msgstr "Versiones"
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions of This Project"
+msgstr "&Empezar a guardar versiones de este proyecto"
+
+#: ide/versions.inc
 msgid "Start keeping versions of this project (Git calls this git init)"
 msgstr "Empezar a guardar versiones de este proyecto (Git lo llama git init)"
+
+#: ide/versions.inc
+msgid "Start keeping versions of this project"
+msgstr "Empezar a guardar versiones de este proyecto"
 
 #: ide/versions.inc
 msgid "&Local History..."
@@ -5527,16 +5535,8 @@ msgid "The copies Studio kept of this file each time it was saved"
 msgstr "Las copias que Studio guardó de este archivo cada vez que se guardó"
 
 #: ide/versions.inc
-msgid "Changes not saved as a version"
-msgstr "Cambios sin guardar como versión"
-
-#: ide/versions.inc
-msgid "Files not saved as a version"
-msgstr "Archivos sin guardar como versión"
-
-#: ide/versions.inc
-msgid "A double click opens the file"
-msgstr "Un doble clic abre el archivo"
+msgid "Changes"
+msgstr "Cambios"
 
 #: ide/versions.inc
 msgid "&Save a Version..."
@@ -5549,6 +5549,22 @@ msgstr "Guardar una versión de tus archivos (Git lo llama commit)"
 #: ide/versions.inc
 msgid "Keeps the changed files as they are now, with a few words about what changed (Git calls this a commit)"
 msgstr "Conserva los archivos cambiados como están ahora, con unas palabras sobre lo que cambió (Git lo llama commit)"
+
+#: ide/versions.inc
+msgid "Filter the changed files"
+msgstr "Filtrar los archivos cambiados"
+
+#: ide/versions.inc
+msgid "Shows only the files whose name or folder has these letters"
+msgstr "Muestra solo los archivos cuyo nombre o carpeta tiene estas letras"
+
+#: ide/versions.inc
+msgid "Files not saved as a version, by folder"
+msgstr "Archivos sin guardar en una versión, por carpeta"
+
+#: ide/versions.inc
+msgid "A double click or Enter opens a file; Right opens a folder, Left closes it"
+msgstr "Un doble clic o Intro abre un archivo; Derecha abre una carpeta, Izquierda la cierra"
 
 #: ide/versions.inc
 msgid "Timeline"
@@ -5673,18 +5689,6 @@ msgstr[0] "hace {n} día"
 msgstr[1] "hace {n} días"
 
 #: ide/versions.inc
-msgid "new, not in a version yet"
-msgstr "nuevo, aún no está en una versión"
-
-#: ide/versions.inc
-msgid "removed since the last version"
-msgstr "quitado desde la última versión"
-
-#: ide/versions.inc
-msgid "changed since the last version"
-msgstr "cambiado desde la última versión"
-
-#: ide/versions.inc
 #, review
 msgid "AI checkpoint: {what}, {when}"
 msgstr "Punto de control de la IA: {what}, {when}"
@@ -5694,12 +5698,62 @@ msgid "saved by {who}, {when}"
 msgstr "guardada por {who}, {when}"
 
 #: ide/versions.inc
-msgid "Open a project to see its versions"
-msgstr "Abre un proyecto para ver sus versiones"
+msgid "the current version"
+msgstr "la versión actual"
 
 #: ide/versions.inc
-msgid "Versions keep your project's files as they were at each step, so nothing is ever lost."
-msgstr "Las versiones conservan los archivos de tu proyecto como estaban en cada paso, para que nunca se pierda nada."
+msgid "new, not in a version yet"
+msgstr "nuevo, aún no está en una versión"
+
+#: ide/versions.inc
+msgid "deleted since the last version"
+msgstr "eliminado desde la última versión"
+
+#: ide/versions.inc
+msgid "changed since the last version"
+msgstr "cambiado desde la última versión"
+
+#: ide/versions.inc
+msgid "closed"
+msgstr "cerrada"
+
+#: ide/versions.inc
+msgid "open"
+msgstr "abierta"
+
+#: ide/versions.inc
+msgid "Folder {folder}, {changes}, {state}"
+msgstr "Carpeta {folder}, {changes}, {state}"
+
+#: ide/versions.inc
+msgid "{n} change"
+msgid_plural "{n} changes"
+msgstr[0] "{n} cambio"
+msgstr[1] "{n} cambios"
+
+#: ide/versions.inc
+msgid "{file}: {state}"
+msgstr "{file}: {state}"
+
+#: ide/versions.inc
+msgid "{file} in {folder}: {state}"
+msgstr "{file} en {folder}: {state}"
+
+#: ide/versions.inc
+msgid "{folder} opened"
+msgstr "{folder} abierta"
+
+#: ide/versions.inc
+msgid "{folder} closed"
+msgstr "{folder} cerrada"
+
+#: ide/versions.inc
+msgid "No project open"
+msgstr "Ningún proyecto abierto"
+
+#: ide/versions.inc
+msgid "Open a project to keep versions of it: every step of your work, so nothing is ever lost."
+msgstr "Abre un proyecto para guardar versiones de él: cada paso de tu trabajo, para que nunca se pierda nada."
 
 #: ide/versions.inc
 msgid "Not in a browser"
@@ -5726,22 +5780,16 @@ msgid "Until then Studio keeps a copy of each file every time you save it. Local
 msgstr "Mientras tanto, Studio guarda una copia de cada archivo cada vez que lo guardas. Historial local las muestra."
 
 #: ide/versions.inc
-msgid "{experiment} · all saved"
-msgstr "{experiment} · todo guardado"
+msgid "Experiment: {experiment}"
+msgstr "Experimento: {experiment}"
 
 #: ide/versions.inc
-msgid "{experiment} · {n} change"
-msgid_plural "{experiment} · {n} changes"
-msgstr[0] "{experiment} · {n} cambio"
-msgstr[1] "{experiment} · {n} cambios"
+msgid "All saved"
+msgstr "Todo guardado"
 
 #: ide/versions.inc
-msgid "No changes since the last version"
-msgstr "No hay cambios desde la última versión"
-
-#: ide/versions.inc
-msgid "Changes not saved as a version ({n})"
-msgstr "Cambios sin guardar como versión ({n})"
+msgid "Everything is saved in a version."
+msgstr "Todo está guardado en una versión."
 
 #: ide/versions.inc
 msgid "Undo: {what}"
@@ -5758,6 +5806,18 @@ msgstr[0] "{n} cambio sin guardar como versión"
 msgstr[1] "{n} cambios sin guardar como versión"
 
 #: ide/versions.inc
+msgid "&Start Keeping Versions"
+msgstr "&Empezar a guardar versiones"
+
+#: ide/versions.inc
+msgid "{n} min ago"
+msgstr "hace {n} min"
+
+#: ide/versions.inc
+msgid "{n} h ago"
+msgstr "hace {n} h"
+
+#: ide/versions.inc
 #, review
 msgid "AI checkpoint: {what}"
 msgstr "Punto de control de la IA: {what}"
@@ -5765,6 +5825,22 @@ msgstr "Punto de control de la IA: {what}"
 #: ide/versions.inc
 msgid "{who} · {when}"
 msgstr "{who} · {when}"
+
+#: ide/versions.inc
+msgid "Current"
+msgstr "Actual"
+
+#: ide/versions.inc
+msgid "New"
+msgstr "Nuevo"
+
+#: ide/versions.inc
+msgid "Deleted"
+msgstr "Eliminado"
+
+#: ide/versions.inc
+msgid "Changed"
+msgstr "Cambiado"
 
 #: ide/versions.inc
 msgid "Only {file}"
@@ -5803,8 +5879,8 @@ msgid "new"
 msgstr "nuevo"
 
 #: ide/versions.inc
-msgid "removed"
-msgstr "quitado"
+msgid "deleted"
+msgstr "eliminado"
 
 #: ide/versions.inc
 msgid "changed"

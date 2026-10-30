@@ -248,6 +248,8 @@ SUB StudioKey(Key AS INTEGER, Shift AS INTEGER)
 END SUB
 
 SUB PaneChanged(Name AS STRING)
+  ' (the Versions tab closed or shown again by the person: versions.inc)
+  VerPaneChanged Name
 END SUB
 
 SUB DocumentActivated(Name AS STRING)
@@ -412,6 +414,8 @@ SUB StartStudio
   SetUpMcp
   SetUpSchoolLock
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
+  ' (a layout saved before Versions was a tab of its own: it is put back)
+  VerLayoutLoaded
   ' (the editing layout — or the debugging one, Settings' Always —, at its
   ' sizes, whatever layout was kept: one saved while a program ran)
   DebugLayoutLoaded
