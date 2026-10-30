@@ -2353,7 +2353,7 @@ const CASES = [
     do: "wait,help:SHOWMESSAGE",
     delay: 4,
     dump: {
-      "helppage.plaintext": /^SHOWMESSAGE\nStatement · RapidQ-compatible[^\n]*\n[^\n]*\nInsert into the code\n/,
+      "helppage.plaintext": /^SHOWMESSAGE\nStatement · classic[^\n]*\n[^\n]*\nInsert into the code\n/,
       "helpsearch.text": /^SHOWMESSAGE$/,
       "helpsuggest.visible": NO,
     },
@@ -2373,7 +2373,7 @@ const CASES = [
     do: "wait,help:RButton",
     delay: 4,
     dump: {
-      "helppage.plaintext": /^RButton\nComponent · RapidQ name: QBUTTON · desktop and web\nIts default event is OnClick\.\nCREATE Button1 AS RButton\n[\s\S]*\nInsert into the code\nA push button[^\n]*\nProperties \(\d+\)\nAlign · [^\n]*Caption · [^\n]*\nMethods \(\d+\)\n[^\n]*\nEvents \(\d+\)\nOnClick · /,
+      "helppage.plaintext": /^RButton\nComponent · desktop and web\nIts default event is OnClick\.\nCREATE Button1 AS RButton\n[\s\S]*\nInsert into the code\nA push button[^\n]*\nProperties \(\d+\)\nAlign · [^\n]*Caption · [^\n]*\nMethods \(\d+\)\n[^\n]*\nEvents \(\d+\)\nOnClick · /,
     },
   },
   {
@@ -2422,7 +2422,7 @@ const CASES = [
     do: "wait,view.code,wait,caret:    PickedFont,help.contents,wait",
     delay: 6,
     dump: {
-      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · RapidQ name: QFONT[^\n]*\n[^\n]*\nProperties \(\d+\)\n/,
+      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · [^\n]*\n[^\n]*\nProperties \(\d+\)\n/,
       "helpsearch.text": /^PickedFont$/,
     },
   },
@@ -5842,7 +5842,7 @@ const CASES = [
     delay: 6,
     dump: {
       "ai.steps": /^Looked up RButton\nLooked at the form$/,
-      "ai.transcript": /RButton is RButton \(RapidQ: QButton\)[\s\S]*the form has 5 components/,
+      "ai.transcript": /RButton is RButton \(classic name: QButton\)[\s\S]*the form has 5 components/,
       "ai.lastrequest": /^POST http:\/\/127\.0\.0\.1:\d+\/anthropic\/v1\/messages\n[\s\S]*x-api-key: \(your API key, not shown\)\nanthropic-version: 2023-06-01\n(?![\s\S]*FAKE-0000)/,
       "ai.keyhint": /^…wxyz$/,
       "ai.usage": /^2,000 tokens sent \(200 from the cache\), 40 received$/,

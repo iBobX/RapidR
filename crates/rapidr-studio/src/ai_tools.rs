@@ -104,7 +104,7 @@ pub fn tools(proposals: bool) -> Vec<Tool> {
         t(
             "rapidr_describe",
             "RapidR's registry entry for a component type (its properties with types, ranges and defaults, its methods, its events, an example) or for a builtin; or every type / builtin in one line each. Use it before using a component you haven't checked.",
-            schema(json!({"type": {"type": "string", "description": "a component type: RButton, RForm, RStringGrid (RapidQ names too: QBUTTON)"}, "builtin": {"type": "string", "description": "a builtin function or statement: MID$, SHOWMESSAGE"}, "what": {"type": "string", "enum": ["types", "builtins"], "description": "list every type or every builtin"}}), &[]),
+            schema(json!({"type": {"type": "string", "description": "a component type: RButton, RForm, RStringGrid (classic names too: QBUTTON)"}, "builtin": {"type": "string", "description": "a builtin function or statement: MID$, SHOWMESSAGE"}, "what": {"type": "string", "enum": ["types", "builtins"], "description": "list every type or every builtin"}}), &[]),
         ),
         t(
             "rapidr_list",
@@ -739,7 +739,7 @@ pub fn describe_text(v: &Json) -> String {
         return out;
     }
     let ty = v["type"].as_str().unwrap_or("");
-    let q = v["rapidq"].as_str().map(|q| format!(" (RapidQ: {q})")).unwrap_or_default();
+    let q = v["rapidq"].as_str().map(|q| format!(" (classic name: {q})")).unwrap_or_default();
     let kind = if v["visual"].as_bool() == Some(true) { "visual component" } else { "non-visual component" };
     line(&mut out, format!("{ty}{q}: {kind}. {}", v["doc"].as_str().unwrap_or("")));
     if let Some(only) = v["only"].as_str() {
@@ -2473,7 +2473,7 @@ mod tests {
         let g = run("rapidr_get", &json!({"id": "B1", "props": ["Caption"]}), &p, &mut props, true);
         assert!(g.content.contains("\"OK\""), "{}", g.content);
         let d = run("rapidr_describe", &json!({"type": "QBUTTON"}), &p, &mut props, true);
-        assert!(d.content.starts_with("RButton (RapidQ: QButton): visual component.") && d.content.contains("- Caption: string") && d.content.contains("Events"), "{}", d.content);
+        assert!(d.content.starts_with("RButton (classic name: QButton): visual component.") && d.content.contains("- Caption: string") && d.content.contains("Events"), "{}", d.content);
         assert!(run("rapidr_describe", &json!({"type": "RNope"}), &p, &mut props, true).is_error);
         let c = run("check_code", &json!({}), &p, &mut props, true);
         assert_eq!(c.content, "No problems: it compiles.");

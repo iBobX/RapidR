@@ -33,7 +33,7 @@ pub(crate) const NOT_IMPLEMENTED: &str = "not-implemented";
 pub(crate) const ONE_RUNTIME: &str = "one-runtime";
 pub(crate) const UNKNOWN_MEMBER: &str = "unknown-member";
 
-const COMPAT: &str = "RapidQ's compiler refuses it (this project is RapidQ-compatible)";
+const COMPAT: &str = "a classic compiler refuses it (this project is kept classic-compatible)";
 
 /// The notes a doc gets from an entry's registry flags (empty when there's
 /// nothing to say): not in RapidR yet, a RapidR extension of a RapidQ
@@ -178,7 +178,7 @@ impl Checker<'_> {
     }
 
     fn not_implemented(&mut self, start: usize, end: usize, what: String) {
-        self.push(start, end, Severity::Warning, NOT_IMPLEMENTED, format!("RapidQ's {what} is not implemented in RapidR yet"));
+        self.push(start, end, Severity::Warning, NOT_IMPLEMENTED, format!("The classic {what} is not implemented in RapidR yet"));
     }
 
     /// A use of `what` (of `key`: its component, the builtin) that works
@@ -272,20 +272,20 @@ impl Checker<'_> {
             self.not_implemented(start, end, shown.clone());
         } else if written.starts_with('Q') && !is_rapidq_name {
             if self.compat {
-                self.push(start, end, Severity::Warning, NOT_RAPIDQ_NAME, format!("RapidQ has no {written}: RapidR reads it as {}", c.spelling()));
+                self.push(start, end, Severity::Warning, NOT_RAPIDQ_NAME, format!("{written} is not a classic name: RapidR reads it as {}", c.spelling()));
             }
         } else if self.compat && c.origin == Origin::RapidQ && c.kind == Kind::Component && !is_rapidq_name {
             // (`RBUTTON` in a RapidQ-compatible project: RapidQ's compiler
             // knows the component by its RapidQ name only)
             let q = c.rapidq.unwrap_or(c.name);
-            self.push(start, end, Severity::Warning, RAPIDR_NAME, format!("{shown} is RapidR's name: RapidQ's compiler knows it as {q}"));
+            self.push(start, end, Severity::Warning, RAPIDR_NAME, format!("{shown} is RapidR's name: a classic compiler knows it as {q}"));
         } else if c.origin == Origin::RapidR && self.compat {
             self.push(
                 start,
                 end,
                 Severity::Warning,
                 RAPIDR_ONLY,
-                format!("{} is RapidR's own component: RapidQ doesn't have it (this project is RapidQ-compatible)", c.spelling()),
+                format!("{} is RapidR's own component: a classic compiler doesn't have it (this project is kept classic-compatible)", c.spelling()),
             );
         }
         self.one_runtime(start, end, &c.spelling(), shown, c.runtimes);

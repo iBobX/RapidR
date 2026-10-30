@@ -66,7 +66,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>RapidQ BASIC source (run)</string>
+			<string>Classic BASIC source (run)</string>
 			<key>CFBundleTypeIconFile</key>
 			<string>BASIC-Source</string>
 			<key>CFBundleTypeRole</key>
@@ -127,7 +127,7 @@
 			<key>UTTypeIdentifier</key>
 			<string>io.github.ibobx.rapidr.rapidq-source</string>
 			<key>UTTypeDescription</key>
-			<string>RapidQ BASIC source</string>
+			<string>Classic BASIC source</string>
 			<key>UTTypeConformsTo</key>
 			<array>
 				<string>public.source-code</string>

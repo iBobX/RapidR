@@ -111,8 +111,8 @@ Section: devel
 Priority: optional
 Homepage: https://github.com/iBobX/RapidR
 Description: $desc
- RapidR runs and builds RapidQ BASIC programs: compatible with RapidQ, on
- the interpreter, as native executables and on the web; an original
+ RapidR runs and builds BASIC programs, older ones included, on the
+ interpreter, as native executables and on the web; an original
  implementation written from the ground up in pure Rust.
 EOF
     # (the package's folders and files as dpkg wants them, whatever the
@@ -152,6 +152,6 @@ for ARCH in $ARCHS; do
     tarball "$ARCH" sdk "rapidr-$VERSION-linux-$ARCH"
     tarball "$ARCH" runtime "rapidr-runtime-$VERSION-linux-$ARCH"
     deb "$ARCH" sdk rapidr "RapidR — BASIC compiler, interpreter and IDE (SDK)"
-    deb "$ARCH" runtime rapidr-runtime "RapidR Runtime — runs RapidR and RapidQ programs"
+    deb "$ARCH" runtime rapidr-runtime "RapidR Runtime — runs RapidR programs"
     rm -rf "$W/$ARCH-sdk" "$W/$ARCH-runtime"
 done

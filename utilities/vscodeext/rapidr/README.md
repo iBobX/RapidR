@@ -1,8 +1,8 @@
 # RapidR for Visual Studio Code
 
-Write, run and debug **RapidR BASIC** programs (RapidQ-compatible) in VS Code: `.bas`, `.rr`, `.inc`, and RapidQ's own `.rqw`, `.rqb` and `.rq` are recognised too.
+Write, run and debug **RapidR BASIC** programs in VS Code: `.bas`, `.rr`, `.inc`, and the older `.rqw`, `.rqb` and `.rq` are recognised too.
 
-[RapidR](https://github.com/iBobX/RapidR) is compatible with RapidQ and written from the ground up in pure Rust. It has a compiler for native executables, an interpreter, and a web runtime. RapidQ programs run unchanged. RapidR adds data science, data components and modern GUI features.
+[RapidR](https://github.com/iBobX/RapidR) is written from the ground up in pure Rust. It has a compiler for native executables, an interpreter, and a web runtime. Older programs run unchanged. RapidR adds data science, data components and modern GUI features.
 
 This extension is a thin client. The language intelligence comes from RapidR itself: `rapidr lsp` is the language server and `rapidr dap` is the debugger. VS Code therefore gives the same answers as RapidR Studio, and both understand your program the way the compiler does.
 
@@ -12,7 +12,7 @@ This extension is a thin client. The language intelligence comes from RapidR its
 
 ### Code completion that knows your program
 
-The completion list includes the builtins, the keywords, the components (offered under RapidR's names, such as `RButton`, with "RapidQ name: QBUTTON" as the detail; in a RapidQ-compatible project they are offered under RapidQ's names, with "RapidR name: RButton") with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
+The completion list includes the builtins, the keywords, the components (offered under RapidR's names, such as `RButton`, with their classic name (`QBUTTON`) as the detail; in a project kept classic-compatible they are offered under the classic names, with "RapidR name: RButton") with their properties, methods and events, and your own variables, SUBs, FUNCTIONs and TYPEs. It also covers the files you `$INCLUDE`, as the editor has them, saved or not.
 
 ```basic
 CREATE Form AS RForm
@@ -30,7 +30,7 @@ Type `DIM test AS ` and the list of types and components opens by itself:
 
 ### Hover, signature help and parameter names
 
-Hover a builtin, a component ("RButton — RapidQ name: QBUTTON"), a component member or one of your routines to see its signature and documentation. The hover ends with **Open in RapidR Help**. While you type a call, its parameters are shown, and the parameter's name is written in grey before each literal argument (`DrawDot x, y: 40, r: 12`).
+Hover a builtin, a component ("RButton", with its classic name), a component member or one of your routines to see its signature and documentation. The hover ends with **Open in RapidR Help**. While you type a call, its parameters are shown, and the parameter's name is written in grey before each literal argument (`DrawDot x, y: 40, r: 12`).
 
 ```basic
 s$ = MID$(text$, 2, 3)     ' MID$(str, start, [length])
@@ -52,9 +52,9 @@ Put the caret on a word and press **Shift+F1** (or choose **RapidR: Help for the
 
 ![Parameter names and colours](images/hints.png)
 
-### Diagnostics in RapidQ's words
+### Diagnostics in the classic compiler's words
 
-Errors and warnings appear as you type, worded the way RapidQ's compiler words them:
+Errors and warnings appear as you type, worded the way the classic compiler words them:
 
 ```basic
 $TYPECHECK ON
@@ -63,7 +63,7 @@ total = 1                  ' Undeclared identifier total
 
 ![Diagnostics](images/diagnostics.png)
 
-Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must still compile with RapidQ: RapidR's own components (`RPlot`, which RapidQ lacks) are flagged, and so are RapidR's names of RapidQ's components ("RButton is RapidR's name: RapidQ's compiler knows it as QBUTTON"), with a quick fix to the RapidQ name.
+Turn on **classic-compatible** (`rapidr.rapidqCompatible`) for programs that must still compile with a classic compiler: RapidR's own components (`RPlot`, which a classic compiler lacks) are flagged, and so are RapidR's names of the classic components ("RButton is RapidR's name: a classic compiler knows it as QBUTTON"), with a quick fix to the classic name.
 
 ### Navigate and refactor
 
@@ -73,7 +73,7 @@ Turn on **RapidQ-compatible** (`rapidr.rapidqCompatible`) for programs that must
 - **Outline** and breadcrumbs: SUBs, FUNCTIONs, TYPEs, the forms you CREATE and their components.
 - **Format Document** and **Format Selection**: indentation, and keywords in one case. RapidR is the default formatter for RapidR files, so Format Document needs no question; for **format on save** add `"[rapidr]": { "editor.formatOnSave": true }` to your settings.
 - **Automatic keyword case** as you type, as in QuickBASIC and VB: `dim x as integer` becomes `DIM x AS INTEGER` when each word is finished. Strings, comments and your own names are never touched; one Undo gives back what you typed.
-- **Quick fixes** for what the language server finds (a RapidQ include the program needs, `NOT FILEEXISTS(x)`, RapidR's names in a RapidQ-compatible project).
+- **Quick fixes** for what the language server finds (a classic include the program needs, `NOT FILEEXISTS(x)`, RapidR's names in a project kept classic-compatible).
 
 ![Outline](images/outline.png)
 
@@ -113,14 +113,14 @@ A folder with a RapidR project (a `.rrproj` file, which RapidR Studio makes) get
 
 ### Syntax highlighting and snippets
 
-The extension highlights RapidR syntax (RapidQ-compatible programs included), with every component under RapidR's name and under its RapidQ name. The word lists of the grammar are kept in step with RapidR's language registry (`npm run grammar`), so a word a new RapidR adds is highlighted. It also has snippets for blocks (`if`, `for`, `select`, `sub`, `func`, `type`), forms and components (`createform`, `createbutton`, …), and program skeletons (`rpcons`, `rpgui`); every snippet is checked against the language server's own diagnostics.
+The extension highlights RapidR syntax (classic programs included), with every component under RapidR's name and under its classic name. The word lists of the grammar are kept in step with RapidR's language registry (`npm run grammar`), so a word a new RapidR adds is highlighted. It also has snippets for blocks (`if`, `for`, `select`, `sub`, `func`, `type`), forms and components (`createform`, `createbutton`, …), and program skeletons (`rpcons`, `rpgui`); every snippet is checked against the language server's own diagnostics.
 
 ## Settings
 
 | Setting | Default | |
 |---|---|---|
 | `rapidr.path` | (empty) | The `rapidr` executable, the folder it is in, or `RapidR Studio.app`. When empty, the extension looks on `PATH`, then in the usual install places, then in a RapidR source checkout open in the workspace, and uses the first one that is as new as the extension (an older `rapidr` that has the language server is the fallback). |
-| `rapidr.rapidqCompatible` | `false` | Warn about everything RapidQ doesn't have. |
+| `rapidr.rapidqCompatible` | `false` | Warn about everything a classic compiler doesn't have. |
 | `rapidr.experimental.mcpServer` | `false` | Experimental: offer `rapidr mcp` to the editor's AI agents as an MCP server. Needs VS Code 1.101 and a RapidR that has `rapidr mcp` (none yet). |
 | `rapidr.keywordCase` | `upper` | The case of keywords, types, directives and builtins: `upper`, `lower`, `proper` (`Dim x As Integer`) or `preserve` (off). |
 | `rapidr.identifierCase` | `preserve` | `declaration`: write your names as declared, and members as RapidR spells them (`Form.Caption`). |
