@@ -2432,7 +2432,7 @@ mod tests {
         let empty = HashMap::new();
         let p = project(&[], &empty);
         let r = run("search_manual", &json!({"query": "how do I set a breakpoint"}), &p, &mut Vec::new(), true);
-        assert!(!r.is_error && r.content.contains("docs/manual/debugging.md — "), "{}", r.content);
+        assert!(!r.is_error && r.content.contains("Manual › "), "{}", r.content);
         assert!(r.content.matches("docs/manual/").count() <= 3);
         assert!(run("search_manual", &json!({"query": "qqzzx"}), &p, &mut Vec::new(), true).content.contains("nothing on"));
         assert!(run("search_manual", &json!({}), &p, &mut Vec::new(), true).is_error);

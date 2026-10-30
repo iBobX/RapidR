@@ -251,7 +251,9 @@ pub fn excerpt(s: &Section) -> String {
         text.push_str(line);
         text.push('\n');
     }
-    format!("docs/manual/{} — {}\n{}", s.page, s.heading, text.trim_end())
+    // (the section's place in words, not a file path: the manual is built
+    // into Studio, an AI app has no file to open — it's all here)
+    format!("Manual › {}\n{}", s.heading, text.trim_end())
 }
 
 #[cfg(test)]
@@ -316,6 +318,6 @@ mod tests {
         assert_eq!(top[0].page, "serial-ports.md");
         assert!(search("zzqx", 3).is_empty());
         let e = excerpt(top[0]);
-        assert!(e.starts_with("docs/manual/serial-ports.md — ") && e.chars().count() <= SECTION_CHARS + 200, "{e}");
+        assert!(e.starts_with("Manual › ") && e.chars().count() <= SECTION_CHARS + 200, "{e}");
     }
 }
