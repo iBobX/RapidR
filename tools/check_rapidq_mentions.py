@@ -3,8 +3,9 @@
 RapidQ (Robert, 2026-10-24/30: "We don't care about RapidQ, we care about
 RapidR"). It names it in two places only: the importer's own texts (its menu
 item and dialog, `rapidr import-rapidq`, docs/manual/importing-rapidq.md) and
-one line on the compatibility page (docs/manual/compatibility.md) saying that
-RapidR includes a layer to import older programs written for RapidQ.
+one line on the compatibility page (docs/manual/compatibility.md, and its
+translations: the line that links to the importer's page) saying that RapidR
+includes a layer to import older programs written for RapidQ.
 
 This check fails when "RapidQ" turns up in text a user reads, outside
 tools/rapidq-allowlist.txt. Run it from anywhere:
@@ -85,6 +86,13 @@ SKIP_PREFIXES = (
     "utilities/vscodeext/rapidr/CHANGELOG.md",   # the extension's published history
     "utilities/vscodeext/rapidr/node_modules/",
 )
+# The importer's own page, in every language (docs/manual/<lang>/): it is about
+# the importer, so it names its source.
+IMPORTER_PAGE = re.compile(r"^docs/manual/(?:[A-Za-z-]+/)?importing-rapidq\.md$")
+# The compatibility page, in every language: one line says that RapidR
+# includes a layer to import older programs written for RapidQ (the line that
+# links to the importer's page); no other line names it.
+COMPAT_PAGE = re.compile(r"^docs/manual/(?:[A-Za-z-]+/)?compatibility\.md$")
 # Plans and engineering notes (not the manual): developers' text.
 PLAN_DOCS = re.compile(r"^docs/(?!manual/)[^/]+\.md$|^docs/(?:security|i18n)/")
 SKIP_PARTS = ("/tests/", "/target/", "/node_modules/", "/.work/", "/fixtures/")
@@ -110,6 +118,8 @@ def tracked_files():
 
 def skipped(rel):
     if rel.startswith(SKIP_PREFIXES) or PLAN_DOCS.match(rel):
+        return True
+    if IMPORTER_PAGE.match(rel):
         return True
     if rel.endswith(".rs") and SKIP_RUST.search(rel):
         return True
@@ -374,11 +384,16 @@ def scan():
         if lines is None:
             continue
         mine = [e for e in entries if e.covers(rel)]
+        compat_line_left = 1 if COMPAT_PAGE.match(rel) else 0
         for n, line in lines:
             if not MENTION.search(line):
                 continue
             rest = NAMES.sub("", line)
             if not MENTION.search(rest):
+                continue
+            if compat_line_left and "importing-rapidq.md" in line:
+                compat_line_left -= 1
+                allowed.append((rel, n, line.strip()))
                 continue
             used = []
             for e in mine:

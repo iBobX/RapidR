@@ -28,14 +28,16 @@
 # RapidQ's own user groups (ANNOUNCEMENT.md).
 
 # ---- (b) the compatibility page's one line ----
-docs/manual/compatibility.md :: written for RapidQ (
+# (docs/manual/compatibility.md and its translations: built into the check,
+# the one line that links to the importer's page.)
 # One compatibility line in the project's front page (Robert's rule: a short
 # "older programs keep working" line in the README).
 README.md :: import programs written for RapidQ, include files and all.
 
 # ---- (a) the importer's own texts ----
-# The importer's page, its code (the report it writes, what it says it left alone).
-docs/manual/importing-rapidq.md ::
+# The importer's page (docs/manual/importing-rapidq.md and its translations:
+# built into the check) and its code (the report it writes, what it says it
+# left alone).
 crates/rapidr-import/src/ ::
 # The command's line in the command-line guide and in `rapidr help`.
 docs/manual/cli-and-runtime.md :: Write a converted copy of a RapidQ program
