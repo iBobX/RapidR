@@ -3155,7 +3155,8 @@ const CASES = [
     do: "wait",
     delay: 3,
     dump: { "dock.layout": /tabs \d+ outputbox immediatebox bppanel\n[\s\S]*hidden [^\n]*varstree[^\n]*watchpanel[^\n]*stacktree/, "outputbox.width": /^\d+$/ },
-    checks: [(d) => [+d["outputbox.width"] >= 780, `Output the documents' whole width (${d["outputbox.width"]})`]],
+    // (the documents are 756 wide in a 1280 window: the Properties pane is 272, the others 240)
+    checks: [(d) => [+d["outputbox.width"] >= 750, `Output the documents' whole width (${d["outputbox.width"]})`]],
   },
   {
     // (S9) A run with the debugger: the debugging layout — Variables,

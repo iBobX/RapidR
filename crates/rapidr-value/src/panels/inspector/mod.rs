@@ -66,6 +66,10 @@ pub struct Inspector {
     /// `NameWidth`: the names' column, in pixels ([`DEFAULT_NAME_WIDTH`] until
     /// the user drags the divider).
     pub name_width: i64,
+    /// The user dragged the divider, or the program set `NameWidth`: the
+    /// column is that wide. Until then a narrow pane gives the names no more
+    /// than 58 % of its width (the values must still read).
+    pub name_set: bool,
     /// AddProperty's.
     pub custom: Vec<Custom>,
     /// SetHeading's: what the header says while no components are inspected
@@ -99,6 +103,7 @@ impl Default for Inspector {
             read_only: false,
             handlers: String::new(),
             name_width: DEFAULT_NAME_WIDTH,
+            name_set: false,
             custom: Vec::new(),
             heading: Default::default(),
             choices: Vec::new(),
@@ -795,7 +800,10 @@ pub fn rt_set<R: Runtime>(rt: R, name: &str, prop: &str, v: &Value) -> bool {
             false
         }
         "namewidth" => {
-            with_mut(name, |m| m.name_width = v.to_i64().max(24));
+            with_mut(name, |m| {
+                m.name_width = v.to_i64().max(24);
+                m.name_set = true;
+            });
             false
         }
         "selected" => {

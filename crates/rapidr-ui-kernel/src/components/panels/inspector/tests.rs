@@ -250,6 +250,15 @@ fn the_default_names_column_fits_the_common_names() {
         let w = rapidr_value::objects::text::text_size(n, &font).0;
         assert!(w <= room, "{n} is {w} pixels, the default column has room for {room}");
     }
+    // (a pane as wide as Studio's Properties (272): the whole default; a narrower
+    // one — a saved layout of 240 — gives the names 58 % so the values still read,
+    // never under 120; where the user or the program put the divider is never cut)
+    let mut m = model::Inspector::default();
+    assert_eq!(super::geo::name_width(&m, 256), 148);
+    assert_eq!(super::geo::name_width(&m, 224), 129);
+    assert_eq!(super::geo::name_width(&m, 190), 120);
+    m.name_set = true;
+    assert_eq!(super::geo::name_width(&m, 224), 148);
     // (kept while the selection changes: it's the inspector's, not a row's)
     let (h, _f, _ts) = setup("b1");
     model::with_mut("insp", |m| m.name_width = 190);

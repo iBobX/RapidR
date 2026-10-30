@@ -60,9 +60,12 @@ pub fn geo(m: &Inspector, w: i64, h: i64, inset: i64) -> Geo {
     Geo { header, tabs, strip, search, view_button, list: (x, y + 1, iw, list_h), footer }
 }
 
-/// The name column's width in a list `cw` wide.
+/// The name column's width in a list `cw` wide: where the user (or the
+/// program) put the divider; until then the default, which a narrow pane
+/// cuts to 58 % of its width (never under 120) so the values still read.
 pub fn name_width(m: &Inspector, cw: i64) -> i64 {
-    m.name_width.clamp(40.min(cw / 2), (cw - 40).max(40.min(cw / 2)))
+    let w = if m.name_set { m.name_width } else { m.name_width.min((cw * 58 / 100).max(120)) };
+    w.clamp(40.min(cw / 2), (cw - 40).max(40.min(cw / 2)))
 }
 
 /// The word on a row's small note ("new": a member older programs lack).

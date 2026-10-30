@@ -980,7 +980,10 @@ impl ComponentKind for Inspector {
             MouseKind::Move => {
                 if let Some((from, width)) = v.m.ui.drag {
                     let nw = (width + x - from).clamp(40, (v.cw - 40).max(40));
-                    ui(cx, |mm| mm.name_width = nw);
+                    ui(cx, |mm| {
+                        mm.name_width = nw;
+                        mm.name_set = true;
+                    });
                     return MouseOut::default();
                 }
                 let hover = if let Some(t) = v.g.tabs.filter(|t| common::inside(*t, x, y)) {

@@ -5286,7 +5286,7 @@ An object inspector: the properties of a component (or of every component a desi
 | `ReadOnly` | bool | False | Values are shown but can't be changed. |
 | `Handlers` | string | `""` | The SUBs an event can run, one per line as `Name(parameters)`: the Events page offers those whose parameters fit the event. |
 | `EmptyText` | string | `""` | What the description under the rows says while nothing is inspected ("Select a component on the form"). |
-| `NameWidth` | int | 148 | The width of the names' column, in pixels (the user drags the line between the columns; a name the column cuts short shows whole in its tooltip). RapidR Studio keeps where the user left it. |
+| `NameWidth` | int | 148 | The width of the names' column, in pixels (the user drags the line between the columns; a name the column cuts short shows whole in its tooltip). Until the divider is dragged or this is set, a pane narrower than about 255 pixels gives the names 58 % of its width, so the values still read. RapidR Studio keeps where the user left it. |
 | `Selected` | string | `""` | The property (or event) whose row is selected; setting it selects that row. |
 | `RowCount` (read-only) | int |  | How many rows are shown now (the categories' headings included). |
 | `TargetType` (read-only) | string |  | The inspected component's type: as its code writes it for a designer's component, RapidR's name (RButton) for a running program's; "" when several of different types are inspected. |
