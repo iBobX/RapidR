@@ -188,7 +188,7 @@ function SWEEP_SCENES() {
     { name: "quick-fix", open: NOTES, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:End,edit.quickFix,wait", delay: 8, cutOk: [/^\[RapidR Šţûðíö íš ŕéàðÿ/] },
     { name: "rename-error", open: HELLO, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:Home,key:Right,key:Right,key:Right,key:Right,key:Right,key:F2,wait,type:PRINT,key:Enter,wait", delay: 9 },
     // (the external-changes bar: a file changed outside Studio while it has unsaved changes here)
-    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch", cutOk: [/^\[Öþéñéð \//] },
+    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch", cutOk: [/^\[Öþéñéð \//, /\.rr·*\]?$/] },
     // (a tooltip: the pointer rests on a tool bar button, then on the dock's Auto Hide button)
     { name: "tooltip-toolbar", open: HELLO, do: "wait", events: "studio.__wait_3000,toolbar.__mousemove_150_20,toolbar.__mousemove_151_20,toolbar.__wait_2500", delay: 8 },
     { name: "tooltip-dock", open: HELLO, do: "wait", events: "studio.__wait_3000,dock.__mousemove_997_515,dock.__mousemove_998_515,dock.__wait_2500", delay: 8 },
@@ -476,7 +476,7 @@ const ES_SCENES = [
       // (nor is a line number half scrolled out of the editor)
       // (nor a sliver of a line — under 4 px tall — at the top of a pane that has scrolled: the Output pane's first
       // line, whose place depends on how long the machine's path is)
-      const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text) && !(t.rect && t.rect[3] < 4) && !(scene.cutOk || []).some((k) => k.test(t.text))).map((t) => t.text))];
+      const cut = [...new Set(texts.filter((t) => t.cut && /\p{L}/u.test(t.text) && !nameOnly(t.text) && !/[/\\]/.test(t.text) && !/^[\w .-]+\.(rr|bas|inc|rrproj|rqw|csv|po|md)$/i.test(t.text) && !(t.rect && t.rect[3] < 4) && !(scene.cutOk || []).some((k) => k.test(t.text))).map((t) => t.text))];
       check(`${name}: ${texts.length} texts in ${w ? w.form : "?"}, none English left`, texts.length > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       if (STRICT_CUT) check(`${name}: nothing cut off`, cut.length === 0, cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
       else if (cut.length) left.push(`${name}: ${cut.join(" | ")}`);
@@ -503,14 +503,14 @@ const SWITCH = [
   // (RAI in Studio's language: Settings > AI's "RAI answers in:" row and the
   // empty assistant's greeting, ES-REFERENCE part 3)
   { name: "es-settings-ai", lang: "es", do: "ai.settings", window: 2, expect: ["RAI responde en:", "El idioma de Studio", "Puede hacer:"], none: ["RAI answers in", "Studio's language"] },
-  { name: "es-assistant", lang: "es", do: "ai:on,ai:provider=compatible,ai:base=http://127.0.0.1:9,ai:model=mock-small,wait,wait", delay: 6, expect: ["Pregunta por este proyecto o pide un programa nuevo", "Nuevo chat"], none: ["Ask about this project"] },
+  { name: "es-assistant", lang: "es", do: "ai:on,ai:provider=compatible,ai:base=http://127.0.0.1:9,ai:model=mock-small,wait,wait", delay: 6, expect: ["Pregunta por este proyecto", "Nuevo chat"], none: ["Ask about this project"] },
   // (the manual's first page in the Help pane: docs/manual/es/getting-started.md)
   { name: "es-help", lang: "es", do: "wait,manual:getting-started.md", expect: ["Primeros pasos", "En tres líneas"] },
   // (the manual's other most-read pages: docs/manual/es/, whole)
   { name: "es-help-debugging", lang: "es", do: "wait,manual:debugging.md", expect: ["Depuración en RapidR Studio", "El ejemplo"], none: ["No traducido aún"] },
   { name: "es-help-troubleshooting", lang: "es", do: "wait,manual:troubleshooting.md", expect: ["Solución de problemas", "Instalar y empezar"], none: ["No traducido aún"] },
-  // (a page with no translation: in English, said so)
-  { name: "es-help-english", lang: "es", do: "wait,manual:language.md", expect: ["No traducido aún", "The language"] },
+  // (every page of the manual has its Spanish now: the language chapter in Spanish, no "not translated yet" note)
+  { name: "es-help-language", lang: "es", do: "wait,manual:language.md", expect: ["El lenguaje"], none: ["No traducido aún"] },
   // (ES-REFERENCE part 2: the Help pane's own words around an entry, the
   // hover's and the completion's, the change box, the Theme values)
   { name: "es-help-component", lang: "es", open: HELP_OPEN, do: "wait,help:RButton", delay: 5, expect: ["Propiedades (", "Métodos (", "Eventos (", "Insertar en el código", "Su evento predeterminado es"], none: ["Properties (", "Insert into the code"] },

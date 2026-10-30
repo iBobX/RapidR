@@ -53,6 +53,8 @@ pub fn ui_note(en: &str) -> String {
     tr_note!("Looked up {target}: not found");
     tr_note!("Looked up {target}");
     tr_note!("Looked at the form");
+    tr_note!("Kept the recipe's program");
+    tr_note!("{name}: not in Coach mode");
     tr_note!("Looked at the project: none is open");
     tr_note!("Looked for an example of {query}: none close");
     tr_note!("Listed the files");

@@ -2,7 +2,37 @@
 
 For Robert, 2026-10-30. Español neutro, [the glossary](glossary-es.md) and its decisions (compilar, aplicación, arreglo, controlador de eventos, añadir, biblioteca; tú; sentence case).
 
-Part 1 (the registry's docs in Spanish, `crates/rapidr-lang/data/i18n/es/`) is written by its own lane.
+Coverage at the end of the lane (`rapidr i18n coverage es`): Studio's text **2,559 of 2,559**, the compiler's messages **120 of 120**, the registry's docs **5,377 of 5,377**, the manual **39 of 39 pages** (the manual is the other lane's). Studio's text and the compiler's still carry the `#, review` marks they had.
+
+1. [Part 1: the registry's docs](#part-1-the-registrys-docs)
+2. [Part 2: Rust-side texts](#part-2-rust-side-texts)
+3. [Part 3: RAI in Studio's language](#part-3-rai-in-studios-language)
+4. Part 2b: the sweep (further down)
+
+## Part 1: the registry's docs
+
+Every component, property, method and event, built-in, statement, keyword, directive, type and constant group has its doc in Spanish: **5,377 texts** in `crates/rapidr-lang/data/i18n/es/*.toml` (one file for each data file: `forms.toml`, `input.toml`, `builtins.toml`, `language.toml` …), the texts Studio shows in the hover, the completion list, the signature help, the Help pane and `rapidr lsp`. The 2,886 different English texts were translated once and shared by every entry that uses the same one, so a member that several components have (`Left`, `Visible`, `OnClick`) reads the same everywhere. Code stays as written: every `` `code` `` span, name and placeholder was checked against the English by a script (none differ); no `app`, `fichero`, `ordenador`, `pulsar`, `manejador`, `agregar` or `bucle` is left. A second pass replaced *el usuario* (208 times) with *la persona*, as the glossary's voice asks, where the text speaks of a person; *nombre de usuario* and the like stay. `rapidr i18n coverage es --missing` (new) lists the docs a language still lacks, with their English, for the next lane. The 53 docs that came with Coach mode, Local AI, School Lock and RSystemInfo (development, merged at the end) follow the words Studio's own catalog uses (*modo tutor*, *pista*, *bloqueo escolar*).
+
+### Where I had a real doubt
+
+| English | Español | Why |
+|---|---|---|
+| data frame (`RDataFrame`) | tabla de datos | The glossary has no entry. Studio's Welcome sample said *marco de datos*; now both say *tabla de datos* (plainer for a school; *DataFrame* stays code). |
+| grid (`RStringGrid`, `RGrid`) | cuadrícula | 68 uses; the Toolbox group is *Listas, tablas y árboles* (glossary). *Tabla* is kept for a database table. |
+| callback | devolución de llamada | No glossary row. |
+| signature help | ayuda de firma | No glossary row; the editor's hover is *información flotante*. |
+| handle (an operating-system handle) | identificador | As Studio's debugger says. |
+| thumb of a scroll bar / slider | cuadro de desplazamiento / control deslizante | No glossary rows. |
+| MDI child / parent window | ventana hija / ventana principal | *Secundaria* is the other option. |
+| board (ESP32, micro:bit) | placa | *Tarjeta* is Mexico's; *placa* is the one most countries share. |
+| archive (`RArchive`) | archivo comprimido | Plain *archivo* would clash with *file*. |
+| digest of a hash (`RSecrets`) | huella | No glossary row. |
+| user-defined type (UDT) | tipo propio (UDT) | Avoids *el usuario*; the established term is *tipo definido por el usuario*. |
+| tick of a timer | tic | A loanword left as it is in many Spanish docs. |
+| commit / rollback in SQL | confirmar / revertir | The Pro Git word *commit* stays English (Q7); these are the SQL transaction words. |
+| rounds (PBKDF2) / salted hash | iteraciones / hash con sal | The usual technical terms. |
+| quoted sample output and sample values ("Column 1", "Saved the version …") | left in English | They are what a program prints, not Studio's text (glossary 3.10). |
+| the key name *Space* | Space | Key names stay as the English shows them (glossary 1.7); a Spanish keycap says *Espacio*. |
 
 ## Part 2: Rust-side texts
 

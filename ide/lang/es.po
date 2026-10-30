@@ -369,7 +369,7 @@ msgstr "Elige un modelo en la lista de arriba (↻ pide sus modelos al proveedor
 
 #: ide/ai.inc
 msgid "Ask about this project, or for a new program: {q}Add a Clear button{q}, {q}Build me a tip calculator{q}. A new program opens in Studio, ready to run; changes to your files wait for you to review them. Type / for commands."
-msgstr "Pregunta por este proyecto o pide un programa nuevo: {q}Añade un botón Borrar{q}, {q}Hazme una calculadora de propinas{q}. Un programa nuevo se abre en Studio, listo para ejecutarse; los cambios a tus archivos esperan a que los revises. Escribe / para ver los comandos."
+msgstr "Pregunta por este proyecto o pide un programa: {q}Añade un botón Borrar{q}, {q}Hazme una calculadora de propinas{q}. Un programa nuevo se abre en Studio, listo para ejecutarse; tus cambios esperan tu revisión. Escribe / para ver los comandos."
 
 #: ide/ai.inc
 msgid "the provider"

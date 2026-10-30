@@ -1529,6 +1529,14 @@ msgid "Looked at the form"
 msgstr ""
 
 #: crates/rapidr-studio/src/notes.rs
+msgid "Kept the recipe's program"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: not in Coach mode"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
 msgid "Looked at the project: none is open"
 msgstr ""
 
