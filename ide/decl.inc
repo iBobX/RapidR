@@ -9,7 +9,7 @@
 ' files). The command table keeps its titles in English and shows
 ' TR$(title): the routines below take text to translate in these
 ' arguments, for the template —
-' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2 SetState:2 AddStart:3 AddExample:2 AddMoreExample:2 AddTemplate:4 AddTemplate:5
+' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2@menubar SetState:2 AddStart:3 AddExample:2 AddMoreExample:2 AddTemplate:4 AddTemplate:5
 ' Ids, keys, file names, code and what the user wrote are never translated.
 
 ' ---- the command table (docs/ide-plan.md I1) -------------------------------
@@ -77,6 +77,7 @@ DECLARE SUB PanelsLanguageChanged
 DECLARE SUB EditorLanguageChanged
 DECLARE SUB WorkspaceLanguageChanged
 DECLARE SUB MarkdownLanguageChanged
+DECLARE FUNCTION UITextWidth(Text AS STRING) AS INTEGER
 DECLARE SUB SearchLanguageChanged
 DECLARE SUB DebugLanguageChanged
 ' (a file being loaded: its editor's OnChange isn't the user's)

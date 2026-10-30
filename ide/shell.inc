@@ -431,6 +431,12 @@ SUB MacroTick
   END IF
   id = LTRIM$(RTRIM$(id))
   IF EditorStep(id) THEN EXIT SUB
+  ' (lang:<tag> — Studio's language changed as Settings changes it, for
+  ' the language tests; lang: alone, the system's)
+  IF LEFT$(id, 5) = "lang:" THEN
+    SetLanguage MID$(id, 6)
+    EXIT SUB
+  END IF
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;

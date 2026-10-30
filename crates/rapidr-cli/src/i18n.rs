@@ -110,11 +110,7 @@ fn sources(paths: &[String], base: &Path) -> Result<Vec<(String, String)>, Strin
 fn keywords(args: &mut Vec<String>) -> Vec<Keyword> {
     let mut out = Vec::new();
     while let Some(spec) = take(args, &["--keyword", "-k"]) {
-        if let Some((name, arg)) = spec.split_once(':') {
-            if let Ok(arg) = arg.parse::<usize>() {
-                out.push(Keyword { name: name.to_ascii_lowercase(), arg });
-            }
-        }
+        out.extend(Keyword::parse(&spec));
     }
     out
 }
@@ -283,25 +279,43 @@ fn studio_cmd(args: &[String]) -> Result<ExitCode, String> {
 /// two items of one menu share.
 pub fn studio_mnemonic_clashes(root: &Path, file: &[Message]) -> Result<Vec<(String, char, Vec<String>)>, String> {
     let cat = po::catalog_of(file.iter().cloned());
-    let tr = |s: &str| cat.text("", s).unwrap_or(s).to_string();
     let text = read(&root.join("ide/commands.inc"))?;
-    let mut menus: Vec<(String, Vec<String>)> = Vec::new();
-    let mut add = |menu: &str, caption: String| match menus.iter_mut().find(|(m, _)| m == menu) {
-        Some((_, v)) => v.push(caption),
-        None => menus.push((menu.to_string(), vec![caption])),
+    // (each menu's items: the English and as the language shows it; an
+    // item twice — the Mac's and the others' — once)
+    let mut menus: Vec<(String, Vec<(String, String)>)> = Vec::new();
+    let mut add = |menu: &str, context: &str, source: &str| {
+        let shown = cat.text(context, source).unwrap_or(source).to_string();
+        let item = (source.to_string(), shown);
+        match menus.iter_mut().find(|(m, _)| m == menu) {
+            Some((_, v)) => {
+                if !v.contains(&item) {
+                    v.push(item)
+                }
+            }
+            None => menus.push((menu.to_string(), vec![item])),
+        }
     };
     for line in text.lines() {
         let l = line.trim_start();
         let args: Vec<String> = l.split('"').skip(1).step_by(2).map(String::from).collect();
         if l.starts_with("AddCmd ") && args.len() >= 3 {
-            add(&args[2], tr(&args[1]));
+            add(&args[2], "", &args[1]);
         } else if l.starts_with("AddSubmenu ") && args.len() >= 3 {
-            add(&args[0], tr(&args[2]));
+            add(&args[0], "", &args[2]);
         } else if l.starts_with("AddTopMenu ") && args.len() >= 2 {
-            add("(menu bar)", tr(&args[1]));
+            add("(menu bar)", "menubar", &args[1]);
         }
     }
-    Ok(tools::mnemonic_clashes(&menus))
+    // (a clash the language makes: English's own aren't the translator's)
+    let shown: Vec<(String, Vec<String>)> = menus.iter().map(|(m, v)| (m.clone(), v.iter().map(|(_, s)| s.clone()).collect())).collect();
+    Ok(tools::mnemonic_clashes(&shown)
+        .into_iter()
+        .filter(|(menu, _, captions)| {
+            let items = &menus.iter().find(|(m, _)| m == menu).unwrap().1;
+            let letters: Vec<Option<char>> = captions.iter().filter_map(|c| items.iter().find(|(_, s)| s == c)).map(|(src, _)| rapidr_i18n::markers::mnemonic(src)).collect();
+            letters.windows(2).any(|w| w[0] != w[1])
+        })
+        .collect())
 }
 
 fn compiler_cmd(args: &[String]) -> Result<ExitCode, String> {

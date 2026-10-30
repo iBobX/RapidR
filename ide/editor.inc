@@ -99,7 +99,12 @@ END SUB
 ' (Studio's language changed) The status bar's line and column, made in
 ' the language before, made again.
 SUB EditorLanguageChanged
-  IF ActiveCode >= 0 THEN EditorFacts ActiveCode
+  IF ActiveCode >= 0 THEN
+    EditorFacts ActiveCode
+  ELSE
+    ' (no code open: the bar's place as it starts)
+    Status.Panel(2).Caption = TR$("Ln {line}, Col {col}", "line", 1, "col", 1)
+  END IF
 END SUB
 
 ' (the caret into document d's code once its pane is in the window — a

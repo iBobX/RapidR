@@ -1,0 +1,278 @@
+// RapidR Studio in your language (lane I18N-STUDIO; docs/manual/studio-languages.md):
+// Studio's main scenes in the pseudo-language `xx` — every text a catalog
+// translates shows accented and a third longer ("[Šàvé ÿöûŕ ŵöŕķ·····]") —
+// on the desktop's headless host and the web page, judged from the very
+// display list captured (rapidr_ui_kernel::contrast's `texts`, the
+// desktop's RAPIDR_TEST_CONTRAST, the page's test results). A scene FAILS on
+//   (i)  English left: a visible text with words that are neither
+//        translated (no pseudo letter) nor a name — a registry name
+//        (RButton, Caption, bsSizeable …), RapidR's product words, a file
+//        name, or a word of the program the scene opened;
+//   (ii) text that doesn't fit: wider than the box it is laid out in, cut
+//        by a clip, or a translated text shortened with "…" (it lost its
+//        closing "]").
+// Then the language switch, live: Spanish (the ide/lang/es.po sample) from
+// the start and by Settings' way (lang:es) — the menu bar in Spanish —, and
+// back to English; a compiler error in Problems in Spanish.
+//
+//   rapidr i18n studio                    (writes ide/lang/xx.po; this test runs it)
+//   tools/build_studio_web.sh             (the page, with ide/lang)
+//   python3 -m http.server -d target/studio-web 18473 --bind 127.0.0.1
+//   node tests/studio_lang.mjs [filter…]
+//
+// STUDIO_WEB_URL (default http://127.0.0.1:18473/): the page's server; the
+// web runs are skipped when nothing answers there (RAPIDR_LANG_WEB=0 skips
+// them always). RAPIDR_LANG_THEMES: "rapidr-light" (default) or a list
+// (rapidr-light,rapidr-dark,rapidr-high-contrast: the real walk's
+// captures). RAPIDR_LANG_OUT (default tests/results/studio-lang): each
+// capture as <scene>-<theme>-<host>.bmp. RAPIDR_LANG_STRICT_CUT=0 reports
+// cut-off text without failing.
+
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = dirname(HERE);
+const RAPIDR = process.env.RAPIDR || join(ROOT, "rapidr");
+const OUT = process.env.RAPIDR_LANG_OUT || join(ROOT, "tests", "results", "studio-lang");
+const URL_BASE = (process.env.STUDIO_WEB_URL || process.env.RAPIDR_STUDIO_URL || "http://127.0.0.1:18473/").replace(/\/+$/, "");
+const THEMES = (process.env.RAPIDR_LANG_THEMES || "rapidr-light").split(",");
+const STRICT_CUT = process.env.RAPIDR_LANG_STRICT_CUT !== "0";
+const filters = process.argv.slice(2);
+const want = (name) => !filters.length || filters.some((f) => name.includes(f));
+mkdirSync(OUT, { recursive: true });
+const scratch = join(OUT, "runs");
+mkdirSync(scratch, { recursive: true });
+
+// ---- the catalogs: the pseudo-language made from Studio's template ----------
+{
+  const r = spawnSync(RAPIDR, ["i18n", "studio"], { cwd: ROOT, encoding: "utf8" });
+  if (!existsSync(join(ROOT, "ide/lang/xx.po"))) throw new Error(`rapidr i18n studio made no ide/lang/xx.po: ${r.stdout}${r.stderr}`);
+}
+
+// ---- what may stay English: names --------------------------------------------
+// (RapidR's product words, the keys' names, the code's file types)
+const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
+{
+  const r = spawnSync(RAPIDR, ["lang", "export", "--json"], { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 28 });
+  const walk = (v) => {
+    // (a constant group's [name, value] pairs)
+    if (Array.isArray(v) && v.length === 2 && typeof v[0] === "string" && typeof v[1] === "number") NAMES.add(v[0].toLowerCase());
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") {
+      for (const [k, x] of Object.entries(v)) {
+        if ((k === "name" || k === "display" || k === "rapidq") && typeof x === "string") {
+          for (const w of x.split(/[^A-Za-z0-9_$]+/)) if (w) NAMES.add(w.toLowerCase());
+        } else walk(x);
+      }
+    }
+  };
+  walk(JSON.parse(r.stdout));
+}
+const PSEUDO = /[àçðéĝĥíĵķĺñöþŕšţûŵÿžÀÇÐÉĜĤÍĴĶĹÑÖÞŔŠŢÛŴÝŽ·]/;
+// A text that is plain English: a word of two letters or more that is no
+// name, no file's and no word of the scene's own program.
+function english(text, programWords) {
+  if (PSEUDO.test(text)) return false;
+  if (text.startsWith("> ")) return false; // (a --do step's echo in Output)
+  // (file names and paths are the user's: hello_form.rr, examples/gui)
+  const plain = text.replace(/[\w./-]+\.(rr|bas|inc|rrproj|rqw|md|po|csv|json|txt|png|rtf)\b/gi, " ").replace(/\S*[/\\]\S*/g, " ");
+  const words = plain.match(/[A-Za-z][A-Za-z'’]+…?/g) || [];
+  return words.some((w) => {
+    // (a name shortened by the inspector: "clBtnF…")
+    if (w.endsWith("…")) {
+      const head = w.slice(0, -1).toLowerCase();
+      return ![...NAMES].some((n) => n.startsWith(head)) && ![...programWords].some((n) => n.startsWith(head));
+    }
+    const k = w.toLowerCase().replace(/['’]s$/, "");
+    return !NAMES.has(k) && !programWords.has(k) && !/^[a-z]+_[a-z_]+$/.test(w);
+  });
+}
+// What is left, known and said in the manual: the Project pane's title
+// squeezed beside Search's at the left group's default width (the dock
+// trims the longest tab first; the whole title is its tooltip and its
+// accessible name).
+const KNOWN_LEFT = [/^\[Þŕöĵéçţ·*…$/];
+// A translated text shortened ("[Šàvé ÿö…"), cut by the layout.
+const shortened = (text) => PSEUDO.test(text) && text.includes("…") && !/\][^[]*$/.test(text);
+function wordsOf(file) {
+  const out = new Set();
+  if (!file) return out;
+  const text = readFileSync(file.startsWith("/") ? file : join(ROOT, file), "utf8");
+  for (const w of text.match(/[A-Za-z][A-Za-z']+/g) || []) out.add(w.toLowerCase().replace(/'s$/, ""));
+  // (its file name, as the tree and the tabs show it)
+  for (const w of file.split(/[/.]/)) out.add(w.toLowerCase());
+  return out;
+}
+
+// ---- the scenes ----------------------------------------------------------------
+const BAD = join(ROOT, "tests/results/studio-lang-bad/bad.rr");
+mkdirSync(dirname(BAD), { recursive: true });
+writeFileSync(BAD, '\' a program with a mistake: Problems says it\nDIM b AS RButton\nPRINT "x" THEN\n');
+const XX_SCENES = [
+  { name: "main", open: "" },
+  { name: "project", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 6 },
+  { name: "settings", open: "", do: "view.settings", window: 2 },
+  { name: "setup-rai", open: "", do: "ai.setup", window: 2 },
+  // (the first-time question AI apps ask: Studio's test token lets a step ask it)
+  { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
+  { name: "find", open: "examples/gui/hello_form.rr", do: "wait,edit.findInFiles", delay: 5 },
+  { name: "problems", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5 },
+  { name: "palette", open: "", do: "view.commandPalette" },
+];
+
+function runDesktop(scene, lang, theme) {
+  const dir = join(scratch, `${scene.name}-${lang}-${theme}`);
+  rmSync(dir, { recursive: true, force: true });
+  mkdirSync(dir, { recursive: true });
+  const args = ["run", "ide/studio.rr", "--home", ".", "--fresh", "--theme", theme, "--lang", lang];
+  if (scene.do) args.push("--do", scene.do);
+  if (scene.open) args.push(scene.open);
+  spawnSync(RAPIDR, args, {
+    cwd: ROOT,
+    timeout: 90000,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      RAPIDR_CAPTURE: join(dir, "window"),
+      RAPIDR_CAPTURE_DELAY: String(scene.delay || 4),
+      RAPIDR_SCALE: "1",
+      RAPIDR_MENU: "window",
+      RAPIDR_TEST_CONTRAST: join(dir, "contrast.json"),
+      RAPIDR_PRINT_TO: join(dir, "prints"),
+      RAPIDR_REGISTRY: join(dir, "registry.reg"),
+      RAPIDR_AI_KEYSTORE: "memory",
+      RAPIDR_KEYSTORE: "memory",
+      RAPIDR_AI_CHATS: join(dir, "chats"),
+      RAPIDR_DOCUMENTS: join(dir, "documents"),
+      ...(scene.env || {}),
+    },
+  });
+  const file = join(dir, `window-${scene.window || 1}.bmp`);
+  if (!existsSync(file)) throw new Error("desktop: no capture");
+  const report = existsSync(join(dir, "contrast.json")) ? JSON.parse(readFileSync(join(dir, "contrast.json"), "utf8")) : [];
+  return { bmp: readFileSync(file), report, windows: report.length };
+}
+
+let browser = null;
+async function webUp() {
+  if (process.env.RAPIDR_LANG_WEB === "0") return false;
+  try {
+    const r = await fetch(`${URL_BASE}/ide/lang/index.txt`);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+async function runWeb(scene, lang, theme) {
+  if (!browser) browser = await (await import("playwright")).chromium.launch();
+  const page = await browser.newPage({ deviceScaleFactor: 1, viewport: { width: 1920, height: 1080 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  try {
+    const files = scene.open && !scene.open.startsWith("examples/") ? [{ path: scene.webOpen || scene.open, text: readFileSync(scene.open, "utf8") }] : [];
+    await page.addInitScript((f) => { window.RAPIDR_STUDIO_TEST_FILES = f; }, files);
+    await page.addInitScript((env) => { window.RAPIDR_STUDIO_TEST = env; }, { RAPIDR_CAPTURE: "web", RAPIDR_CAPTURE_DELAY: String(scene.delay || 4), ...(scene.env || {}) });
+    const q = new URLSearchParams({ theme, window: "normal", fresh: "", lang });
+    if (scene.open) q.set("open", scene.webOpen || scene.open);
+    if (scene.do) q.set("do", scene.do);
+    await page.goto(`${URL_BASE}/index.html?${q}`, { waitUntil: "load" });
+    await page.waitForFunction(() => window.rr && window.rr.rapidr_test_results(), null, { timeout: 90000, polling: 100 });
+    const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
+    const shot = results.captures[(scene.window || 1) - 1];
+    if (!shot) throw new Error(`web: no capture of window ${scene.window || 1} ${errors.join("; ")}`);
+    return { bmp: Buffer.from(shot.bmp, "base64"), report: JSON.parse(results.contrast), windows: results.captures.length };
+  } finally {
+    await page.close();
+  }
+}
+
+// The window a scene is about (its capture), and what its texts say.
+function judge(run, scene, programWords) {
+  const w = run.report[(scene.window || 1) - 1] || run.report[0];
+  const texts = (w && w.texts) || [];
+  const eng = [...new Set(texts.filter((t) => english(t.text, programWords)).map((t) => t.text))];
+  const cut = [...new Set(texts.filter((t) => (t.cut && PSEUDO.test(t.text)) || shortened(t.text)).map((t) => t.text))].filter((t) => !KNOWN_LEFT.some((k) => k.test(t)));
+  return { form: w ? w.form : "?", count: texts.length, eng, cut, texts };
+}
+
+let failed = 0, passed = 0;
+const left = [];
+function check(name, ok, detail = "") {
+  ok ? passed++ : failed++;
+  console.log(`${ok ? "✓" : "✗"} ${name}${detail ? `\n    ${detail}` : ""}`);
+}
+
+const web = await webUp();
+if (!web) console.log(`· the web page isn't served at ${URL_BASE} (tools/build_studio_web.sh, then serve it): desktop only`);
+const hosts = web ? ["desktop", "web"] : ["desktop"];
+
+for (const scene of XX_SCENES) for (const theme of THEMES) for (const host of hosts) {
+  const name = `xx ${scene.name} ${theme} ${host}`;
+  if (!want(name)) continue;
+  try {
+    const run = host === "desktop" ? runDesktop(scene, "xx", theme) : await runWeb(scene, "xx", theme);
+    writeFileSync(join(OUT, `${scene.name}-xx-${theme}-${host}.bmp`), run.bmp);
+    const programWords = wordsOf(scene.open);
+    const j = judge(run, scene, programWords);
+    check(`${name}: ${j.count} texts in ${j.form}, none plain English`, j.count > 0 && j.eng.length === 0, j.eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
+    if (j.cut.length) left.push(`${scene.name} (${host}): ${j.cut.join(" | ")}`);
+    if (STRICT_CUT) check(`${name}: nothing cut off`, j.cut.length === 0, j.cut.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
+  } catch (e) {
+    check(name, false, e.message);
+  }
+}
+
+// ---- Spanish (the es.po sample), from the start and switched live ------------
+const SWITCH = [
+  // (from the start: the menu bar's sample words)
+  { name: "es-start", lang: "es", do: "", expect: ["Archivo", "Edición", "Herramientas", "Ayuda"], none: ["File", "Help"] },
+  // (Settings' way, live: English, then Spanish — the menu bar and the
+  // status bar's "Ready" follow at once)
+  { name: "en-to-es", lang: "en", do: "wait,lang:es,wait", expect: ["Archivo", "Ejecutar", "Listo"], none: ["File", "Ready"] },
+  // (and back to English, at once)
+  { name: "es-to-en", lang: "es", do: "wait,lang:en,wait", expect: ["File", "Run", "Ready"], none: ["Archivo"] },
+  // (the pseudo-language live: what the runtime translates again, what
+  // Studio makes again on OnLanguageChange)
+  { name: "en-to-xx", lang: "en", do: "wait,lang:xx,wait", pseudo: true },
+  // (Settings in Spanish: its Language row)
+  { name: "es-settings", lang: "es", do: "view.settings", window: 2, expect: ["Idioma"] },
+  // (a compiler error in Problems, in Spanish: the compiler's sample)
+  { name: "es-problems", lang: "es", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5, expect: ["Se esperaba el fin de la línea, pero se encontró THEN"] },
+];
+for (const s of SWITCH) for (const host of hosts) {
+  const name = `${s.name} ${host}`;
+  if (!want(name)) continue;
+  try {
+    const run = host === "desktop" ? runDesktop(s, s.lang, THEMES[0]) : await runWeb(s, s.lang, THEMES[0]);
+    writeFileSync(join(OUT, `${s.name}-${host}.bmp`), run.bmp);
+    const j = judge(run, s, wordsOf(s.open));
+    const shown = j.texts.map((t) => t.text.replace(/&/g, ""));
+    if (s.pseudo) {
+      // (Output keeps its lines in the language they were written in: history)
+      const eng = j.eng.filter((t) => t !== "RapidR Studio is ready.");
+      check(`${name}: switched live, none plain English`, j.count > 0 && eng.length === 0, eng.slice(0, 20).map((t) => JSON.stringify(t)).join("\n    "));
+      continue;
+    }
+    const missing = (s.expect || []).filter((e) => !shown.some((t) => t.includes(e)));
+    const there = (s.none || []).filter((e) => shown.some((t) => t === e));
+    check(`${name}: ${(s.expect || []).join(", ")}${s.none ? ` (not ${s.none.join(", ")})` : ""}`, missing.length === 0 && there.length === 0, `missing ${JSON.stringify(missing)}, still there ${JSON.stringify(there)}`);
+  } catch (e) {
+    check(name, false, e.message);
+  }
+}
+
+// ---- the CLI's errors in the user's language --------------------------------
+if (want("cli")) {
+  const r = spawnSync(RAPIDR, ["check", BAD], { cwd: ROOT, encoding: "utf8", env: { ...process.env, RAPIDR_LANG: "es" } });
+  check("RAPIDR_LANG=es rapidr check: the error in Spanish, RC.EXE's words beside it", r.status === 1 && r.stderr.includes("Se esperaba el fin de la línea, pero se encontró THEN [Expected end-of-line but got THEN]"), r.stderr.trim());
+  const en = spawnSync(RAPIDR, ["check", BAD], { cwd: ROOT, encoding: "utf8", env: { ...process.env, RAPIDR_LANG: "en" } });
+  check("RAPIDR_LANG=en rapidr check: as the compiler says it", en.stderr.includes("error: Expected end-of-line but got THEN") && !en.stderr.includes("Se esperaba"), en.stderr.trim());
+}
+
+if (browser) await browser.close();
+if (left.length) console.log(`\nCut off in the pseudo-language (a longer language won't fit there):\n  ${left.join("\n  ")}`);
+console.log(`\nRapidR Studio in your language: ${passed} passed, ${failed} failed (captures in ${OUT})`);
+process.exit(failed ? 1 : 0);

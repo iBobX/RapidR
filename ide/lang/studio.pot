@@ -2154,34 +2154,52 @@ msgid "&About RapidR Studio"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&File"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&Edit"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&View"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
+msgid "&Project"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
+msgid "&Run"
+msgstr ""
+
+#: ide/commands.inc
+msgctxt "menubar"
 msgid "&Debug"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "F&ormat"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&Tools"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&Window"
 msgstr ""
 
 #: ide/commands.inc
+msgctxt "menubar"
 msgid "&Help"
 msgstr ""
 

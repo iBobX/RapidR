@@ -9,7 +9,9 @@
 //! ' i18n-keywords: AddCmd:2 AddSubmenu:3 AddTopMenu:2
 //! ```
 //!
-//! (`Name:N`: the Nth argument, from 1, is a text to translate.) A `TR$`
+//! (`Name:N`: the Nth argument, from 1, is a text to translate;
+//! `Name:N@context`: in that context — the routine shows `TR$(text,
+//! "context")` — so one English word can have two translations.) A `TR$`
 //! of a variable is looked up at run time like any other, so it isn't
 //! listed: its texts come from elsewhere (a keyword's argument).
 
@@ -30,6 +32,18 @@ pub struct Keyword {
     /// Lower case (`addcmd`).
     pub name: String,
     pub arg: usize,
+    /// The context its texts are translated in ("" none).
+    pub context: String,
+}
+
+impl Keyword {
+    /// `Name:N` or `Name:N@context`.
+    pub fn parse(spec: &str) -> Option<Keyword> {
+        let (name, rest) = spec.split_once(':')?;
+        let (arg, context) = rest.split_once('@').unwrap_or((rest, ""));
+        let arg = arg.parse::<usize>().ok().filter(|a| *a > 0)?;
+        Some(Keyword { name: name.to_ascii_lowercase(), arg, context: context.to_string() })
+    }
 }
 
 /// The keywords source `text` declares (`' i18n-keywords: AddCmd:2 …`).
@@ -38,15 +52,7 @@ pub fn keywords_in(text: &str) -> Vec<Keyword> {
     for line in text.lines() {
         let l = line.trim_start();
         let Some(rest) = l.strip_prefix('\'').map(str::trim_start).and_then(|r| r.strip_prefix("i18n-keywords:")) else { continue };
-        for spec in rest.split_whitespace() {
-            if let Some((name, arg)) = spec.split_once(':') {
-                if let Ok(arg) = arg.parse::<usize>() {
-                    if arg > 0 {
-                        out.push(Keyword { name: name.to_ascii_lowercase(), arg });
-                    }
-                }
-            }
-        }
+        out.extend(rest.split_whitespace().filter_map(Keyword::parse));
     }
     out
 }
@@ -244,7 +250,7 @@ pub fn extract(text: &str, file: &str, keywords: &[Keyword]) -> Vec<Found> {
                     let args = arguments(&toks, i + 1);
                     if let Some(id) = args.get(k.arg - 1).and_then(|a| literal(a)) {
                         if !id.is_empty() && id.chars().any(char::is_alphabetic) {
-                            out.push(found(String::new(), id, None));
+                            out.push(found(k.context.clone(), id, None));
                         }
                     }
                 }

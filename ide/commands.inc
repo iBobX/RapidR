@@ -305,7 +305,9 @@ END FUNCTION
 
 ' A top menu on the bar.
 SUB AddTopMenu(Name AS STRING, Title AS STRING)
-  MI(MICount).Caption = TR$(Title)
+  ' (the menu bar's words have a context of their own: View > Project is
+  ' an item, the bar's Project a menu — two translations may differ)
+  MI(MICount).Caption = TR$(Title, "menubar")
   MainMenu.AddItems MI(MICount)
   MenuName(MenuCount) = Name
   MenuItemOf(MenuCount) = MICount

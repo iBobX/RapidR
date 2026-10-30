@@ -173,6 +173,12 @@ fn outline_lines(items: &[OutlineItem], text: &str, depth: usize, out: &mut Stri
 
 pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
     let file = PathBuf::from(slashes(&text_arg(args, 0)));
+    // (the program's language — RapidR Studio's —: the registry's docs in
+    // hovers and help, the compiler's messages in Problems)
+    let lang = rapidr_value::i18n::language();
+    if rapidr_lang::docs_i18n::doc_language() != lang {
+        rapidr_lang::docs_i18n::set_doc_language(&lang);
+    }
     Some(match method {
         "update" => {
             let text = text_arg(args, 1);
@@ -270,7 +276,10 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
                 if severity == "error" {
                     errors += 1;
                 }
-                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&d.message), slashes(&d.file.to_string_lossy())));
+                // (the compiler's words in Studio's language: RQ… / RR… messages
+                // a catalog translates; the rest as the compiler says them)
+                let message = rapidr_diagnostics::messages::localize(&d.message, &lang);
+                out.push_str(&format!("{severity}\t{line}\t{col}\t{}\t{}\n", clean(&message), slashes(&d.file.to_string_lossy())));
             }
             s.errors = errors;
             out

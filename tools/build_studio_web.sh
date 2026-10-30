@@ -57,6 +57,17 @@ cp -R target/web/fonts "$OUT/runtime/fonts"
 # (the start page's brand: ide/assets, read from --home as on the desktop)
 mkdir -p "$OUT/ide/assets"
 cp ide/assets/* "$OUT/ide/assets/"
+# (Studio in your language: its catalogs, ide/lang/*.po, and their list —
+# the page asks only for the ones listed; Studio reads them from ide/lang,
+# apart from the lang/ of the programs it runs. xx, the pseudo-language,
+# when a test made it: `rapidr i18n studio`)
+mkdir -p "$OUT/ide/lang"
+: > "$OUT/ide/lang/index.txt"
+for po in ide/lang/*.po; do
+    [ -f "$po" ] || continue
+    cp "$po" "$OUT/ide/lang/"
+    basename "$po" >> "$OUT/ide/lang/index.txt"
+done
 # (the page's icons: the browser's tab, a phone's home screen)
 mkdir -p "$OUT/icons"
 cp design/brand/icons/web/favicon.svg design/brand/icons/web/favicon-32.png design/brand/icons/web/apple-touch-icon.png "$OUT/icons/"

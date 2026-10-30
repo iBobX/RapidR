@@ -288,6 +288,13 @@ SUB UpdateTitle
   LayOutStatus
 END SUB
 
+' (Text's width in Studio's UI font, its & left out: a layout that fits
+' its words in the language Studio speaks)
+FUNCTION UITextWidth(Text AS STRING) AS INTEGER
+  StatusMeasure.Font.Name = UIFont.Name: StatusMeasure.Font.Size = UIFont.Size
+  Result = StatusMeasure.TextWidth(REPLACESUBSTR$(Text, "&", ""))
+END FUNCTION
+
 ' Tools > Settings > General > Language: the language Studio speaks — ""
 ' the system's, "en", "es" … (StudioLanguageChanged follows, at once).
 SUB SetLanguage(Tag AS STRING)

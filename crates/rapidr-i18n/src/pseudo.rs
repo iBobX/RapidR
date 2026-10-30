@@ -185,7 +185,22 @@ pub fn pseudo(text: &str) -> String {
         Some(c) if !c.is_empty() => (c, "..."),
         _ => (core, ""),
     };
-    format!("{leading_ws}[{core}{}]{dots}{trailing_ws}{tail}", PAD.to_string().repeat(pad))
+    // (a long text's padding in words of eight, so a wrapped paragraph
+    // still wraps: the padding is no one word wider than the line)
+    let padding = if pad > 8 {
+        let mut p = String::new();
+        let mut left = pad;
+        while left > 0 {
+            let n = left.min(8);
+            p.push(' ');
+            p.push_str(&PAD.to_string().repeat(n));
+            left -= n;
+        }
+        p
+    } else {
+        PAD.to_string().repeat(pad)
+    };
+    format!("{leading_ws}[{core}{padding}]{dots}{trailing_ws}{tail}")
 }
 
 #[cfg(test)]

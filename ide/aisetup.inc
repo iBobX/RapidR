@@ -251,6 +251,8 @@ SUB ShowAISetup
   AISuLook
   IF AIProvider = "compatible" OR AIProvider = "" THEN AISuLocal.Checked = 1 ELSE AISuCloudRadio.Checked = 1
   AISuPicked
+  ' (the texts as they now say: their heights)
+  LayOutAISetup
   AISetup.Center
   AISetup.ShowModal
 END SUB
@@ -280,7 +282,7 @@ SUB AISuFonts
 END SUB
 
 SUB LayOutAISetup
-  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER
+  DIM w AS INTEGER, bh AS INTEGER, fw AS INTEGER, h AS INTEGER, dy AS INTEGER
   w = AISetup.ClientWidth
   IF w < 400 THEN w = 400
   IF ThemeName = "classic" THEN bh = 25 ELSE bh = 30
@@ -290,20 +292,38 @@ SUB LayOutAISetup
   AISuBackBtn.Left = 24: AISuBackBtn.Top = 12: AISuBackBtn.Width = 96: AISuBackBtn.Height = bh
   ' (1: the two choices, each with what it means; what was found, Look Again)
   AISuLocal.Left = 24: AISuLocal.Top = 6: AISuLocal.Width = w - 48: AISuLocal.Height = 24
-  AISuLocalText.Left = 48: AISuLocalText.Top = 32: AISuLocalText.Width = w - 72: AISuLocalText.Height = 78
-  AISuFoundText.Left = 48: AISuFoundText.Top = 114: AISuFoundText.Width = w - 72 - 132: AISuFoundText.Height = 44
-  AISuLookBtn.Left = w - 24 - 120: AISuLookBtn.Top = 114: AISuLookBtn.Width = 120: AISuLookBtn.Height = bh
-  AISuCloudRadio.Left = 24: AISuCloudRadio.Top = 174: AISuCloudRadio.Width = w - 48: AISuCloudRadio.Height = 24
-  AISuCloudText.Left = 48: AISuCloudText.Top = 200: AISuCloudText.Width = w - 72: AISuCloudText.Height = 100
+  ' (each text as tall as its lines need in Studio's language — English's
+  ' heights at least —, what follows it moved down by as much: a longer
+  ' language isn't cut off)
+  AISetMeasure.Font.Name = AISuLocalText.Font.Name: AISetMeasure.Font.Size = AISuLocalText.Font.Size
+  h = AISetLinesHigh(AISuLocalText.Caption, w - 72)
+  IF h < 78 THEN h = 78
+  AISuLocalText.Left = 48: AISuLocalText.Top = 32: AISuLocalText.Width = w - 72: AISuLocalText.Height = h
+  dy = h - 78
+  h = AISetLinesHigh(AISuFoundText.Caption, w - 72 - 132)
+  IF h < 44 THEN h = 44
+  AISuFoundText.Left = 48: AISuFoundText.Top = 114 + dy: AISuFoundText.Width = w - 72 - 132: AISuFoundText.Height = h
+  AISuLookBtn.Left = w - 24 - 120: AISuLookBtn.Top = 114 + dy: AISuLookBtn.Width = 120: AISuLookBtn.Height = bh
+  dy = dy + h - 44
+  AISuCloudRadio.Left = 24: AISuCloudRadio.Top = 174 + dy: AISuCloudRadio.Width = w - 48: AISuCloudRadio.Height = 24
+  h = AISetLinesHigh(AISuCloudText.Caption, w - 72)
+  IF h < 100 THEN h = 100
+  AISuCloudText.Left = 48: AISuCloudText.Top = 200 + dy: AISuCloudText.Width = w - 72: AISuCloudText.Height = h
   ' (2 and 3: a label column, the fields, notes under them)
   fw = w - 130 - 24 - 160
   AISuServerBox.Width = fw: AISuAddrEdit.Width = fw: AISuLocalModel.Width = fw
-  AISuLocalNote.Width = w - 48: AISuLocalNote.Height = 96
+  h = AISetLinesHigh(AISuLocalNote.Caption, w - 48)
+  IF h < 96 THEN h = 96
+  AISuLocalNote.Width = w - 48: AISuLocalNote.Height = h
   AISuProvBox.Width = fw: AISuKeyEdit.Width = fw: AISuCloudModel.Width = fw
   AISuKeyLink.Left = 130 + fw + 14: AISuKeyLink.Width = 150
   AISuTestBtn.Left = 130 + fw + 8: AISuTestBtn.Top = 42: AISuTestBtn.Width = 150: AISuTestBtn.Height = bh
-  AISuTestNote.Width = w - 130 - 24: AISuTestNote.Height = 54
-  AISuCostText.Width = w - 48: AISuCostText.Height = 130
+  h = AISetLinesHigh(AISuTestNote.Caption, w - 130 - 24)
+  IF h < 54 THEN h = 54
+  AISuTestNote.Width = w - 130 - 24: AISuTestNote.Height = h
+  h = AISetLinesHigh(AISuCostText.Caption, w - 48)
+  IF h < 130 THEN h = 130
+  AISuCostText.Width = w - 48: AISuCostText.Height = h
 END SUB
 
 SUB AISuShowPage(P AS INTEGER)

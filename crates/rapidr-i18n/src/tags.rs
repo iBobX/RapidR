@@ -146,7 +146,7 @@ pub fn native_name(tag: &str) -> String {
         "it" => "Italiano",
         "ja" => "日本語",
         "ko" => "한국어",
-        crate::pseudo::TAG => "Pseudo (xx)",
+        crate::pseudo::TAG => "Pšéûðö (xx)",
         _ => return t,
     };
     name.to_string()

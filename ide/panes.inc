@@ -242,7 +242,22 @@ SUB LayOutWelcome
   DIM cols AS INTEGER, k AS INTEGER, room AS INTEGER, w AS INTEGER, x0 AS INTEGER
   DIM rows AS INTEGER, pitch AS INTEGER, tall AS INTEGER
   DIM pageW AS INTEGER, pageH AS INTEGER, bottom AS INTEGER, pass AS INTEGER
-  x0 = 290
+  DIM sw AS INTEGER, tw AS INTEGER, two AS INTEGER
+  ' (Start as wide as its longest link — 200 pixels at least, English's —
+  ' in the language Studio speaks: a longer one isn't cut off)
+  StatusMeasure.Font.Name = StartLink(0).Font.Name: StatusMeasure.Font.Size = StartLink(0).Font.Size
+  sw = 200
+  FOR k = 0 TO 4
+    tw = StatusMeasure.TextWidth(REPLACESUBSTR$(StartLink(k).Caption, "&", "")) + 8
+    IF tw > sw THEN sw = tw
+  NEXT
+  FOR k = 0 TO 4
+    StartLink(k).Width = sw: StartRow(k).Width = sw + 34
+  NEXT
+  FOR k = 0 TO 5
+    RecentLink(k).Width = sw + 30
+  NEXT
+  x0 = 44 + sw + 46
   pageW = Welcome.Width
   FOR pass = 1 TO 2
     room = pageW - x0 - 32
@@ -251,6 +266,13 @@ SUB LayOutWelcome
     IF cols > 4 THEN cols = 4
     w = (room - (cols - 1) * 12) \ cols
     IF w > 300 THEN w = 300
+    ' (an example's line longer than its card — a longer language —: two
+    ' lines, the cards taller)
+    two = 0
+    IF ExampleCount > 0 THEN StatusMeasure.Font.Name = ExText(0).Font.Name: StatusMeasure.Font.Size = ExText(0).Font.Size
+    FOR k = 0 TO ExampleCount - 1
+      IF StatusMeasure.TextWidth(ExText(k).Caption) > w - 56 THEN two = 1
+    NEXT
     ' (a short page: the cards closer together, down to 56 apart; still
     ' too short, it scrolls)
     rows = (ExampleCount + cols - 1) \ cols
@@ -263,6 +285,9 @@ SUB LayOutWelcome
         tall = pitch - 6
         IF tall > 58 THEN tall = 58
       END IF
+    END IF
+    IF two THEN
+      pitch = pitch + 16: tall = tall + 16
     END IF
     ' (the lowest thing on the page: the last card, or the Recent list's
     ' last line)
@@ -286,6 +311,8 @@ SUB LayOutWelcome
     ExCard(k).Width = w: ExCard(k).Height = tall
     ExTitle(k).Width = w - 56
     ExText(k).Width = w - 56
+    ExText(k).WordWrap = two: ExText(k).AutoSize = 0
+    IF two THEN ExText(k).Height = 36 ELSE ExText(k).Height = 18
   NEXT
 END SUB
 

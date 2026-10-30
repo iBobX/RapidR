@@ -257,10 +257,40 @@ fn read_page_file(path: &str) -> Option<Vec<u8>> {
     if let Some(bytes) = web_project_file(path) {
         return Some(bytes);
     }
-    let name = path.replace('\\', "/");
-    let name = name.strip_prefix("lang/")?;
-    let listed = page_catalogs().into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
-    rapidr_value::objects::read_file(&format!("lang/{listed}")).ok()
+    let path = path.replace('\\', "/");
+    let path = path.trim_start_matches("./");
+    // (the program's lang/, or the folder it named — Application.
+    // LanguageFolder: RapidR Studio's ide/lang, apart from the programs it
+    // runs — each with its own list)
+    let (dir, name) = path.rsplit_once('/')?;
+    if dir == "lang" {
+        if name.eq_ignore_ascii_case("index.txt") {
+            return Some(page_catalogs().join("\n").into_bytes());
+        }
+        let listed = page_catalogs().into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
+        return rapidr_value::objects::read_file(&format!("lang/{listed}")).ok();
+    }
+    if dir.contains("..") || dir.starts_with('/') || dir.contains("://") {
+        return None;
+    }
+    let listed = folder_catalogs(dir);
+    if name.eq_ignore_ascii_case("index.txt") {
+        return Some(listed.join("\n").into_bytes());
+    }
+    let listed = listed.into_iter().find(|n| n.eq_ignore_ascii_case(name))?;
+    rapidr_value::objects::read_file(&format!("{dir}/{listed}")).ok()
+}
+
+/// The catalogs a folder beside the page has (its `index.txt`), read once
+/// per folder; none without a list (no request for a missing language).
+fn folder_catalogs(dir: &str) -> Vec<String> {
+    thread_local!(static LISTED: RefCell<HashMap<String, Vec<String>>> = RefCell::new(HashMap::new()));
+    if let Some(list) = LISTED.with(|l| l.borrow().get(dir).cloned()) {
+        return list;
+    }
+    let list = rapidr_value::objects::read_file(&format!("{dir}/index.txt")).map(|bytes| rapidr_webbundle::parse_lang_index(&String::from_utf8_lossy(&bytes))).unwrap_or_default();
+    LISTED.with(|l| l.borrow_mut().insert(dir.to_string(), list.clone()));
+    list
 }
 
 /// The catalogs the page has, read once: its list

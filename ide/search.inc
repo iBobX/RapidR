@@ -278,6 +278,12 @@ SUB LayOutSearch
   IF w < 60 THEN EXIT SUB
   fh = 26: bw = 92
   IF ThemeName = "classic" THEN fh = 21: bw = 76
+  ' (the buttons as wide as their words need in Studio's language — a
+  ' longer one isn't cut off — up to half the pane)
+  lw = UITextWidth(SearchGo.Caption) + 24
+  IF UITextWidth(ReplaceGo.Caption) + 24 > lw THEN lw = UITextWidth(ReplaceGo.Caption) + 24
+  IF lw > bw THEN bw = lw
+  IF bw > w \ 2 THEN bw = w \ 2
   y = 8
   SearchEdit.Left = 8: SearchEdit.Top = y: SearchEdit.Width = w - bw - 6: SearchEdit.Height = fh
   SearchGo.Left = 8 + w - bw: SearchGo.Top = y: SearchGo.Width = bw: SearchGo.Height = fh
@@ -292,12 +298,20 @@ SUB LayOutSearch
   SearchRegex.Left = 8 + 2 * bw: SearchRegex.Top = y: SearchRegex.Width = w - 2 * bw: SearchRegex.Height = 20
   y = y + 26
   ' (where: "In:" and the scope's list)
-  lw = 28
+  lw = UITextWidth(SearchScopeLabel.Caption) + 6
+  IF lw < 28 THEN lw = 28
   SearchScopeLabel.Left = 8: SearchScopeLabel.Top = y + (fh - 16) \ 2: SearchScopeLabel.Width = lw: SearchScopeLabel.Height = 18
   SearchScope.Left = 8 + lw + 4: SearchScope.Top = y: SearchScope.Width = w - lw - 4
   y = y + fh + 6
-  SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 20
-  y = y + 24
+  ' (the note on two lines when one can't hold it)
+  SearchInfo.WordWrap = 1: SearchInfo.AutoSize = 0
+  IF UITextWidth(SearchInfo.Caption) > w THEN
+    SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 38
+    y = y + 42
+  ELSE
+    SearchInfo.Left = 8: SearchInfo.Top = y: SearchInfo.Width = w: SearchInfo.Height = 20
+    y = y + 24
+  END IF
   SearchTree.Left = 0: SearchTree.Top = y: SearchTree.Width = SearchPane.Width
   SearchTree.Height = SearchPane.Height - y
 END SUB
@@ -1206,6 +1220,7 @@ SUB SearchLanguageChanged
   SearchRefilling = 0
   Dock.PaneTitle("searchpane", TR$("Search"))
   Dock.PaneTitle("helppane", TR$("Help"))
+  LayOutSearch
 END SUB
 
 ' The search and help commands; True when Id was one.

@@ -173,6 +173,12 @@ SUB LayOutConsent
   END IF
   ConsentDialog.Font.Name = UIFont.Name: ConsentDialog.Font.Size = UIFont.Size
   AISetMeasure.Font.Name = UIFont.Name: AISetMeasure.Font.Size = UIFont.Size
+  ' (the heads' column as wide as the widest head in Studio's language —
+  ' they're bold: a tenth more — English's width at least)
+  FOR k = 0 TO ConsentCount - 1
+    h = AISetMeasure.TextWidth(ConsentRowHead(k).Caption) * 11 \ 10 + 16
+    IF h > hw THEN hw = h
+  NEXT
   ConsentTitle.Font = SubFont
   ConsentTitle.Font.Color = TC("page.text")
   ConsentLead.Font.Color = TC("page.text")
