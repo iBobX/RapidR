@@ -834,7 +834,11 @@ fn build(dir: &Path) -> Res<String> {
     let mut types = Vec::new();
     let mut rules = Vec::new();
     for path in &paths {
-        let file = path.strip_prefix(dir).unwrap().display().to_string();
+        let file = path.strip_prefix(dir).unwrap().display().to_string().replace('\\', "/");
+        // (the docs' translations: read below)
+        if file.starts_with("i18n/") {
+            continue;
+        }
         let t = load(path)?;
         if file.starts_with("components") {
             keys_allowed(&t, &["group", "component"], &file)?;
@@ -997,6 +1001,33 @@ fn build(dir: &Path) -> Res<String> {
     writeln!(out, "pub static TYPE_NAMES: &[TypeName] = &[\n    {},\n];\n", types.join(",\n    ")).unwrap();
     writeln!(out, "pub static RULES: &[Rule] = &[\n    {},\n];\n", rules.join(",\n    ")).unwrap();
     writeln!(out, "pub static CONSTANT_GROUPS: &[ConstantGroup] = &[\n    {},\n];\n", groups_code.join(",\n    ")).unwrap();
+    // The docs' translations (data/i18n/<language>/*.toml, `[docs]` KEY =
+    // "text": RButton, RButton.Caption, MID$, PRINT, $INCLUDE …), for the
+    // Help pane, hover and search in the user's language.
+    let mut docs_i18n: Vec<(String, String, String)> = Vec::new();
+    for path in &paths {
+        let file = path.strip_prefix(dir).unwrap().display().to_string().replace('\\', "/");
+        let Some(rest) = file.strip_prefix("i18n/") else { continue };
+        let Some((lang, _)) = rest.split_once('/') else { return Err(format!("{file}: a translation goes in i18n/<language>/")) };
+        let t = load(path)?;
+        keys_allowed(&t, &["docs"], &file)?;
+        let Some(docs) = t.get("docs").and_then(Value::as_table) else { continue };
+        for (k, v) in docs {
+            let text = v.as_str().ok_or_else(|| format!("{file}: {k}: a text"))?;
+            let key = k.to_ascii_uppercase();
+            if docs_i18n.iter().any(|(l, kk, _)| l == lang && *kk == key) {
+                return Err(format!("{file}: {k} translated twice"));
+            }
+            docs_i18n.push((lang.to_string(), key, text.to_string()));
+        }
+    }
+    docs_i18n.sort();
+    writeln!(
+        out,
+        "/// The registry's docs translated: (language, KEY, text), sorted (data/i18n).\npub static DOC_TRANSLATIONS: &[(&str, &str, &str)] = &[{}];\n",
+        docs_i18n.iter().map(|(l, k, t)| format!("({}, {}, {})", lit(l), lit(k), lit(t))).collect::<Vec<_>>().join(", ")
+    )
+    .unwrap();
     Ok(out)
 }
 

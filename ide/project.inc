@@ -352,6 +352,8 @@ SUB LoadSettings
     Reg.OpenKey(STUDIO_KEY, 0)
     SettingsRead = 1
     IF ThemeChoice = "" AND Reg.ValueExists("Theme") THEN ThemeChoice = Reg.ReadString("Theme")
+    ' (Studio's language: "" the system's — Settings > General > Language)
+    IF Reg.ValueExists("Language") THEN LanguageChoice = Reg.ReadString("Language")
     IF Reg.ValueExists("PreviewClassic") THEN PreviewClassic = Flag(Reg.ReadString("PreviewClassic") = "1")
     ' (the Output and Problems pages wrap long lines unless turned off: View menu)
     IF Reg.ValueExists("OutputWrap") THEN OutputNoWrap = Flag(Reg.ReadString("OutputWrap") = "0")
@@ -386,6 +388,7 @@ SUB SaveSettings
   Reg.RootKey = HKCU
   Reg.OpenKey(STUDIO_KEY, 1)
   Reg.WriteString("Theme", ThemeChoice)
+  Reg.WriteString("Language", LanguageChoice)
   Reg.WriteString("PreviewClassic", LTRIM$(STR$(PreviewClassic)))
   Reg.WriteString("OutputWrap", LTRIM$(STR$(Flag(OutputNoWrap = 0))))
   Reg.WriteString("Layout", Dock.SaveLayout)

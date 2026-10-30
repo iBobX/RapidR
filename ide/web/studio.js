@@ -16,6 +16,8 @@ async function main() {
   const args = ["--home", "."];
   if (params.get("window") !== "normal") args.push("--maximized");
   if (params.get("theme")) args.push("--theme", params.get("theme"));
+  // (?lang=es: Studio in a language for this visit; xx, the pseudo-language)
+  if (params.get("lang")) args.push("--lang", params.get("lang"));
   if (params.has("fresh")) args.push("--fresh");
   if (params.get("do")) args.push("--do", params.get("do"));
   if (params.get("open")) args.push(params.get("open"));

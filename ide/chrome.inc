@@ -201,7 +201,7 @@ END SUB
 ' a shortened panel says in full)
 SUB ShowStatusHint
   DIM h AS STRING
-  IF Status.Panel(0).Caption <> StateText THEN h = StateText
+  IF Status.Panel(0).Caption <> TR$(StateText) THEN h = TR$(StateText)
   IF ProjectOpen AND Status.Panel(1).Caption <> ProjectName THEN
     IF h <> "" THEN h = h + " - "
     h = h + ProjectName
@@ -238,6 +238,8 @@ FUNCTION FitMiddle(Text AS STRING, Room AS INTEGER) AS STRING
   Result = s
 END FUNCTION
 
+' (Text: in English, shown in Studio's language — LayOutStatus — so a
+' change of language reaches it; a text made with values is TR$'s already)
 SUB SetState(State AS STRING, Text AS STRING)
   RunState = State
   StateText = Text
@@ -258,7 +260,7 @@ END SUB
 SUB LayOutStatus
   DIM w AS INTEGER, w0 AS INTEGER
   StatusMeasure.Font.Name = StatusFont.Name: StatusMeasure.Font.Size = StatusFont.Size
-  w0 = StatusMeasure.TextWidth(StateText) + 14
+  w0 = StatusMeasure.TextWidth(TR$(StateText)) + 14
   IF w0 < 230 THEN w0 = 230
   IF w0 > StateRoom + 14 THEN w0 = StateRoom + 14
   w = Studio.ClientWidth - w0 - 110 - 70 - 60 - 160 - McpStatusWidth
@@ -269,7 +271,7 @@ SUB LayOutStatus
     Status.Panel(6).Width = McpStatusWidth
   END IF
   Status.Panel(0).Width = w0
-  Status.Panel(0).Caption = FitMiddle(StateText, w0 - 14)
+  Status.Panel(0).Caption = FitMiddle(TR$(StateText), w0 - 14)
   Status.Panel(1).Width = w
   Status.Panel(2).Width = 110
   Status.Panel(3).Width = 70
@@ -284,6 +286,34 @@ END SUB
 SUB UpdateTitle
   IF ProjectOpen THEN Studio.Caption = ProjectName + " - RapidR Studio" ELSE Studio.Caption = "RapidR Studio"
   LayOutStatus
+END SUB
+
+' Tools > Settings > General > Language: the language Studio speaks — ""
+' the system's, "en", "es" … (StudioLanguageChanged follows, at once).
+SUB SetLanguage(Tag AS STRING)
+  LanguageChoice = Tag
+  IF Tag = "" THEN Application.Language = "" ELSE Application.Language = Tag
+END SUB
+
+' (Application.OnLanguageChange) Studio's language changed: captions, hints
+' and accessible names that are a catalog's text whole were translated
+' again before this (the runtime's); what Studio made itself — the tool
+' bar's tips, the palette, lists' items, the status bar, the page texts
+' made with values — is made again, and what is laid out by its text's
+' width laid out again (a longer language: nothing cut off).
+SUB StudioLanguageChanged
+  DIM i AS INTEGER
+  FOR i = 0 TO CmdCount - 1
+    IF Cmd(i).Tool >= 0 THEN
+      IF CmdKeys(i) <> "" THEN ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title) + " (" + CmdKeys(i) + ")" ELSE ToolBar.ButtonHint Cmd(i).Id, PlainTitle(Cmd(i).Title)
+    END IF
+  NEXT
+  FillPalette
+  FillRecent
+  ' (the lists Settings fills once: filled again, the choice kept)
+  SettingsLanguageChanged
+  StudioThemeChanged
+  UpdateTitle
 END SUB
 
 ' View > Theme: the look Studio is drawn in (StudioThemeChanged follows,

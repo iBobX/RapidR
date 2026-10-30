@@ -159,13 +159,13 @@ pub fn coverage(template: &[Message], file: &[Message]) -> Coverage {
 
 /// A translation that loses its source's markers: the source text and
 /// what is wrong ([`markers::check`]).
-pub fn check(file: &[Message]) -> Vec<(String, Vec<String>)> {
+pub fn check(language: &str, file: &[Message]) -> Vec<(String, Vec<String>)> {
     let mut out = Vec::new();
     for m in file.iter().filter(|m| !m.is_header() && m.translated()) {
-        let mut problems = markers::check(&m.id, m.forms.first().map(String::as_str).unwrap_or(""));
+        let mut problems = markers::check_for(language, &m.id, m.forms.first().map(String::as_str).unwrap_or(""));
         if let Some(p) = &m.plural {
             for f in m.forms.iter().skip(1).filter(|f| !f.is_empty()) {
-                problems.extend(markers::check(p, f));
+                problems.extend(markers::check_for(language, p, f));
             }
         }
         if !problems.is_empty() {
@@ -235,9 +235,9 @@ mod tests {
         assert_eq!((stats.kept, stats.added, stats.dropped.clone()), (2, 1, vec!["Gone".to_string()]));
         let c = coverage(&t, &new);
         assert_eq!((c.total, c.translated, c.fuzzy), (3, 1, 1));
-        assert!(check(&new).is_empty());
+        assert!(check("es", &new).is_empty());
         let bad = po::read_messages("msgid \"&Open {f}\"\nmsgstr \"Abrir\"\n");
-        assert_eq!(check(&bad)[0].1.len(), 2);
+        assert_eq!(check("es", &bad)[0].1.len(), 2);
     }
 
     #[test]

@@ -43,6 +43,8 @@ DECLARE SUB SettingsClosed(Action AS INTEGER)
 DECLARE SUB SettingsSetupClick
 DECLARE SUB SettingsPathRefresh
 DECLARE SUB SettingsFillPath
+DECLARE SUB SettingsLanguagePicked
+DECLARE SUB SettingsFillLanguages
 
 ' (the provider shown on the AI tab; its list being filled: its OnChange
 ' isn't the user's)
@@ -53,6 +55,13 @@ DIM AISetFilling AS INTEGER
 ' dialog's font)
 DIM AIKeyNoteH AS INTEGER, AIFetchNoteH AS INTEGER
 DIM AISetMeasure AS RBitmap
+' (General > Language: the tags its list shows, in order; the language
+' when the dialog opened; the list being filled — its OnChange isn't the
+' user's)
+DIM SettingsLangTag(32) AS STRING
+DIM SettingsLangCount AS INTEGER
+DIM SettingsLanguageWas AS STRING
+DIM SettingsFilling AS INTEGER
 
 CREATE SettingsDialog AS RForm
   Caption = "Settings"
@@ -66,7 +75,18 @@ CREATE SettingsDialog AS RForm
   ' ---- General ----
   CREATE GenPage AS RPanel
     BevelOuter = 0
-    AccessibleName = "General"
+    AccessibleName = TR$("General")
+    ' (Studio's language: the system's, English, or a catalog's — ide/lang;
+    ' picked, Studio speaks it at once)
+    CREATE LanguageLabel AS RLabel
+      Caption = TR$("&Language")
+    END CREATE
+    CREATE LanguageBox AS RComboBox
+      Style = 2
+      AccessibleName = TR$("Language")
+      AccessibleDescription = TR$("The language RapidR Studio's menus, dialogs and messages are in. It changes at once.")
+      OnChange = SettingsLanguagePicked
+    END CREATE
     CREATE IncFoldersLabel AS RLabel
       Caption = "&Include folders"
     END CREATE
@@ -301,6 +321,11 @@ SUB LayOutSettingsDialog
 
   ' ---- General ----
   y = pad
+  ' (the language first: a label and its choice on a row, as the helpers')
+  LanguageLabel.Left = pad: LanguageLabel.Top = y + (bh - 18) \ 2: LanguageLabel.Width = side - 4
+  LanguageLabel.Font.Bold = 1
+  LanguageBox.Left = pad + side: LanguageBox.Top = y: LanguageBox.Width = w - side
+  y = y + bh + pad
   IncFoldersLabel.Left = pad: IncFoldersLabel.Top = y
   IncFoldersLabel.Font.Bold = 1
   y = y + 24
@@ -444,11 +469,14 @@ END SUB
 SUB ShowSettingsPage(k AS INTEGER)
   DIM n AS INTEGER, i AS INTEGER, f AS STRING, all AS STRING
   ReopenBox.Checked = ReopenLast
+  ' (the language as chosen when the dialog opens: Cancel goes back to it)
+  SettingsLanguageWas = LanguageChoice
+  SettingsFillLanguages
   IF HelpersBox.ItemCount = 0 THEN
-    HelpersBox.AddItems "Off"
-    HelpersBox.AddItems "Quiet: the marks only"
-    HelpersBox.AddItems "Helpful: marks, the line's help, argument names"
-    HelpersBox.AddItems "Everything: every argument's name, choices marked too"
+    HelpersBox.AddItems TR$("Off")
+    HelpersBox.AddItems TR$("Quiet: the marks only")
+    HelpersBox.AddItems TR$("Helpful: marks, the line's help, argument names")
+    HelpersBox.AddItems TR$("Everything: every argument's name, choices marked too")
   END IF
   SELECT CASE EditorHelpers
     CASE "off": HelpersBox.ItemIndex = 0
@@ -468,7 +496,7 @@ SUB ShowSettingsPage(k AS INTEGER)
   SettingsPicked
   ' (S9: Debug panes, as it is now)
   DebugPanesBox.Clear
-  DebugPanesBox.AddItems "Automatic", "Always", "Never"
+  DebugPanesBox.AddItems TR$("Automatic"), TR$("Always"), TR$("Never")
   SELECT CASE DebugPanesMode
     CASE "always": DebugPanesBox.ItemIndex = 1
     CASE "never": DebugPanesBox.ItemIndex = 2
@@ -577,6 +605,8 @@ END SUB
 
 ' (nothing of the AI tab reaches the assistant: its own RAI is dropped)
 SUB SettingsCancel
+  ' (a language tried here and not kept: the one before)
+  IF LanguageChoice <> SettingsLanguageWas THEN SetLanguage SettingsLanguageWas
   SettingsDialog.Close
 END SUB
 
@@ -590,6 +620,67 @@ END SUB
 ' a models list still on its way is no longer waited for.
 SUB SettingsClosed(Action AS INTEGER)
   SetAI.Cancel
+END SUB
+
+' (General > Language) The languages to pick from: the system's, English
+' (Studio's own text), and each catalog in ide/lang by its own name — the
+' pseudo-language xx only while Studio speaks it (a test's, --lang xx).
+SUB SettingsFillLanguages
+  DIM all AS STRING, n AS INTEGER, i AS INTEGER, t AS STRING
+  SettingsFilling = 1
+  LanguageBox.Clear
+  SettingsLangTag(0) = "": LanguageBox.AddItems TR$("System default")
+  SettingsLangTag(1) = "en": LanguageBox.AddItems "English"
+  SettingsLangCount = 2
+  all = Application.Languages
+  n = TALLY(all, CHR$(10)) + 1
+  FOR i = 1 TO n
+    t = FIELD$(all, CHR$(10), i)
+    IF t <> "" AND t <> "en" AND SettingsLangCount < 32 AND (t <> "xx" OR LanguageChoice = "xx") THEN
+      SettingsLangTag(SettingsLangCount) = t
+      LanguageBox.AddItems Application.LanguageName(t)
+      SettingsLangCount = SettingsLangCount + 1
+    END IF
+  NEXT
+  LanguageBox.ItemIndex = 0
+  FOR i = 0 TO SettingsLangCount - 1
+    IF SettingsLangTag(i) = LanguageChoice THEN LanguageBox.ItemIndex = i
+  NEXT
+  SettingsFilling = 0
+END SUB
+
+' (General > Language, picked) Studio speaks it now; OK keeps it.
+SUB SettingsLanguagePicked
+  DIM i AS INTEGER
+  IF SettingsFilling THEN EXIT SUB
+  i = LanguageBox.ItemIndex
+  IF i < 0 OR i >= SettingsLangCount THEN EXIT SUB
+  IF SettingsLangTag(i) <> LanguageChoice THEN SetLanguage SettingsLangTag(i)
+END SUB
+
+' (Studio's language changed) Settings' own lists, made in the language
+' before, made again — what is chosen in them kept — and its tabs named.
+SUB SettingsLanguageChanged
+  DIM h AS INTEGER, d AS INTEGER
+  SettingsTabs.Tab(0) = TR$("General")
+  SettingsTabs.Tab(1) = TR$("AI")
+  h = HelpersBox.ItemIndex
+  IF HelpersBox.ItemCount > 0 THEN
+    HelpersBox.Clear
+    HelpersBox.AddItems TR$("Off")
+    HelpersBox.AddItems TR$("Quiet: the marks only")
+    HelpersBox.AddItems TR$("Helpful: marks, the line's help, argument names")
+    HelpersBox.AddItems TR$("Everything: every argument's name, choices marked too")
+    HelpersBox.ItemIndex = h
+  END IF
+  d = DebugPanesBox.ItemIndex
+  IF DebugPanesBox.ItemCount > 0 THEN
+    DebugPanesBox.Clear
+    DebugPanesBox.AddItems TR$("Automatic"), TR$("Always"), TR$("Never")
+    DebugPanesBox.ItemIndex = d
+  END IF
+  SettingsFillLanguages
+  LayOutSettingsDialog
 END SUB
 
 ' The include folders from now on (a folder a line), said in Output; the

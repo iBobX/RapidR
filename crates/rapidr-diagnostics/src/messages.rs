@@ -82,6 +82,7 @@ pub const MESSAGES: &[Message] = &[
     m("RR0015", "Unexpected '{text}' after field declaration"),
     m("RR0016", "GOSUB needs a label"),
     m("RR0017", "FOR {name} AS {type}: {name} is already declared AS {declared}"),
+    m("RR0018", "{file}: no errors"),
 ];
 
 /// The message with ID `id`.
@@ -358,7 +359,7 @@ mod tests {
             for m in file.iter().filter(|m| !m.is_header() && m.translated()) {
                 let msg = by_id(&m.context).unwrap_or_else(|| panic!("{tag}.po: {} is no message's ID", m.context));
                 assert_eq!(msg.en, m.id, "{tag}.po: {}'s English differs from the catalog's", m.context);
-                let problems = rapidr_i18n::markers::check(&m.id, &m.forms[0]);
+                let problems = rapidr_i18n::markers::check_for(tag, &m.id, &m.forms[0]);
                 assert!(problems.is_empty(), "{tag}.po {}: {problems:?}", m.context);
             }
         }

@@ -5164,6 +5164,8 @@ dependencies = [
  "rapidr-bytecode",
  "rapidr-codegen-rust",
  "rapidr-dap",
+ "rapidr-diagnostics",
+ "rapidr-i18n",
  "rapidr-import",
  "rapidr-introspect",
  "rapidr-lang",

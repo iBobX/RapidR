@@ -57,15 +57,15 @@ pub fn member(c: &Component, name: &str) -> Option<Vec<String>> {
             what.push_str(&format!(" · default {}", default_text(d)));
         }
         what.push_str(&format!(" · {} · {}", origin(p.origin), runs(p.runtimes)));
-        return Some(vec![format!("{comp}.{}", p.name), p.name.to_string(), what, p.doc.to_string()]);
+        return Some(vec![format!("{comp}.{}", p.name), p.name.to_string(), what, crate::hover::tdoc(&format!("{}.{}", c.name, p.name), p.doc).to_string()]);
     }
     if let Some(m) = c.method(name) {
         let what = format!("Method of {comp} · {} · {}", origin(m.origin), runs(m.runtimes));
-        return Some(vec![format!("{comp}.{}", m.name), m.signature(), what, m.doc.to_string()]);
+        return Some(vec![format!("{comp}.{}", m.name), m.signature(), what, crate::hover::tdoc(&format!("{}.{}", c.name, m.name), m.doc).to_string()]);
     }
     if let Some(e) = c.event(name) {
         let what = format!("Event of {comp} · its handler: SUB Name{} · {} · {}", rapidr_lang::params_text(e.params), origin(e.origin), runs(e.runtimes));
-        return Some(vec![format!("{comp}.{}", e.name), format!("{} = Name", e.name), what, e.doc.to_string()]);
+        return Some(vec![format!("{comp}.{}", e.name), format!("{} = Name", e.name), what, crate::hover::tdoc(&format!("{}.{}", c.name, e.name), e.doc).to_string()]);
     }
     None
 }
@@ -88,7 +88,7 @@ fn component(c: &Component) -> Vec<String> {
     if let Some(e) = c.default_event {
         what.push_str(&format!(" · its default event {e}"));
     }
-    let mut out = vec![name.clone(), format!("CREATE {}1 AS {name}\n\nEND CREATE", c.display), what, c.doc.to_string()];
+    let mut out = vec![name.clone(), format!("CREATE {}1 AS {name}\n\nEND CREATE", c.display), what, crate::hover::tdoc(c.name, c.doc).to_string()];
     for (title, names) in member_names(c) {
         if !names.is_empty() {
             out.push(format!("{title}: {}", names.join(", ")));
@@ -140,23 +140,23 @@ pub fn lookup(word: &str, of: &str) -> Option<(Vec<String>, Found)> {
             syntax.push_str(&format!(" AS {r}"));
         }
         let what = format!("{} · {} · {}", if b.returns.is_some() { "Function" } else { "Statement" }, origin(b.origin), runs(b.runtimes));
-        return other(vec![b.name.to_string(), syntax, what, b.doc.to_string()]);
+        return other(vec![b.name.to_string(), syntax, what, crate::hover::tdoc(b.name, b.doc).to_string()]);
     }
     if let Some(s) = rapidr_lang::statement(word) {
-        return other(vec![s.name.to_string(), s.syntax.to_string(), format!("Statement · {}", origin(s.origin)), s.doc.to_string()]);
+        return other(vec![s.name.to_string(), s.syntax.to_string(), format!("Statement · {}", origin(s.origin)), crate::hover::tdoc(s.name, s.doc).to_string()]);
     }
     if let Some(d) = rapidr_lang::directive(word) {
-        return other(vec![d.name.to_string(), d.syntax.to_string(), format!("Directive · {}", origin(d.origin)), d.doc.to_string()]);
+        return other(vec![d.name.to_string(), d.syntax.to_string(), format!("Directive · {}", origin(d.origin)), crate::hover::tdoc(d.name, d.doc).to_string()]);
     }
     if let Some(k) = rapidr_lang::keyword(word) {
-        return other(vec![k.name.to_string(), k.name.to_string(), format!("Keyword ({}) · {}", k.kind, origin(k.origin)), k.doc.to_string()]);
+        return other(vec![k.name.to_string(), k.name.to_string(), format!("Keyword ({}) · {}", k.kind, origin(k.origin)), crate::hover::tdoc(k.name, k.doc).to_string()]);
     }
     if let Some(t) = rapidr_lang::type_name(word) {
-        return other(vec![t.name.to_string(), t.name.to_string(), format!("Type · {}", origin(t.origin)), t.doc.to_string()]);
+        return other(vec![t.name.to_string(), t.name.to_string(), format!("Type · {}", origin(t.origin)), crate::hover::tdoc(t.name, t.doc).to_string()]);
     }
     if let Some((v, g)) = rapidr_lang::constant(word) {
         let name = g.constants.iter().find(|(n, _)| n.eq_ignore_ascii_case(word)).map_or(word, |(n, _)| *n);
-        return other(vec![name.to_string(), name.to_string(), format!("Constant = {v} (&H{v:X}) · {} · {}", g.name, origin(g.origin)), g.doc.to_string()]);
+        return other(vec![name.to_string(), name.to_string(), format!("Constant = {v} (&H{v:X}) · {} · {}", g.name, origin(g.origin)), crate::hover::tdoc(g.name, g.doc).to_string()]);
     }
     if let Some(c) = rapidr_lang::global(word) {
         let mut e = component(c);

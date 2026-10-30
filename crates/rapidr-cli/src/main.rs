@@ -13,6 +13,7 @@ mod cache;
 mod examples;
 mod home;
 mod import;
+mod i18n;
 mod lang;
 mod lang_truth;
 // (AI-ARCH phase 0: the introspection interface, behind a cargo feature)
@@ -37,7 +38,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -201,6 +202,8 @@ fn main() -> ExitCode {
         (Some("setup"), _) => setup::setup(&args[1..]),
         (Some("notices"), _) => notices::command(&args[1..]),
         (Some("lang"), _) => lang::command(&args[1..]),
+        (Some("i18n"), _) => i18n::command(&args[1..]),
+        (Some("check"), Some(path)) => check_source_file(&path),
         (Some("ai"), _) => ai::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
@@ -355,6 +358,8 @@ fn main() -> ExitCode {
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
+            eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");
+            eprintln!("  rapidr i18n extract|pseudo|update|check|studio|compiler|coverage …  Translators' tools");
             eprintln!("  rapidr parse <file.rr>");
             eprintln!("  rapidr preprocess <file.rr>");
             eprintln!("  rapidr lex <file.rr>");
@@ -373,6 +378,23 @@ fn main() -> ExitCode {
             eprintln!("  rapidr bundle-bc <file.rr> [-o out.zip] [--csp …]  Build static web bundle");
             eprintln!("        [--wasm rapidrintr.wasm] [--js rapidrintr.js]");
             ExitCode::from(2)
+        }
+    }
+}
+
+/// `rapidr check <file>`: the program compiled as `rapidr run` compiles it,
+/// its errors printed in the user's language (`RAPIDR_LANG`, else the
+/// system's: rapidr_diagnostics::messages); exit 1 when it has any.
+fn check_source_file(path: &str) -> ExitCode {
+    let lang = rapidr_diagnostics::messages::cli_language();
+    match compile_to_bytecode(path) {
+        Ok(_) => {
+            println!("{}", rapidr_diagnostics::messages::localize(&format!("{path}: no errors"), &lang));
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("{}", rapidr_diagnostics::messages::localize_report(&e, &lang));
+            ExitCode::from(1)
         }
     }
 }

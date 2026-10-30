@@ -114,6 +114,35 @@ pub fn check(source: &str, translation: &str) -> Vec<String> {
     if edge(source) != edge(translation) {
         out.push("the spaces or line break at the start or end differ from the source's".to_string());
     }
+    // (a menu's or button's "..." — three dots, which RapidR Studio strips
+    // to make tool-bar tips and palette entries — stays three dots)
+    let head = |x: &str| x.split('\t').next().unwrap_or("").trim_end().to_string();
+    if head(source).ends_with("...") && !head(translation).ends_with("...") {
+        out.push("ends with \"...\" in the source: keep the three dots (not \"…\")".to_string());
+    }
+    if let Some(k) = mnemonic(translation) {
+        if !k.is_ascii_alphanumeric() {
+            out.push(format!("the & mnemonic is on '{k}': choose a letter without an accent (it can't be typed with Alt on every keyboard)"));
+        }
+    }
+    out
+}
+
+/// [`check`], and the rules of language `tag` (RapidR's glossaries,
+/// docs/i18n/glossary-<lang>.md): Spanish opens its questions and
+/// exclamations (`¿…?`, `¡…!`).
+pub fn check_for(tag: &str, source: &str, translation: &str) -> Vec<String> {
+    let mut out = check(source, translation);
+    let lang = crate::tags::normalize_tag(tag);
+    if lang == "es" || lang.starts_with("es-") {
+        let t = translation.trim_end();
+        if t.ends_with('?') && !t.contains('¿') {
+            out.push("a question opens with ¿ in Spanish".to_string());
+        }
+        if t.ends_with('!') && !t.contains('¡') {
+            out.push("an exclamation opens with ¡ in Spanish".to_string());
+        }
+    }
     out
 }
 
@@ -151,5 +180,13 @@ mod tests {
         assert_eq!(check("Open\tCtrl+O", "Abrir").len(), 1);
         assert_eq!(check("Name: ", "Nombre:").len(), 1);
         assert!(check("Line %1", "Línea %1").is_empty());
+        // (the glossary's rules)
+        assert!(check("Save &As...", "Guardar co&mo...").is_empty());
+        assert_eq!(check("Save &As...", "Guardar co&mo…").len(), 1);
+        assert_eq!(check("&Edit", "&Édición").len(), 1);
+        assert!(check_for("es", "Save changes?", "¿Guardar los cambios?").is_empty());
+        assert_eq!(check_for("es", "Save changes?", "Guardar los cambios?").len(), 1);
+        assert_eq!(check_for("es", "Hello, {name}!", "Hola, {name}!").len(), 1);
+        assert!(check_for("pt", "Hello, {name}!", "Olá, {name}!").is_empty());
     }
 }

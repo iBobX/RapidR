@@ -140,6 +140,30 @@ pub fn set_folder(folder: &str) {
     });
 }
 
+/// The languages the program's catalogs have (`Application.Languages`):
+/// the tags of the `.po` files in its catalog folder, sorted — on the web,
+/// the folder's `index.txt` (what builds write). The pseudo-language `xx`
+/// is listed when its file is there.
+pub fn languages() -> Vec<String> {
+    let named = folder();
+    let dir = if named.is_empty() { "lang".to_string() } else { named.clone() };
+    let names: Vec<String> = if let Some(reader) = READER.with(Cell::get) {
+        reader(&format!("{dir}/index.txt")).map(|b| String::from_utf8_lossy(&b).lines().map(str::trim).filter(|l| l.ends_with(".po")).map(String::from).collect()).unwrap_or_default()
+    } else {
+        let path = if named.is_empty() {
+            crate::command_line::files_folder().map(|p| p.join("lang"))
+        } else {
+            let f = std::path::PathBuf::from(&named);
+            Some(if f.is_absolute() { f } else { crate::command_line::files_folder().map(|p| p.join(&f)).unwrap_or(f) })
+        };
+        path.and_then(|p| std::fs::read_dir(p).ok()).into_iter().flatten().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.ends_with(".po")).collect()
+    };
+    let mut out: Vec<String> = names.iter().map(|n| normalize_tag(n.trim_end_matches(".po"))).filter(|t| !t.is_empty()).collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
 /// The program listens for the language's changes (its
 /// Application.OnLanguageChange handler was bound): from the language it
 /// has now.
@@ -462,6 +486,15 @@ mod tests {
         let r = take_retranslation().unwrap();
         assert_eq!(r.text("[Šàvé ƒíĺé]").as_deref(), Some("Save file"));
         assert_eq!(r.text("Save file"), None);
+    }
+
+    #[test]
+    fn the_catalogs_languages_are_listed() {
+        with_files(&[("studio/index.txt", "es.po\npt_BR.po\n"), ("studio/es.po", ES)]);
+        set_folder("studio");
+        assert_eq!(languages(), ["es", "pt-BR"]);
+        set_folder("");
+        assert!(languages().is_empty());
     }
 
     #[test]

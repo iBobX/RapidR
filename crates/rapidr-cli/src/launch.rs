@@ -106,7 +106,9 @@ pub fn run_session(path: &str, args: Vec<String>) -> ExitCode {
     let bytes = match load(path) {
         Ok(b) => b,
         Err(e) => {
-            eprintln!("{e}");
+            // (the compiler's messages in the user's language: RAPIDR_LANG,
+            // else the system's — English when no catalog has them)
+            eprintln!("{}", rapidr_diagnostics::messages::localize_report(&e, &rapidr_diagnostics::messages::cli_language()));
             return ExitCode::from(1);
         }
     };
@@ -150,7 +152,7 @@ pub fn ide(args: Vec<String>) -> ExitCode {
     let mut studio_args = vec!["--home".to_string(), home.root.to_string_lossy().into_owned()];
     let mut it = args.into_iter();
     while let Some(a) = it.next() {
-        if a == "--theme" || a == "--do" {
+        if a == "--theme" || a == "--do" || a == "--lang" {
             studio_args.push(a);
             studio_args.extend(it.next());
         } else if a.starts_with("--") {

@@ -80,3 +80,6 @@ chrome_run*.log
 !tests/conformance/cases/archive_files/archive-*.zip
 # (the snapshot examples/recipes/load_binary.rr writes when it runs)
 examples/recipes/sample.tsn
+
+# The pseudo-language xx: generated from ide/lang/studio.pot (rapidr i18n studio), never committed
+ide/lang/xx.po

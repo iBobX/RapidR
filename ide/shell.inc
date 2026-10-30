@@ -315,6 +315,7 @@ END SUB
 
 SUB StartStudio
   DIM i AS INTEGER, a AS STRING, startFile AS STRING, fresh AS INTEGER
+  DIM langArg AS STRING, langGiven AS INTEGER
   HomeDir = ""
   i = 1
   WHILE i <= COMMANDCOUNT
@@ -326,6 +327,11 @@ SUB StartStudio
     ELSEIF a = "--theme" THEN
       i = i + 1
       ThemeChoice = COMMAND$(i)
+    ELSEIF a = "--lang" THEN
+      ' (Studio in a language for this run: a test's, the pseudo-language xx)
+      i = i + 1
+      langArg = COMMAND$(i)
+      langGiven = 1
     ELSEIF a = "--fresh" THEN
       fresh = 1
     ELSEIF a = "--maximized" THEN
@@ -346,6 +352,12 @@ SUB StartStudio
   ' (S2: offered unless the settings turned it off)
   ReopenLast = 1
   IF fresh = 0 THEN LoadSettings
+  IF langGiven THEN LanguageChoice = langArg
+  ' (Studio's catalogs: ide/lang beside studio.rr on the desktop — the
+  ' default — and ide/lang beside the page on the web, apart from the
+  ' programs it runs, which have their own lang/)
+  IF Proj.FileManager = "" THEN Application.LanguageFolder = HomeDir + "ide/lang"
+  IF LanguageChoice <> "" THEN Application.Language = LanguageChoice
   ' (S6: your login shell's PATH for the programs run from here, read in the
   ' background now — a Run waits for it, three seconds at most)
   Session.ReadShellPath
@@ -378,6 +390,8 @@ SUB StartStudio
   ApplyChrome
   ' (from here on, the look's changes: the system's, View > Theme)
   Application.OnThemeChange = StudioThemeChanged
+  ' (and the language's: Tools > Settings > General > Language)
+  Application.OnLanguageChange = StudioLanguageChanged
   FillProjectTree
   InspectActive
   OutputLine "RapidR Studio is ready."

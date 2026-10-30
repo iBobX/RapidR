@@ -186,6 +186,8 @@ pub fn get(p: &dyn Platform, name: &str, prop: &str) -> Option<Value> {
         // the system's (crate::i18n)
         ("application", "language") => v_str(&crate::i18n::language()),
         ("application", "languagefolder") => v_str(&crate::i18n::folder()),
+        // (RapidR's) the languages the program's catalogs have, one tag a line
+        ("application", "languages") => v_str(&crate::i18n::languages().join("\n")),
         // (RapidR's) The user asked the system for reduced motion
         ("application", "reducedmotion") => v_bool(crate::theme::reduced_motion()),
         // (RapidR's) the keystrokes SendKeys queued, not yet delivered
@@ -264,6 +266,9 @@ pub fn call(p: &dyn Platform, name: &str, method: &str, args: &[Value]) -> Optio
         // (RapidR's) A colour of the current theme by name, as a RapidQ
         // colour (&HBBGGRR): the theme's tokens and the IDE's
         // (`crate::ide_theme`); -1 for a name no theme has.
+        // (RapidR's) A language's own name, for a list people pick from:
+        // Español, Português, 中文（简体）; else the tag as written.
+        ("application", "languagename") => v_str(&rapidr_i18n::tags::native_name(&arg(0).to_string_val())),
         ("application", "themecolor") => {
             let name = arg(0).to_string_val();
             match crate::ide_theme::color_by_name(crate::theme::current(), &name) {

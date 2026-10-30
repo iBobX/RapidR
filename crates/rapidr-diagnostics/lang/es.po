@@ -58,3 +58,8 @@ msgstr "Error de sintaxis: fin de archivo inesperado"
 msgctxt "RR0006"
 msgid "Unknown SUB or FUNCTION '{name}'"
 msgstr "SUB o FUNCTION desconocida: '{name}'"
+
+#, review
+msgctxt "RR0018"
+msgid "{file}: no errors"
+msgstr "{file}: sin errores"

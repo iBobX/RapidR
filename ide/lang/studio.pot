@@ -1,0 +1,701 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: RapidR Studio\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ide/commands.inc
+msgid "&New Project..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Open Project or File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Folder..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Recent"
+msgstr ""
+
+#: ide/commands.inc
+msgid "No Recent Projects or Files"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Clear Recent"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Open &Example..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Copy Example Again from the Ori&ginal..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Import RapidQ Project or File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Import RapidQ Fol&der..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Save"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Save &As..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Save A&ll"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Close Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Close Pro&ject"
+msgstr ""
+
+#: ide/commands.inc
+msgid "E&xit"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Undo"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Redo"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Cu&t"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Copy"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Paste"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Delete"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Select &All"
+msgstr ""
+
+#: ide/commands.inc
+msgid "D&uplicate"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Find..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "R&eplace..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find in F&iles..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Go to Line..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find &Next"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find Pre&vious"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Ad&vanced"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Indent Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Outdent Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Select Next &Occurrence"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Go to Matching &Bracket"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Fold"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Unfold"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Fold &All"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Unfold A&ll"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Parameter Info"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Show &Hover"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Word Wrap"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Complete &Word"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Quick Fix..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Go to &Definition"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Find Re&ferences"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Navigate &Back"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Navigate For&ward"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Re&name Symbol..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Comment"
+msgstr ""
+
+#: ide/commands.inc
+msgid "F&ormat Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Command &Palette..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Go to Anything..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Project"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Toolbox"
+msgstr ""
+
+#: ide/commands.inc
+msgid "P&roperties"
+msgstr ""
+
+#: ide/commands.inc
+msgid "O&utline"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Output"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Pro&blems"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Wrap &Long Output Lines"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Immediate"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Variables"
+msgstr ""
+
+#: ide/commands.inc
+msgid "W&atch"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Call &Stack"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Breakpoints"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Debug Panes"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Welcome Page"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&AI Assistant"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Code"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Designer"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom &In"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom O&ut"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Actual Si&ze"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Zoom to &Fit"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Form / Code"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Designer and Code &Side by Side"
+msgstr ""
+
+#: ide/commands.inc
+msgid "T&heme"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&RapidR (as the System)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Light"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Dark"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &High Contrast"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Classic (Windows)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Reset Layout"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add &File..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add F&orm"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add &Module"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add a Form to This F&ile"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Project &Options..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Run"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run &Without Debugging"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Stop"
+msgstr ""
+
+#: ide/commands.inc
+msgid "R&estart"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run in &Browser"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Build Web App (.zip)"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Build"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Native App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Interpreted App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Build &Web App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Reveal the &App"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Continue"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Pause"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Show Program &Window"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step &Into"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step &Over"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step O&ut"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Run to C&ursor"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Set &Next Statement"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Step Into &Specific..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "Toggle &Breakpoint"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Edit Breakpoint..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Delete All Breakpoints"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Add &Watch"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Stop at Run-time &Errors"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Lefts"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Rights"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Tops"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Bottoms"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align C&enters"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Align &Middles"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Width"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Height"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Make Same &Size"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Space Evenly Acr&oss"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Space Evenly &Down"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Center H&orizontally"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Center &Vertically"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Bring to &Front"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Send to Bac&k"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Edit &Caption"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Menu Editor"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Tab &Order"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Keyboard Shortcuts"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Set &Up RAI..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&AI Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "New AI &Chat"
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI C&hats"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Co&mpact the AI Chat"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Review the AI's Changes..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "&What Was Sent to the AI..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI A&pps Settings..."
+msgstr ""
+
+#: ide/commands.inc
+msgid "AI Apps Acti&vity"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Split &Right"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Split &Down"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Next Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Previous Document"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Next &Area"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Resize Panes"
+msgstr ""
+
+#: ide/commands.inc
+msgid "Close &All Documents"
+msgstr ""
+
+#: ide/commands.inc
+msgid "RapidR &Help"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Examples"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&About RapidR Studio"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&File"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Edit"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&View"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Debug"
+msgstr ""
+
+#: ide/commands.inc
+msgid "F&ormat"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Tools"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Window"
+msgstr ""
+
+#: ide/commands.inc
+msgid "&Help"
+msgstr ""
+
+#: ide/preview.inc
+msgid "Preview in &Classic"
+msgstr ""
+
+#: ide/settings.inc
+msgid "General"
+msgstr ""
+
+#: ide/settings.inc
+msgid "&Language"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Language"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The language RapidR Studio's menus, dialogs and messages are in. It changes at once."
+msgstr ""
+
+#: ide/settings.inc
+msgid "Off"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Quiet: the marks only"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Helpful: marks, the line's help, argument names"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Everything: every argument's name, choices marked too"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Automatic"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Always"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Never"
+msgstr ""
+
+#: ide/settings.inc
+msgid "System default"
+msgstr ""
+
+#: ide/settings.inc
+msgid "AI"
+msgstr ""
