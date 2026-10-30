@@ -6518,7 +6518,7 @@ msgstr "Historial local: {file}"
 
 #: ide/versions.inc
 msgid "A copy each time the file was saved, kept in the project's .rapidr folder (never in a version)"
-msgstr "Una copia en cada guardado, en la carpeta .rapidr del proyecto (nunca en una versión)"
+msgstr "Una copia de cada guardado, en .rapidr del proyecto (nunca en una versión)"
 
 #: ide/versions.inc
 msgid "Copies of {file}, newest first"

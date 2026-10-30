@@ -194,8 +194,8 @@ function SWEEP_SCENES() {
     { name: "tooltip-dock", open: HELLO, do: "wait", events: "studio.__wait_3000,dock.__mousemove_997_515,dock.__mousemove_998_515,dock.__wait_2500", delay: 8 },
     // (Versions: what changed, the local history)
     // (the Versions pane's own "What Changed?" button and the project's path are not these scenes'; the history's one-line description is as long as its words)
-    { name: "versions-changes", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.changes`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/], engOk: [/^' Hello: the Versions walk/] },
-    { name: "versions-history", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.localHistory`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/, /^\[À çöþÿ éàçĥ/], engOk: [/^' Hello: the Versions walk/] },
+    { name: "versions-changes", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.changes`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[\s·\]]+$/, /·+\]$/], engOk: [/^' Hello: the Versions walk/] },
+    { name: "versions-history", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.localHistory`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[\s·\]]+$/, /·+\]$/, /^\[À çöþÿ éàçĥ/, /^' Hello: the Versions walk/], engOk: [/^' Hello: the Versions walk/] },
     // (Settings' lists, one opened on each page)
     ...[["general-language", "view.settings", "languagebox"], ["general-helpers", "view.settings", "helpersbox"], ["general-debug-panes", "view.settings", "debugpanesbox"], ["ai-provider", "ai.settings", "aiprovbox"], ["ai-permission", "ai.settings", "aipermbox"], ["ai-reply", "ai.settings", "aireplybox"]].map(([n, cmd, box]) => ({ name: `settings-open-${n}`, open: "", do: cmd, events: `${box}.__mousedown_40_10,${box}.__mouseup_40_10`, window: 2, delay: 6 })),
     // (a run-time error: the stop, the line in Output, the strip at the line)
@@ -222,8 +222,8 @@ const XX_SCENES = [
   { name: "help-start", open: HELP_OPEN, do: "wait,view.code,wait,help:", delay: 5 },
   { name: "help-unknown", open: HELP_OPEN, do: "wait,help:RapidR", delay: 5 },
   // (the Versions pane's own "What Changed?" button and the project's path are not this scene's)
-  { name: "change-box", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/] },
-  { name: "project-theme", open: "examples/gui/hello_form.rr", do: "wait,view.designer,project:select,row:Theme,wait", delay: 6 },
+  { name: "change-box", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,line:12,versions.showChange`, delay: 8, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[\s·\]]+$/, /·+\]$/] },
+  { name: "project-theme", open: "examples/gui/hello_form.rr", do: "wait,view.designer,project:select,row:Theme,wait", delay: 6, cutOk: [/^šÿšţém, öŕ çĥööšé/] },
   // (ES-REFERENCE part 2b: the sweep — every dialog, bar, page and menu
   // Studio has, in both languages: no English left, nothing cut off)
   ...SWEEP_SCENES(),

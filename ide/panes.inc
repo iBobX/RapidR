@@ -19,12 +19,12 @@
 
 ' The width of the Properties / Assistant column when nobody has set it:
 ' 272 in English; a language that runs about a third longer (Spanish, the
-' pseudo-language) gets 360, so the Assistant's greeting, chips and notes
+' pseudo-language) gets 380, so the Assistant's greeting, chips and notes
 ' are not cut.
 FUNCTION InspectorDefaultWidth AS INTEGER
   DIM lang AS STRING
   lang = LCASE$(Application.Language)
-  IF lang = "" OR lang = "en" OR LEFT$(lang, 3) = "en-" THEN Result = 272 ELSE Result = 360
+  IF lang = "" OR lang = "en" OR LEFT$(lang, 3) = "en-" THEN Result = 272 ELSE Result = 380
 END FUNCTION
 
 SUB SetUpDock
@@ -50,7 +50,7 @@ SUB PanesLanguageChanged
   ' (the Properties / Assistant column follows the language's length, unless
   ' its width was set by hand)
   w = Dock.PaneExtent("inspector", "width")
-  IF w = 272 OR w = 360 THEN Dock.PaneExtent("inspector", "width", InspectorDefaultWidth)
+  IF w = 272 OR w = 380 THEN Dock.PaneExtent("inspector", "width", InspectorDefaultWidth)
   Dock.PaneTitle("projecttree", TR$("Project"))
   Dock.PaneTitle("toolbox", TR$("Toolbox"))
   Dock.PaneTitle("inspector", TR$("Properties"))
