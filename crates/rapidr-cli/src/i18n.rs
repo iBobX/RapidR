@@ -14,6 +14,7 @@
 //! rapidr i18n compiler [--check]                 the compiler messages' template
 //! rapidr i18n runtime [--check]                  RapidR's own text's template (every tr_ui in the sources)
 //! rapidr i18n coverage [LANG…]                   how much of RapidR each language has
+//! rapidr i18n manual-stamp <LANG> <page.md>      a translated manual page records the English it translates
 //! ```
 //!
 //! `--check`: write nothing; exit 1 when a generated file is out of date or
@@ -44,6 +45,7 @@ pub fn command(args: &[String]) -> ExitCode {
         Some("compiler") => compiler_cmd(rest),
         Some("runtime") => runtime_cmd(rest),
         Some("coverage") => coverage_cmd(rest),
+        Some("manual-stamp") => stamp_cmd(rest),
         _ => Err(USAGE.to_string()),
     };
     match r {
@@ -278,44 +280,7 @@ fn studio_cmd(args: &[String]) -> Result<ExitCode, String> {
 /// `AddCmd`'s title under its category, the top menus'), and the letters
 /// two items of one menu share.
 pub fn studio_mnemonic_clashes(root: &Path, file: &[Message]) -> Result<Vec<(String, char, Vec<String>)>, String> {
-    let cat = po::catalog_of(file.iter().cloned());
-    let text = read(&root.join("ide/commands.inc"))?;
-    // (each menu's items: the English and as the language shows it; an
-    // item twice — the Mac's and the others' — once)
-    let mut menus: Vec<(String, Vec<(String, String)>)> = Vec::new();
-    let mut add = |menu: &str, context: &str, source: &str| {
-        let shown = cat.text(context, source).unwrap_or(source).to_string();
-        let item = (source.to_string(), shown);
-        match menus.iter_mut().find(|(m, _)| m == menu) {
-            Some((_, v)) => {
-                if !v.contains(&item) {
-                    v.push(item)
-                }
-            }
-            None => menus.push((menu.to_string(), vec![item])),
-        }
-    };
-    for line in text.lines() {
-        let l = line.trim_start();
-        let args: Vec<String> = l.split('"').skip(1).step_by(2).map(String::from).collect();
-        if l.starts_with("AddCmd ") && args.len() >= 3 {
-            add(&args[2], "", &args[1]);
-        } else if l.starts_with("AddSubmenu ") && args.len() >= 3 {
-            add(&args[0], "", &args[2]);
-        } else if l.starts_with("AddTopMenu ") && args.len() >= 2 {
-            add("(menu bar)", "menubar", &args[1]);
-        }
-    }
-    // (a clash the language makes: English's own aren't the translator's)
-    let shown: Vec<(String, Vec<String>)> = menus.iter().map(|(m, v)| (m.clone(), v.iter().map(|(_, s)| s.clone()).collect())).collect();
-    Ok(tools::mnemonic_clashes(&shown)
-        .into_iter()
-        .filter(|(menu, _, captions)| {
-            let items = &menus.iter().find(|(m, _)| m == menu).unwrap().1;
-            let letters: Vec<Option<char>> = captions.iter().filter_map(|c| items.iter().find(|(_, s)| s == c)).map(|(src, _)| rapidr_i18n::markers::mnemonic(src)).collect();
-            letters.windows(2).any(|w| w[0] != w[1])
-        })
-        .collect())
+    Ok(tools::studio_mnemonic_clashes(&read(&root.join("ide/commands.inc"))?, file))
 }
 
 fn compiler_cmd(args: &[String]) -> Result<ExitCode, String> {
@@ -374,6 +339,22 @@ fn runtime_cmd(args: &[String]) -> Result<ExitCode, String> {
     Ok(if ok { ExitCode::SUCCESS } else { ExitCode::from(1) })
 }
 
+/// `manual-stamp es getting-started.md`: docs/manual/es/getting-started.md's
+/// first line says which English it translates (its hash), so coverage
+/// can tell when the English changed since.
+fn stamp_cmd(args: &[String]) -> Result<ExitCode, String> {
+    let (Some(lang), Some(page)) = (args.first(), args.get(1)) else { return Err(USAGE.to_string()) };
+    let root = root()?;
+    let english = read(&root.join("docs/manual").join(page))?;
+    let path = root.join("docs/manual").join(lang).join(page);
+    let text = read(&path)?;
+    let line = format!("<!-- translated-from: {page} {} -->", text_hash(&english));
+    let body = if text.starts_with("<!-- translated-from:") { text.split_once('\n').map(|(_, r)| r.to_string()).unwrap_or_default() } else { text };
+    write(&path, &format!("{line}\n{body}"))?;
+    println!("{}: {line}", path.display());
+    Ok(ExitCode::SUCCESS)
+}
+
 /// A short hash of a text (FNV-1a, 64 bits, hex): what a translated
 /// manual page records of the English it was made from.
 pub fn text_hash(text: &str) -> String {
@@ -402,7 +383,9 @@ fn coverage_cmd(args: &[String]) -> Result<ExitCode, String> {
         all.extend(rapidr_diagnostics::messages::languages().iter().map(|s| s.to_string()));
         all.extend(rapidr_lang::docs_i18n::doc_languages().iter().map(|s| s.to_string()));
         if let Ok(rd) = fs::read_dir(root.join("docs/manual")) {
-            all.extend(rd.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.len() <= 7 && n.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && n != "reference" && n != "images"));
+            // (a language's folder: it translates a page the manual has)
+            let translates = |dir: &Path| fs::read_dir(dir).into_iter().flatten().flatten().any(|f| f.file_name().to_string_lossy().ends_with(".md") && root.join("docs/manual").join(f.file_name()).is_file());
+            all.extend(rd.filter_map(|e| e.ok()).filter(|e| e.path().is_dir() && translates(&e.path())).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| n.len() <= 7 && n != "reference"));
         }
         all.sort();
         all.dedup();

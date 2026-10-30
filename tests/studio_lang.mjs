@@ -117,7 +117,7 @@ const XX_SCENES = [
   { name: "settings", open: "", do: "view.settings", window: 2 },
   { name: "setup-rai", open: "", do: "ai.setup", window: 2 },
   // (the first-time question AI apps ask: Studio's test token lets a step ask it)
-  { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
+  { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" }, desktopOnly: "AI apps (MCP) are the desktop Studio's" },
   { name: "find", open: "examples/gui/hello_form.rr", do: "wait,edit.findInFiles", delay: 5 },
   { name: "problems", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5 },
   { name: "palette", open: "", do: "view.commandPalette" },
@@ -141,6 +141,7 @@ function runDesktop(scene, lang, theme) {
       RAPIDR_SCALE: "1",
       RAPIDR_MENU: "window",
       RAPIDR_TEST_CONTRAST: join(dir, "contrast.json"),
+      RAPIDR_TEST_A11Y: join(dir, "a11y.json"),
       RAPIDR_PRINT_TO: join(dir, "prints"),
       RAPIDR_REGISTRY: join(dir, "registry.reg"),
       RAPIDR_AI_KEYSTORE: "memory",
@@ -153,7 +154,8 @@ function runDesktop(scene, lang, theme) {
   const file = join(dir, `window-${scene.window || 1}.bmp`);
   if (!existsSync(file)) throw new Error("desktop: no capture");
   const report = existsSync(join(dir, "contrast.json")) ? JSON.parse(readFileSync(join(dir, "contrast.json"), "utf8")) : [];
-  return { bmp: readFileSync(file), report, windows: report.length };
+  const a11y = existsSync(join(dir, "a11y.json")) ? readFileSync(join(dir, "a11y.json"), "utf8") : "";
+  return { bmp: readFileSync(file), report, windows: report.length, a11y };
 }
 
 let browser = null;
@@ -183,7 +185,7 @@ async function runWeb(scene, lang, theme) {
     const results = JSON.parse(await page.evaluate(() => window.rr.rapidr_test_results()));
     const shot = results.captures[(scene.window || 1) - 1];
     if (!shot) throw new Error(`web: no capture of window ${scene.window || 1} ${errors.join("; ")}`);
-    return { bmp: Buffer.from(shot.bmp, "base64"), report: JSON.parse(results.contrast), windows: results.captures.length };
+    return { bmp: Buffer.from(shot.bmp, "base64"), report: JSON.parse(results.contrast), windows: results.captures.length, a11y: results.a11y || "" };
   } finally {
     await page.close();
   }
@@ -211,7 +213,7 @@ const hosts = web ? ["desktop", "web"] : ["desktop"];
 
 for (const scene of XX_SCENES) for (const theme of THEMES) for (const host of hosts) {
   const name = `xx ${scene.name} ${theme} ${host}`;
-  if (!want(name)) continue;
+  if (!want(name) || (host === "web" && scene.desktopOnly)) continue;
   try {
     const run = host === "desktop" ? runDesktop(scene, "xx", theme) : await runWeb(scene, "xx", theme);
     writeFileSync(join(OUT, `${scene.name}-xx-${theme}-${host}.bmp`), run.bmp);
@@ -239,6 +241,11 @@ const SWITCH = [
   { name: "en-to-xx", lang: "en", do: "wait,lang:xx,wait", pseudo: true },
   // (Settings in Spanish: its Language row)
   { name: "es-settings", lang: "es", do: "view.settings", window: 2, expect: ["Idioma"] },
+  // (the manual's first page in the Help pane: docs/manual/es/getting-started.md)
+  { name: "es-help", lang: "es", do: "wait,manual:getting-started.md", expect: ["Primeros pasos", "En tres líneas"] },
+  // (a page with no translation: in English, said so)
+  { name: "es-help-english", lang: "es", do: "wait,manual:debugging.md", expect: ["No traducido aún", "Debugging"] },
+  { name: "en-help", lang: "en", do: "wait,manual:getting-started.md", expect: ["Getting started", "In three lines"], none: ["Primeros pasos"] },
   // (a compiler error in Problems, in Spanish: the compiler's sample)
   { name: "es-problems", lang: "es", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5, expect: ["Se esperaba el fin de la línea, pero se encontró THEN"] },
 ];
@@ -249,7 +256,9 @@ for (const s of SWITCH) for (const host of hosts) {
     const run = host === "desktop" ? runDesktop(s, s.lang, THEMES[0]) : await runWeb(s, s.lang, THEMES[0]);
     writeFileSync(join(OUT, `${s.name}-${host}.bmp`), run.bmp);
     const j = judge(run, s, wordsOf(s.open));
-    const shown = j.texts.map((t) => t.text.replace(/&/g, ""));
+    // (what the window draws, and what its accessibility tree says: a
+    // Markdown page's text — the Help pane's — is in the tree)
+    const shown = j.texts.map((t) => t.text.replace(/&/g, "")).concat([run.a11y || ""]);
     if (s.pseudo) {
       // (Output keeps its lines in the language they were written in: history)
       const eng = j.eng.filter((t) => t !== "RapidR Studio is ready.");

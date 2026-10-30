@@ -27,6 +27,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 |---|---|
 | [The code editor](studio-editor.md) | Completion, Ctrl+Space, parameter info, hover, F12 Go to Definition, problems and quick fixes, the keyboard shortcuts |
 | [Projects](studio-projects.md) | The Project pane: forms come from your code (several in one file), File > Open Recent, reopening the last project, the PATH your programs get (macOS, Linux) |
+| [Studio in your language](studio-languages.md) | Tools > Settings > General > Language (System default, English, Español), switched at once; the compiler's messages and Help in your language; `RAPIDR_LANG`, `rapidr check`; helping translate RapidR (`rapidr i18n`), the pseudo-language |
 | [Designing forms](designing-forms.md) | A tutorial (a program of two forms, step by step), the toolbox, moving and aligning, the inspector and events, the menu and Tab-order editors, programs of several forms, the code the designer writes |
 | [Debugging](debugging.md) | Running and stopping, breakpoints (conditions, hit counts, log messages), stepping, Step Into Specific, Set Next Statement, Pause, values as trees (data tips, Variables, Watch), the Call Stack, Immediate, run-time errors, how fast it runs, the desktop and the browser |
 | [The AI assistant and RAI](ai-assistant.md) | Setting up a provider and a key, asking, changes as diffs you accept, "Build me…", what was sent, privacy and tokens; the `RAI` component for your own programs, and keeping keys out of them |
@@ -39,7 +40,7 @@ RapidR is good at? [Why RapidR](why-rapidr.md).
 | Chapter | What's in it |
 |---|---|
 | [The language](language.md) | Program structure, types, variables, arrays, operators, control flow, SUBs and FUNCTIONs, TYPEs and objects, the preprocessor, files, the console — and where RapidR's BASIC differs from other BASICs |
-| [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es` |
+| [Your program in every language](translations.md) | `TR$` and `TRN$`, `Application.Language`, translation files (`lang/es.po`) beside the program, plurals, placeholders, falling back from `es-AR` to `es`, captions that follow a change of language, `Application.Languages` and `LanguageName`, the tools (`rapidr i18n`) and the pseudo-language |
 | [Components and objects](components.md) | `CREATE`, properties, methods and events; RapidR's names and the older Q names; the global objects; themes, high-DPI and accessibility |
 | [Databases](databases.md) | RSQLite and RMySQL, parameter binding, events, encrypted MySQL connections (`SSLMode`) |
 | [A program's eyes and hands](app-eyes-and-hands.md) | `RWindowCapture`: pictures of the program's own windows and a report of what looks wrong (text cut off, controls on top of each other); `RAppHands`: clicks, typing and keys played into them with a pointer you see — tours, demos, self-tests; how AI apps and RAI look at and use your running program in Studio |

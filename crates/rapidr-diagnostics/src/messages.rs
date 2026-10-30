@@ -353,6 +353,13 @@ mod tests {
     }
 
     #[test]
+    fn the_template_is_current() {
+        // (`rapidr i18n compiler` writes it from MESSAGES)
+        let file = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/lang/compiler.pot")).expect("lang/compiler.pot");
+        assert_eq!(file, rapidr_i18n::tools::write(&template()), "lang/compiler.pot is out of date: rapidr i18n compiler");
+    }
+
+    #[test]
     fn translations_keep_their_markers() {
         for tag in languages() {
             let file = rapidr_i18n::po::read_messages(catalog_text(tag).unwrap());

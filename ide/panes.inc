@@ -245,7 +245,7 @@ SUB LayOutWelcome
   DIM sw AS INTEGER, tw AS INTEGER, two AS INTEGER
   ' (Start as wide as its longest link — 200 pixels at least, English's —
   ' in the language Studio speaks: a longer one isn't cut off)
-  StatusMeasure.Font.Name = StartLink(0).Font.Name: StatusMeasure.Font.Size = StartLink(0).Font.Size
+  StatusMeasure.Font.Name = LinkFont.Name: StatusMeasure.Font.Size = LinkFont.Size
   sw = 200
   FOR k = 0 TO 4
     tw = StatusMeasure.TextWidth(REPLACESUBSTR$(StartLink(k).Caption, "&", "")) + 8
@@ -269,9 +269,10 @@ SUB LayOutWelcome
     ' (an example's line longer than its card — a longer language —: two
     ' lines, the cards taller)
     two = 0
-    IF ExampleCount > 0 THEN StatusMeasure.Font.Name = ExText(0).Font.Name: StatusMeasure.Font.Size = ExText(0).Font.Size
+    StatusMeasure.Font.Name = DimFont.Name: StatusMeasure.Font.Size = DimFont.Size
     FOR k = 0 TO ExampleCount - 1
-      IF StatusMeasure.TextWidth(ExText(k).Caption) > w - 56 THEN two = 1
+      ' (up to the card's own edge: its 8 pixels of padding)
+      IF StatusMeasure.TextWidth(ExText(k).Caption) > w - 48 THEN two = 1
     NEXT
     ' (a short page: the cards closer together, down to 56 apart; still
     ' too short, it scrolls)

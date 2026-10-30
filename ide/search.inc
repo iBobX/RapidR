@@ -133,6 +133,7 @@ DECLARE SUB HelpSearchChanged
 DECLARE SUB HelpSearchKey(Key AS INTEGER, Shift AS INTEGER)
 DECLARE SUB HelpSuggestPicked
 DECLARE SUB HelpLink(Url AS STRING)
+DECLARE SUB HelpShowManual(Page AS STRING)
 DECLARE SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER, C AS INTEGER)
 DECLARE SUB HelpFocusSearch
 DECLARE FUNCTION HelpFile AS STRING
@@ -1012,6 +1013,18 @@ SUB HelpShowPage(Word AS STRING, OfType AS STRING, File AS STRING, L AS INTEGER,
   IF head <> "" THEN HelpPage.ScrollTo "#" + FIELD$(head, CHR$(9), 3)
 END SUB
 
+' A page of the manual in the Help pane: docs/manual/<language>/<page> when
+' Studio's language has it, else the English page with a note.
+SUB HelpShowManual(Page AS STRING)
+  DIM t AS STRING
+  t = Lang.ManualPage(Page)
+  IF t = "" THEN EXIT SUB
+  Dock.ShowPane("helppane")
+  HelpKind = "manual"
+  HelpPage.Text = t
+  HelpPage.ScrollTo "#"
+END SUB
+
 ' Shows the language's entry for Word (a member of OfType when given) in the
 ' Help pane, its search box saying the word.
 SUB ShowHelp(Word AS STRING, OfType AS STRING)
@@ -1136,6 +1149,9 @@ SUB HelpLink(Url AS STRING)
       w = LEFT$(w, k - 1)
     END IF
     ShowHelpFor w, of, HelpFile, 0, 0
+  ELSEIF LEFT$(Url, 7) = "manual:" THEN
+    ' (a page of the manual, in Studio's language when it is translated)
+    HelpShowManual MID$(Url, 8)
   ELSEIF Url = "help-insert:" THEN
     HelpInsertClicked
   ELSEIF Url = "help-goto:" OR Url = "help-refs:" THEN

@@ -437,6 +437,11 @@ SUB MacroTick
     SetLanguage MID$(id, 6)
     EXIT SUB
   END IF
+  ' (manual:<page> — the Help pane's link to a page of the manual)
+  IF LEFT$(id, 7) = "manual:" THEN
+    HelpLink id
+    EXIT SUB
+  END IF
   IF id <> "" AND id <> "wait" THEN
     OutputLine "> " + id
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;

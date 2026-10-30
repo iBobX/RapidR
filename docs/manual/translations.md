@@ -97,15 +97,33 @@ the count.
 - Fallback: `es-AR` → `lang/es-AR.po` → `lang/es.po` → the program's own
   text. Chinese named by its region alone also takes its script's file
   (`zh-CN` reads `zh-Hans.po`, `zh-TW` reads `zh-Hant.po`).
-- `Application.OnLanguageChange` fires after the program changes the
-  language (at the next turn of the event loop, in a program with
-  windows). Text you made with `TR$` is a plain string: make it again there.
+- When the language changes, captions, hints and accessible names that
+  are a catalog's text whole — `Caption = TR$("Save file")` — are
+  translated again by themselves, at the next turn of the event loop.
+- `Application.OnLanguageChange` fires right after that. Text you made with
+  values filled in (`TR$("Line {n}", "n", 5)`), list items and tabs are
+  plain strings: make them again there.
 
 ```basic
 SUB LanguageChanged
-    SaveButton.Caption = TR$("Save file")
+    ' (Caption = TR$("Save file") changed by itself; this one has a value)
+    CountLabel.Caption = TRN$("{n} file", "{n} files", FileCount)
 END SUB
 Application.OnLanguageChange = LanguageChanged
+```
+
+- A list for people to pick their language from: `Application.Languages`
+  lists the languages your catalogs have, one tag a line (`es`, `pt-BR`),
+  and `Application.LanguageName(tag)` gives each one's own name
+  (`Español`, `Português (Brasil)`, `中文（简体）`):
+
+```basic
+DIM all AS STRING, i AS INTEGER, tag AS STRING
+all = Application.Languages
+FOR i = 1 TO TALLY(all, CHR$(10)) + 1
+    tag = FIELD$(all, CHR$(10), i)
+    IF tag <> "" THEN LanguageBox.AddItems Application.LanguageName(tag)
+NEXT
 ```
 
 ## The translation files
@@ -115,7 +133,9 @@ Application.OnLanguageChange = LanguageChanged
   too).
 - Where: in a `lang` folder beside the program file you run (`rapidr run
   hello.rr`, RapidR Studio's Run), beside a built executable, or beside a
-  web page's files.
+  web page's files. `Application.LanguageFolder = "locale"` reads them
+  from another folder beside the program instead (on the web, beside the
+  page, with its own `index.txt`).
 - A build takes them along: `rapidr build` (native or `--interp`), the
   web builds and RapidR Studio's Build copy the `lang` folder's `.po`
   files into what they make — a macOS app's `Contents/Resources/lang`,
@@ -163,6 +183,34 @@ Application.OnLanguageChange = LanguageChanged
   of plain English letters is taken as a classic program, whose console
   shows the old code page: `¡` and `ó` would show as other signs
   there. Windows and their captions are not affected.
+
+## Tools for translators
+
+`rapidr i18n` makes and checks the files (RapidR's own reader and
+writer, nothing to install):
+
+```
+rapidr i18n extract main.rr forms.rr -o lang/messages.pot   every TR$ and TRN$ text: the template
+rapidr i18n update lang/messages.pot lang/es.po lang/pt-BR.po   each language's file up to date with it
+rapidr i18n check lang/es.po                                 every translation keeps its {name}, %1, `code`, & and "..."
+rapidr i18n pseudo lang/messages.pot -o lang/xx.po           the pseudo-language: every text accented, a third longer
+```
+
+- **The pseudo-language `xx`.** `Application.Language = "xx"` with
+  `lang/xx.po` shows every text the catalogs translate as
+  `[Šàvé ƒíĺé·····]`: any plain English left on the screen is text that
+  never went through `TR$`, and any text cut off is a place a longer
+  language won't fit.
+- **Keywords.** A routine that keeps English and translates it when it
+  shows it (`TR$(Title)`, a variable) names its argument for the template
+  with a comment in your source: `' i18n-keywords: AddRow:2` (the second
+  argument of `AddRow` is a text to translate; `AddRow:2@menu`, in context
+  `menu`).
+- **Marked for review.** `#, review` on an entry says a person still has
+  to check it (a draft); it is used meanwhile. `#, fuzzy` is not used.
+
+RapidR Studio is translated the same way: [Studio in your
+language](studio-languages.md).
 
 ## Not yet
 

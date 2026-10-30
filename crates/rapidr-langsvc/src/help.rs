@@ -295,6 +295,7 @@ fn start_page(key: &str) -> String {
     ] {
         md.push_str(&format!("- {}: {what}\n", link(w, w, "")));
     }
+    md.push_str("\nNew to RapidR? Read [Getting started](manual:getting-started.md), the manual's first page, here.\n");
     md.push_str("\nThe whole manual is at [the RapidR manual](https://github.com/iBobX/RapidR/tree/main/docs/manual).\n");
     md
 }

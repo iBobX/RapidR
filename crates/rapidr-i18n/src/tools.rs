@@ -215,6 +215,49 @@ pub fn mnemonic_clashes(menus: &[(String, Vec<String>)]) -> Vec<(String, char, V
     out
 }
 
+/// The clashes a language's file makes in RapidR Studio's menus: its
+/// command table (`ide/commands.inc`: each `AddCmd`'s title under its
+/// category, `AddSubmenu`'s, the menu bar's `AddTopMenu` in context
+/// `menubar`) as the language shows it, two items of a menu with one
+/// mnemonic letter — when the translation made it (English's own clashes
+/// aren't the translator's). An item twice (the Mac's and the others') once.
+pub fn studio_mnemonic_clashes(commands_inc: &str, file: &[Message]) -> Vec<(String, char, Vec<String>)> {
+    let cat = po::catalog_of(file.iter().cloned());
+    let mut menus: Vec<(String, Vec<(String, String)>)> = Vec::new();
+    let mut add = |menu: &str, context: &str, source: &str| {
+        let shown = cat.text(context, source).unwrap_or(source).to_string();
+        let item = (source.to_string(), shown);
+        match menus.iter_mut().find(|(m, _)| m == menu) {
+            Some((_, v)) => {
+                if !v.contains(&item) {
+                    v.push(item)
+                }
+            }
+            None => menus.push((menu.to_string(), vec![item])),
+        }
+    };
+    for line in commands_inc.lines() {
+        let l = line.trim_start();
+        let args: Vec<String> = l.split('"').skip(1).step_by(2).map(String::from).collect();
+        if l.starts_with("AddCmd ") && args.len() >= 3 {
+            add(&args[2], "", &args[1]);
+        } else if l.starts_with("AddSubmenu ") && args.len() >= 3 {
+            add(&args[0], "", &args[2]);
+        } else if l.starts_with("AddTopMenu ") && args.len() >= 2 {
+            add("(menu bar)", "menubar", &args[1]);
+        }
+    }
+    let shown: Vec<(String, Vec<String>)> = menus.iter().map(|(m, v)| (m.clone(), v.iter().map(|(_, s)| s.clone()).collect())).collect();
+    mnemonic_clashes(&shown)
+        .into_iter()
+        .filter(|(menu, _, captions)| {
+            let items = &menus.iter().find(|(m, _)| m == menu).expect("a menu listed").1;
+            let letters: Vec<Option<char>> = captions.iter().filter_map(|c| items.iter().find(|(_, s)| s == c)).map(|(src, _)| markers::mnemonic(src)).collect();
+            letters.windows(2).any(|w| w[0] != w[1])
+        })
+        .collect()
+}
+
 /// A catalog's entries as a file's text (a template, a language's file).
 pub fn write(messages: &[Message]) -> String {
     po::write_po(messages)

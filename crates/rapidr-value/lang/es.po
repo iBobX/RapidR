@@ -33,3 +33,7 @@ msgstr "Propiedades"
 #, review
 msgid "Events"
 msgstr "Eventos"
+
+#, review
+msgid "Not translated yet: this page is in English."
+msgstr "No traducido aún: esta página está en inglés."
