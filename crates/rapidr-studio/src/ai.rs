@@ -22,7 +22,11 @@
 //!   it —, then the project's facts (its name and files), which change.
 //!
 //! Permission ("propose" or "read-only") decides whether the proposing
-//! tools are offered at all; no tool can change it.
+//! tools are offered at all; no tool can change it. So does the dial
+//! (`Mode`: Build or Coach — [`crate::coach`]): in Coach the tools that
+//! change files are never offered, a call to one anyway is refused before
+//! it reaches them, and Studio's hint ladder says which hint the model
+//! writes — School Lock can keep it on Coach.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -33,6 +37,7 @@ use rapidr_value::Value;
 use serde_json::{json, Value as Json};
 
 use crate::ai_tools::{self, Project, Proposal};
+use crate::coach::{self, Ladder, Mode};
 use crate::{int_arg, text_arg};
 
 const EXAMPLE: &str = include_str!("../../../examples/gui/hello_form.rr");
@@ -121,6 +126,11 @@ struct Tools {
     app_sent: HashMap<String, String>,
     /// The last held call's number (its ticket `ask:N`).
     app_next: u64,
+    /// The dial: Build or Coach (Studio's pane sets it; School Lock may
+    /// keep it on Coach whatever it says — [`Tools::coach`]).
+    mode: Mode,
+    /// Coach's hint ladder for the problem open now.
+    ladder: Ladder,
 }
 
 /// Where a call RAI held for the user's answer is.
@@ -207,8 +217,22 @@ fn factory(rai: &str, component: &str, kind: &str) -> Result<Box<dyn ToolProvide
 }
 
 impl Tools {
+    /// RAI may propose changes in this answer: the user's permission
+    /// allows it and the dial isn't on Coach.
     fn may_propose(&self) -> bool {
+        self.permission_allows() && !self.coach()
+    }
+
+    /// The user's permission (Settings > AI) allows changes — whatever the
+    /// dial says (AI apps over MCP follow only this).
+    fn permission_allows(&self) -> bool {
         !self.permission.eq_ignore_ascii_case("read-only")
+    }
+
+    /// Coach mode: the dial's, or School Lock's (the teacher's lock or the
+    /// computer's policy — asked on every call: the lock holds in code).
+    fn coach(&self) -> bool {
+        self.mode == Mode::Coach || crate::school_lock::locked_now("coach")
     }
 
     /// An app tool's call (RAI's: the running program's eyes and hands).
@@ -216,9 +240,13 @@ impl Tools {
     /// chat's card, "Allow for this run" or "Don't allow" —; letting time
     /// pass doesn't. Reading only: none of it.
     fn app_call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        // (Coach: RAI may look at the program, never click or type in it)
+        if self.coach() && !matches!(name, "app_layout" | "app_wait") {
+            return coach_refused(name);
+        }
         let run = crate::session::run_number();
-        if !self.may_propose() || name == "app_wait" || run.is_none() || run == self.app_run {
-            return ai_tools::app_call(name, input, self.may_propose());
+        if !self.permission_allows() || name == "app_wait" || run.is_none() || run == self.app_run {
+            return ai_tools::app_call(name, input, self.permission_allows());
         }
         if self.app_asked == Some(Some(false)) {
             return app_refused(name);
@@ -392,7 +420,22 @@ fn facts(t: &Tools) -> String {
     if t.may_propose() {
         f.push_str("\n\nRemember: a change happens only through a tool call in your answer (create_project, write_file, propose_edit); asked to build, change or go on, call it now instead of asking or describing.");
     }
+    // (Coach: which hint of the ladder to write now — Studio keeps the
+    // ladder, the model never has to remember it)
+    if t.coach() {
+        let rung = if t.ladder.rung == 0 { Ladder { rung: 1, error: false } } else { t.ladder };
+        if let Some(line) = coach::rung_line(&rung, t.lite) {
+            f.push_str("\n\n");
+            f.push_str(&line);
+        }
+    }
     f
+}
+
+/// A tool Coach never offers, called anyway: refused before it runs —
+/// nothing proposed, nothing applied.
+fn coach_refused(name: &str) -> ToolOutcome {
+    ToolOutcome { content: coach::refusal(name), is_error: true, note: format!("{name}: not in Coach mode"), read: None, risk: "read", target: String::new() }
 }
 
 /// What the model is told when its answer says it changed something and
@@ -422,6 +465,8 @@ struct Handle {
 impl ToolProvider for Handle {
     fn tools(&self) -> Vec<Tool> {
         with(&self.name, |t| {
+            // (Coach: the read tools only — may_propose is false — so a
+            // model never even sees a tool that changes a file)
             if t.lite {
                 return ai_tools::tools_lite(t.may_propose());
             }
@@ -429,16 +474,28 @@ impl ToolProvider for Handle {
             // (while the user's program runs: its eyes and hands — offered
             // only then, so the request stays small the rest of the time;
             // never when RAI only reads: looking at the program shows what
-            // it shows, private data too)
-            if t.may_propose() && crate::session::any_running() {
-                tools.extend(ai_tools::app_tools(true));
+            // it shows, private data too. Coach: its eyes only)
+            if t.permission_allows() && crate::session::any_running() {
+                tools.extend(ai_tools::app_tools(!t.coach()));
             }
             tools
         })
     }
 
     fn instructions(&self) -> String {
-        with(&self.name, |t| if t.lite { instructions_lite(t.may_propose()) } else { instructions(t.may_propose()) })
+        with(&self.name, |t| {
+            if t.coach() {
+                // (the coach's way, then the language card: hints show
+                // correct RapidR)
+                let mut p = coach::instructions(t.lite);
+                p.push_str(&rapidr_lang::card::card());
+                p
+            } else if t.lite {
+                instructions_lite(t.may_propose())
+            } else {
+                instructions(t.may_propose())
+            }
+        })
     }
 
     fn set_lite(&mut self, lite: bool) {
@@ -529,6 +586,11 @@ impl ToolProvider for Handle {
     }
 
     fn call(&mut self, name: &str, input: &Json) -> ToolOutcome {
+        // (Coach: a tool that changes files — never offered — is refused
+        // here, before anything: no proposal, nothing to apply)
+        if (tool_kind(name) == "change" || name == "layout") && with(&self.name, |t| t.coach()) {
+            return coach_refused(name);
+        }
         // (the running program's eyes and hands: answered later, by the
         // program — finish_call)
         if name.starts_with("app_") {
@@ -1189,7 +1251,8 @@ impl Tools {
         }
         // (a decision recorded for no conversation: nothing waits for it)
         self.records.clear();
-        let may = self.may_propose();
+        // (AI apps follow the user's permission; the dial is RAI's own)
+        let may = self.permission_allows();
         let (files, buffers) = self.with_waiting();
         let mut proposals = std::mem::take(&mut self.proposals);
         let project = Project { folder: &self.folder, files: &files, main: &self.main, compat: &self.compat, buffers: &buffers };
@@ -1221,7 +1284,12 @@ pub fn get(name: &str, prop: &str) -> Option<Value> {
             "mainfile" => s(t.main.clone()),
             "compatmode" => s(t.compat.clone()),
             "projectname" => s(t.project_name.clone()),
-            "permission" => s(if t.may_propose() { "propose" } else { "read-only" }),
+            "permission" => s(if t.permission_allows() { "propose" } else { "read-only" }),
+            // (the dial — "coach" also while School Lock keeps it there)
+            "mode" => s(if t.coach() { "coach" } else { "build" }),
+            "coachlocked" => crate::flag(crate::school_lock::locked_now("coach")),
+            "coachrung" => Value::Integer(i64::from(t.ladder.rung)),
+            "coacherror" => crate::flag(t.ladder.error),
             "proposalcount" => Value::Integer(t.proposals.len() as i64),
             "runoutput" => s(t.run_output.clone()),
             "reviewfirst" => crate::flag(t.review_first),
@@ -1249,7 +1317,16 @@ pub fn set(name: &str, prop: &str, v: &Value) -> bool {
             "compatmode" => x.compat = t.trim().to_string(),
             "projectname" => x.project_name = t.trim().to_string(),
             "permission" => x.permission = if t.eq_ignore_ascii_case("read-only") { "read-only".into() } else { "propose".into() },
-            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "callfailed" | "callnote" | "calltarget" | "callrisk" => {}
+            "proposalcount" | "projecterrors" | "createdfolder" | "createdtitle" | "chatsfolder" | "lite" | "fellback" | "programuseasked" | "callfailed" | "callnote" | "calltarget" | "callrisk" | "coachlocked" | "coacherror" => {}
+            "mode" => {
+                let m = Mode::parse(&t);
+                // (the dial turned: the open problem's ladder starts over)
+                if m != x.mode {
+                    x.ladder.reset();
+                }
+                x.mode = m;
+            }
+            "coachrung" => x.ladder.rung = u8::try_from(v.to_i64().clamp(0, i64::from(coach::RUNGS))).unwrap_or(0),
             "reviewfirst" => x.review_first = matches!(t.trim().to_ascii_lowercase().as_str(), "1" | "-1" | "true" | "yes"),
             "runoutput" => {
                 x.run_output.clear();
@@ -1348,11 +1425,20 @@ pub fn call(name: &str, method: &str, args: &[Value]) -> Option<Value> {
         "renamechat" => crate::flag(rapidr_ai::chats::rename(&arg(0), &arg(1), &arg(2))),
         "chattitle" => s(rapidr_ai::chats::title_of(&arg(0))),
         // (an AI app's calls, through Studio's MCP server: the same tools)
-        "toolnames" => s(with(name, |t| ai_tools::tools(t.may_propose()).iter().map(|x| x.name.clone()).collect::<Vec<_>>().join("\n"))),
+        // (Coach's hint ladder: a question typed, Next Hint, Help With This
+        // Error, I Got It — each gives the rung the next answer writes)
+        "coachask" => Value::Integer(i64::from(with(name, |t| t.ladder.ask()))),
+        "coachnext" => Value::Integer(i64::from(with(name, |t| t.ladder.next()))),
+        "coachforerror" => Value::Integer(i64::from(with(name, |t| t.ladder.error()))),
+        "coachreset" => {
+            with(name, |t| t.ladder.reset());
+            Value::Null
+        }
+        "toolnames" => s(with(name, |t| ai_tools::tools(t.permission_allows()).iter().map(|x| x.name.clone()).collect::<Vec<_>>().join("\n"))),
         "tooldescription" | "toolschema" => {
             let want = arg(0);
             s(with(name, |t| {
-                ai_tools::tools(t.may_propose()).into_iter().find(|x| x.name == want).map(|x| if method == "tooldescription" { x.description } else { x.input_schema.to_string() }).unwrap_or_default()
+                ai_tools::tools(t.permission_allows()).into_iter().find(|x| x.name == want).map(|x| if method == "tooldescription" { x.description } else { x.input_schema.to_string() }).unwrap_or_default()
             }))
         }
         "toolkind" => s(tool_kind(&arg(0))),

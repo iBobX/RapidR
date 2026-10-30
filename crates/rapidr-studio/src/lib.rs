@@ -16,7 +16,9 @@
 //!   `SchoolLock…` members);
 //! - [`ai`]: **RAIPROJECTTOOLS**, the open project as tools for an RAI
 //!   (`rapidr-ai`'s component: Studio's assistant is one) — the tools in
-//!   [`ai_tools`], the changes they propose kept for review as diffs.
+//!   [`ai_tools`], the changes they propose kept for review as diffs; its
+//!   dial and hint ladder in [`coach`] (Coach mode: hints, never the
+//!   answer written into the user's code).
 //!
 //! A runtime gives them its [`Host`]: files go through `rapidr-value`'s
 //! file hooks (the disk, the web's store), events through the runtime's
@@ -28,6 +30,7 @@ pub mod ai;
 pub mod ai_tools;
 pub mod build;
 pub mod channel;
+pub mod coach;
 pub mod crash;
 pub mod design;
 pub mod external;
