@@ -1481,6 +1481,10 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `HelperText` (read-only) | string |  | The caret's line read with its helpers, as Ctrl+K H says it: the line, then what each value is ("orange, 255 130 20", "picture logo.png, missing") and the line's help. |
 | `HelperEditorText` (read-only) | string |  | What the open value editor shows, in words ("orange, 255 130 20 (was blue, 0 0 255)", "Choose a value: alClient"); "" when none is open. |
 | `LineValuesText` (read-only) | string |  | The values ShowLineValues gave that the caret's line shows at its end: "Score = 42, Name$ = "Bob"". |
+| `ChangeBase` | string |  | The text the gutter's change marks compare with: the file as its last version has it (RRepository.FileAt). Set, the marks show what changed since then — added, changed, removed lines —, saved or not; a click on a mark shows what the lines were, with Undo This Change. "" for a file the last version hadn't (every line added). |
+| `ChangesSince` | string |  | What the gutter's change marks compare with: "save" (the default: the text as last saved or loaded) or "version" (ChangeBase, once set). Setting "save" forgets ChangeBase. |
+| `ChangeCount` (read-only) | int |  | How many runs of lines differ from ChangeBase (0 without one). |
+| `ChangePeek` (read-only) | int |  | The line (from 1) a change is shown under (its mark clicked, ShowChange); 0 when none is. |
 | `Hint` | string |  | The tooltip shown when the mouse rests on the control (with `ShowHint`). |
 | `ShowHint` | bool |  | Shows the `Hint` tooltip when the mouse rests on the control; on `Application`, turns all tooltips on or off. |
 | `Cursor` | enum |  | The mouse pointer shown over the control: one of the `crXXX` constants. |
@@ -1551,6 +1555,13 @@ RapidR Studio's code editor: syntax colours from a language definition (BASIC by
 | `HideDataTip` | Hides the data tip. |
 | `ShowSignature(Text AS STRING, ActiveParam AS INTEGER)` | Shows signature help over the caret, the parameter ActiveParam (from 0) marked. |
 | `HidePopups` | Closes the completion list, the hover and signature help. |
+| `ChangeAt(Line AS INTEGER) AS STRING` | What changed at a line (from 1) since ChangeBase: "added", "changed", "removed" (lines were removed after it) or "". |
+| `ChangeText(Line AS INTEGER) AS STRING` | What the lines of the change at a line were in ChangeBase ("" for added lines). |
+| `ShowChange(Line AS INTEGER) AS INTEGER` | Shows the change at a line under its lines, as a click on its mark does: what they were, Undo This Change and Close (Escape closes it too). False when nothing changed there. |
+| `HideChange` | Closes the change shown under its lines. |
+| `RevertChange(Line AS INTEGER) AS INTEGER` | Undo This Change: the lines of the change at a line back as ChangeBase has them, one undo step (OnChange follows). False when nothing changed there. |
+| `NextChange(Line AS INTEGER) AS INTEGER` | The first line of the next change after a line (the first change after the last); 0 when there is none. |
+| `PreviousChange(Line AS INTEGER) AS INTEGER` | The first line of the change before a line (the last change before the first); 0 when there is none. |
 | `TriggerCompletion` | Opens completion at the caret, as Ctrl+Space does. |
 | `TriggerSignature` | Opens signature help at the caret, as Ctrl+Shift+Space does. |
 | `TriggerHover([Line AS INTEGER], Column AS INTEGER])` | Shows the hover at a place (the caret's when none is given). |
@@ -1608,6 +1619,7 @@ Two texts compared, the way a code review shows them: line by line, side by side
 | `ChangeCount` (read-only) | int |  | How many changes there are: hunks (text), components added, removed or changed (form), rows added, removed or changed and columns added or removed (table). |
 | `Summary` (read-only) | string |  | The changes in words, one per line: "Lines 4–6 changed"; "GreetButton: Caption \"&Greet\" → \"&Say hello\"; Width 90 → 110", "Added Hint (RLabel)"; "Row 1 (Id 1): Score 10 → 12", "Added column: Email". What a screen reader and the AI read. |
 | `HasHeader` | bool | True | Kind = "table": the CSV texts' first row names the columns (columns are then matched by name). False: every row is data, and the columns are "Column 1", "Column 2", … |
+| `ReadOnly` | bool | False | True: the differences are to look at only (what a version changed): no Accept or Reject on the hunks, and nothing decides them. |
 | `LeftText` | string | `""` | The original text (the left side). Setting it or RightText compares the two again: every hunk starts undecided. CR LF and lone CR line breaks become LF. |
 | `RightText` | string | `""` | The changed text (the right side), compared with LeftText. |
 | `Language` | string | `"rapidr-basic"` | How the text is coloured: a language id ("rapidr-basic", "sql", "json" …), a file name whose extension says ("query.sql"), or a language definition file (.toml). Reading it gives the id. |
@@ -5378,6 +5390,8 @@ A project's files as a tree (an .rrproj project, or a .bas / .rr file and the fi
 | `AddFile(Path AS STRING, [Kind AS STRING]) AS INTEGER` | Adds a file to the project (its kind from its extension when Kind is left out). True when it was added. |
 | `RemoveFile(Path AS STRING) AS INTEGER` | Takes a file out of the project (the disk is left alone). |
 | `FileModified(Path AS STRING, [On AS INTEGER]) AS INTEGER` | Whether a file has changes not saved yet (an editor's): with On, sets it — such a file is marked with a dot after its name. |
+| `FileBadge(Path AS STRING, [Letter AS STRING]) AS STRING` | A file's state against the project's last version (RRepository.Changes): with Letter, sets it — "M" changed, "N" new, "D" removed, "" none —, shown as the letter in a soft status square at the right of its row and said in words to a screen reader. Without Letter: the file's letter. |
+| `ClearBadges` | Takes every file's version badge off. |
 | `NewFile(Kind AS STRING, [Name AS STRING]) AS STRING` | Adds a new file of a kind with a free name (Form2.rr …) and starts renaming it: its path. |
 | `Rename([Path AS STRING], [NewName AS STRING])` | Renames a file (OnRename may cancel); without NewName the user types the name in place. |
 | `Delete([Path AS STRING])` | Asks the user to confirm, then takes the file out of the project (OnDelete may cancel). |
@@ -5957,6 +5971,49 @@ A project as tools for an RAI (docs/ide-ai.md): attached with AI.AttachComponent
 | `UndoCheck AS STRING` | What changed in the folder CreateProject made since it wrote it, in plain words ("main.rr was changed; notes.txt was added"); "" when nothing did — then Undo needs no question. |
 | `UndoFiles AS STRING` | The files CreateProject wrote, a full path a line, each checked to be inside its folder: all Undo removes (KILL each). Never a file the user added. |
 | `UndoDone AS INTEGER` | After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it). |
+
+<a id="rrepository"></a>
+## RRepository
+
+A project's versions, in plain words (RapidR Studio's Versions pane is built on it): start versioning a folder, save a version of the changed files (a scan for keys and passwords first), the timeline, what a version changed, go back to a version — the whole project or one file, as a new version: nothing is ever thrown away, and every action can be undone —, and a local history that keeps a copy of a file every time it is saved, versioned or not. The versions are an ordinary Git repository (each plain word has its Git name: Save a version is a commit, the timeline the log, an experiment a branch); opening one never runs anything from it. Lists are text, a line each, fields separated by tabs. In a browser only the local history works (Available is False there).
+
+| Property | Type | Default | |
+|---|---|---|---|
+| `Folder` | string |  | The project's folder. Setting it reads its state: Versioned, Experiment, Changes. |
+| `Available` (read-only) | bool |  | True where versions can be kept (RapidR on a computer); False in a browser, where only the local history works. |
+| `Versioned` (read-only) | bool |  | True when the folder keeps versions (Start was used, here or by another Git tool). |
+| `ReadOnly` (read-only) | bool |  | True when the project's versions belong to another user account on this computer (a USB stick, another account's folder): they can be looked at, not changed. |
+| `Experiment` (read-only) | string |  | The experiment the project is on (Git calls it a branch): "main" until another is started. |
+| `ChangeCount` (read-only) | int |  | How many files differ from the last version (changed, new or removed), as the last Refresh, Folder or action found. |
+| `Changes` (read-only) | string |  | The files that differ from the last version, a line each: a letter — M changed, N new, D removed — and the path relative to Folder, separated by a tab. |
+| `Author` | string |  | Who saves the versions, by name ("": the account's name). |
+| `Email` | string |  | The email saved with each version ("" for none). |
+| `Error` (read-only) | string |  | Why the last action didn't happen, in plain words ("" when it did). |
+| `ErrorKind` (read-only) | string |  | What kind of reason Error gives: "secrets" — lines look like keys or passwords (Secrets lists them; SaveVersion with AllowSecrets saves anyway) —, "unsaved-changes" — save a version first —, "nothing-to-save", "refused" — Start won't version that folder (a drive, the home folder, a folder inside another one with versions) —, "not-available" (a browser) …; "" when the last action worked. |
+| `Secrets` (read-only) | string |  | The lines that look like keys or passwords, from the last SaveVersion or CheckSecrets, a line each: the file, the line number, what it looks like, the line with the secret masked, separated by tabs. |
+| `CanUndo` (read-only) | string |  | What Undo would take back, in words ("Saved the version “Bigger button”"); "" when there is nothing to undo. |
+| `HistoryFolder` (read-only) | string |  | Where the local history is kept: the project's .rapidr/history folder (never part of a version). |
+| `Now` (read-only) | int |  | Now, in seconds since 1970: what the Timeline's and LocalHistory's times compare with ("2 minutes ago"). |
+
+| Method | |
+|---|---|
+| `Start AS INTEGER` | Starts versioning Folder (Git: init, the branch main, and a .gitignore that keeps RapidR's own files out). True when it did; False with Error saying why — a whole drive, the home folder or its Desktop, Documents or Downloads, a folder inside another one that has versions are refused. |
+| `Refresh AS INTEGER` | Reads the project's state again (Versioned, Experiment, Changes, ChangeCount): after files were saved. True when it is versioned. |
+| `SaveVersion(Message AS STRING, [Files AS STRING], [AllowSecrets AS INTEGER]) AS STRING` | Saves a version (Git: a commit) of every changed file, or of Files (paths a line each), with Message saying what it changes: the new version's id. "" when it didn't — Error says why: nothing changed, an empty message, or lines that look like keys or passwords (ErrorKind "secrets", Secrets lists them); AllowSecrets True saves anyway, once the person chose to. |
+| `CheckSecrets([Files AS STRING]) AS INTEGER` | How many lines of what a save would include (every changed file, or Files) look like keys or passwords: Secrets lists them. |
+| `Timeline([Limit AS INTEGER]) AS STRING` | The versions, newest first (Git: the log), up to Limit (200), a line each: the id, its first seven characters, when (seconds since 1970), who, the message's first line and "version" — or "checkpoint" for an AI's checkpoints, shown lighter. |
+| `VersionFiles(Version AS STRING) AS STRING` | What a version changed, against the one before it (every file new for the first): a line each, M, N or D and the path. "": what changed since the last version. |
+| `FileAt(Path AS STRING, Version AS STRING) AS STRING` | A file's text as a version had it (an id, "HEAD" for the last version; "": as the disk has it now): an RDiffView's LeftText. "" when it hadn't the file (HasFile tells an empty file apart). |
+| `HasFile(Path AS STRING, Version AS STRING) AS INTEGER` | True when the version has the file. |
+| `GoBack(Version AS STRING) AS STRING` | Goes back to a version: a new version whose files are as they were then (never a destructive reset: the newer versions stay on the timeline), a safety point first; Undo takes it back. The new version's id; "" with Error when files have changes not saved as a version. |
+| `GoBackFile(Path AS STRING, Version AS STRING) AS STRING` | Goes back to a version for one file: a new version with that file as it was (removed when the version hadn't it); the other files and their unsaved changes stay. Undo takes it back. |
+| `Undo AS STRING` | Takes back the last action (a save, a go back …), even the next day: what was undone, in words. "" with Error when there is nothing to undo, or when it would overwrite newer work (nothing is changed then). |
+| `History AS STRING` | Every action, newest first, a line each: its number, when (seconds since 1970), its kind (save, go-back, undo …), 1 when it was undone, what it was in words. |
+| `Checkpoint(Label AS STRING) AS STRING` | Keeps the folder as it is now, labelled (what an AI is about to do): a checkpoint on the timeline, never a version. Its id. |
+| `Snapshot(Path AS STRING, [Why AS STRING]) AS STRING` | Keeps a copy of the file as the disk has it now in the local history (Why: "saved", "on-disk", "before-reload" …), versioned or not: its number, "" when it equals the newest copy. The newest 100 copies of each file are kept; a file over 8 MB isn't copied (Error says so). |
+| `LocalHistory(Path AS STRING) AS STRING` | The file's copies in the local history, newest first, a line each: the number, when (seconds since 1970), why, the size in bytes. |
+| `LocalFiles AS STRING` | The files the local history has copies of, a line each, relative to Folder. |
+| `SnapshotText(Number AS STRING) AS STRING` | A copy's text, checked: "" with Error when it is missing or damaged. |
 
 <a id="screen"></a>
 ## Screen

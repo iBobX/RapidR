@@ -18,7 +18,8 @@
 // (4.5:1, 3:1 for large and disabled text) fails.
 
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -456,6 +457,16 @@ const COPY_DRAG = "outputbox.__mousedown_62_60,outputbox.__mousemove_80_60,outpu
 // (Set up RAI — a modal window: its steps are input once it shows — "a
 // cloud service" picked, Next, Anthropic in the provider list)
 const SETUP_CLOUD = [CLICK("aisucloudradio", 8, 12), idle(2), CLICK("aisunextbtn", 30, 14), idle(2), "aisuprovbox.__item_0", idle(2)].join(",");
+// (VERSIONS-G3) The walk's project — a copy of tests/fixtures/studio_versions
+// (on the web, its files in the page's store) — and its steps: started and
+// "first" saved by Ana; main.rr's last line changed and saved; "second"
+const VERSIONS_FILES = ["Hello.rrproj", "main.rr", "greet.rr"].map((f) => `tests/fixtures/studio_versions/${f}`);
+const V_OPEN = { open: "tests/fixtures/studio_versions/Hello.rrproj", copyDir: true, webFiles: VERSIONS_FILES, fsck: true };
+const V_FIRST = "versions.pane,versions.start,versions:author=Ana,versions:save=first";
+const V_EDIT = 'code:PRINT "Done."=>PRINT "All done!",file.save';
+const V_SECOND = `${V_FIRST},${V_EDIT},versions:save=second`;
+// (a key written in the code: the secret check's line; not a real key)
+const V_SECRET = 'code:PRINT "Done."=>key$ = "sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGH",file.save';
 
 const CASES = [
   {
@@ -6222,6 +6233,227 @@ const CASES = [
     },
     webDump: { "outputbox.page": /^problems$/, "outputbox.seltext": /^problems\.rr:8:1: error: [^\n]*\nproblems\.rr:9:1: error: [^\n]*$/, "outputmenucopyall.caption": /^Copy &All Problems$/ },
   },
+  // (VERSIONS-G3) Versions in Studio, walked as a person would (docs/
+  // versions-plan.md; the acceptance in the lane's brief): a copy of a small
+  // project (tests/fixtures/studio_versions) — Start Versioning, Save a
+  // Version "first", main.rr changed: the gutter's marks, the Project
+  // pane's M, the status bar's "1 change not saved as a version"; the
+  // change shown under its line; Save a Version "second" through the
+  // dialog; the timeline; What Changed? of "first"; Go Back to "first"
+  // (asked; a third version "Went back to “first”"); Undo. A key in a file:
+  // the dialog says so, saves only once ticked. A project never versioned
+  // keeps a local history of every save. The web: no versions (said), the
+  // local history works.
+  {
+    name: "versions-empty",
+    ...V_OPEN,
+    do: "versions.pane",
+    delay: 4,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "versub.caption": /^No versions yet$/, "verstartbtn.visible": /^1$/, "verlocalbtn.visible": /^1$/, "repo.versioned": NO },
+    webDump: { "versub.caption": /^Not in a browser$/, "verstartbtn.visible": /^0$/, "verlocalbtn.visible": /^1$/, "repo.available": NO },
+  },
+  {
+    name: "versions-first",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: V_FIRST,
+    delay: 5,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["Timeline: every version, newest first", null], [/^first, saved by Ana, just now$/, null]],
+    dump: { "repo.versioned": YES, "vertimeline.itemcount": /^1$/, "versub.caption": /^main · all saved$/, "repo.experiment": /^main$/ },
+    desktopFiles: ["project/.gitignore", "project/.git/HEAD"],
+  },
+  {
+    name: "versions-changed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},view.project,versions:report=main.rr`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    a11y: [["main.rr", "treeitem", null, (n) => /changed since the last version/.test(n.description || "")]],
+    dump: {
+      "codedoc(0).changessince": /^version$/, "codedoc(0).changecount": /^1$/, "repo.changecount": /^1$/,
+      "outputbox.text": /\[versions\] versioned=1 changes=1 timeline=1 experiment=main badge=M status=Hello {2}· {2}main · 1 change not saved as a version/,
+    },
+  },
+  {
+    name: "versions-peek",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},line:12,versions.showChange`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    dump: { "codedoc(0).changepeek": /^12$/, "codedoc(0).changecount": /^1$/ },
+  },
+  {
+    // (Undo This Change: the line as the last version has it, one Ctrl+Z step)
+    name: "versions-undo-change",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},line:12,versions.undoChange`,
+    delay: 6,
+    dump: { "codedoc(0).changecount": /^0$/, "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES },
+  },
+  {
+    name: "versions-save-dialog",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions.save`,
+    events: typeInto("vermsgedit", "second"),
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    captureAll: true,
+    contrast: true,
+    dump: { "versavedialog.__shown": /^1$/, "vermsgedit.text": /^second$/, "verfileslist.itemcount": /^1$/, "versaveok.enabled": /^1$/, "vernameedit.text": /^Ana$/ },
+  },
+  {
+    name: "versions-save-second",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions.save,wait,versions.pane`,
+    events: `${typeInto("vermsgedit", "second")},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "versavedialog.__shown": /^0$/, "vertimeline.itemcount": /^2$/, "repo.changecount": /^0$/, "outputbox.text": /Saved the version “second”/ },
+  },
+  {
+    // (a key written in the code: not saved, the line said — masked —, Save
+    // only once "save anyway" is ticked)
+    name: "versions-secrets",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_SECRET},versions.save`,
+    events: `${typeInto("vermsgedit", "keys")},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark", "rapidr-high-contrast"],
+    capture: true,
+    captureAll: true,
+    dump: { "verwarn.visible": /^1$/, "veranyway.visible": /^1$/, "versaveok.enabled": /^0$/, "verwarnlines.caption": /^main\.rr, line 12: an API key[\s\S]*sk-a/, "vertimeline.itemcount": /^1$/ },
+  },
+  {
+    name: "versions-secrets-anyway",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_SECRET},versions.save`,
+    events: `${typeInto("vermsgedit", "keys")},${CLICK("versaveok", 40, 14)},${CLICK("veranyway", 8, 10)},${CLICK("versaveok", 40, 14)}`,
+    delay: 6,
+    dump: { "versavedialog.__shown": /^0$/, "vertimeline.itemcount": /^2$/, "outputbox.text": /Saved the version “keys”/ },
+  },
+  {
+    // ("first" picked: what it changed — every file new)
+    name: "versions-what-changed-first",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.whatChanged`,
+    delay: 6,
+    dump: { "verdifflist.itemcount": /^4$/, "verdiffhead.caption": /^What changed in “first”$/, "verdiff.readonly": YES },
+  },
+  {
+    name: "versions-what-changed",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=second,versions.whatChanged`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdifflist.itemcount": /^1$/, "verdiffhead.caption": /^What changed in “second”$/, "verdiff.changecount": /^1$/, "verdiff.summary": /changed/ },
+  },
+  {
+    // (Go Back to "first": asked first — Cancel the default —, then a third
+    // version with first's files; main.rr back in the editor)
+    name: "versions-go-back",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack,wait,versions.pane`,
+    events: `${CLICK("consentyes", 40, 14)},verpanel.__wait_2500`,
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "vertimeline.itemcount": /^3$/, "outputbox.text": /Went back to “first”: a new version/, "codedoc(0).text": /PRINT "Done\."$/, "verundonote.caption": /^Undo: Went back to “first”/ },
+    files: { "main.rr": /PRINT "Done\."\n$/ },
+  },
+  {
+    name: "versions-go-back-asks",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack`,
+    delay: 5,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    captureAll: true,
+    dump: { "consentdialog.__shown": /^1$/, "consenttitle.caption": /^Go back to “first”\?$/, "consentno.default": YES },
+  },
+  {
+    name: "versions-undo",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions:pick=first,versions.goBack,wait,versions.undo,wait,versions.pane`,
+    events: `${CLICK("consentyes", 40, 14)},verpanel.__wait_2500`,
+    delay: 7,
+    capture: true,
+    dump: { "vertimeline.itemcount": /^2$/, "outputbox.text": /Undid: Went back to “first”/, "codedoc(0).text": /PRINT "All done!"$/ },
+    files: { "main.rr": /PRINT "All done!"\n$/ },
+  },
+  {
+    // (a project never versioned: every save kept — what the disk had, then
+    // each save —, the newest first, one compared with the editor)
+    name: "versions-local-history",
+    ...V_OPEN,
+    do: 'code:PRINT "Done."=>PRINT "One",file.save,code:PRINT "One"=>PRINT "Two",file.save,code:PRINT "Two"=>PRINT "Three",file.save,versions.localHistory',
+    delay: 6,
+    themes: LOOKS,
+    capture: true,
+    contrast: true,
+    dump: { "verdifflist.itemcount": /^4$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/, "verdiff.changecount": /^0$/ },
+    webDump: { "verdifflist.itemcount": /^[34]$/, "repo.versioned": NO, "verdiffhead.caption": /^Local History: main\.rr$/ },
+  },
+  {
+    // (an AI's checkpoint on the timeline: smaller and lighter, said as one)
+    name: "versions-checkpoint",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_FIRST},${V_EDIT},versions:checkpoint=make the button bigger,versions:save=second,versions.pane`,
+    delay: 6,
+    themes: ["rapidr-light", "rapidr-dark"],
+    capture: true,
+    a11y: [[/^AI checkpoint: make the button bigger, just now$/, null]],
+    dump: { "vertimeline.itemcount": /^3$/ },
+  },
+  {
+    // (keyboard only: View > Versions gives the pane the keys; Down picks
+    // "first" in the timeline, Tab reaches What Changed?, Space presses it)
+    name: "versions-keyboard",
+    ...V_OPEN,
+    desktopOnly: true,
+    do: `${V_SECOND},versions.pane,wait,key:Down,wait,key:Tab,wait,key:Space,wait`,
+    delay: 7,
+    a11y: [[/^What changed in “first”$|^Files that changed$/, null]],
+    dump: { "vertimeline.itemindex": /^1$/, "verdiffhead.caption": /^What changed in “first”$/ },
+  },
+  {
+    // (the oldest copy picked — the file as it was before the first save —
+    // and Restore This Copy: its text in the editor, unsaved, one Ctrl+Z
+    // step; the editor's text kept first)
+    name: "versions-local-restore",
+    ...V_OPEN,
+    do: 'code:PRINT "Done."=>PRINT "One",file.save,code:PRINT "One"=>PRINT "Two",file.save,versions.localHistory',
+    events: `verdifflist.__item_2,${CLICK("verdiffact", 40, 12)},verdiffpane.__wait_1500`,
+    delay: 6,
+    dump: { "codedoc(0).text": /PRINT "Done\."$/, "codedoc(0).modified": YES, "verdiff.changecount": /^0$/ },
+  },
 ];
 
 
@@ -6359,7 +6591,12 @@ function runDesktop(c, scale = 1) {
     // (the project's whole folder: Build writes the app beside it — not the
     // *.tmp.* files an example run left in it: they are no part of the
     // project, and the web build leaves them out too)
-    cpSync(join(ROOT, dirname(c.open)), join(dir, "project"), { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
+    // (a versions case's copy lives outside this repository — Studio rightly
+    // refuses to start versions inside a folder that already has them —
+    // reached through a link from the case's folder)
+    const copyTo = c.fsck ? mkdtempSync(join(tmpdir(), "rapidr-versions-")) : join(dir, "project");
+    cpSync(join(ROOT, dirname(c.open)), copyTo, { recursive: true, filter: (src) => !/\.tmp\.[^/\\]*$/.test(src) });
+    if (c.fsck) symlinkSync(copyTo, join(dir, "project"));
     args.push(join(dir, "project", c.open.split("/").pop()));
   } else if (c.open && c.copy) {
     const to = join(dir, c.open.split("/").pop());
@@ -6436,12 +6673,23 @@ function runDesktop(c, scale = 1) {
   if (c.readOnlyHome) writableTree(home, true);
   const dump = parseDump(r.stdout || "", keys);
   const quit = r.status === 0 && !r.error && Object.keys(dump).length === 0;
+  // (VERSIONS-G3: the repository the run wrote, checked by the system's git
+  // — an independent judge, isolated from this machine's configuration;
+  // Studio never runs git)
+  if (c.fsck && existsSync(join(dir, "project", ".git"))) {
+    const g = spawnSync("git", ["fsck", "--full", "--strict", "--no-dangling"], { cwd: join(dir, "project"), encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", LC_ALL: "C" } });
+    dump.__fsck = g.error ? "no git" : g.status === 0 ? "ok" : `${g.stdout}${g.stderr}`.trim();
+  }
   // (files the run must leave: the program's own window captured)
   for (const f of c.desktopFiles || []) dump["file " + f] = existsSync(join(dir, f)) ? "there" : "missing";
   for (const f of c.desktopGone || []) dump["gone " + f] = existsSync(join(dir, f)) ? "there" : "gone";
-  // (the Studio window, to look at: <case>-desktop@<s>x.png)
+  // (the Studio window, to look at: <case>-desktop@<s>x.png; a dialog open
+  // over it — `captureAll` — <case>-desktop-<n>@<s>x.png)
   if (c.capture && existsSync(join(dir, "window-1.bmp"))) {
     spawnSync("sips", ["-s", "format", "png", join(dir, "window-1.bmp"), "--out", join(WORK, `${c.name}-desktop@${scale}x.png`)], { stdio: "ignore" });
+    for (let n = 2; c.captureAll && existsSync(join(dir, `window-${n}.bmp`)); n++) {
+      spawnSync("sips", ["-s", "format", "png", join(dir, `window-${n}.bmp`), "--out", join(WORK, `${c.name}-desktop-${n}@${scale}x.png`)], { stdio: "ignore" });
+    }
   }
   const files = {};
   for (const f of Object.keys(c.files || {})) {
@@ -6614,6 +6862,12 @@ const check = (label, run, c) => {
     const ok = dump["file " + f] === "there";
     ok ? passed++ : failed++;
     console.log((ok ? "✓ " : "✗ ") + c.name + " (desktop): " + f + (ok ? " written" : " missing"));
+  }
+  // (VERSIONS-G3: git fsck --strict on the repository the run wrote)
+  if (c.fsck && label === "desktop" && dump.__fsck !== undefined && dump.__fsck !== "no git") {
+    const ok = dump.__fsck === "ok";
+    ok ? passed++ : failed++;
+    console.log(`${ok ? "✓" : "✗"} ${c.name} (desktop): git fsck --strict ${ok ? "passes" : dump.__fsck}`);
   }
   // (AI-UX: files the run must have removed — Undo's)
   for (const f of label === "desktop" ? c.desktopGone || [] : []) {

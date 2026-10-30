@@ -82,6 +82,8 @@ SUB RunCommand(Id AS STRING)
   IF AICommand(Id) THEN EXIT SUB
   ' (AI apps': mcp.inc)
   IF McpCommand(Id) THEN EXIT SUB
+  ' (Versions': versions.inc)
+  IF VersionsCommand(Id) THEN EXIT SUB
   SELECT CASE Id
     ' ---- file ----
     CASE "file.newProject": AskNew
@@ -175,6 +177,9 @@ SUB RunCommand(Id AS STRING)
       ELSEIF LEFT$(Id, 4) = "mcp:" THEN
         ' (a test step: mcp:<what>=<value> — mcp.inc's McpStep)
         McpStep MID$(Id, 5)
+      ELSEIF LEFT$(Id, 9) = "versions:" THEN
+        ' (a test step: versions:<what>=<value> — versions.inc's VersionsStep)
+        VersionsStep MID$(Id, 10)
       ELSEIF LEFT$(Id, 7) = "anchor:" THEN
         ' (a test step: anchor:<a heading's anchor> — the Markdown document
         ' open shows that heading, as its outline row clicked)
@@ -367,6 +372,7 @@ SUB StartStudio
   SetUpAI
   SetUpDocuments
   SetUpSearch
+  SetUpVersions
   SetUpMcp
   IF SavedLayout <> "" THEN Dock.LoadLayout(SavedLayout)
   ' (the editing layout — or the debugging one, Settings' Always —, at its

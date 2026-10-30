@@ -196,6 +196,7 @@ Every component RapidR creates, by what it is for, under RapidR's name (`RButton
 | <img src="../icons/light/components/languageservice.svg" width="20" height="20" alt=""> | [`RLanguageService`](members.md#rlanguageservice) | everywhere |
 | <img src="../icons/light/components/programsession.svg" width="20" height="20" alt=""> | [`RProgramSession`](members.md#rprogramsession) | everywhere |
 | <img src="../icons/light/components/ai.svg" width="20" height="20" alt=""> | [`RAIProjectTools`](members.md#raiprojecttools) | everywhere |
+| <img src="../icons/light/components/repository.svg" width="20" height="20" alt=""> | [`RRepository`](members.md#rrepository) | everywhere |
 
 ## AI
 
@@ -221,4 +222,4 @@ These objects aren't in RapidR yet. Variables of the OLE types compile as generi
 - `QThread`: Runs its OnExecute code in a background thread. Planned: RapidR doesn't have it yet.
 - `QTransImage`: A picture with a transparent colour that can shape and size its form to it. Planned: RapidR doesn't have it yet.
 
-121 components.
+122 components.

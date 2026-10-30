@@ -5506,8 +5506,11 @@ dependencies = [
  "rapidr-project",
  "rapidr-session",
  "rapidr-value",
+ "rapidr-vcs",
  "regex",
  "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
 ]
 
 [[package]]

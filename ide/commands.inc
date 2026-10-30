@@ -77,6 +77,22 @@ SUB DefineCommands
   AddCmd "file.save", "&Save", "File", "Ctrl+S", "", "document", ""
   AddCmd "file.saveAs", "Save &As...", "File", "", "", "document", "-"
   AddCmd "file.saveAll", "Save A&ll", "File", "Ctrl+Shift+S", "", "project", ""
+  ' (Versions — versions.inc: Save a Version... is Ctrl+Shift+V, Cmd+Shift+V
+  ' on a Mac, "V" for version; Ctrl+S stays Save. Each plain word has its
+  ' Git name in the pane's tooltips)
+  AddCmd "versions.save", TR$("Save a &Version..."), "File", "Ctrl+Shift+V", "", "project", ""
+  AddSubmenu "File", "Versions", TR$("Versio&ns")
+  AddCmd "versions.start", TR$("&Start Versioning This Project"), "File/Versions", "", "", "unversioned", ""
+  AddCmd "versions.whatChanged", TR$("What &Changed?"), "File/Versions", "", "", "versioned", ""
+  AddCmd "versions.changes", TR$("What Changed Since the &Last Version"), "File/Versions", "", "", "versioned", "versions.whatChanged"
+  AddCmd "versions.goBack", TR$("&Go Back to This Version..."), "File/Versions", "", "", "versioned", ""
+  AddCmd "versions.goBackFile", TR$("Go Back to This Version for This &File..."), "File/Versions", "", "", "versionedcode", ""
+  AddCmd "versions.undo", TR$("&Undo the Last Versions Action"), "File/Versions", "", "", "versioned", ""
+  AddSep "File/Versions"
+  AddCmd "versions.showChange", TR$("S&how This Line's Change"), "File/Versions", "", "", "versionedcode", ""
+  AddCmd "versions.undoChange", TR$("Undo This &Line's Change"), "File/Versions", "", "", "versionedcode", ""
+  AddSep "File/Versions"
+  AddCmd "versions.localHistory", TR$("Local &History of This File..."), "File/Versions", "", "", "code", ""
   AddSep "File"
   AddCmd "file.close", "&Close Document", "File", "Ctrl+F4", "", "document", ""
   AddCmd "file.closeProject", "Close Pro&ject", "File", "", "", "project", "-"
@@ -141,6 +157,7 @@ SUB DefineCommands
   AddCmd "view.toolbox", "&Toolbox", "View", "", "", "", "groups/standard"
   AddCmd "view.properties", "P&roperties", "View", "F4", "", "", "symbols/property"
   AddCmd "view.outline", "O&utline", "View", "", "", "", "symbols/module"
+  AddCmd "versions.pane", TR$("Versio&ns"), "View", "", "", "", ""
   AddCmd "view.output", "&Output", "View", "", "", "", ""
   AddCmd "view.problems", "Pro&blems", "View", "", "", "", ""
   ' (long lines of the Output, Build and Problems pages: wrapped, or cut at the edge)
@@ -399,6 +416,11 @@ FUNCTION CmdEnabled(i AS INTEGER) AS INTEGER
     CASE "session": Result = (ProgramIdle = 0)
     ' (the AI's: once it is turned on — Tools > Settings > AI)
     CASE "ai": Result = AIReady
+    ' (Versions': a project without versions, with them, with them and a
+    ' code document — versions.inc)
+    CASE "unversioned": Result = (ProjectOpen <> 0 AND Repo.Versioned = 0 AND Repo.Available <> 0)
+    CASE "versioned": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0)
+    CASE "versionedcode": Result = (ProjectOpen <> 0 AND Repo.Versioned <> 0 AND k = "code")
     CASE ELSE: Result = 1
   END SELECT
 END FUNCTION

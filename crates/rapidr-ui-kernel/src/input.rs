@@ -305,6 +305,10 @@ impl FormUi {
             return;
         }
         crate::components::combo::popup_mouse_move(self, store, x, y);
+        // (Versions G3: a change box's buttons light under the mouse)
+        if self.capture.is_none() {
+            crate::components::codeeditor::popup::peek_mouse_move(self, x, y);
+        }
         if crate::components::scrollbox::bars_drag(self, store, x, y) {
             return;
         }

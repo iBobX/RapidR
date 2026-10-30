@@ -80,3 +80,6 @@ chrome_run*.log
 !tests/conformance/cases/archive_files/archive-*.zip
 # (the snapshot examples/recipes/load_binary.rr writes when it runs)
 examples/recipes/sample.tsn
+# (RapidR Studio's own folder in a project — the local history of saves,
+# previews: Versions G3 — wherever a project is opened in the checkout)
+.rapidr/

@@ -85,6 +85,8 @@ SUB OpenProject(Path AS STRING)
   UpdateCommands
   ' (another project than the assistant's new program: its banner goes)
   AIProjectChanged
+  ' (its versions: the pane, the badges, the editors' marks — versions.inc)
+  VersionsProjectChanged
 END SUB
 
 SUB SayMainIncluded
@@ -162,6 +164,7 @@ SUB CloseProject
   UpdateTitle
   UpdateCommands
   AIProjectChanged
+  VersionsProjectChanged
 END SUB
 
 ' File > Open: a project or a source file.

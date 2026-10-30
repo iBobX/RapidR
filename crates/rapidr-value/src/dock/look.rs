@@ -423,6 +423,23 @@ pub fn icon(ops: &mut Vec<Op>, name: &str, x: i64, y: i64, color: u32, accent: u
             fill(ops, (x + 8, y + 6, 6, 1), color);
             fill(ops, (x + 8, y + 9, 6, 1), color);
         }
+        // (Versions G3: rings on the line of versions, the newest in the
+        // accent — the Versions pane)
+        "versions" | "timeline" | "history" => {
+            line(ops, &[(4.5, 5.5), (4.5, 10.5)], 1.2);
+            ops.push(Op::Round { rect: (x + 2, y + 1, 5, 5), radius: 2.5, fill: Some(accent), stroke: None, width: 0.0 });
+            ops.push(Op::Round { rect: (x + 2, y + 10, 5, 5), radius: 2.5, fill: None, stroke: Some(color), width: 1.2 });
+            line(ops, &[(9.0, 3.5), (14.5, 3.5)], 1.2);
+            line(ops, &[(9.0, 12.5), (13.0, 12.5)], 1.2);
+        }
+        // (two sides, what was taken out and what was put in: What Changed?)
+        "compare" | "diff" => {
+            ops.push(Op::Round { rect: (x + 1, y + 2, 6, 12), radius: 1.5, fill: None, stroke: Some(color), width: 1.2 });
+            ops.push(Op::Round { rect: (x + 9, y + 2, 6, 12), radius: 1.5, fill: None, stroke: Some(color), width: 1.2 });
+            line(ops, &[(2.8, 8.0), (5.2, 8.0)], 1.2);
+            line(ops, &[(10.8, 8.0), (13.2, 8.0)], 1.2);
+            line(ops, &[(12.0, 6.8), (12.0, 9.2)], 1.2);
+        }
         // (a plug, its cord ending in a spark: AI apps connected to Studio)
         "plug" | "connections" | "aiapps" => {
             line(ops, &[(4.5, 1.5), (4.5, 4.5)], 1.3);

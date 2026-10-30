@@ -408,8 +408,22 @@ DECLARE SUB InspectorRowSelected(Prop AS STRING)
 DECLARE FUNCTION AIBannerTakesFocus AS INTEGER
 DECLARE SUB AIProjectChanged
 
+' ---- Versions (versions.inc: the Versions pane, Save a Version, the local
+' history, the editors' change marks, the Project pane's badges) ----
+DECLARE SUB SetUpVersions
+DECLARE SUB ApplyVersionsChrome
+DECLARE FUNCTION VerStatusText AS STRING
+DECLARE SUB VerBeforeSave(d AS INTEGER)
+DECLARE SUB VerAfterSave(d AS INTEGER)
+DECLARE SUB VerApplyBase(d AS INTEGER)
+DECLARE SUB VersionsProjectChanged
+DECLARE FUNCTION VersionsCommand(Id AS STRING) AS INTEGER
+DECLARE SUB VersionsStep(S AS STRING)
+
 ' ---- Studio's services: public components (rapidr-studio) ----
 DIM Proj AS RProject
+' (the project's versions and its local history: versions.inc)
+DIM Repo AS RRepository
 DIM Lang AS RLanguageService
 DIM Session AS RProgramSession
 DIM Reg AS RRegistry

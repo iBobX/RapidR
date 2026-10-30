@@ -485,11 +485,68 @@ pub struct LineChanges {
     pub marks: Vec<Change>,
     /// The document version the marks are for.
     pub version: Option<u64>,
+    /// (Versions G3) The model's change base the marks are for (its
+    /// generation), when they compare with the last version's text.
+    pub base_gen: Option<u64>,
 }
 
 impl LineChanges {
     pub fn at(&self, line: usize) -> Change {
         line.checked_sub(self.first).and_then(|i| self.marks.get(i).copied()).unwrap_or_default()
+    }
+
+    /// Brings the marks up to date (at idle) against the model's change
+    /// base when it has one (`ChangeBase`: the last version's text, marks
+    /// whether or not the text was saved since), else since the last save.
+    pub fn update_with(&mut self, text: Arc<str>, version: u64, modified: bool, base: Option<Arc<str>>, base_gen: u64) {
+        match base {
+            Some(base) => {
+                if self.base_gen == Some(base_gen) && self.version == Some(version) {
+                    return;
+                }
+                self.base_gen = Some(base_gen);
+                self.version = Some(version);
+                // (the model's own runs — what ChangeAt, ShowChange and Undo
+                // This Change act on —, so the marks always agree with them)
+                let hunks = rapidr_value::objects::codeedit::change_hunks(&base, &text);
+                self.saved = Some(base);
+                self.first = 0;
+                let mut marks = vec![Change::None; text.split('\n').count() + 1];
+                for h in hunks {
+                    if h.new.is_empty() {
+                        let line = h.new.start.saturating_sub(1);
+                        if let Some(m) = marks.get_mut(line) {
+                            if *m == Change::None {
+                                *m = Change::RemovedAfter;
+                            }
+                        }
+                        continue;
+                    }
+                    for (k, line) in h.new.clone().enumerate() {
+                        if let Some(m) = marks.get_mut(line) {
+                            *m = if k < h.old.len() { Change::Modified } else { Change::Added };
+                        }
+                    }
+                }
+                self.marks = marks;
+            }
+            None => {
+                if self.base_gen.take().is_some() {
+                    // (back to "since the last save": the saved text isn't
+                    // known until the document is saved again)
+                    self.saved = None;
+                    self.version = None;
+                    self.marks.clear();
+                }
+                self.update(text, version, modified);
+            }
+        }
+    }
+
+    /// Whether the marks are for the base of generation `base_gen` (`None`:
+    /// since the last save).
+    pub fn base_seen(&self) -> Option<u64> {
+        self.base_gen
     }
 
     /// Brings the marks up to date (at idle): `text` is the document's now,
@@ -505,10 +562,17 @@ impl LineChanges {
             return;
         }
         self.version = Some(version);
-        let Some(saved) = self.saved.clone() else {
+        if self.saved.is_none() {
             self.saved = Some(text);
             return;
-        };
+        }
+        self.mark(text, version);
+    }
+
+    /// The marks of `text` against `saved`.
+    fn mark(&mut self, text: Arc<str>, version: u64) {
+        self.version = Some(version);
+        let Some(saved) = self.saved.clone() else { return };
         let old: Vec<&str> = saved.split('\n').collect();
         let new: Vec<&str> = text.split('\n').collect();
         let pre = old.iter().zip(&new).take_while(|(a, b)| a == b).count();

@@ -102,13 +102,16 @@ const DOCK: &[&str] = &["savelayout", "resetlayout", "cascade", "tilehorizontal"
 const DIFF: &[&str] = &["acceptall", "rejectall", "nexthunk", "previoushunk"];
 /// (I1 / L-PANELS) RapidR Studio's panels' (crate::panels): `Insp.ExpandAll`,
 /// `OK = Tree.Save`, `Console.FindNext`.
-const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall", "copyselection", "copyall", "copyline"];
+const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save", "projecttext", "clearproblems", "findnext", "selectall", "copyselection", "copyall", "copyline", "clearbadges"];
 
 /// (I1) RPROGRAMSESSION's: `IF Session.Start THEN`.
 const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
 const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys", "studiofolder", "recoveryend", "recoveryfound", "recoverydiscard", "logfile", "applybegin", "applyundo", "mainincludedby"];
+
+/// (Versions G3) RREPOSITORY's: `IF Repo.Start THEN`, `T$ = Repo.Timeline`.
+const REPOSITORY: &[&str] = &["start", "refresh", "timeline", "undo", "history", "localfiles"];
 
 /// (S5) RLANGUAGESERVICE's: `T$ = Lang.ProjectDiagnostics`.
 const LANGSVC: &[&str] = &["projectdiagnostics"];
@@ -155,6 +158,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
         "RDESIGNSURFACE" => &[DESIGN],
         "RPROGRAMSESSION" => &[SESSION],
         "RPROJECT" => &[PROJECT],
+        "RREPOSITORY" => &[REPOSITORY],
         "RLANGUAGESERVICE" => &[LANGSVC],
         "RAI" => &[AI],
         "RAIPROJECTTOOLS" => &[AI_TOOLS],
@@ -174,7 +178,7 @@ fn methods_of(t: &str) -> &'static [&'static [&'static str]] {
 /// Whether `member` (lowercase) is any type's method read without
 /// parentheses — the quick test before the type is looked up.
 pub fn is_value_method_name(member: &str) -> bool {
-    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
+    [ANY, DATABASE, NETWORK, HTTP_SERVER, MCP_SERVER, APP_HANDS, STREAM, JSON, STRING_LIST, DRAWING, CANVAS, TREE, MDI, DATA_SCIENCE, DESIGN, GRID, CODE_EDITOR, TABS, WEB, IO, DOCK, DIFF, SESSION, PROJECT, REPOSITORY, LANGSVC, PANELS, LINKED, AI, AI_TOOLS]
         .iter()
         .any(|list| list.contains(&member))
 }

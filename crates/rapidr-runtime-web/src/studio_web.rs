@@ -156,11 +156,23 @@ pub fn get(type_name: &str, name: &str, prop: &str) -> Option<Value> {
 
 /// Sets a property; whether it was the component's own.
 pub fn set(type_name: &str, name: &str, prop: &str, v: &Value) -> bool {
+    if type_name.eq_ignore_ascii_case("RREPOSITORY") {
+        rapidr_studio::local_history::set_clock(web_now);
+    }
     rapidr_studio::set(Web, type_name, name, prop, v)
+}
+
+/// (Versions G3) The local history's clock: the browser's Date (a
+/// browser's Rust has no system clock).
+fn web_now() -> i64 {
+    (js_sys::Date::now() / 1000.0) as i64
 }
 
 /// A method (`None`: not the component's own).
 pub fn call(type_name: &str, name: &str, method: &str, args: &[Value]) -> Option<Value> {
+    if type_name.eq_ignore_ascii_case("RREPOSITORY") {
+        rapidr_studio::local_history::set_clock(web_now);
+    }
     rapidr_studio::call(Web, type_name, name, method, args)
 }
 

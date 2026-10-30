@@ -38,6 +38,8 @@
 '   chrome.inc     the look in the current theme, the status bar
 '   preview.inc    "Preview in Classic": Run and the designer in RapidQ's look
 '   search.inc     Find in Files (Ctrl+Shift+F), the Help pane (F1)
+'   versions.inc   Versions: the pane, Save a Version, What Changed, Go
+'                  Back, Undo, the local history, the change marks, badges
 '   workspace.inc  documents as tabs: Design | Code, split groups, the
 '                  layout and open files kept
 '   markdown.inc   .md files formatted: Preview | Source, links, outline
@@ -65,6 +67,7 @@ $INCLUDE "safety.inc"
 $INCLUDE "consent.inc"
 $INCLUDE "chrome.inc"
 $INCLUDE "search.inc"
+$INCLUDE "versions.inc"
 $INCLUDE "workspace.inc"
 $INCLUDE "markdown.inc"
 $INCLUDE "shell.inc"

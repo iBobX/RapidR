@@ -25,6 +25,7 @@ RLANGUAGESERVICE = "languageservice"
 RCSV = "datafile"
 RAI = "ai"
 RAIPROJECTTOOLS = "ai"
+RREPOSITORY = "repository"
 
 [planned-components]
 # The IDE's public components (docs/ide-components.md §3) and the linked data
@@ -168,6 +169,18 @@ RDBNAVIGATOR = "dbnavigator"
 "nav.back" = "back"
 "nav.forward" = "forward"
 "nav.history" = "history"
+# (Versions G3: the Versions pane, Save a Version, What Changed?, Go Back,
+# Local History — docs/versions-plan.md)
+"versions.pane" = "timeline"
+"versions.start" = "branch"
+"versions.save" = "save-version"
+"versions.whatChanged" = "compare"
+"versions.goBack" = "restore-version"
+"versions.goBackFile" = "restore-version"
+"versions.undo" = "undo"
+"versions.localHistory" = "history"
+"versions.showChange" = "compare"
+"versions.undoChange" = "restore-version"
 "data.link" = "link"
 "data.unlink" = "unlink"
 "view.show" = "visible"
@@ -384,7 +397,7 @@ members = "RAI RAICHAT RWINDOWCAPTURE RAPPHANDS"
 [toolbox-groups.ide]
 icon = "ide"
 title = "IDE"
-members = "RCODEEDITOR RDESIGNSURFACE RDOCKMANAGER RFORMDESIGNER RPROPERTYINSPECTOR RPROJECTTREE RTOOLBOX ROUTPUTCONSOLE RCOMMANDPALETTE RMARKDOWNVIEW RDIFFVIEW RCOMPONENTTRAY RTABORDEREDITOR RMENUEDITOR RPROGRAMVIEW RPROGRAMSESSION RPROJECT RLANGUAGESERVICE RAIPROJECTTOOLS RBREAKPOINTLIST RCALLSTACKVIEW RVARIABLESVIEW RIMMEDIATEWINDOW"
+members = "RCODEEDITOR RDESIGNSURFACE RDOCKMANAGER RFORMDESIGNER RPROPERTYINSPECTOR RPROJECTTREE RTOOLBOX ROUTPUTCONSOLE RCOMMANDPALETTE RMARKDOWNVIEW RDIFFVIEW RCOMPONENTTRAY RTABORDEREDITOR RMENUEDITOR RPROGRAMVIEW RPROGRAMSESSION RPROJECT RLANGUAGESERVICE RAIPROJECTTOOLS RREPOSITORY RBREAKPOINTLIST RCALLSTACKVIEW RVARIABLESVIEW RIMMEDIATEWINDOW"
 [toolbox-groups.templates]
 icon = "templates"
 title = "Templates"

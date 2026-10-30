@@ -257,6 +257,10 @@ fn draw_header(p: &mut Painter, look: &Look, d: &DiffView, h: usize, y: i64, cw:
     let label = d.hunk_label(h);
     let lw = (label.chars().count() as f64 * look.adv).ceil() as i64 + 2;
     p.text((12, y, lw, HEADER_H), &label, &code_font(0), if current { look.s.text } else { look.s.line_number }, Place::Left);
+    // (ReadOnly: what changed, to look at — no Accept or Reject)
+    if d.read_only {
+        return;
+    }
     let (accept, reject) = d.buttons(y);
     let state = d.state(h);
     // (its state, before the buttons)
@@ -581,7 +585,10 @@ fn inline_line(p: &mut Painter, look: &Look, d: &mut DiffView, row: &Row, y: i64
         let accent = if dim { look.dim(look.accent(tint)) } else { look.accent(tint) };
         p.fill((0, y, 3, ROW_H), accent);
         let sign = if tint == Tint::Removed { "\u{2212}" } else { "+" };
-        p.text((2 * nw + 2, y, 14, ROW_H), sign, &code_font(0), accent, Place::Center);
+        // (the sign in the text's colour: it reads on the tinted row — 4.5:1
+        // —, the bar beside it carries the hue)
+        let ink = if dim { look.dim(look.s.text) } else { look.s.text };
+        p.text((2 * nw + 2, y, 14, ROW_H), sign, &code_font(0), ink, Place::Center);
     }
     let cx = 2 * nw + 18;
     let room = cw - cx;

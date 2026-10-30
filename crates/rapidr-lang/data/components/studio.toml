@@ -271,3 +271,56 @@ methods = [
   { name = "UndoDone", returns = "INTEGER", effects = ["file-write"], test = "skip: removes folders", doc = "After UndoFiles' files were removed: the folders CreateProject made, each only when empty, and the undo said in the conversation. True when the program's folder is gone (False: files the user added keep it)." },
 ]
 events = []
+
+[[component]]
+name = "RREPOSITORY"
+display = "Repository"
+visual = false
+doc = "A project's versions, in plain words (RapidR Studio's Versions pane is built on it): start versioning a folder, save a version of the changed files (a scan for keys and passwords first), the timeline, what a version changed, go back to a version — the whole project or one file, as a new version: nothing is ever thrown away, and every action can be undone —, and a local history that keeps a copy of a file every time it is saved, versioned or not. The versions are an ordinary Git repository (each plain word has its Git name: Save a version is a commit, the timeline the log, an experiment a branch); opening one never runs anything from it. Lists are text, a line each, fields separated by tabs. In a browser only the local history works (Available is False there)."
+example = """
+DIM Repo AS RRepository
+Repo.Folder = CURDIR$
+IF Repo.Versioned = 0 THEN Repo.Start
+PRINT Repo.ChangeCount; " file(s) not saved as a version"
+IF Repo.ChangeCount > 0 THEN
+    IF Repo.SaveVersion("Saved from my program") = "" THEN PRINT Repo.Error
+END IF
+PRINT Repo.Timeline(5)
+"""
+properties = [
+  { name = "Folder", type = "string", design = false, doc = "The project's folder. Setting it reads its state: Versioned, Experiment, Changes." },
+  { name = "Available", type = "bool", access = "read", design = false, doc = "True where versions can be kept (RapidR on a computer); False in a browser, where only the local history works." },
+  { name = "Versioned", type = "bool", access = "read", design = false, doc = "True when the folder keeps versions (Start was used, here or by another Git tool)." },
+  { name = "ReadOnly", type = "bool", access = "read", design = false, doc = "True when the project's versions belong to another user account on this computer (a USB stick, another account's folder): they can be looked at, not changed." },
+  { name = "Experiment", type = "string", access = "read", design = false, doc = "The experiment the project is on (Git calls it a branch): \"main\" until another is started." },
+  { name = "ChangeCount", type = "int", access = "read", design = false, doc = "How many files differ from the last version (changed, new or removed), as the last Refresh, Folder or action found." },
+  { name = "Changes", type = "string", access = "read", design = false, doc = "The files that differ from the last version, a line each: a letter — M changed, N new, D removed — and the path relative to Folder, separated by a tab." },
+  { name = "Author", type = "string", design = false, doc = "Who saves the versions, by name (\"\": the account's name)." },
+  { name = "Email", type = "string", design = false, doc = "The email saved with each version (\"\" for none)." },
+  { name = "Error", type = "string", access = "read", design = false, doc = "Why the last action didn't happen, in plain words (\"\" when it did)." },
+  { name = "ErrorKind", type = "string", access = "read", design = false, doc = "What kind of reason Error gives: \"secrets\" — lines look like keys or passwords (Secrets lists them; SaveVersion with AllowSecrets saves anyway) —, \"unsaved-changes\" — save a version first —, \"nothing-to-save\", \"refused\" — Start won't version that folder (a drive, the home folder, a folder inside another one with versions) —, \"not-available\" (a browser) …; \"\" when the last action worked." },
+  { name = "Secrets", type = "string", access = "read", design = false, doc = "The lines that look like keys or passwords, from the last SaveVersion or CheckSecrets, a line each: the file, the line number, what it looks like, the line with the secret masked, separated by tabs." },
+  { name = "CanUndo", type = "string", access = "read", design = false, doc = "What Undo would take back, in words (\"Saved the version “Bigger button”\"); \"\" when there is nothing to undo." },
+  { name = "HistoryFolder", type = "string", access = "read", design = false, doc = "Where the local history is kept: the project's .rapidr/history folder (never part of a version)." },
+  { name = "Now", type = "int", access = "read", design = false, doc = "Now, in seconds since 1970: what the Timeline's and LocalHistory's times compare with (\"2 minutes ago\")." },
+]
+methods = [
+  { name = "Start", returns = "INTEGER", value = true, effects = ["file-write"], test = "skip: writes a repository", doc = "Starts versioning Folder (Git: init, the branch main, and a .gitignore that keeps RapidR's own files out). True when it did; False with Error saying why — a whole drive, the home folder or its Desktop, Documents or Downloads, a folder inside another one that has versions are refused." },
+  { name = "Refresh", returns = "INTEGER", value = true, effects = ["file-read"], doc = "Reads the project's state again (Versioned, Experiment, Changes, ChangeCount): after files were saved. True when it is versioned." },
+  { name = "SaveVersion", params = "Message AS STRING, [Files AS STRING], [AllowSecrets AS INTEGER]", returns = "STRING", effects = ["file-write"], test = "skip: writes a repository", doc = "Saves a version (Git: a commit) of every changed file, or of Files (paths a line each), with Message saying what it changes: the new version's id. \"\" when it didn't — Error says why: nothing changed, an empty message, or lines that look like keys or passwords (ErrorKind \"secrets\", Secrets lists them); AllowSecrets True saves anyway, once the person chose to." },
+  { name = "CheckSecrets", params = "[Files AS STRING]", returns = "INTEGER", effects = ["file-read"], doc = "How many lines of what a save would include (every changed file, or Files) look like keys or passwords: Secrets lists them." },
+  { name = "Timeline", params = "[Limit AS INTEGER]", returns = "STRING", value = true, effects = ["file-read"], doc = "The versions, newest first (Git: the log), up to Limit (200), a line each: the id, its first seven characters, when (seconds since 1970), who, the message's first line and \"version\" — or \"checkpoint\" for an AI's checkpoints, shown lighter." },
+  { name = "VersionFiles", params = "Version AS STRING", returns = "STRING", effects = ["file-read"], doc = "What a version changed, against the one before it (every file new for the first): a line each, M, N or D and the path. \"\": what changed since the last version." },
+  { name = "FileAt", params = "Path AS STRING, Version AS STRING", returns = "STRING", effects = ["file-read"], doc = "A file's text as a version had it (an id, \"HEAD\" for the last version; \"\": as the disk has it now): an RDiffView's LeftText. \"\" when it hadn't the file (HasFile tells an empty file apart)." },
+  { name = "HasFile", params = "Path AS STRING, Version AS STRING", returns = "INTEGER", effects = ["file-read"], doc = "True when the version has the file." },
+  { name = "GoBack", params = "Version AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: rewrites files", doc = "Goes back to a version: a new version whose files are as they were then (never a destructive reset: the newer versions stay on the timeline), a safety point first; Undo takes it back. The new version's id; \"\" with Error when files have changes not saved as a version." },
+  { name = "GoBackFile", params = "Path AS STRING, Version AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: rewrites files", doc = "Goes back to a version for one file: a new version with that file as it was (removed when the version hadn't it); the other files and their unsaved changes stay. Undo takes it back." },
+  { name = "Undo", returns = "STRING", value = true, effects = ["file-write"], test = "skip: rewrites files", doc = "Takes back the last action (a save, a go back …), even the next day: what was undone, in words. \"\" with Error when there is nothing to undo, or when it would overwrite newer work (nothing is changed then)." },
+  { name = "History", returns = "STRING", value = true, effects = ["file-read"], doc = "Every action, newest first, a line each: its number, when (seconds since 1970), its kind (save, go-back, undo …), 1 when it was undone, what it was in words." },
+  { name = "Checkpoint", params = "Label AS STRING", returns = "STRING", effects = ["file-write"], test = "skip: writes a repository", doc = "Keeps the folder as it is now, labelled (what an AI is about to do): a checkpoint on the timeline, never a version. Its id." },
+  { name = "Snapshot", params = "Path AS STRING, [Why AS STRING]", returns = "STRING", effects = ["file-write"], test = "skip: writes files", doc = "Keeps a copy of the file as the disk has it now in the local history (Why: \"saved\", \"on-disk\", \"before-reload\" …), versioned or not: its number, \"\" when it equals the newest copy. The newest 100 copies of each file are kept; a file over 8 MB isn't copied (Error says so)." },
+  { name = "LocalHistory", params = "Path AS STRING", returns = "STRING", effects = ["file-read"], doc = "The file's copies in the local history, newest first, a line each: the number, when (seconds since 1970), why, the size in bytes." },
+  { name = "LocalFiles", returns = "STRING", value = true, effects = ["file-read"], doc = "The files the local history has copies of, a line each, relative to Folder." },
+  { name = "SnapshotText", params = "Number AS STRING", returns = "STRING", effects = ["file-read"], doc = "A copy's text, checked: \"\" with Error when it is missing or damaged." },
+]
+events = []

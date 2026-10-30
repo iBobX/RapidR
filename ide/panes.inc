@@ -60,8 +60,8 @@ DIM ExampleWhat(16) AS STRING
 DIM ExampleCount AS INTEGER
 ' More examples than the page has room for: only in "Open an Example" (the
 ' command palette), not cards on this page
-DIM MoreFile(40) AS STRING
-DIM MoreWhat(40) AS STRING
+DIM MoreFile(48) AS STRING
+DIM MoreWhat(48) AS STRING
 DIM MoreCount AS INTEGER
 DIM LogoBmp AS RBitmap
 
@@ -115,7 +115,7 @@ SUB AddExample(File AS STRING, What AS STRING)
 END SUB
 
 SUB AddMoreExample(File AS STRING, What AS STRING)
-  IF MoreCount > 40 THEN EXIT SUB
+  IF MoreCount > 48 THEN EXIT SUB
   MoreFile(MoreCount) = File
   MoreWhat(MoreCount) = What
   MoreCount = MoreCount + 1
@@ -168,6 +168,7 @@ SUB FillExamples
   AddMoreExample "gui/markdown_code.rr", "Code in Markdown, coloured: SQL and BASIC"
   AddMoreExample "gui/links.rr", "Labels as links: Tab, a focus ring, Enter or Space"
   AddMoreExample "studio/log_copy.rr", "A log to select and copy from: Ctrl+C, Copy Line, Copy All"
+  AddMoreExample "studio/versions.rr", TR$("Versions from a program: save, go back, undo, the local history")
   AddMoreExample "gui/snapshot.rr", "A picture of its own window, its own layout checked"
   AddMoreExample "gui/guided_tour.rr", "Show me: a pointer types and clicks for you"
   ' (the recipes: short programs to start from — the assistant starts from them too)

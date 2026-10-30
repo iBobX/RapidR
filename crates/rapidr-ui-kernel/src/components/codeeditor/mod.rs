@@ -345,6 +345,11 @@ pub fn sync(x: &mut Ctx) {
     if !x.c.requests.is_empty() {
         x.ui.idle_at = Some(crate::tick::now());
     }
+    // (Versions G3: another change base — the last version's text —: the
+    // gutter's marks again at the next tick)
+    if x.ui.changes.base_seen() != x.c.change_base.as_ref().map(|_| x.c.change_base_gen) && x.ui.idle_at.is_none() {
+        x.ui.idle_at = Some(crate::tick::now());
+    }
     if x.c.reveal != x.ui.seen_reveal {
         x.ui.seen_reveal = x.c.reveal;
         reveal_caret(x, true);

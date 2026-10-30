@@ -252,6 +252,9 @@ pub struct DiffView {
     pub held: Option<(i64, i64)>,
     /// Goes up whenever it must be drawn again.
     pub revision: u64,
+    /// (Versions G3) To look at only: no Accept or Reject, hunks never
+    /// decided (`ReadOnly`).
+    pub read_only: bool,
 }
 
 impl Default for DiffView {
@@ -282,6 +285,7 @@ impl Default for DiffView {
             pressed: Hit::Nothing,
             held: None,
             revision: 0,
+            read_only: false,
         };
         d.bars.horz.visible = false;
         d.bars.vert.tracking = true;
@@ -507,6 +511,9 @@ impl DiffView {
 
     /// Sets hunk `h`'s state: whether it changed.
     pub fn set_state(&mut self, h: usize, state: i8) -> bool {
+        if self.read_only {
+            return false;
+        }
         match self.states.get_mut(h) {
             Some(s) if *s != state => {
                 *s = state;
@@ -706,7 +713,7 @@ impl DiffView {
         let Some(r) = self.row_at(y + self.top()) else { return Hit::Nothing };
         let row = self.rows[r];
         let Some(hk) = row.hunk else { return Hit::Line };
-        if row.kind == RowKind::Header {
+        if row.kind == RowKind::Header && !self.read_only {
             let (a, rj) = self.buttons(row.y - self.top());
             let inside = |(bx, by, bw, bh): Rect| x >= bx && x < bx + bw && y >= by && y < by + bh;
             if inside(a) {
@@ -741,6 +748,9 @@ impl DiffView {
             return String::new();
         }
         let what = self.hunk_what(h);
+        if self.read_only {
+            return format!("Hunk {} of {}: {what}", h + 1, self.hunks.len());
+        }
         let state = match self.state(h) {
             1 => "accepted",
             -1 => "rejected",
@@ -804,6 +814,7 @@ impl DiffView {
             "changecount" => v_int(self.change_count() as i64),
             "summary" => v_str(&self.summary().join("\n")),
             "hasheader" => Value::Boolean(self.header),
+            "readonly" => Value::Boolean(self.read_only),
             _ => return None,
         })
     }
@@ -825,6 +836,10 @@ impl DiffView {
                         self.recompute();
                     }
                 }
+            }
+            "readonly" => {
+                self.read_only = val.to_bool();
+                self.revision += 1;
             }
             "lefttext" => self.set_texts(Some(&val.to_string_val()), None),
             "righttext" => self.set_texts(None, Some(&val.to_string_val())),
