@@ -421,7 +421,7 @@ fn system_policy_paths() -> Vec<String> {
 /// `read` gives a file's text: `Ok(None)` when there is no such file.
 pub fn read_policy(read: impl Fn(&str) -> Result<Option<String>, String>) -> Option<Policy> {
     let mut places = system_policy_paths();
-    if let Some(test) = std::env::var("RAPIDR_SCHOOL_POLICY").ok().filter(|p| !p.is_empty()) {
+    if let Some(test) = rapidr_testmode::env_var("RAPIDR_SCHOOL_POLICY").ok().filter(|p| !p.is_empty()) {
         places.push(test);
     }
     for file in places {

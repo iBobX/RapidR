@@ -19,7 +19,7 @@ Symbols and Symbols 2, Noto Sans SC and KR), all under the SIL Open Font
 License 1.1. The Noto fonts' chunks ship beside the web runtime with
 their `OFL.txt`.
 
-**676 libraries** under 23 license expressions.
+**677 libraries** under 23 license expressions.
 
 ## Apache-2.0 OR MIT (414)
 
@@ -440,7 +440,7 @@ their `OFL.txt`.
 | zbus-secret-service-keyring-store | 1.0.1 | <https://github.com/open-source-cooperative/zbus-secret-service-keyring-store.git> |
 | zeroize | 1.9.1 | <https://github.com/RustCrypto/utils> |
 
-## MIT (137)
+## MIT (138)
 
 | Library | Version | Upstream |
 |---|---|---|
@@ -468,6 +468,7 @@ their `OFL.txt`.
 | drm-fourcc | 2.2.0 | <https://github.com/danielzfranklin/drm-fourcc-rs> |
 | drm-sys | 0.8.1 | <https://github.com/Smithay/drm-rs> |
 | dua-core | 4.2.0 | <https://github.com/Byron/dua-cli> |
+| ed25519-compact | 2.6.0 | <https://github.com/jedisct1/rust-ed25519-compact> |
 | endi | 1.1.1 | <https://github.com/zeenix/endi> |
 | faster-hex | 0.10.1 | <https://github.com/NervosFoundation/faster-hex> |
 | float-cmp | 0.9.0 | <https://github.com/mikedilger/float-cmp> |

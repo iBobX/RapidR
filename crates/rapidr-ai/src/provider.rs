@@ -245,7 +245,7 @@ pub fn test_server() -> Option<String> {
     let mut s = s.borrow_mut();
     if s.is_none() {
         #[cfg(not(target_arch = "wasm32"))]
-        let from_env = std::env::var("RAPIDR_AI_TEST_SERVER").ok().filter(|v| !v.trim().is_empty());
+        let from_env = rapidr_testmode::env_var("RAPIDR_AI_TEST_SERVER").ok().filter(|v| !v.trim().is_empty());
         #[cfg(target_arch = "wasm32")]
         let from_env: Option<String> = None;
         *s = Some(match from_env {

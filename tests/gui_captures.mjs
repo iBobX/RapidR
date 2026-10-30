@@ -26,6 +26,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cases } from "./gui_parity_cases.mjs";
 import { startHttpServer } from "./http_test_server.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "./test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // (as tests/native_gui_events.mjs: QDOWNLOAD's server is the tests' own,

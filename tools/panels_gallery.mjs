@@ -17,6 +17,8 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "../tests/node_modules/playwright/index.mjs";
+// (SEC-24: a release build's test hooks need the test-mode token: tests/test_mode.mjs)
+import "../tests/test_mode.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const [fixture, outArg, events = "", themesArg = "classic,modern,dark,highcontrast"] = process.argv.slice(2);

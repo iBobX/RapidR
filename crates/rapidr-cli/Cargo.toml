@@ -6,6 +6,8 @@ publish = false
 license.workspace = true
 
 [dependencies]
+# `rapidr dev test-mode`: keys, tokens, the build's status (SEC-24)
+rapidr-testmode = { workspace = true, features = ["issue"] }
 rapidr-codegen-rust.workspace = true
 rapidr-lexer.workspace = true
 rapidr-parser.workspace = true
@@ -51,6 +53,10 @@ sha2 = "0.10"
 serde_json = "1"
 
 [features]
+# Local development builds only: the GUI test hooks act without a test-mode
+# token (SEC-24). Never in a release build (tools/release/, tools/studio_app.sh
+# release; tests/security/test_mode_release.mjs checks).
+dev-hooks = ["rapidr-testmode/dev-hooks"]
 # AI-ARCH phase 0: `rapidr introspect` (describe / list / get over a
 # program's source). Off in every build RapidR ships until `rapidr mcp` lands.
 ai-introspect = ["dep:rapidr-introspect"]

@@ -14,7 +14,7 @@ thread_local! {
     #[cfg(feature = "gui")]
     /// (`RAPIDR_TEST_CLIPBOARD`: tests leave the user's clipboard alone)
     static SYSTEM: RefCell<Option<arboard::Clipboard>> =
-        RefCell::new(std::env::var_os("RAPIDR_TEST_CLIPBOARD").is_none().then(|| arboard::Clipboard::new().ok()).flatten());
+        RefCell::new(rapidr_testmode::var_os("RAPIDR_TEST_CLIPBOARD").is_none().then(|| arboard::Clipboard::new().ok()).flatten());
     static OWN: RefCell<String> = const { RefCell::new(String::new()) };
     /// Screen.Cursor (crDefault = 0: each component's own).
     static CURSOR: std::cell::Cell<i64> = const { std::cell::Cell::new(0) };

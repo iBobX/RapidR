@@ -27,6 +27,7 @@ mod package;
 mod school_lock;
 mod serve;
 mod setup;
+mod test_mode;
 mod winres;
 // (Windows 7 builds: the few functions only Windows 8 and later has)
 #[cfg(all(windows, target_vendor = "win7", target_env = "gnu"))]
@@ -39,7 +40,7 @@ use home::Home;
 
 /// The subcommands (a first argument that is one isn't a file).
 const SUBCOMMANDS: &[&str] = &[
-    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "school-lock", "__dialog", "__win7_check",
+    "version", "run", "open", "info", "about", "ide", "examples", "setup", "notices", "lang", "i18n", "check", "parse", "preprocess", "lex", "codegen", "build", "build-bc", "run-bc", "bundle-bc", "install-app", "lsp", "dap", "serve", "import-rapidq", "upgrade-names", "introspect", "school-lock", "dev", "__dialog", "__win7_check",
 ];
 
 /// `--log <file> <command…>`: this rapidr again with the command, its
@@ -206,6 +207,7 @@ fn main() -> ExitCode {
         (Some("i18n"), _) => i18n::command(&args[1..]),
         (Some("ai"), _) => ai::command(&args[1..]),
         (Some("school-lock"), _) => school_lock::command(&args[1..]),
+        (Some("dev"), _) => test_mode::command(&args[1..]),
         #[cfg(feature = "ai-introspect")]
         (Some("introspect"), _) => introspect::command(&args[1..]),
         #[cfg(not(feature = "ai-introspect"))]
@@ -365,6 +367,7 @@ fn main() -> ExitCode {
             eprintln!("  rapidr import-rapidq <file|folder|.rrproj> [OUT_DIR] [--include-dir DIR]  A copy of a RapidQ program and every file it includes, with RapidR's names, and a report");
             eprintln!("  rapidr upgrade-names <file> [--dry-run]          RapidR's names in one of your own files (--dry-run: the diff only)");
             eprintln!("  rapidr school-lock hash [--stdin] | check [FILE]  School Lock for a school's IT: the policy file's password hash line; what the policy locks");
+            eprintln!("  rapidr dev test-mode new-key|issue|status          The signed test mode (RapidR's own test hooks): keys, tokens, this build's status");
             eprintln!("  rapidr about");
             eprintln!("  rapidr [--release|--debug] [--web] [--interp] <file.rr>  Build source file");
             eprintln!("  rapidr check <file.rr>                           Its errors, in your language (RAPIDR_LANG, else the system's)");
@@ -554,7 +557,10 @@ fn generate_rust_project(path: &str, out_dir: &Path, force_web: bool) -> Result<
         // RPROGRAMSESSION — come with the runtime's `studio` feature, only in
         // the programs that use them: the language service is large; RArchive
         // and COMPRESS$ / DECOMPRESS$ with its `archive` feature, the same way)
-        let features: Vec<&str> = [(uses_studio_components(path), "\"studio\""), (archive, "\"archive\"")].into_iter().filter(|(on, _)| *on).map(|(_, f)| f).collect();
+        // (a development `rapidr` — debug, or the dev-hooks feature — builds
+        // development programs: their test hooks act without a token, as its
+        // own do, SEC-24; a released one never)
+        let features: Vec<&str> = [(uses_studio_components(path), "\"studio\""), (archive, "\"archive\""), (rapidr_testmode::DEV_BUILD, "\"dev-hooks\"")].into_iter().filter(|(on, _)| *on).map(|(_, f)| f).collect();
         if features.is_empty() {
             toml
         } else {
@@ -1615,6 +1621,9 @@ fn locate_or_build_stub(release: bool, target: &str, windowed: bool) -> Result<P
 
     let mut args = vec!["build", "--quiet", "-p", "rapidr-runner-stub", "--bin", name];
     if release { args.extend(["--profile", "runner"]); }
+    // (a development `rapidr` builds a development runner: its test hooks
+    // act without a token, SEC-24)
+    if rapidr_testmode::DEV_BUILD { args.extend(["--features", "dev-hooks"]); }
     // Built in the RapidR workspace, wherever the program being built is.
     let root = home.map(|h| h.root).unwrap_or_else(|| PathBuf::from("."));
     let cwd = env::current_dir().unwrap_or_else(|_| PathBuf::from("."));

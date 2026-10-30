@@ -1331,6 +1331,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
+name = "ed25519-compact"
+version = "2.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1454db4f2edb7f0e8fe0c5b375b0c978fc63244cc9f010d160e417eb10139aa8"
+
+[[package]]
 name = "editpe"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5086,6 +5092,7 @@ dependencies = [
  "apple-native-keyring-store",
  "js-sys",
  "keyring-core",
+ "rapidr-testmode",
  "rapidr-value",
  "serde_json",
  "ureq",
@@ -5179,6 +5186,7 @@ dependencies = [
  "rapidr-project",
  "rapidr-session",
  "rapidr-studio",
+ "rapidr-testmode",
  "rapidr-value",
  "rapidr-vm",
  "rapidr-vm-host-native",
@@ -5215,6 +5223,7 @@ name = "rapidr-crash"
 version = "2.121.3"
 dependencies = [
  "libc",
+ "rapidr-testmode",
 ]
 
 [[package]]
@@ -5429,6 +5438,7 @@ dependencies = [
 name = "rapidr-runner-stub"
 version = "2.121.3"
 dependencies = [
+ "rapidr-testmode",
  "rapidr-vm-host-native",
 ]
 
@@ -5451,6 +5461,7 @@ dependencies = [
  "rapidr-lang",
  "rapidr-session",
  "rapidr-studio",
+ "rapidr-testmode",
  "rapidr-ui-app",
  "rapidr-ui-host-winit",
  "rapidr-ui-kernel",
@@ -5527,6 +5538,7 @@ dependencies = [
  "rapidr-preprocessor",
  "rapidr-project",
  "rapidr-session",
+ "rapidr-testmode",
  "rapidr-value",
  "rapidr-vcs",
  "regex",
@@ -5538,10 +5550,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "rapidr-testmode"
+version = "2.121.3"
+dependencies = [
+ "ed25519-compact",
+ "getrandom 0.4.2",
+ "libc",
+]
+
+[[package]]
 name = "rapidr-ui-app"
 version = "2.121.3"
 dependencies = [
  "rapidr-lang",
+ "rapidr-testmode",
  "rapidr-ui-kernel",
  "rapidr-ui-render",
  "rapidr-value",
@@ -5632,6 +5654,7 @@ dependencies = [
  "rapidr-icons",
  "rapidr-lang",
  "rapidr-project",
+ "rapidr-testmode",
  "resvg",
  "serde_json",
  "ttf-parser",
