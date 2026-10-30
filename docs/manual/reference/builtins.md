@@ -2,7 +2,7 @@
 
 # Built-in functions and procedures
 
-The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(new)*: not in the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).
+The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).
 
 ## Arrays and memory
 
@@ -46,11 +46,11 @@ The builtins every runtime implements (native builds, the interpreter and the we
 
 | Builtin | |
 |---|---|
-| `BEEP` *(new)* | Plays a short beep on the system's sound output (without sound, the terminal's bell). |
+| `BEEP` | Plays a short beep on the system's sound output (without sound, the terminal's bell). |
 | `MESSAGEBOX(Msg$, Title$, MsgButtons%)` | Shows a message box with the buttons and icon the `MB_` flags ask for; returns the `ID` constant (`IDOK`, `IDYES`, …) of the button chosen. Enter presses the first button, or the one Windows' `MB_DEFBUTTON2` (`&H100`) or `MB_DEFBUTTON3` (`&H200`) flag names (windows.inc's constants). |
 | `MESSAGEDLG(Msg$, MsgType, MsgButtons, HelpContext [, DefaultButton])` | Shows a message dialog of a type (`mtWarning`, `mtError`, `mtInformation`, `mtConfirmation`, `mtCustom`) with the `mb` buttons given; returns the `mr` constant of the one chosen. Enter presses the first button; `DefaultButton` (the optional fifth argument) names another by its answer, so Enter can give the safe one: `MESSAGEDLG("This deletes 1,204 rows.", mtWarning, mbYes OR mbNo, 0, mrNo)`. The default button has the focus as the dialog opens and Tab still goes left to right; Escape and the close box answer as always (Cancel, else No). Its `mb` flag (`mbNo`) is taken too when no button answers that number. |
-| `MSGBOX(Msg$)` *(new)* | Shows a message box with an OK button and returns 0 when it is closed. |
-| `PLAYSOUND(FileName$)` *(new)* | Plays a sound file in the background. |
+| `MSGBOX(Msg$)` | Shows a message box with an OK button and returns 0 when it is closed. |
+| `PLAYSOUND(FileName$)` | Plays a sound file in the background. |
 | `PLAYWAV FileName$\|Resource_Handle, SndOption` | Plays a WAV file or `$RESOURCE` in the background (`SND_ASYNC`), waiting for its end (`SND_SYNC`) or repeating (`SND_LOOP`); `PLAYWAV ""` stops it. |
 | `SHOWMESSAGE text$` | Shows a message in a modal box with an OK button, titled with the application's title. |
 | `SOUND freq, duration` | Plays a tone of a frequency in hertz for a duration in milliseconds, in the background. |
@@ -61,24 +61,24 @@ The builtins every runtime implements (native builds, the interpreter and the we
 |---|---|
 | `CHDIR path$` | Makes a folder the current one, the folder relative paths start from. |
 | `CHDRIVE "a:\"` | Makes a drive (`"d:"`) the current one on Windows; other systems have no drives and it does nothing. |
-| `CLOSE #FileNum` *(new)* | Closes the file opened with `OPEN` under that number; what was written to it is kept. |
+| `CLOSE #FileNum` | Closes the file opened with `OPEN` under that number; what was written to it is kept. |
 | `CURDIR$` *bare* | The full path of the current folder. |
 | `DIR$[(FileSpec$, Attributes%)]` *bare* | The first file matching a pattern with `*` and `?` (any case; `*.` names without an extension, as on Windows), or "" when none; then bare `DIR$` gives the next. Attributes: faDirectory includes folders, faHidden hidden files, faSysFile Windows' system files. |
 | `DIREXISTS(Path$)` | True (1) when a folder of that path exists, else 0. |
-| `EOF(FileNum)` *(new)* | True (-1) when a file opened with `OPEN` has nothing left to read (or isn't open), else 0. |
+| `EOF(FileNum)` | True (-1) when a file opened with `OPEN` has nothing left to read (or isn't open), else 0. |
 | `EXTRACTRESOURCE ResourceNumber%, FileName$` | Writes a resource built into the program (`$RESOURCE`, its handle from `RESOURCE(n)`) to a file. |
 | `FILEEXISTS(FileName$)` | True (1) when a file of that name exists, else 0 (a folder doesn't count). |
-| `FILELEN(FileName$)` *(new)* | The size of a file in bytes, 0 when it doesn't exist. |
-| `FREEFILE` *(new)* *bare* | The lowest file number not in use, for `OPEN … AS #n`. |
+| `FILELEN(FileName$)` | The size of a file in bytes, 0 when it doesn't exist. |
+| `FREEFILE` *bare* | The lowest file number not in use, for `OPEN … AS #n`. |
 | `KILL Filename$` | Deletes a file. |
-| `LOF(FileNum)` *(new)* | The length in bytes of a file opened with `OPEN`. |
+| `LOF(FileNum)` | The length in bytes of a file opened with `OPEN`. |
 | `MKDIR Dir$` | Creates a folder. |
-| `OPEN FileName$ FOR mode AS #FileNum` *(new)* | Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access under a file number (see `FREEFILE`). |
+| `OPEN FileName$ FOR mode AS #FileNum` | Opens a file for `INPUT`, `OUTPUT`, `APPEND`, `BINARY` or `RANDOM` access under a file number (see `FREEFILE`). |
 | `RENAME File1$, File2$` | Renames (or moves) a file from the first name to the second. |
 | `RESOURCE(number%)` | The handle of the n-th resource built into the program with `$RESOURCE` (0 the first), for `EXTRACTRESOURCE`, `PLAYWAV` or a picture. |
 | `RESOURCECOUNT` *bare* | The number of resources built into the program with `$RESOURCE`. |
 | `RMDIR Dir$` | Removes an empty folder. |
-| `SEEK #FileNum, Position` *(new)* | Moves to a byte of a file opened with `OPEN`: the next read or write is there (1 the first byte). |
+| `SEEK #FileNum, Position` | Moves to a byte of a file opened with `OPEN`: the next read or write is there (1 the first byte). |
 
 ## Library functions
 
@@ -109,12 +109,12 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `ATAN(Number)` | The arc tangent of a number, in radians; the same as `ATN`. |
 | `ATN(Number)` | The arc tangent of a number, as an angle in radians (-π/2 to π/2). |
 | `CBOOL(Expression)` | A value as a truth value: true for a non-zero number, or for a text that is a non-zero number or (not a number) isn't empty; false otherwise. |
-| `CDBL(Expression)` *(new)* | A value as a DOUBLE (a text is read as `VAL` reads it). |
+| `CDBL(Expression)` | A value as a DOUBLE (a text is read as `VAL` reads it). |
 | `CEIL(Number)` | The smallest whole number not less than a number (`CEIL(2.1)` is 3, `CEIL(-2.1)` -2), as a 32-bit integer. |
 | `CINT(Number)` | A number rounded to an integer as `INT(x + 0.5)`: 2.5 gives 3, -2.5 gives -2. Beyond 32 bits, -2147483648. |
 | `CLNG(Number)` | A number rounded to a 32-bit integer, as `CINT` rounds it: `INT(x + 0.5)`. |
 | `COS(Number)` | The cosine of an angle in radians. |
-| `CSNG(Expression)` *(new)* | A value as a SINGLE (a text is read as `VAL` reads it). |
+| `CSNG(Expression)` | A value as a SINGLE (a text is read as `VAL` reads it). |
 | `EXP(Number)` | e raised to the power of a number; the inverse of `LOG`. |
 | `FIX(Number)` | A number's whole part, truncated toward zero (`FIX(-2.7)` is -2); the same as `INT`. |
 | `FLOOR(Number)` | The largest whole number not greater than a number (`FLOOR(-2.1)` is -3), as a 32-bit integer. |
@@ -123,7 +123,7 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `INT(Number)` | A number's whole part, truncated toward zero (`INT(-2.5)` is -2), kept as large as the number. |
 | `INV(Number, Modulus)` | The modular inverse of a number (`INV(3, 26)` is 9), or -1 when there is none; also an operator, `a INV m`. |
 | `LOG(Number)` | The natural logarithm (base e) of a positive number. |
-| `PI` *(new)* *bare* | The number π, 3.14159265358979… |
+| `PI` *bare* | The number π, 3.14159265358979… |
 | `RANDOMIZE [Num]` | Starts `RND`'s sequence from a seed: the same seed gives the same numbers on every runtime. Without one, a fresh seed. |
 | `RND(UpperBound)` *bare* | A random number: bare, a real from 0 up to (not including) 1; `RND(n)`, a whole number from 0 to n - 1. `RANDOMIZE` seeds it. |
 | `ROUND(Number)` | A number rounded as `INT(x + 0.5)`: 2.5 gives 3, -2.5 gives -2; a 32-bit integer. |
@@ -160,9 +160,9 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `ASC(char$)` | The character code of a string's first character, 0 for an empty string; the inverse of `CHR$`. It counts characters, not UTF-8 bytes: `ASC("é")` is 233. |
 | `BIN$(Integer)` | The binary digits of a number's 32 bits, without leading zeros: `BIN$(5)` is `101`, `BIN$(-1)` is 32 ones. A real number is rounded to a whole one first. |
 | `CHR$(byte)` | The one-character string whose code is the number's low byte (`CHR$(65)` is `A`); a real number is rounded half to even first. |
-| `COMPRESS$(Bytes$ [, Format$ [, Level]])` *(new)* | `Bytes$` packed smaller: a string of bytes (one character a byte, as a stream's ReadBinStr gives and DECOMPRESS$ takes back). `Format$` is "gzip" (the default: what `.gz` files hold), "zlib" or "deflate"; `Level` 0 (stored, fastest) to 9 (smallest), 6 by default. For files and folders, RArchive. |
+| `COMPRESS$(Bytes$ [, Format$ [, Level]])` | `Bytes$` packed smaller: a string of bytes (one character a byte, as a stream's ReadBinStr gives and DECOMPRESS$ takes back). `Format$` is "gzip" (the default: what `.gz` files hold), "zlib" or "deflate"; `Level` 0 (stored, fastest) to 9 (smallest), 6 by default. For files and folders, RArchive. |
 | `CONVBASE$(Text$, FromBase, ToBase)` | A number written in one base (2 to 36) as a string of digits in another: `CONVBASE$("FF", 16, 10)` is `255`. A negative number converts as its 32 bits; "" for a bad base or digit. |
-| `DECOMPRESS$(Bytes$ [, Format$ [, MaxSize]])` *(new)* | Packed bytes unpacked: gzip, zlib, xz and zstd are found from their first bytes; "deflate" (no header) must be named in `Format$`. At most `MaxSize` bytes (256 MB if not given): more stops with an error, so a tiny string can't fill the memory. Data that isn't packed, or is damaged, is a run-time error saying why; to unpack something that may be damaged, use RArchive's OpenData, which says why in Error instead. |
+| `DECOMPRESS$(Bytes$ [, Format$ [, MaxSize]])` | Packed bytes unpacked: gzip, zlib, xz and zstd are found from their first bytes; "deflate" (no header) must be named in `Format$`. At most `MaxSize` bytes (256 MB if not given): more stops with an error, so a tiny string can't fill the memory. Data that isn't packed, or is damaged, is a run-time error saying why; to unpack something that may be damaged, use RArchive's OpenData, which says why in Error instead. |
 | `DELETE$(String$, Index, Count)` | The string with `Count` characters removed starting at position `Index` (1 the first): `DELETE$("Hello", 2, 3)` is `Ho`. |
 | `FIELD$(Source$, Delimiter$, FieldNumber)` | The n-th piece (1 the first) of a string split at every occurrence of a separator: `FIELD$("a,b,c", ",", 2)` is `b`; "" out of range. |
 | `FORMAT$(S$, arg1, arg2, ...)` | Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$("%5.2f", 3.14159)` is ` 3.14`. `%s` takes text (a number gives nothing), the others a number (text counts as 0); `%d` and `%x` make it a whole 32-bit number; a specifier Pascal's Format refuses (`%+d`, `%c`, `%.*f`) stops the program. |
@@ -170,13 +170,13 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `HEXTODEC(Hex$)` | The number a string of hexadecimal digits stands for (`&H` or `0x` in front allowed): `HEXTODEC("FF")` is 255; 0 when it isn't hexadecimal. |
 | `INSERT$(Part$, Source$, Index)` | `Source$` with `Part$` inserted before character `Index` (1 the first): `INSERT$("hi", "Hello", 3)` is `Hehillo`. The text to insert comes first. |
 | `INSTR([Start,] Search$,Find$)` | The position (1 the first) where `Find$` first occurs in `Search$`, from character `Start` when given; 0 when it doesn't (an empty `Find$` is never found). |
-| `ISNUMERIC(Expression)` *(new)* | True (-1) when the value is a number or a text that is exactly a number (`"3.5"`, `"-2E3"`), else 0. |
+| `ISNUMERIC(Expression)` | True (-1) when the value is a number or a text that is exactly a number (`"3.5"`, `"-2E3"`), else 0. |
 | `LCASE$(Text$)` | The string in lower case. |
 | `LEFT$(Text$, Num)` | The first `Num` characters of a string (all of it when it is shorter). |
 | `LEN(Text$)` | The number of characters in a string (characters, not bytes). |
 | `LTRIM$(Text$)` | The string without its leading spaces. |
 | `MID$(Text$, Position, Num)` | `Num` characters of a string from `Position` (1 the first); without `Num`, the rest of the string. |
-| `OCT(Number)` *(new)* | The octal digits of a whole number, as text: `OCT(8)` is `10`. |
+| `OCT(Number)` | The octal digits of a whole number, as text: `OCT(8)` is `10`. |
 | `REPLACE$(Source$, Overwrite$, Index)` | `Overwrite$` written over `Source$` from character `Index` (1 the first): `REPLACE$("Hello", "J", 1)` is `Jello`. To find and replace, `REPLACESUBSTR$`. |
 | `REPLACESUBSTR$(Source$, ReplaceStr$, Withstr$)` | `Source$` with every occurrence of `ReplaceStr$` replaced by `Withstr$`. |
 | `REVERSE$(S$)` | The string with its characters in reverse order. |
@@ -188,9 +188,9 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `STRF$(Number, Format%, Precision%, Digits%)` | A number as text in a float format (`ffGeneral`, `ffExponent`, `ffFixed`, `ffNumber`) with `Precision%` significant digits and `Digits%` decimals. |
 | `STRING$(Num, Char) or STRING$(Num, Char$)` | A string of `Num` copies of a character, given by its code or as the first character of a string: `STRING$(3, 65)` is `AAA`. |
 | `TALLY(Search$, Match$)` | The number of times `Match$` occurs in `Search$` (occurrences don't overlap); 0 for an empty `Match$`. |
-| `TRIM(Text$)` *(new)* | The string without its leading and trailing spaces. |
-| `TR$(Text$ [, Context$] [, Name$, Value ...])` *(new)* | The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$("Open", "menu")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error. |
-| `TRN$(Singular$, Plural$, Count [, Context$] [, Name$, Value ...])` *(new)* | The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them. |
+| `TRIM(Text$)` | The string without its leading and trailing spaces. |
+| `TR$(Text$ [, Context$] [, Name$, Value ...])` | The text in the program's language (`Application.Language`): its translation from the program's `lang` folder (`lang/es.po`, `lang/pt-BR.po`, `lang/zh-Hans.po`, PO files), else the text itself. `es-AR` looks in `es-AR.po`, then `es.po`. After the text, an odd number of arguments starts with a context, which tells two meanings of the same text apart (`TR$("Open", "menu")`, the PO file's msgctxt); the rest are placeholders by name, a name then its value: `{name}` in the text (or its translation) becomes the value, `{{` and `}}` are braces, a name not given stays as written. A missing folder, file or entry is never an error. |
+| `TRN$(Singular$, Plural$, Count [, Context$] [, Name$, Value ...])` | The form of a text for a count, in the program's language: the translation's form the language's plural rule picks (the PO file's `Plural-Forms`: Spanish and Portuguese have two, Chinese one, Polish three), else `Singular$` for 1 and `Plural$` for any other count. `{n}` is the count; a context and placeholders as `TR$` takes them. |
 | `UCASE$(Text$)` | The string in upper case. |
 | `VAL(Text$)` | The number at the start of a text, ignoring spaces and what follows it: `VAL("12abc")` is 12; 0 when there is none. |
 
@@ -217,7 +217,7 @@ Classic programs get these from include files or DECLAREs; RapidR doesn't have t
 | `RUN command$` | Starts a program (a command line) without waiting for it; returns its process ID, 0 when it couldn't start. |
 | `SENDMESSAGE(Handle, uMsg, wParam, lParam)` | Sends a Windows message to a window and waits until its window procedure has handled it (Windows' SendMessage). Windows only: on macOS, Linux and the web it stops the program with an error saying so. Only a form's Handle is a real window; a control's Handle names no window, so the message goes nowhere — use the control's own properties and methods. |
 | `SHELL command$` | Runs a command with the system's shell and waits until it has finished; returns its exit code. |
-| `SHELLWAIT(command$)` *(new)* | Runs a command with the system's shell, waits until it has finished and returns its exit code (-1 when it couldn't run). |
+| `SHELLWAIT(command$)` | Runs a command with the system's shell, waits until it has finished and returns its exit code (-1 when it couldn't run). |
 | `SLEEP Num` | Pauses the program for a number of seconds; fractions allowed (`SLEEP 0.5`). |
 | `TIME$` *bare* | The local time as text, `HH:MM:SS`. |
 | `TIMER` *bare* | The seconds since midnight (local time), with fractions, for timing parts of a program. |

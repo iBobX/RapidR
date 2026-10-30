@@ -4,8 +4,28 @@
     {
       "name": "repo",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "127.0.0.1"
+      ],
       "port": 8765
+    },
+    {
+      "name": "studio-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "-d",
+        "target/studio-web",
+        "18473",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "port": 18473
     }
   ]
 }

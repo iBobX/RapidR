@@ -156,7 +156,16 @@ pub fn utc(secs: u64) -> (i64, u32, u32, u32, u32, u32) {
 }
 
 pub fn now_secs() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    // (a browser has no operating system clock: std's `SystemTime::now`
+    // panics there, so the page's own clock)
+    #[cfg(target_arch = "wasm32")]
+    {
+        (js_sys::Date::now() / 1000.0) as u64
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    }
 }
 
 /// `2026-10-30 14:22:05 UTC`.

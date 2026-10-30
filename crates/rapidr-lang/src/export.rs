@@ -255,11 +255,10 @@ fn md(s: &str) -> String {
     s.replace('|', "\\|").replace('\n', " ")
 }
 
-fn origin_mark(o: Origin) -> &'static str {
-    match o {
-        Origin::RapidQ => "",
-        Origin::RapidR => " *(new)*",
-    }
+// The manual describes RapidR on its own: where a member came from isn't shown
+// (a project kept classic-compatible gets its own marks in Studio).
+fn origin_mark(_: Origin) -> &'static str {
+    ""
 }
 
 fn where_text(c: &Component) -> String {
@@ -351,7 +350,7 @@ fn members_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Components' members\n\n");
     out.push_str(
-        "Every property, method and event of every component, from the language registry, under RapidR's names. *(new)* marks a member the classic components don't have; *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.\n\n",
+        "Every property, method and event of every component, from the language registry, under RapidR's names. *not yet* marks a member RapidR doesn't implement yet; *desktop* / *web* one that only that runtime has.\n\n",
     );
     for c in COMPONENTS.iter().filter(|c| c.kind == Kind::Component).chain(GLOBALS.iter()).chain(ITEMS.iter()) {
         let title = c.spelling();
@@ -413,7 +412,7 @@ fn builtins_page() -> String {
     let mut out = String::from(MD_HEADER);
     out.push_str("# Built-in functions and procedures\n\n");
     out.push_str(
-        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *(new)*: not in the classic set; *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
+        "The builtins every runtime implements (native builds, the interpreter and the web share one list, unit-tested against each runtime's dispatch). Names are not case-sensitive, and a builtin may be written with or without its type suffix: `MID$`, `Mid` and `mid` are the same. *bare*: may be written without parentheses or arguments (`t = TIMER`); *not yet*: not in RapidR yet. Statements are in [statements.md](statements.md).\n\n",
     );
     let mut gs: Vec<&str> = BUILTINS.iter().map(|b| b.group).collect();
     gs.sort();
@@ -446,7 +445,7 @@ fn builtins_page() -> String {
 
 fn statements_page() -> String {
     let mut out = String::from(MD_HEADER);
-    out.push_str("# Statements, directives, keywords and types\n\n*(new)* marks what the classic language doesn't have.\n\n");
+    out.push_str("# Statements, directives, keywords and types\n\n");
     let mut gs: Vec<&str> = STATEMENTS.iter().map(|s| s.group).collect();
     gs.dedup();
     let mut seen = Vec::new();

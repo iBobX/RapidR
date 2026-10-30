@@ -5222,6 +5222,7 @@ dependencies = [
 name = "rapidr-crash"
 version = "2.121.3"
 dependencies = [
+ "js-sys",
  "libc",
  "rapidr-testmode",
 ]
