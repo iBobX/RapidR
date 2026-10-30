@@ -1359,8 +1359,8 @@ msgid "Waiting for its check…"
 msgstr "Esperando su comprobación…"
 
 #: ide/aisetup.inc
-msgid "Can't chat: it only turns text into numbers for searching."
-msgstr "No puede conversar: solo convierte texto en números para buscar."
+msgid "Can't chat: its local AI app says it is made for something else."
+msgstr "No puede conversar: su app de IA local dice que está hecho para otra cosa."
 
 # legal
 #: ide/aisetup.inc
@@ -1399,6 +1399,10 @@ msgstr "Usa las herramientas de RAI, pero no pudo construir la app de prueba aqu
 #: ide/aisetup.inc
 msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
 msgstr "Su app de IA local dice que no acepta herramientas, así que RAI no puede construir apps con ese modelo."
+
+#: ide/aisetup.inc
+msgid "A browser can't tell if it fits: Studio on the desktop can check it."
+msgstr "Un navegador no puede saber si cabe: Studio en el escritorio puede comprobarlo."
 
 #: ide/aisetup.inc
 msgid "Its size isn't known: Check My Models to see how it does here."

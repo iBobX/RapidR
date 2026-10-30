@@ -5553,7 +5553,7 @@ const CASES = [
     window: 2,
     dump: {
       "aisumodels.itemcount": /^4$/,
-      "aisumodels.text": /^mock-small\. Size not known\. /,
+      "aisumodels.text": /^mock-small\. Size not known\. A browser can't tell if it fits: Studio on the desktop can check it\.\r?\n/,
       "aisumemtext.caption": /^A browser can't tell how much memory this computer has free/,
       "aisucheckbtn.enabled": /^(0|False)$/i,
     },

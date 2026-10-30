@@ -61,6 +61,7 @@ DECLARE FUNCTION AISuSay(I AS INTEGER) AS STRING
 DECLARE FUNCTION AISuSecs(S AS STRING) AS STRING
 DECLARE FUNCTION AISuStepWords(S AS STRING) AS STRING
 DECLARE FUNCTION AISuFit(Text AS STRING, Room AS INTEGER) AS STRING
+DECLARE FUNCTION AISuTextHigh(Text AS STRING, W AS INTEGER) AS INTEGER
 
 ' (a web page's one probe: the address the user typed, asked for its
 ' models — a browser can't look around this computer by itself)
@@ -426,7 +427,7 @@ SUB LayOutAISetup
   AISuNone.Left = 24: AISuNone.Top = y: AISuNone.Width = w - 48: AISuNone.Height = h
   AISuNoneLink.Left = 24: AISuNoneLink.Top = y + h + 8: AISuNoneLink.Width = AISetMeasure.TextWidth(AISuNoneLink.Caption) + 8: AISuNoneLink.Height = 22
   y = y + AISuModels.Height + 8
-  h = AISetLinesHigh(AISuDetail.Caption, w - 48)
+  h = AISuTextHigh(AISuDetail.Caption, w - 48)
   IF h < 58 THEN h = 58
   AISuDetail.Left = 24: AISuDetail.Top = y: AISuDetail.Width = w - 48: AISuDetail.Height = h
   y = y + h + 8
@@ -582,7 +583,7 @@ FUNCTION AISuLine(I AS INTEGER) AS STRING
   ELSEIF AISuLM(I, "queued") = "1" THEN
     Result = TR$("Waiting for its check…")
   ELSEIF AISuLM(I, "chat") = "0" THEN
-    Result = TR$("Can't chat: it only turns text into numbers for searching.")
+    Result = TR$("Can't chat: its local AI app says it is made for something else.")
   ELSEIF AISuLM(I, "remote") = "1" THEN
     Result = TR$("Its local AI app runs this model on a service elsewhere: what you ask is sent there.")
   ELSEIF f = "toobig" THEN
@@ -605,6 +606,8 @@ FUNCTION AISuLine(I AS INTEGER) AS STRING
     END IF
   ELSEIF AISuLM(I, "tools") = "0" THEN
     Result = TR$("Its local AI app says it takes no tools, so RAI can't build apps with it.")
+  ELSEIF f = "unknown" AND AISuWeb THEN
+    Result = TR$("A browser can't tell if it fits: Studio on the desktop can check it.")
   ELSEIF f = "unknown" THEN
     Result = TR$("Its size isn't known: Check My Models to see how it does here.")
   ELSEIF AISuLM(I, "best") = "1" THEN
@@ -655,6 +658,16 @@ SUB AISuFillList
   AISuShowDetail
   LayOutAISetup
 END SUB
+
+' (a text of several lines: each line's height as it wraps in W, added)
+FUNCTION AISuTextHigh(Text AS STRING, W AS INTEGER) AS INTEGER
+  DIM i AS INTEGER, part AS STRING
+  Result = 0
+  FOR i = 1 TO TALLY(Text, CHR$(10)) + 1
+    part = FIELD$(Text, CHR$(10), i)
+    IF part <> "" THEN Result = Result + AISetLinesHigh(part, W)
+  NEXT
+END FUNCTION
 
 ' (text cut to fit Room pixels, "…" at its end)
 FUNCTION AISuFit(Text AS STRING, Room AS INTEGER) AS STRING

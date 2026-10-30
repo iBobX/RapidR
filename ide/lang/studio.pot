@@ -1328,7 +1328,7 @@ msgid "Waiting for its check…"
 msgstr ""
 
 #: ide/aisetup.inc
-msgid "Can't chat: it only turns text into numbers for searching."
+msgid "Can't chat: its local AI app says it is made for something else."
 msgstr ""
 
 #: ide/aisetup.inc
@@ -1365,6 +1365,10 @@ msgstr ""
 
 #: ide/aisetup.inc
 msgid "Its local AI app says it takes no tools, so RAI can't build apps with it."
+msgstr ""
+
+#: ide/aisetup.inc
+msgid "A browser can't tell if it fits: Studio on the desktop can check it."
 msgstr ""
 
 #: ide/aisetup.inc

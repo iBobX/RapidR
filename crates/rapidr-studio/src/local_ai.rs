@@ -525,8 +525,15 @@ pub fn server_models(base: &str) -> Option<Vec<Model>> {
             m.loaded = loaded.iter().any(|l| l == name);
             m.remote = ["remote_host", "remote_model"].iter().any(|k| t[*k].as_str().is_some_and(|v| !v.trim().is_empty()));
         }
-        for m in models.iter_mut().filter(|m| m.rich) {
-            if let Some(show) = net::json("POST", &format!("{root}/api/show"), Some(json!({"model": m.id})), 10) {
+        // (each model's description asked at once: the page says what it
+        // found within a moment, however many models there are)
+        let shows: Vec<Option<Json>> = std::thread::scope(|sc| {
+            let root = root.as_str();
+            let asks: Vec<_> = models.iter().map(|m| (m.rich, m.id.clone())).map(|(rich, id)| sc.spawn(move || if rich { net::json("POST", &format!("{root}/api/show"), Some(json!({"model": id})), 10) } else { None })).collect();
+            asks.into_iter().map(|h| h.join().ok().flatten()).collect()
+        });
+        for (m, show) in models.iter_mut().zip(shows) {
+            if let Some(show) = show {
                 describe(m, &show);
             }
         }
@@ -569,7 +576,9 @@ pub fn describe(m: &mut Model, show: &Json) {
     if let Some(caps) = show["capabilities"].as_array() {
         let has = |c: &str| caps.iter().any(|x| x.as_str() == Some(c));
         m.tools = Some(has("tools"));
-        m.chat = has("completion") || !has("embedding");
+        // (an app that lists what a model can do: it chats only when
+        // "completion" is among them — an embedding or a speech model isn't)
+        m.chat = caps.is_empty() || has("completion");
     }
     let text = show["license"].as_str().unwrap_or("").trim().to_string();
     let first = text.lines().map(str::trim).find(|l| !l.is_empty()).unwrap_or("").chars().take(80).collect::<String>();
