@@ -957,7 +957,7 @@ msgstr "Un chat nuevo."
 # legal
 #: ide/aichats.inc
 msgid "Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good."
-msgstr "Se guardan en esta computadora, en la carpeta propia de Studio — nunca en el proyecto. Eliminar quita un chat para siempre."
+msgstr "Se guardan en esta computadora, en la carpeta de Studio — nunca en el proyecto. Eliminar es definitivo."
 
 #: ide/aichats.inc
 msgid "Kept in {folder}"

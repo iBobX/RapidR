@@ -2547,6 +2547,53 @@ mod tests {
         assert!(tools.iter().any(|t| t.name == "search_manual"));
     }
 
+    /// ES-REFERENCE part 3: what the assistant looks up — a component, a
+    /// builtin, the lists, the manual — comes in the language Studio speaks
+    /// where the registry and the manual have it, English where they don't;
+    /// names, types and examples are code and never change.
+    #[test]
+    fn lookups_come_in_studios_language() {
+        let empty = HashMap::new();
+        let p = project(&[], &empty);
+        let button = |lang: &str| {
+            rapidr_value::i18n::set_language(lang);
+            run("rapidr_describe", &json!({"type": "RButton"}), &p, &mut Vec::new(), true).content
+        };
+        let (en, es) = (button("en"), button("es"));
+        assert!(en.contains("RButton") && en.contains("OnClick"), "{en}");
+        // (the component's own doc and a member's, in Spanish; the names stay)
+        assert!(es.contains("Un botón: al hacer clic en él se ejecuta su controlador de eventos OnClick"), "{es}");
+        assert!(es.contains("- Caption: ") && es.contains("OnClick(") && es.contains("Properties (name: type = default"), "{es}");
+        assert!(!es.contains("A button: "), "{es}");
+        // (a regional language: the language's own docs; one with none: English)
+        assert_eq!(button("es-UY"), es);
+        assert_eq!(button("sw"), en);
+        // (a builtin's doc, the lists' first sentences)
+        rapidr_value::i18n::set_language("es");
+        let len = run("rapidr_describe", &json!({"builtin": "LEN"}), &p, &mut Vec::new(), true).content;
+        assert!(len.contains("El número de caracteres de una cadena"), "{len}");
+        let types = run("rapidr_describe", &json!({"what": "types"}), &p, &mut Vec::new(), true).content;
+        assert!(types.contains("RButton [") && types.contains("Un botón: al hacer clic en él se ejecuta su controlador de eventos OnClick."), "{types}");
+        // (the reference hits of a word the manual doesn't mention)
+        let hits = reference_hits("RButton.AccessibleHidden").expect("hits");
+        assert!(hits.contains("True: el control es decoración"), "{hits}");
+        rapidr_value::i18n::set_language("en");
+        assert!(!reference_hits("RButton.AccessibleHidden").unwrap().contains("el control es decoración"));
+        // (the manual: the pages in Studio's language first; an English page
+        // is said to be English)
+        rapidr_value::i18n::set_language("es");
+        let r = run("search_manual", &json!({"query": "instalar el SDK"}), &p, &mut Vec::new(), true);
+        assert!(r.content.contains("Manual › ") && !r.is_error, "{}", r.content);
+        assert!(r.note.contains("es/getting-started.md"), "{}", r.note);
+        let english = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
+        assert!(english.contains("(this page is in English: it isn't translated yet)"), "{english}");
+        rapidr_value::i18n::set_language("en");
+        let plain = run("search_manual", &json!({"query": "serial port baud rate"}), &p, &mut Vec::new(), true).content;
+        assert!(!plain.contains("isn't translated yet"), "{plain}");
+        assert!(crate::manual_search::has_pages_in("es-AR") && !crate::manual_search::has_pages_in("en") && !crate::manual_search::has_pages_in("xx"));
+        rapidr_value::i18n::set_language("");
+    }
+
     #[test]
     fn paths_stay_inside() {
         assert_eq!(project_path("/p", "main.rr").unwrap(), "main.rr");

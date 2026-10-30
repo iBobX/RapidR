@@ -4859,6 +4859,37 @@ const CASES = [
     },
   },
   {
+    // The assistant's other words in Spanish: the slash commands typed ("/")
+    // and the chats' list — nothing English left in the pane
+    name: "ai-es-slash",
+    lang: "es",
+    capture: true,
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,wait,ai.assistant,type:/c`,
+    delay: 9,
+    dump: {
+      "aislashbar.__shown": /^1$/,
+      "aislashlist.text": /^\/compact {3}Resume este chat ahora[^\n]*\r?\n\/chats {3}Los chats de este proyecto/,
+    },
+  },
+  {
+    name: "ai-es-chats",
+    lang: "es",
+    capture: true,
+    open: "examples/gui/hello_form.rr",
+    copy: true,
+    webFiles: ["examples/gui/hello_form.rr"],
+    do: `${AI_READY},ai:ask=hello one,ai:wait,ai.newChat,ai:ask=hello two,ai:wait,wait,ai.assistant`,
+    events: [CLICK("aichatsbtn", 20, 12), idle(4)].join(","),
+    delay: 5,
+    dump: {
+      "aichatlist.itemcount": /^2$/,
+      "aichatsbtn.caption": /^Atrás$/,
+    },
+  },
+  {
     // English: the same row; "The language I write in" picked and OK: the
     // assistant follows the writer ("auto"), and Studio started again
     // keeps it

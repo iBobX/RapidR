@@ -54,7 +54,7 @@ mkdirSync(scratch, { recursive: true });
 
 // ---- what may stay English: names --------------------------------------------
 // (RapidR's product words, the keys' names, the code's file types)
-const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
+const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf", "crlf", "lf", "cr", "inter", "ms", "sans", "serif", "jetbrains", "mono", "courier", "new", "arial", "rapidq", "github", "anthropic", "claude", "openai", "ollama", "deepseek", "mcp", "api", "csv", "json", "sql", "url", "ctrl", "shift", "alt", "cmd", "enter", "esc", "tab", "del", "rr", "bas", "inc", "rrproj"]);
 // (the project's Properties rows are names, like a component's: Theme, Snap, Guides …; "Aa" is the case toggle's icon)
 for (const n of ["aa", "snap", "guides", "grid", "arguments", "targets", "desktop", "web"]) NAMES.add(n);
 {
@@ -128,6 +128,8 @@ const XX_SCENES = [
   { name: "project", open: "examples/gui/hello_form.rr", do: "wait,view.designer", delay: 6 },
   { name: "settings", open: "", do: "view.settings", window: 2 },
   { name: "setup-rai", open: "", do: "ai.setup", window: 2 },
+  // (Settings > AI, with "RAI answers in:": ES-REFERENCE part 3)
+  { name: "settings-ai", open: "", do: "ai.settings", window: 2 },
   // (the first-time question AI apps ask: Studio's test token lets a step ask it)
   { name: "consent", open: "", do: "wait,mcp:consent", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" }, desktopOnly: "AI apps (MCP) are the desktop Studio's" },
   { name: "find", open: "examples/gui/hello_form.rr", do: "wait,edit.findInFiles", delay: 5 },
@@ -346,7 +348,6 @@ const ES_SCENES = [
   ...[["archivo", "A"], ["edicion", "E"], ["ver", "V"], ["proyecto", "P"], ["ejecutar", "J"], ["depurar", "D"], ["formato", "F"], ["herramientas", "H"], ["ventana", "N"], ["ayuda", "U"]].map(([n, k]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: ALT(k), delay: 5 })),
   // (two sub-menus: File > Abrir reciente (R), Edición > Avanzado (V))
   ...[["archivo-reciente", "A", 82], ["edicion-avanzado", "E", 86]].map(([n, k, sub]) => ({ name: `menu-${n}`, open: "examples/gui/hello_form.rr", events: `${ALT(k)},studio.__key_${sub}`, delay: 5 })),
-  { name: "settings-ai", open: "", do: "ai.settings", window: 2 },
   { name: "settings-aiapps", open: "", do: "mcp.settings", window: 2, env: { RAPIDR_TEST_MCP_TOKEN: "lang-test" } },
   // (the AI Assistant pane: on, a server on this computer that isn't there — nothing is asked)
   { name: "assistant", open: "", do: "ai:on,ai:provider=compatible,ai:base=http://127.0.0.1:9,ai:model=mock-small,wait,wait", delay: 6 },
@@ -397,6 +398,10 @@ const SWITCH = [
   { name: "en-to-xx", lang: "en", do: "wait,lang:xx,wait", pseudo: true },
   // (Settings in Spanish: its Language row)
   { name: "es-settings", lang: "es", do: "view.settings", window: 2, expect: ["Idioma"] },
+  // (RAI in Studio's language: Settings > AI's "RAI answers in:" row and the
+  // empty assistant's greeting, ES-REFERENCE part 3)
+  { name: "es-settings-ai", lang: "es", do: "ai.settings", window: 2, expect: ["RAI responde en:", "El idioma de Studio", "Puede hacer:"], none: ["RAI answers in", "Studio's language"] },
+  { name: "es-assistant", lang: "es", do: "ai:on,ai:provider=compatible,ai:base=http://127.0.0.1:9,ai:model=mock-small,wait,wait", delay: 6, expect: ["Pregunta por este proyecto o pide un programa nuevo", "Nuevo chat"], none: ["Ask about this project"] },
   // (the manual's first page in the Help pane: docs/manual/es/getting-started.md)
   { name: "es-help", lang: "es", do: "wait,manual:getting-started.md", expect: ["Primeros pasos", "En tres líneas"] },
   // (the manual's other most-read pages: docs/manual/es/, whole)

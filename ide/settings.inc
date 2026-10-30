@@ -39,6 +39,7 @@ DECLARE SUB AISetFillModels(Keep AS STRING)
 DECLARE SUB AISetTakeRows
 DECLARE SUB AISetNote(Text AS STRING)
 DECLARE FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
+DECLARE FUNCTION AILabelWide(Cur AS INTEGER, Text AS STRING) AS INTEGER
 DECLARE SUB SettingsClosed(Action AS INTEGER)
 DECLARE SUB SettingsSetupClick
 DECLARE SUB SettingsPathRefresh
@@ -314,7 +315,7 @@ END CREATE
 ' in full, without making the dialog taller than a small laptop's screen)
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
-  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
+  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER, lw AS INTEGER
   IF ThemeName = "classic" THEN
     pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
   ELSE
@@ -386,21 +387,36 @@ SUB LayOutSettingsDialog
   gh = y
 
   ' ---- AI ----
-  lx = pad: fx = pad + 112: fw = w - 112
+  ' (the labels' column: 108 wide, wider when a language's labels need it —
+  ' a longer language than Spanish, the pseudo-language: nothing cut off)
+  lw = 108
+  lw = AILabelWide(lw, AIProvLabel.Caption)
+  lw = AILabelWide(lw, AIKeyLabel.Caption)
+  lw = AILabelWide(lw, AIWsLabel.Caption)
+  lw = AILabelWide(lw, AIBaseLabel.Caption)
+  lw = AILabelWide(lw, AIModelLabel.Caption)
+  lw = AILabelWide(lw, AIMaxLabel.Caption)
+  lw = AILabelWide(lw, AIPriceLabel.Caption)
+  lw = AILabelWide(lw, AIPermLabel.Caption)
+  lw = AILabelWide(lw, AIReplyLabel.Caption)
+  lx = pad: fx = pad + lw + 4: fw = w - lw - 4
   y = pad - 4
   AIOnBox.Left = lx: AIOnBox.Top = y: AIOnBox.Width = w - 156: AIOnBox.Height = 22
   AIOnBox.Font.Bold = 1
   AISetupBtn.Left = lx + w - 148: AISetupBtn.Top = y - (bh - 22) \ 2: AISetupBtn.Width = 148: AISetupBtn.Height = bh
   y = y + 26
-  AIOnNote.Left = lx: AIOnNote.Top = y: AIOnNote.Width = w: AIOnNote.Height = 68
+  ' (68 high, taller when a longer language's text wraps to more lines)
+  nh = AISetLinesHigh(AIOnNote.Caption, w)
+  IF nh < 68 THEN nh = 68
+  AIOnNote.Left = lx: AIOnNote.Top = y: AIOnNote.Width = w: AIOnNote.Height = nh
   AIOnNote.Font.Color = TC("page.dim")
-  y = y + 74
-  AIProvLabel.Left = lx: AIProvLabel.Top = y + 5: AIProvLabel.Width = 108
+  y = y + nh + 6
+  AIProvLabel.Left = lx: AIProvLabel.Top = y + 5: AIProvLabel.Width = lw
   AIProvBox.Left = fx: AIProvBox.Top = y: AIProvBox.Width = fw - 100
   AIPricesLink.Left = fx + fw - 90: AIPricesLink.Top = y + 5: AIPricesLink.Width = 90
   AIPricesLink.Font.Color = TC("page.link")
   y = y + row
-  AIKeyLabel.Left = lx: AIKeyLabel.Top = y + 5: AIKeyLabel.Width = 108
+  AIKeyLabel.Left = lx: AIKeyLabel.Top = y + 5: AIKeyLabel.Width = lw
   AIKeyEdit.Left = fx: AIKeyEdit.Top = y: AIKeyEdit.Width = fw - 196: AIKeyEdit.Height = fh
   AIKeySaveBtn.Left = fx + fw - 188: AIKeySaveBtn.Top = y - (bh - fh) \ 2: AIKeySaveBtn.Width = 96: AIKeySaveBtn.Height = bh
   AIKeyRemoveBtn.Left = fx + fw - 84: AIKeyRemoveBtn.Top = y - (bh - fh) \ 2: AIKeyRemoveBtn.Width = 84: AIKeyRemoveBtn.Height = bh
@@ -414,15 +430,15 @@ SUB LayOutSettingsDialog
   ' when they apply)
   AIRemember.Left = fx: AIRemember.Top = y: AIRemember.Width = fw: AIRemember.Height = 22
   IF Proj.FileManager = "" THEN y = y + 28
-  AIWsLabel.Left = lx: AIWsLabel.Top = y + 5: AIWsLabel.Width = 108
+  AIWsLabel.Left = lx: AIWsLabel.Top = y + 5: AIWsLabel.Width = lw
   AIWsEdit.Left = fx: AIWsEdit.Top = y: AIWsEdit.Width = fw: AIWsEdit.Height = fh
-  AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = 108
+  AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = lw
   AIBaseBox.Left = fx: AIBaseBox.Top = y: AIBaseBox.Width = fw
   ' (a provider with neither has no row there: the rows close up, the
   ' links at the bottom get the room — AISettingsProvider lays them out
   ' again for each provider)
   IF AIWsLabel.Visible OR AIBaseLabel.Visible THEN y = y + row
-  AIModelLabel.Left = lx: AIModelLabel.Top = y + 5: AIModelLabel.Width = 108
+  AIModelLabel.Left = lx: AIModelLabel.Top = y + 5: AIModelLabel.Width = lw
   AIModelCombo.Left = fx: AIModelCombo.Top = y: AIModelCombo.Width = fw - 140
   AIFetchBtn.Left = fx + fw - 132: AIFetchBtn.Top = y - (bh - fh) \ 2: AIFetchBtn.Width = 132: AIFetchBtn.Height = bh
   y = y + fh + 4
@@ -431,24 +447,27 @@ SUB LayOutSettingsDialog
   AIFetchNote.Left = fx: AIFetchNote.Top = y: AIFetchNote.Width = fw: AIFetchNote.Height = AIFetchNoteH
   AIFetchNote.Font.Color = TC("page.dim")
   IF AIFetchNoteH > 0 THEN y = y + AIFetchNoteH + 6 ELSE y = y - fh - 4 + row
-  AIMaxLabel.Left = lx: AIMaxLabel.Top = y + 5: AIMaxLabel.Width = 108
+  AIMaxLabel.Left = lx: AIMaxLabel.Top = y + 5: AIMaxLabel.Width = lw
   AIMaxEdit.Left = fx: AIMaxEdit.Top = y: AIMaxEdit.Width = 80: AIMaxEdit.Height = fh
   AIMaxUnit.Left = fx + 90: AIMaxUnit.Top = y + 5: AIMaxUnit.Width = fw - 90
   AIMaxUnit.Font.Color = TC("page.dim")
   y = y + fh + 4
-  AIMaxNote.Left = fx: AIMaxNote.Top = y: AIMaxNote.Width = fw: AIMaxNote.Height = 52
+  ' (52 high, taller when a longer language's text wraps to more lines)
+  nh = AISetLinesHigh(AIMaxNote.Caption, fw)
+  IF nh < 52 THEN nh = 52
+  AIMaxNote.Left = fx: AIMaxNote.Top = y: AIMaxNote.Width = fw: AIMaxNote.Height = nh
   AIMaxNote.Font.Color = TC("page.dim")
-  y = y + 52 + 4
-  AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = 108
+  y = y + nh + 4
+  AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = lw
   AIPriceInEdit.Left = fx: AIPriceInEdit.Top = y: AIPriceInEdit.Width = 60: AIPriceInEdit.Height = fh
   AIPriceOutEdit.Left = fx + 68: AIPriceOutEdit.Top = y: AIPriceOutEdit.Width = 60: AIPriceOutEdit.Height = fh
   AIPriceUnit.Left = fx + 136: AIPriceUnit.Top = y + 5: AIPriceUnit.Width = fw - 136
   AIPriceUnit.Font.Color = TC("page.dim")
   y = y + row
-  AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
+  AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = lw
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
   y = y + row
-  AIReplyLabel.Left = lx: AIReplyLabel.Top = y + 5: AIReplyLabel.Width = 108
+  AIReplyLabel.Left = lx: AIReplyLabel.Top = y + 5: AIReplyLabel.Width = lw
   AIReplyBox.Left = fx: AIReplyBox.Top = y: AIReplyBox.Width = fw
   y = y + row
   AIReviewBox.Left = fx: AIReviewBox.Top = y: AIReviewBox.Width = fw: AIReviewBox.Height = 22
@@ -728,6 +747,14 @@ END SUB
 ' ---- the AI tab ------------------------------------------------------------------------
 ' Everything here talks to SetAI, the tab's own RAI (decl.inc), never to the
 ' assistant: OK hands the choices to it (AISettingsTake → AIApplySettings).
+
+' (the labels' column: Cur, or the width Text needs in the dialog's font — its
+' & left out —, whichever is wider)
+FUNCTION AILabelWide(Cur AS INTEGER, Text AS STRING) AS INTEGER
+  DIM tw AS INTEGER
+  tw = AISetMeasure.TextWidth(REPLACESUBSTR$(Text, "&", "")) + 6
+  IF tw > Cur THEN Result = tw ELSE Result = Cur
+END FUNCTION
 
 ' (how tall Text is, wrapped at spaces to W pixels in the dialog's font as
 ' a WordWrap label wraps it; 0 for no text)

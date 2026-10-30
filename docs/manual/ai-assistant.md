@@ -115,6 +115,10 @@ changes nothing. Everything can be changed later in Settings.
    never cut off.
 9. **It may**: *Read the project, propose changes you review* (the
    default), or *Only read the project and answer*.
+10. **RAI answers in**: *Studio's language* (the default), or *The language
+    I write in*, which keeps the language of your latest message (and the
+    one before it, when a message is too short to tell). See *Your
+    language*, under Asking.
 
 The assistant's pane and its toolbar button appear once it is on and has a
 provider, a key (when the provider needs one) and a model.
@@ -151,12 +155,16 @@ you to send or change.
 
 ![A message typed while the assistant works: queued above the box, with × to take it back](images/ai/queued.png)
 
-**Your language.** The assistant answers in the language of your latest
-message: write in Spanish and the answer is in Spanish — even when your
-files, earlier messages or the summary of a long chat are in another
-language. When a message is too short to tell (*ok*, a line of code), it
-keeps the language you were writing in; before your first message, Studio's
-language.
+**Your language.** The assistant answers in **Studio's language**
+(Tools > Settings > General > Language), using RapidR's words in it, and
+reads the manual's and the help's pages in that language (a page not
+translated yet is read in English, and it says so). If you clearly write in
+another language, it answers in yours: write in English in a Spanish Studio
+and the answer is in English — even when your files, earlier messages or
+the summary of a long chat are in another language. A message too short to
+tell (*ok*, a line of code) is answered in Studio's language. To have it
+keep the language you write in, choose **The language I write in** under
+**RAI answers in** (Tools > Settings > AI).
 
 **A dropped connection.** When a question can't reach the provider — its
 name not found, no connection for a moment —, Studio tries once more, two
@@ -713,10 +721,13 @@ PRINT AI.Usage; AI.Error
   credit left, a model the key can't use, too many requests.
 - **ReplyLanguage**: the language the answers are in. `""` (the default)
   says nothing about it — the model chooses, as a program that translates
-  needs. `"auto"` follows the language of the user's latest message
-  (**UserLanguage** says which it read), as Studio's assistant does: every
-  request ends by saying it, and a long chat's summary is written in it, so
-  the model doesn't drift into another language. A language's name
+  needs. `"app"` answers in the program's language
+  (`Application.Language`), unless the user's latest message is clearly in
+  another: that one, as Studio's assistant does by default. `"auto"`
+  follows the language of the user's latest message (**UserLanguage** says
+  which it read; kept while a message is too short to tell): every request
+  ends by saying it, and a long chat's summary is written in it, so the
+  model doesn't drift into another language. A language's name
   (`AI.ReplyLanguage = "Spanish"`) always answers in that one.
 - A request that never reached the provider (no network for a moment) is
   tried once more by itself, two seconds later; a refusal never is.
