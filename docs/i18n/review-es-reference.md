@@ -47,3 +47,35 @@ What is covered: the Help pages' own words (*Propiedad de RButton*, *Insertar en
 - Names that are code: property names in the project's Properties (`Theme`, `Targets`, `MainFile`, `Grid`, `Snap`, `Guides`, `Arguments`), `{kind}` words from the registry, a file's path.
 - The history's own words stored in a project's versions (the commit messages "Saved the version …", "Went back to …") stay English where they are stored; only Versions' **Deshacer** line translates them.
 - Run-time errors: 13 common messages are in; the many messages specific to a component, and the line a debugged program shows at its error in Studio, still say English.
+
+## Part 3: RAI in Studio's language
+
+For Robert, 2026-10-30. The assistant now uses **Studio's language**: its greeting, statuses, cards and answers are in the language Studio speaks (English or Spanish today; a row in a table adds Portuguese or Chinese), with RapidR's words in it. If the person clearly writes in another language, it follows them. The new setting is **Tools > Settings > AI > RAI answers in:** with two choices, *El idioma de Studio* (the default) and *El idioma en que escribo*; an older settings file has neither and means Studio's language.
+
+What reaches the model (English, on purpose; the glossary's Decisions win over its older rows): the stable instructions carry, in a Spanish Studio, one block of about 800 characters (Studio's panes and RapidR's terms as `English=Spanish` pairs, *tú*, code stays English), and the last line of every request says the language: `Reply in Spanish (español) unless the person writes clearly in another language: then use theirs, …`, or `The user writes in English: reply in English, …` for a message that is clearly English. The tools give the model the registry's docs in Studio's language (`rapidr_describe`, a word's reference hits) and the manual's pages in it (a page not translated yet is read in English, and the tool says so). English adds nothing to the prompt.
+
+### Where I had a real doubt
+
+| English | Español | Why |
+|---|---|---|
+| RAI answers in: | RAI respon&de en: | The mnemonic is *d*: *R* is Recordar's (web) and *e* Proveedor's on the same page. |
+| Studio's language | El idioma de Studio | A choice in a list, next to the other: with the article, sentence case. |
+| The language I write in | El idioma en que escribo | *En que* over *en el que*: shorter, and the row is narrow. |
+| Waiting for you — {status} | Pendiente — {status} | Part 2 had *Esperando tu respuesta —*: *respuesta* is wrong for a change to review, and the strip is one line: "…propuso un cambio: revís" was cut. |
+| Kept on this computer, in Studio's own folder — never in the project. Delete removes a chat for good. | Se guardan en esta computadora, en la carpeta de Studio — nunca en el proyecto. Eliminar es definitivo. | The Chats list's note has two lines; part 2's text took three and the last was cut. Same meaning, marked `# legal`. |
+| the macOS Keychain / Windows Credential Manager | el Llavero de macOS / el Administrador de credenciales de Windows | Where your key is kept ("se guarda en …"): these were English words inside Spanish sentences. Their own names, as the glossary says (2.10). `# legal`. |
+| the Secret Service (GNOME Keyring or KWallet) | el Secret Service (GNOME Keyring o KWallet) | The product names stay. |
+| this browser tab, until it closes | esta pestaña del navegador, hasta que se cierre | Studio on the web. |
+| memory, for this session only | la memoria, solo durante esta sesión | What the tests' key store says. |
+| an environment variable | una variable de entorno | "A key for {name} is already found ({hint}, {store})". |
+| (prompt) click=clic, mouse=mouse | (to the model) | The glossary says *hacer clic* and *mouse*; the pair list keeps the noun, the model builds the verb. |
+| (prompt) add=añadir | (to the model) | Decision Q8; the glossary's older row says *agregar*. |
+| (prompt) Speak to the person as tú, never vos, usted or vosotros | (to the model) | Glossary 1.1. |
+| (prompt) menu paths: Herramientas > Configuración | (to the model) | Quoted as Studio shows them, even in an English answer to a Spanish Studio. |
+
+### What is not done, and why
+
+- `docs/manual/es/ai-assistant.md` still says the old thing (the answer follows your last message; *Esperando tu respuesta — un cambio por revisar*): the manual lane's. The English page now describes the new setting, so `rapidr i18n coverage es` lists it as changed since it was translated.
+- The registry's English doc of `RAI.ReplyLanguage` doesn't name the new value `"app"` (the manual's RAI section does): `crates/rapidr-lang/data/*.toml` is another lane's.
+- The slash commands' one-line descriptions are cut at the pane's edge, in English too.
+- The web page was not run for the new flows (they carry `lang` and `webFiles`: both hosts when the page is built).

@@ -234,11 +234,13 @@ pub enum ReplyIn {
     /// Studio's language — the default —, unless the person writes clearly
     /// in another one: then that message is answered in it, and the next
     /// message that says too little ("ok", a line of code) goes back to
-    /// Studio's.
+    /// Studio's. (The RAI component's ReplyLanguage `"app"`.)
     #[default]
     Studio,
     /// The language the person writes in: the latest message's, kept while
     /// a message says too little; Studio's before the first one that says.
+    /// (ReplyLanguage `"auto"`, R10's: the same rule, said by the RAI
+    /// itself with the language it has seen.)
     Writer,
 }
 
