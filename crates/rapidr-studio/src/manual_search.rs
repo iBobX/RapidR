@@ -146,7 +146,17 @@ pub fn sections() -> &'static [Section] {
 /// The manual's pages translated (docs/manual/<language>/<page>.md, a
 /// test keeps the list whole): (language, page, text). A page with no
 /// translation is read in English.
-pub const TRANSLATED: &[(&str, &str, &str)] = &[("es", "getting-started.md", include_str!("../../../docs/manual/es/getting-started.md"))];
+pub const TRANSLATED: &[(&str, &str, &str)] = &[
+    ("es", "README.md", include_str!("../../../docs/manual/es/README.md")),
+    ("es", "ai-assistant.md", include_str!("../../../docs/manual/es/ai-assistant.md")),
+    ("es", "debugging.md", include_str!("../../../docs/manual/es/debugging.md")),
+    ("es", "getting-started.md", include_str!("../../../docs/manual/es/getting-started.md")),
+    ("es", "studio-editor.md", include_str!("../../../docs/manual/es/studio-editor.md")),
+    ("es", "studio-languages.md", include_str!("../../../docs/manual/es/studio-languages.md")),
+    ("es", "studio-projects.md", include_str!("../../../docs/manual/es/studio-projects.md")),
+    ("es", "troubleshooting.md", include_str!("../../../docs/manual/es/troubleshooting.md")),
+    ("es", "versions.md", include_str!("../../../docs/manual/es/versions.md")),
+];
 
 /// The translated pages' sections, as `es/getting-started.md`.
 fn translated_sections() -> &'static [(&'static str, Vec<Section>)] {
@@ -303,7 +313,7 @@ mod tests {
     fn the_user_s_language_comes_first() {
         let (text, translated) = page_in("getting-started.md", "es-UY").unwrap();
         assert!(translated && text.contains("# Primeros pasos"));
-        let (text, translated) = page_in("debugging.md", "es").unwrap();
+        let (text, translated) = page_in("language.md", "es").unwrap();
         assert!(!translated && text.starts_with("# "));
         assert!(page_in("getting-started.md", "en").is_some_and(|(_, t)| !t));
         let top = search_in("instalar el SDK", 3, "es");
