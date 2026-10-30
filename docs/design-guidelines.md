@@ -146,6 +146,20 @@ Before something with consequences is turned on (AI apps working in Studio, a lo
 |---|---|
 | "Let AI apps use RapidR Studio?" + four rows + Turn On / **Cancel** | A 12-line paragraph in a warning message box with OK / Cancel |
 
+## Tabs
+
+- **Every tab has an icon and its name** (16 px icon, 6, the name in Title Case), in pane tab strips, dialogs and documents alike — never a bare word.
+- **Selected tab:** the accent underline (2 px) and the text in the normal colour; the others dim. No box around a tab's text: the keyboard focus ring goes around the whole tab.
+- **When narrow:** a tab strip that can't fit every name shows icons only, each with its name as tooltip and `AccessibleName` — never a cut name ("P…").
+- **More than five pages** (Settings, Project Options): a category list at the left (icon + name, one row each) with a search box, not a row of tabs.
+- Tab order: Ctrl+Tab / Ctrl+Shift+Tab move between tabs; the arrows move along the strip when it has the focus.
+
+## Dialogs and resizing
+
+- **A dialog fits the screen:** at most 85 % of the screen's work area in height and width; its content scrolls, its buttons stay pinned at the bottom. It must work at 1280 × 720 and at 200 % text.
+- **Long lists fold:** a list a person rarely edits (paths, folders) shows a one-line summary ("14 folders · Show") and opens as a small list (about five rows) with its own scroll bar.
+- **Smooth:** scrolling, resizing and dragging never show a half-drawn frame, a fallback rendering or sizes bouncing back and forth; a frame takes about 8 ms (120 Hz).
+
 ## Icons
 
 - RapidR's own set only: [design/icons](../design/icons/README.md). 16 px in panes, menus, tool bars, trees and chips; 24 on cards. `RBitmap.LoadIcon "name", 16` in the current look, again when the look changes.
@@ -206,3 +220,5 @@ Measured against this guide (2026-10-29); `tools/check_design.py --list` lists t
 9. `python3 tools/check_design.py` passes; `node tests/studio_shell.mjs`, `node tests/studio_flows.mjs` and the goldens pass (approve only the scenes you changed, and say which).
 10. Plain words, no other product's name (`python3 tools/check_words.py`); a consent is a question with rows and verb buttons, the safe one the default.
 11. Text in a list or log can be copied: a right-click menu with "&Copy" (Ctrl+C) and "Copy &All".
+12. Tabs have icons and names (icons only when narrow, never a cut name); a dialog fits 1280 × 720 with scrolling content and pinned buttons.
+13. Scrolled, resized and dragged: smooth, no flicker, no jumping sizes.
