@@ -2353,7 +2353,7 @@ const CASES = [
     do: "wait,help:SHOWMESSAGE",
     delay: 4,
     dump: {
-      "helppage.plaintext": /^SHOWMESSAGE\nStatement · RapidQ-compatible[^\n]*\n[^\n]*\nInsert into the code\n/,
+      "helppage.plaintext": /^SHOWMESSAGE\nStatement · classic[^\n]*\n[^\n]*\nInsert into the code\n/,
       "helpsearch.text": /^SHOWMESSAGE$/,
       "helpsuggest.visible": NO,
     },
@@ -2373,7 +2373,7 @@ const CASES = [
     do: "wait,help:RButton",
     delay: 4,
     dump: {
-      "helppage.plaintext": /^RButton\nComponent · RapidQ name: QBUTTON · desktop and web\nIts default event is OnClick\.\nCREATE Button1 AS RButton\n[\s\S]*\nInsert into the code\nA push button[^\n]*\nProperties \(\d+\)\nAlign · [^\n]*Caption · [^\n]*\nMethods \(\d+\)\n[^\n]*\nEvents \(\d+\)\nOnClick · /,
+      "helppage.plaintext": /^RButton\nComponent · desktop and web\nIts default event is OnClick\.\nCREATE Button1 AS RButton\n[\s\S]*\nInsert into the code\nA push button[^\n]*\nProperties \(\d+\)\nAlign · [^\n]*Caption · [^\n]*\nMethods \(\d+\)\n[^\n]*\nEvents \(\d+\)\nOnClick · /,
     },
   },
   {
@@ -2422,7 +2422,7 @@ const CASES = [
     do: "wait,view.code,wait,caret:    PickedFont,help.contents,wait",
     delay: 6,
     dump: {
-      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · RapidQ name: QFONT[^\n]*\n[^\n]*\nProperties \(\d+\)\n/,
+      "helppage.plaintext": /^PickedFont\nA variable in this program · global variable\nDIM PickedFont AS RFont\nDeclared in main\.rr, line 5 · used once\nFind References\nIts type is RFont\.\nRFont\nComponent · desktop and web\n[^\n]*\nProperties \(\d+\)\n/,
       "helpsearch.text": /^PickedFont$/,
     },
   },
