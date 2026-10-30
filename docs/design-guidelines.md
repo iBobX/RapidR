@@ -107,6 +107,7 @@ A chip says a state that lasts (a mode, a result), never an action.
 - **Never colour alone:** the words say it ("No questions asked"), the icon says it again.
 - **For screen readers:** the chip's container carries `AccessibleName` (the whole warning in a sentence); its parts are `AccessibleHidden`.
 - **How in Studio:** an `RCanvas` with `OnPaint = ChipPaint` (chrome.inc), `Tag` the status (0 info, 1 success, 2 warning, 3 danger), `Color` the ground; an `RImage` for the icon and a `Transparent` `RLabel` on top. The AI Apps pane's `McpBadge` is the reference; [status_colors.rr](../examples/gui/status_colors.rr) does the same in a program.
+- **A note after a name in a list** (the Properties pane in a project kept classic-compatible: "new" after a member classic programs lack): the same chip, small — a 16-px pill in `status.info`, `UIFont` one size down, 6 pixels on each side of the word; framed in the text colour in high contrast, on the window and framed in the classic look. It says a state, never an action; what it means goes in the row's tooltip and, for a screen reader, in its description ("Not in classic programs"). Nothing at all where it does not apply.
 - **In the status bar** (shorter than a header): the chip is as tall as the bar allows and its icon 12 px, in `StatusFont`; it is a child of the bar (never of the window, whose aligned parts it would push), at the right end of the project's panel. School Lock's chip is the reference (schoollock.inc).
 
 ## Pane anatomy

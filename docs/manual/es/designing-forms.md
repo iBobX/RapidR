@@ -1,4 +1,4 @@
-<!-- translated-from: designing-forms.md 787571a21d444a3a -->
+<!-- translated-from: designing-forms.md e7bce699475ac361 -->
 # Diseñar formularios en RapidR Studio
 
 El diseñador de formularios de RapidR Studio te permite construir las ventanas
@@ -241,6 +241,31 @@ seleccionado (o en el propio formulario cuando no hay nada seleccionado), por
 categoría o de la A a la Z, con un cuadro de búsqueda; el cuadro que está debajo
 dice qué hace la propiedad seleccionada. Los valores en gris son los
 predeterminados: no se escriben en el código.
+
+Cada propiedad está bajo el encabezado de **para qué sirve**, los mismos
+encabezados para todos los componentes: **Apariencia** (cómo se ve),
+**Comportamiento** (cómo actúa), **Disposición** (dónde está y de qué tamaño:
+Left, Top, Width, Anchors, los tamaños mínimo y máximo), **Fuente** (FontName,
+FontSize, FontColor), **Ayuda** (la sugerencia), **Dibujo**, **Datos**,
+**Ventana**, **Multimedia** y **Red**, y **Accesibilidad**, que reúne lo que se
+le dice a un lector de pantalla: AccessibleName, AccessibleDescription y
+AccessibleHidden. Busca una propiedad por lo que quieres cambiar, no por de
+dónde viene.
+
+![El panel Propiedades en un formulario: Disposición y Ventana, cada encabezado con las propiedades de su propósito](../images/inspector/categories-light.png)
+
+Un nombre que la columna deja cortado se muestra completo en una sugerencia. La
+línea entre los nombres y los valores se arrastra, y Studio recuerda dónde la
+dejas.
+
+Si tu proyecto debe seguir funcionando con programas clásicos (la sección
+`[compat]` del archivo del proyecto, como empieza una aplicación de formularios
+clásica), el panel marca con un pequeño **nuevo** las propiedades que un programa
+clásico no tiene; apunta a una y dice «No está en los programas clásicos», y un
+lector de pantalla dice lo mismo. No se oculta nada, y en cualquier otro proyecto
+no se marca nada. Mira las [Notas de compatibilidad](compatibility.md).
+
+![El mismo panel en un proyecto que se mantiene compatible con lo clásico: FontColor, FontSize, Anchors y los tamaños llevan un pequeño nuevo](../images/inspector/classic-marks-light.png)
 
 Cada tipo de propiedad tiene su propio editor, y cada uno escribe lo que el
 programa necesita:

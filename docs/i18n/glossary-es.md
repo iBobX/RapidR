@@ -337,6 +337,8 @@ The consent dialogs, the AI cost and privacy notes, the secret-check warnings an
 | Non-visual objects / Libraries | Objetos no visuales / Bibliotecas | |
 | Web only / AI / IDE | Solo para la web / IA / Studio | The "IDE" group is Studio's own components |
 | Property groups: Appearance / Behavior / Data / Network | Apariencia / Comportamiento / Datos / Red | "Layout" = *Disposición* |
+| Property groups, the rest: Accessibility / Drawing / Font / Help / Layout / Media / Window / Misc | Accesibilidad / Dibujo / Fuente / Ayuda / Disposición / Multimedia / Ventana / Varios | The Properties pane groups by what a property is for (there is no group named after where a member comes from) |
+| "new" (the note after a property classic programs lack) / Not in classic programs | nuevo / No está en los programas clásicos | Only in a project kept classic-compatible; *clásico* as in "Tema: Clásico" |
 
 The Toolbox lists components by their code names (`RButton`, `RLabel`…); those are never translated, only the group names above and each component's description.
 
