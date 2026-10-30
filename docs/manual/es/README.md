@@ -1,10 +1,10 @@
-<!-- translated-from: README.md ad4c61b433cb8b9f -->
+<!-- translated-from: README.md 030e75633bcad46f -->
 # El manual de usuario de RapidR
 
 RapidR es un BASIC moderno con su propio IDE, RapidR Studio: una
 implementación original, escrita desde cero en Rust puro, que funciona en tres
 entornos de ejecución: ejecutables nativos, el intérprete (el RapidR Runtime) y
-el navegador web. Los programas escritos para RapidQ también se ejecutan.
+el navegador web. Los programas anteriores también se ejecutan ([Notas de compatibilidad](../compatibility.md)).
 
 Este manual describe RapidR **2.119.0** (Preview 2). Dice lo que el código hace
 hoy; donde algo aún no está hecho, lo indica.
@@ -43,7 +43,7 @@ saber en qué destaca RapidR? [Por qué RapidR](../why-rapidr.md).
 |---|---|
 | [El lenguaje](../language.md) | La estructura de un programa, tipos, variables, arreglos (arrays), operadores, control de flujo, `SUB` y `FUNCTION`, `TYPE` y objetos, el preprocesador, archivos, la consola, y en qué se diferencia el BASIC de RapidR de otros BASIC |
 | [Tu programa en todos los idiomas](../translations.md) | `TR$` y `TRN$`, `Application.Language`, los archivos de traducción (`lang/es.po`) junto al programa, plurales, marcadores de posición, pasar de `es-AR` a `es`, textos que siguen un cambio de idioma, `Application.Languages` y `LanguageName`, las herramientas (`rapidr i18n`) y el seudoidioma |
-| [Componentes y objetos](../components.md) | `CREATE`, propiedades, métodos y eventos; los nombres de RapidR y los nombres Q anteriores; los objetos globales; temas, alta densidad de píxeles (high-DPI) y accesibilidad |
+| [Componentes y objetos](../components.md) | `CREATE`, propiedades, métodos y eventos; los nombres de RapidR y los nombres clásicos; los objetos globales; temas, alta densidad de píxeles (high-DPI) y accesibilidad |
 | [Dibujo: lienzos, mapas de bits y píxeles](../graphics.md) | `RCanvas`, `RBitmap` y `RImage` dibujan de la misma manera; **dibujar muchos píxeles rápido**: `SetPixels`, `SetPixels8` y `GetPixels` pasan una imagen completa a un arreglo, o desde él, en una sola llamada (una pantalla de 256 x 192 en una décima de milisegundo, no en 70), `StretchDraw x, y, w, h` y `Smooth`, una imagen cada 20 ms con un `RTimer` |
 | [Bases de datos](../databases.md) | RSQLite y RMySQL, enlace de parámetros, eventos, conexiones cifradas a MySQL (`SSLMode`) |
 | [Los ojos y las manos de un programa](../app-eyes-and-hands.md) | `RWindowCapture`: imágenes de las propias ventanas del programa y un informe de lo que se ve mal (texto cortado, controles unos sobre otros); `RAppHands`: clics, texto y teclas reproducidos en ellas con un puntero que ves: recorridos, demostraciones, pruebas automáticas; cómo miran y usan tu programa en ejecución las aplicaciones de IA y RAI dentro de Studio |
@@ -79,14 +79,14 @@ saber en qué destaca RapidR? [Por qué RapidR](../why-rapidr.md).
 
 | Capítulo | Qué contiene |
 |---|---|
-| [Diferencias y extensiones](../differences.md) | Lo que RapidR añade, lo que hace de otra manera a propósito y lo que no hace |
+| [Notas de compatibilidad](../compatibility.md) | Cómo siguen funcionando los programas antiguos, lo que RapidR añade, lo que hace de otra manera a propósito y lo que no hace |
 | [Solución de problemas](troubleshooting.md) | Mensajes frecuentes y qué hacer con ellos |
 
 ## Tablas de referencia
 
 Generadas a partir del registro del lenguaje de RapidR (`rapidr lang export --manual`):
 
-- [Componentes](../reference/components.md), y [sus nombres Q anteriores](../reference/classic-names.md)
+- [Componentes](../reference/components.md), y [sus nombres clásicos](../reference/classic-names.md)
 - [Propiedades, métodos y eventos de cada componente](../reference/members.md)
 - [Funciones integradas](../reference/builtins.md)
 - [Instrucciones, directivas, palabras clave y tipos](../reference/statements.md)

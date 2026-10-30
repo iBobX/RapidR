@@ -7,7 +7,7 @@ people. Native builds, the
 interpreter and the web give the same output for every example here.
 
 RapidR also accepts some syntax the classic language doesn't (VB's `#If`, `ON ERROR`,
-`i++`, …): see [Differences and extensions](differences.md).
+`i++`, …): see [Compatibility notes](compatibility.md).
 
 ## Source files
 
@@ -103,7 +103,7 @@ $INCLUDE "RAPIDQ.INC"
 RapidR has that include built in, so the line needs no file: RapidR ships no
 copy of it. Without the line, `clRed` — and `True` and `False` too — is an undeclared
 name and reads as 0, and the code editor warns you
-([the RAPIDQ.INC warning](studio-editor.md#the-rapidqinc-warning)). Old
+([the classic constants warning](studio-editor.md#the-classic-constants-warning)). Old
 programs behave the same. The line in a `.rr` program is harmless: the
 constants are then the include's.
 
@@ -690,7 +690,7 @@ be translated like any message.
 | `a && b` (compiles, but joins text: a warning) | `a AND b` | `hint.and-and` |
 | `for i in range(10)`, `for (i = 0; i < 10; i++)`, `FOR EACH x IN list` | `FOR i = 1 TO 10 … NEXT i`; a list: `FOR i = 0 TO List.ItemCount - 1` | `hint.for-foreign` |
 | `END FOR`, `END WHILE`, `END DO` | `NEXT`, `WEND`, `LOOP` | `hint.end-loop` |
-| a FOR, WHILE, DO, IF or SELECT never closed (RC.EXE's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
+| a FOR, WHILE, DO, IF or SELECT never closed (the classic compiler's *Missing NEXT statement* …, a warning) | `NEXT`, `WEND`, `LOOP`, `END IF`, `END SELECT` | `hint.missing-next`, `hint.missing-wend`, `hint.missing-loop`, `hint.missing-end-if`, `hint.missing-end-select` |
 | `ELSE IF c THEN` (a second IF that needs its own `END IF`) | `ELSEIF c THEN` | `hint.else-if` |
 | `elif c THEN` | `ELSEIF c THEN` | `hint.elseif` |
 | `ENDIF` | `END IF` | `hint.endif` |

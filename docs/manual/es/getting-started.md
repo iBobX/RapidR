@@ -1,4 +1,4 @@
-<!-- translated-from: getting-started.md d730607fc171e370 -->
+<!-- translated-from: getting-started.md 0caf3d76f12504dd -->
 # Primeros pasos
 
 **En tres líneas**
@@ -307,7 +307,7 @@ Form.ShowModal
 
 `rapidr run form.bas` abre la ventana; al cerrarla termina el programa.
 
-### Los nombres de RapidR y los nombres Q anteriores
+### Los nombres de RapidR y los nombres clásicos
 
 RapidR escribe sus componentes `RForm`, `RButton`, `RLabel`, `REdit`,
 `RStringGrid` …, y RapidR Studio, los ejemplos y este manual usan esos nombres.
@@ -316,7 +316,7 @@ los acepta, en silencio y sin ninguna opción** — `QFORM` y `RForm` son el mis
 componente, y puedes mezclarlos:
 
 ```basic
-DIM Old AS QBUTTON      ' el nombre Q anterior
+DIM Old AS QBUTTON      ' el nombre clásico
 DIM New AS RButton      ' el nombre de RapidR: el mismo componente
 ```
 
@@ -478,7 +478,7 @@ ancho ([Depuración: dos disposiciones](debugging.md#dos-disposiciones-edición-
   leerlos.
 - [La referencia de componentes](../reference/components.md), con los miembros de
   cada componente.
-- ¿Tienes programas anteriores con nombres Q?
+- ¿Tienes programas anteriores con nombres clásicos?
   [Importar programas anteriores](../importing-rapidq.md); también se ejecutan
   tal cual.
 - ¿Un mensaje que no entiendes? [Solución de problemas](troubleshooting.md).

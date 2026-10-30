@@ -283,7 +283,7 @@ Form.ShowModal
 
 `rapidr run form.bas` opens the window; closing it ends the program.
 
-### RapidR's names and the older Q names
+### RapidR's names and the classic names
 
 RapidR writes its components `RForm`, `RButton`, `RLabel`, `REdit`,
 `RStringGrid` …, and RapidR Studio, the examples and this manual use these
@@ -292,7 +292,7 @@ accepts those too, silently, with no setting** — `QFORM` and `RForm` are the
 same component, and you can mix them:
 
 ```basic
-DIM Old AS QBUTTON      ' the older Q name
+DIM Old AS QBUTTON      ' the classic name
 DIM New AS RButton      ' RapidR's name: the same component
 ```
 
@@ -444,6 +444,6 @@ Output; when it ends, the bottom panel gets the whole width again
 - [The examples](../../examples/README.md), in the order to read them.
 - [The component reference](reference/components.md), for every component's
   members.
-- Have older programs with Q names? [Importing older programs](importing-rapidq.md); they
+- Have older programs with classic names? [Importing older programs](importing-rapidq.md); they
   also run as they are.
 - A message you don't understand? [Troubleshooting](troubleshooting.md).

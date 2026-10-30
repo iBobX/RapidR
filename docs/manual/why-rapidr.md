@@ -129,7 +129,7 @@ Older programs keep doing what they did, and RapidR's extras are additive. A
 compatibility suite of 428 older example programs keeps watch, program by
 program, and the results are published whole; what runs, what differs and what
 RapidR doesn't do (32-bit DLLs, OLE) is on one page:
-[Differences](differences.md). To move an older program to RapidR's own
+[Compatibility notes](compatibility.md). To move an older program to RapidR's own
 component names, [import it](importing-rapidq.md): a copy, proved to compile to
 the same bytecode, with a report.
 
@@ -190,6 +190,6 @@ computer that sends nothing out.
 - A browser gives a page one core, so the data engine is slower there than on
   the desktop (numbers above).
 - Calls into Windows' own libraries (`DECLARE … LIB "user32"`) work only on
-  Windows; RapidR doesn't pretend to be Windows ([Differences](differences.md)).
+  Windows; RapidR doesn't pretend to be Windows ([Compatibility notes](compatibility.md)).
 - RapidR is a Preview. The roadmap lists what isn't there yet:
   [ROADMAP.md](../../ROADMAP.md).

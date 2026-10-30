@@ -194,7 +194,7 @@ runs it in a frame beside your code.
   (next section).
 
 The designer writes each file in its own names: RapidR's (RButton) in a file
-written with them, the older Q names (QBUTTON) in a classic program — a file that
+written with them, the classic names (QBUTTON) in a classic program — a file that
 creates `QFORM`s, or a `.bas` file — never a mix. Both names mean the same
 component.
 
@@ -325,7 +325,7 @@ designer, scroll bars let you reach all of it.
   take it out of the project (Delete) and its `$INCLUDE` goes too (the file
   stays on the disk).
 - In a program written with the older names (`main.bas`), new forms and modules
-  are `.bas` files and use the Q names, so the older compiler can build it too.
+  are `.bas` files and use the classic names, so the program stays a classic one.
 - One file can hold several forms (`CREATE Form AS RForm`, `CREATE NewForm AS
   RForm` …): the project tree shows each under the file, and opening one
   designs it. The tree takes what is a form from your code, not from the

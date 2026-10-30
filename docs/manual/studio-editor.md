@@ -53,10 +53,10 @@ END CREATE
 ```
 
 After `AS`, the list offers the built-in types, your TYPEs and every
-component under RapidR's names (`RButton`, `RForm`). The older Q names
+component under RapidR's names (`RButton`, `RForm`). The classic names
 (`QButton`, `QForm`) work exactly the same: start typing one (`QBu`) and
 the list offers it too, after RapidR's. In a file that already uses
-Q names, the list offers those instead (and RapidR's once you type
+classic names, the list offers those instead (and RapidR's once you type
 an `R`), so a file keeps one style.
 
 ### Ctrl+Space
@@ -68,7 +68,7 @@ constants:
 
 ![Ctrl+Space on an empty line lists the program's names: clicks, Answer, Form, Greet, GreetButton, NameChanged, NameEdit, NameLabel, then functions such as ABS](images/studio-editor/ctrl-space.png)
 
-### RAPIDQ.INC's constants
+### The classic constants
 
 Constants such as `mbYes`, `mtWarning`, `clRed` or `fmOpenRead` are built
 into a RapidR program (`.rr`): the list offers them as they are, and you
@@ -77,7 +77,7 @@ need no include line
 
 ![Typing mby in hello_form.rr lists mbYes, MB_YESNO and other constants, each a built-in constant with its number](images/studio-editor/completion-builtin.png)
 
-In a `.bas` program they come from the include file RAPIDQ.INC. The list offers them even before your program includes it, and
+In a `.bas` program they come from the include file `RAPIDQ.INC`. The list offers them even before your program includes it, and
 choosing one also adds the line `$INCLUDE "RAPIDQ.INC"` at the top of the
 file (after its first comments). Ctrl+Z takes both back.
 
@@ -270,11 +270,11 @@ Problems](debugging.md#long-lines-in-output-and-problems)). With View > Wrap
 Long Output Lines off, it ends in "…" instead, and resting the mouse on it
 shows all of it in a tooltip.
 
-### The RAPIDQ.INC warning
+### The classic constants warning
 
 In a `.bas` program, RapidR, to run old programs the same way,
 reads a name it doesn't know as a new variable that is 0. So if such a
-program uses `mbYes` without including RAPIDQ.INC, `mbYes` is 0, and a
+program uses `mbYes` without including `RAPIDQ.INC`, `mbYes` is 0, and a
 question like this one shows only an OK button (a `.rr` program has the
 constants built in: no warning there):
 
@@ -295,7 +295,7 @@ warning above, the fix adds `$INCLUDE "RAPIDQ.INC"` to the top of the file:
 ![Ctrl+. on mbYes shows the fix Add $INCLUDE "RAPIDQ.INC"](images/studio-editor/quick-fix.png)
 
 Other fixes: a misspelt property (`NameEdit.Txet`) offers the nearest real
-ones ("Change to Text"); in a project kept classic-compatible, a Q name that
+ones ("Change to Text"); in a project kept classic-compatible, a classic name that
 doesn't exist (`QPLOT`) offers RapidR's (`RPLOT`).
 
 `IF NOT FILEEXISTS(f) THEN` looks right but is always true: FILEEXISTS

@@ -1,4 +1,4 @@
-<!-- translated-from: studio-languages.md f9f072488f99006c -->
+<!-- translated-from: studio-languages.md ac6226c8fa882018 -->
 # Studio en tu idioma
 
 RapidR Studio habla tu idioma: sus menús, cuadros de diálogo, mensajes, los
@@ -43,8 +43,8 @@ $ RAPIDR_LANG=es rapidr check hello.rr
 hello.rr:3:11: error: Se esperaba el fin de la línea, pero se encontró THEN [Expected end-of-line but got THEN]
 ```
 
-- Un mensaje que el compilador de RapidQ también da conserva las palabras propias
-  de RapidQ junto a la traducción, entre corchetes, para que las palabras que
+- Un mensaje con las palabras del compilador clásico conserva su original en
+  inglés junto a la traducción, entre corchetes, para que las palabras que
   conoces (y buscas) sigan estando.
 - `rapidr check file.rr` compila un programa y enumera sus errores sin
   ejecutarlo.
