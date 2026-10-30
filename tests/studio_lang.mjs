@@ -368,8 +368,11 @@ const SWITCH = [
   { name: "es-settings", lang: "es", do: "view.settings", window: 2, expect: ["Idioma"] },
   // (the manual's first page in the Help pane: docs/manual/es/getting-started.md)
   { name: "es-help", lang: "es", do: "wait,manual:getting-started.md", expect: ["Primeros pasos", "En tres líneas"] },
+  // (the manual's other most-read pages: docs/manual/es/, whole)
+  { name: "es-help-debugging", lang: "es", do: "wait,manual:debugging.md", expect: ["Depuración en RapidR Studio", "El ejemplo"], none: ["No traducido aún"] },
+  { name: "es-help-troubleshooting", lang: "es", do: "wait,manual:troubleshooting.md", expect: ["Solución de problemas", "Instalar y empezar"], none: ["No traducido aún"] },
   // (a page with no translation: in English, said so)
-  { name: "es-help-english", lang: "es", do: "wait,manual:debugging.md", expect: ["No traducido aún", "Debugging"] },
+  { name: "es-help-english", lang: "es", do: "wait,manual:language.md", expect: ["No traducido aún", "The language"] },
   { name: "en-help", lang: "en", do: "wait,manual:getting-started.md", expect: ["Getting started", "In three lines"], none: ["Primeros pasos"] },
   // (a compiler error in Problems, in Spanish: the compiler's sample)
   { name: "es-problems", lang: "es", open: BAD, webOpen: "tests/results/studio-lang-bad/bad.rr", do: "wait,view.problems", delay: 5, expect: ["Se esperaba el fin de la línea, pero se encontró THEN"] },
