@@ -1450,7 +1450,7 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
         }
         // `ImageList.Draw Target, X, Y, Index`: the target QIMAGE / QCANVAS
         // shows it.
-        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| method_lower == "draw" && rapidr_value::objects::exists(t)) {
+        if let Some(target) = args.first().filter(|_| method_lower == "draw").map(Value::to_string_val).filter(|t| rapidr_value::objects::exists(t)) {
             if rapidr_value::objects::is_picture(&target) {
                 picture_changed(&target);
             }

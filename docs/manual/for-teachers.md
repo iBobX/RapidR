@@ -9,7 +9,7 @@ It is **off until someone turns it on**. For now it can lock two things:
 | **AI in Studio (RAI)** | RAI's pane shows *AI is turned off by your teacher* instead of the chat; nothing is sent to an AI. Set Up RAI and Tools > Settings > AI are read-only. The AI commands in the menus and the command palette are greyed, with the reason beside them. |
 | **AI apps (MCP)** | AI apps on the computer can't connect to Studio: its AI apps server doesn't start (and stops if it was running). Tools > Settings > AI Apps is read-only, its switch off and greyed. |
 
-The status bar shows a small **School Lock** chip while the lock is on.
+The status bar shows a small **School Lock** chip while the lock is on. And if Studio ever closes unexpectedly, its report stays on the computer without the strip that offers to report it on GitHub (a GitHub account is for 13 and over).
 
 School Lock collects nothing about students or teachers and sends nothing anywhere: it keeps one setting on the computer (below).
 

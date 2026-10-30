@@ -44,7 +44,7 @@ msgstr "A&plicar"
 msgid "Apply the accepted changes"
 msgstr "Aplicar los cambios aceptados"
 
-#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
+#: ide/ai.inc ide/aichats.inc ide/aisetup.inc ide/build.inc ide/consent.inc ide/crash.inc ide/debug.inc ide/external.inc ide/mcp.inc ide/prompts.inc ide/schoollock.inc ide/settings.inc ide/versions.inc ide/window.inc
 msgid "Cancel"
 msgstr "Cancelar"
 
@@ -1472,7 +1472,7 @@ msgstr "El ícono de la aplicación"
 msgid "Icons and pictures"
 msgstr "Íconos e imágenes"
 
-#: ide/build.inc ide/project.inc ide/shell.inc
+#: ide/build.inc ide/crash.inc ide/project.inc ide/shell.inc
 msgid "All files"
 msgstr "Todos los archivos"
 
@@ -2322,6 +2322,192 @@ msgstr "Más información"
 #: ide/consent.inc ide/mcp.inc
 msgid "Opens the manual's page in your browser"
 msgstr "Abre la página del manual en tu navegador"
+
+# Lane CRASH-REPORTS (2026-10-30): RapidR's crash and hang reports
+#: ide/crash.inc
+msgid "&View Report"
+msgstr "&Ver informe"
+
+#: ide/crash.inc
+msgid "Cop&y Report"
+msgstr "Cop&iar informe"
+
+#: ide/crash.inc
+msgid "Sa&ve Report..."
+msgstr "&Guardar informe..."
+
+#: ide/crash.inc
+msgid "Report on &GitHub..."
+msgstr "Informar en Git&Hub..."
+
+#: ide/crash.inc
+msgid "&Dismiss"
+msgstr "&Ocultar"
+
+#: ide/crash.inc
+msgid "Opens the report in a tab"
+msgstr "Abre el informe en una pestaña"
+
+#: ide/crash.inc
+msgid "Copies the report's text"
+msgstr "Copia el texto del informe"
+
+#: ide/crash.inc
+msgid "Saves a copy of the report where you choose"
+msgstr "Guarda una copia del informe donde elijas"
+
+# legal
+#: ide/crash.inc
+msgid "Opens a new issue on GitHub in your browser, filled in with the report. Nothing is sent until you send it there yourself."
+msgstr "Abre en tu navegador la página de GitHub para informar un problema nuevo, con el informe ya escrito. No se envía nada hasta que tú lo envíes allí."
+
+# legal
+#: ide/crash.inc
+msgid "Closes this note. The report stays on this computer for 30 days."
+msgstr "Cierra este aviso. El informe queda en esta computadora durante 30 días."
+
+#: ide/crash.inc
+msgid "RapidR Studio isn't responding"
+msgstr "RapidR Studio no responde"
+
+# legal
+#: ide/crash.inc
+msgid "Its window hasn't answered for a few seconds. Wait gives it more time. Save Copies and Quit closes it: the copies of your unsaved work it keeps as you type (every 20 seconds) are offered when it starts again. A report was written on this computer."
+msgstr "Su ventana no responde desde hace unos segundos. Esperar le da más tiempo. Guardar copias y salir lo cierra: las copias de tu trabajo sin guardar que Studio guarda mientras escribes (cada 20 segundos) se ofrecen cuando vuelva a abrirse. Se escribió un informe en esta computadora."
+
+#: ide/crash.inc
+msgid "&Wait"
+msgstr "&Esperar"
+
+#: ide/crash.inc
+msgid "&Save Copies and Quit"
+msgstr "&Guardar copias y salir"
+
+#: ide/crash.inc
+msgid "RapidR Studio stopped responding last time and was closed."
+msgstr "La última vez, RapidR Studio dejó de responder y se cerró."
+
+#: ide/crash.inc
+msgid "RapidR Studio closed unexpectedly last time."
+msgstr "La última vez, RapidR Studio se cerró de forma inesperada."
+
+# legal
+#: ide/crash.inc
+msgid "A report of what happened stays on this computer; nothing was sent. View it, copy it, save it, or report the problem on GitHub to help fix it."
+msgstr "Un informe de lo que pasó queda en esta computadora; no se envió nada. Puedes verlo, copiarlo, guardarlo o informar el problema en GitHub para ayudar a corregirlo."
+
+#: ide/crash.inc
+msgid "The report isn't there any more."
+msgstr "El informe ya no está."
+
+#: ide/crash.inc
+msgid "The report was copied."
+msgstr "Se copió el informe."
+
+#: ide/crash.inc
+msgid "Save Report"
+msgstr "Guardar informe"
+
+#: ide/crash.inc
+msgid "Text files"
+msgstr "Archivos de texto"
+
+#: ide/crash.inc
+msgid "Saved the report as {file}."
+msgstr "Se guardó el informe como {file}."
+
+#: ide/crash.inc
+msgid "Couldn't save the report: {error}"
+msgstr "No se pudo guardar el informe: {error}"
+
+#: ide/crash.inc
+msgid "Report this on GitHub?"
+msgstr "¿Informar esto en GitHub?"
+
+# legal
+#: ide/crash.inc
+msgid "Your browser opens RapidR's page for a new issue on GitHub, filled in with this report. Nothing is sent until you send it there yourself."
+msgstr "Tu navegador abre la página de RapidR en GitHub para informar un problema nuevo, con este informe ya escrito. No se envía nada hasta que tú lo envíes allí."
+
+#: ide/crash.inc
+msgid "It shows"
+msgstr "Muestra"
+
+# legal
+#: ide/crash.inc
+msgid "RapidR's version, your system, where it stopped, its last messages and the names of the last AI calls. Your home folder appears as ~; no file contents, keys or passwords."
+msgstr "La versión de RapidR, tu sistema, dónde se detuvo, sus últimos mensajes y los nombres de las últimas llamadas de IA. Tu carpeta personal aparece como ~; nada del contenido de tus archivos, ni claves ni contraseñas."
+
+#: ide/crash.inc
+msgid "You need"
+msgstr "Necesitas"
+
+# legal
+#: ide/crash.inc
+msgid "A GitHub account. GitHub's terms ask that you be 13 or older; a younger student can ask a teacher or a parent to report it."
+msgstr "Una cuenta de GitHub. Las condiciones de GitHub piden tener 13 años o más; un estudiante más joven puede pedirle a un docente, a su madre, a su padre o a su tutor que lo informe."
+
+# legal
+#: ide/crash.inc ide/mcp.inc
+msgid "Keep in mind"
+msgstr "Ten en cuenta"
+
+# legal
+#: ide/crash.inc
+msgid "Issues on GitHub are public: anyone can read them. Read the report first, and take out anything you don't want to share."
+msgstr "Los problemas informados en GitHub son públicos: cualquiera puede leerlos. Lee primero el informe y quita lo que no quieras compartir."
+
+#: ide/crash.inc
+msgid "&Open GitHub"
+msgstr "&Abrir GitHub"
+
+#: ide/crash.inc
+msgid "The page has a shorter report; the whole one was copied: paste it into the issue's text too."
+msgstr "La página tiene un informe más corto; el informe completo se copió: pégalo también en el texto del problema."
+
+#: ide/crash.inc
+msgid "the stack overflowed (calls went too deep)"
+msgstr "se desbordó la pila (las llamadas fueron demasiado profundas)"
+
+#: ide/crash.inc ide/safety.inc
+msgid "{file} line {n}"
+msgstr "{file} línea {n}"
+
+#: ide/crash.inc ide/safety.inc
+msgid "line {n}"
+msgstr "línea {n}"
+
+#: ide/crash.inc
+msgid "{place}, in {routine}"
+msgstr "{place}, en {routine}"
+
+#: ide/crash.inc
+msgid "{place}, in the main program"
+msgstr "{place}, en el programa principal"
+
+#: ide/crash.inc
+msgid "{event} of {component}"
+msgstr "{event} de {component}"
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}, at {where}."
+msgstr "Tu programa se detuvo: {what}, en {where}."
+
+#: ide/crash.inc
+msgid "Your program stopped: {what}."
+msgstr "Tu programa se detuvo: {what}."
+
+#: ide/crash.inc
+msgid "RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer:"
+msgstr "RapidR lo detuvo: es un problema de RapidR, no de tu código. Un informe queda en esta computadora:"
+
+#: ide/crash.inc
+msgid "View Report"
+msgstr "Ver informe"
+
+#: ide/crash.inc
+msgid "Your program stopped: a problem in RapidR"
+msgstr "Tu programa se detuvo: un problema de RapidR"
 
 #: ide/debug.inc
 msgid "Text"
@@ -3240,11 +3426,6 @@ msgstr "Nada espera tu permiso: las aplicaciones de IA cambian archivos, ejecuta
 
 # legal
 #: ide/mcp.inc
-msgid "Keep in mind"
-msgstr "Ten en cuenta"
-
-# legal
-#: ide/mcp.inc
 msgid "A program they run can do anything you can on this computer, and what they click in it is real. Choose this only while you watch an AI app you trust."
 msgstr "Un programa que ejecuten puede hacer en esta computadora todo lo que tú puedes, y los clics que hagan en él son reales. Elige esto solo mientras observas una aplicación de IA en la que confías."
 
@@ -4045,6 +4226,10 @@ msgid "Show me: a pointer types and clicks for you"
 msgstr "Muéstrame: un puntero escribe y hace clic por ti"
 
 #: ide/panes.inc
+msgid "Pixels, fast: a plasma and the Game of Life at 50 frames a second (SetPixels8)"
+msgstr "Píxeles, rápido: un plasma y el Juego de la vida a 50 cuadros por segundo (SetPixels8)"
+
+#: ide/panes.inc
 msgid "Recipe: a calculator with sqrt, sin, log, one handler for every key"
 msgstr "Receta: una calculadora con sqrt, sin, log, un controlador para todas las teclas"
 
@@ -4384,14 +4569,6 @@ msgstr "&Deshacer de todos modos"
 #: ide/safety.inc
 msgid "&Copy Details"
 msgstr "&Copiar detalles"
-
-#: ide/safety.inc
-msgid "{file} line {n}"
-msgstr "{file} línea {n}"
-
-#: ide/safety.inc
-msgid "line {n}"
-msgstr "línea {n}"
 
 #: ide/safety.inc
 msgid "Something went wrong in Studio: {message} ({where}). Your work is safe; Studio goes on."

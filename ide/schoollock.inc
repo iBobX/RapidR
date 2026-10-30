@@ -23,8 +23,10 @@
 ' Studio's settings), never the password. The computer's policy wins: then
 ' the lock is unlocked for this run only, never turned off here.
 '
-' SchoolLockHidesReporting is the hook for what a lock should also hide
-' later (a crash report's "Report on GitHub").
+' While the lock is on (unlocked until Studio closes or not), RapidR's
+' crash reports offer no strip and no "Report on GitHub" (crash.inc's
+' CrashSchoolLock: a GitHub account is 13+); SchoolLockHidesReporting
+' says the same to anything else that should hide with it.
 '
 ' Test steps (lock:<what>[=<value>]): lock:set=<password>[|<features>],
 ' lock:unlock=<password>, lock:off=<password>, lock:again, lock:dialog,
@@ -200,8 +202,8 @@ FUNCTION LockByPolicy AS INTEGER
   Result = Flag(Proj.SchoolLock("policy") = "1")
 END FUNCTION
 
-' The hook for what School Lock should also hide later (a crash report's
-' "Report on GitHub"): True while the lock is on, unlocked or not.
+' What School Lock also hides — a crash report's strip and its "Report on
+' GitHub" (CrashSchoolLock): True while the lock is on, unlocked or not.
 FUNCTION SchoolLockHidesReporting AS INTEGER
   Result = LockIsOn
 END FUNCTION
@@ -219,6 +221,9 @@ SUB LoadSchoolLock
   ok = Proj.SchoolLockLoad(setting)
   LockWasAI = LockOffAI
   LockWasApps = LockOffApps
+  ' (no crash strip, no Report on GitHub while it is on: crash.inc — before
+  ' its strip is offered, once Studio's window is up)
+  CrashSchoolLock SchoolLockHidesReporting
 END SUB
 
 ' (the setting kept at once: a lock never waits for Studio to close)
@@ -372,6 +377,8 @@ SUB SchoolLockApply
   END IF
   LockWasAI = aiOff
   LockWasApps = appsOff
+  ' (the crash strip and Report on GitHub hidden while it is on: crash.inc)
+  CrashSchoolLock SchoolLockHidesReporting
 END SUB
 
 ' (the look: the card's, the chip's, the strips' colours and fonts)

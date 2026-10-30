@@ -869,6 +869,9 @@ END SUB
 
 SUB OutputLine(Text AS STRING)
   OutputBox.WriteLine Text
+  ' (Studio's own messages, the last 50 kept for a crash report: scrubbed,
+  ' in memory only — crash.inc)
+  Proj.CrashNote Text
 END SUB
 
 SUB ClearProblems
@@ -904,6 +907,11 @@ SUB OutputLink(InFile AS STRING, LineNo AS INTEGER)
   DIM d AS INTEGER, p AS STRING
   IF LEFT$(InFile, 7) = "reveal:" THEN
     IF Proj.Reveal(MID$(InFile, 8)) = 0 THEN OutputLine TR$("Can't show it: {error}", "error", Proj.Error)
+    EXIT SUB
+  END IF
+  ' (a program RapidR stopped: its place and its report — crash.inc)
+  IF LEFT$(InFile, 6) = "crash-" THEN
+    CrashLink InFile
     EXIT SUB
   END IF
   ' (an example's copy: "Copy again from the original" — project.inc)

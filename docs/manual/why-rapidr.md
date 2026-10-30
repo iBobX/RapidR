@@ -82,6 +82,28 @@ with other work running, it took 19 ms and 29 ms (a load average of 9), and
 21 ms and 44 ms (a load average over 30); the budget is 50 ms. Studio itself
 starts in 0.28 s on that Linux VM.
 
+## Pictures from data: a whole screen in a tenth of a millisecond
+
+A program that draws an image from numbers — an emulator's screen, an image
+filter, a heat map, a game of life — puts the whole picture into a bitmap with
+one call: `SetPixels`, `SetPixels8` (palette numbers) or `GetPixels` back
+([Drawing: canvases, bitmaps and pixels](graphics.md#drawing-many-pixels-fast)).
+One 256 x 192 picture (49,152 pixels) put into a bitmap and drawn twice as
+large, in milliseconds, on an Apple M4 Max with macOS, release builds,
+2026-10-30, the Mac busy with other work (load average 20 to 40):
+
+| 256 x 192 picture, drawn twice as large | the interpreter | native build | web (Chromium) |
+|---|--:|--:|--:|
+| `Pset` for every pixel | 77.7 | 62.0 | 83 |
+| **`SetPixels8` + `StretchDraw`** | **0.087** | **0.090** | **0.127** |
+
+A 50-a-second frame is 20 ms, so the picture costs under half a percent of it.
+The program is `tools/bench/pixels.rr` (and `tests/web_pixels_bench.mjs` in a
+browser); [pixels_fast.rr](../../examples/graphics/pixels_fast.rr) draws a
+plasma and the Game of Life at 50 frames a second and says, under the picture,
+how long each step took. In [tools/bench/README.md](../../tools/bench/README.md)
+the same frame on a high-DPI screen (2x and 3x) is measured too.
+
 ## One program, every system
 
 You write a program once. It runs as a native executable, in the interpreter,

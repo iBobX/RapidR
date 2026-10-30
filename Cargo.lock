@@ -5163,6 +5163,7 @@ dependencies = [
  "rapidr-bcgen",
  "rapidr-bytecode",
  "rapidr-codegen-rust",
+ "rapidr-crash",
  "rapidr-dap",
  "rapidr-diagnostics",
  "rapidr-i18n",
@@ -5207,6 +5208,13 @@ dependencies = [
  "rapidr-parser",
  "rapidr-preprocessor",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "rapidr-crash"
+version = "2.121.3"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -5437,6 +5445,7 @@ dependencies = [
  "midir",
  "nanomp3",
  "rapidr-ai",
+ "rapidr-crash",
  "rapidr-d3d-gpu",
  "rapidr-db",
  "rapidr-lang",
@@ -5503,6 +5512,7 @@ dependencies = [
  "rapidr-ast",
  "rapidr-bcgen",
  "rapidr-codegen-rust",
+ "rapidr-crash",
  "rapidr-designer",
  "rapidr-diagnostics",
  "rapidr-editor",
@@ -5568,6 +5578,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "png",
  "pollster",
+ "rapidr-crash",
  "rapidr-ui-app",
  "rapidr-ui-kernel",
  "rapidr-ui-render",
@@ -5644,6 +5655,7 @@ name = "rapidr-vm"
 version = "2.121.3"
 dependencies = [
  "rapidr-bytecode",
+ "rapidr-crash",
  "rapidr-value",
 ]
 
@@ -5654,6 +5666,7 @@ dependencies = [
  "libc",
  "rapidr-bcgen",
  "rapidr-bytecode",
+ "rapidr-crash",
  "rapidr-lexer",
  "rapidr-parser",
  "rapidr-runtime-core",

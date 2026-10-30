@@ -1290,6 +1290,9 @@ fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     // `run-bc <file>` (COMMAND$, CommandCount, Application.ExeName), as
     // `rapidr run` and a built executable.
     let program = home::canonical(path).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| path.to_string());
+    // (RapidR's crash reports, as for `rapidr run`: rapidr-crash)
+    rapidr_crash::install(rapidr_crash::App::Program);
+    rapidr_crash::set_program_file(&program);
     rapidr_vm_host_native::set_program(&program, args);
     // Delegate to `rapidr-vm-host-native::run_bytes`, which installs the
     // indirect event dispatcher *before* `MAIN` runs — required for any

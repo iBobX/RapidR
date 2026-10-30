@@ -1,0 +1,81 @@
+' crash_reports.rr: RapidR's crash and hang reports on this computer — the
+' list, newest first, and the one you pick, as RapidR Studio shows them.
+'
+'   rapidr run crash_reports.rr
+'
+' When RapidR Studio, or a program it runs, stops on an error in RapidR's
+' own code (or Studio stops answering), RapidR writes a report on this
+' computer only; nothing is ever sent. RProject's Crash… methods read them:
+' CrashList (their names), CrashText (one's text), CrashField (a line of its
+' head: Kind, Message, Where, When…), CrashFolder (where they are kept).
+' Reports older than 30 days, and past the newest 20, are taken away.
+
+DECLARE SUB Pick
+DECLARE SUB CopyIt
+DECLARE SUB Fill
+
+DIM Reports AS RProject
+
+CREATE Form AS RForm
+    Caption = "Crash reports on this computer"
+    Width = 760
+    Height = 480
+    Center
+    CREATE Folder AS RLabel
+        Left = 10: Top = 10: Width = 720
+        AutoSize = 0
+    END CREATE
+    CREATE Names AS RListBox
+        Left = 10: Top = 34: Width = 300: Height = 360
+        OnClick = Pick
+    END CREATE
+    CREATE Report AS RMemo
+        Left = 320: Top = 34: Width = 414: Height = 360
+        ReadOnly = 1
+        ScrollBars = 2
+    END CREATE
+    CREATE CopyButton AS RButton
+        Caption = "&Copy Report"
+        Left = 10: Top = 404: Width = 120
+        OnClick = CopyIt
+    END CREATE
+    CREATE Said AS RLabel
+        Left = 140: Top = 408: Width = 594
+        AutoSize = 0
+    END CREATE
+END CREATE
+
+Fill
+
+' The reports, newest first: when, what and where.
+SUB Fill
+    DIM all AS STRING, i AS INTEGER, n AS INTEGER
+    Folder.Caption = "Kept in " + Reports.CrashFolder
+    all = Reports.CrashList
+    n = TALLY(all, CHR$(10))
+    Names.Clear
+    FOR i = 1 TO n
+        Names.AddItem FIELD$(all, CHR$(10), i)
+    NEXT
+    IF n = 0 THEN
+        Said.Caption = "No reports: RapidR hasn't crashed on this computer lately."
+    ELSE
+        Said.Caption = STR$(n) + " report(s). Pick one to read it."
+    END IF
+END SUB
+
+SUB Pick
+    DIM name AS STRING
+    IF Names.ItemIndex < 0 THEN EXIT SUB
+    name = Names.Item(Names.ItemIndex)
+    Report.Text = Reports.CrashText(name)
+    Said.Caption = Reports.CrashField(name, "Kind") + ", " + Reports.CrashField(name, "When") + ": " + Reports.CrashField(name, "Where")
+END SUB
+
+SUB CopyIt
+    IF Report.Text = "" THEN EXIT SUB
+    Clipboard.Text = Report.Text
+    Said.Caption = "Copied: paste it where you ask for help (it has no keys and shows your home folder as ~)."
+END SUB
+
+Form.ShowModal

@@ -79,6 +79,23 @@ pub fn mask(text: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
+/// [`mask`] for a crash report (`rapidr_crash::scrub`): `None` when the
+/// list is busy — the crash may have come while this thread held it — so
+/// the report never waits for it.
+pub fn try_mask(text: &str) -> Option<String> {
+    let known = KNOWN.try_lock().ok()?;
+    let mut inside: Vec<&String> = known.iter().filter(|k| k.as_str() == text || (k.chars().count() >= MIN_INSIDE && text.contains(k.as_str()))).collect();
+    if inside.iter().any(|k| k.as_str() == text) {
+        return Some(MASK.to_string());
+    }
+    inside.sort_by_key(|k| std::cmp::Reverse(k.len()));
+    let mut out = text.to_string();
+    for k in inside {
+        out = out.replace(k.as_str(), MASK);
+    }
+    Some(out)
+}
+
 /// Forgets every noted value (a program run again in the same process).
 pub fn forget_all() {
     KNOWN.lock().unwrap_or_else(|e| e.into_inner()).clear();

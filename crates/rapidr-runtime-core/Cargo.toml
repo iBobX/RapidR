@@ -7,6 +7,9 @@ license.workspace = true
 
 [dependencies]
 rapidr-value = { workspace = true }
+# (a GUI test's capture is the test's work, not a hang: ui/kernel.rs tells
+# RapidR Studio's hang watchdog — rapidr-crash, a leaf crate)
+rapidr-crash = { workspace = true }
 # Which names are components and their methods (object.rs): the language registry's
 rapidr-lang = { workspace = true }
 # (preserve_order: an object's keys stay in their order, as the web's RJSON

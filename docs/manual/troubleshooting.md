@@ -225,6 +225,79 @@ plain words: a refused key, no credit left, a model your key can't use, too
 many requests. On a web page, a model server on your computer (Ollama, LM
 Studio) must allow the page's address ([Providers](ai-assistant.md#providers)).
 
+## When RapidR crashes
+
+RapidR Studio is written so that a mistake in its own code doesn't end it:
+the error is said, your unsaved work is kept, and Studio goes on. When
+something worse happens — an error in RapidR's own code that ends Studio or
+your program, a stack overflow, or Studio's window not answering — RapidR
+writes a **report on this computer**. Nothing is sent anywhere: RapidR has no
+telemetry. You decide whether anyone sees a report.
+
+**The next time Studio starts**, a strip under the tool bar says so:
+
+![RapidR Studio closed unexpectedly last time: View Report, Copy Report, Save Report..., Report on GitHub..., Dismiss](images/crash/crash-banner-light.png)
+
+- **View Report** opens it in a tab; **Copy Report** copies its text (to
+  paste where you ask for help); **Save Report...** saves a copy where you
+  choose.
+- **Report on GitHub...** first says what happens: your browser opens
+  RapidR's page for a new issue on GitHub, filled in with the report.
+  Nothing is sent until you send it there yourself. You need a GitHub
+  account (GitHub's terms ask that you be 13 or older; a younger student can
+  ask a teacher or a parent); issues are public, so read the report first.
+  A report too long for the page's address is copied, to paste into the
+  issue.
+- **Dismiss** closes the note. Any answer and Studio doesn't ask again.
+- Your unsaved work is offered too ("Restore your unsaved work?"), as after
+  any unexpected end.
+- With School Lock on, the strip isn't shown.
+
+**When your program stops** because of a problem in RapidR (not an error in
+your code — those are run-time errors, shown as always), the Output says
+where it was, with links to the line and to the report:
+
+```
+[main.rr ended, exit code 101]
+Your program stopped: index out of bounds, at main.rr line 24, in SUB Tick (OnTimer of Ticker).
+RapidR stopped it: a problem in RapidR, not in your code. A report stays on this computer: View Report
+```
+
+**When Studio stops answering** for 5 seconds, a hang report is written at
+once and a small window asks: *RapidR Studio isn't responding* —
+**Wait** (it asks again after 30 seconds if it still doesn't answer) or
+**Save Copies and Quit** (Studio closes; the copies of your unsaved work it
+keeps as you type, every 20 seconds, are offered when it starts again). If
+Studio answers again, the window goes away by itself and the report says how
+long it took.
+
+![RapidR Studio isn't responding: Wait, Save Copies and Quit](images/crash/crash-hang-light.png)
+
+**What a report has**: what happened in plain words and the error's message;
+RapidR's version and git commit; your system's name; where your program or
+Studio was (file, line, SUB or FUNCTION, the event being handled); what
+Studio was doing (its last command); the Rust backtrace (the names of
+RapidR's functions); the names of the last AI and MCP calls (never what was
+sent); RapidR's own last 50 messages. **What it never has**: your home
+folder's path (it shows as `~`), the contents of your files, keys, tokens or
+passwords (taken out by their shapes, and any value your program marked as
+a secret), or values from your program.
+
+**Where they are**: `~/Library/Application Support/RapidR/crashes` (macOS),
+`%APPDATA%\RapidR\crashes` (Windows), `~/.local/share/rapidr/crashes`
+(Linux), one text file each, readable only by you. Reports older than 30
+days, and past the newest 20, are deleted. The example
+[`examples/studio/crash_reports.rr`](../../examples/studio/crash_reports.rr)
+lists them (RProject's `CrashList`, `CrashText`, `CrashField`).
+
+**What isn't covered yet**: apps you build and give to others (opt-in
+reports for them come later); RapidR Studio on the web; on Windows, a stack
+overflow ends the program with the system's message and no report (a panic
+is reported). After a stack overflow or a fatal signal the report is a
+shorter one, without a backtrace: at that moment only the place in your
+program can be read safely. A hang report names the threads but has no
+backtrace of the stuck one.
+
 ## Reporting a problem
 
 Open an issue on GitHub (there are forms for bugs, compatibility and

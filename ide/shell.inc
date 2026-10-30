@@ -63,6 +63,8 @@ END SUB
 
 SUB RunCommand(Id AS STRING)
   DIM d AS INTEGER
+  ' (what Studio is doing, for a crash or hang report: the command's id)
+  Proj.CrashDoing Id
   d = ActiveCode
   ' (Edit's in Variables or Watch, when they have the focus — the selected
   ' value copied, the last value set undone: debug.inc)
@@ -367,6 +369,9 @@ SUB StartStudio
   ' (from here on an error in Studio's own code is said, never the end of
   ' Studio; unsaved work is kept as it is typed: safety.inc)
   SetUpSafety
+  ' (RapidR's crash and hang reports: the strip after a Studio that ended
+  ' unexpectedly, the hang watchdog — crash.inc)
+  SetUpCrash
   ' (an installed Studio: Documents/RapidR/Projects, never inside RapidR)
   DefaultFolder = Proj.ProjectsFolder(HomeDir)
   ' (S2: offered unless the settings turned it off)
@@ -473,6 +478,7 @@ SUB MacroTick
     ' (S-PANELS: the panels' test steps, tool: prop: …, else a command;
     ' safety.inc's safety: steps)
     IF SafetyStep(id) THEN EXIT SUB
+    IF CrashStep(id) THEN EXIT SUB
     IF PanelStep(id) = 0 THEN
       IF DebugStep(id) = 0 THEN RunCommand id
     END IF

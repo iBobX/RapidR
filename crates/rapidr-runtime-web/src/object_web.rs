@@ -1652,7 +1652,7 @@ fn comp_method(name: &str, method: &str, args: &[Value]) -> Value {
             picture_changed(&uname);
         }
         // `ImageList.Draw Target, X, Y, Index`: a target QIMAGE shows it.
-        if let Some(target) = args.first().map(Value::to_string_val).filter(|t| lmethod == "draw" && rapidr_value::objects::is_picture(t)) {
+        if let Some(target) = args.first().filter(|_| lmethod == "draw").map(Value::to_string_val).filter(|t| rapidr_value::objects::is_picture(t)) {
             picture_changed(&target.to_uppercase());
         }
         // (I1 / L-PANELS) A designer's selection or props changed: the

@@ -1266,6 +1266,8 @@ SUB McpToolCalled(Tool AS STRING, Arguments AS STRING, CallId AS INTEGER)
   DIM kind AS STRING, perm AS STRING, client AS STRING, what AS STRING
   client = Mcp.ClientName
   McpCalls = McpCalls + 1
+  ' (a crash report's last calls: the tool's name only — crash.inc)
+  Proj.CrashCall "MCP: " + Tool
   McpPaneShow
   kind = McpKindOf(Tool)
   ' (the open project's mode)

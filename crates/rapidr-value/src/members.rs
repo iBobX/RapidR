@@ -108,7 +108,7 @@ const PANELS: &[&str] = &["expandall", "collapseall", "clearproperties", "save",
 const SESSION: &[&str] = &["start", "stop", "pause", "showprogram", "continue", "stepin", "stepover", "stepout", "stacktrace", "watchvalues", "runinbrowser", "stopbrowser", "readshellpath", "refreshshellpath"];
 
 /// (I1) RPROJECT's: `IF Project.Save THEN`.
-const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys", "studiofolder", "recoveryend", "recoveryfound", "recoverydiscard", "logfile", "applybegin", "applyundo", "mainincludedby", "schoollockrelock"];
+const PROJECT: &[&str] = &["save", "build", "stopbuild", "reveal", "rustready", "installrust", "followcode", "mackeys", "studiofolder", "recoveryend", "recoveryfound", "recoverydiscard", "logfile", "applybegin", "applyundo", "mainincludedby", "crashpending", "crashmark", "crashfolder", "crashlist", "schoollockrelock"];
 
 /// (Versions G3) RREPOSITORY's: `IF Repo.Start THEN`, `T$ = Repo.Timeline`.
 const REPOSITORY: &[&str] = &["start", "refresh", "timeline", "undo", "history", "localfiles"];

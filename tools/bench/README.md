@@ -195,3 +195,56 @@ How:
 - **`SaveArray` / `LoadArray`** of a numeric array variable with plain
   indices are one call (`rapidr_ast::stream_arrays`, `__ArrayIO` in
   `objects/stream_ops.rs`) doing what the element-by-element loop did.
+
+## The pixel benchmark: a whole picture from data (FAST-PIXELS)
+
+How fast a program can put a picture it made from numbers — an emulator's
+screen, a filter, a heat map — into a bitmap and show it larger, on the
+three runtimes ([the manual](../../docs/manual/graphics.md#drawing-many-pixels-fast)).
+One 256 × 192 picture (49,152 pixels), twice as large on the screen.
+
+| Tool | Runs |
+|---|---|
+| `pixels.rr` | the program: `rapidr run tools/bench/pixels.rr` (the interpreter), `rapidr build tools/bench/pixels.rr <folder>` then the program (native). Milliseconds a picture, the average of 300 (3 for the `Pset` loop), and a check that the pixels are the ones put in. |
+| `tests/web_pixels_bench.mjs` | the same program in the web runtime (Chromium), at device scale 1 and 2; fails when a call of the pixel-block methods takes 2 ms or more. |
+| `pixels_bench` (`crates/rapidr-value/examples/pixels_bench.rs`) | the engine alone: `cargo run --release -p rapidr-value --example pixels_bench [-- --runs N] [--check]`, at the screen scales 1, 2 (Retina) and 3; `--check` exits 1 when a frame costs 2 ms or more at scale 1. |
+
+Apple M4 Max, macOS, release builds, 2026-10-30; the Mac was busy with other work
+(load average 20 to 40), so these are on the slow side. Milliseconds a picture:
+
+| step (256 × 192) | interpreter | native | web (Chromium) |
+|---|--:|--:|--:|
+| `Pset` for every pixel | 77.7 | 62.0 | 83 |
+| `SetPixels` (colours) | 0.031 | 0.030 | 0.050 |
+| `SetPixels8` (palette numbers) | 0.044 | 0.048 | 0.083 |
+| `GetPixels` | 0.044 | 0.021 | 0.057 |
+| `StretchDraw`, twice as large | 0.044 | 0.045 | 0.060 |
+| **`SetPixels8` + `StretchDraw`** | **0.087** | **0.090** | **0.127** |
+
+The engine alone (`pixels_bench`), microseconds a picture, at the screen
+scales 1, 2 and 3 — and what it was before:
+
+| | scale 1 | scale 2 | scale 3 | before (1, 2, 3) |
+|---|--:|--:|--:|--|
+| `SetPixels` | 30 | 80 | 105 | — |
+| `SetPixels8` | 46 | 98 | 120 | — |
+| `GetPixels` | 28 | 28 | 29 | — |
+| `Draw`, 1 to 1 | 2 | 12 | 23 | 114, 293, 477 |
+| `StretchDraw`, twice, nearest | 39 | 193 | 396 | 368, 1,158, 2,133 |
+| `StretchDraw`, twice, `Smooth` | 297 | 1,130 | 2,172 | (none) |
+| what the screen is given (`display_rgba`) | 17 | 67 | 146 | 175, 701, 1,576 |
+| a whole frame: `SetPixels8` + `StretchDraw` | 82 | 286 | 472 | — |
+| …and handed to the screen | 100 | 341 | 640 | — |
+
+How:
+
+- **Whole rows, not pixels.** `Draw`, `CopyRect` and `StretchDraw` copy and scale
+  a row at a time on the pixel slices (`crates/rapidr-value/src/objects/blit.rs`:
+  the source column of each destination column found once, a source row
+  used again copied as a row); `SetPixels` and `SetPixels8` read the array once and
+  copy rows, each pixel a square of the finer picture a high-DPI screen
+  shows. The scaled copy is held to the old per-pixel arithmetic by a test.
+- **An array passed to a method was turned into text.** The runtimes asked,
+  for every method of every component, whether its first argument named the
+  target of `ImageList.Draw`, by making it a string first: for a 49,152-element
+  array a millisecond a call. Now the method's name is looked at first.

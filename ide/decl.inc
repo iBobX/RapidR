@@ -472,6 +472,14 @@ DECLARE FUNCTION ExternalCommand(Id AS STRING) AS INTEGER
 DECLARE SUB ExternalStep(S AS STRING)
 ' (every document with changes saved; 0 when a save was declined: documents.inc)
 DECLARE FUNCTION SaveAllOk AS INTEGER
+' (RapidR's crash and hang reports: crash.inc)
+DECLARE SUB SetUpCrash
+DECLARE SUB ApplyCrashChrome
+DECLARE SUB CrashSchoolLock(Locked AS INTEGER)
+DECLARE SUB CrashRunStarts
+DECLARE SUB CrashProgramEnded(Code AS INTEGER)
+DECLARE SUB CrashLink(Target AS STRING)
+DECLARE FUNCTION CrashStep(Stp AS STRING) AS INTEGER
 
 ' ---- School Lock (schoollock.inc: Studio's AI turned off behind a
 ' password, by a teacher or the computer's policy) ----

@@ -82,7 +82,12 @@ impl Host for HeadlessHost {
             // (until the timeout, or a waker's call: work from another
             // thread — a Studio session's program said something — wants
             // the loop's turn now; an early turn only loops once more)
-            Some(t) => std::thread::park_timeout(t),
+            // (waiting: the hang watchdog's "idle", rapidr-crash)
+            Some(t) => {
+                rapidr_crash::watchdog::idle();
+                std::thread::park_timeout(t);
+                rapidr_crash::watchdog::busy();
+            }
             None => {
                 // (no user can ever come: only a test's script or a timer would)
                 eprintln!("[rapidr] headless host: the program waits for input and nothing is scheduled (no timer, no test step)");

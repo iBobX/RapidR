@@ -1,0 +1,27 @@
+' A clock whose timer's handler RapidR crashes on purpose in the tests
+' (RAPIDR_TEST_CRASH=panic@main.rr:24 — the flows' crash-program cases):
+' Studio's Output then says where the program was, with its report.
+DECLARE SUB Tick(Sender AS RTimer)
+DIM Count AS INTEGER
+
+CREATE Clock AS RForm
+  Caption = "Clock"
+  Width = 300: Height = 120
+  CREATE Face AS RLabel
+    Left = 20: Top = 20: Width = 200
+    Caption = "0"
+  END CREATE
+END CREATE
+
+CREATE Ticker AS RTimer
+  Interval = 200
+  Enabled = 1
+  OnTimer = Tick
+END CREATE
+
+SUB Tick(Sender AS RTimer)
+  Count = Count + 1
+  Face.Caption = STR$(Count)
+END SUB
+
+Clock.ShowModal

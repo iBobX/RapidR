@@ -31,6 +31,9 @@ rapidr-import.workspace = true
 rapidr-ai = { workspace = true, features = ["component"] }
 rapidr-introspect = { workspace = true, features = ["design"] }
 serde_json = "1"
+# RPROJECT's Crash… methods: RapidR's crash and hang reports (crash.rs; on
+# this computer only, no telemetry)
+rapidr-crash.workspace = true
 # RREPOSITORY's local history (local_history.rs): each saved file's copy
 # named by its SHA-256 (MIT OR Apache-2.0; already in the tree, rapidr-cli's)
 sha2 = "0.10"

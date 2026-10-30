@@ -180,6 +180,8 @@ impl Host for NativeHost {
     }
 
     fn handler_failed(&mut self, failure: &rapidr_vm::HandlerFailure) {
+        // (RapidR's own message about the program: a crash report's log)
+        rapidr_crash::note(&failure.text);
         match self.errors.as_mut() {
             Some(errors) => errors(&format!("{}\n", failure.text)),
             None => eprintln!("{}", failure.text),
@@ -543,9 +545,36 @@ pub fn run_bytes(bytes: &[u8]) -> Result<(), String> {
     run_module(&module, &mut vm)
 }
 
+/// The program's map for RapidR's crash reports (`rapidr_crash::place`):
+/// its SUBs and FUNCTIONs, their lines and the files they came from, so a
+/// report says "main.rr line 120, in SUB Tick (OnTimer of Clock)"; and how
+/// this runtime's words read there (an event's name, the secrets the
+/// program noted, its own unwinding that is no crash).
+pub fn crash_map(module: &Module) {
+    use rapidr_crash::place::{FnInfo, ProgramMap};
+    let functions = module
+        .functions
+        .iter()
+        .map(|f| FnInfo {
+            name: f.name.clone(),
+            // (a FUNCTION's own name is a local holding its result)
+            function: f.local_names.iter().skip(f.params.len()).any(|l| l.eq_ignore_ascii_case(&f.name)),
+            lines: f.line_info.clone(),
+        })
+        .collect();
+    // (the program's names as written — `Clock` —: the runtime's are in
+    // lower case)
+    let names = module.strings.iter().filter(|s| !s.is_empty() && s.len() <= 64 && s.chars().all(|c| c.is_alphanumeric() || c == '_') && s.chars().any(|c| c.is_uppercase())).cloned().collect();
+    rapidr_crash::place::set_program_map(ProgramMap { functions, files: module.source_map.files.clone(), runs: module.source_map.runs.clone(), names });
+    rapidr_crash::place::set_event_titler(rapidr_value::events::event_title);
+    rapidr_crash::scrub::set_masker(rapidr_value::secrets::try_mask);
+    rapidr_crash::set_ignore(|p| p.is::<rapidr_value::HostRaised>() || p.is::<rapidr_value::HandlerFailed>());
+}
+
 /// Runs `module`'s main program on `vm`; then the program's end (timers
 /// stopped, files closed).
 pub fn run_module(module: &Module, vm: &mut Vm<'_, NativeHost>) -> Result<(), String> {
+    crash_map(module);
     rapidr_runtime_core::terminal::start();
     let prev = install_event_queue();
 

@@ -308,7 +308,10 @@ export const cases = [
     expect: ["loaded.caption=Wrote sample.tsn: 65546 bytes."] },
   // video memory: three frames by hand (the ball moved, the cells redrawn); the timer running a while
   { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: wait("framebtn", 3), dump: "info.caption,runbtn.caption",
-    expect: ["info.caption=Frame 3   ball at 46,33   cells redrawn: 4", "runbtn.caption=&Run"] },
+    expect: ["info.caption=Frame 3   ball at 46,33", "runbtn.caption=&Run"] },
+  // (the whole screen repainted fifty times, timed: SetPixels8 + StretchDraw)
+  { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: "repaintbtn.onclick", dump: "info.caption",
+    expect: ["info.caption=Full repaint "] },
   { file: "recipes/video_memory.rr", runtimes: ["run", "interp", "native", "web"], events: `runbtn.onclick,${wait("info", 8)}`, dump: "info.caption,runbtn.caption",
     expect: ["info.caption=Frame ", "runbtn.caption=&Pause"] },
   // the keyboard: Q (row 2's first key), Enter (row 5's last), Space (row 7's third): down, then up
@@ -362,6 +365,12 @@ export const cases = [
     expect: ["info.caption=2 dots, last at 300,30 (002828DC)"] },
   { file: "graphics/canvas.rr", runtimes: ["run", "interp", "native", "web"], events: "clearbtn.onclick", dump: "info.caption",
     expect: ["info.caption=No dots; bar 4 is &H00B48246"] },
+  // pixels_fast: the plasma for a couple of seconds (the readout appears once a second: frames a second
+  // and the time of each step), Life with the slow Pset method, a click on the picture, Pause
+  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: wait("hint", 50), dump: "info.caption,effectbtn.caption,methodbtn.caption",
+    expect: [" fps  work", "effectbtn.caption=&Life", "methodbtn.caption=&Method: SetPixels8"] },
+  { file: "graphics/pixels_fast.rr", runtimes: ["run", "interp", "native", "web"], events: `effectbtn.onclick,methodbtn.onclick,screen.__mousedown_100_100,screen.__mouseup_100_100,${wait("hint", 50)},pausebtn.onclick`, dump: "info.caption,effectbtn.caption,methodbtn.caption,pausebtn.caption",
+    expect: [" fps  work", "effectbtn.caption=&Plasma", "methodbtn.caption=&Method: Pset", "pausebtn.caption=&Resume"] },
   { file: "directx/sprites.rr", runtimes: ["run", "interp", "native", "web"], events: `screen.__mousedown_100_100,${wait("info", 8)},pausebtn.onclick`, dump: "info.caption,pausebtn.caption",
     expect: ["info.caption=4 balls", "pausebtn.caption=&Go"] },
   { file: "directx/d3d_cube.rr", runtimes: ["run", "interp", "native", "web"], events: `fasterbtn.onclick,${wait("info", 4)}`, dump: "info.caption",

@@ -175,6 +175,7 @@ SUB ApplyChrome
   ApplySearchChrome
   ApplyVersionsChrome
   ApplyExternalChrome
+  ApplyCrashChrome
   ' (School Lock's card, chip and strips: schoollock.inc)
   SchoolLockChrome
   ApplyState
