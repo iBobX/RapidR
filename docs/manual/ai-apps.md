@@ -154,6 +154,51 @@ A call with a missing or wrong argument is answered at once with what the
 tool needs ("Call read_file again: it needs `path` (a string)…"), so even a
 small model can correct itself.
 
+## What Studio tells your AI app
+
+When an AI app connects, Studio hands it a short text (under about 1,200
+tokens) with the way to work — the same for every AI app, small or large:
+
+1. `studio_status` says what is open. On an empty project it ends with
+   *This project is empty: call find_example first*.
+2. `find_example` for what the user wants: a working program to start from.
+3. `write_file` for a new file, `propose_edit` for a few lines of an
+   existing one. **The open project is the user's program**: `create_project`
+   only makes a separate new project.
+4. `check_code` after every write. An error that is another language's
+   habit has a **hint** line under it with the RapidR form
+   ([Coming from another language?](language.md#coming-from-another-language)).
+5. The same error twice in a row for a file: the refusal changes to *Same
+   error again. Stop rewriting the whole file. Call find_example(…) and start
+   from that recipe*, with the nearest recipe's first lines.
+
+…and a language card of about 25 lines: the rules small models break most
+(`x = 1` and not `SET x = 1`, `<>` and not `!=`, `MOD` and not `%`, `FOR i =
+1 TO 10 … NEXT`, `ELSEIF`, `END IF`, no braces). A path may be written as the
+project's own (`main.rr`), with the project folder before it (`project/main.rr`,
+`MyApp/main.rr`, `./main.rr`) or as the absolute path inside the project; one
+outside it is refused with the list of the project's files. Argument names
+are lower case (`path`); the capitalised ones older tool lists had are still
+taken. A change is answered in one sentence: *Waiting for the user to apply
+the change to main.rr* (Ask before changes) or *Changed main.rr in Studio's
+editor (not on disk yet: Run saves it)* — never both.
+
+### Building an AI app on these tools
+
+Found by running small local models through the tools (the evaluation in
+`tools/ai_eval`, `tests/ai-eval/README.md`):
+
+- **Retry an empty reply.** Some model servers answer a request with neither
+  text nor a tool call (a malformed call dropped by the server's own parser,
+  or a context that ran out). It is not "done": send the request again
+  (after at most two tries, say so to the person) before ending the turn.
+  (RAI's own turn does not retry yet: a follow-up.)
+- A list, an object, a number or a flag sent as JSON *text*
+  (`"edits": "[{…}]"`) is taken as that value; tools without arguments are
+  listed with `"properties": {}`, which strict servers need.
+- Give the model the server's instructions as they are: they are what makes
+  it look at an example before it writes.
+
 ## What AI apps can see
 
 With this on, an AI app that has your token can, through Studio:

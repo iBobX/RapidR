@@ -33,7 +33,7 @@
 // first-time question (turning the switch on) answered both ways; the
 // activity's Copy; capture refused while Settings shows the token.
 //
-//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings …]
+//   node tests/studio_mcp.mjs [all|ask|edits|carry|read|picture|badge|consent|capture|settings|recipe …]
 //   (RAPIDR: the rapidr to run; ./rapidr)
 //
 // Never the user's keychain (RAPIDR_AI_KEYSTORE=memory), registry, printer
@@ -92,6 +92,8 @@ function env(name) {
 // repository)
 function studio(name, steps, events, dump, more = {}, opts = {}) {
   cpSync(join(ROOT, "tests", "fixtures", "studio_mcp"), join(WORK, name), { recursive: true });
+  // (opts.main: the main file's text before Studio starts — an empty project, say)
+  if (opts.main !== undefined) writeFileSync(join(WORK, name, "main.rr"), opts.main);
   let home = ".";
   if (opts.home) {
     home = join(WORK, `${name}-install`);
@@ -208,8 +210,22 @@ if (want("all")) {
   check("every tool's inputSchema is an object with its properties (even none)", list.every((t) => t.inputSchema?.type === "object" && t.inputSchema.properties && typeof t.inputSchema.properties === "object"), list.filter((t) => !t.inputSchema?.properties).map((t) => t.name).join(","));
   check("read_file is marked read-only, propose_edit isn't", list.find((t) => t.name === "read_file")?.annotations?.readOnlyHint === true && list.find((t) => t.name === "propose_edit")?.annotations?.readOnlyHint === false);
 
+  // (what Studio tells the AI app on connecting: the recipe-first workflow and a short language card —
+  // tools/ai_eval's finding that small models never look at an example, write other languages' syntax and
+  // repeat their error; the whole text stays under about 1,200 tokens)
+  const instructions = d.json.result?._meta?.["io.modelcontextprotocol/serverInfo"]?.instructions || d.json.result?.instructions || "";
+  check("the server's instructions hold the recipe-first workflow", ["find_example", "check_code", "hint line", "The open project IS the user's program", "create_project only makes a separate new project", "stop rewriting", "propose_edit"].every((w) => instructions.includes(w)), instructions.slice(0, 400));
+  check("…and a language card (x = 1 not SET, <> not !=, MOD not %, FOR … NEXT, ELSEIF)", ["RapidR in short", "No SET, LET", "not == or !=", "MOD, not %", "NEXT i", "ELSEIF"].every((w) => instructions.includes(w)), instructions.slice(-600));
+  check("…under about 1,200 tokens (3.5 characters a token)", instructions.length > 0 && Math.ceil((instructions.length * 2) / 7) <= 1200, `${instructions.length} characters`);
+  const legacyInit = await post({ jsonrpc: "2.0", id: next(), method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "studio-legacy-instructions", version: "0.1" } } });
+  check("an earlier revision's initialize carries the same instructions", legacyInit.json.result?.instructions === instructions, String(legacyInit.json.result?.instructions || "").slice(0, 200));
+  const byName = (n) => list.find((t) => t.name === n) || {};
+  check("create_project and the writing tools say the open project IS the user's program", /open project IS the user's program/.test(byName("create_project").description) && /open project \(which IS the user's program\)/.test(byName("propose_edit").description) && /open project \(which IS the user's program\)/.test(byName("write_file").description) && /open project IS the user's program/.test(byName("open_project").description));
+  check("every path argument is lower case (path), open_project's too", Object.keys(byName("open_project").inputSchema?.properties || {}).join() === "path" && Object.keys(byName("read_file").inputSchema?.properties || {}).join() === "path", JSON.stringify(byName("open_project").inputSchema));
+
   let r = await tool("studio_status");
   check("studio_status: the project, the permission", r.text.includes("Project: Hello") && r.text.includes("Permission: Allow everything"), r.text);
+  check("studio_status ends with what to do next (this project has code)", /\nNext: read_file what you change/.test(r.text) && !r.text.includes("This project is empty"), r.text);
   r = await tool("list_files");
   check("list_files: main.rr", r.text.includes("main.rr") && !r.error, r.text);
   r = await tool("read_file", { path: "main.rr" });
@@ -232,7 +248,7 @@ if (want("all")) {
   check("JSON text that isn't a list is still refused, in words", r.error && r.text.includes("`edits` must be a list"), r.text);
 
   r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello from an AI app"' }], summary: "Greets from the AI app." });
-  check("propose_edit: applied at once (Allow everything)", !r.error && r.text.includes("Applied") && r.raw.progress.length === 0, r.text);
+  check("propose_edit: applied at once (Allow everything)", !r.error && r.text.startsWith("Changed main.rr in Studio's editor (not on disk yet") && !r.text.includes("Waiting") && !r.text.includes("Proposed") && r.raw.progress.length === 0, r.text);
   r = await tool("write_file", { path: "notes.txt", text: "A note\n", summary: "A notes file." });
   check("write_file: a new file made at once", !r.error && r.text.includes("notes.txt") && existsSync(join(WORK, "all", "notes.txt")), r.text);
   r = await tool("list_documents");
@@ -319,7 +335,7 @@ if (want("ask")) {
   let r = await tool("studio_status");
   check("studio_status: Ask before changes, the default", r.text.includes("Permission: Ask before changes"), r.text);
   r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hello from an AI app"' }], summary: "Greets from the AI app." });
-  check("propose_edit: allowed once by the user, applied in the editor", !r.error && r.text.includes("Applied"), r.text);
+  check("propose_edit: allowed once by the user, applied in the editor", !r.error && r.text.startsWith("Changed main.rr in Studio's editor (not on disk yet") && !r.text.includes("Waiting"), r.text);
   check("propose_edit: the AI app heard it waits for the user", r.raw.progress.some((p) => JSON.stringify(p).includes("Waiting for the user")), JSON.stringify(r.raw.progress));
   r = await tool("write_file", { path: "notes.txt", text: "A note\n", summary: "A notes file." });
   check("write_file: denied by the user", r.error && r.text.includes("didn't allow") && !existsSync(join(WORK, "ask", "notes.txt")), r.text);
@@ -344,7 +360,7 @@ if (want("edits")) {
   check("Allow edits: Studio listens", await listening(PORT));
   const { tool } = client(PORT);
   let r = await tool("propose_edit", { path: "main.rr", edits: [{ old_text: 'PRINT "Hello from Studio"', new_text: 'PRINT "Hi"' }], summary: "Says hi." });
-  check("Allow edits: propose_edit applied without a question", !r.error && r.text.includes("Applied") && r.raw.progress.length === 0, r.text);
+  check("Allow edits: propose_edit applied without a question", !r.error && r.text.startsWith("Changed main.rr in Studio's editor (not on disk yet") && r.raw.progress.length === 0, r.text);
   r = await tool("run_program", { Action: "start" });
   check("Allow edits: run_program still asks (denied here)", r.error && r.text.includes("didn't allow"), r.text);
   r = await tool("read_output");
@@ -573,6 +589,49 @@ if (want("settings")) {
     if (existsSync(bmp)) spawnSync("sips", ["-s", "format", "png", bmp, "--out", join(WORK, `studio-mcp-settings-${n}.png`)], { stdio: "ignore" });
   }
   check("Settings captured", existsSync(join(WORK, "studio-mcp-settings-2.png")));
+}
+
+// ---- Recipe first: an empty project, the same refusal twice, the paths ------------------------
+// (tools/ai_eval's findings for small models: they never looked at an example, rewrote the whole file
+// after the same error, and named paths with the project folder before them)
+if (want("recipe")) {
+  const PORT = BASE_PORT + 17;
+  const run = studio("recipe", `mcp:mode=all,mcp:on=${PORT}`, until("read_file"), "mcphead.caption", {}, { main: "' MyApp: an empty program.\n" });
+  check("recipe: Studio listens", await listening(PORT));
+  const { tool } = client(PORT);
+  let r = await tool("studio_status");
+  check("an empty project's first status says: call find_example first", !r.error && r.text.includes("This project is empty: call find_example first"), r.text);
+  r = await tool("find_example", { query: "a stopwatch with start stop and reset" });
+  check("find_example: a working program", !r.error && r.text.includes("```basic"), r.text);
+
+  // (the same refusal twice: the second one changes the advice, and gives the nearest recipe's lines)
+  const broken = (more) => `' a stopwatch with Start, Stop and Reset buttons and a timer\nDIM x AS INTEGER\nSET x = 1\n${more}`;
+  r = await tool("write_file", { path: "main.rr", text: broken(""), summary: "A first try." });
+  check("a SET statement: refused, with the hint under the compiler's message", r.error && r.text.includes("Syntax error in SET statement") && r.text.includes("hint main.rr:3: RapidR has no SET: write x = 1") && !r.text.includes("Same error again"), r.text);
+  r = await tool("write_file", { path: "main.rr", text: broken("PRINT x\n"), summary: "A second try." });
+  check("the same refusal again: stop rewriting, find_example, the nearest recipe", r.error && r.text.includes("Same error again") && r.text.includes("Stop rewriting the whole file") && r.text.includes("Call find_example('") && r.text.includes("```basic"), r.text);
+
+  // (paths: the project folder before the file's name, ./, the absolute path inside the project)
+  const folder = join(WORK, "recipe");
+  r = await tool("write_file", { path: "project/main.rr", text: 'PRINT "recipe first"\n', summary: "A program that compiles." });
+  check("project/main.rr is the project's main.rr, and a change that is taken forgets the refusals", !r.error && r.text.startsWith("Changed main.rr in Studio's editor (not on disk yet") && !r.text.includes("Waiting"), r.text);
+  r = await tool("read_file", { path: "./main.rr" });
+  check("./main.rr is read", !r.error && r.text.includes("recipe first"), r.text);
+  r = await tool("read_file", { path: `${folder}/main.rr` });
+  check("the absolute path inside the project is read", !r.error && r.text.includes("recipe first"), r.text);
+  r = await tool("read_file", { Path: "recipe/main.rr" });
+  check("the folder's name before it, and the old capitalised Path, are taken", !r.error && r.text.includes("recipe first"), r.text);
+  r = await tool("read_file", { path: "/etc/hosts" });
+  check("a path outside the project: refused, with the project's files", r.error && r.text.includes("outside the project") && r.text.includes("The project's files") && r.text.includes("main.rr"), r.text);
+  r = await tool("read_file", { path: "nothing.rr" });
+  check("a file the project doesn't have: the project's files listed", r.error && r.text.includes("is not a file of the project") && r.text.includes("main.rr"), r.text);
+  r = await tool("open_project", { path: "examples/../../etc/hosts" });
+  check("open_project takes a lower case path (and says why it can't)", r.error && r.text.includes("Can't open"), r.text);
+  r = await tool("studio_status");
+  check("with code in it the status no longer says the project is empty", !r.text.includes("This project is empty") && r.text.includes("Next: read_file"), r.text);
+  r = await tool("read_file", { path: "main.rr" });
+  const end = await run.ended();
+  check("recipe: Studio ended", end.ok);
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

@@ -115,7 +115,7 @@ const LANGSVC: &[&str] = &["projectdiagnostics"];
 
 /// (I8) RAI's: `IF AI.RefreshModels THEN`; RAIPROJECTTOOLS'.
 const AI: &[&str] = &["cancel", "newchat", "refreshmodels", "forgetkey", "compact"];
-const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided", "toolnames", "clearaudit", "auditlocation", "layoutreport"];
+const AI_TOOLS: &[&str] = &["clearfiles", "clearproposals", "cleardecided", "toolnames", "clearaudit", "auditlocation", "layoutreport", "serverinstructions", "statusnext"];
 
 /// The web's own components.
 const WEB: &[&str] = &[

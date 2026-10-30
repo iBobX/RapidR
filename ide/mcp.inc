@@ -749,7 +749,9 @@ SUB SetUpMcp
   Mcp.ServerName = "rapidr-studio"
   Mcp.ServerTitle = "RapidR Studio"
   Mcp.ServerVersion = Lang.Version
-  Mcp.Instructions = "RapidR Studio, the IDE of RapidR (a modern BASIC), with the user watching every call. Start with studio_status. Read the project with list_files and read_file; check code with check_code before proposing a change; change files only with propose_edit (small edits) or write_file (new files) — the user may be asked to allow each change; run the program with run_program and read what it printed with read_output; see the running program with app_layout and app_screenshot and use it with app_click, app_type and app_key (the user sees a pointer do it; the first look or click of a run may wait for the user). rapidr_describe and search_manual answer questions about RapidR. ask_rai asks RapidR's own assistant. Paths are relative to the project's folder."
+  ' (the recipe-first workflow and a short language card: rapidr-studio's
+  ' guide.rs — small models start from a working program and read the hints)
+  Mcp.Instructions = McpTools.ServerInstructions
   McpTimer.Interval = 250
   McpTimer.Enabled = 0
   McpTimer.OnTimer = McpTickTimer
@@ -935,7 +937,7 @@ SUB McpSyncTools
   IF McpConsentOk THEN McpAppTools
   Mcp.AddTool "layout_report", "The program's forms as the source makes them: each form's client area, each component's place and size (Left, Top, Width, Height, or aligned), then what looks wrong — a control cut off by its form, two on top of each other, a caption too long for its button.", "", "read"
   Mcp.AddTool "capture", "A picture (PNG) of RapidR Studio's window as the user sees it now: the code, the form designer, the panes. Use it to see a form you changed in the designer.", "", "read"
-  Mcp.AddTool "open_project", "Opens a project (.rrproj) or a program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes.", "Path AS STRING", "change"
+  Mcp.AddTool "open_project", "Opens an existing project (.rrproj) or program (.rr, .bas) in Studio: a path inside the user's Projects folder, RapidR's examples (examples/gui/hello_form.rr) or a recent project; anything else asks the user. Never discards unsaved changes. The open project IS the user's program: to build or change it use write_file and propose_edit on its files — don't open or create another project for the user's task.", "path AS STRING", "change"
   Mcp.AddTool "set_property", "Sets a component's property in the form designer, as the user would in the Properties pane: Component (its name, rapidr_list gives them), Property (Caption, Left, Width, Color …) and Value as the code writes it (" + CHR$(34) + "OK" + CHR$(34) + " for text, 120, &HFF0000, True). One undo step in its file.", "Component AS STRING, Property AS STRING, Value AS STRING", "change"
   Mcp.AddTool "debug", "The debugger, on the program run_program started with Debug = true: Action breakpoint (File and Line: set one; Remove = true takes it away), continue, step_over, step_into, step_out, pause, or state. Waits up to Wait seconds (5 by default) for the program to stop, then says where it is, the call stack and the variables.", "Action AS STRING, [File AS STRING], [Line AS INTEGER], [Remove AS BOOLEAN], [Wait AS INTEGER]", "change"
   Mcp.AddTool "run_program", "Runs the open project's program in Studio (saving its files first, as Run does) and waits up to Wait seconds (3 by default, 60 at most) or until it ends; says how it went and what it printed. Action: start (default), stop, restart or status. Debug = true runs it with the debugger (it stops at the user's breakpoints).", "[Action AS STRING], [Wait AS INTEGER], [Debug AS BOOLEAN]", "change"
@@ -1421,12 +1423,14 @@ FUNCTION McpApply(Said AS STRING) AS STRING
     EXIT FUNCTION
   END IF
   IF done <> "" THEN AnalyzeActive
+  ' (one clear sentence about the change: "Changed main.rr in Studio's editor
+  ' (not on disk yet …)" — not that and "Proposed … they decide" together)
   IF problems <> "" AND done = "" THEN
-    Result = "Not applied: " + problems
+    Result = "Not changed: " + problems
   ELSEIF problems <> "" THEN
-    Result = "Applied to: " + RTRIM$(done) + ". Not applied: " + problems
+    Result = "Changed " + RTRIM$(done) + " in Studio's editor (not on disk yet: Run saves it). Not changed: " + problems
   ELSE
-    Result = "Applied in Studio's editor (unsaved, so the user can undo it with Edit > Undo; Run saves it): " + RTRIM$(done) + ". " + Said
+    Result = McpTools.AppliedText(Said, RTRIM$(done))
   END IF
 END FUNCTION
 
@@ -1588,6 +1592,8 @@ FUNCTION McpStatusText AS STRING
   IF McpDialogOpen <> "" THEN t = t + "Open in Studio: " + McpDialogOpen + " (no picture of Studio until it closes)" + nl
   t = t + "Permission: " + McpModeName(McpMode) + " — " + McpModeNote(McpMode)
   IF McpGrants <> "" AND McpMode = "ask" THEN t = t + " Allowed for this session: " + REPLACESUBSTR$(MID$(McpGrants, 2, LEN(McpGrants) - 2), "||", ", ") + "."
+  ' (what to do next: an empty project says "call find_example first")
+  t = t + nl + McpTools.StatusNext
   Result = t
 END FUNCTION
 
