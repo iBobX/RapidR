@@ -160,7 +160,7 @@ impl Host for WebHost {
     }
 
     fn register_event(&mut self, id: &str, event: &str, handler_fn_index: u32) -> Result<(), String> {
-        obj::rp_bind_event_indirect(id, event, handler_fn_index);
+        rapidr_value::events::program_call(|| obj::rp_bind_event_indirect(id, event, handler_fn_index));
         // (RapidR's Application.OnError: told_failed)
         if id.eq_ignore_ascii_case("application") && event.eq_ignore_ascii_case("onerror") {
             ON_ERROR.with(|h| h.set(Some(handler_fn_index)));
