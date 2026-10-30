@@ -156,6 +156,21 @@ mod tests {
     }
 
     #[test]
+    fn a_stop_and_a_message_under_its_object_are_translated() {
+        crate::i18n::set_language("es");
+        assert_eq!(localize_stop("run-time error: Division by zero"), "error de ejecución: División por cero");
+        assert_eq!(localize_stop(""), "");
+        assert_eq!(localize("Cannot open file a.txt."), "No se puede abrir el archivo a.txt.");
+        assert_eq!(localize("Sales.At: Division by zero"), "Sales.At: División por cero");
+        assert_eq!(localize("DIM Grid: Something nobody says"), "DIM Grid: Something nobody says");
+        let waiting = localize_stop("Waiting for events");
+        assert_ne!(waiting, "Waiting for events");
+        crate::i18n::set_language("en");
+        assert_eq!(localize_stop("run-time error: Division by zero"), "run-time error: Division by zero");
+        assert_eq!(localize("Sales.At: Division by zero"), "Sales.At: Division by zero");
+    }
+
+    #[test]
     fn a_known_message_is_translated_and_an_unknown_one_is_not() {
         crate::i18n::set_language("es");
         assert_ne!(localize("Division by zero"), "Division by zero");

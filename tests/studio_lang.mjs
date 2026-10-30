@@ -58,7 +58,9 @@ const NAMES = new Set(["true", "false", "rapidr", "studio", "rai", "basic", "utf
 // (the project's Properties rows are names, like a component's: Theme, Snap, Guides …; "Aa" is the case toggle's icon)
 for (const n of ["aa", "ab", "snap", "guides", "grid", "arguments", "targets", "desktop", "web"]) NAMES.add(n);
 // (a language is listed by its own name: English, Español; a provider's label says "OpenAI-compatible")
-for (const n of ["english", "compatible"]) NAMES.add(n);
+for (const n of ["english", "compatible", "xai", "lm"]) NAMES.add(n);
+// (the project the external-changes scene opens is named Outside: a name, as a file's)
+NAMES.add("outside");
 // (the font dialog lists faces by their own names, and shows a sample text of letters)
 for (const n of ["georgia", "tahoma", "times", "roman", "trebuchet", "verdana", "aabbyyzz"]) NAMES.add(n);
 {
@@ -180,14 +182,18 @@ function SWEEP_SCENES() {
       ["message-box", "askbutton.onclick,askbutton.__wait_500", { RAPIDR_TEST_MESSAGE_DIALOG: "Cancel" }],
     ].map(([name, events, env]) => ({ name, program: DIALOGS, events, env: { RAPIDR_TEST_DIALOG_HOLD: "9000", ...env }, window: 2, delay: 3 })),
     // (the language service's words: a note's quick fix, a rename that can't be done)
-    { name: "quick-fix", open: NOTES, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:End,edit.quickFix,wait", delay: 8 },
+    // (Output's first line is half scrolled out: it is Studio's history, in the language it was written in)
+    { name: "quick-fix", open: NOTES, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:End,edit.quickFix,wait", delay: 8, cutOk: [/^\[RapidR Šţûðíö íš ŕéàðÿ/] },
     { name: "rename-error", open: HELLO, do: "wait,view.code,wait,focus:codedoc(0),line:14,key:Home,key:Right,key:Right,key:Right,key:Right,key:Right,key:F2,wait,type:PRINT,key:Enter,wait", delay: 9 },
     // (the external-changes bar: a file changed outside Studio while it has unsaved changes here)
-    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch" },
+    { name: "external-bar", open: "", external: { dir: "tests/fixtures/studio_external", open: "Outside.rrproj", steps: [{ write: { "main.rr": EXT_MAIN.replace('PRINT "Done."', 'PRINT "Changed by an agent."') } }] }, do: 'code:PRINT "Done."=>PRINT "Mine.",ext:go=1,ext:await=1,ext:check,wait,wait', delay: 9, desktopOnly: "the web has no disk to watch", cutOk: [/\/project\/main\.rr/] },
+    // (a tooltip: the pointer rests on a tool bar button, then on the dock's Auto Hide button)
+    { name: "tooltip-toolbar", open: HELLO, do: "wait", events: "studio.__wait_3000,toolbar.__mousemove_150_20,toolbar.__mousemove_151_20,toolbar.__wait_2500", delay: 8 },
+    { name: "tooltip-dock", open: HELLO, do: "wait", events: "studio.__wait_3000,dock.__mousemove_997_515,dock.__mousemove_998_515,dock.__wait_2500", delay: 8 },
     // (Versions: what changed, the local history)
     // (the Versions pane's own "What Changed?" button and the project's path are not these scenes'; the history's one-line description is as long as its words)
-    { name: "versions-changes", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.changes`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/] },
-    { name: "versions-history", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.localHistory`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/, /^\[À çöþÿ éàçĥ/] },
+    { name: "versions-changes", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.changes`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/], engOk: [/^' Hello: the Versions walk/] },
+    { name: "versions-history", ...VERSIONS_COPY, do: `${V_START},code:PRINT "Done."=>PRINT "All done!",file.save,versions.localHistory`, delay: 9, cutOk: [/^\[Ŵĥàţ Cĥàñĝéð/, /\/project /, /^[·\]]+$/, /^\[À çöþÿ éàçĥ/], engOk: [/^' Hello: the Versions walk/] },
     // (Settings' lists, one opened on each page)
     ...[["general-language", "view.settings", "languagebox"], ["general-helpers", "view.settings", "helpersbox"], ["general-debug-panes", "view.settings", "debugpanesbox"], ["ai-provider", "ai.settings", "aiprovbox"], ["ai-permission", "ai.settings", "aipermbox"], ["ai-reply", "ai.settings", "aireplybox"]].map(([n, cmd, box]) => ({ name: `settings-open-${n}`, open: "", do: cmd, events: `${box}.__mousedown_40_10,${box}.__mouseup_40_10`, window: 2, delay: 6 })),
     // (a run-time error: the stop, the line in Output, the strip at the line)
@@ -314,7 +320,7 @@ async function runWeb(scene, lang, theme) {
 function judge(run, scene, programWords) {
   const w = run.report[(scene.window || 1) - 1] || run.report[0];
   const texts = (w && w.texts) || [];
-  const eng = [...new Set(texts.filter((t) => english(t.text, programWords)).map((t) => t.text))];
+  const eng = [...new Set(texts.filter((t) => english(t.text, programWords) && !(scene.engOk || []).some((k) => k.test(t.text))).map((t) => t.text))];
   const cut = [...new Set(texts.filter((t) => (t.cut && PSEUDO.test(t.text)) || shortened(t.text)).map((t) => t.text))].filter((t) => !KNOWN_LEFT.some((k) => k.test(t)) && !(scene.cutOk || []).some((k) => k.test(t)));
   return { form: w ? w.form : "?", count: texts.length, eng, cut, texts };
 }

@@ -333,6 +333,16 @@ mod tests {
     }
 
     #[test]
+    fn the_language_services_notes_are_identified_and_translated() {
+        let (m, v, _) = identify("RButton.Foo is a RapidR extension: RapidQ's compiler refuses it (this project is RapidQ-compatible)").unwrap();
+        assert_eq!((m.id, v[0].1.as_str()), ("RR0025", "RButton.Foo"));
+        assert_eq!(identify("console.log is not RapidR: nothing is printed").unwrap().0.id, "RR0033");
+        assert_eq!(identify("mbYes is a RAPIDQ.INC constant — add $INCLUDE \"RAPIDQ.INC\"").unwrap().0.id, "RR0034");
+        assert_eq!(localize("console.log is not RapidR: nothing is printed", "es"), "console.log no es RapidR: no se imprime nada");
+        assert_eq!(localize("console.log is not RapidR: nothing is printed", "en"), "console.log is not RapidR: nothing is printed");
+    }
+
+    #[test]
     fn messages_are_identified() {
         let (m, v, tail) = identify("Member CLICK not part of class BTN").unwrap();
         assert_eq!((m.id, v.clone(), tail.as_str()), ("RQ0001", vec![("member".into(), "CLICK".into()), ("class".into(), "BTN".into())], ""));
