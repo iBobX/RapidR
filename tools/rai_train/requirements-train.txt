@@ -1,0 +1,4 @@
+# RAI-TRAIN: training environment (all from PyPI). mlx and mlx-lm: MIT (Apple).
+# The full pinned set that pip resolved is in requirements-train.lock.txt.
+mlx==0.32.4
+mlx-lm==0.32.2
