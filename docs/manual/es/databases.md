@@ -220,14 +220,14 @@ Qué tan rápido, medido con
 [million_rows_async.rr](../../../examples/data/million_rows_async.rr)
 (`SELECT * FROM big`, cinco columnas, en un M4 Max, compilación de lanzamiento):
 un millón de filas en el escritorio mostraron sus primeras filas después de 15 a
-25 ms, y todas estaban dentro después de unos 200 ms. En Chromium el mismo
-ejemplo con 100 000 filas mostró sus primeras filas después de 1 a 25 ms. Un
+25 ms, y todas estaban dentro después de unos 200 ms. En Chromium el mismo
+ejemplo con 100 000 filas mostró sus primeras filas después de 1 a 25 ms. Un
 botón Ping al que se hizo clic mientras las filas llegaban en flujo se atendió de
 inmediato en los dos.
 
 ![Un millón de filas que llegan en flujo a un RDBGrid en segundo plano; la línea de estado dice cuánto tardó](../images/databases/million-rows-async.png)
 
-## Las filas de una consulta en una tabla
+## Las filas de una consulta en una cuadrícula
 
 Un `RDBGrid` cuyo `DataSource` es un `RSQLite` o un `RMySQL` muestra la última
 consulta de ese componente: las filas de una consulta en segundo plano a medida
@@ -242,8 +242,8 @@ CREATE Grid AS RDBGrid
     OnTitleClick = SortBy
 END CREATE
 
-Un clic en un encabezado no ordena las filas de una base de datos en la tabla:
-tu programa las ordena ejecutando la consulta de nuevo con `ORDER BY`. La tabla
+Un clic en un encabezado no ordena las filas de una base de datos en la cuadrícula:
+tu programa las ordena ejecutando la consulta de nuevo con `ORDER BY`. La cuadrícula
 muestra la flecha y dice en qué se hizo clic, en `SortColumn` (desde 0; -1:
 ninguna) y `SortDescending`. Un segundo clic pide el otro sentido, un tercero
 ningún orden. Cuando tu programa ejecuta una consulta propia, establece
@@ -260,11 +260,11 @@ END SUB
 
 Filtrar funciona de la misma manera: ejecuta la consulta de nuevo con un `WHERE`.
 
-La tabla conserva su orden mientras llegan las filas de tu consulta, y cuando
+La cuadrícula conserva su orden mientras llegan las filas de tu consulta, y cuando
 vuelves a establecer `DataSource` en el componente que ya muestra (enlazar antes
 de cada consulta está bien): el siguiente clic en el mismo encabezado continúa
 desde donde estaba, ascendente, luego descendente, luego ninguno. Establecer otro
-`DataSource` empieza sin orden. Una tabla enlazada a datos propios (un
+`DataSource` empieza sin orden. Una cuadrícula enlazada a datos propios (un
 `RDataFrame`, un `RCSV`) ordena su vista por sí misma, y las filas añadidas a
 esos datos se ordenan al entrar.
 
@@ -273,7 +273,7 @@ esos datos se ordenan al entrar.
 `InTransaction` dice si hay una transacción abierta en la conexión: 1 desde
 `BEGIN` hasta `COMMIT` o `ROLLBACK`, y si no, 0. Es lo que dice la propia base de
 datos, establecido después de cada instrucción que ejecuta el componente, así que
-leerlo no ejecuta ninguna consulta y las filas de la tabla se conservan. Cerrar
+leerlo no ejecuta ninguna consulta y las filas de la cuadrícula se conservan. Cerrar
 la conexión revierte una transacción abierta: pregunta primero.
 
 ```basic

@@ -113,7 +113,7 @@ END SUB
 ```
 
 `OnLine` se dispara por cada línea completa (el entorno de ejecución revisa cada
-50 ms). Una línea que entrega se da por leída: `ReadString` y `ReadLine` ya no la
+50 ms). Una línea que entrega se da por leída: `ReadString` y `ReadLine` ya no la
 ven. `OnRxChar` (el clásico: llegaron bytes) se sigue disparando como antes.
 
 `ReadString(Count, Wait)` y `WriteString(Text, Wait)` funcionan como siempre,
@@ -125,7 +125,7 @@ para todo lo que no va línea por línea.
 |---|---|
 | `DTR`, `RTS` | Data Terminal Ready y Request To Send: 1 activada, 0 desactivada. Al leerlas devuelven lo que se estableció. Un cambio se aplica de inmediato en un puerto abierto, y si no, en `Open`. Hasta que un programa las establece siguen a `DcbFlags` (las dos activadas, la manera clásica en que se abre un puerto) |
 | `CTS`, `DSR`, `CD`, `RI` | Las líneas que maneja el otro extremo (solo lectura; 0 mientras está cerrado) |
-| `SendBreak(ms)` | Mantiene la línea en un estado de break (250 ms sin argumento) |
+| `SendBreak(ms)` | Mantiene la línea en un estado de break (250 ms sin argumento) |
 
 Las placas ESP32 (y ESP8266, y muchas otras) conectan DTR y RTS, a través de dos
 transistores, a los pines **EN** (reinicio) e **IO0** (modo de arranque) del
