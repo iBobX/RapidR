@@ -1,0 +1,41 @@
+// Launch video 4 (Preview 5): Studio in Spanish + School Lock. 70-90 s.
+// SKELETON for Robert's review: not recorded yet. TODO marks a target to
+// check when recorded. School Lock's wording follows the Coach-mode legal
+// review: a teaching aid inside Studio, it doesn't block other programs.
+{
+  "id": "launch-4-spanish-school-lock",
+  "draft": "skeleton",
+  "title": { "en": "Studio in Spanish, and School Lock", "es": "Studio en español, y el Bloqueo escolar" },
+  "description": {
+    "en": "RapidR Studio speaks Spanish: menus, Help and compiler messages. And for classrooms, School Lock keeps the AI the way the teacher chose.",
+    "es": "RapidR Studio habla español: menús, Ayuda y mensajes del compilador. Y para el aula, el Bloqueo escolar mantiene la IA como la eligió el docente."
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "studio": { "theme": "rapidr-light", "open": "examples/gui/hello_form.rr" },
+  "steps": [
+    { "card": { "title": { "en": "Studio, in your language", "es": "Studio, en tu idioma" }, "lines": [{ "en": "and School Lock", "es": "y el Bloqueo escolar" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "RapidR Studio now speaks Spanish.", "es": "RapidR Studio ahora habla español." }] },
+    { "say": [{ "en": "In Settings, pick a language. No restart.", "es": "En Configuración, elige un idioma. Sin reiniciar." }],
+      // TODO: click the real list item instead of lang:es
+      "do": [{ "do": "view.settings" }, { "click": "caption:Language" }, { "do": "lang:es" }, { "wait": 1.5 }] },
+    { "say": [{ "en": "Menus, panes and Help, all in Spanish.", "es": "Menús, paneles y Ayuda, todo en español." }],
+      "do": [{ "click": "studio > Archivo" }, { "wait": 1.2 }, { "key": "Escape" }, { "mark": "poster" }] },
+    { "say": [{ "en": "Even the compiler explains mistakes in Spanish.", "es": "Hasta el compilador explica los errores en español." }],
+      // TODO: show the Problems page
+      "do": [{ "click": "codedoc(0)" }, { "type": "PRINT (" }, { "do": "run.start" }, { "wait": 2 }, { "highlight": "outputbox", "for": 2.5 }] },
+    { "say": [{ "en": "For classrooms, there's School Lock.", "es": "Para el aula, está el Bloqueo escolar." }],
+      "do": [{ "do": "tools.schoolLock" }, { "waitFor": "window:LockDialog", "timeout": 10 }] },
+    { "say": [{ "en": "The teacher sets a password, and chooses how RAI may help: off, or Coach mode only.", "es": "El docente pone una contraseña y elige cómo puede ayudar RAI: apagado, o solo en modo tutor." }],
+      // TODO: a demo password typed shows dots only
+      "do": [{ "highlight": "caption:Coach", "for": 2.5 }] },
+    { "say": [{ "en": "It's off until a teacher turns it on, and it works inside RapidR Studio.", "es": "Está apagado hasta que un docente lo activa, y funciona dentro de RapidR Studio." }],
+      "do": [{ "click": "caption:Cancel" }] },
+    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Made for classrooms", "es": "Hecho para el aula" }, "rapidr.dev"],
+        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Your language. Your classroom.", "es": "Tu idioma. Tu aula." }], "do": [{ "wait": 2.5 }] }
+  ]
+}

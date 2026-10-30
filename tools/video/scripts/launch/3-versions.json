@@ -1,0 +1,44 @@
+// Launch video 3 (Preview 5): Versions. 70-90 s.
+// SKELETON for Robert's review: not recorded yet. TODO marks a target to
+// check when recorded. The Versions list shows times: the take's clock is
+// the recording's (docs/legal/review-2026-10-30-demo-mode.md, privacy).
+{
+  "id": "launch-3-versions",
+  "draft": "skeleton",
+  "title": { "en": "Versions: never lose your work", "es": "Versiones: nunca pierdas tu trabajo" },
+  "description": {
+    "en": "Save a version with a few words, see what changed, go back in one click — built into RapidR Studio.",
+    "es": "Guarda una versión con unas palabras, mira qué cambió y vuelve atrás con un clic, dentro de RapidR Studio."
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  // TODO: start from a small saved project instead
+  "studio": { "theme": "rapidr-light", "setup": "file.newProject" },
+  "steps": [
+    { "card": { "title": { "en": "Versions", "es": "Versiones" }, "lines": [{ "en": "never lose your work", "es": "nunca pierdas tu trabajo" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Every project can keep its history. Here's how.", "es": "Cada proyecto puede guardar su historia. Así se hace." }] },
+    { "say": [{ "en": "Open Versions, and start keeping them.", "es": "Abre Versiones y empieza a guardarlas." }],
+      // TODO: caption
+      "do": [{ "do": "versions.pane" }, { "click": "caption:Start Versions" }] },
+    { "say": [{ "en": "Save a version: a few words about what changed.", "es": "Guarda una versión: unas palabras sobre lo que cambió." }],
+      "do": [{ "do": "versions.save" }, { "waitFor": "window:VerSaveDialog" }, { "type": { "en": "A working start", "es": "Un comienzo que funciona" }, "into": "VerMsgEdit" }, { "click": "VerSaveOk" }, { "waitFor": "gone:VerSaveDialog" }] },
+    { "say": [{ "en": "Now change something. Maybe too much.", "es": "Ahora cambia algo. Quizás demasiado." }],
+      // TODO: the editor's name
+      "do": [{ "click": "codedoc(0)" }, { "key": "Ctrl+A" }, { "key": "Delete" }] },
+    { "say": [{ "en": "What Changed shows every line, side by side.", "es": "Qué cambió muestra cada línea, lado a lado." }],
+      "do": [{ "do": "versions.whatChanged" }, { "wait": 2.5 }, { "mark": "poster" }] },
+    { "say": [{ "en": "Go back to the version that worked: one click.", "es": "Vuelve a la versión que funcionaba: un clic." }],
+      // TODO: show the button, not the command
+      "do": [{ "do": "versions.goBack" }, { "wait": 1.5 }] },
+    { "say": [{ "en": "Changed your mind? Undo brings it back.", "es": "¿Cambiaste de idea? Deshacer lo trae de vuelta." }],
+      "do": [{ "do": "versions.undo" }, { "wait": 1.5 }] },
+    { "say": [{ "en": "Your versions stay in your project folder, on your computer.", "es": "Tus versiones se quedan en la carpeta de tu proyecto, en tu computadora." }],
+      "do": [{ "highlight": "VerTimeline", "for": 2.5 }] },
+    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Try anything. Go back anytime.", "es": "Prueba lo que quieras. Vuelve cuando quieras." }, "rapidr.dev"],
+        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Try anything. You can always go back.", "es": "Prueba lo que quieras. Siempre puedes volver." }], "do": [{ "wait": 2.5 }] }
+  ]
+}

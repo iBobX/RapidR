@@ -2027,6 +2027,39 @@ const CASES = [
     // a panel on Main and Main.AddChild after it)
     dump: { "codedoc(0).text": /\n    CREATE Form1 AS RPanel\n        Left = 0\n        Top = 0\n        Width = 320\n        Height = 240\n    END CREATE\nEND CREATE\nMain\.AddChild\(Form1\.Handle, "Form1", 0, 0, 0, 0, 0, 1\)\n/, "outputbox.text": /Form1 is a child window of Main/, "proj.filecount": /^1$/ },
   },
+  // (DEMO-MODE, docs/video-pipeline.md) A tiny demo script played headless:
+  // a new project, a button dragged from the Toolbox by the demo's pointer
+  // (the kernel's own input), its caption typed in Properties, saved — the
+  // project on disk says Studio reacted; frames written at 30 fps, the
+  // timeline done, Studio ended by demo mode itself (exit 0, no dump).
+  {
+    name: "demo-mode-tiny",
+    open: "",
+    // (Studio runs a script's `do` steps: ide/demo.inc)
+    do: "demo:poll",
+    desktopOnly: true,
+    delay: 60,
+    quit: true,
+    demo: {
+      id: "tiny", title: "Tiny", screen: [960, 600], scale: 1, pointer: { speed: 3 },
+      steps: [
+        { card: { title: "A tiny demo", lines: ["RapidR Studio"] }, say: ["A tiny demo."], gap: 0.1 },
+        { say: ["A new project."], do: [{ do: "newproject:gui|{dir}|Tiny" }, { waitFor: "shows:designdoc(0)", timeout: 20 }] },
+        { say: ["A button from the Toolbox."], do: [{ drag: "Toolbox > RButton", to: { target: "designdoc(0)", x: 0.4, y: 0.4 } }] },
+        { say: ["Its caption."], do: [{ click: { target: "Inspector > Caption", x: 0.78 } }, { key: "Ctrl+A" }, { type: "Go now" }, { key: "Enter" }] },
+        { say: ["Saved."], do: [{ do: "file.saveAll" }, { wait: 0.5 }, { mark: "poster" }], gap: 0.1 },
+      ],
+    },
+    dump: {},
+    files: {
+      // (the drag added one button, not two; the caption typed reached it)
+      "Tiny/main.rr": /^(?![\s\S]*Button2)[\s\S]*CREATE Button1 AS RButton\n\s*Caption = "Go now"/,
+      "demo-out/timeline.json": /"done": true[\s\S]*"marks": \{\s*"poster": \d+/,
+      // (at least a second of frames, at 30 a second)
+      "demo-out/frames/frames.json": /"written":[1-9][\s\S]*"t":[1-9]\d{3,}/,
+      "demo-out/done": /^done$/,
+    },
+  },
   // (S-DESIGN-2, Robert's report) The form itself (nothing selected) in
   // the inspector, with its events: OnShow's handler made, bound and
   // written as a component's is.
@@ -8479,6 +8512,9 @@ function runDesktop(c, scale = 1) {
       ANTHROPIC_API_KEY: "", OPENAI_API_KEY: "", DEEPSEEK_API_KEY: "", ANTHROPIC_WORKSPACE_ID: "",
       ...(c.env || {}),
       ...(c.folder ? { RAPIDR_TEST_FILE_DIALOG: join(ROOT, c.folder) } : {}),
+      // (DEMO-MODE: the script played and recorded; no capture — demo mode
+      // ends Studio itself when the script is done)
+      ...(c.demo ? { RAPIDR_DEMO: join(dir, "demo.json"), RAPIDR_DEMO_OUT: join(dir, "demo-out"), RAPIDR_DEMO_LANG: c.demoLang || "en", RAPIDR_CAPTURE: undefined, RAPIDR_CAPTURE_DELAY: undefined, RAPIDR_TEST_DUMP: undefined } : {}),
     },
   });
   rmSync(join(WORK, `${c.name}.reg`), { force: true });
@@ -8494,6 +8530,8 @@ function runDesktop(c, scale = 1) {
     writer = spawn(process.execPath, [join(HERE, "ext_writer.mjs"), meet, join(dir, "project"), join(dir, "external.json")], { stdio: "ignore" });
     c.env = { ...(c.env || {}), RAPIDR_TEST_EXT: meet };
   }
+  // (DEMO-MODE: the case's script, {dir} its own folder)
+  if (c.demo) writeFileSync(join(dir, "demo.json"), JSON.stringify(c.demo).replaceAll("{dir}", dir));
   let r = run(args, c.delay);
   if (writer && writer.exitCode === null) writer.kill();
   if (c.restart) {

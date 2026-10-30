@@ -469,6 +469,8 @@ SUB MacroTick
   END IF
   id = LTRIM$(RTRIM$(id))
   IF EditorStep(id) THEN EXIT SUB
+  ' (a recorded demo's commands: demo.inc)
+  IF DemoStep(id) THEN EXIT SUB
   ' (lang:<tag> — Studio's language changed as Settings changes it, for
   ' the language tests; lang: alone, the system's)
   IF LEFT$(id, 5) = "lang:" THEN

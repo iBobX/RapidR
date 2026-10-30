@@ -97,7 +97,8 @@ impl Host for HeadlessHost {
     }
 
     fn screen(&self) -> (i64, i64) {
-        HEADLESS_SCREEN
+        // (demo mode: the script's frame — docs/video-pipeline.md)
+        rapidr_ui_app::demo::screen().unwrap_or(HEADLESS_SCREEN)
     }
 
     fn default_scale(&self) -> f64 {

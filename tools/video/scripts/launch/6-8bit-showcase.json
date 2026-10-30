@@ -1,0 +1,44 @@
+// Launch video 6 (Preview 5): the 8-bit showcase. 90-120 s.
+// SKELETON for Robert's review: not recorded yet. TODO marks a target to
+// check when recorded. ONLY RapidR's own programs (examples/recipes,
+// examples/media): no game, ROM, BIOS or character of anyone else; the
+// recipes' tiny instruction set is RapidR's own.
+{
+  "id": "launch-6-8bit-showcase",
+  "draft": "skeleton",
+  "title": { "en": "Build a tiny 8-bit computer in BASIC", "es": "Crea una pequeña computadora de 8 bits en BASIC" },
+  "description": {
+    "en": "A CPU that steps through its instructions, flags as bits, video memory drawn fast, and a one-bit speaker: the recipes that teach how computers work, all in RapidR BASIC.",
+    "es": "Una CPU que avanza instrucción por instrucción, banderas como bits, memoria de video dibujada rápido y un altavoz de un bit: las recetas que enseñan cómo funcionan las computadoras, todo en RapidR BASIC."
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "studio": { "theme": "rapidr-dark", "open": "examples/recipes/cpu_step.rr" },
+  "steps": [
+    { "card": { "title": { "en": "A tiny 8-bit computer", "es": "Una pequeña computadora de 8 bits" }, "lines": [{ "en": "in RapidR BASIC", "es": "en RapidR BASIC" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "How does a computer really work? Let's build one.", "es": "¿Cómo funciona de verdad una computadora? Construyamos una." }] },
+    { "say": [{ "en": "A tiny CPU: registers, a program counter, and a decoder.", "es": "Una CPU pequeña: registros, un contador de programa y un decodificador." }],
+      "do": [{ "highlight": "codedoc(0)", "for": 2.5 }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }] },
+    { "say": [{ "en": "Step it, one instruction at a time.", "es": "Avánzala, una instrucción a la vez." }],
+      // TODO: button names
+      "do": [{ "click": "app:StepButton", "pause": 0.6 }, { "click": "app:StepButton", "pause": 0.6 }, { "click": "app:StepButton", "pause": 0.6 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Flags are just bits: carry, zero, sign.", "es": "Las banderas son solo bits: acarreo, cero, signo." }],
+      "do": [{ "open": "examples/recipes/flags_bits.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 3 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Video memory, drawn fast enough for a whole screen every frame.", "es": "Memoria de video, dibujada tan rápido como para una pantalla entera en cada cuadro." }],
+      "do": [{ "open": "examples/recipes/video_memory.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 3.5 }, { "mark": "poster" }, { "do": "run.stop" }] },
+    { "say": [{ "en": "And a one-bit speaker, flipped at exact times, becomes music.", "es": "Y un altavoz de un bit, activado en momentos exactos, se vuelve música." }],
+      // TODO: record the program's sound
+      "do": [{ "open": "examples/media/beeper.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 3.5 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Set a breakpoint and watch every register change.", "es": "Pon un punto de interrupción y mira cambiar cada registro." }],
+      // TODO: the breakpoint command id and line
+      "do": [{ "open": "examples/recipes/cpu_step.rr" }, { "do": "debug.toggleBreakpoint" }, { "do": "run.start" }, { "wait": 2.5 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Every recipe is in Studio's examples, ready to change.", "es": "Cada receta está en los ejemplos de Studio, lista para cambiarla." }],
+      "do": [{ "do": "file.openExample" }, { "type": "recipes" }, { "wait": 1.5 }, { "key": "Escape" }] },
+    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Learn how computers work", "es": "Aprende cómo funcionan las computadoras" }, "rapidr.dev"],
+        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Build it. Understand it. Make it yours.", "es": "Constrúyela. Entiéndela. Hazla tuya." }], "do": [{ "wait": 2.5 }] }
+  ]
+}

@@ -39,6 +39,9 @@
 pub mod a11y;
 pub mod components;
 pub mod contrast;
+// (a recorded tutorial's highlight, pointer, captions and cards:
+// rapidr_ui_app::demo, docs/video-pipeline.md)
+pub mod demo_overlay;
 pub mod dialogs;
 pub mod display;
 mod drag;

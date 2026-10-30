@@ -145,7 +145,7 @@ impl Clipboard for RtClipboard {
 /// Whether the host is headless: under a GUI test (`RAPIDR_CAPTURE`
 /// without `RAPIDR_CAPTURE_WINDOWS`).
 fn headless_requested() -> bool {
-    Capture::from_env().is_some() && rapidr_testmode::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
+    (Capture::from_env().is_some() && rapidr_testmode::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()) || rapidr_ui_app::demo::active()
 }
 
 /// The host, started the first time a window is needed: headless under a
@@ -464,6 +464,10 @@ pub fn step(max_wait: Option<Duration>) {
     }
     if super::drive::linked() && headless() {
         at_most(Duration::from_millis(250));
+    }
+    // (demo mode: the next frame's turn)
+    if let Some(d) = rapidr_ui_app::demo::wait() {
+        at_most(d);
     }
     // (a test hook's answer to a dialog, once it has been open long enough)
     if let Some(at) = rapidr_ui_app::dialogs::hook_wake() {
@@ -1361,7 +1365,7 @@ fn headless_look() -> bool {
 
 /// The host is the headless one (whose mouse stays at (0, 0)).
 fn headless_known() -> bool {
-    Capture::from_env().is_some() && rapidr_testmode::var_os("RAPIDR_CAPTURE_WINDOWS").is_none()
+    headless_requested()
 }
 
 pub fn monitors() -> i64 {

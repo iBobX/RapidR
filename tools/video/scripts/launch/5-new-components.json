@@ -1,0 +1,46 @@
+// Launch video 5 (Preview 5): new components. 90-120 s.
+// SKELETON for Robert's review: not recorded yet. TODO marks a target to
+// check when recorded. Every program shown is one of RapidR's own examples
+// (copies in the take's profile). RWindowCapture captures the program's own
+// windows only. Sound: the synth's audio is recorded with the program's
+// RAudioOut output (TODO: capture the program's sound into the take).
+{
+  "id": "launch-5-new-components",
+  "draft": "skeleton",
+  "title": { "en": "New in RapidR: sound, hands, eyes and archives", "es": "Nuevo en RapidR: sonido, manos, ojos y archivos" },
+  "description": {
+    "en": "RAudioOut plays sound you make sample by sample, RAppHands and RWindowCapture let your app drive and see its own windows, pixels draw fast, and RArchive packs and unpacks zip files.",
+    "es": "RAudioOut toca el sonido que creas muestra a muestra, RAppHands y RWindowCapture dejan que tu app maneje y vea sus propias ventanas, los píxeles se dibujan rápido y RArchive comprime y descomprime archivos zip."
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "studio": { "theme": "rapidr-dark", "open": "examples/media/tone_generator.rr" },
+  "steps": [
+    { "card": { "title": { "en": "New components", "es": "Componentes nuevos" }, "lines": ["RapidR Studio"],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Four new things your apps can do.", "es": "Cuatro cosas nuevas que pueden hacer tus apps." }] },
+    { "say": [
+        { "en": "One: RAudioOut. Make sound, sample by sample.", "es": "Uno: RAudioOut. Crea sonido, muestra a muestra." },
+        { "en": "A synth in a few lines of BASIC.", "es": "Un sintetizador en unas pocas líneas de BASIC." } ],
+      // TODO: the example's button
+      "do": [{ "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "click": "app:PlayButton", "pause": 2 }, { "do": "run.stop" }] },
+    { "say": [
+        { "en": "Two: RAppHands. Your app can click and type in its own windows…", "es": "Dos: RAppHands. Tu app puede hacer clic y escribir en sus propias ventanas…" },
+        { "en": "for guided tours and tests.", "es": "para visitas guiadas y pruebas." } ],
+      "do": [{ "open": "examples/gui/guided_tour.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 4 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Three: RWindowCapture. A picture of your own window, in one line.", "es": "Tres: RWindowCapture. Una imagen de tu propia ventana, en una línea." }],
+      // TODO: button name
+      "do": [{ "open": "examples/gui/snapshot.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "click": "app:SnapButton", "pause": 1.5 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "And fast pixels: a whole screen redrawn in a fraction of a millisecond.", "es": "Y píxeles rápidos: una pantalla entera redibujada en una fracción de milisegundo." }],
+      "do": [{ "open": "examples/graphics/pixels_fast.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 3 }, { "mark": "poster" }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Four: RArchive. Zip and unzip files, with no extra tools.", "es": "Cuatro: RArchive. Comprime y descomprime archivos, sin herramientas extra." }],
+      "do": [{ "open": "examples/data/archives.rr" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }, { "wait": 3 }, { "do": "run.stop" }] },
+    { "say": [{ "en": "Each one has an example in Studio, ready to run.", "es": "Cada uno tiene un ejemplo en Studio, listo para ejecutar." }],
+      "do": [{ "do": "file.openExample" }, { "wait": 2 }, { "key": "Escape" }] },
+    { "card": { "title": "RapidR Studio", "lines": [{ "en": "BASIC is powerful again", "es": "BASIC vuelve a ser poderoso" }, "rapidr.dev"],
+        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "What will you make with them?", "es": "¿Qué vas a crear con ellos?" }], "do": [{ "wait": 2.5 }] }
+  ]
+}

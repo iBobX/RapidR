@@ -148,6 +148,7 @@ Every hook below is ignored by a release build without a valid token.
 | `RAPIDR_TEST_MCP_TOKEN`, `RAPIDR_TEST_EXT` | Studio's MCP token stand-in; the external-changes test folder | Studio (`ide/mcp.inc`, `ide/external.inc`) through `ENVIRON$`, which answers "" for the hooks' names |
 | `RAPIDR_SCHOOL_POLICY` | a test School Lock policy file | `rapidr-studio` `school_lock.rs` |
 | `RAPIDR_LOGIN_SHELL` | a stand-in login shell for Studio's PATH | `rapidr-studio` `login_path.rs` |
+| `RAPIDR_DEMO`, `RAPIDR_DEMO_OUT`, `RAPIDR_DEMO_LANG` | demo mode: a script played in Studio and recorded headless (input automation; docs/video-pipeline.md) | `rapidr-ui-app` `demo`; `ide/demo.inc` through `ENVIRON$` |
 | `RAPIDR_AI_TEST_SERVER`, `RAPIDR_AI_TEST_DNS_FAIL_ONCE` | the AI provider on a loopback test server; a DNS failure | `rapidr-ai` `provider.rs`, `http.rs` |
 | every other `RAPIDR_TEST_*` read with `ENVIRON$` | — | `rapidr-value` `environ.rs` |
 
