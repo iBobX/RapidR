@@ -223,11 +223,12 @@ impl ProjectTree {
     }
 
     /// A badge in words, for a screen reader and a tooltip.
-    pub fn badge_words(b: char) -> &'static str {
+    pub fn badge_words(b: char) -> String {
+        use crate::i18n::tr_ui;
         match b {
-            'N' => "new, not in a version yet",
-            'D' => "removed since the last version",
-            _ => "changed since the last version",
+            'N' => tr_ui("new, not in a version yet"),
+            'D' => tr_ui("removed since the last version"),
+            _ => tr_ui("changed since the last version"),
         }
     }
 

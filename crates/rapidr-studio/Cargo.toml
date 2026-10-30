@@ -13,6 +13,8 @@ license.workspace = true
 # test-mode token — docs/security/test-mode.md)
 rapidr-testmode.workspace = true
 rapidr-value.workspace = true
+# (notes.rs: a tool's note found again by its template, to be shown translated)
+rapidr-i18n.workspace = true
 rapidr-project.workspace = true
 rapidr-session.workspace = true
 rapidr-langsvc.workspace = true

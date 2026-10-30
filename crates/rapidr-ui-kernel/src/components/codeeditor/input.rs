@@ -866,12 +866,13 @@ fn mouse_in(x: &mut Ctx, m: &MouseIn, abs: (i64, i64)) -> MouseOut {
                     if x.c.peek.as_ref().is_some_and(|p| p.hunk.holds(line)) {
                         x.c.peek = None;
                     } else if x.c.show_change(line) {
-                        let words = match x.c.peek.as_ref().map(|p| p.hunk.kind()) {
-                            Some("added") => "added since the last version",
-                            Some("removed") => "lines removed after it since the last version",
-                            _ => "changed since the last version",
+                        let values = [("line", (line + 1).to_string())];
+                        let values = [(values[0].0, values[0].1.as_str())];
+                        x.ui.announce = match x.c.peek.as_ref().map(|p| p.hunk.kind()) {
+                            Some("added") => rapidr_value::i18n::tr_ui_fill("Line {line}: added since the last version. Escape closes it.", &values),
+                            Some("removed") => rapidr_value::i18n::tr_ui_fill("Line {line}: lines removed after it since the last version. Escape closes it.", &values),
+                            _ => rapidr_value::i18n::tr_ui_fill("Line {line}: changed since the last version. Escape closes it.", &values),
                         };
-                        x.ui.announce = format!("Line {}: {words}. Escape closes it.", line + 1);
                     }
                     "change"
                 } else if mx < (g.glyph_x + 18) as f64 {

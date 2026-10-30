@@ -10,6 +10,7 @@ use rapidr_lang::{Component, Kind, Origin};
 use crate::compat;
 use crate::context::{self, line_context, pretty_component, Place, Ty};
 use crate::model::{name_key, ScopeKind, SymbolKind};
+use crate::words::{tr_ui, tr_ui_fill};
 use crate::{Completion, CompletionKind, Completions, Snapshot};
 
 pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, rapidq_compatible: bool) -> Completions {
@@ -29,7 +30,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     label: d.name.to_string(),
                     kind: CompletionKind::Directive,
                     detail: Some(d.syntax.to_string()),
-                    doc: Some(d.doc.to_string()),
+                    doc: Some(crate::hover::tdoc(d.name, d.doc).to_string()),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -68,7 +69,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                         label: "CREATE".into(),
                         kind: CompletionKind::Keyword,
                         detail: Some("CREATE name AS type … END CREATE".into()),
-                        doc: Some("Creates a component inside this one.".into()),
+                        doc: Some(tr_ui("Creates a component inside this one.")),
                         insert: Some(format!("CREATE ${{1:Name}} AS ${{2:{}}}\n\t$0\nEND CREATE", if out.q_style { "QButton" } else { "RButton" })),
                         snippet: true,
                         edits: Vec::new(),
@@ -84,7 +85,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     label: b.name.to_string(),
                     kind: CompletionKind::Builtin,
                     detail: Some(b.syntax.to_string()),
-                    doc: Some(with_notes(b.doc, &compat::notes(b.origin, Origin::RapidQ, false, b.runtimes, None))),
+                    doc: Some(with_notes(crate::hover::tdoc(b.name, b.doc), &compat::notes(b.origin, Origin::RapidQ, false, b.runtimes, None))),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -95,8 +96,8 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                 out.push(Completion {
                     label: g.name.to_string(),
                     kind: CompletionKind::Component,
-                    detail: Some("global object".into()),
-                    doc: Some(with_notes(g.doc, &compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from))),
+                    detail: Some(tr_ui("global object")),
+                    doc: Some(with_notes(crate::hover::tdoc(g.name, g.doc), &compat::notes(g.origin, Origin::RapidQ, false, g.runtimes, g.from))),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -108,7 +109,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     label: st.name.to_string(),
                     kind: CompletionKind::Keyword,
                     detail: Some(st.syntax.to_string()),
-                    doc: Some(with_notes(st.doc, &compat::notes(st.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
+                    doc: Some(with_notes(crate::hover::tdoc(st.name, st.doc), &compat::notes(st.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -120,7 +121,7 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     label: k.name.to_string(),
                     kind: CompletionKind::Keyword,
                     detail: Some(k.kind.to_string()),
-                    doc: Some(with_notes(k.doc, &compat::notes(k.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
+                    doc: Some(with_notes(crate::hover::tdoc(k.name, k.doc), &compat::notes(k.origin, Origin::RapidQ, false, rapidr_lang::Runtimes::All, None))),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -141,8 +142,8 @@ pub(crate) fn completions(s: &Snapshot, file: &Path, text: &str, offset: usize, 
                     out.push(Completion {
                         label,
                         kind: CompletionKind::Constant,
-                        detail: Some(format!("RapidR constant = {value}")),
-                        doc: Some(g.doc.to_string()),
+                        detail: Some(tr_ui_fill("RapidR constant = {value}", &[("value", &value.to_string())])),
+                        doc: Some(crate::hover::tdoc(g.name, g.doc).to_string()),
                         insert: None,
                         snippet: false,
                         edits: Vec::new(),
@@ -184,8 +185,8 @@ fn types(s: &Snapshot, out: &mut Out, q_style: bool, other_typed: bool) {
         out.push(Completion {
             label: t.name.to_string(),
             kind: CompletionKind::Type,
-            detail: Some(origin_label(t.origin).to_string()),
-            doc: Some(t.doc.to_string()),
+            detail: Some(origin_label(t.origin)),
+            doc: Some(crate::hover::tdoc(t.name, t.doc).to_string()),
             insert: None,
             snippet: false,
             edits: Vec::new(),
@@ -199,12 +200,25 @@ fn types(s: &Snapshot, out: &mut Out, q_style: bool, other_typed: bool) {
     }
     // (RapidQ's components RapidR doesn't have yet aren't offered)
     for c in rapidr_lang::COMPONENTS.iter().filter(|c| c.kind != Kind::Planned) {
-        let from = c.from.map(|inc| format!(" (from {inc})")).unwrap_or_default();
+        let as_component = || match c.from {
+            Some(inc) => tr_ui_fill("component (from {inc})", &[("inc", inc)]),
+            None => tr_ui("component"),
+        };
         let (label, detail, alternate) = match c.rapidq_spelling() {
-            Some(q) if c.kind != Kind::Component => (q, format!("from {}", c.from.unwrap_or("the library")), None),
-            Some(q) if q_style => (q.clone(), format!("RapidR name: {}", c.spelling()), Some((c.spelling(), format!("RapidR's name for {q}")))),
-            Some(q) => (c.spelling(), format!("component{from}"), Some((q, format!("classic name for {}", c.spelling())))),
-            None => (c.spelling(), format!("component{from}"), None),
+            Some(q) if c.kind != Kind::Component => {
+                let source = c.from.map(str::to_string).unwrap_or_else(|| tr_ui("the library"));
+                (q, tr_ui_fill("from {source}", &[("source", &source)]), None)
+            }
+            Some(q) if q_style => {
+                let rapidr = c.spelling();
+                let note = tr_ui_fill("RapidR's name for {name}", &[("name", &q)]);
+                (q.clone(), tr_ui_fill("RapidR name: {name}", &[("name", &rapidr)]), Some((rapidr, note)))
+            }
+            Some(q) => {
+                let note = tr_ui_fill("classic name for {name}", &[("name", &c.spelling())]);
+                (c.spelling(), as_component(), Some((q, note)))
+            }
+            None => (c.spelling(), as_component(), None),
         };
         out.push(Completion {
             label,
@@ -249,8 +263,8 @@ fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
                 out.push(Completion {
                     label: name.to_string(),
                     kind: CompletionKind::Constant,
-                    detail: Some(format!("built-in constant = {value}")),
-                    doc: Some(g.doc.to_string()),
+                    detail: Some(tr_ui_fill("built-in constant = {value}", &[("value", &value.to_string())])),
+                    doc: Some(crate::hover::tdoc(g.name, g.doc).to_string()),
                     insert: None,
                     snippet: false,
                     edits: Vec::new(),
@@ -270,8 +284,8 @@ fn rapidq_inc_constants(s: &Snapshot, text: &str, out: &mut Out) {
             out.push(Completion {
                 label: name.to_string(),
                 kind: CompletionKind::Constant,
-                detail: Some(format!("constant = {value}")),
-                doc: Some(with_notes(g.doc, "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: a .bas file reads the name as a variable that is always 0 without it.*")),
+                detail: Some(tr_ui_fill("constant = {value}", &[("value", &value.to_string())])),
+                doc: Some(with_notes(crate::hover::tdoc(g.name, g.doc), &tr_ui("*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: a .bas file reads the name as a variable that is always 0 without it.*"))),
                 insert: None,
                 snippet: false,
                 edits: vec![edit.clone()],
@@ -296,20 +310,22 @@ pub(crate) fn component_doc(c: &Component) -> Option<String> {
         doc.push_str(&notes);
     }
     if c.kind == Kind::Library {
-        doc.push_str("\n\n*A library written in BASIC, which RapidR supplies.*");
+        doc.push_str("\n\n");
+        doc.push_str(&tr_ui("*A library written in BASIC, which RapidR supplies.*"));
     }
-    doc.push_str(&format!(": {} properties, {} methods, {} events", c.properties.len(), c.methods.len(), c.events.len()));
+    let counts = tr_ui_fill("{properties} properties, {methods} methods, {events} events", &[("properties", &c.properties.len().to_string()), ("methods", &c.methods.len().to_string()), ("events", &c.events.len().to_string())]);
+    doc.push_str(&format!(": {counts}"));
     if let Some(e) = c.default_event {
-        doc.push_str(&format!("; its default event is {e}"));
+        doc.push_str(&format!("; {}", tr_ui_fill("its default event is {event}", &[("event", e)])));
     }
     doc.push('.');
     Some(doc)
 }
 
-fn origin_label(o: Origin) -> &'static str {
+fn origin_label(o: Origin) -> String {
     match o {
-        Origin::RapidQ => "type",
-        Origin::RapidR => "RapidR type",
+        Origin::RapidQ => tr_ui("type"),
+        Origin::RapidR => tr_ui("RapidR type"),
     }
 }
 
@@ -323,8 +339,8 @@ pub(crate) fn members(s: &Snapshot, ty: &Ty, out: &mut Out, events_as_assignment
                 for sym in s.model.symbols.iter().filter(|sym| sym.scope == scope) {
                     let (kind, detail) = match sym.kind {
                         SymbolKind::Field => (CompletionKind::Field, sym.ty.clone().map(|t| format!("AS {t}"))),
-                        SymbolKind::Sub => (CompletionKind::Method, Some(format!("SUB of {t}"))),
-                        SymbolKind::Function => (CompletionKind::Method, Some(format!("FUNCTION of {t}"))),
+                        SymbolKind::Sub => (CompletionKind::Method, Some(tr_ui_fill("SUB of {type}", &[("type", t)]))),
+                        SymbolKind::Function => (CompletionKind::Method, Some(tr_ui_fill("FUNCTION of {type}", &[("type", t)]))),
                         _ => continue,
                     };
                     out.push(simple(&sym.name, kind, detail, "0"));
@@ -344,14 +360,15 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
     // (what RapidR doesn't answer yet isn't offered; in a CREATE body,
     // what can be set)
     for p in c.properties.iter().filter(|p| !p.missing && !(in_create && p.access == rapidr_lang::Access::Read)) {
-        let ty = match p.access {
-            rapidr_lang::Access::Read => format!("{}, read only", p.ty.as_str()),
-            _ => p.ty.as_str().to_string(),
+        let values = [("owner", owner.as_str()), ("type", p.ty.as_str())];
+        let detail = match p.access {
+            rapidr_lang::Access::Read => tr_ui_fill("property of {owner} ({type}, read only)", &values),
+            _ => tr_ui_fill("property of {owner} ({type})", &values),
         };
         out.push(Completion {
             label: p.name.to_string(),
             kind: CompletionKind::Property,
-            detail: Some(format!("property of {owner} ({ty})")),
+            detail: Some(detail),
             doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, p.name), p.doc), p.origin, p.runtimes, p.from),
             insert: in_create.then(|| format!("{} = ", p.name)),
             snippet: false,
@@ -364,7 +381,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
             out.push(Completion {
                 label: m.name.to_string(),
                 kind: CompletionKind::Method,
-                detail: Some(format!("method of {owner}: {}", m.signature())),
+                detail: Some(tr_ui_fill("method of {owner}: {signature}", &[("owner", &owner), ("signature", &m.signature())])),
                 doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, m.name), m.doc), m.origin, m.runtimes, m.from),
                 insert: None,
                 snippet: false,
@@ -377,7 +394,7 @@ fn component_members(c: &Component, out: &mut Out, in_create: bool) {
         out.push(Completion {
             label: e.name.to_string(),
             kind: CompletionKind::Event,
-            detail: Some(format!("event of {owner}: {}", e.signature())),
+            detail: Some(tr_ui_fill("event of {owner}: {signature}", &[("owner", &owner), ("signature", &e.signature())])),
             doc: doc(crate::hover::tdoc(&format!("{}.{}", c.name, e.name), e.doc), e.origin, e.runtimes, e.from),
             insert: Some(format!("{} = ", e.name)),
             snippet: false,

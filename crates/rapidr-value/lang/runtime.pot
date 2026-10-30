@@ -4,8 +4,1440 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
+#: crates/rapidr-ai/src/rai.rs
+msgid "1 step"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{n} steps"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "show"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "hide"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Copy"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Insert"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Thought for {secs} s"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "An earlier draft said this was done before it was — Studio asked it to actually do it."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Choose an AI provider first (Provider)."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "There is no {provider} API key yet: give one (APIKey), or say where it is kept (APIKeySource)."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Continuing (part {n})"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Fixing the errors"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Fixing 1 problem"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Fixing {n} problems"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Thinking"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Writing the answer"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Using {name}"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Still answering: wait for it, or Stop."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "There is no question {n} in this chat."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "That question is from before the chat was compacted: it can't be edited. Ask it again as a new question."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Nothing to compact yet: the chat is still short."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Choose a model first (RefreshModels lists the provider's)."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "You"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Edit"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Assistant"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Retry"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Asking the server about the model"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Compacting the conversation"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Summarising the chat to keep it short"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Answering…"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "This model takes {window} tokens at once (its context window, as the server runs it now), fewer than the instructions and tools alone need (about {need}). Choose a model or a server setting with a larger window: 16,384 tokens or more."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Type a question or a request first."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Still answering: wait for it, or Cancel."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Asking {provider} for its models…"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Stopped."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Error: {message}"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "This model takes no effort setting: it answers as it usually does."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "This model can't think at an effort while it uses tools here: it answers without one."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{provider} lists {n} models."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{provider} answered, but not with a models list: {error}."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The chat was compacted: what each question sends of it went from about {before} tokens to about {after}."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The conversation so far was summarised, to keep each question cheap."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Done."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The chat wasn't compacted: the model gave no summary."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{provider} stopped answering: {error}"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Asked the model to make the change it described"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Continue in smaller steps"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "RAI stopped here: the answer kept reaching its length limit ({tokens} tokens), {parts} parts in a row. What it finished is above."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The model declined to answer this."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Answer was long: continuing (part {part} of up to {parts})"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Continued after the length limit ({n} of {max})"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Continuing (part {n})…"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The assistant didn't make the change you asked for. Ask again, or try a larger model."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Answered."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "Summarising the conversation, to keep it cheap…"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "({n} from the cache)"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{sent} tokens sent"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "{n} received"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "about ${cost}"
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "KeyOwner is RapidR Studio's own: a program's keys are always its own."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "A new chat."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "APIKeySource names no keychain entry (keychain:NAME) to keep the key under."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "There is no key to keep: set APIKey first."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The key is kept in {place}."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The key wasn't kept: {error}."
+msgstr ""
+
+#: crates/rapidr-ai/src/rai.rs
+msgid "The key is forgotten."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "({name} says: \"{said}\")"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in the Workspace ID (the Claude Console lists your workspaces), or make a key inside a workspace."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "Your {name} account has no credit left for this key{quoted}. Add credit on {name}'s website; RapidR can't do it for you."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} doesn't let this key do that (403){quoted}."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} is short of memory for this conversation{quoted}. Wait for the model to finish what it is doing, close other apps, start a new chat (it sends less), or choose a smaller model."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "this model isn't available to your key (404){quoted}. List the provider's models again and pick one of them."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "The model \"{model}\" isn't available to your key (404){quoted}. List the provider's models again and pick one of them."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} is limiting how often this key asks (429): wait {n} seconds and try again."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} is limiting how often this key asks (429): wait a minute and try again."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} sent the request on to another address ({status}): RapidR doesn't follow it with your key. If you trust that address, set the base URL to it."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} is overloaded or having trouble ({status}){quoted}. Try again in a minute."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "{name} refused the request ({status}){quoted}."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "The server at {host} began answering, then sent nothing more ({what}): a model on this computer writing a long change, or short of memory, can be that slow. Try again, ask for a smaller step, or choose a smaller model."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "Couldn't reach {host}: {what}. Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "Couldn't reach {host}: {what}. Try again in a moment, and check the internet connection."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "Couldn't reach {host}: {what}. Check the internet connection."
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the name wasn't found (DNS)"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the connection failed ({detail})"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the connection failed"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "too many redirects"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the address isn't valid ({detail})"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the address isn't valid"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "no answer"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "timed out"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the answer stopped coming for {n} seconds"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "no connection in {n} seconds"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "no answer came in {n} seconds"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "the browser couldn't connect (no network, or the server or this page's security policy doesn't allow it)"
+msgstr ""
+
+#: crates/rapidr-ai/src/wire.rs
+msgid "The server"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "*Not implemented in RapidR yet.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "*A RapidR extension.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "*Desktop only (native builds and the interpreter): the web runtime doesn't have it.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "*Web only: the desktop doesn't have it.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "*From `{inc}`.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs crates/rapidr-langsvc/src/hints.rs
+msgid "Write {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/compat.rs
+msgid "Change to {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "Creates a component inside this one."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/hover.rs
+msgid "global object"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "RapidR constant = {value}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "component (from {inc})"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_view.rs
+msgid "component"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "the library"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/hover.rs
+msgid "from {source}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "RapidR's name for {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "RapidR name: {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "classic name for {name}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "built-in constant = {value}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "constant = {value}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "*Choosing it adds `$INCLUDE \"RAPIDQ.INC\"` at the top of the file too: a .bas file reads the name as a variable that is always 0 without it.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "*A library written in BASIC, which RapidR supplies.*"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "{properties} properties, {methods} methods, {events} events"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "its default event is {event}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs crates/rapidr-langsvc/src/help.rs
+msgid "type"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "RapidR type"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "SUB of {type}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "FUNCTION of {type}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "property of {owner} ({type}, read only)"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "property of {owner} ({type})"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "method of {owner}: {signature}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/complete.rs
+msgid "event of {owner}: {signature}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "classic"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "RapidR's own"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "desktop and web"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "desktop only"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "web only"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "its default event {event}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Property of {comp}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
+msgid "default {value}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Method of {comp}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "its handler: SUB Name{params}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Event of {comp}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
+msgid "Properties"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Methods"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
+msgid "Events"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Object"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Component"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Function"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Statement"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Directive"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Keyword ({kind})"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Type"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Constant = {v} (&H{hex})"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A member of {component}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Its default event is {event}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Insert into the code"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-value/src/panels/inspector/model.rs
+msgid "Help"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Put the caret on a word in your code and press {key}, or type a word in the box above. Click a name here to open its page."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Start with"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "a window"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "a button to click"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "text on the form"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "show text"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "choose what to do"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "repeat something"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Getting started"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "New to RapidR? Read {page}, the manual's first page, here."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "the RapidR manual"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "The whole manual is at {manual}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "No entry for {word}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Nothing in the language, and nothing in this program, is called {word}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "start page"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Check the spelling, or go back to the {page}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Did you mean:"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Or go back to the {page}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A variable in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A constant in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A parameter in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A SUB in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A FUNCTION in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A DLL routine in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A TYPE in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A field in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A component in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "A label in this program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "{name}, line {line}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Declared in {place}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Find References"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "Its type is {type}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
+msgid "not used yet"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
+msgid "used once"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs
+msgid "used {n} times"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "object"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "function"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "statement"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "keyword"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "directive"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs crates/rapidr-langsvc/src/hover.rs crates/rapidr-ui-kernel/src/value_view.rs
+msgid "constant"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your constant"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your parameter"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your sub"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your function"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your dll"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your type"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your field"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your component"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/help.rs
+msgid "your label"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hints.rs
+msgid "Add $INCLUDE \"{inc}\""
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "built in"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "RapidR's own: built into a .rr program only"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "RapidR's own, always there"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "global variable (implicit: made by its first use)"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "global variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "local variable in `{routine}`"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "local variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "parameter in `{routine}`"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "parameter"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "variable of `{routine}` (implicit: its own, kept between calls)"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "STATIC variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "STATIC variable in `{routine}`"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "constant of {source}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "DLL routine (DECLARE … LIB)"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "field of TYPE `{type}`"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "field"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "label"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "Declared in `{name}`, line {line}; {used}."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "Not used yet."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "Used once."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "Used {n} times."
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "{type} property (read only) of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "{type} property (write only) of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "{type} property of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "method of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/hover.rs
+msgid "event of {owner}"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/lib.rs
+msgid "no analysis for this file"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here: put the caret on a name of the program"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no position"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "no reference here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} is used where it can't be renamed"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "{name} belongs to a library RapidR supplies"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "Nothing to rename here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is not a valid name"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a reserved word"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is a builtin's name"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' is already the name of {what} here"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "'{name}' would be hidden by {what} in a SUB that uses it"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the global variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the local variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the parameter"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the STATIC variable"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the constant"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the component"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the SUB"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the FUNCTION"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the DLL routine"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the TYPE"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the field"
+msgstr ""
+
+#: crates/rapidr-langsvc/src/navigate.rs
+msgid "the label"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The change to {path} proposed before was set aside: {path} changed since."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The change to {path} proposed before was replaced by a newer proposal."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The new program {name} isn't created yet: preview it, then create it."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The new program {name} isn't created yet."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "A change proposed before still waits for your review."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Changes to {n} files proposed before still wait for your review."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant made a new program: preview it, then create it."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant made a new program that doesn't compile yet: preview it, or ask it to fix the errors."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant made a new program."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant made a new program that doesn't compile yet."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant proposed a change: review it."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant proposed a change that doesn't compile yet: review it, or ask it to fix the errors."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant proposed changes to {files} files: review them."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The assistant proposed changes to {files} files that don't compile yet: review them, or ask it to fix the errors."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "A first hint showed code too early: Studio asked RAI for a nudge without it."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Asked for the hint without code"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You applied the change to {path}."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You applied part of the change to {path}."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You rejected the change to {path}."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The change to {path} wasn't applied: {path} changed after the assistant read it. Ask again."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "The change to {path} couldn't be applied in its editor: {path} is as it was. Ask again."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Started from the recipe {recipe}, unchanged: the model's own {n} tries didn't work"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Started from the recipe {recipe}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 line added"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} lines added"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 line removed"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} lines removed"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Review"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "New file {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
+msgid "Proposed a change to {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "compiles"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "New program {title}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Fixed 1 error"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Fixed {n} errors"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "RAI wants to click and type in your running program. It sees whatever the program shows, including private data."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Allow for this run"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Don't allow"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You allowed RAI to use your running program for this run"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "You didn't allow RAI to use your running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "1 error left"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{n} errors left"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Created {title}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Open"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Undo"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "There is no new program to undo."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{file} was changed"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{file} is gone"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "{file} was added"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Undone: the new program {title} was removed."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs
+msgid "Undone: the new program {title} was removed (the files you added stay in its folder)."
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
+msgid "1 error to fix"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai.rs crates/rapidr-studio/src/notes.rs
+msgid "{n} errors to fix"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading a file"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Listing the files"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the project's outline"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Searching the manual"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Finding an example"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading RapidR's reference"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the help of {name}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking at the form"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Checking (compiling)"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Laying out the buttons"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Reading the running program's layout"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Looking at the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Letting the running program work"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Clicking in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Clicking \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Clicking {what} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Clicking the box beside \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing 1 character in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing {n} characters in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing 1 character into \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing {n} characters into \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing 1 character into {what} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing {n} characters into {what} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing 1 character into the box beside \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Typing {n} characters into the box beside \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Pressing {keys} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Pressing a key in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Pressing {n} keys in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Pressing keys in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Dragging in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Dragging \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Dragging {what} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Dragging the box beside \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Scrolling in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Scrolling \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Scrolling {what} in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Scrolling the box beside \"{what}\" in the running program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Writing a change"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Writing {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Writing a file"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "Writing the new program"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "(+1 line)"
+msgstr ""
+
+#: crates/rapidr-studio/src/ai_tools.rs
+msgid "(+{n} lines)"
+msgstr ""
+
+#: crates/rapidr-studio/src/build.rs
+msgid "a build is running already"
+msgstr ""
+
+#: crates/rapidr-studio/src/crash.rs
+msgid "{name}: there is no such report"
+msgstr ""
+
+#: crates/rapidr-studio/src/crash.rs crates/rapidr-studio/src/recovery.rs
+msgid "no file named"
+msgstr ""
+
+#: crates/rapidr-studio/src/import.rs
+msgid "nothing to import"
+msgstr ""
+
+#: crates/rapidr-studio/src/import.rs
+msgid "{source}: nothing there to import"
+msgstr ""
+
 #: crates/rapidr-studio/src/langsvc.rs
 msgid "Not translated yet: this page is in English."
+msgstr ""
+
+#: crates/rapidr-studio/src/lib.rs
+msgid "there is no file manager here"
 msgstr ""
 
 #: crates/rapidr-studio/src/local_ai.rs
@@ -22,6 +1454,490 @@ msgstr ""
 
 #: crates/rapidr-studio/src/local_ai.rs
 msgid "A check is running: wait for it, or stop it."
+msgstr ""
+
+#: crates/rapidr-studio/src/local_history.rs
+msgid "there is no project folder to keep the history in"
+msgstr ""
+
+#: crates/rapidr-studio/src/local_history.rs
+msgid "{file} is bigger than {mb} MB: its local history isn't kept (save versions of it instead)"
+msgstr ""
+
+#: crates/rapidr-studio/src/local_history.rs
+msgid "there is no snapshot {n} in the local history"
+msgstr ""
+
+#: crates/rapidr-studio/src/local_history.rs
+msgid "the copy of {file} kept at snapshot {n} is missing"
+msgstr ""
+
+#: crates/rapidr-studio/src/local_history.rs
+msgid "the copy of {file} kept at snapshot {n} is damaged, so it isn't shown"
+msgstr ""
+
+#: crates/rapidr-studio/src/login_path.rs
+msgid "From your login shell ({shell}), as Terminal has it."
+msgstr ""
+
+#: crates/rapidr-studio/src/login_path.rs
+msgid "Your login shell couldn't say ({why}): Studio's own PATH and the usual folders that are on this computer."
+msgstr ""
+
+#: crates/rapidr-studio/src/login_path.rs
+msgid "{shell} didn't answer in 1 second"
+msgstr ""
+
+#: crates/rapidr-studio/src/login_path.rs
+msgid "{shell} didn't answer in {secs} seconds"
+msgstr ""
+
+#: crates/rapidr-studio/src/login_path.rs
+msgid "{shell} didn't print its PATH"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "(errors to fix)"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Read {file} ({lines} lines)"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Read {target}'s properties"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Read {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked up {target} in RapidR's registry"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked up {target}: not found"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked up {target}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked at the form"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Kept the recipe's program"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: not in Coach mode"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked at the project: none is open"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Looked for an example of {query}: none close"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Listed the files"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Listed the new project {name}'s files"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Listed the project's files ({n})"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Listed the forms' components ({n})"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Checked: {what}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Checked the code"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Checked {file}: no problems"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Checked {file}: {errors} errors, {warnings} warnings"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Found an example: {title}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Found an example"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Laid out the buttons"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Laid out {n} buttons"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Wrote the program"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Wrote the new program {title} ({files}): it compiles"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Wrote the new program {title}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Changed the new project {name}: {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Changed {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Outlined the project: none is open"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Outlined the project ({n} files)"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Searched the manual for {query}: found in RapidR's reference"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Searched the manual for {query}: nothing"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Searched the manual for {query}: {where}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Couldn't read {file}: not a file of the project"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Couldn't read {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused to read {file}: outside the project"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused to write {file}: outside the project"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused a change to {file}: {why}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused a whole-file rewrite of {file}: only a few lines change"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused a shortened {file} that doesn't compile"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused the new program {title}: its main file {main} wasn't sent"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused the new program {title}: {file} is cut off"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Refused {file}: {why}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "A change to {file} didn't fit the file"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Proposed a change to {file}: {summary}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Proposed the new file {file}: {summary}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Proposed the new file {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Proposed a new text for {file}: {summary}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Proposed a new text for {file}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "errors to fix"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "write_file: no files"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "write_file: no file named"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "write_file: no project open"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "propose_edit: {file} not found"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "check_code: outside the project"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "check_code: nothing to check"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "check_code: {file} not found"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "create_project {name}: no files"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "create_project {name}: a path outside it"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "create_project {name}: a file given twice"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "create_project {name}: no main file"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "layout: no rows"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "search_manual: no question"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: not allowed (read-only)"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: the program isn't running"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: arguments not understood"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: no such tool"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: no answer"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: cut off, to be written again in smaller parts"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: no project open"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: not done"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "{name}: you didn't allow it"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "it is cut off at the end (again)"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "it is cut off at the end"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "the same syntax error again"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "a syntax error"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Undid: {words}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Saved the version “{message}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to “{message}” ({id}) for {path}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to “{message}” ({id})"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Went back to the checkpoint “{label}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Restored {path} from version {id}"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Started the experiment “{name}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Switched to the experiment “{name}”"
+msgstr ""
+
+#: crates/rapidr-studio/src/notes.rs
+msgid "Got the latest from the shared folder ({experiment})"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{path}: not a RapidR project"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{path}: no such file"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{path}: not a project or a source file"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "no project is open"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{path} isn't a copy of one of RapidR's examples"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "the web keeps the examples you change in the page's store"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{folder}: no RapidR project or source in it"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{file} is in the project already"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "{file} isn't in the project"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Build Native App and Build Interpreted App make apps in RapidR Studio on the desktop (macOS, Windows, Linux); on the web, Build Web App makes a web app and Run shows the program"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "Installing Rust is the desktop's: run `rapidr setup` on the computer"
+msgstr ""
+
+#: crates/rapidr-studio/src/project.rs
+msgid "nothing built yet"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{path} is there already"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "its folder can't be made: {folder} is a file"
+msgstr ""
+
+#: crates/rapidr-studio/src/recovery.rs
+msgid "{folder} can't be written: {error}"
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Versions keep a project's own folder, and this is a whole drive. Put the project in a folder of its own first (File > New Project)."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Versions keep a project's own folder, and {folder} holds much more than this project. Put the project in a folder of its own first (File > New Project, or Save All into a new folder)."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "This project is inside {folder}, which already has versions of its own. Studio keeps the versions of a project's own folder only, so it doesn't start new ones inside it. Copy the project into a folder of its own to version it here."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Open a project first: versions are kept for a project's folder."
+msgstr ""
+
+#: crates/rapidr-studio/src/repository.rs
+msgid "Versions need RapidR Studio on your computer: in a browser, Studio keeps a local history of your saves only."
+msgstr ""
+
+#: crates/rapidr-studio/src/session.rs
+msgid "no program to run"
+msgstr ""
+
+#: crates/rapidr-studio/src/session.rs
+msgid "Studio runs in a browser already: Run (F5) runs the program here"
+msgstr ""
+
+#: crates/rapidr-studio/src/session.rs
+msgid "[Run in Browser ended: exit code {code}]"
+msgstr ""
+
+#: crates/rapidr-ui-app/src/dialogs.rs
+msgid "Color"
+msgstr ""
+
+#: crates/rapidr-ui-app/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
+msgid "Font"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/access.rs
@@ -69,6 +1985,14 @@ msgid "Replaced {count}"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
+msgid "Replace"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
+msgid "All"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "Find"
 msgstr ""
 
@@ -78,10 +2002,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "New name"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
-msgid "Replace"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs crates/rapidr-ui-kernel/src/components/panels/console.rs crates/rapidr-value/src/panels/console.rs
@@ -94,10 +2014,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
 msgid "? of {total}"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/codeeditor/find.rs
-msgid "All"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/helpers.rs
@@ -128,12 +2044,56 @@ msgstr ""
 msgid "Changed"
 msgstr ""
 
+#: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
+msgid "Line {line}: added since the last version. Escape closes it."
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
+msgid "Line {line}: lines removed after it since the last version. Escape closes it."
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/input.rs
+msgid "Line {line}: changed since the last version. Escape closes it."
+msgstr ""
+
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "No quick fixes here"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/codeeditor/lang.rs
 msgid "The language service is busy"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "Added since the last version"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "Removed since the last version. It was:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "Changed since the last version. It was:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "1 more line"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "{n} more lines"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "Undo This Change"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs crates/rapidr-ui-kernel/src/components/dock.rs
+msgid "Close"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/codeeditor/popup.rs
+msgid "The change was undone."
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/dbgrid.rs
@@ -164,11 +2124,11 @@ msgstr ""
 msgid "Rejected"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/diffview.rs
+#: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-value/src/objects/diffview.rs
 msgid "Accept"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/diffview.rs
+#: crates/rapidr-ui-kernel/src/components/diffview.rs crates/rapidr-value/src/objects/diffview.rs
 msgid "Reject"
 msgstr ""
 
@@ -253,10 +2213,6 @@ msgid "current hunk"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/dock.rs
-msgid "Close"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/dock.rs
 msgid "Dock"
 msgstr ""
 
@@ -290,6 +2246,10 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/edit.rs
 msgid "Select &All"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/components/menubar.rs
+msgid "Menu"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/console.rs
@@ -338,10 +2298,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
 msgid "No selection"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-msgid "Properties"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/draw.rs
@@ -461,10 +2417,6 @@ msgid "Not in classic programs"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
-msgid "Events"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/components/panels/inspector/mod.rs
 msgid "Properties of {name} ({type})"
 msgstr ""
 
@@ -540,7 +2492,7 @@ msgstr ""
 msgid "Remove"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+#: crates/rapidr-ui-kernel/src/components/panels/project_tree/draw.rs crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/color.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/dialogs.rs
 msgid "Cancel"
 msgstr ""
 
@@ -600,8 +2552,8 @@ msgstr ""
 msgid "{kind}, the main file"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs crates/rapidr-ui-kernel/src/value_view.rs
-msgid "component"
+#: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
+msgid "{kind}, {badge}"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/components/panels/project_tree.rs
@@ -648,7 +2600,7 @@ msgstr ""
 msgid "At the caret: {format}"
 msgstr ""
 
-#: crates/rapidr-ui-kernel/src/dialogs.rs
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs
 msgid "OK"
 msgstr ""
 
@@ -673,15 +2625,15 @@ msgid "&Add to Custom Colors"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
-msgid "&Font:"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Font st&yle:"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "&Size:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Font:"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
@@ -722,6 +2674,130 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/dialogs.rs
 msgid "Color|Solid"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Warning"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Error"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-value/src/dialogs.rs crates/rapidr-value/src/panels/console.rs
+msgid "Information"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Question"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Hu&e:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Sat:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Lum:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Red:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "&Green:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bl&ue:"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Regular"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+msgid "Italic"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/mod.rs
+msgid "Bold"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Bold Italic"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Black"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Maroon"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Green"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Olive"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Navy"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Purple"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Teal"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Gray"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Silver"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Red"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Lime"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Yellow"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs crates/rapidr-ui-kernel/src/value_edit/field.rs
+msgid "Blue"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Fuchsia"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Aqua"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "White"
+msgstr ""
+
+#: crates/rapidr-ui-kernel/src/dialogs.rs
+msgid "Custom"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
@@ -766,18 +2842,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/color.rs
 msgid "{color} (was {original})"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Red"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Green"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/field.rs
-msgid "Blue"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/field.rs
@@ -826,10 +2890,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "File"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs crates/rapidr-value/src/panels/inspector/model.rs
-msgid "Font"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
@@ -881,14 +2941,6 @@ msgid "The quick brown fox 0123"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_edit/mod.rs
-msgid "Bold"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs
-msgid "Italic"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_edit/mod.rs
 msgid "{title} editor"
 msgstr ""
 
@@ -918,10 +2970,6 @@ msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
 msgid "record"
-msgstr ""
-
-#: crates/rapidr-ui-kernel/src/value_view.rs
-msgid "constant"
 msgstr ""
 
 #: crates/rapidr-ui-kernel/src/value_view.rs
@@ -1076,20 +3124,264 @@ msgstr ""
 msgid "log point"
 msgstr ""
 
+#: crates/rapidr-value/src/dialogs.rs
+msgid "Confirm"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Yes"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&No"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Retry"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Abort"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&Ignore"
+msgstr ""
+
+#: crates/rapidr-value/src/dialogs.rs
+msgid "&All"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs crates/rapidr-value/src/dock/look.rs
+msgid "Documents"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Resize {a} and {b}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "{pane} (auto-hidden)"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Floating"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Auto-hidden"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Dock {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Auto Hide {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Close {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Documents, group {n}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Not saved"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "{pane} view"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/access.rs
+msgid "Resize document groups"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/geometry.rs
+msgid "Side by Side"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock left"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock top"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock right"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Dock bottom"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Left of {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Right of {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Above of {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Below of {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "As a document"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Tab with {pane}"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Float"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide left"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide top"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide right"
+msgstr ""
+
+#: crates/rapidr-value/src/dock/look.rs
+msgid "Auto-hide bottom"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "black"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light grey"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "white"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "red"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "brown"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "orange"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "yellow"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "green"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "cyan"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "blue"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "purple"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "pink"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "dark {name}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "light {name}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "a system colour"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/codehelp.rs
+msgid "{name}, the system's colour"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "Hunk {n} of {total}: {what}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "accepted"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "rejected"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "undecided"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "Hunk {n} of {total}: {what}, {state}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "line {n} changed"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "lines {from}–{to} changed"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "1 line added after line {after}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "{n} lines added after line {after}"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "line {n} removed"
+msgstr ""
+
+#: crates/rapidr-value/src/objects/diffview.rs
+msgid "lines {from}–{to} removed"
+msgstr ""
+
 #: crates/rapidr-value/src/panels/console.rs
 msgid "Build"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Error"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Warning"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/console.rs
-msgid "Information"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/console.rs
@@ -1118,10 +3410,6 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
 msgid "Drawing"
-msgstr ""
-
-#: crates/rapidr-value/src/panels/inspector/model.rs
-msgid "Help"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/inspector/model.rs
@@ -1221,6 +3509,18 @@ msgid "Assets"
 msgstr ""
 
 #: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "new, not in a version yet"
+msgstr ""
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "removed since the last version"
+msgstr ""
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
+msgid "changed since the last version"
+msgstr ""
+
+#: crates/rapidr-value/src/panels/project_tree/model.rs
 msgid "A file name is needed."
 msgstr ""
 
@@ -1298,4 +3598,176 @@ msgstr ""
 
 #: crates/rapidr-value/src/panels/toolbox.rs
 msgid "Click or double-click: a new MDI main window file of the program."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Division by zero"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Subscript out of range: index {i} is outside {lo} TO {hi}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Out of DATA: READ found no more DATA items"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "indexing a value that is not an array"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "assigning to an element of a variable that is not an array (DIM it with a size first)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "stack overflow: more than {n} nested calls (a SUB or FUNCTION calling itself without end?)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "arrays have at most {n} dimensions"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "string too long: strings are limited to {n} characters"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading a field of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting a field of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "CALLFUNC: {ptr} is not a function pointer (use BIND or CODEPTR)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Unknown builtin function '{name}'"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ran too long and was stopped"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "END can't run in an evaluation"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation ended the program"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "the evaluation would wait (a dialog or a form): not while the program is stopped"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "too many event arguments"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "no frame {i}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}({n}): strings are limited to {max} characters"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what} ran inside itself {n} times: its handler fires it again before it ends"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "events ran inside each other {n} deep (the last: {what}): their handlers fire events before they end"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{name} reads or writes a hardware port, which a program can't do on a modern system"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of a DLL ({base}): this program calls Windows itself, and the web can't load DLLs, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a Windows function ({base}): this program calls Windows itself, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "'{name}' is a function of {base}.dll, a Windows DLL: this program calls a DLL, so it runs on Windows only"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (reading field {slot} of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "this variable does not refer to an object (setting field {slot} of {what})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "out of memory for addresses (VARPTR)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} belongs to an array or TYPE that no longer exists"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "address {addr} isn't memory of this program (use VARPTR of a variable, an array element, a TYPE, or a stream's Pointer)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{n} bytes at address {addr} run past the end of its memory ({left} bytes left)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a STRING isn't an address: use VARPTR(s$)"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "VARPTR of an element of something that isn't an array"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "a negative byte count ({n})"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "PEEK takes an address, or a page and an address"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "POKE takes an address and a byte, or a page, an address and a byte"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot open file {path}."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Cannot create file {path}."
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "{what}: argument is not an array, or it has no dimension {d}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "Waiting for events"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "run-time error: {message}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "The breakpoint's condition `{cond}` failed: {error}"
+msgstr ""
+
+#: crates/rapidr-value/src/runtime_text.rs
+msgid "(at {file} line {n})"
 msgstr ""

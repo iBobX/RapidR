@@ -28,6 +28,8 @@
 use serde_json::{json, Value as Json};
 use sha2::{Digest, Sha256};
 
+use rapidr_value::i18n::{tr_ui, tr_ui_fill};
+
 use crate::{join, slashes};
 
 /// The newest snapshots kept of each file.
@@ -195,10 +197,10 @@ fn remove_blob(folder: &str, digest: &str) {
 /// that refused).
 pub fn snapshot(folder: &str, path: &str, bytes: &[u8], why: &str) -> Result<Option<Snapshot>, String> {
     if folder.trim().is_empty() {
-        return Err("there is no project folder to keep the history in".into());
+        return Err(tr_ui("there is no project folder to keep the history in"));
     }
     if bytes.len() > MAX_BYTES {
-        return Err(format!("{} is bigger than {} MB: its local history isn't kept (save versions of it instead)", key_of(folder, path), MAX_BYTES >> 20));
+        return Err(tr_ui_fill("{file} is bigger than {mb} MB: its local history isn't kept (save versions of it instead)", &[("file", &key_of(folder, path)), ("mb", &(MAX_BYTES >> 20).to_string())]));
     }
     let file = key_of(folder, path);
     let digest = digest_of(bytes);
@@ -261,11 +263,11 @@ pub fn files(folder: &str) -> Vec<String> {
 /// Snapshot `n`'s bytes (checked against its digest).
 pub fn read(folder: &str, n: u64) -> Result<Vec<u8>, String> {
     let Some(s) = read_index(folder).into_iter().find(|s| s.n == n) else {
-        return Err(format!("there is no snapshot {n} in the local history"));
+        return Err(tr_ui_fill("there is no snapshot {n} in the local history", &[("n", &n.to_string())]));
     };
-    let bytes = rapidr_value::objects::read_file(&blob_path(folder, &s.digest)).map_err(|_| format!("the copy of {} kept at snapshot {n} is missing", s.file))?;
+    let bytes = rapidr_value::objects::read_file(&blob_path(folder, &s.digest)).map_err(|_| tr_ui_fill("the copy of {file} kept at snapshot {n} is missing", &[("file", &s.file), ("n", &n.to_string())]))?;
     if digest_of(&bytes) != s.digest {
-        return Err(format!("the copy of {} kept at snapshot {n} is damaged, so it isn't shown", s.file));
+        return Err(tr_ui_fill("the copy of {file} kept at snapshot {n} is damaged, so it isn't shown", &[("file", &s.file), ("n", &n.to_string())]));
     }
     Ok(bytes)
 }

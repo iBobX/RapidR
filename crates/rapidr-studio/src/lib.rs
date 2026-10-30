@@ -44,6 +44,7 @@ pub mod local_ai;
 pub mod local_history;
 pub mod login_path;
 pub mod manual_search;
+pub mod notes;
 pub mod project;
 pub mod recipes;
 pub mod recovery;
@@ -94,7 +95,7 @@ pub trait Host: Copy + 'static {
     /// Shows `path` selected in the system's file manager (Finder,
     /// Explorer, the Linux one): RPROJECT.Reveal.
     fn reveal(self, _path: &str) -> Result<(), String> {
-        Err("there is no file manager here".into())
+        Err(rapidr_value::i18n::tr_ui("there is no file manager here"))
     }
     /// Seconds since 1970 by the system's clock (School Lock's wait after
     /// wrong passwords): the desktop's; the web's `Date.now()`.

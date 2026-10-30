@@ -4179,6 +4179,25 @@ msgstr ""
 msgid "Properties"
 msgstr ""
 
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR Light"
+msgstr ""
+
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR Dark"
+msgstr ""
+
+#: ide/panels.inc
+msgctxt "a look in the Properties pane's Theme row"
+msgid "RapidR High Contrast"
+msgstr ""
+
+#: ide/panels.inc
+msgid "Classic"
+msgstr ""
+
 #: ide/panels.inc ide/panes.inc ide/window.inc
 msgid "Project"
 msgstr ""
@@ -5642,6 +5661,18 @@ msgid "What the assistant may do"
 msgstr ""
 
 #: ide/settings.inc
+msgid "&RAI answers in:"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The language of the assistant's answers"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Studio's language: the assistant answers in the language Studio speaks, unless you clearly write in another one. The language I write in: it answers in the language of your latest message."
+msgstr ""
+
+#: ide/settings.inc
 msgid "Ask before the assistant &creates or changes files"
 msgstr ""
 
@@ -5702,6 +5733,14 @@ msgid "Only read the project and answer"
 msgstr ""
 
 #: ide/settings.inc
+msgid "Studio's language"
+msgstr ""
+
+#: ide/settings.inc
+msgid "The language I write in"
+msgstr ""
+
+#: ide/settings.inc
 msgid "Include folders: none ($INCLUDE looks in the program's folder)"
 msgstr ""
 
@@ -5723,6 +5762,42 @@ msgstr ""
 
 #: ide/settings.inc
 msgid "Send shares your message, the chat so far, RapidR's instructions and what the assistant reads of the open project — nothing outside it, nothing before you press Send. A log of every request and change stays on this computer."
+msgstr ""
+
+#: ide/settings.inc
+msgid "the macOS Keychain"
+msgstr ""
+
+#: ide/settings.inc
+msgid "Windows Credential Manager"
+msgstr ""
+
+#: ide/settings.inc
+msgid "the Secret Service (GNOME Keyring or KWallet)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "this browser tab, until it closes"
+msgstr ""
+
+#: ide/settings.inc
+msgid "this browser, on this device"
+msgstr ""
+
+#: ide/settings.inc
+msgid "memory, until the program ends (this computer has no keychain RapidR can use)"
+msgstr ""
+
+#: ide/settings.inc
+msgid "memory, for this session only"
+msgstr ""
+
+#: ide/settings.inc
+msgid "this program's memory, until it ends"
+msgstr ""
+
+#: ide/settings.inc
+msgid "an environment variable"
 msgstr ""
 
 #: ide/settings.inc

@@ -326,33 +326,49 @@ impl Dialog {
         let id = d.put("cancel", "RBUTTON", cl::CANCEL);
         d.set(&id, "caption", Value::String(tr_ui("Cancel").into()));
         d.set(&id, "cancel", Value::Integer(-1));
+        let mut extra = 0;
         if full {
-            d.color_editor();
+            extra = d.color_editor();
         }
         let (w, h) = if full { cl::FULL } else { cl::COMPACT };
-        d.finish(w, h);
+        d.finish(w + extra, h);
         d.show_color(None);
         d
     }
 
     /// The custom colour editor's parts, right of the swatches.
-    fn color_editor(&mut self) {
+    fn color_editor(&mut self) -> i64 {
         for (part, rect) in [("spectrum", cl::SPECTRUM), ("lum", cl::LUM), ("preview", cl::PREVIEW)] {
             let id = self.put(part, "RDLGPART", rect);
             self.set(&id, "part", Value::String(part.into()));
         }
-        let id = self.put("lpreview", "RLABEL", cl::PREVIEW_LABEL);
-        self.set(&id, "caption", Value::String(tr_ui("Color|S&olid").into()));
+        // (the words of the labels and of the button decide how wide the
+        // window's editor part is: the English ones fit what Windows' ChooseColor has)
+        let font = self.store.font(&self.id);
+        let wide = |text: &str| text_size(&text.replace('&', ""), &font).0;
+        let solid = tr_ui("Color|S&olid");
+        let label_w = cd::FIELDS.iter().map(|c| wide(&color_field_name(c)) + 4).max().unwrap_or(0).max(40);
+        let dx = label_w - 40;
+        let preview_w = (wide(&solid) + 6).max(cl::PREVIEW_LABEL.2);
+        let preview_label = (cl::PREVIEW_LABEL.0 + (cl::PREVIEW_LABEL.2 - preview_w) / 2, cl::PREVIEW_LABEL.1, preview_w, cl::PREVIEW_LABEL.3);
+        let add_text = tr_ui("&Add to Custom Colors");
+        let add_w = (cl::ADD.2 + 2 * dx).max(wide(&add_text) + 24);
+        let extra = (2 * dx).max(add_w - cl::ADD.2);
+        let id = self.put("lpreview", "RLABEL", preview_label);
+        self.set(&id, "caption", Value::String(solid.into()));
         self.set(&id, "alignment", Value::Integer(2));
         for (i, caption) in cd::FIELDS.iter().enumerate() {
             let (label, edit) = cl::field(i);
+            let col = (i / 3) as i64;
+            let (label, edit) = ((label.0 + col * dx, label.1, label.2 + dx, label.3), (edit.0 + (col + 1) * dx, edit.1, edit.2, edit.3));
             let id = self.put(&format!("l{i}"), "RLABEL", label);
-            self.set(&id, "caption", Value::String(caption.to_string().into()));
+            self.set(&id, "caption", Value::String(color_field_name(caption).into()));
             let id = self.put(&format!("f{i}"), "REDIT", edit);
             self.set(&id, "maxlength", Value::Integer(3));
         }
-        let id = self.put("add", "RBUTTON", cl::ADD);
-        self.set(&id, "caption", Value::String(tr_ui("&Add to Custom Colors").into()));
+        let id = self.put("add", "RBUTTON", (cl::ADD.0, cl::ADD.1, add_w, cl::ADD.3));
+        self.set(&id, "caption", Value::String(add_text.into()));
+        extra
     }
 
     fn swatch(&mut self, part: &str, bgr: i64, rect: cd::Rect) {
@@ -431,9 +447,22 @@ impl Dialog {
             d.set(&id, "caption", Value::String(text.into()));
             id
         };
+        // (Windows' ChooseFont places everything for its own words; a longer
+        // language widens the style and size columns by what their words
+        // need — the English ones fit — and what is right of them follows)
+        let font = d.store.font(&d.id);
+        let wide = |text: &str| text_size(&text.replace('&', ""), &font).0;
+        let style_names: Vec<String> = fd::STYLES.iter().map(|s| font_style_name(s)).collect();
+        let (style_label, size_label) = (tr_ui("Font st&yle:"), tr_ui("&Size:"));
+        let style_need = style_names.iter().map(|n| wide(n) + 24).max().unwrap_or(0).max(wide(&style_label) + 6);
+        let dx1 = (style_need - fl::STYLE_LIST.2).max(0);
+        let dx2 = (wide(&size_label) + 6 - fl::SIZE_LABEL.2).max(0);
+        let (style_label_rect, style_list_rect) = ((fl::STYLE_LABEL.0, fl::STYLE_LABEL.1, fl::STYLE_LABEL.2 + dx1, fl::STYLE_LABEL.3), (fl::STYLE_LIST.0, fl::STYLE_LIST.1, fl::STYLE_LIST.2 + dx1, fl::STYLE_LIST.3));
+        let (size_label_rect, size_list_rect) = ((fl::SIZE_LABEL.0 + dx1, fl::SIZE_LABEL.1, fl::SIZE_LABEL.2 + dx2, fl::SIZE_LABEL.3), (fl::SIZE_LIST.0 + dx1, fl::SIZE_LIST.1, fl::SIZE_LIST.2 + dx2, fl::SIZE_LIST.3));
+        let shift = |r: fl::Rect| (r.0 + dx1 + dx2, r.1, r.2, r.3);
         put_caption(&mut d, "lfont", "RLABEL", &tr_ui("&Font:"), fl::FONT_LABEL);
-        put_caption(&mut d, "lstyle", "RLABEL", &tr_ui("Font st&yle:"), fl::STYLE_LABEL);
-        put_caption(&mut d, "lsize", "RLABEL", &tr_ui("&Size:"), fl::SIZE_LABEL);
+        put_caption(&mut d, "lstyle", "RLABEL", &style_label, style_label_rect);
+        put_caption(&mut d, "lsize", "RLABEL", &size_label, size_label_rect);
         let list = |d: &mut Dialog, part: &str, kind: &str, rect: fl::Rect, items: Vec<String>| {
             let id = d.put(part, kind, rect);
             let args: Vec<Value> = items.into_iter().map(Value::from).collect();
@@ -441,34 +470,35 @@ impl Dialog {
             id
         };
         list(&mut d, "font", "RLISTBOX", fl::FONT_LIST, names);
-        list(&mut d, "style", "RLISTBOX", fl::STYLE_LIST, fd::STYLES.iter().map(|s| s.to_string()).collect());
-        list(&mut d, "size", "RLISTBOX", fl::SIZE_LIST, sizes.iter().map(|s| s.to_string()).collect());
+        list(&mut d, "style", "RLISTBOX", style_list_rect, style_names);
+        list(&mut d, "size", "RLISTBOX", size_list_rect, sizes.iter().map(|s| s.to_string()).collect());
         if effects {
             put_caption(&mut d, "effects", "RGROUPBOX", &tr_ui("Effects"), fl::EFFECTS);
             put_caption(&mut d, "strike", "RCHECKBOX", &tr_ui("Stri&keout"), fl::STRIKEOUT);
             put_caption(&mut d, "under", "RCHECKBOX", &tr_ui("&Underline"), fl::UNDERLINE);
             put_caption(&mut d, "lcolor", "RLABEL", &tr_ui("&Color:"), fl::COLOR_LABEL);
-            let id = list(&mut d, "color", "RCOMBOBOX", fl::COLOR_LIST, colors.into_iter().map(|(n, _)| n).collect());
+            let id = list(&mut d, "color", "RCOMBOBOX", fl::COLOR_LIST, colors.into_iter().map(|(n, _)| font_color_name(&n)).collect());
             // (csDropDownList: a pick, no typing)
             d.set(&id, "style", Value::Integer(2));
         }
         let (group, text) = fl::sample(effects);
+        let group = (group.0, group.1, group.2 + dx1 + dx2, group.3);
         put_caption(&mut d, "group", "RGROUPBOX", &tr_ui("Sample"), group);
-        let sample = d.put("sample", "RDLGPART", text);
+        let sample = d.put("sample", "RDLGPART", (text.0, text.1, text.2 + dx1 + dx2, text.3));
         d.set(&sample, "part", Value::String("sample".into()));
-        let id = put_caption(&mut d, "ok", "RBUTTON", &tr_ui("OK"), fl::OK);
+        let id = put_caption(&mut d, "ok", "RBUTTON", &tr_ui("OK"), shift(fl::OK));
         d.set(&id, "default", Value::Integer(-1));
-        let id = put_caption(&mut d, "cancel", "RBUTTON", &tr_ui("Cancel"), fl::CANCEL);
+        let id = put_caption(&mut d, "cancel", "RBUTTON", &tr_ui("Cancel"), shift(fl::CANCEL));
         d.set(&id, "cancel", Value::Integer(-1));
         if apply {
-            put_caption(&mut d, "apply", "RBUTTON", &tr_ui("&Apply"), fl::APPLY);
+            put_caption(&mut d, "apply", "RBUTTON", &tr_ui("&Apply"), shift(fl::APPLY));
         }
         if help {
-            let id = put_caption(&mut d, "help", "RBUTTON", &tr_ui("&Help"), if apply { fl::HELP } else { fl::APPLY });
+            let id = put_caption(&mut d, "help", "RBUTTON", &tr_ui("&Help"), shift(if apply { fl::HELP } else { fl::APPLY }));
             d.set(&id, "enabled", Value::Integer(0));
         }
         let (w, h) = fl::size(effects);
-        d.finish(w, h);
+        d.finish(w + dx1 + dx2, h);
         d.show_font();
         d
     }
@@ -799,7 +829,7 @@ impl ComponentKind for Part {
     fn describe(&self, cx: &mut Cx) -> AccessNode {
         let mut n = AccessNode::new(node_id(cx.id), Role::Image);
         n.name = match store::string(cx.store, cx.id, "part").as_str() {
-            "icon" => MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)).map_or("", MsgIcon::name).to_string(),
+            "icon" => MsgIcon::from_code(store::int(cx.store, cx.id, "icon", -1)).map_or_else(String::new, icon_name),
             "spectrum" => tr_ui("Color matrix"),
             "lum" => tr_ui("Luminosity"),
             "preview" => tr_ui("Color|Solid"),
@@ -814,6 +844,66 @@ impl ComponentKind for Part {
 /// The faces RapidQ programs name (every runtime's font dialog lists them:
 /// `rapidr_value::font_dialog`).
 pub use rapidr_value::font_dialog::FONT_NAMES;
+
+/// What a screen reader calls a message box's picture, in the person's language.
+fn icon_name(icon: MsgIcon) -> String {
+    match icon {
+        MsgIcon::Warning => tr_ui("Warning"),
+        MsgIcon::Error => tr_ui("Error"),
+        MsgIcon::Information => tr_ui("Information"),
+        MsgIcon::Question => tr_ui("Question"),
+    }
+}
+
+/// A box of the colour dialog's editor (Hue … Blue) as the person reads
+/// it, its mnemonic where the language puts it.
+fn color_field_name(caption: &str) -> String {
+    match caption {
+        "Hu&e:" => tr_ui("Hu&e:"),
+        "&Sat:" => tr_ui("&Sat:"),
+        "&Lum:" => tr_ui("&Lum:"),
+        "&Red:" => tr_ui("&Red:"),
+        "&Green:" => tr_ui("&Green:"),
+        "Bl&ue:" => tr_ui("Bl&ue:"),
+        other => other.to_string(),
+    }
+}
+
+/// A style of the font dialog's list as the person reads it (the list's
+/// entries are picked by their place, never by their name).
+fn font_style_name(style: &str) -> String {
+    match style {
+        "Regular" => tr_ui("Regular"),
+        "Italic" => tr_ui("Italic"),
+        "Bold" => tr_ui("Bold"),
+        "Bold Italic" => tr_ui("Bold Italic"),
+        other => other.to_string(),
+    }
+}
+
+/// A colour of the font dialog's list as the person reads it.
+fn font_color_name(color: &str) -> String {
+    match color {
+        "Black" => tr_ui("Black"),
+        "Maroon" => tr_ui("Maroon"),
+        "Green" => tr_ui("Green"),
+        "Olive" => tr_ui("Olive"),
+        "Navy" => tr_ui("Navy"),
+        "Purple" => tr_ui("Purple"),
+        "Teal" => tr_ui("Teal"),
+        "Gray" => tr_ui("Gray"),
+        "Silver" => tr_ui("Silver"),
+        "Red" => tr_ui("Red"),
+        "Lime" => tr_ui("Lime"),
+        "Yellow" => tr_ui("Yellow"),
+        "Blue" => tr_ui("Blue"),
+        "Fuchsia" => tr_ui("Fuchsia"),
+        "Aqua" => tr_ui("Aqua"),
+        "White" => tr_ui("White"),
+        "Custom" => tr_ui("Custom"),
+        other => other.to_string(),
+    }
+}
 
 #[cfg(test)]
 mod tests {

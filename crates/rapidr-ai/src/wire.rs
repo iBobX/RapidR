@@ -6,6 +6,7 @@ use serde_json::{json, Map, Value};
 
 use crate::chat::{Block, ChatRequest, Role, Thinking};
 use crate::provider::{Format, Provider};
+use rapidr_i18n::host::{tr_ui, tr_ui_fill};
 
 /// Where a request goes and as whom.
 #[derive(Clone, Debug)]
@@ -546,7 +547,8 @@ pub fn provider_message(body: &str) -> String {
 pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<u64>, model: &str) -> ApiError {
     let said = provider_message(body);
     let low = format!("{said} {body}").to_ascii_lowercase();
-    let name = short_name(p);
+    let name = provider_name(p);
+    let name = name.as_str();
     // (the provider's words, at most a line or two: the explanation shows
     // whole in a settings dialog or a program's status line)
     let short = if said.chars().count() > 160 {
@@ -555,31 +557,38 @@ pub fn explain_error(p: &Provider, status: u16, body: &str, retry_after: Option<
     } else {
         said.trim_end_matches('.').to_string()
     };
-    let quoted = if said.is_empty() { String::new() } else { format!(" ({name} says: \"{short}\")") };
+    let quoted = if said.is_empty() { String::new() } else { format!(" {}", tr_ui_fill("({name} says: \"{said}\")", &[("name", name), ("said", &short)])) };
     let (kind, message) = if low.contains("anthropic-workspace-id") || low.contains("not scoped to a workspace") {
-        (ErrorKind::Workspace, "This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in the Workspace ID (the Claude Console lists your workspaces), or make a key inside a workspace.".to_string())
+        (ErrorKind::Workspace, tr_ui("This Anthropic key isn't made inside a workspace, so Anthropic needs to know which workspace to use: fill in the Workspace ID (the Claude Console lists your workspaces), or make a key inside a workspace."))
     } else if status == 402 || low.contains("insufficient_quota") || low.contains("insufficient balance") || low.contains("credit balance is too low") || low.contains("exceeded your current quota") {
-        (ErrorKind::Credit, format!("Your {name} account has no credit left for this key{quoted}. Add credit on {name}'s website; RapidR can't do it for you."))
+        (ErrorKind::Credit, tr_ui_fill("Your {name} account has no credit left for this key{quoted}. Add credit on {name}'s website; RapidR can't do it for you.", &[("name", name), ("quoted", &quoted)]))
     } else if status == 401 || low.contains("invalid_api_key") || low.contains("invalid x-api-key") || low.contains("incorrect api key") {
-        (ErrorKind::Key, format!("{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider."))
+        (ErrorKind::Key, tr_ui_fill("{name} refused the API key (401){quoted}. Check the key: it may be mistyped, revoked, or a key of another provider.", &[("name", name), ("quoted", &quoted)]))
     } else if status == 403 {
-        (ErrorKind::Permission, format!("{name} doesn't let this key do that (403){quoted}."))
+        (ErrorKind::Permission, tr_ui_fill("{name} doesn't let this key do that (403){quoted}.", &[("name", name), ("quoted", &quoted)]))
     } else if low.contains("gpu memory") || low.contains("out of memory") || low.contains("not enough memory") {
-        (ErrorKind::TooLong, format!("{name} is short of memory for this conversation{quoted}. Wait for the model to finish what it is doing, close other apps, start a new chat (it sends less), or choose a smaller model."))
+        (ErrorKind::TooLong, tr_ui_fill("{name} is short of memory for this conversation{quoted}. Wait for the model to finish what it is doing, close other apps, start a new chat (it sends less), or choose a smaller model.", &[("name", name), ("quoted", &quoted)]))
     } else if low.contains("context_length") || low.contains("context length") || low.contains("prompt is too long") || low.contains("too many tokens") || status == 413 {
-        (ErrorKind::TooLong, format!("The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more."))
+        (ErrorKind::TooLong, tr_ui_fill("The conversation is too long for this model{quoted}. Start a new chat, or pick a model that takes more.", &[("quoted", &quoted)]))
     } else if status == 404 || low.contains("model_not_found") || (low.contains("model") && low.contains("does not exist")) {
-        let m = if model.is_empty() { "this model".to_string() } else { format!("The model \"{model}\"") };
-        (ErrorKind::Model, format!("{m} isn't available to your key (404){quoted}. List the provider's models again and pick one of them."))
+        let message = if model.is_empty() {
+            tr_ui_fill("this model isn't available to your key (404){quoted}. List the provider's models again and pick one of them.", &[("quoted", &quoted)])
+        } else {
+            tr_ui_fill("The model \"{model}\" isn't available to your key (404){quoted}. List the provider's models again and pick one of them.", &[("model", model), ("quoted", &quoted)])
+        };
+        (ErrorKind::Model, message)
     } else if status == 429 {
-        let wait = retry_after.map_or("a minute".to_string(), |s| format!("{s} seconds"));
-        (ErrorKind::RateLimit, format!("{name} is limiting how often this key asks (429): wait {wait} and try again."))
+        let message = match retry_after {
+            Some(s) => tr_ui_fill("{name} is limiting how often this key asks (429): wait {n} seconds and try again.", &[("name", name), ("n", &s.to_string())]),
+            None => tr_ui_fill("{name} is limiting how often this key asks (429): wait a minute and try again.", &[("name", name)]),
+        };
+        (ErrorKind::RateLimit, message)
     } else if (300..400).contains(&status) {
-        (ErrorKind::Request, format!("{name} sent the request on to another address ({status}): RapidR doesn't follow it with your key. If you trust that address, set the base URL to it."))
+        (ErrorKind::Request, tr_ui_fill("{name} sent the request on to another address ({status}): RapidR doesn't follow it with your key. If you trust that address, set the base URL to it.", &[("name", name), ("status", &status.to_string())]))
     } else if status >= 500 {
-        (ErrorKind::Server, format!("{name} is overloaded or having trouble ({status}){quoted}. Try again in a minute."))
+        (ErrorKind::Server, tr_ui_fill("{name} is overloaded or having trouble ({status}){quoted}. Try again in a minute.", &[("name", name), ("status", &status.to_string()), ("quoted", &quoted)]))
     } else {
-        (ErrorKind::Request, format!("{name} refused the request ({status}){quoted}."))
+        (ErrorKind::Request, tr_ui_fill("{name} refused the request ({status}){quoted}.", &[("name", name), ("status", &status.to_string()), ("quoted", &quoted)]))
     };
     ApiError { kind, status, message }
 }
@@ -592,16 +601,54 @@ pub fn explain_connection(ep: &Endpoint, what: &str) -> ApiError {
     if local && quiet {
         // (it answered, then went quiet: a local model writing a long change,
         // or short of memory — not a server that isn't there)
-        return ApiError { kind: ErrorKind::Connection, status: 0, message: format!("The server at {host} began answering, then sent nothing more ({what}): a model on this computer writing a long change, or short of memory, can be that slow. Try again, ask for a smaller step, or choose a smaller model.") };
+        let said = connection_words(what);
+        return ApiError { kind: ErrorKind::Connection, status: 0, message: tr_ui_fill("The server at {host} began answering, then sent nothing more ({what}): a model on this computer writing a long change, or short of memory, can be that slow. Try again, ask for a smaller step, or choose a smaller model.", &[("host", &host), ("what", &said)]) };
     }
-    let hint = if local {
-        " Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page.".to_string()
+    let values = [("host", host.as_str()), ("what", &connection_words(what))];
+    let message = if local {
+        tr_ui_fill("Couldn't reach {host}: {what}. Is the local server running (Ollama, LM Studio)? On the web, Ollama also needs OLLAMA_ORIGINS to allow this page.", &values)
     } else if what.to_ascii_lowercase().contains("timed out") || what.to_ascii_lowercase().contains("timeout") || what.contains(" seconds") {
-        " Try again in a moment, and check the internet connection.".to_string()
+        tr_ui_fill("Couldn't reach {host}: {what}. Try again in a moment, and check the internet connection.", &values)
     } else {
-        " Check the internet connection.".to_string()
+        tr_ui_fill("Couldn't reach {host}: {what}. Check the internet connection.", &values)
     };
-    ApiError { kind: ErrorKind::Connection, status: 0, message: format!("Couldn't reach {host}: {what}.{hint}") }
+    ApiError { kind: ErrorKind::Connection, status: 0, message }
+}
+
+/// What the transport said went wrong (`what`: English, what the code
+/// above reads), in the person's language, for the sentence that says it.
+fn connection_words(what: &str) -> String {
+    use rapidr_i18n::template::match_whole;
+    macro_rules! tr_note {
+        ($tpl:literal) => {
+            if let Some(v) = match_whole($tpl, what) {
+                let v: Vec<(&str, &str)> = v.iter().map(|(n, x)| (n.as_str(), x.as_str())).collect();
+                return tr_ui_fill($tpl, &v);
+            }
+        };
+    }
+    tr_note!("the name wasn't found (DNS)");
+    tr_note!("the connection failed ({detail})");
+    tr_note!("the connection failed");
+    tr_note!("too many redirects");
+    tr_note!("the address isn't valid ({detail})");
+    tr_note!("the address isn't valid");
+    tr_note!("no answer");
+    tr_note!("timed out");
+    tr_note!("the answer stopped coming for {n} seconds");
+    tr_note!("no connection in {n} seconds");
+    tr_note!("no answer came in {n} seconds");
+    tr_note!("the browser couldn't connect (no network, or the server or this page's security policy doesn't allow it)");
+    what.to_string()
+}
+
+/// The provider's name in a sentence a person reads ("Anthropic", "OpenAI",
+/// "The server"), in their language.
+pub fn provider_name(p: &Provider) -> String {
+    match short_name(p) {
+        "The server" => tr_ui("The server"),
+        brand => brand.to_string(),
+    }
 }
 
 /// The provider's name in a sentence ("Anthropic", "OpenAI", "the server").

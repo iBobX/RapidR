@@ -1,0 +1,4 @@
+# The registry's docs in Spanish (español neutro, docs/i18n/glossary-es.md).
+
+[docs]
+"RPROPERTYINSPECTOR.MARKNONCLASSIC" = "Marca, en un proyecto que se mantiene compatible con el lenguaje clásico, las filas que un programa clásico no tiene (una pequeña nota \"no está en los programas clásicos\", con una sugerencia y para un lector de pantalla); False (el valor predeterminado) no marca nada. RapidR Studio lo establece a partir de la configuración del proyecto."

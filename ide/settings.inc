@@ -39,6 +39,7 @@ DECLARE SUB AISetFillModels(Keep AS STRING)
 DECLARE SUB AISetTakeRows
 DECLARE SUB AISetNote(Text AS STRING)
 DECLARE FUNCTION AISetLinesHigh(Text AS STRING, W AS INTEGER) AS INTEGER
+DECLARE FUNCTION AILabelWide(Cur AS INTEGER, Text AS STRING) AS INTEGER
 DECLARE SUB SettingsClosed(Action AS INTEGER)
 DECLARE SUB SettingsSetupClick
 DECLARE SUB SettingsPathRefresh
@@ -278,6 +279,14 @@ CREATE SettingsDialog AS RForm
       Style = 2
       AccessibleName = TR$("What the assistant may do")
     END CREATE
+    CREATE AIReplyLabel AS RLabel
+      Caption = TR$("&RAI answers in:")
+    END CREATE
+    CREATE AIReplyBox AS RComboBox
+      Style = 2
+      AccessibleName = TR$("The language of the assistant's answers")
+      AccessibleDescription = TR$("Studio's language: the assistant answers in the language Studio speaks, unless you clearly write in another one. The language I write in: it answers in the language of your latest message.")
+    END CREATE
     CREATE AIReviewBox AS RCheckBox
       Caption = TR$("Ask before the assistant &creates or changes files")
       AccessibleDescription = TR$("On: a new program is shown to you first and created when you press Create. Off: a new program opens in Studio at once, with Run it and Undo.")
@@ -306,7 +315,7 @@ END CREATE
 ' in full, without making the dialog taller than a small laptop's screen)
 SUB LayOutSettingsDialog
   DIM pad AS INTEGER, w AS INTEGER, bh AS INTEGER, bw AS INTEGER, y AS INTEGER, nh AS INTEGER, lh AS INTEGER, side AS INTEGER
-  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER
+  DIM th AS INTEGER, ph AS INTEGER, lx AS INTEGER, fx AS INTEGER, fw AS INTEGER, row AS INTEGER, fh AS INTEGER, gh AS INTEGER, lw AS INTEGER
   DIM lk AS INTEGER
   IF ThemeName = "classic" THEN
     pad = 16: w = 600: bh = 25: bw = 84: nh = 58: lh = 130: side = 120: th = 24: row = 30: fh = 21
@@ -379,21 +388,36 @@ SUB LayOutSettingsDialog
   gh = y
 
   ' ---- AI ----
-  lx = pad: fx = pad + 112: fw = w - 112
+  ' (the labels' column: 108 wide, wider when a language's labels need it —
+  ' a longer language than Spanish, the pseudo-language: nothing cut off)
+  lw = 108
+  lw = AILabelWide(lw, AIProvLabel.Caption)
+  lw = AILabelWide(lw, AIKeyLabel.Caption)
+  lw = AILabelWide(lw, AIWsLabel.Caption)
+  lw = AILabelWide(lw, AIBaseLabel.Caption)
+  lw = AILabelWide(lw, AIModelLabel.Caption)
+  lw = AILabelWide(lw, AIMaxLabel.Caption)
+  lw = AILabelWide(lw, AIPriceLabel.Caption)
+  lw = AILabelWide(lw, AIPermLabel.Caption)
+  lw = AILabelWide(lw, AIReplyLabel.Caption)
+  lx = pad: fx = pad + lw + 4: fw = w - lw - 4
   y = pad - 4
   AIOnBox.Left = lx: AIOnBox.Top = y: AIOnBox.Width = w - 156: AIOnBox.Height = 22
   AIOnBox.Font.Bold = 1
   AISetupBtn.Left = lx + w - 148: AISetupBtn.Top = y - (bh - 22) \ 2: AISetupBtn.Width = 148: AISetupBtn.Height = bh
   y = y + 26
-  AIOnNote.Left = lx: AIOnNote.Top = y: AIOnNote.Width = w: AIOnNote.Height = 68
+  ' (68 high, taller when a longer language's text wraps to more lines)
+  nh = AISetLinesHigh(AIOnNote.Caption, w)
+  IF nh < 68 THEN nh = 68
+  AIOnNote.Left = lx: AIOnNote.Top = y: AIOnNote.Width = w: AIOnNote.Height = nh
   AIOnNote.Font.Color = TC("page.dim")
-  y = y + 74
-  AIProvLabel.Left = lx: AIProvLabel.Top = y + 5: AIProvLabel.Width = 108
+  y = y + nh + 6
+  AIProvLabel.Left = lx: AIProvLabel.Top = y + 5: AIProvLabel.Width = lw
   AIProvBox.Left = fx: AIProvBox.Top = y: AIProvBox.Width = fw - 100
   AIPricesLink.Left = fx + fw - 90: AIPricesLink.Top = y + 5: AIPricesLink.Width = 90
   AIPricesLink.Font.Color = TC("page.link")
   y = y + row
-  AIKeyLabel.Left = lx: AIKeyLabel.Top = y + 5: AIKeyLabel.Width = 108
+  AIKeyLabel.Left = lx: AIKeyLabel.Top = y + 5: AIKeyLabel.Width = lw
   AIKeyEdit.Left = fx: AIKeyEdit.Top = y: AIKeyEdit.Width = fw - 196: AIKeyEdit.Height = fh
   AIKeySaveBtn.Left = fx + fw - 188: AIKeySaveBtn.Top = y - (bh - fh) \ 2: AIKeySaveBtn.Width = 96: AIKeySaveBtn.Height = bh
   AIKeyRemoveBtn.Left = fx + fw - 84: AIKeyRemoveBtn.Top = y - (bh - fh) \ 2: AIKeyRemoveBtn.Width = 84: AIKeyRemoveBtn.Height = bh
@@ -407,15 +431,15 @@ SUB LayOutSettingsDialog
   ' when they apply)
   AIRemember.Left = fx: AIRemember.Top = y: AIRemember.Width = fw: AIRemember.Height = 22
   IF Proj.FileManager = "" THEN y = y + 28
-  AIWsLabel.Left = lx: AIWsLabel.Top = y + 5: AIWsLabel.Width = 108
+  AIWsLabel.Left = lx: AIWsLabel.Top = y + 5: AIWsLabel.Width = lw
   AIWsEdit.Left = fx: AIWsEdit.Top = y: AIWsEdit.Width = fw: AIWsEdit.Height = fh
-  AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = 108
+  AIBaseLabel.Left = lx: AIBaseLabel.Top = y + 5: AIBaseLabel.Width = lw
   AIBaseBox.Left = fx: AIBaseBox.Top = y: AIBaseBox.Width = fw
   ' (a provider with neither has no row there: the rows close up, the
   ' links at the bottom get the room — AISettingsProvider lays them out
   ' again for each provider)
   IF AIWsLabel.Visible OR AIBaseLabel.Visible THEN y = y + row
-  AIModelLabel.Left = lx: AIModelLabel.Top = y + 5: AIModelLabel.Width = 108
+  AIModelLabel.Left = lx: AIModelLabel.Top = y + 5: AIModelLabel.Width = lw
   AIModelCombo.Left = fx: AIModelCombo.Top = y: AIModelCombo.Width = fw - 140
   AIFetchBtn.Left = fx + fw - 132: AIFetchBtn.Top = y - (bh - fh) \ 2: AIFetchBtn.Width = 132: AIFetchBtn.Height = bh
   y = y + fh + 4
@@ -424,22 +448,28 @@ SUB LayOutSettingsDialog
   AIFetchNote.Left = fx: AIFetchNote.Top = y: AIFetchNote.Width = fw: AIFetchNote.Height = AIFetchNoteH
   AIFetchNote.Font.Color = TC("page.dim")
   IF AIFetchNoteH > 0 THEN y = y + AIFetchNoteH + 6 ELSE y = y - fh - 4 + row
-  AIMaxLabel.Left = lx: AIMaxLabel.Top = y + 5: AIMaxLabel.Width = 108
+  AIMaxLabel.Left = lx: AIMaxLabel.Top = y + 5: AIMaxLabel.Width = lw
   AIMaxEdit.Left = fx: AIMaxEdit.Top = y: AIMaxEdit.Width = 80: AIMaxEdit.Height = fh
   AIMaxUnit.Left = fx + 90: AIMaxUnit.Top = y + 5: AIMaxUnit.Width = fw - 90
   AIMaxUnit.Font.Color = TC("page.dim")
   y = y + fh + 4
-  AIMaxNote.Left = fx: AIMaxNote.Top = y: AIMaxNote.Width = fw: AIMaxNote.Height = 52
+  ' (52 high, taller when a longer language's text wraps to more lines)
+  nh = AISetLinesHigh(AIMaxNote.Caption, fw)
+  IF nh < 52 THEN nh = 52
+  AIMaxNote.Left = fx: AIMaxNote.Top = y: AIMaxNote.Width = fw: AIMaxNote.Height = nh
   AIMaxNote.Font.Color = TC("page.dim")
-  y = y + 52 + 4
-  AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = 108
+  y = y + nh + 4
+  AIPriceLabel.Left = lx: AIPriceLabel.Top = y + 5: AIPriceLabel.Width = lw
   AIPriceInEdit.Left = fx: AIPriceInEdit.Top = y: AIPriceInEdit.Width = 60: AIPriceInEdit.Height = fh
   AIPriceOutEdit.Left = fx + 68: AIPriceOutEdit.Top = y: AIPriceOutEdit.Width = 60: AIPriceOutEdit.Height = fh
   AIPriceUnit.Left = fx + 136: AIPriceUnit.Top = y + 5: AIPriceUnit.Width = fw - 136
   AIPriceUnit.Font.Color = TC("page.dim")
   y = y + row
-  AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = 108
+  AIPermLabel.Left = lx: AIPermLabel.Top = y + 5: AIPermLabel.Width = lw
   AIPermBox.Left = fx: AIPermBox.Top = y: AIPermBox.Width = fw
+  y = y + row
+  AIReplyLabel.Left = lx: AIReplyLabel.Top = y + 5: AIReplyLabel.Width = lw
+  AIReplyBox.Left = fx: AIReplyBox.Top = y: AIReplyBox.Width = fw
   y = y + row
   AIReviewBox.Left = fx: AIReviewBox.Top = y: AIReviewBox.Width = fw: AIReviewBox.Height = 22
   y = y + 28 + 4
@@ -694,6 +724,12 @@ SUB SettingsLanguageChanged
     AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
     AIPermBox.ItemIndex = p
   END IF
+  p = AIReplyBox.ItemIndex
+  IF AIReplyBox.ItemCount > 0 THEN
+    AIReplyBox.Clear
+    AIReplyBox.AddItems TR$("Studio's language"), TR$("The language I write in")
+    AIReplyBox.ItemIndex = p
+  END IF
   ' (the AI tab's notes made with values and the provider's links, while
   ' the dialog is open: each time it opens they are made again)
   IF SettingsDialog.Visible THEN
@@ -720,6 +756,14 @@ END SUB
 ' ---- the AI tab ------------------------------------------------------------------------
 ' Everything here talks to SetAI, the tab's own RAI (decl.inc), never to the
 ' assistant: OK hands the choices to it (AISettingsTake → AIApplySettings).
+
+' (the labels' column: Cur, or the width Text needs in the dialog's font — its
+' & left out —, whichever is wider)
+FUNCTION AILabelWide(Cur AS INTEGER, Text AS STRING) AS INTEGER
+  DIM tw AS INTEGER
+  tw = AISetMeasure.TextWidth(REPLACESUBSTR$(Text, "&", "")) + 6
+  IF tw > Cur THEN Result = tw ELSE Result = Cur
+END FUNCTION
 
 ' (how tall Text is, wrapped at spaces to W pixels in the dialog's font as
 ' a WordWrap label wraps it; 0 for no text)
@@ -783,6 +827,7 @@ SUB AISettingsFill
       IF line <> "" THEN AIBaseBox.AddItems FIELD$(line, CHR$(9), 2)
     NEXT
     AIPermBox.AddItems TR$("Read the project, propose changes you review"), TR$("Only read the project and answer")
+    AIReplyBox.AddItems TR$("Studio's language"), TR$("The language I write in")
   END IF
   ' (a list still coming from the last time the tab was open: not waited
   ' for; a key typed then and not kept: forgotten)
@@ -803,6 +848,7 @@ SUB AISettingsFill
   IF AIPriceIn > 0 THEN AIPriceInEdit.Text = LTRIM$(STR$(AIPriceIn)) ELSE AIPriceInEdit.Text = ""
   IF AIPriceOut > 0 THEN AIPriceOutEdit.Text = LTRIM$(STR$(AIPriceOut)) ELSE AIPriceOutEdit.Text = ""
   IF AIPermission = "read-only" THEN AIPermBox.ItemIndex = 1 ELSE AIPermBox.ItemIndex = 0
+  IF AIReplyIn = "writer" THEN AIReplyBox.ItemIndex = 1 ELSE AIReplyBox.ItemIndex = 0
   AIReviewBox.Checked = AIReviewFirst
   AIWsEdit.Text = AIWorkspace
   IF AIBase <> "" THEN AIBaseBox.Text = AIBase ELSE AIBaseBox.Text = ""
@@ -855,6 +901,23 @@ SUB AISettingsProvider
   AISetLinksFill
 END SUB
 
+' Where a key is kept, in words: the RAI component says it in English (its
+' KeyStore, a value programs read), Studio says it in its language.
+FUNCTION AIStoreName(Store AS STRING) AS STRING
+  SELECT CASE Store
+    CASE "the macOS Keychain": Result = TR$("the macOS Keychain")
+    CASE "Windows Credential Manager": Result = TR$("Windows Credential Manager")
+    CASE "the Secret Service (GNOME Keyring or KWallet)": Result = TR$("the Secret Service (GNOME Keyring or KWallet)")
+    CASE "this browser tab, until it closes": Result = TR$("this browser tab, until it closes")
+    CASE "this browser, on this device": Result = TR$("this browser, on this device")
+    CASE "memory, until the program ends (this computer has no keychain RapidR can use)": Result = TR$("memory, until the program ends (this computer has no keychain RapidR can use)")
+    CASE "memory, for this session only": Result = TR$("memory, for this session only")
+    CASE "this program's memory, until it ends": Result = TR$("this program's memory, until it ends")
+    CASE "an environment variable": Result = TR$("an environment variable")
+    CASE ELSE: Result = Store
+  END SELECT
+END FUNCTION
+
 ' (where the shown provider's key is: never the key, its last four
 ' characters at most)
 SUB AISetKeyNote
@@ -866,12 +929,12 @@ SUB AISetKeyNote
     SELECT CASE SetAI.KeySource
       CASE "environment": keyNote = TR$("Using the key in {env} ({hint}). A key saved here goes first.", "env", SetAI.KeyEnv, "hint", SetAI.KeyHint)
       CASE "program": keyNote = TR$("Trying the key you typed ({hint}): OK or Save Key keeps it.", "hint", SetAI.KeyHint)
-      CASE ELSE: keyNote = TR$("Your key {hint} is kept in {store}, never in a project.", "hint", SetAI.KeyHint, "store", SetAI.KeyStore)
+      CASE ELSE: keyNote = TR$("Your key {hint} is kept in {store}, never in a project.", "hint", SetAI.KeyHint, "store", AIStoreName(SetAI.KeyStore))
     END SELECT
   ELSEIF web THEN
-    keyNote = TR$("Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.", "store", SetAI.KeyStore)
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store} (or on this device, if you tick the box), never in a project.", "store", AIStoreName(SetAI.KeyStore))
   ELSE
-    keyNote = TR$("Paste your key and press Save Key: it is kept in {store}, never in a project.", "store", SetAI.KeyStore)
+    keyNote = TR$("Paste your key and press Save Key: it is kept in {store}, never in a project.", "store", AIStoreName(SetAI.KeyStore))
   END IF
   AIKeyNote.Caption = keyNote
   AIKeyNoteH = AISetLinesHigh(keyNote, AIKeyNote.Width)
@@ -1029,6 +1092,7 @@ SUB AISettingsTake
   IF n > 128000 THEN n = 128000
   AIMaxTokens = n
   IF AIPermBox.ItemIndex = 1 THEN AIPermission = "read-only" ELSE AIPermission = "propose"
+  IF AIReplyBox.ItemIndex = 1 THEN AIReplyIn = "writer" ELSE AIReplyIn = "studio"
   AIReviewFirst = Flag(AIReviewBox.Checked)
   AIPriceIn = VAL(AIPriceInEdit.Text)
   AIPriceOut = VAL(AIPriceOutEdit.Text)

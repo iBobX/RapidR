@@ -234,14 +234,14 @@ impl Walk<'_> {
         let line_of = |w: &Self, span: TextSpan| w.here(span).map(|(a, _)| a);
         if let Some(p) = comp.property(member) {
             if let Some(at) = line_of(self, rapidr_parser::expression_span(target)) {
-                self.note(at, p.doc);
+                self.note(at, crate::hover::tdoc(&format!("{}.{}", comp.name, p.name), p.doc));
             }
             if let Some(k) = p.kind.and_then(ValueKind::parse) {
                 self.value(k, value, Some(p));
             }
         } else if let Some(e) = comp.event(member) {
             if let Some(at) = line_of(self, rapidr_parser::expression_span(target)) {
-                self.note(at, e.doc);
+                self.note(at, crate::hover::tdoc(&format!("{}.{}", comp.name, e.name), e.doc));
             }
             self.handler(value, comp, e, &owner);
         }
@@ -413,7 +413,7 @@ impl Walk<'_> {
             let owner = self.creates.last().map(|(_, n)| n.clone()).unwrap_or_default();
             self.fill_handler(&mut h, comp, e, &owner);
             h.form = "name".into();
-            self.note(ls + (lt.len() - lt.trim_start().len()), e.doc);
+            self.note(ls + (lt.len() - lt.trim_start().len()), crate::hover::tdoc(&format!("{}.{}", comp.name, e.name), e.doc));
             self.push(h);
         }
     }
@@ -466,7 +466,7 @@ impl Walk<'_> {
         // (a built-in's one-letter names stand for a type — `S$` a text,
         // `n` a number — and say nothing a chip could add)
         let names = names.into_iter().map(|n| if n.trim_end_matches(['$', '%', '&', '#', '!']).chars().count() > 1 { n } else { String::new() }).collect();
-        Some(Params { names, kinds, doc: b.doc })
+        Some(Params { names, kinds, doc: crate::hover::tdoc(b.name, b.doc) })
     }
 
     /// The parameters of a component's method (`object.member`).
@@ -478,7 +478,7 @@ impl Walk<'_> {
         let m = comp.method(member)?;
         let names: Vec<String> = m.params.iter().map(|p| p.name.trim_end_matches("()").trim_end_matches(['$', '%', '&', '#', '!']).to_string()).collect();
         let kinds = names.iter().map(|n| m.arg_kind(n)).collect();
-        Some(Params { names, kinds, doc: m.doc })
+        Some(Params { names, kinds, doc: crate::hover::tdoc(&format!("{}.{}", comp.name, m.name), m.doc) })
     }
 
     /// The arguments' chips and values (`quiet`: their names only while

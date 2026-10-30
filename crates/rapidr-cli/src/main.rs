@@ -222,7 +222,11 @@ fn main() -> ExitCode {
         (Some("lsp"), _) => {
             // (hovers and help in the user's language: RAPIDR_LANG, else the
             // system's — the registry's translated docs, English without)
-            rapidr_lang::docs_i18n::set_doc_language(&rapidr_diagnostics::messages::cli_language());
+            // (the client's own language, once it says it at `initialize`, takes
+            // over: rapidr_lsp — through these same two settings)
+            let language = rapidr_diagnostics::messages::cli_language();
+            rapidr_langsvc::words::install(rapidr_value::i18n::tr_ui, Some(rapidr_value::i18n::set_language));
+            rapidr_langsvc::words::set_language(&language);
             rapidr_lsp::run_stdio()
         }
         (Some("dap"), _) => rapidr_dap::run_stdio(),
@@ -1306,7 +1310,7 @@ fn run_bytecode_file(path: &str, args: Vec<String>) -> ExitCode {
     // modal's wait a pump step at a time, so events fire while we are
     // still inside `vm.run`).
     if let Err(e) = rapidr_vm_host_native::run_bytes(&bytes) {
-        eprintln!("{e}");
+        eprintln!("{}", rapidr_value::runtime_text::localize_report(&e));
         return ExitCode::from(1);
     }
     ExitCode::SUCCESS

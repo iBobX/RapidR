@@ -949,7 +949,7 @@ SUB AISuProvPicked
   AISuCloudModel.Clear
   AISuCloudModel.Text = ""
   IF AISuCloud.HasKey THEN
-    AISuTestNote.Caption = TR$("A key for {name} is already found ({hint}, {store}): Test it, or paste another.", "name", name, "hint", AISuCloud.KeyHint, "store", AISuCloud.KeyStore)
+    AISuTestNote.Caption = TR$("A key for {name} is already found ({hint}, {store}): Test it, or paste another.", "name", name, "hint", AISuCloud.KeyHint, "store", AIStoreName(AISuCloud.KeyStore))
   ELSE
     AISuTestNote.Caption = TR$("Paste the key {name} gave you (Get a key opens its page), then Test the Key.", "name", name)
   END IF

@@ -24,12 +24,13 @@
 ' shows (AITools.Mode reads "coach").
 '
 ' Languages: every text here through TR$ (Studio's language); the hints
-' themselves follow RAI's answer language (AI.ReplyLanguage: "auto" today —
-' the user's latest message, else Studio's). The buttons' own messages
-' (Give me the next hint., Help me with this error: …) are in Studio's
-' language, so a hint asked with them comes in it. HOOK for ES-REFERENCE's
-' "RAI answers in: Studio's language / the language I write in": it sets
-' AI.ReplyLanguage, and Coach follows with nothing to change here.
+' themselves follow RAI's answer language, which Settings > AI > "RAI answers
+' in:" sets (AIApplyReplyLanguage in ai.inc: "Studio's language" is
+' AI.ReplyLanguage "app" — Studio's language unless the latest message is
+' clearly in another; "The language I write in" is "auto"). The buttons' own
+' messages (Give me the next hint., Help me with this error: …) are in
+' Studio's language, so a hint asked with them comes in it under either
+' choice; Coach has nothing of its own to change.
 '
 ' Test steps (ai:coach:<what>[=<value>]): ai:coach:mode=build|coach (the
 ' dial clicked), ai:coach:next, ai:coach:gotit, ai:coach:error,

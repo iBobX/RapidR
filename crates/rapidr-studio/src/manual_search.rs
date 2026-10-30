@@ -207,6 +207,12 @@ fn translated_sections() -> &'static [(&'static str, Vec<Section>)] {
     })
 }
 
+/// Whether the manual has pages translated into `tag`'s language (`es-UY`
+/// → `es`): a page that isn't is read in English, and said so.
+pub fn has_pages_in(tag: &str) -> bool {
+    rapidr_value::i18n::fallback_chain(tag).iter().any(|t| TRANSLATED.iter().any(|(l, _, _)| l == t))
+}
+
 /// A page of the manual in language `tag` (`es-UY` → `es` → English):
 /// its text, and whether it is the translation.
 pub fn page_in(page: &str, tag: &str) -> Option<(&'static str, bool)> {
