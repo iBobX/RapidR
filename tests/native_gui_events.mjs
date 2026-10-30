@@ -43,6 +43,7 @@
 //     OnClose's Action, OnSelectCell's CanSelect (also a TYPE's EVENT),
 //     OnMeasureItem's Height.
 //   * tests/fixtures/input_events.bas — key and mouse events with RapidQ's arguments.
+//   * tests/fixtures/list_keys.bas — keys typed in a QLISTBOX reach the form only with KeyPreview.
 //   * tests/fixtures/focus_order.bas — RapidR's OnEnter / OnExit by Tab and a click;
 //     handler_error.bas — a run-time error in a handler ends it (and the one
 //     that fired it), the form goes on; set_events.bas — the events a

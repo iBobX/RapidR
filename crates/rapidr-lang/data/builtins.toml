@@ -377,7 +377,7 @@ doc = "The largest whole number not greater than a number (`FLOOR(-2.1)` is -3),
 name = "FORMAT$"
 syntax = "FORMAT$(S$, arg1, arg2, ...)"
 group = "Strings"
-doc = "Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$(\"%5.2f\", 3.14159)` is ` 3.14`."
+doc = "Text built from a pattern and values: `%d`, `%s`, `%f`, `%x`, `%e`, `%g`, `%n`, `%m` with optional width and precision: `FORMAT$(\"%5.2f\", 3.14159)` is ` 3.14`. `%s` takes text (a number gives nothing), the others a number (text counts as 0); `%d` and `%x` make it a whole 32-bit number; a specifier Pascal's Format refuses (`%+d`, `%c`, `%.*f`) stops the program."
 example = "S$ = \"%s=%d\"\nDIM arg1 AS STRING = \"n\"\narg2 = 5\nPRINT FORMAT$(S$, arg1, arg2)"
 expect = "n=5"
 

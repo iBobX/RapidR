@@ -1066,19 +1066,19 @@ SUB RunToCursor
   END IF
 END SUB
 
-' (the program's output as it comes; OutLineOpen: its last line isn't ended)
-DIM OutLineOpen AS INTEGER
+' (the program's output as it comes; OutputUnendedLine: its last line isn't ended)
+DIM OutputUnendedLine AS INTEGER
 
 SUB ProgramOutput(Text AS STRING)
   OutputBox.Write Text
   AITools.AddRunOutput Text
-  IF Text <> "" THEN OutLineOpen = Flag(RIGHT$(Text, 1) <> CHR$(10))
+  IF Text <> "" THEN OutputUnendedLine = Flag(RIGHT$(Text, 1) <> CHR$(10))
 END SUB
 
 ' (a line of Studio's own after the program's: on a line of its own)
 SUB OutputAfterProgram(Text AS STRING)
-  IF OutLineOpen THEN OutputBox.Write CHR$(10)
-  OutLineOpen = 0
+  IF OutputUnendedLine THEN OutputBox.Write CHR$(10)
+  OutputUnendedLine = 0
   OutputLine Text
 END SUB
 

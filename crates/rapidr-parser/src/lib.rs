@@ -130,11 +130,36 @@ const SOFT_KEYWORDS: &[TokenType] = &[
     TokenType::Bind,
 ];
 
+/// Words that RC.EXE lets name a SUB or FUNCTION though the language uses
+/// them (`retag_routine_names`).
+const OPERATOR_WORDS: &[TokenType] = &[TokenType::Step, TokenType::To, TokenType::Then, TokenType::And];
+
+/// The type names: RC.EXE refuses them as a variable's, a CONST's, a SUB's
+/// or a FUNCTION's name and as the target of an assignment, each in its own
+/// words ([`Parser::describe_failure`], [`Parser::parse_routine_name`]).
+fn is_type_word(kind: TokenType) -> bool {
+    use TokenType::*;
+    matches!(kind, Integer | String | Double | Single | Byte | Word | Dword | Long | Variant)
+}
+
 /// When a program declares a SUB/FUNCTION named like a soft keyword
 /// (`SUB Close`, `DECLARE SUB Open`), every use of that word is the routine:
 /// retag those tokens as identifiers. `None` when nothing needs retagging.
 fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
     let mut names: Vec<String> = Vec::new();
+    // (`SUB Step`, `SUB To`, `SUB Then`, `SUB And`: RC.EXE takes them, the
+    // routine called by that name — `Step 1, 2`, `CALL Step(3)` — while a
+    // FOR's TO and STEP and an IF's THEN stay the keywords: only a word
+    // where a statement starts or a routine is named is the routine)
+    let mut operator_names: Vec<String> = Vec::new();
+    for pair in tokens.windows(2) {
+        if matches!(pair[0].kind, TokenType::Sub | TokenType::Function) && OPERATOR_WORDS.contains(&pair[1].kind) {
+            let upper = pair[1].lexeme.to_ascii_uppercase();
+            if !operator_names.contains(&upper) {
+                operator_names.push(upper);
+            }
+        }
+    }
     // (`SUB $XP_MANIFEST` … `$XP_MANIFEST`: a routine named like a
     // directive, called by that name — RC.EXE, RapidQ's XP_Manifest.inc)
     let dollar = |t: &Token| t.kind == TokenType::Directive && t.trailing.as_deref().is_none_or(|r| r.trim().is_empty() || r.trim_start().starts_with('\''));
@@ -153,16 +178,25 @@ fn retag_routine_names(tokens: &[Token]) -> Option<Vec<Token>> {
             }
         }
     }
-    if names.is_empty() && dollar_names.is_empty() {
+    if names.is_empty() && dollar_names.is_empty() && operator_names.is_empty() {
         return None;
     }
     Some(
         tokens
             .iter()
-            .map(|t| {
+            .enumerate()
+            .map(|(i, t)| {
                 let mut t = t.clone();
                 if SOFT_KEYWORDS.contains(&t.kind) && names.contains(&t.lexeme.to_ascii_uppercase()) {
                     t.kind = TokenType::Identifier;
+                }
+                if OPERATOR_WORDS.contains(&t.kind) && operator_names.contains(&t.lexeme.to_ascii_uppercase()) {
+                    let prev = i.checked_sub(1).map(|j| tokens[j].kind);
+                    // (a statement's first word, the word after CALL, or the
+                    // name a SUB / FUNCTION / DECLARE gives)
+                    if matches!(prev, None | Some(TokenType::Newline | TokenType::Colon | TokenType::Then | TokenType::Else | TokenType::Call | TokenType::Sub | TokenType::Function)) {
+                        t.kind = TokenType::Identifier;
+                    }
                 }
                 if dollar(&t) && dollar_names.contains(&t.lexeme.to_ascii_uppercase()) {
                     t.kind = TokenType::Identifier;
@@ -288,6 +322,21 @@ impl<'a> Parser<'a> {
             return "Syntax error: unexpected end of file".into();
         };
         let word = tok.lexeme.to_uppercase();
+        // `DIM Word AS ...`, `DIM a AS INTEGER, Word AS ...`: a type's name
+        // where a name is expected — RC.EXE's own words, then the reason.
+        if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
+            let end = self.tokens[start..].iter().position(|t| matches!(t.kind, TokenType::Newline | TokenType::Eof | TokenType::Colon)).map_or(self.tokens.len(), |n| start + n);
+            let at = (start + 1..end).find(|&j| {
+                (j == start + 1 || self.tokens[j - 1].kind == TokenType::Comma)
+                    && is_type_word(self.tokens[j].kind)
+                    && matches!(self.tokens.get(j + 1).map(|t| t.kind), Some(TokenType::As | TokenType::LParen | TokenType::Comma | TokenType::Eq | TokenType::Newline | TokenType::Eof))
+            });
+            if let Some(j) = at {
+                let (name, up) = (self.tokens[j].lexeme.clone(), self.tokens[j].lexeme.to_uppercase());
+                let head = if tok.kind == TokenType::Dim { format!("Identifier {name} already used, try another name") } else { format!("CONST variable {name} already defined") };
+                return format!("{head} — '{up}' is a reserved word (a data type's name) and can't be used as a name");
+            }
+        }
         // `DIM step AS ...`: a keyword where a name is expected.
         if matches!(tok.kind, TokenType::Dim | TokenType::Const) {
             if let Some(next) = self.tokens.get(start + 1) {
@@ -663,6 +712,12 @@ impl<'a> Parser<'a> {
         // `=` start no statement); from here on it is that variable.
         if self.peek_kind() != Some(TokenType::Identifier) && self.peek_is_word() && self.peek_kind_at(1) == Some(TokenType::Eq) {
             let name = self.peek()?.lexeme.to_ascii_lowercase();
+            // (a type's name is no variable — RC.EXE: `Trying to assign
+            // reserved word WORD` — unless this routine has a parameter of
+            // that name)
+            if self.type_scope == 0 && self.peek_kind().is_some_and(is_type_word) && !self.keyword_params.contains(&name) {
+                self.error_at(self.pos, format!("Trying to assign reserved word {} — it is a data type's name, not a variable: use another name", name.to_uppercase()));
+            }
             if !self.keyword_vars.contains(&name) {
                 self.keyword_vars.push(name);
             }
@@ -2102,6 +2157,12 @@ impl<'a> Parser<'a> {
     fn parse_routine_name(&mut self) -> Option<String> {
         // (a keyword names a method too: QDataBase.inc's `FUNCTION Create`)
         let mut name = if self.peek_is_word() && self.peek_kind() != Some(TokenType::Identifier) {
+            // (a type's name — RC.EXE: `WORD identifier already in use, try
+            // another name`; not for a TYPE's method, QDataBase.inc's names)
+            if self.type_scope == 0 && self.peek_kind().is_some_and(is_type_word) && self.peek_kind_at(1) != Some(TokenType::Dot) {
+                let word = self.peek()?.lexeme.clone();
+                self.error_at(self.pos, format!("{word} identifier already in use, try another name — '{}' is a reserved word (a data type's name) and can't be used as a name", word.to_uppercase()));
+            }
             self.advance()?.lexeme.clone()
         } else {
             self.expect(TokenType::Identifier)?.lexeme.clone()
@@ -4111,6 +4172,24 @@ mod tests {
         let errs = errors("DIM step AS DOUBLE\n");
         assert_eq!(errs.len(), 1, "{errs:?}");
         assert!(errs[0].2.contains("'STEP' is a reserved word"), "{errs:?}");
+    }
+
+    /// A type's name as a name, in RC.EXE's words for where it is (the
+    /// first error: RC stops there), and STEP / TO / THEN / AND as SUBs.
+    #[test]
+    fn type_names_as_names_and_operator_words_as_sub_names() {
+        let first = |src: &str| errors(src).into_iter().next().map(|e| e.2).unwrap_or_default();
+        assert!(first("DIM Word AS INTEGER\n").starts_with("Identifier WORD already used, try another name"), "{}", first("DIM Word AS INTEGER\n"));
+        assert!(first("DIM a AS INTEGER, Byte AS STRING\n").starts_with("Identifier BYTE already used, try another name"));
+        assert!(first("CONST Integer = 5\n").starts_with("CONST variable INTEGER already defined"));
+        assert!(first("SUB Word\nEND SUB\n").starts_with("WORD identifier already in use, try another name"));
+        assert!(first("FUNCTION String AS INTEGER\nEND FUNCTION\n").starts_with("STRING identifier already in use, try another name"));
+        assert!(first("Word = 5\n").starts_with("Trying to assign reserved word WORD"));
+        // (a parameter of that name is the routine's own; a TYPE's method may be named so)
+        assert!(errors("SUB Foo(Word AS INTEGER)\n  Word = 5\nEND SUB\n").is_empty());
+        // RC.EXE takes STEP, TO, THEN and AND as SUB names, called by name; a FOR's TO and STEP and an IF's THEN stay theirs
+        let src = "SUB Step(a AS INTEGER)\nEND SUB\nSUB To\nEND SUB\nSUB Then\nEND SUB\nSUB And\nEND SUB\nStep 1\nCALL Step(2)\nTo\nThen\nAnd\nDIM i AS INTEGER\nFOR i = 1 TO 5 STEP 2\nNEXT\nIF i = 7 AND i > 1 THEN PRINT i\n";
+        assert!(errors(src).is_empty(), "{:?}", errors(src));
     }
 
     /// Every string literal's text and every name read in `e`, in order

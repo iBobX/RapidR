@@ -257,6 +257,12 @@ export const cases = [
   { name: "input_events", events: "ed.__key_65,ed.__key_13,ed.__key_38,cv.__mousedown_10_20,cv.__mousemove_11_21,cv.__mouseup_12_22,pn.__mousedown_3_4",
     dump: "lk.caption,lm.caption",
     expect: ["lk.caption=fd65 d65,0 fpa p97 u65 fd13 d13,0 fp\r p13 u13 fd38 d38,0 u38 ", "lm.caption=down010200 move11210 up01222 panel34"] },
+  // Keys typed in a QLISTBOX reach its form only with KeyPreview on — RC.EXE's
+  // own run of the same form (WM_KEYDOWN, WM_CHAR, WM_KEYUP sent to the list's
+  // window; docs/rapidq-ground-truth.md) gives this string: nothing before
+  // the Preview button, then d65 p97 u65 (a letter) and d40 u40 (an arrow).
+  { name: "list_keys", events: "lst.__key_65,lst.__key_40,pv.onclick,lst.__key_65,lst.__key_40", dump: "lk.caption",
+    expect: ["lk.caption=| d65 p97 u65 d40 u40 "] },
   { name: "list_columns", events: "lst.__item_4,cb.__item_2", dump: "lbl.caption,lbl2.caption,cb.itemindex",
     expect: ["lbl.caption=i4 a4 cols2", "lbl2.caption=c2 0-18/112 18-38/112 38-60/112", "cb.itemindex=2"] },
   // QLISTBOX scrolls to what the program picks (Windows' LB_SETCURSEL and

@@ -1947,6 +1947,10 @@ const CATCH_ALL_NAMES: &[&str] = &[
     "showmodal", "show", "close", "hide", "repaint", "refresh", "update", "paint", "center", "setparent", "clear", "additems", "additem",
     "deleteitems", "deleteitem", "removeitem", "setfocus", "focus", "click", "addbordericons", "delbordericons", "selectall", "copy", "paste", "cut", "execute",
     "line", "rect", "fillrect", "circle", "ellipse", "setpixel", "getpixel", "drawtext", "loadimage", "saveimage",
+    // (RC.EXE has no TabStop on any component — QLISTBOX, QEDIT, QBUTTON,
+    // QCOMBOBOX all answer `Member TABSTOP not part of class L`; RapidR's
+    // RPanel and RLabel have one of their own, which the registry answers)
+    "tabstop",
 ];
 
 /// RapidQ's `Member X not part of class Y` for a component's member the
@@ -2342,6 +2346,191 @@ pub fn rapidq_checks(program: &Program) -> Vec<(TextSpan, String)> {
             }
             Statement::Function(f) => dims(&f.body, &mut HashMap::new(), &mut out, false),
             _ => {}
+        }
+    }
+    out.extend(global_name_clashes(program));
+    out.extend(component_used_as_array(program));
+    out
+}
+
+/// What kind of global name a statement introduces ([`global_name_clashes`]).
+#[derive(Clone, Copy, PartialEq)]
+enum GlobalKind {
+    Variable,
+    Constant,
+    Routine,
+    Component,
+}
+
+/// RC.EXE keeps one list of a program's global names — its variables and
+/// arrays (DIM), CONSTs, SUBs and FUNCTIONs, and the components CREATEd,
+/// the children inside a CREATE too — in any capitals, and refuses a name
+/// twice, in its words for what the second one is: `Identifier matrix
+/// already used, try another name` (a DIM or a CREATE), `Foo identifier
+/// already in use, try another name` (a SUB or FUNCTION), `CONST variable
+/// Foo already defined`. Two DIMs are [`rapidq_checks`]' own message; a
+/// DIM of the type a CREATE then makes (`DIM Form AS QFORM` … `CREATE Form
+/// AS QFORM`) is one component, as RapidQ's programs write it. A SUB's own
+/// variables and its parameters may reuse any name (`Foo(matrix …)`).
+fn global_name_clashes(program: &Program) -> Vec<(TextSpan, String)> {
+    use std::collections::HashMap;
+    struct First {
+        kind: GlobalKind,
+        type_name: String,
+        at: usize,
+    }
+    fn type_key(t: &str) -> String {
+        canonical_type_name(t).to_ascii_uppercase()
+    }
+    fn note(
+        name: &str,
+        kind: GlobalKind,
+        type_name: &str,
+        span: TextSpan,
+        seen: &mut HashMap<String, First>,
+        out: &mut Vec<(TextSpan, String)>,
+    ) {
+        if name.is_empty() || name.contains('(') {
+            return;
+        }
+        let key = name.to_ascii_lowercase();
+        let Some(first) = seen.get(&key) else {
+            seen.insert(key, First { kind, type_name: type_key(type_name), at: span.start });
+            return;
+        };
+        // (two DIMs: the DIM check's message)
+        if kind == GlobalKind::Variable && first.kind == GlobalKind::Variable {
+            return;
+        }
+        // (the DIM and the CREATE of one component, in either order)
+        let same_component = matches!((first.kind, kind), (GlobalKind::Variable, GlobalKind::Component) | (GlobalKind::Component, GlobalKind::Variable))
+            && !first.type_name.is_empty()
+            && first.type_name == type_key(type_name);
+        if same_component {
+            return;
+        }
+        let place = rapidr_diagnostics::place_mark(first.at);
+        let why = "a global name — a variable, CONST, SUB, FUNCTION or component, in any capitals — is the program's once; a SUB's own variables and parameters may reuse it";
+        let message = match kind {
+            GlobalKind::Variable | GlobalKind::Component => format!("Identifier {name} already used, try another name — it is declared in {place} already: {why}"),
+            GlobalKind::Routine => format!("{name} identifier already in use, try another name — it is declared in {place} already: {why}"),
+            GlobalKind::Constant => format!("CONST variable {name} already defined — it is declared in {place} already: {why}"),
+        };
+        out.push((span, message));
+    }
+    fn visit(stmts: &[Statement], seen: &mut HashMap<String, First>, out: &mut Vec<(TextSpan, String)>) {
+        for s in stmts {
+            match s {
+                Statement::Dim(d) if !d.is_redim && !d.is_static => {
+                    for v in &d.declarators {
+                        note(&v.name, GlobalKind::Variable, if is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name) { &d.type_name } else { "" }, v.span, seen, out);
+                    }
+                }
+                Statement::Const(c) => note(&c.name, GlobalKind::Constant, "", c.span, seen, out),
+                Statement::Subroutine(r) => note(&r.name, GlobalKind::Routine, "", r.span, seen, out),
+                Statement::Function(f) => note(&f.name, GlobalKind::Routine, "", f.span, seen, out),
+                Statement::Create(c) => {
+                    note(&c.name, GlobalKind::Component, &c.type_name, c.span, seen, out);
+                    visit_children(&c.body, seen, out);
+                }
+                Statement::If(i) => {
+                    visit(&i.then_body, seen, out);
+                    for b in &i.elseif_branches {
+                        visit(&b.body, seen, out);
+                    }
+                    visit(&i.else_body, seen, out);
+                }
+                _ => {}
+            }
+        }
+    }
+    // (the components inside a CREATE: its properties are no names)
+    fn visit_children(body: &[Statement], seen: &mut HashMap<String, First>, out: &mut Vec<(TextSpan, String)>) {
+        for s in body {
+            if let Statement::Create(c) = s {
+                note(&c.name, GlobalKind::Component, &c.type_name, c.span, seen, out);
+                visit_children(&c.body, seen, out);
+            }
+        }
+    }
+    let mut seen = HashMap::new();
+    let mut out = Vec::new();
+    let top: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(_))).cloned().collect();
+    visit(&top, &mut seen, &mut out);
+    out
+}
+
+/// `matrix(1) = 5` where `matrix` is a component (CREATEd or DIMmed as
+/// one), not an array: RC.EXE stops at the `(` — `Expected = but got "("` —
+/// where RapidR found out when the program ran (`not an array`). A SUB or
+/// FUNCTION with a parameter or variable of that name has an array of its
+/// own (RapidQ allows it), so it isn't a component there.
+fn component_used_as_array(program: &Program) -> Vec<(TextSpan, String)> {
+    use std::collections::{HashMap, HashSet};
+    fn collect(stmts: &[Statement], into: &mut HashMap<String, String>) {
+        for s in stmts {
+            match s {
+                Statement::Create(c) => {
+                    into.insert(c.name.to_ascii_lowercase(), c.type_name.clone());
+                    collect(&c.body, into);
+                }
+                Statement::Dim(d) if !d.is_redim && (is_rapidq_object_type(&d.type_name) || is_component_type_name(&d.type_name)) => {
+                    for v in d.declarators.iter().filter(|v| v.dimensions.is_empty()) {
+                        into.insert(v.name.to_ascii_lowercase(), d.type_name.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut components = HashMap::new();
+    let globals: Vec<Statement> = program.statements.iter().filter(|s| !matches!(s, Statement::Type(_) | Statement::Subroutine(_) | Statement::Function(_))).cloned().collect();
+    collect(&globals, &mut components);
+    if components.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let check = |stmts: &[Statement], own: &HashSet<String>, out: &mut Vec<(TextSpan, String)>| {
+        walk(
+            stmts,
+            &mut |s| {
+                let Statement::Assignment(a) = s else { return };
+                // (the parser can't tell an array from a function: `m(1) = 5`
+                // reads as either)
+                let named = match &a.target {
+                    Expression::ArrayAccess(acc) => acc.array.as_ref(),
+                    Expression::FunctionCall(c) => c.callee.as_ref(),
+                    _ => return,
+                };
+                let Expression::Identifier(id) = named else { return };
+                let key = id.name.to_ascii_lowercase();
+                if own.contains(&key) {
+                    return;
+                }
+                if let Some(t) = components.get(&key) {
+                    out.push((
+                        a.span,
+                        format!("Expected = but got \"(\" — {} is a component (a {}), not an array: a component has no elements; DIM an array under another name", id.name, t.to_ascii_uppercase()),
+                    ));
+                }
+            },
+            &mut |_| {},
+        );
+    };
+    for s in &program.statements {
+        match s {
+            Statement::Subroutine(r) => {
+                let mut own: HashSet<String> = r.params.iter().map(|p| p.name.to_ascii_lowercase()).collect();
+                walk(&r.body, &mut |st| if let Statement::Dim(d) = st { own.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase())) }, &mut |_| {});
+                check(&r.body, &own, &mut out);
+            }
+            Statement::Function(f) => {
+                let mut own: HashSet<String> = f.params.iter().map(|p| p.name.to_ascii_lowercase()).collect();
+                walk(&f.body, &mut |st| if let Statement::Dim(d) = st { own.extend(d.declarators.iter().map(|v| v.name.to_ascii_lowercase())) }, &mut |_| {});
+                check(&f.body, &own, &mut out);
+            }
+            Statement::Type(_) => {}
+            other => check(std::slice::from_ref(other), &HashSet::new(), &mut out),
         }
     }
     out
