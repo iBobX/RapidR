@@ -31,18 +31,124 @@ pub struct QueuedEvent {
     /// ([`call`] hands it last): the VM marks it for the handler's
     /// [`sender_param`]s. `None` for a call that isn't an event's.
     pub sender: Option<usize>,
+    /// The event's name as the runtime fired it (`onpaint`; empty for a call
+    /// that isn't an event's): what a runaway chain of events is told by
+    /// ([`runaway`]).
+    pub event: String,
+    /// Fired by the window loop's turn — a timer's tick, the user's input,
+    /// a paint the system asked for, a stream's OnNeedData, a request that
+    /// came in —, not by a statement of the program (a set's OnChange, a
+    /// Repaint's OnPaint: [`program_call`]). The VM runs such an event only
+    /// where the program lets its events run — a wait (ShowModal, DOEVENTS,
+    /// a dialog) or its loop once the running handler has ended —, never
+    /// inside a statement of a handler that is still running.
+    pub asynchronous: bool,
 }
 
 impl QueuedEvent {
     pub fn new(handler: u32, args: Vec<Value>) -> Self {
-        QueuedEvent { handler, args, then: Vec::new(), sender: None }
+        QueuedEvent { handler, args, then: Vec::new(), sender: None, event: String::new(), asynchronous: false }
     }
 
     /// A handler of an event [`call`] fired, with its arguments (the Sender
     /// last) and the continuation armed for it ([`take_armed`]): what a host
     /// queues for the VM.
     pub fn fired(handler: u32, args: &[Value]) -> Self {
-        QueuedEvent { handler, args: args.to_vec(), then: take_armed(), sender: args.len().checked_sub(1) }
+        let event = FIRING.with(|f| f.borrow().clone());
+        QueuedEvent { handler, args: args.to_vec(), then: take_armed(), sender: args.len().checked_sub(1), event, asynchronous: !in_program_call() }
+    }
+
+    /// The component that fired it (the Sender, the last of its arguments).
+    pub fn component(&self) -> String {
+        self.sender.and_then(|i| self.args.get(i)).map(Value::to_string_val).unwrap_or_default()
+    }
+}
+
+thread_local! {
+    /// The program's statements calling into the runtime now (a property
+    /// set, a method, a builtin): [`program_call`].
+    static PROGRAM_CALLS: Cell<u32> = const { Cell::new(0) };
+    /// The event [`call`] is firing (its name), for [`QueuedEvent::fired`].
+    static FIRING: RefCell<String> = const { RefCell::new(String::new()) };
+    /// The compiled handlers running now (a native build's: [`call`] runs
+    /// them as they're fired), innermost last: each one's event and
+    /// component as a number ([`Running::key`]; nothing allocated per
+    /// event), for [`runaway`].
+    static RUNNING: RefCell<Vec<u64>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Runs `f`, a statement of the program calling into the runtime (an
+/// interpreter host's property set, method or builtin): the events it fires
+/// are the statement's own — RapidQ fires them at once (an edit's Text set
+/// fires its OnChange, a canvas's Repaint its OnPaint) —, not the window
+/// loop's ([`QueuedEvent::asynchronous`]).
+pub fn program_call<R>(f: impl FnOnce() -> R) -> R {
+    struct Out;
+    impl Drop for Out {
+        fn drop(&mut self) {
+            PROGRAM_CALLS.with(|c| c.set(c.get().saturating_sub(1)));
+        }
+    }
+    PROGRAM_CALLS.with(|c| c.set(c.get() + 1));
+    let _out = Out;
+    f()
+}
+
+/// Whether a statement of the program is calling into the runtime now
+/// ([`program_call`]).
+pub fn in_program_call() -> bool {
+    PROGRAM_CALLS.with(Cell::get) > 0
+}
+
+/// How deep event handlers may run inside each other — an event a handler
+/// fires before it ends runs inside it (RapidQ's way: a Repaint fires
+/// OnPaint at once, an edit's Text set its OnChange) — before the program
+/// stops with a run-time error ([`runaway`]) instead of running out of
+/// stack: a Repaint inside the canvas's own OnPaint fires it again, for
+/// ever.
+pub const MAX_EVENT_DEPTH: usize = 200;
+
+/// An event's name as programs write it: `onmousedown` → `OnMouseDown`.
+pub fn event_title(event: &str) -> String {
+    const WORDS: [&str; 30] = [
+        "mouse", "down", "up", "move", "key", "press", "dbl", "click", "need", "data", "draw", "item", "cell", "select", "measure", "wnd", "proc", "list", "drop", "close", "query", "theme", "change", "language", "timer", "paint", "resize", "show", "enter", "exit",
+    ];
+    let lower = event.to_ascii_lowercase();
+    let Some(mut rest) = lower.strip_prefix("on") else { return event.to_string() };
+    let mut out = String::from("On");
+    while !rest.is_empty() {
+        // (a known word starts here: its first letter a capital; anything
+        // else stays as it is)
+        if let Some(w) = WORDS.iter().filter(|w| rest.starts_with(**w)).max_by_key(|w| w.len()) {
+            out.push_str(&w[..1].to_ascii_uppercase());
+            out.push_str(&w[1..]);
+            rest = &rest[w.len()..];
+            continue;
+        }
+        let c = rest.chars().next().unwrap_or(' ');
+        if out.len() == 2 {
+            out.extend(c.to_uppercase());
+        } else {
+            out.push(c);
+        }
+        rest = &rest[c.len_utf8()..];
+    }
+    out
+}
+
+/// The run-time error of events running inside each other too deep
+/// ([`MAX_EVENT_DEPTH`]): `event` of `component` was about to run inside
+/// `depth` handlers that haven't ended, `same` of them its own.
+pub fn runaway(event: &str, component: &str, same: usize, depth: usize) -> String {
+    let what = match (event.is_empty(), component.is_empty()) {
+        (true, _) => "an event".to_string(),
+        (false, true) => event_title(event),
+        (false, false) => format!("{} of {component}", event_title(event)),
+    };
+    if same * 2 >= depth {
+        format!("{what} ran inside itself {} times: its handler fires it again before it ends", same + 1)
+    } else {
+        format!("events ran inside each other {} deep (the last: {what}): their handlers fire events before they end", depth + 1)
     }
 }
 
@@ -130,15 +236,28 @@ pub fn bound(name: &str, event: &str) {
 /// last (`Sender`, as in RapidQ's `SUB Button1Click (Sender AS QBUTTON)`;
 /// handlers declaring fewer parameters don't get it). Returns the arguments
 /// as a compiled handler left them (a queued bytecode handler hands them to
-/// its continuation instead).
-pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32, &[Value])) -> Vec<Value> {
+/// its continuation instead). `event` is the event's name (`onpaint`).
+///
+/// A compiled handler fired while [`MAX_EVENT_DEPTH`] others are still
+/// running (each fired by the one below it before it ended) stops the
+/// program with a run-time error ([`runaway`]) — the interpreter's VM
+/// counts its own.
+pub fn call(handler: Handler, name: &str, event: &str, args: &[Value], indirect: impl Fn(u32, &[Value])) -> Vec<Value> {
     let mut all: Vec<Value> = args.iter().cloned().chain(std::iter::once(v_str(name))).collect();
     let a = |all: &[Value], i: usize| all.get(i).cloned().unwrap_or_else(v_null);
+    let queued = matches!(handler, Handler::Indirect(_) | Handler::IndirectThis(..));
+    // (a queued handler's event name travels with it: QueuedEvent::fired;
+    // a compiled one runs now, on top of those running)
+    let _running = if queued {
+        FIRING.with(|f| event.clone_into(&mut f.borrow_mut()));
+        None
+    } else {
+        Some(Running::enter(event, name))
+    };
     // A compiled handler may fire events of its own: this one's
     // continuation waits aside until it returns. A host queuing a bytecode
     // handler takes it with the handler (`take_armed`).
     let armed = ARMED.with(|a| a.take());
-    let queued = matches!(handler, Handler::Indirect(_) | Handler::IndirectThis(..));
     if queued {
         ARMED.with(|a| a.set(armed));
     }
@@ -183,7 +302,39 @@ pub fn call(handler: Handler, name: &str, args: &[Value], indirect: impl Fn(u32,
         arm_sender(outer);
     }
     drop(back);
+    if queued {
+        FIRING.with(|f| f.borrow_mut().clear());
+    }
     all
+}
+
+/// A compiled handler running ([`RUNNING`]), until it ends — or fails.
+struct Running;
+
+impl Running {
+    /// `event` of `name`'s handler starts, on top of those still running:
+    /// past [`MAX_EVENT_DEPTH`] of them, the program's run-time error.
+    fn enter(event: &str, name: &str) -> Running {
+        let key = Self::key(event, name);
+        let depth = RUNNING.with(|r| r.borrow().len());
+        if depth >= MAX_EVENT_DEPTH {
+            let same = RUNNING.with(|r| r.borrow().iter().filter(|k| **k == key).count());
+            crate::runtime_error(&runaway(event, name, same, depth));
+        }
+        RUNNING.with(|r| r.borrow_mut().push(key));
+        Running
+    }
+
+    /// `event` of `name` as a number (FNV-1a of both, case ignored).
+    fn key(event: &str, name: &str) -> u64 {
+        event.bytes().chain(std::iter::once(0)).chain(name.bytes()).fold(0xcbf2_9ce4_8422_2325, |h, b| (h ^ u64::from(b.to_ascii_lowercase())).wrapping_mul(0x0100_0000_01b3))
+    }
+}
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        RUNNING.with(|r| r.borrow_mut().pop());
+    }
 }
 
 /// A continuation, given the event's arguments as the handler left them.
@@ -322,11 +473,36 @@ mod tests {
     }
 
     #[test]
+    fn a_compiled_handler_firing_itself_for_ever_stops_with_a_run_time_error() {
+        // (an OnChange that sets its edit's Text again, at once, for ever)
+        fn again() {
+            call(Handler::Arity0(again), "e1", "onchange", &[], |_, _| {});
+        }
+        let error = crate::host_call(again).unwrap_err();
+        assert_eq!(error, "OnChange of e1 ran inside itself 201 times: its handler fires it again before it ends");
+        assert!(RUNNING.with(|r| r.borrow().is_empty()), "every handler unwound");
+        // (one event inside another, and back: said as a chain)
+        assert!(runaway("onpaint", "screen", 40, 200).starts_with("events ran inside each other 201 deep (the last: OnPaint of screen)"));
+        assert_eq!(event_title("onmousedown"), "OnMouseDown");
+        assert_eq!(event_title("onneeddata"), "OnNeedData");
+        assert_eq!(event_title("onfoo"), "OnFoo");
+    }
+
+    #[test]
+    fn the_loops_events_and_a_statements_own_are_told_apart() {
+        // (queued outside a statement of the program: the window loop's)
+        ARMED.with(|a| a.set(None));
+        assert!(QueuedEvent::fired(1, &[v_str("t")]).asynchronous);
+        assert!(!program_call(|| QueuedEvent::fired(1, &[v_str("e")])).asynchronous);
+        assert!(!crate::host_call(|| QueuedEvent::fired(1, &[])).unwrap().asynchronous);
+    }
+
+    #[test]
     fn compiled_handlers_write_their_parameters_back() {
         fn close(a: &mut [Value]) {
             a[0] = v_int(0);
         }
-        let out = call(Handler::Out(2, close), "form", &[v_int(CA_HIDE)], |_, _| {});
+        let out = call(Handler::Out(2, close), "form", "onclose", &[v_int(CA_HIDE)], |_, _| {});
         assert_eq!(CloseAction::of(&out[0]), CloseAction::Stay);
         assert_eq!(out[1].to_string_val(), "form");
     }
@@ -338,10 +514,10 @@ mod tests {
             a[0] = v_int(20);
         }
         fn outer(a: &mut [Value]) {
-            fire_then(&[v_int(2)], || call(Handler::Out(1, inner), "b", &[v_int(2)], |_, _| {}), |a| LOG.with(|l| l.borrow_mut().push(a[0].to_i64())));
+            fire_then(&[v_int(2)], || call(Handler::Out(1, inner), "b", "onclick", &[v_int(2)], |_, _| {}), |a| LOG.with(|l| l.borrow_mut().push(a[0].to_i64())));
             a[0] = v_int(10);
         }
-        fire_then(&[v_int(1)], || call(Handler::Out(1, outer), "a", &[v_int(1)], |_, _| {}), |a| LOG.with(|l| l.borrow_mut().push(a[0].to_i64())));
+        fire_then(&[v_int(1)], || call(Handler::Out(1, outer), "a", "onclick", &[v_int(1)], |_, _| {}), |a| LOG.with(|l| l.borrow_mut().push(a[0].to_i64())));
         assert_eq!(LOG.with(|l| l.borrow().clone()), vec![20, 10]);
     }
 
@@ -350,7 +526,7 @@ mod tests {
         let got = Rc::new(Cell::new(-1));
         let g = got.clone();
         arm(&[v_int(1)], move |a| g.set(a[0].to_i64()));
-        call(Handler::IndirectThis(7, v_str("obj")), "grid", &[v_int(1)], |_, _| {});
+        call(Handler::IndirectThis(7, v_str("obj")), "grid", "onclick", &[v_int(1)], |_, _| {});
         let then = take_armed();
         // The handler's parameters: This, CanSelect, Sender.
         run_all(then, &[v_str("obj"), v_int(0), v_str("grid")]);

@@ -629,6 +629,9 @@ An error in included code points at the include file and line.
   the error is written to the program's error output (in Studio, the
   Output). An error a component raises (`Cannot create file
   notes/today.txt.`) is a run-time error like any other, with its line.
+- Handlers that keep firing events inside each other for ever (a `Repaint`
+  inside the same canvas's `OnPaint`) stop, 200 deep, with a run-time error
+  naming the event — never a crash ([When events run](components.md#when-events-run)).
 - `ON ERROR GOTO` / `ON ERROR RESUME NEXT` (VB's) are accepted
   so that such programs compile, and **ignored**.
 

@@ -2550,7 +2550,7 @@ fn fire(name: &str, event: &str, args: &[Value]) -> Vec<Value> {
         return args.to_vec();
     }
     let Some(handler) = lookup_handler(name, event) else { return args.to_vec() };
-    rapidr_value::events::call(handler, name, args, dispatch_indirect)
+    rapidr_value::events::call(handler, name, event, args, dispatch_indirect)
 }
 
 /// Fire an event with no arguments (handlers get the Sender).
