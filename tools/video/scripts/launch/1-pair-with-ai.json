@@ -1,0 +1,49 @@
+// Launch video 1 (Preview 5): Pair with AI on this computer. 75-90 s.
+// SKELETON for Robert's review: not recorded yet. Steps marked TODO name a
+// target to check against Studio when it is recorded (docs/video-pipeline.md).
+// Only a model already on this Mac; no key, no cloud provider in the video.
+{
+  "id": "launch-1-pair-with-ai",
+  "draft": "skeleton",
+  "title": { "en": "Pair with AI on this computer", "es": "Programa con IA en tu computadora" },
+  "description": {
+    "en": "RAI, RapidR Studio's assistant, with a model that runs on your own computer: Studio checks what fits your memory, then you build together.",
+    "es": "RAI, el asistente de RapidR Studio, con un modelo que corre en tu propia computadora: Studio comprueba qué cabe en tu memoria y luego construyen juntos."
+  },
+  "screen": [1440, 810], "scale": 1.3333333, "fps": 30,
+  "studio": { "theme": "rapidr-light" },
+  "steps": [
+    { "card": { "title": { "en": "Pair with AI", "es": "Programa con IA" }, "lines": [{ "en": "on this computer", "es": "en tu computadora" }],
+        "small": [{ "en": "AI-generated narration", "es": "Narración generada con IA" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "RAI can help you build, right on your own computer.", "es": "RAI puede ayudarte a construir, en tu propia computadora." }] },
+    { "say": [{ "en": "Open RAI's setup.", "es": "Abre la configuración de RAI." }],
+      // TODO: the setup window's name
+      "do": [{ "do": "ai.setup" }, { "waitFor": "window:AISetupDialog", "timeout": 10 }] },
+    { "say": [
+        { "en": "Studio looks at this computer's memory first…", "es": "Primero, Studio mira la memoria de esta computadora…" },
+        { "en": "and says, in plain words, which models fit.", "es": "y te dice, con palabras simples, qué modelos caben." } ],
+      // TODO: the memory line's name
+      "do": [{ "highlight": "AISuMemText", "for": 3 }] },
+    { "say": [{ "en": "Pick a model that's already here, and connect.", "es": "Elige un modelo que ya esté aquí y conéctalo." }],
+      // TODO: captions
+      "do": [{ "click": "caption:This computer" }, { "click": "caption:Connect" }] },
+    { "say": [{ "en": "Nothing leaves your computer: no key, no account.", "es": "Nada sale de tu computadora: sin clave, sin cuenta." }],
+      // TODO: RAI's pane name
+      "do": [{ "spotlight": "AIPanel", "for": 2.5 }] },
+    { "say": [{ "en": "Ask for what you want, in your own words.", "es": "Pide lo que quieres, con tus propias palabras." }],
+      // TODO: input name
+      "do": [{ "type": { "en": "Add a button that counts my clicks", "es": "Agrega un botón que cuente mis clics" }, "into": "AIInput" }, { "key": "Enter" }] },
+    { "say": [{ "en": "RAI shows its change before anything is written.", "es": "RAI muestra su cambio antes de escribir nada." }],
+      "do": [{ "waitFor": { "shows": "caption:Apply" }, "timeout": 120 }, { "highlight": "caption:Apply", "for": 2 }] },
+    { "say": [{ "en": "You decide: apply it, and run.", "es": "Tú decides: aplícalo y ejecuta." }],
+      "do": [{ "click": "caption:Apply" }, { "do": "run.start" }, { "waitFor": { "app": true }, "timeout": 60 }] },
+    { "say": [{ "en": "It works. And if something breaks, RAI reads the error with you.", "es": "Funciona. Y si algo falla, RAI lee el error contigo." }],
+      "do": [{ "click": "app:Button1", "pause": 1.0 }, { "mark": "poster" }] },
+    { "card": { "title": "RapidR Studio", "lines": [{ "en": "Your computer, your code", "es": "Tu computadora, tu código" }, "rapidr.dev"],
+        "small": [{ "en": "Narrated by an AI-generated voice (Qwen3-TTS)", "es": "Narrado por una voz generada con IA (Qwen3-TTS)" },
+                  { "en": "Support RapidR: GitHub Sponsors · Buy Me a Coffee", "es": "Apoya RapidR: GitHub Sponsors · Buy Me a Coffee" }],
+        "background": "../../assets/card-bg.svg", "logo": "../../../../design/brand/logo/rapidr-lockup-dark.svg", "logoHeight": 64 },
+      "say": [{ "en": "Pair with AI, on your terms.", "es": "Programa con IA, a tu manera." }], "do": [{ "wait": 2.5 }] }
+  ]
+}

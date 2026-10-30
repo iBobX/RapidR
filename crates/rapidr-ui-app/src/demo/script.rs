@@ -533,6 +533,52 @@ mod tests {
     }
 
     #[test]
+    fn targets_and_conditions_as_written() {
+        let t = target_of("app: Button1");
+        assert_eq!((t.app, t.what.as_str(), t.item.as_deref(), t.fx, t.fy), (true, "Button1", None, 0.5, 0.5));
+        let t = target_of("studio > Save a Version");
+        assert_eq!((t.app, t.what.as_str(), t.item.as_deref()), (false, "studio", Some("Save a Version")));
+        let t = parse_target(&serde_json::json!({ "window": "studio", "at": [12, 34] })).unwrap();
+        assert_eq!((t.window.as_deref(), t.at), (Some("studio"), Some((12.0, 34.0))));
+        assert!(parse_target(&serde_json::json!({ "x": 0.5 })).unwrap_err().contains("names a component"));
+        assert_eq!(cond_of(&serde_json::json!("gone:VerSaveDialog")).unwrap(), Cond::Gone("VerSaveDialog".into()));
+        assert_eq!(cond_of(&serde_json::json!("shows:Toolbox > RButton")).unwrap(), Cond::Shows(target_of("Toolbox > RButton")));
+        assert_eq!(cond_of(&serde_json::json!({ "app": false })).unwrap(), Cond::App(false));
+        assert_eq!(cond_of(&serde_json::json!({ "prop": "studio.caption", "is": "x" })).unwrap(), Cond::Prop { path: "studio.caption".into(), value: "x".into(), exact: true });
+        assert!(cond_of(&serde_json::json!({ "prop": "caption", "is": "x" })).unwrap_err().contains("component.property"));
+    }
+
+    /// Every script in tools/video/scripts (the sample and the launch
+    /// videos' skeletons) parses, in English and in Spanish, and has its
+    /// narration in both.
+    #[test]
+    fn the_video_scripts_parse_in_english_and_spanish() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/video/scripts");
+        let mut files = Vec::new();
+        for dir in [root.clone(), root.join("launch")] {
+            for e in std::fs::read_dir(&dir).unwrap() {
+                let p = e.unwrap().path();
+                if p.extension().is_some_and(|x| x == "json") {
+                    files.push(p);
+                }
+            }
+        }
+        assert!(files.len() >= 7, "{files:?}");
+        for f in files {
+            let text = std::fs::read_to_string(&f).unwrap();
+            let en = parse(&text, "en").unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+            let es = parse(&text, "es").unwrap_or_else(|e| panic!("{}: {e}", f.display()));
+            assert!(en.steps.len() >= 5 && en.steps.len() == es.steps.len(), "{}", f.display());
+            assert_ne!(en.title, es.title, "{}: a Spanish title", f.display());
+            for (a, b) in en.steps.iter().zip(&es.steps) {
+                for (la, lb) in a.say.iter().zip(&b.say) {
+                    assert!(!la.text.is_empty() && la.text != lb.text, "{}: \"{}\" has no Spanish", f.display(), la.text);
+                }
+            }
+        }
+    }
+
+    #[test]
     fn markup_and_estimates() {
         assert_eq!(markup("Press {F5|F five} now {not markup}"), ("Press F5 now {not markup}".into(), "Press F five now {not markup}".into()));
         assert_eq!(estimate_ms("Hi"), 1200);
