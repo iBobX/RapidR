@@ -15,6 +15,7 @@ pub mod archive;
 pub mod avi;
 pub mod bevel;
 pub mod bitmap;
+pub mod blit;
 pub mod cgi;
 pub mod code;
 pub mod codeedit;
@@ -46,6 +47,7 @@ pub mod midiout;
 pub mod updown;
 pub mod menu;
 pub mod ops;
+pub mod pixels;
 pub mod printer;
 pub mod record;
 pub mod richtext;
@@ -1698,7 +1700,7 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
     }
     // Drawing on a QIMAGE without a picture: first one the control's size
     // (read before borrowing the registry: `props` may read objects too).
-    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "textrect")
+    let drawing = matches!(method.as_str(), "pset" | "line" | "rectangle" | "fillrect" | "circle" | "roundrect" | "paint" | "draw" | "copyrect" | "stretchdraw" | "textrect" | "setpixels" | "setpixels8")
         || (method == "pixel" && args.len() >= 3);
     // A QCANVAS is always the control's size; a QFORM's surface its client
     // area's, drawing in the form's font.
@@ -1912,12 +1914,42 @@ pub fn call(id: &str, method: &str, args: &[Value], props: PropReader) -> Option
             });
             Some(Ok(Value::Null))
         }
+        // RapidR's pixel blocks (pixels.rs): an array of colours (or of
+        // palette indexes) to or from a rectangle of the picture, one call.
+        ("bitmap", "setpixels") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::set_pixels(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
+        ("bitmap", "setpixels8") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::set_pixels8(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
+        ("bitmap", "getpixels") => Some(with(id, |o| match o {
+            Object::Bitmap(b) => pixels::get_pixels(b, args),
+            _ => Ok(()),
+        })?
+        .map(|_| Value::Null)),
         ("bitmap", "draw") => {
             let src = match load_image(&arg(2)) {
                 Ok(src) => src,
                 Err(e) => return Some(Err(e)),
             };
             with(id, |o| if let Object::Bitmap(b) = o { b.draw(arg(0).to_i64(), arg(1).to_i64(), &src) });
+            Some(Ok(Value::Null))
+        }
+        // RapidR's `StretchDraw x, y, w, h, Bitmap`: the Rect's four numbers
+        // given one by one (the picture, scaled to w x h at x, y).
+        ("bitmap", "stretchdraw") if args.len() >= 5 => {
+            let (x, y) = (arg(0).to_i64(), arg(1).to_i64());
+            let (w, h) = (arg(2).to_i64(), arg(3).to_i64());
+            let src = match load_image(&arg(4)) {
+                Ok(src) => src,
+                Err(e) => return Some(Err(e)),
+            };
+            let whole = (0, 0, src.img.width as i64, src.img.height as i64);
+            with(id, |o| if let Object::Bitmap(b) = o { b.copy_rect((x, y, x.saturating_add(w), y.saturating_add(h)), &src, whole) });
             Some(Ok(Value::Null))
         }
         ("bitmap", "copyrect" | "stretchdraw") => {
