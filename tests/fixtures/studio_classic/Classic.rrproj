@@ -1,0 +1,12 @@
+# RapidR Studio project (format 2)
+
+format = 2
+name = "Classic"
+main = "main.rr"
+
+[compat]
+rapidq_compatible = true
+
+[[files]]
+path = "main.rr"
+kind = "form"
